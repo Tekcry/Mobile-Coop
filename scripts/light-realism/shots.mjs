@@ -1,17 +1,21 @@
 #!/usr/bin/env node
-// light-realism: the S1 staff car park on the GPU (laptop alone slot). Read-only on the game: it boots Saltmarsh Park
-// (`?autostart=campusOps&mode=sector&sectorGuards=0`) at Low and at Epic (one browser each, in turn), samples the light
-// field the meter and guards read (`world.lightField`: levelAt at y 0.1 and 1.0, bodyLevel standing) on the same 1 m
-// grid as `s1-grid.mjs`, reads the real meter (`GameState.lightLevel`) after a teleport at the named points, then pins the
-// sim (the visual-gate harness's pin: loop timeScale 0, flicker 1, photo mode, rigs hidden) and writes a PNG per view
-// with the pixel luma at the projected grid points. Output: <out>/s1-shots.json + <out>/<preset>-<view>.png.
+// light-realism L0: a section's light on the GPU (laptop alone slot; replaces s1-shots.mjs). Read-only on the game: it
+// boots the map at Low and at Epic (one browser each, in turn), samples the light field the meter and guards read
+// (`world.lightField`: levelAt at each space's plane and at floor + 1.0, bodyLevel standing) on the 1 m grid of every
+// space of the section in `docs/light-realism/spaces/<map>.json` (the grid `lux-grid.mjs` reads on the CPU), reads the
+// real meter (`GameState.lightLevel`) after a teleport at the named points, then pins the sim (the visual-gate
+// harness's pin: loop timeScale 0, flicker 1, photo mode, rigs hidden) and writes a PNG per view with the pixel luma at
+// the projected grid points and the bible L5 display-target check. `--video <s>`: after the presets, one more Epic
+// browser records a headless fly-through of the section's views (the look video each lighting PR carries).
+// Output: <out>/shots.json, <out>/<preset>-<view>.png, <out>/flythrough-<preset>.webm.
 // Needs dist/ served on E2E_PORT (the laptop queue's `serve ` step prefix: scripts/laptop-queue/serve.mjs). GPU:
 // E2E_GPU=1 (the queue sets it). Never headed.
-//   E2E_GPU=1 E2E_PORT=4189 node scripts/laptop-queue/serve.mjs scripts/light-realism/s1-shots.mjs --out C:/NightShift/scratch/light-realism/s1 [--presets low,epic] [--push shots/light-realism-s1]
-//   node scripts/light-realism/s1-shots.mjs --dry-run [--out <dir>] [--push shots/light-realism-s1]   (no browser, no server)
+//   E2E_GPU=1 E2E_PORT=4189 node scripts/laptop-queue/serve.mjs scripts/light-realism/shots.mjs --map campusOps --section 1 --label before [--presets low,epic] [--video 90] [--push shots/light-realism-s1]
+//   node scripts/light-realism/shots.mjs --dry-run [--map campusOps --section 1] [--push shots/light-realism-s1]   (no browser, no server)
 // --push <branch>: after the run, commit <out> onto that branch (shots/light-realism-<name> only) under
 // <prefix>/ with git plumbing (a temp index; HEAD, index and working tree untouched), as the visual-gate VG7 pusher
 // (origin/feature/visual-gate scripts/visual-gate/push-results.mjs) does; copied, not imported (it refuses other branches).
+// A meter-field split over 0.02 or a band mismatch is reported (`meterSplits`, `targets`), not fixed here: J11's triage.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
@@ -27,40 +31,39 @@ const opt = (k, d) => {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d;
 };
 const DRY = argv.includes('--dry-run');
-const OUT = path.resolve(opt('--out', DRY ? path.join(os.tmpdir(), `light-realism-s1-dry-${process.pid}`) : 'C:/NightShift/scratch/light-realism/s1'));
+const MAP = opt('--map', 'campusOps');
+const SECTION = opt('--section', '1');
+const LABEL = opt('--label', 'run');
+const TAG = `${MAP}-s${SECTION}`;
+const OUT = path.resolve(opt('--out', DRY ? path.join(os.tmpdir(), `light-realism-${TAG}-dry-${process.pid}`) : `C:/NightShift/scratch/light-realism/${TAG}-${LABEL}`));
 const PRESETS = opt('--presets', 'low,epic').split(',').filter(Boolean);
+const VIDEO_S = Number(opt('--video', '0'));
+const VIDEO_PRESET = opt('--video-preset', 'epic');
 const PUSH = opt('--push', '');
-const PREFIX = opt('--prefix', `s1-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}`);
+const PREFIX = opt('--prefix', `${LABEL}-${TAG}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}`);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
-const QUERY = 'autostart=campusOps&mode=sector&sectorGuards=0';
 const VIEWPORT = { width: 1280, height: 720 };
+/** Bible L5 display targets (`src/world/darkCurve.ts` DARK_TARGETS, the e2e-darkness cards): luma of a 50% grey card at
+ *  each level. The ground is not a grey card, so on these shots the check is advisory (reported, never failed here). */
+export const L5_TARGETS = [
+  { level: 0.12, min: 0, max: 0.04 },
+  { level: 0.27, min: 0, max: 0.09 },
+  { level: 0.4, min: 0.12, max: 0.35 },
+  { level: 0.7, min: 0.45, max: 1 },
+];
+/** A meter reading this far from the field at the same point goes to J11 (PLAN L0). */
+export const SPLIT = 0.02;
 
-/** The car park footprint (`S1_ROOMS` 'park', src/world/maps/campusS1.ts) and the grid step (m). */
-export const PARK = { minX: -36, maxX: 6, minZ: -76, maxZ: -52 };
-export const STEP = 1;
-/** The 14 columns (campusS1.ts PARK_COLUMNS_W / _E), lamp at y 6.0. */
-export const COLUMNS = [[-34, -62], [-28, -62], [-22, -62], [-16, -62], [-34, -53], [-28, -53], [-22, -53], [-16, -53], [-10, -62], [-4, -62], [2, -62], [-10, -53], [-4, -53], [2, -53]];
-/** The named meter points (s1Grid.ts `named`): a teleport each, the real meter read after the sim runs. */
-export const POINTS = [
-  ['under column', -28, -62],
-  ['between 2 columns', -25, -62],
-  ['between rows', -28, -57.5],
-  ['middle of 4', -25, -57.5],
-  ['circuit seam', -13, -57.5],
-  ['south aisle', -25, -68],
-  ['south edge', -25, -75],
-  ['north row column', -22, -53],
-  ['north edge', -25, -52],
-  ['far east', 5, -60],
-];
-/** Views: name, camera [x, y, z], target [x, y, z]. Player height wide, overhead-ish, the z -53 column row, the aisle. */
-export const VIEWS = [
-  ['wide-sw', [-35, 1.7, -75], [-10, 1.0, -58]],
-  ['overhead-s', [-15, 22, -86], [-15, 0, -63]],
-  ['row-z53', [-35.5, 1.7, -51.6], [0, 0.6, -54]],
-  ['aisle-e', [5, 1.7, -64.5], [-30, 0.6, -64]],
-];
+/** The section's spaces and shot plan from the spaces file. */
+export function loadPlan(map = MAP, section = SECTION) {
+  const file = JSON.parse(fs.readFileSync(path.join(ROOT, `docs/light-realism/spaces/${map}.json`), 'utf8'));
+  const spaces = file.spaces.filter((s) => String(s.section ?? '') === String(section) || (section === '' && s.section === undefined));
+  const shots = file.shots?.[String(section)];
+  if (!spaces.length) throw new Error(`no spaces for ${map} section ${section}`);
+  if (!shots) throw new Error(`no "shots" entry for ${map} section ${section}`);
+  return { spaces, ...shots };
+}
 
 /** A world point to screen px through a row-vector view x projection (Babylon `toArray()`); null behind the camera. */
 export function projectPoint(m, p, W, H) {
@@ -72,10 +75,10 @@ export function projectPoint(m, p, W, H) {
   return [(cx / cw * 0.5 + 0.5) * W, (1 - (cy / cw * 0.5 + 0.5)) * H];
 }
 
-/** The grid points (x, z) over the footprint. */
-export function gridPoints() {
+/** A space's grid points [x, z] (1 m, edges included, north row first: `luxGrid.ts`'s order). */
+export function gridPoints(sp, step = 1) {
   const out = [];
-  for (let z = PARK.maxZ; z >= PARK.minZ; z -= STEP) for (let x = PARK.minX; x <= PARK.maxX; x += STEP) out.push([x, z]);
+  for (let z = sp.rect.maxZ; z >= sp.rect.minZ - 1e-9; z -= step) for (let x = sp.rect.minX; x <= sp.rect.maxX + 1e-9; x += step) out.push([x, z]);
   return out;
 }
 
@@ -87,6 +90,29 @@ export function stats(a) {
   const min = Math.min(...v);
   const r = (q) => Math.round(q * 1000) / 1000;
   return { n: v.length, min: r(min), mean: r(mean), max: r(Math.max(...v)), u0: r(min / mean) };
+}
+
+/** The L5 check of one view's open ground spots: per target, the spots within 0.03 of its level and their mean luma. */
+export function targetCheck(spots) {
+  return L5_TARGETS.map((t) => {
+    const near = spots.filter((q) => Math.abs(q.level - t.level) <= 0.03);
+    const s = stats(near.map((q) => q.luma));
+    return { ...t, n: s.n, luma: s.n ? s.mean : null, inBand: s.n ? s.mean >= t.min && s.mean <= t.max : null };
+  });
+}
+
+/** Camera pose at time u (0..1) along a list of [name, cam, target] views (smoothstep per leg). */
+export function flyPose(views, u) {
+  const legs = Math.max(1, views.length - 1);
+  if (views.length === 1) return { cam: views[0][1], target: views[0][2] };
+  const t = Math.min(0.999999, Math.max(0, u)) * legs;
+  const k = Math.floor(t);
+  const e = t - k;
+  const s = e * e * (3 - 2 * e);
+  const a = views[k];
+  const b = views[k + 1];
+  const mix = (p, q) => p.map((v, i) => v + (q[i] - v) * s);
+  return { cam: mix(a[1], b[1]), target: mix(a[2], b[2]) };
 }
 
 // ---- results pusher (scripts/visual-gate/push-results.mjs pushFolder, copied; branch rule shots/light-realism-*) ----
@@ -140,7 +166,7 @@ export function pushFolder({ dir, branch, prefix, dryRun = false, cwd = ROOT, re
     }
     flush();
     const tree = gitc(['write-tree'], { cwd, env });
-    return gitc(['commit-tree', tree, ...(parent ? ['-p', parent] : []), '-m', `light-realism S1 results ${prefix} (${list.length} files)`], { cwd, env });
+    return gitc(['commit-tree', tree, ...(parent ? ['-p', parent] : []), '-m', `light-realism ${TAG} results ${prefix} (${list.length} files)`], { cwd, env });
   };
   try {
     fetch();
@@ -163,11 +189,11 @@ export function pushFolder({ dir, branch, prefix, dryRun = false, cwd = ROOT, re
 
 // ---- in-page steps (serialised with their source text) ----
 
-/** Sample the light field on the grid (y 0.1, 1.0, standing body) - no sim needed. */
+/** Sample the light field at the given [x, y, z] points (plane and meter height) and the standing body - no sim. */
 function fieldInPage(pts) {
   const f = window.__app.current.world.lightField;
   const r = (v) => Math.round(v * 1000) / 1000;
-  return pts.map(([x, z]) => [r(f.levelAt(x, 0.1, z)), r(f.levelAt(x, 1.0, z)), r(f.bodyLevel(x, 0, z, 1.7))]);
+  return pts.map(([x, yp, ym, fl, z]) => [r(f.levelAt(x, yp, z)), r(f.levelAt(x, ym, z)), r(f.bodyLevel(x, fl, z, 1.7))]);
 }
 
 /** Teleport the player to a point, run the sim ~0.6 s, read the meter (`GameState.lightLevel`). */
@@ -217,6 +243,27 @@ async function aimInPage([cam, target]) {
   // TAAU jitters each frame: let the history settle (60 frames)
   await new Promise((res) => { let k = 0; const f = () => (++k >= 60 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); });
   return Array.from(c.getViewMatrix(true).multiply(c.getProjectionMatrix(true)).toArray());
+}
+
+/** Fly the photo camera along the views for `ms` (the pose function's source is passed in as text). */
+async function flyInPage([views, ms, poseSrc]) {
+  const g = window.__app.current;
+  const V = g.player.position.constructor;
+  const c = g.photoCamera();
+  const pose = new Function(`return (${poseSrc})`)();
+  await new Promise((res) => {
+    const t0 = performance.now();
+    const f = () => {
+      const u = (performance.now() - t0) / ms;
+      const p = pose(views, u);
+      c.position.set(p.cam[0], p.cam[1], p.cam[2]);
+      c.setTarget(new V(p.target[0], p.target[1], p.target[2]));
+      if (u >= 1) res();
+      else requestAnimationFrame(f);
+    };
+    requestAnimationFrame(f);
+  });
+  return true;
 }
 
 /** Occlusion of each ground point from the camera by a pick ray (null when picking is unavailable). */
@@ -270,46 +317,57 @@ function lumaExpr(b64, spots) {
   })()`;
 }
 
-async function runPreset(launch, preset) {
-  const res = { preset, query: `${QUERY}&gfx=${preset}&weather=clear`, errors: [] };
+async function waitReady(page) {
+  await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__app.current.world?.lightField, null, { timeout: 180_000 });
+  await page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240_000, polling: 500 });
+}
+
+async function runPreset(launch, plan, preset) {
+  const res = { preset, query: `${plan.query}&gfx=${preset}&weather=clear`, errors: [] };
   const l = await launch({ url: URL, params: res.query, viewport: VIEWPORT });
   const { browser, page } = l;
   try {
-    await page.waitForFunction(() => !!window.__app?.current?.player && !!window.__app.current.world?.lightField, null, { timeout: 180_000 });
-    await page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240_000, polling: 500 });
+    await waitReady(page);
     res.renderer = await page.evaluate(() => String(window.__app?.engine?.getGlInfo?.()?.renderer ?? ''));
-    const pts = gridPoints();
-    const f = await page.evaluate(`(${fieldInPage})(${JSON.stringify(pts)})`);
-    res.grid = { step: STEP, park: PARK, points: pts.map((p, i) => ({ x: p[0], z: p[1], y01: f[i][0], y10: f[i][1], body: f[i][2] })) };
-    res.gridStats = { y01: stats(f.map((q) => q[0])), y10: stats(f.map((q) => q[1])), body: stats(f.map((q) => q[2])) };
+    // every space's grid: plane, meter height, standing body
+    res.spaces = [];
+    const ground = [];
+    for (const sp of plan.spaces) {
+      const fl = sp.floor ?? 0;
+      const pts = gridPoints(sp);
+      const f = await page.evaluate(`(${fieldInPage})(${JSON.stringify(pts.map(([x, z]) => [x, fl + sp.plane, fl + 1.0, fl, z]))})`);
+      const points = pts.map((p, i) => ({ x: p[0], z: p[1], plane: f[i][0], y10: f[i][1], body: f[i][2] }));
+      res.spaces.push({ id: sp.id, floor: fl, plane: sp.plane, stats: { plane: stats(f.map((q) => q[0])), y10: stats(f.map((q) => q[1])), body: stats(f.map((q) => q[2])) }, points });
+      for (const q of points) ground.push({ ...q, y: fl + 0.02 });
+    }
     res.meter = [];
-    for (const [name, x, z] of POINTS) {
+    for (const [name, x, z] of plan.points) {
       const m = await page.evaluate(`(${meterInPage})(${JSON.stringify([x, z])})`);
       const lv = await page.evaluate(([x, z]) => { const fl = window.__app.current.world.lightField; return [fl.levelAt(x, 0.1, z), fl.bodyLevel(x, 0, z, 1.7)]; }, [x, z]);
-      res.meter.push({ name, x, z, ...m, fieldY01: Math.round(lv[0] * 1000) / 1000, fieldBody: Math.round(lv[1] * 1000) / 1000 });
+      res.meter.push({ name, x, z, ...m, fieldY01: Math.round(lv[0] * 1000) / 1000, fieldBody: Math.round(lv[1] * 1000) / 1000, split: Math.round((m.meter - lv[1]) * 1000) / 1000 });
       console.log(`  ${preset} meter ${name} (${x}, ${z}): ${m.meter} (field body ${lv[1].toFixed(3)})`);
     }
+    res.meterSplits = res.meter.filter((q) => Math.abs(q.split) > SPLIT).map((q) => q.name);
     // park the player out of the views, then pin
-    await page.evaluate(`(${meterInPage})(${JSON.stringify([-25, -80])})`);
+    await page.evaluate(`(${meterInPage})(${JSON.stringify(plan.park)})`);
     await page.evaluate(`(${pinInPage})()`);
     res.views = [];
-    for (const [name, cam, target] of VIEWS) {
+    for (const [name, cam, target] of plan.views) {
       const m = await page.evaluate(`(${aimInPage})(${JSON.stringify([cam, target])})`);
       const png = await page.screenshot({ timeout: 120_000 });
       const file = `${preset}-${name}.png`;
       fs.writeFileSync(path.join(OUT, file), png);
-      // the grid's ground points (y 0.02) in frame
       const inFrame = [];
-      for (const p of res.grid.points) {
-        const s = projectPoint(m, [p.x, 0.02, p.z], VIEWPORT.width, VIEWPORT.height);
+      for (const p of ground) {
+        const s = projectPoint(m, [p.x, p.y, p.z], VIEWPORT.width, VIEWPORT.height);
         if (s && s[0] >= 3 && s[1] >= 3 && s[0] < VIEWPORT.width - 3 && s[1] < VIEWPORT.height - 3) inFrame.push({ p, s });
       }
-      const occ = await page.evaluate(`(${occlusionInPage})(${JSON.stringify([cam, inFrame.map((q) => [q.p.x, 0.02, q.p.z])])})`);
+      const occ = await page.evaluate(`(${occlusionInPage})(${JSON.stringify([cam, inFrame.map((q) => [q.p.x, q.p.y, q.p.z])])})`);
       const lum = await page.evaluate(lumaExpr(png.toString('base64'), inFrame.map((q) => q.s)));
-      const spots = inFrame.map((q, i) => ({ x: q.p.x, z: q.p.z, px: Math.round(q.s[0]), py: Math.round(q.s[1]), luma: lum.spots[i], level: q.p.y01, occluded: occ[i] }));
+      const spots = inFrame.map((q, i) => ({ x: q.p.x, z: q.p.z, px: Math.round(q.s[0]), py: Math.round(q.s[1]), luma: lum.spots[i], level: q.p.plane, occluded: occ[i] }));
       const open = spots.filter((q) => q.occluded !== true && q.luma !== null);
       const band = (lo, hi) => stats(open.filter((q) => q.level >= lo && q.level < hi).map((q) => q.luma));
-      res.views.push({ name, cam, target, file, frameMean: lum.frameMean, spots, lumaByLevel: { dark: band(0, 0.28), mid: band(0.28, 0.6), lit: band(0.6, 9) }, lumaAll: stats(open.map((q) => q.luma)) });
+      res.views.push({ name, cam, target, file, frameMean: lum.frameMean, spots, lumaByLevel: { dark: band(0, 0.28), mid: band(0.28, 0.6), lit: band(0.6, 9) }, lumaAll: stats(open.map((q) => q.luma)), targets: targetCheck(open) });
       console.log(`  ${preset} ${name}: frame mean luma ${lum.frameMean}, ground spots ${open.length} (luma mean ${res.views.at(-1).lumaAll.mean})`);
     }
     res.errors = l.errors.slice(0, 10);
@@ -319,20 +377,57 @@ async function runPreset(launch, preset) {
   return res;
 }
 
+async function runVideo(launch, plan) {
+  const preset = VIDEO_PRESET;
+  const tmp = path.join(OUT, '.video');
+  fs.mkdirSync(tmp, { recursive: true });
+  const l = await launch({ url: URL, params: `${plan.query}&gfx=${preset}&weather=clear`, viewport: VIEWPORT, context: { recordVideo: { dir: tmp, size: VIEWPORT } } });
+  const { browser, ctx, page } = l;
+  let file = null;
+  try {
+    await waitReady(page);
+    await page.evaluate(`(${meterInPage})(${JSON.stringify(plan.park)})`);
+    await page.evaluate(`(${pinInPage})()`);
+    await page.evaluate(`(${aimInPage})(${JSON.stringify([plan.views[0][1], plan.views[0][2]])})`);
+    await page.evaluate(`(${flyInPage})(${JSON.stringify([plan.views, VIDEO_S * 1000, flyPose.toString()])})`);
+    const video = page.video();
+    await ctx.close();
+    if (video) {
+      file = `flythrough-${preset}.webm`;
+      fs.renameSync(await video.path(), path.join(OUT, file));
+    }
+  } finally {
+    await browser.close().catch(() => {});
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  return { preset, seconds: VIDEO_S, file };
+}
+
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  const plan = { url: URL, query: QUERY, presets: PRESETS, viewport: VIEWPORT, park: PARK, step: STEP, gridPoints: gridPoints().length, points: POINTS, views: VIEWS, out: OUT, push: PUSH || null, prefix: PREFIX };
+  const shotPlan = loadPlan();
+  const grid = shotPlan.spaces.reduce((p, sp) => p + gridPoints(sp).length, 0);
+  const plan = { url: URL, map: MAP, section: SECTION, label: LABEL, query: shotPlan.query, presets: PRESETS, viewport: VIEWPORT, spaces: shotPlan.spaces.map((s) => s.id), gridPoints: grid, points: shotPlan.points, views: shotPlan.views, video: VIDEO_S ? { seconds: VIDEO_S, preset: VIDEO_PRESET } : null, out: OUT, push: PUSH || null, prefix: PREFIX };
   if (DRY) {
-    // the pure parts: the grid, a projection through a known camera, the stats; and the pusher's commit (not pushed)
+    // the pure parts: the grid, a projection through a known camera, the stats, the fly-through poses; and the
+    // pusher's commit (not pushed)
     const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]; // x, y pass through, w = z: a point at z 2 lands at (x / 2, y / 2) NDC
     const check = projectPoint(m, [1, 0.5, 2], 1280, 720);
     if (!check || Math.abs(check[0] - 960) > 1e-6 || Math.abs(check[1] - 270) > 1e-6) throw new Error(`projectPoint self-check failed: ${check}`);
     if (projectPoint(m, [0, 0, -1], 1280, 720) !== null) throw new Error('projectPoint: a point behind the camera must be null');
     const st = stats([0.1, 0.2, 0.3, null]);
     if (st.n !== 3 || st.mean !== 0.2 || st.u0 !== 0.5) throw new Error(`stats self-check failed: ${JSON.stringify(st)}`);
+    const v = shotPlan.views;
+    const p0 = flyPose(v, 0);
+    const p1 = flyPose(v, 1);
+    if (p0.cam.some((q, i) => Math.abs(q - v[0][1][i]) > 1e-9) || p1.cam.some((q, i) => Math.abs(q - v.at(-1)[1][i]) > 1e-3)) throw new Error('flyPose self-check failed');
+    const tc = targetCheck([{ level: 0.12, luma: 0.02 }, { level: 0.7, luma: 0.3 }]);
+    if (tc[0].inBand !== true || tc[3].inBand !== false || tc[1].n !== 0) throw new Error(`targetCheck self-check failed: ${JSON.stringify(tc)}`);
+    const park = shotPlan.spaces.find((s) => s.id === 'park');
+    if (park && gridPoints(park).length !== 43 * 25) throw new Error('gridPoints: the S1 car park is 43 x 25 points');
     fs.writeFileSync(path.join(OUT, 'plan.json'), JSON.stringify(plan, null, 1));
-    console.log(`dry-run: ${plan.gridPoints} grid points, ${POINTS.length} meter points, ${VIEWS.length} views x ${PRESETS.join(' + ')}; query ${QUERY}&gfx=<preset>&weather=clear on ${URL}`);
-    console.log(`dry-run: projection and stats self-checks ok; wrote ${path.join(OUT, 'plan.json')}`);
+    console.log(`dry-run: ${MAP} section ${SECTION}: ${plan.spaces.length} spaces, ${grid} grid points, ${plan.points.length} meter points, ${plan.views.length} views x ${PRESETS.join(' + ')}${VIDEO_S ? `, ${VIDEO_S} s video (${VIDEO_PRESET})` : ''}; query ${plan.query}&gfx=<preset>&weather=clear on ${URL}`);
+    console.log(`dry-run: projection, stats, fly-through and target self-checks ok; wrote ${path.join(OUT, 'plan.json')}`);
     if (PUSH) {
       const r = pushFolder({ dir: OUT, branch: PUSH, prefix: PREFIX, dryRun: true });
       console.log(`dry-run: would push ${r.commit.slice(0, 10)} to ${PUSH}: ${r.files.join(', ')}`);
@@ -340,33 +435,45 @@ async function main() {
     return 0;
   }
   if (!(await fetch(URL).then(() => true, () => false))) {
-    console.error(`s1-shots: nothing serves ${URL} (run it through scripts/laptop-queue/serve.mjs)`);
+    console.error(`shots: nothing serves ${URL} (run it through scripts/laptop-queue/serve.mjs)`);
     return 2;
   }
   const { launch } = await import(pathToFileURL(path.join(ROOT, 'scripts/e2e-lib.mjs')).href);
-  const out = { plan, started: new Date().toISOString(), sha: gitc(['rev-parse', 'HEAD'], { soft: true }), runs: [] };
+  const out = { plan, started: new Date().toISOString(), sha: gitc(['rev-parse', 'HEAD'], { soft: true }), runs: [], video: null };
   let code = 0;
-  const kill = setTimeout(() => { console.error('s1-shots: timed out after 1500 s'); process.exit(2); }, 1_500_000);
+  const kill = setTimeout(() => { console.error('shots: timed out'); process.exit(2); }, 1_500_000 + VIDEO_S * 2000);
   for (const preset of PRESETS) {
-    console.log(`s1-shots: ${preset}`);
+    console.log(`shots: ${preset}`);
     try {
-      out.runs.push(await runPreset(launch, preset));
+      out.runs.push(await runPreset(launch, shotPlan, preset));
     } catch (e) {
-      console.error(`s1-shots: ${preset} failed: ${String(e?.message ?? e)}`);
+      console.error(`shots: ${preset} failed: ${String(e?.message ?? e)}`);
       out.runs.push({ preset, error: String(e?.message ?? e) });
       code = 1;
     }
-    fs.writeFileSync(path.join(OUT, 's1-shots.json'), JSON.stringify(out, null, 1));
+    fs.writeFileSync(path.join(OUT, 'shots.json'), JSON.stringify(out, null, 1));
   }
+  if (VIDEO_S > 0) {
+    console.log(`shots: ${VIDEO_S} s fly-through (${VIDEO_PRESET})`);
+    try {
+      out.video = await runVideo(launch, shotPlan);
+    } catch (e) {
+      console.error(`shots: video failed: ${String(e?.message ?? e)}`);
+      out.video = { error: String(e?.message ?? e) };
+      code = 1;
+    }
+  }
+  out.splits = out.runs.flatMap((r) => (r.meterSplits ?? []).map((n) => `${r.preset}: ${n}`));
+  fs.writeFileSync(path.join(OUT, 'shots.json'), JSON.stringify(out, null, 1));
   clearTimeout(kill);
-  console.log(`s1-shots: wrote ${OUT}`);
+  console.log(`shots: wrote ${OUT}${out.splits.length ? `; meter-field splits over ${SPLIT} (to J11): ${out.splits.join(', ')}` : ''}`);
   for (const f of listFiles(OUT)) console.log(`  ${f.abs}`);
   if (PUSH) {
     try {
       const r = pushFolder({ dir: OUT, branch: PUSH, prefix: PREFIX });
-      console.log(`s1-shots: pushed ${r.files.length} files to ${PUSH} ${r.commit.slice(0, 10)} under ${PREFIX}/`);
+      console.log(`shots: pushed ${r.files.length} files to ${PUSH} ${r.commit.slice(0, 10)} under ${PREFIX}/`);
     } catch (e) {
-      console.error(`s1-shots: push failed: ${String(e?.message ?? e)} (results stay in ${OUT})`);
+      console.error(`shots: push failed: ${String(e?.message ?? e)} (results stay in ${OUT})`);
       code = code || 1;
     }
   }
@@ -374,5 +481,5 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  main().then((c) => process.exit(c), (e) => { console.error(`s1-shots: ${String(e?.stack ?? e)}`); process.exit(2); });
+  main().then((c) => process.exit(c), (e) => { console.error(`shots: ${String(e?.stack ?? e)}`); process.exit(2); });
 }
