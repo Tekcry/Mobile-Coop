@@ -15,5 +15,6 @@
     "smoke"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #452"
+  "note": "auto affected-e2e, PR #452",
+  "priority": 10
 }
