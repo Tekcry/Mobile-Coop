@@ -6,8 +6,8 @@
 //                the bible, level-design or docs/systems/*.md is an error unless the line also cites a replacement.
 //   links        relative markdown links and backticked repo paths resolve (archive and fenced code skipped).
 //   owners       docs/doc-owners.json: a key rule restated outside its owner file (WARN).
-//   sizes        docs/doc-lint.json budgets: VISION words, RULES / CLAUDE lines (ERROR); ROADMAP "Decided" older than
-//                today and job STATE resume blocks over 40 lines (WARN).
+//   sizes        docs/doc-lint.json budgets: VISION words, RULES / CLAUDE lines (ERROR); job STATE resume blocks
+//                over 40 lines (WARN).
 //   bible-notes  a "Note 2026-..." line appended in docs/design-bible.md (ERROR: folds rewrite in place).
 //   headers      G344: each current doc names its owner and status in its first lines: `Owner: <who>. Status: current.`
 //                (or `history`; also inside `<!-- ... -->`). ERROR for the core set (docs/doc-lint.json), WARN for the rest.
@@ -310,8 +310,9 @@ export function resumeBlock(text) {
 }
 
 /**
- * Size budgets (docs/doc-lint.json `sizes`): `words` { file: max } and `lines` { file: max } are ERRORs; `roadmap`
- * (Decided today only) and `stateResume` (glob, max lines) are WARNs.
+ * Size budgets (docs/doc-lint.json `sizes`): `words` { file: max } and `lines` { file: max } are ERRORs; `stateResume`
+ * (glob, max lines) is a WARN; `roadmap` (Decided today only, WARN) is optional and unset (ROADMAP is the
+ * orchestrator's).
  */
 export function checkSizes(files, cfg, today) {
   const out = [];

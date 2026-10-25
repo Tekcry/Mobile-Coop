@@ -742,7 +742,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
   joins no squads, so radio checks do not run there.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
-  (solo, host and a client's strike on the host). Dogs carry no flashlight (G295, `carriesTorch`).
+  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201; it still holds after the G295
+  redesign; `carriesTorch`).
 - Sector restart (G22): `SectionStartState` (`game/sectorReset.ts`) records the fixed lights (switched, shot, the base of
   a jammed lamp; not torches) and the unlocked doors when a section begins, and a section restart puts them back
   (`LightRegistry.resetTo`, `StealthSystems.syncSwitches` for the switch labels). Host / solo; Sector co-op does not

@@ -233,8 +233,7 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
   the fold PR or becomes a ROADMAP item.
 - Doc lint in CI: `npm run lint` runs `scripts/doc-lint.mjs` (stale terms, G citations, links and repo paths, restated
   rules, size budgets, appended bible notes, owner / status headers); errors fail `check`, warnings print.
-  `docs/doc-lint.json` holds the budgets and the `known` stale lines in orchestrator-owned files (the fix removes its
-  entry).
+  `docs/doc-lint.json` holds the scope, the budgets and the owner / status header sets.
 - Finished jobs: the `Job-done: <job>` line in the job's last PR makes the train's version commit move `docs/<job>/` to
   `docs/archive/<job>/` and fix the links to it.
 - Weekly prune (G345, "Yes, weekly"): `scripts/prune-merged.mjs --apply` (task `NightShift prune-merged`,
