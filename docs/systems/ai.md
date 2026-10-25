@@ -16,8 +16,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
   dogs; the close-range felt term (1.8 m, moving) is unchanged. The light meter is untouched (a view limit, not light).
   Numbers are Night Shift's own: the CT research is silent on looking up.
-- Decided, built (G45, E2): clear glass passes light and sight; frosted glass passes light only (`G.GLASS_FROSTED` is in
-  `MASK.SIGHT`, `physics/groups.ts`; armoured clear glass still sees). Every pane is a wall to hearing (`MASK.HEARING`).
+- Decided (G45): clear glass passes light and sight; frosted glass and blinds pass light only. Built (E2): frosted glass
+  blocks sight (`G.GLASS_FROSTED` is in `MASK.SIGHT`, `physics/groups.ts`; armoured clear glass still sees); every pane
+  is a wall to hearing (`MASK.HEARING`). Not built yet: blinds.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
 - Decided, built (G46, G187, G254): guard counts are measured per mode. Caps alive, each a ceiling, not a target:
@@ -283,12 +284,13 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
   high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
 - `EnemyManager.stealth` (on in Sector Ops, Marlow Yard (`course`), Hunter, Mission and Infiltration; off in Free
-  Roam): one last known position per intruder, kept per player (G139; ROADMAP Decided 2026-10-25 ~16:50, Q15) (guard-ai S24, below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
+  Roam): one last known position per intruder, kept per player (ROADMAP Decided 2026-10-25 ~16:50, Q15) (guard-ai S24,
+  below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
   sightings by alerted enemies and located gunfire, a flow field per intruder (never the real position), arriving with
   nothing there starts the search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does
   not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`. A downed player is not
-  perceived and never finished off: the perception pass skips a target that is not `alive` (`Enemy` perceive; G126,
-  G349).
+  perceived and never finished off: the perception pass skips a target that is not `alive` (a code fact, `ai/enemy.ts`;
+  downed and revive: bible 5.9).
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
@@ -364,7 +366,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Alarms: `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted enemy to work
   it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the `MapLayout.reinforce` point furthest from the
   player). The player disables a panel with a hold. One guard alarm per match; Sector Ops one per section load
-  (`EnemyManager.raiseAlarm`, `alarmRaised`, cleared by `resetAlarm` on a section load or restart). Bible 5.7 lets each
+  (`EnemyManager.raiseAlarm`, `alarmRaised`, cleared by `resetAlarm` on a section load or restart and by `resetMemory`
+  on a Marlow Yard checkpoint restart). Bible 5.7 lets each
   alarm add a level: repeat alarms are job guard-rules (FOLDED-PLAN J15).
 - Alarm by radio (guard-ai S6, design 7, M4; `CommandCall` in `ai/alarm.ts` pure, `EnemyManager.command`; stealth rules
   and coordinated modes only, as panels). A `contact` call that gets through (`sink.completed`) owes the alarm
@@ -754,7 +757,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
   and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements: `perStage` per stage at
   the stage's response route, else the section's entries (guard-ai S6), as a response team: a riot-shield guard first,
-  the rest `SECTOR_REINFORCE_KIND` grunts (`responseTeam`, `sectorMode.ts`; S13 "Response teams" above). Bible 5.7
+  the rest `SECTOR_REINFORCE_KIND` grunts (`responseTeam` in `ai/gear.ts`, called by `sectorMode.ts`; S13 "Response teams" above). Bible 5.7
   keeps riot shields to later sections: job guard-rules (FOLDED-PLAN J15, Guard AI B16). The `SectorGuard` tags
   (`squad`, `handler`, `zone`, `role`, `reason`, `pair`) are read by `placeSlot` ("Sector tags" and "Talking pairs"
   above), so Sector Ops squads run radio checks.
