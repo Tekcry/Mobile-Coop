@@ -1,0 +1,14 @@
+{
+  "id": "20261025T232146-night-shift-marlow-b-2df02c9c-16b1",
+  "sha": "2df02c9c1c4e4fca110c620a915aff1a3f969c69",
+  "branch": "feature/marlow-replan-a1-retry",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:5",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "j14-a1-retry"
+}
