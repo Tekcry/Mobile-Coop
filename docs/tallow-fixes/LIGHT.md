@@ -53,9 +53,22 @@ floor (feet) height. Map files: `feature/mission-engine` e37987544.
    (`tallowWharfKit.ts:152`; `on: true` always). `kind` follows the cone (a cone = a flood). Colours: `WARM` [1, 0.82,
    0.55] for market, loft and office lamps; the kit's white for halls, stairs and stores; the aviation lamp red [1, 0.1,
    0.1]; the launch's masthead white; exit lights green-white [0.8, 1, 0.85]. A desk or table lamp stands on a built
-   desk (fix round 2): a visual-only box (`collide = false`, top 0.75 over its floor, about 1.2 x 0.6) under the lamp,
-   so no guard post, route or nav cell changes; each brief names its desks (W1 the tally desk; W2 the clerk's table,
-   the rota desk, Teale's and the reader's tables; W3 the two clerks' desks, the copying desk, the partners' desk).
+   desk (fix rounds 2-3): a visual-only box (`collide = false`, so no nav cell or light row changes), top 0.75 over its
+   floor, with these plan extents [x0, z0, x1, z1]. Each is at least 1.2 m from every door gap's face across the gap's
+   width (master level-design 16.3.3, 16.4.2) and at least a body radius (0.3 m) from every guard post and guard route
+   leg; each brief exports its list as `W<n>_DESKS` and tests both rules:
+   - W1 the warden's tally desk [2.0, 50.1, 3.2, 50.7] (floor 4.5), under lamp 63;
+   - W2 the clerk's supper shelf against the pie back stair's east wall [57.95, 67.2, 58.35, 68.4] (lamp 72's table
+     lamp; south of the stair-top door's band z 68.4-69.6, 1.4 m from the clerk at (60, 66.8)); the rota desk against
+     the fire-stair core's north wall [50.6, 63.8, 51.8, 64.6] (lamp 73; 1.0 m from the runner's mark); Teale's table
+     beside him [51.9, 74.4, 52.5, 75.6] (lamp 74; off the stage door's band x 50.6-51.8, 0.6 m from Teale, 0.4 m from
+     the keeper's z 76 leg); the reader's table in front of him [46.4, 76.9, 47.6, 77.5] (lamp 75; 0.7 m from the
+     reader at (47, 78.2), 0.9 m from the keeper's z 76 leg, 0.4 m from his x 46 leg). All floor 4.5;
+   - W3 the clerks' desks [109.4, 57.9, 110.6, 58.5] and [115.4, 57.9, 116.6, 58.5] (lamps 82, 83; 0.5 m north of their
+     clerks at z 57.4, 1.9 m from the porter's z 56 leg), the copying desk [89.4, 55.9, 90.6, 56.5] (lamp 85's desk lamp;
+     0.5 m from the clerk at (90, 55.4)), the partners' desk [116.4, 76.2, 117.6, 76.8] (lamp 87; 2.05 m from the office
+     door's face). All floor 0;
+   - W4 none (no desk or table lamp).
 8. **Groups.** W1 60-67 (unchanged), W2 70-79 (adds 77, 78, 79), W3 80-90 (unchanged), W4 91-98 (adds 98). The kit's
    `GROUPS` constant (`tallowWharfKit.ts:49-54`) is documentation nothing reads; its W1 / W2 / W4 maxima become 67 / 79
    / 98 when G0 or a later kit edit next touches the file (open question for the lead). Each section test's group range
@@ -126,7 +139,7 @@ route.
 | w2-pie-shop | closed (M1) | shut | the window night light (71, time-switch box by the arcade door) | the shop behind the window light (0.14-0.17) | shooting 71 |
 | w2-pie-loft | office 320 at the clerk's table | worked (the night clerk's supper) | 2 pendants + table lamp (72, by the back stair head) | the loft's east end by the party wall (0.57) | cutting 72 at the stair head |
 | w2-pawn-loft | office 320 at the rota desk; store floor 40 lx | worked (the rota desk lit, Fenn waits) | 2 pendants + desk lamp (73, by the loft door) | - (fully lit; the throw spot reads lit, unseen: every reading-room guard faces a shut door or wall) | cutting 73 at the loft door |
-| w2-reading-room | office 320 at the tables; room 160 | worked (keeper, reader, Teale, the minder) | 3 pendants (77, by the bridge doorway), Teale's and the reader's table lamps (74, 75) | the NE corner behind the new book stacks (cover, 0.45) | cutting 77 (the table lamps stay: pools at Teale and the reader) |
+| w2-reading-room | office 320 at the tables; room 160 | worked (keeper, reader, Teale, the minder) | 3 pendants (77, by the bridge doorway), Teale's and the reader's table lamps (74, 75) | the NE corner behind the new book stacks (cover, 0.45) | cutting 77 (the table lamps stay: pools on the two tables; a standing body beside them reads 0.14-0.24, dark) |
 | public stair (stair hall + landing) | stair 80 lx | in use (Pell's men) | landing and flight lamps (76, two-way: foot and landing) | - | cutting 76 at either end |
 | pawn fire stair, pie back stair, both A5 bridges | stair / escape route 80 lx | maintained | bulkheads (78) | - | shooting |
 | w2-clock-loft | closed (M1, the mender is out) | shut | the exit light over the east bridge doorway (78) | the whole loft beyond the sign (0.14) | shooting the sign |
@@ -140,11 +153,11 @@ route.
 | 70 | (47.5, 4.2, 51), (55.5, 4.2, 51), (63.5, 4.2, 51), (71.5, 4.2, 51), (51.5, 4.2, 56.5), (59.5, 4.2, 56.5), (67.5, 4.2, 56.5) | arcade pendants on rods from the glazed roof, the arcade company | 7 | 0.85 | white | (40.4, 0, 57.8), yaw PI/2, on the west wall beside the arch (moved from (41, 0, 57.4)); `yRun` 7.3 |
 | 71 | (58.8, 2.4, 62.5) | the pie shop's window night light, the pie man | 4 | 0.3 | warm | time-switch box (62.4, 0, 62.4), yaw 0, inside the arcade door (moved from (64.6, 0, 64)); `yRun` 2.6 |
 | 72 | (59, 7.0, 65.5), (63.5, 7.0, 65.5) | pie loft pendants | 7 | 0.9 | warm | (58.4, 4.5, 68.8), yaw PI/2, by the back stair top door (existing); `yRun` 7.2 |
-| 72 | (58.8, 5.4, 68.0) | the clerk's table lamp (by the notebook) | 3 | 0.35 | warm | same circuit |
+| 72 | (58.15, 5.4, 67.8) (fix round 3: was (58.8, 5.4, 68.0), over no table clear of the stair-top door) | the clerk's table lamp on his supper shelf (by the notebook) | 3 | 0.35 | warm | same circuit |
 | 73 | (47.5, 7.6, 65.7), (52, 7.6, 65.7) | pawn loft pendants, the pawnbroker | 7 | 0.9 | warm | (46.1, 4.5, 64.0), yaw 0, by the loft door (45, 4.5, 63.65) (moved from (50.2, 4.5, 62.6)); `yRun` 7.8 |
 | 73 | (51.2, 5.6, 64.4) | the rota desk lamp (`W2_ROTA_DESK`, now (51.2, 4.5, 64.4)) | 4 | 0.35 | warm | same circuit |
-| 74 | (51, 5.4, 74.6) | Teale's table lamp, the library | 4 | 0.35 | warm | at the lamp: (51.6, 4.5, 74.4), yaw 0 (moved from (51.8, 4.5, 74.3)) |
-| 75 | (47, 5.4, 78.6) | the reader's table lamp | 4 | 0.35 | warm | at the lamp: (47.8, 4.5, 78.8), yaw PI (existing) |
+| 74 | (52.2, 5.4, 75.0) (fix round 3: was (51, 5.4, 74.6), its table across the stage door's approach) | Teale's table lamp, the library | 4 | 0.35 | warm | at the lamp: (52.6, 4.5, 74.6), yaw -PI/2 (0.57 m from it; moved from (51.8, 4.5, 74.3)) |
+| 75 | (47.0, 5.4, 77.2) (fix round 3: was (47, 5.4, 78.6), its table on the reader's post and the keeper's z 79 leg) | the reader's table lamp | 4 | 0.35 | warm | at the lamp: (47.9, 4.5, 77.2), yaw -PI/2 (0.9 m from it; moved from (47.8, 4.5, 78.8)) |
 | 76 | (55, 7.2, 72), (55, 6.4, 66) | public stair landing and flight lamps | 6 | 0.8 | white | (55.4, 4.5, 72.4), yaw -PI/2, on the landing (existing) and (55.7, 0, 62.4), yaw 0, at the stair foot (new, two-way); `yRun` 7.4 |
 | 77 (new) | (47, 7.2, 76.75), (52, 7.2, 76.75), (57, 7.2, 76.75) | reading room pendants, the library | 7 | 0.9 | warm | (45.8, 4.5, 73.85), yaw 0, by the west bridge doorway; `yRun` 7.4 |
 | 78 (new) | (45, 7.6, 62.8) pawn stair top landing; (53, 3.0, 63.3) and (49.5, 4.6, 63.3) pawn stair foot and flight; (57, 7.6, 69.3) pie back stair head; (44.75, 6.4, 70.5) west bridge; (69.25, 6.4, 71.75) east bridge; (72.2, 7.7, 64.9) tank room | maintained escape bulkheads, the landlord | 4 (bridges and tank 3) | 0.5 (bridges and tank 0.3) | white | none: maintained circuit |
@@ -152,7 +165,7 @@ route.
 | 79 (new) | (49, 7.4, 61.75), (56.5, 7.4, 61.75), (65, 7.4, 61.75), (70, 7.4, 61.75) | walkway bracket lamps on the loft facade, the landlord | 6 | 1.3 | warm | (46.1, 4.5, 61.75), yaw PI, beside the walkway door (45, 4.5, 62); `yRun` 7.6 |
 
 W2 lamp count: 7 + 1 + 3 + 3 + 1 + 1 + 2 + 3 + 9 + 4 = **34**. The old W2 lamps at (60, 2.6, 63.2) (71), (61, 7.0, 66) (72),
-(51, 5.4, 74.6) (74, kept), (47, 5.4, 78.6) (75, kept) and (55, 7.2, 72) (76, kept) are replaced or kept as listed.
+(51, 5.4, 74.6) (74, moved to (52.2, 5.4, 75.0)), (47, 5.4, 78.6) (75, moved to (47.0, 5.4, 77.2)) and (55, 7.2, 72) (76, kept) are replaced or kept as listed.
 
 ### Check points (G2's test)
 | Point | Groups | Ambient | Target | Estimate |
