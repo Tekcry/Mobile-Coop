@@ -1003,7 +1003,7 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-25 ~23:15, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-25 ~23:30 SAVE, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
@@ -1015,24 +1015,30 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    feature/coop4. Polish -> coop4-pol: sectorMode.ts:1434 OUT slot from RemotePlayer.ref.slot; main.ts:332 text;
    coopUi.ts:87 roomCap; testing-tools part 9 bullet.
 3. J6 #446 head 97c6338f: TRAIN-READY (labelled; missed train 106, next train).
-4. J15 PR1 #450 (feature/guard-rules 211a66d5): checks A + B done. Gates queued: laptop-e2e/rules-pr1 on a78d7093
-   (running ~23:00) + affected-e2e on 211a66d5 (091818). #450 CONFLICTS with master in two docs (docs/systems/ai.md,
+4. J15 PR1 #450 (feature/guard-rules 211a66d5): checker success posted ~23:25; laptop-e2e/rules-pr1 on a78d7093 green
+   (6/7, known-flaky ctcourse:4); only affected-e2e on 211a66d5 (091818) pending. #450 CONFLICTS with master in two docs (docs/systems/ai.md,
    takedowns.md), so CI `check` never ran; orchestrator told (train merge by hand). Green -> checker on the head, tell
    orchestrator.
 5. J15 PR2 = feature/guard-rules-s5 e18039094 (S5 + PR1 polish, checks A + B PASS). Early run queued:
    laptop-e2e/rules-pr2-early (20261025T113525). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected.
    PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names, S5-A3 walk note) and the merge
    note: mission-engine calls responseTeam without `shield`; keep sectorMode's `s.shieldTeams === true`.
-6. J15 PR3 wave 3 RUNNING: F0 flags 452e23035 on feature/guard-rules-f0 (off e18039094, so PR2 stays as checked).
-   Opus builders: S4 barks (worktree -guard-rules-s4, branch feature/guard-rules-s4) and S6 pairs (-guard-rules-s6,
-   feature/guard-rules-s6), both from F0, briefs docs/guard-rules/slices/S4/S6-BRIEF.md. Then: lead folds S6's ai.md
-   lines, merges s4 + s6 into feature/guard-rules-f0 (PR3 branch), 2 Opus checkers, laptop set per PLAN "Tests and
-   e2e per PR" PR3. PR3 opens after PR2 merges (base = master). node_modules: junctions -> guard-ai-s24.
+6. J15 PR3 wave 3 (SAVE ~23:30). F0 flags 452e23035 on feature/guard-rules-f0 (PR3 branch, off e18039094 so PR2
+   stays as checked; worktree -guard-rules-f0). S6 pairs feature/guard-rules-s6 69664ef8e: checks A + B PASS
+   (550c82660; polish in checks/S6-CHECK-A/B.md). S4 barks feature/guard-rules-s4 84a6c82c4: checks A + B FIX (one
+   blocker: sawMoment / heardMoment never cleared on a guard who stays calm -> stale sight bark), Opus fix round
+   RUNNING (WIP pushed at the save). Then: lead merges s4 + s6 into -f0, S6's ai.md lines are folded on -s6 (8d3c91914),
+   PR3 changelog fragment, re-check S4 fix (2 Opus), laptop set per PLAN "Tests and e2e per PR" PR3 filed WITH the push.
+   S6 early run queued: laptop-e2e/rules-s6-early on 69664ef8e (e2e-sectorops:1 e2e-stealth-ai). PR3 opens after PR2.
+   Wave 4 briefs S7 / S8 / S9 on -f0 (b5bf2f894; lead decisions S7-a, S7-d, S8-a a6a888503): build after PR3 merges
+   into the wave 4 base; S9 cut from S7's head. S4 polish for the S7 brief: stimX/Z = last stimulus, dog smell =
+   RISE_SIGHT, riseN restarts at revive. node_modules: junctions -> guard-ai-s24.
 7. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: S4 / S6 builders -> checkers; laptop gates 2, 4, 5 (background wait on the four statuses).
+Next: S4 fix round -> merge s4 + s6 into -f0 -> 2 Opus re-checks + PR3 laptop set; background wait on #317 / #450
+affected, rules-pr2-early, rules-s6-early (scratchpad wait-status.sh).
 ```
