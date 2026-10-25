@@ -27,6 +27,9 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Locks: RULES "Machines".
 - If a laptop session is missing from ListAgents (Remote Control bridge drop), tell Michael in one line to reopen it;
   the queue service keeps running without it.
+- Once Test Runner's J20 PR-B releases: each cron run also reads `alerts/*-fixjob-*.json` on the laptop-queue branch
+  (a suite auto-quarantined twice in 14 days turns blocking and needs an owner fix job); start that fix job with its
+  owner the same run. J20 release order: #445 PR-C, then PR-A, then PR-B (Job-done).
 - Over Remote Control the app refuses start_session and proposal cards (2026-10-25 18:30): Michael types "start the
   leads" in the desktop app, or pastes PROMPTS.md lines 2-5 there.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
@@ -53,6 +56,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Start new sessions only from his own words in the desktop app; when the app refuses a start, propose a card
   (own_initiative) and tell him to click it.
 - Recording passes (Michael 2026-10-25 ~18:15, native multiple choice: "Yes, keep doing it (Recommended)"; replaces ~14:10 docs-only): when auto mode blocks a lead from posting `checker` and an independent checker passed the head (read its report: VERDICT PASS on that sha), the orchestrator posts the status, docs or code PRs alike, without asking.
+- Mixamo downloads (Michael 2026-10-25 ~19:05): "i will approve any animation downloaded as requested by player build. just approve, download, and implement. make sure i can fine tune in anim dev just in case i have to." The orchestrator downloads every clip Player Build requests in Michael's signed-in browser pane without asking him (into C:/NightShift/scratch/mixamo/clips/), and every imported clip must be tunable in Anim Studio like the CMU clips.
 - When auto mode on the laptop blocks a lead's train-ready label, verify it by RULES "Getting to master" and add it from
   the desktop without asking ("Always label for them"). `gh pr close` is
   allowed on the desktop for failed train PRs and stale PRs whose content is on master.

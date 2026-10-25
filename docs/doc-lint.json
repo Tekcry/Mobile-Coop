@@ -102,7 +102,14 @@
     },
     "roadmap": "docs/ROADMAP.md"
   },
-  "known": [],
+  "known": [
+    {
+      "check": "stale-terms",
+      "file": "docs/design-bible.md",
+      "match": "g157-review-pending",
+      "note": "the orchestrator G157 fold rewrites the bible lines"
+    }
+  ],
   "headers": {
     "error": [
       "CLAUDE.md",

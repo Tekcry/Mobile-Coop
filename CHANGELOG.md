@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.103.3 - Train 98: Level standard: Michael's 12 level-rule changes (G157); Player docs match the game; Guard AI docs match the code and Michael's answers (2026-10-25, PR #448; #443, #437, #435)
+
+### Guard AI docs match the code and Michael's answers
+- Guard AI docs (FOLDED-PLAN J1): `docs/systems/ai.md` now says what is built for glass, lookouts and pairs, the
+  guard cap per mode (campaign 32), the campus guard counts, the close-range distance, the modes, the one-alarm rule,
+  downed players and the Sector Ops guard tags; two stale code comments fixed; BRIEF A183 closed by G327.
+
+### Level standard: Michael's 12 level-rule changes (G157)
+- The level standard writes in the 12 level-rule changes Michael adopted (G157): a vantage for two, the finale seen
+  early, a designed exit, pacing targets in minutes, teamwork minimums, the two-minute test, readable machines and
+  windows, real stairs, exits, signs and security, and the two-player final tests. Marlow Yard is exempt from the
+  campaign's built-for-two checks.
+- The map spec template gains fill lines for them; fire alarms unlocking doors as a player tool stays a separate
+  decision (level-design open item 3).
+- Marlow Yard: every failure is a retry, a set has only the guards its move needs (maybe none, at most 3), and side
+  routes stay closed except a late section that trains against enemies. The scale sheet's relay lip row now says the
+  relay's 4.6 m limit is how high the hanging partner's feet sit, not a lip height.
+
+### Player docs match the game
+- Player docs now match the game as built: movement, controls, takedowns (the palm strike is built) and which moves use motion capture.
+- Finished animation job notes moved to the archive; reference-game names removed from the operator art notes.
+
 ## 4.103.2 - Train 97: Marlow docs fixes (folded plan J1); Test Runner conformance: doc fixes (J1) (2026-10-25, PR #444; #436, #432)
 
 ### Test Runner conformance: doc fixes (J1)

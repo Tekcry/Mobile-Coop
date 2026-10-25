@@ -30,7 +30,7 @@ is the other way round: these layers follow the table's convention (1 = the laye
   swivel rate. No allocation (scratch quaternions / typed arrays; mocapSwitch's bytes-per-call test passes).
 - tests/mocapRunPose.test.ts (new); tests/mocapSwitch.test.ts:164 (the MOCAP_LAYERS literal gains the four keys: the
   only line outside the AF2 row, needed because it asserts the table exactly).
-- docs/anim-fix-pass/after-af2/numbers.md (AF0's table after AF2), changes/feature-afp-af2.md.
+- docs/archive/anim-fix-pass/after-af2/numbers.md (AF0's table after AF2), changes/feature-afp-af2.md.
 
 ## Numbers (headless, CT-driven, 60 Hz; before = AF2 layers at 1 = 69662cf2's code)
 | measure | bar | before | after | pass |
