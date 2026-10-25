@@ -1034,9 +1034,9 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
   try {
     await startMode('sector', 'campusOps');
     await until(B, () => !!window.__app.current?.net && window.__app.current.world.level.lights.lights.length > 0, null, 15000, 'the client is in the match');
-    // the lane lamp (9, 6, -66) and a car-park lamp (-34, 6, -62): lit and shootable on both pages, the same ids
-    const [la, lb] = [await lampAt(A, 9, -66), await lampAt(B, 9, -66)];
-    const [pa, pb] = [await lampAt(A, -34, -62), await lampAt(B, -34, -62)];
+    // the lane lamp (9.8, 6, -66) and a car-park head (-32.2, 6, -62) (light-realism L1: light points at the arm ends): lit and shootable on both pages, the same ids
+    const [la, lb] = [await lampAt(A, 9.8, -66), await lampAt(B, 9.8, -66)];
+    const [pa, pb] = [await lampAt(A, -32.2, -62), await lampAt(B, -32.2, -62)];
     assert(!!la && !!lb && la.id === lb.id && la.on && lb.on && la.destructible && !!pa && !!pb && pa.id === pb.id && pa.on, `the street lamps are lit, shootable and the same on both pages (${JSON.stringify([la, lb, pa, pb])})`);
     // the client: 3 m east of the lane lamp, its real round
     await until(A, () => [...window.__app.current.net.remotes.values()].length > 0, null, 8000, 'the host has the client');
@@ -1052,7 +1052,7 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
     assert(Math.abs(va - vb) < 1e-3, `the light under the lane lamp agrees on both pages (host ${va}, client ${vb})`);
     await GB(() => { window.__app.current.player.forceAds = false; });
     // the host: 3 m east of the car-park lamp, its own round
-    const hs = await fireAt(A, [-31, 0.02, -62], pa, true);
+    const hs = await fireAt(A, [-29.2, 0.02, -62], pa, true);
     const hOut = await GA((id) => window.__app.current.world.level.lights.lights[id].destroyed, pa.id);
     assert(hs.fired === 1 && hOut, `the host's round on the car-park lamp's pole top shoots it out (${JSON.stringify(hs)})`);
     await until(B, (id) => window.__app.current.world.level.lights.lights[id].destroyed, pb.id, 8000, 'the client sees the car-park lamp dark');
@@ -2153,12 +2153,12 @@ if (want(6)) {
       const k = sws.findIndex((s) => s.group === 40);
       return { k, group: sws[k]?.group ?? -1, n: g.world.level.lights.lights.filter((l) => l.group === 40).length, e: g.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length };
     });
-    assert(sw.k >= 0 && sw.n === 8 && sw.e === 6, `the feeder board has the west (8 columns) and east (6) breakers (${JSON.stringify(sw)})`);
+    assert(sw.k >= 0 && sw.n === 16 && sw.e === 10, `the feeder board has the west (16 heads) and east (10) breakers (${JSON.stringify(sw)})`);
     await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, sw.k);
     await sim(0.5);
     const dark = await meter();
     const st = await G(() => ({ w: window.__app.current.world.level.lights.lights.filter((l) => l.group === 40 && l.on).length, e: window.__app.current.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length }));
-    assert(st.w === 0 && st.e === 6, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
+    assert(st.w === 0 && st.e === 10, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
     assert(dark < 0.28, `the light meter at the west row (${W}) reads under the shadow line 0.28 once the circuit is cut (${dark.toFixed(3)}, lit ${lit.toFixed(3)})`);
     assert(lit > dark + 0.08, `the same point reads brighter with the columns on (${lit.toFixed(3)} against ${dark.toFixed(3)})`);
   });
