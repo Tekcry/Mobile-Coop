@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~20:05 2026-10-25: a withdraw plumbing script with an empty commit pushed `:refs/heads/laptop-queue` and DELETED the
+branch for ~1 min; restored to the same tip 4b521512 (the service ignores an empty listing, so nothing ran or was
+withdrawn). Withdraw only with a temp index + `[ -n "$c" ]` guard (scratchpad recipe), never `$c:` unchecked.
 ~00:20: QUEUE RULE (lib.mjs pick): the queue runs a requester's NEWEST request first, so newer requests starve an
 older one (fix3 waited 70 min). Keep one open request at a time in priority order. Withdrawn (request file deleted on
 laptop-queue): polish b226 (stale) + T1 e7f2 (held). #317 fix3 6504 is now the only open request.
@@ -1000,33 +1003,30 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (SAVE 2026-10-25 ~19:20; full burn; order J1 -> J4, J6, J15, J26, J16):
-1. J1 #435 checker PASS on 398d5f05; affected-e2e queued. Waits for watchdog label / train.
-2. J4 G327 #438 (5e42c152): checks A PASS + B fix applied. Gates: laptop-e2e/g327-coop (5e42c152), g327-measure
-   (alone, 1ebdda52; then write slices/T1-SHADOW-REPORT.md from the run log in C:/NightShift/scratch/laptop-queue/runs/),
-   g327-look (alone, d6a24987 = #438 + #414 script on scratch/g327-look). All green -> post checker, tell orchestrator.
-   #414 (look script, draft) depends on #438 now (#360 closed): undraft after #438 is train-ready.
+Open (2026-10-25 ~20:10, new session after swap; full burn; order J1 -> J4, J6, J15, J26, J16):
+1. J1 #435 MERGED (train 99).
+2. J4 G327 #438: T1-SHADOW-REPORT.md written + performance.md line (8af8ff6a, docs only; shadow rule 0.07-0.18 ms,
+   ship as built). Gates left: g327-look (alone, d6a24987 = #438 + #414 script on scratch/g327-look; preempted by
+   train 99, still queued). Green -> post checker on #438 head, tell orchestrator; then undraft #414.
 3. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 +
-   alone-coop4-4p (both on 3100d035). Green -> post checker (A PASS + B fix round), tell orchestrator train-ready.
+   alone-coop4-4p (both on 3100d035, queued). Green -> post checker (A PASS + B fix round), tell orchestrator.
    CONFLICTING with master (protocol.ts): train resolves (keep master PROTOCOL_VERSION + coop4 comment).
-4. J6 #446 (feature/guard-ai-alloc): checks A + B FIX (slices/ALLOC-CHECK-A/B.md; checker failure posted on
-   864520c4): tsc TS2322 in tests/guardAiAllocManager.test.ts:34 + per-guard known point (KNOWN_TP kept by routePath).
-   Opus fix round was running; WIP 3d36aacb (save). If cut off, restart it from the branch head (full tsc, the 26-file
-   vitest set). Then both checkers re-check only their items, request alloc-coop (e2e-coop + e2e-netmove) on the new
-   head, post checker, tell orchestrator. Allocation follow-ups logged by Player Build (weapons / vfx / cover).
-5. J15 guard-rules: plan PASS; A14 settled (Marlow drops its shield lead, S1, stealthSystems.ts:594; 074a551a3).
-   S2 DONE 71cec23d (feature/guard-rules-s2; Player Build OK; if Player's J6 S3 scan refactor lands first, re-place
-   `e.def.quadruped ||` on its scan loop). S1 builder was running; WIP edb988fb (save): restart from the branch head
-   if cut off. Then merge s1 + s2 into feature/guard-rules (merge the -s2 fragment into changes/feature-guard-rules.md),
-   PR1 (minor), 2 Opus checkers, laptop: affected + e2e-coop / e2e-netmove + e2e-ctcourse + e2e-takedown.
-   Orchestrator told: J17 campus S4/S5 data waits for PR1.
-6. J26 mission hooks: plan PASS (044258624; 2 check rounds). Every slice starts after J15 PR4 merges:
-   S1a -> S1b; S2 -> S3 -> S4. Campaign Build SENT the PLAN's C1-C7 (~19:20) (C3 restarted() re-raises done steps'
-   events; C7 lamps / SEXTON lines follow em.orderPhase). A9 per-area stages dark: Michael's click at his walk.
+   Background wait: scratchpad wait-status.sh on items 2-3.
+4. J6 #446 (feature/guard-ai-alloc): Opus fix round RESTARTED ~19:55 from WIP 3d36aacb (slices/ALLOC-CHECK-A/B.md:
+   tsc TS2322 guardAiAllocManager.test.ts:34, per-guard KNOWN_TP). Stale affected request on 3d36aacb withdrawn.
+   Then both checkers re-check only their items, request alloc-coop (e2e-coop + e2e-netmove) on the new head, post
+   checker, tell orchestrator. Allocation follow-ups logged by Player Build (weapons / vfx / cover).
+5. J15 guard-rules: S1 Opus builder RESTARTED ~19:55 from WIP edb988fb (+ untracked helmetRule / killScore tests).
+   S2 DONE 71cec23d (feature/guard-rules-s2; if Player's J6 S3 scan refactor lands first, re-place
+   `e.def.quadruped ||` on its scan loop). Then merge s1 + s2 into feature/guard-rules (merge the -s2 fragment into
+   changes/feature-guard-rules.md), PR1 (minor), 2 Opus checkers, laptop: affected + e2e-coop / e2e-netmove +
+   e2e-ctcourse + e2e-takedown. Orchestrator told: J17 campus S4/S5 data waits for PR1.
+6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
+   Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master;
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: read agent results (J6 checkers, J15 S1 / S2, J26 plan check) and the laptop gates in items 2-4.
+Next: read agent results (J6 fix round, J15 S1) and the laptop gates in items 2-3.
 ```
