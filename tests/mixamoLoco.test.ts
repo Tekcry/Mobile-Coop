@@ -23,6 +23,7 @@ import { MIXAMO_LOCO, MIXAMO_ON, setMixamo } from '../src/anim/mixamo';
 import { HAND_KEYED_SET, LOCO, MOCAP_SET, MX_SLOTS, setMocapLocomotion, setMocapMixamo } from '../src/anim/mocap';
 import { MOCAP_CARRY_BODY_WALKING } from '../src/anim/clips/mixamo/carry_body_walking';
 import { MOCAP_CROSS_PUNCH as PUNCH } from '../src/anim/clips/mixamo/cross_punch';
+import { MOCAP_CROUCHED_WALKING } from '../src/anim/clips/mixamo/crouched_walking';
 
 const ON0 = { ...MIXAMO_ON };
 const HAND0 = { ...HAND_KEYED_SET };
@@ -38,8 +39,9 @@ describe('mixamoLoco: the Mixamo locomotion set', () => {
     setMixamo(false);
     setMocapLocomotion(true);
     expect(LOCO.set).toBe(MOCAP_SET);
-    // every locomotion row off: the flag on changes nothing
+    // every locomotion row off (and I1/I4's crouched walk, which also takes a mocap slot): the flag on changes nothing
     for (const slug of Object.keys(MIXAMO_LOCO)) MIXAMO_ON[slug] = false;
+    MIXAMO_ON.crouched_walking = false;
     setMixamo(true);
     expect(LOCO.set).toBe(MOCAP_SET);
     setMixamo(false);
@@ -47,6 +49,7 @@ describe('mixamoLoco: the Mixamo locomotion set', () => {
     Object.assign(MIXAMO_ON, ON0);
     setMixamo(true);
     for (const [slug, r] of Object.entries(MIXAMO_LOCO)) expect(LOCO.set[r.slot], slug).toBe(ON0[slug] ? r.clip : MOCAP_SET[r.slot]);
+    expect(LOCO.set.crouchWalk).toBe(ON0.crouched_walking ? MOCAP_CROUCHED_WALKING : MOCAP_SET.crouchWalk);
     setMixamo(false);
     expect(LOCO.set).toBe(MOCAP_SET);
   });
