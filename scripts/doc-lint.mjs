@@ -1,13 +1,14 @@
 // Doc lint (doc-guard, Michael 2026-10-25 ~11:00: "Doc lint in CI"). Keeps the docs from going stale, repeating each
 // other or pointing at things that are gone. Run by `npm run lint` (so CI's `lint` job and `npm run check` run it).
 // Checks (each finding: `ERROR|WARN <check> <file>:<line> <message>`; errors exit 1, warnings only print):
-//   stale-terms  docs/stale-terms.json: old names and replaced rules in the current docs (scope in the file).
+//   stale-terms  docs/stale-terms.json: old names and replaced rules in the current docs (scope in the file); job
+//                STATE resume blocks as WARN.
 //   citations    every G<n> cited exists in docs/DECISIONS.md; a fully replaced G cited as current in VISION, RULES,
 //                the bible, level-design or docs/systems/*.md is an error unless the line also cites a replacement.
 //   links        relative markdown links and backticked repo paths resolve (archive and fenced code skipped).
 //   owners       docs/doc-owners.json: a key rule restated outside its owner file (WARN).
-//   sizes        docs/doc-lint.json budgets: VISION words, RULES / CLAUDE lines (ERROR); job STATE resume blocks
-//                over 40 lines (WARN).
+//   sizes        docs/doc-lint.json budgets: VISION words (body and with header), RULES / CLAUDE / testing-tools lines
+//                (ERROR); job STATE resume blocks over 40 lines and ROADMAP "Decided" before today (WARN).
 //   bible-notes  a "Note 2026-..." line appended in docs/design-bible.md (ERROR: folds rewrite in place).
 //   headers      G344: each current doc names its owner and status in its first lines: `Owner: <who>. Status: current.`
 //                (or `history`; also inside `<!-- ... -->`). ERROR for the core set (docs/doc-lint.json), WARN for the rest.
@@ -79,6 +80,7 @@ export const HISTORY_RE = /\b(old|older|formerly|replaced|replaces|replacing|loo
  * Stale terms (docs/stale-terms.json): `terms[]` = { id, term | regex, flags?, why, replacement, allow?: globs,
  * allowLine?: regex (on the line and the lines before and after it: a wrapped qualifier), history?: false (history markers do not
  * excuse it), level?: "warn" }. `scope` globs say which files are current docs; `allow` globs apply to every term.
+ * `resumeScope` globs (job STATE.md files, job-owned) are checked in their resume block only, as WARN.
  * Known stale lines are listed in docs/doc-lint.json `known` (match: the term id).
  */
 export function checkStaleTerms(files, cfg) {
@@ -89,18 +91,27 @@ export function checkStaleTerms(files, cfg) {
     allowRe: t.allowLine ? new RegExp(t.allowLine, 'i') : null,
   }));
   for (const [file, text] of files) {
-    if (!matchAny(file, cfg.scope ?? ['**/*.md']) || matchAny(file, cfg.allow ?? [])) continue;
+    if (matchAny(file, cfg.allow ?? [])) continue;
+    const resumeOnly = !matchAny(file, cfg.scope ?? ['**/*.md']) && matchAny(file, cfg.resumeScope ?? []);
+    if (!resumeOnly && !matchAny(file, cfg.scope ?? ['**/*.md'])) continue;
     const { lines } = splitLines(text);
+    let from = 0, to = lines.length;
+    if (resumeOnly) {
+      const b = resumeBlock(text);
+      if (!b) continue;
+      from = b.line; to = b.line + b.length;
+    }
     for (const t of terms) {
       if (matchAny(file, t.allow)) continue;
-      for (let i = 0; i < lines.length; i++) {
+      for (let i = from; i < to; i++) {
         const line = lines[i];
         const m = t.re.exec(line);
         if (!m) continue;
         if (t.history !== false && HISTORY_RE.test(line)) continue;
         if (t.allowRe && t.allowRe.test(`${lines[i - 1] ?? ''} ${line} ${lines[i + 1] ?? ''}`)) continue;
         const fix = t.replacement ? ` -> ${t.replacement}` : '';
-        out.push(finding(t.level === 'warn' ? 'WARN' : 'ERROR', 'stale-terms', file, i + 1, `"${m[0]}" (${t.id}): ${t.why}${fix}`));
+        const level = resumeOnly || t.level === 'warn' ? 'WARN' : 'ERROR';
+        out.push(finding(level, 'stale-terms', file, i + 1, `"${m[0]}" (${t.id}): ${t.why}${fix}${resumeOnly ? ' (job STATE resume block)' : ''}`));
       }
     }
   }
@@ -310,7 +321,8 @@ export function resumeBlock(text) {
 }
 
 /**
- * Size budgets (docs/doc-lint.json `sizes`): `words` { file: max } and `lines` { file: max } are ERRORs; `stateResume`
+ * Size budgets (docs/doc-lint.json `sizes`): `words` { file: max } (the body, header line out), `wordsRaw` (the whole
+ * file) and `lines` { file: max } are ERRORs; `stateResume`
  * (glob, max lines) is a WARN; `roadmap` (Decided today only, WARN) is optional and unset (ROADMAP is the
  * orchestrator's).
  */
@@ -321,6 +333,12 @@ export function checkSizes(files, cfg, today) {
     if (text == null) continue;
     const n = wordCount(stripHeader(text));
     if (n > max) out.push(finding('ERROR', 'sizes', file, 1, `${n} words, budget ${max}: cut, link to the owner doc instead`));
+  }
+  for (const [file, max] of Object.entries(cfg.wordsRaw ?? {})) {
+    const text = files.get(file);
+    if (text == null) continue;
+    const n = wordCount(text);
+    if (n > max) out.push(finding('ERROR', 'sizes', file, 1, `${n} words with the header, budget ${max}`));
   }
   for (const [file, max] of Object.entries(cfg.lines ?? {})) {
     const text = files.get(file);

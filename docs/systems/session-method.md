@@ -19,7 +19,8 @@ Every new job, and every new phase of a job, goes through the gates in order; th
 2. **PLAN**: `docs/<job>/PLAN.md` from `docs/templates/plan.md`: slices, each with files, checks and "done looks like",
    and a **claims block** (fenced ` ```claims `): the files / globs, maps, PROTOCOL (wire) messages and save shape the
    job changes. The lead commits BRIEF + PLAN and pushes before the checker starts.
-3. **Plan checker**: a fresh Opus agent with `docs/templates/plan-check.md`; claims against every other open branch:
+3. **Plan checker**: a fresh Opus agent with `docs/templates/plan-check.md`; claims against the PLANs that
+   `origin/feature/*` branches changed vs master and committed to in the last 7 days (`--since-days`, `--prefix`):
    `node scripts/claims-check.mjs --plan docs/<job>/PLAN.md --name feature/<job>`. Verdict PASS or FIX in
    `docs/<job>/PLAN-CHECK.md`. FIX: one revision of the PLAN, then a fresh checker; still FIX goes to the orchestrator.
    A claims overlap is settled by the orchestrator (order the jobs, split the files or hand one job the files) before

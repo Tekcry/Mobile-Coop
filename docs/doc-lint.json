@@ -1,5 +1,5 @@
 {
-  "_about": "scripts/doc-lint.mjs settings (doc-guard). Current docs = the files every session reads; job docs (docs/<job>/) are per-job records, archived by Job-done. docs/ROADMAP.md and docs/orchestrator/ are orchestrator-owned and synced from origin/feature/menu by the trains: no stale-term, owner, size or header checks there. headers: G344 owner / status lines.",
+  "_about": "scripts/doc-lint.mjs settings (doc-guard). Current docs = the files every session reads; job docs (docs/<job>/) are per-job records, archived by Job-done. docs/ROADMAP.md and docs/orchestrator/ are orchestrator-owned and synced from origin/feature/menu by the trains: no stale-term, owner or header checks there, and only a WARN for ROADMAP \"Decided\" entries older than today. headers: G344 owner / status lines.",
   "include": [
     "**/*.md"
   ],
@@ -90,12 +90,17 @@
     },
     "lines": {
       "docs/RULES.md": 312,
-      "CLAUDE.md": 60
+      "CLAUDE.md": 60,
+      "docs/systems/testing-tools.md": 720
     },
     "stateResume": {
       "glob": "docs/*/STATE.md",
       "max": 40
-    }
+    },
+    "wordsRaw": {
+      "docs/VISION.md": 1000
+    },
+    "roadmap": "docs/ROADMAP.md"
   },
   "known": [],
   "headers": {

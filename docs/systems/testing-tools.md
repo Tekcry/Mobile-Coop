@@ -29,14 +29,17 @@ This page lists the suites and how they are picked.
 
 ## The runner (`scripts/run-e2e.mjs`)
 - Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
-  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
+  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten locally by a clean full run; the laptop
+  queue keeps its own times seeded from it and never rewrites the committed file). Each suite's
   output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
   (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
   `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
-  set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
-  sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
-  rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
-  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
+  set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it still runs as its
+  four parts, parallel jobs in the pool (a named suite with parts expands; `name:N` names one part).
+  `scripts/e2e-times.json` holds 150 s per part as an estimate; it changes only when someone commits a rewrite.
+  `e2e-sectorops` runs as `e2e-sectorops:1` to `:6` (sector-fixes-r RE: the suite before slice R, the solo route checks,
+  the co-op routes of sections 1-3, and part 6 the campusOps S1-S3 greybox routes; `PARTS` in `scripts/run-e2e.mjs`);
+  named alone its six parts run as parallel jobs.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. The laptop queue runs with
@@ -240,11 +243,11 @@ behind a VPN adapter).
   after a restart; a two-page `?net=local` pair (the client mirrors the live section's devices, door locks and the
   syringes line, then section 2 after the connector). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as five jobs, `e2e-sectorops:1` to `:5` (`--part=N`; named alone it runs
-  all five in sequence): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's co-op
-  routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one player
-  alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the air;
-  R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
+  (software GL). (sector-fixes-r RE) It runs as six jobs, `e2e-sectorops:1` to `:6` (`--part=N`; named alone its parts
+  still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
+  co-op routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one
+  player alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the
+  air; R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
   deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups under the 1.63 m roof, the
   valve platform's west lip to the hall main and back, the drive platform's east lip to the branch and the main), every
   way down alone, and each section's team door (the near side gets no Unbolt and stays locked, the far side's Unbolt
@@ -524,11 +527,17 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   that one is open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN`
   (60) min with result success. A failure, error, build, nosha or incomplete result never retires a new request (a
   rerun of a failure runs, e.g. the laptop's rerun of a desktop failure, or a `--jobs 1` solo rerun). Supersede still
-  retires one requester's older pr / full requests. state.json keeps done entries 7 days (pruned on each save once their
-  done claim is on the branch).
+  retires one requester's older pr / full requests; a supersede on the same sha hands over instead of posting error.
+  Affected requests (4.101.1): a duplicate hands `affected-e2e` over to the surviving affected request (pending "handed
+  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
+  an affected request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not run)".
+  state.json keeps done entries 7 days (pruned on each save once their done claim is on the branch).
 - Yield (2026-10-24): while a train head is pending, a pr / full / alone run that has not started its suites or steps
   (waiting for its lock, fetch, npm ci, build) gives its slot back: locks released, claim dropped, log "<id>: yields to
-  train <n>"; the request stays queued. Once its suites or steps start it runs to the end. A train rerun never yields.
+  train <n>"; the request stays queued. Once its suites or steps start it runs on, except where lib `cutShort` cuts it:
+  a withdrawn request stops; for a pending train a plain pr run under 80% of its expected wall is killed when every
+  other run on the worker is a plain pr too, and an alone run younger than 10 min is killed and queued again first. A
+  train rerun never yields.
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
@@ -542,7 +551,10 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   on the same branch supersedes the older open request (its `affected-e2e` gets error "superseded"); other PRs' requests
   never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
   per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
-  (no merge-base on the laptop) are skipped. A lead's own `request.mjs --affected` still works as before.
+  (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
+  affected request is requested again (4.101.1). The service runs the picked suites by name, so a legacy or GPU suite
+  in the list gates the head today (not REPORT ONLY there; the fix is in another PR). A lead's own
+  `request.mjs --affected` still works as before.
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
@@ -555,9 +567,10 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   alone runs stay on the laptop. Its statuses read "desktop: ..."; logs
   `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
   While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json` ({ train, version,
-  pid, at }; deleted after); while that file exists and is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop
-  starts no new request or train (log "train <n> building: no new claims", once per marker; an older one is ignored as
-  stale, logged once; runs already going continue). `LQ_BUILD_MARKER` overrides the path (tests).
+  pid, at }; deleted as soon as the version commit is pushed, and again when the build ends); while that file exists and
+  is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop starts no new request or train (log "train <n>
+  building: no new claims", once per marker; an older one is ignored as stale, logged once; runs already going
+  continue). `LQ_BUILD_MARKER` overrides the path (tests).
 - Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
   a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
@@ -565,9 +578,9 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
   2026-10-23 23:59 and held the slot locks for hours): hand-made chains are retired; e2e runs go through the queue
   (`request.mjs`). The permanent tasks are the task guard's allowlist in code (`TASK_ALLOW` in
-  `scripts/laptop-queue/service.mjs`): today `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
-  (`install-task.ps1 -Worker desktop`) and `NightShift auto-train` (`scripts/auto-train-task.ps1`); the queue-fix job
-  adds `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`). The only way to
+  `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
+  (`install-task.ps1 -Worker desktop`), `NightShift auto-train` (`scripts/auto-train-task.ps1`) and `NightShift
+  watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`; 4.101.1). The only way to
   schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/one-shot-task.ps1
   -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>] [-ExpireMinutes 240] [-WhatIf]`: one hidden
   run whose trigger expires at At + ExpireMinutes (also its run time limit), after which Windows deletes the task.

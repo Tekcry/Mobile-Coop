@@ -78,13 +78,13 @@
     },
     {
       "id": "current-goal-2026-10-19",
-      "regex": "Current goal \\(2026-10-19\\)|CLAUDE\\.md'?s?,? \"Current goal\"",
+      "regex": "Current goal \\(2026-10-19\\)|CLAUDE\\.md'?s?,? \"Current goal\"|Current goal \\(CLAUDE\\.md\\)|\\(current goal\\)",
       "why": "the 2026-10-19 goal was lifted (G288, G309); CLAUDE.md has no \"Current goal\"",
       "replacement": "ROADMAP \"Now\" / docs/VISION.md"
     },
     {
       "id": "claude-md-process-section",
-      "regex": "CLAUDE\\.md'?s?,? \\(?\"(Sessions|Machines|Main test machine|Test tiers|Commands|Ports|Definition of done|Swaps and context|Getting to master|Walk pacing|A job|Talking to Michael|Doc sizes|Branches and previews|Heavy-usage throughput)\"",
+      "regex": "CLAUDE\\.md'?s?,? \\(?\"(Sessions|Machines|Main test machine|Test tiers|Commands|Ports|Definition of done|Swaps and context|Getting to master|Walk pacing|A job|Talking to Michael|Doc sizes|Branches and previews|Heavy-usage throughput|Account swap|Token rules|The laptop is the test runner)\"",
       "why": "the process sections moved from CLAUDE.md to docs/RULES.md (doc-rules)",
       "replacement": "docs/RULES.md \"<section>\""
     },
@@ -119,6 +119,20 @@
       "why": "no maps at all, in any mode (G336)",
       "replacement": "say it is removed",
       "allowLine": "\\bno (briefing |field-menu )?map|removed|not built|decided out"
+    },
+    {
+      "id": "old-session-short",
+      "regex": "\\bCT Core\\b|Menu Notes|Course Ready|Sector Restart",
+      "flags": "",
+      "why": "old session names",
+      "replacement": "Player Build / Marlow Build / Sector Ops Build",
+      "allow": [
+        "docs/RULES.md"
+      ],
+      "allowLine": "\\b(FIXED|CLOSED|fixed in|closed by)\\b"
     }
+  ],
+  "resumeScope": [
+    "docs/*/STATE.md"
   ]
 }

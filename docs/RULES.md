@@ -18,15 +18,18 @@ follow-ups in the repo docs.
 never renames mid-run. Boot lines: `docs/orchestrator/PROMPTS.md`; per-title start: `docs/orchestrator/BOOT.md` (both
 on origin/feature/menu). Effort is the lead's; its agents keep their own model and effort.
 
-| Title | Machine | Model, effort | Area |
-| --- | --- | --- | --- |
-| Night Shift \| Orchestrator | desktop | Opus 5.5, high | roadmap, planning, trains, swaps, walk cards |
-| Night Shift \| Player Build | desktop | Opus 5.5, high | movement, mocap, animation, takedowns, guard models, co-op player |
-| Night Shift \| Marlow Build | desktop | Opus 5.5, high | Marlow Yard, section rating, level validator, guard cap |
-| Night Shift \| Sector Ops Build | desktop | Opus 5.5, high | Sector Ops (Saltmarsh Park), lighting on every map, visual gate |
-| Night Shift \| Guard AI Build | laptop | Opus 5.5, high | `src/ai` on every map, coop4 |
-| Night Shift \| Test Runner | laptop | Opus 5.5, medium | the laptop queue, flakes, guard render |
-| Night Shift \| Cloud Builder \<k\> | cloud | as Michael starts it | briefs on the orphan branch `cloud-queue` (its README) |
+Session layout: Michael 2026-10-25 ~12:50. "Started by" is who opens the session at each swap.
+
+| Title | Machine | Model, effort | Started by | Area |
+| --- | --- | --- | --- | --- |
+| Night Shift \| Orchestrator | desktop | Opus 5.5, high | Michael pastes | roadmap, planning, trains, swaps, walk cards |
+| Night Shift \| Player Build | desktop | Opus 5.5, high | orchestrator | movement, mocap, animation, takedowns, guard models, co-op player |
+| Night Shift \| Marlow Build | desktop | Opus 5.5, high | orchestrator | Marlow Yard, section rating, level validator, route-runs, guard cap |
+| Night Shift \| Sector Ops Build | desktop | Opus 5.5, high | orchestrator | Sector Ops (Saltmarsh Park), lighting on every map, visual gate |
+| Night Shift \| Campaign Build | desktop | Opus 5.5, high | orchestrator | Tallow Wharf, the mission framework / engine, campaign rules (strict rules), the objective popup, removing the compass, blip and maps |
+| Night Shift \| Guard AI Build | laptop | Opus 5.5, high | Michael pastes | `src/ai` on every map, coop4 |
+| Night Shift \| Test Runner | laptop | Opus 5.5, medium | Michael pastes | the laptop queue, flakes, guard render |
+| Night Shift \| Cloud Builder | cloud | Opus 5.5, as the orchestrator starts it | orchestrator | one session: briefs on the orphan branch `cloud-queue` (its README); idle when no brief waits |
 
 Old names in older docs: CT Core Build = Player Build, Menu Notes Build = Marlow Build, Course Ready Build = Sector Ops
 Build, Character Build = Test Runner.
@@ -59,8 +62,8 @@ Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbo
 5. Maps and looks: before greybox or art on a map, or a big look change, Michael approves a one-page to-scale plan plus
    a 5-line intent check with one click (native multiple choice) (G288). A new map or map re-plan also passes the level
    validator (connectivity graph, `docs/level-design.md`) before greybox. At greybox exit a measured validator pass
-   (`scripts/level-validate.mjs`, V6 `--require-measured`) and the bot route-runs are required, then a 10-minute walk
-   card for Michael (G289, G330).
+   (`scripts/level-validate.mjs`; V6 `--require-measured` is not live yet, `docs/level-design.md` 14) and the bot
+   route-runs are required, then a 10-minute walk card for Michael (G289, G330).
 6. Build (below). Templates and commands for each step: `docs/systems/session-method.md`.
 
 **Walk pacing** (G288). At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
@@ -131,9 +134,12 @@ an Opus plan; the orchestrator assigns it (G283).
   e2e green: it releases (merge, tag, `dev` moves `/preview/`, member PRs closed).
 - A failing member leaves the train and the rest rerun (auto-drop, G286); a desktop red is never final without a laptop
   rerun.
-- A conflict is resolved in the train by the orchestrator: merge the branch by hand on the pre-version head
-  (`git checkout -B train/<n> <version commit>^`) with the subject `Merge origin/<b> into train/<n>`,
-  `git push --force origin train/<n>`, then rerun `node scripts/merge-train.mjs build <n> <version> "<title>" <all members> --keep`.
+- A member that conflicts is left out of the train by the code: it loses `train-ready` and gets a comment; its lead
+  fixes the conflict on its branch and the label comes back (`docs/systems/auto-train.md` "Left out on a conflict").
+  Fallback only: the orchestrator merges it by hand on the pre-version head
+  (`git checkout -B train/<n> <version commit>^`, subject `Merge origin/<b> into train/<n>`,
+  `git push --force origin train/<n>`), then reruns
+  `node scripts/merge-train.mjs build <n> <version> "<title>" <all members> --keep`.
 
 **Test tiers** (suite lists and selection: `docs/systems/testing-tools.md`).
 | Change | Runs | Where |
@@ -158,16 +164,17 @@ an Opus plan; the orchestrator assigns it (G283).
   `E2E_JOBS=1`); then an alone request that has waited over 30 min (`ALONE_AGE_MIN`; it goes ahead of PR work and
   takes both slots once they drain); then PR requests, requesters in arrival order (one slot, `E2E_JOBS=2`; full runs
   3); then the other alone measures when both slots are idle. The two sessions keep its CPU under ~80%.
-- Desktop (Orchestrator, Player, Marlow, Sector Ops): CPU target under ~80% (G306); over 90% the orchestrator trims
-  the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc and
-  single vitest files, never a full `npm run check` (CI runs it).
+- Desktop (Orchestrator, Player, Marlow, Sector Ops, Campaign): CPU target under ~80% (G306); over 90% the orchestrator
+  trims the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc
+  and single vitest files, never a full `npm run check` (CI runs it).
 - The desktop runs e2e suites only as the queue's overflow worker (task `NightShift-desktop-queue`), never by hand; a
   one-off GPU, perf or Blender job runs there only when the job lead says, under `heavy.lock`. The worker takes pr requests
   on 4191 (`heavy.lock`) and 4192 (`heavy2.lock`) at `E2E_JOBS=1`, one new start per pass, each only while a request
   waits (installed backlog gate 0; `LQ_DESKTOP_BACKLOG`), the slot's lock is free and the desktop CPU of Normal or higher
   priority processes is under 80% (lib `gatedCpu`; `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`; below-Normal work such as a Blender bake does not
   count). Trains only when the laptop has pushed nothing for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over
-  2 min old; nothing new while auto-train's build marker is under 30 min old. A desktop failure posts pending and queues
+  2 min old; nothing new while auto-train's build marker exists (written during `merge-train build`, deleted once the
+  version commit is pushed; a marker over 30 min old is ignored). A desktop failure posts pending and queues
   a laptop rerun, whose verdict is final. `heavy.lock` / `heavy2.lock` also cover builds, Blender bakes and other heavy
   one-offs.
 - Requests: `node scripts/laptop-queue/request.mjs --sha <full sha> --pr <n> --suites "<suites>" --set <name>
@@ -190,8 +197,10 @@ is about 6% of a 5-hour window). Commands: `docs/systems/swaps.md`.
   ~23:20). Every lead commits and pushes each agent worktree as WIP, keeps its STATE resume block current and queues its
   next long runs; all keep working to 100%.
 - At 100% with all saved and the next runs queued: "Safe to log out of the desktop and laptop".
-- Sessions start fresh at each swap: in the new account the orchestrator prints every other boot line in one message
-  (title, model, effort, machine), and each session resumes from its STATE resume block on origin, not from chat.
+- Sessions start fresh at each swap. In the new account Michael pastes only the orchestrator boot line and the two
+  laptop lines (Guard AI Build, Test Runner), which the orchestrator prints in one message (title, model, effort,
+  machine); the orchestrator starts the four desktop leads and the Cloud Builder itself (start_session). Each session
+  resumes from its STATE resume block on origin, not from chat.
 - After a same-account 5-hour reset (no swap) the sessions are still there: the orchestrator messages every live
   session to resume.
 - A mid-window clear only past ~50% context. Unused connectors (Gmail, Google Drive, Fergus) and plugins stay off in
@@ -218,10 +227,11 @@ prune ("Docs"); unmerged branches are never touched, and any other branch deleti
   `docs/design-bible.md` systems, `docs/level-design.md` maps, `docs/INDEX.md` lookup (module map, doc index),
   `docs/systems/*.md` detail per system, `docs/<job>/` one job's record. `docs/ROADMAP.md` and `docs/orchestrator/`
   are the orchestrator's, edited on feature/menu and synced to master by the trains; doc lint skips their stale-term,
-  owner, size and header checks.
+  owner and header checks and only warns on ROADMAP "Decided" entries older than today. Job STATE resume blocks get
+  stale-term warnings (job-owned).
 - Every current doc starts with `Owner: <who>. Status: current | history.` under its title (G344): the orchestrator for
-  VISION, RULES, INDEX, DECISIONS, the bible and the story (it edits; Michael decides); Marlow Build for level-design and the scale sheet (changes need
-  Michael's approval); the area lead for each `docs/systems/*.md`.
+  VISION, RULES, INDEX, DECISIONS, the bible and the story (it edits; Michael decides); Marlow Build for level-design
+  and the scale sheet (changes need Michael's approval); the area lead for each `docs/systems/*.md`.
 - One home per rule: each rule lives in one file; every other doc links to it and never restates it
   (`docs/doc-owners.json` names the homes of the key numbers).
 - Folds rewrite in place (G344): one PR updates DECISIONS, the bible and VISION together, plus the owner file of every
