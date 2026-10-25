@@ -391,7 +391,9 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
 - **Orchestrator J1 / J2:** J1 fixes LD 13's Marlow folder line; J2 gives Q24 / Q29 G numbers. D-A / D-C touch LD
   11.9 (its tag and graph kinds), 14 (3) item (1), the 15 measured line and the rule index only.
 - **Claims overlaps** (`node scripts/claims-check.mjs --plan docs/validator-port/PLAN.md --name feature/validator-port`,
-  2026-10-25: 26 overlaps with 40 open plans; none on maps, wire or save). In order of weight:
+  rerun 2026-10-25 ~21:30: 27 overlaps with 42 plans that have a claims block; none on maps, wire or save; the 27 are
+  J17, J24, J10 (2 branches), J13, sector-batch, char-shadow-meter (2), hud-guidance (4), map-ready and J20 (14 branches),
+  all named below). In order of weight:
   - **J17 campus-greybox:** the five live `docs/sector-redesign/graph/campusOps-S{1..5}.json`,
     `docs/level-validator/graph-sets.json`, `scripts/level-measure.mjs`, `docs/systems/testing-tools.md`. Order: J12
     first, as J17's PLAN :120 already says. J12's S10 owns the live graph files until J17's SW-<N> moves each v2 file
