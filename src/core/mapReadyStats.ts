@@ -74,8 +74,8 @@ export interface FrameSample {
   popIns: number;
 }
 
-/** Frame intervals kept for the window (10 s at 240 fps). */
-const MAX_FRAMES = 2400;
+/** Frame intervals kept for the window (10 s at 480 fps). */
+const MAX_FRAMES = 4800;
 
 /** The `q` quantile (0..1) of an ascending list of `n` values (nearest rank). */
 function quantile(sorted: Float32Array, n: number, q: number): number {

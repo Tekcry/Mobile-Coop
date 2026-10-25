@@ -6,7 +6,8 @@
 // Usage (repo root, a built dist/ served on E2E_PORT, default 4189):
 //   node scripts/map-ready-measure.mjs [--out <file.json>] [--gated] [--maps campusOps,ctcourse,warehouse] [--skip-a16]
 // Per map: a cold run (a new browser: fresh profile, no bake cache, no GPU program cache), 3 cached runs (reload in the
-// same context), a repeat run in the same page (quit to the menu, `__play` the same map). Then the A16 rows on campusOps:
+// same context), a repeat run in the same page (quit to the menu, `__play` the same map), then the next map in the list
+// in that page (row `<next> | after <map>`; with one `--maps` entry the next from all maps). Then the A16 rows on campusOps:
 // (a) a solo restart (`cb.restart()`, seed + 1) and (b) a co-op start after a solo bake (net=local, two pages).
 // Output: the JSON (`--out`) and a markdown table on stdout. The lead runs it on the laptop (map-ready S1 step 6).
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -83,6 +84,13 @@ async function perMap(m) {
     }
     await repeat(page, m);
     keep(m.map, 'repeat', await record(page, `${m.map} repeat`));
+    // the next map in the same warm page (map to map, the baseline for keeping actors and shaders between maps)
+    const list = MAPS.length > 1 ? MAPS : ALL;
+    const next = list[(list.findIndex((x) => x.map === m.map) + 1) % list.length];
+    if (next.map !== m.map) {
+      await repeat(page, next);
+      keep(next.map, `after ${m.map}`, await record(page, `${next.map} after ${m.map}`));
+    }
   } catch (e) {
     fail.push(`${m.map}: ${String(e?.message ?? e)}`);
   } finally {

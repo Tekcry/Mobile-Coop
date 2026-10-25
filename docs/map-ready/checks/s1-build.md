@@ -46,7 +46,8 @@ p50 / p95 / max of a known series; `loadCounters` deltas; `setBake` and `summary
 ## Step 5 - `scripts/map-ready-measure.mjs` (new)
 Report only, never asserts. `launch` / `openPage` from `e2e-lib.mjs` (not edited); port `E2E_PORT` (default 4189); maps
 `campusOps` sector, `ctcourse` course solo, `warehouse` clear, each `gfx=epic` (+ `mapready=1` with `--gated`). Per map:
-cold (new browser), 3 cached (reload), a repeat in the page (`cb.quit()`, `__play`); each waits for the reveal and
+cold (new browser), 3 cached (reload), a repeat in the page (`cb.quit()`, `__play`), then the next map in the list in
+that page (row `<next> | after <map>`; with one `--maps` entry the next from all three; fix round); each waits for the reveal and
 `after.done` (60 s past the reveal). A16 (a): campus cold, its section bake done, `cb.restart()`, the new record's
 `bakeSource`. A16 (b): one `net=local` context, page A plays campus solo until its section bake is done, quits, hosts;
 page B joins; the host starts `sector` / `campusOps`; both pages' `bakeSource` (the `hostAndJoin` / `startMode` steps
