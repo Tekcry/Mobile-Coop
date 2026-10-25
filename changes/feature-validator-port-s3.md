@@ -8,3 +8,5 @@ kind: patch
 - With `--require-measured` (the greybox exit gate) every encounter space, every split and every campaign co-op way
   back must have measured values. A move the nav grid cannot time is a warning to justify in the design doc, and its
   hand-written time is still checked. Maps without measurements yet print "pending V6" notes and pass as before.
+- Level validator docs: the graph schema now describes the measured values, the new area and opening-point fields and
+  all six new co-op link kinds, and the level standard's co-op kit list names the vent unlock door.
