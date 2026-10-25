@@ -24,11 +24,12 @@ import { S4_BASKET, S4_BOX, S4_DECK, S4_GROUPS, S4_NOC, S4_PODS } from './s4';
 /** Every room of `S4_ROOMS` -> its tag (brief section 1). */
 export const S4_ART_TAGS: Record<string, ArtTag> = {
   's4-dock': 'dock',
-  's4-sc': 'corridor',
   's4-lobby': 'lobby',
-  's4-lobby-b': 'lobby',
-  's4-lobby-c': 'lobby',
+  's4-lobby-e': 'lobby',
+  's4-lobby-a': 'lobby',
   's4-mantrap': 'mantrap',
+  // (G4.1) the return-air plenum: 'riser', the nearest existing tag for a service void (report B2)
+  's4-plenum': 'riser',
   's4-batt': 'battery',
   's4-cc': 'corridor',
   's4-ups': 'ups',
