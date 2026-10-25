@@ -6,6 +6,8 @@
  */
 import { bakeLevelLamps, bakeLevelMoon, LAMP_VERSION, MOON_VERSION, readLampCache } from '../voxel/lampJobs';
 import { SectionBaker } from '../voxel/sectionJobs';
+import { flags } from '../core/flags';
+import { readShippedLamps } from './shippedBake';
 import { lampSectionMasks, sectionBakeFor } from './sectionBake';
 import { CANON_VERSION, fnv } from '../voxel/lightShapes';
 import { MOON_CELL } from '../voxel/skyBake';
@@ -127,6 +129,16 @@ export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
     }
     // (a full bake: `bakeLevelLamps` reads the cache once more first, a cheap miss)
     if (!def) return bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey);
+    // (map-ready S4) the build's pre-baked lamps under this exact key: no baker, no workers; the file is the cache, so
+    // nothing is written. A miss (another key, no file, a dev build) bakes on this PC as before.
+    if (flags.mapReady && lampKey) {
+      const shipped = await readShippedLamps({ mapId: inp.mapId, key: lampKey, lights: baked.lights, lo: inp.lo, hi: inp.hi });
+      if (held.dead) return null;
+      if (shipped) {
+        held.source = 'shipped';
+        return shipped;
+      }
+    }
     const sb = new SectionBaker({ shapes: inp.shapes, lights: baked.lights, lo: inp.lo, hi: inp.hi, masks: lampSectionMasks(baked.lights, def), sections: def.regions.length, key: lampKey });
     held.sb = sb;
     sb.start();

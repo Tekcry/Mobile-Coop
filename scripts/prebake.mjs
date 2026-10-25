@@ -11,7 +11,7 @@
 // Then here: the caps (16 MB a file, 48 MB the map, compressed: over -> every size printed, exit 1),
 // .prebake-cache/current.json ({ h, files }, what the build emits) and the prune (only folder <h> stays).
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,7 +68,6 @@ writeFileSync(join(CACHE, 'current.json'), JSON.stringify({ h: plan.h, files }, 
 for (const e of readdirSync(CACHE, { withFileTypes: true })) {
   if (e.isDirectory() && e.name !== plan.h) rmSync(join(CACHE, e.name), { recursive: true, force: true });
 }
-if (!existsSync(join(dir, `${MAP}.json`))) process.exit(1);
 for (const s of sizes) console.log(`  ${s}`);
 const s = ((Date.now() - t0) / 1000).toFixed(1);
 console.log(`prebake ${MAP}: ${man.lamps} lamps, ${man.files.length} files, ${(total / 1048576).toFixed(2)} MB gz, ${s} s${plan.cached ? ' (cached)' : ''}`);
