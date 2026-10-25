@@ -295,16 +295,33 @@ export function laptopMissing({ ci, laptop, ciGreenAt: greenAt, now, thresholdMi
   return waitMin >= thresholdMin ? Math.floor(waitMin) : null;
 }
 
-/** Laptop queue tree paths (origin/laptop-queue) -> 'idle' | 'busy': busy while any pending request JSON or running marker exists. */
-export function laptopQueueState(paths) {
-  const busy = paths.some((p) => {
-    const segs = p.split('/');
-    const base = segs[segs.length - 1].toLowerCase();
-    const dirs = segs.slice(0, -1).map((s) => s.toLowerCase());
-    if (dirs.includes('running') || base.startsWith('running')) return true;
-    return base.endsWith('.json') && (dirs.includes('pending') || base.startsWith('pending'));
+/** Hours after which an unclaimed request no longer counts as queued (a bad request is never claimed). */
+export const QUEUE_REQUEST_STALE_H = 12;
+/** Hours after which an open claim no longer counts as running (the service's LQ_CLAIM_MAX_H: a dead worker's). */
+export const QUEUE_CLAIM_STALE_H = 3;
+
+/** Request id `YYYYMMDDTHHMMSS-...` (UTC, laptop-queue lib requestId) -> ms, or NaN. */
+const requestIdTime = (id) => {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(id);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : NaN;
+};
+
+/**
+ * Laptop queue (origin/laptop-queue) -> 'idle' | 'busy'. `paths` = the branch's file paths (requests/<id>.json,
+ * claims/<id>.json, alerts/...); `claims` = { [id]: { worker, at, done } } claim texts parsed. Busy while a request has
+ * no claim yet (queued, under QUEUE_REQUEST_STALE_H old) or a claim is open (running: not done, `at` under
+ * QUEUE_CLAIM_STALE_H old). Every finished request (run, superseded, duplicate, withdrawn) gets a done claim.
+ */
+export function laptopQueueState(paths, { claims = {}, now = Date.now() } = {}) {
+  const ids = (dir) => paths.filter((p) => p.startsWith(`${dir}/`) && p.endsWith('.json')).map((p) => p.slice(dir.length + 1, -5));
+  const claimed = new Set(ids('claims'));
+  const queued = ids('requests').some((id) => {
+    if (claimed.has(id)) return false;
+    const t = requestIdTime(id);
+    return !(now - t >= QUEUE_REQUEST_STALE_H * 3600_000);
   });
-  return busy ? 'busy' : 'idle';
+  const running = Object.values(claims).some((c) => c && c.done === false && now - Date.parse(c.at) < QUEUE_CLAIM_STALE_H * 3600_000);
+  return queued || running ? 'busy' : 'idle';
 }
 
 /**
@@ -956,10 +973,20 @@ function releaseTimes() {
     .filter((p) => /^train\/\d+$/.test(p.headRefName)).map((p) => Date.parse(p.mergedAt)).filter(Boolean);
 }
 
-/** 'idle' | 'busy' from origin/laptop-queue, or null when that branch does not exist. */
+/** 'idle' | 'busy' from origin/laptop-queue (request names and claim texts, one GraphQL read), or null when that branch does not exist. */
 function laptopQueue() {
-  const t = api('repos/{owner}/{repo}/git/trees/laptop-queue?recursive=1', '[.tree[] | select(.type == "blob") | .path]');
-  return t == null ? null : laptopQueueState(JSON.parse(t));
+  const q = 'query($owner:String!,$name:String!){repository(owner:$owner,name:$name){ref(qualifiedName:"refs/heads/laptop-queue"){name}'
+    + ' req:object(expression:"laptop-queue:requests"){... on Tree{entries{name}}}'
+    + ' cl:object(expression:"laptop-queue:claims"){... on Tree{entries{name object{... on Blob{text}}}}}}}';
+  const r = exec(['gh', 'api', 'graphql', '-F', 'owner={owner}', '-F', 'name={repo}', '-f', `query=${q}`, '--jq',
+    '.data.repository | {ref: (.ref != null), requests: [.req.entries[]?.name], claims: [.cl.entries[]? | {name, text: .object.text}]}']);
+  if (r.status !== 0) throw new Error(`gh api graphql (laptop queue): ${(r.err || r.out).trim().slice(-400)}`);
+  const d = JSON.parse(r.out);
+  if (!d.ref) return null;
+  const claims = {};
+  for (const c of d.claims) { try { claims[c.name.replace(/\.json$/, '')] = JSON.parse(c.text); } catch { /* unreadable claim */ } }
+  const paths = [...d.requests.map((n) => `requests/${n}`), ...d.claims.map((c) => `claims/${c.name}`)];
+  return laptopQueueState(paths, { claims, now: Date.now() });
 }
 
 function nextN() {

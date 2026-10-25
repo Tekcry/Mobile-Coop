@@ -204,13 +204,25 @@ describe('auto-train: pacing', () => {
     expect(pacing({ now, releases: [now - 30 * 60 * MIN], maxPerDay: 1 })).toBeNull();
   });
 
-  it('reads the laptop queue tree: busy on a pending request JSON or a running marker', () => {
-    expect(laptopQueueState([])).toBe('idle');
-    expect(laptopQueueState(['README.md', 'done/2026-10-23-a.json'])).toBe('idle');
-    expect(laptopQueueState(['pending/2026-10-23-a.json'])).toBe('busy');
-    expect(laptopQueueState(['queue/pending/x.json'])).toBe('busy');
-    expect(laptopQueueState(['running.json'])).toBe('busy');
-    expect(laptopQueueState(['running/4191.txt'])).toBe('busy');
+  it('reads the laptop queue branch: busy on an unclaimed request or an open claim (requests/, claims/, alerts/)', () => {
+    const T = Date.UTC(2026, 9, 25, 2, 0, 0);
+    const id = '20261025T013649-affected-e2e-d5ccca5a-f205';
+    const done = { worker: 'laptop', at: '2026-10-25T01:40:00.000Z', done: true };
+    expect(laptopQueueState([], { now: T })).toBe('idle');
+    expect(laptopQueueState(['alerts/20261024T220717Z-desktop-tasks.json', 'README.md'], { now: T })).toBe('idle');
+    // queued: the request has no claim yet (auto-train.log: 483 idle ticks, 0 waits before this read requests/)
+    expect(laptopQueueState([`requests/${id}.json`], { now: T })).toBe('busy');
+    // finished (run, superseded, duplicate, withdrawn: all done claims)
+    expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: done }, now: T })).toBe('idle');
+    // running: an open claim of a request or a train head
+    expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: { ...done, done: false } }, now: T })).toBe('busy');
+    expect(laptopQueueState([`claims/${'a'.repeat(40)}.json`], { claims: { ['a'.repeat(40)]: { ...done, done: false } }, now: T })).toBe('busy');
+    // stale: a dead worker's open claim (over 3 h) or a never-claimed bad request (over 12 h) stop counting
+    expect(laptopQueueState([`claims/${id}.json`], { claims: { [id]: { ...done, done: false, at: '2026-10-24T22:00:00.000Z' } }, now: T })).toBe('idle');
+    expect(laptopQueueState(['requests/20261024T120000-bad-a-12345678-0000.json'], { now: T })).toBe('idle');
+    expect(laptopQueueState(['requests/20261024T215933-night-shift-sector-o-62d80c02-f7c4.json'], { now: T })).toBe('busy');
+    // a busy queue holds the build until the interval; idle builds at once
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: laptopQueueState([`requests/${id}.json`], { now: T }) })).toMatch(/laptop queue busy/);
   });
 });
 
