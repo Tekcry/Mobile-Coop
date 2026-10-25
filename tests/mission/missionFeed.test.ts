@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { spookFact, type MissionDef } from '../../src/game/mission/missionDef';
 import { MissionRunner } from '../../src/game/mission/missionRunner';
-import { MissionFeed, missionCurrentStep, missionDoneLine, missionObjectiveLines, missionViewerTeam } from '../../src/game/mission/missionFeed';
+import { MissionFeed, missionCurrentStep, missionDoneLine, missionObjectiveLines, missionStepReads, missionViewerTeam, stepWithPercent } from '../../src/game/mission/missionFeed';
 import { rulesLine } from '../../src/game/mission/missionText';
 import { THREE_GREY_COATS } from '../../src/world/maps/tallowWharfMissions';
 // (pauseScreen's `objectiveRowState` is not imported here: the screen pulls in the PWA hook, a Vite virtual module the
@@ -118,6 +118,26 @@ describe('MissionFeed (HG7)', () => {
     expect(f.text).toBe('');
   });
 
+  it('(R6 polish) the same step index of another runner is another line: the text is rebuilt, not kept', () => {
+    const f = new MissionFeed();
+    expect(f.update(run(op(), 1), 'all', false)).toBe(true);
+    expect([f.step, f.text]).toEqual([0, 'Team A: Reach the roof']);
+    const other: MissionDef = { ...op(), id: 'other', steps: op().steps.map((q, i) => (i === 0 ? { ...q, text: 'Open the gate' } : q)) };
+    const r2 = run(other, 1);
+    expect(f.update(r2, 'all', false)).toBe(true);
+    expect([f.step, f.text]).toEqual([0, 'Team A: Open the gate']);
+  });
+
+  it('(R6 polish) a restart: after `reset` the same runner, step and version write the line again', () => {
+    const r = run(op(), 1);
+    const f = new MissionFeed();
+    expect(f.update(r, 'all', false)).toBe(true);
+    expect(f.update(r, 'all', false)).toBe(false);
+    f.reset();
+    expect(f.update(r, 'all', false)).toBe(true);
+    expect(f.text).toBe('Team A: Reach the roof');
+  });
+
   it("Three Grey Coats: tgc-3's reading-room line, then the clock-mender's back loft once Teale has bolted (R1, A18)", () => {
     const d = THREE_GREY_COATS;
     const r = new MissionRunner(d, 2);
@@ -218,5 +238,29 @@ describe('missionDoneLine (lead ruling 2)', () => {
     // W3 has no step: the "Take the ledger" Sector Ops label is never named
     t.snapshot(2, 2);
     expect(missionDoneLine(t)).toBe('');
+  });
+});
+
+describe('(R6 polish) the download percent', () => {
+  it("missionStepReads: a step done on the section's objective flag (its done condition, else its own id)", () => {
+    const base = { section: 's1', team: 'all', kind: 'interact', text: 'Download the logs' } as const;
+    expect(missionStepReads({ ...base, id: 's1-obj' }, 's1-obj')).toBe(true);
+    expect(missionStepReads({ ...base, id: 'logs', done: { flag: 's1-obj' } }, 's1-obj')).toBe(true);
+    expect(missionStepReads({ ...base, id: 'logs', done: { all: [{ flag: 'key' }, { any: [{ flag: 'x' }, { flag: 's1-obj' }] }] } }, 's1-obj')).toBe(true);
+    expect(missionStepReads({ ...base, id: 'logs', done: { flag: 's2-obj' } }, 's1-obj')).toBe(false);
+    expect(missionStepReads({ ...base, id: 's1-obj', done: { flag: 'other' } }, 's1-obj')).toBe(false);
+    expect(missionStepReads({ ...base, id: 'roof' }, 's1-obj')).toBe(false);
+  });
+
+  it('stepWithPercent: the step line plus " NN%" only', () => {
+    expect(stepWithPercent('Download the logs 0%', 'Download the logs')).toBe(true);
+    expect(stepWithPercent('Download the logs 45%', 'Download the logs')).toBe(true);
+    expect(stepWithPercent('Download the logs 100%', 'Download the logs')).toBe(true);
+    expect(stepWithPercent('Download the logs', 'Download the logs')).toBe(false);
+    expect(stepWithPercent('Download the logs 4x%', 'Download the logs')).toBe(false);
+    expect(stepWithPercent('Download the logs 1000%', 'Download the logs')).toBe(false);
+    expect(stepWithPercent('Download the logsX 45%', 'Download the logs')).toBe(false);
+    expect(stepWithPercent('Reach the roof 45%', 'Download the logs')).toBe(false);
+    expect(stepWithPercent(' 45%', '')).toBe(false);
   });
 });

@@ -74,7 +74,7 @@ import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
 import { applyMissionStart, bindSectorMission, type SectorMission } from '../mission/sectorMission';
 import { CAMPAIGN, campaignGrant, campaignResponseKinds, isCampaignMission, missionSectionLine } from '../mission/campaign';
-import { MissionFeed, missionDoneLine, missionObjectiveLines } from '../mission/missionFeed';
+import { MissionFeed, missionDoneLine, missionObjectiveLines, missionStepReads } from '../mission/missionFeed';
 import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
@@ -277,6 +277,10 @@ export class SectorMode implements GameMode {
   readonly mission: SectorMission | null;
   /** (mission-rules R6, HG7) The mission's current step on this machine's objective line (host / solo; the client has its own). */
   private readonly feed = new MissionFeed();
+  /** (mission-rules R6 polish) The live section's `<section>-obj` flag (`setup`) and the download percent last written
+   *  (-1: none since `setup`): the percent goes on the line only when it changes. */
+  private dlFlag = '';
+  private dlPct = -1;
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
@@ -811,8 +815,14 @@ export class SectorMode implements GameMode {
     };
     ints.setEnabled(it, true);
     this.its.push(it);
-    // (mission-rules R6, HG7) in a mission section the objective line is the mission's step (`frameUpdate`'s feed)
+    // (mission-rules R6, HG7) in a mission section the objective line is the mission's step (`frameUpdate`'s feed).
+    // (R6 polish) A restart mid-download (a broken rule, a protected target knocked out, everyone down) keeps the same
+    // step, so the feed would not rewrite and the "<step> NN%" line would stay: the feed starts again and the next
+    // `frameUpdate` writes the step's line.
+    this.dlFlag = `${s.id}-obj`;
+    this.dlPct = -1;
     if (!this.missionLive()) g.hud.setObjective(o.label);
+    else this.feed.reset();
   }
 
   private objectiveDone(s: SectorDef): void {
@@ -1330,8 +1340,19 @@ export class SectorMode implements GameMode {
         if (r.target.alive && hyp2(r.feet.x - o.x, r.feet.z - o.z) < SECTOR.downloadRange && Math.abs(r.feet.y - o.y) < 2) near = true;
       }
       if (near && this.run.download(dt)) this.objectiveDone(s);
-      // (mission-rules R6) in a mission section the percent follows the mission's step, never the sector label
-      else if (near) g.hud.setObjective(`${(this.missionLive() && this.feed.text) || o.label} ${Math.floor((this.run.progress / SECTOR.downloadTime) * 100)}%`);
+      else if (near) {
+        // (mission-rules R6) in a mission section the percent follows the mission's step, never the sector label; (R6
+        // polish) only on the step the download completes (`missionStepReads`): another current step keeps its own
+        // line. Written when the percent changes (no string per tick).
+        const pct = Math.floor((this.run.progress / SECTOR.downloadTime) * 100);
+        if (pct !== this.dlPct) {
+          this.dlPct = pct;
+          const m = this.missionLive();
+          const step = m && this.feed.step >= 0 ? m.runner.def.steps[this.feed.step] : undefined;
+          if (!m || !this.feed.text) g.hud.setObjective(`${o.label} ${pct}%`);
+          else if (step && missionStepReads(step, this.dlFlag)) g.hud.setObjective(`${this.feed.text} ${pct}%`);
+        }
+      }
     } else if ((this.run.phase === 'connector' || this.run.phase === 'extract') && !this.mission?.holding) this.exitStep(dt, s, g.playerRefsInto(this.refs));
   }
 
