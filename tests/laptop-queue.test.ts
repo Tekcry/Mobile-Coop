@@ -968,6 +968,50 @@ describe('fitsBeforeTrain', () => {
   });
 });
 
+describe('lastTrainEndFrom: this worker bump', () => {
+  it('a just-posted verdict raises the end, never lowers it', () => {
+    const now = new Date(NOW).toISOString();
+    expect(lastTrainEndFrom([{ laptop: 'success', laptopAt: now }], NOW - 60_000)).toBe(NOW);
+    expect(lastTrainEndFrom([{ laptop: 'success', laptopAt: now }], NOW + 60_000)).toBe(NOW + 60_000);
+    expect(lastTrainEndFrom([{ laptop: 'success', laptopAt: now }], NaN)).toBe(NOW);
+  });
+});
+
+describe('train hold across the next train (laptop-queue-6 rule, BRIEF item 5)', () => {
+  const MIN = 60_000;
+  const lim = { buildMaxMs: 20 * MIN, gapMs: 6.5 * MIN, readyLagMs: 3 * MIN, mergeLagMs: 2 * MIN, lateMs: 5 * MIN };
+  const times = { quick: 12, long: 206 };
+  const prepS = 120;
+  const fits = (suites: string[], now: number, etaMs: number) => fitsBeforeTrain({ kind: 'pr', suites }, { now, etaMs, times, prepS });
+  it('train N releasing, N+1 building, N+1 pending, N+1 releasing, nothing left', () => {
+    const t0 = NOW; // train N's laptop success, a candidate green since long before
+    const green = [t0 - 30 * MIN];
+    // hold with ETA = success + merge lag + gap; the short run fits before it, the 206 s run does not
+    const a = nextTrain({ releasing: { n: '110', laptopAtMs: t0 }, green, now: t0 + 5.25 * MIN }, lim);
+    expect(a?.etaMs).toBe(t0 + 8.5 * MIN);
+    expect(fits(['quick'], t0 + 5.25 * MIN, a!.etaMs)).toBe(true);
+    expect(fits(['long'], t0 + 5.25 * MIN, a!.etaMs)).toBe(false);
+    // train N+1 building: ETA = now, nothing fits, an alone request is held too
+    const now2 = t0 + 9 * MIN;
+    const b = nextTrain({ building: { n: '111', ageMs: MIN }, lastMerge: { n: '110', atMs: t0 + 2 * MIN }, green, now: now2 }, lim);
+    expect(b?.etaMs).toBe(now2);
+    expect(fits(['quick'], now2, b!.etaMs)).toBe(false);
+    expect(holdKeeps({ id: 'x', kind: 'alone' }, { next: b, fits: false })).toBe(false);
+    // N+1 head pending: trains first, a pr request waits
+    const trainHead = { sha: 'b'.repeat(40), n: '111' };
+    const q = { trains: [trainHead], requests: [req(5, 'pr')] };
+    expect(pick(q, now2, slots(false, false))).toEqual({ kind: 'train', train: trainHead });
+    // N+1 laptop success with another green candidate: a new hold with N+1's ETA
+    const t1 = t0 + 20 * MIN;
+    const g2 = [t1 - 2 * MIN];
+    const c = nextTrain({ releasing: { n: '111', laptopAtMs: t1 }, green: g2, now: t1 + MIN }, lim);
+    expect(c?.etaMs).toBe(t1 + 8.5 * MIN);
+    expect(c?.why).toMatch(/^train 111 releasing/);
+    // no candidates left: no hold
+    expect(nextTrain({ releasing: { n: '111', laptopAtMs: t1 }, green: [], running: 0, now: t1 + MIN }, lim)).toBeNull();
+  });
+});
+
 describe('train-ready heads', () => {
   const prs = [
     { head: 'a', check: { status: 'COMPLETED', conclusion: 'SUCCESS' } },

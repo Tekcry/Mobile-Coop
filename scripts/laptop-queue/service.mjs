@@ -19,8 +19,8 @@
 // the desktop starts no new request or train; runs already going continue. An older marker is ignored (logged once).
 // Every request and train is claimed (claims/<id>.json, a train: claims/<sha>.json, on the laptop-queue branch, an
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
-// Train reruns (request.mjs --train-rerun, from auto-train): kind pr, picked right after trains on one slot at E2E_JOBS=1
-// (laptop only); its context is laptop-e2e/<set> like any request (auto-train's: laptop-e2e/train<n>-rerun), and
+// Train reruns (request.mjs --train-rerun, from auto-train): kind pr, picked right after trains at E2E_JOBS=1, on both slots when
+// free (LQ_RERUN_SHARD) else one (laptop only); its context is laptop-e2e/<set> like any request (auto-train's: laptop-e2e/train<n>-rerun), and
 // laptop-e2e/rerun-<suites> only when it has no set; a full pass also posts laptop-e2e success on the sha.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's oldest open request first, a higher --priority before it (lib.mjs superseded, pick).
@@ -80,7 +80,7 @@
 // is pushed to requests/ and affected-e2e goes pending; the run posts its verdict on laptop-e2e/affected AND affected-e2e
 // (build failed, no result, withdrawn and service errors too; either worker). Affected requests queue per branch (lib
 // queueRequester): a newer head on the same branch supersedes the older request (its affected-e2e gets error
-// "superseded"), and pick takes PR branches in arrival order beside the leads. Heads older than LQ_AFFECTED_MAX_AGE_H
+// "superseded"), and pick orders them with the leads' pr requests (front, green smallest first, arrival). Heads older than LQ_AFFECTED_MAX_AGE_H
 // (24; 0 = no limit) and heads with no merge-base here (forks) are skipped, logged once.
 // Spare work (laptop-queue-5; laptop only, sparePass after each pass): once both slots have sat idle with no open
 // request and no pending train for LQ_SPARE_IDLE_MIN (5; 0 = off) min, the next job of docs/laptop-queue/spare-jobs.json
@@ -96,6 +96,10 @@
 // each open PR's mergeable state; a head CONFLICTING gets no auto request (error posted once), and an open affected
 // request on a conflicting current head is marked done unrun (lib conflictRetire / conflictStatuses). LQ_SKIP_CONFLICTING=0
 // runs them. UNKNOWN never skips; a lead's named-suite request still runs.
+// Pick order (laptop-queue-7, lib pickFrom): pr requests go front branches (LQ_FRONT_BRANCHES), green PRs smallest first
+// (LQ_GREEN_FIRST; LQ_GREEN_MAX_WAIT_MIN bound), then arrival. A moved train head carries a docs-only verdict or runs
+// (carryMoved, LQ_TRAIN_CARRY). An aged alone gets the gap after the coming train (LQ_ALONE_GAP; lastTrainEnd, also
+// bumped by this worker's own final train verdict: bumpTrainEnd).
 // Slot locks (2026-10-25): heavy-lock.mjs parseLock reads both lock formats, so a desktop slot lock left by a killed
 // service ("laptop-queue | ... pid <n> | <iso>", pid dead here) is broken at the gate like a dead heavy-lock line.
 import { execFileSync, spawn } from 'node:child_process';
@@ -572,6 +576,15 @@ let aloneSoonLogged = '';
 /** The newest final laptop-e2e on an open train head ever seen (ms; lib lastTrainEndFrom) and its train, kept in state. */
 let lastTrainEnd = Number.isFinite(state.lastTrainEnd) ? state.lastTrainEnd : NaN;
 let lastTrainN = state.lastTrainN ?? '?';
+/** This worker just posted a final laptop-e2e on train n: lastTrainEnd = that time, never back (a release within a pass
+ *  leaves no open head for pendingTrains to read the end from). */
+function bumpTrainEnd(n) {
+  if (DRY) return;
+  const end = lastTrainEndFrom([{ laptop: 'success', laptopAt: new Date().toISOString() }], lastTrainEnd);
+  if (end === lastTrainEnd) return;
+  lastTrainEnd = end; lastTrainN = n ?? '?'; state.lastTrainEnd = end; state.lastTrainN = lastTrainN;
+  saveState();
+}
 const gapLogged = new Set(); // due alone ids whose "gap after train" line is logged
 let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
@@ -685,6 +698,7 @@ function carryMoved(sha, n, chain) {
   const r = carryFrom(rows, (c) => filesBetween(c, sha), live);
   if (r?.from) {
     postStatus(sha, 'success', 'laptop-e2e', carryDesc(r.from));
+    bumpTrainEnd(n);
     state.trains[sha] = { result: 'carried', from: r.from, date: new Date().toISOString() };
     saveState();
     log(`train ${n} ${sha.slice(0, 8)}: carried from ${r.from.slice(0, 8)}, docs-only delta`);
@@ -823,6 +837,7 @@ function carryOnto(train) {
   try { st = laptopState(head); } catch (e) { log(`train ${train.n} ${head.slice(0, 8)}: status read failed, no carry: ${String(e.message).split('\n')[0]}`); return; }
   if (st !== '') return;
   postStatus(head, 'success', 'laptop-e2e', carryDesc(train.sha));
+  bumpTrainEnd(train.n);
   state.trains[head] = { result: 'carried', from: train.sha, date: new Date().toISOString() };
   log(`train ${train.n} ${head.slice(0, 8)}: carried from ${train.sha.slice(0, 8)}, docs-only delta`);
 }
@@ -1194,6 +1209,7 @@ async function runTrain(train, ports = PORTS) {
       const r = runs[broken];
       log(`train ${train.n}: shard ${p} incomplete (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites, summary ${r.complete ? 'seen' : 'missing'})`);
       postStatus(train.sha, 'failure', 'laptop-e2e', `shard ${p} gave no result`);
+      bumpTrainEnd(train.n);
       if (prNumber) postComment(prNumber, `laptop-e2e failed on ${train.sha.slice(0, 8)} (${job.ref}): shard ${p} gave no result (exit ${r.code}, ${r.suites.length}/${bins[broken].suites.length} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${p}.log`)}\n\`\`\`\n${capTail(r.tail40 || '(empty log)', 8_000)}\n\`\`\``);
       state.trains[train.sha] = { result: 'incomplete', shard: p, date: new Date().toISOString() };
       return;
@@ -1207,6 +1223,7 @@ async function runTrain(train, ports = PORTS) {
     if (watch) clearInterval(watch);
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
+    bumpTrainEnd(train.n);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
     if (ok && !DRY) carryOnto(train); // the head moved mid-run to a docs-only descendant: it carries this pass (BRIEF A8)
     saveState();
@@ -1470,7 +1487,10 @@ async function runRequest(r, port, pair = null) {
     const ok = finish(job, verdictCtx, result, runDir, r.pr, { handedOff });
     // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
     // combined status, so it replaces the desktop's laptop-e2e failure); a failed one leaves laptop-e2e red
-    if (ok && r.trainRerun) postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites, /confirm rerun/.test(r.note ?? '') ? 'confirm rerun' : undefined));
+    if (ok && r.trainRerun) {
+      postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites, /confirm rerun/.test(r.note ?? '') ? 'confirm rerun' : undefined));
+      bumpTrainEnd('?');
+    }
     state.done[r.id] = { result: ok ? 'success' : rerunId ? 'laptop-rerun' : 'failure', wall: result.wall, date: new Date().toISOString(), ...(rerunId ? { rerun: rerunId } : {}) };
   } finally {
     if (watch) clearInterval(watch);

@@ -41,4 +41,11 @@ after the train-soon filter), aloneSoon filter keeps a gap-open alone, train-soo
 describe "aged alone after the coming train" :1122 (7). Vitest 256 pass, typecheck:fast clean. Header comments left for
 slice E's header pass.
 
-Next: slice E (verify laptop-queue-6 across the next train + docs + fragment; Sonnet).
+Slice E done: test describe "train hold across the next train" (nextTrain + fitsBeforeTrain + pick timeline; the
+laptop-queue-6 rule holds, no code change needed); bumpTrainEnd (service.mjs, after lastTrainN) called by carryMoved,
+carryOnto, the shard-failure verdict, the train verdict and a passed train rerun, test "lastTrainEndFrom: this worker
+bump"; header comments; docs (testing-tools.md 720/720, auto-train.md carry bullet, RULES.md pick-order lines 318/318);
+changes/feature-laptop-queue-7.md. The live read of the laptop log (BRIEF item 5) is not done: Test Runner, no code.
+
+All slices done.
+Next: fresh Opus checker on the PR head, then PR.
