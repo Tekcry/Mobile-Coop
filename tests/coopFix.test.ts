@@ -180,5 +180,7 @@ describe('wiring', () => {
     expect(src).toMatch(/g\.hud\.setObjective\(''\);\r?\n\s*this\.showLine\(this\.obj\);/);
     expect(src).not.toMatch(/setNetStatus\(/);
     expect(src.match(/showMirrorLine\(/g) ?? []).toHaveLength(1);
+    // the three writers: the attach, a snapshot's objective, the stall notice
+    expect(src.match(/this\.showLine\(/g) ?? []).toHaveLength(3);
   });
 });

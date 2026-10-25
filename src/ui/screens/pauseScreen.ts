@@ -20,6 +20,8 @@ export interface PauseOpts {
   coop?: boolean;
   /** The mission's objectives (empty: free roam or no objectives). */
   objectives?: () => ObjectiveLine[];
+  /** (hud-guidance B5, R12) This match's interrogation lines, oldest first (empty: none yet). */
+  notes?: () => readonly string[];
   /** Depth of field is on (the pause look blurs the game); false: a plain dark overlay (Low preset). */
   dof?: boolean;
   /** A controller dropped out: a line with the way back. */
@@ -61,6 +63,22 @@ export class ObjectivesScreen extends MenuScreen {
   }
 }
 
+/** (hud-guidance B5, R12, BRIEF A9) Notes: what guards told you this match, oldest first; the newest has the focus.
+ *  Read only: each row's help line holds the whole note. */
+export class NotesScreen extends MenuScreen {
+  constructor(lines: readonly string[]) {
+    super('notes-screen', ['Field', 'Notes']);
+    const list = h('div', { class: 'ms-list', attrs: { 'data-wrap': '' } });
+    if (!lines.length) {
+      list.append(button('No notes yet', () => {}, { class: 'ms-item', key: 'none', autofocus: true, desc: 'Interrogate a guard: what he tells you is kept here for this match.' }));
+    }
+    lines.forEach((t, i) => {
+      list.append(button(t, () => {}, { class: 'ms-item', key: `note-${i}`, autofocus: i === lines.length - 1, desc: t }));
+    });
+    this.body.append(list);
+  }
+}
+
 /** The field terminal pause menu on the MenuScreen template (menu-ui step 10, MD7). */
 export class PauseScreen extends MenuScreen {
   override modal = true;
@@ -80,6 +98,7 @@ export class PauseScreen extends MenuScreen {
     list.append(
       item('Resume', () => this.resume(), opts.coop ? 'Back to the mission. It kept running while you were here.' : 'Back to the mission.', 'resume', true),
       item('Objectives', () => this.manager.push(new ObjectivesScreen(opts.objectives?.() ?? [])), 'The mission objectives and where each one stands.', 'objectives'),
+      item('Notes', () => this.manager.push(new NotesScreen(opts.notes?.() ?? [])), 'What guards told you in interrogations this match.', 'notes'),
       // (menu-notes A2, Michael's note 7) one place for controls: Settings > Controls (hold / toggle, sensitivities and
       // Remap controls); the separate Controls item is gone
     );
