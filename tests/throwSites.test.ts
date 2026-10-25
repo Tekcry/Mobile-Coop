@@ -1,7 +1,10 @@
 /** (tallow-fixes A24, Q23, M2) Per-site throw length: a map's throw sites give their own length; no sites = `TEAM.throwDist`. */
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkTeamRequest, setThrowSites, throwDistAt, throwLanding, throwLandingOk, THROW_SUB, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { Vector3 } from '../src/core/babylon';
+import { checkTeamRequest, setThrowSites, throwArc, throwDistAt, throwLanding, throwLandingOk, THROW_SUB, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { TeamController } from '../src/game/teamController';
 import { TEAM } from '../src/config/movement';
+import { SNAP_SPEED } from '../src/net/interp';
 import type { ThrowSite } from '../src/world/mapDef';
 
 const SITE: ThrowSite = { x: 0, z: 0, dx: 1, dz: 0, dist: 5.8 };
@@ -86,14 +89,139 @@ describe('throwLanding / throwLandingOk take the length', () => {
 });
 
 describe('checkTeamRequest follows the site length (host band)', () => {
-  it('with the site: 5.8 along +x allowed, the standard along +x denied, the standard along +z allowed', () => {
+  it('with the site (TD-b): the site band and the standard band along +x allowed, outside both denied; off-facing only the standard', () => {
     setThrowSites([SITE]);
     expect(checkTeamRequest(toss({ land: { x: 5.8, y: 0, z: 0 } }))).toBeNull();
-    expect(checkTeamRequest(toss({ land: { x: TEAM.throwDist, y: 0, z: 0 } }))).toBe('noTarget');
+    expect(checkTeamRequest(toss({ land: { x: TEAM.throwDist, y: 0, z: 0 } }))).toBeNull();
+    expect(checkTeamRequest(toss({ land: { x: 7.0, y: 0, z: 0 } }))).toBe('noTarget');
+    expect(checkTeamRequest(toss({ land: { x: 2.0, y: 0, z: 0 } }))).toBe('noTarget');
     expect(checkTeamRequest(toss({ land: { x: 0, y: 0, z: TEAM.throwDist } }))).toBeNull();
+    expect(checkTeamRequest(toss({ land: { x: 0, y: 0, z: 5.8 } }))).toBe('noTarget');
+  });
+  it('the reverse edge stays a denial: a thrower 1.1 m from the site claiming 5.8 along its facing', () => {
+    setThrowSites([SITE]);
+    const b = side({ id: 'b', x: -1.1, mode: 'brace', sub: THROW_SUB });
+    expect(checkTeamRequest(toss({ a: side({ id: 'a', x: -2.3 }), b, land: { x: -1.1 + 5.8, y: 0, z: 0 } }))).toBe('noTarget');
+    expect(checkTeamRequest(toss({ a: side({ id: 'a', x: -2.3 }), b, land: { x: -1.1 + TEAM.throwDist, y: 0, z: 0 } }))).toBeNull();
   });
   it('no sites: the standard along +x allowed, 5.8 denied', () => {
     expect(checkTeamRequest(toss({ land: { x: TEAM.throwDist, y: 0, z: 0 } }))).toBeNull();
     expect(checkTeamRequest(toss({ land: { x: 5.8, y: 0, z: 0 } }))).toBe('noTarget');
+  });
+});
+
+/** As `tests/kit/registry.test.ts`'s `fakeGame`: a floor at y 0 under every downward ray; `net.teamRequest` recorded. */
+function fakeGame(world: object | undefined) {
+  const controller = { pos: new Vector3(0, 0, 0), renderPos: new Vector3(), yaw: 0, renderYaw: 0, override: null, grounded: true, swallowCrouch: false, crouched: false, crouchIntent: false, autoCrouch: false };
+  const mate = { id: 'm', pos: new Vector3(0, 0, 0), yaw: 0, mode: 'brace', sub: THROW_SUB };
+  const asked: unknown[][] = [];
+  const g = {
+    player: { alive: true, controller, pose: { traverse: 'none', traverseT: 0, tumble: 0 } },
+    net: { teamMates: () => [mate], teamRequest: (...a: unknown[]) => asked.push(a) },
+    app: { toasts: { show: () => {} } },
+    traversal: { attached: false, committed: null, attach: { kind: 'none', phase: 'off' } },
+    takedown: { active: null },
+    strike: { active: false },
+    ballistics: { ray: (a: Vector3, b: Vector3) => (b.y < a.y - 0.1 && a.y >= 0 && b.y <= 0 ? { hit: true, distance: a.y, point: new Vector3(b.x, 0, b.z) } : { hit: false, distance: 0, point: new Vector3() }) },
+    world,
+  };
+  return { g, controller, mate, asked, tm: new TeamController(g as never) };
+}
+
+const PLUS_Z: ThrowSite = { x: 0, z: 0, dx: 0, dz: 1, dist: 5.8 };
+const withSites = (throwSites?: readonly ThrowSite[]): object => ({ level: {}, layout: throwSites ? { throwSites } : {} });
+const requestThrow = (tm: TeamController, mate: unknown): void => (tm as unknown as { requestThrow(m: unknown): void }).requestThrow(mate);
+
+describe('TeamController registers the map throw sites (TD-b)', () => {
+  it('construction: a world with a site sets it; no sites, no layout or no world at all give the standard (and do not throw)', () => {
+    fakeGame(withSites([PLUS_Z]));
+    expect(throwDistAt(0, 0, 0, 1)).toBe(5.8);
+    fakeGame(withSites());
+    expect(throwDistAt(0, 0, 0, 1)).toBe(TEAM.throwDist);
+    setThrowSites([PLUS_Z]);
+    fakeGame({ level: {} });
+    expect(throwDistAt(0, 0, 0, 1)).toBe(TEAM.throwDist);
+    setThrowSites([PLUS_Z]);
+    expect(() => new TeamController({} as never)).not.toThrow();
+    expect(throwDistAt(0, 0, 0, 1)).toBe(TEAM.throwDist);
+    setThrowSites([PLUS_Z]);
+    fakeGame(withSites([]));
+    expect(throwDistAt(0, 0, 0, 1)).toBe(TEAM.throwDist);
+  });
+
+  it('dispose clears only its own sites: an older controller disposed after a newer one leaves the newer list', () => {
+    const s2: ThrowSite[] = [{ x: 10, z: 0, dx: 0, dz: 1, dist: 4.5 }];
+    const a = fakeGame(withSites([PLUS_Z])).tm;
+    const b = fakeGame(withSites(s2)).tm;
+    expect(throwDistAt(10, 0, 0, 1)).toBe(4.5);
+    expect(throwDistAt(0, 0, 0, 1)).toBe(TEAM.throwDist);
+    a.dispose();
+    expect(throwDistAt(10, 0, 0, 1)).toBe(4.5);
+    b.dispose();
+    expect(throwDistAt(10, 0, 0, 1)).toBe(TEAM.throwDist);
+    const none = fakeGame(withSites()).tm;
+    expect(() => none.dispose()).not.toThrow();
+    expect(() => new TeamController({} as never).dispose()).not.toThrow();
+  });
+});
+
+describe('requestThrow lands the site length (TD-b)', () => {
+  /** The landing x / z the runner asked the host for (the last two numbers of `teamRequest`). */
+  const landed = (asked: unknown[][]): [number, number] => {
+    const r = asked[0]!;
+    return [r[r.length - 2] as number, r[r.length - 1] as number];
+  };
+
+  it('at the +z site, the runner behind the thrower: lands 5.8 m on; with no sites 3.2', () => {
+    const f = fakeGame(withSites([PLUS_Z]));
+    f.controller.pos.set(0, 0, -1.3);
+    requestThrow(f.tm, f.mate);
+    expect(f.tm.lastThrowRoom).toBe('ok');
+    expect(f.tm.lastThrowDist).toBe(5.8);
+    const [x, z] = landed(f.asked);
+    expect(x).toBeCloseTo(0, 9);
+    expect(z).toBeCloseTo(5.8, 9);
+
+    const n = fakeGame(withSites());
+    n.controller.pos.set(0, 0, -1.3);
+    requestThrow(n.tm, n.mate);
+    expect(n.tm.lastThrowRoom).toBe('ok');
+    expect(n.tm.lastThrowDist).toBe(TEAM.throwDist);
+    const [nx, nz] = landed(n.asked);
+    expect(nx).toBeCloseTo(0, 9);
+    expect(nz).toBeCloseTo(TEAM.throwDist, 9);
+  });
+
+  it('a throw along +x at the +z site is the standard; a runner within 5 cm uses the thrower yaw (0 = +z): the site', () => {
+    const f = fakeGame(withSites([PLUS_Z]));
+    f.controller.pos.set(-1.3, 0, 0);
+    requestThrow(f.tm, f.mate);
+    expect(f.tm.lastThrowRoom).toBe('ok');
+    expect(f.tm.lastThrowDist).toBe(TEAM.throwDist);
+    const [x, z] = landed(f.asked);
+    expect(x).toBeCloseTo(TEAM.throwDist, 9);
+    expect(z).toBeCloseTo(0, 9);
+
+    const y = fakeGame(withSites([PLUS_Z]));
+    y.controller.pos.set(0, 0, -0.03);
+    y.mate.yaw = 0;
+    requestThrow(y.tm, y.mate);
+    expect(y.tm.lastThrowRoom).toBe('ok');
+    expect(y.tm.lastThrowDist).toBe(5.8);
+    const [yx, yz] = landed(y.asked);
+    expect(yx).toBeCloseTo(0, 9);
+    expect(yz).toBeCloseTo(5.8, 9);
+  });
+});
+
+describe('the long throw arc at a fixed TEAM.throwTime (TD-b)', () => {
+  it('from 1.3 m behind the thrower to 5.8 m past: mean horizontal speed under SNAP_SPEED; the arc ends on the landing', () => {
+    const speed = (5.8 + 1.3) / TEAM.throwTime;
+    expect(speed).toBeLessThan(SNAP_SPEED);
+    const out = { x: 0, y: 0, z: 0 };
+    throwArc(TEAM.throwTime, 0, 0, -1.3, 0, 0, 5.8, out);
+    expect(out.x).toBeCloseTo(0, 9);
+    expect(out.y).toBeCloseTo(0, 9);
+    expect(out.z).toBeCloseTo(5.8, 9);
   });
 });
