@@ -1,0 +1,15 @@
+{
+  "id": "20261025T233845-night-shift-player-b-382bc321-8454",
+  "sha": "382bc321b291851242d7d0cfef26177ea2d8f27f",
+  "branch": "feature/mixamo-i2b",
+  "pr": 506,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-traverse",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "mixamo-i2b",
+  "note": "I2b co-op gate + traverse"
+}
