@@ -68,7 +68,7 @@ import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from './targetPick';
 // (guard-ai S24) one last known position per intruder
 import { COOP4, INTRUDERS, slotOf } from './intruders';
-import { K_RESET, LEG_DONE, LEG_GIVEUP, LEG_LOOK, LEG_RESET, M_ARRIVED, M_DONE, M_DROPPED, OrderLeg, ORDER, type OrderBoard } from './missionOrders';
+import { K_RESET, LEG_DONE, LEG_FOLLOW, LEG_GIVEUP, LEG_LOOK, LEG_RESET, M_ARRIVED, M_DONE, M_DROPPED, M_WALKING, OrderLeg, ORDER, type OrderBoard } from './missionOrders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0, soak: false };
@@ -1574,7 +1574,7 @@ export class Enemy implements Damageable {
     this.orders = b;
     this.orderSlot = slot;
     this.ordAt = false;
-    this.leg.start(b, slot, this.pos.x, this.pos.z, this.yaw);
+    this.leg.start(b, slot, this.pos.x, this.pos.z, this.yaw, this.num);
     this.turnT = 0;
     this.routePath.length = 0;
     this.bark('checking');
@@ -1590,6 +1590,12 @@ export class Enemy implements Damageable {
   /** (guard-ai-mission-hooks S1a) The manager drops his order (`cause`: a held guard). */
   dropOrder(cause: string): void {
     this.endOrder(false, cause);
+  }
+
+  /** (guard-ai-mission-hooks S1b) His group's leader ended his order: the manager ends each follower done (cause
+   *  'lead'), back to his route. */
+  finishOrder(): void {
+    this.endOrder(true, 'lead');
   }
 
   /** (guard-ai-mission-hooks S1a) Off the order: recorded done or dropped (`cause`), back to his route (A5). */
@@ -1639,6 +1645,11 @@ export class Enemy implements Damageable {
       return g;
     }
     if (!this.ordAt && (st === LEG_LOOK || st === LEG_RESET)) {
+      this.ordAt = true;
+      b.set(s, this.num, M_ARRIVED);
+    }
+    // (guard-ai-mission-hooks S1b) a follower standing behind his leader at the post is there too (once)
+    if (!this.ordAt && st === LEG_FOLLOW && this.leg.near && b.stateOf(s, b.lead[s]!) === M_ARRIVED && b.stateOf(s, this.num) === M_WALKING) {
       this.ordAt = true;
       b.set(s, this.num, M_ARRIVED);
     }
