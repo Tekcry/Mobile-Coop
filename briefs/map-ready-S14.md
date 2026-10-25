@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 4 2026-10-25T23:08Z
 # map-ready S14 (cloud): compile log and parallel priority compile (code + unit tests)
 
 Lead: Night Shift | Sector Ops Build. Job map-ready (FOLDED-PLAN J21, ROADMAP Now row 17; Michael's near-instant loads
