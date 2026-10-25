@@ -5,7 +5,6 @@ import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
-import type { Blip } from '../../ui/hud/minimap';
 import { killScore } from './score';
 import { hyp2 } from '../../core/mathx';
 
@@ -151,12 +150,6 @@ export class MissionMode implements GameMode {
     }
     this.g.hud.banner('DOWN', `${this.lives} ${this.lives === 1 ? 'life' : 'lives'} left`, 2500);
     this.g.scheduleRespawn(this.checkpoint, 3);
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const it of this.g.interactables?.items ?? []) if (it.enabled && !it.done) out.push({ x: it.pos.x, z: it.pos.z, kind: 'objective' });
-    return out;
   }
 
   dispose(): void {}

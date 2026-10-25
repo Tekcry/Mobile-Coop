@@ -34,6 +34,12 @@ const CASES: [string, string | null][] = [
   [`${ASSETS}pistolSd-Ii99Jj00.glb`, 'weapons'],
   [`${ASSETS}knife-Ii99Jj00.glb`, 'weapons'],
   [`${ASSETS}guard-x.json`, null],
+  // (map-ready S4) the shipped campus lamps and their manifest
+  [`${ORIGIN}/Mobile-Coop/bakes/campusOps-1x2y3z-s0.bin.gz`, 'bakes'],
+  [`${ORIGIN}/Mobile-Coop/preview/bakes/campusOps-1x2y3z-s5.bin.gz`, 'bakes'],
+  [`${ORIGIN}/Mobile-Coop/bakes/campusOps.json`, 'bakes-manifest'],
+  ['https://cdn.example.com/bakes/campusOps-1x2y3z-s0.bin.gz', null],
+  ['https://cdn.example.com/bakes/campusOps.json', null],
   [`${ASSETS}index-Q1w2E3r4.js`, null],
   [`${ORIGIN}/Mobile-Coop/index.html`, null],
   ['https://cdn.example.com/assets/guard-average-lod0-Ab12.glb', null],
@@ -87,7 +93,7 @@ const serialised: Route[] = RUNTIME_CACHING.map((r) => ({
 
 describe('service worker runtime rules: self-contained', () => {
   it('every urlPattern is a RegExp or a function that names only its own parameters', () => {
-    expect(RUNTIME_CACHING.length).toBe(3);
+    expect(RUNTIME_CACHING.length).toBe(5);
     for (const r of RUNTIME_CACHING) {
       if (isRegExp(r.urlPattern)) continue;
       expect(typeof r.urlPattern).toBe('function');
@@ -137,7 +143,7 @@ describe('service worker runtime rules: the built dist/sw.js', () => {
     runInNewContext(src, { self: { define, addEventListener: () => undefined }, define });
     expect(factory).not.toBeNull();
     (factory as unknown as (wb: unknown) => void)(workbox);
-    expect(routes.map((r) => r.cacheName)).toEqual(['weapons', 'guards', 'operators']);
+    expect(routes.map((r) => r.cacheName)).toEqual(['bakes', 'bakes-manifest', 'weapons', 'guards', 'operators']);
     for (const [href, cache] of CASES) expect([href, routeOf(routes, href)]).toEqual([href, cache]);
   });
 });

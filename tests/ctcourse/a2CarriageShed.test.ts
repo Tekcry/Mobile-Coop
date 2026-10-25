@@ -1363,12 +1363,15 @@ describe('A2 the Carriage Shed: the neck lanes and the overwatch (walk482 X2b / 
     expect(sees('w', 51, 1.7, A2_CROSS_Z, [...blockers, wall])).toBe(false);
   });
 
-  it('the taught waits are out of view of both watchers at head heights 1.05 and 1.7: the west gap 2/3 (x 41 and west of it, the centre line to x 43), the cabin corner and cabinet 2\'s spot (the vans, the cabin and the east rake hide them)', () => {
+  it('the taught waits are out of view of both watchers at head heights 1.05 and 1.7: the west gap 2/3 (x 41 and west of it, the centre line to x 43), the cabin corner and cabinet 2\'s spot (the vans, the cabin and the east rake hide them), and the entry vantage (M8)', () => {
     const waits: [string, number, number][] = [];
     for (const x of [41, 40, 39, 37.5]) for (const z of [11.6, 12.5, 13.4]) waits.push([`west gap 2/3 (${x}, ${z})`, x, z]);
     // (on the centre line the shadow reaches x 43; along the gap's south side the east watcher looks in diagonally from x 42)
     for (const x of [43, 42]) waits.push([`west gap 2/3 centre (${x}, ${A2_CROSS_Z})`, x, A2_CROSS_Z]);
     waits.push(['cabin corner', 28.95, 4.25], ['cabinet 1 spot', A2_CAB1.x, 2.6], ['cabinet 2 spot', 68.8, A2_CAB2.z], ['cabinet 2 apron', 68.4, 12.4]);
+    // (J14 F1, conformance M8, LD 3.1 [Training]) the entry vantage, read from the map's own debug point
+    const vantage = part.debugPoints.find((d) => d.id === 'A2-vantage')!.pos;
+    waits.push(['entry vantage (A2-vantage)', vantage.x, vantage.z]);
     for (const [name, x, z] of waits) {
       for (const w of ['w', 'e'] as const) {
         for (const h of HEADS) expect(sees(w, x, h, z), `${w} sees ${name} at ${h}`).toBe(false);

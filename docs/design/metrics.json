@@ -55,6 +55,13 @@
       6
     ],
     "throw_gap_max": 2.7,
+    "throw_long": {
+      "max": 4.9,
+      "spots": [
+        "tallowWharf:w2-pawn-loft>w2-reading-room",
+        "tallowWharf:w2-arcade-roof>w3-roof"
+      ]
+    },
     "shutter_gap_h": 0.9,
     "wall_jump_max_up": 3.8,
     "step_player": 0.42,
@@ -276,6 +283,22 @@
       10
     ],
     "sector_alive_max": 32,
-    "safe_drop_m": 4.5
+    "safe_drop_m": 4.5,
+    "nav_floor_depth_m": 1.5,
+    "mission_steps": [
+      3,
+      6
+    ],
+    "mission_step_min": [
+      2,
+      5
+    ],
+    "mission_total_min": [
+      10,
+      30
+    ],
+    "mission_rules_max": 2,
+    "sector_parallel_min": 2,
+    "sector_syncs_min": 2
   }
 }

@@ -2,7 +2,7 @@
 // calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT held is the lethal strike, anim-rework S1), the attacker aligned within 5 cm, interrupted by
 // damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
-// from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
+// from a pipe and a split, an inverted choke; (G348) none on a dog. `node scripts/e2e-takedown.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -188,6 +188,26 @@ try {
     assert(r.helmet && r.armour, `the takedown never touches his gear (${JSON.stringify(r)})`);
   });
 
+  // (guard-rules S2, G348) no takedown of any kind on a dog: behind one, no prompt, no menu row, the press does nothing
+  await scen('dog: no takedown', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      t.tp(2, 0, -2.2, 0);
+      const d = g.enemyMgr.spawn('dog', new t.V(2, 0, -1), false, 0);
+      d.update = () => {};
+      t.step(0.4);
+      const offer = g.takedown.offer?.plan.kind ?? null;
+      const prompt = document.querySelector('.wp-takedown.show') !== null;
+      const rows = g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label).join(' / ');
+      t.press();
+      t.step(1.0);
+      return { offer, prompt, rows, active: g.takedown.active !== null, up: d.alive };
+    });
+    assert(r.offer === null && !r.prompt && !/Takedown|Grab/i.test(r.rows), `behind a dog: no takedown offer, prompt or menu row (${r.offer}, prompt ${r.prompt}, rows ${r.rows})`);
+    assert(!r.active && r.up, `the press starts nothing, the dog stays up (${JSON.stringify(r)})`);
+  });
+
   await scen('grab', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -297,6 +317,22 @@ try {
     assert(JSON.stringify(r.codes) === JSON.stringify(['e2e-code']), `the code flag reaches the mode (${JSON.stringify(r.codes)})`);
     assert(r.feed.includes('Code: Lab door 4471'), `the feed shows the code (${r.feed})`);
     assert(r.info === null && r.n === 1, 'his information is spent, one interrogation');
+    // (hud-guidance B5, R12, A9) Pause > Field Terminal > Notes lists the interrogation's lines
+    const notes = await G(() => {
+      const g = window.__app.current;
+      const S = window.__app.screens;
+      g.pause();
+      document.querySelector('.pause-screen [data-key="notes"]')?.click();
+      const top = S.top?.el.classList[1] ?? '(none)';
+      const rows = [...document.querySelectorAll('.notes-screen .ms-item .btn-label')].map((x) => x.textContent);
+      S.back(S.top);
+      S.top?.resume?.();
+      return { top, rows, paused: g.paused };
+    });
+    assert(
+      notes.top === 'notes-screen' && notes.rows.includes('Code: Lab door 4471') && notes.rows.some((t) => t.startsWith('Patrols near: 1')) && !notes.paused,
+      `Field Terminal > Notes lists the interrogation lines (G343 field menu, A9) (${JSON.stringify(notes)})`,
+    );
   });
 
   // (Michael 08:10 / 08:20) RT kills; Carry is not a row (a script pick: knock out, then shoulder); nothing lets him go

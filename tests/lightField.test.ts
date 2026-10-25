@@ -357,6 +357,11 @@ describe('light field (3.6)', async () => {
     expect(f.levelAt(...p)).toBeLessThan(free.levelAt(...p));
     door.open = 1;
     expect(f.levelAt(...p)).toBeCloseTo(free.levelAt(...p), 9);
+    // (sector-batch, G41) a leaf 12% into its swing is still shut for light; past 15% the light comes through
+    door.open = 0.12;
+    expect(f.lampAt(0, ...p)).toBe(0);
+    door.open = 0.2;
+    expect(f.levelAt(...p)).toBeCloseTo(free.levelAt(...p), 9);
     // a lamp on the same side as the point is never cut
     door.open = 0;
     expect(f.lampAt(1, 3, 1, 2)).toBeCloseTo(free.lampAt(1, 3, 1, 2), 9);

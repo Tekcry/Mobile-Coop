@@ -32,6 +32,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
   were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
   finishes it (team doors keep a solo route, G280).
+- [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or free roam; the Marlow drill
+  pointer and pings still show.
 - [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
   and objective read by lamp light, with dark
   pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
@@ -44,9 +46,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
   ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
   light meter reads as before.
-- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
-  and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
-  partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star and every easier one are
+  filled beside Sector Ops (Saltmarsh Park's stars) and in the op list (best time in the context panel). Co-op Sector
+  Ops: the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
+  section with both players at the room.
+- [ ] (sector-batch) Sector Ops result: a run with no kill and no alarm ends "PERFECT" on the result line and the
+  extraction banner (with "GHOST" too when never spotted); an alarm takes Perfect away.
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
@@ -190,6 +195,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Character shadows (LR14, High and up): under a lamp near you a guard, your partner, a body or a held rifle throws
   its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
   Graphics > Character shadows Off) the soft capsule shadows return.
+- [ ] Guard shadow in view (guard-cap T1-SHADOW, A195): Marlow, a guard just out of view under a lamp, his shadow in
+  view: his shadow's feet do not step or slide (`&animshadow=0` shows the camera-only 1/8 rate).
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
@@ -243,7 +250,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
     the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
   - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
     sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
-  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
+  - Helmet knock-off: raise the alarm to the helmet stage (two alarms in Sector Ops on Rookie / Normal, or `e.setGear` in the console);
     the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
     falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
     armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
@@ -262,10 +269,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
   pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
   hall, or another spot) or hold. A plain window still lets their rounds through.
-- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
-  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
-  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
-  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Response teams (guard-ai S13, guard-rules S1, Sector Ops, Normal): raise the alarm twice: every guard now wears
+  armour and a helmet. In Saltmarsh Park sections 4 and 5 each alarm's team comes in behind a shield guard; in sections
+  1-3, the warehouse and Marlow Yard the team is armed guards only. Hide: after about a minute at your last spot the team
+  walks the section point to point (shield first where there is one, the rest close behind, a look round at each,
+  torches in the dark), still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Helmets and dogs (guard-rules S1 / S2, Sector Ops): on Realistic every guard wears a helmet from the start; on
+  Rookie and Normal no guard does until the second alarm. On Perfectionist a head shot on a helmet only staggers him and
+  the helmet stays on; a second head shot kills. Walk behind a dog: no takedown prompt (also in co-op on the joiner);
+  gas knocks it out and the section can still end with "No kills"; shoot a dog dead instead: the rating loses "No kills"
+  and Perfect and the score drops.
 - [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
   report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
   a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
@@ -414,6 +427,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   choke on one clock. "traversal: ladder up and over the top": Wren walks to the ladder, climbs it, tops out, resets and
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
+- [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
+  run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
+  climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
+  captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
+  line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
+  follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
+  playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.

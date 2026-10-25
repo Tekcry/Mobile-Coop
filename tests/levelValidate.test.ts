@@ -8,6 +8,8 @@ import {
   edgeDisjointPaths, mergeGraphs, parseArgs, run, validate,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/level-validate.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { perfectPaths } from '../scripts/level-checks/perfect.mjs';
 
 // level-validator V1: the graph validator (docs/level-validator/graph-schema.md) against docs/design/metrics.json.
 const ROOT = path.resolve(__dirname, '..');
@@ -21,8 +23,12 @@ interface Space {
 interface Link {
   from: string; to: string; kind: string; route: string; width?: number; height?: number; length?: number;
   time_s?: number; level_change?: number; shared?: boolean; one_way?: boolean; assist?: string; bolted?: boolean;
+  teach?: string;
 }
-interface Graph { meta: { map: string; name: string; mode: string; players: number[]; sections: string[] }; spaces: Space[]; links: Link[] }
+interface Graph {
+  meta: { map: string; name: string; mode: string; players: number[]; sections: string[]; taught_by?: string };
+  spaces: Space[]; links: Link[];
+}
 type Metrics = Record<string, unknown> & { sizes: Record<string, unknown>; rules: Record<string, unknown>; rooms: Record<string, Record<string, unknown>> };
 
 const REAL_METRICS = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/design/metrics.json'), 'utf8')) as Metrics;
@@ -107,6 +113,20 @@ const campaignBase = (): Graph => {
   return g;
 };
 
+/** base() as a training map, shaped for the training checks (BRIEF A8, A26): S1 is one route (the opening into the
+ *  court, one door to the hut; the roof is reached from the court only) and teaches at its hut door, the choke every
+ *  entry-to-exit path passes; `taught_by` S1, so S2's split and its second way into the guarded vault come after it. */
+const trainingBase = (): Graph => {
+  const g = base();
+  g.meta.mode = 'training';
+  g.meta.taught_by = 'S1';
+  g.links = g.links.filter((l) => !(l.from === 'a-gate' && l.to === 'a-court' && l.kind !== 'opening')
+    && !(l.from === 'a-court' && l.to === 'a-hut' && l.kind !== 'door')
+    && !(l.from === 'a-gate' && l.to === 'a-roof'));
+  link(g, 'a-court', 'a-hut', 'door').teach = 'quiet door';
+  return g;
+};
+
 const space = (g: Graph, id: string): Space => {
   const s = g.spaces.find((x) => x.id === id);
   if (!s) throw new Error(`no space ${id}`);
@@ -133,14 +153,14 @@ describe('level-validate: passing graphs', () => {
     const r = check(base());
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('the real metrics.json carries every key the validator reads (no missing-key WARN)', () => {
     const r = check(withKinds(), REAL_METRICS);
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('every link kind with a size rule passes at the sheet sizes (tunnel, open stair, wall jump, split jump, drop)', () => {
@@ -154,7 +174,21 @@ describe('level-validate: passing graphs', () => {
     const r = check(g, REAL_METRICS);
     expect(r.errors).toEqual([]);
     expect(r.warns.filter((w) => w.startsWith('metrics:'))).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
+  });
+
+  it('every fixture and the example keep a non-loud, no-kill path from start to each objective and exfil (A10)', () => {
+    const example = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/level-validator/example.graph.json'), 'utf8')) as Graph;
+    const ghost = (l: Link & { requires_kill?: boolean }): boolean => l.route !== 'loud' && l.requires_kill !== true;
+    for (const [name, g] of [['base', base()], ['withKinds', withKinds()], ['campaignBase', campaignBase()],
+      ['trainingBase', trainingBase()], ['example', example]] as [string, Graph][]) {
+      const start = g.spaces.find((s) => s.tags.includes('start'))?.id;
+      const exfil = g.spaces.find((s) => s.tags.includes('exfil'))?.id;
+      const targets = g.spaces.filter((s) => s.tags.includes('objective')).map((s) => s.id);
+      expect(start && exfil && targets.length, name).toBeTruthy();
+      expect(perfectPaths(g, { start, targets: [...targets, exfil], exfil, keep: ghost }), name)
+        .toEqual({ unreached: [], stranded: [] });
+    }
   });
 
   it('no metrics: one WARN, size and time checks skipped (presence checks still run)', () => {
@@ -674,7 +708,7 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
     const r = check(campaignBase());
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('campaign: a section whose exit solo links reach has no forced co-op gate (ERR); sector and training skip it', () => {
@@ -768,11 +802,7 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
   });
 
   it('training: one route is fine (no route-count, redundancy, softlock or gate checks); guard bands are INFO', () => {
-    const g = base();
-    g.meta.mode = 'training';
-    // One way through S1: the opening into the court and one door to the hut.
-    g.links = g.links.filter((l) => !(l.from === 'a-gate' && l.to === 'a-court' && l.kind !== 'opening')
-      && !(l.from === 'a-court' && l.to === 'a-hut' && l.kind !== 'door'));
+    const g = trainingBase();
     space(g, 'a-court').guards = { 2: 2 };
     g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
     g.links.push(ln('a-court', 'a-ledge', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 5 }));
@@ -919,7 +949,7 @@ describe('level-validate: merge and CLI', () => {
       };
       const ok = cli(write(base()));
       expect(ok.status).toBe(0);
-      expect(ok.out.trim()).toBe('0 error(s), 0 warning(s).');
+      expect(ok.out.split('\n').filter((l) => l && !(l.startsWith('INFO:') && l.includes('pending V6')))).toEqual(['0 error(s), 0 warning(s).']);
       const bad = base();
       link(bad, 'b-hall', 'b-dock', 'door').width = 0.9;
       const fail = cli(write(bad));
@@ -931,8 +961,8 @@ describe('level-validate: merge and CLI', () => {
   });
 
   it('parseArgs: files, --metrics, usage errors', () => {
-    expect(parseArgs(['a.json', 'b.json', '--metrics', 'm.json'])).toEqual({ files: ['a.json', 'b.json'], metrics: 'm.json' });
-    expect(parseArgs(['a.json'])).toEqual({ files: ['a.json'], metrics: null });
+    expect(parseArgs(['a.json', 'b.json', '--metrics', 'm.json'])).toEqual({ files: ['a.json', 'b.json'], metrics: 'm.json', requireMeasured: false });
+    expect(parseArgs(['a.json'])).toEqual({ files: ['a.json'], metrics: null, requireMeasured: false });
     expect(parseArgs([])).toEqual({ error: 'no graph file given' });
     expect(parseArgs(['a.json', '--metrics'])).toEqual({ error: '--metrics needs a file' });
     expect(parseArgs(['a.json', '--rooms', 'x.md'])).toEqual({ error: 'unknown flag --rooms' });
@@ -966,7 +996,7 @@ describe('level-validate: merge and CLI', () => {
       const okPath = path.join(dir, 'ok.json');
       fs.writeFileSync(okPath, JSON.stringify(base()));
       expect(run([okPath, '--metrics', metricsPath], { log, root: ROOT })).toBe(0);
-      expect(lines).toEqual(['\n0 error(s), 0 warning(s).']);
+      expect(lines.filter((l) => !(l.startsWith('INFO:') && l.includes('pending V6')))).toEqual(['\n0 error(s), 0 warning(s).']);
 
       expect(run([], { log, root: ROOT })).toBe(2);
       expect(run([path.join(dir, 'missing.json')], { log, root: ROOT })).toBe(2);

@@ -96,3 +96,10 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
   the canvas stays native and the scene renders at the scale.
 - Awake guards: `MAX_ALIVE` 12 for Marlow Yard (its sets post only what each exercise needs, G376); Sector Ops and the campaign cap at 32 alive, a ceiling (G187, G289,
   G359).
+- Guard anim tiers (`src/ai/animTier.ts`, `animTierView.ts`; G327, A195): pinned or within 4 m of a player, every
+  frame; else, not drawn by any local camera and no shadow of his can be in a view (the render freeze's
+  `guardFrustum`: the moon capsule, lamp, torch and character-atlas shadow volumes, frustum only), every
+  `ANIM_TIER_OFFSCREEN` th (8) frame; past 22 m, every 2nd; else every frame. `?animtier=0` off, `?animshadow=0` camera
+  only, `?animoff=N` the off-screen period (N >= 2; A/B). Measured at 32 guards (laptop GPU, epic,
+  `docs/guard-ai/slices/T1-SHADOW-REPORT.md`): the shadow rule costs 0.07-0.18 ms of anim a frame; the tier saves up to
+  ~0.6 ms, little in Sector Ops where the render freeze already stops off-camera guards.

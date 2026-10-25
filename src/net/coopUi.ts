@@ -58,6 +58,18 @@ export function shareLink(code: string): string {
   return u.toString();
 }
 
+/** (J14 F1, conformance R36) Why the host cannot start Course mode yet (the lobby's status and its Start button). */
+export const COURSE_TWO_PLAYERS = 'Marlow Yard needs two players';
+/**
+ * (J14 F1, R36; Michael ~21:42 "Yes, everywhere now") The one "needs two players" check: Course mode (Marlow Yard in
+ * the lobby) never starts with one player, on every build, live included; null when it may. No solo exception: the
+ * dev-only `?course=solo` boots the course without the lobby and never reaches this. Mission-rules R4 widens it to the
+ * campaign.
+ */
+export function courseStartBlock(mode: NetMode, players: number): string | null {
+  return mode === 'course' && players < 2 ? COURSE_TWO_PLAYERS : null;
+}
+
 /**
  * Lives for one room: owns the session, swaps between lobby and match, and handles
  * host-left / match-ended transitions so screens stay simple.
@@ -501,7 +513,7 @@ class LobbyScreen extends MenuScreen {
     const cap = capacity(s.mode);
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
     else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
-    else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code to invite your partner.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
+    else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your partner.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
 
@@ -632,7 +644,8 @@ class LobbyScreen extends MenuScreen {
         autofocus: true,
         key: 'start',
         desc: 'Start the mission for everyone in the room.',
-        blocked: s.overCapacity ? `Too many players for this mode (${capacity(s.mode)})` : !solo && !s.allReady ? 'Waiting for players to ready up' : undefined,
+        // (J14 F1, R36) Course mode needs two players
+        blocked: s.overCapacity ? `Too many players for this mode (${capacity(s.mode)})` : (courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
       });
     } else {
       const me = s.players.get(s.selfId);
