@@ -1482,6 +1482,17 @@
       "bolted": true,
       "at": [6.6, 0, 14.4],
       "reason": "The market warden's caged ladder on the gallery's east face at its canal-steps end; an anti-climb door at its foot (foot enclosure x 6.0-7.75 z 14.4-15.6) bolted on the cage side (LP pick 1: a ladder top-out ignores door leaves; the bolt is built in PR G1, LP pick 14); the one boosted up climbs down inside the cage and opens it for the other (EGRESS E5; split tgc-leads, A11)"
+    },
+    {
+      "from": "w2-walkway",
+      "to": "w2-arcade-roof",
+      "kind": "pipe",
+      "route": "high",
+      "level_change": 3.9,
+      "length": 36,
+      "time_s": 6,
+      "at": [47.5, 4.5, 61.6],
+      "reason": "The west downpipe: the arcade roof's eaves gutter discharges at its west end into a cast-iron downpipe on the loft row's south facade, over the walkway's west pier (below the walkway floor it runs inside the pier's chase, so it is climbed from 4.5 only, behind C3); 3.9 m up and over the eaves onto the lead flat over the pawn loft. Length: C3's west landing to the foot 2.5, the climb 3.9, the roof to the C5 thrower's mark 29.5. W2's second way up to the roof (lead ruling 2026-10-26 ~10:10 on D0's ERR 1; EGRESS E11)"
     }
   ]
 }
