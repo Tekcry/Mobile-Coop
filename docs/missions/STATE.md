@@ -21,10 +21,9 @@ below whose report file is missing.
    laptop sets e2e-takedown e2e-coop e2e-menus (+ e2e-coop-gpu on 4189). Laptop hg-b3 / hg-b4 queued.
 6. J3 PR A #447 ececda7e: checker PASS x2; affected-e2e running -> train-ready -> message the orchestrator.
 7. Engine GB6 fix feature/mission-engine-gb6fix dc2aa9c8: laptop set mission-gb6fix queued; green -> merge into engine.
-8. J8 / J9 Tallow PLAN origin/feature/mission-engine-j8j9fix2 3038c9e3: fix round 3 done (A30 -> MB: bulkhead foot
-   bolted only in Two-Key Ledger, `SectorBolt.missions`, lead CONFIRMED; cage roofless). Re-check 4 running
-   (j8-j9-plan-check4.md). PASS -> merge j8j9fix2 into engine, claims-check rerun, wave 0 (TD, G0, D0, MB) as cloud
-   briefs where tsc / vitest only. Marlow told the long-throw spot names (from>to) and bolted_in.
+8. J8 / J9 Tallow PLAN: re-check 4 PASS (j8-j9-plan-check4.md, 5 polish); merged into engine e3798754. Wave 0:
+   brief writer running (tallow-wave0-report.md): TD / G0 / MB as cloud briefs campaign-tallow-*; D0 brief held in
+   scratch until J7 PR D merges into the engine; claims-check rerun; tell Sector Ops MB touches their files.
 9. Seams: Marlow #463 (courseStartBlock, addSyringes sector-only) folds with R4 / R5 at the engine's next master pickup;
    Guard AI J15 PR2: keep `s.shieldTeams === true` in sectorMode.ts at that meet (lead-notes.md).
 Next: read check4 / R6 / #466 check / cloud-brief results; post #466 checker status; keep 2-3 open cloud briefs.
