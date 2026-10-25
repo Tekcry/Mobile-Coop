@@ -101,6 +101,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { REPEAT_DAYS } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -174,6 +175,8 @@ state.trains ??= {};
 state.flakes ??= [];
 state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
 state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
+state.knownFlaky ??= []; // { suite, sha, date } of each KNOWN FLAKY failure in the budget window (flake-budget.md, T10)
+state.blocking ??= {}; // { suite: { since, owner, last, reason, alerted } }: over budget again within REPEAT_DAYS (Q30)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
@@ -861,15 +864,33 @@ function failureComment(job, result, runDir) {
   return parts.join('\n');
 }
 
+/** Pushes alerts/<ts>-<worker>-fixjob-<suite>.json for a blocking suite (Q30; the orchestrator's cron opens the fix job). */
+function pushFixJob(suite, entry) {
+  const at = new Date().toISOString();
+  const rel = `alerts/${at.replace(/[-:]/g, '').replace(/\.\d+/, '')}-${WORKER}-fixjob-${suite.replace(/[^\w.-]/g, '_')}.json`; // no ':' in a path (e2e-sectorops:6)
+  if (DRY) { log(`dry-run: would push ${rel}`); return true; }
+  const body = `${JSON.stringify({ suite, owner: entry.owner, last: entry.last, since: entry.since, reason: entry.reason, worker: WORKER }, null, 2)}
+`;
+  if (pushFile(rel, body, `fix job for ${suite}`)) { log(`blocking: alert pushed ${rel}`); return true; }
+  log(`blocking: alert push failed for ${suite}, retried at the next budget update`);
+  return false;
+}
+
 /**
- * Counts this result's suite runs, prunes state.flakes to the budget window, quarantines over-budget suites for 48 h in
- * quarantine.json (run-e2e reads it through E2E_QUARANTINE_FILE), writes flake-budget.md, and returns the summary of the
- * suites this result flaked or failed as KNOWN FLAKY ('' when none) for the PR comment, and whether it recorded a new flake.
+ * Counts this result's suite runs, prunes state.flakes and state.knownFlaky to the budget window, quarantines
+ * over-budget suites for 48 h in quarantine.json (run-e2e reads it through E2E_QUARANTINE_FILE) or, over budget again
+ * within REPEAT_DAYS of the last auto quarantine, marks them blocking and pushes a fix-job alert (Q30), writes
+ * flake-budget.md, and returns the summary of the suites this result flaked or failed as KNOWN FLAKY plus any new
+ * BLOCKING lines ('' when none) for the PR comment, and whether it recorded a new flake.
  */
-function updateBudget(result) {
+function updateBudget(result, sha = '') {
   const now = Date.now();
+  const inWindow = (x) => now - Date.parse(x.date) < FLAKE_BUDGET_DAYS * 86400_000;
   state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report).map((x) => x.s), now);
-  state.flakes = state.flakes.filter((f) => now - Date.parse(f.date) < FLAKE_BUDGET_DAYS * 86400_000);
+  state.flakes = state.flakes.filter(inWindow);
+  for (const x of result.suites) if (!x.ok && x.flaky) state.knownFlaky.push({ suite: x.s, sha, date: new Date(now).toISOString() });
+  state.knownFlaky = state.knownFlaky.filter(inWindow);
+  for (const [s, b] of Object.entries(state.blocking)) if (!(now - Date.parse(b?.since) < REPEAT_DAYS * 86400_000)) delete state.blocking[s];
   let repo = { owners: {}, quarantine: [] };
   try {
     const j = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-quarantine.json'), 'utf8'));
@@ -877,19 +898,30 @@ function updateBudget(result) {
   } catch { /* no file or unreadable: nothing committed */ }
   const read = readJson('quarantine.json', []);
   const own = (Array.isArray(read) ? read : []).filter((q) => Date.parse(q?.expiry) > now);
-  const rows = flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts);
-  const added = autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
+  const budgetRows = (quarantine) => flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts, { known: state.knownFlaky, quarantine, blocking: Object.keys(state.blocking) });
+  const { added, blocking } = autoQuarantine(budgetRows([...repo.quarantine, ...own]), [repo.quarantine, own], repo.owners, now, undefined, state.quarantineStarts);
   for (const q of added) state.quarantineStarts[q.suite] = new Date(now).toISOString();
   for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
+  const fresh = [];
+  for (const x of blocking) {
+    if (state.blocking[x.suite]) continue; // once per suite per REPEAT_DAYS (expired entries were dropped above)
+    state.blocking[x.suite] = { since: new Date(now).toISOString(), owner: x.owner, last: x.last, reason: x.reason, alerted: false };
+    log(`blocking ${x.suite} (owner ${x.owner}): ${x.reason}`);
+    fresh.push(`BLOCKING: ${x.suite} needs a fix job (owner ${x.owner})`);
+  }
+  for (const [s, b] of Object.entries(state.blocking)) if (!b.alerted) b.alerted = pushFixJob(s, b);
   const quarantine = [...repo.quarantine, ...own, ...added];
+  const rows = budgetRows(quarantine);
+  const extra = { blocking: state.blocking, suiteRuns: state.suiteRuns };
   writeJson('quarantine.json', [...own, ...added]);
-  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${flakeSummary(rows, quarantine, repo.owners, now) || 'No flakes in the window.'}
+  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${flakeSummary(rows, quarantine, repo.owners, now, extra) || 'No flakes in the window.'}
 `); } catch { /* summary only */ } }
   saveState();
   const touched = new Set([...(result.flakes ?? []), ...result.suites.filter((x) => !x.ok && x.flaky).map((x) => x.s)]);
   const mine = rows.filter((r) => touched.has(r.suite));
-  for (const s of touched) if (!mine.some((r) => r.suite === s) && quarantined(quarantine, s, now)) mine.push({ suite: s, runs: 0, flakes: 0, rate: 0, over: false });
-  return { summary: flakeSummary(mine, quarantine, repo.owners, now), fresh: (result.flakes ?? []).length > 0 };
+  for (const s of touched) if (!mine.some((r) => r.suite === s) && quarantined(quarantine, s, now)) mine.push({ suite: s, runs: 0, flakes: 0, known: 0, rate: 0, over: false });
+  const summary = [fresh.join('\n'), flakeSummary(mine, quarantine, repo.owners, now, extra)].filter(Boolean).join('\n\n');
+  return { summary, fresh: (result.flakes ?? []).length > 0 };
 }
 
 /**
@@ -904,7 +936,7 @@ function finish(job, ctx, result, runDir, prNumber, { handedOff = '' } = {}) {
   const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
   const late = !ok && handedOff;
   for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : late ? 'pending' : 'failure', c, late ? handedOff : desc); // an affected request: also affected-e2e
-  const { summary: budget, fresh } = updateBudget(result);
+  const { summary: budget, fresh } = updateBudget(result, job.sha);
   if (late) { /* the laptop rerun comments its own failure */ } else if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir) + (budget ? `
 
 ${budget}` : ''));
