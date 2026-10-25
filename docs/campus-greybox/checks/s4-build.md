@@ -59,3 +59,57 @@ rooms and art tags; the dressed build with the flag on). Slice set: 6 files, 78 
 - C26 (the cage downlight goes warm, D:41) is in no slice of the brief; the cage lamp stays white as built (`S4_LIGHTS.cage`).
 - `s4Dress.ts:177` still has `Math.hypot` (A26 carry, sector-marks not on master yet; the lead's carry).
 **Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags, the live map unchanged).
+
+## G4.2 Return-air plenum, CR8 lips, baskets run-on, racks (D:24-26, C9-C11)
+
+**Files:** `s4.ts`, `s4Dress.ts`, `tests/campusV2S4.test.ts` (the G4.1 slab case now asserts the four hatch-cut pieces),
+`tests/campusV2S4Coop.test.ts` (new), the graph, the fragment, this report.
+
+**Built (s4.ts lines):**
+- Ceiling hatch 1.2 x 1.2 at (-2.0, 17.0): the lobby slab in four pieces round x -2.6..-1.4, z 16.4..17.6, overhead,
+  noLedge (:446-449). Open hole (its cover is dress, S1 A3).
+- Grilles y 4.4..5.9: hall south wall z 22 `[3.0, 4.2]` and `[8.6, 9.8]` (:441, noLedge kept); dock west wall x 14
+  `[19.5, 21.0]` (:433); hall west wall x -4 `[19.5, 21.0]` (:464).
+- CR8 sills: the two side strips (y 0..4.4, z 19.5..21.0) lose `noLedge` after the wall calls (:476-481; throws if a strip
+  is not found).
+- C10 baskets: `S4_BOX.b1 = [3.1, 22.15, 4.1, 40.8]`, `b2 = [8.7, 22.15, 9.7, 40.8]` (:102-103); B1's south box z
+  22.15..32.4, the CR4 box unchanged.
+- C11 racks: `S4_BOX.batteryRacks` (:116), built 0..2.0 noLedge (:475) (P1: east row z 21.0..23.5).
+- Nav seed the plenum (5, 3.2, 19) (:202).
+- `S4_COOP_LIPS` CR8 (:150-157) and CR8-west (:158-165) as the brief's literal, after CR4-west.
+
+**Lights:** none (the plenum has no fitting).
+
+**Dress (s4Dress.ts):** omitted-art change: the two `K:batteryRack` skins are dropped (:250-255). The kit piece is 1.2 m and
+fits to scale 1.3 only (`campusKit.ts` fitRange), so the 2.0 racks threw `ArtRuleError ... scale 1.683 outside 0.8-1.3`
+and the dressed build failed. The rows are still found by exact centre (`boxAt`, y 1.0) and logged in `S4_HERO_LOG`; the
+base pass dresses them as greybox. B1 / B2 skins follow `S4_BOX` (no edit). Hero log otherwise unchanged.
+
+**Sync nodes / devices:** none built or moved.
+
+**Graph:** `s4-plenum`, `s4-baskets`, `s4-batt` notes -> "BUILT G4.2 (...)"; CR8 / CR8-west boosts, the two duct links and
+the three plenum drops -> "BUILT G4.2 (...)".
+
+**Tests:** `tests/campusV2S4Coop.test.ts` 24 / 24 (CR4 / CR4-west unchanged: 10 cases ported from T4:486-575; CR8 /
+CR8-west: literal, solo jump and top landing threats [], rule 2, rule 3, rule 5 capsule and 1.5 m opening; the ledges on
+the grille walls; the plenum (cover, hatch open, runtime-nav isolation); the baskets' run-on; the racks).
+`tests/campusV2S4.test.ts` 8 / 8. Slice set: 7 files, 102 / 102; typecheck clean.
+
+**Assumptions:** P1 (east rack row z 21.0..23.5) as the brief.
+**Deviations:**
+- D1 (test scope) CR8 / CR8-west rules 2 and 3 count the pieces on the lip's boost side of its wall only. The lobby side
+  is under the 3.0-3.2 slab (the parcel cage x 11.5..12.7 top 1.2 is 1.6 m from the CR8 lip in plan but behind the wall
+  and under the ceiling; the slab itself is within 1 m of the wall). `soloJumpThreats` already takes the outer side only.
+  Undo: plan-only filters (then the cage and the slab fail them).
+- D2 (dress) the battery rack skins omitted (above).
+
+**Findings for the lead:**
+- R1, concrete: the CR8 sills are the wall strips, 0.2 deep (dock wall P) and 0.3 deep (hall wall T). `generateLedges` makes
+  them `canHang` but not `canClimbUp` (`LEDGE.climbDepth` 0.38, `anchors.ts:207`, `:414`): a hang only, so the climb into
+  the plenum likely does not engage (E2E-1). The opening is 1.5 high (header 5.9). A fix is a lead call: a 0.4 deep sill
+  piece, or a taller grille (the brief's R1 line).
+- The battery racks need an art decision (a 2.0 m battery piece, or a two-tier skin).
+- The runtime nav grid seeds the plenum (an island): no path from the lobby, the hall, the dock, the battery room or the
+  basket B1 into it.
+
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 (v2): the CR8 / CR8-west climbs engage.

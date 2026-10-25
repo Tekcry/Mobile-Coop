@@ -180,7 +180,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN (new space, the built void): x -4..14, z 16..22, floor = the lobby slab top 3.2, clear 3.8 to the roof underside 7.0 (campusS4.ts:374-375 builds the slab; the void is dead air today). Openings: grilles 1.2 x 1.5 at y 4.4 in the hall's south wall where baskets B1 and B2 now end (x 3.0..4.2 and 8.6..9.8, z 22), in the dock's west wall (x 14, z 19.5..21.0) and in the battery room's east wall (x -4, z 19.5..21.0); a 1.2 x 1.2 ceiling access hatch down into the lobby at (-2.0, 17.0). No lamp (nobody works there). Player only (grilles are duct size). custom class (WARN, justified): a plenum has no sheet class."
+      "note": "BUILT G4.2 (s4.ts:433, :441, :464 grilles; :446-449 slab and hatch; :476-481 CR8 sills; nav seed :202; room :219) (new space, the built void): x -4..14, z 16..22, floor = the lobby slab top 3.2, clear 3.8 to the roof underside 7.0 (campusS4.ts:374-375 builds the slab; the void is dead air today). Openings: grilles 1.2 x 1.5 at y 4.4 in the hall's south wall where baskets B1 and B2 now end (x 3.0..4.2 and 8.6..9.8, z 22), in the dock's west wall (x 14, z 19.5..21.0) and in the battery room's east wall (x -4, z 19.5..21.0); a 1.2 x 1.2 ceiling access hatch down into the lobby at (-2.0, 17.0). No lamp (nobody works there). Player only (grilles are duct size). custom class (WARN, justified): a plenum has no sheet class."
     },
     {
       "id": "s4-batt",
@@ -211,7 +211,7 @@
       "guards": {
         "2": 1
       },
-      "note": "PLAN. x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
+      "note": "BUILT G4.2 (racks s4.ts:116, :475: 2.0 noLedge, east row z 21.0..23.5, P1; kpBatt s4.ts:464-465 G4.1). x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
     },
     {
       "id": "s4-yard",
@@ -460,7 +460,7 @@
       ],
       "tension": 3,
       "tags": [],
-      "note": "PLAN. As built (S4_BOX.bN, b1-b3, bCage) except B1 and B2 run on south from z 24 to the hall's south wall (z 22.15) and end at the plenum grilles (they ended over the south strip with no exit, V5d F8). custom class and 2.6 headroom: WARNs, as built."
+      "note": "BUILT G4.2 (S4_BOX.b1 / b2 s4.ts:102-103: run on to z 22.15). As built (S4_BOX.bN, b1-b3, bCage) except B1 and B2 run on south from z 24 to the hall's south wall (z 22.15) and end at the plenum grilles (they ended over the south strip with no exit, V5d F8). custom class and 2.6 headroom: WARNs, as built."
     },
     {
       "id": "s4-cage",
@@ -540,7 +540,7 @@
       "one_way": true,
       "level_change": 4.4,
       "reason": "CR8: leg-up from the dark west end of the dock (14.6, 20.2) to the return-air grille in the dock's west wall (sill 4.4, x 14, z 19.5..21.0), into the plenum",
-      "note": "Lip rules: crates 1.0 high are 3.4 m away (under 1.2, rule 2 holds); no surface 0.6-1.7 under the wall. Solo bypass: the plenum from the baskets (riser ladder). time_s: 5 s boost plus the walk.",
+      "note": "BUILT G4.2 (CR8, s4.ts:150-157; sill s4.ts:476-481). Lip rules: crates 1.0 high are 3.4 m away (under 1.2, rule 2 holds); no surface 0.6-1.7 under the wall. Solo bypass: the plenum from the baskets (riser ladder). time_s: 5 s boost plus the walk.",
       "length": 19,
       "time_s": 20
     },
@@ -552,7 +552,8 @@
       "level_change": 4.4,
       "reason": "Hang-drop from the dock grille sill to the dock floor (the hang cuts the fall to about 2.5 m)",
       "length": 19,
-      "time_s": 16
+      "time_s": 16,
+      "note": "BUILT G4.2 (the dock grille s4.ts:433)."
     },
     {
       "from": "s4-lobby",
@@ -594,7 +595,8 @@
       "level_change": 3.2,
       "reason": "Ceiling access hatch (1.2 x 1.2) in the lobby slab at (-2.0, 17.0), over the dark goods lane: drop 3.2 m",
       "length": 14.5,
-      "time_s": 13
+      "time_s": 13,
+      "note": "BUILT G4.2 (the ceiling hatch s4.ts:446-449)."
     },
     {
       "from": "s4-batt",
@@ -604,7 +606,7 @@
       "one_way": true,
       "level_change": 4.4,
       "reason": "CR8-west: leg-up from the battery room floor (-4.8, 20.2) to the return-air grille in its east wall (sill 4.4, x -4, z 19.5..21.0)",
-      "note": "Racks raised to 2.0 noLedge and the east row cut back to z 21.0 so nothing within 4 m is solo-standable. Solo bypass: the plenum from the baskets. time_s: 5 s boost plus the walk.",
+      "note": "BUILT G4.2 (CR8-west, s4.ts:158-165; sill s4.ts:476-481). Racks raised to 2.0 noLedge and the east row cut back to z 21.0 so nothing within 4 m is solo-standable. Solo bypass: the plenum from the baskets. time_s: 5 s boost plus the walk.",
       "length": 12,
       "time_s": 14
     },
@@ -616,7 +618,8 @@
       "level_change": 4.4,
       "reason": "Hang-drop from the battery room grille into the room (behind the east rack row)",
       "length": 12,
-      "time_s": 11
+      "time_s": 11,
+      "note": "BUILT G4.2 (the battery room grille s4.ts:464)."
     },
     {
       "from": "s4-batt",
@@ -880,7 +883,7 @@
       "width": 1.2,
       "height": 1.5,
       "reason": "Return-air grille at basket B1's new south end (x 3.0..4.2, z 22, y 4.4): step 1.2 m down onto the plenum floor",
-      "note": "time_s: the walk along B1 and B-N at 1.3 m/s plus 2 s for the grille.",
+      "note": "BUILT G4.2 (hall grilles s4.ts:441). time_s: the walk along B1 and B-N at 1.3 m/s plus 2 s for the grille.",
       "length": 37,
       "time_s": 30
     },
@@ -892,7 +895,7 @@
       "width": 1.2,
       "height": 1.5,
       "reason": "Return-air grille at basket B2's new south end (x 8.6..9.8, z 22, y 4.4)",
-      "note": "time_s: the walk along B2 and B-N at 1.3 m/s plus 2 s for the grille.",
+      "note": "BUILT G4.2 (hall grilles s4.ts:441). time_s: the walk along B2 and B-N at 1.3 m/s plus 2 s for the grille.",
       "length": 33,
       "time_s": 27
     },

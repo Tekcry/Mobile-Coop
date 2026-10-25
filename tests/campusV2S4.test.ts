@@ -152,9 +152,10 @@ describe('G4.1 south band (D:16-23, C1-C8)', () => {
       expect(solid.some((p) => Math.abs(z1(p) - 16.15) < 1e-6 && x0(p) <= x && x1(p) >= x && bottom(p) <= 0), `south face at x ${x}`).toBe(true);
       expect(solid.some((p) => Math.abs(z0(p) - 21.85) < 1e-6 && x0(p) <= x && x1(p) >= x && bottom(p) <= 0), `north face at x ${x}`).toBe(true);
     }
+    // one slab over the whole lobby, cut only round the G4.2 ceiling hatch (x -2.6..-1.4, z 16.4..17.6): four pieces
     const slabs = solid.filter((p) => p.overhead && Math.abs(top(p) - 3.2) < 1e-6 && x1(p) > -4 && x0(p) < 14 && z1(p) > 16 && z0(p) < 22);
-    expect(slabs.length).toBe(1);
-    expect(boxIs(slabs[0]!, [-4, 14, 3.0, 3.2, 16, 22])).toBe(true);
+    expect(slabs.length).toBe(4);
+    for (const e of [[-4, 14, 3.0, 3.2, 16, 16.4], [-4, 14, 3.0, 3.2, 17.6, 22], [-4, -2.6, 3.0, 3.2, 16.4, 17.6], [-1.4, 14, 3.0, 3.2, 16.4, 17.6]]) expect(slabs.some((p) => boxIs(p, e)), JSON.stringify(e)).toBe(true);
     expect(S4_DOORS).not.toHaveProperty('scLobby');
     expect(doorAt(4, 18)).toBeUndefined();
   });
