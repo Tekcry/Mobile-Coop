@@ -60,9 +60,7 @@ integer group, `on` values) for the data owners' tests. Nothing in the game chan
 ### 2. `src/ai/guardAiData.ts` (~45 lines)
 1. `NOISY_LIMITS` (~115-116, `export const NOISY_LIMITS = { dbMin: 0, dbMax: 30, radiusMin: 1, radiusMax: 20 } as
    const;`): PLAN S2 says "radius 1-40 m, db 0-24". The code already enforces 0..30 / 1..20 (see "Open questions").
-   Default until the lead decides: set PLAN's ranges, `{ dbMin: 0, dbMax: 24, radiusMin: 1, radiusMax: 40 }` (no map
-   defines `noisy` yet, D8, so no data breaks), and update the doc line. If the lead keeps the code's ranges, leave this
-   line alone and write the tests against 0..30 / 1..20.
+   Lead decision 1: leave this line alone; write the tests against 0..30 / 1..20.
 2. New export, placed after `validatePosts` (it ends `return errs; }` ~236) and before `reportGuardAi`:
    ```ts
    /**
