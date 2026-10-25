@@ -90,25 +90,35 @@ R4a prints this plan.
 **R2 Report (Sonnet, from an Opus brief).** Pure: `scripts/route-run/report.mjs`. Run log (R4a's JSON) -> `route-run.json`
 (the stable shape below) and `REPORT.md` (plain English: a summary table per section and route, then per run the
 detections, notices, dead stops and stubs, then the walk-card snippet), the pass rule (Q7: verdict `pass` when no run
-has a dead stop and no run is `unplannable`; detections never fail), the Marlow time line (M9: total, walk, holds
-against 900-1200 s, report only, listing every drill stub, co-op stub and restart), the plan notes ("side routes not
+has a dead stop and no run is `unplannable`; detections never fail, however many, and neither does a push past after
+a repeat detection or a drill stub after two timer retries: BRIEF A5, A14), the Marlow time line (M9: total, walk,
+holds against 900-1200 s, report only, listing every drill stub, co-op stub, restart by cause, push past and step "not
+made at sneak pace"), the plan notes ("side routes not
 run", 2 players only), and `merge(parts[])` for the per-section step outputs.
 - JSON shape: `{ tool: "route-run 1", map, mode, version, sha, date, players, pace, detections: "forgive" | "keep",
   graphs: [file], geom, routes: "graph" | "code", notes: [text], runs: [{ id, section, kind, covers, verdict: "pass" |
   "stuck" | "unplannable", why, time_s | null, walked_m, guards: { spawned, alive }, deadStops: [{ t, robot, at, space,
   link, class: "no-nav-path" | "could-not-follow" | "step-timeout" | "locked" | "restart-loop", shot }], detections: [{
   t, robot, guard: { id, kind, role, zone }, sense, inferred, level, restart: "set" | "retry" | null, guardAt, robotAt,
-  space, inputs }], notices: [same], stubs: [{ link, kind, hold_s, why }], drills: [{ id, player, verb, hold_s }] }],
-  summary: { runs, stuck, unplannable, detections, notices, stubbed, drillStubs, restarts, walkedLinks, verdict,
-  runTime_s } }`.
+  space, inputs }], notices: [same], stubs: [{ link, kind, hold_s, why }], drills: [{ id, player, verb, hold_s, why:
+  "gate" | "timer" }], restarts: [{ t, space, set, restart: "set" | "retry" | "timer" | "other", detection: <index> |
+  null, then: "rejoined" | "pushed-past" | "drill-stub" | "dead-stop" }] }], summary: { runs, stuck, unplannable,
+  detections, notices, stubbed, drillStubs, restarts, pushedPast, notAtSneakPace, walkedLinks, verdict, runTime_s } }`.
+  A seen restart is both a detection line (with `restart: set | retry`) and a restart line pointing at it; a timer or
+  other restart is a restart line only.
 - Walk-card snippet, one line per route: "S1 shadow route (gatehouse, car park): 2:31, never stuck. Seen once: the gate
-  officer saw you at the barrier (0:42, lit, 9 m). Noticed twice: the smoker heard you on the gravel (1:10)."
+  officer saw you at the barrier (0:42, lit, 9 m). Noticed twice: the smoker heard you on the gravel (1:10)." A course
+  line with a push past: "A2 Carriage Shed: 3:05, never stuck. Seen twice by the shunter at the pit edge (1:12, 1:40);
+  seen again at the pit edge, robot pushed past."
 - Files: `scripts/route-run/report.mjs`, `tests/routeRunReport.test.ts`. Est. lines: 650.
 - Checks: `npx vitest run tests/routeRunReport.test.ts`.
 - Done looks like: a fixture log gives the JSON above byte-stable, a REPORT.md with no jargon or hashes in the
   walk-card lines, `verdict: fail` for one stuck run, `pass` for detections only, a merged report equal to the one-run
-  report; a course fixture log with two drill stubs and one retry gives an M9 line naming both drills and the retry,
-  and one with a `restart-loop` stop gives `fail`.
+  report; a course fixture log with two drill stubs and one retry gives an M9 line naming both drills and the retry;
+  a course log with two seen restarts from one space (a push past) gives `pass`, a valid time marked "includes 1
+  push-past" and the walk-card line "seen again at <place>, robot pushed past"; a log with two timer retries on one
+  step gives `pass`, no detection for them, and an M9 line listing the step "not made at sneak pace"; a log with a
+  `restart-loop` stop (two `other` restarts) gives `fail`.
 
 **R3 Progress, stuck and steering math (Opus).** Pure: `scripts/route-run/progress.mjs`. Progress along a polyline
 (nearest-point arc length, monotonic, storey-aware by `y`), `StuckWatch` (BRIEF A4: under 0.5 m in 8 s of game time
@@ -181,10 +191,15 @@ drill gates", "Restarts and retries", A13, A14): at a door in `window.__course.d
 drill still open for either player (`state.nextDrill(p)`, `count` times) through `window.__course.verb(p, verb)`, or
 `state.setFlag(name)` for a `flag:<name>` verb, each logged as a drill stub; a door still locked 5 s later is a
 `locked` stop. On every poll: a rise of `window.__course.restarts`, or a robot moved over 3 m with no harness
-placement, is a restart or retry (a detection with `restart`), and the path is re-joined at the nearest step; a second
-one from the same space is a `restart-loop` stop, then the set's spotted rule goes off (master: the bay's `spotFail`;
-after J14: its retry rule) and a recovery follows. Pure parts (open drills to actions, the A13 hold choice, the loop
-rule) are unit tested.
+placement, is a restart or retry; the path is re-joined at the nearest step and the cause is named (BRIEF A14):
+**seen** (a guard alert on a robot or a camera alarm in the 2 s of game time before it, or J14's recorded cause) is a
+detection with `restart: set | retry`; the second seen one from the same space turns the set's spotted / retry rule
+off (master: the bay's `spotFail`; after J14: its retry rule) and places the robots past the link, a push past, never
+a dead stop. **Timer** (no guard or camera in the window, a timed step in the course data or J14's recorded cause) is
+a `restart: timer` line, not a detection; the second from the same step completes its open drills as drill stubs
+(`why: timer`). **Other** is a `restart: other` line; the second from the same space is the only `restart-loop` dead
+stop, then the push past. Pure parts (open drills to actions, the A13 hold choice, the cause classifier, the per-place
+counts and what follows) are unit tested.
 - Files: `scripts/route-run/course.mjs`, `tests/routeRunCourse.test.ts`,
   `tests/fixtures/route-run/selftest-course.graph.json` (master's yard, sets A1 Gate and A2 Carriage Shed). Est. lines:
   450.
@@ -192,8 +207,10 @@ rule) are unit tested.
   (`--players 1` before R4b lands: the host's `verb(p, ...)` ticks either player's drills; `--players 2` after).
 - Done looks like: in the fixture A1's exit door is cleared by drill stubs, each listed by id and hold, none counted as
   walked; in A2 the harness raises the shunter to alert through the page once: one `restart: set` detection and the
-  run walks on to the exit; raised twice from the same space: one `restart-loop` stop, `spotFail` off, a recovery, and
-  the run still reaches the exit without looping.
+  run walks on to the exit; raised twice from the same space: two `restart: set` detections, `spotFail` off, a push
+  past, the run reaches the exit without looping and its verdict is `pass`. Unit tests (no page): two timer restarts on
+  one step give two `restart: timer` lines, no detection and drill stubs with `why: timer`; two `other` restarts from one
+  space give one `restart-loop` stop.
 
 **R5 Link steps (Opus).** `scripts/route-run/steps.mjs` (R4a's seam), called by the driver for `link` steps, pad only,
 from the traversal helpers' patterns (`scripts/e2e-traverse.mjs`): `ladder` (walk into the foot, climb, step off at the
@@ -326,8 +343,11 @@ R5 owns `steps.mjs`); R7 owns only `causes.mjs`, so it can run beside any of the
 - The robots may stop where a person would not (a corner the stick cuts badly). The stop class tells "no nav path" (the
   map) from "could not follow" (the robot or the collider); the checker reruns a stop and reads its screenshot before a
   map lead is asked to fix anything.
-- A robot does not wait out a patrol, so on Marlow Yard it can be sent back twice where a person would wait (BRIEF
-  A14, `restart-loop`). Same mitigation: rerun and read the screenshot before the map lead is asked to change the set.
+- A robot does not wait out a patrol, so on Marlow Yard it can be seen twice where a person would wait. That is a
+  detection and a push past for the walk card, never a stop (BRIEF A14, Q7); the map lead reads the push-past lines with
+  Michael's walk, not as a failure. A cause misread (a seen restart taken for `other`) could fail a run wrongly: the
+  2 s window is a constant, and the checker reruns any `restart-loop` stop and reads its screenshot before a map lead is
+  asked to fix anything.
 - Stubs hide whether a co-op or rare solo move works (BRIEF A1, Q1); every stub is listed, the map's co-op e2e covers the
   moves, R9 replaces the common ones. Drill stubs hide whether a Marlow drill can be done (BRIEF A13); `e2e-ctcourse`
   plays the drills, and the M9 line lists every drill stub.
