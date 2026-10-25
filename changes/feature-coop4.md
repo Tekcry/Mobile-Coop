@@ -33,7 +33,7 @@ kind: minor
   Slots 0 and 1 look as before.
 - Lobby (L1): the lobby shows one seat per player the mode takes (Sector Ops 4, Campaign 2). Start is blocked with "Too many
   players for this mode (2)" if a room with 3 players is switched to Campaign. A refused player sees "Room full" with the
-  room's real cap. The host line now says to invite your teammates. `?players=2..4` (dev and tests) makes the same-device
+  room's real cap. The host line says to invite your teammates when the mode takes 3-4 players; Marlow Yard keeps "invite your partner". `?players=2..4` (dev and tests) makes the same-device
   autostart room wait for that many players.
 - Guards (DATA): each Sector Ops section can add up to 2 extra guards for teams of 3 or 4 - 16 in all over the 5 Saltmarsh
   Park sections and the 3 Warehouse sections. They come from the team-door and split routes that 4 players make too easy.

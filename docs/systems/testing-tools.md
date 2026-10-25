@@ -262,6 +262,8 @@ behind a VPN adapter).
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
   re-bolted on both pages by the host's checkpoint restart.
+  (coop4) Part 9 (campusOps, 3 pages): slot 2 goes OUT, the section goes on, the connector cycles with slots 0 and
+  1, and slot 2 comes back beside the host (M1 b).
   (coop4) Parts 7 and 8 are Sector Ops with 3-4 players: "four pages" means four pages of one headless browser over
   `?net=local` (`hostAndJoin(url, 4)`, the host's page and three joiners, each driven by its own pad or teleports; every page
   but the one in front is stepped by `pumpPages`). Run each alone: `E2E_GPU=1 E2E_LOAD_MS=240000 E2E_PORT=<port> node
@@ -297,7 +299,8 @@ behind a VPN adapter).
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
   host leaving, offline (known flaky). (coop4) The "lobby caps" block (one page, then up to 3): a new room is Campaign and
-  its lobby shows 2 seats, 1 open, with "Share the code to invite your teammates."; a 2nd page fills it (2 seats, none
+  its lobby shows 2 seats, 1 open, with "Marlow Yard needs two players. Share the code to invite your partner."; a 2nd
+  page fills it (2 seats, none
   open); a 3rd page is refused with "Room full" naming 2 players; the host switches the room to Free Roam (4 seats) so a 3rd
   page joins, then to Campaign: Start is blocked with "Too many players for this mode (2)" and does nothing; then to Sector
   Ops: every page shows 4 seats, 1 open, and 3 ready players start the match.
