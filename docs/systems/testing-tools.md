@@ -258,7 +258,9 @@ behind a VPN adapter).
   and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
-  re-bolted on both pages by the host's checkpoint restart.
+  re-bolted on both pages by the host's checkpoint restart; part 6 also has the H8 block: for campus
+  sections 2-5 every spawned guard is alive at the section's start (it calls the TS-private `loadSection` /
+  `unloadSection`, so a rename in sectorMode breaks the test) and prints `H8 block: <n> s` (hard rule 9).
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
@@ -300,7 +302,7 @@ behind a VPN adapter).
   rescue line, the hang-down hold (the client's hold pulses the host's noise), the cage fallback pass; A7 the claim, the
   corridor in the camera's blind windows, the late-hack fail (10 HP) and the synced hack, cage and east door; A8 the leg-up,
   the cross-level jam, the console loop, the board (25 s cut, grille), the throw over the beams, the time locks, the vault
-  and `a8-out`. Teleport legs are allowed on open floor (the walks are the unit tests'); a door a route opens is opened
+  and `a8-out`. At each set every guard must be alive and above y -5 (hard rule 9). Teleport legs are allowed on open floor (the walks are the unit tests'); a door a route opens is opened
   by `use(P, 'door-<anchor id>')` and asserted open on both pages first. The old bunker stations' steps are in git at
   5920cce5. The ghost run with every bonus and the revive on each co-op surface (A1 yard, A2 staging, A6 gallery, A8
   gallery) are not in the suite yet. Results for the head: pending laptop run.
@@ -674,20 +676,26 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   suite that fails and then passes on the same sha is a flake: it counts as a pass, and its owner fixes the test in the
   next batch PR. A crash or timeout mid-suite is never a pass.
 - Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like
-  `e2e-sectorops:6` or a whole suite) and `owners` (who fixes each suite's flakes). Add an entry only with an owner, an
+  `e2e-sectorops:6` or a whole suite) and `owners` (who fixes each suite's flakes; every REQUIRED suite has one). Add an entry only with an owner, an
   expiry and the failure written up in `docs/backlog.md`. An expired entry counts again; the owner removes or shortens
-  the entry once the test is fixed. run-e2e also reads `E2E_QUARANTINE_FILE` (the queue's automatic list below).
+  the entry once the test is fixed. `tests/e2eQuarantine.test.ts` holds the file: an owner for every REQUIRED suite,
+  complete entries (owner, reason, ISO expiry), each quarantined suite named in `docs/backlog.md` "Flaky e2e suites",
+  and `_doc` naming this heading. run-e2e also reads `E2E_QUARANTINE_FILE` (the queue's automatic list below).
 - Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is logged as
   a flake (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
   `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`,
   owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
   `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
   that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. A second quarantine
-  of the same suite within 14 days makes it blocking (G393): it is not quarantined again, its failures fail runs, and
-  its owner gets a fix job (decided, not built yet in the queue code). The desktop worker
+  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
   keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
   their hardcoded e2e-pad.
+- Hard-rule checks (vitest, no browser): `tests/noRouteTimer.test.ts` (rule 6, G334: no route timer in Sector Ops;
+  allowlist `pairGates[].window`, fixed SECTOR hold keys); `tests/importBoundary.test.ts` (rule 10: only `core/quality`,
+  `qualityManager` and the governor are fenced; allowlist `benchmark.ts` and the `core/display` readers);
+  `tests/replayDeterminism.test.ts` (rule 8, G143: patrol traces and detection meters replay equal under a poisoned
+  `Math.random`; a static allowlist of the `src/ai` calls shrinks as Guard AI seeds them; a route shifted 1 m must
+  differ, since the seed only sets `glanceT` on posts).
 - Repeat quarantine (Michael 2026-10-25, folded plan Q30, "Becomes blocking"): a suite that would be quarantined a
   second time within 14 days of its last quarantine is not quarantined again. It stays blocking (its failures fail the
   run) and its owner gets a fix job on the ROADMAP. Until the queue code does this (Test Runner job J20), the Test
