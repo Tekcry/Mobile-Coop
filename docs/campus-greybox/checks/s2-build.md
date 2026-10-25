@@ -161,3 +161,41 @@ Findings for the lead:
   plan's. Room tags and G5c lighting follow from that (G5c's open-plan fittings fall inside MR1, MR2 and MR3).
 
 Pending PC run: e2e-sectorops parts 1-6 on the S2-b head (flag off).
+
+## S2-G4 - L2 and roof
+
+Files: `src/world/maps/campusV2/s2.ts`, `tests/campusV2S2Upper.test.ts`.
+
+Built (file:line at the G4 commit):
+- C13 `s2.ts:670-693`: the L2 x -7.5 wall with gaps -26 (office B side door) / -21 / -3 / 3 (board room west door), doors
+  at all four; the board room south wall moved to z -2.5 (x -7.5..-0.2, door x -4) and its z -2.5..0 stub on x -0.1;
+  office A's second door (-24, -22.5) (gaps -24 / -20 / -10). pg-exec's door (-33, -4) and the exec east door (-30, 1)
+  unchanged (G5a makes (-33, -4) a pair gate).
+- C14 `s2.ts:50-52` `ROOF_PLANT`, `ROOF_HATCH`; roof slab hatch hole `s2.ts:490-492`; the north parapet split round the
+  room `s2.ts:711-713`; the room `s2.ts:725-743`: walls x -20.5..-12, z 0..5.9 (the north wall on the parapet line),
+  FR..FR+4.0, roof box on top (overhead, noLedge), door (-16, 0), the hatch rails (W, E, S: 1.1, noLedge) and the cat
+  ladder (-18, 3) 8.4 -> 12.3 facing 0 (BA9).
+- C12 `s2.ts:54` `DAVIT`, `s2.ts:746` `b.rappel(-4, 12.3, 5.8, 0, 7.9)`: the rope's foot stands on the sunshade (4.4) at
+  (-4, 6.3), beside the facilities window (`attachController.windowBeside` conditions hold). Rope time 7.9 / 0.6 = 13.2 s
+  (+ the vault: PG:66's 16 s).
+- Nav layers: the widest column holds 5 surfaces (G, L1, L2, the plant room floor on the roof, its roof).
+
+Tests: `tests/campusV2S2Upper.test.ts` 7 / 7 pass (board room enclosure and doors, office A / B doors, pg-exec and the
+wing north door passable, the roof plant room, the hatch and ladder nav link (< 6 m), the davit rope to the window, at
+most 5 surfaces per column). All lane tests (G1-G4) 57 / 57; flag-off set 69 / 69. Typecheck and eslint clean.
+
+Assumptions: BA9 as the brief. New:
+- **A-G4-1** BA9's "rail on three sides" leaves the north side open: the cat ladder faces 0 and tops out north (the same
+  rule as D-G1-1). Undo: move the rail at z 2.45 to z 3.55.
+- **A-G4-2** The roof plant room's north wall stands on the parapet line (z 5.9, 0.2 thick: its outer face on z 6.0),
+  replacing the parapet over x -20.5..-12. Undo: centre it on z 6.
+- **A-G4-3** The L2 RoomDefs are not re-cut (G4 names none): l2sw / l2north / l2wing stay as built, so the board room, the
+  offices and the roof plant room have no RoomDef of their own (see the G5c note).
+
+Findings for the lead:
+- **F-G4-1** The L2 wing north door (-7.5, -3) (as built, kept by the plan) runs z -3.6..-2.4, and the board room's new
+  south wall (z -2.5, from x -7.5) cuts 0.2 m off its north end: 1.0 m clear past the door plane. Nav still passes (a cell
+  row at z -3.25; tested). Its leaf (default swing, east) sweeps into that wall when open. A one-line fix would centre the
+  door at z -3.2 or start the board room wall at x -7.3; both change a plan position, so left as drawn.
+
+Pending PC run: e2e-sectorops parts 1-6 on the S2-b head (flag off).

@@ -46,6 +46,12 @@ export const S2_FLOORS = [0, 4.4, 8.4, 12.3] as const;
 export const S2_VOID = { x0: -26, x1: -11.5, z0: -18.5, z1: -4 } as const;
 /** (S2-G3, C12, BA7) The facilities window in the north wall at L1: centre x, width, sill and height (the S1 gatehouse window's size). */
 export const FAC_WINDOW = { x: -4, w: 1.2, sill: 5.3, h: 1.2 } as const;
+/** (S2-G4, C14) The roof plant room (x -20.5..-12, z 0..6, walls 4.0 high: plant_room class). */
+export const ROOF_PLANT = { x0: -20.5, x1: -12, z0: 0, z1: 6, h: 4.0 } as const;
+/** (S2-G4, C14, BA9) The plant room's floor hatch in the roof slab (x0, x1, z0, z1) and its cat ladder (x, z; L2 8.4 -> roof 12.3, facing 0). */
+export const ROOF_HATCH = { x0: -18.5, x1: -17.5, z0: 2.5, z1: 3.5, ladder: [-18, 3] as const } as const;
+/** (S2-G4, C12) The window-cleaning davit: the rappel point (x, z on the roof's north edge) and the rope (7.9 m to the sunshade at 4.4). */
+export const DAVIT = { x: -4, z: 5.8, length: 7.9 } as const;
 /** The building's footprint. */
 export const S2_FOOT = { x0: -44, x1: 4, z0: -30, z1: 6 } as const;
 
@@ -481,7 +487,9 @@ export function buildCampusS2(b: LevelBuilder): void {
   slab(b, [X0, X1, Z0, Z1], F1, [V, swFoot, neFoot, lip, shaft], 0.4);
   slab(b, [lip[0], lip[1], lip[2], lip[3]], F1, [], 0.4, SLAB, true);
   slab(b, [X0, X1, Z0, Z1], F2, [V, swFoot, neFoot]);
-  slab(b, [X0, X1, Z0, Z1], FR, [V, swFoot, neFoot], 0.3, ROOF);
+  // (S2-G4, C14, BA9) the roof slab has the plant room's floor hatch
+  const hatch: Rect = [ROOF_HATCH.x0, ROOF_HATCH.x1, ROOF_HATCH.z0, ROOF_HATCH.z1];
+  slab(b, [X0, X1, Z0, Z1], FR, [V, swFoot, neFoot, hatch], 0.3, ROOF);
 
   // ---- the cores and the feature stair
   buildCore(b, SW_CORE);
@@ -660,12 +668,18 @@ export function buildCampusS2(b: LevelBuilder): void {
   // ---- L2 (floor 8.4, partitions up to 12.0)
   const A2 = F2;
   const B2 = 12.0;
-  wall(b, false, -7.5, Z0, Z1, [gc(-21), gc(-3)], A2, B2);
+  // (S2-G4, C13) the x -7.5 wall: office B's side door (z -26), the wing's south (-21) and north (-3) doors, the board room's
+  // west door (3)
+  wall(b, false, -7.5, Z0, Z1, [gc(-26), gc(-21), gc(-3), gc(3)], A2, B2);
+  doorIn(b, false, -7.5, -26, A2);
   doorIn(b, false, -7.5, -21, A2);
   doorIn(b, false, -7.5, -3, A2);
-  // the board room NE (x -7.5..-0.2, z 0..6), door S
-  wall(b, true, 0, -7.5, -0.2, [gc(-4)], A2, B2);
-  doorIn(b, true, 0, -4, A2);
+  doorIn(b, false, -7.5, 3, A2);
+  // (C13) the board room NE (x -7.5..-0.2, z -2.5..6): its south wall moved from z 0 to -2.5, door S (x -4); z -2.5..0 shut
+  // on the NE core's west wall line (x -0.1)
+  wall(b, true, -2.5, -7.5, -0.2, [gc(-4)], A2, B2);
+  doorIn(b, true, -2.5, -4, A2);
+  wall(b, false, -0.1, -2.5, 0, [], A2, B2);
   wall(b, true, 0, 2.8, X1, [], A2, B2);
   // the executive suite NW (x -44..-30, z -4..6): door from the lift lobby (z -4, x -33) and to the north corridor (x -30, z 1)
   wall(b, true, -4, X0, -30, [gc(-33)], A2, B2);
@@ -673,8 +687,9 @@ export function buildCampusS2(b: LevelBuilder): void {
   wall(b, false, -30, -4, Z1, [gc(1)], A2, B2);
   doorIn(b, false, -30, 1, A2);
   // the south band: two offices with doors onto the south ring strip
-  wall(b, true, -22.5, -28.5, -7.5, [gc(-20), gc(-10)], A2, B2);
-  for (const c of [-20, -10]) doorIn(b, true, -22.5, c, A2);
+  // (S2-G4, C13) office A's second door (x -24)
+  wall(b, true, -22.5, -28.5, -7.5, [gc(-24), gc(-20), gc(-10)], A2, B2);
+  for (const c of [-24, -20, -10]) doorIn(b, true, -22.5, c, A2);
   for (const x of [-28.5, -13]) wall(b, false, x, Z0, -22.5, [], A2, B2);
   // L2 furniture
   for (const [x, z] of [[-34, 3], [-36, 1], [-16, 3.5], [-12, 3.5], [-33, -25.5]] as const) furn(b, x, z, 1.6, 0.75, 0.8, DESK, A2);
@@ -693,7 +708,9 @@ export function buildCampusS2(b: LevelBuilder): void {
     const ph = 1.1;
     const py = FR + ph / 2;
     b.box((X0 + X1) / 2, py, Z0 + 0.1, X1 - X0, ph, 0.2, WALL_DARK);
-    b.box((X0 + X1) / 2, py, Z1 - 0.1, X1 - X0, ph, 0.2, WALL_DARK);
+    // (S2-G4, C14) the north parapet has no piece over the roof plant room (x -20.5..-12): its north wall stands there
+    b.box((X0 + ROOF_PLANT.x0) / 2, py, Z1 - 0.1, ROOF_PLANT.x0 - X0, ph, 0.2, WALL_DARK);
+    b.box((ROOF_PLANT.x1 + X1) / 2, py, Z1 - 0.1, X1 - ROOF_PLANT.x1, ph, 0.2, WALL_DARK);
     b.box(X0 + 0.1, py, (Z0 + Z1) / 2, 0.2, ph, Z1 - Z0, WALL_DARK);
     b.box(X1 - 0.1, py, (Z0 + Z1) / 2, 0.2, ph, Z1 - Z0, WALL_DARK);
     // (S2-G2, C2, `S2-detail.md:94`) the rim follows the void: outer box x -26.4..-11.1, z -18.9..-3.6, 0.9 high (to 13.2), 0.4 thick
@@ -705,16 +722,28 @@ export function buildCampusS2(b: LevelBuilder): void {
     b.box(-11.3, ry, -11.25, 0.4, rh, 14.5, WALL_DARK);
     b.mark(i0, { noLedge: true });
     b.box(-18.75, 13.2, -11.25, 14.5, 0.1, 14.5, '#6c8da0', 0, 0, false);
-    // the roof plant room (x -20..-12, z 0..4.5, 2.6 high), door south
+    // (S2-G4, C14, `S2-detail.md:96`) the roof plant room (x -20.5..-12, z 0..6, walls 4.0 high; the north wall on the
+    // shell's north line), a roof box on top (overhead, noLedge), the door south (x -16); the floor hatch (BA9) with its cat
+    // ladder down to the L2 north plan and a 1.1 rail on three sides, the ladder's top-out side (north) open
+    const R = ROOF_PLANT;
     const j0 = b.boxes.length;
-    wall(b, true, 0, -20, -12, [gc(-16)], FR, FR + 2.6, P, WALL_DARK);
-    wall(b, true, 4.5, -20, -12, [], FR, FR + 2.6, P, WALL_DARK);
-    wall(b, false, -20, 0, 4.5, [], FR, FR + 2.6, P, WALL_DARK);
-    wall(b, false, -12, 0, 4.5, [], FR, FR + 2.6, P, WALL_DARK);
-    b.box(-16, FR + 2.5, 2.25, 8.4, 0.2, 4.9, ROOF);
+    wall(b, true, 0, R.x0, R.x1, [gc(-16)], FR, FR + R.h, P, WALL_DARK);
+    wall(b, true, Z1 - 0.1, R.x0, R.x1, [], FR, FR + R.h, P, WALL_DARK);
+    wall(b, false, R.x0, 0, Z1, [], FR, FR + R.h, P, WALL_DARK);
+    wall(b, false, R.x1, 0, Z1, [], FR, FR + R.h, P, WALL_DARK);
+    b.box((R.x0 + R.x1) / 2, FR + R.h - 0.1, (-0.1 + Z1) / 2, R.x1 - R.x0 + 0.2, 0.2, Z1 + 0.1, ROOF);
     b.boxes[b.boxes.length - 1]!.overhead = true;
+    const H = ROOF_HATCH;
+    const ry1 = FR + 0.55;
+    b.box(H.x0 - 0.05, ry1, (H.z0 + H.z1) / 2, 0.1, 1.1, H.z1 - H.z0 + 0.2, STEEL);
+    b.box(H.x1 + 0.05, ry1, (H.z0 + H.z1) / 2, 0.1, 1.1, H.z1 - H.z0 + 0.2, STEEL);
+    b.box((H.x0 + H.x1) / 2, ry1, H.z0 - 0.05, H.x1 - H.x0, 1.1, 0.1, STEEL);
     b.mark(j0, { noLedge: true });
     doorIn(b, true, 0, -16, FR);
+    b.ladder(H.ladder[0], H.ladder[1], F2, FR, 0);
+    // (S2-G4, C12) the window-cleaning davit on the north parapet: a rappel 7.9 m down to the sunshade ledge (4.4), beside
+    // the facilities window (the `traversal.ts:122` rope-to-window case)
+    b.rappel(DAVIT.x, FR, DAVIT.z, 0, DAVIT.length);
   }
 
   // ---- the C2 bridge (L1, x 4..10, z -16..-12): walls 3.0, a roof, the floor slab; a card door in the east wall (the gap above)
