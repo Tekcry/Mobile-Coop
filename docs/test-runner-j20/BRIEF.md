@@ -65,8 +65,9 @@ gameplay never imports graphics settings (H9), patrols and detections replay the
 - A7 (Q27): the check is `e2e-darkness` (Warehouse, Epic, 42 s in `scripts/e2e-times.json:15`) appended to the train
   list on GPU workers. Its successor (per-map parity cards, J11 / visual-gate parity count) replaces it when Sector Ops
   Build says so: one constant (`TRAIN_PARITY` in lib.mjs). Before switch-on, e2e-darkness runs 3 times on master via
-  the queue; if it is red there, S7 lands with the constant empty and Sector Ops gets the fix request (the hold
-  needs a green check, not a red train). Undo: set `TRAIN_PARITY = []`.
+  the queue; if it is red there, S7 lands switched off and Sector Ops gets the fix request (the hold needs a green
+  check, not a red train). Run-time off switch, no release: `config/train-parity.json` `{ "off": true, "why", "by" }`
+  on the `laptop-queue` branch (or `LQ_TRAIN_PARITY=off` on a worker). Undo: that switch; for good, `TRAIN_PARITY = []`.
 - A8 (T14): perf requests = alone steps that run `node scripts/perf.mjs`; lib `perfStep` appends `--budget` unless the
   step already has it or says `--no-budget` (an explicit measure-only run, logged). Undo: drop the `perfStep` call.
 - A9 (H7): the replay test runs the pure layer (`PatrolWalker`, `sightRate` / `stepMeter`) twice with `Math.random`
@@ -88,7 +89,9 @@ gameplay never imports graphics settings (H9), patrols and detections replay the
   lighting and the visual gate); T12 owner names.
 - Marlow Build: H8 edits `scripts/e2e-ctcourse.mjs` (tests only); T12 owner names.
 - Player Build: T12 owner names; T14 allocations (theirs, J21).
-- Orchestrator: `scripts/merge-train.mjs` re-export (A5, no behaviour change); fix-job alerts land in `alerts/`.
+- Orchestrator: `scripts/merge-train.mjs` re-export (A5, no behaviour change); `alerts/*-fixjob-*.json` is a new
+  alert kind on the `laptop-queue` branch (Q30 fix jobs; today only `*-tasks.json`), so its cron must read it; it may
+  flip the `config/train-parity.json` switch (S7) with Test Runner.
 - Campaign Build: `origin/feature/mission-engine-flg-gb6` also edits `scripts/e2e-affected.mjs` DIRECT rows and
   `scripts/run-e2e.mjs` PARTS (claims overlap, plan "Risks").
 
