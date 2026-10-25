@@ -368,7 +368,7 @@ export class SectorMode implements GameMode {
     if (this.mission) this.missionHud = new MissionHudMount(() => new MissionHud(g.hud.el)); // (mission-framework EN4)
     setOnRated(this.rated);
     this.findDoors();
-    this.team.build();
+    this.team.build(this.mission?.def.id);
     this.findKeypads();
     this.findDesks();
     this.findCrates();
