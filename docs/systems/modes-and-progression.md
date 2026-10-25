@@ -78,14 +78,17 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   "Unbolt" (`Interactable.side`); using it unlocks the door for both. A section restart bolts its doors again.
   Pure: `SectorBolts`, `onBoltSide`, `boltItemId` / `boltById`. Test hooks: `__sector.boltInfo()`,
   `__sector.useBolt(sec, k)`, `debug().bolts`.
-- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided (G331), not built yet:
-  a clear on tier N fills every star below N too (Michael: "Completing a higher difficulty also considers the lower
-  tiers completed also"); as built only the cleared tier's star fills. `save/sectorRecord.ts`, kv key `sector:ops`
+- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. A clear on tier N fills
+  every star below N too (G331; Michael: "Completing a higher difficulty also considers the lower tiers completed
+  also"): `starsOf` derives the fill from the hardest tier cleared, so old saves get it; `done` and the best times stay
+  as cleared. `save/sectorRecord.ts`, kv key `sector:ops`
   (per op id: the presets completed and the best time per preset; no profile change, no SAVE_VERSION bump). The
   extraction calls `markCompleted(map.id, difficulty, time)` (solo and co-op host; the co-op client on a won `end`, no
   time). The menu entry opens `SectorOpsScreen` (`ui/screens/missionsScreen.ts`: maps with `sectors` and the `sector`
   mode; `starsText` in DIFFICULTIES order, best times in the context panel), then the briefing. The main menu counter
-  and the host's lobby Map row show the stars.
+  shows Saltmarsh Park's stars (`campusOps`); the host's lobby Map row shows each op's. The result line and the
+  extraction banner add PERFECT (no kills and no alarm raised all op, restarts included: `SectorRun.alarmsRaised`,
+  G146; `sectorResult`, `resultBadge`) before GHOST.
 - Revive syringes (M7, A10): co-op only. The host's `ReviveClock.cap` is `syringesFor(difficulty)` (Rookie 3, Normal 2,
   Realistic 1, Perfectionist 1), per op (a restart keeps the count used); the HUD line shows "Syringes n"
   (`sectorInfoHtml`; solo shows none). An operator out (no syringe left, or the window over) calls
