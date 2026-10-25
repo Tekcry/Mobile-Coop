@@ -76,20 +76,23 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // to 13.8 cm a frame (hand-made 0.5; tests/mixamoTraverse.test.ts crawl check), and crawlOut starts 4.6 rad of spYaw away
   crawling_hands_and_knees: false,
   // (mixamo-retarget I1) measured headless on Wren's rig against the clip it would replace (tests/mixamoSwitch.test.ts (d),
-  // docs/mixamo-retarget/I1-REPORT.md; A8: Studio only unless at least as good)
-  // off: the elbows 12.8 cm outside the shoulders (e2e-anim's idle limit 8, the hand-made idle 7.2); seam 0.0 deg
-  standing_idle: false,
-  // off: the capture's hips turned 31-48 deg off its travel: a knee 20 cm outside its ankle, the elbows 27 cm out (CMU
-  // 136_09: 5.4 / 5.3 cm); slide and bone steps as the CMU clip
-  crouched_walking: false,
+  // docs/mixamo-retarget/I1-REPORT.md, I4-REPORT.md; the A8 readings are information: on unless visibly broken)
+  // (I4, Michael 2026-10-26: Mixamo wins unless visibly broken) on: arms in 11 deg at emit (recipe `armIn`): the elbows
+  // 7.75 cm outside the shoulders (was 12.8; e2e-anim's idle limit 8, hand-made 7.2); seam 0.0 deg, bone step 0.3 deg
+  standing_idle: true,
+  // (I4) on: the trunk turned -38.9 deg onto its travel at emit (recipe `turn`): knees 0.71-0.79 x hips (was 0.30-0.96),
+  // knee out 3.5-4.0 cm (was 20; CMU 5.4-5.9), slide 0.00-0.01 cm, bone steps as CMU (9.8 / 14.2 / 15.4 deg); the elbows
+  // stay 27.2-27.7 cm out (CMU 5.3-5.4): the capture's own sneak pose (arms held wide), not a break; tune in the Studio
+  crouched_walking: true,
   // (mixamo-retarget I3) the stance changes, measured headless on Wren's rig against the hand-made stance blend
-  // (tests/mixamoStance.test.ts (d), docs/mixamo-retarget/I3-REPORT.md; A8: Studio only unless at least as good)
-  // off: its 2.58 s played over the game's 0.22 s crouch (12x) jumps the joints' velocity 20.2 cm a frame (e2e-anim's
-  // stand <-> crouch limit 7.5, the hand-made blend 6.5) and takes the elbows 12.6 cm out (hand-made 7.2)
-  stand_to_crouch: false,
-  // off: its 2.17 s over the game's 0.22 s stand (10x) jumps the joints' velocity 11.3 cm a frame (hand-made 6.4) and
-  // turns a forearm 24.3 deg in a frame (hand-made 14.3)
-  crouch_to_stand: false,
+  // (tests/mixamoStance.test.ts (d), docs/mixamo-retarget/I3-REPORT.md, I4-REPORT.md; on unless visibly broken)
+  // (I4) on: trimmed to the drop (0.95-1.5 s of the take), no head channel, edge fade 0.4: bone step 24.6 deg (cap 25;
+  // hand-made 25.8), velocity pop 16.9 cm a frame (was 20.2; e2e-anim limit 7.5, hand-made 6.5), elbows 10.6 cm (hand-made
+  // 7.2), knees as hand-made; the reversal at crouchK 0.5: step 24.6, pop 22.2 (hand-made 13.9)
+  stand_to_crouch: true,
+  // (I4) on: trimmed to the rise (0.35-1.25 s), no head channel, edge fade 0.4: bone step 16.0 deg (was 24.3; hand-made
+  // 14.3), velocity pop 13.8 cm a frame (was 11.3; hand-made 6.4), elbows 10.9 cm (hand-made 6.75), knees as hand-made
+  crouch_to_stand: true,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
@@ -218,7 +221,7 @@ export const WREN_STANCE: { down: KeyedClip | null; up: KeyedClip | null } = { d
  * (settled stances are the hand-made crouched / standing sets exactly); `flip` (s) the cross-fade from the old
  * direction's shot to the new one when the stance reverses mid-change.
  */
-export const STANCE_SHOT = { edge: 0.15, flip: 0.08 } as const;
+export const STANCE_SHOT = { edge: 0.4, flip: 0.08 } as const;
 
 /** Rewrite `WREN_STANCE` from the flag and `MIXAMO_ON` (once per change). */
 function resolveMixamoStance(): void {

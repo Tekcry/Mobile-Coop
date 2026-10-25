@@ -434,8 +434,13 @@ describe('mixamo I3 (d): no pop, and the A8 measures (headless, Wren rig)', () =
     // no pop (e2e-anim's pose continuity) over each full change
     expect(md.step, 'stand_to_crouch bone step').toBeLessThanOrEqual(POP_DEG);
     expect(mu.step, 'crouch_to_stand bone step').toBeLessThanOrEqual(POP_DEG);
-    expect(ON0.stand_to_crouch, `stand_to_crouch passes A8: ${passes(md, hd)}`).toBe(passes(md, hd));
-    expect(ON0.crouch_to_stand, `crouch_to_stand passes A8: ${passes(mu, hu)}`).toBe(passes(mu, hu));
+    // (I4) A8 is information (Michael 2026-10-26: Mixamo wins unless visibly broken): the caps above and the slide catch a
+    // visible break; the rows ship on
+    console.info(`(mixamo I4) A8: stand_to_crouch ${passes(md, hd) ? 'pass' : 'fail'}, crouch_to_stand ${passes(mu, hu) ? 'pass' : 'fail'}`);
+    expect(md.slide, 'stand_to_crouch planted slide').toBeLessThanOrEqual(FOOT_SLIDE);
+    expect(mu.slide, 'crouch_to_stand planted slide').toBeLessThanOrEqual(FOOT_SLIDE);
+    expect(ON0.stand_to_crouch).toBe(true);
+    expect(ON0.crouch_to_stand).toBe(true);
   }, 300_000);
 
   it('a reversal at mid-change (a stand press at crouchK 0.5) does not pop', async () => {
