@@ -20,3 +20,6 @@ kind: patch
 - S2-G5a: the Split Shift devices as data: the comms room CCTV patch panel, the plant room breaker for the east wing
   lights, keypads on both facilities office doors (the code is overheard at the kitchen), the plant log in the mail room,
   and two-player key doors at the bridge landing and the executive suite; wing, landing and goods-door downlights.
+- S2-G5c: every enclosed room is its own room (meeting rooms, the L2 executive suite, offices, board room and roof plant room
+  tagged on the HUD) and every room that had no light gets ceiling fittings on its own switched circuit with a wall switch by
+  its door; the fire stairs get landing lights on a riser circuit each. Nothing changes in the live section 2.
