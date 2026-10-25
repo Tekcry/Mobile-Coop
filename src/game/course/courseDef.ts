@@ -376,7 +376,7 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
   const stationIds = new Set<string>();
   const stationNs = new Set<string>();
   const doneFlags: [string, string][] = [];
-  const text =(owner: string, s: string, what: string): void => {
+  const text = (owner: string, s: string, what: string): void => {
     if (!s) fail(owner, `empty ${what}`);
     if (s.length > COURSE_TEXT_MAX) fail(owner, `${what} is ${s.length} characters (max ${COURSE_TEXT_MAX})`);
   };

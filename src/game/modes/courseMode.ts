@@ -1836,8 +1836,10 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   const mm = mirrorOf(g);
   if (mm) mirrorRating(g, mm, w.rt, w.rh);
   if (w.sec) mm?.ct.apply(w.sec);
-  // (J14 R1) route-runs' hook as on the host: the retry count, the last retry and the live station
-  (window as unknown as { __course?: unknown }).__course = { wire: w, ...retryHook(w.s), station: () => w.s.st, hud: () => mirrors.get(g)?.hud.el, debug:() => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
+  // (J14 R1) route-runs' hook as on the host: the retry count, the last retry and the live station; (fix 9) the mirror
+  // state's `lastRetry`, which `apply` replaces only when it changed
+  const hook = mm ? { restarts: mm.st.restarts, lastRetry: mm.st.lastRetry } : retryHook(w.s);
+  (window as unknown as { __course?: unknown }).__course = { wire: w, ...hook, station: () => w.s.st, hud: () => mirrors.get(g)?.hud.el, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }
 
 /** Door anchor ids of the airlocks' rear doors (the client mirror's forced-close set). */
