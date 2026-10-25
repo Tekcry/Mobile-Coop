@@ -302,6 +302,60 @@ export function mixamoDirCheck(rig, dump, { take = takeFromDump(dump) } = {}) {
   return out;
 }
 
+/**
+ * (mixamo-retarget I7) A take mirrored left <-> right (the recipe's `mirror`, e.g. a right-handed throw played with the
+ * left hand): every slot's positions x -> -x, its rotations reflected in the same plane (q [x, y, z, w] -> [x, -y, -z, w]:
+ * S R S with S = diag(-1, 1, 1)), and the `l*` / `r*` slots swapped. The rest skeleton is left as it is (Mixamo's is
+ * symmetric to the millimetre). A new take; `take` is not touched. Mirroring twice gives the take back.
+ */
+export function mirrorTake(take) {
+  const other = (s) => {
+    const o = s[0] === 'l' ? `r${s.slice(1)}` : s[0] === 'r' ? `l${s.slice(1)}` : null;
+    return o && take.pos.has(o) ? o : s;
+  };
+  const pos = new Map(), quat = new Map();
+  for (const [s, arr] of take.pos) pos.set(other(s), arr.map((p) => [-p[0], p[1], p[2]]));
+  for (const [s, arr] of take.quat) quat.set(other(s), arr.map((q) => [q[0], -q[1], -q[2], q[3]]));
+  return { ...take, pos, quat, mirrored: !take.mirrored };
+}
+
+/** Travel headings (deg, + right of the facing) within this of an axis count as on it; past it a clip is a diagonal. */
+export const AXIS_TOL_DEG = 22.5;
+/** A path whose heading turns more than this between its first and second half is an arc. */
+export const ARC_DEG = 20;
+
+/**
+ * (mixamo-retarget I7) The travel `auto` of a recipe: the hips' heading over the frames [a, b] (120 fps) against the
+ * take's facing (+z; its reverse when the chest's mean yaw faces away, as faceTake), the nearest travel axis ('z',
+ * '+x', '-z', '-x'; a tie goes to z / -z), and the flags: `diagonal` (more than AXIS_TOL_DEG off the axis) and `arc`
+ * (the heading turns more than ARC_DEG between the halves). Returns { axis, headingDeg, offDeg, arcDeg, flags }.
+ */
+export function travelHeading(take, [a, b] = [0, take.frames - 1]) {
+  const P = take.pos.get('root');
+  const ia = Math.round(a), ib = Math.round(b), im = Math.round((ia + ib) / 2);
+  let s = 0, c = 0;
+  for (let i = ia; i <= ib; i++) {
+    const f = q4.rotate(take.quat.get('thorax')[i], [0, 0, 1]);
+    const y = Math.atan2(f[0], f[2]);
+    s += Math.sin(y); c += Math.cos(y);
+  }
+  const face = Math.abs(Math.atan2(s, c)) > Math.PI / 2 ? Math.PI : 0;
+  const wrap = (x) => Math.atan2(Math.sin(x), Math.cos(x));
+  const hd = (i, j) => wrap(Math.atan2(P[j][0] - P[i][0], P[j][2] - P[i][2]) - face);
+  const h = hd(ia, ib);
+  const arc = wrap(hd(im, ib) - hd(ia, im));
+  const axes = [['z', 0], ['+x', Math.PI / 2], ['-z', Math.PI], ['-x', -Math.PI / 2]];
+  let axis = 'z', off = Infinity;
+  for (const [n, ang] of axes) {
+    const d = Math.abs(wrap(h - ang));
+    if (d < off - 1e-9) { axis = n; off = d; }
+  }
+  const flags = [];
+  if (off * R2D > AXIS_TOL_DEG) flags.push('diagonal');
+  if (Math.abs(arc) * R2D > ARC_DEG) flags.push('arc');
+  return { axis, headingDeg: r1(h * R2D), offDeg: r1(off * R2D), arcDeg: r1(arc * R2D), flags };
+}
+
 /** Reads `<dir>/<slug>.json` (default build/mocap/mixamo/raw) and adapts it (takeFromDump). */
 export function loadMixamoTake(slug, { dir = MIXAMO_RAW, rig = null, floor = 'feet' } = {}) {
   const file = path.join(dir, `${slug}.json`);

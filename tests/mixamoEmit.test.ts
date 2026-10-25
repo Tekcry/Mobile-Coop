@@ -13,7 +13,7 @@ import { MOCAP_SOURCES } from '../src/anim/mocapSources';
 
 type V = number[];
 type Rig = { names: string[]; parent: Record<string, string | null>; bind: Record<string, V>; height: number; leg: number };
-interface Recipe { slug: string; kind: string; file: string; title: string; note?: string; travel: string; inPlace: boolean | string; channels: string[]; studio: { body: string; move?: string; crouch?: boolean; circle?: boolean } }
+interface Recipe { slug: string; kind: string; file: string; title: string; note?: string; travel: string; pack?: string | null; place?: string; mirror?: boolean; inPlace: boolean | string; channels: string[]; studio: { body: string; move?: string; crouch?: boolean; circle?: boolean } }
 interface Def { name: string; frames: number; pel: number[]; q: number[]; arm: number[]; head?: number[]; feet?: number[]; stride?: number; duty: number; half: number }
 interface Out { def: Def; seconds: number; report: Record<string, unknown> }
 interface Res { out: Out; kind: string; fallback: string | null }
@@ -34,6 +34,8 @@ const E = emitMod as {
   emitRecipe: (d: Inter, rig: Rig, rec: Recipe) => Res;
   sourceRow: (rec: Recipe, res: Res) => string;
   writeKeyedBlock: (text: string, rows: Record<string, string>, o?: { keep?: boolean }) => string;
+  rowTitle: (rec: Partial<Recipe>) => string;
+  modulePath: (rec: Partial<Recipe>, dir?: string) => string;
   TRIM: { margin: number };
   LOOP_FPS: number;
   ONESHOT_FPS: number;
@@ -49,7 +51,26 @@ const PLAN_KINDS: Record<string, string> = {
   walking: 'gait', jogging: 'gait', running: 'gait', fast_run: 'gait', start_walking: 'timed', stop_walking: 'timed', run_to_stop: 'timed',
   right_turn: 'turn', left_turn: 'turn', walking_left_turn: 'turn', walking_left_turn_mirror: 'turn', left_strafe_walking: 'gait',
   right_strafe_walking: 'gait', crouched_sneaking_left: 'gait', crouched_sneaking_right: 'gait', walking_backwards: 'loop', run_backwards: 'loop',
+  // (mixamo-retarget I9) batch 2: the keyed clips of BATCH2-PLAN "(1) Clip table" (its 15 channel clips wait for I11)
+  ...Object.fromEntries(Object.entries({
+    gait: 'pistol_walk pistol_run pistol_walk_backward pistol_strafe pistol_strafe_2 pistol_run_backward pistol_walk_arc pistol_walk_arc_2 pistol_run_arc pistol_run_arc_2 pistol_walk_backward_arc pistol_walk_backward_arc_2 pistol_run_backward_arc pistol_run_backward_arc_2 '
+      + 'rifle_walk_forward rifle_run_forward rifle_sprint_forward rifle_walk_backward rifle_walk_left rifle_walk_right rifle_walk_crouching_forward rifle_walk_forward_left rifle_walk_forward_right rifle_walk_backward_left rifle_walk_backward_right '
+      + 'rifle_walk_crouching_backward rifle_walk_crouching_left rifle_walk_crouching_right rifle_walk_crouching_forward_left rifle_walk_crouching_forward_right rifle_walk_crouching_backward_left rifle_walk_crouching_backward_right '
+      + 'rifle_run_forward_left rifle_run_forward_right rifle_run_left rifle_run_right rifle_run_backward rifle_run_backward_left rifle_run_backward_right rifle_sprint_forward_left rifle_sprint_forward_right rifle_sprint_left rifle_sprint_right '
+      + 'rifle_sprint_backward rifle_sprint_backward_left rifle_sprint_backward_right shooter_walking shooter_rifle_run shooter_walking_backwards shooter_run_backwards shooter_strafe shooter_strafe_2 '
+      + 'aa_left_cover_sneak aa_right_cover_sneak aa_walking aa_running aa_crouched_sneaking_left aa_crouched_sneaking_right',
+    loop: 'pistol_idle pistol_kneeling_idle rifle_idle rifle_idle_aiming rifle_idle_crouching rifle_idle_crouching_aiming rifle_jump_loop shooter_rifle_aiming_idle aa_idle aa_idle_2 aa_idle_3 aa_idle_4 aa_idle_5 '
+      + 'crouch_look_around_corner looking_around cover_idle taking_cover_idle',
+    timed: 'pistol_stand_to_kneel pistol_kneel_to_stand pistol_jump pistol_jump_2 rifle_jump_up rifle_jump_down rifle_death_from_the_front rifle_death_from_the_back rifle_death_from_right rifle_death_from_front_headshot '
+      + 'rifle_death_from_back_headshot rifle_death_crouching_headshot_front shooter_start_walking shooter_stop_walking shooter_start_walking_backwards shooter_walk_backwards_stop shooter_firing_rifle shooter_jump_forward '
+      + 'shooter_jump_backward shooter_walking_to_dying aa_stand_to_cover aa_stand_to_cover_2 aa_cover_to_stand aa_cover_to_stand_2 aa_jumping_up aa_run_to_stop stand_cover_to_look',
+    turn: 'rifle_turn_90_left rifle_turn_90_right rifle_crouching_turn_90_left rifle_crouching_turn_90_right aa_left_turn aa_right_turn',
+  }).flatMap(([k, v]) => v.split(' ').map((slug) => [slug, k]))),
 };
+/** (I9) The batch 2 clips with a game slot (BATCH2-PLAN "(1)"; wired by I10 / I13): their modules are `place` game. */
+const GAME_B2 = new Set(('pistol_idle pistol_walk pistol_run pistol_walk_backward pistol_strafe pistol_strafe_2 rifle_idle rifle_idle_aiming rifle_walk_forward rifle_run_forward rifle_sprint_forward rifle_walk_backward '
+  + 'rifle_walk_left rifle_walk_right rifle_walk_crouching_forward rifle_turn_90_left rifle_turn_90_right rifle_crouching_turn_90_left rifle_crouching_turn_90_right aa_left_cover_sneak aa_right_cover_sneak '
+  + 'crouch_look_around_corner cover_idle stand_cover_to_look').split(' '));
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const bad = (slug: string, patch: Record<string, unknown>): unknown => {
@@ -86,6 +107,28 @@ describe('mixamoEmit: recipes', () => {
     expect(() => E.validateRecipes(bad('left_strafe_walking', { travel: '+x' }))).toThrow(/strafeL travels -x/);
     expect(() => E.validateRecipes(bad('walking', { cycles: 1.5 }))).toThrow(/cycles/);
     expect(() => E.validateRecipes(bad('right_turn', { slot: 'strafeR' }))).toThrow(/slot strafeR takes a gait recipe/);
+    // (I7) the recipe options: travel -z / auto, mirror, place, pack files
+    expect(() => E.validateRecipes(bad('pistol_strafe', { gait: 'strafe' }))).toThrow(/travel auto gait names its forward band/);
+    expect(() => E.validateRecipes(bad('rifle_walk_backward', { gait: 'strafe' }))).toThrow(/sideways gait/);
+    expect(() => E.validateRecipes(bad('cross_punch', { mirror: 'yes' }))).toThrow(/mirror must be a boolean/);
+    expect(() => E.validateRecipes(bad('cross_punch', { place: 'menu' }))).toThrow(/place from game \/ studio/);
+    expect(() => E.validateRecipes(bad('rifle_idle', { title: 'Pro Rifle Pack: idle' }))).toThrow(/title "Pro Rifle Pack: idle" != "idle"/);
+    expect(() => E.validateRecipes(bad('rifle_idle', { file: 'pack-sword/idle.fbx' }))).toThrow(/no site name|slugs to sword_idle/);
+  });
+
+  it('(I7) a recipe as loaded: its pack, place game by default, no mirror; the row title and the module folder', () => {
+    const rs = E.loadRecipes();
+    const by = (slug: string): Recipe => rs.find((r) => r.slug === slug)!;
+    expect(by('rifle_walk_forward')).toMatchObject({ pack: 'pack-rifle', place: 'game', mirror: false, title: 'walk forward' });
+    expect(by('walking')).toMatchObject({ pack: null, place: 'game' });
+    expect(E.rowTitle(by('rifle_walk_forward'))).toBe('Pro Rifle Pack: walk forward');
+    expect(E.rowTitle(by('pistol_strafe_2'))).toBe('Pistol/Handgun Locomotion Pack: pistol strafe (2)');
+    expect(E.rowTitle(by('walking_left_turn_mirror'))).toBe('Walking Left Turn (Mirror = right turn)');
+    expect(E.rowTitle(by('kneel_down'))).toBe('Kneel Down');
+    expect(E.modulePath(by('aa_idle'), 'D').replace(/\\/g, '/')).toBe('D/studio/aa_idle.ts');
+    expect(E.modulePath(by('rifle_idle'), 'D').replace(/\\/g, '/')).toBe('D/rifle_idle.ts');
+    // batch 2: a pack file, a place named or a game slot; the rest of batch 2 is Anim Studio only
+    for (const r of rs) if (r.pack || RECIPES.clips[r.slug]!.place || GAME_B2.has(r.slug)) expect(r.place, r.slug).toBe(GAME_B2.has(r.slug) ? 'game' : 'studio');
   });
 });
 
@@ -244,7 +287,11 @@ describe('mixamoEmit: the source rows', () => {
 });
 
 /** The committed modules (each built through keyedClip when imported). */
-const MODULES = import.meta.glob('../src/anim/clips/mixamo/*.ts', { eager: true }) as Record<string, Record<string, unknown>>;
+const MODULES = {
+  ...import.meta.glob('../src/anim/clips/mixamo/*.ts', { eager: true }),
+  // (I9) the Anim Studio only clips
+  ...import.meta.glob('../src/anim/clips/mixamo/studio/*.ts', { eager: true }),
+} as Record<string, Record<string, unknown>>;
 const keyedMods = Object.entries(MODULES).filter(([p]) => !/\/trav_[^/]+$/.test(p));
 
 describe('mixamoEmit: the committed keyed modules', () => {
@@ -256,12 +303,14 @@ describe('mixamoEmit: the committed keyed modules', () => {
       const clip = mod[`MOCAP_${slug.toUpperCase()}`] as KeyedClip;
       expect(clip.pel, slug).toBeInstanceOf(Float32Array);
       expect(clip.name).toBe(`mocap_${slug}`);
-      const first = readFileSync(`src/anim/clips/mixamo/${slug}.ts`, 'utf8').split('\n')[0]!;
+      const first = readFileSync(p.replace(/^\.\.\//, ''), 'utf8').split('\n')[0]!;
+      // (I7) the folder follows the recipe's place
+      expect(p.includes('/mixamo/studio/'), slug).toBe(RECIPES.clips[slug]!.place === 'studio');
       expect(first).toMatch(/GENERATED.*Do not edit/);
       const row = MOCAP_SOURCES[clip.name]!;
       expect(row.source).toBe('mixamo');
       const r = RECIPES.clips[slug]!;
-      expect(row.title).toBe(/^Mirror/.test(r.note ?? '') ? `${r.title} (${r.note})` : r.title);
+      expect(row.title).toBe(E.rowTitle(r));
       expect(row.take).toBe(RECIPES.clips[slug]!.file);
       expect(row.studio.kind).toBe('keyed');
     }
@@ -301,7 +350,7 @@ describe('mixamoEmit: the committed keyed modules', () => {
       // planted frames fall back by stride / N a frame (the root moves stride per cycle)
       const errs: number[] = [];
       // (I6) a sideways cycle's planted foot falls back along its travel axis
-      const [ux, uz] = clip.travel === '+x' ? [1, 0] : clip.travel === '-x' ? [-1, 0] : [0, 1];
+      const [ux, uz] = clip.travel === '+x' ? [1, 0] : clip.travel === '-x' ? [-1, 0] : clip.travel === '-z' ? [0, -1] : [0, 1];
       for (let s = 0; s < 2; s++) for (let i = 0; i < N; i++) {
         const j = (i + 1) % N;
         if (!clip.feet[i * 10 + s * 5 + 4] || !clip.feet[j * 10 + s * 5 + 4]) continue;
@@ -314,7 +363,8 @@ describe('mixamoEmit: the committed keyed modules', () => {
       expect(errs[errs.length >> 1]!, `${slug}: planted foot vs the root, median cm/frame`).toBeLessThan(1);
       // the Studio walks it at its own pace: a gait's row moves forward over its cycle
       // (the sideways ones: the right on the treadmill, the left in place, as the CMU strafes)
-      expect(st.move ?? 'none', slug).toBe(clip.travel === 'z' ? 'fwd' : clip.travel === '+x' ? 'side' : 'none');
+      // (I7) a backward one backs along the treadmill
+      expect(st.move ?? 'none', slug).toBe(clip.travel === 'z' ? 'fwd' : clip.travel === '+x' ? 'side' : clip.travel === '-z' ? 'back' : 'none');
     }
   });
 });

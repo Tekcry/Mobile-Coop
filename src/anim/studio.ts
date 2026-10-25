@@ -215,6 +215,8 @@ const CAPTURE_CLIPS = new Map<string, KeyedClip>();
 for (const mod of [
   ...Object.values(import.meta.glob('./clips/mocap/*.ts', { eager: true })),
   ...Object.values(import.meta.glob('./clips/mixamo/*.ts', { eager: true })),
+  // (mixamo-retarget I9) the Anim Studio only captures (BATCH2-PLAN I8 makes this folder load lazily)
+  ...Object.values(import.meta.glob('./clips/mixamo/studio/*.ts', { eager: true })),
 ] as Record<string, unknown>[]) {
   for (const v of Object.values(mod)) {
     const c = v as Partial<KeyedClip> | null;

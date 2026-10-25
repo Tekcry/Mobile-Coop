@@ -70,3 +70,9 @@ Pack driver (2026-10-26, feature/mixamo-i7; plan: [BATCH2-PLAN.md](BATCH2-PLAN.m
 At the save (05:30, 2026-10-26, branch feature/mixamo-i9 on I7 7b076225; I6 cccb7b45 report/MIXAMO_LOCO commits not in this base):
 - Done: read the brief (BATCH2-PLAN I9, PLAN, M3/I6 reports); no dump started, no Blender run, no lock taken; no code yet.
 - Left: copy raw dumps + manifest from Mobile-Coop-mixamo-retarget-m4 build/mocap/mixamo; dump the 123 new files under heavy(2).lock; I7 emitter options (pack, travel -z/auto, mirror, place) if missing; recipes, emit, Studio rows, CLIPS.md, art-credits rows, tests, I9-REPORT, changes/feature-mixamo-i9.md.
+
+At the save (2026-10-26 ~08:50, feature/mixamo-i9):
+- Merged origin/feature/mixamo-i6 (9f5847d04). Dump done: all 123 new files dumped (161 in build/mocap/mixamo/raw; heavy.lock taken and released in the same command; no Blender running). Take self-check 123/123 OK, leg scale 0.993 on every pack.
+- I7 parts done (uncommitted before this save): mixamoDup.mjs (0 duplicates under 1 cm; aa_walking 3.8, aa_run_to_stop 1.8, aa_crouched_sneaking_left 4.9 cm: kept, Studio only), emitter travel -z / auto, mirror, place, pack titles; mixamoTake mirrorTake / travelHeading; KeyedTravel '-z'; studio.ts glob for clips/mixamo/studio/.
+- I9: 108 keyed recipes, all emitted (24 game, 84 studio/), 108 Studio rows, 108 credits rows. 5 gaits fell back to loops (pistol_run_arc, pistol_run_backward_arc, rifle_sprint_backward(_left/_right)).
+- Left: fix 2 test fails (pistol_strafe planted-foot errs 0; aa_left_turn row cycle 0.017 < 0.2), tsc rerun, CLIPS.md check, I9-REPORT, changes/feature-mixamo-i9.md, final STATE.
