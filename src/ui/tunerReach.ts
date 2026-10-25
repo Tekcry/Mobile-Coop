@@ -276,11 +276,16 @@ export function rowReach(section: string, group: string, id: string): Reach {
 // Now (S4 fills `ReachNow` from the graph's `NOW_PLAYING` every frame the panel is open)
 // ------------------------------------------------------------------------------------------
 
-/** What plays now, as this file needs it: the body state (null: none), the capture's share of the body (0..1), the
- *  More > Panel motion-capture switch, a gun drawn (in her hands now: the game's gun group, or a studio loop with one). */
+/** The capture's share as a band: `capture` (it plays 90 % or more), `handMade` (10 % or less), `mid` (a mix). */
+export type ReachBand = 'capture' | 'handMade' | 'mid';
+
+/** What plays now, as this file needs it: the body state (null: none), the capture's share of the body (0..1, raw),
+ *  its band (latched with `reachBand`: the tags and the warning read this, never the raw share), the More > Panel
+ *  motion-capture switch, a gun drawn (in her hands now: the game's gun group, or a studio loop with one). */
 export interface ReachNow {
   state: BodyGroup | null;
   mocapShare: number;
+  band: ReachBand;
   switchOn: boolean;
   drawn: boolean;
 }
@@ -291,8 +296,21 @@ export const REACH_NOW_BANDS = { capture: 0.9, handMade: 0.1 } as const;
 /** The live band's hysteresis: leave the 0.9 band only under 0.88, leave the 0.1 band only over 0.12 (the panel's `syncReach`). */
 export const REACH_NOW_HYST = 0.02;
 
-function shareOf(now: ReachNow): number {
-  return now.switchOn ? now.mocapShare : 0;
+/**
+ * The band of share `share` (0..1; 0 with the switch off) after band `prev`, with hysteresis: the capture band is
+ * entered at 0.9 and left only under 0.88, the hand-made band entered at 0.1 and left only over 0.12, so a share
+ * hovering at an edge does not flip the tags. `prev` 'mid' gives the plain band (no history).
+ */
+export function reachBand(prev: ReachBand, share: number): ReachBand {
+  const hi = prev === 'capture' ? share >= REACH_NOW_BANDS.capture - REACH_NOW_HYST : share >= REACH_NOW_BANDS.capture;
+  if (hi) return 'capture';
+  const lo = prev === 'handMade' ? share <= REACH_NOW_BANDS.handMade + REACH_NOW_HYST : share <= REACH_NOW_BANDS.handMade;
+  return lo ? 'handMade' : 'mid';
+}
+
+/** The band now: the latched band, or hand-made with the switch off. */
+function bandOf(now: ReachNow): ReachBand {
+  return now.switchOn ? now.band : 'handMade';
 }
 
 /**
@@ -304,9 +322,9 @@ export function rowNow(reach: Reach, rowState: string | readonly string[], now: 
   if (reach === 'none' || reach === 'both' || now.state === null) return reach;
   const mine = typeof rowState === 'string' ? rowState === now.state : rowState.includes(now.state);
   if (!mine) return reach;
-  const share = shareOf(now);
-  if (reach === 'keyed' && share >= REACH_NOW_BANDS.capture) return 'off';
-  if (reach === 'mocap' && share <= REACH_NOW_BANDS.handMade) return 'off';
+  const band = bandOf(now);
+  if (reach === 'keyed' && band === 'capture') return 'off';
+  if (reach === 'mocap' && band === 'handMade') return 'off';
   return reach;
 }
 
@@ -358,6 +376,15 @@ export function reachSummary(rows: readonly Reach[]): string {
 // ------------------------------------------------------------------------------------------
 // The edit warning (BRIEF A4, A8; PLAN 2(c))
 // ------------------------------------------------------------------------------------------
+
+/**
+ * (Keys key tools) The field a key tool's warning names ('' none): Wave's channel, else the picked Keys slider; with no
+ * slider picked (or the channel "all") the other tools name nothing, so they stay quiet.
+ */
+export function keyToolField(tool: string, chan: string, picked: string): string {
+  const id = tool === 'wave' ? chan : picked;
+  return id === 'all' ? '' : id;
+}
 
 /** What she is doing in each body state ("she is walking"); its keys are every `BodyGroup` (tsc checks the list). */
 const STATE_DOING: Readonly<Record<BodyGroup, string>> = {
@@ -464,7 +491,7 @@ export function editWarning(section: string, group: string, id: string, now: Rea
     return `You are editing ${name}; she is ${STATE_DOING[now.state]}. Pick ${name} in the Anim Studio to see it.`;
   }
   if (now.drawn && rowHolstered(section, group)) return 'Not on screen: this row is for her with no gun out. Holster to see it.';
-  if (reach !== 'keyed' || shareOf(now) < REACH_NOW_BANDS.capture) return '';
+  if (reach !== 'keyed' || bandOf(now) !== 'capture') return '';
   const move = CAPTURE_MOVE[now.state] ?? plainGroupWord('body', 0, now.state).toLowerCase();
   const head = `Not on screen: motion capture is playing the ${move}.`;
   if (section === 'keys') return `${head} Keys change the hand-made ${move} only. To change it now: ${WORKS_INSTEAD[keysFamily(id)]}.`;
