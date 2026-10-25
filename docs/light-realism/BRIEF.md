@@ -34,6 +34,10 @@ from cover, cut circuits and shot lamps.
   more); other picture flags advisory for now").
 - Q28 (~16:50), look baseline: "Me, with your OK (Recommended)" (the orchestrator accepts a look change into the
   visual-gate baseline only with Michael's sign-off on record).
+- Reference test data (2026-10-25 ~21:00), the A13 datasheet question: "Yes, numbers only (Recommended)" (option: use
+  the 5 ground-brightness readings at 0 / 3 / 6 / 9 / 12 m, 32.1, 53.9, 47.7, 25.4, 11.2 lux, from the RAB ALEDS3T
+  datasheet for a 6 m car-park pole light; the datasheet file or any IES file is never committed, bundled or copied
+  into the repo, only the numbers, with the source credited in `docs/art-credits.md`).
 
 ## Rules this job carries
 - Light parity (CLAUDE.md hard rule): the picture, the light meter and guard perception agree; one lighting system;
@@ -103,7 +107,9 @@ from cover, cut circuits and shot lamps.
   lead, never a downloaded or bought file (A4). If the fit misses (RMS level error over 0.03) or no usable published
   data is found without a download, the A2 anchors stay as a chosen mapping, and calibration.md and `SIGNOFF.md` say
   plainly "the anchors are chosen, not measured", with the fit error when there is one. Undo: Michael supplies a
-  datasheet or allows a download, and L0's test is rerun on it.
+  datasheet or allows a download, and L0's test is rerun on it. Undo taken 2026-10-25 ~21:00 ("Yes, numbers only"):
+  rerun on the RAB ALEDS3T readings, the fit missed on the lamp's shape (RMS level error 0.318), so the anchors stay
+  chosen, not measured (`measure/calibration.md` section 3).
 
 ## Questions for Michael
 None now. One question rides the S1 sign-off (`SIGNOFF.md`, PLAN L1): approve the band table and the S1 light map
