@@ -40,7 +40,7 @@ from cover, cut circuits and shot lamps.
   gameplay never reads graphics settings. Every change here is to lamps and fittings in the bake, never to a preset.
 - `docs/level-design.md` 5.1 (line 155: every lit pool has a visible source, darkness where nobody works) and 5.5 (line
   166: the band, measured from the bake). The standard and scale sheet section 9 change only with Michael's approval;
-  the S1 decision pack is that approval (Q3).
+  the S1 sign-off (`SIGNOFF.md`) is that approval (Q3).
 - Lighting changes to shipped maps are rule fixes (G355): allowed at the walk cap, no feature flag. Each lighting PR
   carries a 1-2 min look video (RULES "Walk pacing").
 - Raise lamps, never the ambient fill: guard torch slots exist only where the ambient or a zone is under 0.5
@@ -49,7 +49,7 @@ from cover, cut circuits and shot lamps.
 ## Maps
 | Map | In this job | Who re-lights |
 | --- | --- | --- |
-| campusOps (Saltmarsh Park) v1, S1-S5, every space | yes: S1 car park first (decision pack), then S1's other spaces and S2-S5 | Sector Ops Build (this job) |
+| campusOps (Saltmarsh Park) v1, S1-S5, every space | yes: S1 car park first (sign-off page), then S1's other spaces and S2-S5 | Sector Ops Build (this job) |
 | campusOps v2 (`flags.campusV2`, J17, feature/campus-greybox) | band and fixture rules only, through J17's lane briefs | J17 (Sector Ops), not this job's code |
 | warehouse (base map, every mode) | yes: the unlit strips (CONFORMANCE L4) | this job |
 | ctcourse (Marlow Yard) | band table and method handed over; its sets (M M10, M V5, pockets M H4) | Marlow Build, with this job's band table |
@@ -63,8 +63,8 @@ from cover, cut circuits and shot lamps.
 - **A2** The calibration is one curve from lux to the engine's light level, anchored at two points: 1 lux = 0.28 (the
   meter's dark line, `LIGHT.shadow`) and 10 lux = 0.60 (the lit line, `LIGHT.lit`): level = 0.28 + 0.32 x log10(lux),
   clamped 0-1. It fits the engine's existing night floors (the moon 0.104 reads ~0.3 lux, a real full moon 0.05-0.3;
-  the standby fill 0.14 reads ~0.4 lux). Shown to Michael in the decision pack. Undo: change the two anchors in the one
-  calibration module and re-run the measures (PLAN L0).
+  the standby fill 0.14 reads ~0.4 lux). Tested against one real fitting in L0 (A13); shown on the S1 sign-off page.
+  Undo: change the two anchors in the one calibration module and re-run the measures (PLAN L0).
 - **A3** Measurement planes follow the standards: car parks, roads and yards are horizontal at the ground (field at y
   0.1); offices, labs, data halls and security rooms at the task plane (y 0.8); corridors, stairs, lobbies, warehouses
   and plant rooms at the floor (y 0.1). The meter's own height (y 1.0) is shown beside each. Undo: change the plane in
@@ -74,8 +74,8 @@ from cover, cut circuits and shot lamps.
   standard are marked "to verify" in `research/bands.md`; nothing is downloaded or bought without asking Michael.
   Undo: edit the table before Michael's click.
 - **A5** The S1 staff car park is AS/NZS 1158.3.1 category P11a (the highest outdoor car-park category: a secure site
-  with night staff; Michael: "car parks are generally well lit"). Shown in the pack with P11b as the alternative. Undo:
-  re-tune the columns to P11b.
+  with night staff; Michael: "car parks are generally well lit"). Shown on the S1 sign-off page with P11b as the
+  "Changes first" alternative. Undo: re-tune the columns to P11b.
 - **A6** The S1 light-point fix is map data, not an engine change: each column lamp moves to a luminaire head on a
   0.8 m outreach arm (a real single-arm column), so its own pole no longer hides it. The test exemption for lamps on top
   of their posts (`tests/lampBoxAlign.test.ts:206-208`) shrinks to nothing. Undo: revert the column block; the engine
@@ -92,15 +92,23 @@ from cover, cut circuits and shot lamps.
 - **A10** Scale sheet section 9's row "After-hours interior (lights off)" is retired (Q2 "Never"). Undo: restore the
   row with Michael's word.
 - **A11** No feature flag (G355 rule fix). Code PRs that change the look of a shipped map stay off the train until
-  Michael's click on the S1 pack; after it, the band is approved and later PRs train normally. The visual-gate baseline
+  Michael's click on the S1 sign-off; after it, the band is approved and later PRs train normally. The visual-gate baseline
   takes each look change only with that sign-off on record (Q28). Undo: put the re-light behind a default-off flag.
 - **A12** The campus S1 co-op boost point (-13.5, -38) gets a real gap (a canopy column's shadow, the kerb end behind
   the smoking shelter) instead of canopy lamps placed to keep it dark; Sector Ops picks the gap and the lead's checker
   confirms the lip is still a co-op pathway. Undo: keep the A65 lamp layout and log the beat as a Michael question.
+- **A13** Q3's "one test that matches the game's brightness to real light units" is L0's reference test (PLAN L0): one
+  real 6 m car-park column from its maker's published photometric data, modelled with the engine's lamp terms, engine
+  level against real lux at 5 ground distances, fit error reported. The data comes from a datasheet page read by the
+  lead, never a downloaded or bought file (A4). If the fit misses (RMS level error over 0.03) or no usable published
+  data is found without a download, the A2 anchors stay as a chosen mapping, and calibration.md and `SIGNOFF.md` say
+  plainly "the anchors are chosen, not measured", with the fit error when there is one. Undo: Michael supplies a
+  datasheet or allows a download, and L0's test is rerun on it.
 
 ## Questions for Michael
-None now. Two picks ride the S1 decision pack (PLAN L1), each with a recommended option: the calibration anchors (A2)
-and the car-park category (A5). Overnight they are assumed and logged (G358).
+None now. One question rides the S1 sign-off (`SIGNOFF.md`, PLAN L1): approve the band table and the S1 light map
+(Q3). The anchors (A2) and the car-park category (A5) are shown on that page as what "Changes first" leads to.
+Overnight the recommended answer is assumed and logged (G358).
 
 ## Out of scope
 Character shadows in the meter (J16); late-join and failed-lamp parity, the parity suite itself, the 0.27 band and the
