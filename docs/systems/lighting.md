@@ -271,12 +271,10 @@ capsules.
   the capsule by limbs and weapons; the holder rule (A5) also skips a baked lamp within r + 0.6 m of a character's axis
   in the meter while the picture still shades it; at Shadows Off the picture draws no moon character shadow while the
   meter counts it (A6).
-- Shadow cues (Michael's Q14, "A faint cue"): `world/shadowCues.ts` `ShadowCues`, the cast-shadow footprints Guard
-  AI reads as a faint cue, host and solo, filled from the same contract at 10 Hz (S3b-2 wires it).
 - Co-op: each machine uses its own setting and its own nearest lamps; no wire change. With the flag on a client's own
   meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7).
-- Tests: `tests/charShadowSet.test.ts`, `tests/charOccluders.test.ts`, `tests/charOccluderFill.test.ts`,
-  `tests/shadowCues.test.ts`; `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
+- Tests: `tests/charShadowSet.test.ts`, `tests/charOccluders.test.ts`, `tests/charOccluderFill.test.ts`;
+  `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).
 
 ## Lamp light volume (Kestrel editor only)
