@@ -186,4 +186,5 @@ check stays clean. The text below is D0's record.
 
 ## 6. Tests
 `npx vitest run tests/tallowWharf/ --maxWorkers=2`: 7 files, 143 passed, 0 failed. The graph change breaks no Tallow
-test.
+test. Rerun with E11 (W2 roof slice, below-normal priority): 7 files, 143 passed, 0 failed. The downpipe's own tests
+come with its geometry in G2 (brief step 13); no test reads the graph's link count.
