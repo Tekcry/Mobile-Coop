@@ -57,17 +57,21 @@ Owner: Test Runner. Status: current.
   before 2020 or no time) keep arrival order ahead of everything else among PR work. Without it the green tier would
   push a Mixamo PR whose checker is still running behind other PRs, against "go first in the laptop queue". Undo:
   `LQ_FRONT_BRANCHES=` (empty) - the early-id re-file still works as before.
-- A5. Starvation bound: when the oldest non-front, non-green PR request has waited over `LQ_GREEN_MAX_WAIT_MIN` (30)
-  min, the next pick goes back to arrival order for that pick. Undo: `LQ_GREEN_MAX_WAIT_MIN=0` (no bound).
+- A5. Starvation bound: when the oldest non-front PR request, green or not, has waited over `LQ_GREEN_MAX_WAIT_MIN`
+  (30) min, the green tier is skipped for that pick: the front tier still goes first, then arrival order among the
+  non-front requests (so a big green request is never pushed back for good by a stream of smaller greens). Undo:
+  `LQ_GREEN_MAX_WAIT_MIN=0` (no bound).
 - A6. Green requests with no known wall (a suite missing from times.json) go after the known ones in the green tier,
   oldest first. Undo: n/a (order only).
 - A7. Carry rule: a moved train head H (open train PR head, train n's version commit V found within
   `LQ_TRAIN_CARRY_DEPTH` (20) first-parent commits) with no `laptop-e2e` status gets `laptop-e2e` success "carried
-  from <C8>, docs-only delta" when the newest commit C from V up to H's parent with `laptop-e2e` success differs from
-  H only in docs-only files: the G325 set (F4) minus any non-`.md` file under `docs/` (F6), so a JSON the game or a
-  suite reads never carries. Otherwise H runs as a normal pending train (sharded, `LQ_TRAIN_JOBS`), not a JOBS=1
-  rerun. Only a success is carried; a failure or no verdict on C means H runs. Undo: `LQ_TRAIN_CARRY=0` (moved heads
-  still run as trains).
+  from <C8>, docs-only delta" when C = the newest commit from H's parent back to V with a final `laptop-e2e` verdict
+  (success, failure or error) has success, and C differs from H only in docs-only files: the G325 set (F4) minus any
+  non-`.md` file under `docs/` (F6), so a JSON the game or a suite reads never carries. A newer failure is never
+  skipped to reach an older success. Otherwise H runs as a normal pending train (sharded, `LQ_TRAIN_JOBS`), not a
+  JOBS=1 rerun. While a docs-only ancestor between V and H still has `laptop-e2e` pending (its run going, A8), H waits:
+  neither worker starts it, and the carry is posted when that run passes. Undo: `LQ_TRAIN_CARRY=0` (moved heads still
+  run as trains).
 - A8. A train run on C whose head moves mid-run to a docs-only descendant is not voided: the void watch counts H as
   C's head, and on a pass the carried success is posted on the then-current head too. A code delta voids as today.
   Undo: `LQ_TRAIN_CARRY=0`.

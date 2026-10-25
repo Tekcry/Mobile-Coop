@@ -21,7 +21,8 @@ file:line below is origin/master 2a937eb6.
 - lib.mjs `affectedNeeds` (:997): rows with `mergeable === 'CONFLICTING'` come back as { ..., conflicting: true }
   (not dropped: the service posts the error once). A head with a final affected-e2e status is skipped as today, so the
   error is posted once per head.
-- service.mjs affectedPass (:446 loop): `n.conflicting` and `LQ_SKIP_CONFLICTING` on -> `postStatus(sha, 'error',
+- service.mjs affectedPass (:446 loop): after the zero-suite case (a conflicting docs / unit-only head keeps today's
+  "no browser suites" success), `n.conflicting` and `LQ_SKIP_CONFLICTING` on -> `postStatus(sha, 'error',
   AFFECTED_CTX, 'not run: PR #n conflicts with master (a new head runs again)')`, `affectedSeen.add`, log once
   "affected: #n <sha8>: CONFLICTING, not run"; no request pushed.
 - lib.mjs `conflictRetire(requests, board)` (new): ids of open requests with `set === 'affected'` whose `pr` is on the
@@ -46,9 +47,10 @@ file:line below is origin/master 2a937eb6.
   1. front: `isFront(r, frontBranches)` (new, exported): branch contains a `LQ_FRONT_BRANCHES` entry
      (case-insensitive) or `idTime(r.id)` is NaN or before 2020-01-01 (an early-id re-file). Oldest id first.
   2. green: `queue.order.green` (Set of ids) - smallest `queue.order.wallS[id]` first, unknown wall after known, ties
-     by id. Skipped for this pick when `queue.order.maxWaitMs > 0` and the oldest request outside tiers 1-2 is older
-     than that (A5).
-  3. else today's rule: the requester who waited longest, its highest `priority`, then oldest.
+     by id. Skipped for this pick when `queue.order.maxWaitMs > 0` and the oldest non-front request, green or not, is
+     older than that (A5); tier 1 still goes first.
+  3. else today's rule over the non-front requests: the requester who waited longest, its highest `priority`, then
+     oldest.
   `pick` (:253) passes `order` through; spare-only picks ignore it.
 - service.mjs pass(): before the pick loop (:1543) build `queue.order` = { green: ids of kind `pr` (not trainRerun,
   not laptopRerun, not spare) whose `board.get(r.pr)` has `head === r.sha` and green; wallS: `expectedWallS(r.suites,
@@ -59,7 +61,8 @@ file:line below is origin/master 2a937eb6.
 - Tests (new describe "pick: front, green smallest first" beside :56): green 3-suite 12 s request beats an older plain
   request; two green: the smaller wall first, unknown wall last; a `feature/mixamo-x` request (not green) beats a
   green one; an early-id (`000006...`) request beats green; trains, train reruns and an aged alone request still go
-  first (reuse the :1064 and agedAlone setups); max-wait: plain request 31 min old -> arrival order this pick; no
+  first (reuse the :1064 and agedAlone setups); max-wait: plain request 31 min old -> arrival order this pick; a
+  green 206 s request 31 min old beats a newer green 12 s one; a front request still beats both under max-wait; no
   `order` -> identical results to the existing :18 / :56 cases (run them once with `order` empty too); green request
   on a stale sha is not green (service-side helper `greenIds(requests, board)` exported from lib and tested).
 - Size ~50 lib, ~25 service, ~90 tests.
@@ -74,9 +77,10 @@ file:line below is origin/master 2a937eb6.
     two existing regex tests.
   - `carryFiles(files)`: `docsOnlyFiles(files)` and no file under `docs/` that does not end `.md` (BRIEF F6: docs/
     JSON is read by the game and by suites).
-  - `carryFrom(chain, filesBetween)`: chain = [{ sha, laptop }] from H's parent back to V (newest first); the newest
-    with laptop `success` is C; returns { from: C } when `carryFiles(filesBetween(C))` holds, else null. A chain
-    with no success -> null.
+  - `carryFrom(chain, filesBetween)`: chain = [{ sha, laptop }] from H's parent back to V (newest first). C = the
+    newest with a final verdict (success, failure or error). Returns { from: C } when C's verdict is success and
+    `carryFiles(filesBetween(C))` holds; { wait: P } when a commit newer than C (or any, with no C) is `pending` and
+    `carryFiles(filesBetween(P))` holds (its run is going: A7, A8); else null.
   - `carryDesc(sha)`: "carried from <sha8>, docs-only delta" (under 140 chars).
 - service.mjs:
   - `pendingTrains` (:629): replace the subject test with: H's subject is the version (as today), else `versionAt`
@@ -84,21 +88,24 @@ file:line below is origin/master 2a937eb6.
     `LQ_TRAIN_CARRY` on: read `laptop-e2e` on each chain commit (gh status calls, at most depth, once per head per
     process: a `carryChecked` Map), `git diff --name-only C H`; carry -> `postStatus(H, 'success', 'laptop-e2e',
     carryDesc(C))`, `state.trains[H] = { result: 'carried', from: C }`, log "train <n> <H8>: carried from <C8>,
-    docs-only delta"; else push H like any pending train (sharded full run). A gh error skips H this pass (as today).
+    docs-only delta"; `wait` -> H is not pushed this pass on either worker (log once "train <n> <H8>: waits for
+    <P8>, docs-only delta"; the carryChecked entry is dropped so the next pass reads again); else push H like any
+    pending train (sharded full run). A gh error skips H this pass (as today).
   - `nextTrainNow` `isVersion` (:576): true also when `versionAt` finds V (a moved head is not "building").
   - `runTrain` void watch (:954-961): `openTrainHeads()` (:652) is read as a Map n -> head; when train n's open head is
     not train.sha but a descendant whose `git diff --name-only <train.sha> <head>` is docs-only, the miss does not count
-    (A8). On a pass (:1038) the run also posts `carryDesc(train.sha)` on train n's current head when that head is such a
-    descendant and has no `laptop-e2e` status.
+    (A8). On a pass (finish, :1037) the run also posts `carryDesc(train.sha)` on train n's current head when that
+    head is such a descendant and has no `laptop-e2e` status.
 - auto-train.mjs: no code change (F1). tests/autoTrain.test.ts: one case beside :796: `decide` with a train whose head
   has `laptop-e2e` success "carried from 546a2286, docs-only delta", CI success, `resume: true` -> state releasing and
   `releaseArgs` includes `--resume` and `--head <H>`.
 - Tests (tests/laptop-queue.test.ts, new describe "train head moves (trains 111 / 112)"): versionAt finds V under a
   fix commit, not past depth, not another train's version; isVersionHead; carryFrom: docs-only delta (docs/x.md,
   changes/f.md, CHANGELOG.md, src/a/README.md) -> carried; `src/x.ts`, `package.json` or
-  `docs/kestrel/kestrel.blocks.json` in the delta -> null; newest
-  success wins over an older one; failure / no status on every chain commit -> null; docsOnlyFiles([]) false and the
-  watchdog re-export is the same function; carryDesc length.
+  `docs/kestrel/kestrel.blocks.json` in the delta -> null; newest success wins over an older one; a failure (or
+  error) after a success -> null (V pass, D1 fail, H = D2: not carried); failure / no status on every chain commit ->
+  null; a pending docs-only ancestor -> { wait }; a pending ancestor with a code delta -> null; docsOnlyFiles([])
+  false and the watchdog re-export is the same function; carryDesc length.
 - Size ~60 lib, ~70 service, ~1 watchdog, ~25 autoTrain tests, ~70 tests.
 
 ## Slice D - a train rerun shards when the laptop is free (BRIEF item 4, A10)
@@ -114,11 +121,15 @@ file:line below is origin/master 2a937eb6.
   - `runRequest` (:1081): with two ports and `r.trainRerun`: locks and `prepare` on both (as alone / runTrain do), the
     parts split by `shard(parts, times, 2)` (:541), `e2e(port, bin, 1, ...)` on both at once, each with its own ctl
     (the watch's withdrawn cut kills both), results merged, `runComplete` per bin, `rerunFlakes` with the slot map
-    (:838), one verdict through `finish` (:900) and the `laptop-e2e` success on a pass (:1236) as today. Status pending
+    (:838), one verdict through `finish` (:900) and the `laptop-e2e` success on a pass (:1257) as today. Status pending
     "rerun sharded on 4189+4192". `jobs` stays 1 per slot (:1220 comment updated).
+  - A lock or `prepare` that fails on one of the two slots: release that slot (lock, busy, port) and run every part
+    on the slot that prepared, as today's one-slot rerun (log "<id>: <port> <why>, rerun on <other> alone"); both
+    fail: as today's one-slot failure path.
 - Tests (extend "train reruns" :1064): both idle, one rerun with 2+ parts -> ports both; one slot busy -> one slot;
   two open reruns -> one slot each (no shard); a pending train -> the train (or the early rerun on one slot);
-  shardRerun absent -> today's results; suiteParts expands `e2e-desktop` into its times parts and keeps unknown names.
+  shardRerun absent -> today's results; a rerun's two-slot run with one slot's prepare failing -> the checker reads the
+  fallback (service code, no unit test); suiteParts expands `e2e-desktop` into its times parts and keeps unknown names.
 - Size ~20 lib, ~90 service, ~50 tests.
 
 ## Slice E - verify laptop-queue-6 across the next train (BRIEF item 5), docs, fragment
@@ -182,7 +193,8 @@ file:line below is origin/master 2a937eb6.
   "trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns
   (`E2E_JOBS=1`, both slots when free); then an alone request that has waited over 30 min (`ALONE_AGE_MIN`; it goes
   ahead of PR work and takes both slots once they drain); then PR requests (one slot, `E2E_JOBS=2`; full runs 3):
-  Mixamo first, then green PRs smallest first, then requesters in arrival order; then" - rewrapped to 120 columns.
+  front branches (`LQ_FRONT_BRANCHES`) first, then green PRs smallest first, then requesters in arrival order;
+  then" - rewrapped to 120 columns.
 - docs/laptop-queue/STATE.md: one dated entry on top (Haiku chore at the end).
 - docs/laptop-queue-7/STATE.md: resume block kept current per slice.
 - changes/feature-laptop-queue-7.md:
