@@ -8,7 +8,6 @@
  * `LAMP_CAPSULE_GLSL` (which `bakedLamps.ts` puts in its lamp loop) is built here from the same `CAPSULE` numbers.
  * `tests/charOccluders.test.ts` compares the two on random cases.
  */
-import { hyp3 } from '../core/mathx';
 
 /** Capsules in a contract and floats per capsule: ax ay az bx by bz r kind. */
 export const OCC = { max: 64, stride: 8 } as const;
@@ -27,12 +26,18 @@ export function occKey(kind: number, index: number): number {
   return (kind << 16) | (index & 0xffff);
 }
 
-/** A double result slot (a number field is updated in place; a returned double from a call V8 does not inline is
- *  boxed, 16 B: the `LightField.res` pattern). */
-class Out {
-  v = 1;
-}
-const OUT = new Out();
+/**
+ * Scratch for the formula's inputs and result (`Q_*` slots). Hot calls pass their doubles here, not as arguments: V8
+ * boxes a double passed to or returned from a call it does not inline (16 B each), and the per-capsule calls carry 13.
+ */
+const Q = new Float64Array(16);
+/** Q slots: the shaded point, the light, the capsule's two ends and radius, the result. */
+const Q_P = 0;
+const Q_L = 3;
+const Q_A = 6;
+const Q_B = 9;
+const Q_R = 12;
+const Q_OUT = 13;
 
 export class CharOccluders {
   readonly cap = new Float32Array(OCC.max * OCC.stride);
@@ -42,6 +47,9 @@ export class CharOccluders {
   version = 0;
   /** `transmitInto`'s result. */
   t = 1;
+  /** `transmitQ`'s input: the source (sx, sy, sz) then the point (px, py, pz). The allocation-free way to call it from
+   *  a hot loop (the field): six doubles written here, one small int passed. */
+  readonly q = new Float64Array(6);
 
   clear(): void {
     this.n = 0;
@@ -74,17 +82,39 @@ export class CharOccluders {
    * 1, so the product is the brute-force product to the bit.
    */
   transmitInto(sx: number, sy: number, sz: number, px: number, py: number, pz: number, skip: number): void {
+    const q = this.q;
+    q[0] = sx;
+    q[1] = sy;
+    q[2] = sz;
+    q[3] = px;
+    q[4] = py;
+    q[5] = pz;
+    this.transmitQ(skip);
+  }
+
+  /** `transmitInto` with its source and point read from `q`. */
+  transmitQ(skip: number): void {
     let t = 1;
     const n = this.n;
     if (n > 0) {
       const C = this.cap;
+      const q = this.q;
+      const sx = q[0]!;
+      const sy = q[1]!;
+      const sz = q[2]!;
+      const px = q[3]!;
+      const py = q[4]!;
+      const pz = q[5]!;
       const sMinX = px < sx ? px : sx;
       const sMaxX = px < sx ? sx : px;
       const sMinY = py < sy ? py : sy;
       const sMaxY = py < sy ? sy : py;
       const sMinZ = pz < sz ? pz : sz;
       const sMaxZ = pz < sz ? sz : pz;
-      const grow = CAPSULE.penBehind * hyp3(sx - px, sy - py, sz - pz) + 1e-3;
+      const dx = sx - px;
+      const dy = sy - py;
+      const dz = sz - pz;
+      const grow = CAPSULE.penBehind * Math.sqrt(dx * dx + dy * dy + dz * dz) + 1e-3;
       for (let i = 0; i < n; i++) {
         if (this.owner[i] === skip) continue;
         const o = i * OCC.stride;
@@ -99,9 +129,22 @@ export class CharOccluders {
         if ((ax < bx ? ax : bx) - g > sMaxX || (ax < bx ? bx : ax) + g < sMinX) continue;
         if ((ay < by ? ay : by) - g > sMaxY || (ay < by ? by : ay) + g < sMinY) continue;
         if ((az < bz ? az : bz) - g > sMaxZ || (az < bz ? bz : az) + g < sMinZ) continue;
-        if (holds(sx, sy, sz, ax, ay, az, bx, by, bz, r)) continue;
-        capsuleInto(px, py, pz, sx, sy, sz, ax, ay, az, bx, by, bz, r);
-        t *= OUT.v;
+        Q[Q_P] = px;
+        Q[Q_P + 1] = py;
+        Q[Q_P + 2] = pz;
+        Q[Q_L] = sx;
+        Q[Q_L + 1] = sy;
+        Q[Q_L + 2] = sz;
+        Q[Q_A] = ax;
+        Q[Q_A + 1] = ay;
+        Q[Q_A + 2] = az;
+        Q[Q_B] = bx;
+        Q[Q_B + 1] = by;
+        Q[Q_B + 2] = bz;
+        Q[Q_R] = r;
+        if (holdsQ()) continue;
+        capsuleQ();
+        t *= Q[Q_OUT]!;
       }
     }
     this.t = t;
@@ -110,16 +153,34 @@ export class CharOccluders {
 
 /** A5: the source within r + `CAPSULE.holder` of the capsule's axis (the character holds it: a flashlight). */
 export function holds(sx: number, sy: number, sz: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number): boolean {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const dz = bz - az;
-  const wx = sx - ax;
-  const wy = sy - ay;
-  const wz = sz - az;
+  Q[Q_L] = sx;
+  Q[Q_L + 1] = sy;
+  Q[Q_L + 2] = sz;
+  Q[Q_A] = ax;
+  Q[Q_A + 1] = ay;
+  Q[Q_A + 2] = az;
+  Q[Q_B] = bx;
+  Q[Q_B + 1] = by;
+  Q[Q_B + 2] = bz;
+  Q[Q_R] = r;
+  return holdsQ();
+}
+
+/** `holds` on the light, capsule and radius in `Q`. */
+function holdsQ(): boolean {
+  const ax = Q[Q_A]!;
+  const ay = Q[Q_A + 1]!;
+  const az = Q[Q_A + 2]!;
+  const dx = Q[Q_B]! - ax;
+  const dy = Q[Q_B + 1]! - ay;
+  const dz = Q[Q_B + 2]! - az;
+  const wx = Q[Q_L]! - ax;
+  const wy = Q[Q_L + 1]! - ay;
+  const wz = Q[Q_L + 2]! - az;
   const c = dx * dx + dy * dy + dz * dz;
   let k = c > 1e-12 ? (wx * dx + wy * dy + wz * dz) / c : 0;
   k = k < 0 ? 0 : k > 1 ? 1 : k;
-  const reach = r + CAPSULE.holder;
+  const reach = Q[Q_R]! + CAPSULE.holder;
   const ex = wx - dx * k;
   const ey = wy - dy * k;
   const ez = wz - dz * k;
@@ -128,20 +189,40 @@ export function holds(sx: number, sy: number, sz: number, ax: number, ay: number
 
 /** How much of a light at (lx,ly,lz) reaches (px,py,pz) past one capsule a-b of radius r (CAPSULE.floor..1). */
 export function capsuleTransmit(px: number, py: number, pz: number, lx: number, ly: number, lz: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number): number {
-  capsuleInto(px, py, pz, lx, ly, lz, ax, ay, az, bx, by, bz, r);
-  return OUT.v;
+  Q[Q_P] = px;
+  Q[Q_P + 1] = py;
+  Q[Q_P + 2] = pz;
+  Q[Q_L] = lx;
+  Q[Q_L + 1] = ly;
+  Q[Q_L + 2] = lz;
+  Q[Q_A] = ax;
+  Q[Q_A + 1] = ay;
+  Q[Q_A + 2] = az;
+  Q[Q_B] = bx;
+  Q[Q_B + 1] = by;
+  Q[Q_B + 2] = bz;
+  Q[Q_R] = r;
+  capsuleQ();
+  return Q[Q_OUT]!;
 }
 
-/** The GLSL `lampCapsule` line for line (`LAMP_CAPSULE_GLSL`), into `OUT.v`. */
-function capsuleInto(px: number, py: number, pz: number, lx: number, ly: number, lz: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number): void {
+/** The GLSL `lampCapsule` line for line (`LAMP_CAPSULE_GLSL`) on the inputs in `Q`, into `Q[Q_OUT]`. */
+function capsuleQ(): void {
+  const r = Q[Q_R]!;
   if (!(r > 0)) {
-    OUT.v = 1;
+    Q[Q_OUT] = 1;
     return;
   }
+  const px = Q[Q_P]!;
+  const py = Q[Q_P + 1]!;
+  const pz = Q[Q_P + 2]!;
+  const ax = Q[Q_A]!;
+  const ay = Q[Q_A + 1]!;
+  const az = Q[Q_A + 2]!;
   // vec3 d2 = b - a; float c2 = max(dot(d2, d2), 1e-6); vec3 w0 = p - a;
-  const d2x = bx - ax;
-  const d2y = by - ay;
-  const d2z = bz - az;
+  const d2x = Q[Q_B]! - ax;
+  const d2y = Q[Q_B + 1]! - ay;
+  const d2z = Q[Q_B + 2]! - az;
   let c2 = d2x * d2x + d2y * d2y + d2z * d2z;
   if (c2 < 1e-6) c2 = 1e-6;
   const w0x = px - ax;
@@ -151,14 +232,17 @@ function capsuleInto(px: number, py: number, pz: number, lx: number, ly: number,
   const e2 = d2x * w0x + d2y * w0y + d2z * w0z;
   let k = e2 / c2;
   k = k < 0 ? 0 : k > 1 ? 1 : k;
-  if (hyp3(w0x - d2x * k, w0y - d2y * k, w0z - d2z * k) < r * CAPSULE.self) {
-    OUT.v = 1;
+  const ox = w0x - d2x * k;
+  const oy = w0y - d2y * k;
+  const oz = w0z - d2z * k;
+  if (Math.sqrt(ox * ox + oy * oy + oz * oz) < r * CAPSULE.self) {
+    Q[Q_OUT] = 1;
     return;
   }
   // vec3 d1 = l - p; float c1 = max(dot(d1, d1), 1e-6); c12, e1, e2 (above), den
-  const d1x = lx - px;
-  const d1y = ly - py;
-  const d1z = lz - pz;
+  const d1x = Q[Q_L]! - px;
+  const d1y = Q[Q_L + 1]! - py;
+  const d1z = Q[Q_L + 2]! - pz;
   let c1 = d1x * d1x + d1y * d1y + d1z * d1z;
   if (c1 < 1e-6) c1 = 1e-6;
   const c12 = d1x * d2x + d1y * d2y + d1z * d2z;
@@ -174,7 +258,10 @@ function capsuleInto(px: number, py: number, pz: number, lx: number, ly: number,
   s = (c12 * t - e1) / c1;
   s = s < 0 ? 0 : s > 1 ? 1 : s;
   // float dist = length(p + d1 * s - a - d2 * t); float behind = s * sqrt(c1);
-  const dist = hyp3(w0x + d1x * s - d2x * t, w0y + d1y * s - d2y * t, w0z + d1z * s - d2z * t);
+  const fx = w0x + d1x * s - d2x * t;
+  const fy = w0y + d1y * s - d2y * t;
+  const fz = w0z + d1z * s - d2z * t;
+  const dist = Math.sqrt(fx * fx + fy * fy + fz * fz);
   const behind = s * Math.sqrt(c1);
   const pen = r * CAPSULE.penR + behind * CAPSULE.penBehind;
   // mix(floor, 1.0, smoothstep(r - pen, r + pen, dist)), as GLSL defines both
@@ -182,7 +269,7 @@ function capsuleInto(px: number, py: number, pz: number, lx: number, ly: number,
   let h = (dist - lo) / (r + pen - lo);
   h = h < 0 ? 0 : h > 1 ? 1 : h;
   h = h * h * (3 - 2 * h);
-  OUT.v = CAPSULE.floor * (1 - h) + h;
+  Q[Q_OUT] = CAPSULE.floor * (1 - h) + h;
 }
 
 /** A GLSL float literal (always with a decimal point). */

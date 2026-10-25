@@ -197,13 +197,9 @@ export class LightField {
    * a call it does not inline, 16 bytes each; a number field is updated in place. Only the public calls return one.)
    */
   private res = 0;
-  /** (char-shadow-meter) Scratch: the point's column lamps (bake indices) and their terms (`columnInto`), and a lamp's
-   *  position (`lampPosInto`). */
+  /** (char-shadow-meter) Scratch: the point's column lamps (bake indices) and their terms (`columnInto`). */
   private readonly colLamp = new Int32Array(LAMP_GRID_SLOTS);
   private readonly colLv = new Float64Array(LAMP_GRID_SLOTS);
-  private px = 0;
-  private py = 0;
-  private pz = 0;
 
   /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
@@ -363,13 +359,14 @@ export class LightField {
     return rank < cap;
   }
 
-  /** (char-shadow-meter) Baked lamp `i`'s position now (a swinging pendant's offset applied) into `px` / `py` / `pz`. */
-  private lampPosInto(i: number): void {
+  /** (char-shadow-meter) Baked lamp `i`'s position now (a swinging pendant's offset applied, as `lampInto`) into
+   *  `out[0..3)`. */
+  private lampPosInto(i: number, out: Float64Array): void {
     const l = this.reg.lights[this.ids[i]!]!;
     const o = i * LS;
-    this.px = this.lamp[o]! + l.swx;
-    this.py = this.lamp[o + 1]! + l.swy;
-    this.pz = this.lamp[o + 2]! + l.swz;
+    out[0] = this.lamp[o]! + l.swx;
+    out[1] = this.lamp[o + 1]! + l.swy;
+    out[2] = this.lamp[o + 2]! + l.swz;
   }
 
   private levelInto(x: number, y: number, z: number, ch: CharOccluders | null = null, skip = -1): void {
@@ -396,7 +393,15 @@ export class LightField {
       if (ch !== null && m > 0) {
         const d = b.moon.dir;
         const far = CHAR_LIGHT.moonFar;
-        ch.transmitInto(x + d[0] * far, y + d[1] * far, z + d[2] * far, x, y, z, skip);
+        // (`ch.transmitInto` through its `q` slots: no double crosses a call, so nothing is boxed)
+        const q = ch.q;
+        q[0] = x + d[0] * far;
+        q[1] = y + d[1] * far;
+        q[2] = z + d[2] * far;
+        q[3] = x;
+        q[4] = y;
+        q[5] = z;
+        ch.transmitQ(skip);
         m *= ch.t;
       }
       v += m;
@@ -407,8 +412,12 @@ export class LightField {
       for (let s = 0; s < n; s++) {
         let L = this.colLv[s]!;
         if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, n)) {
-          this.lampPosInto(this.colLamp[s]!);
-          ch.transmitInto(this.px, this.py, this.pz, x, y, z, skip);
+          this.lampPosInto(this.colLamp[s]!, ch.q);
+          const q = ch.q;
+          q[3] = x;
+          q[4] = y;
+          q[5] = z;
+          ch.transmitQ(skip);
           L *= ch.t;
         }
         v += L;
@@ -565,7 +574,14 @@ export class LightField {
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
       // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
       if (ch !== null) {
-        ch.transmitInto(l.x, l.y, l.z, x, y, z, skip);
+        const q = ch.q;
+        q[0] = l.x;
+        q[1] = l.y;
+        q[2] = l.z;
+        q[3] = x;
+        q[4] = y;
+        q[5] = z;
+        ch.transmitQ(skip);
         t *= ch.t;
       }
       v += t;
