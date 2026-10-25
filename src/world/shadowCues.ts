@@ -40,6 +40,21 @@ const MOON_LOW = 1e-3;
 const PT = 4;
 const SRC_STRIDE = CUE.points * PT;
 const SLOT_STRIDE = CUE.sources * SRC_STRIDE;
+// `ShadowCues.g`: the capsule's ends and radius, feet and top x / z, feet plane and top y
+const G_AX = 0;
+const G_AY = 1;
+const G_AZ = 2;
+const G_BX = 3;
+const G_BY = 4;
+const G_BZ = 5;
+const G_R = 6;
+const G_FX = 7;
+const G_FZ = 8;
+const G_TX = 9;
+const G_TZ = 10;
+const G_FEET = 11;
+const G_TOP = 12;
+const G_LEN = 13;
 
 /** What the cues read from the light field (`LightField` fits it): the set, one member's term, the level. */
 export interface CueField {
@@ -82,12 +97,15 @@ export class ShadowCues {
   private readonly prevIds: string[] = new Array<string>(CUE.players).fill('');
   private readonly prevCount = new Int8Array(CUE.players);
   private readonly prevSource = new Int32Array(CUE.players * CUE.sources);
-  /** [slot][source] far point x, z of this fill and the last. */
-  private readonly far = new Float32Array(CUE.players * CUE.sources * 2);
-  private readonly prevFar = new Float32Array(CUE.players * CUE.sources * 2);
+  /** [slot][source] far point x, z of this fill and the last (doubles: a still footprint reads speed 0 exactly). */
+  private readonly far = new Float64Array(CUE.players * CUE.sources * 2);
+  private readonly prevFar = new Float64Array(CUE.players * CUE.sources * 2);
   private readonly sid = new Int32Array(SCAN);
   private readonly slv = new Float32Array(SCAN);
-  // `footprint`'s result (fields, not a returned object: no allocation, no boxed double)
+  /** The slot's capsule for `footprint` (G_*), and its result: direction and length. Passed through this array, not as
+   *  arguments or a returned object: V8 boxes every double argument of a call it does not inline (16 B each). */
+  private readonly g = new Float64Array(G_LEN);
+  private dt = 0;
   private dx = 1;
   private dz = 0;
   private len = 0;
@@ -123,11 +141,12 @@ export class ShadowCues {
     this.prevSource.set(this.source);
     this.prevFar.set(this.far);
     const m = n < P ? n : P;
+    this.dt = dt;
     for (let s = 0; s < P; s++) {
       this.clearSlot(s);
       if (s < m) {
         this.ids[s] = players[s]!.id;
-        this.fillSlot(s, occ, keys[s]!, dt, occluded);
+        this.fillSlot(s, occ, keys[s]!, occluded);
       } else this.ids[s] = '';
     }
     this.n = m;
@@ -145,7 +164,7 @@ export class ShadowCues {
     }
   }
 
-  private fillSlot(s: number, occ: CharOccluders, key: number, dt: number, occluded: Occluder | undefined): void {
+  private fillSlot(s: number, occ: CharOccluders, key: number, occluded: Occluder | undefined): void {
     let j = -1;
     for (let i = 0; i < occ.n; i++) {
       if (occ.owner[i] === key) {
@@ -172,6 +191,21 @@ export class ShadowCues {
     const feetY = (lowA ? ay : by) - r;
     const topY = (lowA ? by : ay) + r;
     const h = topY - feetY;
+    const g = this.g;
+    g[G_AX] = ax;
+    g[G_AY] = ay;
+    g[G_AZ] = az;
+    g[G_BX] = bx;
+    g[G_BY] = by;
+    g[G_BZ] = bz;
+    g[G_R] = r;
+    g[G_FX] = fx;
+    g[G_FZ] = fz;
+    g[G_TX] = tx;
+    g[G_TZ] = tz;
+    g[G_FEET] = feetY;
+    g[G_TOP] = topY;
+    const dt = this.dt;
     // the chest, as `LightField.bodyLevel` samples it (0.6 of the height)
     const k = this.field.sourcesInto(fx + (tx - fx) * 0.6, feetY + h * 0.6, fz + (tz - fz) * 0.6, this.sid, this.slv, SCAN, occluded);
     const field = this.field;
@@ -181,7 +215,7 @@ export class ShadowCues {
     for (let i = 0; i < k && i < SCAN && c < CUE.sources; i++) {
       if (this.slv[i]! < CUE.minLevel) break;
       const id = this.sid[i]!;
-      if (!this.footprint(id, ax, ay, az, bx, by, bz, r, fx, fz, tx, tz, feetY, topY)) continue;
+      if (!this.footprint(id)) continue;
       const f = s * CUE.sources + c;
       const p0 = f * SRC_STRIDE;
       const dx = this.dx;
@@ -227,8 +261,23 @@ export class ShadowCues {
     this.count[s] = c;
   }
 
-  /** Direction (`dx`, `dz`) and length (`len`) of the footprint from source `id`; false when it casts none. */
-  private footprint(id: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number, fx: number, fz: number, tx: number, tz: number, feetY: number, topY: number): boolean {
+  /** Direction (`dx`, `dz`) and length (`len`) of the footprint from source `id` for the capsule in `g`; false when it
+   *  casts none. */
+  private footprint(id: number): boolean {
+    const g = this.g;
+    const ax = g[G_AX]!;
+    const ay = g[G_AY]!;
+    const az = g[G_AZ]!;
+    const bx = g[G_BX]!;
+    const by = g[G_BY]!;
+    const bz = g[G_BZ]!;
+    const r = g[G_R]!;
+    const fx = g[G_FX]!;
+    const fz = g[G_FZ]!;
+    const tx = g[G_TX]!;
+    const tz = g[G_TZ]!;
+    const feetY = g[G_FEET]!;
+    const topY = g[G_TOP]!;
     const h = topY - feetY;
     let vx: number;
     let vz: number;
