@@ -10,265 +10,39 @@
 // with no metrics file at all, one WARN and every size / time check is skipped. Rule structure (3 approaches, 2 kinds,
 // 2 routes, half the encounters, the 1-5 tension scale) is the standard's wording and lives here.
 //
-//   node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>]
+//   node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>] [--require-measured]
 //   --metrics: default docs/design/metrics.json (repo root). Several files are one map, one file per section (merged).
+//   --require-measured: the greybox gate (V6, BRIEF A5): missing measured values are ERRORs (scripts/level-checks/
+//   measured.mjs).
 //   Prints ERROR: / WARN: / INFO: lines, then "N error(s), M warning(s)."
 //   Exit: 0 no error, 1 any error, 2 bad usage (no file, unreadable or invalid JSON, unknown flag).
 //
-// Pure parts (`mergeGraphs`, `validate`, the `check*` functions, `edgeDisjointPaths`) are exported for
-// tests/levelValidate.test.ts. Each check takes (graph, metrics) and returns { errors, warns, infos }; every check but
-// `checkStructure` expects a graph that passes `checkStructure` (`validate` stops there on a structure error).
+// This file is the CLI and the core checks. Shared graph helpers and the mode profiles (`PROFILES`) live in
+// scripts/level-graph-lib.mjs; the measured, training, perfect-run and engine-fact checks in scripts/level-checks/; the
+// mission checks in scripts/mission-validate.mjs. `validate` runs them all. Pure parts (`mergeGraphs`, `validate`, the
+// `check*` functions, `edgeDisjointPaths`) are exported for tests/levelValidate.test.ts. Each check takes (graph,
+// metrics) and returns { errors, warns, infos }; every check but `checkStructure` expects a graph that passes
+// `checkStructure` (`validate` stops there on a structure error).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  BOLTED_KINDS, COOP_KINDS, EPS, GRID_WIDTH_KINDS, HIGH_BEAT, LINK_KINDS, MODES, NEEDED_ROUTES, NEEDS_HEIGHT,
+  NEEDS_LEVEL, NEEDS_WIDTH, OVERWATCH_TAG, PLAIN_TAGS, RELEASE_BEAT, ROUTES, SPACE_TYPES, SPLIT_TAG, TWO_WAY_GATES,
+  UNBANDED_KINDS,
+  adjacency, adjOf, arcsOf, collector, edgeDisjointPaths, enters, fmt, fmtS, hasTag, index, isOneWay, leaves, linkName,
+  linkTime, mergeGraphs, onGrid, otherEnd, profileOf, reachable, soloArcsOf,
+} from './level-graph-lib.mjs';
+import { checkMeasured } from './level-checks/measured.mjs';
+import { checkTraining } from './level-checks/training.mjs';
+import { checkPerfect } from './level-checks/perfect.mjs';
+import { checkEngine } from './level-checks/engine.mjs';
+import { checkMission } from './mission-validate.mjs';
+
+// Re-exported so every import of this file from before the lib split keeps working (tests, J13's route-run harness).
+export { COOP_KINDS, LINK_KINDS, SPACE_TYPES, edgeDisjointPaths, isOneWay, mergeGraphs };
 
 export const DEFAULT_METRICS = 'docs/design/metrics.json';
-
-export const SPACE_TYPES = new Set(['encounter', 'connector', 'hub', 'safe_room', 'objective', 'reward', 'exterior',
-  'utility', 'stair_core', 'duct']);
-export const LINK_KINDS = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair',
-  'open_stair', 'ladder', 'duct', 'tunnel', 'window', 'hatch', 'ledge', 'pipe', 'drop', 'wall_jump', 'split_jump',
-  'coop_boost', 'human_ladder', 'pair_gate', 'team_rope', 'rappel', 'team_throw', 'team_hang', 'team_pull', 'shutter']);
-/** Kinds that need two players (graph-schema "Link kinds" + lead decisions 1-2; the kit moves team_throw, team_hang,
- *  team_pull, shutter: G293, mission-framework A17). */
-export const COOP_KINDS = new Set(['coop_boost', 'human_ladder', 'pair_gate', 'team_rope', 'team_throw', 'team_hang',
-  'team_pull', 'shutter']);
-/** Co-op kinds a pair moves through both ways and that stay open once passed (a team door, a held shutter): judged both
- *  ways for a solo twin; their own way back for gate reach. */
-const TWO_WAY_GATES = new Set(['pair_gate', 'shutter']);
-/** One way unless the link sets `one_way: false`. */
-const ONE_WAY_KINDS = new Set(['drop', 'rappel']);
-/** Kinds walked at the metrics speeds; every other kind (climb, crawl, shimmy, co-op move) needs `time_s` on a timed
- *  path (lead decision 5). */
-const WALK_KINDS = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair', 'open_stair',
-  'tunnel', 'pair_gate']);
-/** Kinds whose `width` / `height` are required (graph-schema: openings, passages, stairs, ducts). */
-const NEEDS_WIDTH = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair', 'open_stair',
-  'duct', 'tunnel', 'pair_gate', 'split_jump', 'shutter', 'team_throw']);
-const NEEDS_HEIGHT = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'duct', 'tunnel',
-  'pair_gate', 'split_jump']);
-/** Climbs and drops carry the height they cover. */
-const NEEDS_LEVEL = new Set(['ladder', 'drop', 'wall_jump', 'coop_boost', 'human_ladder', 'team_rope', 'rappel',
-  'team_hang', 'team_pull']);
-/** Widths on the 0.5 m grid: room-scale passages. Door, stair and duct widths are sheet sizes (1.2, 1.3, 2.4), not
- *  grid steps, so they are checked by their kind rule only. */
-const GRID_WIDTH_KINDS = new Set(['corridor', 'opening', 'roller_door']);
-const ROUTES = new Set(['shadow', 'high', 'loud', 'secret', 'spine']);
-/** The approach kinds every encounter space needs (level-design 3.2). */
-const NEEDED_ROUTES = ['shadow', 'high', 'loud'];
-const MODES = new Set(['campaign', 'sector', 'training']);
-/** The training profile (Marlow Yard) is one guided route: no route-count checks (level-design 3.2, 3.3, 11.2; G292). */
-const routeRules = (meta) => meta.mode !== 'training';
-const PLAIN_TAGS = new Set(['start', 'exfil', 'objective', 'checkpoint', 'reward', 'entry', 'exit', 'sync_pair',
-  'unavoidable']);
-/** Modes whose guards spawn on the Sector Ops runtime under its alive ceiling: Sector Ops and the campaign (campaign
- *  missions run on `SectorMode`, mission-framework A6; G359). */
-const ALIVE_CEILING_MODES = new Set(['sector', 'campaign']);
-const SPLIT_TAG = /^split:(.+):(a|b)$/;
-const OVERWATCH_TAG = /^overwatch:(.+)$/;
-/** Beat chart (level-design 6.2): 4-5 is a high beat, 1-2 a release; a `spine` link counts as a release (decision 3). */
-const HIGH_BEAT = 4;
-const RELEASE_BEAT = 2;
-const EPS = 1e-9;
-
-// ---------------------------------------------------------------------------------------------------------------
-// Report and metrics access
-
-/** A report plus `need`: the metrics value at a dotted path, or undefined after one WARN (INFO for INFO-only checks)
- *  naming the missing key. With `metrics` null nothing is printed here (`validate` prints the one WARN). */
-function collector(metrics) {
-  const r = { errors: [], warns: [], infos: [] };
-  const asked = new Set();
-  const lookup = (key) => {
-    let v = metrics;
-    for (const k of key.split('.')) v = v != null && typeof v === 'object' ? v[k] : undefined;
-    return v;
-  };
-  const miss = (key, what, level, why) => {
-    if (asked.has(key)) return;
-    asked.add(key);
-    (level === 'info' ? r.infos : r.warns).push(`metrics: ${key} ${why}; ${what} skipped`);
-  };
-  return {
-    r,
-    err: (m) => r.errors.push(m),
-    warn: (m) => r.warns.push(m),
-    info: (m) => r.infos.push(m),
-    /** A number at `key`. */
-    num(key, what, level = 'warn') {
-      if (!metrics) return undefined;
-      const v = lookup(key);
-      if (typeof v === 'number' && Number.isFinite(v)) return v;
-      miss(key, what, level, v === undefined ? 'is missing from the metrics' : 'is not a number');
-      return undefined;
-    },
-    /** A [min, max] pair at `key`. */
-    range(key, what, level = 'warn') {
-      if (!metrics) return undefined;
-      const v = lookup(key);
-      if (Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number')) return v;
-      miss(key, what, level, v === undefined ? 'is missing from the metrics' : 'is not a [min, max] pair');
-      return undefined;
-    },
-    /** The room table (any object). */
-    obj(key, what) {
-      if (!metrics) return undefined;
-      const v = lookup(key);
-      if (v && typeof v === 'object' && !Array.isArray(v)) return v;
-      miss(key, what, 'warn', v === undefined ? 'is missing from the metrics' : 'is not an object');
-      return undefined;
-    },
-  };
-}
-
-/** Short number text: 2.9, 23.1, 30. */
-const fmt = (n) => String(Math.round(n * 100) / 100);
-const fmtS = (n) => n.toFixed(1);
-const onGrid = (v, grid) => Math.abs(v / grid - Math.round(v / grid)) < 1e-6;
-const linkName = (l) => `link ${l.from} -> ${l.to} (${l.kind})`;
-const hasTag = (s, t) => Array.isArray(s.tags) && s.tags.includes(t);
-
-// ---------------------------------------------------------------------------------------------------------------
-// Graph helpers
-
-export const isOneWay = (l) => (typeof l.one_way === 'boolean' ? l.one_way : ONE_WAY_KINDS.has(l.kind));
-
-/** Directed arcs { from, to, link } of the links `keep` accepts (two arcs for a two-way link). */
-function arcsOf(links, keep = () => true) {
-  const arcs = [];
-  for (const l of links) {
-    if (!keep(l)) continue;
-    arcs.push({ from: l.from, to: l.to, link: l });
-    if (!isOneWay(l)) arcs.push({ from: l.to, to: l.from, link: l });
-  }
-  return arcs;
-}
-
-/** Map<space id, arcs out of it>. */
-function adjacency(links, keep) {
-  const adj = new Map();
-  for (const a of arcsOf(links, keep)) {
-    let list = adj.get(a.from);
-    if (!list) adj.set(a.from, (list = []));
-    list.push(a);
-  }
-  return adj;
-}
-
-/** Ids reachable from `start` over `adj`, never entering `blocked`. */
-function reachable(adj, start, blocked = null) {
-  const seen = new Set([start]);
-  const queue = [start];
-  while (queue.length) {
-    const n = queue.shift();
-    for (const a of adj.get(n) ?? []) {
-      if (seen.has(a.to) || blocked?.has(a.to)) continue;
-      seen.add(a.to);
-      queue.push(a.to);
-    }
-  }
-  return seen;
-}
-
-/** Maximum number of link-disjoint paths src -> dst (unit-capacity max flow; port of validate_level.py
- *  `edge_disjoint_paths`). One-way links carry flow one way only. */
-export function edgeDisjointPaths(links, src, dst) {
-  const key = (a, b) => `${a}\u0000${b}`;
-  const cap = new Map();
-  const adj = new Map();
-  const near = (a, b) => {
-    if (!adj.has(a)) adj.set(a, new Set());
-    adj.get(a).add(b);
-  };
-  for (const l of links) {
-    cap.set(key(l.from, l.to), (cap.get(key(l.from, l.to)) ?? 0) + 1);
-    if (!isOneWay(l)) cap.set(key(l.to, l.from), (cap.get(key(l.to, l.from)) ?? 0) + 1);
-    near(l.from, l.to);
-    near(l.to, l.from);
-  }
-  let flow = 0;
-  for (;;) {
-    const parent = new Map([[src, null]]);
-    const queue = [src];
-    while (queue.length && !parent.has(dst)) {
-      const u = queue.shift();
-      for (const v of adj.get(u) ?? []) {
-        if (!parent.has(v) && (cap.get(key(u, v)) ?? 0) > 0) {
-          parent.set(v, u);
-          queue.push(v);
-        }
-      }
-    }
-    if (!parent.has(dst)) return flow;
-    for (let v = dst; parent.get(v) !== null; v = parent.get(v)) {
-      const u = parent.get(v);
-      cap.set(key(u, v), cap.get(key(u, v)) - 1);
-      cap.set(key(v, u), (cap.get(key(v, u)) ?? 0) + 1);
-    }
-    flow += 1;
-  }
-}
-
-/** Shared lookups for the checks. */
-function index(graph) {
-  const meta = graph.meta;
-  const spaces = graph.spaces;
-  const links = graph.links;
-  const byId = new Map(spaces.map((s) => [s.id, s]));
-  const sections = meta.sections;
-  const secIndex = new Map(sections.map((s, i) => [s, i]));
-  const start = spaces.find((s) => hasTag(s, 'start'))?.id;
-  const exfils = spaces.filter((s) => hasTag(s, 'exfil')).map((s) => s.id);
-  return { meta, spaces, links, byId, sections, secIndex, start, exfils };
-}
-
-/** Solo arcs: no co-op kind, and a `bolted` link only from its `to` end (one player at its near side cannot open it). */
-const soloArcsOf = (links, keep = () => true) => arcsOf(links, (l) => !COOP_KINDS.has(l.kind) && keep(l))
-  .filter((a) => !(a.link.bolted === true && a.from === a.link.from));
-/** Map<space id, arcs> from a list of arcs. */
-function adjOf(arcs) {
-  const adj = new Map();
-  for (const a of arcs) {
-    if (!adj.has(a.from)) adj.set(a.from, []);
-    adj.get(a.from).push(a);
-  }
-  return adj;
-}
-
-/** Seconds for one link: `time_s`, else `length` / speed for a walked kind; untimed otherwise (lead decision 5). */
-function linkTime(l, speed) {
-  if (typeof l.time_s === 'number') return { t: l.time_s, untimed: false };
-  if (WALK_KINDS.has(l.kind) && typeof l.length === 'number') return { t: l.length / speed, untimed: false };
-  return { t: 0, untimed: true };
-}
-
-/** Can `l` be walked into space `id`? (Either end of a two-way link; only the `to` end of a one-way link.) */
-const enters = (l, id) => l.to === id || (l.from === id && !isOneWay(l));
-/** Can `l` be walked out of space `id`? */
-const leaves = (l, id) => l.from === id || (l.to === id && !isOneWay(l));
-/** The other end of `l` from `id`. */
-const otherEnd = (l, id) => (l.from === id ? l.to : l.from);
-
-// ---------------------------------------------------------------------------------------------------------------
-// Merge
-
-/** One map from several files (one per section): `meta` from the first, `spaces` and `links` concatenated in file
- *  order, `meta.sections` unioned in file order. */
-export function mergeGraphs(graphs) {
-  if (!Array.isArray(graphs) || graphs.length === 0) throw new Error('mergeGraphs: no graph given');
-  const first = graphs[0] ?? {};
-  const meta = { ...(first.meta ?? {}) };
-  const sections = [];
-  const spaces = [];
-  const links = [];
-  for (const g of graphs) {
-    for (const s of g?.meta?.sections ?? []) if (!sections.includes(s)) sections.push(s);
-    if (Array.isArray(g?.spaces)) spaces.push(...g.spaces);
-    if (Array.isArray(g?.links)) links.push(...g.links);
-  }
-  meta.sections = sections;
-  return { meta, spaces, links };
-}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Checks
@@ -288,9 +62,9 @@ export function checkStructure(graph) {
     }
     if (!Array.isArray(meta.players) || !meta.players.length || !meta.players.every((p) => Number.isInteger(p) && p > 0)) {
       c.err('meta.players: needs the player counts, e.g. [2]');
-    } else if ((meta.mode === 'campaign' || meta.mode === 'training') && (meta.players.length !== 1 || meta.players[0] !== 2)) {
+    } else if (profileOf(meta)?.twoPlayers && (meta.players.length !== 1 || meta.players[0] !== 2)) {
       c.err(`meta.players: a ${meta.mode} map is two players, [2] (G2, G50, G308), not [${meta.players.join(', ')}]`);
-    } else if (meta.mode === 'sector' && meta.players.some((p) => p > 4)) {
+    } else if (profileOf(meta) && meta.players.some((p) => p > profileOf(meta).maxPlayers)) {
       c.err(`meta.players: Sector Ops is 1-4 players (G308), not [${meta.players.join(', ')}]`);
     }
     if (!Array.isArray(meta.sections) || !meta.sections.length || !meta.sections.every((s) => typeof s === 'string' && s)) {
@@ -325,7 +99,7 @@ export function checkStructure(graph) {
     if (!Number.isInteger(s?.tension) || s.tension < 1 || s.tension > 5) c.err(`${name}: tension must be 1-5`);
     // Timed drills (level-design 6.3): Marlow Yard only; the campaign and Sector Ops have soft windows only (G334).
     if (s?.drill_s !== undefined) {
-      if (meta?.mode !== 'training') c.err(`${name}: drill_s on a ${meta?.mode} map (timed drills are Marlow Yard only; soft windows only, level-design 6.3)`);
+      if (!profileOf(meta)?.drills) c.err(`${name}: drill_s on a ${meta?.mode} map (timed drills are Marlow Yard only; soft windows only, level-design 6.3)`);
       else if (typeof s.drill_s !== 'number' || !Number.isFinite(s.drill_s) || s.drill_s <= 0) c.err(`${name}: drill_s must be seconds > 0`);
     }
     if (!Array.isArray(s?.tags)) {
@@ -352,7 +126,7 @@ export function checkStructure(graph) {
   });
   const starts = spaces.filter((s) => hasTag(s, 'start'));
   if (starts.length !== 1) c.err(`start: needs exactly one space tagged 'start' (has ${starts.length})`);
-  if (meta?.mode === 'campaign' && !spaces.some((s) => hasTag(s, 'exfil'))) c.err("exfil: no space tagged 'exfil'");
+  if (profileOf(meta)?.needsExfil && !spaces.some((s) => hasTag(s, 'exfil'))) c.err("exfil: no space tagged 'exfil'");
   return c.r;
 }
 
@@ -407,6 +181,7 @@ export function checkDimensions(graph, metrics) {
     }
   }
 
+  const unbanded = new Set();
   const bandMin = c.num('rules.step_band_min_m', 'the step band check');
   const bandMax = c.num('rules.step_band_max_m', 'the step band check');
   for (const l of links) {
@@ -435,9 +210,14 @@ export function checkDimensions(graph, metrics) {
       if (v === undefined || r === undefined || (v >= r[0] - EPS && v <= r[1] + EPS)) return;
       c[sev](`${name}: ${what} ${fmt(v)} m outside ${fmt(r[0])}-${fmt(r[1])} m`);
     };
+    if (UNBANDED_KINDS.has(l.kind) && !unbanded.has(l.kind)) {
+      unbanded.add(l.kind);
+      c.info(`${l.kind}: no size band yet; the scale-sheet row comes with the move's coop-kit PR`);
+    }
     switch (l.kind) {
       case 'door':
-      case 'pair_gate': {
+      case 'pair_gate':
+      case 'vent_unlock': {
         const min = c.num('sizes.door_min_w', 'the door width check');
         const target = c.num('sizes.door_w', 'the door width target');
         if (width !== undefined && min !== undefined && width < min - EPS) {
@@ -558,8 +338,9 @@ export function checkReach(graph, metrics = null) {
       if (!exfils.some((e) => on.has(e))) c.err(`${s.id}: no way from this objective to exfil`);
     }
   }
-  if (meta.mode === 'campaign') gateReach(c, links);
-  if (meta.mode !== 'sector') return c.r;
+  const profile = profileOf(meta);
+  if (profile.gateReach) gateReach(c, links);
+  if (!profile.noSoftlock) return c.r;
   // Grow the solo region: start, then whatever a co-op move opens. A co-op link out of the region into a space the
   // region does not reach solo is the only way there (a softlock if that partner goes down); the space and what is
   // solo-reachable from it join the region, so the co-op moves behind it are judged from there, in file order. Solo
@@ -660,7 +441,8 @@ export function checkEncounters(graph, metrics) {
   const c = collector(metrics);
   const { spaces, links, byId, sections, secIndex, meta } = index(graph);
   const players = meta.players;
-  const routes = routeRules(meta);
+  const profile = profileOf(meta);
+  const routes = profile.routeRules;
   let guarded = 0;
   let guardedSecret = 0;
   for (const s of spaces) {
@@ -740,14 +522,14 @@ export function checkEncounters(graph, metrics) {
     const band = c.range(early ? 'rules.guards_early' : 'rules.guards_late', 'the guard band check');
     for (const [p, n] of counts) {
       if (band && n < band[0]) {
-        (routes ? c.warn : c.info)(`${s.id}: ${n} guards (${p} players) below the ${early ? 'early' : 'late'} band ${fmt(band[0])}-${fmt(band[1])}`);
+        c[profile.guardBand](`${s.id}: ${n} guards (${p} players) below the ${early ? 'early' : 'late'} band ${fmt(band[0])}-${fmt(band[1])}`);
       }
     }
   }
   // Alive ceiling (G187, G332; the campaign runs on the same runtime, G359): per
   // section and player count, the encounter spaces' counts (each at the largest key not above that count) sum to at
   // most `sector_alive_max`.
-  if (ALIVE_CEILING_MODES.has(meta.mode)) {
+  if (profile.aliveCeiling) {
     const ceiling = c.num('rules.sector_alive_max', 'the Sector Ops alive ceiling');
     for (const sec of ceiling === undefined ? [] : sections) {
       for (const p of players) {
@@ -804,7 +586,7 @@ export function checkEncounters(graph, metrics) {
       c.warn(`${s.id}: tagged unavoidable, but section ${s.section}'s exit and objectives are reached around it`);
     }
   }
-  if (meta.mode === 'sector' && !unavoidable) {
+  if (profile.needsUnavoidable && !unavoidable) {
     c.warn('no space tagged unavoidable: some sections need a guard the players cannot avoid (level-design 4.12, G303)');
   }
 
@@ -846,7 +628,8 @@ export function checkEncounters(graph, metrics) {
 export function checkRedundancy(graph) {
   const c = collector(null);
   const { meta, spaces, links, byId, sections } = index(graph);
-  const routes = routeRules(meta);
+  const profile = profileOf(meta);
+  const routes = profile.routeRules;
   for (const sec of sections) {
     const inSec = spaces.filter((s) => s.section === sec);
     const entries = inSec.filter((s) => hasTag(s, 'entry'));
@@ -857,7 +640,7 @@ export function checkRedundancy(graph) {
     const entry = entries[0].id;
     const exit = exits[0].id;
     if (entry === exit) {
-      if (meta.mode === 'campaign') {
+      if (profile.forcedGate) {
         c.err(`section ${sec}: entry and exit are the same space '${entry}', so no forced co-op gate stands between them (campaign: a forced co-op gate per section, level-design 11.10)`);
       } else {
         c.warn(`section ${sec}: entry and exit are the same space '${entry}'; route redundancy not checked`);
@@ -867,7 +650,7 @@ export function checkRedundancy(graph) {
     const inner = links.filter((l) => l.route !== 'spine' && byId.get(l.from).section === sec && byId.get(l.to).section === sec);
     // Campaign (level-design 11.10, G292): every section forces a co-op traversal move; solo links alone never join its
     // entry to its exit.
-    if (meta.mode === 'campaign' && reachable(adjOf(soloArcsOf(inner)), entry).has(exit)) {
+    if (profile.forcedGate && reachable(adjOf(soloArcsOf(inner)), entry).has(exit)) {
       c.err(`section ${sec}: exit '${exit}' is reached from entry '${entry}' by solo links alone (campaign: a forced co-op gate per section, level-design 11.10)`);
     }
     if (!routes) continue;
@@ -882,7 +665,9 @@ export function checkCoop(graph, metrics) {
   const c = collector(metrics);
   const { meta, spaces, links, byId, sections } = index(graph);
 
-  // Coverage: a co-op link touches half of the encounter spaces and a space in every section.
+  // Coverage: a co-op link touches half of the encounter spaces and a space in every section. Not on training (Q29:
+  // Marlow Yard "does not need the same checks"; A7).
+  const profile = profileOf(meta);
   const coopTouched = new Set();
   for (const l of links) {
     if (!COOP_KINDS.has(l.kind)) continue;
@@ -891,10 +676,10 @@ export function checkCoop(graph, metrics) {
   }
   const enc = spaces.filter((s) => s.type === 'encounter');
   const covered = enc.filter((s) => coopTouched.has(s.id));
-  if (enc.length && covered.length * 2 < enc.length) {
+  if (profile.coverage && enc.length && covered.length * 2 < enc.length) {
     c.err(`co-op links reach ${covered.length} of ${enc.length} encounter spaces (need at least half)`);
   }
-  for (const sec of sections) {
+  for (const sec of profile.coverage ? sections : []) {
     if (!spaces.some((s) => s.section === sec && coopTouched.has(s.id))) c.err(`section ${sec} has no co-op link`);
   }
 
@@ -903,20 +688,22 @@ export function checkCoop(graph, metrics) {
   // it. A longer solo route, or one on another route kind (G280's solo bypass past a guard), is the no-softlock
   // alternative, not a twin. Lengths prove the detour: a direct solo link with no `length` (or beside a co-op link
   // with none) is a twin; a multi-link path uses only links with `length`. The co-op move runs from -> to (a climb's
-  // foot to its top); a two-way pair_gate or shutter is judged both ways; a bolted link twins only from its `to` end. ERR on a campaign map (two players only, G2); WARN on
-  // Sector Ops, where solo play completes (G185) but team doors stay two-player (G280), and on training.
+  // foot to its top); a two-way gate (`TWO_WAY_GATES`) is judged both ways; a bolted link twins only from its `to` end.
+  // Severity per profile: ERR on a campaign map (two players only, G2); WARN on Sector Ops, where solo play completes
+  // (G185) but team doors stay two-player (G280); INFO on training (Q29, A7).
   const twinAdj = new Map();
   const soloOn = (route) => {
     if (!twinAdj.has(route)) twinAdj.set(route, adjOf(soloArcsOf(links, (l) => l.route === route)));
     return twinAdj.get(route);
   };
-  const sayTwin = meta.mode === 'campaign' ? c.err : c.warn;
+  const sayTwin = c[profile.soloTwin];
   for (const l of links) {
     if (!COOP_KINDS.has(l.kind)) continue;
     const adj = soloOn(l.route);
     const coopLen = typeof l.length === 'number' ? l.length : undefined;
     const moves = [[l.from, l.to]];
-    if (TWO_WAY_GATES.has(l.kind) && !isOneWay(l)) moves.push([l.to, l.from]);
+    // A vent_unlock's way back is the solo way through it (one player opens it from its `to` end): no twin to judge.
+    if (TWO_WAY_GATES.has(l.kind) && !BOLTED_KINDS.has(l.kind) && !isOneWay(l)) moves.push([l.to, l.from]);
     for (const [x, y] of moves) {
       const direct = (adj.get(x) ?? []).find((a) => a.to === y
         && (coopLen === undefined || typeof a.link.length !== 'number' || a.link.length <= coopLen + EPS));
@@ -1156,9 +943,11 @@ export function checkPacing(graph) {
   return c.r;
 }
 
-/** Every check over one (merged) graph. `metrics` null: one WARN, every size and time check skipped. Duplicate lines
- *  (a missing metrics key asked by two checks) print once. */
-export function validate(graph, { metrics = null, metricsPath = null } = {}) {
+/** Every check over one (merged) graph: the core checks above, then the modules (measured, training, perfect run,
+ *  engine facts; each `(graph, metrics, opts)`), then the mission checks. `metrics` null: one WARN, every size and
+ *  time check skipped. `requireMeasured`: the greybox gate (`--require-measured`). Duplicate lines (a missing metrics
+ *  key asked by two checks) print once. */
+export function validate(graph, { metrics = null, metricsPath = null, requireMeasured = false } = {}) {
   const structure = checkStructure(graph);
   const out = { errors: [...structure.errors], warns: [], infos: [] };
   if (!metrics) {
@@ -1170,6 +959,11 @@ export function validate(graph, { metrics = null, metricsPath = null } = {}) {
     checkDimensions(graph, metrics), checkReach(graph, metrics), checkSpine(graph), checkEncounters(graph, metrics),
     checkRedundancy(graph), checkCoop(graph, metrics), checkPacing(graph),
   ];
+  const opts = { requireMeasured };
+  reports.push(
+    checkMeasured(graph, metrics, opts), checkTraining(graph, metrics, opts), checkPerfect(graph, metrics, opts),
+    checkEngine(graph, metrics, opts), checkMission(graph, metrics, opts),
+  );
   for (const r of reports) {
     out.errors.push(...r.errors);
     out.warns.push(...r.warns);
@@ -1184,15 +978,19 @@ export function validate(graph, { metrics = null, metricsPath = null } = {}) {
 // ---------------------------------------------------------------------------------------------------------------
 // CLI
 
-const USAGE = 'usage: node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>]';
+const USAGE = 'usage: node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>]'
+  + ' [--require-measured]';
 
-/** { files, metrics } or { error }. */
+/** { files, metrics, requireMeasured } or { error }. */
 export function parseArgs(argv) {
   const files = [];
   let metrics = null;
+  let requireMeasured = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--metrics') {
+    if (a === '--require-measured') {
+      requireMeasured = true;
+    } else if (a === '--metrics') {
       const v = argv[i + 1];
       if (!v || v.startsWith('--')) return { error: '--metrics needs a file' };
       metrics = v;
@@ -1207,7 +1005,7 @@ export function parseArgs(argv) {
     }
   }
   if (!files.length) return { error: 'no graph file given' };
-  return { files, metrics };
+  return { files, metrics, requireMeasured };
 }
 
 /** The CLI: prints the report through `log`, returns the exit code (0 clean, 1 errors, 2 bad usage). */
@@ -1236,7 +1034,8 @@ export function run(argv, { log = console.log, root = path.resolve(path.dirname(
       return 2;
     }
   }
-  const report = validate(mergeGraphs(graphs), { metrics, metricsPath: args.metrics ?? DEFAULT_METRICS });
+  const report = validate(mergeGraphs(graphs), { metrics, metricsPath: args.metrics ?? DEFAULT_METRICS,
+    requireMeasured: args.requireMeasured });
   for (const e of report.errors) log(`ERROR: ${e}`);
   for (const w of report.warns) log(`WARN:  ${w}`);
   for (const i of report.infos) log(`INFO:  ${i}`);

@@ -931,8 +931,8 @@ describe('level-validate: merge and CLI', () => {
   });
 
   it('parseArgs: files, --metrics, usage errors', () => {
-    expect(parseArgs(['a.json', 'b.json', '--metrics', 'm.json'])).toEqual({ files: ['a.json', 'b.json'], metrics: 'm.json' });
-    expect(parseArgs(['a.json'])).toEqual({ files: ['a.json'], metrics: null });
+    expect(parseArgs(['a.json', 'b.json', '--metrics', 'm.json'])).toEqual({ files: ['a.json', 'b.json'], metrics: 'm.json', requireMeasured: false });
+    expect(parseArgs(['a.json'])).toEqual({ files: ['a.json'], metrics: null, requireMeasured: false });
     expect(parseArgs([])).toEqual({ error: 'no graph file given' });
     expect(parseArgs(['a.json', '--metrics'])).toEqual({ error: '--metrics needs a file' });
     expect(parseArgs(['a.json', '--rooms', 'x.md'])).toEqual({ error: 'unknown flag --rooms' });
