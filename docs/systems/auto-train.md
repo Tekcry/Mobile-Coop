@@ -173,7 +173,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   follow `FAIL:` as in `lib.mjs describe`).
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
-- Spare work (`docs/laptop-queue/PLAN.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
+- Spare work (`docs/archive/laptop-queue-PLAN-2026-10-23.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
   (requester `laptop-queue spare`) on the master head, never while a train is building, releasing, waiting on its
   laptop pass or green train-ready PRs wait for one. A pending train head stops a running spare job at once, whatever
   its kind or progress (lib `cutShort`), and the spare job is done, not queued again.
