@@ -74,6 +74,8 @@ import { MAX_INTRUDERS } from './targetPick';
 import { PLAN_SKIP_SEARCHED, SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
 // (guard-rules S7) lookouts
 import { LOOKOUT, type PostDef } from './posts';
+// (guard-ai-mission-hooks S1a) mission orders
+import { findPost, K_RESET, K_WALK, M_ARRIVED, M_DROPPED, M_WALKING, matchesTag, ORDER, OrderBoard, resolvePoint, type MissionPost, type OrderEvent, type OrderKind, type OrderPhase } from './missionOrders';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -342,6 +344,17 @@ export class EnemyManager {
   /** (guard-rules S7) Per awareness key: the lookout's `riseN` last seen, and his radio cooldown (s). Fixed size. */
   private readonly lookRise = new Int32Array(MAX_KEYS);
   private readonly lookCd = new Float32Array(MAX_KEYS);
+  /** (guard-ai-mission-hooks S1a, D7) Every mission order in hand (tests read it; fixed slots, `clear()` empties it). */
+  readonly orders = new OrderBoard();
+  /** (guard-ai-mission-hooks S1a, C1) The mission's section ids by `SectorDef` index (a tag's `<sectionId>:<k>`) and its
+   *  posts (`setMissionMap`; kept through `clear()`). */
+  private missionSecs: readonly string[] = [];
+  private missionPosts: readonly MissionPost[] = [];
+  /** (guard-ai-mission-hooks S1a) The bell's floor point (scratch), a resolved point (x, y, z, yaw) and the names
+   *  already dev-warned (event time). */
+  private readonly bellP = new Vector3();
+  private readonly ordPt = new Float32Array(4);
+  private readonly ordWarned = new Set<string>();
   /** (polish2 A185) A searcher already barked "I heard something." for the noise `hear` is handling. */
   private hearBarked = false;
   private hearR = new Float32Array(32);
@@ -1309,6 +1322,12 @@ export class EnemyManager {
   private circuitOut(group: number, x: number, y: number, z: number, n: number, fresh: boolean): void {
     if (fresh) this.cutSeq.set(group, (this.cutSeq.get(group) ?? 0) + 1);
     if (n === 0) return;
+    // (guard-ai-mission-hooks S1a, PLAN "Order first") a reset order holds this circuit: no incident, no tamper
+    // clock, no second guard; the dark lamps count as known (late discovery leaves them)
+    if (this.orders.holdsCircuit(group)) {
+      this.dark.markGroup(this.world.level.lights, group);
+      return;
+    }
     this.trackCut(group);
     const now = this.board.now;
     const cut = this.cutSeq.get(group) ?? 0;
@@ -1348,8 +1367,10 @@ export class EnemyManager {
   }
 
   /** (guard-ai polish B1) Someone is on circuit `group`'s cut: an incident on its key is open (the reset walk's, the
-   *  tamper check's) or a guard walks to its switch. No allocation. */
+   *  tamper check's) or a guard walks to its switch; (guard-ai-mission-hooks S1a) or a reset order holds it. No
+   *  allocation. */
   private circuitBusy(group: number): boolean {
+    if (this.orders.holdsCircuit(group)) return true;
     const b = this.board;
     const key = CIRCUIT_KEY + group;
     for (let s = 0; s < b.open.length; s++) if (b.open[s] === 1 && b.key[s] === key) return true;
@@ -2198,6 +2219,8 @@ export class EnemyManager {
     }
     // (guard-ai S10) the second of a talking pair placed: the pair is built
     if (inList) this.buildPair(e, index);
+    // (guard-ai-mission-hooks S1a, A6) a tagged slot placed after its order's event: offered once (never a woken guard)
+    if (this.orders.pendN > 0) this.offerPlaced(e);
   }
 
   /** (guard-rules S7, A9) The post a slot gives: a lookout's (flag on) is a high-security copy, so `Enemy.secure`, the
@@ -2319,7 +2342,8 @@ export class EnemyManager {
 
   /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
   private fillPair(g: PairGuard, e: Enemy | null): void {
-    if (!e || !e.alive || e.taken) {
+    // (guard-ai-mission-hooks S1a) an ordered guard is away: his partner reacts as to a partner gone (J15 S6)
+    if (!e || !e.alive || e.taken || e.ordered) {
       g.present = false;
       g.calm = false;
       return;
@@ -2531,6 +2555,268 @@ export class EnemyManager {
   /** (guard-ai S1) Set the map's noisy things (masking for guards near them); none by default. */
   setNoisy(list: readonly NoisySource[]): void {
     this.noisy = list;
+  }
+
+  // ----- (guard-ai-mission-hooks S1a, D7, A1-A8) mission orders (flag `missionOrders`) -----
+
+  /** (C1) The mission's section ids (by `SectorDef` index: a tag `<sectionId>:<k>`) and its posts. Kept through
+   *  `clear()`; the next call replaces them. */
+  setMissionMap(sectionIds: readonly string[], posts: readonly MissionPost[]): void {
+    this.missionSecs = sectionIds;
+    this.missionPosts = posts;
+  }
+
+  /**
+   * A mission order (D7): the guards tagged `tag` (zone tag or `<sectionId>:<k>`, A1) of the live section walk calmly
+   * by `via` (if any) to `postId` (a mission post, else a room centre, A2) and look round (`walk`), or work the post's
+   * breaker board and turn its circuits back on (`reset`, A3). One offer, now (A6): each tagged guard eligible now
+   * takes it, every other is recorded dropped with its cause and never picks it up later; a tag with no placed guard
+   * (and no body) waits for its `placeSlot` (once). A post with a `bell` is a sound (A4): only a tagged guard who hears
+   * it comes, everyone else in reach turns to look. `name` (default: the tag) is what `orderPhase` / `orderMembers`
+   * read. Flag off: nothing. Event time (its dev logs and the cell snap allocate).
+   */
+  missionOrder(tag: string, kind: OrderKind, postId: string, via?: string, name = ''): void {
+    if (!flags.missionOrders) return;
+    const nm = name || tag;
+    const b = this.orders;
+    const posts = this.missionPosts;
+    const rooms = this.ctx.rooms;
+    const pt = this.ordPt;
+    let cause = '';
+    let vx = Number.NaN;
+    let vy = Number.NaN;
+    let vz = Number.NaN;
+    if (via !== undefined && via !== '') {
+      if (resolvePoint(via, posts, rooms, pt)) {
+        vx = pt[0]!;
+        vy = pt[1]!;
+        vz = pt[2]!;
+      } else cause = 'noVia';
+    }
+    if (!resolvePoint(postId, posts, rooms, pt)) cause = 'noPost';
+    const post = findPost(postId, posts);
+    const circuits = kind === 'reset' ? (post?.circuits ?? null) : null;
+    if (kind === 'reset' && (!circuits || circuits.length === 0) && cause === '') cause = 'noCircuits';
+    if (cause !== '') {
+      const rec = b.fail(nm, cause);
+      this.orderWarn(nm, rec ? `order '${nm}' (tag '${tag}', post '${postId}', via '${via ?? ''}'): ${cause}` : `order '${nm}': board full (every slot runs), not recorded`);
+      return;
+    }
+    const s = b.open(nm, kind === 'reset' ? K_RESET : K_WALK);
+    if (s < 0) {
+      this.orderWarn(nm, `order '${nm}': board full (every slot runs)`);
+      return;
+    }
+    // the points, on the nearest walkable cell (as the breaker walk's switch)
+    const px = pt[0]!;
+    const py = pt[1]!;
+    const pz = pt[2]!;
+    const i3 = s * 3;
+    b.face[i3 + 2] = pt[3]!;
+    if (vx === vx) this.snapTo(vx, vz, vy, b.via, i3);
+    this.snapTo(px, pz, py, b.pt, i3);
+    // a reset: the walk ends at the board's own switch (A2), faced while he works it; no host or no switch: the post
+    const sw = this.swP;
+    if (circuits && this.breakers && this.breakers.switchOf(circuits[0]!, px, pz, sw)) {
+      b.face[i3] = sw[0]!;
+      b.face[i3 + 1] = sw[2]!;
+      this.snapTo(sw[0]!, sw[2]!, py === py ? py : sw[1]!, b.pt, i3);
+    }
+    b.circuits[s] = circuits;
+    b.bell[s] = post?.bell ?? null;
+    // the tagged guards: live ones are offered; a body (dead, knocked out) is recorded down (S1a-i)
+    const list = this.enemies;
+    let found = false;
+    for (let k = 0; k < list.length; k++) if (this.taggedAs(list[k]!, tag)) found = true;
+    const bodies = this.bodies;
+    for (let k = 0; k < bodies.length; k++) {
+      const g = bodies[k]!.guard;
+      if (!g || !this.taggedAs(g, tag)) continue;
+      found = true;
+      b.add(s, g.num, M_DROPPED, 'down');
+    }
+    if (!found) {
+      // nobody of the tag placed yet: his `placeSlot` gets it once (A6)
+      if (b.pend[s] === '') b.pendN++;
+      b.pend[s] = tag;
+    } else if (b.bell[s]) {
+      this.ringBell(s, tag);
+    } else {
+      for (let k = 0; k < list.length; k++) if (this.taggedAs(list[k]!, tag)) this.offer(list[k]!, s);
+    }
+    b.refresh(s);
+  }
+
+  /** The engine's `missionEvent` (A3): a post with circuits is a reset, else a walk. */
+  onMissionEvent(ev: OrderEvent): void {
+    this.missionOrder(ev.guardTag, findPost(ev.postId, this.missionPosts)?.circuits ? 'reset' : 'walk', ev.postId, ev.via, ev.name);
+  }
+
+  /** (C7) How order `name` stands ('none': no such order). No allocation. */
+  orderPhase(name: string): OrderPhase {
+    const s = this.orders.find(name);
+    return s >= 0 ? this.orders.phase[s]! : 'none';
+  }
+
+  /** (C7) Guards walking or at the post on order `name` (0: none). No allocation. */
+  orderMembers(name: string): number {
+    const s = this.orders.find(name);
+    return s >= 0 ? this.orders.liveN(s) : 0;
+  }
+
+  /** Guard `e`'s order (debug / e2e; allocates): its name, kind, phase and his leg state; null: none. */
+  orderOf(e: Enemy): { name: string; kind: OrderKind; phase: OrderPhase; leg: number } | null {
+    const s = e.orderSlot;
+    if (s < 0) return null;
+    const b = this.orders;
+    return { name: b.name[s]!, kind: b.kind[s] === K_RESET ? 'reset' : 'walk', phase: b.phase[s]!, leg: e.leg.state };
+  }
+
+  /** Does mission tag `tag` name guard `e` (his zone tag, or `<sectionId>:<k>` of his section and slot, A1)? */
+  private taggedAs(e: Enemy, tag: string): boolean {
+    return matchesTag(tag, e.zone, this.missionSecs[e.section] ?? '', e.slotIdx);
+  }
+
+  /** (x, z) on storey `y` (NaN: the lowest) onto the nearest walkable cell within 4 (its centre and height) into
+   *  `out[o..o+2]` (x, y, z); no cell: the point as given. Event time (`NavGrid.center` allocates). */
+  private snapTo(x: number, z: number, y: number, out: Float32Array, o: number): void {
+    const nav = this.nav;
+    const c = nav.nearestWalkable(x, z, 4, y);
+    if (c >= 0) {
+      const cc = nav.center(c);
+      out[o] = cc[0];
+      out[o + 1] = nav.cellHeight(c);
+      out[o + 2] = cc[1];
+    } else {
+      out[o] = x;
+      out[o + 1] = y;
+      out[o + 2] = z;
+    }
+  }
+
+  /** One dev warning per order name (event time). */
+  private orderWarn(name: string, msg: string): void {
+    if (!import.meta.env.DEV || this.ordWarned.has(name)) return;
+    this.ordWarned.add(name);
+    console.warn(`guard-ai orders: ${msg}`);
+  }
+
+  /** A dev log line naming the order, the guard and what happened (event time). */
+  private orderLog(s: number, e: Enemy, msg: string): void {
+    if (import.meta.env.DEV) console.info(`guard-ai orders: order '${this.orders.name[s]}' guard ${e.num} (${e.zone || `slot ${e.slotIdx}`}): ${msg}`);
+  }
+
+  /**
+   * Offer order `s` to tagged guard `e` (A6, once): the board records him first (refused: dropped with the cause;
+   * else walking), and only then does he take it (a guard already dropped on the order is never revived). A reset
+   * takes over every breaker walk on its circuits: one guard goes (PLAN "Cut first").
+   */
+  private offer(e: Enemy, s: number): void {
+    const b = this.orders;
+    const why = e.orderRefusal(b, s);
+    if (why !== '') {
+      this.orderLog(s, e, b.add(s, e.num, M_DROPPED, why) ? `dropped (${why})` : `dropped (${why}; order full)`);
+      return;
+    }
+    if (!b.add(s, e.num, M_WALKING)) {
+      this.orderLog(s, e, 'not added (order full, or dropped on it before)');
+      return;
+    }
+    if (!e.takeOrder(b, s)) {
+      b.set(s, e.num, M_DROPPED, 'refused');
+      this.orderLog(s, e, 'dropped (refused)');
+      return;
+    }
+    if (b.kind[s] !== K_RESET) return;
+    const list = this.enemies;
+    for (let k = 0; k < list.length; k++) {
+      const o = list[k]!;
+      if (o !== e && o.breakerGroup >= 0 && b.hasCircuit(s, o.breakerGroup)) o.leaveBreaker();
+    }
+  }
+
+  /** A tagged guard who did not hear order `s`'s bell: dropped 'unheard'. */
+  private unheard(e: Enemy, s: number): void {
+    this.orders.add(s, e.num, M_DROPPED, 'unheard');
+    this.orderLog(s, e, 'dropped (unheard)');
+  }
+
+  /** Order `s`'s bell on the floor under it (S1a-g) into `bellP`. */
+  private bellFloor(s: number): MissionPost['bell'] | null {
+    const bell = this.orders.bell[s];
+    if (bell) this.bellP.set(bell.x, this.nav.heightAt(bell.x, bell.z, bell.y), bell.z);
+    return bell ?? null;
+  }
+
+  /**
+   * (A4) Order `s` has a bell: a sound at its floor point (S1a-g) heard through walls and masking (`tierOf`). A tagged
+   * guard who hears it (tier >= `ORDER.bellTier`) is offered the order; one who does not is dropped 'unheard'. Every
+   * guard in reach who hears it and is not now walking it, the dog included, only turns to look (`hearTurn` with no
+   * meter bump: no suspicion, no report, no incident, S1a-h).
+   */
+  private ringBell(s: number, tag: string): void {
+    const bell = this.bellFloor(s);
+    if (!bell) return;
+    const p = this.bellP;
+    const list = this.enemies;
+    this.hearRoom(list.length);
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      const tagged = this.taggedAs(e, tag);
+      if (!e.alive || e.taken || e.passive) {
+        // a tagged guard who cannot come: recorded with his cause
+        if (tagged) this.offer(e, s);
+        continue;
+      }
+      const d = hyp3(e.pos.x - p.x, e.pos.y - p.y, e.pos.z - p.z);
+      const tier = d < bell.reach ? this.tierOf(e, i, p, bell.reach, d, false) : 0;
+      if (tagged) {
+        if (tier >= ORDER.bellTier) this.offer(e, s);
+        else this.unheard(e, s);
+      }
+      if (tier >= 1 && e.orderSlot !== s) e.hearTurn(bell.x, bell.z, 0);
+    }
+  }
+
+  /** (A6) Guard `e` was just placed: each order waiting for his tag is offered to him, once (a bell: judged alone as
+   *  `ringBell` judges him). Event time. */
+  private offerPlaced(e: Enemy): void {
+    const b = this.orders;
+    for (let s = 0; s < b.slots; s++) {
+      const tag = b.pend[s]!;
+      if (tag === '' || !this.taggedAs(e, tag)) continue;
+      b.pend[s] = '';
+      b.pendN--;
+      const bell = this.bellFloor(s);
+      if (bell) {
+        const p = this.bellP;
+        const d = hyp3(e.pos.x - p.x, e.pos.y - p.y, e.pos.z - p.z);
+        this.hearRoom(1);
+        const tier = e.alive && d < bell.reach ? this.tierOf(e, 0, p, bell.reach, d, false) : 0;
+        if (tier >= ORDER.bellTier) this.offer(e, s);
+        else this.unheard(e, s);
+      } else this.offer(e, s);
+      b.refresh(s);
+    }
+  }
+
+  /** Every step while a member is live: one knocked out, killed or gone from the list is dropped 'down', a held one
+   *  drops his order ('held'). No allocation (index loops). */
+  private orderTick(): void {
+    const b = this.orders;
+    for (let s = 0; s < b.slots; s++) {
+      const base = s * b.per;
+      for (let j = 0; j < b.memN[s]!; j++) {
+        const st = b.memSt[base + j]!;
+        if (st !== M_WALKING && st !== M_ARRIVED) continue;
+        const num = b.mem[base + j]!;
+        const e = this.byNum(num);
+        if (!e || !e.alive) b.set(s, num, M_DROPPED, 'down');
+        else if (e.taken) e.dropOrder('held');
+        // (a safety net) on the board but off the order: dropped, so it cannot hold its circuits for good
+        else if (e.orderSlot !== s) b.set(s, num, M_DROPPED, 'lost');
+      }
+    }
   }
 
   /** Room for `n` guards in the hearing scratch (grows by doubling: no allocation once the cast is in). */
@@ -3858,6 +4144,8 @@ export class EnemyManager {
       // walking into a closed door pushes it open
       if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
     }
+    // (guard-ai-mission-hooks S1a) members of a mission order knocked out, killed, gone or held: dropped
+    if (this.orders.live > 0) this.orderTick();
     // (guard-ai S10) talking pairs at the board rate, after the guards moved
     if (this.pairs.length) {
       this.pairT -= dt;
@@ -4013,6 +4301,8 @@ export class EnemyManager {
     this.lookoutN = 0;
     this.lookRise.fill(0);
     this.lookCd.fill(0);
+    // (guard-ai-mission-hooks S1a, A8) and every mission order (the mission map stays)
+    this.orders.clear();
     this.lastCheckCaller = null;
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
