@@ -76,3 +76,9 @@ At the save (2026-10-26 ~08:50, feature/mixamo-i9):
 - I7 parts done (uncommitted before this save): mixamoDup.mjs (0 duplicates under 1 cm; aa_walking 3.8, aa_run_to_stop 1.8, aa_crouched_sneaking_left 4.9 cm: kept, Studio only), emitter travel -z / auto, mirror, place, pack titles; mixamoTake mirrorTake / travelHeading; KeyedTravel '-z'; studio.ts glob for clips/mixamo/studio/.
 - I9: 108 keyed recipes, all emitted (24 game, 84 studio/), 108 Studio rows, 108 credits rows. 5 gaits fell back to loops (pistol_run_arc, pistol_run_backward_arc, rifle_sprint_backward(_left/_right)).
 - Left: fix 2 test fails (pistol_strafe planted-foot errs 0; aa_left_turn row cycle 0.017 < 0.2), tsc rerun, CLIPS.md check, I9-REPORT, changes/feature-mixamo-i9.md, final STATE.
+
+I7 + I9 built (2026-10-26, feature/mixamo-i9): see [I9-REPORT.md](I9-REPORT.md).
+- Done: I6 merged; mixamoDup (0 of 18 pairs dropped), recipe options (pack, travel -z / auto, mirror, place), 123 dumped, 108 keyed
+  clips emitted (24 game slots, 84 Studio only in clips/mixamo/studio/), rows, credits, CLIPS.md, TESTING line, changelog.
+  tsc green; 20 vitest files pass (273 + 1 skip); eslint clean. 24 gaits fell back to loops (duty 0 / no strikes), 4 of them game slots.
+- Left: checker; laptop e2e-studio, anim-audit; I8 (lazy load, studio/ off the entry chunk); I10 / I13 wiring; I11 channel clips (15).

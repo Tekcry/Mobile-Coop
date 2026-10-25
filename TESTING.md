@@ -421,6 +421,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
+- [ ] (mixamo-retarget I9) Anim Studio, Set "Mixamo": the batch 2 packs are listed ("Motion capture (Mixamo): rifle walk forward",
+  pistol, shooter, aa ...); each plays on Wren and moves with its tuner rows.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
