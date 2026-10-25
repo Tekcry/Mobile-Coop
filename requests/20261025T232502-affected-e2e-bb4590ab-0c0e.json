@@ -1,0 +1,18 @@
+{
+  "id": "20261025T232502-affected-e2e-bb4590ab-0c0e",
+  "sha": "bb4590ab442a0e9679fc7a9a1ee65814b0cb6b48",
+  "branch": "feature/player-hygiene-s1",
+  "pr": 505,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-move",
+    "e2e-stealth",
+    "e2e-traverse",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #505"
+}
