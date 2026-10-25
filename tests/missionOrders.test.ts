@@ -17,7 +17,8 @@ const angDiff = (a: number, b: number): number => Math.abs(Math.atan2(Math.sin(a
 describe('ORDER, matchesTag, resolvePoint', () => {
   it('holds the prototype values', () => {
     expect(ORDER).toEqual({
-      lookT: 8, joinWait: 20, followGap: 1.5, atVia: 2.5, giveUp: 120, bellTier: 1, maxOrders: 8, maxMembers: 4, arrive: 0.8,
+      lookT: 8, joinWait: 20, followGap: 1.5, atVia: 2.5, giveUp: 120, bellTier: 1, maxOrders: 8, maxMembers: 4,
+      arrive: 0.8,
     });
   });
 
@@ -89,9 +90,25 @@ describe('OrderBoard', () => {
     b.set(s, 9031, M_DROPPED, 'held');
     expect(b.live).toBe(ORDER.maxMembers - 1);
     expect(b.cause[s]).toBe('held');
-    // a second offer that drops never drops a member on his way
-    b.add(s, 9000, M_DROPPED, 'order');
+    // a second offer that drops never drops a member on his way, and records no cause (nobody dropped)
+    expect(b.add(s, 9000, M_DROPPED, 'order')).toBe(true);
     expect(b.live).toBe(ORDER.maxMembers - 1);
+    expect(b.cause[s]).toBe('held');
+  });
+
+  it('never revives a guard recorded dropped on the slot (A6); a repeat drop changes nothing', () => {
+    const b = new OrderBoard();
+    const s = b.open('a', K_WALK);
+    b.add(s, 4, M_WALKING);
+    b.add(s, 5, M_DROPPED, 'busy');
+    expect(b.add(s, 5, M_WALKING)).toBe(false);
+    expect(b.add(s, 5, M_ARRIVED)).toBe(false);
+    expect(b.add(s, 5, M_DONE)).toBe(false);
+    expect(b.add(s, 5, M_DROPPED, 'held')).toBe(true);
+    expect([b.memSt[s * b.per + 1], b.memN[s], b.live, b.liveN(s), b.cause[s]]).toEqual([M_DROPPED, 2, 1, 1, 'busy']);
+    b.set(s, 4, M_DROPPED, 'giveUp');
+    expect(b.add(s, 4, M_WALKING)).toBe(false);
+    expect([b.phase[s], b.live]).toEqual(['dropped', 0]);
   });
 
   it('phases follow the members: walking -> arrived -> done; all dropped; a pending tag reads offered', () => {
@@ -114,6 +131,39 @@ describe('OrderBoard', () => {
     b.pendN++;
     b.refresh(p);
     expect(b.phase[p]).toBe('offered');
+    // a pending tag outranks a done member: the order still waits for his placement
+    b.add(p, 2, M_DONE);
+    expect(b.phase[p]).toBe('offered');
+  });
+
+  it("'gathering' (S1b) is live: members join it, it is never reused", () => {
+    const b = new OrderBoard();
+    const s = b.open('g', K_WALK);
+    b.add(s, 1, M_WALKING);
+    b.phase[s] = 'gathering';
+    expect(b.isLive(s)).toBe(true);
+    expect(b.open('g', K_WALK)).toBe(s);
+    expect(b.phase[s]).toBe('gathering');
+    for (const ph of ['offered', 'walking', 'arrived'] as const) {
+      b.phase[s] = ph;
+      expect(b.isLive(s)).toBe(true);
+    }
+    for (const ph of ['none', 'done', 'dropped'] as const) {
+      b.phase[s] = ph;
+      expect(b.isLive(s)).toBe(false);
+    }
+  });
+
+  it("fail keeps a running order's members and records the cause; a full board returns false", () => {
+    const b = new OrderBoard();
+    const s = b.open('run', K_RESET);
+    b.add(s, 3, M_WALKING);
+    expect(b.fail('run', 'via')).toBe(true);
+    expect([b.find('run'), b.kind[s], b.phase[s], b.memN[s], b.live, b.cause[s]])
+      .toEqual([s, K_RESET, 'walking', 1, 1, 'via']);
+    for (let i = 1; i < ORDER.maxOrders; i++) b.add(b.open('o' + i, K_WALK), 100 + i, M_WALKING);
+    expect(b.fail('late', 'post')).toBe(false);
+    expect(b.find('late')).toBe(-1);
   });
 
   it('holds a circuit only while a reset member is live; fail drops; clear frees and keeps identity', () => {
@@ -123,19 +173,23 @@ describe('OrderBoard', () => {
     b.circuits[s] = circ;
     expect(b.holdsCircuit(55)).toBe(false);
     b.add(s, 3, M_WALKING);
-    expect([b.holdsCircuit(55), b.holdsCircuit(56), b.holdsCircuit(57), b.hasCircuit(s, 56)]).toEqual([true, true, false, true]);
+    expect([b.holdsCircuit(55), b.holdsCircuit(56), b.holdsCircuit(57), b.hasCircuit(s, 56)])
+      .toEqual([true, true, false, true]);
     expect(b.circuits[s]).toBe(circ);
     b.set(s, 3, M_DONE);
     expect(b.holdsCircuit(55)).toBe(false);
-    b.fail('bad', 'post');
+    expect(b.fail('bad', 'post')).toBe(true);
     expect(b.phase[b.find('bad')]).toBe('dropped');
     expect(b.cause[b.find('bad')]).toBe('post');
     const p = b.open('p', K_WALK);
     b.pend[p] = 't';
     b.pendN++;
-    const ids = [b.name, b.phase, b.kind, b.pt, b.face, b.via, b.circuits, b.bell, b.pend, b.cause, b.seq, b.mem, b.memSt, b.memN];
+    const arrays = (): unknown[] => [
+      b.name, b.phase, b.kind, b.pt, b.face, b.via, b.circuits, b.bell, b.pend, b.cause, b.seq, b.mem, b.memSt, b.memN,
+    ];
+    const ids = arrays();
     b.clear();
-    const after = [b.name, b.phase, b.kind, b.pt, b.face, b.via, b.circuits, b.bell, b.pend, b.cause, b.seq, b.mem, b.memSt, b.memN];
+    const after = arrays();
     for (let i = 0; i < ids.length; i++) expect(after[i]).toBe(ids[i]);
     expect([b.live, b.pendN, b.find('r'), b.find('bad')]).toEqual([0, 0, -1, -1]);
     expect(b.phase.every((ph) => ph === 'none')).toBe(true);
@@ -153,26 +207,34 @@ describe('OrderLeg', () => {
     return { b, s };
   }
 
-  it('walks by the via to the post, looks round within the sweep, then is done; same goal object', () => {
-    const { b, s } = board(K_WALK, [10, Number.NaN, 0], [5, 0]);
+  it('walks by the via to the post, sweeps round the via heading for lookT, then is done; same goal object', () => {
+    // the via off the start -> post line: the look base is the via -> post heading (3pi/4), not start -> post (pi/2)
+    const { b, s } = board(K_WALK, [10, Number.NaN, 0], [5, 5]);
     const leg = new OrderLeg();
-    leg.start(b, s, 0, 0);
+    leg.start(b, s, 0, 0, 0);
     expect(leg.state).toBe(LEG_TO_VIA);
     const g = leg.step(0.1, b, s, 0, 0, 0);
-    expect([g.move, g.x, g.z]).toEqual([true, 5, 0]);
-    expect(leg.step(0.1, b, s, 3, 0, 0.5)).toBe(g); // within atVia: aims at the post this step
-    expect([leg.state, g.move, g.x]).toEqual([LEG_TO_POST, true, 10]);
+    expect([g.move, g.x, g.z]).toEqual([true, 5, 5]);
+    expect(leg.step(0.1, b, s, 4, 0, 4.5)).toBe(g); // within atVia: aims at the post this step
+    expect([leg.state, g.move, g.x, g.z]).toEqual([LEG_TO_POST, true, 10, 0]);
     leg.step(0.1, b, s, 9.5, 0, 0);
     expect([leg.state, g.move]).toEqual([LEG_LOOK, false]);
-    expect(leg.base).toBeCloseTo(Math.PI / 2); // the arrival heading, via -> post
-    let t = 0;
-    while (leg.state === LEG_LOOK && t < 20) {
-      expect(leg.step(0.1, b, s, 10, 0, 0)).toBe(g);
-      if (leg.state === LEG_LOOK) expect(angDiff(g.face, leg.base)).toBeLessThanOrEqual(POST.lureSweep + 1e-6);
-      t += 0.1;
+    expect(leg.base).toBeCloseTo((3 * Math.PI) / 4, 6);
+    expect(g.face).toBeCloseTo(leg.base, 6); // t = 0 on the arrival step
+    const dt = 0.125; // exact in binary: t reaches lookT on step lookT / dt
+    let n = 0;
+    let dev = 0;
+    while (leg.state === LEG_LOOK && n < 1000) {
+      expect(leg.step(dt, b, s, 10, 0, 0)).toBe(g);
+      n++;
+      if (leg.state !== LEG_LOOK) break;
+      const d = angDiff(g.face, leg.base);
+      expect(d).toBeLessThanOrEqual(POST.lureSweep + 1e-6);
+      dev = Math.max(dev, d);
     }
     expect(leg.state).toBe(LEG_DONE);
-    expect(t).toBeCloseTo(ORDER.lookT, 0);
+    expect(n).toBe(ORDER.lookT / dt);
+    expect(dev).toBeGreaterThan(0.5 * POST.lureSweep); // he really looks round
     expect([g.move, Number.isNaN(g.face)]).toEqual([false, true]);
   });
 
@@ -180,7 +242,7 @@ describe('OrderLeg', () => {
     const { b, s } = board(K_WALK, [2, 0, 2]);
     b.face[s * 3 + 2] = -1;
     const leg = new OrderLeg();
-    leg.start(b, s, 0, 0);
+    leg.start(b, s, 0, 0, 2.5);
     expect(leg.state).toBe(LEG_TO_POST);
     leg.step(0.1, b, s, 2, 3, 2); // one storey up
     expect(leg.state).toBe(LEG_TO_POST);
@@ -188,11 +250,30 @@ describe('OrderLeg', () => {
     expect([leg.state, leg.base]).toEqual([LEG_LOOK, -1]);
   });
 
+  it('started on the post with no via and no post yaw, he looks round his own start yaw', () => {
+    const { b, s } = board(K_WALK, [2, 0, 2]);
+    const leg = new OrderLeg();
+    leg.start(b, s, 2, 2, 1.1);
+    const g = leg.step(0.1, b, s, 2, 0, 2);
+    expect(leg.state).toBe(LEG_LOOK);
+    expect(leg.base).toBeCloseTo(1.1, 6);
+    expect(g.face).toBeCloseTo(1.1, 6);
+    // a NaN start yaw reads +Z
+    leg.start(b, s, 2, 2, Number.NaN);
+    leg.step(0.1, b, s, 2, 0, 2);
+    expect([leg.state, leg.base]).toEqual([LEG_LOOK, 0]);
+    // a reset board with no switch and no yaw: he faces the way he started too
+    const r = board(K_RESET, [2, 0, 2]);
+    leg.start(r.b, r.s, 2, 2, -0.4);
+    expect(leg.step(0.1, r.b, r.s, 2, 0, 2).face).toBeCloseTo(-0.4, 6);
+    expect(leg.state).toBe(LEG_RESET);
+  });
+
   it('a reset post stands at the board facing its switch; the leg keeps time for the caller', () => {
     const { b, s } = board(K_RESET, [2, 0, 2]);
     b.face.set([3, 2], s * 3);
     const leg = new OrderLeg();
-    leg.start(b, s, -5, 2);
+    leg.start(b, s, -5, 2, 0);
     const g = leg.step(0.1, b, s, 2, 0, 2.3);
     expect([leg.state, g.move, g.x, g.z]).toEqual([LEG_RESET, false, 2, 2]);
     expect(g.face).toBeCloseTo(Math.atan2(1, -0.3));
@@ -202,14 +283,43 @@ describe('OrderLeg', () => {
     expect(leg.state).toBe(LEG_RESET);
   });
 
+  it('a reset post with no face point faces the post yaw, else the arrival heading', () => {
+    const { b, s } = board(K_RESET, [2, 0, 2]);
+    b.face[s * 3 + 2] = 0.7;
+    const leg = new OrderLeg();
+    leg.start(b, s, -5, 2, 0);
+    const g = leg.step(0.1, b, s, 2, 0, 2);
+    expect(leg.state).toBe(LEG_RESET);
+    expect(g.face).toBeCloseTo(0.7, 6);
+    leg.step(0.5, b, s, 2.1, 0, 2);
+    expect(g.face).toBeCloseTo(0.7, 6);
+    const r = board(K_RESET, [2, 0, 2]);
+    leg.start(r.b, r.s, -5, 2, 0);
+    expect(leg.step(0.1, r.b, r.s, 2, 0, 2).face).toBeCloseTo(Math.PI / 2, 6);
+  });
+
   it('gives up after giveUp seconds of walking', () => {
     const { b, s } = board(K_WALK, [50, Number.NaN, 0]);
     const leg = new OrderLeg();
-    leg.start(b, s, 0, 0);
+    leg.start(b, s, 0, 0, 0);
     leg.step(ORDER.giveUp - 1, b, s, 0, 0, 0);
     expect(leg.state).toBe(LEG_TO_POST);
     const g = leg.step(1, b, s, 0, 0, 0);
     expect([leg.state, g.move]).toEqual([LEG_GIVEUP, false]);
+  });
+
+  it('gives up on a NaN stand point instead of arriving at once (with or without a via)', () => {
+    const { b, s } = board(K_WALK, [Number.NaN, Number.NaN, Number.NaN]);
+    const leg = new OrderLeg();
+    leg.start(b, s, 0, 0, 0);
+    const g = leg.step(0.1, b, s, 0, 0, 0);
+    expect([leg.state, g.move, Number.isNaN(g.face)]).toEqual([LEG_GIVEUP, false, true]);
+    const v = board(K_RESET, [Number.NaN, Number.NaN, Number.NaN], [5, 0]);
+    leg.start(v.b, v.s, 0, 0, 0);
+    expect(leg.step(0.1, v.b, v.s, 0, 0, 0).move).toBe(true); // to the via first
+    expect(leg.state).toBe(LEG_TO_VIA);
+    leg.step(0.1, v.b, v.s, 5, 0, 0); // past the via: no post to aim at
+    expect(leg.state).toBe(LEG_GIVEUP);
   });
 });
 
@@ -217,19 +327,26 @@ describe('checkMissionOrders', () => {
   // Two-Key-like: W3, the porter (slot 2) posted at (117, 48) in the lodge, the bell on its inner wall.
   const w3 = (porter: Partial<OrderSection['guards'][number]> = {}): OrderSection => ({
     id: 'w3',
-    guards: [{ x: 112, z: 46 }, { x: 90, z: 40, zone: 'w3-yard' }, { x: 117, z: 48, zone: 'w3-lodge-porter', ...porter }],
+    guards: [
+      { x: 112, z: 46 },
+      { x: 90, z: 40, zone: 'w3-yard' },
+      { x: 117, z: 48, zone: 'w3-lodge-porter', ...porter },
+    ],
   });
   const tkRooms = [room('w3-lodge', 114, 120, 44, 52), room('w3-passage', 96, 106, 52, 55.5, 0)];
-  const tkPost = (reach = 20): MissionPost => ({ id: 'w3-passage', x: 101, z: 53.75, y: 0, bell: { x: 118.5, y: 1.5, z: 50, reach } });
+  const tkPost = (reach = 20): MissionPost =>
+    ({ id: 'w3-passage', x: 101, z: 53.75, y: 0, bell: { x: 118.5, y: 1.5, z: 50, reach } });
   const tkEv: OrderEvent = { name: 'telltale', guardTag: 'w3-lodge-porter', postId: 'w3-passage' };
   // Split-Shift-like: S2, #7 (s2:6) and #1 (s2:0) by reception (a room id) to the plant board on 55 / 56.
   const s2: OrderSection = { id: 's2', guards: Array.from({ length: 7 }, (_, k) => ({ x: -20 + k * 3, z: -24 })) };
   const ssRooms = [room('foyer', -24, -12, -28, -20), room('plant', -6, 2, -20, -14)];
   const ssPosts = (circuits = [55, 56]): MissionPost[] => [{ id: 's2-plant-board', x: -2, z: -17, y: 0, circuits }];
-  const ssEv = (tag: string, via = 'foyer'): OrderEvent => ({ name: 'ss-power', guardTag: tag, postId: 's2-plant-board', via });
+  const ssEv = (tag: string, via = 'foyer'): OrderEvent =>
+    ({ name: 'ss-power', guardTag: tag, postId: 's2-plant-board', via });
   const tk = (sec = w3(), post = tkPost(), ev = tkEv, noisy: OrderSection['noisy'] = []) =>
     checkMissionOrders([ev], [sec], [post], tkRooms, noisy ?? []);
-  const ss = (posts = ssPosts(), evs = [ssEv('s2:6'), ssEv('s2:0')]) => checkMissionOrders(evs, [s2], posts, ssRooms, []);
+  const ss = (posts = ssPosts(), evs = [ssEv('s2:6'), ssEv('s2:0')]) =>
+    checkMissionOrders(evs, [s2], posts, ssRooms, []);
   const one = (errs: string[], re: RegExp): void => {
     expect(errs).toHaveLength(1);
     expect(errs[0]).toMatch(re);

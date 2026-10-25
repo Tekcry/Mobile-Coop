@@ -8,10 +8,11 @@
  * else a room centre (A2). A post with a `bell` is a sound: only a tagged guard who hears it comes (A4).
  *
  * The offer rule (A6, PLAN Design 1, one table for every kind): an order is offered ONCE, at its event, to the tagged
- * guards eligible at that moment; a tagged slot not placed yet is offered it once at its placement; a woken guard never.
- * An ineligible guard is recorded dropped with its cause and never picks it up later. The manager and `Enemy` apply the
- * rule; this module holds the board (`OrderBoard`: who is on which order, and how it stands), the walk stepper
- * (`OrderLeg`) and the data check Campaign Build's mission tests run (`checkMissionOrders`, C4).
+ * guards eligible at that moment; a tagged slot not placed yet is offered it once at its placement; a woken guard
+ * never. An ineligible guard is recorded dropped with its cause and never picks it up later (`OrderBoard.add` never
+ * revives him). The manager and `Enemy` apply the rule; this module holds the board (`OrderBoard`: who is on which
+ * order, and how it stands), the walk stepper (`OrderLeg`) and the data check Campaign Build's mission tests run
+ * (`checkMissionOrders`, C4).
  *
  * Yaw convention as `Enemy`: radians, 0 = +Z, yaw = atan2(dx, dz).
  *
@@ -58,7 +59,8 @@ export const ORDER = {
   /** (S1b) Gap (m) a follower keeps behind the group's first member (A6). */ followGap: 1.5,
   /** Radius (m) at which he has passed the via. */ atVia: 2.5,
   /** Longest walk (s) to the post: past it the order is dropped (a blocked or endless path). */ giveUp: 120,
-  /** Lowest bell hearing tier at which a tagged guard comes (1: anywhere inside the effective reach; A4). */ bellTier: 1,
+  /** Lowest bell hearing tier at which a tagged guard comes (1: anywhere inside the effective reach; A4). */
+  bellTier: 1,
   /** Orders on the board at once (fixed slots). */ maxOrders: 8,
   /** Guards on one order at most. */ maxMembers: 4,
   /** (S1a-a) Radius (m) at which he is at the post (and on its storey, `STOREY`). */ arrive: 0.8,
@@ -86,7 +88,12 @@ export function findPost(id: string, posts: readonly MissionPost[]): MissionPost
 
 /** Resolve a post / via id (A2): a mission post first (`out` = x, y ?? NaN, z, yaw ?? NaN), else the room with that
  *  id (its centre on its storey: y = `minY` ?? NaN, yaw NaN). False when neither. `out` length >= 4. */
-export function resolvePoint(id: string, posts: readonly MissionPost[], rooms: readonly RoomRect[], out: Float32Array): boolean {
+export function resolvePoint(
+  id: string,
+  posts: readonly MissionPost[],
+  rooms: readonly RoomRect[],
+  out: Float32Array,
+): boolean {
   const p = findPost(id, posts);
   if (p) {
     out[0] = p.x;
@@ -228,12 +235,16 @@ export class OrderBoard {
   }
 
   /** Put guard `num` on the slot in state `st` (`cause`: why he dropped). Already a member: as `set`, except that a
-   *  dropped offer never drops a member on his way. False: `maxMembers` full (not added). */
+   *  dropped offer never drops a member on his way (nothing recorded: nobody dropped), and a guard already recorded
+   *  dropped on the slot is never revived (A6: a dropped guard never picks the order up later; a repeat drop changes
+   *  nothing). False: he is not on the order in state `st`: `maxMembers` full (not added), or a dropped guard offered a
+   *  live / done state. S1a-2's `offer` adds `M_WALKING` before `takeOrder` and skips the take on false. */
   add(slot: number, num: number, st: number, cause = ''): boolean {
     const i = this.at(slot, num);
     if (i >= 0) {
-      if (!(st === M_DROPPED && liveSt(this.memSt[i]!))) this.set(slot, num, st, cause);
-      else if (cause !== '') this.cause[slot] = cause;
+      const was = this.memSt[i]!;
+      if (was === M_DROPPED) return st === M_DROPPED;
+      if (!(st === M_DROPPED && liveSt(was))) this.set(slot, num, st, cause);
       return true;
     }
     const n = this.memN[slot]!;
@@ -275,7 +286,11 @@ export class OrderBoard {
       else if (st === M_ARRIVED) arr = true;
       else if (st === M_DONE) done = true;
     }
-    this.phase[slot] = walk ? 'walking' : arr ? 'arrived' : this.pend[slot] !== '' ? 'offered' : done ? 'done' : 'dropped';
+    this.phase[slot] = walk ? 'walking'
+      : arr ? 'arrived'
+      : this.pend[slot] !== '' ? 'offered'
+      : done ? 'done'
+      : 'dropped';
   }
 
   /** Members walking or arrived on the slot. */
@@ -304,15 +319,19 @@ export class OrderBoard {
   }
 
   /** The order `name` cannot run (an unresolved post / via, a reset with no circuits, A2): a fresh slot reads
-   *  'dropped' with `cause`; a running order of that name keeps its members (the cause is recorded). */
-  fail(name: string, cause: string): void {
+   *  'dropped' with `cause`; a running order of that name keeps its members (the cause is recorded). False: the
+   *  board is full (every slot runs) and nothing is recorded (the name reads 'none'); S1a-2 logs it with `open`'s dev
+   *  warn. */
+  fail(name: string, cause: string): boolean {
     const s = this.open(name, K_WALK);
-    if (s < 0) return;
+    if (s < 0) return false;
     this.cause[s] = cause;
     this.refresh(s);
+    return true;
   }
 
-  /** Every slot free, `live` and `pendN` 0 (section load / restart, A8). The arrays are kept: identity never changes. */
+  /** Every slot free, `live` and `pendN` 0 (section load / restart, A8). The arrays are kept: identity never
+   *  changes. */
   clear(): void {
     for (let s = 0; s < this.slots; s++) this.reset(s);
     this.live = 0;
@@ -350,20 +369,24 @@ export class OrderLeg {
   t = 0;
   /** Time (s) walking (via and post legs). */
   walkT = 0;
-  /** Bearing (rad) the look-round sweeps round: the post yaw, else his arrival heading. */
+  /** Bearing (rad) the look-round sweeps round: the post yaw, else his arrival heading, else his yaw at the start. */
   base = 0;
   private sx = 0;
   private sz = 0;
+  private syaw = 0;
   readonly goal: OrderGoal = { x: 0, z: 0, y: Number.NaN, move: false, face: Number.NaN };
 
-  /** Start the order on `slot` from (x, z). */
-  start(b: OrderBoard, slot: number, x: number, z: number): void {
+  /** Start the order on `slot` from (x, z) facing `yaw` (rad; S1a-2 passes the guard's yaw). `yaw` is the arrival
+   *  heading's fallback: with no post yaw and no heading to take (he starts on the post, or the via sits on it), he
+   *  looks round (or stands at a board with no switch) facing the way he faced at the start. NaN reads 0 (+Z). */
+  start(b: OrderBoard, slot: number, x: number, z: number, yaw: number): void {
     this.state = b.via[slot * 3]! === b.via[slot * 3]! ? LEG_TO_VIA : LEG_TO_POST;
     this.t = 0;
     this.walkT = 0;
     this.base = 0;
     this.sx = x;
     this.sz = z;
+    this.syaw = yaw === yaw ? yaw : 0;
   }
 
   /** Off the order. */
@@ -401,6 +424,11 @@ export class OrderLeg {
       const px = b.pt[i]!;
       const py = b.pt[i + 1]!;
       const pz = b.pt[i + 2]!;
+      if (px !== px) {
+        // no stand point (the caller never filled it): give up rather than "arrive" at once
+        this.state = LEG_GIVEUP;
+        return this.idle();
+      }
       if (hyp2(px - x, pz - z) > ORDER.arrive || (py === py && Math.abs(y - py) > STOREY)) {
         g.x = px;
         g.y = py;
@@ -416,7 +444,7 @@ export class OrderLeg {
       else {
         const dx = px - this.sx;
         const dz = pz - this.sz;
-        this.base = dx * dx + dz * dz > 1e-6 ? Math.atan2(dx, dz) : 0;
+        this.base = dx * dx + dz * dz > 1e-6 ? Math.atan2(dx, dz) : this.syaw;
       }
       // arrived: the look / reset goal from this step on (t = 0)
       adv = 0;
@@ -469,10 +497,10 @@ function isCircuit(c: number): boolean {
 /**
  * Check a mission's order data (data time; allocates its result; Campaign Build's mission tests expect `[]`, C4):
  * every post id unique, a board's `circuits` non-empty integers >= 0, a `bell` reach finite > 0; per event, the tag
- * matches a guard of a section the mission runs, `postId` / `via` resolve (A2), no tagged guard stands a high-security
- * or lookout post (A7: the data whatever the `lookouts` flag), and every tagged guard hears the bell at his post through
- * one wall plus the section's masking (A4; plan distance: the runtime judges from the floor under the bell, the same on
- * one storey, S1a-g). Returns readable errors, each naming its post or event.
+ * matches a guard of a section the mission runs, `postId` / `via` resolve (A2), no tagged guard stands a
+ * high-security or lookout post (A7: the data whatever the `lookouts` flag), and every tagged guard hears the bell at
+ * his post through one wall plus the section's masking (A4; plan distance: the runtime judges from the floor under the
+ * bell, the same on one storey, S1a-g). Returns readable errors, each naming its post or event.
  */
 export function checkMissionOrders(
   events: readonly OrderEvent[],
@@ -488,8 +516,12 @@ export function checkMissionOrders(
     if (seen.has(p.id)) out.push(`mission post '${p.id}': duplicate post id`);
     seen.add(p.id);
     if (p.circuits !== undefined) {
-      if (p.circuits.length === 0) out.push(`mission post '${p.id}': empty circuits (a reset needs its board's circuits)`);
-      for (const c of p.circuits) if (!isCircuit(c)) out.push(`mission post '${p.id}': circuit ${c} is not an integer >= 0`);
+      if (p.circuits.length === 0) {
+        out.push(`mission post '${p.id}': empty circuits (a reset needs its board's circuits)`);
+      }
+      for (const c of p.circuits) {
+        if (!isCircuit(c)) out.push(`mission post '${p.id}': circuit ${c} is not an integer >= 0`);
+      }
     }
     if (p.bell && !(Number.isFinite(p.bell.reach) && p.bell.reach > 0)) {
       out.push(`mission post '${p.id}': bell reach ${p.bell.reach} is not a finite number > 0`);
@@ -498,7 +530,9 @@ export function checkMissionOrders(
   const pt = new Float32Array(4);
   for (const ev of events) {
     const what = `order event '${ev.name}' (tag '${ev.guardTag}')`;
-    if (!resolvePoint(ev.postId, posts, rooms, pt)) out.push(`${what}: post '${ev.postId}' is neither a mission post nor a room`);
+    if (!resolvePoint(ev.postId, posts, rooms, pt)) {
+      out.push(`${what}: post '${ev.postId}' is neither a mission post nor a room`);
+    }
     if (ev.via !== undefined && !resolvePoint(ev.via, posts, rooms, pt)) {
       out.push(`${what}: via '${ev.via}' is neither a mission post nor a room`);
     }
@@ -517,7 +551,10 @@ export function checkMissionOrders(
           const d = hyp2(g.x - bell.x, g.z - bell.z);
           const amb = ambientDb(sec.noisy ?? noisy, g.x, g.z, g.y);
           if (hearAt(d, effectiveReach(bell.reach, 1, amb), false) < ORDER.bellTier) {
-            out.push(`${who} would not hear the bell of '${ev.postId}' at his post (${d.toFixed(1)} m, one wall, ${amb.toFixed(1)} dB masking)`);
+            out.push(
+              `${who} would not hear the bell of '${ev.postId}' at his post ` +
+                `(${d.toFixed(1)} m, one wall, ${amb.toFixed(1)} dB masking)`,
+            );
           }
         }
       }
