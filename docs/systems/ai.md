@@ -10,7 +10,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   `DOOR_NOTICE_RANGE` 9 m, facing a door the player opened, with a clear line, hears it at the door (suspicion, he comes
   to look) and it joins the doors guards shut (`noticeOpenDoors`). The 15% threshold is `DOOR.driveShut` 0.15
   (`world/doors.ts`): a stick-driven door under it is still a crack, shut to the body, light and sight; the light
-  field's own cut for a swinging leaf stays `DOOR_SHUT` 0.05 (`world/lightField.ts`, `docs/systems/lighting.md`).
+  field's cut for a swinging leaf is the same 15% (`DOOR_SHUT` 0.15, `world/lightField.ts`, sector-batch). Not at 15%
+  yet: an ordinary open drops the door's body at once (`Doors.open`), so guard sight and hearing pass from 0% (J15).
 - Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
   sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
