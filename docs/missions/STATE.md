@@ -13,7 +13,8 @@ FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to clou
    FE docs step, then PR E. Resume-hosting has no e2e yet (lead-notes).
 4. PR F -hud 3aa144a2f (= -net + R6). Cloud briefs open: campaign-j7-r6-polish (base d6a5f5b6), campaign-j7-r8
    (base 3aa144a2f). On done: checker(s), merge both into -hud, laptop e2e-sectorops (all) + e2e-menus.
-5. (merged into 4)
+5. Mixamo kit moves (Michael ~00:15 overnight priority): Marlow owns the wiring on feature/mixamo-kit (engine + #477);
+   I merge its checked head into the engine. No-touch list sent to Marlow (lead-notes).
 6. J3b PR B = #482 (head bcff08a3, checker status posted, Job-done: hud-guidance): waits CI + affected-e2e;
    orchestrator told. Polish list in lead-notes.
 7. Laptop: gb6fix dc2aa9c8 (desktop FAIL at cpu 100%, laptop rerun queued), hg-b4 e72c8eab running; hg-b3 PASS.
