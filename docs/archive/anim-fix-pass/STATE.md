@@ -11,7 +11,7 @@ Done
 
 ```
 Resume anim-fix-pass (Player Build). Worktree C:/NightShift/Mobile-Coop-anim-fix-pass, branch feature/anim-fix-pass.
-Read C:/NightShift/scratch/ctcore/COMMON-27.md, then docs/anim-fix-pass/BRIEF.md, PLAN.md, STATE.md. Start the next
+Read C:/NightShift/scratch/ctcore/COMMON-27.md, then docs/archive/anim-fix-pass/BRIEF.md, PLAN.md, STATE.md. Start the next
 group in PLAN.md (one Opus implementer per slice, Sonnet for AF0; a fresh checker each; 1 fix round), after sheets
 with the before/README.md commands.
 ```

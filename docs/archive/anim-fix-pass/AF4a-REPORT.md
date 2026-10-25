@@ -17,7 +17,7 @@ hips' wander and the kneel on a stick flip; the rifle clip and the pistol betwee
 - `tests/crouchStrafe.test.ts` (new): the AF0 crouched aimed runs (rifle weight 1, pistol 0.7) with the controller's
   kneel rule applied to the pose (aimRun hard-codes KNEEL_STILL), bars below.
 
-## Numbers (AF0 harness, tests/crouchStrafe.test.ts; before = docs/anim-fix-pass/before/numbers.md)
+## Numbers (AF0 harness, tests/crouchStrafe.test.ts; before = docs/archive/anim-fix-pass/before/numbers.md)
 | run | pel lat p2p cm before -> after | beyond pace cm/frame | grip step cm/frame | knee-out cm | kneels on flip |
 | --- | --- | --- | --- | --- | --- |
 | rifle steady 0.4 / 0.7 | 2.2 -> 1.7 / 2.2 | 0.55-0.85 -> 0.3-0.6 | 0.37 / 0.55 | 2.5 -> 2.5-2.8 | - |

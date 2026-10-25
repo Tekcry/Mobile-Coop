@@ -1,7 +1,7 @@
 # mocap-trial - state
 
 ## 2026-10-22 ~23:20: fix round in (30c8ee3c), master 4.60.0 (44d7c2a7), six GPU suites running
-- Fix round (docs/mocap-trial/FIX-1.md): CHECK 1, 1b, 2, start-slot arms 0.5, note 5, plus two planner fixes for clip feet
+- Fix round (docs/archive/mocap-trial/FIX-1.md): CHECK 1, 1b, 2, start-slot arms 0.5, note 5, plus two planner fixes for clip feet
   (no turn-rule step while the other foot is about to lift; the planner swing's side pass fades in / out). Walk 1.4 / 2.0 x
   turn 1.5-4 rad/s: pelvis beyond speed x dt 0.8-1.7 cm (2.0 x 4: 2.005, left out of the assert), bone step 19-24 deg;
   start toe 26.0 -> 14.6 deg. Switch OFF byte-identical to master 4.59.0. mocapSwitch 12 / 12 (new pelvis-step assert).
@@ -54,6 +54,6 @@ current vs mocap) -> fresh checker -> PR (minor) -> message the orchestrator.
 ## Resume prompt
 ```
 mocap-trial: RESUME. Night Shift | CT Core Build. Folder C:/NightShift/Mobile-Coop-mocap-trial, branch
-feature/mocap-trial. Read CLAUDE.md, docs/ROADMAP.md, docs/mocap-trial/BRIEF.md, SOURCES.md and this STATE; carry on
+feature/mocap-trial. Read CLAUDE.md, docs/ROADMAP.md, docs/archive/mocap-trial/BRIEF.md, SOURCES.md and this STATE; carry on
 from "Next". Raw data: .mocap-cache/ (gitignored; re-fetch the takes in SOURCES.md if missing, one at a time).
 ```

@@ -57,7 +57,7 @@ guardGunCarry 2, guardHead 14, coopGuardCarry 8: all pass.
 - e2e-anim / e2e-clip on the laptop queue for 0448c359 (src/anim changed; the player's paths are unchanged except
   the crouched turn share, so e2e-anim's crouch turn rows are the ones to watch).
 - mocapStrafe alloc stays load-sensitive in CI (pre-existing).
-- animFixPass rewrites docs/anim-fix-pass/before/numbers.md when run (known since AF4b); restored, not committed.
+- animFixPass rewrites docs/archive/anim-fix-pass/before/numbers.md when run (known since AF4b); restored, not committed.
 
 Changelog: changes/feature-afp-af3.md "(CI fix) Guards keep their crouch ..." line.
 

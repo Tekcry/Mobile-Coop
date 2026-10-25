@@ -35,7 +35,7 @@ test file). Merge: one PR at the end (all groups), or per group if the lead want
 - Scenarios: jog 3.0 / run 4.0 / sprint 5.0 m/s straight and turning 1.5 / 2.5 / 4.0 rad/s both ways; walk 1.4 turns
   (control); crouch idle, gears 1-3 crouch walk and the gear 1 -> 3 ramp; crouched aimed strafe L / R at 0.4 / 0.7,
   stick flips and 10 stop-go cycles, rifle and pistol; drawn crouched wall slide both ways with a reversal.
-- tests/animFixPass.test.ts records these as the before numbers into docs/anim-fix-pass/before/numbers.md (report-only,
+- tests/animFixPass.test.ts records these as the before numbers into docs/archive/anim-fix-pass/before/numbers.md (report-only,
   never failing), so each later slice asserts against fixed bars in its own test file.
 - Fix anim-audit.mjs:478 crouch caps to GEARS.crouch; add a drawn crouched wall-slide sheet scenario (rifle + pistol)
   to scripts/anim-sheet.mjs; find why `--remote` with `E2E_NETSIM=typical` times out "waiting for everyone ready"
@@ -174,7 +174,7 @@ Acceptance: same kneel side over 10 stop-go cycles; pistol-hand lateral position
 gun vs leg capsules >= 0 cm and gun vs trunk >= -1 cm on every frame (rifle and pistol, strafe and wall slide incl.
 reversal); tests: keyedCrouch, wall* tests, crouchStrafe; e2e-anim (crouched aimed strafe) and e2e-clip.
 
-## Before (docs/anim-fix-pass/before/, 191c3565 + the aimcrouchstrafep scenario)
+## Before (docs/archive/anim-fix-pass/before/, 191c3565 + the aimcrouchstrafep scenario)
 See before/README.md for the commands, the sheets and the quick-audit numbers.
 
 ## Polish list (not slices; current goal)
