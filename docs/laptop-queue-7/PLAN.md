@@ -110,7 +110,8 @@ file:line below is origin/master 2a937eb6.
   `docs/kestrel/kestrel.blocks.json` in the delta -> null; newest success wins over an older one; a failure (or
   error) after a success -> null (V pass, D1 fail, H = D2: not carried); failure / no status on every chain commit ->
   null; a pending docs-only ancestor with a live claim -> { wait }; the same with no live claim -> null (H runs), and
-  -> { from } when an older commit has a success over a docs-only delta; a pending ancestor with a code delta -> null; docsOnlyFiles([])
+  -> { from } when an older commit has a success over a docs-only delta; a pending ancestor with a code delta -> null;
+  docsOnlyFiles([])
   false and the watchdog re-export is the same function; carryDesc length.
 - Size ~60 lib, ~70 service, ~1 watchdog, ~25 autoTrain tests, ~70 tests.
 
