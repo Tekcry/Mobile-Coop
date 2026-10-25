@@ -74,15 +74,35 @@ try {
   // (test-speed) and the menu theme's decode (its fetch reaches the worker's cache): going offline mid-fetch logged
   // "music menu TypeError: Failed to fetch" once (PR #34 full run, 2026-10-20)
   await page.waitForFunction(() => (window.__app?.music?.debug?.ready ?? '').split(',').includes('menu'), null, { timeout: 30000, polling: 200 }).catch(() => {});
-  // (gm-polish) the menu warms every guard file play fetches (`warmGuardFiles`, after Wren's chain): three bases x
-  // LOD0-2 and the shield's LOD1 in the `guards` cache, so the offline match below draws guard figures from it
-  const guards = await page.waitForFunction(async () => {
-    if (!(await caches.has('guards'))) return null;
-    const names = (await (await caches.open('guards')).keys()).map((r) => r.url.slice(r.url.lastIndexOf('/') + 1));
-    return names.length >= 10 ? names : null;
-  }, null, { timeout: 90000, polling: 500 }).then((h) => h.jsonValue()).catch(() => null);
-  const lod2s = (guards ?? []).filter((n) => /^guard-(average|lean|broad)-lod2/.test(n)).length;
-  assert(!!guards && lod2s === 3 && guards.some((n) => /^guard-shield_riot-lod1/.test(n)), `the menu warmed the guard files into the offline cache (${guards ? `${guards.length} files, ${lod2s} LOD2` : 'missing'})`);
+  // (gm-polish) the menu warms every guard file play fetches (`warmGuardFiles`, after Wren's chain): the three bases'
+  // LOD2 and the shield's LOD1 in the `guards` cache (and each base's LOD0 + LOD1 without `?gfx=min`: 10 files; this
+  // page runs `?gfx=min`, launch adds it: 4), so the offline match below draws guard figures from it.
+  // (gm-polish fix) polled with `page.evaluate` + a pause, not `waitForFunction`: Playwright never awaits a
+  // waitForFunction predicate, so an async one counts its Promise as truthy and settles on its FIRST result (null
+  // here: the suite failed in 8 s, never waiting). Retried to one deadline; the last error is printed.
+  const guardsBy = Date.now() + 90000;
+  let guards = null;
+  let guardsSeen = [];
+  let guardsErr = '';
+  while (!guards && Date.now() < guardsBy) {
+    const got = await G(async () => {
+      const min = /[?&]gfx=min/.test(location.search);
+      if (!(await caches.has('guards'))) return { min, names: [] };
+      return { min, names: (await (await caches.open('guards')).keys()).map((r) => r.url.slice(r.url.lastIndexOf('/') + 1)) };
+    }).catch(async (e) => {
+      guardsErr = String(e).split('\n')[0];
+      await booted().catch(() => {});
+      return null;
+    });
+    if (got) {
+      guardsSeen = got.names;
+      const lod2 = got.names.filter((n) => /^guard-(average|lean|broad)-lod2/.test(n)).length;
+      if (lod2 === 3 && got.names.some((n) => /^guard-shield_riot-lod1/.test(n)) && got.names.length >= (got.min ? 4 : 10)) guards = got.names;
+    }
+    if (!guards) await page.waitForTimeout(500);
+  }
+  const lod2s = guardsSeen.filter((n) => /^guard-(average|lean|broad)-lod2/.test(n)).length;
+  assert(!!guards, `the menu warmed the guard files into the offline cache (${guardsSeen.length} files, ${lod2s} LOD2${guards ? '' : `: ${guardsSeen.join(', ') || 'none'}${guardsErr ? `; last error: ${guardsErr}` : ''}`})`);
 
   console.log('offline boot');
   await ctx.setOffline(true);
