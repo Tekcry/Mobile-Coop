@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-25T23:08Z
+status: done feature/map-ready-s14 763fc7bfba8d856aa576711cae9c4fd4b9cb4beb
 # map-ready S14 (cloud): compile log and parallel priority compile (code + unit tests)
 
 Lead: Night Shift | Sector Ops Build. Job map-ready (FOLDED-PLAN J21, ROADMAP Now row 17; Michael's near-instant loads
@@ -34,3 +34,20 @@ code).
   `docs/map-ready/checks/s14-build.md` (per step: files, tests with counts, deviations each with its undo, the pending
   PC runs with step 6's lines); then `status: done feature/map-ready-s14 <sha>` here with a short report below.
 - Model hint: Opus 5.5.
+
+## Report (Night Shift | Cloud Builder 4, 2026-10-25 ~23:40Z)
+Branch `feature/map-ready-s14` from a85f3db93, head 763fc7bfba8d856aa576711cae9c4fd4b9cb4beb. Commits: 221635bf5 (step 1 compile log + test), 28e90f014
+(step 2 compile order + test), a3db057aa (step 3 log in GameState), 2947b7dae (step 4 cut A), 624014911 (step 5 measure
+script), 763fc7bfb (fragment + report). Full report: `docs/map-ready/checks/s14-build.md` on the branch.
+- Checks: `npx tsc --noEmit -p .` clean; eslint clean; vitest compileLog 9, compileOrder 8, mapGate 15, mapReadyStats 7,
+  menuGate 10, changesFragments 1 = 50 / 50; `node --check` on the measure script; doc-lint 0 errors.
+- Step 3 code read: `frameUpdate` does run during S2's hold (`Loop.frame` calls it with dt 0 while paused,
+  `src/core/loop.ts:214`), so the poll is in `frameUpdate` only. `Loop.advance` and a hidden tab skip frames; the log
+  then catches up on the next frame (late ready times).
+- Deviations (each with its undo in the report): `summary` adds ", none finished" / ", N pending at T s"; a finished
+  log ignores late calls; serial no longer ends the chain on a thrown group (S2 skipped the rest); an exited match keeps
+  its watched effects until the state is collected (`exit()` is not this slice's; one-line undo named).
+- Parallel note: the guards group starts at quality + content, before `bodies`; unloaded guard bodies compile later in
+  rest / `gateDrawReady`.
+- Size: 691 + / 36 - code, plus the report.
+- Step 6: pending PC run; the three request lines are in the report.
