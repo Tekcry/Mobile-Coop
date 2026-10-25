@@ -3,10 +3,44 @@ import type { SectorDef, SectorGuard } from '../../../game/sectors';
 import type { SecurityDesk } from '../../../game/sectorDesks';
 import type { SecurityData } from '../../../security/data';
 import type { CampusAlarm, CampusSectionParts } from '../campusParts';
-import { buildCampusS1, C1_BOX, S1_COOP_LIPS, S1_DOORS, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './s1';
+import { buildCampusS1, C1_BOX, S1_COOP_LIPS, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES, type S1Colour, type S1Lights } from './s1';
 import { dressS1, HERO_S1, S1_ART_TAGS } from './s1Dress';
 
 const PI = Math.PI;
+
+// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1).
+// TODO(light-realism): replace with calibrated values.
+/** The warm sodium and the cool white of S1's fittings (linear RGB). */
+export const SODIUM: S1Colour = [1, 0.72, 0.38];
+export const WHITE: S1Colour = [1, 0.95, 0.88];
+/**
+ * (campus-greybox S1 G1) Every S1 lamp in one block (lead note, Michael ~09:05 "Real-world levels"; job BRIEF A19): position,
+ * height, radius, intensity, colour, cone and circuit. `buildCampusS1` draws every lamp, column pillar and lamp post from it
+ * (`S1_PARTS.build`), so light-realism's calibration retunes this block only. Today's engine values (the as-built S1, B:214-314).
+ */
+export const S1_LIGHTS: S1Lights = {
+  // the car-park columns (6.0 pillars, sodium cones) on the feeder pillar's two circuits
+  columnsW: [[-34, -62], [-28, -62], [-22, -62], [-16, -62], [-34, -53], [-28, -53], [-22, -53], [-16, -53]],
+  columnsE: [[-10, -62], [-4, -62], [2, -62], [-10, -53], [-4, -53], [2, -53]],
+  column: { pillarH: 6.0, pillarR: 0.15, y: 6.0, r: 12, i: 0.9, colour: SODIUM, cone: [0, -1, 0, 1.15], w: 0.6, groupW: S1_GROUPS.parkW, groupE: S1_GROUPS.parkE },
+  // the forecourt light bollards on the yard board's circuit
+  bollards: { xs: [-28, -24, -20, -16, -12, -8, -4, 0], z: -45.5, postH: 0.9, postR: 0.08, y: 0.85, r: 4.5, i: 0.5, colour: SODIUM, group: S1_GROUPS.fore, w: 0.2 },
+  // the entrance canopy downlights (A65: the east pair at x -18.5)
+  canopy: { pts: [[-23, -38], [-18.5, -38], [-23, -35.6], [-18.5, -35.6]], y: 4.1, r: 4.5, i: 0.85, colour: WHITE, group: S1_GROUPS.canopy, cone: [0, -1, 0, 1.0], w: 0.5 },
+  // the dock lamp over the plant room's goods door, on the yard board
+  dock: { x: -33, y: 2.7, z: -40.4, r: 5, i: 0.8, colour: WHITE, group: S1_GROUPS.fore, cone: [0, -0.8, -0.6, 1.0], w: 0.4 },
+  // the lane floodlight (photocell: no switch, shot only)
+  laneFlood: { x: 9, y: 6.0, z: -66, r: 12, i: 0.8, colour: SODIUM, group: S1_GROUPS.lane, cone: [0, -1, 0, 1.15], w: 0.6, poleH: 6.0, poleR: 0.15 },
+  // the gatehouse ceiling tube (switch by its door)
+  gate: { x: 17, y: 2.9, z: -76, r: 5.5, i: 0.9, colour: WHITE, group: S1_GROUPS.gate, cone: null, w: 0.6 },
+  // (G2, D:67) the warm desk lamp on the CCTV desk, on the gate circuit (colour and intensity A6)
+  deskLamp: { x: 18.6, y: 1.2, z: -73.4, r: 2.5, i: 0.9, colour: SODIUM, group: S1_GROUPS.gate, cone: null, w: 0.2 },
+};
+/** The lists `s1.ts` re-exports (the dress and the tests read them by these names). */
+export const PARK_COLUMNS_W = S1_LIGHTS.columnsW;
+export const PARK_COLUMNS_E = S1_LIGHTS.columnsE;
+export const BOLLARD_XS = S1_LIGHTS.bollards.xs;
+export const CANOPY_LAMPS = S1_LIGHTS.canopy.pts;
 
 /*
  * Section 1 data (the gatehouse, car park and forecourt; `docs/sector-redesign/SPEC.md` "S1"), moved out of
@@ -18,10 +52,12 @@ const PI = Math.PI;
 
 /** Section 1's guards (SPEC "S1" guard table; kinds and weapons as listed: officer = pistolSd, grunt = rifle). */
 export const S1_GUARDS: SectorGuard[] = [
-  // 1 the gate officer: works the barrier, waits for the 03:00 courier; at the reception window, facing west onto the lane
-  { kind: 'officer', x: 16, z: -76, yaw: -PI / 2, takedownSpot: [16, -76.4], role: 'gate', zone: 'gatehouse', squad: 0, reason: 'Works the barrier and waits for the 03:00 courier' },
-  // 2 the CCTV officer: the monitors at his desk (28 s), the kettle (5 s) every ~39 s; alone at the kettle, facing the counter
-  { kind: 'officer', x: 18.3, z: -74.8, yaw: 0, route: [[18.3, -74.8], [18.4, -77.65]], waits: [28, 5], faces: [0, PI], takedownSpot: [18.4, -77.65], role: 'cctv', zone: 'gatehouse', squad: 0, reason: 'Watches the cam-gate and cam-walk monitors; the kettle is on the other side of the room' },
+  // 1 (G2, D:239) the gate officer: works the barrier, waits for the 03:00 courier; posted at the reception window, facing west
+  // onto the lane; his takedown spot 0.5 m behind him (A7)
+  { kind: 'officer', x: 14.6, z: -76, yaw: -PI / 2, takedownSpot: [15.1, -76], role: 'gate', zone: 'gatehouse', squad: 0, reason: 'Works the barrier and waits for the 03:00 courier' },
+  // 2 (G2, D:240) the CCTV officer, the desk operator: the monitors at his desk (28 s), the kettle (5 s, A8: the as-built stop),
+  // a 41.7 s cycle; alone at the kettle (4.47 m from the desk, outside DESK_POST_RADIUS), facing the counter
+  { kind: 'officer', x: 18.3, z: -73.6, yaw: 0, route: [[18.3, -73.6], [18.4, -77.65]], waits: [28, 5], faces: [0, PI], takedownSpot: [18.4, -77.65], role: 'cctv', zone: 'gatehouse', squad: 0, reason: 'Watches the cam-gate and cam-walk monitors; the kettle is on the other side of the room' },
   // 3-4 the car-park pair: a timed loop of the aisle (a 42 s master clock), side by side, facing each other at every stop
   {
     kind: 'grunt',
@@ -61,6 +97,8 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: -38, z: -66, yaw: PI, route: [[-38, -66], [-34, -50]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-34, -50.6], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
   // 8 the delivery sentry: a sweep at the dock door, +-60 degrees, 12 s each way
   { kind: 'grunt', x: -34, z: -41.6, yaw: PI - 1.05, route: [[-34, -41.6], [-32, -41.6]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.2], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
+  // 9 (G2, D:241) the night supervisor: the log desk (20 s), the door step facing the lane (5 s), a 30.8 s cycle
+  { kind: 'officer', x: 15.2, z: -73.6, yaw: 0, route: [[15.2, -73.6], [17, -71.6]], waits: [20, 5], faces: [0, -PI / 2], takedownSpot: [17, -71.6], role: 'desk', zone: 'gatehouse', squad: 0, reason: 'Night supervisor: signs the log, checks the barrier for the 03:00 courier' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */
@@ -71,11 +109,11 @@ export const S1_CAMERAS: SecurityData['devices'] = [
   { id: 'cam-walk', kind: 'camera', level: 'ground', at: [-17, -34.5], y: 3.4, aim: 8, range: 10, facing: 205, sweep: [185, 225], reason: 'S1: the walkway from the car park to the staff door', section: 0 },
 ];
 
-/** Section 1's security desks (none yet). */
-export const S1_DESKS: SecurityDesk[] = [];
+/** Section 1's security desk (G2, D:73, SY:9): the gatehouse CCTV desk, run by #2 (index 1). Sync node `sync-s1-gate-desk`. */
+export const S1_DESKS: SecurityDesk[] = [{ id: 'desk-gate', section: 0, at: [18.8, -73.2], yaw: 0, cameras: ['cam-gate', 'cam-walk'], operator: 1 }];
 
-/** Section 1's alarm panel: the gatehouse's, by its door, facing into the room. */
-export const S1_ALARMS: CampusAlarm[] = [{ at: [15.0, -73.3], yaw: PI, section: 0 }];
+/** Section 1's alarm panel: the gatehouse's, by its door, facing into the room (G2, D:61). */
+export const S1_ALARMS: CampusAlarm[] = [{ at: [15.0, -72.8], yaw: PI, section: 0 }];
 
 /** Section 1's sector: the gatehouse PC download, C1 into the staff entrance. */
 export const S1_SECTOR: SectorDef = {
@@ -128,7 +166,7 @@ export const S1_SECTOR: SectorDef = {
 
 /** (campus-greybox P0) Section 1's parts for the map (`campusSections.ts`). */
 export const S1_PARTS: CampusSectionParts = {
-  build: buildCampusS1,
+  build: (b) => buildCampusS1(b, S1_LIGHTS),
   spawns: S1_SPAWNS,
   pickups: S1_PICKUPS,
   hideSpots: S1_HIDESPOTS,
@@ -151,4 +189,4 @@ export const S1_PARTS: CampusSectionParts = {
 
 /** (campus-greybox) True while this v2 section is still an exact copy of the live one (`tests/campusV2.test.ts`
  *  checks it equals v1); the lane sets it false with its first layout change. */
-export const S1_V2_COPY = true;
+export const S1_V2_COPY = false;
