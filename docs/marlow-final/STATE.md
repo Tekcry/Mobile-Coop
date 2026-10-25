@@ -491,7 +491,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs/VISION.md from origin/master; boot: docs/orchestrator/BOOT.md "Marlow Build" (origin/feature/menu).
 Area: Marlow Yard, level validator, route-runs, guard cap, level standard (docs/level-design.md, docs/templates/map-spec.md).
 Row 6 SIGNED OFF (Michael ~17:00): no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); Michael's 39 answers in ROADMAP "Decided" override it.
-CPU hold (orchestrator, swap 18:30): no new agents (checkers, planners, builders) until the orchestrator messages CPU < 80%.
+CPU cap (orchestrator ~18:45): at most 2 agents at once, tsc / single vitest only, no Blender, no build, no e2e by hand; lifted fully when the orchestrator says CPU < 80%.
 State at the 18:30 swap (the old account's agents are gone; each PR: read `checker` status on its head):
 - #436 J1 docs (feature/marlow-docs-j1 90b0ed82): checker PASS, labelled train-ready. Nothing owed.
 - #441 J5 Marlow objective lines (feature/marlow-objective-place 8609e12e): affected-e2e queued on the laptop; needs its Opus checker (text + tests/ctcourse/objectivePlace.test.ts).
@@ -501,5 +501,5 @@ State at the 18:30 swap (the old account's agents are gone; each PR: read `check
 - J14 Marlow Yard re-plan: origin/feature/marlow-replan 9b96ebf3 has graph.json, validate-run.txt, replan-plan.svg (to-scale plan); REPLAN.md (one page for Michael), BRIEF and STATE are missing. Rerun the planner to finish from those (Michael's Q5, Q11, Q18, Q24, Q25, Q29, Q2, Q6; format like origin/feature/sector-redesign-signoff docs/sector-redesign/signoff/). When ready: message the orchestrator "re-plan page ready for Michael".
 - J21 guard cap: docs on #436; resume block docs/guard-cap/STATE.md. Waits for Guard AI's J4 (G327) on master, then C1.
 Process (walk cap, train-ready, locks, laptop requests): RULES "Walk pacing", "Getting to master", "Machines". Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-Next: on the orchestrator's CPU < 80% message, start in this order: #443 checker, J12 and J13 plan checkers, J14 planner, #441 checker.
+Next: running since ~18:45: J14 planner and the #443 checker (read their pushes / `checker` status). As each slot frees: J12 plan checker, J13 plan checker, #441 checker.
 ```
