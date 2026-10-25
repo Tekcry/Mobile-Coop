@@ -1,6 +1,7 @@
 // (mixamo-retarget M1) Dumps the downloaded Mixamo FBX takes to JSON through a headless Blender (py/mixamo_dump.py), the
 // input of the Mixamo take adapter (mixamoTake.mjs). Format: docs/mixamo-retarget/PLAN.md "Dump format".
-//   node scripts/mocap/mixamo.mjs [--dir <fbx folder>] [--force] [--dry]
+//   node scripts/mocap/mixamo.mjs [--dir <fbx folder>] [--only <slug,slug,...>] [--force] [--dry]
+//     (--only: those files alone; the manifest keeps its other entries. mixamo-retarget I6)
 //     -> build/mocap/mixamo/raw/<slug>.json + build/mocap/mixamo/manifest.json
 // The FBX folder is C:/NightShift/scratch/mixamo/clips/ (or MIXAMO_DIR / --dir): raw Mixamo files never enter the repo.
 // File names keep their spaces and parentheses; they reach Blender inside a jobs JSON file, never on a command line.
@@ -117,12 +118,17 @@ export function manifestOf(planned, { readDump = defaultIo.readDump } = {}) {
  * The whole run. `deps` is injectable for tests: `{ io, findBlender, runBlender, readdir, writeFile, mkdir }`.
  * Returns `{ planned, ran, manifest }`.
  */
-export async function dumpAll({ dir = DEFAULT_DIR, outDir = MIXAMO_OUT, force = false, dry = false, deps = {} } = {}) {
+export async function dumpAll({ dir = DEFAULT_DIR, outDir = MIXAMO_OUT, force = false, dry = false, only = null, deps = {} } = {}) {
   const io = deps.io ?? defaultIo;
   const writeFile = deps.writeFile ?? writeFileSync;
   const mkdir = deps.mkdir ?? ((p) => mkdirSync(p, { recursive: true }));
-  const clips = listClips(dir, { readdir: deps.readdir ?? readdirSync });
+  let clips = listClips(dir, { readdir: deps.readdir ?? readdirSync });
   if (!clips.length) throw new Error(`mixamo: no .fbx files in ${dir}`);
+  if (only) {
+    const missing = only.filter((s) => !clips.some((c) => c.slug === s));
+    if (missing.length) throw new Error(`mixamo: --only names no file for ${missing.join(', ')}`);
+    clips = clips.filter((c) => only.includes(c.slug));
+  }
   const planned = planDumps(clips, outDir, { force, io });
   const todo = planned.filter((c) => !c.skip);
   if (dry) return { planned, ran: [], manifest: null };
@@ -135,6 +141,12 @@ export async function dumpAll({ dir = DEFAULT_DIR, outDir = MIXAMO_OUT, force = 
     await run(findBlender().exe, blenderArgs(jobsFile));
   }
   const manifest = manifestOf(planned, { readDump: io.readDump });
+  const mPath = path.join(outDir, 'manifest.json');
+  if (only && io.exists(mPath)) {
+    // (I6) a partial run keeps the other clips' entries
+    const kept = (io.readDump(mPath).clips ?? []).filter((c) => !only.includes(c.slug));
+    manifest.clips = [...kept, ...manifest.clips].sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
+  }
   writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 1) + '\n');
   return { planned, ran: todo, manifest };
 }
@@ -146,6 +158,7 @@ function cli(argv) {
     if (a === '--dir') opt.dir = argv[++i];
     else if (a === '--force') opt.force = true;
     else if (a === '--dry') opt.dry = true;
+    else if (a === '--only') opt.only = (argv[++i] ?? '').split(',').map((x) => x.trim()).filter(Boolean);
     else throw new Error(`mixamo: unknown argument ${a}`);
   }
   return opt;

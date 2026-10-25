@@ -132,6 +132,18 @@ describe('mixamo dump driver (M1)', () => {
     expect(planDumps(clips, OUT, { io: fs.io, force: true }).every((c: { skip: boolean }) => !c.skip)).toBe(true);
   });
 
+  it('(I6) --only dumps those files alone and the manifest keeps its other entries', async () => {
+    const fs = fakeFs(['Standing Idle.fbx', 'Cross Punch.fbx', 'Walking.fbx', 'Box Jump.fbx']);
+    const mPath = path.join(OUT, 'manifest.json');
+    fs.dumps.set(mPath, { clips: [{ file: 'Standing Idle.fbx', slug: 'standing_idle' }, { file: 'Cross Punch.fbx', slug: 'cross_punch' }] } as never);
+    const r = await dumpAll({ dir: DIR, outDir: OUT, only: ['walking'], deps: fs.deps });
+    expect(r.ran.map((c: { slug: string }) => c.slug)).toEqual(['walking']);
+    expect(fs.runs[0]!.jobs.map((j) => j.slug)).toEqual(['walking']);
+    const m = JSON.parse(fs.written.get(mPath)!);
+    expect(m.clips.map((c: { slug: string }) => c.slug)).toEqual(['cross_punch', 'standing_idle', 'walking']);
+    await expect(dumpAll({ dir: DIR, outDir: OUT, only: ['walking', 'nope'], deps: fs.deps })).rejects.toThrow(/no file for nope/);
+  });
+
   it('a dry run plans without calling Blender or writing', async () => {
     const fs = fakeFs(['Standing Idle.fbx']);
     const r = await dumpAll({ dir: DIR, outDir: OUT, dry: true, deps: fs.deps });
