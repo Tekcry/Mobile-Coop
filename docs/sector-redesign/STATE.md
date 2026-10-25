@@ -361,8 +361,11 @@ PR (S1-S5). J10 datasheet: numbers only, never committed.
 1. Train-ready (05:00): #457, #459, #469, #474, #483. #481 (J16 A2) STACKED on #459: retarget to master when #459
    merges (Opus PASS S2 + delta; coop-gate queued). Next touch of #481: fragment / lighting.md say bodies and guard
    perception read it (not yet: a2-delta-check.md).
-2. PR #488 A28 `?sectorStart=N` (2e5465e32, src/net): TWO Opus checkers IN FLIGHT (a28-check-1.md, -2.md); post one
-   `checker` status when both PASS; affected covers coop + sectorops:1.
+2. PR #488 A28 `?sectorStart=N` (2e5465e32, src/net): two Opus checkers FIX, same B1 (a client that enters before the
+   host's `start()` is judged against section 1 and never placed; a28-check-1.md / -2.md); `checker` failure posted.
+   Fix round: cloud brief campus-greybox-a28-fix1 (Opus; one-shot re-check of early remotes on the host's first
+   fixedUpdate). On done: TWO Opus delta checkers; affected reruns on the new head (covers coop + sectorops:1). The
+   affected run on 2e5465e32 kept running: its co-op leg failing is expected evidence of B1.
 3. J16: PR #489 B1 = S3 + S3b-1 (7cb564a5c, gate 1616 B), STACKED on #459 like #481: Opus PASS on 6fb0adfcf, docs
    delta checker IN FLIGHT; retarget to master when #459 merges. S3b-2 (GameState wiring, lead brief) after #481; add
    a Q-first test case (csm-s3b-check.md polish).
