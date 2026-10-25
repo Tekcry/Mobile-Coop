@@ -353,8 +353,9 @@ rule (a heavy landing retries the station).
 **Assumptions** (logged, each with its undo)
 - **SA1 Reset rule.** A retry of station n resets each guard on n's `guards` list that was knocked out, alerted or moved
   since n went live (a guard dealt with at an earlier station stays as left, PLAN A17; this is why a guard may sit on
-  several stations' lists), plus any guard holding combat on a player at that moment, listed or not, so the cause of a
-  retry never repeats it. Undo: reset the listed guards only, and list every guard that can see a station's ground.
+  several stations' lists), plus any guard alerted in the bay at that moment, listed or not, so the cause of a retry
+  never repeats it (lead answer to OQ1, J14 wave 2). Undo: reset the listed guards only, and list every guard that can
+  see a station's ground.
 - **SA2 Line keys.** A station's lines are `bay.radio` rows at `retry:<station id>` and `retry:<station id>:timer`. Undo:
   a `say` field on the station (an S0 fix).
 - **SA3 Marks by role.** `marks[0]` goes to role A, `marks[1]` to role B (the bay's role claim; P1 / P2 without one).
@@ -392,7 +393,11 @@ rule (a heavy landing retries the station).
   irons at its ends), so a fall is a walk back, never a soft-lock. Station 15: a hanger who lets go before the key drops
   into the pit and walks out by the cage's push-bar door (graph `a6-pit` -> `a6-floor`); no retry needed.
 
-**Open questions for the lead** (assumed as above meanwhile; none blocks a set slice)
+**Open questions for the lead** (assumed as above meanwhile; none blocks a set slice). Lead answers (J14 wave 2, sent to
+S0 / R1): OQ1 the listed guards plus any guard alerted in the bay (SA1); OQ2 `StationDef` keeps its shape, each set file
+runs its own drill windows (section 5) and calls R1's host `stationRetry(n, 'timer')`; OQ3 `n` 1-21 and play order not
+rising; OQ4 the beam trip on station 13 is the set's `stationRetry(13, 'seen')`; OQ5 marks by role (SA3); OQ6 goes to
+G-A6's brief.
 - **OQ1 (R1)** The reset rule SA1. Without its "any guard in combat" part, a guard who caused a retry but is not on that
   station's list stays in combat and the retries repeat.
 - **OQ2 (R1, S0)** Drill windows (section 5): `StationDef` has only `drillS`. R1 needs each drill's window source (gate,
