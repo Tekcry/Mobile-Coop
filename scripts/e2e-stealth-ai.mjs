@@ -10,7 +10,9 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+// (guard-ai-mission-hooks S1a-e) flags are URL-only and the suite is one page: `missionorders=1` is on for the whole
+// suite (only the 'mission order' scenario places an order; with no order on the board every hook is a no-op)
+const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear&missionorders=1' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -3397,6 +3399,210 @@ try {
     assert(r.nearK < 1.5 && r.searchingThere, `dog release: it gets to the known position and searches there (closest ${r.nearK.toFixed(2)} m; ${s})`);
     assert(r.hCalm && r.hMoved < 0.5, `dog release: the handler stays calm and put (${r.hLevel}, moved ${r.hMoved.toFixed(2)} m)`);
     assert(r.heel1.held >= 10 && r.heel1.toSpot < 1.5 && r.heel1.spotToH < 2, `dog release: the search over, it heels on its handler again (${JSON.stringify(r.heel1)}, mid ${JSON.stringify(r.mid)})`);
+  });
+
+  await scen('mission order (guard-ai-mission-hooks S1a)', async () => {
+    // (guard-ai-mission-hooks S1a, D7, A4-A6) `?missionorders=1` (S1a-e: the whole page; no other scenario places an
+    // order). (a) A bell order, porter style: the tagged guard who hears the bell walks calmly to the post, looks round
+    // ORDER.lookT (8 s) and goes back to his route; a tagged guard out of the bell's reach and a knocked-out one never
+    // come; an untagged bystander only turns. (b) A reset order on a breaker walk already running: the walker takes it
+    // over, no tamper check, he relights the circuit himself, one reset. Sim-time steps only; Math.random seeded.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const nav = em.nav;
+      const reg = g.world.level.lights;
+      const rnd = Math.random;
+      let seed = 4242;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+      // the order's phases, consecutive duplicates collapsed
+      const track = (seen, name) => {
+        const ph = em.orderPhase(name);
+        if (seen[seen.length - 1] !== ph) seen.push(ph);
+      };
+      const out = {};
+      try {
+        t.light(0);
+        // the player far off, dark and crouched
+        const hide = [-22, -24];
+        t.tp(hide[0], hide[1], 0);
+        t.crouch(true);
+        const floor = (x, z) => {
+          const c = nav.cellOf(x, z, 0);
+          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        };
+        // ----- (a) the bell -----
+        const tag = 'e2e-porter';
+        const P = t.spawn('grunt', 3, 5.5, 0);
+        em.placeSlot(P, { yaw: 0, zone: tag }, 0);
+        P.setPatrol({ points: [[P.pos.x, P.pos.z], [P.pos.x, P.pos.z + 2]], wait: 1 });
+        const B = t.spawn('grunt', 7.5, 4, Math.PI / 2);
+        em.placeSlot(B, { yaw: Math.PI / 2 }, 0);
+        const O = t.spawn('grunt', -14.5, 4, 0);
+        em.placeSlot(O, { yaw: 0, zone: tag }, 0);
+        const K = t.spawn('grunt', 6, -2, Math.PI);
+        em.placeSlot(K, { yaw: Math.PI, zone: tag }, 0);
+        t.kill(K, true);
+        t.step(0.5);
+        // nobody finds him (the walk stays calm): the body is out of sight, still on the manager's list
+        const kb = em.bodies.find((b) => b.guard === K);
+        if (kb) kb.hidden = true;
+        // the post: open floor 8-12 m from P, at least 4 m from O, a straight walkable line from P
+        let post = null;
+        for (const rr of [10, 9, 11, 8, 12]) {
+          if (post) break;
+          for (let a = 0; a < 24; a++) {
+            const x = P.pos.x + Math.sin((a / 24) * Math.PI * 2) * rr;
+            const z = P.pos.z + Math.cos((a / 24) * Math.PI * 2) * rr;
+            if (!floor(x, z) || Math.hypot(x - O.pos.x, z - O.pos.z) < 4 || Math.hypot(x - hide[0], z - hide[1]) < 12) continue;
+            if (!nav.lineClear([P.pos.x, P.pos.z], [x, z], 0, 0)) continue;
+            post = [x, z];
+            break;
+          }
+        }
+        out.post = post;
+        const bell = { x: 3, y: 1.5, z: 3, reach: 12 };
+        const posts = post ? [{ id: 'e2e-look', x: post[0], z: post[1], bell }] : [];
+        em.setMissionMap(['wh'], posts);
+        if (post) {
+          out.oToBell = Math.hypot(O.pos.x - bell.x, O.pos.z - bell.z);
+          const homeO = [O.pos.x, O.pos.z];
+          const homeB = [B.pos.x, B.pos.z];
+          em.missionOrder(tag, 'walk', 'e2e-look', undefined, 'e2e-bell');
+          out.members = em.orderMembers('e2e-bell');
+          out.ofP = em.orderOf(P);
+          out.ofO = em.orderOf(O);
+          let bTurn = B.turning;
+          const seen = [];
+          track(seen, 'e2e-bell');
+          let tt = 0;
+          let maxSpeed = 0;
+          let last = [P.pos.x, P.pos.z];
+          let arrivedAt = -1;
+          let doneAt = -1;
+          let atPost = 99;
+          let oMoved = 0;
+          let bMoved = 0;
+          let bInc = -1;
+          let worstP = 'unaware';
+          let ofODuring = null;
+          for (let k = 0; k < 600 && doneAt < 0; k++) {
+            t.step(0.1);
+            tt += 0.1;
+            if (tt <= 0.31 && B.turning) bTurn = true;
+            track(seen, 'e2e-bell');
+            const ph = em.orderPhase('e2e-bell');
+            if (ph === 'walking') {
+              maxSpeed = Math.max(maxSpeed, Math.hypot(P.pos.x - last[0], P.pos.z - last[1]) / 0.1);
+            }
+            last = [P.pos.x, P.pos.z];
+            if (arrivedAt < 0 && ph === 'arrived') arrivedAt = tt;
+            if (ph === 'done') doneAt = tt;
+            atPost = Math.min(atPost, Math.hypot(P.pos.x - post[0], P.pos.z - post[1]));
+            oMoved = Math.max(oMoved, Math.hypot(O.pos.x - homeO[0], O.pos.z - homeO[1]));
+            bMoved = Math.max(bMoved, Math.hypot(B.pos.x - homeB[0], B.pos.z - homeB[1]));
+            if (B.incident >= 0) bInc = B.incident;
+            if (rank[P.level] > rank[worstP]) worstP = P.level;
+            if (em.orderOf(O)) ofODuring = em.orderOf(O);
+          }
+          const endPos = [P.pos.x, P.pos.z];
+          let away = 0;
+          for (let k = 0; k < 50; k++) {
+            t.step(0.1);
+            track(seen, 'e2e-bell');
+            away = Math.max(away, Math.hypot(P.pos.x - endPos[0], P.pos.z - endPos[1]));
+          }
+          // a knocked-out K woken meanwhile is a new guard: never on the order (A6)
+          const kOn = em.enemies.filter((e) => e !== P && e.zone === tag && em.orderOf(e) !== null).length;
+          Object.assign(out, {
+            bTurn, seen, walkT: arrivedAt, lookT: doneAt - arrivedAt, maxSpeed, walkSpeed: P.def.walkSpeed, atPost, oMoved, bMoved, bInc,
+            worstP, ofODuring, ofPAfter: em.orderOf(P), away, kOn, membersAfter: em.orderMembers('e2e-bell'),
+          });
+        }
+        // ----- (b) a reset order takes over a breaker walk (the 'breaker' scenario's setup) -----
+        t.reset();
+        t.light(0);
+        t.tp(hide[0], hide[1], 0);
+        t.crouch(true);
+        const sw = g.interactables.items.find((i) => i.id === 'switch-4');
+        const grp = g.world.layout.switches[4].group;
+        const a = t.spawn('grunt', 4, 1, 0);
+        em.placeSlot(a, { yaw: 0, zone: 'e2e-fac-a' }, 0);
+        const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
+        em.placeSlot(b, { yaw: Math.PI / 2, zone: 'e2e-fac-b' }, 0);
+        a.setPatrol({ points: [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]], wait: 1 });
+        b.setPatrol({ points: [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]], wait: 1 });
+        t.step(0.5);
+        const resets0 = em.breakerResets;
+        sw.onUse(sw, 'local');
+        t.step(0.3);
+        const w = a.breakerGroup === grp ? a : b.breakerGroup === grp ? b : null;
+        out.walker = w ? w.zone : null;
+        if (w) {
+          const other = w === a ? b : a;
+          em.setMissionMap(['wh'], [{ id: 'e2e-board', x: sw.pos.x, z: sw.pos.z, circuits: [grp] }]);
+          em.missionOrder(w.zone, 'reset', 'e2e-board', undefined, 'e2e-reset');
+          out.taken = { brk: w.breakerGroup, kind: em.orderOf(w)?.kind ?? null, otherBrk: other.breakerGroup };
+          const seen = [];
+          track(seen, 'e2e-reset');
+          const bad = [];
+          let back = -1;
+          let tt = 0;
+          const worst = ['unaware', 'unaware'];
+          for (let k = 0; k < 600; k++) {
+            t.step(0.1);
+            tt += 0.1;
+            track(seen, 'e2e-reset');
+            [a, b].forEach((e, i) => {
+              const kind = e.incident >= 0 ? em.board.kindOf(e.incident) : null;
+              if (kind === 'light' || kind === 'breaker') bad.push(`${e.zone}:${kind}@${tt.toFixed(1)}`);
+              if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
+            });
+            if (back < 0 && g.stealth.switchOn(grp)) back = tt;
+          }
+          const relit = reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => l.on);
+          Object.assign(out, {
+            resetSeen: seen, bad, back, relit, resets: em.breakerResets - resets0, worst,
+            after: { levels: [a.level, b.level], inc: [a.incident, b.incident], brk: [a.breakerGroup, b.breakerGroup], ordered: [a.ordered, b.ordered] },
+          });
+        }
+        return out;
+      } finally {
+        Math.random = rnd;
+        em.setMissionMap([], []);
+        t.crouch(false);
+        t.light(null);
+      }
+    });
+    const s = (v) => JSON.stringify(v);
+    const f2 = (v) => v.toFixed(2);
+    assert(r.post, 'mission order: an open floor post 8-12 m from the porter');
+    if (r.post) {
+      console.log(`  bell walk: ${f2(r.walkT)} s to the post (ORDER.giveUp 120 s)`);
+      assert(r.oToBell >= 12, `mission order: the far tagged guard stands beyond the bell's reach (${f2(r.oToBell)} m)`);
+      assert(r.members === 1 && r.ofP && r.ofP.name === 'e2e-bell' && r.ofP.kind === 'walk', `mission order: the porter alone takes it (${r.members} members, ${s(r.ofP)})`);
+      assert(r.ofO === null && r.ofODuring === null && r.oMoved < 1, `mission order: the far tagged guard never comes (moved ${f2(r.oMoved)} m)`);
+      assert(r.kOn === 0, `mission order: the knocked-out tagged guard is never on it (${r.kOn})`);
+      assert(r.bTurn && r.bMoved < 1 && r.bInc === -1, `mission order: the bystander only turns (turned ${r.bTurn}, moved ${f2(r.bMoved)} m, incident ${r.bInc})`);
+      assert(r.maxSpeed < r.walkSpeed * 1.25, `mission order: the porter walks at patrol pace (max ${f2(r.maxSpeed)} m/s, walk speed ${f2(r.walkSpeed)})`);
+      assert(r.atPost < 1, `mission order: he gets to the post (${f2(r.atPost)} m)`);
+      assert(Math.abs(r.lookT - 8) <= 1, `mission order: he looks round ~8 s at the post (${f2(r.lookT)} s)`);
+      assert(r.worstP === 'unaware' || r.worstP === 'cooldown' || r.worstP === 'suspicious', `mission order: the porter stays calm (${r.worstP})`);
+      assert(r.ofPAfter === null && r.away > 1, `mission order: then he is off it and walks back to his route (${s(r.ofPAfter)}, ${f2(r.away)} m)`);
+      assert(s(r.seen) === s(['walking', 'arrived', 'done']), `mission order: phases walking -> arrived -> done (${s(r.seen)})`);
+    }
+    assert(r.walker, 'mission order: one of the two who saw the cut walks to the switch');
+    if (r.walker) {
+      assert(r.taken.brk === -1 && r.taken.kind === 'reset' && r.taken.otherBrk === -1, `mission order: the reset takes his breaker walk over (${s(r.taken)})`);
+      assert(r.bad.length === 0, `mission order: nobody holds a light or breaker incident while it runs (${s(r.bad)})`);
+      assert(r.back > 0 && r.relit, `mission order: the circuit is on again, every lamp lit (at ${f2(r.back)} s, lit ${r.relit})`);
+      assert(r.resets === 1, `mission order: exactly one reset (${r.resets})`);
+      assert(s(r.resetSeen) === s(['walking', 'arrived', 'done']), `mission order: reset phases walking -> arrived -> done (${s(r.resetSeen)})`);
+      assert(r.worst.every((l) => l === 'unaware' || l === 'cooldown' || l === 'suspicious'), `mission order: neither goes past suspicious (${s(r.worst)})`);
+      assert(r.after.levels.every((l) => l === 'unaware' || l === 'cooldown') && r.after.inc.every((i) => i === -1) && r.after.brk.every((x) => x === -1) && r.after.ordered.every((o) => !o), `mission order: both calm with no task after (${s(r.after)})`);
+    }
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
