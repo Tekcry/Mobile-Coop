@@ -1,4 +1,4 @@
-status: open
+status: claimed Cloud Builder 1 2026-10-25T02:56Z
 
 # Campaign Build: Tallow Wharf design deliverables (docs only)
 Owner: Night Shift | Campaign Build. Source: conformance review row TW12 (PR #419,
