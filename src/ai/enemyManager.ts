@@ -98,6 +98,14 @@ export const RADIO_ALARM = true;
  */
 export const POLISH_B = { roleTrip: true, hearSlot: true, blindHear: true, alarmTell: true } as const;
 
+/**
+ * (guard-ai polish batch 2) Undo switches of the manager's polish2 fixes (false: the 4.98 behaviour). `oneHeardBark`
+ * (A185): one "I heard something." per noise however many searchers hear it (the first in the list who may bark; all
+ * of them still walk to it). `lkpOnce` (A188): in a combat plan search only the first searcher looks at the last known
+ * position (`SearchPlan.lkpBy`); the rest take plan points at once.
+ */
+export const POLISH2 = { oneHeardBark: true, lkpOnce: true };
+
 /** (guard-ai S4) The bit of guard key `k` in an awareness mask (0 when out of range). */
 function keyBit(k: number): number {
   return k >= 0 && k < MAX_KEYS ? (1 << k) >>> 0 : 0;
@@ -306,6 +314,8 @@ export class EnemyManager {
   /** Hearing scratch (no allocation per noise): the perceivers' ids (tier-2 hearers, guards who saw a light go) and
    *  every guard's effective reach. */
   private hearWho = new Int32Array(32);
+  /** (polish2 A185) A searcher already barked "I heard something." for the noise `hear` is handling. */
+  private hearBarked = false;
   private hearR = new Float32Array(32);
   /** (guard-ai S2) Path length over the nav grid for the board (straight when the line is clear; A* else). */
   private readonly pathA: P2 = [0, 0];
@@ -688,6 +698,7 @@ export class EnemyManager {
       // (guard-ai S25) the search after combat: his intruder's probable area, one point per searcher
       searchPoint: (e, out) => this.searchPointFor(e, out),
       searchDone: (e) => this.searchDoneFor(e),
+      searchLkp: (e) => this.searchLkpFor(e),
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
         // (rig-pose-fix S5) where he lies is sim: his feet and yaw at death, the fall along the impulse, the room on the
         // static collision (rig.p: static proportions); the ragdoll eases onto it
@@ -2816,6 +2827,8 @@ export class EnemyManager {
     const who = this.hearWho;
     let nh = 0;
     const fight = COMBAT_HEAR.enabled && this.coordinated && this.stealth;
+    // (polish2 A185) nobody has said "I heard something." for this noise yet
+    this.hearBarked = false;
     for (let i = 0; i < n; i++) {
       const e = list[i]!;
       if (e === skip || !e.alive || e.passive || e.taken) continue;
@@ -2871,7 +2884,9 @@ export class EnemyManager {
     if (state === 1 && !(crew && crew.sweeping)) {
       // (S25b) his plan point is given up: the heard spot comes first
       if (e.hunt >= 0 && e.hunt < MAX_INTRUDERS) this.plans[e.hunt]!.release(e.num);
-      e.hearSearch(pos.x, pos.z);
+      // (polish2 A185) one line per noise: the first searcher who barks speaks for the rest
+      // (polish2 A193) the noise's height: its storey, not his
+      if (e.hearSearch(pos.x, pos.y, pos.z, !(POLISH2.oneHeardBark && this.hearBarked))) this.hearBarked = true;
     } else if (state === 2 && !POLISH_B.hearSlot) e.heardInFight();
     if (act !== 2 || by === null) return;
     const slot = this.slotForId(by);
@@ -3115,6 +3130,21 @@ export class EnemyManager {
     return true;
   }
 
+  /** (polish2 A188) `AiContext.searchLkp`: may `e` take his intruder's last known position as his first look? True when
+   *  nobody of the plan holds it (he takes it) or he does; off, the parked modes, no intruder or no plan round the current
+   *  position yet: true (everyone looks, as before). */
+  private searchLkpFor(e: Enemy): boolean {
+    if (!POLISH2.lkpOnce || !SEARCH_AREA.enabled || !this.stealth) return true;
+    const s = e.hunt;
+    if (s < 0 || s >= MAX_INTRUDERS || this.intruders.valid[s] !== 1) return true;
+    this.buildPlan(s);
+    const p = this.plans[s]!;
+    if (p.builtAt < 0 || hyp2(p.cx - this.intruders.x[s]!, p.cz - this.intruders.z[s]!) > PLAN_MOVE) return true;
+    if (p.lkpBy >= 0 && p.lkpBy !== e.num) return false;
+    p.lkpBy = e.num;
+    return true;
+  }
+
   /** `AiContext.searchDone`: the point `e` holds is done (looked into or unreachable), found by his claim (S25a polish
    *  2: never by a saved index). */
   private searchDoneFor(e: Enemy): void {
@@ -3137,6 +3167,13 @@ export class EnemyManager {
         if (num < 0) continue;
         const e = this.byNum(num);
         if (!e || !e.alive || e.level !== 'searching' || !e.onPlan || e.hunt !== s || e.crew?.sweeping) p.release(num);
+      }
+      // (polish2 A188) the last known position's holder by the same rule (not `onPlan`: it is no plan point); (fix) and
+      // once he is off the combat plan search (pulled onto a body / KO search, his own stimulus)
+      const lb = p.lkpBy;
+      if (lb >= 0) {
+        const e = this.byNum(lb);
+        if (!e || !e.alive || e.level !== 'searching' || e.hunt !== s || e.crew?.sweeping || !e.inCombatSearch || e.ownSearch) p.lkpBy = -1;
       }
     }
   }

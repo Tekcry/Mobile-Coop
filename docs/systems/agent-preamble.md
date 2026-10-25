@@ -13,7 +13,8 @@ in, then adds the subagent's role, its step or slice and the previous step's han
   other folders or branches, or files other jobs own (the job lead lists them).
 
 ## What to follow
-- The rules: `git show origin/master:CLAUDE.md` (hard rules, "Sessions", test tiers), never a branch copy.
+- The rules, from master, never a branch or worktree copy: `git show origin/master:docs/RULES.md` (process, test tiers)
+  and `git show origin/master:CLAUDE.md` (code hard rules, authority order).
 - `docs/DECISIONS.md` (the G entries your brief cites), then the job's `BRIEF.md` ("Michael said" is binding,
   "Michael picked" is the option he chose) and `PLAN.md`. Do not widen an assumption past what the brief says; an
   assumption that would loosen a Michael-only rule goes back to the job lead as a question.
@@ -25,11 +26,13 @@ in, then adds the subagent's role, its step or slice and the previous step's han
 
 ## Checks
 - Repeat runs: `npm run typecheck:fast` and `npx vitest run <files>`. Never a full `npm run check` (CI runs it).
-- e2e only through the laptop queue: `node scripts/laptop-queue/request.mjs --sha <full sha> --pr <n> --suites "<suites>"
-  --set <name> --requester "<lead title>"`; the verdict is the `laptop-e2e/<set>` commit status. Every e2e is `E2E_GPU=1`.
+- e2e only through the laptop queue (a PR head's `affected-e2e` runs by itself): `node scripts/laptop-queue/request.mjs
+  --sha <full sha> --pr <n> --suites "<suites>" --set <name> --requester "<lead title>"`; the verdict is the
+  `laptop-e2e/<set>` commit status. Every e2e is `E2E_GPU=1`.
 - A one-off GPU or Blender job on the desktop (only when the job lead says): take `C:/NightShift/heavy.lock` with
   `node scripts/heavy-lock.mjs take ...`, run, release in the same shell command; free the port before and after.
-- A crash or timeout mid-suite is not a pass. A failure in a KNOWN FLAKY suite counts only if a solo rerun also fails.
+- A crash or timeout mid-suite is not a pass. Which failures count (quarantine, solo reruns):
+  `docs/systems/testing-tools.md` "Flakes and quarantine".
 - Never run `npm run dev`, `npm run preview` or a watch mode. Every shell command has a timeout. Logs: `tail` or `grep`.
   Nothing headed, no new windows, Blender only with `-b`.
 
@@ -38,7 +41,7 @@ in, then adds the subagent's role, its step or slice and the previous step's han
   like" per item). It blocks on broken, unplayable or off-intent work; cosmetic notes go on the polish list.
 - It posts its verdict as a commit status on the head it checked:
   `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="<model> PASS"`
-  (`state=failure`, `description="<model> FIX"` for a fix list).
+  (`-f state=failure` and `description="<model> FIX"` for a fix list).
 - A plan checker reads BRIEF and PLAN only: intent against Michael's words, gates (walk cap, visual sign-off, level
   validator), and the claims (files, maps, wire and save paths, slice sizes under ~1.5k lines).
 

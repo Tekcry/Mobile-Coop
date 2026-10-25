@@ -591,7 +591,7 @@ function gather(o) {
       const [owner, name] = REPO.split('/');
       const j = JSON.parse(read(['gh', 'api', 'graphql', '-F', `owner=${owner}`, '-F', `name=${name}`, '-f', `query=${OPEN_PRS_QUERY}`], { timeout: 90_000 }));
       const prs = (j?.data?.repository?.pullRequests?.nodes ?? []).map(normalizePr);
-      // docs-only commits after the label (CLAUDE.md: a verdict still counts across docs / CHANGELOG / fragment changes)
+      // docs-only commits after the label (docs/RULES.md "Getting to master": a verdict still counts across docs / CHANGELOG / fragment changes)
       const st = readJsonFile(FILES.state) ?? {};
       for (const p of prs) {
         if (!p.labeled) continue;

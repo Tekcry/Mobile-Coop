@@ -1,5 +1,53 @@
 # Changelog
 
+## 4.101.0 - Train 85: Design bible rewritten to today's game; decisions fold G324-G343; Rules in one place; Guard AI polish batch 2; Co-op e2e boot wait (2026-10-25, PR #405; #396, #394, #377, #373)
+
+### Design bible rewritten to today's game; decisions fold G324-G343
+- docs/design-bible.md: rewritten in place to the current decisions (G1-G343): three modes and player counts
+  (campaign and Marlow Yard 2, Sector Ops 1-4), refining allowed, up to 2 strict rules with section restart, no maps,
+  minimap, compass or objective blip in any mode, objectives that fade in and out (View / Select or O), real-world
+  light levels (L17), hardened choke points with a route around, Sector Ops as one current block (Saltmarsh Park
+  S1-S5, signed-off counts, scaling, stars, helmets by difficulty), the same helmet rule in the campaign, Tallow Wharf
+  as campaign Mission 1, Marlow Yard timed drills, G180's team moves, rope and medkits, Marlow Yard as the training
+  course (Fallow parked), one owner for the revive rule (5.9 C6), the work order and open list; dated notes folded into
+  the text.
+- docs/DECISIONS.md: the 2026-10-25 roadmap decisions folded in as G324-G343; "Replaced by" notes on 46 superseded
+  entries; the one-page vision replaced by a pointer to docs/VISION.md; G291 says Sector Ops is 1-4 players.
+
+### Rules in one place
+- Process rules move from `CLAUDE.md` into `docs/RULES.md`, read from origin/master at every session start; `CLAUDE.md`
+  is now a short, stable stub (what Night Shift is, read RULES.md and VISION.md from master, the authority order, the
+  code hard rules). The module map and doc index move to `docs/INDEX.md`.
+- One owner per rule: one train-ready definition (CI `check` + `checker` + `affected-e2e`, labelled by the watchdog),
+  desktop CPU gates as the queue really runs them, a 1-minute auto-train tick, swaps (a save, fresh sessions at a swap,
+  resume after a same-account reset); testing-tools owns the flaky rule; session-method, agent-preamble and auto-train
+  point to RULES.md instead of restating it.
+- The laptop queue's first build plan is archived (`docs/archive/laptop-queue-PLAN-2026-10-23.md`).
+
+### Co-op e2e boot wait
+- e2e: `launch` / `openPage` (`scripts/e2e-lib.mjs`) no longer wait 120 s for the match on the page that hosts a
+  `?net=local&autostart=...&mode=course|sector` room: that match starts only when the second page joins, so the wait
+  ends once the page hosts alone in the lobby. Saves about 2 minutes per boot in e2e-ctcourse (each of its 4 parts),
+  e2e-course (the walk URL) and e2e-bunker.
+
+### Guard AI polish batch 2
+- Guard AI polish: a guard sent to a noise behind a locked door he cannot get through now walks to the nearest point
+  he can reach and looks from there, instead of standing where he was (A184).
+- Guard AI polish: several guards searching who hear the same step now give one "I heard something." between them,
+  not one each in the same moment (A185).
+- Guard AI polish: a guard covering from behind a high wall while a mate moves up holds his peek spot, so his
+  covering fire starts from where he can see (A186).
+- Guard AI polish: guards searching the same spot no longer all walk to your last known position and look there; the
+  first does, once, and the rest take their search points at once; if he is taken down before he gets there, a mate
+  goes instead (A188).
+- Guard AI polish (co-op): a guard who goes alert on a call about one player while he sees the other calls that
+  player in once (A187). A calm guard who sees one player far off and the other clearly lit right in front of him
+  notices the near one at once (A190).
+- Guard AI polish: a flank walk may bend further round your cover before it is dropped (A189). A responder who goes
+  back to searching a device room no longer says "Clear." first (A191).
+- Guard AI polish (code health): armour cover checks go to the best cover spots first (A192); a guard in cover with
+  nothing to go on stays in cover (A194); new test for the recon drone's sight.
+
 ## 4.100.9 - Train 84: Docs: system docs match the current rules (2026-10-25, PR #401; #395)
 - Docs (doc-clarity, systems slice): the system docs, TESTING.md, the backlog and the research digests now state the
   current rules. Player counts per mode (campaign and Marlow Yard 2, Sector Ops 1-4); Sector Ops is the five-section

@@ -114,6 +114,10 @@ export class SearchPlan {
   readonly sz = new Float32Array(SEARCHED);
   sn = 0;
   private sw = 0;
+  /** (polish2 A188) Guard num who took the last known position itself (a combat searcher's first look; -1 none): the
+   *  others of this plan start on plan points. Cleared when the centre moves (`reset` without `keep`) or its holder
+   *  leaves the search (`EnemyManager.planSweep`). */
+  lkpBy = -1;
 
   /** Candidate in, kept only if it beats the worst (or there is room) and is >= spacing from every kept point. A
    *  near-duplicate (closer than spacing) wins only by a strictly higher score; it then replaces every kept point it is
@@ -244,6 +248,7 @@ export class SearchPlan {
     if (!keep) {
       this.sn = 0;
       this.sw = 0;
+      this.lkpBy = -1;
     }
     this.n = 0;
     this.claim.fill(-1);
