@@ -363,8 +363,9 @@ PR (S1-S5). J10 datasheet: numbers only, never committed.
    perception read it (not yet: a2-delta-check.md).
 2. PR #488 A28 `?sectorStart=N` (2e5465e32, src/net): TWO Opus checkers IN FLIGHT (a28-check-1.md, -2.md); post one
    `checker` status when both PASS; affected covers coop + sectorops:1.
-3. J16: S3b-1 done 6fb0adfcf (gate 1616 B <= 2432) -> Opus checker IN FLIGHT (csm-s3b-check.md; says its PR path).
-   S3b-2 (GameState wiring, lead brief) after S2 / #481.
+3. J16: PR #489 B1 = S3 + S3b-1 (7cb564a5c, gate 1616 B), STACKED on #459 like #481: Opus PASS on 6fb0adfcf, docs
+   delta checker IN FLIGHT; retarget to master when #459 merges. S3b-2 (GameState wiring, lead brief) after #481; add
+   a Q-first test case (csm-s3b-check.md polish).
 4. J17 campus-greybox (lane PRs wait for #450):
    - S1 6731993b / S2 f61240ca Sonnet PASS, laptop campus-s1 / -s2 queued. Switch-on lists: s1-check.md, s2-check.md.
    - S4 fix1 8706493a4, S5 fix1 b232839a2: Sonnet delta checkers IN FLIGHT; laptop campus-s4 / -s5 queued. Then
@@ -374,8 +375,10 @@ PR (S1-S5). J10 datasheet: numbers only, never committed.
    - Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
 5. J21 map-ready: #483 S4 train-ready (add CI build-check seconds / sizes to its body). W1 S1 + S9 claimed on cloud
    (Cloud Builder 2) -> checkers on done (S1 Opus, S9 Opus). Then S2, S10; S8.
-6. J10 light-realism L1 done 475620043 (park mean 27.9 lx, min 3.4, U0 0.12; twin heads): Opus checker IN FLIGHT
-   (light-l1-check.md); laptop GPU shots + video (set light-realism-l1) and e2e (light-realism-l1-e2e) queued on
-   86fb41f8. Then SIGNOFF.md + shots to Michael via the orchestrator.
+6. J10 light-realism L1 475620043 (park mean 27.9 lx, min 3.4, U0 0.12; twin heads): Opus PASS (light-l1-check.md);
+   laptop GPU shots + video (set light-realism-l1, branch shots/light-realism-s1) and e2e (light-realism-l1-e2e)
+   queued on 86fb41f8. Shots in -> SIGNOFF.md + shots to Michael via the orchestrator (~97% of the car park reads fully
+   lit: say so). For L2-S1: route 2 crosses the lit park (part 6 must stay green), bin store 18.55 lx over its 4.4
+   ceiling (guard 7's "dark" note), arms along the rows; polish: count distinct poles in the two-light-points test.
 Next: act on each checker as it lands (post A28's status after both); pick up S1 / S9 / r6 cloud done within 1 h.
 ```
