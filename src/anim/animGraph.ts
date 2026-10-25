@@ -44,7 +44,7 @@ import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_CROUCH_K, CLIMB_UP_TEAM, CRAWL, CRA
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
-import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
+import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, KQ, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
 import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
@@ -2428,9 +2428,10 @@ export class AnimGraph {
    * their own timing, `strikeWarp` / `killWarp`): the take's progress follows the arc with its contact frame on the arc's
    * contact (`STRIKE_ARC_CONTACT`, the hit), linear either side, so the take is fitted to the game's strike and never
    * changes it. Weight: eased in / out (CARRY_STRIKE_SHOT) by `skGate` (standing, holstered, off a wall, not carrying).
-   * The take's trunk, head, arms and pelvis offsets; its share of the arms (`keyArmW`, which the hand-made arc leaves at
-   * 0 in a strike) and of the body (`strikeCap`: the rig takes that share of its hand-made strike body layer out). The
-   * legs and feet stay the planner's. No allocation.
+   * The take's spine, chest, head, arms and pelvis height (the pelvis turn and x / z stay the keyed set's); its share of
+   * the arms (`keyArmW`, which the hand-made arc leaves at 0 in a strike) and of the body (`strikeCap`: the rig takes
+   * that share of its hand-made shoulder line and neck turn out, keeping its hips). The legs and feet stay the planner's.
+   * No allocation.
    */
   private strikeShot(o: RigTargets): void {
     const S = WREN_STRIKE;
@@ -2450,7 +2451,23 @@ export class AnimGraph {
     const p = a <= Cc ? (pc * a) / Cc : pc + ((1 - pc) * (a - Cc)) / (1 - Cc);
     const c = S.clip;
     sampleKeyed(c, (p * (c.frames - 1)) / c.frames, 1, this.kCa);
-    mixKeyed(o.keyed, this.kCa, w, o.keyed, false);
+    // the pelvis turn and placement stay the keyed set's (the hand-made strike's hip turn goes on in the rig): the takes
+    // spin the hips 92 / 55 deg over the planted feet (the knees twisted across); the take's spine, chest, neck and arms
+    // (chest frame) ride on the hand-made hips
+    const K = o.keyed;
+    const px = K.pel[0]!;
+    const pz = K.pel[2]!;
+    const q0 = K.q[KQ.pelvis]!;
+    const q1 = K.q[KQ.pelvis + 1]!;
+    const q2 = K.q[KQ.pelvis + 2]!;
+    const q3 = K.q[KQ.pelvis + 3]!;
+    mixKeyed(K, this.kCa, w, K, false);
+    K.pel[0] = px;
+    K.pel[2] = pz;
+    K.q[KQ.pelvis] = q0;
+    K.q[KQ.pelvis + 1] = q1;
+    K.q[KQ.pelvis + 2] = q2;
+    K.q[KQ.pelvis + 3] = q3;
     o.strikeCap = w;
     const arm = o.keyW * this.skFw * w;
     if (arm > o.keyArmW) o.keyArmW = arm;

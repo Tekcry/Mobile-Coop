@@ -41,7 +41,10 @@ afterEach(() => {
 const DT = 1 / 60;
 const STRIKE_N = Math.ceil(STRIKE_DUR / DT);
 
-function rowsOn(on = true): void {
+/** The I5 rows on (or off); `solo`: every other row off (I4 ships standing_idle and the stance on), so a comparison
+ *  against the flag off sees I5 alone. */
+function rowsOn(on = true, solo = false): void {
+  if (solo) for (const r of Object.keys(MIXAMO_ON)) MIXAMO_ON[r] = false;
   for (const r of ROWS) if (r !== 'kneel_down') MIXAMO_ON[r] = on;
   setMixamo(true);
 }
@@ -158,7 +161,7 @@ describe('mixamo I5 (a): off is bit-identical', () => {
     expect(WREN_CARRY.any).toBe(false);
     expect(WREN_STRIKE.clip).toBeNull();
     expect(differ(base.all, runGraph().all)).toBe(0);
-    rowsOn(false);
+    rowsOn(false, true);
     expect(WREN_CARRY.any).toBe(false);
     expect(WREN_STRIKE.clip).toBeNull();
     expect(differ(base.all, runGraph().all)).toBe(0);
@@ -203,7 +206,7 @@ describe('mixamo I5 (b): on', () => {
 
   it('the keyed pose moves during the carry and the strike; strikeCap only around a strike', () => {
     const off = runGraph();
-    rowsOn();
+    rowsOn(true, true);
     const on = runGraph();
     const strike = (f: number): boolean => f >= 60 && f < 60 + STRIKE_N;
     const carry = (f: number): boolean => f >= 60 * 3 && f < 60 * 6.5;

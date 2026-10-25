@@ -102,10 +102,13 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // I5-REPORT.md; Michael 2026-10-26: the capture plays unless visibly broken in play)
   carry_body_walking: true,
   carry_body_idle: true,
-  // off: the take turns the hips 92 deg left over the planted feet (a spin): the knees twist across, a knee 29 cm out
-  // past its ankle (hand-made 5) and the knees at 0.30 x the hips (0.63); bone step 36.5 deg (hand-made arc 33.1)
+  // off: the take's 92 deg hip spin over the planted feet is out (the pelvis turn stays the hand-made strike's: knees
+  // 0.57-0.67 x hips, knee out 5.7 cm, hand-made 0.63-0.70 / 5.0), but its 18 frames to contact squeezed onto the arc's
+  // ~4 turn a forearm 36.5 deg in a frame (cap: hand-made 33.1 + 1); elbows 28 cm out (15)
   elbow_strike: false,
-  // off: the hips turn 55 deg left over the planted feet: a knee 23 cm out (hand-made 5), bone step 51 deg (33.1)
+  // off: as the elbow strike: a forearm 54.8 deg in a frame (17 frames to contact squeezed onto ~4); hips as hand-made
+  // Before either goes on: the lethal takedown blow and its tail (`killWarp`, the victim at the hands, no bend) reach
+  // `strikeShot` on the same arc and would play the take at the kill's pace; no AnimInput tells them apart yet (I5-REPORT)
   cross_punch: false,
   // Studio only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
   // and its clock is not in the pose input (J19 R11, the kneeling put down, is not built)
