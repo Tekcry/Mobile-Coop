@@ -1323,12 +1323,14 @@ export class EnemyManager {
     if (fresh) this.cutSeq.set(group, (this.cutSeq.get(group) ?? 0) + 1);
     if (n === 0) return;
     // (guard-ai-mission-hooks S1a, PLAN "Order first") a reset order holds this circuit: no incident, no tamper
-    // clock, no second guard; the dark lamps count as known (late discovery leaves them)
+    // clock, no second guard; the dark lamps count as known (late discovery leaves them). It still goes on the relight
+    // watch: `circuitBusy` reads the hold as busy, and if the order drops with it off, `relightStep` hands it back to
+    // late discovery after `BREAKER_WALK.retry` s
+    this.trackCut(group);
     if (this.orders.holdsCircuit(group)) {
       this.dark.markGroup(this.world.level.lights, group);
       return;
     }
-    this.trackCut(group);
     const now = this.board.now;
     const cut = this.cutSeq.get(group) ?? 0;
     let tamper: boolean;
@@ -2771,7 +2773,8 @@ export class EnemyManager {
       const d = hyp3(e.pos.x - p.x, e.pos.y - p.y, e.pos.z - p.z);
       const tier = d < bell.reach ? this.tierOf(e, i, p, bell.reach, d, false) : 0;
       if (tagged) {
-        if (tier >= ORDER.bellTier) this.offer(e, s);
+        // a woken guard is recorded 'woken' whether he heard it or not (the gate refuses him)
+        if (tier >= ORDER.bellTier || e.woken) this.offer(e, s);
         else this.unheard(e, s);
       }
       if (tier >= 1 && e.orderSlot !== s) e.hearTurn(bell.x, bell.z, 0);

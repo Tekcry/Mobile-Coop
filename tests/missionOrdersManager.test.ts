@@ -7,7 +7,7 @@ import { BREAKER } from '../src/ai/gear';
 import { PACE } from '../src/ai/response';
 import { PostLure } from '../src/ai/posts';
 import { K_RESET, K_WALK, LEG_LOOK, M_DONE, M_WALKING, OrderBoard, OrderLeg, ORDER, type MissionPost } from '../src/ai/missionOrders';
-import type { BreakerHost } from '../src/ai/breaker';
+import { BREAKER_WALK, type BreakerHost } from '../src/ai/breaker';
 import { LightRegistry } from '../src/world/lights';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
@@ -154,6 +154,7 @@ interface Priv {
   circuitBusy(group: number): boolean;
   circuitOut(group: number, x: number, y: number, z: number, n: number, fresh: boolean): void;
   orderTick(): void;
+  lateStep(): void;
   fillPair(g: PairGuard, e: Enemy | null): void;
   hearWho: Int32Array;
   lastFault: Map<number, number>;
@@ -461,6 +462,39 @@ describe('EnemyManager: a reset order and the breaker (PLAN "Cut first" / "Order
     expect(em.board.openCount).toBe(1);
     expect(P(em).lastFault.has(55)).toBe(true);
   });
+
+  it('order first, then the order drops with 55 still off: the cut is on the relight watch, found and walked again after BREAKER_WALK.retry (polish B1, A168)', () => {
+    const { em, lamp } = setup();
+    const a = guard(2, 0, { zone: 'fac' });
+    // a calm witness 3 m short of the lamp, facing it (late discovery's cone)
+    const w = guard(0, -3);
+    cast(em, [a, w]);
+    em.missionOrder('fac', 'reset', 'board', undefined, 'r');
+    P(em).hearWho[0] = w.num;
+    P(em).circuitOut(55, 0, 0, 4, 1, true);
+    expect(P(em).dark.known[lamp.id]).not.toBe(0);
+    // held: nothing, however long
+    em.board.now += BREAKER_WALK.retry + 5;
+    P(em).lateStep();
+    P(em).lateStep();
+    expect(P(em).dark.known[lamp.id]).not.toBe(0);
+    expect(em.board.openCount).toBe(0);
+    // the walker is knocked out on his way: the order drops ('down'), 55 still off
+    a.alive = false;
+    P(em).orderTick();
+    expect(causeOf(em, 'r')).toBe('down');
+    expect(em.orders.holdsCircuit(55)).toBe(false);
+    P(em).lateStep();
+    em.board.now += BREAKER_WALK.retry - 0.5;
+    P(em).lateStep();
+    expect(em.board.openCount).toBe(0);
+    em.board.now += 0.5;
+    P(em).lateStep();
+    P(em).lateStep();
+    // forgotten, found again by the witness: the reset walk at the switch
+    expect(em.board.openCount).toBe(1);
+    expect(w.resetBreaker).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('EnemyManager: orderTick, pairs, restart', () => {
@@ -544,6 +578,8 @@ interface Probe {
   orderStep(dt: number): { point: P2 | null; speed: number; face: number | null };
   onLevel(from: string, to: string): void;
   torchWanted(field: LightField, holding?: boolean): boolean;
+  woken: boolean;
+  inherit(o: Probe, downFor?: number): void;
 }
 
 let pn = 7000;
@@ -700,6 +736,31 @@ describe('Enemy.orderRefusal: the state gate (A6, S1a-c, S1a-d)', () => {
       expect(p.takeOrder(bb ?? b, ss ?? s)).toBe(false);
       expect(p.orderSlot).toBe(why === 'order' ? 3 : -1);
     }
+  });
+
+  it("a woken guard (KO, revive: `inherit`) is never offered an order: a new event for his tag drops him 'woken', no walk (PLAN Design 1)", async () => {
+    const { em } = manager();
+    em.setMissionMap(['s1'], [LOOK]);
+    // the guard who went down, and the new Enemy his revive builds on the body (inherit's helpers stubbed)
+    const old = await probe(2, 0);
+    Object.assign(old, { zone: 'porter', section: 0, slotIdx: 3, walker: { rejoin: vi.fn(), tick: vi.fn() } });
+    (old as unknown as { health: { alive: boolean } }).health.alive = false;
+    const p = await probe(2, 0);
+    Object.assign(p, { setPost: vi.fn(), setCaution: vi.fn(), setGear: vi.fn() });
+    const { b, s } = board(K_WALK, 5, 0);
+    expect(p.orderRefusal(b, s)).toBe('');
+    p.inherit(old, 5);
+    expect(p.woken).toBe(true);
+    expect(p.orderRefusal(b, s)).toBe('woken');
+    // calm and free, tagged 'porter': a later event offers it, the gate refuses him
+    em.enemies.push(E(p));
+    em.missionOrder('porter', 'walk', 'look', undefined, 'later');
+    expect(em.orderPhase('later')).toBe('dropped');
+    expect(causeOf(em, 'later')).toBe('woken');
+    expect(em.orderMembers('later')).toBe(0);
+    expect(p.orderSlot).toBe(-1);
+    expect(p.ordered).toBe(false);
+    expect(p.bark).not.toHaveBeenCalled();
   });
 
   it("a reset of his own circuit takes his breaker walk over: the walk ends with no reset (incident freed), he is on the order and says 'checking'", async () => {

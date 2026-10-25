@@ -1120,6 +1120,8 @@ export class Enemy implements Damageable {
     // (guard-ai S24) a woken guard knows no intruder
     this.hunt = -1;
     this.pendingHunt = -1;
+    // (guard-ai-mission-hooks S1a, PLAN Design 1) never offered an order again, pending or a later event
+    this.woken = true;
   }
 
   /** (guard-ai S4, M3) The knockout search: search round (x, z) from now (a waker already searching starts over, so
@@ -1433,6 +1435,8 @@ export class Enemy implements Damageable {
   private orders: OrderBoard | null = null;
   /** His order's slot on `orders` (-1 none). */
   orderSlot = -1;
+  /** A woken guard (`inherit`): never offered an order (PLAN Design 1, absolute; `orderRefusal` 'woken'). */
+  woken = false;
   /** His walk on it (reused). */
   readonly leg = new OrderLeg();
   /** He reached the post on this order (recorded arrived once). */
@@ -1536,13 +1540,15 @@ export class Enemy implements Damageable {
 
   /**
    * (guard-ai-mission-hooks S1a, A5, A6) May he take order `slot` on board `b` now? '' yes, else the cause (constant
-   * strings; the manager records it): down, held, passive, alerted, a dog or melee kind (S1a-c), a high-security post,
+   * strings; the manager records it): down, woken (a guard woken from a knockout never takes one, PLAN Design 1), held,
+   * passive, alerted, a dog or melee kind (S1a-c), a high-security post,
    * already on an order, or busy: past a glimpse (S1a-d: suspicious is calm enough, as the breaker walk), a lure, the
    * alarm run, a responder, a response team, a board task. A breaker walk is busy unless the order is a reset of his
    * own circuit (it takes the walk over, PLAN "Cut first").
    */
   orderRefusal(b: OrderBoard, slot: number): string {
     if (!this.alive) return 'down';
+    if (this.woken) return 'woken';
     if (this.taken) return 'held';
     if (this.passive) return 'passive';
     if (this.alerted) return 'alerted';

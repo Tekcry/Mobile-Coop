@@ -3514,11 +3514,28 @@ try {
             track(seen, 'e2e-bell');
             away = Math.max(away, Math.hypot(P.pos.x - endPos[0], P.pos.z - endPos[1]));
           }
-          // a knocked-out K woken meanwhile is a new guard: never on the order (A6)
-          const kOn = em.enemies.filter((e) => e !== P && e.zone === tag && em.orderOf(e) !== null).length;
+          const membersAfter = em.orderMembers('e2e-bell');
+          // (PLAN Design 1, absolute) K woken (the revive a finder runs; private in TS) is never offered an order: a
+          // fresh event for his tag at once (before his search starts, so only the woken gate can refuse him; he is
+          // inside the bell's reach) records him dropped 'woken' and he is not on it. A build without the gate puts
+          // him on 'e2e-later'.
+          const kb2 = em.bodies.find((b) => b.guard === K);
+          if (kb2) em.ctx.revive(kb2, null);
+          const K2 = em.enemies.find((e) => e !== K && e.alive && e.zone === tag && e.woken);
+          let kOrd = null;
+          let kSt = -1;
+          let kCause = '';
+          if (K2) {
+            em.missionOrder(tag, 'walk', 'e2e-look', undefined, 'e2e-later');
+            kOrd = em.orderOf(K2);
+            const ob = em.orders;
+            const sK = ob.find('e2e-later');
+            for (let j = 0; sK >= 0 && j < ob.memN[sK]; j++) if (ob.mem[sK * ob.per + j] === K2.num) kSt = ob.memSt[sK * ob.per + j];
+            kCause = sK >= 0 ? ob.cause[sK] : '';
+          }
           Object.assign(out, {
             bTurn, seen, walkT: arrivedAt, lookT: doneAt - arrivedAt, maxSpeed, walkSpeed: P.def.walkSpeed, atPost, oMoved, bMoved, bInc,
-            worstP, ofODuring, ofPAfter: em.orderOf(P), away, kOn, membersAfter: em.orderMembers('e2e-bell'),
+            worstP, ofODuring, ofPAfter: em.orderOf(P), away, membersAfter, kWoken: !!K2, kOrd, kSt, kCause,
           });
         }
         // ----- (b) a reset order takes over a breaker walk (the 'breaker' scenario's setup) -----
@@ -3584,7 +3601,8 @@ try {
       assert(r.oToBell >= 12, `mission order: the far tagged guard stands beyond the bell's reach (${f2(r.oToBell)} m)`);
       assert(r.members === 1 && r.ofP && r.ofP.name === 'e2e-bell' && r.ofP.kind === 'walk', `mission order: the porter alone takes it (${r.members} members, ${s(r.ofP)})`);
       assert(r.ofO === null && r.ofODuring === null && r.oMoved < 1, `mission order: the far tagged guard never comes (moved ${f2(r.oMoved)} m)`);
-      assert(r.kOn === 0, `mission order: the knocked-out tagged guard is never on it (${r.kOn})`);
+      // M_DROPPED = 3 (missionOrders.ts)
+      assert(r.kWoken && r.kOrd === null && r.kSt === 3 && r.kCause === 'woken', `mission order: the knocked-out tagged guard, woken, is never offered a later order (woken ${r.kWoken}, order ${s(r.kOrd)}, state ${r.kSt}, cause '${r.kCause}')`);
       assert(r.bTurn && r.bMoved < 1 && r.bInc === -1, `mission order: the bystander only turns (turned ${r.bTurn}, moved ${f2(r.bMoved)} m, incident ${r.bInc})`);
       assert(r.maxSpeed < r.walkSpeed * 1.25, `mission order: the porter walks at patrol pace (max ${f2(r.maxSpeed)} m/s, walk speed ${f2(r.walkSpeed)})`);
       assert(r.atPost < 1, `mission order: he gets to the post (${f2(r.atPost)} m)`);
