@@ -18,7 +18,7 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
   section restart at that section's checkpoint (M1). Per A11 Teale is despawned and respawns unalerted at his bolt point
   (W2 clock-mender's back loft) with his info. The restart keeps the spook, so the retry is a new route, not a replay.
   Engine note for EN2: `restore(section)` keeps the `tgc-spooked` flag (PLAN 3 resets section facts; this is the one
-  exception). If EN2 cannot, the restart puts Teale back at his table and the bolt point is used only without the rule.
+  exception). Michael picked this (2026-10-25 ~18:05, "He moves (Recommended)"), so there is no put-him-back fallback.
 - Knock-outs are allowed on anyone except Teale before step 3 is done (a knocked-out courier cannot talk).
 
 ## Beat chart (5 steps, 19 min)

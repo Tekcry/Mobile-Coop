@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Code Relay (Sector Ops, campus S4)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plans, one per storey (scale 1 m = 10 px, north up), each over Sector Ops' plan of that storey; orange = Team
   Relay's rooms, blue = Team Vault's (Sector Ops' S4 colours). Pins: objectives (circles), devices (diamonds), leads
@@ -53,4 +55,5 @@ Q: Approve Code Relay as specced?
 - "Move it to S5 (the Old House archive cage) instead"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "Approve, code re-askable (Recommended)" (option 1: the 2 rules as above; a release that runs
+out can be asked for again, so there is no hard countdown, G334). Signed off.

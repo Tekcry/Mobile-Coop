@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Two-Key Ledger (campaign, Tallow Wharf W2 -> W3 -> W4)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up). The whole Tallow Wharf map; Two-Key Ledger uses W2 (arcade lofts),
   W3 (counting house) and W4 (wharf sheds), W1 is drawn for context. Magenta links are co-op moves. Pins: objectives
@@ -43,4 +45,5 @@ Q: Approve Two-Key Ledger as specced?
 - "Rework: send it back with my notes"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "Hears and reacts (Recommended)" (option 1: the bell sends the porter, a Guard AI reaction).
+Signed off.

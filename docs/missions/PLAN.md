@@ -109,19 +109,21 @@ Gameplay first with existing or placeholder clips; Player Build owns animation (
 | Rope brace / descent | exists: two-person rope (B7) teamMoves.ts:301-357, `ropeSlide` :327, clips ropeOffer / ropeHold / ropeClimb / ropeSlide | data only | none new |
 | Vent unlock for the partner | exists as a composition: leg-up into a `duct`, unbolt from the far side (`SectorBolt` sectors.ts:237-338; Marlow A1 does it, a1Gate.ts:229-230) | data only | none new |
 
-### 4b. Proposed (planner's, original names; for Michael's pick, `docs/missions/prototypes/coop-kit/SIGNOFF.md`)
-| Move (proposed) | What | Code | Cost | Clips |
+### 4b. Adopted (planner's original names; Michael 2026-10-25 ~18:05 on `docs/missions/prototypes/coop-kit/SIGNOFF.md`: all five join)
+| Move | What | Code | Cost | Clips |
 | --- | --- | --- | --- | --- |
 | Deadweight | one hangs on a chain so a counterweighted grate lifts for the other | new gate on the hang attach | S (Opus 0.5 d) | chainGrab, chainHang, chainDrop |
 | Chimney Pair | both brace back to back in a 1.2-1.6 m shaft and climb together | new attach mode | M (1-1.5 d) | chimneyBrace, chimneyClimb (both) |
 | Drop Catch | one drops from above the safe drop into the partner's arms: silent landing | new (team request + landing) | S (0.5 d) | catchReady, catchTake, dropInto |
 | Swing Pass | one braced on a pipe swings the partner across a shaft | new (throw arc variant) | M (1 d) | swingAnchor, swingRide, swingRelease |
 | Plank Bridge | both carry a scaffold board and lay it over a gap; guards notice it | new two-person carry + prop | L (2 d) | plankLift, plankCarry (both), plankLay |
-SIGNOFF question: "Which proposed moves join the kit?" (multi-select; default none: the approved six already cover the map).
+Michael's pick: "Deadweight,Drop Catch,Chimney Pair,Swing Pass", and for Plank Bridge: "Add it". Each gets its own
+kit slice after KIT-PULL and KIT-SHUT, on the KIT0 registry, dark behind `coopKit`; Player Build makes the clips.
 
 ### 4c. Anim list for Player Build (the lead agrees it with "Night Shift | Player Build")
 AGREED with Player Build ~23:30 (supersedes the 4a clip names): roles as team.ts, b = top / holder, a = partner / climber; holder ids `<move>Offer` / `<move>Hold`. Pull: b pullOffer, pullCatch, pullHaul; a pullJump, pullHang, pullScramble. Shutter: b shutterOffer, shutterLift, shutterHold (loop), shutterDrop; a crawlUnder. `TeamPoseMove` gains 'pull' | 'shutter'. Holder poses are procedural in TeamPoser (brace clip + bend / bendDrop / reachL/R / root offset), not clip files; phase on the shared team clock (`k`, TEAM_LINK); shutter exposes the gap height to TeamPoseIn (`depth` or a new field). Player's poses land after Michael walks AF0-AF6; placeholders until then.
-KIT-PULL: 6 clips; KIT-SHUT: 4 clips (above). Proposed moves only after Michael picks. Each clip: role (a / b), loop or
+KIT-PULL: 6 clips; KIT-SHUT: 4 clips (above). The five adopted moves (4b): their clips are agreed with Player Build
+when each slice starts. Each clip: role (a / b), loop or
 one-shot, ~duration, the existing placeholder the slice uses until the clip lands (`src/anim/clips/team.ts`,
 `TeamPoseMove` :29 gains the new move ids in KIT0).
 

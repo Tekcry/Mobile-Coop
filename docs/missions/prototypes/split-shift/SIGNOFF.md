@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Split Shift (Sector Ops, campus S2)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plans, one per storey (scale 1 m = 10 px, north up), each over Sector Ops' plan of that storey; blue = Team Ghost's
   rooms, orange = Team Shadow's. Pins: objectives (circles), devices (diamonds), leads (squares), table below each plan.
@@ -48,4 +50,4 @@ Q: Approve Split Shift as specced?
 - "Rework: send it back with my notes"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "Approve as drawn" (option 1). Signed off.

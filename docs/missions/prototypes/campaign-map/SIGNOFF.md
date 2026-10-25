@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Tallow Wharf (campaign map)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up, scale bar, grid 10 m). Magenta = forced co-op moves;
   dashed = upper storeys (lofts 4.5 m, roofs 8.4 m, crane gantry 10 m).
@@ -45,4 +47,9 @@ Q: Build the Tallow Wharf greybox to this layout and these forced co-op moves?
 - "Re-plan the map"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked (his own words, closest to option 1): "approve as drawn, id rather physically walk the map
+once built and confirm changes". Signed off: the greybox is built to this layout, and any changes are confirmed on his
+walk of the built map.
+
+The same evening he lifted the Tallow hold (folded plan Q1): "Build now, walk later (Recommended)". The 12 proposed
+level-rule changes still come to him alongside the build; he confirms them on that walk.

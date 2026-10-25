@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Three Grey Coats (campaign, Tallow Wharf)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up, canal along the bottom). Gold edges = the mission's
   route (both players); the other spaces are faded. Pins: objectives (circles), leads (squares), table below the plan.
@@ -50,4 +52,5 @@ Q: Approve Three Grey Coats as specced?
 - "Rework: send it back with my notes"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "He moves (Recommended)" (option 1: after a broken rule, W2 restarts with Teale in the
+clock-mender's loft). Signed off.
