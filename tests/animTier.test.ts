@@ -25,7 +25,7 @@ const OFF = { seen: false };
 describe('animTierPeriod', () => {
   it('far distance is the rig anim LOD distance, unscaled', () => {
     expect(ANIM_TIER_FAR).toBe(ANIM_LOD_DISTANCE);
-    expect(ANIM_TIER_OFFSCREEN).toBe(4);
+    expect(ANIM_TIER_OFFSCREEN).toBe(8);
     expect(ANIM_TIER_FAR_PERIOD).toBe(2);
   });
 
@@ -39,9 +39,12 @@ describe('animTierPeriod', () => {
     expect(animTierPeriod(base({ camDist2: Infinity }))).toBe(2);
   });
 
-  it('off-screen: every 4th frame, near or far', () => {
-    expect(animTierPeriod(base(OFF))).toBe(4);
-    expect(animTierPeriod(base({ ...OFF, camDist2: FAR2 }))).toBe(4);
+  it('off-screen: every ANIM_TIER_OFFSCREEN th frame, near or far', () => {
+    expect(animTierPeriod(base(OFF))).toBe(ANIM_TIER_OFFSCREEN);
+    expect(animTierPeriod(base({ ...OFF, camDist2: FAR2 }))).toBe(ANIM_TIER_OFFSCREEN);
+    // (guard-cap T1-SHADOW) the period is an input (`?animoff=N` A/B runs on one build); the constant by default
+    expect(newAnimTierIn().offPeriod).toBe(ANIM_TIER_OFFSCREEN);
+    expect(animTierPeriod(base({ seen: false, offPeriod: 4 }))).toBe(4);
   });
 
   it('no render since the last update (headless): visibility unknown, counts as seen', () => {
@@ -58,7 +61,7 @@ describe('animTierPeriod', () => {
     const near = (ANIM_TIER_NEAR_PLAYER - 0.01) ** 2;
     expect(animTierPeriod(base({ ...OFF, playerDist2: near }))).toBe(1);
     expect(animTierPeriod(base({ camDist2: FAR2, playerDist2: near }))).toBe(1);
-    expect(animTierPeriod(base({ ...OFF, playerDist2: ANIM_TIER_NEAR_PLAYER ** 2 }))).toBe(4);
+    expect(animTierPeriod(base({ ...OFF, playerDist2: ANIM_TIER_NEAR_PLAYER ** 2 }))).toBe(ANIM_TIER_OFFSCREEN);
   });
 
   it('off (?animtier=0): every frame', () => {
@@ -136,6 +139,37 @@ describe('animTierStep', () => {
     expect(animTierStep(st, 4, 0.02)).toBe(-1);
     expect(animTierStep(st, 1, 0.03)).toBeCloseTo(0.06, 12);
     expect(st.carry).toBe(0);
+  });
+
+  it('(guard-cap T1) off-screen period: 8 frames apart, the slots spread one solve on every frame', () => {
+    const a = solves(0, ANIM_TIER_OFFSCREEN, 32);
+    expect(a.length).toBe(4);
+    for (let i = 1; i < a.length; i++) expect(a[i]! - a[i - 1]!).toBe(8);
+    const per = new Array<number>(33).fill(0);
+    for (let slot = 0; slot < 8; slot++) for (const f of solves(slot, ANIM_TIER_OFFSCREEN, 32)) per[f]!++;
+    expect(per.slice(1)).toEqual(new Array<number>(32).fill(1));
+    const per16 = new Array<number>(33).fill(0);
+    for (let slot = 0; slot < 16; slot++) for (const f of solves(slot, ANIM_TIER_OFFSCREEN, 32)) per16[f]!++;
+    expect(per16.slice(1)).toEqual(new Array<number>(32).fill(2));
+  });
+
+  it('(guard-cap T1) off-screen carry: none lost over several periods, no solve takes more than a period of dt', () => {
+    const st = newAnimTierState(5);
+    animTierStep(st, 1, 0);
+    let sum = 0;
+    let solved = 0;
+    let n = 0;
+    for (let f = 0; f < ANIM_TIER_OFFSCREEN * 4; f++) {
+      const dt = 0.015 + (f % 5) * 0.001;
+      sum += dt;
+      const r = animTierStep(st, ANIM_TIER_OFFSCREEN, dt);
+      if (r < 0) continue;
+      expect(r).toBeLessThanOrEqual(ANIM_TIER_OFFSCREEN * 0.019 + 1e-12);
+      solved += r;
+      n++;
+    }
+    expect(n).toBe(4);
+    expect(solved + st.carry).toBeCloseTo(sum, 12);
   });
 });
 

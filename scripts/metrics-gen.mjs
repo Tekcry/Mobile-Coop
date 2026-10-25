@@ -7,7 +7,8 @@
 //
 //   node scripts/metrics-gen.mjs           write docs/design/metrics.json
 //   node scripts/metrics-gen.mjs --check   exit 1 when the file on disk differs from a fresh generation, else 0
-//   exit 2 on a parse error (the message names the section and row)
+//   exit 2 on a parse error (the message names the section and row), or on any other argument (`--help` included):
+//   the usage is printed and nothing is written (validator-port A13)
 //
 // Pure parts (`parseScaleSheet`, `formatMetrics`) are exported for tests/metricsGen.test.ts.
 import fs from 'node:fs';
@@ -28,6 +29,8 @@ export class MetricsParseError extends Error {
 }
 
 const NUM = '(\\d+(?:\\.\\d+)?)';
+/** A long-throw spot in code style: `<map>:<from space>><to space>`. */
+const SPOT = /`([A-Za-z][\w-]*:[\w-]+>[\w-]+)`/g;
 const DASH = '\\s*[-\u2013]\\s*';
 
 /** Strict number cell: "1.3", "90", "0.40". */
@@ -109,6 +112,8 @@ const SIZE_RULES = [
   { key: 'hang_lip', sec: '3', row: 'Relay lip', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m`), pick: (m) => [Number(m[1]), Number(m[2])] },
   { key: 'rope_span', sec: '3', row: 'Two-person rope', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m climb`), pick: (m) => [Number(m[1]), Number(m[2])] },
   { key: 'throw_gap_max', sec: '3', row: 'Throw gap', re: new RegExp(`^at most\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
+  // validator-port A27: the approved long-throw gap and its named `<map>:<from>><to>` spots, both read from the row.
+  { key: 'throw_long', sec: '3', row: 'Long throw (named spots only)', re: new RegExp(`^at most\\s+${NUM}\\s*m gap`), pick: (m, v) => ({ max: Number(m[1]), spots: [...v.matchAll(SPOT)].map((s) => s[1]) }) },
   { key: 'shutter_gap_h', sec: '3', row: 'Held shutter', re: new RegExp(`^${NUM}\\s*m crawl gap`), pick: (m) => Number(m[1]) },
   { key: 'wall_jump_max_up', sec: '1', row: 'Wall jump', re: new RegExp(`^up\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
   { key: 'step_player', sec: '1', row: 'Step limit', re: new RegExp(`player\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
@@ -128,7 +133,7 @@ function parseSizes(sections) {
     const value = row.cells[1] ?? '';
     const m = r.re.exec(value);
     if (!m) throw new MetricsParseError(r.sec, r.row, `cannot read ${r.key} from "${value}" (line ${row.line})`);
-    sizes[r.key] = r.pick(m);
+    sizes[r.key] = r.pick(m, value);
   }
   return sizes;
 }
@@ -208,7 +213,13 @@ export function parseScaleSheet(markdown) {
 /** The file text: 2-space JSON with a trailing newline. */
 export const formatMetrics = (metrics) => `${JSON.stringify(metrics, null, 2)}\n`;
 
+const USAGE = 'usage: node scripts/metrics-gen.mjs [--check]';
+
 function main(args) {
+  if (args.some((a) => a !== '--check')) {
+    console.error(USAGE);
+    return 2;
+  }
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const out = path.join(root, METRICS_PATH);
   let text;

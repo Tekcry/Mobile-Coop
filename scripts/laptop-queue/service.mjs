@@ -42,12 +42,10 @@
 // with no set its set is the old suites joined by "+", so it posts on the same context). The desktop never claims it;
 // the laptop's verdict is final. A failed push leaves the desktop failure as before.
 // Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
-// Train soon (laptop, lib trainSoon): no new non-train claim (train reruns still start) while an open train PR has no
-// version head yet (building, up to LQ_TRAIN_BUILD_MAX_MIN 20 min) or for LQ_TRAIN_GAP_MIN (3) min after a train PR
-// merged while train-ready PRs with a green check wait, or (releasing, laptop-queue-3) for LQ_RELEASE_HOLD_MIN (10) min
-// after an open train's laptop-e2e success while train-ready PRs not in it have a green or running check (aged alone
-// requests are held too: auto-train releases and builds the next train within minutes). Manual locks (lib manualLocks): a slot whose lock is not the
-// service's takes no new request claim (logged once per holder); trains still wait on it as before.
+// Train soon (laptop, lib nextTrain / fitsBeforeTrain, laptop-queue-6): while the next train is due only train reruns and
+// pr runs that fit before its ETA start. Rules and env: docs/systems/testing-tools.md "Laptop queue" "Train soon".
+// Manual locks (lib manualLocks): a slot whose lock is not the service's takes no new request claim (logged once per
+// holder); trains still wait on it as before.
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist lib TASK_ALLOW: the two queue tasks, auto-train and the watchdog, plus env
@@ -102,7 +100,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -129,9 +127,13 @@ const HEARTBEAT_MS = Number(process.env.LQ_HEARTBEAT_MIN ?? 5) * 60_000; // lapt
 const TRAIN_VOID_POLL_MS = Number(process.env.LQ_TRAIN_VOID_POLL_S ?? 60) * 1000;
 // a train that has held some slots this long while another stays locked (a manual run) runs unsharded on the ones it holds
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
-const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 3) * 60_000;
+// lib nextTrain (laptop-queue-6): merge to next train, newly green to its train, laptop success to merge, the late window
+const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 6.5) * 60_000;
 const TRAIN_BUILD_MAX_MS = Number(process.env.LQ_TRAIN_BUILD_MAX_MIN ?? 20) * 60_000;
-const RELEASE_HOLD_MS = Number(process.env.LQ_RELEASE_HOLD_MIN ?? 10) * 60_000; // trainSoon releasing (laptop-queue-3)
+const TRAIN_READY_LAG_MS = Number(process.env.LQ_TRAIN_READY_LAG_MIN ?? 3) * 60_000;
+const TRAIN_MERGE_LAG_MS = Number(process.env.LQ_TRAIN_MERGE_LAG_MIN ?? 2) * 60_000;
+const TRAIN_LATE_MS = Number(process.env.LQ_TRAIN_LATE_MIN ?? 5) * 60_000;
+const FIT_PREP_S = Number(process.env.LQ_FIT_PREP_S ?? 120); // claim to first suite (lib fitsBeforeTrain)
 const POLL_MS = 30_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000; // laptop: the affected pass (0 = off)
@@ -476,13 +478,13 @@ let spareDryLogged = false; // --dry-run: "would enqueue" once per idle spell
 /**
  * Spare work (lib spareNext): after LQ_SPARE_IDLE_MIN idle minutes (both slots free, no open request, no pending
  * train) the next spare job is pushed as a request on the origin/master head and recorded in state.spare. Never throws.
- * Not idle either while a train is building or releasing (trainSoon), an open train lacks its laptop pass (aloneHold) or
+ * Not idle either while the next train is due (nextTrain), an open train lacks its laptop pass (aloneHold) or
  * green train-ready PRs wait for a train (aloneSoon): a spare job must never hold a train.
  */
 function sparePass() {
   try {
     const notIdle = () => { spareIdleSince = null; spareDryLogged = false; };
-    if (Object.values(busy).some(Boolean) || openListed.length || pendingNow.length || soon || aloneHold) return notIdle();
+    if (Object.values(busy).some(Boolean) || openListed.length || pendingNow.length || next || aloneHold) return notIdle();
     spareIdleSince ??= Date.now();
     let jobs = [];
     try { jobs = JSON.parse(fs.readFileSync(path.join(HERE, 'docs/laptop-queue/spare-jobs.json'), 'utf8')).jobs ?? []; } catch { /* no list: nothing to do */ }
@@ -490,8 +492,8 @@ function sparePass() {
     const openSpare = [...openListed, ...activeReqs.values(), ...otherActive].some((r) => r.requester === SPARE_REQUESTER);
     const nx = spareNext({ now: Date.now(), idleSince: spareIdleSince, idleMin: SPARE_IDLE_MIN, openSpare, sha, jobs, history: state.spare });
     if (!nx.job) { if (!nx.why.startsWith('idle ') && nx.why !== spareLogged) { spareLogged = nx.why; log(`spare: ${nx.why}`); } return; }
-    // checked only once a job is due: one gh call (green train-ready PRs while no train PR is open)
-    const trainNext = openTrainCount === 0 ? aloneSoon(0, readyCandidates()) : '';
+    // green train-ready PRs while no train PR is open (readyNow, this pass)
+    const trainNext = openTrainCount === 0 ? aloneSoon(0, ready.green.length) : '';
     if (trainNext) { log(`spare: ${trainNext}: no spare work`); return notIdle(); }
     spareLogged = '';
     const n = (state.spare?.n ?? 0) + 1;
@@ -542,48 +544,48 @@ const buildFailLogged = new Set();
 /** The open train holding alone requests back this pass (lib trainHold), or null; a failed PR list holds them too. */
 let aloneHold = null;
 let aloneHoldLogged = '';
-/** Why no new non-train work starts this pass (lib trainSoon), '' when it may; set by pendingTrains (laptop). */
-let soon = '';
+/** The next train while it holds new claims (lib nextTrain: { why, etaMs, untilMs }), else null; set by pendingTrains (laptop). */
+let next = null;
 let soonLogged = '';
 let aloneSoonLogged = '';
 let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
-/** lib trainSoon from GitHub: a building train PR (no version head yet), else the last train release and its candidates. */
-/** Open train-ready PRs whose CI check passed (0 when unreadable: never hold on a GitHub error). */
-function readyCandidates() {
-  try {
-    return Number(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'statusCheckRollup', '--jq', '[.[] | select([.statusCheckRollup[]? | select(.name == "check") | .conclusion] | first == "SUCCESS")] | length']) || 0);
-  } catch { return 0; }
-}
+/** Train-ready PRs this pass (readyNow): green / running heads and the green ones' first-seen-green times (ms). */
+let ready = { green: [], running: [], firstSeen: [] };
 
 /**
- * Train-ready PRs whose check passed or still runs, minus the open trains' members (a head an open train head
- * contains), for the releasing hold (lib readyOrPending); 0 when unreadable: never hold on a GitHub error.
+ * Reads the train-ready PRs once per pass (lib readyHeads), before sparePass and the alone check read them: a head an
+ * open train head or origin/master (fetched by listRequests) contains is not a candidate. Keeps state.trainReady (lib
+ * seenSince; saved only when it changed). A GitHub error leaves no candidates: never hold on a GitHub error.
  */
-function readyOrPendingCandidates(openPrs) {
+function readyNow(openPrs) {
   try {
     const prs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'headRefOid,statusCheckRollup', '--jq', '[.[] | {head: .headRefOid, check: ([.statusCheckRollup[]? | select(.name == "check") | {status, conclusion}] | first)}]']) || '[]');
-    return readyOrPending(prs, (head) => openPrs.some((p) => isAncestor(head, p.sha)));
-  } catch { return 0; }
+    const h = readyHeads(prs, (head) => isAncestor(head, 'origin/master') || openPrs.some((p) => isAncestor(head, p.sha)));
+    const seen = seenSince(state.trainReady, h.green, Date.now());
+    if (JSON.stringify(seen) !== JSON.stringify(state.trainReady ?? {})) { state.trainReady = seen; saveState(); }
+    ready = { ...h, firstSeen: h.green.map((x) => seen[x]) };
+  } catch { ready = { green: [], running: [], firstSeen: [] }; }
 }
 
-/** heads: the open train heads with their laptop-e2e state and its updated_at (pendingTrains), for the releasing case. */
-function trainSoonNow(openPrs, heads = []) {
-  const lim = { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS, releaseMs: RELEASE_HOLD_MS };
+/** lib nextTrain from GitHub: a building train PR (no version head yet), else a releasing train or the last release. */
+function nextTrainNow(openPrs, heads = []) {
+  const now = Date.now();
+  const lim = { buildMaxMs: TRAIN_BUILD_MAX_MS, gapMs: TRAIN_GAP_MS, readyLagMs: TRAIN_READY_LAG_MS, mergeLagMs: TRAIN_MERGE_LAG_MS, lateMs: TRAIN_LATE_MS };
+  const cand = { green: ready.firstSeen, running: ready.running.length, now };
   const isVersion = (p) => new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${p.n} \\(G183\\)$`).test(git(['show', '-s', '--format=%s', p.sha], { soft: true }));
   const b = openPrs.find((p) => !isVersion(p));
-  if (b) return trainSoon({ building: { n: b.n, ageMs: Date.now() - Date.parse(b.createdAt) } }, lim);
+  if (b) return nextTrain({ building: { n: b.n, ageMs: now - Date.parse(b.createdAt) }, now }, lim);
+  if (!ready.green.length && !ready.running.length) return null; // no candidate: no merged-PR call
   // a train with its laptop-e2e success is released (and the next one built) within minutes: hold the slots for it
-  const rel = releasingTrain(heads, Date.now());
-  if (rel && rel.ageMs < RELEASE_HOLD_MS) return trainSoon({ releasing: rel, candidates: readyOrPendingCandidates(openPrs) }, lim);
-  if (openPrs.length) return '';
+  const rel = releasingTrain(heads, now);
+  if (rel) return nextTrain({ ...cand, releasing: { n: rel.n, laptopAtMs: now - rel.ageMs } }, lim);
+  if (openPrs.length) return null;
   try {
     const last = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'merged', '--limit', '30', '--json', 'headRefName,mergedAt', '--jq', '[.[] | select(.headRefName | startswith("train/"))][0] // null']) || 'null');
-    const ageMs = last ? Date.now() - Date.parse(last.mergedAt) : Infinity;
-    if (!(ageMs < TRAIN_GAP_MS)) return '';
-    const candidates = readyCandidates();
-    return trainSoon({ release: { n: String(last.headRefName).replace(/^train\//, ''), ageMs }, candidates }, lim);
-  } catch { return ''; /* unreadable: no hold (never block on a GitHub error) */ }
+    if (!last) return null;
+    return nextTrain({ ...cand, lastMerge: { n: String(last.headRefName).replace(/^train\//, ''), atMs: Date.parse(last.mergedAt) } }, lim);
+  } catch { return null; /* unreadable: no hold (never block on a GitHub error) */ }
 }
 
 function pendingTrains() {
@@ -597,7 +599,8 @@ function pendingTrains() {
   } catch (e) {
     log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
     aloneHold = { n: '?', sha: '', laptop: 'unknown' };
-    soon = ''; // never hold new claims on a GitHub error (checker FIX)
+    next = null; // never hold new claims on a GitHub error (checker FIX)
+    ready = { green: [], running: [], firstSeen: [] };
     openTrainCount = -1;
     return out;
   }
@@ -615,8 +618,9 @@ function pendingTrains() {
     return [{ ...p, laptop: sts ? (l?.state ?? '') : 'unknown', laptopAt: l?.updated_at ?? '' }];
   });
   aloneHold = trainHold(heads);
-  // after the status reads: the releasing case needs each head's laptop-e2e success time (lib releasingTrain)
-  if (!DESKTOP) soon = trainSoonNow(openPrs, heads);
+  // after the status reads: the releasing case needs each head's laptop-e2e success time (lib releasingTrain); readyNow
+  // first, in the same pass, so sparePass and the alone check never read the previous pass's candidates
+  if (!DESKTOP) { readyNow(openPrs); next = nextTrainNow(openPrs, heads); }
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
@@ -1463,8 +1467,8 @@ async function pass() {
     queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
   // before any train PR exists: a green train-ready PR keeps new alone claims back (aged and preempted ones still start)
-  // (the green train-ready count is read only then: one gh call per pass while an alone request waits and no train is open)
-  const aloneSoonWhy = !DESKTOP && openTrainCount === 0 && queue.requests.some((r) => r.kind === 'alone') ? aloneSoon(0, readyCandidates()) : '';
+  // (the green train-ready heads come from readyNow, read by pendingTrains this pass)
+  const aloneSoonWhy = !DESKTOP && openTrainCount === 0 && queue.requests.some((r) => r.kind === 'alone') ? aloneSoon(0, ready.green.length) : '';
   if (aloneSoonWhy) {
     const aged = agedAlone(queue.requests, Date.now());
     if (aloneSoonWhy !== aloneSoonLogged) { aloneSoonLogged = aloneSoonWhy; log(`${aloneSoonWhy}: no new alone claims`); }
@@ -1514,11 +1518,19 @@ async function pass() {
     log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}${dt.why ? `; trains: ${dt.why}` : ''}`);
     if (queue.requests.length === 0 || PORTS.every((p) => busy[p] || why[p])) return;
   } else log(`queue: ${queue.trains.length} train(s), ${queue.requests.length} request(s)`);
-  // a train about to need both slots: no new non-train claim, so the slots drain for it (lib trainSoon)
-  if (!DESKTOP && soon && queue.trains.length === 0) {
-    if (soon !== soonLogged) { soonLogged = soon; log(`${soon}: no new request claims`); }
-    queue.requests = queue.requests.filter((r) => r.trainRerun);
-  } else if (!soon) soonLogged = '';
+  // the next train is due: only train reruns and pr runs that end before its ETA start, so the slots drain for it
+  // (lib nextTrain, fitsBeforeTrain); a fitted run an early train catches falls to cutShort's 80% rule
+  const fitted = new Set();
+  if (!DESKTOP && next && queue.trains.length === 0) {
+    if (next.why !== soonLogged) { soonLogged = next.why; log(`${next.why}, next train ~${new Date(next.etaMs).toISOString().slice(11, 16)}Z: only runs that fit start`); }
+    const now = Date.now();
+    queue.requests = queue.requests.filter((r) => {
+      if (r.trainRerun) return true;
+      const fits = fitsBeforeTrain(r, { now, etaMs: next.etaMs, times, prepS: FIT_PREP_S });
+      if (fits) fitted.add(r.id);
+      return fits;
+    });
+  } else if (!next) soonLogged = '';
   const virtual = { ...desktopWait };
   // a slot under a manual lock takes no new request (a train keeps its own wait in runTrain)
   if (queue.trains.length === 0) {
@@ -1541,6 +1553,7 @@ async function pass() {
       // the other worker may have taken it since the list was read: skip it this pass
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
       preemptedAlone.delete(p.request.id);
+      if (fitted.has(p.request.id)) log(`${p.request.id}: fits before the next train (~${Math.round(expectedWallS(p.request.suites, times, p.request.jobs ?? 2))} s)`);
     }
     const run = dispatch(p);
     if (DESKTOP) started = true;

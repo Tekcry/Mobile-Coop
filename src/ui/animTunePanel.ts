@@ -94,11 +94,12 @@ import {
   KEYS_CAPTURED_NOTE,
   KEYS_MOCAP_NOTE,
   MOCAP_BOX_LABEL,
-  REACH_NOW_BANDS,
   REACH_TITLES,
   REACH_WORDS,
   editWarning,
+  keyToolField,
   keysClipCaptured,
+  reachBand,
   reachSummary,
   rowNote,
   rowNow,
@@ -296,13 +297,14 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-gbody{display:grid;gap:1px}
 .anim-tune .tt-row{display:grid;grid-template-columns:minmax(5em,38%) minmax(3em,1fr) 4.4em 1.1em 1.3em;align-items:center;gap:0.3em;min-height:2em;padding:0 0.1em 0 0.15em;border-radius:0}
 .anim-tune .tt-row:hover{background:rgba(255,255,255,0.035)}
-.anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tt-fg)}
+.anim-tune .tt-name{display:flex;align-items:center;min-width:0;overflow:hidden;white-space:nowrap;color:var(--tt-fg)}
+.anim-tune .tt-name-text{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .anim-tune .tt-row.tt-off{opacity:0.42}
 .anim-tune .anim-tune-playing{flex:none;color:var(--tt-hi);font-weight:600;font-size:0.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 0.25em;min-height:1.3em}
 .anim-tune.tt-folded .anim-tune-playing,.anim-tune.tt-folded .anim-tune-warn{display:none!important}
 .anim-tune .anim-tune-warn,.anim-tune .tt-warn{color:var(--tt-warn);font-size:0.82em;font-weight:600;line-height:1.25;margin:0.1em 0 0.25em}
 .anim-tune .tt-warn{padding:0.1em 0.3em 0.1em 0.5em;border-left:3px solid var(--tt-warn);background:rgba(240,180,59,0.08)}
-.anim-tune .tt-reach{display:inline-block;margin-left:0.45em;padding:0 0.4em;border-radius:2px;font-size:0.72em;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle;border:1px solid currentColor;pointer-events:none}
+.anim-tune .tt-reach{display:inline-block;flex:none;margin-left:0.45em;padding:0 0.4em;border-radius:2px;font-size:0.72em;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle;border:1px solid currentColor;pointer-events:none}
 .anim-tune .tt-reach-mocap{color:#7cc4ff;-webkit-text-fill-color:#7cc4ff}
 .anim-tune .tt-reach-keyed{color:#f0b43b;-webkit-text-fill-color:#f0b43b}
 .anim-tune .tt-reach-both{color:#b9c4c0;-webkit-text-fill-color:#b9c4c0}
@@ -629,7 +631,7 @@ export class AnimTunePanel {
   private playShownClip: KeyedClip | null = null;
   private playText = '';
   /** What plays now as `tunerReach.ts` reads it (one object, mutated each frame) and the band last applied to the badges. */
-  private readonly reachNow: ReachNow = { state: null, mocapShare: 0, switchOn: false };
+  private readonly reachNow: ReachNow = { state: null, mocapShare: 0, band: 'handMade', switchOn: false, drawn: false };
   private reachBand = -1;
   /** The edit warning: the header strip, the strip under the edited row, its timer, the text shown, the More > Panel box. */
   private warnEl: HTMLDivElement;
@@ -2214,7 +2216,8 @@ export class AnimTunePanel {
     const p = rowKeyParts(this.selKey);
     const sel = p && p.section === 'keys' ? p.id : '';
     const st = kt.state();
-    const id = st.tool === 'wave' ? st.chan : sel || st.chan;
+    // Wave names its channel; the other tools the picked slider, none picked: no warning (not the trunk's)
+    const id = keyToolField(st.tool, st.chan, sel);
     if (!id) return;
     const row = sec.rows.querySelector<HTMLElement>(`input[data-id="${globalThis.CSS.escape(id)}"]`)?.closest<HTMLElement>('.tt-row') ?? null;
     this.editWarn(sec, id, row);
@@ -2234,7 +2237,11 @@ export class AnimTunePanel {
     row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})${hmNote ? `\n${hmNote}` : ''}`;
     const name = document.createElement('span');
     name.className = 'tt-name';
-    name.textContent = roleWords(plainLabel(kind, t.id, t.label), handRoles(kind, group));
+    // the name's text is the first child (the selection line reads it); in its own span so the ellipsis cuts the name, never the badge
+    const nameText = document.createElement('span');
+    nameText.className = 'tt-name-text';
+    nameText.textContent = roleWords(plainLabel(kind, t.id, t.label), handRoles(kind, group));
+    name.append(nameText);
     // (S4) the reach badge: words plus colour (`applyEffect` fills it; no tag: hidden); not focusable, not a touch target
     const badge = document.createElement('span');
     badge.className = 'tt-reach';
@@ -3554,8 +3561,12 @@ export class AnimTunePanel {
     n.state = body === '' ? null : body;
     n.mocapShare = NOW_PLAYING.mocap;
     n.switchOn = LOCO.mocap;
-    const share = n.switchOn ? n.mocapShare : 0;
-    const band = (share >= REACH_NOW_BANDS.capture ? 1 : share <= REACH_NOW_BANDS.handMade ? 2 : 0) | ((n.switchOn ? 1 : 0) << 2) | (((BODY_GROUPS as readonly string[]).indexOf(body) + 1) << 3);
+    // a gun in her hands: the game's gun group, or a studio loop that draws one (the same reading as `effectMode`'s `armed`; no allocation)
+    n.drawn = !!TUNE_STATE.gun || (STUDIO.active && !!studioEntry(STUDIO.entry).drawn);
+    // the latched band (`reachBand`, hysteresis): a share hovering at a band's edge does not flip the badges; the
+    // badges, the edit warning and the greyed rows' mode all read it, never the raw share
+    n.band = reachBand(n.band, n.switchOn ? n.mocapShare : 0);
+    const band = (n.band === 'capture' ? 1 : n.band === 'handMade' ? 2 : 0) | ((n.switchOn ? 1 : 0) << 2) | (((BODY_GROUPS as readonly string[]).indexOf(body) + 1) << 3);
     if (band === this.reachBand) return;
     this.reachBand = band;
     for (const s of this.sections) this.applyEffect(s);
@@ -3619,12 +3630,12 @@ export class AnimTunePanel {
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
       // (marlow-bays item 29) the loop playing now: one of her keyed clips (the studio), a gun in hand or not; a change
       // greys the rows that do nothing in it
-      // (tuner-clarity S4) `mocap`: no studio keyed clip pins the body and the capture plays 90 % or more of it
+      // (tuner-clarity S4) `mocap`: no studio keyed clip pins the body and the capture's latched band (`syncReach`) is 90 % or more
       // (mixamo-retarget M5) a motion capture in the studio plays as the game plays it (the mocap share, studioDrive): the
       // rows the game keeps off a capture grey here too
       const capPin = !!se && se.kind === 'keyed' && se.clip !== null && mocapSource(se.clip.name) !== null;
       const keyedPin = !capPin && !!se && se.kind === 'keyed' && studioBodyPin(se) !== '';
-      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot, capPin || (!keyedPin && NOW_PLAYING.mocap >= REACH_NOW_BANDS.capture));
+      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot, capPin || (!keyedPin && this.reachNow.band === 'capture'));
       if (m !== this.effMode) {
         this.effMode = m;
         for (const s of this.sections) this.applyEffect(s);
@@ -4036,7 +4047,7 @@ export class AnimTunePanel {
       return;
     }
     const state = sec.group ? plainWords(sec.group.split('.').slice(1).join(' ')) : '';
-    // (S4) the row's name only: the reach badge sits after its text node
+    // (S4) the row's name only: its first child holds the text, the reach badge sits after it
     const what = row?.querySelector('.tt-name')?.firstChild?.textContent ?? 'whole part';
     line.hidden = false;
     line.textContent = `▶ ${sec.reg.label}${state ? ` · ${state}` : ''} · ${what} → ${this.selTarget.label}`;

@@ -188,8 +188,13 @@ export class SectionBaker {
     this.drainInline();
   }
 
-  /** The match starts playing (`GameState.create`): from now on the cache write waits for a quiet moment. */
+  /**
+   * The match starts playing (`GameState.create`): from now on the cache write waits for a quiet moment. (map-ready S4)
+   * A bake that finished in the hold is cached now, at the release (still a loading moment, SB14), not at the first
+   * section change.
+   */
   markPlaying(): void {
+    this.saveIfDue();
     this.playing = true;
   }
 

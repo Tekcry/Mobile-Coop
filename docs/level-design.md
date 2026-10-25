@@ -315,10 +315,11 @@ declared in the graph before geometry and measured in greybox: a map whose measu
    Plank Bridge (G403; bible 5.9 C4); and the synced takedown (4.4). A move the game does
    not have yet is built by its co-op job before a map relies on it. Graph kinds: `coop_boost` (boost), `human_ladder`
    (human ladder), `team_pull` (pull-up), `team_hang` (hang-down relay), `team_throw` (throw over a gap), `shutter`
-   (hold a shutter or door), `pair_gate` (team door), a `bolted` door (unlocked from the far side after a vent or a
-   throw), `team_rope` (rope). Each kit move's size band is in scale sheet section 3. Co-op routes are in at least half
-   of the encounter spaces and in every section. Check: `checkCoop` (coverage), `checkDimensions` (bands). [Training]
-   The coverage check does not bind: each exercise forces the move it teaches (G392).
+   (hold a shutter or door), `pair_gate` (team door), `vent_unlock` (the door a crawler opens from the far side after a
+   vent, Q25), a `bolted` door (unlocked from the far side after a throw), `team_rope` (rope). Each kit move's size
+   band is in scale sheet section 3. Co-op routes are in at least half of the encounter spaces and in every section.
+   Check: `checkCoop` (coverage), `checkDimensions` (bands). [Training] The coverage check does not bind: each exercise
+   forces the move it teaches (G392).
 10. **A forced co-op gate per section.** [Campaign] Every section forces a co-op traversal move with no solo bypass:
    the section's exit cannot be reached from its entry by solo links alone (Michael 2026-10-24 ~22:45: "must have forced
    coop traversal to proceed", G292). Each gate keeps its way back (11.6). Check: `checkRedundancy` (forced gate).
@@ -356,8 +357,10 @@ never change for a map; change the geometry.
 - Speeds and footstep noise: five speeds per stance on the stick (creep, sneak, walk, jog, run; no sprint), values in
   scale sheet section 1. Footsteps are silent on every surface at the crouched creep, sneak and walk and the standing
   creep and sneak (`NOISE_QUIET`, `src/config/movement.ts:273-276`); the surface only scales audible steps.
-- Doors: a door blocks light, sound and guard sight until it is open past `DOOR_SHUT` 0.05 of its swing
-  (`src/world/lightField.ts:29`); the peek crack (0.12) counts as closed. Guards push doors open as they walk through
+- Doors: a door blocks light until it is open past `DOOR_SHUT` 0.15 of its swing (`src/world/lightField.ts:34`, G41);
+  the peek crack and a stick-driven door under `DOOR.driveShut` 0.15 keep the swing at 0, shut to light, sound and
+  sight; an ordinary open drops the door's body at once, so guard sight and sound pass from its start (Guard AI, J15).
+  Guards push doors open as they walk through
   (`Doors.pushOpen`), and a door a guard opened shuts behind him (`DOOR.autoCloseTime`, `src/world/doors.ts:42`). The
   door menu (`src/game/doorMenu.ts`) offers open, stealth open, bash (loud; knocks out a guard right behind the leaf)
   and the optic cable.
@@ -374,7 +377,7 @@ never change for a map; change the geometry.
 ### 12.2 Decided, not built yet
 The design bible holds Michael's decided rules (`docs/design-bible.md` section 5): design new maps against them and
 re-confirm against the code when they land. Those that change a floor plan now:
-- Doors (G41): light, sound and sight pass past about 15% open (the code: 5%, 12.1); guards notice a door open that
+- Doors (G41): light, sound and sight pass past about 15% open (the code: light at 15%; on an ordinary open sight and sound pass from its start, 12.1); guards notice a door open that
   should be shut.
 - Corridor widths, crawl heights and aisles are re-measured on the CT camera before new floor plans (G54).
 - The human ladder reaches 4.5 m (G57; the code: 4.1 m, open item 1).
@@ -388,6 +391,8 @@ one, it leaves this list.
   check (`e2e-sectorops`, its control now fires from beside the guard). No map spec relies on everyone walking over.
 - Kestrel (paused, G53) and the Fallow bunker (parked) rely on the old speeds, camera and moves; they are re-checked if
   they resume (`docs/kestrel/00-facts.md`, `docs/archive/maps/`).
+- Doors (sector-batch, G41): the light cut `DOOR_SHUT` went from 0.05 to 0.15 of the swing (12.1). Map decisions that
+  relied on 0.05: none.
 
 ## 13. Required design deliverables (templates) [All]
 This section owns the per-map deliverables (the design bible points here). Phases 1 and 2 of every map produce them in

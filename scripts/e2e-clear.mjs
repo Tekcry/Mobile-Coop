@@ -1,5 +1,5 @@
 // Warehouse + Clear mode: the HUD shows only "Enemies left N" (alive + still to spawn): no room names,
-// room counts, lives, score, objective or enemy blips; squads hold their rooms; clearing a room gives no
+// room counts, lives, score, objective, minimap or compass; squads hold their rooms; clearing a room gives no
 // feedback (no banner, stinger, slow beat, feed or XP); going down shows "DOWN" with no lives counter;
 // the last hostile down completes the operation (OPERATION COMPLETE banner, stinger, slow beat,
 // letterbox); results have no rooms row and one completion reward.
@@ -77,7 +77,7 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
       held: em.enemies.filter((e) => e.alive && e.hold).length,
       hud: window.__h.hud(),
       bars: g.post.barsTarget,
-      blips: g.mode.blips().length + g.enemyBlips,
+      nomap: !document.querySelector('.hud-minimap, .minimap, .hud-compass'),
     };
   });
   let L = await left();
@@ -88,7 +88,7 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
   assert(!/room|lives|score/i.test(s0.hud.mode + s0.hud.objective), `no room counts, lives, score or objective (${s0.hud.mode} / ${s0.hud.objective})`);
   assert(!/\d+ rooms/i.test(s0.hud.banner), `opening banner has no room count (${s0.hud.banner})`);
   assert(s0.bars === 1, 'letterbox at the start');
-  assert(s0.blips === 0, 'no enemy blips');
+  assert(s0.nomap, 'no minimap or compass (G339)');
 
   // no room names, even inside a tagged room
   await G(() => window.__h.tp(-12, -14, 0));
