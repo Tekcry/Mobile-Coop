@@ -361,7 +361,8 @@ Order: Guard AI J15 PR1 (#450) lands before any J17 lane PR (S1-S5). J10 datashe
    (df64c0fa4 Node 22 fix, Opus PASS delta); #469 J18 PR C (polish: stale-terms entry for 0.05); #474 J18 PR A (+ coop-gate
    request queued). Train-ready follows by the watchdog. B4 after #317.
 2. J16 char-shadow-meter: S2 Opus PASS (csm-s2-check.md) -> PR #481 A2 = S2 cherry-picked onto #459 (030150bb1),
-   STACKED on #459: retarget to master when #459 merges; delta checker IN FLIGHT, coop-gate queued. S3b reopened 00:10 (option a: merge A1's fix, typed slots into the private steps, gate 2432 B
+   STACKED on #459: retarget to master when #459 merges; Opus PASS (S2 + delta), affected + coop-gate queued. Next
+   touch: fragment / lighting.md say bodies and guard perception read it (not yet: a2-delta-check.md). S3b reopened 00:10 (option a: merge A1's fix, typed slots into the private steps, gate 2432 B
    unchanged). S3b-2 after S2.
 3. J17 campus-greybox (cloud, base 024c7c172; lane PRs wait for #450):
    - S1 6731993b / S2 f61240ca Sonnet PASS, laptop requests queued (campus-s1 / -s2). Switch-on lists: s1-check.md, s2-check.md.
