@@ -1,0 +1,17 @@
+{
+  "id": "20261025T213352-affected-e2e-8a8d000c-ccad",
+  "sha": "8a8d000cf1ec10de88008bce09e14a6b7f4121e1",
+  "branch": "feature/test-runner-j20-pra",
+  "pr": 492,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "e2e-verdict",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #492"
+}
