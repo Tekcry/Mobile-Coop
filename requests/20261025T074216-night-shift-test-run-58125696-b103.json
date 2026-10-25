@@ -1,0 +1,16 @@
+{
+  "id": "20261025T074216-night-shift-test-run-58125696-b103",
+  "sha": "58125696b0694047730e43bb02c6a6aa7f3e19d7",
+  "branch": "feature/test-runner-j20-s5",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/perf.mjs --json --budget"
+  ],
+  "env": {
+    "MAP": "campusOps",
+    "MODE": "sector"
+  },
+  "set": "j20-perf"
+}
