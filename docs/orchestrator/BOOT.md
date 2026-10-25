@@ -81,6 +81,10 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - Opus 5.5, medium, laptop.
 - Resume: the newest "Test Runner SAVE" block near the top of `docs/flake-fix/STATE.md` on origin/feature/flake-fix;
   laptop-queue-5 (#408): `docs/laptop-queue/STATE.md` on origin/feature/laptop-queue-5.
+  Swap of 2026-10-25 ~21:40 (laptop GitHub login was broken): BEFORE reading the resume block, `git push` the local
+  commits on feature/flake-fix (744302f89, SAVE 56), feature/test-runner-j20-s6c (259bbe559) and
+  feature/test-runner-j20-prc (b453a89a9); if the push fails, read SAVE 56 from the local branch, not origin. Delete
+  this note once pushed.
 - First: check the laptop queue service (task NightShift-laptop-queue, log C:/NightShift/scratch/laptop-queue/), the
   laptop locks and runs left from the old account; if two Test Runner sessions show in ListAgents, close the older.
 - First job: review-briefs/test-runner.md. Area: the laptop queue, flakes and the flake budget, guard render. Keep
