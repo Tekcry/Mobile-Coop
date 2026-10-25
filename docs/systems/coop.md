@@ -1,4 +1,5 @@
 # Co-op
+Owner: Player Build (co-op player; Guard AI Build for coop4). Status: current.
 Purpose: transports, the host and client sims, the wire protocol, co-op sync, team moves and the training course's
 wire.
 Design authority: docs/DECISIONS.md (G2, G48-G52, G180, G349), then docs/design-bible.md (Section 5.9).

@@ -1,4 +1,5 @@
 # World, level design pointers and characters
+Owner: Player Build (characters, guard models). Status: current.
 Purpose: maps, the level builder, the Warehouse, and the shared character rig (proportions, animation, foot planner, weapons).
 Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.md (Sections 5.12 and 7).
 

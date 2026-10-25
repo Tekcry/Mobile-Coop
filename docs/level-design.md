@@ -1,4 +1,5 @@
 # Level design standard - Night Shift
+Owner: Marlow Build (level validator); a change needs Michael's approval. Status: current.
 
 The baseline for every map, now and future. A map's spec may tighten a rule; it may only loosen one with Michael's
 written approval in that spec. Numbers marked "constant" come from the code: re-confirm them with grep before each

@@ -1,4 +1,5 @@
 # <job>: sign-off <n> - <map / section / look name>
+<!-- Owner: the orchestrator (template). Status: current. -->
 
 <!-- Gate 4 of the intake (docs/systems/session-method.md "Intake"), for maps, layouts and looks only. ONE page:
      Michael reads it in under a minute and clicks one decision. Copy to docs/<job>/SIGNOFF.md (or SIGNOFF-<n>.md),

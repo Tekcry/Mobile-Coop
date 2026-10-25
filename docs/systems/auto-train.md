@@ -1,4 +1,5 @@
 # Auto train (rolling merge train)
+Owner: the orchestrator. Status: current.
 Purpose: master gets every ready PR without a human step. Michael 2026-10-23 ~19:10, "Yes, fully automatic": a script
 builds and releases to master on CI + laptop green, no 3-PR wait; the orchestrator handles conflicts and the failures
 auto-drop cannot place (a laptop failure drops its member and rebuilds at once, Michael 2026-10-24).

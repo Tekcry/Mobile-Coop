@@ -1,4 +1,5 @@
 # Commands, e2e suites, test helpers and the debug overlay
+Owner: Test Runner. Status: current.
 Purpose: every npm command, the headless e2e suites with what each checks, the helper scripts and the in-game debug overlay.
 Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then docs/design-bible.md (Section 9).
 

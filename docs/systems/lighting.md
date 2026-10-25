@@ -1,4 +1,5 @@
 # Light model, baked lamps and vision rendering
+Owner: Sector Ops Build (lighting on every map). Status: current.
 Purpose: the gameplay light registry and light field, desktop baked lamps, darkness, night vision, thermal and electro
 rendering, and the lamp light volume kept for the level editor.
 Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G101, G102, G181, G352), then docs/design-bible.md

@@ -1,4 +1,5 @@
 # Chaos Theory toolkit - spec (V0)
+Owner: Player Build. Status: current.
 Status: spec; built so far: the optic cable at doors (3.2, prototype: `player/opticCable.ts`, `game/opticSystem.ts`,
 `config/tools.ts`), the partner's kneel and cable over the wire (MoveState mode `optic`, optic-coop) and the engine side
 of hatches, panels, grilles and shaft tops (`OpticPoint`, `LevelBuilder.opticGap`, `OpticSystem.pickPoint`, optic-coop);

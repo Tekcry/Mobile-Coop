@@ -1,4 +1,5 @@
 # Task: <Map name> - <one-line pitch>
+<!-- Owner: the orchestrator (template). Status: current. -->
 
 <!-- How to use: copy this file, fill every <...>, delete these comments, paste into Claude Code.
      Sections marked (fixed) stay as written. Sections marked (fill) describe this map.

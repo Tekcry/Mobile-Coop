@@ -1,4 +1,5 @@
 # UI
+Owner: the orchestrator. Status: current.
 Purpose: the HUD, menus, the screen stack, display handling, feedback, photo mode and the course HUD.
 Design authority: docs/DECISIONS.md (G77, G107, G108, G113, G336, G339, G343, G351), then
 docs/design-bible.md (Section 5.10).

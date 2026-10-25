@@ -3,7 +3,7 @@
 Version 2.2 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G363 (`docs/DECISIONS.md`;
 "Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
 summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
-Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Owner: Michael (the content); the orchestrator keeps it current at each fold. Status: current.
 
 ---
 

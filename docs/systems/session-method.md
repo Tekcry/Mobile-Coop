@@ -1,4 +1,5 @@
 # How a job is run (the job lead's loop)
+Owner: the orchestrator. Status: current.
 
 The rules for sessions, jobs, intake, walk pacing, machines, merges and the test tiers are in `docs/RULES.md` (read it
 from origin/master). This page is the how-to of the loop a **job lead** (the session running one job) follows (G87):

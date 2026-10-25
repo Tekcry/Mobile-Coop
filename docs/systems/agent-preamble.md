@@ -1,4 +1,5 @@
 # Subagent preamble (shared, every job)
+Owner: the orchestrator. Status: current.
 
 The job lead copies this into a subagent's prompt with the `<job>`, `<branch>`, `<port>` and owned-file lines filled
 in, then adds the subagent's role, its step or slice and the previous step's handover. Read this whole text first.

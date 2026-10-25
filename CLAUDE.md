@@ -1,4 +1,5 @@
 # Night Shift
+Owner: the orchestrator. Status: current.
 
 Night Shift is an original third-person co-op stealth game built on pure Chaos Theory (CT): a PWA (Vite + TypeScript +
 Babylon.js 9 + Havok) on GitHub Pages, desktop only, pad first.

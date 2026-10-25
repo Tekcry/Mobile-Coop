@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import {
   applyKnown, checkBibleNotes, checkCitations, checkLinks, checkOwners, checkSizes, checkStaleTerms, codePath, globRe, linkPath,
-  lintDocs, parseDecisions, resumeBlock, splitLines, staleDecided, summarise, wordCount, G_RE,
+  lintDocs, parseDecisions, resumeBlock, splitLines, staleDecided, summarise, wordCount, G_RE, checkHeaders,
   // @ts-expect-error plain .mjs script without types
 } from '../scripts/doc-lint.mjs';
 
@@ -182,5 +182,37 @@ describe('the repo config', () => {
     const out: F[] = lintDocs({ files, exists: () => true, config, today: '2026-10-25' }).filter((f: F) => f.check === 'stale-terms');
     expect(out.map((f) => f.line)).toEqual(lines.map((_, i) => i + 1));
     expect(summarise(out).ERROR['stale-terms']).toBe(lines.length);
+  });
+});
+
+describe('owner / status headers (G344)', () => {
+  it('reads the header and strips it for budgets', async () => {
+    // @ts-expect-error plain .mjs script without types
+    const { readHeader, stripHeader } = await import('../scripts/doc-lint.mjs');
+    expect(readHeader('# T\nOwner: the orchestrator. Status: current.\nbody')).toEqual({ owner: 2, status: 2 });
+    expect(readHeader('# T\n<!-- Owner: x (template). Status: history. -->')).toEqual({ owner: 2, status: 2 });
+    expect(readHeader('# T\nOwner: x.\nStatus: current.')).toEqual({ owner: 2, status: 3 });
+    expect(readHeader('# T\nStatus: draft\nOwner: x')).toEqual({ owner: 3, status: 0 });
+    expect(stripHeader('# T\nOwner: x. Status: current.\nbody')).toBe('# T\nbody');
+    expect(wordCount(stripHeader('# T\nOwner: a b c d. Status: current.\none two'))).toBe(3);
+  });
+  it('errors for the core set, warns for the rest, skips other files', async () => {
+    const cfg = { error: ['docs/systems/*.md'], warn: ['docs/*.md'], lines: 10 };
+    const files = map({
+      'docs/systems/a.md': '# A\nPurpose: x', 'docs/systems/b.md': '# B\nOwner: Player Build. Status: current.',
+      'docs/story.md': '# S\nOwner: Michael.', 'docs/job/PLAN.md': '# P',
+    });
+    const out: F[] = checkHeaders(files, cfg);
+    expect(out.map((f) => `${f.level} ${f.file}`)).toEqual(['ERROR docs/systems/a.md', 'WARN docs/story.md']);
+    expect(out[1]!.msg).toContain('no Status');
+  });
+  it('every core doc in the repo has its header', () => {
+    const read = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
+    const lint = read('docs/doc-lint.json');
+    const core = ['CLAUDE.md', 'docs/VISION.md', 'docs/RULES.md', 'docs/INDEX.md', 'docs/DECISIONS.md', 'docs/design-bible.md',
+      'docs/level-design.md', 'docs/design/scale-sheet.md', 'docs/ROADMAP.md',
+      ...fs.readdirSync('docs/systems').map((f) => `docs/systems/${f}`), ...fs.readdirSync('docs/templates').map((f) => `docs/templates/${f}`)];
+    const files = new Map(core.map((f) => [f, fs.readFileSync(f, 'utf8')]));
+    expect(checkHeaders(files, lint.headers)).toEqual([]);
   });
 });

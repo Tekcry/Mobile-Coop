@@ -1,4 +1,5 @@
 # Night Shift - module map and doc index
+Owner: the orchestrator. Status: current.
 
 Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `docs/VISION.md` (both from origin/master).
 

@@ -1,4 +1,5 @@
 # Walk card <version> - <release title>
+<!-- Owner: the orchestrator (template). Status: current. -->
 
 <!-- One per release (docs/RULES.md "Walk pacing"; docs/systems/session-method.md "Walk card"). Copy to docs/walks/<version>.md, fill
      every <...>, delete these comments. At most 10 minutes for Michael: items ranked by risk, highest first; cut the

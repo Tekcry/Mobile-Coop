@@ -1,4 +1,5 @@
 # Night Shift - decisions
+Owner: the orchestrator. Status: current.
 
 Started 2026-10-17 (consolidation run, M26 / M27). Current to G363 (2026-10-25).
 

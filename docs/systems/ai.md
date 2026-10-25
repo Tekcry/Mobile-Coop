@@ -1,4 +1,5 @@
 # Stealth AI, enemy archetypes and modes
+Owner: Guard AI Build. Status: current.
 Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the navigation grid and the game-mode hooks.
 Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then docs/design-bible.md (Section 5.7).
 

@@ -1,4 +1,5 @@
 # Night Shift - process rules
+Owner: the orchestrator. Status: current.
 
 The one place for session, job, machine, merge and test rules; current rules only (their history:
 `docs/process-audit/`). Every session reads them from master: `git show origin/master:docs/RULES.md`, never a branch or
@@ -215,7 +216,11 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
 ## Docs
 - Map: `docs/VISION.md` the game, `docs/RULES.md` process, `docs/DECISIONS.md` why (every G entry and its history),
   `docs/design-bible.md` systems, `docs/level-design.md` maps, `docs/INDEX.md` lookup (module map, doc index),
-  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record.
+  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record. The roadmap lives on origin/feature/menu
+  (`git show origin/feature/menu:docs/ROADMAP.md`); master's `docs/ROADMAP.md` only points there.
+- Every current doc starts with `Owner: <who>. Status: current | history.` under its title (G344): the orchestrator for
+  VISION, RULES, INDEX, DECISIONS and the bible; Marlow Build for level-design and the scale sheet (changes need
+  Michael's approval); the area lead for each `docs/systems/*.md`.
 - One home per rule: each rule lives in one file; every other doc links to it and never restates it
   (`docs/doc-owners.json` names the homes of the key numbers).
 - Folds rewrite in place (G344): one PR updates DECISIONS, the bible and VISION together, plus the owner file of every
@@ -226,8 +231,9 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
   bible, RULES and the open BRIEF / PLAN files against DECISIONS and ROADMAP "Decided"; each drift is fixed in place in
   the fold PR or becomes a ROADMAP item.
 - Doc lint in CI: `npm run lint` runs `scripts/doc-lint.mjs` (stale terms, G citations, links and repo paths, restated
-  rules, size budgets, appended bible notes); errors fail `check`, warnings print. `docs/doc-lint.json` holds the
-  budgets and the `known` stale lines in orchestrator-owned files (the fix removes its entry).
+  rules, size budgets, appended bible notes, owner / status headers); errors fail `check`, warnings print.
+  `docs/doc-lint.json` holds the budgets and the `known` stale lines in orchestrator-owned files (the fix removes its
+  entry).
 - Finished jobs: the `Job-done: <job>` line in the job's last PR makes the train's version commit move `docs/<job>/` to
   `docs/archive/<job>/` and fix the links to it.
 - Weekly prune (G345, "Yes, weekly"): `scripts/prune-merged.mjs --apply` (task `NightShift prune-merged`,

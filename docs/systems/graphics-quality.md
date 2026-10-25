@@ -1,4 +1,5 @@
 # Graphics and quality
+Owner: Sector Ops Build (lighting, visual gate). Status: current.
 Purpose: presets, auto graphics, the frame governor, the benchmark, the renderer, materials, TAAU and weather.
 Design authority: docs/DECISIONS.md (G12, G14, G68, G99-G102), then docs/design-bible.md (Section 8).
 

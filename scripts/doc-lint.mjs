@@ -9,6 +9,8 @@
 //   sizes        docs/doc-lint.json budgets: VISION words, RULES / CLAUDE lines (ERROR); ROADMAP "Decided" older than
 //                today and job STATE resume blocks over 40 lines (WARN).
 //   bible-notes  a "Note 2026-..." line appended in docs/design-bible.md (ERROR: folds rewrite in place).
+//   headers      G344: each current doc names its owner and status in its first lines: `Owner: <who>. Status: current.`
+//                (or `history`; also inside `<!-- ... -->`). ERROR for the core set (docs/doc-lint.json), WARN for the rest.
 // Scope: the current docs (CLAUDE.md, README.md, TESTING.md, docs/*.md, docs/systems/, docs/templates/; docs/doc-lint.json).
 // Job docs (docs/<job>/) are the job's record and move to docs/archive/ with its final PR (`Job-done:`), so only their
 // STATE resume block size is checked. docs/doc-lint.json `known` lists stale lines another PR fixes (printed as WARN).
@@ -316,7 +318,7 @@ export function checkSizes(files, cfg, today) {
   for (const [file, max] of Object.entries(cfg.words ?? {})) {
     const text = files.get(file);
     if (text == null) continue;
-    const n = wordCount(text);
+    const n = wordCount(stripHeader(text));
     if (n > max) out.push(finding('ERROR', 'sizes', file, 1, `${n} words, budget ${max}: cut, link to the owner doc instead`));
   }
   for (const [file, max] of Object.entries(cfg.lines ?? {})) {
@@ -357,6 +359,46 @@ export function checkBibleNotes(files, file = 'docs/design-bible.md') {
   return out;
 }
 
+// ---- headers ------------------------------------------------------------------------------------------------------
+
+export const OWNER_RE = /^\s*(?:<!--\s*)?Owner:\s*\S/;
+export const STATUS_RE = /\bStatus:\s*(current|history)\b/;
+
+/** The header lines (G344): -> { owner, status } line numbers within the first `n` lines (1-based; 0 = none). */
+export function readHeader(text, n = 10) {
+  const lines = splitLines(text).lines.slice(0, n);
+  return { owner: lines.findIndex((l) => OWNER_RE.test(l)) + 1, status: lines.findIndex((l) => STATUS_RE.test(l)) + 1 };
+}
+
+/** The text without its Owner header line (budgets count the content, not the header). */
+export function stripHeader(text) {
+  const { owner } = readHeader(text);
+  if (!owner) return text;
+  const lines = text.split(/\r?\n/);
+  lines.splice(owner - 1, 1);
+  return lines.join('\n');
+}
+
+/**
+ * Owner / status headers (docs/doc-lint.json `headers` = { error: globs, warn: globs, skip: globs, lines }): a doc in
+ * `error` without both lines in its first `lines` (10) is an ERROR, one in `warn` a WARN.
+ */
+export function checkHeaders(files, cfg) {
+  const out = [];
+  const n = cfg.lines ?? 10;
+  for (const [file, text] of files) {
+    if (matchAny(file, cfg.skip ?? [])) continue;
+    const level = matchAny(file, cfg.error ?? []) ? 'ERROR' : matchAny(file, cfg.warn ?? []) ? 'WARN' : null;
+    if (!level) continue;
+    const h = readHeader(text, n);
+    const miss = [h.owner ? null : 'Owner', h.status ? null : 'Status (current | history)'].filter(Boolean);
+    if (miss.length) {
+      out.push(finding(level, 'headers', file, 1, `no ${miss.join(' / ')} line in the first ${n} lines (G344): add "Owner: <who>. Status: current."`));
+    }
+  }
+  return out;
+}
+
 // ---- all ----------------------------------------------------------------------------------------------------------
 
 /**
@@ -373,6 +415,7 @@ export function lintDocs({ files, exists, config, today }) {
     ...checkOwners(files, { scope: lint.owners?.scope, skip: lint.owners?.skip, owners: config.owners?.owners ?? [] }),
     ...checkSizes(files, lint.sizes ?? {}, today),
     ...checkBibleNotes(files),
+    ...checkHeaders(files, lint.headers ?? {}),
   ];
   return applyKnown(all, lint.known ?? []).sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
 }

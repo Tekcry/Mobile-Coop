@@ -1,4 +1,5 @@
 # Branches and deploy
+Owner: the orchestrator. Status: current.
 Purpose: how branches map to the GitHub Pages site and how a release is made.
 Rules: `docs/DECISIONS.md` G83 (master is the only base), G179 (the `/ct/` preview), G183 (version numbers at each
 merge); `docs/RULES.md` (who merges).

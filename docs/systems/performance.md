@@ -1,4 +1,5 @@
 # Performance budget
+Owner: Test Runner. Status: current.
 Purpose: the desktop frame-rate goals, CPU / draw / memory budgets and the perf script budgets.
 Design authority: docs/DECISIONS.md (G12 desktop only, G14 goals set to the target laptop), then docs/design-bible.md.
 

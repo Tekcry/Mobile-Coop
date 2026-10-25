@@ -1,5 +1,5 @@
 {
-  "_about": "scripts/doc-lint.mjs settings (doc-guard). Current docs = the files every session reads; job docs (docs/<job>/) are per-job records, archived by Job-done. known: stale lines in orchestrator-owned files only (docs/ROADMAP.md, docs/orchestrator/); everything else is an error.",
+  "_about": "scripts/doc-lint.mjs settings (doc-guard). Current docs = the files every session reads; job docs (docs/<job>/) are per-job records, archived by Job-done. known: stale lines in orchestrator-owned files only (docs/orchestrator/); everything else is an error. headers: G344 owner / status lines.",
   "include": [
     "**/*.md"
   ],
@@ -96,18 +96,27 @@
       "max": 40
     }
   },
-  "known": [
-    {
-      "check": "stale-terms",
-      "file": "docs/ROADMAP.md",
-      "match": "(claude-md-process-section)",
-      "note": "orchestrator: ROADMAP header points at CLAUDE.md \"Sessions\" (fix on feature/menu)"
-    },
-    {
-      "check": "stale-terms",
-      "file": "docs/ROADMAP.md",
-      "match": "(current-goal-2026-10-19)",
-      "note": "orchestrator: ROADMAP \"Goal (CLAUDE.md \\\"Current goal\\\")\" line (fix on feature/menu)"
-    }
-  ]
+  "known": [],
+  "headers": {
+    "error": [
+      "CLAUDE.md",
+      "docs/VISION.md",
+      "docs/RULES.md",
+      "docs/INDEX.md",
+      "docs/DECISIONS.md",
+      "docs/design-bible.md",
+      "docs/level-design.md",
+      "docs/design/scale-sheet.md",
+      "docs/systems/*.md",
+      "docs/templates/*.md",
+      "docs/ROADMAP.md"
+    ],
+    "warn": [
+      "README.md",
+      "TESTING.md",
+      "docs/*.md"
+    ],
+    "skip": [],
+    "lines": 10
+  }
 }

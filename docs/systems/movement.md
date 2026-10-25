@@ -1,4 +1,5 @@
 # Movement, camera and traversal
+Owner: Player Build. Status: current.
 Purpose: the operator's movement, camera, back-to-wall, door peek, traversal anchors and attached states.
 Design authority: docs/DECISIONS.md (G1, G16-G39, G210, G227), then docs/design-bible.md (Sections 4 and 5.3).
 
