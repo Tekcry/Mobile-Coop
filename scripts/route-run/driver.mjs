@@ -47,6 +47,8 @@ export const LOCKED_NEAR_M = 1.5;
 export const PAST_M = 1.2;
 /** The objective's hold limit (s) when the mode gives none: `stepLimit('objective', OBJECTIVE_HOLD_S)`. */
 export const OBJECTIVE_HOLD_S = 30;
+/** The objective is tried this long (game s) from where the robot stands before it walks to the objective's point. */
+export const OBJECTIVE_TRY_S = 1;
 /** A run longer than this (game s) stops with a `step-timeout` (a safety net; a stuck robot stops at 8 s anyway). */
 export const RUN_CAP_S = 1800;
 /** A guard's eye above his feet (m), for the inferred sight inputs. */
@@ -101,6 +103,7 @@ function pageDriver(P, o) {
   let doorTapT = -1e9;
   let crouchTapT = -1e9;
   let objTapT = -1e9;
+  let objTryEnd = Infinity;
   let tapBtn = -1;
   let tapLeft = 0;
   let pollT = 0;
@@ -356,6 +359,11 @@ function pageDriver(P, o) {
         mode = IDLE;
         return 'timeout';
       }
+      // a try from where the robot stands: the use did not start here
+      if (!m.run.downloading && t >= objTryEnd - 1e-9) {
+        mode = IDLE;
+        return 'nostart';
+      }
       if (!m.run.downloading && t - objTapT > 3) {
         tap(BTN_A);
         objTapT = t;
@@ -522,8 +530,9 @@ function pageDriver(P, o) {
       return ob ? { x: ob.x, y: ob.y ?? 0, z: ob.z, kind: ob.kind ?? null } : null;
     },
 
-    /** Use the objective (A, again every 3 s while it has not started) until the mode says it is done. */
-    objectiveStart(limit) {
+    /** Use the objective (A, again every 3 s while it has not started) until the mode says it is done. With `tryS` > 0
+     *  a try: event 'nostart' when the use has not started within `tryS` game seconds. */
+    objectiveStart(limit, tryS) {
       const g = st();
       const m = window.__sector;
       stopStick();
@@ -531,6 +540,7 @@ function pageDriver(P, o) {
       objIndex = m.run.index;
       tap(BTN_A);
       objTapT = g.time;
+      objTryEnd = tryS > 0 ? g.time + tryS : Infinity;
       watch.step(g.time - t0, limit);
       mode = OBJECTIVE;
       return 'started';
@@ -886,18 +896,27 @@ async function objectiveStep(ctx, log, step, stop) {
     log.objectives.push({ space: step.space, hold_s: 0, done: false, why: 'no objective hook for this mode (R4a: Sector Ops only)' });
     return;
   }
-  await d.call('walkStart', pt.x, pt.y, pt.z);
-  const w = await d.until();
-  if (w.ev !== 'arrived' && w.ev !== 'stall') return;
-  const t0 = await d.call('time');
   const limit = stepLimit('objective', OBJECTIVE_HOLD_S);
-  const how = await d.call('objectiveStart', limit);
-  if (how !== 'started') {
+  // first from where the robot stands (a code route: its stand point pts[obj], e.g. S1's rear window); the walk to the
+  // objective's own point only when the use does not start there
+  let t0 = await d.call('time');
+  let how = await d.call('objectiveStart', limit, OBJECTIVE_TRY_S);
+  let res = how === 'started' ? await d.until(limit + 2) : null;
+  let from = 'stand';
+  if (res?.ev === 'nostart') {
+    from = 'point';
+    await d.call('walkStart', pt.x, pt.y, pt.z);
+    const w = await d.until();
+    if (w.ev !== 'arrived' && w.ev !== 'stall') return;
+    t0 = await d.call('time');
+    how = await d.call('objectiveStart', limit, 0);
+    res = how === 'started' ? await d.until(limit + 2) : null;
+  }
+  if (how !== 'started' || !res) {
     log.objectives.push({ space: step.space, hold_s: 0, done: true, why: 'already done' });
     return;
   }
-  const res = await d.until(limit + 2);
   const held = r2((await d.call('time')) - t0);
-  log.objectives.push({ space: step.space, kind: pt.kind, hold_s: held, done: res.ev === 'done' });
+  log.objectives.push({ space: step.space, kind: pt.kind, hold_s: held, done: res.ev === 'done', from });
   if (res.ev !== 'done') await stop('step-timeout', { ...step, link: null }, res);
 }

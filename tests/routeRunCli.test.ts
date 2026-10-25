@@ -376,6 +376,23 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
         return true;
       },
     };
+    /** The mode's download objective: A within `USE_M` of the terminal starts it, 2 s near it completes it. */
+    const USE_M = 4;
+    const objectiveUse = (dt: number) => {
+      const r = sector?.run;
+      const ob = r?.current?.objective;
+      if (!r || !ob || r.phase !== 'objective') return;
+      const p = game.player.position;
+      const near = Math.hypot(p.x - ob.x, p.z - ob.z) < USE_M;
+      if (buttons[0] && near && !r.downloading) {
+        r.downloading = true;
+        calls.push(`use at ${p.x.toFixed(1)}`);
+      }
+      if (r.downloading && near && (r.progress += dt) >= 2) {
+        r.downloading = false;
+        r.phase = 'connector';
+      }
+    };
     /** The mode's connector hold (`ConnectorMachine.step`): every player inside 1 s starts the cycle (next section). */
     const connectorHold = (dt: number) => {
       const r = sector?.run;
@@ -414,6 +431,7 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
             game.time += dt;
             // (any step the robot could be hurt in)
             if (game.target.damageMul !== 0) game.hurtable = true;
+            objectiveUse(dt);
             connectorHold(dt);
           },
         },
@@ -487,6 +505,30 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
     const log = await runOne(await vmDriver(moved), throughConnector());
     expect(log.unplannable).toBe('restart moved to section s2 (the run is S1)');
     expect(moved.calls).toContain('restart');
+  });
+
+  /** Sector Ops in S1's objective phase: a download terminal at (x, 0, 0). */
+  const objectivePhase = (x: number): Obj => ({ camAlarms: 0, ids: ['s1', 's2'], run: { index: 0, phase: 'objective', downloading: false, progress: 0, extractT: 0, conn: { insideT: 0 }, current: { id: 's1', objective: { x, y: 0, z: 0, kind: 'download' }, connector: { box: [50, 50, 51, 51], floorY: 0 } } } });
+  const objectiveRun = { id: 'S1-code-1', section: 'S1', steps: [{ type: 'objective', space: null }] };
+
+  it('the objective is used from where the robot stands first (a code route: its stand point pts[obj])', async () => {
+    const g = fakeGame({ sector: objectivePhase(3) });
+    const log = await runOne(await vmDriver(g), objectiveRun);
+    expect(g.calls.filter((c) => c.startsWith('use'))).toEqual(['use at 0.0']);
+    expect(log.objectives).toEqual([{ space: null, kind: 'download', hold_s: expect.any(Number), done: true, from: 'stand' }]);
+    expect(log.objectives[0].hold_s).toBeLessThan(2.5);
+    expect(g.game.player.position.x).toBe(0);
+    expect(log.deadStops).toEqual([]);
+  });
+
+  it("out of the use's reach it walks to the objective's own point, and uses it there", async () => {
+    const g = fakeGame({ sector: objectivePhase(10) });
+    const log = await runOne(await vmDriver(g), objectiveRun);
+    const uses = g.calls.filter((c) => c.startsWith('use'));
+    expect(uses).toHaveLength(1);
+    expect(Number(uses[0]!.slice(7))).toBeGreaterThan(6);
+    expect(log.objectives).toEqual([{ space: null, kind: 'download', hold_s: expect.any(Number), done: true, from: 'point' }]);
+    expect(log.deadStops).toEqual([]);
   });
 
   it("the connector's own hold counter ends a hold too, one chunk in, long before the cycle", () => {
