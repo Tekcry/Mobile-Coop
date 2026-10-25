@@ -1,0 +1,29 @@
+{
+  "id": "20261025T213617-affected-e2e-2fbb47ed-6c6e",
+  "sha": "2fbb47ed796b0ce6b39fb6ed378abda3fff0ea39",
+  "branch": "feature/marlow-replan-r1",
+  "pr": 487,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-course",
+    "e2e-ctcourse",
+    "e2e-desktop",
+    "e2e-gadgets",
+    "e2e-levels",
+    "e2e-lightbake",
+    "e2e-move",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #487"
+}
