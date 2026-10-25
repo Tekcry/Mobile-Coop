@@ -296,13 +296,14 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-gbody{display:grid;gap:1px}
 .anim-tune .tt-row{display:grid;grid-template-columns:minmax(5em,38%) minmax(3em,1fr) 4.4em 1.1em 1.3em;align-items:center;gap:0.3em;min-height:2em;padding:0 0.1em 0 0.15em;border-radius:0}
 .anim-tune .tt-row:hover{background:rgba(255,255,255,0.035)}
-.anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tt-fg)}
+.anim-tune .tt-name{display:flex;align-items:center;min-width:0;overflow:hidden;white-space:nowrap;color:var(--tt-fg)}
+.anim-tune .tt-name-text{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .anim-tune .tt-row.tt-off{opacity:0.42}
 .anim-tune .anim-tune-playing{flex:none;color:var(--tt-hi);font-weight:600;font-size:0.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 0.25em;min-height:1.3em}
 .anim-tune.tt-folded .anim-tune-playing,.anim-tune.tt-folded .anim-tune-warn{display:none!important}
 .anim-tune .anim-tune-warn,.anim-tune .tt-warn{color:var(--tt-warn);font-size:0.82em;font-weight:600;line-height:1.25;margin:0.1em 0 0.25em}
 .anim-tune .tt-warn{padding:0.1em 0.3em 0.1em 0.5em;border-left:3px solid var(--tt-warn);background:rgba(240,180,59,0.08)}
-.anim-tune .tt-reach{display:inline-block;margin-left:0.45em;padding:0 0.4em;border-radius:2px;font-size:0.72em;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle;border:1px solid currentColor;pointer-events:none}
+.anim-tune .tt-reach{display:inline-block;flex:none;margin-left:0.45em;padding:0 0.4em;border-radius:2px;font-size:0.72em;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle;border:1px solid currentColor;pointer-events:none}
 .anim-tune .tt-reach-mocap{color:#7cc4ff;-webkit-text-fill-color:#7cc4ff}
 .anim-tune .tt-reach-keyed{color:#f0b43b;-webkit-text-fill-color:#f0b43b}
 .anim-tune .tt-reach-both{color:#b9c4c0;-webkit-text-fill-color:#b9c4c0}
@@ -2238,7 +2239,11 @@ export class AnimTunePanel {
     row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})${hmNote ? `\n${hmNote}` : ''}`;
     const name = document.createElement('span');
     name.className = 'tt-name';
-    name.textContent = roleWords(plainLabel(kind, t.id, t.label), handRoles(kind, group));
+    // the name's text is the first child (the selection line reads it); in its own span so the ellipsis cuts the name, never the badge
+    const nameText = document.createElement('span');
+    nameText.className = 'tt-name-text';
+    nameText.textContent = roleWords(plainLabel(kind, t.id, t.label), handRoles(kind, group));
+    name.append(nameText);
     // (S4) the reach badge: words plus colour (`applyEffect` fills it; no tag: hidden); not focusable, not a touch target
     const badge = document.createElement('span');
     badge.className = 'tt-reach';
@@ -4042,7 +4047,7 @@ export class AnimTunePanel {
       return;
     }
     const state = sec.group ? plainWords(sec.group.split('.').slice(1).join(' ')) : '';
-    // (S4) the row's name only: the reach badge sits after its text node
+    // (S4) the row's name only: its first child holds the text, the reach badge sits after it
     const what = row?.querySelector('.tt-name')?.firstChild?.textContent ?? 'whole part';
     line.hidden = false;
     line.textContent = `▶ ${sec.reg.label}${state ? ` · ${state}` : ''} · ${what} → ${this.selTarget.label}`;
