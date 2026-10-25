@@ -174,6 +174,11 @@ export async function walk(t, n) {
   await assertFreshGuards('A2 restart');
 
   // ---- 2b. spotted (walk482 X2): a guard sees the client standing in the lit neck: the set restarts, both back at the set start ----
+  // (J14 S0) the re-plan yard drops A2's spotted rule (ctcourse.ts SPOT_FAIL, !replan): no spot restart to walk there
+  if (t.replan) {
+    assert(!(await GA(() => window.__course.state.currentBay.spotFail)), 'A2 (re-plan): the set has no spotted rule');
+    console.log('  A2: spotted in the lit neck - skipped on the re-plan (no spotted rule)');
+  } else {
   console.log('  A2: spotted in the lit neck');
   await noDamage();
   const spot0 = await restarts();
@@ -190,6 +195,7 @@ export async function walk(t, n) {
   await noDamage();
   await assertFreshGuards('A2 after the spot');
   assert((await restarts()) === spot0 + 1, 'A2: the fresh guards did not spot anyone again');
+  }
 
   // ---- 3. the taught route: the press at cabinet one with the shunter near, the host crosses the dark neck ----
   console.log('  A2: cabinet one, the dark neck');
