@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-25T08:50Z
 # sector-marks B1 (cloud): no exit beacon, campus objective lines with a place, hyp2
 
 Lead: Night Shift | Sector Ops Build. Job sector-marks (FOLDED-PLAN J5, ROADMAP Now row 11). Plan checked (checks 1-2,
