@@ -73,7 +73,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
-  pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
+  pickups, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
   sending (`net/bgTicks.ts`; the hidden-page tick, input-and-loop.md).
 - (marlow-bays items 3-4) The host's pause menu restarts at the checkpoint (`GameMode.restartCheckpoint`; the host's

@@ -4,7 +4,6 @@ import type { GameState, NetAttachment } from '../game/gameState';
 import type { Enemy } from '../ai/enemy';
 import type { HitInfo } from '../game/damage';
 import type { Interactable } from '../game/interactables';
-import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { MASK } from '../physics/groups';
@@ -1940,14 +1939,6 @@ export class CoopHost implements NetAttachment {
     const r = this.remotes.get(who);
     if (!r) return;
     this.push({ e: 'pickup', player: who, kind });
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const r of this.remotes.values()) {
-      out.push({ x: r.feet.x, z: r.feet.z, kind: 'ally' });
-    }
-    return out;
   }
 
   onEnd(won: boolean, subtitle: string): void {

@@ -32,6 +32,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
   were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
   finishes it (team doors keep a solo route, G280).
+- [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or free roam; the Marlow drill
+  pointer and pings still show.
 - [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
   and objective read by lamp light, with dark
   pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED

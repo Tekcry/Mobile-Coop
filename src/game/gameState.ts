@@ -28,7 +28,6 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import type { WheelView } from '../ui/hud/gadgetWheel';
 import { keyLabels } from '../ui/prompts';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
-import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
@@ -257,7 +256,6 @@ export interface NetAttachment {
   /** Extra pickers for pickups (host: remote players). */
   pickers?(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[];
   onPickup?(kind: PickupKind, who: string): void;
-  blips?(): Blip[];
   /** (guard-ai S9) Client: where guard `who`'s line shows (over his puppet's head) into `out`; false when not here. */
   barkAt?(who: string, out: Vector3): boolean;
   /** (coop-carry) Client: the local player's body carry (the host has its own in `StealthSystems`). */
@@ -349,7 +347,6 @@ export class GameState implements AppState {
   readonly weapons: PlayerWeapons;
   readonly target: PlayerTarget;
   readonly hud: Hud;
-  readonly minimap: Minimap;
   readonly traversal: TraversalController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
@@ -395,9 +392,6 @@ export class GameState implements AppState {
   private time = 0;
   private respawnT = -1;
   private onTarget = false;
-  private tmp = new Vector3();
-  /** Extra blips/markers contributed by the active mode. */
-  extraBlips: () => Blip[] = () => [];
   readonly nav: NavGrid | null = null;
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
@@ -636,8 +630,6 @@ export class GameState implements AppState {
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
-    this.minimap = new Minimap(world.level);
-    this.hud.setMinimap(this.minimap);
 
     this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
@@ -747,7 +739,6 @@ export class GameState implements AppState {
         // the round lands somewhere: a thud / ricochet close by is heard
         this.enemyMgr?.hear(b, IMPACT_NOISE);
       };
-      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => {
         const em = this.enemyMgr;
         if (!em) return '';
@@ -763,9 +754,6 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox') {
-      this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
-    }
     // (LR16-5b) Marlow Yard's swinging pendants (solo and host; a co-op client asks the host, `CoopClient.swayRay`): our
     // rounds, the guards' rounds and blasts kick them on the shared clock; the host sends each accepted kick
     // (`CoopHost`: `onKick`). Head bumps: `updateLight`. The hooks are made once here, not per frame.
@@ -2135,9 +2123,6 @@ export class GameState implements AppState {
       }
     }
   }
-
-  /** Enemy blips on the minimap last frame (tests). */
-  enemyBlips = 0;
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
@@ -3610,33 +3595,9 @@ export class GameState implements AppState {
       crosshair: this.weapons.drawPhase === 2 && this.player.ads,
       onTarget: this.onTarget,
       ads: this.player.cam.ads > 0.5,
-      yaw: cam.yaw,
-      markers: [],
     };
-    const blips: Blip[] = [];
-    // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)
-    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode || this.mode instanceof SectorMode;
-    const radar = stealthMode ? this.hq.radar : Infinity;
-    let enemyBlips = 0;
-    if (radar > 0) {
-      const pp = this.player.position;
-      for (const t of this.registry.hostiles('player')) {
-        t.center(this.tmp);
-        if (hyp2(this.tmp.x - pp.x, this.tmp.z - pp.z) > radar) continue;
-        blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
-        enemyBlips++;
-      }
-    }
-    this.enemyBlips = enemyBlips;
-    for (const g of this.grenades.positions()) blips.push({ x: g.x, z: g.z, kind: 'danger' });
-    blips.push(...this.extraBlips());
-    for (const b of blips) {
-      if (b.kind === 'objective') f.markers.push({ bearing: Math.atan2(b.x - this.player.position.x, b.z - this.player.position.z), kind: 'objective' });
-    }
     this.hud.update(f);
     this.updateCoverHud();
-    const p = this.player.controller.renderPos;
-    this.minimap.draw(performance.now(), p.x, p.z, cam.yaw, blips);
   }
 }
 

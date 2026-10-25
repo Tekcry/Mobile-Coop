@@ -235,15 +235,29 @@ describe('v7 -> v8', () => {
     expect(data.version).toBe(SAVE_VERSION);
     const m = (data.missions as Record<string, Record<string, unknown>>)['embassy-pouch']!;
     expect(m).toEqual({ rating: 2, score: 1200, plays: 3, wins: 2 });
-    expect(data.hq).toEqual({ radar: 1, restock: 0, revive: 0 });
+    expect(data.hq).toEqual({ restock: 0, revive: 0 });
     expect(data.challenges).toEqual({ progress: { knockouts: 3 }, done: [] });
     const s = sanitizeSave(data);
-    expect(s.hq).toEqual({ radar: 1, restock: 0, revive: 0 });
+    expect(s.hq).toEqual({ restock: 0, revive: 0 });
     expect(s.missions['embassy-pouch']).toEqual({ rating: 2, score: 1200, plays: 3, wins: 2 });
     expect(s.challenges.progress.executes).toBeUndefined();
   });
   it('does not throw on missing fields', () => {
     expect(migrate({ version: 7 }).data.version).toBe(SAVE_VERSION);
+  });
+});
+
+describe('v9 -> v10', () => {
+  it('drops the HQ radar, keeps the rest and the credits', () => {
+    const profile = { ...defaultSave().profile, credits: 4321 };
+    const V9 = { ...defaultSave(), version: 9, profile, hq: { radar: 2, restock: 1, revive: 1 } };
+    const { data, from, steps } = migrate(V9);
+    expect(from).toBe(9);
+    expect(steps).toBe(1);
+    expect(data.version).toBe(10);
+    expect(data.hq).toEqual({ restock: 1, revive: 1 });
+    expect((data.profile as { credits: number }).credits).toBe(4321);
+    expect(sanitizeSave(data).hq).toEqual({ restock: 1, revive: 1 });
   });
 });
 
