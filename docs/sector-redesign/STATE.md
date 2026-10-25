@@ -350,23 +350,30 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~19:58 after the account swap boot).
+Night Shift | Sector Ops Build: RESUME (SAVE 2026-10-25 ~20:35, 5-hour meter).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
 2 builder agents per lead (tsc / single vitest only); docs agents not counted. Plan: FOLDED-PLAN + ROADMAP Decided.
-Order: Guard AI J15 guard-rules PR1 lands on master before any J17 edit to campusS4Data.ts / campusS5Data.ts.
-1. BUILDING (check each branch head and its docs/<job>/checks/*.md report; relaunch if cut off):
-   - J16 char-shadow-meter S1 (Opus) on feature/char-shadow-meter (WIP 3e46a81e2). Next: Opus checker on S1, S3 from
-     the S1 interface commit (STATE), then S2; PR A = S1 + S2, two Opus checkers + e2e-coop / e2e-netmove.
-   - J10 light-realism L0 (Opus) on feature/light-realism-l0 (worktree -light-realism-l0). Then L0 checker, L1 +
-     SIGNOFF.md to Michael (one click) before L2-L5.
-   - J5 sector-marks B1: plan accepted by the lead; B1 sent to cloud-queue (briefs/sector-marks-B1.md ->
-     feature/sector-marks-b1). On done: fetch, Sonnet/Opus checker, fast-forward feature/sector-marks, PR.
-2. PLANS (docs agents):
-   - map-ready: fix round for PLAN-CHECK-2 (FIX) -> then fresh Opus check 3.
-   - J17 campus-greybox: fix round for PLAN-CHECK.md check 1 (claims block, A23 five files, split E2E-2, sector-marks
-     A-line, J15 order) -> then check 2.
-   - J18 sector-batch: fresh Opus plan checker -> docs/sector-batch/PLAN-CHECK.md. PASS: B1 / B3 to cloud-queue,
-     B2 Sonnet, B4 Opus (src/net, two checkers).
-3. #433 (J1 docs) train-ready. Test Runner J20 makes e2e-darkness the train parity check until J11 cards.
-Next: read each agent's report, start checkers on finished slices, keep 2 builders running.
+Order: Guard AI J15 guard-rules PR1 lands on master before any J17 lane PR (S1-S5) still carrying P0 / S4-S5 data.
+Michael ~20:05: map-ready Q3 option 1 (keep costly parts, level built at Start), Q1 cap 20 s. ~20:50: J10 "Yes, one
+datasheet" (one free IES file, data only, credited in docs/art-credits.md, pick noted in J10 BRIEF).
+1. BUILDING (check branch heads + docs/<job>/checks/*.md; relaunch any cut-off builder from its last commit):
+   - J16 char-shadow-meter S1 (Opus) on feature/char-shadow-meter (interface b3e70c165; WIP e93bf00e5). Next: Opus
+     checker on S1, then S2 (Opus) on the job branch.
+   - J16 S3 (Opus) on feature/char-shadow-meter-s3, worktree -char-shadow-meter-s3, from b3e70c165 (shadowCues.ts +
+     test). Then lead merges it into the job branch; S3b after S2.
+   - J10 light-realism L0 DONE 2253553bd ("chosen, not measured"; GPU before-run queued 20261025T092215-...-af43).
+     Opus checker running -> checks/l0-check.md + checker status. Datasheet agent: C:/NightShift/scratch/light-datasheet/
+     REPORT.md (download + 5-point lux + REFERENCE literal). Next: fold REFERENCE into calibrate.ts (+ art-credits,
+     BRIEF pick) with any L0 fix, then L1 + SIGNOFF.md to Michael.
+   - J5 sector-marks B1 on cloud-queue (briefs/sector-marks-B1.md -> feature/sector-marks-b1). On done: checker, ff
+     feature/sector-marks, PR.
+2. PLANS:
+   - map-ready ACCEPTED by the lead at 049c099bc (checks 1-3 + final fixes verified). Brief writer for W1 (+2-3 ahead)
+     running -> docs/map-ready/briefs/. Next: start W1 builders (cloud-safe ones to cloud-queue).
+   - J17 campus-greybox: check 2 FIX (PLAN-CHECK-2.md, 4 items); final fix round running (WIP 9f36223c1). Next: lead
+     verifies each "done looks like", then V2-SEED + S1-S3 lanes (own worktrees).
+   - J18 sector-batch: fix round 1 done 83b4d43a4 (B3 = own PR C; flag above sectorGuards); check 2 running ->
+     PLAN-CHECK-2.md. PASS: B1 / B3 to cloud-queue, B2 Sonnet, B4 Opus (src/net, two checkers).
+3. #433 merged (train 99). Test Runner J20: e2e-darkness is the train parity check until J11 cards.
+Next: read each agent's report / branch, start checkers on finished slices, keep 2 builders running.
 ```
