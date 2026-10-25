@@ -8,7 +8,8 @@ J18, "Sector Ops batch: stars fill lower (row 12), Perfect label, menu stars, so
 visual-gate fixes, warehouseOps S3 crawl duct". Sources: Sector Ops CONFORMANCE M7 M12 M15-M17 L15 L18 V13-V15 V17
 (`docs/conformance-sector-ops/CONFORMANCE.md:121-155`), Guard AI B10 (`docs/conformance-guard-ai/CONFORMANCE.md:60`),
 Player R20 (`docs/conformance-player/CONFORMANCE.md:59`). Depended on J1 (PR #433, `feature/sector-ops-docs`): merged
-in train 99 (origin/master 01aa415c).
+in train 99 (origin/master 01aa415c). Slice B4 depends on J4 (#317, `feature/coop4`, open): it reuses coop4's OUT
+rule (fix round 2, A24).
 Gate: affected-e2e + checker. Question: Q20 (answered). Sector Ops is at the walk cap (3 unwalked): new player-facing
 behaviour builds dark behind a flag; rule fixes to shipped features ship as fixes (G355; RULES "Walk pacing").
 
@@ -30,9 +31,12 @@ behaviour builds dark behind a flag; rule fixes to shipped features ship as fixe
    (`src/world/lightField.ts:29`), read by the field (`:443`), the bake's shut flags (`src/world/bakedLamps.ts:584`) and
    the torch shadow set (`src/world/torchShadowSet.ts:191`). At 0.15 it changes only the first 5-15% of an ordinary open
    or close (about a tenth of a second) and makes the two thresholds one number.
-6. Downed with nobody to revive (M12, Q20): after 30 s the player is out and waits for the next section door; the team
-   plays on. Today an operator out restarts the section for everyone (`src/net/coopHost.ts:571-581` ->
-   `src/game/modes/sectorMode.ts:1333-1338`).
+6. Downed with nobody to revive (M12, Q20, G385): after 30 s the player is out and waits for the next section door; the
+   team plays on. Today on master an operator out restarts the section for everyone (`src/net/coopHost.ts:571-581` ->
+   `src/game/modes/sectorMode.ts:1333-1338`). #317 (coop4, J4, Q16 "Live now", open) builds this rule for 3-4 players
+   (`SECTOR.outWaitsMin` 3, `src/game/sectorOut.ts`, `GameState.outIds`, `CoopHost.returnOut(ids)`, a follow view, the
+   client's OUT line, the wire's `ot` mask) and keeps the restart at 1-2. This job lets it start at 2 players behind a
+   flag once #317 is on master (A12, A24).
 7. Visual-gate fixes (V13, V14, V15, V17) and the fog re-shoot (L18), inside the visual-gate job (origin/feature/visual-gate
    07eefea0, not on master): the so-corner rig misses the F5b wedge (`scripts/visual-gate/viewpoints.mjs:671-693`);
    campus views have no `wall` region (`:256-452`); the recorded baseline is an error run (visual-baselines f3682c92);
@@ -73,22 +77,24 @@ calls this job's solo-route check from its own lanes).
 VISION 4 rule 1 (light parity: one door threshold for the field, the bake and the torch set), rule 3 (a perfect rating
 is always possible); VISION 2 Sector Ops row (stars, a higher clear fills the lower; revive syringes, no lives); G188,
 G280, G331, G146, G41, G385; RULES "Walk pacing", "A job" (Opus writes `src/net` code; two Opus checkers on a
-`src/net` PR); CLAUDE.md flags (unfinished work dark in `src/core/flags.ts`), hot paths (nothing allocated per tick).
+`src/net` PR; since fix round 2 no slice edits `src/net`, A17); CLAUDE.md flags (unfinished work dark in `src/core/flags.ts`), hot paths (nothing allocated per tick).
 
 ## Assumed decisions (G358 "Assume and log")
 - A1 Walk cap. Stars fill, Perfect, the menu stars and door light at 15% ship live as rule fixes to shipped features
   (G355). The out-and-wait rule (ask 6) is a new co-op play state and builds dark behind `flags.sectorOutWait`
   (`?sectoroutwait=1`), owner Night Shift | Sector Ops Build, switch-on at Michael's next co-op Sector Ops walk (target
-  2026-10-28). Undo: put a fix behind a flag, or default the flag on.
+  2026-10-28; it needs #317 on master first, A24). Undo: put a fix behind a flag, or default the flag on.
 - A2 Stars are derived on read: `starsOf` fills every tier up to the hardest one in `done`. `done` and the best times
   stay as cleared (a Perfectionist clear records a Perfectionist time only). Old saves get the fill; no save shape
   change, no `SAVE_VERSION` bump. The co-op client, the op list (`missionsScreen.ts:100`) and the lobby row
   (`coopUi.ts:612`) all read `starsOf`, so no `src/net` edit. Undo: the old `starsOf` body.
 - A3 Perfect = no lethal kill on the run's line (knock-outs are not kills, A4 of feature/sector-ops; a dead dog counts
-  once J15 lands) and the run's alarm stage still 0 at the extraction (`SectorRun.alarm`; a section restart puts it
-  back to the section's start, as built); every primary objective = the op is complete (the line is shown only at the
-  extraction). Kills stay on the line through a restart, so a kill in a restarted attempt still costs Perfect. Undo:
-  derive Perfect from every section's marks (`NO_KILLS | NO_ALARMS`).
+  once J15 lands) and no alarm raised all op (`SectorRun.alarmsRaised`, counted in `raiseAlarm`, which every guard and
+  camera alarm goes through; never put back by a section restart and never lowered, so a reward that lowers the stage
+  later cannot hand Perfect back); every primary objective = the op is complete (the line is shown only at the
+  extraction). Kills and alarms stay on the line through a restart, so either one in a restarted attempt still costs
+  Perfect. (Fix round 2, plan check 2 polish: was the alarm stage at the extraction.) Undo: `alarms: this.run.alarm`
+  (the stage at the end), or derive Perfect from every section's marks (`NO_KILLS | NO_ALARMS`).
 - A4 Display: the line reads "... Spotted 0  ·  PERFECT  ·  GHOST" (each when earned); the extraction banner's subtitle
   is "PERFECT", "GHOST" or "PERFECT  ·  GHOST"; the briefing adds "No kills and no alarm: Perfect."; no score bonus for
   Perfect (Ghost keeps +2000). The co-op client gets the host's line and banner as now. Undo: the strings.
@@ -120,22 +126,36 @@ G280, G331, G146, G41, G385; RULES "Walk pacing", "A job" (Opus writes `src/net`
 - A11 No GPU look run and no walk item for the door change: only the first 15% of an ordinary swing changes (about a
   tenth of a second of a hand or guard open or close); a crack and a stick-driven door were already dark, and the
   gate's door rigs shoot shut doors. Undo: a rig run with the leaf at 0.1.
-- A12 Q20 as built (G385): a downed player not revived within 30 s (`REVIVE_WINDOW`, unchanged) or with no syringe left
-  is out; the team plays on; when the connector's cycle completes (its far door unlocks) every out player comes back on
-  the connector's checkpoint slots. Everyone else down, or solo, restarts the section as now (G188). Undo: flag off.
-- A13 With the flag, an out player is not counted at the connector or the extraction (A20 of feature/sector-ops keeps
-  counting a downed player whose window runs). In the last section an out player stays out and the extraction ends the
-  op without him. Undo: count him (the team could not leave without him: the bug A20 guards against).
-- A14 Coming back at the door costs no syringe and no revive count. A player still downed (window running) outside the
-  connector when its cycle completes also comes back there; his window stops. Undo: leave him (A20 already stops the
-  cycle while he is down outside, so this case needs him inside or out).
-- A15 The out player's HUD reads "OUT - wait for the checkpoint" on the host and the client (the connector is the next
-  checkpoint); the camera stays where it is. A spectator view of the team goes on the polish list. Undo: the text.
+- A12 Q20 (G385) is coop4's OUT rule applied to 2 players (fix round 2; was a second rule of this job's own). With
+  `flags.sectorOutWait` the gate in coop4's `SectorMode.onPlayerOut` becomes `outWaitsFor(team, flags.sectorOutWait)`:
+  coop4's `outWaits` (from `SECTOR.outWaitsMin` 3, unchanged) or, with the flag, from 2. A downed player not revived
+  within 30 s (`REVIVE_WINDOW`, unchanged) or with no syringe left is then OUT; the team plays on; he comes back on his
+  slot at the checkpoint when the next connector's cycle completes (the next section door) or at the extraction
+  (coop4's `returnOut`). Everyone down or out, or solo, restarts the section as now (G188). After switch-on the flag
+  goes and `SECTOR.outWaitsMin` becomes 2. Undo: flag off.
+- A13 As coop4: an OUT player leaves the player list (`GameState.outIds`, `playerRefsInto`), so guards drop him and the
+  connector and the extraction neither wait for nor count him (A20 of feature/sector-ops still counts a downed player
+  whose window runs). The extraction brings him back (coop4 `complete()` -> `returnOut`), so the op ends with everyone
+  up. Replaces fix round 1's "the extraction ends the op without him": one rule for every team size. With 2 players the
+  one left up plays alone; B2's solo-route check (G280) is what keeps every section passable for him. Undo: a 2-player
+  branch in coop4's `complete()` that skips the return (not planned).
+- A14 As coop4: coming back costs no syringe and no revive count (`CoopHost.returnOut` -> `reviveOne`, not
+  `ReviveClock.revive`), full health, the section's loadout. A player still downed with his window running is not OUT
+  and is not moved: A20 keeps the connector shut while he is down outside it, and inside it he keeps his window into the
+  next section. Fix round 1's "a downed player outside also comes back there" is dropped. Undo: add the downed ids to
+  coop4's return (a coop4 change; asked of J4 through the orchestrator).
+- A15 As coop4: the OUT player's HUD reads "Out - you rejoin at the next connector" (`OUT_LINE`, host and client; the
+  client learns it from the `ot` mask) and his view follows a teammate who is up (`OutFollow`; with 2 players the one
+  partner; next weapon moves on when there are more). Fix round 1's "OUT - wait for the checkpoint" with a still camera
+  and the spectator-view polish item are dropped. Undo: none in this job (coop4's text and view).
 - A16 Three PRs: PR A `feature/sector-batch` (slices B1-B2, fixes, one checker), PR B `feature/sector-batch-out`
-  (slice B4, `src/net`: two Opus checkers and the co-op suites), so the net review never holds the fixes, and PR C
+  (slice B4, cut from origin/master once #317 is merged, A24), so the co-op wait never holds the fixes, and PR C
   `feature/sector-batch-light` (slice B3, A23, one checker). The last of the three to land carries
   `Job-done: sector-batch`. Undo: one PR.
-- A17 B4 is built by Opus (RULES "A job": Opus writes `src/net` code) from a strict brief like the Sonnet ones.
+- A17 B4 no longer edits `src/net` (the net half is coop4's, used as built), so Sonnet builds it from a strict Opus brief
+  (RULES "A job": wiring and tests) and one fresh Opus checker checks it, passing only with e2e-coop and e2e-netmove
+  (requested: RULES checker gate for `src/game`) and e2e-sectorops part 9 green. Undo: an Opus builder and two Opus
+  checkers if the build finds it must touch `src/net` (the brief stops there).
 - A18 The visual-gate fixes are a slice of the visual-gate job: branch `feature/sector-batch-vg` cut from
   origin/feature/visual-gate, merged back by the lead, landing with that job's stacked PRs (its A33), not in PR A or B.
   V13 re-places the so-corner leak quad onto the haze wedge seen in new PNGs (F5b stays `known`, unfixed); P7 must
@@ -156,3 +176,13 @@ G280, G331, G146, G41, G385; RULES "Walk pacing", "A job" (Opus writes `src/net`
   (:28-31, train 99), and a branch from b81c4945 that edits :26-27 conflicts with master (checked with
   `git merge-file`). The other PR A files have no master change next to B1 / B2's lines. Undo: B3 back into PR A once
   `feature/sector-batch` is cut again from a master that has #433.
+- A24 (plan check 2) B4 waits for #317 (coop4, J4) on master and reuses its OUT rule (A12-A15): no second out set, no
+  second `returnOut` signature, no `src/net` or wire edit (check 2 found fix round 1's B4 duplicated it and collided
+  with it at `coopHost.ts:580` and in `sectorMode.ts`). If #317 has not merged by the 2026-10-28 walk, the switch-on
+  moves with it; B1-B3 do not wait. Undo: fix round 1's own B4 (PLAN 83b4d43a), only if #317 is dropped.
+- A25 (plan check 2) B1 and `feature/mission-engine` (Campaign Build; POL1 / EN2, carried by `mission-rules` /
+  `-r1`) edit the same two lines, `sectorResult`'s line (`sectors.ts:864`) and `result()` (`sectorMode.ts:1020`). PR
+  A lands first (built soon, ~420 lines; mission-engine is the large PR C of the mission-framework stack, after its
+  PRs D-F); mission-engine takes B1's lines when master reaches it: `alarms` and `skipped` both in the tally and in
+  `result()`, `perfect` in the return type (PLAN 7 gives the merged lines). Undo: none needed (both orders give the
+  same merged lines).
