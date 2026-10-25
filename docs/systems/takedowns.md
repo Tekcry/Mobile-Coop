@@ -110,7 +110,7 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   host rules: `docs/systems/coop.md` (client takedowns). Pure rules: `src/game/jointInterrogation.ts`,
   `tests/jointInterrogation.test.ts`; e2e-coop "joint interrogation: host bluffs, client reads".
 
-## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
+## From the co-op hang-down (hang-down job; `docs/archive/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use
 the pistol. Live only while hanging settled (`TeamController.hangActs`); lowering, the pull-up and the drop offer nothing.
 - Attacker state `hangDown` (`TakedownController.attackerState`, before the wall / attach checks); `pickTakedown` kind

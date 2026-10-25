@@ -33,7 +33,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   finishes it (team doors keep a solo route, G280).
 - [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
   and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
+  pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
   on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
@@ -358,7 +358,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "wide ranges" doubles every range; typing a number in a row's field applies on Enter; the search box filters rows.
 - [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
   drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
-  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
+  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/archive/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
   "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
   twice as slow and it cannot fire until it is up. Rifle / Pistol holster (one row each), swap (LB), grenade throw and Every clip speed change their

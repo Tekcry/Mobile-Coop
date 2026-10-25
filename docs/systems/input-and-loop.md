@@ -25,10 +25,10 @@ Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchL
 - Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
   while aiming; grenades and gadgets work holstered.
 - Decided (G24, G98, built): emotes and the carried medkit are deleted; View held does nothing.
-- Built (anim-rework S1, Michael 2026-10-20, M1-M4, A1-A3; `docs/anim-rework/BRIEF.md` section 1): the analogue speed
-  (no gears), the three weapon states (holstered / low ready / aiming), LT held aims, X tap holsters / draws and X held
-  reloads, RT tap knockout / hold kill, traversal holsters and returns the state. This replaces the F1a draw toggle and
-  the step 17 speed gears; `docs/ct-prototype/CT-CONTROLS.md` is history.
+- Built (anim-rework S1, Michael 2026-10-20, M1-M4, A1-A3; `docs/archive/anim-rework/BRIEF.md` section 1): the analogue
+  speed (no gears), the three weapon states (holstered / low ready / aiming), LT held aims, X tap holsters / draws and X
+  held reloads, RT tap knockout / hold kill, traversal holsters and returns the state. This replaces the F1a draw toggle
+  and the step 17 speed gears; `docs/ct-prototype/CT-CONTROLS.md` is history.
 - No aim assist on any input (G16, built: no-aim-assist 2026-10-21). The pad settings have no `aimAssist` field; an old
   stored value is dropped by `sanitizeSettings` (no save change: settings are not in the save schema).
 
@@ -60,8 +60,8 @@ call in the last second, or manual mode, stands the tick down. Single player nev
   `kbm`) and sets the `body.input-*` classes; CSS uses them for the focus ring and glyph prompts.
 - `GamepadSource` scans for pads on every poll, not just on `gamepadconnected` (some browsers expose a pad only after its
   first button press).
-- Pad (anim-rework S1, `docs/anim-rework/BRIEF.md` section 1): `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). LT
-  is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
+- Pad (anim-rework S1, `docs/archive/anim-rework/BRIEF.md` section 1): `GAME_BINDINGS` in `gamepadMapping.ts` (raw
+  buttons). LT is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
   (`player/weaponStance.ts`). A is always interact (Michael 2026-10-20 14:55: "Interact always"; it no longer
   reloads with the gun out). D-pad up / down are free in play; they step the held context menu (`CTX_BINDINGS`,
   `ctxUp` / `ctxDown`, fixed). In menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.

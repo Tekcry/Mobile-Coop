@@ -19,7 +19,7 @@ The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
   compass or objective blip; an optional hint layer, off by default (G290; 2026-10-25 "No maps at all", "Remove it
   too"). Objectives "must name what and where" (2026-10-25). Marlow Yard is the guided exception (G292).
 Hunter is the one non-CT mode kept, parked (G7). Wave, team deathmatch, free-for-all, every player-versus-player mode
-and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs/consolidation/).
+and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs/archive/consolidation/).
 
 ## Modes as built (`ModeId`)
 | Id | Name | Where | Status |
@@ -147,9 +147,9 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
 
 ## Parked economy and cosmetics (2.0 phase 8; `?legacy=1` only)
 - Arsenal: the CT kit only (G76): `rifle` (Heron Carbine, issued suppressed) and `pistolSd` (Hush 9 SD); the other 14
-  guns are deleted (docs/consolidation/deleted-guns.md). The rifle keeps the legacy attachments (red dot, 4x scope,
-  suppressor, compensator, grip, laser, magazines); CT's attachment set (sniper, shotgun, launcher) and the knife come
-  from the research (G76): decided, not built yet. `withAttachments(def, ids)` (progression/attachments.ts, pure);
+  guns are deleted (docs/archive/consolidation/deleted-guns.md). The rifle keeps the legacy attachments (red dot, 4x
+  scope, suppressor, compensator, grip, laser, magazines); CT's attachment set (sniper, shotgun, launcher) and the knife
+  come from the research (G76): decided, not built yet. `withAttachments(def, ids)` (progression/attachments.ts, pure);
   `PlayerWeapons` builds from `LoadoutEntry.attachments`; `penetrate()` casts back from beyond a hit to find the exit
   face. Weapons in detail: combat.md.
 - `progression/suit.ts` (pure): `SUIT` tiers, `suitStats`, `suitLook`, `HQ` + `hqStats`, `CHALLENGES` +
