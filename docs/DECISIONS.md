@@ -1,7 +1,7 @@
 # Night Shift - decisions
 Owner: the orchestrator. Status: current.
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G400 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G404 (2026-10-25).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
 Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
@@ -810,7 +810,7 @@ dogs exception and the heavies part of G49.)
 **G156. Voice chat after the prototype.** Proximity voice (G129) and the always-clear partner voice (G140) are built
 after the prototype. Michael: "After the prototype" (chat, 2026-10-18.)
 
-**G157. Level standard changes reviewed later.** (Narrowed by G366, 2026-10-25: reviewed before any more Tallow Wharf work.) The 12 proposed level standard changes (design-kit-digest appendix)
+**G157. Level standard changes reviewed later.** (Settled by G404, 2026-10-25: all 12 adopted as recommended.) The 12 proposed level standard changes (design-kit-digest appendix)
 come to Michael item by item before the first real mission map. Michael: "Review list later" (chat, 2026-10-18.)
 
 **G158. Prototype slices on Sonnet, medium.** (Replaced by G302, 2026-10-23: Opus plans and checks, Sonnet builds from
@@ -1572,7 +1572,7 @@ signposted in the briefing and the objective list, "ghost" counting as one; (3) 
 (off by default); guidance is in-world only (objective text names places, leads, light language, landmarks). (Replaces
 G125's "at most one hard rule"; Marlow Yard's guidance is settled by G292, its strict rules by G357.)
 
-**G291. Mission modes and the first prototypes.** Michael (2026-10-24, the same evening and ~22:12): campaign missions
+**G291. Mission modes and the first prototypes.** (Prototypes signed off by G402, 2026-10-25.) Michael (2026-10-24, the same evening and ~22:12): campaign missions
 are 2-player co-op only with strict rules; Sector Ops is 1-4 player co-op (G308; solo always possible, G280) with
 parallel objectives for two teams (or one player doing them all), strict rules allowed globally, per team or per split.
 First prototypes: Three Grey Coats and Two-Key Ledger (campaign, 2p), Split Shift and Code Relay (Sector Ops, 1-4p).
@@ -1590,7 +1590,7 @@ linear route, with split paths and multiple objectives only in its later section
 and the multi-route rules bind campaign missions and Sector Ops, not Marlow. Every campaign section forces a co-op
 traversal move with no solo bypass. (Extends G253 and G272.)
 
-**G293. The campaign prototypes get a new small map; the co-op traversal kit.** Michael (2026-10-24 ~22:50, native
+**G293. The campaign prototypes get a new small map; the co-op traversal kit.** (Kit extended by G403, 2026-10-25.) Michael (2026-10-24 ~22:50, native
 multiple choice): Three Grey Coats and Two-Key Ledger go on a new small campaign map, "If it's ready before I'm awake,
 continue to make progress": greybox may proceed overnight before his sign-off; the sign-off page is still made. The
 traversal kit: boost up a wall, throw over a gap, human ladder / pull-up, hold a shutter or door, rope brace / descent,
@@ -2052,7 +2052,7 @@ quoted as its label, with the option text where the label is short.
 (ROADMAP "Now" row 6, G355) is the plan: the leads resume at its J1 (doc-only fixes), then phase B (hard-rule fixes).
 On the 30 questions after the first nine: "Show me them first" (asked in batches; G375-G400).
 
-**G366. Tallow Wharf waits for Michael's review of the 12 level-rule changes.** Michael (Q1): "Review all 12 first"
+**G366. Tallow Wharf waits for Michael's review of the 12 level-rule changes.** (Replaced by G401, 2026-10-25 ~18:05: Tallow is built now and walked later.) Michael (Q1): "Review all 12 first"
 (option: "Review all 12 before any more Tallow work"). No more Tallow Wharf work until he has reviewed the 12 proposed
 changes to the level standard (design-kit-digest appendix) item by item. Tallow's four sign-off pages (Q22), Michael: "I
 haven't seen this, show me": they are shown to him after that review. (Narrows G157's "before the first real mission
@@ -2204,3 +2204,36 @@ walk. (Replaces G298's "the hand-keyed set behind the switch".)
 **G400. Partner animation fields go over the network.** Michael (Q39): "yes players must look exact in everyones games"
 (option: "Allow small animation fields"). Small animation fields may be sent so a partner looks exact on every screen;
 remotes still pose from `MoveState`. (Replaces loco D8's body layer "with no extra bandwidth".)
+
+G401-G404 are Michael's answers on the mission sign-off pages (2026-10-25 ~18:05, native multiple choice; #372
+`docs/missions/prototypes/*/SIGNOFF.md`, shown one by one with drawings after he asked "what happened to the proposed
+level designs from research into most popular campaign missions") and on the 12 level-rule changes (~18:20).
+
+**G401. Tallow Wharf is approved as drawn and is built now; Michael walks it once built.** Tallow Wharf map, Michael:
+"approve as drawn, id rather physically walk the map once built and confirm changes". The Tallow hold of G366 (Q1) is
+lifted: "Build now, walk later (Recommended)"; the 12 level-rule changes come to him alongside (G404) and he confirms
+them on his walk. (Replaces G366.)
+
+**G402. The four mission prototypes are signed off.** Three Grey Coats: "He moves (Recommended)" (after a broken rule,
+W2 restarts with Teale in the clock-mender's loft). Two-Key Ledger: "Hears and reacts (Recommended)" (the bell sends the
+porter: a Guard AI reaction). Split Shift: "Approve as drawn". Code Relay: "Approve, code re-askable (Recommended)" (two
+rules; an expired code can be asked for again, so there is no hard countdown, G334). The prototypes' campaign
+optional-objective rewards (a gadget charge, a syringe) are dropped (G384). (With G291.)
+
+**G403. Five more co-op kit moves.** On the co-op kit page Michael picked all five proposed moves: "Deadweight,Drop
+Catch,Chimney Pair,Swing Pass" and, for Plank Bridge, "Add it". Deadweight: one hangs on a chain so a counterweighted
+grate lifts for the other. Drop Catch: one drops from above the safe drop height into the partner's arms, landing
+silently. Chimney Pair: both brace back to back in a narrow shaft and climb it together. Swing Pass: one, braced on a
+pipe, swings the partner across a shaft. Plank Bridge: both carry a scaffold board and lay it over a gap; guards notice
+it. (Extends G293's kit.)
+
+**G404. The 12 level-rule changes are adopted as recommended.** Michael (~18:20, native multiple choice on the list in
+`docs/orchestrator/G157-12-changes.md`): "Adopt all as recommended (Recommended)". 1-3 (built for two, team moves
+anywhere, the 30 s revive) are confirmed as existing rules; 4 (teamwork minimums, keeping the stricter 90 s split limit,
+minimums sized per map), 5 (pacing minutes as playtest targets, plus a mid-mission objective twist), 7 (a readable world;
+weather only where a map has weather), 10 (real building safety; fire alarms unlocking doors as a player tool gets its own
+decision), 11 (the extra planning pages, added to the existing plans) and 12 (final map tests, at the "darkest real
+spot", G367) are adopted reworded; 6 (an entry lookout for two, the finale seen from afar), 8 (the two-minute test at
+every blocked route) and 9 (a designed exit: under 2 min or a different way back for half of it) are adopted. Michael
+confirms them on his Tallow walk (G401). `docs/level-design.md` and the map-spec template carry them (Marlow Build).
+(Settles G157.)
