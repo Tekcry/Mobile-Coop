@@ -1,4 +1,4 @@
-$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master 94e72b1cd validator, unchanged; read-only rerun 2026-10-25 ~20:45 after meta.taught_by and the teach: tags)
+$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator 12a6e91e1, unchanged; read-only rerun 2026-10-25 ~21:40 after the two extra guards: A5 kiosk watcher, A7 pod-leg technician)
 
 ERROR: co-op links reach 3 of 8 encounter spaces (need at least half)
 ERROR: section A3 has no co-op link
@@ -83,7 +83,7 @@ WARN:  pacing: no release (1-2) after the peak at a8-office before a8-lobby-inne
 INFO:  a2-neck: 1 guards (2 players) below the early band 3-6
 INFO:  a4-secroom: 1 guards (2 players) below the early band 3-6
 INFO:  a4-dock: 2 guards (2 players) below the early band 3-6
-INFO:  a5-inner: 1 guards (2 players) below the late band 6-10
+INFO:  a5-inner: 2 guards (2 players) below the late band 6-10
 INFO:  a6-floor: 1 guards (2 players) below the late band 6-10
 INFO:  a7-hall: 1 guards (2 players) below the late band 6-10
 INFO:  a8-hall: 2 guards (2 players) below the late band 6-10
@@ -131,3 +131,8 @@ Teach tags (17 WARN "unknown tag 'teach:...'", new at the ~20:45 rerun): `meta.t
 space tag per lesson (16 lessons plus A7's synced hack) were added for J12 S4 `training.mjs` (validator-port BRIEF A8,
 A9, A21) and J13 route-runs (late sections = after `taught_by`). Master's validator does not know the tags yet and
 ignores `taught_by`; J12 S4 turns them into checks. Not a gap in the plan. Why A6 and space tags: J14 PLAN A13.
+
+Guards (rerun ~21:40, plan check 1 fix 2): Michael picked 12 (~20:40). a5-inner holds 2 (the patrol plus the kiosk
+watcher), a7-pod 1 (the pod-leg technician). a7-pod stays a connector: as an encounter its 3.5 m width is under the 6 m
+encounter floor (an ERR), so the guard is recorded there and the hall leg is its vantage. Only change from the ~20:45
+run: the a5-inner guard INFO line reads 2. Totals: A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3 = 12.

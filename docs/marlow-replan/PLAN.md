@@ -91,9 +91,20 @@ Lead: Night Shift | Marlow Build. Planner: Opus 5.5, master 94e72b1cd (4.103.3).
   way. Drills retry in place (the station's own marks, never a checkpoint reload). Both players down = the campaign
   rule: checkpoint restart of the bay from its holding room, a full reset (G312). No strict rule, no send-back, no fail
   screen anywhere: the A2 `spotFail` and the A3 `HallRule` are off on `ctcourseReplan`.
-- **Guards per lesson (Q11, BRIEF line 38).** A1 0 (the seated checker stays, passive, not a guard: A11, so
-  `e2e-coop.mjs:2057-2110` keeps working), A2 1 (shunter), A3 0 (one IR camera), A4 3, A5 1, A6 1, A7 1, A8 3 = 10, plus two
-  where they best teach = 12 (A15, Michael ~20:40). Ordinary armed guards, no alarm team (A12).
+- **Guards per lesson (Q11; Michael picked "12, add two (Recommended)" ~20:40, BRIEF "Michael picked").** A1 0 (the
+  seated checker stays, passive, not a guard: A11, so `e2e-coop.mjs:2057-2110` keeps working), A2 1 (shunter), A3 0
+  (one IR camera), A4 3, A5 2, A6 1, A7 2, A8 3 = 12. Ordinary armed guards, no alarm team (A12). A1 / A3 stay at 0
+  ("Two sections have none" on the approved page) and A4 / A8 stay at the training cap of 3 (`SET_GUARDS_MAX`, LD 4.9).
+  The two extra:
+  - **A7 +1, station 17 (the pod leg):** a second technician whose round crosses the pod approach, in view of the hall
+    leg through the cage mesh. With only the hall leg guarded, "covering each other" (REPLAN A7) worked one way; now
+    each partner covers the other. Same retry ("Seen: retry that step"). Graph: `a7-pod` `guards`.
+  - **A5 +1, station 13 (the throw):** a static watcher at the release kiosk facing the floodlit strip. With the roving
+    patrol alone the strip is unwatched for part of his round, so the pair could wait him out and skip the floodlight
+    jam the drill teaches; the watcher makes the jam necessary ("Seen in the floodlight: retry from behind the
+    transformer"). Graph: `a5-inner` `guards` 2.
+  - **Fallback:** if G-A6's noise test comes out silent (BRIEF A6), the A5 watcher moves to A6 as a listener at the pit
+    side (A5 1, A6 2, still 12), so the drop catch stays forced by a guard rather than a rule.
 - **Side routes closed except A8 (Q24).** A2: gap 1/2 lane mouths (extend the `A2-21` closer idiom,
   `a2CarriageShed.ts:69-72`, `:216-222`), the staging deck and its stair (:256-268, dressing :430-465, :633-686),
   the cabin back door (:82, :242). A3: the office doors (:89-94, :249-267). A4: west back aisle, aisle 2, east lane,
@@ -214,7 +225,9 @@ lead requests the co-op group (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`) where 
 bay, lesson, two start marks on the 0.5 m grid with y and yaw, retry kind, `drill_s`, guard ids, gate / device ids,
 done flag, kit id and stand-in gate), the A8 retry steps (board drill, gallery under C2, office console, lobby throw +
 paired hack), LANTERN's retry line per station (what and where, G343), the security register per set (cameras, beams,
-guards: LD 4.11, 13), and the order inside A4 (deadweight before the console press, graph.json :98). It is the data
+guards: LD 4.11, 13; guards A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3 = 12, with station 13's kiosk watcher and
+station 17's pod-leg technician in their stations' `guards` lists and the reason per extra guard from section 2; the A6
+fallback noted on station 16), and the order inside A4 (deadweight before the console press, graph.json :98). It is the data
 every set slice copies. Est. docs only. Checks: doc lint. Done: every badge of `replan-plan.svg` and every graph space
 with `drill_s` has a row; marks sit inside their graph space's `area` (G0). Flag: none.
 
@@ -320,12 +333,12 @@ tests/ctcourseLight.test.ts`; `CTLIGHT_VARIANT=replan CTLIGHT_WRITE=<set>` then 
 
 | Slice | PR | Set | Main work | Est. |
 | --- | --- | --- | --- | --- |
-| G-A1A7 | 4 | A1 + A7 | A1: checker kept passive, stations 1-2, no fail; A7: full-height glazed screen, split kept, station 17 (`retry: 'station'`, hack miss resets the terminals) | 550 |
+| G-A1A7 | 4 | A1 + A7 | A1: checker kept passive, stations 1-2, no fail; A7: full-height glazed screen, split kept, 2 guards (the hall technician plus the pod-leg technician whose round crosses the pod approach in view of the hall leg: two-way cover), station 17 (`retry: 'station'`, hack miss resets the terminals) | 600 |
 | G-A2 | 5 | A2 | watchers out (1 guard), deck + stair out, lane / back-door closers, shutter hold gate (station 3), neck drill 15 s (4), 3 m pit + cabinet 2 west + plank stand-in walkway (5), coat-corner lamp | 1,250 |
 | G-A3 | 6 | A3 | cleaner out (0 guards), office doors closed, fire door + riser + crawl (vent unlock, station 6), jam relay hops 6.5 s (7), hall send-back off | 950 |
 | G-A4 | 7 | A4 | one floor route (pallet frames, mezzanine stairs out), lift grille + motor stand-in (deadweight, station 9), loop 60 s (8), kettle loop out, synced takedown 1.5 s (10), back aisle + office lamps | 900 |
-| G-A5 | 8 | A5 | 6 m perimeter wall + gap + wicket stand-in (chimney, 11), inside ladder, trench + footbridge stand-in (swing, 12), drums / switch / bulkheads moved, back door + trench path + panel-jam route closed, throw 9 s (13) | 1,250 |
-| G-A6 | 9 | A6 | staff stair + relay route closed, sump re-lamped (69), rope (14), hang-down (15), drive pit -1.6 m + outfall to L6 + cage ladder stand-in (drop catch, 16); a unit test that a 6 m landing's noise reaches the attendant's round (BRIEF A6; if not, the pit station gets `retry: 'station'` on a heavy landing) | 1,300 |
+| G-A5 | 8 | A5 | 6 m perimeter wall + gap + wicket stand-in (chimney, 11), inside ladder, trench + footbridge stand-in (swing, 12), drums / switch / bulkheads moved, back door + trench path + panel-jam route closed, 2 guards (the patrol plus a static watcher at the release kiosk facing the floodlit strip, so the jam is needed), throw 9 s (13) | 1,300 |
+| G-A6 | 9 | A6 | staff stair + relay route closed, sump re-lamped (69), rope (14), hang-down (15), drive pit -1.6 m + outfall to L6 + cage ladder stand-in (drop catch, 16); a unit test that a 6 m landing's noise reaches the attendant's round (BRIEF A6; if not, the guard fallback in section 2: A5's kiosk watcher becomes a listener at the pit side, A5 1, A6 2; G-A5 and G-A6 agree it with the lead before either builds its guards) | 1,300 |
 | G-A8 | 10 | A8 | stair 2.4 m, glazed office west wall, vestibule + west-bay lamps, A8 retry steps (`caught`), board 25 s, loop 60 s, side routes kept | 800 |
 
 **R2 Signposting and ratings (Sonnet; PR 11).** The objective list names the retry rule per bay ("Seen or out of time:
@@ -401,8 +414,10 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - **A14** A8 "caught" = a guard holding combat on a player for 2 s (`CAUGHT_HOLD`); suspicion, search and short sightings
   play out; caught or a timed step running out retries that step at its marks (REPLAN A8 row; BRIEF A2 as fixed in
   8217b0628). Undo: hold 0 (as A1-A7).
-- **A15** Guards total 12. Michael picked "12, add two (Recommended)" (~20:40): REPLAN's table summed to 10, so two
-  more go where they best teach (placement: lead decision in the plan-check fix round). Was assumed 10.
+- **A15** Settled: Michael picked "12, add two (Recommended)" (~20:40; BRIEF "Michael picked", ROADMAP Decided). The
+  two extra go where they best teach (lead decision, plan check 1 fix 2): A7 +1 at station 17's pod leg, A5 +1 at the
+  release kiosk (section 2 "Guards per lesson", with the A6 fallback). Undo of the placement: move either guard; the
+  total stays 12.
 - **A16** The re-plan ships dark as map `ctcourseReplan`, picked by the host's `?marlowreplan=1`, rather than a per-page
   switch inside `ctcourse`: one map per match, the client follows the host's `start`. Undo: none needed at switch-on (C1).
 - **A17** A station retry resets only that station's guards, gates, devices and flags; guards dealt with at earlier
@@ -442,5 +457,7 @@ rules, Q24). A15 (12 guards) and A19 (chimney 1.4 m) answered by Michael ~20:40.
   items (training cameras, LR16 re-light, joint interrogation) could be walked inside the re-plan walk.
 - The A6 pit and outfall move the cage east into pump 1 and the gauge board (`a6PumpHouse.ts:106-110`): G-A6's brief
   fixes the layout from the SVG before code; if it does not fit, the pit shifts north (graph unchanged).
-- A drop-catch noise check that comes out silent changes A6's station to a rule (BRIEF A6 undo).
+- A drop-catch noise check that comes out silent moves A5's kiosk watcher to the A6 pit side as a listener (section 2
+  "Guards per lesson" fallback); only if a listener there cannot hear it either does the station get a rule (BRIEF A6
+  undo).
 - Double e2e time on Marlow PRs while parts 1-8 both run (~150 s per part); C1 removes it.

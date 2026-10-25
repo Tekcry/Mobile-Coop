@@ -29,7 +29,10 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
 - ~11:55 (3) Marlow "later sections": "After every move taught" (the splits come once each kit move was taught alone).
 - ~11:20 (3) Marlow downed: "Campaign rule" (30 s revive, at most twice, both down = checkpoint). Unchanged here.
 - ~20:40 (via the orchestrator) guard total: "12, add two (Recommended)" (build 12 as approved; the two extra go
-  where they best teach: J14 PLAN A15).
+  where they best teach). Placed by the lead (J14 plan check 1 fix 2, PLAN section 2 "Guards per lesson"): A7 +1, a
+  pod-leg technician at station 17 whose round crosses the pod approach in view of the hall leg (two-way cover); A5 +1,
+  a static watcher at the release kiosk facing the floodlit strip (the floodlight jam becomes necessary). Fallback: if
+  the A6 noise test is silent (A6 below), the A5 watcher moves to the A6 pit side instead.
 - ~20:40 (via the orchestrator) A5 chimney gap: "1.4 m (Recommended)" (J14 PLAN A19).
 
 ## What the plan does (detail: graph.json, replan-plan.svg)
@@ -38,8 +41,9 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
 - 16 lessons, each on its own, in order: boost, human ladder, shutter, timed light cut, plank bridge, vent unlock, jam
   relay, camera loop, deadweight, synced takedown, chimney pair, swing pass, throw, rope, hang-down, drop catch. Then
   A7 split paths with a synced hack and A8 the graduation (everything combined).
-- Guards only where the lesson needs eyes or ears: A1 0, A2 1, A3 0 (one camera), A4 3, A5 1, A6 1, A7 1, A8 3, plus two more where they
-  best teach (12 in all, Michael ~20:40 "12, add two (Recommended)": J14 PLAN A15).
+- Guards only where the lesson needs eyes or ears: A1 0, A2 1, A3 0 (one camera), A4 3, A5 2, A6 1, A7 2, A8 3 = 12
+  (Michael picked ~20:40 "12, add two (Recommended)", recorded under "Michael picked" above with the reason per extra
+  guard).
 - No strict rule and no send-back anywhere (Q5). A failed drill retries in place; spotted in A1-A7 retries that
   station; in A8 guards react as on a mission and being caught retries that step in place; downed is the campaign rule.
 - Every light works (Q2); the plan re-lamps the A6 sump and the A8 vestibule.
