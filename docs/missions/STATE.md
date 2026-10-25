@@ -7,7 +7,7 @@ Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build"
 cloud-queue briefs (orchestrator ~22:10, Michael); desktop keeps Opus planning, checkers, src/net / AI needing a local
 look. Notes, reports, briefs: C:/NightShift/scratch/campaign/ (lead-notes.md, newest section last). Rerun any agent
 below whose report file is missing.
-1. #372 RELEASED in train 103 (4.103.8). TW23 feature/tallow-spec d42d1596 (stacked on #372): open its PR now.
+1. #372 RELEASED (train 103). TW23 PR #466 (feature/tallow-spec, docs) opened ~22:47; Opus checker running (tw23-check.md).
 2. J7 PR D origin/feature/mission-rules eb231778: checker PASS; laptop set j7-prd queued. Green -> merge into engine.
 3. J7 PR E origin/feature/mission-rules-net 09975841c (R4 + R5): two Opus checkers FIX, same defect (resume hosting a
    campaign room deadlocks; j7-pre-check-a.md / -b.md). Cloud brief campaign-j7-pre-fix1 -> feature/mission-rules-net-fix1;
@@ -27,7 +27,7 @@ below whose report file is missing.
    briefs where tsc / vitest only. Marlow told the long-throw spot names (from>to) and bolted_in.
 9. Seams: Marlow #463 (courseStartBlock, addSyringes sector-only) folds with R4 / R5 at the engine's next master pickup;
    Guard AI J15 PR2: keep `s.shieldTeams === true` in sectorMode.ts at that meet (lead-notes.md).
-Next: read check4 / R6 / cloud-brief results; open the TW23 PR; keep 2-3 open cloud briefs.
+Next: read check4 / R6 / #466 check / cloud-brief results; post #466 checker status; keep 2-3 open cloud briefs.
 
 ## OLD RESUME 2026-10-25 ~21:40 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
