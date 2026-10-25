@@ -1,0 +1,14 @@
+{
+  "id": "20261025T183156-night-shift-sector-o-86fb41f8-2092",
+  "sha": "86fb41f8ce35ff8fb200efbb3d014451a4eef481",
+  "branch": "feature/light-realism-l1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:1"
+  ],
+  "set": "light-realism-l1-e2e",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T175428-night-shift-sector-o-86fb41f8-9dd0, rerun on the laptop"
+}
