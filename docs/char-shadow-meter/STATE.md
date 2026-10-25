@@ -2,6 +2,8 @@
 Owner: Sector Ops Build. Branch `feature/char-shadow-meter`, worktree `C:/NightShift/Mobile-Coop-char-shadow-meter`.
 
 ## Resume
+- S1 in progress (Opus builder). Interface commit b3e70c165 ("char-shadow-meter S1: interface"): S3 cuts
+  `feature/char-shadow-meter-s3` from it (PLAN.md:105-107).
 - Job: FOLDED-PLAN J16, meter half (Sector Ops PR first; Guard AI perception and Player operator capsule after).
 - Status: plan revised for plan check 1 (PLAN-CHECK.md, FIX, 6 items, all addressed). No code. Waits for a fresh Opus
   plan checker.
