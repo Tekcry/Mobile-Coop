@@ -1003,20 +1003,21 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~09:50, after the swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~10:20 SAVE before the swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
 2. J4 #317 coop4: master 4.106.0 merged f720d29e3; merge 2 checks A + B PASS, checker posted on head 3c06444f8
    (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). Waiting CI + affected; then tell the
-   orchestrator train-ready. Polish -> coop4-pol after it lands: snapBudget fake guards
+   orchestrator train-ready. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
    `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
 4. J15 PR1 #450 b718293df: in train 112 (#491, laptop rerun at 08:30).
 5. J15 PR2 = #500 (feature/guard-rules). Merge check PASS (checks/PR2-MERGE-CHECK.md). CI lint failed on b78c1eab3
-   (helmetRule.test.ts import() type) -> fixed 23fa870eb; lint delta checker RUNNING (-> PR2-LINT-CHECK.md, posts
-   checker). Auto mode blocks the lead posting checker itself (self-approval): checker agents post, else orchestrator.
+   (helmetRule.test.ts import() type) -> fixed; lint check PASS, checker posted on head 15073deb7. Waiting CI,
+   affected (9) + laptop rules-pr2-coop (e2e-coop, e2e-netmove: src/game gate); then tell the orchestrator.
+   Auto mode blocks the lead posting checker itself (self-approval): checker agents post, else orchestrator.
 6. J15 PR3 = feature/guard-rules-f0 48394def2: all checks PASS, laptop rules-pr3 GREEN 18/18; opens after PR2 merges.
    J15 PR4 = feature/guard-rules-pr4 b111c9aa1: all checks PASS, laptop rules-pr4 GREEN 18/18; opens after PR3.
    Polish: checks/S6-CHECK-A/B.md, PR3-RECHECK-A/B.md; e2e-sectorops.mjs:2749 stale comment, both-flags test,
@@ -1026,9 +1027,10 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    split, all proposals taken) on feature/guard-ai-mission-hooks. S2 DONE -s2 77d6f45b2. S1a-1 DONE -s1a1 1b15384e4
    (polish re-check PASS, checker posted on 5db49d2ec). S3a DONE -s3a c9a065477 (areaAlarms.ts; checks A + B PASS,
    checker posted). S1a-2 DONE -s1a2 e138b2a7e (checks A + B + fix re-check PASS, checker posted); laptop
-   mh-s1a2-early on 2b9947b9 trimmed to e2e-stealth-ai (queue audit). S1b BUILT -s1b 9f81055a1 (+1068 / -40, 191
-   unit pass); Opus checks A + B RUNNING (-> checks/S1b-CHECK-A/B.md; lead posts nothing, checker status via agent);
-   laptop mh-s1b-early (e2e-stealth-ai) queued. S1b report: ai.md "Mission orders" lines (groups, followGap +
+   mh-s1a2-early on 2b9947b9 trimmed to e2e-stealth-ai (queue audit). S1b DONE -s1b a98de4381 (checks A FIX / B PASS,
+   fix round 4947ef2c8, re-check PASS, checker posted; lead decision: joinWait starts at the leader's arrival);
+   laptop mh-s1b-early (e2e-stealth-ai) queued on 4947ef2c8. Polish: checks/S1b-CHECK-A/B.md, S1b-RECHECK.md (busy
+   first-event guard -> partner goes alone without the 20 s wait; 23 m e2e margin). S1b report: ai.md "Mission orders" lines (groups, followGap +
    FOLLOW_SLACK, leader end ends group, checkMissionOrders same-name warnings) to fold; limits: one pend tag per slot,
    late 2nd event waits full joinWait, no catch-up pace (polish). Lead ruling: the order walk is not `turning` (A5).
    Then S3b, S4. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
@@ -1037,6 +1039,6 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: collect #317 check B + #500 lint check (checker statuses posted?) -> tell the orchestrator train-ready when
-affected is green; S1b report -> 2 Opus checks A + B + laptop e2e-stealth-ai early run.
+Next: #317 + #500 affected (and rules-pr2-coop) green -> tell the orchestrator train-ready (Opus triage on any
+red); mh-s1b-early verdict; J26 S3b builder (S3-BRIEF S3b part, from S1b head a98de4381, worktree -s3b).
 ```
