@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~05:10, after the 04:50 reset, same account).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~05:30 SAVE; paused to the ~09:50 reset, same account).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
 builder slices (tsc + single vitest) go to cloud-queue (worktree C:/NightShift/scratch/cq); desktop does plans, briefs,
 code-review checkers (no tests), GPU / Blender / prebake under heavy.lock. Mixamo first on the laptop queue (overnight).
@@ -383,5 +383,5 @@ PR (S1-S5). J10 datasheet: numbers only, never committed.
    queued on 86fb41f8. Shots in -> SIGNOFF.md + shots to Michael via the orchestrator (~97% of the car park reads fully
    lit: say so). For L2-S1: route 2 crosses the lit park (part 6 must stay green), bin store 18.55 lx over its 4.4
    ceiling (guard 7's "dark" note), arms along the rows; polish: count distinct poles in the two-light-points test.
-Next: act on each checker as it lands (post A28's status after both); pick up S1 / S9 / r6 cloud done within 1 h.
+Next: read cloud-queue (a28-fix1 -> two Opus delta checkers; s3-r6, map-ready S1 / S9 -> checkers) and laptop verdicts (L1 shots -> SIGNOFF to the orchestrator; #459 merged -> retarget #481 / #489).
 ```
