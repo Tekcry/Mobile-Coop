@@ -48,6 +48,11 @@ Branch `laptop-queue` (orphan; created by request.mjs on first use), files `requ
   It writes the JSON with git plumbing on top of `origin/laptop-queue` (`git hash-object -w`, `git mktree` / 
   `git read-tree` into a temp index via `GIT_INDEX_FILE`, `git commit-tree`, `git push origin <commit>:refs/heads/laptop-queue`),
   never touching the working tree or HEAD; on a rejected push it fetches and retries up to 5 times. Prints the id.
+- `--suites` splits on spaces and / or commas (`"e2e-a,e2e-b"` used to reach run-e2e as one name: MODULE_NOT_FOUND,
+  a false failure). An unknown name is refused at request time (exit 1, "unknown suite(s) ..."): the known set is what
+  run-e2e can run at the request's sha (`git ls-tree <sha> scripts/`: `smoke`, `anim-audit`, every
+  `scripts/e2e-<x>.mjs` except the e2e-lib / e2e-net-lib / e2e-affected modules; lib `knownSuites`); a `name:N` part
+  is checked by its base name.
 
 ## The service (service.mjs)
 Run: `node scripts/laptop-queue/service.mjs [--once] [--dry-run]` from a dedicated worktree
@@ -121,6 +126,25 @@ pr requests only, no trains, no alone, `E2E_GPU=1 E2E_JOBS=1`. Two slots, each g
 4191 (`heavy.lock`) needs backlog > 3 and CPU < 60 %; 4192 (`heavy2.lock`, dir `Mobile-Coop-testrun-4192`, must exist)
 needs backlog > 3 and CPU < 50 % (CLAUDE.md heavy2 rule). A gated slot waits with a logged reason (`desktopSlotGate`).
 At most one desktop start per pass (30 s), so CPU is re-read before the second slot starts.
+
+## Spare work (laptop-queue-5)
+The laptop service only (never the desktop worker): once both slots have sat idle with no open request and no pending
+train for `LQ_SPARE_IDLE_MIN` (default 5; 0 = off) minutes, it pushes the next job of
+`docs/laptop-queue/spare-jobs.json` (round-robin, lib `spareNext`) as an ordinary request on the current origin/master
+head, requester `laptop-queue spare`, no branch or PR (lib `spareRequest`). Never while a spare request is open,
+claimed or running on either worker; never a set already queued on that sha (`state.spare: { last, n, ran: { sha:
+[sets] } }`, lib `spareRecord`; a new master sha starts over). Any request or train arriving takes priority as usual
+(spare jobs are plain full / alone requests, picked only when nothing else can be: lib `pick`). No spare job starts
+while any real (non-spare) request is open on the branch and unclaimed, counted on the full listing before the alone
+hold filters, so a held real request counts too (lib `realWaiting`, pick `queue.realOpen`). Not idle while a
+train builds or releases (trainSoon), an open train lacks its laptop pass (aloneHold) or green train-ready PRs wait
+(aloneSoon). A pending train head, or a real request waiting on the branch (`realWaiting`), stops a running spare job at
+once whatever its kind, age or progress (lib `cutShort`, 'train' / 'real'; also checked between alone steps); it is done
+(`spare-cut`), never queued again. The list: `spare-full` (full e2e), `spare-coop-soak` (e2e-coop x5),
+`spare-guard-cap` (ctcourse 24 + campusops 32 guards, patrol / alert, `--secs=20`, out
+`C:/NightShift/scratch/guard-cap/spare-<sha8>-<n>/<map>`), `spare-perf-campusops` (`serve scripts/perf.mjs ...
+--desktop --json`, `MAP=campusOps MODE=sector`). Edit the JSON to change it; `tests/laptop-queue.test.ts` checks each
+job builds a valid request.
 
 ## After the build (job lead)
 Fresh Opus checker; then live overlap: run one pr request and the next train through the service beside the manual

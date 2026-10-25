@@ -1,7 +1,7 @@
 // Laptop queue request CLI (docs/laptop-queue/PLAN.md): adds requests/<id>.json to the laptop-queue branch with git
 // plumbing only (temp index, no checkout), never touching the working tree, the worktree index or HEAD. Prints the id.
 //   node scripts/laptop-queue/request.mjs --sha <ref> [--pr N] [--set name] [--jobs N] [--requester "<title>"]
-//     (--suites "a b c" | --affected [--wide] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
+//     (--suites "a b c" (or "a,b,c"; unknown names refused) | --affected [--wide] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
 // --affected [--wide]: the suites come from scripts/e2e-affected.mjs (DIRECT tier, --wide the cross-area set) for the
 // committed diff from the merge-base with origin/master to --sha; a diff that reaches no browser suite is refused.
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
@@ -16,7 +16,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { affectedSuites, pickBranch, requestId, requestProblem } from './lib.mjs';
+import { affectedSuites, knownSuites, pickBranch, requestId, requestProblem, splitSuites } from './lib.mjs';
 
 const argv = process.argv.slice(2);
 const opts = { step: [], env: [] };
@@ -83,7 +83,8 @@ const requester = opts.requester ?? 'unknown';
 const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('hex')}`;
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
 const req = { id, sha, branch, pr, kind, requester };
-if (kind === 'pr') req.suites = opts.affected ? prSuites() : String(opts.suites ?? '').split(/\s+/).filter(Boolean);
+// --suites "a b" or "a,b" (lib splitSuites)
+if (kind === 'pr') req.suites = opts.affected ? prSuites() : splitSuites(opts.suites);
 if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
   req.steps = opts.step;
@@ -94,7 +95,11 @@ if (opts.set) req.set = opts.set;
 if (opts.note) req.note = opts.note;
 if (opts.pin) req.pin = true;
 if (opts.priority !== undefined) req.priority = Number(opts.priority);
-const problem = requestProblem(req);
+// suite names checked against the sha's own scripts/ (lib knownSuites; --full-tree: also from a subdirectory); an
+// unreadable listing refuses a pr request rather than skip the check
+const tree = kind === 'pr' ? git(['ls-tree', '--full-tree', '--name-only', sha, 'scripts/'], { soft: true }).split('\n').filter(Boolean) : [];
+if (kind === 'pr' && !tree.length) { console.error(`bad request: cannot list scripts/ at ${sha} to check the suite names`); process.exit(1); }
+const problem = requestProblem(req, kind === 'pr' ? { known: knownSuites(tree) } : {});
 if (problem) { console.error(`bad request: ${problem}`); process.exit(1); }
 const json = `${JSON.stringify(req, null, 2)}\n`;
 
