@@ -28,6 +28,9 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
 - ~11:55 (1) a failed Marlow timed drill: "Retry the drill only" (the drill resets in place, no checkpoint reload).
 - ~11:55 (3) Marlow "later sections": "After every move taught" (the splits come once each kit move was taught alone).
 - ~11:20 (3) Marlow downed: "Campaign rule" (30 s revive, at most twice, both down = checkpoint). Unchanged here.
+- ~20:40 (via the orchestrator) guard total: "12, add two (Recommended)" (build 12 as approved; the two extra go
+  where they best teach: J14 PLAN A15).
+- ~20:40 (via the orchestrator) A5 chimney gap: "1.4 m (Recommended)" (J14 PLAN A19).
 
 ## What the plan does (detail: graph.json, replan-plan.svg)
 - One forced route through A1-A7: every side route closed. A8 is the one late area that keeps side routes, for training
@@ -35,8 +38,8 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
 - 16 lessons, each on its own, in order: boost, human ladder, shutter, timed light cut, plank bridge, vent unlock, jam
   relay, camera loop, deadweight, synced takedown, chimney pair, swing pass, throw, rope, hang-down, drop catch. Then
   A7 split paths with a synced hack and A8 the graduation (everything combined).
-- Guards only where the lesson needs eyes or ears: A1 0, A2 1, A3 0 (one camera), A4 3, A5 1, A6 1, A7 1, A8 3 (10 in all; REPLAN's
-  "12 in all" is a sum slip, the per-set counts are built: J14 PLAN A15).
+- Guards only where the lesson needs eyes or ears: A1 0, A2 1, A3 0 (one camera), A4 3, A5 1, A6 1, A7 1, A8 3, plus two more where they
+  best teach (12 in all, Michael ~20:40 "12, add two (Recommended)": J14 PLAN A15).
 - No strict rule and no send-back anywhere (Q5). A failed drill retries in place; spotted in A1-A7 retries that
   station; in A8 guards react as on a mission and being caught retries that step in place; downed is the campaign rule.
 - Every light works (Q2); the plan re-lamps the A6 sump and the A8 vestibule.
@@ -78,5 +81,5 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
   not counted as a guard. Undo: remove him (A1 then has no person at all).
 - A12. No shield-led alarm team in Marlow Yard (Guard AI J15 A14 dropped by Marlow Build ~19:10): guards are Normal,
   armed (G279, G298), only those each lesson needs (Q11), failures retry (Q5); a late enemy section teaching alarm
-  response uses plain armed guards (campaign Q12 "armed only", Marlow = training prologue Q6). The 10 guards above are
+  response uses plain armed guards (campaign Q12 "armed only", Marlow = training prologue Q6). The 12 guards above are
   the whole count; no alarm team is added on top. Undo: Guard AI restores the team in Marlow's alarm config.

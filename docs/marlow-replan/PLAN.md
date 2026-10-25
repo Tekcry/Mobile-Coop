@@ -92,8 +92,8 @@ Lead: Night Shift | Marlow Build. Planner: Opus 5.5, master 94e72b1cd (4.103.3).
   rule: checkpoint restart of the bay from its holding room, a full reset (G312). No strict rule, no send-back, no fail
   screen anywhere: the A2 `spotFail` and the A3 `HallRule` are off on `ctcourseReplan`.
 - **Guards per lesson (Q11, BRIEF line 38).** A1 0 (the seated checker stays, passive, not a guard: A11, so
-  `e2e-coop.mjs:2057-2110` keeps working), A2 1 (shunter), A3 0 (one IR camera), A4 3, A5 1, A6 1, A7 1, A8 3 = 10
-  (A15). Ordinary armed guards, no alarm team (A12).
+  `e2e-coop.mjs:2057-2110` keeps working), A2 1 (shunter), A3 0 (one IR camera), A4 3, A5 1, A6 1, A7 1, A8 3 = 10, plus two
+  where they best teach = 12 (A15, Michael ~20:40). Ordinary armed guards, no alarm team (A12).
 - **Side routes closed except A8 (Q24).** A2: gap 1/2 lane mouths (extend the `A2-21` closer idiom,
   `a2CarriageShed.ts:69-72`, `:216-222`), the staging deck and its stair (:256-268, dressing :430-465, :633-686),
   the cabin back door (:82, :242). A3: the office doors (:89-94, :249-267). A4: west back aisle, aisle 2, east lane,
@@ -380,9 +380,8 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - **A14** A8 "caught" = a guard holding combat on a player for 2 s (`CAUGHT_HOLD`); suspicion, search and short sightings
   play out; caught or a timed step running out retries that step at its marks (REPLAN A8 row; BRIEF A2 as fixed in
   8217b0628). Undo: hold 0 (as A1-A7).
-- **A15** Guards total 10 (the per-set counts Michael approved in REPLAN's table and BRIEF line 38), not the "12 in all"
-  in REPLAN's text and his question: the table sums to 10 and Q11 asks for "only the logical amount". Logged for
-  Michael's next look (Assume and log). Undo: add two guards where he says.
+- **A15** Guards total 12. Michael picked "12, add two (Recommended)" (~20:40): REPLAN's table summed to 10, so two
+  more go where they best teach (placement: lead decision in the plan-check fix round). Was assumed 10.
 - **A16** The re-plan ships dark as map `ctcourseReplan`, picked by the host's `?marlowreplan=1`, rather than a per-page
   switch inside `ctcourse`: one map per match, the client follows the host's `start`. Undo: none needed at switch-on (C1).
 - **A17** A station retry resets only that station's guards, gates, devices and flags; guards dealt with at earlier
@@ -391,9 +390,9 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - **A18** A new-move station is open from day one through a stand-in gate the host opens while that move's `kitMoves`
   id is off (BRIEF A3 "until then that station's crossing is a plain door"). Undo: hold `marlowReplan` until all five
   moves ship (BRIEF A3 undo).
-- **A19** Widths follow Player's researched bands: the A5 chimney gap starts at 1.4 m (two operators back to back need
+- **A19** (Michael picked "1.4 m (Recommended)", ~20:40.) Widths follow Player's researched bands: the A5 chimney gap starts at 1.4 m (two operators back to back need
   more than the drawn 1 m; mission PLAN 1.2-1.6 m), the trench stays 3.5 m if inside K4's swing band. The new wall moves
-  west into the apron; nothing else moves. Changes the approved drawing by under 0.5 m: Assume and log. Undo: build 1 m.
+  west into the apron; nothing else moves. Undo: build 1 m.
 - **A20** Marlow's J10 re-light (light-realism PLAN L3-H) is done on `ctcourseReplan` only, with live fittings at
   today's set standby level; lux bands are tuned when J10's band table lands. The built yard keeps its pockets until
   switch-on. Undo: port the lamps to the built yard as a rule fix if switch-on slips.
@@ -410,7 +409,7 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 
 **Assume and log (RULES Intake step 2), for the orchestrator to put to Michael:** BRIEF A3 (new-move stations open as
 moves ship, Q29), A5 (pull-up counted with the human ladder, Q29), A7 (A8 keeps 3 guards under campaign-area route
-rules, Q24), and new here A15 (10 guards, not 12) and A19 (chimney gap 1.4 m, not the drawn 1 m).
+rules, Q24). A15 (12 guards) and A19 (chimney 1.4 m) answered by Michael ~20:40.
 
 ## Risks and open questions
 - **Blocks on other leads:** Player Build's coop-kit part 2 (K0-K5b) for KS1-KS5, itself waiting on Campaign Build's
