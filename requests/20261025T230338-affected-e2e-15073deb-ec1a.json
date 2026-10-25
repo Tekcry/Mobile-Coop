@@ -1,0 +1,21 @@
+{
+  "id": "20261025T230338-affected-e2e-15073deb-ec1a",
+  "sha": "15073deb790b60f594885b9464f07283fd710229",
+  "branch": "feature/guard-rules",
+  "pr": 500,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #500"
+}
