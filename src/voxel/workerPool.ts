@@ -24,18 +24,24 @@ export class WorkerPool {
   private all: Worker[] = [];
   private queue: Pending[] = [];
   private busy = new Map<Worker, Pending>();
+  private disposed = false;
   readonly inline: boolean;
 
   constructor(n = workerCount()) {
     this.inline = typeof Worker === 'undefined';
     if (this.inline) return;
     for (let i = 0; i < n; i++) {
-      const w = new Worker(new URL('./voxelWorker.ts', import.meta.url), { type: 'module' });
-      w.onmessage = (e: MessageEvent<Result>) => this.done(w, e.data, null);
-      w.onerror = (e) => this.done(w, null, e);
+      const w = this.spawn();
       this.all.push(w);
       this.idle.push(w);
     }
+  }
+
+  private spawn(): Worker {
+    const w = new Worker(new URL('./voxelWorker.ts', import.meta.url), { type: 'module' });
+    w.onmessage = (e: MessageEvent<Result>) => this.done(w, e.data, null);
+    w.onerror = (e) => this.done(w, null, e);
+    return w;
   }
 
   get size(): number {
@@ -79,6 +85,8 @@ export class WorkerPool {
   }
 
   private done(w: Worker, r: Result | null, err: unknown): void {
+    // (bake4) a terminated worker (cancelled, or the pool disposed) never comes back
+    if (this.all.indexOf(w) < 0) return;
     const p = this.busy.get(w);
     this.busy.delete(w);
     this.idle.push(w);
@@ -89,7 +97,38 @@ export class WorkerPool {
     this.pump();
   }
 
+  /**
+   * (bake4) Give up on `job` (the caller's in-flight cap ran out): still queued, it is dropped; running, its worker (hung,
+   * or dead without `onerror`) is terminated and replaced, so the pool keeps its size and its queue moves. Its promise
+   * rejects. False: not here (it already answered, the pool runs inline, or it is disposed).
+   */
+  cancel(job: Job): boolean {
+    if (this.inline || this.disposed) return false;
+    for (let q = 0; q < this.queue.length; q++) {
+      const p = this.queue[q]!;
+      if (p.job !== job) continue;
+      this.queue.splice(q, 1);
+      p.reject(new Error('voxel job cancelled'));
+      return true;
+    }
+    for (const [w, p] of this.busy) {
+      if (p.job !== job) continue;
+      this.busy.delete(w);
+      w.terminate();
+      const nw = this.spawn();
+      const k = this.all.indexOf(w);
+      if (k >= 0) this.all[k] = nw;
+      else this.all.push(nw);
+      this.idle.push(nw);
+      p.reject(new Error('voxel job cancelled: its worker was terminated'));
+      this.pump();
+      return true;
+    }
+    return false;
+  }
+
   dispose(): void {
+    this.disposed = true;
     for (const w of this.all) w.terminate();
     this.all = [];
     this.idle = [];

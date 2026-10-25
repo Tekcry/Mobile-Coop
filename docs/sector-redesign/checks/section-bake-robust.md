@@ -123,3 +123,44 @@ build). Only `src/voxel/sectionJobs.ts`, `tests/sectionBakeRobust.test.ts`, the 
 - None in code. `docs/systems/lighting.md` "Failures" (:161-163) still says the inline bake waits for an idle pool and
   names only the 60 s cap; it was outside this brief's file list, so it needs a one-line follow-up (live-section lamps
   skip the wait; the retry's cap is 20 s).
+
+# bake4 (feature/sector-redesign-bake4, base feature/sector-redesign-bake3 @ 820480c3)
+
+bake3 check polish 2, 3, 4 and robust check polish 3. Builder: Opus, cloud agent (node only: no e2e, no GPU, no build).
+Only `src/voxel/sectionJobs.ts`, `src/voxel/workerPool.ts`, `tests/sectionBakeRobust.test.ts`, the fragment and this
+section changed.
+
+## What changed (file:line)
+1. **The retry cap never exceeds the first try's** (bake3 polish 2). `checkStalled` (`sectionJobs.ts:236`):
+   `capR = Math.min(cap0, JOB_RETRY_CAP_MS)`, read once per call. No caller passes `capMs` today, so production is
+   unchanged (60 s / 20 s).
+2. **Held order pinned** (bake3 polish 4). Test only: queue [a, b, L, c], L's section goes live -> L bakes at once
+   while a pool job runs; once the pool idles a, b, c bake in that order. A swap (`Q[j] = Q[head]`) fails it.
+3. **Worst case ~90 s** (bake3 polish 3). Agreed with the checker: `checkStalled` runs every 5 s and compares strictly,
+   so a first try started just after a check is caught up to 60 + 5 s later; the retry starts at that check and is
+   caught at the first check past 20 s, up to 25 s -> ~90 s (was ~130 s on the same count, the old "~125 s"). Fixed in
+   the `JOB_RETRY_CAP_MS` comment (`sectionJobs.ts:31`) and this branch's fragment; bake3's fragment untouched.
+4. **A stalled job is cancelled on the pool** (robust check polish 3). `SectionBaker` keeps each lamp's current job
+   (`jobs`, :117, set in `dispatch` :287, cleared in `endJob` :298); past its cap `checkStalled` (:241-244) calls
+   `WorkerPool.cancel(job)` before `failed1`. `cancel` (`workerPool.ts:105`): a queued job is dropped; a running one has
+   its worker terminated and replaced (`spawn`), `all` keeps its size, the queue pumps; the promise rejects (dropped by
+   the baker's token, which `failed1` bumps first). `done` ignores a worker no longer in `all` (a terminated worker's
+   late message never puts it back in `idle`). `cancel` after `dispose` or inline: false. With the hung worker
+   replaced, a section job no longer ages in the pool's queue, so the "clock starts at enqueue" half of the polish item
+   is moot (`poolJobs <= size`); no start hook added.
+   - Behaviour choice: a first try past 60 s is now killed, not left running beside its retry (no duplicate job; a
+     genuinely slow lamp > 60 s loses that try and goes retry -> inline, as the caps already define "failed").
+
+## Tests (node, `--maxWorkers=2`)
+- `npx tsc --noEmit -p .`: clean. eslint on the three changed code / test files: clean.
+- `npx vitest run tests/sectionBake.test.ts tests/sectionBakeCampus.test.ts tests/sectionBakeRobust.test.ts`: 3 files,
+  30 passed, 1 skipped (heavy campus case). `sectionBakeRobust` 16/16 (12 + 4 new, describe "bake4"): capMs 5 s retry
+  cap; held order; cancel called with each try's own job; `WorkerPool.cancel` with a stubbed `Worker` (queued drop,
+  terminate + replace, stale answer ignored, false after dispose).
+- Mutation check (each mutated, run, restored): no `Math.min`, a swap for `copyWithin`, no cancel call, no `done`
+  guard: each fails exactly its new test.
+
+## Deviations / open
+- `docs/systems/lighting.md` "Failures" not edited (no number in it changed); it does not mention that a stalled
+  worker is terminated and replaced: a one-line follow-up if wanted.
+- The real `Worker` terminate / respawn path is unit-tested with a stub only; no e2e reaches a hung worker.
