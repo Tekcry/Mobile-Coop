@@ -124,6 +124,26 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 
 ## Debug overlay (F3)
 - `ui/debugOverlay.ts`; buttons, lines and the anti-crab readout: `docs/systems/testing-tools.md`, "Debug overlay".
+- (tuner-clarity) Motion capture or hand-made, shown plainly. Pure table `ui/tunerReach.ts` (`REACH_WORDS`,
+  `REACH_TITLES`, `KEYS_MOCAP_NOTE`, `MOCAP_BOX_LABEL`, `CLARITY_WARN_LABEL`, `SECTION_RULE`, `WORKS_INSTEAD`; tests
+  `tests/tunerReach.test.ts`, the probe `tests/tunerReachProbe.test.ts` with its own long timeout).
+  - Reach tags in each row's name: "Motion capture", "Hand-made", "Both", "Not playing now" (a row whose state is not
+    the one playing). Camera and gear rows get none. Words and colour, never colour alone. Tab and part notes sum up
+    the rows (`reachSummary`). A Body slider the capture ignores is kept and tagged "Hand-made only", not hidden.
+  - Now playing: one line under the tab bar (`.anim-tune-playing`, full text in `title`) and in the Anim Studio's Loop
+    player (`.studio-playing`). Read live from the graph (`anim/nowPlaying.ts`, `AnimGraph.playing` copied by
+    `tune.ts` `tuneEnd`), not from the settings. Examples: "Now playing: motion-capture walk", "hand-made crouch walk
+    (motion capture off)", "mix, 70% motion-capture walk, 30% hand-made".
+  - Edit warning: an edit that changes nothing on screen shows a one-line strip under the row (`.tt-warn`) and in
+    the header (`.anim-tune-warn`) for about 5 s, naming the setting that does work (`WORKS_INSTEAD`). More > Panel
+    "Warn when an edit changes nothing" (on by default; saved as `clarityWarn` in the tuner's `ui` record).
+  - Keys tab: the fixed note `KEYS_MOCAP_NOTE` ("Keys change the hand-made moves only") sits above the existing hint.
+    Legs are their own parts, "Left leg (key)" and "Right leg (key)" (`ui/tunerTarget.ts` `keyRow`), with ankle twist
+    (ankle yaw) and shin twist rows per leg (`legL_ankleYaw`, `legL_shinTwist`; `anim/keyed.ts` `KD`, see
+    `docs/systems/world-and-characters.md`). Fingers are "Left / Right fingers (key)". "Whole body" no longer holds
+    keyed rows. The readout adds "(motion capture plays this in the game)" on walk, jog, run, sneak and glide strafe.
+  - More > Panel box `MOCAP_BOX_LABEL`: "Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)".
+    The label changed; the switch, `mocapHost` and the save are unchanged.
 - (marlow-bays slice T, items 9-11, 13, 14) Tuner mouse, selection, Keyed, on the spot, stage light:
   - Mouse mode (keyboard and mouse; pure state `ui/tunerMouse.ts` `TunerMouseCtl`): opening the panel frees the pointer
     in "Drag view" (`KeyboardMouseSource.setFreeMouse`: no pointer lock, no capture hint, scene clicks neither fire nor
