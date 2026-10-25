@@ -242,7 +242,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
     the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
   - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
     sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
-  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
+  - Helmet knock-off: raise the alarm to the helmet stage (two alarms in Sector Ops on Rookie / Normal, or `e.setGear` in the console);
     the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
     falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
     armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
@@ -261,10 +261,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
   pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
   hall, or another spot) or hold. A plain window still lets their rounds through.
-- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
-  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
-  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
-  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Response teams (guard-ai S13, guard-rules S1, Sector Ops, Normal): raise the alarm twice: every guard now wears
+  armour and a helmet. In Saltmarsh Park sections 4 and 5 each alarm's team comes in behind a shield guard; in sections
+  1-3, the warehouse and Marlow Yard the team is armed guards only. Hide: after about a minute at your last spot the team
+  walks the section point to point (shield first where there is one, the rest close behind, a look round at each,
+  torches in the dark), still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Helmets and dogs (guard-rules S1 / S2, Sector Ops): on Realistic every guard wears a helmet from the start; on
+  Rookie and Normal no guard does until the second alarm. On Perfectionist a head shot on a helmet only staggers him and
+  the helmet stays on; a second head shot kills. Walk behind a dog: no takedown prompt (also in co-op on the joiner);
+  gas knocks it out and the section can still end with "No kills"; shoot a dog dead instead: the rating loses "No kills"
+  and Perfect and the score drops.
 - [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
   report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
   a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:

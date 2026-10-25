@@ -7,7 +7,7 @@ kind: minor
 - Riot shields lead the alarm response teams only in the later Saltmarsh Park sections (4 and 5). Earlier sections,
   the warehouse and Marlow Yard send armed guards only.
 - Killing a guard dog now counts as a kill (no Perfect, no "No kills") and costs score. Knocking one out with gas
-  costs nothing.
+  still scores as a knockout.
 - Sector Ops data checks reject a riot shield guard placed on the map and any helmet named in map data: helmets come
   from the difficulty and the alarm stage. Saltmarsh Park sections 4 and 5 keep their body armour.
 - Dogs can no longer be taken down in any way (behind, side, drop, from a ledge, the co-op team takedown); in co-op
