@@ -110,6 +110,24 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
     `teamLog` (e2e-net-lib) now adds those gates (wall core, door peek and door open active, pistol aim asked, the
     current weapon class, carrying), so the next failure says why.
 
+- **e2e-ctcourse:4 "A8 pass 2 grille: closes A8-grille" (fixed in the test, marlow-batch-1025 2026-10-25; owner Marlow
+  Build)** - auto-quarantined 48 h after 2 flakes in 44 runs this week (5 "failure stands" on 10-23); train 106 failed
+  it on the first try and passed it alone on the rerun. The assert is the door item's `use` in `closeDoor`
+  (`scripts/e2e-ctcourse/a8Strongroom.mjs`), right after the grille relocks open; the `use` helper
+  (`scripts/e2e-ctcourse.mjs` `use`) returns 'disabled' when the item is off (it skips reach, so the host's position and
+  a guard nearby play no part). The "fails=1, 1:late" sync in the log is step 8's deliberate late hack of pass 1, not
+  part of this failure. Cause: on the host step the lock lands, `StealthSystems.fixedUpdate` (`gameState.ts` ~:2000)
+  sets the item from the Q9 rule (open, so usable though locked) before the lock, then `CourseMode.applyLocks` (in
+  `mode.fixedUpdate`, ~:2109; `courseMode.ts` ~:1047) turns it off with `!locked` and sends the course message with the
+  lock; the next step's `StealthSystems.fixedUpdate` turns it back on. The test waits for the lock on the host and on
+  the client, both of which can be seen inside that one-step gap, and on a loaded host frame (a few frames a second,
+  up to 4 steps each) the gap is long enough for the `use` to land in it. Fix: `closeDoor` waits (sim clock, 5 s) until
+  the page's door item is enabled before the `use`; a door item that stays off still fails the step there, and the
+  relock-keeps-it-open, the close and the shut-and-locked 'disabled' asserts are unchanged. Evidence pending: the
+  laptop e2e-ctcourse run on the fix head. Game-side follow-up (not changed here, a src change for Marlow Build):
+  `applyLocks` writes `!on` against the Q9 rule `!locked || target !== 0`, so for one step the item is off; a
+  player's own press never sees it (`updateInteract` runs after the stealth step), but a client's `use` message handled
+  between steps (`coopHost.onUse`, `!it.enabled`) would be dropped and the mirrored item list can carry `on: false` once.
 - **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/archive/havok-stall/REPORT.md`)** -
   the full suite failed 5 of 5 on the desktop (i7-7700K, software GL) right after "tuner: Menu closes it and the game
   runs". It was not a hang: the runner killed the suite at its 600 s limit (`E2E_SUITE_TIMEOUT`), and at `E2E_JOBS=1`
