@@ -10,7 +10,8 @@ FOLDED-PLAN J-rows. Desktop CPU 100%: tsc / vitest builder slices go to cloud-qu
 2. J7 PR D feature/mission-rules eb231778: checker PASS; laptop j7-prd queued (supersedes 548357d3). Green -> merge into
    engine, then push held briefs MB / D0 (scratch/campaign/cq/) with the merged engine sha.
 3. J7 PR E -net 09975841c: cloud briefs campaign-j7-pre-fix1 + campaign-j7-r7 open. On done: Opus re-check x2 of the fix.
-4. J7 R6 -r6 0cb3a4d6: checkers A (runs tsc + tests, j7-r6-check-a.md) and B (read-only, -b.md) running.
+4. J7 R6 PASS x2 (status on 0cb3a4d6). PR F branch feature/mission-rules-hud d6a5f5b6 = -net + R6 (worktree
+   -mission-rules-hud). Cloud brief campaign-j7-r6-polish (merged-head tsc + polish). R8 brief held: scratch cq/campaign-j7-r8.md.
 5. J3b B5 0b98cd7d1: cloud brief campaign-hg-b5-fix1 open; then re-check, merge into -b, fragment, laptop sets.
 6. Engine gb6fix dc2aa9c8 laptop set mission-gb6fix queued; hg-b3 / hg-b4 queued.
 7. Tallow wave 0: brief writer rerun (tallow-wave0-report.md: TD-a + G0 to cloud-queue; MB / D0 / S2 held); LP builder
