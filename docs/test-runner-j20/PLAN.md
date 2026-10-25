@@ -46,7 +46,7 @@ save: none
 | S2 | Runner: timeouts fail, E2E_REPORT, local wire (T8, T4, T1) | Opus | run-e2e.mjs, scripts/e2e-verdict.mjs, tests/e2eVerdict.test.ts | 200 | B (after S1) |
 | S3a | Queue: report-only affected, wire at sha, rerun filter, perf --budget (T4, T1, item a, T14 S) | Opus | lib.mjs, service.mjs, request.mjs, tests/laptop-queue.test.ts | 380 | B (after S1 + S3b) |
 | S7 | Light parity on every train (Q27) | Opus | lib.mjs, service.mjs, tests/laptop-queue.test.ts | 90 | C (after S3a) |
-| D-A / D-B / D-C | Docs per PR | Sonnet | docs/systems/testing-tools.md (+ STATE, fragment) | docs | after each PR's slices |
+| D-A / D-B / D-C | Docs per PR | Sonnet | docs/systems/testing-tools.md (+ STATE, the PR's fragment) | docs | each on the previous PR's merge |
 
 Parallel now (group A, no shared file): S1, S3b, S4, S5, S6a, S6b, S6c. S2 and S3a start once S1 is pushed (S3a also
 after S3b: both edit lib.mjs / service.mjs / tests/laptop-queue.test.ts). S7 after S3a. Docs slices are sequential (one
@@ -58,8 +58,13 @@ file).
   master has it (the service fast-forwards and restarts, `service.mjs:1567-1574`). S7 waits for the e2e-darkness
   precheck (S7 brief).
 - **PR-C "quarantine and hard-rule checks"**: S4 + S6a + S6b + S6c + D-C (~660). affected-e2e: e2e-sectorops (all
-  parts) and e2e-ctcourse (scripts named), plus smoke. Last PR carries `Job-done: test-runner-j20`.
-- PR-C can open first (all group A). Order of release: PR-C, PR-A, PR-B.
+  parts) and e2e-ctcourse (scripts named), plus smoke.
+- PR-C can open first (all group A). Order of release: PR-C, PR-A, PR-B. **PR-B is the last to release and carries
+  `Job-done: test-runner-j20`** in its body (the train archives `docs/test-runner-j20/` then).
+- One changelog fragment per PR branch (`changes/README.md`: named after the branch): PR branches
+  `feature/test-runner-j20-prc`, `-pra`, `-prb` with `changes/feature-test-runner-j20-prc.md`, `-pra.md`, `-prb.md`
+  (kind: patch). The job branch's placeholder is `changes/feature-test-runner-j20-prc.md` (PR-C is cut first); D-A and
+  D-B write theirs.
 
 ## Checks per slice (agent machine)
 `npm run typecheck:fast` + `npx vitest run <the slice's test files>` (each brief names them). e2e only through the
@@ -147,10 +152,10 @@ alone steps enforce budgets (T14 S).
 5. lib `export function perfStep(step)`: a step whose command runs `scripts/perf.mjs` without `--budget` and without
    `--no-budget` gets ` --budget` appended; other steps unchanged.
 6. service: `affectedPass` (`service.mjs:451-468`) passes `got.report` to `affectedRequest`. `e2e()` (`:807-813`) takes
-   an optional report list: appends it to the suites and sets `E2E_REPORT`. `runRequest` pr branch (`:1215-1219`): pass
-   `r.report`; after the run (`:1230`), `result.suites = markReport(r, run.suites)` (before `rerunFlakes`). Desktop rerun (`:1237-1246`):
+   an optional report list: appends it to the suites and sets `E2E_REPORT`. `runRequest` pr branch (`:1215-1220`): pass
+   `r.report`; after the run (`:1230`), `result.suites = markReport(r, run.suites)` (before `rerunFlakes`). Desktop rerun (`:1237-1248`):
    handle a null `rr` (no handoff: the remaining failures were report-only, so `bad` is recomputed after markReport and
-   is empty). Alone steps (`:1199`): `const line = perfStep(...)`, logging when it changed the step.
+   is empty). Alone steps (`:1200`): `const line = perfStep(...)`, logging when it changed the step.
 7. request.mjs `prSuites` (`request.mjs:56-64`) returns `{ suites, report }`; `:87` writes `req.report` when non-empty.
 **Acceptance (tests/laptop-queue.test.ts, new `describe('J20 affected report and wire')`).** affectedSuites with a fake
 `run`: a `src/player/moveState.ts` diff with the real protocol text gives the co-op group; a `src/progression/x.ts`
@@ -171,12 +176,12 @@ flags an owner fix job (Q30, BRIEF M1 / A4).
 **Files.** `scripts/laptop-queue/lib.mjs`, `scripts/laptop-queue/service.mjs`, `tests/laptop-queue.test.ts`.
 **Do.**
 1. lib: `export const REPEAT_DAYS = 14`. `autoQuarantine(rows, lists, owners, now, ttlMs, starts = {})`
-   (`lib.mjs:802-809`) returns `{ added, blocking }`: an over-budget row whose `starts[suite]` is within REPEAT_DAYS of
+   (`lib.mjs:802-809`, doc comment `:798-801`) returns `{ added, blocking }`: an over-budget row whose `starts[suite]` is within REPEAT_DAYS of
    now gives a `blocking` entry `{ suite, owner, last: starts[suite], reason }` and no quarantine entry. Update its one
    caller (`service.mjs:877`).
 2. lib `flakeBudget` (`:781-799`): new optional `known` (`[{ suite, date }]` KNOWN FLAKY failures) and `quarantine`
    list: rows for every suite with flakes, a KNOWN FLAKY failure or a live quarantine in the window; add `known: n`
-   (not in `over`). `flakeSummary` (`:812-820`): escape `|` as `\|` in every cell (owner "Night Shift | Marlow Build"
+   (not in `over`). `flakeSummary` (`:812-820`, doc comment `:811`): escape `|` as `\|` in every cell (owner "Night Shift | Marlow Build"
    splits rows today); a column "Known flaky"; a BLOCKING marker for suites in `state.blocking`; a first-line note
    when the oldest `suiteRuns` day is inside the window: "runs counted since <day>: rates read high until <day + 7>"
    (T11).
@@ -185,7 +190,8 @@ flags an owner fix job (Q30, BRIEF M1 / A4).
    autoQuarantine; for each `blocking`: when `state.blocking[suite]` is absent or older than REPEAT_DAYS, set it
    `{ since, owner, last }`, log, push `alerts/<ts>-<WORKER>-fixjob-<suite>.json` (`{ suite, owner, last, since, reason,
    worker }`, same path pattern and push as the task guard, `service.mjs:411`), and add "BLOCKING: <suite> needs a fix job (owner
-   <owner>)" to the PR comment summary. Init `state.knownFlaky ??= []; state.blocking ??= {}` next to `:174`.
+   <owner>)" to the PR comment summary. `alerts/*-fixjob-*.json` is a NEW alert kind (today only `*-tasks.json`): the
+   lead tells the orchestrator in the PR body so its cron reads it and opens the owner's fix job. Init `state.knownFlaky ??= []; state.blocking ??= {}` next to `:174`.
 **Acceptance (tests/laptop-queue.test.ts, extend `describe('flake budget and quarantine')` at `:589`).** autoQuarantine:
 first over-budget -> added; again with a start 5 days ago -> blocking, no added; start 15 days ago -> added. flakeBudget
 lists a quarantined suite with no flakes and a KNOWN FLAKY-only suite, `known` never sets `over`. flakeSummary: an
@@ -290,8 +296,13 @@ and every Marlow Yard set, not S1 only (`scripts/e2e-sectorops.mjs:1953-1954`).
    alive guard's `pos.y` within 2 m of its slot's `y ?? floor` (none fell through). Log one line per section.
 2. e2e-ctcourse: in the set loop after `:364` (`the course is at set n`): `enemyMgr.enemies` all `alive`, none with
    `pos.y < -5`, count logged; an empty set passes (Q11: Marlow has guards only where a mechanic needs one).
-**Acceptance.** Queue: `--suites "e2e-sectorops:6 e2e-ctcourse"` green on the slice head (E2E_GPU=1, the laptop).
-`node --check` both files.
+3. Time budget: part 6 has no entry in `scripts/e2e-times.json` (it sorts at the median) and runs under the 900 s queue
+   kill (`service.mjs:810`). The new block prints its own wall (`H8 block: <n> s`); the slice's queue run reads part 6's
+   total from the times line. Budget: the block <= 90 s and part 6 total <= 450 s (half the kill). Over either: move
+   the block to a new `if (want(7))` and have part '7' added to `PARTS` (`run-e2e.mjs:47`) by S2 or a follow-up on
+   PR-A, coordinated with Campaign's PARTS edit on feature/mission-engine-flg-gb6; until then it stays out of part 6.
+**Acceptance.** Queue: `--suites "e2e-sectorops:6 e2e-ctcourse"` green on the slice head (E2E_GPU=1, the laptop), part 6
+inside the budget above. `node --check` both files.
 **Run.** `node --check scripts/e2e-sectorops.mjs scripts/e2e-ctcourse.mjs`; the queue request above.
 **Not.** any src file, other parts' blocks, PARTS in run-e2e.mjs.
 
@@ -301,33 +312,51 @@ flags stay advisory (visual-gate unchanged, `docs/laptop-queue/visual-gate.md:39
 **Files.** `scripts/laptop-queue/lib.mjs`, `scripts/laptop-queue/service.mjs`, `tests/laptop-queue.test.ts`.
 **Before build (lead).** Ask Sector Ops Build (owner of lighting and the visual gate) to confirm `e2e-darkness` is the
 check until their per-map parity cards (J11) replace it. Run `request.mjs --sha <master> --suites "e2e-darkness"
---set j20-parity-pre` 3 times; all green -> build with `TRAIN_PARITY = ['e2e-darkness']`; any red -> build with `[]`,
-fix request to Sector Ops, STATE notes it (BRIEF A7).
+--set j20-parity-pre` 3 times; all green -> ship with the switch on; any red -> ship with the run-time switch off
+(below), fix request to Sector Ops, STATE notes it (BRIEF A7).
 **Do.**
-1. lib `export const TRAIN_PARITY = ['e2e-darkness']` and `export function trainList(list, gpu = true)`: list plus
-   TRAIN_PARITY not already in it (only when `gpu`).
-2. service: the train list (`service.mjs:1003`) and the dry-run plan (`:1305`) go through `trainList(list)` (both
-   workers run `E2E_GPU=1`, `:810`). The shard (`lib shard`) and the train rerun path take it as a normal suite.
-**Acceptance.** tests: trainList appends once, keeps order, no duplicate when present, empty TRAIN_PARITY = unchanged.
+1. lib `export const TRAIN_PARITY = ['e2e-darkness']`; `export function trainParity(text, env = '', base =
+   TRAIN_PARITY)`, pure: `env` = `LQ_TRAIN_PARITY` (`off` -> none, wins over the file); `text` = the switch file:
+   missing, empty or bad JSON -> `base`; `{ "off": true, "why": "...", "by": "..." }` -> none; `{ "suites": [...] }` ->
+   that list (a non-array -> `base`). Returns `{ suites, off, why }`. `export function trainList(list, suites)`: list
+   plus those suites not already in it.
+2. Run-time off switch, no release needed: `config/train-parity.json` on the `laptop-queue` branch (one push reaches
+   both workers; the service already reads that branch, `service.mjs:247-277`, `QREF` `:298`). Each train, after its
+   fetch, the service reads `git(['show', 'origin/laptop-queue:config/train-parity.json'], { soft: true })`, calls
+   `trainParity(text, process.env.LQ_TRAIN_PARITY)`, logs "train parity: <suites> | off (<why>)" once per change and
+   adds "; parity off" to the train's pending `laptop-e2e` description while off.
+3. service: the train list (`service.mjs:1003`) and the dry-run plan (`:1305`) go through `trainList(list,
+   parity.suites)` (both workers run `E2E_GPU=1`, `:810`). The shard (`lib shard`) and train reruns take it as a
+   normal suite.
+**Acceptance.** tests: trainParity: no file -> base; `{off:true}` -> none; `{suites:[]}` -> none; `{suites:['x']}` ->
+['x']; bad JSON -> base; env `off` beats a file that says on. trainList appends once, keeps order, no duplicate, empty
+= unchanged. `LQ_TRAIN_PARITY=off node scripts/laptop-queue/service.mjs --once --dry-run`: no e2e-darkness in the bins.
 `service.mjs --once --dry-run` bins include e2e-darkness. After merge: the next train's laptop-e2e description counts
 one more suite; a darkness failure fails `laptop-e2e` (auto-drop finds a culprit through the lamp rows of DIRECT, else
 the train reruns per auto-train).
 **Run.** `npm run typecheck:fast`; `npx vitest run tests/laptop-queue.test.ts`.
+**Way out (D-B documents it in testing-tools.md "Laptop queue").** A red or flaky parity check holding every release:
+push `config/train-parity.json` = `{ "off": true, "why": "<reason>", "by": "<session>" }` to the `laptop-queue` branch
+(read on the next train, no release) and tell Sector Ops; delete the file (or `{ "off": false }`) to turn it back on.
+`LQ_TRAIN_PARITY=off` is the per-worker override.
 **Not.** run-e2e.mjs `--list` (REQUIRED stays Michael's list), visual.mjs, auto-train.
 
 ## D-A / D-B / D-C Docs (Sonnet, sequential, after each PR's slices)
-`docs/systems/testing-tools.md` only (plus the fragment and STATE): D-A: "The runner" timeout line (`:45-46`), "Choosing
+Each docs slice is cut from the branch that already holds the previous PR's merge (D-C on PR-C's branch first; D-A
+based on the merge of PR-C into master; D-B based on the merge of PR-A), so the three never conflict in
+testing-tools.md. `docs/systems/testing-tools.md` only (plus that PR's fragment and STATE): D-A: "The runner" timeout line (`:45-46`), "Choosing
 suites" DIRECT rules (`:94-114`: campus row, wire rule, AUDIO report-only), the `--affected` local wire note. D-B:
 "Laptop queue" affected bullet (`:554-569`: report list, the stale "gates the head today" sentence at `:567-568`), the
 rerun filter, perf `--budget`; "Flakes and quarantine" (`:607-627`): KNOWN FLAKY only for exit 1, repeat quarantine
-blocking (Q30), knownFlaky counts, the T11 note; train run + e2e-darkness (Q27). D-C: the owners and the quarantine test
+blocking (Q30), knownFlaky counts, the T11 note, the `alerts/*-fixjob-*.json` kind; train run + e2e-darkness (Q27)
+and its run-time off switch (`config/train-parity.json`, `LQ_TRAIN_PARITY`). D-C: the owners and the quarantine test
 in "Flakes and quarantine"; hard-rule checks listed where the suites are named. RULES.md "Test tiers" (the train row
 now names e2e-darkness) is the orchestrator's: D-B sends it the one-line change.
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
 | --- | --- | --- | --- | --- |
-| none (test tooling; `TRAIN_PARITY` empty is the off switch for S7) | - | Night Shift \| Test Runner | - | - |
+| `config/train-parity.json` on `laptop-queue` (S7 run-time switch; `LQ_TRAIN_PARITY=off` per worker) | on after a green precheck | Night Shift \| Test Runner | PR-B release | the 3-run precheck is green |
 
 ## Walk items
 - None (no player-facing change).
@@ -337,7 +366,8 @@ now names e2e-darkness) is the orchestrator's: D-B sends it the one-line change.
   `:242,:288` and `scripts/run-e2e.mjs` PARTS `:47`; `origin/feature/tallow-design-docs` edits run-e2e.mjs. S1 puts its
   rows after `:308` (separate hunk); S2 leaves PARTS alone. Orchestrator orders the merges.
 - e2e-darkness on trains may be red on master today or flaky on the Warehouse Clear page (legacy page, warehouseOps
-  frozen, Q26): the precheck and `TRAIN_PARITY = []` guard it; the hold must not block every release.
+  frozen, Q26): the 3-run precheck before switch-on, then the run-time switch (`config/train-parity.json`
+  `{ "off": true }` on the `laptop-queue` branch, no release needed) is the way out; the hold must not block every release.
 - H8 uses TS-private `loadSection` / `unloadSection`: a rename in sectorMode breaks the test, not the game; Sector Ops
   told in the PR.
 - H7 full replay needs Guard AI's `Math.random` fixes; until then the test proves the pure layer only.
