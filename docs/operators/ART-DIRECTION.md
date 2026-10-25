@@ -21,9 +21,9 @@ direction (D24: "Decide at step 12").
   tucked, matted or removed.
 - Mood: dark, tactical, cold, controlled. Dangerous because they look competent, not because they look aggressive.
 - Original, always:
-  - no copy of Sam Fisher's suit or any Splinter Cell character;
+  - no copy of the reference hero's suit or any reference-game character;
   - no three-lens goggle cluster with three green lights;
-  - no Third Echelon, Ubisoft, flag, unit or brand logos;
+  - no logos of the reference game's organisations, and no flag, unit or brand logos;
   - no recognisable trademarked equipment shapes.
 - The inspiration is the tone, the function and the darkness, never a specific design.
 
