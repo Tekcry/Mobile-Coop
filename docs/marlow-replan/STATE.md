@@ -40,7 +40,7 @@ Owner: Marlow Build. Status: current.
   S4 / D-A and J13 R6 / R8 for G1's gates.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
 - ~23:25 (new account): S0 fix round done (e8869dc15), fresh Opus check PASS (j14-s0-check-2.md) -> PR 1 = #473; e2e-coop + e2e-netmove filed at open (set coopgate). S0 claims add tests/laserPanels.test.ts, rooms.test.ts, detailPass.test.ts, e2eAffected.test.ts, src/world/lampFlicker.ts, lampSway.ts. R1: S0 tip merged (3cfa27d74), Opus fix round running (items in j14-wave2-notes.md) -> r1-fix-report.md.
-- Next: R1 fix round DONE (aa12851bd) -> both R1 checkers running (r1-check-a2.md, r1-check-b2.md; set-brief notes in j14-wave2-notes.md ~23:35) -> PASS: merge S0 + R1 into feature/marlow-replan-base, fill its sha into the seven briefs, post them on cloud-queue, open PR 2 (R1). Follow-up after R1: applyLocks door item rule (j14-wave2-notes.md ~23:25).
+- Next: R1 checker A PASS, B FIX (hooks too narrow) -> R1 fix round 2 (Opus, widen StationHooks: gate, down, jammed, tripped, epoch) -> checker B rerun -> both PASS: merge S0 + R1 into feature/marlow-replan-base, fill sha + hook list into the seven briefs, cloud-queue, PR 2. Notes: j14-wave2-notes.md ~23:35-23:55.
 
 ## Done
 - ~21:30 Plan check 2 answered: fix 1 (F1 drops one-out), fix 2 (R1 retryOff + cause mapping), polish (43 overlaps,
