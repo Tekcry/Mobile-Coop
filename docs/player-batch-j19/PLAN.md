@@ -124,7 +124,7 @@ save: none (settings.gameplay.sprintHold dropped, an old stored value ignored; a
 | R28 | No Settings row (`settingsScreen.ts:158-159`); a stored `mocapLoco: false` is ignored; `?mocap=0` and the tuner box (`app.ts:135-147`). Q38 (G399): stays so. |
 | R29 | AF6 fields `t`, `gph`, `qs`, `hs`, `mo`, `mt`, `ax`, `az` (`protocol.ts:80-95`). Q39 (G400): stay. |
 | R30 | `turn180` 0.25, `raise` 0.2 (`limits.ts:98`, `:102`), audited at `scripts/anim-audit.mjs:1150`, `:1154`; bible 5.12.2 item 6: 0.4 s, 0.75 / 1.1 s. |
-| R31 | ROADMAP "Waiting on Michael": "Walk AF0-AF6" since 2026-10-23 ~20:45, no video. No look-video script on master (`scripts/` has shots only: `shot.mjs`, `shots-ctcourse.mjs`). |
+| R31 | The AF0-AF6 walk was dropped (ROADMAP "Decided" 2026-10-25 ~22:25: Mixamo replaces the same walk / run / crouch moves). No look-video script on master (`scripts/` has shots only: `shot.mjs`, `shots-ctcourse.mjs`). |
 | R33 | `PlayerTarget.revive()` -> `health.reset()` = max (`playerTarget.ts:90-93`, `health.ts:30-31`); host `reviveOne` (`coopHost.ts:620-637`), remote `remotePlayer.ts:262-263`; the `revive` event (`protocol.ts:255`, `:522-527`) is also the restart's (`coopHost.ts:1916-1920`); client `coopClient.ts:908-918`. |
 | R38 | `this.ff = mode === 'course'` (`coopHost.ts:167`, `:201-202`, used `:267`, `:383`, `:705`); the client's partner targets in course only (`coopClient.ts:376-383`); `lobby` / `start` carry no ff (`protocol.ts:283`, `:285`, `:820`); lobby rows `coopUi.ts:530-538`; rejoin record `core/rejoin.ts:16`. |
 
@@ -144,8 +144,8 @@ save: none (settings.gameplay.sprintHold dropped, an old stored value ignored; a
 - **R8** (M1): `STRIKE.recover` 1.4 s (`STRIKE_DUR` 1.48). `strikeBody.ts` is re-timed in seconds, not phase: the wind-up
   and contact keep today's absolute times (contact at 0.08 s), the extra 0.8 s is the follow-through and a guarded
   settle back to rest (no frozen hold). The host follows `STRIKE_DUR` by itself. The Mixamo `elbow_strike` and
-  `cross_punch` clips are offered for this strike (see "Mixamo hand-offs"): the re-timed procedural strike stays the
-  rollback and the A8 baseline.
+  `cross_punch` clips play this strike by default (see "Mixamo hand-offs"): the re-timed procedural strike is the
+  rollback (`?mixamo=0`) and plays only where a clip is visibly broken.
 - **R9**: `cmove` gains optional `l: 1` (strike only, parsed as a boolean); `commitRequest(kind, id, target, lethal)`;
   the host keeps it in its strike record and `applyHit(..., lethal)` takes it as a parameter (the host's own strike
   passes `this.lethal`). A client's RT hold then kills on the host as solo does.
@@ -154,9 +154,10 @@ save: none (settings.gameplay.sprintHold dropped, an old stored value ignored; a
   `gameAudio.ts:159` (own steps) and `net/validate.ts` (the host's estimate for a carrying client). Carrying, a crouch
   press is swallowed and the controller held standing (bible 5.3 "standing").
 - **R11** (A6, dark): `BodyCarry.beginPutDown()`: about 1.6 s committed, kneel and lay the body along the side with the
-  hands on it to the ground, no `noise` call. The kneel is the Mixamo `kneel_down` clip where it passes A8 (see
-  "Mixamo hand-offs"), else a procedural kneel. A "Put down" row above "Drop body" when `flags.putDown`; the client
-  sends `use` with a new id `put-body` (`protocol.ts` beside `DROP_BODY_ID`), the host's `onUse` lays it down quietly.
+  hands on it to the ground, no `noise` call. The kneel is the Mixamo `kneel_down` clip by default (see "Mixamo
+  hand-offs"); a procedural kneel only if the clip is visibly broken, and as the `?mixamo=0` rollback. A "Put down"
+  row above "Drop body" when `flags.putDown`; the client sends `use` with a new id `put-body` (`protocol.ts` beside
+  `DROP_BODY_ID`), the host's `onUse` lays it down quietly.
   Partner view (G400 "players must look exact"): `MOVE_MODES` gains `putDown` (`src/player/moveState.ts`, appended,
   never reordered; `ph` 0..1 over the put-down), set by `src/game/localMoveState.ts` while `BodyCarry` puts down, so the
   owner's MoveState carries it in `pstate` / snapshots as every committed move. `poseFromMoveState` poses the kneel from
@@ -196,7 +197,7 @@ save: none (settings.gameplay.sprintHold dropped, an old stored value ignored; a
 - **R30** (A14): `turn180` 0.4; `raise` per weapon class 0.75 / 1.1 (from `drawState.ts`'s classes); the audit gains a
   takedown row (press to victim down >= `MIN_DURATION.takedown`).
 - **R31**: `scripts/look-video.mjs` (S8a): headless Playwright `recordVideo` on a scripted route (`?autostart`), one
-  scene list per video; the AF0-AF6 video and the option videos (S8b).
+  scene list per video; the R26 / R27 option videos (S8b).
 - **R33** (A11): `Health.reset(frac = 1)`, `PlayerTarget.revive(frac = 1)`, `RemotePlayer.revive(at, protect, frac = 1)`;
   `REVIVE_HEALTH` 0.35 beside the revive rules; `reviveOne` passes it for a partner revive; the `revive` event gains
   optional `hp` (0..1) for the revived client; restarts send no `hp` (full).
@@ -208,26 +209,25 @@ From `docs/mixamo-retarget/PLAN.md` "Hand-offs" (origin/master: "carry, kneel_do
 rows 12-14. G399 ("mocap only" for players) makes capture over hand-keyed poses the intent. The clip modules are on
 master in `src/anim/clips/mixamo/` (not at this branch's base 2148ec969: each slice cuts from current master); J19
 claims them read only and never re-emits them.
-| Clip | Slice | Use | Replaces (the A8 baseline) |
+| Clip | Slice | Use | Replaces (the rollback) |
 | --- | --- | --- | --- |
 | `carry_body_walking` (gait) | S7 | the body-carry walk, through the `cqGait.ts` carry layer | the procedural carry bend / lean (`CQ.carryBend`, `carryDrop`) |
 | `carry_body_idle` (loop) | S7 | standing with a body on the shoulder | the procedural carry stand |
 | `kneel_down` (timed) | S7 | R11's put-down kneel, about 1.6 s; owner and partner (`poseFromMoveState`) | the procedural kneel |
 | `elbow_strike` (timed) | S2 | the palm strike, R8's 1.48 s (the Mixamo table names "J19 S1": `strikeBody.ts` is S2 here) | the re-timed `strikeBody.ts` |
-| `cross_punch` (timed) | S2 | the alternative for the same strike; one of the two plays, whichever measures better | the re-timed `strikeBody.ts` |
+| `cross_punch` (timed) | S2 | the alternative for the same strike; one of the two plays, whichever reads better at a glance | the re-timed `strikeBody.ts` |
 
 Rules for every row:
-- Behind the `mixamo` flag (`?mixamo=0/1`, `src/core/flags.ts`, from the Mixamo I slices; not on master at 38e92f5d3)
-  and the clip's `MIXAMO_ON` row in `src/anim/mixamo.ts`. Both are the Mixamo lead's: J19 asks for the row and never
-  edits either file or the flag's default. The default and its walk item follow the Mixamo PLAN A1 as the orchestrator
-  rules it (ROADMAP "Decided" 2026-10-26 ~00:15: all Mixamo clips in game and switched on, Michael tunes in Anim
-  Studio).
-- A8: a clip plays only if it measures at least as well as the hand-made move it replaces, as
-  `docs/mixamo-retarget/I1-REPORT.md` (origin/feature/mixamo-i3) does: within the limit where the hand-made move is,
-  else no worse than it (seam step, largest bone step a frame, knees x hips, knee outside ankle, elbow outside
-  shoulder; planted slide for the carry walk; for the strike, contact time and the victim's reaction beat as well). The
-  builder's test records both columns and the PR body carries the table; a clip that measures worse stays off, the
-  hand-made move plays, and the reading goes on the polish list.
+- Default ON (ROADMAP "Decided" 2026-10-26 ~00:15, Michael: "add all mixamo animations in game, i will fine tune as
+  needed. make this priority overnight"): the clips play in the default game; Michael tunes them in the Anim Studio,
+  no walk first. The `mixamo` flag (`?mixamo=0/1`, `src/core/flags.ts`) and the clip's `MIXAMO_ON` row
+  (`src/anim/mixamo.ts`) are the Mixamo lead's: J19 asks for the row on and never edits either file; `?mixamo=0` is the
+  hand-made rollback and comparison.
+- Mixamo wins over the hand-made move unless visibly broken (a spin, a pop seen at a glance, limbs through the body,
+  a bad foot slide); only then the hand-made move plays, with the reason in the PR body. A8 readings (as
+  `docs/mixamo-retarget/I1-REPORT.md` on origin/feature/mixamo-i3: seam step, largest bone step a frame, knees x hips,
+  knee outside ankle, elbow outside shoulder; planted slide for the carry walk; contact time and the victim's reaction
+  beat for the strike) are recorded as information in the PR body and go on the polish list; they keep no clip off.
 - Flag off (or the row off) is byte-identical to the hand-made move: a test pins it.
 - Co-op: remotes pose from `MoveState` (`strike` / `putDown` `ph`) and the carry mirror (`RemoteAvatar.carryLoad`), so
   a partner plays the same clip as the owner with no extra field (G400).
@@ -259,11 +259,12 @@ since the base, and its brief re-finds every cited line at brief time.
 - Files: `src/game/elbowStrike.ts`, `src/anim/strikeBody.ts`, `tests/elbowStrike.test.ts`, `tests/strikePops.test.ts`,
   `tests/animN4cStrike.test.ts`, `tests/animN4dKill.test.ts`; read only: `src/anim/clips/mixamo/elbow_strike.ts`,
   `src/anim/clips/mixamo/cross_punch.ts` (Mixamo hand-off). Est. ~500.
-- Checks: vitest on those (incl. the A8 table: each clip vs the re-timed procedural strike; flag off byte-identical);
-  affected-e2e (GAME + `e2e-anim`, `e2e-clip`, `e2e-move`), `anim-audit`; `e2e-coop` + `e2e-netmove` requested; look
-  video: strikes from four sides, a whiff, procedural and with `?mixamo=1`.
+- Checks: vitest on those (A8 readings recorded, each clip vs the re-timed procedural strike; `?mixamo=0`
+  byte-identical); affected-e2e (GAME + `e2e-anim`, `e2e-clip`, `e2e-move`), `anim-audit`; `e2e-coop` +
+  `e2e-netmove` requested; look video (the default game): strikes from four sides, a whiff; `?mixamo=0` only for a
+  hand-made comparison.
 - Done looks like: contact as quick as today, free 1.4 s after it, the arm settles with no pop or freeze; the Mixamo
-  strike plays with `?mixamo=1` only if its A8 row is at least as good, the readings in the PR body.
+  strike plays by default unless visibly broken, the A8 readings in the PR body as information.
 - Flag: none for R8 (Q34, ships on); the Mixamo clips under `mixamo` (the Mixamo lead's).
 
 **S3 Co-op rules on the wire (Opus; two Opus checkers). W1. R9, R33, R38.**
@@ -282,8 +283,8 @@ since the base, and its brief re-finds every cited line at brief time.
 **S4 Guard arms and goggle default (Sonnet from a strict Opus brief). W1. R16, R17.**
 - Files: `src/config/enemies.json`, `src/cosmetics/avatarLook.ts`, `src/cosmetics/catalog.ts`,
   `src/player/characterRig.ts` (the tri-lens case only; the Opus brief names its lines and mask),
-  `src/progression/suit.ts`, `tests/economy.test.ts`, `tests/enemyArms.test.ts`. Est. ~200. Re-find lines (`suit.ts`, `missionMode.ts`,
-  `sectors.ts` moved on 38e92f5d3).
+  `src/progression/suit.ts`, `tests/economy.test.ts`, `tests/enemyArms.test.ts`. Est. ~200. Re-find lines (`suit.ts`,
+  `missionMode.ts`, `sectors.ts` moved on 38e92f5d3).
 - Checks: vitest on both; affected-e2e (CORE, `e2e-park`, `e2e-cosmetics`, `e2e-progression`, `e2e-move`, `e2e-anim`,
   `e2e-stealth`, `e2e-clip`); `e2e-coop` + `e2e-netmove` requested (`src/player`).
 - Done looks like: no guard kind without a gun; no tri-lens anywhere in the look menu or on a default operator.
@@ -328,9 +329,9 @@ R11, Mixamo carry and kneel.**
   `coopHost.ts`, `coopClient.ts`, `protocol.ts`, `flags.ts` moved on 38e92f5d3, and S3 / S6 land first).
 - Checks: vitest (carry step noise > 0 while moving; crouch swallowed; put-down makes no noise, drop makes 3 m; the
   `putDown` mode packs / parses and poses the same kneel on a remote; `CarryView.putDown` lowers the body in step with
-  `ph` and ends in the owner's lie; the A8 table for the three clips; flag off byte-identical); the co-op group + GAME +
-  `e2e-guard-carry`, `e2e-weapons-carry`, `e2e-foley`; look video: carry, drop, put down (`?putdown=1`), owner and
-  partner screens side by side, with and without `?mixamo=1`.
+  `ph` and ends in the owner's lie; A8 readings for the three clips recorded; `?mixamo=0` byte-identical); the co-op
+  group + GAME + `e2e-guard-carry`, `e2e-weapons-carry`, `e2e-foley`; look video (the default game): carry, drop,
+  put down (`?putdown=1`), owner and partner screens side by side; `?mixamo=0` only for a hand-made comparison.
 - Done looks like: a guard hears a carrier's steps at 2.5 m; no crouch with a body up; with `?putdown=1` "Put down"
   lays the body quietly, host and client, and the partner sees the same kneel and the body lowered, not dropped.
 - Flag: R10 none (rule fix); R11 `putDown` (dark); the Mixamo clips under `mixamo` (the Mixamo lead's).
@@ -340,13 +341,12 @@ R11, Mixamo carry and kneel.**
   desktop under `heavy.lock`). Nothing headed; output outside git, path in each PR body.
 - Done looks like: `node scripts/look-video.mjs --scenes <list> --out <dir>` writes one 1-2 min `.webm` per list.
 
-**S8b Walk pack: AF0-AF6 video and the R26 / R27 options (Opus). After S5, S8a. R31, R26, R27.**
+**S8b Walk pack: the R26 / R27 options video (Opus). After S5, S8a. R31, R26, R27.**
 - Files: `docs/player-batch-j19/AF-OPTIONS.md`, `docs/player-batch-j19/STATE.md`. Docs only; the PR body carries
   `Job-done: player-batch-j19` if it is the last.
-- Content: the AF0-AF6 video (walk, jog, run, starts / stops, turns, crouch, wall, partner view, as live); the options
-  video, live vs `?mocapraw=1` side by side; a table of each AF target taken from CT footage, the trained-operator value
-  (G210, bible 5.12) where it differs and the proposed value; one native multiple choice for the walk card (keep the
-  corrections / back to as captured / the proposed values).
+- Content: the options video, live vs `?mocapraw=1` side by side; a table of each AF target taken from CT footage,
+  the trained-operator value (G210, bible 5.12) where it differs and the proposed value; one native multiple choice
+  for the walk card (keep the corrections / back to as captured / the proposed values).
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
@@ -369,7 +369,7 @@ R11, Mixamo carry and kneel.**
 - Takedowns from a pipe, ledge, window and a drop: RT tap knocks out, RT hold kills, each about 1 s - accept when they
   read as quick, committed and not rushed.
 - Palm strike: 1.4 s to free - accept when the recovery reads as a real follow-through, not a pause.
-- AF0-AF6 pass (the waiting walk) and the mocap-correction options (Q37) - accept one option.
+- The mocap-correction options (Q37) - accept one option.
 - Forward lean only at full run - accept when the jog stands as upright as the walk.
 - `?putdown=1`: put a body down quietly vs drop it - accept to switch `putDown` on.
 - Doorways: no camera push-in - accept when the camera holds its distance through a door.
@@ -400,5 +400,5 @@ R11, Mixamo carry and kneel.**
 - Friendly fire On in Sector Ops with 4 players (Q16 live) can change `e2e-sectorops` co-op cases: covered in S3.
 - R19's anim side: the tuner's move list reads the sprint slot (`animGraph.ts:2316`) and guards run on mocap clips
   (`tests/mocapGuards.test.ts`); the sprint clip stays if any reader, guards included, can still reach it (A9).
-- R25 changes an AF2 value while Q37 waits: G217 is Michael's own rule, so it ships; the AF0-AF6 and option videos are
-  recorded after S5 so the walk sees what is live.
+- R25 changes an AF2 value while Q37 waits: G217 is Michael's own rule, so it ships; the option videos are recorded after
+  S5 so the walk sees what is live.

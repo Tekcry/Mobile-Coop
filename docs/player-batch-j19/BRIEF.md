@@ -32,8 +32,9 @@ The player's takedowns, strike, carry, movement, camera and co-op rules match th
 positional takedown can kill (RT hold), none is quicker than about 1 s, the palm strike recovers in about 1.4 s and a
 client's held strike kills on the host too, a carried body is heard and can be laid down quietly, the menus show only
 what G203 / G206 allow, removed sprint and hop code is gone, the camera only pulls back in open space, plain holds have
-a toggle, a revive gives 35% health and friendly fire is a host option. Michael gets a look video of the AF0-AF6 pass
-and of the mocap-correction options for his animation walk; nothing in R26 / R27 changes before that walk.
+a toggle, a revive gives 35% health and friendly fire is a host option. Michael gets a look video of the
+mocap-correction options for his animation walk (the AF0-AF6 walk was dropped, ROADMAP "Decided" 2026-10-25 ~22:25);
+nothing in R26 / R27 changes before that walk.
 
 ## Limits
 - Out of scope: hot-path allocations, `hyp3`, touch (J6); dogs and helmets (J15); objective pop-up and intel notes
@@ -92,5 +93,5 @@ and of the mocap-correction options for his animation walk; nothing in R26 / R27
 - None. No assumption loosens a Michael-only rule; Q34-Q39 settle the rows that needed him.
 
 ## Sign-off needed
-No map or layout. Animation PRs (S1, S2, S5, S7) carry a 1-2 min look video; the AF0-AF6 video and the R26 / R27
-option videos go on the next walk card (S8b).
+No map or layout. Animation PRs (S1, S2, S5, S7) carry a 1-2 min look video; the R26 / R27 option videos go on the
+next walk card (S8b).
