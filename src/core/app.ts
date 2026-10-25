@@ -29,7 +29,7 @@ import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
 import { flags } from './flags';
 import { applyMocapSwitch, mocapWanted } from '../anim/mocap';
-import { kept as keptParts, type KeptParts } from './keptParts';
+import { kept as keptParts, type KeptEffect, type KeptParts } from './keptParts';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -108,7 +108,18 @@ export class App {
     // (map-ready S9) the kept parts: on with the flag; a GPU context loss or a Textures setting change releases them
     keptParts.enabled = flags.mapReady;
     if (keptParts.enabled) {
-      this.engine.onContextLostObservable.add(() => keptParts.dropTextures());
+      // (map-ready S10) a context loss drops the kept effects too; every createEffect is counted (reused / compiled)
+      this.engine.onContextLostObservable.add(() => {
+        keptParts.dropTextures();
+        keptParts.dropEffects();
+      });
+      const engine = this.engine;
+      const createEffect = engine.createEffect;
+      engine.createEffect = (...a: Parameters<Engine['createEffect']>) => {
+        const e = createEffect.apply(engine, a);
+        keptParts.countEffect(e as unknown as KeptEffect);
+        return e;
+      };
       let textures = this.quality.level.features.textures;
       this.quality.onChange = (l) => {
         if (l.features.textures === textures) return;
@@ -383,15 +394,21 @@ export class App {
     this.loop.detach();
     this.quality.setTarget(null);
     this.debug.setScene(null);
+    const engine = this.engine as unknown as { readonly _compiledEffects: Record<string, KeptEffect> };
     if (!prev.scene.isDisposed) {
       // (map-ready S9) hold the textures this match used before its dispose frees them (flag off: no-op)
       keptParts.handOver(prev.scene);
+      // (map-ready S10) and the compiled effects, cut loose from this scene (flag off: no-op)
+      keptParts.keepEffects(engine._compiledEffects);
       prev.scene.dispose();
     }
     // (3.1.7: the engine's compiled-shader cache kept every old match alive - a plugin material's shader holds its
-    // material, so its scene and the whole GameState; the keys never repeat (plugin ids count up), so nothing is lost:
-    // with no scene alive, every cached shader is the last one's)
-    this.engine.releaseEffects();
+    // material through its callbacks and code hooks, so its scene and the whole GameState. In Babylon 9.29 the keys do
+    // repeat (a plugin's define is per class name; the key is shader name + defines), so with `mapReady` on the kept
+    // effects stay, stripped of those ties (`KeptParts.keepEffects`), and only the rest are released; flag off: all of
+    // them, as before)
+    if (keptParts.enabled) keptParts.releaseUnkept(engine._compiledEffects);
+    else this.engine.releaseEffects();
   }
 
   setState(next: AppState): void {
