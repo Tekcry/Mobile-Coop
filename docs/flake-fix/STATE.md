@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 54 (2026-10-25 ~19:15, Orchestrator save at 94%; wins over SAVE 53 where they differ):**
+- Trains 96 and 97 green (43/43 on 97). Service pid 12732 healthy; queue ~21 requests deep, so no gap runs added.
+- J20: every slice built and checked; the full status is the resume block of `docs/test-runner-j20/STATE.md` on
+  origin/feature/test-runner-j20 (12541dbb4). In short: PR-C #445 open, checker PASS, gate = `laptop-e2e/j20-s6c` on
+  b22bcbc3 + affected-e2e; PR-A `-pra` 0d7eab1e checker PASS (opens after PR-C merges + D-A docs); PR-B `-prb`
+  b1969b8c checker PASS (S7 parity ON; needs the 3 x j20-parity-pre runs on master b81c4945 green before release;
+  D-B after PR-A merges; carries Job-done).
+- All J20 worktrees clean and pushed. J1 docs PR #432 train-ready.
+- Next: read the J20 queue results (j20-s6c, j20-pra, j20-perf, j20-parity-pre-1..3); fix S6c if red (STATE says
+  how); then D-A on PR-C's merge, open PR-A; ping Guard AI when PR-C merges.
+
 **Test Runner SAVE 53 (2026-10-25 ~18:20, before the ~18:22 cap; wins over SAVE 52 where they differ):**
 - Row 6 signed off ~17:00: hold lifted, full burn. Train 96 (4.103.1) on the laptop: watch it, Opus triage if red.
 - J1 docs PR #432 (docs/test-runner-j1, head 9ec03f714, worktree -conformance-docs): checker Opus PASS posted; CI
