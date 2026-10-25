@@ -1,43 +1,49 @@
 # Night Shift - roadmap
 
-Owned by the orchestrator (the only editor). Rules: docs/RULES.md on origin/master. Sections: Now (one ranked
-queue), Inbox (Michael's new ideas, untriaged), Waiting on Michael, Decided (today only), Done (last 10 releases).
-History: `docs/orchestrator/archive/` (ROADMAP-history.md: the old Waiting / Now / Next / Later and the full Done
-table; ROADMAP-decided-history.md: Decided before 2026-10-24).
+Owned by the orchestrator (the only editor). Rules: docs/RULES.md on origin/master; the game: docs/VISION.md on
+origin/master. Sections: Now (one ranked queue), Inbox (Michael's new ideas, untriaged), Waiting on Michael, Decided
+(today only), Done (recent releases). History: `docs/orchestrator/archive/` (ROADMAP-history.md: the old Waiting / Now
+/ Next / Later and the full Done table; ROADMAP-decided-history.md: Decided before 2026-10-25).
 
 Goal: docs/VISION.md section 1 (Marlow Yard, Sector Ops campus and Tallow Wharf in parallel, each under its own lead,
-after a conformance review of every map and feature against the new docs; G347, G355).
+after a conformance review of every map and feature against the new docs; G347, G355). Docs first: no new game work
+until Michael signs off the folded plan; finished PRs ship (G346).
 
-Last rewritten: 2026-10-24 ~22:15 Sydney; Now / Decided refreshed ~23:30 (master 4.98.1, train 68 #354; trains 69 #358
-and 70 #359 open).
+Last rewritten: 2026-10-25 ~12:35 Sydney from docs/orchestrator/FORWARD-PLAN.md v2 (master 4.101.1, train 86 #406).
 
 ## Now
-Ranked. Gate = what must be true before the next step. A lead at the walk cap takes only tests, fixes and automation.
+Ranked. Gate = what must be true before the next step. The walk cap limits switch-on only; rule fixes are allowed at
+the cap (G355).
 
-| # | Item | Owner | Gate |
-| --- | --- | --- | --- |
-| 1 | e2e-stealth-ai one-mover assert is intermittent on master: fix #387 (Guard AI) in checkers. #378 pr-size hotfix released 4.100.5; close / reopen sweep of #372 / #373 / #375 / #377 / #379 / #384 / #385 done ~10:12: label each green one | Guard AI / Orchestrator | #387 checkers + e2e-stealth-ai green |
-| 2b | doc-guard (Orchestrator, after doc-clarity lands): scripts/doc-lint.mjs in npm run check + docs/stale-terms.json, auto-archive of released job docs in scripts/merge-train.mjs, fold checklist (DECISIONS + bible + VISION in one PR), daily drift audit, weekly merged-branch and worktree prune | Orchestrator | doc-clarity PRs on master; Opus plan + checker |
-| 2a | doc-clarity (Orchestrator, 2026-10-25 ~10:20, Michael approved A-D after the 5-agent docs audit): A rule loading (CLAUDE.md stub + docs/RULES.md, root C:/NightShift/CLAUDE.md on both PCs, merged worktrees removed, memory pruned); B docs/VISION.md; C bible rewritten in place, replaced G numbers marked, 2026-10-25 fold, systems docs; D level-design per-mode profiles + validator (forced co-op gate replaces no-softlock, guard and lux rules, training profile), uploaded skill archived; E one owner per process rule. Branches feature/doc-rules, doc-vision, doc-bible (stacked on #386), doc-systems, doc-level | Orchestrator | Opus checker per PR, train-ready; then a full re-audit (Michael asked) |
-| 2 | Process PRs from the audit packages: #347 rulebook (fix round 3) + branch docs/lean-orchestrator (this file, STATE, HANDOFF, PROMPTS, BOOT); #349 swap tools + #351 intake gates (fix round 2); #350 watchdog (status check, then alerts-only install); #353 release path (in train 70; follow-ups in its PR) | Orchestrator | one Opus re-check each, then label; merge docs/lean-orchestrator into feature/menu after #347 releases |
-| 3 | mission-framework (Marlow Build lead, 2026-10-24 ~22:40, from Michael's 22:12 mission decisions; PLAN d80cb783 on feature/mission-framework: Tallow Wharf campaign map, PR A specs / sign-off, PR B validator, PR C engine; wave 1 running). Plan: docs/orchestrator/MISSION-DESIGN-AUDIT-2026-10-24.md sections 4 and 7; research parts copied from C:/NightShift/scratch/mission-audit/ into docs/missions/research/. (1) engine: objective chains with branches and parallel tracks (per team), intel -> exploit steps, interrogate-a-named-target objective, rules per mission / team (up to 2, ghost = one), section restart on a broken rule, optional hint layer (off by default), extraction step; (2) validator objective / rule / sync nodes and the testable rules from section 4; (3) Marlow Yard is the training course and keeps its heavy guidance (stripes, marks, door lamps) and its linear single route (Michael ~22:45, Decided); the no-markers rule applies to campaign missions and Sector Ops; the validator gets a training-map profile (1 route allowed, guidance allowed, split paths / multiple objectives only in its later sections); (3b) forced co-op traversal kit for campaign missions (every campaign section needs a co-op move to proceed, no solo bypass): boost up a wall and throw over a gap from Michael (full kit: Decided ~22:50), plus orchestrator proposals in the PLAN for his pick; (4) prototype specs: Three Grey Coats + Two-Key Ledger (campaign, 2p, on a NEW small campaign map, ~22:50) and Split Shift + Code Relay (Sector Ops, 1-4p, on campus), each a beat chart + connectivity graph + one-page to-scale plan for Michael's one-click sign-off. Assumed overnight (undoable): Sector Ops validator players [1,2,3,4]; campaign maps co-op only per G253 (LD 11 solo-first dropped for them); a mission's no-kill rule overrides LD 7.3 for that mission; device windows allowed only when named in the briefing | Marlow (Sector Ops: campus, row 12) | plan checker; Michael's one-click sign-off before any greybox, except the new small campaign map, whose greybox may proceed overnight (sign-off page still made) |
-| 4 | Overlap slice 4 (scripts/auto-train.mjs; docs/orchestrator/overlap-trains-PLAN.md "Slice 4 carry-overs"), after #343 auto-drop (in 4.98.0) | Orchestrator assigns | checker; enable overlap after one watched pair |
-| 5 | coop4 #317: Sector Ops up to 4 players (Marlow Yard stays 2); fix3 52e3dc13 (test staging) on the laptop; then the feature/coop4-pol follow-up | Guard AI | laptop sets coop4 + coop4-4p green on the head, `big-pr` label, then train-ready |
-| 6 | coop-real: input-only co-op e2e (feature/coop-real; H1 finisher on feature/cr-h1; cloud F1a / F1b under two Opus checkers; F1 / F2 build on top of feature/coop4) | Player | checker; `src/net` slices after #317 |
-| 7 | visual-gate: picture check per map x Low / Epic vs the last release + light-parity grid per map (plan origin/feature/visual-gate f70a222a, VG1-VG8) | Sector Ops | plan checker, then slices |
-| 8 | Guard models on by default (feature/gm-flip): G10a desktop bake (restart 3, heavy.lock), copy GLBs, flag flip, flag-on suites, contact sheet to Michael (no stop) | Player | flag-on suites (enemies coop ctcourse combat guard-carry) |
-| 9 | guard-cap: M0 read (T1 open, D1-D2 closed), M1 requeued; then C1 / N1 / K1 / M2 | Marlow | guard-models + gm-perf merged; M1 verdict |
-| 10 | Test Runner next job: affected-e2e status on every PR head + a flake budget per suite (quarantine, owner, expiry) | Test Runner | plan checker |
-| 11 | Disk: desktop scratch copies deleted 2026-10-25 ~08:47 (C: 38 GB free); laptop prune script ready (54 idle worktrees, ~27 GB; auto mode blocks removal, Michael runs it) | Orchestrator / Michael | his run (optional, laptop has 195 GB free) |
-| 12 | Campus S1-S5 greybox (signed off 2026-10-25 ~08:50; job campus-greybox, feature/campus-greybox off master 6c3f4a87: P0 dark-merge scaffold, per-section flag, code in src/world/maps/campusV2/s<N>*.ts with a v1 / v2 selector; five lanes feature/campus-greybox-s<N>; 31 slices, ~90 h) | Sector Ops | P0 checker; per-lane checker; exit V6 --require-measured (V6-fix on cloud) |
-| 13 | AF7-AF9 animation pass (briefs/afp-next-pass.md) | Player | Michael walks AF0-AF6 (walk cap) |
-| 15 | light-realism: real-world illuminance bands per space type (AS/NZS 1158.3.1 outdoor car parks and roads, AS/NZS 1680 / EN 12464 interiors), one engine-to-lux calibration, a bake-sampled check per space at greybox exit (validator + visual-gate), level-design.md 5.5 rewritten (shadow share yields to the real band); S1 car park first: measure 4.100.2 now (lux grid + GPU shot), fix in the campus-greybox S1 lane; then every map (Decided 2026-10-25 ~09:05) | Sector Ops | Opus plan with sourced lux bands + plan checker; Michael one-click on the level-design.md text |
-| 16 | route-runs: at greybox exit a scripted run walks each declared route (dark / high / loud) of every space against live guards (time, detections, dead stops), a validator V-slice; campus S1-S5 is the first user (Decided 2026-10-25 ~09:05) | Marlow | Opus plan + plan checker; runs on the laptop queue |
-| 14 | client-intel (cloud result 8bbd6d54 ported onto master as feature/client-intel: Sector Ops client gets INTERROGATE via a host EnemyState `in` flag, wire-additive) | Player | two Opus checkers + laptop e2e-coop / e2e-netmove; PROTOCOL_VERSION bump in the train |
+| # | Item | Owner | Gate | Depends on |
+| --- | --- | --- | --- | --- |
+| **Phase 0** | | | | |
+| 0a | Land #407 doc-final (level standard per mode, archive sweep, G344-G363; supersedes #398 / #402 / #404), then #400 doc-guard (stacked on #407: doc lint in CI, auto-archive, weekly prune; fix its pr-size / checker reds) and #408 laptop-queue-5 | Orchestrator (#407, #400), Test Runner (#408) | Released | checker + affected-e2e per head |
+| 0b | Ship finished PRs (G346): #384 co-op lamp shot across restart (train-ready), #389 client intel (checkers x2 PASS); #375 gm-flip after Michael's look picks + `big-pr`; #372 mission framework A after a checker on its head, `big-pr` and the sign-off pages. #387, #385, #403 released in 4.101.1 | Orchestrator | Released | queue |
+| **Phase 1** | **Conformance reviews, plan only, one per lead, in parallel** (brief: `docs/orchestrator/review-briefs/<lead>.md` on origin/feature/menu; output `docs/conformance-<lead>/CONFORMANCE.md`; the briefs' "#398, #402, #404" = #407) | | | |
+| 1 | Player: movement, animation, co-op player, guard models | Player | Docs PR, checker PASS | 0a |
+| 2 | Marlow: Marlow Yard + mission-framework; Tallow Wharf + level validator + guard cap | Marlow | as 1 | 0a |
+| 3 | Sector Ops: Saltmarsh Park S1-S5; lighting on every map; visual gate | Sector Ops | as 1 | 0a |
+| 4 | Guard AI: `src/ai` on every map (G335, G338 / G341 / G350, G348, G352) | Guard AI | as 1 | 0a |
+| 5 | Test Runner: suites and queue vs RULES; flake budget | Test Runner | as 1 | 0a |
+| 6 | Fold the five gap lists into one plan; one sign-off for Michael | Orchestrator | Michael picks | 1-5 |
+| **Phase 2** | **Signed-off builds, dark behind flags** (only after Michael signs off row 6) | | | |
+| 7 | Rule fixes (allowed at cap): remove compass / blip (hud.ts:34-35, :264; gameState.ts:3634), minimap (hud/minimap.ts), briefing and field-menu maps; objective popup, View / O, ~5 s, what and where (G336, G339, G343, G351) | Marlow | affected-e2e + checker | 6 |
+| 8 | Tallow Wharf GB5 / GB6 + 3 gate-reach ERRs (w2-reading-room 20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s); A10 void, A12 re-plan (G339, G334); campaign cap 32 (G359) | Marlow | 0 ERR; plan checker | 6 |
+| 9 | Campus greybox S1-S5 lanes (feature/campus-greybox c2f1f131); graphs `players: [1,2,3,4]`, per-count guards (G362), `unavoidable` tags | Sector Ops | Validator; V6 at exit | 6 |
+| 10 | light-realism lux bands, S1 car park first (G329; feature/light-realism bd8b843e) | Sector Ops | Lux grid to Michael | 6 |
+| 11 | Character shadows read by meter and guards (G352) | Sector Ops (meter), Guard AI (perception) | Opus plan; two checkers | 6, 10 |
+| 12 | Stars fill lower tiers (G331; src/save/sectorRecord.ts:14-16) | Sector Ops | affected-e2e | 6 |
+| 13 | route-runs (G330; feature/route-runs 9b8ee6ca) + V6 PR (feature/level-validator-v6 8f551e18) | Marlow | Plan checker | 6 |
+| 14 | Lookouts + paired patrols (G335), helmets by tier (G350), dogs (G348), #360 redone as shadow-in-view (G327, wip/guard-ai-t1-shadow; close #360 when that PR opens, never label it) | Guard AI | Plan checker; two checkers | 4, 6 |
+| 15 | Marlow Yard: downed (G349), drill retry (G361), strict rule late (G357), later sections (G363) | Marlow | Checker | 6 |
+| 16 | coop-real (#388), coop4 (#317), gm-flip (#375, after Michael's picks) | Player, Guard AI | As today | 6 |
+| 17 | Flake budget + affected-e2e per head; laptop-queue-5 follow-ups | Test Runner | Plan checker | 5 |
 
-Parked ideas (co-op modes and levels, dev tools menu + level editor, Moth as player 2, WebGPU, Wren cleanup, more co-op
-player characters after all levels): `docs/orchestrator/archive/ROADMAP-history.md` "Later". Spare jobs:
-`docs/orchestrator/spare-jobs.md`.
+Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-train.mjs;
+`docs/orchestrator/overlap-trains-PLAN.md` "Slice 4 carry-overs"). Parked ideas (co-op modes and levels, dev tools menu
++ level editor, Moth as player 2, WebGPU, Wren cleanup, more co-op player characters after all levels):
+`docs/orchestrator/archive/ROADMAP-history.md` "Later". Spare jobs: `docs/orchestrator/spare-jobs.md`.
 
 ## Inbox
 Michael's new ideas, verbatim, with the time; the orchestrator triages each cron run onto Now, Waiting or Decided.
@@ -46,30 +52,27 @@ Michael's new ideas, verbatim, with the time; the orchestrator triages each cron
 ## Waiting on Michael
 | Item | Since | Blocks |
 | --- | --- | --- |
-| Walk AF0-AF6 (animation fix pass, 4.84.0) | 2026-10-23 ~20:45 | AF7-AF9; any new animation feature (cap) |
+| Walk AF0-AF6 (animation fix pass, 4.84.0) | 2026-10-23 ~20:45 | AF7-AF9 (briefs/afp-next-pass.md); switch-on of animation features |
 | Full co-op walk of Marlow Yard (two players, end to end) | 2026-10-22 | the goal's sign-off; Marlow polish list; W5 A2 re-walk |
-| Campus walk S1-S5 on 4.95.1+ (started ~20:12; the fog fix lands in 4.97.0) | 2026-10-24 ~20:12 | campus S1-S5 plan (Now 12) |
-| Install the watchdog with `-Fix "labels"` + move the desktop queue task to origin/master (commands given ~08:50; Decided 2026-10-25 ~08:45) | 2026-10-25 ~08:50 | auto-labelling; desktop queue retiring other PRs' affected runs |
-| Branch / worktree prune (~340 worktrees, ~590 remote branches; deleting branches is his call) | 2026-10-24 | clutter only |
-| One-click sign-off pages: mission prototypes (Three Grey Coats, Two-Key Ledger, Split Shift, Code Relay; PR #372) (campus S1-S5 signed off 2026-10-25 ~08:50) | as each lands | their greybox (the new campaign map's greybox may proceed overnight) |
-| #375 gm-flip look picks (lean sleeve skin, hem shards, weld puckers) then one-click OK | 2026-10-25 ~05:20 | guard models on by default; guard-cap C1 |
-| Non-blocking answers: joint interrogation A1 / A2 (Marlow); Guard AI S23 client arcs / LKP ghost, S25 searchers' flares; Sector Ops look notes (dark ceilings over cone fittings, NV in S3 / S4) | 2026-10-24 | nothing (assumed, logged) |
-| Older walk items from the 2026-10-22 list (vents T1, landing roll room, wall block muzzle) | 2026-10-22 | nothing; they ride the next walk card |
+| Campus walk: v1 S1-S5 (started ~20:12 on 4.95.1); question: drop it and walk v2 at greybox exit, or finish v1 now | 2026-10-24 ~20:12 | Sector Ops switch-on |
+| #375 gm-flip look picks (lean sleeve skin, hem shards, weld puckers), then one-click OK | 2026-10-25 ~05:20 | guard models on by default; guard-cap C1 |
+| #372 one-click sign-off pages: mission prototypes (Three Grey Coats, Two-Key Ledger, Split Shift, Code Relay) | as each lands | their greybox (the new campaign map's greybox may proceed overnight) |
+| G157 level-standard review: the 12 proposed level-standard changes, item by item (level-design.md open item 3) | 2026-10-18 | Tallow Wharf greybox (row 8) |
+| Commands: (1) watchdog install now #403 is on master (4.101.1): `powershell -NoProfile -ExecutionPolicy Bypass -File C:\NightShift\Mobile-Coop-autotrain\scripts\watchdog-task.ps1 -Fix "labels"`, plus the desktop queue task moved to origin/master; (2) after #400 releases, the weekly prune task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\prune-task.ps1` from a master checkout (G345); (3) plain checkout C:/NightShift/Mobile-Coop back to master (it is on feature/operators, gone) | 2026-10-25 ~08:50 | auto-labelling; weekly prune; branching from a clean master |
 
-Unwalked features per area (cap 3; estimated from the CHANGELOG since each area's last walk, the orchestrator
-confirms at the next walk card):
+Unwalked features per area (cap 3; the cap limits switch-on only, G355; estimated from the CHANGELOG since each area's
+last walk, confirmed at the next walk card):
 | Area | Last walk | Unwalked since | Count |
 | --- | --- | --- | --- |
-| Player / animation | 4.72-4.73 (2026-10-23 ~13:55) | AF0-AF6 pass, rig-pose fix, optic cable partner view, client body carry | 4: AT CAP |
+| Player / animation | 4.72-4.73 (2026-10-23 ~13:55) | AF0-AF6 pass, optic cable partner view, client body carry | 3: AT CAP |
 | Marlow Yard | 4.82.0 solo (2026-10-23 ~22:15) | training cameras, LR16 re-light, joint interrogation | 3: AT CAP |
 | Sector Ops | campus walk in progress | campus S1-S5 art + lighting, coop4 AI, per-section bake | 3: AT CAP until the walk lands |
 | Guard AI | 4.72-4.73 | report-then-engage, hearing in fights, cover lines, response sweep, sight rays | 5: AT CAP |
 | Lighting | 4.78.0 (2026-10-23 ~18:08) | LR16 on every map, moving lights LR16-5, thermal through doors | 3: AT CAP |
 
 ## Decided
-Today only (2026-10-25), newest first; the 2026-10-24 entries below are folded in PR #386 (G283-G294) and move to the
-archive when it merges. Older entries: `docs/orchestrator/archive/ROADMAP-decided-history.md`; the
-orchestrator folds entries into `docs/DECISIONS.md` daily.
+Today only (2026-10-25), newest first; folded as G324-G343 (4.101.0) and G344-G363 (#407). Older entries:
+`docs/orchestrator/archive/ROADMAP-decided-history.md`; the orchestrator folds entries into `docs/DECISIONS.md` daily.
 - Level-standard follow-ups (2026-10-25 ~11:55, native multiple choice): (1) a failed Marlow timed drill: "Retry the drill only" (the drill resets in place; no checkpoint reload); (2) the signed-off campus counts S1 15 / S2 18 / S3 20 / S4 25 / S5 26 are for "Two players" (1 player uses the same, no scale-down; 3-4 players add the tagged extras); (3) Marlow "later sections": "After every move taught" (once each co-op kit move has been taught on its own).
 - Re-audit answers (2026-10-25 ~11:20-11:35, native multiple choice). (1) Goal: "All three in parallel" (Marlow Yard, Sector Ops campus and Tallow Wharf each move under their own lead). (2) Sector Ops dogs: "Penalty for killing, can be knocked out with gas, no takedown, or can be distracted". (3) Marlow Yard downed: "Campaign rule" (30 s revive, at most twice, both down = checkpoint). (4) Helmets: harder = "Realistic + Perfectionist" (Rookie / Normal: alarm-stage helmets only; Perfectionist: cannot be shot off). (5) Objective popup: "What and where". (6) Character shadows: "Meter and guards read them" (light parity holds for character shadows; a build job). (7) Killing a civilian or protected character: "Section restart". (8) Tallow Wharf story: "Decide with missions". (9) Walk cap, Michael: "What do you recommend? All current maps/features should be revised once documentation work has been completed"; recommendation adopted "Yes (Recommended)": once the doc PRs are on master each lead runs a plan-only conformance review of every map / feature in its area against VISION, RULES and level-design (gap list with fix sizes), the orchestrator folds them into the forward plan for Michael; then signed-off builds (campus greybox, Tallow Wharf) resume dark behind flags; the walk cap limits switch-on only; rule fixes to shipped features (e.g. G339 compass / blip) are fixes, allowed at the cap. (10) CT footage numbers G25-G36: "Starting values" (Michael tunes by hand). (11) Marlow strict rules: "Taught late" (none early; one taught in a late section). (12) Overnight loosening of a Michael-only rule: "Assume and log". (13) Campaign guard cap: "32 alive, but also research how many guards are normally active in splinter cell series missions and tell me" (research running). (14) map-spec template: "Yes, update it" to the current rules.
 - Docs first (2026-10-25 ~11:05). Michael: "Full 100% burn completing these tasks. I want to use the 5 hour limit before it runs out, but I don't want to proceed with game updates until this documentation and clarity is fixed moving forward". Native multiple choice on the six finished, checked game PRs (#373, #377, #384, #385, #387, #389): "Let finished ones ship" (they train when green; only NEW game work waits). Leads stay unbooted until the doc PRs land, the re-audit is fixed and the forward plan is agreed.
@@ -84,31 +87,29 @@ orchestrator folds entries into `docs/DECISIONS.md` daily.
 - Disk (2026-10-25 ~08:45): "delete them, and ask laptop to review nightshift size also and remove redundant files". Desktop scratch copies deleted 08:47 (14.3 GB freed, C: 38.1 GB free; top-level notes kept in scratch/archive-notes); Test Runner reviews the laptop.
 - Full burn (2026-10-25 ~08:25): "100% full burn until I say to slow down. I want to hit the 5 hour cap as quick as possible as the weekly reset soon".
 - #378 pr-size hotfix (2026-10-25 ~08:30): Michael labels it himself ("Labelling it now").
-- guard-cap T1 off-screen anim tier (2026-10-24 ~23:46, ASSUMED by the orchestrator, undoable; Michael asleep): PR #360 (tier 4 -> 8) HELD, not shipped. Both Opus checkers: "seen" counts only the camera pass, so a guard just out of view whose lamp / moon / torch shadow falls in view updates at 7.5 Hz and his shadow's feet slide 21-75 cm. Light and shadow is the core (CLAUDE.md), so a visible shadow artefact loses to the CPU win: keep tier 4 for now; after gm-flip, Guard AI tries "shadow-in-view counts as seen" (animTierView.ts) and measures what saving is left; a GPU look of the shadow case goes into Michael's morning pack. Undo: label #360 train-ready to ship 8 as is.
-- Marlow Yard and campaign co-op (2026-10-24 ~22:45): "Marlow is a training course and may have different rules to standard mission, ie its heavily guided and must teach the players the basics of coop gameplay. All campaign missions are strictly coop and cannot be completed solo, must have forced coop traversal to proceed (help player climb a wall, throw coop player over a gap to open a locked pathway for the other player, and any suggestions you have). Marlow should be very linear, 1 route (until later sections where it teaches multiple objectives/split paths for players to help each other)". So: Marlow keeps its guidance marks and one linear route, adding split paths / multiple objectives only in its later sections as teaching; the 22:12 no-markers and 3-routes rules apply to campaign missions and Sector Ops, not Marlow; every campaign section forces a co-op traversal move (no solo bypass; G253). ~22:50 (native multiple choice): the campaign prototypes (Three Grey Coats, Two-Key Ledger) go on a NEW small campaign map, "If it's ready before I'm awake, continue to make progress" (the sign-off page is still made; greybox may proceed overnight); co-op traversal kit = boost up a wall, throw over a gap, human ladder / pull-up, hold shutter / door, rope brace / descent, vent unlock for partner, plus "Any other creative coop ideas".
-- Mission design decisions (2026-10-24 ~22:12, native multiple choice on docs/orchestrator/MISSION-DESIGN-AUDIT-2026-10-24.md): (1) breaking a mission rule = SECTION RESTART (the team goes back to that section's checkpoint; the mission continues); (2) up to 2 strict rules per mission, signposted in briefing + objective list, "ghost" counts as one (lifts G125's one-fail-rule cap); (3) guidance: no markers + an optional hint layer (off by default); in-world guidance only (objective text names places, leads, light language, landmarks); Marlow's stripes go; (4) first prototypes: Three Grey Coats + Two-Key Ledger (campaign, 2p) and Split Shift + Code Relay (Sector Ops, 4p). Earlier the same evening: campaign 2-player co-op only with strict rules; Sector Ops 4-player co-op, parallel objectives for two teams or a solo player doing them all, strict rules allowed too (global / per team / split). Next: a mission-framework job (objective chains with parallel tracks, rules per mission / team with section restart, interrogate-a-named-target objective, validator objective + rule nodes), then the four prototypes; campus S1-S5 fixes planned against the framework with one-click sign-off.
-- Level validator decisions (2026-10-24 ~22:00, native multiple choice on PR #346): (1) campus S1-S5 fixes and the S3 re-plan wait for the mission design audit (~1 h), then are planned with its multi-route / objective rules and Michael's one-click sign-off; (2) "Yes, require it": a measured validator pass (V6 --require-measured) is part of the greybox exit in level-design.md; (3) guard density, Michael: "I would prefer having as many guards as realistically possible to make it challenging." Assumed, undoable: no upper band; each space gets the guards a real site would post (entries, posts, patrols, response) pushed high for challenge, limited only by the guard-cap perf floor and by keeping every route passable; the validator reports counts and WARNs only on spaces BELOW the skill's 3-6 early / 6-10 late bands.
-- Process audit decisions (2026-10-24 ~21:50, native multiple choice on docs/orchestrator/PROCESS-AUDIT-2026-10-24.md): (1) start all four fix packages: watchdog + release path, one rulebook + lean docs, cheap swaps, intake gates + small PRs; (2) the "no refining until Michael playtests the core loop" rule is LIFTED formally (CLAUDE.md to match); (3) walk pacing "Cap 3 + walk card": at most 3 unwalked features per area (a lead at the cap works on tests / fixes / automation), each release gets a 10-min risk-ranked walk card with look videos for animation and lighting; (4) "Yes, one-click sign-off": before greybox or art on a map, or a big look change, Michael gets a one-page to-scale plan + 5-line intent check to approve with one click.
-- coop-real (2026-10-24 ~21:35, orchestrator under the 15:10 idle-lead rule, from the process audit: 5 of Michael's ~30 walk finds were co-op bugs every test passed): Player Build plans an input-only co-op e2e (real client inputs, no state pokes, background tab, rejoin after the host moved, every offered prompt changes state, one sound per shot, client actions reach the host, E2E_NETSIM=typical). A test job, not refining. Plan up ~21:50: origin/feature/coop-real 436ecaf4 (suite e2e-coop-real, 2 parts ~2 min; then fixes F1 S2 client lamp shots in Course mode, F2 backgrounded tab drop, F3-F4; ~7 h; overlaps #317 coop4 in src/net). Player's G10a guard rebake runs on the idle desktop under heavy.lock.
-- visual-gate (2026-10-24 ~21:32, orchestrator under the 15:10 idle-lead rule, from the process audit: ~8 of Michael's ~30 walk finds were visual / GPU and passed every test): Sector Ops plans an automated picture check (fixed viewpoints per map x Low / Epic, luma / near-black / haze / blotch metrics vs the last release, flagged in the train) and a light-parity grid per map (meter vs pixel luma) extending e2e-darkness beyond the Warehouse. A test job, not refining. Plan up ~22:05: origin/feature/visual-gate f70a222a (VG1-VG8, 26 viewpoints, ~160 s per train on 4189; assumed A1 its own visual-gate status flags, does not block a release; A8 baseline = last accepted release; A9 a look change is accepted by Michael or by the orchestrator citing his words).
-- Train speed-ups (2026-10-24 ~21:00, native multiple choice, all three picked after the orchestrator measured label -> master median ~43 min, 5 of 20 trains failed): (1) auto-drop on failure: auto-train drops the member whose suites failed and rebuilds at once (feature/auto-train-autodrop, Opus); (2) 1-minute ticks: the NightShift auto-train task set to every 1 min by the orchestrator, Michael runs the #335 install-task commands for the desktop and laptop queue workers; (3) overlapping trains: train N+1 built on train N and tested on the other machine while N runs (Opus plan first, builds after auto-drop since both touch scripts/auto-train.mjs).
-- Level standard extras (2026-10-24 ~20:05, native multiple choice "Add 1-4 as extras", after the orchestrator's review of Michael's uploaded stealth-level-design skill, files in C:/NightShift/scratch/stealth-level-design/): keep docs/level-design.md and ADD (1) a connectivity-graph JSON per map before any geometry plus a Node validator (port of its validate_level.py: reachability, solo / co-op completability, 3+ approaches of 2+ kinds, dead ends, room-class sizes, opening minimums, 0.5 m grid, ceilings, 2+ independent routes, co-op coverage, split parity, beat pacing) with OUR metrics (scale sheet: corridors 3.5-4.0 m, doors 1.2 x 2.1, nav limits); (2) a room-size-by-type table in the scale sheet (camera-adjusted); (3) numeric targets: routes cross at least once, vantage sees ~70% of the space, 40-60% floor in shadow, line of sight breakable within ~5 s anywhere, guard counts per space early / late and per player count; (4) co-op rules for the section 11 rewrite: splits <= 90 s, path parity within 20%, partners act for each other, an overwatch spot per split, a downed partner reachable within 15 s, shared routes >= 2.0 m wide. Keep the linear spine between sections (CT research), loops inside them. Every map passes the validator before greybox; campus is its first run (~20:12 Michael: "Do the entire campus": all five sections S1-S5, not only S1-S3). Job level-validator (Marlow Build, Opus plan, Sonnet build, one checker, one PR). ~20:18 Michael approved with four changes: (a) scale the ROOM table too (start ~1.3-1.5x real, matching our corridor / door scaling, tuned in greybox) so the camera works in every room; (b) every size comes from one metrics JSON generated from docs/design/scale-sheet.md (one source of truth; no hardcoded sizes in the script); (c) route redundancy per SECTION: each space carries `section`, check 2+ independent routes from each section's entry to its exit (chain between sections, loops within); (d) declared numbers (shadow %, 70% vantage view, 5 s line-of-sight break, 15 s revive reach) are targets in the layout check and are MEASURED in greybox (light sampling, navmesh distances): the map fails if measured differs; split parity uses traversal TIME on links, not room length. Also: guard counts (3-6 early, 6-10 late) are checked against our guard sheets before they become rules; arena mode parked for the later co-op modes idea.
-- 2026-10-24 ~15:10 (standing rule): "if you ever run out of tasks, start making progress on the next feature/task." An idle lead with no PLAN slice left starts the next roadmap feature in its area (Opus plan first), instead of idling; the orchestrator assigns it. First use: Sector Ops 4-player co-op (Sector Ops plans, Marlow takes slices).
 
 ## Done
-Last 10 releases; the full list is `CHANGELOG.md` on master (the old table: archive/ROADMAP-history.md).
+Releases 4.98.0 onward; the full list is `CHANGELOG.md` on master (the old table: archive/ROADMAP-history.md).
 | Version | PR | What |
 | --- | --- | --- |
-| 4.96.0 | #341 | Train 64: guard rendering phase 2, 24 guards (#323) |
-| 4.95.3 | #340 | Train 63: laptop queue alone starvation, desktop CPU gates, faster restart (#335) |
-| 4.95.2 | #338 | Train 62: Pages deploys queue instead of cancelling, Player batch 24, train fragment fallback (#337, #331, #330) |
-| 4.95.1 | #334 | Train 60: allocation-free sight rays (#326) |
-| 4.95.0 | #332 | Train 59: laptop queue audit fixes, joint interrogation flake, lightField retry, optic cable partner view, client body carry (#329, #328, #327, #314, #313) |
-| 4.94.0 | #325 | Train 58: e2e-lightbake shader wait; guard models behind a flag (#322, #318) |
-| 4.93.0 | #321 | Train 56: guards against up to 4 intruders, coop4 AI (#319) |
-| 4.92.0 | #320 | Train 55: gameplay reads game state, not the animated body (#308) |
-| 4.91.0 | #315 | Train 53: joint interrogation check fixes (#311) |
-| 4.90.0 | #312 | Train 52: joint interrogation G148 (#310) |
+| 4.101.1 | #406 | Train 86: laptop queue dead-pid slot locks, watchdog allowlist, affected-e2e never stuck; Guard AI one-mover fix; section bake replaces stuck workers (#403, #387, #385) |
+| 4.101.0 | #405 | Train 85: design bible rewritten, decisions fold G324-G343, rules in docs/RULES.md, Guard AI polish batch 2, co-op e2e boot wait (#396, #394, #377, #373) |
+| 4.100.9 | #401 | Train 84: system docs match the current rules (#395) |
+| 4.100.8 | #399 | Train 83: docs/VISION.md one-page vision (#393) |
+| 4.100.7 | #397 | Train 82: decisions fold G283-G323 (#386) |
+| 4.100.6 | #392 | Train 81: Sector Ops polish 3 (#379) |
+| 4.100.5 | #391 | Train 80: pr-size loads its script from the base branch (#378) |
+| 4.100.4 | #390 | Train 79: dead-pid heavy.lock broken at the desktop gate, "CI running" status (#374) |
+| 4.100.3 | #383 | Train 78: guard bake stops on a lost console (#380) |
+| 4.100.2 | #381 | Train 76: Marlow Yard client lamp shots (walk bug S2); visual-gate after green trains (#371, #367) |
+| 4.100.1 | #376 | Train 75: lightField allocation test deterministic; section bake live lamps first (#369, #361) |
+| 4.100.0 | #370 | Train 74: release hold, desktop failures rechecked on the laptop, co-op interrogation under load, Guard AI polish, intake gates and PR size cap (#366, #365, #363, #351) |
+| 4.99.1 | #368 | Train 73: watchdog pipeline alerts (#350) |
+| 4.99.0 | #364 | Train 72: auto affected-e2e and flake budget, swap tools, rulebook (#356, #349, #347) |
+| 4.98.3 | #359 | Train 70: release path hardening (#353) |
+| 4.98.2 | #358 | Train 69: Saltmarsh Park fog fix wiring test (#357) |
+| 4.98.1 | #355 | Train 68: section bake hardening (#354) |
+| 4.98.0 | #352 | Train 67: level validator (graph, metrics, room table, standard); auto-train auto-drop (#346, #343) |
 
 ## Previews
 Live game, `/preview/` (master via `dev`), `/ct/` (via `ct-movement`): `docs/systems/deploy.md`.
