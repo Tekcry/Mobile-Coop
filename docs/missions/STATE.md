@@ -1,7 +1,23 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-25 ~22:45 SAVE (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~23:15 (Night Shift | Campaign Build, new account; read this block first, older blocks are history)
+Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
+FOLDED-PLAN J-rows. Desktop CPU 100%: tsc / vitest builder slices go to cloud-queue; local checks only through
+`node C:/NightShift/scratch/ctcore/low.mjs "<cmd>"` (BelowNormal). Notes / reports: C:/NightShift/scratch/campaign/
+(lead-notes.md newest last). Rerun any agent below whose report file is missing.
+1. #466 TW23: train-ready (labelled). #447 J3 PR A: all green, orchestrator asked to label (~23:10).
+2. J7 PR D feature/mission-rules eb231778: checker PASS; laptop j7-prd queued (supersedes 548357d3). Green -> merge into
+   engine, then push held briefs MB / D0 (scratch/campaign/cq/) with the merged engine sha.
+3. J7 PR E -net 09975841c: cloud briefs campaign-j7-pre-fix1 + campaign-j7-r7 open. On done: Opus re-check x2 of the fix.
+4. J7 R6 -r6 0cb3a4d6: checkers A (runs tsc + tests, j7-r6-check-a.md) and B (read-only, -b.md) running.
+5. J3b B5 0b98cd7d1: cloud brief campaign-hg-b5-fix1 open; then re-check, merge into -b, fragment, laptop sets.
+6. Engine gb6fix dc2aa9c8 laptop set mission-gb6fix queued; hg-b3 / hg-b4 queued.
+7. Tallow wave 0: brief writer rerun (tallow-wave0-report.md: TD-a + G0 to cloud-queue; MB / D0 / S2 held); LP builder
+   (Opus, docs) on feature/tallow-fixes-lp, worktree -tallow-fixes-lp (tallow-lp-report.md). Sector Ops told about MB.
+Next: act on R6 checks, wave-0 report, cloud briefs done, laptop verdicts; B0b merge once #466 releases.
+
+## OLD RESUME 2026-10-25 ~22:45 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
 "Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Desktop CPU ~100%: new tsc / vitest builder slices go to
 cloud-queue briefs (orchestrator ~22:10, Michael); desktop keeps Opus planning, checkers, src/net / AI needing a local
