@@ -1,0 +1,12 @@
+{
+  "id": "20261025T111451-night-shift-marlow-b-10dc0a9e-1452",
+  "sha": "10dc0a9e95ebcd9dc80a25b5d12f6fa0adfe0966",
+  "branch": "feature/marlow-replan-f1",
+  "pr": 463,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-section-rating"
+  ],
+  "set": "rating"
+}
