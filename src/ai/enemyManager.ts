@@ -627,7 +627,8 @@ export class EnemyManager {
         this.grenadeT = 8;
         this.grenadesThrown++;
         const T = 1.15;
-        const v = new Vector3((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
+        // (guard-ai-alloc) kept: `Grenades.throw` copies a velocity (`dir.clone()`)
+        const v = this.throwV.set((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
         this.grenades.throw(from, v, 'enemy', e.id, undefined, true);
         e.bark('grenade');
         return true;
@@ -3544,6 +3545,8 @@ export class EnemyManager {
   private readonly flowGoals: P2[] = [];
   private readonly flowYs: number[] = [];
   private readonly flowPairs: P2[] = [];
+  /** (guard-ai-alloc) A guard grenade's throw velocity (copied by `Grenades.throw`). */
+  private readonly throwV = new Vector3();
 
   private refreshFlow(): void {
     // stealth: towards where they think the players are, never where they really are; (guard-ai S24) one field per

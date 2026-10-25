@@ -13,8 +13,8 @@ import { bytesPerCall } from './helpers/allocPerCall';
 // (guard-ai-alloc D2) The manager's 0.5 s tick (the flow field's goals, the flanker's held-cover check) and the
 // `searchSlot` callback (per search ring point) run index loops into kept buffers: no closures, iterators or arrays.
 
-type FakePlayer = { id: string; target: { alive: boolean }; feet: Vector3; cover: object | null; coverT: number };
-const player = (id: string, x: number, y: number, z: number, alive = true): FakePlayer => ({ id, target: { alive }, feet: new Vector3(x, y, z), cover: null, coverT: 0 });
+type FakePlayer = { id: string; target: { alive: boolean }; feet: Vector3; speed: number; crouched: boolean; cover: object | null; coverT: number };
+const player = (id: string, x: number, y: number, z: number, alive = true): FakePlayer => ({ id, target: { alive }, feet: new Vector3(x, y, z), speed: 0, crouched: false, cover: null, coverT: 0 });
 
 function manager(ps: FakePlayer[]) {
   const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };

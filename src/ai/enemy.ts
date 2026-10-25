@@ -366,9 +366,8 @@ const GOAL_OUT: Goal = { point: null, speed: 0, face: null };
 /** (guard-ai-alloc) The goal point `decide` builds (his cover spot or its peek point, the attack strafe), refilled per
  *  step (`move` reads it at once). */
 const GOAL_PT: P2 = [0, 0];
-/** (guard-ai-alloc) `decide`'s known target spot and `chasePoint`'s own position and zig point (read at once: `goTo`
- *  copies its goal into `routeGoal`; a returned one is `move`'s goal this step). */
-const KNOWN_TP: P2 = [0, 0];
+/** (guard-ai-alloc) `chasePoint`'s own position and zig point (read at once: `lineClear` reads them; a returned zig
+ *  point is `move`'s goal this step). Neither reaches `goTo` / `findPath`, which can keep its goal as a route. */
 const CHASE_ME: P2 = [0, 0];
 const CHASE_CAND: P2 = [0, 0];
 /** (polish A10) The players a dog in combat keeps to: seen or smelled (module scratch, as `P_LOS`). */
@@ -1445,7 +1444,7 @@ export class Enemy implements Damageable {
   private brkY = 0;
   private brkT = 0;
   private brkWalkT = 0;
-  private readonly brkGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly brkGoal: Goal = { point: null, speed: 0, face: null };
 
   /** (guard-ai S15) The circuit he is walking to turn back on, -1 none (e2e / debug). */
   get breakerGroup(): number {
@@ -1501,7 +1500,7 @@ export class Enemy implements Damageable {
   }
 
   /** (guard-ai S15) One step of the reset walk: to the switch at patrol pace, work it, the circuit back on. */
-  private breakerStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+  private breakerStep(dt: number): Goal {
     const g = this.brkGoal;
     g.point = null;
     g.speed = 0;
@@ -1713,7 +1712,7 @@ export class Enemy implements Damageable {
    *  the manager writes them at every pair step (`EnemyManager.pairStep`). */
   pairFace = Number.NaN;
   readonly pairPt: P2 = [0, 0];
-  private readonly pairGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly pairGoal: Goal = { point: null, speed: 0, face: null };
 
   // (guard-ai S10) his patrol route: `get patrolRoute()` (CT Core spare 9, after `setPatrol`)
 
@@ -1811,7 +1810,7 @@ export class Enemy implements Damageable {
   private devX = 0;
   private devZ = 0;
   private devRoom: RoomRect | null = null;
-  private readonly entryGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly entryGoal: Goal = { point: null, speed: 0, face: null };
 
   /** (guard-ai S17) The room a device's search keeps to (e2e / debug; null none). */
   get searchRoomId(): string | null {
@@ -1862,7 +1861,7 @@ export class Enemy implements Damageable {
   /** (guard-ai S6, S17) One step of his run-in route (`ReinforceEntry.route`), at his run speed; null when there is none
    *  left (he saw the target, ran it to its end, or gave it up after `ENTRY_MAX` s). In combat and on a responder's
    *  search. */
-  private entryStep(dt: number): { point: P2 | null; speed: number; face: number | null } | null {
+  private entryStep(dt: number): Goal | null {
     const en = this.entry;
     if (!en) return null;
     this.entryT += dt;
@@ -1887,7 +1886,7 @@ export class Enemy implements Damageable {
   crew: SweepTeam<Enemy> | null = null;
   teamRank = -1;
   private readonly sweepP: P2 = [0, 0];
-  private readonly sweepGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly sweepGoal: Goal = { point: null, speed: 0, face: null };
 
   /** (guard-ai S13) His patrol route's points (null: none), for a response team's sweep source (alarm time only). */
   get routePoints(): readonly (readonly [number, number])[] | null {
@@ -1905,7 +1904,7 @@ export class Enemy implements Damageable {
    * keeps his place in the stack behind the leader (`SweepTeam.follow`), jogging when he is well behind, and looks the
    * way the leader looks once there. The torch follows the searching rule (`torchWanted`). No allocation.
    */
-  private sweepStep(dt: number, tm: SweepTeam<Enemy>): { point: P2 | null; speed: number; face: number | null } {
+  private sweepStep(dt: number, tm: SweepTeam<Enemy>): Goal {
     const out = this.sweepGoal;
     const pace = this.def.walkSpeed * this.searchPace;
     const p = this.sweepP;
@@ -1955,7 +1954,7 @@ export class Enemy implements Damageable {
   private readonly lure = new PostLure();
   private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
   private readonly lureP: P2 = [0, 0];
-  private readonly lureGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly lureGoal: Goal = { point: null, speed: 0, face: null };
   private readonly leashTmp: P2 = [0, 0];
 
   /** (guard-ai S5) Give him a post (his spawn point is its centre; `yaw` his post facing), or none. */
@@ -2016,7 +2015,7 @@ export class Enemy implements Damageable {
   }
 
   /** (guard-ai S5) One step of the lure: walk out (investigate pace), look, walk back, face the post. */
-  private lureStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+  private lureStep(dt: number): Goal {
     const o = this.lureOut;
     const lu = this.lure;
     // at the target the previous step gave (the first step after `start` ignores it)
@@ -2716,7 +2715,7 @@ export class Enemy implements Damageable {
   }
 
   /** Not in combat: patrol / post, look at a stimulus, investigate it, or search. */
-  private calmDecide(dt: number): { point: P2 | null; speed: number; face: number | null } {
+  private calmDecide(dt: number): Goal {
     const def = this.def;
     const lvl = this.aware.level;
     this.spotArrived = false;
@@ -2937,7 +2936,7 @@ export class Enemy implements Damageable {
 
   /** (guard-ai S2) The light check, step by step (investigating; `LightCheck`): walk to the light, look, the ring,
    *  then stand down. */
-  private lightStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+  private lightStep(dt: number): Goal {
     const r = this.lc.step(dt, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.ctx.nav, this.lcWalker);
     if (r === LC_DONE) {
       this.standDown();
@@ -3012,7 +3011,7 @@ export class Enemy implements Damageable {
   suppressRounds = 0;
   suppressHeld = 0;
   /** `roleStep`'s goal, reused (decide runs every frame: no allocation). */
-  private readonly roleGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private readonly roleGoal: Goal = { point: null, speed: 0, face: null };
   /** (guard-ai-alloc) `GOAL_OUT` filled. */
   private goal(point: P2 | null, speed: number, face: number | null): Goal {
     GOAL_OUT.point = point;
@@ -3070,7 +3069,7 @@ export class Enemy implements Damageable {
    * started is finished; a standard point bounds only out of sight and after `advanceHold` in cover), and out of sight
    * in the open wait for the group (no walk-up into the open). Null: today's state machine carries on.
    */
-  private roleStep(dt: number, toTarget: number): { point: P2 | null; speed: number; face: number | null } | null {
+  private roleStep(dt: number, toTarget: number): Goal | null {
     if (this.closing) return null;
     const role = this.role;
     const c = this.roleCover;
@@ -3191,7 +3190,7 @@ export class Enemy implements Damageable {
     this.suppressRounds += this.roundsFired - before;
   }
 
-  private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
+  private decide(dt: number): Goal {
     const def = this.def;
     const t = this.target;
     if (!this.alerted) return this.calmDecide(dt);
@@ -3222,11 +3221,10 @@ export class Enemy implements Damageable {
     // stealth: out of sight they go for where they last knew the target was, not where it is (guard-ai S24, A148: his
     // own intruder's last known position, else his own last sighting / stimulus, never the real feet)
     const known = this.los || this.smelled || !this.ctx.stealth() ? t.feet : this.knownSpot(t);
-    const tp = KNOWN_TP;
+    // (guard-ai-alloc) his own kept known spot (per guard, not module scratch: `chasePoint` may route to it)
+    const tp = this.knownPt;
     tp[0] = known.x;
     tp[1] = known.z;
-    this.knownPt[0] = known.x;
-    this.knownPt[1] = known.z;
     this.advanceCd -= dt;
     // holding a room against a target outside it
     // (guard-ai S5) a high-security post holds his leash the same way (radios, never chases out of it)
@@ -3551,7 +3549,12 @@ export class Enemy implements Damageable {
     me[0] = this.pos.x;
     me[1] = this.pos.z;
     let p: Waypoint | null;
-    if (!SLOTLESS_FIELD && this.hunt < 0 && this.ctx.stealth()) p = this.goTo(tp, dt, 0.6, ty);
+    if (!SLOTLESS_FIELD && this.hunt < 0 && this.ctx.stealth()) {
+      p = this.goTo(tp, dt, 0.6, ty);
+      // (guard-ai-alloc) a same-cell route is `[tp]` itself (`NavGrid.findPath`), kept across steps: his own copy of
+      // this step's spot, as the fresh `tp` it was before (his kept `knownPt` moves on next step)
+      if (this.routePath[0] === tp) this.routePath[0] = [tp[0], tp[1]];
+    }
     else if (this.dist < 18 && nav.lineClear(me, tp, this.pos.y, ty)) p = tp;
     // (guard-ai S24) his intruder's field (none: the freshest's)
     else p = nav.flowNext(this.ctx.flowOf ? this.ctx.flowOf(this.hunt) : this.ctx.flow(), me[0], me[1], this.pos.y);
