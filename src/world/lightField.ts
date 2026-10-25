@@ -11,13 +11,18 @@
  *
  * Visibility is read trilinearly between cell centres and clamped to each box, as the GPU samples the atlas. Lights
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
+ *
+ * (char-shadow-meter, G352) `totalAt` / `bodyLevel` with a character contract (`charOccluders.ts`) scale each member
+ * of the gameplay lamp set - a column lamp giving at least `CHAR_LIGHT.minLevel` at the point, the moon (from
+ * `moonFar` m along its direction), every non-baked light - by the soft capsules between it and the point, the
+ * picture's `lampCapsule` formula. Fixed by map data and the synced light state only; never a graphics preset.
  */
 import { AMBIENT_CELL } from './ambientGrid';
 import { BounceGrid } from './bounceGrid';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
 import type { LightBake } from './lightBake';
 import { lightTerm, type LightRegistry, type Occluder } from './lights';
-import type { CharOccluders } from './charOccluders';
+import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
@@ -118,6 +123,8 @@ export class LightField {
   private readonly lamp: Float64Array;
   /** Registry id -> 1 when baked (the rest are dynamic). */
   private readonly isBaked: Uint8Array;
+  /** (char-shadow-meter) Registry id -> bake index (-1 not baked), for `sourceAt`. */
+  private readonly bakeIdx: Int32Array;
   private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
@@ -138,6 +145,7 @@ export class LightField {
     this.ids = new Int32Array(n);
     this.lamp = new Float64Array(n * LS);
     this.isBaked = new Uint8Array(Math.max(1, reg.lights.length + 64));
+    this.bakeIdx = new Int32Array(this.isBaked.length).fill(-1);
     let at = 0;
     for (let i = 0; i < n; i++) {
       const L = lamps!.baked.lights;
@@ -148,6 +156,7 @@ export class LightField {
       const id = lamps!.baked.ids[i]!;
       this.ids[i] = id;
       this.isBaked[id] = 1;
+      this.bakeIdx[id] = i;
       const spot = L[li + 7]! > -1.5;
       this.lamp[o] = L[li]!;
       this.lamp[o + 1] = L[li + 1]!;
@@ -188,6 +197,13 @@ export class LightField {
    * a call it does not inline, 16 bytes each; a number field is updated in place. Only the public calls return one.)
    */
   private res = 0;
+  /** (char-shadow-meter) Scratch: the point's column lamps (bake indices) and their terms (`columnInto`), and a lamp's
+   *  position (`lampPosInto`). */
+  private readonly colLamp = new Int32Array(LAMP_GRID_SLOTS);
+  private readonly colLv = new Float64Array(LAMP_GRID_SLOTS);
+  private px = 0;
+  private py = 0;
+  private pz = 0;
 
   /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
@@ -226,21 +242,61 @@ export class LightField {
     return this.res;
   }
 
-  /** Everything at a point: `levelAt` + `dynamicAt`, clamped. */
-  totalAt(x: number, y: number, z: number, occluded?: Occluder, _chars: CharOccluders | null = null, _skip = -1): number {
-    this.totalInto(x, y, z, occluded);
+  /**
+   * Everything at a point: `levelAt` + `dynamicAt`, clamped. (char-shadow-meter) With a contract `chars`, each member
+   * of the gameplay lamp set (the column's lamps giving at least `CHAR_LIGHT.minLevel` here, the moon, the non-baked
+   * lights) is scaled by the characters between it and the point (`CharOccluders.transmitInto`, `skip` the sampled
+   * character's owner key); without one (or `null`) it is today's value to the bit.
+   */
+  totalAt(x: number, y: number, z: number, occluded?: Occluder, chars: CharOccluders | null = null, skip = -1): number {
+    this.totalInto(x, y, z, occluded, chars, skip);
     return this.res;
   }
 
-  /** (char-shadow-meter) The gameplay set at a point, strongest first: registry light ids (-1 the moon) into `ids`,
-   *  their terms (no character term) into `lv`; returns the count (<= max). No allocation. INTERFACE STUB. */
-  sourcesInto(_x: number, _y: number, _z: number, _ids: Int32Array, _lv: Float32Array, _max: number, _occluded?: Occluder): number {
-    return 0;
+  /**
+   * (char-shadow-meter) The gameplay set at a point (the members `totalAt` gives the character term), strongest first:
+   * registry light ids (-1 the moon) into `ids`, their terms (no character term) into `lv`; returns the count (<= max).
+   * A member with a zero term is left out. For ShadowCues (S3); no allocation.
+   */
+  sourcesInto(x: number, y: number, z: number, ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number {
+    let n = 0;
+    if (max <= 0) return 0;
+    const b = this.bake;
+    if (b && b.moonLight > 0) {
+      this.moonInto(x, y, z);
+      const m = b.moonLight * this.res;
+      if (m > 0) n = pushSource(ids, lv, n, max, -1, m);
+    }
+    const cn = this.columnInto(x, y, z);
+    for (let s = 0; s < cn; s++) {
+      const L = this.colLv[s]!;
+      if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) n = pushSource(ids, lv, n, max, this.ids[this.colLamp[s]!]!, L);
+    }
+    const ls = this.reg.lights;
+    for (let i = 0; i < ls.length; i++) {
+      if (i < this.isBaked.length && this.isBaked[i]) continue;
+      this.dynTermInto(i, x, y, z, occluded);
+      if (this.res > 0) n = pushSource(ids, lv, n, max, i, this.res);
+    }
+    return n;
   }
 
-  /** (char-shadow-meter) One set member's term at a point (no character term); 0 where it does not reach. INTERFACE STUB. */
-  sourceAt(_id: number, _x: number, _y: number, _z: number, _occluded?: Occluder): number {
-    return 0;
+  /** (char-shadow-meter) One set member's term at a point (no character term): registry id `id` (-1 the moon), as
+   *  `totalAt` sums it; 0 where it does not reach (a wall, a closed door, its visibility, off). */
+  sourceAt(id: number, x: number, y: number, z: number, occluded?: Occluder): number {
+    if (id === -1) {
+      const b = this.bake;
+      if (!b || !(b.moonLight > 0)) return 0;
+      this.moonInto(x, y, z);
+      return b.moonLight * this.res;
+    }
+    if (id < 0) return 0;
+    if (id < this.isBaked.length && this.isBaked[id]) {
+      this.lampInto(this.bakeIdx[id]!, x, y, z);
+      return this.res;
+    }
+    this.dynTermInto(id, x, y, z, occluded);
+    return this.res;
   }
 
   /**
@@ -249,28 +305,74 @@ export class LightField {
    * 12) `hx`, `hz`: the head's horizontal offset from the feet (a peek past a wall edge), so the head is sampled where
    * it is (light parity, bible 5.1).
    */
-  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, _chars: CharOccluders | null = null, _skip = -1): number {
-    this.totalInto(x, feetY + height * 0.6, z, occluded);
+  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, chars: CharOccluders | null = null, skip = -1): number {
+    this.totalInto(x, feetY + height * 0.6, z, occluded, chars, skip);
     const chest = this.res;
     if (chest >= 1) return 1;
-    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded);
+    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded, chars, skip);
     const head = this.res;
     return chest > head ? chest : head;
   }
 
-  private totalInto(x: number, y: number, z: number, occluded: Occluder | undefined): void {
-    this.levelInto(x, y, z);
+  private totalInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+    this.levelInto(x, y, z, ch, skip);
     const s = this.res;
     if (s >= 1) {
       this.res = 1;
       return;
     }
-    this.dynamicInto(x, y, z, occluded);
+    this.dynamicInto(x, y, z, occluded, ch, skip);
     const v = s + this.res;
     this.res = v > 1 ? 1 : v;
   }
 
-  private levelInto(x: number, y: number, z: number): void {
+  /** (char-shadow-meter) The point's 2 m column: its lamps' bake indices into `colLamp`, their terms into `colLv`;
+   *  returns how many (0 outside the grid or without a bake). */
+  private columnInto(x: number, y: number, z: number): number {
+    const g = this.grid;
+    if (!g) return 0;
+    const q = Math.floor((x - this.gx) / LAMP_GRID);
+    const r = Math.floor((z - this.gz) / LAMP_GRID);
+    if (q < 0 || r < 0 || q >= g.cols || r >= g.rows) return 0;
+    const base = lampGridBase(g.cols, q, r);
+    let n = 0;
+    for (let s = 0; s < LAMP_GRID_SLOTS; s++) {
+      const fid = g.data[base + s]!;
+      if (fid === 0) break;
+      this.colLamp[n] = fid - 1;
+      n++;
+    }
+    for (let s = 0; s < n; s++) {
+      this.lampInto(this.colLamp[s]!, x, y, z);
+      this.colLv[s] = this.res;
+    }
+    return n;
+  }
+
+  /** (char-shadow-meter, BRIEF A1's undo) Column lamp `s` of `n` is among the `CHAR_LIGHT.maxLamps` strongest set
+   *  members there (ties: the earlier slot); always true while the cap is unlimited. */
+  private inLampSet(s: number, n: number): boolean {
+    const cap = CHAR_LIGHT.maxLamps;
+    if (!(cap < n)) return true;
+    const L = this.colLv[s]!;
+    let rank = 0;
+    for (let k = 0; k < n; k++) {
+      const M = this.colLv[k]!;
+      if (M >= CHAR_LIGHT.minLevel && (M > L || (M === L && k < s))) rank++;
+    }
+    return rank < cap;
+  }
+
+  /** (char-shadow-meter) Baked lamp `i`'s position now (a swinging pendant's offset applied) into `px` / `py` / `pz`. */
+  private lampPosInto(i: number): void {
+    const l = this.reg.lights[this.ids[i]!]!;
+    const o = i * LS;
+    this.px = this.lamp[o]! + l.swx;
+    this.py = this.lamp[o + 1]! + l.swy;
+    this.pz = this.lamp[o + 2]! + l.swz;
+  }
+
+  private levelInto(x: number, y: number, z: number, ch: CharOccluders | null = null, skip = -1): void {
     const b = this.bake;
     // (no bake: the registry's ambient; every light is dynamic)
     if (!b) {
@@ -289,7 +391,34 @@ export class LightField {
     }
     if (b.moonLight > 0) {
       this.moonInto(x, y, z);
-      v += b.moonLight * this.res;
+      let m = b.moonLight * this.res;
+      // (char-shadow-meter) the moon's source: `moonFar` m along its direction from the point
+      if (ch !== null && m > 0) {
+        const d = b.moon.dir;
+        const far = CHAR_LIGHT.moonFar;
+        ch.transmitInto(x + d[0] * far, y + d[1] * far, z + d[2] * far, x, y, z, skip);
+        m *= ch.t;
+      }
+      v += m;
+    }
+    // (char-shadow-meter) with a contract: the column's set lamps scaled by the characters between
+    if (ch !== null) {
+      const n = this.columnInto(x, y, z);
+      for (let s = 0; s < n; s++) {
+        let L = this.colLv[s]!;
+        if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, n)) {
+          this.lampPosInto(this.colLamp[s]!);
+          ch.transmitInto(this.px, this.py, this.pz, x, y, z, skip);
+          L *= ch.t;
+        }
+        v += L;
+        if (v >= 1) {
+          this.res = 1;
+          return;
+        }
+      }
+      this.res = v < 0 ? 0 : v > 1 ? 1 : v;
+      return;
     }
     const g = this.grid;
     if (g) {
@@ -422,7 +551,7 @@ export class LightField {
   }
 
   /** The non-baked lights (every light, without a bake), into `res`. */
-  private dynamicInto(x: number, y: number, z: number, occluded: Occluder | undefined): void {
+  private dynamicInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
     let v = 0;
     const ls = this.reg.lights;
     for (let i = 0; i < ls.length; i++) {
@@ -430,10 +559,15 @@ export class LightField {
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       if (!l.on || l.destroyed || l.intensity <= 0) continue;
       // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
-      const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+      let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
       if (t <= 0.01) continue;
       if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
+      // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
+      if (ch !== null) {
+        ch.transmitInto(l.x, l.y, l.z, x, y, z, skip);
+        t *= ch.t;
+      }
       v += t;
       if (v >= 1) {
         this.res = 1;
@@ -441,6 +575,19 @@ export class LightField {
       }
     }
     this.res = v < 0 ? 0 : v;
+  }
+
+  /** (char-shadow-meter) Non-baked light `i`'s term at a point as `dynamicInto` sums it (0 when it is left out), into
+   *  `res`. */
+  private dynTermInto(i: number, x: number, y: number, z: number, occluded: Occluder | undefined): void {
+    this.res = 0;
+    const l = this.reg.lights[i];
+    if (!l || !l.on || l.destroyed || l.intensity <= 0) return;
+    const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+    if (t <= 0.01) return;
+    if (occluded && occluded(l, x, y, z)) return;
+    if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) return;
+    this.res = t;
   }
 
   /** A closed door leaf between (ax, ay, az) and (bx, by, bz)? */
@@ -467,6 +614,24 @@ export class LightField {
     const s = px * ux + pz * uz;
     return s >= 0 && s <= a.width && py >= a.hinge.y && py <= a.hinge.y + a.height;
   }
+}
+
+/** (char-shadow-meter) Insert (id, level) into the strongest-first lists of `n` entries, keeping at most `max` (ties:
+ *  the earlier member first); returns the new count. */
+function pushSource(ids: Int32Array, lv: Float32Array, n: number, max: number, id: number, level: number): number {
+  let j = n < max ? n : max;
+  // (a member weaker than the last kept one when full: dropped)
+  if (j === max && !(level > lv[max - 1]!)) return n;
+  while (j > 0 && level > lv[j - 1]!) {
+    if (j < max) {
+      ids[j] = ids[j - 1]!;
+      lv[j] = lv[j - 1]!;
+    }
+    j--;
+  }
+  ids[j] = id;
+  lv[j] = level;
+  return n < max ? n + 1 : max;
 }
 
 /**
