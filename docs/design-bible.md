@@ -223,7 +223,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
 | Rifle with attachments | Sniper (scope with hold breath), shotgun, launcher | G76, G104 |
-| Pistol with held jammer | Shoots out lights; the held jammer disables one light, camera or laser while the player stands still, and its charge drains. No thrown EMP. | G76, G152 |
+| Pistol with held jammer | Shoots out lights; the held jammer disables one light, camera or laser while the player stands still; one jam lasts at most 5 s, then a 5 s cooldown. No thrown EMP. | G76, G152 |
 | Gadgets and launcher rounds | CT's set, settled by the research (the ring airfoil and the knife's role included) | G76 |
 
 ### Co-op team moves
@@ -303,8 +303,8 @@ Implementation: `docs/systems/lighting.md`.
   places unlit: the players make the shadows (G295). The 40-60% floor-in-shadow target yields to the band (G284).
 - **L18 - One lighting system on every map (G316).** Realistic inverse-square falloff (G314) with no Classic path or
   falloff setting; soft light edges against walls and floors, hard only where an occluder cuts the ray; guard torches
-  stopped by walls and shut doors, with soft beam edges; a CT-grade showcase, audited in LR16. The 2-4 lamps nearest the
-  players cast real-time character shadows at High+ (G315). Fires flicker and one failing tube stutters per main map;
+  stopped by walls and shut doors, with soft beam edges; a CT-grade showcase, audited in LR16. The lamps nearest the players cast
+  real-time character shadows: 1 on Low / Medium, 2-4 on High+ (G315). Fires flicker and one failing tube stutters per main map;
   swinging pendants on Marlow Yard only (G323).
 
 ### 5.2 Sound (P2)
@@ -477,8 +477,8 @@ Implementation: `docs/systems/combat.md`.
 
 - Every other gun is deleted (G115). Attachments, gadgets and launcher rounds are CT's set, settled by the research.
 - Original names only; no real gun brands.
-- **The held jammer (G152):** held on one light, camera or laser; its charge drains and the player must stand still. It
-  replaces the thrown EMP. It is on RB while the pistol is aimed; RB stays the co-op action otherwise (G212).
+- **The held jammer (G152):** held on one light, camera or laser; one jam lasts at most 5 s, then a 5 s cooldown,
+  and the player must stand still. It replaces the thrown EMP. It is on RB while the pistol is aimed; RB stays the co-op action otherwise (G212).
 
 **Holstered (G21):**
 
