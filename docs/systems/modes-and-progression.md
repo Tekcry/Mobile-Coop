@@ -72,6 +72,9 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   tests only). Mode: `game/modes/sectorMode.ts` (doors by position, `loadSection` / `unloadSection`, `CtDevices.setLive`,
   alarm stage from the run, restart after `RESTART_DELAY` 2.5 s with everyone down, extraction and result). The live
   guard cap is `SECTOR.maxAlive` (32) for this mode only; `?sectorGuards=N` caps the guards per section.
+- No exit beacon (G290, sector-marks): a connector or the extraction is a zone only; its `extract` item draws nothing
+  in Sector Ops (`drawsExitBeacon`, `game/interactables.ts`; the co-op client's mirror too). Each objective line names
+  the room it stands in, within 50 characters (`tests/campusObjectivePlace.test.ts`, Saltmarsh Park only).
 - Team doors (sector-fixes-r RT, the course's B2 bolt): `SectorDef.bolts` (`S1_BOLTS`..`S3_BOLTS` from the section
   files: door centre `at`, unbolting `side`). The door stays locked (guards treat it as any locked door; no guard route
   uses one, `tests/sectorBolt.test.ts`); a player with the feet past the door plane on `side` within 1.6 m gets
