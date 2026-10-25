@@ -180,7 +180,7 @@ export function replanA3OfficeRange(b: LevelBuilder, kit: FacilityKit, part: Set
     slab(R.x0, R.x1, R.z0, R.z1, C.h, CEIL);
     slab(R.x0, R.mouth[0], R.z1 - R.front, R.z1, 0, C.h);
     slab(R.mouth[1], R.x1, R.z1 - R.front, R.z1, 0, C.h);
-    slab(R.x1 - t, R.x1 + t, R.z1 - R.front, C.leg1.z1 + t, 0, C.h + t);
+    slab(R.x1 - t, R.x1, R.z1 - R.front, C.leg1.z1 + t, 0, C.h + t);
     // leg 1 (east): its north wall to leg 2's west wall, its lid to leg 2's east wall
     slab(R.x1, C.leg2.x0, C.leg1.z1, C.leg1.z1 + t, 0, C.h + t);
     slab(R.x1, C.leg2.x1 + t, C.leg1.z0, C.leg1.z1 + t, C.h, C.h + t);
