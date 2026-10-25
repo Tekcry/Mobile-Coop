@@ -374,8 +374,9 @@ J10 datasheet (Michael ~21:00): "Yes, numbers only (Recommended)": 5 ground read
      checker + laptop e2e-sectorops part; queue S3 r2-r5 from r1's frame commit.
 3. PLANS:
    - J18 sector-batch: fix round 2 206ab376 (B4 reuses #317's OUT rule behind sectorOutWait, waits for #317 on master;
-     Perfect uses SectorRun.alarmsRaised; 49 overlaps). Plan check 3 running -> PLAN-CHECK.md "## Check 3". PASS: B1 /
-     B3 cloud, B2 Sonnet, B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and
+     Perfect uses SectorRun.alarmsRaised; 49 overlaps). Plan check 3 PASS 31e9f22e. B1 / B3 on cloud-queue (21fbd538b:
+     briefs/sector-batch-B1.md -> feature/sector-batch-b1, -B3.md -> feature/sector-batch-light); on done: checker.
+     Next: B2 Sonnet (desktop, when CPU < 80%), B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and
      mission-rules-r1 both edit sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7 has the merge).
 Next: read each agent's report / branch, start checkers on finished slices, S2 + S9 builders when CPU < 80%.
 ```
