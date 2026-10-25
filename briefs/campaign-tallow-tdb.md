@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T21:49Z
 
 # campaign J8 TD-b: per-site throw length, the team controller (Opus 5.5)
 
