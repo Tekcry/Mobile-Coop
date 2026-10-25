@@ -61,6 +61,10 @@ code comments that state wrong facts are corrected.
   `AnimGraph.leanOut` (`src/anim/animGraph.ts:783`) is read by `scripts/e2e-clip.mjs:57`, `:62`, `:70`: kept. Undo: n/a.
 - A7: Bare clip-doc names without a folder (`MT2-ALLOC.md`, `MT2-CROUCH.md`, `MT2-FIXB.md`, `MT2-SPRINT.md` in
   `src/anim/animGraph.ts:2091` and tests) stay as written; only `docs/...` paths to moved files change. Undo: n/a.
+- A8: The comment fixes found beside the rows ride S5 / S6 as stale-fact hygiene: `controlsScreen.ts:59` (G22),
+  `characterRig.ts:2901` (M20), `remoteAvatar.ts:158-159` (the reference-game term), the J1 doc paths. Undo: drop the
+  comment lines from the slice.
+- A9: S2 is Opus, not Sonnet (plan check 2026-10-25: a runtime input hot-path rewrite). Undo: n/a.
 
 ## Questions for Michael (one click each, asked by day)
 - none.

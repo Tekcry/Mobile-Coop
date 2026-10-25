@@ -9,7 +9,7 @@ Every file:line below was re-found on master 2148ec969 (CONFORMANCE.md's numbers
 - Kinematic step: `ov.kinematic.add(new Vector3(...))` and `Vector3.Zero()` (`src/player/playerController.ts:485-486`).
 - Free step: `cc.checkSupport` builds a new surface info and 3 vectors (`:628`; Babylon's `checkSupport` wraps
   `checkSupportToRef`); `cc.calculateMovement` returns a new vector (`:638`) fed by `forwardVec()` (`:814-816`, new
-  vector); slope projection `cross` twice (`:656-657`); `averageSurfaceNormal.scale(...)` (`:659`); air step
+  vector); slope projection `cross` twice (`:645-646`); `averageSurfaceNormal.scale(...)` (`:650`); air step
   `new Vector3(...)` plus `GRAVITY.scale(dt)` (`:676`).
 - `hasHeadroom` (crouched and wanting to stand: every step while a ceiling blocks): two `add(new Vector3)`, a query
   literal and `PhysicsEngine.raycast` (new result) (`:460-464`).
@@ -68,12 +68,13 @@ with `AFP_WRITE_NUMBERS=1`), `:49`, `tests/mocapRunFeet.test.ts:11`, `:13`, `:94
   the step calls a new `...Into(..., out)` form with the same arithmetic in the same order.
 - **H2.** `checkSupportToRef` into a member `CharacterSurfaceInfo` (Babylon's `checkSupport` is exactly a fresh info +
   `checkSupportToRef`, which resets every field: `node_modules/@babylonjs/core/Physics/v2/characterController.js:1101-1131`);
-  `calculateMovementToRef` with a member forward vector; `crossToRef` / `scaleToRef` into members (check aliasing: the
+  `calculateMovementToRef` with a member forward vector, zeroing the member movement vector before each call (the
+  wrapper starts from `new Vector3(0, 0, 0)`, and the ToRef form returns false without writing when forward x up is ~0); `crossToRef` / `scaleToRef` into members (check aliasing: the
   second cross writes the step's output); kinematic step `setPosition` from a member set to `kin + (0, h/2 + 0.02, 0)`,
   `setVelocity` from a member zero; `hasHeadroom` with `raycastToRef` into a member result and member query (Babylon's
   `raycast` = new result + the same plugin call). Traversal: one member probe result with its own `end` vector (the
-  hint is copied at commit, `traversal.ts:445-448`; nothing outside reads `hint` except `gameState.ts:1929`, which sets
-  it null), module-level height and kinds constants, the window's `glass:<id>` key built once per anchor (a member
+  hint is copied at commit, `traversal.ts:445-448`; outside, `gameState.ts:1929` sets it null and
+  `gameState.ts:3428`, `:3508` read `traversal.hint` in the same frame for the HUD, safe with one member result), module-level height and kinds constants, the window's `glass:<id>` key built once per anchor (a member
   `Map<WindowAnchor, string>`), `probeDir` into a member, the committed move's override a member
   object whose every field is reassigned each step. Pad: one `getGamepads()` read per poll passed to `scan`, index
   loops, a reused known-index list instead of the `Set`, a member snapshot whose `buttons` is a reused number array,
@@ -150,8 +151,11 @@ file with no content check), so its train bumps `PROTOCOL_VERSION`; a comment-on
 
 ## Slices
 Each slice: its own branch `feature/player-hygiene-s<n>` in its own worktree, one PR, one changelog fragment
-`changes/feature-player-hygiene-s<n>.md`. Every slice starts with the parity record: a commit that adds the slice's
-golden-trace test on unchanged master code and its fixture (float64 bit patterns hashed as in
+`changes/feature-player-hygiene-s<n>.md`. Every code slice (S1-S5; S6 is exempt, `retarget.ts` may move ~1e-16, A4) starts with the parity record: a commit that
+adds the slice's golden-trace test on unchanged master code and its fixture. The `...Into` vs wrapper comparisons in S2-S4
+compare the code with itself once the wrappers delegate, so their parity commit records sweeps from the unchanged master
+`mapPad`, `pickTakedown` + `assistPlan` and `buildWheel` into `tests/fixtures/player-hygiene-s<n>.json` and the
+refactored forms are checked against those fixtures (float64 bit patterns hashed as in
 `tests/helpers/animSkeletonIdentity.ts`), then the refactor commit; the test file and fixture do not change in between.
 
 **S1 Player step and traversal (Opus).** H2 player half: `playerController.ts` and `traversal.ts` as designed.
@@ -171,12 +175,12 @@ same goal (if the fake grows past ~80 lines, (c) measures `probe` only and the r
   `.add(`, `.scale(`, `.cross(`, literal or closure left on a per-step line of the two files.
 - Flag: none (G355 fix).
 
-**S2 Pad poll (Sonnet, strict brief from Opus).** H2 pad half as designed. `tests/padPollAlloc.test.ts`: `mapPadInto` vs
+**S2 Pad poll (Opus: a runtime input hot-path rewrite, RULES "A job").** H2 pad half as designed. `tests/padPollAlloc.test.ts`: `mapPadInto` vs
 `mapPad` equal over a sweep of buttons, axes, dead zones, curves and invert (every field, `toBe`); `GamepadSource.poll`
 with a stubbed `window` / `navigator.getGamepads` returning a fixed array (A2), the hook and capture paths off:
 `bytesPerCall` <= `HEAP_NUMBER`; the same `InputState` results as a recorded run.
 - Files: `src/input/gamepadSource.ts`, `src/input/gamepadMapping.ts`, `src/input/stickMath.ts`,
-  `tests/padPollAlloc.test.ts`. Est. lines: ~110 src + ~200 tests.
+  `tests/padPollAlloc.test.ts`, `tests/fixtures/player-hygiene-s2.json`. Est. lines: ~110 src + ~200 tests.
 - Checks: typecheck; vitest `tests/padPollAlloc.test.ts`, `tests/input.test.ts`, every test importing `stickMath`.
   e2e affected (`src/input/`: e2e-pad, e2e-mouse, e2e-move, e2e-menus).
 - Done looks like: equal frames; reading <= 16 B per poll; `mapPad` still answers `tests/input.test.ts` unchanged.
@@ -187,7 +191,8 @@ with a stubbed `window` / `navigator.getGamepads` returning a fixed array (A2), 
 inputs (every plan field, `toBe`); `TakedownController.fixedUpdate` on a fake game (as `tests/coopWalkFixes.test.ts:136`)
 with 3 victims in reach and a stub ballistics: `bytesPerCall` <= `HEAP_NUMBER` for the scan and for a carry wait; a
 started takedown keeps its plan when the next scan would overwrite the scratch (the alias case).
-- Files: `src/game/takedown.ts`, `src/game/takedownController.ts`, `tests/takedownAlloc.test.ts`. Est. lines: ~170
+- Files: `src/game/takedown.ts`, `src/game/takedownController.ts`, `tests/takedownAlloc.test.ts`,
+  `tests/fixtures/player-hygiene-s3.json`. Est. lines: ~170
   src + ~260 tests.
 - Checks: typecheck; vitest `tests/takedownAlloc.test.ts`, `tests/coopWalkFixes.test.ts`,
   `tests/hangDownTakedown.test.ts`, `tests/animN4dKill.test.ts`, `tests/bunkerMap.test.ts`. e2e affected (`src/game/`:
@@ -200,7 +205,7 @@ started takedown keeps its plan when the next scan would overwrite the scratch (
 `buildWheel` of the same loadout after ammo, reserve and count changes and after a gun is added or removed;
 `bytesPerCall` on the open wheel's step <= `HEAP_NUMBER` when nothing changes shape.
 - Files: `src/game/gadgetSystem.ts`, `src/game/selectionWheel.ts`, `src/ui/hud/gadgetWheel.ts` (comment),
-  `tests/wheelRingAlloc.test.ts`. Est. lines: ~70 src + ~150 tests.
+  `tests/wheelRingAlloc.test.ts`, `tests/fixtures/player-hygiene-s4.json`. Est. lines: ~70 src + ~150 tests.
 - Checks: typecheck; vitest `tests/wheelRingAlloc.test.ts`, `tests/selectionWheel.test.ts`. e2e affected (`src/game/`
   and `src/ui/` suites) plus requested e2e-coop + e2e-netmove.
 - Done looks like: ring contents identical every step; reading <= 16 B; the wheel draws ammo changes live as today.
@@ -223,7 +228,7 @@ node, the builder extracts the pose fill into a pure function in `remoteAvatar.t
   `tests/animSkeletonIdentity.test.ts`. e2e affected (`src/net/remoteAvatar`: e2e-coop, e2e-netmove, e2e-ctcourse;
   `src/game/team`: GAME + e2e-coop).
 - Done looks like: traces and pose hashes identical; readings <= 16 B; partner and team moves look and behave as today.
-- Flag: none. Depends on: PR #317 (coop4, FOLDED J4) merged first (it edits all four S5 code files); line numbers
+- Flag: none. Depends on: PR #317 (coop4, FOLDED J4) merged first (it edits 5 of the 6 S5 code files, all but `moveState.ts`; its rewrite of `protocol.ts:38` still settles S9); line numbers
   re-found after it.
 
 **S6 Operator Lab and comment fixes (Sonnet, strict brief).** H5 as designed; the comments at
@@ -236,15 +241,15 @@ line is a comment or a doc path string, except `retarget.ts:21-28`.
   `tests/mocapPlayer.test.ts`. Est. lines: ~30.
 - Checks: typecheck; vitest `tests/operatorLab.test.ts`, `tests/operatorsRuntime.test.ts` and the four touched test
   files; `grep -rn "Math.hypot" src/operators` empty; every new path exists (`test -e`). e2e: the affected set runs by
-  itself (src/ui, src/player, src/anim, src/operators); the lead asks the orchestrator for the `no-affected-e2e` label
-  (comment-only diff plus a developer-tool length) instead of e2e-coop / e2e-netmove for the characterRig comment.
+  itself (src/ui, src/player, src/anim, src/operators); the lead also requests e2e-coop + e2e-netmove for the
+  `characterRig.ts` comment (RULES test tiers), no waiver label.
 - Done looks like: no `Math.hypot` in `src/operators`; no stale path or fact in the listed lines; unit tests green.
 - Flag: none. Depends on: J1 PR #437 merged (the archive moves exist on master).
 
 | Slice | Model | Est. lines | Depends on | Runs with |
 | --- | --- | --- | --- | --- |
 | S1 | Opus | ~450 | - | S2, S3, S4 now |
-| S2 | Sonnet | ~310 | - | S1, S3, S4 |
+| S2 | Opus | ~310 | - | S1, S3, S4 |
 | S3 | Opus | ~430 | - | S1, S2, S4 |
 | S4 | Sonnet | ~220 | - | S1, S2, S3 |
 | S5 | Opus | ~630 | #317 merged | any |
@@ -268,8 +273,12 @@ No two slices share a file. Small slices may ride one batch PR (RULES "A job"), 
 - Measured readings depend on V8 tiering: `allocPerCall` forces synchronous tier-up; a stub that allocates by itself
   hides nothing (the reading rises) but must be checked once with `ALLOC_TRACE=1`.
 - Overlap: PR #317 (J4) edits `coopHost.ts`, `coopClient.ts`, `remoteAvatar.ts`, `teamController.ts`, `protocol.ts`,
-  `characterRig.ts`: S5 waits for it; S6's one-line `characterRig.ts` comment may need a trivial rebase. J15 (Guard rules,
-  Player takedowns) and J19 (Player batch) will edit `takedown.ts` / `takedownController.ts` later: land S3 first.
+  `characterRig.ts`: S5 waits for it; S6's one-line `characterRig.ts` comment may need a trivial rebase. Gate order
+  with J19 (origin/feature/player-batch-j19 PLAN L303-311) and J15: S1 lands before J19 S6 (`traversal.ts:205-235`; J19 S6
+  deletes the hop at :218-227); S3 lands before J19 S1 and J15 (`takedown.ts`, `takedownController.ts`); S2 lands before
+  J19 S6 too (both edit `gamepadSource.ts:143-150`, the action-name list with 'dash'). S6 shares `characterRig.ts`,
+  `mocap.ts`, `animFixPass.test.ts` with J19, and S5 shares `coopHost`, `coopClient`, `protocol` with J19, J15, J24 and
+  map-ready: these merge in train order, the later branch rebased.
 - Golden traces on real Havok are deterministic in one process; if a trace is not stable across runs on unchanged
   code, the slice records positions to 1e-9 instead of bit patterns and says so.
 - Needs Michael: nothing.
