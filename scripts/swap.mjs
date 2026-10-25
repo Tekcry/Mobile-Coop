@@ -7,7 +7,7 @@
 //   node scripts/swap.mjs prune --dry-run|--yes [--idle-hours <h>]
 // Flags: --repo <path> (repeatable; env SWAP_REPO: one path): any checkout of a clone, whose worktree list is read. With
 // none, every clone under --root is found (`git rev-parse --git-common-dir` of each folder, deduped) and all are
-// scanned; --root <path> (env NS_ROOT, default C:/NightShift: heavy.lock / heavy2.lock live there), --scratch <path> (env
+// scanned; --root <path> (env NS_ROOT, default C:/NightShift: the heavy*.lock files live there), --scratch <path> (env
 // SWAP_SCRATCH, default <root>/scratch: auto-train files, swap-status.json), --out <file>, --machine <desktop|laptop>
 // (env SWAP_MACHINE or LQ_WORKER: marks this machine's laptop-queue claims), --jobs <n> (parallel git, default 6).
 // States per worktree: dirty (uncommitted changes; stale-dirty when every dirty file is untouched --stale-hours, default
@@ -519,8 +519,21 @@ export async function pruneBlocker(r, linkTargets = []) {
   return kept.length ? `ignored files would be deleted: ${kept.slice(0, 4).join(', ')}${kept.length > 4 ? ', ...' : ''}` : null;
 }
 
-async function scanLocks(o) {
-  const files = [path.join(o.root, 'heavy.lock'), path.join(o.root, 'heavy2.lock')];
+/**
+ * The heavy lock files to check under root: the desktop slots (heavy.lock 4191, heavy2.lock 4192), the laptop slots
+ * (heavy-4189.lock, heavy-4192.lock; laptop-queue service SLOTS) and any other `heavy*.lock` in `names` (root's
+ * listing). All lock formats (heavy-lock.mjs, the service's "laptop-queue | <id> <sha> pid N | <iso>") carry "pid N".
+ */
+export const HEAVY_LOCKS = ['heavy.lock', 'heavy2.lock', 'heavy-4189.lock', 'heavy-4192.lock'];
+export function heavyLockFiles(root, names = []) {
+  const extra = names.filter((n) => /^heavy[\w-]*\.lock$/i.test(n) && !HEAVY_LOCKS.includes(n)).sort();
+  return [...HEAVY_LOCKS, ...extra].map((n) => path.join(root, n));
+}
+
+export async function scanLocks(o) {
+  let names = [];
+  try { names = fs.readdirSync(o.root); } catch { /* root missing: the defaults read as free */ }
+  const files = heavyLockFiles(o.root, names);
   const out = files.map((f) => {
     const text = readText(f);
     const h = parseLockHolder(text);
