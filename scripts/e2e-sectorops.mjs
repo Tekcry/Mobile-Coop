@@ -4,7 +4,7 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until, hostAndJoin, waitSim, teamLog } from './e2e-net-lib.mjs';
+import { until, hostAndJoin, waitSim, teamLog, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
@@ -253,9 +253,11 @@ await run(`${PARAMS}&sectorStart=3`, async ({ page, G, sim }) => {
 
 // (campus-greybox A28) co-op: only the host opened the link; the client starts where the menu puts it (section 1) and
 // the host puts it at its checkpoint (`firstPlace`, the `restore` event); it mirrors section 2. No wire change.
+// (A28 fix 1) the client enters first: the host's loaded match is held out of `enter` until the client's states have
+// reached it, so they are judged before `start()` moves the run (`CoopHost.placeEarly` on the host's first step).
 console.log('sector ops: a start-at-section link in co-op (the host\'s wins)');
 {
-  const { browser, A, B, errors: [eA, eB], startMode } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4&sectorStart=2' });
+  const { browser, A, B, errors: [eA, eB] } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4&sectorStart=2' });
   let pumping = false;
   const pump = setInterval(async () => {
     if (pumping) return;
@@ -278,7 +280,26 @@ console.log('sector ops: a start-at-section link in co-op (the host\'s wins)');
     pumping = false;
   }, 40);
   try {
-    await startMode('sector', 'warehouseOps');
+    // the host's `app.setState` (main.ts, after `GameState.create`) holds the loaded Sector Ops match until released
+    await A.evaluate(() => {
+      const app = window.__app;
+      const enter = app.setState.bind(app);
+      app.setState = (st) => {
+        if (st.opts?.mode !== 'sector') return enter(st);
+        window.__held = st;
+        window.__release = () => enter(st);
+      };
+    });
+    await A.evaluate(() => window.__coop.session.setSettings('sector', 'warehouseOps', 'normal', ''));
+    await B.evaluate(() => window.__coop.session.setReady(true));
+    await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
+    await A.evaluate(() => window.__coop.session.startMatch());
+    await until(B, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net, null, LOAD_MS, 'the client is in its match');
+    await until(A, () => !!window.__held?.net && [...window.__held.net.remotes.values()].every((r) => r.state), null, LOAD_MS, 'the client\'s states reach the held host');
+    assert(await A.evaluate(() => window.__app.current !== window.__held), 'the host has not entered its match before the client\'s states');
+    await A.evaluate(() => window.__release());
+    await until(A, () => window.__app.current === window.__held && !!window.__sector, null, 15000, 'the host enters its match');
+    await A.evaluate(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
     const h = await A.evaluate(() => ({ d: window.__sector.debug(), from: window.__sector.practiceFrom, cps: window.__sector.checkpointSpawns() }));
     assert(h.from === 2 && h.d.index === 1, `the host starts at section 2 (${JSON.stringify(h.d)})`);
     await until(B, (cps) => { const p = window.__app.current.player.position; return cps.some((c) => Math.hypot(p.x - c.x, p.z - c.z) < 5); }, h.cps, 15000, 'the client is put at the host\'s checkpoint');

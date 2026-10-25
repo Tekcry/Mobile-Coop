@@ -1713,8 +1713,26 @@ export class CoopHost implements NetAttachment {
     return this.time;
   }
 
+  /** (campus-greybox A28 fix 1) The remotes' first states were judged before the mode started (`placeEarly`, once). */
+  private earlyPlaced = false;
+
+  /**
+   * (campus-greybox A28 fix 1) The host's first step after `enter` (`mode.start()`; the loop runs `fixedUpdate` only
+   * after it): a remote whose first state came while the host was still loading was judged against the run as built
+   * (section 1, no door locked). A run that `start()` moved (`?sectorStart=N`) is judged once more here: each remote with
+   * a state, not watched and not being restored, goes through `firstPlace` at its feet. A normal run stands at section
+   * 1's start, so nothing moves; a remote whose first state comes later takes `receive`'s path as before.
+   */
+  private placeEarly(): void {
+    this.earlyPlaced = true;
+    for (const r of this.remotes.values()) {
+      if (r.state && !this.joins.watching(r.id) && !this.joins.restoring(r.id)) this.firstPlace(r, r.feet.x, r.feet.y, r.feet.z);
+    }
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
+    if (!this.earlyPlaced) this.placeEarly();
     if (this.strikes.size) this.runStrikes();
     if (this.throwKo.active && this.g.enemyMgr) this.throwKo.step(this.time, this.g.enemyMgr.enemies);
     this.itemsT -= dt;
