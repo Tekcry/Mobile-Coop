@@ -1,9 +1,10 @@
 # UI
 Purpose: the HUD, menus, the screen stack, display handling, feedback, photo mode and the course HUD.
-Design authority: docs/DECISIONS.md (G77, G107, G108, G113), then docs/design-bible.md (Section 5.10).
+Design authority: docs/DECISIONS.md (G77, G107, G108, G113, G336, G339, G343, G351), then
+docs/design-bible.md (Section 5.10).
 
-Desktop only (G12): pad first, then keyboard and mouse. Menus follow the Arkham Knight style plan
-(feature/menu-ui-spec, G77) and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout (G77).
+Desktop only (G12): pad first, then keyboard and mouse. Menus follow the menu style plan (`docs/menu-ui/SPEC.md`, G77)
+and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout (G77).
 What follows is the UI as built today; "decided, not built yet" marks where the decisions differ.
 
 ## HUD
@@ -22,20 +23,16 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
-- Decided, not built yet (2026-10-25 ~10:45): the current objective fades in and out in game as a short, plain-English
-  line. A tap on View / Select (pad; CT's Back) or O (keyboard) shows it for about 5 s, and it also shows on every
-  objective update (Michael: "Objectives can fade in/out in game, must be a short, plain English objective"; binding
-  "View (Select) + O"). The full list stays in the menu (G108). Marlow Yard keeps its always-on list (G277, G292;
-  below). The HUD layout follows CT (G77).
-- Decided, not built yet (2026-10-25, every mode): no maps at all, no minimap, no compass, no objective blip. Michael:
-  "No maps at all" (the briefing's annotated top-down map and the field-menu map of known intel, bible 5.10, are removed)
-  and, for the minimap, "Remove it too" (no minimap, compass or objective blip in any mode). As built the HUD still draws
-  the compass strip with its markers (`ui/hud/hud.ts`) and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`).
-  Owner: the menu / briefing owner named at the next plan. Do not add a map, a waypoint or a marker to any mode.
-- Decided, not built yet (G290, 2026-10-25): objectives "must name what and where, but no map, level design must flow
-  naturally towards each objective". Guidance is in-world (place names, signs, landmarks, light language). An optional
-  hint layer exists, off by default (G290). Up to 2 strict mission rules are signposted in the briefing and the
-  objective list (G290). Marlow Yard is the exception: it keeps its guidance marks and always-on list (G292).
+- The objective popup and the no-maps rule are owned by bible 5.10 (G336, G339, G343, G351); strict rules by bible
+  5.8 (G290). In short: the current objective is a short, plain English line that names what to do and where; it fades
+  in for about 5 s on every update and on a tap of View / Select (pad) or O (keyboard); the menu keeps the full list
+  (G108). No map, minimap, compass, objective blip, waypoint or marker in any mode. Marlow Yard keeps its guidance
+  marks and always-on list (G277, G292; below).
+- Decided, not built yet (G343, G351): the popup and its binding (View has no action yet, `input/padBinds.ts`; O is
+  unbound). As built the HUD shows the objective line at the top (`Hud.setObjective`, `.hud-objective`).
+- Decided, not built yet (G339): as built the HUD still draws the compass strip with its markers (`ui/hud/hud.ts`)
+  and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`); removing them is a rule fix, allowed at the walk cap
+  (G355). The menu / briefing owner is named at the next plan. Do not add a map, a waypoint or a marker to any mode.
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
@@ -314,7 +311,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   - Hooks: `__animTune.phone()` (mode, drawer width / sheet height, dock, folded, readout, last gesture, taps),
     `fold(v)`.
 - (anim-joints J1, COVERAGE gap 1) The Joints, Hands & feet, IK strength and Weapon sliders are deltas on a generated
-  base table (`anim/animBase.ts`, written by the bake: `docs/anim-tuner/BAKE.md`) and act on every Wren rig
+  base table (`anim/animBase.ts`, written by the bake: `docs/archive/anim-tuner/BAKE.md`) and act on every Wren rig
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
@@ -464,7 +461,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `TUNE_CUR` (read by the hooks; set by `tuneBegin` / `tuneEnd` around the local player's `rig.animate` only, identity
   otherwise) and `TUNE_LOCAL` (the last selection, for the wall push, the root offset and the motion driver's stride).
   Saved (debounced 0.4 s) to its own IndexedDB database `<save db>-animtune` (`save/animTuneStore.ts`), outside the save
-  schema. `window.__animTune` is the test / console hook. Hook list: `docs/anim-tuner/REPORT.md`.
+  schema. `window.__animTune` is the test / console hook. Hook list: `docs/archive/anim-tuner/REPORT.md`.
 - (anim-tuner pass 2) Also opens from Pause > "Animation tuner (dev)" (the row before Quit, pass 3; it resumes the match with the
   panel open) and Settings > Graphics > Developer > "Animation tuner (dev)"; it stays open over play, with or without the
   overlay (the overlay's frame hook drives it), until its header x. Header bar: fold (_ / +) to one line, close (x).
@@ -472,28 +469,28 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   28 px high; the panel stops its pointer, mouse, click, wheel, touch and context-menu events (keys still reach the game:
   buttons blur after a click, sliders on change). Share / Copy: `navigator.share` with a File where `canShare({ files })`
   allows, else `navigator.clipboard.writeText`, else the JSON in a read-only text box (selected on focus).
-- (tuner-pad) Pad control, `docs/anim-tuner/PAD.md`: the pure mode logic is `ui/animTunePad.ts` (`TunePadCtl`, modes
-  off / tuner / game); `GamepadSource.padHook` (set in `core/app.ts` to `AnimTunePanel.padPoll`) sees the active pad
-  before the bindings each poll, and while it returns true the pad's held actions are released and nothing of it
+- (tuner-pad) Pad control, `docs/archive/anim-tuner/PAD.md`: the pure mode logic is `ui/animTunePad.ts` (`TunePadCtl`,
+  modes off / tuner / game); `GamepadSource.padHook` (set in `core/app.ts` to `AnimTunePanel.padPoll`) sees the active
+  pad before the bindings each poll, and while it returns true the pad's held actions are released and nothing of it
   reaches the `InputState` (game and menus). Opening the panel takes the pad (after every button is up); D-pad up / down
   pick a slider (body rows then gun rows, wrapping), left / right nudge by the step (repeat 0.35 s / 0.06 s, x5 after
   1 s), left stick X nudges (full tilt crosses the range in 2 s), LB / RB the focused section's group (follow off), Y
   the row's reset, A Export, B close, View (Select) the pad between tuner and game. The header's "PAD:" line shows the
   mode; the focused row has an amber outline. Follow waits while the tuner has the pad.
 - (tuner-camera) The panel's sections come from the section registry (`anim/tuneRegistry.ts`, API in
-  `docs/anim-tuner/STATE.md`): Body, Gun and Camera, then any section another file registers (the panel adds it), each
-  with the picker, follow, resets, save, export, log and pad control. Camera: a group per camera state (`cam.explore`
-  ... `cam.hold`, `selectCamGroup`) and ten offset / multiplier sliders on `config/camera.ts` values, read by
-  `ShoulderCamera.update` through `TUNE_CAM_CUR` (eased, identity at default); grey "today: ..." lines under the sliders.
-  Detail: `docs/anim-tuner/CAMERA.md`.
-- (tuner-camera pass 2) The pad drives every control (the tuner-pad map above is replaced: `docs/anim-tuner/STATE.md`
-  "Pad map"; a hint strip at the bottom of the panel): a focus list of every `[data-pad]` control, edit mode for sliders
-  and dropdowns, a Y menu, LB / RB sections, LT / RT state, R3 / Backquote bypass, View game / tuner with a freeze, Menu
-  close. Tools: free view (orbit / fly, demo loop; `player/freeView.ts`, rendered after the game view so gameplay reads
-  `ShoulderCamera.gamePos`), hide HUD (`body.tune-hide-hud`), game speed 0.1-1x, Pause / Step (`GameLoop.timeScale` 0,
-  `stepHeadless`; off in co-op), wide ranges, Import, search. A Speed section (`player/speedTune.ts`, gameplay, local
-  only). Body / Gun / Camera ease state changes (`tuneSectionEase`). The barrel marker is a 2D canvas over the game
-  canvas (`.anim-tune-marker-overlay`, no scene meshes).
+  `docs/archive/anim-tuner/STATE.md`): Body, Gun and Camera, then any section another file registers (the panel adds
+  it), each with the picker, follow, resets, save, export, log and pad control. Camera: a group per camera state
+  (`cam.explore` ... `cam.hold`, `selectCamGroup`) and ten offset / multiplier sliders on `config/camera.ts` values,
+  read by `ShoulderCamera.update` through `TUNE_CAM_CUR` (eased, identity at default); grey "today: ..." lines under the
+  sliders. Detail: `docs/archive/anim-tuner/CAMERA.md`.
+- (tuner-camera pass 2) The pad drives every control (the tuner-pad map above is replaced:
+  `docs/archive/anim-tuner/STATE.md` "Pad map"; a hint strip at the bottom of the panel): a focus list of every
+  `[data-pad]` control, edit mode for sliders and dropdowns, a Y menu, LB / RB sections, LT / RT state, R3 / Backquote
+  bypass, View game / tuner with a freeze, Menu close. Tools: free view (orbit / fly, demo loop; `player/freeView.ts`,
+  rendered after the game view so gameplay reads `ShoulderCamera.gamePos`), hide HUD (`body.tune-hide-hud`), game speed
+  0.1-1x, Pause / Step (`GameLoop.timeScale` 0, `stepHeadless`; off in co-op), wide ranges, Import, search. A Speed
+  section (`player/speedTune.ts`, gameplay, local only). Body / Gun / Camera ease state changes (`tuneSectionEase`). The
+  barrel marker is a 2D canvas over the game canvas (`.anim-tune-marker-overlay`, no scene meshes).
 - (anim-studio) Snapshots in the tools (`ui/tuneSnapshots.ts`, pure logic `anim/tuneHistory.ts`): Undo / Redo (every
   tuner change, a run of changes within 0.6 s is one step; Ctrl+Z / Ctrl+Y or Ctrl+Shift+Z while the panel is open and
   no text box has the keys; the Y menu), Store A / Store B / A/B (the values shown stay in the slot shown), presets (a
@@ -509,7 +506,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   are `ui/studioOverlay.ts` (a 2D canvas `.studio-overlay`: skeleton, feet and trails, onion skin; projection
   `ui/overlayProject.ts`, shared with the barrel marker). The turntable and the camera snaps are `FREE_VIEW.spin` /
   `FREE_VIEW.snap`, taken by the free view. The game speed slider reaches 2x only while the studio runs. Leaving resets
-  it all (`studioReset`). `window.__studio` is the test / console hook. Detail: `docs/anim-studio/REPORT.md`.
+  it all (`studioReset`). `window.__studio` is the test / console hook. Detail: `docs/archive/anim-studio/REPORT.md`.
 - (anim-studio-2) Pairs and traversal in the studio. The loop list adds `pair:<move>` and `trav:<move>` entries.
   - A co-op pair (`anim/studioPairs.ts`, pure): both roles of a team move from one clock, through the game's own paths
     and timing (`game/teamMoves.ts`, `TEAM`). The stage poses two Wren puppets (`operatorRig`, local rigs, no network;
@@ -525,7 +522,8 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     (`trav.<kind>`). The local player's own role and pose select them (`GameState` writes `MOVE_TUNE_TEAM` from
     `TeamController.state` / `partT`, or 'revive' while holding a partner's revive); the remote avatar never reads them;
     nothing on the wire; visual only (the rig root, the pose, the grip targets). The pad strip shows "LT / RT: role A /
-    B / contact" on a co-op section. `window.__studio.pair()` is the test hook. Detail: `docs/anim-studio/REPORT-2.md`.
+    B / contact" on a co-op section. `window.__studio.pair()` is the test hook. Detail:
+    `docs/archive/anim-studio/REPORT-2.md`.
 
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the

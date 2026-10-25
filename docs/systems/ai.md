@@ -1,6 +1,6 @@
 # Stealth AI, enemy archetypes and modes
 Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the navigation grid and the game-mode hooks.
-Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible.md (Section 5.7).
+Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then docs/design-bible.md (Section 5.7).
 
 ## Decided direction
 - Decided, built (G41; ct-prototype A3, F1b door-4): guards close doors behind them on a calm patrol and notice any door
@@ -23,23 +23,26 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   realistically possible" (G289, G254), limited by the guard-cap perf floor and passable routes; room to manoeuvre
   beats count (G190). Per-space bands are info; the validator WARNs only below them (G289).
 - Decided (G42, G155, G297, G307): every human guard can be palm-struck; dogs cannot. Per mode:
-  - Campaign co-op missions: no heavy or dog archetypes; armour and helmets come with the alarm stages (G155, "Adopt
-    CT's way"; kept 2026-10-25 ~09:45 "Keep CT way").
+  - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way").
   - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
-    alert response teams, and armour / helmets per alarm stage (G307).
-  - Helmets by difficulty, Sector Ops (G338) and the campaign (G341) (2026-10-25 ~10:20, Michael: "Base it off
-    difficulty, harder difficulties always
-    have helmets, and hardest difficulty you can't shoot the helmet off"). The campaign takes the "Same rule"
-    (2026-10-25 ~10:45), with CT's alarm-stage helmets on the easier levels. It replaces G307's first-headshot helmet
-    where they differ. Not built yet.
+    alert response teams, and armour per alarm stage (G307).
+  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted, killing one carries a penalty.
+    What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
+  - Helmets: the rule is owned by bible 5.6 (G338, G341, G350): on Realistic and Perfectionist every guard wears one
+    and on Perfectionist it cannot be shot off; on Rookie and Normal helmets come with the alarm stages; the same in
+    the campaign and Sector Ops. Not built yet: helmets come from a slot tag, a section default or the alarm stage
+    (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
   - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
-- Decided (G11, 2026-10-25): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
-  the rest) only those CT has survive, with one exception: Michael "Add both" (2026-10-25 ~09:45) - static lookouts on
-  some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight above) stays
-  the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built yet.
+- Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
+  the rest) only those CT has survive, with one exception: Michael "Add both" (G335, 2026-10-25 ~09:45) - static
+  lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
+  above) stays the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built
+  yet.
 - Decided (2026-10-25 ~08:50, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
   (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
+- Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
+  shows them (light parity; `docs/systems/lighting.md`). Today guards read only the light field.
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)
@@ -211,8 +214,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
-  Decided 2026-10-25, not built yet: helmets by difficulty (harder levels always helmeted; on the hardest the helmet
-  cannot be shot off), see "Decided direction".
+  Decided, not built yet: helmets by difficulty (G350; owner bible 5.6), see "Decided direction".
 - Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
   `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
   radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call

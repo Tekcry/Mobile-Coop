@@ -33,7 +33,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   finishes it (team doors keep a solo route, G280).
 - [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
   and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
+  pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
   on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
@@ -291,7 +291,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
   the alarm is up, stays at low ready. Co-op (A126): on the client the same guard is holstered, draws and holsters
   with the host (a moment behind), never stuck at low ready.
-- [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] D-pad left (N) turns the goggles on and off; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
@@ -358,7 +358,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "wide ranges" doubles every range; typing a number in a row's field applies on Enter; the search box filters rows.
 - [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
   drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
-  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
+  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/archive/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
   "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
   twice as slow and it cannot fire until it is up. Rifle / Pistol holster (one row each), swap (LB), grenade throw and Every clip speed change their
@@ -518,8 +518,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
-- [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab
-  wheel, N goggles, Z ping, V shoulder swap; Esc pauses and Resume re-captures.
+- [ ] RMB aims, LMB fires, C crouches, Space jumps, Caps Lock backs to a wall, E uses, F is the co-op action, R reloads,
+  X draws / holsters, T / Q swap, Z knocks out, G gadget, Tab wheel, N goggles, middle mouse pings, V shoulder swap;
+  Esc or P pauses and Resume re-captures.
 - [ ] Settings > Mouse & Keyboard: rebind a key, a conflict warns, Esc cancels a capture.
 - [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Anim Studio): the cursor stays free; drag
   the scene with the left button to turn the camera, the wheel zooms, sliders and lists click; no shot fires. F4 (or the
