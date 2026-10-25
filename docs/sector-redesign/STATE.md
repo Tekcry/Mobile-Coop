@@ -350,30 +350,29 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~16:10 after the swap; new account).
+Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~17:20; row 6 signed off ~17:00, hold lifted).
 git fetch; read docs/RULES.md and docs/VISION.md from origin/master (never a branch copy); BOOT.md "Sector Ops Build"
-on origin/feature/menu. Full burn.
-DOCS-FIRST HOLD (G346, G355; BOOT common start 4): until Michael signs off the folded plan (ROADMAP Now row 6) no new
-game work. Finished PRs may ship. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-0. Conformance review DONE: #420 merged (train 92, 4.102.4), folded into docs/orchestrator/FOLDED-PLAN.md on
-   feature/menu. Sector Ops jobs there: J5, J6 (one line), J10, J11, J16, J17, J18, J21; doc fixes J1 (section 5).
-1. DOC FIXES STOPPED (Michael 13:53 "plan comes first", via orchestrator): no PR, no cloud briefs. WIP pushed only on
-   feature/sector-ops-docfix (874c3e81 lighting.md L16 / L17, campus-run REPORT + S1 notes L13; 26fe2e57 SPEC / BRIEF /
-   PLAN L12 + stale counts; fragment one placeholder bullet). Left for resume: S2.md:168, S4.md:154, run.txt notes;
-   fragment bullets; campus-greybox (briefs/S1.md:614 meta, briefs/S2.md:342-343 soloWindow vs C4), light-realism
-   docs (none written), visual-gate plan + stale STATE (no edits made). bake5 = PR #421 (orchestrator, Michael OK).
-2. HELD until row 6 (plans only, no code):
-   - campus-greybox (Now row 9): feature/campus-greybox @ c2f1f131 (BRIEF, PLAN, STATE, briefs S1..S5); worktree
-     C:/NightShift/Mobile-Coop-campus-greybox. Resume from docs/campus-greybox/STATE.md on that branch.
-   - light-realism (Now row 10): feature/light-realism @ bd8b843e (S1 car park measurement scripts); worktree
-     -light-realism; the lux grid goes to Michael via the orchestrator.
-   - character shadows in the meter (Now row 11, G352) and stars fill lower tiers (Now row 12, G331): Opus plans.
-   - visual-gate: feature/visual-gate @ 07eefea0 (45 ahead of master); docs/visual-gate/STATE.md on that branch.
-3. Merged since the 09:08 save: #333 (section bake), #379 (polish 3), #385 (bake4), #339 (fog). Older notes in
-   this file above this block are history.
+on origin/feature/menu. Full burn. Plan: docs/orchestrator/FOLDED-PLAN.md (feature/menu); Michael's 39 answers in
+ROADMAP "Decided" override it. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
+0. Conformance review DONE (#420). Sector Ops jobs: J1 docs, then phase B: J5, J10, J11, J16 (meter), J17, J18, J21,
+   + map-ready (Q31). Answers: Q2 every light works; Q3 AU standards after one lux calibration, band table + S1 light
+   map approved together; Q10 keep 32, fill rest; Q14 faint cue from cast shadow; Q16 4p live; Q20 30 s then death,
+   wait for next section door; Q21 S2 team doors 2p; Q26 warehouseOps FROZEN; Q27 parity check every release;
+   Q31 map fully built before play; Q32 warm-up cap; Q4 60 fps at 32.
+1. J1: PR #433 feature/sector-ops-docs @ b3202ea0b (worktree -sector-ops-docs; replaces feature/sector-ops-docfix).
+   Opus checker running (report: side-session-notes/<orchestrator id>/sector-ops-433-check.md). Then post `checker`
+   (orchestrator posts it if auto mode blocks), message the orchestrator. Assumption A1: warehouseOps keeps dead
+   fittings (frozen); undo: add it to J10.
+2. Phase B plans running (Opus, docs only), each on its branch / worktree:
+   - J10 light-realism: feature/light-realism (docs/light-realism/BRIEF, PLAN, research/bands.md, STATE).
+   - J5 sector-marks: feature/sector-marks; J18 sector-batch: feature/sector-batch (BRIEF, PLAN, STATE, briefs).
+   - J17 campus-greybox v2: feature/campus-greybox (BRIEF / PLAN update, briefs S4 / S5). Waits on J4 (#317) to build.
+   - map-ready (Q31): feature/map-ready (BRIEF, research/start-path.md, PLAN, STATE).
+   Each plan gets a fresh Opus plan checker, then builds start (Sonnet from strict briefs; Opus for engine / net).
+3. Later: J11 parity (after J10), J16 meter half (after J10, with Guard AI), J21 campus perf (after J4).
+   visual-gate: feature/visual-gate @ 07eefea0 (fixes ride J18).
 Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
 Rules: RULES on origin/master only; never restate them here.
 Previous blocks: git log -p on this file.
-Next: HOLD until the orchestrator messages that Michael signed off row 6; then J1 doc fixes (item 1 WIP) and the
-  held jobs (item 2) in FOLDED-PLAN order.
+Next: on #433 checker PASS start J5 / J10 / J18 builds; run plan checkers as each plan lands.
 ```
