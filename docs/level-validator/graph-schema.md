@@ -187,7 +187,11 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   ladders to one hall are a loop; a one-way link is a way out only at its `from` end (a drop in is none).
 - **Splits (checkCoop).** A leg's time = the link into its first tagged space + the links between its tagged spaces +
   the fastest non-co-op link out of its last tagged space to the rejoin space (the first space both legs reach), each
-  as `time_s`, else `length` / 1.3. ERR a leg over 90 s; ERR legs more than 20% apart (M4: time, not room length);
+  as `time_s`, else `length` / 1.3. The link into the first space comes from the fork, the first space that leads into
+  both legs by non-co-op links; failing one, the first space that leads into one leg by a non-co-op link and into the
+  other only by a co-op link (walked from its `from` end, never a `bolted` one): that co-op link is the other leg's
+  entry, its time counts for that leg and an INFO names it (A28: both partners are at the fork for the boost; never
+  both legs by co-op links). ERR a leg over 90 s; ERR legs more than 20% apart (M4: time, not room length);
   ERR no `overwatch:<id>`; ERR no `assist: "<id>"`. Partner reach: the shortest path over non-co-op links from any
   space of leg a to any of leg b, `time_s` else `length` / 3.0, ERR above 15 s. It is measured from every space of one
   leg to the nearest space of the other leg (the worst such space counts), not to every point of the other leg as
