@@ -527,7 +527,7 @@ async function crawlJoints(): Promise<{ pos: number[]; step: number; pop: number
 }
 
 describe('mixamo I2: the vent crawl (headless, Wren rig)', () => {
-  it('the crawl capture jumps the joints far past the hand-made crawl (its yaw wraps round -pi), so MIXAMO_ON keeps it off', async () => {
+  it('the crawl capture plays without a visible break (I2b: the chest yaw no longer flips), and MIXAMO_ON ships it', async () => {
     const hand = await crawlJoints();
     // with every capture let on, the capture plays
     allOn();
@@ -537,13 +537,15 @@ describe('mixamo I2: the vent crawl (headless, Wren rig)', () => {
     Object.assign(MIXAMO_ON, ON0);
     setMixamo(true);
     const shipped = await crawlJoints();
-    const near = cap.step <= hand.step * 2 + 0.01 && cap.pop <= hand.pop * 2 + 0.01;
-    console.info(`(mixamo I2) vent crawl joint step a frame: capture ${(cap.step * 100).toFixed(1)} cm, pop ${(cap.pop * 100).toFixed(1)} cm (hand-made ${(hand.step * 100).toFixed(1)} / ${(hand.pop * 100).toFixed(1)}); near the hand-made: ${near}`);
+    console.info(`(mixamo I2b) vent crawl joint step a frame: capture ${(cap.step * 100).toFixed(1)} cm, pop ${(cap.pop * 100).toFixed(1)} cm (hand-made ${(hand.step * 100).toFixed(1)} / ${(hand.pop * 100).toFixed(1)})`);
     expect(hand.step).toBeGreaterThan(0);
     expect(differ(cap.pos, hand.pos)).toBeGreaterThan(0);
-    // a capture that pops past the hand-made crawl stays out of matches (the slice rule)
-    if (!near) expect(MIXAMO_ON.crawling_hands_and_knees).toBe(false);
-    if (!MIXAMO_ON.crawling_hands_and_knees) expect(differ(shipped.pos, hand.pos)).toBe(0);
+    // a visible break (I2b cap: Michael 2026-10-26, the capture wins unless visibly broken): the yaw flip stepped 13.8 cm a
+    // frame and popped 24.9 cm; the fixed take 3.4 / 1.7 (a 1.8 s crawl's reach)
+    expect(cap.step).toBeLessThanOrEqual(0.06);
+    expect(cap.pop).toBeLessThanOrEqual(0.04);
+    // as shipped: the capture plays (off it would be the hand-made crawl, joint for joint)
+    expect(differ(shipped.pos, MIXAMO_ON.crawling_hands_and_knees ? cap.pos : hand.pos)).toBe(0);
   }, 300_000);
 });
 
@@ -564,7 +566,10 @@ describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => 
     for (const [st, hand, mix] of res) {
       expect(mix.frames, st).toBeGreaterThan(0);
       expect(mix.hand, `${st} palms`).toBeLessThanOrEqual(Math.max(0.01, hand.hand + 0.002));
-      expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(Math.max(0.01, hand.foot + 0.002));
+      // (I2b) the ladder's sole measure is the rig's climb foot cap on both clips (I2-REPORT "Known gaps"), not contact: the
+      // capture ships at 38 cm vs 32 (Michael 2026-10-26: worse numbers are tuned in the Studio); capped for a visible break
+      if (st === 'ladder') expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(hand.foot + 0.1);
+      else expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(Math.max(0.01, hand.foot + 0.002));
       // the switch from the hang's / ladder's clip to the exit's (a capture to the hand-made clip, or the reverse) steps no
       // joint further than the hand-made switch does (the graph inertializes it)
       expect(mix.sw, `${st} first exit frame`).toBeLessThanOrEqual(hand.sw + 0.005);

@@ -49,23 +49,27 @@ export const MIXAMO_TRAV: Readonly<Record<string, { clip: Clip; slot: MixamoTrav
 /**
  * Per capture: whether it plays in the game with the flag on (PLAN "Switch-on": a clip that passes A8 and the checker).
  * The Studio's pick plays its capture whatever this says. Measured headless on Wren's rig (tests/mixamoTraverse.test.ts,
- * docs/mixamo-retarget/I2-REPORT.md): a capture whose palms or soles miss their anchors more than the hand-made clip does
- * stays off (bible 5.12.2 #2) rather than take a hand-made fix.
+ * docs/mixamo-retarget/I2-REPORT.md, I2B-REPORT.md): Michael 2026-10-26, the capture wins where it covers the same move
+ * unless it is visibly broken in play (a spin, a pop, hands far off the grips); a worse number alone is tuned in the
+ * Anim Studio. Hands on the lip stay a hard requirement where the game relies on grips (tests/climbHands.test.ts).
  */
 export const MIXAMO_ON: Record<string, boolean> = {
   hanging_idle: true,
   braced_hang_shimmy_left: true,
   braced_hang_shimmy_right: true,
-  // off: its trunk near upright as the knee comes on takes the palms 29 cm off the lip (hand-made 0.35; climbHands harness)
+  // off (visibly broken, I2b): the palms leave the lip 58 cm and the shoulders 0.85 m from it (arm 0.54) before the foot is
+  // on top (climbHands harness; hand-made 0.0 cm / 0.49 m)
   braced_hang_to_crouch: false,
-  // off: its stand-up end (the take ~4x faster, M4) moves the trunk 20 cm in a frame and the wrists 9.9 cm (climbHands)
+  // off (visibly broken, I2b): its stand-up end turns the hips 86 deg (pelYaw to 1.5 rad) and snaps the trunk 19.7 cm and
+  // the wrists 11.1 cm velocity change in a frame (k 0.85; limits 9.6 / 3; climbHands harness)
   freehang_climb: false,
-  // off: the soles move 38 cm on their held plants (hand-made 32); keeping the hand-made foot lift puts the palms 5-6 cm off
-  climbing_ladder: false,
+  // on (I2b, capture wins unless visibly broken): palms 0.00 cm (hand-made 0.00); soles 38 cm vs 32 on held plants, both the
+  // rig's climb foot cap (I2-REPORT "Known gaps"), not contact
+  climbing_ladder: true,
   climbing_ladder_to_standing: true,
-  // off: its spYaw keys run -4.72 to -1.42 rad (the M4 yaw wraps round -pi): the shoulder line flips and the joints jump up
-  // to 13.8 cm a frame (hand-made 0.5; tests/mixamoTraverse.test.ts crawl check), and crawlOut starts 4.6 rad of spYaw away
-  crawling_hands_and_knees: false,
+  // on (I2b): the M4 chest yaw fixed (from the right axis past 75 deg pitch: spYaw -0.10 to 0.15, was -4.72 to -1.42); the
+  // joints step 3.4 cm a frame, 1.7 cm velocity change (hand-made 0.5 / 0.1; was 13.8 / 24.9 with the flip)
+  crawling_hands_and_knees: true,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */

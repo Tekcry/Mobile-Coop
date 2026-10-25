@@ -36,3 +36,12 @@
 - Done (this commit, not yet full-suite run): capture <-> hand-made switch inside traverse inertialized (animGraph mxLast); switch-frame tests (graph and rig).
 - Done (this commit): allocation test warmed and alternating over 5 rounds, medians; 3 runs in a row pass (hang moving 1664 vs 2368, still 1305 vs 1737, climb-up 1305 vs 1401-1417).
 - Done in the fix round (1f1ad42b): I2-REPORT bytes and test list, PLAN Claims (studioStage.ts, climbHands.test.ts), full vitest list (41 pass). Checker Opus PASS on 1f1ad42b.
+
+## I2b (feature/mixamo-i2b)
+- Rule (Michael 2026-10-26): the capture wins unless visibly broken; climbHands stays a hard gate on the lip climb-up.
+- Done: M4 chest yaw from the right axis past 75 deg pitch (mixamoChannels.mjs `YAW_FROM_RIGHT`); crawl, freehang,
+  braced re-emitted (other 5 clips byte-identical). MIXAMO_ON: crawl on (3.4 / 1.7 cm, was 13.8 / 24.9), ladder on
+  (palms 0.00; soles 38 vs 32, weak measure); braced_hang_to_crouch off (palms 58 cm off the lip), freehang_climb off
+  (stand-up hips turn 86 deg, trunk 19.7 cm a frame). Report: I2B-REPORT.md.
+- Left: freehang stand-up (re-centre its pelYaw turn, retime the x2.85 end) and braced (hands on the lip: anchor the
+  palms to the lip through release) so climbHands passes with them on; the flag default unchanged (feature/mixamo-on).
