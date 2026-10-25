@@ -37,6 +37,8 @@ export interface SessionStats {
   alarms?: number;
   /** Training course: the results panel (T1c). */
   course?: CourseSummary;
+  /** (campus-greybox A28) A `?sectorStart=N` run (or its co-op client's): nothing goes to the save (no progression). */
+  practice?: boolean;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
