@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.103.1 - Train 96: Campaign docs: no compass, blips or map screens (J1) (2026-10-25, PR #439; #434)
+- Docs: the doc check now flags the compass, blips, the briefing map, the field-menu map and the radar upgrade as
+  removed features (G336, G339), next to the minimap; three old prototype notes mark the minimap as history.
+- Docs: the menu spec drops the briefing map and the field terminal's Map item, and the co-op code inventory marks the
+  minimap ally blip and objective blips as replaced (G336, G339, G135).
+
 ## 4.103.0 - Train 95: Animation tuner clarity (2026-10-25, PR #431; #430)
 - The animation tuner now shows whether each setting changes the motion-captured animation, the hand-made one, or both.
 - It shows what is playing now, for example "Now playing: motion-capture walk", under the tabs and in the Anim Studio.
