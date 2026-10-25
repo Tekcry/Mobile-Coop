@@ -241,7 +241,7 @@ describe('mixamo I2: the graph', () => {
 
 /** Per state: the palms' worst miss of their grips (rig.gripError, 3 frames after a grip lands, as e2e-traverse) and the
  *  soles' worst miss of their plants (the ankle's distance to the plant target past its first planted offset), in m. */
-type Reach = { hand: number; foot: number; frames: number };
+type Reach = { hand: number; foot: number; frames: number; at?: string };
 type State = 'hang' | 'shimmyR' | 'shimmyL' | 'ladder' | 'climbUp' | 'topOut';
 
 async function reach(state: State): Promise<Reach> {
@@ -283,7 +283,9 @@ async function reach(state: State): Promise<Reach> {
   const out: Reach = { hand: 0, foot: 0, frames: 0 };
   const last = [NaN, NaN, NaN, NaN, NaN, NaN];
   const settle = [0, 0];
-  const footRest = [NaN, NaN];
+  const footRest = [0, 0, 0, 0, 0, 0];
+  const plantAt = [NaN, NaN, NaN, NaN, NaN, NaN];
+  const footSettle = [0, 0];
   try {
     for (let k = -WARM; k < STEPS; k++) {
       const v = state === 'shimmyR' ? ATTACH.ledge.speed : state === 'shimmyL' ? -ATTACH.ledge.speed : state === 'ladder' ? ATTACH.ladder.speed : 0;
@@ -329,18 +331,28 @@ async function reach(state: State): Promise<Reach> {
         settle[h] = moved || !(t.w > 0.99) ? 0 : settle[h]! + 1;
         if (settle[h]! <= 3) continue;
         const e = rig.gripError(h === 0 ? -1 : 1);
+        if (e !== null && e > out.hand) out.at = `k${k} h${h} w${t.w.toFixed(2)}`;
         if (e !== null) out.hand = Math.max(out.hand, e);
       }
-      // soles: the ankle's distance to a full-weight plant, against its offset on the first planted frame
+      // soles: a foot on a full-weight plant stays where it landed (the ankle's world drift while its plant holds still,
+      // 3 frames after it lands: e2e-traverse's planted contacts)
       const pl = [rig.plantL, rig.plantR];
       const an = [rig.ankleL, rig.ankleR];
       for (let f = 0; f < 2; f++) {
         const t = pl[f]!;
-        if (!(t.w > 0.99)) continue;
+        const moved = Math.abs(t.x - plantAt[f * 3]!) + Math.abs(t.y - plantAt[f * 3 + 1]!) + Math.abs(t.z - plantAt[f * 3 + 2]!) > 1e-4;
+        plantAt[f * 3] = t.x;
+        plantAt[f * 3 + 1] = t.y;
+        plantAt[f * 3 + 2] = t.z;
+        footSettle[f] = moved || !(t.w > 0.99) ? 0 : footSettle[f]! + 1;
+        if (footSettle[f]! < 3) continue;
         const q = an[f]!.computeWorldMatrix(true).getTranslation();
-        const d = Math.sqrt((q.x - t.x) ** 2 + (q.y - t.y) ** 2 + (q.z - t.z) ** 2);
-        if (Number.isNaN(footRest[f]!)) footRest[f] = d;
-        out.foot = Math.max(out.foot, Math.abs(d - footRest[f]!));
+        if (footSettle[f] === 3) {
+          footRest[f * 3] = q.x;
+          footRest[f * 3 + 1] = q.y;
+          footRest[f * 3 + 2] = q.z;
+        }
+        out.foot = Math.max(out.foot, Math.sqrt((q.x - footRest[f * 3]!) ** 2 + (q.y - footRest[f * 3 + 1]!) ** 2 + (q.z - footRest[f * 3 + 2]!) ** 2));
       }
     }
   } finally {
@@ -361,7 +373,7 @@ describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => 
       const hand = await reach(st);
       setMixamo(true);
       const mix = await reach(st);
-      rows.push(`${st}: palms ${(mix.hand * 100).toFixed(2)} cm (hand-made ${(hand.hand * 100).toFixed(2)}), soles ${(mix.foot * 100).toFixed(2)} cm (hand-made ${(hand.foot * 100).toFixed(2)})`);
+      rows.push(`${st}: palms ${(mix.hand * 100).toFixed(2)} cm (hand-made ${(hand.hand * 100).toFixed(2)}), soles ${(mix.foot * 100).toFixed(2)} cm (hand-made ${(hand.foot * 100).toFixed(2)}) at ${mix.at}`);
       res.push([st, hand, mix]);
     }
     console.info(`(mixamo I2) reach / plant errors: ${rows.join('; ')}`);
