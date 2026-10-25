@@ -54,7 +54,7 @@ the guards, the post stack and the shadow maps all happen in front of the player
 - The client builds its guard puppets (`coopClient.ts:461`) and the partner's avatar (`coopClient.ts:373`, which
   starts the partner's LOD load, `net/remoteAvatar.ts:223`) when the first snapshot arrives: after its own boot screen
   has gone. The host builds a remote's avatar in `addRemote` (`coopHost.ts:378`).
-- `course` and `sector` are capped at 2 players (`protocol.ts:39-41`); 3-4 players (coop4) use the same path.
+- `course` and `sector` are capped at 2 players (`protocol.ts:39-41`) on master; #317 coop4 (ships live, Q16) raises `sector` to `SECTOR_MAX` 4 on the same path (BRIEF A5).
 - Late join / rejoin: the host sends `start` to that player alone and keeps playing (`session.ts:191-195`,
   `coopHost.ts:237`, `net/joinWatch.ts`).
 - `PROTOCOL_VERSION = 62` (`protocol.ts:21`); a new message needs the `Msg` union (`:278-342`), a `parseMessage` case

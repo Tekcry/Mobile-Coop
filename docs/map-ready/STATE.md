@@ -5,44 +5,44 @@ Owner: Night Shift | Sector Ops Build. Status: current.
 - Folder `C:/NightShift/Mobile-Coop-map-ready`, branch `feature/map-ready` (from master 2148ec96; src unchanged to
   b81c4945). Guard before every write: `cd /c/NightShift/Mobile-Coop-map-ready && test "$(git rev-parse
   --abbrev-ref HEAD)" = feature/map-ready && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-map-ready"`.
-- Phase: plan revised after plan check 2 (FIX, `PLAN-CHECK-2.md`; check 1 `PLAN-CHECK.md`; both kept as history).
-  Check 3 not run yet. No code on the branch.
-- Check 2 fixes: (1) A18 / A19 flagged as narrowing Michael's ~18:50 pick (4) / (3) and routed to Q3 (BRIEF:130-154,
-  :165-184; Limits :45-48); Q3 options 2 / 3 add S12 / S13 (PLAN:385-405). (2) S3 two Opus checkers (PLAN:176); S1
-  adds `e2e-coop` + `e2e-netmove` (PLAN:138). (3) the five S10 plugin files and `lampJobs.ts` claimed (PLAN:36-41,
-  S10 :351-354). (4) `feature/sector-batch` overlap and order (PLAN:476-487, S2 :172, S11 :380). Polish items folded.
-- Docs: `BRIEF.md` (A1-A19 :63-154, Q1-Q3 :156-184), `PLAN.md` (claims :16-84, gate :93-119, slices :120-410 with
-  S4 :191, S9 :310, S10 :334, S11 :361, S12 / S13 :385, order :407, flag :412-417, walk items :419-433, risks :434,
-  overlaps :467-513), `research/start-path.md` (rows 1-13 :68-80, rows 14-15 and pick points :87-106).
+- Phase: plan revised after plan check 3 (FIX, `PLAN-CHECK-3.md`; checks 1-2 kept as history). Last fix round: the
+  lead verifies the diff against check 3's fix list. No code on the branch.
+- Michael answered ~20:05 (native multiple choice, via the orchestrator): Q3 option 1 "Keep the costly parts, build
+  the level at Start (Recommended)" (A18 / A19 decided; S12 / S13 not built); Q1 "20 seconds" (cap 20 s, A2). Q3 was
+  sent to the orchestrator 2026-10-25 ~20:05 by the lead. Switch-on no longer waits on Q1 / Q3, only on the walks.
+- 20 s cap: cold Epic body compiles are 29-44 s (V12), so every first-ever Epic load hits the cap until S8 lands. S2
+  compiles in priority order (player / partners / weapons, live section, near guards, rest); S8 re-planned to close
+  the gap right after S1 + S2 (PLAN S8); S6 asserts `capHit` false only on shader-cached loads; co-op grace cut to 5 s
+  (A5). Dev builds and a first-ever Marlow Yard / warehouse PC bake can outlast 20 s (live lamps never cut, A3).
+- Check 3 fixes: (1) Q16 / #317: A5 (BRIEF:91-101) up to 4 start players from the session; S5 (PLAN:264-299) 3- and
+  4-player `mapReadyNet` tests, #317's 4-player Sector Ops part with `mapready=1`, `e2e-net-lib.mjs` claimed; section 7
+  lists coop4 with files and order (S2, S5, S6, S11 after #317). (2) S4 over-cap re-plan routed (PLAN S4 "Order",
+  BRIEF A15). (3) S10 always requests `e2e-coop` + `e2e-netmove`. Polish: counts, coop-real #388, campus-greybox,
+  `.prebake-cache/` outside `node_modules` with pruning, S2 / S9 checkers, Q3 pack lamp-bake line.
+- Docs: `BRIEF.md` (picked :16-32, A1-A19 :68-176, Q1-Q3 :177-207), `PLAN.md` (claims :19-88, gate :97-125, slices
+  :126-461 with S4 :205, S5 :264, S8 :342, S10 :384, S11 :414, S12 / S13 :439, order :462, flag :468, walk :475,
+  risks :491, overlaps :528), `research/start-path.md`.
 - Slices: S1 measure (Sonnet), S2 gate + settings first (Opus), S3 warm later arrivals (Opus, two Opus checkers), S4
   shipped campus bake (Opus), S5 co-op ready (Opus, two Opus checkers), S6 e2e (Sonnet), S7 docs (Haiku), S8 shorten
-  plan (Opus), S9 kept files + textures (Opus), S10 kept shaders (Opus), S11 lobby preload (Opus, two Opus checkers);
-  S12 one scene + S13 level built in the lobby only if Q3 picks them. W1 = S1, S4, S9.
-- claims-check (~20:00): 33 overlaps across 13 jobs, all listed in PLAN section 7 with an order; wire shared with
-  coop-kit, guard-rules, j19 (the train bumps once). Sector-batch PRs land before S2 / S5 / S6 / S7 / S11.
-- Key facts:
-  - Settings apply after the warm-up: `src/game/gameState.ts:970-975` vs `src/core/app.ts:386`.
-  - Every load rebuilds shared parts: `src/core/app.ts:376` `releaseEffects()`; `src/operators/runtime/figure.ts:230`
-    blob URL per texture; kit / props / art fetch per load (`src/world/kit/kitRender.ts:68`,
-    `src/world/props/propRender.ts:89`, `src/world/campusArt/campusArtRender.ts:132`).
-  - Bake keys carry the seed (`src/world/lightBake.ts:91`, `:95`): co-op (`src/net/session.ts:353`) and solo restarts
-    (`src/main.ts:397`) bake again every start (A16 fixes it live).
-  - Map picked before Start: `src/ui/screens/briefingScreen.ts:33`, co-op `lobby` event `src/net/coopUi.ts:88`, `:448`.
-  - Co-op has no load handshake: host clock starts at once (`src/net/coopHost.ts:1701`).
-- Open for Michael (by day, native multiple choice): Q1 the cap (default 45 s, A2). Q3 how far fixes (3) / (4) go
-  (default option 1, A18 / A19; blocks nothing in W1-W4, only switch-on). Q2 after the after-S11 run (A12, A14).
-- Logged for his next look (to the orchestrator): A14, A15 (48 MB cap), A16 (live), A17, A18 and A19 (both narrow his
-  ~18:50 pick until Q3 is answered).
+  plan to 20 s (Opus), S9 kept files + textures (Opus), S10 kept shaders (Opus), S11 lobby preload (Opus, two Opus
+  checkers). W1 = S1, S4, S9.
+- claims-check (~20:15): 37 plans, 36 overlaps across 13 jobs, all ordered in PLAN section 7; coop4 (#317) and
+  coop-real (#388) have no claims block and are listed by diff.
+- Key facts: settings apply after the warm-up (`gameState.ts:970-975` vs `app.ts:386`); `releaseEffects()` at
+  `app.ts:376`; bake keys carry the seed (`lightBake.ts:91`, `:95`; A16 fixes it live); co-op has no load handshake
+  (`coopHost.ts:1701`); #317 sets `capacity('sector')` to `SECTOR_MAX` 4 and `session.cap` / `startMatch` slots.
+- Logged for Michael's next look: A14, A15 (48 MB cap; an over-cap re-plan is a new A-line), A16 (live), A17.
 
-Next: fresh Opus plan checker (check 3)
+Next: lead verifies check-3 fixes; then W1 builder briefs
 
 ## Done
 - 2026-10-25: worktree and branch; research `research/start-path.md` (93c63a70); BRIEF (adaa8274); PLAN (cd4eb116);
   plan check 1 FIX (7b0ad5ae); BRIEF revised (5e8a5e64); research rows 14-15 (49ce2de0); PLAN revised (7394cf82);
-  plan check 2 FIX (66cceedc); BRIEF / PLAN revised for it (Q3, checker and test gates, claims, sector-batch).
+  plan check 2 FIX (66cceedc); fixes (004d39ea); plan check 3 FIX (2bed4b0b); check 3 fixes and Q1 / Q3 answers.
 
 ## History
 - 2026-10-25: job opened by Night Shift | Sector Ops Build from ROADMAP row 17 (J21: Q31, Q32).
 - 2026-10-25 ~19:30: Michael's ~18:50 near-instant-loads pick folded (fixes 1-4: S2 / S3, S4, S11, S9 / S10).
-- 2026-10-25 ~20:00: plan check 2 fixes folded; A18 / A19 routed to Michael as Q3 (S12 / S13 if he picks the full
-  version).
+- 2026-10-25 ~20:00: plan check 2 fixes folded; A18 / A19 routed to Michael as Q3.
+- 2026-10-25 ~20:05: Q3 sent to the orchestrator by the lead; Michael answered Q3 (option 1) and Q1 (20 s).
+- 2026-10-25 ~20:15: plan check 3 fixes folded (Q16 / #317, S4 over-cap routing, S10 co-op gate, polish).

@@ -8,10 +8,13 @@ Findings with file:line: `docs/map-ready/research/start-path.md` (rows 1-15 belo
 Michael's four fixes and where they are built: (1) settings before the warm-up, characters / guards / weapons warmed
 behind the loading screen: S2 (`quality`, `bodies`, `shaders`) and S3. (2) campus lamp bakes shipped pre-built: S4.
 (3) loading starts in the lobby once the map is picked: S11, with S5's start handshake. (4) characters, guards, weapons
-and compiled shaders kept between maps: S9 (files and textures) and S10 (compiled shaders). As planned, (3) and (4)
-are narrower than his words (the level is built at Start, each match gets a fresh scene: BRIEF A18, A19); BRIEF Q3
-asks him. Q3's second or third option adds S12 (one scene, only the level swapped) and S13 (the level built in the
-lobby), sketched at the end of section 3; until he answers they are not built. Plan check 2: `PLAN-CHECK-2.md`.
+and compiled shaders kept between maps: S9 (files and textures) and S10 (compiled shaders). (3) and (4) are built as
+Michael picked on Q3 (~20:05, option 1): the level is built at Start, each match gets a fresh scene (BRIEF A18, A19).
+S12 (one scene, only the level swapped) and S13 (the level built in the lobby) stay a sketch at the end of section 3,
+not built unless the after-S11 run reopens them (Q2). The cap is his Q1 pick (~20:05): 20 s (BRIEF A2); a first-ever
+Epic load cannot meet it yet (cold body compiles 29-44 s), so S2 compiles in priority order and S8 is re-planned to
+close the gap (section 3). Plan checks 2 and 3: `PLAN-CHECK-2.md`,
+`PLAN-CHECK-3.md` (FIX: Q16 4-player Sector Ops and #317 order, S4's over-cap routing, S10's co-op gate; folded here).
 
 ## 1. Claims
 ```claims
@@ -69,6 +72,7 @@ files:
   - scripts/prebake.mjs
   - scripts/prebake/**
   - scripts/e2e-lib.mjs
+  - scripts/e2e-net-lib.mjs
   - scripts/e2e-sectorops.mjs
   - scripts/e2e-ctcourse.mjs
   - scripts/e2e-lightbake.mjs
@@ -82,8 +86,8 @@ maps: campusOps, ctcourse, warehouse
 protocol: mr, go
 save: none
 ```
-`package.json` (the `build` script gains the prebake) and the changelog fragment `changes/feature-map-ready.md` are
-shared files (not claimed). Save: none (the IndexedDB bake cache keys drop the seed, A16: a cache key, not the save
+`package.json` (the `build` script gains the prebake), `.gitignore` (one line, `.prebake-cache`, S4) and the changelog
+fragment `changes/feature-map-ready.md` are shared files (not claimed). Save: none (the IndexedDB bake cache keys drop the seed, A16: a cache key, not the save
 shape; old entries age out through the cache's own keep-2 index). Wire: `mr` and `go` are new; `snap` is sent during
 the hold with the clock at 0 (same shape); the lobby preload sends nothing (A19). The train bumps `PROTOCOL_VERSION`;
 no test asserts its number.
@@ -106,7 +110,7 @@ the lobby preload (S11) and the kept parts (S9, S10) most steps are already true
 | `bake-all` | every section landed (`sections.done`, or a shipped / cached hit) and no atlas tile queued (`lamps.tilesPending === 0`) | 6, 12 | yes (then today's background bake) |
 | `audio` | the weapon sound sprite and the first music cue decoded | 13 | yes |
 | `warm` | `WARM_FRAMES` (5) rendered behind the boot screen with every step above true and `shaderCount()` unchanged | 1, 2, 8 | yes |
-| `peers` (co-op) | host: every start player's `mr` in, or `COOP_READY_GRACE_MS` 15 s past its own ready; client: `go` received | 10 | host grace only |
+| `peers` (co-op) | host: every start player's `mr` in (counted from the session at the start: up to 4 in Sector Ops after #317, 2 in Marlow Yard; BRIEF A5), or its own 20 s cap plus `COOP_READY_GRACE_MS` 5 s; client: `go` received | 10 | host grace only |
 
 Release: the boot screen fades (`main.ts:412` moves from `create`'s `finally` to the gate's end), input goes live, the
 sim's first fixed step runs, `sections.markPlaying()` (the cache write happens then when every lamp is in: S4), then
@@ -114,7 +118,9 @@ the opening plays from the release: the 2.8 s letterbox, the banners and the sta
 popup's "fade in on each new objective" is triggered by re-applying the current objective at the release, so its ~5 s
 hold is never spent behind the loading screen). With `mapReady` off nothing of this runs (today's order).
 
-The cap: `MAP_READY_CAP_MS` 45 s from the end of `World.create` (A2, Q1), `?readyCap=<s>` 5-600. Hidden tab: the
+The cap: `MAP_READY_CAP_MS` 20 s from the end of `World.create` (Michael's Q1 pick, A2), `?readyCap=<s>` 5-600. The
+`shaders` step compiles in priority order (S2): the player's and partners' bodies and weapons, the live section's
+level materials, guards nearest first, then the rest, so a cap hit leaves only far parts compiling after the reveal. Hidden tab: the
 gate ticks every 100 ms like the menu (`menuScene.ts:332-345`).
 
 ## 3. Slices
@@ -144,7 +150,7 @@ warehouse; Epic; a cold run (fresh profile: no bake or shader cache), 3 cached r
   against `performance.md:25-26` (A14), and a co-op campus row showing `baked` on every start (A16's bug).
 - Flag: none (read-only counters, render side; gameplay reads none).
 
-**S2 The gate, the hold, settings first (Opus 5.5). Fix (1).** `game/mapGate.ts` (pure, the steps in section 2 minus
+**S2 The gate, the hold, settings first (Opus 5.5; Opus checker). Fix (1).** `game/mapGate.ts` (pure, the steps in section 2 minus
 S3-S5's parts), the `mapReady` flag, and in `GameState.create` / `main.ts` with the flag on: apply quality before the
 warm-up (`quality` step: today it runs after it, `core/app.ts:386` vs `gameState.ts:970-975`); `app.setState` with the
 state held (no fixed steps, `simulating` false, input off, clock 0; the frame update still poses rigs and renders);
@@ -162,15 +168,23 @@ a held sim).
   e2e-lib change runs the full set) plus, by hand request, `e2e-sectorops` part 6 and `e2e-lightbake` with
   `mapready=1`, and `e2e-coop` + `e2e-netmove` (the `NetAttachment` change; RULES "Test tiers" checker gate); one
   laptop alone measure run with `?mapready=1` against S1's baseline.
-- Done looks like: flag off, every suite as before; flag on, campus and warehouse at Epic reveal with 0 programs and 0
-  pop-ins in the after-window (guards spawned later and co-op stay open until S3 / S5); the letterbox, banners and the
-  objective popup start at the release, none during the hold.
+- Compile order for the 20 s cap (Q1): the `shaders` step compiles in priority order (`material.forceCompilationAsync` per mesh, in this
+  order: the player's and partners' bodies and weapons, the live section's level materials, guards nearest first,
+  then everything else), so on a first-ever Epic load (cold body compiles 29-44 s, over the cap) what the player sees
+  first is ready at the reveal and only far parts finish after it.
+- Done looks like: flag off, every suite as before; flag on, campus and warehouse at Epic, on a load with the
+  shaders in the browser cache (a reload or a second load), reveal within 20 s with `capHit` false and 0 programs and
+  0 pop-ins in the after-window (guards spawned later and co-op stay open until S3 / S5); on a first-ever (fresh
+  profile) Epic load, the reveal is at most 20 s, the player's and partners' bodies and weapons and the live
+  section's materials are compiled at the reveal, and the programs still compiling after it are counted (S1) for S8;
+  the letterbox, banners and the objective popup start at the release, none during the hold.
 - Order: after S1. Against `feature/hud-guidance`: its A1 deletes `blips?()` from `NetAttachment` (its PLAN:249) where
   S2 adds two hooks, and its B1 adds the objective popup. S2 cuts from the master after hud-guidance PR A if A is on
   master by then; otherwise S2 goes first and A rebases (one-line conflict in the interface). If B1 is not on master
   when S2 lands, S2's release re-applies the current objective through `hud.setObjective` (today's call), which B1's
   popup then shows; B1's builder keeps that call (noted in both PRs). After `feature/sector-batch` PR A / PR B
-  (`main.ts`, `gameState.ts` `NetHooks`, `flags.ts`; section 7) or rebase on them.
+  (`main.ts`, `gameState.ts` `NetHooks`, `flags.ts`; section 7) or rebase on them. After #317 `feature/coop4`
+  (`gameState.ts`, `flags.ts`; section 7): S2 cuts from the master that carries #317, or rebases if it slips.
 - Flag: `mapReady`.
 
 **S3 Warm what arrives later (Opus 5.5; two independent Opus checkers, Guard AI reviews the `src/ai` part: RULES "A
@@ -194,7 +208,7 @@ time from the current map data, never committed, read only on an exact key match
    game and the prebake; the seed leaves both keys (A16, live, not flagged: research row 15).
 2. Prebake: `scripts/prebake.mjs` runs `npx vitest run --config scripts/prebake/vitest.prebake.config.ts` (the
    `scripts/light-measure` pattern: TS in Node, no new package). It builds campusOps in Node as
-   `tests/sectionBakeCampus.test.ts` does, takes the key, and, unless `node_modules/.cache/prebake/<key>/` holds it,
+   `tests/sectionBakeCampus.test.ts` does, takes the key, and, unless `.prebake-cache/<key>/` holds it,
    bakes each section's lamps with the same `bakeLamps` the workers run (one test file per section, so the vitest pool
    bakes them in parallel; S1 is the long pole, 88.6 s single thread, research row 6), then writes per section
    `campusOps-s<k>.bin.gz` (Node `zlib` gzip of a small header + the section's `boxes`, `vis`, bounce `boxes` / `data`
@@ -214,9 +228,13 @@ time from the current map data, never committed, read only on an exact key match
    needs a change in `voxel/lampJobs.ts`, it is in S4's files). The `bake-all` wait for every section is S2's
    (`game/mapGate.ts`); S4 runs in W1 before S2 and only exposes `sections.done` as today.
 5. CI: `.github/workflows/deploy.yml` (build-check and the deploy builds) and `preview.yml` restore / save
-   `node_modules/.cache/prebake` with `actions/cache`, key `prebake-${{ hashFiles('src/**', 'scripts/prebake/**') }}`
+   `.prebake-cache` with `actions/cache`, key `prebake-${{ hashFiles('src/**', 'scripts/prebake/**') }}`
    and `restore-keys: prebake-` (the newest folder comes back on any miss; the prebake reads it only under the exact
-   lamp key, so a build without a lamp or level change bakes nothing even when other `src` files moved).
+   lamp key, so a build without a lamp or level change bakes nothing even when other `src` files moved). The folder
+   is `.prebake-cache/` at the repo root (gitignored, the `.music-cache` pattern), not under `node_modules`: CI already
+   saves `node_modules` itself on the `package-lock.json` key (`deploy.yml:54-58`), so a folder inside it would ride
+   that save too. `prebake.mjs` prunes after each run: only the current key's folder stays, so `restore-keys` never
+   carries old lamp keys forward.
 - Files: `src/world/lightBake.ts`, `src/world/shippedBake.ts`, `src/voxel/sectionJobs.ts`, `src/voxel/lampJobs.ts`
   (only if the shipped-hit skip needs it), `src/pwa/runtimeCaching.ts`,
   `src/pwa/precacheGlobs.ts`, `vite.config.ts`, `scripts/prebake.mjs`, `scripts/prebake/**`,
@@ -234,37 +252,61 @@ time from the current map data, never committed, read only on an exact key match
   bake worker started; a co-op campus start with the flag off hits the IndexedDB cache from its second start (A16);
   PLAN / STATE record the measured file sizes and the prebake's seconds on CI and on the desktop; a dev build (no
   bakes) still bakes on the PC.
-- Order: parallel with S1 (disjoint files). If the first prebake is over the cap, S4 stops before the runtime part and
-  the planner re-plans (ship S1-S2 sections only, or quantise `vis`), logged as an A-line.
+- Order: parallel with S1 (disjoint files). If the first prebake is over the cap (16 MB a file or 48 MB the map), S4
+  stops before the runtime part and the planner re-plans by one of two paths, each logged as a new BRIEF A-line and
+  sent to the orchestrator for Michael's next look (one click by day; overnight assumed and logged, G358): ship fewer
+  campus sections pre-built (the rest bake on the PC), marked "narrows Michael's ~18:50 pick (2)"; or raise the 48 MB
+  download, marked "changes Q1's decision pack" (the new size added to that pack). A lossless repack needs no log; a
+  lossy one (quantised `vis`) breaks A15's parity and is not taken (BRIEF A15). The re-planned S4 gets a fresh Opus
+  plan checker before its runtime part is built.
 - Flag: `mapReady` for the shipped read and the wait-all; none for the key (A16).
 
 **S5 Co-op: everyone ready before play (Opus 5.5; two independent Opus checkers, Guard AI reviews).** Client: its
 gate runs as solo plus "a hold snapshot applied" in `content`; then it sends `mr` {capHit, ms} and keeps its boot
 screen until `go`. Host: its gate, then holds (clock 0, a snapshot at 2 Hz so clients build puppets and partners,
-nothing else sent) until every start player's `mr` or the grace (A5), then broadcasts `go` and releases. A client with
-no `go` by its cap plus 30 s reveals into the existing "Waiting for host..." text (`net/objectiveMirror.ts`) and the
+nothing else sent) until every start player's `mr` or the grace (A5), then broadcasts `go` and releases. Start players
+(BRIEF A5, Q16): the session's players at `startMatch` (at most `session.cap`: Sector Ops up to 4 once #317 sets
+`SECTOR_MAX` 4, Marlow Yard 2, or the host's lower room cap), read from the session, never a constant 2; a start
+player who leaves during the hold is removed from the wait (the leave path). A client with
+no `go` by its cap plus 10 s reveals into the existing "Waiting for host..." text (`net/objectiveMirror.ts`) and the
 host-drop path. Boot bar text in the `peers` step (through S2's step-text hook): "Waiting for partner" on the host and
-on a client waiting for `go` (walk item 3). Late joiners and rejoiners: local gate only, never `mr` / `go`. `mr` joins the host whitelist
+on a client waiting for `go` (walk item 3; 3-4 players: "Waiting for players 2 / 4", the ready count). Late joiners and
+rejoiners: local gate only, never `mr` / `go`. `mr` joins the host whitelist
 (`session.ts:205`); both get `parseMessage` cases (`protocol.ts:796-1046`).
 - Files: `src/net/protocol.ts`, `src/net/session.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`,
-  `tests/mapReadyNet.test.ts`, `scripts/e2e-ctcourse.mjs` (the co-op assertions). Est. lines: 650.
+  `tests/mapReadyNet.test.ts`, `scripts/e2e-ctcourse.mjs` (the co-op assertions), `scripts/e2e-net-lib.mjs`
+  (`hostAndJoin` today opens every joiner with a fixed `net=local`, `:199` on coop4: it passes the host's extra params,
+  so `mapready=1` reaches every page, and `startMode` waits for `__mapReady.released` on every page when it is set),
+  `scripts/e2e-sectorops.mjs` (#317's four-page `coop4()` helper takes `mapready=1` into its `params`: one line).
+  Est. lines: 700.
 - Checks: vitest `tests/mapReadyNet.test.ts tests/net.test.ts tests/coopRejoin.test.ts tests/protocolConst.test.ts`,
-  tsc; the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse` (and `e2e-sectorops` co-op part) green, flag off
-  and on.
+  tsc. `tests/mapReadyNet.test.ts` covers a 2-player course start and a 3- and a 4-player sector start: the host waits
+  for every start player's `mr` (the last one sent late), then sends exactly one `go`; a start player leaving during the
+  hold is dropped from the wait; a fourth player joining after `start` sends no `mr` and never holds. e2e: the co-op
+  group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse` (and `e2e-sectorops` co-op part) green, flag off and on; and, with
+  `mapready=1` on every page, #317's 4-player Sector Ops part (`e2e-sectorops` part 7 on coop4 today, campusOps, four
+  pages; its warehouseOps part with the late fourth page too: the late page never holds), requested by hand
+  (`request.mjs`) under its part number on master after #317.
 - Done looks like: in `e2e-ctcourse` with `mapready=1` the host's sim time is 0 until `go`, both pages reveal within
-  1 s of each other, the client's guards and partner exist at its reveal, a rejoin still works.
-- Order: after S2 and after `feature/player-batch-j19` S3 (it adds `ff` to `lobby` / `start` and edits `session.ts`
-  start handling, the exact path S5 holds): S5 cuts from the master that carries j19 S3 and adds no field to `lobby` or
-  `start`. If j19 S3 slips past S2's merge by more than a day, S5 goes first and j19 S3 rebases (different messages;
-  the train bumps `PROTOCOL_VERSION` once for both).
+  1 s of each other, the client's guards and partner exist at its reveal, a rejoin still works; in the 4-player Sector
+  Ops part with `mapready=1` the host's sim time is 0 until `go` and all four pages reveal within 1 s of each other.
+- Order: after S2, after #317 `feature/coop4` (it rewrites `session.ts` start and slot handling, `coopHost.ts`,
+  `coopClient.ts`, `protocol.ts` `capacity`; section 7): S5 cuts from the master that carries #317 (ROADMAP row 10
+  before this job's row 17), or rebases if it slips; and after `feature/player-batch-j19` S3 (it adds `ff` to
+  `lobby` / `start` and edits `session.ts` start handling, the exact path S5 holds): S5 cuts from the master that
+  carries j19 S3 and adds no field to `lobby` or `start`. If j19 S3 slips past S2's merge by more than a day, S5 goes
+  first and j19 S3 rebases (different messages; the train bumps `PROTOCOL_VERSION` once for both).
 - Flag: `mapReady` (off: no `mr` / `go` sent, no hold snapshots).
 
 **S6 The e2e proof (Sonnet 5.5 from an Opus brief).** "Nothing builds after ready", in the suites that own each
 map's start: `e2e-sectorops` part 6 (campusOps, `scripts/e2e-sectorops.mjs:1946-1957`), `e2e-ctcourse` (ctcourse
 solo and co-op, `:39`, `:305-309`), `e2e-lightbake` (warehouse at min / low / epic, `:18`). Each with `mapready=1`:
 wait for `__mapReady.released`; stand still for 10 s of rendered frames; assert the after-window: 0 programs created,
-0 frames tagged `shaders`, 0 landings and tile uploads, 0 pop-ins, `released` true. `capHit` false is asserted only on
-the GPU runs (software GL may hit it; it then asserts the fallback kept the live section lit). Plus: campus
+0 frames tagged `shaders`, 0 landings and tile uploads, 0 pop-ins, `released` true. `capHit` false (20 s cap) is
+asserted only on GPU runs whose shaders are already in the browser cache (the second load in the page, or a profile
+that has loaded the map before); a fresh-profile GPU run and software GL may hit the cap: they assert the reveal by
+20 s, the live section lit, and the player's and partners' bodies and weapons compiled at the reveal (S2's priority
+order), and log the after-window counts instead of asserting 0 (S8 closes that gap). Plus: campus
 `bakeSource === 'shipped'` (S4); `e2e-lightbake` loads warehouse, quits to the menu and loads it again in the same
 page: the second load compiles 0 programs during its gate and reuses every body texture (S9, S10); `e2e-ctcourse`
 co-op: both lobby preloads report done before the host's Start (S11).
@@ -272,43 +314,51 @@ co-op: both lobby preloads report done before the host's Start (S11).
 - Checks: those three suites on the laptop queue (`E2E_GPU=1`), solo reruns per `docs/systems/testing-tools.md`.
 - Done looks like: the three suites green with the assertions; a deliberate late compile (a test-only material made
   after the release) fails them (shown once in the PR body).
-- Order: after S5 and S11; after `feature/test-runner-j20` S6c (alive-at-start) and `feature/hud-guidance` A (one
-  assert per suite) and `feature/sector-marks` B1 (`e2e-sectorops.mjs`) merge, or appended without editing their lines.
+- Order: after S5 and S11; after #317 `feature/coop4` (its `e2e-sectorops.mjs` +1014 lines, parts 7-9; section 7):
+  S6 cuts from the master that carries #317, or rebases if it slips; after `feature/test-runner-j20` S6c
+  (alive-at-start) and `feature/hud-guidance` A (one assert per suite) and `feature/sector-marks` B1
+  (`e2e-sectorops.mjs`) merge, or appended without editing their lines.
 - Flag: the suites set `mapready=1` themselves.
 
-**S7 Docs and the budget lines (Haiku 5.5; after Q1 and the after-S11 run).**
+**S7 Docs and the budget lines (Haiku 5.5; after the after-S11 run; Q1 answered: 20 s).**
 - Files: `docs/systems/performance.md` (line 81 only: "Loading: ... <= `WARMUP_MAX_MS`" becomes the line below; lines
   25-26 untouched, A14), `docs/systems/lighting.md` ("Per-section lamp bake": the shipped bake, the seed-free key, the
   wait-all rule), `docs/systems/testing-tools.md` (`__mapReady`, `?readyCap=`, the after-window, the prebake and its
   cache folder), `TESTING.md` (one checklist line), `changes/feature-map-ready.md` (`kind: minor`). Est. lines: 150.
 - Checks: CI `check` (doc lint); the lead reads the performance.md diff against A2 / A12 / A14.
-- Done looks like: performance.md line 81 is the proposed line with Q1's answer (or 45 s and "Q1 pending"), lines
+- Done looks like: performance.md line 81 is the proposed line with Q1's answer (20 s), lines
   25-26 byte-identical to master; lighting.md names `scripts/prebake.mjs`, the manifest and the key rule;
   testing-tools.md lets a new agent read `__mapReady` without opening code.
 
 Proposed performance.md line (numbers are starting values, G10; pending a PC run):
 > - Map ready (map-ready; `?mapready=1` until switched on): the loading screen stays up until the map is built and
 >   warmed (`game/mapGate.ts`: lamps, shaders for the settings in use, bodies, weapons, the probe, every Saltmarsh Park
->   section), at most `MAP_READY_CAP_MS` 45 s after the level is built (Q1); past it play starts with what is ready
->   (the live section's lamps always). After the reveal, standing still for 10 s: 0 shader programs created, 0 lamp
+>   section), at most `MAP_READY_CAP_MS` 20 s after the level is built (Michael, Q1, 2026-10-25); past it play
+>   starts with what is ready (the live section's lamps always; the player's view compiles first). After the reveal, standing still for 10 s: 0 shader programs created, 0 lamp
 >   landings or atlas tile uploads, 0 body or weapon mesh swaps, frame p95 within the rendered-frame-interval line.
->   Co-op: play starts when every player is ready (15 s grace). Aim (Michael, 2026-10-25): a first-ever load takes
->   seconds (shaders compile per GPU), a repeat load is near-instant; the measured goals follow his review (Q31, Q2).
+>   Co-op: play starts when every player is ready (at most the cap plus a 5 s grace). Aim (Michael, 2026-10-25):
+>   a first-ever load takes seconds (shaders compile per GPU), a repeat load is near-instant; the measured goals follow his review (Q31, Q2).
 
-**S8 Shorten the wait: plan (Opus 5.5).** From S1's baseline and the after-S11 run: where the first-ever seconds
-still go once fixes (1)-(4) are in, then a plan for the biggest cut. Candidates: fewer Epic body variants (the V12
-body-shader slice: hand over if it has an owner, A13); character and live-section shaders first in the compile order;
-`KHR_parallel_shader_compile` use; a warm scene in the lobby that compiles the match's character variants with the
-match's defines (the step past S11's data preload, A19); Marlow Yard / warehouse bakes into the manifest (A17).
+**S8 Shorten the wait: plan (Opus 5.5; re-planned for Q1's 20 s).** Target: a first-ever Epic load of campusOps,
+Marlow Yard and warehouse on the laptop reveals within Michael's 20 s cap with `capHit` false (today's cold Epic body
+compiles alone are 29-44 s, V12, so the cap cuts every first-ever Epic load until this lands). From S1's baseline
+(not waiting for S11): where the first-ever seconds go, then a plan for the cuts that close the gap. Candidates: fewer
+Epic body variants (the V12 body-shader slice: hand over if it has an owner, A13); `KHR_parallel_shader_compile` use;
+a warm scene in the lobby that compiles the match's character variants with the match's defines (the step past S11's
+data preload, A19); the Marlow Yard / warehouse PC bake started in the lobby or moved into the manifest (A17; BRIEF
+Q3's pack). S2's priority compile order is already in (not a candidate).
 - Files: `docs/map-ready/SHORTEN.md` (new). Est. lines: 150 (doc).
-- Checks: a fresh Opus plan checker reads SHORTEN.md against BRIEF (A12, A13) and the numbers; the lead accepts it.
-- Done looks like: SHORTEN.md names the top 3 remaining costs in seconds from the laptop run, one chosen cut with its
-  files, size (a build slice under 800 lines), model and checks, and what it hands to the V12 owner if one exists.
-- Order: its plan after the after-S11 laptop run; its build slice joins this PLAN as S14 when accepted (S12 / S13 are
-  Q3's).
+- Checks: a fresh Opus plan checker reads SHORTEN.md against BRIEF (A2, A12, A13) and the numbers; the lead accepts it.
+- Done looks like: SHORTEN.md names the first-ever Epic seconds per map against 20 s from S1's laptop run, the cuts
+  chosen to get under it (each a build slice under 800 lines, with files, model and checks, as S14, S15, ...), the
+  expected seconds after each, and what it hands to the V12 owner if one exists. If the cuts cannot reach 20 s at
+  Epic, it says so with the numbers and the lead sends that to the orchestrator for Michael (Q2), never a silent
+  miss.
+- Order: its plan right after S1's baseline and S2 (W2), so its build slices run alongside W3-W4; the after-S11 run
+  re-measures against 20 s. S12 / S13 are not built (Q3 option 1).
 
-**S9 Kept parts: model files and textures (Opus 5.5). Fix (4).** A `core/keptParts.ts` holder that lives on the
-`App` (not on a match): (a) one parsed-file cache for every GLB the match reads: kit, props and campus art move from
+**S9 Kept parts: model files and textures (Opus 5.5; Opus checker). Fix (4).** A `core/keptParts.ts` holder that
+lives on the `App` (not on a match): (a) one parsed-file cache for every GLB the match reads: kit, props and campus art move from
 fetch-per-load (`kit/kitRender.ts:68`, `props/propRender.ts:89`, `campusArt/campusArtRender.ts:132`) onto the
 operator file cache (`operators/runtime/figure.ts:131-172` `loadModel`); (b) textures: `figure.ts` `texture()`
 (`:226-240`) makes each image's URL a fresh blob URL (`:230`), so Babylon's engine texture cache (Babylon 9.29
@@ -353,7 +403,10 @@ PR) or its material is kept out of the budget.
   `src/player/smoothBodyPlugin.ts`, `src/operators/runtime/guardFigurePlugin.ts`, `src/cosmetics/patternPlugin.ts`
   (`world/bakedLamps.ts` is already claimed). Est. lines: 550 (+ up to ~20 a plugin).
 - Checks: vitest `tests/pluginCode.test.ts tests/keptParts.test.ts`, tsc; affected e2e plus `e2e-lightbake` (repeat
-  load in the page, S6's assert run by hand before S6 lands) and `e2e-desktop` (quality changes mid-match still apply).
+  load in the page, S6's assert run by hand before S6 lands) and `e2e-desktop` (quality changes mid-match still apply);
+  and always `e2e-coop` + `e2e-netmove`, requested by hand (`request.mjs`), flag off and on: `releaseState` runs on
+  every co-op restart, and the audit may edit `src/player/smoothBodyPlugin.ts` (RULES "Test tiers" checker gate for
+  `src/player`; `DIRECT_COVERS` does not add them). The checker passes only when they are green.
 - Done looks like: the second load of a map in the same page creates 0 new programs for kept materials (S1 counter);
   the heap after 3 loads stays within 5% of after 1; a quality preset change compiles its new variants as today.
 - Order: after S9 (same files). Flag: `mapReady` (off: `releaseEffects()` as today).
@@ -377,13 +430,15 @@ change cancels the old preload; leaving the lobby or briefing drops what the kep
   seconds on a first-ever load and near-instant on a repeat (the after-S11 run, A12); in co-op both lobby lines read
   "Map ready" before the host's Start and S5's handshake releases both together.
 - Order: after S2 (`main.ts`), S3 (`guardKindsFor`, audio promises), S4 (`shippedBake.ts`), S9 (kept parts), and after
-  `feature/player-batch-j19` S3 (its lobby rows, `coopUi.ts:518-526`) and `feature/sector-batch` PR A / PR B
-  (`briefingScreen.ts` :57 / :60, `main.ts`; section 7). Then the after-S11 laptop alone run (same
-  script as S1) feeds Q2 and S8.
+  `feature/player-batch-j19` S3 (its lobby rows, `coopUi.ts:518-526`), #317 `feature/coop4` (`coopUi.ts` lobby slots;
+  section 7: S11 cuts from the master that carries #317, or rebases if it slips) and `feature/sector-batch` PR A /
+  PR B (`briefingScreen.ts` :57 / :60, `main.ts`; section 7). Then the after-S11 laptop alone run (same
+  script as S1) feeds Q2 and re-measures S8 against 20 s.
 - Flag: `mapReady` (off: no preload, no lobby line).
 
-**S12 and S13: Michael's fixes (3) and (4) in full (only with Q3's second or third option; sketch, not briefed).**
-Neither is built until Q3 picks it. When picked, the planner researches them (`research/one-scene.md`: every system
+**S12 and S13: one scene and the level built in the lobby (not built: Michael picked Q3 option 1, ~20:05; sketch
+only).** Neither is built. If the after-S11 run shows repeat loads above near-instant and Michael reopens it (Q2), the
+planner researches them (`research/one-scene.md`: every system
 that holds a scene reference and its clean-up), writes them out in this section with files and checks, and a fresh
 Opus plan checker passes them before any build.
 - S12 One scene, only the level swapped (Opus 5.5; two independent Opus checkers, Guard AI reviews `src/ai` and
@@ -401,18 +456,19 @@ Opus plan checker passes them before any build.
   shaders compile in the lobby. Never two levels at once: a map change disposes the half-built one. Est. ~700 lines.
   Order: after S12. Memory: the menu stage plus one level in the lobby, inside the unchanged memory target
   (FOLDED-PLAN Q4).
-- With Q3's first option neither is built; they return only if the after-S11 run shows repeat loads above
-  near-instant (Q2).
+- Under Q3 option 1 (picked) neither is built; they return only if the after-S11 run shows repeat loads above
+  near-instant and Michael reopens it (Q2).
 
 Order: W1 (now, disjoint files): S1, S4, S9. W2: S2 (after S1), S10 (after S9). W3: S3 (after S2), S5 (after S2 and
-j19 S3). W4: S11 (after S2, S3, S4, S9, j19 S3). W5: S6 (after S5, S11), then the after-S11 laptop alone run, S8's
-plan, Q2. S7 after Q1 and that run. S12 then S13 after S11, only if Q3 picks them. Parallel slices run in their own
-worktrees (`feature/map-ready-s<k>`).
+j19 S3). W4: S11 (after S2, S3, S4, S9, j19 S3). S2, S5, S6 and S11 also cut from the master that carries #317
+`feature/coop4` (ROADMAP row 10, before this job's row 17), or rebase if it slips (section 7). S8's plan (Q1's 20 s) right after S1 and S2;
+its build slices (S14, ...) alongside W3-W4. W5: S6 (after S5, S11), then the after-S11 laptop alone run, Q2. S7
+after that run. S12 / S13 are not built (Q3 option 1). Parallel slices run in their own worktrees (`feature/map-ready-s<k>`).
 
 ## 4. Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
 | --- | --- | --- | --- | --- |
-| `mapReady` (`?mapready=1`) | off | Night Shift \| Sector Ops Build | after the Sector Ops and Marlow Yard walks land (both at cap), target 2026-11-01 | S2-S6 and S9-S11 passed (and S12 / S13 if Q3 adds them), Q1 and Q3 answered, Michael accepts the walk items below on campusOps (solo, co-op) and Marlow Yard (co-op) |
+| `mapReady` (`?mapready=1`) | off | Night Shift \| Sector Ops Build | after the Sector Ops and Marlow Yard walks land (both at cap), target 2026-11-01 | S2-S6 and S9-S11 passed (Q1 and Q3 are answered, ~20:05: the switch-on no longer waits on them), Michael accepts the walk items below on campusOps (solo, co-op) and Marlow Yard (co-op) |
 
 A16 (the seed-free bake key) is not behind the flag: same bytes, a cache bug fix.
 
@@ -421,11 +477,12 @@ Sector Ops (campusOps):
 - Main menu > Sector Ops > Saltmarsh Park, solo, first load after the update: the briefing shows "Map loading" then
   "Map ready"; after Start the loading bar walks its steps; when the map appears nothing changes on screen (no lights
   coming on, no textures swapping, Wren and the gun detailed, guards in place), no hitch in the first 10 s - accept
-  when the first 10 s look finished and the wait felt like seconds, not tens of seconds.
+  when the loading screen is gone within 20 s (his Q1 cap) and the first 10 s look finished (until S8's cuts land, a
+  first load at Epic may still finish far details in play: the walk card says so).
 - Quit to the menu and start Saltmarsh Park again (and then another map): accept when the map appears almost at once
   and still looks finished.
 - Co-op > Sector Ops with a partner, one PC slower: the faster player waits on "Waiting for partner" - accept when
-  play starts for both at once.
+  play starts for both at once. Then with 3 or 4 players (Q16): accept when play starts for everyone at once.
 Marlow Yard (ctcourse):
 - Co-op > Marlow Yard with a partner: wait in the lobby until both lines say "Map ready", then Start - both loading
   screens drop together almost at once; the partner and the first bay's guards are already there - accept when
@@ -446,7 +503,7 @@ Marlow Yard (ctcourse):
   `actions/cache` key keeps other builds at zero. The laptop's e2e builds bake once per lamp change in each checkout.
 - Prebake on local builds: it runs in every `npm run build`, flag on or off, so each worktree's first build after a
   lamp or level change spends ~90 s of all cores (vitest pool) on the desktop and the laptop. Against the desktop CPU
-  target (RULES "Machines"): `node_modules/.cache/prebake` is per worktree, so parallel jobs each bake once per lamp
+  target (RULES "Machines"): `.prebake-cache` is per worktree, so parallel jobs each bake once per lamp
   change; S4 logs the desktop seconds and, if a busy desktop shows the cost, adds `PREBAKE=0` (skip; the build then
   has no shipped bake and the PC bakes as today) for non-release builds, noted in testing-tools.md by S7.
 - Kept effects (S10) are the 3.1.7 leak's ground: a missed back-reference keeps a whole match alive. Mitigation: the
@@ -459,20 +516,37 @@ Marlow Yard (ctcourse):
 - `DIRECT_COVERS` has no campusOps entry (`scripts/e2e-affected.mjs:297-315`), so campus file changes do not reach
   `e2e-sectorops` by themselves; J20 T5 (`feature/test-runner-j20`) adds it. Until that merges the lead requests
   `e2e-sectorops` part 6 by hand on S2 / S4 / S11 PRs.
-- Q1 (cap) is Michael's: until answered the build uses 45 s behind the dark flag (A2, logged overnight). Q2 (load
-  numbers, the warehouse line) comes after the after-S11 run (A12, A14). Q3 (how far fixes (3) and (4) go): until
-  answered S9-S11 build option 1 (A18, A19, logged as narrowing his pick); options 2 and 3 add S12 / S13 after S11,
-  so no W1-W4 work is wasted either way.
+- Q1 answered (~20:05, "20 seconds", A2) and Q3 answered (~20:05, option 1, A18 / A19). Q2 (load numbers, the
+  warehouse line) comes after the after-S11 run (A12, A14).
+- The 20 s cap on a first-ever load: cold Epic body compiles are 29-44 s (V12), so until S8's cuts land every
+  first-ever Epic load hits the cap and finishes its far compiles in play (S2's priority order keeps the player's
+  view ready). Dev builds with no shipped bake (cold campus live section ~22 s at 4 workers) and a first-ever Marlow
+  Yard / warehouse PC bake also outlast 20 s, because the live lamps are never cut (A3); A17 moves a slow one into the
+  manifest. A co-op start waits at most the host's 20 s cap plus the 5 s grace (A5). If S8 cannot reach 20 s at Epic,
+  the numbers go to Michael (Q2).
 
 ## 7. Overlaps
-`node scripts/claims-check.mjs --plan docs/map-ready/PLAN.md --name feature/map-ready` (2026-10-25 ~20:00, this
-PLAN after plan check 2): 34 plans with claims, 33 overlaps across 13 jobs (sub-branches of one job counted once
-below), exit 1 (overlaps listed, none a blocker). No other plan claims the new files of S4, S9, S10 or S11
-(`lightBake.ts`, `shippedBake.ts`, `keptParts.ts`, `figure.ts`, kit / props / art renders, `preload.ts`,
-`vite.config.ts`, the workflows, `pwa/*`, `lampJobs.ts`, the five S10 plugin files) except `coopUi.ts` (j19) and
-`briefingScreen.ts` (sector-batch, below). S12 / S13 (Q3) are not claimed yet: their files join this block when they
-are planned, with a new claims-check. Every overlap is a shared big file in other functions; whichever lands second
-rebases on its branch.
+`node scripts/claims-check.mjs --plan docs/map-ready/PLAN.md --name feature/map-ready` (2026-10-25 ~20:15, after
+`git fetch`, this PLAN after plan check 3): 37 plans with claims, 36 overlaps across 13 jobs (sub-branches of one job
+counted once below; `feature/test-runner-j20` with 13 slice branches), exit 1 (overlaps listed, none a blocker). New
+since check 3: `feature/campus-greybox` and `feature/hud-guidance-b2`. No other plan claims the new files of S4, S9,
+S10 or S11 (`lightBake.ts`, `shippedBake.ts`, `keptParts.ts`, `figure.ts`, kit / props / art renders, `preload.ts`,
+`vite.config.ts`, the workflows, `pwa/*`, `lampJobs.ts`, the five S10 plugin files) except `coopUi.ts` (j19, coop4)
+and `briefingScreen.ts` (sector-batch, below). S12 / S13 are not claimed: Q3 picked option 1, so they are not planned
+(section 3). Every overlap is a shared big file in other functions; whichever lands second rebases on its branch.
+Two open PR branches have no claims block, so claims-check cannot see them; found by diffing them against this block
+(`git diff --stat origin/master...origin/feature/<branch>`, 2026-10-25 ~20:15):
+- `feature/coop4` (#317, open, Guard AI release; ships live per Michael's Q16, ROADMAP row 10 before this job's row
+  17): `src/game/gameState.ts` (+69 / -8), `src/core/flags.ts` (+3), `src/net/protocol.ts` (+98 / -11: `SECTOR_MAX` 4,
+  `capacity('sector')`), `src/net/session.ts` (+91 / -10: slots, `cap`, `startMatch`, the start path S5 holds),
+  `src/net/coopHost.ts` (+231 / -37), `src/net/coopClient.ts` (+92 / -18), `src/net/coopUi.ts` (+8 / -8: S11's lobby
+  hook), `scripts/e2e-sectorops.mjs` (+1014 / -3: parts 7-9, three and four pages; S6, S5's 4-player run),
+  `scripts/e2e-net-lib.mjs` (+82; S5's `hostAndJoin` params), `docs/systems/testing-tools.md` (+31 / -3), `TESTING.md`
+  (+5) (S7). Order: S2, S5, S6 and S11 cut from the master that carries #317, or rebase if it slips (each slice's
+  "Order" says so); S7 appends after its rows.
+- `feature/coop-real` (#388, draft, input-only co-op e2e): `scripts/e2e-lib.mjs` (+28 / -9: `browserArgs`,
+  `launchOptions`, `launch` options; S2 edits `openPage`, a different function), `docs/systems/testing-tools.md`
+  (+35 / -1; S7 its own section). No order: whichever lands second rebases.
 - `feature/sector-batch` (Sector Ops, same lead, J18; PR A = B1-B3 on `feature/sector-batch`, PR B = B4 on
   `feature/sector-batch-out`): `gameState.ts` (B4: `returnOut?` in `NetHooks` after :229; S2's hooks go in
   `NetAttachment` :177), `main.ts` (B1: :164, :257 menu stars; S2: :412 boot fade, S11: `app.preload` hook),
@@ -488,8 +562,8 @@ rebases on its branch.
   `coopUi.ts`, `flags.ts`, `gameAudio.ts`; wire `cmove`, `revive`, `lobby`, `start`, `use`. Its S3 adds `ff` to
   `lobby` / `start` and the lobby rows (`coopUi.ts:518-526`). Order: S5 and S11 cut from the master after j19 S3 (S5
   section 3); S3 here and j19 S7 share `gameAudio.ts` in different functions.
-- `feature/hud-guidance` (+ `-a1`, `-a2`, `-a3`; Sector Ops HUD): `gameState.ts`, `courseMode.ts`, `coopHost.ts`,
-  `coopClient.ts`, `e2e-sectorops.mjs`, `e2e-ctcourse.mjs`, `testing-tools.md`, `TESTING.md`. A1 deletes `blips?()`
+- `feature/hud-guidance` (+ `-a1`, `-a2`, `-a3`, `-b`, `-b1`, `-b2`; Sector Ops HUD): `gameState.ts`,
+  `courseMode.ts`, `coopHost.ts`, `coopClient.ts`, `e2e-sectorops.mjs`, `e2e-ctcourse.mjs`, `testing-tools.md`, `TESTING.md`. A1 deletes `blips?()`
   from `NetAttachment` where S2 adds hooks; B1 adds the objective popup S2 defers to the release. Order: S2 section 3.
 - `feature/coop-kit` (Player): `gameState.ts`, `flags.ts`, `protocol.ts`, `coopHost.ts`, `coopClient.ts`; wire
   `tmove`, `tstart`. Different messages; one train may carry several wire members and bumps `PROTOCOL_VERSION` once.
@@ -506,8 +580,15 @@ rebases on its branch.
   the lamp key, so the prebake bakes again on its PR (A15: nothing to sync by hand); S7 edits only the "Per-section
   lamp bake" section of `lighting.md`.
 - `feature/guard-ai-mission-hooks` (Guard AI): `flags.ts` (its own flag lines). One line each.
-- `feature/test-runner-j20` (+ 14 slice branches; Test Runner): `e2e-sectorops.mjs`, `e2e-ctcourse.mjs`,
+- `feature/test-runner-j20` (+ 13 slice branches: `-pra`, `-prb`, `-prc`, `-s1`, `-s2`, `-s3a`, `-s3b`, `-s4`, `-s5`,
+  `-s6a`, `-s6b`, `-s6c`, `-s7`; Test Runner): `e2e-sectorops.mjs`, `e2e-ctcourse.mjs`,
   `testing-tools.md`. S6 / S7 start after its S6c / PR-C merge or append without editing its lines.
 - `feature/route-runs-2` (Marlow): `testing-tools.md` (one new section). S7 appends its own section.
+- `feature/campus-greybox` (Sector Ops, same lead, J17): `flags.ts` (`campusV2`, one line each), `e2e-sectorops.mjs`
+  (new v2 parts; its lead rewrites part 6's numbers at each section switch-on, where S6 adds after-window asserts),
+  `testing-tools.md` (rows); map campusOps. Its PLAN lists map-ready with no order. Order: S6 appends its part 6
+  asserts without editing part 6's numbers; whichever lands second rebases. A switched-on v2 section changes the
+  campus lamp key, so the prebake bakes again on that PR (A15); a page with `?campusv2=` set has another key than the
+  manifest and bakes on the PC as today.
 - `flags.ts` and `gameState.ts` are on most plans: one new flag line; S1 / S2 keep their `gameState.ts` changes to
   `create`, `enter`, the update entry checks and new private members.
