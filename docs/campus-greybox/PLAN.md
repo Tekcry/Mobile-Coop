@@ -44,7 +44,7 @@ Ops C1-C16, Guard AI A1 A2 B14, Marlow V9, Test Runner T6 campusOps half).
 
 No `src/game`, `src/ai` or `src/net` file is claimed (BRIEF A8 replaced; J4 and J26 own those). No wire or save path:
 the layout is not on the wire (every peer opens the same `?campusv2=` link), no save field changes, no `PROTOCOL_VERSION`
-or `SAVE_VERSION` effect. Lighting group ids for new circuits: S2 100-119, S4 120-129, S5 130-139, S3 140-149 (the
+or `SAVE_VERSION` effect. Lighting group ids for new circuits: S2 100-139, S4 140-149, S5 150-159, S3 160-169 (the
 campus uses 40-89; ids go to 4096 on the wire, `protocol.ts` course `lights.groups`).
 
 Rules for every lane (unchanged from P0): a v2 file imports its own v2 files, `../campusParts` and, for joins only, the
