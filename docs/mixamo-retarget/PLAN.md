@@ -61,6 +61,22 @@ M3 checks whether the two shimmies are mirrors of each other (one played mirrore
 either way. A file added later gets its row from the recipe's title words; an unknown file is dumped and listed in
 `CLIPS.md` as "no recipe", never emitted.
 
+## Dump format (M1 writes, M2 reads; fixed 2026-10-25 ~19:50)
+`build/mocap/mixamo/raw/<slug>.json`, all lengths in metres, all frames in Blender world space (Z up, the Mixamo
+character faces -Y after import; M2 measures the facing, never assumes it):
+- `version` 1, `file` (name as downloaded), `slug`, `sha256`, `fps` (scene fps), `frameStart`, `frameEnd`, `frames`
+  (count, `frameEnd - frameStart + 1`), `armature` (object name), `world` (the armature object's world matrix, 16
+  numbers, row-major), `scale` (its uniform scale, ~0.01).
+- `bones`: array in armature order (parents before children), each `{ name, parent }` (`parent` a name or null) plus
+  `rest` = the bone's rest head in world space `[x, y, z]`.
+- `pos`: `{ <bone name>: number[] }`, the world head per frame, flat `x, y, z` triples (`frames * 3` numbers).
+- `rot`: `{ <bone name>: number[] }`, the rest-relative world rotation per frame as `W · R · W⁻¹` with
+  `R = pose_bone.matrix @ bone.matrix_local.inverted()` and `W` the rotation part of `world` (scale removed), flat
+  `w, x, y, z` quaternions (`frames * 4` numbers), sign-continuous (each frame's quaternion on the same hemisphere as
+  the previous).
+- Numbers rounded to 5 decimals. `build/mocap/mixamo/manifest.json`: `{ version: 1, clips: [{ file, slug, sha256, dump,
+  frames, fps }] }`.
+
 ## Slices
 Model per RULES: Opus for anim / engine code and the pipeline maths; Sonnet only from strict Opus briefs (data,
 tests, credits). Sizes are changed lines. Every slice: branch guard, path-limited commits, `npm run typecheck:fast` +
