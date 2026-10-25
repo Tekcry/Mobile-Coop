@@ -7,7 +7,7 @@ import {
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/level-graph-lib.mjs';
 import {
-  COOP_KINDS, LINK_KINDS, checkDimensions, isOneWay, mergeGraphs, parseArgs, run, validate,
+  COOP_KINDS, LINK_KINDS, checkCoop, checkDimensions, checkStructure, isOneWay, mergeGraphs, parseArgs, run, validate,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/level-validate.mjs';
 // @ts-expect-error plain .mjs process script without types
@@ -182,6 +182,22 @@ describe('validator-port S0: the A25 kinds', () => {
     expect(check(h).errors).toContainEqual(expect.stringContaining("section S1: exit 'hut' is reached from entry 'gate' by solo links alone"));
   });
 
+  it('a split leg walks a vent_unlock alone from its to end only', () => {
+    // Legs: the court (a) and the roof (b) from the gate, rejoining at the hut; the court's only way on is a vent door.
+    const legs = (from: string, to: string): Report => {
+      const g = mini();
+      (g.spaces[1] as Obj).tags = ['unavoidable', 'split:x:a'];
+      (g.spaces[2] as Obj).tags = ['split:x:b', 'overwatch:x'];
+      g.links = g.links.filter((l) => !(l.from === 'court' && l.to === 'hut'));
+      g.links.push(ln('roof', 'hut', 'door', 'shadow', { ...DOOR, length: 10, assist: 'x' }),
+        ln(from, to, 'vent_unlock', 'shadow', { ...DOOR, length: 13 }));
+      return checkCoop(g, METRICS) as Report;
+    };
+    const apart = 'split x: legs never rejoin';
+    expect(has(legs('hut', 'court').errors, apart)).toBe(false);
+    expect(has(legs('court', 'hut').errors, apart)).toBe(true);
+  });
+
   it("J14's A3 shape on a campaign: a section whose only co-op link is a vent_unlock behind a duct has a co-op link", () => {
     const shape = (doorKind: string): Graph => {
       const g = without(miniCampaign(), 'court', 'roof', 'coop_boost');
@@ -224,6 +240,12 @@ describe('validator-port S0: the A25 kinds', () => {
 });
 
 describe('validator-port S0: lib seams, merge, flag, link times, modules', () => {
+  it('a teach:<move> space tag is a known tag (A8); other tags still WARN', () => {
+    const g = mini('training');
+    (g.spaces[1] as Obj).tags = ['unavoidable', 'teach:boost', 'teech:boost'];
+    expect((checkStructure(g) as Report).warns).toEqual(["court: unknown tag 'teech:boost'"]);
+  });
+
   it('mergeGraphs is one function from either file (J13 imports it); link order is file order', () => {
     expect(mergeGraphs).toBe(libMergeGraphs);
     const a = { meta: { map: 'm', sections: ['S1'] }, spaces: [{ id: 'x' }], links: [{ from: 'x', to: 'x', kind: 'door' }] };

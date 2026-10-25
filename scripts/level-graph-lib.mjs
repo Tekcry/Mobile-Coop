@@ -89,6 +89,8 @@ export const PLAIN_TAGS = new Set(['start', 'exfil', 'objective', 'checkpoint', 
   'unavoidable']);
 export const SPLIT_TAG = /^split:(.+):(a|b)$/;
 export const OVERWATCH_TAG = /^overwatch:(.+)$/;
+/** A space that teaches a move (BRIEF A8: `teach:<move>`, free text from the map's teach list; training.mjs reads it). */
+export const TEACH_TAG = /^teach:(.+)$/;
 /** Beat chart (level-design 6.2): 4-5 is a high beat, 1-2 a release; a `spine` link counts as a release (decision 3). */
 export const HIGH_BEAT = 4;
 export const RELEASE_BEAT = 2;

@@ -28,8 +28,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   BOLTED_KINDS, COOP_KINDS, EPS, GRID_WIDTH_KINDS, HIGH_BEAT, LINK_KINDS, MODES, NEEDED_ROUTES, NEEDS_HEIGHT,
-  NEEDS_LEVEL, NEEDS_WIDTH, OVERWATCH_TAG, PLAIN_TAGS, RELEASE_BEAT, ROUTES, SPACE_TYPES, SPLIT_TAG, TWO_WAY_GATES,
-  UNBANDED_KINDS,
+  NEEDS_LEVEL, NEEDS_WIDTH, OVERWATCH_TAG, PLAIN_TAGS, RELEASE_BEAT, ROUTES, SPACE_TYPES, SPLIT_TAG, TEACH_TAG,
+  TWO_WAY_GATES, UNBANDED_KINDS,
   adjacency, adjOf, arcsOf, collector, edgeDisjointPaths, enters, fmt, fmtS, hasTag, index, isOneWay, leaves, linkName,
   linkTime, mergeGraphs, onGrid, otherEnd, profileOf, reachable, soloArcsOf,
 } from './level-graph-lib.mjs';
@@ -106,7 +106,8 @@ export function checkStructure(graph) {
       c.err(`${name}: tags missing (may be empty)`);
     } else {
       for (const t of s.tags) {
-        if (typeof t !== 'string' || !(PLAIN_TAGS.has(t) || SPLIT_TAG.test(t) || OVERWATCH_TAG.test(t))) {
+        const known = PLAIN_TAGS.has(t) || SPLIT_TAG.test(t) || OVERWATCH_TAG.test(t) || TEACH_TAG.test(t);
+        if (typeof t !== 'string' || !known) {
           c.warn(`${name}: unknown tag '${t}'`);
         }
       }
@@ -741,9 +742,10 @@ export function checkCoop(graph, metrics) {
       if (m && !splits.has(m[1])) c.err(`${s.id}: overwatch:${m[1]} names no split`);
     }
   }
-  const solo = (l) => !COOP_KINDS.has(l.kind);
-  const soloArcs = arcsOf(links, solo);
-  const soloAdj = adjacency(links, solo);
+  // A leg is walked alone: solo arcs as everywhere else (no co-op kind; a bolted door or a vent_unlock only from its
+  // `to` end).
+  const soloArcs = soloArcsOf(links);
+  const soloAdj = adjOf(soloArcs);
   const splitSpeed = splits.size ? c.num('rules.split_speed_mps', 'split leg times') : undefined;
   const splitMax = splits.size ? c.num('rules.split_max_s', 'the split leg limit') : undefined;
   const parityPct = splits.size ? c.num('rules.split_parity_pct', 'the split parity check') : undefined;
