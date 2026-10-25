@@ -1,0 +1,14 @@
+{
+  "id": "20261025T232337-night-shift-player-b-bb4590ab-f1cd",
+  "sha": "bb4590ab442a0e9679fc7a9a1ee65814b0cb6b48",
+  "branch": "feature/player-hygiene-s1",
+  "pr": 505,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "hygiene-s1-coop",
+  "note": "J6 S1 co-op gate (src/player)"
+}
