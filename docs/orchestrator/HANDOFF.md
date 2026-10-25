@@ -1,6 +1,6 @@
 # Account handoff
 
-Rules (CLAUDE.md "Sessions" on origin/master, "Swaps and context"): Michael swaps at 100% of whichever meter caps first.
+Rules (docs/RULES.md on origin/master, "Swaps and context"): Michael swaps at 100% of whichever meter caps first.
 At ~92% the orchestrator refreshes the block below (replace it, do not stack blocks) and gives Michael only the
 orchestrator boot line (PROMPTS.md section 1). Every save prints that boot line, even when no swap is planned (Michael
 2026-10-24 ~23:20, after an unplanned swap left him without it). Each save block lists the running orchestrator checkers
