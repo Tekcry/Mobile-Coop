@@ -159,6 +159,15 @@ export function paceFor(pace, metrics, padInner = GAME_STICK.padInner) {
   return { pace: pace ?? 'sneak', crouched, speed, gameMag, stick: padMagFor(gameMag, padInner), minGear };
 }
 
+/** Node only: `paceFor` with the speed read from `METRICS_FILE` under the repo root (dynamic imports keep this module
+ *  import-free for the in-page driver). */
+export async function readPace(pace = 'sneak', root = '.', padInner = GAME_STICK.padInner) {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const metrics = JSON.parse(fs.readFileSync(path.resolve(root, METRICS_FILE), 'utf8'));
+  return paceFor(pace, metrics, padInner);
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Paths and progress
 // ---------------------------------------------------------------------------------------------------------------
@@ -422,8 +431,9 @@ export function stickToward(dx, dz, camYaw, out) {
  * Steers a robot along a path: the target is `lookAhead` past its progress but never past the next unreached
  * waypoint (corners are walked, not cut); a waypoint is reached within `arrive` (horizontal, same storey) or when the
  * progress passes it; the leg is `done` within `arrive` of its last point. `update` writes `stickX` / `stickY` (the
- * game's stick: right, forward, scaled by `mag`) and `axisX` / `axisY` (the pad's axes 0 and 1, axis 1 +down), and the
- * target `tx / ty / tz`. `mag` is the pad magnitude from `paceFor(...).stick`.
+ * direction in the game's stick frame, right and forward, at length `mag`), `axisX` / `axisY` (the same as the pad's
+ * axes 0 and 1 for `window.__pad.axis`, axis 1 +down) and the target `tx / ty / tz`. `mag` is the raw pad magnitude
+ * from `paceFor(...).stick` (the pad's radial dead zone keeps the direction and maps the length to the pace).
  */
 export class Steer {
   constructor(path, opts = {}) {
@@ -574,6 +584,26 @@ export class Trail {
 /** The senses a line can name: Guard AI's cause kinds (PLAN G1) plus `camera` and `unknown`. Inference never names
  *  `shadowCue` (only J16's record can) or `shot` (the robots never fight). */
 export const SENSES = ['sight', 'close', 'hearing', 'shadowCue', 'camera', 'told', 'body', 'smell', 'shot', 'unknown'];
+
+/** The game's alert levels (`AlertLevel`, src/ai/alertState.ts) ranked by how aware the guard is; `cooldown` is the
+ *  calm-down after a search, so it ranks with `unaware`. */
+export const ALERT_RANK = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+export const RISE_DETECTION = 'detection';
+export const RISE_NOTICE = 'notice';
+
+/**
+ * What a guard's level change between two polls is (BRIEF "Detections"): a rise to `alert` is a detection; a rise to
+ * `suspicious` or `investigating` is a notice (report only); anything else (a fall, the same level, `searching`) is
+ * no line (''). A guard who rises again later counts again (A12): the caller keeps each guard's last polled level.
+ */
+export function riseClass(from, to) {
+  const a = ALERT_RANK[from] ?? 0;
+  const b = ALERT_RANK[to];
+  if (b === undefined || b <= a) return '';
+  if (to === 'alert') return RISE_DETECTION;
+  if (to === 'suspicious' || to === 'investigating') return RISE_NOTICE;
+  return '';
+}
 
 function smooth(t) {
   const x = t < 0 ? 0 : t > 1 ? 1 : t;

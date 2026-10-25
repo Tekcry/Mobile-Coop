@@ -7,8 +7,10 @@ import { applyRadialDeadzone } from '../src/input/stickMath';
 import { defaultSettings } from '../src/core/settings';
 import { PERCEPTION, fieldFactor } from '../src/ai/perception';
 import { ARCHETYPE } from '../src/ai/archetypes';
+import type { AlertLevel } from '../src/ai/alertState';
+import { speedMoveMul } from '../src/player/speedTune';
 import {
-  ARRIVE_M, DOOR_LIMIT_S, GAME_SENSES, GAME_STICK, METRICS_FILE, PathProgress, STUCK_MIN_PROGRESS_M, STUCK_WINDOW_S, Steer, StuckWatch, TRAIL_M, Trail,
+  ALERT_RANK, ARRIVE_M, RISE_DETECTION, RISE_NOTICE, readPace, riseClass, DOOR_LIMIT_S, GAME_SENSES, GAME_STICK, METRICS_FILE, PathProgress, STUCK_MIN_PROGRESS_M, STUCK_WINDOW_S, Steer, StuckWatch, TRAIL_M, Trail,
   WATCH_OK, WATCH_STALL, WATCH_STEP_TIMEOUT, inferCause, makePath, paceFor, pointAt, sightRange, stepLimit, stickToward,
   // @ts-expect-error plain .mjs script without types
 } from '../scripts/route-run/progress.mjs';
@@ -59,7 +61,7 @@ function walk(pts: P3[], opts: { yaw?: number; speed?: number; maxT?: number; bl
       break;
     }
   }
-  return { done: steer.done, stop, t, r, s: prog.s, maxOff, length: p.length };
+  return { done: steer.done, stop, t, r, s: prog.s, maxOff, length: p.length, firedAt: watch.firedAt, lastGainT: watch.anchorT };
 }
 
 describe('route-run progress: game numbers mirrored', () => {
@@ -95,6 +97,13 @@ describe('route-run progress: pace (A3)', () => {
     }
     expect(paceFor('walk', metrics)).toMatchObject({ crouched: false, speed: 2.1, minGear: 3 });
     expect(paceFor('run', metrics)).toMatchObject({ crouched: false, speed: 4.0, minGear: 5 });
+    // the tuner's pace multiplier is 1 at the sneak point, so the stick's speed is the walked speed
+    expect(speedMoveMul(SNEAK.speed, 'crouch', 0, 1)).toBe(1);
+  });
+  it('readPace reads split_speed_mps from metrics.json', async () => {
+    expect(METRICS_FILE).toBe('docs/design/metrics.json');
+    expect(await readPace()).toEqual(SNEAK);
+    expect(await readPace('walk', '.')).toEqual(paceFor('walk', metrics));
   });
   it('refuses a missing speed or an unknown pace', () => {
     expect(() => paceFor('sneak', { rules: {} })).toThrow(/split_speed_mps/);
@@ -153,9 +162,14 @@ describe('route-run progress: steering and stuck watch (A4)', () => {
   it('a robot pinned on a wall stops at 8 s, not 7.9', () => {
     expect(STUCK_WINDOW_S).toBe(8);
     expect(STUCK_MIN_PROGRESS_M).toBe(0.5);
-    const run = walk([{ x: 0, y: 0, z: 0 }, { x: 20, y: 0, z: 0 }], { yaw: 0, block: (p) => p.x > 3 });
+    const run = walk([{ x: 0, y: 0, z: 0 }, { x: 20, y: 0, z: 0 }], { yaw: 1.2, block: (p) => p.x > 3 });
     expect(run.stop).toBe(WATCH_STALL);
-    // it reached the wall at ~2.3 s and gained 0.5 m last at ~2.0 s: the stop comes 8 s after that
+    // it walked into the wall at x = 3 (~2.3 s); the stop comes 8 s after its last 0.5 m gain, not a poll sooner
+    expect(run.r.x).toBeLessThanOrEqual(3);
+    expect(run.lastGainT).toBeGreaterThan(1.5);
+    expect(run.firedAt - run.lastGainT).toBeGreaterThanOrEqual(STUCK_WINDOW_S - 1e-9);
+    expect(run.firedAt - run.lastGainT).toBeLessThan(STUCK_WINDOW_S + DT / 2);
+    // pinned from the first poll: quiet at 7.9 s and 7.95 s, stopped at 8.0 s
     const w = new StuckWatch();
     w.walk(0, 0);
     for (let i = 1; i <= 158; i++) expect(w.update(i * DT, 0.1)).toBe(WATCH_OK);
@@ -164,6 +178,13 @@ describe('route-run progress: steering and stuck watch (A4)', () => {
     expect(w.fired).toBe(WATCH_STALL);
     expect(w.firedAt).toBeCloseTo(8, 9);
     expect(w.update(8.05, 0.1)).toBe(WATCH_OK); // fires once
+    // the driver's clock adds 0.05 s chunks (8 s sums to 7.99999...): still the 160th poll, not the 161st
+    const v = new StuckWatch();
+    v.walk(0, 0);
+    let t = 0;
+    let polls = 0;
+    while (v.update((t += DT), 0) === WATCH_OK) polls++;
+    expect(polls + 1).toBe(160);
   });
   it('a creep under 0.5 m in 8 s is stuck; each 0.5 m gained restarts the clock', () => {
     const w = new StuckWatch();
@@ -216,6 +237,40 @@ describe('route-run progress: steering and stuck watch (A4)', () => {
 });
 
 describe('route-run progress: storeys', () => {
+  // an overlapping plan: east on the ground, a ladder up at x = 10, then a walkway straight back west right above it
+  const over = [
+    { x: 0, y: 0, z: 0 },
+    { x: 10, y: 0, z: 0 },
+    { x: 10, y: 3.3, z: 0 },
+    { x: 0, y: 3.3, z: 0 },
+  ];
+  it('overlapping plan: the walkway counts on the walkway, never from the ground below it', () => {
+    const pr = new PathProgress(makePath(over));
+    const w = new StuckWatch();
+    w.walk(0, 0);
+    let t = 0;
+    for (let x = 0; x <= 10; x += 0.25) expect(w.update((t += 0.2), pr.update(x, 0, 0))).toBe(WATCH_OK);
+    for (let y = 0; y <= 3.3; y += 0.3) pr.update(10, y, 0);
+    pr.update(10, 3.3, 0);
+    expect(pr.s).toBeCloseTo(13.3, 6);
+    pr.update(7, 3.3, 0);
+    expect(pr.s).toBeCloseTo(16.3, 6);
+    // a twin that fell off the top of the ladder and walks west on the ground under the walkway: no progress
+    // (the walkway is 3.3 m straight up), so the watch stops it 8 s after its last gain
+    const fell = new PathProgress(makePath(over));
+    fell.resetTo(13.3);
+    w.walk(t, 13.3);
+    let stop = '';
+    for (let x = 10; x >= -10 && !stop; x -= SNEAK.speed * DT) {
+      t += DT;
+      fell.update(x, 0, 0);
+      expect(fell.s).toBeCloseTo(13.3, 9);
+      stop = w.update(t, fell.s);
+    }
+    expect(fell.s).toBeCloseTo(13.3, 9);
+    expect(stop).toBe(WATCH_STALL);
+    expect(w.firedAt - w.anchorT).toBeCloseTo(STUCK_WINDOW_S, 6);
+  });
   // ground floor east, a ladder up at x = 10, then a walkway back west on the floor above, over the same plan
   const pts = [
     { x: 0, y: 0, z: 0 },
@@ -287,6 +342,22 @@ describe('route-run progress: the follower trail', () => {
     expect(tr.tx).toBeCloseTo(18, 9);
     tr.point(100, 20, 0, 0);
     expect(tr.tx).toBeCloseTo(16.5, 9); // the oldest of the 8 kept
+  });
+});
+
+describe('route-run progress: rises (detections and notices)', () => {
+  it('alert is a detection, suspicious / investigating a notice, falls and searching nothing', () => {
+    const game: AlertLevel[] = ['unaware', 'suspicious', 'investigating', 'searching', 'alert', 'cooldown'];
+    expect(Object.keys(ALERT_RANK).sort()).toEqual([...game].sort());
+    expect(riseClass('unaware', 'alert')).toBe(RISE_DETECTION);
+    expect(riseClass('searching', 'alert')).toBe(RISE_DETECTION);
+    expect(riseClass('unaware', 'suspicious')).toBe(RISE_NOTICE);
+    expect(riseClass('suspicious', 'investigating')).toBe(RISE_NOTICE);
+    expect(riseClass('cooldown', 'investigating')).toBe(RISE_NOTICE);
+    expect(riseClass('alert', 'alert')).toBe('');
+    expect(riseClass('alert', 'searching')).toBe('');
+    expect(riseClass('investigating', 'suspicious')).toBe('');
+    expect(riseClass('unaware', 'searching')).toBe('');
   });
 });
 
