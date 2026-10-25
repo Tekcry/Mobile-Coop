@@ -4,7 +4,8 @@ Job: build the signed-off Saltmarsh Park plans (Sector Ops map `campusOps`, sect
 `flags.campusV2` until Michael accepts each section's walk. FOLDED-PLAN J17 ("Campus greybox v2 (row 9)": signed-off
 counts, 3-4 player tags, graph keys 1-4, guard totals, unavoidable tags, splits / assist / overwatch, Rule index errors,
 S5 cap, section 15 acceptance tests for campusOps). Lead: Night Shift | Sector Ops Build. Branch `feature/campus-greybox`
-(P0 and integration); section lanes `feature/campus-greybox-s<N>` in their own worktrees.
+(P0 and integration); section lanes `feature/campus-greybox-s<N>` (and S3's sub-lanes, S2's G6a, TAG, E2E) each in its
+own worktree `C:/NightShift/Mobile-Coop-campus-greybox-<suffix>` (PLAN section 2 "Worktrees"), PRs to master.
 
 ## Michael said
 
@@ -97,9 +98,13 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   test (`tests/levelMeasureCampus.test.ts`, validator-port S10) re-measures the five live graph files against the campus
   built with every flag off, so a v2 graph on the live path fails it while the section is dark. The lead seeds
   `docs/sector-redesign/graph/v2/campusOps-S{1..5}.json` with the five signed plan graphs (PLAN V2-SEED); each lane edits
-  only its own v2 file; EXIT-<N> measures it with the section's flag on; SW-<N> moves it over the live path (then the drift
-  test builds the section as v2 and matches). The live graph files stay J12's until SW-<N>. Undo: write the live path
-  once J12's drift test builds each section with the flag its graph names.
+  only its own v2 file; EXIT-<N> measures it with the section's flag on; SW-<N> moves it over the live path. V6 stores
+  one whole-map `geom` (light-set hash + nav hash) on every graph, so switching any section on stales all five live
+  graphs: SW-<N> then runs `node scripts/level-measure.mjs docs/sector-redesign/graph/campusOps-S1.json ... campusOps-S5.json
+  --write` (all five files, spelled out in PLAN section 9) on all five live graphs with the new `CAMPUS_V2_ON`, and the
+  drift test `tests/levelMeasureCampus.test.ts` is green in the same PR (CHANGED 2026-10-25, plan check 2). The live
+  graph files stay J12's until SW-<N>; from SW-<N> on, each switch-on re-writes their `measured` values (J12 told).
+  Undo: write the live path once J12's drift test builds each section with the flag its graph names.
 - **A14 Two tagged extras per section** (new; G331, G362, "Two players", C2, Guard AI A2). Each section's base list is the
   signed-off count, spawned for 1 and 2 players; it appends one guard tagged `minPlayers: 3` and one `minPlayers: 4`
   (coop4's pattern and its test: at most 2 per section, appended, each with a reason, never a desk operator, dog, handler,
@@ -170,11 +175,14 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   `campusS3Data.ts` (where P0 moved them), all four labels into `campusV2/s1Data.ts`, `s3Data.ts`, `s4Data.ts`,
   `s5Data.ts`, and the `hyp2` change into `campusV2/s4Dress.ts:177` (its import too). `tests/campusV2.test.ts:89` fails
   until the label copies match; `s4Dress.ts` has no such check, so this line names it. A lane that has already re-laid
-  its section keeps the label text and the `hyp2` call in its own file. Undo: none (a rule fix).
+  its section keeps the label text and the `hyp2` call in its own file. A lane that re-lays or renames rooms keeps the
+  objective label naming a room of its v2 `S<N>_ROOMS` that holds the objective point (and moves the room word with a
+  rename; G336, G351): sector-marks' `tests/campusObjectivePlace.test.ts` reads the live `CAMPUS_SECTORS`, so it checks the
+  v2 label once the section is on, against the room list SW-<N> points at v2 (PLAN section 9). Undo: none (a rule fix).
 - **A27 Guard AI J15 PR1 first** (new; the orchestrator's order, 2026-10-25; guard-rules `docs/guard-rules/PLAN.md` PR1
   and "J17 order"). Guard AI's guard-rules PR1 lands on master before any J17 edit to `campusS4Data.ts` /
-  `campusS5Data.ts`: P0 (it adds `S4_PARTS` / `S5_PARTS` there) and any carry of A23 / A26 into those files train after
-  PR1. PR1 drops the S4 / S5 section `gear: 'helmet'`, turns `gear: 'both'` into `'armour'` and sets `shieldTeams: true`;
+  `campusS5Data.ts`: P0 (it adds `S4_PARTS` / `S5_PARTS` there), any carry of A23 / A26 into those files train after PR1,
+  and every lane PR (S1-S5) while it still carries P0's commits trains after PR1. PR1 drops the S4 / S5 section `gear: 'helmet'`, turns `gear: 'both'` into `'armour'` and sets `shieldTeams: true`;
   its `checkSectorGuards` then fails a `'helmet'` / `'both'` tag. At P0's master take the lead carries PR1's S4 / S5 data
   into `campusV2/s4Data.ts` / `s5Data.ts` (copies = live). The S4 / S5 lanes write no `'helmet'` and use `'armour'` where
   their briefs say `'both'`. guard-rules S9 (its PR4) puts `post: { leash: 1, lookout: true }` on the live S5 roof
