@@ -13,6 +13,13 @@ GB5 / GB6 + the J7 plan); `origin/feature/mission-framework` ab90a0711 (PR #372:
 unless marked. No npm / tsc / vitest / node run was made for this plan (desktop CPU at 100%): validator results are the
 last recorded runs (section 2).
 
+**Fix round 1** (Opus planner, 2026-10-25 ~20:30): answers plan check 1 (`C:/NightShift/scratch/campaign/j8-j9-plan-check.md`,
+fixes 1-11, polish 1-10) with the lead's rulings; the map of fix -> answer is the last section. Refs re-read: engine
+dc8e4681 (code unchanged since 8f40303f for every file:line here), origin/master 94e72b1c (validator, claims-check,
+scale sheet, level-design), `origin/feature/tallow-spec` d42d1596 (TW23), `origin/feature/coop-kit` 34cfcad2 (Player's
+J24). Read-only node runs (no npm / tsc / vitest): master's `level-validate.mjs` and `claims-check.mjs` from a
+`git archive` extract of 94e72b1c; outputs and the draft graph in `C:/NightShift/scratch/campaign/j8-j9-val/`.
+
 Scope: FOLDED-PLAN section 4 rows J8 and J9; section 3 breaks 16, 18, 19; Campaign conformance (master
 `docs/conformance-campaign/CONFORMANCE.md`) S7, S9, S10, S16, S22 with detail rows TW2, TW3, TW4, TW14, TW15, TW17, TW18,
 TW19, TW21, TW22, MF18; Player conformance R39 (held shutter invisible to guards). J7 runs first
@@ -42,7 +49,8 @@ the greybox exit (measured validator pass, bot route-runs, 10-minute walk card) 
 **Michael picked** (option text):
 - Q1 Tallow hold: "Build now, walk later (Recommended)". The 12 level-rule changes (~18:20): "Adopt all as recommended
   (Recommended)" (section 1).
-- Q2 dark spots: "Never" ("every light works; darkness only from cover, cut circuits and shot lamps").
+- Q2 dark spots: "Never" (FOLDED-PLAN option text: "every light works; darkness only from cover, cut circuits and shot
+  lamps"; the ROADMAP "Decided" line paraphrases it as "cut power").
 - Q3 light levels: "Australian standards (Recommended)" (bands from AS/NZS 1158.3.1 and AS/NZS 1680 / EN 12464, one lux
   calibration, Michael approves the table with the car-park light map).
 - Q23 Tallow throw gaps: "Force co-op".
@@ -64,15 +72,15 @@ into level-design.md; until then that file and ROADMAP "Decided" are the source)
 
 | # | Adopted rule | Tallow today | Where |
 | --- | --- | --- | --- |
-| 1 | Built for two: no area done alone; at least one teamwork climb per mission | the 2.5 m throws are solo-jumpable (TW17) | J8 G2 / G3 (forced throws, Q23) |
+| 1 | Built for two: no area done alone; at least one teamwork climb per mission | the 2.5 m throws are solo-jumpable (TW17) | J8 TD (per-site throw length, A24) + G2 / G3 (4.9 m gaps, A28) |
 | 2, 3 | Team moves anywhere (G151); 30 s revive x 2 (G126) | already rules | J7 (revives); none here |
-| 4 | Teamwork minimums sized per map; the stricter 90 s split limit kept; a split ends in a joint action | splits undeclared (TW18) | J8 D1 declares both missions' splits with their joint action; the per-map minimums table is J23's co-op plan |
+| 4 | Teamwork minimums sized per map; the stricter 90 s split limit kept; a split ends in a joint action | splits undeclared (TW18) | J8 D0 declares both missions' splits with their joint action (validated before wave 1); the per-map minimums table and 11.11's "nobody waits over 60 s / swap roles" are J23's co-op plan |
 | 5 | Pacing minutes are playtest targets | - | walk card (J23) |
-| 6 | The entry lookout fits both players; the finale seen from afar | not checked | J8 G1-G4: each encounter vantage holds two (two standing spots out of view); the crane's red lamp visible from the W3 roof (check, fix if blocked) |
-| 7 | Readable world: on / off by look and sound, a visible link to its switch; lit windows expose both sides; weather only where a map has weather | switches exist; no link rule | J8 LP light plan: every switch by the door of the space it lights, its circuit named; Tallow has no weather (n/a) |
+| 6 | The entry lookout fits both players; the finale seen from afar | not checked | J8 G1, G2, G3 and G4 each: every encounter vantage holds two (two standing spots out of view), in each slice's done line; G3 checks the crane's red lamp is seen from the W3 roof (fix if blocked) |
+| 7 | Readable world: on / off by look and sound, a visible link to its switch; lit windows expose both sides; weather only where a map has weather | switches exist; no link rule | J8 LP light plan: every switch by the door of the space it lights with a visible link (a conduit run from switch to fitting, or a labelled panel naming the circuit); Tallow has no weather (n/a) |
 | 8 | Two-minute test at every blocked route | not checked | J8: each forced gate and each new one-way way back is visible from its approach (brief check); walk card line |
 | 9 | Designed exit: under 2 min or a different route for half the way back | TGC shed three -> jetty; TKL strongroom -> W4 (a new route) | J8 D1 audit line in the graph note; no change expected |
-| 10 | Real building safety: two staircases per multi-storey building, exits open from inside, real signs; fire-alarm door release gets its own decision | roof ladder in a let loft (TW22); bolted doors not audited for egress | J8 G2 (plant room) + an egress audit row per bolted door in LP (inside side, story reason); signs are art (n/a in greybox) |
+| 10 | Real building safety: two staircases per multi-storey building, exits open from inside, real signs; fire-alarm door release gets its own decision | roof ladder in a let loft (TW22); bolted doors not audited for egress; two-stair rule (16.2.7) and secure-roof rule (16.2.5) not audited (TW23 O12, O13) | J8 G2 (plant room, A7) + LP's egress table: a row per bolted door (inside side, story reason) and a row per multi-storey building (its two stairs, or the fix and the slice that builds it, or the reason for the walk); every added stair is shut from the approach side; signs are art (n/a in greybox) |
 | 11 | Extra planning pages added to existing plans | - | J23 |
 | 12 | Final map tests (finish unseen; goggle colours told apart at ~20 m in the "darkest real spot"; revive within 30 s on every team-move surface) | - | J23 tests; J8 LP names the darkest real spot per section |
 
@@ -91,6 +99,19 @@ into level-design.md; until then that file and ROADMAP "Decided" are the source)
     kinds).
   - Known, not J8's: mission-validator still requires an optional reward, so TGC / TKL graphs fail it since Q19 (J12,
     framework STATE item 6).
+  - **Rerun in fix round 1** (master 94e72b1c, read-only extract; `scratch/campaign/j8-j9-val/master-94e72b1c-today*.txt`):
+    the same **3 ERR, 6 WARN** on map, map + TGC and map + TKL, on both the engine graph and the framework graph
+    (ab90a071). Master's `docs/design/metrics.json` has `throw_gap_max` 2.7 (scale sheet section 3 "Throw gap": "at
+    most 2.7 m: the runner lands `TEAM.throwDist` 3.2 m past the thrower ... less a 0.5 m landing margin"); a
+    `team_throw` link wider than that is an ERR (`level-validate.mjs` `checkDimensions`, case `team_throw`).
+  - **Draft wave-0 delta** (fix round 1, numbers for D0; `scratch/campaign/j8-j9-val/delta.cjs`, `opt.cjs`): the two A5
+    way backs + the A6 jetty drop clear all 3 gate-reach ERRs but open a new one, `section W2: exit 'w2-arcade-roof' is
+    reached from entry 'w2-arcade' by solo links alone` (a lone player walks up the public stair into the reading room
+    and over a way back into the south lofts, round C3). With the stair-head door bolted from the stair (A25): **0 ERR,
+    6 WARN on all three runs** (`master-94e72b1c-stair*.txt`). Draft split tags (A11) add 3 ERR still to solve in D0:
+    `split tgc-leads: legs 17.4 s vs 21.9 s differ by 21%`, `a downed partner is 21.2 s away (from w1-tea-stall ...)`,
+    `split tkl-wings: legs 14.5 s vs 40.2 s differ by 64%` (`master-94e72b1c-stair-splits.txt`). Widening the throw
+    links to 4.9 m adds 3 ERR `gap 4.9 m above the 2.7 m throw` until the validator reads a per-link throw length (A24).
 - **Shutters** (MF18, TW2): `tallowWharfW1.ts:137` and `tallowWharfW4.ts:157` build `standIn` panels
   (`tallowWharfKit.ts:238`, tag `shutter-standin:<id>`); no `placeShutter` call anywhere; `ShutterDoors`
   (`src/world/shutterDoor.ts:78`) is never constructed; the kit `tick` hook exists (`src/game/kit/registry.ts:160`,
@@ -106,19 +127,35 @@ into level-design.md; until then that file and ROADMAP "Decided" are the source)
   section 2), so a cut circuit cannot read dark. Bands: scale sheet section 9 is all `TBD` (master); light-realism's
   draft table (`origin/feature/light-realism:docs/light-realism/research/bands.md` section 3) waits for Michael's click
   on the S1 pack; the curve `level = 0.28 + 0.32 log10(lux)` puts every working interior band at or above 0.79 (lit).
-- **Throws** (TW17, Q23): C4 lightwell gaps 2.5 m (south bay edge z 70, north stages z 72.5-73.5;
-  `tallowWharfW2.ts:88-90`, `:227`); C5 lane 2.5 m (thrower x 79.2, W3 stage x 82-86.5). A solo running jump carries
-  ~2.8 m and the in-air grab catches a lip up to 4.34 m (`tests/helpers/soloJumpReach.ts`); the host accepts a throw
-  landing 2.2-4.2 m from the thrower and within 1.0 m of height (`throwLandingOk`, `src/game/teamMoves.ts:229-232`). So
-  the grab must go (no lip on the landing edges) and the gap must exceed the solo carry: widening alone cannot win.
+- **Throws** (TW17, Q23; corrected in fix round 1): C4 lightwell gaps 2.5 m (south bay edge z 70, north stages z
+  72.5-73.5; `tallowWharfW2.ts:88-90`, `:227`); C5 lane 2.5 m (thrower x 79.2, W3 stage x 82-86.5). All three are level
+  (C4 loft 4.5 to stage 4.5; C5 roof 8.4 to roof 8.4). The throw lands exactly `TEAM.throwDist` 3.2 m past the thrower's
+  centre (`throwLanding`, `teamMoves.ts:210-226`; `requestThrow`, `teamController.ts:956-993`); `throwLandingOk`'s
+  2.2-4.2 m (`teamMoves.ts:229-232`) is only how far off a claimed landing the host accepts. So the widest throwable gap
+  is 3.2 - 0.3 (thrower's radius back) - 0.3 (landing feet on the stage) = **2.6 m**. Solo reach from the game's
+  constants (`tests/helpers/soloJumpReach.ts`: `GRAVITY` 18, `LEAP.vy` 5.6, top speed 4.0, `maxStep` 0.42, radius 0.3,
+  `FALL_GRAB` plan 0.7 / maxAbove 2.35), by landing height over the take-off:
+
+  | Landing vs take-off | -1.0 m | -0.5 m | 0 (all three sites) | +0.5 m | +1.0 m (`throwDrop` limit) |
+  | --- | --- | --- | --- | --- | --- |
+  | `soloTopLandingReach` (land on the top) | 3.86 | 3.63 | **3.36** | 3.03 | 2.56 |
+  | `soloJumpReach` (in-air grab of a lip at the landing top) | 4.98 | 4.82 | **4.64** | 4.44 | 4.23 |
+
+  The 2.6 m most a standard throw clears never beats the grab model, and beats the top model only at +1.0 m by 0.04 m.
+  So geometry alone (check option (a)) cannot force the throws at any height the throw allows, approved or not: the
+  per-site throw length (A24, slice TD) is the mechanism (lead ruling, fix 1 (b)).
 - **Hide spots** two per section (`W1.ts:172`, `W2.ts:252`, `W3.ts:303`, `W4.ts:207`); none in w3-east-yard or
   w3-east-wing (TW14). **Medkits**: no `medkitWalls` (TW15; `MapLayout.medkitWalls`, `src/world/mapDef.ts:69`, read at
   `src/game/gameState.ts:835`, `:1009`). **Roof ladder**: `b.ladder(72, 66.15, LOFT, ROOF, 0)` up a hatch in the let
   corner loft (`tallowWharfW2.ts:204`; TW22, level-design 16.2.1 / 16.2.3). **Graph drift** (TW21): graph counts W1 7 /
   W2 6 against 9 / 10 spawned (`tallowWharfSectors.ts:105-141`, `:187-194`), the w3-east-yard checkpoint tag (graph
-  :321) against the build's W3 restart at the roof bulkhead head, dog rows (J7 R3 turns them into armed humans; J7 A10
-  leaves the doc text to J8). Bolts: `W1_BOLTS` .. `W4_BOLTS` (`tallowWharfSectors.ts:205-230`; indexes fix the flags
+  :321) against the build's W3 restart at the roof bulkhead head, dog rows (J7 R3 turns them into armed humans; J7 A11 /
+  A17 in `docs/mission-rules/BRIEF.md` leave geometry, lights and the map pages to J8). Bolts: `W1_BOLTS` .. `W4_BOLTS` (`tallowWharfSectors.ts:205-230`; indexes fix the flags
   `<id>-bolt<k>`, so new bolts append). Routes: `tallowWharfSectors.ts:245-301`.
+- **Section restart and kit devices** (check fix 4): `SectorMode.restartSection` (`sectorMode.ts:1182-1215`) re-bolts
+  the section's team doors (`this.team.reset`, `SectorTeamDoors`, `sectorTeamDoors.ts:213`), rekeys, resets guard memory
+  and calls `g.checkpointReset()`; nothing resets kit devices (`TeamController.devices`), so a held shutter stays up
+  into the retry. The fix is J9's (A27, S1 / S2).
 - **e2e coordinates**: the wharf e2e hard-codes the pawn-loft throw (`:335`, stage `[49, 72.5, 52, 73.5]`) and the jetty
   pull (`:465`): J8's geometry moves them.
 
@@ -136,20 +173,34 @@ Overnight rule (RULES Intake 2): logged, work carries on; A1 is the one a day-ti
   the approved table differs.
 - **A3 Night floors.** Tallow's theme ambient and night floor match the campus night floors (moon + standby fill), so a
   cut circuit reads dark (light-realism research section 4). Undo: restore `ambient 0.3` / `lightLevel 0.3`.
-- **A4 Forced throws by geometry (Q23).** Each throw gap (C4 x2, C5) is widened past the solo running-jump carry with a
-  margin, kept inside the throw band (landing 2.2-4.2 m from the thrower, height within 1.0 m, `throwRoom` headroom), and
-  no hangable lip or pipe stays within in-air grab reach of the landing side (`noLedge`); a fall-in still has its way out
-  (the lightwell drain, `tallowWharfW2.ts:295`; the lane at street level). Undo: the engine route (a throw-only gateway
-  band, Opus slice) if the measured solo carry beats the gap.
-- **A5 Way backs as Michael's "locked pathway".** Each C4 way back is a gate or door at a lightwell end, bolted on the
-  north (reading-room / clock-loft) side: the thrown partner unbolts it for the thrower (G292's own example), it stays
-  open (level-design 11.6 "a door that stays open"), it times at 15 s or less at `reach_speed_mps`, and from the south it
-  is shut, so the throw stays forced. Undo: a drop or a kicked-down ladder instead.
+- **A4 Forced throws (Q23; fix round 1, lead ruling fix 1 (b)).** Geometry alone cannot do it (section 2 table). Each
+  Tallow throw site (C4 pawn, C4 pie, C5 lane) carries its own throw length (A24, slice TD): **5.8 m**, so the gap it
+  clears is **4.9 m** (thrower 0.4 m back from the take-off edge, landing feet 0.5 m onto the stage: 0.4 + 4.9 + 0.5 =
+  5.8). At these level sites that beats `soloTopLandingReach` 3.36 m by 1.54 m and `soloJumpReach` (in-air grab) 4.64 m
+  by 0.26 m, both over the 0.2 m margin, so the throw stays forced even if a grabbable lip slipped in; the landing edges
+  stay `noLedge` too (belt and braces). The site's host band is its length +-1 m (4.8-6.8 m) and the height limit stays
+  `TEAM.throwDrop` 1.0 m. No approved height changes; the gaps widen in plan (A28). A fall-in keeps its way out (the
+  lightwell drain, `tallowWharfW2.ts:295`; the lane at street level). Undo: drop the three site lengths (the throws go
+  back to 3.2 m) and restore the 2.5 m gaps: TW17 reopens (solo-jumpable), so the undo needs another forcing first.
+- **A5 Way backs as Michael's "locked pathway" (fix round 1: enclosed, gate at the approach end).** Each C4 way back is
+  an enclosed iron footbridge (solid sides to the head and a roof, `noLedge`, no top or lip a lone player can stand on or
+  hang from) along a lightwell end (west x ~44-45.5 for the pawn throw, east x ~68.5-70 for the pie throw). Its gate is
+  at the **south (approach) end**, bolted on the bridge side: the thrown partner walks back along the bridge and
+  unbolts it for the thrower (G292's own example), it stays open (level-design 11.6), the walk is 12 m or less (draft
+  9 m: 3 s at `reach_speed_mps` 3.0, under the 15 s reach), and from the south loft it is shut, so the throw stays
+  forced. Graph: a `door` link `from` the south loft `to` the north room, `bolted: true` (a lone player passes only from
+  the `to` end, `level-validate.mjs:225-227`), width 1.2 (1.0 gives a nav WARN). With A25 this clears both C4 reach ERRs
+  (draft run, section 2). Undo: a drop or a kicked-down ladder instead.
 - **A6 Jetty way back.** A one-way drop from the jetty staging onto the canal ledge beside C10 (a gap in the jetty rail,
-  "the old staging ladder's gap"); the 4.4 m lip stays in the co-op band, so no solo way up. Undo: move the quay ladder
-  closer to the jetty.
+  "the old staging ladder's gap"); the 4.4 m lip stays in the co-op band, so no solo way up. Graph: a `drop` link
+  `w4-jetty -> w4-canal-ledge`, `level_change` 4.4, `time_s` 3 (draft run: the C10 reach ERR clears). Undo: move the quay
+  ladder closer to the jetty.
 - **A7 Roof access.** The W2 corner-loft hatch ladder moves into a plant space: a tank room with a caged fixed ladder
-  and a hatch cover (16.2.1, 16.2.3), entered from the loft by a door. Undo: a stair bulkhead (16.2.5) instead.
+  and a hatch cover (16.2.1, 16.2.3), entered from the loft by a door. Why 16.2.5 (a secure building's roof by a stair
+  bulkhead or fire stair) does not apply: the arcade lofts are let commercial lofts with no strongroom, bond or key
+  holding; the site security summary (TW23 `docs/tallowWharf-map/SPEC.md`, "Security") names only the counting house
+  strongroom and shed three's bond as hard points, and the counting house's roof access is already its bulkhead stair
+  core (16.2.5 met). Undo: a stair bulkhead (16.2.5) instead.
 - **A8 Medkits.** One wall station per section (4), each with a real reason (W1 market warden's first-aid box, W2 the
   beadle's office, W3 the porter's lodge, W4 the shed office), out of guard view near the section checkpoint. Not a
   reward (Q19 is about grants). Undo: one per map (G98's minimum).
@@ -181,21 +232,61 @@ Overnight rule (RULES Intake 2): logged, work carries on; A1 is the one a day-ti
   constants).
 - **A19 No wire change in J9.** The shutter kinds and gap are on the wire (NET); a client draws its curtains from its own
   devices. If the client needs more, it becomes an Opus `src/net` slice with two checkers. Undo: n/a.
-- **A20 One copy of the map docs.** The lead merges `origin/feature/mission-framework` into `feature/mission-engine`
-  (GB-briefs 0.3 step 1 pattern) before J8 cuts, so the engine carries the newest graph (gap 0.9), SPEC and pages; J8 / J9
-  edit them there. TW23 (SPEC onto the template, own map folder, J1 row) lands first; J8's page slice follows its paths.
-  Undo: J8 docs on a branch off master after #372 merges.
-- **A21 Stacking.** J8's two PRs and J9's PR are PRs into `feature/mission-engine` (as J7's D / E / F, J7 A13); they reach
-  master through the PR C split (`docs/missions/slices/PRC-split.md` C8 / C9 or new members). Undo: retarget them to master
-  after PR C merges (the orchestrator's call).
+- **A20 One copy of the map docs (fix round 1, lead rulings).** B0: Campaign Build merges `origin/feature/mission-framework`
+  (#372) into `feature/mission-engine` at **J7 R0** (GB-briefs 0.3 step 1 pattern); R0 also takes the optional-objective
+  rewards out of `tallowWharfMissions.ts` (Q19). So the engine carries the newest graph (gap 0.9), SPEC and pages, and
+  J8 / J9 edit them there. TW23 (`feature/tallow-spec` d42d1596, stacked on #372) does **not** move the graph: it adds
+  `docs/tallowWharf-map/SPEC.md` (the current spec on the template) and a pointer line on
+  `docs/missions/prototypes/campaign-map/SPEC.md`; `graph.json`, `PLAN.svg` and `SIGNOFF.md` stay in
+  `docs/missions/prototypes/campaign-map/` (TW23 report A2), so `tests/tallowWharf/helpers.ts:66` keeps its path. When
+  TW23 merges into the framework branch after B0, Campaign Build runs **B0b**, a second framework -> engine merge; D0's
+  and D1's graph edits and P1's SPEC edits wait for whichever merge brings TW23 in, so no two branches edit
+  `graph.json` or the SPEC at once. Undo: J8 docs on a branch off master after #372 merges.
+- **A21 Stacking.** J8's PRs (T, G1, G2) and J9's PR S are PRs into `feature/mission-engine` (as J7's D / E / F, J7-PLAN
+  section 4); they reach master through the PR C split (`docs/missions/slices/PRC-split.md` C8 / C9 or new members). A
+  fix round on an earlier PR is merged forward into the later branches by the lead, as J7-PLAN section 4 does for D ->
+  E -> F; PR C's gate is J7's (its two fresh Opus checkers and the union of suites on the head after the last merge).
+  Undo: retarget them to master after PR C merges (the orchestrator's call).
 - **A22 J8's validator gate.** 0 ERR on master's `scripts/level-validate.mjs` (map graph, map + TGC, map + TKL) and 0 ERR
-  on the mission-validator for the map graph, each run as the conformance ran them (extracted with git, plain node). V6
-  cannot read the kit kinds until J12: not a J8 gate. Undo: J12's ported validator once on master.
+  on the mission-validator for the map graph, each run as the conformance ran them (extracted with git, plain node). The
+  one exception, until Marlow's TV lands (A24): the three `gap 4.9 m above the 2.7 m throw` ERRs, listed by name in the
+  saved output; D0 / D1 rerun on TV's validator to show them gone. V6 cannot read the kit kinds until J12: not a J8
+  gate. Undo: J12's ported validator once on master.
 - **A23 Free assets come after the greybox gates.** J8 / J9 stay greybox (`detail: false`): no external asset enters
   them. Free props and dressing (tea chests, stalls, crane, shutter curtain, barrows, lamps' fittings, canal sounds) are
   planned as slice FA (section 6): a scouting list with licence checks first, then an import slice only after the
   greybox exit and the lead's go for each download (RULES "A job": ask before installing or downloading). Undo: build
   the props in-repo as today.
+- **A24 Per-site throw length (fix round 1; lead ruling fix 1 (b); touches the level standard: one-click to Michael by
+  day, assumed and logged meanwhile, RULES Intake 2).** The map layout may list throw sites (thrower spot, facing,
+  length); a throw offered within 1.0 m of a site and launched within ~25 degrees of its facing lands the site's length
+  past the thrower, and the host's landing band follows it (length +-1 m). Everywhere else, and on every map without
+  sites (Marlow Yard, the campus, the rest), the throw stays `TEAM.throwDist` 3.2 m: nothing changes there. No wire
+  change (both peers build the same map). The scale sheet row "Throw gap: at most 2.7 m" becomes "at most the site's
+  throw length less 0.5 m (default 2.7 m)" and the validator reads `throw_dist` on a `team_throw` link (Marlow Build
+  owns both, and the sheet says "a change needs Michael's approval"; its line "Never change the player to fit a map" is
+  met in spirit: the player's throw is unchanged, the site carries the length, as a ladder carries its height). Undo:
+  remove the sites from Tallow's layout (one line) and the two standard edits; A4's undo applies.
+- **A25 The reading room's stair-head door (fix round 1).** The public stair from the arcade ends at a landing door with
+  a push bar on the reading-room side only: locked from the stair at night, members leave by it (an exit that opens from
+  inside, G157 10). Without it a lone player walks up the stair and over an A5 bridge into the south lofts, round C3
+  (validator ERR, section 2). Guards still use the stair (their keys; the guard nav is not changed). TGC's Eyes still
+  watches "the stair" for guards and decoys (BEAT step 3). Graph: the `open_stair` link `w2-arcade -> w2-reading-room`
+  gets `bolted: true`. Undo: unbolt it and drop the A5 bridges (the 20.0 s / 28.2 s reach ERRs return).
+- **A26 `missions` flag switch-on date: 2026-11-01** (fix round 1, lead ruling fix 10), after Michael's Tallow walk;
+  switched on only when he accepts the walk items (RULES "Walk pacing"). Owner: Night Shift | Campaign Build. Undo: move
+  the date (flags row here, PR bodies, ROADMAP); the flag stays off until he accepts.
+- **A27 A section restart puts the shutters back (fix round 1, check fix 4).** On a section restart every shutter drops
+  shut, any lift run ends and the "already noticed" marks are cleared, on host and client, as the team doors re-bolt (a
+  clean retry). Undo: remove the reset call (shutters keep their state across a restart).
+- **A28 Where the gaps widen (fix round 1).** C4: the lightwell widens from 2.5 m to 4.9 m by shortening the south lofts
+  (pawn loft and pie loft z 62-70 become z 62-67.6, the take-off edge at z 67.6), not by moving the north range (the
+  reading room keeps its 6.5 m short side, storage class). Nothing a lone player can stand on may sit nearer than 4.9 m to
+  a stage (any lower roof over the ground rooms below the cut-back is a glazed lightwell roof, `noLedge`, no top). C5: the
+  lane gap widens to 4.9 m on one side, LP picks by the tests: the arcade roof's lane edge steps back to x 77.1 (thrower
+  x 76.7, landing x 82.5), or the W3 corner-bay roof edge moves east to x 84.4 (stage x 84.4-86.5, landing x 85.0);
+  either way the fire-escape bridge over the lane lengthens to match. Heights stay as approved. These go on the walk card
+  as changes since the drawing (A12). Undo: per A4.
 
 ## 4. Claims
 
@@ -212,14 +303,27 @@ files:
   - tests/tallowWharf/{shell,w1,w2,w3,w4,sectors}.test.ts
   - tests/tallowWharf/helpers.ts
   - scripts/e2e-sectorops-wharf.mjs
-  - docs/missions/prototypes/campaign-map/{graph.json,SPEC.md,SIGNOFF.md,PLAN.svg}
-  - docs/missions/prototypes/three-grey-coats/{graph.json,SIGNOFF.md}
-  - docs/missions/prototypes/two-key-ledger/{graph.json,SIGNOFF.md}
+  - docs/missions/prototypes/campaign-map/{graph.json,SIGNOFF.md,PLAN.svg,PLAN-approved.svg}
+  - docs/tallowWharf-map/SPEC.md
+  - docs/missions/prototypes/three-grey-coats/SIGNOFF.md
+  - docs/missions/prototypes/two-key-ledger/SIGNOFF.md
   - docs/missions/prototypes/coop-kit/SIGNOFF.md
   - docs/tallow-fixes/**
-  - changes/feature-tallow-fixes*.md
   - TESTING.md
 maps: tallowWharf
+protocol: none
+save: none
+```
+J8 PR T (`feature/tallow-throw`, slice TD, A24):
+```claims
+files:
+  - src/game/teamMoves.ts
+  - src/game/teamController.ts
+  - src/world/mapDef.ts
+  - tests/teamMoves.test.ts
+  - tests/throwSites.test.ts
+  - docs/tallow-fixes/briefs/TD.md
+maps: none
 protocol: none
 save: none
 ```
@@ -242,26 +346,48 @@ files:
   - scripts/e2e-sectorops-wharf.mjs
   - docs/tallow-shutters/**
   - docs/systems/coop.md
-  - changes/feature-tallow-shutters.md
   - TESTING.md
 maps: tallowWharf
 protocol: none
 save: none
 ```
-- Paths under `docs/missions/prototypes/campaign-map/` move with TW23 if it gives Tallow its own folder (A20); the tests
-  that read `docs/missions/prototypes/*/graph.json` (PRC-split C8 note) move with it in TW23, not here.
+- Changelog fragments (`changes/**`) are shared files and not claimed (claims-check warns on them).
+- Paths (fix round 1, A20): TW23 does not move `graph.json`, `PLAN.svg` or `SIGNOFF.md`; they stay under
+  `docs/missions/prototypes/campaign-map/`, and `tests/tallowWharf/helpers.ts:66` keeps reading that graph. The current
+  spec is TW23's `docs/tallowWharf-map/SPEC.md`; the old `campaign-map/SPEC.md` keeps #372's text under TW23's pointer
+  line and J8 does not edit it. `PLAN-approved.svg` is P1's copy of the drawing Michael approved ~18:05 (polish 6).
+- TGC / TKL `graph.json` and `BEAT.md` are J7 R1's (J7 PR D), not J8's: the split tags live on the map graph's spaces
+  and links. P1 touches the TGC / TKL / coop-kit `SIGNOFF.md` pages only for a pointer line or a redrawn drawing (lead
+  ruling, J7 re-check 2: the signed TGC page says killing Teale before he talks breaks the rule and he moves, and a
+  knock-out before he talks is a section restart with Teale at his table, mission-framework `docs/missions/BRIEF.md`
+  A24); no rule text there is rewritten.
 - Not claimed: `src/world/lightField.ts`, `src/voxel/lampBake.ts` (Sector Ops lighting; S1 asks before touching, section
   6), `src/ai/**` (Guard AI), `src/net/**` (A19), `src/game/sectors.ts`, `src/game/modes/sectorMode.ts`,
-  `tallowWharfMissions.ts` (J7), `scripts/level-validate.mjs`, `scripts/mission-validate.mjs` (J12),
-  `docs/level-design.md` (Marlow, G157 fold), `docs/design/scale-sheet.md` (light-realism L5).
+  `tallowWharfMissions.ts` (J7), `scripts/level-validate.mjs`, `scripts/mission-validate.mjs`, `docs/level-design.md`,
+  `docs/design/scale-sheet.md` (Marlow Build: J12, the G157 fold, and TV for A24; the scale sheet's light rows are
+  light-realism L5's).
 - Overlaps with J7 (same lead, so never at the same time; section 5 orders them): `tallowWharfSectors.ts`,
-  `tests/tallowWharf/sectors.test.ts`, TGC / TKL `graph.json` (J7 PR D); `scripts/e2e-sectorops-wharf.mjs` (J7 PR E R7,
-  PR F R8); `gameState.ts` (J7 PR F R6). With the kit-flag fold (framework STATE item 7: `coopKit` folds into Player's
-  `kitMoves`, `teamController.ts:784`): J9 S1's `teamController.ts` hunk runs before or after it, never alongside.
-  Across leads (the train settles hunks): J3 / J3b and J6 on `gameState.ts`; Guard AI's J15 does not claim
-  `stealthSystems.ts` (guard-rules PLAN claims block), G1 (route-runs cause record) may add to it later.
-- The lead runs `node scripts/claims-check.mjs --plan docs/tallow-fixes/PLAN.md --name feature/tallow-fixes` (and the
-  J9 twin) once CPU allows and adds the list to this section before the plan checker.
+  `tests/tallowWharf/sectors.test.ts` (J7 PR D R3); `scripts/e2e-sectorops-wharf.mjs` (J7 PR E R7, PR F R8);
+  `gameState.ts` (J7 PR F R6). The kit-flag fold (framework STATE item 7: after Player's coop-kit part 1, the kit branch
+  `feature/mission-engine-flg-gb6` folds `coopKit` into Player's `kitMoves` and adds wire kind `stand`, touching
+  `teamMoves.ts` and `teamController.ts:784`; Campaign Build merges it into `feature/mission-engine`): order on
+  `teamController.ts` is fold, then TD's hunk, then S1's hunk; on `teamMoves.ts` fold, then TD (section 5).
+- **claims-check** (fix round 1; master 94e72b1c's `scripts/claims-check.mjs --plan <block> --name <branch>`, run from a
+  read-only extract against the 36 open PLANs with claims; PLANs without a claims block, including J7's and the engine's,
+  are not compared):
+  - J8 (`feature/tallow-fixes`): 10 overlaps, all `TESTING.md` (hud-guidance and its a1 / a2 / a3 / b / b1 slices,
+    map-ready, sector-batch, sector-marks, sector-marks-b1). One checklist line each; the train settles it.
+  - J8 PR T (`feature/tallow-throw`): `origin/feature/coop-kit` (Player's J24) on `src/game/teamMoves.ts`,
+    `src/game/teamController.ts`, `tests/teamMoves.test.ts`; `origin/feature/player-hygiene` on `teamController.ts`.
+    Player Build owns team moves: Campaign Build tells it before TD starts (section 13) and TD keeps to the throw
+    functions; the train settles hunks.
+  - J9 (`feature/tallow-shutters`): `src/game/gameState.ts` with char-shadow-meter, coop-kit, hud-guidance (+ a1, a2, a3,
+    b, b1), map-ready, player-batch-j19, sector-batch, sector-marks (+ b1); `src/game/teamController.ts` with coop-kit and
+    player-hygiene; `src/world/world.ts` with map-ready; `src/game/stealthSystems.ts` with player-batch-j19;
+    `docs/systems/coop.md` with coop-kit; `TESTING.md` as J8. S1's `gameState.ts` change is one call line; S2's
+    `stealthSystems.ts` change is one new private method and one call: the lead tells Player Build (j19) and the
+    orchestrator before PR S opens.
+  - Outputs: `C:/NightShift/scratch/campaign/j8-j9-val/claims-*.txt`.
 
 ## 5. Branches, PRs and order
 | PR | Branch (base) | Slices | Counted lines (est) | Starts when |
