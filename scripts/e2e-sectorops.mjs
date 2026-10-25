@@ -1038,11 +1038,12 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
     const [la, lb] = [await lampAt(A, 9.8, -66), await lampAt(B, 9.8, -66)];
     const [pa, pb] = [await lampAt(A, -32.2, -62), await lampAt(B, -32.2, -62)];
     assert(!!la && !!lb && la.id === lb.id && la.on && lb.on && la.destructible && !!pa && !!pb && pa.id === pb.id && pa.on, `the street lamps are lit, shootable and the same on both pages (${JSON.stringify([la, lb, pa, pb])})`);
-    // the client: 3 m east of the lane lamp, its real round
+    // the client: 3 m east of the lane head (x 12.8; light-realism L1 moved the head 0.8 m east to 9.8: from x 12 the aim needs
+    // pitch 1.11 rad, past the camera's maxPitch 1.05 (config/camera.ts), and the per-frame clamp sends the round under the head)
     await until(A, () => [...window.__app.current.net.remotes.values()].length > 0, null, 8000, 'the host has the client');
     await GB(() => { window.__app.current.player.forceAds = true; });
     await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
-    const cs = await fireAt(B, [12, 0.02, -66], lb, false);
+    const cs = await fireAt(B, [12.8, 0.02, -66], lb, false);
     assert(cs.fired === 1, `the client fires one round at the lane lamp (${JSON.stringify(cs)})`);
     const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, la.id, 8000, 'host lamp out').then(() => true, () => false);
     assert(outA, `the client's round on the lane lamp's pole top shoots it out on the host (${JSON.stringify(cs)}, lamp ${JSON.stringify(la)})`);
