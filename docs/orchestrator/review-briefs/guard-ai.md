@@ -3,7 +3,7 @@
 Michael (G355): "All current maps/features should be revised once documentation work has been completed". No src, test, map or config change.
 
 ## Docs
-origin/master after #398, #402, #404 land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
+origin/master after #407 (and #400) land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
 
 ## Scope
 `src/ai/` on every live map (`ctcourse`, `campusOps`, `warehouseOps`, Tallow Wharf on feature/mission-engine), and `src/config/enemies.json`; `docs/systems/ai.md`, `docs/guard-ai/`; open #387, #360, #317 (coop4).

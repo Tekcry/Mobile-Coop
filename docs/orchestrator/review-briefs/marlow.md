@@ -3,7 +3,7 @@
 Michael (G355): "All current maps/features should be revised once documentation work has been completed". No src, test, map or config change.
 
 ## Docs
-origin/master after #398, #402, #404 land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
+origin/master after #407 (and #400) land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
 
 ## Scope
 - Marlow Yard (`ctcourse`, Course mode): `src/world/maps/ctcourse*.ts`, `src/game/course/`, `src/game/modes/courseMode.ts` (markers :71-90), `src/ui/hud/courseHud.ts`; `docs/marlow-final/`.
