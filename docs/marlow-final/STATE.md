@@ -488,17 +488,17 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: JOB 0 = mission-framework (orchestrator ~22:45, Michael 22:12 / 22:45 / 22:50): follow the resume prompt in docs/missions/STATE.md on origin/feature/mission-framework (worktree C:/NightShift/Mobile-Coop-mission-framework), SAVE block first.
-Night Shift | Marlow Build: JOB 1 = level-validator (Michael ~20:05): follow the resume block in docs/level-validator/STATE.md on origin/feature/level-validator (worktree C:/NightShift/Mobile-Coop-level-validator); guard-cap below runs beside it (its laptop waits).
-Night Shift | Marlow Build: CURRENT JOB = guard-cap (orchestrator ~18:10, Michael "Guard cap plan"): follow the resume block in docs/guard-cap/STATE.md on origin/feature/guard-cap (worktree C:/NightShift/Mobile-Coop-guard-cap). Below = the finished marlow-final / coop4-ui2 state (nothing owed).
-Night Shift | Marlow Build: resume coop4-ui2 (Sector Ops slice): feature/coop4-ui2 11badf14 (worktree C:/NightShift/Mobile-Coop-coop4-ui2, off feature/coop4 4b188ffc): lobby rows sorted by PlayerInfo.slot + beacon swatch (coopUi.ts LobbyScreen.SLOT_CSS), e2e lobby caps asserts the order and colours. Sonnet check PASS (polish: move the swatch inline style to a .lp-beacon rule in src/styles.css with flex:none; for Michael: Marlow lobby gains the swatch, "teammates" wording, minimap ally dots blue / red). Laptop coop4ui2 e2e-coop on 11badf14 1/1 PASS (176 s). GREEN, handed to Sector Ops to merge into feature/coop4 (#317). Idle. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), git fetch; then wait for the orchestrator, Sector Ops (coop4 slices) or Michael's walk.
-Rules: no e2e on the desktop; single vitest files --maxWorkers=2, CPU < 85; no full check. Laptop runs: node <scratch>/lq/request.mjs --sha <sha> --pr <n> --set <name> --requester "Night Shift | Marlow Build" --suites "..." (lib.mjs + request.mjs from git show origin/master:scripts/laptop-queue/); verdict = status laptop-e2e/<set> (gh api repos/Tekcry/Mobile-Coop/commits/<sha>/statuses); failure excerpt posts on the PR with --pr. Train-ready: gh pr edit <n> --add-label train-ready + message "Night Shift | Orchestrator".
-Train-ready, waiting on trains (check gh; re-merge on a conflict, keep the label):
-- #291 LR16-M (feature/marlow-lr16m 5c20c538, rides with #287; on a conflict merge the refreshed origin/feature/sector-redesign-lr16-entry).
-- #299 A2 crossing settle (feature/a2-cross-settle 9ba77454).
-- #310 joint interrogation (feature/joint-interrogation 6ad69551, wire change) + #311 its check fixes (feature/joint-interrogation-2 624236b9, stacked).
-coop4 (Sector Ops lead, draft PR #317): our H1 + L1 (feature/coop4-ui 5f58e2d4) and DOC (feature/coop4-doc 4d320b74) are merged into feature/coop4; nothing owed.
-Open for Michael: joint interrogation A1 (a solo read spends the joint info) and A2 (the holder's RT knockout stays live during a bluff); W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal; A6 pump floor now lit / A8 hall floor mid under LR16.
-Spare jobs (docs/orchestrator/spare-jobs.md on feature/menu): open #14 client body carry (L), #15 optic cable rest (M-L), #12 rig-pose report with #308.
+Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs/VISION.md from origin/master; boot: docs/orchestrator/BOOT.md "Marlow Build" (origin/feature/menu).
+Area: Marlow Yard, level validator, route-runs, guard cap. Campaign work (mission-framework #372, Tallow Wharf, ROADMAP rows 0b / 7 / 8, review 2b) belongs to Campaign Build since 2026-10-25 ~12:50.
+HOLD (G346, G355): docs first. Until Michael signs off the folded plan (ROADMAP Now row 6): no new game work; finished PRs may ship.
+JOB NOW = conformance review (review-briefs/marlow.md, origin/feature/menu): branch feature/conformance-marlow, worktree C:/NightShift/Mobile-Coop-conformance-marlow, output docs/conformance-marlow/CONFORMANCE.md + changes/feature-conformance-marlow.md; docs-only PR "Conformance review: Marlow (plan only)", one fresh Opus checker posts `checker`, message the orchestrator with the PR number.
+Other jobs (resume from their STATE, only after the hold lifts unless they are finished PRs):
+- level-validator: V0-V5 merged (#346). V6 (--require-measured) on origin/feature/level-validator-v6 8f551e18, 20 commits, no PR yet: docs/level-validator/STATE.md there.
+- route-runs (G330): origin/feature/route-runs docs/route-runs/STATE.md (plan WIP, no BRIEF / PLAN yet).
+- guard-cap: origin/feature/guard-cap docs/guard-cap/STATE.md (M0 / M1 verdicts in REPORT.md; C1 waits #375 + #317; C2 brief for Test Runner; T1 = #360, Guard AI).
+- marlow-final (this file): the Marlow Yard redesign; the Next list above is pre-review and is re-planned from the conformance gaps.
+Shipped (nothing owed): #291 LR16-M, #299, #310, #311, #346.
+Open for Michael: joint interrogation A1 / A2; W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal.
 Polish list (after Michael playtests): A8 rail glass sliver; A2 top rail 0.02 over posts; A7 cabinet dressing; A2 wait (41,12.5) sight margin; device alarm stage carries across sets.
+Process (walk cap, train-ready, locks, laptop requests): RULES "Walk pacing", "Getting to master", "Machines". Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
 ```
