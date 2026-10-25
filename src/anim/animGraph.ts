@@ -708,6 +708,8 @@ export class AnimGraph {
    * graph or the game reads it back.
    */
   readonly playing: GraphPlaying = newGraphPlaying();
+  /** (mixamo-retarget M5) The traversal clip this frame's pose played (null: none), for `playing.trav`. */
+  private travNow: Clip | null = null;
   /** Final pose (after inertialization) and the pre-inertialization source. */
   readonly pose: Pose = newPose();
   private src: Pose = newPose();
@@ -1253,9 +1255,11 @@ export class AnimGraph {
     }
 
     // --- traversal, air, landing
+    this.travNow = null;
     if (i.traverse !== 'none') {
       // (ct-prototype D+E fix r1) a team climb-up (no ledge grips) keeps the old one-rise clip
       const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
+      this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
       // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
       overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       this.slot(i.traverse, 1, i.traverseT);
@@ -2009,8 +2013,10 @@ export class AnimGraph {
       P.code = 1 - o.keyW;
       P.move = MOVE_IDS.clip;
       P.clip = d.clip;
+      P.trav = null;
       return;
     }
+    P.trav = this.travNow; // (mixamo-retarget M5) the traversal clip (graph code's share)
     const km = o.keyMocap;
     const kc = this.mcK;
     const sk = o.keyW * o.keyStrafe;
