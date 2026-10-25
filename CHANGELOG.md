@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.103.5 - Train 100: Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #451; #372)
+- Mission framework A: specs and sign-off pages (Tallow Wharf, 4 missions, co-op kit) + graph-svg (#372)
+
 ## 4.103.4 - Train 99: Mission framework: specs and sign-off pages, graph-svg; Sector Ops docs: conformance fixes (2026-10-25, PR #449; #433, #372)
 
 ### Mission framework: specs and sign-off pages, graph-svg
