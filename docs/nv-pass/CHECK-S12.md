@@ -146,7 +146,7 @@ only from the code and SURVEY.
 ## Fix list (one round), ranked by impact
 
 1. **Re-shoot master "before" and make the shot script prove what it serves.**
-   - Files: `scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`.
+   - Files: `scripts/archive/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`.
    - nv-shots, before polling: exit 2 if anything already listens on PORT.
    - nv-shots, after polling: exit 2 if `server.exitCode !== null`. Fetch `/` and compare its `assets/index-*.js` name
      with the local `dist/index.html`; exit 2 on a mismatch.
@@ -179,7 +179,7 @@ only from the code and SURVEY.
 4. **`?gfx=min`: night vision never darker than off.**
    - If fix 2 does not already cover min: `NV_TONE.postLift` 2 -> 3 in `src/vfx/nightVision.ts`. The unit test checks
      NV luma >= the graded off luma, including the frame and black floor.
-   - `scripts/nv-shots.mjs` prints each view's centre mean off -> NV and flags NV < off.
+   - `scripts/archive/nv-shots.mjs` prints each view's centre mean off -> NV and flags NV < off.
    - Done looks like: all 9 min views have NV centre mean >= off (today yard-s1-bay 37.6 < 40.3 and yard-s5-backroom
      40.9 < 45.8), and min NV in a lit room is at least 70% of Medium's mean (today yard-s1-bay 37.6 vs 84.9).
 

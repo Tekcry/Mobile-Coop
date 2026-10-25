@@ -4,7 +4,7 @@
 PR #27 merged as 4.8.0 (e67ebd73, tag v4.8.0). Laptop runner on 4ae2d2f2: `npm run check` PASS (1810 unit tests); full
 `npm run e2e` PASS, all 31 suites ok, 1388 s (E2E_JOBS=1, E2E_SUITE_TIMEOUT=900).
 
-Boot-time check (orchestrator ask, desktop, software GL, port 4191, `scripts/menu-boot-time.mjs 5`, 2026-10-19 23:55):
+Boot-time check (orchestrator ask, desktop, software GL, port 4191, `scripts/archive/menu-boot-time.mjs 5`, 2026-10-19 23:55):
 boot to the main menu takes 0.71-1.29 s (median 0.78 s) on v4.7.5 (no gate) and 1.61-1.99 s (median 1.72 s) on
 v4.8.0 (gate "ready", hero lod2 under automation). The gate adds about 0.9 s per menu page; match boots
 (`?autostart`) skip it. Well under "a few seconds": the e2e helpers keep their condition waits, no follow-up change.
