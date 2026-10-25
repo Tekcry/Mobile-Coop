@@ -1,5 +1,5 @@
 /**
- * (anim-rig) The toe joint's pitch from the foot planner's roll (pure, Babylon-free; docs/anim-rework/RIG.md).
+ * (anim-rig) The toe joint's pitch from the foot planner's roll (pure, Babylon-free; docs/archive/anim-rework/RIG.md).
  *
  * A planted foot rising onto its ball (planner `pitch` > 0: heel up, toe on the floor, CharacterRig's `TOE_BALL` lift)
  * used to pivot the rigid foot about the toe tip, so the toe box went into the floor. With a toe joint per foot (the

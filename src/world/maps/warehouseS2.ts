@@ -10,7 +10,7 @@ import { addLampRooms, EXIT_GREEN, passLamps, type LampRoom } from './lampRooms'
  * to east, z south to north, y up, metres. The hall is x -24 (perimeter inner face) to x -4 (wall centre line), z -6 (the
  * wall section 1 builds) to z 18. `warehouse.ts` builds the perimeter, floor and section 3 (`storageHall: false` skips
  * its own racking and x -4 wall); this file builds the rest. (sector-fixes-r R2) The co-op layer: the high-bay row R3
- * (`S2_COOP`) and the VNA escape gate in R1S's through-bay (`S2_BOLTS`); docs/sector-fixes/r/R2.md.
+ * (`S2_COOP`) and the VNA escape gate in R1S's through-bay (`S2_BOLTS`); docs/archive/sector-fixes/r/R2.md.
  */
 
 const WALL = '#b7b2a6';
@@ -54,7 +54,7 @@ export const S2_HIGH_TOP = 4.4;
  * (`nx` its outward normal along x) from `z0` to `z1`, the rest of the block is `noLedge` (cut back 3 m from every solo
  * surface: rack tops, the sprinkler mains, the staged loads and stacks); `spot` is the booster's feet [x, z], facing the
  * face. The lips stay out from under the roof-sheet bands (their collision at 6.03 leaves 1.63 m over a 4.4 top: there
- * the top is crouch-walked). `tests/warehouseCoopS2.test.ts` checks the band, the solo gap and the way down; docs/sector-fixes/r/R2.md.
+ * the top is crouch-walked). `tests/warehouseCoopS2.test.ts` checks the band, the solo gap and the way down; docs/archive/sector-fixes/r/R2.md.
  * (sector-fixes-r fix) No lip faces A3: the R2 rack tops (4.0) are 3.0 m across it, and a top-gear running jump off them
  * meets R3's face with the feet still over the lip's in-air grab window (`FALL_GRAB`, tests/helpers/soloJumpReach.ts:
  * 4.5 m of reach), so a player alone would hang on it. C1a (R3S from A3) and C2 (R3N from A3) are gone; R3S keeps C1b

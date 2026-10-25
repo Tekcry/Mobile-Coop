@@ -2,7 +2,7 @@
  * (anim-joints J1, COVERAGE gap 1) The animation base table: GENERATED. `scripts/anim-tune-bake.mjs` (logic
  * `src/anim/tuneBakeBase.ts`) rewrites the JSON between the `@anim-base-begin` / `@anim-base-end` lines when it bakes
  * Joints, Hands & feet, IK strength, Weapon, (anim-gear) Gear or (anim-bake-targets) Body values, or (anim-bake-all) any
- * other slider with no code value of its own (the `sections` key) (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
+ * other slider with no code value of its own (the `sections` key) (`docs/archive/anim-tuner/BAKE.md`); do not edit that part by hand.
  *
  * Every Wren rig (`CharacterRig.tuneRows`) reads it: the tuner's Joints / Hands & feet / IK / Weapon values are deltas on
  * it (`tuneJoints.ts`, `tuneHands.ts`: joints add degrees per axis, offsets add, gun scale and IK strength multiply, the

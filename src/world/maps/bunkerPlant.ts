@@ -8,7 +8,7 @@ import { stairLayout, type StairLayout } from './stairs';
 import { hyp2 } from '../../core/mathx';
 
 /**
- * Fallow, the rest of the Plant level and the stair down, BAYS v2 (T5f; docs/training/BAYS.md sections 0, B5, B6,
+ * Fallow, the rest of the Plant level and the stair down, BAYS v2 (T5f; docs/archive/training/BAYS.md sections 0, B5, B6,
  * "S6 and A6"): B5 Standby Plant, airlock A5, B6 Mock Site, S6 Stair 6 and airlock A6 (Deep, y 0). Every coordinate
  * below is a BAYS local coordinate; `plantAt2` / the per-bay `X` / `Z` / `Y` add the bay's offset and floor.
  *

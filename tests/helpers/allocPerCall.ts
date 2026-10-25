@@ -1,6 +1,6 @@
 /**
  * (heap-asserts) Young-generation bytes a hot call leaves per call: lightField's gc() + new-space method
- * (docs/lightfield-heap), shared by every "never allocates" check. `process.memoryUsage().heapUsed` over 100k calls
+ * (docs/archive/lightfield-heap), shared by every "never allocates" check. `process.memoryUsage().heapUsed` over 100k calls
  * read whatever a scavenge happened to leave (a 32 B call read 0.4 B when a scavenge landed in the window, a clean one
  * MBs of other work's garbage), so those checks passed or failed with GC timing.
  *

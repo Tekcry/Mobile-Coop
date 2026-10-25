@@ -5,7 +5,7 @@
  * eases between dim and full. The co-op partner's vision is not sent, so a remote Wren stays stowed and dim.
  *
  * Geometry: a LOD file may carry a `_GOGGLE` class per vertex (0 body, 1 in use, 2 stowed; the asset follow-up in
- * docs/operators-runtime/DESIGN.md). `partitionGoggle` orders each primitive's triangles [stowed][body][in use], so
+ * docs/archive/operators-runtime/DESIGN.md). `partitionGoggle` orders each primitive's triangles [stowed][body][in use], so
  * either state is one contiguous index range: the state swap moves a sub-mesh's start and count, no upload, no draw.
  */
 

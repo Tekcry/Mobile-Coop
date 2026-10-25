@@ -4,7 +4,7 @@ import raw from './weapons.json';
 
 /**
  * The campaign arsenal (G76, pure): the CT kit, one rifle and one pistol (the CT knife is not built). Every other gun was
- * deleted (G115, docs/consolidation/deleted-guns.md); the rifle's sniper / shotgun / launcher attachments and the
+ * deleted (G115, docs/archive/consolidation/deleted-guns.md); the rifle's sniper / shotgun / launcher attachments and the
  * pistol's disruptor are settled by a later research job.
  *
  * - primary: the suppressed rifle.
