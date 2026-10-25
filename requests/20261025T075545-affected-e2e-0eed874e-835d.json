@@ -1,0 +1,15 @@
+{
+  "id": "20261025T075545-affected-e2e-0eed874e-835d",
+  "sha": "0eed874ef05a5bf8d674817a697419a64b43523d",
+  "branch": "feature/test-runner-j20-prc",
+  "pr": 445,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-ctcourse",
+    "e2e-sectorops",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #445"
+}
