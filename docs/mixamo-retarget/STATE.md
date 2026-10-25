@@ -51,3 +51,9 @@
 - At the save (05:31): merged feature/mixamo-i2 (ec486d6b; 7 files 62/63 pass with --testTimeout 400000, typecheck, eslint). Braced hold built, row still OFF: mixamo.ts MIXAMO_HOLD / WREN_HOLD / HOLD_FEET_CH, animGraph climb-up branch (hand-made under to k0, capture blended in over the release, feet hand-made to the crouch, clip-time remap `from`, end `ease`, per-hold `stand` fade).
 - Readings (braced on, scratch harness): palms 0.0, footOn 0.474, shoulders 0.49 m, knee 2.6 cm; best wrists pop 3.7 cm (cap 3.0) with k0 0.475 span 0.168 from 0.56 ease 0 stand 0.3 (trunk 6.8 / 3.1, groups ok). Defaults committed: from 0.475, stand 0.08, ease 0.
 - Left: wrists pop under 3 cm (then braced on + climbHands/mixamoTraverse test), freehang stand-up (step 4), I2B-REPORT, changes fragment. Scratch tests/zz_scratch_* are untracked, not committed.
+- At the save (08:55): scratch files deleted (harness now untracked under tests/_scratch/). Rows: hanging_idle,
+  shimmies, ladder (top-out 19.9 cm vs 15.7), ladder top-out, crawl (3.4 / 1.7 cm) ON; braced_hang_to_crouch OFF (wrists
+  3.5 cm a frame best, span 0.22 from 0.56 stand 0.3; cap 3.0); freehang_climb OFF (trunk 19.7 cm, wrists 11.1). Found:
+  the clip's hand channels do nothing in the climb-up (the graph's ready hands overwrite hLX..hRZ, animGraph ~1701): the
+  wrists follow the capture's trunk, so wrist smoothing must come from the trunk / timing, not the hand channels. Swept
+  span, k0, from, ease, stand, per-channel keeps: none under 3.0 yet. Left: braced under 3.0, freehang end, report.
