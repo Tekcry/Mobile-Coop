@@ -14,8 +14,8 @@ FOLDED-PLAN J-rows. Desktop CPU 100%: tsc / vitest builder slices go to cloud-qu
    -mission-rules-hud). Cloud brief campaign-j7-r6-polish (merged-head tsc + polish). R8 brief held: scratch cq/campaign-j7-r8.md.
 5. J3b B5 0b98cd7d1: cloud brief campaign-hg-b5-fix1 open; then re-check, merge into -b, fragment, laptop sets.
 6. Engine gb6fix dc2aa9c8 laptop set mission-gb6fix queued; hg-b3 / hg-b4 queued.
-7. Tallow wave 0: brief writer rerun (tallow-wave0-report.md: TD-a + G0 to cloud-queue; MB / D0 / S2 held); LP builder
-   (Opus, docs) on feature/tallow-fixes-lp, worktree -tallow-fixes-lp (tallow-lp-report.md). Sector Ops told about MB.
+7. Tallow wave 0: cloud briefs campaign-tallow-tda, -g0, -s2 open; MB / D0 held (scratch cq/; D0 waits for LP + PR D).
+   LP builder (Opus, docs) on feature/tallow-fixes-lp (tallow-lp-report.md). Rulings ~23:30 in lead-notes.md.
 Next: act on R6 checks, wave-0 report, cloud briefs done, laptop verdicts; B0b merge once #466 releases.
 
 ## OLD RESUME 2026-10-25 ~22:45 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
