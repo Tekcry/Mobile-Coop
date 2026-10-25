@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:51Z
+status: done feature/tallow-g0 55514bad68bd47cb7cd76661f3014a651407d8ff
 
 # campaign J8 G0: shared Tallow data, night floor, medkits, level-and-drop check (Sonnet 5.5)
 
@@ -103,3 +103,28 @@ helpers cannot prove because they skip every top at or above the target and ever
 ## Report (append below, then set line 1 to `status: done feature/tallow-g0 <sha>`)
 What changed per file, the model numbers step 6 found, test counts per file, check results, every deviation with its
 reason, "pending PC run" for the laptop suites. A question the brief cannot settle: `status: blocked <reason>`.
+
+### Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Commits: 152da9c8 `tallow G0:` steps 1-4, 55514bad steps 5-6, on feature/tallow-g0 from e3798754.
+- Facts checked first, all as the brief says: Tallow's theme sunIntensity 0.16 / ambient 0.3 / lightLevel 0.3 equal
+  campusOps's; campus S1 zone 0.14; `zoneAt` smallest zone wins; the bake reads zones as authored; bands.md 2 and 4
+  (moon 0.104 + standby 0.14 = 0.244; a cut circuit at 0.14 reads dark). Tallow had no ambient zone.
+- `src/world/maps/tallowWharf.ts`: `buildShell` adds `b.ambientZone(W.minX, W.maxX, W.minZ, W.maxZ, 0.14, Y.canalBed - 1,
+  MASS_TOP + 1)` with the brief's comment (`W` is buildShell's `WHARF_BOUNDS`; `Y` imported from the kit); layout
+  `medkitWalls: SECTIONS.flatMap((s) => s.medkits ?? [])`. No theme value changed.
+- `src/world/maps/tallowWharfKit.ts`: `WharfSection.medkits?` with the doc comment; `emptySection` returns `medkits: []`.
+- `tests/tallowWharf/shell.test.ts`: new describe, 3 `it`s (theme equals campusOps's, read from both MapDefs; zoneAt 0.14
+  at each SECTION_BOX centre (y 1) and at the first spawn on the canal steps; medkitWalls deep-equals the sections').
+- `tests/tallowWharf/helpers.ts`: `soloLevelThreats` (+ imports `LEAP`, `GRAVITY`, the soloJumpReach exports, facts.json
+  for vaultMax 1.25; local copies of `top` / `inside` / `BODY`). As the brief: tops t >= q.top - 0.05, no mantle skip,
+  landing reach and (edges.noLedge false) the grab reach, the larger + extra; the flight along the arc at +0.1 / +0.9
+  / +1.7, blocked only by pieces over t + 1.25 or deep enough to stand on. One addition: the flight skips samples
+  inside `q`'s own plan box (the landing; otherwise the stage itself would block a drop landing with the feet just
+  under its top). Nothing else in helpers.ts changed.
+- `tests/tallowWharf/levelGap.test.ts` (new, 6 tests): model numbers within 0.02 of 3.36 / 4.88 / 4.64 (pass: none
+  differs); level 3.5 reported / 3.6 not; 8.4 at 5.0 / 5.1; railing 1.1 m does not block, 1.9 m noLedge screen 0.2
+  thick does; grab edge 4.8 m only with edges.noLedge false; a 4.0 top never.
+- Checks: typecheck:fast clean; eslint (5 files) clean; `npx vitest run tests/tallowWharf/` 7 files, 141 passed (shell
+  18, levelGap 6, the rest unchanged). Diff: only the five files; throwSites / WharfThrow.dist not added.
+- Pending PC run: laptop `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission` (the night floor
+  changes Tallow's light levels).

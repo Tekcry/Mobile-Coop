@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:51Z
+status: done feature/tallow-throw-tda 9c9a89be8f24e51457c7331d7fdd05f048b82ca3
 
 # campaign J8 TD-a: per-site throw length, pure part (Opus 5.5)
 
@@ -95,3 +95,22 @@ controller), so the game's behaviour is unchanged by this branch.
 ## Report (append below, then set line 1 to `status: done feature/tallow-throw-tda <sha>`)
 What changed (functions and signatures), the test cases with counts per file, check results, any deviation with its
 reason, and "pending PC run" for the laptop suites. A question the brief cannot settle: `status: blocked <reason>`.
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Two commits on feature/tallow-throw-tda from e3798754 (head 9c9a89be).
+- `src/world/mapDef.ts`: `ThrowSite` (A24 / Q23 / M2 doc comment) and optional `MapLayout.throwSites` ("named spots
+  only; no sites = the standard throw everywhere").
+- `src/game/teamMoves.ts` (throw block + one `import type`): `THROW_SITE_REACH` 1.0, `THROW_SITE_COS` 0.9; module
+  `throwSites` + `setThrowSites` (empty list stored as null); `throwDistAt(bx, bz, dx, dz)` index loop, `hyp2`, no
+  allocation; a direction under 1e-6 or no sites gives `TEAM.throwDist`; nearest qualifying site wins; a site with a
+  zero facing is skipped (no NaN cosine). `throwLanding` / `throwLandingOk` take `dist = TEAM.throwDist` (band
+  dist +-1; the `throwDrop` rule unchanged). `checkTeamRequest` throw case: `!l` -> 'noTarget', then
+  `throwDistAt(r.b.x, r.b.z, l.x - r.b.x, l.z - r.b.z)` into `throwLandingOk`; order and denials unchanged.
+  `throwArc`, `throwArcVy`, `throwKoHit`, `throwRoom`, `TEAM` untouched.
+- `tests/throwSites.test.ts` (new, 8 tests, `afterEach(() => setThrowSites(null))`): every brief case plus nearest of
+  two overlapping sites. `tests/teamMoves.test.ts` not edited.
+- Checks: typecheck:fast clean; eslint (4 files) clean; vitest teamMoves 24, throwSites 8, a5Substation 61,
+  a8Strongroom 83, ctcourseGreybox 77, tallowWharf/w2 21: 274 / 274.
+- Deviation: `let best: number = TEAM.throwDist` (explicit type: `TEAM` is `as const`). Nothing calls `setThrowSites`
+  yet (TD-b), so behaviour is unchanged.
+- Pending PC run (with TD-b, PR T): `e2e-coop e2e-netmove e2e-ctcourse e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl`.
