@@ -235,6 +235,11 @@ function rowDrawn(section: string, group: string): boolean {
   return w !== '' && w !== 'none';
 }
 
+/** Whether a row is for her with no gun out only (the "none" weapon level of a Hands & feet, Gun in hand or Joints group). */
+function rowHolstered(section: string, group: string): boolean {
+  return weaponOf(section, group) === 'none';
+}
+
 /** The probe's word on `key` (`section:id`) in `state`: false when it changes the hand-made set but not the capture;
  *  true otherwise (it changes the capture, or the state was not probed, or the probe could not see it). */
 function probeReaches(state: string, key: string): boolean {
@@ -272,11 +277,12 @@ export function rowReach(section: string, group: string, id: string): Reach {
 // ------------------------------------------------------------------------------------------
 
 /** What plays now, as this file needs it: the body state (null: none), the capture's share of the body (0..1), the
- *  More > Panel motion-capture switch. */
+ *  More > Panel motion-capture switch, a gun drawn (in her hands now: the game's gun group, or a studio loop with one). */
 export interface ReachNow {
   state: BodyGroup | null;
   mocapShare: number;
   switchOn: boolean;
+  drawn: boolean;
 }
 
 /** The capture's share at or over which a hand-made-only row is "Not playing now", at or under which a capture-only one. */
@@ -442,8 +448,9 @@ function rowName(section: string, group: string, states: readonly BodyGroup[]): 
 
 /**
  * The one-line warning for an edit of slider `id` that changes nothing on what plays now ('' : the edit shows, or
- * nothing is known). Cases (PLAN 2(c)): the row's state is not playing; a hand-made-only row while the capture plays
- * its state (naming where the working setting lives, `WORKS_INSTEAD`); a gun row while the capture plays with no gun.
+ * nothing is known). Cases (PLAN 2(c)): the row's state is not playing; a row for her with no gun out while she has a
+ * gun drawn; a hand-made-only row while the capture plays its state (naming where the working setting lives,
+ * `WORKS_INSTEAD`); a gun row while the capture plays with no gun.
  * The guards' rows and rows tied to no body state get none.
  */
 export function editWarning(section: string, group: string, id: string, now: ReachNow): string {
@@ -456,6 +463,7 @@ export function editWarning(section: string, group: string, id: string, now: Rea
     const name = rowName(section, group, states);
     return `You are editing ${name}; she is ${STATE_DOING[now.state]}. Pick ${name} in the Anim Studio to see it.`;
   }
+  if (now.drawn && rowHolstered(section, group)) return 'Not on screen: this row is for her with no gun out. Holster to see it.';
   if (reach !== 'keyed' || shareOf(now) < REACH_NOW_BANDS.capture) return '';
   const move = CAPTURE_MOVE[now.state] ?? plainGroupWord('body', 0, now.state).toLowerCase();
   const head = `Not on screen: motion capture is playing the ${move}.`;

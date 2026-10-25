@@ -630,7 +630,7 @@ export class AnimTunePanel {
   private playShownClip: KeyedClip | null = null;
   private playText = '';
   /** What plays now as `tunerReach.ts` reads it (one object, mutated each frame) and the band last applied to the badges. */
-  private readonly reachNow: ReachNow = { state: null, mocapShare: 0, switchOn: false };
+  private readonly reachNow: ReachNow = { state: null, mocapShare: 0, switchOn: false, drawn: false };
   private reachBand = -1;
   /** The live band's last side (`REACH_NOW_HYST`): share high (from 0.9, until under 0.88) / low (to 0.1, until over 0.12). */
   private reachHi = false;
@@ -3563,6 +3563,8 @@ export class AnimTunePanel {
     n.state = body === '' ? null : body;
     n.mocapShare = NOW_PLAYING.mocap;
     n.switchOn = LOCO.mocap;
+    // a gun in her hands: the game's gun group, or a studio loop that draws one (the same reading as `effectMode`'s `armed`; no allocation)
+    n.drawn = !!TUNE_STATE.gun || (STUDIO.active && !!studioEntry(STUDIO.entry).drawn);
     const share = n.switchOn ? n.mocapShare : 0;
     // hysteresis (REACH_NOW_HYST): a share hovering at a band's edge does not flip the badges at every crossing
     const hi = this.reachHi ? share >= REACH_NOW_BANDS.capture - REACH_NOW_HYST : share >= REACH_NOW_BANDS.capture;

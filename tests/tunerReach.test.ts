@@ -48,7 +48,7 @@ import {
   type ReachNow,
 } from '../src/ui/tunerReach';
 
-const now = (state: ReachNow['state'], mocapShare: number, switchOn = true): ReachNow => ({ state, mocapShare, switchOn });
+const now = (state: ReachNow['state'], mocapShare: number, switchOn = true, drawn = false): ReachNow => ({ state, mocapShare, switchOn, drawn });
 const REACHES: readonly Reach[] = ['mocap', 'keyed', 'both', 'none'];
 
 describe('tuner clarity: the reach table', () => {
@@ -223,6 +223,26 @@ describe('tuner clarity: the reach table', () => {
     expect(editWarning('keys', keyGroupId('walk', 1), 'chest_pitch', now(null, 1))).toBe('');
   });
 
+  it('warns that a row for her with no gun out shows nothing while a gun is drawn', () => {
+    const drawn = now('walk', 1, true, true);
+    const line = 'Not on screen: this row is for her with no gun out. Holster to see it.';
+    // the holstered (weapon "none") rows of Hands & feet, Gun in hand and Joints
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', drawn)).toBe(line);
+    expect(editWarning('weapon', 'weapon.none.walk', 'fingerCurl', drawn)).toBe(line);
+    expect(editWarning('joint', 'joint.none.walk', 'ankleL_y', drawn)).toBe(line);
+    // the same with the capture at any share: a gun drawn is what hides the row
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 0, true, true))).toBe(line);
+    // holstered: unchanged (nothing to say for a row that shows)
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 1))).toBe('');
+    // rows with a gun, rows with no weapon level and other states' rows are as before
+    expect(editWarning('hand', 'hand.rifle.walk', 'handLFwd', drawn)).toBe(editWarning('hand', 'hand.rifle.walk', 'handLFwd', now('walk', 1)));
+    expect(editWarning('joint', 'joint.walk', 'ankleL_y', drawn)).toBe('');
+    expect(editWarning('body', 'walk', 'kneeOutMul', drawn)).toBe('');
+    expect(editWarning('hand', 'hand.none.jog', 'footLFwd', drawn)).toBe(editWarning('hand', 'hand.none.jog', 'footLFwd', now('walk', 1)));
+    expect(editWarning('guardJoint', 'guard.joint.walk', 'kneeL_x', drawn)).toBe('');
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', now(null, 1, true, true))).toBe('');
+  });
+
   it('keeps every shown string in plain words (A1, A2, A12)', () => {
     expect(KEYS_MOCAP_NOTE).toBe('Keys change the hand-made moves only. Motion-capture moves are changed in Body > Joints, Hands & feet and Limb reach.');
     expect(MOCAP_BOX_LABEL).toBe('Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)');
@@ -241,6 +261,7 @@ describe('tuner clarity: the reach table', () => {
       editWarning('body', 'walk', 'leanAdd', now('walk', 1)),
       editWarning('step', 'step.run', 'lift', now('run', 1)),
       editWarning('body', 'jog', 'kneeOutMul', now('sneak', 1)),
+      editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 1, true, true)),
     ];
     // "Keyed" may name the Anim Studio's box; no "keyed" / "procedural" / "mocap" jargon otherwise
     for (const s of shown) expect(s.replace(/\bKeyed in the Anim Studio\b/g, ''), s).not.toMatch(/procedural|keyed|mocap|\bIK\b|\bFK\b/i);
