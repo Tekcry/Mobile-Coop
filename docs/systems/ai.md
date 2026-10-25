@@ -199,6 +199,19 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   nearest free cover; the missing guard joins `silent`, so a radio check does not miss him again); parked modes: he
   searches. A missing pair whose guards are both up again (a woken partner takes his slot) starts over. Host only, no
   wire change. Tests: `tests/pairs.test.ts`, `tests/pairsWiring.test.ts`; e2e: e2e-sectorops part 1 "talking pairs".
+  (guard-rules S6, A10, A11; `flags.guardPairs`, read only in `buildPair`, default off) Walking-together check and
+  posted pairs. A timed-loop pair gets `PairDef.watch`: while both are up they count as together within
+  `PAIRS.togetherR` 4 m; one then down or absent while the other stays calm for `PAIRS.notice` 3 s -> missing at once
+  (`PairMeet.watch`, before the window logic; the same `lookFor` / `lookX` / `lookZ` outputs and `pairMissing` path as the
+  window's `grace`; the timer counts only while the one left is calm, S6-c; the look point is the partner's last route
+  point, S6-d). Two guards that stand (no route, or a post with an untimed route, S6-a) and fail `pairWhyNot` become a
+  posted pair when their posts (`Enemy.postPoint`) are within `PAIRS.meetMax` (`postedWhyNot`; else the skip text adds
+  `(posted pair: ...)`): `postedDef` puts the meet points at the posts on a fixed `PAIRS.postedPeriod` 40 s clock whose
+  window is its first `PAIRS.postedOpen` 12 s, opening on the first step (no randomness, G143), `watch` on. A downed
+  posted partner under 2.5 m away is found as a body (`BODY.close`); 2.5-4 m by the 3 s pair check; 4-6 m by the
+  window's grace only (S6-b). The hold is the same `pairFace` / `pairPt`; after the talk the walker turns him back to
+  his post yaw. Flag off: every pair `watch: false`, no posted pair (today's skip). Host only, no wire change. e2e:
+  e2e-sectorops part 1 "pair checks" (`?guardpairs=1`).
 - Tactics: from sight into cover first (85%; the profile's `coverFirst` by `profileOf(tacticsProfile)`, S6, a seeded roll, S8), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`ADVANCE_HOLD`; a point or an aggressive guard: `profileOf(tacticsProfile).advanceHold`, 0.8 s aggressive), then the next; the last
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
