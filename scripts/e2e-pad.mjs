@@ -449,7 +449,7 @@ try {
   });
   assert(dr.aNoReload, 'A at low ready does not reload (Michael: "Interact always")');
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
-  // (anim-natural N3, docs/anim-natural/n3/DRAW-TIMES.md) X draws to low ready in 1.1 s (rifle) / 0.75 s (pistol), the
+  // (anim-natural N3, docs/archive/anim-natural/n3/DRAW-TIMES.md) X draws to low ready in 1.1 s (rifle) / 0.75 s (pistol), the
   // holster takes 1.0 / 0.9 s, the LT sling draw 1.5 / 1.2 s (undo: 0.3 / 0.5 s draws, 0.15 s holster)
   const drawT = dr.cls === 'pistol' ? 0.75 : 1.1;
   const holT = dr.cls === 'pistol' ? 0.9 : 1.0;

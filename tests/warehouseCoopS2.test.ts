@@ -1,5 +1,5 @@
 /**
- * (sector-fixes R2) Sector Ops section 2's co-op-only routes and its team door (docs/sector-fixes/r/R2.md): the high-bay
+ * (sector-fixes R2) Sector Ops section 2's co-op-only routes and its team door (docs/archive/sector-fixes/r/R2.md): the high-bay
  * row R3 (tops 4.4, lips only where planned, no rolling ladder; C1 R3S, C2 R3N) and the VNA escape gate in R1S's
  * through-bay, bolted from the A2 side. Built from the real `warehouseOps` map.
  */

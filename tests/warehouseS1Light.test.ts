@@ -5,7 +5,7 @@
  * night vision; the dark pockets (spawn corner, trailer lane, shelter, skip, charger corner, east corridor end) stay
  * dark; sections 2 and 3 do not change; no 2 m column lists more lamps than the shaders hold.
  * `WH1LIGHT_PRINT=<file>` writes every point's level without the new lamps and with them (the table in
- * `docs/warehouse-s23/LIGHT-S1.md`).
+ * `docs/archive/warehouse-s23/LIGHT-S1.md`).
  */
 import { writeFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';

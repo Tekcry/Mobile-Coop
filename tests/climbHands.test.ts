@@ -2,7 +2,7 @@
 // the right foot steps onto the top, then let go before the crouch without a jump. Was: the CLIMB_UP trunk near upright
 // while the knee came on put the shoulders 0.6 - 0.88 m from the lip (arm 0.54 m) over k 0.32 - 0.52 and the palms left
 // it from k 0.32 (31 cm off by 0.36, 65 cm by 0.52) whatever the grip weight; the wrists' velocity changed 23.5 cm in a
-// frame at the release (docs/traverse-fix-2/REPORT.md).
+// frame at the release (docs/archive/traverse-fix-2/REPORT.md).
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Ledge } from '../src/world/anchors';
 

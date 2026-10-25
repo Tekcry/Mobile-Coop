@@ -1,4 +1,4 @@
-// (anim-skeleton S3a, docs/anim-skeleton/PLAN.md S3) The clip format's optional clavicle, finger and FK leg channels:
+// (anim-skeleton S3a, docs/archive/anim-skeleton/PLAN.md S3) The clip format's optional clavicle, finger and FK leg channels:
 // sampled, mixed, mirrored and cleared like the T1a channels (identity / 0 when absent), the rig applying them (a shrug
 // moves the shoulder, a curl the fingers, a weighted FK leg the hip / knee, weight 0 the IK leg exactly), the build
 // emitter writing them only when the bake has them (the 28 shipped modules re-emitted byte for byte), no allocation.

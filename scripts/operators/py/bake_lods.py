@@ -697,7 +697,7 @@ def game_joint(n, fingers=False):
         return 'wrL'
     if n.startswith('fingerR') and not fingers:
         return 'wrR'
-    # anim-rig (docs/anim-rework/RIG.md): the toes ride the toe joint at the ball of the foot (was the ankle: a rigid
+    # anim-rig (docs/archive/anim-rework/RIG.md): the toes ride the toe joint at the ball of the foot (was the ankle: a rigid
     # foot). Undo: return 'anL' / 'anR' here and drop toeL / toeR from GAME_JOINTS.
     if n.startswith('toesL'):
         return 'toeL'
@@ -801,7 +801,7 @@ for n in ANCHOR_BONE:
 sock = sim.get('waist_belt', {}).get('slingSocket')
 if 'slingSocket' not in anchor_world and sock:
     anchor_world['slingSocket'] = Matrix.Translation(Vector(sock['at']))
-# anim-rig (docs/anim-rework/RIG.md): the back sling socket, where a sling's rear end anchors: WREN_SLING.back
+# anim-rig (docs/archive/anim-rework/RIG.md): the back sling socket, where a sling's rear end anchors: WREN_SLING.back
 # (src/operators/handFrame.ts) from the chest joint, game frame, on the back plate at the left shoulder blade.
 SLING_BACK = {'wren': (-0.078, 0.123, -0.1)}
 if op_id in SLING_BACK and 'chest' in rig.data.bones:

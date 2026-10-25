@@ -267,7 +267,7 @@ try {
   // (step 22, M14 N6) gear 4 crouched is 1.5 m/s now (was 1.8): the pace eases down onto it, minus the stride dip
   assert(stance.minMoving > 1.3, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
   const drawnT = stance.raise.find(([, , d]) => d === 2)?.[0] ?? 99;
-  // (anim-natural N3, docs/anim-natural/n3/DRAW-TIMES.md) the LT sling draw: rifle 1.5 s, pistol 1.2 s (was 0.75 / 0.8)
+  // (anim-natural N3, docs/archive/anim-natural/n3/DRAW-TIMES.md) the LT sling draw: rifle 1.5 s, pistol 1.2 s (was 0.75 / 0.8)
   // (anim-natural N3 fix, check finding 9) and not the old 0.75 s: the rifle (the loadout's current gun here) at 1.5 s
   assert(drawnT >= 1.3 && drawnT <= 1.6, `aim draws first: drawn in ${f2(drawnT)} s (1.3-1.6; N3: 1.5 rifle / 1.2 pistol)`);
   // the raise starts while the draw finishes: timed from the last frame the weapon was still low
@@ -521,7 +521,7 @@ try {
   // Knee separation and foot track per speed and stance, knees over the toes, planted-foot slide and the elbows'
   // distance out from the shoulders, in the pelvis frame (src/anim/audit/metrics.ts, limits.ts CRAB / CRAB_CROUCH).
   // Report-only: a gait asserts once CRAB_GATES[gait] is on (as CT Core's anim-rework slices 2-4 land);
-  // docs/anim-rework/METRICS.md. CRAB_STATES=1 adds the walk's sub-states at speeds 1-3 (anim-metrics-2).
+  // docs/archive/anim-rework/METRICS.md. CRAB_STATES=1 adds the walk's sub-states at speeds 1-3 (anim-metrics-2).
   console.log('anti-crab metrics (report-only until CRAB_GATES turns a gait on)');
   /** Plays `segs` ({ sec, inp, rec }) from a standstill at speed `gear`, crouched or not; records the crab joints and the
    *  foot contacts on the `rec` segments (each 60 Hz step). */
@@ -1267,7 +1267,7 @@ try {
     // shoulder-joint lines in the root frame), their correlation (counter-rotation), the pelvis lateral swing off the
     // root, the head's yaw off the root and its pitch, each a peak-to-peak over the recording, sampled every 60 Hz step.
     // The same maths as the unit harness (tests/helpers/bodyMotionMeasure.ts, tests/bodyMotion.test.ts); the targets are
-    // PLAN step 2's (docs/anim-natural-n2/PLAN.md). (fix round) The sway is 0.7x (A11: walk lateral ~3.6 cm, the knee-out
+    // PLAN step 2's (docs/archive/anim-natural-n2/PLAN.md). (fix round) The sway is 0.7x (A11: walk lateral ~3.6 cm, the knee-out
     // margin); the run's key pop is gone (A1 merged): its yaw stays report-only, its lateral and head yaw assert.
     console.log('body motion');
     const bm = await G(() => {

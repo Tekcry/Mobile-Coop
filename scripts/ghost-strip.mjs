@@ -1,4 +1,4 @@
-// Ghost frame strips (ghost-fix, docs/ghost-fix/DIAGNOSIS.md): serves dist/ with `vite preview`, launches ONE headless
+// Ghost frame strips (ghost-fix, docs/archive/ghost-fix/DIAGNOSIS.md): serves dist/ with `vite preview`, launches ONE headless
 // browser on Free Roam (proving, daylight) at the given preset, stops the game's render loop and drives it frame by
 // frame itself (sim step, frame update, render: the order of `GameLoop.frame`), reading the canvas back right after each
 // render (the DOM HUD is not in the canvas, so no HUD hiding is needed). Strips: `draw` (aim held from holstered, the
@@ -6,12 +6,12 @@
 // Writes <dir>/<strip>-<NN>-<suffix>.png per frame and <dir>/<strip>-sheet-<suffix>.png per strip, and prints the
 // active post pipeline (TAA / TAAU / motion blur) plus per frame the camera's `hasMoved` and whether its position moved.
 // Needs a prior `npm run build`. Never headed, no pointer lock.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/ghost-strip.mjs docs/ghost-fix/shots before epic
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/ghost-strip.mjs docs/archive/ghost-fix/shots before epic
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
 
-const [dir = 'docs/ghost-fix/shots', suffix = 'before', gfx = 'epic'] = process.argv.slice(2);
+const [dir = 'docs/archive/ghost-fix/shots', suffix = 'before', gfx = 'epic'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const COLS = 6;

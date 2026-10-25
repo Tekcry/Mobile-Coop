@@ -5,7 +5,7 @@
 // offset tables rewritten here as the build would write them): the curve of the edit alone, the curve of key + edit
 // minus the curve of the key (`keyCurveSpread` with the key file's values), and that with the offsets composed as the
 // bake's forward kinematics (exact at the keys too), and the trunk re-keyed in Blender's channel frames (exact).
-// docs/anim-skeleton/s4b/REPORT.md.
+// docs/archive/anim-skeleton/s4b/REPORT.md.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';

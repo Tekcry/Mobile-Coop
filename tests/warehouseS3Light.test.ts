@@ -5,7 +5,7 @@
  * west staging, the crane operator, the stores officer's corner, the east bay, the deck's west end) stay dark; sections 1 and 2 do
  * not change; no 2 m column lists more lamps than the shaders hold.
  * `WH3LIGHT_PRINT=<file>` writes every point's level without the section 3 lamps and with them (the table in
- * `docs/warehouse-s23/LIGHT-S3.md`).
+ * `docs/archive/warehouse-s23/LIGHT-S3.md`).
  */
 import { writeFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
