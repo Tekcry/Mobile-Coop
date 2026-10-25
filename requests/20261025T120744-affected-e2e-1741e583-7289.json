@@ -1,0 +1,15 @@
+{
+  "id": "20261025T120744-affected-e2e-1741e583-7289",
+  "sha": "1741e583adf9677f8c6929b3bbf6a7d711f8468a",
+  "branch": "feature/sector-batch-light",
+  "pr": 469,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-desktop",
+    "e2e-lightbake",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #469"
+}
