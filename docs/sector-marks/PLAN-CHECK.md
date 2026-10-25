@@ -1,78 +1,66 @@
-# sector-marks: plan check 1
-Checker: Opus 5.5, 2026-10-25 18:44, PLAN at 33d5c8b21ee78fe7da48e8393548c3dbe2ad85b0 (branch head d51da187).
+# sector-marks: plan check 2
+Checker: Opus 5.5, 2026-10-25 19:00, PLAN at e0660bc4550bbf686869a8cdfbd6d1ea02383c36 (master b81c4945; no change to
+the PLAN's files since 2148ec96).
 Verdict: FIX
 
+## Check 1 items
+1. Claims block: fixed (PLAN:10-28), claims-check runs (see Claims). One file missing, fix 2 below.
+2. campus-greybox overlap named with a ruling (PLAN:89-93). Workable for the labels, not complete (fix 1 below).
+3. BRIEF clean: fixed, ends after A8 (BRIEF:68).
+4. B1 diff check: fixed (B1:233 "plus `docs/sector-marks/*`").
+5. "Michael said" / "picked": fixed. Said holds only G336 ~09:45 (ROADMAP:96) and G343 ~10:45, verbatim; G290, G351, Q26
+   ~16:50 (ROADMAP:88) moved to "picked"; duplicate G351 gone; sector-batch line updated (PLAN:101).
+
 ## Intent
-- ok: every slice item serves VISION 4 rule 5 / G290 "no markers" (beacon, PLAN rows 1-3) and G336 / G343 / G351
-  "what and where", "short, plain English" (rows 4-6, 8); row 7 (`hyp2`) is FOLDED-PLAN J6 break 7, the Sector Ops line
-  (FOLDED-PLAN:122, :166). Nothing Michael asked for in J5's Sector Ops half is uncovered; warehouseOps is out by his
-  later pick Q26 "Freeze it" (ROADMAP:86), which outranks FOLDED-PLAN J5's "warehouseOps" (FOLDED-PLAN:165).
-- ok: the four new lines (BRIEF A4) each contain the full room name whose rect holds the objective point (checked
-  against `S1_ROOMS`..`S5_ROOMS` with `inRoom` and height: Gatehouse, Prototype Store, Server Cage, Strongroom; S2
-  Facilities Office already passes); all are 44-49 characters. Every connector / extract label has a place word
-  (staff, bridge, dock, colonnade, boathouse), so B1 step 4c should pass.
-- finding (format): BRIEF "Michael said (verbatim)" (BRIEF:28-36) holds three items that are not his words with a time:
-  G290 (BRIEF:31-32) is the orchestrator's record of a multiple-choice pick (DECISIONS:1567, 2026-10-24 ~22:12), Q26
-  "Freeze it" (BRIEF:29-30) is a clicked option (ROADMAP:86), and G351 "What and where" (BRIEF:36) has no time and is
-  already under "Michael picked" (BRIEF:40).
-- finding: BRIEF.md ends with leaked tool-call text (BRIEF:70-75: `</content>`, `<invoke name="Bash">`, a git commit
-  command). The BRIEF is the builder's and checker's source; it must be clean.
+- ok: beacon (PLAN rows 1-3) = FOLDED-PLAN break 2 (:117), G290 "no markers"; lines (rows 4-6, 8) = break 3 (:118),
+  G336 "Objectives must name what and where", G343 "a short, plain English objective", G351 "What and where"; row 7 =
+  break 7 (:122), J6's Sector Ops line (:166). warehouseOps left out by Q26 "Freeze it" (ROADMAP:88), later than J5's
+  row (:165). Nothing he asked for in Sector Ops is uncovered; nothing extra.
+- note (orchestrator, not this job): the campaign runs as `infiltration` (briefingScreen.ts:110) and keeps its extract
+  beacon (infiltrationMode.ts:158-159, BRIEF A1). VISION 4 rule 5 bans markers in the campaign too; no FOLDED-PLAN row
+  owns it.
 
 ## Gates
-- ok: no slice crosses VISION, a hard rule or a Michael-only rule. A1 / A2 tighten toward rule 5; A6 leaves the frozen
-  warehouseOps lines by Michael's own Q26 pick and is logged. No flag needed: a rule fix to a shipped feature (G355,
-  RULES "Walk pacing"). Not a map or look job: no sign-off gate.
-- ok: Babylon import in `tests/exitBeacon.test.ts` (B1:155, `@babylonjs/core/Engines/nullEngine`) matches the existing
-  test pattern (`tests/animGear.test.ts:251`); `src/net` change is one constructor argument, no wire or save change.
+- ok: no slice crosses VISION, a hard rule or a Michael-only rule; a rule fix to a shipped feature, no flag (G355).
+  Not a map or look job. `src/net` change is one constructor argument, no wire or save change; two Opus checkers named.
+- ok: code refs re-found on b81c4945: interactables.ts :5, :26, :81-84, :134-137 (a "no visuals" branch already exists
+  at :112, same pattern); gameState.ts :43, :728 (inside `opts.mode !== 'sandbox'`), :839; coopClient.ts :18, :247;
+  labels campusSectors :315 / :406, S4Data :180, S5Data :169; S4Dress :176; sectorMode :771 puts down `${id}-exit` in
+  `setup` at the phase change, so the e2e assert after :91 finds it. `tests/sectorBolt.test.ts` 2-arg calls keep working.
 
 ## Claims
-- claims-check: did not run. `node scripts/claims-check.mjs --plan docs/sector-marks/PLAN.md --name feature/sector-marks`
-  exits 2: "docs/sector-marks/PLAN.md has no ```claims block (docs/templates/plan.md)". The PLAN has a file table
-  (PLAN:10-24) but no fenced block (template docs/templates/plan.md:15-23; session-method "Intake" 2).
-- Manual git scan of `origin/feature/*` (three-dot diff vs master) on the 13 files:
-  - **campus-greybox (J17, real overlap):** claims `campusSectors.ts` (its PLAN:42) and has already moved the S1 / S3
-    SectorDefs out of it into `campusS1Data.ts:90` / `campusS3Data.ts:159`, plus v2 copies with the old labels in
-    `campusV2/s1Data.ts:91`, `s3Data.ts:160`, `s4Data.ts:183`, `s5Data.ts:172`; it also edits `campusS4Data.ts` and
-    `campusS5Data.ts`. This PLAN's 4 lines in those files will conflict at its merge, and its `tests/campusV2.test.ts`
-    "v2 copy equals live" will break unless the copies get the new labels. Not named in PLAN 4 Risks.
-  - coop4: `gameState.ts`, `coopClient.ts`, `campusSectors.ts`, `campusS4Data.ts`, `campusS5Data.ts`,
-    `scripts/e2e-sectorops.mjs`, `TESTING.md` (791 behind master; no hunk on the Interactables lines it shows at
-    coopClient:274, gameState:760). mission-engine-flg-gb6: `gameState.ts`, `coopClient.ts` (hunks start at
-    coopClient:21, not :18 / :247). guard-ai-docs-j1: `campusSectors.ts:24-28`. fold-j2:
-    `modes-and-progression.md` (:5-17, :93; ours after :74). gm-look, guard-ai-g327: `TESTING.md` (:191-235; ours after
-    :28). File-level only; the orchestrator rules.
-  - PLAN 4 (PLAN:67-69) names sector-batch, but `origin/feature/sector-batch` now has no diff vs master on these files
-    (its head is the train 96 merge): the risk line is stale.
+- claims-check (exit 1, 20 overlaps, all plan-level; no hunk on these branches within 2 lines of any line B1 edits):
+  coop-kit, player-batch-j19 (`gameState.ts`, `coopClient.ts`); player-hygiene (`coopClient.ts`); hud-guidance, -a1, -a3
+  (`gameState.ts`, `coopClient.ts`, `e2e-sectorops.mjs`, TESTING.md); map-ready (same four, map campusOps); guard-rules
+  (`campusS4Data.ts`, `campusS5Data.ts`, `e2e-sectorops.mjs`, map campusOps; its rows :191-192 / :174-175, not the
+  labels); test-runner-j20, -pra, -prc, -s1, -s2, -s3a, -s3b, -s4, -s5, -s6a, -s6b, -s6c (`e2e-sectorops.mjs`).
+  PLAN:96-100 names all of them but lists only 4 of the 11 j20 branches.
+- campus-greybox has no claims block (tool cannot see it); manual: real overlap, as PLAN:89-93 says. Ruling checked
+  against origin/feature/campus-greybox 4eeb05a0: `campusS4Data.ts` / `campusS5Data.ts` hunks (:2, :207 / :187) miss the
+  label lines, so they auto-merge; `campusSectors.ts` conflicts (S1 / S3 moved to `campusS1Data.ts:90`,
+  `campusS3Data.ts:159`) and is resolved by hand; `tests/campusV2.test.ts:89` (v2 parts equal live) forces the four
+  label copies into `campusV2/s1,s3,s4,s5Data.ts`. Gap: `campusV2/s4Dress.ts:177` is a copy of the S4 dressing with the
+  same `Math.hypot`; no test forces the `hyp2` copy (the art-equality test passes either way when A8 holds), so the
+  break 7 fix is lost when v2 S4 goes live. Also campus-greybox's own docs never mention the ruling: its BRIEF A23
+  (:140-143) is about #317 only, and its builders read its briefs, not this PLAN.
+- Claims block misses `changes/feature-sector-marks.md` (PLAN row 12, B1:22).
 
 ## Slices
-- B1 ~130 lines, ~2 h: ok. Files, checks and "done looks like" present (PLAN:10-26, :47-59, :71-74). Every file:line
-  re-found on origin/master b81c4945 (no change to these files since 2148ec96): interactables.ts :5, :26, :81-84,
-  :134-137; gameState.ts :43, :728, :839; coopClient.ts :18, :247; campus labels :315 / :406 / S4 :180 / S5 :169;
-  campusS4Dress.ts :176; e2e-sectorops.mjs :91; TESTING.md :28; modes-and-progression.md :74; campusS4Dress.test.ts
-  :34. `ModeId` (gameMode.ts:11), `hyp2` (mathx.ts:5), `inRoom` / `RoomRect` (rooms.ts:10, :57), `PartLibrary(scene)`
-  exist as B1 uses them.
-- B1 brief: strict enough for Sonnet (exact code, stop rules, A8 hero-log compare). One trap: its last check
-  "`git diff origin/master --stat` lists only the files in Files" (B1:233) fails on this branch's own
-  `docs/sector-marks/*` (BRIEF, PLAN, STATE, briefs, this file), and B1:7 tells the builder to stop on a mismatch.
-- Note (no change needed): `scripts/e2e-sectorops.mjs` runs `autostart=warehouseOps` (:10), so the e2e proves the
-  mode switch on the frozen map; campus coverage is the unit test.
+- B1 ~130 lines, ~2 h: ok. Files, checks, "done looks like" (PLAN:30-52, :69-81, :103-106). B1 brief is strict enough
+  for Sonnet: exact before / after text per line, stop rules (B1:7, :177-179, :188-189), one commit per step, matches
+  PLAN rows 1-13 and BRIEF A1-A8. APIs as used exist: `ModeId` (gameMode.ts:11, all six ids in the test), `RoomRect.name`
+  (rooms.ts:12), `inRoom(r, x, z, margin, y)` (:57), `SectorDef.connector?` / `extract?` (sectors.ts:113, :115),
+  `PartLibrary(scene)` and the NullEngine import (tests/animGear.test.ts:251, :261).
 
 ## Walk pacing
-- Sector Ops: 3 unwalked, AT CAP (ROADMAP:75). ok: a rule fix to a shipped feature that removes a mesh; no feature is
-  switched on (G355, RULES "Walk pacing").
+- Sector Ops: 3 unwalked, at cap. ok: a rule fix to a shipped feature that removes a mesh; nothing switched on (G355).
 
 ## Fix list (FIX only, ranked)
-1. Add a fenced ```claims block to PLAN.md (files: the 13 files of PLAN 1 plus `docs/sector-marks/**`; maps:
-   campusOps (labels only); protocol: none; save: none), re-run claims-check - done looks like: claims-check exits 0
-   and its overlap list is copied into PLAN 4.
-2. Name the campus-greybox overlap in PLAN 4 and send it to the orchestrator to settle (order the merges, or hand the
-   label edits to whichever lands second; campus-greybox must carry the new labels into `campusS1Data.ts`,
-   `campusS3Data.ts` and its `campusV2/s1-s5Data.ts` copies) - done looks like: a PLAN 4 line with the orchestrator's
-   ruling, before B1 starts.
-3. Clean BRIEF.md: delete the leaked tool-call text at BRIEF:70-75 - done looks like: the file ends after A8.
-4. Fix B1's last check (B1:233) to allow `docs/sector-marks/*` - done looks like: "lists only the files in Files and
-   `docs/sector-marks/*`".
-5. BRIEF "Michael said": keep only his verbatim words with a time (G336 ~09:45, G343 ~10:45); move Q26 "Freeze it" to
-   "Michael picked" with its time (2026-10-25 ~16:50), G290 to "Michael picked" or "Rules" with 2026-10-24 ~22:12, drop
-   the duplicate G351; update PLAN 4's stale sector-batch line - done looks like: every "said" line is a quote with a
-   time, every pick is clicked option text.
+1. Complete the campus-greybox handover: PLAN:91-92 also names `campusV2/s4Dress.ts:177` `Math.hypot` -> `hyp2`, and
+   campus-greybox's BRIEF gets an A-line (like A23) for the sector-marks order: carry the four labels into
+   `campusS1Data.ts`, `campusS3Data.ts`, `campusV2/s1,s3,s4,s5Data.ts` and `hyp2` into `campusV2/s4Dress.ts` at its next
+   master take - done looks like: both docs name all six files, pushed before B1 merges.
+2. Add `changes/feature-sector-marks.md` to the claims block - done looks like: every file in PLAN 1 and B1 "Files" is
+   in the block.
+3. PLAN:99 lists all eleven test-runner-j20 branches (or "test-runner-j20 and its 10 slice branches") - done looks
+   like: PLAN 4 matches the claims-check list above.
