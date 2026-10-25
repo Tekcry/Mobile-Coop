@@ -142,3 +142,81 @@ Verdict: FIX
 6. Refresh STATE's resume-block pointers into PLAN (sections now at :10, :25, :108, :168-204, :209, :236) after the
    PLAN revision.
    - done looks like: each `PLAN.md :<lines>` in STATE opens on the section it names.
+
+## Check 2
+Checker: Claude Opus 5.5 (fresh plan checker, wrote neither the plan nor check 1), 2026-10-25 21:01, PLAN at 83b4d43a.
+origin/master is now 4e5e9959 (train 100); every B3 / B4 file is unchanged from 01aa415c there (`git diff 01aa415c
+origin/master` on them is empty), so their anchors hold.
+Verdict: FIX (B4 and the claims only; B1, B2, B3 and B5 are sound as briefed)
+
+### Check 1 items
+1. Fixed. BRIEF ask 5 / A10 / A11, PLAN B3 (:57-70) and brief B3 agree with `doors.ts:51-53`, `:253` and
+   `tests/doors.test.ts:23-31`; `tests/doorLight.test.ts` pins `DOOR_SHUT === DOOR.driveShut`; ai.md :12-13,
+   world-and-characters.md :41-47 and level-design.md :351-352 join B3 (quoted old text matches master); B1's fragment
+   and TESTING item carry no door line. The test at `tests/lightField.test.ts:359` discriminates (0.12 blocks only at
+   0.15; past the cut `doorBlocks` ignores the door, so 0.2 equals the free field).
+2. Fixed. lighting.md G41 bullet is :26-27 on master, #433's G45 bullet :28-31 untouched; TESTING "Sector Ops restart"
+   ends at :52 on master. A23 (B3 cut from master as PR C) is the right answer.
+3. Fixed. `weaponLab` :48 / :127, `sectorGuards` :49-50 / :128 on master.
+4. Fixed at the time (36 overlaps), stale now: item 2 below.
+5. Fixed (brief B4 checks name `coopClient.ts:618`); superseded by item 1 below.
+6. Fixed. STATE's PLAN pointers open on their sections.
+
+### Intent
+- Every J18 item has its slice; the crawl duct is dropped by Q26 "Freeze it"; Q20 read as said. Stars (G331), Perfect
+  (G146), menu stars (G328), solo-route check (G280) and one door threshold (G41) match Michael's words.
+- Q16 (ROADMAP Decided ~16:50, "Live now": #317 coop4 ships on) bears on B4: item 1.
+
+### Gates
+- Hard rules, flag, walk cap, warehouseOps freeze, protocol and save: as check 1 found; unchanged.
+- Models: Sonnet for B1 / B2 / B3 / B5 from strict briefs; Opus builder and two Opus checkers for B4. Sizes: PR A ~420,
+  PR B ~260, PR C ~60. ok.
+
+### Fix list
+1. B4 duplicates #317 coop4's OUT rule and collides with it. `origin/feature/coop4` (open PR #317, J4, Q16 "Live
+   now") already builds "out until the next connector" for 3-4 players: `SectorMode.onPlayerOut(id?)`
+   (coop4 `src/game/modes/sectorMode.ts:1429`, gate `SECTOR.outWaitsMin` 3, coop4 `src/game/sectors.ts:541`), its own
+   `returnOut()` (:1451; also at the extraction, :1084), `GameState.outIds` (coop4 `src/game/gameState.ts:474`),
+   `NetHooks.returnOut?(ids: readonly string[])` (:236), host `returnOut(ids)` (coop4 `src/net/coopHost.ts:652`) with
+   `onPlayerOut?.(id === selfId ? 'local' : id)` (:647), the client line after :618 (`outSelf`, `OUT_LINE`, coop4
+   `src/net/coopClient.ts:651`), a follow view (`src/game/sectorOut.ts`) and the wire `ot` mask. Brief B4 adds a second
+   out set (`SectorMode.outIds`), `NetHooks.returnOut?(at: Vector3)` (same name, other signature: a tsc break after any
+   hand merge), another id convention (`g.localId` vs `'local'`) and edits the same lines: `git merge-file` of B4's
+   edits against coop4 gives 2 conflicts in coopHost.ts (:580, beside `onRespawn`) and 2 in sectorMode.ts
+   (`restartSection`, `onPlayerOut`). PLAN :279 says coop4's sector and net edits only sit "on master's lines it
+   rebases". A13 (extraction ends without the out player) and A15 (camera stays) also contradict coop4's extraction
+   return and follow view, so 2 players and 3-4 players would get different rules.
+   - Fix: re-plan B4 on coop4's OUT. B4 depends on #317 (J4) and is cut from master after it lands (or from
+     `feature/coop4` with the lead's note); Q20 becomes coop4's rule for 2 players behind `flags.sectorOutWait`
+     (`outWaits` true from 2 with the flag), reusing its out set, `returnOut(ids)`, slots, loadout restore, client line
+     and follow view; B4's own `outIds`, `checkpointArea`, `returnOut(at)` and the coopClient :618 edit go. Reconcile
+     A13 / A14 / A15 with coop4 (one rule for every team size, or a logged A entry why not). Re-size B4, re-anchor brief
+     B4, and update claims, PLAN 4's suites and the flag row.
+   - Done looks like: brief B4 names coop4's functions by file:line on the head it is cut from; no second out set or
+     `returnOut` signature; PLAN 6 / 7 give #317 as B4's dependency; `git merge-file` of B4's planned lines against
+     `feature/coop4` (or master after #317) shows 0 conflicts.
+2. PLAN 7 claims list is stale and misses a pushed conflict on B1's lines. claims-check now (21:00, after `git fetch`,
+   exit 1): 43 plans, 42 overlaps, still file-only. New: `char-shadow-meter-s3`, `guard-rules-s5`, `marlow-replan`,
+   `mission-rules`, `mission-rules-r1`, `validator-port`. `mission-rules-r1` carries `feature/mission-engine` code
+   (POL1, EN2) that edits B1's exact lines: `src/game/sectors.ts:864` on master (b81c4945 :864, the `const line` in
+   `sectorResult`: `marksText(t.marks, t.skipped ?? 0)`; `skipped?` added to `SectorTally` after `marks?`) and
+   `sectorMode.ts:1020` (`result()`: `skipped: this.mission?.startIndex ?? 0`). `git merge-file` of B1's edits against
+   it: 1 conflict in sectorMode.ts, and the `sectors.ts` line is the same line. Neither plan names the other.
+   - Fix: add the mission-rules / mission-engine overlap to PLAN 6 / 7 with its order (free; the second to land keeps
+     `alarms` and `skipped` in the tally and `result()`, and `perfect` in the return type) and send it to Campaign Build
+     with the PR; list the other five new overlaps with their lines (guard-rules-s5 pushed: merge-file 0 with B1 and B4;
+     char-shadow-meter-s3 lightField after :19 and :229+, ours :22 / :28-29; validator-port level-design 11.9 / 14, ours
+     12; marlow-replan plan only).
+   - Done looks like: PLAN 7 matches a fresh claims-check run and names the B1 x mission-engine conflict with its
+     resolution.
+
+### Polish (not blocking)
+- Perfect reads the alarm stage at the extraction (A3). `sectorMode.ts:1045-1047` turns Bodies hidden's alarm step
+  into a gadget charge "until guard-ai's alarm stage API is on master"; once a grant lowers `run.alarm`, Perfect would
+  survive an alarm. Consider a run-wide count of alarms raised (the per-section `secStats.alarms` summed) or a test that
+  pins the case; it also closes the restart loophole check 1 noted.
+- claims-check warns that `changes/feature-sector-batch*.md` are shared files ("do not claim it"); check 1's fix 4
+  asked to claim them. Drop them from the claims block (the slice tables list them) to clear the warnings.
+- PLAN :5-9 and STATE: note that master 4e5e9959 leaves the B3 / B4 anchors unchanged, so the builders need not stop.
+- B2: S5's pair gate is on L1 with no L1 route point, so S5 passes trivially (check 1 note); the rule-bites case can
+  only bite on S4. Fine as briefed.
