@@ -36,6 +36,8 @@ const WARM: [number, number, number] = [1, 0.82, 0.55];
 const IRON = '#3d4146';
 const CONDUIT = '#4f5459';
 const WOOD = '#6b5a45';
+const ICE = '#8c989c';
+const CRATE = '#7b6d52';
 
 /** The C2 fish hall shutter, reserved as data (the plane's normal points +z, toward the passage). */
 const SHUTTER: ShutterSpec = { id: 'w1-shutter', x: 22, y: 0, z: 58, yaw: 0, width: 3, height: 3 };
@@ -50,6 +52,8 @@ const DOORS = {
   'w1-hall-side': [33, 0, 44],
   'w1-hall-back': [30, 0, 58],
   'w1-conn-near': [36, 0, 60],
+  /** The gallery ladder's anti-climb door at the foot of its cage (bolted on the cage side, `W1_BOLTS`; EGRESS E5). */
+  'w1-gallery-ladder': [6.6, 0, 14.4],
 } as const;
 
 /** The warden's tally desk [x0, z0, x1, z1, floorY] (LIGHT.md rule 7): a visual-only box, top floor + 0.75, under lamp 63. */
@@ -133,6 +137,16 @@ function build(b: LevelBuilder): void {
   // the two planned boost lips (C1): manual ledges on the noLedge deck faces
   for (const l of [LIP_STEPS, LIP_MARKET]) b.ledge(l.a.x, l.a.z, l.b.x, l.b.z, l.y);
 
+  // ---- the gallery ladder (D0's TGC default, EGRESS E5): on the deck's east face at its canal-steps end, behind an anti-climb cage ----
+  // the climber stands on the market side facing -x (the wall); the top-out lands on the deck at about (5.6, 4.5, 15.0)
+  b.ladder(6.45, 15.0, 0, 4.5, -Math.PI / 2);
+  // the foot enclosure x 6.0-7.75, z 14.4-15.6 (iron, 0.1 thick, 4.5 high): 1.75 m deep so the bottom step-off body, (7.15, 0, 15.0)
+  // with radius 0.3 (`attachController.ts:500-505`), clears the east side's inner face x 7.7 by 0.25 m
+  wall(b, true, 15.6, 6.0, 7.75, [], 0, 4.5, 0.1, IRON); // north side
+  wall(b, false, 7.75, 14.4, 15.6, [], 0, 4.5, 0.1, IRON); // east side (x 7.7-7.8)
+  wall(b, true, 14.4, 6.0, 7.75, [[6.1, 7.1]], 0, 4.5, 0.1, IRON, 2.1); // south side: the door gap x 6.1-7.1, the side runs on over it 2.1-4.5
+  doorIn(b, true, 14.4, 6.6, 0, { w: 1.0 }); // the anti-climb door: swing +1 opens its leaf toward -z (the canal steps), away from the ladder
+
   // ---- the warden's office (x 0-8, z 46-54, floor 4.5, walls 4.5-7.5, ceiling 7.5-7.8) ----
   // the floor slab (top 4.5, 0.3 thick) with the stair hole x 6.2-7.8 z 46-52
   blk(b, 0, 46, 6.2, 54, 4.2, 4.5, FLOOR);
@@ -195,6 +209,16 @@ function build(b: LevelBuilder): void {
   wall(b, false, 36, 58, 62, [[59.4, 60.6]], 0, 3);
   doorIn(b, false, 36, 60, 0);
 
+  // ---- cover objects (every one a `noLedge` collide box; each shades a route or holds a hide spot) ----
+  blk(b, 0.15, 52.6, 1.2, 53.85, 4.5, 6.5, WOOD); // the warden's ledger press, the office's NW corner (cover from the desk lamp)
+  blk(b, 8.3, 54.6, 11.3, 57.7, 0, 2.4, ICE); // the ice store in the hall's west bay (north of the drain outlet)
+  blk(b, 13, 51.6, 18.5, 52.6, 0, 0.9, ICE); // ice bench, west (clear of the watchman's x 12 leg and the scales pair)
+  blk(b, 25, 51.6, 32, 52.6, 0, 0.9, ICE); // ice bench, east (clear of the watchman's x 33 leg)
+  blk(b, 34.0, 47.5, 35.7, 50.5, 0, 1.8, CRATE); // fish-box stacks along the hall's east wall
+  blk(b, 17.0, 44.4, 18.6, 45.2, 0, 1.4, CRATE); // a fish-box pile inside the hall, west of the arch (1.65 m clear of it)
+  blk(b, 11.9, 15.7, 12.9, 16.7, 0, 0.9, IRON); // the trimmer's oil bin at row S's west end
+  blk(b, 32.4, 33.6, 33.4, 34.4, 0, 0.8, CRATE); // a fish box at row N's east end
+
   // ---- lights (groups 60-67: LIGHT.md section 2, 28 lamps, every one on) ----
   for (const x of [15.5, 20, 25.5, 31]) lamp(b, x, 3.0, 18.5, { r: 8, i: 0.6, group: 60, colour: WARM }); // row S stall string
   for (const x of [13.5, 19, 24.5, 30]) lamp(b, x, 3.0, 37, { r: 8, i: 0.45, group: 61, colour: WARM }); // row N stall string
@@ -225,7 +249,15 @@ export const W1: WharfSection = {
     { pos: new Vector3(5.2, 4.5, 46.6), yaw: 0, group: 63 },
     { pos: new Vector3(16, 0, 12.6), yaw: 0, group: 64 },
   ],
-  hideSpots: [{ pos: new Vector3(20, 0, 23.6) }, { pos: new Vector3(9.5, 0, 46) }],
+  // body containers (A9): the two old ones, the oil bin (south side), an empty urn crate at the urn stack, the fish box (north side) and the fish-box pile
+  hideSpots: [
+    { pos: new Vector3(20, 0, 23.6) },
+    { pos: new Vector3(9.5, 0, 46) },
+    { pos: new Vector3(12.4, 0, 15.3) },
+    { pos: new Vector3(19.2, 0, 8.4) },
+    { pos: new Vector3(32.9, 0, 34.8) },
+    { pos: new Vector3(17.8, 0, 45.6) },
+  ],
   navSeeds: [new Vector3(7, 0, 10), new Vector3(20, 0, 28), new Vector3(4, 4.5, 30), new Vector3(3, 4.5, 50), new Vector3(20, 0, 51), new Vector3(20, 0, 60), new Vector3(38, 0, 60)],
   lips: [LIP_STEPS, LIP_MARKET],
   legUps: [
@@ -238,12 +270,19 @@ export const W1: WharfSection = {
   shutters: [SHUTTER],
   dropGuards: [],
   doors: DOORS,
+  // the market warden's first-aid box on the canal steps' west wall (A8): the barge crews come ashore here
+  medkits: [{ pos: new Vector3(2.15, 0, 7.0), yaw: Math.PI / 2 }],
   debugPoints: [
     { id: 'w1-start', label: 'W1 start (canal steps)', pos: new Vector3(7, 0, 10), yaw: 0 },
     { id: 'w1-legup-steps', label: 'W1 leg-up, canal steps', pos: new Vector3(4, 0, 13.5), yaw: 0 },
     { id: 'w1-legup-market', label: 'W1 leg-up, market', pos: new Vector3(6.5, 0, 29), yaw: -Math.PI / 2 },
     { id: 'w1-shutter', label: 'W1 fish hall shutter', pos: new Vector3(22, 0, 57.2), yaw: 0 },
     { id: 'w1-passage-end', label: 'W1 passage end', pos: new Vector3(38, 0, 60), yaw: Math.PI / 2 },
+    // the encounter vantages (G157 6): two per encounter, dark (<= 0.45), no guard within 6 m
+    { id: 'w1-vantage-market-a', label: 'W1 vantage, gallery over the market A', pos: new Vector3(3.0, 4.5, 29.4), yaw: Math.PI / 2 },
+    { id: 'w1-vantage-market-b', label: 'W1 vantage, gallery over the market B', pos: new Vector3(3.0, 4.5, 30.8), yaw: Math.PI / 2 },
+    { id: 'w1-vantage-hall-a', label: "W1 vantage, warden's office hatch A (crouched)", pos: new Vector3(7.4, 4.5, 52.6), yaw: Math.PI / 2 },
+    { id: 'w1-vantage-hall-b', label: "W1 vantage, warden's office hatch B (crouched)", pos: new Vector3(7.4, 4.5, 53.6), yaw: Math.PI / 2 },
   ],
   deviations: [
     { space: 'w1-warden-office', why: "The warden's stair core (walls x 6.2 and 7.8, z 44-52) stands in the office's south-east corner and the fire-stair link marker moved from [12.5, 0, 39.5] to the stair's foot door [7, 0, 44]; the office's own box is unchanged." },

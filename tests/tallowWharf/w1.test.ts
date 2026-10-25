@@ -9,19 +9,23 @@ import { TEAM, WALL_JUMP } from '../../src/config/movement';
 import { W1, W1_CONDUITS, W1_DESKS } from '../../src/world/maps/tallowWharfW1';
 import { WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
 import { contribution, type LightDef } from '../../src/world/lights';
+import type { CoopTop } from '../helpers/soloJumpReach';
 import { CHEST_Y, HEAD_Y } from '../../src/world/lighting/levels';
 import { lampReach } from '../../src/world/lampMath';
-import { STANDIN_TAGS } from '../../src/world/maps/tallowWharfKit';
+import { MASS_TOP, STANDIN_TAGS } from '../../src/world/maps/tallowWharfKit';
 import {
   anchorsOf,
+  blockedAt,
   builtWharf,
   climbRoom,
   COOP_BAND,
+  downHit,
   GRAPH,
   legUpTarget,
   onPlannedLip,
   roomForBoost,
   soloJumpThreats,
+  soloLevelThreats,
   soloNav,
   solidOf,
   spacesIn,
@@ -127,7 +131,7 @@ describe('W1 has no solo bypass', () => {
   });
 
   it('names its bolted and unlocked doors, each with a door anchor', () => {
-    expect(Object.keys(W1.doors).sort()).toEqual(['w1-conn-near', 'w1-hall-back', 'w1-hall-side', 'w1-warden-stair']);
+    expect(Object.keys(W1.doors).sort()).toEqual(['w1-conn-near', 'w1-gallery-ladder', 'w1-hall-back', 'w1-hall-side', 'w1-warden-stair']);
     for (const c of Object.values(W1.doors)) {
       // a door's hinge is at one jamb: the centre is half its width along the wall (yaw PI / 2: along x; yaw 0: along z)
       const near = b.anchors.doors.some((d) => Math.abs(d.hinge.x + (d.yaw === 0 ? 0 : d.width / 2) - c[0]) < 0.01 && Math.abs(d.hinge.z + (d.yaw === 0 ? d.width / 2 : 0) - c[2]) < 0.01 && Math.abs(d.hinge.y - c[1]) < 0.01);
@@ -314,13 +318,11 @@ describe('W1 light levels (LIGHT.md section 1 rule 3 and section 2 check points)
 
   const ge = (name: string, ls: LightDef[], amb: number, x: number, fy: number, z: number, min: number): void => {
     const v = levelAt(ls, amb, x, fy, z);
-    // eslint-disable-next-line no-console
     console.info(`W1 level ${name}: ${v.toFixed(3)} (>= ${min})`);
     expect(v, name).toBeGreaterThanOrEqual(min);
   };
   const le = (name: string, ls: LightDef[], amb: number, x: number, fy: number, z: number, max: number): void => {
     const v = levelAt(ls, amb, x, fy, z);
-    // eslint-disable-next-line no-console
     console.info(`W1 level ${name}: ${v.toFixed(3)} (<= ${max})`);
     expect(v, name).toBeLessThanOrEqual(max);
   };
@@ -337,7 +339,6 @@ describe('W1 light levels (LIGHT.md section 1 rule 3 and section 2 check points)
 
   it('the canal start reads in its pathway band and the tea counter is lit', () => {
     const v = levelAt(of(65), AMB, 7, 0, 10);
-    // eslint-disable-next-line no-console
     console.info(`W1 level canal start (7, 10): ${v.toFixed(3)} (0.26-0.45)`);
     expect(v).toBeGreaterThanOrEqual(0.26);
     expect(v).toBeLessThanOrEqual(0.45);
@@ -424,5 +425,181 @@ describe('W1 desks (LIGHT.md rule 7)', () => {
       });
     }
     expect(bad).toEqual([]);
+  });
+});
+
+describe('W1 hide spots, the medkit and the vantages (J8 G1)', () => {
+  const guards = WHARF_SECTORS[0]!.guards;
+  const plan = (ax: number, az: number, bx: number, bz: number): number => Math.hypot(ax - bx, az - bz);
+  /** Every W1 guard's post and route points: [x, z, floor y]. */
+  const guardPoints = (): [number, number, number][] => guards.flatMap((g) => [[g.x, g.z, g.y ?? 0] as [number, number, number], ...(g.route ?? []).map((r) => [r[0], r[1], g.y ?? 0] as [number, number, number])]);
+
+  it('has six hide spots, and each W1 takedown spot has one within 8 m on its floor', () => {
+    expect(W1.hideSpots).toHaveLength(6);
+    expect(guards).toHaveLength(9);
+    guards.forEach((g, k) => {
+      const [tx, tz] = g.takedownSpot;
+      const d = W1.hideSpots.filter((h) => Math.abs(h.pos.y - (g.y ?? 0)) < 1).map((h) => plan(h.pos.x, h.pos.z, tx, tz));
+      const best = Math.min(...d);
+      console.info(`W1 guard ${k} takedown spot (${tx}, ${tz}): nearest hide spot ${best.toFixed(1)} m`);
+      expect(best, `guard ${k}`).toBeLessThanOrEqual(8);
+    });
+  });
+
+  it('every hide spot stands clear of the solid and in a W1 room', () => {
+    for (const h of W1.hideSpots) {
+      expect(blockedAt(solid, h.pos.x, h.pos.z, 0.3, h.pos.y), `hide spot (${h.pos.x}, ${h.pos.z})`).toEqual([]);
+      expect(W1.rooms.some((r) => h.pos.x >= r.minX && h.pos.x <= r.maxX && h.pos.z >= r.minZ && h.pos.z <= r.maxZ), `room of (${h.pos.x}, ${h.pos.z})`).toBe(true);
+    }
+  });
+
+  it('has one wall medkit, inside a W1 room, at least 10 m (plan) from every guard post and route point', () => {
+    expect(W1.medkits).toHaveLength(1);
+    const m = W1.medkits![0]!;
+    expect(W1.rooms.some((r) => m.pos.x >= r.minX && m.pos.x <= r.maxX && m.pos.z >= r.minZ && m.pos.z <= r.maxZ && m.pos.y >= (r.minY ?? 0) - 0.1 && m.pos.y <= (r.maxY ?? 99))).toBe(true);
+    expect(W1.rooms.find((r) => m.pos.x >= r.minX && m.pos.x <= r.maxX && m.pos.z >= r.minZ && m.pos.z <= r.maxZ)!.id).toBe('w1-canal-steps');
+    for (const [x, z] of guardPoints()) expect(plan(m.pos.x, m.pos.z, x, z)).toBeGreaterThanOrEqual(10);
+  });
+
+  const VANTAGES = [
+    { id: 'w1-vantage-market-a', eye: 1.6, target: [20, 1.0, 18] },
+    { id: 'w1-vantage-market-b', eye: 1.6, target: [22, 1.0, 41] },
+    { id: 'w1-vantage-hall-a', eye: 1.0, target: [22, 1.0, 56.5] },
+    { id: 'w1-vantage-hall-b', eye: 1.0, target: [16, 1.0, 50] },
+  ] as const;
+  const point = (id: string): { x: number; y: number; z: number } => W1.debugPoints.find((d) => d.id === id)!.pos;
+
+  it('has four vantage points, two per encounter, each on a floor and at least 1.0 m from its pair', () => {
+    for (const v of VANTAGES) {
+      const p = point(v.id);
+      expect(downHit(solid, p.x, p.y + 1, p.z, p.y - 1), v.id).toBeCloseTo(p.y, 2);
+    }
+    for (const [a, c] of [['w1-vantage-market-a', 'w1-vantage-market-b'], ['w1-vantage-hall-a', 'w1-vantage-hall-b']] as const) {
+      expect(plan(point(a).x, point(a).z, point(c).x, point(c).z)).toBeGreaterThanOrEqual(1.0);
+    }
+  });
+
+  it('every vantage reads at most 0.45 over all W1 lamps, and no guard post or route point is within 6 m of it on its floor band', () => {
+    const all = b.lights.lights.filter((l) => inBox(l.x, l.z));
+    for (const v of VANTAGES) {
+      const p = point(v.id);
+      const amb = p.y > 4 && p.z > 46 ? 0.14 : 0.244;
+      let chest = 0;
+      let head = 0;
+      for (const l of all) {
+        chest += contribution(l, p.x, p.y + CHEST_Y, p.z);
+        head += contribution(l, p.x, p.y + HEAD_Y, p.z);
+      }
+      const level = Math.min(1, amb + Math.max(chest, head));
+      console.info(`W1 vantage ${v.id}: level ${level.toFixed(3)}`);
+      expect(level, v.id).toBeLessThanOrEqual(0.45);
+      for (const [x, z, y] of guardPoints()) if (Math.abs(y - p.y) < 2) expect(plan(p.x, p.z, x, z), `${v.id} to guard point (${x}, ${z})`).toBeGreaterThan(6);
+    }
+  });
+
+  /** The segment from an eye to a target, sampled every 0.05 m and stopped 0.3 m short, hits no collide piece (a start inside a piece is not a hit of that piece). */
+  const clear = (ex: number, ey: number, ez: number, tx: number, ty: number, tz: number): boolean => {
+    const len = Math.hypot(tx - ex, ty - ey, tz - ez) - 0.3;
+    const n = Math.max(1, Math.floor(len / 0.05));
+    for (let i = 0; i <= n; i++) {
+      const f = (i * 0.05) / (len + 0.3);
+      const x = ex + (tx - ex) * f;
+      const y = ey + (ty - ey) * f;
+      const z = ez + (tz - ez) * f;
+      if (solid.some((p) => Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2)) return false;
+    }
+    return true;
+  };
+
+  for (const v of VANTAGES) {
+    it(`${v.id}: the eye (floor + ${v.eye}) sees its target ${v.target.join(', ')} with no collide piece between`, () => {
+      const p = point(v.id);
+      expect(clear(p.x, p.y + v.eye, p.z, v.target[0], v.target[1], v.target[2])).toBe(true);
+    });
+  }
+
+  it('control: from the old point (3.0, 6.1, 44.4) the shutter bay is blocked (the sightline check bites)', () => {
+    expect(clear(3.0, 6.1, 44.4, 22, 1.0, 56.5)).toBe(false);
+  });
+});
+
+describe('W1 gallery ladder (D0 TGC default, EGRESS E5)', () => {
+  const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.x - 6.45) < 1e-6 && Math.abs(l.base.z - 15.0) < 1e-6);
+
+  it('stands at (6.45, 15.0) from y 0 to 4.5 and tops out on the gallery deck', () => {
+    expect(ladder).toBeDefined();
+    expect(ladder!.base.y).toBe(0);
+    expect(ladder!.top.y).toBe(4.5);
+    const x = ladder!.top.x + Math.sin(ladder!.facing) * 0.4;
+    const z = ladder!.top.z + Math.cos(ladder!.facing) * 0.4;
+    expect(x).toBeCloseTo(5.6, 6);
+    expect(downHit(solid, x, 5.5, z, 3.5)).toBeCloseTo(4.5, 6);
+  });
+
+  it('the bottom step-off (base - facing x 0.7) is (7.15, 15.0), clear of the solid and inside the cage 0.5 m from each side\'s centre line', () => {
+    const l = ladder!;
+    const x = l.base.x - Math.sin(l.facing) * 0.7;
+    const z = l.base.z - Math.cos(l.facing) * 0.7;
+    expect(x).toBeCloseTo(7.15, 2);
+    expect(z).toBeCloseTo(15.0, 2);
+    expect(blockedAt(solid, 7.15, 15.0, 0.3, 0)).toEqual([]);
+    expect(x).toBeGreaterThan(6.0);
+    expect(x).toBeLessThan(7.75);
+    expect(z).toBeGreaterThan(14.4);
+    expect(z).toBeLessThan(15.6);
+    for (const d of [Math.abs(x - 7.75), Math.abs(z - 15.6), Math.abs(z - 14.4), Math.abs(x - 6.0)]) expect(d).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('the cage door is a 1.0 m door at (6.6, 14.4) whose leaf opens toward -z, the canal steps (swing +1)', () => {
+    const d = b.anchors.doors.find((q) => Math.abs(q.hinge.x - 6.1) < 1e-6 && Math.abs(q.hinge.z - 14.4) < 1e-6 && q.hinge.y === 0)!;
+    expect(d).toBeDefined();
+    expect(d.width).toBeCloseTo(1.0, 9);
+    expect(d.height).toBeCloseTo(2.1, 9);
+    expect(W1.doors['w1-gallery-ladder']).toEqual([6.6, 0, 14.4]);
+    // the open leaf's direction: yaw + swing x openAngle (1.53 rad): (sin, cos) of it points -z
+    const open = d.yaw + d.swing * 1.53;
+    expect(Math.cos(open)).toBeLessThan(-0.9);
+  });
+
+  const cage: ShutDoor = { at: [6.6, 14.4], y: 0, w: 1.0, alongX: true };
+  const stair: ShutDoor = { at: [W1.doors['w1-warden-stair']![0], W1.doors['w1-warden-stair']![2]], y: 0, w: 1.2, alongX: true };
+
+  it('gate: with the cage door and the warden-stair foot door shut, the gallery is not reachable alone from either side of the market', () => {
+    const { nav, restore } = soloNav(b, 4, W1.navSeeds, [cage, stair]);
+    try {
+      expect(nav.findPath([7, 10], [4, 20], 1e6, 0, 4.5)).toBeNull();
+      expect(nav.findPath([16, 10], [4, 20], 1e6, 0, 4.5)).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it('control: with only the warden-stair door shut the ladder through the open cage door is the way up', () => {
+    const { nav, restore } = soloNav(b, 4, W1.navSeeds, [stair]);
+    try {
+      expect(nav.findPath([7, 10], [4, 20], 1e6, 0, 4.5)).not.toBeNull();
+      expect(nav.findPath([16, 10], [4, 20], 1e6, 0, 4.5)).not.toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it('C1 stays forced: no solo jump or level run reaches either lip or the deck edge from the ladder\'s top, cage pieces included', () => {
+    // skipped: the gallery deck's own blocks, and the solid building mass (top MASS_TOP, no way up: nobody stands on it, so no take-off)
+    const deck = (p: { c: number[]; s: number[] }): boolean =>
+      (p.c[0]! - p.s[0]! / 2 >= 2 - 1e-6 && p.c[0]! + p.s[0]! / 2 <= 6 + 1e-6 && p.c[2]! - p.s[2]! / 2 >= 14 - 1e-6 && p.c[2]! + p.s[2]! / 2 <= 46 + 1e-6 && p.c[1]! + p.s[1]! / 2 > 4.45) || p.c[1]! + p.s[1]! / 2 >= MASS_TOP - 1e-6;
+    const tops: Record<string, CoopTop> = {
+      'w1-lip-steps': { x0: 2.25, x1: 5.75, z0: 14, z1: 15.5, top: 4.5 },
+      'w1-lip-market': { x0: 4.5, x1: 6, z0: 26.5, z1: 31.5, top: 4.5 },
+      ladder: { x0: 3.6, x1: 6, z0: 14, z1: 16, top: 4.5 },
+    };
+    for (const lip of W1.lips) {
+      expect(soloJumpThreats(solid, lip), lip.id).toEqual([]);
+      expect(soloLevelThreats(solid, tops[lip.id]!, deck, 0.2), lip.id).toEqual([]);
+    }
+    expect(soloLevelThreats(solid, tops.ladder!, deck, 0.2)).toEqual([]);
+    // control: a solid, standable top over the cage (a block, not the thin iron) at the deck's height is reported
+    const block = { c: [6.875, 2.25, 15.0] as [number, number, number], s: [1.75, 4.5, 1.2] as [number, number, number], yaw: 0, pitch: 0, color: '#000', collide: true, visible: true, noLedge: true };
+    expect(soloLevelThreats([...solid, block], tops.ladder!, deck, 0.2).length).toBeGreaterThan(0);
   });
 });
