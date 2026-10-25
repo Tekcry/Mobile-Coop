@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T14:01Z
+status: done feature/map-ready-s1 5ff17b19257ee09a9123af29706dfbfc66b1f0e9
 # map-ready S1 (cloud): the load record and the measure script (code + unit tests)
 
 Lead: Night Shift | Sector Ops Build. Job map-ready (FOLDED-PLAN J21, ROADMAP Now row 17; Michael's near-instant loads,
@@ -22,3 +22,16 @@ S1, S4, S9 in parallel (disjoint files; S4 done). Sonnet-level work from a stric
     `status: blocked <reason>`.
 - Done: every buildable step pushed; report `docs/map-ready/checks/s1-build.md` (per step: files, tests with counts,
   deviations, pending PC runs with the brief's request commands); then `status: done feature/map-ready-s1 <sha>` here.
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Full report: `docs/map-ready/checks/s1-build.md` on the branch (head 5ff17b19).
+- Steps 1-5 built and pushed: `src/core/mapReadyStats.ts` (the record, the after-reveal window, `bakeSourceOf`);
+  `tests/mapReadyStats.test.ts` 7 / 7; `BakedLamps.landings` / `.rescans`; `GameState` create / enter / frameUpdate /
+  feedbackContext write `window.__mapReady` (counter reads only, no behaviour change, no per-frame allocation once the
+  lists exist); `scripts/map-ready-measure.mjs` (`node --check` only).
+- Checks: typecheck:fast clean; eslint (4 files) clean; doc-lint 0 errors.
+- Deviation: `MapReadyStats` takes an optional fifth constructor argument `programs0` (the load start's program count:
+  `loadPrograms` needs it); guard bodies are polled only with `flags.guardModels`, and `liveGuardBodies` makes an empty
+  array per polled frame until the first body registers (never-touch file).
+- Pending PC run (step 6, the lead): affected + `e2e-coop e2e-netmove` (src/game) and the alone GPU baseline run; the
+  request lines are in the report; `research/baseline.md` follows from that run.
