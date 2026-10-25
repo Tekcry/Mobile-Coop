@@ -1,7 +1,7 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-25 ~23:59 (Night Shift | Campaign Build, after the 23:52 swap; read this block first)
+## RESUME 2026-10-26 ~00:50 SAVE (Night Shift | Campaign Build; pause to the 04:50 reset; read this block first)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
 FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to cloud-queue; local checks only through
 `node C:/NightShift/scratch/ctcore/low.mjs "<cmd>"` (BelowNormal). Notes / reports: C:/NightShift/scratch/campaign/
@@ -20,7 +20,7 @@ FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to clou
 7. Laptop: gb6fix dc2aa9c8 (desktop FAIL at cpu 100%, laptop rerun queued), hg-b4 e72c8eab running; hg-b3 PASS.
 8. Tallow wave 0: cloud briefs tallow-tda / -g0 / -s2 open; MB / D0 held. LP DONE 4dac78cce (picks 9-12 accepted, lead-notes);
    Opus LP checker running (tallow-lp-check.md). PASS + PR D in engine -> cut tallow-fixes, merge LP, push D0 brief.
-Next: LP check; laptop verdicts (j7-prd, j7-pre, gb6fix, hg-b4, #482); cloud r6-polish / r8 done -> checkers; PR D green -> engine, push MB / D0 briefs. Mixamo runs go first overnight (orchestrator 00:20).
+Next: read tallow-lp-check.md (rerun the LP checker if missing); laptop verdicts j7-prd / j7-pre / gb6fix / hg-b4 / #482 affected; PR D green -> engine, cut tallow-fixes, merge LP, push MB / D0 briefs; cloud r6-polish / r8 done -> checkers; mixamo-kit merge after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~23:30 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
