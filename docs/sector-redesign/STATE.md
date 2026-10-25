@@ -379,8 +379,9 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
      s3-r2..r5 queued from the frame (r3 closes the core slots + core rooms, A-J17-S3-2/3; door pairs as signed,
      A-J17-S3-1); s5 open. On each done: checker, laptop e2e-sectorops part; r6 after r5 + lead merge of r1-r4.
      Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
-   - Campus v1 walk DROPPED (Michael ~22:25 "Drop old, walk new"): he walks v2 S1-S5 at greybox exit. Opus agent
-     writing docs/campus-greybox/EXIT.md (validator + route-runs + walk card inputs) on feature/campus-greybox.
+   - Campus v1 walk DROPPED (Michael ~22:25 "Drop old, walk new"): he walks v2 S1-S5 at greybox exit. EXIT.md 8f6e3f18b
+     (blockers there; BRIEF A10 / A28 start-at-section link / A29 v2 light first, 6980e02d9). Next: brief A28 + graph
+     link `at` / `vantage.at` / guard keys 1-4 (S2, S4, S5) into the lanes; J10 v2 measure item into light-realism PLAN.
 3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 on cloud-queue (7a006dbbe);
    B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
    sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
