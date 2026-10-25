@@ -206,16 +206,15 @@ is about 6% of a 5-hour window). Commands: `docs/systems/swaps.md`.
 - A mid-window clear only past ~50% context. Unused connectors (Gmail, Google Drive, Fergus) and plugins stay off in
   Night Shift sessions.
 
-**Talking to Michael.** Short, plain replies; hyphens, not em dashes. Questions only as native multiple choice, by day,
-when his answer changes the outcome; overnight, decide, log the assumption and carry on (Intake step 2). A paste-in
-prompt names its title, model and effort and is the turn's last message, never paired with a question. He tests
-through the menus: give menu paths and the version label to expect. No polling turns: start long runs in the
-background and wait.
+**Talking to Michael.** He is not technical: plain English, brief dot points, no jargon or hashes; hyphens, not em
+dashes. Questions only as native multiple choice, by day, when his answer changes the outcome; overnight, decide, log
+the assumption and carry on (Intake step 2). A paste-in prompt names its title, model and effort and is the turn's last
+message, never paired with a question. He tests through the menus: give menu paths and the version label to expect.
+No polling turns: start long runs in the background and wait.
 
-**Doc sizes.** Resume blocks ~40 lines; orchestrator STATE current state only; HANDOFF the newest block only; ROADMAP is
-Now / Inbox / Waiting on Michael / Decided (today) / Done (last 10). History moves to archive files, never piles up.
-State (what is true today: holds, caps reached, flags not yet on) goes in the ROADMAP or a job's STATE, never in these
-rules.
+**Doc sizes.** Resume blocks ~40 lines, ending with one `Next:` line; orchestrator STATE current state only; HANDOFF
+the newest block only; ROADMAP is Now / Inbox / Waiting on Michael / Decided (today) / Done (last 10). History moves to
+archive files. State (holds, caps reached, flags not yet on) goes in the ROADMAP or a job's STATE, never in these rules.
 
 **Branches and previews.** One branch per job, cut from master, one PR each. Pages serves the live game, `/preview/`
 (master, through the pointer branch `dev`) and `/ct/` (through the pointer branch `ct-movement`); `dev` and
@@ -244,6 +243,9 @@ prune ("Docs"); unmerged branches are never touched, and any other branch deleti
 - Doc lint in CI: `npm run lint` runs `scripts/doc-lint.mjs` (stale terms, G citations, links and repo paths, restated
   rules, size budgets, appended bible notes, owner / status headers); errors fail `check`, warnings print.
   `docs/doc-lint.json` holds the scope, the budgets and the owner / status header sets.
+- One plan and a tidy-up (Michael 2026-10-25 ~14:00, "only enough to maintain clear plan"): the signed-off ROADMAP
+  "Now" is the only plan. Daily and after each release the orchestrator archives finished job docs and superseded plan
+  files, merges or drops duplicates, fixes stale pointers and logs one line in its STATE.
 - Finished jobs: the `Job-done: <job>` line in the job's last PR makes the train's version commit move `docs/<job>/` to
   `docs/archive/<job>/` and fix the links to it.
 - Weekly prune (G345, "Yes, weekly"): `scripts/prune-merged.mjs --apply` (task `NightShift prune-merged`,
