@@ -67,6 +67,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 ## How Michael works with the orchestrator
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
 - He is not technical (Michael 2026-10-25 13:31): every update in plain English, brief dot points, straight to the point; no hashes, tool names or jargon; say what a PR is, not just its number.
+- Never send him to a file for a prompt (Michael 2026-10-25 ~21:55: "always show me the prompt directly"): print the full text in chat.
 - Every prompt he pastes names the session title, model and effort; a paste-in prompt is the turn's LAST message, never
   paired with a question dialog.
 - He tests through the menus, never direct links: give menu paths and the version label to expect.
