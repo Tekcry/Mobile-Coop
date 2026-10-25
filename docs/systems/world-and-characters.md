@@ -3,25 +3,23 @@ Purpose: maps, the level builder, the Warehouse, and the shared character rig (p
 Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.md (Sections 5.12 and 7).
 
 ## Level design
-- `docs/level-design.md`: the standard every map follows - architecture first ("why is it here?"), a linear spine of
-  encounter spaces, a dark vantage and three routes plus a secret per guarded space, loops not dead ends, guards with
-  jobs, isolation moments and overlapping coverage, light from fixtures, sound from materials, teach / test / twist
-  pacing, co-op layering (Section 11; its solo-first rules are an open item against G2), engine facts (Section 12),
-  required design deliverables (section 13), phases (section 14) and acceptance tests (section 15).
+- The level rules live in `docs/level-design.md` only (the standard every map follows, per mode); this file does not
+  restate them. Read it, then docs/DECISIONS.md, before laying out a map.
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
-- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`; Kestrel
-  in `docs/kestrel/`, the bunker in `docs/training/`. Decided, not built yet (G55): one folder per map under one maps
-  folder, Kestrel and the bunker moved there after the merge. Kestrel is paused until the CT co-op research (G53).
-  The retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in
-  `docs/archive/maps/`.
+- Map specs: Marlow Yard in `docs/marlow-final/` (SPEC.md, PLAN.md), Saltmarsh Park in `docs/sector-redesign/`
+  (SPEC.md, PLAN.md), Tallow Wharf (campaign Mission 1) and the first four mission prototypes in `docs/missions/` (the
+  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in `docs/training/`.
+  Decided, not built yet (G55): one folder per map under one maps folder. The retired maps (the 1934 Exchange, Trunk
+  Annex, Dead Line v1 and v2) are deleted; their design files are in `docs/archive/maps/`.
 
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
-  `world/maps/index.ts` (`MAPS`: `warehouse`, `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every
-  menu), `courselab` and `bunker` (the Fallow bunker, built from `bunkerUpper` / `bunkerPlant` / `bunkerShaft` /
-  `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts` `LISTED_MAP_IDS` (`warehouse`, `proving`,
-  `kestrel`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
+  `world/maps/index.ts` (`MAPS`: `warehouse`, `warehouseOps` (the old Sector Ops map), `campusOps` (Saltmarsh Park,
+  Sector Ops), `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every menu), `ctcourse` (Marlow Yard,
+  Course mode), `courselab`, and with `?legacy=1` `bunker` (the Fallow bunker, built from `bunkerUpper` /
+  `bunkerPlant` / `bunkerShaft` / `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts`
+  `LISTED_MAP_IDS` (`warehouse`, `proving`, `kestrel`, `campusOps`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
   mode is its default (a mode change on the Play screen starts on its default map). The 2.x maps are parked in
   `maps/parked.ts` (not imported). Free Roam
   (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.

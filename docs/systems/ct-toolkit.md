@@ -10,8 +10,8 @@ attachment set is settled by that research (G76), so this set may change before 
 
 What still holds from the 2026-10-11 approval: the engine gets the CT toolkit and each mission offers only the tools that
 suit it through a mission kit (section 4); the camera jammer and light disruptor are one tool, the pistol secondary (3.5,
-matching G76's pistol disruptor); lockpick and hacking are minigames only, with no hold alternative; V1-V3 build only
-Dead Line's kit (section 6); the ring airfoil (3.8) and knife (3.10) keep their specs for later (docs/backlog.md items
+matching G76's pistol disruptor); lockpick and hacking are minigames only, with no hold alternative; the kit per mission
+is chosen when that mission is planned (Dead Line's kit in section 6 is history); the ring airfoil (3.8) and knife (3.10) keep their specs for later (docs/backlog.md items
 23-24). Chaos Theory is a design reference only: no names, art or text from it (G5, G6).
 
 Changed by later decisions:
@@ -19,7 +19,8 @@ Changed by later decisions:
   V1 keeps the optic cable.
 - G97: at a door the optic cable is one choice of the CT door menu (open, stealth open, bash, optic cable).
 - G23: interrogation is a choice of CT's grab menu (knock out, kill, interrogate).
-- G96: bindings follow CT's pad layout exactly; the proposals in section 2 are checked against it.
+- G96: bindings follow CT's pad layout as built, with the anim-rework's aim, holster and strike (input-and-loop.md);
+  the proposals in section 2 are checked against the built binding table.
 - loco M20 Q1: the SWAT turn and the lean-out aim are removed.
 - G12: desktop only (no touch controls).
 
@@ -46,7 +47,7 @@ Changed by later decisions:
 
 ## 2. Inputs
 Tools use existing inputs wherever possible. Every binding below is a proposal; the build session checks it against the
-CT layout (G96) and with grep in `src/input/keyBindings.ts` and `src/input/gamepadMapping.ts`, and stops and asks Michael
+built binding table (input-and-loop.md) and with grep in `src/input/keyBindings.ts` and `src/input/gamepadMapping.ts`, and stops and asks Michael
 if one is taken.
 
 | Use | Keyboard and mouse | Gamepad |
@@ -229,7 +230,10 @@ contract.
 | `lines` | mission data per guard or civilian id | 1-3 lines, optional `reveals: <flag>` | 3.9 |
 Every placed item keeps a `reason` (docs/kestrel/RULES.md section 5): why a real site has that lock, terminal or tarp there.
 
-## 6. Dead Line's kit (approved by Michael, 2026-10-11)
+## 6. Dead Line's kit (history: approved by Michael, 2026-10-11)
+History, not a build target: Mission 1 "Dead Line" on the Kestrel map is paused (G53) and the first campaign missions go
+on Tallow Wharf, campaign Mission 1 (G293; 2026-10-25 ~10:45). A mission's kit is chosen per mission (section 4). The table is kept as a worked
+example.
 Judged against the control ladder and the ghost rule (docs/kestrel/RULES.md section 1). The kit must give every
 critical-path control a no-contact answer without letting a tool skip a control the mission depends on.
 | Tool | Kit | Why |
@@ -246,7 +250,7 @@ kit. Existing gadgets in the kit: noisemaker, sticky cam, EMP and sleeping gas a
 `game/gadgets.ts`). Out: frag and mine (lethal explosives on a site with civilians), flashbang (loud, overlaps gas).
 
 ## 7. Build plan (V1-V3)
-Waits for the CT co-op research and Kestrel's restart (G53, G76); the work then runs prototype first, then the orchestrator
+History where it names Kestrel or Dead Line (paused, G53). Waits for the CT co-op research and Kestrel's restart (G53, G76); the work then runs prototype first, then the orchestrator
 method (G87, docs/systems/session-method.md). V1-V3 may change the player controller, the camera, the grab and takedown
 code, add `src/config/tools.ts` and the `toollab` debug map; no existing tuning value changes. All logic is pure and
 Babylon-free with Vitest tests. Each session runs `npm run check` and `npm run e2e:quick`; GPU, contact sheets and
