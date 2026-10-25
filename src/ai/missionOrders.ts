@@ -69,7 +69,7 @@ export const ORDER = {
 /** Height gap (m) within which he is on the post's storey (as the breaker walk). */
 const STOREY = 1.2;
 /** (S1b-f) Slack (m) past `ORDER.followGap` within which a follower stands still (guard-ai-mission-hooks S1b). */
-const FOLLOW_SLACK = 0.5;
+export const FOLLOW_SLACK = 0.5;
 
 /** Does a mission tag name this guard: his `zone` tag, or his mission id `<sectionId>:<k>` (A1)? `k` = his index in
  *  the section's guards (-1: none). Event / placement time only (the concat allocates). */

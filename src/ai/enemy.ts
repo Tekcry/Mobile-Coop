@@ -68,7 +68,7 @@ import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from './targetPick';
 // (guard-ai S24) one last known position per intruder
 import { COOP4, INTRUDERS, slotOf } from './intruders';
-import { K_RESET, LEG_DONE, LEG_FOLLOW, LEG_GIVEUP, LEG_LOOK, LEG_RESET, M_ARRIVED, M_DONE, M_DROPPED, M_WALKING, OrderLeg, ORDER, type OrderBoard } from './missionOrders';
+import { FOLLOW_SLACK, K_RESET, LEG_DONE, LEG_FOLLOW, LEG_GIVEUP, LEG_LOOK, LEG_RESET, M_ARRIVED, M_DONE, M_DROPPED, M_WALKING, OrderLeg, ORDER, type OrderBoard } from './missionOrders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0, soak: false };
@@ -1656,7 +1656,8 @@ export class Enemy implements Damageable {
     if (lg.move) {
       this.ordP[0] = lg.x;
       this.ordP[1] = lg.z;
-      g.point = this.goTo(this.ordP, dt, ORDER.arrive * 0.8, lg.y);
+      // (guard-ai-mission-hooks S1b) a follower stops inside the slack, so he reads `near` (stands behind the leader)
+      g.point = this.goTo(this.ordP, dt, st === LEG_FOLLOW ? FOLLOW_SLACK * 0.5 : ORDER.arrive * 0.8, lg.y);
       g.speed = this.def.walkSpeed * (this.caution > 0 ? PACE.cautious : PATROL_PACE);
     } else if (lg.face === lg.face) g.face = lg.face;
     if (st === LEG_RESET && this.leg.t >= BREAKER.resetT) {
