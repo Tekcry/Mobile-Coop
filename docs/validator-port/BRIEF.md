@@ -67,6 +67,9 @@ scale-sheet row (Michael's approval).
   Pass"; Plank Bridge: "Add it" (all five join the kit; graph kinds A25).
 - 2026-10-25 ~20:20 (via the orchestrator), relay lip band (A24): "Keep 4.6 m (Recommended)" (the sheet's top stays
   4.6 m; the 6.5 m derivation is written into the row as the physical ceiling only).
+- 2026-10-25 ~20:45 (via the orchestrator and Campaign Build; `docs/tallow-fixes/BRIEF.md` M2 on
+  origin/feature/mission-engine 6df8f334f), Tallow Wharf's forced throws: "Mix of both" (plank bridges and a longer
+  throw, 5.8 m over 4.9 m gaps, at spots Campaign Build picks; A27).
 
 ## Recorded decisions this job follows
 G2 (campaign two players), G57 (human ladder 4.5 m, decided, not built: code 4.1), G127 (no mission forces a kill),
@@ -258,6 +261,26 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   - Campaign and Sector Ops maps keep `checkRedundancy`'s entry-to-exit count (M3) unchanged. J13 counts routes the
     same way by importing S4's function (PLAN section 8).
   - Undo: count entry-to-exit link-disjoint paths again (`edgeDisjointPaths`, master `scripts/level-validate.mjs:175`).
+- **A27 Long-throw exception at named Tallow spots (lead decision 2026-10-25 ~20:50, after Michael's ~20:45 "Mix of
+  both").** The sheet's throw-gap row caps a `team_throw` gap at 2.7 m (`scale-sheet.md` "Throw gap", master
+  `scripts/level-validate.mjs` `team_throw` case: ERR above `sizes.throw_gap_max`). Michael's ~20:45 pick puts a longer
+  throw (5.8 m over a 4.9 m gap) at spots Campaign Build picks. The mechanism, per link and never per map:
+  - A link field `exception: "long_throw"` on a `team_throw` names the approved exception. Any other `exception` value,
+    or the field on another kind, is an ERR.
+  - The allowlist and the number live in one new scale-sheet section 3 row, "Long throw (named spots only)": gap at most
+    5.8 m (the lead's figure), at the spots it lists as `<map>:<from>><to>`, citing Michael's ~20:45 "Mix of both".
+    `metrics-gen` reads it into `sizes.throw_long` = `{ max, spots }` (no number or spot in the script, V10).
+  - The spots (Campaign Build via the orchestrator, `docs/tallow-fixes/BRIEF.md` M2, ids from Tallow's graph, master
+    `docs/missions/prototypes/campaign-map/graph.json` links 28 and 33): `tallowWharf:w2-pawn-loft>w2-reading-room`
+    (C4 pawn loft to reading room) and `tallowWharf:w2-arcade-roof>w3-roof` (C5 arcade roof to the W3 roof). C4 pie
+    loft to clock loft (`w2-pie-loft>w2-clock-loft`) uses the plank bridge and gets no exception.
+  - A `team_throw` with `exception: "long_throw"` whose `meta.map:from>to` is a listed spot passes a gap up to the row's
+    max (INFO naming the approval) and ERRs above it; at an unlisted spot it ERRs ("not an approved long-throw spot").
+    Every link without the field keeps the 2.7 m ERR, listed spots included (the field states the intent).
+  - The approval for the row is Michael's ~20:45 pick (the sheet changes only with his approval, `scale-sheet.md:2`).
+    The 5.8 m cap is the lead's reading of "5.8 m over 4.9 m gaps"; the 2.7 m row's own rule (the throw less a 0.5 m
+    landing margin) would give 5.3 m, still above Tallow's 4.9 m gaps. One number in the row either way.
+  - Undo: delete the row, the `exception` field and its case (every throw back to the 2.7 m ERR).
 
 ## Lead answers (Marlow Build, 2026-10-25 ~19:00)
 None of these loosens a Michael-only rule; each settles a reading of his words.
