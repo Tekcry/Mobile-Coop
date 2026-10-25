@@ -56,6 +56,8 @@ export const NOISE_RING = 64;
 export const NOISE_WINDOW_S = 1;
 /** Nav search budget for a leg (cells expanded), as e2e-sectorops' route check. */
 export const NAV_EXPAND = 200000;
+/** A floor zone holds feet this near its floor (m; src/game/sectors.ts `ZONE_Y_TOL`). */
+export const ZONE_Y_M = 1.5;
 
 // ---------------------------------------------------------------------------------------------------------------
 // The page side. `pageDriver` is serialised with `toString()` and run in the page: it may use only its arguments and
@@ -248,6 +250,24 @@ function pageDriver(P, o) {
     lastCamAlarms = sa;
   }
 
+  /** Sector Ops: 'connector' / 'extract' when the robot is in the open connector or the extraction (its hold would
+   *  start the cycle or end the op, so the walk is over there), else ''. No allocation. */
+  function exitAt(p) {
+    const m = window.__sector;
+    if (!m) return '';
+    const r = m.run;
+    const ph = r.phase;
+    if (ph !== 'connector' && ph !== 'extract') return '';
+    if ((r.conn && r.conn.insideT > 0) || r.extractT > 0) return ph;
+    const s = r.current;
+    // the zone that ends the section, as the mode's `exitZone`
+    const z = s ? s.connector ?? s.extract ?? null : null;
+    if (!z) return '';
+    const b = z.box;
+    const inBox = p.x >= Math.min(b[0], b[2]) && p.x <= Math.max(b[0], b[2]) && p.z >= Math.min(b[1], b[3]) && p.z <= Math.max(b[1], b[3]);
+    return inBox && Math.abs(p.y - (z.floorY ?? 0)) < o.zoneY ? ph : '';
+  }
+
   /** Before a chunk: the stick, the stuck clock, the door and crouch taps. Returns an event ('' none). */
   function pre(g) {
     const t = g.time;
@@ -257,6 +277,13 @@ function pageDriver(P, o) {
       if (s > lastS + 0.05) {
         lastS = s;
         lastMoveT = t;
+      }
+      const ex = exitAt(p);
+      if (ex !== '') {
+        stopStick();
+        walked += s;
+        mode = IDLE;
+        return ex;
       }
       steer.update(p.x, p.y, p.z, s, g.player.cam.yaw, o.stick);
       if (steer.done) {
@@ -290,6 +317,12 @@ function pageDriver(P, o) {
       return '';
     }
     if (mode === HOLD) {
+      // (a placement or a stub's hold in the zone: no hold there either)
+      const ex = exitAt(g.player.position);
+      if (ex !== '') {
+        mode = IDLE;
+        return ex;
+      }
       if (t >= holdEnd - 1e-9) {
         mode = IDLE;
         return 'held';
@@ -388,6 +421,14 @@ function pageDriver(P, o) {
       mode = HOLD;
       tap(BTN_UP);
       return ok;
+    },
+
+    /** Sector Ops: the live section (its index and id; -1 / null in other modes). */
+    section() {
+      const m = window.__sector;
+      if (!m) return { index: -1, id: null };
+      const s = (st().world.map.sectors ?? [])[m.run.index];
+      return { index: m.run.index, id: s ? s.id : null };
     },
 
     /** (after the settle) No damage: the robots never fight and cannot be hurt. */
@@ -596,7 +637,7 @@ export function pageOptions({ pace, forgive }) {
   return {
     chunk: CHUNK_S, poll: POLL_S, settle: SETTLE_S, placeSettle: PLACE_SETTLE_S, doorStop: DOOR_STOP_S, doorRetap: DOOR_RETAP_S,
     doorReach: DOOR_REACH_M, doorOpenAt: DOOR_OPEN_AT, lockedNear: LOCKED_NEAR_M, eye: EYE_M, noiseRing: NOISE_RING,
-    noiseWindow: NOISE_WINDOW_S, navExpand: NAV_EXPAND, stick: pace.stick, crouch: pace.crouched, forgive,
+    noiseWindow: NOISE_WINDOW_S, navExpand: NAV_EXPAND, zoneY: ZONE_Y_M, stick: pace.stick, crouch: pace.crouched, forgive,
   };
 }
 
@@ -690,9 +731,20 @@ export async function runOne(ctx, run) {
     log.unplannable = run.unplannable;
     return log;
   }
-  await d.call('restart');
+  // a run starts from the section's checkpoint; only a fresh page's first run may start without one (the boot's start)
+  const restarted = await d.call('restart');
+  if (!restarted && ctx.pageUsed) {
+    log.unplannable = 'section restart failed (the robot would start where the last run ended)';
+    return log;
+  }
   await d.until(SETTLE_S + 1);
   await d.call('noDamage');
+  // the restart is of this run's section (a connector cycle already running moves it on to the next)
+  const sec = await d.call('section');
+  if (sec && sec.index >= 0 && run.section && String(sec.id).toLowerCase() !== String(run.section).toLowerCase()) {
+    log.unplannable = `restart moved to section ${sec.id ?? sec.index + 1} (the run is ${run.section})`;
+    return log;
+  }
   log.guards = await d.call('guards');
   if (log.guards.alive < log.guards.spawned) {
     // A15: no run is scored against a missing guard field
@@ -700,6 +752,7 @@ export async function runOne(ctx, run) {
     return log;
   }
   await d.call('begin');
+  ctx.pageUsed = true;
   d.onChunk = () => course.onPoll(ctx, log);
   const steps = flatSteps(run.steps, ctx.notes);
   const skip = new Set();
@@ -734,6 +787,11 @@ export async function runOne(ctx, run) {
       await d.call('walkStart', to[0], to[1], to[2]);
       const res = await d.until();
       if (res.ev === 'arrived') continue;
+      if (res.ev === 'connector' || res.ev === 'extract') {
+        // in the section's open connector / extraction: the walk is done there (not a stop), before its hold fires
+        log.exit = res.ev;
+        break;
+      }
       // a dead stop (A4): its class from a nav probe, then the recovery past the link (logged; the run goes on)
       res.since = await d.call('stallSince');
       const cls = res.ev === 'stall' ? await d.call('probe', to[0], to[1], to[2]) : 'step-timeout';

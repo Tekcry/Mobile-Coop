@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
 import { DEFAULT_SELFTEST, addPast, bayIndexFor, bootUrl, checkSelftest, codeRuns, dryRunText, markedLog, MARK_BEGIN, MARK_END, ownParams, parseArgs, sectorIndexFor, stepsForPath } from '../scripts/route-run.mjs';
 // @ts-expect-error plain .mjs tool script without types
-import { PAST_M, pageScript, pageOptions, runOne, spaceAt } from '../scripts/route-run/driver.mjs';
+import { PAST_M, PageDriver, pageScript, pageOptions, runOne, spaceAt } from '../scripts/route-run/driver.mjs';
 // @ts-expect-error plain .mjs tool script without types
 import { partDir, pickParts, LOG_FILE } from '../scripts/route-run/publish.mjs';
 // @ts-expect-error plain .mjs tool script without types
@@ -344,7 +344,7 @@ describe('route-run run loop (Node side, against a scripted page)', () => {
 describe('route-run in-page driver against a fake game (Node vm, no browser)', () => {
   /** A flat world: the robot moves at the pace's speed along the pad's stick, camera-relative (forward (sin yaw, cos
    *  yaw)); x never passes `wallX`; nav finds a straight path unless the goal is past the wall. */
-  function fakeGame({ wallX = Infinity } = {}) {
+  function fakeGame({ wallX = Infinity, sector = null as Obj | null, restartOk = true } = {}) {
     class V {
       constructor(public x: number, public y: number, public z: number) {}
     }
@@ -366,10 +366,29 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
         centerInto: (_k: number, out: number[]) => out,
         cellHeight: () => 0,
       },
-      world: { doors: { nearest: () => null } },
+      world: { doors: { nearest: () => null }, map: { sectors: sector ? sector.ids.map((id: string) => ({ id })) : [] } },
       enemyMgr: { enemies: [guard], hear() {}, noise() {}, resetAlarm: () => calls.push('resetAlarm') },
       target: { damageMul: 1 },
-      restartCheckpoint: () => { calls.push('restart'); return true; },
+      restartCheckpoint: () => {
+        calls.push('restart');
+        if (!restartOk) return false;
+        game.player.position = new V(0, 0, 0);
+        return true;
+      },
+    };
+    /** The mode's connector hold (`ConnectorMachine.step`): every player inside 1 s starts the cycle (next section). */
+    const connectorHold = (dt: number) => {
+      const r = sector?.run;
+      if (!r || r.phase !== 'connector') return;
+      const [x0, z0, x1, z1] = r.current.connector.box;
+      const p = game.player.position;
+      r.conn.insideT = p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1 ? r.conn.insideT + dt : 0;
+      if (r.conn.insideT >= 1) {
+        calls.push('cycle');
+        r.index++;
+        r.phase = 'objective';
+        r.conn.insideT = 0;
+      }
     };
     const speed = paceFor('sneak', metrics).speed;
     const window: Obj = {
@@ -393,15 +412,95 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
               p.z += dz * speed * dt;
             }
             game.time += dt;
+            connectorHold(dt);
           },
         },
       },
       __pad: { connect() {}, set(i: number, v: number) { buttons[i] = v; if (v) pressed.push(i); }, axis(i: number, v: number) { axes[i] = v; } },
+      ...(sector ? { __sector: sector } : {}),
     };
     const ctx = vm.createContext({ window, Math, Float64Array, Array });
     vm.runInContext(pageScript(pageOptions({ pace: paceFor('sneak', metrics), forgive: true })), ctx);
-    return { rr: window.__rr as Obj, game, guard, calls, pressed };
+    /** A Playwright-like page over the vm (values cross as JSON, as `page.evaluate`'s do). */
+    const page = {
+      async evaluate(fn: unknown, arg?: unknown) {
+        const r = typeof fn === 'string' ? vm.runInContext(fn, ctx) : vm.runInContext(`(${String(fn)})(${JSON.stringify(arg)})`, ctx);
+        return r === undefined ? undefined : JSON.parse(JSON.stringify(r));
+      },
+      async screenshot() {},
+    };
+    return { rr: window.__rr as Obj, game, guard, calls, pressed, page };
   }
+
+  /** Sector Ops in its connector phase: S1's objective done, its connector box x 5..7, z -1..1 (`ids` the sections). */
+  const connectorPhase = (): Obj => ({ camAlarms: 0, ids: ['s1', 's2'], run: { index: 0, phase: 'connector', downloading: false, extractT: 0, conn: { insideT: 0 }, current: { id: 's1', connector: { box: [5, -1, 7, 1], floorY: 0 } } } });
+  /** A code route through the connector: (2, 0, 0), then (10, 0, 0) past its far side. */
+  const throughConnector = () => codeRuns({ id: 's1', routes: [{ name: 'east', pts: [[2, 0, 0], [10, 0, 0]], obj: -1, climbs: [] }] }, 'S1')[0];
+  async function vmDriver(g: { page: unknown }) {
+    const driver = new PageDriver(g.page, { pace: paceFor('sneak', metrics), forgive: true, points: null });
+    await driver.install();
+    return { driver, host: g.page, client: null, shots: null, players: 1, notes: [] as string[] } as Obj;
+  }
+
+  it('the walk ends in an open connector before its hold starts the cycle (not a dead stop)', async () => {
+    const sector = connectorPhase();
+    const g = fakeGame({ sector });
+    const log = await runOne(await vmDriver(g), throughConnector());
+    expect(log.exit).toBe('connector');
+    expect(log.deadStops).toEqual([]);
+    expect(log.unplannable).toBeUndefined();
+    expect(g.calls).not.toContain('cycle');
+    expect(sector.run.index).toBe(0);
+    // stopped at the zone's near edge, not walked on through it
+    expect(g.game.player.position.x).toBeGreaterThanOrEqual(5);
+    expect(g.game.player.position.x).toBeLessThan(5.2);
+  });
+
+  it('a placement into the extraction ends the hold at once (its 0.5 s would end the op)', () => {
+    const sector = connectorPhase();
+    sector.run.phase = 'extract';
+    sector.run.current = { id: 's2', extract: { box: [20, 20, 24, 24], floorY: 0 } };
+    const { rr } = fakeGame({ sector });
+    rr.begin();
+    rr.place(22, 0, 22);
+    expect(rr.tick(1).ev).toBe('extract');
+    // the mode's own hold counting is read too (a zone the box test would miss)
+    rr.place(0, 0, 0);
+    sector.run.extractT = 0.05;
+    expect(rr.tick(1).ev).toBe('extract');
+  });
+
+  it('a failed restart after a walked run, or one in another section, leaves the run unwalked', async () => {
+    const g = fakeGame({ sector: connectorPhase(), restartOk: false });
+    const ctx = await vmDriver(g);
+    // a fresh page's first run starts at the boot's start
+    expect((await runOne(ctx, throughConnector())).unplannable).toBeUndefined();
+    const again = await runOne(ctx, throughConnector());
+    expect(again.unplannable).toBe('section restart failed (the robot would start where the last run ended)');
+    expect(again.deadStops).toEqual([]);
+
+    const sector = connectorPhase();
+    const moved = fakeGame({ sector });
+    sector.run.index = 1;
+    const log = await runOne(await vmDriver(moved), throughConnector());
+    expect(log.unplannable).toBe('restart moved to section s2 (the run is S1)');
+    expect(moved.calls).toContain('restart');
+  });
+
+  it("the connector's own hold counter ends a hold too, one chunk in, long before the cycle", () => {
+    const sector = connectorPhase();
+    const { rr, calls } = fakeGame({ sector });
+    rr.begin();
+    // the box's floor off the robot's: only the mode's counter (insideT, counted by the fake connector) can tell
+    sector.run.current = { id: 's1', connector: { box: [5, -1, 7, 1], floorY: 50 } };
+    sector.run.conn.insideT = 0;
+    rr.holdStart(3);
+    rr.place(6, 0, 0);
+    const r = rr.tick(3);
+    expect(r.ev).toBe('connector');
+    expect(r.t).toBeLessThan(0.2);
+    expect(calls).not.toContain('cycle');
+  });
 
   it('walks a leg crouched at the sneak pace and arrives, in game time', () => {
     const { rr, game } = fakeGame();

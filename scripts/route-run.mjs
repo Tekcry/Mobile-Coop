@@ -199,7 +199,8 @@ export function addPast(steps, points) {
 /**
  * `--routes code`: one run per `SectorRoute` of the section (read from the page): a walk to every point, the objective
  * at `pts[obj]`, each `climbs` leg a stub placed at its far point (the planner's fallback hold). Runs are named by the
- * route, kind null; the report header says "code routes, not a gate run".
+ * route, kind null; the report header says "code routes, not a gate run". The last point is the connector's checkpoint:
+ * the run ends as the robot enters the open connector (driver `exitAt`), before its hold starts the cycle.
  */
 export function codeRuns(sector, section) {
   return (sector?.routes ?? []).map((r, ri) => {
