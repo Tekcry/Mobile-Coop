@@ -44,19 +44,27 @@ export const C1_GAP: readonly [number, number] = [-20.6, -19.4];
 /** (SPEC "Map structure decision") C1: the staff entrance vestibule, a 3.0 high connector. */
 export const C1_BOX = [-24, -34, -16, -30] as const;
 
-/** Section 1's rooms (HUD tags; no squads: the mode spawns the guards from the sector data). Plan boxes; none overlap. */
+/**
+ * Section 1's rooms (HUD tags; no squads: the mode spawns the guards from the sector data). Plan boxes (G6, D:136-140); none
+ * overlap: the roof rooms carry `minY` and the rooms under them `maxY` (A21). The bins, bikes and smoke rooms of the live S1 are
+ * gone (D:140, AS7).
+ */
 export const S1_ROOMS: RoomDef[] = [
-  { id: 'verge', name: 'Marsh Verge', minX: 20, maxX: 26, minZ: -80, maxZ: -56 },
-  { id: 'gatehouse', name: 'Gatehouse', minX: 14, maxX: 20, minZ: -79, maxZ: -73 },
-  { id: 'lane', name: 'Barrier Lane', minX: 8, maxX: 14, minZ: -80, maxZ: -60 },
-  { id: 'park', name: 'Staff Car Park', minX: -36, maxX: 6, minZ: -76, maxZ: -52 },
-  { id: 'bins', name: 'Bin Store', minX: -40, maxX: -30, minZ: -52, maxZ: -45 },
-  { id: 'bikes', name: 'Bike Shelter', minX: -10, maxX: 0, minZ: -50, maxZ: -46 },
-  { id: 'smoke', name: 'Smoking Shelter', minX: 6, maxX: 10, minZ: -50, maxZ: -47 },
-  { id: 'dyard', name: 'Delivery Yard', minX: -40, maxX: -26, minZ: -45, maxZ: -40 },
-  { id: 'forecourt', name: 'Forecourt', minX: -26, maxX: 6, minZ: -46, maxZ: -34 },
+  { id: 'verge', name: 'Marsh Verge', minX: 20, maxX: 26, minZ: -80, maxZ: -54 },
+  { id: 'gatehouse', name: 'Gatehouse', minX: 13.5, maxX: 20, minZ: -79, maxZ: -72.5, maxY: 3.2 },
+  { id: 'gateroof', name: 'Gatehouse Roof', minX: 13.5, maxX: 20, minZ: -79, maxZ: -72.5, minY: 3.2 },
+  { id: 'lane', name: 'Barrier Lane', minX: 6, maxX: 13.5, minZ: -80, maxZ: -54 },
+  // the apron is one graph space with the lane (s1-lane): the same name
+  { id: 'apron', name: 'Barrier Lane', minX: 13.5, maxX: 20, minZ: -72.5, maxZ: -54 },
+  { id: 'park', name: 'Staff Car Park', minX: -40, maxX: 6, minZ: -80, maxZ: -54, maxY: 2.9 },
+  { id: 'carport', name: 'Carport Roof', minX: -24, maxX: 0, minZ: -63, maxZ: -54, minY: 2.9 },
+  { id: 'dyard', name: 'Service Yard', minX: -40, maxX: -26, minZ: -54, maxZ: -40 },
+  { id: 'plantroom', name: 'Plant Room', minX: -40, maxX: -26, minZ: -40, maxZ: -33, maxY: 4 },
   { id: 'plantroof', name: 'Plant Roof', minX: -40, maxX: -26, minZ: -40, maxZ: -34, minY: 4 },
-  { id: 'c1', name: 'Staff Entrance', minX: -24, maxX: -16, minZ: -34, maxZ: -30 },
+  { id: 'forecourt', name: 'Forecourt', minX: -26, maxX: -6, minZ: -54, maxZ: -34 },
+  { id: 'lawn', name: 'Staff Lawn', minX: -6, maxX: 26, minZ: -54, maxZ: -34 },
+  { id: 'pavilion', name: 'Pavilion Roof', minX: -40, maxX: 3.7, minZ: -34, maxZ: -30, minY: 4 },
+  { id: 'c1', name: 'Staff Entrance', minX: -24, maxX: -16, minZ: -34, maxZ: -30, maxY: 4 },
 ].map((r) => ({ ...r, squad: [] }));
 
 /**
@@ -136,16 +144,18 @@ export const S1_NAV_SEEDS: Vector3[] = [new Vector3(24, 0, -79), new Vector3(-33
 export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /** Where a carried body can be hidden: the bin store, between the cars, the verge reeds, the bike shelter, the smoking
- *  shelter's end; (G3, D:148) the cars' and the bike shelter's moved with them, the carport's west end added. */
+ *  shelter's end; (G3, D:148) the cars' and the bike shelter's moved with them, the carport's west end added; (G6) the final
+ *  seven, in the brief's order. */
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(-38, 0, -50.4) },
   { pos: new Vector3(-33.4, 0, -60.75) },
   { pos: new Vector3(24.2, 0, -68) },
   { pos: new Vector3(-7, 0, -51.2) },
   { pos: new Vector3(9.3, 0, -48.2) },
-  { pos: new Vector3(-25, 0, -62) },
   // (G4, D:115) the plant room
   { pos: new Vector3(-38, 0, -36) },
+  // (G3) the carport's west end
+  { pos: new Vector3(-25, 0, -62) },
 ];
 
 /**

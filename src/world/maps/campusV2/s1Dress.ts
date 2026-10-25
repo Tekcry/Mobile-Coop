@@ -16,15 +16,18 @@ import { BOLLARD_XS, S1_GROUPS } from './s1';
 export const S1_ART_TAGS: Record<string, ArtTag> = {
   verge: 'ext-verge',
   gatehouse: 'gatehouse',
+  gateroof: 'roof',
   lane: 'ext-road',
+  apron: 'ext-road',
   park: 'ext-carpark',
-  bins: 'ext-service',
-  c1: 'lobby',
-  bikes: 'ext-shelter',
-  smoke: 'ext-shelter',
+  carport: 'roof',
   dyard: 'ext-service',
-  forecourt: 'ext-forecourt',
+  plantroom: 'plant',
   plantroof: 'roof',
+  forecourt: 'ext-forecourt',
+  lawn: 'ext-garden',
+  pavilion: 'roof',
+  c1: 'lobby',
 };
 
 const H1_IDS = ['gateDesk', 'pcDesk', 'teaPoint', 'monitorBank', 'keyCabinet', 'visitorBoard', 'trafficIsland', 'barrierArm', 'barrierHousing', 'cageTrolley', 'lightBollard', 'intercomPost'] as const;
@@ -137,6 +140,10 @@ export const S1_OMITTED: readonly S1Omit[] = [
   // (campus-greybox G2) the monitor bank moved with the north wall (z -72.65); its back now spans the fixed north pane (x
   // 18.6..19.8, no wall behind it), so rule V refuses it
   { piece: 'H1:monitorBank', x: 18.8, z: -72.65, rule: 'V' },
+  // (campus-greybox G6) the south footway route (SVG:538: (22, -73) -> (10, -79)) passes the intercom post at the barrier;
+  // the K1 route keepout refuses it
+  { piece: 'H1:intercomPost', x: 12.6, z: -79.3, rule: 'K1' },
+  { piece: 'K:siteSign', x: 6.8, z: -79.0, rule: 'K1' },
 ];
 /** What the last `dressS1` call had refused (rebuilt every call). */
 export const S1_REFUSED: S1Omit[] = [];

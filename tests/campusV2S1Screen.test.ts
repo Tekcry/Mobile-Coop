@@ -2,7 +2,7 @@
  * (campus-greybox S1, lane S1) The screen cap over the v2 section 1 (`CAMPUS_SCREEN_CAP`, SEC:19; D:257): no walkable S1
  * point (a 2 m grid on every floor and roof) sees more than the cap of guards with a clear eye-height line within 40 m.
  * `worstView` is copied from `tests/campusS2.test.ts` (a test file is not imported); it reads the undressed greybox, as
- * invisible dressing must not block the lines. From G3 on with the guards built so far; G6 makes it final with all 15.
+ * invisible dressing must not block the lines. Final in G6 with all 15 guards (R1 is open: see the cap test below).
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece } from '../src/world/levelBuilder';
