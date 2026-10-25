@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:19:55+11:00
 # char-shadow-meter A1 fix (cloud, Node 22): sourcesInto reads 90 B a query on CI against the 72 B budget
 
 Lead: Night Shift | Sector Ops Build. PR #459 (J16 A1, dark). Opus. Small, urgent: it blocks #459's CI `test`.
