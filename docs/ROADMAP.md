@@ -19,17 +19,18 @@ the cap (G355).
 | --- | --- | --- | --- | --- |
 | **Phase 0** | | | | |
 | 0a | Land #407 doc-final (level standard per mode, archive sweep, G344-G363; supersedes #398 / #402 / #404), then #400 doc-guard (stacked on #407: doc lint in CI, auto-archive, weekly prune; fix its pr-size / checker reds) and #408 laptop-queue-5 | Orchestrator (#407, #400), Test Runner (#408) | Released | checker + affected-e2e per head |
-| 0b | Ship finished PRs (G346): #384 co-op lamp shot across restart (train-ready), #389 client intel (checkers x2 PASS); #375 gm-flip after Michael's look picks + `big-pr`; #372 mission framework A after a checker on its head, `big-pr` and the sign-off pages. #387, #385, #403 released in 4.101.1 | Orchestrator | Released | queue |
+| 0b | Ship finished PRs (G346): #384 co-op lamp shot across restart (train-ready), #389 client intel (checkers x2 PASS); #375 gm-flip after Michael's look picks + `big-pr`; #372 (Campaign Build) mission framework A after a checker on its head, `big-pr` and the sign-off pages. #387, #385, #403 released in 4.101.1 | Orchestrator | Released | queue |
 | **Phase 1** | **Conformance reviews, plan only, one per lead, in parallel** (brief: `docs/orchestrator/review-briefs/<lead>.md` on origin/feature/menu; output `docs/conformance-<lead>/CONFORMANCE.md`; the briefs' "#398, #402, #404" = #407) | | | |
 | 1 | Player: movement, animation, co-op player, guard models | Player | Docs PR, checker PASS | 0a |
-| 2 | Marlow: Marlow Yard + mission-framework; Tallow Wharf + level validator + guard cap | Marlow | as 1 | 0a |
+| 2 | Marlow: Marlow Yard, level validator, route-runs, guard cap | Marlow | as 1 | 0a |
+| 2b | Campaign: Tallow Wharf, mission framework / engine, campaign rules (new lead, ROADMAP Decided ~12:50) | Campaign | as 1 | 0a |
 | 3 | Sector Ops: Saltmarsh Park S1-S5; lighting on every map; visual gate | Sector Ops | as 1 | 0a |
 | 4 | Guard AI: `src/ai` on every map (G335, G338 / G341 / G350, G348, G352) | Guard AI | as 1 | 0a |
 | 5 | Test Runner: suites and queue vs RULES; flake budget | Test Runner | as 1 | 0a |
-| 6 | Fold the five gap lists into one plan; one sign-off for Michael | Orchestrator | Michael picks | 1-5 |
+| 6 | Fold the six gap lists into one plan; one sign-off for Michael | Orchestrator | Michael picks | 1-5 |
 | **Phase 2** | **Signed-off builds, dark behind flags** (only after Michael signs off row 6) | | | |
-| 7 | Rule fixes (allowed at cap): remove compass / blip (hud.ts:34-35, :264; gameState.ts:3634), minimap (hud/minimap.ts), briefing and field-menu maps; objective popup, View / O, ~5 s, what and where (G336, G339, G343, G351) | Marlow | affected-e2e + checker | 6 |
-| 8 | Tallow Wharf GB5 / GB6 + 3 gate-reach ERRs (w2-reading-room 20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s); A10 void, A12 re-plan (G339, G334); campaign cap 32 (G359) | Marlow | 0 ERR; plan checker | 6 |
+| 7 | Rule fixes (allowed at cap): remove compass / blip (hud.ts:34-35, :264; gameState.ts:3634), minimap (hud/minimap.ts), briefing and field-menu maps; objective popup, View / O, ~5 s, what and where (G336, G339, G343, G351) | Campaign | affected-e2e + checker | 6 |
+| 8 | Tallow Wharf GB5 / GB6 + 3 gate-reach ERRs (w2-reading-room 20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s); A10 void, A12 re-plan (G339, G334); campaign cap 32 (G359) | Campaign | 0 ERR; plan checker | 6 |
 | 9 | Campus greybox S1-S5 lanes (feature/campus-greybox c2f1f131); graphs `players: [1,2,3,4]`, per-count guards (G362), `unavoidable` tags | Sector Ops | Validator; V6 at exit | 6 |
 | 10 | light-realism lux bands, S1 car park first (G329; feature/light-realism bd8b843e) | Sector Ops | Lux grid to Michael | 6 |
 | 11 | Character shadows read by meter and guards (G352) | Sector Ops (meter), Guard AI (perception) | Opus plan; two checkers | 6, 10 |
