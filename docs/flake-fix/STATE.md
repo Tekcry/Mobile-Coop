@@ -11,7 +11,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   auto-train may not see the moved head's rerun (laptop-queue-7 item); Orchestrator told.
 - Orchestrator is building feature/train-doclint (doc-lint per member at train build), so lint fixes stop moving
   train heads; laptop-queue-7 keeps the other head-move cases.
-- Claude Docs connector off. All Test Runner worktrees clean and pushed. Queue 4 requests deep + spare jobs.
+- Claude Docs connector off. All Test Runner worktrees clean and pushed. Train 112 released 22:06Z (#471 in it):
+  e2e-ctcourse:4 hand quarantine lifted from scratch/laptop-queue/quarantine.json (Marlow asked). Queue 4 requests deep + spare jobs.
 - Next: #492 checker status -> train-ready; then SAVE 60 Next line (PR-B, laptop-queue-7, j20-perf).
 
 **Test Runner SAVE 60 (2026-10-26 ~08:45, new account; session [f6b0ef]; wins over SAVE 59):**
