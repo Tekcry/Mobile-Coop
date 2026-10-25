@@ -1,0 +1,14 @@
+{
+  "id": "20261025T071739-night-shift-guard-ai-5e42c152-2e0f",
+  "sha": "5e42c1523382d271c75c71c66c247b76ab911cbf",
+  "branch": "feature/guard-ai-g327",
+  "pr": 438,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "g327-coop",
+  "note": "checker gate: src/game touched"
+}
