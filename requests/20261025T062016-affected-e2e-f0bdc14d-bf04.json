@@ -1,0 +1,20 @@
+{
+  "id": "20261025T062016-affected-e2e-f0bdc14d-bf04",
+  "sha": "f0bdc14db4188f3c0814b2aef3410067c517f613",
+  "branch": "feature/tuner-clarity",
+  "pr": 430,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-menus",
+    "e2e-move",
+    "e2e-stealth",
+    "e2e-studio",
+    "e2e-tuner-phone",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #430"
+}
