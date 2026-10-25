@@ -996,33 +996,32 @@ Guard AI Build resume (laptop). Rules: docs/RULES.md + docs/VISION.md from origi
 "Guard AI Build" on origin/feature/menu. Read this block only. Branch guard before every write. Never merge master
 into a branch. 2 Opus checkers on AI / src/net PRs; Opus triage on every laptop failure. Laptop runs: cd
 C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name>
---requester "Night Shift | Guard AI Build" --suites "a b" (or --alone --step "<cmd>"); verdict = status
-laptop-e2e/<set>; background wait loop. Laptop auto mode blocks labels: tell the orchestrator at train-ready.
-DOCS-FIRST HOLD (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6);
-finished PRs may ship.
-Open (SAVE 2026-10-25 ~18:20; row 6 SIGNED OFF ~17:00, full burn; order J1 -> J4, J15, J6, J16, J26):
-1. J1 #435 (feature/guard-ai-docs-j1): checker PASS posted on 398d5f05. Waits for watchdog label / train.
-2. J4 G327 #438 (feature/guard-ai-g327, worktree -guard-ai-g327; #360 CLOSED): check A PASS, check B FIX docs applied
-   5e42c152 (slices/G327-CHECK-A/B.md). Gates before posting `checker` success: laptop-e2e/g327-coop (e2e-coop +
-   e2e-netmove on 5e42c152), the alone measure laptop-e2e/g327-measure (on 1ebdda52; an agent was writing
-   slices/T1-SHADOW-REPORT.md: if missing, read the run log in C:/NightShift/scratch/laptop-queue/runs/ and write it),
-   then the GPU look rerun with #414's script (alone request, set g327-look). All green -> post checker status, tell
-   the orchestrator train-ready.
-3. J4 #317 coop4 READY, ships ON (Q16). Check A PASS (docs/guard-ai/checks/coop4-release-check-A.md, train notes).
-   Check B FIX (docs + parts 7-9 pooled) applied 3100d035: parts 7-9 named only, OUT documented, rejoin place, D4 as a
-   hook. Laptop: coop4-full2 (3100d035) + alone-coop4-4p (0837f147, test-delta only); WITHDRAW the stale coop4-full
-   request on 0837f147. B polish for later: refSlot x3 -> playerSlots.ts, #319 casts now direct, two team counts.
-   Green -> post checker (A PASS + B fix round) on 3100d035, tell the orchestrator train-ready.
-4. J6 src/ai allocations (D1, D2): Opus builder on feature/guard-ai-alloc (worktree -guard-ai-alloc); if cut off,
-   restart it from the branch head; then PR + 2 Opus checkers.
-5. J15 guard-rules: plan on feature/guard-rules (WIP 376d883f; worktree -guard-rules): finish BRIEF / PLAN, Opus plan
-   checker, builders. Answers: Q9 dog kill = kill + lose score, Q12 no campaign riot shields, Q13 vent lookout overlooks
-   the run / exit; helmets Realistic + Perfectionist, Perfectionist locked.
-6. J26 mission guard hooks plan on feature/guard-ai-mission-hooks (worktree -guard-ai-mission-hooks; Michael signed
-   #372 pages ~18:05): bell sends the porter (Two-Key Ledger), plant room walk + reception (Split Shift), release calls
-   the supervisor to the cage (Code Relay); BEAT.md on feature/mission-framework.
-7. J16 perception half (Q14 cast shadow = a faint cue): plan after Sector Ops' J16 PR.
-8. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201; Sector Ops:
-   lighting.md:28 restates the G45 glass rule.
-Next: read agent results (J6, J15, J26, coop4 check B, g327 measure), then the gates in items 2-3.
+--requester "Night Shift | Guard AI Build" --suites "a b" (or --alone --step "<cmd>" --env K=V); verdict = status
+laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
+worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
+orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
+Open (SAVE 2026-10-25 ~19:10; full burn; order J1 -> J4, J6, J15, J26, J16):
+1. J1 #435 checker PASS on 398d5f05; affected-e2e queued. Waits for watchdog label / train.
+2. J4 G327 #438 (5e42c152): checks A PASS + B fix applied. Gates: laptop-e2e/g327-coop (5e42c152), g327-measure
+   (alone, 1ebdda52; then write slices/T1-SHADOW-REPORT.md from the run log in C:/NightShift/scratch/laptop-queue/runs/),
+   g327-look (alone, d6a24987 = #438 + #414 script on scratch/g327-look). All green -> post checker, tell orchestrator.
+   #414 (look script, draft) depends on #438 now (#360 closed): undraft after #438 is train-ready.
+3. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 +
+   alone-coop4-4p (both on 3100d035). Green -> post checker (A PASS + B fix round), tell orchestrator train-ready.
+   CONFLICTING with master (protocol.ts): train resolves (keep master PROTOCOL_VERSION + coop4 comment).
+4. J6 #446 (feature/guard-ai-alloc 864520c4): Opus checkers A / B running -> docs/guard-ai/slices/ALLOC-CHECK-A/B.md
+   (lead commits). laptop-e2e/alloc-coop queued. Follow-up for owners: src/weapons spreadDir, src/vfx tracer, src/cover.
+5. J15 guard-rules: plan PASS (dd1981116, PLAN-CHECK.md 2 rounds). Wave 1 builders: S1 on feature/guard-rules-s1
+   (worktree -guard-rules-s1), S2 on feature/guard-rules-s2 (-s2; Player-owned takedownController.ts:278 one line:
+   tell Player Build). Then merge s1 + s2 into feature/guard-rules, 2 Opus checkers, PR1. Waves 2-4 per PLAN.
+   Orchestrator told: J17 campus S4/S5 data waits for PR1; A14 Marlow shield lead for Marlow Build to confirm.
+6. J26 mission hooks: BRIEF + PLAN a6d8daec2; Opus plan check running -> PLAN-CHECK.md. Builds after J15's
+   overlapping slices. After PASS send Campaign Build C1-C6 (incl. C3: restarted() must re-raise done steps' events).
+   Lead calls: A4 porter hears the bell via the hearing model + state gate; A9 per-area stages dark, Michael at walk.
+7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
+   radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master;
+   shrink its allowlist in the same PR.
+8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
+9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
+Next: read agent results (J6 checkers, J15 S1 / S2, J26 plan check) and the laptop gates in items 2-4.
 ```
