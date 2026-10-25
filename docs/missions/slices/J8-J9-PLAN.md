@@ -149,8 +149,8 @@ into level-design.md; until then that file and ROADMAP "Decided" are the source)
   `src/game/gameState.ts:835`, `:1009`). **Roof ladder**: `b.ladder(72, 66.15, LOFT, ROOF, 0)` up a hatch in the let
   corner loft (`tallowWharfW2.ts:204`; TW22, level-design 16.2.1 / 16.2.3). **Graph drift** (TW21): graph counts W1 7 /
   W2 6 against 9 / 10 spawned (`tallowWharfSectors.ts:105-141`, `:187-194`), the w3-east-yard checkpoint tag (graph
-  :321) against the build's W3 restart at the roof bulkhead head, dog rows (J7 R3 turns them into armed humans; J7 A11 /
-  A17 in `docs/mission-rules/BRIEF.md` leave geometry, lights and the map pages to J8). Bolts: `W1_BOLTS` .. `W4_BOLTS` (`tallowWharfSectors.ts:205-230`; indexes fix the flags
+  :321) against the build's W3 restart at the roof bulkhead head, dog rows (J7 R3 turns them into armed humans; J7 A11 in
+  `docs/mission-rules/BRIEF.md`: J8 owns geometry, lights and the pages). Bolts: `W1_BOLTS` .. `W4_BOLTS` (`tallowWharfSectors.ts:205-230`; indexes fix the flags
   `<id>-bolt<k>`, so new bolts append). Routes: `tallowWharfSectors.ts:245-301`.
 - **Section restart and kit devices** (check fix 4): `SectorMode.restartSection` (`sectorMode.ts:1182-1215`) re-bolts
   the section's team doors (`this.team.reset`, `SectorTeamDoors`, `sectorTeamDoors.ts:213`), rekeys, resets guard memory
@@ -232,7 +232,7 @@ Overnight rule (RULES Intake 2): logged, work carries on; A1 is the one a day-ti
   constants).
 - **A19 No wire change in J9.** The shutter kinds and gap are on the wire (NET); a client draws its curtains from its own
   devices. If the client needs more, it becomes an Opus `src/net` slice with two checkers. Undo: n/a.
-- **A20 One copy of the map docs (fix round 1, lead rulings).** B0: Campaign Build merges `origin/feature/mission-framework`
+- **A20 One copy of the map docs (fix round 1, lead rulings).** B0 (J7 A20): Campaign Build merges `origin/feature/mission-framework`
   (#372) into `feature/mission-engine` at **J7 R0** (GB-briefs 0.3 step 1 pattern); R0 also takes the optional-objective
   rewards out of `tallowWharfMissions.ts` (Q19). So the engine carries the newest graph (gap 0.9), SPEC and pages, and
   J8 / J9 edit them there. TW23 (`feature/tallow-spec` d42d1596, stacked on #372) does **not** move the graph: it adds
@@ -242,8 +242,8 @@ Overnight rule (RULES Intake 2): logged, work carries on; A1 is the one a day-ti
   TW23 merges into the framework branch after B0, Campaign Build runs **B0b**, a second framework -> engine merge; D0's
   and D1's graph edits and P1's SPEC edits wait for whichever merge brings TW23 in, so no two branches edit
   `graph.json` or the SPEC at once. Undo: J8 docs on a branch off master after #372 merges.
-- **A21 Stacking.** J8's PRs (T, G1, G2) and J9's PR S are PRs into `feature/mission-engine` (as J7's D / E / F, J7-PLAN
-  section 4); they reach master through the PR C split (`docs/missions/slices/PRC-split.md` C8 / C9 or new members). A
+- **A21 Stacking.** J8's PRs (T, G1, G2) and J9's PR S are PRs into `feature/mission-engine` (as J7's D / E / F, J7 A14 and
+  J7-PLAN section 4); they reach master through the PR C split (`docs/missions/slices/PRC-split.md` C8 / C9 or new members). A
   fix round on an earlier PR is merged forward into the later branches by the lead, as J7-PLAN section 4 does for D ->
   E -> F; PR C's gate is J7's (its two fresh Opus checkers and the union of suites on the head after the last merge).
   Undo: retarget them to master after PR C merges (the orchestrator's call).
@@ -368,7 +368,8 @@ save: none
   light-realism L5's).
 - Overlaps with J7 (same lead, so never at the same time; section 5 orders them): `tallowWharfSectors.ts`,
   `tests/tallowWharf/sectors.test.ts` (J7 PR D R3); `scripts/e2e-sectorops-wharf.mjs` (J7 PR E R7, PR F R8);
-  `gameState.ts` (J7 PR F R6). The kit-flag fold (framework STATE item 7: after Player's coop-kit part 1, the kit branch
+  `gameState.ts` (J7 PR F R6: hud-guidance B4's hook, `NetAttachment.objectiveLines` and `GameState.objectiveLines`
+  :1244-1252; S1's two `gameState.ts` lines are the arming call and `checkpointReset`, other hunks, after PR F). The kit-flag fold (framework STATE item 7: after Player's coop-kit part 1, the kit branch
   `feature/mission-engine-flg-gb6` folds `coopKit` into Player's `kitMoves` and adds wire kind `stand`, touching
   `teamMoves.ts` and `teamController.ts:784`; Campaign Build merges it into `feature/mission-engine`): order on
   `teamController.ts` is fold, then TD's hunk, then S1's hunk; on `teamMoves.ts` fold, then TD (section 5).
@@ -983,4 +984,4 @@ by A20); answer 6's order now also covers TD (section 5).
 | Polish 8 switch links | Section 1 row 7; LP |
 | Polish 9 PR C gate, forward merges | A21 |
 | Polish 10 Q2 quote | Section 0 |
-| J7 re-check rulings (coordinator) | B0 at J7 R0 with the rewards removal (A20, section 6 B0 row); P1 does not rewrite TGC / TKL pages (section 4, P1); J7 numbers re-cited (J7 A11 / A17, J7-PLAN section 4) |
+| J7 re-check rulings (coordinator) | B0 at J7 R0 with the rewards removal (A20, section 6 B0 row); P1 does not rewrite TGC / TKL pages (section 4, P1); J7 numbers re-cited to J7-PLAN cc66755e (J7 A11 J8 owns geometry / lights / pages, A14 stacking, A20 B0 at R0; R6 through B4's `objectiveLines` hook) |
