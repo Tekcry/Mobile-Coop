@@ -51,7 +51,7 @@ rather than take a hand-made fix.
   graph identical with the flag on, slots by MIXAMO_ON (and every capture with all let on), no pop at the stand-up fade
   or shimmy turn, the capture / hand-made switch inertialized (graph channels; rig joints on the first exit frame:
   climb-up 4.1 cm vs hand-made 9.5, top-out 15.6 vs 15.7), bytes a frame (both paths warmed, 5 alternating rounds,
-  medians: hang moving 1664 vs hand-made 2368, hang still 1305 vs 1737, climb-up 1305 vs 1401-1417; 3 runs in a row
+  medians (bytes depend on the machine; capture vs hand-made): builder PC hang moving 1664 vs 2368, hang still 1305 vs 1737, climb-up 1305 vs 1401-1417; checker PC 1344 vs 1360, 991 vs 1119, climb-up 991 vs 975 (inside the +16 B allowance); 3 runs in a row
   alike), the vent crawl (capture joints 13.8 cm a frame vs 0.5: off; as shipped the hand-made crawl joint for joint),
   anchor errors above.
 - `tests/mocapGuards.test.ts`: a guard's hang, shimmy, ledge climb-up, ladder, top-out and crawl bit-identical with the
