@@ -266,7 +266,7 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   until PB). The roof stays: an open bridge would let a lone player drop in from the arcade roof on the bridge side of
   its gate. The bridges sit at west x ~44-45.5 (the pawn throw) and east x ~68.5-70 (the pie throw). Each gate is
   at the **south (approach) end**, bolted on the bridge side: the thrown partner walks back along the bridge and
-  unbolts it for the thrower (G292's own example), it stays open (level-design 11.6), the walk is 12 m or less (draft
+  unbolts it for the thrower (G292's own example), it stays open (level-design 11.6), the walk is 13 m or less (lead ruling on LP pick 16, 2026-10-26, a lead assumption: was 12 m; the west walk measures 12.4 m door to door, 12.9 m from the landing; draft
   9 m: 3 s at `reach_speed_mps` 3.0, under the 15 s reach), and from the south loft it is shut, so the throw stays
   forced. Graph: a `door` link `from` the south loft `to` the north room, `bolted: true` (a lone player passes only from
   the `to` end, `level-validate.mjs:225-227`), width 1.2 (1.0 gives a nav WARN). With A25 this clears both C4 reach ERRs
@@ -867,7 +867,7 @@ thinner than `climbDepth`; A28), fall-ins with their way out.
 `THROW_PIE` is unchanged (2.5 m, no `dist`, the pie loft keeps z 62-70). (2) The clock-mender's door locked both sides
 (A29: `locked: true, breachable: false`, its `W2_BOLTS` slot taken out with a comment, the later slots renumbered).
 (3) The two enclosed way-back bridges (A5): gate at the south (approach) end bolted on the bridge side, sides and roof
-`noLedge`, appended to `W2_BOLTS`, walk 12 m or less; the stair-head door (A25) appended too; `W2_ROUTES` still pass
+`noLedge`, appended to `W2_BOLTS`, walk 13 m or less (A5 as amended, LP pick 16); the stair-head door (A25) appended too; `W2_ROUTES` still pass
 (2+ routes, G285). (4) Plant-room roof access (A7). (5) Lights, hide spots (arcade, reading room), the beadle's office
 medkit, two vantage spots per encounter, the thrower's spot marked (polish 8). (6) W3 guard 1's beat (J7 R3 hand-off,
 polish 3; he is in `tallowWharfSectors.ts`, the file G2 owns): today a man pacing a 3 m line ([112.5, 46] to
