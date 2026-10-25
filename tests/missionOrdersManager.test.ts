@@ -153,7 +153,7 @@ const E = (g: FakeGuard | Probe) => g as unknown as Enemy;
 interface Priv {
   circuitBusy(group: number): boolean;
   circuitOut(group: number, x: number, y: number, z: number, n: number, fresh: boolean): void;
-  orderTick(): void;
+  orderTick(dt: number): void;
   lateStep(): void;
   fillPair(g: PairGuard, e: Enemy | null): void;
   hearWho: Int32Array;
@@ -199,7 +199,7 @@ describe('EnemyManager.missionOrder: the offer table (A6)', () => {
     expect(g.takeOrder).toHaveBeenCalledTimes(1);
     expect(em.orderPhase('go')).toBe('walking');
     expect(em.orderMembers('go')).toBe(1);
-    expect(em.orderOf(E(g))).toEqual({ name: 'go', kind: 'walk', phase: 'walking', leg: 0 });
+    expect(em.orderOf(E(g))).toEqual({ name: 'go', kind: 'walk', phase: 'walking', leg: 0, group: false, lead: true, waitT: -1 }); // (S1b: group fields)
     expect(other.orderRefusal).not.toHaveBeenCalled();
     expect(other.takeOrder).not.toHaveBeenCalled();
     expect(em.orderOf(E(other))).toBeNull();
@@ -253,7 +253,7 @@ describe('EnemyManager.missionOrder: the offer table (A6)', () => {
     // free now: the same live order raised again does not revive him (the board's add refuses a dropped guard)
     busy.orderRefusal.mockImplementation(() => '');
     em.missionOrder('porter', 'walk', 'look', undefined, 'go');
-    P(em).orderTick();
+    P(em).orderTick(0.1);
     const late = guard(5, 0);
     em.enemies.push(E(late));
     em.placeSlot(E(late), { yaw: 0, zone: 'porter' }, 0);
@@ -285,7 +285,7 @@ describe('EnemyManager.missionOrder: a late-placed slot (A6)', () => {
     // a woken guard (pushed on the list with the tag, no placeSlot) is never offered
     const woken = guard(1, 0, { zone: 'porter' });
     em.enemies.push(E(woken));
-    P(em).orderTick();
+    P(em).orderTick(0.1);
     expect(woken.takeOrder).not.toHaveBeenCalled();
     em.enemies.length = 0;
     const g = guard(2, 0);
@@ -481,7 +481,7 @@ describe('EnemyManager: a reset order and the breaker (PLAN "Cut first" / "Order
     expect(em.board.openCount).toBe(0);
     // the walker is knocked out on his way: the order drops ('down'), 55 still off
     a.alive = false;
-    P(em).orderTick();
+    P(em).orderTick(0.1);
     expect(causeOf(em, 'r')).toBe('down');
     expect(em.orders.holdsCircuit(55)).toBe(false);
     P(em).lateStep();
@@ -508,7 +508,7 @@ describe('EnemyManager: orderTick, pairs, restart', () => {
     expect(em.orderMembers('go')).toBe(2);
     em.enemies.splice(0, 1);
     b.taken = true;
-    P(em).orderTick();
+    P(em).orderTick(0.1);
     expect(em.orderMembers('go')).toBe(1);
     expect(causeOf(em, 'go')).toBe('down');
     expect(b.dropOrder).toHaveBeenCalledWith('held');

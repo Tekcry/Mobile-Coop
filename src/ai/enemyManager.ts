@@ -75,7 +75,7 @@ import { PLAN_SKIP_SEARCHED, SEARCH_AREA, SearchPlan, areaRadius, orderByScore, 
 // (guard-rules S7) lookouts
 import { LOOKOUT, type PostDef } from './posts';
 // (guard-ai-mission-hooks S1a) mission orders
-import { findPost, K_RESET, K_WALK, M_ARRIVED, M_DROPPED, M_WALKING, matchesTag, ORDER, OrderBoard, resolvePoint, type MissionPost, type OrderEvent, type OrderKind, type OrderPhase } from './missionOrders';
+import { findPost, K_RESET, K_WALK, M_ARRIVED, M_DONE, M_DROPPED, M_WALKING, matchesTag, ORDER, OrderBoard, resolvePoint, type MissionPost, type OrderEvent, type OrderKind, type OrderPhase } from './missionOrders';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -346,6 +346,8 @@ export class EnemyManager {
   private readonly lookCd = new Float32Array(MAX_KEYS);
   /** (guard-ai-mission-hooks S1a, D7) Every mission order in hand (tests read it; fixed slots, `clear()` empties it). */
   readonly orders = new OrderBoard();
+  /** (guard-ai-mission-hooks S1b) The order numbers (tests / e2e read `joinWait`, `followGap` here). */
+  readonly orderTable = ORDER;
   /** (guard-ai-mission-hooks S1a, C1) The mission's section ids by `SectorDef` index (a tag's `<sectionId>:<k>`) and its
    *  posts (`setMissionMap`; kept through `clear()`). */
   private missionSecs: readonly string[] = [];
@@ -2609,23 +2611,33 @@ export class EnemyManager {
       this.orderWarn(nm, `order '${nm}': board full (every slot runs)`);
       return;
     }
-    // the points, on the nearest walkable cell (as the breaker walk's switch)
-    const px = pt[0]!;
-    const py = pt[1]!;
-    const pz = pt[2]!;
-    const i3 = s * 3;
-    b.face[i3 + 2] = pt[3]!;
-    if (vx === vx) this.snapTo(vx, vz, vy, b.via, i3);
-    this.snapTo(px, pz, py, b.pt, i3);
-    // a reset: the walk ends at the board's own switch (A2), faced while he works it; no host or no switch: the post
-    const sw = this.swP;
-    if (circuits && this.breakers && this.breakers.switchOf(circuits[0]!, px, pz, sw)) {
-      b.face[i3] = sw[0]!;
-      b.face[i3 + 1] = sw[2]!;
-      this.snapTo(sw[0]!, sw[2]!, py === py ? py : sw[1]!, b.pt, i3);
+    // (guard-ai-mission-hooks S1b-b) a second event of a running order keeps the first one's points (a group)
+    const fresh = b.memN[s] === 0 && b.pend[s] === '';
+    if (fresh) {
+      b.postId[s] = postId;
+      b.viaId[s] = via ?? '';
+    } else if (!b.sameRoute(s, postId, via ?? '')) {
+      this.orderWarn(nm, `'${nm}' events disagree on post / via; the first wins`);
     }
-    b.circuits[s] = circuits;
-    b.bell[s] = post?.bell ?? null;
+    if (fresh) {
+      // the points, on the nearest walkable cell (as the breaker walk's switch)
+      const px = pt[0]!;
+      const py = pt[1]!;
+      const pz = pt[2]!;
+      const i3 = s * 3;
+      b.face[i3 + 2] = pt[3]!;
+      if (vx === vx) this.snapTo(vx, vz, vy, b.via, i3);
+      this.snapTo(px, pz, py, b.pt, i3);
+      // a reset: the walk ends at the board's own switch (A2), faced while he works it; no host or no switch: the post
+      const sw = this.swP;
+      if (circuits && this.breakers && this.breakers.switchOf(circuits[0]!, px, pz, sw)) {
+        b.face[i3] = sw[0]!;
+        b.face[i3 + 1] = sw[2]!;
+        this.snapTo(sw[0]!, sw[2]!, py === py ? py : sw[1]!, b.pt, i3);
+      }
+      b.circuits[s] = circuits;
+      b.bell[s] = post?.bell ?? null;
+    }
     // the tagged guards: live ones are offered; a body (dead, knocked out) is recorded down (S1a-i)
     const list = this.enemies;
     let found = false;
@@ -2646,6 +2658,9 @@ export class EnemyManager {
     } else {
       for (let k = 0; k < list.length; k++) if (this.taggedAs(list[k]!, tag)) this.offer(list[k]!, s);
     }
+    // (guard-ai-mission-hooks S1b) events of one name and via: a group (2+ members); its leader from the first step
+    if (via !== undefined) b.group(s);
+    b.lead[s] = b.firstLive(s);
     b.refresh(s);
   }
 
@@ -2667,11 +2682,17 @@ export class EnemyManager {
   }
 
   /** Guard `e`'s order (debug / e2e; allocates): its name, kind, phase and his leg state; null: none. */
-  orderOf(e: Enemy): { name: string; kind: OrderKind; phase: OrderPhase; leg: number } | null {
+  orderOf(e: Enemy): {
+    name: string; kind: OrderKind; phase: OrderPhase; leg: number; group: boolean; lead: boolean; waitT: number;
+  } | null {
     const s = e.orderSlot;
     if (s < 0) return null;
     const b = this.orders;
-    return { name: b.name[s]!, kind: b.kind[s] === K_RESET ? 'reset' : 'walk', phase: b.phase[s]!, leg: e.leg.state };
+    return {
+      name: b.name[s]!, kind: b.kind[s] === K_RESET ? 'reset' : 'walk', phase: b.phase[s]!, leg: e.leg.state,
+      // (guard-ai-mission-hooks S1b) on a group, its leader, the group's wait at the via (s; -1 none yet)
+      group: b.gath[s] === 1 || b.left[s] === 1, lead: b.lead[s] === e.num, waitT: b.waitT[s]!,
+    };
   }
 
   /** Does mission tag `tag` name guard `e` (his zone tag, or `<sectionId>:<k>` of his section and slot, A1)? */
@@ -2799,13 +2820,18 @@ export class EnemyManager {
         if (tier >= ORDER.bellTier) this.offer(e, s);
         else this.unheard(e, s);
       } else this.offer(e, s);
+      // (guard-ai-mission-hooks S1b-h) he joins a group still gathering; after it left he follows its leader
+      b.group(s);
+      b.lead[s] = b.firstLive(s);
       b.refresh(s);
     }
   }
 
   /** Every step while a member is live: one knocked out, killed or gone from the list is dropped 'down', a held one
-   *  drops his order ('held'). No allocation (index loops). */
-  private orderTick(): void {
+   *  drops his order ('held'). (guard-ai-mission-hooks S1b) Then per group: the leader's end ends it (each follower
+   *  done, 'lead'); else the leader is the first live member (a dropped one is replaced, S1b-e), his position goes to
+   *  `leadP`, and a gathering group counts its wait (`gatherStep`). No allocation (index loops). */
+  private orderTick(dt: number): void {
     const b = this.orders;
     for (let s = 0; s < b.slots; s++) {
       const base = s * b.per;
@@ -2818,6 +2844,34 @@ export class EnemyManager {
         else if (e.taken) e.dropOrder('held');
         // (a safety net) on the board but off the order: dropped, so it cannot hold its circuits for good
         else if (e.orderSlot !== s) b.set(s, num, M_DROPPED, 'lost');
+      }
+    }
+    for (let s = 0; s < b.slots; s++) {
+      if (!b.isLive(s)) continue;
+      const base = s * b.per;
+      const L = b.lead[s]!;
+      // a group's leader ended his order (done): so does every follower (S1b-i; a lone order or one with no via: none)
+      if ((b.gath[s] === 1 || b.left[s] === 1) && L >= 0 && b.stateOf(s, L) === M_DONE) {
+        for (let j = 0; j < b.memN[s]!; j++) {
+          const st = b.memSt[base + j]!;
+          if (st === M_WALKING || st === M_ARRIVED) this.byNum(b.mem[base + j]!)?.finishOrder();
+        }
+        continue;
+      }
+      const lead = b.firstLive(s);
+      b.lead[s] = lead;
+      const le = lead >= 0 ? this.byNum(lead) : null;
+      const i3 = s * 3;
+      if (le) {
+        b.leadP[i3] = le.pos.x;
+        b.leadP[i3 + 1] = le.pos.y;
+        b.leadP[i3 + 2] = le.pos.z;
+      } else b.leadP[i3] = Number.NaN;
+      if (b.gatherStep(s, dt) && import.meta.env.DEV) {
+        console.info(
+          `guard-ai orders: group '${b.name[s]}' leaves ${b.viaId[s]} ` +
+            `(${b.atViaN(s)} of ${b.memN[s]} there, waited ${b.waitT[s]!.toFixed(1)} s)`,
+        );
       }
     }
   }
@@ -4148,7 +4202,7 @@ export class EnemyManager {
       if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
     }
     // (guard-ai-mission-hooks S1a) members of a mission order knocked out, killed, gone or held: dropped
-    if (this.orders.live > 0) this.orderTick();
+    if (this.orders.live > 0) this.orderTick(dt);
     // (guard-ai S10) talking pairs at the board rate, after the guards moved
     if (this.pairs.length) {
       this.pairT -= dt;
