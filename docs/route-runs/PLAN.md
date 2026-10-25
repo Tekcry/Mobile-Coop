@@ -25,7 +25,9 @@ Read only (imported or driven, never edited): `scripts/level-validate.mjs` (`mer
 `isOneWay`), `scripts/e2e-lib.mjs`, `scripts/e2e-net-lib.mjs`, `scripts/laptop-queue/serve.mjs`, the map graphs, the
 built game (`dist/`). `docs/level-design.md` is touched by R8 only (two lines of section 14 / 15);
 `docs/systems/testing-tools.md` by R8 only (one new section). Changelog fragments are shared files (not claimed).
-`claims-check` at 251d064cd + this PLAN: 0 overlaps; `feature/marlow-docs-j1` and `feature/doc-level` have no claims
+`claims-check` (2026-10-25 ~18:00): one overlap, `docs/systems/testing-tools.md` with `feature/test-runner-j20` (J20,
+Test Runner); R8 is a late docs slice, so it is cut from master after J20 merges and adds only its own section (or
+Test Runner adds it, the lead's call). `feature/marlow-docs-j1` and `feature/doc-level` have no claims
 block and may touch `docs/level-design.md`, so R8 is cut from master after they land and writes its two lines on top. Guard AI's G1 (below) is claimed on Guard AI's own branch,
 not here: `src/ai/detectionCause.ts` (new), `src/ai/enemy.ts`, `src/ai/enemyManager.ts`, `src/game/gameState.ts` (the
 debug overlay line), `tests/detectionCause.test.ts`.
