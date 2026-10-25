@@ -11,7 +11,7 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
-import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
@@ -808,6 +808,7 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     session.weather = resume.weather;
     session.courseBay = resume.bay;
     adopt(app, api, session);
+    // (mission-rules R4) a campaign room does not start alone: it waits in the lobby until the partner is back
     session.startMatch();
     return;
   }
