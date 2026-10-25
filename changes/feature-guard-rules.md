@@ -10,3 +10,5 @@ kind: minor
   costs nothing.
 - Sector Ops data checks reject a riot shield guard placed on the map and any helmet named in map data: helmets come
   from the difficulty and the alarm stage. Saltmarsh Park sections 4 and 5 keep their body armour.
+- Dogs can no longer be taken down in any way (behind, side, drop, from a ledge, the co-op team takedown); in co-op
+  the host also refuses a takedown on a dog. Sleeping gas still knocks a dog out.
