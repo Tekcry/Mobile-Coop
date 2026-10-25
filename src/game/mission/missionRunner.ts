@@ -141,7 +141,7 @@ export class MissionRunner {
     this.flags = names;
     this.flagIdx = idx;
     this.facts = factsOf(def);
-    this.factFlag = Int32Array.from(this.facts.map((f) => idx.get(f) ?? NONE));
+    this.factFlag = Int32Array.from(this.facts.map((f) => add(f)));
     const nf = names.length;
     this.flagOn = new Uint8Array(nf);
     this.flagKeep = new Uint8Array(nf);
