@@ -1,7 +1,27 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~05:30 SAVE (Night Shift | Campaign Build; pause to the ~09:50 reset; read this block first)
+## RESUME 2026-10-26 ~08:40 (Night Shift | Campaign Build, after the 08:25 swap; read this block first)
+Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
+FOLDED-PLAN J-rows; Tallow plan = ENGINE copy docs/missions/slices/J8-J9-PLAN.md (the scratch copy is stale). Notes /
+reports: C:/NightShift/scratch/campaign/ (lead-notes.md newest last). Rerun any agent below whose report is missing.
+1. WHARF e2e (wharf-tgc / wharf-tkl) red on dc2aa9c8, eb231778 (PR D), 62b206d2 (PR E). Opus triage RERUN ~08:35
+   (report wharf-triage.md, worktree -wharf-triage, branch feature/mission-engine-gb6fix2 from bd7f7a997). On its
+   final head: merge into PR D / -net / -hud heads, re-request laptop sets j7-prd / j7-pre / mission-gb6fix.
+2. J7 PR D feature/mission-rules eb231778: checker PASS; laptop red (wharf). Green -> merge into engine.
+3. J7 PR E -net 62b206d2a (checker PASS): laptop red (wharf). Green -> FE docs step, PR E.
+4. J7 PR F -hud 9606076bf (checker status posted). Laptop e2e-sectorops (all) + e2e-menus HELD until the wharf fix.
+5. #482 J3b PR B: in train 112 (#491).
+6. Tallow: LP PASS (adb5503f2); G0 PASS (55514bad6, feature/tallow-g0); PR T feature/tallow-throw 45239952a.
+   S1 RUNNING (Opus, feature/tallow-s1 = engine + S2 58ca647b1, worktree -tallow-s1, report tallow-s1-report.md).
+   Wave-2 briefs D1 / E8 / TD-b being written (scratch cq/, report tallow-wave2-briefs-report.md).
+   After PR D is in the engine: cut feature/tallow-fixes (merge LP + G0), cut feature/tallow-shutters (merge S1,
+   which carries S2), push D0 / MB briefs (scratch cq/) with the engine sha.
+7. Mixamo kit moves: Marlow's feature/mixamo-kit (#490); I merge it into the engine after #477 + mixamo-i3 release.
+Next: triage report -> merge fix into red heads, re-request laptop sets; S1 report -> checker; PR D green -> engine,
+then Tallow branches (item 6).
+
+## OLD RESUME 2026-10-26 ~05:30 SAVE (history) (Night Shift | Campaign Build)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
 FOLDED-PLAN J-rows; Tallow plan = ENGINE copy docs/missions/slices/J8-J9-PLAN.md (the scratch copy is stale). Notes /
 reports: C:/NightShift/scratch/campaign/ (lead-notes.md newest last). Rerun any agent below whose report is missing.
