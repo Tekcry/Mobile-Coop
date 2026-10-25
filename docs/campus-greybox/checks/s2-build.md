@@ -268,3 +268,33 @@ The plant log's read: the point (-41.5, 0, -18.5) is inside cage 3 (as built); t
 Assumptions: Q1, BA4, BA5, BA6, BA13, BA16 as the brief; Q21 (no `soloWindow`). None new.
 
 Findings for the lead: none.
+
+## S2-G5c - BLOCKED (not built), and S2-G6b (not started)
+
+**Block.** G5c's rule ("every `S2_ROOMS` box (after G4) with no lit fitting inside it", step 1) names room boxes that the
+brief's own `S2_ROOMS` does not hold after G1-G4, and applied to the boxes that do exist it gives a result the brief says it
+must not:
+- The exceptions name "their L2 twins" of the strips, "the void", "the mail-lift shaft" and "the three core boxes": none
+  is a RoomDef (BA1 / BA2 re-cut only G and L1; G4 re-cuts no L2 room; S2 has two cores).
+- The coverage list wants MR1-MR3, offices A and B, the board room, the roof plant room and the L2 open plan lit. MR1-MR3
+  sit inside l1sw / l1north (BA2), the offices and the exec suite inside l2north / l2sw, the board room inside l2wing, the
+  roof plant room inside `roof`.
+- Literal result on today's 26 boxes: lit by G5c would be post, lift, store, hallne, plant (G), l1sw, l1project, l1ne,
+  l1wingn, l1wings, l1comms, l1semeet, l2wing and `roof`; skipped as already lit: mail (BA6), foyer, l1kitchen, the three
+  L1 strips, l1north (its two north balcony downlights at z -2.8), l1fac, l1wing, l1landing, l2sw (the L2 night lamp and a
+  balcony lamp), l2north (balcony lamps). So MR3, the exec suite, offices A and B and the roof plant room stay dark, and
+  the `roof` box (the open roof) gets six fittings hanging at 15.8 m in the air, two of them over the void.
+- Fixing it by adding RoomDefs (MR1-MR3, L2 strips / offices / exec / board room, roof plant room, void, shaft, cores)
+  changes `S2_ROOMS` (HUD rooms, guard-ai `lightsOut` "a fixture in the room he stands in") and needs `S2_ART_TAGS` in
+  `s2Dress.ts`, which is not a G5c file, and box values for the L2 split that the brief does not give.
+
+Options for the lead (each is one data edit):
+1. Re-cut L2 like L1 (boxes from the PG areas: `s2-l2-exec`, `-offa`, `-offb`, `-board`, `-wing`, `s2-roof-plant`, plus
+   L2 strip twins of l1west / l1south / l1east and an l2north for the north strip), add MR1-MR3 boxes carved out of
+   l1sw / l1north, tag them in `s2Dress.ts`, then run G5c's rule unchanged on the new list (exclude `roof` as exterior).
+2. Keep `S2_ROOMS`, run G5c on its boxes, exclude `roof` (exterior), and add one fitting per named enclosed room that the
+   rule misses (MR3, exec suite, offices A / B, roof plant room) at its PG area's centre line.
+3. Keep `S2_ROOMS` and run the rule literally (the floating roof fittings and the dark MR3 / offices stand).
+
+G6b is not started: it follows G5c in the brief's order (section 8; its "light at vantages" test reads the final light
+set), so the lane stops here as the caller's rules say.
