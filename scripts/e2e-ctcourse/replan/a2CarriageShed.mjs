@@ -5,10 +5,12 @@
 //      `restarts` + 1, `lastRetry` = { st 3, cause 'seen' } on both pages, both back on station 3's marks, LANTERN's line on both,
 //      the shunter fresh at his post, the roller door shut, station 3 still live and no earlier station's flag undone;
 //   2. station 3, the shutter: the host holds the roller door at the stores face, the client takes the hold from the lane side, the
-//      host goes under, the client lets go: both in the lane sets `a2-lane`, the door shuts behind them, station 4 is live;
-//   3. station 4, a neck timer retry: the client presses cabinet one in the cabin (dark, 15 s), the host stands in the neck until the
+//      host goes under, the client lets go: both in the lane sets `a2-lane`, station 4 is live, the hold gate shuts and the roller
+//      door stays unlocked on both pages (its latch `g-a2-shutter-open`, station 4's stand-in: open for good);
+//   3. station 4, a neck timer retry: the client walks back under the latched roller door and through the stores bay into the cabin,
+//      presses cabinet one (dark, 15 s), the host stands in the neck until the
 //      lights come back: `restarts` + 1, `lastRetry` = { st 4, cause 'timer' } on both pages, both back on station 4's marks, the timer
-//      line on both, the neck lit, the isolator ready again;
+//      line on both, the neck lit, the isolator ready again, the roller door still latched;
 //   4. station 4, the drill: cabinet one, the host crosses the dark neck inside the window (no retry); the lights come back with the
 //      neck empty (no retry); cabinet two by the pit (63.5, 11.6), the client crosses: `a2-east`, station 5 is live;
 //   5. station 5, the walkway stand-in: open on both pages as the station goes live (and through the walk), both players cross the pit
@@ -20,6 +22,7 @@ export const SET = 'a2CarriageShed';
 
 const GATE_NECK = 'g-a2-neck';
 const GATE_SHUTTER = 'g-a2-shutter';
+const GATE_LATCH = 'g-a2-shutter-open';
 const GATE_WALKWAY = 'g-a2-walkway';
 const DOOR_SHUTTER = 'A2-shutter';
 const DOOR_WALKWAY = 'A2-walkway';
@@ -39,6 +42,12 @@ const MARK5 = [[65.5, 12.0], [65.5, 13.0]];
 const HOLD_STORES = [32.2, 10.6];
 const HOLD_LANE = [33.8, 10.6];
 const CAB1 = [30.6, 2.6];
+/** The walk back from the lane to the cabin (lead answer 3: no teleport through the roller door): the lane side of the opening, the
+ *  stores side, the cabin's north door (x 30.4-31.6 on z 5) from the bay, then inside. */
+const UNDER_LANE = [34.0, 12.5];
+const UNDER_STORES = [32.0, 12.5];
+const CABIN_OUT = [31.0, 6.0];
+const CABIN_IN = [31.0, 4.0];
 const CAB2_FRONT = [63.5, 12.3];
 /** In front of the shunter (post (51, 10), facing east): a body in the lit neck is seen. */
 const SEEN = [54, 10];
@@ -138,14 +147,23 @@ export async function walk(t, n) {
   await moveClient(40, 12.5, 0.1, Math.PI / 2);
   await until(A, (f) => window.__course.state.hasShared(f), FLAG_LANE, 10000, 'A2: both in the lane set a2-lane');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__course.station() === 4, null, 15000, `A2: the ${tag} has station 4 live`);
-  await until(A, (id) => !window.__course.state.isGateOpen(id), GATE_SHUTTER, 10000, 'A2: the roller door shuts behind them');
-  assert(await lockedOnClient(DOOR_SHUTTER), 'A2: the roller door is locked again on the client');
+  await until(A, (id) => !window.__course.state.isGateOpen(id), GATE_SHUTTER, 10000, 'A2: the hold gate shuts once nobody holds');
+  // the latch (lead answer 3): station 4's stand-in opens as it goes live, so the roller door stays unlocked with nobody holding
+  await until(A, (id) => window.__course.state.isGateOpen(id), GATE_LATCH, 10000, 'A2: the roller door latches open on the host');
+  assert(!(await GA((d) => window.__course.state.locked(d), DOOR_SHUTTER)), 'A2: the roller door is unlocked on the host with nobody holding');
+  await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(DOOR_SHUTTER), 15000, 'A2: the roller door stays unlocked on the client');
 
   // ---- 3. station 4: a neck timer retry (the lights come back with a player in the neck) ----
   console.log('  A2 (re-plan): the neck, a station 4 timer retry');
+  // the client walks back under the latched roller door (open on both pages first), across the stores bay and into the cabin
+  await openDoor(B, DOOR_SHUTTER, 'A2 shutter (latched)');
+  await moveClient(UNDER_LANE[0], UNDER_LANE[1], 0.1, -Math.PI / 2);
+  await moveClient(UNDER_STORES[0], UNDER_STORES[1], 0.1, -Math.PI / 2);
+  await moveClient(CABIN_OUT[0], CABIN_OUT[1], 0.1, Math.PI);
+  await openDoor(B, DOOR_CABIN, 'A2 cabin');
+  await moveClient(CABIN_IN[0], CABIN_IN[1], 0.1, Math.PI);
   await moveClient(CAB1[0], CAB1[1], 0.1, Math.PI);
   await moveHost(MARK4[1][0], MARK4[1][1], 0.1, Math.PI / 2);
-  await openDoor(B, DOOR_CABIN, 'A2 cabin');
   await noDamage();
   assert((await use(B, ISO1)) === 'ok', 'A2: the client presses cabinet one');
   await until(A, (id) => window.__course.state.isGateOpen(id), GATE_NECK, 15000, 'A2: the neck isolator opens');
@@ -158,6 +176,7 @@ export async function walk(t, n) {
   await until(B, () => /Lights came back with you in the neck/.test(window.__course.wire.rl ?? ''), null, 15000, "A2: LANTERN's timer line reaches the client");
   assert((await neckLamps(A, true)) && !(await gateOpen(GATE_NECK)), 'A2: the neck is lit and the isolator closed after the retry');
   await until(A, (id) => window.__course.state.gateRearm(id) === 0, GATE_NECK, 10000, 'A2: the isolator is ready again');
+  assert((await gateOpen(GATE_LATCH)) && !(await lockedOnClient(DOOR_SHUTTER)), 'A2: the roller door stays latched through the station 4 retry');
 
   // ---- 4. station 4: the drill, two crossings, one window each ----
   console.log('  A2 (re-plan): the neck, two crossings');
