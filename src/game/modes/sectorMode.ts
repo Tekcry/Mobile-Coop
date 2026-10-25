@@ -36,6 +36,7 @@ import {
   exitZone,
   intelItemId,
   keypadItemId,
+  resultBadge,
   inDoorway,
   inZone,
   sectorInfoHtml,
@@ -1009,16 +1010,17 @@ export class SectorMode implements GameMode {
     g.events.emit('operationComplete', {});
     // M7: the op's star for this difficulty (and the best time), solo or the co-op host
     void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
-    g.hud.banner('SECTORS CLEAR', this.result().ghost ? 'GHOST' : '', 2600);
+    g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
     this.endT = 2.6;
   }
 
-  /** Lethal kills (knock-outs are not kills, A4) and times spotted (guard detections plus camera alarms). */
+  /** Lethal kills (knock-outs are not kills, A4), times spotted (guard detections plus camera alarms) and the
+   *  alarms raised (Perfect, G146). */
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
-    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, marks: this.run.marks });
+    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, alarms: this.run.alarmsRaised, marks: this.run.marks });
   }
 
   /**
