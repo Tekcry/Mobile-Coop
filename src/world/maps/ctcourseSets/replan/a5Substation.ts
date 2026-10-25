@@ -16,8 +16,8 @@
  * - the moved pieces: the drum stack on the west strip's north end (clear of the plates -> throw mark path, of `A5_HIDE` and
  *   4 m off the beam line), its dressing and the cable laid in; the two apron bulkheads and the apron switch on the new
  *   wall's inside face at their z; the beam panel inside the switchroom (out of jam reach from the apron);
- * - the closed routes (Q24): the switchroom back door `A5-back` locked for good, the north trench path fenced at both ends
- *   to the wall top;
+ * - the closed routes (Q24): the switchroom back door `A5-back` locked for good (a flag gate on a flag nothing sets, as G-A3's
+ *   offices), the north trench path fenced at both ends to the wall top;
  * - the second guard `a5-watcher` (Michael ~20:40 "12, add two"): a static grunt beside the release kiosk facing east down
  *   the floodlit strip;
  * - the stations (STATIONS section 3, verbatim), the new done flags' pass zones (section 8), LANTERN's retry lines (section
@@ -41,8 +41,8 @@ export const A5_CABLE_TRENCH = { x0: 62.35, x1: 65.85, z0: 24.25, z1: 47.75, flo
 /** Holes this set cuts in the site slab (world metres [x0, z0, x1, z1]); `ctcourse.ts` hands every set's table to the facility. */
 export const FLOOR_HOLES: readonly FloorHole[] = [[A5_CABLE_TRENCH.x0, A5_CABLE_TRENCH.z0, A5_CABLE_TRENCH.x1, A5_CABLE_TRENCH.z1]];
 
-/** The perimeter wall (A19, SA10): faces x 67.85 (inside, the apron) and 68.35 (the gap), 6 m, its runs into the shell walls. */
-export const A5_PERIM = { x0: 67.85, x1: 68.35, h: 6, z0: 24, z1: 48 } as const;
+/** The perimeter wall (A19, SA10): faces x 67.85 (inside, the apron) and 68.35 (the gap), 6 m, z 24.25-47.75: its runs meet the shell walls' faces. */
+export const A5_PERIM = { x0: 67.85, x1: 68.35, h: 6, z0: 24.25, z1: 47.75 } as const;
 /** The 1.4 m gap (Michael ~20:40 "1.4 m", A19) between the wall and L4's outer face, closed by 0.5 m cross walls at z 30 and 36. */
 export const A5_GAP = { x0: 68.35, x1: 69.75, z0: 30.25, z1: 35.75, cross: [30, 36], t: 0.5 } as const;
 /** The wall top over the gap (graph `a5-walltop`): the chimney's arrival, the ladder's head. */
@@ -81,15 +81,19 @@ export const A5_DRUMS_RP = { x0: 59.6, x1: 61.8, z0: 43.9, z1: 47.5, h: 1.8 } as
 export const A5_DRUM_ROWS_RP = [44.8, 46.6] as const;
 /** The cable laid in from the stack through the gateway (z 38.1 at the line) to the landing's pocket. */
 export const A5_CABLE_RP: readonly (readonly [number, number])[] = [[59.6, 44.8], [58.9, 43.4], [58.7, 38.3], [57.2, 37.9], [55.4, 37.4], [54.2, 36.6]];
-/** The two apron bulkheads and the apron switch, moved onto the new wall's inside face (x 67.85) at the same z. */
+/** The two apron bulkheads (0.2 m off the wall, as built) and the apron switch (0.05 m off it, as built), moved onto the new wall's inside
+ *  face (x 67.85) at the same z. */
 export const A5_BULKHEADS_RP = [
   { x: 67.65, z: 29.5 },
   { x: 67.65, z: 38.5 },
 ] as const;
-export const A5_SW_APRON_RP = { x: 67.65, y: 1.2, z: 36.0 } as const;
+export const A5_SW_APRON_RP = { x: 67.8, y: 1.2, z: 36.0 } as const;
 /** The beam panel moved inside the switchroom (on its south wall's inner face, facing into the room): out of every jam line from
  *  the apron, so the beams are beaten only by the throw and switched off by the release. */
 export const A5_PANEL_RP: LaserPanelDef = { ...A5_PANEL, x: 42.2, y: 2.4, z: A5_ROOM.z0 + A5_ROOM.t / 2, yaw: 0 };
+/** The switchroom back door, locked for good (Q24): built locked and unbreachable, and held shut by a flag gate on a flag nothing sets. */
+export const A5_BACK_GATE = 'g-a5-back';
+export const A5_NEVER_FLAG = 'a5-never';
 /** The north trench path's closers (Q24): fencing to the wall top (6 m) at its west end (behind the switchroom, the back door's
  *  strip) and its east end (between pen 2's bund and the inner wall). */
 export const A5_CLOSERS: readonly { x0: number; x1: number; z0: number; z1: number }[] = [
@@ -272,7 +276,7 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
   });
 
   // ---- A5-R8: the apron bulkheads and switch, moved onto the new wall's inside face (circuit 50) ----
-  tally(b, p.register, 'A5-R8', "Apron 50's two east bulkheads moved onto the perimeter wall's inside face (67.65, 29.5) and (67.65, 38.5), each with its bracket; the apron switch a5-sw-apron moved beside them (67.65, 1.2, 36.0) with its back box", () => {
+  tally(b, p.register, 'A5-R8', "Apron 50's two east bulkheads moved onto the perimeter wall's inside face (67.65, 29.5) and (67.65, 38.5), each with its bracket; the apron switch a5-sw-apron moved beside them (67.8, 1.2, 36.0) with its back box", () => {
     const w = A5_PERIM.x0;
     for (const l of A5_BULKHEADS_RP) {
       b.light({ x: l.x, y: 3.5, z: l.z, radius: 9, intensity: 1.2, color: WHITE, group: 50, electric: true, destructible: true, fixture: { sx: 0.2, sy: 0.16, sz: 0.34, oy: 0.06 } });
@@ -288,14 +292,15 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
   // ---- A5-3: the beam panel, moved inside the switchroom; A5-R9: the closed routes (Q24) ----
   p.laserPanels.push({ ...A5_PANEL_RP });
   p.register.push({ id: 'A5-3', element: `Beam power panel panel-a5 moved inside the switchroom, on its south wall's inner face (${A5_PANEL_RP.x}, ${A5_PANEL_RP.y}, ${A5_PANEL_RP.z}), facing into the room: out of every jam line from the apron (a laser panel, no builder piece)` });
-  tally(b, p.register, 'A5-R9', "The north trench path closed at both ends (Q24): fencing to the wall top (6 m, noLedge) behind the switchroom's north-east corner (x 45.95-46.15, z 46.15-47.75) and between pen 2's bund and the inner wall (x 55.75-57.85, z 45.5-45.6); the switchroom back door A5-back locked for good (no longer a course door, no breach)", () => {
+  tally(b, p.register, 'A5-R9', "The north trench path closed at both ends (Q24): fencing to the wall top (6 m, noLedge) behind the switchroom's north-east corner (x 45.95-46.15, z 46.15-47.75) and between pen 2's bund and the inner wall (x 55.75-57.85, z 45.5-45.6); the switchroom back door A5-back locked for good (built locked and unbreachable, held shut by gate g-a5-back on a flag nothing sets)", () => {
     for (const c of A5_CLOSERS) solid(c.x0, c.x1, c.z0, c.z1, 0, A5_CLOSER_H, STEEL);
   });
   const back = b.anchors.doors.find((d) => d.id === p.doors[A5_BACK_DOOR]);
   if (!back) throw new Error('replan a5: the switchroom back door is missing');
   back.locked = true;
   back.breachable = false;
-  delete p.doors[A5_BACK_DOOR];
+  p.bay.gates.push({ kind: 'flag', id: A5_BACK_GATE, flag: A5_NEVER_FLAG, doorId: A5_BACK_DOOR } satisfies FlagGate);
+  p.externalFlags.push(A5_NEVER_FLAG);
   // the trench under the set's standby zone (its floor at -1.6): the same standby fill
   p.ambientZones.push({ id: 'A5-trench', box: [62, 24, 66, 48], ambient: MARLOW_LEVEL.standby, minY: A5_CABLE_TRENCH.floor - 0.5, maxY: HALL_H - 0.1 });
 
