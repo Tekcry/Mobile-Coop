@@ -20,11 +20,11 @@
 //
 // Limits: R3's `stepLimit` (scripts/route-run/progress.mjs, BRIEF A4) on the link's `limit_s` from R1 when set; a kind
 // with no limit of its own (a rappel, a duct with no length) runs under the 8 s stall watch (R3 `StuckWatch`) on its 3D
-// progress. The timings below are sequence timings (how long a press waits for its effect), not A4 tolerances.
+// progress (R3 `PathProgress` along start -> stand point -> the move's far end). The timings below are sequence timings (how long a press waits for its effect), not A4 tolerances.
 // Hot path: `update` and the page reader's `poll` / `read` allocate nothing (numbers, the machine's own arrays, the
 // reader's one reading object); a step's set-up (anchors, geometry, the result) allocates once.
 import { COOP_KINDS } from '../level-validate.mjs';
-import { ARRIVE_M, STOREY_Y_TOL_M, StuckWatch, WATCH_STALL, WATCH_STEP_TIMEOUT, stepLimit, stickToward } from './progress.mjs';
+import { ARRIVE_M, STOREY_Y_TOL_M, PathProgress, StuckWatch, WATCH_STALL, WATCH_STEP_TIMEOUT, makePath, stepLimit, stickToward } from './progress.mjs';
 
 /** Why a stub was taken, as the report prints it. */
 export const STUB_WHY_COOP = 'co-op move stubbed (A1)';
@@ -92,10 +92,6 @@ const num = (v) => typeof v === 'number' && Number.isFinite(v);
 
 function hyp2(x, y) {
   return Math.sqrt(x * x + y * y);
-}
-
-function hyp3(x, y, z) {
-  return Math.sqrt(x * x + y * y + z * z);
 }
 
 function unit2(x, z) {
@@ -167,7 +163,8 @@ export function nearestAnchor(kind, anchors, x, z, maxM = ANCHOR_NEAR_M) {
 /**
  * The step's geometry: `stand` (the point the robot walks to for the offer), `face` (the plan direction it pushes,
  * unit), `want` (the hint that is the offer), `toY` (the far floor, or null), `down`, `sideC` (a point on the move's
- * plane: the far side is beyond it along `face`), `mouth` / `far` (a duct's two ends). From the anchor when the page
+ * plane: the far side is beyond it along `face`), `mouth` / `far` (a duct's two ends), `end` (the move's far end, for
+ * the stall watch's progress). From the anchor when the page
  * has one; else the link's `at` and the way to its `past` (the prompt then never shows and the step runs to its limit).
  * `info`: `{ toY, fromC }` (the far floor and the near space's centre from the points table).
  */
@@ -176,7 +173,7 @@ export function geometry(kind, link, anchor, info = {}) {
   const past = Array.isArray(link.past) ? link.past : null;
   const g = {
     kind, found: !!anchor, stand: at ? [at[0], at[1], at[2]] : null, face: [0, 0], want: null, toY: num(info.toY) ? info.toY : null,
-    down: false, sideC: at ? [at[0], at[2]] : null, mouth: null, far: null,
+    down: false, sideC: at ? [at[0], at[2]] : null, mouth: null, far: null, end: past ? [past[0], past[1], past[2]] : null,
   };
   if (at && past) g.face = unit2(past[0] - at[0], past[2] - at[2]);
   switch (kind) {
@@ -210,6 +207,8 @@ export function geometry(kind, link, anchor, info = {}) {
         g.stand = [t[0] - anchor.nx * RAPPEL_STAND_M, t[1], t[2] - anchor.nz * RAPPEL_STAND_M];
         g.face = unit2(anchor.nx, anchor.nz);
         if (g.toY === null && num(anchor.length)) g.toY = t[1] - anchor.length;
+        // the rope's foot
+        if (g.toY !== null) g.end = [t[0] + g.face[0] * PAST_SIDE_M, g.toY, t[2] + g.face[1] * PAST_SIDE_M];
       }
       break;
     case 'window':
@@ -243,6 +242,7 @@ export function geometry(kind, link, anchor, info = {}) {
         const f = de <= dx ? anchor.exit : anchor.entry;
         g.mouth = [m.pos[0], m.pos[2]];
         g.far = [f.pos[0], f.pos[2]];
+        g.end = [f.pos[0], f.pos[1], f.pos[2]];
         if (m.where === 'wall' || m.where === undefined) {
           g.stand = [m.pos[0] + m.nx * DUCT_STAND_M, m.pos[1], m.pos[2] + m.nz * DUCT_STAND_M];
           g.face = unit2(-m.nx, -m.nz);
@@ -273,7 +273,8 @@ export function limitFor(kind, link) {
 /**
  * The shared part: the output (`stick` [x right, y forward], `press` (buttons down for one poll), `hold` (down while
  * listed), `done`, `result`), the walk to the stand point and the push toward the move, the limit (R3 `StuckWatch`
- * step) or, with none, the 8 s stall watch on the 3D distance from where the step began.
+ * step) or, with none, the 8 s stall watch on the 3D progress along start -> stand point -> far end (R3 `PathProgress`:
+ * the nearest point, monotonic, so the push back and forth at the stand point is no progress).
  */
 class StepMachine {
   constructor(geo, limit, opts = {}) {
@@ -289,7 +290,7 @@ class StepMachine {
     this.x0 = 0;
     this.y0 = 0;
     this.z0 = 0;
-    this.best = 0;
+    this.prog = null;
     this.sx = 0;
     this.sz = 0;
     this._d = { x: 0, y: 0 };
@@ -307,11 +308,7 @@ class StepMachine {
     if (!o.done) {
       if (this.limit !== null) {
         if (this.watch.update(t, 0) === WATCH_STEP_TIMEOUT) this.finish(t, WATCH_STEP_TIMEOUT, 'limit');
-      } else {
-        const d = hyp3(r.x - this.x0, r.y - this.y0, r.z - this.z0);
-        if (d > this.best) this.best = d;
-        if (this.watch.update(t, this.best) === WATCH_STALL) this.finish(t, WATCH_STEP_TIMEOUT, 'stall');
-      }
+      } else if (this.watch.update(t, this.prog.update(r.x, r.y, r.z)) === WATCH_STALL) this.finish(t, WATCH_STEP_TIMEOUT, 'stall');
     }
     if (o.done) {
       o.stick[0] = 0;
@@ -331,7 +328,15 @@ class StepMachine {
     this.sx = s ? s[0] : r.x;
     this.sz = s ? s[2] : r.z;
     if (this.limit !== null) this.watch.step(t, this.limit);
-    else this.watch.walk(t, 0);
+    else {
+      // (once per step: the progress path start -> stand point -> far end)
+      const pts = [{ x: r.x, y: r.y, z: r.z }];
+      if (s) pts.push({ x: s[0], y: s[1], z: s[2] });
+      const e = this.geo.end;
+      if (e) pts.push({ x: e[0], y: e[1], z: e[2] });
+      this.prog = new PathProgress(makePath(pts));
+      this.watch.walk(t, 0);
+    }
     this.since = t;
   }
 
