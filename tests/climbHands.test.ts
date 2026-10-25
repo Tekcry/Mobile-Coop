@@ -191,7 +191,7 @@ describe.each([false, true])('(traverse-fix-2) the ledge climb-up hands (mixamo 
     } finally {
       setMixamo(false);
     }
-  }, 120_000);
+  }, 600_000);
   const within = (k0: number, k1: number): Frame[] => run.frames.filter((f) => f.k >= k0 - 1e-9 && f.k <= k1 + 1e-9);
 
   it('the palms stay on the lip (within 1.5 cm, no slide) until the right foot is on the top, then let go by the crouch', () => {

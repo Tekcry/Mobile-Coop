@@ -20,7 +20,15 @@ import { STUDIO_ENTRIES } from '../src/anim/studio';
 import type { RigPose } from '../src/player/characterRig';
 import type { Ladder, Ledge } from '../src/world/anchors';
 
+/** MIXAMO_ON as shipped (a test that lets every capture on puts it back). */
+const ON0 = { ...MIXAMO_ON };
+/** Every capture let on (the graph's capture paths measured whatever MIXAMO_ON ships; put back after each test). */
+const allOn = (): void => {
+  for (const slug of Object.keys(MIXAMO_ON)) MIXAMO_ON[slug] = true;
+};
+
 afterEach(() => {
+  Object.assign(MIXAMO_ON, ON0);
   setMixamo(false);
   setMixamoStudio('');
 });
@@ -189,18 +197,14 @@ describe('mixamo I2: the graph', () => {
     };
     want(false);
     // with every capture let on, each slot plays its capture
-    const saved = { ...MIXAMO_ON };
-    try {
-      for (const slug of Object.keys(MIXAMO_ON)) MIXAMO_ON[slug] = true;
-      want(true);
-    } finally {
-      Object.assign(MIXAMO_ON, saved);
-    }
+    allOn();
+    want(true);
     // the hand-made clips are the ones replaced
     expect([HANG, CLIMB, CRAWL, CLIMB_UP].map((c) => c.name)).toEqual(['hang', 'climb', 'crawl', 'climbUp']);
   });
 
   it('no pop where the stand-up end fades in (k past the crouch) or the shimmy turns round', () => {
+    allOn();
     setMixamo(true);
     const r = runGraph(true);
     const N = r.pose.length / r.trav.length;
@@ -228,6 +232,7 @@ describe('mixamo I2: the graph', () => {
 
   it('no allocation per frame on the capture path (as the hand-made path)', async () => {
     const { bytesPerCall } = await import('./helpers/allocPerCall');
+    allOn();
     setMixamo(true);
     const g = new AnimGraph(proportions('average', 1.68));
     g.wrenReady = true;

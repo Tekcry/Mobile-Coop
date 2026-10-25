@@ -58,7 +58,8 @@ export const MIXAMO_ON: Record<string, boolean> = {
   braced_hang_shimmy_right: true,
   // off: its trunk near upright as the knee comes on takes the palms 29 cm off the lip (hand-made 0.35; climbHands harness)
   braced_hang_to_crouch: false,
-  freehang_climb: true,
+  // off: its stand-up end (the take ~4x faster, M4) moves the trunk 20 cm in a frame and the wrists 9.9 cm (climbHands)
+  freehang_climb: false,
   // off: the soles move 38 cm on their held plants (hand-made 32); keeping the hand-made foot lift puts the palms 5-6 cm off
   climbing_ladder: false,
   climbing_ladder_to_standing: true,
