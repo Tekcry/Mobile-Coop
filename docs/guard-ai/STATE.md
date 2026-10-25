@@ -1023,22 +1023,22 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    laptop-e2e/rules-pr2-early (20261025T113525). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected.
    PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names, S5-A3 walk note) and the merge
    note: mission-engine calls responseTeam without `shield`; keep sectorMode's `s.shieldTeams === true`.
-6. J15 PR3 wave 3 (SAVE ~23:30). F0 flags 452e23035 on feature/guard-rules-f0 (PR3 branch, off e18039094 so PR2
-   stays as checked; worktree -guard-rules-f0). S6 pairs feature/guard-rules-s6 69664ef8e: checks A + B PASS
-   (550c82660; polish in checks/S6-CHECK-A/B.md). S4 barks feature/guard-rules-s4 84a6c82c4: checks A + B FIX (one
-   blocker: sawMoment / heardMoment never cleared on a guard who stays calm -> stale sight bark), Opus fix round
-   RUNNING (WIP pushed at the save). Then: lead merges s4 + s6 into -f0, S6's ai.md lines are folded on -s6 (8d3c91914),
-   PR3 changelog fragment, re-check S4 fix (2 Opus), laptop set per PLAN "Tests and e2e per PR" PR3 filed WITH the push.
-   S6 early run queued: laptop-e2e/rules-s6-early on 69664ef8e (e2e-sectorops:1 e2e-stealth-ai). PR3 opens after PR2.
-   Wave 4 briefs S7 / S8 / S9 on -f0 (b5bf2f894; lead decisions S7-a, S7-d, S8-a a6a888503): build after PR3 merges
-   into the wave 4 base; S9 cut from S7's head. S4 polish for the S7 brief: stimX/Z = last stimulus, dog smell =
-   RISE_SIGHT, riseN restarts at revive. node_modules: junctions -> guard-ai-s24.
+6. J15 PR3 = feature/guard-rules-f0 e3df84001 (~23:45): F0 flags 452e23035 (off e18039094, so PR2 stays as checked)
+   + S4 barks (fix round 479b938d2: moment clears when calm with an empty meter; new `saw` bark appended at 39, so
+   sight rises say sight lines) + S6 pairs (checks A + B PASS 550c82660; ai.md fold 8d3c91914) + fragment
+   changes/feature-guard-rules-f0.md. tsc clean, 6 vitest files 102/102. 2 Opus re-checks RUNNING ->
+   docs/guard-rules/checks/PR3-RECHECK-A/B.md (lead commits). Laptop set laptop-e2e/rules-pr3 on e3df84001 queued
+   (20261025T123115; S6 early withdrawn as a subset). PR3 opens after PR2 merges (base master): PASS + green ->
+   checker status on the head. Polish list: S6-CHECK-A/B polish; S4: stimX/Z = last stimulus, dog smell =
+   RISE_SIGHT, riseN restarts at revive, sendTo / checkBody tests (fold into the S7 brief).
+   Wave 4 briefs S7 / S8 / S9 on -f0 (b5bf2f894; lead decisions S7-a, S7-d, S8-a a6a888503): build after PR3
+   merges; S9 cut from S7's head. node_modules: junctions -> guard-ai-s24.
 7. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: S4 fix round -> merge s4 + s6 into -f0 -> 2 Opus re-checks + PR3 laptop set; background wait on #317 / #450
-affected, rules-pr2-early, rules-s6-early (scratchpad wait-status.sh).
+Next: PR3 re-checks A / B; background wait on #317 / #450 affected, rules-pr2-early, rules-pr3 (scratchpad
+wait-status.sh).
 ```
