@@ -1,0 +1,23 @@
+{
+  "id": "20261025T090223-affected-e2e-8af8ff6a-440c",
+  "sha": "8af8ff6a052dd5d67215a808d5f602778cb0de2e",
+  "branch": "feature/guard-ai-g327",
+  "pr": 438,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-move",
+    "e2e-park",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #438"
+}
