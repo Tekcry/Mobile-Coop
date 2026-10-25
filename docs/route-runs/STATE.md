@@ -29,7 +29,8 @@ Owner: Marlow Build. Status: current.
 - J14 re-plan: origin/feature/marlow-replan `docs/marlow-replan/REPLAN.md`; J12: origin/feature/validator-port
   `docs/validator-port/PLAN.md` section 8. Do not edit those files.
 - Open question for Michael: BRIEF Q1 (co-op moves stubbed vs real); default A1. No new question.
-- Next: fresh plan checker on 6fab6ef0f (BRIEF + PLAN; later commits touch STATE only).
+- Plan check 3 PASS on 6fab6ef0f (C:/NightShift/scratch/marlow/j13-plan-check-3.md, ~20:25). Wave 1 building at the 20:30 save: R1 (Opus) feature/route-runs-r1, R2 (Sonnet) feature/route-runs-r2, R3 (Opus) feature/route-runs-r3, each from origin/master with its own PR. R4c polish: calm the guard and reset the alarm on a push past.
+- Next: check R1-R3 branches / PRs, finish any, then one checker for the batch; brief R4a.
 
 ## Done
 - 2026-10-25 ~20:40-21:00 Fix round 2 (Opus planner): BRIEF Q7 fix 4fac34ba8, PLAN Q7 fix 73c8fb67e, polish
