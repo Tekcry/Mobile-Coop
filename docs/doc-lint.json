@@ -89,7 +89,7 @@
       "docs/VISION.md": 900
     },
     "lines": {
-      "docs/RULES.md": 312,
+      "docs/RULES.md": 318,
       "CLAUDE.md": 60,
       "docs/systems/testing-tools.md": 720
     },
@@ -102,14 +102,7 @@
     },
     "roadmap": "docs/ROADMAP.md"
   },
-  "known": [
-    {
-      "check": "stale-terms",
-      "file": "docs/design-bible.md",
-      "match": "g157-review-pending",
-      "note": "the orchestrator G157 fold rewrites the bible lines"
-    }
-  ],
+  "known": [],
   "headers": {
     "error": [
       "CLAUDE.md",

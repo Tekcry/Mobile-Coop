@@ -327,10 +327,11 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion (`anim/mocap.ts`) is the player's only path: there is no player-facing switch
-  (anim-fix-pass AF5 removed the Settings row; a stored `gameplay.mocapLoco: false` no longer sticks, `core/app.ts`
-  ~:136-140). The developer rollback is `?mocap=0/1`, then the animation tuner's More > Panel box (a dev tool: this page
-  only, not saved); it is per machine and drives the co-op partner's copy on this machine too. `LOCO.set` picks the
+- (mocap-trial) Mocap locomotion (`anim/mocap.ts`) is the player's only path: players get mocap only, with no
+  player-facing switch (G399; anim-fix-pass AF5 removed the Settings row; a stored `gameplay.mocapLoco: false` no
+  longer sticks, `core/app.ts` ~:136-140). The hand-keyed set is a developer rollback only: `?mocap=0/1`, then the
+  animation tuner's More > Panel box (a dev tool: this page only, not saved); it is per machine and drives the co-op
+  partner's copy on this machine too. `LOCO.set` picks the
   clip set the standing holstered speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`,
   `anim/clips/mocap/*` in the keyed format), plus its optional one-shot slots (`MocapSlots`: turn in place, turn on
   the move L / R, start, stop). The set also holds three more captures: the crouched sneak band (`crouchWalk`, CMU
@@ -342,6 +343,10 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   under 1 rad/s of turn or what turns the body 0.35 rad over one stance, over 0.3 m/s; the gait clock keeps the clip's stance
   window through a hand-off, the rig caps foot pitch at 18 rad/s). The CMU clips: walk / jog / run from subject 16, the
   walking turns / start / stop (walking pace only, `MOCAP_SLOT.walkMax`), a turn on the spot from subject 69.
+  Mixamo clips are also allowed (G406; none converted yet, Player Build): retargeted onto wren-rig-game and the guard
+  rigs (the Mixamo skeleton is never used in game), from FBX without skin that Michael downloads into
+  `C:/NightShift/scratch/mixamo/clips/`; converted clips bundled, raw files not committed, credited in
+  `docs/art-credits.md`.
   `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): 0 for the arm swing, twist,
   lean, pelvis follow, load, elbows, stop settle and N2's motion layers (the capture holds its own); 1 for
   `motionArmCap` and `keyPelRate` (the two limiters stay, `mocap.ts` ~:95-96) and `turnStep` (N1's turn rules

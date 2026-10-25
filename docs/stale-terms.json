@@ -156,6 +156,84 @@
       "allowLine": "\\b(FIXED|CLOSED|fixed in|closed by)\\b"
     },
     {
+      "id": "marlow-strict-late",
+      "regex": "taught late|one (strict rule )?(is )?taught in a late section|teaches one in a late section",
+      "why": "Marlow Yard has no strict rules: every failure is a retry (G370, replaces G357)",
+      "replacement": "no fail or send-back in Marlow Yard; every failure is a retry"
+    },
+    {
+      "id": "dark-by-design",
+      "regex": "dark[- ]by[- ]design|darkness is where nobody works",
+      "why": "no dark spots from lights left off, on any map (G367)",
+      "replacement": "every light works; darkness from cover, cut power and shot lamps"
+    },
+    {
+      "id": "mocap-player-switch",
+      "regex": "hand-keyed set behind the switch|mocap on by default|on by default once checked",
+      "why": "players get mocap only; the hand-keyed set is a developer rollback (G399)",
+      "replacement": "mocap only, no player switch"
+    },
+    {
+      "id": "partner-no-bandwidth",
+      "regex": "with no extra bandwidth",
+      "why": "small partner animation fields may go over the wire (G400)",
+      "replacement": "MoveState plus small animation fields"
+    },
+    {
+      "id": "lkp-per-player-open",
+      "regex": "whether the LKP becomes per player",
+      "why": "guards keep a last known position per player (G380)",
+      "replacement": "an LKP per player"
+    },
+    {
+      "id": "every-hold-toggle",
+      "regex": "every hold action gets a hold or toggle|hold or toggle for every hold action",
+      "why": "toggles for plain holds only (G398)",
+      "replacement": "every plain hold action"
+    },
+    {
+      "id": "dog-kill-penalty-vague",
+      "regex": "killing one (carries a penalty|is penalised)",
+      "why": "a dog kill counts as a kill and costs score (G374)",
+      "replacement": "counts as a kill (no Perfect) and costs score"
+    },
+    {
+      "id": "camera-never-adjusts",
+      "regex": "camera never moves or adjusts by itself",
+      "why": "the open-space pull-back stays (G397)",
+      "replacement": "never swings or recentres by itself; the boom eases open / tight"
+    },
+    {
+      "id": "one-touch-exception",
+      "regex": "the one touch exception",
+      "why": "menu taps and touch look in play are also an exception (G395)",
+      "replacement": "name both exceptions"
+    },
+    {
+      "id": "load-target-under-review",
+      "regex": "load-time target is under review",
+      "why": "the load-time aim is set: first-ever load seconds, repeat loads near-instant (G405)",
+      "replacement": "near-instant repeat loads (G405)"
+    },
+    {
+      "id": "cmu-only-mocap",
+      "regex": "CMU mocap only|CMU motion capture only|one non-CC0 data source",
+      "why": "Mixamo clips retargeted onto our rigs are allowed beside CMU (G406)",
+      "replacement": "CMU takes and Mixamo clips"
+    },
+    {
+      "id": "no-external-art",
+      "regex": "No external art|Only CC0 files are allowed|no external (art|audio)|External art files, except",
+      "why": "any free asset whose licence allows commercial sale is allowed, credited (G407)",
+      "replacement": "free assets with a commercial-sale licence, credited"
+    },
+    {
+      "id": "cc0-only-samples",
+      "regex": "\\bCC0 only\\b|only if it is CC0|CC0 files only",
+      "why": "samples and other assets: any licence that allows commercial sale (G407)",
+      "replacement": "free assets whose licence allows commercial sale"
+    },
+    {
       "id": "g157-review-pending",
       "regex": "12 (proposed )?(level[- ]standard |level-rule )?changes[^.]{0,80}(go to Michael|wait for Michael|before the first real mission map)",
       "why": "Michael adopted the 12 level-standard changes (G157, 2026-10-25 ~18:20); they are in docs/level-design.md",
