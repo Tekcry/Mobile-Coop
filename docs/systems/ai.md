@@ -115,6 +115,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   radioed after `ALERT.callIn` (`Enemy.radioT`, bark `callIn`) to everyone within `RADIO` 22 m (0.4 + 0.03 d + random
   0.3 s); gunfire / a hit / a flashbang (`loudAlert`) calls in at once. `PlayerRef.spotted`: set when a guard in combat
   sees that player, cleared when nobody is in combat.
+- Rise cause (guard-rules S4, A8): every rise into suspicious / investigating (`onLevel`) stores why on the guard:
+  `Enemy.riseCause` (`RISE_NONE` 0: a board task, a light, a body, a search call; `RISE_SIGHT` 1: a sight above the leak,
+  `seenAt`, since he was last calm; `RISE_SOUND` 2: a heard noise and no sight; sight wins) and bumps `Enemy.riseN`; both
+  are kept after calm (the private `sawMoment` / `heardMoment` clear on cooldown / unaware). `Enemy.stimX` / `stimZ`
+  read his last stimulus (no copy). Readers: S7's lookout radio (compares `riseN` with its last copy), J13's cause log.
 - Awareness and caution (guard-ai S4, design 4, M1 / M3; `ai/awareness.ts` pure, `EnemyManager.awareness`, coordinated
   modes; A3, A4, A14-A16):
   - Guard keys: `Enemy.key` (0-31, u32 masks), the lowest free key at `spawn` (not held by a guard on the list or a
@@ -427,7 +432,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Co-op (guard-ai S9, protocol 37 (32 before the 4.75.0 merge), A90-A96): the brain stays host-only; the client sees what the host shows. Barks:
   `Enemy.bark` hands `onBark` the event, `BarkVoice.lastLine` and the unit; the host sends a `bark` event (index into
   `BARK_EVENTS`, append only) and the client rebuilds the text with `barkLine` (pair talk and the desk's camera line go
-  as text). Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
+  as text). (guard-rules S4, A8) `BARK_EVENTS` appended `heard` (37) and `spotCall` (38); the train's protocol bump
+  covers it. Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
   carry is `ai/guardStance.ts` on both sides (`guardAim` host, `wireGuardAim` client): cautious and calm = low ready
   (`GUARD_AIM.caution` 0.4). The gear parts and the enforcer shield are `ai/gearParts.ts`, built by `Enemy` and by the
   client's `EnemyPuppet` alike.
@@ -720,7 +726,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   tuned base table (`anim/animBaseGuard.ts`) plus the tuner's guard rows (`anim/tuneGuard.ts`; `rig.guardRows`), never
   Wren's; the brain reads only the posed rig (the head is the eye), as before. Untuned: bit-identical.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView`; `bark` event ->
-  `sfx.radio()` for radio lines.
+  `sfx.radio()` for radio lines. (guard-rules S4, A8) `heard` ("I heard something.": a rise by sound, and `hearSearch`)
+  and `spotCall` (S7's lookout radio line, in `RADIO_BARKS`). The investigate bark follows `Enemy.riseCause`: `heard` for
+  `RISE_SOUND`, else `investigate` (sight / neutral lines); sight wins, so a guard who saw anything above the leak in
+  this calm moment never says "I heard something.".
 
 ## Difficulty (G106)
 - `DIFFICULTY` (`ai/archetypes.ts`): `rookie | normal | realistic | perfectionist` (`DifficultyPreset`; `Difficulty` is
