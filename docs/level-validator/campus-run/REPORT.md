@@ -1,9 +1,9 @@
 # Campus S1-S5 - first validator run (V5f REPORT)
 
-> Note (2026-10-25): written before G329. The 40-60% shadow share is no longer a target: it yields to the real-world
-> light band (docs/level-design.md 5.5, G329, G284), and the validator reports it as INFO
-> (`scripts/level-validate.mjs:684-689`). Counts in this report are v1 evidence, from before G328-G362 and the
-> validator's unavoidable / alive checks.
+> Status: history (the 2026-10-24 v1 run, before G329). The 40-60% shadow share is not a target: it yields to the
+> real-world light band (docs/level-design.md 5.5, G329, G284), and the validator reports it as INFO
+> (`scripts/level-validate.mjs:684-689`). Its "relight to 40-60%" fixes are void; guard counts are v1, before G328 /
+> G362 and the validator's unavoidable / alive checks.
 
 V5f, 2026-10-24. Branch `feature/level-validator-v5f` (job head d4f30413: V1 validator + V1a metrics + V5a-e graphs). The
 validator is the same file the V1 checker passed (7c54018c on `feature/level-validator`). Full output:

@@ -92,8 +92,8 @@ leg-up, jam-and-pass at las-tray; the rear gate refuses one player and opens for
 Done when: S1-S4 plays; perf result logged.
 
 ## Slice 5 - S5 the Old House and extraction
-Files: `campusS5.ts`, S5 data (24 guards incl. 2 dogs; count superseded by G328 / G362: S5 has 26 at two players, 3-4 add
-tagged extras (G331), cap 32 (G332); built by campus-greybox, ROADMAP Now row 9; enforcer reinforcements, CR6 pg-arch, CR7 light well, extract).
+Files: `campusS5.ts`, S5 data (v1: 24 guards incl. 2 dogs; campus-greybox v2, FOLDED-PLAN J17, builds G328's 26 at two
+players, 3-4 add tagged extras (G331), cap 32 (G332); enforcer reinforcements, CR6 pg-arch, CR7 light well, extract).
 Tests: unit common + 24 guards, peak 30 alive <= 32 with `perStage` 2; e2e campus part 5: solo anteroom route grabs the
 token and extracts; the light well is not reachable solo from the garden or the terrace; co-op rope down the well and
 the dual takedown; CR6 refuses one player; full run S1-S5 solo and co-op (time logged against 30-45 min).

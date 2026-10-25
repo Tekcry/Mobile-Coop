@@ -122,9 +122,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Fitting models (warehouse-lamps; the LED family since sector-fixes L; Sector Ops only): each section's lamps come from
   room tables (`world/maps/lampRooms.ts` `addLampRooms`; `S1_LAMPS`, `S2_LAMPS`, `S3_LAMPS`): per room one model (`panel`
   flush under a ceiling, `strip` on wires under a roof, `bulkhead` on a wall bracket), one height and a regular grid or
-  row; per fitting [x, z, radius, intensity], intensity 0 a dead fitting (drawn dark, radius 0, never lit; G329 bars leaving
-  lit places unlit, so dead fittings are not a way to make dark pockets; open question L5, dead fittings over dark
-  pockets, waits for Michael). Strips sit
+  row; per fitting [x, z, radius, intensity], intensity 0 a dead fitting (drawn dark, radius 0, never lit). Every light
+  works (G329; Michael 2026-10-25 "Never" to dark spots from lights left off): no map adds a dead fitting, and the
+  light-realism job re-lights the existing ones to the band (FOLDED-PLAN J10; warehouseOps is frozen as built,
+  Michael 2026-10-25). Strips sit
   under the solid roof strips, never under a sheet. `world/lampMount.ts` (pure) measures each mount from the level's boxes
   (wires <= 0.6 m, a panel's gap <= 0.03, a bracket <= 0.35: wall lights stand 0.3 m off the face so the conservative bake
   sees past their wall) and reports any that cut a ceiling, hang in the air or miss a wall; the light never moves.
