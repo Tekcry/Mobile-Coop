@@ -55,6 +55,13 @@ Never measured: any count above 24; the co-op client (its guard puppets); real s
   solve every frame (`src/net/enemyPuppet.ts:451`; guard-render STATE: "S4 does not tier puppets"); (3) no "awake" count
   separate from "alive".
 
+## Michael picked
+- **Perf target at 32 guards** (2026-10-25, folded plan Q4, "60 fps (Recommended)": smooth on a normal monitor,
+  set after the off-screen animation fix is measured; memory target unchanged on every map). The frame and sim budgets
+  at 32 go into `docs/systems/performance.md` (its owner, Test Runner, with the measured numbers) once Guard AI's
+  off-screen anim fix (FOLDED-PLAN J4, G327) is on master and measured (J21). Until then A3's numbers are working
+  targets.
+
 ## Assumed decisions (logged, undoable)
 - **A1. Lift scope.** The no-perf-tuning lift (guard-render A1) also covers guard SIM cost, the co-op client's guard
   cost and guard SNAPSHOT size, for counts above 16 up to `SECTOR.maxAlive`, and only for slices PLAN's decision rule
@@ -71,11 +78,6 @@ Never measured: any count above 24; the co-op client (its guard puppets); real s
   named cap, FOLDED-PLAN J7). Any lowering of 32, for either mode, goes to Michael first: K1 may only measure the
   largest N that passes and bring it to him with the options (fewer alarm reinforcements first, no section guard
   removed; the signed-off campus counts G328 / G362 stay). Undo: n/a (it tightens authority).
-- **A8. Perf target at 32 guards** (Michael 2026-10-25, folded plan Q4, picked "60 fps (Recommended)": smooth on a
-  normal monitor, set after the off-screen animation fix is measured; memory target unchanged on every map). The frame
-  and sim budgets at 32 are written into `docs/systems/performance.md` (its owner, Test Runner, with the measured
-  numbers) once Guard AI's off-screen anim fix (FOLDED-PLAN J4, G327) is on master and measured (J21). Until then A3's
-  numbers are working targets. Undo: n/a.
 - **A5. Render stays with guard-render-2.** Guard LOD, cascades, torch shadows, active meshes: Test Runner's PLAN2
   (S9-S13). New render findings at 32 go to Test Runner as PLAN2 additions. The WebGPU trial stays ROADMAP "Later" (not
   before the core-loop playtest). Undo: none needed.
@@ -86,5 +88,5 @@ Never measured: any count above 24; the co-op client (its guard puppets); real s
   noise in guard-render-2). Undo: n/a.
 
 ## Open questions for Michael
-None open. Q4 (the perf target at 32) is answered (A8). If 32 cannot hold after the triggered slices, the cap question
+None open. Q4 (the perf target at 32) is answered ("Michael picked"). If 32 cannot hold after the triggered slices, the cap question
 goes to Michael before any change (A4).

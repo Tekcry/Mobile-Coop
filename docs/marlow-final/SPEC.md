@@ -348,8 +348,8 @@ until the set restarts. Each sheet's "Roles" row names the claim.
   exercise." Nothing in Marlow Yard fails the run or sends a player back: A2's spotted set restart (walk 4.82) and A3's
   camera corridor send-back become retries of that exercise in place; the Marlow Yard re-plan (folded plan J14) sets
   their shape.
-- **Timed windows and drills** are player-started and shown on the device (lamp, sound) and in the objective line (N1).
-  A drill may fail, to force the players into the situation it trains (G342); a failed drill resets in place and is
+- **Timed windows and drills** are player-started, re-armable and shown on the device (lamp, sound) and in the objective
+  line (N1). Timed drills force the players into the situation they train (G342); a failed drill resets in place and is
   retried, never a checkpoint reload (G361).
 - **One forced route.** Michael 2026-10-25 (Q24): "Close all side routes, force all sections. Only keep a side route
   when training against enemies later in the training, same design rules as a campaign mission area". The per-set
@@ -850,7 +850,7 @@ not a loosening).
 | C1 | A1 wall, 4.4 m lip | Leg-up, relay, bolt | Lip 0.6 m over solo reach (3.8), wicket bolted on the far side | The wicket (unbolted from the yard side); the yard is ground level |
 | C2 | A2 neck | Timed isolation relay | The isolator is 26 m by route from far cover; the window is 15 s | Both rakes are ground level; the cabinets re-arm |
 | C3 | A2 staging, 4.4 m lip | Leg-up, relay | Lip out of solo reach; the west stair is locked | The east stair |
-| C4 | A3 corridor | Jam relay | A jam needs the jammer standing still; nobody jams himself across | The corridor retry returns that player to the lobby, the partner keeps his place |
+| C4 | A3 corridor | Jam relay | A jam needs the jammer standing still; nobody jams himself across | Today the send-back returns him to the west lobby and the partner keeps his place; the re-plan (J14) sets the retry and the lone player's way back (Q5) |
 | C5 | A4 security room + dock | Takedown + console; dual takedown | The talking pair covers each other; the loop helps both | The wicket is egress from the floor side; the security room stays open |
 | C6 | A5 gateway | Partner throw, light jam, release | The beams cover the full 6 m gap; the release is on the far side | The kiosk release frees the thrower; the L5 door needs the release |
 | C7 | A6 gallery, 4.4 m lip | Leg-up, two-person rope (or relay) | Lip out of solo reach | The staff stair at the east end |
@@ -1125,7 +1125,7 @@ collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: sa
 | Id | Element | Real-world reason | Gameplay use | Rule |
 | --- | --- | --- | --- | --- |
 | A3-1 | Corridor 3.5 x 18 | The office floor's main corridor (widened, T16) | The jam relay | - |
-| A3-2 | Ceiling IR camera | Corridor CCTV covering the stair lobby | Jam relay, send-back | Every camera sees in the dark |
+| A3-2 | Ceiling IR camera | Corridor CCTV covering the stair lobby | Jam relay; send-back today, a retry after the re-plan (J14, Q5) | Every camera sees in the dark |
 | A3-3 | Office 2 door reveal 1.0 m | The office door's recess | Stepping stone | - |
 | A3-4 | Offices 1-3, communicating doors | A suite let to one tenant | Alternative route, loop | - |
 | A3-5 | Frosted partitions (`kit.glass` frosted) | Office privacy glazing | Stops sight, jam lines and bullets; passes baked lamp light (the cleaner carries no torch) | All glass as F2 |

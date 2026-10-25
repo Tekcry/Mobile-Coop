@@ -7,7 +7,7 @@ Night Shift | Marlow Build, job guard-cap (ROADMAP / FOLDED-PLAN J21, K1-K7 of d
 Rules: docs/RULES.md + docs/VISION.md from origin/master. Docs on master since the J1 docs PR (feature/marlow-docs-j1).
 Caps (BRIEF A4): MAX_ALIVE 12 Marlow Yard (src/ai/enemyManager.ts MAX_ALIVE); 32 alive Sector Ops and the campaign
 (SECTOR.maxAlive, src/game/sectors.ts; = MAX_ENEMIES src/net/protocol.ts). Any cut below 32 goes to Michael first.
-Perf target (BRIEF A8, Michael Q4 2026-10-25): 60 fps at 32 guards, set after Guard AI's off-screen anim fix (J4,
+Perf target (BRIEF "Michael picked", Q4 2026-10-25): 60 fps at 32 guards, set after Guard AI's off-screen anim fix (J4,
 G327) is on master and measured; memory target unchanged. The numbers go into docs/systems/performance.md with its
 owner (Test Runner); BRIEF A3's numbers are working targets until then.
 Verdicts: REPORT.md "2026-10 re-measure (M0)" (sim over at 32; T1 triggered) and "2026-10 co-op measure (M1) and run
