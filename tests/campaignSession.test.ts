@@ -10,11 +10,12 @@ import type { Transport } from '../src/net/transport';
 import { defaultLook } from '../src/cosmetics/avatarLook';
 import { clearRejoin } from '../src/core/rejoin';
 import { CAMPAIGN_PICK_MISSION, CAMPAIGN_TWO_PLAYERS } from '../src/game/mission/campaign';
+import type * as Protocol from '../src/net/protocol';
 
 /** Sector Ops' room capacity in this file: 2 (this branch) or 4 (coop4's `SECTOR_MAX`); other modes as they are. */
 const cap = vi.hoisted(() => ({ sector: 2 }));
 vi.mock('../src/net/protocol', async (importOriginal) => {
-  const o = await importOriginal<typeof import('../src/net/protocol')>();
+  const o = await importOriginal<typeof Protocol>();
   return { ...o, capacity: (m: Parameters<typeof o.capacity>[0]) => (m === 'sector' ? cap.sector : o.capacity(m)) };
 });
 
@@ -212,5 +213,119 @@ describe('R4: Sector Ops and Marlow Yard unchanged', () => {
     expect(host.cap).toBe(2);
     expect(host.startMatch()).not.toBeNull();
     expect(host.phase).toBe('playing');
+  });
+});
+
+// (PR E fix) "Resume hosting" a campaign match: the host reopens the room alone (R4 refuses the lone start), the joiner
+// that waited in its match (no Ready button) is back: the match starts on its own, once (`startWhenUnblocked`).
+describe('PR E fix: a resumed campaign host starts once the partner is back, no ready needed', () => {
+  const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+  /** A campaign match whose host dropped (its joiner waits in the match, `hostId` cleared), and the host's reopened
+   *  room set up as `connect`'s resume branch does (fields set directly, no lobby broadcast). */
+  async function resumed() {
+    const h = hub();
+    const h1 = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    h1.sectorMission = 'threeGreyCoats';
+    h1.setSettings('sector', 'tallowWharf', 'normal');
+    const cli = sess(h.make('C'), 'client', 'ABCDE', prof('Cli'), 'tokC');
+    expect(h1.startMatch()).not.toBeNull();
+    await h1.leave();
+    expect(cli.hostId).toBeNull();
+    expect(cli.phase).toBe('playing');
+    const starts: StartInfo[] = [];
+    cli.events.on('start', (s) => starts.push(s));
+    const host = sess(h.make('H2'), 'host', 'ABCDE', prof('Host'));
+    host.mode = 'sector';
+    host.map = 'tallowWharf';
+    host.sectorMission = 'threeGreyCoats';
+    let hostStarts = 0;
+    host.events.on('start', () => hostStarts++);
+    // the resume branch: refused alone, then the auto start
+    expect(host.startMatch()).toBeNull();
+    expect(host.campaignBlock).toBe(CAMPAIGN_TWO_PLAYERS);
+    host.startWhenUnblocked(() => host.campaignBlock);
+    expect(host.phase).toBe('lobby');
+    expect(host.autoStarting).toBe(true);
+    // the host's side of the waiting joiner's connection (the test hub tells only the peers already in the room)
+    const connect = (): void => host.transport.onPeerJoin?.('C');
+    return { h, host, cli, starts, connect, hostStarts: () => hostStarts };
+  }
+
+  it('alone it stays in the lobby; the waiting joiner\'s hello starts the match for it with no Ready press', async () => {
+    const r = await resumed();
+    await tick();
+    expect(r.host.phase).toBe('lobby');
+    expect(r.hostStarts()).toBe(0);
+    r.connect();
+    expect(r.cli.hostId).toBe('H2');
+    expect(r.host.players.get('C')?.ready).toBe(false);
+    // the start goes on the next task (after the lobby handler that announced the partner)
+    expect(r.host.phase).toBe('lobby');
+    await tick();
+    expect(r.host.phase).toBe('playing');
+    expect(r.hostStarts()).toBe(1);
+    expect(r.starts).toHaveLength(1);
+    expect(r.starts[0]!.sectorMission).toBe('threeGreyCoats');
+    expect(r.cli.phase).toBe('playing');
+    expect(r.host.autoStarting).toBe(false);
+  });
+
+  it('fires once: back in the lobby with both in, the next match waits for the Ready press again', async () => {
+    const r = await resumed();
+    r.connect();
+    await tick();
+    expect(r.hostStarts()).toBe(1);
+    r.host.backToLobby();
+    r.host.broadcastLobby();
+    await tick();
+    expect(r.host.phase).toBe('lobby');
+    expect(r.hostStarts()).toBe(1);
+    expect(r.starts).toHaveLength(1);
+    expect(r.host.allReady).toBe(false);
+  });
+
+  it('is gone after leave: a start queued before the leave never runs', async () => {
+    const r = await resumed();
+    r.connect();
+    void r.host.leave();
+    expect(r.host.autoStarting).toBe(false);
+    await tick();
+    expect(r.hostStarts()).toBe(0);
+    expect(r.starts).toEqual([]);
+    // and a host that leaves alone drops it too
+    const q = await resumed();
+    await q.host.leave();
+    expect(q.host.autoStarting).toBe(false);
+  });
+
+  it('a partner that drops before the start keeps it pending; its rejoin from the menu starts the match', async () => {
+    const r = await resumed();
+    r.connect();
+    await r.cli.leave();
+    expect(r.host.players.has('C')).toBe(false);
+    await tick();
+    expect(r.host.phase).toBe('lobby');
+    expect(r.host.autoStarting).toBe(true);
+    const back = sess(r.h.make('C3'), 'client', 'ABCDE', prof('Cli'), 'tokC');
+    let got: StartInfo | null = null;
+    back.events.on('start', (s) => (got = s));
+    expect(back.players.get(back.selfId)?.ready).toBe(false);
+    await tick();
+    expect(r.host.phase).toBe('playing');
+    expect(r.hostStarts()).toBe(1);
+    expect(got!.sectorMission).toBe('threeGreyCoats');
+  });
+
+  it('another mode or map drops it: a switch off the campaign never starts the host alone', async () => {
+    const r = await resumed();
+    r.host.setSettings('sector', 'tallowWharf', 'realistic');
+    expect(r.host.autoStarting).toBe(true);
+    r.host.setSettings('course', 'ctcourse', 'normal');
+    expect(r.host.campaignBlock).toBeNull();
+    expect(r.host.autoStarting).toBe(false);
+    await tick();
+    expect(r.host.phase).toBe('lobby');
+    expect(r.hostStarts()).toBe(0);
   });
 });

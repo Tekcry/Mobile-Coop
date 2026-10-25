@@ -637,7 +637,7 @@ class LobbyScreen extends MenuScreen {
         key: 'start',
         desc: 'Start the mission for everyone in the room.',
         // (mission-rules R4) a campaign start needs exactly two players and a campaign mission
-        blocked: s.overCapacity ? `Too many players for this mode (${s.cap})` : (s.campaignBlock ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
+        blocked: s.overCapacity ? `Too many players for ${s.campaign ? 'the campaign' : 'this mode'} (${s.cap})` : (s.campaignBlock ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
       });
     } else {
       const me = s.players.get(s.selfId);
@@ -808,8 +808,10 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     session.weather = resume.weather;
     session.courseBay = resume.bay;
     adopt(app, api, session);
-    // (mission-rules R4) a campaign room does not start alone: it waits in the lobby until the partner is back
-    session.startMatch();
+    // (mission-rules R4) a campaign room does not start alone: the host waits in the lobby. (PR E fix) The partner is
+    // still in the match, waiting on the code with no Ready button (a lobby never takes a waiting joiner back to the
+    // lobby), so the match starts on its own the moment the partner's hello lifts the block, no ready needed
+    if (!session.startMatch() && session.campaignBlock === CAMPAIGN_TWO_PLAYERS) session.startWhenUnblocked(() => session.campaignBlock);
     return;
   }
   // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3); `?legacy=1` keeps the parked Hunter
