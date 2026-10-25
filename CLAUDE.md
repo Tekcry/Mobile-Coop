@@ -37,11 +37,13 @@ and the orchestrator fixes VISION.
   UI art, art assets, the goggle and the music are original (G5, G69). No reference-game character, gear or
   organisation names anywhere: code, UI, specs, docs, research notes (G6). "Chaos Theory" / "CT" may name the
   reference; Michael's quotes stay verbatim (G114). Never trace CT animation frame by frame.
-- No external art, except CC0 textures for detail, the CC0 base body of the operator pipeline (bible 5.14) and CMU
-  motion-capture takes (converted clips bundled, raw files not committed, credited in `docs/art-credits.md`); operator
-  and guard meshes come from in-repo offline scripts (Blender, headless). CC0 recordings may be used for any sound
-  (G58), bundled and credited in `docs/audio-credits.md` (score samples: `docs/audio/samples.md`); WebAudio synthesis
-  stays where it sounds better. The menu font Barlow Condensed (SIL OFL) is bundled in `src/ui/fonts/` (menu-ui MD1).
+- Free assets (G407): any free animation, sound, texture, model or music sample whose licence allows commercial sale
+  may be used: CC0 / public domain, CC-BY and royalty-free game licences such as Mixamo; never non-commercial,
+  no-derivatives, share-alike or unclear licences. Each records its source and licence in `docs/art-credits.md` or
+  `docs/audio-credits.md` (score samples: `docs/audio/samples.md`); raw downloads are not committed where the licence
+  or size says so. Motion capture (CMU, Mixamo) is retargeted onto the game's own rigs (G406); operator and guard
+  meshes come from in-repo offline scripts (Blender, headless); WebAudio synthesis stays where it sounds better. Names,
+  characters, story, logos, UI art, the goggle and the score stay original (the IP rule above). The menu font Barlow Condensed (SIL OFL) is bundled in `src/ui/fonts/` (menu-ui MD1).
 - Every new map follows `docs/level-design.md`; its spec starts from `docs/templates/map-spec.md` and may tighten the
   standard, never loosen it without Michael's written approval; the standard and template change only with his
   approval. An engine-fact change in level-design Section 12 updates it and lists the map decisions that relied on it.
