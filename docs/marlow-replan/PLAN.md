@@ -149,6 +149,7 @@ files:
   - src/world/lighting/marlowCircuits.ts
   - src/game/course/stationDef.ts
   - src/game/course/courseDef.ts
+  - src/game/course/courseMarks.ts
   - src/game/course/courseState.ts
   - src/game/course/spotFail.ts
   - src/game/course/courseWire.ts
@@ -347,8 +348,8 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
 - Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts`,
   `src/game/modes/courseMode.ts`, `src/net/protocol.ts`, `src/net/session.ts` (the room-map line),
   `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
-  `tests/courseMarks.test.ts` (the `parseCourse` round trip of `st` / `rs` / `rt` / `rc` goes in
-  `courseStation.test.ts`, not `net.test.ts`),
+  `tests/courseMarks.test.ts` (R1 rebases on F1, which sets its co-op `courseGrant` cases to syringe 0; the
+  `parseCourse` round trip of `st` / `rs` / `rt` / `rc` goes in `courseStation.test.ts`, not `net.test.ts`),
   `changes/feature-marlow-replan-r1.md`. Est. ~1,100 (re-estimated at plan check 2: the station runtime ~650, the
   route-run hooks and `retryOff` ~150, the wire fields and mirror ~50, tests ~250; under the ~1.5k cap).
 - Checks: vitest on those files plus `tests/ctcourse.test.ts`; laptop: affected-e2e (GAME, e2e-course, e2e-ctcourse,
@@ -370,28 +371,42 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef` line).
 
 **F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Three fixes to the shipped yard, each a gap the Marlow
-conformance review lists, allowed at the walk cap (G355; A21): the revive cap stays 2 in Course mode
-(`coopHost.addSyringes` ignores course grants, :834-837; gadget and medkit grants kept; M3 / R35); Host Start needs 2
-players in Course mode on every build, live included, the lobby saying why (`coopUi.ts:628-635`, R36; Michael picked
-~21:42 "Yes, everywhere now", BRIEF "Michael picked"); the A2 entry vantage joins the sight test (M8,
-`tests/ctcourse/a2CarriageShed.test.ts:1366-1371`). The Start check has no solo exception: `?course=solo` stays a
-dev-only test switch (`courseSoloFlag()`, `courseMode.ts:44-48`, true only under `import.meta.env.DEV`; it boots the
-course single player without the lobby, `main.ts:447`), never walk advice. F1's PR body names the release that carries
-it (the first version that refuses a one-player Marlow start), so the walk card tells Michael to bring his second PC.
-The downed rule does not change: one player out (no revives left)
-still restarts the bay, as both down does (level-design 9.4; `coopHost.ts:568-581`, not edited; conformance-marlow
-:112 lists it as conforming; REPLAN "no change to the downed rule"). F1 reads no `marlowReplan` flag, does not edit
-`courseState.ts` and needs nothing from S0 (the room-map line is R1's), so it branches from master and ships first.
+conformance review lists, allowed at the walk cap (G355; A21):
+- **Revive cap 2 (M3 / R35).** The course grant's syringe is 0 in co-op as it already is solo: `courseGrant`
+  (`src/game/course/courseMarks.ts:65-70`, course-only; Sector Ops calls `rewardsFor` directly, `sectorMode.ts:1039`)
+  sets `r.syringe = 0` (M3's own fix: "Zero the syringe grant in Course mode (keep gadget and medkit grants)"). So
+  `giveGrant` never calls `addSyringes` or records `given.syringe` (`courseMode.ts:832-835`), and the card
+  (`src/ui/hud/ratingCard.ts:39`), the wire (`w.syringe`, the client's card) and the cap agree: no syringe offered,
+  revives stay at 2. `coopHost.addSyringes` (:834-837) also ignores course grants, the one named "no syringe grant
+  outside Sector Ops" rule mission-rules R5 extends. Gadget and medkit grants kept.
+- **Two players to start (R36).** Host Start needs 2 players in Course mode on every build, live included, the lobby
+  saying why (`coopUi.ts:628-635`; Michael picked ~21:42 "Yes, everywhere now", BRIEF "Michael picked"). The check
+  has no solo exception: `?course=solo` stays a dev-only test switch (`courseSoloFlag()`, `courseMode.ts:44-48`, true
+  only under `import.meta.env.DEV`; it boots the course single player without the lobby, `main.ts:447`), never walk
+  advice. F1's PR body names the release that carries it (the first version that refuses a one-player Marlow start),
+  so the walk card tells Michael to bring his second PC.
+- **M8.** The A2 entry vantage joins the sight test (`tests/ctcourse/a2CarriageShed.test.ts:1366-1371`).
+
+The downed rule does not change: one player out (no revives left) still restarts the bay, as both down does
+(level-design 9.4; `coopHost.ts:568-581`, not edited; conformance-marlow :112 lists it as conforming; REPLAN "no change
+to the downed rule"). F1 reads no `marlowReplan` flag, does not edit `courseState.ts` and needs nothing from S0 (the
+room-map line is R1's), so it branches from master and ships first. Its one course hunk is the `courseGrant` line in
+`courseMarks.ts`, a file no other slice edits; `tests/courseMarks.test.ts` is also in R1's list, so F1 updates its
+co-op cases and R1 rebases on F1.
 - Files: `src/net/coopHost.ts` (the `addSyringes` body only), `src/net/coopUi.ts` (the Start check only),
-  `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`, `scripts/e2e-ctcourse/revive.mjs`
-  (only if it leans on the syringe cap or a lone-host start), `changes/feature-marlow-replan-f1.md`. Est. 250.
-- Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` and `tests/` for asserts on the syringe cap or a
-  lone-host Course start (`scripts/e2e-ctcourse/revive.mjs` first) and update them in the same PR; laptop: co-op group
-  + affected-e2e.
+  `src/game/course/courseMarks.ts` (the `courseGrant` syringe line only), `tests/courseMarks.test.ts` (the co-op
+  `courseGrant` / `coopRating` cases, :129-151: syringe 0), `tests/courseRuleFixes.test.ts` (new),
+  `tests/ctcourse/a2CarriageShed.test.ts`, `scripts/e2e-ctcourse/revive.mjs` (only if it leans on the syringe cap or a
+  lone-host start), `changes/feature-marlow-replan-f1.md`. Est. 250.
+- Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` and `tests/` for asserts on the syringe cap, a
+  course syringe grant or a lone-host Course start (`scripts/e2e-ctcourse/revive.mjs` first) and update them in the
+  same PR; laptop: co-op group + affected-e2e, `e2e-section-rating` included (its Sector Ops grant block, :199-216,
+  stays green: Sector Ops still grants syringes).
 - Done looks like: `tests/courseRuleFixes.test.ts` shows three ratings later the cap is still 2 (gadget and medkit
-  grants still land) and a lone host's Start refused in Course mode on every build (the case runs with DEV off and on,
-  and with `?course=solo` in the URL: still refused), the lobby saying why;
-  the M8 sight case passes; one player out still restarts the bay (the built tests and `revive.mjs` unchanged on that).
+  grants still land) and the course card shows no syringe on host and client; a lone host's Start refused in Course
+  mode on every build (the case runs with DEV off and on, and with `?course=solo` in the URL: still refused), the
+  lobby saying why; the M8 sight case passes; one player out still restarts the bay (the built tests and `revive.mjs`
+  unchanged on that); the Sector Ops grant e2e green.
 - Flag: none (rule fixes on the shipped yard). Depends on: nothing in this plan. Order with Campaign's mission-rules:
   claims section.
 
@@ -457,8 +472,9 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
   `validate-run.txt`), S0 (Sonnet), F1 (Opus, from master, needs nothing from S0: ships first); R1 (Opus) branches from
   S0's first pushed commit (`stationDef.ts`, the flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef`
   line; S0 section). File seams: S0 owns `courseDef.ts` for that one line in its first commit only, then R1; R1 owns
-  `courseState.ts` whole (F1 does not edit it); the room-map line in `session.ts` is R1's. D1 and G0
-  both live in `docs/marlow-replan/` but in different files (STATIONS.md vs graph.json / validate-run.txt).
+  `courseState.ts` whole (F1 does not edit it); the room-map line in `session.ts` is R1's; F1 owns `courseMarks.ts`
+  (one line) and updates the co-op cases of `tests/courseMarks.test.ts` first, R1 rebases on F1 there. D1 and G0 both
+  live in `docs/marlow-replan/` but in different files (STATIONS.md vs graph.json / validate-run.txt).
 - **Wave 2, when S0 and R1 pass their checkers (lead merges both into `feature/marlow-replan-base`):** the seven set
   slices build in parallel (G-A1A7, G-A2, G-A3, G-A4, G-A5, G-A6, G-A8), each in its own worktree; briefs written during
   wave 1. Their PRs open only after S0 and R1 are released (on master): `scripts/pr-size.mjs` counts against the merge
@@ -493,7 +509,7 @@ start with one player once F1 is live, on either yard).
 - F1 (live on the built yard, so before the re-plan walk): from the release F1's PR names, Marlow Yard will not start
   with one player (Michael walked 4.82.0 solo; he picked "Yes, everywhere now" ~21:42) - bring the second PC and join
   with the room code; try Start alone first, then with both players rate a set well three times - accept when the
-  lobby says why one player cannot start and revives still stop at two.
+  lobby says why one player cannot start, the card never offers a syringe and revives still stop at two.
 
 ## Assumed decisions (A13+, each with its undo)
 - **A13** `meta.taught_by` is "A6" (the set where drop catch, the last kit move, is taught alone, J12 BRIEF A8), so
