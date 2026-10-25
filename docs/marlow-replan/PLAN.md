@@ -88,9 +88,11 @@ Lead: Night Shift | Marlow Build. Planner: Opus 5.5, master 94e72b1cd (4.103.3).
   then both players back to the station's two marks after `SPOT_HOLD`, that station's guards, gates, devices and flags
   reset, earlier stations stay done. A8 (`retry: 'caught'`): suspicion, search and line-of-sight breaks play out as on a
   mission; a guard holding combat on a player for `CAUGHT_HOLD` 2 s, or a timed step ending, retries that step the same
-  way. Drills retry in place (the station's own marks, never a checkpoint reload). Both players down = the campaign
-  rule: checkpoint restart of the bay from its holding room, a full reset (G312). No strict rule, no send-back, no fail
-  screen anywhere: the A2 `spotFail` and the A3 `HallRule` are off on `ctcourseReplan`.
+  way. Drills retry in place (the station's own marks, never a checkpoint reload). Downed is the campaign rule,
+  unchanged (BRIEF ~11:20 (3); REPLAN "no change to the downed rule"; level-design 9.4 [Training]): past the revives,
+  one player out, or both players down, the bay restarts from its holding room, a full reset (G312), as on the built
+  yard today. No strict rule, no send-back, no fail screen anywhere: the A2 `spotFail` and the A3 `HallRule` are off on
+  `ctcourseReplan`.
 - **Guards per lesson (Q11; Michael picked "12, add two (Recommended)" ~20:40, BRIEF "Michael picked").** A1 0 (the
   seated checker stays, passive, not a guard: A11, so `e2e-coop.mjs:2057-2110` keeps working), A2 1 (shunter), A3 0
   (one IR camera), A4 3, A5 2, A6 1, A7 2, A8 3 = 12. Ordinary armed guards, no alarm team (A12). A1 / A3 stay at 0
@@ -189,8 +191,8 @@ Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) an
   resolves a trivial conflict.
 - **#445 / feature/test-runner-j20-* (Test Runner):** `scripts/e2e-ctcourse.mjs` (:362 per-set guard check: every
   guard alive and above -5 m). Our only sunk space is the A6 pit at -1.6 m with no guard; an empty set passes.
-- **coopHost.ts** also on feature/mission-engine(-flg-gb6), guard-rules-s2, coop4: F1 edits only :568-581 and
-  :834-837.
+- **coopHost.ts** also on feature/mission-engine(-flg-gb6), guard-rules-s2, coop4: F1 edits only the `addSyringes`
+  body (:834-837); `goOut` (:568-581) is not edited by this job.
 - **src/core/flags.ts** also on guard-ai-g327 (#438), char-shadow-meter, campus-greybox, gm-look / gm-polish,
   mission-engine, coop4, and feature/coop-kit's `kitMoves`: one added field each, trivial.
 - **J12 feature/validator-port (ours):** `scripts/level-validate.mjs`, `docs/level-design.md`,
@@ -295,17 +297,23 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   `CourseState.restarts` (a count, 0 at match start) and `CourseState.lastRetry` (`{ n, st, cause }`, `st` the station
   retried, `cause` `'seen' | 'caught' | 'timer' | 'out' | 'down'`), packed as `PackedCourse.rs` (count) and `rc` (last
   cause) beside `st`. Every station retry increments `restarts` and records its cause: `seen` (A1-A7 guard combat or a
-  camera's full detection), `caught` (A8 `CAUGHT_HOLD`), `timer` (a `drillS` window or A8 timed step ending), `out`
-  (F1's one-out on a station bay); a both-down bay restart also increments it with `down` (R4c's `other`). Host:
+  camera's full detection), `caught` (A8 `CAUGHT_HOLD`), `timer` (a `drillS` window or A8 timed step ending); a downed
+  bay restart (next bullet) also increments it, with `out` (one player out) or `down` (both down). Host:
   `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
   the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: { st: w.s.st,
   cause: w.s.rc }`, so the harness reads the same hook on host and client. No new event, no save.
+- **One out and both down (level-design 9.4 [Training], unchanged; plan check 2 fix 1).** On `ctcourseReplan` a player
+  out with no revives left takes the path both down takes, as on the built yard: `coopHost.goOut` (:568-581, not edited)
+  calls `CourseMode.onPlayerDeath()`, the bay restarts from its holding room after `RESTART_DELAY`, a full reset with
+  the bay's stations undone (G312), both respawn in the checkpoint airlock. R1 adds no `onPlayerOut` and no station
+  retry on out; it only records the restart: `restarts` +1 with cause `out` when one player was still up as the restart
+  began, `down` when both were down.
 - **`src/net` rule:** `st`, `rs` and `rc` are parsed in `src/net/protocol.ts` (`parseCourse`) only, as plain fields; no
   new static import from `src/game` into `src/net` (CLAUDE.md co-op rule; `import type` only if a type is needed).
 - **Respawn points:** `checkpointSpawns()` returns the station's two marks only while a station retry is placing the
   players (host and a client rejoining during it); otherwise it returns the checkpoint airlock's slots as today, so a
   rejoin, a seal or a both-down restart never lands on a station mark.
-- Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts` (`courseState.ts` except F1's hunks),
+- Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts`,
   `src/game/modes/courseMode.ts`, `src/net/protocol.ts`, `src/net/session.ts` (the room-map line),
   `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
   `tests/courseMarks.test.ts` (the `parseCourse` round trip of `st` goes in `courseStation.test.ts`, not `net.test.ts`),
@@ -314,54 +322,36 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   e2e-section-rating) + the co-op group (protocol).
 - Done looks like: in a unit course of two stations, a guard alert in station 2 puts both players at station 2's marks
   with station 1 still done and station 1's downed guard still down; a `caught` bay ignores a 1.5 s combat and retries
-  at 2 s; a drill window ending retries in place; a player going out in station 2 (`onPlayerOut`, F1) retries station 2
-  with both back on its marks; each of those retries raises `window.__course.restarts` by one on host and client with
-  `lastRetry.cause` `seen`, `caught`, `timer` and `out` in turn (unit test in `tests/courseStation.test.ts`: the count
-  and cause through `pack()` -> `parseCourse` -> the client mirror object); both down after station 2 restarts the bay
-  from its holding room, a full reset with station 1 undone (A17, G312; `restarts` +1, cause `down`);
+  at 2 s; a drill window ending retries in place; each of those retries raises `window.__course.restarts` by one on
+  host and client with `lastRetry.cause` `seen`, `caught` and `timer` in turn (unit test in
+  `tests/courseStation.test.ts`: the count and cause through `pack()` -> `parseCourse` -> the client mirror object);
+  one player out in station 2 (partner up) restarts the bay from its holding room, a full reset with station 1 undone
+  (level-design 9.4, G312; `restarts` +1, cause `out`); both down after station 2 does the same (A17; cause `down`);
   `checkpointSpawns()` returns station marks only during a station retry (a rejoining client then too) and the airlock
   slots otherwise; the built `ctcourse` behaves as today (its tests unchanged); the flag off leaves the room on
   `ctcourse`.
 - Flag: `marlowReplan` (only `ctcourseReplan` carries stations). Depends on: S0's first commit (`stationDef.ts`, the
   flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef` line).
 
-**F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Fixes to the shipped yard, allowed at the walk cap
-(G355; A21): the revive cap stays 2 in Course mode (`coopHost.addSyringes` ignores course grants, :834-837; gadget and
-medkit grants kept; M3 / R35); one player out no longer restarts the bay, only both down does (G349 campaign rule;
-:568-581); Host Start needs 2 players in Course mode unless `?course=solo` (`coopUi.ts:628-635`, R36); the A2 entry
-vantage joins the sight test (M8, `tests/ctcourse/a2CarriageShed.test.ts:1366-1371`). F1 reads no `marlowReplan` flag
-and needs nothing from S0 (the room-map line is R1's), so it branches from master and ships first.
-- **How the out player comes back ("out until the next checkpoint", G126 / G349).** Every Marlow airlock needs both
-  players inside (`courseState.ts:1155-1162`, `need()` = 2) and every station is a co-op move, so the survivor alone
-  could not move on. The fix: while one partner is out, the bay's exit airlock cycles with the one living player.
-  `CourseState` gains `out: [boolean, boolean]`, `setOut(p, on)` and a private `oneMay()` (`solo` or a player out);
-  `need()` returns 1 under `oneMay()`, and the pair gate's "one player works both halves" check (today `solo` only,
-  `pressPair`, `courseState.ts:1112`) reads `oneMay()` too. Drill ticks and team moves are unchanged: on the built yard
-  a team move between the survivor and the exit airlock still needs the partner, and there the pause-menu bay restart
-  (both respawn) stays the way on, as today for every one-out; on the re-plan the station retry below brings the partner
-  back at once. In course mode `goOut` (:568-581) calls `setOut(p, true)` instead of `onPlayerDeath()`, then
-  `g.mode.onPlayerOut?.()` (a no-op on `CourseMode` until R1). When the airlock seals, the checkpoint advances as on any
-  seal and the host respawns the out player inside it, at their slot of `checkpointSpawns()` (`courseMode.ts:896-900`;
-  the client through the existing respawn path, `CoopHost.onRespawn` :1897), and clears `out`. Any respawn of the out
-  player (a seal, a bay restart, a station retry) clears `out`. Revives used stay used (the cap is per mission). The
-  survivor going down too = both down: the bay restarts from its holding room as today (G312).
-- **On `ctcourseReplan` (R1's part, not F1's):** R1 adds `CourseMode.onPlayerOut()`: on a bay with stations, a player
-  going out starts that station's retry after `SPOT_HOLD` (cause `out`), and the out player respawns at the station
-  retry's marks with the survivor, so an untimed co-op station never strands the survivor. On a bay without stations
-  it does nothing (F1's airlock rule holds).
-- **File split with R1:** F1 owns only the `out` field, `setOut()`, `oneMay()`, the body of `need()` and the pair
-  gate's one-player check in `courseState.ts`; R1 never edits those lines and F1 edits nothing else in that file (hunk
-  ownership, as S0 / R1 below).
-- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/game/course/courseState.ts` (the hunks above only),
-  `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`, `changes/feature-marlow-replan-f1.md`.
-  Est. 400.
-- Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` for e2e that rely on one-out restarts or the
-  syringe cap (`scripts/e2e-ctcourse/revive.mjs`) and update them in the same PR; laptop: co-op group + affected-e2e.
-- Done looks like: three ratings later the cap is still 2; one player out with the partner up keeps the bay running;
-  `tests/courseRuleFixes.test.ts` has the case "P2 out, P1 steps on the airlock pad, it cycles, P2 respawns in the
-  airlock with the checkpoint advanced" (and P2's `out` cleared); a second case "P2 out, P1 goes down: both down, the
-  bay restarts from its holding room"; a lone host cannot Start Marlow Yard.
-- Flag: none (rule fixes on the shipped yard). Depends on: nothing in this plan.
+**F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Three fixes to the shipped yard, each a gap the Marlow
+conformance review lists, allowed at the walk cap (G355; A21): the revive cap stays 2 in Course mode
+(`coopHost.addSyringes` ignores course grants, :834-837; gadget and medkit grants kept; M3 / R35); Host Start needs 2
+players in Course mode unless `?course=solo` (`coopUi.ts:628-635`, R36); the A2 entry vantage joins the sight test (M8,
+`tests/ctcourse/a2CarriageShed.test.ts:1366-1371`). The downed rule does not change: one player out (no revives left)
+still restarts the bay, as both down does (level-design 9.4; `coopHost.ts:568-581`, not edited; conformance-marlow
+:112 lists it as conforming; REPLAN "no change to the downed rule"). F1 reads no `marlowReplan` flag, does not edit
+`courseState.ts` and needs nothing from S0 (the room-map line is R1's), so it branches from master and ships first.
+- Files: `src/net/coopHost.ts` (the `addSyringes` body only), `src/net/coopUi.ts` (the Start check only),
+  `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`, `scripts/e2e-ctcourse/revive.mjs`
+  (only if it leans on the syringe cap or a lone-host start), `changes/feature-marlow-replan-f1.md`. Est. 250.
+- Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` and `tests/` for asserts on the syringe cap or a
+  lone-host Course start (`scripts/e2e-ctcourse/revive.mjs` first) and update them in the same PR; laptop: co-op group
+  + affected-e2e.
+- Done looks like: `tests/courseRuleFixes.test.ts` shows three ratings later the cap is still 2 (gadget and medkit
+  grants still land) and a lone host's Start refused in Course mode, allowed with `?course=solo`, the lobby saying why;
+  the M8 sight case passes; one player out still restarts the bay (the built tests and `revive.mjs` unchanged on that).
+- Flag: none (rule fixes on the shipped yard). Depends on: nothing in this plan. Order with Campaign's mission-rules:
+  claims section.
 
 **Set slices (Sonnet greybox from strict Opus briefs; one checker per batch of three).** Each: guards round the
 removed pieces in `<set>.ts`, everything new in `replan/<set>.ts` (geometry, closers, guards per lesson, stations from
@@ -425,7 +415,7 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
   `validate-run.txt`), S0 (Sonnet), F1 (Opus, from master, needs nothing from S0: ships first); R1 (Opus) branches from
   S0's first pushed commit (`stationDef.ts`, the flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef`
   line; S0 section). File seams: S0 owns `courseDef.ts` for that one line in its first commit only, then R1; R1 owns
-  `courseState.ts` except F1's `out` / `need()` / pair-gate hunks; the room-map line in `session.ts` is R1's. D1 and G0
+  `courseState.ts` whole (F1 does not edit it); the room-map line in `session.ts` is R1's. D1 and G0
   both live in `docs/marlow-replan/` but in different files (STATIONS.md vs graph.json / validate-run.txt).
 - **Wave 2, when S0 and R1 pass their checkers (lead merges both into `feature/marlow-replan-base`):** the seven set
   slices build in parallel (G-A1A7, G-A2, G-A3, G-A4, G-A5, G-A6, G-A8), each in its own worktree; briefs written during
@@ -457,8 +447,8 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
   are obvious until each new move is on.
 - Lamps: A4 back aisle, A6 sump, A8 vestibule all working - accept when no dark corner comes from a dead light.
 - F1 (live on the built yard, so before the re-plan walk): a lone host can no longer Start Marlow Yard (Michael walked
-  4.82.0 solo) - it needs a partner, or `?course=solo` on the host page. With a partner: let one go out (no revives
-  left) - accept when the survivor carries on, the exit airlock cycles with one, and the partner is back inside it.
+  4.82.0 solo) - it needs a partner, or `?course=solo` on the host page; rate a set well three times - accept when
+  the lobby says why a lone host cannot start and revives still stop at two.
 
 ## Assumed decisions (A13+, each with its undo)
 - **A13** `meta.taught_by` is "A6" (the set where drop catch, the last kit move, is taught alone, J12 BRIEF A8), so
@@ -487,8 +477,9 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - **A20** Marlow's J10 re-light (light-realism PLAN L3-H) is done on `ctcourseReplan` only, with live fittings at
   today's set standby level; lux bands are tuned when J10's band table lands. The built yard keeps its pockets until
   switch-on. Undo: port the lamps to the built yard as a rule fix if switch-on slips.
-- **A21** F1's three rule fixes ship on, now, on the built yard (G355: fixes to shipped features are allowed at the
-  cap). Undo: revert F1.
+- **A21** F1's three rule fixes (revive cap 2, the lone-host Start block, the M8 sight test) ship on, now, on the built
+  yard (G355: fixes to shipped features are allowed at the cap; each is a conformance-listed gap). The downed rule is
+  not among them: one out still restarts the bay (level-design 9.4, plan check 2 fix 1). Undo: revert F1.
 - **A22** "Spotted" in A1-A7 includes a camera's full detection (A3's IR camera, A4 C1-C3 after the loop, A7's
   cameras), not only guards; the A3 send-back becomes this retry. Undo: guards only.
 - **A23** A drill running out = the station retry at its own marks ("Retry the drill only", ~11:55: no checkpoint reload,
