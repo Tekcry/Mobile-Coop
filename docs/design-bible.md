@@ -1150,9 +1150,10 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 - **Jobs:** `docs/ROADMAP.md` (owned by the orchestrator) lists what runs now and what waits on Michael (G90 in its
   current form); each job keeps BRIEF, PLAN and STATE in `docs/<job>/`.
 - **Models and pace:** Opus plans, briefs, checks and writes tricky engine / AI / animation code; Sonnet builds from
-  strict briefs; Haiku does chores (G302, replaces G88 and G158); full burn until Michael says to slow down (G304,
-  G324) with lean messaging and batch checkers (G305); two checkers on AI and `src/net`, cloud builders, plans 2-3
-  slices ahead, high effort for leads (G319).
+  strict briefs; Haiku does chores (G302, replaces G88 and G158); full burn until Michael says to slow down (G304, G324)
+  with lean messaging and batch checkers (G305); two checkers on AI and `src/net`, cloud builders, plans 2-3 slices
+  ahead, high effort for leads (G319). The session layout (a lead per area, the orchestrator starting the desktop leads
+  at each swap) is in `docs/RULES.md` "Sessions" (G364).
 - **Overnight loosenings:** the rule is in `docs/RULES.md` (Intake, step 2; G301, G358).
 - **Pipeline:** the laptop queue, fixed swap prompts, automatic suite selection and fully automatic rolling trains; no
   e2e on the desktop except the overflow lane (G318, G321, G322); release-speed (G317); the watchdog adds
@@ -1162,9 +1163,11 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 - **Versions:** notes say Unreleased until the merge; every merge to master gets the next `4.MINOR.PATCH`, a job or
   feature a minor step, a fix or docs-only merge a patch, set by the orchestrator (G183, G93). The consolidation merge
   is 4.0.0 (G84).
-- **Tests:** test tiers by kind of change (`docs/RULES.md` "Test tiers"); the full e2e run is the training level and its systems,
-  with parked, audio and GPU suites in their own runs (`docs/systems/testing-tools.md`). `TESTING.md` holds one desktop
-  checklist and a release checklist (G92).
+- **Tests:** test tiers by kind of change (`docs/RULES.md` "Test tiers"); the full e2e run is the training level and its
+  systems, with parked, audio and GPU suites in their own runs (`docs/systems/testing-tools.md`). `TESTING.md` holds one
+  desktop checklist and a release checklist (G92). A light-meter-against-picture mismatch holds a release; the
+  orchestrator accepts a look change into the picture baseline only with Michael's sign-off on record (G391); a second
+  quarantine of a suite within 14 days makes it blocking (G393).
 - **Token hygiene:** read `docs/RULES.md`, `docs/VISION.md`, the job's plan and only the files it lists; use grep and line
   ranges; never re-read this bible in full in a session.
 
@@ -1177,7 +1180,7 @@ The live job list, ranked, with owners and gates, is `docs/ROADMAP.md` "Now" on 
 
 1. **Done:** the CT co-op research (2026-10-18, digests in `docs/ct-research/`, G124-G160); the core-feel job, closed
    when Michael took over movement tuning (G227, replaces G150); Wren in for both players (G123).
-2. **The goal:** `docs/VISION.md` section 1 (G347, G355).
+2. **The goal:** `docs/VISION.md` section 1 (G347, G355), on the signed-off folded plan (G365).
 3. **The work under it:** Marlow Yard; Sector Ops' Saltmarsh Park S1-S5 greybox (signed off, G328) with light-realism
    (G329); the mission framework, then the four prototypes: Three Grey Coats and Two-Key Ledger on Tallow Wharf (Mission
    1, G340), Split Shift and Code Relay on the campus (G291, G293); guard AI (G299, G335); guard models (G310, G321); the
