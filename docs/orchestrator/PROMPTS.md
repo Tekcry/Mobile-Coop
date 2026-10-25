@@ -2,7 +2,7 @@
 
 One short line per session title. The lines carry no state and never change at a swap: each session reads the rules
 (docs/RULES.md and docs/VISION.md on origin/master) and its own entry in `docs/orchestrator/BOOT.md` (on origin/feature/menu),
-which says where its resume block is. Change a line here only when a title is added or removed; change BOOT.md when a
+which says where its resume block is and its first job (the conformance review brief). Change a line here only when a title is added or removed; change BOOT.md when a
 session's resume location, model or effort changes. Old prompts: archive/PROMPTS-history.md.
 
 At the ~92% save the old orchestrator prints ONLY line 1, and every save prints it even when no swap is planned
@@ -17,7 +17,7 @@ model, effort and machine, from the table), as the last thing in that message.
 | 4 | Night Shift \| Sector Ops Build | Opus 5.5 | high | desktop |
 | 5 | Night Shift \| Test Runner | Opus 5.5 | medium | laptop |
 | 6 | Night Shift \| Guard AI Build | Opus 5.5 | high | laptop |
-| 7 | Night Shift \| Cloud Builder \<k\> | as Michael starts it | - | cloud (claude.ai/code, Tekcry/Mobile-Coop) |
+| 7 | Night Shift \| Cloud Builder \<k\> | as Michael starts it | - | cloud (claude.ai/code, Tekcry/Mobile-Coop); briefs from the cloud-queue README |
 
 ## 1. Orchestrator
 ```
@@ -51,5 +51,5 @@ Night Shift | Guard AI Build (boot). First call mcp__ccd_session_mgmt__set_sessi
 
 ## 7. Cloud Builder (cloud, one or more)
 ```
-Night Shift | Cloud Builder <k> (boot). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Cloud Builder <k>" (ToolSearch if deferred). Then read origin/master docs/RULES.md and docs/VISION.md (git fetch; git show origin/master:docs/RULES.md; git show origin/master:docs/VISION.md) and follow docs/orchestrator/BOOT.md on origin/feature/menu for Cloud Builder.
+Night Shift | Cloud Builder <k> (boot). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Cloud Builder <k>" (ToolSearch if deferred). Then read origin/master docs/RULES.md and docs/VISION.md (git fetch; git show origin/master:docs/RULES.md; git show origin/master:docs/VISION.md) and follow docs/orchestrator/BOOT.md on origin/feature/menu for Cloud Builder. Your briefs come only from README.md on the orphan branch cloud-queue (git fetch origin cloud-queue; git show origin/cloud-queue:README.md).
 ```
