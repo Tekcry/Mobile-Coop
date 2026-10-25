@@ -20,7 +20,7 @@ message; Michael pastes those on the laptop.
 | 5 | Night Shift \| Campaign Build | Opus 5.5 | high | desktop | the orchestrator |
 | 6 | Night Shift \| Test Runner | Opus 5.5 | medium | laptop | Michael pastes it |
 | 7 | Night Shift \| Guard AI Build | Opus 5.5 | high | laptop | Michael pastes it |
-| 8 | Night Shift | Cloud Builder <k> | as started | - |\| Cloud Builder \<k\> | Opus 5.5 | as started | cloud (claude.ai/code, Tekcry/Mobile-Coop); briefs from the cloud-queue README | the orchestrator (one) |
+| 8 | Night Shift \| Cloud Builder \<k\> | as started | - | cloud (claude.ai/code, Tekcry/Mobile-Coop); briefs from the cloud-queue README | the orchestrator (one) |
 
 ## 1. Orchestrator
 ```
