@@ -58,6 +58,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   treats "nothing new to release" as idle, not a retried error (train 102 started 7 min late); request.mjs rejects
   unknown suite names (a joined "a,b" suite string and a 0-suite run posted success); file requests on the PR's
   current head (`gh pr view <n> --json headRefOid`).
+- Tooling follow-up (21:57 audit): auto-train should read check + checker + affected-e2e itself when picking members, not wait for the label (#460 missed train 103 by ~50 s, cost one train cycle); until then the orchestrator labels by hand every cron run. The laptop's 3-min train gap (LQ_TRAIN_GAP_MIN) ends before the release finishes its deploy wait, so the next train kills the PR runs it let start (Player ffb7f02a twice): tie the gap to auto-train's releasing state. Desktop CPU 100% left 4192 idle 8+ min and failed #445 on 4191 (cpu): lead sub-steps at BelowNormal.
 - Tooling follow-up (13:35 audit, next tooling PR after #412): merge-train release returns after merge + tag + dev move and leaves the deploy watch to later ticks (~6 min per train lost); auto-train retries gh once inside a tick instead of ending in error; #412 pacing must not count alone requests as busy.
 - Auto-train pacing OFF since 15:35 (task re-registered with `--min-interval 0`): laptopQueueState counted the desktop's claims as "laptop busy" and held train 93 17 min with the laptop idle. Fix in the next tooling PR: count only `worker === 'laptop'` claims, then restore the default. Label only PRs that merge cleanly with master (a docs conflict: hand-merge it in the train).
 - A conflict only in docs/** or *.md never keeps a PR out of a train: resolve it in the train worktree (keep both sides).
@@ -67,6 +68,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 ## How Michael works with the orchestrator
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
 - He is not technical (Michael 2026-10-25 13:31): every update in plain English, brief dot points, straight to the point; no hashes, tool names or jargon; say what a PR is, not just its number.
+- Never send him to a file for a prompt (Michael 2026-10-25 ~21:55: "always show me the prompt directly"): print the full text in chat.
 - Every prompt he pastes names the session title, model and effort; a paste-in prompt is the turn's LAST message, never
   paired with a question dialog.
 - He tests through the menus, never direct links: give menu paths and the version label to expect.
