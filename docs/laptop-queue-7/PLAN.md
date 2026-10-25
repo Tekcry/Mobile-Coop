@@ -83,9 +83,11 @@ file:line below is origin/master 2a937eb6.
     `carryFiles(filesBetween(C))` holds; { wait: P } when a commit newer than C (or any, with no C) is `pending`,
     `live(P)` is true and `carryFiles(filesBetween(P))` holds (its run is going: A7, A8); else null. A pending commit
     with `live(P)` false counts as no verdict (skipped, the walk goes on). `live` is injected: the service passes
-    `claimed.has(P) || claimBlocks(parseClaim(claims/<P>.json), WORKER, now, CLAIM_MAX_MS)`, read on both sides as
-    `claimBlocks` (:123) already does for train claims, so a dead run (restart, crash, lost final post) never makes H
-    wait: the stale-pending path (service.mjs:645) only covers open heads, and P no longer is one.
+    `claimed.has(P) || (c && !c.done && claimBlocks(c, WORKER, now, CLAIM_MAX_MS))` with
+    `c = parseClaim(claims/<P>.json)` (`claimBlocks` :123 is true for any done claim, so a done claim with a lost final post must not count), so a dead
+    run (restart, crash, lost final post) never makes H wait: the stale-pending path (service.mjs:645) only covers open
+    heads, and P no longer is one. Tests: pending P with no claim, and pending P with a done claim -> not live (H runs,
+    or carries from an older success).
   - `carryDesc(sha)`: "carried from <sha8>, docs-only delta" (under 140 chars).
 - service.mjs:
   - `pendingTrains` (:629): replace the subject test with: H's subject is the version (as today), else `versionAt`
