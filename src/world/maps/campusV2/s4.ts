@@ -61,6 +61,7 @@ export const S4_DOORS = {
   c4Near: [-10, 29] as [number, number],
   kpBatt: [-4, 18.5] as [number, number],
   /** (G4.5 C22) the riser partition moved to x 30.5. */
+  // bolt point (Dunmore's spook respawn, Code Relay A11): (28, 0, 45.8) kept clear
   kpDeck: [30.5, 45] as [number, number],
   /** (G4.5 D:37, BT:102) the cable-pull door from the compound into the riser, keypad on the plant doors code. */
   kpRiser: [34, 46.5] as [number, number],
@@ -607,6 +608,10 @@ export function buildCampusS4(b: LevelBuilder): void {
 
   // ---- the security room (x -4..8, z 42..48; the NOC's slab over it) and the NOC (3.6..7.0)
   // (G4.4 C16, D:31) the dog-leg fire stair: one slab rect minus the well, the mid landing, the spine, the three rails
+  // sync-s4-noc: Dunmore (#14) issues the release (J26; re-askable, no hard countdown). The console prop and the seat placard (BT:107)
+  // sit on the window ledge in front of the west seat (P12), not inside #14's slot (1.0, 3.6, 43.0)
+  b.box(1.0, 4.45, 42.35, 0.6, 0.08, 0.3, '#2a2f35', 0, 0, false);
+  b.box(1.0, 4.55, 42.3, 0.25, 0.08, 0.02, '#d8d8d8', 0, 0, false); // Dunmore's seat placard (BT:107)
   slabCut(b, [-4, 8, 42, 48], S4_NOC, [STAIR_WELL]);
   bx(b, 0, 1.4, 1.6, 1.8, 45.1, 47.85, STEEL, { noLedge: true });
   bx(b, 1.4, 4.2, 0, 4.7, 46.4, 46.5, WALL_DARK, { noLedge: true });
