@@ -87,7 +87,8 @@ import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioBodyPin, studioEntry } from '
 import { effectMode, sliderEffect, type EffectMode } from './tunerEffect';
 import type { KeyedClip } from '../anim/keyed';
 import { LOCO } from '../anim/mocap';
-import { NOW_PLAYING, bodyWord, nowPlayingGuardText, nowPlayingKey, nowPlayingText } from '../anim/nowPlaying';
+import { NOW_PLAYING, bodyWord, nowPlayingGuardText, nowPlayingKey, nowPlayingSourceText, nowPlayingText } from '../anim/nowPlaying';
+import { ANIM_SOURCE } from '../anim/animSource'; // (mixamo-retarget Toggle)
 import { mocapSource } from '../anim/mocapSources';
 import {
   CLARITY_WARN_LABEL,
@@ -536,6 +537,8 @@ export class AnimTunePanel {
   mouseHost: TuneMouseHost | null = null;
   /** (mocap-trial) The game's "Mocap locomotion" setting (set by `App`; null: the box stays off and disabled). */
   mocapHost: { get(): boolean; set(on: boolean): void } | null = null;
+  /** (mixamo-retarget Toggle) The game's Animation source setting (set by `App`; null: the Studio's switch is disabled). */
+  animSourceHost: { get(): string; set(s: string): void } | null = null;
   private mocapBox: HTMLInputElement | null = null;
   private readonly mouseCtl = new TunerMouseCtl();
   private mouseBtn: HTMLButtonElement;
@@ -668,6 +671,8 @@ export class AnimTunePanel {
       lock: (s) => this.lockSnap(s),
       picked: (id) => this.applyLoop(id),
       saveUi: () => this.saveUi(),
+      animSource: () => this.animSourceHost?.get() ?? null,
+      setAnimSource: (s) => this.animSourceHost?.set(s),
     });
     // header: title, the pad line, fold, close (folded, the panel is this one line)
     const head = document.createElement('div');
@@ -3512,7 +3517,8 @@ export class AnimTunePanel {
     const idx = (BODY_GROUPS as readonly string[]).indexOf(body);
     const guard = TUNE_WHO.who === 'guard';
     const k = guard ? -2 - idx : nowPlayingKey(NOW_PLAYING, idx, LOCO.mocap);
-    const ent = guard ? STUDIO.entry : '';
+    // (mixamo-retarget Toggle) the player line follows the Animation source too (a module string: no allocation)
+    const ent = guard ? STUDIO.entry : ANIM_SOURCE.source;
     // the clip's hash in the key can collide: the clip reference itself is compared too (no allocation)
     const clip = guard ? null : NOW_PLAYING.clip;
     if (k !== this.playKey || ent !== this.playEnt || clip !== this.playClip) {
@@ -3525,7 +3531,7 @@ export class AnimTunePanel {
       this.playShown = k;
       this.playShownEnt = ent;
       this.playShownClip = clip;
-      this.setPlayText(guard ? nowPlayingGuardText(this.guardLoopWord(body)) : nowPlayingText(NOW_PLAYING, body, LOCO.mocap));
+      this.setPlayText(guard ? nowPlayingGuardText(this.guardLoopWord(body)) : nowPlayingSourceText(nowPlayingText(NOW_PLAYING, body, LOCO.mocap), ANIM_SOURCE.source));
     }
     this.syncReach();
   }

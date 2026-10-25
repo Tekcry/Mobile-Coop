@@ -149,6 +149,13 @@ export class App {
         mocapApply();
       },
     };
+    // (mixamo-retarget Toggle) the Anim Studio's Animation source switch: the same saved setting as Options > Gameplay
+    tune.animSourceHost = {
+      get: () => this.settings.get().gameplay.animSource,
+      set: (v) => {
+        if (v === 'hand' || v === 'cmu' || v === 'mixamo') this.settings.update((d) => void (d.gameplay.animSource = v));
+      },
+    };
     this.settings.subscribe((s) => {
       mocapApply();
       this.audio.setVolumes(s.audio);
