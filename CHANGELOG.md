@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.103.4 - Train 99: Mission framework: specs and sign-off pages, graph-svg; Sector Ops docs: conformance fixes (2026-10-25, PR #449; #433, #372)
+
+### Mission framework: specs and sign-off pages, graph-svg
+- Docs: `docs/missions/` holds the mission framework's BRIEF, PLAN and STATE, plus the research behind it. Six sign-off packs sit in `docs/missions/prototypes/`, all signed off by Michael on 2026-10-25; each has a beat chart, a mission graph, a plan image and a one-question sign-off page:
+  - the new campaign map Tallow Wharf (4 sections, every section forces a co-op kit move);
+  - its two missions, Three Grey Coats and Two-Key Ledger;
+  - the Sector Ops missions Split Shift (campus S2) and Code Relay (campus S4);
+  - the co-op kit moves.
+- Tooling: `scripts/graph-svg.mjs` draws a level graph to scale from its `area` boxes and `at` points: 1 m = 10 px, north up, a scale bar, tracks coloured, objective / sync / lead nodes. `--base <svg>` overlays a plan SVG. Tests: `tests/graphSvg.test.ts`.
+
+### Sector Ops docs: conformance fixes
+- Saltmarsh Park plan docs follow the new lighting rule: every space lit to the real-world band for its type, every
+  light working, darkness only from cover, cut power and shot lamps; the old dark-vantage allowance is retired.
+- Saltmarsh Park plan docs give the signed-off guard counts (S1 15, S2 18, S3 20, S4 25, S5 26 at two players).
+- The first campus validator reports are marked as history: their 40-60% shadow errors no longer apply.
+- Graphics settings: the Character shadows help text now says Auto gives the nearest lamp's shadow on Low and Medium.
+- Lighting system doc: character shadows on Low and Medium and the glass rule match the game; dead fittings are
+  marked for re-lighting (every light works).
+
 ## 4.103.3 - Train 98: Level standard: Michael's 12 level-rule changes (G157); Player docs match the game; Guard AI docs match the code and Michael's answers (2026-10-25, PR #448; #443, #437, #435)
 
 ### Guard AI docs match the code and Michael's answers
