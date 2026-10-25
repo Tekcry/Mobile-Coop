@@ -52,7 +52,10 @@ floor (feet) height. Map files: `feature/mission-engine` e37987544.
 7. **Lamp call.** Every fitting is the kit's `lamp(b, x, y, z, { r, i, group, colour?, cone?, destructible?, electric? })`
    (`tallowWharfKit.ts:152`; `on: true` always). `kind` follows the cone (a cone = a flood). Colours: `WARM` [1, 0.82,
    0.55] for market, loft and office lamps; the kit's white for halls, stairs and stores; the aviation lamp red [1, 0.1,
-   0.1]; the launch's masthead white; exit lights green-white [0.8, 1, 0.85].
+   0.1]; the launch's masthead white; exit lights green-white [0.8, 1, 0.85]. A desk or table lamp stands on a built
+   desk (fix round 2): a visual-only box (`collide = false`, top 0.75 over its floor, about 1.2 x 0.6) under the lamp,
+   so no guard post, route or nav cell changes; each brief names its desks (W1 the tally desk; W2 the clerk's table,
+   the rota desk, Teale's and the reader's tables; W3 the two clerks' desks, the copying desk, the partners' desk).
 8. **Groups.** W1 60-67 (unchanged), W2 70-79 (adds 77, 78, 79), W3 80-90 (unchanged), W4 91-98 (adds 98). The kit's
    `GROUPS` constant (`tallowWharfKit.ts:49-54`) is documentation nothing reads; its W1 / W2 / W4 maxima become 67 / 79
    / 98 when G0 or a later kit edit next touches the file (open question for the lead). Each section test's group range
@@ -67,16 +70,16 @@ floor (feet) height. Map files: `feature/mission-engine` e37987544.
 | --- | --- | --- | --- | --- | --- |
 | w1-canal-steps | pathway 0.85-3.5 lx | landing steps | canal lamp (65, photocell) | the top step under the stall rows' shadow (real gap, reads 0.26) | shooting 65 darkens the landing |
 | w1-tea-stall | public activity; counter brighter | trading | paraffin lamp over the counter (64, turned down at the lamp) | the nook between the urn crates and the canal rail (cover, 0.25) | turning 64 down or shooting it darkens the stall |
-| w1-market | public activity 7 lx avg (0.55), 2 lx min; stall fronts brighter | trading | row S and row N stall strings (60, 61, row-end boxes); fish hall facade brackets (62); the clock dial (66) | **the stall-back aisle** z 23.15-32.85 (cover: both back walls 2.4 m high shade every string lamp; reads 0.25); the west strip x 6-12 by the gallery (real gap, 0.25) | cutting 61 (row N box) or shooting the x 30 row N lamp darkens the 4 m from the aisle's east end to the fish hall side door (reads 0.38 lit) |
+| w1-market | public activity 7 lx avg (0.55), 2 lx min; stall fronts brighter | trading | row S and row N stall strings (60, 61, row-end boxes); fish hall facade brackets (62); the clock dial (66) | **the stall-back aisle** z 23.15-32.85 (cover: both back walls 2.4 m high shade every string lamp; reads 0.25); the west strip by the gallery x 6-9 (real gap: 0.26-0.27 at z 15-18; east of x 9 the row S lamps reach it) | cutting 61 (row N box) or shooting the x 30 row N lamp darkens the 4 m from the aisle's east end to the fish hall side door (reads 0.38 lit) |
 | w1-gallery | unfitted (open deck) | - | none | moon only (0.24) | - |
 | w1-warden-office | closed (M1; fix round 1, LP pick 13: the warden is out on his rounds, his tally book on the desk) | shut | the desk lamp left on over the tally desk (63, a socket circuit switched by the gallery door) | the room beyond the desk pool (0.14): the inspection hatch, the fish hall's vantage; the NW corner behind the ledger press (cover) | cutting 63 at the door darkens the desk pool |
 | w1-fish-hall | indoor market hall 150 lx (0.98) | trading | 8 pendants in two rows (62, by the arch) | the ice store and the fish-box stacks (cover); behind the ice benches (crouched) | cutting 62 by the arch darkens the hall and the clock end (a lure: the watchman comes to the switch); shooting the two back-row pendants at x 19 and 26 (z 54.5) darkens the shutter bay |
-| w1-service-passage | corridor 40 lx (0.79), in use while the hall trades | the barrow passage, an escape route | 5 maintained bulkheads on the centre line + the vestibule bulkhead (67): maintained luminaires (AS/NZS 2293) give the corridor's normal light while the supply is on (fix round 1, LP pick 17: LP's wall bulkheads gave about 1.3 lx) | the west dead end x 6-8 past the last fitting (0.78) | shooting a bulkhead |
+| w1-service-passage | corridor 40 lx (0.79), in use while the hall trades | the barrow passage, an escape route | 5 maintained bulkheads on the centre line + the vestibule bulkhead (67): maintained luminaires (AS/NZS 2293) give the corridor's normal light while the supply is on (fix round 1, LP pick 17: LP's wall bulkheads gave about 1.3 lx) | the west dead end x 6-7 past the last fitting (0.39-0.57) | shooting a bulkhead |
 
 ### Lamps
 | Group | Lamp (x, y, z) | Fitting, owner | r | i | Flags | Switch |
 | --- | --- | --- | --- | --- | --- | --- |
-| 60 | (14.5, 3.0, 18.5), (20, 3.0, 18.5), (25.5, 3.0, 18.5), (31, 3.0, 18.5) (fix round 1: 0.5 m further over the lane and 1 m east, i 0.45 -> 0.6) | row S stall string lamps, the stallholders | 8 | 0.6 | warm | box at the row's west end post (11.5, 0, 20.5), yaw -PI/2 (existing); run `yRun` 3.0 along the string's wire (2.6 left the run 0.4 m under the lamps) |
+| 60 | (15.5, 3.0, 18.5), (20, 3.0, 18.5), (25.5, 3.0, 18.5), (31, 3.0, 18.5) (fix round 1: 0.5 m further over the lane and east, i 0.45 -> 0.6; fix round 2: the west lamp 15.5, keeping the west strip 0.02 under the dark line) | row S stall string lamps, the stallholders | 8 | 0.6 | warm | box at the row's west end post (11.5, 0, 20.5), yaw -PI/2 (existing); run `yRun` 3.0 along the string's wire (2.6 left the run 0.4 m under the lamps) |
 | 61 | (13.5, 3.0, 37), (19, 3.0, 37), (24.5, 3.0, 37), (30, 3.0, 37) | row N stall strings | 8 | 0.45 | warm | box (11.5, 0, 35.5), yaw -PI/2 (existing); `yRun` 3.0 |
 | 62 | (11, 5.4, 47.5), (19, 5.4, 47.5), (26, 5.4, 47.5), (33, 5.4, 47.5), (11, 5.4, 54.5), (19, 5.4, 54.5), (26, 5.4, 54.5), (33, 5.4, 54.5) (fix round 1: the west pair at x 11, was 12) | fish hall pendants, the market company | 8 | 1.5 | white | (24.4, 0, 44.6), yaw 0, inside the arch's east jamb (existing); `yRun` 5.7 |
 | 62 | (18, 3.6, 43.7), (26, 3.6, 43.7) | facade bracket lamps flanking the arch, same circuit | 6 | 0.5 | warm | as above (the run goes out through the facade at y 3.6) |
@@ -95,9 +98,9 @@ dressing item for the lead (fix round 1 report, polish left).
 ### Check points (G1's test; level by the section-1 rule 3 helper with the named groups)
 | Point (x, floor, z) | Groups | Ambient | Target | Estimate |
 | --- | --- | --- | --- | --- |
-| market S lane between lamps (17, 0, 17.5) | 60 | 0.244 | >= 0.55 | 0.85 |
-| market S lane far edge (17, 0, 14.5) | 60 | 0.244 | >= 0.38 | 0.42 |
-| west strip by the gallery (8, 0, 18), the shadow route | 60, 61 | 0.244 | <= 0.28 | 0.27 |
+| market S lane between lamps (17, 0, 17.5) | 60 | 0.244 | >= 0.55 | 1.0 |
+| market S lane far edge (17, 0, 14.5) | 60 | 0.244 | >= 0.38 | 0.45 |
+| west strip by the gallery (8, 0, 18), the shadow route | 60, 61 | 0.244 | <= 0.28 | 0.26 (0.257) |
 | market N lane (17, 0, 40) | 61, 62 | 0.244 | >= 0.55 | 0.69 |
 | clock end, the three coats (22, 0, 42.5) | 61, 62 | 0.244 | >= 0.60 | 0.80 |
 | stall-back aisle (22, 0, 28) | 60, 61 (the estimate does not see the backs; the bake is darker) | 0.244 | <= 0.28 | 0.25 |
@@ -177,7 +180,7 @@ went home and left the lamps burning"), sent with this plan (fix round 1 report)
 ### Spaces
 | Space | Type, band | Tonight | Fittings (group) | Darkness from | Cut or shot opens |
 | --- | --- | --- | --- | --- | --- |
-| w3-east-yard | yard 20-50 lx (watched yard) | watched | the yard flood under the lodge's eaves, the gate lamp, the fire escape head lamp on its post (80, switched in the lodge) | **the wall line** z 50-52 west of the gate (the flood is aimed west-south-west from the lodge's south end, away from it; 0.25): the approach to the latched sash; the yard's west corners beyond the flood's throw (0.37); under the fire escape's half landing (cover) | cutting 80 in the lodge (by the porter) darkens the yard and the fire escape; shooting the flood or the head lamp |
+| w3-east-yard | yard 20-50 lx (watched yard) | watched | the yard flood under the lodge's eaves, the gate lamp, the fire escape head lamp on its post (80, switched in the lodge) | **the wall line** z 50-52 west of the gate (the flood is aimed west-south-west from the lodge's south end, away from it; 0.25): the approach to the latched sash (the last metre at the sash, (108.8, 0, 51), reads 0.40 in the gate lamp's pool: mid, not dark); the yard's west corners beyond the flood's throw (0.37); under the fire escape's half landing (cover) | cutting 80 in the lodge (by the porter) darkens the yard and the fire escape; shooting the flood or the head lamp |
 | w3-lodge | security room 320 lx | the porter dozes in his chair | lodge lamp (81, by the yard door) | - | cutting 81 |
 | w3-east-wing | office 320 at the desks; hall 160 | worked (two clerks, the porter's rounds) | 6 hall pendants (84), two desk lamps (82, 83) | the press recesses on the west wall (cover) | cutting 84 at the front-hall opening (the desk lamps stay: two pools) |
 | front hall | corridor 40 lx | in use (the messenger, the watchman) | 2 pendants (84) | - | cutting 84 |
@@ -289,7 +292,7 @@ real gap)
 | W1 fish hall | the side door -> the east wall behind the fish-box stacks -> the ice benches (crouched) | the shutter bay is lit: cut 62 at the arch or shoot the two back-row pendants at x 19 and 26 |
 | W2 arcade | the west arch -> the NW bay (dark) -> the pier (C3) | the north bay mid reads 0.62: cut 70 at the arch for the east lip |
 | W2 reading room | the throw lands on the dark stage; the stage door -> Teale (the room is lit) | cut 77 by the bridge doorway (the table lamps keep pools); the bridge is the quiet way out |
-| W3 east yard | the dark wall line under and beside the fire escape -> the latched sash | cut 80 in the lodge or shoot the flood for the yard floor |
+| W3 east yard | the dark wall line under and beside the fire escape -> the latched sash (its last metre reads 0.40 in the gate lamp's pool) | cut 80 in the lodge (or shoot the gate lamp) for the sash; cut 80 or shoot the flood for the yard floor |
 | W3 east wing | the press recesses on the west wall | cut 84 at the front-hall opening |
 | W3 west wing | the lantern drop onto the gallery (0.42), down into the light well (0.54), the shelf aisles | cut 85 at the double doors |
 | W4 shed three | the sash stack -> the stack alley x 84-86 behind the new tea-chest stacks | cut 91 by the fire door |
