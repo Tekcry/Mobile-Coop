@@ -60,7 +60,7 @@ describe('pick: front, green smallest first', () => {
   const order = (green: string[], wall: Record<string, number> = {}, extra: Record<string, unknown> = {}) => ({
     green: new Set(green), wallS: wall, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000, ...extra,
   });
-  const run = (requests: any[], o: any, extra: Record<string, unknown> = {}) =>
+  const run = (requests: unknown[], o: unknown, extra: Record<string, unknown> = {}) =>
     pick({ trains: [], requests, order: o, ...extra }, NOW, slots(false, false))?.request;
 
   it('a green 12 s request beats an older plain request', () => {
