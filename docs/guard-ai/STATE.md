@@ -1008,9 +1008,11 @@ Open (SAVE 2026-10-25 ~18:20; row 6 SIGNED OFF ~17:00, full burn; order J1 -> J4
    slices/T1-SHADOW-REPORT.md: if missing, read the run log in C:/NightShift/scratch/laptop-queue/runs/ and write it),
    then the GPU look rerun with #414's script (alone request, set g327-look). All green -> post checker status, tell
    the orchestrator train-ready.
-3. J4 #317 coop4 READY, ships ON (Q16). D4 hook 0837f147. Check A PASS (docs/guard-ai/checks/coop4-release-check-A.md,
-   train merge notes 1-9 for the orchestrator). Check B: rerun if no report in docs/guard-ai/checks/. Laptop
-   coop4-full + alone-coop4-4p on 0837f147. Both checkers + both sets green -> post checker, tell the orchestrator.
+3. J4 #317 coop4 READY, ships ON (Q16). Check A PASS (docs/guard-ai/checks/coop4-release-check-A.md, train notes).
+   Check B FIX (docs + parts 7-9 pooled) applied 3100d035: parts 7-9 named only, OUT documented, rejoin place, D4 as a
+   hook. Laptop: coop4-full2 (3100d035) + alone-coop4-4p (0837f147, test-delta only); WITHDRAW the stale coop4-full
+   request on 0837f147. B polish for later: refSlot x3 -> playerSlots.ts, #319 casts now direct, two team counts.
+   Green -> post checker (A PASS + B fix round) on 3100d035, tell the orchestrator train-ready.
 4. J6 src/ai allocations (D1, D2): Opus builder on feature/guard-ai-alloc (worktree -guard-ai-alloc); if cut off,
    restart it from the branch head; then PR + 2 Opus checkers.
 5. J15 guard-rules: plan on feature/guard-rules (WIP 376d883f; worktree -guard-rules): finish BRIEF / PLAN, Opus plan
