@@ -189,6 +189,27 @@ describe('coop-real F1c: no stale lamp round across a restart', () => {
     expect((h as unknown as HostLamps).lampLim.has('C')).toBe(false);
   });
 
+  it('a restart not yet polled (the pause menu restart, outside fixedUpdate) drops the round quietly', () => {
+    const m = clientShot();
+    const reg = level();
+    // the round would land against the last polled restart (4 s), but the mode has restarted since
+    const { h, g, r, onLampShot, shootLight } = host(reg, true, 4);
+    const hl = h as unknown as HostLamps;
+    g.mode.restarts = 1;
+    onLampShot(m);
+    expect(shootLight).not.toHaveBeenCalled();
+    expect(reg.lights[0]!.destroyed).toBe(false);
+    expect(r.violations).toBe(0);
+    expect(hl.lampLim.has('C')).toBe(false);
+    // the next step polls it (a restart at 4 s, before the round): the same round now lands
+    hl.time = 4;
+    hl.sendLamps(1 / 60);
+    expect(hl.lampRestarts).toBe(1);
+    onLampShot(m);
+    expect(shootLight).toHaveBeenCalledWith(0);
+    expect(r.violations).toBe(0);
+  });
+
   it('a round fired after the restart still lands', () => {
     const m = clientShot();
     const reg = level();

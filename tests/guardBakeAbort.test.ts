@@ -1,4 +1,5 @@
 // Guard bake driver (scripts/operators/guard-bake.mjs): a lost console stops the stage (gm-bake-abort).
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,13 +8,18 @@ import * as bake from '../scripts/operators/guard-bake.mjs';
 
 interface FakeJob { id: string; gpuBound: boolean }
 interface TodoItem { job: FakeJob; hash: string }
-interface Result { ok: boolean; code?: number | null; ms?: number; bytes?: number; message?: string }
+interface Result { ok: boolean; code?: number | null; ms?: number; bytes?: number; message?: string; err?: string }
 type Runner = (a: TodoItem, ctx: unknown) => Promise<Result>;
 const consoleLost = bake.consoleLost as (r: Result | null | undefined) => boolean;
 const stageExit = bake.stageExit as (failed: number, aborted: boolean) => number;
 const runAll = bake.runAll as (
   todo: TodoItem[], ctx: { outDir: string }, o: { par: number; maxGpu?: number; run?: Runner },
-) => Promise<{ results: Record<string, Result>; aborted: boolean }>;
+) => Promise<{ results: Record<string, Result>; aborted: boolean; cause: string | null }>;
+interface RunJob { id: string; outputs: string[] }
+type CmdFor = (job: RunJob, ctx: { outDir: string }) => [string, string[], string, NodeJS.ProcessEnv];
+const runJob = bake.runJob as (a: { job: RunJob; hash: string }, ctx: { outDir: string }, cmdFor: CmdFor) => Promise<Result>;
+const abortCause = bake.abortCause as (r: Result) => string;
+const abortLine = bake.abortLine as (cause: string | null) => string;
 const CONSOLE_LOST_CODE = bake.CONSOLE_LOST_CODE as number;
 const QUICK_FAIL_MS = bake.QUICK_FAIL_MS as number;
 const EXIT_CONSOLE_LOST = bake.EXIT_CONSOLE_LOST as number;
@@ -100,10 +106,15 @@ describe('runAll abort', () => {
     expect(f.started).toEqual(['a', 'b']);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(String(errorSpy.mock.calls[0]?.[0])).toMatch(/^abort {3}a:/);
+    expect(out.cause).toBe(`a: ${abortCause(first)}`);
   }
 
   it('stops new starts on exit 0xC0000142 and lets the running job finish', async () => {
     await abortCase({ ok: false, code: 3221225794, ms: 0, bytes: 0, message: 'exit 3221225794' });
+  });
+
+  it('stops new starts on a spawn error and names it', async () => {
+    await abortCase({ ok: false, code: null, ms: 3, bytes: 0, err: 'EPERM', message: 'could not start: spawn EPERM' });
   });
 
   it('stops new starts on a quick silent failure', async () => {
@@ -124,6 +135,57 @@ describe('runAll abort', () => {
     expect(out.results.a?.ok).toBe(false);
     for (const id of IDS.slice(1)) expect(out.results[id]?.ok).toBe(true);
     expect(errorSpy).not.toHaveBeenCalled();
+    expect(out.cause).toBeNull();
+  });
+});
+
+describe('abort text', () => {
+  it('names the spawn error, the lost-console exit or the quick silent failure', () => {
+    expect(abortCause({ ok: false, code: null, ms: 2, bytes: 0, err: 'ENOENT', message: 'could not start: spawn x ENOENT' })).toBe('spawn ENOENT');
+    expect(abortCause({ ok: false, code: -1073741502, ms: 0, bytes: 0, message: 'exit -1073741502' })).toBe('exit 0xC0000142');
+    expect(abortCause({ ok: false, code: 1, ms: 300, bytes: 0, message: 'exit 1' })).toBe('exit 1 in 0.3 s with 0 bytes of log');
+  });
+  it('keeps the ABORT line first and appends the cause', () => {
+    expect(abortLine(null)).toBe(ABORT_LINE);
+    expect(abortLine('a: spawn ENOENT')).toBe(`${ABORT_LINE} (a: spawn ENOENT)`);
+  });
+});
+
+describe('runJob', () => {
+  let outDir = '';
+  beforeEach(() => { outDir = mkdtempSync(path.join(os.tmpdir(), 'gm-bake-runjob-')); });
+  afterEach(() => { rmSync(outDir, { recursive: true, force: true }); });
+  const node = (src: string): CmdFor => () => [process.execPath, ['-e', src], process.cwd(), process.env];
+
+  it('reports a non-zero exit code and the bytes the job logged', async () => {
+    const r = await runJob({ job: { id: 'x', outputs: [] }, hash: 'h' }, { outDir }, node("process.stdout.write('0123456789'); process.exit(3)"));
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe(3);
+    expect(r.message).toBe('exit 3');
+    expect(r.bytes).toBe(10);
+    expect(r.err).toBeUndefined();
+    expect(r.ms).toBeGreaterThanOrEqual(0);
+    expect(readFileSync(path.join(outDir, 'logs', 'x.log'), 'utf8')).toBe('0123456789');
+    expect(consoleLost(r)).toBe(false);
+    expect(existsSync(path.join(outDir, 'x.hash'))).toBe(false);
+  });
+
+  it('reports exit 0 with its outputs as ok and writes the hash', async () => {
+    const r = await runJob({ job: { id: 'y', outputs: [] }, hash: 'abc' }, { outDir }, node("process.stdout.write('ok')"));
+    expect(r).toMatchObject({ ok: true, code: 0, bytes: 2 });
+    expect(readFileSync(path.join(outDir, 'y.hash'), 'utf8')).toBe('abc\n');
+  });
+
+  it('reports a spawn error by its code, with no exit code and an empty log', async () => {
+    const missing = path.join(outDir, 'no-such-blender.exe');
+    const r = await runJob({ job: { id: 'z', outputs: [] }, hash: 'h' }, { outDir }, () => [missing, [], outDir, process.env]);
+    expect(r.ok).toBe(false);
+    expect(r.err).toBe('ENOENT');
+    expect(r.code).toBeNull();
+    expect(r.bytes).toBe(0);
+    expect(r.message).toMatch(/^could not start: .*ENOENT/);
+    expect(consoleLost(r)).toBe(true);
+    expect(abortCause(r)).toBe('spawn ENOENT');
   });
 });
 

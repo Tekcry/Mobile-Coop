@@ -1331,6 +1331,10 @@ export class CoopHost implements NetAttachment {
     // (coop-real F1c) a round fired before the last set / section restart (in flight across it): the restart put the
     // lamps back, so it would shoot one out in the fresh run; dropped with no violation, before the rate limit
     if (lampShotStale(m.rt, this.lampRestartAt)) return;
+    // (player-batch-25) a restart `sendLamps` has not polled yet (the pause menu's restart runs outside the mode's
+    // fixedUpdate, so `lampRestartAt` lags it by up to a frame): the round cannot be judged against it, so it is
+    // dropped the same way (Sector Ops and Course mode both count `restarts`)
+    if (((this.g.mode as { restarts?: number } | null)?.restarts ?? 0) !== this.lampRestarts) return;
     // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
     // nothing to do and no violation (`lampShotOk` would refuse it as one)
     const reg = this.g.world.level.lights;
