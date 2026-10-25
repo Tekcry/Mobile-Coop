@@ -25,8 +25,11 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   - Q39 / G400 (orchestrator 00:55): every screen draws a player with the OWNER's animation source (it rides that
     player's networked anim state; Player Build builds the wire part in src/net). The kit clip follows the acting
     player's source as received: `KIT_TABLES` (0 not Mixamo, 1 Mixamo) resolved once per change, picked per rig per
-    frame by `kitSourceOf(rig)`; a one-line stub returns the local source for every rig until Player names the per-rig
-    field (A5), then a one-line swap. The old "viewer's own source" A5 is void. Test (c2): two rigs, two sources.
+    frame by `kitSourceOf(rig)`. Player named the field: `AnimGraph.animSource: AnimSource` (local = the player's
+    setting, remote = that player's networked state, wire part after ~04:53); kit pick = Mixamo clip when
+    `graph.animSource === 'mixamo' && MIXAMO_ON[slug]`. The one-line stub returns this machine's source for every rig
+    (A5) until Player sends the head with the field, then becomes `rig.graph.animSource` (one line, in the step 8 merge
+    commit). The old "viewer's own source" A5 is void. Test (c2): two rigs, two sources.
   - Round 3 (check 2 "Round 3" FIX 1): `mx` only picks the clip table; TeamPoser writes move / role whenever
     `KIT_TABLES[1].any`; the hang skip is `KIT_TABLES[1].any && move === 'pull' && role === 'a'` (not gated on `mx`, since
     #477's WREN_TRAV is the viewer's global table); the clear rule zeroes `mx` too; (a) runs Hand / CMU with kit rows on

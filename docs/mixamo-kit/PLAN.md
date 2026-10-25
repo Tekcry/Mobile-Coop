@@ -211,11 +211,16 @@ partner = the source received for that player. Design:
   player may be on Mixamo while this viewer is not). Same objects always.
 - Per rig per frame, in `TeamPoser.begin`: `const src = kitSourceOf(rig)` (0 or 1), then `KIT_TABLES[src]` by index: no
   allocation, no string compare in the frame.
-- Stub until Player names the per-rig field, ONE line in kitMixamo.ts:
-  `export let kitSourceOf = (_rig: TeamRigIn): 0 | 1 => (MIXAMO.on ? 1 : 0); // STUB (mixamo-kit): Player's per-rig source`
-  It returns the local source for the local rig and for a remote rig too (today's behaviour). A set-up-time test hook
-  `setKitSourceOf(fn)` (called once, never per frame) lets tests give two rigs different sources. The swap = that line
-  reads Player's field (e.g. `rig.animSource === 'mixamo' ? 1 : 0`), plus the optional field on `TeamRigIn`.
+- Player named the per-rig field: `AnimGraph.animSource: AnimSource` (src/anim/animGraph.ts; the type from
+  src/anim/animSource.ts). The local rig's is set from the player's setting, a remote avatar's from that player's
+  networked state (Player's wire part, after ~04:53). Kit pick: the Mixamo clip when `graph.animSource === 'mixamo' &&
+  MIXAMO_ON[slug]` (table 1 holds exactly the clips whose row is on; `kitSourceOf` picks table 1 for a Mixamo rig).
+- Stub until Player sends the head with that field, ONE line in kitMixamo.ts:
+  `export let kitSourceOf = (_rig: TeamRigIn): 0 | 1 => (MIXAMO.on ? 1 : 0); // STUB (mixamo-kit): rig.graph.animSource`
+  It returns this machine's source for the local rig and for a remote rig too (today's behaviour). A set-up-time test hook
+  `setKitSourceOf(fn)` (called once, never per frame) lets tests give two rigs different sources. The swap (one line, in
+  the brief step 8 merge commit): `(rig) => (rig.graph?.animSource === 'mixamo' ? 1 : 0)`, with `TeamRigIn.graph?` typed
+  to carry `animSource` beside `kit`.
 - Rows appended at the END of `MIXAMO_ON` (after the I3 rows): `kneeling_pull_up: true`, `pulling_up_to_a_ledge: true`,
   `lifting_heavy_object: true`, `crawling_prone: true`, and the per-phase keys `kit_pull_offer`, `kit_pull_hang`,
   `kit_shutter_offer`, `kit_shutter_drop`: false. One comment each.
@@ -386,8 +391,10 @@ Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit. Branch
    out of the tuner bag. Player's Studio set filter arrives with step 8's merge.
 8. The toggle is on origin/feature/mixamo-on a9b96fe1a, but that head does NOT hold mixamo-i3 (merging it here
    conflicts in Player's files): do NOT merge it. Keep the stub. Only when the lead hands over a Player head that holds
-   BOTH mixamo-i3 and mixamo-on: `git merge <that head>` (no rebase, no force push), with the stub line swapped for
-   `import { addMixamoResolver } from './mixamo';` in that same merge commit; any conflict in src: stop and report;
+   BOTH mixamo-i3 and mixamo-on: `git merge <that head>` (no rebase, no force push), with the addMixamoResolver stub
+   line swapped for `import { addMixamoResolver } from './mixamo';` in that same merge commit; if that head also has
+   `AnimGraph.animSource`, swap the `kitSourceOf` stub line to `(rig) => (rig.graph?.animSource === 'mixamo' ? 1 : 0)`
+   in the same commit (else it waits for the head that has it: one line then); any conflict in src: stop and report;
    rerun step 6.
 Never: touch src/game/kit/**, teamController.ts, teamMoves.ts, mapDef.ts, sectors.ts, sectorTeamDoors.ts,
 modes/sectorMode.ts, src/net/**, docs/systems/coop.md, stealthSystems.ts, player.ts, moveState.ts, gameState.ts,
@@ -437,9 +444,9 @@ Assumptions (to the orchestrator for Michael's next look; each undone by a row o
 - A2 the crawl plays at a fixed stretch (`KIT_SHOT.crawlStretch` 1.85, about 2x the capture's speed), the rest as slide.
 - A3 the shutter hold loop runs on each screen's own clock (a sub-second sway offset between screens).
 - A4 the takes' pelvis height is dropped for the holder and the climber (the game's root and crouch stay).
-- A5 (replaces the void "viewer's own source"): until Player names the per-rig source field, `kitSourceOf(rig)` returns
-  the local source for every rig, so a remote partner is drawn in this viewer's source (today's behaviour). Undo: the
-  one-line swap to Player's field (G400: the owner's source on every screen).
+- A5 (replaces the void "viewer's own source"): until Player's head with `AnimGraph.animSource` is merged,
+  `kitSourceOf(rig)` returns this machine's source for every rig, so a remote partner is drawn in this viewer's source
+  (today's behaviour). Undo: the one-line swap to `rig.graph.animSource` (G400: the owner's source on every screen).
 - A6 only if the builder finds the remote crawl path does not start at the crawl start: the per-page crawl phase offset.
 - A7 g uses the default hold gap 0.9 m; a shutter whose spec lowers its hold gap would clamp the lift clip early (none
   does today). Undo: carry the device's hold gap to the pose.
