@@ -1,0 +1,12 @@
+{
+  "id": "20261025T121557-night-shift-marlow-b-4690abcd-9d21",
+  "sha": "4690abcd85cd06e981f1a10ac1294e6cb1372b46",
+  "branch": "feature/marlow-batch-1025",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse"
+  ],
+  "set": "ctcourse"
+}
