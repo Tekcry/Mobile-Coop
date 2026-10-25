@@ -215,8 +215,9 @@ describe('guard-render S10b: no allocation in the per-frame atlas paths (structu
     const fc = readFileSync('src/world/frozenCaster.ts', 'utf8');
     for (const h of ['export function frozenCasterSphere(', 'export function thawed(']) expect(body(fc, h)).not.toMatch(ALLOC);
     const view = readFileSync('src/game/sectorGuardFreezeView.ts', 'utf8');
-    expect(body(view, '  private readLights(')).not.toMatch(ALLOC);
-    expect(body(view, '  private addSpotLight(')).not.toMatch(ALLOC);
+    // (guard-cap T1-SHADOW) the light reader is a module function, shared with the anim tier's shadow rule
+    expect(body(view, 'export function readFreezeLights(')).not.toMatch(ALLOC);
+    expect(body(view, 'function addSpotLight(')).not.toMatch(ALLOC);
     for (const f of ['src/world/torchShadows.ts', 'src/world/charShadows.ts']) {
       const src = readFileSync(f, 'utf8');
       // (the observer itself is the one closure, made once per configure)

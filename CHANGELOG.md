@@ -1,5 +1,43 @@
 # Changelog
 
+## 4.104.0 - Train 105: Guard anim tier: off-screen every 8th frame (guard-cap T1) (2026-10-25, PR #465; #438)
+- A guard drawn in no local view now solves his animation every 8th frame (was every 4th); the far tier (every 2nd),
+  the 4 m near-player rule, takedowns, holds, emotes, climbs and the frozen tier are unchanged, and the skipped time is
+  still carried into the next solve. Guard-cap M0 measured the anim solve at 55-59% of the sim growth with 24-32
+  guards. Gameplay is unaffected (hit volumes come from the sim). `?animtier=0` still turns the tiers off.
+- A guard out of view whose shadow (a lamp's, the moon's, a torch's) can fall in the view counts as seen and animates
+  like a guard in view (every frame; every 2nd past 22 m, as on screen), so his shadow never steps (A195, G327,
+  Michael 2026-10-25 "shadow in view = seen"). The test is the Sector render
+  freeze's own frustum test (frustum only: a shadow behind a wall still counts). `?animshadow=0` turns the shadow rule
+  off and `?animoff=N` sets the off-screen period, for A/B runs on one build.
+
+## 4.103.9 - Train 104: Level validator: measure core; Marlow Yard objective lines name the place; Tuner clarity polish (2026-10-25, PR #462; #460, #441, #440)
+
+### Marlow Yard objective lines name the place
+- Marlow Yard's objective lines now say where as well as what: the way-back and swap steps name the neck and the far lobby, and the list's last row says "holding room two" (or the cash dock) instead of a code.
+
+### Tuner clarity polish
+- The tuner's "Motion capture / Hand-made" tags no longer flicker when the live share sits right on the edge, the tag
+  is never cut off on narrow panels, and the key tools stay quiet when no slider is picked.
+- Editing a "no gun" row while she has a gun drawn now says so: "Holster to see it."
+
+### Level validator: measure core
+- Level validator (tooling, no game change): the measuring module from the V6 work joins master. It times every walk
+  between spaces on the real nav grid, finds the point on each shared wall where a link sits, measures each campaign
+  co-op link's way back for the partner, and gives the robot route-runs one shared table of space and link positions.
+  A link whose shared wall has two or more gaps gets no guessed time; the validator reports it instead.
+
+## 4.103.8 - Train 103: Route-runs: progress, stuck and steering math; Route-run report; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #461; #456, #453, #372)
+
+### Route-run report
+- Route-runs R2: `scripts/route-run/report.mjs` turns a robot run log into `route-run.json` and a plain-English `REPORT.md` with walk-card lines and the Marlow time line; tooling and tests only, no game change.
+
+### Route-runs: progress, stuck and steering math
+- Route-runs (J13 R3): the test robots' pure math in `scripts/route-run/progress.mjs`: progress along the planned
+  path (one storey at a time), the stuck watch (under 0.5 m in 8 s while walking; per-step time limits), the pad stick
+  and pace that give the crouched sneak speed from `docs/design/metrics.json`, the partner's trail point, which guard
+  level changes count as a detection or a notice, and the inferred cause of each. Tooling only.
+
 ## 4.103.7 - Train 102: Route-runs: route planner; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #458; #455, #372)
 - Route-runs (J13 R1): a route planner for the robot test runs. From a map's connectivity graph and its points table it
   picks the fewest runs that walk every declared approach (shadow, high, loud) of every guarded space, plus the one
