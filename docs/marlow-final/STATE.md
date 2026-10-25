@@ -500,5 +500,6 @@ State at the 18:20 save (each PR: check `checker` status on its head; none -> on
 - J14 Marlow Yard re-plan: planner was mid-work at the save; WIP origin/feature/marlow-replan 527ac416 (docs/marlow-replan/graph.json only). Rerun the planner from its brief (scope: BRIEF, REPLAN.md one page for Michael, to-scale SVGs, graph.json on training profile + validate-run.txt, STATE; Michael's Q5, Q11, Q18, Q24, Q25, Q29, Q2, Q6; format like origin/feature/sector-redesign-signoff docs/sector-redesign/signoff/). When ready: message the orchestrator "re-plan page ready for Michael".
 - J21 guard cap: docs on #436; resume block docs/guard-cap/STATE.md. Waits for Guard AI's J4 (G327) on master, then C1.
 Process (walk cap, train-ready, locks, laptop requests): RULES "Walk pacing", "Getting to master", "Machines". Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-Next: checkers for #441, #443, J12 plan, J13 plan (when CPU allows); rerun the J14 planner if its report is missing.
+- Owed (orchestrator 18:22): next docs PR rewords docs/design/scale-sheet.md:56 - the relay 4.6 is the hanging partner's feet height in code, not a lip height (a factual fix, not a rule change).
+Next: #443 / J12 / J13 checkers were started 18:23 (read their `checker` statuses); #441 checker when CPU < 80%; rerun the J14 planner if its report is missing.
 ```
