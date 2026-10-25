@@ -56,7 +56,7 @@ import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
-import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, HOLD_FEET_CH, WREN_HOLD, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -3032,16 +3032,38 @@ export class AnimGraph {
     const cb = W.climbUpStand ?? CLIMB_UP;
     if (ca === CLIMB_UP && cb === CLIMB_UP) return false;
     this.keepSave(src, KEEP_CH.climbUp);
+    // (I2b) a capture with a hold (`WREN_HOLD`, the braced take): the hand-made climb-up under it while the hands hold
+    // the lip, the capture blended in as the grips let go (smoothstep written out: no double argument)
+    // (the feet stay the hand-made climb-up's to the crouch: `HOLD_FEET_CH`)
+    const H = WREN_HOLD;
+    const hold = H.k0 >= 0 && ca !== CLIMB_UP;
+    let cw = 1;
+    if (hold) {
+      this.mxOver(src, CLIMB_UP);
+      for (let j = 0; j < HOLD_FEET_CH.length; j++) this.holdBase[j] = src[HOLD_FEET_CH[j]!]!;
+      const v = (ct - H.k0) / H.span;
+      cw = v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v);
+      mx[MX_W] = cw;
+      // the take's end eased to a stop at the crouch over `ease` of k (its last ease / 2 not reached; the take is cut
+      // mid-move at the crouch)
+      const C = CLIMB_UP_CROUCH_K;
+      const q = ct <= H.k0 ? H.from : ct >= C ? C : H.from + ((ct - H.k0) * (C - H.from)) / (C - H.k0);
+      const e = H.ease;
+      const r = C - q;
+      mx[MX_T] = e > 0 && r < e ? C - e / 2 - (r * r) / (2 * e) : q;
+    }
     this.mxOver(src, ca);
+    mx[MX_T] = ct;
+    if (hold) for (let j = 0; j < HOLD_FEET_CH.length; j++) src[HOLD_FEET_CH[j]!] = this.holdBase[j]!;
     // (smoothstep written out: no double argument)
-    const u = (ct - CLIMB_UP_CROUCH_K) / STAND_FADE;
+    const u = (ct - CLIMB_UP_CROUCH_K) / (hold ? H.stand : STAND_FADE);
     const sw = cb === ca || u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
     if (sw > 0) {
       mx[MX_W] = sw;
       this.mxOver(src, cb);
     }
     this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP);
-    this.travNow = sw > 0.5 ? cb : ca;
+    this.travNow = sw > 0.5 ? cb : cw > 0.5 ? ca : CLIMB_UP;
     return true;
   }
 
@@ -3061,6 +3083,8 @@ export class AnimGraph {
     }
   }
 
+  /** (I2b) The hand-made climb-up's feet under a held capture (`HOLD_FEET_CH`). */
+  private readonly holdBase = new Float64Array(8);
   /** (I2) The kept channels' values before the capture (the base pose under a channel the hand-made clip does not key). */
   private readonly keepBase = new Float64Array(64);
   private keepSave(src: Pose, keep: readonly number[]): void {

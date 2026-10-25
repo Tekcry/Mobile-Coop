@@ -81,6 +81,26 @@ export const SHIMMY_SPEED = { on: 0.15, fade: 0.12, dirFade: 0.1, swing: 0.01 } 
 /** The climb-up's stand-up end fades in over this much k past the crouch (about 0.1 s of the 1.3 s exit). */
 export const STAND_FADE = 0.08;
 
+/**
+ * (I2b) Per lip climb-up capture: the hand-made climb-up (CLIMB_UP) plays under it while the hands hold the lip and the
+ * capture blends in as the grips let go (smoothstep over k `k0` .. `k0 + span`; the game's `CLIMB_UP_HANDS`,
+ * moveState.ts). The braced take pulls up with its feet on the wall and its trunk upright: played from k 0 its shoulders
+ * went 0.85 m from the lip (arm 0.54) and the palms 58 cm off it before the right foot was on the top (k 0.59, the game
+ * needs it by the release, 0.475: tests/climbHands.test.ts).
+ */
+export const MIXAMO_HOLD: Readonly<Record<string, { k0: number; span: number; from: number; stand: number; ease: number }>> = {
+  braced_hang_to_crouch: { k0: 0.475, span: 0.168, from: 0.475, stand: 0.08, ease: 0 },
+};
+/** The resolved hold of the `climbUpCrouch` slot's capture (`k0` -1: none, the capture from k 0); `stand` its stand-up
+ *  fade (k; `STAND_FADE` without a hold). The graph reads it. */
+export const WREN_HOLD: { k0: number; span: number; from: number; stand: number; ease: number } = { k0: -1, span: 1, from: 0, stand: STAND_FADE, ease: 0 };
+/**
+ * (I2b) Under a hold the feet stay the hand-made climb-up's to the crouch (the stand-up's capture fades its own in): the
+ * braced take's right foot steps onto the top at k 0.53 - 0.6 (fRY up to 0.18 m over its crouch height), the game has it
+ * on the top by the release (k 0.475).
+ */
+export const HOLD_FEET_CH: readonly number[] = (['fLX', 'fLZ', 'fLY', 'fLPitch', 'fRX', 'fRZ', 'fRY', 'fRPitch'] as const).map((c) => CH[c]);
+
 /** A traversal move a capture plays in (the hang family, the ladder, the vent crawl, the lip climb-up, the top-out). */
 export type MixamoMove = 'hang' | 'climb' | 'crawl' | 'climbUp' | 'topOut';
 
@@ -118,6 +138,21 @@ export function resolveMixamo(): void {
     if (pick.slot === 'climbUpStand') T.climbUpCrouch = pick.clip;
   }
   T.any = SLOTS.some((s) => T[s] !== null);
+  WREN_HOLD.k0 = -1;
+  WREN_HOLD.span = 1;
+  WREN_HOLD.stand = STAND_FADE;
+  WREN_HOLD.ease = 0;
+  WREN_HOLD.from = 0;
+  for (const [slug, r] of Object.entries(MIXAMO_TRAV)) {
+    const h = MIXAMO_HOLD[slug];
+    if (h && T.climbUpCrouch === r.clip) {
+      WREN_HOLD.k0 = h.k0;
+      WREN_HOLD.span = h.span;
+      WREN_HOLD.stand = h.stand;
+      WREN_HOLD.ease = h.ease;
+      WREN_HOLD.from = h.from;
+    }
+  }
   for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {
     const out = KEEP_CH[m];
     out.length = 0;

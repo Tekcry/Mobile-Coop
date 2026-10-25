@@ -48,3 +48,6 @@
   (top-out first frame 19.9 cm vs hand-made 15.7, was 23.5). mixamoTraverse 11/12 (allocation test: JIT swing, #477 fixer).
 - Left: braced (hand pin on the lip) not started; freehang stand-up (re-centre its pelYaw turn, retime the x2.85 end) and braced (hands on the lip: anchor the
   palms to the lip through release) so climbHands passes with them on; the flag default unchanged (feature/mixamo-on).
+- At the save (05:31): merged feature/mixamo-i2 (ec486d6b; 7 files 62/63 pass with --testTimeout 400000, typecheck, eslint). Braced hold built, row still OFF: mixamo.ts MIXAMO_HOLD / WREN_HOLD / HOLD_FEET_CH, animGraph climb-up branch (hand-made under to k0, capture blended in over the release, feet hand-made to the crouch, clip-time remap `from`, end `ease`, per-hold `stand` fade).
+- Readings (braced on, scratch harness): palms 0.0, footOn 0.474, shoulders 0.49 m, knee 2.6 cm; best wrists pop 3.7 cm (cap 3.0) with k0 0.475 span 0.168 from 0.56 ease 0 stand 0.3 (trunk 6.8 / 3.1, groups ok). Defaults committed: from 0.475, stand 0.08, ease 0.
+- Left: wrists pop under 3 cm (then braced on + climbHands/mixamoTraverse test), freehang stand-up (step 4), I2B-REPORT, changes fragment. Scratch tests/zz_scratch_* are untracked, not committed.
