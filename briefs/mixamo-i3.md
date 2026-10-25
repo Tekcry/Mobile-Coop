@@ -1,4 +1,5 @@
 status: open
+priority: top
 
 # Brief: mixamo I3 - Mixamo stand-to-crouch / crouch-to-stand on Wren's stance changes behind `?mixamo=1` (Player Build)
 

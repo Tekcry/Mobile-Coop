@@ -1,4 +1,5 @@
 status: open
+priority: top
 
 # Brief: mixamo I1 - Mixamo standing idle (and crouched walk if it measures) on Wren behind `?mixamo=1` (Player Build)
 

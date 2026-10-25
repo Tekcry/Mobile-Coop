@@ -9,6 +9,8 @@ Line 1 is the status, exactly one of:
 - `status: claimed <session title> <iso time>`
 - `status: done <branch> <sha>`
 - `status: blocked <one-line reason>`
+Optional line 2: `priority: top` (only the orchestrator or a lead carrying Michael's priority sets it; builders take these
+first).
 Then the strict brief: base branch / sha, new branch name, the only files to edit, what to build, the tsc / vitest
 files to run (unit tests only: no e2e, no GPU, no npm run check), and done criteria.
 
@@ -18,7 +20,9 @@ Write the brief, `git add` it with `status: open`, commit, push to `cloud-queue`
 (back to `status: open` with an "Answer:" section).
 
 ## Cloud builders
-Loop: `git fetch origin cloud-queue`, reset to it, take the OLDEST `status: open` brief (by first commit time), set
+Loop: `git fetch origin cloud-queue`, reset to it, re-read this README, take the OLDEST `status: open` brief (by first
+commit time) among those whose line 2 is `priority: top` (Michael 2026-10-25 ~22:42: Mixamo first), else the oldest
+open brief; set
 `status: claimed <your title> <time>`, commit, push. If the push is rejected, someone else moved first: refetch and
 pick again. Build it (independent briefs may run in parallel with your own agents), push the result branch, write a
 short report at the end of the brief (what changed, tests run with counts, deviations), set `status: done <branch>
