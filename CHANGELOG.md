@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.107.0 - Train 114: Mixamo standing idle and crouched walk on Wren (behind ?mixamo=1); Mixamo crouch and stand-up on Wren (behind ?mixamo=1); +1 more (2026-10-26, PR #502; #485)
+
+### Mixamo standing idle and crouched walk on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): Wren's standing idle and, with Mocap locomotion on, her crouched sneak can now
+  play the Mixamo standing idle and crouched walk; guards keep the hand-made idle. Both stay hand-made in matches for
+  now (the idle holds the elbows too far out, the crouched walk turns the hips and knees out); the Anim Studio still
+  plays both captures.
+
+### Mixamo crouch and stand-up on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): standing still, Wren's crouching down and standing up can play the Mixamo
+  stand-to-crouch and crouch-to-stand captures on the game's own stance timing (the stance is never faster or slower).
+  Both stay hand-made in matches for now: squeezed into the game's 0.22 s change the captures jerk the body and hold
+  the elbows out more than the hand-made blend; the Anim Studio still plays both.
+
+### Mixamo idle, crouched walk and stance changes fixed and switched on (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): the Mixamo standing idle (arms brought in 11 deg), crouched walk (its trunk
+  turned onto the direction it walks) and crouch-down / stand-up (cut to the drop and the rise, on the game's own 0.22 s
+  stance) now play on Wren in matches when Mixamo is picked; the Anim Studio plays the same corrected clips for tuning.
+
 ## 4.106.1 - Train 113: Trains: doc-lint left-outs; a fix commit no longer hides the version commit (2026-10-26, PR #497; #495)
 - Train build: `merge-train build` runs doc-lint on the merged tree after each member and leaves out a member that
   adds a doc-lint error (for example two members together over a doc budget), with a comment asking its lead to fix
