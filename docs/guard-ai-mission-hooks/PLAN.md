@@ -48,8 +48,8 @@ save: none
 
 ## Order with J15 (guard-rules, same lead)
 J15's PRs go first; this job re-pins every file:line fact on the head it starts from.
-- S1a starts on the head after J15 PR3 merges (S4 bark causes, S6 posted pairs: `enemy.ts`, `enemyManager.ts`,
-  `flags.ts`, `e2e-stealth-ai`). S1b follows S1a.
+- S1a starts on the head after J15 PR4 merges (PR3 S4 bark causes, S6 posted pairs and PR4 S7 lookouts / S8 edit
+  `enemy.ts`, `enemyManager.ts`, `flags.ts`, `e2e-stealth-ai`; S1a reads PR4's `post.lookout`). S1b follows S1a.
 - S2, S3, S4 start after J15 PR4 merges (S7 lookouts: `guardAiData.ts validatePosts`, `placeSlot`; S8 `enemy.ts`).
 - S3 builds on J15 S5 (repeat alarms: the lock at `raiseAlarm` / `contactThrough` / `assignAlarm` / the caller /
   `radioAlarm`, `ALARM_REPEAT` max 3, `rearm` 60 s). Decision: with areas set, the lock and the count are per area
@@ -135,7 +135,7 @@ Campaign Build's side (C5) and Sector Ops' data (area stage actions) are in "Coo
   group.
 - `EnemyManager`: with `noiseZones` off, both the constructor's `mapNoisy` and `setNoisy` store [] (map data is
   ignored); on, one live mask sized at `setNoisy`, refreshed once per AI tick from `this.breakers.isOff(group)` in its
-  own branch: no breaker host = live (not `ctx.breakerOff`, which reads "off" then). `ambientAt(x, y, z)` = the same
+  own branch: no breaker host = live (not `ctx.breakerOff`, which reads "off" then); a console group is read the same way as `breakerOff` reads it (Re-check polish). `ambientAt(x, y, z)` = the same
   sum the guards use, for the HUD (D9); it refreshes the mask itself when the AI tick has not run since the last
   switch change (a co-op client does not tick the AI).
 - Data owners (not this job): Sector Ops `SectorDef.noisy` (S2 east plant switchgear on 55 / 56, S4 data hall CRACs
@@ -143,7 +143,7 @@ Campaign Build's side (C5) and Sector Ops' data (area stage actions) are in "Coo
   Build `tallowWharf` (cranes, the W4 weir). The orchestrator renames the bible's `noiseZones` (A12).
 
 ## Slices
-Order: S1a -> S1b; S2 (after J15 PR4, file-disjoint from S1a / S1b, may run beside S1b) -> S3 -> S4.
+Order (all after J15 PR4 merges): S1a -> S1b; S2 ( file-disjoint from S1a / S1b, may run beside S1b) -> S3 -> S4.
 
 **S1a Single-guard orders (Opus).** Section 1 without groups; the three flags (`missionOrders`, `areaAlarms`,
 `noiseZones`; URL `?missionorders=1` / `?areaalarms=1` / `?noisezones=1`; all off) so no later slice edits `flags.ts`.
@@ -211,8 +211,9 @@ Campaign Build (mission engine, `src/game/mission/**`, mission data):
 - C2 `MissionDef.posts?: MissionPost[]` (type from `src/ai/missionOrders.ts`) and these posts and events (floor y 0
   unless named; k = guard number - 1, `campusSectors.ts:81`):
   - Two-Key Ledger (as built: `tkl-3`, tag `w3-lodge-porter` = W3 slot 2): post `w3-passage` {x 101, z 53.75, y 0
-    (room `w3-passage` centre), bell {x 118.5, y 1.5, z 50, reach 20}} (the bell on the lodge's inner wall, 1.6 m
-    from the porter's post (117, 48); in reach also the yard watchman and his dog near (112, 46): they turn to look).
+    (room `w3-passage` centre), bell {x 118.5, y 1.5, z 50, reach 20}} (the bell on the lodge's inner wall, 2.5 m
+    from the porter's post (117, 48); in reach also the yard watchman and his dog near (112, 46): they only turn to look (`hearTurn`), the dog
+    included; no bystander runs its own hearing rule (a dog would charge), no incident).
   - Split Shift step 3 (`sync-s2-power`): two events `{name 'ss-power', guardTag 's2:6'}` (#7, facilities) and
     `{name 'ss-power', guardTag 's2:0'}` (#1, reception), both `postId 's2-plant-board', via 's2-reception'`; posts
     `s2-plant-board` {x -2, z -17, y 0 (room `plant` centre), circuits [55, 56]} (the walk ends at the board's switch

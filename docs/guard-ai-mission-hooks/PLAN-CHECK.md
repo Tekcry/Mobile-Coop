@@ -85,3 +85,7 @@ Polish (re-check):
   (`e.hear`, which can send a dog charging). S1a should give every bystander, the dog included, only `hearTurn`.
 - `noiseZones` reads `breakers.isOff` in its own branch. Console groups (`isConsoleGroup`, `enemyManager.ts:676`) need
   the same routing there, or `validateNoisy` should reject a console group.
+
+## Lead close (2026-10-25 ~19:15)
+R1 applied by the lead (S1a and every slice start after J15 PR4 merges); polish applied (bell 2.5 m, bystanders
+incl. the dog only `hearTurn`, console-group power check). The checker said no further round is needed: plan PASS.
