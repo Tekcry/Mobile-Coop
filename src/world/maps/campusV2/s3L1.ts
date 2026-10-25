@@ -311,7 +311,8 @@ export function buildS3L1(b: LevelBuilder): void {
   slabCut(b, [S3_BOX.nCore[2], vz0, vx1, vz1], C, S3_VOID_HOLES, ceilingDeck);
   const [, tz0, tx1, tz1] = S3_VOID_HOLES[1]!;
   b.box(tx1 + 0.6, C + 0.01, (tz0 + tz1) / 2, 1.2, 0.02, 1.2, PANEL_WHITE, 0, 0, false);
-  wall(b, true, -7, 10, S3_BOX.nCore[0], C, R, []);
-  wall(b, true, -7, S3_BOX.nCore[2], S3_BOX.eCore[0], C, R, []);
+  // (s3 join J2) one run over the north core too: left open there, the void led onto the corridor ceiling deck, the east
+  // lobby and the sealed chase (x 52..53, z -18..-11) with no way out
+  wall(b, true, -7, 10, S3_BOX.eCore[0], C, R, []);
   wall(b, true, -7, S3_BOX.eCore[2], 64, C, R, []);
 }

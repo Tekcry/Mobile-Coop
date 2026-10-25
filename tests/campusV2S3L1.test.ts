@@ -453,8 +453,15 @@ describe('campus v2 S3 L1 (R2b)', () => {
     expect(bL.boxes.some((p) => !p.collide && Math.abs(p.c[0] - 50.7) < 1e-6 && Math.abs(p.c[2] + 3) < 1e-6)).toBe(true);
     // the plenum wall z -7, 7.5 to 9.0, seals the corridor plenum (the cores' walls are R3's)
     for (let x = 10.2; x < 63.9; x += 0.3) {
-      if ((x > 29.9 && x < 33.6) || (x > 57.9 && x < 61.6)) continue;
+      // (s3 join J2) over the north core too (no gap: an opening there led to the sealed chase); the east core's walls are R3's
+      if (x > 57.9 && x < 61.6) continue;
       for (const y of [7.6, 8.9]) expect(pieceAt(lSolid, x, y, -7, false), `plenum wall at ${x}, ${y}`).toBeDefined();
+    }
+    // (s3 join J2) the softlock: the void reached the corridor ceiling deck over the north core, then the east lobby and
+    // the sealed chase (x 52..53, z -18..-11) with no way out. The guards' nav has no cell at the void's height (below),
+    // so the seal is the wall: z -7 from 7.5 to 9.0 with no gap over the north core
+    for (let x = kit.S3_BOX.nCore[0] + 0.05; x < kit.S3_BOX.nCore[2]; x += 0.25) {
+      for (const y of [7.55, 8.25, 8.95]) expect(pieceAt(lSolid, x, y, -7, false), `plenum wall over the north core at ${x}, ${y}`).toBeDefined();
     }
     // guards' nav: no walkable cell at the void's height anywhere (headroom 1.5 < 1.7)
     let voidCells = 0;
