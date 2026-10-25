@@ -112,9 +112,9 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   counted as walked. A door still locked 5 s after that is a `locked` dead stop. Set A<n> is bay n: a section's run
   starts there through the host session's `courseBay`, as `scripts/e2e-ctcourse.mjs:304` does.
 - **Restarts and retries (course mode).** On master a set with `spotFail` restarts from its start when one of its squad
-  is alerted (`courseMode.ts:593-596`; A2 Carriage Shed); after J14 every mistake is a retry of that station or step in
-  place, and in A8 the guards first react as on a mission (marlow-replan REPLAN "If it goes wrong" column, BRIEF A1-A2;
-  Q5). The harness sees each one (`window.__course.restarts` going up, or a robot moved more than 3 m between two polls
+  is alerted (`courseMode.ts:593-596`; set A2 Carriage Shed); after J14 every mistake is a retry of that station or step
+  in place, and in set A8 the guards first react as on a mission (marlow-replan `REPLAN.md` "If it goes wrong" column
+  and its BRIEF A1; Q5). The harness sees each one (`window.__course.restarts` going up, or a robot moved more than 3 m between two polls
   without a harness placement), logs it as a detection with `restart: set | retry`, re-joins its planned path at the
   step nearest where the game put the robots and walks on; the clock keeps running. The game's restart or retry is the
   forgive step there (A2 does not also calm the guards). A second restart from the same graph space in one run is a
