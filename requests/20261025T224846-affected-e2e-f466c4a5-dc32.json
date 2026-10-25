@@ -1,0 +1,18 @@
+{
+  "id": "20261025T224846-affected-e2e-f466c4a5-dc32",
+  "sha": "f466c4a5b421d67961d1e91aa75a52269105b78d",
+  "branch": "feature/campus-greybox-p0",
+  "pr": 503,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-levels",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #503"
+}
