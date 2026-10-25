@@ -160,11 +160,12 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   become live with their commands; the rule index gains the new checks. Cited as ROADMAP Decided 2026-10-25 ~16:50 Q24
   / Q29 until J2 gives them G numbers. No other rule changes. Undo: revert the docs slice.
 
-## Questions for the lead
-None of these loosens a Michael-only rule as assumed; each is where a reading of his words could.
-- **L1 (A9).** Q24 "same design rules as a campaign mission area": the full campaign route rules (rule of three, routes
-  cross, two routes) on late Marlow sections that keep a side route (assumed), or only routes cross and rejoin?
-- **L2 (A5).** A `null` measured reach or way back: WARN to justify with the declared time still checked (assumed, as
-  CONFORMANCE V2), or ERR (the strictest reading of LD 15)?
-- **L3 (A19).** Keep "a mission node on a training map is an ERR" until J22 decides how Marlow Yard sits in the
-  campaign list (Q6: "Marlow Yard is mission 1, which is training"; Tallow stays Mission 1)?
+## Lead answers (Marlow Build, 2026-10-25 ~19:00)
+None of these loosens a Michael-only rule; each settles a reading of his words.
+- **L1 (A9): full campaign route rules.** Michael's words are "same design rules as a campaign mission area", so a late
+  Marlow section that keeps a side route runs the full campaign route rules (rule of three, routes cross, two routes).
+- **L2 (A5): WARN stays.** A `null` measured reach or way back means a move the nav grid does not model, not a measured
+  miss: a WARN that the design doc must justify, with the declared time still checked (ERR over `reach_max_s`). A
+  measured miss stays an ERR (LD 15).
+- **L3 (A19): ERR stays.** A mission node on a training map stays an ERR until J22 decides how Marlow Yard sits in the
+  campaign list (Q6).
