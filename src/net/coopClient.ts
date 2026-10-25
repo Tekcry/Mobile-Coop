@@ -996,7 +996,9 @@ export class CoopClient implements NetAttachment {
     // (mission NET) the host's mission state on our runner (never evaluated here); a late joiner's first one with breaks
     // shows the last rule line (a live client had it as the host's radio line)
     if (msg.ms) {
-      const line = this.mission.take(this.g.world.map.missions, msg.ms);
+      // (wharf e2e fix) with the live section (`ls`, else our devices' one): the mirrored runner opens its steps
+      const ls = msg.ls ?? ct?.liveSection ?? -1;
+      const line = this.mission.take(this.g.world.map.missions, msg.ms, this.g.world.map.sectors?.[ls]?.id);
       if (line) this.g.hud.feedItem(line);
       const mr = this.mission.runner;
       if (mr && this.missionHud) this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
