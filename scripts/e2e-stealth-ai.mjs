@@ -3625,8 +3625,9 @@ try {
 
   await scen('mission group (guard-ai-mission-hooks S1b)', async () => {
     // (guard-ai-mission-hooks S1b, D7, A6) Two events of one name and via are one group. (a) Both come: B, tagged at the
-    // via, waits there; A walks in from the far side; the group leaves when A gets there, A leads to the post and B
-    // follows ORDER.followGap behind; A's look-round ends the group. (b) B busy at the event (investigating a bottle):
+    // via, waits there; A walks in from the far side, 23-26 m out (Split Shift's distance class: longer than
+    // ORDER.joinWait); the group leaves when A gets there (lead decision 2026-10-26: joinWait starts at the leader's
+    // arrival), A leads to the post and B follows ORDER.followGap behind; A's look-round ends the group. (b) B busy at the event (investigating a bottle):
     // he never joins, A waits ORDER.joinWait at the via, then goes alone. Sim-time steps only; Math.random seeded.
     const r = await G(() => {
       const t = window.__t;
@@ -3651,7 +3652,8 @@ try {
         return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
       };
       // the points (the 'dog release' floor check): via V on open floor, a post P 8-12 m from V on a straight line, a
-      // spawn for A 10-14 m from V on the far side from P (straight to V), B's spot within 1.5 m of V
+      // spawn for A 23-26 m from V on the far side from P (straight to V: a grunt at patrol pace, ~1 m/s, needs more
+      // than joinWait to get within atVia), B's spot within 1.5 m of V
       let pick = null;
       for (const v of [[0, 5], [3, 5.5], [-14.5, 4], [4, 1]]) {
         if (pick) break;
@@ -3670,9 +3672,9 @@ try {
         if (!p) continue;
         const away = Math.atan2(v[0] - p[0], v[1] - p[1]);
         let sa = null;
-        for (const rr of [11, 10, 12, 13, 14]) {
+        for (const rr of [24, 25, 23, 26]) {
           if (sa) break;
-          for (const o of [0, 0.26, -0.26, 0.52, -0.52, 0.79, -0.79]) {
+          for (const o of [0, 0.26, -0.26, 0.52, -0.52, 0.79, -0.79, 1.05, -1.05]) {
             const x = v[0] + Math.sin(away + o) * rr;
             const z = v[1] + Math.cos(away + o) * rr;
             if (!floor(x, z) || Math.hypot(x - hide[0], z - hide[1]) < 12 || !nav.lineClear([x, z], v, 0, 0)) continue;
@@ -3728,7 +3730,7 @@ try {
           const gaps = [];
           let order1 = true;
           let doneAt = -1;
-          for (let k = 0; k < 900 && doneAt < 0; k++) {
+          for (let k = 0; k < 1200 && doneAt < 0; k++) {
             t.step(0.1);
             tt += 0.1;
             track(seen, 'e2e-grp');
@@ -3793,7 +3795,7 @@ try {
           let membersAtWalk = -1;
           let atPost = 99;
           let doneAt = -1;
-          for (let k = 0; k < 1200 && doneAt < 0; k++) {
+          for (let k = 0; k < 1500 && doneAt < 0; k++) {
             t.step(0.1);
             tt += 0.1;
             track(seen, 'e2e-grp');
@@ -3822,11 +3824,12 @@ try {
     });
     const s = (v) => JSON.stringify(v);
     const f2 = (v) => v.toFixed(2);
-    assert(r.pick, 'mission group: a via, a post 8-12 m off and a far-side spawn on open floor');
+    assert(r.pick, 'mission group: a via, a post 8-12 m off and a far-side spawn 23-26 m out on open floor');
     if (r.pick) {
       const a = r.a;
       const T = r.table;
       console.log(`  group: A walks ${f2(a.aAt)} s to the via; the group leaves at ${f2(a.leftAt)} s (waited ${f2(a.waitAtLeave)} s); gap ${f2(a.gapMin)}-${f2(a.gapMax)} m over ${a.gapN} samples`);
+      assert(a.aAt > T.joinWait, `mission group: A walks longer than joinWait to the via (Split Shift's distance class; ${f2(a.aAt)} s, joinWait ${T.joinWait} s)`);
       assert(a.bFar <= 1.5, `mission group: B waits at the via until A is there (${f2(a.bFar)} m from it at most, spawned 1 m off)`);
       assert(a.aAt > 0 && a.leftAt > 0 && a.leftAt - a.aAt <= 0.5, `mission group: the group leaves within 0.5 s of A at the via (A ${f2(a.aAt)} s, left ${f2(a.leftAt)} s)`);
       assert(a.membersAtWalk === 2 && a.groupAtWalk, `mission group: two members, A leading, as they leave (${a.membersAtWalk}, group/lead ${a.groupAtWalk})`);

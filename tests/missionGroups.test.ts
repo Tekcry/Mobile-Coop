@@ -20,8 +20,9 @@ import type { Vfx } from '../src/vfx/vfx';
 import { flags } from '../src/core/flags';
 
 // (guard-ai-mission-hooks S1b, D7, A6) Mission order groups: events with one name and via gather at the via, leave
-// when every member is there or `ORDER.joinWait` after the first arrival, the first live member leads and the others
-// follow `ORDER.followGap` behind; the leader's end ends the group, a dropped member leaves it and the next leads.
+// when every member is there or `ORDER.joinWait` after the leader's arrival (lead decision 2026-10-26), the first live
+// member leads and the others follow `ORDER.followGap` behind; the leader's end ends the group, a dropped member leaves
+// it and the next leads.
 
 let flagWas = false;
 beforeEach(() => {
@@ -41,6 +42,16 @@ function board(px: number, pz: number, vx = Number.NaN, vz = Number.NaN) {
   return { b, s };
 }
 
+/** Steps `gatherStep` (0.1 s) until the group leaves; the seconds it took (fails past joinWait + 1). */
+function leaveAfter(b: OrderBoard, s: number): number {
+  let t = 0;
+  while (!b.gatherStep(s, 0.1)) {
+    t += 0.1;
+    expect(t).toBeLessThan(ORDER.joinWait + 1);
+  }
+  return t;
+}
+
 describe('OrderBoard: groups (S1b)', () => {
   it("forms only with a via and 2+ members; 'gathering' while a member is live; 'walking' after it leaves", () => {
     const lone = board(10, 0, 5, 0);
@@ -56,6 +67,7 @@ describe('OrderBoard: groups (S1b)', () => {
     b.add(s, 1, M_WALKING);
     b.add(s, 2, M_WALKING);
     b.group(s);
+    b.lead[s] = 1;
     expect([b.gath[s], b.phase[s]]).toEqual([1, 'gathering']);
     b.markVia(s, 1);
     b.markVia(s, 2);
@@ -66,14 +78,58 @@ describe('OrderBoard: groups (S1b)', () => {
     expect(b.gath[s]).toBe(0);
   });
 
-  it('leaves when every member is at the via; with one missing, only joinWait after the first arrival (+-dt)', () => {
+  it('a follower at the via starts no clock; it leaves when every member is at the via', () => {
     const { b, s } = board(10, 0, 5, 0);
     b.add(s, 1, M_WALKING);
     b.add(s, 2, M_WALKING);
     b.group(s);
+    b.lead[s] = 1;
     // nobody there yet: the wait does not run
     for (let k = 0; k < 300; k++) expect(b.gatherStep(s, 0.1)).toBe(false);
     expect(b.waitT[s]).toBe(-1);
+    // (lead decision 2026-10-26) a follower at the via starts no clock: he waits for the leader as long as it takes
+    b.markVia(s, 2);
+    expect(b.waitT[s]).toBe(-1);
+    for (let k = 0; k < 300; k++) expect(b.gatherStep(s, 0.1)).toBe(false);
+    expect([b.waitT[s], b.phase[s]]).toEqual([-1, 'gathering']);
+    // the leader gets there: everyone is in, it leaves this step
+    b.markVia(s, 1);
+    expect(b.waitT[s]).toBe(0);
+    expect(b.gatherStep(s, 0.1)).toBe(true);
+  });
+
+  it('the leader changes: a new leader already at the via starts the clock; one still walking stops it', () => {
+    const { b, s } = board(10, 0, 5, 0);
+    b.add(s, 1, M_WALKING);
+    b.add(s, 2, M_WALKING);
+    b.add(s, 3, M_WALKING);
+    b.group(s);
+    b.lead[s] = 1;
+    b.markVia(s, 2);
+    for (let k = 0; k < 250; k++) b.gatherStep(s, 0.1);
+    expect(b.waitT[s]).toBe(-1);
+    // the leader drops on his way: #2 leads, he stands at the via, the clock starts this step
+    b.set(s, 1, M_DROPPED, 'down');
+    b.lead[s] = b.firstLive(s);
+    expect(b.lead[s]).toBe(2);
+    expect(b.gatherStep(s, 0.1)).toBe(false);
+    expect(b.waitT[s]).toBeCloseTo(0.1, 6);
+    // #2 drops at the via: #3, still walking, leads; the clock stops and the group waits for him
+    b.set(s, 2, M_DROPPED, 'task');
+    b.lead[s] = b.firstLive(s);
+    expect(b.lead[s]).toBe(3);
+    for (let k = 0; k < 300; k++) expect(b.gatherStep(s, 0.1)).toBe(false);
+    expect(b.waitT[s]).toBe(-1);
+    b.markVia(s, 3);
+    expect(leaveAfter(b, s)).toBeCloseTo(ORDER.joinWait, 0);
+  });
+
+  it('with one missing, it leaves only joinWait (+-dt) after the leader arrived', () => {
+    const { b, s } = board(10, 0, 5, 0);
+    b.add(s, 1, M_WALKING);
+    b.add(s, 2, M_WALKING);
+    b.group(s);
+    b.lead[s] = 1;
     b.markVia(s, 1);
     let t = 0;
     while (!b.gatherStep(s, 0.1)) {
@@ -94,6 +150,7 @@ describe('OrderBoard: groups (S1b)', () => {
     expect(b.firstLive(s)).toBe(1);
     expect(b.stateOf(s, 2)).toBe(M_DROPPED);
     expect(b.stateOf(s, 9)).toBe(-1);
+    b.lead[s] = 1;
     b.markVia(s, 1);
     b.markVia(s, 2); // (a dropped member never gets there; marking him changes nothing below)
     b.set(s, 2, M_DROPPED);
@@ -150,7 +207,7 @@ describe('OrderLeg: wait at the via, follow (S1b)', () => {
     const g0 = leg.step(0.1, b, s, 11, 0, 0);
     expect(leg.state).toBe(LEG_WAIT_VIA);
     expect(b.memVia[s * b.per + 1]).toBe(1);
-    expect(b.waitT[s]).toBe(0);
+    expect(b.waitT[s]).toBe(-1); // (lead decision 2026-10-26) he is no leader: no clock
     expect(g0.move).toBe(false);
     expect([g0.x, g0.z]).toEqual([10, 0]);
     expect(g0.face).toBeCloseTo(0, 6); // via (10, 0) -> post (10, 10): +Z
@@ -424,6 +481,63 @@ describe('Wiring: a group walks (S1b)', () => {
     expect(seen).toEqual(['gathering', 'walking', 'arrived', 'done']);
     expect(b.orderSlot).toBe(-1);
     expect(em.orders.stateOf(s, b.num)).toBe(M_DROPPED);
+  });
+
+  // (lead decision 2026-10-26: joinWait starts at the leader's arrival) Split Shift's distance class: the leader comes
+  // from 35 m out, past joinWait; the follower at the via waits for him and never walks out to meet him.
+  it('the leader 35 m out, the follower at the via: gathering past joinWait; leaves the step the leader arrives; nobody walks back to a walking leader', async () => {
+    const a = await probe(10, -35, 'g1');
+    const b = await probe(10.5, -1, 'g2');
+    const em = world([a, b]);
+    em.missionOrder('g1', 'walk', 'post', 'via', 'grp');
+    em.missionOrder('g2', 'walk', 'post', 'via', 'grp');
+    const s = em.orders.find('grp');
+    expect(em.orders.lead[s]).toBe(a.num);
+    let k = 0;
+    let aAt = -1;
+    let leftAt = -1;
+    let follows = 0;
+    const seen = run(em, 'grp', 45, ['gathering'], () => {
+      k++;
+      if (aAt < 0 && a.leg.state === LEG_WAIT_VIA) aAt = k;
+      if (leftAt < 0 && em.orders.left[s] === 1) leftAt = k;
+      if (leftAt < 0) {
+        expect(Math.hypot(b.pos.x - 10.5, b.pos.z + 1)).toBe(0); // he waits where he is
+        if (aAt < 0) expect(em.orders.waitT[s]).toBe(-1); // no clock before the leader is there
+      }
+      // (check B polish 2) a follower never follows a leader still on his via leg
+      if (b.leg.state === LEG_FOLLOW) {
+        follows++;
+        expect(a.leg.state).not.toBe(LEG_TO_VIA);
+      }
+    });
+    expect(aAt * 0.1).toBeGreaterThan(ORDER.joinWait);
+    expect(leftAt).toBe(aAt);
+    expect(follows).toBeGreaterThan(0);
+    expect(seen).toEqual(['gathering', 'walking', 'arrived', 'done']);
+  });
+
+  it('the leader drops on his way: the next member, at the via, leads and the clock starts then', async () => {
+    const a = await probe(10, -35, 'g1');
+    const b = await probe(10.5, -1, 'g2');
+    const em = world([a, b]);
+    em.missionOrder('g1', 'walk', 'post', 'via', 'grp');
+    em.missionOrder('g2', 'walk', 'post', 'via', 'grp');
+    const s = em.orders.find('grp');
+    run(em, 'grp', 15);
+    expect([em.orderPhase('grp'), em.orders.waitT[s]]).toEqual(['gathering', -1]);
+    em.enemies.splice(0, 1);
+    tick(em, 0.1);
+    expect([em.orders.stateOf(s, a.num), em.orders.lead[s]]).toEqual([M_DROPPED, b.num]);
+    expect(em.orders.waitT[s]).toBeCloseTo(0.1, 6);
+    let left = -1;
+    let t = 0.1;
+    const seen = run(em, 'grp', 40, ['gathering'], () => {
+      t += 0.1;
+      if (left < 0 && em.orders.left[s] === 1) left = t;
+    });
+    expect(Math.abs(left - ORDER.joinWait)).toBeLessThanOrEqual(0.25);
+    expect(seen).toEqual(['gathering', 'walking', 'arrived', 'done']);
   });
 
   it('a member given a breaker walk on another circuit on the way: dropped (task) at his next step; the other goes on', async () => {

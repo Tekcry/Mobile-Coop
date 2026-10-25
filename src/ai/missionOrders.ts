@@ -165,7 +165,7 @@ export class OrderBoard {
   readonly gath = new Uint8Array(ORDER.maxOrders);
   /** 1 once the group left its via. */
   readonly left = new Uint8Array(ORDER.maxOrders);
-  /** Seconds since the first member reached the via (-1: nobody yet). */
+  /** Seconds since the current leader reached the via (-1: he is not there). */
   readonly waitT = new Float32Array(ORDER.maxOrders).fill(-1);
   /** The leading member (`Enemy.num`; -1 none): the first live member in event order (S1b-e). */
   readonly lead = new Int32Array(ORDER.maxOrders).fill(-1);
@@ -357,18 +357,20 @@ export class OrderBoard {
     this.refresh(slot);
   }
 
-  /** (S1b-d) Member `num` reached the group's via: he waits there; the first arrival starts the `joinWait` clock. Not
-   *  a member: nothing. */
+  /** (S1b-d, lead decision 2026-10-26) Member `num` reached the group's via: he waits there; the current leader's
+   *  arrival starts the `joinWait` clock (the others wait for him). Not a member: nothing. */
   markVia(slot: number, num: number): void {
     const i = this.at(slot, num);
     if (i < 0) return;
     this.memVia[i] = 1;
-    if (this.waitT[slot]! < 0) this.waitT[slot] = 0;
+    if (num === this.lead[slot] && this.waitT[slot]! < 0) this.waitT[slot] = 0;
   }
 
   /** (S1b-a) One step `dt` of a gathering group: it leaves its via when every member recorded on the slot (any state:
-   *  a dropped member never reaches it) is there, or `ORDER.joinWait` s after the first arrival. No live member: it
-   *  stops gathering. True: the group left this step. */
+   *  a dropped member never reaches it) is there, or `ORDER.joinWait` s after the current leader (`lead`) reached it
+   *  (S1b-d, lead decision 2026-10-26). The clock runs only while the leader is at the via: a newly promoted leader
+   *  already there starts it; one still walking stops it, so the group never leaves without its leader. No live
+   *  member: it stops gathering. True: the group left this step. */
   gatherStep(slot: number, dt: number): boolean {
     if (this.gath[slot] === 0) return false;
     if (this.liveN(slot) === 0) {
@@ -376,7 +378,13 @@ export class OrderBoard {
       this.refresh(slot);
       return false;
     }
-    if (this.waitT[slot]! >= 0) this.waitT[slot] = this.waitT[slot]! + dt;
+    const li = this.at(slot, this.lead[slot]!);
+    if (li < 0 || this.memVia[li] !== 1) {
+      // the leader is not at the via yet (or a new one still walks): no clock, and "all there" cannot hold
+      this.waitT[slot] = -1;
+      return false;
+    }
+    this.waitT[slot] = this.waitT[slot]! < 0 ? dt : this.waitT[slot]! + dt;
     const base = slot * this.per;
     let all = true;
     for (let j = 0; j < this.memN[slot]! && all; j++) if (this.memVia[base + j] !== 1) all = false;
