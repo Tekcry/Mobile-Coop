@@ -1,8 +1,7 @@
-$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator, origin/master 2148ec969, read-only; no node_modules needed)
+$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator, unchanged; read-only run 2026-10-25 evening)
 
 ERROR: co-op links reach 3 of 8 encounter spaces (need at least half)
 ERROR: section A3 has no co-op link
-ERROR: section A4 has no co-op link
 WARN:  a1-lounge: room_class custom (justify the size in the design doc)
 WARN:  a1-apron: room_class custom (justify the size in the design doc)
 WARN:  a1-cabin: room_class custom (justify the size in the design doc)
@@ -16,6 +15,7 @@ WARN:  a2-cabin: ceiling 2.5 m below the 3 m room ceiling
 WARN:  a2-lane: room_class custom (justify the size in the design doc)
 WARN:  a2-neck: room_class custom (justify the size in the design doc)
 WARN:  a2-east: room_class custom (justify the size in the design doc)
+WARN:  a2-pitside: room_class custom (justify the size in the design doc)
 WARN:  a2-hold-l2: room_class custom (justify the size in the design doc)
 WARN:  a3-west-lobby: room_class custom (justify the size in the design doc)
 WARN:  a3-east-lobby: room_class custom (justify the size in the design doc)
@@ -26,6 +26,9 @@ WARN:  a4-cross: room_class custom (justify the size in the design doc)
 WARN:  a4-main-aisle: room_class custom (justify the size in the design doc)
 WARN:  a4-dock: room_class custom (justify the size in the design doc)
 WARN:  a4-hold-l4: room_class custom (justify the size in the design doc)
+WARN:  a5-gap: room_class custom (justify the size in the design doc)
+WARN:  a5-walltop: room_class custom (justify the size in the design doc)
+WARN:  a5-apron-east: room_class custom (justify the size in the design doc)
 WARN:  a5-apron: room_class custom (justify the size in the design doc)
 WARN:  a5-inner: room_class custom (justify the size in the design doc)
 WARN:  a5-lee: room_class custom (justify the size in the design doc)
@@ -34,6 +37,7 @@ WARN:  a6-sump: room_class custom (justify the size in the design doc)
 WARN:  a6-floor: room_class custom (justify the size in the design doc)
 WARN:  a6-gallery: room_class custom (justify the size in the design doc)
 WARN:  a6-bridge: room_class custom (justify the size in the design doc)
+WARN:  a6-pit: room_class custom (justify the size in the design doc)
 WARN:  a6-hold-l6: room_class custom (justify the size in the design doc)
 WARN:  a7-lobby: room_class custom (justify the size in the design doc)
 WARN:  a7-corridor: ceiling 3.5 m outside corridor 3-3 m
@@ -54,9 +58,8 @@ WARN:  a8-dock: room_class custom (justify the size in the design doc)
 WARN:  link a4-main-aisle -> a4-dock (opening): width 8 m outside 2.5-3.5 m
 WARN:  link a5-apron -> a5-inner (opening): width 6 m outside 2.5-3.5 m
 WARN:  link a6-sump -> a6-floor (opening): width 1.5 m outside 2.5-3.5 m
-WARN:  link a6-gallery -> a6-floor (open_stair): width 1.2 m below 2.4 m
 WARN:  link a6-gallery -> a6-bridge (opening): width 5 m outside 2.5-3.5 m
-WARN:  link a8-hall -> a8-gallery (open_stair): width 1.2 m below 2.4 m
+WARN:  link a6-bridge -> a6-pit (drop): drop 6 m above the 4.5 m safe drop
 WARN:  pacing: no release (1-2) after the peak at a7-hall before a7-pod
 WARN:  pacing: no release (1-2) after the peak at a8-hall before a8-office
 WARN:  pacing: no release (1-2) after the peak at a8-office before a8-lobby-inner
@@ -69,5 +72,39 @@ INFO:  a7-hall: 1 guards (2 players) below the late band 6-10
 INFO:  a8-hall: 2 guards (2 players) below the late band 6-10
 INFO:  a8-office: 1 guards (2 players) below the late band 6-10
 
-3 error(s), 57 warning(s).
+2 error(s), 61 warning(s).
 exit code: 1
+
+## What each line means (J14 planner)
+
+Errors (2), neither a gap in the plan:
+- "co-op links reach 3 of 8 encounter spaces": the campaign coverage rule (level-design 11.9). Does not apply: Q29,
+  Michael: "marlow yard in particular is an isolated training level which forces training of each individual coop move
+  and coop gameplay, and does not need the same checks". Every section teaches a co-op move or co-op skill (REPLAN table).
+- "section A3 has no co-op link": A3 teaches the vent unlock, drawn as a `bolted` fire door opened by the crawler.
+  level-design 11.9 lists the bolted door as a kit move but the validator's COOP_KINDS set does not count it. Not a gap
+  in the plan (validator gap, for Marlow Build's validator list). Q29 also covers it.
+- Fixed since the 18:19 run: "section A4 has no co-op link" (A4 now teaches Deadweight on the passage grille).
+
+Warnings:
+- room_class custom (48): the built set rooms keep their built sizes (mock-up sets, not real room classes). Not a gap;
+  the sizes are the built ones (src/world/maps/ctcourseSets/*.ts), justified per set in the marlow-final set docs.
+- ceiling (5): a1-cabin and a2-cabin 2.5 m (site cabins), a7-pod 2.6 m and a7-cage 2.4 m (data-hall containment), a7
+  plant corridor 3.5 m. Real for those spaces; kept as built.
+- opening widths (4): the A4 main aisle (8 m), the A5 beam gateway (6 m), the A6 kerb openings (1.5 m) and the A6 bridge
+  junction (5 m) are built geometry, not doorways. Kept.
+- drop 6 m above the 4.5 m safe drop (a6-bridge -> a6-pit): intended. It is the Drop Catch: the heavy landing is the
+  noise the catch avoids (the engine has no fall damage, only a loud heavy landing).
+- pacing (3): a7-hall and a7-pod are the two legs of the A7 split (both peak together, the release is holding room 7);
+  a8-hall -> a8-office -> a8-lobby-inner is the graduation set piece (level-design 6.1), released at the vault and dock.
+  By design; the walk confirms.
+- Fixed since the 18:19 run: the A6 staff stair (1.2 m) is closed (Q24) and the A8 public stair is widened to 2.4 m
+  (A8 follows campaign-area rules, Q24).
+
+Info (8): guard counts under the campaign bands. Do not apply: [Training] "a set spawns at most 3 guards; the bands do
+not bind" (level-design 4.9) and Q11, Michael: "Only the logical amount required to test the specific movement/game
+mechanic required. Doesn't necessarily always need a guard."
+
+Stand-in kinds: the five new kit moves (BRIEF A3) have no validator kind yet; graph.json draws each with the nearest kind
+and a `move` field (plank_bridge pair_gate, deadweight shutter, chimney_pair team_rope, swing_pass team_throw with the
+real gap in `gap_m`, drop_catch drop). Marlow Build adds the kinds when the moves are built.
