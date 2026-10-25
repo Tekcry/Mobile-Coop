@@ -349,7 +349,7 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   `exception: "long_throw"` and `width` 4.9 (J12's cap is the 4.9 m gap, not the 5.8 m throw); once S7a / S7b are in
   the validator D0 / D1 run, they pass as INFO and the gate is 0 ERR with no exception. The pie link 29 is a plain
   2.5 m `team_throw` with no `exception` and no ERR. Link numbers are 0-based on today's graph (master and engine
-  alike, checked in fix round 2); D0 deletes link 30 (A29), so the C5 link becomes 32: J12 matches a spot by
+  alike, checked in fix round 2); D0 deletes link 30 (A29) and link 32 (the dormer window, LP E6), so the C5 link becomes 31: J12 matches a spot by
   `tallowWharf:<from>><to>`, not by number, so nothing breaks, and D0's saved note gives the new number. V6 cannot read the kit kinds until J12: not a J8 gate. Undo:
   J12's ported validator once on master.
 - **A23 Free assets come after the greybox gates.** J8 / J9 stay greybox (`detail: false`): no external asset enters
@@ -471,7 +471,7 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
     coordinates; G2 writes them once G3 is in its base). Route 1 is then TKL leg a's walk and route 2 leg b's (D0 times
     the legs from them). TGC's bulkhead crossing stays open in TGC and is proved by G3's TGC test and E8's TGC line,
     not by a declared route.
-  - **Graph (D0):** link 36 (35 after the link-30 deletion) `w3-roof -> w3-east-wing` stays unbolted (the map's
+  - **Graph (D0):** link 36 (34 after the link-30 and link-32 deletions, LP E6) `w3-roof -> w3-east-wing` stays unbolted (the map's
     default and TGC's state, so the solo-bypass check sees the wider state) and gains `bolted_in: ["twoKeyLedger"]` (a
     field master's validator ignores) and a note citing A30. D0 saves a second map + TKL run with that link
     `bolted: true` (TKL's state; check 3's own run of it: 2 ERR, the two named lines).
@@ -1184,7 +1184,7 @@ parameter (expected `kitmoves=`; its PR names it).
   M2 and is J12 A27 (S7a / S7b: `exception: "long_throw"`, the 4.9 m cap, spots `tallowWharf:w2-pawn-loft>w2-reading-room`
   and `tallowWharf:w2-arcade-roof>w3-roof`, checked); the sheet row's wording goes to Michael on the walk card, and
   Campaign Build tells Marlow so J12 A27 says the same (M2 approves the spots, the walk card the wording; polish 3);
-  tell Marlow that D0 deletes link 30 (A29), so the C5 link becomes 32 (its spots match by name); J8's graph adds a
+  tell Marlow that D0 deletes links 30 (A29) and 32 (LP E6), so the C5 link becomes 31 (its spots match by name); J8's graph adds a
   link field `bolted_in` (A30) that today's validator ignores: J12 may read it later (a mission run treats the link as
   bolted); J12's `plank_bridge` kind (A25) is PB's (A13). Marlow Yard's throw drills are
   unaffected by TD (no sites; its tests and `e2e-ctcourse` are in PR T's run).
@@ -1471,7 +1471,7 @@ J12 A27 (`exception: "long_throw"`, a 4.9 m gap cap) replaces round 1's `throw_d
   bulkhead tests G3's; W3 route 1 goes by the lantern; the graph link stays unbolted with `bolted_in:
   ["twoKeyLedger"]`. In Three Grey Coats the stair is a plain door and the signed crossing is unchanged. Not a J7 rule
   change. Fallback if MB is rejected: no bulkhead bolt (A30's undo).
-- Link renumbering: D0 deletes link 30, so the C5 throw becomes link 32. Campaign Build tells Marlow (J12 matches
+- Link renumbering: D0 deletes links 30 (A29) and 32 (the dormer window, LP E6), so the C5 throw becomes link 31. Campaign Build tells Marlow (J12 matches
   spots by `map:from>to`).
 - PR sizes G1 ~1,030 and G2 ~1,080 lines: accepted (under the ~1.5k cap).
 
