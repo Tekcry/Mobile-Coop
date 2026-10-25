@@ -30,7 +30,9 @@
     ["north edge", -25, -52],
     ["far east", 5, -60],
     ["forecourt", -20, -42],
-    ["barrier lane", 11, -70]
+    ["barrier lane", 11, -70],
+    ["south row column", -24, -71.5],
+    ["south island", -19.2, -71.5]
    ],
    "views": [
     ["wide-sw", [-35, 1.7, -75], [-10, 1.0, -58]],

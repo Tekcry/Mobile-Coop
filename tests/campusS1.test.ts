@@ -10,7 +10,7 @@ import { MAPS, getMap } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
 import { campusOps, CAMPUS_BOUNDS } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
-import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
+import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMN_HEAD, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
 import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
@@ -22,6 +22,7 @@ import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { HANG, LEDGE } from '../src/world/anchors';
 import { hyp2 } from '../src/core/mathx';
 import { LIGHT, contribution } from '../src/world/lights';
+import { lampReach } from '../src/world/lampMath';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
 import { SightWorld, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
@@ -421,11 +422,11 @@ describe('S1 lighting (SPEC "Lighting")', () => {
   const lights = b.lights.lights;
   const group = (g: number) => lights.filter((l) => l.group === g);
 
-  it('the circuits: s1-park-w 8 columns, s1-park-e 6, the bollards, the gatehouse, 4 canopy downlights, a lane floodlight with no switch', () => {
-    expect(PARK_COLUMNS_W.length).toBe(8);
-    expect(PARK_COLUMNS_E.length).toBe(6);
-    expect(group(S1_GROUPS.parkW).length).toBe(8);
-    expect(group(S1_GROUPS.parkE).length).toBe(6);
+  it('the circuits: s1-park-w 16 column heads, s1-park-e 10, the bollards, the gatehouse, 4 canopy downlights, a lane floodlight with no switch', () => {
+    expect(PARK_COLUMNS_W.length).toBe(16);
+    expect(PARK_COLUMNS_E.length).toBe(10);
+    expect(group(S1_GROUPS.parkW).length).toBe(PARK_COLUMNS_W.length);
+    expect(group(S1_GROUPS.parkE).length).toBe(PARK_COLUMNS_E.length);
     expect(group(S1_GROUPS.parkW).every((l) => l.y === 6.0)).toBe(true);
     expect(group(S1_GROUPS.fore).filter((l) => l.y < 1).length).toBe(BOLLARD_XS.length);
     expect(group(S1_GROUPS.gate).length).toBe(1);
@@ -466,6 +467,14 @@ describe('S1 lighting (SPEC "Lighting")', () => {
         const dx = Math.max(0, Math.abs(q.x - c.c[0]) - c.s[0] / 2);
         const dz = Math.max(0, Math.abs(q.z - c.c[2]) - c.s[2] / 2);
         expect(hyp2(dx, dz) - pole.r, `pole (${q.x}, ${q.z}) vs car (${c.c[0]}, ${c.c[2]})`).toBeGreaterThanOrEqual(0.3);
+      }
+    }
+    // no bay row unlit by layout (G329): every 3 m grid point of the car park is within reach of two column light points
+    const heads = lights.filter((m) => m.group === S1_GROUPS.parkW || m.group === S1_GROUPS.parkE);
+    const reach = lampReach(PARK_COLUMN_HEAD.r);
+    for (let x = -36; x <= 6; x += 3) {
+      for (let z = -76; z <= -52; z += 3) {
+        expect(heads.filter((m) => hyp2(m.x - x, m.z - z) < reach).length, `car park (${x}, ${z})`).toBeGreaterThanOrEqual(2);
       }
     }
   });

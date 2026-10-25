@@ -145,10 +145,30 @@ const CARS: readonly (readonly [number, number])[] = [
 
 /**
  * The car-park columns: the pole's x, z and its arm's unit direction ax, az along x or z, toward the bays (west circuit
- * 8, east circuit 6). light-realism L1: the light point hangs at the arm's end, 0.8 m out, not on top of its pole.
+ * 16 heads, east circuit 10). light-realism L1: the light point hangs at the arm's end, 0.8 m out, not on top of its
+ * pole. Every pole carries two heads on opposite arms (a twin-head column, two entries at one x, z): a head's own pole
+ * shades a wedge behind it, and the other head lights that wedge. Three rows tuned to AS/NZS 1158.3.1 P11a
+ * (`docs/light-realism/measure/S1-carpark.md`): the north row in R3 (z -53) and the south row on the back-to-back line
+ * between R0 and R1 (z -71.5), poles on bay boundaries (x -36 + 2.8k); the aisle row (z -62). Every west pole west of
+ * every east pole (one breaker each half).
  */
-export const PARK_COLUMNS_W: readonly (readonly [number, number, number, number])[] = [[-34, -62, 0, -1], [-28, -62, 0, -1], [-22, -62, 0, -1], [-16, -62, 0, -1], [-34, -53, 0, -1], [-28, -53, 0, -1], [-22, -53, 0, -1], [-16, -53, 0, -1]];
-export const PARK_COLUMNS_E: readonly (readonly [number, number, number, number])[] = [[-10, -62, 0, -1], [-4, -62, 0, -1], [2, -62, 0, -1], [-10, -53, 0, -1], [-4, -53, 0, -1], [2, -53, 0, -1]];
+const PARK_ROW_N = -53;
+const PARK_ROW_AISLE = -62;
+const PARK_ROW_S = (ROW_Z[0] + ROW_Z[1]) / 2;
+const twinRow = (z: number, xs: readonly number[]): (readonly [number, number, number, number])[] => xs.flatMap((x) => [[x, z, -1, 0] as const, [x, z, 1, 0] as const]);
+export const PARK_COLUMNS_W: readonly (readonly [number, number, number, number])[] = [
+  ...twinRow(PARK_ROW_N, [-33.2, -24.8, -13.6]),
+  ...twinRow(PARK_ROW_AISLE, [-33, -21]),
+  ...twinRow(PARK_ROW_S, [-36, -24.8, -13.6]),
+];
+export const PARK_COLUMNS_E: readonly (readonly [number, number, number, number])[] = [
+  ...twinRow(PARK_ROW_N, [0.4]),
+  ...twinRow(PARK_ROW_AISLE, [-9, 3]),
+  ...twinRow(PARK_ROW_S, [-2.4, 6]),
+];
+/** The car-park heads: intensity, reach (radius 10: the worst 2 m lamp-grid column stays within `LAMP_GRID_SLOTS`) and
+ *  cone (tipped 0.2 toward the arm, outer 1.3 rad: tilt + outer at most 1.5, a full cut-off head). */
+export const PARK_COLUMN_HEAD = { i: 2.0, r: 10, tilt: 0.2, outer: 1.3 } as const;
 /** The forecourt bollards (x at z -45.5). */
 export const BOLLARD_XS: readonly number[] = [-28, -24, -20, -16, -12, -8, -4, 0];
 /** The canopy downlights. */
@@ -173,7 +193,6 @@ function lamp(b: LevelBuilder, x: number, y: number, z: number, o: { r: number; 
     fixture: { sx: w, sy: 0.1, sz: w / 2, oy: 0 },
   });
 }
-
 
 /** An overhead head box (a door or window lintel): nothing to walk into on the floor below. */
 function head(b: LevelBuilder, cx: number, cz: number, w: number, y0: number, y1: number, alongX: boolean, color = WALL): void {
@@ -225,7 +244,7 @@ export function buildCampusS1(b: LevelBuilder): void {
   // at the arm's end 0.8 m out (light-realism L1: not on top of its pole) (photocell: no switch, shot only)
   b.pillar(9, -66, 0.15, 6.2, STEEL);
   b.box(9.3, 6.15, -66, 0.6, 0.1, 0.1, STEEL);
-  lamp(b, 9.8, 6.0, -66, { r: 12, i: 0.8, group: S1_GROUPS.lane, colour: SODIUM, cone: makeCone(0, -1, 0, 1.15), w: 0.6 });
+  lamp(b, 9.8, 6.0, -66, { r: 12, i: 0.5, group: S1_GROUPS.lane, colour: SODIUM, cone: makeCone(0, -1, 0, 1.15), w: 0.6 });
 
   // ---- the marsh verge (20..26, -80..-56): dark, reeds (visual) and two trees
   b.pillar(22.5, -66, 0.3, 5, '#4a3a2a');
@@ -233,15 +252,15 @@ export function buildCampusS1(b: LevelBuilder): void {
 
   // ---- the staff car park (-36..6, -76..-52): 14 parked cars (roofs 1.5), column lamps 6.0 on two circuits (E5, E6, E11)
   CARS.forEach(([row, bay], k) => b.box(bayX(bay), 0.75, ROW_Z[row]!, 1.8, 1.5, 4.2, CAR_COLOURS[k % CAR_COLOURS.length]!));
-  // each column (light-realism L1): the 6.2 m pole, its arm along (ax, az) from the pole's axis to 0.6 m out at y 6.10-6.20,
-  // and the light point hanging at the arm's end, 0.8 m out at y 6.0 (nothing of its own below it)
-  const cone = makeCone(0, -1, 0, 1.15);
+  // each column (light-realism L1): the 6.2 m pole (once per twin), each arm along (ax, az) from the pole's axis to 0.6 m
+  // out at y 6.10-6.20, and its light point hanging at the arm's end, 0.8 m out at y 6.0 (nothing of its own below it)
+  const H = PARK_COLUMN_HEAD;
   for (const [cols, group] of [[PARK_COLUMNS_W, S1_GROUPS.parkW], [PARK_COLUMNS_E, S1_GROUPS.parkE]] as const) {
-    for (const [x, z, ax, az] of cols) {
-      b.pillar(x, z, 0.15, 6.2, STEEL);
+    cols.forEach(([x, z, ax, az], k) => {
+      if (k === 0 || cols[k - 1]![0] !== x || cols[k - 1]![1] !== z) b.pillar(x, z, 0.15, 6.2, STEEL);
       b.box(x + 0.3 * ax, 6.15, z + 0.3 * az, ax ? 0.6 : 0.1, 0.1, az ? 0.6 : 0.1, STEEL);
-      lamp(b, x + 0.8 * ax, 6.0, z + 0.8 * az, { r: 12, i: 0.9, group, colour: SODIUM, cone, w: 0.6 });
-    }
+      lamp(b, x + 0.8 * ax, 6.0, z + 0.8 * az, { r: H.r, i: H.i, group, colour: SODIUM, cone: makeCone(ax * H.tilt, -1, az * H.tilt, H.outer), w: 0.6 });
+    });
   }
 
   // ---- the bin store (-40..-30, -52..-45): walls 3.0, open top and open to the south (E4); the feeder pillar's board (E5)
