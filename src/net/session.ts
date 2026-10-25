@@ -5,6 +5,7 @@ import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, ty
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { REJOIN_HOLD_S } from '../core/rejoin';
+import { flags } from '../core/flags';
 
 export interface LocalProfile {
   name: string;
@@ -23,6 +24,14 @@ export interface StartInfo {
   weather: WeatherChoice;
   /** Course mode: the bay to start at (1-based, D20). */
   bay?: number;
+}
+
+/**
+ * (J14 R1, PLAN A16) The map a host's room opens on: Marlow Yard (`ctcourse`) is the re-planned yard (`ctcourseReplan`)
+ * with `?marlowreplan=1`; every other map, and the flag off, as picked. The client loads the map the host's `start` names.
+ */
+export function roomMap(map: string, replan = flags.marlowReplan): string {
+  return replan && map === 'ctcourse' ? 'ctcourseReplan' : map;
 }
 
 export interface SessionEvents {
@@ -61,7 +70,7 @@ export class NetSession {
   hostId: string | null;
   /** A new room's mode: the campaign, Marlow Yard in Course mode (sector-ops slice 3; `?legacy=1` hosts switch to the parked Hunter). */
   mode: NetMode = 'course';
-  map = 'ctcourse';
+  map = roomMap('ctcourse');
   difficulty: Difficulty = 'normal';
   mission = '';
   weather: WeatherChoice = 'clear';
@@ -329,7 +338,8 @@ export class NetSession {
   setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
     if (!this.isHost) return;
     this.mode = mode;
-    this.map = map;
+    // (J14 R1) the lobby's Marlow Yard pick opens the re-planned yard with the flag on
+    this.map = roomMap(map);
     this.difficulty = difficulty;
     this.mission = mode === 'infiltration' ? mission : '';
     this.weather = weather;

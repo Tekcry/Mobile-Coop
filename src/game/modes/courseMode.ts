@@ -6,15 +6,16 @@ import type { GameMode } from './gameMode';
 import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
-import { CourseState, type CourseEvent } from '../course/courseState';
-import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
+import { CourseState, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
+import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, retryKey, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
+import type { StationDef } from '../course/stationDef';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
 import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
-import { spotFailed } from '../course/spotFail';
+import { inCombat, spotFailed, stationRetryCause, type CaughtClock } from '../course/spotFail';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
@@ -100,6 +101,47 @@ function drawMarker(g: GameState, st: CourseState, lay: CourseLayout, me: Player
 
 /** (marlow-walk482 X2a) s after a set restart before the spotted rule can fire again (0.5 s respawn + co-op lag). */
 const SPOT_HOLD = 1.5;
+/** (J14 R1) s after a station retry during which the respawn points are the station's marks (the respawn lands at 0.5 s;
+ *  a client rejoining inside it is placed there too). */
+const PLACE_HOLD = 2;
+/** (J14 R1) s a `?course=station:<n>` start keeps the marks as the respawn points while the partner joins. */
+const START_PLACE = 30;
+
+/** (J14 R1) `?course=station:<n>` (dev, tests, route-runs; any build: only a course with stations reads it): n, else 0. */
+export function courseStationParam(search: string): number {
+  const v = new URLSearchParams(search).get('course') ?? '';
+  const m = /^station:(\d{1,2})$/.exec(v);
+  return m ? Number(m[1]) : 0;
+}
+
+/** (J14 R1) Route-runs' hook on the client mirror: the retry count and the last retry, the same shape as the host's. */
+export function retryHook(s: Pick<PackedCourse, 'rs' | 'rt' | 'rc'>): { restarts: number; lastRetry: LastRetry } {
+  return { restarts: s.rs, lastRetry: s.rc ? { st: s.rt, cause: s.rc } : null };
+}
+
+/** (J14 R1, STATIONS.md SA2) LANTERN's line for a station retry: the bay's `retry:<id>:timer` line for a drill window,
+ *  else its `retry:<id>` line; null (no line) when the bay has none. */
+export function retryLine(radio: readonly { at: string; text: string }[], stationId: string, cause: StationCause): string | null {
+  if (cause === 'timer') {
+    const tk = retryKey(stationId, true);
+    for (let i = 0; i < radio.length; i++) if (radio[i]!.at === tk) return radio[i]!.text;
+  }
+  const key = retryKey(stationId);
+  for (let i = 0; i < radio.length; i++) if (radio[i]!.at === key) return radio[i]!.text;
+  return null;
+}
+
+/** (J14 R1, STATIONS.md SA3) Station `def`'s marks as player slots: slot 0 (P1, the host) and slot 1 (P2) take the A and
+ *  B marks by the bay's roles (`marks[0]` is role A's). */
+export function stationSlots(def: StationDef, roleA: PlayerIdx): SlotPoint[] {
+  const a = def.marks[0];
+  const b = def.marks[1];
+  const [p1, p2] = roleA === 0 ? [a, b] : [b, a];
+  return [
+    { x: p1.x, y: p1.y, z: p1.z, yaw: p1.yaw },
+    { x: p2.x, y: p2.y, z: p2.z, yaw: p2.yaw },
+  ];
+}
 
 /**
  * (coop-rejoin, walk items 4 and 7) The slot points (slot 0 the host, slot 1 the partner) of the course checkpoint `cp`
@@ -200,8 +242,15 @@ export class CourseMode implements GameMode {
   private readonly startState = new SectionStartState();
   /** (S10) Set by `bayStarted` / `bayRestart`: after this step's locks the doors are recorded (1) or put back (2). */
   private doorStep = 0;
-  /** (S10) Set restarts done (tests). */
-  restarts = 0;
+  /** (S10) Set restarts done (tests; every bay restart, the pause menu's and the built yard's spotted one too). */
+  private bayRestarts = 0;
+  /** (J14 R1) A camera reached full detection of a player since the last step (the station rule's `seen`, A22). */
+  private camFull = false;
+  /** (J14 R1) The combat time an A8 `caught` station has counted. */
+  private readonly caught: CaughtClock = { t: 0 };
+  /** (J14 R1) The station whose marks are the respawn points while `placeT` runs (a station retry or start). */
+  private placeSt: StationDef | null = null;
+  private placeT = 0;
   /** (S10) Doors the last restart put back (tests). */
   lastDoors = 0;
   /** (section-rating S6) The rated sets' marks (host / solo): each set with guards rated at its exit (A5). */
@@ -217,6 +266,50 @@ export class CourseMode implements GameMode {
   private readonly refs: PlayerRef[] = [];
 
   constructor(private g: GameState) {}
+
+  /**
+   * Restarts (`window.__course.restarts`; the co-op host's lamp resync reads `mode.restarts`). (J14 R1) On a course with
+   * stations: `CourseState.restarts` (station retries and downed bay restarts; the pause menu's restart does not count).
+   * On the built yard as before: every bay restart.
+   */
+  get restarts(): number {
+    const st = this.state;
+    return st?.hasStations ? st.restarts : this.bayRestarts;
+  }
+
+  /** (J14 R1) The last counted retry (`{ st, cause }`), null before the first. */
+  get lastRetry(): LastRetry {
+    return this.state?.lastRetry ?? null;
+  }
+
+  /** (J14 R1) The course state (`mode.course.station()`). */
+  get course(): CourseState | null {
+    return this.state;
+  }
+
+  /** (J14 R1) The live station's number (0: none). */
+  station(): number {
+    return this.state?.station() ?? 0;
+  }
+
+  /** (J13 R4c hook, host) Station `n`'s retry off until any bay restart (`CourseState.retryOff`). */
+  retryOff(n: number): boolean {
+    return this.state?.retryOff(n) ?? false;
+  }
+
+  /**
+   * (J14 R1, host only: the client never runs CourseMode) The set code's retry entry: station `n`'s drill window missed
+   * (`timer`) or one of its beams broken (`seen`) retries it, through the same path as a guard's alert (`restarts`,
+   * `lastRetry`, `retryOff`, the marks). False: `n` is not the live station, its retry is 'none' or off, a retry or a bay
+   * restart is already under way. The world side (guards, lamps, respawn) runs at this step's `handle` (safe to call
+   * from inside a device or guard update: nothing reentrant).
+   */
+  stationRetry(n: number, cause: StationCause): boolean {
+    const st = this.state;
+    if (!st || this.restartT >= 0 || this.spotHold > 0 || !st.retryStation(cause, n)) return false;
+    this.dirty = true;
+    return true;
+  }
 
   start(): void {
     const g = this.g;
@@ -288,6 +381,14 @@ export class CourseMode implements GameMode {
       this.startBay = st.bay;
       g.scheduleRespawn(this.checkpointPos(), 0);
     }
+    // (J14 R1) `?course=station:<n>`: that station's bay with its earlier stations done, both players on its marks
+    const sn = typeof location === 'undefined' ? 0 : courseStationParam(location.search);
+    if (sn > 0 && st.startStation(sn)) {
+      this.startBay = st.bay;
+      this.placeSt = st.liveStation();
+      this.placeT = START_PLACE;
+      g.scheduleRespawn(this.checkpointPos(), 0);
+    }
     this.hud = new CourseHud(g.hud.el);
     (window as unknown as { __course?: unknown }).__course = this;
     // (CT prototype B3) the jammer, camera and laser devices (host authority)
@@ -307,6 +408,15 @@ export class CourseMode implements GameMode {
       hasShared: (f) => !!this.state?.hasShared(f),
     });
     g.ctDev = this.ct;
+    // (J14 R1, A22) a camera's full detection of a player is the station rule's `seen` (CtDevices keeps its own handling)
+    const sec = g.security;
+    if (sec && st.hasStations) {
+      const devs = sec.onEvent;
+      sec.onEvent = (e) => {
+        devs?.(e);
+        if (e.kind === 'stage' && e.stage === 2) this.cameraFull();
+      };
+    }
     // (guard-ai S22, G6) the guards turn a console back on through its own gate; they hear of every toggle (`consoleEdge`)
     if (g.enemyMgr && lay.consoles?.length) g.enemyMgr.consoleHost = { reset: (id) => this.consoleBack(id) };
     this.handle();
@@ -590,14 +700,31 @@ export class CourseMode implements GameMode {
     // A hold after any set restart covers the respawn wait (players still where they were seen) and co-op lag, so a
     // fresh guard cannot fail the set again before both players are back (W482 check should-fix 1).
     if (this.spotHold > 0) this.spotHold -= dt;
-    const sf = st.currentBay.spotFail;
+    if (this.placeT > 0) {
+      this.placeT -= dt;
+      // (J14 R1) a station start: the partner has joined, the marks stay the respawn points only a moment longer
+      if (r && this.placeT > PLACE_HOLD) this.placeT = PLACE_HOLD;
+    }
+    // (J14 R1) a bay with stations: the station rule (seen / caught retries the live station at its marks), never
+    // `spotFail`; the built yard keeps its rule
+    const stations = st.bayHasStations();
+    const sf = stations ? undefined : st.currentBay.spotFail;
     // The manager's list, not `squad`: Course mode spawns only this set's squad, and a knocked-out guard a squadmate wakes is a new
     // `Enemy` (`EnemyManager.revive`) that `squad` never holds (W482 check should-fix 2).
-    if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, g.enemyMgr?.enemies ?? this.squad)) {
+    const list = g.enemyMgr?.enemies ?? this.squad;
+    if (stations) {
+      const live = st.liveStation();
+      const can = !!live && !st.over && this.restartT < 0 && this.spotHold <= 0;
+      const rule = can && !st.isRetryOff(live!.n) ? live!.retry : 'none';
+      const cause = stationRetryCause(rule, rule !== 'none' && inCombat(list), this.camFull, this.caught, dt);
+      // the retry's events (gates, `stationRetry`) are acted on in this step's `handle`
+      if (cause) st.retryStation(cause);
+    } else if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, list)) {
       this.radioQ.unshift(sf);
       if (this.radioQ.length > 4) this.radioQ.length = 4;
       this.restartCheckpoint();
     }
+    this.camFull = false;
     // (section-rating S6) the set's live rating stats (the test hook)
     const rs = this.rating;
     if (rs && rs.current >= 0) {
@@ -631,7 +758,8 @@ export class CourseMode implements GameMode {
     st.update(dt);
     if (this.restartT >= 0) {
       this.restartT -= dt;
-      if (this.restartT < 0) st.restart();
+      // (J14 R1) a downed bay restart (one player out, or everyone down): counted with its cause
+      if (this.restartT < 0) st.restart(st.downCause());
     }
     this.handle();
     const endOn = !st.over && st.currentBay.exit === 'end';
@@ -695,8 +823,12 @@ export class CourseMode implements GameMode {
         break;
       case 'bayRestart':
         this.restartT = -1;
-        this.restarts++;
+        this.bayRestarts++;
         this.spotHold = SPOT_HOLD;
+        // (J14 R1) a bay restart lands in the holding room, never on a station mark
+        this.placeT = 0;
+        this.placeSt = null;
+        this.caught.t = 0;
         // (section-rating S6, A8) the set's rating stats start again; a set already rated is never re-rated, and a grant
         // already given stays (the course has no checkpoint loadout to put back)
         this.rating?.begin(st.bay, st.stats[st.bay]!);
@@ -718,6 +850,9 @@ export class CourseMode implements GameMode {
         this.g.scheduleRespawn(this.checkpointPos(), 0.5);
         // (marlow-final) no pass zone fires on the old positions before both players are back at the checkpoint
         this.ct?.holdZones(2);
+        break;
+      case 'stationRetry':
+        this.onStationRetry(e.st, e.cause, e.guards);
         break;
       case 'gateOpened':
         this.isolatorEdge(e.gate, false);
@@ -882,9 +1017,97 @@ export class CourseMode implements GameMode {
     for (let i = 0; i < lines.length; i++) if (lines[i]!.at === at) this.radioQ.push(lines[i]!.text);
   }
 
+  /** (J14 R1, A22) A camera reached full detection of a player (host; read by the next step's station rule). */
+  cameraFull(): void {
+    this.camFull = true;
+  }
+
+  /**
+   * (J14 R1; BRIEF A1, A2; PLAN A17) Station `n` retried (`CourseState.retryStation` reset its gates and flags): LANTERN's
+   * line first in the queue; its guards back fresh on their slots, and any other guard in combat with them (a guard
+   * already dealt with at an earlier station stays down); thrown gadgets and grenades gone; the cameras forget what they
+   * saw; its circuits' lamps as they began; both players to its marks (`checkpointPos` / `checkpointSpawns` while
+   * `placeT` runs; the client by the host's `onRespawn`). Not a set restart: the set's rating and doors stay.
+   */
+  private onStationRetry(n: number, cause: RetryCause, guards: readonly string[]): void {
+    const st = this.state!;
+    const def = st.stationDef(n);
+    if (!def) return;
+    const line = cause === 'seen' || cause === 'caught' || cause === 'timer' ? retryLine(st.currentBay.radio, def.id, cause) : null;
+    if (line) {
+      this.radioQ.unshift(line);
+      if (this.radioQ.length > 4) this.radioQ.length = 4;
+    }
+    this.spotHold = SPOT_HOLD;
+    this.caught.t = 0;
+    this.camFull = false;
+    this.resetStationGuards(guards);
+    const g = this.g;
+    g.grenades.clear();
+    g.gadgets.clearWorld();
+    this.ct?.repair(-1);
+    this.ct?.holdZones(2);
+    this.resetStationLights(def);
+    this.placeSt = def;
+    this.placeT = PLACE_HOLD;
+    g.scheduleRespawn(this.checkpointPos(), 0.5);
+    this.dirty = true;
+  }
+
+  /** (J14 R1, A17) The station's guards back on their slots, and every other live guard in combat (a squad guard on his
+   *  slot; one the manager woke as a new `Enemy` goes). Guards down from earlier stations stay as left. */
+  private resetStationGuards(ids: readonly string[]): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const g = this.g;
+    if (g.takedown.active) g.takedown.reset();
+    g.net?.releaseHolds?.();
+    const redo: string[] = ids.slice();
+    for (let i = em.enemies.length - 1; i >= 0; i--) {
+      const e = em.enemies[i]!;
+      if (!e.alive || e.passive || !e.alerted) continue;
+      const k = this.squad.indexOf(e);
+      if (k < 0) em.despawn(e);
+      else if (!redo.includes(this.squadIds[k]!)) redo.push(this.squadIds[k]!);
+    }
+    for (const id of redo) {
+      const k = this.squadIds.indexOf(id);
+      if (k >= 0) {
+        em.despawn(this.squad[k]!);
+        this.squad.splice(k, 1);
+        this.squadIds.splice(k, 1);
+      }
+      const e = this.spawnSlot(id);
+      if (!e) continue;
+      this.squad.push(e);
+      this.squadIds.push(id);
+    }
+  }
+
+  /** (J14 R1) The light groups of the station's isolator and mains gates as they began, their shot-out lamps back. */
+  private resetStationLights(def: StationDef): void {
+    const lay = this.layout;
+    const reg = this.g.world.level.lights;
+    for (const id of def.gates) {
+      const gate = this.gateDefs.get(id);
+      if (!gate || (gate.kind !== 'isolator' && gate.kind !== 'mains')) continue;
+      const gid = lay?.groups?.[gate.group];
+      if (gid === undefined) continue;
+      for (const l of reg.lights) if (l.group === gid && l.destroyed) reg.restore(l.id);
+      const on = this.lampStart.find((s) => s[0] === gid)?.[1] ?? true;
+      reg.setGroup(gid, on);
+      this.g.stealth?.syncGroup(gid, on);
+    }
+  }
+
   /** Where the players respawn: the checkpoint airlock's slot 0 point (its middle unless the map places one), or the
-   *  map's first spawn. */
+   *  map's first spawn. (J14 R1) While a station retry places the players: the station's first mark. */
   checkpointPos(): Vector3 {
+    const ps = this.placing();
+    if (ps) {
+      const m = ps.marks[this.state!.roleA(this.state!.bay) === 0 ? 0 : 1];
+      return new Vector3(m.x, m.y, m.z);
+    }
     const st = this.state!;
     const a = st.def.airlocks.find((x) => x.id === st.checkpoint);
     if (!a) return this.g.world.layout.playerSpawns[0]!.pos.clone();
@@ -893,10 +1116,18 @@ export class CourseMode implements GameMode {
   }
 
   /** (coop-rejoin) The current checkpoint's slot points: the co-op host places a respawning partner and a (re)joining
-   *  client with them. */
+   *  client with them. (J14 R1) While a station retry places the players: the station's two marks (slot 0, slot 1);
+   *  otherwise the airlock's slots, so a rejoin, a seal or a downed restart never lands on a station mark. */
   checkpointSpawns(): SlotPoint[] {
+    const ps = this.placing();
+    if (ps) return stationSlots(ps, this.state!.roleA(this.state!.bay));
     const st = this.state;
     return st ? courseSlotPoints(this.g, st.checkpoint) : [];
+  }
+
+  /** (J14 R1) The station whose marks are the respawn points now, or null. */
+  private placing(): StationDef | null {
+    return this.placeT > 0 ? this.placeSt : null;
   }
 
   /** (coop-rejoin) The `course` message on the next step (a client joined or reconnected mid-run). */
@@ -936,25 +1167,34 @@ export class CourseMode implements GameMode {
     if (!em) return;
     this.dropSquad(false);
     for (const id of ids) {
-      const s = this.layout!.squads[id];
-      if (!s) continue;
-      const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
-      if (!e) {
-        // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
-        if (!this.squadWarned.has(id)) {
-          this.squadWarned.add(id);
-          console.warn(`course: squad slot '${id}' failed to spawn (the rest of this bay's squad is skipped)`);
-        }
-        break;
-      }
-      // (PR 3) a training guard: sees and hears nothing, and may know something INTERROGATE can get out of him
-      if (s.passive) e.passive = true;
-      if (s.info) e.info = s.info;
-      if (s.route) e.setPatrol({ points: s.route, wait: s.wait, waits: s.waits, faces: s.faces, start: s.start, loop: s.loop });
-      em.placeSlot(e, s); // (guard-ai S5) post, profile, section (MapLayout.guardAi zones)
+      if (!this.layout!.squads[id]) continue;
+      const e = this.spawnSlot(id);
+      if (!e) break;
       this.squad.push(e);
       this.squadIds.push(id);
     }
+  }
+
+  /** One guard on squad slot `id` (unaware, on his post / route), or null (no slot, or the spawn failed: said once). */
+  private spawnSlot(id: string): Enemy | null {
+    const em = this.g.enemyMgr;
+    const s = this.layout!.squads[id];
+    if (!em || !s) return null;
+    const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
+    if (!e) {
+      // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
+      if (!this.squadWarned.has(id)) {
+        this.squadWarned.add(id);
+        console.warn(`course: squad slot '${id}' failed to spawn (the rest of this bay's squad is skipped)`);
+      }
+      return null;
+    }
+    // (PR 3) a training guard: sees and hears nothing, and may know something INTERROGATE can get out of him
+    if (s.passive) e.passive = true;
+    if (s.info) e.info = s.info;
+    if (s.route) e.setPatrol({ points: s.route, wait: s.wait, waits: s.waits, faces: s.faces, start: s.start, loop: s.loop });
+    em.placeSlot(e, s); // (guard-ai S5) post, profile, section (MapLayout.guardAi zones)
+    return e;
   }
 
   /** (guard-ai S22, G6) A console's flag set (its cameras looped: off) or cleared (on): the guards hear of the toggle. */
@@ -1359,7 +1599,8 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   const mm = mirrorOf(g);
   if (mm) mirrorRating(g, mm, w.rt, w.rh);
   if (w.sec) mm?.ct.apply(w.sec);
-  (window as unknown as { __course?: unknown }).__course = { wire: w, hud: () => mirrors.get(g)?.hud.el, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
+  // (J14 R1) route-runs' hook as on the host: the retry count, the last retry and the live station
+  (window as unknown as { __course?: unknown }).__course = { wire: w, ...retryHook(w.s), station: () => w.s.st, hud: () => mirrors.get(g)?.hud.el, debug:() => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }
 
 /** Door anchor ids of the airlocks' rear doors (the client mirror's forced-close set). */

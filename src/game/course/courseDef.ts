@@ -103,6 +103,16 @@ export function warnKey(gateId: string): string {
   return `warn:${gateId}`;
 }
 
+/**
+ * (J14 R1, STATIONS.md SA2) The `bay.radio` key of LANTERN's line when station `id` retries (what and where, G343): `seen`
+ * / `caught` at `retry:<id>`, a drill window (`timer`) at `retry:<id>:timer`. No line: the retry is silent.
+ */
+export function retryKey(stationId: string, timer = false): string {
+  return timer ? `retry:${stationId}:timer` : `retry:${stationId}`;
+}
+
+const STATION_RETRY: readonly string[] = ['none', 'station', 'caught'];
+
 export interface RadioLine {
   /**
    * 'enter' (bay start), 'gate' (any gate opens), 'done' (drills done), a gate / drill / objective step id (spoken when
@@ -321,7 +331,8 @@ function unique(seen: Set<string>, id: string, what: string): void {
 /**
  * Check a course: unique ids; every gate, airlock and drill names known ids; the bays chain start -> airlocks -> end;
  * airlocks 6 x 6 (+-0.5); radio lines, spotted lines and drill steps <= 90 characters; every flag read is set by a pickup, a pair gate
- * or `def.externalFlags`.
+ * or `def.externalFlags`; (J14 R1) stations with unique numbers and a known retry kind, their guards in the bay's squad,
+ * a stand-in gate of the bay, two finite marks and a done flag that is set somewhere.
  * Throws with the offending id; returns the definition.
  */
 export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef {
@@ -362,7 +373,10 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
   const elemIds = new Set<string>();
   const flagsSet = new Set<string>(def.externalFlags);
   const flagsRead: [string, string][] = [];
-  const text = (owner: string, s: string, what: string): void => {
+  const stationIds = new Set<string>();
+  const stationNs = new Set<string>();
+  const doneFlags: [string, string][] = [];
+  const text =(owner: string, s: string, what: string): void => {
     if (!s) fail(owner, `empty ${what}`);
     if (s.length > COURSE_TEXT_MAX) fail(owner, `${what} is ${s.length} characters (max ${COURSE_TEXT_MAX})`);
   };
@@ -436,8 +450,27 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
       if ((d.count ?? 1) < 1) fail(d.id, 'count below 1');
     }
     for (const e of b.elements) unique(elemIds, e.id, 'element');
+    // (J14 R1) the stations, in play order (not always `n` order: A4 is 9, 8, 10): unique whole numbers, a known retry
+    // kind, guards from the bay's squad, a stand-in that is a gate of the bay, two finite marks; `gates` may also name
+    // devices (cameras, beams); done flags checked below once every flag set is known
+    const bayGates = new Set(b.gates.map((g) => g.id));
+    for (const s of b.stations ?? []) {
+      unique(stationIds, s.id, 'station');
+      if (!Number.isInteger(s.n) || s.n < 1) fail(s.id, `station number ${s.n} is not a whole number from 1`);
+      unique(stationNs, String(s.n), 'station number');
+      if (!STATION_RETRY.includes(s.retry)) fail(s.id, `station retry '${String(s.retry)}' is not none, station or caught`);
+      if (s.drillS !== undefined && !(s.drillS > 0)) fail(s.id, 'station drillS must be above 0');
+      if (s.marks.length !== 2) fail(s.id, 'a station has two start marks');
+      for (const m of s.marks) if (![m.x, m.y, m.z, m.yaw].every(Number.isFinite)) fail(s.id, 'a station mark is not a finite point');
+      for (const q of s.guards) if (!b.squad.includes(q)) fail(s.id, `station guard '${q}' is not in ${b.id}'s squad`);
+      if (s.standIn !== undefined && !bayGates.has(s.standIn)) fail(s.id, `stand-in gate '${s.standIn}' is not a gate of ${b.id}`);
+      if (!s.doneFlag) fail(s.id, 'a station names its done flag');
+      doneFlags.push([s.id, s.doneFlag]);
+    }
   });
   for (const [owner, flag] of flagsRead) if (!flagsSet.has(flag)) fail(owner, `flag '${flag}' is never set`);
+  const objFlags = new Set((def.objectives ?? []).filter((o) => o.done !== undefined).map((o) => `obj:${o.id}`));
+  for (const [owner, flag] of doneFlags) if (!flagsSet.has(flag) && !objFlags.has(flag)) fail(owner, `done flag '${flag}' is never set (a pass zone's flag goes in externalFlags)`);
   if (def.objectives) {
     const objIds = new Set<string>();
     const cond = (owner: string, c: StepCond): void => {
