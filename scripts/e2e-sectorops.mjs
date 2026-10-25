@@ -120,7 +120,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
   await sim(6);
   await page.waitForSelector('.results-screen', { timeout: 15000 });
   const res = await G(() => ({ t: document.querySelector('.results-title')?.textContent, s: document.querySelector('.results-sub')?.textContent ?? '' }));
-  assert(res.t === 'VICTORY' && /Time \d+:\d\d/.test(res.s) && /Kills 0/.test(res.s) && /Spotted 0/.test(res.s) && /GHOST/.test(res.s), `the result: time, kills, spotted, Ghost ("${res.s}")`);
+  assert(res.t === 'VICTORY' && /Time \d+:\d\d/.test(res.s) && /Kills 0/.test(res.s) && /Spotted 0/.test(res.s) && /PERFECT/.test(res.s) && /GHOST/.test(res.s), `the result: time, kills, spotted, Perfect, Ghost ("${res.s}")`);
   // (step 3, M7) the run's difficulty star is saved (kv `sector:ops`) with a best time, and the op list shows it filled
   const diff = await G(() => window.__app.current.opts.difficulty ?? 'normal');
   const di = ['rookie', 'normal', 'realistic', 'perfectionist'].indexOf(diff);
@@ -152,7 +152,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await frames(page, 2);
     op = await G(() => { const b = document.querySelector('.sectorops-screen [data-op="warehouseOps"]'); return { stars: b.dataset.stars, ctr: b.querySelector('.ms-ctr')?.textContent ?? '', ctx: b.dataset.ctx ?? '' }; });
   }
-  assert(op.stars[di] === '1' && op.ctr[di] === '★' && /best \d+:\d\d/.test(op.ctx), `the op list shows the ${diff} star filled and its best time (${JSON.stringify(op)})`);
+  assert(op.stars.slice(0, di + 1) === '1'.repeat(di + 1) && op.ctr.slice(0, di + 1) === '★'.repeat(di + 1) && /best \d+:\d\d/.test(op.ctx), `the op list fills the ${diff} star and every easier one (G331) with its best time (${JSON.stringify(op)})`);
 });
 
 console.log('sector ops: alarm and no ghost');
@@ -161,6 +161,7 @@ await run(PARAMS, async ({ G, sim }) => {
   await sim(0.5);
   const a = await G(() => { const m = window.__sector; m.onAlarm(); return m.debug(); });
   assert(a.stage === 1 && a.reinforced === 2, `an alarm raises the stage and sends the section's guards in (${JSON.stringify(a)})`);
+  assert(a.perfect === false, `an alarm loses Perfect (${JSON.stringify(a)})`);
   await sim(1);
   const hunting = await G(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && e.alerted).length);
   assert(hunting >= 2, `the reinforcements come in hunting (${hunting})`);
