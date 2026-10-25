@@ -3,6 +3,14 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 50 (2026-10-25 ~14:00; wins over SAVE 49 where they differ):**
+- Master 4632c933 (train 90 released, #408 in; service restarted on it 13:51). Gap runs from SAVE 49 queued; d9b8
+  full-4102-r1 running on 4189 from 13:53.
+- Conformance doc fixes (T15-T21, T23) on docs/conformance-test-runner-fixes 7fefd8a9 (worktree
+  -conformance-docs). PR #422 CLOSED on Michael's "plan comes first" (13:53): reopen only when the Orchestrator says
+  the folded plan is signed off, then a fresh Opus checker. Hold: only the test queue moves until then.
+- #400 affected-e2e error (withdrawn 13:39); PR CONFLICTING. Asked the Orchestrator whether to re-request it.
+
 **Test Runner SAVE 49 (2026-10-25 ~13:50, before the ~14:05 cap; wins over SAVE 48 where they differ):**
 - Master 4.102.1 39668c06 (train 89 released). Train 90 (#408 laptop-queue-5, head 65b4ed26) on the laptop at 13:40.
   #408 `checker` post was blocked for both me and the Orchestrator (auto mode); the Orchestrator asked Michael.
