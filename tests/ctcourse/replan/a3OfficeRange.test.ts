@@ -221,7 +221,7 @@ describe('Marlow re-plan A3: the stations (STATIONS.md section 3)', () => {
     s.update(1 / 60);
     expect(s.station()).toBe(7);
     expect(s.hasFlag(A3_FIRE_FLAG)).toBe(true);
-    expect(s.lastRetry.st).toBe(7);
+    expect(s.lastRetry?.st).toBe(7);
     s.setFlag(A3_FAR_FLAG);
     s.update(1 / 60);
     expect(s.station()).toBe(0);
