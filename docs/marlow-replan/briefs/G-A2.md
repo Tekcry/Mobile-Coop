@@ -1,0 +1,125 @@
+status: open
+
+# J14 Marlow re-plan, slice G-A2: A2 the Carriage Shed on the re-plan (PR 5)
+Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 (cloud or desktop). Est. 1,250 lines.
+Queue copy: cloud-queue `briefs/j14-g-a2.md` (the lead copies this file there).
+
+## Base and branch
+- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- new branch: `feature/marlow-replan-g-a2` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a2`).
+- Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a2`. Commit and push each
+  finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
+
+## Read first (on the base)
+- `git show origin/master:CLAUDE.md`, `git show origin/master:docs/systems/agent-preamble.md` ("Cloud sessions" if cloud).
+- `docs/marlow-replan/PLAN.md` section 2 (:52-137) and "Set slices" (:413-432, the G-A2 row); `BRIEF.md`.
+- `docs/marlow-replan/STATIONS.md`: sections 1-3 (A2 block), 5 (`a2-neck`), 6 (stations 3-5), 7, 8 (`a2-lane`,
+  `a2-across`), 9 (`a2-shunter`), 10 (SA9, SA11).
+- `docs/marlow-replan/graph.json` spaces `a2-*` and their links; `replan-plan.svg` (1 m = 7 px; x = (px - 34) / 7,
+  z = (642 - py) / 7).
+- Code: `src/game/course/stationDef.ts`, `src/world/maps/ctcourseSets/replan/index.ts` and `replan/a2CarriageShed.ts`
+  (S0 stub), `ctcourse.ts` (`CtcourseOpts`, the `REPLAN_BUILDERS` call), `types.ts` (`SetPart`, `checkSetPart`),
+  `ctcourseGreybox.ts` (`FloorHole`, `slabWithHoles`), `marlowCircuits.ts` (`MARLOW_CIRCUITS_REPLAN` group 22), R1's station
+  code in `courseState.ts` / `courseMode.ts`, `tests/ctcourse/replan/variant.test.ts`, the built
+  `tests/ctcourse/a2CarriageShed.test.ts` (its `GREY`, nav and sight helpers are the pattern to copy).
+
+## Only these files
+- `src/world/maps/ctcourseSets/a2CarriageShed.ts`: only (a) a third parameter `opts: { replan?: boolean } = {}` on
+  `buildA2CarriageShed`, (b) `if (!opts.replan)` guards round the pieces the re-plan removes (listed below). Never touch
+  its objective or radio lines (PR #441 edits them).
+- `src/world/maps/ctcourseSets/replan/a2CarriageShed.ts`: everything new (geometry, closers, guard changes, stations,
+  stand-in, lamp, pass zones, objective and radio lines, `FLOOR_HOLES`), by building into `b` / `kit` and amending `part`.
+- `tests/ctcourse/replan/a2CarriageShed.test.ts` (new), `tests/ctcourse/replan/a2CarriageShed.light.json` (written by
+  the light test), `scripts/e2e-ctcourse/replan/a2CarriageShed.mjs` (replaces S0's re-export stub),
+  `changes/feature-marlow-replan-g-a2.md` (fragment, `changes/README.md` format).
+- Nothing else: not PLAN / BRIEF / STATIONS / graph / svg, not `replan/index.ts`, `ctcourse.ts`, `types.ts`,
+  `facility.ts`, `courseDef.ts` / `courseState.ts`, `e2e-times.json`, any built test, built light file or built e2e module.
+  A change you need outside this list: `status: blocked <what and why>`.
+
+## Flag off = nothing changes
+The built `ctcourse` stays byte-identical: `tests/ctcourse/a2CarriageShed.test.ts` (its `GREY` checksum) and every
+`tests/ctcourse/<set>.light.json` unchanged and green. Every guard you add must leave the built build untouched.
+
+## Build (A2, stations 3, 4, 5; guards 1)
+1. **Guards: one.** Remove `a2-watch-w` and `a2-watch-e` from `part.squads` and `part.bay.squad` (replan file). Keep
+   `a2-shunter`: post (51, 10) now faces east (`yaw` PI/2; the built post faces west), round
+   `[[51, 10], [56, 7.5], [65.5, 7.5], [56, 7.5]]` (the built (66, 7.5) stands on the pit's edge), same waits.
+2. **Deck and stair out (Q24).** Guard the cleaning staging, its screens and the east stair (A2-6 / A2-7 / A2-8,
+   `a2CarriageShed.ts:256-268`), their dressing (:430-465, :633-686), the stair fillers and rail, the permit gate
+   `A2_GATE_AT`, and the deck's co-op lip (`p.lips`). With the deck gone the strip z 17.5-19.75 behind it must not become a
+   route: extend the A2-21 north closures (x 45.5-46.0 and 56.0-56.5) to the north wall face z 19.75, full height.
+3. **Stores bay and the shutter (station 3, `shutter_hold`).** A new wall at x 33 (0.3 m, to the shed's roof, `noLedge`)
+   closes the stores bay from the cabin's north-east corner (32, 5) to the north wall (z 19.75): no gap round either end.
+   In it the running shed's roller door: door `A2-shutter`, 3.0 m wide centred on the lane (z 11.0-14.0), lifts 0.9 m;
+   gate `g-a2-shutter`, the course `hold` kind (one lifts and holds, the other rolls under; graph link `a2-stores` ->
+   `a2-lane`). The cabin's back door `A2-back` is locked for good (the facility's locked-door idiom; never opens). The gap
+   1/2 mouth at the neck's west edge (x 45.5-46.0, z 6.3-8.7) is closed with the A2-21 closer idiom, so the lane
+   (z 11.3-13.7) is the one way into the neck; the east gap 1/2 stays open (the shunter's round uses it).
+4. **Neck drill (station 4, `timed_light_cut`, 15 s).** As built: isolators `a2-iso-1` (cabin) and `a2-iso-2`, gate
+   `g-a2-neck`, the caged neck lamps. Cabinet 2 (`A2_CAB2`, built at (69.4, 13.4)) moves to the pit's near (west) side, off
+   station 5's marks (65.5, 12.0 / 13.0) and their 0.6 m body clear, reachable from the lane gap; report its spot. Two
+   crossings, one 15 s window each (STATIONS section 5).
+5. **Pit and plank (station 5, `plank_bridge`, stand-in).** An open wheel-drop pit, x 66.0-69.0 (SA9; far landing 0.75 m),
+   wall to wall z 0.25-19.75 (no walk-round at either end), floor at y -1.6. `FLOOR_HOLES = [[66.0, 0.25, 69.0, 19.75]]`
+   (S0's facility cuts the slab). Pit walls and floor pieces in the replan file; step irons on the near (west) face only;
+   the far face and far edge `noLedge` with no co-op lip, so the pit cannot be crossed by climbing out on the far side.
+   Guard every built piece the hole cuts (track panels `A2_TRACK_X` 64.5, wheel stops, the east rake's ends:
+   `:134-141`, `:210-213`). Stand-in: a hoarded maintenance walkway over the pit at the L2 door (1.2 m wide, z 9.4-10.6,
+   y 0), door `A2-walkway`, gate `g-a2-walkway` (SA11): the gate the host opens while `kitMoves` `plankBridge` is off
+   (use the base's stand-in opener; if the base has none, build the gate open at bay start and say so in the report).
+   A stack of scaffold boards at the east end near side (dressing, KS5's later).
+6. **Stations.** `part.bay.stations` = STATIONS section 3's A2 block, verbatim (`import type { StationDef }`).
+7. **Done flags (section 8).** Pass zones `a2-lane` [36, 11.3, 46, 13.7] both and `a2-across` [69, 8.5, 69.75, 11.5]
+   both, floorY 0. `a2-east` exists.
+8. **LANTERN's lines (section 6).** `part.bay.radio` rows `{ at: 'retry:a2-shutter', ... }`, `retry:a2-lights`,
+   `retry:a2-lights:timer`, `retry:a2-plank`, text verbatim. Replace the built "Two spotters on the staging" enter line
+   (it no longer applies) by filtering `part.bay.radio` in the replan file.
+9. **Objective lines.** Replace `part.objectives` for A2 in the replan file (never in the set file): one line per station
+   plus the holding-room line, each naming what and where (#441's rule; at most `COURSE_TEXT_MAX`), no "fail".
+10. **Lamp.** The coat corner: one wall lamp over the coat hooks on circuit 22 (`MARLOW_CIRCUITS_REPLAN` group 22 has
+    2 lamps: the built panel plus this one). Its light spot joins `part.lightSpots`.
+11. **Drill hook (lead fills before opening):** <how a set file declares station 4's window and its fail test on the
+    base; R1's auto `drillS` timer starts on the first gate opening and would fail the second crossing>.
+
+## Lead decisions that touch A2 (j14-wave2-notes)
+- Pit x 66.0-69.0 (SA9), not G0's 66.25-69.25 or the SVG's 66.5-69.5; G1 moves the graph boxes after the build.
+- Retry: set code calls R1's host `stationRetry(n, cause)` (timer = `'timer'`); retry resets the station's listed guards
+  plus any guard alerted in the bay (R1's job, not yours).
+- Depth 1.6 m and the wall-to-wall pit are this brief's call (D1 check, lead item 3); the lead may change them.
+
+## Tests (unit only; no e2e, no GPU, no `npm run check`)
+Desktop builders run each node command at BelowNormal
+(`powershell -NoProfile -Command "(Get-Process -Id \$PID).PriorityClass='BelowNormal'; <cmd>"`); the light bake is slow,
+give it a 15 min timeout.
+```
+npm run typecheck:fast
+npx vitest run tests/ctcourse/replan/a2CarriageShed.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a2CarriageShed.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
+CTLIGHT_VARIANT=replan CTLIGHT_WRITE=a2CarriageShed npx vitest run tests/ctcourseLight.test.ts
+CTLIGHT_VARIANT=replan npx vitest run tests/ctcourseLight.test.ts
+npx vitest run tests/ctcourseLight.test.ts
+```
+`tests/ctcourse/replan/a2CarriageShed.test.ts` pins: the replan set's `GREY` (boxes, solids, lights, doors, anchors,
+checksum, the built test's method); `checkSetPart` clean; squad = `['a2-shunter']` and the shunter's post / yaw / route;
+the stations equal STATIONS' A2 block; every mark has standing room for a 0.3 m body on its floor; the closures on the
+nav: from `a2-stores` with every gate shut no path reaches the lane; with the shutter open none reaches the east end
+except through the neck; no path crosses the pit except the walkway (open) and nothing on the far side is a ledge or lip
+reachable from the pit floor; the two pass zones; the retry lines exist for 3, 4, 5 and fit `COURSE_TEXT_MAX`; the coat
+corner lamp is live on 22; the light file is present and green.
+
+## e2e (write, do not run: "pending PC run")
+`scripts/e2e-ctcourse/replan/a2CarriageShed.mjs`: both players on host and client walk stations 3-5; one spotted retry
+on station 3 lands both at its marks with no earlier station undone; one neck timer retry; the walkway stand-in open.
+The lead runs e2e-ctcourse parts 1-8 on the laptop queue.
+
+## Done looks like (PLAN set slices)
+A2 on `ctcourseReplan` has one guard, no deck, a one-way route stores -> shutter -> lane -> neck -> pit, stations 3-5
+with their marks, retries and lines, the walkway stand-in, the coat-corner lamp, a new `GREY` and light file; the built
+yard's checksum and light files unchanged; all the tests above green.
+
+## PR
+No PR from the builder. The lead opens it to master only after S0 and R1 are on master and #441 is on master (it edits
+this set file); PR body: flag `marlowReplan`, owner Night Shift | Marlow Build, switch-on 2026-10-29.
+
+## Report (append below, then `status: done feature/marlow-replan-g-a2 <sha>`)
+Built, numbers used (cabinet 2's spot, walkway z, pit depth), files, commits, tests run with counts, e2e "pending PC
+run", deviations, what Michael should try.
