@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-25T11:50:47Z
+status: open
 # J12 validator-port, slice S7b (Sonnet): engine.mjs nav-floor WARN + long-throw exception
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3).

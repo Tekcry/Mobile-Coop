@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T11:51:36Z
+status: open
 # map-ready S4 (cloud): the campus lamps shipped pre-built, code + unit tests (resume from the desktop WIP)
 
 Lead: Night Shift | Sector Ops Build. Job map-ready (FOLDED-PLAN J21, ROADMAP Now row 17; Michael's fix (2), ROADMAP
