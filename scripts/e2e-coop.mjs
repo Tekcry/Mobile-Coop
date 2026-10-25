@@ -222,7 +222,9 @@ try {
   assert(visB.ok, `host avatar drawn on the client (${JSON.stringify(visB)})`);
   assert(visB.info.some((i) => i.inFrustum && i.active), `host avatar in the client camera's view (${JSON.stringify(visB)})`);
   const objIn = await GB(() => window.__app.current.hud.objectiveText);
-  assert(!/Connecting to host/.test(objIn), `connecting label gone once in game (${objIn})`);
+  assert(!/Connecting to host|Waiting for host/.test(objIn), `connecting label gone once in game (${objIn})`);
+  // (hud-guidance B3, HG9) the notice rode its own net-status line and is gone (polled: a stall shows "Waiting for host")
+  await until(B, () => window.__app.current.hud.netStatusText === '', null, 10000, 'net-status line empty once in game (HG9)');
   // (G339) the partner dot lived on the minimap: the client draws no minimap or compass
   assert(await GB(() => !document.querySelector('.hud-minimap, .minimap, .hud-compass')), 'no minimap or compass (G339)');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
@@ -1846,10 +1848,12 @@ try {
   const inf = await GB(() => ({ map: window.__app.current.world.map.id, mode: window.__app.current.opts.mode }));
   assert(inf.map === 'warehouse' && inf.mode === 'infiltration', `client on the mission's map (${JSON.stringify(inf)})`);
   await until(B, () => (window.__app.current.interactables?.items ?? []).some((i) => i.kind !== 'door' && i.kind !== 'revive'), null, 10000, 'objective items on the client');
-  // (coop-fix) the host's mission objective, not the connecting placeholder (polled: a stalled host shows the waiting notice until its next snapshot)
+  // (coop-fix) the host's mission objective, not the connecting placeholder (hud-guidance B3, HG9: the notices ride the
+  // net-status line, never the objective)
   await until(B, () => { const t = window.__app.current.hud.objectiveText; return t.length > 0 && !/Connecting to host|Waiting for host/.test(t); }, null, 10000, 'the mission objective on the client');
   const obj = await GB(() => window.__app.current.hud.objectiveText);
-  assert(!/Connecting to host/.test(obj) && obj.length > 0, `client sees the mission's objectives (${obj})`);
+  assert(!/Connecting to host|Waiting for host/.test(obj) && obj.length > 0, `client sees the mission's objectives (${obj})`);
+  await until(B, () => window.__app.current.hud.netStatusText === '', null, 10000, 'net-status line empty in the mission (HG9)');
 
   // (hang-down) The joiner hangs head-first from the host's hands over the Warehouse's mezzanine lip. The offer and the
   // request are made by their own calls (the drop search is skipped: a railing post can stand in its waist ray; the host
