@@ -1,0 +1,15 @@
+{
+  "id": "20261025T070157-night-shift-campaign-c74ce8f5-9e6c",
+  "sha": "c74ce8f5ef06b1e7d52e5b5e80c5f011ae562681",
+  "branch": "feature/mission-engine-flg-gb6",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl",
+    "e2e-sectorops:mission"
+  ],
+  "set": "mission-flg-gb6",
+  "note": "engine + FLG + GB6 merge, first GB6 run"
+}
