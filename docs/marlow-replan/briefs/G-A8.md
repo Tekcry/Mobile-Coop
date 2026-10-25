@@ -5,7 +5,7 @@ Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 
 Queue copy: cloud-queue `briefs/j14-g-a8.md` (the lead copies this file there).
 
 ## Base and branch
-- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- base: feature/marlow-replan-base at 1ab25b99b2de3fa524c94c2668a9412f64e634f5 (S0 + R1 merged, both checker-passed).
 - new branch: `feature/marlow-replan-g-a8` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a8`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a8`. Commit and push each
   finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
@@ -28,8 +28,11 @@ Queue copy: cloud-queue `briefs/j14-g-a8.md` (the lead copies this file there).
 - `src/world/maps/ctcourseSets/replan/a8Strongroom.ts`: everything new, by building into `b` / `kit` and amending `part`.
 - `tests/ctcourse/replan/a8Strongroom.test.ts` (new), `tests/ctcourse/replan/a8Strongroom.light.json`,
   `scripts/e2e-ctcourse/replan/a8Strongroom.mjs` (replaces S0's stub), `changes/feature-marlow-replan-g-a8.md`.
+- `src/game/course/replan/a8Ticks.ts` (R1's stub: fill `a8Tick` only) and its test
+  `tests/ctcourse/replan/a8Ticks.test.ts` (new).
 - Nothing else (not PLAN / BRIEF / STATIONS / graph / svg, `replan/index.ts`, `ctcourse.ts`, `types.ts`, `facility.ts`,
-  `src/game/**`, any built test, light file or e2e module). Need more: `status: blocked <what and why>`.
+  `src/game/**` other than your tick file, any built test, light file or e2e module). Need more: `status: blocked <what
+  and why>`.
 
 ## Flag off = nothing changes
 The built `ctcourse` stays byte-identical: `tests/ctcourse/a8Strongroom.test.ts` (`GREY`) and every built light file
@@ -63,11 +66,67 @@ unchanged and green.
     (118, 67.2) for C2). Confirm from the built geometry which side of `A8_COUNTER_MAIN` (z 65.5-66.24) the staff side and
     the jam spot are, and that the floor partner at (118, 67.2) jams C2 (133.75, 4.4 + mount, 73.0; range 10) for the
     gallery's last 8 m; report the box for G1.
-11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write the windows of stations 20 and 21 as runtime code in your
-   own stub `src/game/course/replan/a8Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
-   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
-   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
-   tick file and not `ticks.ts`. Add `a8Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
+11. **Drill hook (lead decisions ~23:05 (a), ~23:55; base 1ab25b99b):** no timer starts from a gate opening.
+    Write the windows of stations 20 and 21 as runtime code in your own stub
+    `src/game/course/replan/a8Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS`): fill `export const a8Tick:
+    StationTick = (h, dt) => { ... }`.
+    `StationHooks` as built on the base (`src/game/course/replan/ticks.ts`), host only, every read allocation-free:
+    - `flag(id)`: is course flag `id` set globally (`CourseState.hasShared`: a pass zone, a gate's shared flag).
+    - `live()`: the live station's number (0: none).
+    - `retry(n, cause)`: retry station `n`, cause `'timer'` or `'seen'`; only while `n` is live, its retry on and no
+      retry under way (false otherwise).
+    - `playersIn(zone)`: how many players stand in `zone` (a `TickZone` `[minX, minZ, maxX, maxZ]`, optionally
+      `[..., minY, maxY]` feet band; a downed player counts).
+    - `now()`: the course clock (s since the course started).
+    - `gate(id)`: is gate `id` open now (`CourseState.isGateOpen`): an isolator's open is its dark, a console pickup's
+      its loop.
+    - `down(slotId)`: is squad slot `slotId`'s guard down (knocked out, dead or gone; up again once a squadmate wakes
+      him); false for a slot the bay's squad does not have.
+    - `jammed(targetId)`: is a jammer held on target `targetId` now (a camera id, a laser panel id; held only).
+    - `lit(group)`: is any lamp of light group `group` lit now (on and not shot out: follows a jam's flicker and off
+      time, shots and switches).
+    - `tripped(laserId)`: was laser `laserId` broken while the current station was live, since the last `epoch()`
+      change (never an automatic retry: the tick decides).
+    - `epoch()`: a number that rises on every station retry, bay restart and course start, and never repeats across
+      matches.
+    This set uses: `live`, `gate`, `flag`, `epoch`, `retry`.
+    Rules:
+    - Keep window state in module-level numbers and reset it whenever `epoch()` differs from the last epoch the tick
+      saw (keep that number too); module state never survives a match because the epoch never repeats.
+    - Act only while `live()` is one of this set's drill stations.
+    - Never edit `ticks.ts`, `courseMode.ts` or another set's tick file; keep the stub's export name `a8Tick`.
+    - `flag` reads both-player (shared) flags only: never `<flag>@1` / `<flag>@2`.
+    - No allocation in a tick: no closures, arrays, objects or template strings per call; zones and ids are module
+      constants.
+    - Lamp jam ids (`lt-<n>`) depend on build order: read lamps with `lit(group)`, never `jammed('lt-..')`.
+    Station 20: the gate is `g-a8-night` (`A8_NIGHT_GATE`, an `isolator`: `gate('g-a8-night')` is true while the board
+    is dark). The window runs while it is true; fail: on the step `!gate('g-a8-night')` follows a true step while
+    `live()` is still 20 (`a8-grille-in`, the done flag, not yet set) -> `h.retry(20, 'timer')`.
+    Station 21: the loop runs while `flag('a8-loop')` is set (`A8_LOOP_FLAG`, the shared flag of the pickup gate
+    `g-a8-console`, pressed in 19; it clears when the 60 s loop ends). Fail: `flag('a8-loop')` clears while `live()` is
+    21 -> `h.retry(21, 'timer')`; and if `live()` turns 21 from 20 in the same epoch with the flag already clear, retry
+    at once (STATIONS section 5). After a retry (new epoch) A is back at the console: wait for the next press, no
+    instant fail.
+    Stations 18 and 19 need no tick (`caught` retries are R1's).
+    Unit-test the tick in `tests/ctcourse/replan/a8Ticks.test.ts` with fake hooks (a plain object implementing
+    `StationHooks`): dark then lit before `a8-grille-in` retries 20 once; dark then the grille flag set, no retry; loop
+    cleared while 21 is live retries 21 once; 21 going live with the loop already ended retries at once; after a retry
+    with the loop off, no retry until a new press ends; an `epoch()` change mid-window forgets it.
+12. **Validator: `a8-office` (J12 S4 check, `j12-c-batch-check.md` S4).** The J12 training module run on the J14 graph
+    gives 4 real ERRs on `a8-office` (A9: A8 is a side-route section after `taught_by`, so campaign route rules apply to
+    its guarded encounter spaces); the same four come from the core `checkEncounters` on the full graph:
+    - `a8-office: 1 approaches (need 3+)`
+    - `a8-office: approaches use 1 route kind(s) (need 2+)`
+    - `a8-office: no shadow approach`
+    - `a8-office: no loud approach`
+    Cause: the only way in is the gallery door (`a8-gallery -> a8-office`, `high`); the office stair down to
+    `a8-lobby-outer` is `one_way` out. Fix it in the A8 set with the smallest real change that gives the office 3+
+    approaches using 2+ route kinds, including a `shadow` and a `loud` one, each from a space a player reaches without
+    passing through the office (for example: the stair's foot door also opening from the lobby side, a shadow way up;
+    a loud way in from the public stair head or the gallery). Keep station 18 (the C2 run to `a8-office-in`) the
+    taught route. The graph's new or changed links (from, to, kind, route, width, `one_way`) go in your report for G1,
+    not into `graph.json`; G1 reruns the validator. If no fix fits inside A8 without breaking the four steps,
+    `status: blocked a8-office approaches: <your proposal>`.
 
 ## Lead decisions that touch A8 (j14-wave2-notes)
 - n 18-21 for badge 18; play order as listed; marks by role (A = gallery / office, B = floor).
@@ -79,7 +138,7 @@ Desktop builders run node at BelowNormal
 (`powershell -NoProfile -Command "(Get-Process -Id \$PID).PriorityClass='BelowNormal'; <cmd>"`); light bake timeout 15 min.
 ```
 npm run typecheck:fast
-npx vitest run tests/ctcourse/replan/a8Strongroom.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a8Strongroom.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
+npx vitest run tests/ctcourse/replan/a8Strongroom.test.ts tests/ctcourse/replan/a8Ticks.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a8Strongroom.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
 CTLIGHT_VARIANT=replan CTLIGHT_WRITE=a8Strongroom npx vitest run tests/ctcourseLight.test.ts
 CTLIGHT_VARIANT=replan npx vitest run tests/ctcourseLight.test.ts
 npx vitest run tests/ctcourseLight.test.ts
@@ -104,5 +163,6 @@ No PR from the builder. The lead opens it to master only after S0 and R1 are on 
 owner Night Shift | Marlow Build, switch-on 2026-10-29.
 
 ## Report (append below, then `status: done feature/marlow-replan-g-a8 <sha>`)
-Built, numbers used (stair, column, rails, glass, lamps, the counters box), files, commits, tests with counts, e2e
+Built, numbers used (stair, column, rails, glass, lamps, the counters box, the `a8-office` approaches and their graph
+links for G1), files, commits, tests with counts, e2e
 "pending PC run", deviations, what Michael should try.

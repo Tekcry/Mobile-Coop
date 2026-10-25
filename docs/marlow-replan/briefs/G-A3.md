@@ -5,7 +5,7 @@ Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 
 Queue copy: cloud-queue `briefs/j14-g-a3.md` (the lead copies this file there).
 
 ## Base and branch
-- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- base: feature/marlow-replan-base at 1ab25b99b2de3fa524c94c2668a9412f64e634f5 (S0 + R1 merged, both checker-passed).
 - new branch: `feature/marlow-replan-g-a3` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a3`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a3`. Commit and push each
   finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
@@ -64,6 +64,9 @@ The built `ctcourse` stays byte-identical: `tests/ctcourse/a3OfficeRange.test.ts
     line, each naming what and where (#441's rule; at most `COURSE_TEXT_MAX`), no "fail".
 11. **Lamps.** No circuit change in A3 (`MARLOW_CIRCUITS_REPLAN`); the riser cupboard and crawl stay unlit (a crawl, not a
     dead-light pocket: light it from the cupboard's existing spill or add no pocket).
+12. **Drill hook:** no tick needed; leave the stub `a3Tick` in `src/game/course/replan/a3Ticks.ts` as R1 built it
+    (station 6 cannot time out and station 7 has no `drillS`: the camera's full detection is a `seen` retry through R1,
+    SA6). Never edit `ticks.ts` or `courseMode.ts`.
 
 ## Lead decisions that touch A3 (j14-wave2-notes)
 - Retry: R1's host `stationRetry(n, cause)` handles the camera's full detection (`seen`); this set declares nothing extra.

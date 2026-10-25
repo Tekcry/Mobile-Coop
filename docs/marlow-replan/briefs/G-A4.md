@@ -5,7 +5,7 @@ Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 
 Queue copy: cloud-queue `briefs/j14-g-a4.md` (the lead copies this file there).
 
 ## Base and branch
-- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- base: feature/marlow-replan-base at 1ab25b99b2de3fa524c94c2668a9412f64e634f5 (S0 + R1 merged, both checker-passed).
 - new branch: `feature/marlow-replan-g-a4` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a4`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a4`. Commit and push each
   finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
@@ -27,8 +27,13 @@ Queue copy: cloud-queue `briefs/j14-g-a4.md` (the lead copies this file there).
 - `src/world/maps/ctcourseSets/replan/a4GoodsShed.ts`: everything new, by building into `b` / `kit` and amending `part`.
 - `tests/ctcourse/replan/a4GoodsShed.test.ts` (new), `tests/ctcourse/replan/a4GoodsShed.light.json`,
   `scripts/e2e-ctcourse/replan/a4GoodsShed.mjs` (replaces S0's stub), `changes/feature-marlow-replan-g-a4.md`.
+- `src/game/course/replan/a4Ticks.ts` (R1's stub: fill `a4Tick` only) and its test
+  `tests/ctcourse/replan/a4Ticks.test.ts` (new).
+- `src/world/lighting/marlowCircuits.ts`: only the `a4-sw-bulk` switch spot in `MARLOW_CIRCUITS_REPLAN` (group 49, the
+  `sw('a4-sw-bulk', ...)` entry; step 10). No other row.
 - Nothing else (not PLAN / BRIEF / STATIONS / graph / svg, `replan/index.ts`, `ctcourse.ts`, `types.ts`, `facility.ts`,
-  `src/game/**`, any built test, light file or e2e module). Need more: `status: blocked <what and why>`.
+  `src/game/**` other than your tick file, any built test, light file or e2e module). Need more: `status: blocked <what
+  and why>`.
 
 ## Flag off = nothing changes
 The built `ctcourse` stays byte-identical: `tests/ctcourse/a4GoodsShed.test.ts` (`GREY`) and every built light file
@@ -44,9 +49,12 @@ unchanged and green; the built A4 keeps its kettle loop and every aisle.
 2. **Lift grille (station 9, `deadweight`, stand-in).** A counterweighted lift grille across the passage mouth (x 101-104,
    just inside z 24.25; graph link `shutter` w 3, lifts 0.9 m, 6 s): door `A4-grille`, gate `g-a4-grille` (the deadweight
    gate KS1 hooks to Player's `counterweightGrate.ts` later; today it opens only through the stand-in), a chain on its
-   counterweight side. Stand-in: the grille's own motor button `g-a4-grille-motor` beside the mouth, a press gate the
-   host opens while `kitMoves` `deadweight` is off (use the base's stand-in opener; if the base has none, build it open at
-   bay start and say so). Station 9 is done before the console press, so it never runs inside the loop.
+   counterweight side. Stand-in: the grille's own motor button `g-a4-grille-motor` beside the mouth (station 9's
+   `standIn`). The base already opens it as station 9 goes live while `deadweight` is not playable
+   (`CourseState.openStandIn`, R1 fix 7) and keeps it open through retries: build no opener of your own. Its kind must
+   latch: `lever` (the button as its switch, the grille door as its door) or `flag` (its flag in `p.externalFlags`);
+   never `hold`, `timedHold` or `mains` (their own rule would shut it again). Station 9 is done before the console
+   press, so it never runs inside the loop.
 3. **Camera loop (station 8, 60 s).** As built: console `g-a4-console`, loop flag `a4-loop`, C1-C3, the officer needed down.
 4. **Kettle loop out (PLAN :59, :118-126, :308-310, :382, :409).** `a4-dock2` stands at the desk: overwrite
    `part.squads['a4-dock2']` with a static slot at (80.0, 31.6), yaw 0, no route / loop; guard the kettle counter
@@ -62,14 +70,59 @@ unchanged and green; the built A4 keeps its kettle loop and every aisle.
    `retry:a4-camloop:timer`, `retry:a4-takedown`, `retry:a4-takedown:timer`, verbatim.
 9. **Objective lines.** Replace `part.objectives` for A4 in the replan file: one line per station in play order plus the
    holding-room line, each naming what and where (#441's rule; at most `COURSE_TEXT_MAX`), no "fail".
-10. **Lamps (Q2).** Group 49, the back aisle: 3 strips over the back aisle, switch `a4-sw-bulk` at (76.3, 25.8); group 44,
-    the dispatch office: 1 ceiling panel, switch `a4-sw-dispatch` (79.4, 38.4) inside it (`MARLOW_CIRCUITS_REPLAN`; the
-    lamp counts are the budget). Light spots for both.
-11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write station 8's loop window and station 10's pair window as runtime code in your
-   own stub `src/game/course/replan/a4Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
-   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
-   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
-   tick file and not `ticks.ts`. Add `a4Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
+10. **Lamps (Q2).** Group 49, the back aisle: 3 strips over the back aisle; group 44, the dispatch office: 1 ceiling
+    panel, switch `a4-sw-dispatch` (79.4, 38.4) inside it (`MARLOW_CIRCUITS_REPLAN`; the lamp counts are the budget).
+    Light spots for both. **No lamp headroom:** A4 is at the per-set cap of 24 lamps; add none. If one is ever needed,
+    ask the lead (aisle 2 and the mezzanine, groups 42 / 43, are closed and could shed one).
+    **Move `a4-sw-bulk` (S0 check polish, lead approves).** S0's plan point (76.3, 25.8) is 8 m west of the back aisle's
+    lit run (x 84-110), on the dock side of the west back aisle this slice closes, so no player reaches it. Move it to a
+    wall spot on the open back aisle (x 95-108, z 24.25-27.3) that a player on the one route can reach, out of C2's
+    view; change only that `sw(...)` entry (position and its "where" text). Report the old and new spot: the lead
+    approves it at the check.
+11. **Drill hook (lead decisions ~23:05 (a), ~23:55; base 1ab25b99b):** no timer starts from a gate opening.
+    Write station 8's loop window and station 10's pair window as runtime code in your own stub
+    `src/game/course/replan/a4Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS`): fill `export const a4Tick:
+    StationTick = (h, dt) => { ... }`.
+    `StationHooks` as built on the base (`src/game/course/replan/ticks.ts`), host only, every read allocation-free:
+    - `flag(id)`: is course flag `id` set globally (`CourseState.hasShared`: a pass zone, a gate's shared flag).
+    - `live()`: the live station's number (0: none).
+    - `retry(n, cause)`: retry station `n`, cause `'timer'` or `'seen'`; only while `n` is live, its retry on and no
+      retry under way (false otherwise).
+    - `playersIn(zone)`: how many players stand in `zone` (a `TickZone` `[minX, minZ, maxX, maxZ]`, optionally
+      `[..., minY, maxY]` feet band; a downed player counts).
+    - `now()`: the course clock (s since the course started).
+    - `gate(id)`: is gate `id` open now (`CourseState.isGateOpen`): an isolator's open is its dark, a console pickup's
+      its loop.
+    - `down(slotId)`: is squad slot `slotId`'s guard down (knocked out, dead or gone; up again once a squadmate wakes
+      him); false for a slot the bay's squad does not have.
+    - `jammed(targetId)`: is a jammer held on target `targetId` now (a camera id, a laser panel id; held only).
+    - `lit(group)`: is any lamp of light group `group` lit now (on and not shot out: follows a jam's flicker and off
+      time, shots and switches).
+    - `tripped(laserId)`: was laser `laserId` broken while the current station was live, since the last `epoch()`
+      change (never an automatic retry: the tick decides).
+    - `epoch()`: a number that rises on every station retry, bay restart and course start, and never repeats across
+      matches.
+    This set uses: `live`, `flag`, `down`, `now`, `epoch`, `retry`.
+    Rules:
+    - Keep window state in module-level numbers and reset it whenever `epoch()` differs from the last epoch the tick
+      saw (keep that number too); module state never survives a match because the epoch never repeats.
+    - Act only while `live()` is one of this set's drill stations.
+    - Never edit `ticks.ts`, `courseMode.ts` or another set's tick file; keep the stub's export name `a4Tick`.
+    - `flag` reads both-player (shared) flags only: never `<flag>@1` / `<flag>@2`.
+    - No allocation in a tick: no closures, arrays, objects or template strings per call; zones and ids are module
+      constants.
+    - Lamp jam ids (`lt-<n>`) depend on build order: read lamps with `lit(group)`, never `jammed('lt-..')`.
+    Station 8: the loop runs while `flag('a4-loop')` is set (`A4_LOOP_FLAG`, the shared flag of the pickup gate
+    `g-a4-console`; it clears when the 60 s loop ends). Arm the window on a step that sees it set while `live()` is 8;
+    fail: an armed window sees it clear while `live()` is still 8 (`a4-west`, the done flag, not yet reached) ->
+    `h.retry(8, 'timer')`. After a retry (new epoch) wait for the next press.
+    Station 10: the pair window opens on the first step either `down('a4-dock1')` or `down('a4-dock2')` (`A4_DOCK1` /
+    `A4_DOCK2`, the squad slot ids) turns true while `live()` is 10; note `now()`. Fail: the other is still not down
+    `SYNC_WINDOW` (1.5 s, `src/game/rating/sectionRating.ts`) later -> `h.retry(10, 'timer')`. Both down inside the
+    window: no fail.
+    Unit-test the tick in `tests/ctcourse/replan/a4Ticks.test.ts` with fake hooks (a plain object implementing
+    `StationHooks`): loop set then cleared while 8 is live retries 8 once; cleared after `a4-west` (live moved on) no
+    retry; dock1 down then dock2 at 1.4 s no retry, at 1.6 s retries 10; an `epoch()` change mid-window forgets it.
 
 ## Lead decisions that touch A4 (j14-wave2-notes)
 - Play order 9, 8, 10 (the base's `checkSetPart` allows n 1-21, not rising).
@@ -81,7 +134,7 @@ Desktop builders run node at BelowNormal
 (`powershell -NoProfile -Command "(Get-Process -Id \$PID).PriorityClass='BelowNormal'; <cmd>"`); light bake timeout 15 min.
 ```
 npm run typecheck:fast
-npx vitest run tests/ctcourse/replan/a4GoodsShed.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a4GoodsShed.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
+npx vitest run tests/ctcourse/replan/a4GoodsShed.test.ts tests/ctcourse/replan/a4Ticks.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a4GoodsShed.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
 CTLIGHT_VARIANT=replan CTLIGHT_WRITE=a4GoodsShed npx vitest run tests/ctcourseLight.test.ts
 CTLIGHT_VARIANT=replan npx vitest run tests/ctcourseLight.test.ts
 npx vitest run tests/ctcourseLight.test.ts
@@ -91,7 +144,8 @@ dock2 with dock2 static; stations equal STATIONS' A4 block in order 9, 8, 10; ma
 the security room with the grille shut nothing past z 24.25 is reachable; with it open the only path to the dock runs
 through `a4-cross` and `a4-main-aisle` (no reachable cell in aisle 2, the east lane, the west back aisle, the mezzanine or
 the dispatch office); station 9's ground (back aisle) is out of C2's range; station 10's marks outside C3's sweep; groups
-49 and 44 live with their lamp counts; the retry lines exist and fit.
+49 and 44 live with their lamp counts, A4 within 24 lamps, `a4-sw-bulk` reachable from the route; the retry lines exist
+and fit.
 
 ## e2e (write, do not run: "pending PC run")
 `scripts/e2e-ctcourse/replan/a4GoodsShed.mjs`: both players on host and client: grille (stand-in), console loop, cross to

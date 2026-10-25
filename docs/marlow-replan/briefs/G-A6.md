@@ -5,7 +5,7 @@ Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 
 Queue copy: cloud-queue `briefs/j14-g-a6.md` (the lead copies this file there).
 
 ## Base and branch
-- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- base: feature/marlow-replan-base at 1ab25b99b2de3fa524c94c2668a9412f64e634f5 (S0 + R1 merged, both checker-passed).
 - Lead confirmed (~23:10): the layout in this brief (pit at the cage footprint, covered outfall culvert east to the L6 door, gauge board moved, attendant round north of the culvert, 1.0 x 1.0 m drop opening at x 52-53, z 65-66). Step 1 (noise test) first; report it before the rest.
 - new branch: `feature/marlow-replan-g-a6` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a6`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a6`. Commit and push each
@@ -33,6 +33,8 @@ Queue copy: cloud-queue `briefs/j14-g-a6.md` (the lead copies this file there).
 - `src/world/maps/ctcourseSets/replan/a6PumpHouse.ts`: everything new, by building into `b` / `kit` and amending `part`.
 - `tests/ctcourse/replan/a6PumpHouse.test.ts` (new), `tests/ctcourse/replan/a6PumpHouse.light.json`,
   `scripts/e2e-ctcourse/replan/a6PumpHouse.mjs` (replaces S0's stub), `changes/feature-marlow-replan-g-a6.md`.
+- `src/world/lighting/marlowCircuits.ts`: only the `a6-sw-sump` switch spot in `MARLOW_CIRCUITS_REPLAN` (group 69, the
+  `sw('a6-sw-sump', ...)` entry; step 2). No other row.
 - Nothing else (not PLAN / BRIEF / STATIONS / graph / svg, `replan/index.ts`, `ctcourse.ts`, `types.ts`, `facility.ts`,
   `src/game/**`, any built test, light file or e2e module). Need more: `status: blocked <what and why>`.
 
@@ -54,8 +56,11 @@ so.
    (SA11; x 40.8-45.3 on the gallery's south edge): open for the first player's leg-up, it shuts once one player is on
    the gallery, so the second climbs by the rope (station 14) and the relay ladder at the edge is gone; it resets on a
    station 14 retry.
-2. **Re-lamp (Q2).** Group 69, sump high-bay and west gallery: 3 lamps, switch `a6-sw-sump` at (58.6, 54.4) beside the sump
-   bay (`MARLOW_CIRCUITS_REPLAN`; the count is the budget). Light spots for the sump, the west gallery and pump 3.
+2. **Re-lamp (Q2).** Group 69, sump high-bay and west gallery: 3 lamps (`MARLOW_CIRCUITS_REPLAN`; the count is the
+   budget). Light spots for the sump, the west gallery and pump 3. **Move `a6-sw-sump` (S0 check polish, lead
+   approves):** S0's plan point (58.6, 54.4) is 5 m east of the sump bay. Move it to a wall spot at the sump bay itself
+   that a player can reach on the route; change only that `sw(...)` entry (position and its "where" text). Report the
+   old and new spot: the lead approves it at the check.
 3. **The drive pit and the outfall (station 16; PLAN risk :568: this layout is fixed here).**
    - Pit: the cage footprint x 49.4-53.6, z 62.0-66.2 sunk to y -1.6 (`FLOOR_HOLES` includes [49.4, 62.0, 53.6, 66.2]);
      the cage keeps its place and its mesh; steps from the pit floor up to the cage's push-bar door `A6-cage` (opens from
@@ -77,8 +82,10 @@ so.
    The hang-down (15) stays as built through the gland plate; the drive panel `sw-a6-panel` must be out of reach from
    the pit floor (only the hanger reaches it), so dropping in first skips nothing.
 5. **Stand-in (station 16).** The cage's fixed ladder `a6-pit-ladder` from the bridge deck down through the drop opening
-   to the pit floor, locked by an `anchorLock` gate `g-a6-pit-ladder` (SA11) that the host opens while `kitMoves`
-   `dropCatch` is off (use the base's stand-in opener; if the base has none, build it open at bay start and say so).
+   to the pit floor, locked by an `anchorLock` gate `g-a6-pit-ladder` (SA11, station 16's `standIn`; `anchorLock`
+   latches). The base already opens it as station 16 goes live while `dropCatch` is not playable
+   (`CourseState.openStandIn`, R1 fix 7) and keeps it open through retries: build no opener of your own. Never a `hold`,
+   `timedHold` or `mains` gate.
 6. **Guards: one.** `a6-attendant` (re-routed above). Fallback only on the lead's answer: `a6-listener`, a static `grunt`
    at the pit side within hearing of the pit, added to `part.bay.squad` and station 16's `guards`.
 7. **Stations.** `part.bay.stations` = STATIONS section 3's A6 block, verbatim (no `drillS` in A6).
@@ -87,6 +94,9 @@ so.
 10. **Objective lines.** Replace `part.objectives` for A6 in the replan file (never in the set file): one line per station
     plus the outfall / holding-room line, each naming what and where (#441's rule; at most `COURSE_TEXT_MAX`), no "fail".
 11. **Fallback answer (lead fills after step 1):** <attendant only (default) / add `a6-listener`>.
+12. **Drill hook:** no tick needed; leave the stub `a6Tick` in `src/game/course/replan/a6Ticks.ts` as R1 built it (no
+    station in A6 has `drillS`; a guard's sighting is a `seen` retry through R1).
+    Never edit `ticks.ts` or `courseMode.ts`.
 
 ## Lead decisions that touch A6 (j14-wave2-notes)
 - Station 16's drop needs a body-sized opening into the pit (the 0.55 m gland hole is too small): step 4.
@@ -107,7 +117,8 @@ squad = attendant (and listener only on the fallback); stations equal STATIONS' 
 16 on the pit floor); on the nav, the pump floor reaches neither the pit nor the L6 door, the pit reaches L6 only through
 the outfall, the stair is closed; with the edge gate shut no ledge or lip at the loading edge is reachable from the
 floor; the drop opening 1.0 m and a 6.0 m fall through it lands in the pit; the drive panel out of reach from the pit
-floor; the attendant's round walkable and clear of the housing; group 69 live with 3 lamps; the retry lines exist and fit.
+floor; the attendant's round walkable and clear of the housing; group 69 live with 3 lamps and `a6-sw-sump` at the sump
+bay; the retry lines exist and fit.
 
 ## e2e (write, do not run: "pending PC run")
 `scripts/e2e-ctcourse/replan/a6PumpHouse.mjs`: both players on host and client: leg-up and rope (the edge gate shut), the

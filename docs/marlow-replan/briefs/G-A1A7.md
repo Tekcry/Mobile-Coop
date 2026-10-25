@@ -5,7 +5,7 @@ Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 
 Queue copy: cloud-queue `briefs/j14-g-a1a7.md` (the lead copies this file there).
 
 ## Base and branch
-- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- base: feature/marlow-replan-base at 1ab25b99b2de3fa524c94c2668a9412f64e634f5 (S0 + R1 merged, both checker-passed).
 - new branch: `feature/marlow-replan-g-a1a7` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a1a7`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a1a7`. Commit and push
   each finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
@@ -73,6 +73,10 @@ green; `e2e-coop.mjs`'s Marlow guard block keeps the A1 checker.
 5. **LANTERN's line.** `bay.radio` row `retry:a7-split`, verbatim.
 6. **Objective lines.** A7 lines may stay as built; any line you change goes in the replan file, naming what and where.
 7. **Lamps.** No circuit change in A1 or A7.
+8. **Drill hook:** no tick needed; leave the stubs `a1Tick` in `src/game/course/replan/a1Ticks.ts` and `a7Tick` in
+   `src/game/course/replan/a7Ticks.ts` as R1 built them (stations 1 and 2 cannot fail; station 17 has no `drillS`: a
+   hack miss resets the terminals in place, a sighting is a `seen` retry through R1).
+   Never edit `ticks.ts` or `courseMode.ts`.
 
 ## Lead decisions that touch A1 / A7 (j14-wave2-notes)
 - Retry: R1's host `stationRetry(n, cause)` (seen); a retry resets the listed guards plus any guard alerted in the bay.

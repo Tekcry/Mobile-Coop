@@ -5,7 +5,7 @@ Lead: Night Shift | Marlow Build. Brief: Opus (J14 wave 2). Builder: Sonnet 5.5 
 Queue copy: cloud-queue `briefs/j14-g-a5.md` (the lead copies this file there).
 
 ## Base and branch
-- base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- base: feature/marlow-replan-base at 1ab25b99b2de3fa524c94c2668a9412f64e634f5 (S0 + R1 merged, both checker-passed).
 - new branch: `feature/marlow-replan-g-a5` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a5`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a5`. Commit and push each
   finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
@@ -28,9 +28,11 @@ Queue copy: cloud-queue `briefs/j14-g-a5.md` (the lead copies this file there).
 - `src/world/maps/ctcourseSets/replan/a5Substation.ts`: everything new, by building into `b` / `kit` and amending `part`.
 - `tests/ctcourse/replan/a5Substation.test.ts` (new), `tests/ctcourse/replan/a5Substation.light.json`,
   `scripts/e2e-ctcourse/replan/a5Substation.mjs` (replaces S0's stub), `changes/feature-marlow-replan-g-a5.md`.
+- `src/game/course/replan/a5Ticks.ts` (R1's stub: fill `a5Tick` only) and its test
+  `tests/ctcourse/replan/a5Ticks.test.ts` (new).
 - Nothing else (not PLAN / BRIEF / STATIONS / graph / svg, `replan/index.ts`, `ctcourse.ts`, `types.ts`, `facility.ts`,
-  `src/game/**`, any built test, light file or e2e module). The graph's new boxes and link `at` points go in your report
-  for G1, not into `graph.json`. Need more: `status: blocked <what and why>`.
+  `src/game/**` other than your tick file, any built test, light file or e2e module). The graph's new boxes and link
+  `at` points go in your report for G1, not into `graph.json`. Need more: `status: blocked <what and why>`.
 
 ## Flag off = nothing changes
 The built `ctcourse` stays byte-identical: `tests/ctcourse/a5Substation.test.ts` (`GREY`) and every built light file
@@ -42,9 +44,12 @@ unchanged and green.
    and 36.0 (6 m tall) so the gap is z 30.25-35.75 (L4's far door at (70, 33) opens into it). The strips x 68.35-69.75
    north and south of the gap are sealed dead space. Wall top `a5-walltop` (x 67.85-68.35, z 30.25-35.75, y 6) and the
    fixed access ladder on the wall's inside face down to the apron (SVG: z 30-36). Stand-in: a wicket in the perimeter
-   wall at the gap, door `A5-wicket`, gate `g-a5-wicket`, which the host opens while `kitMoves` `chimneyPair` is off (use
-   the base's stand-in opener; if the base has none, build it open at bay start and say so). The chimney itself (KS3) is
-   only geometry now: the 1.4 m gap.
+   wall at the gap, door `A5-wicket`, gate `g-a5-wicket` (station 11's `standIn`). The base already opens it as station
+   11
+   goes live while `chimneyPair` is not playable (`CourseState.openStandIn`, R1 fix 7): build no opener of your own. Its
+   kind must latch: `flag` (door `A5-wicket`; its flag in `p.externalFlags`) or `lever`; never `hold`, `timedHold` or
+   `mains` (their own rule would shut it again). The chimney itself
+   (KS3) is only geometry now: the 1.4 m gap.
 2. **Cable trench (station 12, `swing_pass`, stand-in; lead decision).** The open trench moves 1.15 m west: 3.5 m wide,
    x 62.35-65.85, z 24.25-47.75 (`FLOOR_HOLES = [[62.35, 24.25, 65.85, 47.75]]`), floor y -1.6, so the apron's east strip
    is 2.0 m (x 65.85-67.85) and its west strip x 58.15-62.35. Step irons on the east face only, at both ends (a fall is a
@@ -52,7 +57,9 @@ unchanged and green.
    trench at z 44.6 (the swing's anchor for KS4; a steel frame and its pipe, the pipe's height a named constant KS4 sets
    to K4's band). The trench plates `g-a5-plates` (3 m, z 39.0-42.0) are laid from the west side by the swung player,
    then a way both ways. Stand-in: a hoarded footbridge across the trench, 1.2 m wide at z 36.4-37.6, door
-   `A5-footbridge`, gate `g-a5-footbridge`, opened while `swingPass` is off (as above).
+   `A5-footbridge`, gate `g-a5-footbridge` (station 12's `standIn`), opened by the base as station 12 goes live while
+   `swingPass` is not playable; same latching kinds as the wicket, never `hold`, `timedHold` or `mains` (their own rule
+   would shut it again).
 3. **Moved pieces (PLAN :107, :172-183, :332-344).** The cable drums (`A5_DRUMS`, now in the trench) move to the west
    strip, clear of the path from the plates to the throw mark (59.2, 36) and of `A5_HIDE` (59.0, 25.4); the cable dressing
    follows. The apron bulkheads at x 69.55 (z 29.5, 38.5) and the apron switch `a5-sw-apron` (69.7, 36.0) are now in the
@@ -77,11 +84,49 @@ unchanged and green.
    cannot fail).
 10. **Objective lines.** Replace `part.objectives` for A5 in the replan file: one line per station plus the holding-room
     line, each naming what and where (at most `COURSE_TEXT_MAX`), no "fail".
-11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write station 13's jam window and the beam trip (a broken beam on station 13 = retry 'seen') as runtime code in your
-   own stub `src/game/course/replan/a5Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
-   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
-   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
-   tick file and not `ticks.ts`. Add `a5Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
+11. **Drill hook (lead decisions ~23:05 (a), ~23:55; base 1ab25b99b):** no timer starts from a gate opening.
+    Write station 13's flood window and its beam trip as runtime code in your own stub
+    `src/game/course/replan/a5Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS`): fill `export const a5Tick:
+    StationTick = (h, dt) => { ... }`.
+    `StationHooks` as built on the base (`src/game/course/replan/ticks.ts`), host only, every read allocation-free:
+    - `flag(id)`: is course flag `id` set globally (`CourseState.hasShared`: a pass zone, a gate's shared flag).
+    - `live()`: the live station's number (0: none).
+    - `retry(n, cause)`: retry station `n`, cause `'timer'` or `'seen'`; only while `n` is live, its retry on and no
+      retry under way (false otherwise).
+    - `playersIn(zone)`: how many players stand in `zone` (a `TickZone` `[minX, minZ, maxX, maxZ]`, optionally
+      `[..., minY, maxY]` feet band; a downed player counts).
+    - `now()`: the course clock (s since the course started).
+    - `gate(id)`: is gate `id` open now (`CourseState.isGateOpen`): an isolator's open is its dark, a console pickup's
+      its loop.
+    - `down(slotId)`: is squad slot `slotId`'s guard down (knocked out, dead or gone; up again once a squadmate wakes
+      him); false for a slot the bay's squad does not have.
+    - `jammed(targetId)`: is a jammer held on target `targetId` now (a camera id, a laser panel id; held only).
+    - `lit(group)`: is any lamp of light group `group` lit now (on and not shot out: follows a jam's flicker and off
+      time, shots and switches).
+    - `tripped(laserId)`: was laser `laserId` broken while the current station was live, since the last `epoch()`
+      change (never an automatic retry: the tick decides).
+    - `epoch()`: a number that rises on every station retry, bay restart and course start, and never repeats across
+      matches.
+    This set uses: `live`, `lit`, `flag`, `tripped`, `epoch`, `retry`.
+    Rules:
+    - Keep window state in module-level numbers and reset it whenever `epoch()` differs from the last epoch the tick
+      saw (keep that number too); module state never survives a match because the epoch never repeats.
+    - Act only while `live()` is one of this set's drill stations.
+    - Never edit `ticks.ts`, `courseMode.ts` or another set's tick file; keep the stub's export name `a5Tick`.
+    - `flag` reads both-player (shared) flags only: never `<flag>@1` / `<flag>@2`.
+    - No allocation in a tick: no closures, arrays, objects or template strings per call; zones and ids are module
+      constants.
+    - Lamp jam ids (`lt-<n>`) depend on build order: read lamps with `lit(group)`, never `jammed('lt-..')`.
+    Station 13 window: `!lit(52)` (group 52, the kiosk flood; `cutBy` jam or shot). Arm it on a step that sees
+    `!lit(52)` while `live()` is 13. Fail: an armed window sees `lit(52)` again before `flag('a5-release')` (the done
+    flag; while it is unset `live()` stays 13) -> `h.retry(13, 'timer')`. No guessed "5 s held + 4 s off" timer: a flood
+    shot out stays dark and never fails the window.
+    Beam trip: `tripped('laser-a5')` (`A5_LASER`, the one laser def `throwGateway` builds for the gateway's three beams)
+    while `live()` is 13 -> `h.retry(13, 'seen')` (lead D1, OQ4). Check it before the flood rule in the same step.
+    Unit-test the tick in `tests/ctcourse/replan/a5Ticks.test.ts` with fake hooks (a plain object implementing
+    `StationHooks`): flood dark then lit before the release retries 13 once (timer); dark then the release set, no
+    retry; shot out (stays unlit) no retry; `tripped` true retries 13 once with `seen`; a lit flood before any window
+    opens is no fail; an `epoch()` change disarms the window.
 12. **Fallback answer (lead fills after G-A6's noise test):** <watcher in A5 (default) / moves to A6>.
 
 ## Lead decisions that touch A5 (j14-wave2-notes)
@@ -95,7 +140,7 @@ Desktop builders run node at BelowNormal
 (`powershell -NoProfile -Command "(Get-Process -Id \$PID).PriorityClass='BelowNormal'; <cmd>"`); light bake timeout 15 min.
 ```
 npm run typecheck:fast
-npx vitest run tests/ctcourse/replan/a5Substation.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a5Substation.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
+npx vitest run tests/ctcourse/replan/a5Substation.test.ts tests/ctcourse/replan/a5Ticks.test.ts tests/ctcourse/replan/variant.test.ts tests/ctcourse/a5Substation.test.ts tests/ctcourse/facility.test.ts tests/marlowLightingCircuits.test.ts tests/courseStation.test.ts
 CTLIGHT_VARIANT=replan CTLIGHT_WRITE=a5Substation npx vitest run tests/ctcourseLight.test.ts
 CTLIGHT_VARIANT=replan npx vitest run tests/ctcourseLight.test.ts
 npx vitest run tests/ctcourseLight.test.ts
