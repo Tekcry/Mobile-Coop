@@ -90,6 +90,10 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - Opus 5.5, high, laptop.
 - Resume: the last fenced block of `docs/guard-ai/STATE.md` on origin/feature/guard-ai (worktree
   C:/NightShift/Mobile-Coop-guard-ai on the laptop: create it with git worktree add if missing, npm ci once).
+  Swap of 2026-10-25 ~21:40 (laptop GitHub login was broken): BEFORE reading the resume block, `git push` in
+  C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai c98004402: coop4 release checks + resume block) and
+  C:/NightShift/Mobile-Coop-guard-rules-s5 (a09495007: S5 checks A + B PASS); if the push fails, read
+  docs/guard-ai/STATE.md from the local branch, not origin, and do not redo those four checks. Delete this note once pushed.
 - First job: review-briefs/guard-ai.md. Area: `src/ai` on every map, coop4 (#317, worktree
   C:/NightShift/Mobile-Coop-coop4). e2e only through the laptop queue; AI code and its two checkers stay Opus. At
   train-ready tell the orchestrator (RULES "Getting to master").
