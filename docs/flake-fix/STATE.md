@@ -3,6 +3,12 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 51 (2026-10-25 ~15:40, before the ~16:10 cap; wins over SAVE 50 where they differ):**
+- Master f24ebbf6a. Train 93 on the laptop; a hand-built train with #400 + #425 next. Nothing of mine queued; all worktrees
+  clean and pushed. Hold: plan first (doc fixes on docs/conformance-test-runner-fixes 7fefd8a9, #422 closed).
+- Next: on resume, read the newest SAVE below; no gap runs while a train is pending or a PR is train-ready; after the
+  plan sign-off, reopen #422 (fresh Opus checker), the camera-bounds backlog note and the laptopRerunRequest gate fix.
+
 **Test Runner SAVE 50 (2026-10-25 ~14:00; wins over SAVE 49 where they differ):**
 - Master 4632c933 (train 90 released, #408 in; service restarted on it 13:51). Gap runs from SAVE 49 queued; d9b8
   full-4102-r1 running on 4189 from 13:53.
