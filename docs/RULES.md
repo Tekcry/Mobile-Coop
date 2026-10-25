@@ -48,6 +48,7 @@ Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbo
 
 **Intake: idea to build.**
 1. Michael's words go to the ROADMAP Inbox; the orchestrator triages them onto "Now" with an owner and a gate.
+   Playtest feedback and bugs go to `docs/backlog.md`; new ideas from Michael go to the ROADMAP Inbox.
 2. `BRIEF.md` keeps "Michael said" (verbatim quotes) apart from "Michael picked" (the option text he chose), then
    assumed decisions A1, A2, ... with how to undo each. An assumption that would loosen a Michael-only rule (hard
    rules, the level standard, scope, perf) is a one-click question to him by day; overnight it is assumed and logged
@@ -119,11 +120,11 @@ an Opus plan; the orchestrator assigns it (G283).
   fragments or CHANGELOG with no new `checker` success on the new head (G325). Until the
   watchdog task runs, the orchestrator labels and unlabels by the same rule each cron run. When auto mode blocks a lead
   from posting its checker's verdict, the orchestrator posts the `checker` status for it.
-- Stuck `affected-e2e`: a head whose `affected-e2e` stays pending with no live request behind it (the request was
-  dropped or withdrawn) gets no new run by itself in today's code. The queue-fix job changes the service to re-request
-  such a head; until that lands, the orchestrator (or the lead) re-requests it: `node scripts/laptop-queue/request.mjs
-  --sha <head> --pr <n> --affected --set affected --requester affected-e2e` (only that requester's verdict is also
-  posted on `affected-e2e`).
+- `affected-e2e` never sticks (4.101.1): the service requests a head again when its `affected-e2e` is pending with no
+  open, claimed or running affected request; a duplicate hands the status over to the surviving request; a request
+  withdrawn before it ran posts error "withdrawn by the requester (not run)". Fallback, if one still sits pending: the
+  orchestrator (or the lead) re-requests it: `node scripts/laptop-queue/request.mjs --sha <head> --pr <n> --affected
+  --set affected --requester affected-e2e` (only that requester's verdict is also posted on `affected-e2e`).
 - Auto-train (scheduled task every minute, G286; `docs/systems/auto-train.md`) builds `train/<n>` from labelled PRs
   with a green check, makes the version commit (fragments into `CHANGELOG.md`, the next version, the one
   `PROTOCOL_VERSION` bump when a member touches a wire path), and the queue runs one full e2e on the train head. CI and
@@ -176,7 +177,7 @@ an Opus plan; the orchestrator assigns it (G283).
   the run, then `node scripts/heavy-lock.mjs release C:/NightShift/heavy.lock "<session> | <job>"` in the same shell
   command; per run, never held across a fix loop. A lock whose pid is dead on this host is stale and the next `take`
   breaks it; a lock with no pid is never broken automatically: ask its owner (the label names the session). The
-  laptop queue's own lock lines are read the same way once the queue-fix job fixes their parser.
+  laptop queue service's own lock lines are read the same way (4.101.1).
 - Headless and invisible: never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
   Blender only with `-b`, nothing that takes focus. Stop a runner with `taskkill /T /F` on its PID and check the tree is
   gone.
@@ -209,9 +210,8 @@ rules.
 
 **Branches and previews.** One branch per job, cut from master, one PR each. Pages serves the live game, `/preview/`
 (master, through the pointer branch `dev`) and `/ct/` (through the pointer branch `ct-movement`); `dev` and
-`ct-movement` are not work branches. Detail: `docs/systems/deploy.md`. Weekly, the orchestrator deletes branches fully
-merged into master and older than 7 days, logging the list, and prunes clean merged worktrees in the same pass ("Docs");
-unmerged branches are never touched, and any other branch deletion is Michael's call (G345, "Yes, weekly").
+`ct-movement` are not work branches. Detail: `docs/systems/deploy.md`. Merged branches and worktrees go in the weekly
+prune ("Docs"); unmerged branches are never touched, and any other branch deletion is Michael's call.
 
 ## Docs
 - Map: `docs/VISION.md` the game, `docs/RULES.md` process, `docs/DECISIONS.md` why (every G entry and its history),
@@ -220,7 +220,7 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
   are the orchestrator's, edited on feature/menu and synced to master by the trains; doc lint skips their stale-term,
   owner, size and header checks.
 - Every current doc starts with `Owner: <who>. Status: current | history.` under its title (G344): the orchestrator for
-  VISION, RULES, INDEX, DECISIONS and the bible; Marlow Build for level-design and the scale sheet (changes need
+  VISION, RULES, INDEX, DECISIONS, the bible and the story (it edits; Michael decides); Marlow Build for level-design and the scale sheet (changes need
   Michael's approval); the area lead for each `docs/systems/*.md`.
 - One home per rule: each rule lives in one file; every other doc links to it and never restates it
   (`docs/doc-owners.json` names the homes of the key numbers).
@@ -237,8 +237,9 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
 - Finished jobs: the `Job-done: <job>` line in the job's last PR makes the train's version commit move `docs/<job>/` to
   `docs/archive/<job>/` and fix the links to it.
 - Weekly prune (G345, "Yes, weekly"): `scripts/prune-merged.mjs --apply` (task `NightShift prune-merged`,
-  `scripts/prune-task.ps1`) removes clean worktrees merged into master and idle over 24 h,
-  and deletes branches merged into master whose tip is over 7 days old; log `C:/NightShift/scratch/prune-log/`.
+  `scripts/prune-task.ps1`) removes clean worktrees whose HEAD is in master and idle over 24 h, and deletes branches
+  fully merged into master whose tip is over 7 days old (never unmerged, protected or open-PR branches); log
+  `C:/NightShift/scratch/prune-log/`.
 
 ## Commands
 - `npm run dev` - dev server (never from an agent)

@@ -141,9 +141,7 @@ A level is a linear spine of encounter spaces joined by connectors.
 10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour comes with the alarm stages. [SectorOps] Dogs
    (G297): killing one is penalised; gas knocks one out; no takedown; a dog can be distracted (G348). Riot shields only
    in alarm response teams; heavier armour in later sections (G307).
-   [Campaign] [SectorOps] Helmets by difficulty (G338, G341): on Realistic and Perfectionist every guard has one, and on
-   Perfectionist it cannot be shot off; on Rookie and Normal helmets come only with the alarm stages (G350). [Training]
-   Normal guards (G279).
+   [Campaign] [SectorOps] Helmets by difficulty: bible 5.6 (G350). [Training] Normal guards (G279).
 11. **Security devices have reasons.** Every camera, laser, keypad and alarm panel protects something named and sits
    where a real site would put one: "why would they be there in that location, what are they protecting" (G295). Each
    has a row in the map's security register (13). [SectorOps] Security grows section by section: cameras, lasers,

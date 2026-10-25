@@ -283,7 +283,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
 | `docs/design-bible.md` | Vision, pillars, systems, out-of-scope list, level and platform rules | Sections 0-3 and 6 every job; other sections when the job touches them |
 | `docs/ROADMAP.md` | Now, next, waiting on Michael, done (owned by the orchestrator) | Every session |
-| `docs/progress.md` | History and the older follow-up backlog | When planning a backlog item |
+| `docs/archive/progress.md` | History and the older follow-up backlog | When planning a backlog item |
 | `docs/backlog.md` | Feedback inbox, flaky e2e suites | Adding feedback, judging a test failure |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |

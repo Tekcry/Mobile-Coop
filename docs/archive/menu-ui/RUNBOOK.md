@@ -32,7 +32,7 @@ so clear it.
 - Clear: when you are happy with the prototype and it says SPEC.md and the session 2-4 briefs are pushed.
 
 ### Locomotion run (separate, already running on the other machine)
-When it stops for your play check, include the "Animation problems seen" list from [FINDINGS.md](FINDINGS.md) in
+When it stops for your play check, include the "Animation problems seen" list from [FINDINGS.md](../../menu-ui/FINDINGS.md) in
 your notes after "Locomotion: go". Nothing else here needs it.
 
 Step 1 is done (2026-10-15). Before the run: try the prototype (link in README.md) with keyboard, mouse and your
@@ -54,7 +54,7 @@ implementer and checker subagents, stopping at pauses A, B and C. Never merge to
 
 ```
 Menu UI run: RESUME. Work in C:\NightShift\Mobile-Coop-menu-ui on branch feature/menu-ui. Read CLAUDE.md,
-docs/menu-ui/RULES.md, docs/menu-ui/STATE.md and docs/menu-ui/BRIEF.md, then continue from STATE.md.
+docs/archive/menu-ui/RULES.md, docs/menu-ui/STATE.md and docs/menu-ui/BRIEF.md, then continue from STATE.md.
 ```
 
 - At each pause (A after the core screens, B after the pause blur, C at the end): test on the PC, clear, then paste

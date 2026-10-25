@@ -6,7 +6,7 @@ Michael decision wins.
 
 ## 1. Pitch
 - Pure Chaos Theory (CT) co-op at its core, with original names, story and art (G1, G5, G6). Michael: "I want the game
-  to be pure chaos theory." His decisions below are the only departures.
+  to be pure chaos theory." His recorded decisions (DECISIONS) are the departures.
 - Two NIGHT SHIFT operators have nine nights to stop SUNDOWN, a staged blackout of Hollowmere
   (`docs/story.md` 1).
 - Light and shadow is the core: "like a showcase no matter where you look" (G316).
@@ -34,7 +34,7 @@ Michael decision wins.
 Helmets, campaign and Sector Ops: always on Realistic and Perfectionist, not shot off on Perfectionist; on Rookie and
 Normal only at alarm stages (G350; bible 5.6).
 
-## 3. Every Michael override of CT
+## 3. Main Michael overrides of CT (full list: DECISIONS)
 - Revive and encounter checkpoints (G126); partner beacon and world pings (G135); both players extract (G138); the
   perfect rating (G146); any partner rejoins a saved mission (G147).
 - Selection wheel for weapon, gadget and vision on LB hold, no time slow (G181, G192).

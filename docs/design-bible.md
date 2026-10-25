@@ -3,7 +3,7 @@
 Version 2.2 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G363 (`docs/DECISIONS.md`;
 "Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
 summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
-Owner: Michael (the content); the orchestrator keeps it current at each fold. Status: current.
+Owner: the orchestrator (it edits; Michael decides). Status: current.
 
 ---
 
@@ -19,8 +19,8 @@ is decided.
 
 **Chaos Theory is the authority (G1).** Where this bible and Chaos Theory (CT) behaviour differ, CT behaviour, from the
 CT research, wins: "Pure ct, if it had it, we will use it." (G180). Several systems below are marked "research": they
-stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win; the full list
-of those overrides is `docs/VISION.md` section 3.
+stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win; they are the G
+entries in `docs/DECISIONS.md`, and `docs/VISION.md` section 3 lists the main ones.
 
 **History.** Older docs, prompts and code describe earlier directions: a cover-shooter game (snap cover, mark and
 execute, sonar, a playstyle points economy), phones and touch, Wave and PvP, a traitor finale, a solo campaign and a
@@ -731,7 +731,7 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
   or objective blip, no world waypoints and no live partner position (G135, G336, G339). Campaign missions and Sector
   Ops have no markers, only in-world guidance (objective text that names what and where, light language, landmarks,
   signs, place names) and an optional hint layer, off by default (G290, G336). Marlow Yard keeps its guidance marks
-  (Section 7, G292).
+  (Section 7, G292). World pings (G135) stay: a player places one for the partner; they are never objective markers.
 - **Field menu** (pause): objectives, radio log, interrogation notes.
 - **Dev menus:** Anim Studio only from the main menu; the animation tuner stays in the in-game menu (G313).
 - **Remapping:** full remapping with conflict warnings and a reset; remap capture cancels with Menu / Start or Esc, and B
@@ -1139,7 +1139,7 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 ## 10. Roadmap
 
 The live job list, ranked, with owners and gates, is `docs/ROADMAP.md` "Now" on origin/feature/menu (G90;
-`docs/progress.md` is its history). This section only says where the game stands.
+`docs/archive/progress.md` is its history). This section only says where the game stands.
 
 1. **Done:** the CT co-op research (2026-10-18, digests in `docs/ct-research/`, G124-G160); the core-feel job, closed
    when Michael took over movement tuning (G227, replaces G150); Wren in for both players (G123).

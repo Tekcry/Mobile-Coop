@@ -556,7 +556,7 @@ touches `docs/templates/map-spec.md`; both need Michael's approval.
 
 ## 4. The co-op prototype's test level: what it must honour now, what can wait
 
-The prototype (`docs/progress.md` job 2) is small: one test space, two players, the CT verbs. These kit rules matter at
+The prototype (`docs/archive/progress.md` job 2) is small: one test space, two players, the CT verbs. These kit rules matter at
 that size because they decide whether the co-op feel can be judged at all:
 
 **Must honour**

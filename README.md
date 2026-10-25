@@ -18,7 +18,8 @@ campaign is also playable in online co-op for 2-4 players.
   Settings > Accessibility lists every binding.
 - **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, no external art
   or audio, and IndexedDB saves with export/import.
-- **Docs:** design authority is [docs/design-bible.md](docs/design-bible.md); status is [docs/progress.md](docs/progress.md).
+- **Docs:** design authority is [docs/design-bible.md](docs/design-bible.md); the current focus is ROADMAP "Now"
+  (on origin/feature/menu); the old status log is [docs/archive/progress.md](docs/archive/progress.md).
 
 ## Play
 

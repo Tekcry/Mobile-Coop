@@ -29,10 +29,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
     alert response teams, and armour per alarm stage (G307).
   - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted, killing one carries a penalty.
     What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
-  - Helmets: the rule is owned by bible 5.6 (G338, G341, G350): on Realistic and Perfectionist every guard wears one
-    and on Perfectionist it cannot be shot off; on Rookie and Normal helmets come with the alarm stages; the same in
-    the campaign and Sector Ops. Not built yet: helmets come from a slot tag, a section default or the alarm stage
-    (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
+  - Helmets by difficulty: the rule is in bible 5.6 (G350). Not built yet: helmets come from a slot tag, a section
+    default or the alarm stage (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
   - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
 - Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and

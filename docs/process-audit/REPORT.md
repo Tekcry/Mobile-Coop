@@ -209,7 +209,7 @@ Rules:
 5. **Phones.** CLAUDE.md "Desktop only: no phone or touch work (G12)" against G182 (a phone launches for testing). The
    brief's "M21" and "`npm run dev` LAN" items are already gone from master's CLAUDE.md; only the G12 line remains.
 6. **Versions.** The definition of done sets versions "when Michael says he is merging"; the orchestrator now merges.
-7. **The job list.** The definition of done says to update `docs/progress.md (job list)`; the doc index calls
+7. **The job list.** The definition of done says to update `docs/archive/progress.md (job list)`; the doc index calls
    progress.md "history and the older follow-up backlog"; the job list is `docs/ROADMAP.md`.
 8. **Two meanings of "orchestrator".** CLAUDE.md: one session for the whole build. session-method.md: "One
    orchestrator session per job".
@@ -282,7 +282,7 @@ Existing jobs keep their files as history (no renames); the format applies to ne
 | `docs/archive/goggle/PLAN.md` | parked (already marked) | parked; branch not merged (below) |
 | `docs/archive/anim-cleanup/STATE.md` | "waits for Michael to merge" | merged (#12) |
 | `docs/ct-prototype/STATE.md` on master | "Updated 2026-10-18" | the live state is on feature/ct-prototype |
-| `docs/progress.md` | job list in places (the definition of done still says so) | history; ROADMAP is the job list |
+| `docs/archive/progress.md` | job list in places (the definition of done still says so) | history; ROADMAP is the job list |
 | CLAUDE.md doc index rows for `docs/archive/locomotion/` and `docs/archive/training/` | current jobs | history / parked |
 
 ### Branches (remote; nothing deleted, deletion is Michael's)
@@ -344,7 +344,7 @@ desktop job. Applied on `feature/process-audit`:
   - `docs/systems/deploy.md`, bible sections 9-10.
 - **Section 5:**
   - history banners on locomotion, consolidation, training, menu-ui, kestrel (2), operators and anim-cleanup docs, and
-    `docs/progress.md`;
+    `docs/archive/progress.md`;
   - `docs/backlog.md`'s flaky section;
   - the goggle job's docs merged (D36, M1-M3).
 
