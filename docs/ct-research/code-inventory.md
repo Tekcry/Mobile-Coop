@@ -194,13 +194,13 @@ player / anim commit is the consolidation's deletion commit 3c7c2a5). Everything
 | Item | Status | Where | Covered by |
 | --- | --- | --- | --- |
 | Pings (D-pad left tap / Z): aim-ray mark, follows a pinged guard, edge arrows off screen, host rate 0.8 s | Co-op | `GameState.sendPing`, `ping` msg / event, `ui/hud/pings.ts` | e2e-coop (both ways) |
-| Partner on the minimap (blue `ally` blip) (replaced by G339 and G135: no minimap and no live partner position; to remove) | Co-op | `coopHost.blips` / `coopClient.blips`, `ui/hud/minimap.ts` | e2e-coop |
+| Partner on the minimap (blue `ally` blip) | Co-op | `coopHost.blips` / `coopClient.blips`, `ui/hud/minimap.ts` | e2e-coop |
 | Partner name tag / outline through walls / off-screen partner arrow | Missing | Nothing in `ui/hud` or `src/net` | - |
 | "X is down" feed, revive prompt with hold ring | Co-op | `hud.feedItem`, interactable prompt | e2e-coop |
 | World prompts (takedown, team move, traversal, use) | Co-op | `ui/hud/worldPrompts.ts` | e2e-pad, e2e-mouse |
 | Awareness arcs, LKP ghost | Co-op | `ui/hud/awareness.ts`, `vfx/lkpGhost.ts` | e2e-stealth-ai |
 | Objective list always on (course) / objectives in menu (CT, G108) | Partly | Course HUD (`ui/hud/courseHud.ts`) has per-player ticks and "Waiting for partner"; Infiltration shows mode info only | e2e-bunker |
-| Beacons / waypoints for objectives (replaced by G339: none in any mode; Marlow Yard keeps its guidance marks, G292) | Partly | Course next-drill marker (`PingView.marker`); Infiltration objective blips on the minimap (to remove) | e2e-course |
+| Beacons / waypoints for objectives | Partly | Course next-drill marker (`PingView.marker`); Infiltration objective blips on the minimap | e2e-course |
 | Text radio / subtitles | Co-op | `ai/barks.ts`, `ui/hud/barks.ts`; LANTERN course radio mirrored | e2e-bunker |
 
 ---
@@ -243,8 +243,7 @@ player / anim commit is the consolidation's deletion commit 3c7c2a5). Everything
    host and see the client's real pose; nothing to build for a first play.
 8. **Traversal set.** Ladders, pipes, ledges, ducts, split / wall jump, rappel and fence are all mirrored to the remote
    and covered by e2e-netmove: build the level from these pieces.
-9. **Pings** cover basic partner awareness for a first test; no new HUD needed to start (the minimap ally blip is
-   replaced by G339 and G135: no minimap, no live partner position).
+9. **Pings + minimap ally blip** cover basic partner awareness for a first test; no new HUD needed to start.
 10. **Test harness.** `hostAndJoin` + `startMode` + `until` give a two-player e2e for the new level in one short file
     (copy the e2e-coop pattern), run under `E2E_NETSIM=typical` for a latency report.
 
