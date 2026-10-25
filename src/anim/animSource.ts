@@ -133,3 +133,13 @@ addMixamoResolver(resolveSourceTables);
 export function sourceTablesFor(s: AnimSource | null): SourceTables {
   return s === null ? PAGE_TABLES : SOURCE_TABLES[s];
 }
+
+/**
+ * (Source wire, G400) The source this page sends for its own player (`PlayerState.an`): the one whose own tables are
+ * what this page draws, so a `?anim=`, `?mocap=0/1`, `?mixamo=0/1` or tuner-box override reaches the partner too. The
+ * Mixamo half on: `mixamo`; else the mocap half on: `cmu`; else `hand`. The one pair no source holds (Mixamo on, mocap
+ * off: a dev override) sends `mixamo`. Pure, no allocation (a send, not a frame).
+ */
+export function wireAnimSource(r: { readonly mocap: boolean; readonly mixamo: boolean }): AnimSource {
+  return r.mixamo ? 'mixamo' : r.mocap ? 'cmu' : 'hand';
+}

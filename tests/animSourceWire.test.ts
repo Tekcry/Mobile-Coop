@@ -9,7 +9,7 @@
  * - no allocation a frame on a handed source.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, PAGE_TABLES, setAnimSource, SOURCE_TABLES, type AnimSource, type SourceTables } from '../src/anim/animSource';
+import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, applyAnimSource, PAGE_TABLES, setAnimSource, SOURCE_TABLES, wireAnimSource, type AnimSource, type SourceTables } from '../src/anim/animSource';
 import { LOCO, MOCAP_SET } from '../src/anim/mocap';
 import { MIXAMO, MIXAMO_ON, setMixamo, WREN_KEYED, WREN_STANCE, WREN_TRAV } from '../src/anim/mixamo';
 import { AnimGraph, defaultInput, type AnimInput } from '../src/anim/animGraph';
@@ -224,6 +224,36 @@ describe('source wire: on the wire', () => {
     expect(animSourceOf(undefined)).toBe('cmu');
     for (const bad of [3, -1, 1.5, '2', null, Number.NaN]) expect(parsed({ an: bad }), String(bad)).toBeUndefined();
     expect(animSourceOf(7)).toBe('cmu');
+  });
+
+  it('the sent source is what this page draws: ?anim=, ?mocap=, ?mixamo= and the tuner box reach the partner; the default sends no field', () => {
+    const B = [null, true, false] as const;
+    let mixed = 0;
+    for (const setting of ANIM_SOURCES)
+      for (const mocapUrl of B)
+        for (const mocapTuner of B)
+          for (const mixamoUrl of B) {
+            const r = applyAnimSource({ setting, mocapUrl, mocapTuner, mixamoUrl });
+            const sent = wireAnimSource(r);
+            const label = `${setting} mocap ${String(mocapUrl)}/${String(mocapTuner)} mixamo ${String(mixamoUrl)}`;
+            if (r.mixamo && !r.mocap) {
+              // the one pair no source holds (a dev override): the captures win
+              expect(sent, label).toBe('mixamo');
+              mixed++;
+              continue;
+            }
+            expect(contents(SOURCE_TABLES[sent]), label).toEqual(contents(PAGE_TABLES));
+          }
+    expect(mixed).toBeGreaterThan(0);
+    // the default page (no override) sends no field, as before the overrides counted
+    applyAnimSource({ setting: ANIM_SOURCE_DEFAULT });
+    const o: { an?: number } = {};
+    animSourceWire(wireAnimSource(ANIM_SOURCE), o);
+    expect('an' in o).toBe(false);
+    // ?mocap=0 on a CMU page: drawn hand-made here, so sent hand-made
+    applyAnimSource({ setting: 'cmu', mocapUrl: false });
+    animSourceWire(wireAnimSource(ANIM_SOURCE), o);
+    expect(animSourceOf(o.an)).toBe('hand');
   });
 
   it('a snapshot carries each player\'s source to the clients', () => {

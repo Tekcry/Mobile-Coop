@@ -89,3 +89,10 @@ bumped); every screen draws that player with the OWNER's source. Undo: drop the 
 ### At the save (05:30)
 - Done: per-graph tables, rig, wire (host, client, remote), tests/animSourceWire.test.ts 8/8; suite 16 files 198 pass.
 - Left: tsc / eslint on the test file, report; e2e-coop, e2e-netmove, e2e-ctcourse via the laptop queue; two Opus checkers.
+
+### At the save (08:5x, builder)
+- Done: laptop e2e on faa1041ab GREEN 7/7; tsc + eslint clean on the wire files; override gap closed: senders send
+  `wireAnimSource(ANIM_SOURCE)` (the source this page draws, `?anim=` / `?mocap=` / `?mixamo=` / tuner box in), new test
+  (9 in the file). Found: the file's no-allocation test is flaky before this change too (1 run in 3: handed graph reads
+  1744 B a frame in Turbofan, page 171 B; some runs the page reads 695 B), a V8 tier / feedback order effect, not the wire.
+- Left: decide the flaky alloc test (fix the measure or the cause), WIRE-REPORT.md, STATE done line, two Opus checkers.
