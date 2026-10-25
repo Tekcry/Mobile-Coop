@@ -21,14 +21,19 @@ Owner: Marlow Build. Status: current.
     R4 / R5 ordered after F1, they rebase and widen F1's checks (`:221`); `scripts/e2e-ctcourse/revive.mjs` claimed;
     A7 pod-leg technician counted on `a7-hall` (guards 2), `a7-pod` a quiet connector, validator rerun (only the
     a7-hall INFO changes); `LastRetry = { st, cause } | null` on host and client, wire `rt` + `rc` (`:309`); R1 ~1,100.
-- Note for checker 3: STATIONS.md does not exist yet (slice D1 writes it). After this PLAN passes, tell the J13 lead
-  R1's hook names and the cause mapping.
+- Plan check 3 (FIX, 2 items in F1, C:/NightShift/scratch/marlow/j14-plan-check-3.md) answered dda93c788 (Michael ~21:42
+  "Yes, everywhere now": 2 players on every build, `?course=solo` dev only) and 0e79cd741 (course grant syringe 0).
+  Plan check 4 PASS on 0e79cd741 (j14-plan-check-4.md); polish open (49 overlaps). J13 told the R1 hooks (route-runs-2 STATE).
+- Wave 1 running (~22:10): S0 Sonnet in C:/NightShift/Mobile-Coop-marlow-replan-s0 (first commit aa37044a9),
+  R1 Opus in -marlow-replan-r1 (from aa37044a9), F1 Opus in -marlow-replan-f1 (from master), D1 Opus in
+  -marlow-replan-d1 (STATIONS.md), G0 Sonnet in -marlow-replan-g0 (graph.json areas). Campaign told the coopUi Start seam.
 - PLAN map: code today `PLAN.md:8-50`; design `:52-137`; claims `:138-236`; slices `:237-438` (R1 `:295`, F1 `:372`);
   flags `:439`; waves `:445`; gates `:464`; walk items `:475`; A13-A25 `:489`; Assume and log `:528`; risks `:534`.
 - Blocks elsewhere: Player coop-kit part 2 + `kitMoves` (KS1-KS5); Guard AI board-noticed hook (KS5); J12 PR A / S2 /
   S4 / D-A and J13 R6 / R8 for G1's gates.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
-- Next: fresh plan checker 3 on 0934d5999
+- Next: S0 / R1 / F1 done -> fresh Opus checker (two on R1, F1); F1 PASS -> PR + co-op group request; S0 + R1 PASS ->
+  merge into feature/marlow-replan-base, wave 2 set slices (briefs once D1 lands); restart a dead builder from its head.
 
 ## Done
 - ~21:30 Plan check 2 answered: fix 1 (F1 drops one-out), fix 2 (R1 retryOff + cause mapping), polish (43 overlaps,
