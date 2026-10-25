@@ -356,11 +356,11 @@ on origin/feature/menu. Full burn.
 DOCS-FIRST HOLD (G346, G355; BOOT common start 4): until Michael signs off the folded plan (ROADMAP Now row 6) no new
 game work. Finished PRs may ship. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
 0. FIRST JOB: conformance review, plan only (brief docs/orchestrator/review-briefs/sector-ops.md on
-   origin/feature/menu). Branch feature/conformance-sector-ops off master, worktree
-   C:/NightShift/Mobile-Coop-conformance-sector-ops; output docs/conformance-sector-ops/CONFORMANCE.md (gap table,
-   "Checked, conforms", per-map lighting line), fragment changes/feature-conformance-sector-ops.md. Four Opus review
-   parts (A campus map, B mode + stars, C lighting, D visual gate) write to the session scratchpad; if lost, rerun
-   from the brief. Then one fresh Opus checker posts `checker`; docs PR to master; message the orchestrator the PR.
+   origin/feature/menu). PR #420 (feature/conformance-sector-ops @ 419b54c1, worktree
+   C:/NightShift/Mobile-Coop-conformance-sector-ops): docs/conformance-sector-ops/CONFORMANCE.md is complete (63 rows,
+   12 Michael questions). Fresh Opus checker started ~13:45 (report: session scratchpad check-report.md, may be lost
+   at a swap). If no `checker` status on the PR head: start a fresh Opus checker (re-find every file:line, rule
+   quotes, missed scope, needs-Michael calls), one fix round, post `checker`, message the orchestrator.
 1. bake5 (feature/sector-redesign-bake5 @ 28b1737f, worktree -sector-redesign-bake2): finished, checker PASS on
    522727fb (head adds the check report only), merges clean on master 4.102.0. PR not opened (auto mode blocked
    gh pr create ~13:25): Michael opens it or allows gh pr create. Then post `checker` on the head.
