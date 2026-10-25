@@ -1030,10 +1030,12 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
 7. J26 mission hooks (stacked on PR4 b111c9aa1; PRs open after PR4 merges). Briefs on feature/guard-ai-mission-hooks
    (S1a split: S1a-1 pure / S1a-2 wiring; S2 keeps NOISY_LIMITS). S2 DONE: feature/guard-ai-mission-hooks-s2 77d6f45b2
    (checks A + B PASS, ai.md hearing line, checker posted). S1a-1 DONE: -s1a1 26633b6f5 (checks A + B PASS, checker
-   posted); an Opus polish round was running at the pause (NaN leg guard, cause only on a drop, start yaw, add never
-   revives a dropped guard, fail return, tests): check its pushed commits on -s1a1; if unfinished, rerun from
-   checks/S1a-1-CHECK-A/B.md. Then S1a-2 (wiring + e2e, Opus) from -s1a1's head per S1a-BRIEF + the checks' "For
-   S1a-2". A brief writer was writing S1b / S3 / S4 briefs on feature/guard-ai-mission-hooks: check for its commit.
+   posted); polish round DONE 5db49d2ec (21 tests). Next: one fresh Opus re-check of the polish (5db49d2ec vs
+   26633b6f5), then S1a-2 from 5db49d2ec. S1a-2 API rules (polish): `add` returns false (full, or guard already dropped
+   on the slot: never revived), so offer = refusal ? add(M_DROPPED, why) : add(M_WALKING) then takeOrder (false ->
+   set(M_DROPPED)); `fail` returns false on a full board (dev warn as open -1); `leg.start(b, slot, x, z, yaw)` takes
+   his facing; fill `b.pt` for every offered slot (NaN -> giveUp). A brief writer was writing S1b / S3 / S4 briefs on
+   feature/guard-ai-mission-hooks: check for its commit.
    Campaign Build has C1-C7. A9 per-area stages dark: Michael's click at his walk.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
