@@ -106,10 +106,12 @@ pairs, plus the rule gaps the review found (repeat alarms, barks by cause, dog r
   `dogRelease` off (the stage records it, as today).
 - A13: campaign response teams lose the shield lead by the new `shieldTeams` default (false) once the campaign branch
   takes master; J7's "no shield lead" item needs no other code. Campaign data must not set `shieldTeams` (M2).
-- A14: Marlow Yard keeps its current shield-led alarm team for now (`src/game/stealthSystems.ts:594`,
-  `responseTeam(1, RESPONSE.liveTeam, this.teamKinds)`, whose shield lead stays the default): it is training, not a
-  campaign mission; Q12 covers campaign teams. Undo: remove the shield lead from the course-mode team (pass `false` as
-  the new `shield` argument at that call). Confirmer: Marlow Build (owner of Marlow Yard) via the orchestrator.
+- A14: Marlow Yard drops its shield-led alarm team (Marlow Build, 2026-10-25 ~19:15, answering via the orchestrator):
+  VISION's Marlow guards are "Normal, armed" (G279, G298), Q11 (only the guards a lesson needs), Q5 (a Marlow failure is
+  a retry, so an alarm has no escalation to train), and Marlow Yard is the campaign's training prologue (Q6), so Q12's
+  "armed only" holds there too. S1 passes `false` as the new `shield` argument at `src/game/stealthSystems.ts:594`
+  (`responseTeam(1, RESPONSE.liveTeam, this.teamKinds, false)`). Undo: drop that `false`. Marlow Build logs the same
+  rule as a J14 assumption.
 - A15: helmets never come from map data: `checkSectorGuards` fails a slot `gear` (`GuardSlotTags.gear`,
   `src/ai/guardAiData.ts:98`) or a section `gear` (`src/game/sectors.ts:125`) of `'helmet'` or `'both'` (helmets
   come from difficulty and the alarm stage, G350; `'armour'` stays for late armour, G307 (13)). Guard AI's S1

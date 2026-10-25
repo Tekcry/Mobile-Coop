@@ -93,8 +93,8 @@ file-disjoint.
   A3); `GuardGear.helmetLocked?: boolean` and `helmetSoaked?: boolean`; `gearHit` (133-149, A2): head + locked helmet
   not soaked = mult 0, no knock-off, stagger `helmetStagger`, `out.soak` true (the caller sets `helmetSoaked`); head +
   locked helmet soaked = the bare-head result (mult 1, the caller kills), the helmet stays; `responseTeam(stage,
-  perStage, out, shield = RESPONSE.shieldLead)` (155-164: the shield lead only when `shield`; `StealthSystems` keeps its
-  call unchanged, `src/game/stealthSystems.ts:594`, A14).
+  perStage, out, shield = RESPONSE.shieldLead)` (155-164: the shield lead only when `shield`; S1 passes `false` at
+  `src/game/stealthSystems.ts:594`, Marlow Yard's course-mode team: no shield lead, A14; test in S1's tests).
 - `src/ai/enemyManager.ts`: `useDifficultyHelmets()` (A1; off by default); `placeSlot` (2012) adds the helmet when the
   rule is `always` / `locked`; every guard placed, revived (1620-1640) or joined to a team (1058-1082) gets
   `helmetLocked` on Perfectionist. `src/ai/enemy.ts`: `helmetLocked` and `helmetSoaked` fields, copied by `setGear`
@@ -257,7 +257,7 @@ S1 carries the campus S4 / S5 gear and `shieldTeams` edits and `tests/campusGear
 ## Parallel groups (file-disjoint) and order
 | Wave | Runs in parallel | Files each owns | ai.md editor | After |
 | --- | --- | --- | --- | --- |
-| 1 | S1 / S2 | S1: `src/ai/{gear,archetypes,enemyManager,enemy}.ts`, `src/game/sectors.ts`, `src/game/modes/{sectorMode,score}.ts`, `src/world/maps/campusS{4,5}Data.ts`, S1's tests (incl. `tests/{killScore,campusGear,sectors}.test.ts`), `scripts/e2e-sectorops.mjs`, `docs/systems/ai.md`, the two Player-owned docs; S2: `src/game/takedownController.ts`, `src/net/coopHost.ts`, `tests/dogTakedown.test.ts`, `scripts/e2e-{enemies,takedown}.mjs`, `docs/systems/takedowns.md` | S1 (PR1) | J1 docs PRs on master |
+| 1 | S1 / S2 | S1: `src/ai/{gear,archetypes,enemyManager,enemy}.ts`, `src/game/{sectors,stealthSystems}.ts`, `src/game/modes/{sectorMode,score}.ts`, `src/world/maps/campusS{4,5}Data.ts`, S1's tests (incl. `tests/{killScore,campusGear,sectors}.test.ts`), `scripts/e2e-sectorops.mjs`, `docs/systems/ai.md`, the two Player-owned docs; S2: `src/game/takedownController.ts`, `src/net/coopHost.ts`, `tests/dogTakedown.test.ts`, `scripts/e2e-{enemies,takedown}.mjs`, `docs/systems/takedowns.md` | S1 (PR1) | J1 docs PRs on master |
 | 2 | S5 | S5: `src/ai/{alarm,enemyManager,enemy}.ts`, `src/game/modes/sectorMode.ts`, S5's tests, `scripts/e2e-sectorops.mjs`, ai.md | S5 (PR2) | S1 merged into `feature/guard-rules` |
 | 3 | F0 first (lead), then S4 / S6 | S4: `src/ai/{barks,enemy}.ts`, S4's tests (incl. `tests/archetypes.test.ts`), ai.md; S6: `src/ai/{pairs,enemyManager}.ts`, S6's tests, `scripts/e2e-sectorops.mjs` | S4 (PR3); S6 hands its lines over | wave 2 merged |
 | 4 | S7 / S8, then S9 | S7: `src/ai/{posts,guardAiData,enemyManager}.ts` (no `enemy.ts`: S4's rise cause), S7's tests, `scripts/e2e-sectorops.mjs`, ai.md; S8: `src/ai/enemy.ts`, `src/game/sectorStage.ts`, `src/game/modes/sectorMode.ts`, S8's tests, `scripts/e2e-stealth-ai.mjs`; S9: `campusS5Data.ts`, `tests/campusPosts.test.ts` | S7 (PR4); S8 hands its lines over | wave 3 merged; S9 after S7 |
@@ -292,10 +292,9 @@ Unit files per slice are listed in each slice.
   the campus tag drop) lands first; Sector Ops' J17 campus data follows and must pass `checkSectorGuards` (no
   `'helmet'` / `'both'` tags). S9 stays with this job and lands in PR4 on top of J17's data (a one-line post on the S5
   roof marksman; if J17 moved him, S9 tags the moved line).
-- Marlow Yard (Marlow Build): no Marlow change in this job. S1 leaves the course-mode team's call unchanged
-  (`src/game/stealthSystems.ts:594`); S5 leaves `courseMode` at one guard alarm per load (A7, Q11). Open item for
-  Marlow Build: confirm A14 (Marlow keeps its shield-led alarm team; undo: pass `false` at that call) via the
-  orchestrator.
+- Marlow Yard (Marlow Build): S1 drops the course-mode team's shield lead (`src/game/stealthSystems.ts:594`, `false`;
+  A14, Marlow Build's answer ~19:15); S5 leaves `courseMode` at one guard alarm per load (A7, Q11). PR1 runs
+  e2e-ctcourse.
 - Campaign (feature/mission-engine): S1's `shieldTeams` default removes the campaign shield lead once their branch takes
   master (their `sectorMode.ts:973` will conflict: take the `shieldTeams` call); J7's mode-aware `checkSectorGuards`
   and S1's placed-shield rule edit the same function (`src/game/sectors.ts:581-597`); S6 builds Tallow's four posted
@@ -342,5 +341,5 @@ Fixes S1, S2, S4, S5 ship on with undo constants (`GEAR.lockHelmets`, `GEAR_BY_S
 - warehouseOps is frozen (Q26) but loses its shield lead through S1's default: a code-rule fix, no map edit (A4).
 - Score below 0 inside a run (A5): the results screen shows it; the stored record clamps at 0.
 - Repeat alarms (S5) are `SectorMode` only; Marlow Yard keeps one per load (unit test + e2e-ctcourse on PR2).
-- Open for Marlow Build: A14 (Marlow's shield-led alarm team kept), via the orchestrator.
+- A14 settled: Marlow Yard's alarm team has no shield lead (S1).
 - Guard AI is 5 unwalked, AT CAP: the three flags may wait past their target date.
