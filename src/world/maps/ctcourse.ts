@@ -214,7 +214,7 @@ export const ctcourse: MapDef = {
 };
 
 /**
- * (J14 Marlow re-plan, A16) The re-planned yard: map `ctcourseReplan`, unlisted (`DEV_MAPS`, found by `getMap`). A host with
+ * (J14 Marlow re-plan, A16) The re-planned yard: map `ctcourseReplan`, unlisted (in `MAPS` after `ctcourse`, not in `LISTED_MAP_IDS`). A host with
  * `?marlowreplan=1` opens its room on it and the client loads whatever map the host's `start` names. Reached by
  * `?autostart=ctcourseReplan&mode=course`. Dark until switch-on (`flags.marlowReplan`); C1 then points `ctcourse` at it.
  */

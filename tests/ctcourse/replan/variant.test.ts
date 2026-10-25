@@ -26,12 +26,12 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(flags.marlowReplan).toBe(false);
   });
 
-  it('ctcourseReplan is a second, unlisted course map found by getMap, not in MAPS; ctcourse is untouched', () => {
+  it('ctcourseReplan is a second, unlisted course map in MAPS after ctcourse (every map-wide check builds it); ctcourse is untouched', () => {
     expect(getMap('ctcourseReplan')).toBe(ctcourseReplan);
     expect(ctcourseReplan.id).toBe('ctcourseReplan');
     expect(ctcourseReplan.modes).toEqual(['course']);
     expect(isListedMap('ctcourseReplan')).toBe(false);
-    expect(MAPS.some((m) => m.id === 'ctcourseReplan')).toBe(false);
+    expect(MAPS.map((m) => m.id).indexOf('ctcourseReplan')).toBe(MAPS.map((m) => m.id).indexOf('ctcourse') + 1);
     expect(getMap('ctcourse')).toBe(ctcourse);
     expect(ctcourse.id).toBe('ctcourse');
     // flag off: only the built course registers at load; the re-plan's own data build has its eight bays
