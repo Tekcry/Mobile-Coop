@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.105.0 - Train 108: Level validator: measured checks; Mixamo motion capture in the Anim Studio (2026-10-25, PR #476; #472, #452)
+
+### Mixamo motion capture in the Anim Studio
+- 21 Mixamo motion-capture moves on Wren's rig, listed in Main menu > Anim Studio (dev) > "Motion capture" as
+  "Motion capture (Mixamo): <name>" and tunable there like the CMU captures (Body > Joints, Hands & feet, Limb reach):
+  idle, crouched walk, stance changes, carry, crawl, strikes, kneel, team pull, lift, hang, shimmy, ladder, climb-ups.
+- The Now playing line names the capture source ("motion-capture (CMU) walk"); one source table for every capture.
+- Offline pipeline: headless Blender dump of the downloaded takes, Mixamo bone map onto Wren (spine and chest checked
+  under 8 degrees on every take), keyed and traversal clip emitters; CMU clips unchanged. Credits in
+  `docs/art-credits.md`. In-game use comes in later PRs behind the `mixamo` flag.
+
+### Level validator: measured checks
+- Level validator (tooling, no game change): the validator now checks a map's greybox measurements against the scale
+  sheet. A measured view of an encounter space that is too small, or a broken line of sight that lasts too long, is an
+  error; a measured shadow share outside 40-60% is only information, since the real-world light band is the target.
+  Split paths are checked for leg time, for both legs taking about the same time, and for how quickly one partner can
+  reach the other; on campaign maps, each co-op move's way back for the partner is checked against the revive reach.
+- With `--require-measured` (the greybox exit gate) every encounter space, every split and every campaign co-op way
+  back must have measured values. A move the nav grid cannot time is a warning to justify in the design doc, and its
+  hand-written time is still checked. Maps without measurements yet print "pending V6" notes and pass as before.
+
 ## 4.104.2 - Train 107: Tallow Wharf map spec; Marlow Yard rule fixes; No minimap, compass or blips; Guard AI allocation fixes (2026-10-25, PR #470; #466, #463, #447, #446)
 
 ### Guard AI allocation fixes
