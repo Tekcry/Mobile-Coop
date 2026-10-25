@@ -9,6 +9,11 @@ Checked ~12:45: master 4.101.1 (train 86). Docs open: #407 (feature/doc-final; s
 
 ## 2. Now
 Moved to ROADMAP "Now" on origin/feature/menu (rewritten ~12:35 from this plan); that table is the only ranked queue.
+Owners (Michael ~12:50, new Campaign Build): Campaign Build owns the campaign rows: its conformance review
+(review-briefs/campaign.md; row 6 then folds six gap lists), #372 mission framework A (row 0b), the rule fixes (row 7:
+compass / blip / minimap / maps removal, objective popup) and Tallow Wharf (row 8: GB5 / GB6, the 3 gate-reach ERRs,
+A10 void, A12 re-plan, campaign cap 32). Marlow Build keeps Marlow Yard (row 15), the validator and route-runs (row 13)
+and the guard cap.
 
 ## 3. Close or drop
 - ROADMAP Now 2 (#347-#353 merged), 2a (doc-clarity; only 0a left), 11 (disk done), Now 1's sweep note (#373, #377 shipped), Now 3's A10 text (void).
