@@ -1,10 +1,12 @@
 # map-ready: the start-of-map path today
-Owner: Night Shift | Sector Ops Build (job map-ready). Status: current (research, master 2148ec96).
+Owner: Night Shift | Sector Ops Build (job map-ready). Status: current (research, master 2148ec96; src unchanged to
+b81c4945).
 
 What happens from "Start" to the first playable frame on campusOps (Saltmarsh Park, Sector Ops), ctcourse (Marlow
-Yard, course mode, co-op) and warehouse (the benchmark / perf map, full light bake), and every piece that still builds
-after the player has control. All paths are `src/` unless they start with `scripts/` or `docs/`. Line numbers are
-master 2148ec96.
+Yard, course mode, co-op) and warehouse (the benchmark / perf map, full light bake), every piece that still builds
+after the player has control (section 3, rows 1-13), and what every load pays again that a kept or shipped part
+would save (section 3b, rows 14-15). All paths are `src/` unless they start with `scripts/`, `docs/` or name Babylon
+9.29 (`node_modules/@babylonjs/core/`). Line numbers are master 2148ec96.
 
 ## 1. The path (all maps)
 1. Start: `main.ts:368` `startGame` clears the screens, shows the boot screen at 50 % "Loading map..." (`main.ts:389`),
@@ -79,20 +81,44 @@ Ranked by how visible it is. "Seen" is what the player notices.
 
 Not late (built before the reveal and needing no change): the level geometry and dressing, the nav grid and cover grid
 (`gameState.ts:704`, `enemyManager.ts:574`), the light field and the full light bake on every map but campusOps
-(`world/lightBake.ts:82-120`, awaited in `World.create`), the kit, props and campus art GLBs (awaited).
+(`world/lightBake.ts:82-120`, awaited in `World.create`), the kit, props and campus art GLBs (awaited). Not late, but
+paid again on every load: rows 14-15.
+
+## 3b. What every load pays again (Michael's fixes 2 and 4, 2026-10-25 ~18:50)
+| # | What | Where | Why it repeats | Cost |
+| --- | --- | --- | --- | --- |
+| 14 | Shared parts rebuilt from scratch each match | Compiled shaders: `core/app.ts:364-377` `releaseState` ends with `engine.releaseEffects()` (3.1.7: a kept effect held its material, so the old match). Its comment says the keys never repeat; in Babylon 9.29 they do: a plugin's main define is per class name (`Materials/materialPluginManager.pure.js:43-44`), the cache key is shader name + defines (`Engines/thinEngine.pure.js:1683`); scene dispose also releases effects by reference count (`Materials/material.pure.js:1529-1534`); an effect holds closures in `onCompiled`, `onError`, `_fallbacks`, `_processCodeAfterIncludes`, `_processFinalCode` (`Materials/effect.pure.js:148-163`). Textures: `operators/runtime/figure.ts:230` makes a fresh blob URL per image per scene, so the engine texture cache (`Texture` asks `_getFromCache(url)` first, `Materials/Textures/texture.pure.js:308`, `baseTexture.pure.js:580-597`) never hits and every match transcodes KTX2 again. Files: operator / weapon / shield GLBs are parsed once per URL (`figure.ts:131-172` `loadModel`), but kit, props and campus art fetch and parse on every load (`world/kit/kitRender.ts:68`, `world/props/propRender.ts:89`, `world/campusArt/campusArtRender.ts:132`) | Each match is a new `Scene` (`world/world.ts:171`) and the last one is freed first (`main.ts:394-396`) | Every load compiles, transcodes and parses what the last one had (V12 cold compiles 29-44 s; the second load in a session is cheaper only through the browser's own GPU program cache, to be measured, S1) |
+| 15 | Bake cache keys carry the match seed | `world/lightBake.ts:91` (`moon:${mapId}:${seed}:...`), `:95` (`lamps:${mapId}:${seed}:...`); the baked bytes depend only on the shapes and lights (`bakedLights`, `:17-27`: position, reach, cone, fixture; no flicker, no seed), which the key already hashes | A co-op match draws a random seed at each start (`net/session.ts:353`, passed to `startGame` at `net/coopUi.ts:202`); a solo restart uses seed + 1 (`main.ts:397`) | Every co-op start and every solo restart misses the IndexedDB cache and bakes again: campus sections (row 6), and the full lamp bake on Marlow Yard and warehouse; e2e always uses seed 1, so suites never see it |
+
+The campus bake today: 134 lamps, 133 M cells, 103 s single thread (vis 98 s, bounce 5 s), S1 the long pole at
+88.6 s (`docs/sector-redesign/checks/section-bake-build.md:62-63`); the cache holds the full `LampResult` in IndexedDB
+(`voxel/lampJobs.ts:42-53`, `:111-121`, newest 2 kept). The bake runs in Node through vitest configs today
+(`tests/sectionBakeCampus.test.ts` with `SECTION_BAKE_FULL=1`, `scripts/light-measure/vitest.probe.config.ts`), so a
+build-time prebake needs no new package. Builds: `npm run build` = typecheck + `vite build` (`package.json:10`); the
+e2e serves that `dist/` (`scripts/run-e2e.mjs:162`); CI builds in `.github/workflows/deploy.yml` (build-check `:97`,
+the Pages slots `:189`, `:211`). The PWA precache takes files up to 16 MB (`vite.config.ts:84`) and leaves the guard
+GLBs to a runtime rule (`src/pwa/precacheGlobs.ts:21`, `src/pwa/runtimeCaching.ts:44`).
+
+Where a map is picked before Start (fix 3): solo, every route opens `ui/screens/briefingScreen.ts` for its map
+(Sector Ops `ui/screens/missionsScreen.ts:76-84`, Free Roam `:112-118`, Missions); co-op, the host's lobby settings
+(`net/coopUi.ts:513-560`, `setSettings`) reach every peer as the `lobby` event (`coopUi.ts:88`, `:448`), well before
+`startMatch` (`session.ts:349-358`). The menu stage already parses Wren's LOD0 / LOD1 ahead of a match
+(`operators/runtime/playerFigure.ts:84-110`).
 
 LOD: the campus art's far cull (`world/campusArt/campusArtRender.ts:161`) and the parts' LOD scale only switch
 visibility of meshes already built and compiled (`Scene.isReady` checks disabled meshes too: Babylon 9.29
 `scene.pure.js` `isReady`), so they are not load work. Character LODs are rows 2-3.
 
 ## 4. Per map
-- **campusOps** (Sector Ops, solo or co-op): rows 1-9 and 11-13; row 6 on a cold bake cache (the first load after a
-  `LAMP_VERSION` or level change); row 10 in co-op. The biggest map, the biggest gap.
-- **ctcourse** (Marlow Yard, co-op course, also solo with `&course=solo`): rows 1-5, 7-11, 13; full light bake before
-  play (no row 6); each bay's squad spawns at the bay start (gameplay pacing, but the guard shader still first
-  compiles at the first bay unless warmed: row 2).
+- **campusOps** (Sector Ops, solo or co-op): rows 1-9 and 11-15; row 6 on a cold bake cache (the first load after a
+  `LAMP_VERSION` or level change, and today every co-op start and solo restart, row 15); row 10 in co-op. The biggest
+  map, the biggest gap.
+- **ctcourse** (Marlow Yard, co-op course, also solo with `&course=solo`): rows 1-5, 7-11, 13-15; full light bake
+  before play (no row 6; in co-op it bakes again at every start, row 15); each bay's squad spawns at the bay start
+  (gameplay pacing, but the guard shader still first compiles at the first bay unless warmed: row 2).
 - **warehouse** (benchmark, `perf.mjs` default, the only written load line: "Warehouse load <= 4 s cold, <= 1.5 s
-  cached", pending a PC run, `docs/systems/performance.md:25-26`): rows 1-5, 7-9, 13; full bake before play.
+  cached", pending a PC run, `docs/systems/performance.md:25-26`; this job keeps it, BRIEF A14): rows 1-5, 7-9, 13-14
+  (row 15 on a restart); full bake before play.
 
 ## 5. How to measure it
 Today's counters (no "map ready" event exists; `scripts/e2e-lib.mjs:223-236` waits for `current.player`, then for the
@@ -112,6 +138,7 @@ section bake to finish, 240 s cap, warning only):
 
 Proposed (PLAN S1): one `mapReady` record per match (`window.__mapReady`): the time of each step, the cap hit or not,
 then for the first 10 s after the reveal: shader programs created, frames tagged `shaders`, bake landings and tile
-uploads, body LOD and mesh swaps in view ("pop-ins"), materials added, frame time p50 / p95 / max. Software GL (CI and
+uploads, body LOD and mesh swaps in view ("pop-ins"), materials added, frame time p50 / p95 / max; and for the load
+itself the bake source, effects and textures reused vs made, and the heap (rows 14-15). Software GL (CI and
 the default e2e) reads the counts; seconds and frame times are GPU numbers from the laptop queue, alone runs only
 (`docs/RULES.md` "Machines").
