@@ -2420,6 +2420,7 @@ export class CharacterRig {
     // and arms over the procedural pose; the feet stay the planner's (world-locked, slopes, turns)
     // (anim-rework S3) and the drawn set aiming (stride 'velocity': the glide)
     const kw = (freeGait || t.keyDrawn > 0.01) && !free ? t.keyW : 0;
+    const ks = free ? t.keyShot : 0; // (mixamo-kit) the kit shot on a free body: trunk and arms only (the pelvis stays on kw)
     this.keyWNow = kw;
     const kq = t.keyed;
     const kk = p.height / 1.75;
@@ -2607,7 +2608,7 @@ export class CharacterRig {
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD * TUNE_CUR.headDropMul, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     // (anim-rework S3) the trunk by keyTrunk: aiming the upper body stays the procedural gun platform
-    if (kw * t.keyTrunk > 0) this.keyedTrunk(kq, kw * t.keyTrunk, t.head.yaw * 0.4);
+    if (kw * t.keyTrunk + ks > 0) this.keyedTrunk(kq, kw * t.keyTrunk + ks, t.head.yaw * 0.4); // (mixamo-kit) + ks
     // (marlow-bays T1a, COVERAGE gap 4) aiming, the keyed trunk is not applied (the gun platform): the glide's and the
     // ready stance's per-key trunk edits go on over it by the share the keyed trunk leaves
     if (kq.edOn && kw * (1 - t.keyTrunk) > 0) this.keyedTrunkEdit(kq, kw * (1 - t.keyTrunk));
@@ -2946,7 +2947,7 @@ export class CharacterRig {
     this.limitJoint(this.elbowL, dt, lfL ? JOINT_RATE.get('elL')! * lfL : undefined);
     this.limitJoint(this.elbowR, dt, lfR ? JOINT_RATE.get('elR')! * lfR : undefined);
     // (G8) the keyed walk's arms (free hands only: no grip, no world grip, no knee hand)
-    const kaw = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
+    const kaw = gripW <= 0 && this.kneeHandW === 0 ? (kw > 0 ? t.keyArmW : 0) + ks : 0; // (mixamo-kit) + ks
     if (kaw > 0) {
       // (mocap-trial) MOCAP_LAYERS.elbowOut: the Body tune's elbow-out on the mocap share (1: elbowOutAdd exactly)
       this.elbowOutK = mocapLayerK(MOCAP_LAYERS.elbowOut, t.keyMocap);

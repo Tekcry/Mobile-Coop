@@ -55,4 +55,6 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   kitShot (clear on every begin path and in end; move / role whenever KIT_TABLES[1].any; per-rig table; gap trend, hold
   and crawl clocks; bar / wrist / catch hands eased over KIT_SHOT.flip, only while the shot is on).
 - Step 4 (c): the hang skip at the top of mixamoTrav (KIT_TABLES[1].any && kit.move pull && role a), own commit.
-Next: 5 characterRig.ts, 6 tests.
+- Step 5: characterRig.ts :2422 (+ `ks = free ? t.keyShot : 0`), :2610 (trunk `kw * keyTrunk + ks`), :2949 (arms
+  `(kw > 0 ? keyArmW : 0) + ks`, same gates); pelvis on kw. animSkeletonIdentity + guardPoseGolden green.
+Next: 6 tests (tests/kitMixamo.test.ts, teamPose.test.ts), KIT-REPORT.md, 7 changes fragment, PR.
