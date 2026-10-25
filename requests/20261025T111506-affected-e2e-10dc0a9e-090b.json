@@ -1,0 +1,21 @@
+{
+  "id": "20261025T111506-affected-e2e-10dc0a9e-090b",
+  "sha": "10dc0a9e95ebcd9dc80a25b5d12f6fa0adfe0966",
+  "branch": "feature/marlow-replan-f1",
+  "pr": 463,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-course",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #463"
+}
