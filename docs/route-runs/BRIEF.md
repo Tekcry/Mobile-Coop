@@ -139,12 +139,13 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   `<graph folder>/route-run/route-run.json` and `REPORT.md` (campus: `docs/sector-redesign/graph/route-run/`), each
   stamped with the game version, the commit, the graph files and their V6 `geom` hash. `REPORT.md` ends with a
   **walk-card snippet**: one plain line per route (route, time, "never stuck" or the stops, each time seen with who and
-  why, each push past as "seen again at <place>, robot pushed past"), ready to paste into `docs/templates/walk-card.md`'s items. The map lead commits the report at greybox exit.
+  why, each push past as "seen again at <place>, robot pushed past"), ready to paste into
+  `docs/templates/walk-card.md`'s items. The map lead commits the report at greybox exit.
 - **Marlow Yard run time (M9).** The training run reports its total: walked time + co-op holds + objective and drill
   holds, against the 15-20 min band (900-1200 s, G272), summed over its per-section parts. The M9 line lists every
   stubbed drill and co-op move with its hold, every restart or retry by cause (seen / timer / other), every push past,
-  and every timed step "not made at sneak pace" (two timer retries, then drill stubs). It is a lower bound (a robot does not wait out
-  patrols, and a stubbed drill is held for A13's time, not played) and report only; Michael's two-player walk confirms
+  and every timed step "not made at sneak pace" (two timer retries, then drill stubs). It is a lower bound (a robot
+  does not wait out patrols, and a stubbed drill is held for A13's time, not played) and report only; Michael's two-player walk confirms
   it.
 - **Where it runs.** Every run is an e2e run: the laptop queue only, `E2E_GPU=1`, as an alone request with one step
   per section (`--alone --step "serve scripts/route-run.mjs ..."`), so a train preempting the run loses one section at
@@ -158,9 +159,9 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
 ## Limits
 - Out of scope: real co-op moves beyond the leg-up (R9 adds more as the game's helpers exist); 1, 3 or 4 player runs;
   judging feel, pacing or light (the walk card and the light jobs do that); fixing any map (the map leads fix what a
-  report finds); a gameplay bot of any kind; campaign strict-rule restarts (G290: a break restarts the section; built by J7 /
-  J22): only course mode has the restart watcher (R4c), so J23 (Tallow Wharf, the first campaign user) generalises it
-  or turns strict rules off in the page before its gate run.
+  report finds); a gameplay bot of any kind; campaign strict-rule restarts (G290: a break restarts the section;
+  built by J7 / J22): only course mode has the restart watcher (R4c), so J23 (Tallow Wharf, the first campaign user)
+  generalises it or turns strict rules off in the page before its gate run.
 - Sector Ops guards that spawn only at 3 or 4 players (Q16 "Live now", G331, G362) never meet a 2-robot run; the
   report header says the run was at 2 players and those guards were not present.
 - The robots are test tools only: no game code, nothing the player can meet (G8 and VISION 6: never a bot partner;
@@ -216,8 +217,9 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   again later counts again.
 - A13: Drill hold (course mode): the time the graph gives the set's `teach` element (J12 BRIEF A8: the `time_s` of the
   link that carries `teach`), with no second hold when that link was already held as a co-op stub on this run; else
-  10 s, which also covers a `teach` tag on a space (J12 BRIEF A8 allows it; a space has no link `time_s`). Never the space's `drill_s`: that is the drill's limit, not how long it takes. Undo: `--drill-hold <s>`, or the
-  constant in `scripts/route-run/course.mjs`.
+  10 s, which also covers a `teach` tag on a space (J12 BRIEF A8 allows it; a space has no link `time_s`). Never the
+  space's `drill_s`: that is the drill's limit, not how long it takes. Undo: `--drill-hold <s>`, or the constant in
+  `scripts/route-run/course.mjs`.
 - A14: Restarts by cause (course mode, Scope "Restarts and retries"). Seen: every one is a detection, never a dead stop
   (Q7: "the times it was seen go on your walk card"); the second from the same graph space in one run turns the set's
   spotted / retry rule off for the rest of that set and places the robots past the link, a logged push past with the

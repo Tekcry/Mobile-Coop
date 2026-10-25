@@ -141,8 +141,8 @@ driver, injected with `page.addInitScript` / `evaluate`, using `window.__app`, `
 campaign: the section's checkpoint through `window.__sector`, the earlier sections passed by the connector cycle as
 `e2e-sectorops` part 6 "campus ops (S1, S2)" does; course: the bay index of the section's first set read from the course
 data in the page (its 1-based position in `CourseDef.bays`, matched by id; J14 numbers 18 steps, so never "set A<n> is
-bay n"), passed as the host session's `courseBay` as `scripts/e2e-ctcourse.mjs:304` does), the guards check at each section start (BRIEF A15), `restartSection` between
-runs (guards back on their fixed patrols, calm), then the run: the driver steps the game in 0.05 s chunks in the page,
+bay n"), passed as the host session's `courseBay` as `scripts/e2e-ctcourse.mjs:304` does), the guards check at each
+section start (BRIEF A15), `restartSection` between runs (guards back on their fixed patrols, calm), then the run: the driver steps the game in 0.05 s chunks in the page,
 steering with R3, opening doors with the pad (A near a shut door on the path), using objectives (A held), holding and
 placing at every stub, logging dead stops (class from a nav `findPath` probe; a screenshot; recovery past the link),
 polling guard levels every 0.1 s game time for detections, wrapping `enemyMgr.hear` in the page to see noises, reading
@@ -237,8 +237,8 @@ same table written by `node scripts/level-measure.mjs <graphs> --points <out.jso
 the run. Links are keyed by their merged index (the order `mergeGraphs` gives under the validator's file order rules),
 and the table carries the graphs' `geom` (the map's light + nav hash, not a graph hash). The harness refuses a table
 whose `geom` or link count differs from the graph it plans, or where any merged index's `from` / `to` / `kind` differs
-from the merged graph's link at that index, so a re-ordered or edited graph cannot shift a point onto the wrong link. This answers J12 PLAN
-section 8's open link-`id` question: route-runs needs no link `id`. Fallbacks, inside R6 only (no other slice
+from the merged graph's link at that index, so a re-ordered or edited graph cannot shift a point onto the wrong link.
+This answers J12 PLAN section 8's open link-`id` question: route-runs needs no link `id`. Fallbacks, inside R6 only (no other slice
 changes): if J12 ships only its lower exports (`spaceCells`, `linkPoint`, `linkPath`, `MEASURE_DEF`), R6 builds the
 same table from them; if it ships none, declared `at`, else the middle of the facing edges of the two `area`s snapped
 to the nearest walkable nav cell in the page (`nav.nearestWalkable`), marked `approx` in the report.
