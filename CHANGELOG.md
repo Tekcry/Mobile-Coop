@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.100.9 - Train 84: Docs: system docs match the current rules (2026-10-25, PR #401; #395)
+- Docs (doc-clarity, systems slice): the system docs, TESTING.md, the backlog and the research digests now state the
+  current rules. Player counts per mode (campaign and Marlow Yard 2, Sector Ops 1-4); Sector Ops is the five-section
+  Saltmarsh Park campus; section restart and up to 2 strict rules; no maps, minimap, compass or blip; stars fill every
+  tier below a clear; guard caps, per-mode archetypes, helmets by difficulty, lookouts and paired patrols; real-world
+  light bands and hardened choke points; the objective fade with View / O (decided). The CT movement rules G210 / G227 replaced are marked replaced. The research
+  digests, docs/ct-prototype/ and docs/progress.md carry history banners; docs/story.md gets a status note.
+
 ## 4.100.8 - Train 83: One-page game vision (2026-10-25, PR #399; #393)
 - docs/VISION.md: a one-page vision every session reads first: the pitch, the three modes (campaign, Marlow Yard,
   Sector Ops) side by side, Michael's overrides of pure CT, ten hard design rules, build gates, what is never in the
