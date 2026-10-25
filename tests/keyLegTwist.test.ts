@@ -3,15 +3,19 @@
 // golden captured on pre-S2 code for an old-channels-only edit that stays bit-identical.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
-import { keyGroupId } from '../src/anim/tuneKeysFile';
-import { tuneKeysSync } from '../src/anim/tuneKeys';
+import { applyKeyEdits, KEY_FIELDS, KEY_LEGD, keyGroupId, mirrorDelta, readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
+import { KEYS_SECTION, tuneKeysSync } from '../src/anim/tuneKeys';
 import { tuneResetAll, tuneSet } from '../src/anim/tuneRegistry';
 import { jointsMirror, jointsResetAll } from '../src/anim/tuneJoints';
 import { LEGD_OPT } from '../src/anim/legDelta';
+import { KD, KEYED_LEGD, KEYED_LEGD_SIDE, LEGD_FIELDS, LEGD_SIGN, mirrorKeyed, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import type { CharacterRig } from '../src/player/characterRig';
 import type { StudioDrive } from '../src/anim/studioDrive';
 import type { KeyedClip } from '../src/anim/keyed';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
+const D2R = Math.PI / 180;
 
 afterEach(() => {
   tuneResetAll();
@@ -139,5 +143,252 @@ describe('tuner-clarity S2: the golden (old channels only, bit-identical through
     expect(got['0']!.contactL).toBe(true);
     expect(got['0.7']!.contactL).toBe(false);
     expect(got).toEqual(GOLDEN);
+  });
+});
+
+/** Every own key (0-3) of jog: `f` on both legs by `v` (anatomical: the same sense both sides; the mirror half follows). */
+const both = (f: string, v: number): [number, string, number][] =>
+  [0, 1, 2, 3].flatMap((k) => [[k, `legL_${f}`, v] as [number, string, number], [k, `legR_${f}`, v] as [number, string, number]]);
+const dist = (a: number[], b: number[]): number => Math.sqrt((a[0]! - b[0]!) ** 2 + (a[1]! - b[1]!) ** 2 + (a[2]! - b[2]!) ** 2);
+/**
+ * The foot's heading (rad) in the body's ground plane, + toward her right: the ankle -> toe line projected on the floor,
+ * right = the hips' left -> right line (horizontal), forward = right x up.
+ */
+function heading(b: Built, side: 'L' | 'R'): number {
+  const hl = pos(b, 'hipL');
+  const hr = pos(b, 'hipR');
+  let rx = hr[0]! - hl[0]!;
+  let rz = hr[2]! - hl[2]!;
+  const rl = Math.sqrt(rx * rx + rz * rz);
+  rx /= rl;
+  rz /= rl;
+  // right x up (0, 1, 0) = (-rz, 0, rx)
+  const fx = -rz;
+  const fz = rx;
+  const a = pos(b, side === 'L' ? 'ankleL' : 'ankleR');
+  const t = pos(b, side === 'L' ? 'toeL' : 'toeR');
+  const vx = t[0]! - a[0]!;
+  const vz = t[2]! - a[2]!;
+  return Math.atan2(vx * rx + vz * rz, vx * fx + vz * fz);
+}
+/** The outward turn (rad) of a foot from heading `h0` to `h1`: the left foot out is toward her left. */
+const outTurn = (side: 'L' | 'R', h0: number, h1: number): number => (side === 'L' ? -1 : 1) * (h1 - h0);
+/** The angle (deg) of the relative turn from `a` to `b` and the share of its axis along local y. */
+function relTurn(a: { x: number; y: number; z: number; w: number }, b: { x: number; y: number; z: number; w: number }): { deg: number; y: number } {
+  // a^-1 * b (unit quaternions: the conjugate)
+  const ax = -a.x;
+  const ay = -a.y;
+  const az = -a.z;
+  const aw = a.w;
+  const x = aw * b.x + ax * b.w + ay * b.z - az * b.y;
+  const y = aw * b.y - ax * b.z + ay * b.w + az * b.x;
+  const z = aw * b.z + ax * b.y - ay * b.x + az * b.w;
+  const w = aw * b.w - ax * b.x - ay * b.y - az * b.z;
+  const n = Math.sqrt(x * x + y * y + z * z);
+  return { deg: (2 * Math.acos(Math.min(1, Math.abs(w))) * 180) / Math.PI, y: n > 0 ? Math.abs(y) / n : 0 };
+}
+
+describe('tuner-clarity S2: the legd channel and the key fields (pure)', () => {
+  it('9 a side: the twists appended, the key fields and the sign table in the same order', () => {
+    expect(KEYED_LEGD).toBe(18);
+    expect(KEYED_LEGD_SIDE).toBe(9);
+    expect(KD.ankleYaw).toBe(7);
+    expect(KD.shinTwist).toBe(8);
+    expect([...LEGD_FIELDS]).toEqual(['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe', 'ankleYaw', 'shinTwist']);
+    expect([...KEY_LEGD]).toEqual([...LEGD_FIELDS]);
+    for (const s of LEGD_SIGN) expect(s.length).toBe(KEYED_LEGD_SIDE);
+    // the twists mirror like the hip yaw: the left sign is the right's negated
+    for (const k of [KD.ankleYaw, KD.shinTwist]) expect(LEGD_SIGN[0]![k]).toBe(-LEGD_SIGN[1]![k]!);
+  });
+
+  it('the new slider ids come after every older field (older indexes unchanged), on every keyed clip', () => {
+    const ids = KEY_FIELDS.map((f) => f.id);
+    const w = ids.indexOf('legR_w');
+    expect(ids.slice(w + 1)).toEqual(['legL_ankleYaw', 'legL_shinTwist', 'legR_ankleYaw', 'legR_shinTwist']);
+    // the S4 leg fields keep their place: hip pitch .. toe then the FK weight, per side
+    const l0 = ids.indexOf('legL_hipPitch');
+    expect(ids.slice(l0, l0 + 16)).toEqual(['L', 'R'].flatMap((s) => [...LEGD_FIELDS.slice(0, 7).map((f) => `leg${s}_${f}`), `leg${s}_w`]));
+    for (const id of ['legL_ankleYaw', 'legL_shinTwist', 'legR_ankleYaw', 'legR_shinTwist']) {
+      const f = KEY_FIELDS.find((x) => x.id === id)!;
+      expect(f.sub).toBe('d');
+      expect(f.unit).toBe('deg');
+      expect(KEYS_SECTION.byId.get(id)?.groups).toContain(keyGroupId('jog', 0));
+    }
+    expect(KEY_FIELDS.find((x) => x.id === 'legL_ankleYaw')!.label).toBe('L leg ankleYaw delta (+ toes out; a planted foot stays on its plant)');
+    expect(KEY_FIELDS.find((x) => x.id === 'legR_shinTwist')!.label).toBe('R leg shinTwist delta (+ shin turned out; a planted foot stays on its plant)');
+    expect(mirrorDelta({ legL_ankleYaw: 7, legR_shinTwist: -3 })).toEqual({ legR_ankleYaw: 7, legL_shinTwist: -3 });
+  });
+
+  it('a key edit reaches the sampled channel (key degrees -> rig radians by LEGD_SIGN); the mirror half swaps and negates', () => {
+    tuneSet(keyGroupId('jog', 0), 'legL_ankleYaw', 10);
+    tuneSet(keyGroupId('jog', 0), 'legL_shinTwist', -6);
+    tuneKeysSync();
+    const p = newKeyedPose();
+    sampleKeyed(KEYED_JOG, 0, 1, p);
+    expect(p.hasLegd).toBe(1);
+    expect(p.legd[KD.ankleYaw]).toBeCloseTo(LEGD_SIGN[0]![KD.ankleYaw]! * 10 * D2R, 6);
+    expect(p.legd[KD.shinTwist]).toBeCloseTo(LEGD_SIGN[0]![KD.shinTwist]! * -6 * D2R, 6);
+    for (let c = 0; c < KD.ankleYaw; c++) expect(p.legd[c]).toBe(0);
+    // key 0 mirrored at 0.5: the right leg, the same anatomical sense (the right sign)
+    sampleKeyed(KEYED_JOG, 0.5, 1, p);
+    expect(p.legd[KEYED_LEGD_SIDE + KD.ankleYaw]).toBeCloseTo(LEGD_SIGN[1]![KD.ankleYaw]! * 10 * D2R, 6);
+    expect(p.legd[KEYED_LEGD_SIDE + KD.shinTwist]).toBeCloseTo(LEGD_SIGN[1]![KD.shinTwist]! * -6 * D2R, 6);
+    // mirrorKeyed: the sides swapped, the twists negated (rig frame)
+    sampleKeyed(KEYED_JOG, 0, 1, p);
+    const before = [...p.legd];
+    mirrorKeyed(p);
+    expect(p.legd[KEYED_LEGD_SIDE + KD.ankleYaw]).toBeCloseTo(-before[KD.ankleYaw]!, 9);
+    expect(p.legd[KEYED_LEGD_SIDE + KD.shinTwist]).toBeCloseTo(-before[KD.shinTwist]!, 9);
+    expect(p.legd[KD.ankleYaw]).toBe(0);
+  });
+
+  it('key export writes legL.d.ankleYaw / shinTwist; readKeys reads them back; a file without them reads 0', () => {
+    const DIR = path.join(__dirname, '..', 'scripts', 'anim-keys', 'keys');
+    const jog = JSON.parse(readFileSync(path.join(DIR, 'jog.json'), 'utf8')) as KeyFile;
+    const out = applyKeyEdits(jog, { [keyGroupId('jog', 1)]: { legL_ankleYaw: 9, legL_shinTwist: -4.5, legR_knee: 3 } });
+    const k = out.keys[1] as Record<string, Record<string, unknown>>;
+    expect(k.legL!.d).toEqual({ ankleYaw: 9, shinTwist: -4.5 });
+    expect(k.legR!.d).toEqual({ knee: 3 });
+    const read = readKeys(out);
+    const iy = KEY_FIELDS.findIndex((f) => f.id === 'legL_ankleYaw');
+    const iw = KEY_FIELDS.findIndex((f) => f.id === 'legL_shinTwist');
+    const r1 = read.find((r) => r.phase === 0.125)!;
+    expect(r1.v[iy]).toBe(9);
+    expect(r1.v[iw]).toBe(-4.5);
+    for (const r of readKeys(jog)) expect(r.v[iy]! + r.v[iw]!).toBe(0);
+  });
+
+  it("key_clip.py's LEGD_FIELDS and LEGD_SIGN match keyed.ts", () => {
+    const py = readFileSync(path.join(__dirname, '..', 'scripts', 'anim-keys', 'py', 'key_clip.py'), 'utf8');
+    const fm = /^LEGD_FIELDS = \(([^)]*)\)$/m.exec(py);
+    expect(fm, 'LEGD_FIELDS line').not.toBeNull();
+    const fields = fm![1]!
+      .split(',')
+      .map((s) => s.trim().replace(/^'(.*)'$/, '$1'))
+      .filter((s) => s.length > 0);
+    expect(fields).toEqual([...LEGD_FIELDS]);
+    const sm = /^LEGD_SIGN = \{'L': \(([^)]*)\), 'R': \(([^)]*)\)\}$/m.exec(py);
+    expect(sm, 'LEGD_SIGN line').not.toBeNull();
+    const nums = (s: string): number[] => s.split(',').map((x) => Number(x.trim()));
+    expect(nums(sm![1]!)).toEqual([...LEGD_SIGN[0]!]);
+    expect(nums(sm![2]!)).toEqual([...LEGD_SIGN[1]!]);
+  });
+});
+
+describe('tuner-clarity S2: the rig (ankle yaw and shin twist)', () => {
+  type Side = 'L' | 'R';
+  const SW = { L: 0.7, R: 0.2 } as const; // the foot in mid-swing (the other planted)
+  const PL = { L: 0, R: 0.5 } as const; // the foot planted
+  const ank = (s: Side): 'ankleL' | 'ankleR' => (s === 'L' ? 'ankleL' : 'ankleR');
+  const kne = (s: Side): 'kneeL' | 'kneeR' => (s === 'L' ? 'kneeL' : 'kneeR');
+  const slide = (b: Built, s: Side): number => (s === 'L' ? b.rig.footSlide.l : b.rig.footSlide.r);
+
+  it('ankle yaw on a swinging foot: the ankle turns about its own y by the delta, the toes out on both sides, the ankle point fixed', async () => {
+    for (const s of ['L', 'R'] as const) {
+      const plain = await jogAt(SW[s], []);
+      expect(plain.b.rig.planner[s].contact).toBe(false);
+      const q0 = plain.b.rig[ank(s)].rotationQuaternion!.clone();
+      const h0 = heading(plain.b, s);
+      const a0 = pos(plain.b, ank(s));
+      plain.S.dispose();
+      const t = await jogAt(SW[s], both('ankleYaw', 15));
+      const r = relTurn(q0, t.b.rig[ank(s)].rotationQuaternion!);
+      const turn = outTurn(s, h0, heading(t.b, s)) / D2R;
+      console.info(`S2 swing ankle yaw ${s} +15: ankle turned ${r.deg.toFixed(3)} deg (axis along y ${r.y.toFixed(5)}), toes out ${turn.toFixed(2)} deg`);
+      expect(r.deg).toBeCloseTo(15, 1);
+      expect(r.y).toBeGreaterThan(0.999);
+      expect(turn).toBeGreaterThan(10);
+      expect(turn).toBeLessThan(20);
+      expect(dist(pos(t.b, ank(s)), a0)).toBeLessThan(1e-3);
+      t.S.dispose();
+    }
+  });
+
+  it('ankle yaw on a planted foot: the ankle stays within 1 mm of its plant while the toes turn out (both sides)', async () => {
+    for (const s of ['L', 'R'] as const) {
+      const plain = await jogAt(PL[s], []);
+      expect(plain.b.rig.planner[s].contact).toBe(true);
+      const a0 = pos(plain.b, ank(s));
+      const h0 = heading(plain.b, s);
+      plain.S.dispose();
+      const t = await jogAt(PL[s], both('ankleYaw', 15));
+      const err = dist(pos(t.b, ank(s)), a0) * 1000;
+      const turn = outTurn(s, h0, heading(t.b, s)) / D2R;
+      console.info(`S2 planted ankle yaw ${s} +15: ankle off its plant ${err.toFixed(4)} mm, toes out ${turn.toFixed(2)} deg, footSlide ${slide(t.b, s).toFixed(4)} cm`);
+      expect(err).toBeLessThan(1);
+      expect(turn).toBeGreaterThan(10);
+      expect(slide(t.b, s)).toBeLessThan(0.1);
+      t.S.dispose();
+    }
+  });
+
+  it('shin twist on a bent swinging leg turns about the shin: the ankle point stays within 1 mm, the toes turn out', async () => {
+    for (const s of ['L', 'R'] as const) {
+      // bent: the knee + 30 on top of the swing's own bend
+      const plain = await jogAt(SW[s], both('knee', 30));
+      expect(plain.b.rig.planner[s].contact).toBe(false);
+      const a0 = pos(plain.b, ank(s));
+      const k0 = plain.b.rig[kne(s)].rotationQuaternion!.clone();
+      const h0 = heading(plain.b, s);
+      plain.S.dispose();
+      const t = await jogAt(SW[s], [...both('knee', 30), ...both('shinTwist', 20)]);
+      const err = dist(pos(t.b, ank(s)), a0) * 1000;
+      const turn = outTurn(s, h0, heading(t.b, s)) / D2R;
+      // the knee's local turn is Ry(twist) after the knee delta (about the bone)
+      const r = relTurn(k0, t.b.rig[kne(s)].rotationQuaternion!);
+      console.info(`S2 swing shin twist ${s} +20 (knee +30): ankle moved ${err.toFixed(4)} mm, knee turned ${r.deg.toFixed(3)} deg (axis along y ${r.y.toFixed(5)}), toes out ${turn.toFixed(2)} deg`);
+      expect(err).toBeLessThan(1);
+      expect(r.deg).toBeCloseTo(20, 1);
+      expect(r.y).toBeGreaterThan(0.999);
+      expect(turn).toBeGreaterThan(5);
+      t.S.dispose();
+    }
+  });
+
+  it('shin twist on a planted leg folds into the foot: the ankle stays on its plant, the toes turn out (both sides)', async () => {
+    const { Quaternion } = await import('../src/core/babylon');
+    for (const s of ['L', 'R'] as const) {
+      const plain = await jogAt(PL[s], []);
+      const a0 = pos(plain.b, ank(s));
+      const h0 = heading(plain.b, s);
+      const f0 = plain.b.rig[ank(s)].absoluteRotationQuaternion.clone();
+      plain.S.dispose();
+      const t = await jogAt(PL[s], both('shinTwist', 15));
+      const a1 = pos(t.b, ank(s));
+      const err = dist(a1, a0) * 1000;
+      const turn = outTurn(s, h0, heading(t.b, s)) / D2R;
+      // the foot's world turn: 15 deg about the shin (the knee -> ankle line)
+      const k1 = pos(t.b, kne(s));
+      const w = t.b.rig[ank(s)].absoluteRotationQuaternion.multiply(Quaternion.Inverse(f0));
+      const wn = Math.sqrt(w.x * w.x + w.y * w.y + w.z * w.z);
+      const sx = a1[0]! - k1[0]!;
+      const sy = a1[1]! - k1[1]!;
+      const sz = a1[2]! - k1[2]!;
+      const along = Math.abs(w.x * sx + w.y * sy + w.z * sz) / (wn * Math.sqrt(sx * sx + sy * sy + sz * sz));
+      const deg = (2 * Math.acos(Math.min(1, Math.abs(w.w))) * 180) / Math.PI;
+      console.info(`S2 planted shin twist ${s} +15: ankle off its plant ${err.toFixed(4)} mm, foot turned ${deg.toFixed(3)} deg (axis along the shin ${along.toFixed(5)}), toes out on the floor ${turn.toFixed(2)} deg (the shin leans), footSlide ${slide(t.b, s).toFixed(4)} cm`);
+      expect(err).toBeLessThan(1);
+      expect(deg).toBeCloseTo(15, 1);
+      expect(along).toBeGreaterThan(0.99);
+      expect(turn).toBeGreaterThan(5);
+      expect(slide(t.b, s)).toBeLessThan(0.1);
+      t.S.dispose();
+    }
+  });
+
+  it('a side with zero deltas stays bit-identical (the left foot and shin twisted, the right leg untouched)', async () => {
+    // legState: 8 quaternions (hipL kneeL ankleL toeL hipR kneeR ankleR toeR) then ankleL toeL ankleR toeR positions
+    const right = (st: number[]): number[] => [...st.slice(16, 32), ...st.slice(38, 44)];
+    const plain = await jogAt(0.2, []);
+    const rP = right(legState(plain.b));
+    const lP = legState(plain.b).slice(0, 16);
+    plain.S.dispose();
+    // the left leg's own keys only: at 0.2 the right leg reads its own keys' (untouched) values
+    const t = await jogAt(0.2, [0, 1, 2, 3].flatMap((k) => [[k, 'legL_ankleYaw', 12] as const, [k, 'legL_shinTwist', -8] as const]));
+    const st = legState(t.b);
+    expect(right(st)).toEqual(rP);
+    expect(st.slice(0, 16)).not.toEqual(lP);
+    expect(t.b.rig.footSlide.r).toBe(0);
+    t.S.dispose();
   });
 });
