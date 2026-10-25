@@ -118,15 +118,16 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
 - **A9 Late Marlow sections, Q24.** After `taught_by`, a section with 2+ routes (counted as A26 says) must hold a
   guarded encounter space (a side route only "when training against enemies"), else ERR; such a section runs the
   campaign route rules on itself (three approaches of two kinds with shadow / high / loud on its guarded spaces, routes
-  cross, two routes) as ERR ("same design rules as a campaign mission area"). Its "two routes" is the A26 count (2+), not
-  `checkRedundancy`'s entry-to-exit link-disjoint count, which the section's single airlock doors would hold at 1.
+  cross, two routes) as ERR ("same design rules as a campaign mission area"). Its "two routes" is the A26 count (2+),
+  not `checkRedundancy`'s entry-to-exit link-disjoint count, which the section's single airlock doors would hold at 1.
   Splits are allowed there (G292). Undo: WARN, or only routes cross (lead answer L1).
 - **A23 A split's two legs are one route (lead decision 2026-10-25, plan-check fix round 1).** Before A8 / A9 count a
-  section's routes (A26), every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`, so a
-  declared split is one route, not a side route. A late section whose only second way is a split needs no guard and gets
-  no campaign route rules (G292: "until later sections where it teaches multiple objectives/split paths"; Q11: "Doesn't
-  necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before `taught_by`
-  the split is still an ERR by its tag (A8). Undo: count the legs as two routes (drop the merge in `training.mjs`).
+  section's routes (A26), every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`,
+  so a declared split is one route, not a side route. A late section whose only second way is a split needs no guard and
+  gets no campaign route rules (G292: "until later sections where it teaches multiple objectives/split paths"; Q11:
+  "Doesn't necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before
+  `taught_by` the split is still an ERR by its tag (A8). Undo: count the legs as two routes (drop the merge in
+  `training.mjs`).
 - **A10 Perfect-run and marker checks on every map (VISION 4 rules 3-5).** New link field `requires_kill` (bool). The
   ghost path (no `loud` link, no `requires_kill` link) from `start` to every `objective` space and on to `exfil` (Sector
   Ops, which needs no exfil: to the last section's `exit`): ERR when missing on `campaign` and `sector`, INFO on
@@ -251,13 +252,14 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
     one route. The entry and exit doors do not cap the count, because the paths need not be link-disjoint.
   - Checked by hand on both Marlow graphs (script run 2026-10-25, the J12 lead's scratch). v7 `ctcourse.json`
     (97873079): A1 2 (the door to the yard, or over the wall top), A2 2 (the neck, or the staging), A3 3 (the corridor,
-    or through the offices), A4 3 once split `a4` is merged (aisle 2, straight to the dock, or the mezzanine), A5 2 (inner
-    to trench direct, or through the switchroom), A6 1 (its four floor-to-gallery links are one step; the objective loop
-    floor > gallery > bridge > cage > floor comes back to the floor), A7 1, A8 1 (split `a8` holds the hall, the gallery
-    and the office). J14's re-plan `docs/marlow-replan/graph.json` (origin/feature/marlow-replan 2ede492b4): A1-A7 1
-    each (A1's boost and relay up the wall are one step, and its drops and one-way yard door lead back into spaces
-    already entered; A3's duct and door are one step; A7's split is one node); A8 2 (from `a8-hall` into split `a8`
-    straight in, or boosted up to `a8-gallery-west` first), so A8 Strongroom keeps its side route and A9 applies to it.
+    or through the offices), A4 3 once split `a4` is merged (aisle 2, straight to the dock, or the mezzanine), A5 2
+    (inner to trench direct, or through the switchroom), A6 1 (its four floor-to-gallery links are one step; the
+    objective loop floor > gallery > bridge > cage > floor comes back to the floor), A7 1, A8 1 (split `a8` holds the
+    hall, the gallery and the office). J14's re-plan `docs/marlow-replan/graph.json` (origin/feature/marlow-replan
+    2ede492b4): A1-A7 1 each (A1's boost and relay up the wall are one step, and its drops and one-way yard door lead
+    back into spaces already entered; A3's duct and door are one step; A7's split is one node); A8 2 (from `a8-hall`
+    into split `a8` straight in, or boosted up to `a8-gallery-west` first), so A8 Strongroom keeps its side route and A9
+    applies to it.
   - Campaign and Sector Ops maps keep `checkRedundancy`'s entry-to-exit count (M3) unchanged. J13 counts routes the
     same way by importing S4's function (PLAN section 8).
   - Undo: count entry-to-exit link-disjoint paths again (`edgeDisjointPaths`, master `scripts/level-validate.mjs:175`).

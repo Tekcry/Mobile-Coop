@@ -33,18 +33,19 @@ Five PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLA
 | PR | Branch (integration) | Slices | Counted lines | Opens when |
 | --- | --- | --- | --- | --- |
 | A gate core | `feature/validator-port` | S0, S3, D-A | ~1,430 (S0 ~970, S3 ~460) | S0, S3 checker PASS |
-| B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,050 | S1 checker PASS |
-| B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~810 (S2 ~680, S7a ~130) | B merged on master |
+| B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,200 | S1 checker PASS |
+| B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~830 (S2 ~700, S7a ~130) | B merged on master |
 | C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,410 (S4 ~530, S6 ~330, S5 ~270, S7b ~180, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
 | D mission re-cut | `feature/validator-port-mission` (from A's head; merges C's branch) | S8, D-D, I-D | ~1,060 | C merged on master |
 
 S0's ~970: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-273`, ~240 lines with `mergeGraphs`
-`:252-273`) counts ~480 alone; then PROFILES and the twelve mode tests ~90, wiring, flag, merge and `linkTime` ~60, the A25 kinds ~40, five stubs
-~45, `levelProfiles` ~200, inline `levelValidate` fixture edits ~40, re-exports ~20. PR B grew past the cap with
-`resolvePoints` (S1 ~1,050: V6's 589 + 220 test lines, way back ~100, resolver ~120, master API fixes ~20) and
-`--points` (S2 ~680: V6's 438, `ways_back` and `--points` ~60, `--flags` ~50, CLI test ~130), so the measure CLI is its own PR (B2),
-and the small S7a rides it. Branch merges between these integration branches are feature-branch merges; none merges
-master.
+`:252-273`) counts ~480 alone; then PROFILES and the twelve mode tests ~90, wiring, flag, merge and `linkTime` ~60, the
+A25 kinds ~40, five stubs ~45, `levelProfiles` ~200, inline `levelValidate` fixture edits ~40, re-exports ~20. PR B grew
+past the cap with `resolvePoints` (S1 ~1,150-1,200, counted as ~1,200: V6's 589 + 220 test lines, way back ~100,
+resolver ~120, master API fixes ~20, the new way-back and `resolvePoints` test cases ~120-150, the kind sets ~10) and
+`--points` (S2 ~700: V6's 438, `ways_back` and `--points` ~60, `--flags` ~50, the merged-graph measure ~20, CLI test
+~130), so the measure CLI is its own PR (B2), and the small S7a rides it. Branch merges between these integration
+branches are feature-branch merges; none merges master.
 
 Fallbacks, each named before it is needed: PR A over 1.5k -> S3 becomes its own PR right after A (it needs only S0).
 PR C over 1.5k -> S6 becomes its own PR right after A (it needs only S0); C and D then merge its branch. PR D over
@@ -100,8 +101,8 @@ lists every file the slice may touch; no two slices running at once own the same
 | Slice | What | Owns (claims) | Lines | Model | Depends on | Tests |
 | --- | --- | --- | --- | --- | --- | --- |
 | S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured, A25 kinds | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~970 | Opus | - | `levelValidate`, `levelProfiles` |
-| S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~1,050 | Opus | - | `levelMeasure` |
-| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points`; `--flags` (J17) | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~680 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
+| S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~1,200 | Opus | - | `levelMeasure` |
+| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points`; `--flags` (J17) | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~700 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
 | S7a | V12 + sheet rows: metrics-gen rejects unknown flags; row `nav_floor_depth_m`, MV's six `mission_*` rows; relay lip derivation (A24); long-throw row (A27) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~130 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
@@ -116,7 +117,7 @@ lists every file the slice may touch; no two slices running at once own the same
 | D-B2 | Docs for PR B2 | `docs/systems/testing-tools.md` (the measure CLI, `--points`), `changes/feature-validator-port-measure-cli.md` | docs | Sonnet | S2, S7a | doc lint |
 | D-C | Docs for PR C (folds the S4, S5, S6, S7 fragments: `taught_by`, `teach`, `requires_kill`, `mark`, `exception`) | `graph-schema.md`, `level-design.md`, `testing-tools.md`, `changes/feature-validator-port-train.md` | docs | Sonnet | PR C slices, D-A, D-B2 | doc lint |
 | D-D | Docs for PR D | `graph-schema.md` (mission pointer), `changes/feature-validator-port-mission.md` | docs | Sonnet | S8, D-C if running | doc lint |
-| I-C | Integration chore: rerun every set with `--write`, commit the pinned counts | `docs/level-validator/graph-sets.json`, saved run files | docs | Haiku | all of PR C | `levelGraphs` |
+| I-C | Integration chore: add the Marlow Yard set (S9's graph and `run.txt`) to the manifest, rerun every set with `--write`, commit the pinned counts | `docs/level-validator/graph-sets.json`, saved run files | docs | Haiku | all of PR C | `levelGraphs` |
 | I-D | Integration chore: add the mission example set to the manifest, rerun every set with `--write` (mission checks change the counts) | `docs/level-validator/graph-sets.json`, saved run files | docs | Haiku | S8, C's branch merged in | `levelGraphs` |
 
 The docs slices are one at a time on `graph-schema.md`, `level-design.md` and `testing-tools.md`, in the order D-A,
@@ -135,14 +136,16 @@ with J24").
 `reachable`, `edgeDisjointPaths`, `soloArcsOf`, `linkTime`, `enters` / `leaves` / `otherEnd`, `isOneWay`, `hasTag`,
 `fmt`, `linkName`, the kind sets, `SPLIT_TAG`, `OVERWATCH_TAG`, and `mergeGraphs` with its comment, master `:252-273`)
 to `scripts/level-graph-lib.mjs`; `level-validate.mjs` imports and re-exports every name it exports today (tests
-unchanged), so `mergeGraphs` imports from either file (J13 imports it from the lib, section 8). Add `PROFILES` (campaign / sector / training) and
-read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59-61`, `:66`, `:291-293`, `:313-316`,
-`:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns co-op coverage off, solo
-twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six new kinds of A25 join the
-kind sets (master `:29-55`: `LINK_KINDS`, `COOP_KINDS`, `TWO_WAY_GATES`, `ONE_WAY_KINDS`, the `NEEDS_*` sets as their
-stand-ins), `soloArcsOf` (`:225-227`) treats `vent_unlock` as a `bolted` link, and `checkDimensions` (its kit cases,
-`:459-475`) prints one INFO per new move kind used ("<kind>: no size band yet; the scale-sheet row comes with the move's
-coop-kit PR", A25) and checks nothing more; `vent_unlock` reads the door rows.
+unchanged), so `mergeGraphs` imports from either file (J13 imports it from the lib, section 8). Add `PROFILES` (campaign
+/ sector / training) and read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59-61`, `:66`,
+`:291-293`, `:313-316`, `:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns
+co-op coverage off, solo twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six
+new kinds of A25 join the kind sets (master `:29-55`: `LINK_KINDS`, `COOP_KINDS`, `TWO_WAY_GATES`, `ONE_WAY_KINDS`, the
+`NEEDS_*` sets as their stand-ins). `soloArcsOf` (`:225-227`) drops every `COOP_KINDS` link before its `bolted` filter,
+so once `vent_unlock` is in `COOP_KINDS` it would have no solo arc at all: S0 special-cases `vent_unlock` ahead of that
+drop and gives it the `bolted` arc (from its `to` end only), as the `levelProfiles` case below demands.
+`checkDimensions` (its kit cases, `:459-475`) prints one INFO per new move kind used ("<kind>: no size band yet; the
+scale-sheet row comes with the move's coop-kit PR", A25) and checks nothing more; `vent_unlock` reads the door rows.
 `linkTime` reads `measured.path_m` / speed first (A6). `mergeGraphs` concatenates `objectives`, `rules`, `syncs` (`sync`
 read as `syncs`) and keeps `mission` / `tracks` (MV `scripts/level-validate.mjs` mergeGraphs, 0c62a921).
 `validate(graph, { metrics, metricsPath, requireMeasured })` runs core, then `checkMeasured`, `checkTraining`,
@@ -161,29 +164,35 @@ Done: `levelValidate` and `levelProfiles` green, campus and example counts uncha
 V6 fix commits 0410023e, 2ab1fe18, c9e520ed). Re-verify against master's changed `src/ai/navGrid.ts` (`findPath` gained
 `partial`), `src/world/lightField.ts` and `src/world/lightBake.ts` (section bakes) since V6's base 25a36202; tsc clean.
 Add: (1) way back per campaign co-op link: the solo nav-path time from the link's `to` cells to its `from` cells at
-`reach_speed_mps`, `null` + `why` when no nav path (a drop or ladder off the nav), into
-`meta.measured.ways_back[]` as `{ from, to, kind, back_s, path_m }` (A5); (2) `resolvePoints(graph, nav, opts)` for
-J13 in the shape of section 8, built on V6's `cellsIn` (`:420`) and `edgePoint` (`:481`), and used by `measureGraph`
-for its own door points (one code path); V6's `MEASURE_DEF` and `MEASURE_TOOL` stay exported; (3) `OFF_NAV_KINDS`
-(v6 `:49`) brought up to master's kinds and the six new ones of A25: `team_throw`, `team_hang`, `team_pull`,
-`plank_bridge`, `chimney_pair`, `swing_pass`, `drop_catch` are off the nav grid (`null` + `why`); `shutter`,
-`deadweight`, `vent_unlock` are doorways measured as doors. Hot-path rules do not apply (offline tool), but `hyp2` /
-`hyp3`, no `Math.hypot`. Done: `levelMeasure` green with new cases for way back (timed and null) and for
-`resolvePoints` (a declared `at`, a one-gap edge point, a two-gap edge giving `null`, link entries keyed by merged
-index, `geom` equal to `measureGraph`'s).
+`reach_speed_mps`, `null` + `why` when no nav path (a drop or ladder off the nav), into `meta.measured.ways_back[]` as
+`{ from, to, kind, back_s, path_m }` (A5); (2) `resolvePoints(graph, nav, opts)` for J13 in the shape of section 8,
+built on V6's `cellsIn` (`:420`) and `edgePoint` (`:481`), and used by `measureGraph` for its own door points (one code
+path); `measureGraph` and `resolvePoints` take the merged graph of one map (S2 passes `mergeGraphs` of every file of
+that map), so a link between two section files resolves its point against both spaces' `area`s; V6's `MEASURE_DEF` and
+`MEASURE_TOOL` stay exported; (3) `OFF_NAV_KINDS` (v6 `:49`) brought up to master's kinds and the six new ones of A25:
+`team_throw`, `team_hang`, `team_pull`, `plank_bridge`, `chimney_pair`, `swing_pass`, `drop_catch` are off the nav grid
+(`null` + `why`); `shutter`, `deadweight`, `vent_unlock` are doorways measured as doors; (4) v6's private `COOP_KINDS`
+(`:51`, 4 kinds, "a split leg is walked alone") brought up to master's `COOP_KINDS` plus the six A25 kinds, so a split
+leg through a new move kind is walked alone too. Hot-path rules do not apply (offline tool), but `hyp2` / `hyp3`, no
+`Math.hypot`. Done: `levelMeasure` green with new cases for way back (timed and null) and for `resolvePoints` (a
+declared `at`, a one-gap edge point, a two-gap edge giving `null`, link entries keyed by merged index, `geom` equal to
+`measureGraph`'s, a link between two files' spaces resolved on the merged graph).
 
-**S2 (Sonnet).** Take `scripts/level-measure.mjs` whole from v6 8f551e18 (V6c + fix 0410023e `--check` tolerances);
-write `meta.measured.ways_back` with `--write`; add `--points <out.json>` (writes `resolvePoints`' result for the
-merged graphs, section 8; touches no graph file; combines with `--check`, not with `--write`); export its pure parts
-(`parseArgs`, the JSON text patcher) for `tests/levelMeasureCli.test.ts` (unknown option exit 2, `--doors` values,
-`--points` with and without a path, a patch that leaves the rest of the file byte-identical, and a second `--write`
-of the same values that changes no byte, so J17's switch-on re-measures diff only what moved). Add `--flags
-<key>=<value>[,<value>]` (J17's ask, section 7): after loading `src/core/flags.ts` through the same SSR loader and before
-the map builds, set that key of `flags` (a number list, a number or a boolean, by the key's current type); an unknown
-key exits 2; repeatable; the test sets an existing key and refuses a made-up one (+~50 lines). No `package.json` edit
-(S5 owns it): run it as `node scripts/level-measure.mjs`. Done: the CLI test green;
-`node scripts/level-measure.mjs docs/level-validator/example.graph.json --map proving` exits 0, and with
-`--points <tmp>.json` writes one entry per space and per merged link.
+**S2 (Sonnet).** Take `scripts/level-measure.mjs` whole from v6 8f551e18 (V6c + fix 0410023e `--check` tolerances). V6
+measures each file on its own (v6 `:350-410`); S2 instead merges every file of one map with `mergeGraphs` (validator
+file order), measures the merged graph once (S1) and writes back to each file only its own spaces and links (by merged
+index), so cross-file links get points and times (+~20 lines). Write `meta.measured.ways_back` with `--write`; add
+`--points <out.json>` (writes `resolvePoints`' result for the merged graphs, section 8; touches no graph file; combines
+with `--check`, not with `--write`); export its pure parts (`parseArgs`, the JSON text patcher) for
+`tests/levelMeasureCli.test.ts` (unknown option exit 2, `--doors` values, `--points` with and without a path, a patch
+that leaves the rest of the file byte-identical, and a second `--write` of the same values that changes no byte, so
+J17's switch-on re-measures diff only what moved). Add `--flags <key>=<value>[,<value>]` (J17's ask, section 7): after
+loading `src/core/flags.ts` through the same SSR loader and before the map builds, set that key of `flags` (a number
+list, a number or a boolean, by the key's current type); an unknown key exits 2; repeatable; the test sets an existing
+key and refuses a made-up one (+~50 lines). No `package.json` edit (S5 owns it): run it as `node
+scripts/level-measure.mjs`. Done: the CLI test green; `node scripts/level-measure.mjs
+docs/level-validator/example.graph.json --map proving` exits 0, and with `--points <tmp>.json` writes one entry per
+space and per merged link.
 
 **S7a (Sonnet).** `scripts/metrics-gen.mjs:211-227`: any argument other than `--check` prints the usage and exits 2,
 nothing written (A13). Scale sheet section 8 gains `nav_floor_depth_m` 1.5 (source: the nav sampler casts down to y -2,
@@ -206,7 +215,7 @@ PR B2; PRs C and D get its rows by merging B2's branch (C) and C's branch (D). D
 `scripts/level-validate.mjs`; S0 keeps its signature) on a one-link fixture with the band from `metrics.json`: a
 `team_hang` lip at 4.6 passes, 4.7 ERRs; and `sizes.throw_long` parses to max 4.9 with the two spots.
 
-**S3 (Opus).** `measured.mjs` = V6's `checkMeasured` (v6 8f551e18 `scripts/level-validate.mjs:977-1075`) with: shadow
+**S3 (Opus).** `measured.mjs` = V6's `checkMeasured` (v6 8f551e18 `scripts/level-validate.mjs:977-1073`) with: shadow
 share and its drift INFO (A4, V1); the presence gate of A5 (V2): encounter spaces, splits (`a_s`, `b_s`, `reach_s`;
 legs against `split_max_s` and `split_parity_pct`), campaign way backs (`meta.measured.ways_back`, one per co-op link),
 `null` WARN plus the declared check; drift tolerances stay tooling constants (as V6; not level numbers). Port V6's
@@ -247,23 +256,24 @@ floor; A7's and A8's splits are one node each). J14's graph (origin/feature/marl
 `taught_by: "A6"`) in a temp copy: no side-route ERR in A1-A7, A8 counted 2 routes so A9 runs on it. Both expectations
 are A26's hand count.
 
-**S7b (Sonnet).** `engine.mjs` per A12: the nav-floor WARN, reading `rules.nav_floor_depth_m` through `collector.num`
-(a missing key: one WARN, check skipped). No rope direction check and no human-ladder check (A12, seam with J24).
-Tests: the nav-floor WARN (an encounter space at storey -2, a guarded space at -1.6, a plain space at -2 with no
-guards: no WARN); a `team_rope` from storey 1 down to storey 0 inside the `rope_span` band gives no ERR (rope both
-ways); no test imports `TEAM.ladderGrab`. Done: green; v7 ctcourse's three `human_ladder` links get only master's
-co-op lip check (`sizes.coop_lip`). Long throw (A27): S7b also owns the `team_throw` case of `checkDimensions` in
-`scripts/level-validate.mjs` (wave 2; no other wave-2 slice owns that file, S0 is merged): a link with
-`exception: "long_throw"` is judged against `sizes.throw_long` (listed `meta.map:from>to`: pass up to `max` with an
-INFO naming the approval, ERR above; unlisted: ERR "not an approved long-throw spot"); any other `exception` value or
-kind: ERR; no field: the 2.7 m ERR as today; a missing `sizes.throw_long`: one WARN and the link falls back to the
-2.7 m rule. Tests with a metrics fixture holding the two spots: Tallow's `w2-pawn-loft -> w2-reading-room` throw at
-4.9 m with the field passes; the plank spot `w2-pie-loft -> w2-clock-loft` at 4.9 m with the field ERRs (not listed);
-the listed spot at 4.9 m without the field ERRs (2.7 m); the listed spot at 5.0 m with the field ERRs (over 4.9);
-the same ids on another `meta.map` ERR. The S7 fragment adds the `exception` link field for D-C's graph-schema (+~80 lines).
+**S7b (Sonnet).** `engine.mjs` per A12: the nav-floor WARN, reading `rules.nav_floor_depth_m` through `collector.num` (a
+missing key: one WARN, check skipped). No rope direction check and no human-ladder check (A12, seam with J24). Tests:
+the nav-floor WARN (an encounter space at storey -2, a guarded space at -1.6, a plain space at -2 with no guards: no
+WARN); a `team_rope` from storey 1 down to storey 0 inside the `rope_span` band gives no ERR (rope both ways); no test
+imports `TEAM.ladderGrab`. Done: green; v7 ctcourse's three `human_ladder` links get only master's co-op lip check
+(`sizes.coop_lip`). Long throw (A27): S7b also owns the `team_throw` case of `checkDimensions` in
+`scripts/level-validate.mjs` (wave 2; no other wave-2 slice owns that file, S0 is merged): a link with `exception:
+"long_throw"` is judged against `sizes.throw_long` (listed `meta.map:from>to`: pass up to `max` with an INFO naming the
+approval, ERR above; unlisted: ERR "not an approved long-throw spot"); any other `exception` value or kind: ERR; no
+field: the 2.7 m ERR as today; a missing `sizes.throw_long`: one WARN and the link falls back to the 2.7 m rule. Tests
+with a metrics fixture holding the two spots: Tallow's `w2-pawn-loft -> w2-reading-room` throw at 4.9 m with the field
+passes; the plank spot `w2-pie-loft -> w2-clock-loft` at 4.9 m with the field ERRs (not listed); the listed spot at 4.9
+m without the field ERRs (2.7 m); the listed spot at 5.0 m with the field ERRs (over 4.9); the same ids on another
+`meta.map` ERR. The S7 fragment adds the `exception` link field for D-C's graph-schema (+~80 lines).
 
 **S5 (Sonnet).** `graph-sets.json`: `[{ "name", "files": [...], "flags": [...], "errors", "warns", "run": "<path>" }]`
-for the example, campus S1-S5 (files in order), Marlow Yard. `scripts/level-graphs.mjs`: imports `validate` and
+for the example and campus S1-S5 (files in order); Marlow Yard's graph arrives in S9 (wave 3), so I-C adds its set.
+`scripts/level-graphs.mjs`: imports `validate` and
 `mergeGraphs`, prints one line per set, exit 1 on a count differing from the manifest, `--write` rewrites each `run`
 file (the CLI's exact text) and the counts. `package.json`: `"level-measure": "node scripts/level-measure.mjs"`,
 `"validate:levels": "node scripts/level-graphs.mjs"`. `tests/levelGraphs.test.ts`: per set, counts equal the manifest
@@ -372,21 +382,21 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   door for a `vent_unlock` (its "section A3 has no co-op link" ERR then clears).
 - **Seam with J24 coop-kit** (Player Build; origin/feature/coop-kit 34cfcad25 PLAN and BRIEF; lead decisions
   2026-10-25, plan-check fix round 2: J12 adopts coop-kit's side on all three points, A12 and A25):
-  - (a) Rope both ways: coop-kit A1 builds the rappel and rewrites sheet row 57 to "climb up or rappel down" (G293
-    "rope brace / descent"). J12 has no up-only rope check (S7b). For coop-kit: the row must keep its leading "2.2 - 6.0 m
+  - (a) Rope both ways: coop-kit A1 builds the rappel and rewrites sheet row 57 to "climb up or rappel down" (G293 "rope
+    brace / descent"). J12 has no up-only rope check (S7b). For coop-kit: the row must keep its leading "2.2 - 6.0 m
     climb" text, which `scripts/metrics-gen.mjs:110` parses into `sizes.rope_span` (regex `^<n> - <n> m climb`);
     otherwise metrics-gen loses the key and the rope band check prints a missing-metric line.
   - (b) Human ladder: coop-kit B1 deletes `TEAM.ladderGrab` and closes LD open item 1 (its A2: one band from
-    `TEAM.boostMax` 4.5). J12 adds no `ladder_grab_m` row and no human-ladder WARN; a `human_ladder` lip stays on master's
-    co-op lip check (`sizes.coop_lip`, sheet "Co-op lip" row, `TEAM.boostMax`, `src/config/movement.ts:459`). No J12
-    test reads `TEAM.ladderGrab`, so B1's grep finds none of J12's.
+    `TEAM.boostMax` 4.5). J12 adds no `ladder_grab_m` row and no human-ladder WARN; a `human_ladder` lip stays on
+    master's co-op lip check (`sizes.coop_lip`, sheet "Co-op lip" row, `TEAM.boostMax`, `src/config/movement.ts:459`).
+    No J12 test reads `TEAM.ladderGrab`, so B1's grep finds none of J12's.
   - (c) The five new moves: each coop-kit part 2 PR carries its sheet band row and its LD 11.9 graph kind (coop-kit PLAN
     :256-258), reviewed by Marlow Build. J12 accepts the kinds now (S0) with one INFO each and adds no band number; D-A
     names them in graph-schema only. When a band row lands, Marlow Build adds the `metrics-gen` key and the
     `checkDimensions` case in a follow-up validator change (not J12; its row format must suit a `metrics-gen` regex, as
     the existing section 3 rows do).
-  - Files: both jobs claim `scale-sheet.md` and `level-design.md`, on different rows (section 7 "Claims overlaps"). J12's
-    S7a rewords row 56 (relay, A24), which answers coop-kit A5's report.
+  - Files: both jobs claim `scale-sheet.md` and `level-design.md`, on different rows (section 7 "Claims overlaps").
+    J12's S7a rewords row 56 (relay, A24), which answers coop-kit A5's report.
   - Agreement: the three points are coop-kit's own text (its PLAN :164 row 57, :194-197 B1, :256-258 bands), so both
     docs say the same. The J12 lead confirms them to Player Build in one message before wave 1.
 - **Level standard #443** (`feature/level-standard-g157`, merged in 4.103.3): it rewrote the LD training profile
@@ -397,14 +407,14 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   11.9 (its tag and graph kinds), 14 (3) item (1), the 15 measured line and the rule index only.
 - **Claims overlaps** (`node scripts/claims-check.mjs --plan docs/validator-port/PLAN.md --name feature/validator-port`,
   rerun 2026-10-25 ~21:30: 27 overlaps with 42 plans that have a claims block; none on maps, wire or save; the 27 are
-  J17, J24, J10 (2 branches), J13, sector-batch, char-shadow-meter (2), hud-guidance (4), map-ready and J20 (14 branches),
-  all named below). In order of weight:
+  J17, J24, J10 (2 branches), J13, sector-batch, char-shadow-meter (2), hud-guidance (4), map-ready and J20 (14
+  branches), all named below). In order of weight:
   - **J17 campus-greybox:** the five live `docs/sector-redesign/graph/campusOps-S{1..5}.json`,
     `docs/level-validator/graph-sets.json`, `scripts/level-measure.mjs`, `docs/systems/testing-tools.md`. Order: J12
     first, as J17's PLAN :120 already says. J12's S10 owns the live graph files until J17's SW-<N> moves each v2 file
-    over (J17 BRIEF A13; J17 lanes edit only `graph/v2/`); S5 writes `graph-sets.json` and J17 changes a section's counts
-    at its switch-on; S2 writes `level-measure.mjs` (with the `--flags` argument J17 asked for, below), so J17's MEAS-0 is
-    not needed; J17's testing-tools lines go after D-C. Each SW-<N> re-measures all five live graphs with
+    over (J17 BRIEF A13; J17 lanes edit only `graph/v2/`); S5 writes `graph-sets.json` and J17 changes a section's
+    counts at its switch-on; S2 writes `level-measure.mjs` (with the `--flags` argument J17 asked for, below), so J17's
+    MEAS-0 is not needed; J17's testing-tools lines go after D-C. Each SW-<N> re-measures all five live graphs with
     `level-measure.mjs --write` and runs `tests/levelMeasureCampus.test.ts` green in the same PR (one whole-map `geom`
     hash makes all five stale; campus-greybox 9f36223c1 PLAN :134, :310-318). So: PR B2 (S2, `--write`) and PR C (S10's
     campus re-measure and the drift test) land before J17's first SW-<N>; after PR C, J12 does not re-measure the live
@@ -459,6 +469,10 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   counts them"; its PLAN :72 "2+ routes"): it imports `sectionRoutes(graph, section)` from
   `scripts/level-checks/training.mjs` (S4) and has no count of its own, so a late section the validator calls a side
   route section is the one the harness covers. J12 does not edit route-runs files; the lead tells J13.
+- **Stale names on J13's side.** route-runs-2 05e59b6d2 PLAN :304 (dependency row (3)) says `resolvePoints` is "built
+  on its `spaceCells`, `linkPoint`, `linkPath`", and its R6 fallback (:242) names those exports. J12 ships none of them:
+  S1 builds `resolvePoints` on V6's `cellsIn` / `edgePoint` and exports `resolvePoints`, `MEASURE_DEF` and
+  `MEASURE_TOOL`. The J12 lead tells J13's lead to drop the three names (its fallback is then its own `approx` points).
 
 ## 9. Risks
 
