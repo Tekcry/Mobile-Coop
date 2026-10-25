@@ -37,7 +37,8 @@ operator's capsule from the sim body (Player); lux calibration and lamp levels (
 
 ## Design in five lines
 1. Gameplay lamp set, fixed per sample point: every lit baked lamp the field already sums there giving at least 0.04
-   (`CHAR_SHADOW.minLevel`), plus the moon and flashlights; never the preset's silhouette pick.
+   (today's `CHAR_SHADOW.minLevel`, moved to gameplay as `CHAR_LIGHT.minLevel`), plus the moon and flashlights; never
+   the preset's silhouette pick.
 2. Each character is one sim capsule in `src/world/charOccluders.ts` (fixed typed arrays); a lamp's term at the chest
    and head samples is multiplied by the same soft-capsule formula the picture's round shadows use (floor 0.15).
 3. The picture's round-shadow feed reads the same capsules, so every preset darkens the same lamps by the same amount;
