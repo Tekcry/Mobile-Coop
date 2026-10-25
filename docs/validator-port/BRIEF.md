@@ -75,7 +75,8 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   sharing a file. `level-validate.mjs` stays the CLI and keeps every current export (tests unchanged). Undo: move the
   modules back inline (pure move).
 - **A3 One profile table.** A `PROFILES` object in the lib (per mode: route rules, coverage, solo-twin severity, gate
-  reach, no softlock, alive ceiling, drills, marks) replaces the scattered `meta.mode` tests. Undo: inline the tests.
+  reach, no softlock, alive ceiling, drills, marks, ghost-path severity) replaces the scattered `meta.mode` tests.
+  Undo: inline the tests.
 - **A4 Shadow share is INFO everywhere (V1, G329).** A measured `shadow_pct` outside 0.4-0.6 and its drift from the
   declared value print INFO. Measured vantage, LOS break, split legs and reach keep ERR on a miss (G285 (d)). Undo:
   one severity in `measured.mjs`.
@@ -112,12 +113,15 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before
   `taught_by` the split is still an ERR by its tag (A8). Undo: count the legs as two routes (drop the merge in
   `training.mjs`).
-- **A10 Perfect-run and marker checks on every map (VISION 4 rules 3-5).** New link field `requires_kill` (bool). In
-  every mode: ERR when no ghost path (no `loud` link, no `requires_kill` link) leads from `start` to every `objective`
-  space and on to `exfil` (Sector Ops, which needs no exfil: to the last section's `exit`); ERR when no no-kill path (no
-  `requires_kill` link) does. `mark` on a space or link: ERR on `campaign` and `sector`, INFO count on `training`. A
-  mission graph runs the same paths over the mission's primary objectives (mission-validate reuses the helper). Undo:
-  drop `perfect.mjs` from `validate()`.
+- **A10 Perfect-run and marker checks on every map (VISION 4 rules 3-5).** New link field `requires_kill` (bool). The
+  ghost path (no `loud` link, no `requires_kill` link) from `start` to every `objective` space and on to `exfil` (Sector
+  Ops, which needs no exfil: to the last section's `exit`): ERR when missing on `campaign` and `sector`, INFO on
+  `training` (lead decision 2026-10-25 ~20:30: Marlow has no perfect-run rating, Q5 "all are retries"; Q29 "does not
+  need the same checks"; and Q24 forces every section onto one route, so a forced section through a `loud` link could
+  not be fixed). The no-kill path (no `requires_kill` link) stays ERR in every mode, `training` included (VISION 4 rule
+  4, G127). `mark` on a space or link: ERR on `campaign` and `sector`, INFO count on `training`. A mission graph runs
+  the same paths over the mission's primary objectives (mission-validate reuses the helper). Undo: the ghost row of
+  `PROFILES` back to ERR, or drop `perfect.mjs` from `validate()`.
 - **A11 Ghost = no loud link.** G146's "no alarms" has no graph field; the loud route (force, LD 3.2) is the nearest
   fact. Undo: a `raises_alarm` link field read instead of `route: loud`.
 - **A12 Engine facts from the sheet (V10).** Two new scale-sheet section 8 rows: `nav_floor_depth_m` 1.5 (written as a

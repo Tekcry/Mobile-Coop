@@ -134,7 +134,9 @@ Done: green; campus graphs as on master print "pending V6" INFO only (no `measur
 `mark` any value. `tests/noForcedKill.test.ts` (T H4): every `SectorObjective.kind` across `MAPS`' sector defs is
 non-lethal (`hack`, `grab`, `download`, `src/game/sectors.ts:20`) and no Marlow `CourseObjective.done` flag is set
 only by a guard's death (trace each flag's setter; list them in the test). Done: both green; example and campus counts
-unchanged (they have non-loud paths); a fixture with a loud-only objective ERRs; a `mark` on a campaign fixture ERRs.
+unchanged (they have non-loud paths); a campaign fixture with a loud-only objective ERRs, the same graph on `training`
+prints INFO; a `requires_kill`-only objective ERRs on every mode, `training` included; a `mark` on a campaign fixture
+ERRs, on a training fixture is an INFO count.
 
 **S4 (Opus).** `training.mjs` per A8 / A9: `meta.taught_by` (ERR missing or not in `meta.sections` on `training`; ERR
 present on another mode), `teach` (link string field or `teach:<move>` space tag), per-section edge-disjoint count with
