@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T21:34Z
+status: blocked tests/levelMeasured.test.ts:486 asserts the campus has no measured values (S10 measures it by design); fix needs that file, not in the list - all else built at 86672b1c0
 # J12 validator-port, slice S10 (Sonnet, strict Opus brief): campus graphs - V6 positions, re-measure, drift test, run
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S3 (checkMeasured) is on master;
@@ -109,3 +109,43 @@ green, run.txt is the exact CLI output, V6-REPORT refreshed.
 What changed (files, commits), measure times, `--check` result, plain and `--require-measured` counts (these go to
 I-C), drift test time, what you changed in the test and why, tests with counts, deviations. Then
 `status: done feature/validator-port-s10 <sha>`.
+
+### Report (Night Shift | Cloud Builder 2, 2026-10-25)
+**Built in full; blocked on one check outside the file list.** Branch `feature/validator-port-s10`, head 86672b1c0,
+cut from 17871b9fe. Files: the five `campusOps-S1..S5.json`, `campus-run/run.txt`, `V6-areas.md` (new, as V6e-1),
+`V6-REPORT.md` (new, refreshed), `tests/levelMeasureCampus.test.ts` (new), `changes/feature-validator-port-s10.md`.
+- Commits: 3a0ddef49 positions, f3d6dbcdf re-measured, c4b2f35c7 drift test, 2f255025b run / areas / report /
+  fragment, 86672b1c0 one V6-REPORT line under 120 characters.
+- Step 1: `positions = V6` five times; the validator still ended `127 error(s), 174 warning(s).`
+- Measure (cloud, 4 CPUs shared): first `--write` 2 min 35 s wall (build 1.3 s, nav 0.8 s, bake 121 s); second
+  `--write` 2 min 28 s, all five files `unchanged`, `git diff --quiet` held. `geom` `y3jl5g-atld8s`. Measure ERRs are
+  graph findings: `s5-well` 0 floor cells; small rooms `s5-vest` 11, `s5-pass` 16, `s5-shaft` 6, `s5-core-r` 16 cells;
+  21 links with 2+ gaps on the shared edge and no `at`. 97 of 147 links have a measured time.
+- `--check`: exit 1, 58 FAIL, 0 DRIFT: 19 shadow shares outside 0.40-0.60, 13 vantages below 0.70, the 26 measure ERRs
+  above; no LOS-break fail. (13 vs the validator's 12 vantage ERRs: `s4-yard` is 0.70 after rounding.)
+- Counts for I-C: plain run (= `run.txt`, re-checked byte for byte) and `--require-measured` print the same:
+  **139 error(s), 200 warning(s)**, 47 INFO. The 12 new ERRs are all `measured sees_pct below 0.7` on encounters (target
+  misses of the as-built campus); no other new ERR kind. Shadow is INFO only. Per section ERR / WARN: S1 14/28,
+  S2 39/45, S3 24/35, S4 25/38, S5 37/55, map-wide 1/2. V6-REPORT keeps one comparison line (V6 180 / 209).
+- Drift test: `npx vitest run tests/levelMeasureCampus.test.ts` 6 passed, 143.6 s. Changed from V6: measures the five
+  files merged once in `beforeAll` (`mergeGraphs` with `// @ts-expect-error`), compares each file's spaces by id, links
+  by merged index (file index plus its offset) and the splits its spaces tag, as the CLI writes them; one added check
+  (one merged result per link) and a "split stored but no longer measured" line; V6's tolerances (0.05, 1.5 s),
+  geom-stale and nothing-stored checks, never failing on a target miss, and 600 s timeouts kept; header paths updated.
+- Tests: `npx vitest run tests/levelMeasure.test.ts tests/levelMeasureCli.test.ts tests/levelMeasured.test.ts
+  tests/levelValidate.test.ts tests/changesFragments.test.ts` 138 passed, 1 failed (the block below).
+  `npx tsc --noEmit -p .` clean. `node scripts/doc-lint.mjs` 0 errors (26 warnings, none in S10 files).
+  `tests/levelGraphs.test.ts` 7 passed, 3 failed (base: 8 / 2): "set campus > the saved run is the level-validate CLI
+  text" was failing on the base and is now cleared by the new `run.txt`; "level-graphs runner > exits 1 on a count that
+  differs ..." fails on the base too (it runs `example.graph.json` and does not expect the "pending V6" INFO lines; not
+  campus-related); "set campus > counts equal the manifest" and "the saved run says the same counts" are the expected
+  new-count failures (139 / 200 vs the manifest's 127 / 174; manifest untouched for I-C).
+- **Block:** `tests/levelMeasured.test.ts:486` ("the example and the campus graphs (no measured yet) print 'pending V6'
+  INFO only") now fails: it asserts the campus graphs carry no `measured`, which S10 changes by design (passes on the
+  base). The file is not in this brief's list, so it is unedited. Proposed fix (about 5 lines): loop that test over the
+  example graph only, and either drop the campus from it or assert for the campus that every encounter has `measured`
+  and the only ERRs are `measured sees_pct below` lines. Answer by reopening with that file added (or fold it into I-C).
+- Left as the brief says: `V6-areas.md` still names `docs/level-validator/V6-PLAN.md` (now under `docs/archive/`); doc
+  lint does not flag it.
+- Pending PC run: `node scripts/level-measure.mjs <five> --check` (expect exit 1, 58 FAIL, 0 DRIFT) and the drift test
+  on the desktop.
