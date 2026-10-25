@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T21:49Z
+status: done feature/tallow-throw-tdb 24331e5a3
 
 # campaign J8 TD-b: per-site throw length, the team controller (Opus 5.5)
 
@@ -145,3 +145,42 @@ Commits; each function / field added or changed with its signature; whether step
 step 6 numbers (flight speed, snapshot step, KO step, the `throwDist` grep); test counts per file; check results; every
 deviation with its reason; "pending PC run" for the laptop suites. A question the brief cannot settle:
 `status: blocked <reason>`.
+
+### Report (Night Shift | Cloud Builder 2, 2026-10-25)
+**Done.** Branch `feature/tallow-throw-tdb`, head 24331e5a3, cut from 45239952a (gate (b)). 4 files, +165 / -8.
+- Commits: 018445865 `tallow TD-b:` the code (teamMoves, teamController, gameState); 24331e5a3 `tallow TD-b:` the tests.
+- Added / changed:
+  - `teamMoves.ts`: `export function clearThrowSites(list: readonly ThrowSite[]): void` (clears only when the stored
+    list is `list`, by identity, with the hand-off comment); the throw case of `checkTeamRequest` now denies only when
+    the claim fails the site band AND (no site, or it also fails the standard band), the brief's line verbatim.
+  - `teamController.ts`: `private readonly sites: readonly ThrowSite[] | null`; the constructor reads
+    `g.world?.layout?.throwSites ?? null`, stores an empty list as null and always calls `setThrowSites(this.sites)`;
+    `dispose(): void` (`if (this.sites) clearThrowSites(this.sites)`); `lastThrowDist = 0` beside `lastThrowRoom`;
+    `requestThrow` takes the direction (`throwLanding` into `this.land`), then `throwDistAt(m.pos, land.dx / dz)`, then
+    the landing at that length into the same `this.land` (no allocation; the floor probe, head room and 8-leg arc follow
+    `l`); `throwDistAt`, `setThrowSites`, `clearThrowSites` added to the `./teamMoves` import; `import type { ThrowSite }`;
+    the header comment's throw line names the site length. Offer gate, kit hooks, `begin` / `runThrow` untouched.
+  - `gameState.ts`: step 3 ticked, so one line `this.team.dispose();` after `this.gadgets.dispose();`.
+- Step 6 (all hold, no block): flight at a site 5.8 + 1.3 = 7.1 m in `TEAM.throwTime` 1.0 s = 7.1 m/s, at most
+  5.8 + 1.6 (`throwReach`) = 7.4 m/s (standard 4.5-4.8 m/s); with the arc's vertical part (at most
+  4 x 1.7 / 1.0 = 6.8 m/s at take-off on the flat) the speed is at most about 10.1 m/s, under `SNAP_SPEED` 25. One
+  snapshot step at 15 Hz is 7.4 / 15 = 0.49 m horizontal (about 0.67 m with the vertical), under `SNAP_MIN` 2 m: the
+  partner's view interpolates. `throwKoHit` per 60 Hz step 7.4 / 60 = 0.12 m, inside `throwKoReach` 0.7 m.
+  `git grep -n throwDist -- src`: besides teamMoves / teamController / `movement.ts` and a `mapDef.ts` comment, only
+  `src/anim/studioPairs.ts:290-310` and `src/world/maps/ctcourseGreybox.ts:408-409` (studio / Marlow Yard, no sites):
+  unchanged.
+- Tests (`tests/throwSites.test.ts`, 8 -> 14): the TD-a case "the standard along +x denied" flipped and retitled
+  (3.2 and 5.8 along +x allowed, 7.0 and 2.0 denied, 3.2 along +z allowed, 5.8 along +z denied); reverse edge pinned
+  (a thrower 1.1 m from the site claiming 5.8 along its facing: 'noTarget'; the standard there allowed); construction
+  (site set; no `throwSites`, no layout, `{}` give 3.2 and overwrite an earlier list; an empty list = none); dispose by
+  identity (A then B: `A.dispose()` keeps B's, `B.dispose()` clears; no-sites and no-world disposes harmless);
+  `requestThrow` on a fake game (the registry test's floor fake): +z site, runner 1.3 m behind -> asks (0, 5.8),
+  `lastThrowDist` 5.8; no sites -> (0, 3.2); runner on -x (throw along +x) at the +z site -> 3.2; runner within 5 cm,
+  yaw 0 -> 5.8; the arc 7.1 m over `throwTime` under `SNAP_SPEED` and ending on the landing. No fake adjustment needed.
+- Checks: `npm run typecheck:fast` clean. The 12-file vitest run (`--maxWorkers=2`): 364 / 364 - throwSites 14,
+  teamMoves 24, kit/registry 17, kit/pullUp 20, kit/shutter 23, hangDown 8, teamClimb 6, missionFlags 10,
+  ctcourse/a5Substation 61, ctcourse/a8Strongroom 83, ctcourseGreybox 77, tallowWharf/w2 21. `npx eslint` on the three
+  src files and the test: clean.
+- Deviations: none. The reverse-edge box was not ticked, so `throwDistAt` keeps its signature and the denial is pinned.
+- Pending PC run (the lead requests it on PR T's head): laptop `e2e-coop e2e-netmove e2e-ctcourse
+  e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl`.
