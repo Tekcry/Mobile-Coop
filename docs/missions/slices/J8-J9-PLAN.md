@@ -1250,3 +1250,19 @@ J12 A27 (`exception: "long_throw"`, a 4.9 m gap cap) replaces round 1's `throw_d
 | Polish 7 B0 done | A20 and the B0 row (925fa3784 + e4eace3bd); D0 waits only for J7 PR D and B0b |
 | Polish 8 throw spot | LP: G2's brief marks the thrower's spot (or deepens the stage) |
 | Polish 9 C5 run-up | A28 C5 and LP: clear of the roof hatch (x 71.4-72.6) |
+
+## Lead rulings on fix round 2 (Campaign Build, 2026-10-25 ~21:40)
+- D0 split defaults: both ADOPTED as written in D0 detail (:624ff). TGC: legs a = [gallery, warden-office],
+  b = [tea-stall], plus G1's caged ladder at the gallery's canal-steps end, its top gate bolted from the gallery side.
+  TKL: the BEAT legs timed door to door, plus G3 moving the yard fire escape's foot beside the east gate. The written
+  fallbacks stay fallbacks. Both geometry lines go on the walk card in plain English (Michael sees them on his walk; no
+  question before it). Wave 1 is unblocked by this ruling once the fresh re-check passes.
+- A29 (clock-mender's door locked both sides until the plank): adopted; if the build finds a solo breach, the brief's
+  wall-it-up fallback applies with no further ruling.
+- TKL roof bulkhead stair (`w3-roof -> w3-east-wing`, not bolted) letting B skip the east-gate keypad: closed in G3
+  as A30: the bulkhead door is bolted from the east-wing side (push bar inside, so it is an exit from the wing, never
+  a way in from the roof), mirroring A25. D0 / D1 add the `bolted` state to that link; G3's test asserts a lone
+  player on the roof cannot reach the east wing. Not a J7 rule change.
+- Link renumbering: D0 deletes link 30, so the C5 throw becomes link 32. Campaign Build tells Marlow (J12 matches
+  spots by `map:from>to`).
+- PR sizes G1 ~1,030 and G2 ~1,080 lines: accepted (under the ~1.5k cap).
