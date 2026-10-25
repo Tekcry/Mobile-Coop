@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:56Z
 # J12 validator-port, slice S11 (Opus-grade brief, small): a split leg may start with a co-op link from the fork
 
 Lead: Night Shift | Marlow Build. Asked by Campaign Build (Tallow D0, 2026-10-26 ~10:10): Tallow's split `tgc-leads`
