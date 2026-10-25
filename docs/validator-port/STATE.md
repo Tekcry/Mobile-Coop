@@ -37,7 +37,14 @@ Owner: Marlow Build. Status: current.
   (`PLAN.md:472`); Campaign Build, A27 cap is 4.9 m, Tallow sets `exception` and 4.9 m `width` (`PLAN.md:373`).
 - Running agents: none.
 
-Next: fresh plan checker 3 on 10b613dd3, report C:/NightShift/scratch/marlow/j12-plan-check-3.md
+- Plan check 3 PASS on 10b613dd3 (C:/NightShift/scratch/marlow/j12-plan-check-3.md). Wave 1 running (~22:00): S0 Opus in
+  C:/NightShift/Mobile-Coop-validator-port-s0 (feature/validator-port-s0), S1 Opus in
+  C:/NightShift/Mobile-Coop-validator-port-measure (feature/validator-port-measure), S2 Sonnet from S1 first push, S7a on
+  cloud-queue `briefs/validator-port-s7a.md` (feature/validator-port-s7a). Player Build told the J24 seam.
+- Lead polish left (one docs commit here): check-3 P1-P6; Campaign Build ~21:30: Tallow C5 link becomes 32 after J8 D0
+  deletes link 30 (match is map:from>to, so only the BRIEF / PLAN "link 33" wording goes stale); both spots
+  `exception: "long_throw"`, gap 4.9 m; pie link 29 stays a plain throw.
+Next: S0 done -> merge into feature/validator-port (PR A), brief wave 2 (S3, S4, S6, S7b, S5, S8); S1 first push -> S2.
 
 ## Done
 - 2026-10-25 fix round 2 (plan check 2 FIX on c4ed19163, report `C:/NightShift/scratch/marlow/j12-plan-check-2.md`):
