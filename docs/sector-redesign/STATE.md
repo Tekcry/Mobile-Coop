@@ -350,33 +350,34 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (SAVE 2026-10-25 ~21:38, 5-hour meter).
+Night Shift | Sector Ops Build: RESUME (2026-10-25 ~22:15, after the 21:41 swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
-2 builder agents per lead (tsc / single vitest only); no new agents while desktop CPU > 80% (orchestrator ~21:20);
-docs agents not counted. Marlow goes first on laptop + desktop CPU. Plan: FOLDED-PLAN + ROADMAP Decided.
-Order: Guard AI J15 guard-rules PR1 lands on master before any J17 lane PR (S1-S5) still carrying P0 / S4-S5 data.
-J10 datasheet (Michael ~21:00): "Yes, numbers only (Recommended)": 5 ground readings 0/3/6/9/12 m = 32.1, 53.9, 47.7,
-25.4, 11.2 lux (RAB ALEDS3T, C:/NightShift/scratch/light-datasheet/REPORT.md); never commit or ship the file; credit it.
+no new builder agents while desktop CPU > 80% (it sat at 100% 21:45-22:15); read-only checkers / docs agents run with a
+CPU gate on their one test file. Marlow goes first on laptop + desktop CPU. Plan: FOLDED-PLAN + ROADMAP Decided.
+Order: Guard AI J15 guard-rules PR1 (#450) lands before any J17 lane PR (S1-S5) still carrying P0 / S4-S5 data.
+J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Python is not installed: scripts in node.
 1. PRs (watchdog labels train-ready when green; Opus triage on any laptop failure):
-   - #457 J5 sector-marks (Job-done): Opus x2 PASS, CI green; affected-e2e pending on the laptop.
-   - #459 J16 A1 = S1 only (dark, charShadowLight): checker PASS on head caf75f9dd, CI green; affected-e2e pending.
-2. BUILDING / CHECKING (read each branch head + checks/*.md; relaunch any cut-off agent from its last commit):
-   - J10 L0 fold (Opus) on feature/light-realism-l0 (L0 PASS 5a201b56d; fold commits from 33117b0cc): readings into
-     calibrate.ts REFERENCE, art-credits, BRIEF pick; checker note 1 (lamps sum linearly, curve reads log lux: two
-     columns ~41 lx vs ~12 real) fix or exact L1 change + A-line; note 2 (bands > 178 lx) to PLAN L1. Report
-     checks/l0-fold-build.md. Next: checker on the fold, then L1 + SIGNOFF.md to Michael.
-   - map-ready S4 (Opus) on feature/map-ready-s4, worktree -map-ready-s4 (brief docs/map-ready/briefs/S4.md, base
-     3a18a7bb5 = W0 flag). Report checks/s4-build.md, then a checker. Next W1: S9 (Opus), S1 measure (Sonnet, laptop
-     baseline run); then S2, S10; S8 (cloud-safe) after S1 + S2.
-   - J16: S3 merged into the job branch 2a2837ea2. Next: S2 (Opus) on the job branch = PR A2; then S3b (must cap or fix
-     the 5264 B / 4-player fill allocation from boxed numbers at the light-field call, s1-s3-check.md); polish there.
-   - J17 campus-greybox: lanes on cloud-queue (briefs/campus-greybox-{s1,s2,s3-r1,s4,s5}.md, base 024c7c172). On done:
-     checker + laptop e2e-sectorops part; queue S3 r2-r5 from r1's frame commit.
-3. PLANS:
-   - J18 sector-batch: fix round 2 206ab376 (B4 reuses #317's OUT rule behind sectorOutWait, waits for #317 on master;
-     Perfect uses SectorRun.alarmsRaised; 49 overlaps). Plan check 3 PASS 31e9f22e. B1 / B3 on cloud-queue (21fbd538b:
-     briefs/sector-batch-B1.md -> feature/sector-batch-b1, -B3.md -> feature/sector-batch-light); on done: checker.
-     Next: B2 Sonnet (desktop, when CPU < 80%), B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and
-     mission-rules-r1 both edit sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7 has the merge).
-Next: read each agent's report / branch, start checkers on finished slices, S2 + S9 builders when CPU < 80%.
+   - #457 J5 sector-marks (Job-done): Opus x2 PASS, CI green; affected-e2e queued on the laptop.
+   - #459 J16 A1: CI test failed on caf75f9dd (sourcesInto 90.8 B > 72, lightField.test.ts:780); fixed 97ca3ad28
+     (pushLv typed slot; local CI-like mode 67.2 B), merged into job branch d39a40af1. Sonnet delta checker running;
+     then CI + affected-e2e on 97ca3ad28.
+2. BUILDING / CHECKING:
+   - J10 L0 fold DONE on feature/light-realism-l0 3e78d0df2 (tsc fix, report checks/l0-fold-build.md; measure output
+     in C:/NightShift/scratch/light-realism/l0-fold-measure/). Opus checker running -> checks/l0-fold-check.md.
+     Next: L1 (S1 car park, Opus) + SIGNOFF.md to Michael (lux grid); note 2 choice before the L2 briefs.
+   - map-ready S4 WIP 1afb22600 on feature/map-ready-s4 (steps 1-3 untested; NOT cloud-safe). Relaunch an Opus builder
+     from that head when CPU < 80% (brief docs/map-ready/briefs/S4.md; report checks/s4-build.md), then a checker.
+     Then W1: S9 (Opus), S1 measure (Sonnet, laptop run); then S2, S10; S8 (cloud) after S1 + S2.
+   - J16 job branch d39a40af1 (S3 + A1 fix). Next: S2 (Opus) = PR A2; then S3b (cap / fix the 5264 B 4-player fill
+     allocation, checks/s1-s3-check.md).
+   - J17 campus-greybox on cloud-queue (dac8958d9): s1, s4 reopened (branches carry partial work: s1 24ec1bc71 G5,
+     s4 8bd64d268 G4.2); s2 reopened with my Answer (G5c option 1: re-cut L2 / MR rooms, A-J17-S2-1), resumes at
+     G5c-0 from ba9283143; s3-r1 DONE 5d7da838c (frame 3a8c6893a) -> needs a checker + laptop e2e-sectorops part;
+     s3-r2..r5 queued from the frame (r3 closes the core slots + core rooms, A-J17-S3-2/3; door pairs as signed,
+     A-J17-S3-1); s5 open. On each done: checker, laptop e2e-sectorops part; r6 after r5 + lead merge of r1-r4.
+     Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
+3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 Sonnet (desktop, CPU < 80%);
+   B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
+   sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
+Next: checker results (#459, L0 fold); s3-r1 checker; S4 builder when CPU < 80%; pick up cloud done briefs within 1 h.
 ```
