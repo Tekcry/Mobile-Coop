@@ -1,7 +1,7 @@
 # Operators run - subagent preamble (every implementer, fixer and checker)
 
 The orchestrator session starts every subagent with "Read docs/operators/steps/AGENT-PREAMBLE.md first", then the
-role, the step, the handover and (fix rounds) the fix list. Modelled on docs/locomotion/steps/PC1-preamble.md.
+role, the step, the handover and (fix rounds) the fix list. Modelled on docs/archive/locomotion/steps/PC1-preamble.md.
 
 ## Location and branch
 - Work only in C:\NightShift\Mobile-Coop-operators (Git Bash: /c/NightShift/Mobile-Coop-operators). Never read,

@@ -25,7 +25,7 @@ Restyle every menu in the visual language of Batman: Arkham Knight's menus (styl
   glyphs change.
 
 ## Process (why not the locomotion run's unattended loop for step 1)
-The locomotion run (`feature/ct-locomotion`, docs/locomotion/) works like this: one long brief saved verbatim
+The locomotion run (`feature/ct-locomotion`, docs/archive/locomotion/) works like this: one long brief saved verbatim
 (BRIEF.md, condensed in RULES.md); Michael's decisions numbered (D1-D11, M1-M11) and the run's own calls logged as
 "ASSUMED - for review" (A-numbers) instead of asking; PLAN.md split into numbered step files; STATE.md for resume
 across sessions and accounts; per step an implementer subagent, a fresh checker subagent (diff, tests, e2e, contact

@@ -1172,7 +1172,7 @@ vertex within 10 mm), slingSocket 38.7 mm (pelvis 0.85, hipL 0.11, spine 0.04), 
 **A96 Step 11d: the goggle's two states as index ranges, interim in-use only (G73).** The asset holds only the in-use
 goggle (head_kit hides the stowed set from export). The runtime orders each primitive's triangles [stowed][body][in use]
 by a per-vertex `_GOGGLE` class (0 / 1 / 2) and swaps a sub-mesh's index range on the vision change (no upload, no extra
-draw). Until the asset follow-up in docs/operators-runtime/DESIGN.md exports the stowed set with `_GOGGLE`, both states
+draw). Until the asset follow-up in docs/archive/operators-runtime/DESIGN.md exports the stowed set with `_GOGGLE`, both states
 draw the in-use goggle and only the glow follows G73 (dim 0.3 of the lens emissive when vision is off, full when on;
 0.15 s ease; the pose switches with `VisionState.shown`, at the flip's middle). Emissive only, no light (light parity).
 Undo: separate goggle meshes toggled by `setEnabled` (2-3 more draws per body).

@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.100.7 - Train 82: Decisions fold G283-G323 (2026-10-25, PR #397; #386)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-24 ~15:10 to ~23:46 folded in as G283-G294 (idle-lead rule, level
+  validator and standard extras, train speed-ups, test jobs, process audit, mission rules and prototypes, Marlow Yard
+  and campaign co-op traversal, guard off-screen animation tier).
+- docs/DECISIONS.md: the archived roadmap decisions of 2026-10-23 ~01:08 to ~21:08 not yet recorded folded in as
+  G295-G323 (Sector Ops redesign, Guard AI, models and pacing, stealth over shooting, Sector Ops 4 players, guard
+  models, lighting, release and pipeline speed-ups, moving lights).
+- docs/design-bible.md: dated notes for most of G283-G323; the voxel retirement lines in 5.14 and 5.16 now cite G282.
+
+## 4.100.6 - Train 81: Sector Ops polish 3 (2026-10-25, PR #392; #379)
+- Light bake: when the moon bake fails while a section bake still waits on its cache read, no section baker starts
+  afterwards (it used to start one that nobody stopped).
+- Vol lights: `writeVolLights` writes slot `i` and returns `n` (one counter, not two); the wiring guard test reads its
+  sources relative to the test file and names what to do when its regex stops matching.
+
 ## 4.100.5 - Train 80: pr-size loads its script from the base branch (2026-10-25, PR #391; #378)
 - CI: the `pr-size` job runs `scripts/pr-size.mjs` (and `glob-match.mjs`) as taken from the base branch, so PR
   branches cut before 4.100.0, which lack the script, no longer fail `check` with "Cannot find module".

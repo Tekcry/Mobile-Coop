@@ -12,7 +12,7 @@ path (no dev switch). Guards keep their current bodies (realistic guards come la
 ## Read (only these, plus the common files)
 
 - Master's docs/DECISIONS.md: G38, G68-G75, G93, G123 and the G numbers this run adds. CLAUDE.md "Hard rules".
-- `docs/operators-runtime/SURVEY.md` and `DESIGN.md`, LOG.md steps 11c and 11d.
+- `docs/archive/operators-runtime/SURVEY.md` and `DESIGN.md`, LOG.md steps 11c and 11d.
 - docs/systems/world-and-characters.md, docs/systems/performance.md, docs/systems/testing-tools.md.
 
 ## Do

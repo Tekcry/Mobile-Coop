@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { LightRegistry, makeCone, type LightDef } from '../src/world/lights';
 import { mapLampBeams, VOL_BEAM_GAIN, VOL_BEAM_MAX, VOL_LAMP_COS, VOL_LAMP_MAX, writeVolLights } from '../src/vfx/volLights';
@@ -79,8 +80,25 @@ describe('vol-light wiring (fog triage): theme.lampBeams -> GameState -> PostSta
   });
 
   it('wiring guard: PostStack passes the option to writeVolLights and GameState reads the map theme through mapLampBeams', () => {
-    // dropping either line would pass every behaviour test above: the pass only runs on a GPU page
-    expect(readFileSync('src/vfx/postStack.ts', 'utf8')).toMatch(/writeVolLights\([^;]*\bthis\.opts\.lampBeams\s*\?\?\s*true\b[^;]*\)/);
-    expect(readFileSync('src/game/gameState.ts', 'utf8')).toMatch(/\blampBeams:\s*mapLampBeams\(world\.map\.theme\)/);
+    // dropping either line would pass every behaviour test above: the pass only runs on a GPU page.
+    // (polish3) the files are read relative to this test, not the process cwd: the chdir proves it
+    const cwd = process.cwd();
+    let post: string;
+    let gs: string;
+    try {
+      process.chdir(tmpdir());
+      post = readFileSync(new URL('../src/vfx/postStack.ts', import.meta.url), 'utf8');
+      gs = readFileSync(new URL('../src/game/gameState.ts', import.meta.url), 'utf8');
+    } finally {
+      process.chdir(cwd);
+    }
+    expect(
+      post,
+      'wiring guard: postStack.ts must pass this.opts.lampBeams ?? true to writeVolLights; if you rewrote that line on purpose, update this regex with it, do not loosen it',
+    ).toMatch(/writeVolLights\([^;]*\bthis\.opts\.lampBeams\s*\?\?\s*true\b[^;]*\)/);
+    expect(
+      gs,
+      'wiring guard: gameState.ts must pass lampBeams: mapLampBeams(world.map.theme) to the post stack; if you rewrote that line on purpose, update this regex with it, do not loosen it',
+    ).toMatch(/\blampBeams:\s*mapLampBeams\(world\.map\.theme\)/);
   });
 });

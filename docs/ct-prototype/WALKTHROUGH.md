@@ -10,7 +10,7 @@ feature/ct-prototype only.
 - Turns and posture: https://tekcry.github.io/Mobile-Coop/ct/?autostart=proving&mode=sandbox
 - Hard refresh (Ctrl+Shift+R) if an old build shows.
 - Anti-crab readout (knees, foot track, knee over ankle, elbows; green in range, red out): Settings > Graphics > Show FPS
-  overlay on (or F3); it shows under the frame-rate lines during play (docs/anim-rework/METRICS.md).
+  overlay on (or F3); it shows under the frame-rate lines during play (docs/archive/anim-rework/METRICS.md).
 - Playtest checklist (saves your notes for me): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp
 
 ## Controls (pad)

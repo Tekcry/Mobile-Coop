@@ -49,7 +49,7 @@ References:
 CLAUDE.md; `docs/design-bible.md` sections 0-3, 6 and any UI, HUD and input sections; `docs/story.md` (screen names,
 tone, text rules); `docs/systems/ui.md` and `docs/systems/input-and-loop.md` (from feature/ct-locomotion). Then
 `src/ui` (screens, FocusNav, widgets, HUD) to build a complete inventory of every screen, dialog, toast and overlay
-and how each is reached. Read `docs/locomotion/DECISIONS.md` (D1, D7) and `docs/locomotion/steps/18-*.md` there: the
+and how each is reached. Read `docs/archive/locomotion/DECISIONS.md` (D1, D7) and `docs/archive/locomotion/steps/18-*.md` there: the
 remap, hold / toggle and difficulty screens that step adds must fit the new template.
 
 ## Input parity (Michael: layouts identical on keyboard and mouse and on controller; controller is primary)

@@ -180,9 +180,9 @@ S5 and S6 teach the same "press together" twice.
 - The S3 security room is a dead-end room. That is by design (`:166-173`) but needs to read as a side room.
 
 **Unclear next step.**
-- S3: the camera end and far lobby are very dark, and the camera is barely readable from the entry (`docs/marlow-jammer/STATE.md:5-6`).
+- S3: the camera end and far lobby are very dark, and the camera is barely readable from the entry (`docs/archive/marlow-jammer/STATE.md:5-6`).
 - S4: the panel is deliberately hidden, the beams are invisible without night vision, and the release is on "the left wall" (`ctcourse.ts:243`).
-- The jam binding is described three different ways. Game and panel text: LT aims, Co-op (RB / F) held jams (`ctcourse.ts:242`; `scripts/e2e-ctcourse.mjs:188-197`). The spec and walkthrough still say "held LT / Z" (`CTCOURSE-SPEC.md` row 3; `docs/course-ready/WALKTHROUGH.md` controls table).
+- The jam binding is described three different ways. Game and panel text: LT aims, Co-op (RB / F) held jams (`ctcourse.ts:242`; `scripts/e2e-ctcourse.mjs:188-197`). The spec and walkthrough still say "held LT / Z" (`CTCOURSE-SPEC.md` row 3; `docs/archive/course-ready/WALKTHROUGH.md` controls table).
 
 **Lighting with no purpose.**
 - With no active guards, every lit or dark area is cosmetic: there are no stealth stakes (`docs/level-design.md` sections 4 and 5).
@@ -340,5 +340,5 @@ That is about half of Michael's 15-20 min. Of it, roughly 3 min is airlocks and 
 - `docs/ct-prototype/CTCOURSE-SPEC.md` (plan and element register; drifted: the jam binding and the S4 "gate").
 - `TESTING.md:45-60`, `:263-294` (station-by-station checks).
 - `docs/systems/testing-tools.md:33`, `:42-44`.
-- `docs/course-ready/WALKTHROUGH.md`.
+- `docs/archive/course-ready/WALKTHROUGH.md`.
 - If the rebuild places ladders, pipes or rope anchors, add `ctcourse` to `e2e-anchors.mjs:9`.

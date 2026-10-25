@@ -129,8 +129,8 @@ TESTING.md: no ct-prototype section, nothing added.
 
 ## Sheets
 E2E_GPU=1 on this PC, after only (no before sheets: making them needs the old code, and git stash is not allowed).
-Before: `docs/anim-cleanup/audit/` (draw-front34, drawpistol-front34, holster-front34, holsterpistol-front34) and
-`docs/anim-cleanup/audit/traverse/` (drainpipe-*, hang-shimmy-*, hang-climb-*, pipe-hands-*).
+Before: `docs/archive/anim-cleanup/audit/` (draw-front34, drawpistol-front34, holster-front34, holsterpistol-front34) and
+`docs/archive/anim-cleanup/audit/traverse/` (drainpipe-*, hang-shimmy-*, hang-climb-*, pipe-hands-*).
 After: `docs/ct-prototype/shots/de/`: draw-front34, draw-side, drawpistol-front34, holster-front34, holster-side,
 holsterpistol-front34; `traverse/`: drainpipe-*, drainpipe-dense-1.0..2.0 (wider camera), hang-shimmy-*,
 hang-shimmy-dense-*, hang-climb-*, hang-climb-dense-0.6..1.7, pipe-hands-*, report.json (palm contact per frame).
