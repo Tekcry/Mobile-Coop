@@ -1,0 +1,16 @@
+{
+  "id": "20261025T220911-night-shift-player-b-68c15083-a75e",
+  "sha": "68c15083d755715069251a0c2cb87836add1d829",
+  "branch": "feature/mixamo-source-wire",
+  "pr": 498,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "mixamo-wire",
+  "note": "G400 wire, co-op gate",
+  "priority": 1
+}
