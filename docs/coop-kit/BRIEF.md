@@ -16,6 +16,9 @@ added to the kit (below). Planner: Opus 5.5.
   "Any other creative coop ideas"
 - 2026-10-25 ~16:50 (folded plan Q39, partner animation over the network): "yes players must look exact in everyones
   games"
+- 2026-10-25 ~16:50 (folded plan Q38, G399): "mocap only, i will fine tune them in anim dev"
+- 2026-10-25 ~22:42 (ROADMAP Decided): "confirming priority is mixamo animations in anim tuner and in game. note this
+  for next session to continue"
 
 ## Michael picked
 - 2026-10-24 ~22:50 (native multiple choice, G293) the campaign co-op traversal kit: "boost up a wall, throw over a gap,
@@ -42,13 +45,18 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
   for unfinished work); G57 (one 4.3-4.5 m band for boost and human ladder), G151 (anywhere with room, a prompt naming
   the move), G180 (pure CT mechanics), G210 / bible 5.12 (real-world trained-operator animation, the 5.12.2 realism
   standard, paired moves within 3 cm at contact on host and client), G243 (real-world research sets timings; per-clip
-  speed slider in the tuner), G10 (numbers are starting values), Q39 (partner animation exact on every page), bible 5.9
-  C3-C4, level-design 11.8-11.9 and 12.
+  speed slider in the tuner), G10 (numbers are starting values), Q39 (partner animation exact on every page), G399
+  (players get motion capture only; the hand-keyed set is a developer rollback), G406 / G407 (Mixamo and other free
+  commercial-use captures, retargeted onto our rigs, Michael downloads Mixamo files), bible 5.9 C3-C4, bible 5.12,
+  level-design 11.8-11.9 and 12.
 - `docs/design/scale-sheet.md` and `docs/level-design.md` are Marlow Build's and change only with Michael's approval:
   the rope descent line follows G293 (approved), the human-ladder reach lines follow G57 (approved) as a 12.1 engine-fact
   change; Marlow Build reviews both in the PRs that ship the code (PLAN slices A1, B1).
-- Areas touched and their unwalked count: Player / animation 3 (AT CAP: AF0-AF6, optic cable partner view, client body
-  carry; CONFORMANCE section 3). Everything here ships dark; switch-on waits for Michael's walk (G288, G355).
+- Areas touched and their unwalked count: Player / animation 2 (optic cable partner view, client body carry). The
+  AF0-AF6 walk was dropped at ~22:25 2026-10-25 (ROADMAP Decided "Walk plan": Mixamo replaces those moves); the
+  "Waiting on Michael" row still reads 3 until the orchestrator updates it. Michael's ~00:15 2026-10-26 Mixamo switch-on
+  sits outside the cap and covers the Mixamo job's clips, not these moves. Everything here ships dark; switch-on waits
+  for Michael's walk (G288, G355).
 
 ## Answers (M) and assumptions (A)
 - M1 2026-10-25 ~18:05: the five proposed kit moves join the kit (Michael picked, above).
@@ -79,11 +87,19 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
   descent, not dropped. Undo: drop A3.
 - A8: One list flag `kitMoves` (`?kitmoves=stand,descent,...`; `all` = every id), default empty; each move id switches
   on alone when Michael accepts its walk item (the walk cap counts moves, not the kit). Campaign's `coopKit`
-  (`?coopkit=1`, pull-up and shutter, on origin/feature/mission-engine-flg-gb6) stays Campaign's; the orchestrator may
-  fold it into `kitMoves`. Undo: one boolean flag per move.
-- A9: Animation follows the real-world technique of trained operators (G210), researched with sources written into each
-  animation slice's report (G243 style); timings never under bible 5.12.2 minimums; each move gets tuner rows
-  (`src/anim/moveTune.ts`) so Michael can tune it. No CT footage is traced.
+  (`?coopkit=1`, pull-up and shutter, on origin/feature/mission-engine-flg-gb6) folds into `kitMoves` as ids `pull`
+  and `shutter` (its `KitKind` names, mission-engine `teamMoves.ts` `KIT_KINDS`), as agreed with the orchestrator
+  ~18:25 2026-10-25 (`docs/orchestrator/resume-ct-core.md` J24 row on origin/feature/menu; Campaign's
+  `docs/missions/STATE.md` item 7): Campaign Build does the fold in its kit registry PR, which merges over part 1; the
+  two ids stay Campaign's to switch on. Undo: one boolean flag per move, `coopKit` restored.
+- A9: Animation is mocap first (G399, G406, bible 5.12, Mixamo top priority ~22:42): each animation slice picks a
+  Mixamo or CMU capture per role (`docs/coop-kit/CLIP-LIST.md`), converts and retargets it with the mixamo-retarget
+  pipeline on master (`scripts/mocap/mixamo*.mjs`, `scripts/mocap/data/mixamo-clips.json`, `src/anim/clips/mixamo/`),
+  and plays it only where it measures at least as well as the hand-made pose (mixamo-retarget BRIEF A8). Roles no clip
+  fits are hand-keyed from the real-world technique of trained operators (G210), researched with sources in the slice
+  report (G243 style), and the gap is named there. Timings never under bible 5.12.2 minimums; each move gets tuner rows
+  (`src/anim/moveTune.ts`) so Michael can tune it. No CT footage is traced. Undo: drop a capture's row; the hand-made
+  pose plays.
 - A10: The stand's wire: one new `tmove` / `tstart` kind `stand`; MoveState reuses the existing `stacked` mode (sub 1 =
   rider on top, sub 2 = base; `src/player/moveState.ts:46-50`, `:456-458`), so remotes pose from MoveState and the train
   bumps `PROTOCOL_VERSION`. Undo: revert B1's protocol lines.
@@ -96,9 +112,16 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
 - A13: The game has no fall damage (`teamMoves.ts:294`), so Drop Catch's gain is the silent, roll-free landing from above
   the hard-landing band (the SIGNOFF row: "The landing is silent"). Undo: add fall harm in a separate job (a Michael
   question).
+- A14: The clip request is sent, not held for a day question. The lead sends `docs/coop-kit/CLIP-LIST.md` (the Mixamo
+  titles per role, the 21 files already in `C:/NightShift/scratch/mixamo/clips/` reused first) to the orchestrator once
+  the PLAN passes; the orchestrator gets the downloads to Michael (G406: he downloads Mixamo files himself, Adobe
+  sign-in). Slices never wait for them: they use the folder as it is when they start and hand-key the rest with the gap
+  noted. CMU takes are fetched without asking (G268). Undo: withdraw the list; every role uses the 21 files or is
+  hand-keyed.
 
 ## Questions for Michael (one click each, asked by day)
-- none (no assumption above loosens a Michael-only rule).
+- The clip request (A14): the orchestrator sends Michael `docs/coop-kit/CLIP-LIST.md` to download (G406). No other
+  question (no assumption above loosens a Michael-only rule).
 
 ## Sign-off needed
 no (no map or layout; each animation PR carries a 1-2 min look video and every move switches on only at his walk).
