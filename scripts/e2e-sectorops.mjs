@@ -2602,7 +2602,8 @@ if (want(1)) {
 // lookout is lured on his perch (never past 1 m) and comes back. (b) The radio: a free guard 3 m behind him (facing
 // away); the player, lit, steps into the lookout's view 8 m east until he grows suspicious by sight, then goes dark and
 // far: the lookout says one `spotCall` on the radio and the free guard is sent (a `noise` incident) toward what he saw;
-// the lookout holds his perch. (c) A second glimpse inside the 20 s cooldown: a sight rise, no second call.
+// the lookout holds his perch. (c) Once he is calm again, a second glimpse (4 m off the first spot) inside the 20 s
+// cooldown: a sight rise, no second call.
 if (want(1)) {
   console.log('lookouts (guard-rules S7): never sent, a lure turns him on his perch, a sighting is radioed and someone else comes');
   await run(PARAMS + '&lookouts=1', async ({ G, sim }) => {
@@ -2670,18 +2671,20 @@ if (want(1)) {
       // (b) the radio: F2 3 m west of the lookout's post, facing west (away from the player)
       let F2 = em.spawn('grunt', new V(px - 3, cy, pz), false, -Math.PI / 2);
       step(0.6);
-      // one glimpse: the player lit, 8 m east of the post in the lookout's view, until he rises (or alert, or 6 s)
-      const glimpse = (light) => {
+      // one glimpse: the player lit, 8 m east of the post (`dz` north) in the lookout's view, until he rises (or alert,
+      // or `cap` s, 6 by default)
+      const glimpse = (light, dz = 0, cap = 6) => {
         const n0 = A.riseN;
+        const from = A.level;
         lit = light;
-        g.player.controller.teleport(new V(px + 8, cy, pz), 0);
+        g.player.controller.teleport(new V(px + 8, cy, pz + dz), 0);
         let t = 0;
-        while (t < 6 && A.riseN === n0 && A.level !== 'alert') {
+        while (t < cap && A.riseN === n0 && A.level !== 'alert') {
           step(0.05);
           t += 0.05;
         }
         away();
-        return { t, light, rose: A.riseN !== n0, level: A.level, cause: A.riseCause };
+        return { t, light, from, rose: A.riseN !== n0, level: A.level, cause: A.riseCause };
       };
       const risen = (q) => q.rose && (q.level === 'suspicious' || q.level === 'investigating');
       // a glimpse that goes straight to alert proves nothing: start clean with a dimmer light (brief S7 6b)
@@ -2689,8 +2692,9 @@ if (want(1)) {
       let gl = null;
       for (const light of [1, 0.5, 0.3]) {
         if (gl !== null) {
-          for (const e of [...em.enemies]) em.despawn(e);
-          em.board.clear();
+          // a clean restart: every guard, the board and the manager's memory (command, radio, last known position);
+          // `placeSlot` counts the new lookout again
+          em.despawnAll();
           A = lookout();
           F2 = em.spawn('grunt', new V(cx - 3, cy, cz), false, -Math.PI / 2);
           step(0.6);
@@ -2730,10 +2734,17 @@ if (want(1)) {
         track();
       }
       Object.assign(out.b, { kind, kindT, d0, close: d0 - dMin });
-      // (c) a second glimpse inside the cooldown (about 10 s after the call; the glimpse itself is at most 6 s)
+      // (c) a second glimpse inside the cooldown: first wait for his calm (unaware or cooldown; at most 16 s after the
+      // call), so the glimpse is a fresh rise from calm, not a still-wary lookout pushed straight to alert; then the same
+      // light, 4 m north of the first spot (F2, sent there, is not standing on the player), cut off 19.5 s after the call
+      // so the whole glimpse stays inside the 20 s cooldown
+      while (T - t0 < 16 && A.level !== 'unaware' && A.level !== 'cooldown') {
+        step(0.1);
+        track();
+      }
       const callsBefore = calls.length;
       const at2 = T - t0;
-      const gl2 = glimpse(gl.light);
+      const gl2 = glimpse(gl.light, 4, Math.min(6, 19.5 - at2));
       out.c = { at: at2, end: T - t0, gl2, calls: calls.length - callsBefore };
       // the lookout's perch over the 15 s after the call (and the second glimpse)
       while (T - t0 < 15) {

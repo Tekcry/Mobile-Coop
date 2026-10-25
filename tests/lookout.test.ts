@@ -5,6 +5,7 @@ import { validatePosts, type GuardSlot } from '../src/ai/guardAiData';
 import { KIND } from '../src/ai/incidents';
 import { LOOKOUT, POST, mayLeave, type PostDef } from '../src/ai/posts';
 import { RISE_NONE, RISE_SIGHT, RISE_SOUND, type Enemy } from '../src/ai/enemy';
+import { BARKS, BarkVoice } from '../src/ai/barks';
 import { P_POST, P_STANDARD } from '../src/ai/squadRoles';
 import { TAGS } from '../src/ai/sectorTags';
 import { Vector3, type Scene } from '../src/core/babylon';
@@ -246,6 +247,12 @@ describe('a lookout is never sent', () => {
 });
 
 describe('the radio (lookoutStep)', () => {
+  it('spotCall is urgent (S7-d): it cuts through the speaker cooldown his own "Huh?" just started', () => {
+    const v = new BarkVoice(3);
+    expect(v.say('suspicious')).not.toBeNull();
+    expect(v.say('investigate')).toBeNull();
+    expect(BARKS.spotCall).toContain(v.say('spotCall'));
+  });
   it('a sight rise into suspicious: one spotCall, a calm guard 10 m from the spot goes (noise), never the lookout', () => {
     const { look, calm, em } = scene();
     rise(look);

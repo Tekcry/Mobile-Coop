@@ -218,6 +218,8 @@ used, files, commits, tests changed, results, ai.md lines written, what Michael 
   down onto the ground. A sighting on an upper storey sends the guard to the ground below it.
 - S7-d: `spotCall` joins `URGENT` (barks.ts) so the radio line is heard after his own "Huh?".
 - S7-e: the radio is gated on `coordinated` (the board's rules); the parked modes get the perch but no radio.
+- S7-f: a dog is never a lookout (`slotPost(p, dog)`, the `e.dog !== null` gate in `lookoutStep`): a dog on a lookout
+  post gets no post, as flag off. Undo: drop the `dog` argument and the gate.
 
 ## PLAN pointer drift (PLAN says -> now, 452e23035)
 - `enemyManager.ts` `placeSlot` 2018-2019 -> 2129-2130, and PLAN misses the third `slot.post` read (`zoneRadius`,
