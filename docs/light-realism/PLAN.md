@@ -1,14 +1,14 @@
 # light-realism - PLAN
 
-Owner: Night Shift | Sector Ops Build. Status: draft for the fresh Opus plan checker (RULES Intake 4). Read with
-`BRIEF.md` (Michael's words, A1-A12) and `research/bands.md` (the band table and the lux curve). Citations are
+Owner: Night Shift | Sector Ops Build. Status: revision 1 (plan check 1 FIX, 4 items), for a fresh Opus plan checker (RULES Intake 4). Read with
+`BRIEF.md` (Michael's words, A1-A13) and `research/bands.md` (the band table and the lux curve). Citations are
 origin/master 2148ec96 unless a branch is named.
 
 ## Order and sizes
 | Slice | What | Size (changed lines) | Model | Runs after | Gate |
 | --- | --- | --- | --- | --- | --- |
-| L0 | One lux calibration: the curve module, a per-map lux grid tool, the GPU shots tool, the write-up | ~1,000 | Opus | plan checker | Opus checker; GPU "before" shots |
-| L1 | S1 car park: fix the light point, add the missing column row, tune to the band, re-bake, measure; the decision pack | ~450 code + ~350 docs | Opus | L0 | Opus checker + laptop suites; **Michael's click on the pack** before train-ready |
+| L0 | One lux calibration: the curve module, the reference test against a real fitting (Q3), a per-map lux grid tool, the GPU shots tool, the write-up | ~1,150 | Opus | plan checker | Opus checker; GPU "before" shots |
+| L1 | S1 car park: fix the light point, add the missing column row, tune to the band, re-bake, measure; the one-page `SIGNOFF.md` | ~450 code + ~350 docs | Opus | L0 | Opus checker + laptop suites; **Michael's click on SIGNOFF.md** before train-ready |
 | L2 | S1's other spaces, then S2, S3, S4, S5 to their bands, with their dark pockets (one PR each) | ~300-700 each | Opus briefs, Sonnet builds | L1 click (L2-S1 also after L1 merges) | Opus checker per batch + laptop suites |
 | L3 | Dark pockets on the other live maps: base warehouse (W); hand-offs to Marlow, Campaign and campus v2 (H) | W ~250; H ~150 docs | W Sonnet; H Opus | L1 click | W Opus checker + `--affected --wide` |
 | L4 | Parity cards per map for the every-release check (Q27), handed to J11 | ~200 | Sonnet from an Opus brief | L2 measures | Opus checker |
@@ -42,16 +42,76 @@ the formula without visibility gives 0.39-0.50. The cause, found for this plan:
   south row and tunes the columns to the band.
 
 ## Claims (whole job)
+```claims
+files:
+  - src/world/lux.ts
+  - src/world/maps/campusS{1,2,3,4,5}.ts
+  - src/world/maps/warehouse.ts
+  - tests/lux.test.ts
+  - tests/campusS{1,2,3,4,5}.test.ts
+  - tests/campusS2Board.test.ts
+  - tests/campusS4NocSight.test.ts
+  - tests/lampBoxAlign.test.ts
+  - tests/warehouseLamps.test.ts
+  - tests/parityCards.test.ts
+  - scripts/light-realism/**
+  - scripts/e2e-darkness.mjs
+  - docs/light-realism/**
+  - docs/level-design.md
+  - docs/design/scale-sheet.md
+  - docs/systems/lighting.md
+  - docs/sector-redesign/SPEC.md
+maps: campusOps, warehouse
+protocol: none
+save: none
+```
+The other light tests each PR runs (`sectionBakeCampus`, `lampGridLossless`, `lampAtlasFit`, `campusArtLight`,
+`guardRelight`, `enemyLightsOut`) are run, not edited; a slice that has to edit one adds it to this block and reruns
+claims-check before it starts.
+
+**Overlaps and order** (2026-10-25: `node scripts/claims-check.mjs --plan docs/light-realism/PLAN.md --name
+feature/light-realism` gives 4; branches with no claims block found by `git diff --name-only origin/master...<b>` over
+origin/feature/* changed in 7 days). For the orchestrator to order; the proposal is the first named lands first:
+- **feature/coop4** and its slice branches coop4-data, -doc, -e2eai, -pol, -ui2 (no claims block): edit
+  `tests/campusS1.test.ts`-`campusS5.test.ts`, which L1 (S1) and L2-S1..S5 edit. Proposed: coop4 first; L1 and each
+  L2-S<N> cut from master after coop4 merges, or rebase on it before train-ready.
+- **The mission-engine branches** (mission-engine, -en4, -flg, -engine-flg-gb6, -gb1..-gb6, -net2..-net4, -pol1;
+  tallow-design-docs; no claims block): edit `tests/campusS1.test.ts`. Proposed: whichever is on master first; L1's
+  edits are its column tests (`:424-439`) and one new test, so a later L1 rebases.
+- **feature/map-ready** (claims-check): `docs/systems/lighting.md` ("Per-section lamp bake") and maps campusOps,
+  warehouse (load and warm-up, no lamp change). Proposed: map-ready first; L5's "Lux" section is a separate section;
+  L2 and L3-W bake times are measured on top of it.
+- **feature/guard-rules** (claims-check): map campusOps, through `campusS4Data.ts` / `campusS5Data.ts` (guard posts,
+  not lamps). Proposed: guard-rules first; the L2-S4 and L2-S5 briefs read its posts for their route tables (brighter
+  rooms change what those posts see).
+- **feature/coop-kit** (claims-check: `docs/design/scale-sheet.md` band rows, `docs/level-design.md` 12.1),
+  **feature/route-runs-2** (claims-check: `level-design.md` 14-15), and with no claims block doc-polish*, doc-level,
+  level-validator-v6*, mission-validator*, level-standard-g157, fold-j2 (`level-design.md`, `scale-sheet.md`,
+  `lighting.md`), gm-*, player-batch-25*, guard-cap-m2 (`lighting.md`): other sections. Proposed: all first; L5 (5.5,
+  scale sheet 9, a new "Lux" section) is cut from master when it starts and rebases on whatever has landed.
+- **feature/sector-ops-docs** / sector-ops-docfix (PR #433, J1): `docs/sector-redesign/SPEC.md`, `lighting.md`:
+  already ordered, #433 first (Ownership below).
+
 - **Maps**: campusOps v1 (all five sections), warehouse (base). Not touched: campusV2 files (J17), warehouseOps and its
   files (`warehouseOps.ts`, `warehouseS1.ts`-`warehouseS3.ts`; frozen, A1), ctcourse and its sets (Marlow Build),
   Tallow (Campaign). The base warehouse strips do not reach warehouseOps: it builds with `storageHall: false,
   assemblyHall: false` (`src/world/maps/warehouseOps.ts:64-71`), which skips every base strip
   (`src/world/maps/warehouse.ts:433-434`).
+- **warehouseOps is frozen (Q26)**: touched only where Q2 "every light works" forces a light fix. Which: none. Its
+  dead fittings (intensity 0, `warehouseS1.ts:62`, `warehouseS3.ts:124-131`) stay, because Q26 "Freeze it" (~16:50)
+  is the later pick for that map (A1); no slice reaches it through shared code (L3-W's strips skip it, above). If
+  Michael re-opens warehouseOps, its fix is those dead fittings and nothing else (A1's undo).
+- **Train light-parity check (Test Runner J20)**: `e2e-darkness` (`scripts/e2e-darkness.mjs`, warehouse, Epic: cards
+  at levels 0.12 / 0.27 / 0.40 / 0.70 against bible L5's pixel targets) is the train's light-parity check until
+  J11's per-map parity cards (L4) replace it. Off switch: `config/train-parity.json` on the laptop-queue branch (J20
+  adds it; not on origin/laptop-queue at this plan's check). Every L-slice that changes light keeps e2e-darkness
+  green, or updates its cards in the same slice: in practice L3-W (the base warehouse is its map); campus slices list
+  it in their e2e run as a guard.
 - **Save paths**: none. **Wire paths**: none. Lamp ids are build-order indices (`LightRegistry`), the same on host and
   client for the same build; adding lamps shifts later ids within a build only. Tests keyed by id:
   `tests/lampBoxAlign.test.ts:206-218` (updated in L1 / L2-S1). `PROTOCOL_VERSION` untouched.
 - **Flag**: none (BRIEF A11; G355 rule fix). PRs that change a shipped look stay off the train until Michael's click
-  on the S1 pack.
+  on the S1 sign-off (`SIGNOFF.md`).
 - **Engine**: no change to `src/voxel/lampBake.ts`, `src/world/lightField.ts`, `lampMath.ts` or `darkCurve.ts`. The
   curve module (L0) is measurement only: imported by scripts and tests (and later the validator, J12), never by
   gameplay or rendering.
@@ -82,16 +142,39 @@ picture shows the field it reads.
   neighbours) with their bands.
 - `scripts/light-realism/shots.mjs` (from `s1-shots.mjs`, ~+150): views and meter points from the spaces file per
   section; Low and Epic; adds `--video <s>` (a scripted fly-through recorded headless, for each PR's look video).
-- `docs/light-realism/measure/calibration.md` (~80): the curve, why log (bands.md 2), the night-floor check, the GPU
-  check result. Replace `docs/light-realism/measure/s1-grid.json` (3,276 lines) with the compact format.
+- **The reference test (Q3: "one test that matches the game's brightness to real light units")**,
+  `scripts/light-realism/calibrate.ts` (~120) with its result in `measure/calibration.md`:
+  - One real fitting: a 6 m single-arm LED car-park column of the kind L1 builds (outreach arm, flat glass,
+    roadway / area distribution). Its published photometric data (lumen output, mounting height, peak candela and the
+    candela table or the iso-lux diagram) from a maker's datasheet page read by the lead; no file is downloaded or
+    bought (A4). Real lux on the ground (horizontal, y 0) at 5 distances from the column's foot along the outreach
+    axis, 0, 3, 6, 9 and 12 m: read off the iso-lux diagram, or E = I(theta) x cos^3(theta) / h^2 from the candela table.
+  - The same fitting in the engine's lamp terms: one fixed lamp at y 6.0 on a 0.8 m arm, the cone and reach of the S1
+    columns, `photoTerm` (`src/world/lampMath.ts:93`) x `LAMP_LEVEL_GAIN` 1.2 (`:41`) x intensity, plus the campus
+    night floor (moon 0.104, standby fill 0.14). No bake: open ground, visibility 1. The field the meter reads is
+    direction-free (no N.L), so the real side uses horizontal illuminance (the standards' plane, A3).
+  - The fit: the one free number is the intensity that stands for the fitting's output (engine intensity per 1,000
+    lm). Solve it by least squares on level, with the A2 curve fixed (real lux -> level by `luxToLevel`), then report
+    per distance: real lux, engine level, engine lux (`levelToLux`), the error in level and in lux (%), and the RMS
+    level error. Also report the free best-fit anchor pair (two anchors + intensity on the 5 points) beside A2.
+  - Pass (the anchors are measured): RMS level error <= 0.03 (about 25% in lux on the A2 slope) and every point within
+    0.05. Fail, or no published data usable without a download: the anchors stay A2 as a chosen mapping (A13), and
+    calibration.md and the S1 sign-off page say so in one plain line with the measured fit error, if any.
+  - `tests/lux.test.ts` pins the result: the 5 points as a fixture, the fitted intensity and RMS error within 0.005 of
+    calibration.md, so a change to `lampMath.ts` or the anchors that moves the match fails a test.
+- `docs/light-realism/measure/calibration.md` (~100): the curve, why log (bands.md 2), the night-floor check, the
+  reference test (fitting, source page, the 5-point table, fit error, pass or "chosen, not measured"), the GPU check
+  result. Replace `docs/light-realism/measure/s1-grid.json` (3,276 lines) with the compact format.
 - GPU: the "before" run at the L0 head (S1, Low + Epic, `--push shots/light-realism-s1`): meter vs field at the named
   points and pixel luma per grid point against bible L5's display targets. A meter-field split over 0.02 or a band
   mismatch goes to J11 (it is their parity triage), not fixed here.
 - Tests: `npx vitest run tests/lux.test.ts`; `npm run typecheck:fast`. e2e: none (no game change).
 - Done looks like: `node scripts/light-realism/lux-grid.mjs --map campusOps --section 1` prints per-space lux, U0 and
-  pass / fail, reproducing CONFORMANCE L3's levels (mean 0.282 at y 1.0); calibration.md written; shots pushed.
+  pass / fail, reproducing CONFORMANCE L3's levels (mean 0.282 at y 1.0); calibration.md has the reference test's
+  5-point table with its RMS level error and a one-word verdict ("measured" or "chosen, not measured"), pinned by
+  `tests/lux.test.ts`; shots pushed.
 
-## L1 - S1 car park: light point, re-bake, band, decision pack (Opus)
+## L1 - S1 car park: light point, re-bake, band, sign-off (Opus)
 - `src/world/maps/campusS1.ts` (column block `:228-238`, `PARK_COLUMNS_*` `:146-148`, the lane floodlight
   `:220-223`): each column becomes a single-arm column: the pole to 6.0 m, a 0.8 m arm box toward the bays, the light
   point at the arm's end at y 6.0 (BRIEF A6; `campusS1.test.ts:429` keeps y 6.0). A third row of columns on the island
@@ -110,22 +193,22 @@ picture shows the field it reads.
   car is a real gap, G329); the remaining dark cells listed with their cause (car, cut, shot) in
   `docs/light-realism/measure/S1-carpark.md`.
 - GPU (laptop alone): `shots.mjs` "after" at the PR head, Low + Epic, plus a 90 s `--video`; e2e on the laptop queue:
-  `e2e-sectorops e2e-lightbake e2e-levels e2e-anchors` (the `src/world/` row of `scripts/e2e-affected.mjs`).
+  `e2e-sectorops e2e-lightbake e2e-levels e2e-anchors e2e-darkness` (the first four: `src/world/` row of `scripts/e2e-affected.mjs`).
 - vitest: `tests/campusS1.test.ts tests/lampBoxAlign.test.ts tests/sectionBakeCampus.test.ts
   tests/lampGridLossless.test.ts tests/lampAtlasFit.test.ts tests/campusArtLight.test.ts tests/lux.test.ts` (new lamps
   must fit `LAMP_GRID_SLOTS` 24 per 2 m cell, `lampBake.ts:856-865`).
-- **The decision pack** (`docs/light-realism/signoff/S1-pack.md`, through the orchestrator, one native multiple-choice
-  click; RULES Intake 5 for a big look change): the before / after lux heat maps (SVG), the light map (columns,
-  circuits, the gaps and their causes), Low and Epic shots before / after from the shots branch, the 90 s video, the
-  band table (`research/bands.md` section 3) with the curve, the draft text of L5 (`signoff/level-design-5.5.md`), and
-  a 5-line intent check. Picks in the same click:
-  - Calibration anchors: "1 lux = edge of dark, 10 lux = lit (Recommended)" / "1 lux and 7 lux (brighter car parks)" /
-    "Show me other anchors".
-  - S1 car park category: "High night use, P11a: 14 lux average (Recommended)" / "Medium, P11b: 7 lux".
-  - Approve: "Approve the table and the S1 light map (Recommended)" / "Changes first".
-  Overnight the recommended picks are assumed and logged (G358); the PR still waits for the click before train-ready.
-- Done looks like: S1-carpark.md shows the band met; the pack is with the orchestrator; Michael's click recorded in
-  ROADMAP "Decided"; then the PR goes train-ready and the visual-gate S1 views re-baseline with that click (Q28).
+- **The sign-off: `docs/light-realism/SIGNOFF.md`** (gate 4, `docs/templates/signoff.md`; RULES Intake 5 for a big
+  look change). One page, ONE question through the orchestrator as native multiple choice: "Approve the band table
+  and the S1 light map?" / "Changes first". The anchors (A2) and the car-park category (A5) are not separate picks:
+  the page shows them as what "Changes first" leads to. L1 makes what the page points at, under
+  `docs/light-realism/signoff/`: the to-scale light map `s1-lightmap.svg` (scale bar, north arrow, columns, arms,
+  circuits, the lux heat map and each remaining gap with its cause), the before / after heat maps, and the draft L5
+  text `level-design-5.5.md`; Low and Epic shots and the 90 s video on `shots/light-realism-s1`. L1 fills the page's
+  measured numbers and paths. Overnight the recommended answer is assumed and logged (G358); the PR still waits for
+  the click before train-ready.
+- Done looks like: S1-carpark.md shows the band met; SIGNOFF.md has no unfilled field and every linked file exists;
+  the orchestrator has asked the question; Michael's pick is in SIGNOFF.md and ROADMAP "Decided"; then the PR goes
+  train-ready and the visual-gate S1 views re-baseline with that click (Q28).
 
 ## L2 - the other campus sections (Opus briefs, Sonnet builds; one PR per section)
 Per section, an Opus strict brief first (`docs/light-realism/briefs/S<N>.md`): every space with its type, plane and
@@ -145,10 +228,16 @@ reachable board, a shootable lamp), so every lit chokepoint still has two ways t
 - Each PR: `spaces/campusOps.json` rows for its section; `docs/light-realism/measure/campus-S<N>.md`; its SPEC band
   line (after #433); look video via `shots.mjs --video`; the shots "after".
 - vitest: the section's tests above plus `lampBoxAlign`, `lampGridLossless`, `lampAtlasFit`, `sectionBakeCampus`,
-  `campusArtLight`, `guardRelight`, `enemyLightsOut`. e2e: `e2e-sectorops e2e-lightbake e2e-levels e2e-anchors`; the
+  `campusArtLight`, `guardRelight`, `enemyLightsOut`. e2e: `e2e-sectorops e2e-lightbake e2e-levels e2e-anchors e2e-darkness`; the
   section bake time measured in `e2e-lightbake` against the S1 22 s line (CONFORMANCE V11).
 - Risk: brighter sections make guards see further; the brief's route table is the check, and the checker blocks a
   section whose declared routes lose their last gap.
+- Done looks like (each L2-S<N> PR): `node scripts/light-realism/lux-grid.mjs --map campusOps --section <N>` prints
+  pass for every space in `spaces/campusOps.json`'s section N rows (mean in band, point minimum or U0 met);
+  `measure/campus-S<N>.md` lists every remaining dark cell with its cause (cover, cut, shot, outside the lit site);
+  every route in the brief's route table still has at least one gap (occluder, reachable board or shootable lamp),
+  each named with its coordinates; the section's tests and e2e green (e2e-darkness included); the look video path in
+  the PR body.
 
 ## L3 - dark pockets on the other live maps
 - **L3-W, base warehouse (Sonnet from an Opus brief, ~250)**: only 14 strips are lights (`warehouse.ts:27-31`
@@ -159,6 +248,11 @@ reachable board, a shootable lamp), so every lit chokepoint still has two ways t
   cards pick points by level, `scripts/e2e-darkness.mjs:1-18`: confirm it still finds 0.12 and 0.27 points behind racks
   or under a cut circuit; move the cards in the same PR if not). Spaces file `spaces/warehouse.json`, measure
   `measure/warehouse.md`.
+  - Done looks like: no plain `LAMP_OFF` strip box left in `warehouse.ts` (grep); every strip is a `b.light` on its
+    room's `lampGroup` and shootable (`warehouseLamps.test.ts`); `lux-grid.mjs --map warehouse` passes every space at
+    the 100 lx band; e2e-darkness green with 0.12 and 0.27 cards behind racks or under a cut circuit; the
+    `--affected --wide` set green; warehouseOps's bake unchanged (its lamp list identical before and after, by test);
+    the look video path in the PR body.
 - **L3-H, hand-offs (Opus, docs only, ~150)** in `docs/light-realism/handoff/`:
   - `marlow.md` to Marlow Build: the band table and the curve for its sets (M M10, M V5), and the pockets to re-light
     with live fittings (M H4): A6 west end and sump on tagged-out circuit 69 (`src/world/maps/ctcourseSets/a6PumpHouse.ts:156`,
@@ -170,6 +264,9 @@ reachable board, a shootable lamp), so every lit chokepoint still has two ways t
     same fault.
   - `tallow.md` to Campaign Build for J8 (C S10), after Michael's review of the 12 level rules (Q1).
   - warehouseOps: none (A1).
+  - Done looks like: the three files in `handoff/`, each with the band rows, the curve, the fixture rule and the
+    named pockets for its map; each sent to its lead (Marlow Build, J17 through Sector Ops, Campaign Build) and its
+    acknowledgement (the lead's reply, or the hand-off named in that job's PLAN or STATE) recorded in this job's STATE.
 
 ## L4 - parity cards per map for every release (Sonnet from an Opus brief, ~200; Q27, handed to J11)
 From L1-L3's lux grids, per map and section: at least 3 card points (one dark, one mid, one lit, plus 0.27 where a
@@ -179,20 +276,27 @@ band, bible L5 targets). J11 builds the required GPU suite from it (CONFORMANCE 
 Also to the visual-gate owner: floor and whole-mean minimums on campus lit spaces (CONFORMANCE V7) from the same
 files. Tests: a JSON shape test `tests/parityCards.test.ts` (points inside the map's spaces, bands consistent with the
 grid). e2e: none here.
+- Done looks like: one `parity/<map>.json` for campusOps and warehouse, each section with at least a dark, a mid and a
+  lit card at Low and Epic, none within a flicker lamp's reach; `npx vitest run tests/parityCards.test.ts` green; the
+  hand-off to J11 recorded in STATE with J11's acknowledgement.
 
-## L5 - docs (Opus; only with Michael's approval, given by the S1 pack click)
+## L5 - docs (Opus; only with Michael's approval, given by his click on SIGNOFF.md)
 `docs/level-design.md` 5.5 (`:166-173`): drop the interim rule, cite the curve and the band table, the planes (A3).
 `docs/design/scale-sheet.md` section 9 (`:168-190`): fill Min / Max lux, add the level column and the curve, retire
 "After-hours interior (lights off)" (A10). `docs/systems/lighting.md`: a short "Lux" section (the curve, the tool).
 `docs/sector-redesign/SPEC.md` band lines not already done in L2. The level standard and the scale sheet change only
-with Michael's approval (CLAUDE.md hard rule): L5 opens after the click, with the pack linked in its body. Engine
+with Michael's approval (CLAUDE.md hard rule): L5 opens after the click, with SIGNOFF.md linked in its body. Engine
 facts in level-design 12 are not changed (no engine change). The orchestrator folds his answers into DECISIONS.
+- Done looks like: the docs PR body links SIGNOFF.md with Michael's pick and its time; level-design 5.5 and scale
+  sheet 9 carry the band table's values and the curve with no "to verify" value that Michael's pick did not cover;
+  the "After-hours interior (lights off)" row is gone; `lighting.md` has the "Lux" section; a grep of the SPEC finds
+  no section without its band line.
 
 ## Checks per PR (summary)
 | PR | vitest | e2e (laptop queue) | GPU alone |
 | --- | --- | --- | --- |
-| L0 | lux | none | S1 before shots |
-| L1 | campusS1, lampBoxAlign, sectionBakeCampus, lampGridLossless, lampAtlasFit, campusArtLight, lux | e2e-sectorops, e2e-lightbake, e2e-levels, e2e-anchors | S1 after shots + video |
+| L0 | lux (+ the reference test fixture) | none | S1 before shots |
+| L1 | campusS1, lampBoxAlign, sectionBakeCampus, lampGridLossless, lampAtlasFit, campusArtLight, lux | e2e-sectorops, e2e-lightbake, e2e-levels, e2e-anchors, e2e-darkness | S1 after shots + video |
 | L2-S<N> | campusS<N> (+ board / sight files), lampBoxAlign, lampGridLossless, lampAtlasFit, sectionBakeCampus, campusArtLight, guardRelight, enemyLightsOut | as L1 | section shots + video |
 | L3-W | warehouseLamps, lampBoxAlign, lampGridLossless | `--affected --wide`, e2e-darkness | warehouse shots + video |
 | L4 | parityCards | none | none |
