@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
@@ -337,5 +338,128 @@ describe('route-run run loop (Node side, against a scripted page)', () => {
     const log = await runOne({ driver: d, host: null, shots: null, notes: [] }, { id: 'u', section: 'S1', unplannable: 'space x has no area', steps: [] });
     expect(log.unplannable).toBe('space x has no area');
     expect(calls).toEqual([]);
+  });
+});
+
+describe('route-run in-page driver against a fake game (Node vm, no browser)', () => {
+  /** A flat world: the robot moves at the pace's speed along the pad's stick, camera-relative (forward (sin yaw, cos
+   *  yaw)); x never passes `wallX`; nav finds a straight path unless the goal is past the wall. */
+  function fakeGame({ wallX = Infinity } = {}) {
+    class V {
+      constructor(public x: number, public y: number, public z: number) {}
+    }
+    const axes = [0, 0, 0, 0];
+    const buttons: number[] = Array(17).fill(0);
+    const pressed: number[] = [];
+    const calls: string[] = [];
+    const guard = { id: 'e1', def: { kind: 'rifle' }, job: 'gate', zone: 'barrier', pos: new V(0, 0, 8), yaw: Math.PI, alive: true, level: 'unaware', aware: { set: (l: string) => { guard.level = l; calls.push(`set ${l}`); } } };
+    const game: Obj = {
+      time: 0,
+      lightLevel: 0.3,
+      player: { position: new V(0, 0, 0), cam: { yaw: 0 }, controller: { crouched: false, crouchIntent: false, speed: 0, yaw: 0, teleport(v: V, yaw: number) { game.player.position = v; this.yaw = yaw; } } },
+      nav: {
+        findPath: (_a: number[], b: number[]) => (b[0]! > wallX ? null : [[b[0], b[1]]]),
+        heightAt: () => 0,
+        cellOf: () => 1,
+        isWalkable: () => true,
+        nearestWalkable: () => -1,
+        centerInto: (_k: number, out: number[]) => out,
+        cellHeight: () => 0,
+      },
+      world: { doors: { nearest: () => null } },
+      enemyMgr: { enemies: [guard], hear() {}, noise() {}, resetAlarm: () => calls.push('resetAlarm') },
+      target: { damageMul: 1 },
+      restartCheckpoint: () => { calls.push('restart'); return true; },
+    };
+    const speed = paceFor('sneak', metrics).speed;
+    const window: Obj = {
+      __app: {
+        current: game,
+        loop: {
+          manual: false,
+          stepHeadless(dt: number) {
+            const c = game.player.controller;
+            if (buttons[1]) { c.crouchIntent = !c.crouchIntent; c.crouched = c.crouchIntent; buttons[1] = 0; }
+            const yaw = game.player.cam.yaw;
+            const sx = axes[0]!;
+            const sy = -axes[1]!;
+            const m = Math.hypot(sx, sy);
+            c.speed = m > 0.1 ? speed : 0;
+            if (m > 0.1) {
+              const dx = (sx * Math.cos(yaw) + sy * Math.sin(yaw)) / m;
+              const dz = (-sx * Math.sin(yaw) + sy * Math.cos(yaw)) / m;
+              const p = game.player.position;
+              p.x = Math.min(wallX, p.x + dx * speed * dt);
+              p.z += dz * speed * dt;
+            }
+            game.time += dt;
+          },
+        },
+      },
+      __pad: { connect() {}, set(i: number, v: number) { buttons[i] = v; if (v) pressed.push(i); }, axis(i: number, v: number) { axes[i] = v; } },
+    };
+    const ctx = vm.createContext({ window, Math, Float64Array, Array });
+    vm.runInContext(pageScript(pageOptions({ pace: paceFor('sneak', metrics), forgive: true })), ctx);
+    return { rr: window.__rr as Obj, game, guard, calls, pressed };
+  }
+
+  it('walks a leg crouched at the sneak pace and arrives, in game time', () => {
+    const { rr, game } = fakeGame();
+    rr.restart();
+    expect(rr.tick(5).ev).toBe('held');
+    rr.begin();
+    rr.walkStart(0, 0, 13);
+    let r = rr.tick(2);
+    for (let i = 0; i < 20 && r.ev === ''; i++) r = rr.tick(2);
+    expect(r.ev).toBe('arrived');
+    expect(game.player.controller.crouched).toBe(true);
+    expect(Math.hypot(game.player.position.x, game.player.position.z - 13)).toBeLessThan(0.45);
+    expect(r.t).toBeGreaterThan(9);
+    expect(r.t).toBeLessThan(11.5);
+    expect(rr.walked()).toBeCloseTo(13, 0);
+  });
+
+  it('a wall stops the robot: the stall fires 8 s after its last progress and the probe finds no nav path', () => {
+    const { rr } = fakeGame({ wallX: 3 });
+    rr.begin();
+    rr.walkStart(10, 0, 0);
+    let r = rr.tick(2);
+    for (let i = 0; i < 30 && r.ev === ''; i++) r = rr.tick(2);
+    expect(r.ev).toBe('stall');
+    expect(r.t - rr.stallSince()).toBeGreaterThanOrEqual(8 - 1e-6);
+    expect(r.t - rr.stallSince()).toBeLessThan(8 + 0.1);
+    expect(r.x).toBeCloseTo(3, 6);
+    expect(rr.probe(10, 0, 0)).toBe('no-nav-path');
+    expect(rr.probe(2, 0, 0)).toBe('could-not-follow');
+  });
+
+  it('a guard rising to alert is one detection, forgiven (A2); a rise to suspicious is a notice', () => {
+    const { rr, guard, calls } = fakeGame();
+    rr.begin();
+    rr.holdStart(1);
+    guard.level = 'suspicious';
+    rr.tick(0.5);
+    guard.level = 'alert';
+    expect(rr.tick(1).ev).toBe('held');
+    const rs = rr.rises(0);
+    expect(rs.map((x: Obj) => [x.cls, x.level, x.guard.id])).toEqual([['notice', 'suspicious', 'e1'], ['detection', 'alert', 'e1']]);
+    expect(calls).toContain('set unaware');
+    expect(calls).toContain('resetAlarm');
+    expect(guard.level).toBe('unaware');
+    expect(lineOf({ ...rs[1], space: null }).sense).toBe('sight');
+  });
+
+  it('places the robot and holds; the guards check and the restart', () => {
+    const { rr, game, calls, pressed } = fakeGame();
+    expect(rr.restart()).toBe(true);
+    expect(calls).toContain('restart');
+    expect(pressed).toContain(12);
+    rr.noDamage();
+    expect(game.target.damageMul).toBe(0);
+    expect(rr.guards()).toEqual({ spawned: 1, alive: 1 });
+    rr.begin();
+    rr.place(4, 0, 6, 1);
+    expect([game.player.position.x, game.player.position.z, game.player.controller.yaw]).toEqual([4, 6, 1]);
+    expect(rr.tick(1).ev).toBe('held');
   });
 });

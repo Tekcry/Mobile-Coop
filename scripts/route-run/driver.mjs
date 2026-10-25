@@ -68,7 +68,8 @@ function pageDriver(P, o) {
   const pad = window.__pad;
   const BTN_A = 0;
   const BTN_B = 1;
-  const BTN_LS = 10;
+  // D-pad up: free in play (no action outside a held context menu), so a tap wakes the pad without doing anything
+  const BTN_UP = 12;
   const IDLE = 0;
   const WALK = 1;
   const HOLD = 2;
@@ -84,6 +85,7 @@ function pageDriver(P, o) {
   const nr = new Float64Array(o.noiseRing);
   const nk = new Array(o.noiseRing).fill('noise');
   const cell = [0, 0];
+  const goal = new Float64Array(3);
   let nHead = 0;
   let nCount = 0;
   let mode = IDLE;
@@ -107,6 +109,24 @@ function pageDriver(P, o) {
   let wrapped = null;
 
   const st = () => app.current;
+
+  /** The walk goal for (x, y, z) into `goal`: the point itself, or the nearest walkable cell when it is not walkable (an
+   *  objective on a desk); an unreachable walkable point (behind a locked door) stays as it is. */
+  function goalOf(nav, x, y, z) {
+    goal[0] = x;
+    goal[1] = y;
+    goal[2] = z;
+    if (!nav) return;
+    const c0 = nav.cellOf(x, z, y);
+    if (c0 >= 0 && nav.isWalkable(c0)) return;
+    const k = nav.nearestWalkable(x, z, 12, y);
+    if (k < 0) return;
+    nav.centerInto(k, cell);
+    goal[0] = cell[0];
+    goal[2] = cell[1];
+    const h = nav.cellHeight(k);
+    if (h === h) goal[1] = h;
+  }
   const now = () => app.current.time - t0;
 
   function tap(btn) {
@@ -253,8 +273,9 @@ function pageDriver(P, o) {
       }
       pad.axis(0, steer.axisX);
       pad.axis(1, steer.axisY);
+      // (the toggle's intent, not the stance: a low ceiling may hold a stand back, and a tap would only flip it again)
       const c = g.player.controller;
-      if (c.crouched !== o.crouch && t - crouchTapT > 1) {
+      if ((c.crouchIntent ?? c.crouched) !== o.crouch && t - crouchTapT > 1) {
         tap(BTN_B);
         crouchTapT = t;
       }
@@ -365,7 +386,7 @@ function pageDriver(P, o) {
       t0 = g.time;
       holdEnd = g.time + o.settle;
       mode = HOLD;
-      tap(BTN_LS);
+      tap(BTN_UP);
       return ok;
     },
 
@@ -390,8 +411,12 @@ function pageDriver(P, o) {
       const nav = g.nav;
       const pts = [{ x: p.x, y: p.y, z: p.z }];
       let navOk = false;
+      goalOf(nav, x, y, z);
+      const gx = goal[0];
+      const gy = goal[1];
+      const gz = goal[2];
       if (nav) {
-        const wps = nav.findPath([p.x, p.z], [x, z], o.navExpand, p.y, y);
+        const wps = nav.findPath([p.x, p.z], [gx, gz], o.navExpand, p.y, gy);
         if (wps) {
           navOk = true;
           let py = p.y;
@@ -403,7 +428,7 @@ function pageDriver(P, o) {
         }
       }
       const lp = pts[pts.length - 1];
-      if (Math.sqrt((lp.x - x) ** 2 + (lp.z - z) ** 2) > 0.3 || pts.length === 1) pts.push({ x, y, z });
+      if (Math.sqrt((lp.x - gx) ** 2 + (lp.z - gz) ** 2) > 0.3 || pts.length === 1) pts.push({ x: gx, y: gy, z: gz });
       const path = P.makePath(pts);
       prog = new P.PathProgress(path);
       steer = new P.Steer(path);
@@ -500,7 +525,8 @@ function pageDriver(P, o) {
       if (d && d.anchor.locked && d.open < 0.2) return 'locked';
       const nav = g.nav;
       if (!nav) return 'could-not-follow';
-      return nav.findPath([p.x, p.z], [x, z], o.navExpand, p.y, y) ? 'could-not-follow' : 'no-nav-path';
+      goalOf(nav, x, y, z);
+      return nav.findPath([p.x, p.z], [goal[0], goal[2]], o.navExpand, p.y, goal[1]) ? 'could-not-follow' : 'no-nav-path';
     },
 
     /** The rises logged since index `since`. */
