@@ -281,6 +281,8 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(19.575, 3.15, -75.75, 1.15, 0.3, 6.8, ROOF);
   b.boxes[b.boxes.length - 1]!.overhead = true;
   b.noLedge(19.575, -72.35, 0.4);
+  // (A27-cloud) the south end too: the z -79 screen stands 0.1 inside the slab edge (z -79.15), so it does not cut that lip
+  b.noLedge(19.575, -79.15, 0.4);
   b.noLedge(18.4, -77.8, 0.7);
   // the split A/C condenser on its wall bracket off the east wall (y 1.2..2.0): the wall-jump corner's step (a planned climb)
   b.box(20.4, 1.6, -78.4, 0.5, 0.8, 0.9, STEEL);
