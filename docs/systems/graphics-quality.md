@@ -122,7 +122,7 @@ Budgets: performance.md.
   assigned after the capture to avoid a feedback loop). The menu stage has its own atlas for the operator.
 - Detail (3.0): `world/detailPass.ts` (pure) `detailPieces(boxes, mapId, tier)` - skirting, conduit + junction
   boxes + switches, wall boxes / vents / signs (ultra), floor stains / puddles / debris (epic); every piece
-  `collide: false`, `noLedge`, `detail` (the minimap skips it); `LevelBuilder.build(.., { detail })` from
+  `collide: false`, `noLedge`, `detail`; `LevelBuilder.build(.., { detail })` from
   `WorldOptions.detail` (the Detail tier when the map loads; none with `?gfx=min`); a test builds every map and checks
   cover faces, ledges and the solid set are unchanged. `QualityLevel.detailScale` scales `PartLibrary.setLodScale`
   and `setAnimLodScale` (characterRig). `Vfx`: spent brass (`Brass`: one bounce, then lies at the shooter's floor;
