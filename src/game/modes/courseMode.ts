@@ -198,6 +198,11 @@ export class CourseMode implements GameMode {
   private squad: Enemy[] = [];
   /** (sector-fixes S) The squad slot id of each `squad` guard (same order). */
   private squadIds: string[] = [];
+  /** (J14 R1 fix 1, STATIONS SA1) Per squad slot (same order): the station live when that guard last went down, was
+   *  carried or went (`noteDowns`, a course with stations only); -1 while he is up. */
+  private squadDown: number[] = [];
+  /** (J14 R1 fix 1) Per squad slot: the guard a squadmate woke (`EnemyManager.revive` makes a new `Enemy`), or null. */
+  private squadWoken: (Enemy | null)[] = [];
   /** (sector-fixes S) Squad slots already warned about (a failed spawn is logged once per slot). */
   private readonly squadWarned = new Set<string>();
   private radioQ: string[] = [];
@@ -715,6 +720,8 @@ export class CourseMode implements GameMode {
     // `Enemy` (`EnemyManager.revive`) that `squad` never holds (W482 check should-fix 2).
     const list = g.enemyMgr?.enemies ?? this.squad;
     if (stations) {
+      // (fix 1, SA1) which station each squad guard went down / was carried in, before anything below acts on it
+      this.noteDowns();
       const live = st.liveStation();
       const can = !!live && !st.over && this.restartT < 0 && this.spotHold <= 0;
       const rule = can && !st.isRetryOff(live!.n) ? live!.retry : 'none';
@@ -1043,7 +1050,7 @@ export class CourseMode implements GameMode {
     this.spotHold = SPOT_HOLD;
     this.caught.t = 0;
     this.camFull = false;
-    this.resetStationGuards(guards);
+    this.resetStationGuards(n, guards);
     const g = this.g;
     g.grenades.clear();
     g.gadgets.clearWorld();
@@ -1056,33 +1063,117 @@ export class CourseMode implements GameMode {
     this.dirty = true;
   }
 
-  /** (J14 R1, A17) The station's guards back on their slots, and every other live guard in combat (a squad guard on his
-   *  slot; one the manager woke as a new `Enemy` goes). Guards down from earlier stations stay as left. */
-  private resetStationGuards(ids: readonly string[]): void {
+  /**
+   * (J14 R1, A17; fix 1, STATIONS SA1) Station `n`'s retry, its guards: each listed guard who is up, or went down / was
+   * carried while `n` was live, back fresh on his slot (a guard dealt with at an earlier station stays as left: this is
+   * why a guard may sit on several stations' lists), and every other live guard in combat (a squad guard on his slot; one
+   * the course does not know goes). A woken copy of a slot that respawns goes with it.
+   */
+  private resetStationGuards(n: number, ids: readonly string[]): void {
     const em = this.g.enemyMgr;
     if (!em) return;
     const g = this.g;
     if (g.takedown.active) g.takedown.reset();
     g.net?.releaseHolds?.();
-    const redo: string[] = ids.slice();
+    this.noteDowns();
+    const redo: string[] = [];
+    for (const id of ids) {
+      const k = this.squadIds.indexOf(id);
+      if (k >= 0 && !this.slotUp(k) && this.squadDown[k] !== n) continue;
+      redo.push(id);
+    }
     for (let i = em.enemies.length - 1; i >= 0; i--) {
       const e = em.enemies[i]!;
       if (!e.alive || e.passive || !e.alerted) continue;
-      const k = this.squad.indexOf(e);
+      const k = this.slotOfGuard(e);
       if (k < 0) em.despawn(e);
       else if (!redo.includes(this.squadIds[k]!)) redo.push(this.squadIds[k]!);
     }
-    for (const id of redo) {
-      const k = this.squadIds.indexOf(id);
-      if (k >= 0) {
-        em.despawn(this.squad[k]!);
-        this.squad.splice(k, 1);
-        this.squadIds.splice(k, 1);
+    for (const id of redo) this.respawnSlot(id);
+  }
+
+  /** (fix 1) Squad slot `id` back fresh: its guard (and a woken copy of him) gone, a new one on the slot. */
+  private respawnSlot(id: string): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const k = this.squadIds.indexOf(id);
+    if (k >= 0) {
+      const w = this.squadWoken[k];
+      if (w) em.despawn(w);
+      em.despawn(this.squad[k]!);
+      this.squad.splice(k, 1);
+      this.squadIds.splice(k, 1);
+      this.squadDown.splice(k, 1);
+      this.squadWoken.splice(k, 1);
+    }
+    const e = this.spawnSlot(id);
+    if (e) this.addSquad(id, e);
+  }
+
+  /** A squad guard on slot `id` (the four squad lists in step). */
+  private addSquad(id: string, e: Enemy): void {
+    this.squad.push(e);
+    this.squadIds.push(id);
+    this.squadDown.push(-1);
+    this.squadWoken.push(null);
+  }
+
+  /** (fix 1) Squad slot `k`'s guard now: the woken copy when a squadmate woke him, else the one the course spawned. */
+  private slotGuard(k: number): Enemy {
+    return this.squadWoken[k] ?? this.squad[k]!;
+  }
+
+  /** (fix 1) Is squad slot `k`'s guard up (alive and still in the manager's list)? No allocation. */
+  private slotUp(k: number): boolean {
+    const e = this.slotGuard(k);
+    const em = this.g.enemyMgr;
+    return e.alive && !!em && em.enemies.indexOf(e) >= 0;
+  }
+
+  /** (fix 1) The squad slot of guard `e` (the spawned one or his woken copy), -1 none. No allocation. */
+  private slotOfGuard(e: Enemy): number {
+    for (let k = 0; k < this.squad.length; k++) if (this.squad[k] === e || this.squadWoken[k] === e) return k;
+    return -1;
+  }
+
+  /**
+   * (fix 1, SA1) Per squad slot, the station live when its guard went down (knocked out, dead or gone) or his body was
+   * carried; -1 again once he is up (woken). Each fixed step on a course with stations and before a retry. No allocation.
+   */
+  private noteDowns(): void {
+    const st = this.state;
+    const em = this.g.enemyMgr;
+    if (!st || !em) return;
+    const n = st.station();
+    for (let k = 0; k < this.squad.length; k++) {
+      if (this.slotUp(k)) this.squadDown[k] = -1;
+      else if (this.squadDown[k]! < 0) this.squadDown[k] = n;
+    }
+    const bodies = em.bodies;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
+      if (!b.carried) continue;
+      for (let k = 0; k < this.squad.length; k++) {
+        if (this.slotGuard(k).id !== b.enemyId) continue;
+        this.squadDown[k] = n;
+        break;
       }
-      const e = this.spawnSlot(id);
-      if (!e) continue;
-      this.squad.push(e);
-      this.squadIds.push(id);
+    }
+  }
+
+  /**
+   * (J14 R1 fix 1) A guard came (back) into play: on a course with stations, a knocked-out squad guard a squadmate woke
+   * is a new `Enemy` (`EnemyManager.revive`, the same guard key: `Enemy.inherit`); he takes his slot's woken place, so a
+   * retry that respawns the slot removes him too. The built yard is unchanged (no stations: nothing).
+   */
+  onEnemyJoined(e: Enemy): void {
+    if (!this.state?.hasStations || e.key < 0) return;
+    for (let k = 0; k < this.squad.length; k++) {
+      const o = this.slotGuard(k);
+      if (o === e || o.alive || !o.ko || o.key !== e.key) continue;
+      this.squadWoken[k] = e;
+      this.squadDown[k] = -1;
+      return;
     }
   }
 
@@ -1162,6 +1253,8 @@ export class CourseMode implements GameMode {
     }
     this.squad.length = 0;
     this.squadIds.length = 0;
+    this.squadDown.length = 0;
+    this.squadWoken.length = 0;
   }
 
   private spawnSquad(ids: string[]): void {
@@ -1172,8 +1265,7 @@ export class CourseMode implements GameMode {
       if (!this.layout!.squads[id]) continue;
       const e = this.spawnSlot(id);
       if (!e) break;
-      this.squad.push(e);
-      this.squadIds.push(id);
+      this.addSquad(id, e);
     }
   }
 

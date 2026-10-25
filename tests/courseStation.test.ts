@@ -67,10 +67,20 @@ const KNOWN: CourseKnownIds = { doors: [], switches: ['sw1', 'sw2'], holds: [], 
 
 interface FakeEnemy {
   slot: string;
+  id: string;
+  /** The guard key (`Enemy.key`: a woken copy keeps it). */
+  key: number;
+  ko: boolean;
   alive: boolean;
   alerted: boolean;
   passive: boolean;
   setPatrol(): void;
+}
+
+let guardSeq = 0;
+function fakeGuard(slot: string, o: Partial<FakeEnemy> = {}): FakeEnemy {
+  guardSeq++;
+  return { slot, id: `e${guardSeq}`, key: guardSeq, ko: false, alive: true, alerted: false, passive: false, setPatrol: () => undefined, ...o };
 }
 
 /** A CourseMode on a stub GameState: enough for its fixed step, squad, restart and respawn paths (no Babylon scene). */
@@ -86,14 +96,16 @@ function rig(d: CourseDef) {
     squads: { gd1: { kind: 'grunt', x: 1, z: 1, yaw: 0 }, gd2: { kind: 'grunt', x: 2, z: 2, yaw: 0 } },
   };
   let spawning = '';
+  const bodies: { carried: boolean; enemyId: string }[] = [];
   const em = {
     stealth: true,
     enemies,
+    bodies,
     get anyAlerted() {
       return enemies.some((e) => e.alive && e.alerted);
     },
     spawn: () => {
-      const e: FakeEnemy = { slot: spawning, alive: true, alerted: false, passive: false, setPatrol: () => undefined };
+      const e = fakeGuard(spawning);
       enemies.push(e);
       return e;
     },
@@ -143,7 +155,7 @@ function rig(d: CourseDef) {
   };
   step();
   const guard = (slot: string): FakeEnemy => enemies.find((e) => e.slot === slot)!;
-  return { mode, st: mode.state, enemies, despawned, respawns, player, remote, guard, step, said };
+  return { mode, st: mode.state, enemies, despawned, respawns, player, remote, guard, step, said, bodies, em };
 }
 
 /** The host's `course` message through the wire to a client mirror: what route-runs read on the client. */
@@ -254,6 +266,76 @@ describe('a station retry (seen)', () => {
     const s = station(2);
     expect(stationSlots(s, 0).map((p) => p.x)).toEqual([20, 21]);
     expect(stationSlots(s, 1).map((p) => p.x)).toEqual([21, 20]);
+  });
+});
+
+describe('SA1: a guard on several stations\' lists (fix 1)', () => {
+  /** gd1 on both stations' lists (A4's officer on 9 and 8), gd2 on station 2's. */
+  const both = (): CourseDef => def({}, [station(1, { guards: ['gd1'] }), station(2, { guards: ['gd1', 'gd2'] })]);
+  it('knocked out at station 1, station 2 retried: the same guard, still down, not despawned', () => {
+    const r = rig(both());
+    const gd1 = r.guard('gd1');
+    gd1.alive = false;
+    gd1.ko = true;
+    r.step();
+    r.st.setFlag('s1-done');
+    r.step();
+    const gd2 = r.guard('gd2');
+    gd2.alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    expect(r.despawned).toEqual([gd2]);
+    expect(r.guard('gd1')).toBe(gd1);
+    expect(gd1.alive).toBe(false);
+  });
+  it('knocked out during station 2: back fresh on his slot', () => {
+    const r = rig(both());
+    r.st.setFlag('s1-done');
+    r.step();
+    const gd1 = r.guard('gd1');
+    gd1.alive = false;
+    gd1.ko = true;
+    r.step();
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.despawned).toContain(gd1);
+    expect(r.guard('gd1')).not.toBe(gd1);
+    expect(r.guard('gd1').alive).toBe(true);
+  });
+  it('knocked out at station 1 but carried during station 2: back fresh (moved since 2 went live)', () => {
+    const r = rig(both());
+    const gd1 = r.guard('gd1');
+    gd1.alive = false;
+    gd1.ko = true;
+    r.step();
+    r.st.setFlag('s1-done');
+    r.step();
+    r.bodies.push({ carried: true, enemyId: gd1.id });
+    r.step();
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.despawned).toContain(gd1);
+    expect(r.guard('gd1')).not.toBe(gd1);
+  });
+  it('a woken copy of a slot that respawns goes too: one gd1, not two', () => {
+    const r = rig(both());
+    r.st.setFlag('s1-done');
+    r.step();
+    const gd1 = r.guard('gd1');
+    gd1.alive = false;
+    gd1.ko = true;
+    r.enemies.splice(r.enemies.indexOf(gd1), 1);
+    r.step();
+    // a squadmate wakes him: a new Enemy with his key (EnemyManager.revive), searching, not in combat
+    const copy = fakeGuard('gd1', { key: gd1.key });
+    r.enemies.push(copy);
+    r.mode.onEnemyJoined(copy as never);
+    r.step();
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.despawned).toContain(copy);
+    expect(r.enemies.filter((e) => e.slot === 'gd1')).toHaveLength(1);
+    expect(r.guard('gd1')).not.toBe(copy);
   });
 });
 
