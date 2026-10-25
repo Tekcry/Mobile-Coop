@@ -1,5 +1,9 @@
 # V1 fresh check - level-validator (Night Shift | Marlow Build)
 
+> **History, archived 2026-10-25 (doc-clarity).** The level-validator job's record, kept for reference only. The
+> current rules are `docs/level-design.md`, the graph format `docs/level-validator/graph-schema.md`, the numbers
+> `docs/design/scale-sheet.md`. Where this file differs from them, they win.
+
 Code: origin/feature/level-validator-v1 e869ea92 (Cloud Builder 1), read in C:/NightShift/Mobile-Coop-level-validator-v5f
 (ca1070d3 = job head + V1 merge; the two files are identical to e869ea92). Read-only review, nothing edited.
 

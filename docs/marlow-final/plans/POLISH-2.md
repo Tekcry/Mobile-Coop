@@ -3,7 +3,7 @@
 Planner: Opus, 2026-10-23, on `feature/marlow-polish` head 1bde5328. Docs only; no code was changed to write this.
 Sources: `slices/POLISH-check.md`, `slices/S-e2e-fix4.md`, the polish / should-fix parts of `slices/S34-check.md`,
 `S567-check.md`, `S8-check.md`, `S8-dress-check.md`, `S3-7-dress-check.md`, `S10-check.md`, STATE "Open for you",
-`docs/section-rating/STATE.md`.
+`docs/archive/section-rating/STATE.md`.
 
 ## What is already done (do not redo)
 - POLISH-check items 1 (protocol 42 comment) and 2 (`ratedSynced` reset), and the A3 step-3/4 lure flake: 1bde5328.

@@ -1,7 +1,7 @@
 # guard-ai - code audit against the 9 goals (BRIEF.md)
 
 Research agent, 2026-10-23, read-only, on `feature/guard-ai` a9ab3a29 (master 4.64.0 + g44-above). Refs are `file:line`
-on this branch. Plan base: `docs/reviews/guards-review.md` (origin/feature/menu); its moved refs are in section 0.
+on this branch. Plan base: `docs/archive/reviews/guards-review.md` (origin/feature/menu); its moved refs are in section 0.
 
 ## 0. Review line refs, re-checked (old -> now)
 | Review ref | Now | Still true? |

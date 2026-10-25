@@ -49,21 +49,25 @@ Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbo
 1. Michael's words go to the ROADMAP Inbox; the orchestrator triages them onto "Now" with an owner and a gate.
 2. `BRIEF.md` keeps "Michael said" (verbatim quotes) apart from "Michael picked" (the option text he chose), then
    assumed decisions A1, A2, ... with how to undo each. An assumption that would loosen a Michael-only rule (hard
-   rules, the level standard, scope, perf) is a one-click question to him by day, not an assumption.
+   rules, the level standard, scope, perf) is a one-click question to him by day; overnight it is assumed and logged
+   (an A entry with how to undo it, sent to the orchestrator for Michael's next look) and the work carries on (G358,
+   "Assume and log"). This is the only statement of the rule; other docs point here.
 3. An Opus `PLAN.md` with its claims: files, maps, wire and save paths, slices, sizes.
 4. A fresh Opus plan checker (intent against Michael's words, gates, the claims) passes it before any build.
 5. Maps and looks: before greybox or art on a map, or a big look change, Michael approves a one-page to-scale plan plus
    a 5-line intent check with one click (native multiple choice) (G288). A new map or map re-plan also passes the level
    validator (connectivity graph, `docs/level-design.md`) before greybox. At greybox exit a measured validator pass
    (`scripts/level-validate.mjs`, V6 `--require-measured`) and the bot route-runs are required, then a 10-minute walk
-   card for Michael (G289; ROADMAP Decided 2026-10-25 ~09:05).
+   card for Michael (G289, G330).
 6. Build (below). Templates and commands for each step: `docs/systems/session-method.md`.
 
 **Walk pacing** (G288). At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
-lighting); ROADMAP "Waiting on Michael" keeps the count. A lead at the cap works only on tests, fixes and automation.
+lighting); ROADMAP "Waiting on Michael" keeps the count. The cap limits switch-on only: at the cap no new feature in
+that area is switched on until Michael walks some, while signed-off builds go on dark behind their flags, and fixes
+to shipped features (rule fixes such as G339's compass / blip) are allowed (G355).
 Every release gets a 10-minute walk card from the orchestrator: risk-ranked, one acceptance line per item, look videos
 for animation and lighting (each such PR carries a 1-2 min video path in its body). A flagged feature is switched on
-when Michael accepts it. A lead under the cap with no PLAN slice left starts the next roadmap feature in its area with
+when Michael accepts it. A lead with no PLAN slice left starts the next roadmap feature in its area with
 an Opus plan; the orchestrator assigns it (G283).
 
 **A job.**
@@ -80,7 +84,8 @@ an Opus plan; the orchestrator assigns it (G283).
   from strict Opus briefs (greybox, data, tests, wiring); Haiku 5.5 does chores (logs, STATE, fragments, renames)
   (G302). A slice that fails its checker gets its fix round from Opus, and its sibling slices get Opus builders. One
   checker per batch of related slices; two independent Opus checkers on AI and `src/net` PRs; Sonnet may check
-  greybox, data and dressing. An Opus triage agent takes every laptop failure at once (G319).
+  greybox, data and dressing. Every laptop failure gets an Opus triage agent at once (G319), started by the lead whose
+  PR failed (Test Runner for a train failure).
 - Agents commit and push each sub-step on their branch (path-limited, never `git add -A`), so a swap or cut-off loses
   at most the step in flight. Parallel agents work in their own worktrees (`feature/<job>-<slice>`) and never edit the
   same files; the lead merges them.
@@ -96,19 +101,27 @@ an Opus plan; the orchestrator assigns it (G283).
   Michael comes with its decision pack (prototype / screenshots / GPU sheets).
 - Full burn: every independent slice of the PLAN runs in parallel now, up to the desktop CPU target ("Machines"). Opus
   briefs the next 2-3 slices ahead and plans the next ROADMAP jobs before they start (plans and briefs only, no
-  speculative code). tsc / vitest-heavy builder slices may go to cloud builders through `cloud-queue`; a lead picks up
-  a done brief within 1 hour or closes it. A lead's small and spare jobs ride one batch PR.
+  speculative code). tsc / vitest-heavy builder slices may go to cloud builders through `cloud-queue`
+  (`docs/systems/agent-preamble.md` "Cloud sessions"); a lead picks up a done brief within 1 hour or closes it, and the
+  orchestrator checks for done briefs older than that every cron run. A lead's small and spare jobs ride one batch PR.
 - Finish: the PR to master with its changelog fragment; it becomes train-ready (below). At the merge the job's answers
   from Michael move into `docs/DECISIONS.md` with the next free G numbers (G89).
 
 **Getting to master** (G83: master is the live game and the only base).
-- Train-ready = on the PR's current head: CI `check` success + `checker` success + `affected-e2e` success (the laptop
-  service runs the `--affected` suites on every non-draft PR head by itself; a docs / unit-only head gets success at
-  once). The watchdog's `--fix labels` adds the `train-ready` label when all three hold (ROADMAP Decided 2026-10-25
-  ~08:45; `docs/systems/watchdog.md` "The label convention"); a ready head the watchdog has not labelled is labelled by
-  the orchestrator. Commits after the label keep it only when they touch docs, `*.md` or fragments alone, or when a new
-  `checker` success is on the new head; otherwise the watchdog removes it. The `no-affected-e2e` label waives the e2e
-  part for one PR.
+- Train-ready (this is the rule's owner; `docs/systems/watchdog.md` "The label convention" is how the code applies
+  it) = on the PR's current head: CI `check` success + `checker` success + `affected-e2e` success. The laptop service
+  runs the `--affected` suites on every non-draft PR head by itself; a docs / unit-only head gets success at once. The
+  `no-affected-e2e` label waives the e2e part for one PR.
+- Who labels: the watchdog task (`--fix labels`) adds `train-ready` when all three hold and (`--fix prs`) removes it
+  when a check turns red or when commits land after the label that touch more than docs, `*.md`, `changes/`
+  fragments or CHANGELOG with no new `checker` success on the new head (G325). Until the
+  watchdog task runs, the orchestrator labels and unlabels by the same rule each cron run. When auto mode blocks a lead
+  from posting its checker's verdict, the orchestrator posts the `checker` status for it.
+- Stuck `affected-e2e`: a head whose `affected-e2e` stays pending with no live request behind it (the request was
+  dropped or withdrawn) gets no new run by itself in today's code. The queue-fix job changes the service to re-request
+  such a head; until that lands, the orchestrator (or the lead) re-requests it: `node scripts/laptop-queue/request.mjs
+  --sha <head> --pr <n> --affected --set affected --requester affected-e2e` (only that requester's verdict is also
+  posted on `affected-e2e`).
 - Auto-train (scheduled task every minute, G286; `docs/systems/auto-train.md`) builds `train/<n>` from labelled PRs
   with a green check, makes the version commit (fragments into `CHANGELOG.md`, the next version, the one
   `PROTOCOL_VERSION` bump when a member touches a wire path), and the queue runs one full e2e on the train head. CI and
@@ -124,20 +137,24 @@ an Opus plan; the orchestrator assigns it (G283).
 | --- | --- | --- |
 | Docs only (`*.md`, `docs/**`) | CI `check` (`affected-e2e` passes at once) | - |
 | An agent sub-step | `npm run typecheck:fast` + `npx vitest run <files>` | the agent's machine |
-| A PR | CI `check` + `affected-e2e` (the DIRECT tier: `node scripts/run-e2e.mjs --affected origin/master --list` names the suites; `src/net`, `src/save` and wire changes include `e2e-coop` + `e2e-netmove`); a `src/player` or `src/game` change also requests `e2e-coop` + `e2e-netmove` (`request.mjs`), and its checker passes only when they are green | laptop queue |
+| A PR | CI `check` + `affected-e2e` (the DIRECT tier, `DIRECT_COVERS` in `scripts/e2e-affected.mjs`; `node scripts/run-e2e.mjs --affected origin/master --list` names the suites; `src/net`, `src/save` and wire changes get the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`). A checker gate on top: `DIRECT_COVERS` does not add `e2e-coop` + `e2e-netmove` for `src/player` or `src/game`, so the lead requests them (`request.mjs`) and the checker passes only when they are green | laptop queue |
 | Tuner / Anim Studio / tests only | CI `check` + `affected-e2e` | laptop queue |
 | A train | one full `npm run e2e` on the train head | laptop queue |
 | Look or perf | `npm run e2e:gpu`, perf budgets, contact sheets, look videos; slot-alone measures right after a release | laptop 4189 (a one-off on the desktop under `heavy.lock`) |
 - Every e2e run is `E2E_GPU=1` and a GPU failure counts; a software-GL rerun only tells a test-timing bug from a game
-  bug. CI is `npm run check` only (software GL, no e2e). Cloud sessions run unit tests, logic e2e and design only.
+  bug. CI is `npm run check` only (software GL, no e2e). Cloud sessions run tsc and single vitest files only (no e2e,
+  no GPU, no `npm run check`; the `cloud-queue` README); every e2e and GPU check of their work is "pending PC run" and
+  runs on the laptop queue once a lead takes the branch.
 - A crash or timeout mid-suite is not a pass. Flaky suites, quarantine and what counts as a flake:
   `docs/systems/testing-tools.md` "Flakes and quarantine" (the only owner of that rule).
 
 **Machines.** Two heavy slots, both Michael's PCs.
 - Laptop (Test Runner, Guard AI): the main test machine. The laptop queue service (`scripts/laptop-queue`, branch
-  `laptop-queue`, scheduled task every minute) runs on 4189 (GPU and alone runs) and 4192: trains first, sharded across
-  4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`), then train reruns (`E2E_JOBS=1`), then PR requests
-  (`E2E_JOBS=2`; full runs 3), then slot-alone measures. The two sessions keep its CPU under ~80%.
+  `laptop-queue`, scheduled task every minute) runs on 4189 (GPU and alone runs) and 4192, in this order (lib `pick`):
+  trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns (one slot,
+  `E2E_JOBS=1`); then an alone request that has waited over 30 min (`ALONE_AGE_MIN`; it goes ahead of PR work and
+  takes both slots once they drain); then PR requests, requesters in arrival order (one slot, `E2E_JOBS=2`; full runs
+  3); then the other alone measures when both slots are idle. The two sessions keep its CPU under ~80%.
 - Desktop (Orchestrator, Player, Marlow, Sector Ops): CPU target under ~80% (G306); over 90% the orchestrator trims
   the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc and
   single vitest files, never a full `npm run check` (CI runs it).
@@ -155,7 +172,9 @@ an Opus plan; the orchestrator assigns it (G283).
   stale request; `docs/orchestrator/queue-audit.sh` flags them.
 - Locks: `node scripts/heavy-lock.mjs take C:/NightShift/heavy.lock "<session> | <job>" --pid "$(cat /proc/$$/winpid)"`,
   the run, then `node scripts/heavy-lock.mjs release C:/NightShift/heavy.lock "<session> | <job>"` in the same shell
-  command; per run, never held across a fix loop.
+  command; per run, never held across a fix loop. A lock whose pid is dead on this host is stale and the next `take`
+  breaks it; a lock with no pid is never broken automatically: ask its owner (the label names the session). The
+  laptop queue's own lock lines are read the same way once the queue-fix job fixes their parser.
 - Headless and invisible: never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
   Blender only with `-b`, nothing that takes focus. Stop a runner with `taskkill /T /F` on its PID and check the tree is
   gone.
@@ -176,9 +195,10 @@ is about 6% of a 5-hour window). Commands: `docs/systems/swaps.md`.
   Night Shift sessions.
 
 **Talking to Michael.** Short, plain replies; hyphens, not em dashes. Questions only as native multiple choice, by day,
-when his answer changes the outcome; overnight, decide, log the assumption and carry on. A paste-in prompt names its
-title, model and effort and is the turn's last message, never paired with a question. He tests through the menus: give
-menu paths and the version label to expect. No polling turns: start long runs in the background and wait.
+when his answer changes the outcome; overnight, decide, log the assumption and carry on (Intake step 2). A paste-in
+prompt names its title, model and effort and is the turn's last message, never paired with a question. He tests
+through the menus: give menu paths and the version label to expect. No polling turns: start long runs in the
+background and wait.
 
 **Doc sizes.** Resume blocks ~40 lines; orchestrator STATE current state only; HANDOFF the newest block only; ROADMAP is
 Now / Inbox / Waiting on Michael / Decided (today) / Done (last 10). History moves to archive files, never piles up.
@@ -187,7 +207,10 @@ rules.
 
 **Branches and previews.** One branch per job, cut from master, one PR each. Pages serves the live game, `/preview/`
 (master, through the pointer branch `dev`) and `/ct/` (through the pointer branch `ct-movement`); `dev` and
-`ct-movement` are not work branches. Detail: `docs/systems/deploy.md`. Deleting a branch is Michael's call.
+`ct-movement` are not work branches. Detail: `docs/systems/deploy.md`. Weekly, the orchestrator deletes branches fully
+merged into master and older than 7 days, logging the list, and prunes clean merged worktrees in the same pass;
+unmerged branches are never touched, and any other branch deletion is Michael's call (G345,
+"Yes, weekly").
 
 ## Commands
 - `npm run dev` - dev server (never from an agent)
@@ -196,8 +219,9 @@ rules.
 - `npm run typecheck:fast` - incremental tsc (cache in `node_modules/.cache`), for agents' repeat runs
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)
-- `npm run check` - lint + tests + build (what CI and every job must pass). CI runs lint, test and build-check in
-  parallel, with an aggregate `check` that fails unless all three pass
+- `npm run check` - lint + tests + build (what CI and every job must pass). On a PR, CI runs four jobs in parallel -
+  lint, test, build-check and `pr-size` (the ~1.5k-line cap, `docs/systems/session-method.md` "Slice size") - and an
+  aggregate `check` that fails unless all four pass (`.github/workflows/deploy.yml`)
 - `npm run e2e` - serves `dist/` and runs the required headless e2e suites as a desktop (pad, keyboard and mouse; G13),
   one browser each, `E2E_JOBS` at a time (default min(5, cores / 3); the laptop queue sets it). Needs a prior
   `npm run build`. `npm run e2e:serial` runs one at a time with live output (debugging).
@@ -207,8 +231,8 @@ rules.
   Warehouse routes and archetypes); `npm run e2e:audio` - the audio suites; `npm run e2e:gpu` - the visual read-backs
   (laptop or desktop, never cloud). None of them is in the full run.
 - Hardware GPU: `E2E_GPU=1` (ANGLE D3D11 on Windows, GPU blocklist ignored; `perf.mjs` then uses the local budget
-  profile). Cloud sessions run software GL (the default), mark every GPU check "pending PC run" and never claim a perf
-  or visual result from SwiftShader.
+  profile). Without it the browser is software GL (SwiftShader): never claim a perf or visual result from it. Cloud
+  sessions: "Test tiers".
 - Suites, helper scripts (`perf`, `soak`, `shot`, `anim-sheet`), flakes and the debug overlay:
   `docs/systems/testing-tools.md`. `?autostart=<mapId>&mode=<mode>` boots straight into a match (dev and tests). Uses
   the preinstalled Chromium.

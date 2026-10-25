@@ -3,22 +3,22 @@
 STATE "Next" 4: "When guard-render lands: lift the A64 cap for S4 / S5 (20 / 24 guards)". Decision: BRIEF A99.
 
 ## Guard-render facts used
-- Budget target (`docs/guard-render/BRIEF.md` M1): 60 Hz at Epic 1920x1080 on the laptop 4090, frame CPU p95 <= 12 ms,
+- Budget target (`docs/archive/guard-render/BRIEF.md` M1): 60 Hz at Epic 1920x1080 on the laptop 4090, frame CPU p95 <= 12 ms,
   GPU p95 <= 15 ms at 24 facing guards.
-- Measured with the merged body, S1 (`docs/guard-render/run-s1/guard-cap.csv`, REPORT.md table):
+- Measured with the merged body, S1 (`docs/archive/guard-render/run-s1/guard-cap.csv`, REPORT.md table):
   - Sector Ops 24 alive / 12 in sight (the harness's sector alive cap), alert/facing: frame CPU med 8.1 / p95 11.1 ms,
     GPU 6.0 / 7.2 ms, 293 draws, 611 active meshes. Patrol/facing: 6.8 / 8.8 ms CPU, 5.5 / 6.5 ms GPU.
   - Marlow (ctcourse) 24 alive / 24 in sight, alert/facing: CPU 6.2 / 8.6 ms, GPU 4.7 / 5.6 ms.
   - Before S1 (`run-s1-off`, same build, `?guardmerge=0`): Sector Ops 24 alert 10.3 / 12.4 ms CPU; Marlow 24 alert
     9.2 / 15.3 ms. The A64 era number (guard-cap 4.64.0, BRIEF "Where we start") was 57 ms CPU at 24.
-- S6 (`docs/guard-render/STATE.md` "S6", `run-s6-on`): Sector Ops 24 alert 7.4 / 9.0 ms CPU, GPU 5.6 / 6.5 ms (that run
+- S6 (`docs/archive/guard-render/STATE.md` "S6", `run-s6-on`): Sector Ops 24 alert 7.4 / 9.0 ms CPU, GPU 5.6 / 6.5 ms (that run
   had S6d, which did not ship; master gain is S6b only).
 - S7 (STATE "S7"): GPU buffers shared per look, memory only (24 guards 32.3 -> 7.9 MB); no frame-time claim.
 - S5 (STATE "S5"): anim cost cuts, noise-level on NullEngine; S3a is the sim head hit volume (no render effect).
 - `dormant` has no reader: `grep dormant src` finds only the field (`src/game/sectors.ts:97-98`) and the campus data.
   Guard-render shipped no sleep / dormant path. Its S4 anim tiers (`origin/feature/guard-render-s4`, in train 26, not on
   this branch) key on off-screen (every 4th frame) and > 22 m from the camera (every 2nd), not the tag
-  (`git show 5809afe6:docs/guard-render/STATE.md` lines 329-340). `docs/level-design.md:136-138`: `MAX_ALIVE` 12 awake;
+  (`git show 5809afe6:docs/archive/guard-render/STATE.md` lines 329-340). `docs/level-design.md:136-138`: `MAX_ALIVE` 12 awake;
   Kestrel's dormant step not built.
 
 ## Decision (A99)

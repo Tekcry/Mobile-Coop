@@ -1,6 +1,6 @@
 # Takedowns
 Purpose: takedown kinds, the grab and hostage, and the close strike.
-Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible.md (Section 5.4).
+Design authority: docs/DECISIONS.md (G23, G42, G43, G49, G180, G348), then docs/design-bible.md (Section 5.4).
 
 ## Decided direction
 - Built (G43, G23; ct-prototype G5 with Michael 2026-10-20 08:10, 08:20, 08:25): every takedown on offer is a row of
@@ -11,10 +11,16 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   either, only knocked out. Killed, or used as human shield (aiming pistol)", "There is no back to game option once
   the grab is initiated."
 - Decided, not built yet (G42, loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any
-  side on every human guard, recovery about 1.4 s; dogs cannot be palm-struck. Campaign co-op missions have no heavies
-  or dogs (G155); Sector Ops has dogs and armoured late guards (G297, G307; ai.md "Decided direction"). Code: the elbow strike below (aware facing guards and heavies from the front only stagger).
-- Decided (G52): the dual takedown is one of the four co-op team moves; it waits for the co-op phase.
-  The host counts each dual takedown (`StealthRating.duals`, `dualTakedown` event; `game/dualTakedown.ts`) as section-rating's input (spare 12).
+  side on every human guard, recovery about 1.4 s. Campaign co-op missions have no heavies or dogs (G155); Sector Ops
+  has dogs and armoured late guards (G297, G307; ai.md "Decided direction"). Code: the elbow strike below (aware facing
+  guards and heavies from the front only stagger).
+- Dogs (G348, Sector Ops): no takedown of any kind; sleeping gas knocks a dog out; a dog can be distracted; killing one
+  carries a penalty. Built: no palm strike (`strikeController.ts`), no grab or hang-down take (`def.quadruped`), gas
+  knocks out every enemy, dogs too (`GadgetSystem`). Not built yet: the other takedowns (behind, side, drop and the
+  rest) still reach a dog; no dog-kill penalty.
+- G52's dedicated dual takedown is gone (G180): CT's double takedown is two ordinary takedowns timed together. The
+  host counts each pair within `DUAL_WINDOW` 1.5 s (`StealthRating.duals`, `dualTakedown` event;
+  `game/dualTakedown.ts`) as section-rating's input (spare 12).
 - Interrogation is part of the grab (G23); its spec is `docs/systems/ct-toolkit.md` 3.9 (not built).
 
 ## Takedowns
@@ -110,7 +116,7 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   host rules: `docs/systems/coop.md` (client takedowns). Pure rules: `src/game/jointInterrogation.ts`,
   `tests/jointInterrogation.test.ts`; e2e-coop "joint interrogation: host bluffs, client reads".
 
-## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
+## From the co-op hang-down (hang-down job; `docs/archive/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use
 the pistol. Live only while hanging settled (`TeamController.hangActs`); lowering, the pull-up and the drop offer nothing.
 - Attacker state `hangDown` (`TakedownController.attackerState`, before the wall / attach checks); `pickTakedown` kind

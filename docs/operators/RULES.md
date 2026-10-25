@@ -40,7 +40,7 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
   carry on (the final review sees the open list). Never weaken a check to pass it.
 
 ## Step loop (orchestrator session, Michael 2026-10-16, D18; overrides each step file's "Finish" and "Chaining")
-Exactly like the locomotion run (docs/locomotion/RULES.md "Step loop"): one long-lived orchestrator session (Opus 5.5
+Exactly like the locomotion run (docs/archive/locomotion/RULES.md "Step loop"): one long-lived orchestrator session (Opus 5.5
 High) starts subagents with the Agent tool, one code-changing agent at a time, and commits itself. Every subagent
 prompt starts with "Read docs/operators/steps/AGENT-PREAMBLE.md first", then its role, step and handover.
 1. Implement: a subagent (PLAN.md model and effort) builds, renders on the GPU, runs `npm run operators:check` and

@@ -6,12 +6,13 @@ Rules: `docs/DECISIONS.md` G83 (master is the only base), G85 (previews), G183 (
 ## Branches
 - Master is the live game and the only base. Every job works on its own branch `feature/<job>`, cut from master, in
   its own folder `C:/NightShift/Mobile-Coop-<job>`, and ends in one PR to master.
-- Merging: the orchestrator merges green PRs without asking (Michael, 2026-10-19); when auto mode blocks the merge,
-  Michael merges. Master always holds every finished update; the orchestrator asks Michael when unsure. The
-  orchestrator sets the version in the PR just before it merges (G183): a job or feature is a minor step, a fix or
-  docs-only merge a patch; the merge commit gets the tag `v4.x.y`.
+- Merging: no one merges a PR by hand. Auto-train (`docs/systems/auto-train.md`) builds `train/<n>` from the
+  `train-ready` PRs and `scripts/merge-train.mjs` merges it when CI and the laptop e2e are green (`docs/RULES.md`
+  "Getting to master"). merge-train's version commit on the train sets the version (G183): patch when every member's
+  fragment says `kind: patch`, else minor (`changes/README.md`); the release merge gets the tag `v4.x.y`. The orchestrator settles conflicts
+  and the failures auto-drop cannot place.
 - `dev` and `ct-movement` are not work branches (the old `ct-movement` -> `dev` -> `master` flow is history, G83). They
-  are the pointer branches for two preview slots (below). Deleting any branch is Michael's call.
+  are the pointer branches for two preview slots (below). Branch deletion: `docs/RULES.md` "Branches and previews".
 
 ## Pages slots
 - What exists (process audit, 2026-10-19; G85's "one chosen preview" in its current form): `deploy.yml` runs on the

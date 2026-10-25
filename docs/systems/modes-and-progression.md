@@ -1,25 +1,26 @@
 # Modes, the course, parked modes and the parked economy
 Purpose: the game modes as built, the Fallow training course, what `?legacy=1` parks, and the parked arsenal / suit /
 HQ economy and cosmetics.
-Design authority: docs/DECISIONS.md (G2, G7, G8, G78, G111, G116), then docs/design-bible.md (Sections 5.8 and 6).
+Design authority: docs/DECISIONS.md (G2, G7, G8, G78, G111, G116, G290, G349, G353, G357), then
+docs/design-bible.md (Sections 5.8 and 6).
 
 The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
 - Campaign: exactly 2 players, cannot be completed solo, no bot (G2, G253); every section forces a co-op traversal move
   with no solo bypass (G292, G293). Campaign Mission 1 is Tallow Wharf, the new small campaign map, with the first
-  prototypes Three Grey Coats and Two-Key Ledger (G293; 2026-10-25 ~10:45; the mission-framework job); Kestrel is
+  prototypes Three Grey Coats and Two-Key Ledger (G293, G340; the mission-framework job); Kestrel is
   paused (G53). The campaign mission framework is not built yet: today's missions run in
   Infiltration.
 - Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
-  marks and objective list (G292).
+  marks and objective list (G292). Downed: the campaign rule (G349, G126). Strict rules: none in the early sections,
+  one taught in a late section (G357; not built yet).
 - Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map): 1 to 4 players, solo
   always possible (G280, G308).
-- Campaign and Sector Ops: up to 2 strict rules per mission, signposted in the briefing and objective list; breaking one
-  restarts
-  the section from its checkpoint and the mission continues (G290). No markers, no waypoints, no maps, no minimap,
-  compass or objective blip; an optional hint layer, off by default (G290; 2026-10-25 "No maps at all", "Remove it
-  too"). Objectives "must name what and where" (2026-10-25). Marlow Yard is the guided exception (G292).
+- Campaign and Sector Ops: strict rules and section restart are owned by bible 5.8 (G290); no maps, markers or
+  waypoints, and objectives that name what and where, by bible 5.10 (G336, G339, G343, G351). Marlow Yard is the
+  guided exception (G292). Killing a civilian or a protected character restarts the section (G353, replaces G145's
+  mission fail): decided, not built yet (no civilian or protected character exists in code).
 Hunter is the one non-CT mode kept, parked (G7). Wave, team deathmatch, free-for-all, every player-versus-player mode
-and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs/consolidation/).
+and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs/archive/consolidation/).
 
 ## Modes as built (`ModeId`)
 | Id | Name | Where | Status |
@@ -58,8 +59,8 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   2026-10-25; coop4).
 - The map is `campusOps`, Saltmarsh Park (`?autostart=campusOps&mode=sector`; `world/maps/campusOps.ts`, sections in
   `campusSectors.ts`, `campusS1.ts`..`campusS5.ts`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs,
-  S4 data hall, S5 Old House (G295, G297). Guard counts signed off 2026-10-25 ~08:50: S1 15, S2 18, S3 20, S4 per its
-  sign-off, S5 26; 32 alive is a ceiling, not a target (G187), and room to manoeuvre comes first (G190).
+  S4 data hall, S5 Old House (G295, G297). Guard counts signed off (G328): S1 15, S2 18, S3 20, S4 25,
+  S5 26, for two players (G362); 32 alive is a ceiling, not a target (G187), and room to manoeuvre comes first (G190).
 - The old map `warehouseOps` stays selectable (G298; `?autostart=warehouseOps&mode=sector`;
   `world/maps/warehouseOps.ts`: `buildWarehouse(b, opts)` with the openings between sections walled, the connector
   rooms and the M8 pieces; data in `world/maps/warehouseSectors.ts`: sections, guards with their `takedownSpot`, routes,
@@ -76,7 +77,7 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   "Unbolt" (`Interactable.side`); using it unlocks the door for both. A section restart bolts its doors again.
   Pure: `SectorBolts`, `onBoltSide`, `boltItemId` / `boltById`. Test hooks: `__sector.boltInfo()`,
   `__sector.useBolt(sec, k)`, `debug().bolts`.
-- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided 2026-10-25, not built yet:
+- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided (G331), not built yet:
   a clear on tier N fills every star below N too (Michael: "Completing a higher difficulty also considers the lower
   tiers completed also"); as built only the cleared tier's star fills. `save/sectorRecord.ts`, kv key `sector:ops`
   (per op id: the presets completed and the best time per preset; no profile change, no SAVE_VERSION bump). The
@@ -127,7 +128,10 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's
   `MapLayout.course`; co-op only (host P1, client P2; `?autostart=courselab&mode=course` single player for tests); radio
   as LANTERN barks. Wire and drill ticks: coop.md. HUD: ui.md.
-- Everyone down restarts the bay at the checkpoint airlock (squad, gates, light groups, shot-out lamps). The dev solo
+- Downed (G349: the campaign rule, G126; built): a downed player can be revived within `REVIVE_WINDOW` 30 s, at most
+  `REVIVES_PER_MISSION` 2 times (`game/reviveClock.ts`; rated sets can grant more); a player past the window or the cap
+  is out, and in the course that restarts the bay (`CoopHost.goOut`). Everyone down restarts the bay at the checkpoint
+  airlock (squad, gates, light groups, shot-out lamps). The dev solo
   flag (`?course=solo`, F3) lets one player work both halves (G48: the testing route, no bot). Anti-stuck resets stay
   (G80). Team moves work anywhere with room (G151 replaced G81's marked spots).
 - Friendly fire: a host option, on by default (G141, settles G49). As built it is on in Course mode only, with no host
@@ -147,13 +151,14 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
 
 ## Parked economy and cosmetics (2.0 phase 8; `?legacy=1` only)
 - Arsenal: the CT kit only (G76): `rifle` (Heron Carbine, issued suppressed) and `pistolSd` (Hush 9 SD); the other 14
-  guns are deleted (docs/consolidation/deleted-guns.md). The rifle keeps the legacy attachments (red dot, 4x scope,
-  suppressor, compensator, grip, laser, magazines); CT's attachment set (sniper, shotgun, launcher) and the knife come
-  from the research (G76): decided, not built yet. `withAttachments(def, ids)` (progression/attachments.ts, pure);
+  guns are deleted (docs/archive/consolidation/deleted-guns.md). The rifle keeps the legacy attachments (red dot, 4x
+  scope, suppressor, compensator, grip, laser, magazines); CT's attachment set (sniper, shotgun, launcher) and the knife
+  come from the research (G76): decided, not built yet. `withAttachments(def, ids)` (progression/attachments.ts, pure);
   `PlayerWeapons` builds from `LoadoutEntry.attachments`; `penetrate()` casts back from beyond a hit to find the exit
   face. Weapons in detail: combat.md.
 - `progression/suit.ts` (pure): `SUIT` tiers, `suitStats`, `suitLook`, `HQ` + `hqStats`, `CHALLENGES` +
-  `challengeProgress`, presets (Stealth / Assault / Recommended is the decided naming, G105; not built yet). Profile ops
+  `challengeProgress`, presets (decided, not built yet: G153 replaces G105's presets with kits fixed per mission, so
+  players do not choose a loadout). Profile ops
   `buySuit / wearSuit / buyHq / savePreset / applyPreset`; `applySession` pays challenges.
 - `cosmetics/catalog.ts`: avatar options, camos, titles, emblems; it registers unlock items at import. Patterns:
   `PatternPlugin` reads per-instance `pattern` and `color2`; `avatarFactory` and `WeaponModel` apply them. Emotes are
