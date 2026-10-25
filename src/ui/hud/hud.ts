@@ -57,6 +57,8 @@ export class Hud {
   private compassStrip: HTMLElement;
   private compassMarks: HTMLElement;
   private objective: HTMLElement;
+  /** (mission-rules R6) The objective's hint line (`setObjectiveHint`), made on first use. */
+  private objHint: HTMLElement | null = null;
   private modeInfo: HTMLElement;
   private weaponEl!: HTMLElement;
   private roomEl: HTMLElement;
@@ -301,6 +303,25 @@ export class Hud {
 
   setObjective(text: string): void {
     this.set('obj', text, () => (this.objective.textContent = text));
+  }
+
+  /**
+   * (mission-rules R6, HG7) The hint line under the objective (a mission's current step, the hint layer on); null or ''
+   * hides it. Made on the first non-empty call, right after the objective line; it shares `hud-objective`, so once
+   * hud-guidance B1's popup is in it shows and fades with the objective. Cached: a repeat call writes nothing.
+   */
+  setObjectiveHint(text: string | null): void {
+    const t = text ?? '';
+    if (!this.objHint) {
+      if (!t) return;
+      this.objHint = h('div', { class: 'hud-objective hud-objective-hint', style: { fontSize: '0.8em', opacity: '0.8' } });
+      this.objective.after(this.objHint);
+    }
+    const el = this.objHint;
+    this.set('objHint', t, () => {
+      el.textContent = t;
+      el.hidden = !t;
+    });
   }
 
   /** Room tag under the compass (close-quarters maps); `cleared` marks it as secured. */

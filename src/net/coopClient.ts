@@ -22,8 +22,9 @@ import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_G
 import { kitAttemptKey } from './kitNet';
 import { MissionMirror } from './missionMirror';
 import type { TeamId } from '../game/mission/missionDef';
-import { MissionHud } from '../ui/hud/missionHud';
-import { MissionHudMount, missionViewerTeam } from '../ui/hud/missionHudMount';
+import type { MissionRunner } from '../game/mission/missionRunner';
+import { MissionFeed, missionObjectiveLines, missionViewerTeam } from '../game/mission/missionFeed';
+import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
@@ -124,9 +125,11 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
   readonly mission = new MissionMirror();
-  /** (mission-framework EN4) The mirrored mission's objective list (Sector Ops) and our team (A9, set per `sector` message). */
-  private missionHud: MissionHudMount | null = null;
+  /** (mission-rules R6, HG7) The mirrored mission's current step on our objective line, and our team (A9, set per `sector` message). */
+  private readonly missionFeed = new MissionFeed();
   private missionViewer: TeamId = 'all';
+  /** (mission-rules R6) The host's objective line as its snapshots last carried it (shown while no mission step is). */
+  private hostObj = '';
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
@@ -220,13 +223,6 @@ export class CoopClient implements NetAttachment {
         card.el.remove();
         this.card = null;
         this.onRating = null;
-      });
-      // (mission-framework EN4) the host's mission (`mission.runner`) on our own objective list
-      const mh = new MissionHudMount(() => new MissionHud(g.hud.el));
-      this.missionHud = mh;
-      this.offs.push(() => {
-        mh.dispose();
-        this.missionHud = null;
       });
     }
     // (39, LR16-5b) Marlow Yard's swinging pendants: our round past one asks the host to kick it (no local kick: the
@@ -528,7 +524,9 @@ export class CoopClient implements NetAttachment {
     }
     this.gotSnap = true;
     this.sinceSnap = 0;
-    const obj = objectiveOnSnap(this.obj, m.obj);
+    // (mission-rules R6) while a mission mirror runs the line is our own current step (our team's, A9), not the host's
+    this.hostObj = m.obj;
+    const obj = objectiveOnSnap(this.obj, this.missionObj());
     if (obj !== null) {
       this.obj = obj;
       g.hud.setObjective(obj);
@@ -999,7 +997,17 @@ export class CoopClient implements NetAttachment {
       const line = this.mission.take(this.g.world.map.missions, msg.ms);
       if (line) this.g.hud.feedItem(line);
       const mr = this.mission.runner;
-      if (mr && this.missionHud) this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
+      if (mr) {
+        this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
+        // (mission-rules R6) the host's live section is our runner's section, so its steps open here too (the mirror
+        // only applies done and fact bits; without a section no step is ever open on this page)
+        const sid = msg.ls !== undefined && msg.ls >= 0 ? this.g.world.map.sectors?.[msg.ls]?.id : undefined;
+        const si = sid === undefined ? -1 : mr.sectionIndex(sid);
+        if (si !== mr.section) {
+          mr.snapshot(si);
+          mr.version++;
+        }
+      }
     }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
@@ -1168,9 +1176,14 @@ export class CoopClient implements NetAttachment {
     if (this.inCourse) clientCourseFrame(this.g, dt);
     this.sec?.frame(dt);
     this.card?.update(dt);
-    if (this.missionHud) {
-      const mr = this.mission.runner;
-      this.missionHud.frame(mr && !mr.finished ? mr : null, this.missionViewer, this.g.app.settings.get().gameplay.hints);
+    // (mission-rules R6, HG7) the mirrored mission's current step on our objective line, written only when it changes
+    if (this.missionFeed.update(this.missionRunning(), this.missionViewer, this.g.app.settings.get().gameplay.hints)) {
+      const obj = this.missionObj();
+      if (this.gotSnap && obj !== this.obj) {
+        this.obj = obj;
+        this.g.hud.setObjective(obj);
+      }
+      this.g.hud.setObjectiveHint(this.missionFeed.hint);
     }
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
@@ -1359,6 +1372,27 @@ export class CoopClient implements NetAttachment {
     const out: Blip[] = [];
     for (const a of this.avatars.values()) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
     return out;
+  }
+
+  /** (mission-rules R6) The mirrored mission while it runs in the host's live section (not finished); null otherwise. */
+  private missionRunning(): MissionRunner | null {
+    const mr = this.mission.runner;
+    return mr && !mr.finished && mr.section >= 0 ? mr : null;
+  }
+
+  /** (mission-rules R6) Our objective line: our current mission step, else (none, or no mission) the host's line. */
+  private missionObj(): string {
+    return (this.missionRunning() && this.missionFeed.text) || this.hostObj;
+  }
+
+  /**
+   * (mission-rules R6, HG8) Field Terminal > Objectives while the host's mission is mirrored here: its rules line and
+   * steps for our team, never the sector rows; null otherwise. hud-guidance B4: the SectorListMirror rows here
+   * (`this.list?.lines() ?? null`).
+   */
+  objectiveLines(): ObjectiveLine[] | null {
+    const mr = this.mission.runner;
+    return mr ? missionObjectiveLines(mr, this.missionViewer, this.g.app.settings.get().gameplay.hints) : null;
   }
 
   dispose(): void {
