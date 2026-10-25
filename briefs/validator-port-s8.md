@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:19:13+11:00
 # J12 validator-port, slice S8 (Opus-grade brief): mission-validate re-cut onto the lib
 
 Lead: Night Shift | Marlow Build (joint with Campaign Build, which reads the schema before the checker). Plan passed
