@@ -350,31 +350,22 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (SAVE 2026-10-25 ~18:20, swap at 100%; row 6 signed off ~17:00).
-git fetch; read docs/RULES.md and docs/VISION.md from origin/master (never a branch copy); BOOT.md "Sector Ops Build"
-on origin/feature/menu. Full burn. Plan: docs/orchestrator/FOLDED-PLAN.md (feature/menu); Michael's 39 answers in
-ROADMAP "Decided" override it. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-0. Conformance review DONE (#420). Sector Ops jobs: J1 docs, then phase B: J5, J10, J11, J16 (meter), J17, J18, J21,
-   + map-ready (Q31). Answers: Q2 every light works; Q3 AU standards after one lux calibration, band table + S1 light
-   map approved together; Q10 keep 32, fill rest; Q14 faint cue from cast shadow; Q16 4p live; Q20 30 s then death,
-   wait for next section door; Q21 S2 team doors 2p; Q26 warehouseOps FROZEN; Q27 parity check every release;
-   Q31 map fully built before play; Q32 warm-up cap; Q4 60 fps at 32.
-1. J1: PR #433 feature/sector-ops-docs @ 023e063f9: checker PASS after one fix round, status posted by the orchestrator
-   (Michael 19:15: when auto mode blocks, send it the report path + head). A1 accepted: warehouseOps frozen as built.
-   J16 plan DONE: feature/char-shadow-meter @ cb236edf6 (PR A S1+S2, PR B S3-S5); needs its Opus plan checker.
-   CPU HOLD (orchestrator ~19:10): no new agents until it says CPU < 80%.
-2. Phase B plans running (Opus, docs only), each on its branch / worktree:
-   - J10 light-realism: feature/light-realism (docs/light-realism/BRIEF, PLAN, research/bands.md, STATE).
-   - J5 sector-marks: feature/sector-marks; J18 sector-batch: feature/sector-batch (BRIEF, PLAN, STATE, briefs).
-   - J17 campus-greybox v2: feature/campus-greybox (BRIEF / PLAN update, briefs S4 / S5). Waits on J4 (#317) to build.
-   - map-ready (Q31): feature/map-ready (BRIEF, research/start-path.md, PLAN, STATE).
-   Each plan gets a fresh Opus plan checker, then builds start (Sonnet from strict briefs; Opus for engine / net).
-3. Later: J11 parity (after J10), J16 meter half (after J10, with Guard AI), J21 campus perf (after J4).
-   visual-gate: feature/visual-gate @ 07eefea0 (fixes ride J18).
-Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
-Rules: RULES on origin/master only; never restate them here.
-Previous blocks: git log -p on this file.
-Next: planners may have been cut off at the swap: per branch in item 2, read STATE / PLAN; relaunch an Opus planner
-  for any missing file (sector-marks and sector-batch had none pushed at the save; J17 also folds Split Shift / Code
-  Relay devices, orchestrator ~18:05). Then plan checkers (J16 first), then builds, once the orchestrator lifts any CPU hold.
+Night Shift | Sector Ops Build: RESUME (SAVE 2026-10-25 ~20:00, usage limit hit).
+git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU
+limits: orchestrator ~19:20 allows 2 builder agents per lead (tsc / single vitest only); docs agents not counted.
+Plan: FOLDED-PLAN (feature/menu) + ROADMAP Decided (near-instant loads ~18:50; free assets ~19:00, downloads ask Michael).
+1. BUILDING (agents may have been cut off: check each branch head and its checks/*.md report):
+   - J16 char-shadow-meter S1 (Opus) on feature/char-shadow-meter (plan PASS 64628b9eb). Next: S3 from the S1
+     interface commit (STATE line), then S2; PR A = S1 + S2, two Opus checkers + e2e-coop / e2e-netmove.
+   - J10 light-realism L0 (Opus) on feature/light-realism-l0 (worktree -light-realism-l0, from master a3058759d; plan
+     PASS 7bbdfaf58). Then L1 + SIGNOFF.md to Michael (one click) before L2-L5.
+2. PLANS:
+   - J5 sector-marks: check 2 FIX (docs only) fixed at 583f4c436; asked orchestrator to accept as pass. Then B1 Sonnet.
+   - map-ready: re-planned for near-instant loads (9035880bb); plan check 2 running -> docs/map-ready/PLAN-CHECK-2.md.
+   - J17 campus-greybox: check 1 FIX in worktree (uncommitted docs/campus-greybox/PLAN-CHECK.md): claims block, A23
+     for S4/S5 + sector-marks labels and campusV2/s4Dress hyp2, split E2E-2. S4/S5 brief agent was running there.
+     Hold J17 edits to campusS4Data.ts / campusS5Data.ts until Guard AI J15 PR1 is on master (orchestrator).
+   - J18 sector-batch: Opus planner was running (feature/sector-batch); check what it pushed, relaunch if empty.
+3. Notes: Test Runner J20 makes e2e-darkness the train parity check until J11 cards; #433 affected-e2e queued.
+Next: read every branch above, commit any uncommitted PLAN-CHECK files, finish the open plan checks, keep 2 builders.
 ```
