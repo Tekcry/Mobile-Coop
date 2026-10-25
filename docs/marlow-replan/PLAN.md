@@ -174,8 +174,9 @@ maps: ctcourse, ctcourseReplan
 protocol: course
 save: none
 ```
-Wire: `course` gains `PackedCourse.st` (the live station, R1); `start` / `lobby` are unchanged (the host names
-`ctcourseReplan` in the existing `map` field); the train bumps `PROTOCOL_VERSION`. Save: none (`courseRecord` keys bays).
+Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) and `rc` (last retry cause), all R1;
+`start` / `lobby` are unchanged (the host names `ctcourseReplan` in the existing `map` field); the train bumps
+`PROTOCOL_VERSION`. Save: none (`courseRecord` keys bays).
 
 **Collisions with open work** (`gh pr list` and origin/feature/* changed vs master, 2026-10-25 ~20:45):
 - **#441 feature/marlow-objective-place (J5, ours):** `ctcourseSets/a2CarriageShed.ts`, `a3OfficeRange.ts`,
@@ -196,7 +197,7 @@ Wire: `course` gains `PackedCourse.st` (the live station, R1); `start` / `lobby`
   `docs/level-validator/**`, S9's `docs/marlow-final/graph/**` (the as-built graph). This job claims none of those; it
   supplies the re-planned graph (`docs/marlow-replan/graph.json`).
 - **J13 feature/route-runs-2 (ours):** `scripts/route-run*`, `docs/route-runs/**`, `docs/level-design.md`. No overlap;
-  J13 reads our graph and the station hook.
+  J13 reads our graph, the station hook and R1's `window.__course.restarts` / `lastRetry` (R4c).
 - **feature/coop-kit (Player):** `teamMoves.ts`, `teamController.ts`, `src/world/plankBridge.ts`,
   `src/world/counterweightGrate.ts`, `src/game/kit/*`, `flags.ts` (`kitMoves`). No overlap except `flags.ts`; KS1-KS5
   only call Player's devices from `replan/<set>.ts`.
@@ -275,6 +276,16 @@ generalised: `retry: 'station'` fires on a guard in combat or a camera's full de
 respawns both at `marks` through `checkpointPos()` / `checkpointSpawns()` (:887-900; the client is placed by the host's
 `onRespawn`, no new event); the A3 `HallRule` and the A2 `spotFail` are not set on `ctcourseReplan`; the drill pointer
 shows the next station's mark as built (Q18) and a drill-mark guard test pins it. The built `ctcourse` keeps its rules.
+- **Route-run hooks (J13 R4c, origin/feature/route-runs-2 `docs/route-runs/PLAN.md:192-221`).** R4c's course watcher
+  reads a rise of `window.__course.restarts` on every poll and names the cause (seen / timer / other). R1 gives it:
+  `CourseState.restarts` (a count, 0 at match start) and `CourseState.lastRetry` (`{ n, st, cause }`, `st` the station
+  retried, `cause` `'seen' | 'caught' | 'timer' | 'out' | 'down'`), packed as `PackedCourse.rs` (count) and `rc` (last
+  cause) beside `st`. Every station retry increments `restarts` and records its cause: `seen` (A1-A7 guard combat or a
+  camera's full detection), `caught` (A8 `CAUGHT_HOLD`), `timer` (a `drillS` window or A8 timed step ending), `out`
+  (F1's one-out on a station bay); a both-down bay restart also increments it with `down` (R4c's `other`). Host:
+  `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
+  the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: { st: w.s.st,
+  cause: w.s.rc }`, so the harness reads the same hook on host and client. No new event, no save.
 - Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts`, `src/game/modes/courseMode.ts`,
   `src/net/protocol.ts`, `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
   `tests/courseMarks.test.ts` (the `parseCourse` round trip of `st` goes in `courseStation.test.ts`, not `net.test.ts`),
@@ -284,7 +295,10 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
 - Done looks like: in a unit course of two stations, a guard alert in station 2 puts both players at station 2's marks
   with station 1 still done and station 1's downed guard still down; a `caught` bay ignores a 1.5 s combat and retries
   at 2 s; a drill window ending retries in place; a player going out in station 2 (`onPlayerOut`, F1) retries station 2
-  with both back on its marks; the built `ctcourse` behaves as today (its tests unchanged).
+  with both back on its marks; each of those retries raises `window.__course.restarts` by one on host and client with
+  `lastRetry.cause` `seen`, `caught`, `timer` and `out` in turn (unit test in `tests/courseStation.test.ts`: the count
+  and cause through `pack()` -> `parseCourse` -> the client mirror object); the built `ctcourse` behaves as today (its
+  tests unchanged).
 - Flag: `marlowReplan` (only `ctcourseReplan` carries stations). Depends on: S0's first commit (`stationDef.ts`).
 
 **F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Fixes to the shipped yard, allowed at the walk cap
