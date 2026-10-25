@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:08:35+11:00
+status: done feature/mission-rules-net-fix1 505fc066f6186de576ff48311bf2cdeabf02a0f9
 
 # campaign J7 PR E fix round 1 (Opus 5.5, src/net)
 
@@ -38,3 +38,25 @@ feature/mission-rules-net itself), message "mission-rules PR E fix: ...", Co-Aut
 
 ## Done
 Push feature/mission-rules-net-fix1 (path-limited commits "mission-rules PR E fix: ..."); write the report (changes, tests with counts, deviations) at the end of this brief; e2e is pending PC run (the lead runs it). Do NOT push to feature/mission-rules-net itself: the lead merges.
+
+## Report
+Cloud Builder 2, 2026-10-25. Branch feature/mission-rules-net-fix1 (from 09975841c), one commit 505fc066f6186de576ff48311bf2cdeabf02a0f9 "mission-rules PR E fix: resumed campaign host starts once the partner is back". Not pushed to feature/mission-rules-net.
+
+Changes
+- src/net/session.ts:427-458 `NetSession.startWhenUnblocked(blocked: () => string | null)` (host): a one-shot `lobby` listener shaped like `autoLocalCourse`'s, no `allReady` check: in phase `lobby`, `blocked()` null and not over capacity, `setTimeout(() => startMatch(), 0)` (re-checked when the task runs; one queued at a time). Mode-agnostic: takes the block getter (J14 F1 can pass its folded one-player block). Removed on any `start` (by any route), `cancelAutoStart()` (:454), `leave()` (:474) and a mode / map / mission change in `setSettings` (:355). A check that fails when the task runs (partner dropped again in that tick) keeps it pending for the next lobby change. `autoStarting` getter (:449) for tests. Field `autoOff` :104.
+- src/net/coopUi.ts:811-814 resume branch: `if (!session.startMatch() && session.campaignBlock === CAMPAIGN_TWO_PLAYERS) session.startWhenUnblocked(() => session.campaignBlock)`; comment rewritten (the partner is waiting in its match with no Ready button; the start goes on its hello, no ready).
+- src/net/coopUi.ts:640 over-capacity Start text: "Too many players for the campaign (2)" in a campaign room, "this mode" otherwise.
+- src/game/mission/campaign.ts:31-33 `export const CAMPAIGN_PLAYERS = 2` (also used by `campaignStartBlock` :62); src/net/session.ts:15 `CAMPAIGN_ROOM = CAMPAIGN_PLAYERS`.
+- tests/campaignSession.test.ts: new describe "PR E fix" (5 cases): resumed host alone stays in lobby and the waiting joiner's hello starts it with no Ready press (start next task, once, listener gone); fires once (backToLobby with both in does not auto start); gone after leave (a start queued before leave never runs; a lone host's leave drops it); partner drops before the start keeps it pending and its menu rejoin starts the match; a switch off the campaign drops it (no solo start), a difficulty change keeps it. Also fixed the file's pre-existing eslint error (`typeof import()` in the protocol mock -> `import type * as Protocol`).
+
+Tests (cloud: tsc + single vitest files, --maxWorkers=2)
+- `npm run typecheck:fast`: clean.
+- vitest: campaignSession 15/15 (10 old + 5 new), missionNet3 13/13, rejoin 12/12, coopRejoin 12/12, campaignRevives 6/6, mission/campaign 9/9 (67/67). Mutation check: with the timer's startMatch removed, 3 of the 5 new cases fail.
+- eslint on the 4 changed files: clean.
+- e2e: pending PC run (lead): Resume hosting a Tallow campaign match with the joiner waiting in its match -> the match restarts for both with no Ready press.
+
+Deviations
+- The listener lives on NetSession (session.ts), not in coopUi.ts, so it is unit-tested directly; coopUi only arms it.
+- Added: a host mode / map / mission change while waiting cancels the auto start (else switching off the campaign would lift the block and start the host alone at once). Open item: after such a change the waiting joiner is stuck as before (it never goes to the lobby while `waiting`); not in this brief.
+- Edited the pre-existing lint error in tests/campaignSession.test.ts (listed file) so `eslint .` passes on it.
+- No wire change, no PROTOCOL_VERSION change.
