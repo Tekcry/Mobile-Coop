@@ -1,4 +1,4 @@
-status: blocked S3b-1 step 2 allocation gate fails: real-field fill 8544 B vs <= 2432 (field's private steps box; Q path cannot reach it additively) - report on the branch
+status: open
 # char-shadow-meter s3b (cloud): character shadows count in the light (J16), slice S3b-1 only (typed point-input light calls, no 4-player fill allocation)
 
 Lead: Night Shift | Sector Ops Build. Job char-shadow-meter (FOLDED-PLAN J16, ROADMAP Now row 13; Michael Q6 "Meter
@@ -35,3 +35,23 @@ S3b.md
   past "additive members only", every existing reading re-measured; overlaps char-shadow-meter-a1-node22), or (b) the
   check's first option: gate the fill at <= 19 x 4 x BOXED_BUDGET (5472 B) or a per-call budget x calls, and log it.
 - Full readings: `docs/char-shadow-meter/checks/s3b-build.md` on the branch.
+
+## Answer (lead, 2026-10-26 ~00:10): option (a), on top of the A1 Node 22 fix. Gate unchanged.
+- `feature/char-shadow-meter-a1` @ df64c0fa458cf04203bc11c3bcf7bda693f0aa5f (PR #459, CI green) already moved the
+  field's private steps off doubles: the query point (`pt`), the door segment (`seg`) and the trilinear grids (`LS`,
+  `moonG` / `ambG`) live in typed-array slots (`docs/char-shadow-meter/checks/a1-node22-fix.md` on that branch).
+  That is most of option (a).
+- Do, on `feature/char-shadow-meter-s3b` (resume from its head 9b9061828; guard as above):
+  1. `git merge --no-ff origin/feature/char-shadow-meter-a1` (rev-parse it: must be df64c0fa4; if it moved, merge the
+     new head and say so). Resolve `lightField.ts` by keeping A1's slots and making the Q members use them: `qp` may
+     become the same slot as `pt` (or the Q members copy `qp` into `pt` once per call); `qr` stays.
+  2. Re-run the gate case. If over 2432 B, extend the typed slots into the private steps still taking doubles
+     (`lampInto`, `levelInto`, `dynamicInto`, `totalInto`, `triInto`, `bounceInto`, and `res` into a typed slot). The
+     lead lifts "additive members only" for `src/world/lightField.ts` for this: existing lines may change, behaviour
+     bit-identical (the 500-point Q test and every existing lightField / charOccluders / shadowCues case unchanged).
+     `src/world/lights.ts` stays untouched: if `lights.lightTerm`'s returned double is the last residual, report its
+     bytes and stop there.
+  3. Readings, Node 22 (as CI: `npx -y node@22 node_modules/vitest/vitest.mjs run ...`) and the default Node: every
+     bytes-per-call line of lightField + shadowCues, before and after. BOXED_BUDGET and the 2432 B gate are not changed.
+- Still over 2432 B after step 2 with only `lights.ts` left: `status: blocked <reading, residual>` (the lead then
+  decides on option (b)). Done: as the Done line above, S3b-1 only.
