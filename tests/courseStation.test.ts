@@ -16,6 +16,7 @@ import { parseMessage } from '../src/net/protocol';
 import { resumeMap, roomMap } from '../src/net/session';
 import type { GameState } from '../src/game/gameState';
 import type { SecurityConsole } from '../src/game/course/securityRoom';
+import { LightRegistry } from '../src/world/lights';
 
 const DT = 0.1;
 
@@ -560,14 +561,52 @@ describe('the station hooks\' window sources (fix round 2)', () => {
       expect(h.jammed('cam-a3-hall')).toBe(false);
       r.ct.jamId[1] = 'cam-a3-hall';
       expect(h.jammed('cam-a3-hall')).toBe(true);
-      expect(h.jammed('lt-52')).toBe(false);
-      r.ct.jamId[0] = 'lt-52';
-      expect(h.jammed('lt-52')).toBe(true);
+      expect(h.jammed('lt-7')).toBe(false);
+      r.ct.jamId[0] = 'lt-7';
+      expect(h.jammed('lt-7')).toBe(true);
       r.ct.jamId[1] = '';
       expect(h.jammed('cam-a3-hall')).toBe(false);
       // no CtDevices (a map without devices): never jammed
       (r.mode as unknown as { ct: unknown }).ct = null;
-      expect(h.jammed('lt-52')).toBe(false);
+      expect(h.jammed('lt-7')).toBe(false);
+    } finally {
+      r.restore();
+    }
+  });
+
+  it('lit: a light group lit, dark from a jam\'s off time or a shot-out lamp, and an unknown group (check B3)', () => {
+    const r = replanRig();
+    try {
+      const h = r.h();
+      // the course's light registry: group 52 has two lamps, group 3 one
+      const reg = new LightRegistry();
+      const a = reg.add({ x: 0, y: 3, z: 0, group: 52 });
+      const b = reg.add({ x: 2, y: 3, z: 0, group: 52 });
+      reg.add({ x: 4, y: 3, z: 0, group: 3 });
+      (r.mode as unknown as { g: { world: { level: { lights: LightRegistry } } } }).g.world.level.lights = reg;
+      r.step();
+      expect(h.lit(52)).toBe(true);
+      expect(h.lit(3)).toBe(true);
+      // a jam's off time darkens one lamp: the other keeps the group lit
+      reg.jamStart(a.id);
+      reg.jamLit(a.id, false);
+      expect(h.lit(52)).toBe(true);
+      reg.jamStart(b.id);
+      reg.jamLit(b.id, false);
+      expect(h.lit(52)).toBe(false);
+      expect(h.lit(3)).toBe(true);
+      // the jam over: lit again
+      reg.jamEnd(a.id);
+      expect(h.lit(52)).toBe(true);
+      // shot out: dark for good, even when the jam ends
+      expect(reg.destroy(a.id)).toBe(true);
+      reg.jamEnd(b.id);
+      expect(h.lit(52)).toBe(true);
+      expect(reg.destroy(b.id)).toBe(true);
+      expect(h.lit(52)).toBe(false);
+      // a group with no lamps
+      expect(h.lit(99)).toBe(false);
+      expect(h.lit(-1)).toBe(false);
     } finally {
       r.restore();
     }
