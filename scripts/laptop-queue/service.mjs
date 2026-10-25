@@ -50,8 +50,8 @@
 // service's takes no new request claim (logged once per holder); trains still wait on it as before.
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
-// scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
-// laptop-queue branch. --dry-run only logs what it would disable.
+// scheduled task (lib staleTasks; allowlist lib TASK_ALLOW: the two queue tasks, auto-train and the watchdog, plus env
+// LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the laptop-queue branch. --dry-run only logs what it would disable.
 // Overlapping trains (Michael 2026-10-24 ~21:00, docs/orchestrator/overlap-trains-PLAN.md section 3; inert while no
 // stacked trains exist): pending trains run lowest number first and a lower train's rerun goes before a higher train
 // (lib pick); the desktop takes a second, different train while the laptop runs one (lib workerActivity openTrain,
@@ -84,13 +84,20 @@
 // queueRequester): a newer head on the same branch supersedes the older request (its affected-e2e gets error
 // "superseded"), and pick takes PR branches in arrival order beside the leads. Heads older than LQ_AFFECTED_MAX_AGE_H
 // (24; 0 = no limit) and heads with no merge-base here (forks) are skipped, logged once.
+// Never stuck pending (Orchestrator audit 2026-10-25): a retired affected request posts affected-e2e (duplicate: handed
+// over to the surviving affected request, or success when it repeats a recent pass; lib duplicateStatuses), one
+// withdrawn before it ran posts error (two listings in a row, lib vanishedRequests / withdrawnStatuses; a laptop rerun
+// closes its own context too), and a head whose affected-e2e is pending with no open, claimed or running affected
+// request is requested again (lib affectedNeeds stuck).
+// Slot locks (2026-10-25): heavy-lock.mjs parseLock reads both lock formats, so a desktop slot lock left by a killed
+// service ("laptop-queue | ... pid <n> | <iso>", pid dead here) is broken at the gate like a dead heavy-lock line.
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -209,6 +216,25 @@ let openListed = [];
 /** Running request id -> listings in a row it was missing from; ids missing from two are withdrawn (lib cutShort). */
 const missing = new Map();
 const withdrawnIds = new Set();
+/**
+ * Laptop: open requests that leave a pending status behind if withdrawn unrun (auto affected requests, laptop reruns;
+ * lib withdrawnStatuses), id -> request, and the listings in a row each one was missing from (lib vanishedRequests).
+ */
+const openTracked = new Map();
+let openMisses = new Map();
+const tracksWithdraw = (r) => r.requester === AFFECTED_REQUESTER || Boolean(r.laptopRerun);
+
+/** Closes the pending statuses of tracked open requests withdrawn before they ran (two listings in a row). */
+function closeWithdrawn(listed) {
+  const v = vanishedRequests(openTracked, listed, openMisses);
+  openMisses = v.misses;
+  for (const r of v.gone) {
+    openTracked.delete(r.id);
+    if (state.done[r.id] || claimed.has(r.id) || activeReqs.has(r.id) || doneElsewhere.has(r.id)) continue;
+    log(`${r.id}: withdrawn by the requester before it ran`);
+    for (const s of withdrawnStatuses(r)) postStatus(s.sha, s.state, s.context, s.description);
+  }
+}
 
 function listRequests() {
   git(['fetch', '-q', 'origin'], { soft: true });
@@ -225,6 +251,7 @@ function listRequests() {
       missing.set(id, n);
       if (n >= 2) withdrawnIds.add(id);
     }
+    if (!DESKTOP) closeWithdrawn(listed);
   }
   const out = [];
   otherActive = [];
@@ -248,6 +275,12 @@ function listRequests() {
     out.push(r);
   }
   openListed = out;
+  if (!DESKTOP) {
+    for (const r of out) if (tracksWithdraw(r)) openTracked.set(r.id, r);
+    // done, or claimed by the other worker (its run posts its own withdrawal): no longer tracked here
+    const elsewhere = new Set(otherActive.map((r) => r.id));
+    for (const id of openTracked.keys()) if (state.done[id] || doneElsewhere.has(id) || elsewhere.has(id)) { openTracked.delete(id); openMisses.delete(id); }
+  }
   return out;
 }
 
@@ -325,7 +358,7 @@ function pushFile(rel, text, label) {
 
 const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? 10) * 60_000;
 // exact names; NightShift-run-* one-shots with an EndBoundary are allowed in staleTasks
-const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train',
+const TASK_ALLOW = [...TASK_ALLOW_BASE,
   ...String(process.env.LQ_TASK_ALLOW ?? '').split(',').map((s) => s.trim()).filter(Boolean)];
 // every scheduled task as JSON: { name, path, state, actions: [{ execute, args }], ends: [trigger EndBoundary] }
 const TASK_LIST_PS = "$ErrorActionPreference = 'Stop'; $o = @(Get-ScheduledTask | ForEach-Object { [pscustomobject]@{ name = $_.TaskName; path = $_.TaskPath; state = [string]$_.State; "
@@ -394,9 +427,13 @@ function affectedPass() {
     const prs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid,isDraft,labels,statusCheckRollup']) || '[]');
     const heads = new Set(prs.map((p) => p.headRefOid));
     for (const s of affectedSeen) if (!heads.has(s)) affectedSeen.delete(s);
-    const needs = affectedNeeds(prs, [...openListed, ...activeReqs.values(), ...otherActive], affectedSeen);
+    const reqs = [...openListed, ...activeReqs.values(), ...otherActive];
+    // a head whose request the listing shows needs no `seen` guard any more: if that request later leaves without a
+    // final status, the stuck pending head is requested again (lib affectedNeeds stuck)
+    for (const r of reqs) if (r?.requester === AFFECTED_REQUESTER) affectedSeen.delete(r.sha);
+    const needs = affectedNeeds(prs, reqs, affectedSeen);
     for (const n of needs) {
-      const tag = `affected: #${n.pr} ${n.sha.slice(0, 8)} (${n.branch})`;
+      const tag = `affected: #${n.pr} ${n.sha.slice(0, 8)} (${n.branch})${n.stuck ? ' [affected-e2e pending with no request: requested again]' : ''}`;
       const ct = Number(git(['show', '-s', '--format=%ct', n.sha], { soft: true })) * 1000;
       if (AFFECTED_MAX_AGE_MS > 0 && ct && Date.now() - ct > AFFECTED_MAX_AGE_MS) {
         if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: head older than ${AFFECTED_MAX_AGE_MS / 3600_000} h, no auto request`); }
@@ -1276,16 +1313,19 @@ function applySupersedes(requests) {
     doneSynced.add(id);
     // an auto affected request's older head: its pending affected-e2e is closed (the newer head has its own); a laptop
     // rerun's "desktop FAIL ..., laptop rerun queued" pending is closed too (lib supersedeStatuses)
-    for (const s of supersedeStatuses(requests.find((r) => r.id === id), by)) postStatus(s.sha, s.state, s.context, s.description);
+    // (an affected survivor on the same sha takes affected-e2e over instead)
+    for (const s of supersedeStatuses(requests.find((r) => r.id === id), by, requests.find((r) => r.id === by))) postStatus(s.sha, s.state, s.context, s.description);
   }
   saveState();
   return requests.filter((r) => !sup.has(r.id));
 }
 
 /**
- * Marks open requests that repeat another request done as duplicates (no run, no status) in one push and drops them
- * (lib duplicates): against the open ones, the ones claimed or running here or on the other worker, and the ones done
- * here within LQ_DUP_WINDOW_MIN. A lost push is retried next pass.
+ * Marks open requests that repeat another request done as duplicates (no run) in one push and drops them (lib
+ * duplicates): against the open ones, the ones claimed or running here or on the other worker, and the ones done here
+ * within LQ_DUP_WINDOW_MIN. An auto affected request posts affected-e2e (lib duplicateStatuses: handed over to the
+ * surviving affected request, or success when it repeats a recent pass); others post nothing. A lost push is retried
+ * next pass.
  */
 function applyDuplicates(requests) {
   const recent = Object.entries(state.done).filter(([, d]) => d?.key).map(([id, d]) => ({ id, key: d.key, result: d.result, date: d.date }));
@@ -1295,11 +1335,13 @@ function applyDuplicates(requests) {
   const ids = [...dup.keys()];
   const date = new Date().toISOString();
   if (!DRY && writeClaims(ids, 'done', `duplicate ${ids.length} request(s)`) !== true) { log(`duplicate push failed for ${ids.length} request(s), retried next pass`); return requests; }
+  const all = [...requests, ...active];
   for (const [id, by] of dup) {
     log(`${id}: duplicate of ${by}`);
     if (DRY) continue;
     state.done[id] = { result: 'duplicate', by, date };
     doneSynced.add(id);
+    for (const s of duplicateStatuses(all.find((r) => r.id === id), by, all.find((r) => r.id === by) ?? null, state.done[by]?.result)) postStatus(s.sha, s.state, s.context, s.description);
   }
   saveState();
   return requests.filter((r) => !dup.has(r.id));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -391,10 +391,21 @@ describe('claims and the desktop lane', () => {
     // a fresh taker replaced it (or it was released) between the reads: no break
     expect(slotLockDecision(t, 'other | 2026-10-25T01:00:00.000Z | pid 77 | host DESKTOP', dead)).toEqual({ action: 'hold', why: 'the lock changed between two reads' });
     expect(slotLockDecision(t, null, dead).action).toBe('hold');
-    // no parseable pid: the noclobber way and the service's own lines are respected
+    // no parseable pid: the noclobber way is respected
     expect(slotLockDecision('Marlow Build | marlow-final | 18:48', 'Marlow Build | marlow-final | 18:48', dead)).toEqual({ action: 'hold', why: 'no pid in the lock' });
-    const own = 'laptop-queue | request 1a2b3c4d pid 99 | 2026-10-25T00:20:00.000Z';
-    expect(slotLockDecision(own, own, dead).action).toBe('hold');
+    let probed = 0;
+    slotLockDecision('Marlow Build', 'Marlow Build', { host: 'DESKTOP', alive: () => { probed++; return false; } });
+    expect(probed).toBe(0);
+  });
+  it('slot lock decision: the service line (no host) is this machine\'s; a dead pid breaks it (2026-10-25 pid 4484)', () => {
+    const dead = { host: 'DESKTOP', alive: () => false };
+    const own = 'laptop-queue | 20261025T104000-affected-e2e-d0f574cb-c404 d0f574cb pid 4484 | 2026-10-25T10:40:00.000Z';
+    expect(slotLockDecision(own, own, dead)).toEqual({ action: 'break', why: 'pid 4484 is not alive on DESKTOP' });
+    expect(slotLockDecision(`${own}\n`, own, dead).action).toBe('break');
+    expect(slotLockDecision(own, own, { host: 'DESKTOP', alive: () => true })).toEqual({ action: 'hold', why: 'pid 4484 is alive' });
+    expect(slotLockDecision(own, 'laptop-queue | train 83 e610098c pid 77 | 2026-10-25T10:52:00.000Z', dead).action).toBe('hold');
+    const noPid = 'laptop-queue | request 1a2b3c4d | 2026-10-25T00:20:00.000Z';
+    expect(slotLockDecision(noPid, noPid, dead)).toEqual({ action: 'hold', why: 'no pid in the lock' });
     let probed = 0;
     slotLockDecision('Marlow Build', 'Marlow Build', { host: 'DESKTOP', alive: () => { probed++; return false; } });
     expect(probed).toBe(0);
@@ -636,6 +647,13 @@ describe('staleTasks', () => {
     const vbs = [{ execute: 'wscript.exe', args: '//B //NoLogo "C:\\NightShift\\scratch\\auto-train-task.vbs"' }];
     expect(staleTasks([t('NightShift-laptop-queue', 'Running', ps('-Command "node scripts/laptop-queue/service.mjs"')), t('NightShift-desktop-queue', 'Ready'), t('NightShift auto-train', 'Ready', vbs)], allow)).toEqual([]);
     expect(staleTasks([t('NightShift-extra', 'Ready')], [...allow, 'NightShift-extra'])).toEqual([]);
+  });
+  it('the service allowlist keeps the watchdog task (its action runs a .vbs in scratch; audit 2026-10-25)', () => {
+    const vbs = [{ execute: 'wscript.exe', args: '//B //NoLogo "C:\\NightShift\\scratch\\watchdog-task.vbs"' }];
+    expect(TASK_ALLOW).toEqual([...allow, 'NightShift watchdog']);
+    expect(staleTasks([t('NightShift watchdog', 'Ready', vbs)], TASK_ALLOW)).toEqual([]);
+    expect(staleTasks([t('NightShift watchdog', 'Ready', vbs)], allow).map((x: { why: string }) => x.why)).toEqual(['runs from C:\\NightShift\\scratch']);
+    expect(staleTasks([t('NightShift-chain-x', 'Ready')], TASK_ALLOW)).toHaveLength(1);
   });
   it('NightShift-run-* is allowed only with an EndBoundary (one-shot-task.ps1)', () => {
     expect(staleTasks([t('NightShift-run-a', 'Ready', chain, ['2026-10-24T11:00:00Z'])], allow)).toEqual([]);
@@ -1051,7 +1069,7 @@ describe('affected e2e on every PR head', () => {
       pr(2, { headRefName: 'train/66' }),
       pr(3, { isDraft: true }),
       pr(4, { labels: [{ name: AFFECTED_SKIP_LABEL }] }),
-      pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state: 'PENDING' }] }),
+      pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state: 'FAILURE' }] }),
       pr(6, { statusCheckRollup: [{ name: 'check', conclusion: 'SUCCESS' }, { context: 'laptop-e2e/affected', state: 'SUCCESS' }] }),
       pr(7),
       pr(8),
@@ -1063,6 +1081,16 @@ describe('affected e2e on every PR head', () => {
       { pr: 8, sha: SHA('8'), branch: 'feature/p8' },
     ]);
     expect(affectedNeeds([pr(1)]).map((x: { pr: number }) => x.pr)).toEqual([1]);
+  });
+  it('affectedNeeds: a pending affected-e2e with no open, claimed or running affected request is requested again (stuck)', () => {
+    const pending = { statusCheckRollup: [{ context: AFFECTED_CTX, state: 'PENDING' }] };
+    expect(affectedNeeds([pr(5, pending)])).toEqual([{ pr: 5, sha: SHA('5'), branch: 'feature/p5', stuck: true }]);
+    expect(affectedNeeds([pr(5, pending)], [{ requester: AFFECTED_REQUESTER, sha: SHA('5') }])).toEqual([]);
+    expect(affectedNeeds([pr(5, pending)], [{ requester: AFFECTED_REQUESTER, sha: SHA('5'), active: true }])).toEqual([]);
+    expect(affectedNeeds([pr(5, pending)], [], new Set([SHA('5')]))).toEqual([]);
+    // a lead's request on the head does not carry affected-e2e: still stuck
+    expect(affectedNeeds([pr(5, pending)], [{ requester: 'lead', sha: SHA('5') }]).map((x: { stuck?: boolean }) => x.stuck)).toEqual([true]);
+    for (const state of ['SUCCESS', 'FAILURE', 'ERROR']) expect(affectedNeeds([pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state }] })])).toEqual([]);
   });
   it('affectedRequest: the request.mjs --affected shape, valid for requestProblem', () => {
     const r = affectedRequest({ now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-coop'], suffix: 'beef' });
@@ -1099,10 +1127,72 @@ describe('supersedeStatuses', () => {
     expect(supersedeStatuses(orig, 'NEW-ID')).toEqual([]);
     expect(supersedeStatuses(undefined, 'NEW-ID')).toEqual([]);
   });
+  it('an affected survivor on the same sha takes affected-e2e over; another sha or requester does not', () => {
+    const aff = { ...orig, requester: AFFECTED_REQUESTER, set: 'affected' };
+    expect(supersedeStatuses(aff, 'N', { ...aff, id: 'N' })).toEqual([{ sha: orig.sha, state: 'pending', context: AFFECTED_CTX, description: 'handed over to N' }]);
+    expect(supersedeStatuses(aff, 'N', { ...aff, id: 'N', sha: 'b'.repeat(40) })[0].state).toBe('error');
+    expect(supersedeStatuses(aff, 'N', { ...orig, id: 'N' })[0].state).toBe('error');
+  });
   it('an affected request closes affected-e2e; its laptop rerun closes both', () => {
     const aff = { ...orig, requester: AFFECTED_REQUESTER, set: 'affected' };
     expect(supersedeStatuses(aff, 'N')).toEqual([{ sha: orig.sha, state: 'error', context: AFFECTED_CTX, description: 'superseded by a newer head (N)' }]);
     const rr = laptopRerunRequest(aff, ['e2e-coop'], { now: Date.UTC(2026, 9, 24, 12, 30), suffix: 'beef' });
     expect(supersedeStatuses(rr, 'N').map((x: { context: string }) => x.context)).toEqual(['laptop-e2e/affected', AFFECTED_CTX]);
+  });
+});
+
+describe('affected-e2e never stuck pending (Orchestrator audit 2026-10-25)', () => {
+  const S = 'c'.repeat(40);
+  const W = 60 * 60_000;
+  const aff = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: AFFECTED_REQUESTER, kind: 'pr', sha: S, branch: 'feature/x', pr: 12, set: 'affected', suites: ['smoke', 'e2e-coop'], ...o });
+  it('duplicates: an affected request is retired against another affected request or a recent pass, never against a lead run', () => {
+    const lead = aff(40, 'lead', { requester: 'Night Shift | Player Build' });
+    const a1 = aff(30, 'a1');
+    const a2 = aff(20, 'a2');
+    expect([...duplicates([a1, a2], [], NOW, W)]).toEqual([[a2.id, a1.id]]);
+    expect([...duplicates([{ ...a1, active: true }, a2], [], NOW, W)]).toEqual([[a2.id, a1.id]]);
+    // the lead's open or running run posts laptop-e2e/affected only: the affected one stays and runs
+    expect(duplicates([lead, a1], [], NOW, W).size).toBe(0);
+    expect(duplicates([{ ...lead, active: true }, a1], [], NOW, W).size).toBe(0);
+    // with both open, a second affected one goes to the affected survivor, and a newer lead run to the oldest
+    expect([...duplicates([lead, a1, a2], [], NOW, W)]).toEqual([[a2.id, a1.id]]);
+    const lead2 = aff(10, 'lead2', { requester: 'Night Shift | Player Build' });
+    expect(duplicates([a1, lead2], [], NOW, W).get(lead2.id)).toBe(a1.id);
+    // a recent pass of the same run (any requester) retires it
+    const done = [{ id: 'D', key: dupKey(lead), result: 'success', date: new Date(NOW - 10 * 60_000).toISOString() }];
+    expect(duplicates([a1], done, NOW, W).get(a1.id)).toBe('D');
+  });
+  it('duplicateStatuses: hand over to an affected survivor, success after a recent pass, nothing for other requesters', () => {
+    const a1 = aff(30, 'a1');
+    const a2 = aff(20, 'a2');
+    expect(duplicateStatuses(a2, a1.id, a1)).toEqual([{ sha: S, state: 'pending', context: AFFECTED_CTX, description: `handed over to ${a1.id}` }]);
+    expect(duplicateStatuses(a2, 'D', null, 'success')).toEqual([{ sha: S, state: 'success', context: AFFECTED_CTX, description: 'duplicate of D, passed' }]);
+    expect(duplicateStatuses(a2, 'X', { ...a1, requester: 'lead' })[0].state).toBe('error');
+    expect(duplicateStatuses(a2, 'D', null, 'failure')[0].state).toBe('error');
+    expect(duplicateStatuses({ ...a2, requester: 'lead' }, a1.id, a1)).toEqual([]);
+    expect(duplicateStatuses(undefined, 'X', null)).toEqual([]);
+  });
+  it('withdrawnStatuses: an unrun affected request closes affected-e2e, a laptop rerun its own context too', () => {
+    const a = aff(30, 'a');
+    const d = 'withdrawn by the requester (not run)';
+    expect(withdrawnStatuses(a)).toEqual([{ sha: S, state: 'error', context: AFFECTED_CTX, description: d }]);
+    const rr = laptopRerunRequest(a, ['e2e-coop'], { now: NOW, suffix: 'beef' });
+    expect(withdrawnStatuses(rr)).toEqual([{ sha: S, state: 'error', context: 'laptop-e2e/affected', description: d }, { sha: S, state: 'error', context: AFFECTED_CTX, description: d }]);
+    expect(withdrawnStatuses({ ...a, requester: 'lead' })).toEqual([]);
+    expect(withdrawnStatuses(null)).toEqual([]);
+  });
+  it('vanishedRequests: gone only after two listings in a row; listed again starts over', () => {
+    const a = aff(30, 'a');
+    const b = aff(20, 'b');
+    const tracked = new Map([[a.id, a], [b.id, b]]);
+    const one = vanishedRequests(tracked, new Set([b.id]));
+    expect(one.gone).toEqual([]);
+    expect([...one.misses]).toEqual([[a.id, 1]]);
+    const back = vanishedRequests(tracked, new Set([a.id, b.id]), one.misses);
+    expect(back.gone).toEqual([]);
+    expect(back.misses.size).toBe(0);
+    const two = vanishedRequests(tracked, new Set([b.id]), one.misses);
+    expect(two.gone).toEqual([a]);
+    expect(two.misses.size).toBe(0);
   });
 });
