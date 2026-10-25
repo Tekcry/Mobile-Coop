@@ -132,6 +132,21 @@ describe('Enemy.releaseHeel (guard-rules S8, A12)', () => {
     }
   });
 
+  it('already searching (a body, a noise): it starts over round the new spot (as bodySearch)', async () => {
+    const d = await probe({ x: 12, z: -7 });
+    d.aware.set('searching');
+    d.aware.t = 30;
+    const q = d as unknown as Record<string, unknown>;
+    Object.assign(q, { searchK: 3, lkpWait: true, lkpLate: true, planN: 2, planPoint: true, spotSet: true, combatSearch: true });
+    expect(d.releaseHeel()).toBe(true);
+    expect(d.aware.t).toBe(0);
+    expect([q.searchK, q.lkpWait, q.lkpLate, q.planN, q.planPoint, q.spotSet, q.combatSearch]).toEqual([0, false, false, 0, false, false, false]);
+    expect([d.stimulus[0], d.stimulus[1]]).toEqual([12, -7]);
+    expect(d.searchOwn).toBe(true);
+    expect(d.rushing).toBe(true);
+    expect(d.level).toBe('searching');
+  });
+
   it('heel-back: once the search ends (cooldown) the dog heads for its heel spot by a living handler', async () => {
     const d = await probe({ x: 12, z: -7 }, 12, -7);
     const h = mate(0, 0, 0.6);
