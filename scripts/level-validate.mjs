@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // level-validate: checks a map's connectivity graph (docs/level-validator/graph-schema.md) against the level standard
 // (docs/level-design.md, its rule index and mode profiles) before any geometry is built. `meta.mode` picks the profile:
-// `campaign` (two players, a forced co-op gate per section, gate reach), `sector` (Sector Ops: 1-4 players, no softlock,
-// the alive ceiling) or `training` (Marlow Yard: one guided route, no route-count, gate or softlock checks). A port of the reference
+// `campaign` (two players, a forced co-op gate per section, gate reach, the alive ceiling), `sector` (Sector Ops: 1-4
+// players, no softlock, the alive ceiling, an unavoidable guard) or `training` (Marlow Yard: one guided route, no
+// route-count, gate or softlock checks; timed drills allowed). A port of the reference
 // skill's validate_level.py (docs/level-validator/source/, algorithms only: reach, edge-disjoint routes); our rules win.
 // Every size and time comes from the metrics JSON generated from docs/design/scale-sheet.md (M2): this file holds no
 // size or time constant. A metrics key the check needs but the sheet lacks prints one WARN and the check is skipped;
@@ -43,7 +44,7 @@ const WALK_KINDS = new Set(['door', 'double_door', 'opening', 'roller_door', 'co
   'tunnel', 'pair_gate']);
 /** Kinds whose `width` / `height` are required (graph-schema: openings, passages, stairs, ducts). */
 const NEEDS_WIDTH = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair', 'open_stair',
-  'duct', 'tunnel', 'pair_gate', 'split_jump', 'shutter']);
+  'duct', 'tunnel', 'pair_gate', 'split_jump', 'shutter', 'team_throw']);
 const NEEDS_HEIGHT = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'duct', 'tunnel',
   'pair_gate', 'split_jump']);
 /** Climbs and drops carry the height they cover. */
@@ -58,7 +59,11 @@ const NEEDED_ROUTES = ['shadow', 'high', 'loud'];
 const MODES = new Set(['campaign', 'sector', 'training']);
 /** The training profile (Marlow Yard) is one guided route: no route-count checks (level-design 3.2, 3.3, 11.2; G292). */
 const routeRules = (meta) => meta.mode !== 'training';
-const PLAIN_TAGS = new Set(['start', 'exfil', 'objective', 'checkpoint', 'reward', 'entry', 'exit', 'sync_pair']);
+const PLAIN_TAGS = new Set(['start', 'exfil', 'objective', 'checkpoint', 'reward', 'entry', 'exit', 'sync_pair',
+  'unavoidable']);
+/** Modes whose guards spawn on the Sector Ops runtime under its alive ceiling: Sector Ops and the campaign (campaign
+ *  missions run on `SectorMode`, mission-framework A6; Michael 2026-10-25 ~11:35: "32 alive"). */
+const ALIVE_CEILING_MODES = new Set(['sector', 'campaign']);
 const SPLIT_TAG = /^split:(.+):(a|b)$/;
 const OVERWATCH_TAG = /^overwatch:(.+)$/;
 /** Beat chart (level-design 6.2): 4-5 is a high beat, 1-2 a release; a `spine` link counts as a release (decision 3). */
@@ -318,6 +323,11 @@ export function checkStructure(graph) {
       c.err(`${name}: size must be [w, l, h] in metres`);
     }
     if (!Number.isInteger(s?.tension) || s.tension < 1 || s.tension > 5) c.err(`${name}: tension must be 1-5`);
+    // Timed drills (level-design 6.3): Marlow Yard only; the campaign and Sector Ops have soft windows only (G334).
+    if (s?.drill_s !== undefined) {
+      if (meta?.mode !== 'training') c.err(`${name}: drill_s on a ${meta?.mode} map (timed drills are Marlow Yard only; soft windows only, level-design 6.3)`);
+      else if (typeof s.drill_s !== 'number' || !Number.isFinite(s.drill_s) || s.drill_s <= 0) c.err(`${name}: drill_s must be seconds > 0`);
+    }
     if (!Array.isArray(s?.tags)) {
       c.err(`${name}: tags missing (may be empty)`);
     } else {
@@ -443,7 +453,27 @@ export function checkDimensions(graph, metrics) {
       }
       case 'shutter':
         below(width, 'sizes.door_min_w', 'width');
+        below(height, 'sizes.shutter_gap_h', 'held gap');
         break;
+      // The co-op kit's bands (scale-sheet section 3): a lip past the code's reach fails the move (ERR); a lip under the
+      // co-op band's low end is one a player may reach alone (WARN, as the boost).
+      case 'team_pull':
+      case 'team_hang': {
+        const key = l.kind === 'team_pull' ? 'sizes.pull_lip' : 'sizes.hang_lip';
+        const r = c.range(key, `the ${l.kind} lip check`);
+        if (lc === undefined || !r) break;
+        if (lc > r[1] + EPS) c.err(`${name}: lip ${fmt(lc)} m above the ${fmt(r[1])} m ${l.kind === 'team_pull' ? 'pull-up' : 'relay'} reach`);
+        else if (lc < r[0] - EPS) c.warn(`${name}: lip ${fmt(lc)} m under the ${fmt(r[0])}-${fmt(r[1])} m co-op band`);
+        break;
+      }
+      case 'team_rope':
+        outside(lc, 'sizes.rope_span', 'rope climb', 'err');
+        break;
+      case 'team_throw': {
+        const max = c.num('sizes.throw_gap_max', 'the throw gap check');
+        if (width !== undefined && max !== undefined && width > max + EPS) c.err(`${name}: gap ${fmt(width)} m above the ${fmt(max)} m throw`);
+        break;
+      }
       case 'double_door': {
         const r = c.range('sizes.door_double_w', 'the double door width check');
         if (width !== undefined && r && width < r[0] - EPS) c.err(`${name}: width ${fmt(width)} m below ${fmt(r[0])} m`);
@@ -532,8 +562,9 @@ export function checkReach(graph, metrics = null) {
   if (meta.mode !== 'sector') return c.r;
   // Grow the solo region: start, then whatever a co-op move opens. A co-op link out of the region into a space the
   // region does not reach solo is the only way there (a softlock if that partner goes down); the space and what is
-  // solo-reachable from it join the region, so the co-op moves behind it are judged from there, in file order.
-  const soloAdj = adjacency(links, (l) => !COOP_KINDS.has(l.kind));
+  // solo-reachable from it join the region, so the co-op moves behind it are judged from there, in file order. Solo
+  // arcs: a `bolted` door opens for one player only from its `to` side.
+  const soloAdj = adjOf(soloArcsOf(links));
   const coopArcs = arcsOf(links, (l) => COOP_KINDS.has(l.kind));
   const region = reachable(soloAdj, start);
   for (let grown = true; grown;) {
@@ -713,9 +744,10 @@ export function checkEncounters(graph, metrics) {
       }
     }
   }
-  // Sector Ops alive ceiling (G187, G332): per section and player count, the encounter spaces' counts (each at the
-  // largest key not above that count) sum to at most `sector_alive_max`.
-  if (meta.mode === 'sector') {
+  // Alive ceiling (G187, G332; the campaign runs on the same runtime, Michael 2026-10-25 ~11:35 "32 alive"): per
+  // section and player count, the encounter spaces' counts (each at the largest key not above that count) sum to at
+  // most `sector_alive_max`.
+  if (ALIVE_CEILING_MODES.has(meta.mode)) {
     const ceiling = c.num('rules.sector_alive_max', 'the Sector Ops alive ceiling');
     for (const sec of ceiling === undefined ? [] : sections) {
       for (const p of players) {
@@ -751,6 +783,29 @@ export function checkEncounters(graph, metrics) {
     const max = c.num('rules.dead_end_max_m', 'the dead-end depth check');
     const l = Math.max(s.size[0], s.size[1]);
     if (max !== undefined && l > max + EPS) c.err(`${s.id}: dead end ${fmt(l)} m deep, over ${fmt(max)} m`);
+  }
+
+  // Unavoidable guards (level-design 4.12, G303): a space tagged `unavoidable` stands on every way (two players, every
+  // link) from its section's entry to the section's exit or to one of its objectives. Sector Ops needs at least one.
+  const allAdj = adjacency(links);
+  let unavoidable = 0;
+  for (const s of spaces) {
+    if (!hasTag(s, 'unavoidable')) continue;
+    unavoidable += 1;
+    if (s.type !== 'encounter' || !s.guards || !Object.values(s.guards).some((n) => n > 0)) {
+      c.warn(`${s.id}: tagged unavoidable but is not a guarded encounter space`);
+    }
+    const inSec = spaces.filter((x) => x.section === s.section);
+    const entry = inSec.find((x) => hasTag(x, 'entry'));
+    const targets = inSec.filter((x) => hasTag(x, 'exit') || hasTag(x, 'objective')).map((x) => x.id);
+    if (!entry || entry.id === s.id || targets.includes(s.id) || !targets.length) continue;
+    const around = reachable(allAdj, entry.id, new Set([s.id]));
+    if (targets.every((t) => around.has(t))) {
+      c.warn(`${s.id}: tagged unavoidable, but section ${s.section}'s exit and objectives are reached around it`);
+    }
+  }
+  if (meta.mode === 'sector' && !unavoidable) {
+    c.warn('no space tagged unavoidable: some sections need a guard the players cannot avoid (level-design 4.12, G303)');
   }
 
   // Routes cross (level-design 3.3): inside each section, between its entry and exit (every route starts and ends

@@ -1,6 +1,6 @@
 # Scale sheet - Night Shift
 
-Measured from the code (2026-10-10, speeds 2026-10-25). "Derived" = worked out from code numbers, not run in a test. Never change the player to fit a map. This sheet owns every size, speed, time and target `docs/level-design.md` names by its metrics key.
+Measured from the code (2026-10-10; speeds, camera and the co-op kit 2026-10-25). "Derived" = worked out from code numbers, not run in a test. Never change the player to fit a map. This sheet owns every size, speed, time and target `docs/level-design.md` names by its metrics key.
 
 ## 1. What the game has
 
@@ -8,8 +8,9 @@ Measured from the code (2026-10-10, speeds 2026-10-25). "Derived" = worked out f
 | --- | --- | --- |
 | Player capsule | 1.75 m stand, 1.15 m crouch, radius 0.30 | `config/movement.ts` |
 | Eye height | 1.60 stand, 1.05 crouch | `playerController.ts:216` |
-| Camera | boom 2.2 m (ADS 1.5), shoulder offset 0.62 m, pivot 1.62 m, wall padding 0.16, min boom 0.28, FOV 75 | `config/camera.ts` |
-| Walk speeds (m/s) | stand 0.75 / 1.4 / 2.1 / 3.0 / 4.0; crouch 0.85 / 1.3 / 1.7 / 2.15 / 2.6 (creep, sneak, walk, jog, run; the stick sets the speed between them) | `GEARS`, `config/movement.ts:159-160` |
+| Camera | boom 1.8 m in tight spaces, 2.8 m in open ones (crouched 2.2), aim 0.4; shoulder offset 0.15 (aim 0.30); pivot 1.68 m (the head top); wall padding 0.16, min boom 0.28; FOV 86 | `config/camera.ts` |
+| Walk speeds (m/s) | stand 0.75 / 1.4 / 2.1 / 3.0 / 4.0; crouch 0.85 / 1.3 / 1.7 / 2.15 / 2.6 (creep, sneak, walk, jog, run; the stick sets the speed between them; no sprint) | `GEARS`, `config/movement.ts:159-160` |
+| Silent speeds | footsteps are silent on every floor up to 1.9 m/s crouched (creep, sneak, walk) and 1.65 m/s standing (creep, sneak); the floor only scales audible steps | `NOISE_QUIET`, `config/movement.ts:273-276` |
 | Guard walk speed | 0.75 - 0.9 (officer 0.85, grunt 0.9, heavy 0.75, sniper 0.85) | `enemies.json` |
 | Step limit | player 0.42 m, nav 0.45 m | `MOVEMENT.maxStep`, `navBuild.ts:72` |
 | Stairs and ramps | collide as a smooth ramp; nav accepts a surface if its normal.y > 0.65 (slope up to about 49 deg) | `levelBuilder.ts:191`, `navBuild.ts:88` |
@@ -20,6 +21,9 @@ Measured from the code (2026-10-10, speeds 2026-10-25). "Derived" = worked out f
 The character is 1.75 m, so it is close to a real 1.8 m person. The ratio is already normal: a 2.1 m door is 1.20 x the character (real: 2.04 / 1.75 = 1.17). No in-map correction needed. Keep door height 2.1 m; do not go below 2.0 or above 2.2.
 
 ## 2. Camera sets the room size
+
+Measured on the old camera (boom 2.2 m, shoulder offset 0.62 m). The CT camera (section 1) sits closer; the widths are
+re-measured on it before they change (G54), and until then these sizes stand.
 
 Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side, and the same again after a shoulder swap. A boom of 2.2 m needs open space behind the player.
 
@@ -47,6 +51,11 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Walk-in tunnel | 2.1 m clear minimum, 2.4 preferred; guards can enter |
 | Co-op lip | 4.3 - 4.5 m, above the solo wall jump (section 1); one band for the boost and the human ladder (level-design 11.8, 12.2 G57; `TEAM.boostMax` 4.5, `config/movement.ts:459`) |
 | Split-jump gap | 1.2 - 1.95 m between faces, faces at least 3.6 m tall (level-design 12.1: split gaps are found from these automatically) |
+| Pull-up lip | 4.3 - 4.5 m over the catcher's floor, the co-op lip band (`PULL.min` - `max` = `WALL_JUMP.maxUp` 3.8 + 0.5 and `TEAM.boostMax` 4.5; the pull-up kit move is on the mission-framework branch, not on master yet). Graph kind `team_pull` |
+| Relay lip | 4.3 - 4.6 m over the climber's floor: the co-op band's low end up to the highest hang the relay serves (`TEAM.relayMax` 4.6, `config/movement.ts:476`). Graph kind `team_hang` |
+| Two-person rope | 2.2 - 6.0 m climb from the climber's floor to the holder's edge (`TEAM.ropeMin` - `ropeMax`, `config/movement.ts:513-514`); a climb up only, no descent. Graph kind `team_rope` |
+| Throw gap | at most 2.7 m: the runner lands `TEAM.throwDist` 3.2 m past the thrower (`config/movement.ts:483`), less a 0.5 m landing margin. Graph kind `team_throw` |
+| Held shutter | 0.9 m crawl gap under the held shutter (`SHUTTER.holdGap`; the shutter kit move is on the mission-framework branch, not on master yet); the doorway follows the door rows. Graph kind `shutter` |
 | Low cover | 1.2 m high hides a crouched player; a 1.0 m rail does not |
 | Curb or step | 0.15 - 0.40 m; never between 0.40 and 0.45 (player and nav disagree) |
 | Recess, locker bay, pillar niche | 1.0 deep x 1.2 wide minimum, opening faces away from the guard's approach |
@@ -70,6 +79,7 @@ The grid blocks a cell within 0.32 m of a wall face. Cell centres sit every 0.5 
 - Never two doors facing each other across a corridor (offset by 2.0 m or more).
 - No door-after-door chain: at least 5 m of open floor between doors on a route.
 - Recess or cover every 8 m; no straight run over 12 m without a bend or cover.
+- Shadow-route stepping stones (darkness, cover or a hide spot): 4 - 8 m apart, never more than 8 m (level-design 3.5).
 
 ## 6. Real code check (NCC, Australia)
 
@@ -161,6 +171,11 @@ illuminance band from the lighting standards; the engine light is calibrated to 
 greybox exit. **Values set by light-realism** (the Sector Ops Build job): until it fills them, every cell reads `TBD`
 and `scripts/metrics-gen.mjs` does not read this section.
 
+**Until then (interim rule):** light each space like a real site of that type at night (G329): a car park, a road or a
+yard lit as such sites are lit, an interior lit as it would be after hours. The floor shadow share is reported for
+information only. Marlow Yard's "lit by default, the players cut it" (G279) is the training course's rule; it is never
+the fallback for the campaign or Sector Ops.
+
 | Space type | Standard | Min lux | Max lux | Note |
 | --- | --- | --- | --- | --- |
 | Outdoor car park | AS/NZS 1158.3.1 | TBD | TBD | values set by light-realism |
@@ -172,3 +187,14 @@ and `scripts/metrics-gen.mjs` does not read this section.
 | Lab, server room | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
 | Warehouse, plant room | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
 | After-hours interior (lights off) | - | TBD | TBD | values set by light-realism |
+
+## 10. Patrol timing
+
+Added 2026-10-25 (moved from level-design 4.3). Design-doc checks on the guard sheets and the e2e patrol test (level-design
+15); `scripts/metrics-gen.mjs` does not read this section. Starting values (G10).
+
+| Thing | Value |
+| --- | --- |
+| Patrol cycle | 25 - 45 s |
+| Stop at a patrol point | 3 - 6 s |
+| Gap in coverage the player can use | 3 - 8 s |
