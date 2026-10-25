@@ -992,38 +992,29 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Resume prompt
 ```
-Guard AI Build resume (laptop; rules: CLAUDE.md "Sessions" on origin/master + docs/orchestrator/BOOT.md "Common start"
-and "Guard AI Build" on origin/feature/menu). Leads post a `checker` commit status on the checked head. Read this
-block only. Branch guard before every write. Never merge master into a branch. 2 Opus checkers on AI / src/net PRs;
-Opus triage on every laptop failure; laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node
-scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build"
---suites "a b" [--priority N] (verdict = GitHub status laptop-e2e/<set>; background wait loop that breaks only on
-success|failure|error). Withdraw = delete requests/<id>.json on branch laptop-queue. Laptop auto mode blocks the
-train-ready label: tell the orchestrator. Before pushing a PR head: vitest the tests importing the changed modules AND
-their direct importers (--maxWorkers=2). FULL BURN (Michael 08:25). A desktop-worker failure leaves its log on the
-desktop: ask the orchestrator for the FAIL lines.
-Open (save 2026-10-25 ~09:00; agents die at the cap: relaunch each from its brief + WIP):
-1. #387 one-mover (feature/guard-ai-batch3, worktree C:/NightShift/Mobile-Coop-guard-ai-batch3, off master). AI bug
-   (walker re-picked as flank beside a bounding point; slices/ONE-MOVER-TRIAGE.md on that branch). Checks A + B PASS,
-   checker success on c88135b67 + docs head 2914bdfb. Laptop e2e-stealth-ai (set one-mover, priority 9) pending on
-   c88135b67. Green -> send head 2914bdfb to the orchestrator (it re-checks + labels; train with #374 / #378 / #380).
-   Polish for a later PR: reverse-path unit case (walker made point while flank bound), ai.md clause, comment
-   enemyManager.ts:3360. Train 78 had stealth-ai green: the bug is intermittent, not blocking.
-2. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix6 49b2b05b (test-only: setCrouch(false)
-   raced padReady's toggle clear; docs/coop4/checks/ai6-triage-6.md). e2e-coop queued (set coop4-fix6). If the run leg
-   fails to locate (loc null, turnBy 'turn'): leg at 2.2 m (test-only). CONFLICT with master in src/net/protocol.ts:
-   no master merge; by-hand train merge = master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and
-   `slotFromList` import. Green -> gh pr ready 317 + orchestrator train-ready.
-3. #360 T1 + shadow-in-view (Michael ~08:50 "Yes, shadow in view = seen"; replaces A183 hold). Branch
-   feature/guard-ai-t1-anim-tier, worktree C:/NightShift/Mobile-Coop-guard-ai-t1. Brief
-   docs/guard-ai/slices/T1-SHADOW-BRIEF.md (this branch). Opus builder was mid-build at the save: WIP snapshot
-   origin/wip/guard-ai-t1-shadow e285501c (uncommitted animTier.ts, animTierView.ts, enemy.ts, flags.ts,
-   guardLod.test.ts; base 4c0ba05d0). Relaunch: worktree behind? `git checkout origin/wip/guard-ai-t1-shadow -- .` then
-   finish from the brief. Then queue the measure run + look rerun (brief "Measure" / "Look"), 2 Opus checkers. Ship
-   only if the tier-8 saving is real and the slide is gone with hipShadowInView true.
-4. #377 polish2 (feature/guard-ai-polish2): checker PASS + laptop affected green on 4fac8536; CI red only on the
-   pr-size bug: once #378 is on master, `gh run rerun --failed` on #377 (and #360) heads, then orchestrator train-ready.
-5. Next: spot-height slice after #377 merges (docs/guard-ai/slices/SPOT-HEIGHT-BRIEF.md, A196, off master).
-6. Waiting: mission hooks em.missionOrder (Marlow's go); Michael's calls A148 / S23 / S25; after #317 merges:
+Guard AI Build resume (laptop). Rules: docs/RULES.md + docs/VISION.md from origin/master; BOOT.md "Common start" and
+"Guard AI Build" on origin/feature/menu. Read this block only. Branch guard before every write. Never merge master
+into a branch. 2 Opus checkers on AI / src/net PRs; Opus triage on every laptop failure. Laptop runs: cd
+C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name>
+--requester "Night Shift | Guard AI Build" --suites "a b" (or --alone --step "<cmd>"); verdict = status
+laptop-e2e/<set>; background wait loop. Laptop auto mode blocks labels: tell the orchestrator at train-ready.
+DOCS-FIRST HOLD (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6);
+finished PRs may ship.
+Open (save 2026-10-25 ~13:40):
+1. FIRST: conformance review (review-briefs/guard-ai.md on origin/feature/menu). Branch feature/conformance-guard-ai,
+   worktree C:/NightShift/Mobile-Coop-conformance-guard-ai. Parts A patrols, B archetypes, C perception, D response
+   -> docs/conformance-guard-ai/parts/*.md, folded into CONFORMANCE.md. Then docs PR, one fresh Opus checker,
+   message the orchestrator with the PR number. Agents died? relaunch a missing part from the brief.
+2. #360 T1 + shadow-in-view (feature/guard-ai-t1-anim-tier, worktree -guard-ai-t1). Orchestrator asked to ship it
+   (pr-size red). Opus agent: split scripts/t1-shadow-look.mjs into its own PR (feature/guard-ai-t1-look-script,
+   worktree -guard-ai-t1-look), queue measure + look (docs/guard-ai/slices/T1-SHADOW-BRIEF.md "Measure", "Look"),
+   write slices/T1-SHADOW-REPORT.md. Then 2 Opus checkers -> orchestrator train-ready. Ship only if the tier-8
+   saving is real and no shadow slide.
+3. #317 coop4 (feature/coop4, worktree -coop4): laptop-e2e/coop4-fix7 GREEN on 24ba2e518. Asked the orchestrator:
+   ship now or hold for ROADMAP row 16. CONFLICT in src/net/protocol.ts: by-hand train merge = master's
+   PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
+4. After sign-off (ROADMAP row 14): lookouts + paired patrols (G335), helmets by tier (G350), dogs (G348); row 11
+   character shadows in perception (G352, with Sector Ops); spot-height slice (slices/SPOT-HEIGHT-BRIEF.md, A196).
+5. Waiting: mission hooks em.missionOrder (Campaign Build's go); Michael's calls A148 / S23 / S25; after #317:
    feature/coop4-pol (134f6abe) alone 7-9 set, snapBudget headroom, comment coopHost.ts:589, TODO sectorMode.ts:201.
 ```
