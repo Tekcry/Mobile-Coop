@@ -1,6 +1,7 @@
 # campus-greybox - PLAN
 
-Opus plan, 2026-10-25 (J17 rewrite ~18:30). Intent: BRIEF "Michael said" / "Michael picked". Approach: BRIEF A1 (dark merge
+Opus plan, 2026-10-25 (J17 rewrite ~18:30; plan check 1 fix round ~20:00: claims block and overlaps 2a, A23 on five
+files, TAG-4 / TAG-5 replace coop4's rows, E2E-2a / 2b, A26 sector-marks carry, A27 J15 PR1 first, A13 v2 graph path). Intent: BRIEF "Michael said" / "Michael picked". Approach: BRIEF A1 (dark merge
 per section). Five section lanes build in parallel; no two lanes edit the same file. FOLDED-PLAN J17 (break 27; Sector
 Ops C1-C16, Guard AI A1 A2 B14, Marlow V9, Test Runner T6 campusOps half).
 
@@ -9,7 +10,9 @@ Ops C1-C16, Guard AI A1 A2 B14, Marlow V9, Test Runner T6 campusOps half).
 | Job | What this job needs from it | Blocks |
 | --- | --- | --- |
 | J4 Guard AI release (#317 coop4 ships on, Q16) | `SectorGuard.minPlayers`, `guardForTeam`, `capReinforce`, team size at section load, `tests/sectorGuardTags.test.ts` | the TAG slices (section 5) and every switch-on; nothing else |
-| J12 V6 validator port (Marlow) | `scripts/level-measure.mjs` + `level-validate.mjs --require-measured` on master's mode profiles; a way to measure with `flags.campusV2` set (request: a `--flags campusV2=1,2,3,4,5` argument, else MEAS-0 below); accept `unavoidable` on a guarded exit connector (BRIEF A18) | greybox exit of every section |
+| J15 guard-rules PR1 (Guard AI; orchestrator's order, BRIEF A27) | on master before any J17 edit to `campusS4Data.ts` / `campusS5Data.ts`; the S4 / S5 gear data (no section `'helmet'`, `'armour'` for `'both'`, `shieldTeams`) and `checkSectorGuards` | P0's PR (it edits both files), so every lane PR that still carries P0's commits |
+| sector-marks (same lead, G355 rule fix; BRIEF A26) | merges first; its four objective labels and `campusS4Dress.ts` `hyp2` are carried into the split and v2 files at the next master take | nothing (a carry) |
+| J12 V6 validator port (Marlow) | `scripts/level-measure.mjs` + `level-validate.mjs --require-measured` on master's mode profiles; a way to measure with `flags.campusV2` set (request: a `--flags campusV2=1,2,3,4,5` argument, else MEAS-0 below); accept `unavoidable` on a guarded exit connector (BRIEF A18). Its S10 owns the five live graph files and their drift test until SW-<N> (BRIEF A13) | greybox exit of every section |
 | J13 route-runs (Marlow) | the harness that walks every declared route against live guards ("Never stuck") | greybox exit |
 | J10 light-realism (Sector Ops) | the band table (scale sheet 9) and the lux calibration | final lamp values only: lanes build with provisional values (BRIEF A19) |
 | J26 prototype support (Campaign, Guard AI) | the mission wiring over the devices in section 6 | the missions, not the greybox |
@@ -24,23 +27,61 @@ Ops C1-C16, Guard AI A1 A2 B14, Marlow V9, Test Runner T6 campusOps half).
 - `src/world/maps/campusSections.ts`: `CAMPUS_PARTS[k]` = v2 parts when `flags.campusV2` names k + 1, else live.
 - Combiners read only `CAMPUS_PARTS`: `campusSectors.ts`, `campusLips.ts`, `campusOps.ts` `buildCampus`, `campusDress.ts`.
 - `tests/campusV2.test.ts`: flag off = live parts; flag on = v2; every section still marked `S<N>_V2_COPY` equals live.
-- P0 PR: open it now; it trains dark. If #317 lands first, BRIEF A23 (the lead carries coop4's tag rows into the split
-  files and the v2 copies). Lanes cut from P0's head (`c2f1f131` or its descendant on this branch), so their PRs share
+- P0 PR: open it now; it trains dark once J15 guard-rules PR1 is on master (BRIEF A27: P0 edits `campusS4Data.ts` /
+  `campusS5Data.ts`). At its master take the lead carries, into the live split files and every still-marked v2 copy:
+  coop4's ten tag rows if #317 landed first (BRIEF A23: S1-S3 into `campusS1Data.ts` .. `campusS3Data.ts`, S4 / S5 kept in
+  `campusS4Data.ts` / `campusS5Data.ts`, all ten into `campusV2/s1Data.ts` .. `s5Data.ts`), PR1's S4 / S5 gear data
+  (A27), and sector-marks' labels and `hyp2` (A26). Lanes cut from P0's head (`c2f1f131` or its descendant on this branch), so their PRs share
   P0's commits and shrink to their own diff once P0 is on master.
 
 ## 2. File ownership (claims)
 
 | Owner | Files (only these) |
 | --- | --- |
-| Lane S1 (`feature/campus-greybox-s1`) | `src/world/maps/campusV2/s1*.ts`, `tests/campusV2S1*.test.ts`, `docs/sector-redesign/graph/campusOps-S1.json`, new `src/world/campusArt/assets/*-s1-v2.*` |
-| Lane S2 | `campusV2/s2*.ts`, `tests/campusV2S2*.test.ts`, `graph/campusOps-S2.json`, new `*-s2-v2.*` assets |
-| Lane S3 | `campusV2/s3*.ts`, `tests/campusV2S3*.test.ts`, `graph/campusOps-S3.json`, new `*-s3-v2.*` assets |
-| Lane S4 | `campusV2/s4*.ts`, `tests/campusV2S4*.test.ts`, `graph/campusOps-S4.json`, new `*-s4-v2.*` assets |
-| Lane S5 | `campusV2/s5*.ts`, `tests/campusV2S5*.test.ts`, `graph/campusOps-S5.json`, new `*-s5-v2.*` assets |
-| TAG-<N> (one per section, after J4; branch `feature/campus-greybox-tag<N>` from origin/master) | the section's `campusV2/s<N>Data.ts` (append two rows), `tests/campusV2S<N>Tags.test.ts`, the section's graph (keys "3" / "4") |
-| E2E lane, Opus (`feature/campus-greybox-e2e`, from origin/master after P0) | `scripts/e2e-anchors.mjs` (a campusOps part), `scripts/e2e-sectorops.mjs` (a new v2 part 7 only; parts 1-6 untouched), `docs/systems/testing-tools.md` rows for both |
-| Lead (`feature/campus-greybox`) | `src/core/flags.ts` (`campusV2`), `campusParts.ts`, `campusSections.ts`, `campusSectors.ts`, `campusLips.ts`, `campusOps.ts`, `campusDress.ts`, `campusBake.ts`, `tests/campusV2.test.ts`, `docs/sector-redesign/signoff/SYNC.md` (src lines), `docs/campus-greybox/*.md`, `changes/feature-campus-greybox.md`; at switch-on also `tests/campusS<N>*.test.ts`, `tests/sectorGuardTags.test.ts`, `scripts/e2e-sectorops.mjs` part 6 |
-| Nobody until switch-on | the live `campusS<N>.ts`, `campusS<N>Dress.ts`, `campusS<N>Data.ts`, `tests/campusS<N>*.test.ts` |
+| Lane S1 (`feature/campus-greybox-s1`) | `src/world/maps/campusV2/s1*.ts`, `tests/campusV2S1*.test.ts`, `docs/sector-redesign/graph/v2/campusOps-S1.json`, new `src/world/campusArt/assets/*-s1-v2.*` |
+| Lane S2 | `campusV2/s2*.ts`, `tests/campusV2S2*.test.ts`, `graph/v2/campusOps-S2.json`, new `*-s2-v2.*` assets |
+| Lane S3 | `campusV2/s3*.ts`, `tests/campusV2S3*.test.ts`, `graph/v2/campusOps-S3.json`, new `*-s3-v2.*` assets |
+| Lane S4 | `campusV2/s4*.ts`, `tests/campusV2S4*.test.ts`, `graph/v2/campusOps-S4.json`, new `*-s4-v2.*` assets |
+| Lane S5 | `campusV2/s5*.ts`, `tests/campusV2S5*.test.ts`, `graph/v2/campusOps-S5.json`, new `*-s5-v2.*` assets |
+| TAG-<N> (one per section, after J4; branch `feature/campus-greybox-tag<N>` from origin/master) | the section's `campusV2/s<N>Data.ts` (append two rows), `tests/campusV2S<N>Tags.test.ts`, the section's `graph/v2/` file (keys "3" / "4") |
+| E2E lane, Opus (`feature/campus-greybox-e2e`, `-e2e2a`, `-e2e2b`, each from origin/master) | `scripts/e2e-anchors.mjs` (a campusOps part, E2E-1), `scripts/e2e-sectorops.mjs` (new v2 parts 7 (E2E-2a) and 8 (E2E-2b) only; parts 1-6 untouched), `scripts/run-e2e.mjs` (`PARTS` row: add '7', '8'), `scripts/e2e-affected.mjs` (add `e2e-sectorops:7` / `:8` to the `src/world/maps/campus` DIRECT_COVERS row), `docs/systems/testing-tools.md` rows for them |
+| Lead (`feature/campus-greybox`) | `src/core/flags.ts` (`campusV2`), `campusParts.ts`, `campusSections.ts`, `campusSectors.ts`, `campusLips.ts`, `campusOps.ts`, `campusDress.ts`, `campusBake.ts`, `tests/campusV2.test.ts`, `docs/sector-redesign/signoff/SYNC.md` (src lines), `docs/campus-greybox/**`, `changes/feature-campus-greybox.md`; V2-SEED (the five `graph/v2/` files, once); at switch-on also the live `graph/campusOps-S<N>.json`, `docs/level-validator/graph-sets.json` (the section's counts), `tests/campusS<N>*.test.ts`, `tests/sectorGuardTags.test.ts`, `scripts/e2e-sectorops.mjs` part 6 |
+| Lead, master takes only (BRIEF A23, A26, A27) | the live `campusS1Data.ts` .. `campusS5Data.ts` (P0's split and `S<N>_PARTS`; carries of coop4's rows, PR1's gear data, sector-marks' labels) |
+| Nobody until switch-on | the live `campusS<N>.ts`, `campusS<N>Dress.ts`, `tests/campusS<N>*.test.ts`, `docs/sector-redesign/graph/campusOps-S<N>.json` (J12 S10's until SW-<N>, BRIEF A13) |
+| MEAS-0 (only if J12 ships no flag argument) | `scripts/level-measure.mjs` (a `--flags` argument) |
+| EXIT-<N> (lead) | the section's `graph/v2/campusOps-S<N>.json` (`measured` values by `level-measure --write`), `docs/campus-greybox/exit/**` (route-run logs, walk card text) |
+
+```claims
+files:
+  - src/core/flags.ts                                       # lead: campusV2 (P0)
+  - src/world/maps/campusParts.ts                           # lead
+  - src/world/maps/campusSections.ts                        # lead
+  - src/world/maps/campusSectors.ts                         # lead: tables (P0 split; A23 / A26 carries)
+  - src/world/maps/campusLips.ts                            # lead
+  - src/world/maps/campusOps.ts                             # lead
+  - src/world/maps/campusDress.ts                           # lead
+  - src/world/maps/campusBake.ts                            # lead
+  - src/world/maps/campusS{1,2,3,4,5}Data.ts                # lead: P0 split, S<N>_PARTS; master-take carries (A23, A26, A27)
+  - src/world/maps/campusV2/**                              # lanes S1-S5 (s<N>*.ts), TAG-<N> (s<N>Data.ts), lead carries
+  - src/world/campusArt/assets/*-s{1,2,3,4,5}-v2.*          # lanes: new assets only
+  - tests/campusV2*.test.ts                                 # lead (campusV2.test.ts); lanes, TAG (campusV2S<N>*.test.ts)
+  - tests/campusS{1,2,3,4,5}*.test.ts                       # lead at SW-<N> only
+  - tests/sectorGuardTags.test.ts                           # lead at SW-<N> only
+  - docs/sector-redesign/graph/v2/campusOps-S{1,2,3,4,5}.json   # V2-SEED, lanes, TAG-<N> (keys 3 / 4), EXIT-<N> (measured)
+  - docs/sector-redesign/graph/campusOps-S{1,2,3,4,5}.json  # lead at SW-<N> only (moves the v2 file over it)
+  - docs/level-validator/graph-sets.json                    # lead at SW-<N> only (the section's counts)
+  - docs/sector-redesign/signoff/SYNC.md                    # lead: src lines
+  - scripts/e2e-anchors.mjs                                 # E2E-1: a campusOps part
+  - scripts/e2e-sectorops.mjs                               # E2E-2a part 7, E2E-2b part 8; lead at SW-<N>: part 6 numbers
+  - scripts/run-e2e.mjs                                     # E2E-2a / 2b: PARTS row only
+  - scripts/e2e-affected.mjs                                # E2E-2a / 2b: the campus DIRECT_COVERS row only
+  - scripts/level-measure.mjs                               # MEAS-0, only if J12 ships no flag argument
+  - docs/systems/testing-tools.md                           # E2E rows
+  - docs/campus-greybox/**                                  # incl. exit/** (EXIT-<N> logs, walk card text)
+maps: campusOps
+wire: none
+save: none
+```
 
 No `src/game`, `src/ai` or `src/net` file is claimed (BRIEF A8 replaced; J4 and J26 own those). No wire or save path:
 the layout is not on the wire (every peer opens the same `?campusv2=` link), no save field changes, no `PROTOCOL_VERSION`
@@ -51,6 +92,35 @@ Rules for every lane (unchanged from P0): a v2 file imports its own v2 files, `.
 live files of other sections (BRIEF A6); a new list goes in `S<N>_PARTS`, a new kind of field needs the lead; first
 layout change sets `S<N>_V2_COPY = false`; S5 prefixes lip ids (`CR8-s5` ...). Builders read `LD:` / `SS:` line tags in
 the S1-S3 briefs at 6c3f4a87 and confirm the value on master (section 11): a changed value goes to the lead.
+Graph path: every lane, TAG and EXIT slice writes `docs/sector-redesign/graph/v2/campusOps-S<N>.json`, never the live
+`graph/campusOps-S<N>.json` (BRIEF A13; a brief line that names the live path means the v2 one).
+
+### 2a. Claims overlaps and their order
+
+`node scripts/claims-check.mjs --plan docs/campus-greybox/PLAN.md --name feature/campus-greybox` (2026-10-25 ~20:00,
+exit 1): 36 plans with claims, 34 overlaps. Jobs with no claims block are not scanned by it; plan check 1's manual
+scan lists them (second table). "No order" = different lines of a shared file; the train merges them and whichever
+lands second takes master's file at its next master take.
+
+| Branch(es) | Shared | Order / owner |
+| --- | --- | --- |
+| guard-rules, -s1, -s2 (J15, Guard AI) | `campusS4Data.ts`, `campusS5Data.ts`, `e2e-sectorops.mjs`, `flags.ts`, map campusOps | **PR1 first** (orchestrator, BRIEF A27): P0's PR and every J17 edit of the two files train after it; the lead carries PR1's S4 / S5 gear data into the v2 copies; S9 (PR4) roof-marksman post carried by S5-b or SW-5. `e2e-sectorops.mjs`: PR1's S13 warehouse block vs our parts 7 / 8: no order |
+| sector-marks, sector-marks-b1 (same lead) | `campusSectors.ts`, `campusS4Data.ts`, `campusS5Data.ts`, `e2e-sectorops.mjs` (one assert after :91), map campusOps | **sector-marks first** (BRIEF A26); the lead carries its labels and `hyp2` into the split and v2 files |
+| test-runner-j20 (+ -pra, -prb, -prc, -s1, -s2, -s3a, -s3b, -s4, -s5, -s6a, -s6b, -s6c, -s7) (Test Runner) | `e2e-affected.mjs`, `run-e2e.mjs`, `e2e-sectorops.mjs`, `testing-tools.md` | **J20 first**: E2E-2a / 2b branch from master after J20's T5 (campus DIRECT_COVERS row) and S6c (part 6 alive-at-start block) are on master, then add `:7` / `:8` to that row and '7', '8' to `PARTS`; part 6 edits at SW-<N> take master's part 6 |
+| light-realism, -l0 (J10, same lead) | `tests/campusS{1..5}.test.ts`, `campusS2Board`, `campusS4NocSight` tests (ours: SW-<N> only), map campusOps | **J10 first**; at SW-<N> the lead ports J10's lamp asserts into the v2 tests before retiring a live test. Not in the scan (we do not claim live `campusS<N>.ts`): J10's lamp edits there break the copy check of a still-marked v2 copy, so the lead carries them into it at the master take (as A23); a re-laid section takes J10's values in its PROVISIONAL `S<N>_LIGHTS` (A19) |
+| map-ready (same lead) | `flags.ts`, `e2e-sectorops.mjs`, `testing-tools.md`, map campusOps (mode code, no map data) | no order (map-ready waits on its own re-plan) |
+| sector-batch (J18, same lead) | `flags.ts` (`sectorOutWait`), `e2e-sectorops.mjs` (block after :983) | no order (its PLAN orders itself after sector-marks) |
+| hud-guidance (+ -a1, -a2, -a3, -b, -b1) | `e2e-sectorops.mjs`, `testing-tools.md` | no order; E2E-2a / 2b append after their blocks |
+| char-shadow-meter (J16) | `flags.ts`, `testing-tools.md` | no order |
+| coop-kit, guard-ai-mission-hooks, player-batch-j19 | `flags.ts` | no order (each its own flag; ours `campusV2`, `flags.ts:71-79`, P0) |
+| route-runs-2 (J13) | `testing-tools.md` | no order (rows) |
+
+| Not in the scan (no claims block) | Shared | Order / owner |
+| --- | --- | --- |
+| validator-port (J12, Marlow; its source branches level-validator-v6, -v6c, -v6e, -v6e2, mission-validator, -dims) | the five live `graph/campusOps-S<N>.json` (its S10: `area`, `vantage.at`, measured values, drift test `tests/levelMeasureCampus.test.ts`), `scripts/level-measure.mjs` (its S2, new), `docs/level-validator/graph-sets.json` (its S5) | **J12 owns the live graph files until SW-<N>**: J17 writes `graph/v2/` (BRIEF A13), so the lanes and J12 never edit the same file; SW-<N> moves the v2 file over the live one with EXIT-<N>'s measured values and updates the section's `graph-sets.json` counts (validator-port PLAN "Sector Ops (J10, J17)"). `level-measure.mjs`: J12 first; MEAS-0 only after J12's S2 is on master and only if it has no flag argument |
+| coop4 + -data, -doc, -e2eai, -pol, -ui2 (J4, #317, Guard AI) | `campusSectors.ts`, `campusS4Data.ts`, `campusS5Data.ts`, `tests/campusS{1..5}.test.ts`, `tests/sectorGuardTags.test.ts`, `e2e-sectorops.mjs`, `flags.ts` | **#317 first** (expected); whichever lands second carries the ten tag rows (BRIEF A23); the test files are ours only at SW-<N> |
+| mission-engine, -flg, -gb*, -net*, -pol1 (J26, Campaign) and mission-framework (#372) | `campusOps.ts` (an import after `dressCampus`, `missions:` after `sectors: CAMPUS_SECTORS,`), `flags.ts`, `tests/campusS1.test.ts`, `tests/sectorGuardTags.test.ts` | no order: P0 left both `campusOps.ts` spots untouched (`git merge-file` clean); the two tests are ours only at SW-<N> (take master's file then) |
+| sector-redesign-signoff | `docs/sector-redesign/signoff/SYNC.md` | **signoff first**; the lead adds only src lines after it merges |
 
 ## 3. Shared, one owner (the lead)
 
@@ -73,10 +143,17 @@ the S1-S3 briefs at 6c3f4a87 and confirm the value on master (section 11): a cha
   the screen cap (`CAMPUS_SCREEN_CAP` 12) holds with the 4-player list; the coop4 tag rules (BRIEF A14).
 - At 3-4 players the 3-4 player reinforcement extras are held to the room left by `capReinforce` (#317); S4 at 4
   players: 27 + 6 = 33, so one base reinforcement waits for room; S5: 28 + 6 = 34, two wait (Q10, A15).
-- Helmets: lanes add no `gear` tags; J15 (helmets by difficulty) removes the section `gear: 'helmet'` defaults later.
+- Helmets: lanes add no `gear` tags. J15 PR1 lands first (BRIEF A27): no section `gear: 'helmet'` on S4 / S5 and
+  `'armour'` wherever a brief says `'both'`, so the v2 data passes PR1's `checkSectorGuards`.
+- coop4's live tag rows (BRIEF A23) sit in a v2 copy only while its `S<N>_V2_COPY` holds. The lane's guard slice writes
+  the signed base list with no `minPlayers` row (it deletes any carried coop4 row); TAG-<N> appends the v2 rows.
 
-**Graph (C7, C8, C9, C10, C14, C15; BRIEF A13, A16-A18).** Each lane replaces its section graph with the signed plan graph
-(`origin/feature/sector-redesign-signoff` @9eb7b9c6 `docs/sector-redesign/graph/plan/campusOps-S<N>.json`), then:
+**Graph (C7, C8, C9, C10, C14, C15; BRIEF A13, A16-A18).** V2-SEED (lead, once, before the lanes' first graph step)
+writes the five signed plan graphs (`origin/feature/sector-redesign-signoff` @9eb7b9c6
+`docs/sector-redesign/graph/plan/campusOps-S<N>.json`) to `docs/sector-redesign/graph/v2/campusOps-S<N>.json`; each lane's
+"replace the graph with the plan graph" step is then already done (it checks the file is byte-equal), and it edits only
+its own v2 file (plus J12's `area` per space, `vantage.at` and link `at` where a shared edge has 2+ gaps, from the first
+slice after validator-port S10 is on master). Then:
 - `meta.players` `[1, 2, 3, 4]`; `meta.sections` the five ids on every file (checks-signoff "meta.sections").
 - every guarded space carries keys "1", "2", "3", "4"; until TAG-<N>, "3" = "4" = "2"; TAG raises "3" / "4" where the
   tagged guard stands. Guards are counted in the space of their post or route start, chokes and connector / hub / utility
@@ -86,9 +163,9 @@ the S1-S3 briefs at 6c3f4a87 and confirm the value on master (section 11): a cha
 - splits, overwatch and assist as the plan graph declares them (`split:s1`, `split:s2-hack`, `split:s3-obj`, `split:s4r`,
   `split:s5-k4`); leg times and partner reach stay declared targets; V6 measures them at exit.
 - notes: "PLAN" -> "BUILT <slice> (file:line)"; targets "DECLARED, measured in greybox (V6)"; never `measured` by hand.
-- Validator at every lane PR head: the five files together, 0 ERR naming the section; the WARN list equals the detail
+- Validator at every lane PR head: the five v2 files together, 0 ERR naming the section; the WARN list equals the detail
   doc's justified list plus the A18 connector WARN (S2, S4). Command:
-  `node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S{1,2,3,4,5}.json` (spelled out per file).
+  `node scripts/level-validate.mjs docs/sector-redesign/graph/v2/campusOps-S{1,2,3,4,5}.json` (spelled out per file).
 
 **Light (BRIEF A19, Q2 "Never", G329, SPEC "Lighting." on #433).** One `S<N>_LIGHTS` block per section, headed PROVISIONAL /
 `TODO(light-realism)`, the only source of the section's lamps. No fitting built off or dead; no as-built fitting removed or
@@ -106,7 +183,8 @@ every fix round is Opus (RULES "A job"). One Sonnet checker per lane PR (greybox
 
 | PR | Slices (brief) | h | Lines | Model | Closes / advances |
 | --- | --- | --- | --- | --- | --- |
-| P0 | flag, parts, selector, data split, v2 copies, equality test | done | ~5.5k (copies, A4) | Opus | - |
+| P0 | flag, parts, selector, data split, v2 copies, equality test; trains after J15 PR1 (A27) | done | ~5.5k (copies, A4) | Opus | - |
+| V2-SEED | the five signed plan graphs into `graph/v2/` (section 4 "Graph"), before the lane worktrees are cut | 0.25 | graph copies | lead | - |
 | S1-a | G1 + G2 (`briefs/S1.md`) | 5 | ~800 | Sonnet | C1 (part) |
 | S1-b | G3 + G4 | 6 | ~800 | Sonnet | C1 (part), C7 |
 | S1-c | G5 + G6 (graph keys, totals, K1 tag) | 4.5 | ~750 | Sonnet | C1, C8 (1-2), C9, C10, C15 |
@@ -115,24 +193,30 @@ every fix round is Opus (RULES "A job"). One Sonnet checker per lane PR (greybox
 | S2-c | G5a devices + G5c room lights (Split Shift devices, two-player team doors) | 5.5 | ~700 | Sonnet | C4 (Q21), Split Shift devices |
 | S2-d | G6 (18 guards, routes, graph keys, totals, K2 tag) | 3 | ~700 | Sonnet | C1, C8, C9, C10, C15 |
 | S3-a .. S3-e | R1 / R2 / R3 + R4 / R5 + R6 / R7 (`briefs/S3.md`) | 5 / 5 / 5 / 6 / 2 | ~600-1200 each | Sonnet | C1, C6, C7, C8, C9, C15 |
-| S4-a | G4.1 + G4.2 (`briefs/S4.md`) | 6 | ~900 | Sonnet | C7 |
-| S4-b | G4.3 + G4.4 | 5.5 | ~900 | Sonnet | C7 |
-| S4-c | G4.5 + G4.6 (25 guards, Code Relay devices, graph keys, totals, K3 tag) | 6 | ~1000 | Sonnet | C1, C8, C9, C10, C15, Code Relay devices |
-| S5-a | P1 (`briefs/S5.md`) | 4 | ~800 | Sonnet | C7 |
-| S5-b | P2 + P3 (pair bolt, lights, 26 guards) | 5 | ~900 | Sonnet | C1, C3 (2-player half), C5 |
-| S5-c | P4 (+ graph keys, totals, K4 tag) | 3 | ~600 | Sonnet | C5, C8, C9, C10, C15 |
-| TAG-1, TAG-2, TAG-4, TAG-5 | two tagged rows each, tests, graph keys 3 / 4 (each brief's TAG section) | 1 each | ~150 each | Sonnet | C2, C3, C8 (3-4), G A2 (data half) |
+| S4-a | G4.1 + G4.2 (`briefs/S4.md`); PR trains after J15 PR1 (A27) | 6 | ~900 | Sonnet | C7 |
+| S4-b | G4.3 + G4.4; PR after J15 PR1 | 5.5 | ~900 | Sonnet | C7 |
+| S4-c | G4.5 + G4.6 (25 guards with PR1's gear rule, no `minPlayers` row, Code Relay devices, graph keys, totals, K3 tag); PR after J15 PR1 | 6 | ~1000 | Sonnet | C1, C8, C9, C10, C15, Code Relay devices |
+| S5-a | P1 (`briefs/S5.md`); PR after J15 PR1 | 4 | ~800 | Sonnet | C7 |
+| S5-b | P2 + P3 (pair bolt, lights, 26 guards with PR1's gear rule, no `minPlayers` row, PR4's roof-marksman post if on master); PR after J15 PR1 | 5 | ~900 | Sonnet | C1, C3 (2-player half), C5 |
+| S5-c | P4 (+ graph keys, totals, K4 tag); PR after J15 PR1 | 3 | ~600 | Sonnet | C5, C8, C9, C10, C15 |
+| TAG-1, TAG-2 | two tagged rows each, tests, graph keys 3 / 4 (each brief's TAG section) | 1 each | ~150 each | Sonnet | C2, C3, C8 (3-4), G A2 (data half) |
+| TAG-4, TAG-5 | two tagged rows each on the re-laid section (`briefs/S4.md` TAG-4, `briefs/S5.md` TAG-5). coop4's live S4 rows (#21 cage keyholder's second, #22 second battery checker) and S5 rows (#25 second archive round, #26 second service round) are **replaced**, not carried: they stand on the v1 cage, battery and archive layout, S4-c / S5-b drop them from the v2 copy with the base re-lay, and TAG-4 / TAG-5 append the briefs' v2 rows. The live rows stay in `campusS4Data.ts` / `campusS5Data.ts` until SW-4 / SW-5 | 1 each | ~150 each | Sonnet | C2, C3, C8 (3-4), G A2 (data half) |
 | TAG-3 | two tagged rows on the re-laid S3 | 1.5 | ~150 | **Opus** (placement on a re-laid block: no candidate survives the re-lay) | C2, C8 |
 | E2E-1 | campusOps part in `e2e-anchors.mjs` with `?campusv2=1,2,3,4,5` | 2 | ~200 | Sonnet (strict brief, Opus writes it when P0 is on master) | C16 (anchors), T T6 campusOps half |
-| E2E-2 | `e2e-sectorops.mjs` part 7 (v2 on): section 15 probes, section 7 rows 8, 9, 11, 12 | 8 | ~1200, split in two PRs at a section boundary if over | **Opus** | C16 |
+| E2E-2a | Branch `feature/campus-greybox-e2e2a` from origin/master. Files: `scripts/e2e-sectorops.mjs` (new part 7 block, `?campusv2=1,2,3`: S1, S2, S3), `scripts/run-e2e.mjs` (`PARTS` 'e2e-sectorops' + '7'), `scripts/e2e-affected.mjs` (`e2e-sectorops:7` in the campus DIRECT_COVERS row), `docs/systems/testing-tools.md` (the part 7 row). Probes per section: section 7 rows 8 (one vantage, one lit pool, one circuit cut with its lure), 9 (one loud floor), 11 (alive count at load at 2 and 4 players, read from `guardForTeam` on the section's data, never a literal; one ghost section clear with its rating bonuses; one body on a patrol route found), 12 (one co-op route host + client, one revive on a co-op surface). Checks: `node --check` on the three scripts, `npm run typecheck:fast`, laptop `e2e-sectorops:7` and `:6` (`E2E_GPU=1`). Done: part 7 green on the laptop with S1-S3 on, part 6 unchanged, row in testing-tools | 4 | ~600 | **Opus** | C16 (S1-S3) |
+| E2E-2b | Branch `feature/campus-greybox-e2e2b` from origin/master after E2E-2a. Files: `scripts/e2e-sectorops.mjs` (new part 8 block, `?campusv2=4,5`: S4, S5; reuses part 7's helpers, edits none of its lines), `scripts/run-e2e.mjs` (+ '8'), `scripts/e2e-affected.mjs` (+ `e2e-sectorops:8`), `docs/systems/testing-tools.md` (the part 8 row). Probes: as E2E-2a for S4 and S5, plus the 4-player cap case (S4 27 + 6, S5 28 + 6: the spawned list stays <= 32, A15). Checks: as E2E-2a with `e2e-sectorops:8` and `:6`. Done: part 8 green with S4-S5 on, part 6 unchanged, row in testing-tools | 4 | ~600 | **Opus** | C16 (S4-S5) |
 | MEAS-0 | only if J12 ships no way to set the flag: `--flags campusV2=...` on `level-measure.mjs` | 1 | ~50 | Sonnet | C11 enabler |
 | EXIT-<N> | measured values written by `level-measure --write`, `--require-measured` pass, route-runs log, walk card text | 2 each | graph only | lead | C11, C14, C15 at exit |
 | SW-<N> | switch-on (section 9) | 1 each | ~300 | lead | - |
 
-About 120 h of lane work in all. Order (full burn, RULES "A job"): the five lanes run at once now (S1, S2, S3, S4, S5 G /
-P slices); inside a lane, slices run in the brief's order. TAG-<N> starts when #317 is on master and that section's guard
-slice is merged. E2E-1 starts when P0 is on master; E2E-2 when two sections' guard PRs are on master (it grows per
-section). EXIT-<N> when J12 and J13 are on master. C13 (warehouseOps) is closed by Q26: no slice.
+About 120 h of lane work in all. Order (full burn, RULES "A job"): V2-SEED, then the five lanes run at once (S1, S2,
+S3, S4, S5 G / P slices); inside a lane, slices run in the brief's order. Cross-job orders (section 2a): J15 guard-rules
+PR1 lands on master before any J17 edit to `campusS4Data.ts` / `campusS5Data.ts`, so P0's PR, and every S4 / S5 lane
+PR while it still carries P0's commits, trains after PR1 (the S4 / S5 lanes build now; only their PRs wait);
+sector-marks lands first and its carries ride the next master take (A26); #317's rows per A23. TAG-<N> starts when #317
+is on master and that section's guard slice is merged. E2E-1 starts when P0 is on master; E2E-2a when S1-c, S2-d and
+S3-e are on master; E2E-2b when E2E-2a, S4-c and S5-c are (both also after J20's T5 and S6c, section 2a). EXIT-<N> when
+J12 and J13 are on master. C13 (warehouseOps) is closed by Q26: no slice.
 
 ## 6. Mission devices and the hooks J26 must supply (BRIEF A20)
 
@@ -170,18 +254,19 @@ One row per LD 15 line; every row runs with the section's flag on. "Lane" = the 
 | 5 | `e2e-anchors.mjs` covers the map | E2E-1 (campusOps, all five v2) | E2E-1 |
 | 6 | Split gaps exactly the planned ones | graph: no `split_jump` link planned; `tests/campusV2S<N>*.test.ts` unplanned-lip test (LD 11.8: every lip between 3.8 and 4.5 is a planned lip, on a solo-reached surface, or noLedge) | lane |
 | 7 | Nav path insertion to extract passes the spaces in order | lane route-leg tests (`analyticNav` + `runtimeNav`); lead adds a whole-map case to `tests/campusV2.test.ts`: with all five on, `runtimeNav` from S1's start reaches S5's extract box through C1-C4 in order | lane; lead after the fifth guard PR |
-| 8 | Darkness: vantage / dark spot stays under suspicious for a patrol cycle; a lit pool on a route is noticed; cutting its circuit makes it safe and lures | unit: `LightField` level at each graph vantage and hide spot (recorded; asserted dark only where there is no fitting or an occluder, A19); e2e: E2E-2 per section, one vantage, one lit pool, one circuit cut with its lure | lane (unit); E2E-2 |
-| 9 | Noise: each planned loud floor draws the planned guard above silent speed, not at it | E2E-2, one loud floor per section from the detail doc | E2E-2 |
+| 8 | Darkness: vantage / dark spot stays under suspicious for a patrol cycle; a lit pool on a route is noticed; cutting its circuit makes it safe and lures | unit: `LightField` level at each graph vantage and hide spot (recorded; asserted dark only where there is no fitting or an occluder, A19); e2e: E2E-2a / 2b per section, one vantage, one lit pool, one circuit cut with its lure | lane (unit); E2E-2a / 2b |
+| 9 | Noise: each planned loud floor draws the planned guard above silent speed, not at it | E2E-2a / 2b, one loud floor per section from the detail doc | E2E-2a / 2b |
 | 10 | Patrols: on nav, cycles in scale sheet 10, every guard covers his route | lane guard tests (cycle formula of `tests/campusS1.test.ts:168-192`, 25-45 s) | lane |
-| 11 | Every guard spawned at start alive; a ghost run earns every section-rating bonus; a body left on a route is found | TAG tests (spawned counts at 1-4); E2E-2: alive count at section load per section (2 and 4 players), one ghost section clear with the rating bonuses, one body left on a patrol route found | TAG; E2E-2 |
-| 12 | Co-op routes work host and client; lips out of solo reach; a downed player on each co-op surface is revived; solo completes past every team door | lane lip tests (`soloJumpThreats`, rules 1-5); lane solo-route test: an `analyticNav` path start to objective and exit avoiding every pair gate, far-side bolt and co-op link; E2E-2 co-op: one co-op route per section host + client, one revive on a co-op surface per section | lane; E2E-2 |
+| 11 | Every guard spawned at start alive; a ghost run earns every section-rating bonus; a body left on a route is found | TAG tests (spawned counts at 1-4); E2E-2a / 2b: alive count at section load per section (2 and 4 players), one ghost section clear with the rating bonuses, one body left on a patrol route found | TAG; E2E-2a / 2b |
+| 12 | Co-op routes work host and client; lips out of solo reach; a downed player on each co-op surface is revived; solo completes past every team door | lane lip tests (`soloJumpThreats`, rules 1-5); lane solo-route test: an `analyticNav` path start to objective and exit avoiding every pair gate, far-side bolt and co-op link; E2E-2a / 2b co-op: one co-op route per section host + client, one revive on a co-op surface per section | lane; E2E-2a / 2b |
 | 13 | Perf budgets on desktop | J21 line (Q4 60 fps) on the laptop, all five on | exit, after J21 |
 
 ## 8. Greybox exit per section (RULES Intake 5, G289, G330; BRIEF A3)
 
 1. Lane PRs merged dark; validator 0 ERR (section 4).
-2. MEAS: `node scripts/level-measure.mjs docs/sector-redesign/graph/campusOps-S<N>.json --write` with the section's flag set
-   (J12's flag argument or MEAS-0), then `node scripts/level-validate.mjs <the five files> --require-measured`: 0 ERR.
+2. MEAS: `node scripts/level-measure.mjs docs/sector-redesign/graph/v2/campusOps-S<N>.json --write` with the section's
+   flag set (J12's flag argument or MEAS-0), then `node scripts/level-validate.mjs <the five v2 files> --require-measured`:
+   0 ERR.
    A measured miss: the lead's fix round (Opus), never a target edited to pass.
 3. Route-runs (J13) on every declared route of the section: no dead stop.
 4. Section 7 rows green for the section.
@@ -193,14 +278,17 @@ One row per LD 15 line; every row runs with the section's flag on. "Lane" = the 
 Add N to `CAMPUS_V2_ON`; retire `tests/campusS<N>*.test.ts` (the v2 tests become the section's); update
 `tests/sectorGuardTags.test.ts` (base count and hash per section; cap assert to A15's form) and `scripts/e2e-sectorops.mjs`
 part 6's v1 numbers (S1 8 guards, S2 per floor [3,6,3], S3 16, CR2 probes, walks) to v2; laptop `e2e-sectorops:1` .. `:6`
-and part 7 with the section live.
+and part 7 or 8 with the section live. Move `graph/v2/campusOps-S<N>.json` (with its EXIT-<N> measured values) over
+the live `graph/campusOps-S<N>.json` and update the section's counts in `docs/level-validator/graph-sets.json` (BRIEF
+A13): J12's drift test `tests/levelMeasureCampus.test.ts` then builds the section as v2 and must stay green. Carry any
+live-only change still missing from v2 (guard-rules S9's roof-marksman post, BRIEF A27; J10 lamp asserts, section 2a).
 
 ## 10. Checks
 
 - Agent sub-steps: `npm run typecheck:fast` + `npx vitest run tests/campusV2.test.ts tests/campusV2S<N>*.test.ts
   --maxWorkers=2` plus the live campus tests the brief names.
 - Laptop per lane PR: `e2e-sectorops:1` .. `:6` (`E2E_GPU=1`): flag off, they prove the live map is unchanged. E2E PRs: their
-  own part plus `e2e-sectorops:6`. No lane touches `src/net`, `src/player` or `src/game`, so `e2e-coop` / `e2e-netmove` are
+  own part (E2E-2a `:7`, E2E-2b `:8`) plus `e2e-sectorops:6`. No lane touches `src/net`, `src/player` or `src/game`, so `e2e-coop` / `e2e-netmove` are
   not required.
 - Checker verdict as the `checker` commit status on the PR head (RULES "A job").
 

@@ -93,8 +93,13 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
 - **A11 Live assets stay live** (kept). Undo: none needed.
 - **A12 Live tests stay live** (kept). v2 tests live in `tests/campusV2S<N>*.test.ts`; the SW-<N> PR retires the live
   section tests and updates `tests/sectorGuardTags.test.ts` (PLAN "Switch-on"). Undo: none needed.
-- **A13 Validator graphs** (kept, widened by A16-A18). A lane writes `docs/sector-redesign/graph/campusOps-S<N>.json` from its
-  plan graph as its greybox lands; V6 writes `measured`. Undo: keep v2 graphs under `graph/v2/` until switch-on.
+- **A13 Validator graphs** (CHANGED 2026-10-25, plan check 1: was the live path; widened by A16-A18). J12's campus drift
+  test (`tests/levelMeasureCampus.test.ts`, validator-port S10) re-measures the five live graph files against the campus
+  built with every flag off, so a v2 graph on the live path fails it while the section is dark. The lead seeds
+  `docs/sector-redesign/graph/v2/campusOps-S{1..5}.json` with the five signed plan graphs (PLAN V2-SEED); each lane edits
+  only its own v2 file; EXIT-<N> measures it with the section's flag on; SW-<N> moves it over the live path (then the drift
+  test builds the section as v2 and matches). The live graph files stay J12's until SW-<N>. Undo: write the live path
+  once J12's drift test builds each section with the flag its graph names.
 - **A14 Two tagged extras per section** (new; G331, G362, "Two players", C2, Guard AI A2). Each section's base list is the
   signed-off count, spawned for 1 and 2 players; it appends one guard tagged `minPlayers: 3` and one `minPlayers: 4`
   (coop4's pattern and its test: at most 2 per section, appended, each with a reason, never a desk operator, dog, handler,
@@ -137,10 +142,17 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
 - **A22 Downed rule is J18's** (new; Q20). "30 seconds then death and wait until next section door" changes the engine (J18,
   `reviveClock`, `coopHost`, `sectorMode`), not the maps. The greybox keeps LD 11.6 (every co-op surface also reached
   without a co-op move, partner reach targets); S4's accepted ~25 s basket reach stays inside the 30 s. Undo: none.
-- **A23 P0 and coop4 order** (new). #317 edits the S1-S3 guard lists in `campusSectors.ts`, which P0 splits. Whichever lands
-  second carries the other's change: if #317 lands first, the lead moves its tag rows into `campusS1Data.ts` ..
-  `campusS3Data.ts` and copies them into the v2 data files before P0 trains (the equality test needs copies = live).
-  Undo: none.
+- **A23 P0 and coop4 order** (CHANGED 2026-10-25, plan check 1: all five data files). #317 appends two tagged rows per
+  section to five files: S1-S3 in `campusSectors.ts` (which P0 splits into `campusS1Data.ts`, `campusS2Data.ts`,
+  `campusS3Data.ts`), S4 in `campusS4Data.ts` and S5 in `campusS5Data.ts` (both also edited by P0: `S4_PARTS` / `S5_PARTS`).
+  Whichever lands second carries the other's change, into the live files and into every v2 copy whose `S<N>_V2_COPY` is
+  still true (`tests/campusV2.test.ts` holds those copies equal to live; a section whose lane has cleared its marker skips
+  that check and needs nothing). #317 first (expected): at P0's master take the lead moves its S1-S3 rows into
+  `campusS1Data.ts` .. `campusS3Data.ts`, keeps its S4 / S5 rows in `campusS4Data.ts` / `campusS5Data.ts`, and copies the
+  ten rows into `campusV2/s1Data.ts` .. `s5Data.ts` before P0 trains. P0 first: #317 puts its S1-S3 rows in the split
+  files and all ten rows in the still-marked v2 copies. In v2 the rows live only while the copy marker holds: each lane's
+  guard slice writes the signed base list with no `minPlayers` row and TAG-<N> appends the v2 rows (PLAN section 5,
+  TAG-<N>). Undo: none.
 - **A24 S5 CR7 hoist door is a pair gate** (new; `briefs/S5.md` P1). The signed page says "the hoist door becomes a pair bolt".
   An E3 pair bolt draws only while the partner pushes the leaf from the far side of the door (`sectors.ts` `partnerAtDoor`), and
   the far side of the hoist door is the open light well 4.2 m down, so nobody could open it. A pair gate (two key switches in
@@ -150,3 +162,20 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   test (`anchors.ts:762-768`), so an anchor on the hoist sill could be used through the shut door. Behind the pair gate the
   4.2 m drop is under the 4.5 m safe drop; the way back up stays the two-person rope. Undo: add the anchor when the engine's
   rappel query checks doors.
+- **A26 sector-marks first, campus-greybox carries** (new; same lead's order, `origin/feature/sector-marks`
+  `docs/sector-marks/PLAN.md` "Risks"). sector-marks (a G355 rule fix) merges first and edits master's files as they are:
+  the four objective `label` strings (S1 and S3 in `campusSectors.ts`, S4 in `campusS4Data.ts`, S5 in `campusS5Data.ts`)
+  and `Math.hypot(dx, dz)` -> `hyp2(dx, dz)` in `campusS4Dress.ts` `around` (with `import { hyp2 } from
+  '../../core/mathx'`). At its next master take campus-greybox carries them: the S1 / S3 labels into `campusS1Data.ts` /
+  `campusS3Data.ts` (where P0 moved them), all four labels into `campusV2/s1Data.ts`, `s3Data.ts`, `s4Data.ts`,
+  `s5Data.ts`, and the `hyp2` change into `campusV2/s4Dress.ts:177` (its import too). `tests/campusV2.test.ts:89` fails
+  until the label copies match; `s4Dress.ts` has no such check, so this line names it. A lane that has already re-laid
+  its section keeps the label text and the `hyp2` call in its own file. Undo: none (a rule fix).
+- **A27 Guard AI J15 PR1 first** (new; the orchestrator's order, 2026-10-25; guard-rules `docs/guard-rules/PLAN.md` PR1
+  and "J17 order"). Guard AI's guard-rules PR1 lands on master before any J17 edit to `campusS4Data.ts` /
+  `campusS5Data.ts`: P0 (it adds `S4_PARTS` / `S5_PARTS` there) and any carry of A23 / A26 into those files train after
+  PR1. PR1 drops the S4 / S5 section `gear: 'helmet'`, turns `gear: 'both'` into `'armour'` and sets `shieldTeams: true`;
+  its `checkSectorGuards` then fails a `'helmet'` / `'both'` tag. At P0's master take the lead carries PR1's S4 / S5 data
+  into `campusV2/s4Data.ts` / `s5Data.ts` (copies = live). The S4 / S5 lanes write no `'helmet'` and use `'armour'` where
+  their briefs say `'both'`. guard-rules S9 (its PR4) puts `post: { leash: 1, lookout: true }` on the live S5 roof
+  marksman; the S5 lane (S5-b) or, if PR4 lands later, SW-5 carries it to the v2 roof marksman. Undo: none (an order).
