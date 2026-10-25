@@ -3,6 +3,15 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 63 (2026-10-26 ~11:00, usage cap; session [f1a362]; wins over SAVE 62):**
+- laptop-queue-7 PR #507 open, head 3791f2f1c: plan checker PASS, Opus code checker PASS after 1 fix round. `checker`
+  status NOT posted (auto mode Self-Approval block, same as #492 on 8a8d000c): Michael to decide who posts both.
+- NEW top-priority job affected-cap (Michael ~10:35, ROADMAP Decided "Smaller automatic test per change", feature/menu
+  e38bf0bf0): feature/affected-cap, worktree C:/NightShift/Mobile-Coop-affected-cap from master a02784f7. Opus planner
+  was writing docs/affected-cap/{BRIEF,PLAN,STATE}.md at the cap (check origin for its commit; rerun if missing).
+- Next: affected-cap plan -> fresh Opus plan checker -> build -> checker -> PR; once live, the service re-files open
+  affected requests at the new size. Then laptop-queue-8 PLAN (seed BRIEF 477565df). #492 / #507 checker statuses.
+
 **Test Runner SAVE 62 (2026-10-26 ~10:25, Orchestrator save at 78%, swap at ~10:35; session [f1a362]; wins over SAVE 61):**
 - Service pid 37704 healthy, on master 34b96b9c (train 114 released). Queue 17 requests deep: >3 h of session-free
   work, nothing extra filed. j20-perf alone still NOT re-filed (queue deep; wait for laptop-queue-7 slice F live).
