@@ -356,6 +356,48 @@ export function travelHeading(take, [a, b] = [0, take.frames - 1]) {
   return { axis, headingDeg: r1(h * R2D), offDeg: r1(off * R2D), arcDeg: r1(arc * R2D), flags };
 }
 
+/** Hip-line heading (radians, 0 = +Z, + toward +X) of a take at frame i, from its hip joints. */
+const hipHeading = (take, i) => {
+  const L = take.pos.get('lhipjoint')[i], R = take.pos.get('rhipjoint')[i];
+  return Math.atan2(-(R[2] - L[2]), R[0] - L[0]);
+};
+
+/** The take's mean hip facing minus its travel heading (hips first -> last frame), radians; 0 for a take on the spot. */
+export function facingOffTravel(take) {
+  const h = take.pos.get('root'), n = take.frames;
+  const dx = h[n - 1][0] - h[0][0], dz = h[n - 1][2] - h[0][2];
+  if (Math.hypot(dx, dz) < IN_PLACE_M) return 0;
+  const trav = Math.atan2(dx, dz);
+  let s = 0, c = 0;
+  for (let i = 0; i < n; i++) { const d = hipHeading(take, i) - trav; s += Math.sin(d); c += Math.cos(d); }
+  return Math.atan2(s, c);
+}
+
+/**
+ * (mixamo-retarget I4) A yaw correction on a take whose trunk faces off its travel (the recipe's `turn`: 'travel' measures
+ * it, `facingOffTravel`; a number is degrees, + toward +X). The pelvis, trunk, arms and neck are turned about the vertical
+ * by minus the offset; the legs keep their world rotations (the feet stay on the take's own track, the hip joints moved by
+ * the pelvis turn) and the head keeps its world rotation (the gaze stays where the performer looked). Positions are
+ * rebuilt by forward kinematics from the hips and the slot rotations (bone lengths unchanged). In place; returns the
+ * turn applied (degrees, the heading change: - is toward -X).
+ */
+export function turnTake(take, turn) {
+  const off = turn === 'travel' ? facingOffTravel(take) : turn / R2D;
+  const R = q4.yaw(-off);
+  const par = take.skel.parent;
+  const under = (s, anc) => { for (let p = s; p; p = par.get(p)) if (anc.includes(p)) return true; return false; };
+  const keep = (s) => s === 'head' || (s !== 'lhipjoint' && s !== 'rhipjoint' && under(s, ['lhipjoint', 'rhipjoint']));
+  for (const [s, arr] of take.quat) if (!keep(s)) for (let i = 0; i < arr.length; i++) arr[i] = q4.norm(q4.mul(R, arr[i]));
+  const order = take.skel.order.filter((s) => s !== 'root');
+  const offs = new Map(order.map((s) => { const b = take.skel.bones.get(s); return [s, v3.scale([-b.dir[0], b.dir[1], b.dir[2]], b.length)]; }));
+  for (let i = 0; i < take.frames; i++) {
+    for (const s of order) take.pos.get(s)[i] = v3.add(take.pos.get(par.get(s))[i], q4.rotate(take.quat.get(s)[i], offs.get(s)));
+  }
+  const deg = -off * R2D;
+  take.report.turnDeg = r1(deg);
+  return deg;
+}
+
 /** Reads `<dir>/<slug>.json` (default build/mocap/mixamo/raw) and adapts it (takeFromDump). */
 export function loadMixamoTake(slug, { dir = MIXAMO_RAW, rig = null, floor = 'feet' } = {}) {
   const file = path.join(dir, `${slug}.json`);

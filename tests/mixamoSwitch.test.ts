@@ -340,7 +340,12 @@ describe('mixamo I1 (d): the A8 measures (headless, Wren rig)', () => {
       kneesAsGood(mx, hand, CRAB_IDLE) &&
       asGood(mx.bow, hand.bow, IDLE_BODY.kneeBow, 0.002) &&
       asGood(mx.wing, hand.wing, IDLE_BODY.elbowWing, 0.002);
-    expect(ON0.standing_idle, `standing_idle passes A8: ${pass}`).toBe(pass);
+    // (I4) A8 is information (Michael 2026-10-26: Mixamo wins unless visibly broken); a visible break fails: a seam or
+    // frame step over e2e-anim's pose-continuity limit
+    console.info(`(mixamo I4) standing idle A8 ${pass ? 'pass' : 'fail'}`);
+    expect(mx.seam, 'idle seam').toBeLessThanOrEqual(POP_DEG);
+    expect(mx.step, 'idle bone step').toBeLessThanOrEqual(POP_DEG);
+    expect(ON0.standing_idle).toBe(true);
   }, 300_000);
 
   it('the crouched walk against the CMU crouch walk at the sneak pace: slide, continuity, knee / elbow ranges', async () => {
@@ -354,6 +359,9 @@ describe('mixamo I1 (d): the A8 measures (headless, Wren rig)', () => {
       expect(LOCO.set.crouchWalk).toBe(MOCAP_CROUCHED_WALKING);
       const mx = await sneakBody(v);
       rows.push(`${v} m/s: Mixamo ${line(mx)}; CMU ${line(cmu)}`);
+      // (I4) a visible break fails: a frame step over the pose-continuity limit, a planted foot sliding past e2e-anim's limit
+      expect(mx.step, `${v} m/s bone step`).toBeLessThanOrEqual(POP_DEG);
+      expect(mx.slide, `${v} m/s planted slide`).toBeLessThanOrEqual(FOOT_SLIDE);
       pass &&=
         asGood(mx.slide, cmu.slide, FOOT_SLIDE, 0.002) &&
         asGood(mx.step, cmu.step, POP_DEG, 1) &&
@@ -362,7 +370,8 @@ describe('mixamo I1 (d): the A8 measures (headless, Wren rig)', () => {
         asGood(mx.wing, cmu.wing, CRAB_CROUCH.elbowWing, 0.002);
     }
     console.info(`(mixamo I1) crouched walk:\n${rows.join('\n')}`);
-    expect(ON0.crouched_walking, `crouched_walking passes A8: ${pass}`).toBe(pass);
+    console.info(`(mixamo I4) crouched walk A8 ${pass ? 'pass' : 'fail'}`);
+    expect(ON0.crouched_walking).toBe(true);
   }, 300_000);
 });
 

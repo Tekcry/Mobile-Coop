@@ -18,13 +18,13 @@ ankle at Wren's (cm); the lowest pelvis (cm from rest, a deep crouch / kneel / p
 
 | Slug | Kind | Frames used / file | Clip frames | Seconds | Speed | Stride, scale | Seam | Slide cm | Reach short | Dir err | Height off | Lowest pelvis |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| crouched_walking | gait | 0-34 / 35 (dup last) | 48 | 1.133 | 1.66 | 1.88 m, x0.62-0.77 | 0 cm / 0.1 deg (knL) -> 1 (typ 1.5) | 0.7/0.7 -> 1.2/1.7 | 0 | 0 | -1.8 | -24.2 |
+| crouched_walking | gait | 0-34 / 35 (dup last) | 48 | 1.133 | 1.66 | 1.88 m, x0.62-0.77 | 0 cm / 0.1 deg (knL) -> 1 (typ 1.5) | 0.9/1.1 -> 1.1/1.5 | 0 | 0 | -1.8 | -24.2 |
 | carry_body_walking | gait | 0-86 / 87 (dup last) | 48 | 2.867 | 0.91 | 2.62 m, x0.44-0.55 | 0 cm / 0 deg (shR) -> 0.7 (typ 0.9) | 1.2/1.6 -> 1.2/1.4 | 0.1 | 0 | -1.5 | -8.4 |
 | crawling_prone | gait | 0-70 / 71 (dup last) | 48 | 2.333 | 0.23 | 0.54 m, x2.16-2.68 | 0 cm / 0 deg (wrR) -> 0.6 (typ 0.5) | 9.2/13.2 -> 9.2/20.7 | 9.9 | 0 | -9.6 | -85.6 |
 | standing_idle | loop | 0-180 / 181 (dup last) | 120 | 6 | 0 | - | 0 cm / 0.1 deg (neck) -> 0 (typ 0) | 0/0 -> 0/0 | 0 | 0 | -1.5 | -1.2 |
 | carry_body_idle | loop | 0-300 / 301 (dup last) | 200 | 10 | 0 | - | 0 cm / 0 deg () -> 0 (typ 0) | 0/0 -> 0/0 | 0 | 0 | -1.4 | -5.8 |
-| crouch_to_stand | timed | 4-70 / 78 | 88 | 2.167 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -2.4 | -47.2 |
-| stand_to_crouch | timed | 10-88 / 123 | 104 | 2.583 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -2.8 | -53.9 |
+| crouch_to_stand | timed | 11-38 / 78 | 37 | 0.9 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -11.4 | -56.2 |
+| stand_to_crouch | timed | 29-45 / 123 | 23 | 0.55 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -3.9 | -44.4 |
 | elbow_strike | timed | 0-50 / 51 (dup last) | 68 | 1.667 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -1.7 | -12.3 |
 | cross_punch | timed | 0-26 / 27 (dup last) | 36 | 0.867 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -1 | -13.2 |
 | kneel_down | timed | 8-72 / 84 | 86 | 2.117 | - | - | - | 0/0 -> 0/0 | 0 | 0 | -1.5 | -57.6 |
@@ -159,13 +159,13 @@ ankle at Wren's (cm); the lowest pelvis (cm from rest, a deep crouch / kneel / p
 
 ### Notes and limits
 
-- `crouched_walking` (crouched sneak (MOCAP_CROUCH_WALK if it measures as well, A8)): in place no (A4 travel 189.4 cm); last frame vs first 0.15 deg / 0 cm; duty 0.302, half 0.114, capture lift 18.91 cm.
+- `crouched_walking` (crouched sneak (MOCAP_CROUCH_WALK if it measures as well, A8)): in place no (A4 travel 189.4 cm); last frame vs first 0.15 deg / 0 cm; duty 0.302, half 0.133, capture lift 18.91 cm; trunk turned -38.91 deg onto its travel (I4 `turn`).
 - `carry_body_walking` (body carry walk (J19 hand-off)): in place no (A4 travel 264 cm); last frame vs first 0 deg / 0 cm; duty 0.354, half 0.074, capture lift 19.02 cm.
 - `crawling_prone` (crawl under a shutter (Campaign hand-off)): in place no (A4 travel 54.1 cm); last frame vs first 0 deg / 0 cm; travel z -> z (heading -1.5 deg, 1.5 off the axis, arc 73.5 deg; FLAGGED arc); duty 0.052, half 0.171, capture lift 5.69 cm; limits: lies flat on the floor: the keyed format poses the pelvis, trunk, head and arms; the legs are the foot planner IK legs under that low pelvis (no leg channel from a capture), so they fold instead of lying straight, and the dragging toes read as contacts (see the slide and reach columns).
-- `standing_idle` (Wren's standing idle (KEYED_IDLE, I1)): in place yes (A4 travel 0 cm); last frame vs first 0.07 deg / 0 cm.
+- `standing_idle` (Wren's standing idle (KEYED_IDLE, I1)): in place yes (A4 travel 0 cm); last frame vs first 0.07 deg / 0 cm; arms in 11 deg (I4 `armIn`).
 - `carry_body_idle` (standing with a carried body (J19 hand-off)): in place yes (A4 travel 0 cm); last frame vs first 0 deg / 0 cm.
-- `crouch_to_stand` (stand-up from a crouch (I3, min 0.3 s)): in place no (A4 travel 27.9 cm); moving span 0.142-2.317 s of 2.567 s (threshold 0.1 m/s, peak 0.513); last frame vs first 97.76 deg / 46.27 cm; limits: starts crouched with the take's own depth (lowest pelvis column), not the game crouch height.
-- `stand_to_crouch` (crouch-down from standing (I3, min 0.25 s)): in place no (A4 travel 8.6 cm); moving span 0.333-2.925 s of 4.067 s (threshold 0.1 m/s, peak 0.751); last frame vs first 134.83 deg / 54.42 cm; limits: ends crouched with the take's own depth (lowest pelvis column), not the game crouch height.
+- `crouch_to_stand` (stand-up from a crouch (I3, min 0.3 s)): in place no (A4 travel 27.9 cm); last frame vs first 97.76 deg / 46.27 cm; limits: starts crouched with the take's own depth (lowest pelvis column), not the game crouch height.
+- `stand_to_crouch` (crouch-down from standing (I3, min 0.25 s)): in place no (A4 travel 8.6 cm); last frame vs first 134.83 deg / 54.42 cm; limits: ends crouched with the take's own depth (lowest pelvis column), not the game crouch height.
 - `elbow_strike` (knock-out strike (J19 S1 hand-off)): in place yes (A4 travel 0.1 cm); moving span 0-1.667 s of 1.667 s (threshold 0.1 m/s, peak 1.25); last frame vs first 0.27 deg / 0.02 cm.
 - `cross_punch` (palm / knock-out strike alternative (J19 hand-off)): in place yes (A4 travel 0 cm); moving span 0-0.867 s of 0.867 s (threshold 0.1 m/s, peak 1.075); last frame vs first 0 deg / 0 cm.
 - `kneel_down` (laying a body down (J19 R11 hand-off)): in place yes (A4 travel 0.9 cm); moving span 0.275-2.392 s of 2.767 s (threshold 0.1 m/s, peak 0.438); last frame vs first 123.32 deg / 55.78 cm; limits: the knees on the floor are not carried (planner IK legs, no leg channel): the trunk lowers over standing feet and reads as a deep squat.

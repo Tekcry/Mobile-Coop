@@ -35,7 +35,7 @@ import { ROOT, FPS } from './asfamc.mjs';
 import { q4, v3, R2D } from './math.mjs';
 import { wrenRig, buildSlot, OUT } from './retarget.mjs';
 import { emitCycle, emitOneShot, moduleSource } from './emit.mjs';
-import { loadMixamoTake, mirrorTake, travelHeading, MIXAMO_LICENCE, MIXAMO_RAW } from './mixamoTake.mjs';
+import { loadMixamoTake, mirrorTake, travelHeading, turnTake, MIXAMO_LICENCE, MIXAMO_RAW } from './mixamoTake.mjs';
 import { slugOf, packOf, titleOf, PACK_NAME, MIXAMO_OUT } from './mixamo.mjs';
 import { writeSection } from './takesdoc.mjs';
 
@@ -140,7 +140,11 @@ export function validateRecipes(json, { groups = bodyGroups() } = {}) {
       for (const k of ['crouch', 'circle', 'drawn', 'aim']) if (st[k] !== undefined && typeof st[k] !== 'boolean') e(`studio ${k} must be a boolean`);
       for (const k of Object.keys(st)) if (!['body', 'move', 'crouch', 'circle', 'drawn', 'aim'].includes(k)) e(`studio ${k} unknown (cycle is measured)`);
     }
-    for (const k of Object.keys(r)) if (!['kind', 'file', 'title', 'note', 'target', 'trim', 'travel', 'inPlace', 'gait', 'ownTrack', 'channels', 'studio', 'limits', 'slot', 'cycles', 'turnDeg', 'mirror', 'place'].includes(k)) e(`unknown field ${k}`);
+    // (mixamo-retarget I4) the take corrections: `turn` (a gait's trunk yaw onto its travel), `armIn` (upper-arm adduction)
+    if (r.turn !== undefined && !(r.turn === 'travel' || (typeof r.turn === 'number' && Math.abs(r.turn) <= 90))) e('turn must be "travel" or degrees (|deg| <= 90)');
+    if (r.turn === 'travel' && r.kind !== 'gait') e('turn "travel" needs a travelling gait');
+    if (r.armIn !== undefined && !(typeof r.armIn === 'number' && Math.abs(r.armIn) <= 30)) e('armIn must be degrees (|deg| <= 30)');
+    for (const k of Object.keys(r)) if (!['kind', 'file', 'title', 'note', 'target', 'trim', 'travel', 'inPlace', 'gait', 'ownTrack', 'channels', 'studio', 'limits', 'slot', 'cycles', 'turnDeg', 'turn', 'armIn', 'mirror', 'place'].includes(k)) e(`unknown field ${k}`);
     const pack = typeof r.file === 'string' ? packOf(r.file) : null;
     out.push({ slug, ...r, pack, place: r.place ?? 'game', mirror: r.mirror ?? false });
   }
@@ -240,6 +244,7 @@ export function faceTake(d, take, [a, b]) {
 export function buildIntermediate(rig, rec, { load = (slug) => loadMixamoTake(slug) } = {}) {
   const take0 = load(rec.slug);
   const take = rec.mirror ? mirrorTake(take0) : take0;
+  const turnDeg = rec.turn !== undefined ? turnTake(take, rec.turn) : null;
   const dup = dupLast(take);
   let a = 0, b = take.frames - 1, span = null;
   if (Array.isArray(rec.trim)) {
@@ -264,7 +269,26 @@ export function buildIntermediate(rig, rec, { load = (slug) => loadMixamoTake(sl
   // (I6) a sideways cycle: the root turned to the body's facing, travelling along x (emitCycle then aligns it exactly);
   // (I7) a backward one the same way, travelling -z
   if (rec.kind === 'gait' && travel !== 'z') faceTake(d, take, [a, b]);
-  return { d, take, dup, span, segment: [a, b], inPlace, travel, heading };
+  return { d, take, dup, span, segment: [a, b], inPlace, travel, heading, turnDeg };
+}
+
+/**
+ * (mixamo-retarget I4) The recipe's `armIn` (degrees): each arm's elbow and wrist (the `arm` channel, shoulder-relative in
+ * the chest frame) turned about the chest's forward axis through the shoulder, toward the body (+ in). A constant
+ * rotation on every frame: the arm's own motion, the loop seam and the frame steps are kept. In place on `def.arm`.
+ */
+export function armIn(def, deg) {
+  const a = (deg * Math.PI) / 180;
+  for (let f = 0; f < def.frames; f++) {
+    for (let k = 0; k < 4; k++) {
+      // [elL, wrL, elR, wrR]: the left arm hangs on -x (in: toward +x), the right on +x
+      const i = f * 12 + k * 3, t = k < 2 ? a : -a;
+      const x = def.arm[i], y = def.arm[i + 1];
+      def.arm[i] = x * Math.cos(t) - y * Math.sin(t);
+      def.arm[i + 1] = x * Math.sin(t) + y * Math.cos(t);
+    }
+  }
+  return def;
 }
 
 /** The per-frame widths of the keyed def arrays this emitter writes. */
@@ -341,6 +365,7 @@ export function emitRecipe(d, rig, rec) {
   else if (rec.kind === 'turn') out = emitTurn(d, rig, rec);
   else out = emitTimed(d, rig, rec.slug);
   if (!rec.channels.includes('head')) delete out.def.head;
+  if (rec.armIn) armIn(out.def, rec.armIn);
   return { out, kind, fallback };
 }
 
@@ -351,7 +376,10 @@ export const secondsName = (slug) => `MOCAP_${slug.toUpperCase()}_SECONDS`;
 export function moduleText(rec, d, res, info) {
   const timed = res.kind === 'timed';
   const spec = { name: rec.slug, typed: timed || res.kind === 'turn', kind: 'start', ...(timed ? { seconds: secondsName(rec.slug) } : {}) };
-  let body = moduleSource(spec, d, res.out);
+  // (I4) a recipe without the `head` channel: emit.mjs always writes the line, so it is written empty and taken out
+  const noHead = !res.out.def.head;
+  let body = moduleSource(spec, d, noHead ? { ...res.out, def: { ...res.out.def, head: [] } } : res.out);
+  if (noHead) body = body.replace('  // head turn: the local quaternion (x, y, z, w) on the neck\n  head: [],\n', '');
   body = body.slice(body.indexOf("import { keyedClip } from '../../keyed';"));
   body = body.replace('from the first push', 'from its first moving frame (the trimmed span)');
   // (I7) an Anim Studio only clip sits one folder down
@@ -361,10 +389,12 @@ export function moduleText(rec, d, res, info) {
     : res.kind === 'loop' ? `Loop (${res.out.def.frames} frames at even phases, no clip feet)${res.fallback ? '; a gait recipe emitted as a loop (CLIPS.md)' : ''}`
       : res.kind === 'turn' ? `Turn by the yaw turned (${res.out.def.frames} frames over ${r3(res.out.report.turnedDeg)} deg, ${r3(res.out.seconds)} s of take)`
       : `One-shot by progress (${res.out.def.frames} frames over ${r3(res.out.seconds)} s)`;
+  const fix = [typeof info.turnDeg === 'number' ? `trunk turned ${r2(info.turnDeg)} deg onto its travel` : '', rec.armIn ? `arms in ${rec.armIn} deg` : ''].filter(Boolean);
+  const fixes = fix.length ? ` Corrected (I4): ${fix.join(', ')}.` : '';
   const head = `// GENERATED by scripts/mocap/mixamoEmit.mjs (mixamo-retarget M3). Do not edit: rerun the emitter (recipe in
 // scripts/mocap/data/mixamo-clips.json, numbers in docs/mixamo-retarget/CLIPS.md). Source: Mixamo (mixamo.com, Adobe),
 // "${rec.title}" (${rec.file}), 30 fps frames ${f0}-${f1} of ${info.framesIn} (${r3(f0 / 30)}-${r3(f1 / 30)} s), converted onto Wren
-// (${d.wren.height} m, leg scale ${d.wren.scaleLeg}). ${what}. Body frame at 1.75 m (x right, y up, z forward),
+// (${d.wren.height} m, leg scale ${d.wren.scaleLeg}). ${what}.${fixes} Body frame at 1.75 m (x right, y up, z forward),
 // one row per frame. docs/mocap-trial/CLIP-FORMAT.md.
 `;
   return head + body;
@@ -462,6 +492,8 @@ export function clipsDoc(results, { checked }) {
     if (r.d.travel) notes.push(`faced: travel heading ${r.d.travel.headingDeg} deg, the take's facing ${r.d.travel.bodyTurnedDeg} deg off the travel root (faceTake)`);
     if (r.res.kind === 'gait') notes.push(`duty ${r3(r.res.out.def.duty)}, half ${r3(r.res.out.def.half)}, capture lift ${r2(r.res.out.report.liftH * 100)} cm`);
     if (r.res.fallback) notes.push(r.res.fallback);
+    if (typeof r.turnDeg === 'number') notes.push(`trunk turned ${r2(r.turnDeg)} deg onto its travel (I4 \`turn\`)`);
+    if (r.rec.armIn) notes.push(`arms in ${r.rec.armIn} deg (I4 \`armIn\`)`);
     if (r.rec.limits) notes.push(`limits: ${r.rec.limits}`);
     L.push(`- \`${r.rec.slug}\` (${r.rec.target}): ${notes.join('; ')}.`);
   }
@@ -520,7 +552,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     const { d, take } = B;
     const res = emitRecipe(d, rig, R);
     if (keyedClip) keyedClip(res.out.def);
-    const info = { framesIn: take.report.framesIn, frames30: [Math.round(B.segment[0] / 4), Math.round(B.segment[1] / 4)] };
+    const info = { framesIn: take.report.framesIn, frames30: [Math.round(B.segment[0] / 4), Math.round(B.segment[1] / 4)], turnDeg: B.turnDeg };
     const r = { ...B, rec: R, auto: rec.travel === 'auto', res, info, minPelCm: minPelCm(res.out.def) };
     results.push(r);
     rows[`mocap_${rec.slug}`] = sourceRow(R, res);
