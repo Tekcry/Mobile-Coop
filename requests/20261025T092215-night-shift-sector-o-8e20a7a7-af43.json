@@ -1,0 +1,14 @@
+{
+  "id": "20261025T092215-night-shift-sector-o-8e20a7a7-af43",
+  "sha": "8e20a7a77eb73620f4120deb1ec3102749b5ba42",
+  "branch": "feature/light-realism-l0",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "serve scripts/light-realism/shots.mjs --map campusOps --section 1 --label before --presets low,epic --video 30 --push shots/light-realism-s1"
+  ],
+  "env": {},
+  "set": "light-realism-l0",
+  "note": "light-realism L0 GPU before run: S1 meter vs field, pixel luma vs L5, shots to shots/light-realism-s1"
+}
