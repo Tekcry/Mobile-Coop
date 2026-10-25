@@ -362,6 +362,10 @@ try {
     const mod = SETS[n - 1];
     console.log(`set ${n} (${mod.SET})`);
     await until(A, (b) => window.__course.debug().bay === b, n - 1, 15000, `the course is at set ${n}`);
+    // (test-runner-j20 S6c, H8, Q11) every guard the set spawns is alive and none fell through; an empty set passes
+    const gl = await GA(() => { const es = window.__app.current.enemyMgr.enemies; return { n: es.length, dead: es.filter((e) => !e.alive).length, low: es.filter((e) => e.pos.y < -5).length }; });
+    console.log(`  (H8 set ${n}: ${gl.n} guards, ${gl.dead} not alive, ${gl.low} below -5 m)`);
+    assert(gl.dead === 0 && gl.low === 0, `set ${n}: every guard is alive and none fell through the floor (${JSON.stringify(gl)})`);
     await mod.walk(t, n);
     const led = await GA((i) => { const s = window.__course.state.stats?.[i]; return s ? { detections: s.detections, alarms: s.alarms, knockouts: s.knockouts, kills: s.kills, bodies: s.bodies } : null; }, n - 1);
     console.log(`  (ghost ledger A${n} after the walk: ${JSON.stringify(led)})`);
