@@ -1,4 +1,4 @@
-// (anim-rig, docs/anim-rework/RIG.md) Skins the toe box of the game LODs to the toe joints `toeL` / `toeR` (the ball of
+// (anim-rig, docs/archive/anim-rework/RIG.md) Skins the toe box of the game LODs to the toe joints `toeL` / `toeR` (the ball of
 // the foot), so a planted foot rolling onto its ball bends at the toes instead of pivoting rigidly.
 //
 //   node scripts/operators/toe-skin.mjs [--check] [hero.glb lod.glb ...]

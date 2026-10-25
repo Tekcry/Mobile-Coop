@@ -32,8 +32,8 @@ Follow-ups, after the research and the prototype (one line each; their order is 
 | Perf: re-measure the `?gfx=min` budgets on the desktop test context | with the test fixes | Pending PC run |
 | Operators: `feature/operators` merges master and opens its own PR (G75); its open items stay there | `feature/operators` | Running on its own branch, not in 4.0.0 |
 | Wren replaces the player body for both players now (G123, replaces G70); then the weapon step; body proportion fixes for every character (G72) | feature/operators PR | Merged (PR #5) |
-| Weapons: placeholder kit meshes (rifle with launcher, pistol with jammer, knife), believable holds and carry on Wren (`docs/weapons/`) | `feature/weapons` (`Mobile-Coop-weapons`) | Merged (PR #7; G177, G178) |
-| Animation clean-up (Michael, 2026-10-19): weapon handling (aim, reload with magazines, sequential equip / holster to the real mounts, shoulder swap), then Wren-specific animation audit, traversal and wall contacts against CT footage, hand shapes, transitions; prototype level: accurate, believable, no clipping (`docs/anim-cleanup/`) | `feature/anim-cleanup` (`Mobile-Coop-anim-cleanup`) | PR to master (Michael, 2026-10-19: land it before CT Core's next slices); open audits in `docs/anim-cleanup/POLISH.md` |
+| Weapons: placeholder kit meshes (rifle with launcher, pistol with jammer, knife), believable holds and carry on Wren (`docs/archive/weapons/`) | `feature/weapons` (`Mobile-Coop-weapons`) | Merged (PR #7; G177, G178) |
+| Animation clean-up (Michael, 2026-10-19): weapon handling (aim, reload with magazines, sequential equip / holster to the real mounts, shoulder swap), then Wren-specific animation audit, traversal and wall contacts against CT footage, hand shapes, transitions; prototype level: accurate, believable, no clipping (`docs/archive/anim-cleanup/`) | `feature/anim-cleanup` (`Mobile-Coop-anim-cleanup`) | PR to master (Michael, 2026-10-19: land it before CT Core's next slices); open audits in `docs/archive/anim-cleanup/POLISH.md` |
 | Original goggle and menu symbol (G69, "soon"); goggle on the brow when off, over the eyes when on (G73) | `feature/goggle` (proposed) | Not started |
 | Fallow bunker rebuilt on the CT moves, every jump and reach re-checked (G79), starting from Michael's walkthrough notes | `feature/bunker-walkthrough` | After the prototype |
 | Missing sounds: guards' footsteps, then ambience, then the rest (G66) | - | After the prototype |
@@ -43,13 +43,13 @@ Follow-ups, after the research and the prototype (one line each; their order is 
 | Kestrel: decided after the research (G53); its deferred items (LEVEL-01, LEVEL-08 to LEVEL-10) wait with it | `feature/kestrel` (merged into 4.0.0) | Paused |
 | One folder per map; Kestrel and the bunker move there (G55) | - | After the merge |
 | Awake-character limit reviewed for desktop (G46; how it is set, FU-11, is open) | - | Not started |
-| After Michael merges 4.0.0: branch clean-up per `docs/locomotion/CONSOLIDATE.md` "After Michael merges" | - | Only with Michael's go-ahead |
+| After Michael merges 4.0.0: branch clean-up per `docs/archive/locomotion/CONSOLIDATE.md` "After Michael merges" | - | Only with Michael's go-ahead |
 
 ## Current state (2026-10-18)
 - `integrate/consolidate` holds every branch except `feature/operators`: `feature/ct-locomotion` (with Kestrel),
   `feature/footsteps`, `feature/weapon-audio`, `feature/music`, `feature/training-bunker`, `feature/menu-ui-spec`.
   The one `ct-movement` commit not merged ("phone loads and plays on Low") is superseded by desktop only.
-- Deleted in this merge (logs: `docs/consolidation/deleted-*.md`): the retired maps, phone and touch code (tests run as a
+- Deleted in this merge (logs: `docs/archive/consolidation/deleted-*.md`): the retired maps, phone and touch code (tests run as a
   desktop), Wave / deathmatch / free-for-all / PvP, emotes, the old solo Training mode, every gun outside the CT kit,
   the player drone, the custom difficulty sliders, carried medkits.
 - `package.json` says 3.5.1 until the PR's version commit sets 4.0.0 (G84). `SAVE_VERSION` 9, `PROTOCOL_VERSION` 13.

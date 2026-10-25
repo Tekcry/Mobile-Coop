@@ -1,4 +1,4 @@
-// (anim-guard) The guard's side of the rear hold (docs/anim-rework/BRIEF.md "Holding a guard"): four keyed clips baked by
+// (anim-guard) The guard's side of the rear hold (docs/archive/anim-rework/BRIEF.md "Holding a guard"): four keyed clips baked by
 // scripts/anim-keys (keys/guard_*.json -> src/anim/clips/keyed/guard_*.ts). Sampling, joint ranges (design bible 5.12.2),
 // continuity, the floor: the one-shots end lying, the stumble's feet stay on the ground (forward kinematics of the keys,
 // as scripts/anim-keys/py/key_clip.py builds them; the runtime clip carries no legs yet).

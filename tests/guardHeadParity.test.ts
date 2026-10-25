@@ -33,7 +33,7 @@ const FRAMES = process.env.GUARD_HEAD_FRAMES;
 const FILTER = new RegExp(process.env.GUARD_HEAD_FILTER ?? '.');
 const frames: string[] = [];
 
-// Written exceptions (S3a fix round; measured worst errors in docs/guard-render/STATE.md "S3a fix round"). Each is a rig
+// Written exceptions (S3a fix round; measured worst errors in docs/archive/guard-render/STATE.md "S3a fix round"). Each is a rig
 // motion the sim has no state for (it never sees the feet); the bound is the measured worst rounded up, not a target.
 /** Walking along the wall leaning out (the walk to the edge): the rig's hips sit 0.7 m out on the outer foot
  *  (`PEEK_HIP`), and its head rides a once-a-stride 10-17 cm sawtooth set by where the foot planner plants the feet,

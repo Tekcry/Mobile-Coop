@@ -1,4 +1,4 @@
-// coop-fix diagnosis 2 (docs/coop-fix/DIAGNOSIS-2.md): is the host's character drawn on the joiner after the REAL menu
+// coop-fix diagnosis 2 (docs/archive/coop-fix/DIAGNOSIS-2.md): is the host's character drawn on the joiner after the REAL menu
 // flow (no `?autostart`): title (`?title=1`, pressed) -> boot / load gate -> main menu -> Co-op -> Host a room / Join with
 // code -> lobby -> Ready -> Start mission (Marlow Yard, Course mode). Transport: `?net=local` (the menu flow reads
 // `flags.net` without autostart: coopUi.openTransport); WebRTC needs the public relays, so it is not run here.
