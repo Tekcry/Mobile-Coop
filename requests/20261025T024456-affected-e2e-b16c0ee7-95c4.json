@@ -1,0 +1,31 @@
+{
+  "id": "20261025T024456-affected-e2e-b16c0ee7-95c4",
+  "sha": "b16c0ee7e8b15622248de186b8660942baf56548",
+  "branch": "feature/player-batch-25",
+  "pr": 418,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-darkness",
+    "e2e-desktop",
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-levels",
+    "e2e-lightbake",
+    "e2e-move",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #418"
+}
