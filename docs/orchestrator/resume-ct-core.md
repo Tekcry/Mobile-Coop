@@ -7,6 +7,17 @@ C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
 Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Docs-first hold (G346, G355): conformance review first (BOOT.md common start); finished PRs may ship. Every anim PR carries a ~1-2 min look video path in its body.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
+## Phase B (row 6 SIGNED OFF ~17:00; hold lifted, full burn; plan: FOLDED-PLAN.md + ROADMAP Decided Q34-Q39)
+- J1 docs PR: branch feature/player-docs-j1 (worktree Mobile-Coop-player-docs-j1, 12893086 = H6 + S7 carried from the
+  old WIP). Sub-branches -a (S1 movement, S2 input; Sonnet running), -b (S3 takedowns, S4 characters + art-credits;
+  Sonnet running), -c (S6 archive, DONE 734a3450). Brief scratch/ctcore/player-docs-j1/COMMON.md. Then merge a/b/c,
+  Opus checker, PR, message the orchestrator. Decisions: src comment fixes (protocol.ts:38, drawState.ts, gadgetSystem.ts:71,
+  test path comments) moved to J6 so J1 stays docs only; scale-sheet rope line waits for J24 (descent not built).
+- Opus planners running (plans only): J6 feature/player-hygiene, J19 feature/player-batch-j19, J24 feature/coop-kit
+  (brief scratch/ctcore/phase-b/PLANNER-COMMON.md). Then a fresh plan checker each, then builds (after J1 is open + PASS).
+- Opus triage running on coop-real (#388 c1b, c2 :3). gm-polish e2e-offline laptop rerun requested (set gm-polish).
+  #375 gm-flip stays draft until Michael's look picks (Q37 "decide at your walk").
+
 ## Now (2026-10-25 ~16:40, new account; resumed 16:33)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
