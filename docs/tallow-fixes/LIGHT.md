@@ -58,8 +58,8 @@ floor (feet) height. Map files: `feature/mission-engine` e37987544.
    width (master level-design 16.3.3, 16.4.2) and at least a body radius (0.3 m) from every guard post and guard route
    leg; each brief exports its list as `W<n>_DESKS` and tests both rules:
    - W1 the warden's tally desk [2.0, 50.1, 3.2, 50.7] (floor 4.5), under lamp 63;
-   - W2 the clerk's supper shelf against the pie back stair's east wall [57.95, 67.2, 58.35, 68.4] (lamp 72's table
-     lamp; south of the stair-top door's band z 68.4-69.6, 1.4 m from the clerk at (60, 66.8)); the rota desk against
+   - W2 the clerk's supper shelf against the pie back stair's east wall [57.95, 67.1, 58.35, 68.3] (lamp 72's table
+     lamp; south of the stair-top door's band z 68.4-69.6, 1.7 m from the clerk at (60, 66.8)); the rota desk against
      the fire-stair core's north wall [50.6, 63.8, 51.8, 64.6] (lamp 73; 1.0 m from the runner's mark); Teale's table
      beside him [51.9, 74.4, 52.5, 75.6] (lamp 74; off the stage door's band x 50.6-51.8, 0.6 m from Teale, 0.4 m from
      the keeper's z 76 leg); the reader's table in front of him [46.4, 76.9, 47.6, 77.5] (lamp 75; 0.7 m from the
