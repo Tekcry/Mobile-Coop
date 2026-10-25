@@ -1,0 +1,21 @@
+{
+  "id": "20261025T132238-affected-e2e-00d942d6-4f29",
+  "sha": "00d942d6f6a3e60eb90654754fc4ff00340d3fe8",
+  "branch": "feature/map-ready-s4",
+  "pr": 483,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-desktop",
+    "e2e-levels",
+    "e2e-lightbake",
+    "e2e-move",
+    "e2e-offline",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #483"
+}
