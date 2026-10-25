@@ -1,0 +1,20 @@
+{
+  "id": "20261025T070256-affected-e2e-6036ceac-51e4",
+  "sha": "6036ceaca75af617dc62fb546d6cda81e8dcf2ec",
+  "branch": "feature/guard-ai-docs-j1",
+  "pr": 435,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-gadgets",
+    "e2e-levels",
+    "e2e-park",
+    "e2e-sectorops",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #435"
+}
