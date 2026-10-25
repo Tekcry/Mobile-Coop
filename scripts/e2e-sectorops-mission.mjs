@@ -8,7 +8,7 @@
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const PARAMS = 'autostart=campusOps&mode=sector&mission=campusMissionTest&sectorGuards=4';
+const PARAMS = 'autostart=campusOps&mode=sector&mission=campusMissionTest&missions=1&sectorGuards=4';
 let failed = false;
 const all = [];
 

@@ -11,7 +11,7 @@ import { join as joinPath } from 'node:path';
 import { launch, openPage, BTN, assert } from './e2e-lib.mjs';
 import { until, waitSim, setSimPages, startMode, NET_VIEWPORT, onHostStep, hostStepResult, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
-const NET3 = false; // flip to true in the commit that merges feature/mission-net3 into feature/mission-engine (Marlow Build lead)
+const NET3 = true; // NET3 (start.sm) is merged into feature/mission-engine
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const MISSION = process.argv.find((a) => a.startsWith('--mission='))?.slice(10);
