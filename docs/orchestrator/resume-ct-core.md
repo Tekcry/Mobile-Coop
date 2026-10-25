@@ -27,8 +27,8 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
   is shorter than the fit push (up to 19 mm, fit :986 runs before the bake :1063). NOT for Michael yet. Next (after the
   CPU hold): confirm the cause, widen the cage past the push (or bake before the fit), rebake through the hidden task
   at BelowNormal priority, re-measure, crops. Boots / gloves still clustered from the hero (optional).
-- tuner-clarity-polish (feature/tuner-clarity-polish from master 2148ec96): Sonnet builder (hysteresis, keyToolWarn,
-  badge ellipsis, gun-drawn warning); then a checker + PR. #430 SHIPPED in 4.103.0.
+- tuner-clarity-polish PR #440 OPEN (head 83a30ea8; built, 82 tests / tsc / build). Next (after the CPU hold): fresh
+  Opus checker (Opus: src/ui hot path + reach logic), post `checker`, message the orchestrator. #430 SHIPPED 4.103.0.
 
 ## Now (2026-10-25 ~16:40, new account; resumed 16:33)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
