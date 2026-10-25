@@ -832,6 +832,8 @@ export class CoopHost implements NetAttachment {
 
   /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
   addSyringes(n: number): void {
+    // (J14 F1, conformance M3, G126) the one "no syringe grant outside Sector Ops" rule: Course mode keeps 2 revives
+    if (this.g.opts.mode !== 'sector') return;
     const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
     this.reviveClock.cap += k;
   }
