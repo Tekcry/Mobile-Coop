@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:01Z
 
 # Brief: player-hygiene S2 - Pad poll makes no per-frame garbage, behaviour bit-identical (Player Build)
 
