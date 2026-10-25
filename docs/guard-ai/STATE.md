@@ -1024,7 +1024,7 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    note: mission-engine calls responseTeam without `shield`; keep sectorMode's `s.shieldTeams === true`.
 6. J15 PR3 = feature/guard-rules-f0 48394def2 (~23:55): F0 flags + S4 barks (fix 479b938d2; `saw` appended at 39) +
    S6 pairs + fragment. All checks PASS (S4/S6 A + B, PR3-RECHECK-A/B); checker posted on 48394def2. Laptop set
-   laptop-e2e/rules-pr3 queued on e3df84001 (48394def2 is a docs-only delta). PR3 opens after PR2 merges (base master).
+   laptop-e2e/rules-pr3 on e3df84001 GREEN 18/18 (48394def2 is a docs-only delta). PR3 opens after PR2 merges (base master).
    Polish list: checks/S6-CHECK-A/B.md, PR3-RECHECK-A/B.md polish.
    J15 PR4 = feature/guard-rules-pr4 b111c9aa1 (PR3 + S7 fa848bcbb + S8 c74ad59e8 + S9 e3237a514, fragment, TESTING).
    Checks: S7 A + B, S8 A + B, S9, PR4-RECHECK-A/B all PASS; checker posted on d9c4d0e8c and b111c9aa1. Laptop set
