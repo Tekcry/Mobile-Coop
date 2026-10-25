@@ -70,7 +70,7 @@ The other light tests each PR runs (`sectionBakeCampus`, `lampGridLossless`, `la
 claims-check before it starts.
 
 **Overlaps and order** (2026-10-25: `node scripts/claims-check.mjs --plan docs/light-realism/PLAN.md --name
-feature/light-realism` gives 4; branches with no claims block found by `git diff --name-only origin/master...<b>` over
+feature/light-realism` gives 6 (rerun after the block landed); branches with no claims block found by `git diff --name-only origin/master...<b>` over
 origin/feature/* changed in 7 days). For the orchestrator to order; the proposal is the first named lands first:
 - **feature/coop4** and its slice branches coop4-data, -doc, -e2eai, -pol, -ui2 (no claims block): edit
   `tests/campusS1.test.ts`-`campusS5.test.ts`, which L1 (S1) and L2-S1..S5 edit. Proposed: coop4 first; L1 and each
@@ -84,8 +84,12 @@ origin/feature/* changed in 7 days). For the orchestrator to order; the proposal
 - **feature/guard-rules** (claims-check): map campusOps, through `campusS4Data.ts` / `campusS5Data.ts` (guard posts,
   not lamps). Proposed: guard-rules first; the L2-S4 and L2-S5 briefs read its posts for their route tables (brighter
   rooms change what those posts see).
+- **feature/sector-marks** (claims-check): map campusOps, through `campusS4Data.ts`, `campusS5Data.ts`,
+  `campusS4Dress.ts`, `campusSectors.ts` (objective places and exit beacons, not lamps). Proposed: sector-marks first;
+  the L2-S4 and L2-S5 briefs keep its objective places readable (no new lamp or arm box on a marked spot).
 - **feature/coop-kit** (claims-check: `docs/design/scale-sheet.md` band rows, `docs/level-design.md` 12.1),
-  **feature/route-runs-2** (claims-check: `level-design.md` 14-15), and with no claims block doc-polish*, doc-level,
+  **feature/route-runs-2** (claims-check: `level-design.md` 14-15), **feature/char-shadow-meter** (claims-check, J16:
+  `lighting.md` character-shadow section), and with no claims block doc-polish*, doc-level,
   level-validator-v6*, mission-validator*, level-standard-g157, fold-j2 (`level-design.md`, `scale-sheet.md`,
   `lighting.md`), gm-*, player-batch-25*, guard-cap-m2 (`lighting.md`): other sections. Proposed: all first; L5 (5.5,
   scale sheet 9, a new "Lux" section) is cut from master when it starts and rebases on whatever has landed.
