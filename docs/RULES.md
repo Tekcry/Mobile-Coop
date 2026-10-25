@@ -105,7 +105,8 @@ an Opus plan; the orchestrator assigns it (G283).
   (`docs/systems/agent-preamble.md` "Cloud sessions"); a lead picks up a done brief within 1 hour or closes it, and the
   orchestrator checks for done briefs older than that every cron run. A lead's small and spare jobs ride one batch PR.
 - Finish: the PR to master with its changelog fragment; it becomes train-ready (below). At the merge the job's answers
-  from Michael move into `docs/DECISIONS.md` with the next free G numbers (G89).
+  from Michael move into `docs/DECISIONS.md` with the next free G numbers (G89). The job's last PR has the line
+  `Job-done: <job>` in its body, so the train archives `docs/<job>/` ("Docs" below).
 
 **Getting to master** (G83: master is the live game and the only base).
 - Train-ready (this is the rule's owner; `docs/systems/watchdog.md` "The label convention" is how the code applies
@@ -208,9 +209,30 @@ rules.
 **Branches and previews.** One branch per job, cut from master, one PR each. Pages serves the live game, `/preview/`
 (master, through the pointer branch `dev`) and `/ct/` (through the pointer branch `ct-movement`); `dev` and
 `ct-movement` are not work branches. Detail: `docs/systems/deploy.md`. Weekly, the orchestrator deletes branches fully
-merged into master and older than 7 days, logging the list, and prunes clean merged worktrees in the same pass;
-unmerged branches are never touched, and any other branch deletion is Michael's call (G345,
-"Yes, weekly").
+merged into master and older than 7 days, logging the list, and prunes clean merged worktrees in the same pass ("Docs");
+unmerged branches are never touched, and any other branch deletion is Michael's call (G345, "Yes, weekly").
+
+## Docs
+- Map: `docs/VISION.md` the game, `docs/RULES.md` process, `docs/DECISIONS.md` why (every G entry and its history),
+  `docs/design-bible.md` systems, `docs/level-design.md` maps, `docs/INDEX.md` lookup (module map, doc index),
+  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record.
+- One home per rule: each rule lives in one file; every other doc links to it and never restates it
+  (`docs/doc-owners.json` names the homes of the key numbers).
+- Folds rewrite in place (G344): one PR updates DECISIONS, the bible and VISION together, plus the owner file of every
+  rule it changes. A replaced sentence is rewritten, never followed by an appended "Note <date>"; the old wording goes into
+  `docs/stale-terms.json`. The fold's checker fails appended notes and missed owner files.
+- Drift audit (G344, "I would like to carry out drift audit more often to prevent straying from vision"): an Opus
+  audit the orchestrator runs daily with the fold and after every batch of Michael decisions. It reads VISION, the
+  bible, RULES and the open BRIEF / PLAN files against DECISIONS and ROADMAP "Decided"; each drift is fixed in place in the
+  fold PR or becomes a ROADMAP item.
+- Doc lint in CI: `npm run lint` runs `scripts/doc-lint.mjs` (stale terms, G citations, links and repo paths, restated
+  rules, size budgets, appended bible notes); errors fail `check`, warnings print. `docs/doc-lint.json` holds the
+  budgets and the `known` stale lines in orchestrator-owned files (the fix removes its entry).
+- Finished jobs: the `Job-done: <job>` line in the job's last PR makes the train's version commit move `docs/<job>/` to
+  `docs/archive/<job>/` and fix the links to it.
+- Weekly prune (G345, "Yes, weekly"): `scripts/prune-merged.mjs --apply` (task `NightShift prune-merged`,
+  `scripts/prune-task.ps1`) removes clean worktrees merged into master and idle over 24 h,
+  and deletes branches merged into master whose tip is over 7 days old; log `C:/NightShift/scratch/prune-log/`.
 
 ## Commands
 - `npm run dev` - dev server (never from an agent)
