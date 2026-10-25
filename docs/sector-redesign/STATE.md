@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~08:40, new account after the 08:25 swap).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~09:00 SAVE for the ~09:15 swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU
 (desktop ~15%): Opus builders run locally when cloud-queue sits unclaimed (cq worktree C:/NightShift/scratch/cq).
 Checker reports: C:/NightShift/scratch/sector-ops-checks/*.md. Sector Ops AT the walk cap: builds go on dark.
@@ -360,14 +360,18 @@ Checker reports: C:/NightShift/scratch/sector-ops-checks/*.md. Sector Ops AT the
 2. J17 campus: P0 PR never opened; P0 conflicts with train 112 (flags.ts, campusSectors.ts, CLAUDE.md). After 112 is on
    master: P0 master take on a new entry branch from master (carries A23 / A26 / A27), PR + big-pr (orchestrator), then
    lane PRs S1, S2, S4 a/b/c, S5 a/b/c (all checker PASS + laptop green), S3 r6 (Sonnet PASS 3c62afb9, laptop campus-s3
-   queued). S3 r6 findings (clean bench rule C, dock desk): lead picks at the S3 PR.
-3. A28 #488: fix1 claimed by this lead, Opus builder local in -campus-greybox-a28; on done: two Opus delta checkers,
-   affected rerun, mark briefs/campus-greybox-a28-fix1.md done.
+   = e2e-sectorops:1 + :5 after the BIG trim). S3 r6 findings (clean bench rule C, dock desk): lead picks at the S3 PR.
+3. A28 #488: fix1 claimed by this lead; Opus builder was local in -campus-greybox-a28 (WIP pushed at the save if it
+   made it, else uncommitted there: finish from the brief, report docs/campus-greybox/checks/a28-fix1.md); on done: two
+   Opus delta checkers, affected rerun, mark briefs/campus-greybox-a28-fix1.md done.
 4. J10 L1: e2e-sectorops:1 + :6 broke on moved lamp heads (light-l1-e2e-triage.md); test fix 02c92e69, rerun queued
    (part 6 quarantined to 10-27: read its log). Green -> SIGNOFF.md + shots (shots/light-realism-s1) to the orchestrator
    for Michael; then the L1 PR (8k lines mostly docs/svg: check pr-size).
-5. J21 map-ready: S1 fix1 b95911c0 (Sonnet delta check running; laptop map-ready-s1 + -gate queued). S9 a89726ef Opus
-   PASS (laptop queued). S2 + S10 Opus builders running (worktrees -map-ready-s2 / -s10). Next: S8 plan, S3, S5.
+5. J21 map-ready: S1 fix1 b95911c0 checker PASS (Opus FIX, Sonnet delta); laptop map-ready-s1-gate (coop netmove).
+   S9 a89726ef Opus PASS; laptop map-ready-s9-gate (coop netmove lightbake). Affected sets withdrawn (orchestrator: BIG;
+   the job PR gets affected-e2e). S2 (-map-ready-s2, step 2 ee9cbce5) + S10 (-map-ready-s10, step 1 audit clean
+   bef1a053) Opus builders mid-run: resume from briefs + checks/s2-build.md / s10-build.md; then one Opus checker
+   each. Next: S8 plan, S3 (after S2), S5.
 6. J16: #481 / #489 wait on #459. S3b-2 (GameState wiring) after #481.
 Next: on each agent result: checker / laptop request; after train 112: item 1 then item 2.
 ```
