@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:32:44+11:00
+status: done feature/player-hygiene-s3 d326b34e19f68f9b65b171c07a875aa01d641ff8
 
 # Brief: player-hygiene S3 - Takedown offer scan and carry pick make no per-step garbage, behaviour bit-identical (Player Build)
 
@@ -137,3 +137,38 @@ Commit 2 (refactor), exact signatures the test calls (`tests/takedownAlloc.test.
   deviations) and set line 1 to `status: done feature/player-hygiene-s3 <sha>`; commit, push `cloud-queue`.
 - A question you cannot settle from this brief: line 1 `status: blocked <one-line reason>`, evidence under `## Report`,
   push, move on. The lead answers by editing this brief.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-25)
+Branch `feature/player-hygiene-s3` fast-forwarded from ee7993e2 to d326b34e (one commit; commit 1 was "verified, no
+change": the parity test passed on the unchanged code against the committed fixture, 6 pass + the `...Into` case
+skipped, scan 1152.2 B / carry wait 0.0 B; test and fixture untouched since).
+
+**What changed**
+- `src/game/takedown.ts`: `assistPlanInto` (:210) and `pickTakedownInto` (:265) write all nine fields in place, same
+  expressions and order, true / false; `assistPlan` (:204) / `pickTakedown` (:228) are wrappers on a fresh plan (and
+  `to`) as before. The `ground` closure is `groundInto(out, kind, i)` (:245); `drop` / `above` are `dropInto(out, i)`
+  (:431) / `aboveInto(out, i)` (:453); victimTo: inverted / below / window fill `to` and point at it, hangDown fills it
+  through `hangHoldPoint(..., to)`, the rest null.
+- `src/game/takedownController.ts`: members `scanPlan`, `scanTo`, `scanOffer`, `activePlan`, `activeTo` (:119-128);
+  `start()` copies the offer's plan (all nine fields, `victimTo` into `activeTo`) before the grab approach, passes
+  `activePlan.approach` to `beginTakedown`, `active.plan = activePlan`, the event reads its kind (:232-282);
+  `tryVictim` both sight checks via `hitDistance(...) > Vector3.Distance(eye, head) - 0.2` (same masks) and the member
+  offer (:341-347, :378-389); `carryStep` index loop, first match (:647-656). `:274-279` (J15) untouched; no
+  `ballistics.ray` left in the file; no `.find(` in `carryStep`.
+- `docs/player-hygiene/S3-REPORT.md` (Done / Left), `changes/feature-player-hygiene-s3.md` (as the brief's lines).
+
+**Tests and readings**
+- `tests/takedownAlloc.test.ts` 7 / 7 on three runs: wrapper parity, `...Into` parity through one scratch (`bad` 0),
+  scan **0.0 B per step** (before 1152.2), carry wait **0.0 B** (before 0.0), both alias tests.
+- `npm run typecheck` clean; eslint clean on the touched files; the brief's vitest set 10 files **159 / 159**.
+
+**Deviations**
+- The helpers take their doubles from a module `Float64Array` (`GEO`, takedown.ts:236) instead of the brief's argument
+  lists: in the full test file (the parity sweeps first, many input shapes) V8 stopped inlining `groundInto` and boxed
+  its three doubles: the scan read 96 B per step (0 B when run alone). With `GEO` it reads 0 B in the full file.
+  Bit-identical (both parity cases pass). Undo: the argument lists.
+- `tests/coopWalkFixes.test.ts:120` and `tests/hangDownTakedown.test.ts:78` (not in the file list): their fake
+  `ballistics` gains `hitDistance: () => 100`, as the takedownAlloc fake (`tryVictim` no longer calls `ray`); without it
+  9 cases fail on "hitDistance is not a function". One line each.
+- Allocation outside the two files on the measured path (A3): none seen (both readings 0.0).
+- Pending PC run: the laptop suites (affected + e2e-coop + e2e-netmove), the lead's.
