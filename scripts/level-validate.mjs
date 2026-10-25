@@ -250,7 +250,27 @@ export function checkDimensions(graph, metrics) {
       case 'team_rope':
         outside(lc, 'sizes.rope_span', 'rope climb', 'err');
         break;
+      // Long throw (BRIEF A27, slice S7b): `exception: "long_throw"` at a spot the sheet's "Long throw (named spots
+      // only)" row lists (`sizes.throw_long` = { max, spots }, spots `<meta.map>:<from>><to>`) is judged against its
+      // max; an unlisted spot or another value ERRs; no field (listed spots too) keeps the throw gap row. A missing or
+      // malformed `sizes.throw_long`: one WARN and the link falls back to the throw gap row.
       case 'team_throw': {
+        if (l.exception !== undefined && l.exception !== 'long_throw') {
+          c.err(`${name}: exception '${l.exception}' unknown (a team_throw takes only "long_throw")`);
+          break;
+        }
+        if (l.exception === 'long_throw') {
+          const long = c.obj('sizes.throw_long', 'the long-throw check (falls back to the throw gap row)');
+          const ok = long && typeof long.max === 'number' && Number.isFinite(long.max) && Array.isArray(long.spots);
+          if (long && !ok) c.warn('metrics: sizes.throw_long is not { max, spots }; the long-throw check skipped (falls back to the throw gap row)');
+          if (ok) {
+            const spot = `${graph.meta.map}:${l.from}>${l.to}`;
+            if (!long.spots.includes(spot)) c.err(`${name}: not an approved long-throw spot (${spot} is not in the scale sheet's Long throw row)`);
+            else if (width !== undefined && width > long.max + EPS) c.err(`${name}: gap ${fmt(width)} m above the ${fmt(long.max)} m long throw`);
+            else c.info(`${name}: long throw at an approved spot (${spot}, the scale sheet's Long throw row, Michael's approval), gap up to ${fmt(long.max)} m`);
+            break;
+          }
+        }
         const max = c.num('sizes.throw_gap_max', 'the throw gap check');
         if (width !== undefined && max !== undefined && width > max + EPS) c.err(`${name}: gap ${fmt(width)} m above the ${fmt(max)} m throw`);
         break;
