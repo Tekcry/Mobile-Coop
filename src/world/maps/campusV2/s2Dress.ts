@@ -21,8 +21,8 @@ export const S2_ART_TAGS: Record<string, ArtTag> = {
   mail: 'mailroom',
   lift: 'lobby',
   store: 'store',
-  foyer: 'reception',
-  hall: 'atrium',
+  // (S2-G1, BA1) the reception and the atrium hall are one room
+  foyer: 'atrium',
   hallne: 'lobby',
   plant: 'plant',
   roof: 'roof',

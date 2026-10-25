@@ -6,6 +6,7 @@ import type { MapLayout } from '../../mapDef';
 import type { BoardDef } from '../../../game/isolators';
 import { makeCone } from '../../lights';
 import { C1_GAP, type CoopLip } from '../campusS1';
+import { hyp2 } from '../../../core/mathx';
 
 /**
  * Saltmarsh Park (`campusOps`) section 2 - the HQ atrium and offices (`docs/sector-redesign/SPEC.md` "S2", slice 2). A
@@ -119,11 +120,30 @@ export function coreFlights(c: Core): Flight[] {
   return out;
 }
 
-/** The feature stair in the atrium: a straight flight from the G floor (z -11.9) up to the L1 south strip (z -20), 2.4 wide. */
-export const FEATURE_STAIR: Flight = { cx: -18, cz: -15.95, w: 2.4, len: 8.1, rise: 4.4, yaw: PI, y0: 0, steps: 24 };
+/**
+ * (campus-greybox S2-G1, C3, `S2-detail.md:64`) The feature stair in the atrium: two flights of 13 risers (0.169 x 0.283,
+ * 2R + G 0.62) with a 2.0 m mid landing, 2.4 wide (x -19.2..-16.8). Flight A climbs south from the G floor at z -9.7 to the
+ * landing (z -13.1..-15.1, top 2.2); flight B from the landing to the L1 south strip at z -18.5.
+ */
+export const FEATURE_FLIGHTS: readonly Flight[] = [
+  { cx: -18, cz: -11.4, w: 2.4, len: 3.4, rise: 2.2, yaw: PI, y0: 0, steps: 13 },
+  { cx: -18, cz: -16.8, w: 2.4, len: 3.4, rise: 2.2, yaw: PI, y0: 2.2, steps: 13 },
+];
+/** The feature stair's mid landing: x -19.2..-16.8, z -15.1..-13.1 (x0, x1, z0, z1), its top and thickness. */
+export const FEATURE_LANDING = { x0: -19.2, x1: -16.8, z0: -15.1, z1: -13.1, top: 2.2, th: 0.2 } as const;
+/** The feature stair's rails (1.1 high, 0.1 thick) on both sides: their centre lines. */
+export const FEATURE_RAIL_X = [-19.25, -16.75] as const;
+export const FEATURE_RAIL_H = 1.1;
 
-/** Every flight of the section (the cores' and the feature stair): the test's nav raster reads the ramps from here. */
-export const S2_FLIGHTS: readonly Flight[] = [...coreFlights(SW_CORE), ...coreFlights(NE_CORE), FEATURE_STAIR];
+/** Every flight of the section (the cores' and the feature stair's): the test's nav raster reads the ramps from here. */
+export const S2_FLIGHTS: readonly Flight[] = [...coreFlights(SW_CORE), ...coreFlights(NE_CORE), ...FEATURE_FLIGHTS];
+
+/**
+ * (campus-greybox S2-G1, C16, `S2-detail.md:67`, BA8) The old mail lift (out of service): the clear shaft x -34..-32.8,
+ * z -19.5..-18 (also the L1 slab's hole), walled on the N, E and S faces from G to 4.4 (the W face is the G opening behind
+ * the cages), a service ladder inside the east face facing PI / 2, and a 1.1 rail round the hole at L1.
+ */
+export const MAIL_SHAFT = { x0: -34, x1: -32.8, z0: -19.5, z1: -18 } as const;
 
 /**
  * (SPEC "Campus-wide rules", CR2) The L1 slab nose over the dark cafe: x -10, z -11..-5, 4.4 over the G floor (a leg-up and a
@@ -145,8 +165,8 @@ export const S2_ROOMS: RoomDef[] = [
   { id: 'mail', name: 'Mail and Goods', minX: -44, maxX: -30, minZ: -20, maxZ: -12, maxY: 4.4 },
   { id: 'lift', name: 'Lift Lobby', minX: -44, maxX: -30, minZ: -12, maxZ: -4, maxY: 4.4 },
   { id: 'store', name: 'North-west Store', minX: -44, maxX: -30, minZ: -4, maxZ: 6, maxY: 4.4 },
-  { id: 'foyer', name: 'Reception', minX: -30, maxX: -8, minZ: -30, maxZ: -23, maxY: 4.4 },
-  { id: 'hall', name: 'Atrium Hall', minX: -30, maxX: -8, minZ: -23, maxZ: 6, maxY: 4.4 },
+  // (S2-G1, C1, BA1) one lobby: the reception and the atrium hall are one room
+  { id: 'foyer', name: 'Reception and Atrium', minX: -30, maxX: -8, minZ: -30, maxZ: 6, maxY: 4.4 },
   { id: 'hallne', name: 'North-east Lobby', minX: -8, maxX: 4, minZ: -4, maxZ: 6, maxY: 4.4 },
   { id: 'plant', name: 'East Plant Room', minX: -8, maxX: 4, minZ: -30, maxZ: -4, maxY: 4.4 },
   { id: 'l1sw', name: 'L1 Open Plan West', minX: -44, maxX: -28.5, minZ: -30, maxZ: 6, minY: 4.4, maxY: 8.4 },
@@ -166,7 +186,12 @@ export const S2_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(-40, 0, 4.5) },
   { pos: new Vector3(-19, 4.4, -28.5) },
   { pos: new Vector3(-2, 8.4, 4.5) },
+  // (S2-G1, BA15) the post room: between the two post cages on its north wall (SPEC "Observe")
+  { pos: new Vector3(-39.75, 0, -21.6) },
 ];
+
+/** (S2-G1, BA15) The post room's two post cages (x, z), 2.2 x 1.8 x 0.9 against its north wall (z -20). */
+export const POST_CAGES: readonly (readonly [number, number])[] = [[-41.5, -20.6], [-38.0, -20.6]];
 
 export const S2_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
@@ -369,7 +394,8 @@ export function buildCampusS2(b: LevelBuilder): void {
 
   // ---- slabs: L1 (the lip piece at the cafe, CR2, keeps its ledge), L2, the roof (the void's rim stands on it)
   const lip: Rect = [-10, -6, -11, -5];
-  slab(b, [X0, X1, Z0, Z1], F1, [V, swFoot, neFoot, lip], 0.4);
+  const shaft: Rect = [MAIL_SHAFT.x0, MAIL_SHAFT.x1, MAIL_SHAFT.z0, MAIL_SHAFT.z1];
+  slab(b, [X0, X1, Z0, Z1], F1, [V, swFoot, neFoot, lip, shaft], 0.4);
   slab(b, [lip[0], lip[1], lip[2], lip[3]], F1, [], 0.4, SLAB, true);
   slab(b, [X0, X1, Z0, Z1], F2, [V, swFoot, neFoot]);
   slab(b, [X0, X1, Z0, Z1], FR, [V, swFoot, neFoot], 0.3, ROOF);
@@ -377,9 +403,23 @@ export function buildCampusS2(b: LevelBuilder): void {
   // ---- the cores and the feature stair
   buildCore(b, SW_CORE);
   buildCore(b, NE_CORE);
+  // (S2-G1, C3) the feature stair: two flights, the mid landing (a slab, overhead: G walks under it), rails both sides (LD 16.2.4)
   {
-    const f = FEATURE_STAIR;
-    b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STAIR, f.yaw, f.y0);
+    for (const f of FEATURE_FLIGHTS) b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STAIR, f.yaw, f.y0);
+    const L = FEATURE_LANDING;
+    const i0 = b.boxes.length;
+    b.box((L.x0 + L.x1) / 2, L.top - L.th / 2, (L.z0 + L.z1) / 2, L.x1 - L.x0, L.th, L.z1 - L.z0, SLAB);
+    b.boxes[b.boxes.length - 1]!.overhead = true;
+    const h = FEATURE_RAIL_H;
+    for (const x of FEATURE_RAIL_X) {
+      // the flights' rails: pitched boxes along the slope, the bottom face on the pitch line
+      for (const f of FEATURE_FLIGHTS) {
+        const pitch = -Math.atan2(f.rise, f.len);
+        b.box(x, f.y0 + f.rise / 2 + (h / 2) * Math.cos(pitch), f.cz, 0.1, h, hyp2(f.len, f.rise), STEEL, f.yaw, pitch);
+      }
+      b.box(x, L.top + h / 2, (L.z0 + L.z1) / 2, 0.1, h, L.z1 - L.z0, STEEL);
+    }
+    b.mark(i0, { noLedge: true });
   }
 
   // ---- G floor
@@ -392,12 +432,17 @@ export function buildCampusS2(b: LevelBuilder): void {
   doorIn(b, false, -30, 1, F0);
   wall(b, true, -20, X0, -30, [gc(-36)], F0, G1);
   doorIn(b, true, -20, -36, F0);
-  wall(b, true, -12, X0, -30, [], F0, G1);
-  wall(b, true, -4, X0, -30, [], F0, G1);
-  // the east plant room (x -8..4, z -30..-4): one door from the foyer
+  // (S2-G1, C6) the back-of-house doors: mail room to lift lobby, lift lobby to store (6 m from the x -30 corner)
+  wall(b, true, -12, X0, -30, [gc(-36)], F0, G1);
+  doorIn(b, true, -12, -36, F0);
+  wall(b, true, -4, X0, -30, [gc(-36)], F0, G1);
+  doorIn(b, true, -4, -36, F0);
+  // the east plant room (x -8..4, z -30..-4): a door from the foyer; (S2-G1, C5) the north door to the NE lobby, 3 m from
+  // the x -8 corner, locked at night and breachable (guard nav goes round by reception)
   wall(b, false, -8, Z0, -4, [gc(-26)], F0, G1);
   doorIn(b, false, -8, -26, F0);
-  wall(b, true, -4, -8, X1, [], F0, G1);
+  wall(b, true, -4, -8, X1, [gc(-5)], F0, G1);
+  doorIn(b, true, -4, -5, F0, { locked: true, breachable: true });
   // the turnstile barrier at z -23 (x -30..-8): waist high with three gates of 1.2 (the gates are open gaps; the camera sees them)
   {
     const i0 = b.boxes.length;
@@ -424,8 +469,25 @@ export function buildCampusS2(b: LevelBuilder): void {
   furn(b, 1.5, -10, 2.4, 1.8, 1.0, STEEL);
   furn(b, 1.5, -22, 2.4, 1.8, 1.0, STEEL);
   furn(b, -42.5, 3, 1.4, 1.8, 3.0, STEEL);
-  // post room: sorting table
+  // post room: sorting table; (S2-G1, BA15) the two post cages on the north wall
   furn(b, -35, -26, 3.0, 0.9, 1.0);
+  for (const [x, z] of POST_CAGES) furn(b, x, z, 2.2, 1.8, 0.9, STEEL);
+  // (S2-G1, C16, BA8) the mail-lift shaft: walls on the N, E and S faces (centre lines 0.1 outside the clear box, G to
+  // 4.4), the service ladder inside the east face, and at L1 a 1.1 rail round the hole (see the S2-G1 report: the rail
+  // leaves the ladder's top-out side, east, open)
+  {
+    const M = MAIL_SHAFT;
+    const i0 = b.boxes.length;
+    wall(b, true, M.z0 - 0.1, M.x0, M.x1 + 0.2, [], F0, F1, P, STEEL);
+    wall(b, true, M.z1 + 0.1, M.x0, M.x1 + 0.2, [], F0, F1, P, STEEL);
+    wall(b, false, M.x1 + 0.1, M.z0 - 0.2, M.z1 + 0.2, [], F0, F1, P, STEEL);
+    const y = F1 + 0.55;
+    b.box((M.x0 + M.x1) / 2, y, M.z0 - 0.05, M.x1 - M.x0, 1.1, 0.1, STEEL);
+    b.box((M.x0 + M.x1) / 2, y, M.z1 + 0.05, M.x1 - M.x0, 1.1, 0.1, STEEL);
+    b.box(M.x0 - 0.05, y, (M.z0 + M.z1) / 2, 0.1, 1.1, M.z1 - M.z0 + 0.2, STEEL);
+    b.mark(i0, { noLedge: true });
+    b.ladder(M.x1, (M.z0 + M.z1) / 2, F0, F1, PI / 2);
+  }
 
   // ---- L1 (floor 4.4, partitions up to 8.2)
   const A1 = F1;
