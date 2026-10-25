@@ -1,0 +1,30 @@
+{
+  "id": "20261025T081401-affected-e2e-ececda7e-9e18",
+  "sha": "ececda7e4138a91a19115ea0fa4f50bf6ea664a9",
+  "branch": "feature/hud-guidance",
+  "pr": 447,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-course",
+    "e2e-ctcourse",
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-gadgets",
+    "e2e-menus",
+    "e2e-move",
+    "e2e-netmove",
+    "e2e-pad",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-sectorops",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #447"
+}
