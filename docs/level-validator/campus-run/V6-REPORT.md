@@ -3,7 +3,8 @@ Owner: Marlow Build. Status: current.
 
 Re-measured on master by validator-port S10 on 2026-10-25, base `17871b9fe` (branch `feature/validator-port-s10`). The
 five campus graphs carry V6's positions (`area`, `vantage.at`, link `at`) and were measured with
-`node scripts/level-measure.mjs docs/sector-redesign/graph/campusOps-S1.json ... campusOps-S5.json --write` (doors open,
+`node scripts/level-measure.mjs docs/sector-redesign/graph/campusOps-S1.json ... campusOps-S5.json --write`
+(doors open,
 `docs/design/metrics.json` rules: shadow 0.40-0.60, vantage >= 0.70, LOS break <= 5 s, reach <= 15 s, walk 1.3 m/s, run
 3.0 m/s). The shadow share is INFO, never an ERR (G329; validator-port BRIEF A4; Sector Ops conformance L13,
 `docs/conformance-sector-ops/CONFORMANCE.md:135`). The campus is AS BUILT: the misses below are the greybox's, not the
