@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:19:55+11:00
+status: done feature/char-shadow-meter-a1 df64c0fa458cf04203bc11c3bcf7bda693f0aa5f
 # char-shadow-meter A1 fix (cloud, Node 22): sourcesInto reads 90 B a query on CI against the 72 B budget
 
 Lead: Night Shift | Sector Ops Build. PR #459 (J16 A1, dark). Opus. Small, urgent: it blocks #459's CI `test`.
@@ -28,3 +28,21 @@ Lead: Night Shift | Sector Ops Build. PR #459 (J16 A1, dark). Opus. Small, urgen
 - Commit path-limited (src/world/lightField.ts, tests/lightField.test.ts only), push. Report
   `docs/char-shadow-meter/checks/a1-node22-fix.md` (cause, fix, both Node readings); then
   `status: done feature/char-shadow-meter-a1 <sha>` here.
+
+## Report
+Cloud Builder 2, 2026-10-25. Head df64c0fa4 on `feature/char-shadow-meter-a1` (from 97ca3ad28, unmoved). Full write-up:
+`docs/char-shadow-meter/checks/a1-node22-fix.md`.
+- Cause: V8 boxing doubles (16 B HeapNumbers), not an object. `--trace-turbo-inlining` (Node 22.22.0, vitest worker):
+  the measured loop inlines `sourcesInto` + `columnInto`, then the cumulative budget runs out; `moonInto`,
+  `dynTermInto`, `inLampSet`, `pushRes` stay calls and `lampInto` is never inlinable. x and z (raw float64 once
+  `sourcesInto` is inlined) were boxed at each out-of-line call, plus `lampInto`'s grid arguments to `triInto` and its
+  segment to `doorBlocksOne`. Stub bisect: no moon 42.8, no column 48.8, no dynamic 74.0 (budget-coupled). A
+  standalone harness read 74.8 (Node 22) and 82.4 (Node 24): the old shape was budget-sensitive on both.
+- Fix (`src/world/lightField.ts` only; test and BOXED_BUDGET unchanged): the query point (`pt`), the door segment
+  (`seg`) and the trilinear grids (lamp rows `LS` 17 with the cell, `moonG` / `ambG`) live in typed-array slots; the
+  private steps take no double. Behaviour identical.
+- Readings, sourcesInto: Node 22 90.4 -> 0.0-16.4; Node 24 (24.22.1 via npx) 67.2 -> 0.0. Also totalAt 58.8 -> 16.4,
+  bodyLevel 114.0 -> 32.8, levelAt 64.4 -> 16.0, sourceAt 23.2 -> 0.0 (both Nodes). Node 22's 16.4 residual is
+  `lights.lightTerm`'s returned double when left out of line (stub reads 0.0); lights.ts is outside this brief.
+- Tests: tsc clean; eslint clean; `lightField` + `charOccluders` 36/36 on Node 22 and Node 24 (before: 1 failed on
+  Node 22); extra LightField consumers (11 files) 159/159 on Node 22.
