@@ -1,4 +1,4 @@
-status: open
+status: blocked built locally by Player Build (Opus, desktop) 2026-10-25T23:40 on feature/mixamo-i3 from mixamo-i1 c9a0f263 - do not claim
 priority: top
 
 # Brief: mixamo I3 - Mixamo stand-to-crouch / crouch-to-stand on Wren's stance changes behind `?mixamo=1` (Player Build)
