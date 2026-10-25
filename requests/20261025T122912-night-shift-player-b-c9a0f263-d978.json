@@ -1,0 +1,17 @@
+{
+  "id": "20261025T122912-night-shift-player-b-c9a0f263-d978",
+  "sha": "c9a0f2638eb243f7e5e93ca6e8d3c3ebcdf6a213",
+  "branch": "feature/mixamo-i1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "anim-audit",
+    "e2e-weapons-carry",
+    "e2e-anim",
+    "e2e-move",
+    "e2e-clip"
+  ],
+  "set": "mixamo-i1",
+  "note": "Mixamo I1 (flag off identity; both rows off)"
+}
