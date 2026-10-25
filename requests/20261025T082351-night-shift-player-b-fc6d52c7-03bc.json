@@ -1,0 +1,14 @@
+{
+  "id": "20261025T082351-night-shift-player-b-fc6d52c7-03bc",
+  "sha": "fc6d52c740e8518ce8ac4ddc8fe3c7ad0937eace",
+  "branch": "",
+  "pr": 388,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop-real:3"
+  ],
+  "set": "coop-real-c2b",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T071514-night-shift-player-b-fc6d52c7-60be, rerun on the laptop"
+}
