@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T11:24:00Z
+status: done feature/campus-greybox-s3-r3 4dd20af192974478cfde3233afd9ebc6b57691b3
 # campus-greybox s3-r3 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
@@ -27,3 +27,20 @@ Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADM
 - Done: every in-scope slice pushed; a report `docs/campus-greybox/checks/s3-r3-build.md` (per slice: files changed,
   tests with counts, assumptions taken with their undo, deviations, findings for the lead, pending PC runs); then
   `status: done feature/campus-greybox-s3-r3 <sha>` here.
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+R3 built on 3a8c6893: code cd688567, report 4dd20af1 (`docs/campus-greybox/checks/s3-r3-build.md`). Files:
+`src/world/maps/campusV2/s3Stairs.ts`, `tests/campusV2S3Stairs.test.ts`, `changes/feature-campus-greybox-s3-r3.md`, the report.
+- Tests (`dress: false`, `--maxWorkers=2`): campusV2S3Stairs 25/25, campusV2S3Frame 4/4; `tsc --noEmit -p .` clean.
+- Deviations (undos in the report): nav lip 0.2 high x 0.15 deep, not 0.2 x 0.2 (a 0.2 lip caught a cell centre 0.2 m from
+  each flight end, a 0.48 step; undo `S3_LIP_DEPTH = 0.2`); door rule tested as its substance (floor rises under 0.4 m
+  across each opening; door-to-foot west 0.6, north x-wall 0.55, staff 0.55; the literal 1.5 m cannot hold with 1.4 m
+  landings); north / east core north walls on z -0.15, half landings to z -0.3 (A1); `S3_ROOMS_STAIRS` exports
+  s3-wstair / s3-nstair / s3-estair. Reach G-L1 through each core alone passes at the cell phase and three shifted phases.
+- Findings: F1 frozen s3.ts builds `S3_ROOMS` without the stair rooms: import `S3_ROOMS_STAIRS` and append; stair rooms
+  overlap hall / dock / control by design (smallest room wins), so a merged no-overlap test must exempt them. F2 R3 builds
+  the whole core rings incl. the z -7 L1 doors nStairL1 / eStairL1 and the x 30 / 33.5 / 58 walls: if R2 also builds them,
+  anchors duplicate (R3's test asserts one anchor per stair door). F3 R2's L1 slab must leave holes exactly at the three
+  core boxes.
+- Pending PC runs: stairs walked in `?campusv2=3` once r1-r5 merge; R5's core-point room test; reach on the full build with
+  guards (R6) and the runtime nav build; e2e-sectorops:1..6 flag-off regression.
