@@ -68,6 +68,7 @@ import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from './targetPick';
 // (guard-ai S24) one last known position per intruder
 import { COOP4, INTRUDERS, slotOf } from './intruders';
+import { K_RESET, LEG_DONE, LEG_GIVEUP, LEG_LOOK, LEG_RESET, M_ARRIVED, M_DONE, M_DROPPED, OrderLeg, ORDER, type OrderBoard } from './missionOrders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0, soak: false };
@@ -1427,6 +1428,25 @@ export class Enemy implements Damageable {
   private brkWalkT = 0;
   private readonly brkGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
 
+  // ----- (guard-ai-mission-hooks S1a, D7, A5) a mission order: a calm walk to a post (look round) or a breaker reset -----
+  /** The board his order is on (null: none). */
+  private orders: OrderBoard | null = null;
+  /** His order's slot on `orders` (-1 none). */
+  orderSlot = -1;
+  /** His walk on it (reused). */
+  readonly leg = new OrderLeg();
+  /** He reached the post on this order (recorded arrived once). */
+  private ordAt = false;
+  /** The leg's walk target (reused). */
+  private readonly ordP: P2 = [0, 0];
+  /** The order step's goal (reused, as `brkGoal`). */
+  private readonly ordGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+
+  /** (guard-ai-mission-hooks S1a) On a mission order now. */
+  get ordered(): boolean {
+    return this.orderSlot >= 0;
+  }
+
   /** (guard-ai S15) The circuit he is walking to turn back on, -1 none (e2e / debug). */
   get breakerGroup(): number {
     return this.brkGroup;
@@ -1510,6 +1530,126 @@ export class Enemy implements Damageable {
       const group = this.brkGroup;
       this.endBreaker();
       this.ctx.breakerReset?.(this, group);
+    }
+    return g;
+  }
+
+  /**
+   * (guard-ai-mission-hooks S1a, A5, A6) May he take order `slot` on board `b` now? '' yes, else the cause (constant
+   * strings; the manager records it): down, held, passive, alerted, a dog or melee kind (S1a-c), a high-security post,
+   * already on an order, or busy: past a glimpse (S1a-d: suspicious is calm enough, as the breaker walk), a lure, the
+   * alarm run, a responder, a response team, a board task. A breaker walk is busy unless the order is a reset of his
+   * own circuit (it takes the walk over, PLAN "Cut first").
+   */
+  orderRefusal(b: OrderBoard, slot: number): string {
+    if (!this.alive) return 'down';
+    if (this.taken) return 'held';
+    if (this.passive) return 'passive';
+    if (this.alerted) return 'alerted';
+    if (this.dog || this.def.melee) return 'dog';
+    if (this.secure) return 'secure';
+    if (this.orderSlot >= 0) return 'order';
+    const lvl = this.aware.level;
+    if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return 'busy';
+    if (this.lure.active || this.runningAlarm || this.responder || this.crew !== null) return 'busy';
+    if (this.brkGroup >= 0) return b.kind[slot] === K_RESET && b.hasCircuit(slot, this.brkGroup) ? '' : 'busy';
+    if (this.incident >= 0) return 'busy';
+    return '';
+  }
+
+  /**
+   * (guard-ai-mission-hooks S1a) Take order `slot` of board `b` (the manager added him walking first): a breaker walk
+   * on one of its circuits ends without a reset (its incident freed; the board closes it at its next `follow`); he says
+   * so ("Checking it out.") and walks off at his patrol pace. False: refused (`orderRefusal`), nothing changed.
+   */
+  takeOrder(b: OrderBoard, slot: number): boolean {
+    if (this.orderRefusal(b, slot) !== '') return false;
+    this.endBreaker();
+    this.orders = b;
+    this.orderSlot = slot;
+    this.ordAt = false;
+    this.leg.start(b, slot, this.pos.x, this.pos.z, this.yaw);
+    this.turnT = 0;
+    this.routePath.length = 0;
+    this.bark('checking');
+    return true;
+  }
+
+  /** (guard-ai-mission-hooks S1a) A reset order on his circuit took his breaker walk over (the manager, on the other
+   *  walkers of the order's circuits): the walk ends, no reset. */
+  leaveBreaker(): void {
+    this.endBreaker();
+  }
+
+  /** (guard-ai-mission-hooks S1a) The manager drops his order (`cause`: a held guard). */
+  dropOrder(cause: string): void {
+    this.endOrder(false, cause);
+  }
+
+  /** (guard-ai-mission-hooks S1a) Off the order: recorded done or dropped (`cause`), back to his route (A5). */
+  private endOrder(done: boolean, cause: string): void {
+    const b = this.orders;
+    const s = this.orderSlot;
+    if (!b || s < 0) return;
+    b.set(s, this.num, done ? M_DONE : M_DROPPED, cause);
+    this.orders = null;
+    this.orderSlot = -1;
+    this.ordAt = false;
+    this.leg.end();
+    this.routePath.length = 0;
+    this.walker.rejoin(this.pos.x, this.pos.z);
+  }
+
+  /**
+   * (guard-ai-mission-hooks S1a) One step of his order: the leg's walk (via, post) at the breaker walk's pace (A5), the
+   * look-round, or the board: `BREAKER.resetT` s at its switch, then every listed circuit still off back on. A reset
+   * whose circuits all read on ends done at once (cause 'on': someone relit them, or a replay). No allocation.
+   */
+  private orderStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+    const g = this.ordGoal;
+    g.point = null;
+    g.speed = 0;
+    g.face = null;
+    const b = this.orders;
+    const s = this.orderSlot;
+    if (!b || s < 0) return g;
+    const circ = b.kind[s] === K_RESET ? b.circuits[s] : null;
+    if (circ && circ.length > 0) {
+      let on = true;
+      for (let i = 0; i < circ.length && on; i++) if (this.ctx.breakerOff?.(circ[i]!) !== false) on = false;
+      if (on) {
+        this.endOrder(true, 'on');
+        return g;
+      }
+    }
+    const lg = this.leg.step(dt, b, s, this.pos.x, this.pos.y, this.pos.z);
+    const st = this.leg.state;
+    if (st === LEG_GIVEUP) {
+      this.endOrder(false, 'giveUp');
+      return g;
+    }
+    if (st === LEG_DONE) {
+      this.endOrder(true, '');
+      return g;
+    }
+    if (!this.ordAt && (st === LEG_LOOK || st === LEG_RESET)) {
+      this.ordAt = true;
+      b.set(s, this.num, M_ARRIVED);
+    }
+    if (lg.move) {
+      this.ordP[0] = lg.x;
+      this.ordP[1] = lg.z;
+      g.point = this.goTo(this.ordP, dt, ORDER.arrive * 0.8, lg.y);
+      g.speed = this.def.walkSpeed * (this.caution > 0 ? PACE.cautious : PATROL_PACE);
+    } else if (lg.face === lg.face) g.face = lg.face;
+    if (st === LEG_RESET && this.leg.t >= BREAKER.resetT) {
+      if (circ) {
+        for (let i = 0; i < circ.length; i++) {
+          const c = circ[i]!;
+          if (this.ctx.breakerOff?.(c) !== false) this.ctx.breakerReset?.(this, c);
+        }
+      }
+      this.endOrder(true, '');
     }
     return g;
   }
@@ -2090,7 +2230,8 @@ export class Enemy implements Damageable {
     if (typeof o === 'boolean') return o && carriesTorch(this.def);
     // (warehouse-redesign M1) dogs carry no light: the rule says no before the field is read
     // (guard-ai S4, design 4) cautious and calm: the torch rule of a searching guard
-    const lvl = this.caution > 0 && this.aware.calmNow ? 'searching' : this.aware.level;
+    // (guard-ai-mission-hooks S1a, A5) on a mission order and calm: the torch rule of an investigating guard
+    const lvl = this.orderSlot >= 0 && this.aware.calmNow ? 'investigating' : this.caution > 0 && this.aware.calmNow ? 'searching' : this.aware.level;
     return torchRule(this.def, lvl, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
   }
 
@@ -2116,6 +2257,8 @@ export class Enemy implements Damageable {
     // (guard-ai S15) the breaker walk is calm: a glimpse that comes to nothing (suspicious and back) keeps it, anything
     // more drops it (the board sees him off its task); while it lasts the task lines below stay quiet
     if (this.brkGroup >= 0 && to !== 'suspicious' && to !== 'unaware' && to !== 'cooldown') this.endBreaker();
+    // (guard-ai-mission-hooks S1a, A5) so is a mission order: anything more than a glimpse drops it (the cause: the level)
+    if (this.orderSlot >= 0 && to !== 'suspicious' && to !== 'unaware' && to !== 'cooldown') this.endOrder(false, to);
     const task = this.brkGroup >= 0 ? -1 : this.incident;
     // (polish A1) a device responder calm again goes back to the device's search (below); (polish2 A191) then quietly
     const resume = RESPONDER_RESUME && this.responder && from === 'investigating' && (to === 'cooldown' || to === 'unaware') && this.alive && !this.taken;
@@ -2765,6 +2908,8 @@ export class Enemy implements Damageable {
     const def = this.def;
     const lvl = this.aware.level;
     this.spotArrived = false;
+    // (guard-ai-mission-hooks S1a, A5, A6) a board task, a lure or a breaker walk took him off the order: dropped
+    if (this.orderSlot >= 0 && (this.incident >= 0 || this.brkGroup >= 0 || this.lure.active)) this.endOrder(false, 'task');
     switch (lvl) {
       case 'unaware':
       case 'cooldown': {
@@ -2772,6 +2917,8 @@ export class Enemy implements Damageable {
         if (this.lure.active) return this.lureStep(dt);
         // (guard-ai S15) the breaker reset walk (calm: his patrol pace)
         if (this.brkGroup >= 0) return this.breakerStep(dt);
+        // (guard-ai-mission-hooks S1a, A5) a mission order (calm: his patrol pace)
+        if (this.orderSlot >= 0) return this.orderStep(dt);
         // (guard-ai S1) a sound he was not sent to: stand and look towards it a moment (`hearTurn`)
         if (this.turnT > 0 && this.hasStimulus) return { point: null, speed: 0, face: Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) };
         // the dog heels beside its handler
@@ -2818,6 +2965,8 @@ export class Enemy implements Damageable {
         if (this.lure.active && this.rate <= 0) return this.lureStep(dt);
         // (guard-ai S15) the breaker walk goes on once nothing is in sight (a glimpse stops him to look)
         if (this.brkGroup >= 0 && this.rate <= 0) return this.breakerStep(dt);
+        // (guard-ai-mission-hooks S1a, A5) so does a mission order (a glimpse stops him to look)
+        if (this.orderSlot >= 0 && this.rate <= 0) return this.orderStep(dt);
         // stop and look at what caught the eye / ear
         const face = this.hasStimulus ? Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) : null;
         return { point: null, speed: 0, face };
