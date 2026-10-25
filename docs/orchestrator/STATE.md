@@ -57,7 +57,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   which rule makes the slowest step slow, when it was last measured, what a cheaper one would cost.
 - Fix patterns yourself (rules, routing, tooling, fix jobs); ask him only by day and only when his answer changes the
   outcome; overnight, decide, log the assumption, carry on. Never leave a question dialog open overnight.
-- Tokens are no constraint in a full burn; spend them on progress, not overhead.
+- Tokens are no constraint in a full burn; spend them on progress, not overhead. Michael 2026-10-25 13:50: "ignore usage limits" - never slow work for the meters; saves still run at ~92% so nothing is lost at a swap.
 - At a swap, say "Safe to log out of the desktop and laptop" only at 100% with every session saved and runs queued.
 - Never trace CT animation frame by frame (IP).
 
