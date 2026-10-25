@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:36:40+11:00
 # J12 validator-port, docs slice D-B2 (Sonnet): docs for PR B2 (measure CLI + sheet rows)
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3).

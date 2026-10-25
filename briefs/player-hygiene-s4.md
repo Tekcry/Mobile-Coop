@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:36:40+11:00
 
 # Brief: player-hygiene S4 - The open selection wheel stops rebuilding its ring every step (Player Build)
 
