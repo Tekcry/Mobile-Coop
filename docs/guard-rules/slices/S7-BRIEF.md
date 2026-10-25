@@ -231,6 +231,7 @@ used, files, commits, tests changed, results, ai.md lines written, what Michael 
 - Missing from PLAN: the bark cooldown swallows `spotCall` (step 4: barks.ts joins S7's files); the validator's unit
   tests live in `tests/guardAiData.test.ts` (not claimed), so S7 puts its validator cases in `tests/lookout.test.ts`.
 
-## Open questions (for the lead)
-- S7-a (radio on an `investigating` rise) and S7-d (`barks.ts` one line in S7's files): both within A9's words; confirm
-  or strike before the build.
+## Lead decisions (2026-10-25 ~23:30)
+- S7-a CONFIRMED: the lookout radios on any sight-driven rise, a jump straight to `investigating` included (A9's
+  intent; a strong glimpse is still "grows suspicious by sight").
+- S7-d CONFIRMED: `barks.ts` (one line, `spotCall` in `URGENT`) joins S7's files; no other wave 4 slice touches it.

@@ -217,6 +217,6 @@ campus S4 to stage 2).
 - PLAN's e2e "a handler and a dog, a known position, release" fits `e2e-stealth-ai` only by calling `releaseHeel`
   directly (one page, no per-scenario flag); the flag wiring is a vitest case.
 
-## Open questions (for the lead)
-- S8-a: confirm no release on a section start at a carried stage (the alternative releases the dogs already placed,
-  round their handlers).
+## Lead decisions (2026-10-25 ~23:30)
+- S8-a CONFIRMED: no release on a section start at a carried stage (no last known position exists yet; most dogs are
+  still waiting to spawn).
