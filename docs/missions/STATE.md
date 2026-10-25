@@ -1,7 +1,29 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~05:05 (Night Shift | Campaign Build, after the 04:50 reset; read this block first)
+## RESUME 2026-10-26 ~05:30 SAVE (Night Shift | Campaign Build; pause to the ~09:50 reset; read this block first)
+Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
+FOLDED-PLAN J-rows; Tallow plan = ENGINE copy docs/missions/slices/J8-J9-PLAN.md (the scratch copy is stale). Notes /
+reports: C:/NightShift/scratch/campaign/ (lead-notes.md newest last). Rerun any agent below whose report is missing.
+1. WHARF e2e (wharf-tgc / wharf-tkl) red on dc2aa9c8, eb231778 (PR D), 62b206d2 (PR E): client mission HUD has no
+   rows. Opus triage (wharf-triage.md, worktree -wharf-triage): fix bd7f7a997 on feature/mission-engine-gb6fix2 (client
+   mission mirror enters the host's live section), local rerun was in flight. Next: read the report; merge the fix into
+   every red head (PR D first), re-request laptop sets j7-prd / j7-pre / mission-gb6fix.
+2. J7 PR D feature/mission-rules eb231778: checker PASS; laptop red (wharf). Green -> merge into engine.
+3. J7 PR E -net 62b206d2a (fix1 PASS x2 + R7 PASS): laptop red (wharf). Green -> FE docs step, PR E.
+4. J7 PR F -hud 9606076bf (= -net + R6 + R6 polish + R8; checker status posted). Laptop set e2e-sectorops (all) +
+   e2e-menus HELD until the wharf fix is in.
+5. #482 J3b PR B: train-ready (affected 29/30, flake e2e-studio). Rides the next train.
+6. Tallow: LP PASS (adb5503f2, 3 fix rounds, checker status posted); G0 PASS (55514bad6); S2 PASS x2 (3cc718578);
+   PR T feature/tallow-throw 45239952a = engine + TD-a (PASS). After PR D is in the engine: cut feature/tallow-fixes
+   (merge LP + G0), cut feature/tallow-shutters (merge S2), push D0 / MB briefs (scratch cq/) with the engine sha.
+   TD-b waits for the kit-flag fold. Brief notes for TD-b / S1 / S4 / G builders in lead-notes.
+7. Mixamo kit moves: Marlow's feature/mixamo-kit; I merge it into the engine after #477 + mixamo-i3 release
+   (test fix dbe5e854b rides with it; merge resolutions approved, lead-notes).
+Next: wharf-triage.md -> merge bd7f7a997 (or its final) into PR D / -net / -hud / gb6fix heads, re-request laptop
+sets; on green: PR D -> engine, then Tallow branches (item 6).
+
+## OLD RESUME 2026-10-26 ~05:05 (Night Shift | Campaign Build, after the 04:50 reset; history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
 FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to cloud-queue; local checks only through
 `node C:/NightShift/scratch/ctcore/low.mjs "<cmd>"` (BelowNormal). Notes / reports: C:/NightShift/scratch/campaign/
