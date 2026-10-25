@@ -57,4 +57,11 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
 - Step 4 (c): the hang skip at the top of mixamoTrav (KIT_TABLES[1].any && kit.move pull && role a), own commit.
 - Step 5: characterRig.ts :2422 (+ `ks = free ? t.keyShot : 0`), :2610 (trunk `kw * keyTrunk + ks`), :2949 (arms
   `(kw > 0 ? keyArmW : 0) + ks`, same gates); pelvis on kw. animSkeletonIdentity + guardPoseGolden green.
-Next: 6 tests (tests/kitMixamo.test.ts, teamPose.test.ts), KIT-REPORT.md, 7 changes fragment, PR.
+- Step 6 (IN PROGRESS, WIP commit at save): tests/kitMixamo.test.ts (a)-(i), (c2) written; 16 of 17 green; (g)
+  graph reads 768.16 vs limit 768 B (off 736 + 2 boxed doubles into keyed.ts): a 0.16 B rounding margin to settle.
+  teamPose.test.ts phase cases added (green). Fixes from the tests: guard graphs never get the shot (TeamRigIn.graph
+  carries wrenReady), the scramble take fades over its last KIT_SHOT.tail 0.15 s (the landing ends the free body), the
+  kit clock moved to a KitClock scratch (no boxed doubles), dt / hk passed in fields. A8 rule (h): pulling_up_to_a_ledge
+  and crawling_prone rows OFF (wrist 28.1 vs 12.3 cm, knee bow 0.33 vs 0.08; toe 13.1 vs 5.1 cm), kneeling_pull_up and
+  lifting_heavy_object ON.
+Next: finish (g), run the step checks, KIT-REPORT.md (A8 readings), 7 changes fragment, build size, draft PR, e2e request.

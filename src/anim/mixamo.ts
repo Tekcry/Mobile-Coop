@@ -94,12 +94,14 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // in docs/mixamo-retarget/KIT-REPORT.md, tests/kitMixamo.test.ts (h))
   // the pull-up holder's catch and haul (trunk, head and arms; the pelvis stays the game's)
   kneeling_pull_up: true,
-  // the pull-up partner's scramble over the edge (its rise dropped: the game's root path does it)
-  pulling_up_to_a_ledge: true,
+  // off: the pull-up partner's scramble with its rise dropped steps a wrist 28.1 cm in a frame (placeholder 12.3) and bows
+  // a knee 0.33 m out (placeholder 0.08): over 2x (the I2 rule)
+  pulling_up_to_a_ledge: false,
   // the shutter holder's lift and hold
   lifting_heavy_object: true,
-  // the crawl under a held shutter, on the distance crawled
-  crawling_prone: true,
+  // off: the crawl under a held shutter (on the distance crawled) folds the IK legs under its prone pelvis: a toe steps
+  // 13.1 cm in a frame (placeholder 5.1), a knee bows 0.13 m (0.04): over 2x (the I2 rule; Player asked to keep it on)
+  crawling_prone: false,
   // (mixamo-kit A1) optional phases, today's pose: the pull offer's held frame
   kit_pull_offer: false,
   // the pull partner's hang (local page only: the remote ph is 0 through the hang)

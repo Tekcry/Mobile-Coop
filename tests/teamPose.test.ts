@@ -5,6 +5,7 @@ import { TEAM } from '../src/config/movement';
 import {
   BOOST_A,
   HANG_ANKLE,
+  KIT_POSE_LOCAL,
   STAND_DROP,
   TEAM_LINK,
   TeamPoser,
@@ -24,6 +25,7 @@ import {
 import { PAIR_PARTS, newPairRole, pairPose, ropeHoldLine, type PairRole } from '../src/anim/studioPairs';
 import { PAIR_STATION } from '../src/anim/studioTraversal';
 import { boostPath } from '../src/game/teamMoves';
+import { KIT_PULL } from '../src/anim/kitMixamo'; // (mixamo-kit)
 
 const H = 1.75;
 const DT = 1 / 60;
@@ -83,6 +85,8 @@ afterEach(() => {
   TEAM_LINK.role = '';
   TEAM_LINK.k = -1;
   TEAM_LINK.linger = 0;
+  TEAM_LINK.kit = ''; // (mixamo-kit)
+  TEAM_LINK.kt = 0;
 });
 
 describe('team pose: the leg-up', () => {
@@ -332,6 +336,41 @@ describe('team pose: the state, the wire and the link', () => {
     expect(teamPoseOfState('ropeClimb', 1, i)).toMatchObject({ move: 'rope', role: 'a' });
     expect(teamPoseOfState('relayHold', 1, i)).toMatchObject({ move: '', role: '' });
     expect(teamPoseOfState('none', 1, i)).toMatchObject({ move: '' });
+    // (mixamo-kit) the kit phase and its clock: '' / 0 off the kit; the state and the PLAN 2 clock on it
+    expect(teamPoseOfState('assist', TEAM.boostTime / 2, i)).toMatchObject({ kit: '', kt: 0 });
+    KIT_POSE_LOCAL.k = 0.5;
+    KIT_POSE_LOCAL.gap = 0.45;
+    expect(teamPoseOfState('pullOffer', 0, i)).toMatchObject({ move: 'pull', role: 'b', kit: 'pullOffer' });
+    expect(teamPoseOfState('pullCatch', 0, i)).toMatchObject({ kit: 'pullCatch', kt: 0.5 * KIT_PULL.catchClose });
+    expect(teamPoseOfState('pullHaul', 0, i)).toMatchObject({ kit: 'pullHaul', kt: 0.5 * (KIT_PULL.haul + KIT_PULL.scramble) });
+    expect(teamPoseOfState('pullScramble', 0, i)).toMatchObject({ move: 'pull', role: 'a', kit: 'pullScramble', kt: 0.5 });
+    expect(teamPoseOfState('shutterLift', 0, i)).toMatchObject({ move: 'shutter', role: 'b', kit: 'shutterLift', gap: 0.45 });
+    expect(teamPoseOfState('crawlUnder', 0, i)).toMatchObject({ move: 'shutter', role: 'a', kit: 'crawlUnder' });
+    expect(teamPoseOfState('none', 0, i)).toMatchObject({ move: '', kit: '', kt: 0 });
+    KIT_POSE_LOCAL.k = -1;
+    KIT_POSE_LOCAL.gap = NaN;
+  });
+
+  it('(mixamo-kit) the remote kit phase: the wire alone, or our linked climber\'s clock for its holder', () => {
+    const i = newTeamPoseIn();
+    expect(teamPoseOfWire('brace', 8, 0, 0, 'p2', i)).toMatchObject({ move: 'pull', role: 'b', kit: 'pullOffer' });
+    expect(teamPoseOfWire('brace', 16, 0.6, 0, 'p2', i)).toMatchObject({ move: 'shutter', role: 'b', gap: 0.6 });
+    expect(teamPoseOfWire('boost', 8, 0, 0, 'p2', i)).toMatchObject({ move: 'pull', role: 'a', kit: '', kt: 0 });
+    expect(teamPoseOfWire('boost', 8, 0, 0.4, 'p2', i)).toMatchObject({ kit: 'pullScramble', kt: 0.4 });
+    expect(teamPoseOfWire('boost', 16, 0.9, 0, 'p2', i)).toMatchObject({ move: 'shutter', role: 'a', kit: 'crawlUnder' });
+    const me = newTeamPoseIn();
+    KIT_POSE_LOCAL.k = 0.5;
+    for (const [st, kit, kt] of [
+      ['pullJump', 'pullCatch', 0.5 * KIT_PULL.landT],
+      ['pullHang', 'pullHaul', 0.5 * KIT_PULL.haul],
+      ['pullScramble', 'pullHaul', KIT_PULL.haul + 0.5 * KIT_PULL.scramble],
+    ] as const) {
+      teamPoseOfState(st, 0, me);
+      teamLinkFrame(DT, 'p2', me, 0, 0, 0, 0);
+      expect(TEAM_LINK).toMatchObject({ kit: st, kt: me.kt });
+      expect(teamPoseOfWire('brace', 8, 0, 0, 'p2', i)).toMatchObject({ kit, kt });
+    }
+    KIT_POSE_LOCAL.k = -1;
   });
 
   it('the partner\'s avatar: its own wire mode / sub, and our clock when we are its partner (no wire change)', () => {

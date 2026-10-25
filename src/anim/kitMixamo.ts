@@ -36,7 +36,8 @@ import type { KitPoseId, KitPoseMove, TeamPoseRole, TeamRigIn } from './clips/te
  * - `gapEps`: a gap under this is shut (the offer). `crawlCycle`: the crawl take's travel a cycle (m at 1.75 m);
  *   `crawlStretch`: the take played over that much more ground (~2x its speed at the 0.85 m/s kinematic crawl).
  * - `flip`: the graph's own weight ease (s) at a start, an end, a jump in clip time or a source flip; `jump`: a step in
- *   the shot's progress (or loop phase) over this in a frame is a jump (a phase change, a relink): cross-faded over `flip`.
+ *   the shot's progress (or loop phase) over this in a frame is a jump (a phase change, a relink): cross-faded over `flip`;
+ *   `tail`: the scramble's take fades out over its last this-many s (the body lands: no longer free, the rig drops it).
  * - `barHandW` / `haulHandW`: the IK weight of the palms on the shutter's bar / on the partner's wrists; `wristUp` the
  *   partner's wrists over its root while hauled (m at 1.75 m).
  */
@@ -64,6 +65,7 @@ export const KIT_SHOT = {
   crawlStretch: 1.85,
   flip: 0.1,
   jump: 0.05,
+  tail: 0.15,
   barHandW: 1,
   haulHandW: 0.8,
   wristUp: 1.5,
@@ -170,78 +172,137 @@ export function clearKitShot(s: KitShotIn): void {
 const clamp01 = (v: number): number => (v <= 0 ? 0 : v >= 1 ? 1 : v);
 
 /**
- * A kit pose id's clip time (s into its take) at its clock `kt` (PLAN 2 table):
+ * A kit shot's clock (TeamPoser owns one): it writes `kt` (and `gap`), the into-functions write the results into the
+ * fields, so no double crosses a call per frame (a call the engine does not inline boxes each double: 16 B).
+ * - `kt` the phase's clock (`kitTimeInto`); `sec` the clip time (s into the take); `time` the shot's progress 0..1 (the
+ *   crawl: its cycle phase);
+ * - `gap` the shutter gap this frame, `last` the last one seen, `trend` its trend (`kitGapInto`).
+ */
+export interface KitClock {
+  kt: number;
+  sec: number;
+  time: number;
+  gap: number;
+  last: number;
+  trend: number;
+}
+
+export function newKitClock(): KitClock {
+  return { kt: 0, sec: 0, time: 0, gap: 0, last: 0, trend: 0 };
+}
+
+/**
+ * A kit pose id's clip time at its clock `c.kt` (PLAN 2 table) into `c.sec`, and the shot's progress into `c.time`:
  * - pullCatch: tau, s since the host's start; pullHaul: tau, s since the haul began (haul then the scramble);
  * - pullHang / pullScramble: the partner's k (traverseT);
  * - shutterOffer / shutterHold: s since the phase began (TeamPoser's clock); shutterLift / shutterDrop: g, the gap over
  *   `holdGap`; crawlUnder: the distance crawled over the body scale (m at 1.75 m); pullOffer: none (held).
- * Pure; no allocation.
+ * No allocation.
  */
-export function kitClipTime(id: KitPoseId, kt: number): number {
+export function kitTimeInto(id: KitPoseId, c: KitClock): void {
   const S = KIT_SHOT;
+  const kt = c.kt;
+  let s = 0;
+  let len: number = S.pullSec;
   switch (id) {
     case 'pullOffer':
-      return S.offerAt;
+      s = S.offerAt;
+      break;
     case 'pullCatch':
-      return S.catch0 + (S.catch1 - S.catch0) * clamp01(kt / KIT_PULL.catchClose);
+      s = S.catch0 + (S.catch1 - S.catch0) * clamp01(kt / KIT_PULL.catchClose);
+      break;
     case 'pullHaul':
-      return kt <= KIT_PULL.haul ? S.catch1 + (S.haul1 - S.catch1) * clamp01(kt / KIT_PULL.haul) : S.haul1 + (S.pullSec - S.haul1) * clamp01((kt - KIT_PULL.haul) / KIT_PULL.scramble);
+      s = kt <= KIT_PULL.haul ? S.catch1 + (S.haul1 - S.catch1) * clamp01(kt / KIT_PULL.haul) : S.haul1 + (S.pullSec - S.haul1) * clamp01((kt - KIT_PULL.haul) / KIT_PULL.scramble);
+      break;
     case 'pullJump':
-      return 0;
+      break;
     case 'pullHang':
-      return S.scram0 * clamp01(kt);
+      s = S.scram0 * clamp01(kt);
+      len = S.ledgeSec;
+      break;
     case 'pullScramble':
-      return S.scram0 + (S.ledgeSec - S.scram0) * clamp01(kt);
+      s = S.scram0 + (S.ledgeSec - S.scram0) * clamp01(kt);
+      len = S.ledgeSec;
+      break;
     case 'shutterOffer':
-      return S.offer0 + (S.lift0 - S.offer0) * clamp01(kt / S.offerSec);
+      s = S.offer0 + (S.lift0 - S.offer0) * clamp01(kt / S.offerSec);
+      len = S.liftSec;
+      break;
     case 'shutterLift':
-      return S.lift0 + (S.lift1 - S.lift0) * clamp01(kt);
+      s = S.lift0 + (S.lift1 - S.lift0) * clamp01(kt);
+      len = S.liftSec;
+      break;
     case 'shutterHold': {
       // ping-pong (mirrored) over lift1..hold1
       const span = S.hold1 - S.lift1;
       const u = (kt > 0 ? kt : 0) / span;
       const m = u - 2 * Math.floor(u / 2);
-      return S.lift1 + span * (m <= 1 ? m : 2 - m);
+      s = S.lift1 + span * (m <= 1 ? m : 2 - m);
+      len = S.liftSec;
+      break;
     }
     case 'shutterDrop':
-      return S.hold1 + (S.drop1 - S.hold1) * clamp01(1 - kt);
+      s = S.hold1 + (S.drop1 - S.hold1) * clamp01(1 - kt);
+      len = S.liftSec;
+      break;
     case 'crawlUnder': {
       const u = kt / (S.crawlCycle * S.crawlStretch);
-      return S.crawlSec * (u - Math.floor(u));
+      s = S.crawlSec * (u - Math.floor(u));
+      len = S.crawlSec;
+      break;
     }
   }
+  c.sec = s;
+  c.time = id === 'crawlUnder' ? s / len : clamp01(s / len);
 }
 
-/** A kit pose id's take length (s; a cycle for the crawl). */
-export function kitClipSec(id: KitPoseId): number {
-  const S = KIT_SHOT;
-  if (id === 'crawlUnder') return S.crawlSec;
-  if (id === 'pullHang' || id === 'pullScramble') return S.ledgeSec;
-  if (id === 'pullOffer' || id === 'pullCatch' || id === 'pullHaul' || id === 'pullJump') return S.pullSec;
-  return S.liftSec;
+/**
+ * The shutter holder's phase from `c.gap` (PLAN 2 "Shutter phase"), the same on both pages: the trend +1 rising, -1
+ * falling, kept when the gap is unchanged (the wire `s` is stepwise and the fixed step is not the render frame), an
+ * unknown gap (NaN) shut; then shut -> the offer, open to the crawl gap and not falling -> the hold, rising -> the lift,
+ * falling -> the drop. Writes `c.trend` / `c.last`. No allocation.
+ */
+export function kitGapInto(c: KitClock): KitPoseId {
+  const g = c.gap > 0 ? c.gap : 0;
+  const l = c.last > 0 ? c.last : 0;
+  const trend = g > l ? 1 : g < l ? -1 : c.trend;
+  c.trend = trend;
+  c.last = g;
+  if (g <= KIT_SHOT.gapEps) return 'shutterOffer';
+  if (g >= KIT_SHOT.crawlGap && trend >= 0) return 'shutterHold';
+  return trend < 0 ? 'shutterDrop' : 'shutterLift';
+}
+
+// the same rules as plain functions (tests, tools; not per frame)
+const KC = newKitClock();
+
+/** A kit pose id's clip time (s into its take) at its clock `kt`. */
+export function kitClipTime(id: KitPoseId, kt: number): number {
+  KC.kt = kt;
+  kitTimeInto(id, KC);
+  return KC.sec;
 }
 
 /** The shot's `time` for a kit pose id at its clock: the progress over the take (the crawl: its cycle phase). */
 export function kitShotTime(id: KitPoseId, kt: number): number {
-  const s = kitClipTime(id, kt);
-  return id === 'crawlUnder' ? s / KIT_SHOT.crawlSec : clamp01(s / kitClipSec(id));
+  KC.kt = kt;
+  kitTimeInto(id, KC);
+  return KC.time;
 }
 
-/**
- * The shutter gap's trend (PLAN 2 "Shutter phase"): +1 rising, -1 falling, the last trend when the gap is unchanged (the
- * wire `s` is stepwise and the fixed step is not the render frame). An unknown gap (NaN) is shut (0). Pure.
- */
+/** The gap's trend from the last gap and trend (`kitGapInto`'s rule). */
 export function kitGapTrend(gap: number, last: number, trend: number): number {
-  const g = gap > 0 ? gap : 0;
-  const l = last > 0 ? last : 0;
-  return g > l ? 1 : g < l ? -1 : trend;
+  KC.gap = gap;
+  KC.last = last;
+  KC.trend = trend;
+  kitGapInto(KC);
+  return KC.trend;
 }
 
-/** The shutter holder's phase from the gap and its trend, the same on both pages: shut -> the offer; open to the crawl
- *  gap and not falling -> the hold; rising -> the lift; falling -> the drop. Pure. */
+/** The holder's phase at a gap and a trend (`kitGapInto`'s rule with the gap unchanged). */
 export function kitShutterPhase(gap: number, trend: number): KitPoseId {
-  const g = gap > 0 ? gap : 0;
-  if (g <= KIT_SHOT.gapEps) return 'shutterOffer';
-  if (g >= KIT_SHOT.crawlGap && trend >= 0) return 'shutterHold';
-  return trend < 0 ? 'shutterDrop' : 'shutterLift';
+  KC.gap = gap;
+  KC.last = gap;
+  KC.trend = trend;
+  return kitGapInto(KC);
 }

@@ -26,7 +26,7 @@ import { hyp2 } from '../../core/mathx';
 import { HANG_HEAD } from '../../game/teamMoves';
 import type { TraverseKind } from '../animGraph';
 // (mixamo-kit) the kit moves' Mixamo shots (docs/mixamo-kit/PLAN.md)
-import { clearKitShot, KIT_PULL, KIT_SHOT, KIT_TABLES, kitGapTrend, kitShotTime, kitShutterPhase, kitSourceOf, type KitShotIn } from '../kitMixamo';
+import { clearKitShot, KIT_PULL, KIT_SHOT, KIT_TABLES, kitGapInto, kitSourceOf, kitTimeInto, newKitClock, type KitShotIn } from '../kitMixamo';
 
 /** (mission KIT0) + the co-op kit's 'pull' (pull-up, KIT-PULL) and 'shutter' (hold shutter / crawl under, KIT-SHUT). */
 export type TeamPoseMove = 'boost' | 'throw' | 'hang' | 'rope' | 'pull' | 'shutter';
@@ -605,7 +605,7 @@ export interface TeamRigIn {
   root: { position: { x: number; y: number; z: number }; rotation: { y: number } };
   height: number;
   /** (mixamo-kit) The rig's graph: TeamPoser writes its kit shot (a CharacterRig's `graph`; absent: no shot). */
-  graph?: { readonly kit: KitShotIn };
+  graph?: { readonly kit: KitShotIn; readonly wrenReady?: boolean };
 }
 /** The RigPose fields the team pose writes. */
 export interface TeamRigPose {
@@ -656,8 +656,7 @@ export class TeamPoser {
    *  the hand targets' point / right axis / weight (fields: `kitHand` takes the side only). */
   private kxId: KitPoseId | '' = '';
   private kxT = 0;
-  private kxGap = 0;
-  private kxTrend = 0;
+  private readonly kc = newKitClock();
   private kxD = 0;
   private kxX = 0;
   private kxZ = 0;
@@ -669,6 +668,7 @@ export class TeamPoser {
   private khRZ = 0;
   private khW = 0;
   private khK = 1;
+  private kxDt = 0;
 
   /**
    * (N4b train-8 fix) A jump (the Anim Studio's paused scrub): the weight straight to where `i` wants it (1 on, 0 off),
@@ -712,30 +712,31 @@ export class TeamPoser {
       this.applyA(rig);
     }
     // (mixamo-kit) a kit move's shot over the pose (no graph or no kit move: the kit state reset, the hands as before)
-    if (on && G !== undefined && (i.move === 'pull' || i.move === 'shutter')) this.kitShot(dt, i, rig, G.kit, hk);
-    else this.kitEnd(dt, rig, hk);
+    this.kxDt = dt;
+    this.khK = hk;
+    if (on && G !== undefined && (i.move === 'pull' || i.move === 'shutter')) this.kitShot(i, rig, G);
+    else this.kitEnd(rig);
   }
 
   /** (mixamo-kit) The pose gone (weight 0): the phase, the shutter trend and the hands' share reset. */
   private kitOff(): void {
     this.kxId = '';
-    this.kxGap = 0;
-    this.kxTrend = 0;
+    this.kc.last = 0;
+    this.kc.trend = 0;
     this.kxS = 0;
     this.khW = 0;
   }
 
   /** (mixamo-kit) No kit move this frame while the pose eases out: the phase and the trend reset, the kit hands (role B)
    *  eased back to the placeholder's over KIT_SHOT.flip (as the graph's shot fades). */
-  private kitEnd(dt: number, rig: TeamRigIn, hk: number): void {
+  private kitEnd(rig: TeamRigIn): void {
     this.kxId = '';
-    this.kxGap = 0;
-    this.kxTrend = 0;
+    this.kc.last = 0;
+    this.kc.trend = 0;
     if (this.role !== 'b') this.kxS = 0;
     if (this.kxS <= 0) return;
-    this.kxS = Math.max(0, this.kxS - dt / KIT_SHOT.flip);
+    this.kxS = Math.max(0, this.kxS - this.kxDt / KIT_SHOT.flip);
     if (this.kxS <= 0) return;
-    this.khK = hk;
     this.kitHand(rig.reachL, -1);
     this.kitHand(rig.reachR, 1);
     this.hands = true;
@@ -750,13 +751,16 @@ export class TeamPoser {
    * on the partner's wrists through the haul, no IK through the catch (the take's reach), eased in and out over
    * KIT_SHOT.flip from the placeholder's targets. No allocation.
    */
-  private kitShot(dt: number, i: TeamPoseIn, rig: TeamRigIn, K: KitShotIn, hk: number): void {
+  private kitShot(i: TeamPoseIn, rig: TeamRigIn, G: NonNullable<TeamRigIn['graph']>): void {
+    const dt = this.kxDt;
+    const hk = this.khK;
+    const K = G.kit;
     const root = rig.root.position;
+    const kc = this.kc;
     let id: KitPoseId | '' = i.kit;
     if (i.move === 'shutter' && i.role === 'b') {
-      this.kxTrend = kitGapTrend(i.gap, this.kxGap, this.kxTrend);
-      this.kxGap = i.gap > 0 ? i.gap : 0;
-      id = kitShutterPhase(i.gap, this.kxTrend);
+      kc.gap = i.gap;
+      id = kitGapInto(kc);
     }
     if (id !== this.kxId) {
       this.kxId = id;
@@ -771,17 +775,21 @@ export class TeamPoser {
     if (!KIT_TABLES[1].any) return;
     K.move = i.move === 'pull' ? 'pull' : 'shutter';
     K.role = i.role;
-    const src = kitSourceOf(rig);
+    // (a guard's graph, `wrenReady` false, never draws the shot: today's pose and hands)
+    const src = G.wrenReady === false ? 0 : kitSourceOf(rig);
     K.mx = src === 1;
     const c = id === '' ? null : KIT_TABLES[src][id];
     let handOn = false;
     if (c !== null && id !== '') {
       const g = (i.gap > 0 ? i.gap : 0) / KIT_SHOT.holdGap;
-      const kt = id === 'shutterOffer' || id === 'shutterHold' ? this.kxT : id === 'shutterLift' || id === 'shutterDrop' ? g : id === 'crawlUnder' ? this.kxD : i.kt;
+      kc.kt = id === 'shutterOffer' || id === 'shutterHold' ? this.kxT : id === 'shutterLift' || id === 'shutterDrop' ? g : id === 'crawlUnder' ? this.kxD : i.kt;
+      kitTimeInto(id, kc);
       K.clip = c;
-      K.time = kitShotTime(id, kt);
+      K.time = kc.time;
       K.mode = id === 'crawlUnder' ? 'loop' : 'shot';
-      K.weight = this.w;
+      // the scramble lands the body (no longer free: the rig drops the shot), so its take fades out over its last `tail` s
+      const tail = id === 'pullScramble' ? ((1 - kc.kt) * KIT_PULL.scramble) / KIT_SHOT.tail : 1;
+      K.weight = tail < 1 ? this.w * (tail > 0 ? tail : 0) : this.w;
       handOn = i.role === 'b' && (id === 'pullCatch' || id === 'pullHaul' || id === 'shutterLift' || id === 'shutterHold');
     }
     if (i.role !== 'b') return;
@@ -809,7 +817,6 @@ export class TeamPoser {
       this.khW = want > this.khW ? Math.min(want, this.khW + st) : Math.max(want, this.khW - st);
     }
     if (this.kxS <= 0) return;
-    this.khK = hk;
     this.kitHand(rig.reachL, -1);
     this.kitHand(rig.reachR, 1);
     this.hands = true;
