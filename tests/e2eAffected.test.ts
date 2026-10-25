@@ -187,7 +187,7 @@ describe('--affected: the DIRECT tier (default)', () => {
     expect(select(['scripts/e2e-takedown.mjs'])).toEqual(['e2e-takedown', 'smoke']);
     expect(select(['scripts\\e2e-wall.mjs'])).toEqual(['e2e-wall', 'smoke']);
     expect(select(['scripts/e2e-net-lib.mjs'])).toEqual(['anim-audit', 'e2e-netmove', 'smoke']);
-    for (const f of ['scripts/e2e-lib.mjs', 'scripts/run-e2e.mjs', 'scripts/e2e-affected.mjs', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'public/icon.png']) {
+    for (const f of ['scripts/e2e-lib.mjs', 'scripts/run-e2e.mjs', 'scripts/e2e-affected.mjs', 'scripts/e2e-verdict.mjs', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'public/icon.png']) {
       expect(select([f]), f).toEqual(coreSet);
     }
   });

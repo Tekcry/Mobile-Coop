@@ -111,7 +111,7 @@ function changedFiles() {
 }
 
 // scripts/e2e-<x>.mjs files that are modules, not suites (master's --quick rules pick e2e-affected.mjs by name)
-const NOT_SUITES = ['e2e-affected'];
+const NOT_SUITES = ['e2e-affected', 'e2e-verdict'];
 
 /** Required suites first, then the rest (a legacy / audio suite runs REPORT ONLY; GPU suites never run on software GL; a suite without a script is dropped). A part token (`e2e-sectorops:1`) stays one job. */
 function orderPicked(picked) {

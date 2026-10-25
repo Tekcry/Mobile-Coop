@@ -364,12 +364,12 @@ export const DIRECT_COVERS = {
 
 // --affected, outside src/: a suite script or its helper reruns that suite; the helper and the runner rerun CORE; docs and tests
 // need no browser (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
-export const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!affected\.mjs$|(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
+export const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!affected\.mjs$|verdict\.mjs$|(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 export const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
 // (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it; master's --quick rule too
 export const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
 const inDir = (f) => Object.entries(SUITE_DIRS).find(([d]) => f.startsWith(d))?.[1];
-const CORE_FILES = /^(scripts\/(e2e-lib|e2e-affected|run-e2e)\.mjs|package(-lock)?\.json|index\.html|vite\.config\.\w+|public\/)/;
+const CORE_FILES = /^(scripts\/(e2e-lib|e2e-affected|e2e-verdict|run-e2e)\.mjs|package(-lock)?\.json|index\.html|vite\.config\.\w+|public\/)/;
 // no browser run: docs, markdown, changelog fragments (docs/**, *.md, changes/**), unit tests, the e2e timings file
 const NO_BROWSER = /^(docs\/|changes\/|tests\/|scripts\/e2e-times\.json$)|\.md$/i;
 
