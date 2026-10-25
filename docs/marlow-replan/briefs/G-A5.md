@@ -127,7 +127,8 @@ unchanged and green.
     `StationHooks`): flood dark then lit before the release retries 13 once (timer); dark then the release set, no
     retry; shot out (stays unlit) no retry; `tripped` true retries 13 once with `seen`; a lit flood before any window
     opens is no fail; an `epoch()` change disarms the window.
-12. **Fallback answer (lead fills after G-A6's noise test):** <watcher in A5 (default) / moves to A6>.
+12. **Fallback answer (lead decision (d)):** the watcher stays in A5: build `a5-watcher` as step 5 says. Only if G-A6's
+    noise test fails does the lead move him to A6 (a later answer here); until then do not apply the fallback.
 
 ## Lead decisions that touch A5 (j14-wave2-notes)
 - Trench ~1.1 m west so `a5-apron-east` is 2 m (built here as 1.15 m: x 62.35-65.85); the graph's area after the build (G1).

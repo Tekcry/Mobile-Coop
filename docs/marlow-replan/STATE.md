@@ -41,6 +41,8 @@ Owner: Marlow Build. Status: current.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
 - ~23:25 (new account): S0 fix round done (e8869dc15), fresh Opus check PASS (j14-s0-check-2.md) -> PR 1 = #473; e2e-coop + e2e-netmove filed at open (set coopgate). S0 claims add tests/laserPanels.test.ts, rooms.test.ts, detailPass.test.ts, e2eAffected.test.ts, src/world/lampFlicker.ts, lampSway.ts. R1: S0 tip merged (3cfa27d74), Opus fix round running (items in j14-wave2-notes.md) -> r1-fix-report.md.
 - Next: R1 checker A PASS, B FIX (hooks too narrow) -> R1 fix round 2 (Opus, widen StationHooks: gate, down, jammed, tripped, epoch) -> checker B rerun -> both PASS: merge S0 + R1 into feature/marlow-replan-base, fill sha + hook list into the seven briefs, cloud-queue, PR 2. Notes: j14-wave2-notes.md ~23:35-23:55.
+- Open: G1: a8-office 4 validator ERRs (1 approach, 1 route kind, no shadow / loud approach; S4 check) - lead decides
+  graph-only vs layout change, Michael's one click if layout.
 
 ## Done
 - ~21:30 Plan check 2 answered: fix 1 (F1 drops one-out), fix 2 (R1 retryOff + cause mapping), polish (43 overlaps,
