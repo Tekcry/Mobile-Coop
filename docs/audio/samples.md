@@ -5,7 +5,8 @@ royalty required, commercial use allowed). The machine-readable list is `scripts
 `npm run music:fetch` downloads exactly these files (pinned commits) into `.music-cache/samples/` (git-ignored).
 The raw WAVs never ship. Only the rendered, heavily processed stems do (`src/assets/music/sketches/`).
 
-Rule (direction v3 Section 7): a sample is used only if it is CC0 and listed here with its source URL. Adding one means
+Rule (direction v3 Section 7, G407): a sample is used only if its licence allows commercial sale and it is listed here
+with its source URL and licence. Adding one means
 adding it to `samples.json` and regenerating this table in the same commit.
 
 ## Sources

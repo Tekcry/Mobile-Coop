@@ -94,6 +94,13 @@ jobs:
           key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
+      # (map-ready S4) the campus prebake's folder (scripts/prebake.mjs): read only under the exact lamp key, so the
+      # newest folder (restore-keys) bakes nothing when no lamp or level changed; outside node_modules (its own cache)
+      - uses: actions/cache@v4
+        with:
+          path: .prebake-cache
+          key: prebake-${{ hashFiles('src/**', 'scripts/prebake/**') }}
+          restore-keys: prebake-
       - run: npm run build
 
   # PR size cap (intake gates, 2026-10-24; docs/systems/session-method.md "Intake"): <= 1500 changed lines vs the merge
@@ -183,6 +190,12 @@ jobs:
             npm run lint
             npm test
           fi
+      - name: Campus prebake cache (live)
+        uses: actions/cache@v4
+        with:
+          path: live/.prebake-cache
+          key: prebake-${{ hashFiles('live/src/**', 'live/scripts/prebake/**') }}
+          restore-keys: prebake-
       - name: Build live
         working-directory: live
         run: |
@@ -202,6 +215,13 @@ jobs:
         with:
           ref: dev
           path: preview
+      - name: Campus prebake cache (preview)
+        if: steps.dev.outputs.exists == 'true'
+        uses: actions/cache@v4
+        with:
+          path: preview/.prebake-cache
+          key: prebake-${{ hashFiles('preview/src/**', 'preview/scripts/prebake/**') }}
+          restore-keys: prebake-
       - name: Build preview into /preview/
         if: steps.dev.outputs.exists == 'true'
         working-directory: preview

@@ -51,14 +51,23 @@ export interface Flags {
   /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
+  /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
+   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none = off (default OFF until the orchestrator rules). */
+  mixamo: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
    *  the merged S1 body (comparisons, and the fallback while a guard's files load). DEFAULT OFF on the guard-models
    *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. */
   guardModels: boolean;
-  /** (guard-render S4) Guard anim tiers (off-screen every 4th frame, far every 2nd: `src/ai/animTier.ts`); `?animtier=0` off. */
+  /** (guard-render S4) Guard anim tiers (off-screen every `ANIM_TIER_OFFSCREEN` th frame, far every 2nd:
+   *  `src/ai/animTier.ts`); `?animtier=0` off. */
   animTier: boolean;
+  /** (guard-cap T1-SHADOW, A195) Shadow-in-view counts as seen: a guard out of view whose shadow can fall in it animates
+   *  at full rate (`src/ai/animTierView.ts`); `?animshadow=0` off, for A/B. */
+  animShadow: boolean;
+  /** (guard-cap T1-SHADOW) Dev A/B: the off-screen tier's period, `?animoff=N` (0 = `ANIM_TIER_OFFSCREEN`). */
+  animOff: number;
   /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
   guardSun: boolean;
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
@@ -67,6 +76,10 @@ export interface Flags {
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
    *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). */
   charShadowLight: boolean;
+  /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
+   *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
+   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off. */
+  mapReady: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -130,11 +143,15 @@ export const flags: Flags = {
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
+  mixamo: onOffFlag(params.get('mixamo')),
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
   guardModels: params.get('guardmodels') === '1',
   animTier: params.get('animtier') !== '0',
+  animShadow: params.get('animshadow') !== '0',
+  animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
   charShadowLight: params.get('charlight') === '1',
+  mapReady: params.get('mapready') === '1',
 };

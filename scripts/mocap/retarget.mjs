@@ -21,6 +21,8 @@ import { v3, q4, unwrap, wrapPi, mean, median, R2D } from './math.mjs';
 export const OUT = path.join(ROOT, 'build', 'mocap');
 export const WREN_JSON = path.join(OUT, 'wren-joints.json');
 export const OUT_FPS = 60;
+/** The source line a CMU intermediate carries (`buildSlot` `licence`; a Mixamo build passes its own). */
+export const CMU_LICENCE = 'CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (SOURCES.md)';
 
 /** Wren joint -> the CMU bone whose world rotation drives the segment that starts at the joint. */
 export const MAP = {
@@ -29,7 +31,7 @@ export const MAP = {
   hipL: 'lfemur', knL: 'ltibia', anL: 'lfoot', toeL: 'ltoes', hipR: 'rfemur', knR: 'rtibia', anR: 'rfoot', toeR: 'rtoes',
 };
 /** The child joint that ends each driven segment (the rest correction aims this direction). */
-const SEG_END = { spine: 'chest', chest: 'neck', neck: 'head', shL: 'elL', elL: 'wrL', wrL: 'handL', shR: 'elR', elR: 'wrR', wrR: 'handR', hipL: 'knL', knL: 'anL', anL: 'toeL', hipR: 'knR', knR: 'anR', anR: 'toeR' };
+export const SEG_END = { spine: 'chest', chest: 'neck', neck: 'head', shL: 'elL', elL: 'wrL', wrL: 'handL', shR: 'elR', elR: 'wrR', wrR: 'handR', hipL: 'knL', knL: 'anL', anL: 'toeL', hipR: 'knR', knR: 'anR', anR: 'toeR' };
 
 export function wrenRig() {
   if (!existsSync(WREN_JSON)) {
@@ -108,9 +110,12 @@ export function localOf(rig, w) {
   return l;
 }
 
-/** Retarget a take at 120 fps: Wren world rotations (game frame, performer heading) and pelvis positions. */
-export function retargetTake(rig, take) {
-  const t = loadTake(take);
+/**
+ * Retarget a take at 120 fps: Wren world rotations (game frame, performer heading) and pelvis positions. `load` reads
+ * the take (default the CMU `loadTake`; mixamoTake.mjs `mixamoLoader()` gives a Mixamo take in the same shape).
+ */
+export function retargetTake(rig, take, { load = loadTake } = {}) {
+  const t = load(take);
   const chk = selfCheck(t);
   const sk = t.skel;
   const mt = sk.metres;
@@ -335,8 +340,14 @@ function slideStats(world, fps, lo = 0, hi = world.length) {
   return { med: Math.round(median(sl) * 10) / 10 || 0, max: Math.round(Math.max(0, ...sl) * 10) / 10, n: sl.length, C };
 }
 
-export function buildSlot(rig, pick, choice, suffix = '', takeInfo = null) {
-  const R = retargetTake(rig, choice.take);
+/**
+ * One intermediate from a pick's choice. Options: `load` (the take reader handed to `retargetTake`), `licence` (the
+ * source line written into `source.licence`), `inPlace` (the root fixed at the start pose's ground point and heading,
+ * no travel yaw: for on-the-spot loops and one-shots such as idles and hangs, whose travel atan2 would be noise).
+ * The defaults are the CMU ones.
+ */
+export function buildSlot(rig, pick, choice, suffix = '', takeInfo = null, { load = loadTake, licence = CMU_LICENCE, inPlace = false } = {}) {
+  const R = retargetTake(rig, choice.take, { load });
   const [a, b] = choice.segment;
   const loop = !!choice.loop;
   const N = loop ? Math.max(8, Math.round((b - a) / (120 / OUT_FPS))) : Math.floor((b - a) / (120 / OUT_FPS)) + 1;
@@ -352,7 +363,10 @@ export function buildSlot(rig, pick, choice, suffix = '', takeInfo = null) {
   }
   // root track
   let root;
-  if (loop) {
+  if (inPlace) {
+    const yaw = facing(S[0].qw.pelvis);
+    root = S.map(() => ({ x: S[0].pel[0], z: S[0].pel[2], yaw }));
+  } else if (loop) {
     const D = v3.sub(S[N].pel, S[0].pel);
     const yaw = Math.atan2(D[0], D[2]);
     const cx = mean(S.slice(0, N).map((s) => s.pel[0])), cz = mean(S.slice(0, N).map((s) => s.pel[2]));
@@ -492,7 +506,7 @@ export function buildSlot(rig, pick, choice, suffix = '', takeInfo = null) {
   const res = {
     format: 'mocap-intermediate/1',
     slot: pick.slot + suffix, kind: pick.kind, loop,
-    source: { take: choice.take, frames120: [a, b], seconds: [Math.round(a / 120 * 1000) / 1000, Math.round(b / 120 * 1000) / 1000], foot: choice.foot ?? null, licence: 'CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (SOURCES.md)' },
+    source: { take: choice.take, frames120: [a, b], seconds: [Math.round(a / 120 * 1000) / 1000, Math.round(b / 120 * 1000) / 1000], foot: choice.foot ?? null, licence },
     fps: OUT_FPS, frames: outBody.length, duration: rd(T),
     frame: 'game: +X right, +Y up, +Z forward (metres); quaternions [x, y, z, w] act as v\' = q v q^-1 (Babylon applyRotationQuaternion)',
     wren: { height: rig.height, leg: rd(rig.leg), scaleLeg: rd(R.scaleLeg), performerLeg: rd(R.cmuLeg), scaleHeight: null },
@@ -525,6 +539,10 @@ export function buildSlot(rig, pick, choice, suffix = '', takeInfo = null) {
     contact,
     phase: phase.map((p) => (p === null ? null : rd(p))),
   };
+  if (inPlace) {
+    res.inPlace = true;
+    res.notes.push('in place: the root is fixed at the first frame\'s pelvis ground point and heading (no travel, speed 0).');
+  }
   return res;
 }
 
