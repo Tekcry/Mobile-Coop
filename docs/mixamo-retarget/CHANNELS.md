@@ -18,7 +18,7 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Braced Hang Shimmy Left.fbx` -> `src/anim/clips/mixamo/trav_braced_hang_shimmy_left.ts` (`mocap_braced_hang_shimmy_left`), chanLoop, Studio loop `trav:ledge`; replaces the ledge shimmy to the left (HANG).
 
-- Keys: 172 over 28 channels; largest error 0.94 cm, 0.98 deg (bound 1 cm, 1 deg).
+- Keys: 168 over 28 channels; largest error 0.97 cm, 0.98 deg (bound 1 cm, 1 deg).
 - Clock: the cadence (0..1 loop): the right hand's reach starts at 0 (take 0.433 s), the left's at 0.5 (take 0.033 s).
 - Events: rReach at 0, lReach at 0.5.
 - leg scale x1.035; facing turned -0.8 deg.
@@ -28,7 +28,7 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Braced Hang Shimmy Right.fbx` -> `src/anim/clips/mixamo/trav_braced_hang_shimmy_right.ts` (`mocap_braced_hang_shimmy_right`), chanLoop, Studio loop `trav:ledge`; replaces the ledge shimmy to the right (HANG).
 
-- Keys: 165 over 28 channels; largest error 0.97 cm, 0.98 deg (bound 1 cm, 1 deg).
+- Keys: 162 over 28 channels; largest error 0.97 cm, 0.96 deg (bound 1 cm, 1 deg).
 - Clock: the cadence (0..1 loop): the right hand's reach starts at 0 (take 0.033 s), the left's at 0.5 (take 0.433 s).
 - Events: rReach at 0, lReach at 0.5.
 - leg scale x1.035; facing turned -0.8 deg.
@@ -38,7 +38,7 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Climbing Ladder.fbx` -> `src/anim/clips/mixamo/trav_climbing_ladder.ts` (`mocap_climbing_ladder`), chanLoop, Studio loop `trav:ladder`; replaces CLIMB (traverse.ts).
 
-- Keys: 172 over 28 channels; largest error 0.99 cm, 0.96 deg (bound 1 cm, 1 deg).
+- Keys: 170 over 28 channels; largest error 0.99 cm, 0.96 deg (bound 1 cm, 1 deg).
 - Clock: the cadence (0..1 loop): the right hand's reach starts at 0 (take 0.075 s), the left's at 0.5 (take 0.433 s).
 - Events: rReach at 0, lReach at 0.5.
 - leg scale x1.035; facing turned 175.4 deg.
@@ -48,7 +48,7 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Crawling Hands And Knees.fbx` -> `src/anim/clips/mixamo/trav_crawling_hands_and_knees.ts` (`mocap_crawling_hands_and_knees`), chanLoop, Studio loop `trav:vent`; replaces CRAWL (traverse.ts).
 
-- Keys: 212 over 28 channels; largest error 0.99 cm, 1.00 deg (bound 1 cm, 1 deg).
+- Keys: 216 over 28 channels; largest error 0.98 cm, 0.97 deg (bound 1 cm, 1 deg).
 - Clock: the cadence (0..1 loop): the right hand's reach starts at 0 (take 0.667 s), the left's at 0.5 (take 1.633 s).
 - Events: rReach at 0, lReach at 0.5.
 - leg scale x1.035; facing turned -0.8 deg.
@@ -58,7 +58,7 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Freehang Climb.fbx` -> `src/anim/clips/mixamo/trav_freehang_climb.ts` (`mocap_freehang_climb`), chanPath, Studio loop `trav:ledge`; replaces CLIMB_UP from a free hang, to standing.
 
-- Keys: 728 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
+- Keys: 725 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); standing at 1.
 - Events: release at 0.475, onTop at 0.394, crouch at 0.654.
 - leg scale x1.035; facing turned -2.6 deg.
@@ -67,13 +67,13 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 - anchors (take s -> k): start 0.000 -> 0, release 2.492 -> 0.475, crouch 2.700 -> 0.654, end 3.700 -> 1.
 - dropped: onTop (2.067 s, out of order with release 2.492 s).
 - events land on (k; game): release 0.475 (0.475), onTop 0.394 (0.56), crouch 0.654 (0.654).
-- the take's grip 0.139 m under its top; taken out: height 0.332 m over k 0-0.38, pelvis x -0.153 / z 0.191 m over k 0.475-1.
+- the take's grip 0.138 m under its top; taken out: height 0.332 m over k 0-0.38, pelvis x -0.153 / z 0.191 m over k 0.475-1.
 
 ## braced_hang_to_crouch
 
 `Braced Hang To Crouch.fbx` -> `src/anim/clips/mixamo/trav_braced_hang_to_crouch.ts` (`mocap_braced_hang_to_crouch`), chanPath, Studio loop `trav:ledge`; replaces CLIMB_UP to the crouch.
 
-- Keys: 341 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
+- Keys: 334 over 28 channels; largest error 1.00 cm, 1.00 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); the take ends crouched at k 0.654 (held after).
 - Events: release at 0.475, onTop at 0.4627, crouch at 0.654.
 - leg scale x1.035; facing turned 2.3 deg.
@@ -82,18 +82,18 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 - anchors (take s -> k): start 0.000 -> 0, release 0.642 -> 0.475, crouch 1.133 -> 0.654.
 - dropped: onTop (0.625 s, out of order with release 0.642 s).
 - events land on (k; game): release 0.475 (0.475), onTop 0.4627 (0.56), crouch 0.654 (0.654).
-- the take's grip 0.131 m under its top; taken out: height 0.377 m over k 0-0.38, pelvis x 0.096 / z -0.302 m over k 0.475-0.654.
+- the take's grip 0.129 m under its top; taken out: height 0.377 m over k 0-0.38, pelvis x 0.096 / z -0.303 m over k 0.475-0.654.
 
 ## climbing_ladder_to_standing
 
 `Climbing Ladder To Standing.fbx` -> `src/anim/clips/mixamo/trav_climbing_ladder_to_standing.ts` (`mocap_climbing_ladder_to_standing`), chanPath, Studio loop `trav:ladder`; replaces the ladder top-out (CLIMB_UP over LADDER_TOPOUT_TIME).
 
-- Keys: 407 over 28 channels; largest error 0.99 cm, 1.00 deg (bound 1 cm, 1 deg).
+- Keys: 400 over 28 channels; largest error 0.99 cm, 1.00 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); standing at 1.
 - Events: release at 0.475, onTop at 0.56, crouch at 0.654.
 - leg scale x1.035; facing turned -1.6 deg.
 - take 1.133-3.075 s used (1.942 s of 4.000) over 1.300 s of game time (x1.49 speed).
-- events in the take (s from the start used): on top 0.558, first hand off 0.475, crouch 0.958, end 1.942.
-- anchors (take s -> k): start 0.000 -> 0, release 0.475 -> 0.475, onTop 0.558 -> 0.56, crouch 0.958 -> 0.654, end 1.942 -> 1.
+- events in the take (s from the start used): on top 0.567, first hand off 0.475, crouch 0.958, end 1.942.
+- anchors (take s -> k): start 0.000 -> 0, release 0.475 -> 0.475, onTop 0.567 -> 0.56, crouch 0.958 -> 0.654, end 1.942 -> 1.
 - events land on (k; game): release 0.475 (0.475), onTop 0.56 (0.56), crouch 0.654 (0.654).
-- the take's grip -0.267 m under its top; taken out: height 0.008 m over k 0-0.38, pelvis x -0.108 / z 0.348 m over k 0.475-1.
+- the take's grip -0.271 m under its top; taken out: height 0.008 m over k 0-0.38, pelvis x -0.108 / z 0.346 m over k 0.475-1.
