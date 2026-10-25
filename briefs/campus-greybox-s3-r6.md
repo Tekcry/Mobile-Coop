@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T17:53Z
+status: done feature/campus-greybox-s3-r6 3c62afb9694b7e6037c80d014446b7165b3154c1
 # campus-greybox s3-r6 (cloud): R6 co-op lips, nav reach, v2 graph + R7 dressing re-run
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). Starts only after the join brief
@@ -87,3 +87,23 @@ R6 and R7 pushed; report `docs/campus-greybox/checks/s3-r6-build.md` (per slice:
 step-0 baseline, the fail-first runs, graph key table, validator warnings, `src` file:line of each lip, deviations with
 undo, findings for the lead, pending PC runs); then this brief `status: done feature/campus-greybox-s3-r6 <sha>` with a
 short "## Report".
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Full report: `docs/campus-greybox/checks/s3-r6-build.md` on the branch (head 3c62afb9). R6 and R7 pushed.
+- Step 0a done (seed x 32, its pinned row). Baseline on fb2666ff: 12 files 177 passed; Guards merged half 16 (incl. the
+  join's stair-core case), A99 worst 11, checkSectors empty. One-liner R_VOID point 8 -> (21.4, -1, 7.5) in its own commit.
+- R6: `s3Lips.ts` CR3 / CR3b; the CR3b ledge is J8's (`s3L1.ts:300`), not added again. `campusV2S3Coop` 22 / 22 (lip
+  ledges with climb room, lift, no solo way up, headroom, roof via the spur only, gallery not from the hall, hatch drop
+  4.4, three-stairs reach per core on the full build, nav flood, panels' near side). Fail-first: lip removed / 0.3 deep
+  (CR3), removed / hang-only (CR3b) each fail the ledge case (local, not committed). Graph: guard keys 1-4 (c2 1, view 4,
+  gown 1, hall 6, dock 4, sec 1, writeup 1, plant 1, control 1 = 20 at every key), as-built notes on 13 spaces, targets
+  "measured: pending V6", compact; ids / links / syncs unchanged. `campusV2S3Graph` 5 / 5. Validator five v2 graphs: 0
+  errors, S3's warnings the nine of D:217-224, no new kind.
+- R7: tags for the 17 v2 rooms (new: control noc, hoist store, plant plant, stair rooms corridor); skins on the v2 boxes;
+  hero spots moved; crane girder east-west (the 19 m hall is shorter than the 20.4 m girder). `campusV2S3Dress` 10 / 10
+  incl. `checkDressing` clean and a `dress: true` build that no longer throws.
+- All: brief's list 15 files 214 passed; typecheck and eslint clean. (No doc-lint on this base: the script is newer.)
+- Findings for the lead: the clean bench (D:215 hero) is refused by rule C everywhere in the v2 clean room (the
+  clean-suite route on z -3 crosses it); the dock desk stays greybox (no kit desk fits 2.0 m; the security desk blocks
+  cam-dock, K8). Data pushed for Marlow's validator re-run.
+- Pending PC run: `e2e-sectorops:1`..`:6` flag off at the head; E2E-1 CR3 / CR3b; E2E-2a v2 walk; plan-svg vs P0 / P45; V6.
