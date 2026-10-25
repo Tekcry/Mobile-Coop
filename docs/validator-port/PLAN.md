@@ -21,8 +21,8 @@ scripts/level-checks/perfect.mjs  NEW: ghost and no-kill paths, requires_kill, m
 scripts/level-checks/engine.mjs   NEW: engine-fact WARNs (V10), rope up-only
 scripts/mission-validate.mjs      NEW: checkMission (MV re-cut, joint with Campaign Build)
 scripts/level-graphs.mjs          NEW: npm run validate:levels over docs/level-validator/graph-sets.json
-src/world/levelMeasure.ts         NEW: V6 measurement core (+ way back, + exports for J13)
-scripts/level-measure.mjs         NEW: V6 measure CLI (--write / --check / --doors / --map)
+src/world/levelMeasure.ts         NEW: V6 measurement core (+ way back, + resolvePoints for J13)
+scripts/level-measure.mjs         NEW: V6 measure CLI (--write / --check / --doors / --map / --points)
 ```
 
 Four PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLAN J12 gate):
@@ -45,8 +45,8 @@ lists every file the slice may touch; no two slices running at once own the same
 | Slice | What | Owns (claims) | Lines | Model | Depends on | Tests |
 | --- | --- | --- | --- | --- | --- | --- |
 | S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~560 | Opus | - | `levelValidate`, `levelProfiles` |
-| S1 | Port `levelMeasure.ts` to master; add way-back measure and J13 exports | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~900 | Opus | - | `levelMeasure` |
-| S2 | Port `level-measure.mjs` CLI; write `ways_back` | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~520 | Sonnet | S1's exported API (V6's, kept) | `levelMeasureCli` |
+| S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~900 | Opus | - | `levelMeasure` |
+| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points` | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~520 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
 | S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~70 | Sonnet | - | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
@@ -91,16 +91,24 @@ V6 fix commits 0410023e, 2ab1fe18, c9e520ed). Re-verify against master's changed
 `partial`), `src/world/lightField.ts` and `src/world/lightBake.ts` (section bakes) since V6's base 25a36202; tsc clean.
 Add: (1) way back per campaign co-op link: the solo nav-path time from the link's `to` cells to its `from` cells at
 `reach_speed_mps`, `null` + `why` when no nav path (a drop or ladder off the nav), into
-`meta.measured.ways_back[]` as `{ from, to, kind, back_s, path_m }` (A5); (2) stable exports for J13 (section 8):
-`spaceCells`, `linkPoint`, `linkPath`, `MEASURE_DEF`, `MEASURE_TOOL`. Hot-path rules do not apply (offline tool), but
-`hyp2` / `hyp3`, no `Math.hypot`. Done: `levelMeasure` green with new cases for way back (timed and null) and the
-exports.
+`meta.measured.ways_back[]` as `{ from, to, kind, back_s, path_m }` (A5); (2) `resolvePoints(graph, nav, opts)` for
+J13 in the shape of section 8, built on V6's `cellsIn` (`:420`) and `edgePoint` (`:481`), and used by `measureGraph`
+for its own door points (one code path); V6's `MEASURE_DEF` and `MEASURE_TOOL` stay exported; (3) `OFF_NAV_KINDS`
+(v6 `:49`) brought up to master's kinds and the six new ones of A25: `team_throw`, `team_hang`, `team_pull`,
+`plank_bridge`, `chimney_pair`, `swing_pass`, `drop_catch` are off the nav grid (`null` + `why`); `shutter`,
+`deadweight`, `vent_unlock` are doorways measured as doors. Hot-path rules do not apply (offline tool), but `hyp2` /
+`hyp3`, no `Math.hypot`. Done: `levelMeasure` green with new cases for way back (timed and null) and for
+`resolvePoints` (a declared `at`, a one-gap edge point, a two-gap edge giving `null`, link entries keyed by merged
+index, `geom` equal to `measureGraph`'s).
 
 **S2 (Sonnet).** Take `scripts/level-measure.mjs` whole from v6 8f551e18 (V6c + fix 0410023e `--check` tolerances);
-write `meta.measured.ways_back` with `--write`; export its pure parts (`parseArgs`, the JSON text patcher) for
-`tests/levelMeasureCli.test.ts` (unknown option exit 2, `--doors` values, a patch that leaves the rest of the file
-byte-identical). No `package.json` edit (S5 owns it): run it as `node scripts/level-measure.mjs`. Done: the CLI test
-green; `node scripts/level-measure.mjs docs/level-validator/example.graph.json --map proving` exits 0.
+write `meta.measured.ways_back` with `--write`; add `--points <out.json>` (writes `resolvePoints`' result for the
+merged graphs, section 8; touches no graph file; combines with `--check`, not with `--write`); export its pure parts
+(`parseArgs`, the JSON text patcher) for `tests/levelMeasureCli.test.ts` (unknown option exit 2, `--doors` values,
+`--points` with and without a path, a patch that leaves the rest of the file byte-identical). No `package.json` edit
+(S5 owns it): run it as `node scripts/level-measure.mjs`. Done: the CLI test green;
+`node scripts/level-measure.mjs docs/level-validator/example.graph.json --map proving` exits 0, and with
+`--points <tmp>.json` writes one entry per space and per merged link.
 
 **S7a (Sonnet).** `scripts/metrics-gen.mjs:211-227`: any argument other than `--check` prints the usage and exits 2,
 nothing written (A13). Scale sheet section 8 gains `nav_floor_depth_m` 1.5 (source: the nav sampler casts down to y -2,
@@ -236,15 +244,24 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   edge between the two areas). Marlow Yard (S9: all 55 spaces and 85 links already have them) and the campus (S10: all
   101 spaces have `area`; `at` pinned where an edge has 2+ gaps) meet this. Tallow's graph has `area` on every space
   (Campaign's CMG row).
-- **The measure module's exports** (S1): `spaceCells(space, nav)` (a space's walkable floor cells), `linkPoint(link)`
-  (the `at` or the derived shared-edge point), `linkPath(link, nav)` (nav waypoints `from` centre -> point -> `to`
-  centre), `MEASURE_DEF` (speeds and heights). The harness strings these along each route's links.
+- **One point resolver both tools use** (J13's row, route-runs-2 `docs/route-runs/PLAN.md:204`; J12 ships both
+  forms). S1 exports `resolvePoints(graph, nav, opts)` from `src/world/levelMeasure.ts`; S2 adds
+  `node scripts/level-measure.mjs <graphs...> --points <out.json>`, which writes the same result. Shape: per space
+  `{ id, section, storey, floorY, boxes, centre, cells }`; per merged link index `{ from, to, kind, route, at, atFrom,
+  gaps, measured }`; plus `geom`. `at` is the declared link `at` (`atFrom: "declared"`), else the shared-edge point
+  V6's `edgePoint(nav, a, b, ya, yb, ca, cb)` finds when the two `area`s share one gap (`atFrom: "edge"`, v6
+  `levelMeasure.ts:481`), else `null` (`atFrom: "none"`; `gaps` says 0 or 2+). `measureGraph` takes its door points
+  from the same code, so the robots and the measured times use the same points. J13's R6 calls `resolvePoints` through
+  Vite's SSR loader (the `level-measure.mjs` pattern).
+- **Links keyed by merged index, no `id`.** A link is named by its index in `mergeGraphs(...).links` (J13 already keys
+  them so). No link `id` field is added.
+- **V6 fields on every profile** (J13 item (1)): the schema accepts `area`, `vantage.at`, link `at`, `measured` and
+  `meta.measured.geom` on `campaign`, `sector` and `training` alike; D-A states it in graph-schema "Schema additions"
+  and S0 keeps no mode test on them.
 - **Expected times:** each link's `measured.time_s` / `path_m` and `meta.measured.geom` (refuse a stale graph before a
   run).
-- **Graph helpers:** `scripts/level-graph-lib.mjs` (index, arcs, the route field per link) so the harness never copies
-  graph code.
-- **Open for J13's plan:** links have no `id`. If the J13 plan needs one before D-A runs, D-A reserves an optional
-  unique link `id` (structure ERR on a duplicate).
+- **Graph helpers:** `scripts/level-validate.mjs` keeps exporting `mergeGraphs`, `COOP_KINDS`, `LINK_KINDS`, `isOneWay`
+  (J13 item (2); S0 re-exports them from the lib), so the harness never copies graph code.
 
 ## 9. Risks
 
