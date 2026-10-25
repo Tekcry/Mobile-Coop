@@ -1,5 +1,36 @@
 # Changelog
 
+## 4.102.4 - Train 92: Conformance review: Guard AI (plan only); Saltmarsh Park section bake: clean shutdown of light-bake workers; Conformance review: Sector Ops (plan only); +3 more (2026-10-25, PR #426; #423, #421, #420, #419, #417, #416)
+
+### Conformance review: Campaign (plan only)
+- Docs: plan-only conformance review of Tallow Wharf, the mission framework / engine and the campaign rules against
+  VISION, RULES, level-design and DECISIONS (`docs/conformance-campaign/CONFORMANCE.md`). No game change.
+
+### Conformance review: Guard AI (plan only)
+- Docs: Guard AI conformance review against VISION, RULES, the bible and level-design: gap table with fix sizes,
+  what conforms, and archetypes per map (`docs/conformance-guard-ai/CONFORMANCE.md`; plan only, G355).
+
+### Conformance review: Marlow (plan only)
+- Docs: `docs/conformance-marlow/CONFORMANCE.md`, the Marlow Build conformance review (G355): a gap table for Marlow
+  Yard (map, mode, HUD guidance), the level validator, the bot route-runs and the guard cap against VISION, the level
+  design standard, the bible, RULES "Intake" and G292-G363, plus the items that conform. Plan only: no src, test, map,
+  script or config change.
+
+### Conformance review: Player (plan only)
+- Docs: Player Build conformance review of movement, animation, takedowns, the co-op player and guard models against
+  VISION, the bible, level-design and DECISIONS (`docs/conformance-player/CONFORMANCE.md`; plan only, G355).
+
+### Conformance review: Sector Ops (plan only)
+- Docs: `docs/conformance-sector-ops/CONFORMANCE.md`, the Sector Ops conformance review (G355): a gap table for
+  Saltmarsh Park S1-S5, the old warehouseOps map, the Sector Ops mode rules and stars, lighting on every map and the
+  visual gate against VISION, level-design, the bible and the G entries, the items that conform and a per-map
+  lighting line. Plan only: no src, test, map, script or config change.
+
+### Saltmarsh Park section bake: clean shutdown of light-bake workers
+- Leaving a match mid-bake now ends every light-bake job, the running ones included, instead of leaving some waiting.
+- If a replacement light-bake worker cannot start, the bake carries on one worker short instead of failing.
+- A lamp that takes over a minute in a worker is noted once in the log.
+
 ## 4.102.3 - Train 91: Tooling audit B fixes (2026-10-25, PR #424; #412)
 - Auto-train pacing reads the laptop queue as it is (`requests/` and `claims/`, one GraphQL call): busy while a request
   has no claim yet (under 12 h old) or a claim is open (under 3 h old). The old read looked for `pending/` / `running*`
