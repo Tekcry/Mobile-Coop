@@ -5,9 +5,9 @@
      Sections marked (fill or delegate) can say "Propose in Phase 1/2 for my approval" instead of a design. -->
 
 ## Context (fill)
-Night Shift (repo Tekcry/Mobile-Coop). Base branch: `master`. Create branch `feature/<map-id>-map` from master
-and work only there. Never merge into any branch and never merge any branch into yours; the train merges it
-(`docs/RULES.md` "Getting to master").
+Night Shift (repo Tekcry/Mobile-Coop). Base branch: `master`. Create branch `feature/<map-id>-map` from master in
+`C:/NightShift/Mobile-Coop-<map-id>-map` and work only there; the job folder is `docs/<map-id>-map/`. Never merge into
+any branch and never merge any branch into yours; the train merges it (`docs/RULES.md` "Getting to master").
 
 Goal: a new listed map, `<map-id>` ("<Map name>"): <2-3 sentences: the building, the setting, the fantasy>. It follows
 `docs/level-design.md` (the level design standard) in full.
@@ -16,12 +16,19 @@ Mode: <campaign | sector | training>. The mode's profile in `docs/level-design.m
 its graph sets `meta.mode` to the same value.
 
 ## Scope: existing systems only (fixed)
-- This work builds a map, a mission entry, tests, dev scripts and docs. It adds no new game systems: no new movement,
-  AI behaviour, takedown kinds, interactable kinds, objective types, net messages, HUD elements, input bindings or mode
-  logic.
-- TypeScript you write: `src/world/maps/<map-id>.ts`, its registration in `src/world/maps/index.ts` and
-  `src/world/maps/listed.ts`, an exported constant of the map's co-op lips, unit tests. JSON: one entry in
-  `src/config/missions.json`. Scripts: e2e suites (and `scripts/plan-svg.mjs` if it does not exist yet).
+- This work builds a map, its missions as data for the mission engine, tests, dev scripts and docs. It adds no new game
+  systems: no new movement, co-op moves, AI behaviour, takedown kinds, interactable kinds, net messages, HUD elements,
+  input bindings or mode logic.
+- Missions use the mission engine (`src/game/mission/`, `missionDef.ts`; the mission-framework job,
+  `docs/missions/PLAN.md`): sections, objective steps, parallel team tracks and strict rules are `MissionDef` data. An
+  objective step or rule kind the engine lacks, or a co-op move the kit lacks (`docs/level-design.md` 11.9), is built
+  by the mission-framework or co-op job first, never in this map job. A map that starts before the engine is on master
+  asks the orchestrator.
+- TypeScript you write: `src/world/maps/<map-id>.ts` (one file per section when it is large), its registration in
+  `src/world/maps/index.ts` and `src/world/maps/listed.ts`, its sectors and missions
+  (`src/world/maps/<map-id>Sectors.ts`, `<map-id>Missions.ts`), an exported constant of the map's co-op lips, unit
+  tests. The map's graph (`docs/level-validator/` schema, with the mission nodes) goes in the job folder. Scripts: e2e
+  suites (and `scripts/plan-svg.mjs` if it does not exist yet).
 - If a step seems to need anything else, stop and report it as a "Future" item. Do not build it.
 - Enemies and tuning tables never change. If a set piece does not engage, change the building.
 - Other maps: no changes.
@@ -34,18 +41,19 @@ its graph sets `meta.mode` to the same value.
   from `src/world/maps/storey.ts`, the anchors from `src/world/anchors.ts`.
 
 ## Rules for working (fixed)
-1. Read `CLAUDE.md` in full, then `docs/level-design.md`, then this spec.
+1. Read `CLAUDE.md`, `docs/RULES.md` and `docs/VISION.md` from origin/master, then `docs/level-design.md`, then this
+   spec.
 2. Before referencing any file, type, function, field or constant, confirm it exists with grep and note where. If
    something named here does not exist or differs, stop and report it; never invent a substitute.
-3. One phase at a time. At the start of each phase re-read this spec (`docs/prompts/<map-id>.md`), the progress log and
+3. One phase at a time. At the start of each phase re-read this spec (`docs/<map-id>-map/SPEC.md`), the progress log and
    the approved design docs, then print a short plan (files and functions, one line each). Do only that phase.
 4. End of each phase: run the listed checks, report results honestly (never claim a check passed unless you ran it in
    this phase; paste the summary line), list what changed, update the progress log, commit and push. Michael's gates are
    the one-click sign-offs of `docs/level-design.md` section 14.
-5. Save this spec verbatim to `docs/prompts/<map-id>.md` in Phase 0. Never edit it without approval; proposed changes go
-   in the progress log under "Spec change requests".
-6. Progress log: `docs/prompts/<map-id>-progress.md` (phase, status, files changed, decisions, tests with results, open
-   issues, spec change requests).
+5. Save this spec verbatim to `docs/<map-id>-map/SPEC.md` in Phase 0. Never edit it without approval; proposed changes
+   go in the progress log under "Spec change requests".
+6. Progress log: the job's `docs/<map-id>-map/STATE.md` (resume block on top, `docs/RULES.md` "A job"; below it the
+   phase, status, files changed, decisions, tests with results, open issues, spec change requests).
 7. Approved design docs are the build contract. Deviations go under "Decisions" with the reason; a deviation that
    changes a route, a guard job or a room needs approval first.
 8. Update the map's docs and the changelog fragment (`changes/<branch-with-dashes>.md`; never `CHANGELOG.md`, G183) at the end
@@ -93,9 +101,12 @@ section and its way back (11.10, 11.6); Sector Ops, the solo route past it (11.6
 - C1: <...>
 
 ## Mission and modes (fill)
-- `modes`: <e.g. ['infiltration', 'sandbox']>. Do not change any mode's default map.
-- Mission: id <...>, name <...>, insertion(s) <...>, brief <...>, objectives in route order, each naming what and
-  where (level-design 6.4, 13 "Objective and lead plan") <...>, strict rules (up to 2, level-design 9.3) <...>.
+- `modes` (`MapDef.modes`): <e.g. ['sector', 'sandbox']>. Do not change any mode's default map.
+- Players: <campaign: exactly 2 | Sector Ops: 1-4, solo always possible | training: 2>.
+- Each mission (a `MissionDef`): id <...>, name <...>, insertion(s) <...>, brief <...>, sections and their checkpoints
+  <...>, objective steps in route order, each naming what and where (level-design 6.4, 13 "Objective and lead plan")
+  <...>; for Sector Ops the parallel team tracks and how one solo player does them all <...>; strict rules (up to 2,
+  signposted in the briefing and objective list; breaking one restarts the section, level-design 9.3) <...>.
 - Theme: <time of day, light bands per space type (level-design 5.5), faction, grade, weathers>.
 - `reinforce`, `alarms`, `hideSpots`, `switches`: <...>
 

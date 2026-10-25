@@ -62,10 +62,12 @@ Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbo
 6. Build (below). Templates and commands for each step: `docs/systems/session-method.md`.
 
 **Walk pacing** (G288). At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
-lighting); ROADMAP "Waiting on Michael" keeps the count. A lead at the cap works only on tests, fixes and automation.
+lighting); ROADMAP "Waiting on Michael" keeps the count. The cap limits switch-on only: at the cap no new feature in
+that area is switched on until Michael walks some, while signed-off builds go on dark behind their flags, and fixes
+to shipped features (rule fixes such as G339's compass / blip) are allowed (ROADMAP Decided 2026-10-25 ~11:35 (9)).
 Every release gets a 10-minute walk card from the orchestrator: risk-ranked, one acceptance line per item, look videos
 for animation and lighting (each such PR carries a 1-2 min video path in its body). A flagged feature is switched on
-when Michael accepts it. A lead under the cap with no PLAN slice left starts the next roadmap feature in its area with
+when Michael accepts it. A lead with no PLAN slice left starts the next roadmap feature in its area with
 an Opus plan; the orchestrator assigns it (G283).
 
 **A job.**
