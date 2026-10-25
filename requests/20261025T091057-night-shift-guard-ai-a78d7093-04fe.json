@@ -1,0 +1,15 @@
+{
+  "id": "20261025T091057-night-shift-guard-ai-a78d7093-04fe",
+  "sha": "a78d7093f770e7ddc7f70e09e093cb964a555884",
+  "branch": "feature/guard-rules",
+  "pr": 450,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-takedown"
+  ],
+  "set": "rules-pr1"
+}
