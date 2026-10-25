@@ -5,7 +5,8 @@
 // pull-up; the shutters print SKIP: no `placeShutter` yet, GB-briefs 0.2), a broken rule that restarts the section to its checkpoint
 // while the mission carries on (TGC: a decoy knocked out restarts nothing, Teale knocked out is the protected restart, Teale killed
 // and then a decoy read break `namedTarget` and he bolts; TKL: a guard killed, `noKills`), and the client's mirror of the host's
-// mission (`net.mission.runner.doneBits`, the `.mission-hud` rows). (mission-rules R7) Both: the host alone cannot start the
+// mission (`net.mission.runner.doneBits`; (mission-rules R8) the objective line and Field Terminal > Objectives on both pages,
+// R6's feed: the always-on panel is gone). (mission-rules R7) Both: the host alone cannot start the
 // campaign, the lobby on Realistic gives 2 revives, no dog spawns. Run with no `--mission` it plays both in sequence.
 // The guards are frozen and nobody can be hurt (the test reads the mission, not the stealth). Needs `E2E_GPU=1` (laptop queue only).
 import { tmpdir } from 'node:os';
@@ -291,19 +292,64 @@ async function run(id) {
   };
   /** The host's banners as `g.hud.banner` raised them ([title, sub], recorded from the setup on). */
   const bannerCount = (title, sub) => GA(([t, s]) => window.__banners.filter((b) => b[0] === t && b[1] === s).length, [title, sub]);
-  /** tgc-3's objective row (`.mission-hud .mh-row[data-step]`, missionHud.ts) reads `text` on the host and on the client. */
-  const rowIs = async (step, text, what) => {
+  /**
+   * (mission-rules R8, HG7) The objective line (`.hud-objective`, not its hint line `.hud-objective-hint`: hud.ts) reads
+   * `text` on host and client (each page's own current step, missionFeed.ts); hints are off by default, so no hint text.
+   */
+  const objLineIs = async (text, what) => {
     for (const [P, who] of [[A, 'host'], [B, 'client']]) {
-      await until(P, ([i, t]) => document.querySelector(`.mission-hud .mh-row[data-step="${i}"] .mh-text`)?.textContent === t, [step, text], 8000, `${what}: the ${who}'s tgc-3 row reads "${text}"`);
+      await until(P, (t) => document.querySelector('.hud-objective:not(.hud-objective-hint)')?.textContent === t, text, 8000, `${what}: the ${who}'s objective line reads "${text}"`);
+      const hint = await P.evaluate(() => document.querySelector('.hud-objective-hint')?.textContent ?? '');
+      assert(hint === '', `${what}: no hint line on the ${who} with hints off (${JSON.stringify(hint)})`);
     }
-    assert(true, `${what}: the tgc-3 row reads "${text}" on host and client`);
+    assert(true, `${what}: the objective line reads "${text}" on host and client`);
   };
+  /**
+   * (mission-rules R8, HG8) Field Terminal > Objectives on page `P` (pauseScreen.ts `ObjectivesScreen`): its rows as
+   * `{ cls, label, ctr }` (`obj-note` / `obj-done` / `obj-current` / `obj-todo`; the counter "Rule" / "Done" / "Current" /
+   * "To do"), then Back and Resume (in co-op the match keeps running behind the menu).
+   */
+  const fieldRows = async (P, who) => {
+    await P.evaluate(() => window.__app.current.pause());
+    await until(P, () => !!document.querySelector('.pause-screen [data-key="objectives"]'), null, 8000, `the ${who}'s pause menu opens`);
+    await P.evaluate(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
+    await until(P, () => document.querySelectorAll('.objectives-screen .ms-item').length > 0, null, 8000, `the ${who}'s Objectives screen opens`);
+    const rows = await P.evaluate(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => ({ cls: [...b.classList].find((c) => c.startsWith('obj-')) ?? '', label: b.querySelector('.btn-label')?.textContent ?? '', ctr: b.querySelector('.ms-ctr')?.textContent ?? '' })));
+    await P.evaluate(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
+    await until(P, () => !!document.querySelector('.pause-screen [data-key="resume"]') && !document.querySelector('.objectives-screen'), null, 8000, `the ${who} is back on the pause menu`);
+    await P.evaluate(() => document.querySelector('.pause-screen [data-key="resume"]').click());
+    await until(P, () => !document.querySelector('.pause-screen'), null, 8000, `the ${who}'s pause menu closes`);
+    return rows;
+  };
+  /** The current step reads `text` on both objective lines, and both field menus list the rule first and that step current. */
+  const currentIs = async (text, what) => {
+    await objLineIs(text, what);
+    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+      const rows = await fieldRows(P, who);
+      const cur = rows.filter((r) => r.cls === 'obj-current');
+      assert(rows[0]?.cls === 'obj-note' && rows[0]?.ctr === 'Rule' && cur.length === 1 && cur[0].label === text && cur[0].ctr === 'Current', `${what}: the ${who}'s Objectives list the rule first and "${text}" current (${JSON.stringify(rows)})`);
+    }
+  };
+  /**
+   * (mission-rules R8) The host's current mission step line (missionFeed `missionCurrentStep` for the whole team: the
+   * campaign's steps are team `all`, so the line is the step's text, or its `boltText` once its spook fact is held).
+   */
+  const currentLine = () => GA(() => {
+    const r = window.__mission.runner;
+    const sec = r.def.sections[r.section];
+    const i = r.def.steps.findIndex((q, k) => q.section === sec && !q.optional && r.isOpen(k));
+    const q = r.def.steps[i];
+    if (!q) return null;
+    return q.kind === 'interrogate' && q.bolt && q.boltText && r.hasFlag(`${q.id}-spooked`) ? q.boltText : q.text;
+  });
   /** The run's guard `k` of the live section: [x, y, z], alive, ko (null: none). */
   const guardAt = (k) => GA((k) => { const e = window.__sector['slotEnemy'][k]; return e ? { p: [e.pos.x, e.pos.y, e.pos.z], alive: e.alive, ko: e.ko } : null; }, k);
   /** A restart's hold is over: no restart pending (`SectorMission.holding`) and the rules live again (`RuleTracker.held`). */
   const holdOver = (what) => until(A, () => !window.__mission.holding && !window.__mission.tracker.held, null, 8000, `${what}: the restart hold is over`);
-  /** The break line, the restart and the carry-on state (section `i`; `cp` the checkpoint the restart returns to). */
-  /** `n`: the run's restarts (`SectorMode.restarts`) and the mission's (`SectorMission.ruleRestarts`) after this one. */
+  /**
+   * The break line, the restart and the carry-on state (section `i`; `cp` the checkpoint the restart returns to); `n`: the
+   * run's restarts (`SectorMode.restarts`) and the mission's (`SectorMission.ruleRestarts`) after this one.
+   */
   const restarted = async (i, cp, what, n = 1) => {
     await until(A, (n) => window.__sector.debug().restarts === n, n, 15000, `${what}: the section restarts`);
     const d = await dbg();
@@ -314,9 +360,11 @@ async function run(id) {
     const n = await GA(() => window.__sector.blips().length);
     assert(n === 0, `no objective blip while a mission runs (${n})`);
   };
-  const clientHud = async () => {
-    await until(B, () => { const el = document.querySelector('.mission-hud'); return !!el && !el.hidden && el.getBoundingClientRect().width > 0 && el.querySelectorAll('.mh-row').length >= 1; }, null, 8000, 'the client mission HUD shows rows');
-    assert(true, 'the client mission HUD shows the objective rows');
+  /** (mission-rules R8) The objective line on host and client is the mission's current step, and so is the field menu's. */
+  const clientHud = async (what) => {
+    const line = await currentLine();
+    assert(!!line, `${what}: the mission has a current step (${line})`);
+    await currentIs(line, what);
   };
   /** Both in the W4 extraction box: the mission is finished, doneBits as expected, the results screen reads VICTORY. */
   const extract = async (mask, want, what) => {
@@ -363,6 +411,14 @@ async function run(id) {
       const banner = g.hud.banner.bind(g.hud);
       g.hud.banner = (title, sub = '', ms) => { window.__banners.push([title, sub]); banner(title, sub, ms); };
     });
+    // (R7 polish) the client's banners too: the host relays each one (coopHost `hud.banner` -> a `banner` event) and the
+    // client shows it (coopClient `case 'banner'`)
+    await GB(() => {
+      const g = window.__app.current;
+      window.__banners = [];
+      const banner = g.hud.banner.bind(g.hud);
+      g.hud.banner = (title, sub = '', ms) => { window.__banners.push([title, sub]); banner(title, sub, ms); };
+    });
     SEC = await readSectors();
     await padReady(A);
     await padReady(B);
@@ -378,7 +434,7 @@ async function run(id) {
       const cf0 = await ownFeetB();
       assert(dist(cf0, s0.x, s0.z) < 2, `the client starts within 2 m of W1 start2 (${JSON.stringify(cf0)})`);
       await noBlips();
-      await clientHud();
+      await clientHud(`${tag} start`);
 
       where = 'TGC W1';
       console.log('SKIP: shutter w1-shutter is a stand-in until the shutter wiring slice (GB-briefs 0.2)');
@@ -431,6 +487,8 @@ async function run(id) {
       const pk = await dbg();
       assert(pk.mission.line === PROTECTED_LINE && pk.mission.breaks === 0 && pk.mission.spook === -1, `Teale knocked out: "${PROTECTED_LINE}", no break, no spook (${JSON.stringify(pk.mission)})`);
       assert((await bannerCount('SECTION RESTART', PROTECTED_LINE)) === 1, 'Teale knocked out: the SECTION RESTART banner');
+      await until(B, (s) => window.__banners.filter((b) => b[0] === 'SECTION RESTART' && b[1] === s).length === 1, PROTECTED_LINE, 8000, 'Teale knocked out: the client gets one SECTION RESTART banner');
+      assert(true, 'Teale knocked out: the SECTION RESTART banner on the client too');
       await restarted(1, cp2, 'W2 protected restart', 1);
       const ak = await dbg();
       assert(ak.mission.breaks === 0 && ak.mission.spook === -1 && ak.mission.line === PROTECTED_LINE, `the protected restart: ruleRestarts 1, breaks 0, spook -1 (${JSON.stringify(ak.mission)})`);
@@ -438,7 +496,7 @@ async function run(id) {
       await until(A, () => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko; }, null, 8000, 'Teale is back, alive and not knocked out');
       const tk = await guardAt(6);
       assert(Math.hypot(tk.p[0] - table[0], tk.p[2] - table[1]) < 1.5 && Math.hypot(tk.p[0] - bolt[0], tk.p[2] - bolt[2]) > 5, `Teale is back at his reading-room table ${JSON.stringify(table)}, more than 5 m from the bolt point ${JSON.stringify(bolt)} (${JSON.stringify(tk)})`);
-      await rowIs(T3, READING_LINE, 'after the protected restart');
+      await currentIs(READING_LINE, 'after the protected restart');
 
       where = 'TGC W2 Teale killed';
       await holdOver('the protected restart');
@@ -453,7 +511,7 @@ async function run(id) {
       await until(A, (i) => window.__mission.runner.isOpen(i), T3, 8000, 'tgc-3 is open after the rule restart');
       await until(A, ([x, z]) => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko && Math.hypot(e.pos.x - x, e.pos.z - z) < 1; }, [bolt[0], bolt[2]], 8000, 'Teale (alive) at his bolt point after the kill');
       assert(true, `Teale (alive) stands within 1 m of the bolt point ${JSON.stringify(bolt)} (${JSON.stringify(await guardAt(6))})`);
-      await rowIs(T3, MOVED_LINE, 'after the kill');
+      await currentIs(MOVED_LINE, 'after the kill');
 
       where = 'TGC W2 decoy read';
       await holdOver('the kill restart');
@@ -466,13 +524,13 @@ async function run(id) {
       assert((await dbg()).mission.breaks === 2, 'the decoy read restart: breaks 2');
       await until(A, ([x, z]) => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko && Math.hypot(e.pos.x - x, e.pos.z - z) < 1; }, [bolt[0], bolt[2]], 8000, 'Teale still at his bolt point after the decoy read');
       assert(true, `Teale still within 1 m of the bolt point (${JSON.stringify(await guardAt(6))})`);
-      await rowIs(T3, MOVED_LINE, 'after the decoy read (the moved line unchanged)');
+      await currentIs(MOVED_LINE, 'after the decoy read (the moved line unchanged)');
       assert((await stepDone('tgc-3')) === 0 && (await fact('tgc-courier')), "the restarts keep W1's fact and have tgc-3 not done");
 
       where = 'TGC W2 Teale asked';
       await holdOver('the decoy read restart');
       await interrogate(6);
-      await sim(500);
+      await until(A, (sid) => { const m = window.__mission; return ((m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === sid)) & 1) === 1; }, 'tgc-3', 8000, 'Teale asked: tgc-3 is done');
       assert((await stepDone('tgc-3')) === 1 && (await fact('tgc-chest')) && (await dbg()).mission.breaks === 2, 'Teale asked: tgc-3 done, the chest fact held, no new break');
       assert((await stepDone('tgc-opt')) === 0, 'tgc-opt is left undone');
       await until(A, () => window.__sector.debug().phase === 'connector', null, 8000, 'W2: the exit opens without the optional step');
@@ -519,7 +577,7 @@ async function run(id) {
         await moveClient(s1.x, s1.z, s1.yaw);
       }
       await noBlips();
-      await clientHud();
+      await clientHud(`${tag} start`);
 
       where = 'TKL W2 pull';
       await pull({ id: 'w2-pull-east', holder: [73.5, LOFT + 0.1, 59.35], partner: [73.5, 0.1, 58.3], upY: 4.3 });
