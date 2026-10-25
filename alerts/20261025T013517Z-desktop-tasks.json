@@ -1,0 +1,10 @@
+{
+  "worker": "desktop",
+  "disabled": [
+    {
+      "name": "NightShift watchdog",
+      "why": "Ready, runs from C:\\NightShift\\scratch"
+    }
+  ],
+  "at": "2026-10-25T01:35:17.683Z"
+}
