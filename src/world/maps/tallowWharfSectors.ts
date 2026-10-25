@@ -207,6 +207,8 @@ export const WHARF_GUARD_MISSIONS: Readonly<Record<'threeGreyCoats' | 'twoKeyLed
 const W1_BOLTS: SectorBolt[] = [
   { at: at2(W1.doors['w1-warden-stair']!), side: [0, 1] },
   { at: at2(W1.doors['w1-hall-back']!), side: [0, 1] },
+  // the gallery ladder's anti-climb door, bolted from the cage side (EGRESS E5; LP pick 14: bolted in PR G1, no solo bypass of C1)
+  { at: at2(W1.doors['w1-gallery-ladder']!), side: [0, 1] },
 ];
 const W2_BOLTS: SectorBolt[] = [
   { at: at2(W2.doors['w2-pawn-stair-top']!), side: [-1, 0] },
