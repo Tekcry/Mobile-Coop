@@ -4892,7 +4892,8 @@ body.tune-hide-hud .mouse-capture-hint {
   color: var(--text-hi);
   font-weight: 700;
 }
-.screen.objectives-screen.menu-screen {
+.screen.objectives-screen.menu-screen,
+.screen.notes-screen.menu-screen {
   background:
     linear-gradient(90deg, rgba(3, 5, 6, 0.8) 0%, rgba(3, 5, 6, 0.5) 40%, rgba(3, 5, 6, 0) 68%),
     rgba(3, 5, 6, 0.55);

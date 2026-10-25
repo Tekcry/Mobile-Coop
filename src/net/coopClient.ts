@@ -867,6 +867,8 @@ export class CoopClient implements NetAttachment {
         // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
         g.hud.barks.say('lantern', e.text, true);
         g.hud.feedItem(e.text);
+        // (hud-guidance B5, BRIEF A9) and in Field Terminal > Notes (the host's keypad radio lines ride `feed` too)
+        g.notes.add(e.text);
         break;
       case 'pickup':
         if (e.player !== me) break;
