@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, REPEAT_DAYS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, markReport, perfStep } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, REPEAT_DAYS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, markReport, perfStep, TRAIN_PARITY, trainParity, trainList, trainBins, parityLine } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -1422,5 +1422,47 @@ describe('J20 affected report and wire', () => {
     expect(perfStep('node scripts/perf.mjs --no-budget')).toBe('node scripts/perf.mjs --no-budget');
     expect(perfStep('node scripts/run-e2e.mjs e2e-move')).toBe('node scripts/run-e2e.mjs e2e-move');
     expect(perfStep('node scripts/perf-report.mjs')).toBe('node scripts/perf-report.mjs');
+  });
+});
+
+describe('train parity (J20 S7, Q27)', () => {
+  it('trainParity: no file -> base; off -> none; suites [] -> none; suites [x] -> [x]; bad JSON -> base; env off wins', () => {
+    expect(TRAIN_PARITY).toEqual(['e2e-darkness']);
+    expect(trainParity('')).toEqual({ suites: ['e2e-darkness'], off: false, why: '' });
+    expect(trainParity(undefined, undefined)).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    const off = trainParity('{ "off": true, "why": "red on master", "by": "Night Shift | Test Runner" }');
+    expect(off).toMatchObject({ suites: [], off: true });
+    expect(off.why).toContain('red on master');
+    expect(trainParity('{"suites":[]}')).toMatchObject({ suites: [], off: true });
+    expect(trainParity('{"suites":["x"]}')).toEqual({ suites: ['x'], off: false, why: '' });
+    expect(trainParity('{not json')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{"suites":"x"}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{"off":false}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{"suites":["x"]}', 'off')).toMatchObject({ suites: [], off: true, why: 'LQ_TRAIN_PARITY=off' });
+    expect(trainParity('', 'OFF')).toMatchObject({ suites: [], off: true });
+    expect(trainParity('', '', ['a'])).toMatchObject({ suites: ['a'] });
+  });
+  it('trainList: appends once, keeps order, no duplicate, empty = unchanged', () => {
+    expect(trainList(['smoke', 'e2e-move'], ['e2e-darkness'])).toEqual(['smoke', 'e2e-move', 'e2e-darkness']);
+    expect(trainList(['smoke', 'e2e-darkness', 'e2e-move'], ['e2e-darkness'])).toEqual(['smoke', 'e2e-darkness', 'e2e-move']);
+    expect(trainList(['smoke'], ['a', 'b', 'a'])).toEqual(['smoke', 'a', 'b']);
+    expect(trainList(['smoke'], [])).toEqual(['smoke']);
+    const list = ['smoke'];
+    trainList(list, ['x']);
+    expect(list).toEqual(['smoke']);
+  });
+  it('trainBins (train run and dry-run plan): bins include e2e-darkness, LQ_TRAIN_PARITY=off drops it', () => {
+    const list = ['smoke', 'e2e-move', 'e2e-coop'];
+    const times = { smoke: 30, 'e2e-move': 60, 'e2e-coop': 90, 'e2e-darkness': 42 };
+    const on = trainBins(list, trainParity(''), times, 2).flatMap((b: { suites: string[] }) => b.suites);
+    expect(on).toContain('e2e-darkness');
+    expect(on).toHaveLength(4);
+    const off = trainBins(list, trainParity('', 'off'), times, 2).flatMap((b: { suites: string[] }) => b.suites);
+    expect(off).not.toContain('e2e-darkness');
+    expect(off.sort()).toEqual([...list].sort());
+  });
+  it('parityLine: the log line names the suites or why it is off', () => {
+    expect(parityLine(trainParity(''))).toBe('train parity: e2e-darkness');
+    expect(parityLine(trainParity('', 'off'))).toBe('train parity: off (LQ_TRAIN_PARITY=off)');
   });
 });
