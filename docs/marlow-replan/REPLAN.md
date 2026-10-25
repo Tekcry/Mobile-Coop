@@ -45,4 +45,4 @@ Q: Build Marlow Yard to this plan?
 - "Change something"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~19:16 picked: "Approve as drawn (Recommended)" (question: "Marlow Yard re-plan: one way through each area (only the Strongroom keeps side routes), every co-op move taught once, 12 guards, every mistake is a retry where you are, every light works. Build it to this plan?")
