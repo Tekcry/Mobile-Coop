@@ -8,8 +8,11 @@
  * - Misses: another key or version, a missing, short or changed file, a bad magic -> null (the PC bakes); a server that
  *   decoded the gzip still reads.
  * - (SB14) `markPlaying` caches a finished, not-yet-saved result once.
+ * - The build's emit plugin ships `current.json`'s files as `bakes/<name>` and nothing without it.
  */
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
@@ -17,14 +20,16 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import { canonicalLightSet, CANON_VERSION } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_STRIDE, type LampResult } from '../src/voxel/lampBake';
 import { LAMP_VERSION, saveLamps } from '../src/voxel/lampJobs';
+import type * as LampJobs from '../src/voxel/lampJobs';
 import { SectionBaker } from '../src/voxel/sectionJobs';
 import { lampSectionMasks, type SectionBakeDef } from '../src/world/sectionBake';
 import { joinShipped, packLamps, readShippedLamps, unpackLamps, type ShippedFile, type ShippedManifest } from '../src/world/shippedBake';
 import { buildCampus } from '../scripts/prebake/plan';
+import { shippedBakes } from '../scripts/prebake/emit';
 import { bakedLights, bakeLevelLight, lampKeyOf, moonKeyOf } from '../src/world/lightBake';
 
 // (the cache write is spied; everything else in lampJobs is the real module)
-vi.mock('../src/voxel/lampJobs', async (orig) => ({ ...(await orig<typeof import('../src/voxel/lampJobs')>()), saveLamps: vi.fn(async () => undefined) }));
+vi.mock('../src/voxel/lampJobs', async (orig) => ({ ...(await orig<typeof LampJobs>()), saveLamps: vi.fn(async () => undefined) }));
 import { campusOps } from '../src/world/maps/campusOps';
 import { applyMapFlicker } from '../src/world/lampFlicker';
 import { applyMapSway } from '../src/world/lampSway';
@@ -297,4 +302,32 @@ describe('shipped bake: the cache write at the release (SB14)', () => {
     sb.dispose();
     expect(save).toHaveBeenCalledTimes(1);
   }, 120_000);
+});
+
+describe('shipped bake: the build emits the prebake (scripts/prebake/emit.ts)', () => {
+  type Hook = (this: { emitFile: (f: { type: string; fileName: string; source: Uint8Array }) => string }) => void;
+  const run = (root: string): { fileName: string; source: Uint8Array }[] => {
+    const plugin = shippedBakes();
+    const out: { fileName: string; source: Uint8Array }[] = [];
+    (plugin.configResolved as unknown as (c: { root: string }) => void)({ root });
+    (plugin.generateBundle as unknown as Hook).call({ emitFile: (f) => { out.push(f); return f.fileName; } });
+    return out;
+  };
+
+  it('emits every file current.json names from its folder as bakes/<name>; no current.json, nothing', () => {
+    const root = mkdtempSync(join(tmpdir(), 'prebake-emit-'));
+    try {
+      expect(shippedBakes().apply).toBe('build');
+      expect(run(root)).toEqual([]);
+      mkdirSync(join(root, '.prebake-cache', 'h1'), { recursive: true });
+      writeFileSync(join(root, '.prebake-cache', 'h1', 'campusOps.json'), '{"key":"k"}');
+      writeFileSync(join(root, '.prebake-cache', 'h1', 'campusOps-h1-s0.bin.gz'), new Uint8Array([0x1f, 0x8b, 1]));
+      writeFileSync(join(root, '.prebake-cache', 'current.json'), JSON.stringify({ h: 'h1', files: ['campusOps.json', 'campusOps-h1-s0.bin.gz'] }));
+      const out = run(root);
+      expect(out.map((f) => f.fileName)).toEqual(['bakes/campusOps.json', 'bakes/campusOps-h1-s0.bin.gz']);
+      expect(Array.from(out[1]!.source)).toEqual([0x1f, 0x8b, 1]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
