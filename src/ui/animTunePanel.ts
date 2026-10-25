@@ -27,6 +27,8 @@ import {
   tuneResetGroup,
   tuneSet,
   tuneSnapshot,
+  BODY_GROUPS,
+  type BodyGroup,
 } from '../anim/tune';
 import { isTuneGroup, TUNE_REGISTRY_HOOKS, TUNE_SECTIONS, tuneBakedApplied, type TuneSection } from '../anim/tuneRegistry';
 import { tuneBakedReset, type BakedResetResult } from '../anim/tuneBakedReset';
@@ -83,6 +85,28 @@ function keyPickLabel(clip: string, seg: string): string {
 }
 import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioBodyPin, studioEntry } from '../anim/studio';
 import { effectMode, sliderEffect, type EffectMode } from './tunerEffect';
+import type { KeyedClip } from '../anim/keyed';
+import { LOCO } from '../anim/mocap';
+import { NOW_PLAYING, bodyWord, nowPlayingGuardText, nowPlayingKey, nowPlayingText } from '../anim/nowPlaying';
+import {
+  CLARITY_WARN_LABEL,
+  KEYS_CAPTURED_NOTE,
+  KEYS_MOCAP_NOTE,
+  MOCAP_BOX_LABEL,
+  REACH_NOW_BANDS,
+  REACH_TITLES,
+  REACH_WORDS,
+  editWarning,
+  keysClipCaptured,
+  reachSummary,
+  rowNote,
+  rowNow,
+  rowReach,
+  rowStates,
+  type Reach,
+  type ReachNow,
+  type ReachShown,
+} from './tunerReach';
 import { promptHtml, type PromptButton } from './prompts';
 import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_PLAY_KEY, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
 import { emptyTarget, partLabel, pickOnBody, RIG_BONES, RIG_JOINTS, rowHasPart, rowKeyParts, tuneTarget, type BodyPart, type RigJoint } from './tunerTarget';
@@ -169,6 +193,8 @@ interface Section {
   prefix: number;
   /** (item 29) The one line saying why some rows are greyed (nothing greyed: hidden). */
   eff: HTMLDivElement;
+  /** (tuner-clarity S4) The part's reach line ("This part changes: Both"; no tagged row: hidden). */
+  sum: HTMLDivElement;
 }
 
 /** (anim-joints J2 fix) The picker level of the section's own group: its path's depth, capped at the level count (the
@@ -190,6 +216,12 @@ const MARK_DIST = 12;
 const SAVE_DELAY = 400;
 /** (pass 3) Follow switches group once the new state has held this long (ms): a brief state never rebuilds the rows. */
 const FOLLOW_HOLD_MS = 300;
+/** (tuner-clarity S4) The Now playing line changes once its key has held this long (ms): no flicker at a band edge. */
+const PLAY_HOLD_MS = 300;
+/** No key shown yet. */
+const PLAY_NONE = -1e9;
+/** (tuner-clarity S4, BRIEF A4) How long the edit warning shows (ms). */
+const WARN_MS = 5000;
 /** (fix round) No pad poll for this long (ms): the free view's pad input is cleared (a disconnected pad). */
 const PAD_STALE_MS = 250;
 /** One sim step (the step-frame button). */
@@ -265,6 +297,16 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-row:hover{background:rgba(255,255,255,0.035)}
 .anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tt-fg)}
 .anim-tune .tt-row.tt-off{opacity:0.42}
+.anim-tune .anim-tune-playing{flex:none;color:var(--tt-hi);font-weight:600;font-size:0.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 0.25em;min-height:1.3em}
+.anim-tune.tt-folded .anim-tune-playing,.anim-tune.tt-folded .anim-tune-warn{display:none!important}
+.anim-tune .anim-tune-warn,.anim-tune .tt-warn{color:var(--tt-warn);font-size:0.82em;font-weight:600;line-height:1.25;margin:0.1em 0 0.25em}
+.anim-tune .tt-warn{padding:0.1em 0.3em 0.1em 0.5em;border-left:3px solid var(--tt-warn);background:rgba(240,180,59,0.08)}
+.anim-tune .tt-reach{display:inline-block;margin-left:0.45em;padding:0 0.4em;border-radius:2px;font-size:0.72em;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;vertical-align:middle;border:1px solid currentColor;pointer-events:none}
+.anim-tune .tt-reach-mocap{color:#7cc4ff;-webkit-text-fill-color:#7cc4ff}
+.anim-tune .tt-reach-keyed{color:#f0b43b;-webkit-text-fill-color:#f0b43b}
+.anim-tune .tt-reach-both{color:#b9c4c0;-webkit-text-fill-color:#b9c4c0}
+.anim-tune .tt-reach-off{color:#7d8a86;-webkit-text-fill-color:#7d8a86;border-style:dashed}
+.anim-tune .tt-reach-sum{margin:0 0 0.2em}
 .anim-tune .studio-slide.warn{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn);font-weight:700}
 .anim-tune .anim-tune-effect{color:var(--tt-warn);font-size:0.8em;margin:0 0 0.2em}
 .anim-tune .tt-row.tt-sel{background-color:rgba(240,194,75,0.13);box-shadow:inset 3px 0 0 var(--tt-sel)}
@@ -575,6 +617,25 @@ export class AnimTunePanel {
   private top!: HTMLDivElement;
   /** (item 29) How the shown state plays now (the greyed rows follow it). */
   private effMode: EffectMode = 'procedural';
+  // --- (tuner-clarity S4) the Now playing line: the key last seen and since when (ms), the key and entry shown, the text
+  private playEl: HTMLDivElement;
+  private playKey = PLAY_NONE;
+  private playKeyAt = 0;
+  private playEnt = '';
+  private playShown = PLAY_NONE;
+  private playShownEnt = '';
+  private playClip: KeyedClip | null = null;
+  private playShownClip: KeyedClip | null = null;
+  private playText = '';
+  /** What plays now as `tunerReach.ts` reads it (one object, mutated each frame) and the band last applied to the badges. */
+  private readonly reachNow: ReachNow = { state: null, mocapShare: 0, switchOn: false };
+  private reachBand = -1;
+  /** The edit warning: the header strip, the strip under the edited row, its timer, the text shown, the More > Panel box. */
+  private warnEl: HTMLDivElement;
+  private rowWarnEl: HTMLDivElement;
+  private warnTimer: ReturnType<typeof setTimeout> | null = null;
+  private warnText = '';
+  private warnBox: HTMLInputElement | null = null;
   /** The touch camera's last move (the test hook). */
   private readonly touchLast = { kind: '', taps: 0 };
   /** The F3 readout (the debug overlay sets it). */
@@ -816,7 +877,12 @@ export class AnimTunePanel {
     }, 'debugreadout', 'anim-tune-debugreadout');
     // (mocap-trial) the rollback switch, the same setting as Settings > Gameplay > "Mocap locomotion"
     const pb4 = this.mkBar();
-    this.mocapBox = this.mkCheck(pb4, 'Mocap locomotion', false, (v) => this.mocapHost?.set(v), 'mocaploco', 'anim-tune-mocap');
+    this.mocapBox = this.mkCheck(pb4, MOCAP_BOX_LABEL, false, (v) => this.mocapHost?.set(v), 'mocaploco', 'anim-tune-mocap');
+    // (tuner-clarity S4, BRIEF A4) the edit warning's switch (on by default; saved with the panel's settings)
+    this.warnBox = this.mkCheck(pb4, CLARITY_WARN_LABEL, true, (v) => {
+      if (!v) this.clearWarn();
+      this.saveUi();
+    }, 'claritywarn', 'anim-tune-claritywarn');
     panelB.append(pb, pb2, pb3, pb4);
     const snapB = this.block(set, 'Undo and presets');
     snapB.append(this.snaps.bar, this.snaps.pbar);
@@ -1019,7 +1085,16 @@ export class AnimTunePanel {
     // the tabs and the playback bar are one top block: sticky as a whole on a drawer / sheet, so they always show
     const top = (this.top = document.createElement('div'));
     top.className = 'tt-top';
-    top.append(head, this.tabBar, this.studioUi.bar);
+    // (tuner-clarity S4) the Now playing line (`playFrame`) and the edit warning strip, under the tabs
+    const playEl = (this.playEl = document.createElement('div'));
+    playEl.className = 'anim-tune-playing';
+    const warnEl = (this.warnEl = document.createElement('div'));
+    warnEl.className = 'anim-tune-warn';
+    warnEl.hidden = true;
+    const rowWarn = (this.rowWarnEl = document.createElement('div'));
+    rowWarn.className = 'tt-warn';
+    rowWarn.hidden = true;
+    top.append(head, this.tabBar, playEl, warnEl, this.studioUi.bar);
     el.append(top, menu, body, infoEl, this.hint, this.dropList);
     // a scroll that brings a row into view keeps it clear of the sticky top block
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.syncTopPad()).observe(top);
@@ -1064,10 +1139,12 @@ export class AnimTunePanel {
     void loadAnimTuneUi().then((u) => {
       if (!u || typeof u !== 'object') return;
       // (item 29) an old `pins` list is ignored (the pins are gone)
-      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown; phoneDebug?: unknown; highlight?: unknown };
+      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown; phoneDebug?: unknown; highlight?: unknown; clarityWarn?: unknown };
       if (o.size === 'S' || o.size === 'M' || o.size === 'L') this.setSize(o.size, false);
       if (typeof o.pauseTuning === 'boolean') this.freezeBox.checked = o.pauseTuning;
       if (typeof o.stageLight === 'number') this.studioUi.setStage(o.stageLight);
+      // (tuner-clarity S4) absent = on
+      if (typeof o.clarityWarn === 'boolean' && this.warnBox) this.warnBox.checked = o.clarityWarn;
       if (typeof o.highlight === 'boolean') {
         this.highlight = this.highlightBox.checked = o.highlight;
         if (!o.highlight) this.clearMarker();
@@ -1242,6 +1319,9 @@ export class AnimTunePanel {
           .filter((s) => s.wrap.offsetParent !== null)
           .map((s) => ({ id: s.reg.id, group: s.group, off: Array.from(s.rows.querySelectorAll<HTMLElement>('.tt-row.tt-off input[type=range]')).map((i) => i.dataset.id ?? ''), note: s.eff.hidden ? '' : (s.eff.textContent ?? '') })),
       }),
+      // (tuner-clarity S4) what the Now playing line says and the graph's shares and move; the header warning's text
+      playing: () => ({ text: this.playText, mocap: NOW_PLAYING.mocap, keyed: NOW_PLAYING.keyed, code: NOW_PLAYING.code, move: NOW_PLAYING.move }),
+      warn: () => (this.warnEl.hidden ? '' : this.warnText),
       reveal: (key: string) => this.revealRow(key),
       // (item 29) More open / closed
       more: (open?: boolean) => {
@@ -1780,7 +1860,10 @@ export class AnimTunePanel {
     const eff = document.createElement('div');
     eff.className = 'tt-note anim-tune-effect';
     eff.hidden = true;
-    const sec: Section = { reg, pick, levels: [], rows, wrap, group: first, prefix, eff };
+    const sum = document.createElement('div');
+    sum.className = 'tt-note tt-reach-sum';
+    sum.hidden = true;
+    const sec: Section = { reg, pick, levels: [], rows, wrap, group: first, prefix, eff, sum };
     for (let k = 0; k < nLev; k++) {
       const lv = k;
       sec.levels.push(this.mkSel(head, levelName(kind, k), [], (v) => this.pickLevel(sec, lv, v), `lv:${kind}:${k}`, `anim-tune-level anim-tune-level-${kind}-${k}`));
@@ -1791,11 +1874,18 @@ export class AnimTunePanel {
       sec.group = pick.value;
       this.rebuild(sec);
     });
+    // (tuner-clarity S4, BRIEF A1) the fixed note at the top of the Keys tab (the hint below it stays as it was)
+    if (kind === 'keys') {
+      const mn = document.createElement('div');
+      mn.className = 'anim-tune-keys-mocap tt-note';
+      mn.textContent = KEYS_MOCAP_NOTE;
+      wrap.append(mn);
+    }
     wrap.append(head);
     // (marlow-bays T1a, items 15 and 18) the Keys tab: key back / forward (the picker follows), the readout, the Mirror
     // box and the hint, between the pickers and the sliders
     if (kind === 'keys') wrap.append(this.keysBlock());
-    wrap.append(eff, rows);
+    wrap.append(eff, sum, rows);
     this.tabEl(tabId).append(wrap);
     this.sections.push(sec);
     this.cand.push('');
@@ -1969,6 +2059,7 @@ export class AnimTunePanel {
       none.textContent = this.changedOnly ? 'Nothing changed here.' : 'No sliders.';
       sec.rows.append(none);
       sec.eff.hidden = true;
+      sec.sum.hidden = true;
       this.refreshSel();
       return;
     }
@@ -2044,10 +2135,16 @@ export class AnimTunePanel {
    */
   private applyEffect(sec: Section): void {
     const why: string[] = [];
+    const reaches: Reach[] = [];
+    // (tuner-clarity S4) the badges: each row's reach, or "Not playing now" by the live band (`ReachNow`)
+    const states = rowStates(sec.reg.id, sec.group);
     let n = 0;
     for (const inp of Array.from(sec.rows.querySelectorAll<HTMLInputElement>('input[type=range][data-id]'))) {
       const row = inp.closest<HTMLElement>('.tt-row');
       if (!row) continue;
+      const reach = rowReach(sec.reg.id, sec.group, inp.dataset.id ?? '');
+      reaches.push(reach);
+      this.showReach(row, rowNow(reach, states, this.reachNow));
       const r = sliderEffect(sec.reg.id, sec.group, inp.dataset.id ?? '', this.effMode);
       row.classList.toggle('tt-off', r !== '');
       if (r) {
@@ -2058,6 +2155,68 @@ export class AnimTunePanel {
     }
     sec.eff.hidden = n === 0;
     sec.eff.textContent = n ? `Greyed (${n}): ${why.join('; ')}.` : '';
+    const sum = reachSummary(reaches);
+    sec.sum.hidden = sum === '';
+    if (sec.sum.textContent !== sum) sec.sum.textContent = sum;
+  }
+
+  /** (S4) One row's badge: words and colour from `tunerReach.ts` (none: no badge). Classes and text only. */
+  private showReach(row: HTMLElement, shown: ReachShown): void {
+    const b = row.querySelector<HTMLElement>('.tt-reach');
+    if (!b) return;
+    const w = REACH_WORDS[shown];
+    b.hidden = w === '';
+    if (b.textContent !== w) b.textContent = w;
+    const cls = `tt-reach tt-reach-${shown}`;
+    if (b.className !== cls) {
+      b.className = cls;
+      b.title = REACH_TITLES[shown];
+    }
+  }
+
+  /**
+   * (S4, BRIEF A4) An edit of row `id` in `sec`: when it changes nothing on screen (`editWarning`), the one line shows
+   * for 5 s in the header strip and in a strip under the edited row (one per panel: it moves). Off with the More > Panel box.
+   */
+  private editWarn(sec: Section, id: string, row: HTMLElement | null): void {
+    if (this.warnBox && !this.warnBox.checked) return;
+    const w = editWarning(sec.reg.id, sec.group, id, this.reachNow);
+    if (!w) return;
+    if (this.warnText !== w || this.warnEl.hidden) {
+      this.warnText = w;
+      this.warnEl.textContent = w;
+      this.rowWarnEl.textContent = w;
+    }
+    this.warnEl.hidden = false;
+    if (row && row.isConnected) {
+      if (this.rowWarnEl.previousElementSibling !== row) row.after(this.rowWarnEl);
+      this.rowWarnEl.hidden = false;
+    }
+    if (this.warnTimer) clearTimeout(this.warnTimer);
+    this.warnTimer = setTimeout(() => this.clearWarn(), WARN_MS);
+  }
+
+  private clearWarn(): void {
+    if (this.warnTimer) clearTimeout(this.warnTimer);
+    this.warnTimer = null;
+    this.warnText = '';
+    this.warnEl.hidden = true;
+    this.rowWarnEl.hidden = true;
+    this.rowWarnEl.remove();
+  }
+
+  /** (S4) A Keys key tool ran (Wave, Apply to keys, Smooth between): the warning for the field it changed. */
+  private keyToolWarn(): void {
+    const sec = this.sections.find((s) => s.reg.id === 'keys');
+    const kt = this.keyTools;
+    if (!sec || !kt) return;
+    const p = rowKeyParts(this.selKey);
+    const sel = p && p.section === 'keys' ? p.id : '';
+    const st = kt.state();
+    const id = st.tool === 'wave' ? st.chan : sel || st.chan;
+    if (!id) return;
+    const row = sec.rows.querySelector<HTMLElement>(`input[data-id="${globalThis.CSS.escape(id)}"]`)?.closest<HTMLElement>('.tt-row') ?? null;
+    this.editWarn(sec, id, row);
   }
 
   /** One slider row: name, slider, value (type a value, Enter), unit, reset; the grey notes under it. */
@@ -2069,10 +2228,17 @@ export class AnimTunePanel {
     const row = document.createElement('div');
     row.dataset.padRow = '1';
     row.className = 'tt-row';
-    row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})`;
+    // (tuner-clarity S4) a Body slider the capture ignores adds its note to the hover text (no extra line)
+    const hmNote = rowNote(kind, group, t.id);
+    row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})${hmNote ? `\n${hmNote}` : ''}`;
     const name = document.createElement('span');
     name.className = 'tt-name';
     name.textContent = roleWords(plainLabel(kind, t.id, t.label), handRoles(kind, group));
+    // (S4) the reach badge: words plus colour (`applyEffect` fills it; no tag: hidden); not focusable, not a touch target
+    const badge = document.createElement('span');
+    badge.className = 'tt-reach';
+    badge.hidden = true;
+    name.append(badge);
     // (item 29 phase 2) the value in plain units (cm, degrees): `su.k` scales the stored value for the field only
     const su = shownUnit(t.unit);
     const input = document.createElement('input');
@@ -2095,7 +2261,7 @@ export class AnimTunePanel {
       const v = Number(val.value);
       if (val.value.trim() !== '' && Number.isFinite(v)) {
         tuneSet(group, t.id, v / su.k);
-
+        this.editWarn(sec, t.id, row);
       }
       show();
     });
@@ -2121,7 +2287,7 @@ export class AnimTunePanel {
     show();
     input.addEventListener('input', () => {
       tuneSet(group, t.id, Number(input.value));
-
+      this.editWarn(sec, t.id, row);
       show();
     });
     // (the slider lets go of the keyboard, so the arrow keys and Space stay the game's)
@@ -2516,7 +2682,7 @@ export class AnimTunePanel {
 
   private saveUi(): void {
     // (marlow-bays item 14) the Anim Studio's Stage light goes with the panel's own settings; (item 29) the highlight
-    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale, phoneDebug: this.phoneDebug, highlight: this.highlight });
+    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale, phoneDebug: this.phoneDebug, highlight: this.highlight, clarityWarn: this.warnBox ? this.warnBox.checked : true });
   }
 
   /** (tuner-ui) The panel size (S / M / L) scaled to the screen (`tunerLayout.tunerScale`). */
@@ -3334,6 +3500,66 @@ export class AnimTunePanel {
     }
   }
 
+  /**
+   * (tuner-clarity S4, PLAN 2(b)) The Now playing line, every frame the panel is open: one integer key from the graph's
+   * `NOW_PLAYING`, the body state and the switch (no allocation); a changed key starts a hold and the text is built (the
+   * one allocation) once the key has held `PLAY_HOLD_MS`. Who: Guard shows the guard's loop (hand-made always). The Anim
+   * Studio's Loop player shows the same text. The reach badges follow the live band (`syncReach`).
+   */
+  private playFrame(nowMs: number): void {
+    const body = TUNE_STATE.body;
+    const idx = (BODY_GROUPS as readonly string[]).indexOf(body);
+    const guard = TUNE_WHO.who === 'guard';
+    const k = guard ? -2 - idx : nowPlayingKey(NOW_PLAYING, idx, LOCO.mocap);
+    const ent = guard ? STUDIO.entry : '';
+    // the clip's hash in the key can collide: the clip reference itself is compared too (no allocation)
+    const clip = guard ? null : NOW_PLAYING.clip;
+    if (k !== this.playKey || ent !== this.playEnt || clip !== this.playClip) {
+      this.playKey = k;
+      this.playEnt = ent;
+      this.playClip = clip;
+      this.playKeyAt = nowMs;
+    }
+    if ((k !== this.playShown || ent !== this.playShownEnt || clip !== this.playShownClip) && (this.playShown === PLAY_NONE || nowMs - this.playKeyAt >= PLAY_HOLD_MS)) {
+      this.playShown = k;
+      this.playShownEnt = ent;
+      this.playShownClip = clip;
+      this.setPlayText(guard ? nowPlayingGuardText(this.guardLoopWord(body)) : nowPlayingText(NOW_PLAYING, body, LOCO.mocap));
+    }
+    this.syncReach();
+  }
+
+  /** The Who: Guard line's loop: the studio's guard loop ("idle"), else the shown body state. */
+  private guardLoopWord(body: string): string {
+    if (STUDIO.active && STUDIO.entry.startsWith('guard:')) return STUDIO.entry.slice(6).split('_').join(' ');
+    return body === '' ? 'idle' : bodyWord(body as BodyGroup);
+  }
+
+  private setPlayText(t: string): void {
+    this.playText = t;
+    this.playEl.textContent = t;
+    this.playEl.title = t;
+    this.studioUi.setPlaying(t);
+  }
+
+  /**
+   * (S4) Fill the live `ReachNow` (state, capture share, switch) and, when it crosses a band (the playing state, the
+   * share over 0.9 / under 0.1, the switch), refresh every section's badges (classes and text only). No allocation unless
+   * a band changed.
+   */
+  private syncReach(): void {
+    const n = this.reachNow;
+    const body = TUNE_STATE.body;
+    n.state = body === '' ? null : body;
+    n.mocapShare = NOW_PLAYING.mocap;
+    n.switchOn = LOCO.mocap;
+    const share = n.switchOn ? n.mocapShare : 0;
+    const band = (share >= REACH_NOW_BANDS.capture ? 1 : share <= REACH_NOW_BANDS.handMade ? 2 : 0) | ((n.switchOn ? 1 : 0) << 2) | (((BODY_GROUPS as readonly string[]).indexOf(body) + 1) << 3);
+    if (band === this.reachBand) return;
+    this.reachBand = band;
+    for (const s of this.sections) this.applyEffect(s);
+  }
+
   /** Every frame (driven by the debug overlay whether or not it is shown). */
   frame(nowMs: number): void {
     // (marlow-bays T2) the studio hides the game HUD, open or not
@@ -3373,6 +3599,7 @@ export class AnimTunePanel {
     this.studioUi.frame(nowMs, this.scene);
     if (this.aidsB.hidden === STUDIO.active) this.aidsB.hidden = !STUDIO.active;
     this.keysFrame(nowMs);
+    this.playFrame(nowMs);
     this.showSpot();
     // (marlow-bays T2) the studio's canvas beside the docked panel
     this.syncDock();
@@ -3391,7 +3618,9 @@ export class AnimTunePanel {
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
       // (marlow-bays item 29) the loop playing now: one of her keyed clips (the studio), a gun in hand or not; a change
       // greys the rows that do nothing in it
-      const m = effectMode(!!se && se.kind === 'keyed' && studioBodyPin(se) !== '', se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot);
+      // (tuner-clarity S4) `mocap`: no studio keyed clip pins the body and the capture plays 90 % or more of it
+      const keyedPin = !!se && se.kind === 'keyed' && studioBodyPin(se) !== '';
+      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot, !keyedPin && NOW_PLAYING.mocap >= REACH_NOW_BANDS.capture);
       if (m !== this.effMode) {
         this.effMode = m;
         for (const s of this.sections) this.applyEffect(s);
@@ -3486,6 +3715,7 @@ export class AnimTunePanel {
         rebuild: () => {
           const sec = this.sections.find((s) => s.reg.id === 'keys');
           if (sec) this.rebuild(sec);
+          this.keyToolWarn(); // (tuner-clarity S4) a tool's edit that changes nothing on screen
         },
         showKey: (clip, k) => {
           this.loopFromTab = this.keyPicking = true;
@@ -3669,6 +3899,7 @@ export class AnimTunePanel {
     // (item 25) an added key's mirror half a cycle on
     if (c.mirror && mirrorOn && k >= T + KEY_ADD_SLOTS) t += `: the sliders edit key ${keyRank(c, k - KEY_ADD_SLOTS) + 1} (this key is its mirror, the arms swapped)`;
     this.keysEditShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
+    if (keysClipCaptured(p[0])) t += ` ${KEYS_CAPTURED_NOTE}`; // (tuner-clarity S4)
     if (!STUDIO.active) t += ' (open the Anim Studio to see the key)';
     if (this.keyReadoutEl.textContent !== t) this.keyReadoutEl.textContent = t;
     const box = this.keyMirrorBox!;
@@ -3801,7 +4032,8 @@ export class AnimTunePanel {
       return;
     }
     const state = sec.group ? plainWords(sec.group.split('.').slice(1).join(' ')) : '';
-    const what = row?.querySelector('.tt-name')?.textContent ?? 'whole part';
+    // (S4) the row's name only: the reach badge sits after its text node
+    const what = row?.querySelector('.tt-name')?.firstChild?.textContent ?? 'whole part';
     line.hidden = false;
     line.textContent = `▶ ${sec.reg.label}${state ? ` · ${state}` : ''} · ${what} → ${this.selTarget.label}`;
   }
