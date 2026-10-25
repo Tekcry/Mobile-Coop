@@ -1009,7 +1009,7 @@ orchestrator says "Mixamo laptop run done" (Michael's top priority tonight). Che
 1. J4 G327 #438 head 8af8ff6a: all gates green, orchestrator posted checker ~20:20; watchdog labels. After
    train-ready: undraft #414.
 2. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 (queued) +
-   laptop-e2e/alone-alone-coop4-4p (NOTE the doubled name; RUNNING on 4189 since 20:27). Green -> post checker
+   laptop-e2e/alone-alone-coop4-4p PASS 20:35 (318 s). coop4-full2 green -> post checker
    (A PASS + B fix round), tell orchestrator. CONFLICTING with master (protocol.ts): train resolves.
 3. J6 #446 head 97c6338f: re-checks A + B PASS (slices/ALLOC-RECHECK-A/B.md). Gate: laptop-e2e/alloc-coop (queued).
    Green -> post checker, tell orchestrator.
@@ -1019,7 +1019,7 @@ orchestrator says "Mixamo laptop run done" (Michael's top priority tonight). Che
    (gear.ts:178) -> false; KILL_BASE.dog undo keeps the headshot bonus off (score.ts:17); GearGuard type redundant.
 5. J15 S5 repeat alarms (PR2): DONE be49ac06 on feature/guard-rules-s5 (off feature/guard-rules 211a66d5; 11 files
    +497/-22; tsc / eslint / 63 vitest files green; e2e block not run). Lock opens only after a manager raise
-   (guardAlarms > 0). Next: 2 Opus checkers on `git diff 211a66d5..be49ac06` now (no wait for PR1); after PR1
+   (guardAlarms > 0). Opus checkers A / B were RUNNING ~20:37 (-> docs/guard-rules/checks/S5-CHECK-A/B.md on -s5; restart if absent) on `git diff 211a66d5..be49ac06` now (no wait for PR1); after PR1
    merges, merge -s5 into feature/guard-rules, PR2, laptop affected + e2e-coop + e2e-ctcourse. Then wave 3: F0
    flags (lead) then S4 / S6.
 6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
