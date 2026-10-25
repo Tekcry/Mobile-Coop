@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.110.0 - Train 117: Campus greybox: per-section v2 switch; Mixamo body carry on Wren (behind ?mixamo=1) (2026-10-26, PR #509; #503, #493)
+
+### Campus greybox: per-section v2 switch
+- No player-visible change: Saltmarsh Park plays exactly as before.
+- Sector Ops build plumbing for the signed-off S1-S5 re-plans: each campus section can now be built from a new,
+  separate layout that stays off by default (`flags.campusV2`, `?campusv2=1,3` for test builds), so the five sections can be
+  rebuilt in parallel and switched on one by one after each walk. The new layouts start as exact copies of today's.
+
+### Mixamo body carry on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): carrying a body on the shoulder, Wren's trunk, head and pelvis height play the
+  Mixamo carry walk (on the game's own step timing) and carry idle; the feet, the carry pace and the hands on the body
+  are unchanged. The co-op partner sees the same.
+- The Mixamo elbow strike and cross punch are wired to the knockout strike's timing (on Wren's own hips) but stay
+  hand-made in matches: squeezed onto the game's fast strike, their forearms snap too far in one frame. The kneel-down capture stays in the Anim
+  Studio only (the game has no kneeling put-down yet).
+
 ## 4.109.0 - Train 116: Test Runner batch (J20), PR-A: affected suites and runner; Character shadows count in the light (part 1, dark) (2026-10-26, PR #508; #492, #459)
 
 ### Character shadows count in the light (part 1, dark)
