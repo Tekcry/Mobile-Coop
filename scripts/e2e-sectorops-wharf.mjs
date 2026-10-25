@@ -159,6 +159,9 @@ async function run(id) {
         return t.state;
       }
     });
+    // (wharf e2e fix) the client presses only once it sees the holder's offer (brace + PULL_SUB 8 on the wire): a press before
+    // it arrives is the client's own standing offer (the throw, or a "no room" refusal under the jetty) and the hold eats it
+    await until(B, () => (window.__app.current.net?.teamMates?.() ?? []).some((m) => m.mode === 'brace' && ((m.sub ?? 0) & 8) !== 0), null, 8000, `${c.id}: the client sees the pull-up offer`);
     await holdUntil(B, RB, () => ['pullJump', 'pullHang', 'pullScramble'].includes(window.__app.current.team.state), `${c.id}: the client jumps for the hands`);
     await hostStepResult(A, key, 8000, `${c.id}: the host catches`);
     await until(A, () => (window.__app.current.team.__log ?? []).some((e) => e[1] === 'pullHaul'), null, 8000, `${c.id}: the host hauls (pullHaul)`);
