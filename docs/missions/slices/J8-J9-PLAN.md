@@ -392,14 +392,19 @@ save: none
 ## 5. Branches, PRs and order
 | PR | Branch (base) | Slices | Counted lines (est) | Starts when |
 | --- | --- | --- | --- | --- |
-| G1 | `feature/tallow-fixes` (base `feature/mission-engine` after J7 PR D is merged into it and A20's merge) | LP, G0, G1, G3, FG1 | ~750 (+ docs) | J7 PR D merged |
-| G2 | `feature/tallow-fixes-2` (base PR G1's branch) | G2, G4, E8, D1, P1, FG2 | ~950 (+ docs) | G2 / G4 with G1 / G3; E8 after J7 PR F is merged into the engine |
-| S | `feature/tallow-shutters` (base `feature/mission-engine` after J7 PR D; the lead merges the engine in again before S3 / S4) | S1, S2, S3, S4, FS | ~1,000 | S1 / S2 at once; S3 after PR G2 merges; S4 after S3, E8 and J7 PR F |
+| T | `feature/tallow-throw` (base `feature/mission-engine` after B0) | TD (TD-a, TD-b), FT | ~250 | TD-a at once (never while the kit-flag fold edits `teamMoves.ts`); TD-b after the fold is merged into the engine |
+| G1 | `feature/tallow-fixes` (base `feature/mission-engine` after J7 PR D is merged into it and B0 / B0b, A20) | LP, D0, G0, G1, G3, FG1 | ~750 (+ docs) | J7 PR D merged |
+| G2 | `feature/tallow-fixes-2` (base PR G1's branch; the lead merges TD-a's branch in before G2 starts) | G2, G4, E8, D1, P1, FG2 | ~1,000 (+ docs) | G2 / G4 with G1 / G3 once TD-a passes its unit checks; E8 after J7 PR F is merged into the engine |
+| S | `feature/tallow-shutters` (base `feature/mission-engine` after J7 PR D; the lead merges the engine in again before S3 / S4) | S1, S2, S3, S4, FS | ~1,000 | S1 / S2 at once (S1 without its `teamController.ts` hunk until the fold, and without its `gameState.ts` line until J7 PR F); S3 after PR G2 merges into the engine; S4 after S3, E8, J7 PR F and the fold |
+- Order on shared engine files (lead answer 6, fix round 1): `teamController.ts`: the kit-flag fold (on
+  `feature/mission-engine-flg-gb6`, merged into `feature/mission-engine` by Campaign Build; framework STATE item 7),
+  then TD-b, then S1's hunk. `teamMoves.ts`: the fold and TD-a never at the same time (the lead orders them; TD-a touches
+  only the throw functions). PR T merges into the engine before PR G2 (G2's tests read the site length).
 - Worktrees `C:/NightShift/Mobile-Coop-tallow-fixes` and `C:/NightShift/Mobile-Coop-tallow-shutters`; parallel slices
   in `C:/NightShift/Mobile-Coop-tallow-<slice>` on `feature/tallow-<slice>` (the lead creates them with a node_modules
   junction and merges them back; agents never merge).
-- Merge into the engine: after checker PASS + green laptop, the lead merges G1, retargets G2 to `feature/mission-engine`
-  and merges it, then S (A21). None enters a train alone; PR C carries them. No `PROTOCOL_VERSION` or `SAVE_VERSION`
+- Merge into the engine: after checker PASS + green laptop, the lead merges T, then G1, retargets G2 to
+  `feature/mission-engine` and merges it, then S (A21). None enters a train alone; PR C carries them. No `PROTOCOL_VERSION` or `SAVE_VERSION`
   change in any of them.
 - G1 and G2 are split so each PR moves only the e2e coordinates it changes: G1 (W1, W3) leaves every e2e coordinate where
   it is; G2 (W2 throw stage, W4 jetty) carries E8, the e2e that follows them.
@@ -410,24 +415,26 @@ wiring from strict Opus briefs; Haiku chores. Sizes are changed lines counted by
 
 | Id | What | Model | Files owned | Lines / h | PR | Wave | Depends |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| B0 | Merge `origin/feature/mission-framework` into `feature/mission-engine` (A20; at J7 R0 if the lead can, else now); cut `feature/tallow-fixes` | lead | none | 0 / 0.2 | - | 0 | J7 PR D merged |
-| LP | Light plan + the four section briefs (coordinates for every change below) | Opus | `docs/tallow-fixes/LIGHT.md`, `docs/tallow-fixes/briefs/G{1,2,3,4}.md` | docs / 3 | G1 | 0 | B0 |
-| G0 | Shared: night floors (A3); `medkits` on `WharfSection` + `emptySection`; layout `medkitWalls` from the sections | Sonnet | `tallowWharf.ts`, `tallowWharfKit.ts`, `tests/tallowWharf/shell.test.ts` | ~150 / 1 | G1 | 0 | B0 |
-| G1 | W1: re-light to LP; hide spots; medkit; vantages for two | Sonnet | `tallowWharfW1.ts`, `tests/tallowWharf/w1.test.ts` | ~250 / 2 | G1 | 1 | LP, G0 |
-| G3 | W3: lamp 81 on; re-light; hide spots (east yard, east wing, by every takedown spot); medkit; C5 landing side (no lip, the stage set back per brief) | Sonnet | `tallowWharfW3.ts`, `tests/tallowWharf/w3.test.ts` | ~300 / 2.5 | G1 | 1 | LP, G0 |
-| G2 | W2: C4 x2 and C5 thrower side forced (A4); two one-way way backs (A5) with `W2_BOLTS` appended and `W2_ROUTES` kept valid; plant-room roof access (A7); re-light; hide spots; medkit | Sonnet (Opus fix round if its checker fails) | `tallowWharfW2.ts`, `tallowWharfSectors.ts` (`W2_BOLTS`, `W2_ROUTES` only), `tests/tallowWharf/w2.test.ts`, `tests/tallowWharf/sectors.test.ts`, `tests/tallowWharf/helpers.ts` (a solo-carry helper, if needed) | ~550 / 4 | G2 | 1 | LP, G0 |
-| G4 | W4: jetty way back (A6); re-light (shed three aisle, the yard cart lines; darkness from stacks and carts); hide spots; medkit | Sonnet | `tallowWharfW4.ts`, `tests/tallowWharf/w4.test.ts` | ~250 / 2 | G2 | 1 | LP, G0 |
+| B0 / B0b | B0: merge `origin/feature/mission-framework` (#372) into `feature/mission-engine` at **J7 R0** (R0 also takes the optional-objective rewards out of `tallowWharfMissions.ts`, Q19); B0b: the same merge again once TW23 is in the framework branch (skipped if B0 already carries it); cut `feature/tallow-fixes` and `feature/tallow-throw` | lead (Campaign Build) | none | 0 / 0.3 | - | 0 | B0 at J7 R0; B0b when TW23 merges |
+| TD | Per-site throw length (A24): **TD-a** `MapLayout.throwSites` (optional), a pure `throwDistAt(bx, bz, dx, dz)` over a module list the team controller sets, `throwLanding` / `throwLandingOk` take the length (default `TEAM.throwDist`), `checkTeamRequest` uses the site's band; **TD-b** `TeamController` registers the map's sites at start (host and client; cleared on dispose) and `requestThrow` uses the site length for the landing, floor and arc | Opus | TD-a: `src/game/teamMoves.ts` (throw functions only), `src/world/mapDef.ts`, `tests/teamMoves.test.ts`, `tests/throwSites.test.ts` (new); TD-b: `src/game/teamController.ts` (`requestThrow` and the registration) | ~250 / 3 | T | 0 (TD-a) / 2 (TD-b) | B0; TD-b after the kit-flag fold is merged into the engine |
+| LP | Light plan, egress and stairs table, and the four section briefs (coordinates for every change below, the D0 graph's numbers) | Opus | `docs/tallow-fixes/LIGHT.md`, `docs/tallow-fixes/EGRESS.md`, `docs/tallow-fixes/briefs/G{1,2,3,4}.md` | docs / 3.5 | G1 | 0 | B0 (B0b for the SPEC paths) |
+| D0 | Wave-0 graph (check fix 3): the design delta on the map graph before any geometry: the A5 bridges (bolted, length), A25's stair-head bolt, the A6 jetty drop (`time_s`), the throw links at 4.9 m with `throw_dist` 5.8, the plant ladder link, any added stair (bolted from the approach side), the split / overwatch / assist tags for TGC and TKL (A11); validators run and saved before wave 1 | Opus | campaign-map `graph.json`; `docs/tallow-fixes/val/D0-*` | docs / 2.5 | G1 | 0 | B0 or B0b, whichever carries TW23 (A20); J7 PR D merged (its TGC / TKL graphs are validated with the map) |
+| G0 | Shared: night floors (A3); `medkits` on `WharfSection` + `emptySection`; layout `medkitWalls` from the sections; then (after TD-a) `dist?` on `WharfThrow` and layout `throwSites` from the sections' throws that set it; `medkits` optional on `WharfSection` so W1-W4 compile untouched (polish 5) | Sonnet | `tallowWharf.ts`, `tallowWharfKit.ts`, `tests/tallowWharf/shell.test.ts` | ~170 / 1.2 | G1 | 0 | B0; its throw-site step after TD-a |
+| G1 | W1: re-light to LP; hide spots; medkit; two vantage spots per encounter; any W1 stair fix from LP's egress table | Sonnet | `tallowWharfW1.ts`, `tests/tallowWharf/w1.test.ts` | ~280 / 2 | G1 | 1 | LP, D0, G0 |
+| G3 | W3: lamp 81 on; re-light; hide spots (east yard, east wing, by every takedown spot); medkit; two vantage spots per encounter; the crane's red lamp seen from the W3 roof; C5 landing side (no lip; if LP puts the C5 widening on the W3 side, the stage moves to x 84.4, A28); any W3 stair fix from LP's egress table | Sonnet | `tallowWharfW3.ts`, `tests/tallowWharf/w3.test.ts` | ~330 / 2.5 | G1 | 1 | LP, D0, G0 |
+| G2 | W2: C4 x2 and C5 thrower side forced (A4, A28: lightwell 4.9 m, site length 5.8 on all three throws); the two enclosed way-back bridges (A5) with `W2_BOLTS` appended and `W2_ROUTES` kept valid; the stair-head door (A25, appended bolt); plant-room roof access (A7); re-light; hide spots; medkit; two vantage spots per encounter; any W2 stair fix from LP's egress table | Sonnet (Opus fix round if its checker fails) | `tallowWharfW2.ts`, `tallowWharfSectors.ts` (`W2_BOLTS`, `W2_ROUTES` only), `tests/tallowWharf/w2.test.ts`, `tests/tallowWharf/sectors.test.ts`, `tests/tallowWharf/helpers.ts` (`throwCheck` takes the site length) | ~600 / 4.5 | G2 | 1 | LP, D0, G0, TD-a |
+| G4 | W4: jetty way back (A6); re-light (shed three aisle, the yard cart lines; darkness from stacks and carts); hide spots; medkit; two vantage spots per encounter | Sonnet | `tallowWharfW4.ts`, `tests/tallowWharf/w4.test.ts` | ~250 / 2 | G2 | 1 | LP, D0, G0 |
 | E8 | The wharf e2e follows J8's geometry (throw stage, jetty pull), reading the section exports where it can | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~60 / 1 | G2 | 2 | G2, G4, J7 PR F merged |
-| D1 | Graph matches the build; splits declared; validators to 0 ERR; output saved | Sonnet | campaign-map `graph.json`; TGC / TKL `graph.json` (split tags only, if they live there); `docs/tallow-fixes/val/*` | docs (+ test lines if a graph test changes) / 2 | G2 | 2 | G1-G4 merged |
-| P1 | SPEC and the four sign-off pages corrected; PLAN.svg regenerated; "changes since the drawing" list | Sonnet | campaign-map `SPEC.md`, `SIGNOFF.md`, `PLAN.svg`; TGC / TKL / coop-kit `SIGNOFF.md` | docs / 2 | G2 | 3 | D1; TW23 landed |
+| D1 | Graph matches the build: counts (A10, no dog text), the W3 checkpoint tag, D0's links re-measured from the built geometry, each space's type and band in its `note`, the meta lighting note, the G157 9 exit-run line; validators re-run to D0's result; output saved | Sonnet | campaign-map `graph.json`; `docs/tallow-fixes/val/D1-*` | docs (+ test lines if a graph test changes) / 1.5 | G2 | 2 | G1-G4 merged |
+| P1 | TW23's SPEC and the sign-off pages corrected; PLAN.svg regenerated beside `PLAN-approved.svg` (the ~18:05 drawing kept); "changes since the drawing" list; TGC / TKL / coop-kit pages: pointer or drawing lines only | Sonnet | `docs/tallowWharf-map/SPEC.md`; campaign-map `SIGNOFF.md`, `PLAN.svg`, `PLAN-approved.svg`; TGC / TKL / coop-kit `SIGNOFF.md` (pointer / drawing lines only) | docs / 2 | G2 | 3 | D1; TW23 in the engine (A20) |
 | FG1 / FG2 | Fragments, `docs/tallow-fixes/STATE.md`, TESTING.md line | Haiku | `changes/feature-tallow-fixes*.md`, STATE, TESTING.md | docs | G1 / G2 | last | the PR's slices |
 | G6 | Lookouts and pairs on Tallow (A14): a W3 roof-turret lookout and a W4 gantry lookout (counts stay inside the bands and the cap), pair tags on the W1 porters and the W4 yard patrol | Sonnet | `tallowWharfSectors.ts`, `tests/tallowWharf/sectors.test.ts` | ~120 / 1 | own small PR or J23 | later | J15 `lookouts` + pairs on the engine; not in J8's gate |
 | LM | Lux measure per section against the bands (`lux-grid.mjs --map tallowWharf --section N`), fix list | Sonnet | `docs/tallow-fixes/measure/*` | docs / 1.5 | own or J23 | later | light-realism L0 on master and in the engine; desktop CPU < 80% |
 | FA | Free assets for Tallow props and dressing (A23): (1) now, docs only: a scouting list of candidate free assets per prop family with source URL, licence, the commercial-sale check (CC0 / public domain / CC-BY / royalty-free game licence only; reject NC, ND, SA, unclear) and the hours each saves over an in-repo build; (2) after the greybox exit and the lead's go per download: import, credits lines, the dressing job | Sonnet (list), Opus checker on licences | `docs/tallow-fixes/assets.md` (list); later `docs/art-credits.md`, `docs/audio-credits.md` and the dressing files (claimed by that later job) | docs / 1.5 | own docs PR or J23 | (1) any time; (2) after greybox exit | nothing for (1); greybox exit + the lead's go for (2) |
-| S1 | Shutter world wiring (curtains, collision, nav, light, client) | Opus | `src/world/shutterDoor.ts`, `src/world/world.ts`, `src/game/teamController.ts`, `src/game/gameState.ts` (one call site, only after J7 PR F is merged), `tests/shutterWiring.test.ts` | ~400 / 4 | S | 1 | B0 |
-| S2 | Guards notice a held shutter (R39) | Opus | `src/game/stealthSystems.ts`, `src/game/kit/shutter.ts` (one pure helper), `tests/shutterNotice.test.ts`, `tests/kit/shutter.test.ts` | ~250 / 3 | S | 1 | B0 |
-| S3 | Map swap: stand-ins out, `placeShutter` in (W1, W4); stand-in helper retired; tests flipped | Sonnet | `tallowWharfW1.ts`, `tallowWharfW4.ts`, `tallowWharfKit.ts`, `tests/tallowWharf/{w1,w4,shell}.test.ts` | ~120 / 1 | S | 2 | S1 merged; PR G2 merged |
-| S4 | e2e walks both shutters (no SKIP, no teleport) and the guard notice | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~220 / 2.5 | S | 3 | S2, S3, E8, J7 PR F |
+| S1 | Shutter world wiring (curtains, collision, nav, light, client) and the section-restart reset (A27) | Opus | `src/world/shutterDoor.ts`, `src/world/world.ts`, `src/game/teamController.ts` (the `update` call and `resetKit`, after the fold and TD-b), `src/game/gameState.ts` (the arming line and the `checkpointReset` line, after J7 PR F), `tests/shutterWiring.test.ts` | ~430 / 4.5 | S | 0 (all but the two late hunks) | B0; the `teamController.ts` hunk after the fold and TD-b; the `gameState.ts` lines after J7 PR F; the reset after S2's `resetShutter` |
+| S2 | Guards notice a held shutter (R39); `resetShutter` for A27 | Opus | `src/game/stealthSystems.ts`, `src/game/kit/shutter.ts` (the pure helper, a preallocated `noticed` field on `ShutterDevice`, `resetShutter`), `tests/shutterNotice.test.ts`, `tests/kit/shutter.test.ts` | ~280 / 3 | S | 0 | B0 |
+| S3 | Map swap: stand-ins out, `placeShutter` in (W1, W4); stand-in helper retired; tests flipped | Sonnet | `tallowWharfW1.ts`, `tallowWharfW4.ts`, `tallowWharfKit.ts`, `tests/tallowWharf/{w1,w4,shell}.test.ts` | ~120 / 1 | S | 4 | S1 merged; PR G2 merged into the engine and the engine merged into S |
+| S4 | e2e walks both shutters (no SKIP, no teleport), the guard notice, and both curtains shut after the broken-rule restart (A27) | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~240 / 2.5 | S | 5 | S2, S3, E8, J7 PR F; URL from the fold |
 | FS | Fragment, STATE, `docs/systems/coop.md` shutter line, TESTING.md line, hand-off note to Guard AI for `docs/systems/ai.md` | Haiku | `changes/feature-tallow-shutters.md`, STATE, `docs/systems/coop.md`, TESTING.md | docs | S | last | S4 |
 
 ### Slice detail (what "done" is)
@@ -437,8 +444,23 @@ provisional band (A2), whether it works tonight (A1), every fitting with its own
 by the door of the space it lights (5.1, G157 7), unswitchable lamps with their reason (clockwork faces, photocell canal
 and coal-yard lamps, the emergency bulkhead, the crane's aviation lamp), hardened chokes with the route around (G333),
 the dark pockets the real gaps make, which route each cut or shot opens, and the darkest real spot per section (G157
-12). The egress audit row per bolted door (G157 10: which side is inside, the story reason, and that no fire exit is
-bolted from inside). Provisional space-type map (from the draft band table; LP confirms per space):
+12). Each switch's visible link (a conduit run from switch to fitting, or a labelled panel naming the circuit; G157 7).
+
+`EGRESS.md` (G157 10, check fix 8): a row per bolted door (which side is inside, the story reason, that no fire exit is
+bolted from inside) and a row per multi-storey building with its two staircases (16.2.7) and roof access (16.2.5), or
+the fix and the slice that builds it, or the reason listed for Michael's walk (he confirms the 12 there). Every added
+stair is shut from the approach side (push bar on the inside only) so it opens no solo bypass of a forced gate, and
+goes into D0's graph as a `bolted` link the validator checks. Starting rows (TW23 SPEC "Stairs and exits", O12, O13):
+
+| Building | Stairs now | LP's row must give |
+| --- | --- | --- |
+| W1 warden's office block (gallery storey over the market) | one enclosed stair (foot bolted from the stair side) + the inspection hatch | a second stair or the reason: default fix in G1, an external iron stair from the gallery office down to the fish-hall side, its foot gate opening from the stair side only (the market boost stays co-op) |
+| W2 south lofts (pawn, pie, lane-window) | the pawnbroker's fire stair; the pie shop's back stair (the lane-window loft reaches it through the pie loft's inner door) | confirm both reach the ground from every south loft; the plant room ladder is plant (16.2.1), not a stair |
+| W2 north range (reading room, clock loft) | the public stair (A25: push bar on the reading-room side) | the second escape: the A5 bridges lead (exit direction, gates opening from the bridge side) to the south lofts' fire stair; LP says whether that meets 16.2.7 or G2 adds an enclosed back stair from the clock loft's east end, its foot door opening from inside only |
+| W3 counting house | the roof bulkhead stair core (east) and the external fire escape on the yard wall (east); the west wing's gallery stair inside the wing | 16.2.7 separation (both main stairs are east, O13): a west stair or the reason; roof access is the bulkhead (16.2.5 met, A7) |
+| W1 market and fish hall; W4 sheds; the crane | single storey; the crane's leg ladders are plant ladders | n/a |
+
+Provisional space-type map (from the draft band table; LP confirms per space):
 
 | Spaces | Type (draft band) | Tonight |
 | --- | --- | --- |
@@ -453,51 +475,112 @@ bolted from inside). Provisional space-type map (from the draft band table; LP c
 | w2-pie-shop, w2-clock-loft, w2-lane-window, w3-strongroom, w3-partners-office, w4-shed-two | closed: night and emergency lights only (A1) | closed |
 | w1-gallery, w2-arcade-roof, w3-roof, w4-gantry, w4-boat, w3-chute | no band: roofs, walks and ducts, moon and spill (plus the turret clock and aviation lamps) | - |
 
-Then one strict brief per section slice (G1-G4) with exact coordinates, group numbers, the test list, and for G2 the
-forced-throw and way-back geometry worked through against `throwLandingOk`, `throwRoom`, `soloJumpReach` and the reach
-time at `reach_speed_mps`. Done looks like: every Tallow space has a row; no row relies on a light left off; every
-encounter keeps a cover-based shadow route after the re-light, or the row says which cut or shot opens it.
+Then one strict brief per section slice (G1-G4) with exact coordinates, group numbers, the test list, D0's link
+numbers, and for G2 the forced-throw and way-back geometry worked through against `throwLanding` / `throwLandingOk` at
+the site length (A24), `throwRoom`, both solo models (`soloTopLandingReach`, `soloJumpReach`) with the 0.2 m margin, and
+the reach time at `reach_speed_mps`. Every brief places each bolted barrier at the approach (south / near) end of any new
+walk, and lists the near-side surfaces its jump tests must cover. Done looks like: every Tallow space has a row; no row
+relies on a light left off; every encounter keeps a cover-based shadow route after the re-light, or the row says which
+cut or shot opens it; `EGRESS.md` has every row above filled.
+
+**TD per-site throw length (Opus; A24; lead ruling fix 1 (b)).** TD-a: `MapLayout.throwSites?: { x: number; z: number;
+dx: number; dz: number; dist: number }[]` (`mapDef.ts`, a doc comment citing Q23 and A24); in `teamMoves.ts` a
+module-level site list with `setThrowSites(list | null)` and a pure, allocation-free `throwDistAt(bx, bz, dx, dz):
+number` (a site within 1.0 m of the thrower whose facing is within cos 0.9 of the throw direction gives its `dist`,
+else `TEAM.throwDist`; an index loop); `throwLanding(..., dist = TEAM.throwDist)` and `throwLandingOk(..., dist =
+TEAM.throwDist)` take the length (band `dist +- 1`, height `TEAM.throwDrop` unchanged); `checkTeamRequest`'s throw case
+passes `throwDistAt` of the thrower and the claimed direction. TD-b: `TeamController` calls `setThrowSites` with the
+world's `layout.throwSites ?? null` when it starts (host and client) and `null` on dispose; `requestThrow` uses
+`throwDistAt` for the landing, the floor probe and the arc (no allocation: the existing scratch vectors). No change to
+`throwArc`, `TEAM.throwTime`, the wire or `src/net` (both peers build the same map). Done looks like: `tests/teamMoves.test.ts`
+(every existing throw case unchanged with no sites) and `tests/throwSites.test.ts` (no sites -> 3.2; a site -> its
+length, its band accepts length +- 1 and refuses 3.2; the wrong facing or 1.1 m away -> 3.2); `tests/ctcourse/a5Substation.test.ts`,
+`tests/ctcourse/a8Strongroom.test.ts`, `tests/ctcourseGreybox.test.ts` unchanged and green (Marlow Yard's throw drills
+untouched: it has no sites). Coordination (before TD starts): Campaign Build messages Player Build (team moves owner;
+its J24 `feature/coop-kit` claims `teamMoves.ts` / `teamController.ts`) with the brief; Marlow Build is told its drills
+are unaffected and that TV (below) is asked of it.
+
+**TV validator and scale sheet (Marlow Build, hand-off; not a J8 slice).** `scripts/level-validate.mjs` reads an
+optional `throw_dist` (m) on a `team_throw` link and checks its `width` against `throw_dist - 0.5` (default
+`sizes.throw_gap_max`); the scale sheet row "Throw gap" and level-design 12.1 name the per-site length; tests in
+`tests/levelValidate.test.ts`. Waits on Michael's one-click (A24) for the standard text; the J8 gate's three named
+exceptions (A22) close when it lands.
+
+**D0 wave-0 graph (Opus; check fix 3).** Before any wave-1 geometry, on the campaign-map `graph.json` only (A20): the A5
+bridges (`door`, `bolted`, width 1.2, length from LP), A25's `bolted` stair head, the A6 jetty `drop` (`time_s` 3), the
+three throw links at width 4.9 with `throw_dist` 5.8 and a note citing A24, the plant ladder link (A7), any stair LP's
+egress table adds (bolted from the approach side), and the split declarations (A11): `split:<id>:a|b` tags on the leg
+spaces, `overwatch:<id>` on the overwatch space, `assist: "<id>"` on the assist link (`level-validate.mjs` 939-1069).
+Starting point: the fix round's draft (`scratch/campaign/j8-j9-val/delta.cjs`, `opt.cjs`, `map-stair-splits.json`): 0 ERR
+without splits; with draft splits 3 ERR to solve (`tgc-leads` parity 21% and partner reach 21.2 s from the tea stall;
+`tkl-wings` parity 64%) by re-choosing legs from the BEATs, `time_s`, or a geometry line added to the G1 / G3 brief
+before wave 1. Runs (A22; as D1's block below): map, map + TGC, map + TKL on master's validator, the mission-validator on
+the map, and the same on TV's branch once it exists. Done looks like: 0 ERR on all runs except the three named
+`gap 4.9 m above the 2.7 m throw` lines until TV lands; `checkCoop` clean on both splits; outputs and the graph diff
+saved under `docs/tallow-fixes/val/D0-*` before wave 1 starts; the section briefs quote D0's numbers.
 
 **G0 shared (Sonnet).** Theme night floors set to the numbers the LP brief gives (A3, the campus night values);
-`WharfSection.medkits: { pos: Vector3; yaw: number }[]` with `emptySection` returning `[]`; the layout gains
-`medkitWalls: SECTIONS.flatMap((s) => s.medkits)`. Done looks like: `shell.test.ts` asserts the theme floors equal the
-campus values, `medkitWalls` collects every section's stations, and every other shell test passes unchanged.
+`WharfSection.medkits?: { pos: Vector3; yaw: number }[]` (optional, so W1-W4 compile untouched; polish 5) with
+`emptySection` returning `[]`; the layout gains `medkitWalls: SECTIONS.flatMap((s) => s.medkits ?? [])`. After TD-a:
+`WharfThrow.dist?: number` and the layout's `throwSites` from every section throw that sets `dist` (thrower spot,
+direction runner -> thrower, `dist`). Done looks like: `shell.test.ts` asserts the theme floors equal the campus values,
+`medkitWalls` collects every section's stations, `throwSites` lists exactly the throws with a `dist`, and every other
+shell test passes unchanged.
 
-**G1 W1 (Sonnet).** Lamps per LP (all `on`, every switch by its door); hide spots per A9 (stall backs, ice benches);
-the first-aid box medkit (A8); the gallery and fish-hall vantages hold two players out of view. Done looks like:
-`w1.test.ts` asserts no lamp off, every switch within reach of a door of the space its group lights, a hide spot within
-the spacing of each W1 takedown spot (read from the sectors export), the medkit inside a W1 room and outside every W1
-guard's route view radius, two vantage spots per encounter; existing W1 tests unchanged.
+**G1 W1 (Sonnet).** Lamps per LP (all `on`, every switch by its door with its visible link); hide spots per A9 (stall
+backs, ice benches); the first-aid box medkit (A8); any W1 stair from `EGRESS.md`. Done looks like: `w1.test.ts`
+asserts no lamp off, every switch within reach of a door of the space its group lights, a hide spot within the spacing
+of each W1 takedown spot (read from the sectors export), the medkit inside a W1 room and outside every W1 guard's route
+view radius, **two vantage spots per encounter** (market, fish hall: room for two, out of view); a new stair's foot
+gate shut from outside in `soloNav`; existing W1 tests unchanged.
 
-**G2 W2 (Sonnet; heaviest slice).** (1) C4 pawn and pie throws and the C5 thrower side forced (A4): gap past the solo
-carry, landing edges `noLedge`, landing inside the throw band, fall-ins with their way out. (2) Two one-way way backs
-(A5) at the lightwell's west and east ends, bolted on the north side, appended to `W2_BOLTS` (indexes kept), timed at 15 s
-or less; `W2_ROUTES` still pass (2+ routes, G285). (3) Plant-room roof access (A7). (4) Lights, hide spots (arcade,
-reading room), the beadle's office medkit. Done looks like: `w2.test.ts` proves a solo running jump cannot reach any
-landing (no grab, carry short of the gap), `throwCheck` passes on the new stages, `soloNav` with the gates bolted finds no
-solo path from the south lofts to the north lofts and does find one from north to south, the ladder sits inside the plant
-room, no ladder opening is in an occupied room; `sectors.test.ts` (bolt flags, routes) green.
+**G2 W2 (Sonnet; heaviest slice).** (1) C4 pawn and pie throws and the C5 thrower side forced (A4, A28): lightwell
+4.9 m, the three `WharfThrow`s carry `dist: 5.8`, landing edges `noLedge`, fall-ins with their way out. (2) The two
+enclosed way-back bridges (A5): gate at the south (approach) end bolted on the bridge side, sides and roof `noLedge`
+with no standable top, appended to `W2_BOLTS` (indexes kept), walk 12 m or less; the stair-head door (A25) appended too;
+`W2_ROUTES` still pass (2+ routes, G285). (3) Plant-room roof access (A7). (4) Lights, hide spots (arcade, reading room),
+the beadle's office medkit, two vantage spots per encounter. Done looks like (check fix 2):
+- `throwCheck` (`helpers.ts`, taking the site length) passes on all three new stages, with `throwLandingOk` at 5.8.
+- `soloTopLandingThreats` and `soloJumpThreats` (with `extra` 0.2) are `[]` for every C4 stage and the C5 stage, run
+  over the whole solid set, so every near-side surface a lone player reaches is covered: the south loft floors and
+  their furniture, the new bridges' roofs and sides, the plant room and its tank, the stair-head landing, the arcade
+  roof and the fire-escape bridge deck over the lane.
+- The hangable-lip audit (`w2.test.ts:163`) is extended to the new geometry (bridges, plant room, stair head, new loft
+  edges) and its message names them.
+- `w2.test.ts:212` becomes the one-way assertion: with every bolt shut the pawn loft does not reach the reading room
+  and the arcade does not reach the reading room (stair head); with only the west bridge gate open (as the thrown
+  partner opens it) the reading room reaches the pawn loft; the same pair for the pie loft / clock loft and the east
+  bridge. The arcade still does not reach the roof alone.
+- The ladder sits inside the plant room, no ladder opening is in an occupied room; `sectors.test.ts` (bolt flags,
+  routes) green.
+- Polish 2: the old-rule test `w2.test.ts:292` ("the walkway, lane-window loft, clock loft, roof and stacks are dark
+  (no lamp over them)") flips to the LP rows (A1: closed spaces by night fittings, no space dark by design).
 
 **G3 W3 (Sonnet).** Lamp 81 `on: true` (Q2) and the re-light; hide spots in the east yard and the east wing and by every
-takedown spot (lodge bench, press aisles); the porter's lodge medkit; C5's landing side with no hangable lip and the stage
-set back per the LP brief (the gap is set by G2 and G3 together, one brief gives both coordinates). Done looks like:
-`w3.test.ts` asserts no lamp off, the hide spots, the medkit, no lip within grab reach of the C5 landing.
+takedown spot (lodge bench, press aisles); the porter's lodge medkit; C5's landing side with no hangable lip, the stage at
+x 84.4 if LP puts the widening on the W3 side (A28; one brief gives both G2's and G3's C5 coordinates); any W3 stair from
+`EGRESS.md`. Done looks like: `w3.test.ts` asserts no lamp off (polish 2: `w3.test.ts:387` "group 81 (the lodge lamp)
+starts off" flips to "every lamp starts on"), the hide spots, the medkit, **two vantage spots per encounter**, the
+crane's red lamp has a clear line from a W3 roof spot (polish 4), `soloJumpThreats` / `soloTopLandingThreats` (extra 0.2)
+`[]` for the C5 stage over the whole solid set.
 
 **G4 W4 (Sonnet).** The jetty drop to the canal ledge beside C10 (A6) with no solo way up; the shed three aisle and the
 yard lit per LP with darkness from stacks and carts; hide spots (shed yard two or more, shed three); the shed-office
-medkit. Done looks like: `w4.test.ts` asserts the drop point, the C10 lip still in the co-op band, no new solo climb onto
-the jetty, the hide spots and the medkit.
+medkit. Done looks like: `w4.test.ts` asserts the drop point, the C10 lip still in the co-op band, `soloJumpThreats`
+`[]` for the jetty lip from every ledge-side surface (bollards, the quay ladder cage, the rail-gap posts), the W4
+hangable-lip audit extended to the rail gap, the hide spots, the medkit and **two vantage spots per encounter**.
 
 **E8 e2e follows (Sonnet).** `toss` for the pawn throw (`:335`) and `pull` for the jetty (`:465`) take the new points,
 from the section exports when the page can read them, else the numbers from G2 / G4. Done looks like: laptop
 `e2e-sectorops:wharf-tgc` and `:wharf-tkl` green on PR G2's head.
 
-**D1 graph and validators (Sonnet).** Counts per space = the spawned guards (A10; J7's two former dogs as armed humans,
-no dog text left); the W3 checkpoint tag on the space the build restarts at (encounter checkpoints are J23); the way-back
-links (bolted door, drop) with `time_s`; the throw links stay co-op only, with a note that the gap is past solo reach
-(Q23); the plant ladder link; split, overwatch and assist tags for TGC and TKL (A11; TW18); each space's type and
-provisional band in its `note` (a schema field waits for J12); the meta lighting note rewritten (no "lit by default",
-no LR1 / G279); the G157 9 exit-run line. Validators (A22), each from a clean extract into the slice's scratch:
+**D1 graph matches the build (Sonnet; check fix 3: D0 set the design numbers, D1 confirms them).** Counts per space =
+the spawned guards (A10; J7's two former dogs as armed humans, no dog text left); the W3 checkpoint tag on the space the
+build restarts at (encounter checkpoints are J23); D0's links re-measured from the built geometry (bridge lengths, the
+drop, the 4.9 m gaps; a measured number worse than D0's is a fix in the section, not a graph edit); each space's type
+and provisional band in its `note` (a schema field waits for J12); the meta lighting note rewritten (no "lit by
+default", no LR1 / G279); the G157 9 exit-run line. Ordered after the merge that brings TW23 into the engine (A20).
+Validators (A22, D0 runs the same block), each from a clean extract into the slice's scratch:
 ```
 for R in origin/master origin/feature/mission-validator; do D=<scratch>/val/${R##*/}; mkdir -p $D && git archive $R scripts docs/design | tar -x -C $D; done
 node <scratch>/val/master/scripts/level-validate.mjs <abs>/docs/missions/prototypes/campaign-map/graph.json
@@ -506,18 +589,27 @@ node <scratch>/val/master/scripts/level-validate.mjs <abs map graph> <abs>/docs/
 node <scratch>/val/mission-validator/scripts/level-validate.mjs <abs map graph>
 ```
 (`docs/design/metrics.json` is generated: if the extract has none, run that ref's `scripts/metrics-gen.mjs` into the
-extract first, as the conformance did.) Done looks like: master's validator 0 ERR on all three runs; the
-mission-validator 0 ERR on the map graph; every WARN justified in the SPEC's validator section; outputs saved under
-`docs/tallow-fixes/val/` with the refs and the date; checkCoop clean on the declared splits.
+extract first, as the conformance did.) Done looks like: master's validator 0 ERR on all three runs (A22's three named
+throw-gap lines excepted until TV lands); the mission-validator 0 ERR on the map graph; every WARN justified in the
+SPEC's validator section; outputs saved under `docs/tallow-fixes/val/D1-*` with the refs and the date; `checkCoop`
+clean on the declared splits; the numbers match D0's or the difference is explained.
 
-**P1 pages (Sonnet, from an Opus brief).** SPEC: palette and lighting line (A1, A2, no G279), dogs gone, counts,
-throws force co-op (Q23), C2 / C8 real once J9 lands (a dated note until then), the way backs, the plant room, medkits
-and hide spots, the validator section from D1. The campaign-map page: the current validator result, armed guards only,
-the lighting basis, forced throws, the changes since the approved drawing (for the walk). TGC: Teale protected (J7),
-no reward, validator line. TKL: no syringe, no dogs in W3 / W4, validator line. Co-op kit: throws force co-op, the
-shutter is real, the five new moves and the shoulder stand are Player's and not on Tallow yet (A13). PLAN.svg regenerated
-(`node scripts/graph-svg.mjs`, the slice's own run). Done looks like: no page claims a result the D1 output does not show;
-every change since ~18:05 is listed in plain English.
+**P1 pages (Sonnet, from an Opus brief).** SPEC (TW23's `docs/tallowWharf-map/SPEC.md`, A20): palette and lighting line
+(A1, A2, no G279), dogs gone, counts, throws force co-op (Q23, A24's site length), C2 / C8 real once J9 lands (a dated
+note until then), the way backs, the stair-head door, the plant room, medkits and hide spots, the validator section
+from D1, and TW23's open items J8 closes (O1, O9, O11, O12, O13, O18, O19, O20, O21) marked done. The campaign-map
+SIGNOFF page: the current validator result, armed guards only, the lighting basis, forced throws, the changes since the
+approved drawing (for the walk). The lighting line on both pages, until Michael's one-click on A1 settles it, says in
+plain English: "Closed rooms (pie shop, clock loft, lane-window loft, strongroom, partners' office, shed two) have only
+their night and emergency lights on, as a real closed shop would (level-design 5.1: darkness is where nobody works at
+night). This is our reading of your 'Never' answer; if you want them lit like working rooms, it is a lighting-data
+change per section." TGC / TKL / coop-kit SIGNOFF pages: a pointer line to the J8 changes and a redrawn drawing only;
+no rule text is rewritten (lead ruling: the signed TGC page stands as Michael signed it, killing Teale before he talks
+breaks the rule and he moves; a knock-out before he talks is a section restart with Teale at his table,
+mission-framework `docs/missions/BRIEF.md` A24). PLAN.svg regenerated (`node scripts/graph-svg.mjs`, the slice's own
+run) and the ~18:05 drawing kept beside it as `PLAN-approved.svg` (polish 6). Done looks like: no page claims a result
+the D1 output does not show; every change since ~18:05 is listed in plain English; the TGC / TKL diffs are pointer or
+drawing lines only.
 
 **S1 shutter wiring (Opus).** `World` builds `ShutterDoors(scene, level)` when the level has shutter specs, adds its
 `curtainMesh` as a flashlight shadow caster (as the door leaves, `world.ts:161-162`), arms it with the doors (after the
@@ -527,17 +619,32 @@ reaches) and disposes it. `TeamController.fixedUpdate` (after the kit ticks) cal
 (A15). Light parity (A16): the closed curtain stops lamp light in `LightField` and on screen through one path (a
 bake-time occluder at the curtain plane from `placeShutter`, or a door-list entry that is always shut); the builder reads
 `lightField.ts` / `lampBake.ts` first and, if either needs a change, stops and the lead clears it with Sector Ops Build
-(lighting owner) before any edit. No allocation in `update` beyond today's. Done looks like: `tests/shutterWiring.test.ts`
-(pure parts: slots from specs, the nav cells over an opening blocked, the light path closed) and the existing
-`tests/kit/shutter.test.ts` green; on a map with no shutters nothing is built or called.
+(lighting owner) before any edit. No allocation in `update` beyond today's. Section restart (A27, check fix 4):
+`TeamController.resetKit()` calls S2's `resetShutter(d)` on every shutter device (drop shut, end the lift run, clear the
+notice mark) and is called from `GameState.checkpointReset` (one line; `restartSection` calls it on every section
+restart, `sectorMode.ts:1182-1215`); S1 reads how a client learns of the restart and how it mirrors device state
+(`src/net/kitNet.ts`): if the host's device state reaches the client by the wire, nothing more; if not, it stops and the
+lead opens an Opus `src/net` slice with two checkers (A19). Depends (check fix 6): S1 builds everything except two late
+hunks: the `teamController.ts` hunk (the `update` call and `resetKit`) after the kit-flag fold is merged into
+`feature/mission-engine` (framework STATE item 7; Campaign Build merges it) and after TD-b (section 5); the
+`gameState.ts` lines after J7 PR F. Done looks like: `tests/shutterWiring.test.ts` (pure parts: slots from specs, the
+nav cells over an opening blocked, the light path closed, `resetKit` leaves every shutter shut with no run) and the
+existing `tests/kit/shutter.test.ts` green; on a map with no shutters nothing is built or called.
 
-**S2 the notice (Opus; Guard AI coordination).** A pure `shutterNoticedBy(d, ex, ey, ez, yaw): boolean` in `shutter.ts`
-(range, facing, storey; A18). `StealthSystems.noticeOpenShutters(dt)` on the host, on the door notice's timer, over
-`g.team.devices.list` (no allocation, `isShutterDevice`, `visible`): the first calm guard that passes the helper and the
-sight-line test to `shutterNoticePoint` calls `e.hear(x, z, SHUTTER_NOTICE.range + 2)`; a per-device `opens` mark stops a
-second notice for the same opening. Runs only when a shutter is visible (zero devices: one length check). Done looks
-like: `tests/shutterNotice.test.ts` (in range and facing: notice; behind, too far, other storey, closed, or already
-noticed this opening: none) green; the door notice unchanged (`e2e-ctcourse` A7 data hall).
+**S2 the notice (Opus; Guard AI coordination; check fix 5).** A pure `shutterNoticedBy(d, ex, ey, ez, yaw): boolean` in
+`shutter.ts` (range, facing, storey; A18; the facing test as the door rule, `stealthSystems.ts:635`). The "last noticed
+opening" is a numeric field `noticed` on `ShutterDevice`, set when the device is made (`-1`), so nothing is stored per
+tick; `resetShutter(d)` (drop shut, end the lift run, `noticed = -1`) is S2's for S1 to call (A27).
+`StealthSystems.noticeOpenShutters(dt)` on the host has **its own timer field** (`shutterNoticeT`, counted down every
+fixed step, firing every `DOOR_NOTICE_EVERY`), not the door notice's `noticeT`, which only counts inside
+`noticeOpenDoors` while a door is open (`stealthSystems.ts:619-621`, `:665`). It is called from the fixed step beside the
+door notice, host only, and returns after one length check when `g.team.devices.list` is empty. Index loops only (no
+`for...of`, no closures, no Map): for each device that `isShutterDevice` and `visible` with `opens !== noticed`, the
+first calm, alive guard that passes the helper and `g.ballistics.clear(eye, noticePoint, MASK.SIGHT)` (reusing the
+preallocated `noticeA` / `noticeB`) calls `e.hear(x, z, SHUTTER_NOTICE.range + 2)`, and `noticed = opens`. Nothing
+grows or allocates per tick. Done looks like: `tests/shutterNotice.test.ts` (in range and facing: notice; behind, too
+far, other storey, closed, or already noticed this opening: none; **a notice with no door open anywhere**; `resetShutter`
+clears the mark) green; the door notice unchanged (`e2e-ctcourse` A7 data hall).
 
 **S3 map swap (Sonnet).** W1 `standIn(b, SHUTTER)` (`:137`) and W4 (`:157`) become `placeShutter(b, spec)`; the stand-in
 helper and its tag map go from the kit; the "never calls placeShutter" tests flip to "places both shutters and builds no
@@ -548,25 +655,36 @@ through either shutter.
 the holder lifts and holds, the partner crawls, the partner unbars the W1 back door for the holder (SPEC C2); a lone
 player walking into a closed shutter stays on his side; both pages show the curtain at its gap and then shut. One notice
 check: with the guard freeze lifted for one calm guard placed facing the W1 shutter within range, a held shutter raises
-his suspicion (he hears it) and a closed one does not. Done looks like: `e2e-sectorops:wharf-tgc` and `:wharf-tkl` green
-with no SKIP or teleport left for a shutter; the notice lines printed.
+his suspicion (he hears it) and a closed one does not. After the wharf e2e's broken-rule restart, both pages show both
+curtains shut and no lift run (A27). The page URL follows the kit-flag fold's parameter (expected `kitmoves=`; the
+fold's PR names it) instead of `coopkit=1` once the fold is in the engine. Done looks like: `e2e-sectorops:wharf-tgc`
+and `:wharf-tkl` green with no SKIP or teleport left for a shutter; the notice lines and the restart line printed.
 
 ## 7. Waves (full burn, file-disjoint)
-- **Wave 0** (after J7 PR D merges and B0): LP (Opus), G0 (Sonnet), S1 (Opus), S2 (Opus) together. No shared file.
-- **Wave 1** (after LP and G0 merge on `feature/tallow-fixes`): G1, G2, G3, G4 together (one section file and its test
-  each; G2 alone owns `tallowWharfSectors.ts` and `sectors.test.ts`). S1 / S2 keep running.
-- **Wave 2:** D1 once G1-G4 are merged; E8 once G2, G4 and J7 PR F are in; S3 once S1 and PR G2 are merged.
-- **Wave 3:** P1 after D1 (and TW23); S4 after S2, S3, E8 and J7 PR F.
-- Fragments and STATE close each PR. Briefs: LP is the brief work for wave 1; S1 / S2 / G0 briefs are section 16; the
-  lead has the D1, E8, P1, S3 and S4 briefs written by Opus before their waves (two to three ahead, RULES "Full burn").
+- **Wave 0** (B0 at J7 R0; the J8 part after J7 PR D merges): LP (Opus), D0 (Opus, once TW23 is in the engine, A20),
+  TD-a (Opus), G0 (Sonnet; its throw-site step after TD-a), S1 (Opus, without its two late hunks), S2 (Opus). Files
+  disjoint (D0 alone owns `graph.json`; TD-a alone `teamMoves.ts` / `mapDef.ts`).
+- **Wave 1** (after LP, D0 and G0 merge on `feature/tallow-fixes`, D0's outputs saved): G1, G2, G3, G4 together (one
+  section file and its test each; G2 alone owns `tallowWharfSectors.ts`, `sectors.test.ts` and `helpers.ts`; G2 also
+  needs TD-a merged in). S1 / S2 keep running.
+- **Wave 2:** D1 once G1-G4 are merged; E8 once G2, G4 and J7 PR F are in; TD-b once the kit-flag fold is in the engine.
+- **Wave 3:** P1 after D1; S1's late hunks (after TD-b and J7 PR F).
+- **Wave 4:** S3, once S1 is merged on `feature/tallow-shutters` and PR G2 is merged into the engine and the engine into
+  S (polish 3: it waits for PR G2's checker and laptop, so it is not wave 2).
+- **Wave 5:** S4 after S2, S3, E8, J7 PR F and the fold.
+- Fragments and STATE close each PR. Briefs: LP is the brief work for wave 1; TD's detail above is its brief's core;
+  S1 / S2 / G0 briefs are section 16; the lead has the D0, D1, E8, P1, S3 and S4 briefs written by Opus before their
+  waves (two to three ahead, RULES "Full burn").
 - CPU: every builder follows the GB-briefs 0.4 CPU rule (wait while the desktop is over 85%, background check, never a
   foreground sleep). Today's 100% means wave 0 waits for the orchestrator's go.
 
 ## 8. Tests
 | Slice | Vitest (`npx vitest run <files> --maxWorkers=2`, plus `npm run typecheck:fast`) |
 | --- | --- |
+| TD | `tests/teamMoves.test.ts`, `tests/throwSites.test.ts`, `tests/ctcourse/a5Substation.test.ts`, `tests/ctcourse/a8Strongroom.test.ts`, `tests/ctcourseGreybox.test.ts`, `tests/tallowWharf/w2.test.ts` (unchanged with no sites yet) |
+| D0 | none (docs); the validator runs in its detail, saved |
 | G0 | `tests/tallowWharf/shell.test.ts` |
-| G1 / G2 / G3 / G4 | its `tests/tallowWharf/w<n>.test.ts` + `tests/tallowWharf/shell.test.ts`; G2 also `tests/tallowWharf/sectors.test.ts` |
+| G1 / G2 / G3 / G4 | its `tests/tallowWharf/w<n>.test.ts` + `tests/tallowWharf/shell.test.ts`; G2 also `tests/tallowWharf/sectors.test.ts` and `tests/throwSites.test.ts` |
 | D1 | `tests/tallowWharf/` (all; a graph-to-code text test may read the graph) + the validator runs above |
 | S1 | `tests/shutterWiring.test.ts`, `tests/kit/shutter.test.ts`, `tests/kit/registry.test.ts`, `tests/kitNet.test.ts`, `tests/tallowWharf/shell.test.ts` |
 | S2 | `tests/shutterNotice.test.ts`, `tests/kit/shutter.test.ts` |
@@ -574,29 +692,45 @@ with no SKIP or teleport left for a shutter; the notice lines printed.
 
 Laptop (every run `E2E_GPU=1`; `node scripts/laptop-queue/request.mjs --sha <full sha> --pr <n> --suites "<list>" --set
 <name> --requester "Night Shift | Campaign Build"`; the PR head's `affected-e2e` runs by itself):
-- **PR G1:** affected (`src/world/maps/tallowWharf` -> `e2e-sectorops` all parts, `e2e-levels`, `e2e-anchors`) and
-  explicitly `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission`.
-- **PR G2:** the same set (E8 is in it).
-- **PR S:** affected (`src/game/kit/` and `src/game/` -> `e2e-gadgets e2e-tactics e2e-takedown e2e-park e2e-coop
-  e2e-sectorops`; `src/world/` -> `e2e-lightbake e2e-guard-carry e2e-levels e2e-anchors e2e-ctcourse`), the RULES gate
-  for `src/game` (`e2e-coop e2e-netmove`, the checker passes only when green), and `e2e-sectorops:wharf-tgc
-  e2e-sectorops:wharf-tkl e2e-sectorops:mission`.
+Affected suites (polish 1, master `scripts/e2e-affected.mjs`): `src/world/maps/tallowWharf*` falls under `'src/world/'`
+(`e2e-lightbake e2e-guard-carry e2e-levels e2e-anchors e2e-ctcourse`), not `e2e-sectorops`; `'src/game/'` gives
+`e2e-takedown e2e-gadgets e2e-tactics e2e-park e2e-ctcourse e2e-sectorops` and no `e2e-coop`. The explicit requests below
+cover the rest.
+- **PR T:** affected (`src/game/` and `src/world/` as above) plus `e2e-coop e2e-netmove e2e-ctcourse` (the host landing
+  check moves; Marlow Yard's throw drills must be unchanged) and `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl`.
+- **PR G1:** affected plus explicitly `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission`; and the
+  look videos (section 10).
+- **PR G2:** the same set (E8 is in it), plus `e2e-coop e2e-netmove` (the site throws run through the co-op request).
+- **PR S:** affected (`src/game/kit/` and `src/game/` as above; `src/world/` as above), the RULES gate for `src/game`
+  (`e2e-coop e2e-netmove`, the checker passes only when green), and `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl
+  e2e-sectorops:mission`.
 - Every laptop failure gets an Opus triage agent at once (G319).
 
 ## 9. Checkers (one fix round per slice unless broken)
 - **Plan:** one fresh Opus plan checker on both BRIEFs + this PLAN (`docs/templates/plan-check.md`): intent against
   Michael's words, gates, claims, sizes.
-- **PR G1** (LP, G0, G1, G3): one fresh Opus checker (the batch fixes hard rule 2 / Q2 / Q3; Sonnet is not enough for
+- **PR T** (TD): two independent fresh Opus checkers (the host's landing check in `checkTeamRequest` changes; lead
+  ruling fix 1). Player Build is offered one of them through the orchestrator, not blocking.
+- **PR G1** (LP, D0, G0, G1, G3): one fresh Opus checker (the batch fixes hard rule 2 / Q2 / Q3; Sonnet is not enough for
   the lighting judgement).
 - **PR G2** (G2, G4, E8, D1, P1): one fresh Opus checker (forced gates, gate reach, the validator output, the pages
   against D1). A G2 FIX gets its fix round from Opus (RULES).
-- **PR S** (S1-S4): two independent Opus checkers (AI behaviour and engine wiring); the lead offers one of the two to
-  Guard AI Build (the R39 hook is theirs to accept); if Guard AI has no capacity within the hour, a second fresh Opus.
+- **PR S** (S1-S4): two independent fresh Opus checkers of ours (AI behaviour and engine wiring); a review is also
+  offered to Guard AI Build through the orchestrator (the R39 hook is theirs to accept), not blocking (lead answer 5,
+  polish 7).
 - Verdicts as commit statuses on the checked head (`context=checker`, "Opus PASS" / "Opus FIX").
 
 ## 10. Gates
 - **J8 gate (FOLDED):** master's validator 0 ERR (map, map + TGC, map + TKL) and the mission-validator 0 ERR on the map
-  (A22), saved under `docs/tallow-fixes/val/`; plan checker PASS; PR G1 / G2 checker PASS; laptop sets green.
+  (A22; the three named throw-gap lines excepted until Marlow's TV lands), saved under `docs/tallow-fixes/val/`; D0's
+  run saved before wave 1 (RULES Intake 5); plan checker PASS; PR T (two), PR G1 and PR G2 checker PASS; laptop sets
+  green.
+- **Look videos (RULES "Walk pacing", check fix 11):** PR G1 and PR G2 re-light every section, so each carries a 1-2 min
+  look video per section it re-lights (W1, W3 in G1; W2, W4 in G2), recorded on the laptop GPU slot (port 4189,
+  `E2E_GPU=1`) through Test Runner's queue (the `sector-lights-shots.mjs` pattern: a slow camera path through each
+  encounter, lamps on, one circuit cut, one lamp shot), path in the PR body. The light-parity card (Q27, light-realism
+  L4, handed to J11) does not exist for Tallow yet (L4 comes after L2's measures): each PR body says "parity card: not
+  available yet (light-realism L4)", and LM / GBM run it when it lands.
 - **J9 gate (FOLDED):** the e2e walks both shutters on both missions (no SKIP, no teleport) and the notice check prints;
   two Opus checkers PASS; laptop sets green.
 - **Greybox exit (J23 runs it after J8, J9, J12, J13; VISION 5, level-design 14, RULES Intake 5):**
@@ -614,19 +748,28 @@ Laptop (every run `E2E_GPU=1`; `node scripts/laptop-queue/request.mjs --sha <ful
 ## 11. Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
 | --- | --- | --- | --- | --- |
-| `missions` (`?missions=1`, `src/core/flags.ts`) | off | Night Shift \| Campaign Build | set by the orchestrator after the Mission 1 walk | Michael accepts the Tallow walk items |
-| `coopKit` (`?coopkit=1`; folding into Player's `kitMoves`, kit order item 7) | off | Night Shift \| Campaign Build | with the kit walk (Player's clips) | unchanged by J8 / J9 |
-- No new flag. Every J8 change is Tallow data (the map is `unlisted` and boots only with `?missions=1`, `needsMissions`).
+| `missions` (`?missions=1`, `src/core/flags.ts`) | off | Night Shift \| Campaign Build | **2026-11-01** (A26; after Michael's Tallow walk) | Michael accepts the Tallow walk items |
+| `coopKit` (`?coopkit=1`; folding into Player's `kitMoves`, kit order item 7) | off | Night Shift \| Campaign Build until the fold, then Player's `kitMoves` | the kit walk's date, set by Player Build in its PR (Player's clips) | unchanged by J8 / J9 |
+- No new flag. TD's throw sites exist only in Tallow's layout, behind `missions`. Every J8 change is Tallow data (the map is `unlisted` and boots only with `?missions=1`, `needsMissions`).
   J9's `ShutterDoors` and the notice run only where shutter specs exist (Tallow only); the lift is offered only with
   `coopKit`. Default players see nothing new.
 
 ## 12. Walk items (for the orchestrator's card; ranked by risk)
 Until J22's lobby entry the walk opens by URL: `?autostart=tallowWharf&mode=sector&missions=1&coopkit=1&mission=threeGreyCoats`
-(and `twoKeyLedger`), two players.
+(and `twoKeyLedger`), two players; once the kit-flag fold is in, `coopkit=1` becomes the fold's parameter (expected
+`kitmoves=`; its PR names it).
 - Lights: every lamp works; dark only behind stalls, presses, chests and carts, where you cut a circuit or shoot a lamp;
   each switch is by its door - accept when no lit working space has a dark corner without a cause you can see.
-- Throws: try to jump each gap alone and fail; the thrown partner unbolts the gate for the other - accept when no throw
-  can be skipped solo and nobody is stuck on either side.
+- Closed rooms (until your one-click on A1 settles it): the pie shop, clock loft, lane-window loft, strongroom,
+  partners' office and shed two have only their night and emergency lights on, like a real shop shut for the night
+  (level-design 5.1: darkness is where nobody works at night). This is our reading of your "Never" answer. If you want
+  them lit like working rooms, say so: it is a lighting-data change per section - accept when these rooms read as shut
+  for the night, not broken.
+- Throws: try to jump each gap alone and fail (the gaps are now about 4.9 m and the throw carries further at these three
+  spots only); the thrown partner unbolts the bridge gate for the other - accept when no throw can be skipped solo,
+  the long throw looks believable, and nobody is stuck on either side.
+- The reading room's stair door now only opens from inside (A25): the way in is the throw - accept when that reads as a
+  locked library at night.
 - Shutters: alone it will not open; one holds, the other crawls; a guard facing it comes to look - accept when both
   missions finish with no teleport.
 - A downed partner across any forced gate is reached in time (within 15 s).
@@ -637,21 +780,30 @@ Until J22's lobby entry the walk opens by URL: `?autostart=tallowWharf&mode=sect
 - **Guard AI Build:** S2 review (one of PR S's two checkers); the route-runs cause record (G1) may add a "shutter"
   cause next to the door notice; G6 waits for J15's `lookouts` and pairs.
 - **Marlow Build:** J12 must accept the kit kinds, keep gate reach on throws and pulls, and give spaces a light-type
-  field (D1 uses `note` until then); the G157 level-design text (J8 plans to the adopted wording).
+  field (D1 uses `note` until then); the G157 level-design text (J8 plans to the adopted wording). TV (A24, section 6):
+  `throw_dist` on `team_throw` links, the scale sheet "Throw gap" row and level-design 12.1, after Michael's one-click;
+  Marlow Yard's throw drills are unaffected by TD (no sites; its tests and `e2e-ctcourse` are in PR T's run).
 - **Sector Ops Build (light-realism):** LP uses research/bands.md as drafted; ask them for L3-H `tallow.md` or accept LP
   as its stand-in; S1 asks before any `lightField.ts` / `lampBake.ts` edit; L0's `lux-grid.mjs` feeds LM / GBM.
-- **Player Build:** the `coopKit` fold changes the e2e URL params and the offer gate in `teamController.ts`; order it
-  against S1 (section 4).
+- **Player Build (team moves owner):** Campaign Build sends it TD's brief before TD starts (lead ruling fix 1): TD
+  changes only the throw functions in `teamMoves.ts` and `requestThrow` in `teamController.ts`, default unchanged; its
+  J24 `feature/coop-kit` claims the same files (claims-check, section 4). The `coopKit` fold changes the e2e URL params
+  and the offer gate in `teamController.ts`; order on that file: fold, TD-b, S1 (section 5).
 - **Orchestrator:** PR C split membership for G1 / G2 / S (C8 / C9 or new members); no `big-pr` needed for them.
 
 ## 14. Risks
 - **Interiors become lit everywhere** (every working interior band reads 0.79 or more): stealth routes may lose their
   gaps. Mitigation: A1's closed spaces, cover, switches by doors, cut circuits and shot lamps; LP proves a shadow route
   per encounter; the PR G1 checker blocks a section whose declared routes lose their last real gap.
-- **Forcing throws by geometry** depends on the solo carry numbers: G2 / G3 tests compute them from the game's constants;
-  if the gap cannot sit between the solo carry and the throw band, the engine route (A4 undo) becomes an Opus slice.
+- **The long throw** (A24): 5.8 m in the same 1.0 s flight (`TEAM.throwTime`) is a faster flight than today's; the arc
+  must clear the lightwell and the lane (G2's `throwCheck`), and the look is a walk item. If it reads wrong, a per-site
+  flight time is a later change (an Opus `src/net` slice with two checkers if the flight's timing is read in `src/net`).
+- **Michael declines A24** (the standard change): the throws revert to 3.2 m and stay solo-jumpable (TW17) until another
+  forcing is chosen with him; A4 / A28's geometry is data, so the revert is small.
 - **Fall-ins after widening:** the lightwell drain and the lane keep a way out; G2's tests assert it.
-- **Docs in two branches and TW23's move** (A20): B0 and TW23 come first; P1 follows TW23's paths.
+- **The south lofts lose 2.4 m** (A28): their furniture, the thrower's run-up (runner 1.3 m behind the thrower) and the
+  fire-stair heads must still fit; LP checks before G2.
+- **Docs in two branches** (A20): B0 / B0b bring TW23 in before D0, D1 and P1; the graph does not move.
 - **e2e coordinates:** E8 travels with the geometry it follows (PR G2), S4 after E8.
 - **Shutter light and nav** touch shared engine files: S1 stops and asks before a lighting-owner file; the nav block is
   map-local (only where specs exist).
@@ -661,6 +813,13 @@ Until J22's lobby entry the walk opens by URL: `?autostart=tallowWharf&mode=sect
   an Opus checker reads each licence before any import, and nothing downloads without the lead's go.
 
 ## 15. Open questions for the lead
+Answered (lead answers below and the fix-round rulings); open after fix round 1:
+- A24's one-click to Michael by day (per-site throw length and the scale sheet row), together with A1's.
+- D0's split legs (draft parity 21% / 64%, reach 21.2 s): re-chosen in data, or a W1 / W3 geometry line before wave 1.
+- `EGRESS.md`'s north-range row: is the bridge route to the south lofts' fire stair a second staircase under 16.2.7, or
+  does G2 add the clock loft back stair? (LP proposes; Marlow, as the level-design owner, may rule.)
+
+Original questions (kept for the record):
 1. B0 timing: merge `origin/feature/mission-framework` into the engine at J7 R0 (before J7 R1 edits the TGC / TKL
    graphs, fewer conflicts) or after J7 PR D (this plan's fallback)?
 2. TW23: does it move Tallow's docs to their own folder, and when? P1's paths and the graph-reading tests follow it.
@@ -698,21 +857,29 @@ Do:
 1. `tallowWharf.ts` theme: set `ambient` and `lightLevel` (and only those) to the campus theme's values, with a comment
    "night floors as the campus (Q2 'Never', G329; light-realism research 2 and 4): a cut circuit reads dark". If the
    campus has no direct equivalent of a field, stop and report it (do not invent a value).
-2. `tallowWharfKit.ts`: add `medkits: { pos: Vector3; yaw: number }[]` to `WharfSection` with a doc comment (G98, "a wall
-   station with a real reason"; hold 0.6 s, +40, single use, level-design 12.1); `emptySection` returns `medkits: []`.
-   Every section file must still compile: add `medkits: []` to `W1`-`W4` only if TypeScript requires it, and say so in
-   the report (the lead clears that one-line touch with the section slices).
-3. `tallowWharf.ts` layout: `medkitWalls: SECTIONS.flatMap((s) => s.medkits)` (setup time, not a hot path).
+2. `tallowWharfKit.ts`: add an optional `medkits?: { pos: Vector3; yaw: number }[]` to `WharfSection` with a doc comment
+   (G98, "a wall station with a real reason"; hold 0.6 s, +40, single use, level-design 12.1); `emptySection` returns
+   `medkits: []`. Optional so `W1`-`W4` compile untouched (polish 5); do not edit them.
+3. `tallowWharf.ts` layout: `medkitWalls: SECTIONS.flatMap((s) => s.medkits ?? [])` (setup time, not a hot path).
 4. `shell.test.ts`: the theme's two values equal the campus theme's; `builtWharf().layout.medkitWalls` equals the
    concatenation of the sections' `medkits`; every existing shell test passes unchanged.
+5. Only after the lead says TD-a is merged into your base (A24): `WharfThrow.dist?: number` (doc comment: the site's throw
+   length, Q23, A24) and the layout's `throwSites`: for each section throw with `dist`, `{ x: thrower.x, z: thrower.z, dx,
+   dz, dist }` with (dx, dz) the unit direction runner -> thrower; `shell.test.ts` asserts `throwSites` lists exactly the
+   throws that set `dist` (none until G2 sets them). Push steps 1-4 first as their own commit.
 Checks: `npx vitest run tests/tallowWharf/ --maxWorkers=2`; `npm run typecheck:fast`.
 Done looks like: checks green; the diff touches the owned files (plus the reported one-liners, if any).
 
 ### Brief S1: shutter world wiring (Opus 5.5)
-Owned: `src/world/shutterDoor.ts`, `src/world/world.ts`, `src/game/teamController.ts` (one call after the kit ticks),
-`tests/shutterWiring.test.ts` (new). `src/game/gameState.ts` only if J7 PR F is already merged into your base (the lead
-says), and then only the arming call site near `:793`. Do not edit `src/game/kit/shutter.ts` (S2 owns it), any map file,
-`src/net/**`, `src/ai/**`, `src/world/lightField.ts` or `src/voxel/lampBake.ts`.
+Owned: `src/world/shutterDoor.ts`, `src/world/world.ts`, `src/game/teamController.ts` (the `update` call after the kit
+ticks and `resetKit`), `tests/shutterWiring.test.ts` (new). `src/game/gameState.ts` only if J7 PR F is already merged
+into your base (the lead says), and then only the arming call site near `:793` and one `resetKit` line in
+`checkpointReset`. Do not edit `src/game/kit/shutter.ts` (S2 owns it), any map file, `src/net/**`, `src/ai/**`,
+`src/world/lightField.ts` or `src/voxel/lampBake.ts`.
+Order (check fix 6, lead answer 6): build and push steps 1-3, 5 and the pure tests now. Step 4 and the reset (step 7)
+touch `teamController.ts`: start them only when the lead says the kit-flag fold (framework STATE item 7, on
+`feature/mission-engine-flg-gb6`, merged into `feature/mission-engine` by Campaign Build) and TD-b are both in your
+base. The `gameState.ts` lines wait for J7 PR F; until then report the exact lines for the lead.
 Read first: `src/world/shutterDoor.ts` (all), `src/game/kit/shutter.ts:1-130`, `:240-300`, `:400-430`, `:655-700`,
 `src/game/kit/registry.ts:1-60`, `:140-180`, `src/world/world.ts:60-200`, `src/game/gameState.ts:690-800`,
 `src/game/teamController.ts:110-140`, `:320-345` and its `fixedUpdate`, `src/world/doors.ts` (how door bodies arm and
@@ -736,14 +903,19 @@ Do:
    or `lampBake.ts`, stop and report the proposal; the lead clears it with Sector Ops Build first.
 6. Tests (`tests/shutterWiring.test.ts`, pure, no scene): slots from specs; the nav cells over an opening are blocked for
    guards; the chosen light path reports the opening closed; a level with no specs builds nothing.
+7. Section restart (A27): `TeamController.resetKit()` calls S2's `resetShutter(d)` for every shutter device (index loop),
+   called from `GameState.checkpointReset` (one line; `SectorMode.restartSection` calls `checkpointReset` on every
+   section restart, `sectorMode.ts:1182-1215`). Read how a client mirrors device state (`src/net/kitNet.ts`): if the
+   host's state reaches it by the wire, stop there; if not, stop and report (an Opus `src/net` slice, A19). Test:
+   `resetKit` leaves every shutter shut, no run, mark cleared. Needs S2's `resetShutter` merged into your base.
 Checks: `npx vitest run tests/shutterWiring.test.ts tests/kit/shutter.test.ts tests/kit/registry.test.ts tests/kitNet.test.ts tests/tallowWharf/shell.test.ts --maxWorkers=2`; `npm run typecheck:fast`.
 Done looks like: checks green; with S3's map swap a lone player cannot pass a shutter and a held one lets the partner
 crawl (S4 proves it on the laptop); no change on any map without shutters.
 
 ### Brief S2: guards notice a held shutter (Opus 5.5)
-Owned: `src/game/stealthSystems.ts` (a new private method and one call), `src/game/kit/shutter.ts` (one pure exported
-helper, nothing else), `tests/shutterNotice.test.ts` (new), `tests/kit/shutter.test.ts` (only if a helper test fits
-there). Do not edit `shutterDoor.ts`, `world.ts`, `teamController.ts`, `src/ai/**` or `src/net/**`.
+Owned: `src/game/stealthSystems.ts` (a new private method, its timer field and one call), `src/game/kit/shutter.ts` (the
+pure helper, a `noticed` field on `ShutterDevice` and `resetShutter`, nothing else), `tests/shutterNotice.test.ts` (new),
+`tests/kit/shutter.test.ts` (only if a helper test fits there). Do not edit `shutterDoor.ts`, `world.ts`, `teamController.ts`, `src/ai/**` or `src/net/**`.
 Read first: DECISIONS G41 (doors noticed open), G44 (poor sight above), G143 (every detection explainable);
 `src/game/stealthSystems.ts:20-40`, `:610-680` (`noticeOpenDoors`, `fixedUpdate`); `src/game/kit/shutter.ts:20-30`,
 `:80-160`, `:270-295`; Player conformance R39 (`git show origin/master:docs/conformance-player/CONFORMANCE.md | grep -n R39`).
@@ -752,18 +924,25 @@ Do:
 1. `shutter.ts`: `export function shutterNoticedBy(d: ShutterDevice, ex: number, ey: number, ez: number, yaw: number):
    boolean`: true when `d.visible`, the guard is within `SHUTTER_NOTICE.range` of `shutterNoticePoint`'s x / z (use
    `hyp2`), within 1.5 m of the shutter's floor height, and facing it (`(sin(yaw) dx + cos(yaw) dz) / dist >=
-   SHUTTER_NOTICE.cos`, the door rule, `stealthSystems.ts:633-634`). No allocation (a module-level scratch point).
-2. `stealthSystems.ts`: `private noticeOpenShutters(): void` called from the same timer as the door notice (every
-   `DOOR_NOTICE_EVERY`), host only (where the door notice runs), only when `g.team.devices.list` has a visible shutter.
-   For each visible shutter whose `opens` count differs from the last one noticed (a per-device number kept in a Map
-   keyed by device id, built lazily once per device): the first calm, alive guard that passes `shutterNoticedBy` and
-   `g.ballistics.clear(eye, noticePoint, MASK.SIGHT)` (reuse the preallocated `noticeA` / `noticeB`) calls
-   `e.hear(x, z, SHUTTER_NOTICE.range + 2)`; record that opening as noticed. A comment cites G41, R39 and A18.
-3. Tests: `tests/shutterNotice.test.ts` for the helper (in range and facing; behind; too far; another storey; closed;
-   `visible` false) and for the once-per-opening rule (a small pure function or the Map logic exported for test).
+   SHUTTER_NOTICE.cos`, the door rule, `stealthSystems.ts:635`). No allocation (a module-level scratch point).
+2. `shutter.ts`: a numeric `noticed` field on `ShutterDevice` (the `opens` count last noticed), set to `-1` where the
+   device is made, so the per-device memory is preallocated with the device (no Map, nothing built in the fixed step);
+   `export function resetShutter(d)`: drop shut, end any lift run, `noticed = -1` (S1 calls it on a section restart, A27).
+3. `stealthSystems.ts`: a field `shutterNoticeT` and `private noticeOpenShutters(dt: number): void` with its **own timer**
+   (counted down every fixed step, fires every `DOOR_NOTICE_EVERY`): do not reuse `noticeT`, which only counts inside
+   `noticeOpenDoors`, itself called only while a player-opened door exists (`stealthSystems.ts:619-621`, `:665`). Call
+   it from the fixed step beside the door notice, host only (where the door notice runs); it returns after one length
+   check when `g.team.devices.list` is empty. Index loops only (no `for...of`, closures or new arrays): for each device
+   that `isShutterDevice`, is `visible` and has `opens !== noticed`, the first calm, alive guard that passes
+   `shutterNoticedBy` and `g.ballistics.clear(eye, noticePoint, MASK.SIGHT)` (reuse the preallocated `noticeA` /
+   `noticeB`) calls `e.hear(x, z, SHUTTER_NOTICE.range + 2)` and sets `noticed = opens`. Nothing grows or allocates per
+   tick. A comment cites G41, R39 and A18.
+4. Tests: `tests/shutterNotice.test.ts` for the helper (in range and facing; behind; too far; another storey; closed;
+   `visible` false), the once-per-opening rule (`noticed`), a notice with **no door open anywhere** (the own timer runs),
+   and `resetShutter` (shut, no run, `noticed` -1).
 Checks: `npx vitest run tests/shutterNotice.test.ts tests/kit/shutter.test.ts --maxWorkers=2`; `npm run typecheck:fast`.
 Done looks like: checks green; the door notice code path unchanged; with no shutter devices the new method returns after
-one length check.
+one length check; the report states that nothing grows or allocates per tick.
 
 ## Lead answers to the open questions (Campaign Build, 2026-10-25 ~19:10)
 1. B0: merge origin/feature/mission-framework into the engine at J7 R0 (fewer conflicts with J7 R1's graph edits).
@@ -776,3 +955,32 @@ one length check.
 6. teamController.ts: the kit-flag fold (coopKit into Player's kitMoves, orchestrator order ~18:30) goes first; S1 after.
 7. PR C split membership: the orchestrator's call.
 8. FA: docs-only scouting list may run after the plan check passes, lowest priority; no download without the lead's go.
+
+## Fix round 1 (Opus planner, 2026-10-25 ~20:30; plan check 1 and the lead's rulings)
+Later rulings win over the lead answers above where they differ: TW23 does not move the graph (answer 2 is superseded
+by A20); answer 6's order now also covers TD (section 5).
+
+| Check item | Answered in |
+| --- | --- |
+| Fix 1 throws cannot be forced | Section 2 "Throws" (worked numbers: (a) fails at every allowed height); A4, A24, A28; slice TD (PR T: claims, ~250 lines, Campaign Build / Opus, two Opus checkers, laptop `e2e-coop e2e-netmove e2e-ctcourse` + wharf suites); TV hand-off to Marlow; coordination with Player Build and Marlow Build (section 13); G2's done line tests 5.8 m against both solo models with the 0.2 m margin |
+| Fix 2 way backs checked for jumping | A5 (enclosed bridges, gate at the approach end), A25; G2 / G3 / G4 done lines (both threat checks over every near-side surface, the lip audit extended, `w2.test.ts:212` one-way pairs); LP briefs place every barrier at the approach end |
+| Fix 3 graph validated before geometry | Slice D0 (wave 0, Opus) with the fix round's draft and master-validator numbers (section 2); D1 becomes "graph matches the build"; J8 gate (section 10) |
+| Fix 4 restart and shutters | Section 2 restart fact; A27; S1 step 7 (`resetKit` from `checkpointReset`), S2 `resetShutter`; `tests/shutterWiring.test.ts`; S4 restart line |
+| Fix 5 S2 hot path and timer | S2 detail and brief: `noticed` field on the device, own `shutterNoticeT` timer, index loops, the no-door-open test, `:635` |
+| Fix 6 lead answer 6 in the body | Sections 4, 5, 7; S1 row, detail and brief (late hunks after the fold and TD-b; who merges the fold); E8 / S4 / walk URL follow the fold's parameter |
+| Fix 7 walk and pages hide A1 | Section 12 closed-rooms item; P1's lighting line in plain English with the undo, until Michael's one-click on A1 |
+| Fix 8 G157 rule 10 | Section 1 row 10; LP's `EGRESS.md` table (per building, two stairs, roof access, fixes in G1 / G2 / G3); A7's secure-building reason |
+| Fix 9 TW23 and the graph path | A20 (graph stays in `campaign-map/`, helpers.ts:66 unchanged, B0 at J7 R0, B0b after TW23; D0 / D1 / P1 after the merge that brings TW23 in); section 4 claims (`docs/tallowWharf-map/SPEC.md`) |
+| Fix 10 process items | `docs/tallow-fixes/BRIEF.md`, `docs/tallow-shutters/BRIEF.md` (new); A26 and section 11 (`missions`, Campaign Build, 2026-11-01); claims-check run and listed (section 4) |
+| Fix 11 look videos | Section 10 "Look videos" (per section, laptop 4189, path in the PR body; parity card not available yet, L4) |
+| Polish 1 affected suites | Section 8 |
+| Polish 2 old-rule tests | G2 (`w2.test.ts:292`, `:212`), G3 (`w3.test.ts:387`) |
+| Polish 3 S3 wave | Section 6 row, section 7 (wave 4; S4 wave 5) |
+| Polish 4 vantages, crane lamp | Section 1 row 6; G1-G4 done lines; G3 crane lamp |
+| Polish 5 `medkits` | G0 detail and brief (optional field) |
+| Polish 6 approved drawing kept | P1 (`PLAN-approved.svg`), claims |
+| Polish 7 PR S checker line | Section 9 |
+| Polish 8 switch links | Section 1 row 7; LP |
+| Polish 9 PR C gate, forward merges | A21 |
+| Polish 10 Q2 quote | Section 0 |
+| J7 re-check rulings (coordinator) | B0 at J7 R0 with the rewards removal (A20, section 6 B0 row); P1 does not rewrite TGC / TKL pages (section 4, P1); J7 numbers re-cited (J7 A11 / A17, J7-PLAN section 4) |
