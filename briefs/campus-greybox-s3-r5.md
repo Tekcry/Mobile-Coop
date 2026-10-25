@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:01:09+11:00
+status: done feature/campus-greybox-s3-r5 fc49d3547fe87367034745f66f9037ba6b99e120
 # campus-greybox s3-r5 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
@@ -26,3 +26,16 @@ Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADM
 - Done: every in-scope slice pushed; a report `docs/campus-greybox/checks/s3-r5-build.md` (per slice: files changed,
   tests with counts, assumptions taken with their undo, deviations, findings for the lead, pending PC runs); then
   `status: done feature/campus-greybox-s3-r5 <sha>` here.
+
+## Report (Cloud Builder 2, 2026-10-25)
+- Built R5 in `src/world/maps/campusV2/s3Data.ts` (20 guards, entry / exit, 4 routes, sector with R4's keypads and intel,
+  parts read R4's cameras / alarms / desks and `S3_BOARDS`), `tests/campusV2S3Guards.test.ts` (15 cases), fragment. Full
+  report: `docs/campus-greybox/checks/s3-r5-build.md` on the branch.
+- Tests on the branch: 6 files, 68 passed, 6 skipped (the nav half: `describe.skipIf(!MERGED)`, switches on by itself once
+  r1-r4 are merged). typecheck and eslint clean.
+- Checked on a local, unpushed r1-r4 merge: the guards test 15 / 15 (nav, #11 nav cycle, routes, checkSectors with the
+  desk, M8 recorded, A99 worst 11 <= 12).
+- Deviations (logged with undo): #8's log-desk stop moved to the desk's south side (the table's point is off nav next to
+  the new hall wall; racks wait 24 s keeps 43.2 s); #9 z -3.1 and #12's kettle stop z -12.7 (0.5 m off the desk / R2's
+  counter). Findings: #10, #15, #16 not isolated in time (recorded); R1's shell seed test fails on R2's chamber-roof seed
+  after the r1 x r2 merge (not R5's).
