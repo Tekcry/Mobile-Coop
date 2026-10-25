@@ -54,8 +54,9 @@ any commit (only the art-credits licence sentence, A11 cleared, stays: 9433a960c
   app.ts (settings -> applyAnimSource; tuner box and `?mocap` / `?mixamo` still override), settingsScreen row,
   studio.ts `studioEntrySet` / `studioEntriesOf`, studioPanel Set + Animation source, nowPlaying `nowPlayingSourceText`.
 
-### At the save (00:4x)
-- Done: the toggle, the Options row, the Studio switch and Set filter, Now playing source, ?anim=, resolver hook,
-  changelog fragment, TESTING line (commits 2a3eac137, 9e209414c and this one). typecheck clean.
-- Left: tests/animSource.test.ts (default identity, each source, URL overrides, resolver, settings save / load with a
-  literal old save, studio set filter); eslint on touched files; vitest list; remoteAvatar check; merge origin/feature/mixamo-i2.
+### At the save (00:40)
+- Done: the toggle, Settings row, Studio switch and Set filter, Now playing source, ?anim=, addMixamoResolver, tests
+  (tests/animSource.test.ts 12/12), changelog, TESTING line; origin/feature/mixamo-i2 merged (9be7701fd); tsc and eslint clean.
+- Remote check: a partner is `operatorRig` (tuneRows -> graph.wrenReady) animated by the same AnimGraph, which reads
+  the module-wide LOCO and WREN_TRAV: it follows the viewer's source with no src/net edit (A13).
+- Left: the vitest list result (running at the save); the Set filter as LB / RB tabs (A14) if Michael wants it.
