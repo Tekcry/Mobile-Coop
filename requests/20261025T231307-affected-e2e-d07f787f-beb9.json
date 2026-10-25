@@ -1,0 +1,17 @@
+{
+  "id": "20261025T231307-affected-e2e-d07f787f-beb9",
+  "sha": "d07f787fa8684b0d88ae6c637957793ae5b6132e",
+  "branch": "feature/mixamo-i5",
+  "pr": 493,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-move",
+    "e2e-stealth",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #493"
+}
