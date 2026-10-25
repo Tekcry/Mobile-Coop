@@ -33,7 +33,7 @@ Owner: Night Shift | Sector Ops Build. Status: current.
   (`coopHost.ts:1701`); #317 sets `capacity('sector')` to `SECTOR_MAX` 4 and `session.cap` / `startMatch` slots.
 - Logged for Michael's next look: A14, A15 (48 MB cap; an over-cap re-plan is a new A-line), A16 (live), A17.
 
-Next: lead verifies check-3 fixes; then W1 builder briefs
+Next: briefs in `docs/map-ready/briefs/` (W0 flag line first, then W1 S1 / S4 / S9; S2, S10, S8 ready); log the brief-level plan fixes (W0, S4, S9 headers)
 
 ## Done
 - 2026-10-25: worktree and branch; research `research/start-path.md` (93c63a70); BRIEF (adaa8274); PLAN (cd4eb116);
