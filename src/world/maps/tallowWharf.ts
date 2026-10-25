@@ -7,7 +7,7 @@ import { W3 } from './tallowWharfW3';
 import { W4 } from './tallowWharfW4';
 import { WHARF_SECTORS } from './tallowWharfSectors';
 import { WHARF_MISSIONS } from './tallowWharfMissions';
-import { inSection, MASS_TOP, mass, T, wall, WHARF_BOUNDS, type WharfSection } from './tallowWharfKit';
+import { inSection, MASS_TOP, mass, T, wall, WHARF_BOUNDS, Y, type WharfSection } from './tallowWharfKit';
 
 const GROUND = '#3d4245';
 const WALL = '#a9a496';
@@ -45,6 +45,9 @@ export function buildShell(b: LevelBuilder): void {
   mass(b, 44, 34, 82, 48);
   // the arcade lane (x 76-82, z 48-80): the ground is its floor; closed at z 48 (the perimeter closes z 80). Its door into the arcade is GB2's.
   wall(b, true, 48, 76, 82, [], 0, 12, T, WALL);
+  // night floor as the campus (Q2 'Never', G329, light-realism research 2 and 4, J8 A3): the standby fill 0.14 under the
+  // moon, so a cut circuit reads dark; a smaller room zone (LP's transit fill) wins inside it
+  b.ambientZone(W.minX, W.maxX, W.minZ, W.maxZ, 0.14, Y.canalBed - 1, MASS_TOP + 1);
 }
 
 /**
@@ -101,6 +104,7 @@ export const tallowWharf: MapDef = {
       switches: SECTIONS.flatMap((s, i) => inSection(s.switches, i)),
       hideSpots: SECTIONS.flatMap((s, i) => inSection(s.hideSpots, i)),
       navSeeds: SECTIONS.flatMap((s) => s.navSeeds),
+      medkitWalls: SECTIONS.flatMap((s) => s.medkits ?? []),
       debugPoints: SECTIONS.flatMap((s) => s.debugPoints.map((p) => ({ group: s.id, ...p }))),
       alarms: [],
     };
