@@ -36,9 +36,11 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   the user settings allow rule matches it, while a command chained with `;` / `&&` goes to the auto-mode filter and is
   blocked as self-approval (2026-10-25 ~20:12). Tell leads the same.
 - Laptop SSH link (2026-10-25 ~20:00, Michael picked "Yes, guide me"): desktop key ~/.ssh/id_ed25519 (MICHAEL-PC);
-  laptop ALIENWARE-X16 user Micha, 192.168.1.249; Michael ran the OpenSSH Server install as admin. Once
-  `Test-NetConnection ALIENWARE-X16 -Port 22` passes and Michael adds the SSH connection in the desktop app, start
-  Guard AI and Test Runner there with start_session (target ssh) at each swap instead of printing their boot lines.
+  laptop ALIENWARE-X16 user Micha, 192.168.1.249. Key login from the desktop works (tested 2026-10-25 ~20:47). Once
+  Michael adds the SSH connection in the desktop app (list_start_targets shows it), start Guard AI and Test Runner
+  there with start_session (target ssh) at each swap instead of printing their boot lines.
+- Cloud Builder: start_session target cloud is refused from this session (project folder C:/NightShift is not a git
+  checkout); Michael starts it under New session -> Cloud (Tekcry/Mobile-Coop) when open briefs wait.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
 - After a release CI failure: fix on train/<n>, wait for CI, then
   `node scripts/merge-train.mjs release <n> <version> "<title>" --resume`.
