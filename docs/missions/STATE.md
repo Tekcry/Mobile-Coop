@@ -1,7 +1,26 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~09:20 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
+## RESUME 2026-10-26 ~10:25 (Night Shift | Campaign Build, after the 09:35 swap; read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 09:35 swap". Rerun any agent whose
+report is missing.
+1. Laptop (trimmed per orchestrator, wharf-tgc + wharf-tkl only): j7-prd on PR D c2802450a (it carries gb6fix2
+   820101ecd; mission-gb6fix withdrawn), j7-pre on PR E 162f43204, j7-prf on PR F 6c0a42f07. j7-prd green -> merge
+   PR D (c2802450a) into the engine, send Marlow the engine sha.
+2. Tallow branches (cut early from PR D head + engine): feature/tallow-fixes e144a9216 = LP + G0 + D0 799364de9;
+   feature/tallow-shutters 7054bed90 = S2 + S1 + S2 fix1 (checker PASS x2 on eb4ef6559).
+3. D0 ERRs: (1) W2 one roof route -> Opus designer on feature/tallow-d0-w2roof (EGRESS E11 + G2 brief + graph;
+   tallow-w2roof-report.md) -> merge into tallow-fixes, then a D0 checker. (2) split leg a: expected until Marlow's
+   validator-port-s11 (J12 A28) lands with J12 PR C.
+4. Cloud: MB DONE 57679530d -> Opus checker (tallow-mb-check.md) -> merge into tallow-fixes. TD-b DONE 24331e5a3 ->
+   Opus checker (tallow-tdb-check.md) -> merge into tallow-throw, laptop e2e-coop e2e-netmove + wharf on PR T. G1 + G3
+   briefs open (base e144a9216). G2 waits E11 amendment + MB + G1; G4 on tallow-fixes-2.
+5. Kit-flag fold dropped for Campaign (Player A1 does it later): S1 hunk A + S4 land on `coopKit`.
+6. Marlow #490 mixamo-kit: do not merge until their step 8.
+Older block below still holds for items not named here.
+Next: act on MB / TD-b / w2roof reports and laptop verdicts; G1 / G3 cloud done -> checkers; PR D -> engine.
+
+## OLD RESUME 2026-10-26 ~09:20 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
 FOLDED-PLAN J-rows; Tallow plan = ENGINE copy docs/missions/slices/J8-J9-PLAN.md (the scratch copy is stale). Notes /
 reports: C:/NightShift/scratch/campaign/ (lead-notes.md newest last). Rerun any agent below whose report is missing.
