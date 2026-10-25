@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T21:34Z
 # J12 validator-port, slice S9 (Sonnet, strict Opus brief): Marlow Yard graph on `training`, measured, run saved
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S4, S6, S7b, S5 checker PASS and
