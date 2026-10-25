@@ -140,7 +140,8 @@ read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59
 twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six new kinds of A25 join the
 kind sets (master `:29-55`: `LINK_KINDS`, `COOP_KINDS`, `TWO_WAY_GATES`, `ONE_WAY_KINDS`, the `NEEDS_*` sets as their
 stand-ins), `soloArcsOf` (`:225-227`) treats `vent_unlock` as a `bolted` link, and `checkDimensions` (its kit cases,
-`:459-475`) prints one INFO per new kind used ("no size band yet: move not built"; `vent_unlock` reads the door rows).
+`:459-475`) prints one INFO per new move kind used ("<kind>: no size band yet; the scale-sheet row comes with the move's
+coop-kit PR", A25) and checks nothing more; `vent_unlock` reads the door rows.
 `linkTime` reads `measured.path_m` / speed first (A6). `mergeGraphs` concatenates `objectives`, `rules`, `syncs` (`sync`
 read as `syncs`) and keeps `mission` / `tracks` (MV `scripts/level-validate.mjs` mergeGraphs, 0c62a921).
 `validate(graph, { metrics, metricsPath, requireMeasured })` runs core, then `checkMeasured`, `checkTraining`,
@@ -384,6 +385,8 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
     the existing section 3 rows do).
   - Files: both jobs claim `scale-sheet.md` and `level-design.md`, on different rows (section 7 "Claims overlaps"). J12's
     S7a rewords row 56 (relay, A24), which answers coop-kit A5's report.
+  - Agreement: the three points are coop-kit's own text (its PLAN :164 row 57, :194-197 B1, :256-258 bands), so both
+    docs say the same. The J12 lead confirms them to Player Build in one message before wave 1.
 - **Level standard #443** (`feature/level-standard-g157`, merged in 4.103.3): it rewrote the LD training profile
   (master `docs/level-design.md:39-60`), the 3.2 / 11.2 Training lines (`:95-97`, `:275-277`) and the rule index
   (`:697-745`), which D-A / D-C also touch. Both are cut after it (it is on master), and A22 is trimmed to what #443
