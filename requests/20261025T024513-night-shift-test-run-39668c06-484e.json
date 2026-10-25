@@ -1,0 +1,17 @@
+{
+  "id": "20261025T024513-night-shift-test-run-39668c06-484e",
+  "sha": "39668c06ad1efbb160b5a973848b52d746c17c22",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-course e2e-netmove e2e-ctcourse",
+    "node scripts/run-e2e.mjs e2e-course e2e-netmove e2e-ctcourse",
+    "node scripts/run-e2e.mjs e2e-course e2e-netmove e2e-ctcourse"
+  ],
+  "env": {},
+  "set": "flake-repeat-4102",
+  "note": "save gap: course / netmove / ctcourse x3 (40a4 never ran)",
+  "pin": true
+}
