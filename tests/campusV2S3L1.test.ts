@@ -530,7 +530,7 @@ describe('campus v2 S3 L1 (R2b)', () => {
   it('the L1 nav seeds and the hide spot are on nav; the hide spot is >= 1.5 m from every door on its floor', () => {
     expect(l1.S3_NAV_SEEDS_L1.map((v) => [v.x, v.y, v.z])).toEqual([
       [12, 4.5, -20], [30, 4.5, -9], [58, 4.5, -9], [15, 4.5, -3.5], [25.5, 4.5, -2], [35.5, 4.5, -3.5], [42, 4.5, -3.5], [50, 4.5, -3.5],
-      [60, 4.5, -14.5], [30, 6.0, -29.1], [36, 4.5, -11.75], [33, 4.4, -18],
+      [60, 4.5, -14.5], [30, 6.0, -29.1], [36, 4.5, -11.75], [32, 4.4, -18],
     ]);
     for (const v of l1.S3_NAV_SEEDS_L1) expect(onNav(v.x, v.z, v.y), `seed ${v.x}, ${v.y}, ${v.z}`).toBe(true);
     for (const v of l1.S3_NAV_SEEDS_L1) expect(s3.S3_NAV_SEEDS).toContain(v);
