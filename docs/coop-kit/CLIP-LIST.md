@@ -2,8 +2,9 @@
 Owner: Night Shift | Player Build. Status: current (job doc, 2026-10-26).
 
 Sent by the coop-kit lead to the orchestrator, which passes it to Michael (G406: Michael downloads Mixamo clips
-himself). The co-op kit's animations are motion capture first (G399, BRIEF A9 / A14); a move whose clip is missing is
-hand-made for now and switched to the capture once the clip arrives.
+himself). Every co-op kit move gets a hand-made version (what the game shows by default) plus a CMU and a Mixamo
+version wherever a clip exists; your "Animation source: Hand-made / CMU / Mixamo" setting picks which one plays
+(Michael ~00:25 2026-10-26; BRIEF A9 / A14). A move with no Mixamo clip keeps its hand-made version under that setting.
 
 **Every clip, the same settings** (as `docs/mixamo-retarget/CLIP-LIST.md`): Format "FBX Binary (.fbx)", Skin "Without
 Skin", Frames per Second 30, Keyframe Reduction "none". Use the same character as the 21 clips already downloaded (the
@@ -12,7 +13,7 @@ shows on the site; if a clip is for one move, add the move in brackets, e.g. `Cl
 "In Place": leave it unticked on every clip (we read the body's travel ourselves).
 
 Most useful first. "search:" means type those words in the Mixamo search box and pick the closest match; if nothing
-close comes up, skip it (we make that one by hand).
+close comes up, skip it (that move then has only its hand-made version, plus CMU if there is one).
 
 | # | Name on Mixamo | What it is for in our game | In Place |
 | --- | --- | --- | --- |
@@ -38,9 +39,11 @@ None of the Mixamo character or its skin is used: only the movement, moved onto 
 
 ## Which clip for which role (for the builders)
 Folder files first (on master as `src/anim/clips/mixamo/<slug>.ts`), then the downloads above by #, then CMU (G268,
-fetched without asking; search words for http://mocap.cs.cmu.edu/). Each capture plays only if it passes the A8
-measure (PLAN "Animation" step 3); a role with nothing that passes is hand-keyed and named as a gap in the slice
-report. Row ids are the ones PLAN slices cite.
+fetched without asking; search words for http://mocap.cs.cmu.edu/). Every role is also hand-made (the default); the
+global Animation source setting picks hand-made, CMU or Mixamo, and the A8 measure is a quality bar in the report,
+not the switch (PLAN "Animation" step 3). A missing CMU or Mixamo clip is named in the slice report. New rows in the
+Mixamo pipeline files are append-only and shared with feature/mixamo-kit (Marlow) and the mixamo-retarget branches
+(PLAN "Shared"). Row ids are the ones PLAN slices cite.
 
 | Row | Slice | Role | In the folder now | Download # | CMU search |
 | --- | --- | --- | --- | --- | --- |
@@ -56,6 +59,6 @@ report. Row ids are the ones PLAN slices cite.
 | S5 | B2 | Rider: stepping down behind the base | - | 6 | jump down |
 | K1 | K1 | Deadweight holder: chain grab, hang, drop; partner: under the grate | Hanging Idle (`trav_hanging_idle`), Crawling Prone / Crawling Hands And Knees, Crouched Walking | 9, 10 | hang, jump |
 | K2 | K2 | Drop Catch: catcher ready and take; dropper's drop | - | 5, 6 | catch, jump down |
-| K3 | K3 | Chimney Pair: back-to-back brace and climb | - (expected gap: hand-keyed) | 2 (the leg push only) | climb |
+| K3 | K3 | Chimney Pair: back-to-back brace and climb | - (expected gap: hand-made only) | 2 (the leg push only) | climb |
 | K4 | K4 | Swing Pass: anchor braced on the pipe; rider swing and release | Hanging Idle (`trav_hanging_idle`, the rider's grip) | 11, 4 | swing, hang |
 | K5 | K5a, K5b | Plank Bridge: lift, carry, lay | Lifting Heavy Object (`lifting_heavy_object`), Kneel Down (`kneel_down`) | 7, 8 | carry, lift |

@@ -19,6 +19,8 @@ added to the kit (below). Planner: Opus 5.5.
 - 2026-10-25 ~16:50 (folded plan Q38, G399): "mocap only, i will fine tune them in anim dev"
 - 2026-10-25 ~22:42 (ROADMAP Decided): "confirming priority is mixamo animations in anim tuner and in game. note this
   for next session to continue"
+- 2026-10-26 ~00:25 (ROADMAP Decided): "update - dont set mixamo moves as default in game, allow toggle between hand
+  made, cmu, and mixamo"
 
 ## Michael picked
 - 2026-10-24 ~22:50 (native multiple choice, G293) the campaign co-op traversal kit: "boost up a wall, throw over a gap,
@@ -46,17 +48,17 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
   the move), G180 (pure CT mechanics), G210 / bible 5.12 (real-world trained-operator animation, the 5.12.2 realism
   standard, paired moves within 3 cm at contact on host and client), G243 (real-world research sets timings; per-clip
   speed slider in the tuner), G10 (numbers are starting values), Q39 (partner animation exact on every page), G399
-  (players get motion capture only; the hand-keyed set is a developer rollback), G406 / G407 (Mixamo and other free
-  commercial-use captures, retargeted onto our rigs, Michael downloads Mixamo files), bible 5.9 C3-C4, bible 5.12,
-  level-design 11.8-11.9 and 12.
+  (players get motion capture; narrowed by Michael's ~00:25 toggle: hand-made stays the default, CMU and Mixamo are
+  picked by a global setting), G406 / G407 (Mixamo and other free commercial-use captures, retargeted onto our rigs,
+  Michael downloads Mixamo files), bible 5.9 C3-C4, bible 5.12, level-design 11.8-11.9 and 12.
 - `docs/design/scale-sheet.md` and `docs/level-design.md` are Marlow Build's and change only with Michael's approval:
   the rope descent line follows G293 (approved), the human-ladder reach lines follow G57 (approved) as a 12.1 engine-fact
   change; Marlow Build reviews both in the PRs that ship the code (PLAN slices A1, B1).
 - Areas touched and their unwalked count: Player / animation 2 (optic cable partner view, client body carry). The
   AF0-AF6 walk was dropped at ~22:25 2026-10-25 (ROADMAP Decided "Walk plan": Mixamo replaces those moves); the
-  "Waiting on Michael" row still reads 3 until the orchestrator updates it. Michael's ~00:15 2026-10-26 Mixamo switch-on
-  sits outside the cap and covers the Mixamo job's clips, not these moves. Everything here ships dark; switch-on waits
-  for Michael's walk (G288, G355).
+  "Waiting on Michael" row still reads 3 until the orchestrator updates it. The ~00:25 2026-10-26 Animation source
+  toggle picks which clips play; it switches none of these moves on. Everything here ships dark; switch-on waits for
+  Michael's walk (G288, G355).
 
 ## Answers (M) and assumptions (A)
 - M1 2026-10-25 ~18:05: the five proposed kit moves join the kit (Michael picked, above).
@@ -92,14 +94,17 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
   ~18:25 2026-10-25 (`docs/orchestrator/resume-ct-core.md` J24 row on origin/feature/menu; Campaign's
   `docs/missions/STATE.md` item 7): Campaign Build does the fold in its kit registry PR, which merges over part 1; the
   two ids stay Campaign's to switch on. Undo: one boolean flag per move, `coopKit` restored.
-- A9: Animation is mocap first (G399, G406, bible 5.12, Mixamo top priority ~22:42): each animation slice picks a
-  Mixamo or CMU capture per role (`docs/coop-kit/CLIP-LIST.md`), converts and retargets it with the mixamo-retarget
-  pipeline on master (`scripts/mocap/mixamo*.mjs`, `scripts/mocap/data/mixamo-clips.json`, `src/anim/clips/mixamo/`),
-  and plays it only where it measures at least as well as the hand-made pose (mixamo-retarget BRIEF A8). Roles no clip
-  fits are hand-keyed from the real-world technique of trained operators (G210), researched with sources in the slice
-  report (G243 style), and the gap is named there. Timings never under bible 5.12.2 minimums; each move gets tuner rows
-  (`src/anim/moveTune.ts`) so Michael can tune it. No CT footage is traced. Undo: drop a capture's row; the hand-made
-  pose plays.
+- A9: Every role has three sources (G399, G406, bible 5.12, Mixamo top priority ~22:42, the toggle ~00:25): a
+  hand-made pose (the default, from the real-world technique of trained operators, G210, researched with sources in
+  the slice report, G243 style), plus a CMU and a Mixamo capture wherever one exists (`docs/coop-kit/CLIP-LIST.md`),
+  converted and retargeted with the Player-owned mixamo-retarget pipeline (`scripts/mocap/mixamo*.mjs`,
+  `scripts/mocap/data/mixamo-clips.json`, `src/anim/clips/mixamo/`). Which plays comes only from the global setting
+  "Animation source: Hand-made / CMU / Mixamo" (`src/anim/animSource.ts`, being built on feature/mixamo-on), never a
+  per-role constant; Mixamo clips register through `addMixamoResolver` / `MIXAMO_ON` rows (`src/anim/mixamo.ts`), CMU
+  through the mocap switch. The mixamo-retarget A8 measure is a quality bar recorded in the report, not the switch (a
+  Mixamo row is on unless visibly broken). Timings never under bible 5.12.2 minimums; each move gets tuner rows
+  (`src/anim/moveTune.ts`) so Michael can tune it. No CT footage is traced. Undo: drop a capture's rows; hand-made
+  plays under every setting.
 - A10: The stand's wire: one new `tmove` / `tstart` kind `stand`; MoveState reuses the existing `stacked` mode (sub 1 =
   rider on top, sub 2 = base; `src/player/moveState.ts:46-50`, `:456-458`), so remotes pose from MoveState and the train
   bumps `PROTOCOL_VERSION`. Undo: revert B1's protocol lines.
@@ -115,9 +120,10 @@ players' poses exact on both screens (Q39) and a look video, and switches on whe
 - A14: The clip request is sent, not held for a day question. The lead sends `docs/coop-kit/CLIP-LIST.md` (the Mixamo
   titles per role, the 21 files already in `C:/NightShift/scratch/mixamo/clips/` reused first) to the orchestrator once
   the PLAN passes; the orchestrator gets the downloads to Michael (G406: he downloads Mixamo files himself, Adobe
-  sign-in). Slices never wait for them: they use the folder as it is when they start and hand-key the rest with the gap
-  noted. CMU takes are fetched without asking (G268). Undo: withdraw the list; every role uses the 21 files or is
-  hand-keyed.
+  sign-in). Every role is hand-made regardless (the default source); the downloads add the Mixamo option under the
+  Animation source setting. Slices never wait for them: they use the folder as it is when they start and note each
+  missing clip. CMU takes are fetched without asking (G268). Undo: withdraw the list; roles get Mixamo only from the 21
+  files.
 
 ## Questions for Michael (one click each, asked by day)
 - The clip request (A14): the orchestrator sends Michael `docs/coop-kit/CLIP-LIST.md` to download (G406). No other

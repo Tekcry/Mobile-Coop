@@ -10,7 +10,8 @@ Owner: Night Shift | Player Build. Status: current (job doc).
   `test "$(git rev-parse --abbrev-ref HEAD)" = feature/coop-kit`.
 - 2026-10-25 ~18:40: BRIEF + PLAN written by the Opus planner. No code yet.
 - 2026-10-26: plan check 1 FIX applied (mocap first + `CLIP-LIST.md` / BRIEF A14, A1 ctcourse, Mixamo file clash, flag
-  fold, part 2 checker, Guard AI notice hook); next: a fresh Opus plan checker on the new head.
+  fold, part 2 checker, Guard AI notice hook); then Michael's ~00:25 toggle (hand-made default, CMU / Mixamo by the
+  Animation source setting) and the shared Mixamo pipeline files; next: a fresh Opus plan checker on the new head.
 - Gates: a fresh Opus plan checker (`docs/templates/plan-check.md`; `node scripts/claims-check.mjs --plan
   docs/coop-kit/PLAN.md --name feature/coop-kit`) -> PLAN-CHECK.md PASS; the orchestrator orders part 1 against
   Campaign's mission-engine kit branch (PLAN "Claims", shared files).

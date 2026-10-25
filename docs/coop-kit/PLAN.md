@@ -87,9 +87,10 @@ kit registry is on master (A11). All file:line pointers are origin/master 2148ec
   The host's rule and each page's offers and prompts read it. Tests set it in `beforeAll` and restore it. It is the
   one kit flag: Campaign's `coopKit` (`?coopkit=1`) folds into it as ids `pull` and `shutter` (orchestrator ~18:25
   2026-10-25; Campaign Build does the fold in its kit registry PR, BRIEF A8).
-- Animation (A9, every animation slice: A2, B2, A3's side step, K1-K5b; Opus). **Mocap first** (G399 "mocap only",
-  G406, bible 5.12, ROADMAP Decided ~22:42 2026-10-25 "Mixamo is the top priority"; BRIEF A14):
-  1. Pick the capture per role from `docs/coop-kit/CLIP-LIST.md`: the Mixamo files already in
+- Animation (A9, every animation slice: A2, B2, A3's side step, K1-K5b; Opus). **Three sources per role** (G399, G406,
+  bible 5.12, ROADMAP Decided ~22:42 2026-10-25 "Mixamo is the top priority" and ~00:25 2026-10-26 "dont set mixamo
+  moves as default in game, allow toggle between hand made, cmu, and mixamo"; BRIEF A9, A14):
+  1. Find the captures per role from `docs/coop-kit/CLIP-LIST.md`: the Mixamo files already in
      `C:/NightShift/scratch/mixamo/clips/` first, then the clips Michael downloads from that list (G406), then CMU takes
      (G268, no asking per download; `docs/mocap-trial/SOURCES.md` for the URL pattern and licence line).
   2. Convert and retarget with the mixamo-retarget pipeline on master: `node scripts/mocap/mixamo.mjs` (headless Blender
@@ -99,19 +100,21 @@ kit registry is on master (A11). All file:line pointers are origin/master 2148ec
      (new files only; the 21 existing clips must regenerate byte-identical), the generated `CLIPS.md` and
      `src/anim/mocapSources.ts` blocks, a credit row in `docs/art-credits.md`. CMU takes go through
      `scripts/mocap/retarget.mjs` as the mocap-trial clips did.
-  3. The A8 rule (`docs/mixamo-retarget/BRIEF.md` A8; readings table as `I1-REPORT.md` on origin/feature/mixamo-i3): a
-     capture plays for a role only when it measures at least as well as the hand-made pose on the same audit (foot
-     slide, continuity, clipping, range of motion, and here the paired contact within 3 cm); else the hand-made pose
-     plays and the capture stays in the Studio. A role with no hand-made pose yet (every new role here) measures the
-     capture against the bible 5.12.2 limits and the 3 cm bar first: a pass means that role is not hand-keyed at all.
-     The choice is a per-role constant in the slice's own pose file (`team.ts` part 1, `src/anim/clips/kit/<move>.ts`
-     part 2), not in the Mixamo job's `src/anim/mixamo.ts`.
-  4. Hand-key only the roles no clip fits (a capture's root path or contact points are placed on the move's path and
-     the partner's link by the slice; the capture supplies the body). Each slice report lists every role as
-     "capture <slug>, A8 pass", "capture <slug>, A8 fail -> hand-made" or "hand-keyed: no clip fits (<searched titles>)".
+  3. Every role gets a hand-made pose: it is the default and what plays when the chosen source has no clip. A CMU and
+     a Mixamo clip are added wherever one exists. Which one plays comes only from the global setting "Animation
+     source: Hand-made / CMU / Mixamo" (`src/anim/animSource.ts`, being built on origin/feature/mixamo-on; default =
+     today's game), never from a per-role constant: Mixamo clips register through `addMixamoResolver` and a
+     `MIXAMO_ON` row per clip in `src/anim/mixamo.ts`, CMU clips through the mocap switch (`src/anim/mocap.ts`).
+     The A8 measure (`docs/mixamo-retarget/BRIEF.md` A8; readings table as `I1-REPORT.md` on
+     origin/feature/mixamo-i3: foot slide, continuity, clipping, range of motion, and here the paired contact within
+     3 cm) is a quality bar recorded in the report, not the switch: a Mixamo row is on unless the capture is visibly
+     broken.
+  4. A capture's root path and contact points are placed on the move's path and the partner's link by the slice; the
+     capture supplies the body. Each slice report lists every role as "hand-made + CMU <take> + Mixamo <slug>" with
+     the A8 readings, or names the missing source with the titles searched.
   A slice never waits on a download: it uses what is in the folder when it starts and notes the missing clips as gaps;
-  a later download gets its swap in the move's next animation PR. Real-world technique still guides the hand-keyed
-  roles and the placement of the captures, with sources in the slice report: descent = the holder's braced body belay
+  a later download adds its row in the move's next animation PR. Real-world technique guides the hand-made poses and
+  the placement of the captures, with sources in the slice report: descent = the holder's braced body belay
   (hips low, rope round the back, brake hand at the hip) and the descender going over on the knees then the belly, feet
   on the wall, hand under hand down with the body leaning out; stand = the base facing the wall, feet apart, knees
   bent, back straight, hands then round the rider's shins as it rises with the legs; the rider steps thigh ->
@@ -141,9 +144,11 @@ files:
   - src/anim/clips/kit/*.ts
   - src/anim/moveTune.ts
   - src/anim/studioPairs.ts
-  - src/anim/clips/mixamo/*.ts  # new slugs only (mocap first); the 21 existing regenerate byte-identical
-  - src/anim/mocapSources.ts  # generated block rows
-  - scripts/mocap/data/mixamo-clips.json  # new recipe rows
+  - src/anim/clips/mixamo/*.ts  # SHARED (Marlow feature/mixamo-kit, mixamo-retarget): new slugs only
+  - src/anim/mocapSources.ts  # SHARED: append-only generated rows
+  - src/anim/mixamo.ts  # SHARED: append-only MIXAMO_ON rows and addMixamoResolver registrations
+  - src/anim/mocap.ts  # SHARED: CMU rows for the mocap switch, append-only
+  - scripts/mocap/data/mixamo-clips.json  # SHARED: append-only recipe rows
   - src/game/studioStage.ts  # B2 only, after the Mixamo I-slices land
   - src/player/playerController.ts  # K2 (landing bands)
   - src/world/maps/bunkerShaft.ts
@@ -160,7 +165,7 @@ files:
   - docs/design/scale-sheet.md
   - docs/level-design.md
   - docs/systems/coop.md
-  - docs/mixamo-retarget/CLIPS.md  # generated rows
+  - docs/mixamo-retarget/CLIPS.md  # SHARED: append-only generated rows
   - docs/art-credits.md  # credit rows
   - docs/coop-kit/**
 maps: none
@@ -181,10 +186,14 @@ Shared with other open work (the orchestrator orders; recommendation below):
   `mixamo` flag). `flags.ts`: A1 adds `kitMoves` on its own lines (trivial merge, whichever lands second).
   `studioStage.ts`: only B2 touches it, and B2 is cut after the Mixamo I-slices are on master (Order below), so it
   never conflicts with them.
-  The mocap-first step adds rows to the Mixamo pipeline's own data (`scripts/mocap/data/mixamo-clips.json`,
-  `src/anim/mocapSources.ts` generated block, `docs/mixamo-retarget/CLIPS.md`, `docs/art-credits.md`) and new files in
-  `src/anim/clips/mixamo/`; the open Mixamo branches do not edit those four files (diff against master, 2026-10-26), and
-  no slice here edits `src/anim/mixamo.ts` (new on the Mixamo branches).
+- **Mixamo pipeline files, SHARED.** `scripts/mocap/data/mixamo-clips.json`, `src/anim/clips/mixamo/*`,
+  `src/anim/mocapSources.ts`, `src/anim/mixamo.ts`, `src/anim/mocap.ts` and `docs/mixamo-retarget/CLIPS.md` are shared
+  with Marlow Build's feature/mixamo-kit (the Mixamo wiring of the existing mission-engine kit moves only: crawlUnder,
+  shutter, team pull) and the mixamo-retarget branches (origin/feature/mixamo-i2b, -i4, -i5, -on). This job's own moves
+  (rope descent, shoulder stand, K1-K5) and their Mixamo / CMU clips stay Player Build's, through the Player-owned
+  pipeline. Our edits there are append-only rows (new recipes, new clip files, new `MIXAMO_ON` / resolver rows, new
+  generated rows) and are serialised after those branches land: an animation slice is cut from a master that has
+  them, or rebases its rows onto them before its PR.
 - Marlow's route-runs (origin/feature/route-runs-2, R8) claims `docs/level-design.md` sections 14-15; B1 edits only 12.1,
   12.2, 12.3 and open item 1 (claims-check overlap on the file, not the lines).
 - Changelog fragments `changes/feature-coop-kit-<slice>.md` are per-slice shared files (not claimed).
@@ -217,11 +226,11 @@ sheet line 57 "climb up or rappel down" (reviewer Marlow Build, G293), the rope 
   without it nothing changes (the climb from the foot, e2e-ctcourse A6's rescue line, unchanged).
 - Flag: `kitMoves` id `descent`. Depends on: nothing.
 
-**A2 Rope descent, animation and the remote view (Opus).** Mocap first, then research for what no clip covers (Design
+**A2 Rope descent, animation and the remote view (Opus).** Hand-made, CMU and Mixamo per role, research for the hand-made (Design
 "Animation" steps 1-4; `docs/coop-kit/CLIP-LIST.md` rows R1-R4). Captures to try: the descender's over-the-edge from
 `braced_hang_to_crouch` played backwards (on master) or a downloaded drop-to-hang / climb-down clip, the descent from a
 rope or ladder climb played backwards (`trav_climbing_ladder` on master as the fallback), the holder's belay from a
-rope-pull / tug clip; hand-keyed where none passes A8. Poses: the descender's `ropeOver`
+rope-pull / tug clip; every role also hand-made (the default source). Poses: the descender's `ropeOver`
 (kneel at the edge facing in, legs over, belly over, hands on the lip, onto the rope) and the descent on the rope (feet
 on the wall, hand under hand, leaning out), the holder's `ropeB` load and pay-out for a descent. Remote: `boost` + sub 4
 with `s` 1 above the rope's top poses `ropeOver` (a `ropeSeenStep`-style eased step, kept in `team.ts`, not
@@ -234,8 +243,8 @@ section). A studio pair loop for the look video.
   clip files counted apart).
 - Checks: vitest on those files plus `tests/mixamoEmit.test.ts`; `node scripts/anim-audit.mjs` on the descent states;
   laptop: co-op group (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`), `e2e-anim`, `e2e-studio`, `e2e-clip`; look video.
-- Done looks like: each role's source in the report (capture with its A8 readings, or hand-keyed with the titles
-  searched); hands on the rope and lip within 1 cm, the pair within 3 cm at contact on both pages, no pop over the
+- Done looks like: each role plays from all three settings of the Animation source (hand-made, plus CMU / Mixamo where
+  a clip exists; the report lists each with its A8 readings or the titles searched); hands on the rope and lip within 1 cm, the pair within 3 cm at contact on both pages, no pop over the
   edge (velocity change per frame under 0.5 cm as the top-out), the video shows both roles from both pages.
 - Flag: `descent` (no new id). Depends on: A1 (cut from A1's head).
 
@@ -266,12 +275,12 @@ bunker W2 4.25, `bunkerShaft.ts:80`); `docs/systems/coop.md`.
 - Flag: `stand`. Depends on: A1 (shared `teamMoves.ts`, `teamController.ts`, `flags.ts`; cut from A1's head). Runs in
   parallel with A2 (no shared file).
 
-**B2 Shoulder stand, animation (Opus).** Mocap first, then research for what no clip covers (Design "Animation" steps
+**B2 Shoulder stand, animation (Opus).** Hand-made, CMU and Mixamo per role, research for the hand-made (Design "Animation" steps
 1-4; `docs/coop-kit/CLIP-LIST.md` rows S1-S5). Captures to try: the base's crouch and rise from `crouch_to_stand` /
 `stand_to_crouch` and the press from `lifting_heavy_object` (on master); the rider's step up from a downloaded wall-climb
 / step-up clip or `trav_climbing_ladder`, the balance and aim on top from `standing_idle` with the hands freed, the lip
 take from `pulling_up_to_a_ledge`, the step-down from a downloaded jump-down clip; a downloaded two-person boost clip
-for both roles if one exists; hand-keyed where none passes A8. `stand` in `TeamPoseMove`; base poses (offer at the wall,
+for both roles if one exists; every role also hand-made (the default source). `stand` in `TeamPoseMove`; base poses (offer at the wall,
 take the step, rise with the legs, hold the shins, the press, the step-down) and rider poses (step thigh -> shoulders,
 balance on top, aim stance on the shoulders, the press and the lip take, the step-down); `stacked` sub 1 / 2 in
 `poseFromMoveState` (`moveState.ts:456-458`) and `teamPoseOfWire`; remote rider placed on the base's shoulders from
@@ -288,8 +297,8 @@ has none).
   existing wall or a test-only wall in `studioPairs.ts`) and leaves `studioStage.ts` alone; the station follows in a small
   PR after they land.
 
-**A3 Holder steers the rope (Opus, S).** The design above (A7). The holder's side step mocap first (CLIP-LIST row R5: a
-side-step clip under the belay capture A2 chose; hand-keyed if none passes A8). Files: `src/game/teamMoves.ts`,
+**A3 Holder steers the rope (Opus, S).** The design above (A7). The holder's side step hand-made, plus captures (CLIP-LIST row R5: a
+side-step clip under the belay capture A2 added, beside the hand-made side step). Files: `src/game/teamMoves.ts`,
 `src/game/teamController.ts`, `src/anim/clips/team.ts` (the holder's side step), `tests/ropeDescent.test.ts`,
 `scripts/e2e-netmove.mjs`, `changes/feature-coop-kit-a3.md`; mocap step as A2 if a clip is used. Est. 450. Checks:
 vitest; co-op group (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`); look video (short). Flag: `ropeSteer`. Depends on: B1
@@ -305,10 +314,11 @@ Gate: Campaign's mission-engine kit (KIT0 registry `src/game/kit/registry.ts`, N
 `TEAM_KINDS`, `KIT_POSE_IDS` in `team.ts`) is on master; part 1 is merged. Then each move is one Opus slice (Plank
 Bridge two) in its own new files: `src/game/kit/<move>.ts` (rule, timing, device), `src/anim/clips/kit/<move>.ts`
 (both roles' poses, the SIGNOFF clips), `tests/kit/<move>.test.ts`; one look video each; two Opus checkers (wire
-kinds); co-op group (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`) + `e2e-anim` + `e2e-studio`. Every K slice's poses are
-mocap first (Design "Animation" steps 1-4; CLIP-LIST rows K1-K5): the capture per role from the folder, then
-Michael's downloads, then CMU; hand-keyed only where no clip passes A8, each gap named in the slice report; the
-mocap step's files as A2 (new slugs only). A detailed PART-2 section (file:line on that master) is written when the
+kinds); co-op group (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`) + `e2e-anim` + `e2e-studio`. Every K slice gives
+each role three sources (Design "Animation" steps 1-4; CLIP-LIST rows K1-K5): the hand-made pose (default), plus a
+CMU and a Mixamo clip wherever one exists (folder files, then Michael's downloads, then CMU takes), picked by the
+global Animation source setting; each missing source named in the slice report; the mocap step's files as A2 (new
+slugs only, append-only rows in the shared Mixamo pipeline files). A detailed PART-2 section (file:line on that master) is written when the
 gate opens, and it gets a fresh Opus plan checker (RULES "Intake" 4) before K0 starts.
 
 **K0 Kit ids (Sonnet, strict brief).** All five kinds in `KitKind` / `KIT_KINDS` / `KIT_SUB` (64 deadweight, 128
@@ -369,10 +379,11 @@ only; building goes on dark.
 - Look video tooling is not on master (R31 is J19's): A2 / B2 record with Playwright-core on the laptop GPU queue if J19's
   recorder has not landed.
 - Scale sheet line 56 calls the relay's feet height a lip height (A5): reported to Marlow Build.
-- Mocap gaps: Chimney Pair's back-to-back brace and Swing Pass's pendulum ride are unlikely to have a stock clip; their
-  slices expect to hand-key and say so in the report. Captures whose legs come from the planner IK (keyed kinds, see
+- Mocap gaps: Chimney Pair's back-to-back brace and Swing Pass's pendulum ride are unlikely to have a stock clip; those
+  roles may ship hand-made only, and the report says so. Captures whose legs come from the planner IK (keyed kinds, see
   the `limits` notes in `mixamo-clips.json`) may need a channel kind for kneeling or hanging roles.
-- Michael's ~00:15 2026-10-26 instruction (ROADMAP Decided: every Mixamo clip with an in-game use goes in and is
-  switched on) covers the Mixamo job's `mixamo` flag; these moves stay dark behind `kitMoves` until his walk (BRIEF A8).
+- Michael's ~00:25 2026-10-26 instruction (ROADMAP Decided: Mixamo is a toggle, not the default; it replaces the
+  "switched ON" part of ~00:15) sets which source plays; it does not switch the moves on: they stay dark behind
+  `kitMoves` until his walk (BRIEF A8).
 - Settled with the orchestrator (~18:25 2026-10-25): Campaign folds `coopKit` into `kitMoves` (A8); Campaign fixes
   mission-engine PLAN row 106 (A1).
