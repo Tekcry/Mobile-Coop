@@ -300,7 +300,7 @@ State at the ~90% save (~13:55):
 - Walk 4.72 (Michael, docs/orchestrator/WALK-4.72-REPORT.md on feature/menu, "Sector Ops Build"): S2 co-op client lamp shots
   do nothing on either screen + S3 client unbolt untested -> Opus fix on feature/sector-redesign-walk (worktree -walk,
   checks/walk-472-fix.md, e2e legs + GPU). S1 lamp output too low -> Opus measure + one engine proposal on
-  feature/sector-redesign-lightrev (docs/archive/lighting-review/PROPOSAL.md "Walk 4.72 S1", checks/light-measure.md): Michael decides.
+  feature/sector-redesign-lightrev (docs/lighting-review/PROPOSAL.md "Walk 4.72 S1", checks/light-measure.md): Michael decides.
 - Guard AI builds S16 (no firing into armour) once E10 is on master. Polish: hostCrackOk floor gap (doorPeek.ts:146).
 Rules: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
 Sonnet builds from strict briefs; one fix round per slice; parallel lanes up to desktop CPU ~80%; never two agents on the
