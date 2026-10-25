@@ -317,7 +317,7 @@ export function checkStructure(graph) {
     else if (!sections.has(s.section)) c.err(`${name}: section '${s.section}' is not in meta.sections`);
     if (!SPACE_TYPES.has(s?.type)) c.err(`${name}: type '${s?.type}' unknown`);
     if (typeof s?.room_class !== 'string' || !s.room_class) c.err(`${name}: room_class missing`);
-    if (typeof s?.function !== 'string' || !s.function.trim()) c.err(`${name}: function missing (level-design 16.0 reason test)`);
+    if (typeof s?.function !== 'string' || !s.function.trim()) c.err(`${name}: function missing (level-design 2.2 reason test)`);
     if (typeof s?.storey !== 'number' || !Number.isFinite(s.storey)) c.err(`${name}: storey missing (floor height in m)`);
     if (!Array.isArray(s?.size) || s.size.length !== 3 || !s.size.every((v) => typeof v === 'number' && v > 0)) {
       c.err(`${name}: size must be [w, l, h] in metres`);

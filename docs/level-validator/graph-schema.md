@@ -8,9 +8,9 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 - Worked example: `docs/level-validator/example.graph.json` (two campaign sections, each with a forced co-op gate, one
   spine link, one split with an overwatch and an assist; V1's CLI smoke fixture, 0 errors).
 - Rules: `docs/level-design.md` (its rule index names the check for each rule; the job's history is in
-  `docs/archive/level-validator/`); numbers: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` sections 1, 3, 7
-  (room sizes by type) and 8 (validator numbers). No number in this doc or in the validator is a source of truth: the
-  sheet is.
+  `docs/archive/level-validator/`); numbers: `docs/design/metrics.json`, generated from
+  `docs/design/scale-sheet.md` sections 1, 3, 7 (room sizes by type) and 8 (validator numbers). No number in this
+  doc or in the validator is a source of truth: the sheet is.
 - Severity: **ERR** = validator ERROR (exit 1); **WARN** = justify in the design doc; **INFO** = printed, no exit code.
   This doc owns the severities.
 - Michael's reference skill (`docs/level-validator/source/`) uses a different schema; where the two differ, this one
@@ -65,7 +65,7 @@ surface above a floor (a gantry, a roof walk, a cable basket run, a ledge run) t
 | `section` | string | yes (M3) | One of `meta.sections` | checkSpine, checkRedundancy (ERR missing or unknown) |
 | `type` | enum | yes | `encounter`, `connector`, `hub`, `safe_room`, `objective`, `reward`, `exterior`, `utility`, `stair_core`, `duct` | which checks apply (encounter rules only on `encounter`) |
 | `room_class` | string | yes | A class key of scale-sheet section 7 (`lobby`, `corridor`, `yard`, ...) or `custom` | checkDimensions: ERR below the class min w / l; WARN above max; ERR an encounter space of a `no` class, or of a `conditional` class under the 6.0 camera floor; `custom` = WARN (reason in the design doc) |
-| `function` | string | yes | One line: what the space is for, who uses it (level-design 16.0 reason test) | ERR empty or missing |
+| `function` | string | yes | One line: what the space is for, who uses it (level-design 2.2 reason test) | ERR empty or missing |
 | `storey` | number | yes | Floor (walking) height in metres: G 0, campus S2 L1 4.4, a gantry 4.5 | level changes, reading the plan |
 | `size` | [w, l, h] | yes | Metres; w = short side, l = long side, h = clear height above the floor (ceiling, slab underside or the next obstruction; open sky: the height you could stand up to, 12.0 if nothing) | ERR h < 2.4; WARN h < 3.0 in rooms and corridors; class ceiling range (WARN outside; an `open` class skips it); 0.5 grid (WARN off-grid); camera floors via the class (encounter w >= 6.0, walk-through w >= 3.5, corridor 3.0-4.0, target 3.5-4.0) |
 | `tension` | int 1-5 | yes | Beat chart intensity (level-design 6.2, 13) | checkPacing: ERR three spaces >= 4 in a row on the spine; WARN the map opens above 2; WARN no 1-2 after a peak |
@@ -166,8 +166,8 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 - **Reach (checkReach).** Every space, every `objective` and `exfil` is reachable from `start` over all links (ERR).
   Then per mode (level-design 11.6): `sector`, no softlock: every space a co-op link reaches is also reachable without
   co-op links (ERR; a `bolted` door opens for one player only from its `to` side), so a downed or solo player is
-  never stranded (G280). `campaign`, gate reach: every co-op link has
-  a way back from its `to` to its `from` over solo links (a passed `pair_gate` or `shutter` and an unbolted door count) within `reach_max_s` at
+  never stranded (G280). `campaign`, gate reach: every co-op link has a way back from its `to` to its `from` over
+  solo links (a passed `pair_gate` or `shutter` and an unbolted door count) within `reach_max_s` at
   `reach_speed_mps` (`time_s`, else `length` / speed) (ERR none or too slow; WARN when only links with no `time_s` make
   it). `training`: neither. Solo completability is not checked (A1; G2, G50).
 - **Forced co-op gate (checkRedundancy, `campaign`).** In each section, the solo links inside it (no co-op kind, no
@@ -198,12 +198,13 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
   longer than its `length` (a longer solo route, or one on another route kind, is the no-softlock alternative; a direct
   solo link with no `length`, or beside a co-op link with none, counts). The move runs `from` -> `to` (a climb's foot
-  to its top); a two-way `pair_gate` or `shutter` is judged both ways; a `bolted` link twins only from its `to` end. ERR on a `campaign` map (two players only, G2); WARN on
-  Sector Ops (G185: solo completes; G280: team doors stay two-player) and on `training`. The message names both links
-  (campus CR7: the `team_rope` beside the `drop`).
+  to its top); a two-way `pair_gate` or `shutter` is judged both ways; a `bolted` link twins only from its `to`
+  end. ERR on a `campaign` map (two players only, G2); WARN on Sector Ops (G185: solo completes; G280: team doors
+  stay two-player) and on `training`. The message names both links (campus CR7: the `team_rope` beside the `drop`).
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.
 - **Dimensions (checkDimensions).** Every `size`, `width`, `height`, `length` on the 0.5 m grid (WARN); class and kind
-  rules above; ERR any `level_change` over 0.40 up to 0.45 (the step band: player 0.42 vs nav 0.45 disagree; a 0.40 curb passes).
+  rules above, the co-op kit bands included (scale-sheet section 3); ERR any `level_change` over 0.40 up to 0.45 (the
+  step band: player 0.42 vs nav 0.45 disagree; a 0.40 curb passes).
 - **Guard counts.** Per encounter space and player count: WARN below the early / late band (`training`: INFO), no upper
   limit (Michael 2026-10-24: as many as realistically possible, bounded by the guard-cap perf floor). `sector` and
   `campaign` (the campaign runs on the Sector Ops runtime): per section and player count, the spaces' counts sum to at
@@ -216,9 +217,9 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 ## Estimating the targets before geometry (M4, A8)
 
 The graph is written before any geometry, so `sees_pct` and `los_break_s` (and the optional `shadow_pct`) are the
-designer's declared targets, not measurements. Write the number you are designing for, and say in the design doc how the layout delivers
-it. V6 (greybox measurement) later samples the light bake, the nav grid and nav-grid path times, writes `measured`
-beside each target, and the map fails if a measurement misses its target.
+designer's declared targets, not measurements. Write the number you are designing for, and say in the design doc how
+the layout delivers it. V6 (greybox measurement, not live yet) will sample the light bake, the nav grid and nav-grid
+path times, write `measured` beside each target, and fail the map if a measurement misses its target.
 
 - **`shadow_pct`.** Sketch the lit pools: each working fixture lights roughly a circle of radius 1.5 x its mount height;
   sum the lit area over the floor area (`w x l`), shadow = 1 - lit. Information only (INFO): the light target is the

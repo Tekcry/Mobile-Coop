@@ -14,5 +14,6 @@ The first run covered all five sections S1-S5.
   `note`.
 - **Dogs count as guards** (SPEC "Dogs count"). The graphs still list `players: [2]` with one key `"2"`; Sector Ops
   now scales guards by player count (1-4, "Keep scaling", 2026-10-25), so the Sector Ops job adds the other keys.
-- **Cameras, lasers, keypads, alarm panels, light circuits** are not in the graph (design doc / security register);
-  an `assist` may name one in its `reason`.
+- **Cameras, lasers, keypads, alarm panels, light circuits** are not in the graph. Devices go in the map's security
+  register (`docs/level-design.md` section 13: one row per device, what it protects and why a real site has it there,
+  rule 4.11); circuits go in its light plan. An `assist` may name one in its `reason`.

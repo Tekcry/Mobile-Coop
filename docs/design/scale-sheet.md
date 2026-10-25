@@ -190,8 +190,8 @@ the fallback for the campaign or Sector Ops.
 
 ## 10. Patrol timing
 
-Added 2026-10-25 (moved from level-design 4.3). Design-doc checks on the guard sheets and the e2e patrol test (level-design
-15); `scripts/metrics-gen.mjs` does not read this section. Starting values (G10).
+Added 2026-10-25 (moved from level-design 4.3). Design-doc checks on the guard sheets and the e2e patrol test
+(level-design 15); `scripts/metrics-gen.mjs` does not read this section. Starting values (G10).
 
 | Thing | Value |
 | --- | --- |
