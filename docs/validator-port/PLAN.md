@@ -64,7 +64,10 @@ lists every file the slice may touch; no two slices running at once own the same
 
 The docs slices are one at a time on `graph-schema.md`, `level-design.md` and `testing-tools.md`, in the order D-A,
 D-B, D-C, D-D, each from the previous one's head (D-A and D-B touch different files, so they may overlap). Code slices
-write their schema text into `docs/validator-port/fragments/<slice>.md`; the docs slice folds it.
+write their schema text into `docs/validator-port/fragments/<slice>.md`; the docs slice folds it. D-A also writes the
+A25 kinds into graph-schema "Link kinds" and the level-design 11.9 graph-kind list (master `docs/level-design.md:306-313`;
+its "a `bolted` door (unlocked from the far side after a vent or a throw)" becomes `vent_unlock` for the vent, `bolted`
+staying for the throw), cited to ROADMAP Decided ~18:05 and Q25.
 
 ## 3. Slice detail ("done looks like")
 
@@ -73,8 +76,12 @@ write their schema text into `docs/validator-port/fragments/<slice>.md`; the doc
 `fmt`, `linkName`, the kind sets, `SPLIT_TAG`, `OVERWATCH_TAG`) to `scripts/level-graph-lib.mjs`; `level-validate.mjs`
 imports and re-exports every name it exports today (tests unchanged). Add `PROFILES` (campaign / sector / training)
 and read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59-61`, `:66`, `:291-293`,
-`:313-316`, `:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns co-op coverage off and solo twins to INFO (A7, Q29; master
-`:883-899`, `:913`). `linkTime` reads `measured.path_m` / speed first (A6). `mergeGraphs` concatenates `objectives`,
+`:313-316`, `:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns co-op coverage
+off, solo twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six new kinds of
+A25 join the kind sets (master `:29-55`: `LINK_KINDS`, `COOP_KINDS`, `TWO_WAY_GATES`, `ONE_WAY_KINDS`, the `NEEDS_*`
+sets as their stand-ins), `soloArcsOf` (`:225-227`) treats `vent_unlock` as a `bolted` link, and `checkDimensions`
+(its kit cases, `:459-475`) prints one INFO per new kind used ("no size band yet: move not built"; `vent_unlock` reads the door
+rows). `linkTime` reads `measured.path_m` / speed first (A6). `mergeGraphs` concatenates `objectives`,
 `rules`, `syncs` (`sync` read as `syncs`) and keeps `mission` / `tracks` (MV `scripts/level-validate.mjs` mergeGraphs,
 0c62a921). `validate(graph, { metrics, metricsPath, requireMeasured })` runs core, then `checkMeasured`, `checkTraining`,
 `checkPerfect`, `checkEngine` (stubs returning empty reports, signatures fixed here: `(graph, metrics, opts)`), then
@@ -83,7 +90,9 @@ it). `parseArgs` accepts `--require-measured` (V6 lines, master `:1190-1211`). P
 BRIEF's new schema so wave-2 checks do not break them: training fixtures get `meta.taught_by` and one `teach` element on
 their one route (A8); check every fixture and `example.graph.json` keeps a non-loud path from `start` to each objective
 and `exfil` (A10). `tests/levelProfiles.test.ts`: the PROFILES table per mode, the Q29 coverage skip, solo twin INFO on
-training, the flag parse, the mission-node merge. Done: `levelValidate` and `levelProfiles` green, campus and example
+training, the flag parse, the mission-node merge, and the A25 kinds (each counts as co-op coverage; `vent_unlock`
+solo only from its `to` end; `drop_catch` one-way unless `one_way: false`; the INFO band line; J14's A3 shape, a
+`duct` plus a `vent_unlock`, clears "section has no co-op link"). Done: `levelValidate` and `levelProfiles` green, campus and example
 counts unchanged except training coverage.
 
 **S1 (Opus).** Take `src/world/levelMeasure.ts` and `tests/levelMeasure.test.ts` whole from v6 8f551e18 (they carry the
@@ -247,6 +256,8 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   carry `area` (and `at` where a shared edge has 2+ gaps) and update `graph-sets.json` counts.
 - **Marlow J14:** the Marlow Yard re-plan rewrites `ctcourse.json` with its own `taught_by` / `teach` and fixes the map
   until the training profile passes; S9's REPORT maps each ERR to a J14 row. Q24 / Q29 checks are built here (A21).
+  Once PR A is on master, J14's graph swaps its stand-in kinds and `move` fields for the A25 kinds and its A3 `bolted`
+  door for a `vent_unlock` (its "section A3 has no co-op link" ERR then clears).
 - **Orchestrator J1 / J2:** J1 fixes LD 13's Marlow folder line; J2 gives Q24 / Q29 G numbers. D-A / D-C touch LD
   sections 11.9, the training profile, 14, 15 and the rule index only.
 

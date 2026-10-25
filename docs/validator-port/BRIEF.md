@@ -182,6 +182,22 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   become live with their commands; the rule index gains the new checks. Cited as ROADMAP Decided 2026-10-25 ~16:50 Q24
   / Q29 until J2 gives them G numbers. No other rule changes. Undo: revert the docs slice.
 
+- **A25 Six new co-op link kinds (lead decision 2026-10-25 ~20:30).** `LINK_KINDS` and `COOP_KINDS` gain
+  `vent_unlock` (Q25) and the five moves Michael added to the kit (ROADMAP Decided ~18:05: "Deadweight,Drop Catch,
+  Chimney Pair,Swing Pass", Plank Bridge "Add it"): `plank_bridge`, `deadweight`, `chimney_pair`, `swing_pass`,
+  `drop_catch`. J14's re-plan graph (origin/feature/marlow-replan `docs/marlow-replan/graph.json`) draws them today as
+  stand-ins with a `move` field (plank_bridge as `pair_gate`, deadweight as `shutter`, chimney_pair as `team_rope`,
+  swing_pass as `team_throw`, drop_catch as `drop`) and the vent unlock as a `bolted` door, which `COOP_KINDS` misses
+  (its `validate-run.txt`: "section A3 has no co-op link"). Per kind: each takes the needed fields of its stand-in
+  (`vent_unlock` those of `door`); `plank_bridge`, `deadweight` and `vent_unlock` stay open both ways once passed (as
+  `pair_gate` / `shutter`); `vent_unlock` is the door the crawler opens from its `to` side (the vent is its own `duct`
+  link), so a solo arc runs only from its `to` end, as a `bolted` link; `drop_catch` is one-way by default (as
+  `drop`); `chimney_pair` climbs both ways; `swing_pass` is one-way only when the graph says so (as `team_throw`). No
+  size band yet: none of the five moves is built (J14 BRIEF A3), so `checkDimensions` prints one INFO per new kind
+  used and checks nothing more (`vent_unlock` gets the door rows); each move's co-op job adds its scale-sheet section 3
+  row (Michael approves sheet changes) and its `checkDimensions` case when the move lands. A kind does not imply
+  `teach` (A8); the map still writes it. Undo: drop the six names from the sets (J14 keeps its stand-ins).
+
 ## Lead answers (Marlow Build, 2026-10-25 ~19:00)
 None of these loosens a Michael-only rule; each settles a reading of his words.
 - **L1 (A9): full campaign route rules.** Michael's words are "same design rules as a campaign mission area", so a late
