@@ -935,7 +935,8 @@ export class CourseState {
     return other ? otherShut : egress;
   }
 
-  /** Is the anchor locked (an anchorLock gate whose flag is not set)? */
+  /** Is the anchor locked (an anchorLock gate whose flag is not set; a `lockOn` one whose flag is set)? Host and client
+   *  both read it from the course flags (the client's mirror takes them from the wire). No allocation. */
   anchorLocked(anchorId: string): boolean {
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
@@ -1377,7 +1378,11 @@ export class CourseState {
 
   private gateOpen(g: GateRt): boolean {
     const d = g.def;
-    if (d.kind === 'flag' || d.kind === 'anchorLock') return this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
+    if (d.kind === 'flag' || d.kind === 'anchorLock') {
+      const set = this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
+      // (J14 R1) a lockOn anchorLock is open until its flag is set
+      return d.kind === 'anchorLock' && d.lockOn === true ? !set : set;
+    }
     return g.open;
   }
 
