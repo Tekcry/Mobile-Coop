@@ -104,14 +104,18 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -20, z: -35, yaw: PI, takedownSpot: [-20, -34.7], post: { leash: 5, guards: 'c1-door' }, role: 'posted', zone: 'c1', squad: 2, reason: 'Badge check at the only staff door' },
   // 6 the smoker: on his break in the smoking shelter, facing the car park
   { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, reason: 'On his break; he can see the car park from the shelter' },
-  // 7 the fence patrol: the west fence <-> the bin store mouth, 41 s; dark at the bin-store end; comes to the feeder board if it is cut
-  { kind: 'grunt', x: -38, z: -66, yaw: PI, route: [[-38, -66], [-34, -50]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-34, -50.6], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
-  // 8 the delivery sentry: a sweep at the dock door, +-60 degrees, 12 s each way
-  { kind: 'grunt', x: -34, z: -41.6, yaw: PI - 1.05, route: [[-34, -41.6], [-32, -41.6]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.2], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
+  // 7 (G4, D:245) the fence patrol: the west palisade <-> the bin corner, 4 s stops, 44.4 s; dark at the bin corner; comes to
+  // the feeder board if it is cut (his straight leg crosses the bin screen: his path goes round its open south side, R3)
+  { kind: 'grunt', x: -38, z: -64, yaw: 0, route: [[-38, -64], [-38, -46]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-38, -46], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
+  // 8 (G4, D:103, D:246) the delivery sentry: a sweep at the goods door, +-60 degrees, 12 s each way; his stops at z -42.1, clear
+  // of the door's swing (H10)
+  { kind: 'grunt', x: -34, z: -42.1, yaw: PI - 1.05, route: [[-34, -42.1], [-32, -42.1]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.7], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
   // 9 (G2, D:241) the night supervisor: the log desk (20 s), the door step facing the lane (5 s), a 30.8 s cycle
   { kind: 'officer', x: 15.2, z: -73.6, yaw: 0, route: [[15.2, -73.6], [17, -71.6]], waits: [20, 5], faces: [0, -PI / 2], takedownSpot: [17, -71.6], role: 'desk', zone: 'gatehouse', squad: 0, reason: 'Night supervisor: signs the log, checks the barrier for the 03:00 courier' },
   // (no #10) 11 (G3, D:244) the east-rows patrol: the aisle's east half, 4 s stops, a 42.2 s cycle; dark at the east end
   { kind: 'officer', x: -12, z: -66, yaw: PI / 2, route: [[-12, -66], [4, -66]], waits: [4, 4], takedownSpot: [4, -66], role: 'patrol', zone: 'carpark', squad: 1, reason: 'Walks the rows by the gate where the courier parks' },
+  // 12 (G4, D:247) the storeman: the goods door <-> the bin screen mouth, 6 s stops, 25.4 s; alone at the bin mouth
+  { kind: 'grunt', x: -31, z: -42.6, yaw: PI, route: [[-31, -42.6], [-34, -48.5]], waits: [6, 6], takedownSpot: [-34, -48.5], role: 'patrol', zone: 'dock', squad: 3, reason: 'Storeman: stages the cage trolley for the 03:00 courier' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */

@@ -152,11 +152,11 @@ export function dressS1(d: CampusDresser): void {
   CARS.forEach(([row, bay], k) => {
     d.skinHide(CAR_PIECES[k % CAR_PIECES.length]!, bx(bayX(bay), 0.75, ROW_Z[row]!), 0, { why: 'a parked staff car over its greybox box' });
   });
-  for (const [x, z] of [[-38.2, -48.2], [-36.6, -48.2], [-38.2, -46.2]] as const) d.skin('K:binLarge', bx(x, 0.6, z), 0, { why: 'the bin store wheelie bins' });
+  // (campus-greybox G4) the bin store is gone: the bins behind the yard's bin screen get no art (new greybox objects)
   d.skin('K:feederPillar', bx(-31.4, 0.75, -46.6), PI, { why: 'the feeder pillar, door face south where the breakers are' });
   for (const x of [-11, -7, -3]) d.skin('K:planterTrough', bx(x, 0.35, -35.6), 0, { why: 'a facade planter' });
   for (const [x, z] of [[22.5, -66], [24.5, -60]] as const) d.skinCyl('K:treeSkin', cy(x, z), { why: 'a verge tree over its trunk pillar' });
-  d.skin('H1:cageTrolley', bx(-30.5, 0.6, -44), 0, { why: 'the delivery yard cage trolley (cover)' });
+  d.skin('H1:cageTrolley', bx(-30.5, 0.6, -46), 0, { why: 'the delivery yard cage trolley (cover)' });
   lit(d.skin('H1:gateDesk', bx(18.8, 0.375, -73.0), PI, { why: 'the CCTV desk, operator side south, facing the north wall' }), S1_GROUPS.gate);
   d.skin('H1:pcDesk', bx(19.35, 0.375, -76), -PI / 2, { why: 'the PC desk by the rear window, operator side west' });
   d.skin('H1:teaPoint', bx(18.4, 0.45, -78.55), 0, { why: 'the gatehouse kettle counter, front north' });
