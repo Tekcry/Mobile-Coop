@@ -107,7 +107,7 @@ const PI = Math.PI;
 /** The four car colours, cycled over the 14 cars (artnext B1: perfa's merged casters key a car's paint by material, so four colours cost 35 of the 40 draws, not the 53 of art-join L4). */
 const CAR_PIECES = ['K:carSilver', 'K:carBlack', 'K:carBlue', 'K:carWhite'] as const;
 /** The 14 parked cars of `buildCampusS1`: bay centre x, row z (the greybox boxes are 1.8 x 1.5 x 4.2 at y 0.75). */
-const ROW_Z = [-73.75, -69.25, -58.75, -54.25] as const;
+const ROW_Z = [-75.75, -71.25, -60.75, -56.25] as const;
 const bayX = (i: number): number => -34.6 + 2.8 * i;
 const CARS: readonly (readonly [number, number])[] = [
   [0, 2], [0, 3], [0, 8], [0, 13],
@@ -129,7 +129,10 @@ export interface S1Omit {
  * refused, or if a listed one is not (a stale list). The test asserts `S1_REFUSED` equals this list.
  */
 export const S1_OMITTED: readonly S1Omit[] = [
-  { piece: 'K:bikeRack', x: -5, z: -46.8, rule: 'K6' },
+  // (campus-greybox G3) the stands moved with the shelter by (-2, -4): K6 still refuses the middle one; K4 now refuses the
+  // west one (x -10, by the shelter's north-west post and the bike switch)
+  { piece: 'K:bikeRack', x: -10, z: -50.8, rule: 'K4' },
+  { piece: 'K:bikeRack', x: -7, z: -50.8, rule: 'K6' },
   { piece: 'K:parkBench', x: 8, z: -47.6, rule: 'K1' },
   // (campus-greybox G2) the monitor bank moved with the north wall (z -72.65); its back now spans the fixed north pane (x
   // 18.6..19.8, no wall behind it), so rule V refuses it
@@ -149,11 +152,11 @@ export function dressS1(d: CampusDresser): void {
   CARS.forEach(([row, bay], k) => {
     d.skinHide(CAR_PIECES[k % CAR_PIECES.length]!, bx(bayX(bay), 0.75, ROW_Z[row]!), 0, { why: 'a parked staff car over its greybox box' });
   });
-  for (const [x, z] of [[-38.2, -48.2], [-36.6, -48.2], [-38.2, -46.2]] as const) d.skin('K:binLarge', bx(x, 0.6, z), 0, { why: 'the bin store wheelie bins' });
+  // (campus-greybox G4) the bin store is gone: the bins behind the yard's bin screen get no art (new greybox objects)
   d.skin('K:feederPillar', bx(-31.4, 0.75, -46.6), PI, { why: 'the feeder pillar, door face south where the breakers are' });
   for (const x of [-11, -7, -3]) d.skin('K:planterTrough', bx(x, 0.35, -35.6), 0, { why: 'a facade planter' });
   for (const [x, z] of [[22.5, -66], [24.5, -60]] as const) d.skinCyl('K:treeSkin', cy(x, z), { why: 'a verge tree over its trunk pillar' });
-  d.skin('H1:cageTrolley', bx(-30.5, 0.6, -44), 0, { why: 'the delivery yard cage trolley (cover)' });
+  d.skin('H1:cageTrolley', bx(-30.5, 0.6, -46), 0, { why: 'the delivery yard cage trolley (cover)' });
   lit(d.skin('H1:gateDesk', bx(18.8, 0.375, -73.0), PI, { why: 'the CCTV desk, operator side south, facing the north wall' }), S1_GROUPS.gate);
   d.skin('H1:pcDesk', bx(19.35, 0.375, -76), -PI / 2, { why: 'the PC desk by the rear window, operator side west' });
   d.skin('H1:teaPoint', bx(18.4, 0.45, -78.55), 0, { why: 'the gatehouse kettle counter, front north' });
@@ -177,7 +180,8 @@ export function dressS1(d: CampusDresser): void {
   hero('H1:barrierHousing', 11.0, 1.0, -76.2, 0, { cls: 'visual', why: 'the motor housing on the island top' });
   hero('H1:intercomPost', 12.6, 0, -79.3, 0, { cls: 'see', why: 'the drivers intercom by the gate' });
   hero('K:siteSign', 6.8, 0, -79.0, PI, { cls: 'solid', why: 'the Orrin site sign at the gate' });
-  for (const x of [-8, -5, -2]) hero('K:bikeRack', x, 0, -46.8, PI, { cls: 'see', why: 'the bike shelter stands' });
+  // (campus-greybox G3) the stands moved with the shelter by (-2, -4)
+  for (const x of [-10, -7, -4]) hero('K:bikeRack', x, 0, -50.8, PI, { cls: 'see', why: 'the bike shelter stands' });
   hero('K:parkBench', 8, 0, -47.6, PI, { cls: 'see', why: 'the smoking shelter bench' });
 
   if (S1_REFUSED.length !== S1_OMITTED.length) throw new Error(`campus art S1: S1_OMITTED lists ${S1_OMITTED.length} refusals, ${S1_REFUSED.length} happened`);

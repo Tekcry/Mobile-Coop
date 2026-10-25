@@ -25,7 +25,7 @@ const PLANTER = '#5d6b4a';
 const CAR_COLOURS = ['#6f7b86', '#8c3b3b', '#d8d8d8', '#2e3b52', '#4a5d4a', '#a89a7a', '#3a3a3d'] as const;
 
 /** The lamp circuits (switch groups) of section 1 (the SPEC names them `s1-park-w` ... as ids; the registry's groups are numbers). */
-export const S1_GROUPS = { parkW: 40, parkE: 41, fore: 42, gate: 43, canopy: 44, lane: 49 } as const;
+export const S1_GROUPS = { parkW: 40, parkE: 41, fore: 42, gate: 43, canopy: 44, lane: 49, bikes: 46 } as const;
 
 /** The doors the sector data finds by centre (`Doors.nearest`): [x, z]. */
 export const S1_DOORS = {
@@ -95,7 +95,22 @@ export const S1_COOP_LIPS: readonly CoopLip[] = [
     boost: { floor: 0, x: -20, z: -40.5 },
     solo: 'as CR1',
   },
+  // (G4, C4) the plant roof's hoist bay over the service yard: the S parapet open x -31..-27 (its true extent:
+  // `S1_LIP_SEGMENTS`; `CoopLip` holds a z-running lip only, so it is written point-style as CR1-south, A17)
+  {
+    id: 'CR1-yard',
+    section: 0,
+    lip: { x: -29, z0: -40, z1: -40, y: 4.4, n: { x: 0, z: -1 } },
+    top: { x0: -40, x1: -26, z0: -40, z1: -33, top: 4.4 },
+    boost: { floor: 0, x: -29, z: -40.6 },
+    solo: 'the caged ladder, or the plant room roof hatch',
+  },
 ];
+
+/** (campus-greybox A17) The true plan segments of the x-running co-op lips (`S1_COOP_LIPS` writes them point-style). */
+export const S1_LIP_SEGMENTS: Record<string, { a: [number, number]; b: [number, number] }> = {
+  'CR1-yard': { a: [-31, -40], b: [-27, -40] },
+};
 
 /** Player spawns on the marsh verge, just inside the cut fence panel (24, -80). */
 export const S1_SPAWNS: MapLayout['playerSpawns'] = [
@@ -110,13 +125,17 @@ export const S1_NAV_SEEDS: Vector3[] = [new Vector3(24, 0, -79), new Vector3(-33
 
 export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
-/** Where a carried body can be hidden: the bin store, between the cars, the verge reeds, the bike shelter, the smoking shelter's end. */
+/** Where a carried body can be hidden: the bin store, between the cars, the verge reeds, the bike shelter, the smoking
+ *  shelter's end; (G3, D:148) the cars' and the bike shelter's moved with them, the carport's west end added. */
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(-38, 0, -50.4) },
-  { pos: new Vector3(-33.4, 0, -58.75) },
+  { pos: new Vector3(-33.4, 0, -60.75) },
   { pos: new Vector3(24.2, 0, -68) },
-  { pos: new Vector3(-5, 0, -47.2) },
+  { pos: new Vector3(-7, 0, -51.2) },
   { pos: new Vector3(9.3, 0, -48.2) },
+  { pos: new Vector3(-25, 0, -62) },
+  // (G4, D:115) the plant room
+  { pos: new Vector3(-38, 0, -36) },
 ];
 
 /**
@@ -129,11 +148,15 @@ export const S1_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-30.9, 0, -47.0), yaw: PI, group: S1_GROUPS.parkE },
   { pos: new Vector3(-29.5, 0, -40.3), yaw: PI, group: S1_GROUPS.fore },
   { pos: new Vector3(15.7, 0, -72.8), yaw: PI, group: S1_GROUPS.gate },
-  { pos: new Vector3(-23.85, 0, -32), yaw: PI / 2, group: S1_GROUPS.canopy },
+  // (G4, D:104, AS8) the canopy breaker on the yard board beside the fore switch (sync node A, sync-s1-yard-board)
+  { pos: new Vector3(-29.0, 0, -40.3), yaw: PI, group: S1_GROUPS.canopy },
+  // (G3, A25) the bike shelter lamp's switch on its north-west post
+  { pos: new Vector3(-11.65, 0, -50.4), yaw: PI / 2, group: S1_GROUPS.bikes },
 ];
 
-/** The 14 parked cars: [row, bay] (4 rows x 15 bays of 2.8 m from x -36, rows 4.5 m deep with a 6 m aisle between R2 and R3). */
-const ROW_Z = [-73.75, -69.25, -58.75, -54.25] as const;
+/** The 14 parked cars: [row, bay] (4 rows x 15 bays of 2.8 m from x -36, rows 4.5 m deep with a 6 m aisle between R2 and R3);
+ *  (G3, D:77) the rows 2 m south, the aisle z -69..-63. */
+const ROW_Z = [-75.75, -71.25, -60.75, -56.25] as const;
 const bayX = (i: number): number => -34.6 + 2.8 * i;
 const CARS: readonly (readonly [number, number])[] = [
   [0, 2], [0, 3], [0, 8], [0, 13],
@@ -194,6 +217,10 @@ export interface S1Lights {
   gate: S1Lamp;
   /** (G2) The warm desk lamp on the CCTV desk (gate circuit). */
   deskLamp: S1Lamp;
+  /** (G3) The carport's under-canopy downlights: [x, z, circuit] each (the car park's halves), one spec. */
+  carport: { pts: readonly (readonly [number, number, number])[]; y: number; r: number; i: number; colour: S1Colour; cone: S1Cone | null; w: number };
+  /** (G3) The bike shelter lamp (its own circuit). */
+  bikes: S1Lamp;
 }
 
 /** Every lamp of the block as single fittings, in draw order (the tests match the registry against it). */
@@ -206,6 +233,9 @@ export function s1Lamps(L: S1Lights): S1Lamp[] {
   for (const x of o.xs) out.push({ x, y: o.y, z: o.z, r: o.r, i: o.i, colour: o.colour, group: o.group, cone: null, w: o.w });
   for (const [x, z] of L.canopy.pts) out.push({ ...L.canopy, x, z });
   out.push(L.dock);
+  const cp = L.carport;
+  for (const [x, z, group] of cp.pts) out.push({ x, y: cp.y, z, r: cp.r, i: cp.i, colour: cp.colour, group, cone: cp.cone, w: cp.w });
+  out.push(L.bikes);
   return out;
 }
 
@@ -313,7 +343,8 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.pillar(22.5, -66, 0.3, 5, '#4a3a2a');
   b.pillar(24.5, -60, 0.3, 5, '#4a3a2a');
 
-  // ---- the staff car park (-36..6, -76..-52): 14 parked cars (roofs 1.5), column lamps 6.0 on two circuits (E5, E6, E11)
+  // ---- the staff car park (-40..6, -80..-54): 14 parked cars (roofs 1.5), column lamps 6.0 on two circuits (E5, E6, E11);
+  // (G3, C3) the rows 2 m south, the columns 14 -> 10 (the light block), the solar carport, the courier's van
   CARS.forEach(([row, bay], k) => b.box(bayX(bay), 0.75, ROW_Z[row]!, 1.8, 1.5, 4.2, CAR_COLOURS[k % CAR_COLOURS.length]!));
   const col = L.column;
   for (const [pts, group] of [[L.columnsW, col.groupW], [L.columnsE, col.groupE]] as const) {
@@ -322,22 +353,37 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
       lamp(b, { x, y: col.y, z, r: col.r, i: col.i, colour: col.colour, group, cone: col.cone, w: col.w });
     }
   }
+  // the solar PV carport x -24..0, z -63..-54: top 3.0, underside 2.6, a planned solo route (not noLedge); posts every 6 m on
+  // z -58.5; its under-canopy downlights mid-span between the posts (A9), on the car park's two circuits
+  b.box(-12, 2.8, -58.5, 24, 0.4, 9, ROOF);
+  b.boxes[b.boxes.length - 1]!.overhead = true;
+  for (const x of [-24, -18, -12, -6, 0]) b.pillar(x, -58.5, 0.15, 2.6, STEEL);
+  const cp = L.carport;
+  for (const [x, z, group] of cp.pts) lamp(b, { x, y: cp.y, z, r: cp.r, i: cp.i, colour: cp.colour, group, cone: cp.cone, w: cp.w });
+  // the courier's van at R3 bay 3 (bayX(3) = -26.2), z -63.25..-58.25: the bonnet 1.1 at the aisle end (A10), the body 2.4
+  b.box(-26.2, 0.55, -62.75, 2.0, 1.1, 1.0, '#e8e8e4');
+  b.box(-26.2, 1.2, -60.25, 2.0, 2.4, 4.0, '#e8e8e4');
 
-  // ---- the bin store (-40..-30, -52..-45): walls 3.0, open top and open to the south (E4); the feeder pillar's board (E5)
-  // (G1, C1) the west wall is gone: no wall jump onto the perimeter
-  b.wallX(-45, -40, -30, [], 3.0, WALL_DARK, T);
-  b.wallZ(-30, -52, -45, [], 3.0, WALL_DARK, T);
-  b.block(-38.2, -48.2, 1.4, 1.2, 1.1, BIN);
-  b.block(-36.6, -48.2, 1.4, 1.2, 1.1, BIN);
-  b.block(-38.2, -46.2, 1.4, 1.2, 1.1, BIN);
+  // ---- (G4, C4) the service yard (-40..-26, -54..-40, 14 x 14): the bin store's walls are gone; the bins stand behind a 1.5
+  // bin screen in the SW corner (open to the south, A12); the feeder pillar's board (E5)
+  const y0 = b.boxes.length;
+  b.wallX(-49, -40, -35, [], 1.5, WALL_DARK, T);
+  b.wallZ(-35, -54, -49, [], 1.5, WALL_DARK, T);
+  b.mark(y0, { noLedge: true });
+  b.block(-39.25, -53.2, 1.4, 1.2, 1.1, BIN);
+  b.block(-39.25, -51.8, 1.4, 1.2, 1.1, BIN);
+  b.block(-36.6, -49.8, 1.4, 1.2, 1.1, BIN);
   b.block(-31.4, -46.6, 1.6, 1.5, 0.4, STEEL); // the feeder pillar: its two breakers on the south face (S1_SWITCHES)
+  // the cage trolley (cover) and the 1.2 roll cage beside it (A13)
+  b.block(-30.5, -46, 1.0, 1.2, 0.8, STEEL);
+  b.block(-29.2, -46, 1.0, 1.2, 0.8, STEEL);
 
-  // ---- the bike shelter (-10..0, -50..-46): roof 2.4 on four posts, its fitting tagged out (a dead lamp); no light
-  const s0 = b.boxes.length;
-  b.box(-5, 2.3, -48, 10, 0.2, 4, ROOF);
-  b.mark(s0, { noLedge: true });
-  for (const [x, z] of [[-9.8, -49.8], [-0.2, -49.8], [-9.8, -46.2], [-0.2, -46.2]] as const) b.pillar(x, z, 0.08, 2.2, STEEL);
-  b.light({ kind: 'lamp', x: -5, y: 2.2, z: -48, radius: 0, intensity: 0, color: [1, 0.95, 0.88], group: -1, on: false, destructible: false, electric: false, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } });
+  // ---- (G3, C3) the bike shelter x -12..-2, z -54..-50 against the carport: roof 2.4 on four posts, a planned route (A11:
+  // not noLedge), its lamp lit on its own circuit (Q2 "Never", A25); the cycle lockers 1.2 north of it
+  b.box(-7, 2.3, -52, 10, 0.2, 4, ROOF);
+  for (const [x, z] of [[-11.8, -53.8], [-2.2, -53.8], [-11.8, -50.2], [-2.2, -50.2]] as const) b.pillar(x, z, 0.08, 2.2, STEEL);
+  lamp(b, L.bikes);
+  b.block(-9, -49.5, 6, 1.2, 1, STEEL);
 
   // ---- the smoking shelter (6..10, -50..-47): roof 2.4, back panel north, panels W and E, open to the car park
   const k0 = b.boxes.length;
@@ -358,7 +404,11 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
 
   // ---- the HQ entrance pavilion (z -34..-30, 4.4): solid blocks west and east of C1, the vestibule between them
   const p0 = b.boxes.length;
-  b.box(-34, 2.2, -32, 20, 4.4, 4, WALL_DARK);
+  // (G4, C5) the west block gives its south metre to the plant room: x -44..-24, z -33..-30, the two pockets the carve would
+  // open outside the room filled (A14)
+  b.box(-34, 2.2, -31.5, 20, 4.4, 3, WALL_DARK);
+  b.box(-42, 2.2, -33.5, 4, 4.4, 1, WALL_DARK);
+  b.box(-25, 2.2, -33.5, 2, 4.4, 1, WALL_DARK);
   b.box(-6, 2.2, -32, 20, 4.4, 4, WALL_DARK);
   // C1 (-24..-16, -34..-30, 3.0): the near door (-20, -34) in its south wall, its roof the pavilion's 4.4 top
   b.wallX(-34, -24, -16, [[C1_GAP[0], C1_GAP[1]]], 3.0, WALL, T);
@@ -378,30 +428,53 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   for (const [x, z] of [[-25.5, -39.5], [-14.5, -39.5], [-25.5, -34.6], [-14.5, -34.6]] as const) b.pillar(x, z, 0.15, 4.2, STEEL);
   for (const [x, z] of L.canopy.pts) lamp(b, { ...L.canopy, x, z });
 
-  // ---- the HQ ground-floor plant room (-40..-26, -40..-34) and its roof 4.4 (E9): walls 4.2, parapets 1.1 on its S and W edges
+  // ---- (G4, C5) the HQ ground-floor plant room (-40..-26, -40..-33, clear 13.7 x 6.7): walls 4.2, the north wall carved 1 m
+  // into the pavilion block; roof 4.4 with a hatch 1.2 x 1.2 at (-30, -36.5) and a fixed ladder up to it; the goods door E12
+  // (plain, unlocked: the 03:00 courier); the S parapet 1.1 open at the hoist bay x -31..-27 (CR1-yard)
   const r0 = b.boxes.length;
   b.wallX(-40, -40, -26, [[-33.6, -32.4]], 4.2, WALL_DARK, T);
   head(b, -33, -40, 1.2, 2.1, 4.2, true, WALL_DARK);
-  b.wallZ(-40, -40, -34, [], 4.2, WALL_DARK, T);
-  b.wallZ(-26, -40, -34, [], 4.2, WALL_DARK, T);
-  b.box(-33, 4.3, -37, 14, 0.2, 6, ROOF);
+  b.wallZ(-40, -40, -33, [], 4.2, WALL_DARK, T);
+  b.wallZ(-26, -40, -33, [], 4.2, WALL_DARK, T);
+  b.wallX(-33, -40, -26, [], 4.2, WALL_DARK, T);
+  // the roof slab (top 4.4, over the carved metre too: A15) round the hatch x -30.6..-29.4, z -37.1..-35.9: north strip,
+  // middle west, middle east
+  b.box(-33, 4.3, -34.45, 14, 0.2, 2.9, ROOF);
+  b.box(-35.3, 4.3, -36.5, 9.4, 0.2, 1.2, ROOF);
+  b.box(-27.7, 4.3, -36.5, 3.4, 0.2, 1.2, ROOF);
   b.mark(r0, { noLedge: true });
-  b.door(-33.6, 0, -40, 1.2, PI / 2, { swing: 1, locked: true, breachable: false }); // E12: the dock door
+  // the south strip carries the CR1-yard lip (z -40, x -31..-27): its hatch rim and the caged ladder's gap do not hang
+  b.box(-33, 4.3, -38.55, 14, 0.2, 2.9, ROOF);
+  b.noLedge(-30, -37.1, 0.7);
+  b.noLedge(-38, -40, 0.7);
+  // (A28-cloud) and its east edge (x -26, at the strip's centre z -38.55): the canopy slab beside it is 0.2 thick, under the
+  // generator's 0.3 hand probe, so it does not cut that lip (this also stops the canopy's flush west edge on the same line)
+  b.noLedge(-26, -38.55, 1.3);
+  b.door(-33.6, 0, -40, 1.2, PI / 2, { swing: 1 }); // E12: the goods door, unlocked (AS6)
   const q0 = b.boxes.length;
   b.box(-39.3, 4.95, -39.85, 1.4, 1.1, T, WALL_DARK); // S parapet, the ladder gap x -38.6 .. -37.4
-  b.box(-31.7, 4.95, -39.85, 11.4, 1.1, T, WALL_DARK);
+  b.box(-34.2, 4.95, -39.85, 6.4, 1.1, T, WALL_DARK); // x -37.4 .. -31, then the hoist bay x -31 .. -27 (its gate open: dress)
+  b.box(-26.5, 4.95, -39.85, 1.0, 1.1, T, WALL_DARK); // x -27 .. -26
   // (G1) the W parapet is the 2.4 roof screen (perimeter, above)
   b.mark(q0, { noLedge: true });
-  // the caged ladder from the delivery yard (-38, -41) to the plant roof (E9)
+  // the caged ladder from the service yard (-38, -41) to the plant roof (E9)
   b.ladder(-38, -40.4, 0, 4.4, 0);
   for (const y of [2.2, 3.1, 4.0]) b.box(-38, y, -40.4, 0.9, 0.04, 0.04, STEEL, 0, 0, false);
+  // the fixed ladder to the roof hatch, 0.25 m off its north rim, landing on the north strip (0.6 m clear in front)
+  b.ladder(-30, -36.15, 0, 4.4, 0);
+  // two compressor skids on the north wall (A16); the circuit chart inside the goods door (no collision; the lead for sync
+  // node A, sync-s1-yard-board)
+  b.block(-36, -33.75, 2.0, 1.0, 1.0, STEEL);
+  b.block(-32, -33.75, 2.0, 1.0, 1.0, STEEL);
+  b.box(-31.8, 1.5, -39.83, 0.6, 0.4, 0.02, '#d8d8d8', 0, 0, false);
 
-  // ---- the delivery yard (-40..-26, -45..-40): the cage trolley (cover), the dock lamp on the s1-fore circuit
-  b.block(-30.5, -44, 1.0, 1.2, 0.8, STEEL);
+  // ---- the dock lamp over the goods door on the s1-fore circuit
   lamp(b, L.dock);
 
   // ---- ambient (SPEC lighting rules, LR7): the whole section at the standby fill 0.14 (true dark with a circuit cut, the
   // verge, bin lane, bike shelter and the roofs by reason); C1 is a transit space at 0.30
   b.ambientZone(-40, 26, -80, -34, 0.14, -1, 8);
+  // (G4) the plant room's carved metre as dark as the rest
+  b.ambientZone(-40, -26, -34, -33, 0.14, -1, 8);
   b.ambientZone(C1_BOX[0], C1_BOX[2], C1_BOX[1], C1_BOX[3], 0.3, -1, 3.2);
 }

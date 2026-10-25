@@ -136,3 +136,110 @@ G2) and the block's as-built intensities. Slice set (`campusV2S1`, `campusS1`, `
 - F3 #2's desk stop (18.3, -73.6) is in the 0.5 m nav cell centred z -73.75, 0.4 m off the desk face, as A5 says.
 
 **Pending PC runs (G2).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
+
+## G3 Car park and carport (D:306)
+
+**Files:** `s1.ts`, `s1Data.ts`, `s1Dress.ts`, `tests/campusV2S1.test.ts`, `tests/campusV2S1Screen.test.ts` (new), graph.
+
+**Geometry (s1.ts).** `ROW_Z = [-75.75, -71.25, -60.75, -56.25]` (:141, D:77); cars and `bayX` unchanged (:330). Columns 14 ->
+10 in the block: `columnsW` 6 / `columnsE` 4 (s1Data.ts:24-25, D:79-80), drawn at :331-337 (pillars and lamps as built).
+Carport slab `box(-12, 2.8, -58.5, 24, 0.4, 9)` overhead, not noLedge (:340-341); posts r 0.15 h 2.6 at x -24, -18, -12,
+-6, 0 on z -58.5 (:342); downlights from `S1_LIGHTS.carport` (:343-344). Van: bonnet `box(-26.2, 0.55, -62.75, 2.0, 1.1, 1.0)`
+(:346, A10), body `box(-26.2, 1.2, -60.25, 2.0, 2.4, 4.0)` (:347), not noLedge. Bike shelter: roof `box(-7, 2.3, -52, 10, 0.2,
+4)` not noLedge (:360, A11), posts (-11.8, -53.8), (-2.2, -53.8), (-11.8, -50.2), (-2.2, -50.2) (:361), lamp `L.bikes` (:362);
+lockers `block(-9, -49.5, 6, 1.2, 1)` (:363). The old shelter, its posts and its dead fitting are deleted (B:250-255).
+`S1_GROUPS.bikes = 46` (:28); the bike switch (-11.65, 0, -50.4) yaw PI/2 (:136, A25).
+
+**Lights (s1Data.ts).** `S1_LIGHTS.carport` (:41-45): (-21, 2.5, -58.5) and (-15, ...) on parkW, (-9, ...) and (-3, ...) on parkE,
+r 4.5 i 0.85 WHITE cone (0,-1,0,1.0) w 0.5 (A9, B:292 values). `S1_LIGHTS.bikes` (:46): (-7, 2.2, -52) r 3 i 0.5 SODIUM w 0.2
+group 46 (A25). `S1Lights.carport` / `.bikes` types at s1.ts:202-205; `s1Lamps` covers them. Circuits: parkW 6 + 2 = 8,
+parkE 4 + 2 = 6 (the as-built counts); lit S1 lamps 31; no intensity changed; no dead or off fitting left in S1.
+
+**Hide spots (s1.ts:115-122).** (-33.4, -60.75), (-7, -51.2), new (-25, -62); all on nav.
+
+**Guards (s1Data.ts).** #3 (:71-86) z -68.2 / -65.8, takedown (-29, -68.2); #4 (:87-102) z -67.2 / -64.8, takedown (-29, -67.2);
+loop, faces, pairs unchanged. #11 (:114, index 9) officer (-12, -66) <-> (4, -66), waits 4 / 4, takedown (4, -66). Cycles:
+#3 / #4 42 s (loop), #11 42.2 s. Pair-loop legs hold (stops 3-6.2 s).
+
+**Dress (s1Dress.ts).** The dress's `ROW_Z` (:110) follows. Bike stands moved by (-2, -4): x -10, -7, -4 at z -50.8 (:184).
+Kit result: x -4 placed; **x -7 refused by K6** (the K6 entry follows to (-7, -50.8)); **x -10 refused by K4** (new: the
+interactable keepout of the bike switch at (-11.65, -50.4) on the north-west post). Both are in `S1_OMITTED` (:134-135).
+
+**Graph.** `s1-carpark` -> "BUILT G3 (s1.ts:328-347, s1Data.ts:24-25, :41-45; C3)"; `s1-carport` -> "BUILT G3 (s1.ts:338-344,
+:358-363; C3, new)".
+
+**Tests.** `tests/campusV2S1.test.ts` 23 (G3 +8: rows and columns; carport; no lamp lost; van and shelter chains; clearances;
+pair north stop; hide spots; #3 / #4 / #11 with the pair-loop legs). `tests/campusV2S1Screen.test.ts` 1 (new): worst point
+(-12.25, 0, -72.25) sees 10 of the 10 guards built so far (#1-#9, #11), cap 12. Slice set (`campusV2S1`, `campusV2S1Screen`, `campusS1`, `campusS1Dress`, `campusRuntimeNav`, `campusV2`,
+`changesFragments`): **7 files, 101 passed, 0 failed**. Typecheck and eslint clean.
+
+**Deviation D-G3-1 (finding F4).** The brief's clearance test asks both the carport and the bike shelter to be >= 20 m from
+CR1-east (D:91). The carport is 20.0 m; the bike shelter as drawn (x -12..-2, z -54..-50) is **16.0 m** from CR1-east (x -6..4,
+z -34): its north edge is z -50. Moving the shelter would be a new coordinate, so the test asserts the measured 16 m and
+the rule the plan line serves (D:92: rules 2 and 4, nothing solo-standable within 4 m of a lip), which holds with 12 m to
+spare. The plan text "both to CR1-east: 20 m or more" is wrong for the shelter.
+
+**Findings.** F4 above. F5 the screen count with 10 guards already sees all 10 from the car park's south aisle (-12.25,
+-72.25), including the gatehouse officers through the glazing; risk R1 for G6 is real.
+
+**Pending PC runs (G3).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
+
+## G4 Service yard and plant room (D:307)
+
+**Files:** `s1.ts`, `s1Data.ts`, `s1Dress.ts`, `tests/campusV2S1.test.ts`, graph.
+
+**Yard (s1.ts:367-379).** The bin store's N and E walls are deleted (B:242-243). Bin screen 1.5 noLedge: `wallX(-49, -40, -35)`,
+`wallZ(-35, -54, -49)` (:370-372). Bins `block(-39.25, -53.2)`, `(-39.25, -51.8)`, `(-36.6, -49.8)` 1.4 x 1.2 x 1.1 (:373-375,
+A12); the as-built bins deleted. Feeder pillar unchanged (:376). Trolley `block(-30.5, -46, 1.0, 1.2, 0.8)` (:378), roll cage
+`block(-29.2, -46, 1.0, 1.2, 0.8)` (:379, A13); B:313 deleted. Dock lamp stays (:471-472).
+
+**Plant room (s1.ts:431-469; pavilion carve :407-411).** Walls 4.2: S with the door gap and its head, W and E to z -33, new N
+`wallX(-33, -40, -26)` (:435-439). Pavilion west block `box(-34, 2.2, -31.5, 20, 4.4, 3)` and the fills `(-42, 2.2, -33.5, 4, 4.4,
+1)`, `(-25, 2.2, -33.5, 2, 4.4, 1)` (:409-411, A14), noLedge with the pavilion group. Roof y 4.3 h 0.2 (A15): north strip, middle
+west, middle east noLedge (:442-445); south strip `box(-33, 4.3, -38.55, 14, 0.2, 2.9)` not noLedge (:447); `b.noLedge(-30,
+-37.1, 0.7)`, `b.noLedge(-38, -40, 0.7)` (:448-449); **`b.noLedge(-26, -38.55, 1.3)` (:452, A28-cloud, below)**. Goods door
+`b.door(-33.6, 0, -40, 1.2, PI / 2, { swing: 1 })` unlocked (:453). S parapet 1.1 noLedge: x -40..-38.6, x -37.4..-31, x -27..-26
+(:455-457), the hoist bay x -31..-27 open. Caged ladder unchanged (:461-462). Hatch ladder `b.ladder(-30, -36.15, 0, 4.4, 0)`
+(:464). Skids `block(-36, -33.75, 2.0, 1.0, 1.0)`, `block(-32, ...)` (:466-467, A16); the circuit chart, a visual box
+(-31.8, 1.5, -39.83) 0.6 x 0.4 x 0.02 (:469, A16). `ambientZone(-40, -26, -34, -33, 0.14)` (:478).
+
+**Devices (s1.ts).** Yard board `fore` switch (-29.5, 0, -40.3) unchanged (:149); the canopy breaker moved from C1 to
+(-29.0, 0, -40.3) yaw PI (:152, D:104, AS8). Hide spot (-38, -36) added (:138); (-38, -50.4) kept.
+
+**Sync-node src lines (sync-s1-yard-board, SY:10).** The board: `src/world/maps/campusV2/s1.ts:149` (fore: the 8 bollards and
+the dock lamp) and `:152` (canopy: the 4 downlights); the lead (the circuit chart) `:469`. Ids and positions match SYNC.md
+7c021f01.
+
+**Co-op lip CR1-yard (s1.ts:99-108)** as the brief, after CR1-south; `S1_LIP_SEGMENTS` (:111-113) `'CR1-yard': { a: [-31, -40],
+b: [-27, -40] }` (A17).
+
+**Guards (s1Data.ts).** #7 (:109) grunt (-38, -64) <-> (-38, -46), takedown (-38, -46); #8 (:112) stops z -42.1, takedown
+(-33, -42.7); #12 (:118, index 10) grunt (-31, -42.6) <-> (-34, -48.5), takedown (-34, -48.5). Cycles 44.4 / 28.0 / 25.4 s.
+#8's stops are 0.9 m south of the door leaf's sweep (z -41.2).
+
+**Dress.** The three bin skins deleted (new bins get no art); `H1:cageTrolley` -> `bx(-30.5, 0.6, -46)` (s1Dress.ts:159). No
+new refusal; `S1_OMITTED` unchanged.
+
+**Graph.** `s1-dyard` -> "BUILT G4 (s1.ts:367-379, :471-472, switches :149-152; C4)"; `s1-plantroom` -> "BUILT G4 (s1.ts:407-411,
+:431-469; C5)" and `area` [-40, -40, -26, -33] (A18, CK:87); `s1-plantroof` -> "BUILT G4 (s1.ts:440-462; C4, C5)". `syncs`
+untouched.
+
+**Tests.** `tests/campusV2S1.test.ts` 31 (G4 +8: yard and bin screen; plant room two ways out (the ladder link, the door gap);
+roof hatch and cover; CR1-yard lip; CR1-yard rules 1-5 (`segmentLipFailures`: both helpers [], rule 2, rule 3, rule 5 to
+6.2); sync node A; #7 / #8 / #12; hide spots). Screen: worst (-18.25, 0, -74.25) sees all 11 guards built so far (cap 12). Slice set (7 files as G3): **109 passed, 0 failed**;
+typecheck and eslint clean.
+
+**Deviations and assumptions.**
+- D-G4-1 The generated CR1-yard lip runs x -30.8..-27.2, not -31..-27: the generator samples every `LEDGE.sample` 0.2 and stops
+  a sample short of the parapet ends. The test allows one sample at each end. An engine fact, no build change.
+- **A28-cloud (D-G4-2)** The south strip's east edge (x -26, z -39.6..-37.1) kept a hangable lip: the canopy slab beside it
+  is 0.2 thick, under the generator's 0.3 hand probe, so it does not cut it as the brief assumed ("suppress the south strip's
+  other lips" lists only the hatch rim and the ladder gap). Fix as the lead's rule for A27-cloud: `b.noLedge(-26, -38.55, 1.3)`
+  (the strip's own edge and centre z). Side effect: the canopy's flush west edge on the same line x -26 (a lip whose hang
+  would put the body inside the plant roof slab, not a route) is suppressed too. CR1 / CR1-south are 1.45 m and more away,
+  untouched. Undo: drop the point (or thicken the canopy edge).
+
+**Findings.** F6 the screen count reaches 11 of 11 built guards at the car park's south footway; with #13-#16 still to come,
+R1 (13+) is likely at G6.
+
+**Pending PC runs (G4).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
