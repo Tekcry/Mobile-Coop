@@ -372,9 +372,9 @@ Order: Guard AI J15 PR1 (#450) lands before any J17 lane PR (S1-S5). J10 datashe
      (s3-r6-cloud-brief.md): fill <JOIN-HEAD> and push when the join is done. #10/#15/#16 isolation: lead decision at r6.
    - Lip audit: no depth defects; D1 = join J8. Optional canClimbUp test hardening for S1 / S2 (lip-depth-audit.md).
    - Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
-4. J21 map-ready: S4 Opus PASS -> desktop prebake RUNNING (scratch/s4-prebake-run.sh waits for heavy.lock; output
-   scratch/s4-prebake.summary + .log). Caps over: STOP, no merge, re-plan (map-ready-s4-check.md "The lead's desktop
-   prebake run"). Then push the PR + laptop requests (step 7). W1 S1 + S9 cloud briefs open (00:15). Then S2, S10; S8.
+4. J21 map-ready: S4 prebake PASS (5.54 MB, 114.5 s cold; docs/map-ready/STATE.md) -> PR #483 (00d942d6f): Sonnet
+   docs-delta checker IN FLIGHT; affected + e2e-sectorops:6 queued; add CI build-check seconds / sizes to the PR body.
+   W1 S1 + S9 cloud briefs open (00:15). Then S2, S10; S8.
 5. J10 light-realism: L1 claimed on cloud (Cloud Builder 2) -> Opus checker, 2 laptop requests, SIGNOFF.md to Michael
    via the orchestrator. PLAN L2-V2 (c19a799c9): v2 sections measured before exit (A29).
 Next: act on each checker / cloud done as it lands (pick up within 1 h); prebake result -> S4 PR.
