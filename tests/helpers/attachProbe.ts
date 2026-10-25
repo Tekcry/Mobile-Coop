@@ -17,6 +17,7 @@
  * `on` / `off` switch the Wren traversal table to the captures), so the same rows are proved on the captures.
  */
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
+import type { Ladder, Ledge } from '../../src/world/anchors';
 
 /** A probed attached state: its tuner Body group (or none), its traversal move group (or none), its Speed row (or none). */
 export interface AttachProbeState {
@@ -126,8 +127,6 @@ export async function runAttachProbe(setup: AttachProbeSetup = ATTACH_PROBE_SETU
   const { CLIMB_UP_CROUCH_K } = await import('../../src/anim/clips/traverse');
   const { attachGripWeight, climbUpFootWeight } = await import('../../src/player/moveState');
   const { makeLedge, TraversalAnchors, HANG } = await import('../../src/world/anchors');
-  type Ladder = import('../../src/world/anchors').Ladder;
-  type Ledge = import('../../src/world/anchors').Ledge;
 
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);
