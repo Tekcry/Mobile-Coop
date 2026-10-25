@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 4 2026-10-25T11:14:24Z
 # J12 validator-port, slice S7a (Sonnet): scale sheet rows + metrics-gen strict args
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3).
