@@ -295,6 +295,9 @@ export function buildS3L1(b: LevelBuilder): void {
   rail(b, hhhx0, hhhx1, hhhz0 - 0.1, hhhz0, L1);
   rail(b, hhhx0, hhhx1, hhhz1, hhhz1 + 0.1, L1);
   b.box(hhhx0, L1 + 1.1, hhhz0 - 0.05, 0.08, 2.2, 0.08, STEEL, 0, 0, false);
+  // (s3 join J8) the CR3b lip (S3.md R6: x 18, z -6..-3, y 4.5, n (1, 0)): the landing slab is noLedge (`slab`), so its
+  // west hatch edge gets a manual ledge (hang and climb up), its normal toward the hatch where the boosted player hangs
+  b.ledge(hhhx0, hhhz0, hhhx0, hhhz1, L1);
   const [rkx0, rkz0, rkx1, rkz1] = S3_RACKING;
   bx(b, rkx0, rkx1, L1, L1 + 2.4, rkz0, rkz1, STEEL, { noLedge: true });
   const [mh] = S3_VOID_HOLES;

@@ -11,6 +11,8 @@ import type { BoxPiece, LevelBuilder } from '../src/world/levelBuilder';
 import type { NavBlocker, NavGrid, NavSample } from '../src/ai/navGrid';
 import type { RoomDef } from '../src/world/rooms';
 import { hyp2 } from '../src/core/mathx';
+import { HANG } from '../src/world/anchors';
+import { MOVEMENT } from '../src/config/movement';
 import type * as KitM from '../src/world/maps/campusV2/s3Kit';
 import type * as L1M from '../src/world/maps/campusV2/s3L1';
 import type * as S3M from '../src/world/maps/campusV2/s3';
@@ -416,6 +418,23 @@ describe('campus v2 S3 L1 (R2b)', () => {
       for (const y of [4.6, 5.2, 6.5]) expect(pieceAt(lSolid, 18, y, z), `west edge open at ${z}, ${y}`).toBeUndefined();
     }
     expect(bL.anchors.ladders.some((q) => q.base.x > 17.5 && q.base.x < 21 && q.base.z > -6.5 && q.base.z < -2.5)).toBe(false);
+  });
+
+  it('(s3 join J8) CR3b has a ledge: x 18, z -6..-3, top 4.5, normal +x (the hatch side), hang and climb up, the climb room clear', () => {
+    // the slab is noLedge, so only a manual ledge can serve (`b.ledge`, in `bL.anchors`; not in `generateLedges(b.boxes)`)
+    const e = bL.anchors.ledges.find((q) => Math.abs(q.a.x - 18) < 1e-6 && Math.abs(q.b.x - 18) < 1e-6 && Math.abs(q.top - 4.5) < 1e-6);
+    expect(e, 'CR3b ledge').toBeDefined();
+    expect([Math.min(e!.a.z, e!.b.z), Math.max(e!.a.z, e!.b.z)]).toEqual([-6, -3]);
+    expect([e!.nx, e!.nz]).toEqual([1, -0]);
+    expect(e!.canHang && e!.canClimbUp).toBe(true);
+    // climbRoom (attachController): the stand point HANG.out + 0.45 in from the lip, one body radius round it, clear from
+    // the slab top to 1.8 over it (the 7.5 ceiling is 3 m up)
+    const cx = 18 - (HANG.out + 0.45);
+    for (let z = -5.9; z <= -3.1; z += 0.2) {
+      for (const dx of [-MOVEMENT.radius, 0, MOVEMENT.radius]) {
+        for (const y of [4.55, 5.3, 6.3]) expect(pieceAt(lSolid, cx + dx, y, z), `climb room at ${cx + dx}, ${y}, ${z}`).toBeUndefined();
+      }
+    }
   });
 
   it('the ceilings (top 7.5, 0.1): over every L1 room and corridor; the crane bay open to the roof', () => {
