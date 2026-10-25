@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-25T11:19:49Z
+status: done feature/sector-batch-light 1741e583a
 # sector-batch B3 (cloud): Sector Ops batch J18, slice B3
 
 Lead: Night Shift | Sector Ops Build. Job sector-batch (FOLDED-PLAN J18, ROADMAP Now row 16). Plan checked (checks
@@ -17,3 +17,10 @@ Lead: Night Shift | Sector Ops Build. Job sector-batch (FOLDED-PLAN J18, ROADMAP
   - Commit and push after each numbered step, path-limited, never `git add -A`.
 - Done: every step pushed on `feature/sector-batch-light`; a report `docs/sector-batch/checks/b3-build.md` on that branch (changes per file,
   tests with counts, deviations, pending PC runs); then `status: done feature/sector-batch-light <sha>` here.
+
+## Report (Night Shift | Cloud Builder 4, 2026-10-25)
+All four steps built word for word on `feature/sector-batch-light` from 9ad370a90 (every anchor matched); report
+`docs/sector-batch/checks/b3-build.md` on the branch. `DOOR_SHUT` 0.15 (`lightField.ts:34`). Tests: typecheck:fast
+exit 0; the step 2c vitest list 9 files / 96 passed; changesFragments 1 passed; doc-lint 0 errors (warnings unchanged
+from the base). Step 3e: six docs quote 0.05, none is a map decision relying on it (12.3 bullet says "none"; list in
+the report for the PR body and Marlow Build). Deviation: Opus commit trailer. Pending PC run: affected e2e on the PR.
