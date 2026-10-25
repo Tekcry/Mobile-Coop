@@ -26,11 +26,11 @@ Job: FOLDED-PLAN J15 (`docs/orchestrator/FOLDED-PLAN.md` section 4 on origin/fea
 - 2026-10-25 ~17:00 the folded plan -> picked: "Sign off, start (Recommended)".
 
 ## Goal
-Guards follow Michael's rules: helmets by difficulty (Realistic and Perfectionist always, Perfectionist's never shot off,
-Rookie / Normal only from the alarm stages), riot shields only in later Sector Ops response teams and never in the
-campaign, dogs never taken down and a dog kill counts as a kill and costs score; then the G335 additions: lookouts on
-high routes, pairs that check on each other, posted pairs, plus the rule gaps the review found (repeat alarms, barks by
-cause, dog release, placed-shield check).
+Guards follow Michael's rules: helmets by difficulty (Realistic and Perfectionist always, Perfectionist's never shot off
+while the second headshot still kills, Rookie / Normal only from the alarm stages), riot shields only in later Sector
+Ops response teams and never in the campaign, dogs never taken down and a dog kill counts as a kill and costs score (a
+gas knock-out costs nothing); then the G335 additions: lookouts on high routes, pairs that check on each other, posted
+pairs, plus the rule gaps the review found (repeat alarms, barks by cause, dog release, placed-shield check).
 
 ## Limits
 - Covers (FOLDED-PLAN J15): Guard AI conformance A3 A4 A5 B2 B3 B4 B5 B6 B7 B8 B13 B16 C4 D5; Player R1-R5; Sector Ops
@@ -56,35 +56,45 @@ cause, dog release, placed-shield check).
   Rookie / Normal only from the alarm stages; the same in the campaign and Sector Ops.
 - M5 2026-10-25 ~11:20 (2): dogs: no takedown of any kind, gas knocks out, can be distracted, a kill carries a penalty.
 - A1: difficulty helmets apply in `SectorMode` only (Sector Ops, and the campaign, which runs on it); Marlow Yard and the
-  parked modes keep today's gear (bible 5.6 and VISION 2 name the campaign and Sector Ops). Undo: call the same switch
-  from `courseMode` (one line).
-- A2: on Perfectionist every helmet is locked, whatever gave it (difficulty, stage, the shield lead); every head hit is
-  deflected (no damage) with the knock-off stagger at most every `GEAR.staggerCd` s; the client needs nothing (the
-  `AL_HELMET` bit never clears). Literal reading of "you can't shoot the helmet off"; see Q1. Undo: `GEAR.lockHelmets`
-  false (the first headshot knocks it off again).
+  parked modes keep today's gear. Weighed: Marlow Yard is the campaign's training prologue (Q6, ROADMAP row 18) and
+  takes "Difficulty: As campaign" (VISION 2), but bible 5.6 / G341 name the campaign and Sector Ops, and Marlow's drills
+  set their guards one by one (Q11: only the guards a drill needs), so its gear stays Marlow Build's. Undo: call the
+  same switch from `courseMode` (one line).
+- A2: on Perfectionist every helmet is locked, whatever gave it (difficulty, stage, the shield lead): it is never shot
+  off (G350, Michael's words) and it still soaks only the first headshot, so the second headshot kills (G307 (2), bible
+  5.6 `docs/design-bible.md:506-507`). `gearHit`: head + locked helmet not yet hit = no damage, the knock-off stagger,
+  no knock-off, the soak recorded on the guard (`GuardGear.helmetSoaked`); head + locked helmet already hit = the bare
+  head rule (the caller kills); the helmet stays on and the `AL_HELMET` bit never clears. Keeps both recorded rules, so
+  no guard is bullet-proof. Undo: `GEAR.lockHelmets` false (the first headshot knocks it off again, as on Realistic).
 - A3: alarm stage 2 gives every living guard a helmet as well as armour (bible 5.7 "Level 2: more guards wear helmets
-  and armour"; the code already gives stage armour to every guard). Undo: `GEAR_BY_STAGE[2].helmet` false.
+  and armour"; the code already gives stage armour to every guard); with A2 the second headshot still kills them. Undo:
+  `GEAR_BY_STAGE[2].helmet` false.
 - A4: Sector Ops riot shields lead the response from S4 and S5 only (the sections with late armour, the dogs and all
   bulletproof cameras); S1-S3 and the frozen warehouseOps get armed guards only, by the new default. The orchestrator's
   J1 fix of bible 5.7 settles the sections; the data follows it. Undo: `shieldTeams: true` on any `SectorDef`.
-- A5: a dog kill scores the dog's old reward reversed: -120 base, x1.1 per tier above 1 as every kill, no headshot
-  bonus (score may go below 0 in the run; the stored record already clamps at 0, `src/progression/profile.ts:108`).
-  Undo: `KILL_BASE.dog` back to 120 in `src/game/modes/score.ts`.
+- A5: a dog kill (`!e.ko`) scores the dog's old reward reversed: -120 base, x1.1 per tier above 1 as every kill, no
+  headshot bonus (score may go below 0 in the run; the stored record already clamps at 0,
+  `src/progression/profile.ts:108`). A gas knock-out (G348) costs nothing: it keeps today's knock-out score and does not
+  break No kills (`onEnemyKilled` runs for knock-outs too and scores before its `e.ko` check,
+  `src/game/modes/sectorMode.ts:1311-1319`). Undo: `KILL_BASE.dog` back to 120 in `src/game/modes/score.ts`.
 - A6: dogs keep their `takedownSpot` data (the scan skips dogs, so it is unused); dropping it from the type and the
   campus tests is Sector Ops' (J17). Undo: none needed.
-- A7 (D5): a new guard alarm may be raised once the last one's response is in: its newest response team has a member
-  searching, or 60 s after the alarm, whichever is first; at most 3 guard alarms per section load (Sector Ops: the
-  stage cap 3 holds anyway). `alarmRaised` stays set for its readers (calm area, carry); a new lock gates new raises.
-  Marlow Yard's one-alarm-per-set reset is J26's per-area alarms. Undo: `ALARM_REPEAT.enabled` false (one alarm per load).
+- A7 (D5): in `SectorMode` only (Sector Ops and the campaign, where bible 5.7's levels apply), a new guard alarm may be
+  raised once the last one's response is in: its newest response team has a member searching, or 60 s after the alarm,
+  whichever is first; at most 3 guard alarms per section load (the stage cap 3 holds anyway). `alarmRaised` stays set
+  for its readers (calm area, carry); a new lock gates new raises. Marlow Yard (`courseMode`) keeps one guard alarm per
+  load (Q11: only the guards a drill needs; no Marlow change in this job); its per-set reset is J26's per-area alarms.
+  Undo: `ALARM_REPEAT.enabled` false (one alarm per load everywhere).
 - A8 (C4): a rise to investigating says a sight line ("Thought I saw something.") or a sound line ("I heard
   something.") by what drove it; two bark events are appended to `BARK_EVENTS` (`heard`, and `spotCall` for the
   lookout's radio line): a wire change the train's protocol bump covers. Undo: map both back to `investigate`.
 - A9 (A3 lookout): a lookout is a post with `lookout: true`, leash at most 1 m, read as a high-security post (never sent,
   never leaves his perch for a search, an alarm panel or combat; a lure turns him in place). When he grows suspicious by
   sight he radios once (`spotCall`, at most every 20 s) and the incident board sends the nearest calm guard within
-  `INCIDENT.callR` 25 m to the spot. G44 is unchanged. Map placement: the S5 roof marksman becomes a lookout here (he
-  exists and stands on the S5 high route); new lookouts on S1-S3 high routes come with J17's guards, Tallow's with
-  Campaign. Undo: flag `lookouts` off (the post reads as no post, today's behaviour).
+  `INCIDENT.callR` 25 m to the spot. The radio reports a `noise` incident (the investigate kind,
+  `src/ai/incidents.ts:36`); `docs/systems/ai.md` notes it is a radioed sighting, not a sound, for the guard sheet and
+  J13's cause log. G44 is unchanged. Map placement: the S5 roof marksman becomes a lookout here (he exists and stands
+  on the S5 high route); new lookouts on S1-S3 high routes come with J17's guards, Tallow's with Campaign. Undo: flag `lookouts` off (the post reads as no post, today's behaviour).
 - A10 (A4 pair check): a pair that was walking together (within 4 m) notices his partner gone (down, held, despawned)
   3 s later, outside the meeting window as well, and goes to look (the existing `missing` path). Pairs on separate
   loops keep the meeting-window check. Undo: flag `guardPairs` off.
@@ -96,12 +106,17 @@ cause, dog release, placed-shield check).
   `dogRelease` off (the stage records it, as today).
 - A13: campaign response teams lose the shield lead by the new `shieldTeams` default (false) once the campaign branch
   takes master; J7's "no shield lead" item needs no other code. Campaign data must not set `shieldTeams` (M2).
+- A14: Marlow Yard keeps its current shield-led alarm team for now (`src/game/stealthSystems.ts:594`,
+  `responseTeam(1, RESPONSE.liveTeam, this.teamKinds)`, whose shield lead stays the default): it is training, not a
+  campaign mission; Q12 covers campaign teams. Undo: remove the shield lead from the course-mode team (pass `false` as
+  the new `shield` argument at that call). Confirmer: Marlow Build (owner of Marlow Yard) via the orchestrator.
+- A15: helmets never come from map data: `checkSectorGuards` fails a slot `gear` (`GuardSlotTags.gear`,
+  `src/ai/guardAiData.ts:98`) or a section `gear` (`src/game/sectors.ts:125`) of `'helmet'` or `'both'` (helmets
+  come from difficulty and the alarm stage, G350; `'armour'` stays for late armour, G307 (13)). Guard AI's S1
+  validator lands first; Sector Ops' J17 campus data follows and must pass it. Undo: drop the two checks.
 
 ## Questions for Michael (one click each, asked by day)
-- Q1: On Perfectionist a helmet "can't be shot off". With body armour (S4 / S5 late guards, and every guard from alarm
-  stage 2) that guard cannot be killed by gunfire at all: only takedowns and gas. Is that what you want? - options:
-  "Yes: headshots never get through on Perfectionist (Recommended)" / "The helmet stays on but the second headshot
-  kills". Blocks: nothing (S1 builds A2; option 2 is a one-line change in `gearHit`). Default until answered: A2.
+None. (Q1 on Perfectionist helmets was withdrawn in the plan fix round: A2 keeps both recorded rules.)
 
 ## Sign-off needed
 No (no map layout or look change; the S5 marksman keeps his spot).
