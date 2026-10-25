@@ -1,0 +1,17 @@
+{
+  "id": "20261025T182736-night-shift-player-b-cccb7b45-b498",
+  "sha": "cccb7b453fc7830df4254995e40ceae05b539edf",
+  "branch": "feature/mixamo-i6",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-move",
+    "e2e-clip",
+    "anim-audit"
+  ],
+  "set": "mixamo-i6",
+  "note": "Mixamo top priority; I6 locomotion set, default identity",
+  "priority": 1
+}
