@@ -83,6 +83,10 @@ export function blenderArgs(jobsFile) {
 export function runBlenderLow(exe, argv) {
   return new Promise((resolve, reject) => {
     const child = spawn(exe, argv, { windowsHide: true, stdio: 'inherit' });
+    if (child.pid === undefined) {
+      child.on('error', (e) => reject(new Error(`mixamo: could not start Blender at "${exe}": ${e.message}`)));
+      return;
+    }
     try {
       os.setPriority(child.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
     } catch (e) {
