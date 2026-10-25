@@ -1,0 +1,18 @@
+{
+  "id": "20261025T074808-night-shift-guard-ai-3100d035-cc7b",
+  "sha": "3100d035856a6b110a595148783b34fbe9fd07ed",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "alone",
+  "requester": "Night Shift | Guard AI Build",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-sectorops:7 e2e-sectorops:8 e2e-sectorops:9"
+  ],
+  "env": {
+    "E2E_GPU": "1",
+    "E2E_LOAD_MS": "240000",
+    "E2E_JOBS": "1"
+  },
+  "set": "alone-coop4-4p",
+  "note": "#317 4-page parts on the current head (moved from 0837f147)"
+}
