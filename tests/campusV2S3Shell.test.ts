@@ -259,6 +259,8 @@ describe('campus v2 S3 shell and G (R1)', () => {
       for (let k = i + 1; k < rooms.length; k++) {
         const a = rooms[i]!;
         const c = rooms[k]!;
+        // (s3 join J1) the stair cores overlap the rooms they rise through (smallest room wins in `roomAt`)
+        if (['s3-wstair', 's3-nstair', 's3-estair'].includes(a.id) || ['s3-wstair', 's3-nstair', 's3-estair'].includes(c.id)) continue;
         const ox = Math.min(a.maxX, c.maxX) - Math.max(a.minX, c.minX);
         const oz = Math.min(a.maxZ, c.maxZ) - Math.max(a.minZ, c.minZ);
         const oy = Math.min(a.maxY ?? 99, c.maxY ?? 99) - Math.max(a.minY ?? -99, c.minY ?? -99);
