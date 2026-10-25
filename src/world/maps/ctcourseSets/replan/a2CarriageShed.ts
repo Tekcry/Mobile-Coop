@@ -10,7 +10,8 @@
  * - station 3 (`shutter_hold`): a wall at x 33 to the roof from the cabin's north-east corner to the north wall closes the
  *   stores bay; in it the roller door `A2-shutter` (z 11.0-14.0) on the course `hold` gate `g-a2-shutter` (one holds it up at
  *   the south jamb, from either side, the other goes under crouched). The cabin's back door `A2-back` is locked for good
- *   (taken off the course doors, locked and not breachable). Gap 1/2's neck mouth (x 45.5-46.0, z 6.3-8.7) is closed with the
+ *   (taken off the course doors, locked and not breachable). Once station 3 passes the roller door latches open for good
+ *   (`g-a2-shutter-open`, station 4's stand-in: lead answer 3), so station 4's presser walks from the cabin to the lane. Gap 1/2's neck mouth (x 45.5-46.0, z 6.3-8.7) is closed with the
  *   A2-21 closer idiom, so the lane is the one way into the neck;
  * - station 4 (`timed_light_cut`, 15 s): the built isolator `g-a2-neck`; cabinet 2 moves to the pit's near side on the road 2
  *   east van's north face (`A2_CAB2_REPLAN`), off station 5's marks; the drill window is `src/game/course/replan/a2Ticks.ts`;
@@ -23,12 +24,13 @@
  *   objective lines (what and where), the coat corner's wall lamp on circuit 22 (the re-plan table's second lamp).
  * Value imports only from the set file and `../types` (the facility imports nothing from here: no cycle).
  */
-import type { FlagGate, HoldGate } from '../../../../game/course/courseDef';
+import type { EgressGate, FlagGate, HoldGate } from '../../../../game/course/courseDef';
 import type { StationDef } from '../../../../game/course/stationDef';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
 import { FacilityProps } from '../../../props/facilityProps';
 import type { FloorHole } from '../../ctcourseGreybox';
+import { makeCone } from '../../../lights';
 import { A2_BACK_DOOR, A2_ISO_2, A2_ROADS, A2_SHUNTER, A2_SHUNTER_FACES, A2_SHUNTER_WAITS, A2_WATCH_E, A2_WATCH_W } from '../a2CarriageShed';
 import { HALL_H, tally, type SetPart } from '../types';
 
@@ -57,6 +59,15 @@ export const A2_SHUTTER_GATE = 'g-a2-shutter';
 /** The hold point on the stores face at the south jamb: within `Interactable` reach (1.4 m) of a body on either side of the door. */
 export const A2_SHUTTER_HOLD = 'a2-shutter-hold';
 export const A2_SHUTTER_HOLD_AT = { x: 32.8, z: 10.6 } as const;
+/**
+ * The roller door's latch (lead answer 3, 2026-10-26): open for good once station 3 passes. A course door is unlocked only when
+ * every gate on it is open unless an `egress` gate on it is open (`CourseState.locked`), so the latch is an egress gate (a flag
+ * gate beside the hold gate would keep the door locked until both opened, and station 3 could never pass). It is station 4's
+ * stand-in: the base opens it as station 4 goes live (station 3's done flag `a2-lane` set) and keeps it open through station 4's
+ * retries; a bay restart shuts it with the rest. Its switch is the hold point, whose item is the hold gate's braced one (added
+ * first), so no press ever opens it by hand.
+ */
+export const A2_SHUTTER_OPEN_GATE = 'g-a2-shutter-open';
 
 /** The closers (the A2-21 idiom: noLedge boards at the rakes' neck ends): gap 1/2's neck mouth, and the north closures run on
  *  from the removed deck's face (z 17.5) to the north wall at full height. */
@@ -87,15 +98,19 @@ export const A2_SHUNTER_YAW_REPLAN = Math.PI / 2;
 
 /** The coat corner's wall lamp over the hooks (circuit 22, the cabin's switch). */
 export const A2_COAT_LAMP = { x: 28.95, y: 2.05, z: 4.7, radius: 2.4, intensity: 0.06 } as const;
+/** The stores bay's strip (lead answer 4): one more shed general strip (circuit 20, the west door switch) under the tie over the
+ *  bay, which the x 33 wall cuts off from the shed's other strips; the bay reads at least 0.30 (transit, LR7). */
+export const A2_STORES_LAMP = { x: 30.6, y: 6.5, z: 12.5, radius: 7.5, intensity: 0.42 } as const;
 
-/** Stations 3, 4 and 5 (STATIONS.md section 3, A2 block, verbatim). */
+/** Stations 3, 4 and 5 (STATIONS.md section 3, A2 block, verbatim, but for station 4's latch: lead answer 3 lists it in station 4's
+ *  gates, and it is station 4's stand-in so the base opens it as station 4 goes live). */
 const a2CarriageShedStations: StationDef[] = [
   { n: 3, id: 'a2-shutter', lesson: 'shutter_hold', retry: 'station', doneFlag: 'a2-lane',
     marks: [{ x: 31.0, z: 11.5, y: 0, yaw: Math.PI / 2 }, { x: 31.0, z: 13.0, y: 0, yaw: Math.PI / 2 }],
     guards: ['a2-shunter'], gates: ['g-a2-shutter'] },
   { n: 4, id: 'a2-lights', lesson: 'timed_light_cut', retry: 'station', doneFlag: 'a2-east', drillS: 15,
     marks: [{ x: 30.5, z: 2.5, y: 0, yaw: Math.PI }, { x: 45.5, z: 12.5, y: 0, yaw: Math.PI / 2 }],
-    guards: ['a2-shunter'], gates: ['g-a2-neck'] },
+    guards: ['a2-shunter'], gates: ['g-a2-neck', 'g-a2-shutter-open'], standIn: 'g-a2-shutter-open' },
   { n: 5, id: 'a2-plank', lesson: 'plank_bridge', retry: 'station', doneFlag: 'a2-across', kit: 'plankBridge', standIn: 'g-a2-walkway',
     marks: [{ x: 65.5, z: 12.0, y: 0, yaw: Math.PI / 2 }, { x: 65.5, z: 13.0, y: 0, yaw: Math.PI / 2 }],
     guards: ['a2-shunter'], gates: ['g-a2-walkway'] },
@@ -176,6 +191,8 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
   });
   p.devices[A2_SHUTTER_HOLD] = { x: A2_SHUTTER_HOLD_AT.x, y: 0, z: A2_SHUTTER_HOLD_AT.z, yaw: -Math.PI / 2, label: 'Hold the roller door up' };
   p.bay.gates.push({ kind: 'hold', id: A2_SHUTTER_GATE, holdId: A2_SHUTTER_HOLD, doorId: A2_SHUTTER_DOOR } satisfies HoldGate);
+  // the latch after the hold gate: the mode builds the hold point's braced item first and the latch shares it (never a press)
+  p.bay.gates.push({ kind: 'egress', id: A2_SHUTTER_OPEN_GATE, switchId: A2_SHUTTER_HOLD, doorIds: [A2_SHUTTER_DOOR] } satisfies EgressGate);
   // the back door: off the course's doors (the course unlocks a course door no gate names), locked and not breachable for good
   const backId = p.doors[A2_BACK_DOOR];
   const back = backId === undefined ? undefined : b.anchors.doors.find((d) => d.id === backId);
@@ -237,6 +254,12 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
   tally(b, p.register, 'A2-38', "Coat corner wall lamp over the hooks on the cabin circuit 22 (the re-plan table's second lamp): the cabin switch darkens both", () => {
     const l = A2_COAT_LAMP;
     b.light({ x: l.x, y: l.y, z: l.z, radius: l.radius, intensity: l.intensity, color: WHITE, group: 22, electric: true, destructible: true, fixture: { sx: 0.3, sy: 0.12, sz: 0.12, oy: 0.06 } });
+  });
+
+  // ---- the stores bay's strip (lead answer 4): circuit 20, the shed general, its seventh lamp ----
+  tally(b, p.register, 'A2-39', "Stores bay strip on the shed general circuit 20 (the re-plan table's seventh lamp): under the tie over the bay the x 33 wall cuts off, so the bay reads 0.30 or more (transit, LR7)", () => {
+    const l = A2_STORES_LAMP;
+    b.light({ kind: 'spot', x: l.x, y: l.y, z: l.z, radius: l.radius, intensity: l.intensity, color: WHITE, cone: makeCone(0, -1, 0, 0.9), group: 20, electric: true, destructible: true, fixture: { sx: 1.6, sy: 0.12, sz: 0.2, oy: 0.06 } });
   });
 
   // ---- the staging switch comes down from the removed deck: on the north wall in the strip west of the closures ----

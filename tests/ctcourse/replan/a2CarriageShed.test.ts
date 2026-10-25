@@ -5,15 +5,16 @@
  * (its `GREY`: the built test's method), the contract, the shunter alone, the stations equal STATIONS' A2 block, the marks'
  * standing room, the closures on the guards' runtime nav grid (no path from the stores bay with every gate shut; none to the
  * east end but through the neck; none across the pit but the walkway), the pit cannot be left on the far side or hopped, the
- * two pass zones, LANTERN's retry lines, the objective lines, the coat lamp on circuit 22, the course gates at run time, the
- * tuned light file. The built yard's own cases stay in `tests/ctcourse/a2CarriageShed.test.ts`.
+ * two pass zones, LANTERN's retry lines, the objective lines, the coat lamp on circuit 22, the course gates at run time (the
+ * roller door's latch after station 3: lead answer 3), the stores bay strip on circuit 20 and the marks out of the shunter's
+ * sight (lead answer 4), the tuned light file. The built yard's own cases stay in `tests/ctcourse/a2CarriageShed.test.ts`.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { MOVEMENT } from '../../../src/config/movement';
 import { COURSE_TEXT_MAX } from '../../../src/config/course';
 import { hyp2 } from '../../../src/core/mathx';
-import { layoutKnownIds, validateCourse, type FlagGate, type HoldGate, type IsolatorGate } from '../../../src/game/course/courseDef';
+import { layoutKnownIds, validateCourse, type EgressGate, type FlagGate, type HoldGate, type IsolatorGate } from '../../../src/game/course/courseDef';
 import { CourseState } from '../../../src/game/course/courseState';
 import { REPLAN_TICKS } from '../../../src/game/course/replan/ticks';
 import { a2Tick } from '../../../src/game/course/replan/a2Ticks';
@@ -58,9 +59,11 @@ import {
   A2_SHUTTER_DOOR,
   A2_SHUTTER_GATE,
   A2_SHUTTER_HOLD,
+  A2_SHUTTER_OPEN_GATE,
   A2_STATIONS,
   A2_STEP_IRONS_X,
   A2_STEP_IRONS_Z,
+  A2_STORES_LAMP,
   A2_STORES_WALL,
   A2_WALKWAY,
   A2_WALKWAY_DOOR,
@@ -104,14 +107,15 @@ const blockedAt = (x: number, z: number, y = 0, r = MOVEMENT.radius): string[] =
     .filter((p) => hyp2(Math.max(Math.abs(x - p.c[0]) - p.s[0] / 2, 0), Math.max(Math.abs(z - p.c[2]) - p.s[2] / 2, 0)) < r)
     .map((p) => `box (${p.c.map((v) => v.toFixed(2)).join(', ')}) size (${p.s.map((v) => v.toFixed(2)).join(', ')})`);
 
-/** STATIONS.md section 3, the A2 block, verbatim. */
+/** STATIONS.md section 3, the A2 block, verbatim, with the lead's one change (answer 3, 2026-10-26): station 4 lists the roller
+ *  door's latch in its gates and has it as its stand-in (the base opens it as station 4 goes live). */
 const STATIONS_A2: StationDef[] = [
   { n: 3, id: 'a2-shutter', lesson: 'shutter_hold', retry: 'station', doneFlag: 'a2-lane',
     marks: [{ x: 31.0, z: 11.5, y: 0, yaw: Math.PI / 2 }, { x: 31.0, z: 13.0, y: 0, yaw: Math.PI / 2 }],
     guards: ['a2-shunter'], gates: ['g-a2-shutter'] },
   { n: 4, id: 'a2-lights', lesson: 'timed_light_cut', retry: 'station', doneFlag: 'a2-east', drillS: 15,
     marks: [{ x: 30.5, z: 2.5, y: 0, yaw: Math.PI }, { x: 45.5, z: 12.5, y: 0, yaw: Math.PI / 2 }],
-    guards: ['a2-shunter'], gates: ['g-a2-neck'] },
+    guards: ['a2-shunter'], gates: ['g-a2-neck', 'g-a2-shutter-open'], standIn: 'g-a2-shutter-open' },
   { n: 5, id: 'a2-plank', lesson: 'plank_bridge', retry: 'station', doneFlag: 'a2-across', kit: 'plankBridge', standIn: 'g-a2-walkway',
     marks: [{ x: 65.5, z: 12.0, y: 0, yaw: Math.PI / 2 }, { x: 65.5, z: 13.0, y: 0, yaw: Math.PI / 2 }],
     guards: ['a2-shunter'], gates: ['g-a2-walkway'] },
@@ -219,7 +223,7 @@ describe('A2 re-plan: one guard, the shunter', () => {
 });
 
 describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
-  it("the stations are STATIONS section 3's A2 block, verbatim; every mark has standing room for a 0.3 m body on its floor, inside the set box and clear of the pit", () => {
+  it("the stations are STATIONS section 3's A2 block, verbatim but for station 4's latch; every mark has standing room for a 0.3 m body on its floor, inside the set box and clear of the pit", () => {
     expect(part.bay.stations).toEqual(STATIONS_A2);
     expect(A2_STATIONS).toEqual(STATIONS_A2);
     expect(def.bays.find((x) => x.id === 'A2')!.stations).toEqual(STATIONS_A2);
@@ -385,6 +389,73 @@ describe('A2 re-plan: the course gates at run time', () => {
     expect(part.devices[A2_ISO_2]).toMatchObject({ x: A2_CAB2_REPLAN.x, z: A2_CAB2_REPLAN.z });
     expect(Object.keys(part.doors).sort()).toEqual([A2_CABIN_DOOR, A2_SHUTTER_DOOR, A2_WALKWAY_DOOR].sort());
     expect(part.doors[A2_BACK_DOOR]).toBeUndefined();
+  });
+
+  it("the roller door latches open for good once station 3 passes (lead answer 3): an egress gate on the same door, after the hold gate, its switch the hold point, station 4's stand-in", () => {
+    const ids = part.bay.gates.map((g) => g.id);
+    const latch = part.bay.gates.find((g) => g.id === A2_SHUTTER_OPEN_GATE) as EgressGate;
+    expect(latch).toEqual({ kind: 'egress', id: 'g-a2-shutter-open', switchId: A2_SHUTTER_HOLD, doorIds: [A2_SHUTTER_DOOR] });
+    // the mode builds the hold point's braced item for the hold gate first and the latch shares it: a hold never presses it
+    expect(ids.indexOf(A2_SHUTTER_GATE)).toBeLessThan(ids.indexOf(A2_SHUTTER_OPEN_GATE));
+    expect(STATIONS_A2[1]!.gates).toContain(A2_SHUTTER_OPEN_GATE);
+    expect(STATIONS_A2[1]!.standIn).toBe(A2_SHUTTER_OPEN_GATE);
+    expect(STATIONS_A2[1]!.kit).toBeUndefined();
+  });
+
+  it('before the pass the roller door is shut without a hold: the latch stays shut, the door opens only while held; a station 3 retry still needs the hold', () => {
+    const s = fresh(3);
+    run(s, 0.5);
+    expect(s.station()).toBe(3);
+    expect(s.isGateOpen(A2_SHUTTER_OPEN_GATE)).toBe(false);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(true);
+    s.hold(A2_SHUTTER_HOLD, 0, true);
+    s.update(1 / 60);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(false);
+    s.hold(A2_SHUTTER_HOLD, 0, false);
+    s.update(1 / 60);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(true);
+    expect(s.retryStation('seen')).toBe(true);
+    run(s, 0.5);
+    expect(s.station()).toBe(3);
+    expect(s.isGateOpen(A2_SHUTTER_OPEN_GATE)).toBe(false);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(true);
+    s.hold(A2_SHUTTER_HOLD, 1, true);
+    s.update(1 / 60);
+    expect(s.locked(A2_SHUTTER_DOOR), 'held after the retry').toBe(false);
+  });
+
+  it('after the pass the roller door is open for good: unlocked with nobody holding, through station 4 retries (timer and seen), into station 5; a bay restart shuts it again', () => {
+    const s = fresh(3);
+    s.hold(A2_SHUTTER_HOLD, 0, true);
+    s.update(1 / 60);
+    s.hold(A2_SHUTTER_HOLD, 0, false);
+    s.setFlag(A2_LANE_FLAG);
+    run(s, 0.2);
+    expect(s.station()).toBe(4);
+    expect(s.isGateOpen(A2_SHUTTER_GATE)).toBe(false);
+    expect(s.isGateOpen(A2_SHUTTER_OPEN_GATE)).toBe(true);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(false);
+    for (const cause of ['timer', 'seen'] as const) {
+      expect(s.retryStation(cause, 4)).toBe(true);
+      run(s, 0.5);
+      expect(s.station(), cause).toBe(4);
+      expect(s.hasShared(A2_LANE_FLAG), `${cause}: station 3 stays done`).toBe(true);
+      expect(s.isGateOpen(A2_SHUTTER_OPEN_GATE), cause).toBe(true);
+      expect(s.locked(A2_SHUTTER_DOOR), cause).toBe(false);
+    }
+    s.setFlag(A2_EAST_FLAG);
+    run(s, 0.2);
+    expect(s.station()).toBe(5);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(false);
+    s.restart();
+    run(s, 0.2);
+    expect(s.station()).toBe(3);
+    expect(s.isGateOpen(A2_SHUTTER_OPEN_GATE)).toBe(false);
+    expect(s.locked(A2_SHUTTER_DOOR)).toBe(true);
+    // starting at station 4 (the dev start, a checkpoint) finds the door latched too
+    const s4 = fresh(4);
+    run(s4, 0.2);
+    expect(s4.locked(A2_SHUTTER_DOOR)).toBe(false);
   });
 
   it('the cabin back door is locked for good: locked, not breachable, and no course gate or door list names it', () => {
@@ -666,7 +737,7 @@ describe('A2 re-plan: cabinet 2, the coat lamp, map data', () => {
     }
     const coat = on22.find((l) => Math.abs(l.x - A2_COAT_LAMP.x) < 1e-6)!;
     expect([coat.y, coat.z]).toEqual([A2_COAT_LAMP.y, A2_COAT_LAMP.z]);
-    expect(lamps).toHaveLength(16);
+    expect(lamps).toHaveLength(17);
     expect(MARLOW_CIRCUITS_REPLAN.find((c) => c.group === 22)!.lamps).toBe(2);
     expect(MARLOW_POCKETS_REPLAN.map((p) => p.id)).not.toContain('a2-coat');
     expect(course.groups!['a2-cabin']).toBe(22);
@@ -678,6 +749,61 @@ describe('A2 re-plan: cabinet 2, the coat lamp, map data', () => {
     // the hooks the lamp lights are the built coat rail (x 28.4-29.55, north wall z 4.9)
     expect(coat.x).toBeGreaterThan(28.4);
     expect(coat.x).toBeLessThan(29.6);
+  });
+
+  it("the stores bay strip (lead answer 4) is the shed general's seventh lamp on circuit 20, over the bay the x 33 wall cuts off; the bay reads 0.30 or more in the tuned light file", () => {
+    const lamps = b.lights.lights.filter((l) => l.kind !== 'flashlight' && inBox(box, l.x, l.z));
+    const on20 = lamps.filter((l) => l.group === 20);
+    expect(on20).toHaveLength(7);
+    expect(MARLOW_CIRCUITS_REPLAN.find((c) => c.group === 20)!.lamps).toBe(7);
+    const bay = on20.filter((l) => l.x < A2_STORES_WALL.x);
+    expect(bay).toHaveLength(1);
+    const l = bay[0]!;
+    expect([l.x, l.y, l.z]).toEqual([A2_STORES_LAMP.x, A2_STORES_LAMP.y, A2_STORES_LAMP.z]);
+    expect(l.on && !l.destroyed && l.electric && l.destructible).toBe(true);
+    expect(l.z).toBeGreaterThan(A2_STORES_WALL.z0);
+    // the shed's west door switch (a2-sw-shed) darkens it with the rest of the shed
+    expect(part.switches.find((x) => x.id === 'a2-sw-shed')!.group).toBe(20);
+    const tuned = (JSON.parse(readFileSync('tests/ctcourse/replan/a2CarriageShed.light.json', 'utf8')) as { levels: Record<string, number> }).levels;
+    expect(tuned['A2 stores bay']).toBeGreaterThanOrEqual(0.3);
+  });
+
+  it("station 3's marks stay out of the shunter's sight: from every point of his round (eye 1.55 m) a visible solid blocks each mark at 0.5, 1.05 and 1.7 m, the roller door open", () => {
+    /** Does the segment p to q cross the box (slab method, the box shrunk by 1 mm: the built test's helper)? */
+    const crosses = (p: readonly number[], q: readonly number[], bx: BoxPiece): boolean => {
+      let t0 = 0;
+      let t1 = 1;
+      for (let k = 0; k < 3; k++) {
+        const lo = bx.c[k]! - bx.s[k]! / 2 + 1e-3;
+        const hi = bx.c[k]! + bx.s[k]! / 2 - 1e-3;
+        const d = q[k]! - p[k]!;
+        if (Math.abs(d) < 1e-12) {
+          if (p[k]! < lo || p[k]! > hi) return false;
+          continue;
+        }
+        const a = (lo - p[k]!) / d;
+        const c = (hi - p[k]!) / d;
+        t0 = Math.max(t0, Math.min(a, c));
+        t1 = Math.min(t1, Math.max(a, c));
+        if (t0 > t1) return false;
+      }
+      return true;
+    };
+    const blockers = solid.filter((p) => p.visible !== false);
+    const route = A2_SHUNTER_ROUTE_REPLAN;
+    const seen: string[] = [];
+    for (let i = 0; i < route.length; i++) {
+      const [x0, z0] = route[i]!;
+      const [x1, z1] = route[(i + 1) % route.length]!;
+      const n = Math.max(1, Math.ceil(hyp2(x1 - x0, z1 - z0) / 0.5));
+      for (let k = 0; k < n; k++) {
+        const eye = [x0 + ((x1 - x0) * k) / n, 1.55, z0 + ((z1 - z0) * k) / n];
+        for (const m of STATIONS_A2[0]!.marks) {
+          for (const y of [0.5, 1.05, 1.7]) if (!blockers.some((p) => crosses(eye, [m.x, y, m.z], p))) seen.push(`(${eye[0]!.toFixed(1)}, ${eye[2]!.toFixed(1)}) -> (${m.x}, ${y}, ${m.z})`);
+        }
+      }
+    }
+    expect(seen).toEqual([]);
   });
 
   it('map data: the deck debug point, spot and nav seed are gone; the pit floor and the far landing are nav seeds; the stores bay is a tight camera space; the pit has a shot vantage', () => {
