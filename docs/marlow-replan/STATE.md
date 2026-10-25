@@ -30,7 +30,11 @@ Owner: Marlow Build. Status: current.
 - Blocks elsewhere: Player coop-kit part 2 + `kitMoves` (KS1-KS5); Guard AI board-noticed hook (KS5); J12 PR A / S2 /
   S4 / D-A and J13 R6 / R8 for G1's gates.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
-- Next: fresh plan checker 2 on 6d9c284f0
+- Plan check 2 (Opus, FIX on 6d9c284f0, C:/NightShift/scratch/marlow/j14-plan-check-2.md): planner working, nothing
+  committed yet. Left: fix 1 (F1 drops one-out: revive cap 2, solo Start block, M8 test only; on `ctcourseReplan`
+  one out = both-down bay restart, R1 cause `out`), fix 2 (R1 `window.__course.retryOff(n)` + R4c cause mapping),
+  polish (41 overlaps, mission-rules order, `a7-pod` guard on `a7-hall`, `lastRetry` shape, R1 size, `revive.mjs`).
+- Next: finish plan check 2 fixes, then fresh plan checker 3
 
 ## Done
 - ~21:45 Plan check 1 answered: fixes 1-4, Marlow first in waves, polish (dff7647d2..6d9c284f0); guards 12 placed,
