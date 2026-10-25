@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.100.8 - Train 83: One-page game vision (2026-10-25, PR #399; #393)
+- docs/VISION.md: a one-page vision every session reads first: the pitch, the three modes (campaign, Marlow Yard,
+  Sector Ops) side by side, Michael's overrides of pure CT, ten hard design rules, build gates, what is never in the
+  game, each line citing its G entry or ROADMAP Decided time.
+
 ## 4.100.7 - Train 82: Decisions fold G283-G323 (2026-10-25, PR #397; #386)
 - docs/DECISIONS.md: roadmap decisions of 2026-10-24 ~15:10 to ~23:46 folded in as G283-G294 (idle-lead rule, level
   validator and standard extras, train speed-ups, test jobs, process audit, mission rules and prototypes, Marlow Yard
