@@ -127,10 +127,9 @@ function pageDriver(P, o) {
   let navT = -1e9;
   let wrapped = null;
   let noHurt = false;
-  // (R4b) the robot pair. The leader (host page) reads the guards; the follower (client page) trails the host's avatar:
-  // R3 `Trail` of the avatar's feet, steered to its point `trailM` back with R3 `Steer` on a two-point path rebuilt in
-  // place each poll; its stuck clock runs on its progress along the leader's walked path (`lw` minus its distance to the
-  // trail point). Its events never stop a tick (Node steps both pages the same time): they are latched in `fev`.
+  // (R4b pair) The leader (host) reads the guards; the follower (client) trails the host's avatar (R3 `Trail`, steered by
+  // R3 `Steer` on a two-point path rebuilt in place), its stuck clock on `lw` (the leader's walked path) minus its
+  // distance to the trail point. Its events never stop a tick: they are latched in `fev`.
   const TRAIL = 5;
   const leader = o.role !== 'follower';
   const trail = leader ? null : new P.Trail();
@@ -382,7 +381,6 @@ function pageDriver(P, o) {
     return av || null;
   }
 
-  /** (follower) Trailing from here: the stuck clock waits for the leader to move. */
   function startTrail(g) {
     mode = TRAIL;
     watch.idle();
@@ -674,7 +672,6 @@ function pageDriver(P, o) {
       return was;
     },
 
-    /** (pair, follower) The trail point now. */
     trailAt() {
       return [trail.tx, trail.ty, trail.tz];
     },
@@ -872,7 +869,6 @@ function pageDriver(P, o) {
       return nav.findPath([p.x, p.z], [goal[0], goal[2]], o.navExpand, p.y, goal[1]) ? 'could-not-follow' : 'no-nav-path';
     },
 
-    /** The robot's feet [x, y, z]. */
     pos() {
       const p = st().player.position;
       return [p.x, p.y, p.z];

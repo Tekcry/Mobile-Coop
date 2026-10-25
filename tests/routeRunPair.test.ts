@@ -14,12 +14,9 @@ type Obj = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
 const metrics = JSON.parse(readFileSync(new URL('../docs/design/metrics.json', import.meta.url), 'utf8'));
 const pace = paceFor('sneak', metrics);
 
-/**
- * A flat fake game in a vm: the robot moves at the pace along the pad's stick (camera yaw 0: stick x = world x, stick y
- * = world z). `hack`: Sector Ops S2's hold objective at (hx, 0, 0), hold `holdTime`, used through the held context menu
- * (the game's `contextMenuStep`: A down opens the list on row 1, D-pad down / up moves the highlight, the item's
- * progress fills only while A stays down with the highlight on its row, full runs it; a tap never fills it).
- */
+/** A flat fake game (camera yaw 0) with S2's hold objective at (hx, 0, 0) used through the held context menu, as
+ *  `contextMenuStep`: A down opens the list on row 1, D-pad moves the highlight, progress fills only while A stays down
+ *  on the item row; a tap never fills it. */
 function fakeGame({ hx = 2, holdTime = 3, rows = ['door', 'item'] as string[], reach = 2.5 } = {}) {
   class V {
     constructor(public x: number, public y: number, public z: number) {}
@@ -246,10 +243,8 @@ describe('the lockstep tick', () => {
   });
 });
 
-/**
- * Two fake pages in two vms over one flat world: the host's remote feet are the client player's feet and the client's
- * host avatar stands on the host player's feet (the net, with no lag); each page steps only its own player.
- */
+/** Two fake pages in two vms over one flat world: the host's remote is the client player's feet, the client's host
+ *  avatar the host player's (the net, with no lag); each page steps only its own player. */
 function fakePair(start = [23, 0, -68]) {
   class V {
     constructor(public x: number, public y: number, public z: number) {}

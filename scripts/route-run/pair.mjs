@@ -1,17 +1,8 @@
 // Route-run robot pair (J13 R4b, docs/route-runs/PLAN.md "R4b The robot pair"; BRIEF "Two players", "Co-op links",
 // A1, A6, A12): two pages on `?net=local`, the leader on the host (R4a's walker) and the follower on the client, both
-// stepped from Node on the host's clock.
-//
-// Boot (`openPair`, as scripts/e2e-ctcourse.mjs): course and Sector Ops autostart over `?net=local` (the host page, the
-// course's `courseBay` set before the client opens, the client page from the same boot URL); any other mode boots the
-// lobby (e2e-net-lib `hostAndJoin` + `startMode`). Damage off on the host for both. Headless, `NET_VIEWPORT`.
-// Clock: both pages run `loop.manual`; each lockstep tick (`lockTick`) steps the host `PAIR_TICK_S` of game time in the
+// stepped from Node on the host's clock. Boot: `openPair`; runs: `PairDriver` (splits, stubs, the trailing stall). Clock: both pages run `loop.manual`; each lockstep tick (`lockTick`) steps the host `PAIR_TICK_S` of game time in the
 // driver's 0.05 s chunks, then the client the same, then Node awaits once so BroadcastChannel delivers both ways (a single
 // long evaluate delivers no net messages). A client more than `CLOCK_DRIFT_S` behind is one `clock` note per run.
-// `PairDriver` is the runs' driver (driver.mjs `runOne`): its calls go to the leader's page, its waits step both pages;
-// the follower trails (driver.mjs page side) and a trailing stall is a follower dead stop placed beside the leader.
-// Splits: leg a leader, leg b follower at once, each through `runSteps` with its own robot driver; the first at the
-// rejoin waits idle. Stubs: the follower to its spot 1 m beside the link's `at`, both hold, both placed past it.
 // Pure parts (tests/routeRunPair.test.ts) load no browser: Playwright and e2e-net-lib are imported inside `openPair`.
 import { bootUrl, centreOf } from '../route-run.mjs';
 import { PageDriver, RUN_CAP_S, spaceAt } from './driver.mjs';
@@ -32,6 +23,8 @@ export const READY_S = 20;
 export const NEAR_WALK_S = 30;
 /** `?net=local` autostart covers these modes (src/main.ts `localMode`); any other boots the lobby. */
 export const AUTOSTART_MODES = ['course', 'sector'];
+/** The host page's section bake is waited for this long (wall ms) after the match starts. */
+export const BAKE_WAIT_MS = 120000;
 /** Robot names by page slot (0 host, 1 client). */
 export const ROBOT_NAMES = ['leader', 'follower'];
 
@@ -505,32 +498,28 @@ export async function openPair({ url, own, mode, map, courseBay = 0, pace, forgi
   const lib = await import('../e2e-lib.mjs');
   const net = await import('../e2e-net-lib.mjs');
   const boot = pairBoot(url, own, mode);
-  let browser;
-  let A;
-  let B;
-  let errors;
+  let browser, A, B, errors;
   if (bootPath(mode) === 'autostart') {
     const h = await lib.launch({ url: boot.host.url, params: boot.host.params, viewport: net.NET_VIEWPORT });
-    browser = h.browser;
-    A = h.page;
+    ({ browser, page: A } = h);
     await net.until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
     // (the match starts once the client joins: a later course set is the host session's start bay, set before)
     if (mode === 'course' && courseBay > 1) await A.evaluate((n) => (window.__coop.session.courseBay = n), courseBay);
     const c = await lib.openPage(h.ctx, boot.client.url, boot.client.params);
-    B = c.page;
-    errors = [h.errors, c.errors];
+    [B, errors] = [c.page, [h.errors, c.errors]];
     net.setSimPages([A, B]);
     for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
       await net.until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net, mode, net.LOAD_MS, `${tag} in the ${mode} match`);
     }
-    // (a map baking its lamps per section: the host's boot returned at the lobby, so its bake is waited for here)
-    await net.until(A, () => { const s = window.__app.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, 240000, 'host section bake').catch(() => notes.push('the host page started with its section bake unfinished (240 s cap)'));
+    // (a map baking its lamps per section: the host's boot returned at the lobby, so its bake is waited for here; polled
+    // from Node on the wall clock, as the background host's sim clock may not move before Node steps it)
+    const baked = () => A.evaluate(() => { const s = window.__app.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }).catch(() => false);
+    const t0 = Date.now();
+    while (!(await baked()) && Date.now() - t0 < BAKE_WAIT_MS) await new Promise((r) => setTimeout(r, 250));
+    if (!(await baked())) notes.push(`the host page started with its section bake unfinished (${BAKE_WAIT_MS / 1000} s cap)`);
   } else {
     const r = await net.hostAndJoin(boot.host.url, 2, { params: boot.host.params });
-    browser = r.browser;
-    A = r.A;
-    B = r.B;
-    errors = r.errors;
+    ({ browser, A, B, errors } = r);
     await net.startMode(r.pages, mode, map);
   }
   const host = new PageDriver(A, { pace, forgive, points, role: 'leader' });
