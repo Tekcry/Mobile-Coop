@@ -727,7 +727,7 @@ try {
   const k0 = await G(() => window.__studio.keyedState());
   assert(!k0.checked && !k0.disabled, `a state with a keyed clip: the box clear and enabled (${JSON.stringify(k0)})`);
   // (tuner-clarity S4) the capture plays the walk: the Now playing line says so, in the panel and in the Loop player
-  await waitPlay('motion-capture walk');
+  await waitPlay('^Now playing: motion-capture walk$');
   const np0 = await G(() => ({ line: document.querySelector('.anim-tune-playing')?.textContent ?? '', studio: window.__studio.playing(), hook: window.__animTune.playing() }));
   assert(/motion-capture walk/.test(np0.line) && np0.studio === np0.line && np0.hook.text === np0.line && np0.hook.mocap >= 0.9, `state:walk: the Now playing line says motion-capture walk, the Loop player the same (${JSON.stringify(np0)})`);
   await G(() => window.__studio.keyed(true));
@@ -777,7 +777,7 @@ try {
   // (N4b train-8 fix) the same 250 ms panel refresh as the keyed wait above, the other way
   await page.waitForFunction(() => window.__animTune.effect().mode !== 'keyed', null, { timeout: 3000 }).catch(() => {});
   // (tuner-clarity S4) the panel reports `mocap` while the capture plays 90 % or more of the body, else `procedural`
-  await waitPlay('motion-capture walk');
+  await waitPlay('^Now playing: motion-capture walk$');
   await page.waitForFunction(() => window.__animTune.effect().mode === (window.__animTune.playing().mocap >= 0.9 ? 'mocap' : 'procedural'), null, { timeout: 3000 }).catch(() => {});
   const ke2 = await G(() => ({ ...window.__animTune.effect(), share: window.__animTune.playing().mocap }));
   assert(ke2.mode === (ke2.share >= 0.9 ? 'mocap' : 'procedural') && ke2.mode === 'mocap', `cleared: the capture plays the walk, the mode is mocap (${ke2.mode}, capture share ${ke2.share})`);
@@ -787,7 +787,7 @@ try {
   const np2 = await playText();
   assert(/hand-made walk [(]motion capture off[)]/.test(np2), `the capture switch off: the line says (motion capture off) (${np2})`);
   await G(() => { const b = document.querySelector('.anim-tune-mocap'); if (b && !b.disabled && !b.checked) b.click(); });
-  await waitPlay('motion-capture walk');
+  await waitPlay('^Now playing: motion-capture walk$');
   const k2 = await G(() => window.__studio.keyedState());
   const kd2 = await drive();
   const kf2 = (await st()).frames;
@@ -991,7 +991,7 @@ try {
   await frames(page, 4);
   await G(() => window.__studio.pick('state:walk'));
   await frames(page, 4);
-  await waitPlay('motion-capture walk');
+  await waitPlay('^Now playing: motion-capture walk$');
   const wn = await G(() => {
     window.__animTune.tab('keys');
     const i = document.querySelector('.anim-tune-rows-keys input[data-id="armL_elbow"]');

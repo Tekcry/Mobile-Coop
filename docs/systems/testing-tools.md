@@ -340,8 +340,8 @@ behind a VPN adapter).
   has the tuner-ui pad checks: tabs by LB / RB, the drop-down, values shown and light on dark, the hint strip under the
   rows, pause while tuning.) (tuner-clarity) The Now playing line reads "motion-capture walk" on walk, "hand-made walk"
   with Keyed ticked and "(motion capture off)" with the More > Panel box off; a Body arm-swing row shows "Hand-made"; a
-  Keys edit on a walk the capture plays shows the edit warning naming Body > Joints; the Keys tab has "Left leg (key)" and
-  "Right leg (key)" parts and no "Whole body"; `legL_ankleYaw` on `key.walk.1` turns the left ankle with `keyed:walk` playing.
+  Keys edit on a walk the capture plays shows the edit warning naming Body > Joints; the Keys tab has "Left leg" and
+  "Right leg" parts and no "Whole body"; `legL_ankleYaw` on `key.walk.1` turns the left ankle with `keyed:walk` playing.
   (marlow-bays slice T, also covers `src/ui/tunerMouse`, `tunerTarget`) Keyboard and mouse: the
   open tuner is in drag view with no pointer lock; a left drag on the scene turns the camera; the header button and F4
   switch to the game camera and back; a row clicked in the Joints part is marked (`tt-sel`) and the scene marker sits on
