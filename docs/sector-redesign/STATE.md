@@ -374,12 +374,13 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
      e2e-coop + e2e-netmove on top of affected-e2e.
    - J17 campus-greybox on cloud-queue (dac8958d9): s1, s4 reopened (branches carry partial work: s1 24ec1bc71 G5,
      s4 8bd64d268 G4.2); s2 reopened with my Answer (G5c option 1: re-cut L2 / MR rooms, A-J17-S2-1), resumes at
-     G5c-0 from ba9283143; s3-r1 DONE 5d7da838c (frame 3a8c6893a) -> needs a checker + laptop e2e-sectorops part;
+     G5c-0 from ba9283143; s3-r1 DONE 5d7da838c (frame 3a8c6893a), Sonnet PASS from code (tests not run: CPU; CI at the PR) -> laptop
+     e2e-sectorops part at the S3-a PR;
      s3-r2..r5 queued from the frame (r3 closes the core slots + core rooms, A-J17-S3-2/3; door pairs as signed,
      A-J17-S3-1); s5 open. On each done: checker, laptop e2e-sectorops part; r6 after r5 + lead merge of r1-r4.
      Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
 3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 on cloud-queue (7a006dbbe);
    B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
    sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
-Next: #459 delta checker; s3-r1 checker; pick up cloud done briefs within 1 h.
+Next: #459 delta checker; pick up cloud done briefs within 1 h.
 ```
