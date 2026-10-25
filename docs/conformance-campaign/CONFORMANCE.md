@@ -3,7 +3,7 @@
 Brief: `origin/feature/menu:docs/orchestrator/review-briefs/campaign.md` (G355: "All current maps/features should be
 revised once documentation work has been completed"). Plan only: no src, test, map, script or config change here.
 
-Status: DRAFT (partial push: parts A and C in; part B mission framework + campaign rules next).
+Status: complete for checking (2026-10-25 ~13:50). Section 1 is the summary; parts A, B, C hold the evidence.
 
 **Refs read (2026-10-25).**
 - Docs: origin/master 829a9332 (#407 and train 88 merged). Doc citations are line numbers in that ref.
@@ -13,8 +13,81 @@ Status: DRAFT (partial push: parts A and C in; part B mission framework + campai
 - ROADMAP: origin/feature/menu 784d0217. Validators run: master 829a9332, origin/feature/mission-validator 0c62a921, origin/feature/level-validator-v6 8f551e18 (each extracted with `git show` and run with plain `node`).
 
 Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. "Needs Michael" = a missing or conflicting decision, or a fix
-that loosens a Michael-only rule; those rows list 2-4 options for a native multiple-choice question. "Cap OK" marks a
+that loosens a Michael-only rule; the questions with their options are in 1c. "Cap" (or "G355", "[cap-ok]" in the parts) marks a
 rule fix allowed at the walk cap (G355).
+
+## 1. Summary gap table (hard-rule breaks first)
+
+One row per gap; the detail rows (TW = Tallow Wharf, part A; MF = mission framework and campaign rules, part B; HG = HUD
+guidance, part C) carry the file:line evidence and the fix. Where two parts found the same gap, the summary names both.
+"Cap" = a rule fix allowed at the walk cap (G355): a fix to a shipped feature (master), or a rule fix inside the dark
+Tallow Wharf / engine build. The engine is not on master, so its fixes ship dark with it.
+
+### 1a. Hard-rule breaks
+
+| # | Gap | Rule | Detail rows | Size | Cap | Needs Michael? |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 | Minimap, compass and objective blips drawn in every mode (master); Marlow Yard and free roam show every live guard; co-op shows the partner's live position (also G135); legacy HQ shop sells "Minimap radar" | VISION.md:59-61 rule 5; G339; G135 | HG1, HG2, HG3, HG4, MF1 | M | Cap | No |
+| S2 | Two guard dogs in Mission 1 (W3, W4, both missions; a test locks it in) | VISION.md:29; G155 | TW1, MF4 | S-M | Cap | No |
+| S3 | Engine rule kinds `oneChance` (ends the mission) and `window` (a countdown that restarts the section): A12 | G290, G334, G339, G353; VISION.md:62 rule 6 | MF2, MF3, TW24 | M | Cap | No |
+| S4 | Campaign revives are Sector Ops syringes by difficulty (1-3) plus grants, not 30 s x 2 per mission | VISION.md:30; G126 | TW5, MF5 | M | Cap | No |
+| S5 | Exactly two players not enforced at start; a campaign mission starts solo or with 3-4 | VISION.md:20, :63 rule 7; G2, G48 | TW6, MF9 | S | Cap | No |
+| S6 | Missions and the kit are not dark at the engine head 00b6cde9; the FLG fix is only in an unpushed local merge; `?autostart=tallowWharf&mode=sector` still loads the map as plain Sector Ops | CLAUDE.md:52 (flags) | TW7, MF7 | S | Cap | No |
+| S7 | Both shutters are closed stand-in panels: neither mission completes without a debug teleport | VISION.md:57 rule 3 (perfect always possible); G146 | TW2, MF18 | L | - | No |
+| S8 | Protected character (Teale) killed or knocked out before he talks: no section restart, the step softlocks | G353 (replaces G145's mission fail) | MF6 | M | Cap | No |
+| S9 | Three gate-reach validator ERRs: w2-reading-room 20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s (master's validator) | level-design.md:257-259 (11.6), :478-481 (14) | TW3 | M | Cap | No |
+| S10 | Lighting basis is Marlow's "lit by default" (G279), not real-site light per space type | VISION.md:31, :55-56 rule 2; G329 | TW4 | M | Cap | No |
+| S11 | No objective popup: the objective line is always on; View / O not bound; the engine adds an always-on list outside Marlow | VISION.md:48-49; G343, G351 | HG5, HG6, HG7, HG9, MF13 | M | Cap (HG5, HG6) | No |
+| S12 | Objective text without "where": Mission 1 tgc-2; section banner shows the other mission's objective; three Sector Ops lines | G336, G351 | MF14, TW16, HG10 | S | Cap | No |
+
+### 1b. Other gaps (standard, gates, docs)
+
+| # | Gap | Detail rows | Size | Needs Michael? |
+| --- | --- | --- | --- | --- |
+| S13 | Greybox exit gate not met: no measured validator pass, no route-runs, no walk card; the three validator branches disagree (master: gate reach; mission-validator: kit dims; V6: rejects `shutter` / `team_pull` / `team_throw`) | TW10, TW11 | L | No |
+| S14 | G157 level-standard review (12 changes) never done before the Tallow greybox; G293 waived only G288's sign-off | TW8 | S | Yes (Q1) |
+| S15 | Four sign-off pages have no pick and are out of date (claim 0 ERR, omit dogs, lighting, stand-ins, present solo-jumpable throws as forced) | TW9 | S | Yes (Q2) |
+| S16 | Throw gaps (2.5 m) are solo-jumpable; graph and sign-off treat them as forced | TW17 | S / L | Yes (Q3) |
+| S17 | No Campaign mode entry: missions start by URL on an unlisted map; lobby "Campaign" label points at Marlow Yard; no briefing; no campaign save / rejoin (G147); a clear writes Sector Ops stars; no 0-100% rating | MF8, MF9, MF10, MF11, MF12 | L (own job) | Yes (Q4) |
+| S18 | No civilian kind; clerks, porters, readers are armed guards, so G353's civilian restart cannot apply | TW20, MF16 | M | Yes (Q5) |
+| S19 | Section-rating grants and optional rewards inherited from Sector Ops; alarm response leads with a riot shield | MF17, MF15 | S | Yes (Q6) for grants |
+| S20 | Phase 1-2 map deliverables missing (element register, guard sheets, light / sound / checkpoint / medkit / civilian plans, 16.10 answers); SPEC not on the current template | TW12, TW23 | L | No |
+| S21 | One restart point per section, not a checkpoint before each encounter space | TW13 | M-L | No |
+| S22 | Map data gaps: hide spots (TW14), no medkit station (TW15), splits not declared (TW18), no high-route lookout yet (TW19, after Guard AI's G335), graph drift (TW21), roof ladder through a let loft (TW22) | TW14, TW15, TW18, TW19, TW21, TW22 | S-M each | No |
+| S23 | Tests: level-design 15 acceptance tests not run for the map; no perfect-run check; tests that go red on the HUD removal | TW25, MF20, part C "Tests" | M | No |
+| S24 | Docs: bible 5.8 strict-rule list differs from the engine's; SPEC plans a briefing map and field-menu Map; ROADMAP cites G134 for the briefing map; campaign cap 32 held only by riding SectorMode | MF19, HG12, HG13, MF21 | S | No |
+| S25 | Marlow guidance mark: off-screen edge pointer with metres may be a waypoint (cross-check with the Marlow review) | HG11 | S | Yes (Q7) |
+
+### 1c. Questions for Michael (native multiple choice; first option = recommendation)
+- **Q1 (S14, TW8) G157 level-standard review before Tallow Wharf resumes.** "Review in parallel, greybox stays dark";
+  "Review the 12 now, before row 8 resumes"; "Waive G157 for Tallow Wharf, review before Mission 2".
+- **Q2 (S15, TW9) Sign-off pages, per page (campaign map, Three Grey Coats, Two-Key Ledger, co-op kit), asked only after
+  the pages are corrected.** "Approve as specced"; "Approve with changes"; "Re-plan".
+- **Q3 (S16, TW17) Throw gaps.** "Accept throws as optional co-op; C3 forces W2"; "Make the throws force co-op (engine
+  work)"; "Replace C5 with another forced move".
+- **Q4 (S17, MF9) Where the Campaign starts.** "Co-op lobby: Campaign, Marlow Yard (training), Sector Ops"; "Main menu
+  gets a Campaign item"; "Lobby only, behind the missions flag until Mission 1 switch-on".
+- **Q5 (S18, MF16) Civilians on Tallow Wharf.** "Only the named couriers are protected; everyone else stays an armed
+  guard"; "Clerks, porters and couriers are civilians (unarmed, flee, a kill restarts the section)"; "No civilians on
+  Mission 1".
+- **Q6 (S19, MF17) Rewards in the campaign.** "No grants: optional objectives only raise the rating (CT way)"; "Keep
+  section grants, but no revive syringes"; "Grants only for optional objectives".
+- **Q7 (S25, HG11) Marlow guidance mark.** "Keep as built (edge pointer and metres)"; "On-screen mark only, no edge
+  pointer or metres"; "Drop the mark, list only". Shared with the Marlow review.
+
+### 1d. Proposed jobs after the row 6 sign-off (for the orchestrator's fold)
+1. **hud-guidance** (ROADMAP Now 7, cap): PR A removal S1 (HG1-HG4 + test fixes), PR B popup and binding (HG5, HG6, HG9),
+   docs HG12-HG13. Master code; lands before the engine rebases (HG3 conflicts with the engine's `sectorMode.ts` blip gate).
+2. **mission-engine rule fixes** (ROADMAP Now 8): push FLG + GB6 (S6) after their checkers; A12 replacement (S3); dogs
+   (S2); campaign revives and no shield lead (S4, MF15); protected-character break (S8); exactly-two gate (S5); objective
+   text and banner (S12); cap naming (MF21); popup feed and field-menu list (HG7, HG8).
+3. **tallow-wharf greybox fixes** (ROADMAP Now 8): gate reach (S9), lighting re-base (S10), map data (S22), graph drift,
+   sign-off page corrections (S15) then Michael's picks.
+4. **shutter wiring** (S7, L): `placeShutter`, world wiring, NET, guards' notice, e2e.
+5. **campaign-mode** (S17, L, own job after Q4): lobby Campaign mode, mission in the session, briefing, campaign results,
+   save / rejoin (G147).
+6. **tallow-wharf design docs** (S20, L) and checkpoints (S21), then the greybox exit gate (S13): one validator on master
+   (Marlow Build's V6 + mission-validator merge), GBM, route-runs, walk card.
 
 ## Part A. Tallow Wharf (map, graph, Three Grey Coats, Two-Key Ledger)
 
@@ -86,6 +159,150 @@ WARNs (all validators): `room_class custom` on w1-canal-steps, w2-arcade-roof, w
 - Story and radio lines written to be voiced (G82): every radio line <= 90 characters, intel lines <= 60 (`tallowWharfSectors.ts:230-243`); story decided with the missions (G354) through the TGC / TKL sign-offs.
 - Hot paths and imports (CLAUDE.md hard rules): the map files import Babylon only via `core/babylon` and use `hyp2` (`tallowWharf.ts:1`, `tallowWharfSectors.ts:2`, `:59`); no runtime network dependency.
 - RULES Intake 2: BRIEF.md keeps "Michael said / picked" apart from assumptions with undo lines (BRIEF.md A1-A18, M1-M5 @5181c9db).
+
+## Part B. Mission framework / engine and the campaign rules
+
+Refs: as above; validator rule kinds read on origin/feature/mission-validator 0c62a921. The brief's `enemyManager.ts:135-136` is `:143-144` on 829a9332 (`maxAlive = MAX_ALIVE`) and `:126-127` on 00b6cde9. `[cap-ok]` = a rule fix to a shipped feature, allowed at the walk cap (G355).
+
+| # | Item | Rule (doc:line / G) | Current state (file:line @ref) | Gap | Fix | Size | Needs Michael? |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MF1 | Compass and minimap still drawn in a mission (A10 hid the blip only) [cap-ok] | VISION.md:59-61 rule 5; G339 DECISIONS.md:1914; design-bible.md:730 | hud.ts:32-38, :57-58, :136-143, :159 compass; :86, :152, :160, :175-176 minimap slot @829a9332; gameState.ts:639-640 `new Minimap` for every mode, :750 / :767 `extraBlips` @829a9332; sectorMode.ts:1391-1393 `blips()` returns [] only while a mission runs @00b6cde9 | A Tallow Wharf mission shows the compass strip and the minimap; every other mode shows the blip too. Hard rule 5 break in every mode. | HUD owner: delete the compass strip, the minimap slot, `ui/hud/minimap.ts`, `GameMode.blips()` in every mode and the net blips; keep Marlow's course markers (guidance marks, G292). Engine: its `blips()` branch goes with it; asserts in scripts/e2e-sectorops-mission.mjs:43-44, tests/mission/sectorMission.test.ts:540 and the wharf e2e (bc9e6981 scripts/e2e-sectorops-wharf.mjs:257) become "no `.hud-compass` / `.hud-minimap` element". See "A10 / A12 replacements". | M | No |
+| MF2 | `oneChance` rule ends the mission (A12) | G290 DECISIONS.md:1566 (a break restarts the section, the mission continues); G353 :1988 (replaces mission fail); G126 :695 (both down reloads the checkpoint); level-design.md:213 | missionDef.ts:68, :128 kind; ruleTracker.ts:35-36 `RULE_END`, :84-85, :97, :110-118, :254-262 `onFail`, :292-299; sectorMission.ts:150-151 `fail`, :169 `MISSION FAILED`, :209 / :266, :339-356 (an everyone-down restart counts as a failure), :465-468, :540-543, :636 `g.endSession(false, ...)`; missionText.ts:20, :58-60 @00b6cde9 | A mission can end on a rule break, and with a step-less one-chance rule an everyone-down restart ends it too. No mission data uses it (tallowWharfMissions.ts:112, :203). | Remove the kind and the mission-end path; every break is RULE_RESTART. Validator branch: scripts/mission-validate.mjs:18, :405, docs/level-validator/mission-schema.md:54, :87 @0c62a921. Docs: BRIEF.md:67-68, PLAN.md:37, :78, :217. Tests: ruleTracker.test.ts:196-210, sectorMission.test.ts:433-437. | M | No |
+| MF3 | `window` rule kind: a step not done in N s restarts the section (A12) | G334 DECISIONS.md:1885; VISION.md:62 rule 6; VISION.md:27; level-design.md:182-186 (no forced timers in stealth) | missionDef.ts:68, :76-79 (`seconds`), :128, :326-329; ruleTracker.ts:286-290 (reads `runner.openedAt`); missionText.ts:21, :27 @00b6cde9 | A countdown with a penalty. No mission data uses it; tests do (missionDef.test.ts:134, missionText.test.ts:23, ruleTracker.test.ts:129). | Remove the kind and `MissionRule.seconds`; soft windows become world data (see A12 replacement). Validator: mission-validate.mjs:18, :229 @0c62a921. Ship with MF2 (one slice). | S | No |
+| MF4 | Dogs on Tallow Wharf | G155 DECISIONS.md:803; VISION.md:29 (campaign: no heavies or dogs); level-design.md:140; design-bible.md:688 | tallowWharfSectors.ts:148 W3 dog, :366 `dogs: 1`; :168 W4 dog, :390 `dogs: 1` @00b6cde9; campaign-map SPEC.md:45, :134, :141 @5181c9db | Campaign Mission 1 has two dogs. | Replace each dog with a human post (W3 yard: a second watchman at the lodge; W4: the handler alone), `dogs: 0`; renumber guard slots (`<section>:<k>` ids) in `WHARF_GUARD_MISSIONS` (tallowWharfSectors.ts:200), the TKL / TGC events and tests; SPEC and graph.json counts. | M | No |
+| MF5 | Campaign revives are Sector Ops syringes per difficulty | G126 DECISIONS.md:695; VISION.md:30; design-bible.md:681 C6; level-design.md:218-221 | coopHost.ts:203 `if (mode === 'sector') this.reviveClock.cap = syringesFor(difficulty)` (Rookie 3, Normal 2, Realistic 1, Perfectionist 1, sectors.ts:511) @00b6cde9 (:206 @829a9332); rating grants add syringes sectorMode.ts:1151-1152; TKL optional reward `syringe` tallowWharfMissions.ts:190 | A campaign mission gets 1-3 revives by difficulty, plus grants; the rule is 2 per mission. | A campaign profile (MissionDef.mode === 'campaign'): cap `REVIVES_PER_MISSION` (reviveClock.ts:10), no syringe grants (medkits instead, as solo does), TKL reward to `medkit` or `gadget`. Touches src/net: two checkers. | M | No |
+| MF6 | A protected character's death or knock-out does not restart the section; the step softlocks | G145 DECISIONS.md:764 + G353 :1988; design-bible.md:585-591; TGC BEAT.md:17-22 @5181c9db ("killing Teale before he talks breaks the rule"; no knock-out on Teale) | ruleTracker.ts:244-247 breaks `namedTarget` on a decoy read only; sectorMission.ts:416-419 `kill(ko, attackerId)` has no victim; sectorMode.ts:1341-1343 drops `e.id` @00b6cde9 | Killing or knocking out Teale (W2:6) before tgc-3 leaves tgc-3 never done: the mission cannot finish without a pause-menu restart. No civilian handling exists anywhere (no civilian kind on master). | Built-in break, not one of the 2 strict rules: an open interrogate step's target (later: a `protected` tag on a guard) killed or knocked out restarts the section with a radio line. `kill(ko, attackerId, victimId)`; sectorMode passes `e.id`; a `RuleTracker.onProtected()` that returns RULE_RESTART. Civilians: MF16. | M | No (civilians: MF16) |
+| MF7 | Missions not dark at the PR C ref [hard rule, code] | CLAUDE.md:52 (unfinished work ships dark behind its flag) | sectorMission.ts:69-72 `missionParam()` returns `flags.mission` with no gate @00b6cde9; the kit's pull offer shows on Marlow lips (the FLG fix). Fixed only in the unpushed local merge bc9e6981 (flags.ts `missions`, `coopKit`, `?missions=1` / `?coopkit=1`) | PR C at 00b6cde9 would ship the mission path and the kit moves live (the map is unlisted, the kit is not). | Push bc9e6981 (FLG + GB6 merges) to origin/feature/mission-engine before PR C; checker on the flag gates. | S | No |
+| MF8 | Menu and lobby call Marlow Yard "the campaign" [cap-ok] | G292 DECISIONS.md:1581; G340 :1919; G184 note :1010; VISION.md:21 | coopUi.ts:376 `{ value: 'course', label: 'Campaign' }`, :383 `CAMPAIGN_MAP = 'ctcourse'`, :393-398; main.ts:332 "The campaign starts at Marlow Yard" @829a9332 | Shipped text contradicts G340 (Mission 1 is Tallow Wharf; Marlow is training). | Label the lobby mode "Marlow Yard (training)", fix the Co-op line; the real Campaign entry is MF9. | S | No |
+| MF9 | No Campaign mode entry: missions start only by URL on an unlisted map | VISION.md:18-30 (Campaign column); G2 :42; G48 :234; VISION.md:63 rule 7; design-bible.md:618-621 (the lobby lists every mission) | tallowWharf.ts:55, :61 `modes: ['sector']`, :65-66 `unlisted: true`; sectorMission.ts:69-72 reads `?mission=` (shared with Infiltration's autostart); coopUi.ts:395 filters unlisted maps @00b6cde9; protocol.ts:39-41 sector takes 2 @829a9332 | No menu or lobby path to a mission; the mission id is not in the session, so a resumed room loses it; nothing stops a solo start (the forced gates and the pair gate stop a solo finish). | Campaign profile on the Sector runtime (keep A6, level-design.md:17): a lobby "Campaign" mode that lists `MapDef.missions` with mode 'campaign' (TGC, TKL), puts the mission id in the session / `GameOptions` (not the URL), starts only with 2 players, host picks the difficulty (the lobby row exists), applies MF5 / MF11 / MF15. Own job with MF10-MF13. See "Campaign entry size". | L | Yes: Q4 (1c) |
+| MF10 | No campaign save: no checkpoint autosave, Continue, saved-mission rejoin or progress record; a clear writes Sector Ops stars | G147 DECISIONS.md:772; VISION.md:38; design-bible.md:606-608, :618-621, :665 C2 | sectorMode.ts:1033 `markCompleted(map.id, ...)` writes `sector:ops` stars for `tallowWharf` @00b6cde9; master rejoin is a 10-min in-session hold (main.ts:341-357, coopUi.ts:184 `RejoinRecord`, course bay only) @829a9332 | Bible 5.8 progress (per player, per mission: completed, best rating, intel) and G147 (host's saved mission, any partner joins) do not exist. | New kv record `campaign:missions` (the `sectorRecord.ts` C9 pattern, no SAVE_VERSION bump); host autosave at each section begin: mission id, section index, runner done / fact bits, rule breaks, revives used, loadout; lobby Resume on the host's save; skip `markCompleted` for campaign missions. | L | No |
+| MF11 | No campaign rating 0-100% | G146 DECISIONS.md:768; VISION.md:57 rule 3; design-bible.md:613-617 | sectorMode.ts:1043 `sectorResult(...)` (Sector Ops marks and stars) @00b6cde9 | A perfect run is possible by design (ghost routes, no forced kill) but the game cannot show "100%: no kills, no alarms, every primary objective". | Campaign results: the rating from the tracker's mission-scope stats + required steps done; rules kept row (`MissionWire.rk` exists). | M | No |
+| MF12 | Briefing with the rule line is never shown | G290 DECISIONS.md:1566 (signposted in the briefing and the objective list); level-design.md:213 | missionText.ts:64-68 `briefingLines()` has no caller; `MissionDef.briefing` read only by checkMission (missionDef.ts:190) @00b6cde9 | Rules are signposted only in the HUD rules line ("Rules: Named target"), not in a briefing. | Campaign briefing screen before the mission (reuse `BriefingScreen`), text from `briefingLines`. Part of MF9. | M | No |
+| MF13 | Always-on objective list instead of the objective popup | G343 DECISIONS.md:1933; G351 :1980; VISION.md:48-49; design-bible.md:724-727 (always-on list is Marlow only) | missionHud.ts:1-8, :56-72 (title, rules line, rows, shown for the whole mission); sectorMode.ts:366, :1328 @00b6cde9; no popup on master | The campaign shows a permanent list; the rule is a ~5 s fade-in on every update and on View / Select or O, full list in the field menu. | The popup (HUD owner, G343 "to assign") fed from `objectiveRows`; missionHud's list moves to the field menu. | M | No |
+| MF14 | One objective line lacks the "where" | G336 DECISIONS.md:1894; G351 :1980; VISION.md:60 | tallowWharfMissions.ts:57 "Learn which grey coat is Pell's: the warden's tally book, the tea stall talk" @00b6cde9 (same text TGC graph.json:12, BEAT.md:28 @5181c9db); the place is only in the hint (off by default) | The tally book's place (the warden's gallery office) is not named. | e.g. "Learn which grey coat is Pell's: tally book in the gallery office, tea stall talk" (under 90); change BEAT, graph.json and the data together. Other 11 campaign lines pass. | S | No |
+| MF15 | Alarm response teams lead with a riot shield in the campaign | G155 DECISIONS.md:803 (CT's way: armour and helmets with the alarm stages); VISION.md:29 (riot shields listed for Sector Ops only, G297 / G307); G1 default | gear.ts:37-38 `RESPONSE.shieldLead: true` for every mode; gear.ts:156-163 `responseTeam` @829a9332 (same @00b6cde9) | A Tallow Wharf alarm sends a shield `enforcer`. | Campaign profile sets no shield lead (grunts only). | S | No (G1 default; say so in the fix report) |
+| MF16 | Who is a civilian on Tallow Wharf | G353 DECISIONS.md:1988; design-bible.md:549-551 (civilians include night watchmen, unarmed, flee, kill = section restart) vs G298 (every guard is armed) | No civilian kind in code (829a9332, 00b6cde9); tallowWharfSectors.ts:140-160 cast night clerks, porters, couriers, watchmen as armed `grunt`; TKL briefing calls the staff clerks on night rates (tallowWharfMissions.ts:131) | The G353 civilian restart cannot apply: nobody is a civilian. The bible's list and G298 overlap on watchmen. | Per the answer: a `civilian` archetype (unarmed, flees to a guard or alarm, kill = section restart through MF6's path) or none on Mission 1. | M after the answer | Yes: Q5 (1c) |
+| MF17 | Section-rating grants and optional rewards in the campaign | Undecided; design-bible.md:613-617 (optional objectives are a rating bonus); G1 pure CT default | missionDef.ts:51-52 `optional.reward` paid through section-rating's Grant; tallowWharfMissions.ts:85 `gadget`, :190 `syringe`; sectorMode.ts:1132-1152 grants @00b6cde9 | The campaign inherits Sector Ops' per-section rewards; no decision says it should. | Per the answer; syringes are out either way (MF5). | S | Yes: Q6 (1c) |
+| MF18 | Both missions need debug teleports: shutter stand-ins | G146 DECISIONS.md:768 (every mission testably 100%-able); G292 :1581 | BRIEF.md:94-95 A22; wharf e2e prints SKIP for w1-shutter and w4-shutter (bc9e6981 scripts/e2e-sectorops-wharf.mjs:307, :364) | TGC's W1 exit and TKL's shed two way are closed panels: neither mission completes in normal play. | The shutter wiring slice (GB-briefs 0.2: `placeShutter`, world wiring, NET) before Michael's walk. | M | No |
+| MF19 | Bible's strict-rule list differs from the engine's | design-bible.md:585 (`noAlarms`, `noKills`, `noBodiesFound`, `maxAlarmLevel`; "the one owner of the strict rules") vs G290 ghost | missionDef.ts:68 (ghost, noKills, noAlarms, noBodies, namedTarget, noGadgets, plantNotTake; after MF2 / MF3) @00b6cde9; no `maxAlarmLevel` | Two lists for one rule set; ghost is missing from the owner list. | Bible 5.8 lists the engine's kinds after MF2 / MF3; drop or build `maxAlarmLevel`. Orchestrator doc fix. | S | No |
+| MF20 | No perfect-run check | G146 DECISIONS.md:768 ("testably 100%-able") | Wharf e2e asserts the forced moves and the rule restarts, not a run with 0 kills, 0 alarms and every primary step (bc9e6981 scripts/e2e-sectorops-wharf.mjs:1-6, :338-344, :411-422) | The validator's ghost / pacifist paths (PLAN.md:166-167) prove the graph, not the build. | One perfect-run assert per mission once MF18 lands (results show 100% after MF11). | S | No |
+| MF21 | Campaign cap 32 holds only by riding SectorMode | G359 DECISIONS.md:2013; G187 note :1028-1030; VISION.md:29; level-design.md:295-298 | sectorMode.ts:327-328 `em.maxAlive = SECTOR.maxAlive` (32, sectors.ts:509) for every sector run, mission or not @00b6cde9; enemyManager.ts:83 `MAX_ALIVE = 12`, :143-144 default and its comment "everywhere but Sector Ops" @829a9332; protocol.ts:25 `MAX_ENEMIES = 32` | Correct today. A Campaign entry that is not a sector run would fall back to 12; the comment hides the campaign. | Name the campaign in the cap (a `CAMPAIGN.maxAlive = 32` or a comment on `SECTOR.maxAlive`), fix the enemyManager comment. | S | No |
+
+### B. Campaign entry size (scope item 3)
+Today a mission is a Sector Ops run with `?autostart=tallowWharf&mode=sector&mission=<id>` on an unlisted map
+(tallowWharf.ts:55, :65-66), the mission picked from the URL (sectorMission.ts:69-72). VISION.md:18-30 makes the Campaign
+its own mode with its own players, guidance, downed, difficulty, guards and save rules. Keeping the Sector runtime (A6,
+level-design.md:17) is fine; what is missing is the campaign profile and the front door:
+
+| Part | Rows | Size |
+| --- | --- | --- |
+| Profile switch on `MissionDef.mode === 'campaign'`: revives 2, no syringe grants, no shield lead, no Sector stars, campaign results | MF5, MF11, MF15, MF10 (stars) | M |
+| Lobby Campaign mode, mission list, mission id in the session and the start message (NET3 already sends `start.sm`), 2-player start gate, lobby wording | MF8, MF9 | M (src/net: two checkers) |
+| Briefing screen and objective popup | MF12, MF13 | M |
+| Save: autosave at section begin, Continue / Resume, any partner joins, progress record | MF10 | L |
+
+Total: L, its own job ("campaign-mode", about 2-3 days with checkers), after Q4 (1c). MF1 is the HUD owner's job; MF2-MF7, MF14,
+MF18-MF21 stay with Campaign Build in the engine branch.
+
+### B. A10 / A12 replacements
+
+#### A10 (void by G339): what replaces it
+- **Design:** no minimap, compass, objective blip, world waypoint or live partner position in any mode (VISION.md:59-61,
+  design-bible.md:730). The hint layer half of A10 stays: text only, `gameplay.hints`, default off (settings.ts:163
+  `hints: false` @00b6cde9), shown under the current objective. Guidance is the objective popup naming what and where
+  (G343, G351; MF13) plus in-world leads (light, landmarks, radio). Marlow Yard keeps its course markers (guidance marks,
+  G292); they are not the minimap and are untouched.
+- **Files (HUD owner, a rule fix at the cap, G355):** `src/ui/hud/hud.ts` compass (:32-38, :57-58, :136-143, :159, :257-262)
+  and minimap slot (:86, :152, :160, :175-176); `src/ui/hud/minimap.ts`; `src/game/gameState.ts:639-640` (`new Minimap`),
+  :750 / :767 (`extraBlips`); `blips()` on every mode (`src/game/modes/*.ts`) and the net blips (`coopHost` / `coopClient`);
+  the styles in `src/styles.css`.
+- **Files (mission engine):** `sectorMode.ts:1391-1393` mission branch goes with `blips()`;
+  `scripts/e2e-sectorops-mission.mjs:43-44`, `tests/mission/sectorMission.test.ts:540`, the wharf e2e :257 (bc9e6981)
+  assert that the compass and minimap elements are absent; BRIEF.md:62-64 A10 rewritten to the hint clause only;
+  PLAN.md:83-84 and :138 ("blips") updated; GB6-brief.md:85.
+
+#### A12 (needs a re-plan by G339 / G290 / G334): what replaces it
+- **Design:**
+  1. No rule ends a mission. Every strict-rule break restarts the section and the mission continues (G290). Killing a
+     civilian or a protected character restarts the section too (G353), as a built-in break that does not count against
+     the 2 strict rules (MF6). Everyone down reloads the checkpoint (G126), never a mission end.
+  2. "One chance" stakes come from consequences, not failure: the spook (A11, built: the target bolts, the retry is a new
+     route) and the named-target rule. No `oneChance` kind.
+  3. No timed rule. A soft window is world data, not a rule: a shift change, patrol cycle or device cycle authored as
+     fixed guard routes, `MissionEvent` walk-to hooks (missionDef.ts:53-66) or a repeating device, signposted in the
+     world (a bell, a clock, a radio line, a light change). Missing one means waiting for the next; no countdown, no
+     restart (G334, level-design.md:182-186). Marlow's timed drills (G342, G361) are Course mode and untouched.
+  4. Sync steps keep their `window` (both halves within N s: CT's sync, never scaled, G131). They are retryable
+     (`MissionRunner.syncHalf`, missionRunner.ts:396-407: a late half just waits for the next press), so they are not a
+     route-closing timer. `checkMission` keeps its sync checks (missionDef.ts:242-245).
+- **Files and functions (one slice, Opus, one checker; no wire change, `MissionWire` has no end field):**
+  - `missionDef.ts`: `RuleKind` :68 and `RULE_KINDS` :128 drop `oneChance` and `window`; `MissionRule.step` comment :76
+    (namedTarget only) and `seconds` :78-79 removed; the window branch of `checkMission` :326-329 removed.
+  - `ruleTracker.ts`: `RULE_END` :35-36, `ended` :84-85, `endsOnRestart` :97 and its loop :110-118, `onFail` :254-262,
+    the window check :286-290 and the end branch :292-299 go (every hit returns `RULE_RESTART`); header :10-14. Add
+    `onProtected()` for MF6.
+  - `sectorMission.ts`: header :16-18; `SectorMissionHost.fail` :150-151 and its binding :636; `MISSION_FAILED_TITLE`
+    :169; `hasOneChance` :209, :266; the one-chance branch of `restarted()` :344-356 (a restart it did not ask for only
+    restores state); `pendEnd` :214, :465-468, :540-543; `kill()` :416-419 gains the victim id (MF6).
+  - `missionText.ts`: `RULE_NAME` :20-21, `ruleName` :27, `breakLine` :58-60 loses `end`.
+  - `missionRunner.ts:232` `openedAt` stays (its own tests use it) or goes; nothing else reads it after the tracker change.
+  - `sectorMode.ts:1343` passes `e.id` to `mission.kill` (MF6).
+  - Tests: `tests/mission/ruleTracker.test.ts` :129, :196-210; `sectorMission.test.ts` :433-437; `missionDef.test.ts`
+    :134; `missionText.test.ts` :23.
+  - Validator (origin/feature/mission-validator 0c62a921): `scripts/mission-validate.mjs` :18, :229, :405;
+    `docs/level-validator/mission-schema.md` :54, :87.
+  - Docs (PR #372): BRIEF.md:67-68 A12 rewritten ("A rule break always restarts the section; no mission end; no timed
+    rule; soft windows are world data"); PLAN.md:37, :78, :217 (drop "one-chance opt-in UI").
+
+### B. Assumptions A1-A23 today
+| A# | Text (short) | Status today | Citation |
+| --- | --- | --- | --- |
+| A1 | Sector Ops validator players [1,2,3,4] | holds | G308 DECISIONS.md:1717; VISION.md:20 |
+| A2 | Campaign maps co-op only (LD 11 solo-first dropped) | holds | G292 :1581; level-design.md:235, :280 |
+| A3 | A no-kill rule overrides LD 7.3 for that mission | holds (now in the standard) | level-design.md:201 |
+| A4 | Device windows only when named in the briefing | holds, narrowed: also signposted in the world, and retryable or repeating; never a countdown that closes a route | G334 :1885; level-design.md:182-186 |
+| A5 | Prototype specs are docs only | holds | process (RULES) |
+| A6 | Campaign maps run on SectorMode, players [2] | holds as the runtime, but needs a campaign profile (MF5, MF9-MF11, MF15) | level-design.md:17; VISION.md:18-30 |
+| A7 | Missions attach as optional `MapDef.missions` (adapter) | holds | mapDef.ts:132-133 @00b6cde9 |
+| A8 | Ghost / no kills / no alarms / no bodies read section-rating marks | holds | G290; ruleTracker.ts:41-55 @00b6cde9 |
+| A9 | Teams by slot, attribution | holds (Sector Ops only; campaign is team 'all') | G291 :1573; missionDef.ts:423-426 |
+| A10 | Hint layer text only; blip off while a mission runs | void (blip clause); the hint clause holds | G339 :1914; replacement above |
+| A11 | Spook: a decoy read bolts the target | holds; extend with MF6 (target killed / knocked out) | G290; TGC BEAT.md:17-22 |
+| A12 | One-chance ends the mission; a named window restarts the section | needs re-plan | G339 :1914, G290 :1566, G334 :1885, G353 :1988; replacement above |
+| A13 | Three branches / PRs A, B, C | holds | process |
+| A14 | Code Relay on S4 | holds (Sector Ops scope) | G291; Sector Ops sign-off |
+| A15 | Plan SVGs from `graph-svg.mjs` | holds | process |
+| A16 | Sector Ops tracks, sync nodes, a solo timer fallback named in the briefing | holds if a lapsed relay can be re-issued (Code Relay BEAT.md:25 does not say; Sector Ops review) | G334; G280 |
+| A17 | Graph nodes; `mark` ERR outside training | holds | G292, G339 |
+| A18 | Tallow Wharf, 4 sections W1-W4 | holds (G340 made it Mission 1) | G340 :1919 |
+| A19 | Throw gaps bolted so W2 stays forced | holds | G292; level-design.md:280 |
+| A20 | Drop guards (no fall damage) | holds | engine fact |
+| A21 | W3 restart point shared by both missions | holds | G290 (section checkpoint) |
+| A22 | Shutters are stand-ins until the kit wiring | holds as temporary; blocks normal completion (MF18) | G146; BRIEF.md:94-95 |
+| A23 | Mission start section + per-mission guard lists | holds (built: missionDef.ts:107-125, sectorMission.ts:80-110) | G291 |
+
+### B. Checked, conforms
+- Section restart on a strict-rule break, mission continues, earlier sections kept: sectorMission.ts:537-544, :462-473,
+  sectorMode.ts:1182-1233 @00b6cde9; the wharf e2e restarts TGC on a decoy and TKL on a kill (bc9e6981 :338-344, :411-422). G290.
+- Up to 2 strict rules, ghost counts as one, signposted: `MISSION.rulesPerScope` 2 (missionDef.ts:138), checkMission
+  :336-337; TGC 1 rule (tallowWharfMissions.ts:112), TKL 1 rule (:203); HUD rules line (missionHud.ts:67). Briefing: MF12.
+- Hint layer off by default, text only: settings.ts:163 `hints: false` @00b6cde9. G290.
+- Exactly 2 players, no bot, not completable solo (by design): checkMission forces campaign `players [2]`, team 'all',
+  mission-scope rules (missionDef.ts:185, :218, :318); TKL's strongroom pair gate is never solo (sectors.ts:444); no bot
+  code; lobby sector capacity 2 (protocol.ts:39-41 @829a9332). Runtime start gate: MF9. G2, G48, VISION rule 7.
+- No mission forces a kill: TGC needs a question, TKL forbids kills; BEAT ghost routes (TGC BEAT.md:139-140). G127.
+- Soft windows in the missions: TGC's minders and TKL's porter move on step events, not timers (tallowWharfMissions.ts:99,
+  :165); TKL's 1.0 s key turn is a retryable sync. G334 (the engine kinds: MF3).
+- Downed window 30 s on the Sector runtime: `REVIVE_WINDOW` 30 (reviveClock.ts:8), only the cap is overridden (MF5). G126.
+- Difficulty: host picks Rookie..Perfectionist in the lobby (coopUi.ts:546 `difficultyRows` @829a9332); the engine reads
+  `g.opts.difficulty` only for syringes (MF5) and Sector stars (MF10); sync windows never scale. G106, G131.
+- Helmets: the engine does not touch gear. (G350's difficulty part is unbuilt in gear.ts:29-35 @829a9332: alarm stages
+  only; that belongs to the Guard AI / Sector Ops reviews.)
+- Campaign cap 32: met today by SectorMode (sectorMode.ts:327-328, `SECTOR.maxAlive` 32 sectors.ts:509 @00b6cde9); Tallow
+  Wharf selects it by being `modes: ['sector']` (tallowWharf.ts:61), not by a MapDef field; Marlow (Course mode) keeps
+  `MAX_ALIVE` 12 (enemyManager.ts:83, :143-144 @829a9332) as G187's note says. Hardening: MF21. G359.
+- Objectives what + where: 11 of 12 campaign lines name both (tallowWharfMissions.ts:48, :68, :82, :93, :106, :140, :149,
+  :160, :172, :187, :198); MF14 is the one gap. All lines are 90 characters or less (missionDef.ts:221). G336, G351.
 
 ## Part C. HUD guidance (compass, blip, minimap, maps, objective popup), every mode
 
