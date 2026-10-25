@@ -4,31 +4,38 @@ Owner: Marlow Build. Status: current.
 ## Resume block
 - Branch feature/marlow-replan, worktree C:/NightShift/Mobile-Coop-marlow-replan. Guard: `test "$(git rev-parse
   --abbrev-ref HEAD)" = feature/marlow-replan`. Docs only so far (no src / test / map / script / config change).
-- Michael approved REPLAN ~19:16 "Approve as drawn (Recommended)" (`REPLAN.md:47-48`). Build plan written:
-  `PLAN.md` (planner Opus 5.5, master 94e72b1cd), BRIEF fixed per lead notes (`BRIEF.md:48` A2 = A8 caught retries in
-  place, `:73` A9 #443 merged, `:38` 10 guards).
-- Graph: `graph.json:8` `meta.taught_by` "A6", 17 `teach:<move>` space tags (PLAN A13, `PLAN.md:375`); master
-  validator 2 ERR / 78 WARN (`validate-run.txt`, notes at the end). No `area` yet: slice G0 (`PLAN.md:221`).
-- PLAN map: code today `PLAN.md:8-50`; design `:52-121` (dark map `ctcourseReplan` A16, bays stay 8 and the 18 steps
-  are stations `:62`, `StationDef` verbatim `:68-84`, retry rule `:86`); claims and collisions `:123-205`; slices
-  `:207-334`; flags `:336`; waves `:342-350`; gates `:352`; walk items `:363`; A13-A25 `:374-410`; Assume and log
-  `:411`; blocks `:415-421`.
-- Slices: D1 station sheet (Opus, docs), G0 graph `area` (Sonnet, docs), S0 variant base (Sonnet, PR 1, flag
-  `marlowReplan`), R1 station retry runtime (Opus, PR 2, wire `course.st`, two checkers), F1 live rule fixes (Opus,
-  PR 3: revive cap 2, one-out no restart, solo Start blocked, room map), set slices G-A1A7 / A2 / A3 / A4 / A5 / A6 /
-  A8 (Sonnet, PRs 4-10), R2 HUD + ratings (PR 11), G1 graph as built + gates (PR 12), KS1-KS5 kit stations (PRs 13-17),
-  C1 switch-on cleanup.
-- Wave 1 (now): D1, G0, S0, F1; R1 from S0's first commit (`stationDef.ts`). Wave 2: the seven set slices from the
-  lead's merge of S0 + R1 (`feature/marlow-replan-base`); G-A2 / A3 / A6 after #441. Wave 3: R2 (after #441), G1.
-- Blocks elsewhere: Player coop-kit part 2 (K0-K5b, waits on Campaign's mission-engine kit PR) and `kitMoves` for
-  KS1-KS5; Guard AI board-noticed hook (KS5); J12 PR A / S2 / S4 / D-A and J13 R6 / R8 for G1's gates.
-- For the orchestrator: Assume and log A15 (10 guards not 12), A19 (chimney gap 1.4 m not 1 m) plus BRIEF A3 / A5 /
-  A7; order #441 and map-ready vs R1 / F1 (`PLAN.md:169-205`); S0 touches Test Runner's `run-e2e.mjs` /
-  `e2e-times.json`.
-- Marlow Yard is AT CAP: everything ships dark behind `marlowReplan` (switch-on target 2026-10-29, after the walk).
-- Next: plan checker on 82f1f823e (PLAN head; later commits are STATE only).
+- Michael approved REPLAN ~19:16 "Approve as drawn (Recommended)". Picks since: ~20:40 "12, add two" (guards) and
+  chimney gap "1.4 m" (`BRIEF.md:31-35`); ~20:50 "Marlow first" (`PLAN.md:420`, ROADMAP Decided).
+- Plan check 1 (Opus, FIX, C:/NightShift/scratch/marlow/j14-plan-check.md) answered, one commit per item:
+  - Fix 1 F1 out player returns (dff7647d2, 7ccd46471): the exit airlock cycles with the survivor while the partner is
+    out, the out player respawns inside it, checkpoint advanced; a lone survivor may work a pair gate; on
+    `ctcourseReplan` going out = that station's retry (R1 `onPlayerOut`, cause `out`). Test case named in F1's done
+    line (`PLAN.md:334-363`). F1 owns the `out` / `oneMay()` / `need()` / pair-gate hunks of `courseState.ts`.
+  - Fix 2 guards 12 (b15000a1c): A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3; A7 pod-leg technician, A5 kiosk
+    watcher, A6 pit-side fallback (`PLAN.md:94-107`, A15 `:472`, D1 `:227`, G-A1A7 / G-A5 / G-A6 rows; `BRIEF.md:31-35`,
+    `:44`; graph `a5-inner` guards 2, `a7-pod` guards 1 as a connector). Validator rerun: same 2 ERR, only the a5-inner
+    INFO changed (`validate-run.txt` top and last note).
+  - Fix 3 R1 hooks for J13 R4c (642ef1bc2): `window.__course.restarts` + `lastRetry` (`seen` / `caught` / `timer` /
+    `out` / `down`) on host and client, wire `rs` / `rc` beside `st`, unit test (`PLAN.md:293-304`).
+  - Fix 4 wave 1 seams (ce3b7de43): S0's first commit carries stationDef / flag / `SetPart.bay.stations` / ctcourse
+    mapping / the `BayDef` line, then never edits `courseDef.ts` (`PLAN.md:261-265`); room-map line moved to R1; F1
+    free of S0, ships first; set-slice PRs open after S0 + R1 are released (`PLAN.md:424-436`).
+  - Marlow first in waves (932ef18d9); polish list done (6d9c284f0: 33 overlaps, F1 walk line, R1 done lines, src/net
+    parse rule, A20 in Assume and log, replan calls from ctcourse.ts, S0 owns e2e budgets).
+- Note for checker 2: STATIONS.md does not exist yet (slice D1 writes it); its guard rows are specified in D1's text.
+  F1 built-yard limit stated: a team move between the survivor and the airlock still needs the partner (pause-menu
+  bay restart, as today).
+- PLAN map: code today `PLAN.md:8-50`; design `:52-132`; claims `:134-220`; slices `:221-412`; flags `:413`; waves
+  `:419`; gates `:438`; walk items `:449`; A13-A25 `:463`; Assume and log `:501`; risks `:507`.
+- Blocks elsewhere: Player coop-kit part 2 + `kitMoves` (KS1-KS5); Guard AI board-noticed hook (KS5); J12 PR A / S2 /
+  S4 / D-A and J13 R6 / R8 for G1's gates.
+- Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
+- Next: fresh plan checker 2 on 6d9c284f0
 
 ## Done
+- ~21:45 Plan check 1 answered: fixes 1-4, Marlow first in waves, polish (dff7647d2..6d9c284f0); guards 12 placed,
+  validator rerun.
+- 20:40 Michael picked 12 guards and the 1.4 m chimney gap (6db797a09).
 - 20:45 BRIEF A2 / A9 / guard total fixed; graph `meta.taught_by` + `teach:` tags; validator rerun (8217b0628).
 - 20:55 PLAN.md written: claims (claims-check 32 overlaps, listed), 17 slices in PRs, waves, gates, A13-A25 (82f1f823e).
 - 18:19 graph.json (training profile) and first validator run (3 errors: coverage, A3, A4).
