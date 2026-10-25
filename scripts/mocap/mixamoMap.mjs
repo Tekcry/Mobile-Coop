@@ -9,9 +9,15 @@
 // `offset` slot carrying the rigid hop in the parent bone's frame (as CMU's `lhipjoint`). A `hub` slot has no length
 // (its tip is its start) and exists so CMU names analyze.mjs reads (`lowerneck`, `lwrist`) are present.
 //
-// Spine (A6): Mixamo has three spine bones, Wren two. Wren `spine` follows Spine1 (`upperback`), `chest` follows Spine2
-// (`thorax`); `Spine` (`lowerback`) only carries the chain, its share reaching Wren through the rest correction of the
-// pelvis-to-spine segment. Fingers, clavicles: extra slots for the keyed `fing` / `clav` channels (A7; M3 emits them).
+// Spine (A6): Mixamo has three spine bones, Wren two; matched by rest height (standing_idle heads above the hips head:
+// Mixamo Spine 0.096 / Spine1 0.208 / Spine2 0.336 / Neck 0.480 m; Wren above the pelvis: spine 0.130 / chest 0.255 /
+// neck 0.543 m). Wren `spine` (spine -> chest joint) is Mixamo `Spine` (`upperback`: Spine head -> Spine1 head); Wren
+// `chest` (chest -> neck joint) spans Spine1 + Spine2 (`thorax`: Spine1 head -> Neck head, a `blend` slot). A blend
+// slot turns with the slerp halfway between its two bones (the twist), then swings by the smallest arc so its rest span
+// lands exactly on the posed span the two bones make: its direction is the measured Spine1 -> Neck direction at every
+// frame. `lowerback` is a hub (CMU name only). Neck as the plan: `upperneck` = Neck (Neck head -> Head head). Fingers,
+// clavicles: extra slots for the keyed `fing` / `clav` channels (A7; M3 emits them). WREN_SPANS (below) is the
+// independent table the direction check (mixamoTake.mjs `mixamoDirCheck`) measures against.
 // `*_End`, `HeadTop_End` and the finger `4` bones are end points only. Lengths here are the file's; the retarget always
 // uses Wren's own lengths (rest correction aims Wren's segments).
 
@@ -39,22 +45,37 @@ export const MIXAMO_FINGER_BONES = SIDES.flatMap(([, S]) => FINGERS.flatMap((F) 
 export const MIXAMO_ALL = [...MIXAMO_REQUIRED, ...MIXAMO_FINGER_BONES, ...MIXAMO_ENDS];
 
 /**
- * slot -> { rot, end, parent, kind, extend? }. Insertion order is parents before children.
+ * The direction check's source spans (A6, mixamoTake.mjs `mixamoDirCheck`): Wren joint -> [from, to], the Mixamo bones
+ * whose heads span the segment that starts at the joint (retarget.mjs SEG_END), matched by rest height. Written out
+ * here, independent of MIXAMO_MAP's slots, so a slot on the wrong bone shows as a direction error.
+ */
+export const WREN_SPANS = {
+  spine: ['Spine', 'Spine1'], chest: ['Spine1', 'Neck'], neck: ['Neck', 'Head'],
+  ...Object.fromEntries(SIDES.flatMap(([s, S]) => {
+    const j = s.toUpperCase();
+    return [[`sh${j}`, [`${S}Arm`, `${S}ForeArm`]], [`el${j}`, [`${S}ForeArm`, `${S}Hand`]], [`wr${j}`, [`${S}Hand`, `${S}HandMiddle1`]],
+      [`hip${j}`, [`${S}UpLeg`, `${S}Leg`]], [`kn${j}`, [`${S}Leg`, `${S}Foot`]], [`an${j}`, [`${S}Foot`, `${S}ToeBase`]]];
+  })),
+};
+/**
+ * slot -> { rot, end, parent, kind, extend?, blend? }. Insertion order is parents before children.
  *   rot     the Mixamo bone whose rotation turns the slot
  *   end     the Mixamo bone whose head is the slot's tip; null for a hub (tip = start)
  *   parent  the slot whose tip is this slot's start (null for `root`, whose tip is the Hips head)
  *   kind    'core' (drives a Wren segment or the trunk chain), 'offset' (rigid hop), 'hub', 'clav', 'finger',
  *           'alias' (a CMU name analyze.mjs reads, the same data as a finger slot)
  *   extend  when `end` is missing in the file: the tip = start + extend x the parent slot's rest vector
+ *   blend   (blend slot) the child of `rot` the slot also spans: rot head -> blend head -> end head, turning with the
+ *           rot / blend slerp at 0.5 swung onto the posed span (`end`'s parent is `blend`, `blend`'s parent `rot`)
  */
 export const MIXAMO_MAP = (() => {
   const m = {};
-  const add = (slot, rot, end, parent, kind, extend) => { m[slot] = { rot, end, parent, kind, ...(extend ? { extend } : {}) }; };
+  const add = (slot, rot, end, parent, kind, extend, more) => { m[slot] = { rot, end, parent, kind, ...(extend ? { extend } : {}), ...more }; };
   add('root', 'Hips', 'Hips', null, 'core');
   add('spinejoint', 'Hips', 'Spine', 'root', 'offset');
-  add('lowerback', 'Spine', 'Spine1', 'spinejoint', 'core');
-  add('upperback', 'Spine1', 'Spine2', 'lowerback', 'core');
-  add('thorax', 'Spine2', 'Neck', 'upperback', 'core');
+  add('lowerback', 'Spine', null, 'spinejoint', 'hub');
+  add('upperback', 'Spine', 'Spine1', 'lowerback', 'core'); // Wren's spine
+  add('thorax', 'Spine1', 'Neck', 'upperback', 'core', 0, { blend: 'Spine2' }); // Wren's chest: Spine1 + Spine2
   add('lowerneck', 'Spine2', null, 'thorax', 'hub');
   add('upperneck', 'Neck', 'Head', 'lowerneck', 'core');
   add('head', 'Head', 'HeadTop_End', 'upperneck', 'core', 1.7);
@@ -92,7 +113,7 @@ export const MIXAMO_TO_SLOT = Object.fromEntries(
  * Checks a dump's bone list and resolves base names. `bones`: [{ name, parent }] (parent a full name or null).
  * Returns { prefix, full: Map<base, full name>, parent: Map<base, parent base | null>, missingFingers, missingEnds,
  * unknown }. Throws on a missing required bone, mixed prefixes, a duplicate base name, or a hierarchy the map's rigid
- * offsets cannot use (an end bone whose parent is not the slot's rotation bone).
+ * offsets cannot use (an end bone whose parent is not the slot's rotation bone, or a blend slot's blend bone).
  */
 export function resolveMixamoBones(bones) {
   const prefixes = new Set(bones.map((b) => prefixOf(b.name)));
@@ -113,15 +134,16 @@ export function resolveMixamoBones(bones) {
   const unknown = [...full.keys()].filter((n) => !known.has(n));
   const res = { prefix: [...prefixes][0] ?? '', full, parent, missingFingers, missingEnds, unknown };
   for (const s of mixamoSlots(res)) {
+    if (s.blend && parent.get(s.blend) !== s.rot) throw new Error(`mixamo: ${s.blend}'s parent is ${parent.get(s.blend) ?? 'none'}, the map needs ${s.rot} (slot ${s.slot})`);
     if (!s.end || s.slot === 'root') continue;
-    const p = parent.get(s.end);
-    if (p !== s.rot) throw new Error(`mixamo: ${s.end}'s parent is ${p ?? 'none'}, the map needs ${s.rot} (slot ${s.slot})`);
+    const p = parent.get(s.end), want = s.blend ?? s.rot;
+    if (p !== want) throw new Error(`mixamo: ${s.end}'s parent is ${p ?? 'none'}, the map needs ${want} (slot ${s.slot})`);
   }
   return res;
 }
 
 /**
- * The slots a resolved file supports, parents first: [{ slot, rot, end, parent, kind, extend }] with `end` null for a
+ * The slots a resolved file supports, parents first: [{ slot, rot, end, parent, kind, extend, blend }], `end` null for a
  * hub or when the end bone is missing (then `extend` gives the tip). A missing finger drops its slots; the CMU aliases
  * `lfingers` / `lthumb` then become hubs on the hand.
  */
@@ -136,7 +158,10 @@ export function mixamoSlots(res) {
     if (fingerGone) continue;
     const endMissing = d.end && !res.full.has(d.end);
     if (endMissing && !d.extend) throw new Error(`mixamo: slot ${slot} needs ${d.end}`);
-    out.push({ slot, rot: d.rot, end: endMissing ? null : d.end, parent: d.parent, kind: d.kind, ...(d.extend ? { extend: d.extend } : {}) });
+    out.push({
+      slot, rot: d.rot, end: endMissing ? null : d.end, parent: d.parent, kind: d.kind,
+      ...(d.extend ? { extend: d.extend } : {}), ...(d.blend ? { blend: d.blend } : {}),
+    });
   }
   return out;
 }

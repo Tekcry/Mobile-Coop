@@ -1,5 +1,6 @@
 // (mixamo-retarget M2, docs/mixamo-retarget/PLAN.md M2) The Mixamo bone map: every Wren joint the retarget drives has a
-// slot and the Mixamo bone the plan names (A6 spine split), every segment ends at a child bone's head, the CMU names
+// slot and the Mixamo bone matched by rest height (A6 spine: Wren spine = Spine, chest = Spine1 + Spine2), every segment
+// ends at a child bone head, the direction check's spans cover every driven segment, the CMU names
 // analyze.mjs reads exist, any `mixamorig<N>:` prefix (or none) resolves, a missing or re-parented bone is an error, and
 // missing fingers / end bones fall back without breaking the chain.
 import { describe, expect, it } from 'vitest';
@@ -8,7 +9,7 @@ import * as mapMod from '../scripts/mocap/mixamoMap.mjs';
 // @ts-expect-error plain .mjs build script without types
 import * as retargetMod from '../scripts/mocap/retarget.mjs';
 
-interface SlotDef { rot: string; end: string | null; parent: string | null; kind: string; extend?: number }
+interface SlotDef { rot: string; end: string | null; parent: string | null; kind: string; extend?: number; blend?: string }
 interface Slot extends SlotDef { slot: string }
 interface Resolved { prefix: string; full: Map<string, string>; parent: Map<string, string | null>; missingFingers: string[]; missingEnds: string[]; unknown: string[] }
 interface BoneIn { name: string; parent: string | null }
@@ -21,11 +22,12 @@ const M = mapMod as {
   resolveMixamoBones: (b: BoneIn[]) => Resolved;
   mixamoSlots: (r: Resolved) => Slot[];
   baseName: (n: string) => string;
+  WREN_SPANS: Record<string, [string, string]>;
 };
 const R = retargetMod as {
   MAP: Record<string, string>;
   SEG_END: Record<string, string>;
-  wrenRig: () => { names: string[] };
+  wrenRig: () => { names: string[]; bind: Record<string, number[]> };
 };
 
 /** The standard 65-bone Mixamo hierarchy (child -> parent), base names. */
@@ -48,7 +50,7 @@ describe('MIXAMO_MAP', () => {
     expect(M.MIXAMO_REQUIRED.length).toBe(22);
   });
 
-  it('maps every Wren joint the retarget drives, to the bones the plan names (A6 spine split)', () => {
+  it('maps every Wren joint the retarget drives, to the bones matched by rest height (A6 spine)', () => {
     const rig = R.wrenRig();
     for (const j of rig.names) {
       if (['root', 'body', 'handL', 'handR'].includes(j)) continue; // identity / follow the wrist (retarget.mjs)
@@ -57,19 +59,27 @@ describe('MIXAMO_MAP', () => {
       expect(M.MIXAMO_MAP[slot!], `${j} -> ${slot}`).toBeDefined();
     }
     const want: Record<string, string> = {
-      pelvis: 'Hips', spine: 'Spine1', chest: 'Spine2', neck: 'Neck', head: 'Head',
+      pelvis: 'Hips', spine: 'Spine', chest: 'Spine1', neck: 'Neck', head: 'Head',
       shL: 'LeftArm', elL: 'LeftForeArm', wrL: 'LeftHand', shR: 'RightArm', elR: 'RightForeArm', wrR: 'RightHand',
       hipL: 'LeftUpLeg', knL: 'LeftLeg', anL: 'LeftFoot', toeL: 'LeftToeBase', hipR: 'RightUpLeg', knR: 'RightLeg', anR: 'RightFoot', toeR: 'RightToeBase',
     };
     for (const [j, b] of Object.entries(want)) expect(M.MIXAMO_MAP[R.MAP[j]!]!.rot, j).toBe(b);
-    expect(M.MIXAMO_TO_SLOT.Spine).toBe('lowerback');
+    // spine = Spine (Spine head -> Spine1 head); chest spans Spine1 + Spine2 (a blend slot, Spine1 head -> Neck head)
+    expect(M.MIXAMO_MAP.upperback).toMatchObject({ rot: 'Spine', end: 'Spine1', kind: 'core' });
+    expect(M.MIXAMO_MAP.upperback!.blend).toBeUndefined();
+    expect(M.MIXAMO_MAP.thorax).toMatchObject({ rot: 'Spine1', blend: 'Spine2', end: 'Neck', kind: 'core' });
+    expect(M.MIXAMO_MAP.upperneck).toMatchObject({ rot: 'Neck', end: 'Head', kind: 'core' });
+    expect(M.MIXAMO_MAP.upperneck!.blend).toBeUndefined();
+    expect(M.MIXAMO_MAP.lowerback).toMatchObject({ kind: 'hub', end: null });
+    expect(M.MIXAMO_TO_SLOT.Spine).toBe('upperback');
+    expect(M.MIXAMO_TO_SLOT.Spine2).toBeUndefined();
     expect(M.MIXAMO_TO_SLOT.LeftShoulder).toBe('lclavicle');
     expect(M.MIXAMO_TO_SLOT.RightHandIndex2).toBe('rindex2');
   });
 
   it('ends every driven segment at the child bone head (never a tail)', () => {
     const end: Record<string, string> = {
-      spine: 'Spine2', chest: 'Neck', neck: 'Head', shL: 'LeftForeArm', elL: 'LeftHand', wrL: 'LeftHandMiddle1',
+      spine: 'Spine1', chest: 'Neck', neck: 'Head', shL: 'LeftForeArm', elL: 'LeftHand', wrL: 'LeftHandMiddle1',
       shR: 'RightForeArm', elR: 'RightHand', wrR: 'RightHandMiddle1', hipL: 'LeftLeg', knL: 'LeftFoot', anL: 'LeftToeBase',
       hipR: 'RightLeg', knR: 'RightFoot', anR: 'RightToeBase',
     };
@@ -79,6 +89,23 @@ describe('MIXAMO_MAP', () => {
     expect(M.MIXAMO_MAP.head!.end).toBe('HeadTop_End');
     expect(M.MIXAMO_MAP.lhipjoint!.end).toBe('LeftUpLeg');
     expect(M.MIXAMO_MAP.rhipjoint!.end).toBe('RightUpLeg');
+  });
+
+  it('has a check span for every driven Wren segment, matched by rest height and independent of the slots', () => {
+    expect(Object.keys(M.WREN_SPANS).sort()).toEqual(Object.keys(R.SEG_END).sort());
+    expect(M.WREN_SPANS.spine).toEqual(['Spine', 'Spine1']);
+    expect(M.WREN_SPANS.chest).toEqual(['Spine1', 'Neck']);
+    expect(M.WREN_SPANS.neck).toEqual(['Neck', 'Head']);
+    expect(M.WREN_SPANS.wrL).toEqual(['LeftHand', 'LeftHandMiddle1']);
+    expect(M.WREN_SPANS.knR).toEqual(['RightLeg', 'RightFoot']);
+    // every span is a bone and its descendant, and the slot driving that Wren joint spans the same two heads
+    const parent = new Map(hierarchy());
+    const isAbove = (a: string, b: string): boolean => { for (let p = parent.get(b); p; p = parent.get(p)) if (p === a) return true; return false; };
+    for (const [j, [a, b]] of Object.entries(M.WREN_SPANS)) {
+      expect(isAbove(a, b), `${j}: ${a} above ${b}`).toBe(true);
+      const d = M.MIXAMO_MAP[R.MAP[j]!]!;
+      expect([d.rot, d.end], j).toEqual([a, b]);
+    }
   });
 
   it('has every CMU name retarget.mjs and analyze.mjs read, parents before children', () => {
@@ -118,6 +145,11 @@ describe('resolveMixamoBones', () => {
     expect(() => M.resolveMixamoBones(bones('mixamorig:', ['Spine1', 'RightFoot']))).toThrow(/missing bones Spine1, RightFoot/);
     const re = bones('').map((b) => (b.name === 'LeftLeg' ? { ...b, parent: 'Hips' } : b));
     expect(() => M.resolveMixamoBones(re)).toThrow(/LeftLeg's parent is Hips, the map needs LeftUpLeg/);
+    // a blend slot needs its chain: blend under rot, end under blend
+    const reNeck = bones('').map((b) => (b.name === 'Neck' ? { ...b, parent: 'Spine1' } : b));
+    expect(() => M.resolveMixamoBones(reNeck)).toThrow(/Neck's parent is Spine1, the map needs Spine2 \(slot thorax\)/);
+    const reS2 = bones('').map((b) => (b.name === 'Spine2' ? { ...b, parent: 'Spine' } : b));
+    expect(() => M.resolveMixamoBones(reS2)).toThrow(/Spine2's parent is Spine, the map needs Spine1 \(slot thorax\)/);
   });
 
   it('lists extra bones and falls back for missing fingers and end bones', () => {
@@ -134,6 +166,7 @@ describe('resolveMixamoBones', () => {
     expect(slots.get('rtoes')).toMatchObject({ end: null, extend: 0.6 });
     expect(slots.get('ltoes')).toMatchObject({ end: 'LeftToe_End' });
     expect(slots.get('head')).toMatchObject({ end: null, extend: 1.7 });
+    expect(slots.get('upperneck')).toMatchObject({ end: 'Head' });
     // the chain stays whole: every slot's parent is present
     for (const s of slots.values()) if (s.parent) expect(slots.has(s.parent), s.slot).toBe(true);
   });
