@@ -1,11 +1,12 @@
 // (mission-framework FLG) Unfinished mission / kit work merges dark: `flags.missions` (`?missions=1`) and `flags.coopKit`
-// (`?coopkit=1`), owner Marlow Build. One test per gate: off -> `missionParam()` null (Sector Ops runs as master), no
+// (`?coopkit=1`), owner Campaign Build. One test per gate: off -> `missionParam()` null (Sector Ops runs as master), no
 // Hints row, no kit offer (a Marlow Yard 4.4 m lip keeps master's moves, M1); on -> the mission and the pull-up work.
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { flags } from '../src/core/flags';
-import { bindSectorMission, missionParam, missionStartSector, pickMission } from '../src/game/mission/sectorMission';
+import { bindSectorMission, mapBootAllowed, missionParam, missionStartSector, pickMission } from '../src/game/mission/sectorMission';
+import { tallowWharf } from '../src/world/maps/tallowWharf';
 import { isKitState, registerKitMove, unregisterKitMove } from '../src/game/kit/registry';
 import { PULL_UP } from '../src/game/kit/pullUp';
 import { SHUTTER_MOVE } from '../src/game/kit/shutter';
@@ -194,5 +195,18 @@ describe('coopKit gate: no kit offer on a Marlow Yard lip (FLG, M1)', () => {
     expect(f.tm.prompt).toMatch(/pull-up/);
     f.tick(1, true);
     expect(f.asked.some((a) => a[0] === 'pull')).toBe(true);
+  });
+});
+
+describe('missions gate: the URL boot of a mission map (FLG)', () => {
+  it('off: ?autostart=tallowWharf falls back to the menu (never plain Sector Ops); other maps boot', () => {
+    flags.missions = false;
+    expect(tallowWharf.needsMissions).toBe(true);
+    expect(mapBootAllowed(tallowWharf)).toBe(false);
+    expect(mapBootAllowed({})).toBe(true);
+  });
+  it('on: Tallow Wharf boots by URL', () => {
+    flags.missions = true;
+    expect(mapBootAllowed(tallowWharf)).toBe(true);
   });
 });

@@ -144,4 +144,7 @@ export interface MapDef {
   detail?: boolean;
   /** (mission-framework GB5) True: registered in `MAPS` (so `?autostart=<id>` and `getMap` find it) but off every menu and co-op lobby list. */
   unlisted?: boolean;
+  /** (FLG) True: a mission map; `?autostart=<id>` boots it only with `flags.missions` on (`mapBootAllowed`). A co-op
+   *  client still loads it from the host's `start`. */
+  needsMissions?: boolean;
 }

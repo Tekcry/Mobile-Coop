@@ -103,7 +103,8 @@ export class NetSession {
     private readonly tok = '',
   ) {
     this.hostId = role === 'host' ? transport.selfId : null;
-    this.sectorMission = role === 'host' ? sectorMissionId(flags.mission ?? '') : '';
+    // (FLG) as `missionParam()`: no mission id on the wire while `flags.missions` is off
+    this.sectorMission = role === 'host' && flags.missions ? sectorMissionId(flags.mission ?? '') : '';
     this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', away: false });
     if (role === 'host') this.holdTimer = setInterval(() => this.expireAway(Date.now()), 5000);
     transport.onMessage = (raw, from) => this.receive(raw, from);

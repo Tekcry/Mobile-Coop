@@ -72,6 +72,12 @@ export function missionParam(): string | null {
   return flags.missions ? flags.mission : null;
 }
 
+/** (FLG) False when `?autostart` names a mission map (`MapDef.needsMissions`) while `flags.missions` is off: the URL boot
+ *  falls back to the menu, so Tallow Wharf never runs as plain Sector Ops. */
+export function mapBootAllowed(map: { readonly needsMissions?: boolean }): boolean {
+  return !map.needsMissions || flags.missions;
+}
+
 /** The map's mission named `id` (null: no id, or the map has none of that id). */
 export function pickMission(missions: readonly MissionDef[] | undefined, id: string | null): MissionDef | null {
   if (!id || !missions) return null;

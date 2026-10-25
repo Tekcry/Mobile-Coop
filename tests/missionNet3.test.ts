@@ -9,6 +9,7 @@ import type { Transport } from '../src/net/transport';
 import { defaultLook } from '../src/cosmetics/avatarLook';
 import { parseMessage, PROTOCOL_VERSION, sectorMissionId } from '../src/net/protocol';
 import { clearRejoin } from '../src/core/rejoin';
+import { flags } from '../src/core/flags';
 import { CoopClient } from '../src/net/coopClient';
 import { CoopHost } from '../src/net/coopHost';
 import { JoinWatch } from '../src/net/joinWatch';
@@ -228,5 +229,26 @@ describe('NET3: the host places a remote whose first state is outside the curren
     course.place(2);
     expect(course.joins.restoring('c1')).toBe(false);
     expect(course.r.allowTeleport).not.toHaveBeenCalled();
+  });
+});
+
+describe('FLG: the host sends a mission only with flags.missions on', () => {
+  const saved = { missions: flags.missions, mission: flags.mission };
+  afterEach(() => {
+    flags.missions = saved.missions;
+    flags.mission = saved.mission;
+  });
+  it('off: ?mission= is ignored, so no sm goes out and the client starts at section 1 like the host', () => {
+    flags.mission = 'twoKeyLedger';
+    flags.missions = false;
+    const host = sess(hub().make('H'), 'host', 'ABCDE', prof('Host'));
+    expect(host.sectorMission).toBe('');
+    host.setSettings('sector', 'tallowWharf', 'normal');
+    expect(host.startMatch()?.sectorMission ?? '').toBe('');
+  });
+  it('on: the host carries its URL mission', () => {
+    flags.mission = 'twoKeyLedger';
+    flags.missions = true;
+    expect(sess(hub().make('H'), 'host', 'ABCDE', prof('Host')).sectorMission).toBe('twoKeyLedger');
   });
 });
