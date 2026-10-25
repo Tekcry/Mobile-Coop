@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:46Z
 
 # campaign J8 MB: mission-scoped bolt (A30) (Opus 5.5)
 
