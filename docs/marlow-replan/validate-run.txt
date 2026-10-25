@@ -1,0 +1,73 @@
+$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator, origin/master 2148ec969, read-only; no node_modules needed)
+
+ERROR: co-op links reach 3 of 8 encounter spaces (need at least half)
+ERROR: section A3 has no co-op link
+ERROR: section A4 has no co-op link
+WARN:  a1-lounge: room_class custom (justify the size in the design doc)
+WARN:  a1-apron: room_class custom (justify the size in the design doc)
+WARN:  a1-cabin: room_class custom (justify the size in the design doc)
+WARN:  a1-cabin: ceiling 2.5 m below the 3 m room ceiling
+WARN:  a1-walltop: room_class custom (justify the size in the design doc)
+WARN:  a1-yard: room_class custom (justify the size in the design doc)
+WARN:  a1-hold-l1: room_class custom (justify the size in the design doc)
+WARN:  a2-stores: room_class custom (justify the size in the design doc)
+WARN:  a2-cabin: room_class custom (justify the size in the design doc)
+WARN:  a2-cabin: ceiling 2.5 m below the 3 m room ceiling
+WARN:  a2-lane: room_class custom (justify the size in the design doc)
+WARN:  a2-neck: room_class custom (justify the size in the design doc)
+WARN:  a2-east: room_class custom (justify the size in the design doc)
+WARN:  a2-hold-l2: room_class custom (justify the size in the design doc)
+WARN:  a3-west-lobby: room_class custom (justify the size in the design doc)
+WARN:  a3-east-lobby: room_class custom (justify the size in the design doc)
+WARN:  a3-hold-l3: room_class custom (justify the size in the design doc)
+WARN:  a4-secroom: room_class custom (justify the size in the design doc)
+WARN:  a4-passage: room_class custom (justify the size in the design doc)
+WARN:  a4-cross: room_class custom (justify the size in the design doc)
+WARN:  a4-main-aisle: room_class custom (justify the size in the design doc)
+WARN:  a4-dock: room_class custom (justify the size in the design doc)
+WARN:  a4-hold-l4: room_class custom (justify the size in the design doc)
+WARN:  a5-apron: room_class custom (justify the size in the design doc)
+WARN:  a5-inner: room_class custom (justify the size in the design doc)
+WARN:  a5-lee: room_class custom (justify the size in the design doc)
+WARN:  a5-hold-l5: room_class custom (justify the size in the design doc)
+WARN:  a6-sump: room_class custom (justify the size in the design doc)
+WARN:  a6-floor: room_class custom (justify the size in the design doc)
+WARN:  a6-gallery: room_class custom (justify the size in the design doc)
+WARN:  a6-bridge: room_class custom (justify the size in the design doc)
+WARN:  a6-hold-l6: room_class custom (justify the size in the design doc)
+WARN:  a7-lobby: room_class custom (justify the size in the design doc)
+WARN:  a7-corridor: ceiling 3.5 m outside corridor 3-3 m
+WARN:  a7-pod: room_class custom (justify the size in the design doc)
+WARN:  a7-pod: ceiling 2.6 m below the 3 m room ceiling
+WARN:  a7-cage: room_class custom (justify the size in the design doc)
+WARN:  a7-cage: ceiling 2.4 m below the 3 m room ceiling
+WARN:  a7-hold-l7: room_class custom (justify the size in the design doc)
+WARN:  a8-vestibule: room_class custom (justify the size in the design doc)
+WARN:  a8-counters: room_class custom (justify the size in the design doc)
+WARN:  a8-board: room_class custom (justify the size in the design doc)
+WARN:  a8-gallery-west: room_class custom (justify the size in the design doc)
+WARN:  a8-gallery: room_class custom (justify the size in the design doc)
+WARN:  a8-lobby-outer: room_class custom (justify the size in the design doc)
+WARN:  a8-lobby-inner: room_class custom (justify the size in the design doc)
+WARN:  a8-vault: room_class custom (justify the size in the design doc)
+WARN:  a8-dock: room_class custom (justify the size in the design doc)
+WARN:  link a4-main-aisle -> a4-dock (opening): width 8 m outside 2.5-3.5 m
+WARN:  link a5-apron -> a5-inner (opening): width 6 m outside 2.5-3.5 m
+WARN:  link a6-sump -> a6-floor (opening): width 1.5 m outside 2.5-3.5 m
+WARN:  link a6-gallery -> a6-floor (open_stair): width 1.2 m below 2.4 m
+WARN:  link a6-gallery -> a6-bridge (opening): width 5 m outside 2.5-3.5 m
+WARN:  link a8-hall -> a8-gallery (open_stair): width 1.2 m below 2.4 m
+WARN:  pacing: no release (1-2) after the peak at a7-hall before a7-pod
+WARN:  pacing: no release (1-2) after the peak at a8-hall before a8-office
+WARN:  pacing: no release (1-2) after the peak at a8-office before a8-lobby-inner
+INFO:  a2-neck: 1 guards (2 players) below the early band 3-6
+INFO:  a4-secroom: 1 guards (2 players) below the early band 3-6
+INFO:  a4-dock: 2 guards (2 players) below the early band 3-6
+INFO:  a5-inner: 1 guards (2 players) below the late band 6-10
+INFO:  a6-floor: 1 guards (2 players) below the late band 6-10
+INFO:  a7-hall: 1 guards (2 players) below the late band 6-10
+INFO:  a8-hall: 2 guards (2 players) below the late band 6-10
+INFO:  a8-office: 1 guards (2 players) below the late band 6-10
+
+3 error(s), 57 warning(s).
+exit code: 1
