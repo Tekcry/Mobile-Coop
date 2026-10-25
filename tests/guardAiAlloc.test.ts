@@ -208,3 +208,38 @@ describe('guard-ai-alloc D1: a bite fills the reused HitInfo', () => {
     expect(per).toBeLessThanOrEqual(4 * HEAP_NUMBER);
   });
 });
+
+describe('guard-ai-alloc fix: a same-cell route keeps its own known spot', () => {
+  it('copies `[tp]` off his kept `knownPt` (the route is not moved by the next step)', () => {
+    const knownPt: [number, number] = [4, 5];
+    const nav = { version: 0, partialEnd: false, lineClear: () => false, findPath: (_f: unknown, to: unknown) => [to] };
+    const e = Object.create(Enemy.prototype) as Enemy;
+    Object.assign(e, {
+      ctx: { nav, stealth: () => true },
+      pos: new Vector3(0, 0, 0),
+      hunt: -1,
+      dist: 10,
+      stateT: 0,
+      postDef: null,
+      knownPt,
+      routePath: [],
+      routeGoal: [Number.NaN, Number.NaN],
+      routeT: 0,
+      routeVer: -1,
+      routeMiss: false,
+      routeNear: false,
+      meP: [0, 0],
+    });
+    const p = e as unknown as { routePath: number[][]; chasePoint(dt: number, tp: [number, number], zig: boolean): number[] | null };
+    const wp = p.chasePoint(1 / 60, knownPt, false);
+    // this step's goal is his known spot, as before
+    expect(wp).toEqual([4, 5]);
+    // the kept route holds its own copy, not the buffer the next `decide` rewrites
+    expect(p.routePath.length).toBe(1);
+    expect(p.routePath[0]).not.toBe(knownPt);
+    expect(p.routePath[0]).toEqual([4, 5]);
+    knownPt[0] = 9;
+    knownPt[1] = -3;
+    expect(p.routePath[0]).toEqual([4, 5]);
+  });
+});
