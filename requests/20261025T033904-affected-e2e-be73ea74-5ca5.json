@@ -1,0 +1,16 @@
+{
+  "id": "20261025T033904-affected-e2e-be73ea74-5ca5",
+  "sha": "be73ea7436d90730e45b1e82deab29c6d49a071e",
+  "branch": "feature/player-batch-25-r2",
+  "pr": 427,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #427"
+}
