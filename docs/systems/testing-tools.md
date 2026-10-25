@@ -555,6 +555,20 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   a withdrawn request stops; for a pending train a plain pr run under 80% of its expected wall is killed when every
   other run on the worker is a plain pr too, and an alone run younger than 10 min is killed and queued again first. A
   train rerun never yields.
+- Train soon (laptop-queue-6, lib `nextTrain`): the laptop predicts the next train head (ETA) and, while no train is
+  pending, holds new claims until ETA + `LQ_TRAIN_LATE_MIN` (5) min. Candidates: train-ready PRs whose head is in no
+  open train and not in `origin/master`; green = `check` passed (its first-seen-green time is kept in state.json),
+  running = `check` not done, a failed or missing check counts for nothing. Held while: a train PR has no version head
+  yet (up to `LQ_TRAIN_BUILD_MAX_MIN` (20) min; ETA = now); an open train has its `laptop-e2e` success (merge = then +
+  `LQ_TRAIN_MERGE_LAG_MIN` (2)) or the last train merged, with green or running candidates: ETA = max(merge +
+  `LQ_TRAIN_GAP_MIN` (6.5), newest first-seen-green + `LQ_TRAIN_READY_LAG_MIN` (3)); no train open and green candidates
+  long after the merge: ETA = newest first-seen-green + 3. Running heads keep a merge hold on but never set the ETA or
+  start a hold. Any other open train: no hold. Under the hold only train reruns and pr runs that fit start (lib
+  `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a
+  fitted run an early train catches falls to `cutShort`'s 80% rule. Log: "<why>, next train ~HH:MMZ: only runs that
+  fit start". Pacing assumption: auto-train builds right after the release, in the same tick; when its pacing waits, the
+  late window caps the held slots at 11.5 min per release. Old 3-min gap: `LQ_TRAIN_GAP_MIN=3 LQ_TRAIN_LATE_MIN=0
+  LQ_TRAIN_READY_LAG_MIN=0`.
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
