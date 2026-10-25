@@ -27,6 +27,11 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
     player's source as received: `KIT_TABLES` (0 not Mixamo, 1 Mixamo) resolved once per change, picked per rig per
     frame by `kitSourceOf(rig)`; a one-line stub returns the local source for every rig until Player names the per-rig
     field (A5), then a one-line swap. The old "viewer's own source" A5 is void. Test (c2): two rigs, two sources.
+  - Round 3 (check 2 "Round 3" FIX 1): `mx` only picks the clip table; TeamPoser writes move / role whenever
+    `KIT_TABLES[1].any`; the hang skip is `KIT_TABLES[1].any && move === 'pull' && role === 'a'` (not gated on `mx`, since
+    #477's WREN_TRAV is the viewer's global table); the clear rule zeroes `mx` too; (a) runs Hand / CMU with kit rows on
+    (bit-identity rests on kitShot at weight 0); (c2) skip on both rigs, a CMU partner under a Mixamo viewer shows the
+    hand-made HANG, setKitSourceOf reset after each case.
 - Toggle: on origin/feature/mixamo-on a9b96fe1a (animSource.ts, addMixamoResolver, Settings > Gameplay > Animation
   source, default CMU). It does not hold mixamo-i3, so it is NOT merged here (conflicts in Player's files); the lead asked
   Player for the stack order. The slice keeps the one-line local addMixamoResolver stub; when Player sends a head holding

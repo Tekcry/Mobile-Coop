@@ -156,12 +156,16 @@ the traverse case and the crawler mix; a rig whose source is not Mixamo has weig
 **Hang skip (check 1 item 4, check 2 item 3).** Under the Mixamo source, #477's `mixamoTrav` hang branch (animGraph
 :3014) reads the pull partner's `'hang'` with `traverseT` = the haul k as a pendulum swing and the rise speed as a shimmy
 pace. `KitShotIn` = `{ clip, time, weight, mode, mx: boolean, move: KitPoseMove | '', role: TeamPoseRole | '' }`
-(`mx` = this rig's acting player's source is Mixamo, section 3 "Per-rig source"). TeamPoser writes `mx` / `move` / `role`
-only when this rig's table has a row on (`KIT_TABLES[src].any`), whatever the phase (local `pullJump` / `pullHang`, and
-the remote avatar's boost + 8 with ph 0, where the phase is `''`). The skip, one condition at the top of `mixamoTrav`, own
-commit: `this.kit.mx && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false (the hand-made HANG). With
-every kit row false, or the rig's source not Mixamo, it never fires: #477's behaviour, bit for bit. (#477's own
-`WREN_TRAV` is one global table today; making it follow each rig's source under G400 is Player Build's part.)
+(`mx` = this rig's acting player's source is Mixamo, section 3 "Per-rig source"; it ONLY picks the clip table).
+TeamPoser writes `move` / `role` whenever `KIT_TABLES[1].any` (some kit row on), whatever the rig's source and the phase
+(local `pullJump` / `pullHang`, and the remote avatar's boost + 8 with ph 0, where the phase is `''`). The skip, one
+condition at the top of `mixamoTrav`, own commit:
+`KIT_TABLES[1].any && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false (the hand-made HANG).
+Why not gated on `mx`: `mixamoTrav` runs on the viewer's global `WREN_TRAV` (#477), so a CMU partner under a Mixamo
+viewer would get #477's hang capture with the haul read as a swing while the partner's own screen shows the hand-made
+HANG. With this gate all four source pairs show the hand-made HANG (a Mixamo screen skips; a Hand / CMU screen never runs
+`mixamoTrav`), and it stays right once Player makes `WREN_TRAV` per-rig. With every kit row false it never fires: #477's
+behaviour, bit for bit.
 
 **Rig gate (check item 3; Player agreed: lines :2013 / :2422 / :2610 / :2949 only).** In characterRig.ts (all three
 edited lines sit in `applyTargets(t, dt, free)` (:2321), so `ks` is a local and `free` is already a parameter):
@@ -172,7 +176,7 @@ edited lines sit in `applyTargets(t, dt, free)` (:2321), so `ks` is a local and 
 - `:2013`: not needed (untouched).
 - Nothing else in src/player changes.
 
-**Clear rule (check 1 item 5, check 2 item 3).** `graph.kit` target weight is set to 0 AND `move` / `role` to `''` on
+**Clear rule (check 1 item 5, check 2 item 3).** `graph.kit` target weight is set to 0, `mx` to false AND `move` / `role` to `''` on
 every `TeamPoser.begin` path (including the `w <= 0` early return and non-kit moves / roles) before anything else, and in
 `TeamPoser.end`, so a hang-down or lip hang after a pull keeps #477's hang capture. The bar / wrist targets are
 written only when the shot weight > 0. Tested after a pull ends, aborts (partner gone) and misses.
@@ -284,9 +288,11 @@ Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAva
 **Tests (`tests/kitMixamo.test.ts`, vitest, headless Wren rig as mixamoStance / mixamoTraverse).**
 - (a) Off is bit-identical: every frame, as float64 bits, every `RigTargets` field, the graph pose and the rig's bone
   transforms (mixamoStance (a) pattern), plus TeamPoser's reach / plant targets, root writes and `RigPose` fields, for
-  every kit pose id at k 0 / 0.5 / 1 and gaps 0 / 0.45 / 0.9: Hand source, CMU source, Mixamo source with every kit row
-  false (including `pullJump` / `pullHang`: no hang skip, #477's hang capture as before), and after the source went
-  Mixamo -> Hand. A guard graph (`wrenReady` false) under the Mixamo source too.
+  every kit pose id at k 0 / 0.5 / 1 and gaps 0 / 0.45 / 0.9: Hand source and CMU source with the kit rows at their
+  defaults (ON: the graph block runs, so bit-identity rests on kitShot doing nothing at weight 0, and on mixamoTrav not
+  running under Hand / CMU), Mixamo source with every kit row false (including `pullJump` / `pullHang`: no hang skip,
+  #477's hang capture as before), and after the source went Mixamo -> Hand. A guard graph (`wrenReady` false) under the
+  Mixamo source too.
 - (a2) Mixamo source, kit rows true, no kit move: bit-identical over the non-kit moves that share 'brace' / 'climbUp'
   (leg-up both roles, throw, hang-down, rope) and plain locomotion, including a hang-down and a lip hang straight after a
   pull (the capture hang plays, no skip).
@@ -299,7 +305,9 @@ Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAva
   and clip time within one wire step; the crawl: both pages fed the same root path give the same phase.
 - (c2) Per-rig source (G400): with `setKitSourceOf` giving two Wren rigs different sources in one frame (one Mixamo, one
   not) in the same kit phase, the Mixamo rig draws the clip and the other draws today's pose bit for bit; swapping the
-  two sources swaps the result; the hang skip fires only on the Mixamo rig; still no allocation per frame.
+  two sources swaps the result; in the pull hang the skip fires on BOTH rigs (kit rows on); a non-Mixamo (CMU) partner
+  rig under a Mixamo viewer shows the hand-made HANG; still no allocation per frame. `setKitSourceOf` is reset to the stub
+  after each case (afterEach), so a test source never leaks into later cases.
 - (d) Timing kept: root path, capsule, `traverseT`, wire fields and `KIT_POSE_LOCAL` identical with the shot on and off
   over a full pull and a full shutter run.
 - (e) Hang skip: under the Mixamo source the hand-made HANG plays for the local `pullJump` / `pullHang` AND for the remote
@@ -357,14 +365,16 @@ Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit. Branch
 2. src/anim/mixamo.ts: the 8 MIXAMO_ON rows appended at the END. Nothing else there.
 3. src/anim/clips/team.ts (Player's file, agreed): KIT0 code, the phase fields and graph.kit set / clear only (plan 4
    "Ownership"); small hunks, each commented "(mixamo-kit)"; `KitShotIn` = clip, time, weight, mode, mx, move, role;
-   per rig per frame `KIT_TABLES[kitSourceOf(rig)]` by index; write mx / move / role only when that table's `any`; the clear rule (plan 2: weight 0 and move / role '' on every begin path and in
-   end); hand targets only while the shot weight > 0. KIT_POSE_IDS, KIT_POSE_PLACEHOLDER, TeamState and wire names
+   per rig per frame `KIT_TABLES[kitSourceOf(rig)]` by index (`mx` only picks the table); write move / role whenever
+   KIT_TABLES[1].any, whatever the rig's source; the clear rule (plan 2: weight 0, mx false, move / role '' on every
+   begin path and in end); hand targets only while the shot weight > 0. KIT_POSE_IDS, KIT_POSE_PLACEHOLDER, TeamState and wire names
    unchanged.
 4. src/anim/animGraph.ts (Player's file): (a) additive declarations: public `kit`, `RigTargets.keyShot` + default 0,
    the private `kitShot` method and its private fields; (b) ONE block straight after the stanceShot call (~:2019)
    calling kitShot(o) under `this.wrenReady && KIT_TABLES[1].any`; kitShot eases its own weight over KIT_SHOT.flip
    (start, end, phase change, table swap), holding the last clip; no edit to the mxLast trigger. Commit. (c) The hang
-   skip at the top of mixamoTrav (`this.kit.mx && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false) in ITS
+   skip at the top of mixamoTrav (`KIT_TABLES[1].any && this.kit.move === 'pull' && this.kit.role === 'a'` -> return
+   false; NOT gated on mx) in ITS
    OWN commit. Every hunk commented "(mixamo-kit)". Fields, no double arguments, no closures, no iterators.
 5. src/player/characterRig.ts (agreed by Player Build for these lines only; all in applyTargets(t, dt, free) :2321):
    :2422 keep `kw`, add `const ks = free ? t.keyShot : 0`; :2610 trunk by `kw * t.keyTrunk + ks`; :2949 arms by
