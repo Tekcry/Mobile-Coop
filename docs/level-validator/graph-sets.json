@@ -1,0 +1,26 @@
+[
+  {
+    "name": "example",
+    "files": [
+      "docs/level-validator/example.graph.json"
+    ],
+    "flags": [],
+    "errors": 0,
+    "warns": 0,
+    "run": null
+  },
+  {
+    "name": "campus",
+    "files": [
+      "docs/sector-redesign/graph/campusOps-S1.json",
+      "docs/sector-redesign/graph/campusOps-S2.json",
+      "docs/sector-redesign/graph/campusOps-S3.json",
+      "docs/sector-redesign/graph/campusOps-S4.json",
+      "docs/sector-redesign/graph/campusOps-S5.json"
+    ],
+    "flags": [],
+    "errors": 127,
+    "warns": 174,
+    "run": "docs/level-validator/campus-run/run.txt"
+  }
+]

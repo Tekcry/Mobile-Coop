@@ -44,80 +44,58 @@ ERROR: link s3-nstair -> s3-back (fire_stair): width 1.25 m below 1.3 m
 ERROR: link s4-sec -> s4-noc (fire_stair): width 1.2 m below 1.3 m
 ERROR: unreachable from start 's1-verge': s3-yard
 ERROR: s1-gatehouse: no high approach
-ERROR: s1-gatehouse: shadow_pct 0 outside 0.4-0.6
 ERROR: s1-gatehouse: vantage sees_pct 0.4 below 0.7
 ERROR: s1-carpark: no high approach
-ERROR: s1-carpark: shadow_pct 0.2 outside 0.4-0.6
 ERROR: s1-dyard: no loud approach
 ERROR: s2-foyer: 2 approaches (need 3+)
 ERROR: s2-foyer: no high approach
-ERROR: s2-foyer: shadow_pct 0.7 outside 0.4-0.6
-ERROR: s2-hall: shadow_pct 0.65 outside 0.4-0.6
-ERROR: s2-l1-plan: shadow_pct 0.8 outside 0.4-0.6
 ERROR: s2-l1-plan: vantage sees_pct 0.3 below 0.7
 ERROR: s2-l1-wing: no high approach
-ERROR: s2-l1-wing: shadow_pct 0.95 outside 0.4-0.6
 ERROR: s2-l1-wing: vantage sees_pct 0.2 below 0.7
 ERROR: s2-l1-facilities: 1 approaches (need 3+)
 ERROR: s2-l1-facilities: approaches use 1 route kind(s) (need 2+)
 ERROR: s2-l1-facilities: no high approach
 ERROR: s2-l1-facilities: no loud approach
-ERROR: s2-l1-facilities: shadow_pct 0.05 outside 0.4-0.6
 ERROR: s3-hall: no loud approach
-ERROR: s3-hall: shadow_pct 0.02 outside 0.4-0.6
 ERROR: s3-hall: vantage sees_pct 0.45 below 0.7
 ERROR: s3-dock: 2 approaches (need 3+)
 ERROR: s3-dock: approaches use 1 route kind(s) (need 2+)
 ERROR: s3-dock: no high approach
 ERROR: s3-dock: no loud approach
-ERROR: s3-dock: shadow_pct 0.12 outside 0.4-0.6
 ERROR: s4-dock: 2 approaches (need 3+)
 ERROR: s4-dock: no loud approach
-ERROR: s4-dock: shadow_pct 0 outside 0.4-0.6
 ERROR: s4-lobby: 2 approaches (need 3+)
 ERROR: s4-lobby: approaches use 1 route kind(s) (need 2+)
 ERROR: s4-lobby: no shadow approach
 ERROR: s4-lobby: no high approach
-ERROR: s4-lobby: shadow_pct 0.39 outside 0.4-0.6
 ERROR: s4-batt: approaches use 1 route kind(s) (need 2+)
 ERROR: s4-batt: no high approach
 ERROR: s4-batt: no loud approach
-ERROR: s4-batt: shadow_pct 1 outside 0.4-0.6
 ERROR: s4-yard: no shadow approach
-ERROR: s4-yard: shadow_pct 0 outside 0.4-0.6
 ERROR: s4-deck: 2 approaches (need 3+)
 ERROR: s4-deck: approaches use 1 route kind(s) (need 2+)
 ERROR: s4-deck: no shadow approach
 ERROR: s4-deck: no loud approach
-ERROR: s4-deck: shadow_pct 0.95 outside 0.4-0.6
 ERROR: s4-hall: vantage sees_pct 0.45 below 0.7
 ERROR: s5-ante: no high approach
-ERROR: s5-ante: shadow_pct 0 outside 0.4-0.6
 ERROR: s5-ante: vantage sees_pct 0.4 below 0.7
-ERROR: s5-hall: shadow_pct 0 outside 0.4-0.6
 ERROR: s5-hall: vantage sees_pct 0.25 below 0.7
 ERROR: s5-garden: no loud approach
-ERROR: s5-garden: shadow_pct 0.15 outside 0.4-0.6
-ERROR: s5-terrace: shadow_pct 0.25 outside 0.4-0.6
 ERROR: s5-lawn: 2 approaches (need 3+)
 ERROR: s5-lawn: no high approach
-ERROR: s5-lawn: shadow_pct 0.9 outside 0.4-0.6
 ERROR: s5-kitchen: 2 approaches (need 3+)
 ERROR: s5-kitchen: approaches use 1 route kind(s) (need 2+)
 ERROR: s5-kitchen: no shadow approach
 ERROR: s5-kitchen: no high approach
-ERROR: s5-kitchen: shadow_pct missing (declared target)
 ERROR: s5-kitchen: los_break_s missing (declared target)
 ERROR: s5-kitchen: vantage missing (declared target)
 ERROR: s5-arch: no high approach
 ERROR: s5-arch: no loud approach
-ERROR: s5-arch: shadow_pct 1 outside 0.4-0.6
 ERROR: s5-arch: vantage sees_pct 0.2 below 0.7
 ERROR: s5-roof: 1 approaches (need 3+)
 ERROR: s5-roof: approaches use 1 route kind(s) (need 2+)
 ERROR: s5-roof: no shadow approach
 ERROR: s5-roof: no loud approach
-ERROR: s5-roof: shadow_pct 0.95 outside 0.4-0.6
 ERROR: s1-bins: dead end (one way out) not tagged reward or objective
 ERROR: s1-plantroom: dead end (one way out) not tagged reward or objective
 ERROR: s2-lift-g: dead end (one way out) not tagged reward or objective
@@ -316,9 +294,31 @@ WARN:  s5-kitchen: 1 guards (2 players) below the late band 6-10
 WARN:  s5-arch: 1 guards (2 players) below the late band 6-10
 WARN:  s5-roof: 1 guards (2 players) below the late band 6-10
 WARN:  secret approach in 2 of 25 guarded encounter spaces (aim for half)
+WARN:  no space tagged unavoidable: some sections need a guard the players cannot avoid (level-design 4.12, G303)
 WARN:  link s5-arch -> s5-well (team_rope) has a solo twin: link s5-arch -> s5-well (drop); one player makes this move alone (make the co-op move the only way at this spot, or remove the solo link)
 WARN:  pacing: no release (1-2) after the peak at s4-mantrap before s4-yard
 WARN:  pacing: no release (1-2) after the peak at s4-hall before s4-noc
 WARN:  pacing: no release (1-2) after the peak at s5-cage before s5-roof
+INFO:  s1-gatehouse: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s1-carpark: shadow_pct 0.2 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s2-foyer: shadow_pct 0.7 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s2-hall: shadow_pct 0.65 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s2-l1-plan: shadow_pct 0.8 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s2-l1-wing: shadow_pct 0.95 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s2-l1-facilities: shadow_pct 0.05 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s3-hall: shadow_pct 0.02 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s3-dock: shadow_pct 0.12 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s4-dock: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s4-lobby: shadow_pct 0.39 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s4-batt: shadow_pct 1 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s4-yard: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s4-deck: shadow_pct 0.95 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-ante: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-hall: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-garden: shadow_pct 0.15 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-terrace: shadow_pct 0.25 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-lawn: shadow_pct 0.9 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-arch: shadow_pct 1 outside 0.4-0.6 (information; the light band is the target)
+INFO:  s5-roof: shadow_pct 0.95 outside 0.4-0.6 (information; the light band is the target)
 
-149 error(s), 173 warning(s).
+127 error(s), 174 warning(s).
