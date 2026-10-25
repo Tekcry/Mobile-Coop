@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:48+11:00
+status: blocked J6: campusV2S3Shell 'G nav seeds' fails on r2's chamber-roof seed (33, 4.4, -18), 0.25 m from R1's plant (x 33.5): not J1-J5; proposed fix x 32 (report)
 # campus-greybox s3 join (cloud): merge r1-r4 into r5, apply the join list J1-J6
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). `docs/campus-greybox/briefs/S3.md` section 2: "the lead
@@ -57,3 +57,18 @@ off at the S3-e head; v2 walk of the stairs and the plenum after S3-f.
 - Note (r5 checker, Sonnet PASS 23:45): r5 already wires R4's S3_ALARMS / S3_CAMERAS / S3_DESKS / S3_INTEL / S3_KEYPADS / S3_BOARDS, so J5 is a no-op. After the merge and J1-J4: confirm R5's merged-only test half un-skips and passes; assert no guard slot or route point sits in a J1 stair room (s3-wstair / s3-nstair / s3-estair); record #10, #15, #16 isolation (no 3 s unseen moment in the sector check; #10 caused by R1's cage wall) in the report for the lead, no data change.
 
 **J8 - CR3b has no ledge (lip audit 23:55).** R6's CR3b climbs onto the L1 strip x 10..18, but `slab()` (`s3Kit.ts:331-333`) sets `noLedge` on it and `tests/campusV2S3L1.test.ts:145` asserts that. Add a manual ledge in `s3L1.ts` after the hatch rails (~:295): `b.ledge(18, -6, 18, -3, S3_L1)` (check the strip edge x and the ends against the geometry and S3.md R6's CR3b numbers; fix the end order so the normal faces the boost side). Test: a ledge at x 18, top 4.5, `canHang && canClimbUp` true, and the climb room clear (`climbRoom`). Engine rule for every lip: `anchors.ts:414` canClimbUp needs depth >= 0.38; manual `b.ledge` defaults canClimbUp true and is not in `generateLedges(b.boxes)`.
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26): BLOCKED on one red test outside J1-J5; everything else done
+Branch `feature/campus-greybox-s3-r5` head fb2666fff (pushed). Full report: `docs/campus-greybox/checks/s3-join.md`.
+- Merges (heads unmoved, no conflicts): r1 db349a0d, r2 e0651a93, r3 ad6f5197, r4 33922f8f.
+- J1 47555b37, J2 ffaec856 (+ a wall-over-the-north-core assertion; fails pre-J2), J3 a1cea631, J4 108e1a00, J5 no-op
+  (r5 wired R4's exports), J8 695e619c (`b.ledge(18, -6, 18, -3, 4.5)` via the hatch's own numbers, normal +x; test:
+  hang, climb up, climb room clear; fails without the ledge). Stair-core guard check 772cc258 (green).
+- J6 on the head: typecheck:fast clean; the set **143 / 144** (11 files). R5's merged-only half un-skips: 6 / 6 green.
+  M8 isolation recorded: #10, #15, #16 at 0 s (no data change).
+- **The red test:** `tests/campusV2S3Shell.test.ts` "the G nav seeds and hide spots are on nav": `seed 33, 4.4, -18`. R2's
+  chamber-roof seed (`s3L1.ts:67`) is 0.25 m from R1's refrigeration plant (x 33.5..35.5 on the roof), inside the 0.32
+  agent radius; R2's lane test used a plant-less stand-in. Red from the r2 merge on (bisected). Not a J1-J5 cause, so
+  not fixed. **Proposed:** seed `new Vector3(32, S3_BOX.chamberTop, -18)` and the pinned row `[32, 4.4, -18]` in
+  `campusV2S3L1.test.ts` (~:514): checked locally (not committed), the set then passes. Answer here and I (or the next
+  builder) apply it as its own commit.
