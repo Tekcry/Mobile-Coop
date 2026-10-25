@@ -1,4 +1,5 @@
 # Stealth AI, enemy archetypes and modes
+Owner: Guard AI Build. Status: current.
 Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the navigation grid and the game-mode hooks.
 Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then docs/design-bible.md (Section 5.7).
 
@@ -28,10 +29,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
     alert response teams, and armour per alarm stage (G307).
   - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted, killing one carries a penalty.
     What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
-  - Helmets: the rule is owned by bible 5.6 (G338, G341, G350): on Realistic and Perfectionist every guard wears one
-    and on Perfectionist it cannot be shot off; on Rookie and Normal helmets come with the alarm stages; the same in
-    the campaign and Sector Ops. Not built yet: helmets come from a slot tag, a section default or the alarm stage
-    (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
+  - Helmets by difficulty: the rule is in bible 5.6 (G350). Not built yet: helmets come from a slot tag, a section
+    default or the alarm stage (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
   - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
 - Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
@@ -494,8 +493,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   fields: one per slot, made the first time it is valid, rebuilt on a move of a nav cell (at most every 0.5 s) or a nav
   change, one rebuild per update (round robin). Response teams, the reinforcement facing and the device-fresh test
   follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
-  shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`. Tests:
-  `intruders.test.ts`, `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+  shared position, one group). Host only, no protocol or save change. Tests: `intruders.test.ts`,
+  `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+  Brief: `docs/guard-ai/slices/S24.md` on origin/feature/guard-ai.
   Up to 4 intruders (coop4 AI1, A170 / A171, brief `docs/coop4/briefs/AI.md`): `IntruderBoard.find(id)` (a read, never
   assigns), `leave(id)` (slot marked `gone`, kept for his rejoin: the same id takes it back, LKP kept); a new id with no
   free slot takes a gone one (idle first, else unseen longest; `reused`), only from `COOP4.from` 3 live players (1-2:
@@ -545,7 +545,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   claim, done either way). Claims are freed on death / knockout (`onKilled`), despawn, leaving the search or the plan
   (`planSweep` each update, also once his response team sweeps), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
   pair, a lure) keep their ring (A152). Undo: `SEARCH_AREA.enabled` false (today's points exactly). Host only, no
-  protocol or save change. Brief: `docs/guard-ai/slices/S25.md`. Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
+  protocol or save change. Brief: `docs/guard-ai/slices/S25.md` on origin/feature/guard-ai.
+  Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
   (S26) R grows from `locT` (seconds since seen OR located), not `seenT`: a heard step narrows the search (A157).
 - Hearing in a fight and a search (guard-ai S26, M1, CT rule 8, A155-A160; `ai/hearing.ts`: `COMBAT_HEAR`,
   `combatHearAct`). `EnemyManager.hear(pos, reach, kind, skip, by)`: `by` is the player whose own body or hands made
@@ -564,8 +565,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   `knownSpot`, chase field (`flowOf(hunt)`) and roles follow the new spot. A heard spot more than 1 m from the slot's S25
   plan centre resets the plan at once (claims dropped; the one exception to "never rebuild under a claim"): his
   searchers take their next point from the plan rebuilt round it (A160). Undo: `COMBAT_HEAR.enabled` false (today's
-  deaf rule exactly). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S26.md`. Tests:
-  `combatHearing.test.ts`, `intruders.test.ts` (`locT`), `searchAreaWiring.test.ts` (R from `locT`).
+  deaf rule exactly). Host only, no protocol or save change. Tests: `combatHearing.test.ts`, `intruders.test.ts`
+  (`locT`), `searchAreaWiring.test.ts` (R from `locT`). Brief: `docs/guard-ai/slices/S26.md` on origin/feature/guard-ai.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -741,7 +742,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
   joins no squads, so radio checks do not run there.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
-  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201, `carriesTorch`).
+  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201; it still holds after the G295
+  redesign; `carriesTorch`).
 - Sector restart (G22): `SectionStartState` (`game/sectorReset.ts`) records the fixed lights (switched, shot, the base of
   a jammed lamp; not torches) and the unlocked doors when a section begins, and a section restart puts them back
   (`LightRegistry.resetTo`, `StealthSystems.syncSwitches` for the switch labels). Host / solo; Sector co-op does not

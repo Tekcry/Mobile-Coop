@@ -1,7 +1,7 @@
 # Step 1 prompt - menu redesign design spec and working prototype
 
 Paste everything below the line into a new Claude Code session opened in `C:\NightShift\Mobile-Coop` (or any
-checkout of github Tekcry/Mobile-Coop). Read [README.md](README.md) for the plan and why this step is interactive.
+checkout of github Tekcry/Mobile-Coop). Read [README.md](../../menu-ui/README.md) for the plan and why this step is interactive.
 
 ---
 

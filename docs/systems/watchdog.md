@@ -1,4 +1,5 @@
 # Watchdog (deterministic alerts and opt-in fixes)
+Owner: the orchestrator. Status: current.
 Code, not the orchestrator, watches the pipeline (process audit 2026-10-24 findings 8, 9, 12, 13; Michael approved
 ~21:50, "Watchdog + release path"). Its output is `C:/NightShift/scratch/watch-status.json`; once the task runs, the
 orchestrator's cron reads it beside `auto-train-status.json` and `docs/orchestrator/queue-audit.sh` (the cron prompt in

@@ -1,4 +1,5 @@
 # Night Shift - module map and doc index
+Owner: the orchestrator. Status: current.
 
 Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `docs/VISION.md` (both from origin/master).
 
@@ -36,7 +37,7 @@ the old `warehouseOps` stays selectable), Fallow (`bunker`, parked behind `?lega
 | `docs/VISION.md` | The game summary (modes, player counts) and the current-focus pointer (ROADMAP Now) | Every session start (from origin/master) |
 | `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
 | `docs/design-bible.md` | Pillars, systems, out-of-scope list, level and platform rules | The sections the job touches |
-| `docs/ROADMAP.md` (on origin/feature/menu) | Now, Inbox, Waiting on Michael, Decided, Done (owned by the orchestrator) | The entries a resume block names |
+| `docs/ROADMAP.md` (on origin/feature/menu) | Now, Inbox (Michael's new ideas), Waiting on Michael, Decided, Done (owned by the orchestrator) | The entries a resume block names |
 | `docs/orchestrator/` (on origin/feature/menu) | Orchestrator STATE, HANDOFF, PROMPTS (boot lines), BOOT (per-title start), archive | Starting a session, swaps |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
@@ -50,7 +51,7 @@ the old `warehouseOps` stays selectable), Fallow (`bunker`, parked behind `?lega
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
 | `docs/research/` | Night vision and lamp research | Vision and light work |
-| `docs/backlog.md` | Feedback inbox | Adding feedback |
+| `docs/backlog.md` | Playtest feedback and bugs (new ideas from Michael go to the ROADMAP Inbox) | Adding feedback |
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
 | `docs/systems/testing-tools.md` | Every e2e suite, the test queue, flakes and quarantine, helper scripts, debug overlay | Running or writing tests, judging a failure |
 | `docs/systems/auto-train.md` | Auto-train (rolling merge trains) | Trains |
@@ -79,7 +80,7 @@ the old `warehouseOps` stays selectable), Fallow (`bunker`, parked behind `?lega
 | `docs/kestrel/` | The Kestrel map project and editor (paused, G53) | Kestrel work only |
 | `docs/process-audit/` | Process audits; `rules-history-2026-10-24.md`, the rule text before the 2026-10-24 rewrite | The origin of a rule |
 
-History (do not read unless a job names it): `docs/progress.md` (history and the older follow-up backlog) and
+History (do not read unless a job names it): `docs/archive/progress.md` (history and the older follow-up backlog) and
 `docs/archive/`: every finished job's folder `docs/archive/<job>/` (for example `locomotion/` with `CT-RESEARCH.md`
 and `PROTOTYPE-PLAN.md`, `consolidation/` the 4.0.0 merge, `training/` the Fallow bunker run, `prompts/` old phase
 specs and the music spec), retired maps, the old changelog, testing and progress history, the pre-prototype CT

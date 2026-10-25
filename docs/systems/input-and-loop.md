@@ -1,4 +1,5 @@
 # Game loop and input
+Owner: Player Build. Status: current.
 Purpose: the fixed-step game loop, the action map and the gamepad and keyboard / mouse sources.
 Design authority: docs/DECISIONS.md (G16-G24, G96, G210, G227), then docs/design-bible.md (Sections 4 and 8).
 

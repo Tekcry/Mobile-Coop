@@ -6,7 +6,7 @@ import { makeCone } from '../lights';
 import { addLampRooms, EXIT_GREEN, passLamps, type LampRoom } from './lampRooms';
 
 /**
- * Sector Ops section 1 of the Warehouse (warehouse-redesign step 4, `docs/warehouse-redesign/SPEC.md` 2.1 and 5): the
+ * Sector Ops section 1 of the Warehouse (warehouse-redesign step 4, `docs/archive/warehouse-redesign/SPEC.md` 2.1 and 5): the
  * goods-in and trade-office band along the yard, a greybox. Frame: x west to east, z south to north, y up, metres. The
  * yard is z -26 to -18, the facade stands at z -18 (0.3 thick), the compartment walls at z -6 (x -24 to -4), x -4
  * (z -8.8 to -6) and z -8.8 (x -4 to 24). `warehouse.ts` builds the rest (`southBand: false` skips its own south band).
@@ -118,7 +118,7 @@ export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [{ pos: new Vector3(-21.3, 0, -21.5) }, { pos: new Vector3(-6.0, 0, -7.2) }];
 
 /**
- * (sector-fixes R1) Section 1's co-op-only routes (docs/sector-fixes/r/R1.md). Lips at 4.4 m over the floor they start
+ * (sector-fixes R1) Section 1's co-op-only routes (docs/archive/sector-fixes/r/R1.md). Lips at 4.4 m over the floor they start
  * from: out of a solo wall jump (`WALL_JUMP.maxUp` 3.8 + 0.5), inside the leg-up (`TEAM.boostMax` 4.5).
  * - `plantDoor`: the AHU's service door high in the facade over the yard (its hoist platform is gone). Sill top 4.4 over
  *   the yard, 0.8 deep (z0..z1), the eaves notched over it under a weather hood (underside 6.3) so a climb-up stands
@@ -146,7 +146,7 @@ export const S1_COOP = {
 const MESS_DOOR = { x: 8, hinge: -10.6, w: 1.2 } as const;
 
 /**
- * (sector-fixes R1, team-door contract in docs/sector-fixes/r/PLAN.md) Doors bolted from one side: the plan centre and the
+ * (sector-fixes R1, team-door contract in docs/archive/sector-fixes/r/PLAN.md) Doors bolted from one side: the plan centre and the
  * unit direction from the door toward the side that can unbolt it. The mess back door: the mess (x < 8) unbolts it for a
  * partner waiting in the workshop under the catwalk (past the office patrol's turn at the corridor's east door).
  */

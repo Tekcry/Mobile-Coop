@@ -7,7 +7,7 @@
  * with a beam optic (`fixture.model`: the Sector Ops strips, panels and bulkheads) - scatters under its shade: a short
  * march, at most 3.2 m and half the radius, along its beam direction (straight down without a cone), no wider than the
  * lamp cone (cos 0.88), gain 1. (LED-only variant: the general one, every non-torch as a lamp, also took the visible
- * beams off the base Warehouse's facade floods; the GPU before / after shots in `docs/vol-cone-fix/`.) (vol-cone-fix: before, any light with a cone took the
+ * beams off the base Warehouse's facade floods; the GPU before / after shots in `docs/archive/vol-cone-fix/`.) (vol-cone-fix: before, any light with a cone took the
  * torch treatment, so the Sector Ops strips drew full ceiling-to-floor white cones, ~35x the scatter of a lamp.)
  * (fog triage, 4.95.0: Saltmarsh Park's 76 cone fittings are glowing boxes with no LED model, so they took the beam: up
  * to 14 m since LR16a's photometric reach, half angles up to 69 deg, ~170x the map's lamp haze, "very foggy". A map

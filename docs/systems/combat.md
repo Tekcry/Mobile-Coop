@@ -1,4 +1,5 @@
 # Combat
+Owner: Player Build. Status: current.
 Purpose: weapon data, firing, the draw, the CT kit and health.
 Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G104, G152, G153, G243), then
 docs/design-bible.md (Section 5.6).

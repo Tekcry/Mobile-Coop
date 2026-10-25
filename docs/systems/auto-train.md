@@ -1,4 +1,5 @@
 # Auto train (rolling merge train)
+Owner: the orchestrator. Status: current.
 Purpose: master gets every ready PR without a human step. Michael 2026-10-23 ~19:10, "Yes, fully automatic": a script
 builds and releases to master on CI + laptop green, no 3-PR wait; the orchestrator handles conflicts and the failures
 auto-drop cannot place (a laptop failure drops its member and rebuilds at once, Michael 2026-10-24).
@@ -84,6 +85,9 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   wait (audit 2026-10-24: train 58 lost ~8 min to it and the desktop queue sat idle 9.5 min on train 59). CI's `test`
   job runs the full vitest on that head and release waits for green CI, so a unit-test failure still blocks the merge.
   The build marker is deleted right after that push, so the desktop queue claims the head at once.
+- Job archive (G344; `docs/RULES.md` "Docs"): a member PR body line `Job-done: <job>` makes the version commit move
+  `docs/<job>/` to `docs/archive/<job>/` and fix the links to it (`scripts/job-archive.mjs`; `single` does the same).
+  A job whose folder code, tests or config read is skipped and logged; the train still releases.
 - Release path (audit 2026-10-24 finding 9): `build` assembles the CHANGELOG and makes the version commit on git
   objects before anything is pushed (a bad fragment, an empty train or nothing new -> exit 1, no push, no PR), pushes
   `train/<n>` once (the version commit) and opens the PR after it. The version, kind and title come from the members
@@ -169,7 +173,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   follow `FAIL:` as in `lib.mjs describe`).
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
-- Spare work (`docs/laptop-queue/PLAN.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
+- Spare work (`docs/archive/laptop-queue-PLAN-2026-10-23.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
   (requester `laptop-queue spare`) on the master head, never while a train is building, releasing, waiting on its
   laptop pass or green train-ready PRs wait for one. A pending train head stops a running spare job at once, whatever
   its kind or progress (lib `cutShort`), and the spare job is done, not queued again.

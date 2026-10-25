@@ -4,7 +4,7 @@ import type { CourseDevice, CourseObjective, ElementFlag } from '../../game/cour
 import { wallXAt, wallZAt, windowZ } from './storey';
 
 /**
- * Fallow, the Upper level (y 16), BAYS v2 (T5d): B1 Muster, airlock A1, B2 The Lanes, airlock A2 (docs/training/BAYS.md
+ * Fallow, the Upper level (y 16), BAYS v2 (T5d): B1 Muster, airlock A1, B2 The Lanes, airlock A2 (docs/archive/training/BAYS.md
  * sections 0, B1, B2). Every coordinate below is a BAYS local coordinate; `at` / `wx` / `wz` add the bay's offset
  * (BAYS 0.1). One shared course (R3): B1 is a chain of five rooms, B2 one lane of seven stations, every element spans
  * its room wall to wall (R2).

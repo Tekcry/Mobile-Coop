@@ -1,4 +1,5 @@
 # Performance budget
+Owner: Test Runner. Status: current.
 Purpose: the desktop frame-rate goals, CPU / draw / memory budgets and the perf script budgets.
 Design authority: docs/DECISIONS.md (G12 desktop only, G14 goals set to the target laptop), then docs/design-bible.md.
 
@@ -83,4 +84,5 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
 - Dynamic physics bodies are capped (`physics/budget`); projectiles and effects are pooled, never allocated per shot.
 - Render scale: native DPR x `renderScale` (0.5-2), with the frame governor (graphics-quality.md) inside it; with TAAU
   the canvas stays native and the scene renders at the scale.
-- Awake guards: `MAX_ALIVE` 12, to be reviewed against desktop performance (G46; how it is set is open, FU-11).
+- Awake guards: `MAX_ALIVE` 12 for Marlow Yard; Sector Ops and the campaign cap at 32 alive, a ceiling (G187, G289,
+  G359).

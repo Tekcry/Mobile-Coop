@@ -1069,8 +1069,8 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
 } // part 1
 
 // ---------------------------------------------------------------------------------------------------------------------
-// (sector-fixes-r RE) Slice R: the co-op-only routes and the team doors (docs/sector-fixes/r/R1.md, R2.md, R3.md, RT.md;
-// report docs/sector-fixes/r/RE.md). Yaw 0 faces +z, PI / 2 faces +x.
+// (sector-fixes-r RE) Slice R: the co-op-only routes and the team doors (docs/archive/sector-fixes/r/R1.md, R2.md, R3.md, RT.md;
+// report docs/archive/sector-fixes/r/RE.md). Yaw 0 faces +z, PI / 2 faces +x.
 const PI = Math.PI;
 /** Each co-op lip: the booster's spot on the floor (y 0) facing it, the lip (or pipe) grip, a run-up start for the solo try. */
 const COOP = [

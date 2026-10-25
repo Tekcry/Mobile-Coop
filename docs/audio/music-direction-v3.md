@@ -1,6 +1,6 @@
 # Night Shift - music direction v3
 
-Version 3.0 - 2026-10-09. Replaces `docs/audio/music-direction-v2.md` (kept for history). Approval: Michael, by ear in
+Version 3.0 - 2026-10-09. Replaces `docs/archive/audio/music-direction-v2.md` (kept for history). Approval: Michael, by ear in
 the music lab.
 
 **Why v3 (Michael, 2026-10-09):** he does not like where the music was going. The target is the feel of Amon Tobin's

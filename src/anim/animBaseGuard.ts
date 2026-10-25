@@ -2,7 +2,7 @@
  * (marlow-bays item 24, track A) The guards' animation base table: GENERATED. `scripts/anim-tune-bake.mjs` (logic
  * `src/anim/tuneBakeBase.ts`, the guard part) rewrites the JSON between the `@anim-base-guard-begin` /
  * `@anim-base-guard-end` lines when it bakes the Guard joints, Guard stepping or Guard weight values of a tuner export
- * (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
+ * (`docs/archive/anim-tuner/BAKE.md`); do not edit that part by hand.
  *
  * Every guard rig reads it (`CharacterRig.guardRows`, set in `buildEnemyRig`: the host's guards and the co-op client's
  * puppets alike, and the Anim Studio's guard puppet); no Wren rig ever does, and Wren's table (`animBase.ts`) never

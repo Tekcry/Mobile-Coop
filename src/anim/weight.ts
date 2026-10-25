@@ -1,6 +1,6 @@
 /**
  * (anim-weight) The Weight layers: procedural weight on the local player's movement and pose, tuned by the tuner's
- * Weight section (`src/player/weightTune.ts` registers it; `docs/anim-tuner/WEIGHT.md`). Pure and Babylon-free.
+ * Weight section (`src/player/weightTune.ts` registers it; `docs/archive/anim-tuner/WEIGHT.md`). Pure and Babylon-free.
  *
  * Every slider's identity (its default) reproduces today's output exactly: a `mul` is x1 and an `add` is +0, every
  * layer whose amount is 0 writes exactly 0 and skips its maths, and the pose hook (`weightApplyPose`) only runs while

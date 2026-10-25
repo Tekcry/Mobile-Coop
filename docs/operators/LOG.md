@@ -2331,7 +2331,7 @@ Fix list `steps/11e-fixes-r1.md` items 0-3 plus the checker's two notes (ktx2.ts
   kept whole, then this run's "Operators run" section, renumbered) and `docs/design-bible.md` 5.14 (master: "the
   core-feel job tunes movement on Wren (G150), ahead of G70's order (Wren behind a dev switch...)"; ours: Wren is the
   player for both, no dev switch (G123). Kept ours and added master's G150 core-feel tuning to it). Everything else
-  merged clean (`docs/progress.md`, the new `docs/ct-research/*`, `docs/ct-prototype/PLAN.md`).
+  merged clean (`docs/archive/progress.md`, the new `docs/ct-research/*`, `docs/ct-prototype/PLAN.md`).
 - Renumbered this run's G124-G139 to G161-G176 (old n -> n + 37, same order); G123 kept (reserved for us on master).
   Changed only references to our entries: DECISIONS.md's operators section and header line, CHANGELOG, docs/operators
   (DECISIONS, LOG, steps/11e-*), docs/systems/movement.md and world-and-characters.md, src (attach, attachController,

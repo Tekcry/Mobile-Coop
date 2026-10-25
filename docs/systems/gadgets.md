@@ -1,4 +1,5 @@
 # Gadgets and vision
+Owner: Player Build. Status: current.
 Purpose: the goggle vision modes, the gadget set, the wheel, remote views and effects.
 Design authority: docs/DECISIONS.md (G76, G99-G102, G152, G153), then docs/design-bible.md (Section 5.5).
 

@@ -3,7 +3,7 @@
 Version 2.2 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G363 (`docs/DECISIONS.md`;
 "Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
 summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
-Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Owner: the orchestrator (it edits; Michael decides). Status: current.
 
 ---
 
@@ -19,8 +19,8 @@ is decided.
 
 **Chaos Theory is the authority (G1).** Where this bible and Chaos Theory (CT) behaviour differ, CT behaviour, from the
 CT research, wins: "Pure ct, if it had it, we will use it." (G180). Several systems below are marked "research": they
-stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win; the full list
-of those overrides is `docs/VISION.md` section 3.
+stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win; they are the G
+entries in `docs/DECISIONS.md`, and `docs/VISION.md` section 3 lists the main ones.
 
 **History.** Older docs, prompts and code describe earlier directions: a cover-shooter game (snap cover, mark and
 execute, sonar, a playstyle points economy), phones and touch, Wave and PvP, a traitor finale, a solo campaign and a
@@ -168,7 +168,7 @@ controllable, it is wrong.
 ## 4. Verb catalogue
 
 The Rule column gives the decision that settles a verb. "Research" means the verb stays only if the CT co-op research
-finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Removed verbs are listed in Section 6.
+finds it in CT (G1, G3, G180); the research also adds CT verbs missing here. Removed verbs are listed in Section 6.
 
 ### Movement
 
@@ -207,7 +207,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | Palm strike | One-hit knockout from any side on every human guard; campaign missions have no heavies or dogs (Sector Ops: 5.8). | loco M20 Q4, G42, G155 |
 | Knife | Close lethal takedown; its full role follows the research. | G76 |
 | Synced takedown (co-op) | Two ordinary takedowns timed together; no dedicated dual move. Rewarded over shooting in Sector Ops. | G180, G307 |
-| Holster / draw | A mission starts holstered; holstered / low ready / aiming, LT held aims, X tap holsters (5.6). No hip fire. | G21, G103, G210 |
+| Holster / draw | A mission starts holstered; holstered / low ready / aiming, LT held aims, X tap holsters (5.6). No hip fire. | G21, G210, G243 |
 
 ### Vision
 
@@ -488,7 +488,7 @@ Implementation: `docs/systems/combat.md`.
 - **No hip fire.** Fire while holstered is the palm strike where CT's layout puts it (G96).
 - Swapping while holstered picks the gun the next aim draws; a swap button works while aiming; grenades and gadgets work
   holstered.
-- **Draw timings (G103; real-world times, Michael 2026-10-22 "Research what is believable and realistic",
+- **Draw timings (G243; real-world times, Michael 2026-10-22 "Research what is believable and realistic",
   docs/archive/anim-natural/n3/DRAW-TIMES.md):** draw to low ready 0.75 s (pistol) and 1.1 s (rifle, off the back); holster
   0.9 s (pistol) and 1.0 s (rifle). The tuner's Draw multipliers and the per-clip speed slider fine-tune them.
 - Releasing aim never cancels a reload (loco M4, A43).
@@ -701,7 +701,7 @@ Implementation: `docs/systems/coop.md`.
   - Vision modes, the camera, rumble, remapping and hold / toggle are local only, never sent.
   - Partners block each other (capsule separation) in every co-op mode (G52).
 - **C12-C18 - Engagement systems** (Sync countdowns, clutch-save markers, dragging a downed partner, split-and-converge
-  spaces, typed pings with quick lines, team results and highlights): research (G1, G11). What CT has stays; the rest
+  spaces, typed pings with quick lines, team results and highlights): research (G1, G180). What CT has stays; the rest
   goes. World pings stay (G135).
 - **C19 - Connection.** Online, split-screen and LAN; no cross-play commitment (G133). Online uses direct connections
   for now. A connection test on the co-op screen (peers connected,
@@ -731,7 +731,7 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
   or objective blip, no world waypoints and no live partner position (G135, G336, G339). Campaign missions and Sector
   Ops have no markers, only in-world guidance (objective text that names what and where, light language, landmarks,
   signs, place names) and an optional hint layer, off by default (G290, G336). Marlow Yard keeps its guidance marks
-  (Section 7, G292).
+  (Section 7, G292). World pings (G135) stay: a player places one for the partner; they are never objective markers.
 - **Field menu** (pause): objectives, radio log, interrogation notes.
 - **Dev menus:** Anim Studio only from the main menu; the animation tuner stays in the in-game menu (G313).
 - **Remapping:** full remapping with conflict warnings and a reset; remap capture cancels with Menu / Start or Esc, and B
@@ -802,7 +802,7 @@ values live in a config table with unit tests (`src/anim/audit/limits.ts`).
    | 1 m mantle | 0.6 s |
    | Vault | 0.5 s |
    | Ladder rung | 0.3 s |
-   | Weapon raise | 0.75 s pistol, 1.1 s rifle (G103, Michael 2026-10-22, DRAW-TIMES.md) |
+   | Weapon raise | 0.75 s pistol, 1.1 s rifle (G243, Michael 2026-10-22, DRAW-TIMES.md) |
    | Weapon swap | 0.6 s |
    | Grab a body | 0.5 s |
    | Lift to carry | 1.0 s |
@@ -984,7 +984,8 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
   180, the planted pivot, the braking stop (loco M20 Q8, G25, G26, G31, G33).
 - Lean-out aiming and the SWAT turn (loco M20 Q1); Kestrel's own wall hug (G37); wall entry by pushing into a wall (G34).
 - The elbow strike (replaced by the palm strike, loco M20 Q4); the stealth / kill selector (G23).
-- Aim assist (G16); the exploring-camera shoulder swap and camera zoom on aim (G17, G29); the goggle flip (G100).
+- Aim assist (G16); the exploring-camera shoulder swap and camera zoom on aim (G17, G29); the goggle flip between modes
+  (G100; it plays only on on / off, G181).
 - Prone and the solo rope climb (G110; CT's two-person rope stays, G180); stance and gear icons on the HUD (G107).
 - Brace and the dedicated dual takedown (G180).
 - Decided out on 2026-10-18 (code goes when its job runs): the thrown EMP gadget (G152), player-chosen loadouts
@@ -1138,7 +1139,7 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
 ## 10. Roadmap
 
 The live job list, ranked, with owners and gates, is `docs/ROADMAP.md` "Now" on origin/feature/menu (G90;
-`docs/progress.md` is its history). This section only says where the game stands.
+`docs/archive/progress.md` is its history). This section only says where the game stands.
 
 1. **Done:** the CT co-op research (2026-10-18, digests in `docs/ct-research/`, G124-G160); the core-feel job, closed
    when Michael took over movement tuning (G227, replaces G150); Wren in for both players (G123).
