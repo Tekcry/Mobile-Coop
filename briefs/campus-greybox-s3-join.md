@@ -54,3 +54,4 @@ r1-r4 merged into r5, J1-J5 applied, J6 green (counts in the report), report `do
 (merge shas, each J item with its commit, test counts, anything that differed from the line numbers), this brief
 `status: done feature/campus-greybox-s3-r5 <sha>` with a short "## Report". Pending PC runs: e2e-sectorops:1..6 flag
 off at the S3-e head; v2 walk of the stairs and the plenum after S3-f.
+- Note (r5 checker, Sonnet PASS 23:45): r5 already wires R4's S3_ALARMS / S3_CAMERAS / S3_DESKS / S3_INTEL / S3_KEYPADS / S3_BOARDS, so J5 is a no-op. After the merge and J1-J4: confirm R5's merged-only test half un-skips and passes; assert no guard slot or route point sits in a J1 stair room (s3-wstair / s3-nstair / s3-estair); record #10, #15, #16 isolation (no 3 s unseen moment in the sector check; #10 caused by R1's cage wall) in the report for the lead, no data change.
