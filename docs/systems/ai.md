@@ -448,8 +448,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Co-op (guard-ai S9, protocol 37 (32 before the 4.75.0 merge), A90-A96): the brain stays host-only; the client sees what the host shows. Barks:
   `Enemy.bark` hands `onBark` the event, `BarkVoice.lastLine` and the unit; the host sends a `bark` event (index into
   `BARK_EVENTS`, append only) and the client rebuilds the text with `barkLine` (pair talk and the desk's camera line go
-  as text). (guard-rules S4, A8) `BARK_EVENTS` appended `heard` (37), `spotCall` (38) and `saw` (39); the train's
-  protocol bump covers it. Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
+  as text). (guard-rules S4, A8) `BARK_EVENTS` appended `heard` (37), `spotCall` (38) and `saw` (39); an older
+  client drops an index it does not know, so no protocol bump is needed. Caution and gear ride the snapshot `al`
+  (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
   carry is `ai/guardStance.ts` on both sides (`guardAim` host, `wireGuardAim` client): cautious and calm = low ready
   (`GUARD_AIM.caution` 0.4). The gear parts and the enforcer shield are `ai/gearParts.ts`, built by `Enemy` and by the
   client's `EnemyPuppet` alike.
