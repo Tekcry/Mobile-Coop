@@ -11,7 +11,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   the folded plan is signed off, then a fresh Opus checker. Hold: only the test queue moves until then.
 - #400: the Orchestrator re-requested affected-e2e at 13:40 (...-fcb2, 27 suites, claimed): run it on that head; the
   conflict is resolved in its train. Train 91 (#424) next on the laptop at the 14:03 save.
-- Next: read the six SAVE 49 run folders (scratch/laptop-queue/runs/<id>/) and send flake rates to owners; push
+- 14:16: train 91 (#424, 19c3db9c) started; it had waited on d9b8 (gap full, 43/43, done 14:12) and #418's affected
+  (24/24, done 14:15). Withdrew ...-2158 full-4102-r2 so no gap full run takes a slot ahead of a train.
+- Next: read the five remaining SAVE 49 run folders (scratch/laptop-queue/runs/<id>/) and send flake rates to owners; push
   guard-cap r4102-* to feature/guard-cap-results run-4102/; triage any red train at once (Opus); reopen #422 only
   after the Orchestrator's plan sign-off.
 
