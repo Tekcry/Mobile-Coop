@@ -3,16 +3,24 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 56 (2026-10-25 ~21:10, new session [9a49d8] boot; wins over SAVE 55 where they differ):**
-- Train 101 (3d9a3056) running sharded 4189+4192 from 21:00. Service pid 12732 healthy. One Test Runner session.
-- `gh` is not authenticated in this session (stored token rejected; the service's own gh calls still post). Statuses
-  and PR reads need Michael to re-run `gh auth login` on the laptop, or the Orchestrator posts them.
-- Mixamo: no request yet at 21:10 (branch head bf89487f0, no PR). Background watcher (this session only) waits for one;
-  then re-file by hand as SAVE 55 says.
-- J20: j20-parity-pre-3 success; j20-s6c FAIL twice on b22bcbc3, e2e-sectorops:6 "campusOps s3: every guard stands
-  within 2 m of its slot's floor" (guard at y 0.0, slot floor 4.5). Opus triage agent fixing on -s6c, merging into
-  -prc (#445); then re-request j20-s6c on the new s6c head. Still open: pre-2, pra, j20-perf 5bf9, #445 affected.
-- Next: Mixamo fast-track; S6c re-run; then SAVE 54 Next line.
+**Test Runner SAVE 56 (2026-10-25 ~21:38, Orchestrator save at 92%; session [9a49d8]; wins over SAVE 55):**
+- LAPTOP GITHUB LOGIN EXPIRED (~21:05): `gh` 401 and `git push` "could not read Username". Michael must run
+  `gh auth login -h github.com` then `gh auth setup-git` on the laptop. Until then the Orchestrator pushes laptop-queue
+  edits from the desktop. The service (pid 12732) still posts statuses.
+- UNPUSHED local commits (push first after login): feature/flake-fix (this SAVE), feature/test-runner-j20-s6c
+  259bbe559 (S6c fix), feature/test-runner-j20-prc b453a89a9 (merge of s6c into PR-C #445).
+- S6c red was a test bug (Opus triage): scripts/e2e-sectorops.mjs ~2465 H8 paired guards to the nearest slot in x/z;
+  S3 stacks the dock grunt (25, -4.5, ground) under the write-up officer (25, 4.5, -4.2), campusSectors.ts:196/:202.
+  Fix: one-to-one 3D pairing, same 3 m / 2 m tolerances. After push: re-request `--set j20-s6c` (suites
+  e2e-sectorops) on the new s6c head 259bbe559 (full sha via git rev-parse); PR-C #445 auto affected-e2e reruns on b453a89a9.
+- Trains 101 (4.103.6) green 43/43. Train 102 (#372) next.
+- Mixamo #452 7634276a: laptop-e2e/affected 7/7 green (studio flake), mixamo-audit report-only (local 728 / remote 101
+  metric fails), outputs kept in scratch/laptop-queue/runs/20261025T000002-...-f9b0/anim-audit/. Orchestrator told.
+- j20-perf alone request withdrawn by the Orchestrator; its copy is on the desktop at
+  C:/NightShift/scratch/orchestrator/j20-perf-request.json. Re-file it (new id) when the queue is quiet.
+- Still open from J20: j20-parity-pre-2, j20-pra (0d7eab1e). pre-1 and pre-3 green.
+- Next: after login, push the three branches, re-request j20-s6c, queue ~3 h session-free laptop work (spare / gap
+  runs only when no train is pending); then SAVE 54 Next line (D-A on PR-C merge, open PR-A).
 
 **Test Runner SAVE 55 (2026-10-25 ~20:32, Orchestrator save at 85%; wins over SAVE 54 where they differ):**
 - Train 99 (899b1b41) laptop 43/43 green (flake e2e-studio). Service pid 12732 healthy, no locks held.
