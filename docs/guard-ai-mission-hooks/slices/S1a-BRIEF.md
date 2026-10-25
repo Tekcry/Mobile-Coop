@@ -469,6 +469,9 @@ passes 1,500 lines before step 7.
    adding one needs an Enemy field for the raw tag. OK as is?
 2. The size: split S1a into S1a-1 / S1a-2 (above)?
 
-## Lead decisions (pending)
-- 1 (split): _pending_
-- 2 (lookout runtime check): _pending_
+## Lead decisions (2026-10-26 ~05:30)
+- 1 (split): SPLIT. S1a-1 = the three flags, `missionOrders.ts` and its unit tests (pure, no runtime change, no
+  e2e). S1a-2 = Enemy and manager wiring, the wiring tests and the e2e, cut from S1a-1's head after it passes its
+  checks. Each its own PR, each under ~1.5k lines.
+- 2 (lookout runtime check): ACCEPTED as briefed: no runtime check. `checkMissionOrders` rejects a tagged lookout in
+  the data whatever the flag; with `lookouts` off he is an ordinary guard.

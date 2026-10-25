@@ -164,5 +164,7 @@ commits, tests changed, results, the ai.md line, what Michael should try (nothin
    S5, tested). This brief's default is PLAN's ranges in the one table (no map has `noisy` data yet). Keep PLAN's, or
    keep the code's?
 
-## Lead decisions (pending)
-- 1 (noisy limits): _pending_
+## Lead decisions (2026-10-26 ~05:30)
+- 1 (noisy limits): KEEP THE CODE'S tested `NOISY_LIMITS` (db 0-30, radius 1-20); the PLAN's 0-24 / 1-40 is not
+  adopted. No map has noisy data yet; a map that needs more radius raises it in its own data PR. Only the new `group`
+  (integer) and `on` (needs a group) checks are added.
