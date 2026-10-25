@@ -350,40 +350,30 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~09:08 at the orchestrator's 92% save; reset 13:10 or swap).
-git fetch; read CLAUDE.md "Sessions" (origin/master). Full burn. Three jobs + visual-gate:
-0. FIRST: send the S1 car park lux grid + GPU shot request (light-realism) the moment the measurer's script is on   origin/feature/light-realism (scripts/light-realism/s1-shots.mjs; the exact request command is in   docs/light-realism/measure/S1-carpark.md; set light-s1, --alone, on that pushed head). If the script is missing,   rerun the measurer from that doc's task list. Send the result to the orchestrator for Michael.   S3 brief DONE 0c7c02e8 (R1a frame then R1-R4 parallel, 7 PRs, 22 plan conflicts P1-P22 with builder defaults).
-1. CAMPUS-GREYBOX (Michael signed S1-S5 ~08:50; picks on signoff pages 7c021f01). Worktree C:/NightShift/Mobile-Coop-
-   campus-greybox, branch feature/campus-greybox (WIP a0097ba1 at the save). P0 (Opus) was building the dark-merge
-   scaffold: per-section flag in flags.ts, per-section data split (campusS1-3Data.ts, campusParts.ts, selector in
-   campusSectors / campusLips / campusOps; keep the MapDef `sectors: CAMPUS_SECTORS,` line untouched for Marlow's
-   `missions:` line). Five Opus writers: docs/campus-greybox/briefs/S1..S5.md (maybe partial: check each ends with
-   PR grouping + validator). If P0 or a brief is unfinished, rerun it from its file. Next: 5 Sonnet lanes in worktrees
-   feature/campus-greybox-s<N> (one per section, own files only), Sonnet checker per section batch, Opus for engine
-   (S2-G5 devices, S5 CR7 rope). SYNC.md: lanes never edit it; lead adds `src` lines; ping Marlow when S2 / S4 data is
-   pushed. Exit gate: level-validator V6 --require-measured (cloud V6-fix done 8f551e18, Marlow's; on master later).
-   S1 car park lights in one S1_LIGHTS block, provisional until light-realism calibrates; carport gets under-canopy lamps.
-2. LIGHT-REALISM (Michael ~09:05 "Real-world levels"; ROADMAP Now 15). Worktree C:/NightShift/Mobile-Coop-light-
-   realism, feature/light-realism. Running at save: Opus measurement (docs/light-realism/measure/S1-carpark.md,
-   scripts/light-realism/s1-shots.mjs + the laptop request it prints -> SEND it, set light-s1) and Opus planner
-   (research/bands.md, BRIEF, PLAN, signoff/level-design-5.5.md, fresh plan checker). Send the measurement to the
-   orchestrator for Michael. If unfinished, rerun from the job's docs.
-3. PR #385 bake4: checker PASS d2ccf630; laptop set bake4 (e2e-lightbake e2e-sectorops:6) queued on d2ccf630 (first
-   run was red only from my wrong suite names). Green -> tell orchestrator (it labels). #379 / #385 ride the train
-   with Guard AI's e2e-stealth-ai fix. bake5 (cloud done 522727fb, stacked on #385): Opus checker running in
-   -sector-redesign-bake2 -> checks/bake5-check.md; PASS -> PR after #385 merges.
-4. VISUAL-GATE (feature/visual-gate 0400ece4: vg3p + VG7 phase 1 merged; briefs VG8 / C1 / VG9 131e5fc8; BRIEF
-   A32 / A33 mine). Laptop QUEUED ~09:00: visual-vg7 (3 runs on master 6c3f4a87, run 3 records, push to
-   shots/visual-gate-vg7) + 8 proof builds visual-proof-<tag> (push to shots/visual-gate-proofs). Steps fetch
-   feature/visual-gate at RUN time. VG7p1 Opus checker running in -visual-gate-vg1 (push-results laptop safety
-   first). VG5 triage (Opus, -visual-gate-vg5, feature/visual-gate-vg5t WIP e44b288d): M0.md done (A31 no ladder
-   step; trigger vg5b wall > 165 s), gate fixes in progress; its BRIEF A32 clashes with mine: renumber theirs A34 at
-   merge. Then: vg5b rerun request (command in checks/vg5t-build.md), VG7 phase 2 (tolerances.mjs from vg7 runs),
-   P1-P7 Sonnet proof builders (results on shots branches), VG8, C1, VG9 (6 stacked PRs, A33).
-Laptop requests: from a repo dir, node C:/NightShift/scratch/lq/request.mjs --sha <full> --pr N --branch <b> --set <s>
---suites "e2e-x e2e-y:6" --requester "Night Shift | Sector Ops Build" (suite names are e2e-*, see run-e2e.mjs :30).
-RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet from strict briefs; one fix round; never merge master into a job branch; no desktop e2e / GPU; vitest
---maxWorkers=2; agents wait while CPU > 90%; never two agents on one file.
+Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~13:30 after the 13:10 reset; new orchestrator).
+git fetch; read docs/RULES.md and docs/VISION.md from origin/master (never a branch copy); BOOT.md "Sector Ops Build"
+on origin/feature/menu. Full burn.
+DOCS-FIRST HOLD (G346, G355; BOOT common start 4): until Michael signs off the folded plan (ROADMAP Now row 6) no new
+game work. Finished PRs may ship. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
+0. FIRST JOB: conformance review, plan only (brief docs/orchestrator/review-briefs/sector-ops.md on
+   origin/feature/menu). Branch feature/conformance-sector-ops off master, worktree
+   C:/NightShift/Mobile-Coop-conformance-sector-ops; output docs/conformance-sector-ops/CONFORMANCE.md (gap table,
+   "Checked, conforms", per-map lighting line), fragment changes/feature-conformance-sector-ops.md. Four Opus review
+   parts (A campus map, B mode + stars, C lighting, D visual gate) write to the session scratchpad; if lost, rerun
+   from the brief. Then one fresh Opus checker posts `checker`; docs PR to master; message the orchestrator the PR.
+1. bake5 (feature/sector-redesign-bake5 @ 28b1737f, worktree -sector-redesign-bake2): finished, checker PASS on
+   522727fb (head adds the check report only), merges clean on master 4.102.0. PR not opened (auto mode blocked
+   gh pr create ~13:25): orchestrator asked to open it. Then post `checker` on the head.
+2. HELD until row 6 (plans only, no code):
+   - campus-greybox (Now row 9): feature/campus-greybox @ c2f1f131 (BRIEF, PLAN, STATE, briefs S1..S5); worktree
+     C:/NightShift/Mobile-Coop-campus-greybox. Resume from docs/campus-greybox/STATE.md on that branch.
+   - light-realism (Now row 10): feature/light-realism @ bd8b843e (S1 car park measurement scripts); worktree
+     -light-realism; the lux grid goes to Michael via the orchestrator.
+   - character shadows in the meter (Now row 11, G352) and stars fill lower tiers (Now row 12, G331): Opus plans.
+   - visual-gate: feature/visual-gate @ 07eefea0 (45 ahead of master); docs/visual-gate/STATE.md on that branch.
+3. Merged since the 09:08 save: #333 (section bake), #379 (polish 3), #385 (bake4), #339 (fog). Older notes in
+   this file above this block are history.
+Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
+Rules: RULES on origin/master only; never restate them here.
 Previous blocks: git log -p on this file.
 ```
