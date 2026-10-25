@@ -114,7 +114,7 @@ Gameplay first with existing or placeholder clips; Player Build owns animation (
 | --- | --- | --- | --- |
 | Boost up a wall (leg-up) | exists: `boost` teamMoves.ts:111-160, teamController.ts:250, clips team.ts:29 | data only (4.3-4.5 lip) | none new |
 | Throw over a gap | exists: `throw` (B4) teamMoves.ts:174-240, teamController.ts:230-247 | data only (+ validator kind `team_throw`) | none new |
-| Human ladder (climb the hanging partner) | exists: relay `ladder` teamMoves.ts:123-133, teamController.ts:212-253 | data only | none new |
+| Human ladder (shoulder stand: one stands on the partner's shoulders to reach a high lip, G57) | new: its own move, Player Build's shoulder stand (J24 part 1, feature/coop-kit); the kit branch adds its wire kind `stand`. The relay `ladder` (teamMoves.ts:123-133, teamController.ts:212-253) is a different move | J24 part 1, then `stand` on the kit branch | Player Build's (J24) |
 | Pull-up (catch a jumping partner at a lip and haul) | new; nearest: hang-down `pull` end teamMoves.ts:282-292 | KIT-PULL | pullOffer, pullCatch, pullHaul (top; see 4c); pullJump, pullHang, pullScramble (bottom). Placeholder: hangOffer / hangPull / relayUp |
 | Hold shutter / door (one lifts and holds, the other crawls under) | new; nearest: course `hold` / `timedHold` gates courseDef.ts:57-59 (a held switch, course mode only) | KIT-SHUT | shutterLift, shutterHold (loop), shutterDrop; crawlUnder (partner, 0.9 m gap). Placeholder: brace / crouch walk |
 | Rope brace / descent | exists: two-person rope (B7) teamMoves.ts:301-357, `ropeSlide` :327, clips ropeOffer / ropeHold / ropeClimb / ropeSlide | data only | none new |

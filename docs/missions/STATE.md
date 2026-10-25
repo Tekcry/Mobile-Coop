@@ -23,6 +23,10 @@ J23 Tallow design docs, TW23 (SPEC onto the template), J25 / J26 later.
    Each needs an Opus plan checker, then builders in parallel.
 6. Known gaps: mission-validator (origin/feature/mission-validator) still requires an optional reward (now fails TGC /
    TKL graphs: J12 with Marlow); engine code still has oneChance / window, blips, rewards (J7).
+7. Co-op kit order (orchestrator ~18:30, Player's J24 plan feature/coop-kit 34cfcad2): Player's part 1 (rope descent,
+   shoulder stand) lands first; then the kit branch (feature/mission-engine-flg-gb6) adds wire kind `stand` and folds
+   the `coopKit` flag into Player's per-move `kitMoves` list; Player's part 2 (the 5 new moves) starts after the kit
+   registry PR is on master. Plan: hud-guidance PLAN pushed 2a702629 (A1 Opus + A3 Sonnet first, after a plan check).
 CPU: the orchestrator paused new agents ~18:10 until desktop CPU < 80%.
 Next: when CPU allows, #372 checker + two FLG checkers + TW23 builder; plan checkers on J3 / J7 / J8-J9; builders.
 
