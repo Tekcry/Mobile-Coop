@@ -48,7 +48,7 @@ Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-trai
 
 ## Inbox
 Michael's new ideas, verbatim, with the time; the orchestrator triages each cron run onto Now, Waiting or Decided.
-- 2026-10-25 ~15:15, Michael (animation tuner, Keys tab): "I can clean up the animation but I can't twist the ankle, only roll and pitch which don't fix it. How do I make it twist?" Also: one key in the walk has a knee flying out sideways. Michael 15:17: "Ankle/shin can't be changed in the key full body tab. Also why is it in the full body tab?" Triage: Player Build, Keys tab: per-key ankle and shin twist rows and a separate Legs part instead of the full body group (tool change, after the row 6 sign-off).
+- 2026-10-25 ~15:15, Michael (animation tuner, Keys tab): "I can clean up the animation but I can't twist the ankle, only roll and pitch which don't fix it. How do I make it twist?" Also: one key in the walk has a knee flying out sideways. Michael 15:17: "Ankle/shin can't be changed in the key full body tab. Also why is it in the full body tab?" Triage: Player Build, Keys tab: per-key ankle and shin twist rows and a separate Legs part instead of the full body group, and a label on each tab saying whether it changes the motion-captured walk (Michael ~15:25 asked whether the tuner changes mocap) (tool change, after the row 6 sign-off).
 
 ## Waiting on Michael
 | Item | Since | Blocks |
