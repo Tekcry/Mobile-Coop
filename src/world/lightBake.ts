@@ -1,8 +1,8 @@
 /**
  * The canonical light bake (3.6): every device bakes the same lamp visibility, moon visibility and ambient grid from
  * the same canonical shapes (`voxel/lightShapes.ts`), whatever the renderer, preset or detail tier. Its keys depend
- * only on the map, seed, canonical shapes, lights and moon direction. `LightField` (gameplay) and the renderers read
- * this one thing (bible 5.1).
+ * only on the map, canonical shapes, lights and moon direction (map-ready A16: never the match seed, which changes no
+ * baked byte). `LightField` (gameplay) and the renderers read this one thing (bible 5.1).
  */
 import { bakeLevelLamps, bakeLevelMoon, LAMP_VERSION, MOON_VERSION, readLampCache } from '../voxel/lampJobs';
 import { SectionBaker } from '../voxel/sectionJobs';
@@ -54,6 +54,12 @@ export interface LightBake {
   /** Load time of the lamp and moon bakes together (ms; a cache hit reads in a few). */
   ms: number;
   /**
+   * (map-ready S4) Where the lamps came from: `shipped` the build's pre-baked files (`shippedBake.ts`), `cache` the
+   * IndexedDB cache, `baked` this PC (a section or full bake), `none` no fixed lights. Always set by `bakeLevelLight`;
+   * absent only on hand-made test bakes.
+   */
+  source?: 'shipped' | 'cache' | 'baked' | 'none';
+  /**
    * (section-bake) A Sector Ops map baking per section (`sectionBake.ts`, SB1) on a cache miss: `lamps.r` fills as its
    * lamps land, the live section first (`GameState.create` waits for it); null or absent for a full or cached bake.
    */
@@ -78,6 +84,17 @@ function hashFloats(a: Float32Array): string {
   return fnv(new Uint8Array(a.buffer, a.byteOffset, a.byteLength)).toString(36);
 }
 
+/** (map-ready A16) The lamp bake's cache key: the map, the bake versions, the shapes and the lights; no seed (the same
+ *  bytes for every seed). The game and the prebake (`scripts/prebake/`) both use this one. */
+export function lampKeyOf(mapId: string, shapesHash: string, lights: Float32Array): string {
+  return `lamps:${mapId}:v${LAMP_VERSION}:c${CANON_VERSION}:${shapesHash}:${hashFloats(lights)}`;
+}
+
+/** (map-ready A16) The moon bake's cache key (`dir`: the unit vector towards the moon); no seed. */
+export function moonKeyOf(mapId: string, shapesHash: string, dir: readonly [number, number, number]): string {
+  return `moon:${mapId}:v${MOON_VERSION}:c${CANON_VERSION}:${shapesHash}:${dir.map((v) => v.toFixed(4)).join(',')}`;
+}
+
 /** Bake everything the light field reads. Needs `reg.ambient` set (the zones are read as they are). */
 export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
   const t0 = performance.now();
@@ -88,23 +105,28 @@ export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
   const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, inp.lo, inp.hi);
   const l = Math.sqrt(inp.sunDir[0] ** 2 + inp.sunDir[1] ** 2 + inp.sunDir[2] ** 2) || 1;
   const dir: [number, number, number] = [-inp.sunDir[0] / l, -inp.sunDir[1] / l, -inp.sunDir[2] / l];
-  const moonKey = `moon:${inp.mapId}:${inp.seed}:v${MOON_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${dir.map((v) => v.toFixed(4)).join(',')}`;
+  const moonKey = moonKeyOf(inp.mapId, inp.shapesHash, dir);
   let lampKey: string | null = null;
   let lamps: LightBake['lamps'] = null;
   const hasLamps = !!baked && baked.ids.length > 0;
-  if (hasLamps) lampKey = `lamps:${inp.mapId}:${inp.seed}:v${LAMP_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${hashFloats(baked.lights)}`;
+  if (hasLamps) lampKey = lampKeyOf(inp.mapId, inp.shapesHash, baked.lights);
   // (section-bake, SB1 / SB2) an opted-in map on a cache miss: the result is laid out in full now and fills as the lamps
   // land, the live section first (`GameState.create` waits for it), the others in the background
   const def = hasLamps ? sectionBakeFor(inp.mapId) : null;
   // (a holder: the job below sets it after an await, which a plain `let` would narrow away; `dead`: the bake already
   // failed, so a job still awaiting the cache read starts nothing (section-bake robust, polish3))
-  const held: { sb: SectionBaker | null; dead: boolean } = { sb: null, dead: false };
+  // (map-ready S4) `source`: where the lamps came from (`LightBake.source`)
+  const held: { sb: SectionBaker | null; dead: boolean; source: NonNullable<LightBake['source']> } = { sb: null, dead: false, source: hasLamps ? 'baked' : 'none' };
   const lampJob = async (): Promise<LampResult | null> => {
     if (!baked || !hasLamps) return null;
-    if (!def) return bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey);
     const hit = await readLampCache(lampKey, baked.ids.length);
     if (held.dead) return null;
-    if (hit) return hit;
+    if (hit) {
+      held.source = 'cache';
+      return hit;
+    }
+    // (a full bake: `bakeLevelLamps` reads the cache once more first, a cheap miss)
+    if (!def) return bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey);
     const sb = new SectionBaker({ shapes: inp.shapes, lights: baked.lights, lo: inp.lo, hi: inp.hi, masks: lampSectionMasks(baked.lights, def), sections: def.regions.length, key: lampKey });
     held.sb = sb;
     sb.start();
@@ -124,7 +146,7 @@ export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
   const sections = held.sb;
   if (r && baked) lamps = { baked, r };
   const moon: MoonGrid = { origin: [inp.lo[0], inp.lo[1], inp.lo[2]], n: [Math.max(1, Math.ceil((inp.hi[0] - inp.lo[0]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[1] - inp.lo[1]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[2] - inp.lo[2]) / MOON_CELL))], cell: MOON_CELL, vis: m.vis, dir };
-  return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, moonLight: inp.moonLight, ms: performance.now() - t0, sections };
+  return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, moonLight: inp.moonLight, ms: performance.now() - t0, source: held.source, sections };
 }
 
 /** A content hash of everything baked (the parity checks compare it across renderers; base 36). */
