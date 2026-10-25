@@ -42,33 +42,12 @@ import type { KitPoseId, KitPoseMove, TeamPoseRole, TeamRigIn } from './clips/te
  *   partner's wrists over its root while hauled (m at 1.75 m).
  */
 export const KIT_SHOT = {
-  pullSec: 4.483,
-  ledgeSec: 3.817,
-  liftSec: 9.617,
-  crawlSec: 2.333,
-  offerAt: 0.45,
-  catch0: 0.45,
-  catch1: 1.2,
-  haul1: 3.6,
+  pullSec: 4.483, ledgeSec: 3.817, liftSec: 9.617, crawlSec: 2.333,
+  offerAt: 0.45, catch0: 0.45, catch1: 1.2, haul1: 3.6,
   scram0: 1.6,
-  offer0: 1.5,
-  offerSec: 0.4,
-  lift0: 2.3,
-  lift1: 4.8,
-  hold1: 6.6,
-  drop1: 7.6,
-  holdGap: 0.9,
-  crawlGap: 0.85,
-  holdSpot: 0.45,
-  gapEps: 0.001,
-  crawlCycle: 0.54,
-  crawlStretch: 1.85,
-  flip: 0.1,
-  jump: 0.05,
-  tail: 0.15,
-  barHandW: 1,
-  haulHandW: 0.8,
-  wristUp: 1.5,
+  offer0: 1.5, offerSec: 0.4, lift0: 2.3, lift1: 4.8, hold1: 6.6, drop1: 7.6,
+  holdGap: 0.9, crawlGap: 0.85, holdSpot: 0.45, gapEps: 0.001, crawlCycle: 0.54, crawlStretch: 1.85,
+  flip: 0.1, jump: 0.05, tail: 0.15, barHandW: 1, haulHandW: 0.8, wristUp: 1.5,
 } as const;
 
 /**

@@ -11,11 +11,12 @@
  * - (c) both screens give the same take and clip time; (c2) per-rig source (G400); (d) timing kept; (e) the hang skip;
  * - (f) no pop, the palms on the bar; (g) no allocation; (h) the A8 readings (KIT-REPORT.md); (i) no stale shot.
  */
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MIXAMO_ON, setMixamo } from '../src/anim/mixamo';
 import { KIT_PULL, KIT_SHOT, KIT_TABLES, kitClipTime, kitGapTrend, kitShotTime, kitShutterPhase, newKitShotIn, resolveKit, setKitSourceOf, type KitShotIn } from '../src/anim/kitMixamo';
 import { KIT_POSE_IDS, KIT_POSE_LOCAL, TEAM_LINK, TeamPoser, newTeamPoseIn, teamLinkFrame, teamPoseOfState, teamPoseOfWire, type KitPoseId, type TeamPoseIn, type TeamRigIn, type TeamRigPose } from '../src/anim/clips/team';
-import { AnimGraph, defaultInput, type TraverseKind } from '../src/anim/animGraph';
+import { AnimGraph, defaultInput, type AnimInput, type TraverseKind } from '../src/anim/animGraph';
 import { newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
 import { MOCAP_KNEELING_PULL_UP } from '../src/anim/clips/mixamo/kneeling_pull_up';
 import { MOCAP_PULLING_UP_TO_A_LEDGE } from '../src/anim/clips/mixamo/pulling_up_to_a_ledge';
@@ -56,31 +57,11 @@ function rows(on: boolean): void {
 
 // ---- scenes: one frame each 1/60 s ----
 
+/** One frame's inputs (`link` / `lk`, the wire scenes: this page's own player's state and clock, linking the avatar). */
 interface F {
-  wire: boolean;
-  state: string;
-  t: number;
-  k: number;
-  gap: number;
-  mode: string;
-  sub: number;
-  s: number;
-  ph: number;
-  /** The wire scenes: this page's own player's state (it links the avatar), '' none. */
-  link: string;
-  lk: number;
-  x: number;
-  y: number;
-  z: number;
-  yaw: number;
-  px: number;
-  py: number;
-  pz: number;
-  grounded: boolean;
-  trav: TraverseKind;
-  travT: number;
-  crouch: number;
-  speed: number;
+  wire: boolean; state: string; t: number; k: number; gap: number; mode: string; sub: number; s: number; ph: number;
+  link: string; lk: number; x: number; y: number; z: number; yaw: number; px: number; py: number; pz: number;
+  grounded: boolean; trav: TraverseKind; travT: number; crouch: number; speed: number;
 }
 
 const fr = (p: Partial<F>): F => ({ wire: false, state: 'none', t: 0, k: -1, gap: NaN, mode: 'ground', sub: 0, s: 0, ph: 0, link: '', lk: -1, x: 0, y: 0, z: 0, yaw: 0, px: NaN, py: NaN, pz: NaN, grounded: true, trav: 'none', travT: 0, crouch: 0, speed: 0, ...p });
@@ -169,16 +150,9 @@ function plain(states: readonly (readonly [string, number])[], extra: Partial<F>
   return o;
 }
 
-const KIT_SCENES: readonly (readonly [string, () => F[]])[] = [
-  ['pull holder (local)', () => holderPull(false)],
-  ['pull holder (remote)', () => holderPull(true)],
-  ['shutter holder (local)', () => holderShutter(false)],
-  ['shutter holder (remote)', () => holderShutter(true)],
-  ['pull partner (local)', () => climberPull(false)],
-  ['pull partner (remote)', () => climberPull(true)],
-  ['crawler (local)', () => crawler(false)],
-  ['crawler (remote)', () => crawler(true)],
-];
+const KIT_SCENES: readonly (readonly [string, () => F[]])[] = (
+  [['pull holder', holderPull], ['shutter holder', holderShutter], ['pull partner', (r: boolean) => climberPull(r)], ['crawler', crawler]] as const
+).flatMap(([n, f]) => [[`${n} (local)`, () => f(false)], [`${n} (remote)`, () => f(true)]] as const);
 
 const PLAIN_SCENES: readonly (readonly [string, () => F[]])[] = [
   ['leg-up holder', () => plain([['offer', 0.5], ['assist', TEAM.boostTime]])],
@@ -214,27 +188,15 @@ function fillIn(f: F, tin: TeamPoseIn): void {
   teamPoseOfWire(f.mode, f.sub, f.s, f.ph, 'p2', tin);
 }
 
-// ---- the bit hash (as tests/mixamoStance.test.ts) ----
+// ---- the bit hash: every number / boolean / string under a value, keys in order, as float64 bits (-0 as +0) ----
 
 class Hasher {
-  private h1 = 0xdeadbeef;
-  private h2 = 0x41c6ce57;
-  private readonly f = new Float64Array(1);
-  private readonly u = new Uint32Array(this.f.buffer);
-  add(v: number): void {
-    this.f[0] = v === 0 ? 0 : v;
-    for (let k = 0; k < 2; k++) {
-      const c = this.u[k]!;
-      this.h1 = Math.imul(this.h1 ^ c, 2654435761);
-      this.h2 = Math.imul(this.h2 ^ c, 1597334677);
-    }
+  private readonly v: number[] = [];
+  add(x: number): void {
+    this.v.push(x === 0 ? 0 : x);
   }
   digest(): string {
-    let h1 = Math.imul(this.h1 ^ (this.h1 >>> 16), 2246822507);
-    h1 ^= Math.imul(this.h2 ^ (this.h2 >>> 13), 3266489909);
-    let h2 = Math.imul(this.h2 ^ (this.h2 >>> 16), 2246822507);
-    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+    return createHash('sha1').update(new Uint8Array(Float64Array.from(this.v).buffer)).digest('hex');
   }
 }
 
@@ -242,38 +204,25 @@ function hashAll(h: Hasher, v: unknown, seen: Set<object>): void {
   if (typeof v === 'number') h.add(v);
   else if (typeof v === 'boolean') h.add(v ? 1 : 0);
   else if (typeof v === 'string') for (let k = 0; k < v.length; k++) h.add(v.charCodeAt(k));
-  else if (v !== null && typeof v === 'object') {
-    if (seen.has(v)) return;
+  else if (v !== null && typeof v === 'object' && !seen.has(v)) {
     seen.add(v);
-    if (ArrayBuffer.isView(v)) {
-      const a = v as unknown as ArrayLike<number>;
-      for (let k = 0; k < a.length; k++) h.add(Number(a[k]));
-    } else for (const k of Object.keys(v)) hashAll(h, (v as Record<string, unknown>)[k], seen);
+    if (ArrayBuffer.isView(v)) for (const x of v as unknown as Iterable<number>) h.add(Number(x));
+    else for (const k of Object.keys(v)) hashAll(h, (v as Record<string, unknown>)[k], seen);
   }
 }
 
 // ---- the rig run ----
 
+/** Per frame: `hash` the whole drawn state, `timing` the game side (the root after begin, the input's game fields, the
+ *  traverse), `mx` the graph played a traversal capture, `shotW` the shot weight written, `palm` the palms' worst miss of
+ *  their reach targets (m, weight 0.5+, else NaN); per joint (JOINTS order) `jp` world positions less the root, `jw` world. */
 interface Out {
-  /** Per frame: the whole drawn state (bits). */
-  hash: string[];
-  /** Per frame: the game's side (the root after begin, the input's game fields, the traverse) (bits). */
-  timing: string[];
-  /** Per frame: the graph played a traversal capture (`mxLast`), the traverse, the shot weight the poser wrote. */
-  mx: boolean[];
-  trav: string[];
-  shotW: number[];
-  /** Per joint (JOINTS order): world positions less the root, x y z a frame. */
-  jp: number[][];
-  /** Per joint: world positions (the audit metrics). */
-  jw: number[][];
-  /** Per frame: the palms' worst miss of their reach targets (m) while a target holds (weight 0.5+), else NaN. */
-  palm: number[];
+  hash: string[]; timing: string[]; mx: boolean[]; trav: string[]; shotW: number[]; jp: number[][]; jw: number[][]; palm: number[];
 }
 
+/** `each`: called before frame k's begin (a source flip mid-move). */
 interface RunOpts {
   wren?: boolean;
-  /** Before frame k's begin (a source flip mid-move). */
   each?: (k: number) => void;
 }
 
@@ -321,9 +270,7 @@ async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
       for (const v of [rp.x, rp.y, rp.z, rig.root.rotation.y, tin.k, tin.gap, tin.px, tin.py, tin.pz, tin.depth, pose.traverseT ?? 0]) ht.add(v);
       hashAll(ht, [tin.move, tin.role, pose.traverse], new Set());
       out.timing.push(ht.digest());
-      const rx = rp.x;
-      const ry = rp.y;
-      const rz = rp.z;
+      const [rx, ry, rz] = [rp.x, rp.y, rp.z];
       rig.animate(DT, pose);
       const h = new Hasher();
       hashAll(h, g.out, new Set());
@@ -345,9 +292,7 @@ async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
         if (r.w < 0.5) continue;
         const sm = (side > 0 ? rig.shoulderR : rig.shoulderL).computeWorldMatrix(true).m;
         const wm = (side > 0 ? rig.wristR : rig.wristL).computeWorldMatrix(true).m;
-        const dx = r.x - sm[12]!;
-        const dy = r.y - sm[13]!;
-        const dz = r.z - sm[14]!;
+        const [dx, dy, dz] = [r.x - sm[12]!, r.y - sm[13]!, r.z - sm[14]!];
         const l = Math.hypot(dx, dy, dz) || 1;
         const e = Math.hypot(wm[12]! + (dx / l) * back - r.x, wm[13]! + (dy / l) * back - r.y, wm[14]! + (dz / l) * back - r.z);
         miss = Number.isNaN(miss) ? e : Math.max(miss, e);
@@ -379,9 +324,7 @@ function steps(R: Out, from = 1, to = R.hash.length): { step: number; pop: numbe
   for (let jj = 0; jj < R.jp.length; jj++) {
     const p = R.jp[jj]!;
     for (let f = Math.max(1, from); f < to; f++) {
-      const vx = p[f * 3]! - p[f * 3 - 3]!;
-      const vy = p[f * 3 + 1]! - p[f * 3 - 2]!;
-      const vz = p[f * 3 + 2]! - p[f * 3 - 1]!;
+      const [vx, vy, vz] = [p[f * 3]! - p[f * 3 - 3]!, p[f * 3 + 1]! - p[f * 3 - 2]!, p[f * 3 + 2]! - p[f * 3 - 1]!];
       const s = Math.hypot(vx, vy, vz) * 100;
       if (s > step) {
         step = s;
@@ -389,9 +332,7 @@ function steps(R: Out, from = 1, to = R.hash.length): { step: number; pop: numbe
         joint = JOINTS[jj]!;
       }
       if (f >= 2) {
-        const ux = p[f * 3 - 3]! - p[f * 3 - 6]!;
-        const uy = p[f * 3 - 2]! - p[f * 3 - 5]!;
-        const uz = p[f * 3 - 1]! - p[f * 3 - 4]!;
+        const [ux, uy, uz] = [p[f * 3 - 3]! - p[f * 3 - 6]!, p[f * 3 - 2]! - p[f * 3 - 5]!, p[f * 3 - 1]! - p[f * 3 - 4]!];
         pop = Math.max(pop, Math.hypot(vx - ux, vy - uy, vz - uz) * 100);
       }
     }
@@ -400,6 +341,15 @@ function steps(R: Out, from = 1, to = R.hash.length): { step: number; pop: numbe
 }
 
 const J = (n: (typeof JOINTS)[number]): number => JOINTS.indexOf(n);
+
+/** A Wren graph alone (no rig) on a free body by default (the holder's brace). */
+function wrenGraph(trav: TraverseKind = 'brace'): { g: AnimGraph; i: AnimInput } {
+  const g = new AnimGraph(proportions('average', 1.68));
+  g.wrenReady = true;
+  const i = defaultInput();
+  Object.assign(i, { keyedOk: true, ready: true, grounded: true, traverse: trav });
+  return { g, i };
+}
 
 // ---- a fake rig for the poser alone (as tests/teamPose.test.ts) ----
 
@@ -418,9 +368,7 @@ function poserRun(frames: readonly F[], rig: FakeRig = fakeRig()): { clip: (Keye
   const r = { clip: [] as (KeyedClip | null)[], time: [] as number[], w: [] as number[], move: [] as string[], role: [] as string[], after: [] as KitShotIn[] };
   clearLink();
   for (const f of frames) {
-    rig.root.position.x = f.x;
-    rig.root.position.y = f.y;
-    rig.root.position.z = f.z;
+    Object.assign(rig.root.position, { x: f.x, y: f.y, z: f.z });
     rig.root.rotation.y = f.yaw;
     p.traverse = f.trav;
     p.bend = p.bendDrop = p.sway = 0;
@@ -447,6 +395,11 @@ describe('mixamo-kit (g): no allocation', () => {
     // (the placeholder poses already box doubles in their curve calls, 30-110 B a frame by phase and tier: each kit
     // phase is measured on its own with the same inputs, the shot on against the rows off, as tests/mixamoStance.test.ts)
     const at = new Int32Array(1);
+    const nx = (len: number): number => {
+      const j = at[0]!;
+      at[0] = j + 1 >= len ? 0 : j + 1;
+      return j;
+    };
     const V = Float64Array.from({ length: 600 }, (_v, k) => (k % 200) / 220);
     const cases = [['shutter', 'b', ''], ['shutter', 'a', 'crawlUnder'], ['pull', 'b', 'pullCatch'], ['pull', 'b', 'pullHaul'], ['pull', 'a', 'pullScramble']] as const;
     const read: string[] = [];
@@ -455,18 +408,11 @@ describe('mixamo-kit (g): no allocation', () => {
         rows(on);
         const tp = new TeamPoser();
         const rig = fakeRig();
-        const i = newTeamPoseIn();
-        i.move = move;
-        i.role = role;
-        i.kit = kit;
-        i.px = 0;
-        i.py = -2;
-        i.pz = 0.6;
+        const i = Object.assign(newTeamPoseIn(), { move, role, kit, px: 0, py: -2, pz: 0.6 });
         const p: TeamRigPose = {};
         return bytesPerCall((n) => {
           for (let k = 0; k < n; k++) {
-            const j = at[0]!;
-            at[0] = j + 1 >= V.length ? 0 : j + 1;
+            const j = nx(V.length);
             i.gap = V[j]!;
             i.kt = V[j]!;
             rig.root.position.z = V[j]!;
@@ -486,8 +432,7 @@ describe('mixamo-kit (g): no allocation', () => {
     const me = newTeamPoseIn();
     const pin = await bytesPerCall((n) => {
       for (let k = 0; k < n; k++) {
-        const j = at[0]!;
-        at[0] = j + 1 >= V.length ? 0 : j + 1;
+        const j = nx(V.length);
         KIT_POSE_LOCAL.k = V[j]!;
         teamPoseOfState('pullHaul', 0, tin);
         teamPoseOfState('pullJump', 0, me);
@@ -498,21 +443,12 @@ describe('mixamo-kit (g): no allocation', () => {
     console.info(`(mixamo-kit) poser bytes a frame, shot on (rows off): ${read.join(', ')}; pose input ${pin}`);
     expect(pin).toBeLessThanOrEqual(HEAP_NUMBER);
     // the graph: a held shutter shot on a free body against no shot
-    const g = new AnimGraph(proportions('average', 1.68));
-    g.wrenReady = true;
-    const i = defaultInput();
-    i.keyedOk = true;
-    i.ready = true;
-    i.traverse = 'brace';
-    const K = g.kit;
-    K.clip = MOCAP_LIFTING_HEAVY_OBJECT;
-    K.mode = 'shot';
+    const { g, i } = wrenGraph();
+    const K = Object.assign(g.kit, { clip: MOCAP_LIFTING_HEAVY_OBJECT, mode: 'shot' });
     const T = Float64Array.from({ length: 600 }, (_v, k) => 0.5 + 0.1 * Math.sin(k / 30));
     const gr = (n: number): void => {
       for (let k = 0; k < n; k++) {
-        const j = at[0]!;
-        at[0] = j + 1 >= T.length ? 0 : j + 1;
-        K.time = T[j]!;
+        K.time = T[nx(T.length)]!;
         g.update(DT, i);
       }
     };
@@ -587,20 +523,12 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
   };
 
   it('the copies equal the game\'s numbers; the tables by rows (optional phases off, one row off leaves the rest)', () => {
-    expect(KIT_SHOT.holdGap).toBe(SHUTTER.holdGap);
-    expect(KIT_SHOT.crawlGap).toBe(SHUTTER.crawlGap);
-    expect(KIT_SHOT.holdSpot).toBe(SHUTTER.holdSpot);
-    expect(KIT_PULL.catchClose).toBe(PULL.catchClose);
-    expect(KIT_PULL.landT).toBe(PULL.landT);
-    expect(KIT_PULL.haul).toBe(PULL.haul);
-    expect(KIT_PULL.scramble).toBe(PULL.scramble);
+    expect([KIT_SHOT.holdGap, KIT_SHOT.crawlGap, KIT_SHOT.holdSpot]).toEqual([SHUTTER.holdGap, SHUTTER.crawlGap, SHUTTER.holdSpot]);
+    expect([KIT_PULL.catchClose, KIT_PULL.landT, KIT_PULL.haul, KIT_PULL.scramble]).toEqual([PULL.catchClose, PULL.landT, PULL.haul, PULL.scramble]);
     // as shipped: the ledge and the crawl takes off by the A8 rule ((h))
     resolveKit();
     const T = KIT_TABLES[1];
-    expect(T.pullScramble).toBeNull();
-    expect(T.crawlUnder).toBeNull();
-    expect(T.pullHaul).toBe(MOCAP_KNEELING_PULL_UP);
-    expect(T.shutterLift).toBe(MOCAP_LIFTING_HEAVY_OBJECT);
+    expect(T).toMatchObject({ pullScramble: null, crawlUnder: null, pullHaul: MOCAP_KNEELING_PULL_UP, shutterLift: MOCAP_LIFTING_HEAVY_OBJECT });
     rows(true);
     for (const [id, c] of Object.entries(CLIP)) expect(T[id as KitPoseId], id).toBe(c);
     for (const id of ['pullOffer', 'pullJump', 'pullHang', 'shutterOffer', 'shutterDrop'] as const) expect(T[id], id).toBeNull();
@@ -609,18 +537,14 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
     expect(KIT_TABLES[0].any).toBe(false);
     MIXAMO_ON.lifting_heavy_object = false;
     resolveKit();
-    expect(T.shutterLift).toBeNull();
-    expect(T.shutterHold).toBeNull();
-    expect(T.pullHaul).toBe(MOCAP_KNEELING_PULL_UP);
-    expect(T.crawlUnder).toBe(MOCAP_CRAWLING_PRONE);
+    expect(T).toMatchObject({ shutterLift: null, shutterHold: null, pullHaul: MOCAP_KNEELING_PULL_UP, crawlUnder: MOCAP_CRAWLING_PRONE });
     MIXAMO_ON.kit_shutter_drop = true;
     resolveKit();
     expect(T.shutterDrop).toBeNull();
     MIXAMO_ON.lifting_heavy_object = true;
     MIXAMO_ON.kit_pull_hang = true;
     resolveKit();
-    expect(T.shutterDrop).toBe(MOCAP_LIFTING_HEAVY_OBJECT);
-    expect(T.pullHang).toBe(MOCAP_PULLING_UP_TO_A_LEDGE);
+    expect(T).toMatchObject({ shutterDrop: MOCAP_LIFTING_HEAVY_OBJECT, pullHang: MOCAP_PULLING_UP_TO_A_LEDGE });
     // every kit pose id is in the tables
     for (const m of Object.values(KIT_POSE_IDS)) for (const id of [...m.a, ...m.b]) expect(id in T).toBe(true);
   });
@@ -652,30 +576,17 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
       setMixamo(true);
     }
     // the lift's progress is the gap's; the hold ping-pongs on its own clock; the crawl's phase is the distance's
-    expect(kitClipTime('shutterLift', 0.5)).toBeCloseTo((KIT_SHOT.lift0 + KIT_SHOT.lift1) / 2, 12);
-    expect(kitClipTime('shutterHold', 0)).toBe(KIT_SHOT.lift1);
-    expect(kitClipTime('shutterHold', KIT_SHOT.hold1 - KIT_SHOT.lift1)).toBeCloseTo(KIT_SHOT.hold1, 12);
-    expect(kitClipTime('shutterHold', 2 * (KIT_SHOT.hold1 - KIT_SHOT.lift1))).toBeCloseTo(KIT_SHOT.lift1, 12);
-    expect(kitClipTime('crawlUnder', KIT_SHOT.crawlCycle * KIT_SHOT.crawlStretch * 0.25)).toBeCloseTo(KIT_SHOT.crawlSec / 4, 12);
-    expect(kitClipTime('pullHaul', P.haul)).toBeCloseTo(KIT_SHOT.haul1, 12);
-    expect(kitClipTime('pullHaul', P.haul + P.scramble)).toBeCloseTo(KIT_SHOT.pullSec, 12);
-    expect(kitClipTime('pullCatch', P.catchClose * 2)).toBeCloseTo(KIT_SHOT.catch1, 12);
+    const S = KIT_SHOT;
+    const span = S.hold1 - S.lift1;
+    for (const [id, kt, sec] of [['shutterLift', 0.5, (S.lift0 + S.lift1) / 2], ['shutterHold', 0, S.lift1], ['shutterHold', span, S.hold1], ['shutterHold', 2 * span, S.lift1], ['crawlUnder', S.crawlCycle * S.crawlStretch * 0.25, S.crawlSec / 4], ['pullHaul', P.haul, S.haul1], ['pullHaul', P.haul + P.scramble, S.pullSec], ['pullCatch', P.catchClose * 2, S.catch1]] as const) {
+      expect(kitClipTime(id, kt), `${id} ${kt}`).toBeCloseTo(sec, 12);
+    }
   });
 
   it('the graph samples the take at the shot\'s progress: whole on a free body (keyShot), mixed by weight on foot', () => {
-    const g = new AnimGraph(proportions('average', 1.68));
-    g.wrenReady = true;
-    const i = defaultInput();
-    i.keyedOk = true;
-    i.ready = true;
-    i.grounded = true;
-    i.traverse = 'brace';
-    const K = g.kit;
+    const { g, i } = wrenGraph();
     const c = MOCAP_LIFTING_HEAVY_OBJECT!;
-    K.clip = c;
-    K.mode = 'shot';
-    K.time = 0.6;
-    K.weight = 1;
+    const K = Object.assign(g.kit, { clip: c, mode: 'shot', time: 0.6, weight: 1 });
     for (let n = 0; n < 12; n++) g.update(DT, i);
     expect(g.out.keyShot).toBe(1);
     const want = sampleKeyed(c, (0.6 * (c.frames - 1)) / c.frames, 1, newKeyedPose());
@@ -689,14 +600,9 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
     for (let n = 0; n < 8; n++) g.update(DT, i);
     expect(g.out.keyShot).toBe(0);
     // on foot (the crawler): mixed over the keyed pose, keyShot 0
-    i.traverse = 'none';
-    i.crouch = 1;
-    K.clip = MOCAP_CRAWLING_PRONE;
-    K.mode = 'loop';
-    K.time = 0.3;
-    K.weight = 1;
-    const g2 = new AnimGraph(proportions('average', 1.68));
-    g2.wrenReady = true;
+    Object.assign(i, { traverse: 'none', crouch: 1 });
+    Object.assign(K, { clip: MOCAP_CRAWLING_PRONE, mode: 'loop', time: 0.3, weight: 1 });
+    const g2 = wrenGraph().g;
     for (let n = 0; n < 30; n++) {
       g.update(DT, i);
       g2.update(DT, i);
@@ -800,13 +706,8 @@ describe('mixamo-kit (c): both screens give the same take and clip time', () => 
     // (the worst falls on the lift -> hold switch, which the wire sees up to a step late: two steps)
     expect(maxDt).toBeLessThanOrEqual(2 * step);
     // the rule itself: the trend holds on an unchanged gap, a shut gap is the offer
-    expect(kitGapTrend(0.5, 0.5, 1)).toBe(1);
-    expect(kitGapTrend(0.4, 0.5, 1)).toBe(-1);
-    expect(kitShutterPhase(0.9, 1)).toBe('shutterHold');
-    expect(kitShutterPhase(0.9, 0)).toBe('shutterHold');
-    expect(kitShutterPhase(0.88, -1)).toBe('shutterDrop');
-    expect(kitShutterPhase(NaN, 1)).toBe('shutterOffer');
-    expect(kitShutterPhase(0.3, 1)).toBe('shutterLift');
+    expect([kitGapTrend(0.5, 0.5, 1), kitGapTrend(0.4, 0.5, 1)]).toEqual([1, -1]);
+    expect([kitShutterPhase(0.9, 1), kitShutterPhase(0.9, 0), kitShutterPhase(0.88, -1), kitShutterPhase(NaN, 1), kitShutterPhase(0.3, 1)]).toEqual(['shutterHold', 'shutterHold', 'shutterDrop', 'shutterOffer', 'shutterLift']);
   });
 
   it('the crawl: both pages fed the same root path give the same phase', () => {
@@ -814,15 +715,9 @@ describe('mixamo-kit (c): both screens give the same take and clip time', () => 
     rows(true);
     const L = poserRun(crawler(false));
     const R = poserRun(crawler(true));
-    let n = 0;
-    for (let k = 0; k < L.clip.length; k++) {
-      expect(R.clip[k] === null).toBe(L.clip[k] === null);
-      if (L.clip[k] !== null) {
-        expect(R.time[k]).toBe(L.time[k]);
-        n++;
-      }
-    }
-    expect(n).toBeGreaterThan(60);
+    expect(R.clip).toEqual(L.clip);
+    expect(R.time).toEqual(L.time);
+    expect(L.clip.filter((c) => c !== null).length).toBeGreaterThan(60);
   });
 });
 
@@ -845,9 +740,7 @@ describe('mixamo-kit (c2): the per-rig source (G400)', () => {
     const ha = poserRun(cp, A);
     const hb = poserRun(cp, B);
     const hangK = cp.map((f, k) => (f.state === 'pullHang' ? k : -1)).filter((k) => k >= 0);
-    for (const k of hangK) {
-      expect([ha.move[k], ha.role[k], hb.move[k], hb.role[k]]).toEqual(['pull', 'a', 'pull', 'a']);
-    }
+    expect(hangK.every((k) => [ha.move[k], ha.role[k], hb.move[k], hb.role[k]].join() === 'pull,a,pull,a')).toBe(true);
   });
 
   it('a non-Mixamo rig under a Mixamo viewer is today\'s pose bit for bit and keeps the hand-made HANG; a Mixamo rig under Hand draws the take', async () => {
@@ -944,14 +837,9 @@ describe('mixamo-kit (f) no pop, (h) the A8 readings', () => {
   }, 900_000);
 
   it('(h) the rows: a take stays on unless a joint jumps over 2x the placeholder\'s (the I2 rule)', () => {
-    const scene: Record<(typeof TAKES)[number], string[]> = {
-      kneeling_pull_up: ['pull holder (local)', 'pull holder (remote)'],
-      pulling_up_to_a_ledge: ['pull partner (local)', 'pull partner (remote)'],
-      lifting_heavy_object: ['shutter holder (local)', 'shutter holder (remote)'],
-      crawling_prone: ['crawler (local)', 'crawler (remote)'],
-    };
+    const scene = { kneeling_pull_up: 'pull holder', pulling_up_to_a_ledge: 'pull partner', lifting_heavy_object: 'shutter holder', crawling_prone: 'crawler' } as const;
     for (const t of TAKES) {
-      const broken = scene[t].some((n) => READ[n] !== undefined && READ[n]!.on.step > Math.max(2 * READ[n]!.off.step, 2));
+      const broken = ['local', 'remote'].some((pg) => (r => r !== undefined && r.on.step > Math.max(2 * r.off.step, 2))(READ[`${scene[t]} (${pg})`]));
       expect(ON0[t], t).toBe(!broken);
     }
   });
