@@ -17,3 +17,6 @@ kind: minor
     beside the cage trolley and a new storeman; the plant room is deeper, its goods door is unlocked, and a fixed ladder
     climbs to a roof hatch; the canopy breaker sits on the yard board beside the forecourt switch; a new co-op leg-up
     (CR1-yard) at the plant roof's hoist bay.
+  - G5 forecourt, lawn and pavilion: the forecourt gets grit bins and a walkway patrol plus a courier escort at the kerb;
+    the lawn gets two trees, a lit smoking shelter on its own switch, a second smoker and a north-east fence patrol; the
+    pavilion top is a closed roof walk whose east half carries a new co-op leg-up (CR1-east). Section 1 now has 15 guards.

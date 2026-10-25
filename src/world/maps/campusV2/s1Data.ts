@@ -44,6 +44,8 @@ export const S1_LIGHTS: S1Lights = {
   },
   // (G3, A25) the bike shelter lamp (the smoke shelter's values), its own circuit
   bikes: { x: -7, y: 2.2, z: -52, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.bikes, cone: null, w: 0.2 },
+  // (G5, D:133) the smoking shelter's warm lamp, its own circuit (colour and intensity A6)
+  smoke: { x: 8, y: 2.2, z: -48.5, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.smoke, cone: null, w: 0.2 },
 };
 /** The lists `s1.ts` re-exports (the dress and the tests read them by these names). */
 export const PARK_COLUMNS_W = S1_LIGHTS.columnsW;
@@ -103,7 +105,7 @@ export const S1_GUARDS: SectorGuard[] = [
   // 5 the doorman (K1, M12): posted under the canopy at the C1 badge door, facing south onto the walkway
   { kind: 'officer', x: -20, z: -35, yaw: PI, takedownSpot: [-20, -34.7], post: { leash: 5, guards: 'c1-door' }, role: 'posted', zone: 'c1', squad: 2, reason: 'Badge check at the only staff door' },
   // 6 the smoker: on his break in the smoking shelter, facing the car park
-  { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, reason: 'On his break; he can see the car park from the shelter' },
+  { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, pair: 14, reason: 'On his break; he can see the car park from the shelter' },
   // 7 (G4, D:245) the fence patrol: the west palisade <-> the bin corner, 4 s stops, 44.4 s; dark at the bin corner; comes to
   // the feeder board if it is cut (his straight leg crosses the bin screen: his path goes round its open south side, R3)
   { kind: 'grunt', x: -38, z: -64, yaw: 0, route: [[-38, -64], [-38, -46]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-38, -46], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
@@ -116,6 +118,14 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -12, z: -66, yaw: PI / 2, route: [[-12, -66], [4, -66]], waits: [4, 4], takedownSpot: [4, -66], role: 'patrol', zone: 'carpark', squad: 1, reason: 'Walks the rows by the gate where the courier parks' },
   // 12 (G4, D:247) the storeman: the goods door <-> the bin screen mouth, 6 s stops, 25.4 s; alone at the bin mouth
   { kind: 'grunt', x: -31, z: -42.6, yaw: PI, route: [[-31, -42.6], [-34, -48.5]], waits: [6, 6], takedownSpot: [-34, -48.5], role: 'patrol', zone: 'dock', squad: 3, reason: 'Storeman: stages the cage trolley for the 03:00 courier' },
+  // 13 (G5, D:249) the walkway patrol: the drop-off walkway, 4 s stops, 40.3 s; dark at the east end by the lockers
+  { kind: 'grunt', x: -24, z: -43, yaw: PI / 2, route: [[-24, -43], [-8, -43]], waits: [4, 4], takedownSpot: [-8, -43], role: 'patrol', zone: 'forecourt', squad: 2, reason: 'Walks the drop-off walkway' },
+  // 14 (G5, D:250) the courier escort: posted at the kerb facing the car park; his takedown spot 0.5 m behind him (A7)
+  { kind: 'officer', x: -18, z: -46.6, yaw: PI, takedownSpot: [-18, -46.1], role: 'escort', zone: 'forecourt', squad: 2, reason: 'Meets the 03:00 courier at the drop-off' },
+  // 15 (G5, D:253) the north-east fence patrol: 5 s stops, 42.3 s; dark at the NE corner
+  { kind: 'grunt', x: 24, z: -54, yaw: 0, route: [[24, -54], [24, -38]], waits: [5, 5], takedownSpot: [24, -38], role: 'patrol', zone: 'perimeter', squad: 4, reason: 'East fence-line check' },
+  // 16 (G5, D:252) the second smoker, #6's talking pair: the shelter front <-> the ash bin, 12.5 s stops (A20), 30.3 s
+  { kind: 'officer', x: 7, z: -50.8, yaw: -PI / 2, route: [[7, -50.8], [4.5, -50.8]], waits: [12.5, 12.5], takedownSpot: [4.5, -50.8], role: 'smoker', zone: 'smoking', squad: 2, pair: 5, reason: 'On his break with the smoker' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */

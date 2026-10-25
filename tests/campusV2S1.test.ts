@@ -10,7 +10,8 @@ import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
 import { lampReach } from '../src/world/lampMath';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
-import { LEDGE, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
+import { HANG, LEDGE, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
+import { PERCEPTION } from '../src/ai/perception';
 import { MOVEMENT } from '../src/config/movement';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
@@ -117,7 +118,7 @@ function analyticNav(rect: readonly [number, number, number, number], o: { cell?
 /** The lit lamps in S1's plan box (x -40..26, z -80..-30). */
 const litS1 = () => b.lights.lights.filter((l) => l.intensity > 0 && l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
 /** The lit S1 lamp count after the slices built so far (lead note (3)). */
-const S1_LIT_NOW = 31;
+const S1_LIT_NOW = 32;
 /** The ledges the level build makes (`LevelBuilder.build`: generated from the box tops, lips off the play area dropped, the
  *  map's `noLedge` points applied). */
 function builtLedges(): Ledge[] {
@@ -185,8 +186,8 @@ function guardChecks(n: number, want: number | null): void {
 const covers = (p: BoxPiece, x: number, y: number, z: number): boolean => Math.abs(x - p.c[0]) <= p.s[0] / 2 && Math.abs(y - p.c[1]) <= p.s[1] / 2 && Math.abs(z - p.c[2]) <= p.s[2] / 2;
 /** A segment co-op lip against a solo player (LD 11.8 rules 1-5): the jump and landing helpers (0.5 m margin), rule 2
  *  (nothing solo-standable 1.2 or higher within 4 m in plan), rule 3 (no box 0.6-1.7 high within 1 m of the wall below), rule
- *  5 (headroom over the lip to `head`). Returns the failures. */
-function segmentLipFailures(id: string, head: number): string[] {
+ *  5 (headroom over the lip to `head`, over `headX` when given: the lip's hangable run). Returns the failures. */
+function segmentLipFailures(id: string, head: number, headX?: readonly [number, number]): string[] {
   const lip = CAMPUS_COOP_LIPS.find((l) => l.id === id)!;
   const seg = S1_LIP_SEGMENTS[id]!;
   const g = { y: lip.lip.y, a: { x: seg.a[0], z: seg.a[1] }, b: { x: seg.b[0], z: seg.b[1] }, n: lip.lip.n };
@@ -208,7 +209,8 @@ function segmentLipFailures(id: string, head: number): string[] {
     if (outer && p.c[0] + p.s[0] / 2 > x0 && p.c[0] - p.s[0] / 2 < x1 && t >= 0.6 && t <= 1.7 && p.c[1] - p.s[1] / 2 < 0.05) out.push(`rule 3: ${p.c} top ${t}`);
     // rule 5: headroom
     const zIn = n < 0 ? [zl - 0.9, zl + 0.4] : [zl - 0.4, zl + 0.9];
-    if (p.c[0] + p.s[0] / 2 > x0 && p.c[0] - p.s[0] / 2 < x1 && p.c[2] + p.s[2] / 2 > zIn[0]! && p.c[2] - p.s[2] / 2 < zIn[1]! && t > lip.lip.y + 0.1 && p.c[1] - p.s[1] / 2 < head) out.push(`rule 5: ${p.c} ${p.s}`);
+    const [h0, h1] = headX ?? [x0, x1];
+    if (p.c[0] + p.s[0] / 2 > h0 && p.c[0] - p.s[0] / 2 < h1 && p.c[2] + p.s[2] / 2 > zIn[0]! && p.c[2] - p.s[2] / 2 < zIn[1]! && t > lip.lip.y + 0.1 && p.c[1] - p.s[1] / 2 < head) out.push(`rule 5: ${p.c} ${p.s}`);
   }
   return out;
 }
@@ -654,5 +656,151 @@ describe('G4 service yard and plant room (S1-detail C4, C5)', () => {
       expect(S1_HIDESPOTS.some((h) => near(h.pos.x, x) && near(h.pos.z, z))).toBe(true);
       expect(onNav(x, z), `hide (${x}, ${z})`).toBe(true);
     }
+  });
+});
+
+describe('G5 forecourt, lawn, pavilion (S1-detail C6, C7)', () => {
+  const lips = (): string[] => CAMPUS_COOP_LIPS.filter((l) => l.section === 0).map((l) => l.id);
+
+  it('G5 CR1-east against a solo player (rules 1-5): helpers [], nothing standable >= 1.2 within 4 m, planters >= 1.0 m off, headroom to 6.3', () => {
+    // (D-G5-1) headroom over the hangable run x -6..3.65: the G1 pavilion screen (x 3.65..3.75, y 4.4..6.8) ends the lip there
+    expect(segmentLipFailures('CR1-east', 6.3, [-6, 3.65])).toEqual([]);
+    // the planters (0.7) stay 1.2 m off the facade (D:123)
+    const planters = solid.filter((p) => near(p.s[1], 0.7) && near(p.c[2], -35.6));
+    expect(planters.length).toBe(3);
+    for (const p of planters) expect(-34 - (p.c[2] + p.s[2] / 2)).toBeGreaterThanOrEqual(1.0);
+    const cr = CAMPUS_COOP_LIPS.find((l) => l.id === 'CR1-east')!;
+    expect(onNav(cr.boost.x, cr.boost.z)).toBe(true);
+    expect(S1_LIP_SEGMENTS['CR1-east']).toEqual({ a: [-6, -34], b: [4, -34] });
+    // the trees and the lockers are far off (D:123: trees 10 m, lockers 15 m)
+    expect(hyp2(0 - 0, -44 + 34)).toBeGreaterThanOrEqual(10);
+    expect(-34 - -49).toBeGreaterThanOrEqual(15);
+  });
+
+  it('G5 ledges on the pavilion: only the CR1-east lip hangs on the east block', () => {
+    const east = ledges.filter((l) => l.canHang && near(l.top, 4.4, 1e-3) && Math.min(l.a.x, l.b.x) >= -16.01 && Math.max(l.a.x, l.b.x) <= 4.01 && Math.min(l.a.z, l.b.z) >= -34.01 && Math.max(l.a.z, l.b.z) <= -29.99);
+    const lip = east.filter((l) => near(l.a.z, -34, 1e-3) && near(l.b.z, -34, 1e-3));
+    expect(lip.length).toBe(1);
+    // x -6..4 minus the screen's cut at x 3.7 (and the generator's 0.2 sampling at the ends, D-G4-1)
+    expect(Math.min(lip[0]!.a.x, lip[0]!.b.x)).toBeLessThanOrEqual(-6 + LEDGE.sample + 1e-3);
+    expect(Math.max(lip[0]!.a.x, lip[0]!.b.x)).toBeGreaterThanOrEqual(3.6 - LEDGE.sample - 1e-3);
+    expect(Math.max(lip[0]!.a.x, lip[0]!.b.x)).toBeLessThanOrEqual(4 + 1e-3);
+    expect(east.filter((l) => !lip.includes(l)).map((l) => [l.a, l.b])).toEqual([]);
+    const west = boxWith([-11, 2.2, -32], [10, 4.4, 4])!;
+    expect(west.noLedge).toBe(true);
+    expect(boxWith([-1, 2.2, -32], [10, 4.4, 4])!.noLedge).toBeFalsy();
+  });
+
+  it('G5 every S1 lip (CR1, CR1-south, CR1-yard, CR1-east): data and solo checks; CAMPUS_COOP_LIPS in that order', () => {
+    expect(lips()).toEqual(['CR1', 'CR1-south', 'CR1-yard', 'CR1-east']);
+    for (const l of CAMPUS_COOP_LIPS.filter((q) => q.section === 0)) {
+      expect(l.lip.y - l.boost.floor, l.id).toBeGreaterThanOrEqual(4.3);
+      expect(l.lip.y - l.boost.floor, l.id).toBeLessThanOrEqual(4.5);
+      expect(onNav(l.boost.x, l.boost.z), `${l.id} boost`).toBe(true);
+    }
+    // CR1 and CR1-south point-style, as tests/campusS1.test.ts:334-389
+    const cr1 = CAMPUS_COOP_LIPS.find((l) => l.id === 'CR1')!;
+    expect(cr1.lip).toMatchObject({ x: -14, z0: -40, z1: -34, y: 4.4 });
+    expect(cr1.boost).toEqual({ floor: 0, x: -13.5, z: -38 });
+    for (const id of ['CR1', 'CR1-south']) {
+      const l = CAMPUS_COOP_LIPS.find((q) => q.id === id)!;
+      const g = { y: l.lip.y, a: { x: l.lip.x, z: l.lip.z0 }, b: { x: l.lip.x, z: l.lip.z1 }, n: l.lip.n };
+      expect(soloJumpThreats(solid, g, () => false, 0.5), id).toEqual([]);
+      expect(soloTopLandingThreats(solid, l.top, () => false, 0.5), id).toEqual([]);
+    }
+    // CR1 headroom (rule 5) over its face
+    const l = cr1.lip;
+    const x0 = l.x - (0.45 + HANG.out);
+    const x1 = l.x + 0.4;
+    expect(solid.filter((p) => p.c[0] + p.s[0] / 2 > x0 && p.c[0] - p.s[0] / 2 < x1 && p.c[2] + p.s[2] / 2 > l.z0 && p.c[2] - p.s[2] / 2 < l.z1 && top(p) > l.y + 0.1 && p.c[1] - p.s[1] / 2 < 6.2).map((p) => p.c)).toEqual([]);
+    // rule 2 for CR1 / CR1-south: nothing solo-standable >= 1.2 within 4 m in plan
+    for (const id of ['CR1', 'CR1-south']) {
+      const q = CAMPUS_COOP_LIPS.find((r) => r.id === id)!.lip;
+      const bad = solid.filter((p) => {
+        const t = top(p);
+        if (t < 1.2 || t >= q.y - 0.05) return false;
+        if (Math.min(p.s[0], p.s[2]) < LEDGE.climbDepth) return false;
+        if (p.noLedge && t > MANTLE) return false;
+        const gx = Math.max(0, Math.abs(p.c[0] - q.x) - p.s[0] / 2);
+        const gz = Math.max(0, Math.max(q.z0 - (p.c[2] + p.s[2] / 2), p.c[2] - p.s[2] / 2 - q.z1));
+        return hyp2(gx, gz) <= 4;
+      });
+      expect(bad.map((p) => [p.c, p.s]), id).toEqual([]);
+    }
+    // rule 3: nothing under the canopy east and south edges
+    const under = solid.filter((p) => {
+      const t = top(p);
+      const bottom = p.c[1] - p.s[1] / 2;
+      if (t < 0.3 || bottom > 4.1 || t > 4.19) return false;
+      const eastEdge = p.c[0] + p.s[0] / 2 > -15 && p.c[0] - p.s[0] / 2 < -13 && p.c[2] + p.s[2] / 2 > -40.8 && p.c[2] - p.s[2] / 2 < -34.3;
+      const southEdge = p.c[0] + p.s[0] / 2 > -25.8 && p.c[0] - p.s[0] / 2 < -14.2 && p.c[2] + p.s[2] / 2 > -41 && p.c[2] - p.s[2] / 2 < -39;
+      return eastEdge || southEdge;
+    });
+    expect(under.map((p) => [p.c, p.s])).toEqual([]);
+    // the canopy's CR1 and CR1-south lips still hang (A28-cloud's point is 1.45 m off them)
+    expect(ledges.some((q) => q.canHang && near(q.top, 4.4, 1e-3) && near(q.a.x, -14, 1e-3) && near(q.b.x, -14, 1e-3))).toBe(true);
+    expect(ledges.some((q) => q.canHang && near(q.top, 4.4, 1e-3) && near(q.a.z, -40, 1e-3) && near(q.b.z, -40, 1e-3) && q.a.x > -26.01 && q.a.x < -13.99)).toBe(true);
+  });
+
+  it('G5 lights: the smoke circuit (45) one lamp at (8, 2.2, -48.5) r 3 and one switch; the CR1 boost level logged', () => {
+    const sm = b.lights.lights.filter((l) => l.group === S1_GROUPS.smoke);
+    expect(S1_GROUPS.smoke).toBe(45);
+    expect(sm.length).toBe(1);
+    expect([sm[0]!.x, sm[0]!.y, sm[0]!.z]).toEqual([8, 2.2, -48.5]);
+    expect(sm[0]!.radius).toBeCloseTo(lampReach(3));
+    expect(sm[0]!.on && sm[0]!.destructible && sm[0]!.electric).toBe(true);
+    expect(lay.switches!.filter((q) => q.group === S1_GROUPS.smoke).map((q) => [q.pos.x, q.pos.z])).toEqual([[6.2, -49.8]]);
+    // (L6) no dark assert at the CR1 boost point: J10 lights the forecourt to its band, the boost gets a real gap
+    const cr1 = CAMPUS_COOP_LIPS.find((l) => l.id === 'CR1')!;
+    // eslint-disable-next-line no-console
+    if (process.env.CAMPUS_PRINT) console.log(`G5 CR1 boost (${cr1.boost.x}, 0.9, ${cr1.boost.z}): level ${levelAt(cr1.boost.x, 0.9, cr1.boost.z).toFixed(3)} (shadow ${LIGHT.shadow})`);
+  });
+
+  it('G5 K1 doorman choke: with #5\'s cone blocked no path verge -> C1 near door; without it one exists', () => {
+    const post = guard(5);
+    const from: [number, number] = [S1.start.x, S1.start.z];
+    const to: [number, number] = [S1_DOORS.c1Near[0], S1_DOORS.c1Near[1]];
+    expect(nav.findPath(from, to, 1e6, 0, 0)).not.toBeNull();
+    const fx = Math.sin(post.yaw);
+    const fz = Math.cos(post.yaw);
+    const inCone = (x: number, z: number): boolean => {
+      const dx = x - post.x;
+      const dz = z - post.z;
+      const d = hyp2(dx, dz);
+      if (d < 1e-6) return true;
+      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d)));
+      return (d <= PERCEPTION.focusRange && ang <= PERCEPTION.focusHalf) || (d <= PERCEPTION.periphRange && ang <= PERCEPTION.periphHalf);
+    };
+    const blocked: number[] = [];
+    for (let i = 0; i < nav.walk.length; i++) {
+      if (!nav.walk[i]) continue;
+      if (Math.abs(nav.height[i]! - 0) > 1.7) continue;
+      const [x, z] = nav.center(i % nav.cols);
+      if (inCone(x, z)) {
+        blocked.push(i);
+        nav.walk[i] = 0;
+      }
+    }
+    try {
+      expect(blocked.length).toBeGreaterThan(50);
+      expect(nav.findPath(from, to, 1e6, 0, 0)).toBeNull();
+      expect(nav.isWalkable(nav.cellOf(post.x, post.z + 0.75, 0))).toBe(true);
+    } finally {
+      for (const i of blocked) nav.walk[i] = 1;
+    }
+    expect(nav.findPath(from, to, 1e6, 0, 0)).not.toBeNull();
+  });
+
+  it('G5 #13, #14, #15, #16 on nav, cycles 25-45 s; #6 / #16 pair indices 14 / 5; the grit bins and trees', () => {
+    guardChecks(13, 40.3);
+    guardChecks(14, null);
+    guardChecks(15, 42.3);
+    guardChecks(16, 30.3);
+    expect(guard(6).pair).toBe(14);
+    expect(guard(16).pair).toBe(5);
+    expect(G[14]).toBe(guard(16));
+    expect(G[5]).toBe(guard(6));
+    for (const [x, z] of [[-24, -48], [-10, -47.5]]) expect(boxWith([x!, 0.6, z!], [0.8, 1.2, 0.8]), `grit bin (${x}, ${z})`).toBeTruthy();
+    for (const [x, z] of [[0, -44], [16, -40]]) expect(b.cylinders.some((c) => near(c.c[0], x!) && near(c.c[2], z!) && near(c.r, 0.3) && near(c.h, 5)), `tree (${x}, ${z})`).toBe(true);
   });
 });

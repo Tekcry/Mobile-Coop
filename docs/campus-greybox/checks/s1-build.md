@@ -243,3 +243,45 @@ typecheck and eslint clean.
 R1 (13+) is likely at G6.
 
 **Pending PC runs (G4).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
+
+## G5 Forecourt, lawn, pavilion (D:308)
+
+**Files:** `s1.ts`, `s1Data.ts`, `tests/campusV2S1.test.ts`, `tests/campusV2S1Screen.test.ts`, graph. `s1Dress.ts` unchanged
+(the build dresses; the bench K1 at (8, -47.6) is refused by K1 as before, no new refusal with the lamp or the switch).
+
+**Geometry (s1.ts).** Pavilion east block split (D:121-122): `box(-11, 2.2, -32, 10, 4.4, 4)` x -16..-6 noLedge with the
+pavilion group (:435); `box(-1, 2.2, -32, 10, 4.4, 4)` x -6..4 not noLedge (:443), `b.noLedge(4, -32, 0.5)`, `b.noLedge(-1,
+-30, 0.5)` (:444-445). Trees `pillar(0, -44, 0.3, 5)`, `pillar(16, -40, 0.3, 5)` (:413-414); grit bins `block(-24, -48, 0.8, 1.2,
+0.8)`, `block(-10, -47.5, ...)` (:415-416; colour a greybox choice). Planters, kerb, bollards and the smoking shelter unchanged.
+
+**Lights.** `S1_GROUPS.smoke = 45` (s1.ts:28). `S1_LIGHTS.smoke` (s1Data.ts:48): (8, 2.2, -48.5) r 3 i 0.5 SODIUM w 0.2 (A6),
+drawn at s1.ts:410; switch (6.2, 0, -49.8) yaw PI/2 (s1.ts:166, A19). Lit S1 lamps: **32**. CR1 boost point (-13.5, 0.9,
+-38): analytic level **0.140** (only the 0.14 standby fill; no lamp reaches it), logged, no assert (L6).
+
+**Co-op lip CR1-east** (s1.ts:108-117) as the brief, after CR1-yard; `S1_LIP_SEGMENTS['CR1-east']` (:122). `S1_COOP_LIPS`
+order CR1, CR1-south, CR1-yard, CR1-east.
+
+**Guards (s1Data.ts).** #5 unchanged. #6 (:108) `pair: 14`. #13 (:122, index 11) grunt (-24, -43) <-> (-8, -43); #14 (:124,
+index 12) officer post (-18, -46.6) yaw PI, takedown (-18, -46.1) (A7); #15 (:126, index 13) grunt (24, -54) <-> (24, -38);
+#16 (:128, index 14) officer (7, -50.8) <-> (4.5, -50.8), waits 12.5 / 12.5 (A20), `pair: 5`. Cycles 40.3 / post / 42.3 / 30.3 s.
+
+**Graph.** `s1-forecourt` -> "BUILT G5 (s1.ts:412-416, s1Data.ts:122-124; C7)"; `s1-lawn` -> "BUILT G5 (s1.ts:410-414, :166,
+s1Data.ts:108, :126-128; C7, C8)"; `s1-pavilion` -> "BUILT G5 (s1.ts:434-445, CR1-east :108-117; C6)".
+
+**Tests.** `tests/campusV2S1.test.ts` 37 (G5 +6: CR1-east rules 1-5; pavilion ledges (only CR1-east hangs, x -6..3.6);
+every S1 lip (order, CR1 / CR1-south point-style jump, landing, headroom, rule 2, rule 3; CR1 and CR1-south still hang);
+smoke circuit and the boost level; K1 choke cone; #13-#16 and the #6 / #16 pair). Screen test reworked (below). Slice
+set (7 files): **115 passed, 1 expected fail (the R1 screen cap), 0 failed**; typecheck and eslint clean.
+
+**Deviations.**
+- D-G5-1 CR1-east rule 5 (headroom to 6.3) is checked over the lip's hangable run x -6..3.65: the G1 pavilion screen (x
+  3.65..3.75, z -34..-30, y 4.4..6.8, a brief coordinate) stands at the segment's east end and ends the lip there, so over the
+  last 0.35 m of `S1_LIP_SEGMENTS['CR1-east']` it is "above the lip". No geometry change.
+- D-G5-2 (R1, finding F7) The screen cap fails with all 15 guards: the worst S1 point is the car park's south aisle
+  **(-8.25, 0, -72.25), which sees all 15** (#1, #2, #3, #4, #5, #6, #7, #8, #9, #11, #12, #13, #14, #15, #16); 109 grid points
+  see 13 or more (histogram 13: 80, 14: 21, 15: 8). D:257's estimate (~11, on the pavilion top) does not hold: the open car
+  park sees the whole section, the gatehouse officers through the new glazing. Per the brief nothing was moved (#11's
+  fallback has no coordinates). The cap test is `it.fails` (the suite stays green while R1 is open; it turns red once the
+  count reaches the cap, then becomes a plain `it`), and a plain test asserts it is measured over 15 guards. **Lead call.**
+
+**Pending PC runs (G5).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
