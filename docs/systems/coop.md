@@ -5,10 +5,12 @@ wire.
 Design authority: docs/DECISIONS.md (G2, G48-G52, G180, G349), then docs/design-bible.md (Section 5.9).
 
 Player counts per mode: campaign missions and Marlow Yard (Course mode) take exactly 2 players (G2, G50, G292); Sector
-Ops takes 1 to 4 (G308, built by coop4 in PR #317; until it lands, `capacity('sector')` on master is still 2). No bot
+Ops takes 1 to 4 (G308, built by coop4 in PR #317, live when it ships with no off switch, G381; until it lands,
+`capacity('sector')` on master is still 2). No bot
 partner (G48), no player-versus-player mode (G8, G9; Wave, deathmatch and free-for-all are deleted). Co-op is tested
 with two browser tabs (four for Sector Ops once coop4 lands), the two-page e2e suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
-camera and rumble stay local; partners never pass through each other (loco D8, G52).
+camera and rumble stay local; partners never pass through each other (loco D8, G52). Small animation fields may go
+over the wire so a partner looks exact on every screen (G400); remotes still pose from `MoveState`.
 
 ## Entry and transport (`src/net`)
 - `main.ts` registers the Co-op menu entry and `?room=CODE` handling; both `import('./net/coopUi')`. `CoopApi`
@@ -71,7 +73,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
-  pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
+  pickups, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
   sending (`net/bgTicks.ts`; the hidden-page tick, input-and-loop.md).
 - (marlow-bays items 3-4) The host's pause menu restarts at the checkpoint (`GameMode.restartCheckpoint`; the host's

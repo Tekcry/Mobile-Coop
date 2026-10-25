@@ -300,6 +300,18 @@ export function mergeGraphs(graphs) {
     if (Array.isArray(g?.links)) links.push(...g.links);
   }
   meta.sections = sections;
+  // Greybox measurements (S2 writes each file's own splits and the way backs of the links it owns, validator-port S3):
+  // one `meta.measured` when some file has one; with 2+, `tool` / `date` / `geom` from the first that has them, `splits`
+  // unioned and `ways_back` joined in file order (a non-list `ways_back` is kept so checkMeasured reports it).
+  const measured = graphs.map((g) => g?.meta?.measured).filter((m) => m !== null && typeof m === 'object' && !Array.isArray(m));
+  if (measured.length === 1) meta.measured = measured[0];
+  else if (measured.length > 1) {
+    const m = Object.assign({}, ...[...measured].reverse());
+    if (measured.some((x) => x.splits !== undefined)) m.splits = Object.assign({}, ...measured.map((x) => x.splits ?? {}));
+    const backs = measured.filter((x) => x.ways_back !== undefined).map((x) => x.ways_back);
+    if (backs.length) m.ways_back = backs.find((b) => !Array.isArray(b)) ?? backs.flat();
+    meta.measured = m;
+  }
   const merged = { meta, spaces, links };
   const missions = graphs.filter((g) => g?.mission !== undefined).map((g) => g.mission);
   if (missions.length) merged.mission = missions.length === 1 ? missions[0] : missions;

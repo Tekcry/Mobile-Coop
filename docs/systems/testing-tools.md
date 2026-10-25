@@ -108,7 +108,7 @@ This page lists the suites and how they are picked.
   (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
   (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
   `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
-  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
+  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
   -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
   `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
   Example: optic-cable 13 jobs direct, 30 wide (e2e-ctcourse is 4 parts); guard-ai-carry-fix 7 direct, 15 wide.
@@ -150,6 +150,9 @@ behind a VPN adapter).
 ## The suites (REQUIRED unless marked)
 - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot); (anim-tuner) opens F3 > Anim, moves
   the walk "foot width" slider through the page and checks the table value and its change-log entry (then puts it back)
+- `e2e-menus` (menu-ui; required) menu parity: the main menu and GAME / SETTINGS driven by keyboard, mouse and a fake
+  pad: default focus, moves, wrap, confirm, Back targets, every legend item, tabs with focus memory, cyclers and sliders,
+  Defaults, a locked row, the remap capture, and a device switch that moves no element (within 0.5 px).
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
   change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
   X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
@@ -452,6 +455,10 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
+- `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
+  (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
+  `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
+  is master's rule, `--query=animshadow=0` tier 8 camera only.
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
   quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
@@ -512,6 +519,42 @@ behind a VPN adapter).
   fails when the committed JSON differs from a fresh generation. `node scripts/metrics-gen.mjs --check` writes nothing
   and compares instead (exit 0 matches, 1 the JSON differs from the sheet, 2 a table is missing or malformed). Without
   `--check`: exit 0 on success, non-zero when a table is missing or malformed.
+
+## Measure CLI (`scripts/level-measure.mjs`)
+`node scripts/level-measure.mjs <graph.json> [more.json ...] [options]` (level-validator, validator-port S2) measures on
+the built greybox what a map graph only declares, and writes the numbers back beside the targets as `measured`. Headless Node
+(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session. It is not in
+`package.json` yet (validator-port S5 owns that): run it as `node scripts/level-measure.mjs`. The rules it holds a graph
+to, and the order of the validator-port work, are in the validator-port PLAN (section 8 for `--points`, section 7 for
+`--flags`); this section only says how to run it.
+- What it measures, per space with an `area`: floor shadow %, vantage visibility %, LOS-break time; per split: leg times
+  and partner reach; per link with an area at both ends: traversal time and path length. A campaign graph
+  (`meta.mode` `campaign`) also gets `meta.measured.ways_back`: for every co-op link, the time back from the `to` floor to
+  the `from` floor on the solo nav (`back_s: null` with a `why` when there is no such path, for example a drop or ladder).
+  Every limit comes from `docs/design/metrics.json` `rules` (`--metrics <file>` swaps the file), none from the CLI.
+- Default run: prints a declared / measured table per space, split and link, and changes nothing. A space with no `area`
+  is listed as skipped. `--doors shut` bakes the light with every door shut (default open) to see whether a space that
+  fails open passes shut; `--write` then stores the shut numbers.
+- Merged per map: all files of one map (same `meta.map`, or the `--map <id>` override) are merged in the validator's file
+  order and measured once, so a link between two section files is measured against both ends. `--write` puts back into
+  each file only its own spaces, links and `meta`, by merged index. The rest of a file stays byte-identical (only the
+  `measured` members change, numbers to 2 decimals), so a second `--write` of the same values changes no byte and a
+  re-measure after a flag or map change diffs only what moved.
+- `--write`: write `measured` into the graph files. A map where no space has an area builds nothing and writes nothing.
+- `--check`: writes nothing and exits 1 on any failure: an encounter space outside its shadow band, below the vantage
+  minimum or over the LOS-break maximum, a split whose partner reach is over its maximum, a stored `measured` value that
+  has drifted from a fresh measure (over 0.05 for fractions, over 1.5 s for times), or an ERR from the measure step.
+  A space with no stored `measured` is only noted: `scripts/level-validate.mjs --require-measured` is the presence gate.
+- `--points <out.json>`: writes the resolved point for every space and every merged link (`resolvePoints`, PLAN section 8)
+  and touches no graph file. It takes the files of one map per call (files of two maps exit 2). It works with `--check`
+  (points file, then the check) but not with `--write` (exit 2).
+- `--flags <key>=<value>[,<value>]`: sets a key of `flags` (`src/core/flags.ts`) before the map builds, to measure with
+  a switch on, as validator-port J17 does. The value is read by the key's current type: boolean (1/0, true/false,
+  on/off), number, or a comma list of numbers. Repeat the option for more keys. An unknown key, or a value of the wrong
+  type, exits 2 and never adds a key. A text key such as `mode` (or `net`) takes the text as given: allowed values are
+  not checked, so a typo such as `mode=cours` is accepted and the build just runs with it.
+- Exit codes: 0 ok, 1 a `--check` failure, 2 bad usage, an unreadable file or an unknown map. Tests:
+  `tests/levelMeasureCli.test.ts` (parsing, the JSON patcher, `--flags`) and `tests/levelMeasure.test.ts`.
 
 ## Laptop queue
 A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task every minute; its first build plan:
@@ -585,6 +628,11 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   continue). `LQ_BUILD_MARKER` overrides the path (tests).
 - Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
   a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
+  `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
+  (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester
+  `laptop-queue spare`). Spare work never blocks real work: a waiting real request or a train stops a spare run, and
+  `pick` starts no spare while a real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
 - Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
@@ -621,14 +669,22 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
   `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
   that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
+  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. A second quarantine
+  of the same suite within 14 days makes it blocking (G393): it is not quarantined again, its failures fail runs, and
+  its owner gets a fix job (decided, not built yet in the queue code). The desktop worker
   keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
   their hardcoded e2e-pad.
+- Repeat quarantine (Michael 2026-10-25, folded plan Q30, "Becomes blocking"): a suite that would be quarantined a
+  second time within 14 days of its last quarantine is not quarantined again. It stays blocking (its failures fail the
+  run) and its owner gets a fix job on the ROADMAP. Until the queue code does this (Test Runner job J20), the Test
+  Runner applies it by hand from `flake-budget.md` and tells the orchestrator.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
   Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
-  faked pointer lock; `E2E_HEADED=1` (debugging) opens a window parked off-screen. Browser: `E2E_BROWSER`, the
+  faked pointer lock; `E2E_HEADED=1` opens a window parked off-screen: never on
+  Michael's PCs (`docs/RULES.md` "Machines": headless and invisible) and refused under the runner; only a single suite run
+  directly on another machine. Browser: `E2E_BROWSER`, the
   preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is
   stubbed off so exports take the download path.
 - Graphical and performance checks (perf budgets, contact sheets, visual parity and probe checks, beauty shots) run here

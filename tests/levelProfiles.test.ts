@@ -277,7 +277,11 @@ describe('validator-port S0: lib seams, merge, flag, link times, modules', () =>
     expect(parseArgs(['--require-measured'])).toEqual({ error: 'no graph file given' });
     const lines: string[] = [];
     const example = path.join(ROOT, 'docs/level-validator/example.graph.json');
-    expect(run([example, '--require-measured'], { log: (s: string) => { lines.push(s); }, root: ROOT })).toBe(0);
+    // the example has no measured values yet: 2 encounter spaces, split hall, 5 campaign way backs (S3, BRIEF A5)
+    expect(run([example, '--require-measured'], { log: (s: string) => { lines.push(s); }, root: ROOT })).toBe(1);
+    const errs = lines.filter((s) => s.startsWith('ERROR:'));
+    expect(errs).toHaveLength(8);
+    expect(errs.filter((s) => !s.includes('--require-measured'))).toEqual([]);
   });
 
   it('linkTime: measured path_m / speed first (A6), else time_s, else a walked length; null path_m falls through', () => {
@@ -302,7 +306,8 @@ describe('validator-port S0: lib seams, merge, flag, link times, modules', () =>
 
   it('the check modules are wired with (graph, metrics, opts) and start empty; perfectPaths walks kept links', () => {
     const empty = { errors: [], warns: [], infos: [] };
-    for (const f of [checkMeasured, checkTraining, checkPerfect, checkEngine, checkMission]) {
+    expect(checkMeasured.length).toBe(2);
+    for (const f of [checkTraining, checkPerfect, checkEngine, checkMission]) {
       expect(f.length, f.name).toBe(2);
       expect(f(mini(), METRICS, { requireMeasured: true })).toEqual(empty);
     }

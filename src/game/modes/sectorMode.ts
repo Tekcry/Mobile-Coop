@@ -6,7 +6,6 @@ import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import { ITEM_SCOPE_OFF } from '../itemScope';
-import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
@@ -1350,12 +1349,6 @@ export class SectorMode implements GameMode {
   /** Co-op host: the client's held jammer target. */
   onRemoteJam(_id: string, tgt: string, eye?: readonly [number, number, number]): void {
     this.ct?.onRemoteJam(tgt, eye);
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const it of this.its) if (it.enabled && !it.done) out.push({ x: it.pos.x, z: it.pos.z, kind: 'objective' });
-    return out;
   }
 
   /** Test view (`window.__sector.debug()`). */

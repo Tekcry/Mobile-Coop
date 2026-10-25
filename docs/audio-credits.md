@@ -1,6 +1,6 @@
 # Audio credits
 
-Every recorded sound that ships in Night Shift, with its source and licence (bible S7; CC0 audio is allowed for every sound, Michael, 2026-10-16). Recordings are bundled and never
+Every recorded sound that ships in Night Shift, with its source and licence (bible S7; any free recording whose licence allows commercial sale, G58, G407). Recordings are bundled and never
 fetched at runtime. The score's samples are listed in `docs/audio/samples.md` (music project).
 
 ## Movement foley (`src/assets/sfx/foley.mp3`)

@@ -71,7 +71,13 @@ its graph sets `meta.mode` to the same value.
 - Construction: <grid, wall thicknesses, storey heights (max 3 walkable surfaces per column), windows, materials>
 - Rooms (original purpose / now): <list, or "propose in Phase 1">
 - Real dimensions for this building type: <corridors, doors, stairs, storeys, key equipment sizes>
-- Palette, lighting character, grade, weather: <...>
+- Palette, lighting character, grade, weather (a map with weather says how it changes light and sound, level-design
+  5.6): <...>
+- Stairs and exits: <each multi-storey building's two separate staircases (level-design 16.2.7); escape exits
+  open from inside (16.3.6)>
+- Security (campaign and Sector Ops): <the site security summary that tops the security register (level-design 13):
+  how secure the site is, its layers, who opens what, two-person steps, weak spots and their story reasons (4.11), the
+  alarm chain>, or "propose in Phase 2"
 
 ## Stealth verbs found in the building (fill or delegate)
 | Verb | Real building element |
@@ -94,12 +100,23 @@ secret), the loop, the guards' jobs, isolation moments and overlaps, toys, the o
 1. <Space> (<storey>, <n> guards): <...>
 2. <...>
 Guard total per player count: <n> (as many as realistically possible, inside the mode's caps; level-design 4.9, 12.1).
+- Lookouts (campaign): <per space, the entry vantage both players fit at (level-design 3.1); where the final area is
+  first seen from a distance (6.1)>
+- Blocked routes (campaign and Sector Ops): <per blocked route, what the players see from where they stand that shows a
+  way past within about 2 minutes (6.4)>
+- Exit run (campaign): <the route from the last objective to the exit and its time, or the half that differs from the
+  way in (3.10)>
 
 ## Co-op routes (fill or delegate)
 The co-op kit of `docs/level-design.md` 11.9 (moves the game lacks are built by their co-op job first). Each route:
 where, its graph kind, the real reason one player cannot use it, and per mode: campaign, the forced co-op gate of each
 section and its way back (11.10, 11.6); Sector Ops, the solo route past it (11.6, G280); training, the move it teaches.
 - C1: <...>
+- Teamwork minimums (campaign, 11.11): <the count of each kind for this map (doors held, boosts or climbs, covering,
+  splits ending in a joint action) and the routes that meet each; how roles swap>
+- Pings and warnings (campaign, 13 co-op plan): <per team move, who pings what and what the world shows before the
+  players commit>
+- Revive check (campaign, 15): <each team-move surface where a downed player is revived inside the revive window>
 
 ## Mission and modes (fill)
 - `modes` (`MapDef.modes`): <e.g. ['sector', 'sandbox']>. Do not change any mode's default map.
@@ -108,6 +125,12 @@ section and its way back (11.10, 11.6); Sector Ops, the solo route past it (11.6
   <...>, objective steps in route order, each naming what and where (level-design 6.4, 13 "Objective and lead plan")
   <...>; for Sector Ops the parallel team tracks and how one solo player does them all <...>; strict rules (up to 2,
   signposted in the briefing and objective list; breaking one restarts the section, level-design 9.3) <...>.
+- Objective chain (campaign; 13 "Objective and lead plan", Chain): <which steps need both players and what each does;
+  what each step reveals for the next> <...>; the objective twist at 40-60% (6.2) <...>.
+- Pacing and wow moments (campaign; 6.2, 13 "Beat chart"): <the 1-2 signature moments; three wow moments (a two-person
+  move, a moment of timing together, a story reveal), each against the five tests> <...>.
+- Final tests (15): <campaign: the two-player unseen run to the exit; campaign and Sector Ops: the darkest real spot
+  where the goggle-light colours are told apart> <...>.
 - Theme: <time of day, light bands per space type (level-design 5.5), faction, grade, weathers>.
 - `reinforce`, `alarms`, `hideSpots`, `switches`: <...>
 

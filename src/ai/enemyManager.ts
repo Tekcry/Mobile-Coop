@@ -627,7 +627,8 @@ export class EnemyManager {
         this.grenadeT = 8;
         this.grenadesThrown++;
         const T = 1.15;
-        const v = new Vector3((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
+        // (guard-ai-alloc) kept: `Grenades.throw` copies a velocity (`dir.clone()`)
+        const v = this.throwV.set((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
         this.grenades.throw(from, v, 'enemy', e.id, undefined, true);
         e.bark('grenade');
         return true;
@@ -644,7 +645,9 @@ export class EnemyManager {
         return slot;
       },
       callAlert: (e) => {
-        for (const o of this.enemies) {
+        const list = this.enemies;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
           if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
@@ -656,7 +659,9 @@ export class EnemyManager {
           this.voice(e);
           return;
         }
-        for (const o of this.enemies) {
+        const list = this.enemies;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3, e.hunt);
         }
@@ -690,9 +695,14 @@ export class EnemyManager {
         if (d.target === 0 && !d.anchor.locked && doors.open(d, 'enemy')) this.doorOpens++;
         return false;
       },
+      // (guard-ai-alloc D2) per search ring point (`Enemy`): an index loop, no iterator
       searchSlot: (e) => {
         let n = 0;
-        for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
+        const list = this.enemies;
+        for (let i = 0; i < list.length; i++) {
+          const o = list[i]!;
+          if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
+        }
         return n;
       },
       // (guard-ai S25) the search after combat: his intruder's probable area, one point per searcher
@@ -726,7 +736,8 @@ export class EnemyManager {
   /** Bodies still simulating as ragdolls are under the budget. */
   canRagdoll(): boolean {
     let n = 0;
-    for (const b of this.bodies) if (b.simulating) n++;
+    const bodies = this.bodies;
+    for (let i = 0; i < bodies.length; i++) if (bodies[i]!.simulating) n++;
     return n < BUDGET.maxRagdolls;
   }
 
@@ -785,7 +796,9 @@ export class EnemyManager {
     }
     e.bark('body');
     e.searchAt(b.pos.x, b.pos.z, b.lethal ? null : b);
-    for (const o of this.enemies) {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
       if (o === e || !o.alive || o.alerted) continue;
       if (Vector3.Distance(o.pos, e.pos) < EnemyManager.RADIO) o.searchAt(b.pos.x, b.pos.z, null);
     }
@@ -1796,7 +1809,8 @@ export class EnemyManager {
 
   get alive(): number {
     let n = 0;
-    for (const e of this.enemies) if (e.alive) n++;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) if (list[i]!.alive) n++;
     return n;
   }
 
@@ -3496,7 +3510,16 @@ export class EnemyManager {
 
   /** Pick (or drop) the flanker: someone with cover tactics once a player has held cover a while. */
   private assignFlanker(): void {
-    const held = this.players().some((p) => p.target.alive && p.cover && (p.coverT ?? 0) > 4);
+    // (guard-ai-alloc D2) every 0.5 s: an index loop, no closure
+    const ps = this.players();
+    let held = false;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i]!;
+      if (p.target.alive && p.cover && (p.coverT ?? 0) > 4) {
+        held = true;
+        break;
+      }
+    }
     if (!held) {
       this.flanker = null;
       return;
@@ -3518,6 +3541,13 @@ export class EnemyManager {
     this.flanker = best;
   }
 
+  /** (guard-ai-alloc D2) `refreshFlow`'s goals and heights, kept (the pairs are made once per player slot). */
+  private readonly flowGoals: P2[] = [];
+  private readonly flowYs: number[] = [];
+  private readonly flowPairs: P2[] = [];
+  /** (guard-ai-alloc) A guard grenade's throw velocity (copied by `Grenades.throw`). */
+  private readonly throwV = new Vector3();
+
   private refreshFlow(): void {
     // stealth: towards where they think the players are, never where they really are; (guard-ai S24) one field per
     // intruder (`slotFlowStep`)
@@ -3530,10 +3560,24 @@ export class EnemyManager {
       return;
     }
     this.flowBlank = false;
-    const live = this.players().filter((p) => p.target.alive);
-    const goals = live.map((p) => [p.feet.x, p.feet.z] as [number, number]);
-    // heights pick the storey (a roof, an upper floor) the goal is on
-    const ys = live.map((p) => p.feet.y);
+    // (guard-ai-alloc D2) every 0.5 s: the live players' feet into kept buffers (a pair per player, made once), no
+    // filter / map arrays; heights pick the storey (a roof, an upper floor) the goal is on
+    const ps = this.players();
+    const goals = this.flowGoals;
+    const ys = this.flowYs;
+    let n = 0;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i]!;
+      if (!p.target.alive) continue;
+      const g = this.flowPairs[n] ?? (this.flowPairs[n] = [0, 0]);
+      g[0] = p.feet.x;
+      g[1] = p.feet.z;
+      goals[n] = g;
+      ys[n] = p.feet.y;
+      n++;
+    }
+    goals.length = n;
+    ys.length = n;
     if (goals.length) this.nav.flowField(goals, this.flowField, ys);
     this.flowVer = this.nav.version;
   }

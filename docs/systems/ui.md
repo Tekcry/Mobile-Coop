@@ -19,8 +19,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   stations (G20, G98).
 - (CT prototype G5) The context action menu, top right (`ui/hud/contextMenuView.ts`, `.hud-ctx` in styles.css): a
   header box (INTERACT, or BACK TO GAME while A is held) over the options box, inside a dim corner-tick frame. CT's
-  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (as built it is pushed
-  under the minimap where they would overlap; the minimap goes, below), 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
+  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H, 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
   Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
@@ -32,9 +31,8 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   marks and always-on list (G277, G292; below).
 - Decided, not built yet (G343, G351): the popup and its binding (View has no action yet, `input/padBinds.ts`; O is
   unbound). As built the HUD shows the objective line at the top (`Hud.setObjective`, `.hud-objective`).
-- Decided, not built yet (G339): as built the HUD still draws the compass strip with its markers (`ui/hud/hud.ts`)
-  and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`); removing them is a rule fix, allowed at the walk cap
-  (G355). The menu / briefing owner is named at the next plan. Do not add a map, a waypoint or a marker to any mode.
+- Built (G339, hud-guidance PR A): no minimap, compass or blip in any mode; the Marlow drill marker and world pings
+  stay (G292, G135). Do not add a map, a waypoint or a marker to any mode.
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
@@ -139,7 +137,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     (motion capture off)", "mix, 70% motion-capture walk, 30% hand-made".
   - Edit warning: an edit that changes nothing on screen shows a one-line strip under the row (`.tt-warn`) and in
     the header (`.anim-tune-warn`) for about 5 s, naming the setting that does work (`WORKS_INSTEAD`). More > Panel
-    "Warn when an edit changes nothing" (on by default; saved as `clarityWarn` in the tuner's `ui` record).
+    "Warn when an edit changes nothing" (on by default; saved as `clarityWarn` in the tuner's `ui` record). Editing a
+    row for her with no gun out while a gun is drawn warns "Holster to see it". The tags and the warning read the
+    capture's share as a latched band (`reachBand`: in at 90 % / 10 %, out only past 88 % / 12 %), so they do not
+    flicker at the edge. The Keys key tools warn about Wave's channel or the picked slider; with none picked, nothing.
   - Keys tab: the fixed note `KEYS_MOCAP_NOTE` ("Keys change the hand-made moves only") sits above the existing hint.
     Legs are their own parts, shown as "Left leg" and "Right leg" (target labels "Left leg (key)" / "Right leg (key)",
     `ui/tunerTarget.ts` `keyRow`), with "foot twist, toes out" (ankle yaw) and "shin twist" rows per leg

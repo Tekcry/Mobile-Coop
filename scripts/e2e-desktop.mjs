@@ -277,17 +277,18 @@ try {
       const aspect = window.__app.engine.getAspectRatio(cam);
       const hdeg = (2 * Math.atan(Math.tan(cam.fov / 2) * aspect) * 180) / Math.PI;
       const vit = document.querySelector('.hud-vitals').getBoundingClientRect();
-      const mm = document.querySelector('.hud-minimap').getBoundingClientRect();
+      const wp = document.querySelector('.hud-weapon').getBoundingClientRect();
       const inset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-inset'));
-      return { hdeg, aspect, vit: vit.left, mm: mm.right, inset, W: innerWidth };
+      return { hdeg, aspect, vit: vit.left, wp: wp.right, nomap: !document.querySelector('.hud-minimap, .minimap, .hud-compass'), inset, W: innerWidth };
     });
     if (label === '32:9') {
       assert(Math.abs(v.hdeg - 120) < 1, `32:9: Hor+ stops at the widest FOV (${v.hdeg.toFixed(1)} deg)`);
-      assert(v.inset === 640 && v.vit >= 640 && v.mm <= v.W - 640 + 1, `32:9: HUD panels in a centred 16:9 (inset ${v.inset}, vitals x ${v.vit.toFixed(0)}, minimap right ${v.mm.toFixed(0)})`);
+      assert(v.inset === 640 && v.vit >= 640 && v.wp <= v.W - 640 + 1, `32:9: HUD panels in a centred 16:9 (inset ${v.inset}, vitals x ${v.vit.toFixed(0)}, weapon panel right ${v.wp.toFixed(0)})`);
     } else {
       const want = (2 * Math.atan(Math.tan(Math.atan(Math.tan((100 * Math.PI) / 360) * (9 / 16))) * v.aspect) * 180) / Math.PI;
       assert(Math.abs(v.hdeg - want) < 1 && v.inset === 0, `${label}: Hor+ (${v.hdeg.toFixed(1)} deg), HUD full width`);
     }
+    assert(v.nomap, 'no minimap or compass (G339)');
     if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-game.png` });
     const ae = a.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
     assert(ae.length === 0, `${label}: no console errors${ae.length ? ': ' + ae.slice(0, 3).join(' | ') : ''}`);
