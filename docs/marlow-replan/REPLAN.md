@@ -8,7 +8,8 @@ Picture: [replan-plan.svg](replan-plan.svg) (to scale, north up, numbered badges
   Strongroom, keeps side routes, to practise against guards.
 - Every co-op move is taught once, on its own, where it makes sense, including the five moves you added today. The Data
   Hall and the Strongroom then combine them.
-- Guards only where a lesson needs someone to see or hear you: 12 in all. Two sections have none.
+- Guards only where a lesson needs someone to see or hear you: 12 in all, ordinary armed guards. Two sections have
+  none.
 - Nothing fails you and nothing sends you back. Every mistake is a retry of that drill or step, where you are.
 - Every light works. Darkness comes only from cover, cutting the power and shooting lamps.
 
@@ -22,7 +23,7 @@ Picture: [replan-plan.svg](replan-plan.svg) (to scale, north up, numbered badges
 | A5 Substation | Climbing a 6 m wall gap together; swinging over a trench; throwing over the light beams | Chimney pair, swing pass, throw | 1 | Seen in the floodlight: retry from behind the transformer |
 | A6 Pump House | Up to the gallery on the rope; hanging off the bridge to switch off the drive; dropping into your partner's arms so the attendant hears nothing | Rope, hang-down, drop catch | 1 | Heard or seen: retry that step |
 | A7 Data Hall | Splitting up, covering each other, then hacking together | Split paths, synced hack | 1 | Hack missed: the terminals reset. Seen: retry that step |
-| A8 Strongroom | The graduation: everything at once, with side routes | All of them | 3 | Timed steps retry in place. Being seen plays out like a real mission |
+| A8 Strongroom | The graduation: everything at once, with side routes | All of them | 3 (no extra alarm squad) | Timed steps retry in place. Being seen plays out like a real mission |
 
 ## Calls I made for you (each easy to undo)
 - The five new moves need building first. Their steps open in the yard as each move is finished.

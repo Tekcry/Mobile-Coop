@@ -74,3 +74,7 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
   (validate-run.txt). Undo: when Marlow Build adds the kinds, swap them in; nothing else changes.
 - A11. The A1 gate checker stays as a seated role-player who cannot see or hear (grab and questioning practice); he is
   not counted as a guard. Undo: remove him (A1 then has no person at all).
+- A12. No shield-led alarm team in Marlow Yard (Guard AI J15 A14 dropped by Marlow Build ~19:10): guards are Normal,
+  armed (G279, G298), only those each lesson needs (Q11), failures retry (Q5); a late enemy section teaching alarm
+  response uses plain armed guards (campaign Q12 "armed only", Marlow = training prologue Q6). The 12 guards above are
+  the whole count; no alarm team is added on top. Undo: Guard AI restores the team in Marlow's alarm config.

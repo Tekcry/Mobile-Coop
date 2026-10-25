@@ -6,7 +6,7 @@ Owner: Marlow Build. Status: current.
   script / config change).
 - Waiting on Michael: `REPLAN.md` "The decision" (Approve as drawn (Recommended) / Show me the detail first / Change
   something). Nothing is built before his pick.
-- Files: `BRIEF.md` (his words, picks, assumptions A1-A11), `REPLAN.md` (his page), `replan-plan.svg` (to scale,
+- Files: `BRIEF.md` (his words, picks, assumptions A1-A12; A12 no alarm team, lead note ~19:10), `REPLAN.md` (his page), `replan-plan.svg` (to scale,
   18 badges), `graph.json` (training profile, 8 sections), `validate-run.txt` (master validator, notes per line).
 - Validator (master, unchanged): 2 errors, 61 warnings. Both errors do not apply (Q29 coverage; A3's vent unlock is a
   `bolted` door the validator's COOP_KINDS does not count). Notes: `validate-run.txt` "What each line means".
