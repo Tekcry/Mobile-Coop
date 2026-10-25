@@ -97,3 +97,12 @@ At the save (2026-10-26, I9 fix round, feature/mixamo-i9 on 438830085):
   batch 1 / I4 / I6 by path), so they and clips/mixamo/studio/ can go behind one non-eager glob; batch 1 / I4 / I6 stay eager.
 - Merge of origin/feature/mixamo-i6 (ba01d0f7): not started. Polish (stale "5 gaits" line, toe-first pin item in I10 / Left, ~1.9 MB): not done.
 - Left: all of the fix round (lazy CAPTURE_CLIPS fill on opening the capture group / Set filter Mixamo or All, test of 108 rows, build entry-chunk grep and size before / after), the i6 merge, polish.
+
+At the save (2026-10-26 ~10:35, I9 fix round, feature/mixamo-i9, head before this commit 7692c5804):
+- Done: merged origin/feature/mixamo-i6 ba01d0f7 (32ac667d3; conflicts kept both sides: I4 turn / armIn + I7 options,
+  rows for the I4 stance cycles; 7 vitest files 79 pass). Lazy load (d9abca110): `src/anim/studioCapturesLazy.ts` (the 24
+  game slots + studio/, one chunk), `studio.ts` eager glob minus those names, `loadStudioCaptures()` once from the
+  studio stage and the panel (Loop list refills); tests/studioCapturesLazy.test.ts (108 rows after the fill). tsc green,
+  eslint clean, 14 related vitest files 187 pass. Polish (7692c5804): 24 gaits line, toe-first pin window in I10, changelog.
+- Left: `npm run build` waiting on heavy.lock (laptop-queue holds it; take --wait 120 running), entry-chunk size before /
+  after and the studio/ name grep, I9-REPORT numbers, final STATE line.
