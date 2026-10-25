@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:56Z
+status: done feature/validator-port-s11 41996e2f7b31ba3af133d720190b4ef1b7a67f26
 # J12 validator-port, slice S11 (Opus-grade brief, small): a split leg may start with a co-op link from the fork
 
 Lead: Night Shift | Marlow Build. Asked by Campaign Build (Tallow D0, 2026-10-26 ~10:10): Tallow's split `tgc-leads`
@@ -55,3 +55,39 @@ co-op link's time counts for its leg; an INFO line names it. Not a loosening of 
 still walked alone after the fork). Undo: drop the co-op entry and let the ERR stand.
 
 ## Report (append below)
+
+### Report (Night Shift | Cloud Builder 3, 2026-10-25 ~23:10Z)
+Branch `feature/validator-port-s11` from 17871b9fe: 8cb6a4f9 (script + tests), 41996e2f7 (schema + fragment).
+- `scripts/level-validate.mjs` (checkCoop only):
+  - `:785-798`: `coopArcs`, the `COOP_KINDS` links (not `BOLTED_KINDS`), walked from their `from` end only, a `bolted`
+    one never. `fastestCoop`, the twin of `fastest`.
+  - `:817-832`: the solo fork is computed as before. Only when there is none: the first space (file order) that leads
+    into one leg by a solo arc and into the other only by a co-op arc. `coopSide` records which leg is entered by co-op.
+  - `:857-859`: on that leg's first hop, `fastestCoop` replaces `fastest`. The link's time counts for the leg (an
+    untimed link gives the existing untimed WARN), and an INFO line is printed.
+  - All else unchanged: parity, the 90 s limit, overwatch, assist, partner reach, rejoin, and the fallback and ERR
+    text when no fork qualifies.
+- INFO text: `split <id> leg <a|b>: entered by <link name> (co-op, from the fork <space>)`, for example
+  `split x leg b: entered by link b-hall -> b-walk (coop_boost) (co-op, from the fork b-hall)`.
+- Tests (`tests/levelValidate.test.ts:616-663`, 4 new in the split describe; the existing cases are unedited):
+  - A co-op entry passes with no ERR (checkCoop and the full validate), prints the INFO, and the leg time includes the
+    boost: at 25 s the ERR reads `23.1 s vs 37.0 s`.
+  - Both legs entered only by co-op links: both `no solo link leads into` ERRs.
+  - The boost `bolted`: the ERR as today.
+  - base() (a solo fork): `{ errors: [], warns: [], infos: [] }`.
+- Checks:
+  - `npx tsc --noEmit -p .` clean.
+  - vitest on levelValidate, splitJump, levelGraphs and changesFragments: 115 passed, 2 failed, both the base's known
+    levelGraphs failures from S10's report: "set campus > the saved run is the level-validate CLI text" and
+    "level-graphs runner > exits 1 on a count that differs". No new failure. levelValidate alone: 94 passed.
+  - `node scripts/doc-lint.mjs`: 0 errors, 26 warnings, none in S11's files.
+- Deviation (interpretation): a solo fork still wins over an earlier mixed one. A mixed fork is looked for only when no
+  space leads into both legs by solo arcs, so every existing split's output stays byte-identical.
+- For Campaign Build (information): this validator on `feature/tallow-d0`'s graph clears `no solo link leads into
+  w1-gallery` with the INFO line. It then reports:
+  - `split tgc-leads: legs 28.4 s vs 21.9 s differ by 23% (max 20%)`: the boost's 5 s replaces the ladder's 3 s on
+    leg a.
+  - `split tgc-leads: a downed partner at w1-tea-stall cannot be reached from the other leg`: on the real bolts the
+    tea stall has no solo way up until A opens the ladder foot.
+  - The W2 route ERR.
+  These are graph matters for the lead, not S11's.
