@@ -3,13 +3,15 @@
 // Three Grey Coats (W1 -> W4) and Two-Key Ledger (W2 -> W4) are each played from their start section to the extraction and the
 // results screen (VICTORY), with one forced co-op move per section done with real pad input on both pages (leg-up, partner throw,
 // pull-up; the shutters print SKIP: no `placeShutter` yet, GB-briefs 0.2), a broken rule that restarts the section to its checkpoint
-// while the mission carries on (TGC: a decoy interrogated, `namedTarget`; TKL: a guard killed, `noKills`), and the client's mirror of
-// the host's mission (`net.mission.runner.doneBits`, the `.mission-hud` rows). Run with no `--mission` it plays both in sequence.
+// while the mission carries on (TGC: a decoy knocked out restarts nothing, Teale knocked out is the protected restart, Teale killed
+// and then a decoy read break `namedTarget` and he bolts; TKL: a guard killed, `noKills`), and the client's mirror of the host's
+// mission (`net.mission.runner.doneBits`, the `.mission-hud` rows). (mission-rules R7) Both: the host alone cannot start the
+// campaign, the lobby on Realistic gives 2 revives, no dog spawns. Run with no `--mission` it plays both in sequence.
 // The guards are frozen and nobody can be hurt (the test reads the mission, not the stealth). Needs `E2E_GPU=1` (laptop queue only).
 import { tmpdir } from 'node:os';
 import { join as joinPath } from 'node:path';
 import { launch, openPage, BTN, assert } from './e2e-lib.mjs';
-import { until, waitSim, setSimPages, startMode, NET_VIEWPORT, onHostStep, hostStepResult, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, setSimPages, LOAD_MS, NET_VIEWPORT, onHostStep, hostStepResult, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
 const NET3 = true; // NET3 (start.sm) is merged into feature/mission-engine
 
@@ -20,6 +22,14 @@ const PI = Math.PI;
 const RB = BTN.RB;
 /** The loft storey of W2 (feet height of the lofts and the walkway); `+ 0.1` is the standing spot on it. */
 const LOFT = 4.5;
+/** (mission-rules R4) `CAMPAIGN_TWO_PLAYERS` (src/game/mission/campaign.ts): the blocked Start button's text. */
+const TWO_PLAYERS = 'Campaign missions need exactly two players';
+/** (mission-rules R1) `PROTECTED_LINE` (src/game/mission/missionText.ts) and the named-target rule's `breakLine`. */
+const PROTECTED_LINE = 'The man you need is down. Back to the section checkpoint.';
+const NAMED_LINE = 'Named target broken. Back to the section checkpoint.';
+/** tgc-3's `text` and `boltText` (src/world/maps/tallowWharfMissions.ts). */
+const READING_LINE = 'Take the grey coat with the black umbrella in the reading room loft';
+const MOVED_LINE = "Take the grey coat with the black umbrella in the clock-mender's back loft";
 let failed = false;
 const all = [];
 
@@ -33,6 +43,13 @@ async function join(hostParams, clientParams) {
     await A.click('.main-menu .btn:has-text("Co-op")');
     await A.click('.btn:has-text("Host a room")');
     await until(A, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'host lobby');
+    // (mission-rules R7, R4) the lobby on Sector Ops, Tallow Wharf, Realistic; the host alone cannot start the campaign:
+    // `startMatch()` returns null, the room stays in the lobby and the Start button carries the blocked text
+    await A.evaluate(() => window.__coop.session.setSettings('sector', 'tallowWharf', 'realistic', ''));
+    const alone = await A.evaluate(() => { const s = window.__coop.session; return { start: s.startMatch(), phase: s.phase, n: s.players.size }; });
+    assert(alone.start === null && alone.phase === 'lobby' && alone.n === 1, `the host alone cannot start: startMatch() null, the room in the lobby (${JSON.stringify(alone)})`);
+    await until(A, (t) => { const b = document.querySelector('.lobby-actions .btn[data-key="start"]'); return !!b && b.classList.contains('blocked') && b.dataset.locked === t; }, TWO_PLAYERS, 8000, 'the Start button shows the blocked text');
+    assert(true, `the host's Start button is blocked: "${TWO_PLAYERS}"`);
     const code = await A.evaluate(() => window.__coop.session.code);
     const { page: B, errors: eB } = await openPage(ctx, url, clientParams);
     await B.click('.main-menu .btn:has-text("Co-op")');
@@ -191,7 +208,9 @@ async function run(id) {
   const fact = (f) => GA((f) => window.__mission.runner.hasFlag(f), f);
   const doneBits = () => GA(() => window.__mission.runner.doneBits);
   const slotAlive = (k) => GA((k) => !!window.__sector['slotEnemy'][k]?.alive, k);
-  const SEC = await GA(() => window.__app.current.world.map.sectors.map((s) => ({
+  /** The map's sections (read once the match runs: `__app.current` is null in the lobby). */
+  let SEC = null;
+  const readSectors = () => GA(() => window.__app.current.world.map.sectors.map((s) => ({
     id: s.id,
     start: s.start,
     start2: s.start2 ?? null,
@@ -245,12 +264,50 @@ async function run(id) {
     await moveClient(cx, cz, 0, c.floorY + 0.1);
     await until(A, (n) => window.__sector.debug().index === n, i + 1, 60000, `${what}: the connector cycles into section ${i + 2}`);
     assert(true, `${what}: on into run section ${i + 1}`);
+    await noDogs(`${what}: section ${i + 2}`);
   };
+  /** (mission-rules R3 / R7) No live guard of kind `dog` (`Enemy.def.kind`) on the host. */
+  const noDogs = async (what) => {
+    const n = await GA(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && e.def.kind === 'dog').length);
+    assert(n === 0, `${what}: no live guard of kind dog (${n})`);
+  };
+  /**
+   * (mission-rules R7) The host takes down the live section's guard `k` by his Enemy id (`slotEnemy[k].id`, found in
+   * `enemyMgr.enemies`) with the TKL kill hook (`applyDamage`); `ko`: a knock-out (`nonLethal`: `Enemy.knockOut` sets `ko`).
+   * The engine's kill test is `!alive && !ko`.
+   */
+  const down = async (k, ko, who) => {
+    const id = await GA((k) => window.__sector['slotEnemy'][k]?.id ?? null, k);
+    assert(!!id, `${who} (slot ${k}) is spawned (${id})`);
+    const hit = await GA(([id, ko]) => {
+      const g = window.__app.current;
+      const e = g.enemyMgr.enemies.find((q) => q.id === id);
+      if (!e || !e.alive) return false;
+      e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1, nonLethal: ko });
+      return true;
+    }, [id, ko]);
+    assert(hit, `${who} (${id}) is ${ko ? 'knocked out' : 'killed'} by the host`);
+    await until(A, ([k, ko]) => { const e = window.__sector['slotEnemy'][k]; return !!e && !e.alive && e.ko === ko; }, [k, ko], 8000, `${who} is down (${ko ? 'ko' : 'a kill: !alive && !ko'})`);
+  };
+  /** The host's banners as `g.hud.banner` raised them ([title, sub], recorded from the setup on). */
+  const bannerCount = (title, sub) => GA(([t, s]) => window.__banners.filter((b) => b[0] === t && b[1] === s).length, [title, sub]);
+  /** tgc-3's objective row (`.mission-hud .mh-row[data-step]`, missionHud.ts) reads `text` on the host and on the client. */
+  const rowIs = async (step, text, what) => {
+    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+      await until(P, ([i, t]) => document.querySelector(`.mission-hud .mh-row[data-step="${i}"] .mh-text`)?.textContent === t, [step, text], 8000, `${what}: the ${who}'s tgc-3 row reads "${text}"`);
+    }
+    assert(true, `${what}: the tgc-3 row reads "${text}" on host and client`);
+  };
+  /** The run's guard `k` of the live section: [x, y, z], alive, ko (null: none). */
+  const guardAt = (k) => GA((k) => { const e = window.__sector['slotEnemy'][k]; return e ? { p: [e.pos.x, e.pos.y, e.pos.z], alive: e.alive, ko: e.ko } : null; }, k);
+  /** A restart's hold is over: no restart pending (`SectorMission.holding`) and the rules live again (`RuleTracker.held`). */
+  const holdOver = (what) => until(A, () => !window.__mission.holding && !window.__mission.tracker.held, null, 8000, `${what}: the restart hold is over`);
   /** The break line, the restart and the carry-on state (section `i`; `cp` the checkpoint the restart returns to). */
-  const restarted = async (i, cp, what) => {
-    await until(A, () => window.__sector.debug().restarts === 1, null, 15000, `${what}: the section restarts`);
+  /** `n`: the run's restarts (`SectorMode.restarts`) and the mission's (`SectorMission.ruleRestarts`) after this one. */
+  const restarted = async (i, cp, what, n = 1) => {
+    await until(A, (n) => window.__sector.debug().restarts === n, n, 15000, `${what}: the section restarts`);
     const d = await dbg();
-    assert(d.index === i && d.phase === 'objective' && d.mission.ruleRestarts === 1, `${what}: back at the section's start, the mission going on (${JSON.stringify([d.index, d.phase, d.mission])})`);
+    assert(d.index === i && d.phase === 'objective' && d.mission.ruleRestarts === n, `${what}: back at the section's start, the mission going on (${JSON.stringify([d.index, d.phase, d.mission])})`);
     await until(A, ([x, z]) => { const p = window.__app.current.player.controller.pos; const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(p.x - x, p.z - z) < 2.5 && Math.hypot(r.feet.x - x, r.feet.z - z) < 2.5; }, [cp.x, cp.z], 8000, `${what}: both players at the checkpoint ${cp.x}, ${cp.z}`);
   };
   const noBlips = async () => {
@@ -279,7 +336,21 @@ async function run(id) {
   };
 
   try {
-    await startMode([A, B], 'sector', 'tallowWharf');
+    // (mission-rules R7) the start with the client in. On this base a room made with "Host a room" does not start on its own
+    // once the partner is in (only "Resume hosting" holds a blocked start), so the client readies and the host starts, as
+    // `startMode` (e2e-net-lib.mjs) does, with the lobby kept on Realistic (`startMode` would set Normal)
+    if ((await GA(() => window.__coop.session.phase)) === 'lobby') {
+      await GB(() => window.__coop.session.setReady(true));
+      await until(A, () => window.__coop.session.allReady && window.__coop.session.campaignBlock === null, null, 8000, 'the client is ready, the campaign start unblocked');
+      const st = await GA(() => window.__coop.session.startMatch());
+      assert(!!st && st.mode === 'sector' && st.map === 'tallowWharf' && st.difficulty === 'realistic', `two players in: the host starts the campaign on Realistic (${JSON.stringify(st)})`);
+    } else console.log('  the match started on its own once the client was in');
+    for (const P of [A, B]) await until(P, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'sector match on both pages');
+    await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 15000, 'client state reaches the host');
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    // (mission-rules R5, G126) a campaign mission's revives: 2 at every difficulty (CoopHost `revivesLeft`)
+    const rv = await GA(() => ({ diff: window.__coop.session.difficulty, left: window.__app.current.net.revivesLeft() }));
+    assert(rv.diff === 'realistic' && rv.left === 2, `net.revivesLeft() is 2 with the lobby on Realistic (${JSON.stringify(rv)})`);
     // the host's setup (as e2e-sectorops-mission): guards frozen (never ?sectorGuards=: it would drop Teale, the decoys, the clerk)
     await GA(() => {
       const g = window.__app.current;
@@ -287,9 +358,15 @@ async function run(id) {
       if (g.security) g.security.fixedUpdate = () => {};
       window.__mev = [];
       g.events.on('missionEvent', (e) => window.__mev.push(e));
+      // (mission-rules R7) every banner the host raises (the section banners, SECTION RESTART, RULE BROKEN)
+      window.__banners = [];
+      const banner = g.hud.banner.bind(g.hud);
+      g.hud.banner = (title, sub = '', ms) => { window.__banners.push([title, sub]); banner(title, sub, ms); };
     });
+    SEC = await readSectors();
     await padReady(A);
     await padReady(B);
+    await noDogs(`${tag} start`);
 
     if (tgc) {
       // ================= Three Grey Coats: W1 -> W2 -> W3 -> W4 =================
@@ -334,21 +411,69 @@ async function run(id) {
       await until(B, (i) => window.__app.current.world.doors.list[i].open > 0.9, pb.door, 8000, 'the pawn door is open on the client');
       await toss({ id: 'w2-throw-pawn', thrower: [50.5, LOFT + 0.1, 69.6], runner: [50.5, LOFT + 0.1, 68.3], stage: [49, 72.5, 52, 73.5] });
 
-      where = 'TGC W2 broken rule';
-      // a decoy (Fenn, W2:7) interrogated breaks the named-target rule: the section restarts at its checkpoint, the mission goes on
-      await interrogate(7);
-      await sim(500);
-      const br = await dbg();
-      assert(br.mission.breaks === 1 && br.mission.pending === true && br.mission.spook >= 0, `a decoy asked: the rule breaks, the restart pending (${JSON.stringify(br.mission)})`);
-      await restarted(1, SEC[0].conn.cp, 'W2 restart');
-      assert((await stepDone('tgc-3')) === 0 && (await fact('tgc-courier')), "the restart keeps W1's fact and has tgc-3 not done");
+      // (mission-rules R7, J7 PLAN section 3 R7) in this order: a decoy knocked out, Teale knocked out (the protected restart,
+      // A2 / #372 M6), Teale killed (RULE BROKEN, he bolts), a decoy read (RULE BROKEN again); W2 guard indexes
+      // (tallowWharfSectors.ts): 6 Teale, 7 Fenn, 8 Garrow
+      const T3 = await GA(() => window.__mission.runner.stepIndex('tgc-3'));
       const bolt = await GA(() => window.__mission.runner.def.steps.find((s) => s.id === 'tgc-3').bolt);
-      const teale = await GA(() => { const e = window.__sector['slotEnemy'][6]; return e ? [e.pos.x, e.pos.y, e.pos.z] : null; });
-      assert(teale && Math.hypot(teale[0] - bolt[0], teale[2] - bolt[2]) < 1.0, `Teale (the spooked courier) stands at his bolt point ${JSON.stringify(bolt)} (${JSON.stringify(teale)})`);
-      await sim(2200);
+      const table = await GA(() => { const s = window.__app.current.world.map.sectors[1].guards[6]; return [s.x, s.z]; });
+      const cp2 = SEC[0].conn.cp;
+
+      where = 'TGC W2 decoy knocked out';
+      await down(7, true, 'Fenn (decoy, W2:7)');
+      await sim(1000);
+      const fk = await dbg();
+      assert(fk.restarts === 0 && fk.mission.ruleRestarts === 0 && fk.mission.breaks === 0 && fk.mission.protectedRestarts === 0 && fk.mission.pending === false, `a decoy knocked out (Fenn): no restart, no break (${JSON.stringify(fk.mission)})`);
+
+      where = 'TGC W2 Teale knocked out';
+      await down(6, true, 'Teale (W2:6)');
+      await until(A, () => window.__sector.debug().mission.protectedRestarts === 1, null, 8000, 'Teale knocked out before he talked: the protected restart');
+      const pk = await dbg();
+      assert(pk.mission.line === PROTECTED_LINE && pk.mission.breaks === 0 && pk.mission.spook === -1, `Teale knocked out: "${PROTECTED_LINE}", no break, no spook (${JSON.stringify(pk.mission)})`);
+      assert((await bannerCount('SECTION RESTART', PROTECTED_LINE)) === 1, 'Teale knocked out: the SECTION RESTART banner');
+      await restarted(1, cp2, 'W2 protected restart', 1);
+      const ak = await dbg();
+      assert(ak.mission.breaks === 0 && ak.mission.spook === -1 && ak.mission.line === PROTECTED_LINE, `the protected restart: ruleRestarts 1, breaks 0, spook -1 (${JSON.stringify(ak.mission)})`);
+      await until(A, (i) => window.__mission.runner.isOpen(i), T3, 8000, 'tgc-3 is open after the protected restart');
+      await until(A, () => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko; }, null, 8000, 'Teale is back, alive and not knocked out');
+      const tk = await guardAt(6);
+      assert(Math.hypot(tk.p[0] - table[0], tk.p[2] - table[1]) < 1.5 && Math.hypot(tk.p[0] - bolt[0], tk.p[2] - bolt[2]) > 5, `Teale is back at his reading-room table ${JSON.stringify(table)}, more than 5 m from the bolt point ${JSON.stringify(bolt)} (${JSON.stringify(tk)})`);
+      await rowIs(T3, READING_LINE, 'after the protected restart');
+
+      where = 'TGC W2 Teale killed';
+      await holdOver('the protected restart');
+      await down(6, false, 'Teale (W2:6)');
+      await until(A, () => window.__sector.debug().mission.breaks === 1, null, 8000, 'Teale killed before he talked: the named-target rule breaks');
+      const bk = await dbg();
+      assert(bk.mission.line === NAMED_LINE && bk.mission.spook === T3 && bk.mission.protectedRestarts === 1, `Teale killed: "${NAMED_LINE}", spook = tgc-3 (${T3}) (${JSON.stringify(bk.mission)})`);
+      assert((await bannerCount('RULE BROKEN', NAMED_LINE)) === 1, 'Teale killed: the RULE BROKEN banner');
+      await restarted(1, cp2, 'W2 rule restart (Teale killed)', 2);
+      const ab = await dbg();
+      assert(ab.mission.breaks === 1 && ab.mission.spook === T3, `the rule restart: ruleRestarts 2, breaks 1, spook ${T3} (${JSON.stringify(ab.mission)})`);
+      await until(A, (i) => window.__mission.runner.isOpen(i), T3, 8000, 'tgc-3 is open after the rule restart');
+      await until(A, ([x, z]) => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko && Math.hypot(e.pos.x - x, e.pos.z - z) < 1; }, [bolt[0], bolt[2]], 8000, 'Teale (alive) at his bolt point after the kill');
+      assert(true, `Teale (alive) stands within 1 m of the bolt point ${JSON.stringify(bolt)} (${JSON.stringify(await guardAt(6))})`);
+      await rowIs(T3, MOVED_LINE, 'after the kill');
+
+      where = 'TGC W2 decoy read';
+      await holdOver('the kill restart');
+      await interrogate(8);
+      await until(A, () => window.__sector.debug().mission.breaks === 2, null, 8000, 'a decoy read (Garrow): the named-target rule breaks again');
+      const gk = await dbg();
+      assert(gk.mission.line === NAMED_LINE && gk.mission.spook === T3, `Garrow read: "${NAMED_LINE}" again, spook = tgc-3 (${JSON.stringify(gk.mission)})`);
+      assert((await bannerCount('RULE BROKEN', NAMED_LINE)) === 2, 'Garrow read: a second RULE BROKEN banner');
+      await restarted(1, cp2, 'W2 rule restart (Garrow read)', 3);
+      assert((await dbg()).mission.breaks === 2, 'the decoy read restart: breaks 2');
+      await until(A, ([x, z]) => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko && Math.hypot(e.pos.x - x, e.pos.z - z) < 1; }, [bolt[0], bolt[2]], 8000, 'Teale still at his bolt point after the decoy read');
+      assert(true, `Teale still within 1 m of the bolt point (${JSON.stringify(await guardAt(6))})`);
+      await rowIs(T3, MOVED_LINE, 'after the decoy read (the moved line unchanged)');
+      assert((await stepDone('tgc-3')) === 0 && (await fact('tgc-courier')), "the restarts keep W1's fact and have tgc-3 not done");
+
+      where = 'TGC W2 Teale asked';
+      await holdOver('the decoy read restart');
       await interrogate(6);
       await sim(500);
-      assert((await stepDone('tgc-3')) === 1 && (await fact('tgc-chest')) && (await dbg()).mission.breaks === 1, 'Teale asked: tgc-3 done, the chest fact held, no new break');
+      assert((await stepDone('tgc-3')) === 1 && (await fact('tgc-chest')) && (await dbg()).mission.breaks === 2, 'Teale asked: tgc-3 done, the chest fact held, no new break');
       assert((await stepDone('tgc-opt')) === 0, 'tgc-opt is left undone');
       await until(A, () => window.__sector.debug().phase === 'connector', null, 8000, 'W2: the exit opens without the optional step');
       await cross(1, 'W2 connector');
@@ -356,6 +481,10 @@ async function run(id) {
 
       where = 'TGC W3';
       console.log('SKIP: W3 crossed (TKL covers it)');
+      // (mission-rules R7, R2) the W3 banner names TGC's step there (none: the title only), never TKL's ledger
+      await until(A, () => window.__banners.some((b) => b[0].startsWith('SECTION 3')), null, 8000, 'the W3 section banner');
+      const b3 = await GA(() => window.__banners.filter((b) => b[0].startsWith('SECTION 3')).pop());
+      assert(!/ledger/i.test(`${b3[0]} ${b3[1]}`), `the W3 banner on TGC does not contain "ledger" (${JSON.stringify(b3)})`);
       await until(A, () => window.__sector.debug().phase === 'connector', null, 3000, 'W3: no TGC step, the exit is open');
       await cross(2, 'W3 connector');
       await mirror('W3');
