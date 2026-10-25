@@ -1,7 +1,7 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~11:30 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
+## RESUME 2026-10-26 ~10:50 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 09:35 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 1. Laptop (wharf-tgc + wharf-tkl only): j7-prd on PR D c2802450a (carries gb6fix2), j7-pre on PR E 162f43204, j7-prf
@@ -10,16 +10,16 @@ report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-me
 2. Branches: feature/tallow-fixes ce743bc39 = engine + PR D + LP + G0 + D0 + MB (checker PASS); feature/tallow-shutters
    7054bed90 = S2 + S1 + S2 fix1 (PASS x2); feature/tallow-throw 6c4219cd2 = TD-a + TD-b (PASS);
    feature/tallow-fixes-2 24964a624 = tallow-fixes + d0-w2roof + G1 + G3 + tallow-throw (239 tests green).
-3. Checkers running (reports in scratch/campaign): tallow-d0-check.md (Opus, D0 + E11 downpipe on 1640e3ba0),
-   tallow-g1-check.md (Sonnet, G1 b16d4bc56, rules on deviation 2 MASS_TOP skip), tallow-g3-check.md (Sonnet, G3
-   3b786864c). PASS -> post checker status; d0-w2roof / G1 / G3 merge into tallow-fixes (they are already in -fixes-2).
-4. Cloud: G2 brief open (base 24964a624, Sonnet; FIX -> Opus fix round). G4 after G2 on tallow-fixes-2. Then D1 / E8.
+3. DONE: D0 + E11 (Opus PASS, G2 brief FIX applied), G1 (PASS), G3 (PASS): statuses posted, all merged into
+   feature/tallow-fixes db0e068ee (also carries the G2 brief fix). G2 cloud brief has a LEAD NOTE: step 0b builds
+   layout.throwSites (G0 skipped it) and throwCheck sites is optional. Polish list: lead-notes D0 / G1 / G3 lines.
+4. Cloud: G2 claimed by elegant-rubin (base 24964a624, Sonnet; FIX -> Opus fix round). G2 done -> merge tallow-fixes db0e068ee into tallow-fixes-2 first (fix + G1 / G3 statuses), then the G2 checker. G4 after G2 on tallow-fixes-2. Then D1 / E8.
 5. D0 ERR 2 (split leg a) expected until Marlow's validator-port-s11 (J12 A28) lands. Open: map SPEC "Drainpipes" row
    + element register need E11's pipe; E8 needs an e2e row for the pipe climb.
 6. Kit-flag fold dropped for Campaign (Player A1 does it later): S1 hunk A + S4 land on `coopKit`.
 7. Marlow #490 mixamo-kit: do not merge until their step 8.
 Older block below still holds for items not named here.
-Next: checker reports -> statuses + merges; laptop verdicts -> PR D into engine; G2 done -> checker, then G4 brief.
+Next: laptop verdicts -> PR D into engine; G2 done -> checker (Opus fix round on FIX), then the G4 brief on tallow-fixes-2.
 
 ## OLD RESUME 2026-10-26 ~09:20 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
