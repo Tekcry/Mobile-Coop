@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, '..');
 interface Report { errors: string[]; warns: string[]; infos: string[] }
 interface Space {
   id: string; section: string; type: string; room_class: string; function: string; storey: number;
-  size: number[]; tension: number; tags: string[]; shadow_pct?: number; los_break_s?: number;
+  size: number[]; tension: number; tags: string[]; shadow_pct?: number; los_break_s?: number; drill_s?: number;
   vantage?: { from: string; sees_pct?: number }; guards?: Record<string, number>; phase?: string;
 }
 interface Link {
@@ -44,7 +44,7 @@ const base = (): Graph => ({
   meta: { map: 'testMap', name: 'Test Map', mode: 'sector', players: [2], sections: ['S1', 'S2'] },
   spaces: [
     sp('a-gate', 'S1', 'exterior', 'yard', [14, 14, 12], 1, ['start', 'entry']),
-    sp('a-court', 'S1', 'encounter', 'yard', [14, 20, 12], 3, [],
+    sp('a-court', 'S1', 'encounter', 'yard', [14, 20, 12], 3, ['unavoidable'],
       { shadow_pct: 0.5, los_break_s: 4, vantage: { from: 'a-roof', sees_pct: 0.75 }, guards: { 2: 4 } }),
     sp('a-roof', 'S1', 'connector', 'corridor', [3.5, 14, 3], 2),
     sp('a-hut', 'S1', 'utility', 'security_room', [5.5, 7, 3], 2, ['exit']),
@@ -796,9 +796,90 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
     expectErr(check(g), 'section S2: 40 guards at 3 players', 'section S2: 40 guards at 4 players');
     g.meta.players = [2, 5];
     expectErr(checkStructure(g) as Report, 'Sector Ops is 1-4 players');
+    // The campaign runs on the Sector Ops runtime: the same ceiling (Michael 2026-10-25 ~11:35, "32 alive").
     const c = campaignBase();
-    space(c, 'b-vault').guards = { 2: 40 };
+    space(c, 'b-vault').guards = { 2: 32 };
     expect(check(c).errors).toEqual([]);
+    space(c, 'b-vault').guards = { 2: 40 };
+    expectErr(check(c), 'section S2: 40 guards at 2 players, over the 32 alive ceiling (sector_alive_max)');
+    const t = base();
+    t.meta.mode = 'training';
+    space(t, 'b-vault').guards = { 2: 40 };
+    expect(check(t).errors.filter((e) => e.includes('alive ceiling'))).toEqual([]);
+  });
+
+  it('no softlock reads a bolted door as solo only from its to side', () => {
+    // A side store behind a door bolted on the store side: one player cannot open it from the court; the boost is
+    // the only way in, so it is a softlock. Bolted the other way round, the court side opens it: no softlock.
+    const g = base();
+    g.spaces.push(sp('a-store', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    g.links.push(ln('a-court', 'a-store', 'door', 'shadow', { ...DOOR, length: 8, bolted: true }));
+    g.links.push(ln('a-court', 'a-store', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 5 }));
+    expectErr(check(g), 'a-store: reached only through co-op links (coop_boost)');
+    const h = base();
+    h.spaces.push(sp('a-store', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    h.links.push(ln('a-store', 'a-court', 'door', 'shadow', { ...DOOR, length: 8, bolted: true }));
+    h.links.push(ln('a-court', 'a-store', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 5 }));
+    expect(check(h).errors.filter((e) => e.includes('a-store: reached only'))).toEqual([]);
+  });
+
+  it('co-op kit bands: pull-up and relay lips, rope span, throw gap, shutter gap (scale-sheet section 3)', () => {
+    const g = campaignBase();
+    g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    g.links.push(
+      ln('a-ledge', 'a-court', 'drop', 'high', { level_change: 4.5, length: 4, time_s: 2 }),
+      ln('a-court', 'a-ledge', 'team_pull', 'high', { level_change: 4.4, length: 6, time_s: 5 }),
+      ln('a-court', 'a-ledge', 'team_hang', 'high', { level_change: 4.6, length: 6, time_s: 6 }),
+      ln('a-court', 'a-ledge', 'team_rope', 'high', { level_change: 6.0, length: 6, time_s: 8 }),
+    );
+    expect(check(g).errors).toEqual([]);
+    link(g, 'a-court', 'a-ledge', 'team_pull').level_change = 4.6;
+    link(g, 'a-court', 'a-ledge', 'team_hang').level_change = 4.7;
+    link(g, 'a-court', 'a-ledge', 'team_rope').level_change = 6.5;
+    link(g, 'b-vault', 'b-out', 'team_throw').width = 3.0;
+    expectErr(check(g), 'link a-court -> a-ledge (team_pull): lip 4.6 m above the 4.5 m pull-up reach',
+      'link a-court -> a-ledge (team_hang): lip 4.7 m above the 4.6 m relay reach',
+      'link a-court -> a-ledge (team_rope): rope climb 6.5 m outside 2.2-6 m',
+      'link b-vault -> b-out (team_throw): gap 3 m above the 2.7 m throw');
+    link(g, 'a-court', 'a-ledge', 'team_pull').level_change = 4.0;
+    expectWarn(check(g), 'link a-court -> a-ledge (team_pull): lip 4 m under the 4.3-4.5 m co-op band');
+    link(g, 'a-court', 'a-ledge', 'team_rope').level_change = 2.0;
+    expectErr(check(g), 'rope climb 2 m outside 2.2-6 m');
+    const s = campaignBase();
+    drop(s, 'b-vault', 'b-out', 'pair_gate');
+    s.links.push(ln('b-vault', 'b-out', 'shutter', 'shadow', { width: 1.2, height: 0.6, length: 18, time_s: 8 }));
+    expectErr(check(s), 'link b-vault -> b-out (shutter): held gap 0.6 m below 0.9 m');
+    delete link(s, 'b-vault', 'b-out', 'team_throw').width;
+    expectErr(check(s), 'link b-vault -> b-out (team_throw): width missing');
+  });
+
+  it('timed drills: drill_s only on a training map (soft windows only elsewhere)', () => {
+    const t = base();
+    t.meta.mode = 'training';
+    space(t, 'a-court').drill_s = 60;
+    expect((checkStructure(t) as Report).errors).toEqual([]);
+    space(t, 'a-court').drill_s = 0;
+    expectErr(checkStructure(t) as Report, 'a-court: drill_s must be seconds > 0');
+    const g = base();
+    space(g, 'a-court').drill_s = 60;
+    expectErr(checkStructure(g) as Report, 'a-court: drill_s on a sector map (timed drills are Marlow Yard only');
+  });
+
+  it('unavoidable guards (G303): the tagged space stands on every way to the exit; Sector Ops needs one', () => {
+    expect(check(base()).warns).toEqual([]);
+    const none = base();
+    space(none, 'a-court').tags = [];
+    expectWarn(check(none), 'no space tagged unavoidable');
+    const c = campaignBase();
+    space(c, 'a-court').tags = [];
+    expect(check(c).warns).toEqual([]);
+    // A way round the court: the roof walk reaches the hut.
+    const round = base();
+    round.links.push(ln('a-roof', 'a-hut', 'ladder', 'high', { level_change: 4.5, length: 10, time_s: 12 }));
+    expectWarn(check(round), "a-court: tagged unavoidable, but section S1's exit and objectives are reached around it");
+    const empty = base();
+    space(empty, 'a-roof').tags = ['unavoidable'];
+    expectWarn(check(empty), 'a-roof: tagged unavoidable but is not a guarded encounter space');
   });
 
   it('structure: training is two players; an unknown mode is named', () => {

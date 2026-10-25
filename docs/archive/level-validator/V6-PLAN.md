@@ -1,5 +1,9 @@
 # V6 - greybox measurement (M4) - plan
 
+> **History, archived 2026-10-25 (doc-clarity).** The level-validator job's record, kept for reference only. The
+> current rules are `docs/level-design.md`, the graph format `docs/level-validator/graph-schema.md`, the numbers
+> `docs/design/scale-sheet.md`. Where this file differs from them, they win.
+
 Opus plan, 2026-10-24. Lead: Night Shift | Marlow Build. Follows the level-validator PR (PLAN.md M4, slice table V6).
 Docs only until the lead starts the slices; every builder starts from `docs/systems/agent-preamble.md`.
 

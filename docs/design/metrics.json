@@ -42,6 +42,20 @@
       1.95
     ],
     "split_jump_h": 3.6,
+    "pull_lip": [
+      4.3,
+      4.5
+    ],
+    "hang_lip": [
+      4.3,
+      4.6
+    ],
+    "rope_span": [
+      2.2,
+      6
+    ],
+    "throw_gap_max": 2.7,
+    "shutter_gap_h": 0.9,
     "wall_jump_max_up": 3.8,
     "step_player": 0.42,
     "step_nav": 0.45,
