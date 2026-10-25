@@ -100,7 +100,9 @@ Lead: Night Shift | Marlow Build. Planner: Opus 5.5, master 94e72b1cd (4.103.3).
   The two extra:
   - **A7 +1, station 17 (the pod leg):** a second technician whose round crosses the pod approach, in view of the hall
     leg through the cage mesh. With only the hall leg guarded, "covering each other" (REPLAN A7) worked one way; now
-    each partner covers the other. Same retry ("Seen: retry that step"). Graph: `a7-pod` `guards`.
+    each partner covers the other. Same retry ("Seen: retry that step"). Graph: counted on `a7-hall` (`guards` 2: his
+    round runs from the hall's east side across the pod approach); `a7-pod` stays a quiet connector with no guard (LD
+    3.8; plan check 2 polish 2, `validate-run.txt` rerun).
   - **A5 +1, station 13 (the throw):** a static watcher at the release kiosk facing the floodlit strip. With the roving
     patrol alone the strip is unwatched for part of his round, so the pair could wait him out and skip the floodlight
     jam the drill teaches; the watcher makes the jam necessary ("Seen in the floodlight: retry from behind the
@@ -391,7 +393,7 @@ after S0 and R1 are released, wave 2).
 
 | Slice | PR | Set | Main work | Est. |
 | --- | --- | --- | --- | --- |
-| G-A1A7 | 4 | A1 + A7 | A1: checker kept passive, stations 1-2, no fail; A7: full-height glazed screen, split kept, 2 guards (the hall technician plus the pod-leg technician whose round crosses the pod approach in view of the hall leg: two-way cover), station 17 (`retry: 'station'`, hack miss resets the terminals) | 600 |
+| G-A1A7 | 4 | A1 + A7 | A1: checker kept passive, stations 1-2, no fail; A7: full-height glazed screen, split kept, 2 guards, both spawned in the hall (the rows 1-2 technician plus the pod-leg technician whose round runs from the hall's east side across the pod approach in view of the hall leg: two-way cover; the pod itself has no guard), station 17 (`retry: 'station'`, hack miss resets the terminals) | 600 |
 | G-A2 | 5 | A2 | watchers out (1 guard), deck + stair out, lane / back-door closers, shutter hold gate (station 3), neck drill 15 s (4), 3 m pit + cabinet 2 west + plank stand-in walkway (5), coat-corner lamp | 1,250 |
 | G-A3 | 6 | A3 | cleaner out (0 guards), office doors closed, fire door + riser + crawl (vent unlock, station 6), jam relay hops 6.5 s (7), hall send-back off | 950 |
 | G-A4 | 7 | A4 | one floor route (pallet frames, mezzanine stairs out), lift grille + motor stand-in (deadweight, station 9), loop 60 s (8), kettle loop out, synced takedown 1.5 s (10), back aisle + office lamps | 900 |

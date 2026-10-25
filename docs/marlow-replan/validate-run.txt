@@ -1,4 +1,4 @@
-$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator 12a6e91e1, unchanged; read-only rerun 2026-10-25 ~21:40 after the two extra guards: A5 kiosk watcher, A7 pod-leg technician)
+$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator, unchanged at 9ad370a90; read-only rerun 2026-10-25 ~21:25 after the A7 pod-leg technician moved from a7-pod to a7-hall, plan check 2 polish 2)
 
 ERROR: co-op links reach 3 of 8 encounter spaces (need at least half)
 ERROR: section A3 has no co-op link
@@ -85,7 +85,7 @@ INFO:  a4-secroom: 1 guards (2 players) below the early band 3-6
 INFO:  a4-dock: 2 guards (2 players) below the early band 3-6
 INFO:  a5-inner: 2 guards (2 players) below the late band 6-10
 INFO:  a6-floor: 1 guards (2 players) below the late band 6-10
-INFO:  a7-hall: 1 guards (2 players) below the late band 6-10
+INFO:  a7-hall: 2 guards (2 players) below the late band 6-10
 INFO:  a8-hall: 2 guards (2 players) below the late band 6-10
 INFO:  a8-office: 1 guards (2 players) below the late band 6-10
 
@@ -132,7 +132,9 @@ space tag per lesson (16 lessons plus A7's synced hack) were added for J12 S4 `t
 A9, A21) and J13 route-runs (late sections = after `taught_by`). Master's validator does not know the tags yet and
 ignores `taught_by`; J12 S4 turns them into checks. Not a gap in the plan. Why A6 and space tags: J14 PLAN A13.
 
-Guards (rerun ~21:40, plan check 1 fix 2): Michael picked 12 (~20:40). a5-inner holds 2 (the patrol plus the kiosk
-watcher), a7-pod 1 (the pod-leg technician). a7-pod stays a connector: as an encounter its 3.5 m width is under the 6 m
-encounter floor (an ERR), so the guard is recorded there and the hall leg is its vantage. Only change from the ~20:45
-run: the a5-inner guard INFO line reads 2. Totals: A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3 = 12.
+Guards (plan check 1 fix 2, ~21:40; plan check 2 polish 2, ~21:25 rerun): Michael picked 12 (~20:40). a5-inner holds 2
+(the patrol plus the kiosk watcher). a7-hall holds 2: the rows 1-2 technician and station 17's pod-leg technician,
+whose round runs from the hall's east side across the pod approach, seen from the hall leg through the cage mesh.
+a7-pod stays a quiet connector with no guard (level-design 3.8; as an encounter its 3.5 m width would be under the 6 m
+encounter floor). Only change from the ~21:40 run: the a7-hall guard INFO line reads 2. Totals: A1 0, A2 1, A3 0, A4 3,
+A5 2, A6 1, A7 2, A8 3 = 12.
