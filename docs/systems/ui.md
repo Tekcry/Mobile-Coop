@@ -139,7 +139,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     (motion capture off)", "mix, 70% motion-capture walk, 30% hand-made".
   - Edit warning: an edit that changes nothing on screen shows a one-line strip under the row (`.tt-warn`) and in
     the header (`.anim-tune-warn`) for about 5 s, naming the setting that does work (`WORKS_INSTEAD`). More > Panel
-    "Warn when an edit changes nothing" (on by default; saved as `clarityWarn` in the tuner's `ui` record).
+    "Warn when an edit changes nothing" (on by default; saved as `clarityWarn` in the tuner's `ui` record). Editing a
+    row for her with no gun out while a gun is drawn warns "Holster to see it". The tags and the warning read the
+    capture's share as a latched band (`reachBand`: in at 90 % / 10 %, out only past 88 % / 12 %), so they do not
+    flicker at the edge. The Keys key tools warn about Wave's channel or the picked slider; with none picked, nothing.
   - Keys tab: the fixed note `KEYS_MOCAP_NOTE` ("Keys change the hand-made moves only") sits above the existing hint.
     Legs are their own parts, shown as "Left leg" and "Right leg" (target labels "Left leg (key)" / "Right leg (key)",
     `ui/tunerTarget.ts` `keyRow`), with "foot twist, toes out" (ankle yaw) and "shin twist" rows per leg

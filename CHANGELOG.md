@@ -1,5 +1,111 @@
 # Changelog
 
+## 4.103.9 - Train 104: Level validator: measure core; Marlow Yard objective lines name the place; Tuner clarity polish (2026-10-25, PR #462; #460, #441, #440)
+
+### Marlow Yard objective lines name the place
+- Marlow Yard's objective lines now say where as well as what: the way-back and swap steps name the neck and the far lobby, and the list's last row says "holding room two" (or the cash dock) instead of a code.
+
+### Tuner clarity polish
+- The tuner's "Motion capture / Hand-made" tags no longer flicker when the live share sits right on the edge, the tag
+  is never cut off on narrow panels, and the key tools stay quiet when no slider is picked.
+- Editing a "no gun" row while she has a gun drawn now says so: "Holster to see it."
+
+### Level validator: measure core
+- Level validator (tooling, no game change): the measuring module from the V6 work joins master. It times every walk
+  between spaces on the real nav grid, finds the point on each shared wall where a link sits, measures each campaign
+  co-op link's way back for the partner, and gives the robot route-runs one shared table of space and link positions.
+  A link whose shared wall has two or more gaps gets no guessed time; the validator reports it instead.
+
+## 4.103.8 - Train 103: Route-runs: progress, stuck and steering math; Route-run report; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #461; #456, #453, #372)
+
+### Route-run report
+- Route-runs R2: `scripts/route-run/report.mjs` turns a robot run log into `route-run.json` and a plain-English `REPORT.md` with walk-card lines and the Marlow time line; tooling and tests only, no game change.
+
+### Route-runs: progress, stuck and steering math
+- Route-runs (J13 R3): the test robots' pure math in `scripts/route-run/progress.mjs`: progress along the planned
+  path (one storey at a time), the stuck watch (under 0.5 m in 8 s while walking; per-step time limits), the pad stick
+  and pace that give the crouched sneak speed from `docs/design/metrics.json`, the partner's trail point, which guard
+  level changes count as a detection or a notice, and the inferred cause of each. Tooling only.
+
+## 4.103.7 - Train 102: Route-runs: route planner; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #458; #455, #372)
+- Route-runs (J13 R1): a route planner for the robot test runs. From a map's connectivity graph and its points table it
+  picks the fewest runs that walk every declared approach (shadow, high, loud) of every guarded space, plus the one
+  start-to-exfil run on Marlow Yard and the late sections that keep a side route. Tooling and tests only.
+
+## 4.103.6 - Train 101: Fold: Michael's plan answers (G364-G407) (2026-10-25, PR #454; #442)
+- Docs: Michael's decisions of 2026-10-25 folded as G364-G407 (session layout, the folded-plan sign-off and its 39
+  answers, the mission sign-off pages, five more co-op kit moves, the 12 level-rule changes, near-instant map loads,
+  Mixamo motion capture, free assets with a commercial-sale licence) into `docs/DECISIONS.md`, the design bible,
+  `docs/VISION.md`, `docs/level-design.md` (Michael-approved by the same decisions) and the owner docs of each changed
+  rule; replaced wording added to `docs/stale-terms.json`.
+- Docs: RULES lines from Test Runner J1 (#432): the failed-head triage watch, old-head affected-e2e requests, a tier
+  row for queue / train / tool scripts and the laptop's spare work.
+
+## 4.103.5 - Train 100: Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #451; #372)
+- Mission framework A: specs and sign-off pages (Tallow Wharf, 4 missions, co-op kit) + graph-svg (#372)
+
+## 4.103.4 - Train 99: Mission framework: specs and sign-off pages, graph-svg; Sector Ops docs: conformance fixes (2026-10-25, PR #449; #433, #372)
+
+### Mission framework: specs and sign-off pages, graph-svg
+- Docs: `docs/missions/` holds the mission framework's BRIEF, PLAN and STATE, plus the research behind it. Six sign-off packs sit in `docs/missions/prototypes/`, all signed off by Michael on 2026-10-25; each has a beat chart, a mission graph, a plan image and a one-question sign-off page:
+  - the new campaign map Tallow Wharf (4 sections, every section forces a co-op kit move);
+  - its two missions, Three Grey Coats and Two-Key Ledger;
+  - the Sector Ops missions Split Shift (campus S2) and Code Relay (campus S4);
+  - the co-op kit moves.
+- Tooling: `scripts/graph-svg.mjs` draws a level graph to scale from its `area` boxes and `at` points: 1 m = 10 px, north up, a scale bar, tracks coloured, objective / sync / lead nodes. `--base <svg>` overlays a plan SVG. Tests: `tests/graphSvg.test.ts`.
+
+### Sector Ops docs: conformance fixes
+- Saltmarsh Park plan docs follow the new lighting rule: every space lit to the real-world band for its type, every
+  light working, darkness only from cover, cut power and shot lamps; the old dark-vantage allowance is retired.
+- Saltmarsh Park plan docs give the signed-off guard counts (S1 15, S2 18, S3 20, S4 25, S5 26 at two players).
+- The first campus validator reports are marked as history: their 40-60% shadow errors no longer apply.
+- Graphics settings: the Character shadows help text now says Auto gives the nearest lamp's shadow on Low and Medium.
+- Lighting system doc: character shadows on Low and Medium and the glass rule match the game; dead fittings are
+  marked for re-lighting (every light works).
+
+## 4.103.3 - Train 98: Level standard: Michael's 12 level-rule changes (G157); Player docs match the game; Guard AI docs match the code and Michael's answers (2026-10-25, PR #448; #443, #437, #435)
+
+### Guard AI docs match the code and Michael's answers
+- Guard AI docs (FOLDED-PLAN J1): `docs/systems/ai.md` now says what is built for glass, lookouts and pairs, the
+  guard cap per mode (campaign 32), the campus guard counts, the close-range distance, the modes, the one-alarm rule,
+  downed players and the Sector Ops guard tags; two stale code comments fixed; BRIEF A183 closed by G327.
+
+### Level standard: Michael's 12 level-rule changes (G157)
+- The level standard writes in the 12 level-rule changes Michael adopted (G157): a vantage for two, the finale seen
+  early, a designed exit, pacing targets in minutes, teamwork minimums, the two-minute test, readable machines and
+  windows, real stairs, exits, signs and security, and the two-player final tests. Marlow Yard is exempt from the
+  campaign's built-for-two checks.
+- The map spec template gains fill lines for them; fire alarms unlocking doors as a player tool stays a separate
+  decision (level-design open item 3).
+- Marlow Yard: every failure is a retry, a set has only the guards its move needs (maybe none, at most 3), and side
+  routes stay closed except a late section that trains against enemies. The scale sheet's relay lip row now says the
+  relay's 4.6 m limit is how high the hanging partner's feet sit, not a lip height.
+
+### Player docs match the game
+- Player docs now match the game as built: movement, controls, takedowns (the palm strike is built) and which moves use motion capture.
+- Finished animation job notes moved to the archive; reference-game names removed from the operator art notes.
+
+## 4.103.2 - Train 97: Marlow docs fixes (folded plan J1); Test Runner conformance: doc fixes (J1) (2026-10-25, PR #444; #436, #432)
+
+### Test Runner conformance: doc fixes (J1)
+- Docs (conformance review T16, T18, T19, T22; folded plan Q30): testing-tools lists the laptop's spare-work tier and
+  the request-time refusal of unknown suite names, says `E2E_HEADED` is never used on Michael's PCs, adds the
+  `e2e-menus` bullet and `scripts/e2e-times.json` to the no-suite list, and writes Michael's repeat-quarantine rule
+  (a second quarantine within 14 days makes the suite blocking with a fix job). TESTING.md keeps the desktop and
+  release checklists; the per-job lists move to `docs/archive/testing-job-sections.md`.
+
+### Marlow docs fixes (folded plan J1)
+- Marlow Yard spec follows Michael's 2026-10-25 answers: no strict rule (every failure a retry), failed drills retry
+  in place, one forced route per set (side routes close in the re-plan), only the guards each move needs.
+- Guard cap docs land on master (M0 and M1 measurements, run 4100); any cut below 32 guards goes to Michael first; the
+  60 fps target at 32 guards is recorded for the perf job.
+
+## 4.103.1 - Train 96: Campaign docs: no compass, blips or map screens (J1) (2026-10-25, PR #439; #434)
+- Docs: the doc check now flags the compass, blips, the briefing map, the field-menu map and the radar upgrade as
+  removed features (G336, G339), next to the minimap; three old prototype notes mark the minimap as history.
+- Docs: the menu spec drops the briefing map and the field terminal's Map item, and the co-op code inventory marks the
+  minimap ally blip and objective blips as replaced (G336, G339, G135).
+
 ## 4.103.0 - Train 95: Animation tuner clarity (2026-10-25, PR #431; #430)
 - The animation tuner now shows whether each setting changes the motion-captured animation, the hand-made one, or both.
 - It shows what is playing now, for example "Now playing: motion-capture walk", under the tabs and in the Anim Studio.

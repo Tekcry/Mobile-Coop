@@ -488,7 +488,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume marlow-final + section-rating + marlow-polish. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided by grep ("marlow-final M1-M6", "stealth over shooting", "Pipeline speed-ups"), git fetch.
+Night Shift | Marlow Build: resume marlow-final + section-rating + marlow-polish. Read docs/RULES.md ("Sessions"), ROADMAP Decided by grep ("marlow-final M1-M6", "stealth over shooting", "Pipeline speed-ups"), git fetch.
 Rules now (orchestrator ~19:15): no e2e on the desktop (all suites to "Night Shift | Test Runner", E2E_GPU=1; desktop heavy.lock = builds / check only); checker + laptop request on the same commit in parallel; at train-ready also `gh pr edit <n> --add-label train-ready` + message "Night Shift | Orchestrator".
 Released: master 4.80.0 (train 31, PROTOCOL 41). Ours = train 32 (old script; we set PROTOCOL 42 ourselves, done):
 - marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237, worktree C:/NightShift/Mobile-Coop-marlow-final, head 9ea069bb (master 4.80.0 merged, 42; protocol-assert unit tests 241 pass). All slices incl. walk 4.72 W1-W5 done; A3 lure fix 4b laptop :2 PASS 444 s on 16caeacd.

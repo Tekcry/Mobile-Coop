@@ -147,7 +147,7 @@ cap (P R35, M M3) and Marlow's solo start (P R36; rule 7 binds the campaign).
 ## 4. Jobs in order
 
 Order Michael confirmed: the five reviews land (J0), this plan, sign-off, then the doc fixes (phase A) first. Phase B
-starts for each owner once its J1 docs PR is open and checker-passed; jobs inside a phase run in parallel (full burn).
+starts for each owner once its J1 docs PR is open (18:10 audit); jobs inside a phase run in parallel (full burn).
 "Q" = waits for that answer. New work ships dark behind its flag; rule fixes to shipped features ship as fixes (G355);
 switch-on of new features follows the walk cap.
 

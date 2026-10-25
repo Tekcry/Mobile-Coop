@@ -27,6 +27,21 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Locks: RULES "Machines".
 - If a laptop session is missing from ListAgents (Remote Control bridge drop), tell Michael in one line to reopen it;
   the queue service keeps running without it.
+- Once Test Runner's J20 PR-B releases: each cron run also reads `alerts/*-fixjob-*.json` on the laptop-queue branch
+  (a suite auto-quarantined twice in 14 days turns blocking and needs an owner fix job); start that fix job with its
+  owner the same run. J20 release order: #445 PR-C, then PR-A, then PR-B (Job-done).
+- Over Remote Control the app refuses start_session and proposal cards (2026-10-25 18:30): Michael types "start the
+  leads" in the desktop app, or pastes PROMPTS.md lines 2-5 there.
+- Posting `checker` (or `train-ready`): run `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> ...` as a lone command;
+  the user settings allow rule matches it, while a command chained with `;` / `&&` goes to the auto-mode filter and is
+  blocked as self-approval (2026-10-25 ~20:12). Tell leads the same.
+- Laptop SSH link (2026-10-25 ~20:00, Michael picked "Yes, guide me"): desktop key ~/.ssh/id_ed25519 (MICHAEL-PC);
+  laptop ALIENWARE-X16 user Micha, 192.168.1.249. Key login from the desktop works (tested 2026-10-25 ~20:47); the
+  desktop app has the SSH connection "AME Laptop" (folder C:\NightShift). start_session refuses Windows SSH hosts
+  ("cannot place a session there yet", 20:58), so at each swap print the two laptop boot lines; Michael starts them
+  from the desktop app (New session -> AME Laptop -> C:\NightShift) or on the laptop. Retry start_session at each swap.
+- Cloud Builder: start_session target cloud is refused from this session (project folder C:/NightShift is not a git
+  checkout); Michael starts it under New session -> Cloud (Tekcry/Mobile-Coop) when open briefs wait.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
 - After a release CI failure: fix on train/<n>, wait for CI, then
   `node scripts/merge-train.mjs release <n> <version> "<title>" --resume`.
@@ -35,6 +50,15 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Every save prints the orchestrator prompt (PROMPTS.md section 1), even when no swap is planned (Michael ~23:20).
 - List running orchestrator checkers / fix agents in each save block; the next orchestrator relaunches them first
   (23:05 rule).
+- Tooling follow-up (20:58 audit): set the train-building no-new-claims gate as soon as a train-ready candidate exists
+  during a release (train 101 waited 17 min behind 2 lead claims); kill a queue run when no suite finishes in ~15 min
+  (#317 hung slot 4192 65 min, 0/22); desktop CPU gate: lead sub-steps at BelowNormal or let one slot start when the
+  other is idle; watchdog misreads re-filed T000001 ids as old. 21:28 audit adds: a desktop failure should queue the
+  laptop rerun at once instead of rerunning each failed suite alone on the desktop (#445 held 4191 45 min); auto-train
+  treats "nothing new to release" as idle, not a retried error (train 102 started 7 min late); request.mjs rejects
+  unknown suite names (a joined "a,b" suite string and a 0-suite run posted success); file requests on the PR's
+  current head (`gh pr view <n> --json headRefOid`).
+- Tooling follow-up (21:57 audit): auto-train should read check + checker + affected-e2e itself when picking members, not wait for the label (#460 missed train 103 by ~50 s, cost one train cycle); until then the orchestrator labels by hand every cron run. The laptop's 3-min train gap (LQ_TRAIN_GAP_MIN) ends before the release finishes its deploy wait, so the next train kills the PR runs it let start (Player ffb7f02a twice): tie the gap to auto-train's releasing state. Desktop CPU 100% left 4192 idle 8+ min and failed #445 on 4191 (cpu): lead sub-steps at BelowNormal.
 - Tooling follow-up (13:35 audit, next tooling PR after #412): merge-train release returns after merge + tag + dev move and leaves the deploy watch to later ticks (~6 min per train lost); auto-train retries gh once inside a tick instead of ending in error; #412 pacing must not count alone requests as busy.
 - Auto-train pacing OFF since 15:35 (task re-registered with `--min-interval 0`): laptopQueueState counted the desktop's claims as "laptop busy" and held train 93 17 min with the laptop idle. Fix in the next tooling PR: count only `worker === 'laptop'` claims, then restore the default. Label only PRs that merge cleanly with master (a docs conflict: hand-merge it in the train).
 - A conflict only in docs/** or *.md never keeps a PR out of a train: resolve it in the train worktree (keep both sides).
@@ -44,13 +68,15 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 ## How Michael works with the orchestrator
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
 - He is not technical (Michael 2026-10-25 13:31): every update in plain English, brief dot points, straight to the point; no hashes, tool names or jargon; say what a PR is, not just its number.
+- Never send him to a file for a prompt (Michael 2026-10-25 ~21:55: "always show me the prompt directly"): print the full text in chat.
 - Every prompt he pastes names the session title, model and effort; a paste-in prompt is the turn's LAST message, never
   paired with a question dialog.
 - He tests through the menus, never direct links: give menu paths and the version label to expect.
 - Merge green, checked work without asking; ask in chat when auto mode blocks a step only he can approve.
 - Start new sessions only from his own words in the desktop app; when the app refuses a start, propose a card
   (own_initiative) and tell him to click it.
-- Recording passes (Michael 2026-10-25 ~14:10, "Yes, and for all reviews"): when auto mode blocks a lead from posting `checker` on a documentation-only review PR that an independent Opus checker passed, the orchestrator records it without asking. Code PRs still need his OK each time.
+- Recording passes (Michael 2026-10-25 ~18:15, native multiple choice: "Yes, keep doing it (Recommended)"; replaces ~14:10 docs-only): when auto mode blocks a lead from posting `checker` and an independent checker passed the head (read its report: VERDICT PASS on that sha), the orchestrator posts the status, docs or code PRs alike, without asking.
+- Mixamo downloads (Michael 2026-10-25 ~19:05): "i will approve any animation downloaded as requested by player build. just approve, download, and implement. make sure i can fine tune in anim dev just in case i have to." The orchestrator downloads every clip Player Build requests in Michael's signed-in browser pane without asking him (into C:/NightShift/scratch/mixamo/clips/), and every imported clip must be tunable in Anim Studio like the CMU clips.
 - When auto mode on the laptop blocks a lead's train-ready label, verify it by RULES "Getting to master" and add it from
   the desktop without asking ("Always label for them"). `gh pr close` is
   allowed on the desktop for failed train PRs and stale PRs whose content is on master.

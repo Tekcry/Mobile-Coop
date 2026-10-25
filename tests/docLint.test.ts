@@ -177,7 +177,8 @@ describe('the repo config', () => {
   it('flags each seeded stale term in a current doc', () => {
     const lines = ['Ask CT Core Build.', 'Menu Notes Build', 'Course Ready Build', 'Character Build', 'no 3-4 player test',
       'the minimap shows guards', 'Fallow is the training course', 'the desktop is the main test machine',
-      'Current goal (2026-10-19)', 'see CLAUDE.md "Sessions"', 'at most one hard rule', 'can be darkened at least two ways'];
+      'Current goal (2026-10-19)', 'see CLAUDE.md "Sessions"', 'at most one hard rule', 'can be darkened at least two ways',
+      'the compass points north', 'objective blips on screen', 'the briefing map'];
     const files = map({ 'docs/systems/x.md': lines.join('\n'), 'docs/DECISIONS.md': '' });
     const out: F[] = lintDocs({ files, exists: () => true, config, today: '2026-10-25' }).filter((f: F) => f.check === 'stale-terms');
     expect([...new Set(out.map((f) => f.line))]).toEqual(lines.map((_, i) => i + 1));
