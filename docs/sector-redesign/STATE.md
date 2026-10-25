@@ -363,7 +363,7 @@ game work. Finished PRs may ship. Message the orchestrator only at PR open / tra
    from the brief. Then one fresh Opus checker posts `checker`; docs PR to master; message the orchestrator the PR.
 1. bake5 (feature/sector-redesign-bake5 @ 28b1737f, worktree -sector-redesign-bake2): finished, checker PASS on
    522727fb (head adds the check report only), merges clean on master 4.102.0. PR not opened (auto mode blocked
-   gh pr create ~13:25): orchestrator asked to open it. Then post `checker` on the head.
+   gh pr create ~13:25): Michael opens it or allows gh pr create. Then post `checker` on the head.
 2. HELD until row 6 (plans only, no code):
    - campus-greybox (Now row 9): feature/campus-greybox @ c2f1f131 (BRIEF, PLAN, STATE, briefs S1..S5); worktree
      C:/NightShift/Mobile-Coop-campus-greybox. Resume from docs/campus-greybox/STATE.md on that branch.
