@@ -195,8 +195,7 @@ behind a VPN adapter).
   both ways, a guard placed 1.2 m behind a shut hinged door shows one silhouette that reads dim blue at his chest as
   projected on screen against the same pixels with him gone, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
-- `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
-  respawn
+- `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death / respawn
 - `e2e-modes` (LEGACY) mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration
 - `e2e-clip` traversal: no body point > 3 cm into the world while climbing, hanging, shimmying, crawling, dropping
   through a vent, vaulting a window, on a zipline or rolling; the weapon clipping sweep along a wall (both sides), crouch
