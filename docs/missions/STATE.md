@@ -1,7 +1,35 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-25 ~21:40 SAVE (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~22:45 SAVE (Night Shift | Campaign Build; read this block first, older blocks are history)
+Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
+"Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Desktop CPU ~100%: new tsc / vitest builder slices go to
+cloud-queue briefs (orchestrator ~22:10, Michael); desktop keeps Opus planning, checkers, src/net / AI needing a local
+look. Notes, reports, briefs: C:/NightShift/scratch/campaign/ (lead-notes.md, newest section last). Rerun any agent
+below whose report file is missing.
+1. #372 RELEASED in train 103 (4.103.8). TW23 feature/tallow-spec d42d1596 (stacked on #372): open its PR now.
+2. J7 PR D origin/feature/mission-rules eb231778: checker PASS; laptop set j7-prd queued. Green -> merge into engine.
+3. J7 PR E origin/feature/mission-rules-net 09975841c (R4 + R5): two Opus checkers FIX, same defect (resume hosting a
+   campaign room deadlocks; j7-pre-check-a.md / -b.md). Cloud brief campaign-j7-pre-fix1 -> feature/mission-rules-net-fix1;
+   on done: fresh Opus re-check of the fix items x2 (src/net), merge into -net. Cloud brief campaign-j7-r7 (R7 e2e) ->
+   feature/mission-rules-r7; then FE docs, laptop set (J7-PLAN section 4 row E).
+4. J7 R6 (PR F) origin/feature/mission-rules-r6 42cf1d9a (+ WIP if pushed; report j7-r6-report.md): Opus builder was
+   running at the swap. Next: two Opus checkers, cut feature/mission-rules-hud from -net, merge R6, R8 e2e brief.
+5. J3b PR B origin/feature/hud-guidance-b d81a3397 (B1-B4). B5 origin/feature/hud-guidance-b5 0b98cd7d1: checker A PASS,
+   B FIX (client Notes take camera-desk / bluff radio lines). Cloud brief campaign-hg-b5-fix1 -> -b5-fix1; on done:
+   re-check the fix (Opus), merge b5 + fix into -b, add changes/feature-hud-guidance-b.md (kind: minor, Notes line),
+   laptop sets e2e-takedown e2e-coop e2e-menus (+ e2e-coop-gpu on 4189). Laptop hg-b3 / hg-b4 queued.
+6. J3 PR A #447 ececda7e: checker PASS x2; affected-e2e running -> train-ready -> message the orchestrator.
+7. Engine GB6 fix feature/mission-engine-gb6fix dc2aa9c8: laptop set mission-gb6fix queued; green -> merge into engine.
+8. J8 / J9 Tallow PLAN origin/feature/mission-engine-j8j9fix2 3038c9e3: fix round 3 done (A30 -> MB: bulkhead foot
+   bolted only in Two-Key Ledger, `SectorBolt.missions`, lead CONFIRMED; cage roofless). Re-check 4 running
+   (j8-j9-plan-check4.md). PASS -> merge j8j9fix2 into engine, claims-check rerun, wave 0 (TD, G0, D0, MB) as cloud
+   briefs where tsc / vitest only. Marlow told the long-throw spot names (from>to) and bolted_in.
+9. Seams: Marlow #463 (courseStartBlock, addSyringes sector-only) folds with R4 / R5 at the engine's next master pickup;
+   Guard AI J15 PR2: keep `s.shieldTeams === true` in sectorMode.ts at that meet (lead-notes.md).
+Next: read check4 / R6 / cloud-brief results; open the TW23 PR; keep 2-3 open cloud briefs.
+
+## OLD RESUME 2026-10-25 ~21:40 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
 "Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Marlow goes first on laptop and desktop CPU (Michael
 ~20:50); desktop near 100%: at most 2 builders, checkers read-only. Reports / briefs: C:/NightShift/scratch/campaign/
