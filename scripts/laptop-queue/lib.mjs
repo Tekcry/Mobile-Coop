@@ -1,7 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
-import { selectSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { selectSuites, affectedGateSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
 // parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
 import { parseLock } from '../heavy-lock.mjs';
 
@@ -902,7 +902,7 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false 
     out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
   } catch { return null; }
   const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
-  return { base: mb, files, suites: selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS) };
+  return { base: mb, files, suites: affectedGateSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS)) };
 }
 
 /**

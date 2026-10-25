@@ -11,6 +11,26 @@
 // A suite name may carry a part (`e2e-sectorops:1`): one job of a suite that runs in parts. A whole suite in the result
 // absorbs its parts. Names outside the runner's lists (GPU suites, a suite whose script is gone) are filtered by the runner.
 
+// The runner's lists (scripts/run-e2e.mjs imports them): LEGACY = parked content, run by `npm run e2e:legacy` and
+// REPORT ONLY in a quick / affected run; GPU = visual read-backs, `--gpu` only (no visual result from SwiftShader).
+// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
+export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+// e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
+export const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
+
+/**
+ * The suites an affected request runs (laptop-queue lib affectedSuites: the service's affected pass and request.mjs
+ * --affected): `suites` without the GPU-only and LEGACY suites, whole or as a part (docs/systems/testing-tools.md: GPU
+ * suites never, legacy REPORT ONLY). A request's suites run by name, where nothing is REPORT ONLY, so left in they ran
+ * and gated affected-e2e (audit 2026-10-25: PR #400's request named e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A
+ * part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part token; the whole suite stays (its named run
+ * expands to the non-GPU parts).
+ */
+export function affectedGateSuites(suites) {
+  const off = new Set([...LEGACY, ...GPU]);
+  return (suites ?? []).filter((s) => !off.has(s) && !(s.includes(':') && off.has(s.split(':')[0])));
+}
+
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
 export const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
 

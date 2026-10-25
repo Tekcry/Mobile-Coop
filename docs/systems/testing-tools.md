@@ -534,7 +534,9 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Affected e2e on every PR head (process audit 2026-10-24, finding 5; laptop service only, every `LQ_AFFECTED_POLL_MIN`
   (2; 0 = off) min): each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request
   gets the suites `request.mjs --affected` picks (merge-base with `origin/master`, `git diff --name-only --no-renames`,
-  the DIRECT tier; the same code, `affectedSuites` in `scripts/laptop-queue/lib.mjs`). No browser suite reached: the
+  the DIRECT tier; the same code, `affectedSuites` in `scripts/laptop-queue/lib.mjs`), without the GPU and LEGACY
+  suites (`affectedGateSuites` in `scripts/e2e-affected.mjs`, which holds the runner's GPU / LEGACY lists: a request's
+  suites run by name, where nothing is REPORT ONLY, so they used to run and gate; audit 2026-10-25). No browser suite reached: the
   head gets `affected-e2e` success "no browser suites (docs / unit only)". Otherwise the service enqueues a pr request
   itself (requester `affected-e2e`, set `affected`, the PR number and branch) and posts `affected-e2e` pending; the run
   posts its verdict on `laptop-e2e/affected` and on `affected-e2e` (failures comment on the PR as usual). A newer head
