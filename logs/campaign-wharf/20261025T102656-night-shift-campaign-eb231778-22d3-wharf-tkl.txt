@@ -1,0 +1,74 @@
+# 20261025T102656-night-shift-campaign-eb231778-22d3 wharf-tkl (36 lines; first error at line 7)
+
+$ node scripts/run-e2e.mjs e2e-sectorops:wharf-tkl
+
+=== e2e-sectorops:wharf-tkl ===
+
+=== twoKeyLedger ===
+FAIL (twoKeyLedger, setup): Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'map')
+    at eval (eval at evaluate (:290:30), <anonymous>:1:34)
+    at UtilityScript.evaluate (<anonymous>:292:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+no console errors
+
+times (GPU, 1 at a time):
+  e2e-sectorops:wharf-tkl FAIL 6s
+
+wall 6s, suites summed 6s
+
+1 suite(s) failed: e2e-sectorops:wharf-tkl
+
+$ node scripts/run-e2e.mjs e2e-sectorops:wharf-tkl
+
+=== e2e-sectorops:wharf-tkl ===
+
+=== twoKeyLedger ===
+FAIL (twoKeyLedger, setup): Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'map')
+    at eval (eval at evaluate (:290:30), <anonymous>:1:34)
+    at UtilityScript.evaluate (<anonymous>:292:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+no console errors
+
+times (GPU, 1 at a time):
+  e2e-sectorops:wharf-tkl FAIL 4s
+
+wall 4s, suites summed 4s
+
+1 suite(s) failed: e2e-sectorops:wharf-tkl
+# --- tail ---
+
+$ node scripts/run-e2e.mjs e2e-sectorops:wharf-tkl
+
+=== e2e-sectorops:wharf-tkl ===
+
+=== twoKeyLedger ===
+FAIL (twoKeyLedger, setup): Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'map')
+    at eval (eval at evaluate (:290:30), <anonymous>:1:34)
+    at UtilityScript.evaluate (<anonymous>:292:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+no console errors
+
+times (GPU, 1 at a time):
+  e2e-sectorops:wharf-tkl FAIL 6s
+
+wall 6s, suites summed 6s
+
+1 suite(s) failed: e2e-sectorops:wharf-tkl
+
+$ node scripts/run-e2e.mjs e2e-sectorops:wharf-tkl
+
+=== e2e-sectorops:wharf-tkl ===
+
+=== twoKeyLedger ===
+FAIL (twoKeyLedger, setup): Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'map')
+    at eval (eval at evaluate (:290:30), <anonymous>:1:34)
+    at UtilityScript.evaluate (<anonymous>:292:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+no console errors
+
+times (GPU, 1 at a time):
+  e2e-sectorops:wharf-tkl FAIL 4s
+
+wall 4s, suites summed 4s
+
+1 suite(s) failed: e2e-sectorops:wharf-tkl

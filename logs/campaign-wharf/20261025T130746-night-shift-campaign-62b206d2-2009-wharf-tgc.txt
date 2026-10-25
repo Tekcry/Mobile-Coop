@@ -1,0 +1,56 @@
+# 20261025T130746-night-shift-campaign-62b206d2-2009 wharf-tgc (27 lines; first error at line 16)
+
+$ node scripts/run-e2e.mjs e2e-sectorops:wharf-tgc
+
+=== e2e-sectorops:wharf-tgc ===
+
+=== threeGreyCoats ===
+  ok - the host alone cannot start: startMatch() null, the room in the lobby ({"start":null,"phase":"lobby","n":1})
+  ok - the host's Start button is blocked: "Campaign missions need exactly two players"
+  ok - two players in: the host starts the campaign on Realistic ({"mode":"sector","map":"tallowWharf","seed":518145873,"difficulty":"realistic","mission":"","weather":"clear","bay":1,"sectorMission":"threeGreyCoats"})
+  ok - net.revivesLeft() is 2 with the lobby on Realistic ({"diff":"realistic","left":2})
+  ok - TGC start: no live guard of kind dog (0)
+  ok - TGC starts on W1 ([0,{"id":"threeGreyCoats","section":0,"done":0,"facts":0,"breaks":0,"protectedRestarts":0,"line":"","ruleRestarts":0,"pending":false,"spook":-1,"stages":[0,0],"finished":false,"over":false}])
+  ok - the client URL has no mission=
+  ok - the client starts within 2 m of W1 start2 ([8.5,0.02,10])
+  ok - no objective blip while a mission runs (0)
+FAIL (TGC, TGC W1 start): Error: timed out waiting for the client mission HUD shows rows [host: sim 8.07 s in 8.0 s wall (x1.00), 60 fps; page 2: sim 8.03 s in 8.0 s wall (x1.00), 120 fps]
+team host: {"time":8.4,"log":null,"st":"none","count":{"offers":0,"boosts":0,"ladders":0,"throws":0,"hangs":0,"pulls":0,"drops":0,"ropes":0,"tops":0,"slides":0,"denied":0,"ends":0},"denied":"","room":"","prompt":"Co-op: offer a partner throw (crouch for a leg-up)","offer":null,"me":{"pos":[7,0.02,10],"yaw":0,"grounded":true,"crouched":false,"ov":false},"mates":[{"mode":"ground","sub":0,"pos":[8.5,0.02,10],"yaw":0}],"busy":{"td":false,"strike":false,"attached":false},"gates":{"wall":false,"doorPeek":false,"doorOpen":false,"pistolAim":false,"weapon":"pistol","carrying":false}}
+team client: {"time":8.42,"log":null,"st":"none","count":{"offers":0,"boosts":0,"ladders":0,"throws":0,"hangs":0,"pulls":0,"drops":0,"ropes":0,"tops":0,"slides":0,"denied":0,"ends":0},"denied":"","room":"","prompt":"Co-op: offer a partner throw (crouch for a leg-up)","offer":null,"me":{"pos":[8.5,0.02,10],"yaw":0,"grounded":true,"crouched":false,"ov":false},"mates":[{"mode":"ground","sub":0,"pos":[7,0.02,10],"yaw":0}],"busy":{"td":false,"strike":false,"attached":false},"gates":{"wall":false,"doorPeek":false,"doorOpen":false,"pistolAim":false,"weapon":"pistol","carrying":null}}
+console problems:
+TGC host [warning] guard-ai pairs: section 0 slots 4 + 5: not both on a timed loop
+
+times (GPU, 1 at a time):
+  e2e-sectorops:wharf-tgc FAIL 20s
+
+wall 20s, suites summed 20s
+
+1 suite(s) failed: e2e-sectorops:wharf-tgc
+# --- tail ---
+
+$ node scripts/run-e2e.mjs e2e-sectorops:wharf-tgc
+
+=== e2e-sectorops:wharf-tgc ===
+
+=== threeGreyCoats ===
+  ok - the host alone cannot start: startMatch() null, the room in the lobby ({"start":null,"phase":"lobby","n":1})
+  ok - the host's Start button is blocked: "Campaign missions need exactly two players"
+  ok - two players in: the host starts the campaign on Realistic ({"mode":"sector","map":"tallowWharf","seed":518145873,"difficulty":"realistic","mission":"","weather":"clear","bay":1,"sectorMission":"threeGreyCoats"})
+  ok - net.revivesLeft() is 2 with the lobby on Realistic ({"diff":"realistic","left":2})
+  ok - TGC start: no live guard of kind dog (0)
+  ok - TGC starts on W1 ([0,{"id":"threeGreyCoats","section":0,"done":0,"facts":0,"breaks":0,"protectedRestarts":0,"line":"","ruleRestarts":0,"pending":false,"spook":-1,"stages":[0,0],"finished":false,"over":false}])
+  ok - the client URL has no mission=
+  ok - the client starts within 2 m of W1 start2 ([8.5,0.02,10])
+  ok - no objective blip while a mission runs (0)
+FAIL (TGC, TGC W1 start): Error: timed out waiting for the client mission HUD shows rows [host: sim 8.07 s in 8.0 s wall (x1.00), 60 fps; page 2: sim 8.03 s in 8.0 s wall (x1.00), 120 fps]
+team host: {"time":8.4,"log":null,"st":"none","count":{"offers":0,"boosts":0,"ladders":0,"throws":0,"hangs":0,"pulls":0,"drops":0,"ropes":0,"tops":0,"slides":0,"denied":0,"ends":0},"denied":"","room":"","prompt":"Co-op: offer a partner throw (crouch for a leg-up)","offer":null,"me":{"pos":[7,0.02,10],"yaw":0,"grounded":true,"crouched":false,"ov":false},"mates":[{"mode":"ground","sub":0,"pos":[8.5,0.02,10],"yaw":0}],"busy":{"td":false,"strike":false,"attached":false},"gates":{"wall":false,"doorPeek":false,"doorOpen":false,"pistolAim":false,"weapon":"pistol","carrying":false}}
+team client: {"time":8.42,"log":null,"st":"none","count":{"offers":0,"boosts":0,"ladders":0,"throws":0,"hangs":0,"pulls":0,"drops":0,"ropes":0,"tops":0,"slides":0,"denied":0,"ends":0},"denied":"","room":"","prompt":"Co-op: offer a partner throw (crouch for a leg-up)","offer":null,"me":{"pos":[8.5,0.02,10],"yaw":0,"grounded":true,"crouched":false,"ov":false},"mates":[{"mode":"ground","sub":0,"pos":[7,0.02,10],"yaw":0}],"busy":{"td":false,"strike":false,"attached":false},"gates":{"wall":false,"doorPeek":false,"doorOpen":false,"pistolAim":false,"weapon":"pistol","carrying":null}}
+console problems:
+TGC host [warning] guard-ai pairs: section 0 slots 4 + 5: not both on a timed loop
+
+times (GPU, 1 at a time):
+  e2e-sectorops:wharf-tgc FAIL 20s
+
+wall 20s, suites summed 20s
+
+1 suite(s) failed: e2e-sectorops:wharf-tgc
