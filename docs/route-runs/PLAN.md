@@ -29,15 +29,14 @@ Read only (imported or driven, never edited): the graph helpers (`mergeGraphs`, 
 the map graphs, the built game (`dist/`). `docs/level-design.md` is touched by R8 only (one line each in section 14 (2)
 and 15); `docs/systems/testing-tools.md` by R8 only (one new section). Changelog fragments are shared files (not
 claimed).
-**R8 goes last on the shared docs.** `claims-check` (2026-10-25 ~18:00) found one overlap,
-`docs/systems/testing-tools.md` with J20 (Test Runner); since then more branches touch the two docs R8 edits. R8 is cut
-from origin/master only after all of these are on master, then re-reads LD 14, LD 15 and the Training profile and
-writes on top: #443 `feature/level-standard-g157` (G157, merged 2026-10-25 ~19:40, rewrote LD 14 / 15 and the
-Training profile); #436 `feature/marlow-docs-j1` (merged); J12's docs slices D-A and D-C (`feature/validator-port`,
-`feature/validator-port-train`: LD 11.9, Training profile, 14, 15, rule index, and D-C `testing-tools.md`); J20's three
-PRs, #445 PR-C (`feature/test-runner-j20-prc`), PR-A (`-pra`) and PR-B (`-prb`), each touching `testing-tools.md`; and
-`feature/doc-level` (no claims block, open since 11:05), or its lead closes it. Test Runner may add the "Route-runs"
-section instead (the lead's call). Guard AI's G1 (below) is claimed on Guard AI's own branch,
+**R8 goes last on the shared docs, with no fixed wait list.** Many branches touch the two docs R8 edits (claims-check
+on 6bf1f95cb: 24 overlaps, all on `docs/level-design.md` and `docs/systems/testing-tools.md`; for example J12's docs
+slices D-A / D-C, J20's PRs, coop-kit, light-realism, campus-greybox, char-shadow-meter, hud-guidance and map-ready),
+and the list changes daily. So R8 reruns `claims-check` when it is cut, cuts from current origin/master, re-reads LD
+14, LD 15 and the Training profile there and writes on top; an overlap that merges first is a conflict R8 fixes on its
+own branch (one new section and two one-line edits), and the train handles the rest. R8 does not wait for big jobs
+(light-realism could hold it for days). Test Runner may add the "Route-runs" section instead (the lead's call).
+Guard AI's G1 (below) is claimed on Guard AI's own branch,
 not here: `src/ai/detectionCause.ts` (new), `src/ai/enemy.ts`, `src/ai/enemyManager.ts`, `src/game/gameState.ts` (the
 debug overlay line), `tests/detectionCause.test.ts`.
 
@@ -140,8 +139,9 @@ driver, injected with `page.addInitScript` / `evaluate`, using `window.__app`, `
 [--dry-run] [--selftest [<fixture>]]`, `--merge <map> <sha> --out <dir>` (no browser). One page: boot (`e2e-lib`
 `launch`, autostart params from the graph's `meta.map` / `meta.mode`), damage off, section setup (Sector Ops /
 campaign: the section's checkpoint through `window.__sector`, the earlier sections passed by the connector cycle as
-`e2e-sectorops` part 6 "campus ops (S1, S2)" does; course: set A<n> is bay n, through the host session's `courseBay` as
-`scripts/e2e-ctcourse.mjs:304` does), the guards check at each section start (BRIEF A15), `restartSection` between
+`e2e-sectorops` part 6 "campus ops (S1, S2)" does; course: the bay index of the section's first set read from the course
+data in the page (its 1-based position in `CourseDef.bays`, matched by id; J14 numbers 18 steps, so never "set A<n> is
+bay n"), passed as the host session's `courseBay` as `scripts/e2e-ctcourse.mjs:304` does), the guards check at each section start (BRIEF A15), `restartSection` between
 runs (guards back on their fixed patrols, calm), then the run: the driver steps the game in 0.05 s chunks in the page,
 steering with R3, opening doors with the pad (A near a shut door on the path), using objectives (A held), holding and
 placing at every stub, logging dead stops (class from a nav `findPath` probe; a screenshot; recovery past the link),
@@ -152,7 +152,10 @@ push race); the JSON is also printed between `ROUTE-RUN-REPORT` markers. `--rout
 `SectorRoute` lists (`src/game/sectors.ts:73`, `climbs` legs stubbed) for an early number before J12: its report
 header says "code routes, not a gate run".
 - **Seams, so later slices never share a file.** R4a ships three small modules the driver calls: `steps.mjs` (a table
-  from link kind to step; every kind `stub` here; R5 owns it next, then R9), `causes.mjs` (`readCauses(since)`: here
+  from link kind to step; every kind `stub` here; R5 owns it next, then R9). Each step is a Node-side async call,
+  `step(ctx, link)`, where `ctx` carries both pages (`host`, `client`; `client` null at `--players 1`), the pads, the
+  host clock and the limit, so R9's leg-up (which drives host and client from Node, as `e2e-ctcourse` does) needs no
+  driver change; `causes.mjs` (`readCauses(since)`: here
   the inference reader on R3's classifier; R7 owns it next), `course.mjs` (`onPoll`, `onLockedDoor`: no-ops here, so a
   locked course door is a `locked` stop; R4c owns it next). A later slice that needs a driver change sends it to the
   lead as an R4b fix, not an edit of its own.
@@ -203,6 +206,9 @@ counts and what follows) are unit tested.
 - Files: `scripts/route-run/course.mjs`, `tests/routeRunCourse.test.ts`,
   `tests/fixtures/route-run/selftest-course.graph.json` (master's yard, sets A1 Gate and A2 Carriage Shed). Est. lines:
   450.
+- Not here: campaign strict-rule restarts (G290: a break restarts the section; built by J7 / J22). Only course mode
+  has this watcher. Tallow Wharf (J23) is the first campaign user: its lead generalises the watcher or turns strict
+  rules off in the page before its gate run (BRIEF Limits).
 - Checks: `npx vitest run tests/routeRunCourse.test.ts`; laptop alone `--selftest selftest-course.graph.json`
   (`--players 1` before R4b lands: the host's `verb(p, ...)` ticks either player's drills; `--players 2` after).
 - Done looks like: in the fixture A1's exit door is cleared by drill stubs, each listed by id and hold, none counted as
@@ -229,8 +235,9 @@ J12's one resolver (lead's decision, 2026-10-25): `resolvePoints(graph, nav, opt
 `src/world/levelMeasure.ts` (J12 S1), called through Vite's SSR loader as `scripts/level-measure.mjs` does, or the
 same table written by `node scripts/level-measure.mjs <graphs> --points <out.json>` (J12 S2) in the laptop step before
 the run. Links are keyed by their merged index (the order `mergeGraphs` gives under the validator's file order rules),
-and the table carries the graphs' `geom`; the harness refuses a table whose `geom` or link count differs from the
-graph it plans, so a re-ordered or edited graph cannot shift a point onto the wrong link. This answers J12 PLAN
+and the table carries the graphs' `geom` (the map's light + nav hash, not a graph hash). The harness refuses a table
+whose `geom` or link count differs from the graph it plans, or where any merged index's `from` / `to` / `kind` differs
+from the merged graph's link at that index, so a re-ordered or edited graph cannot shift a point onto the wrong link. This answers J12 PLAN
 section 8's open link-`id` question: route-runs needs no link `id`. Fallbacks, inside R6 only (no other slice
 changes): if J12 ships only its lower exports (`spaceCells`, `linkPoint`, `linkPath`, `MEASURE_DEF`), R6 builds the
 same table from them; if it ships none, declared `at`, else the middle of the facing edges of the two `area`s snapped
@@ -238,7 +245,7 @@ to the nearest walkable nav cell in the page (`nav.nearestWalkable`), marked `ap
 - Files: `scripts/route-run/points.mjs`, `tests/routeRunPoints.test.ts`. Est. lines: 250.
 - Checks: `npx vitest run tests/routeRunPoints.test.ts`; one laptop alone run of campus S1 from the graph.
 - Done looks like: campus S1 runs from its graph (not code routes), the report names graph spaces and links, and a
-  table with a stale `geom` is refused with a plain message.
+  table with a stale `geom`, or with two links swapped, is refused with a plain message.
 
 **R7 Cause record reader (Sonnet; after G1).** `scripts/route-run/causes.mjs` (R4a's seam) reads Guard AI's cause ring
 when it exists (`enemyMgr.causes`, feature-detected) and maps each record to a detection or notice line; without it the
@@ -247,9 +254,9 @@ R3 inference stays. Records and inferences never mix in one run (the report head
 - Checks: vitest; one laptop alone run of campus S1 on a head with G1 merged.
 - Done looks like: no `inferred` senses on that run; a sighting names light, distance and stance.
 
-**R8 Docs and the first gate runs (Sonnet).** Cut from master only after the merges listed under "Claims" (#443, #436,
-J12 D-A and D-C, J20 PR-A / PR-B / #445 PR-C, `feature/doc-level`); first re-read LD 14, LD 15 and the Training profile
-on that master. `docs/level-design.md` 14 (2) and 15: Q7's pass rule only, one line each, e.g. "A map passes its
+**R8 Docs and the first gate runs (Sonnet).** Runs last; when cut, reruns `claims-check`, cuts from current
+origin/master and re-reads LD 14, LD 15 and the Training profile there; any overlap that lands first is a conflict R8
+fixes on its branch ("Claims"). `docs/level-design.md` 14 (2) and 15: Q7's pass rule only, one line each, e.g. "A map passes its
 route-runs when no run has a dead stop; the times the robots were seen go on the walk card (Michael, 2026-10-25 ~16:40,
 Q7). What a dead stop is: `docs/systems/testing-tools.md` "Route-runs"." Q7 is Michael's approval for that sentence
 only: the A4 tolerances, the drill and restart rules and the co-op stub policy (A1, until Q1 is answered) are not

@@ -110,8 +110,10 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   drill hold (A13), then the harness completes each drill still open for either player (`state.nextDrill(p)`, `count`
   times) through the host's own hook `window.__course.verb(p, drill.verb)`, or `window.__course.state.setFlag(name)`
   for a `flag:<name>` verb. Each is logged as a **drill stub** with its drill id, player and hold time, and never
-  counted as walked. A door still locked 5 s after that is a `locked` dead stop. Set A<n> is bay n: a section's run
-  starts there through the host session's `courseBay`, as `scripts/e2e-ctcourse.mjs:304` does.
+  counted as walked. A door still locked 5 s after that is a `locked` dead stop. A section's run starts at its first
+  set's bay, through the host session's `courseBay` as `scripts/e2e-ctcourse.mjs:304` does; the bay index is read from
+  the course data (the set's 1-based position in `CourseDef.bays`, matched by id), never assumed from the set's number
+  (J14 has 18 numbered steps across A1-A8).
 - **Restarts and retries (course mode).** On master a set with `spotFail` restarts from its start when one of its squad
   is alerted (`courseMode.ts:593-596`; set A2 Carriage Shed); after J14 every mistake is a retry of that station or step
   in place, and in set A8 the guards first react as on a mission (marlow-replan `REPLAN.md` "If it goes wrong" column
@@ -156,7 +158,9 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
 ## Limits
 - Out of scope: real co-op moves beyond the leg-up (R9 adds more as the game's helpers exist); 1, 3 or 4 player runs;
   judging feel, pacing or light (the walk card and the light jobs do that); fixing any map (the map leads fix what a
-  report finds); a gameplay bot of any kind.
+  report finds); a gameplay bot of any kind; campaign strict-rule restarts (G290: a break restarts the section; built by J7 /
+  J22): only course mode has the restart watcher (R4c), so J23 (Tallow Wharf, the first campaign user) generalises it
+  or turns strict rules off in the page before its gate run.
 - Sector Ops guards that spawn only at 3 or 4 players (Q16 "Live now", G331, G362) never meet a 2-robot run; the
   report header says the run was at 2 players and those guards were not present.
 - The robots are test tools only: no game code, nothing the player can meet (G8 and VISION 6: never a bot partner;
@@ -186,7 +190,7 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   own limit (door 5 s, ladder 15 s + 1 s per metre, drop 5 s, window or hatch 8 s, duct 2 s per metre, objective its
   own hold + 5 s). 8 s is about four times the longest normal pause (a door swing and a ladder mount). These are tool
   tolerances, not level numbers: they live in the harness as named constants (`scripts/route-run/progress.mjs`, as
-  `DRIFT_S` does in `scripts/level-measure.mjs`) and are documented in `docs/systems/testing-tools.md` "Route-runs"
+  `DRIFT_S` does in `scripts/level-measure.mjs`, which comes with J12 S2) and are documented in `docs/systems/testing-tools.md` "Route-runs"
   (R8). `docs/level-design.md` gets only Q7's pass rule (Michael's approval) with a pointer to that section; the
   standard changes only with Michael's approval (its header; master `CLAUDE.md`), and Q7 approved "never stuck", not
   these numbers. Undo: change the constants (a tool change). Moving them into the standard or scale-sheet 8 as level
@@ -212,7 +216,7 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   again later counts again.
 - A13: Drill hold (course mode): the time the graph gives the set's `teach` element (J12 BRIEF A8: the `time_s` of the
   link that carries `teach`), with no second hold when that link was already held as a co-op stub on this run; else
-  10 s. Never the space's `drill_s`: that is the drill's limit, not how long it takes. Undo: `--drill-hold <s>`, or the
+  10 s, which also covers a `teach` tag on a space (J12 BRIEF A8 allows it; a space has no link `time_s`). Never the space's `drill_s`: that is the drill's limit, not how long it takes. Undo: `--drill-hold <s>`, or the
   constant in `scripts/route-run/course.mjs`.
 - A14: Restarts by cause (course mode, Scope "Restarts and retries"). Seen: every one is a detection, never a dead stop
   (Q7: "the times it was seen go on your walk card"); the second from the same graph space in one run turns the set's
