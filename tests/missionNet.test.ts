@@ -12,7 +12,8 @@ import { RuleTracker } from '../src/game/mission/ruleTracker';
 import { packMission, type MissionWire } from '../src/game/mission/missionWire';
 import type { MissionDef } from '../src/game/mission/missionDef';
 import { revealIntel } from '../src/game/intelReveal';
-import { INTEL } from '../src/game/intel';
+// master's end rule (`interrogationEnded` = prevPh >= 0, no INTEL.donePh): a read's last progress, as tests/intel.test.ts
+const READ_END = 0.97;
 
 function op(): MissionDef {
   return {
@@ -136,13 +137,13 @@ describe('mission NET: a client interrogation reaches the adapter with the guard
     const e = { id: 'e7', pos: { x: 0, y: 0, z: 0 }, info: { lines: ['The guard talks.'] } as { lines: string[] } | null };
     const read = (sub: number, ph: number): void => (h as unknown as { clientRead(e: unknown, by: string, sub: number, ph: number): void }).clientRead(e, 'c1', sub, ph);
     read(2, 0.2);
-    read(2, INTEL.donePh);
+    read(2, READ_END);
     expect(got).toEqual([]);
     read(0, 0);
     expect(got).toHaveLength(1);
     expect(got[0]).toMatchObject({ t: 'intel', eid: 'e7', by: 'c1' });
     // spent: a second read gives nothing
-    read(2, INTEL.donePh);
+    read(2, READ_END);
     read(0, 0);
     expect(got).toHaveLength(1);
     expect(e.info).toBeNull();
