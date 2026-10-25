@@ -59,7 +59,7 @@ describe('objective lines name the place', () => {
 
   it('the two Marlow lines that named no place now do', () => {
     const text = (id: string): string => def.objectives!.find((o) => o.id === id)!.text;
-    expect(text('a2-back')).toBe('Now the other way round: back across the neck.');
+    expect(text('a2-back')).toBe('Now swap: the other one of you crosses the neck.');
     expect(text('a3-swap')).toBe('Swap: jam the corridor camera from the far lobby.');
   });
 });
@@ -79,5 +79,10 @@ describe('the HUD closing-line fallbacks name the place', () => {
       expect(exitLine(exit)).not.toMatch(/\bL\d\b/);
       expect(exitLine(exit).length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
     }
+  });
+
+  it('other maps on the course HUD keep their airlock pad, not the cash dock', () => {
+    expect(exitPlace('A1')).toBe('the A1 airlock pad');
+    expect(exitLine('A3')).toBe('Both of you into the A3 airlock pad.');
   });
 });

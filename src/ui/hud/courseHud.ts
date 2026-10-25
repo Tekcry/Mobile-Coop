@@ -31,11 +31,12 @@ export function objectiveName(name: string): string {
 
 const ROOM_WORDS: readonly string[] = ['one', 'two', 'three', 'four', 'five', 'six', 'seven'];
 
-/** (marlow-objective-place) The bay's closing place in words, never its code: "holding room two", or the cash dock for the finish. */
+/** (marlow-objective-place) The bay's closing place in words, never its code: "holding room two", or the cash dock for the finish. Other maps on this HUD keep their airlock pad. */
 export function exitPlace(exit: string): string {
   const n = /^L(\d)$/.exec(exit);
   const word = n ? ROOM_WORDS[Number(n[1]) - 1] : undefined;
-  return word ? `holding room ${word}` : 'the cash dock';
+  if (word) return `holding room ${word}`;
+  return exit === 'end' ? 'the cash dock' : `the ${exit} airlock pad`;
 }
 
 /** The closing line when the bay has none of its own: both players, into the holding room (or out to the cash dock). */
