@@ -50,9 +50,10 @@ rather than take a hand-made fix.
 - `tests/mixamoTraverse.test.ts` (12): flag and table, Studio pick, off bit-identical after on / pick and clear, guard
   graph identical with the flag on, slots by MIXAMO_ON (and every capture with all let on), no pop at the stand-up fade
   or shimmy turn, the capture / hand-made switch inertialized (graph channels; rig joints on the first exit frame:
-  climb-up 4.1 cm vs hand-made 9.5, top-out 15.6 vs 15.7), bytes a frame (both paths warmed, 5 alternating rounds,
-  medians (bytes depend on the machine; capture vs hand-made): builder PC hang moving 1664 vs 2368, hang still 1305 vs 1737, climb-up 1305 vs 1401-1417; checker PC 1344 vs 1360, 991 vs 1119, climb-up 991 vs 975 (inside the +16 B allowance); 3 runs in a row
-  alike), the vent crawl (capture joints 13.8 cm a frame vs 0.5: off; as shipped the hand-made crawl joint for joint),
+  climb-up 4.1 cm vs hand-made 9.5, top-out 15.6 vs 15.7), bytes a frame on the capture path's own code
+  (`mixamoTrav` read directly: hang moving, hang still, climb-up, top-out, ladder 0 B, limit under one boxed double; the
+  whole graph's frame swung by up to 1.4 KB between rounds of one run, so it is no longer compared; the kept channels'
+  `evalCurve` calls boxed 32-160 B a frame until `evalCurveIO`), the vent crawl (capture joints 13.8 cm a frame vs 0.5: off; as shipped the hand-made crawl joint for joint),
   anchor errors above.
 - `tests/mocapGuards.test.ts`: a guard's hang, shimmy, ledge climb-up, ladder, top-out and crawl bit-identical with the
   flag on (grunt, heavy, officer); control: Wren moves with it on.
