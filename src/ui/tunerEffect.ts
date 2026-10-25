@@ -53,6 +53,12 @@ export const NO_EFFECT: Readonly<Record<string, Partial<Record<EffectMode, reado
   sneak: {
     mocap: ['body:armSwingGrow', 'body:armSwingMul', 'body:leanAdd'],
   },
+  // (mixamo-retarget M5) hanging from a lip, still or shimmying: the feet hang free (a lip has no foot plants), so the foot
+  // reach rows move nothing; every other Body, Joints and Limb reach row moves the hang (the attached-state probe,
+  // tests/tunerReachProbe.test.ts, tests/helpers/attachProbe.ts)
+  ledge: {
+    procedural: ['body:footFwdAdd', 'body:footOutAdd', 'body:footUpAdd'],
+  },
 };
 
 /** The sections the table covers (the Body tab's parts the probe moves). */

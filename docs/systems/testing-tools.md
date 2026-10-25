@@ -108,7 +108,7 @@ This page lists the suites and how they are picked.
   (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
   (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
   `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
-  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
+  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
   -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
   `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
   Example: optic-cable 13 jobs direct, 30 wide (e2e-ctcourse is 4 parts); guard-ai-carry-fix 7 direct, 15 wide.
@@ -150,6 +150,9 @@ behind a VPN adapter).
 ## The suites (REQUIRED unless marked)
 - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot); (anim-tuner) opens F3 > Anim, moves
   the walk "foot width" slider through the page and checks the table value and its change-log entry (then puts it back)
+- `e2e-menus` (menu-ui; required) menu parity: the main menu and GAME / SETTINGS driven by keyboard, mouse and a fake
+  pad: default focus, moves, wrap, confirm, Back targets, every legend item, tabs with focus memory, cyclers and sliders,
+  Defaults, a locked row, the remap capture, and a device switch that moves no element (within 0.5 px).
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
   change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
   X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
@@ -452,6 +455,10 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
+- `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
+  (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
+  `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
+  is master's rule, `--query=animshadow=0` tier 8 camera only.
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
   quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
@@ -548,6 +555,20 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   a withdrawn request stops; for a pending train a plain pr run under 80% of its expected wall is killed when every
   other run on the worker is a plain pr too, and an alone run younger than 10 min is killed and queued again first. A
   train rerun never yields.
+- Train soon (laptop-queue-6, lib `nextTrain`): the laptop predicts the next train head (ETA) and, while no train is
+  pending, holds new claims until ETA + `LQ_TRAIN_LATE_MIN` (5) min. Candidates: train-ready PRs whose head is in no
+  open train and not in `origin/master`; green = `check` passed (its first-seen-green time is kept in state.json),
+  running = `check` not done, a failed or missing check counts for nothing. Held while: a train PR has no version head
+  yet (up to `LQ_TRAIN_BUILD_MAX_MIN` (20) min; ETA = now); an open train has its `laptop-e2e` success (merge = then +
+  `LQ_TRAIN_MERGE_LAG_MIN` (2)) or the last train merged, with green or running candidates: ETA = max(merge +
+  `LQ_TRAIN_GAP_MIN` (6.5), newest first-seen-green + `LQ_TRAIN_READY_LAG_MIN` (3)); no train open and green candidates
+  long after the merge: ETA = newest first-seen-green + 3. Running heads keep a merge hold on but never set the ETA or
+  start a hold. Any other open train: no hold. Under the hold only train reruns and pr runs that fit start (lib
+  `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a
+  fitted run an early train catches falls to `cutShort`'s 80% rule. Log: "<why>, next train ~HH:MMZ: only runs that
+  fit start". Pacing assumption: auto-train builds right after the release, in the same tick; when its pacing waits, the
+  late window caps the held slots at 11.5 min per release. Old 3-min gap: `LQ_TRAIN_GAP_MIN=3 LQ_TRAIN_LATE_MIN=0
+  LQ_TRAIN_READY_LAG_MIN=0`.
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
@@ -585,6 +606,11 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   continue). `LQ_BUILD_MARKER` overrides the path (tests).
 - Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
   a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
+  `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
+  (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester
+  `laptop-queue spare`). Spare work never blocks real work: a waiting real request or a train stops a spare run, and
+  `pick` starts no spare while a real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
 - Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
@@ -621,14 +647,22 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
   `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
   that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
+  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. A second quarantine
+  of the same suite within 14 days makes it blocking (G393): it is not quarantined again, its failures fail runs, and
+  its owner gets a fix job (decided, not built yet in the queue code). The desktop worker
   keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
   their hardcoded e2e-pad.
+- Repeat quarantine (Michael 2026-10-25, folded plan Q30, "Becomes blocking"): a suite that would be quarantined a
+  second time within 14 days of its last quarantine is not quarantined again. It stays blocking (its failures fail the
+  run) and its owner gets a fix job on the ROADMAP. Until the queue code does this (Test Runner job J20), the Test
+  Runner applies it by hand from `flake-budget.md` and tells the orchestrator.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
   Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
-  faked pointer lock; `E2E_HEADED=1` (debugging) opens a window parked off-screen. Browser: `E2E_BROWSER`, the
+  faked pointer lock; `E2E_HEADED=1` opens a window parked off-screen: never on
+  Michael's PCs (`docs/RULES.md` "Machines": headless and invisible) and refused under the runner; only a single suite run
+  directly on another machine. Browser: `E2E_BROWSER`, the
   preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is
   stubbed off so exports take the download path.
 - Graphical and performance checks (perf budgets, contact sheets, visual parity and probe checks, beauty shots) run here

@@ -6,7 +6,7 @@
  * size, and which tuner groups a loop of the Anim Studio uses.
  */
 import { ARMED_JOINT_STATES } from '../anim/tuneRows';
-import { CLIP_BODY, STUDIO_ENTRIES } from '../anim/studio';
+import { CAPTURE_LABEL, CLIP_BODY, STUDIO_ENTRIES } from '../anim/studio';
 import { STEP_GAITS, stepGaitIndex } from '../anim/tuneStep';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
@@ -590,6 +590,8 @@ export function plainLabel(section: string, id: string, label: string): string {
 /** A loop of the Anim Studio in plain words (`id` as in `STUDIO_ENTRIES`, `label` its own label). */
 export function plainLoop(id: string, label: string): string {
   if (id === 'off') return 'Off (you move)';
+  // (mixamo-retarget M5) a motion capture: its label as it is (the source in it), "Motion capture (CMU): walk"
+  if (label.startsWith(CAPTURE_LABEL)) return label[0]!.toUpperCase() + label.slice(1);
   const i = label.indexOf(': ');
   const rest = i < 0 ? label : label.slice(i + 2);
   if (id.startsWith('state:')) return plainWords(rest.replace(/\bfwd\b/g, 'forward'));
@@ -835,7 +837,8 @@ export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: ''
       out.clip = name;
     } else out.team = `team.${name}.a`;
   } else if (kind === 'trav') {
-    const t = TRAV_LOOP[name];
+    // (mixamo-retarget M5) a capture's loop `trav:<loop>/<slug>` plays through its prop's loop's groups
+    const t = TRAV_LOOP[name.includes('/') ? name.slice(0, name.indexOf('/')) : name];
     if (t) {
       out.body = t.body;
       out.trav = t.trav ? `trav.${t.trav}` : '';

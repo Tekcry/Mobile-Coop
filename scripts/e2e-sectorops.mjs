@@ -58,6 +58,7 @@ console.log('sector ops: every section, ghost');
 await run(PARAMS, async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
   await sim(0.5);
+  assert(await G(() => !document.querySelector('.hud-minimap, .minimap, .hud-compass')), 'no minimap or compass (G339)');
   const S = await sections(G);
   assert(S.length === 3, `the Warehouse has three sections (${S.length})`);
   const d0 = await G(() => window.__sector.debug());
