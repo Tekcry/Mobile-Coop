@@ -350,28 +350,28 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~09:00 SAVE for the ~09:15 swap).
-git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU
-(desktop ~15%): Opus builders run locally when cloud-queue sits unclaimed (cq worktree C:/NightShift/scratch/cq).
-Checker reports: C:/NightShift/scratch/sector-ops-checks/*.md. Sector Ops AT the walk cap: builds go on dark.
-1. Train 112 (#483, #474, #469, #450 + others) stuck: "no version commit: rebuild" (orchestrator's). After it releases:
-   #457 conflict scripts/e2e-sectorops.mjs, #459 conflict src/core/flags.ts (fix on the branch, re-add train-ready);
-   then retarget #481 / #489 (stacked on #459) to master.
-2. J17 campus: P0 PR never opened; P0 conflicts with train 112 (flags.ts, campusSectors.ts, CLAUDE.md). After 112 is on
-   master: P0 master take on a new entry branch from master (carries A23 / A26 / A27), PR + big-pr (orchestrator), then
-   lane PRs S1, S2, S4 a/b/c, S5 a/b/c (all checker PASS + laptop green), S3 r6 (Sonnet PASS 3c62afb9, laptop campus-s3
-   = e2e-sectorops:1 + :5 after the BIG trim). S3 r6 findings (clean bench rule C, dock desk): lead picks at the S3 PR.
-3. A28 #488: fix1 claimed by this lead; Opus builder was local in -campus-greybox-a28 (WIP pushed at the save if it
-   made it, else uncommitted there: finish from the brief, report docs/campus-greybox/checks/a28-fix1.md); on done: two
-   Opus delta checkers, affected rerun, mark briefs/campus-greybox-a28-fix1.md done.
-4. J10 L1: e2e-sectorops:1 + :6 broke on moved lamp heads (light-l1-e2e-triage.md); test fix 02c92e69, rerun queued
-   (part 6 quarantined to 10-27: read its log). Green -> SIGNOFF.md + shots (shots/light-realism-s1) to the orchestrator
-   for Michael; then the L1 PR (8k lines mostly docs/svg: check pr-size).
-5. J21 map-ready: S1 fix1 b95911c0 checker PASS (Opus FIX, Sonnet delta); laptop map-ready-s1-gate (coop netmove).
-   S9 a89726ef Opus PASS; laptop map-ready-s9-gate (coop netmove lightbake). Affected sets withdrawn (orchestrator: BIG;
-   the job PR gets affected-e2e). S2 (-map-ready-s2, step 2 ee9cbce5) + S10 (-map-ready-s10, step 1 audit clean
-   bef1a053) Opus builders mid-run: resume from briefs + checks/s2-build.md / s10-build.md; then one Opus checker
-   each. Next: S8 plan, S3 (after S2), S5.
-6. J16: #481 / #489 wait on #459. S3b-2 (GameState wiring) after #481.
-Next: on each agent result: checker / laptop request; after train 112: item 1 then item 2.
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~10:20 SAVE for the ~10:35 swap).
+git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. CPU / disk tight:
+no new builders until the orchestrator says the desktop is under ~80%; tsc / vitest at BelowNormal. New node_modules
+junctions point only at C:/NightShift/Mobile-Coop-menu/node_modules. Checker reports: C:/NightShift/scratch/sector-ops-checks/.
+Merge master into each labelled branch as soon as a train releases (orchestrator 10:00). Fix PRs get the `fix` label.
+1. #457 (fix label), #459, #488: master 4.106.1 merged in (a4bdcd94 / 31be36fb / 297004da), Sonnet merge-resolution
+   PASS posted (merge-resolutions-1026-check.md). #481 (40cac98c) / #489 (a0147ac4) merged the new #459 head (stale
+   CLAUDE.md G-cite lint); typecheck clean; check CI went green, then checker re-post if the watchdog asks.
+2. J17 campus: P0 PR #503 (big-pr, head f466c4a5, Sonnet merge PASS; pr-size rerun after the label). Lane stacks on
+   feature/campus-greybox-p0 by an Opus agent (worktree -campus-greybox-lanes): branches feature/campus-greybox-
+   s1-a..c, s2-a..d, s3-a..f, s4-a..c, s5-a..c; table lane-stacks.md; S4/S5 re-apply A23 (no section helmet, both->
+   armour, shieldTeams). s1-a pushed at the save. Next: finish the stacks, Sonnet re-check of S4/S5 resolutions,
+   open PRs base feature/campus-greybox-p0 (bodies lane-*-pr-body.md), retarget to master once #503 lands.
+3. A28 #488: fix1 done (two Opus delta PASS); affected on the new head.
+4. J10 L1: triage 2 (docs/light-realism/checks/l1-e2e-triage-2.md): client moved to x 12.8 (pitch limit 1.05);
+   fix 5dceab9b, laptop rerun e2e-sectorops:1 requested (set light-realism-l1-e2e). Green -> SIGNOFF.md + shots
+   (shots/light-realism-s1) to the orchestrator for Michael; then the L1 PR (check pr-size).
+5. J21 map-ready: S1 + S9 PASS + gates green. S2 PASS (a85f3db9), gate e2e-coop + e2e-netmove queued. S10 Opus PASS
+   (110c0454; report 7b478dd5), gate e2e-coop + e2e-netmove queued (trimmed from 4: queue audit). S8 planned
+   (eae83afc: SHORTEN.md, briefs S14 / S15 / S16; V12's held slice = S15); cloud brief map-ready-S14 open
+   (295f69c9, base map-ready-s2). Next when CPU allows: S3 builder (after S2, Opus, two Opus checkers), S15 (Opus,
+   laptop GPU each step), S5 waits on #317. A20 (S16 lobby compile) needs Michael's click only if S16 triggers.
+6. J16: #481 / #489 retarget to master after #459 lands. S3b-2 (GameState wiring) after #481.
+Next: on each agent / laptop result: checker or PR; lane PRs open; after a release merge master into labelled branches.
 ```
