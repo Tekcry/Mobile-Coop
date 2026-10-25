@@ -211,7 +211,7 @@ export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
         { group: 44, key: 'a4-dispatch', room: 'A4', name: 'Dispatch office', kind: 'switch', role: 'toy', fitting: 'Ceiling panel', tone: 'white', owner: 'Port operator (set)', switches: [sw('a4-sw-dispatch', 'wall', 79.4, 38.4, 'inside the office by its door')], cutBy: ['switch', 'jam', 'shot'], lamps: 1, electric: true, destructible: true },
       ];
     }
-    if (c.group === 69) return [{ ...c, name: 'Sump high-bay and west gallery fittings', kind: 'switch', role: 'read', fitting: 'High-bay, bulkheads', switches: [sw('a6-sw-sump', 'wall', 58.6, 54.4, 'beside the sump bay')], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true }];
+    if (c.group === 69) return [{ ...c, name: 'Sump high-bay and west gallery fittings', kind: 'switch', role: 'read', fitting: 'High-bay, bulkheads', switches: [sw('a6-sw-sump', 'wall', 51.0, 54.3, "on the sump bay's south wall, west of the L5 door")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true }];
     if (c.group === 84) {
       return [
         c,
