@@ -476,6 +476,202 @@ describe('the sets\' station ticks (fix 6, lead decision a)', () => {
   });
 });
 
+describe('the station hooks\' window sources (fix round 2)', () => {
+  const ticks = REPLAN_TICKS as Record<string, StationTick>;
+  /** A fake host `CtDevices`: the jam list and two lasers (what the hooks read), the rest no-ops. */
+  const fakeCt = () => ({
+    jamId: ['', ''] as [string, string],
+    lasers: [{ def: { id: 'las-a' } }, { def: { id: 'las-b' } }],
+    fixedUpdate: () => undefined,
+    takeChanged: () => false,
+    repair: () => undefined,
+    holdZones: () => undefined,
+    wire: () => ({}),
+    dispose: () => undefined,
+  });
+  /** The re-plan (bay A2) with an isolator `g-iso` (switch `sw3`, 2 s dark), the hooks its tick is handed, a fake ct. */
+  function replanRig(tick?: StationTick) {
+    const was = ticks.A2!;
+    let hooks: StationHooks | null = null;
+    ticks.A2 = (h, dt) => {
+      hooks = h;
+      tick?.(h, dt);
+    };
+    const base = def({ id: 'A2' });
+    const bay = base.bays[0]!;
+    const d: CourseDef = { ...base, id: 'ctcourseReplan', bays: [{ ...bay, gates: [...bay.gates, { kind: 'isolator', id: 'g-iso', switchIds: ['sw3'], group: 'grp', seconds: 2 }] }] };
+    try {
+      const r = rig(d);
+      const ct = fakeCt();
+      (r.mode as unknown as { ct: unknown }).ct = ct;
+      return { ...r, ct, h: () => hooks!, restore: () => (ticks.A2 = was) };
+    } catch (e) {
+      ticks.A2 = was;
+      throw e;
+    }
+  }
+
+  it('gate: a pickup gate\'s open state and an isolator\'s dark', () => {
+    const r = replanRig();
+    try {
+      const h = r.h();
+      expect(h.gate('g-s1')).toBe(false);
+      expect(r.st.press('sw1', 0)).toBeNull();
+      expect(h.gate('g-s1')).toBe(true);
+      expect(h.gate('g-iso')).toBe(false);
+      r.st.press('sw3', 0);
+      r.step();
+      expect(h.gate('g-iso')).toBe(true);
+      r.step(25);
+      expect(h.gate('g-iso')).toBe(false);
+      expect(h.gate('no-such-gate')).toBe(false);
+    } finally {
+      r.restore();
+    }
+  });
+
+  it('down: a squad slot\'s guard knocked out or dead; up again once woken; an unknown slot is not down', () => {
+    const r = replanRig();
+    try {
+      const h = r.h();
+      expect(h.down('gd1')).toBe(false);
+      expect(h.down('gd2')).toBe(false);
+      const gd1 = r.guard('gd1');
+      gd1.ko = true;
+      gd1.alive = false;
+      expect(h.down('gd1')).toBe(true);
+      expect(h.down('gd2')).toBe(false);
+      gd1.ko = false;
+      gd1.alive = true;
+      expect(h.down('gd1')).toBe(false);
+      // gone from the guard manager (a removed body) counts as down
+      r.enemies.splice(r.enemies.indexOf(r.guard('gd2')), 1);
+      expect(h.down('gd2')).toBe(true);
+      expect(h.down('gd9')).toBe(false);
+    } finally {
+      r.restore();
+    }
+  });
+
+  it('jammed: a jammer held on the target by either player', () => {
+    const r = replanRig();
+    try {
+      const h = r.h();
+      expect(h.jammed('cam-a3-hall')).toBe(false);
+      r.ct.jamId[1] = 'cam-a3-hall';
+      expect(h.jammed('cam-a3-hall')).toBe(true);
+      expect(h.jammed('lt-52')).toBe(false);
+      r.ct.jamId[0] = 'lt-52';
+      expect(h.jammed('lt-52')).toBe(true);
+      r.ct.jamId[1] = '';
+      expect(h.jammed('cam-a3-hall')).toBe(false);
+      // no CtDevices (a map without devices): never jammed
+      (r.mode as unknown as { ct: unknown }).ct = null;
+      expect(h.jammed('lt-52')).toBe(false);
+    } finally {
+      r.restore();
+    }
+  });
+
+  it('tripped: a beam broken in the live station and this epoch; the tick\'s seen retry clears it; no automatic retry', () => {
+    // the set code: a broken beam on station 2 retries it as seen
+    const r = replanRig((h) => {
+      if (h.live() === 2 && h.tripped('las-b')) h.retry(2, 'seen');
+    });
+    try {
+      const h = r.h();
+      // a break at station 1 is not station 2's
+      r.mode.laserTripped(1);
+      expect(h.tripped('las-b')).toBe(true);
+      r.st.setFlag('s1-done');
+      expect(h.tripped('las-b')).toBe(false);
+      expect(r.mode.restarts).toBe(0);
+      // a break at station 2: the tick retries next step (not CourseMode by itself: no tick, no retry)
+      r.mode.laserTripped(1);
+      expect(h.tripped('las-b')).toBe(true);
+      expect(h.tripped('las-a')).toBe(false);
+      expect(h.tripped('no-such-laser')).toBe(false);
+      const ep = h.epoch();
+      r.step();
+      expect(r.mode.restarts).toBe(1);
+      expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+      expect(h.epoch()).toBeGreaterThan(ep);
+      expect(h.tripped('las-b')).toBe(false);
+      // a break inside the post-retry hold (the players still where they stood) is not kept
+      r.mode.laserTripped(1);
+      expect(h.tripped('las-b')).toBe(false);
+      r.step(20);
+      expect(r.mode.restarts).toBe(1);
+      // after the hold a new break counts again
+      r.mode.laserTripped(0);
+      expect(h.tripped('las-a')).toBe(true);
+      // no live station: nothing is tripped
+      r.st.setFlag('s2-done');
+      expect(h.tripped('las-a')).toBe(false);
+    } finally {
+      r.restore();
+    }
+  });
+
+  it('tripped without a tick that acts on it: the mode never retries by itself', () => {
+    const r = replanRig();
+    try {
+      r.st.setFlag('s1-done');
+      r.mode.laserTripped(0);
+      r.step(5);
+      expect(r.mode.restarts).toBe(0);
+      expect(r.h().tripped('las-a')).toBe(true);
+    } finally {
+      r.restore();
+    }
+  });
+
+  it('epoch: rises on a station retry and on a bay restart, and a new course never repeats an earlier one', () => {
+    const r = replanRig();
+    try {
+      const h = r.h();
+      const e0 = h.epoch();
+      expect(e0).toBeGreaterThan(0);
+      r.step(3);
+      expect(h.epoch()).toBe(e0);
+      // a station retry (the set code's timer call)
+      r.st.setFlag('s1-done');
+      expect(r.mode.stationRetry(2, 'timer')).toBe(true);
+      r.step();
+      const e1 = h.epoch();
+      expect(e1).toBeGreaterThan(e0);
+      // a guard's seen retry after the hold
+      r.step(20);
+      r.guard('gd2').alerted = true;
+      r.step();
+      expect(r.mode.restarts).toBe(2);
+      const e2 = h.epoch();
+      expect(e2).toBeGreaterThan(e1);
+      // the pause menu's bay restart (and a downed one: the same bayRestart event)
+      expect(r.mode.restartCheckpoint()).toBe(true);
+      r.step();
+      const e3 = h.epoch();
+      expect(e3).toBeGreaterThan(e2);
+      r.step(20);
+      r.player.alive = false;
+      r.remote.target.alive = false;
+      r.step(Math.ceil((RESTART_DELAY + 0.2) / DT));
+      expect(h.epoch()).toBeGreaterThan(e3);
+      // a new course (the next match: a new mode): above every epoch of the last one
+      const last = h.epoch();
+      const r2 = replanRig();
+      try {
+        expect(r2.h().epoch()).toBeGreaterThan(last);
+        expect(r2.h()).not.toBe(h);
+      } finally {
+        r2.restore();
+      }
+    } finally {
+      r.restore();
+    }
+  });
+});
+
 describe('stand-in gates (fix 7, lead decision b)', () => {
   const gates: BayDef['gates'] = [
     { kind: 'pickup', id: 'g-s1', switchId: 'sw1', flag: 'key1', perPlayer: false },
