@@ -7,7 +7,7 @@ C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
 Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Every anim PR carries a ~1-2 min look video path in its body.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (2026-10-25 ~18:20 SAVE at the 5-hour meter; row 6 SIGNED OFF ~17:00, full burn; plan FOLDED-PLAN.md + ROADMAP Decided Q34-Q39)
+## Now (2026-10-25 ~20:20 SAVE at the 5-hour meter; row 6 SIGNED OFF ~17:00, full burn; plan FOLDED-PLAN.md + ROADMAP Decided Q34-Q39)
 CPU CAP (orchestrator ~18:50): up to 2 builder agents per lead, tsc / single vitest only, no Blender / npm run build / e2e by hand, until it says CPU < 80%. RUNNING at the 20:20 SAVE: J6 S1 + S3 Opus builders (told to push WIP; relaunch from their branch heads + PLAN S1 / S3 if cut off), mixamo planner adding the clip file map to PLAN (relaunch: add the file map from the orchestrator's 20:15 list if PLAN lacks it). Queued on the laptop: gm-polish 8aabbe90 (e2e-offline + e2e-menus), coop-real-c1c / c2b.
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
