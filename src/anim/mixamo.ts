@@ -69,7 +69,9 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // off: the soles move 38 cm on their held plants (hand-made 32); keeping the hand-made foot lift puts the palms 5-6 cm off
   climbing_ladder: false,
   climbing_ladder_to_standing: true,
-  crawling_hands_and_knees: true,
+  // off: its spYaw keys run -4.72 to -1.42 rad (the M4 yaw wraps round -pi): the shoulder line flips and the joints jump up
+  // to 13.8 cm a frame (hand-made 0.5; tests/mixamoTraverse.test.ts crawl check), and crawlOut starts 4.6 rad of spYaw away
+  crawling_hands_and_knees: false,
   // (mixamo-retarget I1) measured headless on Wren's rig against the clip it would replace (tests/mixamoSwitch.test.ts (d),
   // docs/mixamo-retarget/I1-REPORT.md; A8: Studio only unless at least as good)
   // off: the elbows 12.8 cm outside the shoulders (e2e-anim's idle limit 8, the hand-made idle 7.2); seam 0.0 deg
@@ -83,7 +85,7 @@ export const MIXAMO_ON: Record<string, boolean> = {
 export const HANG_IDLE_SECONDS = MOCAP_HANGING_IDLE_SECONDS;
 /** The shimmies' travel a cycle along the lip (m at 1.75 m; CHANNELS.md "travel over the cycle taken out"). */
 export const SHIMMY_TRAVEL = 0.578;
-/** Moving along a hang from this pace (m/s; the lip's attach pace is 0.5) the shimmy fades in (`SHIMMY_FADE` s). */
+/** Moving along a hang from this pace (m/s; the lip's attach pace is 0.5) the shimmy fades in (time constant `fade` s). */
 export const SHIMMY_SPEED = { on: 0.15, fade: 0.12, dirFade: 0.1, swing: 0.01 } as const;
 /** The climb-up's stand-up end fades in over this much k past the crouch (about 0.1 s of the 1.3 s exit). */
 export const STAND_FADE = 0.08;

@@ -1273,11 +1273,17 @@ export class AnimGraph {
       // (mixamo-retarget I2) Wren with a Mixamo capture in the slot plays it (`mixamo.ts`); else the hand-made clip
       // (dt as a field: no boxed double argument)
       if (WREN_TRAV.any) this.mxDt = dt;
-      if (!(WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc))) {
+      const cap = WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc);
+      if (!cap) {
         this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
         // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
         overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       }
+      // (I2 fix) a capture giving way to a hand-made clip (or the reverse) inside the traverse state is a source switch
+      // the state change does not see (the still hang's capture to the hand-made climb-up jumped fLPitch 0.73 rad and the
+      // ankle 31 cm in a frame): inertialized as a state change is. Flag off no capture ever plays: no trigger, as before
+      if (cap !== this.mxLast) trigger = true;
+      this.mxLast = cap;
       this.slot(i.traverse, 1, i.traverseT);
       if (i.traverse === 'mantle') {
         // (anim-n4b, PASS2 row 61) the hands plant on the top edge (`mantlePlant`, put over the hanging hands below) and
@@ -1304,7 +1310,7 @@ export class AnimGraph {
       }
       // (3.2.0) a sidearm aimed one-handed from a split / hanging inverted: the weapon hand takes the grip
       if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
-    }
+    } else this.mxLast = false;
     if (i.traverse !== 'split') this.splitT = 0;
     // (mixamo-retarget I2) the kind a climb-up started from (a lip hang, a ladder) and the hang's clocks: read only by
     // `mixamoTrav`, so the hand-made path is unchanged
@@ -1316,7 +1322,7 @@ export class AnimGraph {
       this.hangIdleT = 0;
       this.shimT = 0;
     }
-    this.airT =i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
+    this.airT = i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
     // (anim-n4b fix) a fall straight out of a wall-front hold (a ladder, a drainpipe, a hang, ...) keeps the legs under the
     // body; a fall from anything else (a walk off a ledge, a jump) leads with them ('drop' keeps it: the vent drop's lower
     // ends in it, and a walk off a ledge starts grounded)
@@ -3023,6 +3029,8 @@ export class AnimGraph {
   private mxDt = 0;
   private mxT = 0;
   private mxW = 0;
+  /** (I2 fix) Last frame's traversal played a capture (a switch to or from the hand-made clip is inertialized). */
+  private mxLast = false;
   /** (I2) `overClip(src, c, mxT, mxW)` with its time and weight read from the fields. */
   private mxOver(src: Pose, c: Clip): void {
     const w = this.mxW;

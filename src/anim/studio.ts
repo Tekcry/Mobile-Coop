@@ -278,7 +278,7 @@ function captureEntries(): StudioEntry[] {
         label: `${captureLabel(name, r)} (${b.label.replace(/^traversal: /, '')})`,
         steps: CAPTURE_STEPS[slug] ?? b.steps,
         // (I2) a capture MIXAMO_ON keeps out of matches says so (its anchor misses: docs/mixamo-retarget/I2-REPORT.md)
-        tune: `${b.tune}. Here this capture plays in its part of the move (the rest as in a match); ${MIXAMO_ON[slug] ? 'in a match the captures play with ?mixamo=1' : 'in a match this one stays hand-made even with ?mixamo=1 (it misses its grips; I2-REPORT)'}`,
+        tune: `${b.tune}. Here this capture plays in its part of the move (the rest as in a match); ${MIXAMO_ON[slug] ? 'in a match the captures play with ?mixamo=1' : 'in a match this one stays hand-made even with ?mixamo=1 (it misses its holds or pops; I2-REPORT)'}`,
       };
       out.push(travel(t));
     }

@@ -57,12 +57,16 @@ function sequence(): Frame[] {
 
 /** Run the sequence on a fresh graph (Wren or a guard): every frame's pose and its traversal clip's name. */
 function runGraph(wren: boolean): { pose: number[]; trav: string[] } {
-  // the graph's own randomness (idle fidgets) seeded, so two runs compare bit for bit
+  return seeded(() => runGraphSeeded(wren));
+}
+
+/** `f` with the graph's own randomness (idle fidgets) seeded, so two runs compare bit for bit. */
+function seeded<T>(f: () => T): T {
   const random = Math.random;
   let seed = 4242;
   Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   try {
-    return runGraphSeeded(wren);
+    return f();
   } finally {
     Math.random = random;
   }
@@ -111,14 +115,11 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     setMixamo(true);
     expect(WREN_TRAV.any).toBe(true);
     for (const [slug, r] of Object.entries(MIXAMO_TRAV)) expect(WREN_TRAV[r.slot], slug).toBe(MIXAMO_ON[slug] ? r.clip : null);
-    const was = MIXAMO_ON.crawling_hands_and_knees === true;
-    MIXAMO_ON.crawling_hands_and_knees = false;
-    try {
-      setMixamo(true);
-      expect(WREN_TRAV.crawl).toBeNull();
-    } finally {
-      MIXAMO_ON.crawling_hands_and_knees = was;
-    }
+    // (the afterEach puts MIXAMO_ON back)
+    expect(WREN_TRAV.hangIdle).not.toBeNull();
+    MIXAMO_ON.hanging_idle = false;
+    setMixamo(true);
+    expect(WREN_TRAV.hangIdle).toBeNull();
   });
 
   it('the Studio pick: a capture loop plays its capture with the flag off, any other entry clears it', () => {
@@ -232,40 +233,109 @@ describe('mixamo I2: the graph', () => {
     expect(turn).toBeLessThanOrEqual(Math.max(steady * 1.5, 0.05));
   });
 
+  it('a capture giving way to a hand-made clip (or the reverse) is inertialized: no channel jump at the switch frame', () => {
+    // from the still hanging idle (a capture) to the hand-made lip climb-up; from the hand-made ladder to the top-out capture
+    const air: Frame[] = [];
+    for (let n = 0; n < 20; n++) air.push({ trav: 'none', t: 0 });
+    const hang = [...air];
+    for (let n = 0; n < 90; n++) hang.push({ trav: 'hang', t: 0.02 * Math.sin(n * 0.1) + 0.001 });
+    const hangAt = hang.length;
+    for (let n = 0; n <= 20; n++) hang.push({ trav: 'climbUp', t: n / 78, ledge: true });
+    const lad = [...air];
+    for (let n = 0; n < 90; n++) lad.push({ trav: 'climb', t: (n * 0.03) % 1 });
+    const ladAt = lad.length;
+    for (let n = 0; n <= 20; n++) lad.push({ trav: 'climbUp', t: (n / 51) * CLIMB_UP_CROUCH_K, ledge: true });
+    const switchStep = (seq: Frame[], b: number): number => seeded(() => {
+      const g = new AnimGraph(proportions('average', 1.68));
+      g.wrenReady = true;
+      const i = defaultInput();
+      const prev = new Float64Array(g.pose.length);
+      let m = 0;
+      for (let f = 0; f <= b; f++) {
+        const fr = seq[f]!;
+        i.traverse = fr.trav;
+        i.traverseT = fr.t;
+        i.speed = fr.speed ?? 0;
+        i.ledgeClimb = fr.ledge ?? false;
+        i.grounded = fr.trav === 'none';
+        g.update(DT, i);
+        if (f === b) for (let c = 0; c < g.pose.length; c++) m = Math.max(m, Math.abs(g.pose[c]! - prev[c]!));
+        prev.set(g.pose);
+      }
+      return m;
+    });
+    const handHang = switchStep(hang, hangAt);
+    const handLad = switchStep(lad, ladAt);
+    setMixamo(true);
+    expect(WREN_TRAV.hangIdle).not.toBeNull();
+    expect(WREN_TRAV.climbUpCrouch).toBeNull();
+    expect(WREN_TRAV.ladder).toBeNull();
+    expect(WREN_TRAV.ladderTop).not.toBeNull();
+    const capHang = switchStep(hang, hangAt);
+    const capLad = switchStep(lad, ladAt);
+    console.info(`(mixamo I2) largest channel change on the switch frame: hanging idle -> climb-up ${capHang.toFixed(4)} (hand-made ${handHang.toFixed(4)}), ladder -> top-out capture ${capLad.toFixed(4)} (hand-made ${handLad.toFixed(4)})`);
+    // (before the fix: 0.73 rad hanging idle -> climb-up, 0.92 ladder -> top-out; the hand-made switches 0.40 and 0.25)
+    expect(capHang).toBeLessThanOrEqual(handHang * 1.25);
+    expect(capLad).toBeLessThanOrEqual(handLad * 1.25);
+  });
+
   it('no allocation per frame on the capture path (as the hand-made path)', async () => {
     const { bytesPerCall } = await import('./helpers/allocPerCall');
     allOn();
-    setMixamo(true);
     const g = new AnimGraph(proportions('average', 1.68));
     g.wrenReady = true;
     const i = defaultInput();
     i.grounded = false;
-    i.traverse = 'hang';
-    i.traverseT = -0.1;
-    i.speed = 0.5;
     const run = (n: number): void => {
       for (let k = 0; k < n; k++) g.update(DT, i);
     };
-    const hang = await bytesPerCall(run, 0);
+    // hanging on the move (a shimmy), hanging still, the lip climb-up
+    const STATES = [
+      { name: 'hang moving', trav: 'hang', t: -0.1, speed: 0.5, ledge: false },
+      { name: 'hang still', trav: 'hang', t: 0.001, speed: 0, ledge: false },
+      { name: 'climb-up', trav: 'climbUp', t: 0.7, speed: 0, ledge: true },
+    ] as const;
+    const put = (s: (typeof STATES)[number]): void => {
+      i.traverse = s.trav;
+      i.traverseT = s.t;
+      i.speed = s.speed;
+      i.ledgeClimb = s.ledge;
+    };
+    // one cold on-then-off reading read whichever path tiered up first (it failed both ways round): both paths warmed
+    // on every state first, then each read in alternating order over ROUNDS rounds and the medians compared
+    for (const s of STATES)
+      for (const on of [true, false]) {
+        setMixamo(on);
+        put(s);
+        run(20_000);
+      }
+    const ROUNDS = 5;
+    const median = (a: number[]): number => [...a].sort((x, y) => x - y)[a.length >> 1]!;
+    const rows: string[] = [];
+    const res: [string, number, number][] = [];
+    for (const s of STATES) {
+      const on: number[] = [];
+      const off: number[] = [];
+      for (let r = 0; r < ROUNDS; r++)
+        for (const cap of r % 2 === 0 ? [true, false] : [false, true]) {
+          setMixamo(cap);
+          put(s);
+          (cap ? on : off).push(await bytesPerCall(run, 0, { n: 1000, warm: 4000 }));
+        }
+      res.push([s.name, median(on), median(off)]);
+      rows.push(`${s.name} ${median(on).toFixed(0)} (hand-made ${median(off).toFixed(0)}; rounds ${on.map((x) => x.toFixed(0)).join('/')} vs ${off.map((x) => x.toFixed(0)).join('/')})`);
+    }
     setMixamo(false);
-    const hangRef = await bytesPerCall(run, 0);
-    i.traverse = 'climbUp';
-    i.ledgeClimb = true;
-    i.traverseT = 0.7;
-    setMixamo(true);
-    const up = await bytesPerCall(run, 0);
-    setMixamo(false);
-    const upRef = await bytesPerCall(run, 0);
-    console.info(`(mixamo I2) bytes a frame: hang ${hang} (hand-made ${hangRef}), climb-up ${up} (hand-made ${upRef})`);
+    console.info(`(mixamo I2) bytes a frame, medians: ${rows.join('; ')}`);
     // the graph's own frame cost is the hand-made path's (not this slice's): the capture path adds nothing to it
-    expect(hang).toBeLessThanOrEqual(hangRef + 16);
-    expect(up).toBeLessThanOrEqual(upRef + 16);
-  }, 120_000);
+    for (const [name, on, off] of res) expect(on, name).toBeLessThanOrEqual(off + 16);
+  }, 600_000);
 });
 
 /** Per state: the palms' worst miss of their grips (rig.gripError, 3 frames after a grip lands, as e2e-traverse) and the
- *  soles' worst miss of their plants (the ankle's distance to the plant target past its first planted offset), in m. */
-type Reach = { hand: number; foot: number; frames: number; at?: string };
+ *  soles' worst miss of their plants (the ankle's distance to the plant target past its first planted offset), in m; on a
+ *  climb-up or top-out `sw`: the largest joint step on its first frame (the switch from the hang's or ladder's clip). */
+type Reach = { hand: number; foot: number; frames: number; at?: string; sw: number; swAt?: string };
 type State = 'hang' | 'shimmyR' | 'shimmyL' | 'ladder' | 'climbUp' | 'topOut';
 
 async function reach(state: State): Promise<Reach> {
@@ -302,7 +372,10 @@ async function reach(state: State): Promise<Reach> {
   const N = Math.round((state === 'topOut' ? LADDER_TOPOUT_TIME : CLIMB_UP_TIME + CLIMB_UP_STAND) / DT);
   const WARM = 60;
   const STEPS = exiting ? N + 10 : 150;
-  const out: Reach = { hand: 0, foot: 0, frames: 0 };
+  const out: Reach = { hand: 0, foot: 0, frames: 0, sw: 0 };
+  const joints = [rig.hips, rig.headNode, rig.wristL, rig.wristR, rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR];
+  const jointName = ['hips', 'head', 'wristL', 'wristR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
+  const prevJ = new Float64Array(joints.length * 3);
   const last = [NaN, NaN, NaN, NaN, NaN, NaN];
   const settle = [0, 0];
   const footRest = [0, 0, 0, 0, 0, 0];
@@ -340,6 +413,20 @@ async function reach(state: State): Promise<Reach> {
       pose.traverseT = exitK >= 0 ? (state === 'topOut' ? exitK * CLIMB_UP_CROUCH_K : exitK) : g.cadence();
       pose.speed = Math.abs(v);
       rig.animate(DT, pose);
+      // the exit's first frame: each joint's world step from the last hang / ladder frame
+      if (exiting && (k === -1 || k === 0)) {
+        for (let j = 0; j < joints.length; j++) {
+          const q = joints[j]!.computeWorldMatrix(true).getTranslation();
+          if (k === 0) {
+            const d = Math.sqrt((q.x - prevJ[j * 3]!) ** 2 + (q.y - prevJ[j * 3 + 1]!) ** 2 + (q.z - prevJ[j * 3 + 2]!) ** 2);
+            if (d > out.sw) out.swAt = jointName[j];
+            out.sw = Math.max(out.sw, d);
+          }
+          prevJ[j * 3] = q.x;
+          prevJ[j * 3 + 1] = q.y;
+          prevJ[j * 3 + 2] = q.z;
+        }
+      }
       if (k < 0) continue;
       out.frames++;
       // palms: a grip that moved restarts its 3-frame landing (e2e-traverse's settle window)
@@ -385,6 +472,81 @@ async function reach(state: State): Promise<Reach> {
   return out;
 }
 
+/** The vent crawl on Wren's rig (headless, its cadence 0.01 a frame) with the switch as it stands: the joints' world
+ *  positions every frame past a 60-frame warm-up, the largest joint step a frame and the largest change of step (a pop). */
+async function crawlJoints(): Promise<{ pos: number[]; step: number; pop: number }> {
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const { Scene } = await import('../src/core/babylon');
+  const { PartLibrary } = await import('../src/world/partLibrary');
+  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { operatorRig } = await import('../src/operators/runtime/playerFigure');
+  const scene = new Scene(new NullEngine());
+  const lib = new PartLibrary(scene);
+  const op = operatorRig(scene, (s, h, sl) => lib.instance(s, h, sl), defaultLook(), 'mixamo-i2-crawl');
+  const rig = op.rig;
+  const pose: RigPose = { speed: 0.6, localX: 0, localZ: 1, grounded: false, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, traverse: 'crawl', traverseT: 0 };
+  const joints = [rig.hips, rig.torso, rig.neck, rig.headNode, rig.shoulderL, rig.shoulderR, rig.wristL, rig.wristR, rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR];
+  const J = joints.length;
+  const pos: number[] = [];
+  let step = 0;
+  let pop = 0;
+  // seeded as runGraph (the graph's idle fidgets), so two runs compare bit for bit
+  const random = Math.random;
+  let seed = 4242;
+  Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  try {
+    for (let n = 0; n < 240; n++) {
+      pose.traverseT = (n * 0.01) % 1;
+      rig.animate(DT, pose);
+      if (n < 60) continue;
+      const f = pos.length / (J * 3);
+      for (const j of joints) {
+        const q = j.computeWorldMatrix(true).getTranslation();
+        pos.push(q.x, q.y, q.z);
+      }
+      for (let j = 0; j < J && f >= 1; j++) {
+        let d2 = 0;
+        let p2 = 0;
+        for (let a = 0; a < 3; a++) {
+          const c = (f * J + j) * 3 + a;
+          const d = pos[c]! - pos[c - J * 3]!;
+          d2 += d * d;
+          if (f >= 2) p2 += (d - (pos[c - J * 3]! - pos[c - J * 6]!)) ** 2;
+        }
+        step = Math.max(step, Math.sqrt(d2));
+        pop = Math.max(pop, Math.sqrt(p2));
+      }
+    }
+  } finally {
+    Math.random = random;
+    op.figure.dispose();
+    rig.dispose();
+    scene.dispose();
+  }
+  return { pos, step, pop };
+}
+
+describe('mixamo I2: the vent crawl (headless, Wren rig)', () => {
+  it('the crawl capture jumps the joints far past the hand-made crawl (its yaw wraps round -pi), so MIXAMO_ON keeps it off', async () => {
+    const hand = await crawlJoints();
+    // with every capture let on, the capture plays
+    allOn();
+    setMixamo(true);
+    const cap = await crawlJoints();
+    // as shipped with the flag on: the hand-made crawl, joint for joint
+    Object.assign(MIXAMO_ON, ON0);
+    setMixamo(true);
+    const shipped = await crawlJoints();
+    const near = cap.step <= hand.step * 2 + 0.01 && cap.pop <= hand.pop * 2 + 0.01;
+    console.info(`(mixamo I2) vent crawl joint step a frame: capture ${(cap.step * 100).toFixed(1)} cm, pop ${(cap.pop * 100).toFixed(1)} cm (hand-made ${(hand.step * 100).toFixed(1)} / ${(hand.pop * 100).toFixed(1)}); near the hand-made: ${near}`);
+    expect(hand.step).toBeGreaterThan(0);
+    expect(differ(cap.pos, hand.pos)).toBeGreaterThan(0);
+    // a capture that pops past the hand-made crawl stays out of matches (the slice rule)
+    if (!near) expect(MIXAMO_ON.crawling_hands_and_knees).toBe(false);
+    if (!MIXAMO_ON.crawling_hands_and_knees) expect(differ(shipped.pos, hand.pos)).toBe(0);
+  }, 300_000);
+});
+
 describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => {
   const STATES: State[] = ['hang', 'shimmyR', 'shimmyL', 'ladder', 'climbUp', 'topOut'];
   it('each capture keeps the palms on their grips and the soles on their plants as the hand-made clip does (1 cm)', async () => {
@@ -395,7 +557,7 @@ describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => 
       const hand = await reach(st);
       setMixamo(true);
       const mix = await reach(st);
-      rows.push(`${st}: palms ${(mix.hand * 100).toFixed(2)} cm (hand-made ${(hand.hand * 100).toFixed(2)}), soles ${(mix.foot * 100).toFixed(2)} cm (hand-made ${(hand.foot * 100).toFixed(2)}) at ${mix.at}`);
+      rows.push(`${st}: palms ${(mix.hand * 100).toFixed(2)} cm (hand-made ${(hand.hand * 100).toFixed(2)}), soles ${(mix.foot * 100).toFixed(2)} cm (hand-made ${(hand.foot * 100).toFixed(2)}) at ${mix.at}${mix.swAt ? `, first exit frame ${(mix.sw * 100).toFixed(1)} cm ${mix.swAt} (hand-made ${(hand.sw * 100).toFixed(1)} ${hand.swAt})` : ''}`);
       res.push([st, hand, mix]);
     }
     console.info(`(mixamo I2) reach / plant errors: ${rows.join('; ')}`);
@@ -403,6 +565,9 @@ describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => 
       expect(mix.frames, st).toBeGreaterThan(0);
       expect(mix.hand, `${st} palms`).toBeLessThanOrEqual(Math.max(0.01, hand.hand + 0.002));
       expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(Math.max(0.01, hand.foot + 0.002));
+      // the switch from the hang's / ladder's clip to the exit's (a capture to the hand-made clip, or the reverse) steps no
+      // joint further than the hand-made switch does (the graph inertializes it)
+      expect(mix.sw, `${st} first exit frame`).toBeLessThanOrEqual(hand.sw + 0.005);
     }
   }, 600_000);
 });
