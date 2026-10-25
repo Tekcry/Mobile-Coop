@@ -89,6 +89,9 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(0.3);
     const ph = await G(() => window.__sector.debug());
     assert(ph.phase === (last ? 'extract' : 'connector'), `section ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph.phase})`);
+    // (sector-marks, G290) no exit beacon: the exit item is there (its zone) with nothing drawn
+    const ex = await G((id) => { const it = window.__app.current.interactables.items.find((x) => x.id === `${id}-exit`); return it ? { parts: it.parts.length, light: it.light !== null } : null; }, s.id);
+    assert(ex !== null && ex.parts === 0 && !ex.light, `section ${i + 1} (${s.id}): the exit has no beacon (${JSON.stringify(ex)})`);
     if (last) {
       await tp(G, (s.exit[0] + s.exit[2]) / 2, 0, (s.exit[1] + s.exit[3]) / 2);
       await sim(1);
