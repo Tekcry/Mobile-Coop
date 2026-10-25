@@ -1,0 +1,14 @@
+{
+  "id": "20261025T070823-night-shift-player-b-7945363b-551f",
+  "sha": "7945363baec47297f7ca0d4eecf7b408c75d2cdd",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-offline"
+  ],
+  "set": "gm-polish",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T065835-night-shift-player-b-7945363b-6240, rerun on the laptop"
+}
