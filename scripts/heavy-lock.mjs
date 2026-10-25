@@ -1,4 +1,4 @@
-// Heavy lock helper (CLAUDE.md "Machines"): one heavy job per machine, held in a lock file created atomically (wx).
+// Heavy lock helper (docs/RULES.md "Machines"): one heavy job per machine, held in a lock file created atomically (wx).
 // The lock text is "<label> | <iso start> | pid <n> | host <hostname>". A lock whose pid is dead on this host is stale:
 // `take` logs it and replaces it (rename to <path>.stale.<pid>, unique per taker, then a wx create; the renamed file is
 // removed). Old-format lines with no pid (the noclobber way) are never broken automatically.

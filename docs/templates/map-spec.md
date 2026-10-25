@@ -45,8 +45,9 @@ Goal: a new listed map, `<map-id>` ("<Map name>"): <2-3 sentences: the building,
    issues, spec change requests).
 7. Approved design docs are the build contract. Deviations go under "Decisions" with the reason; a deviation that
    changes a route, a guard job or a room needs approval first.
-8. Update `CLAUDE.md` and `CHANGELOG.md` at the end of each phase that adds playable content.
-9. Hyphens, never em dashes. Follow `CLAUDE.md` Conventions and Hard rules.
+8. Update the map's docs and the changelog fragment (`changes/<branch-with-dashes>.md`; never `CHANGELOG.md`, G183) at the end
+   of each phase that adds playable content.
+9. Hyphens, never em dashes. Follow `CLAUDE.md` "Hard rules" and `docs/systems/conventions.md`.
 10. Checks: `npm run check`; e2e after a build, single suites with `npm run e2e -- <suite>`.
 
 ## Building brief (fill)

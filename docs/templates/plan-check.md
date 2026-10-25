@@ -7,7 +7,7 @@
 ## Prompt
 You are the plan checker for the Night Shift job `<job>`, branch `feature/<job>`, folder `C:/NightShift/Mobile-Coop-<job>`.
 Read only; never edit, commit or push. Read in this order:
-1. `git show origin/master:CLAUDE.md` ("Current goal", "Hard rules") and `docs/systems/session-method.md` "Intake".
+1. `git show origin/master:docs/VISION.md` (the game), `git show origin/master:CLAUDE.md` ("Hard rules") and `docs/systems/session-method.md` "Intake".
 2. `docs/<job>/BRIEF.md`, then `docs/<job>/PLAN.md` (the version on `origin/feature/<job>`).
 3. The `docs/DECISIONS.md` entries the BRIEF cites (grep them, not the whole file).
 
@@ -15,7 +15,7 @@ Check, in order, and cite the line for every finding:
 1. **Intent.** Does every slice serve what Michael said and picked (the quotes, not the Goal line)? Anything he did
    not ask for, anything he asked for that no slice covers, any place the PLAN reads his words more widely than he
    said them. "Michael said" must be a verbatim quote with a time; "Michael picked" the clicked option text.
-2. **Gates.** Does any slice or assumption cross the current goal (e.g. refining before his playtest), a hard rule,
+2. **Gates.** Does any slice or assumption cross the vision (`docs/VISION.md`, its current focus), a hard rule,
    or a rule only Michael may change? Such an assumption must be a one-click question in the BRIEF, not an A-line.
    A map or look job must have a sign-off before any greybox or art slice.
 3. **Claims.** Is there a fenced `claims` block, and does it cover every file the slices name? Run

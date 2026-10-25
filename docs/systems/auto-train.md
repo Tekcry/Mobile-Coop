@@ -11,16 +11,17 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 ## Running it
 - `node scripts/auto-train.mjs tick [--dry-run] [--once] [--no-autodrop] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]`.
   One step does at most one thing and is safe to repeat.
-- Fast poll (audit 2: green trains waited ~11 min for the next 5-min run): a tick whose step ends waiting
-  (`pending`, `laptop-rerun`, `holding`) keeps its tick lock and runs the step again every `AUTO_TRAIN_FAST_POLL_S`
-  (60) s while the next poll starts within `AUTO_TRAIN_FAST_POLL_MAX_MIN` (4) min of the tick's start, so it ends
-  before the next 5-min task run. Any state change stops it at once (the step already acted: release, build, failed,
-  ...); the status is written after every poll. `--once` and `--dry-run` never poll (`fastPollPlan`). Once the open
-  train's laptop-e2e pending status is older than its expected wall (the laptop's "expect ~N s" in it, else 10 min;
-  `laptopLate`) it polls every `AUTO_TRAIN_FAST_POLL_LATE_S` (30) s instead. The lock's
-  heartbeat touches it every minute, so the 30-min staleness never fires on a polling tick; the task's
-  `MultipleInstances IgnoreNew` (and the lock) skip a 5-min start that lands while a long tick (a release or build)
-  still runs. A hand `merge-train` run during a polling tick STOPs on the held train lock: retry after it. Exit 0 (outcome in the status file), 1 on an error.
+- The scheduled task starts a tick every minute (G286). Fast poll (`fastPollPlan`; written for the old 5-min tick): a
+  tick whose step ends waiting (`pending`, `laptop-rerun`, `holding`) keeps its tick lock and runs the step again every
+  `AUTO_TRAIN_FAST_POLL_S` (60) s while the next poll starts within `AUTO_TRAIN_FAST_POLL_MAX_MIN` (4) min of the
+  tick's start. Any state change stops it at once (the step already acted: release, build, failed, ...); the status is
+  written after every poll. `--once` and `--dry-run` never poll. Once the open train's laptop-e2e pending status is
+  older than its expected wall (the laptop's "expect ~N s" in it, else 10 min; `laptopLate`) it polls every
+  `AUTO_TRAIN_FAST_POLL_LATE_S` (30) s instead. While a tick polls, the 1-minute starts are skipped (the task's
+  `MultipleInstances IgnoreNew` and the held lock), so with 1-minute ticks the 60 s poll changes nothing and only the
+  30 s late poll is faster than a new tick. The lock's heartbeat touches it every minute, so the 30-min staleness never
+  fires on a polling tick. A hand `merge-train` run during a polling tick STOPs on the held train lock: retry after it.
+  Exit 0 (outcome in the status file), 1 on an error.
 - `--worktree`: where merge-train runs (it checks out `train/<n>` and commits there); default
   `C:/NightShift/Mobile-Coop-train`. It must be clean, and nothing else may run merge-train in it while the task is on.
 - `--min-interval` (default 60) and `--max-per-day` (default 0 = off) pace builds, not releases: a green train always
@@ -28,8 +29,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 - `--no-autodrop`: a failed laptop run stays state `failed` for the orchestrator (the behaviour before auto-drop).
 - `--dry-run`: reads GitHub only (gh, `git ls-remote`, no fetch) and prints each write as `[dry-run] would run: ...`;
   it still writes the log and the status (with `"dryRun": true`).
-- Scheduled task: `scripts/auto-train-task.ps1` registers "NightShift auto-train" every 5 min (hidden window through
-  wscript, current user, only while logged on); `-Unregister` removes it. Register it from a checkout that does not
+- Scheduled task: `scripts/auto-train-task.ps1` registers "NightShift auto-train" every minute (`-Minutes`, default 1;
+  hidden window through wscript, current user, only while logged on); `-Unregister` removes it. Register it from a checkout that does not
   change branch (`-RepoDir`), never from the train worktree.
 - Files (`AUTO_TRAIN_SCRATCH` moves them): lock `C:/NightShift/scratch/auto-train.lock` (created `wx`; a running tick
   touches it every minute; untouched for 30 min = stale and replaced; a held lock skips the tick), log
@@ -52,10 +53,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | --- | --- | --- |
 | Open train PR (head `train/<n>`), `auto-train/vitest` failure on its head (older trains only: build no longer runs vitest) | failed | none |
 | CI `check` failed on the head | failed | none |
-| `laptop-e2e` failure from the desktop worker (description starts `desktop:`, with a `FAIL: a,b` list), no rerun recorded for this head | laptop-rerun | `node scripts/laptop-queue/request.mjs --sha <head> --suites "a b" --pr <train PR> --set train<n>-rerun --requester auto-train --train-rerun` (runs right after trains); the request is recorded in the status (`rerun: { head, id, suites, set, at }`) so the head never requests twice. On master's `request.mjs` (before laptop-queue PR #252) `--train-rerun` is silently ignored: the request is a plain pr request with set `train<n>-rerun` (normal pr order, either worker may run it), it exits 0, and a pass posts only `laptop-e2e/train<n>-rerun`, never `laptop-e2e`; with PR #252 it runs right after trains on the laptop and a pass also posts `laptop-e2e` success. A failed request (non-zero exit or no id printed) is logged (`rerunRequestFailed: { head, exit, why, count }`, kept on error ticks) and retried next tick, never fatal |
+| `laptop-e2e` failure from the desktop worker (description starts `desktop:`, with a `FAIL: a,b` list), no rerun recorded for this head | laptop-rerun | `node scripts/laptop-queue/request.mjs --sha <head> --suites "a b" --pr <train PR> --set train<n>-rerun --requester auto-train --train-rerun` (runs right after trains); the request is recorded in the status (`rerun: { head, id, suites, set, at }`) so the head never requests twice. It runs right after trains on the laptop, and a pass also posts `laptop-e2e` success. A failed request (non-zero exit or no id printed) is logged (`rerunRequestFailed: { head, exit, why, count }`, kept on error ticks) and retried next tick, never fatal |
 | Desktop failure, no rerun recorded, the request failed 6 times on this head (`RERUN_REQUEST_MAX`) | rerun-request-failed | none (orchestrator alert; a new head starts again) |
-| Desktop failure, `laptop-e2e/train<n>-rerun` success on the same head, CI `check` success, vitest not failed | releasing | the normal release path below (decide -> `merge-train release`), logged "released on the laptop rerun of <suites>" (Orchestrator: "treat a laptop pass as releasable"); this is how a pass releases on master's `request.mjs`; with CI still pending: laptop-rerun, wait |
-| Desktop failure with a rerun recorded for this head, no rerun verdict yet | laptop-rerun | wait (with PR #252 the pass also posts `laptop-e2e` success and the train releases as a plain green train) |
+| Desktop failure, `laptop-e2e/train<n>-rerun` success on the same head, CI `check` success, vitest not failed | releasing | the normal release path below (decide -> `merge-train release`), logged "released on the laptop rerun of <suites>" (Orchestrator: "treat a laptop pass as releasable"); with CI still pending: laptop-rerun, wait |
+| Desktop failure with a rerun recorded for this head, no rerun verdict yet | laptop-rerun | wait (a pass also posts `laptop-e2e` success and the train releases as a plain green train) |
 | Desktop failure, `laptop-e2e/train<n>-rerun` failure | the next train's state (built, holding, ...) | auto-drop (below) with the rerun's own `FAIL:` list; a rerun failure with no `FAIL:` list (service error, a slot gave no result, build failed) or `--no-autodrop`: failed, none |
 | Desktop failure, rerun recorded, no `laptop-e2e/train<n>-rerun` success or failure `AUTO_TRAIN_RERUN_STALE_MIN` (60) min after the request (`rerun.at`) | rerun-stale | none (the reason names the request id; orchestrator chases the laptop queue) |
 | `laptop-e2e` failure or error from the laptop itself (no `desktop:` prefix) | the next train's state (built, holding, ...) | auto-drop (below); failed, none, when it cannot pick a member (no failing suite in the description or a failure comment, a member diff unreadable, only docs members, the guards below) or under `--no-autodrop` (the orchestrator decides which member leaves) |
@@ -146,10 +147,9 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 - A commit status on that sha, context `laptop-e2e`: `pending` when queued or started (description "queued" /
   "12/39"), then `success` or `failure` (or `error` when the run itself broke), description "<passed>/<total>" plus the
   failing suites on a failure. A rerun posts a new status on the same sha; the newest one counts.
-- A train rerun request (`request.mjs ... --train-rerun`, laptop-queue PR #252) runs right after trains; a full pass
-  posts `laptop-e2e` success "laptop rerun passed: ..." on the sha (plus `laptop-e2e/<set>`), a fail only `laptop-e2e/<set>`
-  (`laptop-e2e/train<n>-rerun` here). Master's `request.mjs` drops `--train-rerun`: the plain pr request posts only
-  `laptop-e2e/<set>`, which auto-train also releases on. The desktop worker
+- A train rerun request (`request.mjs ... --train-rerun`) runs right after trains; a full pass posts `laptop-e2e`
+  success "laptop rerun passed: ..." on the sha (plus `laptop-e2e/<set>`), a fail only `laptop-e2e/<set>`
+  (`laptop-e2e/train<n>-rerun` here). The desktop worker
   prefixes its own `laptop-e2e` descriptions with `desktop: ` (`scripts/laptop-queue/service.mjs`; the failed suites
   follow `FAIL:` as in `lib.mjs describe`).
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
