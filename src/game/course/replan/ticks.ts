@@ -44,10 +44,19 @@ export interface StationHooks {
   down(slotId: string): boolean;
   /**
    * (fix round 2, "jam window") Is a jammer held on jam target `targetId` now (either player; the host's `CtDevices` jam
-   * list)? Target ids: a camera's id (`cam-a3-hall`), a laser power panel's id, a lamp `lt-<light registry id>`. Held
-   * only: a device's reboot or a lamp's off time after the jam ends is the tick's own timing. No allocation.
+   * list)? Target ids: a camera's id (`cam-a3-hall`), a laser power panel's id, a lamp `lt-<light registry index>`. A
+   * lamp's registry index depends on the build order (every lamp the facility and the earlier sets add), so a set never
+   * hard-codes one: read a lamp's state with `lit(group)`. Held only: a device's reboot after the jam ends is the tick's
+   * own timing. No allocation.
    */
   jammed(targetId: string): boolean;
+  /**
+   * (fix round 2, check B3, STATIONS section 5 "jam window" on a lamp) Is any lamp of light group `group` lit now (`on`
+   * and not shot out, in the light registry: it follows a jam's flicker and off time, shots and switches, the same state
+   * the bake, the light meter and the guards read)? False for a group with no lamps. Group 52 is the A5 kiosk flood
+   * (station 13: the window is `!lit(52)`, the fail `lit(52)` before `a5-release`). No allocation.
+   */
+  lit(group: number): boolean;
   /**
    * (fix round 2, OQ4) Was laser `laserId` broken (a player in its beam: the same break that raises `CtDevices`' alarm)
    * while the current live station was live and since the last `epoch()` change? A break inside the hold after a retry

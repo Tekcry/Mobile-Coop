@@ -288,6 +288,7 @@ export class CourseMode implements GameMode {
     gate: (id) => this.state?.isGateOpen(id) ?? false,
     down: (slot) => this.slotDown(slot),
     jammed: (id) => this.jamHeld(id),
+    lit: (group) => this.groupLit(group),
     tripped: (id) => this.laserBroken(id),
     epoch: () => this.epochN,
   };
@@ -373,7 +374,8 @@ export class CourseMode implements GameMode {
       return;
     }
     this.layout = lay;
-    // (fix round 2) a course start is a new epoch for the station ticks
+    // (fix round 2) a course start is a new epoch for the station ticks. `tripEp` / `tripSt` need no clearing here: an
+    // older break carries an older epoch, which never matches `epochN` again
     this.epochN = ++tickEpoch;
     const st = new CourseState(validateCourse(lay.def, layoutKnownIds(lay)), lay.consoles);
     st.solo = courseSoloFlag();
@@ -1186,6 +1188,16 @@ export class CourseMode implements GameMode {
     for (let k = 0; k < ls.length; k++) {
       if (ls[k]!.def.id !== id) continue;
       return k < this.tripEp.length && this.tripEp[k] === this.epochN && this.tripSt[k] === n;
+    }
+    return false;
+  }
+
+  /** (fix round 2, check B3) The hooks' `lit`: any lamp of light group `group` on and not shot out. No allocation. */
+  private groupLit(group: number): boolean {
+    const ls = this.g.world.level.lights.lights;
+    for (let i = 0; i < ls.length; i++) {
+      const l = ls[i]!;
+      if (l.group === group && l.on && !l.destroyed) return true;
     }
     return false;
   }
