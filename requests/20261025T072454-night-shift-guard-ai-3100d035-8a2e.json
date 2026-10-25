@@ -1,0 +1,10 @@
+{
+  "id": "20261025T072454-night-shift-guard-ai-3100d035-8a2e",
+  "sha": "3100d035856a6b110a595148783b34fbe9fd07ed",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "full",
+  "requester": "Night Shift | Guard AI Build",
+  "set": "coop4-full2",
+  "note": "#317 after check B fix (7-9 out of the full run)"
+}
