@@ -1,6 +1,6 @@
 # mission-framework - STATE
 
-## RESUME 2026-10-25 ~13:10 (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~13:55 (Night Shift | Campaign Build; read this block first, older blocks are history)
 Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
 Marlow Build; Marlow keeps level-validator V6, route-runs, guard-cap). Process: `docs/RULES.md` and `docs/VISION.md`
 from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on origin/feature/menu.
@@ -8,8 +8,10 @@ from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on
 DOCS-FIRST HOLD (G346, G355; ROADMAP Now phase 1 row 2b): until Michael signs off the folded plan (Now row 6), no new
 game work here. Finished PRs may ship. Job 1 = the plan-only conformance review
 (`docs/orchestrator/review-briefs/campaign.md` on origin/feature/menu): branch feature/conformance-campaign, worktree
-C:/NightShift/Mobile-Coop-conformance-campaign, output `docs/conformance-campaign/CONFORMANCE.md`, docs PR + checker.
-Reviewer drafts: C:/NightShift/scratch/conformance-campaign/{A-tallow-wharf,B-mission-rules,C-hud-guidance}.md.
+C:/NightShift/Mobile-Coop-conformance-campaign. DONE: PR #419 (head c0d8c058, docs only; S1-S25 summary, 7
+Michael questions, proposed jobs). Checker (fresh Opus) RUNNING -> scratch/conformance-campaign/checker.md; if missing at
+resume, rerun it (brief: re-find 40+ citations, re-run master validator, missed scope). PASS -> post `checker` status on
+the head and tell the orchestrator; FIX -> one fix round. Drafts: scratch/conformance-campaign/{A,B,C}-*.md.
 
 PR A #372 (feature/mission-framework 5181c9db, this branch): open; CI check green on the rerun, affected-e2e green;
 no `checker` status, no `big-pr` label yet. ROADMAP Now 0b: the orchestrator ships it (checker on its head, big-pr,
