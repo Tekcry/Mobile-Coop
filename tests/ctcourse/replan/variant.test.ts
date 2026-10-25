@@ -10,7 +10,7 @@ import { flags } from '../../../src/core/flags';
 import { layoutKnownIds, registeredBayCount, validateCourse } from '../../../src/game/course/courseDef';
 import type { StationDef } from '../../../src/game/course/stationDef';
 import { LevelBuilder } from '../../../src/world/levelBuilder';
-import { applyMapFlicker, FLICKER_STUTTER } from '../../../src/world/lampFlicker';
+import { applyMapFlicker, FLICKER_STUTTER, lampMapId, mapFlickerSeed, STUTTER_TUBES, TUBE_TOL } from '../../../src/world/lampFlicker';
 import { applyMapSway } from '../../../src/world/lampSway';
 import { MARLOW_CIRCUITS, MARLOW_CIRCUITS_REPLAN, MARLOW_POCKETS, MARLOW_POCKETS_REPLAN, MARLOW_TIMED, circuitOf, marlowCourseGroups, validateMarlowCircuits } from '../../../src/world/lighting/marlowCircuits';
 import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, lightSpotsReplan, replanLoad, SPOT_FAIL } from '../../../src/world/maps/ctcourse';
@@ -188,20 +188,38 @@ describe('Marlow re-plan circuits (J14 S0, A20: every light works)', () => {
 });
 
 describe('Marlow re-plan lamps (J14 S0 check fix 3): the same stutter tube, swinging pendants and flicker seed as ctcourse', () => {
-  it('both layouts resolve the same tube and pendant light ids and the same flicker seed', () => {
+  // Registry ids shift by every lamp a set slice adds before a fitting, so the pins are positions (the tables
+  // `lampMapId` resolves both maps through), the stutter mode and the flicker seed: a moved tube or pendant, or a new
+  // seed, fails; extra lamps elsewhere do not.
+  it('both layouts resolve the tube and pendants at the same positions, with the same flicker seed', () => {
     const lamps = (m: typeof ctcourse) => {
       const b = new LevelBuilder();
       m.build(b, 1);
       const tube = applyMapFlicker(b.lights, m.id, 7);
       const sway = applyMapSway(b, m.id);
-      return { tube, seed: b.lights.flickerSeed, sway: sway ? [...sway.ids] : [], at: (id: number) => b.lights.lights[id]!, stutter: b.lights.flickerMode(tube) };
+      const pos = (id: number): number[] => {
+        const l = b.lights.lights[id]!;
+        return [l.x, l.y, l.z];
+      };
+      return {
+        tube: tube >= 0 ? pos(tube) : null,
+        stutter: tube >= 0 ? b.lights.flickerMode(tube) : -1,
+        seed: b.lights.flickerSeed,
+        sway: sway ? [...sway.ids].map(pos) : [],
+      };
     };
+    expect(lampMapId('ctcourseReplan')).toBe('ctcourse');
     const a = lamps(ctcourse);
     const r = lamps(ctcourseReplan);
-    expect(a.tube).toBeGreaterThanOrEqual(0);
-    expect(r.tube).toBe(a.tube);
+    // the built course's tube is the table's first row (A7 data hall); the re-plan resolves the same fitting
+    const t0 = STUTTER_TUBES.ctcourse![0]!;
+    expect(a.tube).not.toBeNull();
+    const want = [t0.x, t0.y, t0.z];
+    for (let i = 0; i < 3; i++) expect(Math.abs(a.tube![i]! - want[i]!)).toBeLessThanOrEqual(TUBE_TOL);
+    expect(r.tube).toEqual(a.tube);
+    expect(a.stutter).toBe(FLICKER_STUTTER);
     expect(r.stutter).toBe(FLICKER_STUTTER);
-    expect([r.at(r.tube).x, r.at(r.tube).y, r.at(r.tube).z]).toEqual([a.at(a.tube).x, a.at(a.tube).y, a.at(a.tube).z]);
+    expect(a.seed).toBe(mapFlickerSeed('ctcourse', 7));
     expect(r.seed).toBe(a.seed);
     expect(a.sway.length).toBeGreaterThanOrEqual(4);
     expect(r.sway).toEqual(a.sway);
