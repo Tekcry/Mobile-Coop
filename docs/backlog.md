@@ -1,8 +1,8 @@
 # Backlog (feedback inbox)
 
 Every piece of feedback lands here with where it goes. Michael decides scope; Claude adds items, never silently drops
-them. When an item ships, mark it done with the job and version. Jobs and their order: `docs/progress.md`. Anything
-that is not in Chaos Theory does not get built (G1).
+them. When an item ships, mark it done with the job and version. Jobs and their order: `docs/ROADMAP.md` (on
+origin/feature/menu). CT is the default; Michael's decisions override it (docs/VISION.md, docs/DECISIONS.md).
 
 Format: `N. Item - destination - status`.
 
@@ -13,7 +13,6 @@ Format: `N. Item - destination - status`.
 5. **Ghost copy of the operator on Epic. CLOSED by voxel-retire (2026-10-23): the voxel body code is gone.** A second copy of the operator's voxel body, its level-of-detail mesh `player-vox-lod` (`src/voxel/voxelBody.ts`), can draw beside the real one; detail in `docs/archive/progress-phases.md` ("Noted fixes"). Destination: graphics fix batch (Michael: "don't do it yet").
 6. **Voice test, a later idea (G82).** Generate the Mission 1 opening three ways: the browser's built-in speech, a free open-source voice model run on this PC, a paid AI voice service; Michael picks by ear. Until then radio and subtitles are text. Write all radio lines short and voice-ready. Original voices only: never clone or imitate a real actor. Destination: unscheduled.
 7. **Epic misses its design targets on the RTX 4090 laptop.** Main thread about 4.3 ms against 3 ms, frame spikes. The goals are rewritten to the laptop's numbers (G14). Destination: graphics fix batch.
-8. **Epic's level material (voxMat) uses 15 of 16 texture units.** Any new texture breaks it. Plan texture atlases before the CC0 desktop textures. Destination: before the CC0 texture work.
 9. **Skin shader D3D warning X4576 (dynamically indexed array).** Makes it recompile slowly, a likely hitch when guards first appear. Destination: graphics fix batch.
 12. **Benchmark at 7680x2067 (RTX 4090 Laptop, v3.5.0, 2026-10-09, `sbd-feedback-2026-10-09.html`).** Low 120 fps (1% low 79), Medium 77 (19), High 64 (29), Ultra 48 (14), Epic 45 (10, worst spike 227 ms, main thread p95 6.8 ms). Data for item 7. Destination: graphics fix batch.
 13. **Thermal vision as CT (G102).** CT's colour ramp (cold background deep blue to purple; heat blue, green, yellow, orange to red at the torso), soft blurred edges, no fine texture, a tube vignette; people behind closed doors as a dim silhouette. Original art only. Destination: the CT prototype.
@@ -160,6 +159,7 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
 
 ## Done
 
+8. **Epic's level material (voxMat) uses 15 of 16 texture units** - void: the voxel render path and `voxMat` are removed (G282).
 3. **Desktop blur** - fixed 2026-10-09 (3.6.0): depth of field read its paused depth pass as "at the lens"; now not aiming is fully sharp (`vfx/dofAperture.ts`).
 4. **Holstered unless aiming, no hip fire, a strike on the fire button** - built in the locomotion run; now G21 (holstered rules) and G42 (palm strike); timings retuned in the CT prototype.
 10, 17, 18, 19, 20. **Night vision look, glare, smear, fade, desktop darkness** - built in the Step 4b fix rounds 1-5 (2026-10-09), approved by Michael.

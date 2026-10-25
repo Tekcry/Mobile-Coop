@@ -4,7 +4,8 @@ Desktop only (G12): pad first, then keyboard and mouse. One current checklist pl
 on the build under test: the live game, the one chosen preview (G85) or a local `npm run dev`. F3 (or `?debug=1`) shows
 the debug overlay. Tick each item; note anything off in Pause > Report feedback.
 
-Items marked (CT prototype) describe today's movement, which the CT prototype replaces; the prototype job rewrites them.
+Items marked (CT prototype) describe today's movement as built. CT movement values are not build targets: CT movement
+references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT target.
 Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version lists:
 [docs/archive/testing-history.md](docs/archive/testing-history.md) (3.0.0 to the consolidation) and
 [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
@@ -23,12 +24,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
-  `?legacy=1`). Sector Ops opens the op list (the Warehouse with four stars), then its briefing: the sectors listed,
-  Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
-- [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
-  you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
-  there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
-- [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
+  `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
+  briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
+  data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
+  the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
+  were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
+  finishes it (team doors keep a solo route, G280).
+- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
+  and objective read by lamp light, with dark
   pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
@@ -693,8 +697,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ### Checks
 - [ ] A job that adds or changes a map: the map's graph passes `node scripts/level-validate.mjs <graph.json>` with 0 errors
   and every WARN is justified in the design doc (before greybox).
-- [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
-  suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
+- [ ] CI `check` passes and the PR's suites pass on the laptop queue on the PR head (the PR tier, `docs/RULES.md`;
+  known-flaky suites excepted); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
 - [ ] A suite that stops with no error at `E2E_JOBS=1` may have been killed at the suite limit (the streamed output
   drops the KILLED line): check its time before reading a hang into it (havok-stall).
