@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 59 (2026-10-26 ~00:30; session [6aaff9]; wins over SAVE 58):**
+- Train 109 (#475 laptop-queue-6) laptop 42/43 green (studio flake). Service pid 12732 healthy.
+- MIXAMO FIRST ALL NIGHT (Michael ~00:15 via Orchestrator 00:20: "add all mixamo animations in game, i will fine tune
+  as needed. make this priority overnight"). Player Build's Mixamo requests (sets mixamo-*, #477, I3 / I4 / switch-on
+  PRs) go first after trains. Pin does not order the queue (lib pick sorts requesters by oldest id; priority is
+  within one requester), so the means is the id: re-file each new Mixamo request as `20261025T0000NN-<rest>` (same
+  JSON, "id" changed, old file deleted, one commit on laptop-queue). Done 00:28 (53129aa01): #477 affected 21728ba6 ->
+  ...000011..., mixamo-i3 b932d031 -> ...000012.... Next free prefix: 000013. Check the log for "superseded" after
+  each re-file. Overrides the SAVE 58 "no renames" rule for Mixamo only.
+- #317 affected 3100d035 withdrawn by the Orchestrator: desktop worker stopped it ("withdrawn by the requester, run
+  stopped", done 00:07). heavy.lock is on the desktop: Orchestrator to confirm it is free.
+- Next queue PR (laptop-queue-7, from the 23:57 audit): skip affected requests on CONFLICTING PRs; smallest-first among
+  PRs whose check + checker are green; check laptop-queue-6 holds claims across the next train.
+- Still waiting: #445 affected f3e4c511 and j20-s6c 259bbe55 (background watcher). Then SAVE 58 Next line.
+
 **Test Runner SAVE 58 (2026-10-25 ~23:30, Orchestrator save at 69%; session [cc496b]; wins over SAVE 57):**
 - Service pid 12732 healthy. Trains 106 (42/43, flake e2e-ctcourse:4) and 107 (43/43) green. Queue 18 requests deep
   at the save: no gap / spare runs added.
