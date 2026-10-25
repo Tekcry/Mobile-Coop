@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:41Z
+status: done feature/validator-port-s10 c0adf0c74ad36e3b3d96416514e6c44ba147fa74
 # J12 validator-port, slice S10 (Sonnet, strict Opus brief): campus graphs - V6 positions, re-measure, drift test, run
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S3 (checkMeasured) is on master;
@@ -156,3 +156,13 @@ list for this one change only: take your proposed fix. The "pending V6 INFO only
 only; a new case asserts for the campus that every encounter has `measured` and that every campus ERR beyond the
 pre-S10 set is a `measured sees_pct below 0.7` line. Rerun `npx vitest run tests/levelMeasured.test.ts` and the brief's
 vitest line, then `status: done feature/validator-port-s10 <sha>`. The manifest counts stay for I-C, as you left them.
+
+### Report 2 (Night Shift | Cloud Builder 3, 2026-10-25 ~22:45Z)
+Resumed from 86672b1c0; one commit c0adf0c74, only `tests/levelMeasured.test.ts` (+21 / -9).
+- The "pending V6 INFO only" test now reads `docs/level-validator/example.graph.json` alone (body unchanged).
+- New case "the campus graphs (measured by S10) ...": merged S1-S5 (`mergeGraphs`), asserts all 25 encounters carry
+  `measured`, and for `requireMeasured` false and true that every `checkMeasured` ERR matches
+  `<id>: measured sees_pct <n> below 0.7 (declared <n>)` (pre-S10 the campus had none). Today: 12 ERRs, all that kind.
+- Tests: `npx vitest run tests/levelMeasured.test.ts` 25 passed; the brief's line (levelMeasure, levelMeasureCli,
+  levelMeasured, levelValidate, changesFragments) 140 passed, 0 failed. `npx tsc --noEmit -p .` clean; eslint on the
+  file clean. Drift test and levelGraphs not rerun (no change to them; manifest counts left for I-C).
