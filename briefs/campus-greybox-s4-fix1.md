@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:35+11:00
+status: done feature/campus-greybox-s4 8706493a4e802df9a0782e485bf65462cbeb8db3
 # campus-greybox s4 fix 1 (cloud): CR8 / CR8-west sills must be climbable
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). The S4 lane checker (Sonnet, code review, 2026-10-25
@@ -43,3 +43,15 @@ Pending PC run: E2E-1 CR8 / CR8-west climb (laptop).
 Both lips climbable in data and test; the new test fails on the base and passes on the head; listed tests green;
 `docs/campus-greybox/checks/s4-fix1.md` (what changed, the numbers checked against geometry, test counts); this brief
 `status: done feature/campus-greybox-s4 <sha>` with a short "## Report".
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26)
+- `s4.ts`: the `delete sill.noLedge` loop removed (both sills stay noLedge); four manual ledges at 4.4, every number as
+  briefed and checked against the geometry: CR8 `(14.1, 19.5)->(14.1, 21.0)` (+x) and plenum `(13.9, 21.0)->(13.9, 19.5)`
+  (-x); CR8-west `(-4.15, 21.0)->(-4.15, 19.5)` (-x) and plenum `(-3.85, 19.5)->(-3.85, 21.0)` (+x). The plenum floor is
+  the 3.2 slab (1.2 under the sill), so the plenum-side pair is in.
+- Tests: Coop reads the build's ledges (generated + `b.anchors.ledges`), expects the sills noLedge, and a new case needs
+  `canHang && canClimbUp` on both faces of both sills; on base 8379670b it fails (`CR8 face x 14.1: hang and climb up:
+  expected false to be true`). Graph's unplanned-lips check reads the manual ledges too. The six listed files **78 / 78**
+  on the head (77 + 1); the other S4 files 62 / 62; typecheck:fast and eslint clean. Also fixed a pre-existing lint error
+  in `campusV2S4Graph.test.ts:224` (no-useless-assignment), which would fail CI lint.
+- Report: `docs/campus-greybox/checks/s4-fix1.md`. Pending PC run: E2E-1 CR8 / CR8-west climb.
