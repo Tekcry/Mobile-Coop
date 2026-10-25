@@ -258,3 +258,11 @@ path times, write `measured` beside each target, and fail the map if a measureme
 The campus graphs (`docs/sector-redesign/graph/`) follow `docs/level-validator/campus-run/CONVENTIONS.md`: storeys,
 connectors as `spine` links, posted choke guards, dogs, and what stays out of the graph.
 
+
+## Mission nodes
+
+A graph may carry four top-level nodes beside `meta`, `spaces` and `links`: `mission`, `objectives`, `rules` and `syncs`.
+Their fields, merge rule and checks are in `docs/level-validator/mission-schema.md` (`checkMission` in
+`scripts/mission-validate.mjs`, called from `validate()` when the merged graph has a mission node). Run the map files
+and the mission file together (`node scripts/level-validate.mjs <map files ...> <mission.json>`). The worked example is
+`docs/level-validator/example.mission.json`.
