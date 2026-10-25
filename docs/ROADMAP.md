@@ -27,7 +27,7 @@ the cap (G355).
 | 3 | Sector Ops: Saltmarsh Park S1-S5; lighting on every map; visual gate | Sector Ops | as 1 | 0a |
 | 4 | Guard AI: `src/ai` on every map (G335, G338 / G341 / G350, G348, G352) | Guard AI | as 1 | 0a |
 | 5 | Test Runner: suites and queue vs RULES; flake budget | Test Runner | as 1 | 0a |
-| 6 | Fold the six gap lists into one plan; one sign-off for Michael | Orchestrator | Michael picks | 1-5 |
+| 6 | Fold the six gap lists into one plan; one sign-off for Michael (Michael 13:53 "plan comes first": leads finish their reviews and HOLD, no doc fixes yet; draft on feature/fold-plan; at sign-off message every lead to resume) | Orchestrator | Michael picks | 1-5 |
 | **Phase 2** | **Signed-off builds, dark behind flags** (only after Michael signs off row 6) | | | |
 | 7 | Rule fixes (allowed at cap): remove compass / blip (hud.ts:34-35, :264; gameState.ts:3634), minimap (hud/minimap.ts), briefing and field-menu maps; objective popup, View / O, ~5 s, what and where (G336, G339, G343, G351) | Campaign | affected-e2e + checker | 6 |
 | 8 | Tallow Wharf GB5 / GB6 + 3 gate-reach ERRs (w2-reading-room 20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s); A10 void, A12 re-plan (G339, G334); campaign cap 32 (G359) | Campaign | 0 ERR; plan checker | 6 |
