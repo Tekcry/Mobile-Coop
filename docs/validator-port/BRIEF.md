@@ -299,3 +299,5 @@ None of these loosens a Michael-only rule; each settles a reading of his words.
   measured miss stays an ERR (LD 15).
 - **L3 (A19): ERR stays.** A mission node on a training map stays an ERR until J22 decides how Marlow Yard sits in the
   campaign list (Q6).
+
+- **A28 A split leg may start with a co-op link from the fork (lead decision 2026-10-26 ~10:15, slice S11).** A split leg may start with a co-op link from the fork (Campaign Build's Tallow `tgc-leads`, 2026-10-26): both partners are at the fork for the boost, then separate. At most one leg; the other leg needs a solo entry from the same fork; the co-op link's time counts for its leg; an INFO line names it. Not a loosening of `docs/level-design.md` 11.3 (legs are still walked alone after the fork). Undo: drop the co-op entry and let the ERR stand. 
