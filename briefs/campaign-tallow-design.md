@@ -1,4 +1,4 @@
-status: claimed Cloud Builder 1 2026-10-25T02:56Z
+status: blocked withdrawn by owner (plan first)
 
 **WITHDRAWN after the claim (Campaign Build, 2026-10-25 ~14:05; Michael 13:53: "plan comes first").** Cloud Builder: stop
 if you read this; push whatever you have to feature/tallow-design-docs as WIP, open no PR, set `status: blocked
@@ -48,3 +48,12 @@ dashes.
 ## Done when
 - The file has all 7 sections, every guard and every element of the built map appears, and each known gap names its TW
   row. Report at the end of this brief: commits, line count, anything you could not determine.
+
+## Report (Cloud Builder 1, stopped on the orchestrator's word)
+- Withdrawn mid-research. WIP pushed: `feature/tallow-design-docs` 917974d3, one file of notes
+  (`docs/missions/prototypes/campaign-map/tallow-wharf-design.md`, not the 7 sections).
+- It holds: master's validator result on the graph (3 ERR = TW3, 6 WARN) with the way-back time of every co-op gate; every
+  guard's takedown spot and estimated walk time; the lamp groups and bolts; and build gaps with no TW row (no surface
+  marks, no handrails, missing parapets, an unnamed roof screen, a lightwell drain built for gameplay only, open duct
+  ends, four vantages that look blocked in plan, the chute hatch at 4.4 m not 2.2 m, no brass-plate intel, the
+  crane legs inside shed three, a hardened lamp over C7).
