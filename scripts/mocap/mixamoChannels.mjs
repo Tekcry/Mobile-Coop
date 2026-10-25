@@ -215,12 +215,22 @@ export function pathAnchors(ev, end, endKind) {
     endKind === 'crouch' ? { name: 'crouch', t: end, k: G.crouchK } : { name: 'crouch', t: ev.crouch, k: G.crouchK },
   ];
   if (endKind !== 'crouch') want.push({ name: 'end', t: end, k: 1 });
-  const out = [], dropped = [];
-  for (const w of want) {
-    if (w.t === null || w.t === undefined) { dropped.push(`${w.name} (not found)`); continue; }
-    const last = out[out.length - 1];
-    if (last && !(w.t > last.t + 1e-6)) { dropped.push(`${w.name} (${w.t.toFixed(3)} s, not after ${last.name})`); continue; }
-    out.push(w);
+  // an event not found is left out; out of order, the lower priority goes (the hand release, then the crouch, then on top)
+  const PRI = { start: 9, end: 9, release: 3, crouch: 2, onTop: 1 };
+  const dropped = [];
+  let out = want.filter((w) => {
+    if (w.t === null || w.t === undefined) { dropped.push(`${w.name} (not found)`); return false; }
+    return true;
+  });
+  for (;;) {
+    let bad = -1;
+    for (let i = 1; i < out.length; i++) if (!(out[i].t > out[i - 1].t + 1e-6)) { bad = i; break; }
+    if (bad < 0) break;
+    const a = out[bad - 1], b = out[bad];
+    const lose = PRI[a.name] < PRI[b.name] ? a : b;
+    const other = lose === a ? b : a;
+    dropped.push(`${lose.name} (${lose.t.toFixed(3)} s, out of order with ${other.name} ${other.t.toFixed(3)} s)`);
+    out = out.filter((w) => w !== lose);
   }
   return { anchors: out, dropped };
 }
@@ -272,20 +282,27 @@ const yawOf = (f) => Math.atan2(f[0], f[2]);
  * segment directions, the trunk / head angles and the feet's pitch. Returns { n, T, scale, yaw, P: { name: [[x,y,z]] },
  * A: { name: number[] } }.
  */
-export function standardBody(take) {
+export function standardBody(take, facing = null) {
   const n = take.frames;
   const pos = (s) => { const a = take.pos.get(s); if (!a) throw new Error(`take ${take.take}: no slot ${s}`); return a; };
   const quat = (s) => { const a = take.quat.get(s); if (!a) throw new Error(`take ${take.take}: no slot ${s}`); return a; };
   const bl = (s) => take.skel.bones.get(s)?.length ?? 0;
   const scale = (GAME.thigh + GAME.calf) / (bl('lfemur') + bl('ltibia') + bl('rfemur') + bl('rtibia')) * 2;
-  // the take's facing: the circular mean of the hips' forward heading
+  // the take's facing: `facing` (a forward in the take's frame, its sign taken from the hips), else the circular mean of
+  // the hips' forward heading
   let sx = 0, sz = 0;
   for (let i = 0; i < n; i++) { const f = qrot(quat('root')[i], [0, 0, 1]); sx += f[0]; sz += f[2]; }
+  if (facing) {
+    const d = facing[0] * sx + facing[2] * sz >= 0 ? 1 : -1;
+    sx = facing[0] * d;
+    sz = facing[2] * d;
+  }
   const yaw = Math.atan2(sx, sz);
   const c = Math.cos(yaw), s = Math.sin(yaw);
   const turn = (v) => [v[0] * c - v[2] * s, v[1], v[0] * s + v[2] * c];
   const at = (slot, i) => turn(pos(slot)[i]);
-  const P = { pel: [], hipL: [], hipR: [], kneeL: [], kneeR: [], ankleL: [], ankleR: [], shL: [], shR: [], palmL: [], palmR: [] };
+  // (`gripL/R`: the take's own palm points, scaled: they stay on a grip, where the rebuilt palms move with the body)
+  const P = { pel: [], hipL: [], hipR: [], kneeL: [], kneeR: [], ankleL: [], ankleR: [], shL: [], shR: [], palmL: [], palmR: [], gripL: [], gripR: [], soleL: [], soleR: [] };
   const A = { pelPitch: [], pelRoll: [], pelYaw: [], chPitch: [], chRoll: [], chYaw: [], hdPitch: [], footL: [], footR: [] };
   const restFoot = (slot) => { const d = take.skel.bones.get(slot).dir; return Math.atan2(-d[1], d[2]); };
   const rest = { L: restFoot('lfoot'), R: restFoot('rfoot') };
@@ -312,6 +329,9 @@ export function standardBody(take) {
       const wrist = add(elbow, scl(nrm(sub(at(`${sd}radius`, i), at(`${sd}humerus`, i))), GAME.forearm));
       const palm = add(wrist, scl(nrm(sub(at(`${sd}hand`, i), at(`${sd}radius`, i))), GAME.palm));
       P[`sh${S}`].push(sh); P[`palm${S}`].push(palm);
+      P[`grip${S}`].push(scl(lerp3(at(`${sd}radius`, i), at(`${sd}hand`, i), 0.6), scale));
+      const tb = at(`${sd}foot`, i), tt = at(`${sd}toes`, i);
+      P[`sole${S}`].push(scl(tb[1] < tt[1] ? tb : tt, scale));
     }
     const up = (slot) => turn(qrot(quat(slot)[i], [0, 1, 0]));
     const fw = (slot) => turn(qrot(quat(slot)[i], [0, 0, 1]));
@@ -371,7 +391,7 @@ function runsOf(on, loop) {
 export function reachStarts(B) {
   const out = {};
   for (const S of ['L', 'R']) {
-    const p = B.P[`palm${S}`];
+    const p = B.P[`grip${S}`];
     const sp = [];
     for (let i = 0; i < B.n - 1; i++) sp.push(len(sub(p[i + 1], p[i])) * TAKE_FPS);
     const peak = Math.max(...sp);
@@ -428,98 +448,113 @@ export function loopChannels(B, recipe) {
   };
 }
 
-/** A chanPath's events in the take (s from the take's first frame) and the frame of the start (trim). */
+/** Hand off a grip: this far from where it held at the start, for good (a hanging hand creeps over the lip ~0.2 m). */
+export const RELEASE_M = 0.3;
+
+/**
+ * A chanPath's events in the take (s from the start used) and its trim: `top` the floor on top (the soles at the end),
+ * the start (a hang: the first frame; the ladder top-out: where the hips reach the game's at the top-out's start), on
+ * top (a knee or a foot over the lip and on the top, from then to the end), the first hand off (hang: `RELEASE_M` off its
+ * start grip for good; ladder: 15 cm in over the rungs), the crouch (after both, the hips up at the crouch's height),
+ * the end (standing: both feet planted and the hips settled; else the last frame).
+ */
 export function pathEvents(B, recipe) {
   const n = B.n;
   const tail = Math.max(1, Math.floor(n * 0.05));
-  let ay = 0;
-  for (let i = n - tail; i < n; i++) ay += (B.P.ankleL[i][1] + B.P.ankleR[i][1]) / 2;
-  const top = ay / tail - GAME.ankleY;
-  // the start: a hang from its first frame; the ladder top-out where the hips reach the game's (the climb's pelvis
-  // under the top by the top-out's rise less the standing hip height)
+  let sy = 0;
+  for (let i = n - tail; i < n; i++) sy += Math.min(B.P.soleL[i][1], B.P.soleR[i][1]);
+  const top = sy / tail;
   let i0 = 0;
   if (recipe.family === 'ladder') {
     const need = top - GAME.ladder.rise + GAME.hipY - 0.02;
     while (i0 < n - 1 && B.P.pel[i0][1] < need) i0++;
   }
-  const hands0 = mid(B.P.palmL[i0], B.P.palmR[i0]);
+  const hands0 = mid(B.P.gripL[i0], B.P.gripR[i0]);
+  const palms0 = mid(B.P.palmL[i0], B.P.palmR[i0]);
   const lipZ = hands0[2];
-  // on top: from the frame a knee or a foot is on the top (over the lip) to the end, the first leg
   let onTop = null;
   for (const S of ['L', 'R']) {
     let last = -1;
     for (let i = i0; i < n; i++) {
       const k = B.P[`knee${S}`][i], a = B.P[`ankle${S}`][i];
-      const on = (k[1] >= top + 0.0 && k[2] >= lipZ) || (a[1] >= top + 0.03 && a[2] >= lipZ);
+      const on = (k[1] >= top && k[2] >= lipZ) || (a[1] >= top + 0.03 && a[2] >= lipZ - 0.05);
       if (!on) last = i;
     }
     if (last < n - 1) { const f = last + 1; onTop = onTop === null ? f : Math.min(onTop, f); }
   }
-  // first hand off: hangs, a palm 8 cm off its grip for good; the ladder, a palm 15 cm in over the top
   let release = null;
   for (const S of ['L', 'R']) {
-    const p = B.P[`palm${S}`];
+    const p = B.P[`grip${S}`];
     let f = null;
     if (recipe.family === 'ladder') {
       for (let i = i0; i < n; i++) if (p[i][2] >= lipZ + 0.15) { f = i; break; }
     } else {
       let last = -1;
-      for (let i = i0; i < n; i++) if (len(sub(p[i], p[i0])) <= 0.08) last = i;
+      for (let i = i0; i < n; i++) if (len(sub(p[i], p[i0])) <= RELEASE_M) last = i;
       if (last < n - 1) f = last + 1;
     }
     if (f !== null) release = release === null ? f : Math.min(release, f);
   }
-  // crouch: after the knee / foot is on top and a hand is off, the hips up at the crouch's height over the top
   let crouch = null;
   const from = Math.max(onTop ?? i0, release ?? i0);
-  const crouchY = top + GAME.hipY + GAME.crouchPelY - 0.03;
+  const crouchY = top + GAME.ankleY + (GAME.hipY - GAME.ankleY) + GAME.crouchPelY - 0.03;
   for (let i = from + 1; i < n; i++) if (B.P.pel[i][1] >= crouchY) { crouch = i; break; }
+  let end = n - 1;
+  if (recipe.end === 'stand' && crouch !== null) {
+    const finalY = B.P.pel[n - 1][1];
+    const planted = (S, i) => B.P[`ankle${S}`][i][1] <= top + GAME.ankleY + 0.03 && len(sub(B.P[`ankle${S}`][Math.min(n - 1, i + 6)], B.P[`ankle${S}`][i])) * 20 < 0.3;
+    for (let i = crouch + 1; i < n; i++) if (B.P.pel[i][1] >= finalY - 0.03 && planted('L', i) && planted('R', i)) { end = i; break; }
+  }
   const s = (f) => (f === null ? null : (f - i0) / TAKE_FPS);
-  return { i0, top, lipZ, hands0, onTop: s(onTop), release: s(release), crouch: s(crouch), end: (n - 1 - i0) / TAKE_FPS };
+  return { i0, top, lipZ, hands0, palms0, onTop: s(onTop), release: s(release), crouch: s(crouch), end: (end - i0) / TAKE_FPS, endFrame: end };
 }
 
-/** A chanPath: dense channel samples over the climb-up's progress, the warp and its report. */
+/**
+ * A chanPath: dense channel samples over the climb-up's progress against the game's root path, the warp and its report.
+ * Placed in the game's start-root frame by the start: a hang by its palms on the HANG clip's (the climb starts from the
+ * game's hang pose), the ladder top-out by its top on the game's and its palms on the CLIMB clip's depth. What is left at
+ * the end against the state that follows (the feet on the top; the hips over the root) is taken out: the height over
+ * the rise (k 0 - CLIMB_UP_PATH.k2), the pelvis across / along over the hand-off to the end.
+ */
 export function pathChannels(B, recipe) {
   const ev = pathEvents(B, recipe);
   const { anchors, dropped } = pathAnchors(ev, ev.end, recipe.end);
   const kEnd = anchors[anchors.length - 1].k;
-  const gameTop = recipe.family === 'ladder' ? GAME.ladder.rise : GAME.hang.drop;
-  const gameLipZ = recipe.family === 'ladder' ? GAME.climbHands[2] : GAME.hang.hands[2];
-  // the take placed in the game's start-root frame: its hands' start x at 0, its top on the game's, its grip on the lip
-  const off = [ev.hands0[0], ev.top - gameTop, ev.lipZ - gameLipZ];
+  const off = recipe.family === 'ladder'
+    ? [ev.palms0[0], ev.top - GAME.ladder.rise, ev.palms0[2] - GAME.climbHands[2]]
+    : sub(ev.palms0, GAME.hang.hands);
   const N = PATH_SAMPLES;
   const ts = [], bodies = [], roots = [];
   for (let i = 0; i <= N; i++) {
     const k = (i / N) * kEnd;
     ts.push(k);
-    const t = pathTime(k, anchors);
-    bodies.push(sampleBody(B, ev.i0 + t * TAKE_FPS));
+    bodies.push(sampleBody(B, ev.i0 + pathTime(k, anchors) * TAKE_FPS));
     roots.push(add(off, gameRoot(recipe.family, k)));
   }
-  // the end against the state that follows (standing: the pelvis over the root at rest height; crouched: over the root),
-  // taken out over the release -> end so the hand-over does not jump
   const last = channelsOf(bodies[N].P, bodies[N].A, roots[N]);
-  const resid = [last.pelX, recipe.end === 'stand' ? last.pelY : 0, last.pelZ];
-  const kRel = GAME.climbUp.handsK0;
+  const resid = [last.pelX, (last.fLY + last.fRY) / 2, last.pelZ];
+  const kRel = GAME.climbUp.handsK0, kTop = GAME.climbUp.k2;
   const series = {};
   bodies.forEach((b, i) => {
-    const w = smooth((ts[i] - kRel) / Math.max(1e-6, kEnd - kRel));
-    const ch = channelsOf(b.P, b.A, add(roots[i], scl(resid, w)));
+    const wy = smooth(ts[i] / kTop);
+    const wxz = smooth((ts[i] - kRel) / Math.max(1e-6, kEnd - kRel));
+    const ch = channelsOf(b.P, b.A, add(roots[i], [resid[0] * wxz, resid[1] * wy, resid[2] * wxz]));
     for (const [k, v] of Object.entries(ch)) (series[k] ??= []).push(v);
   });
   const events = {};
   for (const a of anchors) if (a.name !== 'start' && a.name !== 'end') events[a.name] = a.k;
   const used = anchors[anchors.length - 1].t;
   const gameS = kEnd * (GAME.climbUp.time / GAME.climbUp.crouchK);
+  const gripUnderTop = ev.top - ev.hands0[1];
   return {
     ts, series, fixed: FIXED_PATH, loop: false, events,
     clock: `climb-up progress k (0..1 over ${(GAME.climbUp.time / GAME.climbUp.crouchK).toFixed(3)} s, crouched at ${GAME.climbUp.crouchK}); ${recipe.end === 'crouch' ? `the take ends crouched at k ${kEnd} (held after)` : 'standing at 1'}`,
     notes: [
-      `take ${(ev.i0 / TAKE_FPS).toFixed(3)}-${((ev.i0 / TAKE_FPS) + used).toFixed(3)} s used (${used.toFixed(3)} s) over ${gameS.toFixed(3)} s of game time (x${(used / gameS).toFixed(2)} speed)`,
+      `take ${(ev.i0 / TAKE_FPS).toFixed(3)}-${((ev.i0 / TAKE_FPS) + used).toFixed(3)} s used (${used.toFixed(3)} s of ${((B.n - 1) / TAKE_FPS).toFixed(3)}) over ${gameS.toFixed(3)} s of game time (x${(used / gameS).toFixed(2)} speed)`,
       `events in the take (s from the start used): on top ${fmt(ev.onTop)}, first hand off ${fmt(ev.release)}, crouch ${recipe.end === 'crouch' ? `${ev.end.toFixed(3)} (the end)` : fmt(ev.crouch)}, end ${ev.end.toFixed(3)}`,
       `anchors (take s -> k): ${anchors.map((a) => `${a.name} ${a.t.toFixed(3)} -> ${a.k}`).join(', ')}`,
       ...(dropped.length ? [`dropped: ${dropped.join('; ')}`] : []),
-      `end residual taken out over k ${kRel}-${kEnd}: pelvis x ${resid[0].toFixed(3)}, y ${resid[1].toFixed(3)}, z ${resid[2].toFixed(3)} m`,
+      `the take's grip ${gripUnderTop.toFixed(3)} m under its top; taken out: height ${resid[1].toFixed(3)} m over k 0-${kTop}, pelvis x ${resid[0].toFixed(3)} / z ${resid[2].toFixed(3)} m over k ${kRel}-${kEnd}`,
     ],
     seconds: used,
     anchors, dropped, resid, ev,
@@ -623,9 +658,28 @@ function docSection(recipe, file, res, red) {
   return out.join('\n');
 }
 
+/**
+ * The facing a clip is turned to (a forward in the take's frame; null: the hips' mean). A loop that travels sideways
+ * (a shimmy) faces square to its travel, a crawl along it; a climb-up faces square to its hands' line on the grip at the
+ * first frame (the lip or the rungs); the hang idle and the ladder loop by the hips.
+ */
+export function facingOf(recipe, take) {
+  const p = (s, i) => take.pos.get(s)[i];
+  const n = take.frames;
+  if (recipe.emit === 'chanPath') {
+    const r = sub(p('rhand', 0), p('lhand', 0));
+    return nrm([-r[2], 0, r[0]]);
+  }
+  const d = sub(p('root', n - 1), p('root', 0));
+  if (Math.hypot(d[0], d[2]) < 0.1) return null;
+  if (recipe.family === 'crawl') return nrm([d[0], 0, d[2]]);
+  if (recipe.family === 'hang') return nrm([-d[2], 0, d[0]]);
+  return null;
+}
+
 /** Builds one clip from a loaded take: { source, row, doc, res, red }. */
 export function buildClip(recipe, take) {
-  const B = standardBody(take);
+  const B = standardBody(take, facingOf(recipe, take));
   const res = recipe.emit === 'chanLoop' ? loopChannels(B, recipe) : pathChannels(B, recipe);
   res.notes.unshift(`leg scale x${B.scale.toFixed(3)}; facing turned ${(B.yaw * 180 / Math.PI).toFixed(1)} deg`);
   const red = reduceAll(res);

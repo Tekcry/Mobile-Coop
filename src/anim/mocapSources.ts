@@ -74,6 +74,14 @@ export const MOCAP_SOURCES: Readonly<Record<string, MocapSource>> = {
   // @mixamo-keyed-begin (M3, scripts/mocap/mixamoEmit.mjs: one row per src/anim/clips/mixamo/<slug>.ts; generated, do not edit)
   // @mixamo-keyed-end
   // @mixamo-trav-begin (M4, scripts/mocap/mixamoChannels.mjs: one row per src/anim/clips/mixamo/trav_<slug>.ts; generated, do not edit)
+  mocap_hanging_idle: { source: 'mixamo', title: 'Hanging Idle', take: 'Hanging Idle.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ledge' } },
+  mocap_braced_hang_shimmy_left: { source: 'mixamo', title: 'Braced Hang Shimmy Left', take: 'Braced Hang Shimmy Left.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ledge' } },
+  mocap_braced_hang_shimmy_right: { source: 'mixamo', title: 'Braced Hang Shimmy Right', take: 'Braced Hang Shimmy Right.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ledge' } },
+  mocap_climbing_ladder: { source: 'mixamo', title: 'Climbing Ladder', take: 'Climbing Ladder.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ladder' } },
+  mocap_crawling_hands_and_knees: { source: 'mixamo', title: 'Crawling Hands And Knees', take: 'Crawling Hands And Knees.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:vent' } },
+  mocap_freehang_climb: { source: 'mixamo', title: 'Freehang Climb', take: 'Freehang Climb.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ledge' } },
+  mocap_braced_hang_to_crouch: { source: 'mixamo', title: 'Braced Hang To Crouch', take: 'Braced Hang To Crouch.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ledge' } },
+  mocap_climbing_ladder_to_standing: { source: 'mixamo', title: 'Climbing Ladder To Standing', take: 'Climbing Ladder To Standing.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'trav', loop: 'trav:ladder' } },
   // @mixamo-trav-end
 };
 
