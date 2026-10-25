@@ -20,7 +20,7 @@ FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to clou
 7. Laptop: gb6fix dc2aa9c8 (desktop FAIL at cpu 100%, laptop rerun queued), hg-b4 e72c8eab running; hg-b3 PASS.
 8. Tallow wave 0: cloud briefs tallow-tda / -g0 / -s2 open; MB / D0 held. LP DONE 4dac78cce (picks 9-12 accepted, lead-notes);
    Opus LP checker running (tallow-lp-check.md). PASS + PR D in engine -> cut tallow-fixes, merge LP, push D0 brief.
-Next: LP report; laptop verdicts (j7-prd, j7-pre, gb6fix, hg-b4, #482); cloud r6-polish / r8 done -> checkers; PR D green -> engine, push MB / D0 briefs. Mixamo runs go first overnight (orchestrator 00:20).
+Next: LP check; laptop verdicts (j7-prd, j7-pre, gb6fix, hg-b4, #482); cloud r6-polish / r8 done -> checkers; PR D green -> engine, push MB / D0 briefs. Mixamo runs go first overnight (orchestrator 00:20).
 
 ## OLD RESUME 2026-10-25 ~23:30 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
