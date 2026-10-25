@@ -1,0 +1,18 @@
+{
+  "id": "20261025T072015-night-shift-campaign-f8b06637-bcc3",
+  "sha": "f8b066373f38960eaf1ed4df8e899cda10526f16",
+  "branch": "feature/mission-engine-flg-gb6",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:mission",
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "mission-flg-fix",
+  "note": "FLG fix round (src/net session gate)"
+}
