@@ -25,7 +25,7 @@ import { GRAVITY } from '../../../src/physics/havok';
 import { generateLedges, LEDGE } from '../../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
 import { MARLOW_LEVEL } from '../../../src/world/lighting/levels';
-import { SILENT_PACE } from '../../../src/world/lighting/marlowCircuits';
+import { MARLOW_CIRCUITS, MARLOW_CIRCUITS_REPLAN, SILENT_PACE } from '../../../src/world/lighting/marlowCircuits';
 import { buildCtcourse, COOP_LIPS, lightSpotsReplan } from '../../../src/world/maps/ctcourse';
 import { BEAM_KEEP_CLEAR, COOP_BAND, throwGateway } from '../../../src/world/maps/ctcourseGreybox';
 import {
@@ -639,6 +639,12 @@ describe('Marlow re-plan A5: the moved pieces (drums, bulkheads, apron switch)',
     expect(A5_SW_APRON_RP).toEqual(sw.pos);
     expect(A5_PERIM.x0 - sw.pos.x).toBeCloseTo(0.05, 9);
     expect(part.switches.map((s) => [s.id, s.group])).toEqual([['a5-sw-inner', 51], ['a5-sw-apron', 50]]);
+    // (fix 2) the re-plan circuit table names the moved switch; the built table keeps the built yard's spot at the L4 door
+    const row = MARLOW_CIRCUITS_REPLAN.find((c) => c.group === 50)!;
+    expect(row.switches).toHaveLength(1);
+    expect(row.switches[0]).toMatchObject({ id: 'a5-sw-apron', kind: 'wall', x: sw.pos.x, z: sw.pos.z });
+    expect(row.switches[0]!.by).toMatch(/perimeter wall/);
+    expect(MARLOW_CIRCUITS.find((c) => c.group === 50)!.switches[0]).toMatchObject({ id: 'a5-sw-apron', x: 69.7, z: 36.0, by: 'at the L4 door' });
     // the fixture boxes clear the wall and the reach of a body on the east strip's lamp spacing
     for (const l of east) expect(A5_PERIM.x0 - (l.x + 0.1)).toBeGreaterThan(0);
   });

@@ -205,6 +205,9 @@ export const MARLOW_CIRCUITS: MarlowCircuit[] = [
 export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
   ...MARLOW_CIRCUITS.flatMap((c): MarlowCircuit[] => {
     if (c.group === 22) return [{ ...c, name: "Shunter's cabin panel and coat corner lamp", fitting: 'Ceiling panel over the desk, a wall lamp over the coat hooks', lamps: 2 }];
+    // (J14 G-A5 fix 2) the apron switch moved onto the perimeter wall's inside face with the apron's two east bulkheads (the
+    // built row keeps the built yard's spot at the L4 door)
+    if (c.group === 50) return [{ ...c, switches: [sw('a5-sw-apron', 'wall', 67.8, 36.0, "on the perimeter wall's inside face, by the apron's east bulkheads")] }];
     if (c.group === 49) {
       return [
         { ...c, name: 'Bulk-store row (back aisle)', kind: 'switch', role: 'read', fitting: 'Strips over the back aisle', switches: [sw('a4-sw-bulk', 'wall', 76.3, 25.8, "at the back aisle's west end")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true },
