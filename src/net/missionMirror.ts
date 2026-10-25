@@ -22,10 +22,12 @@ export class MissionMirror {
   readonly kept = [0, 0, 0];
 
   /**
-   * Apply one `ms` (from the map's `missions`). Returns the line to show now (a late joiner's first `ms` with breaks),
-   * else null.
+   * Apply one `ms` (from the map's `missions`). `section`: the host's live section id (the map sector of the message's
+   * `ls`; undefined keeps the current one). The runner enters it as the host's does (`snapshot`), so that section's
+   * steps open from the DAG; without it the runner stays at section -1, no step opens and the client's objective list
+   * has no rows (wharf e2e fix). Returns the line to show now (a late joiner's first `ms` with breaks), else null.
    */
-  take(missions: readonly MissionDef[] | undefined, w: MissionWire): string | null {
+  take(missions: readonly MissionDef[] | undefined, w: MissionWire, section?: string): string | null {
     if (!this.runner || this.runner.def.id !== w.id) {
       const def = missions?.find((m) => m.id === w.id) ?? null;
       this.runner = def ? new MissionRunner(def, COOP_PLAYERS) : null;
@@ -33,6 +35,10 @@ export class MissionMirror {
       this.line = '';
     }
     if (!this.runner) return null;
+    if (section !== undefined) {
+      const si = this.runner.def.sections.indexOf(section);
+      if (si !== this.runner.section) this.runner.snapshot(si);
+    }
     applyMissionWire(this.runner, w);
     for (let i = 0; i < 3; i++) this.kept[i] = w.rk[i] ?? 0;
     const first = this.rb < 0;
