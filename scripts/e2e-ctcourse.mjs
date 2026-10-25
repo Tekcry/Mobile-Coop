@@ -275,6 +275,8 @@ const t = {
   RB, holdUntil, padReady, P5, crouch, legUp, pullUp, dev, drawPistol, holster, aimAt, lt, avatarDrawn, stubWalk,
   // (load-audit, load-latent-net) host-clock windows and presses on the host's own fixed step (synced pairs)
   waitHostSim, onHostStep, offHostStep, hostStepResult,
+  // (J14 S0) parts 5-8 walk the re-plan yard (`ctcourseReplan`): set modules skip steps for rules it drops
+  replan: REPLAN,
 };
 
 /** (B8, G126) The finale in the cash dock: the client goes down and the host revives it inside the 30 s window. */
