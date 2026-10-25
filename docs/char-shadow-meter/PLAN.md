@@ -190,10 +190,11 @@ card of the first release with J10's re-bake, PR B and Guard AI's cue PR on mast
 today's: the field gets no contract, `rtCapsules` feeds the picture, `shadowCues` is null, Settings shows today's text.
 
 ## 3a. Overlaps with other jobs (claims-check 2026-10-25, plus PLANs without a claims block)
-`node scripts/claims-check.mjs --plan docs/char-shadow-meter/PLAN.md --name feature/char-shadow-meter`: 14 overlaps
-(coop-kit, guard-rules, hud-guidance and its -a1 / -a3 slices, map-ready, player-batch-j19, route-runs-2,
-test-runner-j20 and its s3b / s4 / s5 / s6a / s6c slices). light-parity, light-realism and coop4 have no claims block
-yet, so they were read by hand; sector-batch (J18) has no PLAN yet.
+`node scripts/claims-check.mjs --plan docs/char-shadow-meter/PLAN.md --name feature/char-shadow-meter` (run at PLAN
+0e801eb13): 22 overlaps (coop-kit, guard-ai-mission-hooks, guard-rules, hud-guidance and its -a1 / -a3 slices,
+map-ready, player-batch-j19, route-runs-2, sector-marks, test-runner-j20 and its pra / prc / s1 / s2 / s3a / s3b / s4 /
+s5 / s6a / s6b / s6c slices). light-parity, light-realism and coop4 have no claims block yet, so they were read by
+hand; sector-batch (J18) has no PLAN yet.
 
 Same lead (Sector Ops Build), ordered here:
 
@@ -203,6 +204,7 @@ Same lead (Sector Ops Build), ordered here:
 | light-parity J11 | gameState.ts; lightField.ts (F1 only); e2e-darkness / e2e-parity; lighting.md; testing-tools.md | N1 `GameOptions` :148, create :926, :968-975; N2 failed-lamp lines in lighting.md; C1 moves the grey cards to new `e2e-parity.mjs`, e2e-darkness keeps NV and thermal; C2 testing-tools.md; F1 maybe the moon term in `levelInto` (:278-281) | gameState: no shared lines, either order. S4 after J11 PR B (C1 + C2) is on master; S4 adds its card to `e2e-parity.mjs` part 4 and never touches e2e-darkness. F1: PR A first (F1 waits for T1's GPU triage); F1 rebases onto S1's moon factor. |
 | map-ready | gameState.ts, bakedLamps.ts, flags.ts, lighting.md, testing-tools.md | stats wiring and the hold in `GameState.create`; `BakedLamps` landing counter and `tilesPending`; one `mapReady` flag line; S6 / S7 docs | No shared lines. Whichever merges second rebases; flags.ts: one line each, ours under the light flags. |
 | J1 #433 sector-ops-docs | settingsScreen.ts:339-340, lighting.md:225-233 | the char-shadow help and the preset line | #433 first; S2 and S5 build on its text. |
+| sector-marks | gameState.ts | :728 (`new Interactables(...)`), :43 import | No shared lines, either order. |
 | sector-batch J18 | lightField.ts (door light at 15%, `DOOR_SHUT`), lighting.md (likely) | not planned | PR A first; J18's planner claims against this block and rebases its door lines onto S1. |
 
 Other leads, for the orchestrator:
@@ -210,6 +212,7 @@ Other leads, for the orchestrator:
 | Branch (lead) | Shared | Verdict |
 | --- | --- | --- |
 | guard-rules (Guard AI) | flags.ts; scripts/e2e-stealth-ai.mjs | Rebase, no shared lines: F0 adds its own flag lines; S8 adds rule scenarios, S4 adds one shadow scenario block. |
+| guard-ai-mission-hooks (Guard AI) | flags.ts; scripts/e2e-stealth-ai.mjs | Rebase, no shared lines: three own flag lines (`missionorders`, `areaalarms`, `noisezones`); its scenarios `missionOrders` / `areaAlarm` are separate blocks from S4's shadow block. |
 | player-batch-j19 (Player) | gameState.ts; flags.ts; e2e-coop.mjs | Rebase, no shared lines (theirs :1431-1502, :1853-2078, :1990-1996; ours :618, :907-914, :1659-1701 and after). |
 | coop-kit (Player) | gameState.ts; flags.ts | Rebase, no shared lines (theirs :1407, :2600-2602, :3137-3157). |
 | hud-guidance (+ -a1, -a3) | gameState.ts; e2e-coop.mjs | Rebase, no shared lines (theirs :1255-1263, :3619; e2e-coop :224-225, :1848-1850). |
