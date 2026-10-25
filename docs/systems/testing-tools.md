@@ -520,6 +520,42 @@ behind a VPN adapter).
   and compares instead (exit 0 matches, 1 the JSON differs from the sheet, 2 a table is missing or malformed). Without
   `--check`: exit 0 on success, non-zero when a table is missing or malformed.
 
+## Measure CLI (`scripts/level-measure.mjs`)
+`node scripts/level-measure.mjs <graph.json> [more.json ...] [options]` (level-validator, validator-port S2) measures on
+the built greybox what a map graph only declares, and writes the numbers back beside the targets as `measured`. Headless Node
+(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session. It is not in
+`package.json` yet (validator-port S5 owns that): run it as `node scripts/level-measure.mjs`. The rules it holds a graph
+to, and the order of the validator-port work, are in the validator-port PLAN (section 8 for `--points`, section 7 for
+`--flags`); this section only says how to run it.
+- What it measures, per space with an `area`: floor shadow %, vantage visibility %, LOS-break time; per split: leg times
+  and partner reach; per link with an area at both ends: traversal time and path length. A campaign graph
+  (`meta.mode` `campaign`) also gets `meta.measured.ways_back`: for every co-op link, the time back from the `to` floor to
+  the `from` floor on the solo nav (`back_s: null` with a `why` when there is no such path, for example a drop or ladder).
+  Every limit comes from `docs/design/metrics.json` `rules` (`--metrics <file>` swaps the file), none from the CLI.
+- Default run: prints a declared / measured table per space, split and link, and changes nothing. A space with no `area`
+  is listed as skipped. `--doors shut` bakes the light with every door shut (default open) to see whether a space that
+  fails open passes shut; `--write` then stores the shut numbers.
+- Merged per map: all files of one map (same `meta.map`, or the `--map <id>` override) are merged in the validator's file
+  order and measured once, so a link between two section files is measured against both ends. `--write` puts back into
+  each file only its own spaces, links and `meta`, by merged index. The rest of a file stays byte-identical (only the
+  `measured` members change, numbers to 2 decimals), so a second `--write` of the same values changes no byte and a
+  re-measure after a flag or map change diffs only what moved.
+- `--write`: write `measured` into the graph files. A map where no space has an area builds nothing and writes nothing.
+- `--check`: writes nothing and exits 1 on any failure: an encounter space outside its shadow band, below the vantage
+  minimum or over the LOS-break maximum, a split whose partner reach is over its maximum, a stored `measured` value that
+  has drifted from a fresh measure (over 0.05 for fractions, over 1.5 s for times), or an ERR from the measure step.
+  A space with no stored `measured` is only noted: `scripts/level-validate.mjs --require-measured` is the presence gate.
+- `--points <out.json>`: writes the resolved point for every space and every merged link (`resolvePoints`, PLAN section 8)
+  and touches no graph file. It takes the files of one map per call (files of two maps exit 2). It works with `--check`
+  (points file, then the check) but not with `--write` (exit 2).
+- `--flags <key>=<value>[,<value>]`: sets a key of `flags` (`src/core/flags.ts`) before the map builds, to measure with
+  a switch on, as validator-port J17 does. The value is read by the key's current type: boolean (1/0, true/false,
+  on/off), number, or a comma list of numbers. Repeat the option for more keys. An unknown key, or a value of the wrong
+  type, exits 2 and never adds a key. A text key such as `mode` (or `net`) takes the text as given: allowed values are
+  not checked, so a typo such as `mode=cours` is accepted and the build just runs with it.
+- Exit codes: 0 ok, 1 a `--check` failure, 2 bad usage, an unreadable file or an unknown map. Tests:
+  `tests/levelMeasureCli.test.ts` (parsing, the JSON patcher, `--flags`) and `tests/levelMeasure.test.ts`.
+
 ## Laptop queue
 A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task every minute; its first build plan:
 `docs/archive/laptop-queue-PLAN-2026-10-23.md`, history) runs e2e for you and posts the verdict as a commit status on the
