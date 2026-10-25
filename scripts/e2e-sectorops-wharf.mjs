@@ -347,6 +347,9 @@ async function run(id) {
       await restarted(1, SEC[0].conn.cp, 'W2 restart');
       assert((await stepDone('tgc-3')) === 0 && (await fact('tgc-courier')), "the restart keeps W1's fact and has tgc-3 not done");
       const bolt = await GA(() => window.__mission.runner.def.steps.find((s) => s.id === 'tgc-3').bolt);
+      // (wharf e2e fix) the restart spawns Teale on the mode's next fill (every 0.5 s, none within 7 m of a player: the host
+      // stood on the stage beside his slot) and the mission's next tick bolts him: wait for him there, then read him
+      await until(A, (b) => { const e = window.__sector['slotEnemy'][6]; return !!e && Math.hypot(e.pos.x - b[0], e.pos.z - b[2]) < 1.0; }, bolt, 5000, 'Teale at his bolt point').catch(() => {});
       const teale = await GA(() => { const e = window.__sector['slotEnemy'][6]; return e ? [e.pos.x, e.pos.y, e.pos.z] : null; });
       assert(teale && Math.hypot(teale[0] - bolt[0], teale[2] - bolt[2]) < 1.0, `Teale (the spooked courier) stands at his bolt point ${JSON.stringify(bolt)} (${JSON.stringify(teale)})`);
       await sim(2200);
@@ -372,6 +375,8 @@ async function run(id) {
       assert(hf4[1] > 4.2, `W4 C9: the host stands in the clerestory (${JSON.stringify(hf4)})`);
       await useItem('W4-obj', 75.5, 0.1, 15, PI);
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tgc-4')) & 1; }, null, 8000, 'tgc-4 is done');
+      // (wharf e2e fix) the step's events are raised on the mission's next host tick, not inside the item's use
+      await until(A, () => window.__mev.some((e) => e.name === 'mindersArrive'), null, 3000, 'the minders event').catch(() => {});
       const mev = await GA(() => window.__mev.slice());
       assert(mev.some((e) => e.name === 'mindersArrive' && e.guardTag === 'tgc-minders' && e.postId === 'w4-quay'), `the minders are sent (${JSON.stringify(mev)})`);
       await mirror('W4');
@@ -442,6 +447,8 @@ async function run(id) {
       });
       await until(A, () => window.__sector.debug().pairGates[2][0] === true, null, 8000, 'the strongroom gate opens');
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tkl-3')) & 1; }, null, 8000, 'tkl-3 is done');
+      // (wharf e2e fix) the step's events are raised on the mission's next host tick
+      await until(A, () => window.__mev.some((e) => e.name === 'telltale'), null, 3000, 'the telltale event').catch(() => {});
       const mev = await GA(() => window.__mev.slice());
       assert(mev.some((e) => e.name === 'telltale' && e.guardTag === 'w3-lodge-porter' && e.postId === 'w3-passage'), `the lodge porter is sent (${JSON.stringify(mev)})`);
 
