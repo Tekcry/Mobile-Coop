@@ -49,6 +49,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Merge green, checked work without asking; ask in chat when auto mode blocks a step only he can approve.
 - Start new sessions only from his own words in the desktop app; when the app refuses a start, propose a card
   (own_initiative) and tell him to click it.
+- Recording passes (Michael 2026-10-25 ~14:10, "Yes, and for all reviews"): when auto mode blocks a lead from posting `checker` on a documentation-only review PR that an independent Opus checker passed, the orchestrator records it without asking. Code PRs still need his OK each time.
 - When auto mode on the laptop blocks a lead's train-ready label, verify it by RULES "Getting to master" and add it from
   the desktop without asking ("Always label for them"). `gh pr close` is
   allowed on the desktop for failed train PRs and stale PRs whose content is on master.

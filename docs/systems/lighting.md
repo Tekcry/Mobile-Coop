@@ -173,7 +173,9 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
   cached under the full key at the next section change or the match's end (SB14: no mid-play clone).
 - Failures (section-bake robust, `docs/sector-redesign/checks/section-bake-robust.md`): a worker error or a job in flight
   past `JOB_CAP_MS` (60 s: a worker that died silently) is tried once more on the pool (that retry capped at
-  `JOB_RETRY_CAP_MS`, 20 s), then baked inline, one lamp per task. Once the match plays, an inline lamp of the live
+  `JOB_RETRY_CAP_MS`, 20 s), then baked inline, one lamp per task. A job past its cap is cancelled on the pool; a running
+  one's worker is terminated and replaced, so the pool keeps its size (if the replacement cannot start, the pool runs one
+  short); the first capped first try is logged once with its elapsed ms (bake5). Once the match plays, an inline lamp of the live
   section bakes at once even while pool jobs run; any other inline lamp waits until the pool is idle or `setLive`
   makes its section live (bake3). A lamp that fails every way lands dark for
   this match only: logged once, and the result is never cached. A load that throws after the bake started

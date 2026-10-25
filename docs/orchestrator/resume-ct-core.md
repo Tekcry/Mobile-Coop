@@ -7,18 +7,20 @@ C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
 Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Docs-first hold (G346, G355): conformance review first (BOOT.md common start); finished PRs may ship. Every anim PR carries a ~1-2 min look video path in its body.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (2026-10-25 ~13:55 SAVE; cap ~14:05. All branches pushed.)
+## Now (2026-10-25 ~14:05 SAVE; cap ~14:18. All branches pushed, nothing running.)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | Conformance review PR #416 (ROADMAP Now phase 1 row 1) | feature/conformance-player (Mobile-Coop-conformance-player) | 4a819e6a | Checker PASS on c8f49f4b; polish applied as 4a819e6a (docs only); a fresh Opus recheck posts `checker` on 4a819e6a (if missing, start a new fresh checker on the delta). Then HOLD (Michael 13:53 "plan comes first"): no doc fixes, no cloud briefs, no game code until the orchestrator says resume after row 6 sign-off. |
 | player-doc-fixes (stopped) | feature/player-doc-fixes (Mobile-Coop-player-doc-fixes) | 71ba10e1 | WIP, unreviewed, no PR: 2 operators docs (H6 names, S7). Resume after sign-off: S1-S9 + H6 per CONFORMANCE.md 1c (bible / DECISIONS rows are the orchestrator's fold). |
 | #380, #384, #373, #389 | - | - | MERGED (train 88 and before). |
 | player-batch-25 | feature/player-batch-25 | b16c0ee7 | PR #418 opened by the orchestrator (Michael OK 13:45); checker success on b16c0ee7; labels itself when CI check + affected-e2e go green. Watch the train. |
-| gm-flip PR #375 | feature/gm-flip | a76fa924 | Waits on Michael's look picks; its affected-e2e requests were withdrawn by the orchestrator (Michael OK 13:40): re-request after the picks. Base 675 commits behind master. |
+| gm-flip PR #375 | feature/gm-flip | a76fa924 | DRAFT (orchestrator, ~14:05, Michael OK 13:40) so it is not re-queued. After Michael's look picks: `gh pr ready 375` (triggers a fresh affected-e2e). Base 675 commits behind master. |
 | gm-polish | feature/gm-polish (from gm-flip) | 7945363b | checker PASS; laptop-e2e/gm-polish FAILURE on the desktop worker (e2e-offline 1/2, 2026-10-24 23:25Z): needs an Opus triage (G319) or a laptop rerun. PR after #375. |
 | gm-look | feature/gm-look (from gm-flip) | 6a5237f2 | Bake via hidden scheduled task "NightShift gm-look bake" (logs scratch/ctcore/gm-look/bake/); read run.log; STATE gm-look entry steps 1-7. Its cloth assert counts triangles, not bible 5.12.2's 2 cm (conformance note). |
 | coop-real (draft PR #388) | feature/coop-real | 80b9a0ad | c1b 0/3; triage agent from the old account is gone: restart an Opus triage (use --pr 388). |
 | coop-real C2 part 3 | feature/coop-real-c2 | d2f1d940 | laptop-e2e/coop-real-c2 FAILURE (e2e-coop-real:3 0/1, desktop 2026-10-24 22:37Z); merge into coop-real after the triage lands, then K1. |
+
+Next: HOLD (Michael 13:53 "plan comes first"). #416 labels itself when CI `test` is green (checker PASS on 4a819e6a). On the orchestrator's resume after row 6 sign-off: work its folded plan for the Player rows of #416 (S1-S9 docs on feature/player-doc-fixes first), then the jobs above top down (gm-polish triage, coop-real triage, #375 `gh pr ready` after the look picks).
 
 ## Open
 - e2e-coop quarantine is ours until 2026-10-26 (Test Runner 08:45): soak 5/5 alone on 3be7d1a2; one fail at JOBS=3 sharded (laptop scratch/laptop-queue/runs/20261024T173702-night-shift-test-run-3be7d1a2-b1fd/4189.log L821-921) "co-op on the guards": host holds its guard in front of the client (0.38 m). Load-only so far; soak-coop-41002 x5 queued on master 833db92e behind train 78. Repeats -> fix in the next batch PR (player-batch-25 or later).

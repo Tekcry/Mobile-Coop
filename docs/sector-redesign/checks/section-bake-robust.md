@@ -164,3 +164,62 @@ section changed.
 - `docs/systems/lighting.md` "Failures" not edited (no number in it changed); it does not mention that a stalled
   worker is terminated and replaced: a one-line follow-up if wanted.
 - The real `Worker` terminate / respawn path is unit-tested with a stub only; no e2e reaches a hung worker.
+
+# bake5 (feature/sector-redesign-bake5, base feature/sector-redesign-bake4 @ d2ccf630)
+
+The bake4 check's held polish 1-8 (`checks/bake4-check.md`), built by a cloud builder. Nothing here runs per frame: the
+new allocations (an Error, a warn string) are on `cancel` / `dispose` / the 5 s `checkStalled` timer only. No cap,
+timing or bake order change.
+
+## What changed (file:line, on the bake5 head)
+1. **`dispose` settles the running jobs** (polish 1). `workerPool.ts:151-162`: every `busy` pending rejects with
+   `voxel pool disposed` (:157), then `busy.clear()`, beside the queued ones (:159). Callers already dispose in a
+   `finally` after their await or drop it by token (brief's list); none changed.
+2. **`cancel` retires and settles before it spawns** (polish 2, 5). `workerPool.ts:117-140`: `busy.delete`, `retire`,
+   `k = all.indexOf(w)` (the unreachable `all.push` branch dropped), reject, then `spawn` in `try`; on a throw the slot
+   is spliced out (the pool runs one short, `size` drops), one warn per pool (`warnedSpawn`, :29), `pump`, true. JSDoc
+   :102-107.
+3. **`retire(w)`** (polish 4). `workerPool.ts:144-149`: handlers nulled, then `terminate`; used by `cancel` (:120) and
+   `dispose` (:153). The `done` guard (:91) stays.
+4. **Late `onerror`** (polish 8): test only (below).
+5. **Cap warning** (polish 3). `sectionJobs.ts:127` `warnedCap`; `checkStalled` (:248-253) warns once per baker when a
+   first try passes its cap, `ms` read before `failed1` resets the start time: `[section-bake] a worker job ran past its
+   cap (<ms> ms): cancelled, tried again on the pool`. JSDoc line at :234.
+6. **Fake pools** (polish 6). `tests/sectionBake.test.ts` `handPool` and the one-line pool gain `cancel: () => false`.
+   The `as unknown as WorkerPool` cast hides the gap from tsc, so no new test: the file staying green is the proof.
+7. **Docs** (polish 7). `docs/systems/lighting.md` "Failures": one sentence (a capped job is cancelled on the pool, a
+   running one's worker replaced so the pool keeps its size, one short if the replacement cannot start; the first
+   capped first try logged once with its elapsed ms). Docs only.
+8. **Tests.** `tests/sectionBakeRobust.test.ts`: header sentence; `FakeWorker` hoisted to module level with
+   `failSpawn` (constructor throws before recording itself), plus `fakeJob` / `runInto` helpers; each pool test resets
+   `FakeWorker.made` and stubs / unstubs `Worker` in `try` / `finally`. The bake4 cancel test now captures `lateMsg` /
+   `lateErr` after the first posts, asserts wA's handlers are null after `cancel`, replays the late answer through
+   `lateMsg`, replays a late error (jF then stays queued: `wA.posted` `[jA]`, `nw.posted` `[jD, jE]`, job 1 still
+   `cancelled`, not `late`, job 5 unsettled) and, after `dispose`, asserts jB, jE, jF are `disposed`. New describe
+   "bake5" (3 tests): dispose settles running + queued, handlers null, a captured late answer changes nothing; cancel
+   with a failing spawn (job cancelled, wA terminated, `size` 1, `made` 2, wB takes jC after answering jB, one warn);
+   the cap warning (one `ran past its cap` with ms > `JOB_CAP_MS` after both first tries cap, still one after both
+   retries cap, one `failed twice`, bytes equal the full bake).
+9. `changes/feature-sector-redesign-bake5.md` (`kind: patch`).
+
+## Tests (node, `--maxWorkers=2`)
+- `npx tsc --noEmit -p .`: clean.
+- `tests/sectionBakeRobust.test.ts`: 19/19 (16 + 3 new).
+- `tests/sectionBake.test.ts`: 11/11.
+- `tests/sectionBakeCampus.test.ts`: 3 passed, 1 skipped (the heavy case).
+- `tests/changesFragments.test.ts`: 1/1.
+- Mutations (each applied to the robust file's run, then restored; tree clean after):
+  1. no busy reject in `dispose`: 2 fail (the bake4 cancel test's `disposed` asserts, the bake5 dispose test).
+  2. spawn before reject, no try / catch: 1 fails (the failing-spawn test: `cancel` throws).
+  3. no handler nulling: 2 fail (the null asserts in the bake4 cancel test and the bake5 dispose test).
+  4. no `done` guard: 1 fails, at the bake4 cancel test's `nw.posted` assert (the late *message* replay already puts wA
+     back in `idle`, so jE goes to it) before the jF assert is reached. A narrower variant that guards messages only
+     (`if (r && ...)`) fails at the jF assert (`wA.posted` gains jF), so the late-error assert bites on its own.
+  5. warn on every cap: 1 fails (the cap warning count).
+
+## Deviations / open
+- Mutation 4 as written is caught one assert earlier than the brief expected (above); the jF assert is proven by the
+  narrower variant.
+- A pool left with 0 workers after failed spawns is not handled further (brief: `SectionBaker`'s 5 s check fails its
+  jobs past the cap and bakes them inline).
+- The real `Worker` path is still unit-tested with a stub only; no e2e reaches a hung worker or a failed spawn.
