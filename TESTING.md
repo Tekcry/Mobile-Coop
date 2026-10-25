@@ -415,7 +415,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Pick "state: idle": she is back in the middle.
 - [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
   run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
-  climbing ones on their props, playing the capture with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
+  climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
+  captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
