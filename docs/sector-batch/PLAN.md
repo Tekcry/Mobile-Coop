@@ -54,8 +54,9 @@ On master the team doors are S4's cage pair gate (`src/world/maps/campusS4Data.t
 | # | File | Line(s) | Change |
 | --- | --- | --- | --- |
 | 1 | `src/world/lightField.ts` | :22, :28-29 | `DOOR_SHUT = 0.15` with the G41 comment (a door open 15% or less stops light; the peek crack counts as shut) |
-| 2 | `tests/doorLight.test.ts` | new | `DOOR_SHUT` is 0.15; `DOOR_CRACK.crack` < `DOOR_SHUT`; `LightField.doorBlocks` (a one-door field) blocks at 0.12 and passes at 0.2; `lampDoorListInto` / torch set lists agree (`torchShadowSet` at 0.15 counts, 0.16 does not) |
-| 3 | `docs/systems/lighting.md` | :23-24 | "Built (G41), light only: `DOOR_SHUT` 0.15 ..."; sight and sound through a door are Guard AI's (BRIEF A10). Lines :25-27 are #433's: untouched |
+| 2 | `tests/doorLight.test.ts` | new | `DOOR_SHUT` is 0.15; a peek crack (`DOOR_CRACK.crack`) is at or under it |
+| 3 | `tests/lightField.test.ts` | :359, inside the door test | the leaf at 0.12 still cuts the lamp; at 0.2 the level equals the door-free field (`tests/torchShadowSet.test.ts:207-213` already reads `DOOR_SHUT` symbolically) |
+| 4 | `docs/systems/lighting.md` | :23-24 | "Built (G41), light only: `DOOR_SHUT` 0.15 ..."; sight and sound through a door are Guard AI's (BRIEF A10). Lines :25-27 are #433's: untouched |
 
 ### B4 - out after 30 s, back at the next section door, dark (PR B)
 | # | File | Line(s) | Change |
@@ -67,7 +68,7 @@ On master the team doors are S4's cage pair gate (`src/world/maps/campusS4Data.t
 | 5 | `src/net/coopClient.ts` | :618 | the "OUT - wait for the checkpoint" line also in `sector` |
 | 6 | `src/game/modes/sectorMode.ts` | new field near :272; :812-827 `exitStep`; :862-867 (after `beginSection()` in `CONN_UNLOCK_FAR`); :1158 `restartSection`; :1333-1338 `onPlayerOut` | `outIds` (a `Set<string>`, filled only with the flag on); `exitStep` skips refs in it (no allocation); after the far door unlocks, `g.net?.returnOut?.(this.checkpoint)` then clear; a restart clears it; `onPlayerOut(id)`: with the flag and someone still up, add the id and banner "OPERATOR OUT" / "Back at the next section door", else the restart as now |
 | 7 | `src/ui/screens/briefingScreen.ts` | :57 | with the flag, the line says: a team-mate has 30 s to revive you, then you are out until the team reaches the next section door; everyone down, or solo, restarts the section |
-| 8 | `tests/sectorOutWait.test.ts` | new | the flag defaults off; `onPlayerOut` with and without the flag on a stub game (restart timer vs out set), `exitStep` counts (a pure helper `countExit` exported from sectorMode.ts if the stub is too heavy: see the brief) |
+| 8 | `tests/sectorOutWait.test.ts` | new | the flag defaults off; `SectorMode.prototype.onPlayerOut` on a stub: out set with the flag and someone up, the restart timer otherwise |
 | 9 | `scripts/e2e-sectorops.mjs` | new block after :983 (end of the co-op mirror block) | two pages, `sectoroutwait=1`: the client goes down, 30 s of host clock, the section does not restart, the client reads OUT; the host takes the objective and cycles the connector alone; the client comes back on the checkpoint, no restart counted |
 | 10 | `TESTING.md` | new item after :51 | the flagged out-and-wait check (`?sectoroutwait=1` on the host) |
 | 11 | `docs/systems/modes-and-progression.md` | :91-92 | the out rule as built with and without the flag |
@@ -184,6 +185,7 @@ files:
   - tests/sectorSolo.test.ts
   - tests/campusSoloRoute.test.ts
   - tests/doorLight.test.ts
+  - tests/lightField.test.ts
   - tests/sectorOutWait.test.ts
   - tests/visualGateViewpoints.test.ts
   - scripts/e2e-sectorops.mjs
@@ -216,7 +218,8 @@ the lines each side touches (section 6 has the reads):
 - `feature/map-ready`: flags, main.ts (~:412 vs our :164 / :257), gameState, briefingScreen.ts (its loading gate, not
   :57 / :60), coopHost, coopClient, e2e-sectorops, lighting.md ("Per-section lamp bake" vs our :23-24), TESTING.md.
 - `feature/char-shadow-meter` (J16, same lead): lightField.ts (optional arguments for the character term, ~+120 near
-  `bodyLevel` :240-248; ours :22-29 only), flags, gameState (:618, :907-914, :1659-1701; ours NetHooks ~:230),
+  `bodyLevel` :240-248; ours :22-29 only), tests/lightField.test.ts (its ~+160 lines; ours 4 lines inside the door test
+  at :359; the claims scan ran before this file joined our claims), flags, gameState (:618, :907-914, :1659-1701; ours NetHooks ~:230),
   lighting.md (character-shadow section :222-249). B3 lands first or second: no shared line.
 - `feature/light-realism` (J10, same lead): lighting.md (band lines; ours :23-24).
 - `feature/sector-marks` (J5, same lead): gameState.ts :728, coopClient.ts :247, e2e-sectorops after :91, TESTING.md
@@ -240,6 +243,6 @@ Order: none forced. PR A and PR B may land in either order; each is cut from mas
   hang-down `campusS4Data.ts:147`). A fail is a G280 finding, not a builder fix (BRIEF A8).
 - B3 changes light at doors 5-15% open: e2e-lightbake or a door test that cracks a door and expects light may move;
   the brief lists the greps. A failing light e2e on the PR head goes to an Opus triage (RULES G319).
-- B4: `g.localId` must equal the host's own ref id in `playerRefsInto` (`gameState.ts:522-526`, `:1061`); the brief
+- B4: `g.localId` must equal the host's own ref id in `playerRefsInto` (`gameState.ts:522-526`, `:1057`); the brief
   makes the builder check it first. The e2e uses warehouseOps (frozen: read only, A21) like the co-op mirror block.
 - B5 R1-R4 wait behind trains and PR runs; V15 and V17 cannot close before R4.
