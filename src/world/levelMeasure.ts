@@ -6,6 +6,9 @@
  * (`SightWorld.clear`, eye `EYE_STAND`, range `PERCEPTION.focusRange`). Speeds come from the `metrics` object
  * (`docs/design/metrics.json` `rules`), never from this file (M2).
  *
+ * (validator-port S1, docs/validator-port/PLAN.md) On master: the campaign way backs (A5), `resolvePoints` for J13's
+ * route-runs (PLAN section 8; `measureGraph` takes its door points from the same code) and the kind sets of A25.
+ *
  * Tooling only: the game never imports this module (the CLI `scripts/level-measure.mjs` and the Vitest checks do).
  * Babylon-free; it allocates freely (not a hot path).
  */
@@ -45,14 +48,19 @@ export const MEASURE_DEF = {
 /** The tool tag written to `meta.measured.tool`. */
 export const MEASURE_TOOL = 'level-measure 1';
 
-/** Link kinds the nav grid does not model (it walks, climbs ladders and takes drops only, `navGrid.ts` NavLinkInput). */
-export const OFF_NAV_KINDS: ReadonlySet<string> = new Set(['coop_boost', 'human_ladder', 'team_rope', 'rappel', 'wall_jump', 'split_jump', 'ledge', 'pipe', 'duct', 'window', 'hatch']);
-/** Co-op kinds (graph-schema "Link kinds"; `scripts/level-validate.mjs` COOP_KINDS): a split leg is walked alone. */
-const COOP_KINDS: ReadonlySet<string> = new Set(['coop_boost', 'human_ladder', 'pair_gate', 'team_rope']);
+/**
+ * Link kinds the nav grid does not model (it walks, climbs ladders and takes drops only, `navGrid.ts` NavLinkInput):
+ * no measured time (`null` + `why`). The kit moves (G293) and the five A25 moves are off it; the doorway kinds
+ * `pair_gate`, `shutter`, `deadweight` and `vent_unlock` are measured as doors (validator-port A25).
+ */
+export const OFF_NAV_KINDS: ReadonlySet<string> = new Set(['coop_boost', 'human_ladder', 'team_rope', 'rappel', 'wall_jump', 'split_jump', 'ledge', 'pipe', 'duct', 'window', 'hatch', 'team_throw', 'team_hang', 'team_pull', 'plank_bridge', 'chimney_pair', 'swing_pass', 'drop_catch']);
+/** Co-op kinds (graph-schema "Link kinds"; `scripts/level-validate.mjs` COOP_KINDS plus the six of validator-port A25):
+ *  a split leg is walked alone; a campaign co-op link gets a measured way back. */
+const COOP_KINDS: ReadonlySet<string> = new Set(['coop_boost', 'human_ladder', 'pair_gate', 'team_rope', 'team_throw', 'team_hang', 'team_pull', 'shutter', 'vent_unlock', 'plank_bridge', 'deadweight', 'chimney_pair', 'swing_pass', 'drop_catch']);
 /** Kinds walked at the split speed when no time is measured or declared (`level-validate.mjs` WALK_KINDS). */
 const WALK_KINDS: ReadonlySet<string> = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair', 'open_stair', 'tunnel', 'pair_gate']);
-/** One way unless `one_way: false` (`level-validate.mjs` ONE_WAY_KINDS). */
-const ONE_WAY_KINDS: ReadonlySet<string> = new Set(['drop', 'rappel']);
+/** One way unless `one_way: false` (`level-validate.mjs` ONE_WAY_KINDS; `drop_catch` as `drop`, A25). */
+const ONE_WAY_KINDS: ReadonlySet<string> = new Set(['drop', 'rappel', 'drop_catch']);
 const SPLIT_TAG = /^split:(.+):(a|b)$/;
 
 type V3 = [number, number, number];
@@ -62,6 +70,7 @@ export type AreaBox = readonly [number, number, number, number];
 /** The graph fields V6 reads (graph-schema.md + V6-PLAN "Schema additions"); everything else passes through. */
 export interface MeasureSpace {
   id: string;
+  section?: string;
   type?: string;
   storey: number;
   tags?: readonly string[];
@@ -79,10 +88,15 @@ export interface MeasureLink {
   time_s?: number;
   length?: number;
   one_way?: boolean;
+  route?: string;
+  /** The stored measurement (`level-measure --write`): `resolvePoints` passes it on. */
+  measured?: LinkMeasured;
 }
 
+/** One map's graph: one file, or the merged files of a multi-file map (`mergeGraphs`, links by merged index). */
 export interface MeasureGraphInput {
-  meta: { map: string };
+  /** `mode` 'campaign' measures the way backs (validator-port A5). */
+  meta: { map: string; mode?: string };
   spaces: readonly MeasureSpace[];
   links: readonly MeasureLink[];
 }
@@ -135,11 +149,20 @@ export interface SplitMeasured {
   reach_s: number | null;
 }
 
+/**
+ * The way back over a campaign co-op link (validator-port A5, level-design 11.6 gate reach): the solo nav path from
+ * the worst floor cell of its `to` space to the nearest floor cell of its `from` space, at `reach_speed_mps`; no time
+ * and why when some `to` cell has no nav path there (a drop or ladder off the nav, a move it does not model).
+ */
+export type WayBack = { from: string; to: string; kind: string } & ({ back_s: number; path_m: number } | { back_s: null; why: string });
+
 export interface MetaMeasured {
   tool: string;
   date: string;
   geom: string;
   splits: Record<string, SplitMeasured>;
+  /** One per co-op link in graph order; campaign graphs only (absent on other modes). */
+  ways_back?: WayBack[];
 }
 
 export interface MeasureResult {
@@ -155,6 +178,192 @@ export interface MeasureResult {
 interface Area {
   boxes: AreaBox[];
   room: RoomRect | null;
+}
+
+/** Where a link's point came from: the graph's `at`, the one gap of the two areas' shared edge, or nothing. */
+export type PointSource = 'declared' | 'edge' | 'none';
+
+/** A space of `resolvePoints` (validator-port PLAN section 8): null fields where the space has no `area` / floor. */
+export interface PointSpace {
+  id: string;
+  section: string | null;
+  storey: number;
+  /** The median nav floor height of its floor cells (the floor as built; `storey` is the declared one). */
+  floorY: number | null;
+  /** The `area` boxes (a RoomDef area as its one box). */
+  boxes: AreaBox[] | null;
+  /** The floor cell nearest the floor cells' centroid `[x, y, z]` (where `measureGraph` times links from). */
+  centre: V3 | null;
+  /** Floor cells: walkable nav cells in the area within `MEASURE_DEF.storeyTol` of `storey`. */
+  cells: number;
+}
+
+/** A link of `resolvePoints`, at its index in the (merged) graph's `links`. */
+export interface PointLink {
+  from: string;
+  to: string;
+  kind: string;
+  route: string | null;
+  /** The point the link passes `[x, y, z]`: the declared `at`, else the shared edge's one gap, else null. */
+  at: V3 | null;
+  atFrom: PointSource;
+  /** Gaps on the shared edge: 1 for 'edge', 0 or 2+ for 'none' (0 also when an end has no area / floor); null when
+   *  declared (not searched). */
+  gaps: number | null;
+  /** The link's stored `measured` (null when none). */
+  measured: LinkMeasured | null;
+}
+
+/** `resolvePoints`' result: one entry per space and per link, the geometry hash, and the report lines. */
+export interface PointsResult {
+  spaces: PointSpace[];
+  links: PointLink[];
+  /** Equal to `measureGraph`'s `meta.measured.geom` on the same build: compare with the graph's to refuse a stale one. */
+  geom: string;
+  /** `ERR ...`: unknown room ids, empty areas, shared edges with 2+ gaps. */
+  errors: string[];
+}
+
+/** What `resolvePoints` needs of `MeasureOptions` (no light, sight, guards or metrics). */
+export type PointOptions = Pick<MeasureOptions, 'builder' | 'rooms' | 'map'>;
+
+interface LinkPoint {
+  at: V3 | null;
+  atFrom: PointSource;
+  gaps: number | null;
+}
+
+/** The areas, floors, centres and link points both `resolvePoints` and `measureGraph` read (one code path). */
+interface Resolved {
+  geom: string;
+  areas: Map<string, Area>;
+  floors: Map<string, number[]>;
+  errors: string[];
+  centreOf: (id: string) => V3 | null;
+  pointOf: (k: number) => LinkPoint;
+}
+
+function resolve(graph: MeasureGraphInput, nav: NavGrid, opts: PointOptions): Resolved {
+  const errors: string[] = [];
+  const mapId = opts.map?.id ?? graph.meta.map;
+  const lightHash = canonicalLightSet(opts.builder.boxes, opts.builder.cylinders, mapId, opts.map ? dressingOn(opts.map) : true).hash;
+  const navHash = fnv(new Uint8Array(nav.height.buffer, nav.height.byteOffset, nav.height.byteLength), fnv(nav.walk)).toString(36);
+  const geom = `${lightHash}-${navHash}`;
+  const byId = new Map(graph.spaces.map((s) => [s.id, s]));
+  const roomById = new Map((opts.rooms ?? []).map((r) => [r.id, r]));
+  const tmp: P2 = [0, 0];
+
+  // areas and floor cells
+  const areas = new Map<string, Area>();
+  const floors = new Map<string, number[]>();
+  for (const s of graph.spaces) {
+    if (s.area === undefined) continue;
+    let area: Area;
+    if (typeof s.area === 'string') {
+      const r = roomById.get(s.area);
+      if (!r) {
+        errors.push(`ERR ${s.id}: area '${s.area}' names no room of the map`);
+        continue;
+      }
+      area = { boxes: [[r.minX, r.minZ, r.maxX, r.maxZ]], room: r };
+    } else {
+      area = { boxes: s.area.slice(), room: null };
+    }
+    areas.set(s.id, area);
+    const cells = cellsIn(nav, area, 0, (h) => Math.abs(h - s.storey) <= MEASURE_DEF.storeyTol);
+    floors.set(s.id, cells);
+    if (!cells.length) errors.push(`ERR ${s.id}: area has no walkable floor cell within ${MEASURE_DEF.storeyTol} m of storey ${s.storey}`);
+  }
+
+  // centres (lazy: measureGraph reads only the linked spaces)
+  const centres = new Map<string, V3>();
+  const centreOf = (id: string): V3 | null => {
+    const c = centres.get(id);
+    if (c) return c;
+    const cells = floors.get(id);
+    if (!cells?.length) return null;
+    let sx = 0;
+    let sz = 0;
+    for (const i of cells) {
+      nav.centerInto(i, tmp);
+      sx += tmp[0];
+      sz += tmp[1];
+    }
+    sx /= cells.length;
+    sz /= cells.length;
+    let best = cells[0]!;
+    let bd = Infinity;
+    for (const i of cells) {
+      nav.centerInto(i, tmp);
+      const d = hyp2(tmp[0] - sx, tmp[1] - sz);
+      if (d < bd) {
+        bd = d;
+        best = i;
+      }
+    }
+    nav.centerInto(best, tmp);
+    const out: V3 = [tmp[0], nav.height[best]!, tmp[1]];
+    centres.set(id, out);
+    return out;
+  };
+
+  // link points (lazy, cached: measureGraph skips the off-nav kinds)
+  const points = new Map<number, LinkPoint>();
+  const pointOf = (k: number): LinkPoint => {
+    let p = points.get(k);
+    if (p) return p;
+    const l = graph.links[k]!;
+    if (l.at && l.at.length >= 3) {
+      p = { at: [l.at[0]!, l.at[1]!, l.at[2]!], atFrom: 'declared', gaps: null };
+    } else {
+      const sa = byId.get(l.from);
+      const sb = byId.get(l.to);
+      const aa = areas.get(l.from);
+      const ab = areas.get(l.to);
+      const ca = centreOf(l.from);
+      const cb = centreOf(l.to);
+      if (!sa || !sb || !aa || !ab || !ca || !cb) {
+        p = { at: null, atFrom: 'none', gaps: 0 };
+      } else {
+        const e = edgePoint(nav, aa, ab, sa.storey, sb.storey, ca, cb);
+        p = e.gaps === 1 ? { at: e.at, atFrom: 'edge', gaps: 1 } : { at: null, atFrom: 'none', gaps: e.gaps };
+      }
+    }
+    points.set(k, p);
+    return p;
+  };
+
+  return { geom, areas, floors, errors, centreOf, pointOf };
+}
+
+const gapsErr = (k: number, l: MeasureLink, gaps: number): string => `ERR link ${k} ${l.from} -> ${l.to} (${l.kind}): the shared edge has ${gaps} gaps; set the link's at`;
+const copy3 = (v: V3 | null): V3 | null => (v ? [v[0], v[1], v[2]] : null);
+
+/**
+ * The points J13's route-runs walk (validator-port PLAN section 8), from the same code `measureGraph` takes its door
+ * points from: per space its floor (area boxes, centre, floor cells), per link (by index in `graph.links`; pass one
+ * map's merged graph, so a link between two section files resolves against both spaces' areas) its point: the declared
+ * `at`, else the shared-edge point when the two areas share one gap, else null. Pure: it reads the inputs only.
+ */
+export function resolvePoints(graph: MeasureGraphInput, nav: NavGrid, opts: PointOptions): PointsResult {
+  const r = resolve(graph, nav, opts);
+  const errors = r.errors.slice();
+  const spaces: PointSpace[] = graph.spaces.map((s) => {
+    const cells = r.floors.get(s.id) ?? [];
+    const area = r.areas.get(s.id);
+    let floorY: number | null = null;
+    if (cells.length) {
+      const hs = cells.map((i) => nav.height[i]!).sort((p, q) => p - q);
+      floorY = hs[(hs.length - 1) >> 1]!;
+    }
+    return { id: s.id, section: s.section ?? null, storey: s.storey, floorY, boxes: area ? area.boxes.slice() : null, centre: copy3(r.centreOf(s.id)), cells: cells.length };
+  });
+  const links: PointLink[] = graph.links.map((l, k) => {
+    const p = r.pointOf(k);
+    if (p.atFrom === 'none' && p.gaps! > 1) errors.push(gapsErr(k, l, p.gaps!));
+    return { from: l.from, to: l.to, kind: l.kind, route: l.route ?? null, at: copy3(p.at), atFrom: p.atFrom, gaps: p.gaps, measured: l.measured ?? null };
+  });
+  return { spaces, links, geom: r.geom, errors };
 }
 
 /**
@@ -191,42 +400,16 @@ const isOneWay = (l: MeasureLink): boolean => l.one_way === true || (ONE_WAY_KIN
 
 /**
  * Measure a graph on a built level: `measured` for every space with an `area` and every link, `meta.measured` with the
- * split leg times and partner reach (V6-PLAN "Measurement definitions"). Pure: it reads the inputs, writes nothing.
+ * split leg times and partner reach (V6-PLAN "Measurement definitions") and, on a campaign graph, the way back over
+ * each co-op link. Pass one map's merged graph (links by merged index). Pure: it reads the inputs, writes nothing.
  */
 export function measureGraph(graph: MeasureGraphInput, opts: MeasureOptions): MeasureResult {
   const { nav, field, sight, metrics } = opts;
   const splitSpeed = rule(metrics, 'split_speed_mps');
   const reachSpeed = rule(metrics, 'reach_speed_mps');
-  const errors: string[] = [];
-  const mapId = opts.map?.id ?? graph.meta.map;
-  const lightHash = canonicalLightSet(opts.builder.boxes, opts.builder.cylinders, mapId, opts.map ? dressingOn(opts.map) : true).hash;
-  const navHash = fnv(new Uint8Array(nav.height.buffer, nav.height.byteOffset, nav.height.byteLength), fnv(nav.walk)).toString(36);
-  const geom = `${lightHash}-${navHash}`;
-  const byId = new Map(graph.spaces.map((s) => [s.id, s]));
-  const roomById = new Map((opts.rooms ?? []).map((r) => [r.id, r]));
+  // --- areas, floor cells, centres and link points: the code `resolvePoints` reads
+  const { geom, areas, floors, errors, centreOf, pointOf } = resolve(graph, nav, opts);
   const tmp: P2 = [0, 0];
-
-  // --- areas and floor cells
-  const areas = new Map<string, Area>();
-  const floors = new Map<string, number[]>();
-  for (const s of graph.spaces) {
-    if (s.area === undefined) continue;
-    let area: Area;
-    if (typeof s.area === 'string') {
-      const r = roomById.get(s.area);
-      if (!r) {
-        errors.push(`ERR ${s.id}: area '${s.area}' names no room of the map`);
-        continue;
-      }
-      area = { boxes: [[r.minX, r.minZ, r.maxX, r.maxZ]], room: r };
-    } else {
-      area = { boxes: s.area.slice(), room: null };
-    }
-    areas.set(s.id, area);
-    const cells = cellsIn(nav, area, 0, (h) => Math.abs(h - s.storey) <= MEASURE_DEF.storeyTol);
-    floors.set(s.id, cells);
-    if (!cells.length) errors.push(`ERR ${s.id}: area has no walkable floor cell within ${MEASURE_DEF.storeyTol} m of storey ${s.storey}`);
-  }
 
   // --- light: dark per cell (cached; a cell is read by the shadow and the LOS-break passes)
   const litCache = new Map<number, boolean>();
@@ -317,49 +500,20 @@ export function measureGraph(graph: MeasureGraphInput, opts: MeasureOptions): Me
     else m.los_break_s = (worst * nav.cell) / reachSpeed;
   }
 
-  // --- links
-  const centres = new Map<string, V3>();
-  const centreOf = (id: string): V3 | null => {
-    const c = centres.get(id);
-    if (c) return c;
-    const cells = floors.get(id);
-    if (!cells?.length) return null;
-    let sx = 0;
-    let sz = 0;
-    for (const i of cells) {
-      nav.centerInto(i, tmp);
-      sx += tmp[0];
-      sz += tmp[1];
-    }
-    sx /= cells.length;
-    sz /= cells.length;
-    let best = cells[0]!;
-    let bd = Infinity;
-    for (const i of cells) {
-      nav.centerInto(i, tmp);
-      const d = hyp2(tmp[0] - sx, tmp[1] - sz);
-      if (d < bd) {
-        bd = d;
-        best = i;
-      }
-    }
-    nav.centerInto(best, tmp);
-    const out: V3 = [tmp[0], nav.height[best]!, tmp[1]];
-    centres.set(id, out);
-    return out;
-  };
+  // --- links (door points from `resolvePoints`' code: the declared `at`, else the shared edge's one gap)
   const links: LinkMeasured[] = graph.links.map((l, k) => {
-    const name = `link ${k} ${l.from} -> ${l.to} (${l.kind})`;
     if (OFF_NAV_KINDS.has(l.kind)) return { time_s: null, why: `${l.kind} is not on the nav grid (walks, ladders and drops only)` };
     const a = centreOf(l.from);
     const b = centreOf(l.to);
     if (!a || !b) return { time_s: null, why: `no area / floor cells on ${a ? l.to : l.from}` };
-    let at: V3 | null = l.at && l.at.length >= 3 ? [l.at[0]!, l.at[1]!, l.at[2]!] : null;
+    const pt = pointOf(k);
+    const at = pt.at;
     if (!at) {
-      const e = edgePoint(nav, areas.get(l.from)!, areas.get(l.to)!, byId.get(l.from)!.storey, byId.get(l.to)!.storey, a, b);
-      if (e.gaps === 0) return { time_s: null, why: `no walkable cell on the shared edge of ${l.from} and ${l.to} (set at)` };
-      if (e.gaps > 1) errors.push(`ERR ${name}: the shared edge has ${e.gaps} gaps; set the link's at`);
-      at = e.at;
+      if (pt.gaps! > 1) {
+        errors.push(gapsErr(k, l, pt.gaps!));
+        return { time_s: null, why: `the shared edge of ${l.from} and ${l.to} has ${pt.gaps} gaps (set at)` };
+      }
+      return { time_s: null, why: `no walkable cell on the shared edge of ${l.from} and ${l.to} (set at)` };
     }
     const p1 = pathLength(nav, a, at);
     const p2 = pathLength(nav, at, b);
@@ -406,7 +560,31 @@ export function measureGraph(graph: MeasureGraphInput, opts: MeasureOptions): Me
     splits[id] = { a_s: t.a, b_s: t.b, reach_s: reach };
   }
 
-  return { spaces, links, meta: { tool: MEASURE_TOOL, date: opts.date ?? new Date().toISOString().slice(0, 10), geom, splits }, errors };
+  const meta: MetaMeasured = { tool: MEASURE_TOOL, date: opts.date ?? new Date().toISOString().slice(0, 10), geom, splits };
+  // --- way backs (campaign, A5): every co-op link, its `to` floor back to its `from` floor on the solo nav
+  if (graph.meta.mode === 'campaign') {
+    const back: WayBack[] = [];
+    for (const l of graph.links) {
+      if (!COOP_KINDS.has(l.kind)) continue;
+      const head = { from: l.from, to: l.to, kind: l.kind };
+      const ct = floors.get(l.to);
+      const cf = floors.get(l.from);
+      if (!ct?.length || !cf?.length) {
+        back.push({ ...head, back_s: null, why: `no area / floor cells on ${ct?.length ? l.from : l.to}` });
+        continue;
+      }
+      const w = worstTo(nav, ct, cf);
+      if (w === Infinity) {
+        back.push({ ...head, back_s: null, why: `no nav path from every ${l.to} floor cell to ${l.from} (a drop, ladder or move off the nav)` });
+      } else {
+        const path = w * nav.cell;
+        back.push({ ...head, back_s: path / reachSpeed, path_m: path });
+      }
+    }
+    meta.ways_back = back;
+  }
+
+  return { spaces, links, meta, errors };
 }
 
 /** Is (x, z) (feet y) in the area, `pad` m round its boxes? A RoomDef area also checks the room's storey bounds. */
