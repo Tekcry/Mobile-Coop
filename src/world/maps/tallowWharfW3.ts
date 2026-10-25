@@ -1,5 +1,6 @@
 import { Vector3 } from '../../core/babylon';
 import type { LevelBuilder } from '../levelBuilder';
+import { makeCone } from '../lights';
 import type { RoomDef } from '../rooms';
 import type { CoopLip } from './ctcourseGreybox';
 import { stairSteps } from './ctcourseGreybox';
@@ -42,10 +43,73 @@ const PASSAGE_CEIL = 6.0;
 /** The chute opening's head and the hood's underside over the lip (4.4 + 1.9: a standing body's room for the climb-up). */
 const CHUTE_HEAD = 6.3;
 const COLOUR_MOON: [number, number, number] = [0.7, 0.8, 1];
-const COLOUR_WARM: [number, number, number] = [1, 0.85, 0.6];
+const WARM: [number, number, number] = [1, 0.82, 0.55];
 
 /** The key posts' key switch points (GB5's pair gate): 21 m apart with the front hall between them (no line of sight). */
 export const W3_KEY_POSTS = { east: [109, 0, 76.4], west: [88, 0, 76.4] } as const;
+
+/** The desks the W3 desk and table lamps stand on (LIGHT.md section 1 rule 7): visual-only boxes [x0, z0, x1, z1, floorY], top 0.75 over the floor. */
+export const W3_DESKS: readonly (readonly [number, number, number, number, number])[] = [
+  [109.4, 57.9, 110.6, 58.5, 0],
+  [115.4, 57.9, 116.6, 58.5, 0],
+  [89.4, 55.9, 90.6, 56.5, 0],
+  [116.4, 76.2, 117.6, 76.8, 0],
+];
+const DESK_TOP = 0.75;
+
+type P3 = readonly [number, number, number];
+const S80: P3 = [115.9, 1.2, 51.4];
+const S84: P3 = [106.4, 1.2, 65.9];
+const S85: P3 = [95.6, 1.2, 66.4];
+/** The 84 runs: every one starts at the switch and climbs to the run height 3.1, then goes along x, then z (LIGHT.md section 1 rule 6). */
+const run84 = (...rest: P3[]): readonly P3[] => [S84, [106.4, 3.1, 65.9], ...rest];
+/** The 85 pendants' runs: the run height 7.9 under the roof slab; the last leg is the pendant's rod. */
+const run85 = (x: number, z: number): readonly P3[] => [S85, [95.6, 7.9, 66.4], [x, 7.9, 66.4], [x, 7.9, z], [x, 4.05, z]];
+
+/**
+ * The switched circuits' visible conduit runs (LIGHT.md section 1 rule 6): one polyline per fitting of groups 80, 81, 84 and
+ * 85, from the switch's wall point (x, 1.2, z) to within 0.3 m of the fitting. 82, 83 (desk lamps switched at the lamp) and 87
+ * (a lamp socket by the door) have none.
+ */
+export const W3_CONDUITS: readonly { group: number; pts: readonly P3[] }[] = [
+  // 80 gate lamp: along the lodge's north wall under its ceiling, out through its west wall, on along the wing's yard face over the gate head
+  { group: 80, pts: [S80, [115.9, 3.0, 51.4], [115.9, 3.0, 51.65], [112, 3.0, 51.65]] },
+  // 80 flood: out through the lodge's west wall, then south along its yard face under the eaves
+  { group: 80, pts: [S80, [115.9, 3.0, 51.4], [113.7, 3.0, 51.4], [113.7, 3.0, 46.0]] },
+  // 80 head lamp: up the wing's yard face just east of the head landing, chased into the wall top and up through the parapet's end, up the post, out along its bracket arm
+  { group: 80, pts: [S80, [115.9, 3.0, 51.4], [115.9, 3.0, 51.65], [109.45, 3.0, 51.65], [109.45, 8.0, 51.65], [109.45, 8.0, 52.15], [109.45, 10.0, 52.15], [109.2, 10.0, 52.15]] },
+  // 81 lodge lamp
+  { group: 81, pts: [[114.4, 1.2, 49.0], [114.4, 2.8, 49.0], [117, 2.8, 49.0], [117, 2.8, 48.0]] },
+  // 84 (yRun 3.1 under the 3.3 ceilings; the runs to the far side go round the bulkhead core x 112.4-115.2 z 58.6-69.4 on x 111.8)
+  { group: 84, pts: run84([101, 3.1, 65.9], [101, 3.1, 68]) },
+  { group: 84, pts: run84([107.5, 3.1, 65.9], [107.5, 3.1, 68]) },
+  { group: 84, pts: run84([109.2, 3.1, 65.9]) },
+  { group: 84, pts: run84([109.2, 3.1, 65.9], [109.2, 3.1, 59]) },
+  { group: 84, pts: run84([111.8, 3.1, 65.9], [111.8, 3.1, 55.3], [113.8, 3.1, 55.3]) },
+  { group: 84, pts: run84([111.8, 3.1, 65.9], [111.8, 3.1, 57.6], [117.6, 3.1, 57.6], [117.6, 3.1, 59]) },
+  { group: 84, pts: run84([111.8, 3.1, 65.9], [111.8, 3.1, 70.0], [117.6, 3.1, 70.0], [117.6, 3.1, 66]) },
+  { group: 84, pts: run84([111.8, 3.1, 65.9], [111.8, 3.1, 70.0], [113.8, 3.1, 70.0], [113.8, 3.1, 71.7]) },
+  // 85 pendants, and the copying-desk lamp by a floor duct
+  { group: 85, pts: run85(85, 55.5) },
+  { group: 85, pts: run85(93, 55.5) },
+  { group: 85, pts: run85(85, 70.5) },
+  { group: 85, pts: run85(93, 70.5) },
+  { group: 85, pts: run85(83.6, 63) },
+  { group: 85, pts: run85(94.4, 63) },
+  { group: 85, pts: [S85, [95.6, 0.05, 66.4], [90, 0.05, 66.4], [90, 0.05, 56.0], [90, 0.95, 56.0]] },
+];
+
+/** A conduit run: a visual-only 0.05 x 0.05 box per leg (`collide` false), each leg running 0.05 past its ends so the corners meet. */
+function conduit(b: LevelBuilder, pts: readonly P3[]): void {
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i]!;
+    const e = pts[i + 1]!;
+    const sx = Math.abs(e[0] - a[0]) + 0.05;
+    const sy = Math.abs(e[1] - a[1]) + 0.05;
+    const sz = Math.abs(e[2] - a[2]) + 0.05;
+    b.box((a[0] + e[0]) / 2, (a[1] + e[1]) / 2, (a[2] + e[2]) / 2, sx, sy, sz, '#4f5459', 0, 0, false);
+  }
+}
 
 /** The chute's boost lip: a manual ledge on the passage's south wall face, 4.4 over the passage floor, facing into the passage (+z). */
 const LIP_CHUTE: CoopLip = { id: 'w3-lip-chute', y: 4.4, floor: 0, a: { x: 96.75, z: 52.3 }, b: { x: 97.45, z: 52.3 }, n: { x: 0, z: 1 } };
@@ -271,20 +335,36 @@ function build(b: LevelBuilder): void {
   wall(b, true, 34, 88, 92, [[88.5, 91.5]], 0, 3.0, T, undefined, 3.0);
   mass(b, 88, 34, 92, 38, 3.0, CEIL);
 
-  // ---- lights ----
-  lamp(b, 112, 3.0, 51.6, { r: 7, i: 1.0, group: 80 });
-  b.light({ kind: 'lamp', x: 117, y: 2.6, z: 48, radius: 5, intensity: 0.7, color: [1, 0.95, 0.88], cone: null, group: 81, on: false, destructible: true, electric: true, fixture: { sx: 0.5, sy: 0.1, sz: 0.25, oy: 0 } });
-  lamp(b, 110, 1.2, 58, { r: 4, i: 0.7, group: 82 });
-  lamp(b, 116, 1.2, 58, { r: 4, i: 0.7, group: 83 });
-  lamp(b, 101, 2.9, 68, { r: 8, i: 1.0, group: 84 });
-  lamp(b, 107.5, 2.9, 68, { r: 8, i: 1.0, group: 84 });
-  lamp(b, 90, 1.2, 56, { r: 4, i: 0.7, group: 85 });
+  // ---- lights (LIGHT.md section 4: 31 lamps, groups 80-90, every one on) ----
+  // 80: the gate lamp over the keypad door, the yard flood on a bracket under the lodge's eaves (aimed west-south-west across the
+  // yard; wall x 114 tops at 3.0, the lodge roof is 3.0-3.3), and the head lamp on the bracket arm of an iron lamp post on the
+  // roof parapet's west end (the parapet mass x 109.3-120, top 9.5; the post is 0.12 m square, no standable top)
+  lamp(b, 112, 3.0, 51.6, { r: 4, i: 0.5, group: 80 });
+  lamp(b, 113.7, 2.9, 46.0, { r: 14, i: 2.5, group: 80, cone: makeCone(-1, -0.4, -0.5, 1.0) });
+  lamp(b, 109.0, 10.0, 52.15, { r: 5, i: 0.5, group: 80 });
+  // the lamp post under the head lamp's bracket arm
+  mass(b, 109.3, 52.09, 109.42, 52.21, ROOF_Y + PARAPET, 10.15);
+  lamp(b, 117, 2.6, 48, { r: 5, i: 0.6, group: 81, colour: WARM });
+  lamp(b, 110, 1.2, 58, { r: 4, i: 0.35, group: 82, colour: WARM });
+  lamp(b, 116, 1.2, 58, { r: 4, i: 0.35, group: 83, colour: WARM });
+  lamp(b, 101, 2.9, 68, { r: 8, i: 0.8, group: 84 });
+  lamp(b, 107.5, 2.9, 68, { r: 8, i: 0.8, group: 84 });
+  for (const [x, z] of [[113.8, 55.3], [109.2, 59], [109.2, 66], [117.6, 59], [117.6, 66], [113.8, 71.7]] as const) lamp(b, x, 3.0, z, { r: 7, i: 0.8, group: 84 });
+  lamp(b, 90, 1.2, 56, { r: 4, i: 0.35, group: 85, colour: WARM });
+  for (const [x, z] of [[85, 55.5], [93, 55.5], [85, 70.5], [93, 70.5], [83.6, 63], [94.4, 63]] as const) lamp(b, x, 3.8, z, { r: 8, i: 0.9, group: 85 });
   lamp(b, 89, 7.8, 63, { r: 8, i: 0.4, group: 86, colour: COLOUR_MOON, destructible: false, electric: false });
-  lamp(b, 117, 1.2, 76.5, { r: 3.5, i: 0.8, group: 87, colour: COLOUR_WARM });
+  lamp(b, 117, 1.2, 76.5, { r: 3.5, i: 0.5, group: 87, colour: WARM });
   lamp(b, 101, 2.7, 53.75, { r: 5, i: 0.5, group: 88, destructible: false });
-  lamp(b, 90, 3.6, 38.6, { r: 6, i: 0.7, group: 89 });
-  lamp(b, 90, 2.6, 34.6, { r: 6, i: 0.7, group: 89 });
+  lamp(b, 101, 3.0, 62.5, { r: 4, i: 0.25, group: 88 });
+  for (const [x, y, z] of [[113.2, 2.9, 68.6], [113.8, 6.8, 59.4], [113.2, 10.3, 68.6]] as const) lamp(b, x, y, z, { r: 4, i: 0.5, group: 88 });
+  lamp(b, 90, 3.6, 38.6, { r: 6, i: 0.2, group: 89 });
+  lamp(b, 90, 2.6, 34.6, { r: 6, i: 0.15, group: 89 });
   lamp(b, 101, 11, 66, { r: 6, i: 0.5, group: 90, destructible: false, electric: false });
+
+  // the desks the desk and table lamps stand on: visual-only boxes (no nav cell, no light row changes)
+  for (const [x0, z0, x1, z1, fy] of W3_DESKS) b.box((x0 + x1) / 2, fy + DESK_TOP / 2, (z0 + z1) / 2, x1 - x0, DESK_TOP, z1 - z0, '#6b5a43', 0, 0, false);
+  // the conduit runs from the switches to the fittings of the switched circuits
+  for (const c of W3_CONDUITS) conduit(b, c.pts);
 }
 
 export const W3: WharfSection = {
@@ -292,12 +372,12 @@ export const W3: WharfSection = {
   build,
   rooms: ROOMS,
   switches: [
-    { pos: new Vector3(115, 0, 51.4), yaw: PI, group: 80 },
-    { pos: new Vector3(118.6, 0, 46), yaw: -PI / 2, group: 81 },
+    { pos: new Vector3(115.9, 0, 51.4), yaw: PI, group: 80 },
+    { pos: new Vector3(114.4, 0, 49.0), yaw: PI / 2, group: 81 },
     { pos: new Vector3(110.6, 0, 57.4), yaw: 0, group: 82 },
     { pos: new Vector3(116.6, 0, 57.4), yaw: 0, group: 83 },
-    { pos: new Vector3(100.6, 0, 64.6), yaw: 0, group: 84 },
-    { pos: new Vector3(90.6, 0, 55.4), yaw: 0, group: 85 },
+    { pos: new Vector3(106.4, 0, 65.9), yaw: PI / 2, group: 84 },
+    { pos: new Vector3(95.6, 0, 66.4), yaw: -PI / 2, group: 85 },
     { pos: new Vector3(115.8, 0, 74.6), yaw: 0, group: 87 },
   ],
   hideSpots: [{ pos: new Vector3(84, 0, 72) }, { pos: new Vector3(85, 0, 44.6) }],
