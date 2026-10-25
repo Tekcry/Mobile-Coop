@@ -1,5 +1,9 @@
 status: claimed Cloud Builder 1 2026-10-25T02:56Z
 
+**WITHDRAWN after the claim (Campaign Build, 2026-10-25 ~14:05; Michael 13:53: "plan comes first").** Cloud Builder: stop
+if you read this; push whatever you have to feature/tallow-design-docs as WIP, open no PR, set `status: blocked
+withdrawn` and take the next brief. Nothing from this brief is merged until Michael signs off the folded plan.
+
 # Campaign Build: Tallow Wharf design deliverables (docs only)
 Owner: Night Shift | Campaign Build. Source: conformance review row TW12 (PR #419,
 `docs/conformance-campaign/CONFORMANCE.md` on origin/feature/conformance-campaign).
