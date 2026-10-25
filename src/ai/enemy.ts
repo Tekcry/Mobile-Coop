@@ -335,6 +335,13 @@ const CV_SCORE = new Float64Array(8);
 const CQ_SPOT: CoverSpot = { nx: 0, nz: 0, low: false, x: 0, z: 0 };
 const CQ_THREAT = { x: 0, z: 0 };
 const CQ_THREATS = [CQ_THREAT];
+
+/** (guard-ai-alloc) Writes a kept joint triple in place (the blind pose). */
+function setV3(o: [number, number, number], x: number, y: number, z: number): void {
+  o[0] = x;
+  o[1] = y;
+  o[2] = z;
+}
 /** (polish A10) The players a dog in combat keeps to: seen or smelled (module scratch, as `P_LOS`). */
 const P_SEEN = new Uint8Array(MAX_INTRUDERS);
 
@@ -399,6 +406,31 @@ export class Enemy implements Damageable {
   private armourPick = false;
   private readonly fireFrom = new Vector3();
   private readonly fireTo = new Vector3();
+  /** (guard-ai-alloc D1) `shoot`'s muzzle, aim point, direction, far end and prop push; the bite's point, direction and
+   *  source; the grenade's start. Every reader (`applyDamage`, the shot / suppress hooks, the vfx, `Grenades.throw`)
+   *  reads or copies them during the call. */
+  private readonly shotFrom = new Vector3();
+  private readonly shotAim = new Vector3();
+  private readonly shotDir = new Vector3();
+  private readonly shotEnd = new Vector3();
+  private readonly shotImp = new Vector3();
+  private readonly bitePoint = new Vector3();
+  private readonly biteDir = new Vector3();
+  private readonly biteFrom = new Vector3();
+  private readonly throwFrom = new Vector3();
+  /** (guard-ai-alloc D1) The damage he deals (a round, a bite), refilled per hit: no receiver keeps it past the call. */
+  private readonly hitOut: HitInfo = {
+    shieldHit: false,
+    amount: 0,
+    point: this.shotEnd,
+    dir: this.shotDir,
+    part: 'body',
+    kind: 'bullet',
+    attackerTeam: 'enemy',
+    attackerId: '',
+    sourcePos: this.shotFrom,
+    impulse: 1,
+  };
   /** (guard-ai S16) Rounds fired (debug / tests). */
   roundsFired = 0;
   private pauseT = this.rng.range(0.6, 1.4);
@@ -734,13 +766,31 @@ export class Enemy implements Damageable {
     this.burstLeft = 0;
     this.windup = 0;
     this.vel.setAll(0);
-    this.rig.emote = (_r, t) => {
-      const k = Math.min(1, t * 6);
-      const w = Math.sin(t * 9) * 0.1;
-      return { neck: [0.45 * k, w, 0], chest: [0.3 * k, 0, 0], shoulderL: [-2.1 * k, 0, -0.5 * k], shoulderR: [-2.1 * k, 0, 0.5 * k], elbowL: [0, 0, -2.2 * k], elbowR: [0, 0, 2.2 * k], pelvisLift: -0.06 * k };
-    };
+    this.rig.emote = this.blindEmote;
     this.rig.emoteTime = 0;
   }
+
+  /** (guard-ai-alloc) The blind pose, refilled per frame (the rig keeps it as `lastFk` for the fade out; only this
+   *  emote writes it, and each write is the pose it returns). */
+  private readonly blindN: [number, number, number] = [0, 0, 0];
+  private readonly blindC: [number, number, number] = [0, 0, 0];
+  private readonly blindSL: [number, number, number] = [0, 0, 0];
+  private readonly blindSR: [number, number, number] = [0, 0, 0];
+  private readonly blindEL: [number, number, number] = [0, 0, 0];
+  private readonly blindER: [number, number, number] = [0, 0, 0];
+  private readonly blindPose: FkPose = { neck: this.blindN, chest: this.blindC, shoulderL: this.blindSL, shoulderR: this.blindSR, elbowL: this.blindEL, elbowR: this.blindER, pelvisLift: 0 };
+  private readonly blindEmote = (_r: CharacterRig, t: number): FkPose => {
+    const k = Math.min(1, t * 6);
+    const w = Math.sin(t * 9) * 0.1;
+    setV3(this.blindN, 0.45 * k, w, 0);
+    setV3(this.blindC, 0.3 * k, 0, 0);
+    setV3(this.blindSL, -2.1 * k, 0, -0.5 * k);
+    setV3(this.blindSR, -2.1 * k, 0, 0.5 * k);
+    setV3(this.blindEL, 0, 0, -2.2 * k);
+    setV3(this.blindER, 0, 0, 2.2 * k);
+    this.blindPose.pelvisLift = -0.06 * k;
+    return this.blindPose;
+  };
 
   /** (G7) The held pose (`closeQuarters.GuardCq`): seized, hostage, the knockout's limp, the interrogation. */
   private readonly cq = new GuardCq();
@@ -1002,7 +1052,9 @@ export class Enemy implements Damageable {
     this.leader = null;
     let best: Enemy | null = null;
     let bd = 10;
-    for (const o of this.ctx.enemies()) {
+    const list = this.ctx.enemies();
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
       if (o === this || !o.alive || o.dog) continue;
       if (this.squad >= 0 && o.squad !== this.squad) continue;
       const d = hyp2(o.pos.x - this.pos.x, o.pos.z - this.pos.z);
@@ -2167,7 +2219,7 @@ export class Enemy implements Damageable {
       if (kind === 'heavy') mult = heavyMult(this.yaw, h.dir.x, h.dir.z, h.part === 'head' ? 'head' : 'body');
       // enforcer: rounds from the front stop on the shield
       if (kind === 'enforcer' && h.kind === 'bullet' && !this.taken && shieldBlocks(this.yaw, h.dir.x, h.dir.z)) {
-        this.ctx.vfx.sparks(h.point, h.dir.scale(-1), 5, '#d8e4ff');
+        this.ctx.vfx.sparks(h.point, this.tmpN.copyFrom(h.dir).scaleInPlace(-1), 5, '#d8e4ff');
         this.shieldBlocks++;
         if (!this.alerted && h.sourcePos) {
           this.stimulus[0] = h.sourcePos.x;
@@ -2672,7 +2724,7 @@ export class Enemy implements Damageable {
         // (guard-ai S15) the breaker reset walk (calm: his patrol pace)
         if (this.brkGroup >= 0) return this.breakerStep(dt);
         // (guard-ai S1) a sound he was not sent to: stand and look towards it a moment (`hearTurn`)
-        if (this.turnT > 0 && this.hasStimulus) return { point: null, speed: 0, face: Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) };
+        if (this.turnT > 0 && this.hasStimulus) return this.goal(null, 0, Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z));
         // the dog heels beside its handler
         if (this.dog) {
           const h = this.findLeader();
@@ -2683,8 +2735,8 @@ export class Enemy implements Damageable {
             this.spot[0] = h.pos.x + c * heel - s * 0.5;
             this.spot[1] = h.pos.z - s * heel - c * 0.5;
             const far = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
-            if (far < 0.5) return { point: null, speed: 0, face: h.yaw };
-            return { point: this.goTo(this.spot, dt, 0.3), speed: far > 3 ? def.runSpeed * 0.6 : def.walkSpeed * PATROL_PACE * 1.2, face: null };
+            if (far < 0.5) return this.goal(null, 0, h.yaw);
+            return this.goal(this.goTo(this.spot, dt, 0.3), far > 3 ? def.runSpeed * 0.6 : def.walkSpeed * PATROL_PACE * 1.2, null);
           }
         }
         const g = this.walker.step(dt, this.pos.x, this.pos.z);
@@ -2710,7 +2762,7 @@ export class Enemy implements Damageable {
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
         const wp = g ? (this.goTo(g, dt, 0.05) ?? g) : null;
         // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace)
-        return { point: wp, speed: def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE), face: g || Number.isNaN(ly) ? null : ly };
+        return this.goal(wp, def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE), g || Number.isNaN(ly) ? null : ly);
       }
       case 'suspicious': {
         // (guard-ai S5) the lure's own suspicion: keep at it (a glimpse of something stops him to look)
@@ -2719,7 +2771,7 @@ export class Enemy implements Damageable {
         if (this.brkGroup >= 0 && this.rate <= 0) return this.breakerStep(dt);
         // stop and look at what caught the eye / ear
         const face = this.hasStimulus ? Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) : null;
-        return { point: null, speed: 0, face };
+        return this.goal(null, 0, face);
       }
       case 'investigating':
       case 'searching': {
@@ -2738,9 +2790,9 @@ export class Enemy implements Damageable {
                 this.wantCrouch = false;
                 this.ctx.revive(rv, this);
               }
-              return { point: null, speed: 0, face: Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z) };
+              return this.goal(null, 0, Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z));
             }
-            return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
+            return this.goal(this.goTo(this.spot, dt, 0.9), def.walkSpeed * PACE.revive, null);
           }
         }
         // (guard-ai S17) a responder runs his entry route in before he searches the device's spot
@@ -2830,7 +2882,7 @@ export class Enemy implements Damageable {
             this.spotSet = false;
           }
           // look round: sweep either side of the arrival facing
-          return { point: null, speed: 0, face: this.lookBase + Math.sin(this.spotLookT * 1.6) * 1.0 };
+          return this.goal(null, 0, this.lookBase + Math.sin(this.spotLookT * 1.6) * 1.0);
         }
         // (polish2 A184) investigating: a spot with no path (a locked door) is walked to its near side; there, he has
         // arrived (he looks towards it and `investigateLook` ends it as at a reached spot)
@@ -2839,7 +2891,7 @@ export class Enemy implements Damageable {
         if (part && !wp && this.routeNear) {
           this.rush = false;
           this.spotArrived = true;
-          return { point: null, speed: 0, face: Math.atan2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z) };
+          return this.goal(null, 0, Math.atan2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z));
         }
         this.spotLookT = 0;
         if (!wp && lvl === 'searching' && this.routePath.length === 0 && d > 1.1) {
@@ -2853,10 +2905,10 @@ export class Enemy implements Damageable {
           this.spotSet = false;
         }
         // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace
-        return { point: wp, speed: paceSpeed(this.rush, lvl === 'searching' ? this.searchPace : this.investigatePace, def.walkSpeed, def.runSpeed), face: null };
+        return this.goal(wp, paceSpeed(this.rush, lvl === 'searching' ? this.searchPace : this.investigatePace, def.walkSpeed, def.runSpeed), null);
       }
       default:
-        return { point: null, speed: 0, face: null };
+        return this.goal(null, 0, null);
     }
   }
 
@@ -2885,14 +2937,14 @@ export class Enemy implements Damageable {
     const r = this.lc.step(dt, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.ctx.nav, this.lcWalker);
     if (r === LC_DONE) {
       this.standDown();
-      return { point: null, speed: 0, face: null };
+      return this.goal(null, 0, null);
     }
     if (r === LC_FACE) {
       this.spotArrived = true;
-      return { point: null, speed: 0, face: this.lc.face };
+      return this.goal(null, 0, this.lc.face);
     }
     const p = this.lc.point;
-    return { point: p, speed: p ? this.def.walkSpeed * this.investigatePace : 0, face: null };
+    return this.goal(p, p ? this.def.walkSpeed * this.investigatePace : 0, null);
   }
 
   /** (guard-ai S2) The light check is done: "nothing here", back to his route calm (cautious only if he has fought). */
@@ -2957,6 +3009,16 @@ export class Enemy implements Damageable {
   suppressHeld = 0;
   /** `roleStep`'s goal, reused (decide runs every frame: no allocation). */
   private readonly roleGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  /** (guard-ai-alloc) The goal `decide`, `calmDecide` and `lightStep` return, refilled per step (`update` hands it to
+   *  `move` at once; nothing keeps it). */
+  private readonly goalOut: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
+  private goal(point: P2 | null, speed: number, face: number | null): { point: P2 | null; speed: number; face: number | null } {
+    const g = this.goalOut;
+    g.point = point;
+    g.speed = speed;
+    g.face = face;
+    return g;
+  }
 
   /** The role's name (tests, e2e, debug). */
   get roleName(): Role {
@@ -3127,8 +3189,8 @@ export class Enemy implements Damageable {
     const def = this.def;
     const t = this.target;
     if (!this.alerted) return this.calmDecide(dt);
-    if (!t) return { point: null, speed: 0, face: null };
-    if (this.stagger > 0) return { point: null, speed: 0, face: this.faceTarget() };
+    if (!t) return this.goal(null, 0, null);
+    if (this.stagger > 0) return this.goal(null, 0, this.faceTarget());
     const toTarget = this.faceTarget();
     // raising the alarm: run to the panel and work it (unless it is disabled or already raised)
     const ap = this.alarm;
@@ -3142,10 +3204,10 @@ export class Enemy implements Damageable {
             this.alarm = null;
             this.ctx.raiseAlarm(this, ap);
           }
-          return { point: null, speed: 0, face: ap.yaw + Math.PI };
+          return this.goal(null, 0, ap.yaw + Math.PI);
         }
         this.alarmT = 0;
-        return { point: this.goTo(this.alarmPt, dt, 0.5), speed: def.runSpeed, face: null };
+        return this.goal(this.goTo(this.alarmPt, dt, 0.5), def.runSpeed, null);
       }
     }
     // (guard-ai S6, design 7) a reinforcement runs his entry route into the section first (until he sees the target)
@@ -3161,7 +3223,7 @@ export class Enemy implements Damageable {
     // holding a room against a target outside it
     // (guard-ai S5) a high-security post holds his leash the same way (radios, never chases out of it)
     const outside = (this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5, t.feet.y)) || !this.inLeash(known.x, known.z, 1.5);
-    if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
+    if (this.doorCheck > 0 && !this.los) return this.goal(null, 0, null);
     // (guard-ai walk 4.82 item 2) set again below on each step he closes on the last known position (coordinated modes)
     this.closingIn = false;
     // (his intruder's last known position to go to: none, and today's rules hold)
@@ -3175,23 +3237,14 @@ export class Enemy implements Damageable {
         // (rig-pose-fix S6) the dog's bite pose, a sim clock (the head volume lunges with it)
         this.dogBite = 1;
         this.ctx.onMelee?.(this);
-        t.target.applyDamage({
-          amount: def.melee.damage * this.ctx.diff.damage,
-          point: t.feet.clone(),
-          dir: t.feet.subtract(this.pos).normalize(),
-          part: 'body',
-          kind: 'melee',
-          attackerTeam: 'enemy',
-          attackerId: this.id,
-          sourcePos: this.pos.clone(),
-          impulse: 2,
-        });
+        // (guard-ai-alloc D1) kept vectors: the receivers read them during the call
+        t.target.applyDamage(this.hitInfo(def.melee.damage * this.ctx.diff.damage, this.bitePoint.copyFrom(t.feet), t.feet.subtractToRef(this.pos, this.biteDir).normalize(), 'body', 'melee', this.biteFrom.copyFrom(this.pos), 2, false));
       }
       if (this.dist < 6 && this.dist > 2.2 && this.los && this.lunge <= 0 && this.meleeCd < 0.2) this.lunge = 0.35;
       this.lunge -= dt;
       const speed = this.lunge > 0 ? def.melee.lunge : def.runSpeed;
-      if (this.dist < 1.2) return { point: null, speed: 0, face: toTarget };
-      return { point: this.chasePoint(dt, tp, true, known.y), speed, face: null };
+      if (this.dist < 1.2) return this.goal(null, 0, toTarget);
+      return this.goal(this.chasePoint(dt, tp, true, known.y), speed, null);
     }
 
     // ---- ranged ----
@@ -3211,7 +3264,7 @@ export class Enemy implements Damageable {
       else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
       if (!this.los && this.stateT > 3) this.setState('chase');
       const close = this.dist <= def.engageMin + 0.5;
-      return { point: close ? null : this.chasePoint(dt, tp, false), speed: ARCHETYPE.enforcer.pushSpeed, face: toTarget };
+      return this.goal(close ? null : this.chasePoint(dt, tp, false), ARCHETYPE.enforcer.pushSpeed, toTarget);
     }
     // (guard-ai S8) a role in the engaged group: bounds, holds and waits by role (else today's tactics below)
     // (S16 merge) before the armour check: a bound the group has started or allows is not cut short by it; in sight the
@@ -3238,26 +3291,26 @@ export class Enemy implements Damageable {
         this.setState('seekCover');
         this.coverPicked = false;
       } else this.setState('chase');
-      return { point: null, speed: 0, face: toTarget };
+      return this.goal(null, 0, toTarget);
     }
     switch (this.state) {
       case 'idle':
       case 'chase': {
         // (guard-ai S16) repositioning away from armour: no stop to engage while the line stays armoured
         const armourMove = this.los && this.fireGate.moveT > 0 && this.armourBlocks(t, 'aim', dt);
-        if (armourMove) return { point: this.chasePoint(dt, tp, false), speed: def.runSpeed * 0.75, face: null };
+        if (armourMove) return this.goal(this.chasePoint(dt, tp, false), def.runSpeed * 0.75, null);
         if (this.los && this.dist <= def.engageMax) {
           // in a fight they get behind something first (guard-ai S8: the profile's weight against the seeded dice)
           this.advancing = false;
           // (guard-ai S6) the profile's cover-first weight (standard 0.85, as before; aggressive 0.3); (S8) seeded roll
           this.setState(def.usesCover && this.rng.next() < profileOf(this.tacticsProfile).coverFirst ? 'seekCover' : 'attack');
-          return { point: null, speed: 0, face: toTarget };
+          return this.goal(null, 0, toTarget);
         }
         if (outside) {
           // hold: back to the post, weapon on the last known position
           const face = Math.atan2(this.lastKnown.x - this.pos.x, this.lastKnown.z - this.pos.z);
           const atPost = hyp2(this.post[0] - this.pos.x, this.post[1] - this.pos.z) < 0.5;
-          return { point: atPost ? null : this.post, speed: def.walkSpeed, face: this.lastSeenT < 30 ? face : null };
+          return this.goal(atPost ? null : this.post, def.walkSpeed, this.lastSeenT < 30 ? face : null);
         }
         // out of sight (stealth): move up on the last known position from cover to cover, weapon on it, never a
         // run into the open; the last stretch is walked
@@ -3269,15 +3322,15 @@ export class Enemy implements Damageable {
               this.setState('seekCover');
               this.coverPicked = true;
               this.advancing = true;
-              return { point: null, speed: 0, face: toTarget };
+              return this.goal(null, 0, toTarget);
             }
             this.advanceCd = 1.5;
           }
           // (guard-ai S8) an aggressive guard (reinforcements) closes at a jog
-          return { point: this.chasePoint(dt, tp, false), speed: this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, face: null };
+          return this.goal(this.chasePoint(dt, tp, false), this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, null);
         }
         this.closingIn = closer;
-        return { point: this.chasePoint(dt, tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
+        return this.goal(this.chasePoint(dt, tp, false), this.los ? def.walkSpeed : def.runSpeed, null);
       }
       case 'attack': {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
@@ -3285,7 +3338,7 @@ export class Enemy implements Damageable {
         else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
         // (guard-ai S27, A163) a reporter caught in the open with his call open fights back with his rifle, but throws and
         // flanks only after the call
-        if (!this.onRadio && this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        if (!this.onRadio && this.tactics(t)) return this.goal(null, 0, toTarget);
         if (!this.los && this.stateT > 2.6) {
           this.setState('chase');
         } else if (this.dist > def.engageMax + 3) {
@@ -3308,7 +3361,7 @@ export class Enemy implements Damageable {
         if (this.hold) clampToRoom(this.hold, sp[0], sp[1], 0.6, sp);
         const spd = this.postDef;
         if (spd && spd.highSecurity) clampToLeash(sp[0], sp[1], this.post[0], this.post[1], spd.leash, sp);
-        return { point: sp, speed: def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.3 : 0.55), face: toTarget };
+        return this.goal(sp, def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.3 : 0.55), toTarget);
       }
       case 'seekCover': {
         if (!this.coverPicked) {
@@ -3319,7 +3372,7 @@ export class Enemy implements Damageable {
               this.relocating = false;
               this.setState('chase');
             } else this.setState('attack');
-            return { point: null, speed: 0, face: toTarget };
+            return this.goal(null, 0, toTarget);
           }
         }
         if (this.stateT > 6) this.setState(this.advancing && !this.los ? 'chase' : 'attack');
@@ -3330,16 +3383,16 @@ export class Enemy implements Damageable {
         const wp = this.path[0];
         if (!wp) {
           this.setState('inCover');
-          return { point: null, speed: 0, face: toTarget };
+          return this.goal(null, 0, toTarget);
         }
         if (!wp.link && hyp2(wp[0] - this.pos.x, wp[1] - this.pos.z) < 0.35) this.path.shift();
-        return { point: wp, speed: this.advancing ? def.runSpeed * 0.75 : def.runSpeed, face: null };
+        return this.goal(wp, this.advancing ? def.runSpeed * 0.75 : def.runSpeed, null);
       }
       case 'inCover': {
         const cp = this.ctx.cover[this.coverIdx];
         if (!cp) {
           this.setState('attack');
-          return { point: null, speed: 0, face: toTarget };
+          return this.goal(null, 0, toTarget);
         }
         // a bound done: hold here a moment covering the way ahead, then the next
         // (guard-ai S8) a point holds `advanceHold` and bounds again when the manager gives it a cover (`roleStep`); with
@@ -3357,7 +3410,7 @@ export class Enemy implements Damageable {
               this.setState('chase');
             }
           }
-          return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
+          return this.goal([cp.pos.x, cp.pos.z], def.walkSpeed, toTarget);
         }
         this.advancing = false;
         // flanked? leave (guard-ai S8: a guard with a role does not step out after 5 peeks: he holds and reports)
@@ -3376,12 +3429,12 @@ export class Enemy implements Damageable {
           this.peekCycles = 0;
           this.closing = true;
           this.setState('chase');
-          return { point: null, speed: 0, face: toTarget };
+          return this.goal(null, 0, toTarget);
         }
         if (protects < 0.2 || (this.peekCycles >= 5 && !holds) || near < def.engageMin * 0.7) {
           this.peekCycles = 0;
           this.setState('attack');
-          return { point: null, speed: 0, face: toTarget };
+          return this.goal(null, 0, toTarget);
         }
         // (guard-ai S8) the reporter stays down while he calls it in; the overwatch suppresses while a squadmate moves
         // (guard-ai S27, A163) before the grenade and the flank: nothing is thrown or started while his call is open
@@ -3389,9 +3442,9 @@ export class Enemy implements Damageable {
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = true;
           this.coverPeek = 0;
-          return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
+          return this.goal([cp.pos.x, cp.pos.z], def.walkSpeed, toTarget);
         }
-        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        if (this.tactics(t)) return this.goal(null, 0, toTarget);
         // (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding") no holding role (a
         // lone guard, a group's search), his call through, a whole peek with no sight of him: he leaves the cover and
         // moves up on his intruder's last known position (the chase branch's out-of-sight advance) instead of sitting
@@ -3400,7 +3453,7 @@ export class Enemy implements Damageable {
           this.peekCycles = 0;
           this.closingIn = true;
           this.setState('chase');
-          return { point: null, speed: 0, face: toTarget };
+          return this.goal(null, 0, toTarget);
         }
         const owSuppress = this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.tacticsProfile).suppress;
         if (owSuppress) this.suppressLkp(dt);
@@ -3434,10 +3487,10 @@ export class Enemy implements Damageable {
             pt = [cp.pos.x - cp.normal.z * 0.9 * side, cp.pos.z + cp.normal.x * 0.9 * side];
           }
         }
-        return { point: pt, speed: def.walkSpeed, face: toTarget };
+        return this.goal(pt, def.walkSpeed, toTarget);
       }
       default:
-        return { point: null, speed: 0, face: null };
+        return this.goal(null, 0, null);
     }
   }
 
@@ -3453,7 +3506,7 @@ export class Enemy implements Damageable {
     }
     if (this.grenadeCd <= 0 && (t.coverT ?? 0) > 6 && this.dist > 7 && this.dist < 22 && this.lastSeenT < 8 && this.ctx.throwGrenade) {
       this.grenadeCd = this.rng.range(12, 18);
-      const from = this.eye(new Vector3());
+      const from = this.eye(this.throwFrom);
       if (this.ctx.throwGrenade(this, from, t.feet)) {
         this.kick = 1;
         return true;
@@ -3718,10 +3771,10 @@ export class Enemy implements Damageable {
 
   private shoot(t: PlayerRef, w: NonNullable<EnemyDef['weapon']>, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {
     const d = this.ctx.diff;
-    const origin = this.muzzle(new Vector3(), mode);
-    const aim = this.aimAt(t, mode, new Vector3());
+    const origin = this.muzzle(this.shotFrom, mode);
+    const aim = this.aimAt(t, mode, this.shotAim);
     this.roundsFired++;
-    const dir = aim.subtract(origin).normalize();
+    const dir = aim.subtractToRef(origin, this.shotDir).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
     const settle = Math.min(1, 0.45 + (this.losT * 0.55) / d.reaction);
     if (this.def.kind === 'sniper') this.shotsHere++;
@@ -3730,33 +3783,44 @@ export class Enemy implements Damageable {
     const spread = (w.spreadDeg * (1 + moving * 0.8) * (t.crouched ? 0.9 : 1) * modeMul) / (d.accuracy * settle * (this.buff ? ARCHETYPE.officer.accuracy : 1));
     const off = sampleSpread(spread, this.rng.next(), this.rng.next());
     spreadDir(dir, off.x, off.y, dir);
-    const end = origin.add(dir.scale(w.range));
+    const end = this.shotEnd.copyFrom(dir).scaleInPlace(w.range).addInPlace(origin);
     // (3.2.0) shooting at a player holding a hostage: the hostage's hit volumes are in the way
     const h = this.ctx.ballistics.ray(origin, end, t.shield ? MASK.ENEMY_SHOT | G.ENEMY_HITBOX : MASK.ENEMY_SHOT);
     this.ctx.vfx.tracer(origin, h.point, w.tracer, 0.02);
     this.ctx.vfx.muzzleFlash(origin, this.def.kind === 'heavy' ? 0.3 : 0.2);
     this.kick = 1;
     this.ctx.onShot?.(this, origin, h.point);
-    for (const p of this.ctx.players()) p.suppress?.(origin, h.point, h.target === p.target);
+    const ps = this.ctx.players();
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i]!;
+      p.suppress?.(origin, h.point, h.target === p.target);
+    }
     if (!h.hit) return;
     this.ctx.ballistics.impactFx(h, dir);
     if (h.target && h.target === t.shield) {
-      h.target.applyDamage({ amount: w.damage * d.damage, point: h.point, dir, part: h.part ?? 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: this.id, sourcePos: origin, impulse: 1, shieldHit: true });
+      h.target.applyDamage(this.hitInfo(w.damage * d.damage, h.point, dir, h.part ?? 'body', 'bullet', origin, 1, true));
     } else if (h.target && h.target.team === 'player') {
-      h.target.applyDamage({
-        amount: w.damage * d.damage,
-        point: h.point,
-        dir,
-        part: h.part ?? 'body',
-        kind: 'bullet',
-        attackerTeam: 'enemy',
-        attackerId: this.id,
-        sourcePos: origin,
-        impulse: 1,
-      });
+      h.target.applyDamage(this.hitInfo(w.damage * d.damage, h.point, dir, h.part ?? 'body', 'bullet', origin, 1, false));
     } else if (h.prop) {
-      this.ctx.world.props.impulse(h.prop, dir.scale(3), h.point);
+      this.ctx.world.props.impulse(h.prop, this.shotImp.copyFrom(dir).scaleInPlace(3), h.point);
     }
+  }
+
+  /** (guard-ai-alloc D1) His damage into the kept `hitOut` (no `takedown`, `weapon` or `nonLethal`: as the literals
+   *  it replaces). */
+  private hitInfo(amount: number, point: Vector3, dir: Vector3, part: HitInfo['part'], kind: HitInfo['kind'], sourcePos: Vector3, impulse: number, shieldHit: boolean): HitInfo {
+    const o = this.hitOut;
+    o.shieldHit = shieldHit;
+    o.amount = amount;
+    o.point = point;
+    o.dir = dir;
+    o.part = part;
+    o.kind = kind;
+    o.attackerTeam = 'enemy';
+    o.attackerId = this.id;
+    o.sourcePos = sourcePos;
+    o.impulse = impulse;
+    return o;
   }
 
   private move(dt: number, goal: Waypoint | null, speed: number, face: number | null): void {
