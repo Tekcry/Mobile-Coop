@@ -43,7 +43,8 @@ import { wrap01 } from './studioDrive';
 import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
-import { travCycle, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
+import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
+import { MOCAP_SOURCE_NAMES, MOCAP_SOURCE_WORD, mocapSource, type MocapSource } from './mocapSources';
 
 /** The studio map's id (`world/maps/studio.ts`; `?autostart=studio`). */
 export const STUDIO_MAP_ID = 'studio';
@@ -204,15 +205,82 @@ function base(id: string): StudioEntry {
   return BASE_ENTRIES.find((e) => e.id === id)!;
 }
 
+/**
+ * (mixamo-retarget M5) Every capture's clip by name: the modules of `clips/mocap` (CMU) and `clips/mixamo` (Mixamo, as M3
+ * / M4 generate them), found by file (`import.meta.glob`, as `tuneKeys.ts` finds the keyed clips), so a new module needs
+ * only its row in `mocapSources.ts` to show in the loop list. Keyed clips only (a channel clip plays through its prop).
+ */
+const CAPTURE_CLIPS = new Map<string, KeyedClip>();
+for (const mod of [
+  ...Object.values(import.meta.glob('./clips/mocap/*.ts', { eager: true })),
+  ...Object.values(import.meta.glob('./clips/mixamo/*.ts', { eager: true })),
+] as Record<string, unknown>[]) {
+  for (const v of Object.values(mod)) {
+    const c = v as Partial<KeyedClip> | null;
+    if (c && typeof c === 'object' && typeof c.name === 'string' && c.pel instanceof Float32Array) CAPTURE_CLIPS.set(c.name, c as KeyedClip);
+  }
+}
+
+/** (M5) A capture's clip by its name (null: no keyed module of that name). */
+export function captureClip(name: string): KeyedClip | null {
+  return CAPTURE_CLIPS.get(name) ?? null;
+}
+
+/** (M5) The words every capture's loop label starts with (the panel shows the label as it is: `plainLoop`). */
+export const CAPTURE_LABEL = 'motion capture';
+/** Wren's height (m): the clips' stride is in the 1.75 m body frame (CLIP-FORMAT.md). */
+const WREN_H = 1.68;
+
+/** (M5) "motion capture (CMU): walk": the source and the clip's plain name (`mocap_` dropped). */
+function captureLabel(name: string, r: MocapSource): string {
+  return `${CAPTURE_LABEL} (${MOCAP_SOURCE_WORD[r.source]}): ${name.replace(/^mocap_/, '').split('_').join(' ')}`;
+}
+
+/**
+ * (M5) The loop list's "motion capture" group: one loop per source row (table order: CMU, then Mixamo) whose clip is
+ * found. A keyed capture through `keyed()` (in place on the treadmill at its own pace: its stride over its cycle), a
+ * channel capture as its prop's traversal loop under its own id (`trav:<loop>/<slug>`): the game's traversal plays it
+ * there (the hand-made clip until I2 switches the capture on: the mixamo switch, `?mixamo=1`).
+ */
+function captureEntries(): StudioEntry[] {
+  const out: StudioEntry[] = [];
+  for (const name of MOCAP_SOURCE_NAMES) {
+    const r = mocapSource(name)!;
+    const st = r.studio;
+    if (st.kind === 'keyed') {
+      const clip = CAPTURE_CLIPS.get(name);
+      if (!clip) continue;
+      const move = st.move ?? 'none';
+      const pace = move !== 'none' && clip.stride > 0 ? (clip.stride * WREN_H) / 1.75 / st.cycle : 0;
+      const e = keyed(clip, { pace, cycle: st.cycle, move, crouch: st.crouch ?? false, drawn: st.drawn ?? false, aim: st.aim ?? false, circle: st.circle ?? false });
+      out.push({ ...e, label: captureLabel(name, r) });
+    } else {
+      const b = travEntry(st.loop);
+      if (!b) continue;
+      const t: TravEntry = {
+        ...b,
+        id: `${b.id}/${name.replace(/^mocap_/, '')}`,
+        label: `${captureLabel(name, r)} (${b.label.replace(/^traversal: /, '')})`,
+        tune: `${b.tune}. The capture plays with the mixamo switch on (?mixamo=1), else the hand-made clip`,
+      };
+      out.push(travel(t));
+    }
+  }
+  return out;
+}
+const CAPTURE_ENTRIES: readonly StudioEntry[] = captureEntries();
+
 /** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */
 export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
 
 /**
- * The loop player's list: off, the procedural states, every keyed clip, then (anim-studio-2) the pairs (each co-op team
- * move with both operators, the holds with the guard) and the traversal loops on the props.
+ * The loop player's list: off, the procedural states, every keyed clip, (mixamo-retarget M5) the motion captures (CMU and
+ * Mixamo, the source in each label), then (anim-studio-2) the pairs (each co-op team move with both operators, the holds
+ * with the guard) and the traversal loops on the props.
  */
 export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   ...BASE_ENTRIES,
+  ...CAPTURE_ENTRIES,
   ...TEAM_MOVES.map(teamPair),
   holdPair('hold_idle', base('keyed:hold_idle'), base('keyed:guard_held_hands')),
   holdPair('hold_back', base('keyed:hold_back'), base('keyed:guard_held_stumble')),
@@ -281,8 +349,8 @@ export function studioEntry(id: string): StudioEntry {
 export type StudioWeapon = 'rifle' | 'pistol';
 export const STUDIO_WEAPONS: readonly StudioWeapon[] = ['rifle', 'pistol'];
 
-/** The tuner's body state of each keyed clip of Wren (the Keyed box's clip, a hold pair's clip). */
-export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
+/** The tuner's body state of each hand-keyed clip of Wren (the Keyed box's clip, a hold pair's clip). */
+const HAND_CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
   idle: 'idle',
   walk: 'walk',
   jog: 'jog',
@@ -308,6 +376,22 @@ export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
   hold_choke: 'hold',
   hold_knife: 'hold',
 };
+
+/** (mixamo-retarget M5) Each keyed capture's body state: its source row's `studio.body` (the state the game plays it in). */
+function captureClipBody(): Record<string, BodyGroup> {
+  const out: Record<string, BodyGroup> = {};
+  for (const name of MOCAP_SOURCE_NAMES) {
+    const st = mocapSource(name)!.studio;
+    if (st.kind === 'keyed') out[name] = st.body;
+  }
+  return out;
+}
+
+/**
+ * The tuner's body state of each keyed clip Wren plays in the Studio: the hand-keyed clips, then (M5) every keyed capture,
+ * so the Studio pins the state the game plays it in and the rows that tune it in the game show.
+ */
+export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = { ...HAND_CLIP_BODY, ...captureClipBody() };
 
 /**
  * (marlow-bays item 29) The body state Wren's rig tunes with while a loop plays ('' : chosen from her pose): a keyed clip

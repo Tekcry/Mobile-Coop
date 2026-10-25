@@ -63,8 +63,9 @@ function relPose(t, i, heading, floor) {
 }
 const poseDist = (a, b) => Math.sqrt(mean(a.map((p, k) => v3.dist(p, b[k]) ** 2)));
 
-export function analyzeTake(entry) {
-  const t = loadTake(entry.take);
+/** `load` reads the take (default the CMU `loadTake`; mixamoTake.mjs `mixamoLoader()` for a Mixamo dump). */
+export function analyzeTake(entry, { load = loadTake } = {}) {
+  const t = load(entry.take);
   const chk = selfCheck(t);
   const floor = chk.floor;
   const n = t.frames;
