@@ -197,7 +197,8 @@ is about 6% of a 5-hour window). Commands: `docs/systems/swaps.md`.
 **Talking to Michael.** Short, plain replies; hyphens, not em dashes. Questions only as native multiple choice, by day,
 when his answer changes the outcome; overnight, decide, log the assumption and carry on (Intake step 2). A paste-in
 prompt names its title, model and effort and is the turn's last message, never paired with a question. He tests
-through the menus: give menu paths and the version label to expect. No polling turns: start long runs in the background and wait.
+through the menus: give menu paths and the version label to expect. No polling turns: start long runs in the
+background and wait.
 
 **Doc sizes.** Resume blocks ~40 lines; orchestrator STATE current state only; HANDOFF the newest block only; ROADMAP is
 Now / Inbox / Waiting on Michael / Decided (today) / Done (last 10). History moves to archive files, never piles up.
