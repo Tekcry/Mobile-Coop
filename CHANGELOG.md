@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.102.5 - Train 93: Co-op lamp guard and guard bake abort polish (2026-10-25, PR #428; #427)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp that reaches the host in the frame after a pause
+  menu restart, before the host has noted the restart, is dropped quietly too. No wire change.
+- Tools: when the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage, the ABORT line now names the
+  first lost job and its cause: a spawn error (ENOENT, EPERM, ...), exit 0xC0000142, or a quick failure with an empty
+  log.
+
 ## 4.102.4 - Train 92: Conformance review: Guard AI (plan only); Saltmarsh Park section bake: clean shutdown of light-bake workers; Conformance review: Sector Ops (plan only); +3 more (2026-10-25, PR #426; #423, #421, #420, #419, #417, #416)
 
 ### Conformance review: Campaign (plan only)
