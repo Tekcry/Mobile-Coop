@@ -36,3 +36,25 @@
 - Done (this commit, not yet full-suite run): capture <-> hand-made switch inside traverse inertialized (animGraph mxLast); switch-frame tests (graph and rig).
 - Done (this commit): allocation test warmed and alternating over 5 rounds, medians; 3 runs in a row pass (hang moving 1664 vs 2368, still 1305 vs 1737, climb-up 1305 vs 1401-1417).
 - Done in the fix round (1f1ad42b): I2-REPORT bytes and test list, PLAN Claims (studioStage.ts, climbHands.test.ts), full vitest list (41 pass). Checker Opus PASS on 1f1ad42b.
+
+## Toggle (feature/mixamo-on, stacked on #477)
+Michael 2026-10-26 ~00:25: "dont set mixamo moves as default in game, allow toggle between hand made, cmu, and mixamo";
+00:20: "an animation set toggle so i can sort through only those animations". The default-on slice was dropped before
+any commit (only the art-credits licence sentence, A11 cleared, stays: 9433a960c).
+- A12: one global choice, Settings > Gameplay > Animation source (Hand-made / CMU / Mixamo), the same switch in the Anim
+  Studio, saved with the settings (IndexedDB settings path; a new field `gameplay.animSource`, the sanitizer fills the
+  default for an old save: no SAVE_VERSION bump). Default CMU = today's game (mocap locomotion on, Mixamo off). Undo:
+  per-move picks.
+- A13: a co-op partner is drawn with the viewer's source (a local look choice, no wire field); undo = send the owner's
+  source on the wire (G400 "players must look exact").
+- A14: the Studio's set filter is a "Set" drop list over the Loop list (pad: its data-pad key, as the other lists), not an
+  LB / RB tab row.
+- Code: `src/anim/animSource.ts` (resolve once per change), `mixamo.ts` `addMixamoResolver`, `flags.anim` (`?anim=`),
+  app.ts (settings -> applyAnimSource; tuner box and `?mocap` / `?mixamo` still override), settingsScreen row,
+  studio.ts `studioEntrySet` / `studioEntriesOf`, studioPanel Set + Animation source, nowPlaying `nowPlayingSourceText`.
+
+### At the save (00:4x)
+- Done: the toggle, the Options row, the Studio switch and Set filter, Now playing source, ?anim=, resolver hook,
+  changelog fragment, TESTING line (commits 2a3eac137, 9e209414c and this one). typecheck clean.
+- Left: tests/animSource.test.ts (default identity, each source, URL overrides, resolver, settings save / load with a
+  literal old save, studio set filter); eslint on touched files; vitest list; remoteAvatar check; merge origin/feature/mixamo-i2.
