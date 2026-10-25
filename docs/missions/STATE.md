@@ -17,6 +17,8 @@ until FLG / GB6 checkers pass); cloud brief campaign-tallow-design withdrawn aft
 if any, on feature/tallow-design-docs). Restart notes for the #372 spec docs: GB6-brief.md :85, :113 (blips); PLAN
 :38, :72 (window / seconds) with :37, :78, :83-84, :138, :217; coop-kit SIGNOFF has no intent check; TKL page reward
 is a syringe (MF5); TGC page: Teale KO / kill softlocks (MF6).
+Boot ~16:00 (new account): #419 MERGED. #372 conflicted with master only in CLAUDE.md: fixed by syncing CLAUDE.md
+to origin/master (BOOT step 5).
 PR A #372 (feature/mission-framework, this branch; code head 5181c9db): open; CI check green on the rerun, affected-e2e green;
 no `checker` status, no `big-pr` label yet. ROADMAP Now 0b: the orchestrator ships it (checker on its head, big-pr,
 Michael's sign-off pages). STATE-only pushes here restart its CI: batch them.
