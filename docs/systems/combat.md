@@ -4,7 +4,7 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 
 ## Decided direction
 - Decided (G76, G115, built): the CT kit only: one rifle and one pistol (code: `rifle` and `pistolSd`); the knife is part of
-  the kit. Every other gun is deleted (docs/consolidation/deleted-guns.md).
+  the kit. Every other gun is deleted (docs/archive/consolidation/deleted-guns.md).
 - Decided, not built yet (G76): the rifle's attachments are a sniper, a shotgun and a launcher; the pistol carries a light /
   electronics disruptor (spec: `docs/systems/ct-toolkit.md` 3.5); the knife's role and the attachment set are settled by
   the CT co-op research. No attachment mode, disruptor or knife exists in code; the rifle keeps the legacy progression
@@ -42,7 +42,7 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - Holstered unless aiming (step 09, G21): `weapons/drawState.ts` (pure) holds the draw phase (0 holstered, 1 drawing, 2
   drawn, 3 holstering; `DRAW_TIME_SIDEARM` 0.75 s, `DRAW_TIME_PRIMARY` 1.1 s, `HOLSTER_TIME_SIDEARM` 0.9 s,
   `HOLSTER_TIME_PRIMARY` 1.0 s, a traversal or busy move `HOLSTER_TIME_MOVE` 0.15 s (anim-natural N3, real-world times in
-  docs/anim-natural/n3/DRAW-TIMES.md; scaled by the tuner's Clip speed); a release mid-draw rewinds the draw from the
+  docs/archive/anim-natural/n3/DRAW-TIMES.md; scaled by the tuner's Clip speed); a release mid-draw rewinds the draw from the
   current progress). Aim pressed draws, released holsters, in every alert state. `PlayerWeapons` drives
   the stow path from it (weapon-to-weapon swaps keep `SWAP_TIME` 0.9; RB swaps while aiming; a swap while holstered only
   changes the selection). A match starts holstered. Attached stow and the one-handed sidearm (split, rappel, inverted pipe,
@@ -101,7 +101,7 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 | rifle | Heron Carbine | primary, suppressed rifle (default) |
 | pistolSd | Hush 9 SD | sidearm, suppressed pistol (default) |
 
-Meshes (feature/weapons, `docs/weapons/`): each kit item is a baked GLB in `src/weapons/assets/<id>.glb` with its build
+Meshes (feature/weapons, `docs/archive/weapons/`): each kit item is a baked GLB in `src/weapons/assets/<id>.glb` with its build
 report `<id>.json`, built by `npm run weapons:build [rifle|pistolSd|knife] [--render]` (Blender 5.2.2 headless:
 scripts/weapons/py/<id>.py on wlib.py; GPU bake of albedo / ORM / normal; KTX2). `weaponMesh.ts` loads each once per scene;
 `WeaponModel` with `{ mesh: true }` (the player, the co-op partner, the menu preview) shows it in place of the primitive

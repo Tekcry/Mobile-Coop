@@ -32,7 +32,7 @@ None.
 - src/anim/animGraph.ts:2980-2981 - `MOCAP_FEET_TRACK` / `MOCAP_FEET_TURN` added at file end, outside the plan's
   "2540-2660 only" range (harmless; note for AF3 / AF4b merges on the same file).
 - tests/mocapRunFeet.test.ts:95 - the walk control has no before numbers for +-4 rad/s, so those two rows are reported, not asserted.
-- `docs/mocap-trial/TAKES.md` clip half numbers stale (report open item, `--no-doc`).
+- `docs/archive/mocap-trial/TAKES.md` clip half numbers stale (report open item, `--no-doc`).
 - CT flick 90 / 180 planted foot reads -3 to -6 cm across the hip midline (outside the bars; pelvis shift, AF2's area).
 
 ## Tests run (headless, single files, at 6ae0869e)

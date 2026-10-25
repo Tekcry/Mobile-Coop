@@ -4,7 +4,7 @@
 > states. Kept for history only; where the two disagree, v2 wins. The M1 found-sound library (Section 3) remains v2's
 > found-sound kit.
 
-Version 0.1 - 2026-10-09 (Stage M0). Spec: `docs/prompts/music-spec.md`. Approval: Michael, by ear in the music lab.
+Version 0.1 - 2026-10-09 (Stage M0). Spec: `docs/archive/prompts/music-spec.md`. Approval: Michael, by ear in the music lab.
 
 The score is a dark electronic score built from code-made found sounds, in the genre of the Chaos Theory soundtrack.
 It is original in every note. This file decides how it sounds; the spec decides how it is built and staged.

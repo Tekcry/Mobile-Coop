@@ -51,7 +51,7 @@ Evidence:
 - RULES section 6 sets the origin at the south-west corner, so X and Z are both 0 or more inside the site.
 
 ## 3. Quarantine scan
-Output of `ls docs/design docs/prompts docs/archive/maps src/world/maps scripts | grep -i -E "exchange|dead|trunk|annex|fp-|g1"`:
+Output of `ls docs/design docs/archive/prompts docs/archive/maps src/world/maps scripts | grep -i -E "exchange|dead|trunk|annex|fp-|g1"`:
 
 ```
 dead-line-v2-area1.svg
@@ -84,7 +84,7 @@ trunkAnnex.data.json
 trunkAnnex.ts
 ```
 
-Coverage by RULES section 4: the docs/design files (except dead-line-v2-engine-check.md) are covered; e2e-fp-*.mjs, g1*.mjs and gen-dead-line*.mjs are covered; the six src/world/maps files named there are covered; trunkAnnex.ts and e2e-dead-line-v2.mjs are the build-step exceptions; g1v2-plan.mjs is the P03 exception. `docs/gates/` and `docs/prompts/exchange-*` do not exist now (D0 moved them to docs/archive/).
+Coverage by RULES section 4: the docs/design files (except dead-line-v2-engine-check.md) are covered; e2e-fp-*.mjs, g1*.mjs and gen-dead-line*.mjs are covered; the six src/world/maps files named there are covered; trunkAnnex.ts and e2e-dead-line-v2.mjs are the build-step exceptions; g1v2-plan.mjs is the P03 exception. `docs/gates/` and `docs/archive/prompts/exchange-*` do not exist now (D0 moved them to docs/archive/).
 
 Not in RULES section 4: none. Michael approved adding scripts/e2e-dead-line.mjs, scripts/e2e-dead-line-menu.mjs and scripts/e2e-dead-line-v2-menu.mjs to section 4 on 2026-10-10 (done).
 
