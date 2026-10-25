@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:58+11:00
 # campus-greybox s5 fix 1 (cloud): the three co-op lips must be climbable
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). The S5 lane checker (Sonnet, code review, 2026-10-25
