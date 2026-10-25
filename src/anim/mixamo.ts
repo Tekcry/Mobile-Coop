@@ -99,8 +99,11 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // I5-REPORT.md; Michael 2026-10-26: the capture plays unless visibly broken in play)
   carry_body_walking: true,
   carry_body_idle: true,
-  elbow_strike: true,
-  cross_punch: true,
+  // off: the take turns the hips 92 deg left over the planted feet (a spin): the knees twist across, a knee 29 cm out
+  // past its ankle (hand-made 5) and the knees at 0.30 x the hips (0.63); bone step 36.5 deg (hand-made arc 33.1)
+  elbow_strike: false,
+  // off: the hips turn 55 deg left over the planted feet: a knee 23 cm out (hand-made 5), bone step 51 deg (33.1)
+  cross_punch: false,
   // Studio only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
   // and its clock is not in the pose input (J19 R11, the kneeling put down, is not built)
   kneel_down: false,

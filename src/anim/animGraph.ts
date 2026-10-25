@@ -2013,7 +2013,11 @@ export class AnimGraph {
         const ld = i.cqCarry < 0 ? -i.cqCarry : i.cqCarry;
         this.caOn = i.cqBody && i.grounded && i.traverse === 'none' && !i.wall ? (ld > 1 ? 1 : ld) * (1 - crouchK) : 0;
         kT += this.caOn;
-        if (kT > 1e-4) this.caS = approach(this.caS, this.caOn / kT, B.tau, dt);
+        // (approach written out: no boxed double arguments)
+        if (kT > 1e-4) {
+          const cT = this.caOn / kT;
+          this.caS = cT + (this.caS - cT) * Math.exp(-dt / B.tau);
+        }
       } else this.caOn = this.caS = 0;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
