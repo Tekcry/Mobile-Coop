@@ -1,0 +1,18 @@
+{
+  "id": "20261025T011805-affected-e2e-4368f322-5871",
+  "sha": "4368f322b358b50db0df2d3389506ed93f3dcf9d",
+  "branch": "feature/doc-final",
+  "pr": 407,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "anim-audit",
+    "e2e-anim",
+    "e2e-coop-gpu",
+    "e2e-pad",
+    "e2e-security",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #407"
+}
