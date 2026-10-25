@@ -268,18 +268,24 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   - A link field `exception: "long_throw"` on a `team_throw` names the approved exception. Any other `exception` value,
     or the field on another kind, is an ERR.
   - The allowlist and the number live in one new scale-sheet section 3 row, "Long throw (named spots only)": gap at most
-    5.8 m (the lead's figure), at the spots it lists as `<map>:<from>><to>`, citing Michael's ~20:45 "Mix of both".
-    `metrics-gen` reads it into `sizes.throw_long` = `{ max, spots }` (no number or spot in the script, V10).
-  - The spots (Campaign Build via the orchestrator, `docs/tallow-fixes/BRIEF.md` M2, ids from Tallow's graph, master
-    `docs/missions/prototypes/campaign-map/graph.json` links 28 and 33): `tallowWharf:w2-pawn-loft>w2-reading-room`
-    (C4 pawn loft to reading room) and `tallowWharf:w2-arcade-roof>w3-roof` (C5 arcade roof to the W3 roof). C4 pie
-    loft to clock loft (`w2-pie-loft>w2-clock-loft`) uses the plank bridge and gets no exception.
+    4.9 m (Michael's gap; the row's text also records the 5.8 m throw that crosses it), at the spots it lists as
+    `<map>:<from>><to>`, citing Michael's ~20:45 "Mix of both". `metrics-gen` reads it into `sizes.throw_long` =
+    `{ max, spots }` with `max` 4.9 (no number or spot in the script, V10).
+  - The spots: the allowlist would stay empty until Campaign Build names them, but they are already recorded. Source:
+    Campaign Build's lead picks, relayed by the orchestrator, `docs/tallow-fixes/BRIEF.md` M2 (:58-63) on
+    origin/feature/mission-engine 6df8f334f; ids from Tallow's graph, master
+    `docs/missions/prototypes/campaign-map/graph.json` links 28 and 33 (both `team_throw` today):
+    `tallowWharf:w2-pawn-loft>w2-reading-room` (C4 pawn loft to reading room) and `tallowWharf:w2-arcade-roof>w3-roof`
+    (C5 arcade roof to the W3 roof). C4 pie loft to clock loft (`w2-pie-loft>w2-clock-loft`) uses the plank bridge and
+    gets no exception. A later spot joins the row only when Campaign Build names it (a sheet change, Michael's
+    approval).
   - A `team_throw` with `exception: "long_throw"` whose `meta.map:from>to` is a listed spot passes a gap up to the row's
     max (INFO naming the approval) and ERRs above it; at an unlisted spot it ERRs ("not an approved long-throw spot").
     Every link without the field keeps the 2.7 m ERR, listed spots included (the field states the intent).
   - The approval for the row is Michael's ~20:45 pick (the sheet changes only with his approval, `scale-sheet.md:2`).
-    The 5.8 m cap is the lead's reading of "5.8 m over 4.9 m gaps"; the 2.7 m row's own rule (the throw less a 0.5 m
-    landing margin) would give 5.3 m, still above Tallow's 4.9 m gaps. One number in the row either way.
+    The cap is his gap, 4.9 m, not the 5.8 m throw (plan-check fix round 2 corrected an earlier 5.8 m cap): a 5.8 m gap
+    would leave the runner no landing margin, and the 2.7 m row's own rule (the throw less a 0.5 m margin) would give
+    5.3 m; both pass gaps wider than the one he approved.
   - Undo: delete the row, the `exception` field and its case (every throw back to the 2.7 m ERR).
 
 ## Lead answers (Marlow Build, 2026-10-25 ~19:00)

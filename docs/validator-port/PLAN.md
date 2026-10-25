@@ -191,8 +191,9 @@ nothing written (A13). Scale sheet section 8 gains `nav_floor_depth_m` 1.5 (sour
 `TEAM.boostMax` 4.5, the band coop-kit A2 keeps); the six `mission_*` rows copied from MV 0c62a921
 `docs/design/scale-sheet.md`. Sheet rows 57 (rope) and the five move bands are coop-kit's (A12, A25): S7a does not
 touch them. Long throw (A27): a new section 3 row "Long throw (named spots only)" after "Throw gap": gap at most
-5.8 m, spots `tallowWharf:w2-pawn-loft>w2-reading-room` and `tallowWharf:w2-arcade-roof>w3-roof`, citing Michael's
-~20:45 "Mix of both"; a `metrics-gen` `ROWS` entry reads it into `sizes.throw_long` = `{ max: 5.8, spots: [...] }`.
+4.9 m (a 5.8 m throw crosses it), spots `tallowWharf:w2-pawn-loft>w2-reading-room` and
+`tallowWharf:w2-arcade-roof>w3-roof` (Campaign Build's M2 picks), citing Michael's ~20:45 "Mix of both"; a
+`metrics-gen` `ROWS` entry reads it into `sizes.throw_long` = `{ max: 4.9, spots: [...] }`.
 Relay lip (A24, after #443, merged in 4.103.3): the section 3 row (`scale-sheet.md:56`) states the derived
 ceiling, `TEAM.relayMax` 4.6 (`src/config/movement.ts:476`, `src/game/teamMoves.ts:64`) + `HANG.drop` 1.9
 (`src/world/anchors.ts:219`) = 6.5 m, as the physical ceiling only, and keeps the band 4.3 - 4.6: Michael picked "Keep
@@ -203,7 +204,7 @@ PR B2; PRs C and D get its rows by merging B2's branch (C) and C's branch (D). D
 `--help` / `--chek` case (exit 2, file untouched), the new keys, and a relay pin (`sizes.hang_lip[1]` <=
 `TEAM.relayMax` + `HANG.drop`, both imported from the code); in the same test file a case runs `validate()` (master
 `scripts/level-validate.mjs`; S0 keeps its signature) on a one-link fixture with the band from `metrics.json`: a
-`team_hang` lip at 4.6 passes, 4.7 ERRs; and `sizes.throw_long` parses to max 5.8 with the two spots.
+`team_hang` lip at 4.6 passes, 4.7 ERRs; and `sizes.throw_long` parses to max 4.9 with the two spots.
 
 **S3 (Opus).** `measured.mjs` = V6's `checkMeasured` (v6 8f551e18 `scripts/level-validate.mjs:977-1075`) with: shadow
 share and its drift INFO (A4, V1); the presence gate of A5 (V2): encounter spaces, splits (`a_s`, `b_s`, `reach_s`;
@@ -258,8 +259,8 @@ INFO naming the approval, ERR above; unlisted: ERR "not an approved long-throw s
 kind: ERR; no field: the 2.7 m ERR as today; a missing `sizes.throw_long`: one WARN and the link falls back to the
 2.7 m rule. Tests with a metrics fixture holding the two spots: Tallow's `w2-pawn-loft -> w2-reading-room` throw at
 4.9 m with the field passes; the plank spot `w2-pie-loft -> w2-clock-loft` at 4.9 m with the field ERRs (not listed);
-the listed spot at 4.9 m without the field ERRs (2.7 m); the listed spot at 6.0 m ERRs (over 5.8); the same ids on
-another `meta.map` ERR. The S7 fragment adds the `exception` link field for D-C's graph-schema (+~80 lines).
+the listed spot at 4.9 m without the field ERRs (2.7 m); the listed spot at 5.0 m with the field ERRs (over 4.9);
+the same ids on another `meta.map` ERR. The S7 fragment adds the `exception` link field for D-C's graph-schema (+~80 lines).
 
 **S5 (Sonnet).** `graph-sets.json`: `[{ "name", "files": [...], "flags": [...], "errors", "warns", "run": "<path>" }]`
 for the example, campus S1-S5 (files in order), Marlow Yard. `scripts/level-graphs.mjs`: imports `validate` and
