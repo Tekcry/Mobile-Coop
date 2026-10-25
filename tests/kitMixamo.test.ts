@@ -522,8 +522,8 @@ describe('mixamo-kit (g): no allocation', () => {
     const gOff = await bytesPerCall(gr, 0, { n: 600 });
     console.info(`(mixamo-kit) graph bytes a frame: shot on ${gOn} (off ${gOff})`);
     // (the take's progress and weight go into keyed.ts's sampler / mixer as double arguments, as the stance shot's do: at
-    // most two boxed doubles; no object, closure or array)
-    expect(gOn).toBeLessThanOrEqual(gOff + 2 * HEAP_NUMBER);
+    // most two boxed doubles; no object, closure or array; + 1 B: a remainder amortised over the round, read 0.16)
+    expect(gOn).toBeLessThanOrEqual(gOff + 2 * HEAP_NUMBER + 1);
   }, 300_000);
 });
 
