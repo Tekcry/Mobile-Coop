@@ -15,9 +15,10 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G155, G180, G348), then docs
   every human guard, aware or not, heavies included, never a dog (`src/game/elbowStrike.ts` `resolveStrike`,
   `strikeTargetable`; no stagger). Campaign co-op missions have no heavies or dogs (G155); Sector Ops has dogs and
   armoured late guards (G297, G307; ai.md "Decided direction"). The numbers are in "Palm strike" below; the CT footage
-  numbers are starting values Michael tunes by hand (G356).
+  numbers are starting values Michael tunes by hand (G356). Decided, not built yet (G396, "About 1.4 s"): recovery
+  about 1.4 s (code: `STRIKE` recovery 0.6 s).
 - Dogs (G348, Sector Ops): no takedown of any kind; sleeping gas knocks a dog out; a dog can be distracted; killing one
-  carries a penalty. Built: no palm strike (`strikeController.ts`), no grab or hang-down take (`def.quadruped`), gas
+  counts as a kill (no Perfect) and costs score (G374). Built: no palm strike (`strikeController.ts`), no grab or hang-down take (`def.quadruped`), gas
   knocks out every enemy, dogs too (`GadgetSystem`). Not built yet: the other takedowns (behind, side, drop and the
   rest) still reach a dog; no dog-kill penalty.
 - G52's dedicated dual takedown is gone (G180): CT's double takedown is two ordinary takedowns timed together. The

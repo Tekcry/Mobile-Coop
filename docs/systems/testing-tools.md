@@ -629,7 +629,9 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
   `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
   that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
+  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. A second quarantine
+  of the same suite within 14 days makes it blocking (G393): it is not quarantined again, its failures fail runs, and
+  its owner gets a fix job (decided, not built yet in the queue code). The desktop worker
   keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
   their hardcoded e2e-pad.
 - Repeat quarantine (Michael 2026-10-25, folded plan Q30, "Becomes blocking"): a suite that would be quarantined a

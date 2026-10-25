@@ -45,6 +45,7 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 | Exfil | ERR none | - | - |
 | Routes per encounter (3 approaches, 2 kinds, shadow / high / loud, secret share), routes cross, 2 routes per section | as below | as below | skipped (one route, G292) |
 | Forced co-op gate per section | ERR a section whose exit solo links reach from its entry | - | - |
+| Co-op coverage | ERR | ERR | - (G392; the code still checks it) |
 | Gate reach (a way back over each co-op link) | ERR none; ERR over `reach_max_s` | - | - |
 | No softlock | - | ERR | - |
 | Solo twins | ERR | WARN | WARN |
@@ -193,7 +194,8 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   level-design 11.6 could be read: legs up to 117 m long cannot all lie within 45 m of each other.
 - **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`, `team_throw`, `team_hang`,
   `team_pull`, `shutter`) touches at least half of
-  the encounter spaces (ERR) and at least one space in every section (ERR).
+  the encounter spaces (ERR) and at least one space in every section (ERR). Not on `training`: each Marlow exercise
+  forces the move it teaches (G392); until the validator is changed it still reports there.
 - **Solo twins (checkCoop).** A co-op link is a solo twin when one player can make the same move: a solo link from its
   `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
   longer than its `length` (a longer solo route, or one on another route kind, is the no-softlock alternative; a direct

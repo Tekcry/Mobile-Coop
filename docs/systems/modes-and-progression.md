@@ -2,20 +2,22 @@
 Owner: the orchestrator. Status: current.
 Purpose: the game modes as built, the Fallow training course, what `?legacy=1` parks, and the parked arsenal / suit /
 HQ economy and cosmetics.
-Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G357), then
+Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G370, G371, G384, G385), then
 docs/design-bible.md (Sections 5.8 and 6).
 
 The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
 - Campaign: exactly 2 players, cannot be completed solo, no bot (G2, G253); every section forces a co-op traversal move
   with no solo bypass (G292, G293). Campaign Mission 1 is Tallow Wharf, the new small campaign map, with the first
-  prototypes Three Grey Coats and Two-Key Ledger (G293, G340; the mission-framework job); Kestrel is
-  paused (G53). The campaign mission framework is not built yet: today's missions run in
+  prototypes Three Grey Coats and Two-Key Ledger (G293, G340, G402; the mission-framework job); Kestrel is
+  paused (G53). Decided, not built yet: the campaign is entered from the co-op lobby, with Marlow Yard as its training
+  prologue before Mission 1 (G371); campaign sections grant no rewards, optional objectives only raise the rating
+  (G384); Mission 1 has no civilians (G373). The campaign mission framework is not built yet: today's missions run in
   Infiltration.
 - Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
-  marks and objective list (G292). Downed: the campaign rule (G349, G126). Strict rules: none in the early sections,
-  one taught in a late section (G357; not built yet).
-- Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map): 1 to 4 players, solo
-  always possible (G280, G308).
+  marks and objective list (G292). Downed: the campaign rule (G349, G126). No strict rule, fail or send-back: every
+  failure is a retry (G370).
+- Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map, frozen, G390): 1 to 4
+  players, live when coop4 ships (G381), solo always possible (G280, G308).
 - Campaign and Sector Ops: strict rules and section restart are owned by bible 5.8 (G290); no maps, markers or
   waypoints, and objectives that name what and where, by bible 5.10 (G336, G339, G343, G351). Marlow Yard is the
   guided exception (G292). Killing a civilian or a protected character restarts the section (G353, replaces G145's
@@ -90,7 +92,8 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   Realistic 1, Perfectionist 1), per op (a restart keeps the count used); the HUD line shows "Syringes n"
   (`sectorInfoHtml`; solo shows none). An operator out (no syringe left, or the window over) calls
   `GameMode.onPlayerOut` and the section restarts; on its respawn a partner still up also comes back to the checkpoint
-  (A22). Everyone down restarts as before. The connector and the extraction count every player, downed too (A20).
+  (A22). Decided, not built yet (G385): a downed player nobody revives within 30 s dies and waits out of play until the
+  team reaches the next section door, where he comes back; the section no longer restarts for him. Everyone down restarts as before. The connector and the extraction count every player, downed too (A20).
   A restart repairs the section's shot-out cameras and clears their meters (`CtDevices.repair`).
 - Alarm panels (fix round): tagged by section (`WAREHOUSE_OPS_ALARMS`, `MapLayout.alarms[].section`). On every section
   load and restart `StealthSystems.setLiveAlarms(i)` leaves only that section's panel working (and re-arms one the

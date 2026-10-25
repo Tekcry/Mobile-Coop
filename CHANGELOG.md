@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.103.6 - Train 101: Fold: Michael's plan answers (G364-G407) (2026-10-25, PR #454; #442)
+- Docs: Michael's decisions of 2026-10-25 folded as G364-G407 (session layout, the folded-plan sign-off and its 39
+  answers, the mission sign-off pages, five more co-op kit moves, the 12 level-rule changes, near-instant map loads,
+  Mixamo motion capture, free assets with a commercial-sale licence) into `docs/DECISIONS.md`, the design bible,
+  `docs/VISION.md`, `docs/level-design.md` (Michael-approved by the same decisions) and the owner docs of each changed
+  rule; replaced wording added to `docs/stale-terms.json`.
+- Docs: RULES lines from Test Runner J1 (#432): the failed-head triage watch, old-head affected-e2e requests, a tier
+  row for queue / train / tool scripts and the laptop's spare work.
+
 ## 4.103.5 - Train 100: Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #451; #372)
 - Mission framework A: specs and sign-off pages (Tallow Wharf, 4 missions, co-op kit) + graph-svg (#372)
 
