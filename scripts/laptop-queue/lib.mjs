@@ -71,7 +71,7 @@ export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIs
 export const splitSuites = (text) => String(text ?? '').split(/[\s,]+/).filter(Boolean);
 
 /** scripts/e2e-<x>.mjs files that are modules, not suites (run-e2e NOT_SUITES plus the shared e2e libraries). */
-export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib'];
+export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib', 'e2e-verdict'];
 
 /**
  * The suite names run-e2e can run at a sha, from its `git ls-tree --name-only <sha> scripts/` paths: `smoke`,
