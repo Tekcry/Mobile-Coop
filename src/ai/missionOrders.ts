@@ -68,6 +68,8 @@ export const ORDER = {
 
 /** Height gap (m) within which he is on the post's storey (as the breaker walk). */
 const STOREY = 1.2;
+/** (S1b-f) Slack (m) past `ORDER.followGap` within which a follower stands still (guard-ai-mission-hooks S1b). */
+const FOLLOW_SLACK = 0.5;
 
 /** Does a mission tag name this guard: his `zone` tag, or his mission id `<sectionId>:<k>` (A1)? `k` = his index in
  *  the section's guards (-1: none). Event / placement time only (the concat allocates). */
@@ -154,10 +156,27 @@ export class OrderBoard {
   readonly cause: string[] = new Array<string>(ORDER.maxOrders).fill('');
   /** Open order (higher = newer): the oldest ended slot is reused first. */
   readonly seq = new Uint32Array(ORDER.maxOrders);
+  // (guard-ai-mission-hooks S1b, A6) groups: events with one name and a via
+  /** The post id the order was opened with ('' free; `sameRoute`). */
+  readonly postId: string[] = new Array<string>(ORDER.maxOrders).fill('');
+  /** The via id the order was opened with ('' none; `sameRoute`). */
+  readonly viaId: string[] = new Array<string>(ORDER.maxOrders).fill('');
+  /** 1 while a group gathers at its via (it has not left). */
+  readonly gath = new Uint8Array(ORDER.maxOrders);
+  /** 1 once the group left its via. */
+  readonly left = new Uint8Array(ORDER.maxOrders);
+  /** Seconds since the first member reached the via (-1: nobody yet). */
+  readonly waitT = new Float32Array(ORDER.maxOrders).fill(-1);
+  /** The leading member (`Enemy.num`; -1 none): the first live member in event order (S1b-e). */
+  readonly lead = new Int32Array(ORDER.maxOrders).fill(-1);
+  /** The leader's x, y, z (NaN: none; the manager writes it each step). */
+  readonly leadP = new Float32Array(ORDER.maxOrders * 3).fill(Number.NaN);
   /** Members (`Enemy.num`, -1 empty), `per` per slot. */
   readonly mem = new Int32Array(ORDER.maxOrders * ORDER.maxMembers).fill(-1);
   /** Member state (`M_*`). */
   readonly memSt = new Uint8Array(ORDER.maxOrders * ORDER.maxMembers);
+  /** (S1b) 1 = this member is at the group's via, waiting. */
+  readonly memVia = new Uint8Array(ORDER.maxOrders * ORDER.maxMembers);
   /** Members per slot. */
   readonly memN = new Uint8Array(ORDER.maxOrders);
   /** Members walking or arrived over every slot (the manager's per-step gate). */
@@ -212,7 +231,15 @@ export class OrderBoard {
     for (let j = 0; j < this.memN[s]!; j++) if (liveSt(this.memSt[base + j]!)) this.live--;
     this.mem.fill(-1, base, base + this.per);
     this.memSt.fill(0, base, base + this.per);
+    this.memVia.fill(0, base, base + this.per);
     this.memN[s] = 0;
+    this.postId[s] = '';
+    this.viaId[s] = '';
+    this.gath[s] = 0;
+    this.left[s] = 0;
+    this.waitT[s] = -1;
+    this.lead[s] = -1;
+    this.leadP.fill(Number.NaN, s * 3, s * 3 + 3);
     if (this.pend[s] !== '') this.pendN--;
     this.pend[s] = '';
     this.name[s] = '';
@@ -272,8 +299,9 @@ export class OrderBoard {
     this.refresh(slot);
   }
 
-  /** The phase from the members: any walking -> 'walking'; else any arrived -> 'arrived'; else a pending tag ->
-   *  'offered'; else any done -> 'done'; else 'dropped'. A free slot stays 'none'. */
+  /** The phase from the members: a gathering group with a member walking or arrived -> 'gathering' (S1b); else any
+   *  walking -> 'walking'; else any arrived -> 'arrived'; else a pending tag -> 'offered'; else any done -> 'done';
+   *  else 'dropped'. A free slot stays 'none'. */
   refresh(slot: number): void {
     if (this.name[slot] === '') return;
     let walk = false;
@@ -286,7 +314,8 @@ export class OrderBoard {
       else if (st === M_ARRIVED) arr = true;
       else if (st === M_DONE) done = true;
     }
-    this.phase[slot] = walk ? 'walking'
+    this.phase[slot] = this.gath[slot] === 1 && (walk || arr) ? 'gathering'
+      : walk ? 'walking'
       : arr ? 'arrived'
       : this.pend[slot] !== '' ? 'offered'
       : done ? 'done'
@@ -298,6 +327,71 @@ export class OrderBoard {
     let n = 0;
     const base = slot * this.per;
     for (let j = 0; j < this.memN[slot]!; j++) if (liveSt(this.memSt[base + j]!)) n++;
+    return n;
+  }
+
+  /** (S1b) Member `num`'s state (`M_*`); -1 when he is no member. */
+  stateOf(slot: number, num: number): number {
+    const i = this.at(slot, num);
+    return i >= 0 ? this.memSt[i]! : -1;
+  }
+
+  /** (S1b-e) The first member in member (event) order who is walking or arrived; -1 none. */
+  firstLive(slot: number): number {
+    const base = slot * this.per;
+    for (let j = 0; j < this.memN[slot]!; j++) if (liveSt(this.memSt[base + j]!)) return this.mem[base + j]!;
+    return -1;
+  }
+
+  /** (S1b-b) Was the slot's order opened with this post and via ('' none)? */
+  sameRoute(slot: number, postId: string, viaId: string): boolean {
+    return this.postId[slot] === postId && this.viaId[slot] === viaId;
+  }
+
+  /** (S1b-c) The slot becomes a gathering group when it has a via, 2+ members recorded (any state) and has not left
+   *  its via yet; else nothing (a lone order never gathers). */
+  group(slot: number): void {
+    const v = this.via[slot * 3]!;
+    if (v !== v || this.memN[slot]! < 2 || this.left[slot] === 1) return;
+    this.gath[slot] = 1;
+    this.refresh(slot);
+  }
+
+  /** (S1b-d) Member `num` reached the group's via: he waits there; the first arrival starts the `joinWait` clock. Not
+   *  a member: nothing. */
+  markVia(slot: number, num: number): void {
+    const i = this.at(slot, num);
+    if (i < 0) return;
+    this.memVia[i] = 1;
+    if (this.waitT[slot]! < 0) this.waitT[slot] = 0;
+  }
+
+  /** (S1b-a) One step `dt` of a gathering group: it leaves its via when every member recorded on the slot (any state:
+   *  a dropped member never reaches it) is there, or `ORDER.joinWait` s after the first arrival. No live member: it
+   *  stops gathering. True: the group left this step. */
+  gatherStep(slot: number, dt: number): boolean {
+    if (this.gath[slot] === 0) return false;
+    if (this.liveN(slot) === 0) {
+      this.gath[slot] = 0;
+      this.refresh(slot);
+      return false;
+    }
+    if (this.waitT[slot]! >= 0) this.waitT[slot] = this.waitT[slot]! + dt;
+    const base = slot * this.per;
+    let all = true;
+    for (let j = 0; j < this.memN[slot]! && all; j++) if (this.memVia[base + j] !== 1) all = false;
+    if (!all && this.waitT[slot]! < ORDER.joinWait) return false;
+    this.gath[slot] = 0;
+    this.left[slot] = 1;
+    this.refresh(slot);
+    return true;
+  }
+
+  /** (S1b) Members of the slot waiting at its via (the manager's dev log). */
+  atViaN(slot: number): number {
+    let n = 0;
+    const base = slot * this.per;
+    for (let j = 0; j < this.memN[slot]!; j++) if (this.memVia[base + j] === 1) n++;
     return n;
   }
 
@@ -340,9 +434,10 @@ export class OrderBoard {
   }
 }
 
-/** `OrderLeg` states. `LEG_WAIT_VIA` is S1b's (a group waiting at its via); S1a never enters it. */
+/** `OrderLeg` states. (guard-ai-mission-hooks S1b) A group member waits at the via (`LEG_WAIT_VIA`); a follower walks
+ *  `ORDER.followGap` behind the leader (`LEG_FOLLOW`). */
 export const LEG_NONE = 0, LEG_TO_VIA = 1, LEG_WAIT_VIA = 2, LEG_TO_POST = 3, LEG_LOOK = 4, LEG_RESET = 5, LEG_DONE = 6,
-  LEG_GIVEUP = 7;
+  LEG_GIVEUP = 7, LEG_FOLLOW = 8;
 
 /** What `OrderLeg.step` asks of the guard this step (one reused object per leg). */
 export interface OrderGoal {
@@ -374,12 +469,17 @@ export class OrderLeg {
   private sx = 0;
   private sz = 0;
   private syaw = 0;
+  /** (S1b) His `Enemy.num` (-1: none given): the group's leader is the board's `lead`. */
+  me = -1;
+  /** (S1b-f) A follower within `followGap + FOLLOW_SLACK` of the leader (the Enemy reads it). */
+  near = false;
   readonly goal: OrderGoal = { x: 0, z: 0, y: Number.NaN, move: false, face: Number.NaN };
 
   /** Start the order on `slot` from (x, z) facing `yaw` (rad; S1a-2 passes the guard's yaw). `yaw` is the arrival
    *  heading's fallback: with no post yaw and no heading to take (he starts on the post, or the via sits on it), he
-   *  looks round (or stands at a board with no switch) facing the way he faced at the start. NaN reads 0 (+Z). */
-  start(b: OrderBoard, slot: number, x: number, z: number, yaw: number): void {
+   *  looks round (or stands at a board with no switch) facing the way he faced at the start. NaN reads 0 (+Z). `me`:
+   *  his `Enemy.num` (S1b: a group member). */
+  start(b: OrderBoard, slot: number, x: number, z: number, yaw: number, me = -1): void {
     this.state = b.via[slot * 3]! === b.via[slot * 3]! ? LEG_TO_VIA : LEG_TO_POST;
     this.t = 0;
     this.walkT = 0;
@@ -387,11 +487,14 @@ export class OrderLeg {
     this.sx = x;
     this.sz = z;
     this.syaw = yaw === yaw ? yaw : 0;
+    this.me = me;
+    this.near = false;
   }
 
   /** Off the order. */
   end(): void {
     this.state = LEG_NONE;
+    this.near = false;
   }
 
   /** Advance `dt` s with the guard at (x, y, z); writes and returns the reused goal. */
@@ -399,6 +502,27 @@ export class OrderLeg {
     const g = this.goal;
     const i = slot * 3;
     let adv = dt;
+    // (guard-ai-mission-hooks S1b-h) the group left its via without him: he follows the leader
+    if (this.state === LEG_TO_VIA && b.left[slot] === 1 && b.lead[slot]! >= 0 && b.lead[slot] !== this.me) {
+      this.state = LEG_FOLLOW;
+    }
+    // (S1b) waiting at the via until the group leaves: then the leader heads for the post, the others follow him
+    if (this.state === LEG_WAIT_VIA) {
+      if (b.gath[slot] === 1) return this.waitVia(b, i);
+      if (b.lead[slot] === this.me) {
+        this.state = LEG_TO_POST;
+        this.sx = b.via[i]!;
+        this.sz = b.via[i + 2]!;
+      } else this.state = LEG_FOLLOW;
+    }
+    // (S1b) a follower; his leader dropped and he leads now: on to the post (his walk time kept)
+    if (this.state === LEG_FOLLOW) {
+      if (b.lead[slot] !== this.me) return this.follow(dt, b, slot, x, z);
+      this.state = LEG_TO_POST;
+      this.near = false;
+      this.sx = x;
+      this.sz = z;
+    }
     if (this.state === LEG_TO_VIA || this.state === LEG_TO_POST) {
       this.walkT += dt;
       if (this.walkT >= ORDER.giveUp) {
@@ -415,6 +539,12 @@ export class OrderLeg {
           g.move = true;
           g.face = Number.NaN;
           return g;
+        }
+        // (S1b) at the via of a gathering group: he waits there for the others
+        if (b.gath[slot] === 1) {
+          this.state = LEG_WAIT_VIA;
+          b.markVia(slot, this.me);
+          return this.waitVia(b, i);
         }
         // past the via: the same step aims at the post, and the arrival heading is from the via
         this.state = LEG_TO_POST;
@@ -472,6 +602,66 @@ export class OrderLeg {
     return this.idle();
   }
 
+  /** (S1b) Stand at the via facing the post's stand point (no walk time runs, S1b-g). */
+  private waitVia(b: OrderBoard, i: number): OrderGoal {
+    const g = this.goal;
+    const vx = b.via[i]!;
+    const vz = b.via[i + 2]!;
+    g.x = vx;
+    g.y = b.via[i + 1]!;
+    g.z = vz;
+    g.move = false;
+    const dx = b.pt[i]! - vx;
+    const dz = b.pt[i + 2]! - vz;
+    g.face = dx === dx && dx * dx + dz * dz > 1e-6 ? Math.atan2(dx, dz) : Number.NaN;
+    return g;
+  }
+
+  /** (S1b-f) Follow the leader (`b.leadP`): walk to the point `followGap` from him on the line to him while he is
+   *  further than `followGap + FOLLOW_SLACK` (walk time runs, `giveUp` applies); else stand, facing him while he walks
+   *  and the post's stand point once he is there. No leader position: stand. */
+  private follow(dt: number, b: OrderBoard, slot: number, x: number, z: number): OrderGoal {
+    const g = this.goal;
+    const i = slot * 3;
+    const lx = b.leadP[i]!;
+    const ly = b.leadP[i + 1]!;
+    const lz = b.leadP[i + 2]!;
+    g.move = false;
+    if (lx !== lx) {
+      this.near = false;
+      g.x = x;
+      g.z = z;
+      g.face = Number.NaN;
+      return g;
+    }
+    const d = hyp2(x - lx, z - lz);
+    if (d > ORDER.followGap + FOLLOW_SLACK) {
+      this.near = false;
+      this.walkT += dt;
+      if (this.walkT >= ORDER.giveUp) {
+        this.state = LEG_GIVEUP;
+        return this.idle();
+      }
+      g.x = lx + ((x - lx) / d) * ORDER.followGap;
+      g.y = ly;
+      g.z = lz + ((z - lz) / d) * ORDER.followGap;
+      g.move = true;
+      g.face = Number.NaN;
+      return g;
+    }
+    this.near = true;
+    g.x = x;
+    g.y = ly;
+    g.z = z;
+    const walking = b.stateOf(slot, b.lead[slot]!) === M_WALKING;
+    const fx = walking ? lx : b.pt[i]!;
+    const fz = walking ? lz : b.pt[i + 2]!;
+    const dx = fx - x;
+    const dz = fz - z;
+    g.face = fx === fx && dx * dx + dz * dz > 1e-6 ? Math.atan2(dx, dz) : Number.NaN;
+    return g;
+  }
+
   /** Stand on the post's stand point. */
   private stand(b: OrderBoard, i: number): void {
     const g = this.goal;
@@ -500,7 +690,8 @@ function isCircuit(c: number): boolean {
  * matches a guard of a section the mission runs, `postId` / `via` resolve (A2), no tagged guard stands a
  * high-security or lookout post (A7: the data whatever the `lookouts` flag), and every tagged guard hears the bell at
  * his post through one wall plus the section's masking (A4; plan distance: the runtime judges from the floor under the
- * bell, the same on one storey, S1a-g). Returns readable errors, each naming its post or event.
+ * bell, the same on one storey, S1a-g); per name (S1b), its events agree on post and via and number at most
+ * `ORDER.maxMembers`. Returns readable errors, each naming its post or event.
  */
 export function checkMissionOrders(
   events: readonly OrderEvent[],
@@ -525,6 +716,27 @@ export function checkMissionOrders(
     }
     if (p.bell && !(Number.isFinite(p.bell.reach) && p.bell.reach > 0)) {
       out.push(`mission post '${p.id}': bell reach ${p.bell.reach} is not a finite number > 0`);
+    }
+  }
+  // (guard-ai-mission-hooks S1b-b) events of one name form one order: one post and via, at most `maxMembers` of them
+  // (a name without a via is fine: each walks alone)
+  const byName = new Map<string, { first: OrderEvent; n: number; clash: string }>();
+  for (const ev of events) {
+    const r = byName.get(ev.name);
+    if (!r) {
+      byName.set(ev.name, { first: ev, n: 1, clash: '' });
+      continue;
+    }
+    r.n++;
+    const f = r.first;
+    if (r.clash !== '') continue;
+    if (f.postId !== ev.postId) r.clash = `'${f.postId}' vs '${ev.postId}'`;
+    else if ((f.via ?? '') !== (ev.via ?? '')) r.clash = `'${f.via ?? ''}' vs '${ev.via ?? ''}'`;
+  }
+  for (const [name, r] of byName) {
+    if (r.clash !== '') out.push(`order event '${name}': events of one name disagree on post / via (${r.clash})`);
+    if (r.n > ORDER.maxMembers) {
+      out.push(`order event '${name}': ${r.n} events, more than ORDER.maxMembers (${ORDER.maxMembers})`);
     }
   }
   const pt = new Float32Array(4);
