@@ -20,7 +20,8 @@ proportions) is listed under "Reference data" and kept out of the repo.
 ## Motion capture (CMU, Mixamo)
 
 Motion data: CMU motion capture (docs/archive/mocap-trial/BRIEF.md, 2026-10-22) and, since 2026-10-25, Mixamo clips
-retargeted onto the game's rigs (G406; each Mixamo clip used gets a row here, none yet).
+retargeted onto the game's rigs (G406; each Mixamo clip used gets a row in "Motion capture (Mixamo, mixamo-retarget)"
+below).
 Raw takes stay out of git (`.mocap-cache/`, gitignored); only clips converted onto Wren are committed and bundled.
 Every take used, with its seconds: `docs/mocap-trial/SOURCES.md`.
 
@@ -30,6 +31,43 @@ Every take used, with its seconds: `docs/mocap-trial/SOURCES.md`.
 
 Acknowledgement (as the database asks): "The data used in this project was obtained from mocap.cs.cmu.edu. The database
 was created with funding from NSF EIA-0196217."
+
+## Motion capture (Mixamo, mixamo-retarget)
+
+Animations from Mixamo (mixamo.com, Adobe), royalty-free for commercial use; retargeted onto the game's own rigs; raw files not redistributed.
+
+Approved by Michael 2026-10-25 (docs/mixamo-retarget/BRIEF.md A1-A11). The raw FBX files stay out of git (they are in
+`C:/NightShift/scratch/mixamo/clips/`, outside the repo); only clips converted onto Wren are committed and bundled. The
+Mixamo skeleton is never used in the game. Source labels per clip: `src/anim/mocapSources.ts`. Rows are added before
+each clip module is committed. A clip is `mocap_<slug>`: `src/anim/clips/mixamo/<slug>.ts` (keyed) or
+`src/anim/clips/mixamo/trav_<slug>.ts` (traversal channel clip).
+
+Licence sentence: to be copied from the Mixamo FAQ (A11) (https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html;
+the automated read was refused with 403, so copy it by hand and record the date read here).
+
+| Files (repo path) | Mixamo title (file as downloaded) | Clip name | Source (URL) | Terms | Date added | Used by |
+| --- | --- | --- | --- | --- | --- | --- |
+| `src/anim/clips/mixamo/trav_hanging_idle.ts` | Hanging Idle (`Hanging Idle.fbx`) | `mocap_hanging_idle` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The hang on a ledge (replaces the hand-made hang) |
+| `src/anim/clips/mixamo/trav_braced_hang_shimmy_left.ts` | Braced Hang Shimmy Left (`Braced Hang Shimmy Left.fbx`) | `mocap_braced_hang_shimmy_left` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The ledge shimmy to the left |
+| `src/anim/clips/mixamo/trav_braced_hang_shimmy_right.ts` | Braced Hang Shimmy Right (`Braced Hang Shimmy Right.fbx`) | `mocap_braced_hang_shimmy_right` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The ledge shimmy to the right |
+| `src/anim/clips/mixamo/trav_freehang_climb.ts` | Freehang Climb (`Freehang Climb.fbx`) | `mocap_freehang_climb` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The climb-up from a free hang to standing |
+| `src/anim/clips/mixamo/trav_braced_hang_to_crouch.ts` | Braced Hang To Crouch (`Braced Hang To Crouch.fbx`) | `mocap_braced_hang_to_crouch` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The climb-up from a hang to a crouch |
+| `src/anim/clips/mixamo/trav_climbing_ladder.ts` | Climbing Ladder (`Climbing Ladder.fbx`) | `mocap_climbing_ladder` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The ladder climb |
+| `src/anim/clips/mixamo/trav_climbing_ladder_to_standing.ts` | Climbing Ladder To Standing (`Climbing Ladder To Standing.fbx`) | `mocap_climbing_ladder_to_standing` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The ladder top-out |
+| `src/anim/clips/mixamo/crouch_to_stand.ts` | Crouch To Stand (`Crouch To Stand.fbx`) | `mocap_crouch_to_stand` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The stand-up from a crouch |
+| `src/anim/clips/mixamo/stand_to_crouch.ts` | Stand To Crouch (`Stand To Crouch.fbx`) | `mocap_stand_to_crouch` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The crouch-down from standing |
+| `src/anim/clips/mixamo/crouched_walking.ts` | Crouched Walking (`Crouched Walking.fbx`) | `mocap_crouched_walking` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The crouched sneak (only if it measures as well as the CMU one; else the Anim Studio only) |
+| `src/anim/clips/mixamo/trav_crawling_hands_and_knees.ts` | Crawling Hands And Knees (`Crawling Hands And Knees.fbx`) | `mocap_crawling_hands_and_knees` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The vent crawl |
+| `src/anim/clips/mixamo/crawling_prone.ts` | Crawling Prone (`Crawling Prone.fbx`) | `mocap_crawling_prone` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Crawl under a shutter (handed to Campaign Build) |
+| `src/anim/clips/mixamo/kneeling_pull_up.ts` | Kneeling Pull Up (`Kneeling Pull Up (partner haul).fbx`) | `mocap_kneeling_pull_up` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Team pull, the hauler (handed to Campaign Build and Marlow Build) |
+| `src/anim/clips/mixamo/pulling_up_to_a_ledge.ts` | Pulling Up To A Ledge (`Pulling Up To A Ledge.fbx`) | `mocap_pulling_up_to_a_ledge` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Team pull, the climber's side (handed to Campaign Build and Marlow Build) |
+| `src/anim/clips/mixamo/lifting_heavy_object.ts` | Lifting Heavy Object (`Lifting Heavy Object (shutter).fbx`) | `mocap_lifting_heavy_object` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Shutter lift and hold (handed to Campaign Build and Marlow Build) |
+| `src/anim/clips/mixamo/carry_body_walking.ts` | Carry Body Walking (`Carry Body Walking.fbx`) | `mocap_carry_body_walking` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Walking while carrying a body (handed to J19) |
+| `src/anim/clips/mixamo/carry_body_idle.ts` | Carry Body Idle (`Carry Body Idle.fbx`) | `mocap_carry_body_idle` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Standing while carrying a body (handed to J19) |
+| `src/anim/clips/mixamo/kneel_down.ts` | Kneel Down (`Kneel Down (lay body).fbx`) | `mocap_kneel_down` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Laying a body down (handed to J19) |
+| `src/anim/clips/mixamo/elbow_strike.ts` | Elbow Strike (`Elbow Strike.fbx`) | `mocap_elbow_strike` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The knock-out strike (handed to J19) |
+| `src/anim/clips/mixamo/cross_punch.ts` | Cross Punch (`Cross Punch.fbx`) | `mocap_cross_punch` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | The palm / knock-out strike alternative (handed to J19) |
+| `src/anim/clips/mixamo/standing_idle.ts` | Standing Idle (`Standing Idle.fbx`) | `mocap_standing_idle` | https://www.mixamo.com/ | Adobe Mixamo, royalty-free for commercial use (licence sentence above) | 2026-10-25 | Wren's standing idle; guards later behind their own flag |
 
 ## Fonts
 

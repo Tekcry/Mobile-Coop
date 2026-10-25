@@ -47,9 +47,11 @@ describe('sector record', () => {
     expect(e).toEqual({ done: ['rookie', 'realistic'], best: { rookie: 200, realistic: 250 } });
   });
 
-  it('stars in DIFFICULTIES order (rookie, normal, realistic, perfectionist)', () => {
+  it('stars in DIFFICULTIES order: the hardest tier cleared fills every easier one (G331)', () => {
     const rec = sanitizeSectorRecord({ ops: { warehouseOps: { done: ['normal', 'perfectionist'] } } });
-    expect(starsOf(rec, 'warehouseOps')).toEqual([false, true, false, true]);
+    expect(starsOf(rec, 'warehouseOps')).toEqual([true, true, true, true]);
+    expect(starsOf(sanitizeSectorRecord({ ops: { campusOps: { done: ['realistic'] } } }), 'campusOps')).toEqual([true, true, true, false]);
+    expect(starsOf(sanitizeSectorRecord({ ops: { campusOps: { done: ['rookie'] } } }), 'campusOps')).toEqual([true, false, false, false]);
     expect(starsOf(rec, 'unknown')).toEqual([false, false, false, false]);
   });
 
@@ -65,5 +67,13 @@ describe('sector record', () => {
     // a junk value under the key reads as empty
     await dbPut('kv', SECTOR_RECORD_KEY, { ops: 5 });
     expect(await starsFor('warehouseOps')).toEqual([false, false, false, false]);
+  });
+
+  it('a Perfectionist clear alone fills all four stars; the best time stays on Perfectionist only (G331)', async () => {
+    await dbPut('kv', SECTOR_RECORD_KEY, { v: 1, ops: {} });
+    await markCompleted('campusOps', 'perfectionist', 900);
+    expect(await starsFor('campusOps')).toEqual([true, true, true, true]);
+    const rec = await loadSectorRecord();
+    expect(rec.ops.campusOps).toEqual({ done: ['perfectionist'], best: { perfectionist: 900 } });
   });
 });

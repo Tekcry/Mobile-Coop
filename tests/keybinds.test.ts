@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { findConflicts } from '../src/input/conflicts';
 import { assignBind, bindable, bindLabel, BINDS, clearBind, defaultBinds, keyActionMap, keyName, sanitizeBinds } from '../src/input/keyBindings';
 
 describe('key bindings', () => {
@@ -22,6 +23,11 @@ describe('key bindings', () => {
     // (anim-rework S1) no speed gear keys: = and - are free
     expect(m.get('Equal')).toBeUndefined();
     expect(m.get('Minus')).toBeUndefined();
+    // (G343) O shows the objective (tap); no other default uses it
+    expect(m.get('KeyO')).toEqual(['objective']);
+    expect(defaultBinds().objective).toEqual(['KeyO']);
+    expect(BINDS.filter((b) => b.defaults.includes('KeyO')).map((b) => b.id)).toEqual(['objective']);
+    expect(findConflicts(defaultBinds())).toEqual([]);
   });
   it('(step 18, D7) a key already in use stays there too (a conflict, warned) and the other action is named', () => {
     const b = defaultBinds();

@@ -58,6 +58,7 @@ console.log('sector ops: every section, ghost');
 await run(PARAMS, async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
   await sim(0.5);
+  assert(await G(() => !document.querySelector('.hud-minimap, .minimap, .hud-compass')), 'no minimap or compass (G339)');
   const S = await sections(G);
   assert(S.length === 3, `the Warehouse has three sections (${S.length})`);
   const d0 = await G(() => window.__sector.debug());
@@ -89,6 +90,21 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(0.3);
     const ph = await G(() => window.__sector.debug());
     assert(ph.phase === (last ? 'extract' : 'connector'), `section ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph.phase})`);
+    if (i === 0) {
+      // (G343, hud-guidance B1) the objective popup: the exit line fades in when section 1's objective is done, is gone
+      // after the hold (real time: the popup reads performance.now(), not the sim) with its text kept, and O brings it
+      // back. Section 1 only (each wait costs real seconds).
+      const shown = () => page.waitForFunction(() => !!document.querySelector('.hud-objective.show'), null, { timeout: 1000 }).then(() => true, () => false);
+      const line = await G(() => window.__app.current.hud.objectiveText);
+      assert(line.length > 0 && (await shown()), `section 1: the new objective pops up ("${line}") (G343)`);
+      const gone = await page.waitForFunction(() => !document.querySelector('.hud-objective.show'), null, { timeout: 8000 }).then(() => true, () => false);
+      const kept = await G(() => window.__app.current.hud.objectiveText);
+      assert(gone && kept === line, `section 1: the popup fades after its hold, the line kept ("${kept}") (G343)`);
+      await page.keyboard.down('KeyO');
+      await sim(0.1);
+      await page.keyboard.up('KeyO');
+      assert(await shown(), 'section 1: O shows the objective again (G343)');
+    }
     if (last) {
       await tp(G, (s.exit[0] + s.exit[2]) / 2, 0, (s.exit[1] + s.exit[3]) / 2);
       await sim(1);
@@ -120,7 +136,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
   await sim(6);
   await page.waitForSelector('.results-screen', { timeout: 15000 });
   const res = await G(() => ({ t: document.querySelector('.results-title')?.textContent, s: document.querySelector('.results-sub')?.textContent ?? '' }));
-  assert(res.t === 'VICTORY' && /Time \d+:\d\d/.test(res.s) && /Kills 0/.test(res.s) && /Spotted 0/.test(res.s) && /GHOST/.test(res.s), `the result: time, kills, spotted, Ghost ("${res.s}")`);
+  assert(res.t === 'VICTORY' && /Time \d+:\d\d/.test(res.s) && /Kills 0/.test(res.s) && /Spotted 0/.test(res.s) && /PERFECT/.test(res.s) && /GHOST/.test(res.s), `the result: time, kills, spotted, Perfect, Ghost ("${res.s}")`);
   // (step 3, M7) the run's difficulty star is saved (kv `sector:ops`) with a best time, and the op list shows it filled
   const diff = await G(() => window.__app.current.opts.difficulty ?? 'normal');
   const di = ['rookie', 'normal', 'realistic', 'perfectionist'].indexOf(diff);
@@ -152,7 +168,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await frames(page, 2);
     op = await G(() => { const b = document.querySelector('.sectorops-screen [data-op="warehouseOps"]'); return { stars: b.dataset.stars, ctr: b.querySelector('.ms-ctr')?.textContent ?? '', ctx: b.dataset.ctx ?? '' }; });
   }
-  assert(op.stars[di] === '1' && op.ctr[di] === '★' && /best \d+:\d\d/.test(op.ctx), `the op list shows the ${diff} star filled and its best time (${JSON.stringify(op)})`);
+  assert(op.stars.slice(0, di + 1) === '1'.repeat(di + 1) && op.ctr.slice(0, di + 1) === '★'.repeat(di + 1) && /best \d+:\d\d/.test(op.ctx), `the op list fills the ${diff} star and every easier one (G331) with its best time (${JSON.stringify(op)})`);
 });
 
 console.log('sector ops: alarm and no ghost');
@@ -161,6 +177,7 @@ await run(PARAMS, async ({ G, sim }) => {
   await sim(0.5);
   const a = await G(() => { const m = window.__sector; m.onAlarm(); return m.debug(); });
   assert(a.stage === 1 && a.reinforced === 2, `an alarm raises the stage and sends the section's guards in (${JSON.stringify(a)})`);
+  assert(a.perfect === false, `an alarm loses Perfect (${JSON.stringify(a)})`);
   await sim(1);
   const hunting = await G(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive && e.alerted).length);
   assert(hunting >= 2, `the reinforcements come in hunting (${hunting})`);
@@ -929,6 +946,19 @@ console.log('sector ops: co-op client mirrors the live section');
     await until(A, () => window.__sector.debug().index === 1, null, 20000, 'both inside: the connector cycles into section 2');
     await until(B, () => window.__ctdev.debug().live === 1, null, 15000, 'the client knows section 2 is live');
     assert(await devOk(B, 1), `the client: section 2's devices are live, section 1's off (${JSON.stringify(await GB(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live, c.mode])))})`);
+    // (hud-guidance B4, G343 / A8) Field Terminal > Objectives keeps the full list on both pages: in section 2,
+    // section 1's objective and exit Done, section 2's objective Current, the rest To do; the client's rows are the host's
+    {
+      const rows = (P) => P.evaluate(() => JSON.stringify(window.__app.current.objectiveLines().map((o) => [o.label, o.done ? 'done' : o.current ? 'current' : 'todo'])));
+      const want = await GA(() => JSON.stringify(window.__app.current.world.map.sectors.flatMap((s, i) => [
+        [s.objective.label, i === 0 ? 'done' : i === 1 ? 'current' : 'todo'],
+        [(s.connector ?? s.extract).label, i === 0 ? 'done' : 'todo'],
+      ])));
+      const host = await rows(A);
+      assert(host === want, `the host's field menu lists every section, section 2's objective current (G343): ${host} (want ${want})`);
+      const ok = await until(B, (w) => JSON.stringify(window.__app.current.objectiveLines().map((o) => [o.label, o.done ? 'done' : o.current ? 'current' : 'todo'])) === w, want, 10000, 'the client\'s field menu list').then(() => true, () => false);
+      assert(ok, `the client's field menu lists the host's rows (G343, A8): ${await rows(B)} (want ${want})`);
+    }
     const lk1 = await locks();
     assert(lk1 !== lk0, `the cycle changed the host's door locks (${lk0} -> ${lk1})`);
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk1, 15000, 'the client mirrors the unlocked far door');
@@ -2442,6 +2472,50 @@ if (want(6)) {
   await run(CAMPUS, async ({ page }) => campusS3Part(page));
 }
 
+// (test-runner-j20 S6c, H8) every guard the mode spawns is alive: campus sections 2-5 (S1 is the boot check in the first
+// part-6 block). `loadSection` / `unloadSection` are TS-private on SectorMode, callable from the page (BRIEF A10). The
+// guards stay put (enemyMgr.update off); each alive guard must stand within 2 m of its slot's floor (none fell through).
+if (want(6)) {
+  console.log('campus ops (H8): every guard of sections 2-5 is alive after its load, none fell through the floor');
+  const t0 = Date.now();
+  await run(CAMPUS, async ({ G, sim }) => {
+    await sim(0.6);
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    const S = await sections(G);
+    for (let i = 1; i <= 4; i++) {
+      const st = await G((k) => { const s = window.__app.current.world.map.sectors[k]; return [s.start.x, s.start.y, s.start.z, s.start.yaw]; }, i);
+      await tp(G, st[0], st[1], st[2], st[3]);
+      await G((k) => { const m = window.__sector; m.unloadSection(); m.loadSection(k); }, i);
+      await sim(3);
+      const r = await G((k) => {
+        const g = window.__app.current;
+        const slots = g.world.map.sectors[k].guards;
+        const live = g.enemyMgr.enemies.filter((e) => e.alive);
+        // one guard per slot, paired greedily by 3D distance: S3 stacks slots (the dock grunt at (25, -4.5) on the
+        // ground under the write-up desk officer at (25, -4.2) on L1), so the nearest slot in x/z alone can be the
+        // wrong deck. A guard that fell off a deck still fails: its own slot is left to it, 4.5 m above.
+        const bad = [];
+        const pairs = [];
+        live.forEach((e, a) => slots.forEach((s, b) => pairs.push([Math.hypot(e.pos.x - s.x, e.pos.y - (s.y ?? 0), e.pos.z - s.z), a, b])));
+        pairs.sort((p, q) => p[0] - q[0]);
+        const match = new Map();
+        const used = new Set();
+        for (const [, a, b] of pairs) if (!match.has(a) && !used.has(b)) { match.set(a, slots[b]); used.add(b); }
+        live.forEach((e, a) => {
+          const s = match.get(a);
+          const y = s ? s.y ?? 0 : null;
+          if (!s || Math.hypot(e.pos.x - s.x, e.pos.z - s.z) > 3 || Math.abs(e.pos.y - y) > 2) bad.push([e.pos.x.toFixed(1), e.pos.y.toFixed(1), e.pos.z.toFixed(1), y]);
+        });
+        return { alive: g.enemyMgr.alive, total: g.enemyMgr.enemies.length, bad };
+      }, i);
+      console.log(`  ${S[i].id}: ${r.alive} alive of ${S[i].guards} slots (${r.total} in the manager), ${r.bad.length} off their floor`);
+      assert(r.alive === S[i].guards && r.total === S[i].guards, `campusOps ${S[i].id}: every guard the load spawns is alive (${r.alive} alive, ${r.total} in the manager, ${S[i].guards} slots)`);
+      assert(r.bad.length === 0, `campusOps ${S[i].id}: every guard stands within 2 m of its slot's floor, none fell through (${JSON.stringify(r.bad)})`);
+    }
+  });
+  console.log(`H8 block: ${Math.round((Date.now() - t0) / 1000)} s`);
+}
+
 // (guard-ai S5, goal 7, M1, A10, A12) Posts. No live map has a posted guard yet (Course Ready fills K1-K4), so the test
 // hook spawns guards on an open stretch of section 1 and gives them posts with `em.placeSlot` (no map data edited). The
 // section's own guards go, the cameras are held, the player stands far off in the dark. (a) A vault-door guard (leash 3,
@@ -3580,13 +3654,15 @@ if (want(1)) {
 // (guard-ai S13, stealth over shooting items 3, 4, 11; A37-A39) Response teams. Section 1 with its loaded guards, the
 // live panel off, the cameras held (their own clock: this checks the stage changes none of them), the player far off in
 // the dark (no damage), a last known position set in the section. Three alarms by the mode's own path (`onAlarm`):
-// stage 2 -> every living guard wears armour, stage 3 -> a helmet too; each stage's team leads with a shield guard
-// (`enforcer`, helmeted), perStage strong; the camera count and states never change. Then hide: after the search of the
+// stage 2 -> every living guard wears armour and a helmet (guard-rules S1, A3), stage 3 the same; each stage's team is
+// armed guards only, perStage strong (guard-rules S1, A4: warehouseOps sets no `shieldTeams`, so no shield lead; test
+// upkeep for a code default, no map edit: warehouseOps stays frozen, Q26); the camera count and states never change.
+// Then hide: after the search of the
 // last known position (`ALERT.searchTime`) the first team sweeps (it switches to the sweep and looks at sweep points),
 // and at 120 s every member is still hunting (searching or in combat), none calm. Sim-time steps only; Math.random
 // seeded (as e2e-stealth-ai 'lkp').
 if (want(1)) {
-  console.log('sector ops: response teams: stage gear, shield-led teams, the sweep after the search (guard-ai S13)');
+  console.log('sector ops: response teams: stage gear, armed teams, the sweep after the search (guard-ai S13, guard-rules S1)');
   await run(PARAMS, async ({ G, sim }) => {
     await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
     await sim(0.5);
@@ -3629,7 +3705,7 @@ if (want(1)) {
       m.onAlarm();
       step(0.6);
       out.stage2 = m.run.alarm;
-      out.armour2 = living().map((e) => e.armour);
+      out.armour2 = living().map((e) => e.armour && e.helmet);
       m.onAlarm();
       step(0.6);
       out.stage3 = m.run.alarm;
@@ -3638,7 +3714,6 @@ if (want(1)) {
       out.raised3 = em.alarmRaised;
       out.both3 = living().map((e) => e.helmet && e.armour);
       out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
-      out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
       out.camN = ct.cams.length;
       out.camSame = cams() === cam0.s;
       out.ctAlarm = ct.alarm;
@@ -3646,15 +3721,14 @@ if (want(1)) {
       return out;
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
-    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([h, a]) => !h && !a), `S13: stage 1 brings a team, no stage armour or helmet yet (Normal: bare-headed until stage 2, guard-rules A1) (${JSON.stringify(r.gear1)})`);
     // (guard-ai S27, A164) a stage without the guards' own alarm (`em.alarmRaised` false: the camera / laser case) ends the
     // calm area: every guard of the live section has his weapon drawn within 2 s (none holstered 0.6 s on)
     assert(r.carryN > 0 && r.holst0 > 0 && !r.raised0, `S27: the section's guards start calm, some holstered, no guard alarm (${r.holst0} of ${r.carryN} holstered, alarmRaised ${r.raised0})`);
     assert(!r.raised3 && r.holst1 === 0 && r.drawn3.length === r.carryN && r.drawn3.every(Boolean), `S27: after the stage rise (the guards' own alarm still ${r.raised3 ? 'raised' : 'off'}) none is holstered 0.6 s on (${r.holst1}) and all ${r.carryN} have the weapon drawn within 2 s (${r.drawn3})`);
-    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
+    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour and a helmet (guard-rules A3) (${r.armour2})`);
     assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
-    assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
-    assert(r.shieldHelmet.every(Boolean), `S13: the shield guard always wears a helmet (${r.shieldHelmet})`);
+    assert(r.teams.length === 3 && r.teams.every((t) => t.length === r.perStage && t.every((k) => k === 'grunt')), `S13: each stage's team is armed guards only (no shield lead without shieldTeams, guard-rules A4), perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
     assert(r.camN === r.cam0 && r.camSame && r.ctAlarm === r.stage3, `S13: no camera added, woken or retuned across the stages (${r.cam0} -> ${r.camN}, same states ${r.camSame}; devices show stage ${r.ctAlarm})`);
     // hide: 10 s chunks to 120 s after the first alarm, the first team watched
     let w = null;
@@ -3704,7 +3778,23 @@ if (want(1)) {
     assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
     assert(w.looked >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.looked}, skipped ${w.skipped}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
     assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
-    assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
+    assert(w.lead === 'grunt', `S13: an armed guard first in the team (no shield lead, guard-rules A4) (${w.lead})`);
+  });
+
+  // (guard-rules S1, A1, G350) Realistic: every human guard of the live section starts helmeted (Rookie / Normal start
+  // bare-headed: the S13 block above, Normal, reads no helmet before stage 2)
+  console.log('sector ops: Realistic, every guard helmeted at the start (guard-rules S1)');
+  await run(PARAMS + '&difficulty=realistic', async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; });
+    await sim(0.5);
+    const r = await G(() => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const humans = em.enemies.filter((e) => e.alive && !e.def.quadruped);
+      return { diff: g.opts.difficulty, stage: window.__sector.run.alarm, rule: em.helmetRule, n: humans.length, helmets: humans.map((e) => e.helmet), locked: humans.map((e) => e.helmetLocked) };
+    });
+    assert(r.diff === 'realistic' && r.rule === 'always' && r.stage === 0, `Realistic page, helmet rule always, stage 0 (${JSON.stringify(r)})`);
+    assert(r.n > 0 && r.helmets.every(Boolean) && !r.locked.some(Boolean), `Realistic: every human guard starts helmeted, none locked (${JSON.stringify(r)})`);
   });
 }
 
