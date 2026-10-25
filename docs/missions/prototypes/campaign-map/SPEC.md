@@ -74,7 +74,7 @@ agent preamble. Hyphens, never em dashes.
 | W3 | east-yard (encounter, checkpoint) | 0 | 14 x 14 | walled yard, keypad east gate, fire escape | 4 |
 | W3 | lodge | 0 | 6 x 8 | porter's lodge, tell-tale bell (TKL twist) | 2 |
 | W3 | east-wing / west-wing (encounters) | 0 | 14 x 22 each | clerks' halls; the west one round a top-lit light well with an iron gallery at 4.2 | 4 / 4 |
-| W3 | partners-office (reward) | 0 | 4 x 7 | day book (TKL optional) | 2 |
+| W3 | partners-office (payoff dead end) | 0 | 4 x 7 | day book (TKL optional, no reward) | 2 |
 | W3 | east-post / west-post (objectives) | 0 | 4 x 6 each | key alcoves, 21 m apart, no line of sight | 3 / 3 |
 | W3 | passage | 0 | 3.5 x 10 | strongroom passage: grille, chute iron door, coal yard door | 3 |
 | W3 | strongroom (objective) | 0 | 6 x 8 | ledger presses, two-key door (TKL step 3-4) | 4 |

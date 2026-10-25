@@ -32,7 +32,7 @@ export interface MissionStep {
   item?: string; site?: string;                   // carry / plant: the item id and the place it goes (plant-not-take)
   window?: number; soloWindow?: number;           // sync: both halves within `window` s; one player alone gets `soloWindow` (named in the briefing)
   twist?: boolean;
-  optional?: { reward: 'gadget' | 'syringe' | 'medkit' };   // paid through section-rating's Grant (sectionRating.ts:94), never a new currency
+  optional?: { reward?: 'gadget' | 'syringe' | 'medkit' };  // Sector Ops only, paid through section-rating's Grant (sectionRating.ts:94); campaign: none (Q19)
 }
 export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake' | 'oneChance' | 'window';
 export interface MissionRule { kind: RuleKind; scope: 'mission' | 'a' | 'b'; text: string; step?: string; seconds?: number }
@@ -92,7 +92,9 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
   `PROTOCOL_VERSION` (protocol.ts:21) is not bumped (the train does).
 - **Rating hook**: no second scoring system. The card (`RatingView`, gameState.ts:534) keeps its four marks from the
   site-wide stats; a mission adds `rules?: { text, kept }[]` and, in Sector Ops, per-team marks (the same `rateSection`
-  over each team's `SectionStats`). Optional objective rewards go through `rewardsFor` caps (sectionRating.ts:153).
+  over each team's `SectionStats`). Sector Ops optional objective rewards go through `rewardsFor` caps
+  (sectionRating.ts:153). Campaign optional objectives give no reward (Michael 2026-10-25, folded plan Q19: "None
+  (Recommended)"); they carry story only.
 
 ## 4. Forced co-op traversal kit (M3, Michael ~22:50: all six approved; every campaign section forces at least one)
 Gameplay first with existing or placeholder clips; Player Build owns animation (clip list in 4c). Wire kinds:
@@ -176,7 +178,7 @@ route per space and per section allowed (INFO), routes-cross skipped, marks allo
 dimensions and pacing still checked.
 
 Prototype spec contents: BEAT.md = beat chart (3-6 steps, 2-5 min each, one new mechanic max per step, an intel ->
-exploit step, one twist, one optional with its reward, extraction, the 1-2 rules and how they are signposted, each step's
+exploit step, one twist, one optional (a reward in Sector Ops only), extraction, the 1-2 rules and how they are signposted, each step's
 objective line and its in-world lead, the hint line); graph.json = level-validator schema + the nodes above; PLAN.svg =
 GSVG output (campus missions over Sector Ops' `S<N>-plan-<y>.svg`); SIGNOFF.md = one question. Campaign map (CMG / CMS):
 "Tallow Wharf", a small canal-side merchants' quarter at night, 4 sections W1 night market, W2 arcade lofts, W3 counting
@@ -216,6 +218,6 @@ node needs to "Night Shift | Sector Ops Build" through the lead.
   end, the greybox PR waits for it, the rest of PR C does not.
 - Sector Ops' sign-off may rename campus spaces: SS / CR graphs reference ids from their plan graphs and are re-run then.
 - New kit moves use placeholder clips until Player Build's clips land; the e2e asserts states, not poses.
-- Open: Code Relay S4 or S5 (A14); one-chance opt-in UI (a briefing toggle, later); whether optional objectives keep
-  their reward across a restart (planned: no, the section's work resets).
+- Open: Code Relay S4 or S5 (A14); one-chance opt-in UI (a briefing toggle, later); whether a Sector Ops optional
+  objective keeps its reward across a restart (planned: no, the section's work resets).
 - Assumed decisions A6-A18 are in BRIEF.md with how to undo each.

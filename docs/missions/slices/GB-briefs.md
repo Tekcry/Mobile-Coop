@@ -847,7 +847,7 @@ Posts and jobs are the SPEC's space notes. Every human is `grunt` (armed, `check
   - `tgc-2` intel, W1, after tgc-1, `gives 'tgc-courier'`, `done { all: [{ flag: 'tgc-tally' }, { flag: 'tgc-tea' }] }`;
   - `tgc-3` interrogate, W2, after tgc-2, `needs 'tgc-courier'`, `gives 'tgc-chest'`, `target 'W2:6'`, `decoys
     ['W2:7', 'W2:8']`, `bolt [65, 4.5, 76.75]`;
-  - `tgc-opt` interact, W2, after tgc-2, `optional { reward: 'gadget' }`, `done { flag: 'tgc-opt' }`;
+  - `tgc-opt` interact, W2, after tgc-2, `optional {}` (no reward: campaign, Q19), `done { flag: 'tgc-opt' }`;
   - `tgc-4` exploit, W4, twist, after tgc-3, `needs 'tgc-chest'`, `done { flag: 'W4-obj' }`, `events [{ name:
     'mindersArrive', guardTag: 'tgc-minders', postId: 'w4-quay' }]` (set `zone: 'tgc-minders'` on W4 guards 4 and 5);
   - `tgc-5` extract, W4, after tgc-4.
@@ -857,7 +857,7 @@ Posts and jobs are the SPEC's space notes. Every human is `grunt` (armed, `check
   - `tkl-2` exploit, W3, after tkl-1, `needs 'tkl-gate-code'`, `done { flag: 'W3-key0' }`;
   - `tkl-3` sync, W3, after tkl-2, `window 1.0`, `done { flag: 'W3-gate0' }`, `events [{ name: 'telltale', guardTag:
     'w3-lodge-porter', postId: 'w3-passage' }]` (set `zone: 'w3-lodge-porter'` on W3 guard 2);
-  - `tkl-opt` interact, W3, after tkl-2, `optional { reward: 'syringe' }`, `done { flag: 'tkl-opt' }`;
+  - `tkl-opt` interact, W3, after tkl-2, `optional {}` (no reward: campaign, Q19), `done { flag: 'tkl-opt' }`;
   - `tkl-4` carry, W3, twist, after tkl-3, `item 'tkl-ledger'`, `done { all: [{ flag: 'W3-obj' }, { flag:
     'tkl-4-yard' }] }`;
   - `tkl-5` extract, W4, after tkl-4.
@@ -869,7 +869,7 @@ Posts and jobs are the SPEC's space notes. Every human is `grunt` (armed, `check
 2. For each mission, `checkMission(m, sectorGuardIds(WHARF_SECTORS))` (`missionDef.ts:156`, `sectorMission.ts:42`)
    is `[]`.
 3. The section ids equal `GRAPH.meta.sections`. Each mission's `sections` equals its graph's `mission.sections`. Its
-   step ids, kinds, `after`, `gives`, `needs`, `twist`, `optional.reward` and `text` equal the graph's `objectives`
+   step ids, kinds, `after`, `gives`, `needs`, `twist`, `optional` and `text` equal the graph's `objectives`
    (`hint` too). `rules` kind and scope equal the graph's.
 4. Guard counts: W1 9, W2 10, W3 10, W4 12. The graph's per-section sums are W1 7, W2 6, W3 10, W4 12. The extras
    (W1 the two tea-stall porters; W2 Teale, Fenn, Garrow and the clerk) are listed in an exported

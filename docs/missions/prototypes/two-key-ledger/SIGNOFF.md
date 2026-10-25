@@ -28,7 +28,8 @@ Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
    - **5. W4, 3 min (extract):** one holds shed two's shutter, the other crawls under and goes through the shed to the
      jetty. The holder goes round by the shed yard and the quay ladder to the canal ledge and is pulled up onto the
      jetty. Both board the boat.
-   - **Optional (W3):** copy the partners' day book in the east wing office (reward: one syringe).
+   - **Optional (W3):** copy the partners' day book in the east wing office (no reward: campaign
+     optional objectives give none, Michael's Q19 "None (Recommended)"; the day book dates the payment).
 4. Rule (1, whole mission): no kills; knock-outs are fine. Signposted in the briefing ("Rule: no kills. Knock them down
    if you must."), under the objective-list title ("Rule - no kills."), and by LANTERN's line on a break. A kill sends
    both players back to that section's checkpoint; the mission continues. Every guarded space keeps a dark route and a

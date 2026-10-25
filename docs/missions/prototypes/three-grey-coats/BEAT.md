@@ -34,7 +34,8 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
   walking pair between shed three and the jetty for the rest of W4. The cipher was never on Teale: he was carrying the
   shed and the chest, not the sheet.
 - **Optional (W2):** "Read Pell's courier rota in the pawnbroker's loft" (document, a lit desk beside decoy Fenn's loft).
-  Reward: `gadget` (one extra gadget charge, through section-rating's Grant). Story: the rota names the nights.
+  No reward: campaign optional objectives give none (Michael 2026-10-25, folded plan Q19: "None (Recommended)").
+  Story: the rota names the nights.
 - **Extraction (step 5):** both players hold the boat zone (`SectorRun` extract phase, every living player).
 
 ## Roles (asymmetric, swap at the midpoint = step 3)
@@ -114,7 +115,9 @@ Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6
   `campaign-map/graph.json`. Validator (mission-validator branch, map + mission merged): 0 ERR, 6 WARN, all from the
   map's own spaces: `room_class custom` on w1-canal-steps (an 8 x 10 landing, under the yard minimum), w2-arcade-roof and
   w3-roof (roof walks), w3-chute (a crouch duct) and w4-boat (a boat deck), plus w3-chute's 1.2 m width being off the
-  0.5 m grid (the scale sheet's duct is 1.2 x 1.5). The mission nodes add none.
+  0.5 m grid (the scale sheet's duct is 1.2 x 1.5). The mission nodes add none. Since Michael's Q19 ("None
+  (Recommended)", 2026-10-25) the optional is `"optional": {}` with no reward; the mission validator still wants a
+  reward on it and gives 1 ERR until the validator branch follows Q19 (follow-up for the lead).
 - Renames (BEAT name -> map id): arcade roof skylight -> `w2-arcade-roof`; loft window -> `w2-lane-window`; jetty and
   boat -> `w4-jetty` + `w4-boat` (the boat is the exfil); fish hall service shutter -> the shutter link
   `w1-fish-hall` -> `w1-service-passage`; lightwell -> two `team_throw` links (pawn loft -> reading room, pie loft ->
