@@ -1,0 +1,19 @@
+{
+  "id": "20261025T180738-affected-e2e-cc52565b-f4d6",
+  "sha": "cc52565b5b09a6e12f7cde39b61ba46ca0ad7a0f",
+  "branch": "feature/mixamo-i4",
+  "pr": 485,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-combat",
+    "e2e-move",
+    "e2e-studio",
+    "e2e-tuner-phone",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #485"
+}
