@@ -55,6 +55,8 @@ import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { STANCE_SHOT, WREN_STANCE } from './mixamo'; // (mixamo-retarget I3) Wren's stance shots
+import { CARRY_STRIKE_SHOT, WREN_CARRY, WREN_STRIKE } from './mixamo'; // (mixamo-retarget I5) Wren's carry and strike
+import { STRIKE_ARC_CONTACT } from './strikeBody'; // (mixamo-retarget I5) the arc's contact for the strike capture
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
@@ -346,6 +348,9 @@ export interface RigTargets {
    *  pole out-share. The rig blends toward it after its procedural solve. */
   keyW: number;
   keyArmW: number;
+  /** (mixamo-retarget I5) A Mixamo strike capture's share of the keyed pose (0 none): the rig takes that share of its
+   *  hand-made strike body layer out (`strikeBody.ts` `strikeBodyAt`). */
+  strikeCap: number;
   keyed: KeyedPose;
   keyKneeOut: number;
   /** (anim-rework S2) The standing holstered weight (on foot, standing, free hands; not faded by turning or moving): the
@@ -407,6 +412,7 @@ export function emptyTargets(): RigTargets {
     kneeHand: 0,
     keyW: 0,
     keyArmW: 0,
+    strikeCap: 0,
     keyed: newKeyedPose(),
     keyKneeOut: KEYED_WALK.kneeOut,
     keyHol: 0,
@@ -952,6 +958,22 @@ export class AnimGraph {
   private snDt = 0;
   private readonly kSn = newKeyedPose();
   private readonly kSn2 = newKeyedPose();
+  /** (mixamo-retarget I5) Wren's carry and strike captures (WREN_CARRY / WREN_STRIKE, `carryShot` / `strikeShot`): the
+   *  carry's eased share of the keyed weight and this frame's gate (the body's load), the carry idle's clock (s), the
+   *  strike capture's eased weight, this frame's gait phase and dt (fields: no boxed doubles), two scratch poses. */
+  private caS = 0;
+  private caOn = 0;
+  private caT = 0;
+  private skW = 0;
+  private caPh = 0;
+  private caDt = 0;
+  /** (I5) This frame's carry capture weight in the keyed pose; the strike's arc (`melee`), gate and free-hands share. */
+  private caW = 0;
+  private skArc = -1;
+  private skGate = 0;
+  private skFw = 0;
+  private readonly kCa = newKeyedPose();
+  private readonly kCa2 = newKeyedPose();
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
   /** (S5 round 2) The wall slide's pelvis twist cut this frame (WALL_KEYS.slideYawCut x the slide x the wall share). */
@@ -1983,7 +2005,16 @@ export class AnimGraph {
       // (anim-rework S5) back to a wall: the wall keyed set (wallKeyed.ts), holstered (free hands) on foot and not
       // aiming; a drawn weapon keeps the procedural wall pose (WALL_READY, the edge lean-outs)
       const kWl = i.wall && i.grounded && i.traverse === 'none' ? wallW * fw * (1 - this.raiseS) : 0;
-      const kT = kH + kDr + kWl;
+      let kT = kH + kDr + kWl;
+      // (mixamo-retarget I5) Wren carrying a body with a carry capture: the keyed set on by the body's load on the shoulder
+      // (the hoist eases it in, the put down's hand-over out), standing (a crouch keeps the hand-made carry); without one
+      // (the flag off) none of this runs
+      if (WREN_CARRY.any && this.wrenReady) {
+        const ld = i.cqCarry < 0 ? -i.cqCarry : i.cqCarry;
+        this.caOn = i.cqBody && i.grounded && i.traverse === 'none' && !i.wall ? (ld > 1 ? 1 : ld) * (1 - crouchK) : 0;
+        kT += this.caOn;
+        if (kT > 1e-4) this.caS = approach(this.caS, this.caOn / kT, B.tau, dt);
+      } else this.caOn = this.caS = 0;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
       if (kT > 1e-4) this.keyDS = approach(this.keyDS, kDr / kT, B.tau, dt);
@@ -2018,12 +2049,30 @@ export class AnimGraph {
         this.snW = o.keyW > 0 && loco + still > 1e-4 ? (still / (loco + still)) * (1 - dS) * (1 - this.keyWallS) : 0;
         this.stanceShot(o);
       }
+      // (mixamo-retarget I5) Wren's carry and strike captures over the keyed pose (both null with the flag off: skipped)
+      o.strikeCap = 0;
+      this.caW = 0;
+      if (this.wrenReady && (this.caS > 0 || WREN_CARRY.any)) {
+        this.caPh = ph;
+        this.caDt = dt;
+        this.carryShot(o);
+      }
+      if (this.wrenReady && (WREN_STRIKE.clip !== null || this.skW > 0)) {
+        this.caDt = dt;
+        this.skArc = i.melee;
+        this.skGate = (1 - this.kCk) * (1 - dS) * (1 - this.keyWallS) * (1 - this.caS);
+        this.skFw = fw;
+        this.strikeShot(o);
+      }
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
       // (anim-rework S4) the crouched clips' height is the crouch's whole depth: by the crouched share it replaces the
       // procedural one (the rig adds the keyed height to the pose's)
       if (this.kCk > 0) o.keyed.pel[1] = o.keyed.pel[1]! - this.kCk * pose[CH.pelY]!;
+      // (mixamo-retarget I5) the carry capture's height (its own carry crouch) replaces the procedural carry's (the bend's
+      // drop, the step dip) by its share, as the crouched clips' does
+      if (this.caW > 0) o.keyed.pel[1] = o.keyed.pel[1]! - this.caW * pose[CH.pelY]!;
       // (anim-rework S4) the squat's hands on the knees: its share of the keyed arms
       o.kneeRest = this.kCk > 0 ? o.keyArmW * this.kCk * this.cIdle : 0;
       if (o.keyW > 0 && this.keyWallS > 1e-4) this.keyedWallSet(ph, this.keyWallS, crouchK, Math.abs(bd) / WALL_KEYS.peekLean, pose, o);
@@ -2296,6 +2345,74 @@ export class AnimGraph {
     const pelY = o.keyed.pel[1]!;
     mixKeyed(o.keyed, this.kSn, w, o.keyed, false);
     o.keyed.pel[1] = pelY;
+  }
+
+  /**
+   * (mixamo-retarget I5, PLAN "Clip map" row 12) Wren's body carry capture (WREN_CARRY) over this frame's keyed pose by
+   * the carry's share of the keyed weight (`caS`): the carry walk on the gait phase (`caPh`, left strike 0, as the planner
+   * steps) by the moving share, the carry idle on its own 10 s clock standing. The trunk, head, arms and the pelvis height
+   * are the take's (the height replaces the procedural carry's: `caW`); the pelvis placement across and along (x, z)
+   * stays the keyed set's: the walk take's pelvis drifts up to 69 cm behind its feet over a half cycle (its root path), so
+   * the planner's feet keep the body over them. The legs and feet stay the planner's; the hands stay on the carried body
+   * (the rig's reach, as before). No allocation.
+   */
+  private carryShot(o: RigTargets): void {
+    const C = WREN_CARRY;
+    const w = o.keyW > 0 ? this.caS : 0;
+    if (C.idle !== null) {
+      this.caT += this.caDt;
+      if (this.caT >= C.idlePeriod) this.caT -= C.idlePeriod;
+    }
+    if (w <= 1e-4 || !C.any) return;
+    const mv = this.moveW;
+    const walk = C.walk !== null && (mv > 1e-4 || C.idle === null);
+    const idle = C.idle !== null && mv < 1 - 1e-4;
+    if (walk) sampleKeyed(C.walk!, this.caPh, 1, this.kCa);
+    if (idle) sampleKeyed(C.idle!, this.caT / C.idlePeriod, 1, walk ? this.kCa2 : this.kCa);
+    if (walk && idle) mixKeyed(this.kCa, this.kCa2, 1 - mv, this.kCa);
+    // a row off: the other capture over its own share only (the keyed set keeps the rest)
+    const ww = w * (C.walk === null ? 1 - mv : C.idle === null ? mv : 1);
+    if (ww <= 1e-4) return;
+    const px = o.keyed.pel[0]!;
+    const pz = o.keyed.pel[2]!;
+    mixKeyed(o.keyed, this.kCa, ww, o.keyed, false);
+    o.keyed.pel[0] = px;
+    o.keyed.pel[2] = pz;
+    this.caW = ww;
+  }
+
+  /**
+   * (mixamo-retarget I5, PLAN "Clip map" row 14) Wren's strike capture (WREN_STRIKE: the elbow strike, or the cross
+   * punch) over this frame's keyed pose while the arc plays (`skArc` = `melee`: the knockout strike and the kill blows, on
+   * their own timing, `strikeWarp` / `killWarp`): the take's progress follows the arc with its contact frame on the arc's
+   * contact (`STRIKE_ARC_CONTACT`, the hit), linear either side, so the take is fitted to the game's strike and never
+   * changes it. Weight: eased in / out (CARRY_STRIKE_SHOT) by `skGate` (standing, holstered, off a wall, not carrying).
+   * The take's trunk, head, arms and pelvis offsets; its share of the arms (`keyArmW`, which the hand-made arc leaves at
+   * 0 in a strike) and of the body (`strikeCap`: the rig takes that share of its hand-made strike body layer out). The
+   * legs and feet stay the planner's. No allocation.
+   */
+  private strikeShot(o: RigTargets): void {
+    const S = WREN_STRIKE;
+    const arc = this.skArc;
+    const on = arc >= 0 && S.clip !== null;
+    const tau = on ? CARRY_STRIKE_SHOT.strikeIn : CARRY_STRIKE_SHOT.strikeOut;
+    this.skW += ((on ? 1 : 0) - this.skW) * (1 - Math.exp(-this.caDt / tau));
+    if (!on && this.skW < 1e-4) this.skW = 0;
+    if (S.clip === null || o.keyW <= 0) return;
+    const w = this.skW * this.skGate;
+    if (w <= 1e-4) return;
+    // the arc onto the take: 0 -> its first frame, the arc's contact -> its contact, 1 -> its last; after the arc (easing
+    // out) the last frame
+    const a = arc < 0 ? 1 : arc > 1 ? 1 : arc;
+    const Cc = STRIKE_ARC_CONTACT;
+    const pc = S.contact;
+    const p = a <= Cc ? (pc * a) / Cc : pc + ((1 - pc) * (a - Cc)) / (1 - Cc);
+    const c = S.clip;
+    sampleKeyed(c, (p * (c.frames - 1)) / c.frames, 1, this.kCa);
+    mixKeyed(o.keyed, this.kCa, w, o.keyed, false);
+    o.strikeCap = w;
+    const arm = o.keyW * this.skFw * w;
+    if (arm > o.keyArmW) o.keyArmW = arm;
   }
 
   /**

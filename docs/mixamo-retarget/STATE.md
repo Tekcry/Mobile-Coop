@@ -43,3 +43,8 @@
 - MIXAMO_ON stand_to_crouch / crouch_to_stand both off (A8): over the 0.22 s stance the takes jump the joints 20.2 / 11.3 cm
   a frame (e2e-anim limit 7.5, hand-made 6.5 / 6.4); Studio only.
 - Left: laptop run (affected-e2e src/anim, e2e-anim, e2e-move, e2e-stealth, anim-audit).
+
+## I5 (2026-10-26, feature/mixamo-i5, worktree -m2): carry and strike on Wren
+- At the save (00:45 meter cap): done mixamo.ts WREN_CARRY / WREN_STRIKE + rows (kneel_down off: no kneel put down),
+  animGraph carryShot / strikeShot (keyed block), strikeBodyAt scale + 1 line in characterRig (strikeCap), new test file.
+- Left: run tests/mixamoCarryStrike.test.ts and the brief's list, set rows from (d), I5-REPORT.md, changes/feature-mixamo-i5.md.

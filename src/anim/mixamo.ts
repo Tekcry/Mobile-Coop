@@ -36,6 +36,11 @@ import { setMocapCrouchWalk } from './mocap';
 // (mixamo-retarget I3) the stance changes
 import { MOCAP_STAND_TO_CROUCH } from './clips/mixamo/stand_to_crouch';
 import { MOCAP_CROUCH_TO_STAND } from './clips/mixamo/crouch_to_stand';
+// (mixamo-retarget I5) the body carry and the strike
+import { MOCAP_CARRY_BODY_WALKING } from './clips/mixamo/carry_body_walking';
+import { MOCAP_CARRY_BODY_IDLE } from './clips/mixamo/carry_body_idle';
+import { MOCAP_ELBOW_STRIKE } from './clips/mixamo/elbow_strike';
+import { MOCAP_CROSS_PUNCH } from './clips/mixamo/cross_punch';
 
 /** A Wren traversal slot (above). */
 export type MixamoTravSlot = 'hangIdle' | 'shimmyL' | 'shimmyR' | 'climbUpCrouch' | 'climbUpStand' | 'ladder' | 'ladderTop' | 'crawl';
@@ -90,6 +95,15 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // off: its 2.17 s over the game's 0.22 s stand (10x) jumps the joints' velocity 11.3 cm a frame (hand-made 6.4) and
   // turns a forearm 24.3 deg in a frame (hand-made 14.3)
   crouch_to_stand: false,
+  // (mixamo-retarget I5) the body carry and the strike (tests/mixamoCarryStrike.test.ts (d), docs/mixamo-retarget/
+  // I5-REPORT.md; Michael 2026-10-26: the capture plays unless visibly broken in play)
+  carry_body_walking: true,
+  carry_body_idle: true,
+  elbow_strike: true,
+  cross_punch: true,
+  // Studio only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
+  // and its clock is not in the pose input (J19 R11, the kneeling put down, is not built)
+  kneel_down: false,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
@@ -145,6 +159,7 @@ export function resolveMixamo(): void {
   }
   resolveMixamoKeyed(); // (mixamo-retarget I1)
   resolveMixamoStance(); // (mixamo-retarget I3)
+  resolveMixamoCarryStrike(); // (mixamo-retarget I5)
 }
 
 /** The flag (`?mixamo=1`): the captures on Wren's traversal (those `MIXAMO_ON` lets play). */
@@ -225,6 +240,66 @@ function resolveMixamoStance(): void {
   const S = WREN_STANCE;
   S.down = MIXAMO.on && MIXAMO_ON.stand_to_crouch === true ? MOCAP_STAND_TO_CROUCH : null;
   S.up = MIXAMO.on && MIXAMO_ON.crouch_to_stand === true ? MOCAP_CROUCH_TO_STAND : null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (mixamo-retarget I5) Wren's body carry and strike (PLAN "Clip map" rows 12 and 14; A2: they follow only the `mixamo`
+// flag). Read by reference by the graph's keyed block (`animGraph.ts` `carryShot` / `strikeShot`, Wren rigs only:
+// `wrenReady`); with every field null the graph skips both (no sample, no write: byte-identical). The game's clocks drive
+// them, never the takes' own seconds: the carry walk on the gait phase (left strike 0), the carry idle on its own loop,
+// the strike on the arc phase (`melee`, the strike's and the kill blows' own timing) with the take's contact frame put on
+// the arc's contact (`STRIKE_ARC_CONTACT`). Rebuilt once per change by `resolveMixamo`. Above the load-time line below.
+
+/** The resolved carry and strike captures on Wren (the same object always: fields rewritten once per change). `any`: a
+ *  carry capture is filled; `contact`: the strike take's contact as a share of its frames (0 none). */
+export const WREN_CARRY: { any: boolean; walk: KeyedClip | null; idle: KeyedClip | null; idlePeriod: number } = { any: false, walk: null, idle: null, idlePeriod: 1 };
+export const WREN_STRIKE: { clip: KeyedClip | null; contact: number } = { clip: null, contact: 0 };
+
+/** The carry idle's take seconds a loop (its header: frames 0-300 at 30 fps, 0-10 s). */
+export const CARRY_IDLE_SECONDS = 10;
+
+/**
+ * The carry and strike fades: `strikeIn` / `strikeOut` (s) the strike capture's weight easing in at the arc's start and
+ * out after it ends (both takes start and end near the standing rest, so the ease is short). The carry capture follows
+ * the keyed weight (it eases in and out with the body's load on the shoulder: the hoist and the put down's hand-over).
+ */
+export const CARRY_STRIKE_SHOT = { strikeIn: 0.03, strikeOut: 0.12 } as const;
+
+/**
+ * A strike take's contact (0..1 of its frames): the striking hand at its furthest forward. The striking side is the wrist
+ * that travels further forward over the take (elbow strike: the left, cross punch: the right); the contact is the first
+ * frame it reaches 97% of that travel. Once per change (not per frame).
+ */
+export function strikeContact(c: KeyedClip): number {
+  const A = c.arm;
+  const N = c.frames;
+  let best = 0;
+  let side = 5;
+  for (const s of [5, 11]) {
+    let mx = -Infinity;
+    for (let f = 0; f < N; f++) mx = Math.max(mx, A[f * 12 + s]!);
+    if (mx - A[s]! > best) {
+      best = mx - A[s]!;
+      side = s;
+    }
+  }
+  const z0 = A[side]!;
+  for (let f = 0; f < N; f++) if (A[f * 12 + side]! >= z0 + 0.97 * best) return f / (N - 1);
+  return 0.5;
+}
+
+/** Rewrite `WREN_CARRY` / `WREN_STRIKE` from the flag and `MIXAMO_ON` (once per change). The elbow strike is the game's
+ *  move (the knockout's elbow arc); the cross punch plays in its place only with the elbow strike's row off. */
+function resolveMixamoCarryStrike(): void {
+  const C = WREN_CARRY;
+  const on = MIXAMO.on;
+  C.walk = on && MIXAMO_ON.carry_body_walking === true ? MOCAP_CARRY_BODY_WALKING : null;
+  C.idle = on && MIXAMO_ON.carry_body_idle === true ? MOCAP_CARRY_BODY_IDLE : null;
+  C.idlePeriod = CARRY_IDLE_SECONDS;
+  C.any = C.walk !== null || C.idle !== null;
+  const S = WREN_STRIKE;
+  S.clip = !on ? null : MIXAMO_ON.elbow_strike === true ? MOCAP_ELBOW_STRIKE : MIXAMO_ON.cross_punch === true ? MOCAP_CROSS_PUNCH : null;
+  S.contact = S.clip !== null ? strikeContact(S.clip) : 0;
 }
 
 setMixamo(flags.mixamo === true);
