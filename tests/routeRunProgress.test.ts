@@ -374,9 +374,10 @@ describe('route-run progress: inferred cause (R7 fallback)', () => {
     expect(c.sense).toBe('sight');
     expect(c.inferred).toBe(true);
     expect(c.robot).toBe(1);
-    expect(c.inputs.dist).toBeCloseTo(hyp(1, 0.55, 8), 9);
+    expect(c.inputs.distance).toBeCloseTo(hyp(1, 0.55, 8), 9);
     expect(c.inputs.angle).toBeCloseTo(Math.atan2(1, 8), 9);
-    expect(c.inputs).toMatchObject({ light: 0.8, crouched: false, speed: 2.1 });
+    expect(c.inputs).toMatchObject({ light: 0.8, stance: 'standing', speed: 2.1 });
+    expect(Object.keys(c.inputs).sort()).toEqual(['angle', 'distance', 'light', 'speed', 'stance']);
   });
   it('sight needs the field, the range and a clear line', () => {
     expect(inferCause({ guard, robots: [robot(0, 24)] }).sense).toBe('sight'); // focus range 25
@@ -387,7 +388,8 @@ describe('route-run progress: inferred cause (R7 fallback)', () => {
   });
   it('close: a moving robot within close range behind him; a still one is not felt', () => {
     const c = inferCause({ guard, robots: [robot(0, -1.2)] });
-    expect(c).toMatchObject({ sense: 'close', robot: 0, inputs: { crouched: true, speed: 1.3 } });
+    expect(c).toMatchObject({ sense: 'close', robot: 0, inputs: { stance: 'crouched', speed: 1.3 } });
+    expect(c.inputs.distance).toBeCloseTo(hyp(0, 0.55, 1.2), 9);
     expect(inferCause({ guard, robots: [robot(0, -1.2, { speed: 0 })] }).sense).toBe('unknown');
   });
   it('smell: dogs only, crouched shortens it', () => {
@@ -404,7 +406,7 @@ describe('route-run progress: inferred cause (R7 fallback)', () => {
       heard: [{ x: 0, y: 0, z: -10, radius: 4, kind: 'step' }, { x: 6, y: 0, z: -8, radius: 12, kind: 'door' }],
     });
     expect(c).toMatchObject({ sense: 'hearing', inferred: true, robot: 1, inputs: { radius: 12, kind: 'door' } });
-    expect(c.inputs.dist).toBeCloseTo(hyp(6, 1.55, 8), 9);
+    expect(c.inputs.distance).toBeCloseTo(hyp(6, 1.55, 8), 9);
   });
   it('told, body, unknown', () => {
     expect(inferCause({ guard, robots: [robot(0, -10)], told: 'g2' })).toEqual({ sense: 'told', inferred: true, robot: -1, inputs: { by: 'g2' } });

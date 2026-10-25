@@ -632,9 +632,11 @@ export function sightRange(a) {
  * - `body`: true when he found a body.
  * Order, first that holds: camera, sight (a robot in his field and range, line of sight not blocked: the nearest),
  * close (a moving robot within `closeRange`), smell (a dog, within the smell radius), hearing, told, body, unknown.
- * Returns `{ sense, inferred, robot (index or -1), inputs }`, inputs by sense: sight `{ dist, angle, light, crouched,
- * speed }`, close / smell `{ dist, crouched, speed }`, hearing `{ radius, kind, dist }`, camera `{ camera }`, told
- * `{ by }`, else null.
+ * Returns `{ sense, inferred, robot (index or -1), inputs }`, inputs by sense: sight `{ distance, angle, light, stance,
+ * speed }`, close / smell `{ distance, stance, speed }`, hearing `{ radius, kind, distance }`, camera `{ camera }`, told
+ * `{ by }`, else null. Names match the guard cause record (G1) and R2's report: `distance` in metres (3D, eye to feet
+ * or to the noise source), `angle` in radians off his facing (0 to pi), `light` as the harness read it, `stance`
+ * 'crouched' | 'standing', `speed` in m/s.
  */
 export function inferCause(rise) {
   const P = GAME_SENSES;
@@ -672,15 +674,15 @@ export function inferCause(rise) {
   }
   if (sight >= 0) {
     const r = robots[sight];
-    return { sense: 'sight', inferred: true, robot: sight, inputs: { dist: sightD, angle: sightA, light: r.light ?? null, crouched: !!r.crouched, speed: r.speed ?? 0 } };
+    return { sense: 'sight', inferred: true, robot: sight, inputs: { distance: sightD, angle: sightA, light: r.light ?? null, stance: stanceOf(r), speed: r.speed ?? 0 } };
   }
   if (close >= 0) {
     const r = robots[close];
-    return { sense: 'close', inferred: true, robot: close, inputs: { dist: closeD, crouched: !!r.crouched, speed: r.speed ?? 0 } };
+    return { sense: 'close', inferred: true, robot: close, inputs: { distance: closeD, stance: stanceOf(r), speed: r.speed ?? 0 } };
   }
   if (smell >= 0) {
     const r = robots[smell];
-    return { sense: 'smell', inferred: true, robot: smell, inputs: { dist: smellD, crouched: !!r.crouched, speed: r.speed ?? 0 } };
+    return { sense: 'smell', inferred: true, robot: smell, inputs: { distance: smellD, stance: stanceOf(r), speed: r.speed ?? 0 } };
   }
   const heard = rise.heard ?? [];
   if (heard.length > 0) {
@@ -692,12 +694,16 @@ export function inferCause(rise) {
       sense: 'hearing',
       inferred: true,
       robot: nearestRobot(robots, n.x, n.y ?? g.y, n.z),
-      inputs: { radius: n.radius, kind: n.kind ?? null, dist: hyp3(n.x - g.x, (n.y ?? g.y) - g.y, n.z - g.z) },
+      inputs: { radius: n.radius, kind: n.kind ?? null, distance: hyp3(n.x - g.x, (n.y ?? g.y) - g.y, n.z - g.z) },
     };
   }
   if (rise.told != null) return { sense: 'told', inferred: true, robot: -1, inputs: { by: rise.told } };
   if (rise.body) return { sense: 'body', inferred: true, robot: -1, inputs: null };
   return { sense: 'unknown', inferred: true, robot: -1, inputs: null };
+}
+
+function stanceOf(r) {
+  return r.crouched ? 'crouched' : 'standing';
 }
 
 function nearestRobot(robots, x, y, z) {
