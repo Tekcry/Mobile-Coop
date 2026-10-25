@@ -84,15 +84,12 @@ bumped); every screen draws that player with the OWNER's source. Undo: drop the 
   (`PAGE_TABLES` = LOCO / WREN_TRAV / WREN_KEYED / WREN_STANCE, overrides and the Studio pick included: default game
   byte-identical); `RemoteAvatar` hands the owner's, which reads `SOURCE_TABLES[s]` (that source alone). Tables rewritten
   in place once per change (`addMixamoResolver`); the graph re-picks on a compare. characterRig reads its graph's table.
-- Senders: coopHost `selfState`, coopClient pstate (`animSourceWire(ANIM_SOURCE.source)`); the host relays by spread.
+- Senders: coopHost `selfState`, coopClient pstate (`animSourceWire(wireAnimSource(ANIM_SOURCE))`); the host relays by spread.
 
-### At the save (05:30)
-- Done: per-graph tables, rig, wire (host, client, remote), tests/animSourceWire.test.ts 8/8; suite 16 files 198 pass.
-- Left: tsc / eslint on the test file, report; e2e-coop, e2e-netmove, e2e-ctcourse via the laptop queue; two Opus checkers.
-
-### At the save (08:5x, builder)
-- Done: laptop e2e on faa1041ab GREEN 7/7; tsc + eslint clean on the wire files; override gap closed: senders send
-  `wireAnimSource(ANIM_SOURCE)` (the source this page draws, `?anim=` / `?mocap=` / `?mixamo=` / tuner box in), new test
-  (9 in the file). Found: the file's no-allocation test is flaky before this change too (1 run in 3: handed graph reads
-  1744 B a frame in Turbofan, page 171 B; some runs the page reads 695 B), a V8 tier / feedback order effect, not the wire.
-- Left: decide the flaky alloc test (fix the measure or the cause), WIRE-REPORT.md, STATE done line, two Opus checkers.
+### Built (builder, 2026-10-26)
+- Done: per-graph tables, rig, wire (host, client, remote); laptop e2e on faa1041ab GREEN 7/7 (set mixamo-wire);
+  tsc + eslint clean; override gap closed: the senders send `wireAnimSource(ANIM_SOURCE)` (the source this page draws,
+  `?anim=` / `?mocap=` / `?mixamo=` / the tuner box in; default no field); the Studio pick stays local (A entry).
+  tests/animSourceWire.test.ts 9/9 (+ animSource 21/21), net / coopFix / coopCarry 114/114. The no-allocation check
+  reads both on one graph (two graphs read V8's tier: 1744 B vs 171 B, 1 run in 3). Report: WIRE-REPORT.md.
+- Next: two Opus checkers on the head.
