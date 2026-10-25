@@ -172,7 +172,11 @@ export interface AiContext {
   bodyFound(e: Enemy, b: Body): void;
   /** Wake the knocked-out guard of body `b`; `by` woke him (guard-ai S4: both turn cautious, timed). */
   revive(b: Body, by: Enemy): void;
+  /** A guard alarm was raised since the load (sticky: the carry rule reads it). */
   alarmRaised(): boolean;
+  /** (guard-rules S5, A7) A new guard alarm may be raised now (none yet, or the repeat lock opened): a panel run goes on
+   *  only while it is. */
+  alarmOpen(): boolean;
   /** (guard-ai S27) The mode's alarm stage (the manager's `alarmStage`: Sector Ops' panel, camera or laser stage;
    *  absent = 0). Only the carry rule reads it (`carryCalm`). */
   alarmStage?(): number;
@@ -3141,10 +3145,11 @@ export class Enemy implements Damageable {
     if (!t) return { point: null, speed: 0, face: null };
     if (this.stagger > 0) return { point: null, speed: 0, face: this.faceTarget() };
     const toTarget = this.faceTarget();
-    // raising the alarm: run to the panel and work it (unless it is disabled or already raised)
+    // raising the alarm: run to the panel and work it (unless it is disabled, or (guard-rules S5) no new guard alarm may
+    // be raised now: one is raised and the repeat lock is shut)
     const ap = this.alarm;
     if (ap) {
-      if (ap.disabled || this.ctx.alarmRaised()) this.alarm = null;
+      if (ap.disabled || !this.ctx.alarmOpen()) this.alarm = null;
       else {
         const d = hyp2(this.alarmPt[0] - this.pos.x, this.alarmPt[1] - this.pos.z);
         if (d < 0.8) {
