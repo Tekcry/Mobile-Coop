@@ -295,7 +295,11 @@ function verbOf(d) {
   return d.inferred ? `probably ${v}` : v;
 }
 
-/** "lit, 9 m" from the sight inputs, for one sighting only. */
+/**
+ * "lit, 9 m" from the sight inputs, for one sighting only. Input names follow the BRIEF and R3's `inferCause`:
+ * `distance` (m), `light` (a word, or R3's number where above 0.5 reads as lit), `stance` ('crouched' | 'standing').
+ * Crouched is the sneak pace every run walks at, so only "standing" is printed.
+ */
 function detailOf(d) {
   const out = [];
   const inp = d.inputs;
@@ -304,6 +308,7 @@ function detailOf(d) {
     if (typeof light === 'string' && light) out.push(humanise(light));
     else if (typeof light === 'number') out.push(light > 0.5 ? 'lit' : 'in shadow');
     if (typeof inp.distance === 'number') out.push(`${Math.round(inp.distance)} m`);
+    if (inp.stance === 'standing') out.push('standing');
   }
   return out;
 }

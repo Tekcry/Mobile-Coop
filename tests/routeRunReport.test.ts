@@ -80,7 +80,7 @@ describe('route-run report', () => {
     expect(a).toBe(fixture('report-campaign-golden.json'));
     // Key order in the log must not change the bytes of the free-form parts.
     const shuffled = campaignLog();
-    shuffled.runs[0].detections[0].inputs = { angle: 12, distance: 9.1, light: 'lit', speed: 1.3, stance: 'crouch' };
+    shuffled.runs[0].detections[0].inputs = { angle: 12, distance: 9.1, light: 'lit', speed: 1.3, stance: 'crouched' };
     expect(jsonText(buildReport(shuffled).json)).toBe(a);
   });
 
@@ -114,6 +114,16 @@ describe('route-run report', () => {
       expect(l).not.toMatch(/g-[a-z]+-\d|_|—|no-nav-path|could-not-follow|step-timeout|restart-loop|inferred|undefined|null/);
     }
     expect(markdown).not.toContain('—');
+  });
+
+  it('reads R3 inferred sight inputs (distance, stance) into the walk card', () => {
+    // The shape R3's inferCause returns for sight: distance in m, angle, raw light, stance, speed.
+    const inferred = (t: number, stance: string): Obj =>
+      seen(t, null, { sense: 'sight', inferred: true, inputs: { distance: 9.4, angle: 0.21, light: 0.8, stance, speed: 1.3 } });
+    const crouched = buildReport({ ...header({ mode: 'campaign' }), runs: [run({ detections: [inferred(42, 'crouched')] })] });
+    expect(walkCard(crouched.markdown)[0]).toContain('Seen once: the shunter probably saw you at the pit edge (0:42, lit, 9 m).');
+    const standing = buildReport({ ...header({ mode: 'campaign' }), runs: [run({ detections: [inferred(42, 'standing')] })] });
+    expect(walkCard(standing.markdown)[0]).toContain('(0:42, lit, 9 m, standing).');
   });
 
   it('fails for one stuck run and gives it no valid time', () => {

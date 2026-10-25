@@ -35,7 +35,7 @@
           "guardAt": [12.5, 0, 4.1],
           "robotAt": [21.5, 0, 4.4],
           "space": "barrier",
-          "inputs": { "stance": "crouch", "speed": 1.3, "light": "lit", "distance": 9.1, "angle": 12 }
+          "inputs": { "stance": "crouched", "speed": 1.3, "light": "lit", "distance": 9.1, "angle": 12 }
         }
       ],
       "notices": [
