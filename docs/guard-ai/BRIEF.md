@@ -598,3 +598,86 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   `scripts/e2e-guard-carry.mjs`). Undo: if the stack drops 40 or lands after us, renumber `PROTOCOL_VERSION` and every
   `toBe(41)` / `v: 40` / `v: 41` in the A140 list of tests plus coopWalkFixes and poseParity, `scripts/e2e-coop.mjs`'
   comment, `docs/systems/coop.md` and the two changelog fragments.
+
+## Guard AI polish batch (`feature/guard-ai-polish`, `POLISH-PLAN.md`; ROADMAP Decided 2026-10-24 ~21:50 lifted "no refining")
+A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A182. Host only, no protocol or save change.
+- **A165** (A3) In stealth, a guard with no intruder of his own (`hunt` -1) paths to his own known spot (A* `goTo` to
+  `knownSpot`), not along the freshest intruder's chase field: in co-op the field led him to a player nobody told him
+  of (G139). A guard with a slot, and solo play, are unchanged. Undo: `SLOTLESS_FIELD = true` in `src/ai/enemy.ts`.
+- **A166** (A4) A guard hunting one intruder who sees another calls the second one in: one contact call per slot per
+  fight (`calledMask`, cleared with `hunt` at cooldown / unaware), so the new fight has a reporter and command hears of
+  it. G139 holds: he saw him. Undo: `RECALL_SWITCH = false` in `src/ai/enemy.ts`.
+- **A167** (A2) Cover is picked by the walk, not the straight line: the best 3 candidates (fixed scratch) are tried in
+  order; one a mate holds (`reserveCover` refuses) is skipped, and one whose A* path is longer than `COVER_DETOUR.k` 1.5
+  x the straight line + `COVER_DETOUR.add` 3 m is rejected for the next. A role cover with such a detour is blocked
+  (`blockCover`) and the roles pick again next tick. The open wait's failed pick (`openNoCover`) retries once per
+  `SQUAD.openWait` 3 s, and while his role is not moving it never lands on his own held role cover. Undo:
+  `COVER_DETOUR.k = Infinity`, `COVER_TRIES = 1` and `COVER_RETRY = false` (the open-wait retry and the own-role-cover
+  skip) in `src/ai/enemy.ts`.
+- **A168** (B1) A cut circuit nobody fixed is found again: when its incident is gone, nobody walks it and it is still
+  off, it is unmarked in `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery notices it again (a reset walk
+  that ended without the flip: knocked out, the alarm, the 30 s give-up). The same cut noticed again after its tamper
+  check is a fault (the reset walk), as consoles do (A131): a circuit cut twice inside 60 s no longer stays dark for
+  good. Undo: `BREAKER_WALK.retry = Infinity` in `src/ai/breaker.ts`.
+- **A169** (C1) A calm guard with two players in view keeps the one he perceives until another player's sight rate
+  beats his by 25% (`CALM_KEEP` 1.25 in `src/ai/targetPick.ts`), so near-equal rates no longer swap his target (and
+  his head) every think. His target unseen (rate 0) or dead: the best seen, as before. Combat (sticky) and solo are
+  unchanged. Undo: `CALM_KEEP = 1` (the highest rate each think, ties the nearer).
+- **A182** (B7) The redundant `tell(alarmHunt)` after an alerted spawn (`sendIn`, the reinforcement spawn) is gone:
+  `spawn(.., true)` already binds a valid slot, and with nothing valid the extra call only bound a positionless alarm
+  slot. Such a guard now binds on the next call or sighting (`hunt` -1 until then); the freshest fallback in `sendIn`
+  is for the parked modes only. Undo: `POLISH_B.alarmTell = false` in `src/ai/enemyManager.ts` (restores the two calls).
+- **A183** CLOSED, answered by G327 (Michael 2026-10-25 ~08:50, "Yes, shadow in view = seen"; again ~16:50, Q17
+  "Like on screen"): a guard whose shadow falls in view animates at full rate. Both T1 checkers had found "seen" was
+  the camera pass only (`slices/T1-CHECK-A.md` / `-B.md` on feature/guard-ai-t1-anim-tier). The build is FOLDED-PLAN
+  J4: a fresh PR from the #360 branch counts shadow-in-view as seen in `animTierView.ts`, measures the saving left,
+  and #360 closes when it opens.
+
+## Guard AI polish batch 2 (`feature/guard-ai-polish2`, `POLISH2-PLAN.md`, Opus planner 2026-10-25)
+A184-A194, ranked by player-visible impact; the source ids are the checkers' (S28-CHECK-B, POLISH-CHECK-A, ...). Host
+only, no protocol or save change. T1 (the recon drone's sight verdict) is a test only: `tests/reconDroneSight.test.ts`.
+- **A184** (S28-CHECK-B F2) An investigating guard whose spot is behind a locked door with no way round walks to the
+  nearest reachable point (the reached nav cell nearest the goal: `findPath` gained a `partial` argument and a
+  `partialEnd` field in `navGrid.ts`; fix round: the nearest among reached cells within `LAYER_PICK` 1.2 m of the
+  goal's height, so the end stays on the goal's storey, not straight above / below it up a stair; none on it: the
+  octile plus the height gap in cells) and counts as arrived there, then faces the spot until `investigateLook` ends it;
+  before: he stood where he was until `ALERT.investigateMax` 20 s. Search, patrol and combat chase are unchanged. Undo:
+  `NEAR_SIDE = false` in `src/ai/enemy.ts`.
+- **A185** (S26-CHECK-B 7) One "I heard something." per noise however many searchers hear it (all of them still go):
+  the first searcher in the manager's list who may bark says it (`hearSearch` returns whether he barked and the manager
+  passes `!hearBarked`). Undo: `POLISH2.oneHeardBark = false` in
+  `src/ai/enemyManager.ts`.
+- **A186** (S27-CHECK-B 7) A high-cover overwatch suppressing while a squadmate bounds holds his peek point (edge / side
+  step) in the hide phase too, so his suppression line starts past his wall, not behind it. Low cover unchanged (S27-CHECK-B 6 is Michael's). Undo: `OW_HIGH_PEEK = false` in
+  `src/ai/enemy.ts`.
+- **A187** (POLISH-CHECK-A 1) A guard who goes alert on a call about one intruder while he sees another calls the
+  second in once (A166 at the alert step), and `calledMask` marks only the slot he was told of and his hunt. Undo:
+  `ALERT_RECALL = false` in `src/ai/enemy.ts`.
+- **A188** (S25B-CHECK-B P5) In a combat plan search only the first searcher looks at the last known position
+  (`SearchPlan.lkpBy`, `AiContext.searchLkp`); the rest take plan points at once. The holder stays set after his look, freed
+  when he leaves the search, goes down, changes hunt, or is off the combat plan search (pulled onto a body / KO search,
+  his own stimulus: `planSweep`), or the centre moves (a same-centre rebuild keeps it, so nobody looks twice). Fix
+  round: a mate told no asks again at each later spot pick until he has looked there (`lkpWait`; that look keeps
+  `searchK`), so a holder taken down before his look leaves the LKP to a mate (a holder freed after his look costs one
+  more 3 s look). A lone
+  searcher and the parked modes are unchanged. Undo: `POLISH2.lkpOnce = false` in `src/ai/enemyManager.ts`.
+- **A189** (POLISH-CHECK-A 3) A flank bound may be up to 2.5 x the straight line + 3 m (`COVER_DETOUR.flankK`), since a
+  flank bends round the player's cover by design; point bounds, `pickCover` and open waits keep 1.5. Undo:
+  `COVER_DETOUR.flankK = 1.5` in `src/ai/enemy.ts`.
+- **A190** (S23-CHECK-B 1, part 1) A calm guard instantly detects any player in his instant range and focus, and the
+  nearest one detected becomes his target (over `pickTarget` and A169's `CALM_KEEP`). Combat unchanged; `spotted` stays for the picked
+  player (S23-CHECK-B 1 part 2 is by design). Undo: `INSTANT_ANY = false` in `src/ai/enemy.ts`.
+- **A191** (POLISH-CHECK-A 5) A responder going back to his device search says no "Clear." / "Standing down."; the
+  task's `standDown` radio call stays. Undo: `RESUME_QUIET = false` in `src/ai/enemy.ts`.
+- **A192** (POLISH-CHECK-A 4) An armour pick casts the fire line for its best candidates in score order (at most
+  `ARMOUR_FIRE.coverCasts` 6, and at most `COVER_TRIES` A*), not for any top-3 entrant in index order. The 6 casts go to the 6 best by score: all 6
+  armoured with a worse candidate clear means he picks nothing (before, index-order casts could land on it). Without
+  armour: unchanged. Undo: `ARMOUR_CAST_LATE = false` in `src/ai/enemy.ts`.
+- **A193** (S26-CHECK-B 9 remainder) DEFERRED (off: `HEAR_STOREY = false` in `src/ai/enemy.ts`, the code kept). Built: a
+  heard spot snaps to the noise's storey (`hearSearch` takes the noise `y`; NaN: his own). POLISH2-CHECK-B 1: with no
+  spot height `goTo` paths on his own storey, so a spot snapped off his floor (a balcony, a catwalk) pins him at the
+  floor's edge for the rest of the search. Waits for the spot-height slice (keep the snapped cell's height for a heard
+  or plan / ring spot and pass it to `goTo`); the guardPolish2 test asserts the off behaviour, the on case is skipped.
+- **A194** (POLISH-CHECK-A 2) The in-cover known-spot exits (`blockCover`, too close) need a spot: a hunt position, a
+  sighting or a stimulus; else today's feet rule. Hardening, not reachable today. Undo: `KNOWN_NEEDS_SPOT = false` in
+  `src/ai/enemy.ts`.

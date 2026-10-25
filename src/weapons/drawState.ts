@@ -17,7 +17,7 @@ export type DrawPhase = 0 | 1 | 2 | 3;
  * `STANCE.slingDrawMult` / `slingDrawLong` x it). History: F1a 0.3 / 0.4; (CT prototype G2, AUDIT-AIM rows 1 / 7) primary
  * 0.3, sidearm 0.5 from the footage.
  * (anim-natural N3, Michael 2026-10-22: "Research what is believable and realistic") real-world times, derived with their
- * sources in `docs/anim-natural/n3/DRAW-TIMES.md`: pistol 0.75 s (the holster adds 0.75 s over low ready to the first
+ * sources in `docs/archive/anim-natural/n3/DRAW-TIMES.md`: pistol 0.75 s (the holster adds 0.75 s over low ready to the first
  * shot), rifle 1.1 s (a slung rifle on target in ~2 s, minus the raise to fire and the reaction). One move (reach, grip,
  * lift / clear, present, settle: `anim/drawMotion.ts`) whose phases scale with the time. Undo: primary 0.3, sidearm 0.5
  * (or the tuner's Clip speed rifle / pistol draw sliders).
@@ -27,7 +27,7 @@ export const DRAW_TIME_PRIMARY = 1.1;
 /**
  * Holster (lower) time (s), per class: the gun guided in, seated, then the hand lets go. History: (G2, AUDIT-AIM row 2)
  * 0.55 -> 0.15 both (CT's holster is instant).
- * (anim-natural N3, Michael 2026-10-22, `docs/anim-natural/n3/DRAW-TIMES.md`) pistol 0.9 s, rifle 1.0 s: no timed standard
+ * (anim-natural N3, Michael 2026-10-22, `docs/archive/anim-natural/n3/DRAW-TIMES.md`) pistol 0.9 s, rifle 1.0 s: no timed standard
  * exists and instructors teach it slow and deliberate, so slower than the draw. Undo: 0.15 both (or the tuner's Clip speed
  * holster time multiplier, down to 0.15x). A traversal's or a busy move's holster keeps 0.15 s (`HOLSTER_TIME_MOVE`).
  */

@@ -1,39 +1,36 @@
 # Movement, camera and traversal
+Owner: Player Build. Status: current.
 Purpose: the operator's movement, camera, back-to-wall, door peek, traversal anchors and attached states.
-Design authority: docs/DECISIONS.md (G1, G25-G39), then docs/design-bible.md (Sections 4 and 5.3).
+Design authority: docs/DECISIONS.md (G1, G16-G39, G210, G227), then docs/design-bible.md (Sections 4 and 5.3).
 
-Every number in this file is a starting value, tuned after Michael plays the CT prototype (G4, G10). The CT research is
-docs/locomotion/CT-RESEARCH.md; the prototype plan is docs/locomotion/PROTOTYPE-PLAN.md. History of how the code got here:
-docs/archive/ct-movement.md and the git log.
+Michael tunes movement himself as needed; movement slices and movement research are stopped (G227, replacing G150's
+tune-until-sign-off). CT movement references are ignored (G210: "the ct movement is
+getting worse. Can you ignore CT movement references."): analogue speed from the stick, LT held aims, three weapon
+states, RT tap knocks out / hold kills, traversal auto-holsters (docs/archive/anim-rework/BRIEF.md). History of how the
+code got here: docs/archive/ct-movement.md, docs/archive/locomotion/ and the git log.
 
-## Decided direction (the CT prototype builds it)
-The code below is the locomotion run's build. Where Michael has decided otherwise, the line says so:
-- Decided, not built yet (loco M20 Q8, G62): no sprint. Code: gear 6 is a sprint on `dash` (L3 / Left Shift).
-- Decided, not built yet (G18, G96): back-to-wall on L3 and the exact CT pad layout. Code: back-to-wall is on A.
-- Decided, not built yet (G25): an on-the-spot turn is a tight walking circle; a run reversal is one smooth turn of about
-  0.4 s; no planted pivot. Code: reversals over `pivotSpeed` brake into a planted `pivot`.
-- Decided, not built yet (G26, G27): stops freeze mid-stride at every speed (from a run the body slides up to about 0.3 m);
-  the frozen stride holds about 1.7 s, then eases to a feet-together idle.
-- Decided, not built yet (G32): holding crouch while running rolls; a tap just crouches. Code: a crouch tap at gear >= 5.
-- Decided, not built yet (G33): no special quick 180; a stick flick turns in about 0.4 s while walking.
-- Decided, not built yet (G31): no fast ladder climb, fast rappel descent, small gap hops or sprint door bash. A bash is a
-  door-menu choice only (G97).
-- Decided, not built yet (G28, G29, G38): CT camera framing (about 1.8 m boom, the head at screen centre, legs partly out of
-  frame), rigid follow, a gentle swing toward travel, no bob, no zoom when aiming, one camera height for every operator.
-- Decided, not built yet (G17): the shoulder swap works only while aiming. Code: R3 / V swaps at any time.
-- Decided, not built yet (G30): of the modern layer keep only start lean, head look-at, hands on doors and ledges, feet on
-  stairs and faster vaults from a run.
+## Decided direction
+- Built (CT prototype F1a): G17, the shoulder swap only while aiming (`player/player.ts`); G18, back-to-wall on L3
+  (input-and-loop.md, binding table).
+- Removed (bible 6): sprint and the sprint-only moves (fast ladder climb, fast rappel descent, small gap hops, sprint
+  door bash; G31), the quick 180 (G33), the planted pivot (G25) and the braking stop (G26).
+- Starting values, not targets (G356): the CT footage numbers of G25-G36 - G25's walking-circle turn, G26 / G27's
+  mid-stride freeze and 1.7 s hold, G30's modern layer, G32's roll on held crouch, G33's 0.4 s flick turn, G35 / G36's
+  wall shuffle and peek at once, and G28 / G29's camera framing and behaviour - are where the code began; Michael tunes
+  them by hand (G210, G227). The code below is what is built.
+
+Still standing:
 - Decided and built (G16): no aim assist on any input (the pad setting `gamepad.aimAssist` was removed, no-aim-assist).
-- Decided, not built yet (G35, G36, loco M25 (3)-(4)): wall slide is the CT shuffle, about 0.35 m/s; peek as soon as the
-  operator reaches the edge while pushing; only the button or aiming leaves the wall; flat back standing, sideways
-  crouched. Code: 0.9 / 0.6 m/s, a 0.25 s push to peek, a held pull-away also leaves.
-- Decided, not built yet (loco M20 Q1, G52): the lean-out aim and the SWAT turn are removed, with their network fields.
-  Code: both still exist (Wall edge verbs below).
-- Decided, not built yet (G97, G41): a CT door menu (open, stealth open, bash, optic cable); a door past about 15% open
-  passes light, sound and sight. Code: the crack peek below.
-- Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent. Code:
-  `NOISE_QUIET` makes standing gears 1-2 and crouched gears 1-3 silent (built, playtest 2: stand 1.65, crouch 1.9 m/s, with
-  headroom for the stride swell).
+- Decided (G38): one camera height for every operator (the shared body capsule).
+- Decided and built (G62, CT prototype M1): no sprint; the `dash` action id stays for photo mode's fast pan
+  (input-and-loop.md).
+- Built (loco M20 Q1, G52): the lean-out aim and the SWAT turn are gone with their network fields: no `swat` MoveState
+  mode, no lean bit in `WALL_SUB` (`player/wallController.ts:154`); an edge on the wall has the peek only.
+- Built (G97, G41): the CT door menu (open, stealth open, bash, optic cable) is rows of the context menu
+  (`game/doorMenu.ts`); a stick-driven door under `DOOR.driveShut` 0.15 of the swing is still a crack to body, light and
+  sight, over it a real opening guards notice (`world/doors.ts:53`). Open and crack peek: sections below.
+- Built (G40): the two slowest standing and the three slowest crouched speeds are silent: `NOISE_QUIET`
+  (`config/movement.ts`, stand 1.65, crouch 1.9 m/s, with headroom for the stride swell).
 - Decided (G34): wall entry by button only (built). G37: the CT back-to-wall is the only wall move. G109: every operator
   moves the same. G110: no prone crawl, no rope climb. G56: crawl spaces are crouch-walked.
 
@@ -47,7 +44,7 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 
   | Named speed | creep | sneak | walk | jog | run |
   | --- | --- | --- | --- | --- | --- |
-  | Standing (m/s) | 0.75 | 1.4 | 2.1 | 3.0 | 4.5 (G1; was 4.2) |
+  | Standing (m/s) | 0.75 | 1.4 | 2.1 | 3.0 | 4.0 (anim-rework S2, M6; G1 had 4.5) |
   | Crouched (m/s) | 0.85 | 1.3 | 1.7 | 2.15 | 2.6 |
   | `GAIT_REF` (pose reference), standing / crouched | 0.5 / 0.5 | 1.1 / 0.9 | 2.0 / 1.4 | 3.0 / 1.9 | 4.0 / 2.5 |
 
@@ -55,21 +52,26 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   is posed at its place between the `GAIT_REF` caps (clip mix, duty, lift, arm swing); stride length and gait clock stay on
   the real pace.
 - Momentum (`MotionInput.ct`, `CT` table + `CT_RANGES` in the debug Tune panel, `MotionDriver.stepCt`): the pace follows
-  the stick through a critically damped spring (95% within `CT.startTime` 0.3 s, 98% gone within `CT.stopTime` 0.25 s,
-  under `CT_REST` 0.1 m/s at rest; never overshoots); the travel direction swings toward the stick over `CT.turnTime`
-  0.15 s; a reversal (cos < -0.7) over `pivotSpeed` 1.2 m/s brakes into a planted `pivot` (>= `pivotTime` 0.3 s). States
-  `move` / `stop` / `pivot` / `idle`; `RigPose.restX` from `ctStopDistance()`. Aim, draw, strike, crouch and jump stay
-  instant. `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`), then at most one closing step.
-  `StickRelease` (`speedGears.ts`) keeps a springing-back stick's deflection so the stop is from the full pace. Facing
-  turns at `CT.turnRate` 720 deg/s. Acceleration lean 0.012 rad per m/s^2, capped 0.09 rad. Remotes (D8):
+  the stick through a critically damped spring (95% within `CT.startTime` 0.45 s, 98% gone within `CT.stopTime` 0.2 s,
+  under `CT_REST` 0.1 m/s at rest; never overshoots). Free (not aiming) the body moves along its facing and turns
+  toward the stick at `CT.turnRate` 7.85 rad/s (450 deg/s), falling to `CT.turnRateRun` 6.1 (350 deg/s) as the pace
+  goes from `turnSlowFrom` 3.0 to `turnSlowTo` 4.0 m/s, angular acceleration `CT.turnAccel` 300. There is no planted
+  pivot and no turn on the spot: the stick held on the spot walks a tight circle, a reversal is one smooth turn with
+  the pace dipping through it (`CT.turnDip` 0.55), and at the slowest speed only, a stick pulled behind by over 135 deg
+  walks backwards at `CT.backSpeed` 0.5 m/s. (`MOVEMENT.pivotTime` 0.3 / `pivotMinSpeed` 1.5 are the non-CT rule the
+  player runs under an override; guards run it on `ENEMY_MOTION`'s own pivot.) States `move` / `stop` / `idle`;
+  `RigPose.restX` from `ctStopDistance()`. Aim, draw, strike, crouch and jump stay instant. `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`), then at most one closing
+  step. `StickRelease` (`speedGears.ts`) keeps a springing-back stick's deflection so the stop is from the full pace.
+  Acceleration lean 0.012 rad per m/s^2, capped 0.09 rad (`animGraph.ts` `LEAN_GAIN`, `LEAN_MAX`). Remotes (D8):
   `anim/motionDerive.ts` derives acceleration and `move` / `stop` / `idle` from measured velocity (no wire field).
-  Heel-to-toe roll: at <= 1.7 m/s (`HEEL_ROLL`, toe up 0.2 rad) a foot lands heel first and rolls flat over 0.1 s.
+  Heel-to-toe roll: at <= 2.2 m/s (`HEEL_ROLL`, toe up 0.3 rad) a foot lands heel first and rolls flat over 0.1 s.
 - Legs and gait against the CT footage (CT prototype G1, `docs/ct-prototype/G1-REPORT.md`, audit
   `docs/ct-prototype/audit/AUDIT-LOCOMOTION.md`): free movement (`stride: 'facing'`) turns the legs as one unit with the
   body: planted feet stay within `TURN_FOLLOW.twistFree` 0.25 rad of the root and inside a 0.055-0.14 m band either side
   of its midline (they scrub round with it, CT style; aiming, walls and cover keep world-locked feet), the pelvis follows
-  them by at most `PELVIS_FOLLOW_MAX` 0.05 rad, a foot a turn left behind toes off early. Steps cap at
-  `MOVEMENT.stepLenMax` 0.95 m (the run quickens to ~4.7 steps/s at 4.5 m/s; guards uncapped). A stop's set-down lands
+  them by at most `PELVIS_FOLLOW_MAX` 0.05 rad, a foot a turn left behind toes off early. Standing
+  steps cap at `MOVEMENT.stepLenMax` 1.3 m, crouched at `CROUCH_STEP.max` 0.95 m (guards uncapped,
+  `ENEMY_MOTION.stepLenMax` 9). A stop's set-down lands
   within `STOP_SPLIT` 0.3 m of the planted foot and the held stride straightens up over ~0.15 s (G26 / G27 timings kept).
   Crouched, a stop kneels at once (`KNEEL_STILL` 0.05 s, the stop hold lets go for it), on the trailing knee. The tense
   sneak (G160, `player/tenseSneak.ts`, `TENSE`): crouched at <= 1.4 m/s with an unaware guard within 5 m, 0.85 m steps,
@@ -80,35 +82,38 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   outside it steps back in; only guards at alert level 'unaware' set off the tense sneak; a start's gait clock counts
   the target pace for 0.5 s (`START_CLOCK`: the first step lands at ~0.28 s); a stop draws in only a trailing swing foot,
   and a lunge wider than `STOP_CLOSE` 0.45 m closes the rear foot in once after the freeze.
-- (anim-rework S2, the real-world standard; `docs/anim-rework/S2-REPORT.md`) Standing free movement: the run is 4.0 m/s
-  (M6, was 4.5); steps are `0.3 + 0.24 v` up to `stepLenMax` 1.3 m (the walk `WALK_STEP.k` 0.2 to 2.1 m/s; crouched keeps
-  `CROUCH_STEP` 0.3 + 0.2 v, 0.95 m): 2.4 steps/s at 1.4 m/s, 2.9 at the jog, 3.2 at the run (was 4.7). A landing keeps
-  `FREE_GAP` 0.85 of the stance width from the other foot (was a fixed 13 cm, which pushed the left foot out: the wide
-  walk). Standing, a planted foot steps back into the band `TURN_FOLLOW.standMinLateral`..`standMaxLateral`
-  0.03-0.09 m and is never scrubbed through a turn or a direction change (the scrub runs only after `SPIN_SCRUB` 0.5 s of
-  continuous fast turning; crouched keeps the G1 band and scrub); a clock swing waits while the other foot is still in
-  the air from a rule step at a walk (no two-footed hop in a turn from a standstill); a planted heel rises at most
-  `HEEL_RISE` 6 rad/s (a start's first frame no longer drags the ankle); standing holstered the pelvis trails the
-  chest toward the planted feet by up to `PELVIS_FOLLOW_KEYED` 0.35 rad (the upper body turns first; crouched and drawn
-  keep `PELVIS_FOLLOW_MAX` 0.05, blended by `RigTargets.keyHol`). The rest stance is hip width (`IDLE_STANCE` extra 0;
-  standing holstered -0.015, lead 0.04).
-- Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
-  (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
-  (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).
+- (anim-rework S2, the real-world standard; `docs/archive/anim-rework/S2-REPORT.md`) Standing free movement: the run is
+  4.0 m/s (M6, was 4.5); steps are `0.3 + 0.24 v` up to `stepLenMax` 1.3 m (the walk `WALK_STEP.k` 0.2 to 2.1 m/s;
+  crouched `CROUCH_STEP` 0.3 + 0.115 v, +0.35 per m/s over 1.9, cap 0.95 m): 2.4 steps/s at 1.4 m/s, 2.9 at the jog,
+  3.2 at the run (was 4.7). A
+  landing keeps `FREE_GAP` 0.85 of the stance width from the other foot (was a fixed 13 cm, which pushed the left foot
+  out: the wide walk). Standing, a planted foot steps back into the band
+  `TURN_FOLLOW.standMinLateral`..`standMaxLateral` 0.03-0.09 m and is never scrubbed through a turn or a direction
+  change (the scrub runs only after `SPIN_SCRUB` 0.5 s of continuous fast turning; crouched keeps the G1 band and
+  scrub); a clock swing waits while the other foot is still in the air from a rule step at a walk (no two-footed hop in
+  a turn from a standstill); a planted heel rises at most `HEEL_RISE` 6 rad/s (a start's first frame no longer drags the
+  ankle); standing holstered the pelvis trails the chest toward the planted feet by up to `PELVIS_FOLLOW_KEYED` 0.35 rad
+  (the upper body turns first; crouched and drawn keep `PELVIS_FOLLOW_MAX` 0.05, blended by `RigTargets.keyHol`). The
+  rest stance is hip width (`IDLE_STANCE` extra 0; standing holstered -0.015, lead 0.04).
+- Forward roll (G32): crouch HELD for `CT.rollHold` 0.15 s (a tap crouches; `PlayerController.rollHeld`) standing at
+  gear >= `rollGear` 5 while moving >= `CT.rollMinSpeed` 2.5 m/s (`TraversalController.canForwardRoll`) =
+  `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.75 s, `CT.rollLength` 2.3 m (shortened by a wall), out at the
+  crouched pace of the gear it went in at (at most 2.6 m/s), comes up crouched; noise `CT.rollNoise` 2 m.
 - (anim-rework S3) The aimed glide's steps (`motion.ts` `GLIDE_STEP`, standing, a carrier aiming: `stepLength` /
   `gaitRate` `glide`, the driver's `aiming`, the graph's raise on a remote): a side-step of `lat0 + latK x speed` (a
   shuffle, each foot travelling two steps a cycle), back-steps 35 % shorter, every step at most `fwd0 + fwdK x speed`;
   the closing foot comes in to `GLIDE_GAP` 9 cm (`PlannerInput.glide`; `PLANNER.minGap` 13 cm elsewhere). The feet never
   cross; enemies, holstered and low ready keep the old steps. (anim-rework S4) Crouched aiming glides too (the same side
   step, the crouched landing gap).
-- (anim-rework S4, `docs/anim-rework/S4-REPORT.md`) Crouched free movement: the planner's landing gap follows the stance
-  (`FREE_GAP`, as standing; the fixed 13 cm held the crouch 9-12.6 cm a foot), a planted foot steps back into the
-  crouched band `CROUCH_BAND` 3.5-10 cm (the G1 band's 14 cm before; the turn scrub keeps the G1 band). A stance change
-  (the crouch past half way either way) re-steps still feet into the new stance for `RESTEP.window` 1.2 s at a sideways
-  error of `RESTEP.err` 2 cm (`PLANNER.idleErr` 7.5 cm otherwise). Crouched steps, speeds and stance times unchanged.
+- (anim-rework S4, `docs/archive/anim-rework/S4-REPORT.md`) Crouched free movement: the planner's landing gap follows
+  the stance (`FREE_GAP`, as standing; the fixed 13 cm held the crouch 9-12.6 cm a foot), a planted foot steps back into
+  the crouched band `CROUCH_BAND` 3.5-10 cm (the G1 band's 14 cm before; the turn scrub keeps the G1 band). A stance
+  change (the crouch past half way either way) re-steps still feet into the new stance for `RESTEP.window` 1.2 s at a
+  sideways error of `RESTEP.err` 2 cm (`PLANNER.idleErr` 7.5 cm otherwise). Crouched steps, speeds and stance times
+  unchanged.
 - `config/movement.ts` `MOVEMENT` (live-tunable in the Tune panel) keeps the older stick-band tuning (sneak 0.8 / crouch walk
   1.8 / crouch run 2.6, walk 1.4 / jog 2.8, sprint 5.0 m/s; strafe x0.5 (anim-rework S3, the glide: was 0.9) and backstep x0.75 while aiming; stance times
-  crouch 0.25 s, kneel 0.3 s, stand 0.28 s); the player's speeds come from the gears. `ENEMY_MOTION` /
+  crouch 0.22 s, kneel 0.3 s, stand 0.22 s); the player's speeds come from the gears. `ENEMY_MOTION` /
   `ENEMY_CALM_MOTION` keep the guards' own tuning as literals (`tests/motion.test.ts` pins them).
 - `anim/motion.ts` `MotionDriver` (pure; player and enemies): capped acceleration / deceleration / jerk, a gait clock
   (`phase`) with a heel-strike dip, `faceTravel` (travel heading swings at `travelRate`, 540 deg/s slow down to 300 at a
@@ -126,7 +131,7 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   grounded step when it hangs more than `SETTLE.tol` over its rest gap.
 - (anim-weight) Momentum tuning: the tuner's Weight section scales the CT pace spring's start / stop times and turn caps
   and can let the stop overshoot and settle (`WEIGHT_MOVE`, read in `MotionDriver.stepCt` inside the local player's
-  `weightSim` window; identity by default; `docs/anim-tuner/WEIGHT.md`).
+  `weightSim` window; identity by default; `docs/archive/anim-tuner/WEIGHT.md`).
 
 ## Networked movement (MoveState)
 - `player/moveState.ts` (pure; in `player/` because single player builds it and must never import `src/net`):
@@ -149,8 +154,9 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   `LEAP.splitWait` over a split gap); a second press within `LEAP.doubleTap` over a split braces in it.
 
 ## Split jump, wall jump, pipes (3.2.0 phase 2)
-- `player/splitJump.ts` (pure): `findSplitGaps(coverSegments)` (high opposed faces 1.2-1.95 m apart, both >= 2.6 m, same
-  floor, overlap >= 0.8 m; `LevelBuilder.build` adds them as `SplitAnchor`s, `anchors.splits`), `splitReach`,
+- `player/splitJump.ts` (pure): `findSplitGaps(coverSegments)` (high opposed faces 1.2-1.95 m apart,
+  both >= `SPLIT.minHeight` 3.6 m, same floor, overlap >= 0.8 m; `LevelBuilder.build` adds them as `SplitAnchor`s,
+  `anchors.splits`), `splitReach`,
   `wallJumpReach` (lip 2.7-3.8 m), `PipeHang` (hands -> legsUp -> inverted), `SPLIT`, `WALL_JUMP`. `SPLIT.feetHeight` 2.5,
   `rootDrop` 0.37, `minHeight` 3.6. From a split, Y jumps to a lip / pipe / ladder ahead (`findJump`), else drop, drop
   attack or sidearm.
@@ -184,8 +190,12 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   brace; B ends brace / bottom / top. Y order in `GameState`: takedown > team > traversal > interact.
 - Net: `tmove` (client -> host), `tstart` / `tdeny` / `tend`; `CoopHost.onTeamMove` checks both sides (`teamSide`: MoveState
   mode, 1 s rate) and starts it on both. MoveState modes `brace`, `boost`, `stacked`. A teleport drops a committed move.
-- Decided (G52, G57, G81): the four team moves that exist (brace, boost, human ladder, dual takedown) are the set until the
-  co-op phase; one co-op ledge band 4.3-4.5 m; boosts only at marked spots (not built yet).
+- Decided (G57, G151, G180): team moves work anywhere with room, with a prompt naming the move (G151 replaced G81's
+  marked spots); the built set is CT's (leg-up, ledge relay, partner throw, hang-down, rope; G52's brace and dual
+  takedown went with G180); one co-op ledge band 4.3-4.5 m. The campaign's co-op traversal kit adds throw over a gap, hold a
+  shutter or door, rope brace / descent and vent unlock for the partner, "plus any other creative coop ideas" (G293),
+  and Deadweight, Drop Catch, Chimney Pair, Swing Pass and Plank Bridge (G403; not built yet, described in bible 5.9
+  C4); every campaign section forces one with no solo bypass (G292).
 
 ## Weapon carry
 - `weapons/weaponCarry.ts` (pure): ready position from context (`pickReady`: compressed near walls, doorways, sprinting,
@@ -228,8 +238,9 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   CT's 55.7 deg vertical; Michael "Match CT (86)"; `camV` 1 moves a saved 75 to 86 and the pad's vertical look 0.8 to
   1.0), Hor+. Passing through an open doorway (within 1 m of its plane and inside its width, moving across it at 0.3 m/s
   or more: `world/camSpaces.ts` `doorPassing`) the boom pushes in to 0.8 m over 0.4 s and returns over 0.7 s once
-  through or stopped (CT 110818, prototype).
-- (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (`docs/anim-tuner/CAMERA.md`);
+  through or stopped (CT 110818, prototype). Decided, not removed yet (G397, "Pull-back only"): the doorway push-in
+  goes; the open / tight boom stays.
+- (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (`docs/archive/anim-tuner/CAMERA.md`);
   identity at default, the collision still applies; gameplay reads `ShoulderCamera.gamePos`.
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,
   near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in
@@ -249,11 +260,14 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   fall or other blocking state does not count until released once (`stickArmed`). High faces (>= `HIGH_MIN` 1.6 m) keep the
   stance; crouch works on any high wall; low faces are always crouched. Body line = `COVER_STANDOFF` 0.35 m from the face.
 - Slide: `wallSlideSpeed`: 0 inside `WALL.slideDead` 0.2, then linear to `slideStand` 0.39 / `slideCrouch` 0.55 m/s at
-  full stick at gear 4 (0.35 / 0.5 at the spawn gear 3: G6, AUDIT-WALLS row 2, 051917; the crouched side-on crouch-walk is
-  faster than the standing shuffle), `slideGear1` 0.7 of it at gear 1; braked into an end. Joined ends within 0.1 m (`buildWallLinks`): an inside corner wraps,
-  a flat join carries on, an outside end stops the body at `EDGE_MARGIN` (WALL_SUB edgeL / edgeR).
-- Leave: the context press again (`gameplay.wallToggle`), the stick pulled away > 0.7 held 0.3 s, jump, sprint, takedown,
-  traversal, a team move, death.
+  full stick at gear 4 or the run (`WALL.maxGear` 4), 0.35 / 0.5 at gear 3 (G6, AUDIT-WALLS row 2, 051917; the crouched
+  side-on crouch-walk is faster than the standing shuffle), `slideGear1` 0.7 of it at gear 1; braked into an end.
+  Joined ends within 0.1 m (`buildWallLinks`): an inside corner wraps, a flat join carries on, an outside end stops
+  the body at `EDGE_MARGIN` (WALL_SUB edgeL / edgeR).
+- Leave: the context press again (toggle) or letting go of it (hold; `gameplay.wallToggle`), aiming, the `dash` action
+  (nothing binds it), jump or another traversal, an attach, a takedown, a team move, death. A stick pulled away does
+  not leave (`wallController.ts:528`); only a stick entry (off by default, `WALL.stickEntry`) leaves on a released
+  stick.
 - Facing and pose: the capsule faces out (gameplay, camera, AI); the posed body (visual yaw, local and remote alike):
   - standing (G6, AUDIT-WALLS row 3, 051917 @ 14-18): square to the wall in a semi-crouch (`WALL_STANCE.pelYStand` -0.08 m),
     sliding the chest turns toward the travel (`spYawSlide` 0.6 rad by the pace) and the head 0.55 -> 1.3 rad toward it,
@@ -295,12 +309,8 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   direction . camera right, continuous) and the boom in to `peek.boom` 1.4 m, eased (soft-linear `peekEase`) in over
   `peek.blend` 0.35 s and back over `peek.out` 0.3 s, the open-side offset growing to `peek.shoulder` 0.55 (G3; CT 0.2 /
   0.17 s; slice F had 0.55 s both ways; faster needs e2e-wall's 6 cm per-frame cap revisited).
-- Lean-out (removed by decision, loco M20 Q1): aim at the end of a high wall steps the capsule `WALL.leanOut` 0.35 m past
-  the end (MoveState `lk` 1); aim on a low wall rises over the top (`lk` 2). At a left edge the weapon goes to the left hand
-  (`wallLeftHand`, `CharacterRig.openLeft`, `EDGE_HAND_TIME` 0.25 s). Low wall at an end: `lowAimKind` picks the side lean
-  or the rise; `wallHeadCap` keeps the head under the top (`LOW_HEAD_CLEAR` 0.14 m).
-- SWAT turn (removed by decision, loco M20 Q1): at a doorway edge, the context press with the stick toward the gap: a
-  crouched committed move to the far wall (`swatDuration`, MoveState `swat`, host check `swatCommitOk`).
+- Open-side hand: peeking at a left edge puts the weapon in the left hand (`wallLeftHand`, `WALL_SUB.leftHand`,
+  `CharacterRig.openLeft`). The lean-out aim and the SWAT turn no longer exist (Decided direction above).
 - Remote yaw: the host's copy of a wall body eases toward the face normal plus the side-on offset at the owner's
   `wallTurnRate` (the side from WALL_SUB: `wallSideFromSub`), and steps toward the edge with the peek bit as the owner.
 - Aiming at a wall (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3): one ray from the shoulder along the aim (`player/wallBlock.ts`
@@ -354,8 +364,9 @@ The door menu's Stealth open starts it (A3).
   `Zipline` in a `TraversalAnchors` (ids index `all`; co-op sends them). `generateLedges(boxes)` makes lips from box tops
   (`LEDGE.minDrop` 1.9 m; `noLedge` pieces skipped); `LevelBuilder` places the rest and adds the generated ledges to
   `BuiltLevel.anchors`. Helpers: `closestOn`, `reach`, `nearestInReach`, `anchorsNear`, `hangPoint` (`HANG.drop` 1.9 m,
-  `HANG.out` 0.22 m), `lipGrips`, `nearestRung`, `ductPoint`, `ledgeContinuation`, `findJumpTarget`. Climbers stand
-  `CLIMB_STANDOFF` 0.28 m off the rungs / pipe. `REACH.grabMax` 2.7, `LEDGE.climbDepth` 0.38.
+  `HANG.out` 0.22 m), `lipGrips`, `nearestRung`, `ductPoint`, `ledgeContinuation`,
+  `findJumpTarget`. Ladder climbers stand `CLIMB_STANDOFF` 0.32 m off the rungs, drainpipe climbers `PIPE_STANDOFF`
+  0.34 m (`attach.ts`). `REACH.grabMax` 2.7, `LEDGE.climbDepth` 0.38.
 - World grips (anim-cleanup): `AttachGrips.gripAxes` gives each hand target the real geometry's axis, radius and a point on
   it (rung, pipe, ledge lip, zipline cable, rappel rope, fence rail); `CharacterRig.solveWorldGrip` puts the palm on the
   surface (`PALM_DEPTH` 0.014) with the fingers wrapped, reach capped at 96 %. Rungs and fence wires use a fixed overhand

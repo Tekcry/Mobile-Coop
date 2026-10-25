@@ -13,12 +13,12 @@
 //                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
 //                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
 //                outside REQUIRED are REPORT ONLY, as in --quick
-// Which change runs what (the test tiers): CLAUDE.md "Sessions" and docs/systems/testing-tools.md.
+// Which change runs what (the test tiers): docs/RULES.md "Test tiers" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS } from './e2e-affected.mjs';
+import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, LEGACY, GPU } from './e2e-affected.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -33,13 +33,10 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
 const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
-// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
-const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+// LEGACY and GPU live in scripts/e2e-affected.mjs (the affected requests leave them out: affectedGateSuites)
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
 const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker']);
 const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
-// e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
-const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 // REPORT = the animation audit harness: printed as REPORT ONLY, never fails a run. Only a quick run picks it (with
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];
@@ -59,13 +56,20 @@ const PART_SCRIPT = {
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
-// Suites that fail now and then for reasons not yet fixed (docs/backlog.md, "Flaky e2e suites"). They always run and are always reported:
-// a failure is printed as KNOWN FLAKY and does not fail the run, a failure of any other suite does. Never skipped.
-// (co-op test fix, 2026-10-19) e2e-coop and e2e-netmove left: 3 solo rounds and 2 full runs pass after the fix;
-// e2e-weapons-carry left after the same 2 clean full runs (the process audit's rule). e2e-pad stays: it failed full run 2
-// in its remap section (docs/backlog.md; parked, not fixed). Add a suite only with its failure written up there.
-const KNOWN_FLAKY = new Set(['e2e-pad']);
-const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
+// Quarantined suites (flake budget, process audit 2026-10-24): scripts/e2e-quarantine.json (committed: suite, owner, expiry,
+// reason) plus the laptop queue's automatic list (`E2E_QUARANTINE_FILE`, over-budget suites for 48 h). They always run
+// and are always reported: until its expiry a failure prints as KNOWN FLAKY and does not fail the run; a failure of
+// any other suite (or of an expired entry) does. An entry names a part (e2e-sectorops:6) or a whole suite. Never skipped.
+const QUARANTINE = [];
+for (const f of ['scripts/e2e-quarantine.json', process.env.E2E_QUARANTINE_FILE].filter(Boolean)) {
+  try {
+    const j = JSON.parse(readFileSync(f, 'utf8'));
+    const list = Array.isArray(j) ? j : j?.quarantine;
+    if (Array.isArray(list)) QUARANTINE.push(...list.filter((q) => q && typeof q.suite === 'string'));
+  } catch { /* no file: nothing quarantined from it */ }
+}
+const quarantineOf = (s) => QUARANTINE.find((q) => (q.suite === s || q.suite === s.split(':')[0]) && Date.parse(q.expiry) > Date.now());
+const flaky = (s) => Boolean(quarantineOf(s));
 
 // The folder -> suites maps and the selection live in scripts/e2e-affected.mjs (pure): QUICK_COVERS for `--quick` (master's map
 // unchanged), DIRECT_COVERS for `--affected`, WIDE_COVERS for `--affected --wide`.
@@ -264,6 +268,6 @@ if (fullRun && !allFailed.length) {
   writeFileSync(TIMES_FILE, JSON.stringify(Object.fromEntries(Object.entries(known).sort(([a], [b]) => a.localeCompare(b))), null, 1) + '\n');
 }
 if (flakyFailed.length) console.log(`
-*** KNOWN FLAKY, failed this run (docs/backlog.md): ${flakyFailed.map((r) => r.s).join(', ')} - rerun them alone before reading anything into it ***`);
+*** KNOWN FLAKY (quarantined), failed this run: ${flakyFailed.map((r) => { const q = quarantineOf(r.s); return `${r.s} (owner ${q?.owner ?? '?'}, until ${q?.expiry ?? 'expired'})`; }).join(', ')} - rerun them alone before reading anything into it ***`);
 console.log(failed.length ? `\n${failed.length} suite(s) failed: ${failed.map((r) => r.s).join(', ')}` : '\nall e2e suites passed');
 process.exit(failed.length ? 1 : 0);

@@ -22,4 +22,4 @@ shipped; the data lives in `build/operators/cache/mpfb2/` (git-ignored) and only
 ## Use
 `MPFB2_ZIP=C:/NightShift/downloads/mpfb2-2.0.18/add-on-mpfb-v2.0.18.zip npm run operators:build -- wren` then
 `npm run operators:lods -- wren` (Blender `-b`, under the heavy lock). First used for the anim-rig rebake of Wren's LODs
-(2026-10-20, `docs/anim-rework/RIG.md`).
+(2026-10-20, `docs/archive/anim-rework/RIG.md`).

@@ -183,7 +183,7 @@ export const GEAR_CAPS = { stand: GEARS.stand, crouch: GEARS.crouch } as const;
  * - slide: a planted foot's travel over the ground while planted (m; FOOT_SLIDE, < 1 cm).
  * - elbowWing: an elbow outside its own shoulder joint (m): elbows down and close to the ribs, at most 6 cm out.
  * (anim-metrics-2, 2026-10-20: tightened from the first cut 0.6-1.3 / 9 cm / 5 cm / 8 cm after Michael saw a wide stance
- * in the walk; docs/anim-rework/METRICS.md.)
+ * in the walk; docs/archive/anim-rework/METRICS.md.)
  * Report-only until each gait's slice lands (CT Core's anim-rework slices 2-4): `CRAB_GATES[gait]` turns that gait's
  * hard asserts on in e2e-anim.
  */

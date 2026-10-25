@@ -37,7 +37,7 @@
 Michael > this file > APPROVED stage documents in docs/kestrel > docs/level-design.md > docs/design/scale-sheet.md > CLAUDE.md > code. A stage document counts only when its first lines say `Status: APPROVED`.
 
 ## 4. Do not open (failed earlier designs; reading them carries their mistakes into this map)
-- docs/prompts/exchange-*.md, docs/prompts/exchange-plans/, docs/prompts/first-playable.md, docs/archive/ (including docs/archive/maps/, where D0 moved the old map docs)
+- docs/archive/prompts/exchange-*.md, docs/archive/prompts/exchange-plans/, docs/archive/prompts/first-playable.md, docs/archive/ (including docs/archive/maps/, where D0 moved the old map docs)
 - everything in docs/design/ EXCEPT docs/design/scale-sheet.md and docs/design/dead-line-v2-engine-check.md
 - docs/gates/
 - src/world/maps/exchange.ts, deadLine.ts, deadLine.geo.json, deadLineV2.ts, deadLineV2.geo.json, trunkAnnex.data.json

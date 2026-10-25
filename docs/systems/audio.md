@@ -1,11 +1,12 @@
 # Audio
+Owner: the orchestrator. Status: current.
 Purpose: the audio engine, voices and game wiring.
 Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Section 5.2).
 
 ## Rules
-- CC0 recordings may be used for any sound wherever they cut build time and sound better: bundled, never fetched at
-  runtime, each credited in `docs/audio-credits.md` (G58). WebAudio synthesis stays as the fallback and for sounds not
-  recorded yet. No audio size limit (G59).
+- Free recordings whose licence allows commercial sale (bible Section 6, G407) may be used for any sound wherever they
+  cut build time and sound better: bundled, never fetched at runtime, each credited in `docs/audio-credits.md` (G58).
+  WebAudio synthesis stays as the fallback and for sounds not recorded yet. No audio size limit (G59).
 - Guards hear the noise model, never the audio: the foley and gun sounds read nothing from it and change nothing in it.
 - Missing sounds come after the prototype: guards' footsteps first, then ambience, then the rest (G66).
 - Music (the V4 score) is in and provisional: its direction, briefing / results / pause music, the long menu theme

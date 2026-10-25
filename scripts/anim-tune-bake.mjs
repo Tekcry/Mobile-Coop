@@ -10,7 +10,7 @@
 // (holds and carries, CQ_GAIT) through their code rules.
 // Sections (--only): every registered or declared section id (body, gun, cam, speed, joint, hand, ik, weapon, step, gear,
 // weight, clip, cq, guardJoint, guardStep, guardWeight, team_boost ... team_revive, trav) and keys.
-// The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/anim-tuner/BAKE.md.
+// The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/archive/anim-tuner/BAKE.md.
 import { readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

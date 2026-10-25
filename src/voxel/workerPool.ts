@@ -24,18 +24,26 @@ export class WorkerPool {
   private all: Worker[] = [];
   private queue: Pending[] = [];
   private busy = new Map<Worker, Pending>();
+  private disposed = false;
+  /** (bake5) A replacement worker failed to start: warned once. */
+  private warnedSpawn = false;
   readonly inline: boolean;
 
   constructor(n = workerCount()) {
     this.inline = typeof Worker === 'undefined';
     if (this.inline) return;
     for (let i = 0; i < n; i++) {
-      const w = new Worker(new URL('./voxelWorker.ts', import.meta.url), { type: 'module' });
-      w.onmessage = (e: MessageEvent<Result>) => this.done(w, e.data, null);
-      w.onerror = (e) => this.done(w, null, e);
+      const w = this.spawn();
       this.all.push(w);
       this.idle.push(w);
     }
+  }
+
+  private spawn(): Worker {
+    const w = new Worker(new URL('./voxelWorker.ts', import.meta.url), { type: 'module' });
+    w.onmessage = (e: MessageEvent<Result>) => this.done(w, e.data, null);
+    w.onerror = (e) => this.done(w, null, e);
+    return w;
   }
 
   get size(): number {
@@ -79,6 +87,8 @@ export class WorkerPool {
   }
 
   private done(w: Worker, r: Result | null, err: unknown): void {
+    // (bake4) a terminated worker (cancelled, or the pool disposed) never comes back
+    if (this.all.indexOf(w) < 0) return;
     const p = this.busy.get(w);
     this.busy.delete(w);
     this.idle.push(w);
@@ -89,10 +99,63 @@ export class WorkerPool {
     this.pump();
   }
 
+  /**
+   * (bake4) Give up on `job` (the caller's in-flight cap ran out): still queued, it is dropped; running, its worker (hung,
+   * or dead without `onerror`) is retired and the job rejected first, then a replacement is spawned, so the pool keeps
+   * its size and its queue moves (bake5: a replacement that fails to start leaves the pool one short, warned once).
+   * Its promise rejects. False: not here (it already answered, the pool runs inline, or it is disposed).
+   */
+  cancel(job: Job): boolean {
+    if (this.inline || this.disposed) return false;
+    for (let q = 0; q < this.queue.length; q++) {
+      const p = this.queue[q]!;
+      if (p.job !== job) continue;
+      this.queue.splice(q, 1);
+      p.reject(new Error('voxel job cancelled'));
+      return true;
+    }
+    for (const [w, p] of this.busy) {
+      if (p.job !== job) continue;
+      this.busy.delete(w);
+      this.retire(w);
+      // `all` holds every busy worker while the pool is not disposed
+      const k = this.all.indexOf(w);
+      p.reject(new Error('voxel job cancelled: its worker was terminated'));
+      let nw: Worker;
+      try {
+        nw = this.spawn();
+      } catch (e) {
+        this.all.splice(k, 1);
+        if (!this.warnedSpawn) {
+          this.warnedSpawn = true;
+          console.warn('[worker-pool] a replacement worker failed to start: the pool runs one short', e);
+        }
+        this.pump();
+        return true;
+      }
+      this.all[k] = nw;
+      this.idle.push(nw);
+      this.pump();
+      return true;
+    }
+    return false;
+  }
+
+  /** (bake5) Detach and terminate: a late message or error from `w` can no longer reach `done`. */
+  private retire(w: Worker): void {
+    w.onmessage = null;
+    w.onerror = null;
+    w.terminate();
+  }
+
   dispose(): void {
-    for (const w of this.all) w.terminate();
+    this.disposed = true;
+    for (const w of this.all) this.retire(w);
     this.all = [];
     this.idle = [];
+    // (bake5) the running jobs settle too, not only the queued ones
+    for (const p of this.busy.values()) p.reject(new Error('voxel pool disposed'));
+    this.busy.clear();
     for (const p of this.queue) p.reject(new Error('voxel pool disposed'));
     this.queue = [];
   }

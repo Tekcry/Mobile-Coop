@@ -9,7 +9,7 @@ import path from 'node:path';
 import { launch, frames, waitOperator } from '../e2e-lib.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4189);
-const out = process.argv[2] ?? 'docs/weapons/renders/game';
+const out = process.argv[2] ?? 'docs/archive/weapons/renders/game';
 const only = process.argv.slice(3);
 // staging (Michael 2026-10-19): the training map (Proving, bright and clear) by default; STAGE=warehouse stands Wren
 // under a warehouse ceiling lamp

@@ -1,0 +1,62 @@
+{
+  "_about": "Key rules and the one file that owns each (scripts/doc-lint.mjs \"owners\", WARN). Another current doc that restates the rule should link to the owner instead. allow: files that may name it (templates fill it in, the owner's command page).",
+  "owners": [
+    {
+      "id": "save-threshold",
+      "owner": "docs/RULES.md",
+      "rule": "the save at ~92% of the meter",
+      "pattern": "save[^.\\n]{0,30}~?92 ?%|~?92 ?%[^.\\n]{0,10}save"
+    },
+    {
+      "id": "desktop-cpu",
+      "owner": "docs/RULES.md",
+      "rule": "the desktop CPU target and trim limits",
+      "pattern": "CPU (target )?(under|below) ~?80 ?%|over ~?90 ?%[^.\\n]{0,40}trim"
+    },
+    {
+      "id": "train-ready",
+      "owner": "docs/RULES.md",
+      "rule": "the train-ready definition",
+      "pattern": "[Tt]rain-ready (=|means|is when|requires)"
+    },
+    {
+      "id": "walk-cap",
+      "owner": "docs/RULES.md",
+      "rule": "the walk cap (3 unwalked features per area)",
+      "pattern": "[Aa]t most 3 unwalked|\\b3 unwalked features"
+    },
+    {
+      "id": "resume-block",
+      "owner": "docs/RULES.md",
+      "rule": "the ~40-line resume block",
+      "pattern": "[Rr]esume blocks? [^.\\n]{0,40}~?40 lines"
+    },
+    {
+      "id": "pr-size",
+      "owner": "docs/RULES.md",
+      "rule": "the ~1.5k changed lines PR size",
+      "pattern": "PRs? (stay )?under ~?1\\.5k",
+      "allow": [
+        "docs/templates/**"
+      ]
+    },
+    {
+      "id": "flaky-rule",
+      "owner": "docs/systems/testing-tools.md",
+      "rule": "what counts as a flake",
+      "pattern": "counts only if (it also fails in )?a solo rerun|fails and then passes on the same sha"
+    },
+    {
+      "id": "ports",
+      "owner": "docs/RULES.md",
+      "rule": "the port table (4189 / 4191 / 4192)",
+      "pattern": "\\b4189\\b[^.\\n]{0,40}\\b(GPU|alone)|\\b4191\\b[^.\\n]{0,30}heavy\\.lock|\\b4192\\b[^.\\n]{0,30}heavy2\\.lock"
+    },
+    {
+      "id": "laptop-jobs",
+      "owner": "docs/RULES.md",
+      "rule": "the laptop queue E2E_JOBS rule",
+      "pattern": "E2E_JOBS=3\\x60? per slot"
+    }
+  ]
+}

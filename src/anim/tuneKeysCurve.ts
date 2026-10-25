@@ -1,7 +1,7 @@
 /**
  * (marlow-bays item 30e, anim-skeleton S4b) The exact key preview's math (pure, Babylon-free, no allocation): the bake's
  * forward kinematics of a key's trunk and arms (`scripts/anim-keys/py/key_clip.py` `fk`), as `tuneKeys.ts` `build` needs
- * it to spread a key edit the way the Blender rebake does (docs/anim-skeleton/s4b/REPORT.md):
+ * it to spread a key edit the way the Blender rebake does (docs/archive/anim-skeleton/s4b/REPORT.md):
  * - the trunk: each segment's local quaternion (pelvis, spine, chest, neck; body-frame ypr chained) taken into its
  *   bone's Blender channel frame (the bone's rest, `TRUNK_REST`), where the bake's curve interpolates each component;
  * - the arms: the upper arm and forearm directions (chest frame) of a key's flex / abd / elbow / inward, the elbow's

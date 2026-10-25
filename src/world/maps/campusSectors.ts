@@ -11,7 +11,7 @@ const PI = Math.PI;
 /**
  * The campus screen cap (BRIEF A99, lifts A64's 6): no walkable player point, at any of 32 facings, sees more than this
  * many guards (every guard counts, `dormant` or not: no code sleeps a guard) on their posts and routes in the view with a
- * clear line within 40 m. From guard-render's measured budget: the merged-body run (`docs/guard-render/run-s1`, laptop
+ * clear line within 40 m. From guard-render's measured budget: the merged-body run (`docs/archive/guard-render/run-s1`, laptop
  * 4090, Epic 1920x1080) holds 24 alive / 12 in sight on Sector Ops at frame CPU p95 11.1 ms, GPU p95 7.2 ms (60 Hz line:
  * 12 / 15). The campus scene itself is not measured yet (GPU perf pass). Undo: 6 here and the awake-only filter in the
  * campus S2-S5 screen-count tests.
@@ -21,9 +21,11 @@ export const CAMPUS_SCREEN_CAP = 12;
 /**
  * Saltmarsh Park (`campusOps`) sector data (`docs/sector-redesign/SPEC.md`): index 0 = section 1 in full (the gatehouse,
  * car park and forecourt: 8 armed Larchmont guards, 2 cameras, an alarm panel, the gatehouse PC download, C1); index 1 =
- * section 2 in full (the HQ atrium and offices: 12 guards, 3 cameras, 2 alarm panels, the BMS hack, C2 on L1); indices 2-4 =
- * STUBS of sections 3-5 (slice 1): one objective and the connector per section, no guards, so the run chains for testing.
- * Pure data; the mode places the guards and runs the connectors, `campusOps.ts` builds the rooms.
+ * section 2 in full (the HQ atrium and offices: 12 guards, 3 cameras, 2 alarm panels, the BMS hack, C2 on L1); index 2 =
+ * section 3 (16 guards, here); indices 3-4 = sections 4-5 (`campusS4Data.ts` 20 guards incl. 1 dog, `campusS5Data.ts` 24
+ * incl. 2 dogs). The signed-off counts are 15 / 18 / 20 / 25 / 26 for 1-2 players, plus tagged extras for 3-4 (G328,
+ * G362): campus greybox v2 (FOLDED-PLAN J17). Pure data; the mode places the guards and runs the connectors,
+ * `campusOps.ts` builds the rooms.
  *
  * Walk speeds (m/s) in the cycle arithmetic: a plain route walks at walkSpeed x 1.1 (grunt 0.99, officer 0.935, enforcer 0.88);
  * a timed `loop` at walkSpeed (grunt 0.9, officer 0.85). Each cycle is 25-45 s (`tests/campusS1.test.ts`).

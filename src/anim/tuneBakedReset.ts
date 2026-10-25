@@ -10,7 +10,7 @@
  * code targets) share it and only the time tells them apart. A bare hash (saves from 4.46.x, before the ids) counts as
  * applied for the first ledger bake with that hash only, so a later bake of the same export still resets once.
  * The panel's Y menu "Reset baked" runs it again ignoring that record. Not hot (a load-time step).
- * Docs: `docs/anim-tuner/BAKE.md` step 7.
+ * Docs: `docs/archive/anim-tuner/BAKE.md` step 7.
  */
 import { aliasTuneValues, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
 import { sectionOf, tuneBakedApplied, tuneReset, tuneSetBakedApplied, tuneSnapshot } from './tuneRegistry';

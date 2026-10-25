@@ -15,7 +15,7 @@
 //             gaitPhase = the copy's stride phase offset from B's (reported); lowerBody = phase-aligned, root-relative
 //             hips / knees / ankles; pops = rubber-banding only (a root step unlike B's, or a joint step over the limit
 //             that B's own track does not have); pairAlign / pairPenetration (brace + boost)
-//   --compare prints regressions against a committed baseline (docs/locomotion/audit/anim-baseline.json): worse by more than
+//   --compare prints regressions against a committed baseline (docs/archive/locomotion/audit/anim-baseline.json): worse by more than
 //             max(10%, the metric's noise tolerance) or a new fail; like modes only. Remote rows gate only (A39)
 //             poseError (gating part), pops at 60 Hz, pairAlign and lodSkip, against the baseline's noise band; the
 //             other remote metrics (lowerBody, 120 Hz pops, the rest) are listed as report-only, not counted

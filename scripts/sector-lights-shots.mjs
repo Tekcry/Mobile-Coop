@@ -4,8 +4,8 @@
 // of every section's fittings, the drainpipe and the roof. Writes <dir>/<prefix>-<view>.webp (960 px wide) and records
 // draw calls per view. `--sheet` instead builds <dir>/sheet-before-after.webp from the before-* and after-* files.
 // Serves dist/ with `vite preview` (needs a prior `npm run build`). GPU: E2E_GPU=1 on port 4189. Never headed.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1200 node scripts/sector-lights-shots.mjs docs/sector-fixes/l before
-//        E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/sector-lights-shots.mjs docs/sector-fixes/l --sheet
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1200 node scripts/sector-lights-shots.mjs docs/archive/sector-fixes/l before
+//        E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/sector-lights-shots.mjs docs/archive/sector-fixes/l --sheet
 // Optional env (defaults unchanged): ONLY=a,b just those views; GFX=high another preset; VOL=off the volumetric light
 // shafts off (the post stack scatters no lights, the height fog stays); SUFFIX=-high appended to each file name;
 // PROBE=1 logs the light field (meter / guards) under the camera's view and the volumetric pass's lights; VOLFIX=1
@@ -14,13 +14,13 @@
 // its views check that the lamp-only map does not change), the base Warehouse's facade floods (sandbox), and the S1
 // workshop strips over the crane girder. Each map boots once (one browser per map, in turn). The 2nd argument is the
 // file prefix, so `before` / `after` (or any name) give before-<view>.webp / after-<view>.webp, e.g. the vol-cone-fix set:
-//   E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/sector-lights-shots.mjs docs/vol-cone-fix before
-//   E2E_GPU=1 E2E_PORT=4189 GFX=high SUFFIX=-high ONLY=s1-goods-in,s1-workshop timeout 900 node scripts/sector-lights-shots.mjs docs/vol-cone-fix before
+//   E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/sector-lights-shots.mjs docs/archive/vol-cone-fix before
+//   E2E_GPU=1 E2E_PORT=4189 GFX=high SUFFIX=-high ONLY=s1-goods-in,s1-workshop timeout 900 node scripts/sector-lights-shots.mjs docs/archive/vol-cone-fix before
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
 
-const [dir = 'docs/sector-fixes/l', prefix = 'before'] = process.argv.slice(2);
+const [dir = 'docs/archive/sector-fixes/l', prefix = 'before'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const GFX = process.env.GFX ?? 'epic';
@@ -141,7 +141,7 @@ for (const map of [...new Set(picked.map((r) => r[4] ?? 'ops'))]) {
         const g = globalThis.__app.current;
         // VOL=off: the post stack scatters no lights (the height fog stays)
         if (volOff) g.stack.setAdaptive(1, 0);
-        // VOLFIX=1 (a preview of a proposed fix, docs/sector-fixes/l/look-4.58/NOTE.md; nothing in src changes): every
+        // VOLFIX=1 (a preview of a proposed fix, docs/archive/sector-fixes/l/look-4.58/NOTE.md; nothing in src changes): every
         // fixed light, spots included, scatters under its shade like a lamp; only flashlights keep the long beam
         if (volFix && !g.stack.volFixed) {
           const st = g.stack;

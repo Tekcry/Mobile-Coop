@@ -1,11 +1,16 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
-  checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
+  checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
+  failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
+// @ts-expect-error plain .mjs script without types
+import { coverFolders, suiteSetFor, QUICK_COVERS } from '../scripts/e2e-affected.mjs';
 
 const MIN = 60_000;
 const NOW = Date.parse('2026-10-24T10:00:00Z');
@@ -120,6 +125,30 @@ describe('auto-train: parsing', () => {
     expect(ciState(undefined)).toBe('missing');
   });
 
+  it('ciLabel: "running" while a CI run has no conclusion yet, "missing" only with no run or check at all', () => {
+    const run = (name: string, conclusion: string, status = 'COMPLETED', at = '2026-10-25T00:20:00Z') => ({ __typename: 'CheckRun', name, status, conclusion, completedAt: at, startedAt: at });
+    const ctx = (context: string, state: string) => ({ __typename: 'StatusContext', context, state, createdAt: '2026-10-25T00:20:00Z' });
+    // the waste-audit case: lint / test / build-check running, the aggregate `check` not created yet
+    expect(ciLabel([run('lint', '', 'IN_PROGRESS'), run('test', '', 'QUEUED'), run('build-check', '', 'PENDING')])).toBe('running');
+    expect(ciLabel([run('lint', 'SUCCESS'), run('test', '', 'IN_PROGRESS')])).toBe('running');
+    expect(ciLabel([run('lint', 'SUCCESS'), run('check', '', 'QUEUED')])).toBe('running');
+    expect(ciLabel([run('check', 'SUCCESS'), run('check', '', '', 'IN_PROGRESS')])).toBe('running');
+    expect(ciLabel([run('lint', 'SUCCESS'), run('test', 'SUCCESS'), run('build-check', 'SUCCESS')])).toBe('running');
+    expect(ciLabel([ctx('ci/external', 'PENDING')])).toBe('running');
+    // no CI at all
+    expect(ciLabel([])).toBe('missing');
+    expect(ciLabel(undefined)).toBe('missing');
+    // our own statuses are not CI: a pending laptop-e2e alone is still "missing"
+    expect(ciLabel([ctx('laptop-e2e', 'PENDING'), ctx('auto-train/vitest', 'PENDING'), ctx('laptop-e2e/train72-rerun', 'PENDING')])).toBe('missing');
+    // finished states pass through
+    expect(ciLabel([run('check', 'SUCCESS')])).toBe('success');
+    expect(ciLabel([run('check', 'FAILURE'), run('lint', '', 'IN_PROGRESS')])).toBe('failure');
+    expect(ciLabel([run('check', 'CANCELLED')])).toBe('pending');
+    // decide() treats "running" like any non-final CI word
+    const train = { n: 9, head: 'abcdef1234567', version: '1.2.3', versionCommit: true, ci: 'running', laptop: { state: 'pending', description: '' }, vitest: 'success', ageMin: 5, ciGreenAt: null };
+    expect(decide({ train })).toMatchObject({ state: 'pending', action: 'none', reason: 'train 9: CI running, laptop pending' });
+  });
+
   it('reads the newest laptop-e2e commit status', () => {
     const combined = { state: 'pending', statuses: [
       { context: 'laptop-e2e', state: 'failure', description: '38/39', updated_at: '2026-10-23T08:00:00Z' },
@@ -177,13 +206,25 @@ describe('auto-train: pacing', () => {
     expect(pacing({ now, releases: [now - 30 * 60 * MIN], maxPerDay: 1 })).toBeNull();
   });
 
-  it('reads the laptop queue tree: busy on a pending request JSON or a running marker', () => {
-    expect(laptopQueueState([])).toBe('idle');
-    expect(laptopQueueState(['README.md', 'done/2026-10-23-a.json'])).toBe('idle');
-    expect(laptopQueueState(['pending/2026-10-23-a.json'])).toBe('busy');
-    expect(laptopQueueState(['queue/pending/x.json'])).toBe('busy');
-    expect(laptopQueueState(['running.json'])).toBe('busy');
-    expect(laptopQueueState(['running/4191.txt'])).toBe('busy');
+  it('reads the laptop queue branch: busy on an unclaimed request or an open claim (requests/, claims/, alerts/)', () => {
+    const T = Date.UTC(2026, 9, 25, 2, 0, 0);
+    const id = '20261025T013649-affected-e2e-d5ccca5a-f205';
+    const done = { worker: 'laptop', at: '2026-10-25T01:40:00.000Z', done: true };
+    expect(laptopQueueState([], { now: T })).toBe('idle');
+    expect(laptopQueueState(['alerts/20261024T220717Z-desktop-tasks.json', 'README.md'], { now: T })).toBe('idle');
+    // queued: the request has no claim yet (auto-train.log: 483 idle ticks, 0 waits before this read requests/)
+    expect(laptopQueueState([`requests/${id}.json`], { now: T })).toBe('busy');
+    // finished (run, superseded, duplicate, withdrawn: all done claims)
+    expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: done }, now: T })).toBe('idle');
+    // running: an open claim of a request or a train head
+    expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: { ...done, done: false } }, now: T })).toBe('busy');
+    expect(laptopQueueState([`claims/${'a'.repeat(40)}.json`], { claims: { ['a'.repeat(40)]: { ...done, done: false } }, now: T })).toBe('busy');
+    // stale: a dead worker's open claim (over 3 h) or a never-claimed bad request (over 12 h) stop counting
+    expect(laptopQueueState([`claims/${id}.json`], { claims: { [id]: { ...done, done: false, at: '2026-10-24T22:00:00.000Z' } }, now: T })).toBe('idle');
+    expect(laptopQueueState(['requests/20261024T120000-bad-a-12345678-0000.json'], { now: T })).toBe('idle');
+    expect(laptopQueueState(['requests/20261024T215933-night-shift-sector-o-62d80c02-f7c4.json'], { now: T })).toBe('busy');
+    // a busy queue holds the build until the interval; idle builds at once
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: laptopQueueState([`requests/${id}.json`], { now: T }) })).toMatch(/laptop queue busy/);
   });
 });
 
@@ -486,6 +527,35 @@ describe('auto-train: fast poll of a waiting tick (audit 2 item 3)', () => {
     expect(fastPollPlan('laptop-rerun', NOW, NOW + MIN, { prevState: 'pending' })).toMatchObject({ poll: false, reason: 'state changed (pending -> laptop-rerun)' });
   });
 
+  it('polls every 30 s once the laptop verdict is past its expected wall (laptop-queue-3)', () => {
+    expect(FAST_POLL_LATE_S).toBe(30);
+    expect(fastPollPlan('pending', NOW, NOW, { late: true })).toMatchObject({ poll: true, delayMs: 30 * S, reason: expect.stringMatching(/laptop verdict due/) });
+    expect(fastPollPlan('pending', NOW, NOW, { late: false }).delayMs).toBe(60 * S);
+    expect(fastPollPlan('pending', NOW, NOW, { late: true, lateS: 0 }).delayMs).toBe(60 * S); // off
+    expect(fastPollPlan('pending', NOW, NOW, { late: true, pollS: 20 }).delayMs).toBe(20 * S); // never slower
+    // the window still ends at 4 min (next poll at 3:30 + 30 s = 4:00 ok, 3:31 not)
+    expect(fastPollPlan('pending', NOW, NOW + 3.5 * MIN, { late: true, prevState: 'pending' }).poll).toBe(true);
+    expect(fastPollPlan('pending', NOW, NOW + 3.5 * MIN + S, { late: true, prevState: 'pending' }).poll).toBe(false);
+    expect(fastPollPlan('pending', NOW, NOW, { late: true, once: true }).poll).toBe(false);
+  });
+
+  it('laptopLate: the pending laptop-e2e status is older than "expect ~N s", else 10 min', () => {
+    expect(LAPTOP_EXPECT_MIN).toBe(10);
+    const at = (min: number) => new Date(NOW - min * MIN).toISOString();
+    const combined = { statuses: [
+      { context: 'laptop-e2e', state: 'pending', description: 'sharded 4189+4192', updated_at: at(12) },
+      { context: 'laptop-e2e', state: 'pending', description: 'sharded 4189+4192, expect ~400 s', updated_at: at(7) },
+    ] };
+    expect(pendingSince(combined, 'laptop-e2e')).toBe(NOW - 7 * MIN);
+    expect(pendingSince({ statuses: [{ context: 'laptop-e2e', state: 'success', updated_at: at(1) }] }, 'laptop-e2e')).toBeNull();
+    expect(pendingSince({ statuses: [] }, 'laptop-e2e')).toBeNull();
+    expect(laptopLate({ since: NOW - 7 * MIN, description: 'sharded 4189+4192, expect ~400 s', now: NOW })).toBe(true);
+    expect(laptopLate({ since: NOW - 6 * MIN, description: 'sharded 4189+4192, expect ~400 s', now: NOW })).toBe(false);
+    expect(laptopLate({ since: NOW - 9 * MIN, description: 'sharded 4189+4192', now: NOW })).toBe(false);
+    expect(laptopLate({ since: NOW - 11 * MIN, description: 'sharded 4189+4192', now: NOW })).toBe(true);
+    expect(laptopLate({ since: null, description: '', now: NOW })).toBe(false);
+  });
+
   it('a polling tick stays far inside the tick lock staleness (touched every minute anyway)', () => {
     expect(FAST_POLL_MAX_MIN).toBeLessThan(5);
     expect(FAST_POLL_MAX_MIN * 3).toBeLessThan(LOCK_STALE_MIN);
@@ -510,9 +580,208 @@ describe('auto-train: idle self-update', () => {
     expect(selfUpdatePlan({ head: '', master: B, dirty: false }).action).toBe('skip');
     expect(selfUpdatePlan({ head: A, master: '', dirty: false }).action).toBe('skip');
   });
+  it('fast-forward only: skips when origin/master is not ahead of HEAD', () => {
+    const p = selfUpdatePlan({ head: A, master: B, dirty: false, ff: false });
+    expect(p.action).toBe('skip');
+    expect(p.reason).toContain('not a fast-forward');
+    expect(selfUpdatePlan({ head: A, master: B, dirty: false, ff: true, when: 'after releasing train 86' }))
+      .toEqual({ action: 'update', reason: 'self-updated to bbbbbbbb (after releasing train 86)' });
+  });
+  it('also runs right after a release, before the next build (back-to-back trains never had an idle tick)', () => {
+    const src = fs.readFileSync(path.resolve('scripts/auto-train.mjs'), 'utf8');
+    const rel = src.indexOf('log(`RELEASED train');
+    const upd = src.indexOf('selfUpdate(`after releasing train', rel);
+    const next = src.indexOf('await noTrain(o, labelExists)', rel);
+    expect(rel).toBeGreaterThan(0);
+    expect(upd).toBeGreaterThan(rel);
+    expect(upd).toBeLessThan(next);
+  });
   it('only an idle decision triggers it: building and open-train decisions are never idle', () => {
     const cands = [{ branch: 'f/a', pr: 1, head: 'h', fragment: null }];
     expect(decide({ train: null, candidates: [], paceReason: null }).state).toBe('idle');
     expect(decide({ train: null, candidates: cands, paceReason: null }).state).toBe('building');
+  });
+});
+
+describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop on failure")', () => {
+  const head = 'abcdef1234567890';
+  type M = { pr: number | null; branch: string; files: string[]; labeledAt?: number | null };
+  const m = (pr: number | null, branch: string, files: string[], labeledAt: number | null = null): M => ({ pr, branch, files, labeledAt });
+  const branches = (r: { drops: { branch: string }[] }) => r.drops.map((d) => d.branch);
+
+  it('parses the FAIL list of a laptop or desktop description', () => {
+    expect(failSuites('37/39 pass, 512 s; known flaky: e2e-pad; FAIL: e2e-lightbake,e2e-ctcourse:4')).toEqual(['e2e-lightbake', 'e2e-ctcourse:4']);
+    expect(failSuites('desktop: 38/39 pass, 300 s; FAIL: e2e-menus')).toEqual(['e2e-menus']);
+    expect(failSuites('39/39 pass, 300 s')).toEqual([]);
+    expect(failSuites('30/39 pass, 300 s; FAIL: e2e-a,e2e-b...')).toEqual([]);
+    expect(failSuites('no result parsed, see log')).toEqual([]);
+    expect(failSuites(undefined)).toEqual([]);
+    expect(desktopFailSuites('37/39 pass, 512 s; FAIL: e2e-coop')).toBeNull();
+    expect(suiteBase('e2e-ctcourse:4')).toBe('e2e-ctcourse');
+  });
+
+  it('reads the failing asserts of the newest failure comment on the head', () => {
+    const c = (sha: string, a: string) => `laptop-e2e failed on ${sha} (train/64).\n\n**e2e-lightbake**\nFailing assert: \`${a}\`\nLog on the laptop: x\n\`\`\`\ntail\n\`\`\`\n\n**e2e-ctcourse:4**\nFailing assert: \`none found\`\n`;
+    expect(failureAsserts(['hi', c('abcdef12', 'old'), c('abcdef12', 'not ok 3 - bake lamp count 12 != 14')], head))
+      .toEqual({ 'e2e-lightbake': 'not ok 3 - bake lamp count 12 != 14', 'e2e-ctcourse:4': '' });
+    expect(failureAsserts([c('99999999', 'x')], head)).toEqual({});
+    expect(failureAsserts([c('abcdef12', 'x').replace(/\n/g, '\r\n')], head)).toMatchObject({ 'e2e-lightbake': 'x' });
+    expect(failureAsserts(undefined, head)).toEqual({});
+  });
+
+  it('confirms a guessed drop (tier 2-3) with one rerun on the same head; tier 1 and a failed rerun drop at once', () => {
+    const train = (o: Record<string, unknown> = {}) => ({ n: 64, pr: 341, head, version: '4.96.0', ci: 'success', vitest: 'missing', versionCommit: true,
+      laptop: { state: 'failure', description: '38/39 pass, 600 s; FAIL: e2e-ctcourse:4' }, rerun: { state: 'missing', description: '' }, ageMin: 30, ...o });
+    const t = train();
+    expect(autoDropCase(t, decide({ train: t }), null)).toMatchObject({ confirm: true });
+    const guess = [{ pr: 288, branch: 'feature/a', suite: 'e2e-ctcourse', tier: 3 }];
+    expect(confirmPlan(t, null, [{ ...guess[0], tier: 1 }], ['e2e-ctcourse:4'])).toBeNull();
+    expect(confirmPlan(t, null, guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'request', state: 'laptop-rerun', suites: ['e2e-ctcourse:4'], set: 'train64-rerun',
+      reason: expect.stringMatching(/no member maps to e2e-ctcourse:4: one confirm rerun/) });
+    expect(confirmPlan(t, null, [{ ...guess[0], tier: 2 }], ['e2e-ctcourse:4'])).toMatchObject({ action: 'request' });
+    const rec = { rerun: { head, id: 'r9', suites: ['e2e-ctcourse:4'], set: 'train64-rerun', at: new Date(NOW - 10 * MIN).toISOString() } };
+    expect(confirmPlan(t, rec, guess, ['e2e-ctcourse:4'], { now: NOW })).toMatchObject({ action: 'wait', state: 'laptop-rerun', reason: expect.stringMatching(/r9 .* queued/) });
+    expect(confirmPlan(t, { rerun: { ...rec.rerun, head: 'other' } }, guess, ['e2e-ctcourse:4'], { now: NOW })).toMatchObject({ action: 'request' });
+    expect(confirmPlan(t, rec, guess, ['e2e-ctcourse:4'], { now: NOW + 120 * MIN })).toMatchObject({ action: 'none', state: 'rerun-stale' });
+    expect(confirmPlan(train({ rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-ctcourse:4' } }), rec, guess, ['e2e-ctcourse:4'], { now: NOW })).toBeNull();
+    const failed = (count: number) => ({ rerunRequestFailed: { head, exit: 1, why: 'push', count } });
+    expect(confirmPlan(t, failed(2), guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'request', reason: expect.stringMatching(/try 3\/6/) });
+    expect(confirmPlan(t, failed(RERUN_REQUEST_MAX), guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'none', state: 'rerun-request-failed' });
+    // the request carries the confirm flag and note; a passed confirm rerun releases even without the laptop-e2e post
+    expect(confirmPlan(t, null, guess, ['e2e-ctcourse:4'])).toMatchObject({ confirm: true });
+    expect(rerunArgs({ sha: head, suites: ['e2e-ctcourse:4'], pr: 341, set: 'train64-rerun', confirm: true }).slice(-2)).toEqual(['--note', 'confirm rerun']);
+    const passed = train({ rerun: { state: 'success', description: '1/1 pass' }, confirm: ['e2e-ctcourse:4'] });
+    expect(decide({ train: passed })).toMatchObject({ state: 'releasing', action: 'release', rerunRelease: ['e2e-ctcourse:4'], reason: expect.stringMatching(/confirm rerun of a laptop/) });
+    expect(decide({ train: { ...passed, confirm: undefined } })).toMatchObject({ state: 'failed' }); // no confirm record: a laptop failure stands
+    expect(decide({ train: { ...passed, ci: 'pending' } })).toMatchObject({ state: 'failed' });
+    expect(confirmPlan({ ...passed, ci: 'pending' }, rec, guess, ['e2e-ctcourse:4'], { now: NOW })).toMatchObject({ action: 'wait', reason: expect.stringMatching(/releases once CI is green/) });
+    // a failed desktop rerun is already the second failure: no confirm flag
+    const desk = train({ laptop: { state: 'failure', description: 'desktop: 38/39 pass, 600 s; FAIL: e2e-coop' }, rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-coop' } });
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW }))?.confirm).toBeUndefined();
+  });
+
+  it('drops on a laptop failure or a failed laptop rerun only; CI, vitest, a pending rerun and stale stay as before', () => {
+    const train = (o: Record<string, unknown> = {}) => ({ n: 64, pr: 341, head, version: '4.96.0', ci: 'success', vitest: 'missing', versionCommit: true,
+      laptop: { state: 'failure', description: '38/39 pass, 600 s; FAIL: e2e-lightbake' }, rerun: { state: 'missing', description: '' }, ageMin: 30, ...o });
+    const t = train();
+    expect(autoDropCase(t, decide({ train: t }), null)).toMatchObject({ failing: ['e2e-lightbake'], reason: expect.stringMatching(/laptop-e2e failed/) });
+    const ci = train({ ci: 'failure' });
+    expect(autoDropCase(ci, decide({ train: ci }), null)).toBeNull();
+    const vt = train({ vitest: 'failure' });
+    expect(autoDropCase(vt, decide({ train: vt }), null)).toBeNull();
+    const pend = train({ laptop: { state: 'pending', description: '12/39' } });
+    expect(autoDropCase(pend, decide({ train: pend }), null)).toBeNull();
+    // a desktop failure first gets its laptop rerun (not a failure yet)
+    const desk = train({ laptop: { state: 'failure', description: 'desktop: 38/39 pass, 600 s; FAIL: e2e-coop' } });
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, null))).toBeNull();
+    const rec = { rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train64-rerun', at: new Date(NOW - 10 * MIN).toISOString() } };
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW }))).toBeNull(); // waiting on it
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW + 120 * MIN }))).toBeNull(); // rerun-stale
+    const failed = train({ laptop: desk.laptop, rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-coop' } });
+    expect(autoDropCase(failed, decide({ train: failed }), rerunPlan(failed, rec, { now: NOW }))).toMatchObject({ failing: ['e2e-coop'] });
+    const noDesc = train({ laptop: desk.laptop, rerun: { state: 'failure', description: 'crashed' } });
+    // a rerun with no FAIL list (service error, no result, build failed) is no member's failure: no fallback to the desktop's list
+    expect(autoDropCase(noDesc, decide({ train: noDesc }), rerunPlan(noDesc, rec, { now: NOW }))).toBeNull();
+    // a desktop failure whose FAIL list is cut (no laptop rerun possible) stays "failed" for the orchestrator
+    const cut = train({ laptop: { state: 'failure', description: 'desktop: 30/39 pass, 600 s; FAIL: e2e-a,e2e-b...' } });
+    expect(autoDropCase(cut, decide({ train: cut }), rerunPlan(cut, null))).toBeNull();
+    const deskErr = train({ laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } });
+    expect(autoDropCase(deskErr, decide({ train: deskErr }), rerunPlan(deskErr, null))).toBeNull();
+    // a laptop failure whose list is cut: dropped with the suites of the failure comment (failing [])
+    const lapCut = train({ laptop: { state: 'failure', description: '30/39 pass, 600 s; FAIL: e2e-a,e2e-b...' } });
+    expect(autoDropCase(lapCut, decide({ train: lapCut }), rerunPlan(lapCut, null))).toMatchObject({ failing: [] });
+    expect(autoDropCase(null, null, null)).toBeNull();
+  });
+
+  it('reuses the folder maps of scripts/e2e-affected.mjs: DIRECT_COVERS for tier 1, QUICK_COVERS folders for tier 2', () => {
+    expect([...suiteSetFor(['src/voxel/lampBake.ts'])]).toEqual(expect.arrayContaining(['e2e-lightbake', 'e2e-desktop']));
+    expect(suiteSetFor(['docs/x.md', 'tests/a.test.ts', 'changes/feature-a.md']).size).toBe(0);
+    expect([...suiteSetFor(['scripts/e2e-lightbake.mjs'])]).toEqual(['e2e-lightbake']);
+    expect(suiteSetFor(['src\\voxel\\lampBake.ts']).has('e2e-lightbake')).toBe(true);
+    expect(suiteSetFor(['src/ai/enemy.ts']).has('e2e-sectorops')).toBe(true); // parts as their suite
+    // DIRECT is narrower than --quick: src/ai reaches e2e-levels only in the quick map
+    expect(suiteSetFor(['src/ai/enemy.ts']).has('e2e-levels')).toBe(false);
+    expect(suiteSetFor(['src/ai/enemy.ts'], QUICK_COVERS).has('e2e-levels')).toBe(true);
+    expect(suiteSetFor(['src/core/settings.ts'], QUICK_COVERS).has('e2e-offline')).toBe(false); // first match wins
+    expect(coverFolders('e2e-offline')).toEqual(expect.arrayContaining(['src/core/', 'src/save/', 'src/pwa/']));
+    expect(coverFolders('e2e-levels')).toContain('src/ai/');
+    expect(coverFolders('e2e-move')).toContain('src/'); // a CORE suite covers unlisted src/ paths
+  });
+
+  it('tier 1: drops every member whose change maps to a failing suite (parts allowed), never the docs member', () => {
+    const ms = [m(1, 'feature/bake', ['src/voxel/lampBake.ts', 'docs/x.md']), m(2, 'feature/hud', ['src/ui/hud/x.ts']),
+      m(3, 'feature/marlow', ['src/world/maps/ctcourse.ts']), m(null, 'feature/menu', ['docs/ROADMAP.md'])];
+    expect(pickDrops(ms, ['e2e-lightbake'])).toMatchObject({ drops: [{ pr: 1, branch: 'feature/bake', suite: 'e2e-lightbake', tier: 1 }] });
+    expect(pickDrops(ms, ['e2e-ctcourse:4']).drops).toEqual([{ pr: 3, branch: 'feature/marlow', suite: 'e2e-ctcourse', tier: 1 }]);
+    expect(branches(pickDrops(ms, ['e2e-lightbake', 'e2e-pad']))).toEqual(['feature/bake', 'feature/hud']);
+    // feature/menu never leaves, even as a labelled PR whose diff maps to the suite
+    expect(branches(pickDrops([m(5, 'feature/menu', ['src/voxel/a.ts']), m(1, 'feature/bake', ['src/voxel/b.ts'])], ['e2e-lightbake']))).toEqual(['feature/bake']);
+    expect(pickDrops([m(null, 'feature/menu', ['docs/a.md'])], ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/docs member/) });
+    expect(pickDrops(ms, [])).toMatchObject({ drops: [], reason: 'no failing suite named' });
+  });
+
+  it('does not drop when every code member of a 2+ member train matches, or when more than 3 suites failed', () => {
+    const both = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/voxel/b.ts']), m(null, 'feature/menu', ['docs/a.md']),
+      m(4, 'feature/docs', ['docs/c.md'])];
+    expect(pickDrops(both, ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/every code member \(#1, #2\) touches e2e-lightbake/) });
+    // one code member: still dropped
+    expect(branches(pickDrops([both[0], both[2], both[3]], ['e2e-lightbake']))).toEqual(['feature/a']);
+    expect(AUTODROP_MAX_SUITES).toBe(3);
+    const ms = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/ui/b.ts'])];
+    expect(branches(pickDrops(ms, ['e2e-lightbake', 'e2e-ctcourse:1', 'e2e-ctcourse:2', 'e2e-levels']))).toEqual(['feature/a']); // 3 suites
+    expect(pickDrops(ms, ['e2e-lightbake', 'e2e-levels', 'e2e-coop', 'e2e-move'])).toMatchObject({ drops: [], reason: expect.stringMatching(/4 suites failed/) });
+  });
+
+  it('a suite the last auto-dropped train also failed is not dropped again; the record rides until a release', () => {
+    const last = { train: 64, failing: ['e2e-lightbake', 'e2e-ctcourse'], at: '2026-10-24T10:00:00Z' };
+    expect(repeatedSuites(last, ['e2e-ctcourse:3', 'e2e-coop'], 65)).toEqual(['e2e-ctcourse']);
+    expect(repeatedSuites(last, ['e2e-coop'], 65)).toEqual([]);
+    expect(repeatedSuites(last, ['e2e-lightbake'], 64)).toEqual([]); // a retried drop of the same train
+    expect(repeatedSuites(undefined, ['e2e-lightbake'], 65)).toEqual([]);
+    expect(carryLastDrop({ lastDrop: last }, { state: 'pending' })).toEqual({ state: 'pending', lastDrop: last });
+    expect(carryLastDrop({ lastDrop: last }, { state: 'idle', released: '4.97.0 (train 65)' })).toEqual({ state: 'idle', released: '4.97.0 (train 65)' });
+    const newer = { train: 65, failing: ['e2e-coop'] };
+    expect(carryLastDrop({ lastDrop: last }, { state: 'built', lastDrop: newer }).lastDrop).toBe(newer);
+    expect(carryLastDrop(null, { state: 'pending' })).toEqual({ state: 'pending' });
+  });
+
+  it('tier 2: no match -> the member with the most src/ files under the failing suite folders', () => {
+    const ms = [m(1, 'feature/a', ['src/core/settings.ts', 'src/core/display.ts']), m(2, 'feature/b', ['src/core/settings.ts', 'src/ui/x.ts']),
+      m(3, 'feature/c', ['tests/x.test.ts'])];
+    expect(pickDrops(ms, ['e2e-offline'])).toMatchObject({ drops: [{ pr: 1, branch: 'feature/a', suite: 'e2e-offline', tier: 2 }],
+      reason: expect.stringMatching(/#1 has the most src\/ files under its folders \(2\)/) });
+  });
+
+  it('tier 3: no folder match or a tie -> the newest-labelled code member; docs-only members never; one member drops itself', () => {
+    const ms = [m(1, 'feature/a', ['src/ai/x.ts'], NOW - 60 * MIN), m(2, 'feature/b', ['src/audio/y.ts'], NOW - 5 * MIN),
+      m(4, 'feature/docs', ['docs/a.md'], NOW), m(null, 'feature/menu', ['docs/b.md'])];
+    expect(pickDrops(ms, ['smoke'])).toMatchObject({ drops: [{ pr: 2, branch: 'feature/b', suite: 'smoke', tier: 3 }] });
+    // no label times: the higher PR number
+    expect(branches(pickDrops([m(7, 'feature/a', ['src/ai/x.ts']), m(9, 'feature/b', ['src/audio/y.ts'])], ['smoke']))).toEqual(['feature/b']);
+    // a tie at the top: the newest-labelled among the tied only
+    const tie = [m(1, 'feature/a', ['src/core/settings.ts'], NOW - 60 * MIN), m(2, 'feature/b', ['src/core/display.ts'], NOW - 30 * MIN),
+      m(3, 'feature/c', ['src/ui/z.ts'], NOW)];
+    expect(pickDrops(tie, ['e2e-offline'])).toMatchObject({ drops: [{ pr: 2, tier: 3 }], reason: expect.stringMatching(/a tie at 1/) });
+    // a one-member train drops that member
+    expect(pickDrops([m(8, 'feature/only', ['tests/a.test.ts']), m(null, 'feature/menu', ['docs/a.md'])], ['e2e-ctcourse:2']))
+      .toMatchObject({ drops: [{ pr: 8, branch: 'feature/only', suite: 'e2e-ctcourse', tier: 3 }], reason: expect.stringMatching(/the only code member/) });
+    expect(pickDrops([m(4, 'feature/docs', ['docs/a.md'])], ['smoke'])).toMatchObject({ drops: [], reason: 'every member is docs-only' });
+  });
+
+  it('comments once per train and head with the suite and assert, removes train-ready; the close comment lists the drops', () => {
+    const base = { pr: 288, branch: 'feature/bake', head, n: 64, suite: 'e2e-lightbake', tier: 1, assert: 'not ok 3 - `lamps` 12 != 14' };
+    const p = dropPlan({ ...base, labels: ['train-ready'], bodies: [] });
+    expect(p.remove).toEqual(['gh', 'pr', 'edit', '288', '--remove-label', 'train-ready']);
+    expect(p.comment).toMatch(/^Auto-train: `feature\/bake` \(abcdef12\) was dropped from train 64: `e2e-lightbake` failed there; its change touches `e2e-lightbake`/);
+    expect(p.comment).toContain("Failing assert: `not ok 3 - 'lamps' 12 != 14`");
+    expect(p.comment).toMatch(/re-add `train-ready` once `check` is green/);
+    expect(p.comment).toMatch(/<!-- auto-train:dropped:train64:abcdef1234567890 -->$/);
+    expect(dropPlan({ ...base, labels: [], bodies: [p.comment!] })).toEqual({ remove: null, comment: null });
+    expect(dropPlan({ ...base, n: 65, labels: [], bodies: [p.comment!] }).comment).toMatch(/train 65/);
+    expect(dropPlan({ ...base, tier: 3, assert: '' }).comment).toMatch(/newest `train-ready` member[\s\S]*Failing assert: `none found`/);
+    // the left-out comment keeps its own marker: a drop comment never stops it
+    expect(leftOutPlan({ pr: 288, branch: 'feature/bake', head, n: 64, why: 'conflict', bodies: [p.comment!] }).comment).toMatch(/left out of train 64/);
+    expect(closeTrainBody({ n: 64, head, failing: ['e2e-lightbake'], drops: [{ pr: 288, branch: 'feature/bake', suite: 'e2e-lightbake' }] }))
+      .toMatch(/^Auto-train: train 64 failed e2e-lightbake on abcdef12; closed without merging\.\n\nDropped .*#288 `feature\/bake` \(e2e-lightbake\)/);
   });
 });

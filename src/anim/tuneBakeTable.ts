@@ -1,6 +1,6 @@
 /**
  * (anim-bake) The bake table: where each animation tuner slider's value goes in the code defaults
- * (`scripts/anim-tune-bake.mjs`, logic in `tuneBake.ts`, `docs/anim-tuner/BAKE.md`). Pure data, no imports, so plain
+ * (`scripts/anim-tune-bake.mjs`, logic in `tuneBake.ts`, `docs/archive/anim-tuner/BAKE.md`). Pure data, no imports, so plain
  * Node can load it.
  *
  * A rule bakes one slider over a set of state groups into one or more code values (a file, a const name and a property

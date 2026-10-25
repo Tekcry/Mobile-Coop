@@ -16,7 +16,7 @@ const G = (f, a) => page.evaluate(f, a);
 // The cameras' range is 12 m now (was 18) with the falloff over it (`cameraRate`): the strip spot moves from 11 to 9 m
 // out (8.5 m from the lens, 0.72 of the range) and the dark spot in from (10, 1.5) (11 m, outside the crouched reach of
 // ~10 m) to (7.5, 2.5) with the lamps put out; the pan pad spot from 9.5 to 8.5 m. The times stay under these bounds
-// (docs/camera-range/MEASURE.md: walking ~0.7 s, standing still ~2.6 s at the new spot).
+// (docs/archive/camera-range/MEASURE.md: walking ~0.7 s, standing still ~2.6 s at the new spot).
 const SN08 = 1.3;
 const SN09 = 9;
 const TOL = 0.5;

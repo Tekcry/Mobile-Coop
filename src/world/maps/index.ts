@@ -16,7 +16,7 @@ import { studio } from './studio';
  * The listed maps (3.0): Warehouse runs every mode; Saltmarsh Park (`campusOps`, sector-redesign) is listed from slice 3 (`listed.ts`); Proving Grounds is the basic test range (Free
  * Roam); Kestrel is the Cinder Yard (Mission 1) massing walk (Sandbox); Seclab is the Kestrel security debug room (not listed, boot with ?autostart=seclab). Marlow Yard (`ctcourse`, CT prototype) is the CT training course (course mode, not listed; ?autostart=ctcourse&mode=course) and the course's default map. Tallow Wharf (`tallowWharf`, mission-framework GB0) is the campaign map's greybox (sector mode, not listed; ?autostart=tallowWharf&mode=sector&mission=<id>). Fallow (`bunker`) is parked behind `?legacy=1` (?legacy=1&autostart=bunker&mode=course). The first map
  * supporting a mode is its default. Parked maps: `parked.ts` (not imported). The retired maps (Exchange, Trunk Annex,
- * Dead Line v1 / v2) were deleted in the consolidation (`docs/consolidation/deleted-maps.md`).
+ * Dead Line v1 / v2) were deleted in the consolidation (`docs/archive/consolidation/deleted-maps.md`).
  */
 export const MAPS: MapDef[] = [warehouse, warehouseOps, campusOps, provingGrounds, kestrel, seclab, ctcourse, tallowWharf, courselab, ...(flags.legacy ? [bunker] : [])];
 

@@ -12,7 +12,7 @@ real building has no light there.**
 
 ## 1. Rule review (M6)
 
-The full review, for every map, is `docs/lighting-review/PROPOSAL.md` (Michael's 01:40 note: "the player may have to
+The full review, for every map, is `docs/archive/lighting-review/PROPOSAL.md` (Michael's 01:40 note: "the player may have to
 make shadows"): every darkness / light / shadow rule with its source line, keep or change, proposals LR1-LR12 with the
 exact new wording, per-map state (Marlow, Sector Ops, the campaign), risks and undo. Nothing there is applied.
 

@@ -326,7 +326,7 @@ export interface TurnScenario {
 }
 
 /**
- * The audit's turn rows (docs/anim-natural/AUDIT.md finding 7: the wrist whip in turns and the strafe start), headless:
+ * The audit's turn rows (docs/archive/anim-natural/AUDIT.md finding 7: the wrist whip in turns and the strafe start), headless:
  * the player's own motion driver (CT free movement, facing the travel) turns the root, the rig poses from it as the
  * player feeds it (phase, state, yaw rate, velocity, goals). 2 s warm, then 2.5 s from the turn.
  */

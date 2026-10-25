@@ -11,6 +11,26 @@
 // A suite name may carry a part (`e2e-sectorops:1`): one job of a suite that runs in parts. A whole suite in the result
 // absorbs its parts. Names outside the runner's lists (GPU suites, a suite whose script is gone) are filtered by the runner.
 
+// The runner's lists (scripts/run-e2e.mjs imports them): LEGACY = parked content, run by `npm run e2e:legacy` and
+// REPORT ONLY in a quick / affected run; GPU = visual read-backs, `--gpu` only (no visual result from SwiftShader).
+// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
+export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+// e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
+export const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
+
+/**
+ * The suites an affected request runs (laptop-queue lib affectedSuites: the service's affected pass and request.mjs
+ * --affected): `suites` without the GPU-only and LEGACY suites, whole or as a part (docs/systems/testing-tools.md: GPU
+ * suites never, legacy REPORT ONLY). A request's suites run by name, where nothing is REPORT ONLY, so left in they ran
+ * and gated affected-e2e (audit 2026-10-25: PR #400's request named e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A
+ * part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part token; the whole suite stays (its named run
+ * expands to the non-GPU parts).
+ */
+export function affectedGateSuites(suites) {
+  const off = new Set([...LEGACY, ...GPU]);
+  return (suites ?? []).filter((s) => !off.has(s) && !(s.includes(':') && off.has(s.split(':')[0])));
+}
+
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
 export const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
 
@@ -366,4 +386,19 @@ export function selectSuites(files, map = DIRECT_COVERS) {
     for (const s of hit) picked.add(s);
   }
   return [...picked].filter((s) => !s.includes(':') || !picked.has(s.split(':')[0])).sort();
+}
+
+// ---- auto-train's auto-drop (scripts/auto-train.mjs pickDrops): which suites a train member reaches ----
+
+/** The suites a change's paths reach under `map` (DIRECT_COVERS by default), `smoke` aside, parts as their suite: a Set. */
+export function suiteSetFor(files, map = DIRECT_COVERS) {
+  const out = new Set();
+  for (const f of files ?? []) for (const s of suitesForFile(String(f), map) ?? []) out.add(String(s).split(':')[0]);
+  return out;
+}
+
+/** Every prefix of `map` (QUICK_COVERS by default, any row, not only the first match) whose row names `suite` (parts as their suite), plus `src/` for a CORE suite (an unlisted src path runs CORE). */
+export function coverFolders(suite, map = QUICK_COVERS) {
+  const keys = Object.entries(map).filter(([, list]) => list.some((s) => s.split(':')[0] === suite)).map(([p]) => p);
+  return CORE.includes(suite) ? [...keys, 'src/'] : keys;
 }

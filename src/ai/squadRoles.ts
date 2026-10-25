@@ -22,6 +22,9 @@
  * - flank moves when it has a cover to go to and the point holds; once the target has held cover `flankAfter` s
  *   (the old flanker trigger) the flank goes first and the point holds and suppresses;
  * - reporter and overwatch move only until they are in their cover; search always moves.
+ * (one-mover triage) A guard already on a role bound (`RoleInput.bound`) is never made the flank while the point is on
+ * one too (both standard): a reporter or overwatch whose walk is still going when his role changes is not the second
+ * of point / flank on the way (`ONE_MOVER.roles`).
  * `RoleOutput.run`: runs only between covers or on an aggressive profile (`runToContact`); a coverless search walks.
  *
  * Cover comes from `CoverSet` / `CoverGrid` (coverGrid.ts). `scoreCover` is the per-role score (higher is better,
@@ -203,6 +206,9 @@ export class RoleInput {
   readonly profile: Uint8Array;
   /** Cover index the guard holds or is heading for (`Enemy.coverIdx`), -1 none. */
   readonly coverIdx: Int32Array;
+  /** (one-mover triage) 1 = on a role bound now (`seekCover` with `Enemy.roleBound`, whatever role started it): the
+   *  manager's "on his way" for the one-mover rule. */
+  readonly bound: Uint8Array;
   lkpX = 0;
   lkpY = 0;
   lkpZ = 0;
@@ -221,6 +227,7 @@ export class RoleInput {
     this.inCover = new Uint8Array(cap);
     this.profile = new Uint8Array(cap);
     this.coverIdx = new Int32Array(cap).fill(-1);
+    this.bound = new Uint8Array(cap);
   }
 }
 
@@ -363,7 +370,33 @@ export function scoreCover(
 const QUERY = new Int32Array(256);
 let taken = new Int32Array(64);
 let takenN = 0;
+/** (guard-ai polish B5) The covers earlier groups took this roles tick (`taken[0..takenBase)`): `assignRoles` starts
+ *  from them, so two intruder groups are never handed the same free cover in one tick (covers are reserved only when a
+ *  guard binds to one). */
+let takenBase = 0;
 let pickScore = -Infinity;
+
+/** (guard-ai polish B5) Groups of one roles tick share their picks (`rolesTickStart`, `rolesCommit`). Undo: false (each
+ *  `assignRoles` starts with nothing taken, the 4.97.1 rule). */
+export const ROLES_SHARE_TAKEN = true;
+
+/** (one-mover triage, e2e-stealth-ai 'squad roles' on 4.100.2) `roles`: with the point on a role bound, a member on one
+ *  too is skipped for flank (both standard), so point and flank are never both on their way. Without it a reporter or
+ *  overwatch still walking to his cover when the roles tick makes him flank (his call went through, or the scores
+ *  moved) is a second mover beside the point, and the manager's hold has nobody left to hold. Undo: false. */
+export const ONE_MOVER = { roles: true } as const;
+
+/** (guard-ai polish B5) A new roles tick: no cover taken by any group yet. */
+export function rolesTickStart(): void {
+  takenBase = 0;
+  takenN = 0;
+}
+
+/** (guard-ai polish B5) The last `assignRoles` is this group's final one: its picks stay taken for the next group of
+ *  the tick. */
+export function rolesCommit(): void {
+  if (ROLES_SHARE_TAKEN) takenBase = takenN;
+}
 
 function isTaken(c: number): boolean {
   for (let k = 0; k < takenN; k++) if (taken[k] === c) return true;
@@ -452,7 +485,7 @@ export function assignRoles(inp: RoleInput, out: RoleOutput): void {
     out.moving[i] = 0;
     out.run[i] = 0;
   }
-  takenN = 0;
+  takenN = ROLES_SHARE_TAKEN ? takenBase : 0;
   if (n === 0) return;
   // a held reservation by a member stays his: covers other members hold are skipped through `owner`, not `taken`
   let aggressive = false;
@@ -584,6 +617,8 @@ function pickFlank(inp: RoleInput, out: RoleOutput, n: number): void {
     }
   }
   if (hyp2(rx, rz) < 1e-4) return;
+  // (one-mover triage) the point on his way: nobody else on his way is made the flank (standard pair only)
+  const ptBound = ONE_MOVER.roles && pt >= 0 && inp.bound[pt] === 1 && inp.profile[pt] !== P_AGGRESSIVE;
   let best = -1;
   let bw = -1;
   let bKey = -Infinity;
@@ -591,6 +626,7 @@ function pickFlank(inp: RoleInput, out: RoleOutput, n: number): void {
   let bc = -1;
   for (let i = 0; i < n; i++) {
     if (out.role[i] !== R_NONE) continue;
+    if (ptBound && inp.bound[i] === 1 && inp.profile[i] !== P_AGGRESSIVE) continue;
     const w = profileOf(inp.profile[i]!).flankWeight;
     if (w <= 0) continue;
     const c = pickBest(inp, i, R_FLANK, rx, rz);

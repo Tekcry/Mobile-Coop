@@ -2,6 +2,7 @@
 // `blender -b` jobs, skips jobs whose input hash is unchanged, and can push the shippable outputs to the branch
 // bake/guard-models with git plumbing. The pure parts (stage graph, job split, hashes, scheduler) are in
 // guardBakePlan.mjs.
+// A lost console (exit 0xC0000142, or a job failing in under 2 s with an empty log) stops the stage: exit 5.
 //
 //   node scripts/operators/guard-bake.mjs --probe
 //   node scripts/operators/guard-bake.mjs --stage <bodies|heads|garments|gear|lods|check|sheet> [--only a,b] [--par N]
@@ -11,7 +12,7 @@
 // outputs the job declares (job.outputs, relative to `--out`). Upstream outputs are read from the same `--out` dir.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -21,6 +22,14 @@ import { contractKit, filesToHash, inputHash, jobsFor, KIT_FILE, parallelPlan, p
 
 export const DEFAULT_OUT = 'C:/NightShift/scratch/guard-bake';
 export const PUSH_BRANCH = 'bake/guard-models';
+/** Windows STATUS_DLL_INIT_FAILED (0xC0000142 = 3221225794): the job could not attach to a console. After an account
+ *  swap the bake's console is gone and every later spawn fails the same way in 0 s. */
+export const CONSOLE_LOST_CODE = 0xc0000142;
+/** A job that fails faster than this (ms) with an empty log never really ran. */
+export const QUICK_FAIL_MS = 2000;
+/** `main`'s exit code when a stage stopped on a lost console. */
+export const EXIT_CONSOLE_LOST = 5;
+export const ABORT_LINE = 'ABORT: console lost, restart the bake detached';
 // ktx2.mjs does not export its KTX_BIN; same default and override
 const KTX_BIN = process.env.KTX_BIN ?? 'C:/Program Files/KTX-Software/bin';
 const MPFB2_DEFAULT = 'C:/NightShift/downloads/mpfb2-2.0.18/add-on-mpfb-v2.0.18.zip';
@@ -112,8 +121,9 @@ export function commandFor(job, { blender, kitPath, outDir }) {
   return [blender.exe, argv, ROOT, { ...process.env, ...job.env, PYTHONHASHSEED: String(SEED) }];
 }
 
-/** Runs one job to the end; resolves { ok, code, ms, message }. Never rejects. */
-function runJob(a, ctx) {
+/** Runs one job to the end; resolves { ok, code, bytes, ms, message } plus `err` (the spawn error's code, ENOENT,
+ *  EPERM, ...) when it could not start. Never rejects. `cmdFor` builds the command line (tests pass their own). */
+export function runJob(a, ctx, cmdFor = commandFor) {
   const { job, hash } = a;
   const log = path.join(ctx.outDir, 'logs', `${job.id}.log`);
   mkdirSync(path.dirname(log), { recursive: true });
@@ -121,20 +131,28 @@ function runJob(a, ctx) {
   const fd = openSync(log, 'w');
   const t0 = Date.now();
   return new Promise((resolve) => {
-    const done = (r) => { try { closeSync(fd); } catch { /* closed */ } resolve({ ms: Date.now() - t0, ...r }); };
-    const [cmd, argv, cwd, env] = commandFor(job, ctx);
+    let settled = false;
+    const done = (r) => {
+      // a failed spawn emits 'error' and may still emit 'close': the first one wins
+      if (settled) return;
+      settled = true;
+      try { closeSync(fd); } catch { /* closed */ }
+      let bytes = 0; try { bytes = statSync(log).size; } catch { /* no log */ }
+      resolve({ ms: Date.now() - t0, bytes, code: null, ...r });
+    };
+    const [cmd, argv, cwd, env] = cmdFor(job, ctx);
     let child;
     try {
       child = spawn(cmd, argv, { cwd, env, windowsHide: true, stdio: ['ignore', fd, fd] });
-    } catch (e) { done({ ok: false, message: `could not start: ${e.message}` }); return; }
+    } catch (e) { done({ ok: false, err: e.code ?? 'spawn', message: `could not start: ${e.message}` }); return; }
     if (child.pid) lowerPriority(child.pid);
-    child.on('error', (e) => done({ ok: false, message: `could not start: ${e.message}` }));
+    child.on('error', (e) => done({ ok: false, err: e.code ?? 'spawn', message: `could not start: ${e.message}` }));
     child.on('close', (code, signal) => {
-      if (code !== 0) { done({ ok: false, message: `exit ${code ?? signal}` }); return; }
+      if (code !== 0) { done({ ok: false, code, message: `exit ${code ?? signal}` }); return; }
       const lost = job.outputs.filter((o) => !existsSync(path.join(ctx.outDir, o)));
       if (lost.length) { done({ ok: false, message: `finished but did not write: ${lost.join(', ')}` }); return; }
       writeFileSync(hashFile(ctx.outDir, job.id), `${hash}\n`);
-      done({ ok: true });
+      done({ ok: true, code: 0 });
     });
   });
 }
@@ -143,30 +161,61 @@ function tail(file, n = 12) {
   try { return readFileSync(file, 'utf8').trimEnd().split(/\r?\n/).slice(-n).join('\n'); } catch { return '(no log)'; }
 }
 
-/** Runs the 'run' jobs with at most `par` at once and 2 GPU-bound ones; returns the results by job id. */
-export async function runAll(todo, ctx, { par, maxGpu = 2 }) {
+/** A failed job that means the console is gone: exit 0xC0000142 (Node may report it signed, -1073741502), or a failure
+ *  in under QUICK_FAIL_MS that wrote nothing to its log (a job that really ran prints at least Blender's banner). */
+export function consoleLost(r) {
+  if (!r || r.ok) return false;
+  if (typeof r.code === 'number' && (r.code >>> 0) === CONSOLE_LOST_CODE) return true;
+  return typeof r.ms === 'number' && r.ms < QUICK_FAIL_MS && r.bytes === 0;
+}
+
+/** What stopped the stage, for the ABORT line: the spawn error (`spawn ENOENT`), the lost-console exit
+ *  (`exit 0xC0000142`) or the quick silent failure (`exit 1 in 0.3 s with 0 bytes of log`). */
+export function abortCause(r) {
+  if (r.err) return `spawn ${r.err}`;
+  if (typeof r.code === 'number' && (r.code >>> 0) === CONSOLE_LOST_CODE) return 'exit 0xC0000142';
+  return `${r.message ?? 'failed'} in ${((r.ms ?? 0) / 1000).toFixed(1)} s with ${r.bytes ?? 0} bytes of log`;
+}
+
+/** The line `main` prints when a stage stopped: ABORT_LINE, then the first lost job and its cause. */
+export function abortLine(cause) {
+  return cause ? `${ABORT_LINE} (${cause})` : ABORT_LINE;
+}
+
+/** Runs the 'run' jobs with at most `par` at once and 2 GPU-bound ones; returns { results (by job id),
+ *  aborted, cause }. The first job that fails as `consoleLost` stops new starts (`cause`: its id and `abortCause`): the running jobs finish, the rest are
+ *  marked not started. */
+export async function runAll(todo, ctx, { par, maxGpu = 2, run = runJob }) {
   const pending = todo.map((a) => a.job);
   const byId = new Map(todo.map((a) => [a.job.id, a]));
   const running = new Map();
   const results = {};
+  let aborted = false;
+  let cause = null;
   await new Promise((resolve) => {
     const pump = () => {
-      for (let j = pickNext(pending, [...running.keys()], { par, maxGpu }); j; j = pickNext(pending, [...running.keys()], { par, maxGpu })) {
+      if (!aborted) for (let j = pickNext(pending, [...running.keys()], { par, maxGpu }); j; j = pickNext(pending, [...running.keys()], { par, maxGpu })) {
         pending.splice(pending.indexOf(j), 1);
         console.info(`start   ${j.id}${j.gpuBound ? ' (gpu)' : ''} [${running.size + 1}/${par}]`);
-        const p = runJob(byId.get(j.id), ctx).then((r) => {
+        const p = run(byId.get(j.id), ctx).then((r) => {
           running.delete(j);
           results[j.id] = r;
           console.info(`${r.ok ? 'done   ' : 'FAILED '} ${j.id} ${(r.ms / 1000).toFixed(0)} s${r.ok ? '' : `: ${r.message}\n${tail(path.join(ctx.outDir, 'logs', `${j.id}.log`))}`}`);
+          if (!aborted && consoleLost(r)) {
+            aborted = true;
+            cause = `${j.id}: ${abortCause(r)}`;
+            console.error(`abort   ${j.id}: ${abortCause(r)}: no new job starts, ${running.size} still running, ${pending.length} not started`);
+          }
           pump();
         });
         running.set(j, p);
       }
-      if (!running.size && !pending.length) resolve();
+      if (!running.size && (aborted || !pending.length)) resolve();
     };
     pump();
   });
-  return results;
+  if (aborted) for (const j of pending) results[j.id] = { ok: false, message: 'not started: console lost' };
+  return { results, aborted, cause };
 }
 
 // ---------------------------------------------------------------------------------------------------------------- push
@@ -260,6 +309,11 @@ function loadKit(opts) {
   throw new Error(`kit data ${file} not found (slice G0 writes scripts/operators/data/guards.json)`);
 }
 
+/** `main`'s exit code after a stage ran: EXIT_CONSOLE_LOST on a lost console, 1 if any job failed, else 0. */
+export function stageExit(failed, aborted) {
+  return aborted ? EXIT_CONSOLE_LOST : failed ? 1 : 0;
+}
+
 export async function main(argv) {
   let opts;
   try { opts = parseArgs(argv); } catch (e) { console.error(`${e.message}\n${USAGE}`); return 2; }
@@ -286,6 +340,8 @@ export async function main(argv) {
   }
 
   let failed = 0;
+  let aborted = false;
+  let cause = null;
   const results = {};
   for (const a of plan.filter((x) => x.status === 'blocked')) {
     failed++;
@@ -297,14 +353,16 @@ export async function main(argv) {
     let blender;
     try { blender = findBlender(); } catch (e) { console.error(e.message); return 1; }
     mkdirSync(outDir, { recursive: true });
-    Object.assign(results, await runAll(todo, { blender, kitPath, outDir }, { par }));
+    const run = await runAll(todo, { blender, kitPath, outDir }, { par }); Object.assign(results, run.results); aborted = run.aborted; cause = run.cause;
   }
   for (const a of plan.filter((x) => x.status === 'skip')) results[a.job.id] = { ok: true, skipped: true };
   failed = Object.values(results).filter((r) => !r.ok).length;
   mkdirSync(path.join(outDir, 'logs'), { recursive: true });
-  writeFileSync(path.join(outDir, 'logs', `stage-${opts.stage}.json`), `${JSON.stringify({ stage: opts.stage, finished: new Date().toISOString(), par, jobs: results }, null, 2)}\n`);
+  writeFileSync(path.join(outDir, 'logs', `stage-${opts.stage}.json`), `${JSON.stringify({ stage: opts.stage, finished: new Date().toISOString(), par, aborted, jobs: results }, null, 2)}\n`);
   console.info(`stage ${opts.stage}: ${jobs.length - failed} ok (${count('skip')} unchanged), ${failed} failed`);
-  if (failed) return 1;
+  if (aborted) console.error(abortLine(cause));
+  const code = stageExit(failed, aborted);
+  if (code) return code;
 
   if (opts.push) {
     const rels = shippableFiles(outDir, opts.stage);

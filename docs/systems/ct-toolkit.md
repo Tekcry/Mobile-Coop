@@ -1,4 +1,5 @@
 # Chaos Theory toolkit - spec (V0)
+Owner: Player Build. Status: current.
 Status: spec; built so far: the optic cable at doors (3.2, prototype: `player/opticCable.ts`, `game/opticSystem.ts`,
 `config/tools.ts`), the partner's kneel and cable over the wire (MoveState mode `optic`, optic-coop) and the engine side
 of hatches, panels, grilles and shaft tops (`OpticPoint`, `LevelBuilder.opticGap`, `OpticSystem.pickPoint`, optic-coop);
@@ -8,20 +9,26 @@ The rest is not built. Approved by Michael on 2026-10-11 for Kestrel's Mission 1
 Kestrel map), pistol secondary revision. Kestrel is paused until after the CT co-op research (G53), and CT's gadget and
 attachment set is settled by that research (G76), so this set may change before V1 starts.
 
-What still holds from the 2026-10-11 approval: the engine gets the CT toolkit and each mission offers only the tools that
-suit it through a mission kit (section 4); the camera jammer and light disruptor are one tool, the pistol secondary (3.5,
-matching G76's pistol disruptor); lockpick and hacking are minigames only, with no hold alternative; V1-V3 build only
-Dead Line's kit (section 6); the ring airfoil (3.8) and knife (3.10) keep their specs for later (docs/backlog.md items
-23-24). Chaos Theory is a design reference only: no names, art or text from it (G5, G6).
+What still holds from the 2026-10-11 approval: the engine gets the CT toolkit and each mission offers only the tools
+that suit it through a mission kit (section 4); jamming lamps, cameras and lasers belongs to the pistol, not to a kit
+(now G152's held jammer, built: 3.5); lockpick and hacking are minigames only, with no hold alternative; the kit per
+mission is chosen when that mission is planned (Dead Line's kit in section 6 is history); the ring airfoil (3.8) and
+knife (3.10) keep their specs for later (docs/backlog.md items 23-24). Chaos Theory is a design reference only: no
+names, art or text from it (G5, G6).
 
 Changed by later decisions:
 - G37: the toolkit's own wall hug is cancelled; the CT back-to-wall (`docs/systems/movement.md`) is the only wall move.
   V1 keeps the optic cable.
 - G97: at a door the optic cable is one choice of the CT door menu (open, stealth open, bash, optic cable).
 - G23: interrogation is a choice of CT's grab menu (knock out, kill, interrogate).
-- G96: bindings follow CT's pad layout exactly; the proposals in section 2 are checked against it.
+- G96: bindings follow CT's pad layout as built, with the anim-rework's aim, holster and strike (input-and-loop.md);
+  the proposals in section 2 are checked against the built binding table.
 - loco M20 Q1: the SWAT turn and the lean-out aim are removed.
 - G12: desktop only (no touch controls).
+- G152: the pistol's secondary shot (one shot, then a recharge) became the held jammer, which is built (3.5).
+- G134, G153: each mission issues the two players complementary kits, fixed per mission; nobody picks a loadout
+  (section 4). G105's Stealth / Assault / Recommended presets are gone.
+- G243: draw times are real-world ones (rifle 1.1 s, pistol 0.75 s; `weapons/drawState.ts`), replacing G103.
 
 ## 1. Rules for every tool
 - **Realism.** Each tool is real equipment used the way a real operative would use it. Real-world facts are tagged
@@ -46,7 +53,7 @@ Changed by later decisions:
 
 ## 2. Inputs
 Tools use existing inputs wherever possible. Every binding below is a proposal; the build session checks it against the
-CT layout (G96) and with grep in `src/input/keyBindings.ts` and `src/input/gamepadMapping.ts`, and stops and asks Michael
+built binding table (input-and-loop.md) and with grep in `src/input/keyBindings.ts` and `src/input/gamepadMapping.ts`, and stops and asks Michael
 if one is taken.
 
 | Use | Keyboard and mouse | Gamepad |
@@ -55,13 +62,13 @@ if one is taken.
 | Optic cable | Door menu at a door (G97). (optic-coop M1, Michael 2026-10-24) At hatches, panels, grilles and shaft tops the same action menu at the gap: OPEN TRAP (only where a closed panel covers the gap) and OPTIC CABLE (`game/gapMenu.ts`); no new key | The same: A, the action menu at the door or gap |
 | Ping (co-op; optic-coop M2, Michael 2026-10-24) | Middle mouse (`ping`, was free) | R3 (`ping`); R3 is also Zoom, by context (Michael 2026-10-24 ~14:55 "contextual"): aiming a scoped weapon R3 zooms (no ping), otherwise it pings (no zoom); an allowed pair, no conflict |
 | Launcher rounds (shocker, airfoil) | Tab wheel to select, G hold to aim, release to fire | D-pad left hold (wheel), D-pad right hold / release (existing `grenade`) |
-| Pistol secondary (new action `secondary`, always available) | H (proposal; free) with the pistol drawn: hold to aim, release to fire | A while aiming (proposal) |
+| Pistol jammer (G152, built; 3.5) | RMB aims the drawn pistol, F (Co-op) held on the target | LT aims the drawn pistol, RB (Co-op) held on the target |
 | Lockpick minigame | Mouse moves the pick round a dial (A / D also turn it) | Left stick angle |
 | Hack minigame | Left click (proposal) locks a column | A (proposal) |
 | Leave a tool | A move key away (proposal) | B (proposal) or stick away |
 
-No secondary-fire or fire-mode input exists: `BUTTON_ACTIONS` (`input/actions.ts`) has no such action and `fireMode` is
-only semi / auto weapon data (`weapons/weaponDefs.ts`).
+No fire-mode input exists: `fireMode` is only semi / auto weapon data (`weapons/weaponDefs.ts`). The jammer uses the
+Co-op button while the pistol is aimed (`GameState.pistolAim`).
 
 Contextual priority (code, `GameState`): takedown > co-op team move > traversal > interact.
 
@@ -113,23 +120,13 @@ and `docs/systems/takedowns.md`.
 | Co-op | Minigame local; result to the host with `use` (kind `hack`), minimum time as 3.3. The host applies the service (door unlock through `doors`, intel flag to the team). |
 | Camera | Close framing as 3.3, pivot at the screen or keypad. The minigame overlay leaves the edges of the view clear. |
 
-### 3.5 Pistol secondary (camera jammer and light disruptor, merged)
-Michael, 2026-10-11 (no real equivalent), consistent with G76: one tool, the pistol's secondary function, as in Chaos
-Theory. It is part of the pistol and always available in every mission; not a kit tool (section 4) and not on the wheel.
-One shot at a lamp, camera or other powered device disables it for a short time, then it comes back on by itself. Lights
-and electronics only, never people. It runs on a recharge, not ammunition.
-| Item | Spec |
-| --- | --- |
-| Fiction | No fielded real device switches off a lamp or a camera from a pistol; it is near-future fiction (general knowledge). The infrared dazzler idea behind camera jamming is real, but a pistol emitter that also cuts a lamp is not. |
-| Works on | Lamps (including PIR lamps, S0 2.6 "Off") and S0 CCTV cameras (fixed and sweep). Other powered devices only where map data lists `disrupt: true` (section 5); none planned for Dead Line. Never: people, card readers, keypads, iris scanners, the mantrap, beams, the alarm panel (disabling a control would skip a mission control). |
-| Controls | Section 2 (`secondary`). With the pistol drawn: hold to aim, release to fire. The shot needs a full recharge. Not offered while the pistol is not the drawn weapon. |
-| States and timing | One shot, then recharge 6 s (TUNE); no ammunition, the magazine is untouched. A shot that hits nothing uses the charge. Range 30 m (TUNE). Hit tolerance radius 0.5 m (TUNE). Lamp: `LightRegistry.disrupt` on the hit lamp for 10 s (TUNE), then on again. Camera: offline 10 s (TUNE) through the same timed offline state as the EMP (S0 2.1 Shot / EMP), then back online with its sweep phase kept; V3 adds a camera mode `disabled` only if the EMP path cannot take a per-hit time. |
-| Noise and light | The shot is silent (0 m, TUNE). Its beam is infrared: not in the gameplay light field and never seen by guards; it shows in night vision for every player (render only, like beam lines, S0 3). The lamp goes out through the light registry, so the screen, the meter and guards agree (light parity, bible 5.1). |
-| Noticed by | The shot is not seen or heard. A camera going offline for 10 s raises no video-loss event (S0 2.1 Shot / EMP), so it dispatches nobody. A lamp that goes out is a light out: a calm guard with the lamp in view investigates the spot through `lightsOut`. A disabled PIR lamp stays off, so its turning on alerts nobody (S0 2.6 Off). |
-| Security (S0) | Camera: the S0 2.1 Shot / EMP path, no video-loss event. Lamp: `disrupt` stops the PIR lighting it (S0 2.6 Off). The desk, the panel flags and the loop / off states (S0 2.2) are untouched. Nothing here raises the security alarm level. |
-| Ghost rule | Ghost-safe when nobody sees the player. A disabled lamp or camera is not an alarm and does not raise the alarm level. A guard who investigates the dark lamp is allowed if he never sees the player. |
-| Co-op | The client sends the shot through the weapon path with the target id; the host checks range, line of sight and the charge (recharge simulated on both, host wins), then applies `disrupt` or the camera's timed offline. Each player has their own charge. Light state syncs (bible L10); the camera state syncs in S4's `sec` message. |
-| Camera | Existing aim framing. |
+### 3.5 Pistol jammer (G152, built)
+Replaced by G152 (2026-10-18): the pistol's held jammer. Built in `game/jammer.ts` and `game/ctDevices.ts`; the live
+spec is `docs/systems/gadgets.md` (Held pistol jammer). The 2026-10-11 secondary-shot spec (one shot at a lamp or
+camera, then a 6 s recharge) is gone; it is in git history. What still holds from it: the jammer is part of the pistol
+and always available, not a kit tool (section 4) and not on the wheel; lights and electronics only, never people; no
+fielded real device does this, it is near-future fiction (general knowledge). Cameras see by their own IR (G298), so a
+lamp put out never hides a player from a camera; only jamming the camera itself does.
 
 ### 3.6 Light disruptor
 Merged into 3.5.
@@ -140,7 +137,7 @@ Merged into 3.5.
 | Fiction | A wireless electroshock projectile fired from a 12-gauge launcher, which barbs onto the target and delivers a shock (a real less-lethal round, general knowledge). Fired from the rifle's launcher attachment (G76). |
 | Works on | People (guards; civilians count as a rating penalty, bible 5.7). Not devices. |
 | Controls | Select on the wheel; hold the gadget input to aim with the rifle, release to fire. |
-| States and timing | Rounds per mission from the kit (Dead Line 2, TUNE). Range 20 m (TUNE). Direct hit only. Hit: knocked out, the same result as a non-lethal takedown. Raise: the rifle's draw time (G103, about 0.75 s). |
+| States and timing | Rounds per mission from the kit (Dead Line 2, TUNE). Range 20 m (TUNE). Direct hit only. Hit: knocked out, the same result as a non-lethal takedown. Raise: the rifle's draw time (G243, 1.1 s). |
 | Noise and light | Launch 6 m (TUNE) via `hear`; the fall uses the existing knock-out path. A visible spark on hit (render only). |
 | Noticed by | Guards who see the target fall, or the body later, react by the existing body rules. |
 | Security (S0) | A body in a lit camera frame is seen as S0 2.1 (SN12). A card holder knocked out drops his card to the player as any takedown (S0 2.3). |
@@ -195,7 +192,7 @@ Not built in V3 (backlog item 24). The knife is part of the CT kit (G76); its ro
 ## 4. Mission kit
 - **Tool ids.** New pure `src/game/tools.ts`: `ToolId = 'optic' | 'lockpick' | 'hack' | 'shocker' | 'interrogate'` (the
   built kit tools; `airfoil` and `knife` join when built) and a `TOOLS` table (name, use: `verb` / `wheel` / `launcher`,
-  ghost tag, battery or rounds). The pistol secondary (3.5) is not a `ToolId`: it belongs to the pistol and is always
+  ghost tag, battery or rounds). The pistol jammer (3.5) is not a `ToolId`: it belongs to the pistol and is always
   available, in every mission and in no-kit modes.
 - **Mission data.** `MissionDef` (`game/missions.ts`) gets an optional `kit`: `{ tools: ToolId[], gadgets: { <GadgetId>:
   count }, rounds: { shocker?: n, airfoil?: n } }`. `validateMissions` throws on an unknown id and clamps counts to
@@ -206,9 +203,9 @@ Not built in V3 (backlog item 24). The knife is part of the CT kit (G76); its ro
   every tool checks before it offers a prompt. A tool not in the kit shows no prompt, does not appear on the wheel, has no
   HUD battery and its input does nothing.
 - **Loadout screen** (`ui/screens/loadoutScreen.ts`). In a mission with a kit: the gadgets page lists only kit gadgets; a
-  read-only "Mission kit" panel lists the tools with rounds and batteries (every player carries the whole kit, as in Chaos
-  Theory); a preset naming a gadget outside the kit falls back to the kit's first gadget. Loadouts are Stealth / Assault /
-  Recommended (G105).
+  read-only "Mission kit" panel lists each player's own tools with rounds and batteries. Decided, not built yet (G134,
+  G153): the mission issues the two players complementary kits, fixed per mission, so a player does not choose a loadout
+  and the presets go. The 2026-10-11 "every player carries the whole kit" is replaced.
 - **Wheel.** Kit gadgets plus the kit's launcher rounds (shocker; airfoil when built); `wheelSlot(x, y, slots)` already
   takes the slot count.
 - **Co-op.** Every peer reads the same mission definition; the host rejects tool requests outside the kit.
@@ -225,11 +222,14 @@ contract.
 | `alarm` | cars | `true` / `false` | 3.3 |
 | `hack` | terminals, keypads | `{ tier: terminal or keypad, services: [ "intel:<flag>", "unlock:<doorId>", "fault:<faultId>" ] }` | 3.4 |
 | `cut` | tarps, sheeting, screens | `true` | 3.10 |
-| `disrupt` | powered devices other than lamps and cameras | `true` (default false; none planned for Dead Line) | 3.5 |
+| `disrupt` | powered devices other than lamps, cameras and laser panels (the jammer's targets) | `true` (default false; none planned for Dead Line) | 3.5 |
 | `lines` | mission data per guard or civilian id | 1-3 lines, optional `reveals: <flag>` | 3.9 |
 Every placed item keeps a `reason` (docs/kestrel/RULES.md section 5): why a real site has that lock, terminal or tarp there.
 
-## 6. Dead Line's kit (approved by Michael, 2026-10-11)
+## 6. Dead Line's kit (history: approved by Michael, 2026-10-11)
+History, not a build target: Mission 1 "Dead Line" on the Kestrel map is paused (G53) and the first campaign missions go
+on Tallow Wharf, campaign Mission 1 (G293, G340). A mission's kit is chosen per mission (section 4). The table is kept as a worked
+example.
 Judged against the control ladder and the ghost rule (docs/kestrel/RULES.md section 1). The kit must give every
 critical-path control a no-contact answer without letting a tool skip a control the mission depends on.
 | Tool | Kit | Why |
@@ -241,12 +241,12 @@ critical-path control a no-contact answer without letting a tool skip a control 
 | Ring airfoil | Out | Same role as the shocker and the close strike; one launcher round type keeps the slice small. |
 | Interrogation | In | The grab is already in Dead Line as a louder answer (iris, clone card). Questioning gives the louder answer to the knowledge gates (PIN, cage number, who is enrolled). |
 | Knife | Out | No cuttable element is planned on the campus, and lethal takedowns exist without it. Revisit if P06 gives a real reason for one. |
-The back-to-wall is a movement, always available. The pistol secondary (3.5) is always available; it is not part of any
+The back-to-wall is a movement, always available. The pistol jammer (3.5) is always available; it is not part of any
 kit. Existing gadgets in the kit: noisemaker, sticky cam, EMP and sleeping gas at their normal carry (`GADGETS`,
 `game/gadgets.ts`). Out: frag and mine (lethal explosives on a site with civilians), flashbang (loud, overlaps gas).
 
 ## 7. Build plan (V1-V3)
-Waits for the CT co-op research and Kestrel's restart (G53, G76); the work then runs prototype first, then the orchestrator
+History where it names Kestrel or Dead Line (paused, G53). Waits for the CT co-op research and Kestrel's restart (G53, G76); the work then runs prototype first, then the orchestrator
 method (G87, docs/systems/session-method.md). V1-V3 may change the player controller, the camera, the grab and takedown
 code, add `src/config/tools.ts` and the `toollab` debug map; no existing tuning value changes. All logic is pure and
 Babylon-free with Vitest tests. Each session runs `npm run check` and `npm run e2e:quick`; GPU, contact sheets and
@@ -258,7 +258,7 @@ files in `scripts/run-e2e.mjs`), extended by each session. Test space: a debug m
 | --- | --- | --- | --- | --- | --- |
 | V1 | Optic cable (doors through the door menu, hatches, panels, grilles, shaft top). Done so far: doors (PR #239), the 2-player kneel and cable (optic-coop, e2e-netmove "optic cable"), the gaps' engine side (optic-coop); left: the gaps' input and map placement | New `src/player/opticCable.ts` (pure tip placement), `src/config/tools.ts`, `src/world/maps/toollab.ts`. Changed: `src/player/moveState.ts` (mode `optic`), `src/player/shoulderCamera.ts` (tip pose), input files (`optic` action), `src/ui/prompts.ts` | tip placement and refusal (sealed, no gap, wall behind) | optic view under a door shows a guard; sealed door refused; 2-player pose sync | Optic under a door, through a raised-floor hatch and a grille, on pad and keyboard |
 | V2 | Lockpick (tiers, minigame); hacking (terminals, keypads, services, failure); lock and hack map fields; the security event hook | New `src/game/lockpick.ts`, `src/game/hack.ts` (pure), `src/ui/hud/` minigame overlays, `locks` net list. Changed: `src/world/doors.ts` (`lock` tiers), interactables, `src/net/protocol.ts` (`use` kinds `pick`, `hack`) | pin model and sweet spot; slip; kept progress; minimum-time check; hack columns, wrong lock, lockout; services applied only from data; tamper and failure events | wafer locker opens; `high` and reader refused; slip noise heard by a guard at 2 m, not at 4 m; car alarm on an alarmed car only; hack reads an intel flag; failure locks out and logs an event; client pick accepted, too-fast pick rejected | Pick a locker, a door and a car on pad and keyboard; hack a terminal and a keypad |
-| V3 | Mission kit (section 4); pistol secondary (3.5); the rifle launcher with the shock round; interrogation. Not the airfoil or knife | New `src/game/tools.ts`, `src/game/pistolSecondary.ts` (pure recharge, range and target filter), shocker rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/security/camera.ts` (timed disable), `src/input/` (`secondary` action, `keyBindings.ts`, `gamepadMapping.ts`), `LightRegistry` callers, `src/game/takedown.ts` (the grab menu's interrogate) | kit validation and defaults; wheel and loadout filtering; recharge and range; target filter (lamps and cameras only); disabled camera stops the meter and comes back; no alarm or event raised; shocker outcome; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; one shot disables a camera and a lamp and both come back by themselves; recharge blocks a second shot; no alarm level change; out-of-range client request rejected; shocker knocks out; question sets a flag for both players | Pick a mission with a kit and see the loadout; shoot a lamp and a sweeping camera with the pistol secondary; shock and question a guard in toollab |
+| V3 | Mission kit (section 4); the rifle launcher with the shock round; interrogation. Not the airfoil or knife | New `src/game/tools.ts`, shocker rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/game/takedown.ts` (the grab menu's interrogate) | kit validation and defaults (each player's own kit); wheel and loadout filtering; shocker outcome; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; out-of-kit client request rejected; shocker knocks out; question sets a flag for both players | Pick a mission with a kit and see each player's kit; shock and question a guard in toollab |
 
 Kestrel order (when it restarts): V1-V3 run after Kestrel's P10 and before B3, so B3 builds the map with the tools in hand.
 S1 Part B wires the hack events to the desk; S4 adds the camera's disabled state to `sec`; S6's civilians get questioning

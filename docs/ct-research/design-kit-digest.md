@@ -1,5 +1,12 @@
 # Design kit digest - the research's co-op design kit against Night Shift's docs
 
+> Research record (2026-10-18). Where it disagrees with docs/DECISIONS.md or docs/VISION.md, those win. Superseded
+> points: 1.8 rule 5 "hard fail only for the mission's one declared rule" (G290: up to 2 strict rules, breaking one
+> restarts the section, the mission continues); 1.11 rule 8 "every lit area on the critical path can be darkened" and
+> 3.7's "two ways to darken" row (2026-10-25: real-world light bands per space type, and hardened lit choke points are
+> allowed everywhere as long as a route around stays); any timer rule (2026-10-25: campaign and Sector Ops use soft
+> windows only, no countdown that closes a route; Marlow Yard may use timed drills); any map, marker or minimap (2026-10-25: no maps, minimap, compass or blip in any mode).
+
 Date: 2026-10-18. Branch `feature/ct-research`. Scrubbed (G6, G114): no reference-game character, gear or organisation
 names; "Chaos Theory" / "CT" name the reference. Generic verb names are the kit's own.
 
@@ -549,7 +556,7 @@ touches `docs/templates/map-spec.md`; both need Michael's approval.
 
 ## 4. The co-op prototype's test level: what it must honour now, what can wait
 
-The prototype (`docs/progress.md` job 2) is small: one test space, two players, the CT verbs. These kit rules matter at
+The prototype (`docs/archive/progress.md` job 2) is small: one test space, two players, the CT verbs. These kit rules matter at
 that size because they decide whether the co-op feel can be judged at all:
 
 **Must honour**
@@ -616,7 +623,7 @@ futures are decided (G53, G79), and U1 can test the story.md campaign table agai
    designed for the pair; removing a player makes it impossible or clearly worse; two-person requirements have a written
    real-world reason; at least one vertical route per mission needs a team move (closes its open item 1).
 2. Section 11 / 12.2: free moves usable wherever the geometry allows vs boosts at marked spots only (G81) - decide;
-   then fix 11.5 (open item 3).
+   then fix 11.8.
 3. 11.4 and 12.1: revive becomes a 30 s window, 2 per mission, both down reloads (D-03); drop "there is no bleed-out".
 4. New co-op beat minimums (1.9), idle under 60 s, split ends at a named merge, separation under about 3 min, roles
    alternate, multi-use moves, handshake and sync rules (tolerance window, ready state, non-lethal fail, pings only).

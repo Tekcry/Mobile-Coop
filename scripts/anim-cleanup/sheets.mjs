@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 const PORT = Number(process.env.E2E_PORT ?? 4189);
-const [out = 'docs/anim-cleanup/audit', ...specs] = process.argv.slice(2);
+const [out = 'docs/archive/anim-cleanup/audit', ...specs] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
 process.on('exit', () => server.kill());

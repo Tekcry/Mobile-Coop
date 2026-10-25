@@ -1,6 +1,7 @@
 # Stealth AI, enemy archetypes and modes
+Owner: Guard AI Build. Status: current.
 Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the navigation grid and the game-mode hooks.
-Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible.md (Section 5.7).
+Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374, G377-G380, G382), then docs/design-bible.md (Section 5.7).
 
 ## Decided direction
 - Decided, built (G41; ct-prototype A3, F1b door-4): guards close doors behind them on a calm patrol and notice any door
@@ -15,21 +16,53 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
   dogs; the close-range felt term (1.8 m, moving) is unchanged. The light meter is untouched (a view limit, not light).
   Numbers are Night Shift's own: the CT research is silent on looking up.
-- Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
+- Decided (G45): clear glass passes light and sight; frosted glass and blinds pass light only. Built (E2): frosted glass
+  blocks sight (`G.GLASS_FROSTED` is in `MASK.SIGHT`, `physics/groups.ts`; armoured clear glass still sees); every pane
+  is a wall to hearing (`MASK.HEARING`). Not built yet: blinds.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
-- Decided (G46): the 12-awake limit (`MAX_ALIVE`) is reviewed against desktop performance; how it is set is open (FU-11).
-- Decided (G42, G49): every human guard can be palm-struck; dogs cannot; heavies, friendly fire and similar details follow
-  the CT co-op research (`docs/systems/takedowns.md`).
+- Decided, built (G46, G187, G254): guard counts are measured per mode. Caps alive, each a ceiling, not a target:
+  Sector Ops 32 (`SECTOR.maxAlive`, `game/sectors.ts`; G332); the campaign 32 (G359; set by the mission engine, not on
+  master yet); Marlow Yard and the other modes 12 (`MAX_ALIVE`, `ai/enemyManager.ts`). Michael wants "as many guards as
+  realistically possible" (G289, G254), limited by the guard-cap perf floor and passable routes; room to manoeuvre
+  beats count (G190). Per-space bands are info; the validator WARNs only below them (G289).
+- Decided, not built yet (G328, G362): Saltmarsh Park S1-S5 hold 15 / 18 / 20 / 25 / 26 guards for 1-2 players; 3-4
+  players add the tagged extras inside the cap. The live `campusOps` data holds 8 / 12 / 16 / 20 / 24 and has no
+  tagged extras (campus greybox v2, FOLDED-PLAN J17).
+- Decided (G42, G155, G297, G307): every human guard can be palm-struck; dogs cannot. Per mode:
+  - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way");
+    alarm teams are armed guards only, no riot shields (G377).
+  - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
+    alert response teams, and armour per alarm stage (G307).
+  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted; killing one counts as a kill (no
+    Perfect) and costs score (G374).
+    What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
+  - Helmets by difficulty: the rule is in bible 5.6 (G350). Not built yet: helmets come from a slot tag, a section
+    default or the alarm stage (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
+  - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
-- Decided (G11): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and the rest) only
-  those CT has survive, settled by the research.
+- Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
+  the rest) only those CT has survive, with one exception: Michael "Add both" (G335) - static
+  lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
+  above) stays the base rule; a lookout is the deliberate exception on its route; a vent lookout stands where he
+  overlooks the vent run or its exit, not in the vent (G378). Built: talking pairs on a timed loop that meet, and search
+  when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Not
+  built yet (job guard-rules, FOLDED-PLAN J15): lookouts, a partner check while the pair walks between meetings, and
+  posted (static) pairs (`pairWhyNot` skips them).
+- Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
+  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
+- Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
+  shows them (light parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a
+  faint cue, a small rise in suspicion, never a sighting on its own (G379; planned in FOLDED-PLAN J16). Today guards
+  read only the light field.
+- Decided, built (G380, "Yes, each player"): guards keep a last known position per player (guard-ai S24, "Two
+  intruders" below).
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)
 - `ai/perception.ts` (pure, `PERCEPTION`): `sightRate` = rate x (1 - d / range)^1.5 x field (55 deg focus, 25 m;
   peripheral 100 deg, 12 m, x0.35) x `lightFactor` (`visibilityFromLight`^2) x stance x `motionFactor` x exposure
-  (fraction of chest / head / hips in line of sight) x state sensitivity, plus a close-range term (2.2 m, moving), capped at
+  (fraction of chest / head / hips in line of sight) x state sensitivity, plus a close-range term (1.8 m, moving), capped at
   `maxRate`; `instantDetect` (point blank, lit, in focus); `stepMeter` (rises by what exceeds `leak`, holds `hold`, drains
   `decay`); `noiseSuspicion(dist, radius)`; `losClear` (one `MASK.SIGHT` ray, clear when nothing is hit nearer than
   the point less the slack) casts through `Ballistics.hitDistance` when it has it, without allocating (guard-ai R1; the
@@ -195,6 +228,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
+  Decided, not built yet: helmets by difficulty (G350; owner bible 5.6), see "Decided direction".
 - Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
   `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
   radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
@@ -223,15 +257,20 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
-  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard; polish B2: the
+  one on his way is the one on a role bound, `Enemy.roleBound`; one-mover triage: with the point on a role bound,
+  `assignRoles` never makes a guard on one too, such as a reporter or overwatch still walking, the flank
+  (`RoleInput.bound`, undo `ONE_MOVER.roles`)). Out of sight in
   the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
-  `SQUAD.openWait` 3 s, one think with no role cover at all), then takes today's cover pick (`pickCover`, reserved
+  `SQUAD.openWait` 3 s, or the second think with no role cover at all: the first only crouches), then takes today's
+  cover pick (`pickCover`, reserved
   through `reserveCover`); no cover anywhere: crouched where he is until `ALERT.lostSight`; the wait restarts when he
   sees his target, is in or on his way to cover, or his role changes (`Infinity`: the S8 wait). The overwatch's
   suppress (S27, A162: `suppressLkp`) aims at its own spot (`suppressAim`, the hunt's spot + 1.1 m; his `lastKnown` is
   left alone) and, with `SQUAD.suppressView`, fires only along a clear static line from the muzzle (one `G.STATIC` ray
-  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`). The reporter (S27, A163) throws and flanks nothing
-  while his call is open (`inCover` runs the radio hold before `tactics`; in `attack` he fights with his rifle only).
+  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`, the latter in held steps, not thinks). The reporter
+  (S27, A163) throws and flanks nothing while his call is open (`inCover` runs the radio hold before `tactics`; in
+  `attack` he fights with his rifle only).
   A path failure blocks the cover. While a group has roles the single
   `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
 - Report, then engage (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding";
@@ -248,11 +287,14 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
   kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
   high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
-- `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): one last known position per
-  intruder (guard-ai S24, below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
+- `EnemyManager.stealth` (on in Sector Ops, Marlow Yard (`course`), Hunter, Mission and Infiltration; off in Free
+  Roam): one last known position per intruder, kept per player (ROADMAP Decided 2026-10-25 ~16:50, Q15) (guard-ai S24,
+  below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
   sightings by alerted enemies and located gunfire, a flow field per intruder (never the real position), arriving with
   nothing there starts the search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does
-  not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`.
+  not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`. A downed player is not
+  perceived and never finished off: the perception pass skips a target that is not `alive` (a code fact, `ai/enemy.ts`;
+  downed and revive: bible 5.9).
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
@@ -300,8 +342,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by
   other means (`BreakerHost.isOff` false: the player, an isolator) ends the walk; so does `BREAKER_WALK.giveUp` 30 s.
   A second noticed cut of the circuit within `BREAKER.repeatT` 60 s (board clock, `lastFault`) is tampering: the S2
-  `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
-  taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
+  `light` incident at the switch; the same cut noticed again while its incident is open merges into it; noticed again
+  once its tamper check is over with nobody on it, it is a fault, the reset walk (polish B1, A168). A cut nobody saw
+  opens nothing. (polish B1, A168) A noticed cut still off, with its incident gone (check over, walker knocked out,
+  given up or drawn away) and nobody walking to its switch, is forgotten by late discovery after `BREAKER_WALK.retry`
+  20 s (`EnemyManager.relightStep`, `DarkList.unmarkGroup`): the next calm guard who sees it dark relights it. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
   A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
   skips destroyed lamps). (guard-ai LR16-4, relight) The Sector Ops boards ride the same walk: a breaker board (no
   `window`) cut calls `lightsOut` on its first circuit with a live lamp (`IsolatorBoards.liveGroup`) at the board, and
@@ -309,20 +354,25 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   circuit (`cutBoard`; else the nearest wall switch), `isOff` true while it is cut and dark, `reset` the board's
   `switchBack` (every circuit of it, its wall switches follow) before a wall switch's toggle. A timed isolator's running
   window is the player's (`holding`): `isOff` / `reset` are false for its circuits, even through a wall switch, and
-  `switchBack` refuses, so its cut stays the S2 look at the board (the lure) and the timer relights it; a walk already
-  going on that circuit ends (S15's isolator rule). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
-  ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
-  (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within
+  `switchBack` refuses, so its cut stays the S2 look at the board and the timer relights it; a walk already going on
+  that circuit ends (S15's isolator rule). So a timed cut sends 1-2 guards on the S2 check with its 4-point ring, not
+  S15's calm one-guard walk: deliberate, it is the lure (LR16-4). Late discovery (`EnemyManager.lateStep`, every 0.1 s
+  over a round-robin share of the guards, ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch
+  that is off) no guard has reacted to (rebuilt only on a registry `version` change or a mark); a calm free guard with
+  one in his focused cone within
   `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
   the circuit's switch, or tampering). Once per fixture / circuit state change (`DarkList.known`, cleared when lit, on
-  `clear` and `resetMemory`). Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
+  `clear` and `resetMemory`), or, for a cut nobody fixed, again after `BREAKER_WALK.retry`. Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
   `notice`). Flashlights:
   `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
   static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
   per torch) stops the beam at geometry.
 - Alarms: `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted enemy to work
   it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the `MapLayout.reinforce` point furthest from the
-  player). The player disables a panel with a hold.
+  player). The player disables a panel with a hold. One guard alarm per match; Sector Ops one per section load
+  (`EnemyManager.raiseAlarm`, `alarmRaised`, cleared by `resetAlarm` on a section load or restart and by `resetMemory`
+  on a Marlow Yard checkpoint restart). Bible 5.7 lets each
+  alarm add a level: repeat alarms are job guard-rules (FOLDED-PLAN J15).
 - Alarm by radio (guard-ai S6, design 7, M4; `CommandCall` in `ai/alarm.ts` pure, `EnemyManager.command`; stealth rules
   and coordinated modes only, as panels). A `contact` call that gets through (`sink.completed`) owes the alarm
   (`contactThrough`): the officer in the caller's voice range (alive, free), else the caller, else the next guard in the
@@ -407,7 +457,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   Now each door has a nav closure (the Sector Ops door size, `STAGE_NAV_ACROSS` / `STAGE_NAV_ALONG`), built with the
   gate on the manager's first update, held shut while the door is locked and shut (`lockedShut`: `anchor.locked`,
   `target` 0; a locked door standing open stays walkable). `LockedDoorNav.sync` runs each manager update and at once
-  from `Doors.onLocked` (any `setLocked`: course gates, Sector Ops stage / team / keypad locks), so the
+  from `Doors.onLocked` (any `setLocked`: course gates, Sector Ops stage / team / keypad locks; and a `setOpen` of a
+  locked door, shut or, since polish C2, forced open, so its doorway follows with no update between), so the
   `NavGrid.version` bump replans the flow field and every held route once. No guard has a key (the sector `keyholder`
   is a fixed-post role): every guard treats a locked shut door as a wall. An unreachable goal (only a locked door
   between) falls back as before (patrol: straight at the point, stopped by the gate; search: the point skipped), and
@@ -440,7 +491,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `MAX_INTRUDERS` 4): each think a guard perceives every live player (`Enemy.perceive`, per-player module scratch, no
   allocation): chest / head / hips rays, light and `sightRate` per player, a dog's smell per player; a player a calm
   guard cannot see at all (outside his field and not felt close by, `mayBeSeen`, the two terms of `sightRate`) costs no
-  ray. The target is the best seen when calm (the highest rate, else the nearest); in combat the one he fights while he
+  ray. The target is the best seen when calm (the highest rate, else the nearest; polish C1, A169: he keeps the one he
+  perceives until another's rate beats his by `CALM_KEEP` 1.25, undo 1); in combat the one he fights while he
   sees him, else the nearest he sees, else his last (S24 passes the hunted player). One meter per guard, filled at the
   target's rate (two in view do not add up). `seesIndex(i)` (player `i` of `players()` in sight, any body sample) drives
   the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
@@ -462,8 +514,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   fields: one per slot, made the first time it is valid, rebuilt on a move of a nav cell (at most every 0.5 s) or a nav
   change, one rebuild per update (round robin). Response teams, the reinforcement facing and the device-fresh test
   follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
-  shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`. Tests:
-  `intruders.test.ts`, `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+  shared position, one group). Host only, no protocol or save change. Tests: `intruders.test.ts`,
+  `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+  Brief: `docs/guard-ai/slices/S24.md` on origin/feature/guard-ai.
   Up to 4 intruders (coop4 AI1, A170 / A171, brief `docs/coop4/briefs/AI.md`): `IntruderBoard.find(id)` (a read, never
   assigns), `leave(id)` (slot marked `gone`, kept for his rejoin: the same id takes it back, LKP kept); a new id with no
   free slot takes a gone one (idle first, else unseen longest; `reused`), only from `COOP4.from` 3 live players (1-2:
@@ -504,15 +557,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   cover in range (`coverGrid.queryNearest`, up to 1024, the nearest kept past that so no side is dropped; S25b fix
   B1; at the cover's position) and a 2 m lattice over the square of half-side R whose
   baked light (`lightField.levelAt` 0.9 m over the floor; torches excluded, A153) is below `dark` (`LIGHT.shadow`);
-  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. A rebuild round
-  the same position keeps the looked-into points done. `Enemy.decide`'s search branch, for a combat search
+  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. The plan remembers
+  its searched points (`SearchPlan.sx` / `sz`, up to 48, forgotten on a moved centre); a rebuild never offers a
+  candidate within `spacing` of one or of the last known position (polish B4, undo `PLAN_SKIP_SEARCHED` false). `Enemy.decide`'s search branch, for a combat search
   (`combatSearch`, not `searchOwn`, `hunt` >= 0, `SEARCH_AREA.enabled`): the first point is the last known position as
   before, then `AiContext.searchPoint` (`take`: best score minus distance from him, one guard per point); none left:
   today's ring (`ringPoint`, from its first point). The look ending or the point unreachable: `searchDone` (found by his
   claim, done either way). Claims are freed on death / knockout (`onKilled`), despawn, leaving the search or the plan
   (`planSweep` each update, also once his response team sweeps), a forgotten slot and `clear` / `resetMemory`. Calm searches (a body, a device, a call, a
   pair, a lure) keep their ring (A152). Undo: `SEARCH_AREA.enabled` false (today's points exactly). Host only, no
-  protocol or save change. Brief: `docs/guard-ai/slices/S25.md`. Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
+  protocol or save change. Brief: `docs/guard-ai/slices/S25.md` on origin/feature/guard-ai.
+  Tests: `searchArea.test.ts`, `searchAreaWiring.test.ts`.
   (S26) R grows from `locT` (seconds since seen OR located), not `seenT`: a heard step narrows the search (A157).
 - Hearing in a fight and a search (guard-ai S26, M1, CT rule 8, A155-A160; `ai/hearing.ts`: `COMBAT_HEAR`,
   `combatHearAct`). `EnemyManager.hear(pos, reach, kind, skip, by)`: `by` is the player whose own body or hands made
@@ -531,8 +586,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `knownSpot`, chase field (`flowOf(hunt)`) and roles follow the new spot. A heard spot more than 1 m from the slot's S25
   plan centre resets the plan at once (claims dropped; the one exception to "never rebuild under a claim"): his
   searchers take their next point from the plan rebuilt round it (A160). Undo: `COMBAT_HEAR.enabled` false (today's
-  deaf rule exactly). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S26.md`. Tests:
-  `combatHearing.test.ts`, `intruders.test.ts` (`locT`), `searchAreaWiring.test.ts` (R from `locT`).
+  deaf rule exactly). Host only, no protocol or save change. Tests: `combatHearing.test.ts`, `intruders.test.ts`
+  (`locT`), `searchAreaWiring.test.ts` (R from `locT`). Brief: `docs/guard-ai/slices/S26.md` on origin/feature/guard-ai.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -549,6 +604,92 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `ArmourGate` (pure, cached 0.25 s per guard and cell pair); an armoured first hit holds fire. After 1 s held he
   repositions (a cover spot with a clear line, else round by the nav, 8 s) or, held to a room or post leash, holds and
   keeps tracking. Plain glass is unchanged (bullets pass). Host only, no wire change.
+- Guard AI polish batch (2026-10-24, `docs/guard-ai/POLISH-PLAN.md`, A165-A169, A182; ids are the plan's). Each line
+  changes the text above where they disagree. Host only, no protocol or save change.
+  - A1: a device responder pulled into an investigation keeps his device spot and room (`joinAsResponder`); when the
+    look ends (investigating -> cooldown / unaware) he goes back to searching the device room (`SEARCH_DEVICE`), not
+    standing still.
+  - A2 (A167): `pickCover` keeps its best 3 candidates and tries them in order: a cover a mate holds is skipped, a walk
+    longer than `COVER_DETOUR` (1.5 x straight + 3 m) is rejected for the next. A role cover with such a detour is
+    blocked and the roles re-pick next tick. The open wait's failed pick (`openNoCover`) retries once per
+    `SQUAD.openWait`, and never lands on his own held role cover while his role is not moving.
+  - A3 (A165): in stealth with no intruder (`hunt` -1) he A*s to his own `knownSpot` instead of the freshest
+    intruder's chase field (`SLOTLESS_FIELD`).
+  - A4 (A166): hunting one intruder and seeing another, he makes one contact call naming the new one, once per slot
+    per fight (`calledMask`, `RECALL_SWITCH`); a slot he was told of (`tell`) counts as called, so its sighting
+    makes no second call. `calledMask` clears at cooldown / unaware and on `forget`.
+  - A5: in cover with his target out of sight (stealth), "cover still protects" and "too close" read his known point
+    (`knownPt`), not the player's real feet, so he no longer pops up into an upright strafe and re-picks.
+  - A6: the open-wait pick clears `advancing` too (no cover / chase churn; overwatch can suppress).
+  - A7, A8: the suppress line check restarts with each episode (`suppressCheckT` 0 after a lapse or an aim moved more
+    than 0.5 m) and casts `G.STATIC | G.PROP`, so no rounds go into a wall or a crate on an old or prop-blind verdict.
+  - A9: a new target resets the aim settle (`losT` 0). A10: a dog in combat also picks a smelled player
+    (`P_LOS | P_SMELL`), so the fight does not cool with the partner in smell range.
+  - A11: search points and `hearSearch` snap to the right storey (the hunt's or the guard's own `y`), with the cell
+    centre inlined (no array per point). A12: a heard spot's look does not use up a ring index or the LKP visit. A13:
+    a high-security post never asks `searchPoint`, and a plan point moved by a clamp is finished as not reached.
+  - A14: `pickCover` scores each candidate with module scratch (no object or array per candidate).
+  - B1 (A168): a circuit cut twice inside `BREAKER.repeatT`: once its tamper check is over, the same cut noticed again
+    is a fault (the reset walk), as consoles. A cut circuit with no incident, no walker and still off is unmarked in
+    `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery finds it again (a walker knocked out, the alarm, the
+    30 s give-up).
+  - B2: the one-mover rule counts only a role bound (`seekCover` with `Enemy.roleBound`: set by `boundTo`, cleared by
+    any other cover pick and any state change; a role switch mid-walk keeps it), so an open-wait pick no longer lifts the flank's hold, and a
+    point whose role cover is re-picked for the last ~2 m of his bound (the advance rule) still holds it. Undo
+    `POLISH_B.roleTrip` false: any `seekCover` counts.
+  - B3: hearing in a fight restarts the 1.5 s throttle only for his hunt's noise or one whose slot he takes; a searcher
+    switched by `tell` to another slot re-tells it (`retell`), so no stale `pendingHunt`.
+  - B4: the search plan keeps its searched points (fixed arrays, cleared on a moved centre or a full reset);
+    `buildPlan` skips candidates within `spacing` of a searched point or the centre, so a rebuild gives new points and
+    point 1 never re-looks the LKP.
+  - B5: cover is shared across the intruder groups of one roles tick (`rolesTickStart` / `rolesCommit`), so two
+    groups are never handed the same free cover.
+  - B6: a blinded guard does not hear at all (`hear` skips him), so a blinded calm guard no longer turns to or reports
+    a noise.
+  - B7 (A182): no `tell(alarmHunt)` after an alerted spawn; with no valid slot he binds on the next call or sighting.
+  - B8-B10: `consoleStep` checks the console's busy state once before the sight ray, `boardStep` looks up the console
+    key only in the light / breaker branches, and the per-step `EnemyManager` loops are index loops.
+  - C1 (A169): above (Every player is seen). C2: above (Locked doors on the grid). C3: `losClear`'s ray-only miss is
+    tested with distance 0.
+- Guard AI polish batch 2 (2026-10-25, `docs/guard-ai/POLISH2-PLAN.md`, A184-A194). Each line changes the text above
+  where they disagree. Host only, no protocol or save change; each has an undo const (BRIEF.md).
+  - A184: an investigating guard whose spot has no path (a locked shut door, no way round) walks to the reached nav
+    cell nearest it (`findPath` gained a `partial` argument and a `partialEnd` field in `navGrid.ts`: the expanded cell
+    with the lowest octile to the goal among cells within `LAYER_PICK` of the goal cell's height, so the end stays on
+    the goal's storey; none reached on it: the lowest octile plus the height gap in cells) and counts as arrived there; he faces the spot and `investigateLook` ends it,
+    not `ALERT.investigateMax`. Search, patrol and chase are unchanged (`NEAR_SIDE`).
+  - A185: one noise gives one "I heard something." bark however many searchers hear it: the first searcher in the
+    manager's list who may bark says it (`hearSearch(.., mayBark)` returns whether he barked; the manager's
+    `hearBarked`); all of them still walk to it (`POLISH2.oneHeardBark`).
+  - A186: a high-cover overwatch suppressing while a mate bounds holds his peek point (edge / side step) in the hide
+    phase too, so `suppressLkp` casts from there and the line starts past his wall. Low cover unchanged
+    (`OW_HIGH_PEEK`).
+  - A187: told of one intruder (`pendingHunt`) and seeing another at the alert step, he makes one contact call naming
+    the one he hunts (A166 at the alert), and `calledMask` marks the told slot and his hunt only (`ALERT_RECALL`).
+  - A188: in a combat plan search only the first searcher takes the last known position and looks 3 s there
+    (`SearchPlan.lkpBy`, `AiContext.searchLkp`); the others take plan points at once. The holder stays set after his
+    look, freed when he leaves the search, goes down, changes hunt or is off the combat plan search (a body / KO search,
+    his own stimulus: `planSweep` reads `inCombatSearch` / `ownSearch`), or the centre moves; a rebuild on the same
+    centre keeps it, so nobody looks twice. A mate told no asks again at each later spot pick until he has looked
+    there (`lkpWait`; that look keeps `searchK`), so a holder taken down before his look leaves it to a mate
+    (`POLISH2.lkpOnce`).
+  - A189: a flank bound may be up to `COVER_DETOUR.flankK` 2.5 x the straight line + 3 m; point bounds, `pickCover`
+    and open waits keep `k` 1.5.
+  - A190: a calm guard instantly detects any player in his instant range and focus (`instantDetect(P_SIGHT)`), and
+    the nearest one detected is his target over `pickTarget` and `CALM_KEEP` (`INSTANT_ANY`). Combat unchanged.
+  - A191: a responder whose investigation ends back to his device search says no "Clear." / "Standing down." bark
+    (the task's `standDown` radio call stays) (`RESUME_QUIET`).
+  - A192: an armour pick keeps its best `ARMOUR_FIRE.coverCasts` 6 candidates uncast while scoring, then casts the fire
+    line best first in the try loop (at most 6 casts, `COVER_TRIES` A*), instead of spending casts on any top-3
+    entrant. The 6 casts go to the 6 best by score: if all 6 are armoured and a worse candidate is clear, he picks
+    nothing (before, index-order casts could land on it) (`ARMOUR_CAST_LATE`).
+  - A193: DEFERRED, off (`HEAR_STOREY = false`, code kept): a heard spot snapping to the noise's storey pinned him at
+    his floor's edge (`goTo` has no spot height and paths on his own storey). It waits for the spot-height slice; a
+    heard spot stays on his own storey (A11).
+  - A194: in cover, `blockCover` / the too-close exit read the known spot only when he has a hunt position, a
+    sighting or a stimulus; else today's feet rule. Hardening, not reachable today (`KNOWN_NEEDS_SPOT`).
+  - T1: `tests/reconDroneSight.test.ts` covers the recon drone's sight verdict (a hit within 0.3 m of the aim point
+    sees; a miss sees; no ray outside the cone unless within 3 m).
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal
@@ -562,7 +703,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - `EnemyManager`: `ReconDrone`s (`ai/reconDrone.ts`: the `droneOp` guard's own drone; Damageable sphere, orbit, camera
   cone, `onDroneSpot`, `empAt`), officer buffs (2 Hz), the alarm runner weighted to officers, `joinSquad` +
   `radioCheckNow` (period `ARCHETYPE.radio`, stealth only), radio delays x reaction x officer.
-- Which archetypes stay is settled by the CT co-op research (G1, G49).
+- Which archetypes each mode uses: "Decided direction" above (G155, G297, G307).
 - (marlow-bays item 24) Every guard rig (`buildEnemyRig`: the host's guards and the co-op client's puppets) reads its
   tuned base table (`anim/animBaseGuard.ts`) plus the tuner's guard rows (`anim/tuneGuard.ts`; `rig.guardRows`), never
   Wren's; the brain reads only the posed rig (the head is the eye), as before. Untuned: bit-identical.
@@ -602,10 +743,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Brains (`ai/enemy.ts`) think at ~4 Hz (line of sight rays staggered) and act every fixed step: walk when they can see
   the target, run only to contact / between covers; suppressive fire at the last known position, blind fire in some hide
   phases; cover choice weighted by `coverQuality`. Chasing enemies entering a new room unseen pause 0.7 s at the threshold.
-- `EnemyManager` caps awake enemies (12, `MAX_ALIVE` in `src/ai/enemyManager.ts`) and ragdolls (`BUDGET.maxRagdolls`).
+- `EnemyManager` caps awake enemies (`MAX_ALIVE` 12 in `src/ai/enemyManager.ts`; Sector Ops and the campaign 32, the cap
+  per mode in "Decided direction" above) and ragdolls (`BUDGET.maxRagdolls`).
 
 ## Modes
-- Modes implement `GameMode` (`game/modes/`; `ModeId` = `sandbox | mission | clear | infiltration | course`); `GameState`
+- Modes implement `GameMode` (`game/modes/`; `ModeId` = `sandbox | mission | clear | infiltration | course | sector`); `GameState`
   owns world, player, combat, AI, pickups and interactables and calls mode hooks. `GameState.endSession` shows results;
   `GameState.rewardHook` lets progression add rewards. Modes and the campaign: `docs/systems/modes-and-progression.md`.
 - Hunter (`clear`, `game/modes/clearMode.ts`; parked behind `?legacy=1`, G7): each tagged room's squad spawns unalerted
@@ -613,16 +755,19 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   later, nearest rooms first, never within 7 m. The HUD shows only "Enemies left N" (`RoomClearTracker.hostilesLeft`).
   Going down shows "DOWN" (three tries). The last hostile down completes the operation (`operationComplete` event,
   banner, slow beat, letterbox; one "Operation complete" reward line).
-- `?autostart=<mapId>&mode=<sandbox|mission|clear|infiltration|course>` boots straight into a match (`mode=hunter` is an
+- `?autostart=<mapId>&mode=<sandbox|mission|clear|infiltration|course|sector>` boots straight into a match (`mode=hunter` is an
   alias of `clear`; dev and tests).
 - Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
   fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
-  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements spawn as
-  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage, aggressive at the section's entries (guard-ai S6). `SectorGuard` also carries optional `squad`, `zone`, `role`,
-  `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
-  joins no squads, so radio checks do not run there.
+  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements: `perStage` per stage at
+  the stage's response route, else the section's entries (guard-ai S6), as a response team: a riot-shield guard first,
+  the rest `SECTOR_REINFORCE_KIND` grunts (`responseTeam` in `ai/gear.ts`, called by `sectorMode.ts`; S13 "Response teams" above). Bible 5.7
+  keeps riot shields to later sections: job guard-rules (FOLDED-PLAN J15, Guard AI B16). The `SectorGuard` tags
+  (`squad`, `handler`, `zone`, `role`, `reason`, `pair`) are read by `placeSlot` ("Sector tags" and "Talking pairs"
+  above), so Sector Ops squads run radio checks.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
-  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201, `carriesTorch`).
+  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201; it still holds after the G295
+  redesign; `carriesTorch`).
 - Sector restart (G22): `SectionStartState` (`game/sectorReset.ts`) records the fixed lights (switched, shot, the base of
   a jammed lamp; not torches) and the unlocked doors when a section begins, and a section restart puts them back
   (`LightRegistry.resetTo`, `StealthSystems.syncSwitches` for the switch labels). Host / solo; Sector co-op does not

@@ -1,0 +1,26 @@
+{
+ "_doc": "Known-flaky suites (docs/systems/testing-tools.md, 'Flake budget and quarantine'). A quarantined suite always runs; until its expiry its failure prints KNOWN FLAKY and does not fail the run. Each entry needs an owner (who fixes the test), an expiry (ISO) and a reason. owners maps a suite (or part) to the session that fixes its flakes; the laptop queue quarantines over-budget suites itself for 48 h (C:/NightShift/scratch/laptop-queue/quarantine.json).",
+ "owners": {
+  "e2e-ctcourse": "Night Shift | Marlow Build",
+  "e2e-course": "Night Shift | Marlow Build",
+  "e2e-section-rating": "Night Shift | Marlow Build",
+  "e2e-sectorops": "Night Shift | Sector Ops Build",
+  "e2e-lightbake": "Night Shift | Sector Ops Build",
+  "e2e-stealth-ai": "Night Shift | Guard AI Build",
+  "e2e-guard-carry": "Night Shift | Guard AI Build",
+  "e2e-tactics": "Night Shift | Guard AI Build",
+  "e2e-pad": "Night Shift | Player Build",
+  "e2e-mouse": "Night Shift | Player Build",
+  "e2e-move": "Night Shift | Player Build",
+  "e2e-traverse": "Night Shift | Player Build",
+  "e2e-anchors": "Night Shift | Player Build",
+  "e2e-anim": "Night Shift | Player Build",
+  "e2e-takedown": "Night Shift | Player Build",
+  "e2e-weapons-carry": "Night Shift | Player Build",
+  "e2e-coop": "Night Shift | Player Build",
+  "e2e-netmove": "Night Shift | Player Build"
+ },
+ "quarantine": [
+  { "suite": "e2e-pad", "owner": "Night Shift | Player Build", "expiry": "2026-11-07T00:00:00Z", "reason": "parked, not fixed: failed full run 2 in its remap section (docs/backlog.md 'Flaky e2e suites'); was KNOWN_FLAKY in run-e2e.mjs" }
+ ]
+}

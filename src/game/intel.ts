@@ -7,7 +7,7 @@ import { PATROL, type PatrolRoute } from '../ai/patrol';
 import { hyp2 } from '../core/mathx';
 import type { JointIntel } from './jointInterrogation';
 
-export const INTEL = { reach: 30, camDyMin: -1, camDyMax: 4.5, guardDy: 2, lineMax: 60, labelMax: 40, donePh: 0.8 } as const;
+export const INTEL = { reach: 30, camDyMin: -1, camDyMax: 4.5, guardDy: 2, lineMax: 60, labelMax: 40 } as const;
 
 export interface IntelCode {
   readonly flag: string;
@@ -99,9 +99,14 @@ export function patrolPeriod(r: PatrolRoute, speed: number): number {
   return t;
 }
 
-/** A client's interrogation ended: progress had passed `donePh` and the interrogate bit is gone. */
+/** A client's interrogation ended: a read was seen (`prevPh` >= 0) and the interrogate bit is gone while the hold goes on.
+ *  (joint-flake-3) Any progress counts, not only the last 0.3 s: inside the hold a read always runs to its end
+ *  (`TakedownController.holdTalk`), and a host whose frames were over 0.3 s apart (a hitch, load) missed that tail and
+ *  lost the read (no intel, no joint read). The host forgets `prevPh` when a hold ends: normally the td message
+ *  ends it first (`CoopHost.onTakedown` 'done' / 'abort', and a td 'start' resets it), else the seized step on a step
+ *  without the grab, the release or a kill. */
 export function interrogationEnded(prevPh: number, sub: number): boolean {
-  return prevPh >= INTEL.donePh && (sub & 2) === 0;
+  return prevPh >= 0 && (sub & 2) === 0;
 }
 
 function span(label: string, vals: readonly number[]): string {
