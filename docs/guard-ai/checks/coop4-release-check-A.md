@@ -1,36 +1,57 @@
-# coop4 release check A (#317)
+# coop4 release check A
 Owner: Guard AI Build. Status: history.
 
-Fresh Opus checker A (src/net wire and session) on PR #317 head 0837f147 (kept off the coop4 branch so the laptop
-statuses on that head stay valid). tsc clean; 11 net files 268 / 268.
+VERDICT: PASS
 
-VERDICT: PASS. Fix list: none.
+PR #317 (feature/coop4), head checked: 3100d035856a6b110a595148783b34fbe9fd07ed (merge base with origin/master
+d91d0e00d9ff5c22995c982e0758748c740ee3e2). Fresh Opus 5.5 checker A: correctness, `src/net` / `src/ai` safety, hot
+paths, CLAUDE.md hard rules, test adequacy. Ships live, no flag (Q16). The earlier check A on 0837f147 (this file at
+commit c9dc64a80) keeps its train merge notes for the protocol.ts / coopHost.ts conflict; they still hold (3100d035 adds
+docs and run-e2e only on top of 0837f147).
 
-Verified: Q16 live (`capacity('sector')` 4, no flag; course 2); join gating via `cap` (host only, a client cannot widen
-the room); slots (host 0, lowest free, held on drop, compact at start); token rejoin; wire parse bounds (`wireSlot`,
-lists cut at MAX_PLAYERS, `secWire` j / ch / cd, `ot` 1..15, `bye.mode`); Marlow Yard unchanged; no static `src/net`
-import from single player; hot paths; PROTOCOL_VERSION untouched; D4 `roomCap` hook (nothing sets it yet: Campaign J7).
+## Checks run
+- `npm run typecheck:fast`: clean.
+- `npx vitest run --maxWorkers=2` on 62 files: every test importing `src/net/*` (50) plus the touched tests
+  (beaconSlots, campusS1-S5, ctDevicesSlots, sectionRating, sectorGuardTags, sectorTeamScale, spawnSlots,
+  teamMovesTaken): **62 files, 1052 / 1052 pass**.
+- Diff read: all src/ hunks (net, game, player, ui, world maps), the test list, run-e2e.mjs; docs skimmed. No e2e
+  (laptop already green on this head: coop4-full2 43/43 and the 4-player alone run).
 
-## Train merge notes (for the orchestrator's by-hand merge)
-1. `protocol.ts:22-28`: master's `PROTOCOL_VERSION = 62` + the branch's `MAX_PLAYERS` comment; the train bumps to 63.
-2. `protocol.ts`: keep both sides (branch snap* / wireNum / PlayerInfo.slot / bye.mode / secWire lists / ot; master
-   EnemyState.in / markIntel / the `in` parse). No overlap: `snapEnemyState` leaves `in` alone.
-3. `coopHost.ts` imports: union (`markIntel` + `snapEnemyState, snapItem, snapPlayerState`); `setPlayerGlow` stays gone.
-4. `coopHost.ts` snapshot hunk, a real clash: `const w = markIntel(es, hasInfo(e)); enemies.push(this.round ?
-   snapEnemyState(w) : w);` and keep `players.map(this.round ? snapPlayerState : wirePlayerState)`.
-5. Snapshot budget: master's `"in":1` adds 7 B per guard with intel; 4 x 32 steady goes ~5953 -> ~6177 B against
-   `STEADY_MAX` 6144 (`tests/snapBudget.test.ts:15`), hidden because the fixture has no `in`. On the resolved head add
-   `in: 1` to the fixture, then raise the steady budget slightly or trim (upload ~2.22 Mbit/s, under 2.25).
-6. Master's lamp-shot and `interPh` changes merge cleanly and work at 4 players.
-7. Campaign J7 / J22: set `session.roomCap = 2` when a mission is picked; the refused text and a client's lobby show
-   the mode cap until `cap` goes on the wire.
-8. Docs `coop.md` / `testing-tools.md` by hand: keep both; the history line names the train's version.
-9. Rerun after resolving: net, coopRejoin, rejoin, spawnSlots, snapBudget, ctDevicesSlots, sectorOut, joinWatch,
-   protocolConst, opticCoop, and master's intel / lamp-shot tests.
+## Findings
+- Hard rules: no `Math.hypot`, `localStorage`, direct `@babylonjs` import or URL added. No file outside `src/net`
+  imports `src/net` (`sectorOut.ts` is pure: sectors + playerSlots only; protocol.ts imports game/playerSlots, the
+  allowed direction). `src/ai` has no diff (Guard AI hooks are read structurally and optional: `intruderLeft`,
+  `setResponseShape`, `shapeResponse`; today's path when absent, never both scalings). `PROTOCOL_VERSION` not bumped by
+  hand. Strict TS clean. Marlow Yard: empty diff in `src/game/course`, `courseMode.ts`, `src/world/maps/ctcourse*`.
+- Wire safety: `wireSlot` clamps 0..3, lobby entries without a slot fall back to list order; `secWire` j / ch / cd
+  padded to 2 and cut at MAX_PLAYERS (course still 2 entries); `ot` kept only in 1..15; `bye.mode` via `oneOf`. The host
+  takes a client's jam slot from its own `r.ref.slot`, never from the wire; `onRemoteJam` drops slots outside 1..3.
+  `snapPlayerState` rounds a copy (`packMoveState` copies `c`), so the host's live MoveState is untouched; rounding is
+  Sector Ops only (`round`), course snapshots unchanged.
+- Slots / rejoin / OUT: SlotTable (host 0, lowest free, hold on drop, release on leave, compact at start); a held OUT
+  player is revived at the connector and its hold re-pointed (`rehold`), the round-check F1 is fixed; an OUT leaver
+  leaves `outs` and the mask; the last one up dropping with the rest OUT restarts. 1-2 players: `outWaits` false, the
+  old restart path.
+- Hot paths: `playerRefsInto` insertion sort over <= 4 refs, no allocation; follow views use `Map.forEach` with a
+  module function and a reused context; ctDevices per-slot arrays allocated once; SyncedDetector fixed array;
+  `wire()` / `returnOut` / `bySlot` allocate only on sends, connector cycles or lobby changes.
+- Tests: adequate. sectorOut (rules, mask, follow pick, held return), sectorTeamScale (syringes, reinforcements, cap,
+  AI5 fallback vs hook), ctDevicesSlots (course wire byte-identical, 4 slots), sectionRating (any-pair sync),
+  teamMovesTaken, coopRejoin, snapBudget (4 players x 32 guards), net (slots, refusal, `roomCap`).
 
-## Polish
-1. `coopHost.ts:244-245` duplicate comment. 2. `session.ts:428-435` `start` before the compacted `lobby`. 3.
-`coopUi.ts:87` refused text uses the mode cap. 4. `coopUi.ts:504` "invite your teammates" in a 2-seat lobby. 5.
-`session.ts:182` R2 rule: a tokenless newcomer takes the one held slot; consider requiring the token when cap > 2. 6.
-`protocol.ts:885` lobby parse does not dedupe slots. 7. `bySlot()` maps a missing player to slot 0. 8.
-`coopClient.ts:1384` `for...of` in `blips()`.
+## Fix list
+None.
+
+## Polish (non-blocking)
+1. `src/game/gameState.ts:2129`: `localMoveState` now runs every fixed step in single player; while attached it hits
+   the old `gp.some((v) => ...)` closure (`localMoveState.ts:126`). Already fixed on feature/coop4-pol (lazy `mv`);
+   make sure that follow-up PR lands.
+2. `src/game/modes/sectorMode.ts:1434`: a remote that goes OUT while held (dropped while down, revive clock runs out)
+   is not in `playerRefsInto`, so its slot is recorded as -1 and its bit never reaches `ot`. `returnOut` still brings
+   it back, but if it rejoins before the connector its page shows no OUT line or follow view. Take the slot from the
+   host's remote (`RemotePlayer.ref.slot`) when the list lookup misses.
+3. `src/net/coopHost.ts:244-245`: duplicated "(coop4 A4)" comment.
+4. `src/ui/hud/minimap.ts:93`: ally dots now take the beacon colour in Marlow Yard too (partner red / host blue,
+   was cyan). Intended by A15 / H1, but it is the one visible course change; put it in front of Michael with H1.
+5. Still open from the 0837f147 check: tokenless newcomer takes the single held slot at cap (R2 rule, `session.ts:182`),
+   `start` sent before the compacted `lobby`, `roomCap` has no setter yet (Campaign J7).
