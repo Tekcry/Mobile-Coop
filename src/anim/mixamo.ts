@@ -84,8 +84,12 @@ export const MIXAMO_ON: Record<string, boolean> = {
   crouched_walking: false,
   // (mixamo-retarget I3) the stance changes, measured headless on Wren's rig against the hand-made stance blend
   // (tests/mixamoStance.test.ts (d), docs/mixamo-retarget/I3-REPORT.md; A8: Studio only unless at least as good)
-  stand_to_crouch: true,
-  crouch_to_stand: true,
+  // off: its 2.58 s played over the game's 0.22 s crouch (12x) jumps the joints' velocity 20.2 cm a frame (e2e-anim's
+  // stand <-> crouch limit 7.5, the hand-made blend 6.5) and takes the elbows 12.6 cm out (hand-made 7.2)
+  stand_to_crouch: false,
+  // off: its 2.17 s over the game's 0.22 s stand (10x) jumps the joints' velocity 11.3 cm a frame (hand-made 6.4) and
+  // turns a forearm 24.3 deg in a frame (hand-made 14.3)
+  crouch_to_stand: false,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
