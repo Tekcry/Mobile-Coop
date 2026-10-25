@@ -7,17 +7,31 @@ import { planRuns, walkedBy, sectionRouteCount, ROUTE_KINDS } from '../scripts/r
 // route-runs R1 (docs/route-runs/PLAN.md "R1 Route planner" on feature/route-runs-2): which runs the robot pair walks.
 const ROOT = path.resolve(__dirname, '..');
 const FIX = path.join(ROOT, 'tests/fixtures/route-run');
-const load = (name: string): any => JSON.parse(fs.readFileSync(path.join(FIX, name), 'utf8'));
-const metrics = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/design/metrics.json'), 'utf8'));
+const read = <T>(file: string): T => JSON.parse(fs.readFileSync(file, 'utf8')) as T;
+const load = <T = Graph>(name: string): T => read<T>(path.join(FIX, name));
+const metrics = read<{ rules: { split_speed_mps: number } }>(path.join(ROOT, 'docs/design/metrics.json'));
 
+// Graph files (docs/level-validator/graph-schema.md) and the points table, as far as these tests read them.
+interface GSpace { id: string; section: string; type: string; tags: string[]; area?: number[][]; [k: string]: unknown }
+interface GLink { from: string; to: string; kind: string; route: string; [k: string]: unknown }
+interface Graph { meta: { sections: string[]; taught_by?: string; [k: string]: unknown }; spaces: GSpace[]; links: GLink[] }
+interface Points { geom: string; spaces: unknown[]; links: { at: number[] | null; [k: string]: unknown }[] }
+interface PlanOpts { metrics?: unknown; speed?: number }
+
+interface WalkStep { type: 'walk'; to: number[] | null; space: string; link: number | null }
+interface ObjectiveStep { type: 'objective'; space: string }
+interface SplitStep { type: 'split'; id: string; fork: string; a: Step[]; b: Step[]; rejoin: string }
+type Step = WalkStep | LinkStep | ObjectiveStep | SplitStep;
 interface LinkStep { type: 'link'; index: number; kind: string; route: string; from: string; to: string; reverse: boolean;
   at: number[] | null; action: string; limit_s: number | null; hold_s: number; holdFrom: string }
 interface Run { id: string; section: string | null; kind: string | null; covers: [string, string][];
-  unplannable: string | null; cost: number | null; steps: any[]; parts?: { section: string; start: number; end: number }[] }
+  unplannable: string | null; cost: number | null; steps: Step[]; parts?: { section: string; start: number; end: number }[] }
 interface Plan { map: string; mode: string; sections: string[]; notes: string[]; pairs: [string, string][];
   kinds: Record<string, string[]>; runs: Run[]; candidates: { section: string; kind: string; covers: [string, string][] }[] }
 
-const plan = (graphs: any[], points: any, opts: any = { metrics }): Plan => planRuns(graphs, points, opts);
+const plan = (graphs: Graph[], points: Points | null, opts: PlanOpts = { metrics }): Plan => planRuns(graphs, points, opts);
+const objectives = (steps: Step[]) => steps.flatMap((s) => (s.type === 'objective' ? [s.space] : []));
+const linksOf = (steps: Step[]) => steps.filter((s): s is LinkStep => s.type === 'link');
 const key = (p: [string, string]) => `${p[0]}|${p[1]}`;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
@@ -31,9 +45,9 @@ function enteredPairs(run: Run, pairs: [string, string][]): Set<string> {
 
 /** The run's steps form one walk: every link leaves the space the robots are in (split legs from the fork, both ending
  *  at the rejoin), and the run ends in `end`. */
-function expectContinuous(steps: any[], start: string, end: string) {
+function expectContinuous(steps: Step[], start: string, end: string) {
   let at = start;
-  const walk = (list: any[], from: string): string => {
+  const walk = (list: Step[], from: string): string => {
     let here = from;
     for (const s of list) {
       if (s.type === 'link') {
@@ -90,7 +104,7 @@ function minimumCover(p: Plan): number {
 
 describe('route-run plan: campaign fixture (two sections, split, co-op gate)', () => {
   const graph = load('plan-campaign.graph.json');
-  const points = load('plan-campaign.points.json');
+  const points = load<Points>('plan-campaign.points.json');
   const p = plan([graph], points);
 
   it('declares the pairs and kinds of both sections', () => {
@@ -113,18 +127,18 @@ describe('route-run plan: campaign fixture (two sections, split, co-op gate)', (
       if (r.section === 'S1') expectContinuous(r.steps, 's1-street', 's1-dock');
       else expectContinuous(r.steps, 's2-lobby', 's2-exit');
       const objective = r.section === 'S1' ? 's1-office' : 's2-control';
-      expect(r.steps.filter((s) => s.type === 'objective').map((s) => s.space)).toEqual([objective]);
+      expect(objectives(r.steps)).toEqual([objective]);
     }
   });
 
   it('walks the split as one route: leader leg a, follower leg b, rejoined at the control room', () => {
     for (const r of p.runs.filter((x) => x.section === 'S2')) {
-      const splits = r.steps.filter((s) => s.type === 'split');
+      const splits = r.steps.filter((s): s is SplitStep => s.type === 'split');
       expect(splits).toHaveLength(1);
-      const sp = splits[0];
+      const sp = splits[0]!;
       expect(sp).toMatchObject({ id: 'x', fork: 's2-hall', rejoin: 's2-control' });
-      expect(sp.a.filter((s: any) => s.type === 'link').map((s: LinkStep) => s.to)).toEqual(['s2-east', 's2-control']);
-      expect(sp.b.filter((s: any) => s.type === 'link').map((s: LinkStep) => s.to)).toEqual(['s2-west', 's2-control']);
+      expect(linksOf(sp.a).map((s) => s.to)).toEqual(['s2-east', 's2-control']);
+      expect(linksOf(sp.b).map((s) => s.to)).toEqual(['s2-west', 's2-control']);
     }
   });
 
@@ -141,14 +155,14 @@ describe('route-run plan: campaign fixture (two sections, split, co-op gate)', (
 
   it('takes link points from the points table, by merged link index', () => {
     for (const r of p.runs) {
-      for (const s of walkedBy(r) as LinkStep[]) expect(s.at).toEqual(points.links[s.index].at);
+      for (const s of walkedBy(r) as LinkStep[]) expect(s.at).toEqual(points.links[s.index]!.at);
     }
   });
 
   it('plans the same runs from one file per section (validator file order)', () => {
-    const s1 = { meta: { ...graph.meta, sections: ['S1'] }, spaces: graph.spaces.filter((s: any) => s.section === 'S1'),
+    const s1 = { meta: { ...graph.meta, sections: ['S1'] }, spaces: graph.spaces.filter((s) => s.section === 'S1'),
       links: graph.links.slice(0, 9) };
-    const s2 = { meta: { ...graph.meta, sections: ['S2'] }, spaces: graph.spaces.filter((s: any) => s.section === 'S2'),
+    const s2 = { meta: { ...graph.meta, sections: ['S2'] }, spaces: graph.spaces.filter((s) => s.section === 'S2'),
       links: graph.links.slice(9) };
     expect(plan([s1, s2], points).runs).toEqual(p.runs);
   });
@@ -161,11 +175,11 @@ describe('route-run plan: campaign fixture (two sections, split, co-op gate)', (
 
 describe('route-run plan: unplannable runs (BRIEF A8)', () => {
   const graph = load('plan-campaign.graph.json');
-  const points = load('plan-campaign.points.json');
+  const points = load<Points>('plan-campaign.points.json');
 
   it('a removed area makes the run through that space unplannable, naming it', () => {
     const g = clone(graph);
-    delete g.spaces.find((s: any) => s.id === 's1-alley').area;
+    delete g.spaces.find((s) => s.id === 's1-alley')!.area;
     const p = plan([g], points);
     const shadow = p.runs.find((r) => r.id === 'S1-shadow')!;
     expect(shadow.unplannable).toMatch(/space s1-alley has no area/);
@@ -175,7 +189,7 @@ describe('route-run plan: unplannable runs (BRIEF A8)', () => {
 
   it('a link with no point makes its run unplannable, naming the link', () => {
     const pts = clone(points);
-    pts.links[4].at = null;
+    pts.links[4]!.at = null;
     const p = plan([graph], pts);
     expect(p.runs.find((r) => r.id === 'S1-loud')!.unplannable).toMatch(/link 4 \(s1-street -> s1-yard, roller_door\) has no point/);
     expect(p.runs.filter((r) => r.unplannable).map((r) => r.id)).toEqual(['S1-loud']);
@@ -184,15 +198,15 @@ describe('route-run plan: unplannable runs (BRIEF A8)', () => {
 
 describe('route-run plan: training fixture (three sections, taught_by on the second)', () => {
   const graph = load('plan-training.graph.json');
-  const points = load('plan-training.points.json');
+  const points = load<Points>('plan-training.points.json');
   const p = plan([graph], points);
-  const a3 = new Set(graph.spaces.filter((s: any) => s.section === 'A3').map((s: any) => s.id));
+  const a3 = new Set(graph.spaces.filter((s) => s.section === 'A3').map((s) => s.id));
 
   it('gives the start-to-exfil run, cut per section', () => {
     const full = p.runs.find((r) => r.id === 'full')!;
     expect(full).toMatchObject({ section: null, kind: null, unplannable: null });
     expectContinuous(full.steps, 'a1-gate', 'a3-hold');
-    expect(full.steps.filter((s) => s.type === 'objective').map((s) => s.space)).toEqual(['a2-pit']);
+    expect(objectives(full.steps)).toEqual(['a2-pit']);
     expect(full.parts!.map((x) => x.section)).toEqual(['A1', 'A2', 'A3']);
     expect(full.parts![0]!.start).toBe(0);
     expect(full.parts![2]!.end).toBe(full.steps.length);
@@ -249,21 +263,20 @@ describe('route-run plan: training fixture (three sections, taught_by on the sec
 
 describe('route-run plan: campus S1 (copy of the V6 graph)', () => {
   const graph = load('campusOps-S1.graph.json');
-  const points = load('campusOps-S1.points.json');
+  const points = load<Points>('campusOps-S1.points.json');
   const p = plan([graph], points);
 
-  it('covers every pair and kind with at most one run per kind more than the minimum', () => {
+  it('covers every pair and kind with the minimum number of runs', () => {
     expect(p.pairs).toHaveLength(9);
     expectFullCoverage(p, ['S1']);
     for (const r of p.runs) {
       expect(r.unplannable).toBeNull();
       expectContinuous(r.steps, 's1-verge', 's1-forecourt');
-      expect(r.steps.filter((s) => s.type === 'objective').map((s) => s.space)).toEqual(['s1-gatehouse']);
+      expect(objectives(r.steps)).toEqual(['s1-gatehouse']);
     }
     const min = minimumCover(p);
     expect(min).toBeLessThan(Infinity);
-    expect(p.runs.length).toBeLessThanOrEqual(min + p.kinds.S1!.length);
-    for (const k of ROUTE_KINDS) expect(p.runs.filter((r) => r.kind === k).length).toBeLessThanOrEqual(min + 1);
+    expect(p.runs.length).toBe(min);
   });
 
   it('never walks a boost backwards and never walks the secret door on its own', () => {
@@ -281,7 +294,7 @@ describe('route-run plan: identical step lists merge', () => {
   it('two pairs walked by the same path become one candidate and one run', () => {
     const sp = (id: string, type: string, tags: string[] = []) => ({ id, section: 'S1', type, room_class: 'custom',
       function: id, storey: 0, size: [4, 4, 3], area: [[0, 0, 4, 4]], tension: 1, tags });
-    const g = {
+    const g: Graph = {
       meta: { map: 'merge', name: 'merge', mode: 'campaign', players: [2], sections: ['S1'] },
       spaces: [sp('in', 'exterior', ['start', 'entry']), sp('e1', 'encounter'), sp('e2', 'encounter'), sp('out', 'exterior', ['exit', 'exfil'])],
       links: [
