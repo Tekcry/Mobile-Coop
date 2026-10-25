@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
-  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
+  stackedTips, versionFromSubjects, withRecentSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
   checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
   failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
   // @ts-expect-error plain .mjs process script without types
@@ -790,5 +790,20 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
     expect(leftOutPlan({ pr: 288, branch: 'feature/bake', head, n: 64, why: 'conflict', bodies: [p.comment!] }).comment).toMatch(/left out of train 64/);
     expect(closeTrainBody({ n: 64, head, failing: ['e2e-lightbake'], drops: [{ pr: 288, branch: 'feature/bake', suite: 'e2e-lightbake' }] }))
       .toMatch(/^Auto-train: train 64 failed e2e-lightbake on abcdef12; closed without merging\.\n\nDropped .*#288 `feature\/bake` \(e2e-lightbake\)/);
+  });
+});
+
+describe('auto-train: a version commit past gh\'s 100-commit cap (train 112, 2026-10-26)', () => {
+  const vc = '4.106.0: version at merge, train 112 (G183)';
+  it('reads the head\'s newest subjects only when the version commit is missing', () => {
+    const capped = ['Merge origin/feature/a into train/112', 'train 112: doc fix'];
+    let called = 0;
+    const got = withRecentSubjects(capped, 112, () => { called++; return `${vc}\ntrain 112: doc fix`; });
+    expect(called).toBe(1);
+    expect(versionFromSubjects(got, 112)).toEqual({ version: '4.106.0', n: 112, index: 2 });
+    expect(versionFromSubjects(got, 112)!.index).toBeLessThan(got.length - 1); // a fix after it: --resume
+    const whole = [...capped.slice(0, 1), vc];
+    expect(withRecentSubjects(whole, 112, () => { throw new Error('not called'); })).toBe(whole);
+    expect(withRecentSubjects(capped, 112, () => null)).toBe(capped);
   });
 });

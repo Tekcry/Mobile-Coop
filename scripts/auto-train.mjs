@@ -131,6 +131,16 @@ export function versionFromSubjects(subjects, n) {
   return null;
 }
 
+/**
+ * `subjects` (gh's first 100 commits plus the head's subject) with the head's newest commit subjects appended, oldest
+ * first, when train n's version commit is not among them; `recent()` returns those subjects one per line (or null).
+ */
+export function withRecentSubjects(subjects, n, recent) {
+  if (versionFromSubjects(subjects, n)) return subjects;
+  const more = String(recent() ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+  return more.length ? [...subjects, ...more] : subjects;
+}
+
 /** A train PR title "<version>: Train <n>: <title>" -> { version, n, title } or null. */
 export function parseTrainTitle(t) {
   const m = /^(\d+\.\d+\.\d+): Train (\d+): (.+)$/.exec(String(t ?? '').trim());
@@ -942,6 +952,11 @@ function openTrain() {
   // read the head's own subject too.
   const headSubject = api(`repos/{owner}/{repo}/commits/${p.headRefOid}`, '.commit.message | split("\\n")[0]');
   if (headSubject) subjects.push(headSubject.trim());
+  // A fix commit on top of a big train pushes its version commit past that cap as well (train 112, 2026-10-26: "no
+  // version commit: rebuild" after a doc-lint fix): read the head's newest commits only when it is still missing.
+  const all = withRecentSubjects(subjects, n, () => api(`repos/{owner}/{repo}/commits?sha=${p.headRefOid}&per_page=30`,
+    '[.[].commit.message | split("\\n")[0]] | reverse | .[]'));
+  subjects.splice(0, subjects.length, ...all);
   const vc = versionFromSubjects(subjects, n);
   const fromTitle = parseTrainTitle(p.title);
   let version = vc?.version ?? null;
