@@ -28,19 +28,21 @@ the cap (G355).
 | 4 | Guard AI: `src/ai` on every map (G335, G338 / G341 / G350, G348, G352) | Guard AI | as 1 | 0a |
 | 5 | Test Runner: suites and queue vs RULES; flake budget | Test Runner | as 1 | 0a |
 | 6 | Fold the six gap lists into one plan; one sign-off for Michael (Michael 13:53-13:56, order confirmed: 1 finish the six reviews + land #400 / #412, 2 this fold and his sign-off, 3 then the doc fixes the reviews found; push hard, skip no steps. Leads finish their reviews and HOLD; draft on feature/fold-plan; at sign-off message every lead to resume) | Orchestrator | SIGNED OFF 2026-10-25 ~17:00 (39 answers in Decided); J2 fold running | 1-5 |
-| **Phase 2** | **Signed-off builds, dark behind flags** (only after Michael signs off row 6) | | | |
-| 7 | Rule fixes (allowed at cap): remove compass / blip (hud.ts:34-35, :264; gameState.ts:3634), minimap (hud/minimap.ts), briefing and field-menu maps; objective popup, View / O, ~5 s, what and where (G336, G339, G343, G351) | Campaign | affected-e2e + checker | 6 |
-| 8 | Tallow Wharf GB5 / GB6 + 3 gate-reach ERRs (w2-reading-room 20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s); A10 void, A12 re-plan (G339, G334); campaign cap 32 (G359) | Campaign | 0 ERR; plan checker | 6 |
-| 9 | Campus greybox S1-S5 lanes (feature/campus-greybox c2f1f131); graphs `players: [1,2,3,4]`, per-count guards (G362), `unavoidable` tags | Sector Ops | Validator; V6 at exit | 6 |
-| 10 | light-realism lux bands, S1 car park first (G329; feature/light-realism bd8b843e) | Sector Ops | Lux grid to Michael | 6 |
-| 11 | Character shadows read by meter and guards (G352) | Sector Ops (meter), Guard AI (perception) | Opus plan; two checkers | 6, 10 |
-| 12 | Stars fill lower tiers (G331; src/save/sectorRecord.ts:14-16) | Sector Ops | affected-e2e | 6 |
-| 13 | route-runs (G330; feature/route-runs 9b8ee6ca) + V6 PR (feature/level-validator-v6 8f551e18) | Marlow | Plan checker | 6 |
-| 14 | Lookouts + paired patrols (G335), helmets by tier (G350), dogs (G348), #360 redone as shadow-in-view (G327, wip/guard-ai-t1-shadow; close #360 when that PR opens, never label it) | Guard AI | Plan checker; two checkers | 4, 6 |
-| 15 | Marlow Yard: downed (G349), drill retry (G361), strict rule late (G357), later sections (G363) | Marlow | Checker | 6 |
-| 16 | guard-ai #360 T1 anim tier + feature/guard-ai-t1-look-script (paused by Michael 13:30 until the row 6 sign-off: then tell Guard AI to resume); coop-real (#388), coop4 (#317: laptop-e2e/coop4-fix7 green on 24ba2e518, held draft; at the row 6 sign-off tell Guard AI to mark it ready + two Opus checkers), gm-flip (#375, after Michael's picks) | Player, Guard AI | As today | 6 |
+| **Phase 2** | **The signed-off plan (row 6, ~17:00): jobs J1-J26 in `docs/orchestrator/FOLDED-PLAN.md` section 4; Michael's 39 answers in "Decided" override it where they differ** | | | |
+| 7 | J1 doc-only fixes, one docs PR per owner (FOLDED-PLAN section 5) | every lead | CI check + checker | 6 |
+| 8 | J2 fold the answers into DECISIONS + bible + VISION (feature/fold-j2) | Orchestrator | docs checker | 6 |
+| 9 | J3 / J3b remove minimap, compass, blips, HQ radar; then the objective pop-up (View / O) | Campaign | affected-e2e + checker | 7 |
+| 10 | J4 Guard AI release: G327 shadow-in-view from #360; #317 coop4 ships LIVE (Q16, no flag) | Guard AI | two Opus checkers + laptop e2e | 7 |
+| 11 | J5 objective lines with a place (Marlow, campus) + no exit beacon; J6 hot-path hygiene (touch kept, Q33) | Sector Ops, Marlow, Player, Guard AI | affected-e2e + checker | 7 |
+| 12 | J7 mission-engine rule fixes (dark). Tallow map work (J8, J9, J23) HELD until Michael reviews the 12 level-rule changes (Q1), then its 4 sign-off pages (Q22) | Campaign | two Opus checkers | 7 |
+| 13 | J10 light-realism (AU standards, Q3; no dead-light dark spots anywhere, Q2) + J11 parity; J16 character shadows (faint guard cue, Q14) | Sector Ops (+ Marlow sets, Guard AI) | lux grid to Michael; two checkers | 7 |
+| 14 | J12 validator port + J13 route-runs (pass = never stuck, Q7) | Marlow | plan checker | 7 |
+| 15 | J14 Marlow Yard RE-PLAN (all retries, side routes closed, guards per lesson, own co-op checks: Q5, Q11, Q24, Q25, Q29) for Michael's one click | Marlow | Michael's one click | 14 |
+| 16 | J15 guard rules (dog kill = kill + score loss, Q9) + J17 campus greybox v2 + J18 Sector Ops batch (old warehouse FROZEN, Q26) + J19 player batch + J20 test batch | Guard AI, Sector Ops, Player, Test Runner | per FOLDED-PLAN | 7 |
+| 17 | J21 perf (60 fps at 32 guards, Q4) + NEW map fully built before play (Q31) + warm-up on the loading screen (Q32) | Sector Ops, Marlow, Player | laptop alone runs | 10 |
+| 18 | Own jobs J22-J26: campaign mode in the lobby (Marlow Yard = training prologue, Q6), co-op kit, prototype support; civilians after Mission 1 (Q8) | Campaign, Player, Guard AI | Opus plans | 12 |
 | 0c | Anim tuner clarity (Michael ~15:30: "Please update the anim tool with these changes, I can't tell if my changes are working between motion capture or keyed. Must be clear"; ahead of the row 6 sign-off by his instruction): every tab and row says whether it changes the motion-captured or the hand-made animation; a live "now playing" line; a warning when an edit does not change what is playing; Keys tab Legs part with per-key foot / ankle and shin twist | Player | BRIEF, Opus PLAN + plan checker, build, checker, e2e-studio | - |
-| 17 | Flake budget + affected-e2e per head; laptop-queue-5 follow-ups | Test Runner | Plan checker | 5 |
+| 19 | Flake budget + affected-e2e per head; laptop-queue-5 follow-ups | Test Runner | Plan checker | 5 |
 
 Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-train.mjs;
 `docs/orchestrator/overlap-trains-PLAN.md` "Slice 4 carry-overs"). Parked ideas (co-op modes and levels, dev tools menu
@@ -54,6 +56,8 @@ Michael's new ideas, verbatim, with the time; the orchestrator triages each cron
 ## Waiting on Michael
 | Item | Since | Blocks |
 | --- | --- | --- |
+| Review Campaign's 12 proposed level-rule changes (Q1 "Review all 12 first"), then the 4 Tallow sign-off pages (Q22) | 2026-10-25 ~17:00 | all Tallow map work (J8, J9, J23); Campaign Build is writing the plain list |
+| Marlow Yard re-plan one click (J14: all retries, side routes closed) | after Marlow drafts it | J14 build |
 | Walk AF0-AF6 (animation fix pass, 4.84.0) | 2026-10-23 ~20:45 | AF7-AF9 (briefs/afp-next-pass.md); switch-on of animation features |
 | Full co-op walk of Marlow Yard (two players, end to end) | 2026-10-22 | the goal's sign-off; Marlow polish list; W5 A2 re-walk |
 | Campus walk: v1 S1-S5 (started ~20:12 on 4.95.1); question: drop it and walk v2 at greybox exit, or finish v1 now | 2026-10-24 ~20:12 | Sector Ops switch-on |
