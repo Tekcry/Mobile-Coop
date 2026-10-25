@@ -39,9 +39,9 @@ export function contextName(kind, set, suites = [], trainRerun = false) {
   return `laptop-e2e/${kind === 'alone' ? 'alone-' : ''}${clean}`;
 }
 
-/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (desktop fail)", 140 chars. */
-export function rerunPassed(suites) {
-  const tail = ' (desktop fail)';
+/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (<why>)", 140 chars (why: desktop fail, or confirm rerun). */
+export function rerunPassed(suites, why = 'desktop fail') {
+  const tail = ` (${why})`;
   let list = (suites ?? []).join(',');
   const room = 140 - 'laptop rerun passed: '.length - tail.length;
   if (list.length > room) list = `${list.slice(0, room - 3)}...`;
@@ -67,14 +67,38 @@ export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIs
   return all.length === 1 ? all[0] : '';
 }
 
-/** The problem with a request object, or '' when it is fine. */
-export function requestProblem(r) {
+/** --suites text -> suite names, split on spaces and / or commas ("e2e-a,e2e-b" reached run-e2e as one name). */
+export const splitSuites = (text) => String(text ?? '').split(/[\s,]+/).filter(Boolean);
+
+/** scripts/e2e-<x>.mjs files that are modules, not suites (run-e2e NOT_SUITES plus the shared e2e libraries). */
+export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib'];
+
+/**
+ * The suite names run-e2e can run at a sha, from its `git ls-tree --name-only <sha> scripts/` paths: `smoke`,
+ * `anim-audit` and every scripts/e2e-<x>.mjs that is not a module (run-e2e runs a named suite as `scripts/<name>.mjs`,
+ * so this is its whole REQUIRED / LEGACY / AUDIO / GPU / REPORT table plus by-name suites like e2e-editor).
+ */
+export function knownSuites(paths) {
+  const names = (paths ?? []).map((p) => /^scripts\/((?:e2e-[a-z0-9-]+)|smoke|anim-audit)\.mjs$/.exec(String(p).trim())?.[1]).filter(Boolean);
+  return new Set(names.filter((n) => !NOT_SUITE_SCRIPTS.includes(n)));
+}
+
+/** The suite names not in `known` (a `name:N` part counts as its base name); [] when all are known. */
+export const unknownSuites = (suites, known) => (suites ?? []).filter((s) => !known.has(String(s).split(':')[0]));
+
+/**
+ * The problem with a request object, or '' when it is fine. `known` (request.mjs: knownSuites at the request's sha)
+ * refuses an unknown suite name at request time (before, a bad name reached run-e2e: MODULE_NOT_FOUND, a false failure).
+ */
+export function requestProblem(r, { known } = {}) {
   if (!r || typeof r !== 'object') return 'not an object';
   if (typeof r.id !== 'string' || !r.id) return 'no id';
   if (!/^[0-9a-f]{40}$/.test(String(r.sha))) return 'sha is not a full 40-hex sha';
   if (!['pr', 'full', 'alone'].includes(r.kind)) return `bad kind ${r.kind}`;
   const strings = (a) => Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x);
   if (r.kind === 'pr' && !strings(r.suites)) return 'pr request needs suites';
+  const bad = r.kind === 'pr' && known ? unknownSuites(r.suites, known) : [];
+  if (bad.length) return `unknown suite(s) ${bad.join(', ')} (run-e2e runs smoke, anim-audit and scripts/e2e-<name>.mjs at the sha; a part is name:N)`;
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
   if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
   if (r.laptopRerun && r.kind !== 'pr') return 'laptop rerun needs kind pr';
@@ -222,8 +246,18 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
  * newer #360 / #363 requests jump its #317 request for 70 min while that PR waited for train-ready. A laptop rerun
  * keeps its place by its id time. priority only orders one requester's own requests, never across requesters.
  * The auto affected-e2e requests queue one requester per branch (queueRequester), so PRs take turns with the leads.
+ * Spare work (SPARE_REQUESTER) is picked only when no other request is open: never aged, never at the front. The
+ * service also sets queue.realOpen (lib realWaiting on the full listing, before its alone hold filters) so a real
+ * request it holds back still keeps a spare from starting.
  */
 export function pick(queue, now, slots) {
+  const all = [...queue.requests].sort(sortById);
+  const real = all.filter((r) => r.requester !== SPARE_REQUESTER);
+  if (real.length || queue.realOpen || !all.length || queue.trains.length) return pickFrom({ ...queue, requests: real }, now, slots);
+  return pickFrom({ trains: [], requests: all, front: new Set() }, -Infinity, slots); // spare only: nothing ages
+}
+
+function pickFrom(queue, now, slots) {
   const idle = slots.filter((s) => !s.busy);
   const bothIdle = idle.length === slots.length;
   const reqs = [...queue.requests].sort(sortById);
@@ -257,7 +291,7 @@ export function pick(queue, now, slots) {
  */
 export function agedAlone(requests, now) {
   return [...(requests ?? [])].sort(sortById).find((r) => {
-    if (r.kind !== 'alone') return false;
+    if (r.kind !== 'alone' || r.requester === SPARE_REQUESTER) return false;
     const t = idTime(r.id);
     return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
   }) ?? null;
@@ -481,14 +515,19 @@ export function yieldTo(r, started, trains) {
  * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
  * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue. A pr run at
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
+ * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN } = {}) {
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false } = {}) {
   if (withdrawn) return 'withdrawn';
+  // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
+  // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
+  if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
+  if (r?.requester === SPARE_REQUESTER && realOpen) return 'real';
   const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
   if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
@@ -995,6 +1034,61 @@ export function supersedeStatuses(old, by, survivor = null) {
       : { sha: old.sha, state: 'error', context: AFFECTED_CTX, description: `superseded by a newer head (${by})` });
   }
   return out;
+}
+
+// ---------- spare work when the laptop is idle (laptop-queue-5) ----------
+
+/** The requester of a spare-work request (docs/laptop-queue/spare-jobs.json). */
+export const SPARE_REQUESTER = 'laptop-queue spare';
+
+/**
+ * Whether the idle laptop queues its next spare job (env LQ_SPARE_IDLE_MIN, 0 = off): `idleSince` = ms both slots went
+ * idle with an empty queue (null when not idle), `openSpare` = a spare request is open, claimed or running anywhere,
+ * `jobs` = spare-jobs.json's `jobs` ({ set, ... }), `history` = state.spare { last: index, ran: { [sha]: [set] } }.
+ * Round-robin from the job after `last`, skipping a set already queued on `sha`. -> { job, index } or { why }.
+ */
+export function spareNext({ now, idleSince, idleMin, openSpare, sha, jobs, history }) {
+  if (!(idleMin > 0)) return { why: 'off' };
+  if (idleSince == null) return { why: 'not idle' };
+  if (now - idleSince < idleMin * 60_000) return { why: `idle ${Math.floor((now - idleSince) / 60_000)}/${idleMin} min` };
+  if (openSpare) return { why: 'a spare request is open' };
+  if (!/^[0-9a-f]{40}$/.test(String(sha))) return { why: 'no origin/master sha' };
+  const list = (jobs ?? []).filter((j) => j && typeof j.set === 'string' && j.set);
+  if (!list.length) return { why: 'no spare jobs' };
+  const ran = new Set(history?.ran?.[sha] ?? []);
+  const last = Number.isInteger(history?.last) ? history.last : -1;
+  for (let k = 1; k <= list.length; k++) {
+    const index = (last + k) % list.length;
+    if (!ran.has(list[index].set)) return { job: list[index], index };
+  }
+  return { why: `every spare job already ran on ${String(sha).slice(0, 8)}` };
+}
+
+/**
+ * The request for spare job `job` on `sha` (kind pr / full / alone as the job says; requester SPARE_REQUESTER, no
+ * branch or PR). `<sha8>` and `<n>` in its steps become the sha's first 8 hex and the spare count `n`.
+ */
+export function spareRequest({ now, job, sha, n, suffix }) {
+  const fill = (s) => String(s).replaceAll('<sha8>', String(sha).slice(0, 8)).replaceAll('<n>', String(n));
+  const r = { id: `${requestId(now, SPARE_REQUESTER, sha)}-${suffix}`, sha, branch: '', pr: null, kind: job.kind ?? 'pr', requester: SPARE_REQUESTER, set: job.set, note: `spare work ${n}: ${job.set}` };
+  if (r.kind === 'pr') r.suites = [...(job.suites ?? [])];
+  if (r.kind === 'alone') { r.steps = (job.steps ?? []).map(fill); r.env = { ...(job.env ?? {}) }; }
+  if (job.jobs) r.jobs = job.jobs;
+  return r;
+}
+
+/**
+ * Whether a real (non-spare) request waits: one in `listed` (the open requests of the branch listing, before any hold
+ * filter) that this worker has not claimed (`claimedIds`, a Set). While one does, no spare job starts (pick
+ * queue.realOpen) and a running one stops (cutShort realOpen): spare work never blocks real work.
+ */
+export function realWaiting(listed, claimedIds = new Set()) {
+  return (listed ?? []).some((r) => r && r.requester !== SPARE_REQUESTER && !claimedIds.has(r.id));
+}
+
+/** state.spare after queueing job `index` on `sha`: only that sha's sets are kept (an older sha never blocks again). */
+export function spareRecord(history, sha, index, set) {
+  return { last: index, n: (history?.n ?? 0) + 1, ran: { [sha]: [...new Set([...(history?.ran?.[sha] ?? []), set])] } };
 }
 
 /**

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
+
+const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -313,6 +315,19 @@ describe('contextName and ids', () => {
     expect(requestProblem({ ...ok, sha: 'abc' })).toMatch(/sha/);
     expect(requestProblem({ ...ok, suites: [] })).toMatch(/suites/);
     expect(requestProblem({ ...ok, kind: 'alone' })).toMatch(/steps/);
+  });
+  it('splits --suites on spaces and commas and refuses unknown names at request time', () => {
+    expect(splitSuites('e2e-coop,e2e-ctcourse:4  smoke, ')).toEqual(['e2e-coop', 'e2e-ctcourse:4', 'smoke']);
+    expect(splitSuites(undefined)).toEqual([]);
+    const known = knownSuites(['scripts/e2e-coop.mjs', 'scripts/e2e-ctcourse.mjs', 'scripts/smoke.mjs', 'scripts/anim-audit.mjs', 'scripts/e2e-lib.mjs',
+      'scripts/e2e-net-lib.mjs', 'scripts/e2e-affected.mjs', 'scripts/perf.mjs', 'scripts/e2e-times.json', 'scripts/laptop-queue']);
+    expect([...known].sort()).toEqual(['anim-audit', 'e2e-coop', 'e2e-ctcourse', 'smoke']);
+    expect(unknownSuites(['e2e-ctcourse:4', 'e2e-coop,e2e-ctcourse', 'e2e-lib'], known)).toEqual(['e2e-coop,e2e-ctcourse', 'e2e-lib']);
+    const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop', 'e2e-ctcourse:4'] };
+    expect(requestProblem(ok, { known })).toBe('');
+    expect(requestProblem({ ...ok, suites: ['e2e-coop', 'e2e-nope'] }, { known })).toMatch(/unknown suite\(s\) e2e-nope/);
+    expect(requestProblem({ ...ok, suites: ['e2e-nope'] })).toBe(''); // no known set (the service's parse): unchecked
+    expect(requestProblem({ id: 'x', sha: 'a'.repeat(40), kind: 'full' }, { known })).toBe('');
   });
 });
 
@@ -995,6 +1010,7 @@ describe('train reruns', () => {
     expect(contextName('pr', undefined, ['e2e-coop'], true)).toBe('laptop-e2e/rerun-coop');
     expect(contextName('pr', '', ['e2e-' + 'x'.repeat(60)], true).length).toBe('laptop-e2e/'.length + 40);
     expect(rerunPassed(['e2e-coop', 'e2e-netmove'])).toBe('laptop rerun passed: e2e-coop,e2e-netmove (desktop fail)');
+    expect(rerunPassed(['e2e-coop'], 'confirm rerun')).toBe('laptop rerun passed: e2e-coop (confirm rerun)');
     const long = rerunPassed(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`));
     expect(long.length).toBe(140);
     expect(long.endsWith('... (desktop fail)')).toBe(true);
@@ -1138,6 +1154,108 @@ describe('supersedeStatuses', () => {
     expect(supersedeStatuses(aff, 'N')).toEqual([{ sha: orig.sha, state: 'error', context: AFFECTED_CTX, description: 'superseded by a newer head (N)' }]);
     const rr = laptopRerunRequest(aff, ['e2e-coop'], { now: Date.UTC(2026, 9, 24, 12, 30), suffix: 'beef' });
     expect(supersedeStatuses(rr, 'N').map((x: { context: string }) => x.context)).toEqual(['laptop-e2e/affected', AFFECTED_CTX]);
+  });
+});
+
+describe('spare work when the laptop is idle', () => {
+  const sha = 'b'.repeat(40);
+  const jobs = [{ set: 'spare-full', kind: 'full' }, { set: 'spare-soak', kind: 'alone', steps: ['x --out=C:/s/spare-<sha8>-<n>'] }, { set: 'spare-pr', kind: 'pr', suites: ['e2e-coop'] }];
+  const base = { now: NOW, idleSince: NOW - 6 * 60_000, idleMin: 5, openSpare: false, sha, jobs, history: undefined };
+  it('waits for idle minutes, an open spare request, a master sha; off at 0', () => {
+    expect(spareNext({ ...base, idleMin: 0 })).toEqual({ why: 'off' });
+    expect(spareNext({ ...base, idleSince: null })).toEqual({ why: 'not idle' });
+    expect(spareNext({ ...base, idleSince: NOW - 4 * 60_000 }).why).toBe('idle 4/5 min');
+    expect(spareNext({ ...base, openSpare: true }).why).toMatch(/open/);
+    expect(spareNext({ ...base, sha: '' }).why).toMatch(/sha/);
+    expect(spareNext({ ...base, jobs: [] }).why).toMatch(/no spare jobs/);
+  });
+  it('goes round-robin and never repeats a set on the same sha', () => {
+    expect(spareNext(base)).toEqual({ job: jobs[0], index: 0 });
+    let h = spareRecord(undefined, sha, 0, 'spare-full');
+    expect(h).toEqual({ last: 0, n: 1, ran: { [sha]: ['spare-full'] } });
+    expect(spareNext({ ...base, history: h })).toMatchObject({ index: 1 });
+    h = spareRecord(spareRecord(h, sha, 1, 'spare-soak'), sha, 2, 'spare-pr');
+    expect(spareNext({ ...base, history: h }).why).toMatch(/every spare job already ran on bbbbbbbb/);
+    // a new master sha starts over after the last index, the old sha's record dropped
+    const next = spareNext({ ...base, sha: 'c'.repeat(40), history: h });
+    expect(next).toMatchObject({ index: 0 });
+    expect(spareRecord(h, 'c'.repeat(40), 0, 'spare-full').ran).toEqual({ ['c'.repeat(40)]: ['spare-full'] });
+    // a set queued out of order is skipped
+    expect(spareNext({ ...base, history: { last: 2, ran: { [sha]: ['spare-full'] } } })).toMatchObject({ index: 1 });
+  });
+  it('builds an ordinary valid request per kind', () => {
+    const full = spareRequest({ now: NOW, job: jobs[0], sha, n: 3, suffix: 'abcd' });
+    expect(full).toMatchObject({ kind: 'full', requester: SPARE_REQUESTER, set: 'spare-full', branch: '', pr: null });
+    expect(full.id).toMatch(/-laptop-queue-spare-bbbbbbbb-abcd$/);
+    const alone = spareRequest({ now: NOW, job: jobs[1], sha, n: 3, suffix: 'abcd' });
+    expect(alone.steps).toEqual(['x --out=C:/s/spare-bbbbbbbb-3']);
+    const pr = spareRequest({ now: NOW, job: jobs[2], sha, n: 3, suffix: 'abcd' });
+    for (const r of [full, alone, pr]) expect(requestProblem(r)).toBe('');
+  });
+  it('docs/laptop-queue/spare-jobs.json gives valid requests with known suites', async () => {
+    const fs = await import('node:fs');
+    const list = JSON.parse(fs.readFileSync('docs/laptop-queue/spare-jobs.json', 'utf8')).jobs as { set: string }[];
+    const known = knownSuites(fs.readdirSync('scripts').map((f: string) => `scripts/${f}`));
+    expect(new Set(list.map((j) => j.set)).size).toBe(list.length);
+    for (const job of list) expect(requestProblem(spareRequest({ now: NOW, job, sha, n: 1, suffix: 'abcd' }), { known })).toBe('');
+  });
+});
+
+describe('spare work never holds a train or jumps a real request', () => {
+  const t = { sha: 'c'.repeat(40), n: '70' };
+  it('cutShort: a pending train stops a spare run whatever its kind, age or progress', () => {
+    for (const kind of ['pr', 'full', 'alone']) {
+      const r = { kind, requester: SPARE_REQUESTER };
+      expect(cutShort(r, { trains: [t], started: true, progress: 0.99, startedAt: NOW - 60 * 60_000, now: NOW })).toBe('train');
+      expect(cutShort(r, { trains: [t], started: false, others: [{ kind: 'full' }] })).toBe('train');
+      expect(cutShort(r, { trains: [], started: true })).toBe('');
+    }
+    expect(cutShort({ kind: 'full', requester: 'lead' }, { trains: [t], started: true })).toBe('');
+  });
+  it('pick: a spare request runs only when no other request is open; never aged, never at the front', () => {
+    const spare = spareReq(40, 'alone'); // held 40 min: over ALONE_AGE_MIN
+    const pr = req(1, 'pr', 'lead');
+    expect(agedAlone([spare], NOW)).toBeNull();
+    expect(pick({ trains: [], requests: [spare, pr] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: pr, slot: '4189' });
+    expect(pick({ trains: [], requests: [spare, pr], front: new Set([spare.id]) }, NOW, slots(false, false))).toMatchObject({ request: pr });
+    // a real alone request waiting for both slots is not jumped by a spare pr on the free slot
+    const lead = req(5, 'alone', 'lead');
+    expect(pick({ trains: [], requests: [spareReq(40, 'pr'), lead] }, NOW, slots(true, false))).toBeNull();
+    expect(pick({ trains: [], requests: [spare] }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: spare });
+    expect(pick({ trains: [], requests: [spare] }, NOW, slots(true, false))).toBeNull();
+    expect(pick({ trains: [t], requests: [spare] }, NOW, slots(false, false))).toEqual({ kind: 'train', train: t });
+    const sp = spareReq(40, 'full');
+    expect(pick({ trains: [], requests: [sp] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: sp, slot: '4192' });
+  });
+  it('realWaiting: an unclaimed non-spare request on the listing (held or not) counts; spare and claimed ones do not', () => {
+    const spare = spareReq(10, 'full');
+    const lead = req(5, 'alone', 'lead');
+    expect(realWaiting([spare])).toBe(false);
+    expect(realWaiting([spare, lead])).toBe(true);
+    expect(realWaiting([spare, lead], new Set([lead.id]))).toBe(false); // already running here
+    expect(realWaiting([])).toBe(false);
+    expect(realWaiting(undefined)).toBe(false);
+  });
+  it('cutShort: a waiting real request stops a spare run whatever its kind, age or progress; never a real run', () => {
+    for (const kind of ['pr', 'full', 'alone']) {
+      const r = { kind, requester: SPARE_REQUESTER };
+      expect(cutShort(r, { realOpen: true, started: true, progress: 0.99, startedAt: NOW - 60 * 60_000, now: NOW })).toBe('real');
+      expect(cutShort(r, { realOpen: true, started: false })).toBe('real');
+      expect(cutShort(r, { realOpen: false, started: true })).toBe('');
+      expect(cutShort(r, { realOpen: true, trains: [t], started: true })).toBe('train');
+      expect(cutShort(r, { realOpen: true, withdrawn: true })).toBe('withdrawn');
+    }
+    expect(cutShort({ kind: 'full', requester: 'lead' }, { realOpen: true, started: true })).toBe('');
+  });
+  it('pick: no spare starts while a real request is listed, even one the hold filters removed (queue.realOpen)', () => {
+    const sp = spareReq(40, 'alone');
+    const held = req(5, 'alone', 'lead'); // listed, then dropped by the aloneHold / aloneSoon filter
+    const listed = [sp, held];
+    const queue = { trains: [], requests: [sp], realOpen: realWaiting(listed) };
+    expect(pick(queue, NOW, slots(false, false))).toBeNull();
+    expect(pick({ ...queue, requests: [spareReq(40, 'full')] }, NOW, slots(true, false))).toBeNull();
+    // nothing real listed: the spare starts as before
+    expect(pick({ trains: [], requests: [sp], realOpen: realWaiting([sp]) }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: sp });
   });
 });
 
