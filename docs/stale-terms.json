@@ -65,6 +65,30 @@
       "allowLine": "\\bno (maps|markers|minimap)\\b|minimap, (the )?compass|without (a )?minimap|minimap (skips|is removed|goes)|removed|not built"
     },
     {
+      "id": "compass-feature",
+      "regex": "\\bcompass\\b",
+      "why": "no compass in any mode (G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno\\b|remov|not built|without|G33[69]|G355"
+    },
+    {
+      "id": "blip-feature",
+      "regex": "\\bblips?\\b",
+      "why": "no objective, pickup or partner blip in any mode (G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno\\b|remov|not built|without|G33[69]|G355",
+      "allow": [
+        "docs/systems/coop.md"
+      ]
+    },
+    {
+      "id": "map-screens",
+      "regex": "briefing map|field-menu map|HQ radar|radar upgrade",
+      "why": "no briefing map, field-menu map or radar in any mode (G336, G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno\\b|remov|not built|without|G33[69]|G355"
+    },
+    {
       "id": "fallow-training",
       "regex": "Fallow (is|stays|as) (the )?(co-op )?(training|tutorial)|Fallow course is the only training|training course,? Fallow",
       "why": "Marlow Yard is the training course; Fallow is parked (G184, G292)",
@@ -208,6 +232,12 @@
       "regex": "\\bCC0 only\\b|only if it is CC0|CC0 files only",
       "why": "samples and other assets: any licence that allows commercial sale (G407)",
       "replacement": "free assets whose licence allows commercial sale"
+    },
+    {
+      "id": "g157-review-pending",
+      "regex": "12 (proposed )?(level[- ]standard |level-rule )?changes[^.]{0,80}(go to Michael|wait for Michael|before the first real mission map)",
+      "why": "Michael adopted the 12 level-standard changes (G157, 2026-10-25 ~18:20); they are in docs/level-design.md",
+      "replacement": "the G157 rules in docs/level-design.md (Michael confirms them on his Tallow Wharf walk)"
     }
   ],
   "resumeScope": [

@@ -249,8 +249,8 @@ Back targets are one level up. Legend lists the order shown (Back first, then Se
 - Rows: Insertion (cycler) · Difficulty (Rookie / Normal / Realistic / Perfectionist / Custom) · when Custom: Base
   preset, Guard perception, Guard aim, Alarm tolerance (sliders 0.5-2.0 step 0.1, locomotion step 19) · Loadout
   (opens Loadout for this mission) · DEPLOY.
-- Briefing text (4-6 lines, bible 5.8 / story.md) in a second context block below the row context. The annotated
-  top-down map is Phase 4 (a placeholder line until then).
+- Briefing text (4-6 lines, bible 5.8 / story.md) in a second context block below the row context. No map: the
+  briefing is text only (G336, G339; the annotated top-down map was dropped).
 - Default focus: DEPLOY. Back: Missions (or main menu when opened from CONTINUE). Legend: Back, Select, Y Loadout.
 - Deploy shows the loading state (7.1). In co-op this screen is not used (the lobby carries the choices).
 
@@ -335,9 +335,10 @@ Default focus: Start (host) or Ready (client). Back: Leave dialog ("Leave the ro
 Select, Y Share code. Toasts: "<name> joined", "<name> left", "Invite link copied".
 
 ### 7.19 Field terminal (pause, `pauseScreen.ts`) - L over the blurred game (MD7)
-FIELD / TERMINAL. Items: Resume · Objectives · Radio log · Map · Settings · Restart from checkpoint · Report feedback ·
-Quit to main menu. Objectives, Radio log and Map show their content in the context panel (Phase 4 fills them; until
-then Objectives shows the current objective text and Radio log the session's lines; Map a "Phase 4" line). Context
+FIELD / TERMINAL. Items: Resume · Objectives · Radio log · Settings · Restart from checkpoint · Report feedback ·
+Quit to main menu. Objectives and Radio log show their content in the context panel (Phase 4 fills them; until then
+Objectives shows the current objective text and Radio log the session's lines). No Map item: no map in any mode (G336,
+G339); Objectives keeps the full list (G108, G343). Context
 under the list (the player stays visible on the right). Emote bar: legacy only.
 Default focus: Resume. Back and Start: Resume. Restart and Quit confirm (Cancel first).
 Co-op: same list without Restart; the context says "The mission keeps running."; the field terminal does not freeze

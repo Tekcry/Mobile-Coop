@@ -1,5 +1,48 @@
 # Changelog
 
+## 4.103.3 - Train 98: Level standard: Michael's 12 level-rule changes (G157); Player docs match the game; Guard AI docs match the code and Michael's answers (2026-10-25, PR #448; #443, #437, #435)
+
+### Guard AI docs match the code and Michael's answers
+- Guard AI docs (FOLDED-PLAN J1): `docs/systems/ai.md` now says what is built for glass, lookouts and pairs, the
+  guard cap per mode (campaign 32), the campus guard counts, the close-range distance, the modes, the one-alarm rule,
+  downed players and the Sector Ops guard tags; two stale code comments fixed; BRIEF A183 closed by G327.
+
+### Level standard: Michael's 12 level-rule changes (G157)
+- The level standard writes in the 12 level-rule changes Michael adopted (G157): a vantage for two, the finale seen
+  early, a designed exit, pacing targets in minutes, teamwork minimums, the two-minute test, readable machines and
+  windows, real stairs, exits, signs and security, and the two-player final tests. Marlow Yard is exempt from the
+  campaign's built-for-two checks.
+- The map spec template gains fill lines for them; fire alarms unlocking doors as a player tool stays a separate
+  decision (level-design open item 3).
+- Marlow Yard: every failure is a retry, a set has only the guards its move needs (maybe none, at most 3), and side
+  routes stay closed except a late section that trains against enemies. The scale sheet's relay lip row now says the
+  relay's 4.6 m limit is how high the hanging partner's feet sit, not a lip height.
+
+### Player docs match the game
+- Player docs now match the game as built: movement, controls, takedowns (the palm strike is built) and which moves use motion capture.
+- Finished animation job notes moved to the archive; reference-game names removed from the operator art notes.
+
+## 4.103.2 - Train 97: Marlow docs fixes (folded plan J1); Test Runner conformance: doc fixes (J1) (2026-10-25, PR #444; #436, #432)
+
+### Test Runner conformance: doc fixes (J1)
+- Docs (conformance review T16, T18, T19, T22; folded plan Q30): testing-tools lists the laptop's spare-work tier and
+  the request-time refusal of unknown suite names, says `E2E_HEADED` is never used on Michael's PCs, adds the
+  `e2e-menus` bullet and `scripts/e2e-times.json` to the no-suite list, and writes Michael's repeat-quarantine rule
+  (a second quarantine within 14 days makes the suite blocking with a fix job). TESTING.md keeps the desktop and
+  release checklists; the per-job lists move to `docs/archive/testing-job-sections.md`.
+
+### Marlow docs fixes (folded plan J1)
+- Marlow Yard spec follows Michael's 2026-10-25 answers: no strict rule (every failure a retry), failed drills retry
+  in place, one forced route per set (side routes close in the re-plan), only the guards each move needs.
+- Guard cap docs land on master (M0 and M1 measurements, run 4100); any cut below 32 guards goes to Michael first; the
+  60 fps target at 32 guards is recorded for the perf job.
+
+## 4.103.1 - Train 96: Campaign docs: no compass, blips or map screens (J1) (2026-10-25, PR #439; #434)
+- Docs: the doc check now flags the compass, blips, the briefing map, the field-menu map and the radar upgrade as
+  removed features (G336, G339), next to the minimap; three old prototype notes mark the minimap as history.
+- Docs: the menu spec drops the briefing map and the field terminal's Map item, and the co-op code inventory marks the
+  minimap ally blip and objective blips as replaced (G336, G339, G135).
+
 ## 4.103.0 - Train 95: Animation tuner clarity (2026-10-25, PR #431; #430)
 - The animation tuner now shows whether each setting changes the motion-captured animation, the hand-made one, or both.
 - It shows what is playing now, for example "Now playing: motion-capture walk", under the tabs and in the Anim Studio.

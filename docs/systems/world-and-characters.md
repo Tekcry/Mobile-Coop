@@ -327,13 +327,18 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion switch, a developer rollback only: players get mocap only (G399) (`anim/mocap.ts`;
-  `?mocap=0/1`, then the tuner's More > Panel box for that page;
-  ON otherwise: anim-fix-pass AF5 removed the Settings row and a stored `gameplay.mocapLoco: false` no longer sticks,
-  core/app.ts; the switch is per machine and drives the co-op partner's copy on this machine too): `LOCO.set` picks the clip set the standing holstered
-  speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;
-  the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
-  turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode
+- (mocap-trial) Mocap locomotion (`anim/mocap.ts`) is the player's only path: players get mocap only, with no
+  player-facing switch (G399; anim-fix-pass AF5 removed the Settings row; a stored `gameplay.mocapLoco: false` no
+  longer sticks, `core/app.ts` ~:136-140). The hand-keyed set is a developer rollback only: `?mocap=0/1`, then the
+  animation tuner's More > Panel box (a dev tool: this page only, not saved); it is per machine and drives the co-op
+  partner's copy on this machine too. `LOCO.set` picks the
+  clip set the standing holstered speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`,
+  `anim/clips/mocap/*` in the keyed format), plus its optional one-shot slots (`MocapSlots`: turn in place, turn on
+  the move L / R, start, stop). The set also holds three more captures: the crouched sneak band (`crouchWalk`, CMU
+  136_09, `crouchSet`), the sprint past the run (`sprint`, 127_07) and the aimed strafe (`strafeL` 69_59 / `strafeR`
+  69_56, `keyedDrawnSet`, side-step `mocapSideStep`; `mocap.ts` ~:176-195). The faster crouched bands, the drawn gait
+  (gun out) apart from its strafe, the idle and the wall sets stay hand-keyed.
+  A mocap clip with a `feet` channel drives the planner's clip feet mode
   (`FootPlanner.clipFoot`: the clip places the steps, the planner grounds and pins them; `MOCAP_FEET` gates it: holstered,
   under 1 rad/s of turn or what turns the body 0.35 rad over one stance, over 0.3 m/s; the gait clock keeps the clip's stance
   window through a hand-off, the rig caps foot pitch at 18 rad/s). The CMU clips: walk / jog / run from subject 16, the
@@ -342,9 +347,14 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   rigs (the Mixamo skeleton is never used in game), from FBX without skin that Michael downloads into
   `C:/NightShift/scratch/mixamo/clips/`; converted clips bundled, raw files not committed, credited in
   `docs/art-credits.md`.
-  `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): all 0 (the capture holds its own
-  arm swing, elbows, twist, lean, load and settle) but N1's `turnStep`. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
-  Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
+  `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): 0 for the arm swing, twist,
+  lean, pelvis follow, load, elbows, stop settle and N2's motion layers (the capture holds its own); 1 for
+  `motionArmCap` and `keyPelRate` (the two limiters stay, `mocap.ts` ~:95-96) and `turnStep` (N1's turn rules
+  stay). (afp-af2) The run carriage over the capture (`MOCAP_RUN_POSE`, `characterRig.ts` `mocapRunPose`, eased in
+  from 2 to 3 m/s, none walking): the capture's own means are followed, its bob scaled and the whole lifted, the chest
+  pitched to the CT run and sprint lean; its four `MOCAP_LAYERS` entries (`pelHeight`, `trunkMean`, `bankWipe`,
+  `armSmooth`) are 0 (1 undoes it). Nothing on the wire. With placeholder clips the plumbing is bit-identical on and
+  off (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and
