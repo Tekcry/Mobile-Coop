@@ -68,6 +68,11 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
 - DRAFT PR #490 to master (body: not for the train, rows + readings, tuning items, A1-A7, stub swap lines, size,
   bundle). Bundle: main chunk 3,950.55 -> 3,957.67 kB (+7.12; gzip +3.70). Laptop e2e requested on 517a07fa4 (set kitmix,
   plan 4 suites; id 20261025T184554-night-shift-marlow-b-517a07fa-26b6). Look video: pending a PC run.
-Next: the e2e verdict (laptop-e2e/kitmix on 517a07fa4; later heads are docs only), a checker on the PR, then step 8 when
-Player sends a head holding i3 + mixamo-on (+ AnimGraph.animSource): merge it, swap the two stub lines in that merge
-commit, rerun step 6. Open: crawl row (Player wanted it on; the A8 rule turned it off), the lift palms in the low bar.
+- 2026-10-26 ~09:30: laptop-e2e/kitmix on 517a07fa4: e2e-coop, e2e-netmove, e2e-studio, e2e-anim, e2e-traverse PASS,
+  anim-audit report only; wharf-tgc / wharf-tkl fail at setup on the mission-engine base, not the kit
+  (C:/NightShift/scratch/marlow/mixamo-kit-wharf-triage.md: scripts/e2e-sectorops-wharf.mjs:194 reads sectors before
+  startMode; fix on Campaign's feature/mission-engine-gb6fix2). Dropped from the gate until Campaign sends the engine sha
+  with a green wharf run. Fresh Opus checker PASS on f24afb25a (mixamo-kit-check.md; polish 1-2: test (f) asserts no
+  entry / exit / phase pops, the shutter holder's velocity pop 19.36 vs 6.63 cm; (h) depends on (f) running first).
+Next: step 8 when Player sends a head holding i3 + mixamo-on (+ AnimGraph.animSource): merge it, swap the two stub lines
+(kitMixamo.ts:110, Q39) in that merge commit, rerun step 6; then merge the gb6fix2 engine head, re-add both wharf suites. Open: crawl row (Player wanted it on; the A8 rule turned it off), the lift palms in the low bar.
