@@ -630,7 +630,7 @@ describe('(polish2 A185) one "I heard something." per noise', () => {
     POLISH2.oneHeardBark = true;
   });
   for (const on of [true, false]) {
-    it(`three searchers hear one step: all three walk to it, ${on ? 'one' : 'three (undo)'} investigate bark${on ? '' : 's'}`, () => {
+    it(`three searchers hear one step: all three walk to it, ${on ? 'one' : 'three (undo)'} heard bark${on ? '' : 's'}`, () => {
       POLISH2.oneHeardBark = on;
       const A = player('host', 30, 0);
       const { em, add } = manager([A]);

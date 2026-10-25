@@ -52,11 +52,13 @@ export type BarkEvent =
   | 'consoleCheck'
   // (guard-rules S4, A8) a rise by sound; the lookout's radioed sighting (S7)
   | 'heard'
-  | 'spotCall';
+  | 'spotCall'
+  // (guard-rules S4 fix) a rise by sight (the sight lines; `investigate` keeps the neutral ones)
+  | 'saw';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
-  investigate: ['Checking it out.', 'Going to look.', 'Thought I saw something.', 'Moving to check.'],
+  investigate: ['Checking it out.', 'Going to look.', 'Better take a look.', 'Moving to check.'],
   contact: ['Contact!', 'There he is!', 'Intruder!', 'Hostile spotted!'],
   lost: ['Lost him!', "Where'd he go?", 'No visual!'],
   search: ['Spread out!', 'Search the area!', 'Find him!'],
@@ -99,6 +101,7 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   // (guard-rules S4, A8) original lines, written to be voiced later (G82)
   heard: ['I heard something.', 'What was that noise?', 'Heard something over there.'],
   spotCall: ['Control, movement below me. Someone check it.', 'Control, I saw something down there. Need eyes on it.'],
+  saw: ['Thought I saw something.', 'Something moved over there.', 'Saw movement. Checking it.'],
 };
 
 /**
@@ -131,6 +134,8 @@ export const BARK_EVENTS: readonly BarkEvent[] = [
   'console', 'consoleCheck',
   // (guard-rules S4, A8) appended (the train's protocol bump covers it)
   'heard', 'spotCall',
+  // (guard-rules S4 fix) appended (same train)
+  'saw',
 ];
 
 /** (guard-ai S9) The wire index of `ev` (-1 unknown). */

@@ -271,7 +271,8 @@ export const COVER_DETOUR = { k: 1.5, add: 3, flankK: 2.5 };
  *  Undo: 1. */
 export const COVER_TRIES = 3;
 /** (guard-rules S4, A8) Why his last rise into suspicious / investigating happened (`Enemy.riseCause`): none (a board
- *  task, a light, a body, a search call), sight (`seenAt` this calm moment) or sound (a heard noise, no sight). */
+ *  task, a light, a body, a search call, or a turn sound: `hearTurn` sets no `heard`), sight (`seenAt` this calm
+ *  moment) or sound (a heard noise, no sight). Rule and the moment's end: ai.md "Rise cause". */
 export const RISE_NONE = 0;
 export const RISE_SIGHT = 1;
 export const RISE_SOUND = 2;
@@ -469,7 +470,8 @@ export class Enemy implements Damageable {
   private stimulus: P2 = [0, 0];
   private hasStimulus = false;
   private heard = false;
-  /** (guard-rules S4, A8) Since he was last calm: a sight above the leak (`seenAt`) / a heard noise. */
+  /** (guard-rules S4, A8) Since he was last calm with nothing on his meter: a sight above the leak (`seenAt`) / a heard
+   *  noise. Cleared on a calm transition and each step he is calm with the meter at 0 (`updateAwareness`). */
   private sawMoment = false;
   private heardMoment = false;
   /** (guard-rules S4, A8) Why his last rise into suspicious / investigating happened (`RISE_*`); kept after calm.
@@ -2087,7 +2089,8 @@ export class Enemy implements Damageable {
       this.riseN++;
     }
     if (to === 'suspicious') this.bark('suspicious');
-    else if (to === 'investigating') this.bark(this.riseCause === RISE_SOUND ? 'heard' : 'investigate');
+    // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
+    else if (to === 'investigating') this.bark(this.riseCause === RISE_SOUND ? 'heard' : this.riseCause === RISE_SIGHT ? 'saw' : 'investigate');
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
@@ -2655,6 +2658,12 @@ export class Enemy implements Damageable {
     // (guard-ai walk 4.82 item 2) moving up on the last known position: he keeps the fight until he gets there
     i.closing = this.closingIn && this.alerted && !this.los;
     // (guard-rules S4, A8) what this calm moment rests on: sight (the game's `seenAt`) wins over a sound
+    // (S4 fix) calm with nothing on his meter: the moment is over (a glimpse that drained, a noise long gone). After
+    // `stepMeter` and before the sets, so this step's sight (meter > 0) and a noise / board send (`heard`) still count
+    if (this.aware.calmNow && this.meter <= 0) {
+      this.sawMoment = false;
+      this.heardMoment = false;
+    }
     if (!this.alerted) {
       if (seen) this.sawMoment = true;
       if (this.heard) this.heardMoment = true;

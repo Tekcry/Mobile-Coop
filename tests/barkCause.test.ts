@@ -9,7 +9,8 @@ import { P_STANDARD } from '../src/ai/squadRoles';
 import { Vector3 } from '../src/core/babylon';
 
 // (guard-rules S4, A8) Barks by cause: a guard who saw something above the leak in this calm moment never says "I heard
-// something."; the rise to investigating barks `investigate` (sight / neutral) or `heard` (a sound alone). The cause is
+// something."; the rise to investigating barks `saw` (sight), `heard` (a sound alone) or `investigate` (neutral: none).
+// (S4 fix) The moment ends when he is calm with nothing on his meter, so a drained glimpse never colours a later rise. The cause is
 // kept on the guard (`riseCause`, `riseN`, `stimX` / `stimZ`) for S7's lookout radio and J13's cause log. Stand-in guards
 // on Enemy's prototype (no rig, no scene), as bodySearch / guardPolish2; `Object.create` skips field initializers, so
 // the S4 fields are set here.
@@ -28,6 +29,8 @@ type Guard = {
   bark: ReturnType<typeof vi.fn>;
   hear(x: number, z: number, radius?: number): void;
   hearSearch(x: number, y: number, z: number, mayBark?: boolean): boolean;
+  hearTurn(x: number, z: number, radius?: number): void;
+  checkLight(x: number, z: number, incident: number): void;
   alert(): void;
   updateAwareness(dt: number): void;
 };
@@ -106,7 +109,7 @@ function guard(): Guard {
       callAlert() {},
       shout() {},
     },
-    lc: { active: false, stop() {} },
+    lc: { active: false, stop() {}, start() {} },
     lure: { cancel() {}, active: false },
     walker: { rejoin() {} },
     setState() {},
@@ -174,13 +177,13 @@ describe('(guard-rules S4, A8) the investigate bark follows the rise cause', () 
     expect(g.riseN).toBe(2);
   });
 
-  it('3. sight only (rate above the leak until the meter passes investigate): "investigate", RISE_SIGHT', () => {
+  it('3. sight only (rate above the leak until the meter passes investigate): "saw", RISE_SIGHT', () => {
     const g = guard();
     g.rate = 1;
     until(g, 'investigating', 10);
     expect(g.aware.level).toBe('investigating');
     expect(g.meter).toBeLessThan(1);
-    expect(said(g)).toEqual(['suspicious', 'investigate']);
+    expect(said(g)).toEqual(['suspicious', 'saw']);
     expect(g.riseCause).toBe(RISE_SIGHT);
     expect(g.riseN).toBe(2);
   });
@@ -197,18 +200,18 @@ describe('(guard-rules S4, A8) the investigate bark follows the rise cause', () 
 });
 
 describe('(guard-rules S4, A8) a seen player never gets "I heard something."', () => {
-  it('4a. a noise and a glimpse above the leak in the same moment: "investigate", RISE_SIGHT', () => {
+  it('4a. a noise and a glimpse above the leak in the same moment: "saw", RISE_SIGHT', () => {
     const g = guard();
     g.hear(...LOUD);
     g.rate = 0.5;
     g.updateAwareness(DT);
     expect(g.aware.level).toBe('investigating');
-    expect(said(g)).toEqual(['investigate']);
+    expect(said(g)).toEqual(['saw']);
     expect(g.riseCause).toBe(RISE_SIGHT);
     expect(said(g)).not.toContain('heard');
   });
 
-  it('4b. a glimpse during the suspicious moment, then the sound timer walks him over: still "investigate"', () => {
+  it('4b. a glimpse during the suspicious moment, then the sound timer walks him over: still "saw"', () => {
     const g = guard();
     g.hear(...SOFT);
     g.updateAwareness(DT);
@@ -222,7 +225,7 @@ describe('(guard-rules S4, A8) a seen player never gets "I heard something."', (
     expect(g.meter).toBeLessThan(PERCEPTION.investigate);
     until(g, 'investigating', 10);
     expect(g.aware.level).toBe('investigating');
-    expect(said(g)).toEqual(['suspicious', 'investigate']);
+    expect(said(g)).toEqual(['suspicious', 'saw']);
     expect(g.riseCause).toBe(RISE_SIGHT);
     expect(g.riseN).toBe(2);
   });
@@ -259,6 +262,75 @@ describe('(guard-rules S4, A8) back to calm clears the moment', () => {
     expect(g.aware.level).toBe('investigating');
     expect(said(g)).toEqual(['heard']);
     expect(g.riseCause).toBe(RISE_SOUND);
+  });
+});
+
+/** (S4 fix) A glimpse above the leak too short for suspicious (meter ~0.15), then the meter drained to 0, still calm. */
+function glimpseAndDrain(g: Guard, level: string): void {
+  g.rate = 0.5;
+  for (let k = 0; k < 10; k++) g.updateAwareness(DT);
+  expect(g.aware.level).toBe(level);
+  expect(g.meter).toBeGreaterThan(0);
+  expect(g.meter).toBeLessThan(PERCEPTION.suspicious);
+  g.rate = 0;
+  until(g, '-', 10);
+  expect(g.aware.level).toBe(level);
+  expect(g.meter).toBe(0);
+}
+
+describe('(guard-rules S4 fix) calm with nothing on his meter ends the moment (no transition needed)', () => {
+  it('a. unaware: a sub-suspicious glimpse, meter drained, then a loud noise alone: "heard", RISE_SOUND', () => {
+    const g = guard();
+    glimpseAndDrain(g, 'unaware');
+    expect(said(g)).toEqual([]);
+    g.hear(...LOUD);
+    g.updateAwareness(DT);
+    expect(g.aware.level).toBe('investigating');
+    expect(said(g)).toEqual(['heard']);
+    expect(g.riseCause).toBe(RISE_SOUND);
+  });
+
+  it('b. resting in cooldown for good (fought): the same glimpse and drain, then a loud noise: "heard", RISE_SOUND', () => {
+    const g = guard();
+    g.aware.fought = true;
+    g.aware.set('cooldown');
+    glimpseAndDrain(g, 'cooldown');
+    g.hear(...LOUD);
+    g.updateAwareness(DT);
+    expect(g.aware.level).toBe('investigating');
+    expect(said(g)).toEqual(['heard']);
+    expect(g.riseCause).toBe(RISE_SOUND);
+  });
+
+  it('c. a stale noise, then a pure sight rise: "saw" (a sight line), RISE_SIGHT', () => {
+    const g = guard();
+    // a noise latched earlier (the flag as any path leaves it), long gone: calm, meter 0
+    (g as unknown as { heardMoment: boolean }).heardMoment = true;
+    g.updateAwareness(DT);
+    expect((g as unknown as { heardMoment: boolean }).heardMoment).toBe(false);
+    g.rate = 1;
+    until(g, 'investigating', 10);
+    expect(said(g)).toEqual(['suspicious', 'saw']);
+    expect(g.riseCause).toBe(RISE_SIGHT);
+    expect(BARKS.saw).toContain('Thought I saw something.');
+  });
+
+  it('d. a stale glimpse, then a light check (none): the neutral "investigate", RISE_NONE', () => {
+    const g = guard();
+    glimpseAndDrain(g, 'unaware');
+    g.checkLight(4, 4, 7);
+    expect(g.aware.level).toBe('investigating');
+    // his radioed light line first, then the rise's neutral line (never a sight one)
+    expect(said(g)).toEqual(['lightOut', 'investigate']);
+    expect(g.riseCause).toBe(RISE_NONE);
+  });
+
+  it('a turn sound (hearTurn, no heard flag) makes him suspicious with RISE_NONE (documented)', () => {
+    const g = guard();
+    g.hearTurn(2, 0, 20);
+    g.updateAwareness(DT);
+    expect(g.aware.level).toBe('suspicious');
+    expect(g.riseCause).toBe(RISE_NONE);
   });
 });
 
@@ -310,6 +382,10 @@ describe('(guard-rules S4, A8) the lines', () => {
   it('8. investigate has no "I heard something."; heard and spotCall exist, each line <= 90; spotCall is radio', () => {
     expect(BARKS.investigate).not.toContain('I heard something.');
     expect(BARKS.investigate.length).toBe(4);
+    // (S4 fix) the neutral table claims neither sight nor sound; the sight lines are `saw`'s
+    for (const l of BARKS.investigate) expect(l).not.toMatch(/saw|heard|noise/i);
+    for (const l of BARKS.saw) expect(l.length).toBeLessThanOrEqual(90);
+    expect(RADIO_BARKS.has('saw')).toBe(false);
     expect(BARKS.heard).toContain('I heard something.');
     expect(BARKS.heard.length).toBeGreaterThan(0);
     expect(BARKS.spotCall.length).toBeGreaterThan(0);
