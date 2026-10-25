@@ -33,6 +33,9 @@ import { KEYED_IDLE } from './clips/keyed/idle';
 import { MOCAP_STANDING_IDLE } from './clips/mixamo/standing_idle';
 import { MOCAP_CROUCHED_WALKING } from './clips/mixamo/crouched_walking';
 import { setMocapCrouchWalk } from './mocap';
+// (mixamo-retarget I3) the stance changes
+import { MOCAP_STAND_TO_CROUCH } from './clips/mixamo/stand_to_crouch';
+import { MOCAP_CROUCH_TO_STAND } from './clips/mixamo/crouch_to_stand';
 
 /** A Wren traversal slot (above). */
 export type MixamoTravSlot = 'hangIdle' | 'shimmyL' | 'shimmyR' | 'climbUpCrouch' | 'climbUpStand' | 'ladder' | 'ladderTop' | 'crawl';
@@ -79,6 +82,10 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // off: the capture's hips turned 31-48 deg off its travel: a knee 20 cm outside its ankle, the elbows 27 cm out (CMU
   // 136_09: 5.4 / 5.3 cm); slide and bone steps as the CMU clip
   crouched_walking: false,
+  // (mixamo-retarget I3) the stance changes, measured headless on Wren's rig against the hand-made stance blend
+  // (tests/mixamoStance.test.ts (d), docs/mixamo-retarget/I3-REPORT.md; A8: Studio only unless at least as good)
+  stand_to_crouch: true,
+  crouch_to_stand: true,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
@@ -133,6 +140,7 @@ export function resolveMixamo(): void {
     for (const c of MIXAMO_KEEP[m]) out.push(CH[c]);
   }
   resolveMixamoKeyed(); // (mixamo-retarget I1)
+  resolveMixamoStance(); // (mixamo-retarget I3)
 }
 
 /** The flag (`?mixamo=1`): the captures on Wren's traversal (those `MIXAMO_ON` lets play). */
@@ -187,6 +195,32 @@ function resolveMixamoKeyed(): void {
   K.idlePeriod = idle ? STANDING_IDLE_SECONDS : KEYED_IDLE_PERIOD_S;
   K.crouchWalk = MIXAMO.on && MIXAMO_ON.crouched_walking === true ? MOCAP_CROUCHED_WALKING : null;
   setMocapCrouchWalk(K.crouchWalk);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (mixamo-retarget I3) Wren's stance changes (PLAN "Clip map" rows 6 and 7, "I3"; A2: they follow only the `mixamo`
+// flag, not "Mocap locomotion"). `WREN_STANCE.down` (stand -> crouch) and `.up` (crouch -> stand), read by reference by
+// the graph's keyed block (`animGraph.ts`, Wren rigs only: `wrenReady`), play BY PROGRESS on the game's stance blend
+// (going down at the crouch blend, going up at one less it), never on their own seconds: the stance keeps the
+// controller's clock (`MOVEMENT.crouchTime` / `standTime`), so the camera, collision and audio are unchanged. With both
+// null the graph skips the shot (no sample, no write: byte-identical). Rebuilt once per change by `resolveMixamo`.
+// Kept above the load-time `setMixamo` line: `WREN_STANCE` must exist when it first resolves.
+
+/** The resolved stance shots on Wren (the same object always: fields rewritten once per change). */
+export const WREN_STANCE: { down: KeyedClip | null; up: KeyedClip | null } = { down: null, up: null };
+
+/**
+ * The shot's fades: `edge` the share of the stance blend over which the shot fades in at its start and out at its end
+ * (settled stances are the hand-made crouched / standing sets exactly); `flip` (s) the cross-fade from the old
+ * direction's shot to the new one when the stance reverses mid-change.
+ */
+export const STANCE_SHOT = { edge: 0.15, flip: 0.08 } as const;
+
+/** Rewrite `WREN_STANCE` from the flag and `MIXAMO_ON` (once per change). */
+function resolveMixamoStance(): void {
+  const S = WREN_STANCE;
+  S.down = MIXAMO.on && MIXAMO_ON.stand_to_crouch === true ? MOCAP_STAND_TO_CROUCH : null;
+  S.up = MIXAMO.on && MIXAMO_ON.crouch_to_stand === true ? MOCAP_CROUCH_TO_STAND : null;
 }
 
 setMixamo(flags.mixamo === true);

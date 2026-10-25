@@ -54,6 +54,7 @@ import { WREN_KEYED } from './mixamo'; // (mixamo-retarget I1) Wren's keyed idle
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
+import { STANCE_SHOT, WREN_STANCE } from './mixamo'; // (mixamo-retarget I3) Wren's stance shots
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
@@ -938,6 +939,19 @@ export class AnimGraph {
   private mPh = 0;
   private mCarry = false;
   private kCk = 0;
+  /** (mixamo-retarget I3) Wren's stance shot (WREN_STANCE, `stanceShot`): its direction (+1 down, -1 up, 0 none), the
+   *  direction it reversed from (fading out), last frame's crouch blend, the cross-fade into the new direction (0..1;
+   *  1 settled), this frame's crouch blend, weight and dt (fields: no boxed double arguments), and two scratch poses
+   *  (the direction's sample, the old direction's during a reversal). Named sn*: kSt / st* are the strafe's. */
+  private snDir = 0;
+  private snOld = 0;
+  private snPrev = 0;
+  private snFlip = 1;
+  private snK = 0;
+  private snW = 0;
+  private snDt = 0;
+  private readonly kSn = newKeyedPose();
+  private readonly kSn2 = newKeyedPose();
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
   /** (S5 round 2) The wall slide's pelvis twist cut this frame (WALL_KEYS.slideYawCut x the slide x the wall share). */
@@ -1990,6 +2004,14 @@ export class AnimGraph {
         this.crouchSet(ph, this.cPace, this.cIdleS, this.kCr, mcC);
       }
       this.keyedSet(ph, this.mOn ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
+      // (mixamo-retarget I3) Wren's stance shot over the standing / crouched pose by the still share (moving keeps the
+      // hand-made blend), less the drawn and wall shares; both shots null (the flag off): skipped, byte-identical
+      if (this.wrenReady && (WREN_STANCE.down !== null || WREN_STANCE.up !== null)) {
+        this.snK = crouchK;
+        this.snDt = dt;
+        this.snW = o.keyW > 0 && loco + still > 1e-4 ? (still / (loco + still)) * (1 - dS) * (1 - this.keyWallS) : 0;
+        this.stanceShot(o);
+      }
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
@@ -2214,6 +2236,60 @@ export class AnimGraph {
     }
     this.kHalf = half;
     o.keyKneeOut = kneeOut;
+  }
+
+  /**
+   * (mixamo-retarget I3, PLAN "I3") Wren's stance shot (WREN_STANCE: the Mixamo stand-to-crouch / crouch-to-stand) over
+   * this frame's keyed pose, played BY PROGRESS on the game's stance blend: going down at the crouch blend (`snK`), going
+   * up at one less it, so the whole take spans the controller's own crouch / stand time and the stance is never faster
+   * or slower than without it. Its weight: `snW` (the still share less the drawn and wall shares) by the edge fades
+   * (STANCE_SHOT.edge: 0 at a settled stance, so standing and crouched are the hand-made sets exactly), less a kneel. A
+   * reversal mid-change cross-fades the old direction's shot into the new over STANCE_SHOT.flip s. The pelvis height
+   * stays the blend's (the take crouches to its own 47 / 54 cm, not the game's crouch height); the rest (pelvis x / z,
+   * trunk, neck, head, arms) comes from the shot by the weight. No allocation.
+   */
+  private stanceShot(o: RigTargets): void {
+    const k = this.snK;
+    let dir = this.snDir;
+    if (k > this.snPrev + 1e-6) dir = 1;
+    else if (k < this.snPrev - 1e-6) dir = -1;
+    if (k <= 0 || k >= 1) dir = 0;
+    if (dir !== this.snDir) {
+      // a reversal mid-change fades the old direction's shot out; a start from a settled stance has none to fade
+      if (dir !== 0 && this.snDir !== 0) {
+        this.snOld = this.snDir;
+        this.snFlip = 0;
+      } else this.snFlip = 1;
+      this.snDir = dir;
+    }
+    this.snPrev = k;
+    const flip = this.snFlip;
+    if (flip < 1) this.snFlip = Math.min(1, flip + this.snDt / STANCE_SHOT.flip);
+    if (dir === 0) return;
+    const S = WREN_STANCE;
+    const cNew = dir > 0 ? S.down : S.up;
+    const cOld = flip < 1 ? (this.snOld > 0 ? S.down : S.up) : null;
+    // the edge fades and the kneel (smoothsteps written out: no call with double arguments)
+    const e = k < 1 - k ? k : 1 - k;
+    const t = e >= STANCE_SHOT.edge ? 1 : e / STANCE_SHOT.edge;
+    const kn = this.kneelW;
+    let w = t * t * (3 - 2 * t) * this.snW * (1 - kn * kn * (3 - 2 * kn));
+    if (cNew === null) w *= cOld === null ? 0 : 1 - flip;
+    else if (cOld === null) w *= flip;
+    if (w <= 1e-4) return;
+    // progress p onto a one-shot's frames: p 1 is its last frame (sampleKeyed wraps phase 1 to the first frame)
+    const pNew = dir > 0 ? k : 1 - k;
+    if (cNew !== null) sampleKeyed(cNew, (pNew * (cNew.frames - 1)) / cNew.frames, 1, this.kSn);
+    if (cOld !== null) {
+      const pOld = this.snOld > 0 ? k : 1 - k;
+      sampleKeyed(cOld, (pOld * (cOld.frames - 1)) / cOld.frames, 1, cNew !== null ? this.kSn2 : this.kSn);
+      if (cNew !== null) mixKeyed(this.kSn2, this.kSn, flip, this.kSn);
+    }
+    // (the takes key the pelvis, trunk, arms and head only: the forearm twists, shoulders, clavicles, fingers and edits
+    // stay the blend's, `edits` false)
+    const pelY = o.keyed.pel[1]!;
+    mixKeyed(o.keyed, this.kSn, w, o.keyed, false);
+    o.keyed.pel[1] = pelY;
   }
 
   /**
