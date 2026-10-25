@@ -11,12 +11,15 @@ import { MOVEMENT } from '../../../src/config/movement';
 import { hyp2 } from '../../../src/core/mathx';
 import { layoutKnownIds, validateCourse } from '../../../src/game/course/courseDef';
 import { CourseState, REFUSE_BOLT } from '../../../src/game/course/courseState';
+import { A1_TRAP_CLIMB, A1_TRAP_GRACE, A1_TRAP_YARD, a1Tick } from '../../../src/game/course/replan/a1Ticks';
+import type { StationHooks } from '../../../src/game/course/replan/ticks';
 import type { StationDef } from '../../../src/game/course/stationDef';
+import { inTickZone, retryLine, stationSlots } from '../../../src/game/modes/courseMode';
 import { passZoneNeed } from '../../../src/game/passZones';
 import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
 import { buildCtcourse } from '../../../src/world/maps/ctcourse';
-import { A1_CHECKER, A1_MARK_ZONE, A1_WALL, A1_WICKET_DOOR, A1_WICKET_GATE } from '../../../src/world/maps/ctcourseSets/a1Gate';
-import { A1_GATE_STATIONS, A1_TOP1_FLAG, A1_TOP_FLAG, A1_TOP_ZONE, A1_WICKET_TOP_GATE } from '../../../src/world/maps/ctcourseSets/replan/a1Gate';
+import { A1_CHECKER, A1_MARK_ZONE, A1_WALL, A1_WICKET_DOOR, A1_WICKET_GATE, A1_YARD_ZONE } from '../../../src/world/maps/ctcourseSets/a1Gate';
+import { A1_GATE_STATIONS, A1_TOP1_FLAG, A1_TOP_FLAG, A1_TOP_ZONE, A1_TRAP_LINES, A1_WICKET_TOP_GATE } from '../../../src/world/maps/ctcourseSets/replan/a1Gate';
 import { checkSetPart, inBox, OBJECTIVE_ID_MAX, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
 
 const b = new LevelBuilder();
@@ -90,7 +93,8 @@ describe('Marlow re-plan A1: the stations (STATIONS.md section 3)', () => {
     expect(A1_GATE_STATIONS).toEqual(sheet);
     expect(def.bays[0]!.stations).toEqual(sheet);
     for (const s of sheet) expect(s.drillS).toBeUndefined();
-    expect(part.bay.radio.filter((r) => r.at.startsWith('retry:'))).toEqual([]);
+    // no seen or timer line: the only retry lines are the early-drop way back (A26, cause other)
+    expect(part.bay.radio.filter((r) => r.at.startsWith('retry:')).map((r) => r.at)).toEqual(['retry:a1-boost:other', 'retry:a1-ladder:other']);
   });
 
   it('the marks have standing room: A on the apron by the striped mark, B on the wall top at 4.4 (the wall under the feet, nothing in the body band)', () => {
@@ -124,10 +128,12 @@ describe('Marlow re-plan A1: the stations (STATIONS.md section 3)', () => {
     expect(s.station()).toBe(0);
     expect(s.isStepDone('a1-boost')).toBe(true);
     expect(s.isStepDone('a1-ladder')).toBe(true);
-    // nothing can fail: a retry of either does nothing
+    // nothing can fail: a seen or timer retry of either does nothing
     const r = runAt([2, 0, 10], [2, 0, 12]);
     expect(r.retryStation('seen')).toBe(false);
+    expect(r.retryStation('timer', 1)).toBe(false);
     expect(r.station()).toBe(1);
+    expect(r.restarts).toBe(0);
   });
 });
 
@@ -236,7 +242,7 @@ describe('Marlow re-plan A1: objective and radio lines', () => {
       }
       expect(o.id.length).toBeLessThanOrEqual(OBJECTIVE_ID_MAX);
     }
-    expect(part.bay.radio.map((r) => r.at)).toEqual(['enter', 'a1-boost', 'a1-ladder']);
+    expect(part.bay.radio.map((r) => r.at)).toEqual(['enter', 'a1-boost', 'a1-ladder', 'retry:a1-boost:other', 'retry:a1-ladder:other']);
     for (const r of part.bay.radio) {
       expect(r.text.length, r.text).toBeLessThanOrEqual(COURSE_TEXT_MAX);
       expect(/[–—]/.test(r.text), r.text).toBe(false);
@@ -250,5 +256,176 @@ describe('Marlow re-plan A1: objective and radio lines', () => {
     expect(s.roleOf(1)).toBe('a');
     expect(s.stepLine(boost, 1)).toBe(boost.a);
     expect(s.stepLine(boost, 0)).toBe(boost.b);
+  });
+});
+
+describe('Marlow re-plan A1: an early drop is never a trap (A26, Q5 / G370)', () => {
+  type Feet = { x: number; y: number; z: number };
+  const P = (x: number, y: number, z: number): Feet => ({ x, y, z });
+  const APRON = P(10.5, 0, 6);
+  const YARD = P(13.5, 0, 11);
+  const TOP = P(12.0, 4.4, 9);
+  /** A yard-face hang off the lip (feet about 2 m under it, a body's width out from the face). */
+  const HANG = P(12.6, 2.4, 9);
+  /** A climb or a boost at the apron face (feet 1.6 m up). */
+  const CLIMB = P(11.4, 1.6, 6);
+  const LOUNGE = P(2, 0, 12);
+  const DT = 0.1;
+  let epochSeq = 1000;
+
+  /** A real re-plan course at set 1, the feet `a` / `b`, and the A1 tick driven by hooks over it (host side). */
+  function trap(a: Feet, b: Feet, o: { top1?: boolean } = {}) {
+    const s = runAt([a.x, a.y, a.z], [b.x, b.y, b.z]);
+    if (o.top1) {
+      s.setFlag(A1_TOP1_FLAG);
+      s.update(1 / 60);
+    }
+    const feet = [a, b];
+    let epoch = ++epochSeq;
+    const calls: [number, string][] = [];
+    const h: StationHooks = {
+      flag: (id) => s.hasShared(id),
+      live: () => s.station(),
+      retry: (n, cause) => {
+        calls.push([n, cause]);
+        if (!s.retryStation(cause, n)) return false;
+        epoch = ++epochSeq;
+        return true;
+      },
+      playersIn: (z) => (inTickZone(z, feet[0]!) ? 1 : 0) + (inTickZone(z, feet[1]!) ? 1 : 0),
+      now: () => s.clock,
+      gate: (id) => s.isGateOpen(id),
+      down: () => false,
+      jammed: () => false,
+      lit: () => false,
+      tripped: () => false,
+      epoch: () => epoch,
+    };
+    /** Run the tick for `t` s (feet as they stand). */
+    const run = (t: number): void => {
+      for (let i = 0; i < Math.round(t / DT); i++) a1Tick(h, DT);
+    };
+    const put = (k: 0 | 1, f: Feet): void => {
+      feet[k] = f;
+      s.setPlayer(k, f.x, f.y, f.z, false);
+      s.update(1 / 60);
+    };
+    return { s, calls, run, put };
+  }
+
+  it('the zones: the yard floor is the set\'s yard zone (a hop still counts), the climb band is the wall\'s faces and top', () => {
+    expect(A1_TRAP_YARD.slice(0, 4)).toEqual(A1_YARD_ZONE);
+    expect(inTickZone(A1_TRAP_YARD, P(15, 0.8, 11))).toBe(true);
+    expect(inTickZone(A1_TRAP_CLIMB, P(15, 0.8, 11))).toBe(false);
+    for (const f of [TOP, HANG, CLIMB, P(11.3, 2.4, 6)]) expect(inTickZone(A1_TRAP_CLIMB, f), JSON.stringify(f)).toBe(true);
+    for (const f of [APRON, YARD, LOUNGE]) expect(inTickZone(A1_TRAP_CLIMB, f), JSON.stringify(f)).toBe(false);
+    expect(A1_TRAP_CLIMB[0]).toBeLessThan(A1_WALL.near - MOVEMENT.radius);
+    expect(A1_TRAP_CLIMB[2]).toBeGreaterThan(A1_WALL.far + MOVEMENT.radius);
+    expect(A1_TRAP_CLIMB[4]).toBeGreaterThan(A1_TRAP_YARD[5]!);
+    expect(A1_TRAP_GRACE).toBe(5);
+  });
+
+  it('station 2: B dropped into the yard, A on the apron: no retry inside the grace, then station 2 retries (other), both on its marks', () => {
+    const { s, calls, run } = trap(APRON, YARD, { top1: true });
+    expect(s.press(A1_WICKET_DOOR, 1)).toBeNull();
+    s.update(1 / 60);
+    expect(s.isGateOpen(A1_WICKET_GATE)).toBe(true);
+    expect(s.station()).toBe(2);
+    run(A1_TRAP_GRACE - 0.2);
+    expect(calls).toEqual([]);
+    expect(s.restarts).toBe(0);
+    run(0.3);
+    expect(calls).toEqual([[2, 'other']]);
+    expect(s.restarts).toBe(1);
+    expect(s.lastRetry).toEqual({ st: 2, cause: 'other' });
+    // only station 2 reset: the bolt shut again, station 1 (the boost) still done
+    expect(s.station()).toBe(2);
+    expect(s.isGateOpen(A1_WICKET_GATE)).toBe(false);
+    expect(s.hasFlag(A1_TOP1_FLAG)).toBe(true);
+    expect(s.locked(A1_WICKET_DOOR)).toBe(true);
+    // the marks the mode puts them on (A claimed the striped mark: P1 is A): A at the mark, B on the wall top
+    const st2 = def.bays[0]!.stations![1]!;
+    expect(s.roleOf(0)).toBe('a');
+    expect(stationSlots(st2, 0)).toEqual([
+      { x: 10.5, y: 0, z: 6, yaw: Math.PI / 2 },
+      { x: 12, y: 4.4, z: 6, yaw: -Math.PI / 2 },
+    ]);
+    // LANTERN's line, what and where, voice-able, fits the HUD; never the (absent) seen line
+    expect(retryLine(def.bays[0]!.radio, 'a1-ladder', 'other')).toBe(A1_TRAP_LINES['a1-ladder']);
+    expect(retryLine(def.bays[0]!.radio, 'a1-ladder', 'seen')).toBeNull();
+    for (const t of Object.values(A1_TRAP_LINES)) {
+      expect(t.length, t).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+      expect(/[–—]/.test(t), t).toBe(false);
+      expect(t).toMatch(/yard/);
+    }
+  });
+
+  it('the grace: a partner on the wall top (a ladder is still on) or hanging off it holds the clock; both stuck below starts it', () => {
+    const { s, calls, run, put } = trap(TOP, YARD, { top1: true });
+    run(10);
+    put(0, HANG);
+    run(10);
+    expect(calls).toEqual([]);
+    // the one on top lets go into the yard too: nobody up, the clock runs from there
+    put(0, P(14, 0, 8));
+    run(A1_TRAP_GRACE - 0.2);
+    expect(calls).toEqual([]);
+    run(0.3);
+    expect(calls).toEqual([[2, 'other']]);
+    expect(s.lastRetry).toEqual({ st: 2, cause: 'other' });
+  });
+
+  it('a climb starts the clock again; so does a retry (a new epoch)', () => {
+    const { s, calls, run, put } = trap(APRON, YARD, { top1: true });
+    run(A1_TRAP_GRACE - 1);
+    put(0, CLIMB);
+    run(0.1);
+    put(0, APRON);
+    run(A1_TRAP_GRACE - 1);
+    expect(calls).toEqual([]);
+    run(1.3);
+    expect(calls).toEqual([[2, 'other']]);
+    // after the retry the clock is fresh: B still in the yard (not yet placed) waits a full grace again
+    run(A1_TRAP_GRACE - 0.2);
+    expect(calls).toHaveLength(1);
+    expect(s.restarts).toBe(1);
+  });
+
+  it('station 1: a player over the wall before the top flag, the partner in the lounge: station 1 retries (other)', () => {
+    const { s, calls, run } = trap(LOUNGE, YARD);
+    expect(s.station()).toBe(1);
+    run(A1_TRAP_GRACE + 0.1);
+    expect(calls).toEqual([[1, 'other']]);
+    expect(s.lastRetry).toEqual({ st: 1, cause: 'other' });
+    expect(s.station()).toBe(1);
+    expect(retryLine(def.bays[0]!.radio, 'a1-boost', 'other')).toBe(A1_TRAP_LINES['a1-boost']);
+  });
+
+  it('no retry once both have been on the top (the wicket is the way back), with the station\'s retry off (route-runs), or with nobody in the yard', () => {
+    const done = trap(YARD, P(14, 0, 8), { top1: true });
+    done.s.setFlag(A1_TOP_FLAG);
+    done.s.update(1 / 60);
+    expect(done.s.station()).toBe(0);
+    done.run(20);
+    expect(done.calls).toEqual([]);
+    const off = trap(APRON, YARD, { top1: true });
+    expect(off.s.retryOff(2)).toBe(true);
+    off.run(20);
+    expect(off.s.restarts).toBe(0);
+    expect(off.s.station()).toBe(2);
+    const apron = trap(APRON, P(9.5, 0, 6), { top1: true });
+    apron.run(20);
+    expect(apron.calls).toEqual([]);
+  });
+
+  it('teeth: on these none stations a seen retry is refused and other is taken only for the live station', () => {
+    const s = runAt([10.5, 0, 6], [13.5, 0, 11]);
+    s.setFlag(A1_TOP1_FLAG);
+    s.update(1 / 60);
+    expect(s.retryStation('seen', 2)).toBe(false);
+    expect(s.retryStation('other', 1)).toBe(false);
+    expect(s.restarts).toBe(0);
+    expect(s.retryStation('other', 2)).toBe(true);
+    expect(s.restarts).toBe(1);
   });
 });

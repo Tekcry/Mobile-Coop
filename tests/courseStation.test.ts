@@ -996,3 +996,36 @@ describe('the room map', () => {
     expect(resumeMap('warehouseOps', false)).toBe('warehouseOps');
   });
 });
+
+describe('cause other: a set\'s way out of a soft-lock (J14 A26)', () => {
+  it('retries a none station through stationRetry (seen does not), says its own line, both on its marks; the client reads it', () => {
+    const radio = [
+      { at: 'retry:s2', text: 'Seen at two. Back to the crates.' },
+      { at: 'retry:s2:other', text: 'Stuck at two. Back to the crates.' },
+    ];
+    const r = rig(def({ radio }, [station(1), station(2, { retry: 'none' })]));
+    r.st.setFlag('s1-done');
+    r.step();
+    expect(r.st.station()).toBe(2);
+    expect(r.mode.stationRetry(2, 'seen')).toBe(false);
+    expect(r.mode.stationRetry(2, 'timer')).toBe(false);
+    expect(r.mode.stationRetry(1, 'other')).toBe(false);
+    expect(r.mode.stationRetry(2, 'other')).toBe(true);
+    // one at a time: the hold blocks a second before this one's handle
+    expect(r.mode.stationRetry(2, 'other')).toBe(false);
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'other' });
+    expect(r.st.hasFlag('s1-done')).toBe(true);
+    expect(r.st.station()).toBe(2);
+    expect(r.said.at(-1)).toBe('LANTERN: Stuck at two. Back to the crates.');
+    expect(r.respawns.at(-1)).toEqual({ x: 20, y: 0, z: 5 });
+    expect(clientView(r.st).hook).toEqual({ restarts: 1, lastRetry: { st: 2, cause: 'other' } });
+    // a station with no other line retries silently (never its seen line)
+    expect(retryLine([{ at: 'retry:s2', text: 'Seen.' }], 's2', 'other')).toBeNull();
+    // retryOff turns it off like any station retry
+    r.step(30);
+    expect(r.mode.retryOff(2)).toBe(true);
+    expect(r.mode.stationRetry(2, 'other')).toBe(false);
+  });
+});

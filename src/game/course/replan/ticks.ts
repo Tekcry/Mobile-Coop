@@ -25,8 +25,11 @@ export interface StationHooks {
   flag(id: string): boolean;
   /** The live station's number (0: none). */
   live(): number;
-  /** Retry station `n` (`CourseMode.stationRetry`): only while `n` is live, its retry on and no retry under way. */
-  retry(n: number, cause: 'timer' | 'seen'): boolean;
+  /**
+   * Retry station `n` (`CourseMode.stationRetry`): only while `n` is live, its retry on and no retry under way. `other`
+   * (J14 A26): the set's way out of a soft-lock, the one cause a `retry: 'none'` station also takes.
+   */
+  retry(n: number, cause: 'timer' | 'seen' | 'other'): boolean;
   /** How many players stand in `zone` (their feet; a downed player counts). */
   playersIn(zone: TickZone): number;
   /** The course clock (s since the course started; `CourseState.clock`). */

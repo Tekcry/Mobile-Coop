@@ -11,10 +11,12 @@
  *   through until both have been on the wall top; afterwards its push bar is the way back. The striped mark's role claim
  *   (the booster takes A) is the built one;
  * - stations 1 and 2 (STATIONS section 3, verbatim, `retry: 'none'`), the objective lines (what and where) and LANTERN's
- *   entry line in place of "open the gate for your partner". No retry lines: nothing can fail.
- * Only type imports from `../` besides the set file's constants (the facility imports nothing from here).
+ *   entry line in place of "open the gate for your partner". Nothing can fail; (J14 A26) the one way back is for an early
+ *   drop: a player in the yard before the ladder is done puts both back at the live station's marks (`a1Tick`,
+ *   `src/game/course/replan/a1Ticks.ts`, cause `other`) with its `retry:<id>:other` line.
+ * Only type imports from `../` besides the set file's constants and `retryKey` (the facility imports nothing from here).
  */
-import type { FlagGate } from '../../../../game/course/courseDef';
+import { retryKey, type FlagGate } from '../../../../game/course/courseDef';
 import type { StationDef } from '../../../../game/course/stationDef';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
@@ -32,6 +34,11 @@ export const A1_TOP_FLAG = 'a1-top';
 export const A1_TOP_ZONE: [number, number, number, number] = [A1_WALL.near, 2.3, A1_WALL.far, 19.7];
 /** The wicket's second gate: shut until both players have been on the wall top (`a1-top`), then the bolt is the way back. */
 export const A1_WICKET_TOP_GATE = 'g-a1-wicket-top';
+/** (J14 A26) LANTERN's lines when an early drop into the yard puts the pair back (`a1Tick`, cause `other`). */
+export const A1_TRAP_LINES = {
+  'a1-boost': 'Into the yard too soon. The wicket stays shut till you are both up. Back to the mark.',
+  'a1-ladder': 'Into the yard too soon. The wicket stays shut till you are both up. Back to the wall.',
+} as const;
 
 /** Stations 1 and 2 (STATIONS.md section 3, A1 block). */
 export const A1_GATE_STATIONS: readonly StationDef[] = [
@@ -83,5 +90,7 @@ export function replanA1Gate(_b: LevelBuilder, _kit: FacilityKit, part: SetPart)
     { at: 'enter', text: 'Evening. Over the yard wall, both of you. The wicket stays shut till you are.' },
     { at: 'a1-boost', text: 'Good. That is the boost.' },
     { at: 'a1-ladder', text: 'Good. That is the ladder. You will use both all night.' },
+    { at: retryKey('a1-boost', 'other'), text: A1_TRAP_LINES['a1-boost'] },
+    { at: retryKey('a1-ladder', 'other'), text: A1_TRAP_LINES['a1-ladder'] },
   );
 }
