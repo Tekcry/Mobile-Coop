@@ -75,3 +75,17 @@ any commit (only the art-credits licence sentence, A11 cleared, stays: 9433a960c
   broken); tests assert the shipped rows with hard caps (bone step 25 deg, planted slide). I4-REPORT.md.
 - At the save: left = full CLIPS.md re-emit (partial runs keep it), the stance leg-channel check the I3 checker asked
   (knee readings equal the hand-made blend, not traced in mixKeyed), the animGraph `./mixamo` import fold, laptop e2e.
+
+## Source wire (feature/mixamo-source-wire, stacked on the toggle 4286b7215)
+G400 (Michael Q39: "yes players must look exact in everyones games"): replaces A13 (per-viewer). Each player's own
+Animation source rides `PlayerState.an` (0 hand / 2 mixamo; no field = CMU, also an older sender; PROTOCOL_VERSION not
+bumped); every screen draws that player with the OWNER's source. Undo: drop the field (back to per-viewer).
+- `AnimGraph.animSource` (get / set; `followPageSource()`): a graph no one hands a source reads the page's live tables
+  (`PAGE_TABLES` = LOCO / WREN_TRAV / WREN_KEYED / WREN_STANCE, overrides and the Studio pick included: default game
+  byte-identical); `RemoteAvatar` hands the owner's, which reads `SOURCE_TABLES[s]` (that source alone). Tables rewritten
+  in place once per change (`addMixamoResolver`); the graph re-picks on a compare. characterRig reads its graph's table.
+- Senders: coopHost `selfState`, coopClient pstate (`animSourceWire(ANIM_SOURCE.source)`); the host relays by spread.
+
+### At the save (05:30)
+- Done: per-graph tables, rig, wire (host, client, remote), tests/animSourceWire.test.ts 8/8; suite 16 files 198 pass.
+- Left: tsc / eslint on the test file, report; e2e-coop, e2e-netmove, e2e-ctcourse via the laptop queue; two Opus checkers.
