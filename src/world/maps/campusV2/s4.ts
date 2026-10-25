@@ -561,12 +561,14 @@ export function buildCampusS4(b: LevelBuilder): void {
   slab(b, -10, -4, 27.5, 31, 3.2);
   // (G4.2 C11, D:26) the battery racks 2.0 high, noLedge (CR8-west rules 2-3)
   for (const [x0, z0, x1, z1] of S4_BOX.batteryRacks) bx(b, x0, x1, 0, 2.0, z0, z1, RACK, { noLedge: true });
-  // (G4.2 CR8, D:24) the sill strips under the two side grilles (y 0..4.4, z 19.5..21.0) lose noLedge: a lip at 4.4 on both faces
-  for (const x of [14, -4]) {
-    const sill = b.boxes.find((q) => Math.abs(q.c[0] - x) < 1e-6 && Math.abs(q.c[2] - 20.25) < 1e-6 && Math.abs(q.s[2] - 1.5) < 1e-6 && Math.abs(q.c[1] - 2.2) < 1e-6 && Math.abs(q.s[1] - 4.4) < 1e-6);
-    if (!sill) throw new Error(`campus S4: the CR8 sill strip at x ${x} is not found`);
-    delete sill.noLedge;
-  }
+  // (G4.2 CR8, D:24; fix 1) the sills under the two side grilles (y 0..4.4, z 19.5..21.0) stay noLedge: a strip 0.2 / 0.3
+  // deep only hangs (`canClimbUp` needs `LEDGE.climbDepth`), so each sill top gets manual ledges (hang and climb up) on
+  // both faces: the boost side (CR8 dock x 14.1, CR8-west battery room x -4.15) and the plenum side (x 13.9, -3.85; the
+  // plenum floor is the lobby slab at 3.2, 1.2 under the sill), so the climb in and the hang-drop back out both work
+  b.ledge(14.1, 19.5, 14.1, 21.0, 4.4);
+  b.ledge(13.9, 21.0, 13.9, 19.5, 4.4);
+  b.ledge(-4.15, 21.0, -4.15, 19.5, 4.4);
+  b.ledge(-3.85, 19.5, -3.85, 21.0, 4.4);
   const [ux0, uz0, ux1, uz1] = S4_BOX.upsCabinets;
   bx(b, ux0, ux1, 0, 2.0, uz0, uz1, RACK, { noLedge: true });
 

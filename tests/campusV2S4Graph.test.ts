@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
-import { generateLedges, suppressLedgesNear } from '../src/world/anchors';
+import { TraversalAnchors, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
 import { LIGHT, contribution } from '../src/world/lights';
 import { hyp2 } from '../src/core/mathx';
 import { addDoorClosure, doorFinder } from '../src/game/sectorStage';
@@ -221,7 +221,7 @@ describe('G4.6 graph matches the build (LD 15)', () => {
 
 describe('G4.6 solo past the team doors (LD 15)', () => {
   it('with pg-cage and the CR9 door shut as nav blockers and every co-op lip box solid (CR4, CR4-west, CR8, CR8-west, CR10), keypad doors open: start -> the terminal -> the C4 zone', () => {
-    let shutLen = 0;
+    let shutLen: number;
     const len = (a: readonly [number, number], c: readonly [number, number]): number => {
       const path = nav.findPath([a[0], a[1]], [c[0], c[1]], 400000, 0, 0);
       expect(path, `path ${a} -> ${c}`).not.toBeNull();
@@ -307,8 +307,11 @@ describe('G4.6 light at the vantages (LD 15)', () => {
 
 describe('G4.6 unplanned lips (LD 11.8)', () => {
   it('every canHang ledge 3.8-4.5 over its floor in S4 is a planned lip (CR4, CR4-west, CR8, CR8-west, CR10) or stands on a surface a solo player reaches', () => {
-    // the build's `noLedge(x, z, r)` points apply after the ledges are generated (`LevelBuilder.build`)
-    const anchors = generateLedges(b.boxes);
+    // the build's ledges: the map's manual ones (`b.ledge`) then the generated ones, in one list as `LevelBuilder.build`
+    // makes it (copies: `b.anchors` stays as built); its `noLedge(x, z, r)` points apply after that
+    const anchors = new TraversalAnchors();
+    for (const l of b.anchors.ledges) anchors.add<Ledge>({ ...l });
+    generateLedges(b.boxes, anchors);
     for (const [x, z, r] of (b as unknown as { noLedgeAt: [number, number, number][] }).noLedgeAt) suppressLedgesNear(anchors, x, z, r);
     const inS4 = (x: number, z: number): boolean => x >= -10.5 && x <= 40.5 && z >= 15.5 && z <= 48.5;
     const planned = (e: (typeof anchors.ledges)[number]): string | null => {

@@ -9,7 +9,8 @@ kind: patch
   lobby switches move; a body hide spot in the alcove.
 - S4-G4.2: a return-air plenum over the lobby ceiling as a crawl route: grilles from the ends of cable baskets B1 and B2
   (which now run on to the hall wall), from the dock and from the battery room (co-op leg-ups CR8 and CR8-west onto their
-  4.4 m sills), and a ceiling hatch down into the lobby; the battery racks are 2.0 m high with no climbable top.
+  4.4 m sills, which can be climbed over as well as hung from), and a ceiling hatch down into the lobby; the battery racks
+  are 2.0 m high with no climbable top.
 - S4-G4.3: the west strip: the colonnade corridor widens to 3.3 m under a ceiling slab with its two doors 3 m apart and the
   hall door into it walled up; a staff door joins the UPS room to the security room; an essential-lighting board by the
   battery room (cuts the NOC and security room lamps for 25 s) and a battery room lamp with its own switch; the colonnade

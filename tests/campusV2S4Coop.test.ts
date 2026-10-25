@@ -135,7 +135,9 @@ const pathLen = (a: readonly number[], c: readonly number[]): number | null => {
   }
   return len;
 };
-const ledges = generateLedges(b.boxes).ledges;
+// the build's ledges: generated from the box tops plus the map's manual ones (`b.ledge`, in `b.anchors`; `LevelBuilder.build`
+// adds the generated ones to the same list)
+const ledges = [...generateLedges(b.boxes).ledges, ...b.anchors.ledges];
 
 type Lip = (typeof S4_COOP_LIPS)[number];
 const lipOf = (id: string): Lip => S4_COOP_LIPS.find((l) => l.id === id)!;
@@ -224,14 +226,14 @@ describe('G4.2 CR8 / CR8-west: the return-air grille sills (D:24, GR s4-dock / s
   /** A piece on the lip's boost side of its wall (the other side is the lobby under its 3.0-3.2 slab: no way to the lip from there). */
   const boostSide = (l: Lip, p: BoxPiece): boolean => (p.c[0] - l.lip.x) * l.lip.n.x > 0;
 
-  it('CR8 and CR8-west as briefed: lips x 14.1 / -4.15, z 19.5..21.0 at 4.4 over floor 0 (4.3-4.5, SS:49); boosts (14.6, 20.2) / (-4.8, 20.2) on nav; the sills are not noLedge', () => {
+  it('CR8 and CR8-west as briefed: lips x 14.1 / -4.15, z 19.5..21.0 at 4.4 over floor 0 (4.3-4.5, SS:49); boosts (14.6, 20.2) / (-4.8, 20.2) on nav; the sills stay noLedge (fix 1: their lips are manual ledges)', () => {
     expect(S4_COOP_LIPS.map((l) => l.id)).toEqual(['CR4', 'CR4-west', 'CR8', 'CR8-west', 'CR10']);
     expect(cr8).toMatchObject({ section: 3, lip: { x: 14.1, z0: 19.5, z1: 21.0, y: 4.4, n: { x: 1, z: 0 } }, top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 }, boost: { floor: 0, x: 14.6, z: 20.2 } });
     expect(west).toMatchObject({ section: 3, lip: { x: -4.15, z0: 19.5, z1: 21.0, y: 4.4, n: { x: -1, z: 0 } }, top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 }, boost: { floor: 0, x: -4.8, z: 20.2 } });
     for (const l of [cr8, west]) {
       const sill = sillOf(l);
       expect(sill, l.id).toBeTruthy();
-      expect(sill.noLedge, l.id).not.toBe(true);
+      expect(sill.noLedge, l.id).toBe(true);
       expect(Math.abs((l.lip.n.x > 0 ? x1(sill) : x0(sill)) - l.lip.x), `${l.id} lip on the wall face`).toBeLessThan(1e-6);
       expect(l.lip.y - l.boost.floor).toBeGreaterThanOrEqual(4.3);
       expect(l.lip.y - l.boost.floor).toBeLessThanOrEqual(4.5);
@@ -298,6 +300,18 @@ describe('G4.2 CR8 / CR8-west: the return-air grille sills (D:24, GR s4-dock / s
       expect(bottom(head!) - top(own)).toBeCloseTo(1.5);
     });
   }
+
+  it('fix 1: CR8 and CR8-west climb, not only hang: a canHang and canClimbUp ledge at 4.4 along the sill on the boost face and on the plenum face (a 0.2 / 0.3 m strip alone gives a hang with no climb-up, LEDGE.climbDepth)', () => {
+    expect(sillOf(cr8).s[0]).toBeLessThan(LEDGE.climbDepth);
+    expect(sillOf(west).s[0]).toBeLessThan(LEDGE.climbDepth);
+    for (const l of [cr8, west]) {
+      for (const [face, nx] of [[l.lip.x, l.lip.n.x], [l.lip.x - l.lip.n.x * sillOf(l).s[0], -l.lip.n.x]] as const) {
+        const e = ledges.find((q) => Math.abs(q.top - 4.4) < 1e-6 && Math.abs(q.a.x - face) < 1e-3 && Math.abs(q.b.x - face) < 1e-3 && Math.abs(q.nx - nx) < 1e-6 && Math.min(q.a.z, q.b.z) < 20.25 && Math.max(q.a.z, q.b.z) > 20.25);
+        expect(e, `${l.id}: a ledge along the sill on face x ${face}, normal ${nx}`).toBeTruthy();
+        expect(e!.canHang && e!.canClimbUp, `${l.id} face x ${face}: hang and climb up`).toBe(true);
+      }
+    }
+  });
 
   it('G4.2 exactly the planned ledges on the grille walls: a canHang ledge at 4.4 along each side grille, none on the hall grilles, the hatch rim or the lobby slab', () => {
     for (const l of [cr8, west]) {
