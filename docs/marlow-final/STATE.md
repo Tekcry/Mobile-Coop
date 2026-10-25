@@ -492,12 +492,12 @@ Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs
 Area: Marlow Yard, level validator, route-runs, guard cap, level standard (docs/level-design.md, docs/templates/map-spec.md).
 Row 6 SIGNED OFF: no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); ROADMAP "Decided" overrides it.
 Marlow first (Michael ~20:50): Marlow laptop requests first, desktop CPU priority; walk-ready Tue 27 Oct evening, kit stations 29 Oct. Tell the orchestrator each time requests are filed.
-Michael ~21:42: Marlow Yard needs 2 players everywhere (no solo start on any live build). Michael ~22:10: desktop load to the cloud: new tsc + vitest-only builder slices go to cloud-queue briefs; desktop keeps Opus plans / checks, src/net / AI code, GPU / e2e. Run node work at BelowNormal.
-State at ~22:35 (agents die at a swap; read each head's `checker` status; reports in C:/NightShift/scratch/marlow/):
-- #441 J5 and #460 J12 PR B: train-ready, in train 104.
-- J12 validator-port: docs/validator-port/STATE.md on origin/feature/validator-port (resume block there).
-- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2. #455 merged; #453, #456 in train 103. R4a starts when R1 + R3 are on master.
-- J14 Marlow Yard re-plan: docs/marlow-replan/STATE.md on origin/feature/marlow-replan (plan check 4 PASS; wave 1 S0, R1, F1, D1 building; G0 merged). Wave 2 notes: C:/NightShift/scratch/marlow/j14-wave2-notes.md.
+Michael ~21:42: Marlow Yard needs 2 players everywhere. Michael ~22:10: desktop load to the cloud - new tsc + vitest-only builder slices go to cloud-queue briefs; desktop keeps Opus plans / checks, src/net / AI code, GPU / e2e. All node work at BelowNormal, one at a time.
+State at the ~22:45 save (agents die at a swap: read each head's `checker` status and the report in C:/NightShift/scratch/marlow/; rerun a check whose report is missing):
+- PRs: #441 J5 + #460 J12 B in train 104. #463 J14 F1 (Marlow Yard needs two players): checkers PASS, laptop affected + rating running. #464 J12 A (gate core): checker carried, affected should pass at once.
+- J12 validator-port: resume block in docs/validator-port/STATE.md on origin/feature/validator-port.
+- J14 Marlow Yard re-plan: resume block in docs/marlow-replan/STATE.md on origin/feature/marlow-replan (+ C:/NightShift/scratch/marlow/j14-wave2-notes.md).
+- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2 (#455 merged; #453, #456 in train 103; R4a starts when R1 + R3 are on master). R1 J14 hooks: also `?course=station:<n>`, `stationRetry(n, cause)`; downed and pause restarts clear retryOff.
 - J21 guard cap: docs/guard-cap/STATE.md. Gate closed: #438, #317, #375 open; then C1.
-Next: on each report follow the job STATE "Next" lines; restart a dead builder from its branch head + PLAN slice.
+Next: follow the job STATE "Next" lines; on each report merge, check, open PRs, tell the orchestrator.
 ```
