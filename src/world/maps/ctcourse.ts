@@ -2,12 +2,13 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import { LevelBuilder } from '../levelBuilder';
 import { FacilityKit } from '../kit/facilityKit';
-import { marlowCourseGroups } from '../lighting/marlowCircuits';
+import { MARLOW_CIRCUITS, MARLOW_CIRCUITS_REPLAN, marlowCourseGroups } from '../lighting/marlowCircuits';
 import { registerCourse, type BayDef, type CourseDef, type CourseDevice } from '../../game/course/courseDef';
 import type { SecurityConsole } from '../../game/course/securityRoom';
 import type { SquadSlot } from '../rooms';
 import type { CoopLip } from './ctcourseGreybox';
 import { buildFacility, type FacilityPart } from './ctcourseSets/facility';
+import { REPLAN_BUILDERS, REPLAN_FLOOR_HOLES } from './ctcourseSets/replan';
 import { buildA1Gate } from './ctcourseSets/a1Gate';
 import { buildA2CarriageShed } from './ctcourseSets/a2CarriageShed';
 import { buildA3OfficeRange } from './ctcourseSets/a3OfficeRange';
@@ -29,8 +30,17 @@ import { armourCameras, pieceCount, pieceDelta, SET_IDS, SET_LINKS, SET_NAME, se
  * retired.
  */
 
-/** The set builders in route order (each `build<Set>(b, kit): SetPart`). */
-export const SET_BUILDERS: Readonly<Record<SetId, (b: LevelBuilder, kit: FacilityKit) => SetPart>> = {
+/**
+ * (J14 Marlow re-plan, A16) How the yard builds: `replan: true` is the map `ctcourseReplan` (the same set builders, then each
+ * set's `replan/<set>.ts`, the facility slab cut round every set's `FLOOR_HOLES`, the re-plan circuit table). Absent or
+ * false: the built yard `ctcourse`, byte-identical to before.
+ */
+export interface CtcourseOpts {
+  replan?: boolean;
+}
+
+/** The set builders in route order (each `build<Set>(b, kit, opts): SetPart`; a set file that has no re-plan guard yet takes only `(b, kit)`). */
+export const SET_BUILDERS: Readonly<Record<SetId, (b: LevelBuilder, kit: FacilityKit, opts: CtcourseOpts) => SetPart>> = {
   a1Gate: buildA1Gate,
   a2CarriageShed: buildA2CarriageShed,
   a3OfficeRange: buildA3OfficeRange,
@@ -70,11 +80,12 @@ function into<T>(dst: Record<string, T>, src: Record<string, T>, what: string): 
   }
 }
 
-/** Build the facility and every set into `b` and merge them (the map's `build`). */
-export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
+/** Build the facility and every set into `b` and merge them (the map's `build`; `opts.replan`: the re-plan yard). */
+export function buildCtcourse(b: LevelBuilder, opts: CtcourseOpts = {}): CtcourseBuild {
+  const replan = opts.replan === true;
   const kit = new FacilityKit(b);
   const c0 = pieceCount(b);
-  const facility = buildFacility(b, kit);
+  const facility = buildFacility(b, kit, replan ? REPLAN_FLOOR_HOLES : undefined);
   const cf = pieceDelta(c0, pieceCount(b));
   const parts: SetPart[] = [];
   const sets = {} as Record<SetId, PieceCount>;
@@ -83,8 +94,10 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
     const a = pieceCount(b);
     const nb = b.boxes.length;
     const na = b.anchors.all.length;
-    const p = SET_BUILDERS[id](b, kit);
+    const p = SET_BUILDERS[id](b, kit, opts);
     if (p.id !== id) throw new Error(`ctcourse: the ${id} builder returned part '${p.id}'`);
+    // (J14) the re-plan's own pieces, inside the set's piece count and box ranges
+    if (replan) REPLAN_BUILDERS[id](b, kit, p);
     sets[id] = pieceDelta(a, pieceCount(b));
     ranges[id] = { boxes: [nb, b.boxes.length], anchors: [na, b.anchors.all.length] };
     parts.push(p);
@@ -107,10 +120,11 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
     // (section-rating S6, A5) a set with a guard who can see is rated (A1's passive checker is not)
     rated: p.bay.squad.some((s) => !p.squads[s]?.passive),
     title: `${setBay(p.id)} ${SET_NAME[p.id].replace(/^the /, '')}`,
-    ...(SPOT_FAIL[p.id] ? { spotFail: SPOT_FAIL[p.id] } : {}),
+    // (J14) no strict rule on the re-plan: a retry replaces the set restart (BRIEF A1)
+    ...(!replan && SPOT_FAIL[p.id] ? { spotFail: SPOT_FAIL[p.id] } : {}),
   }));
   const def: CourseDef = {
-    id: 'ctcourse',
+    id: replan ? 'ctcourseReplan' : 'ctcourse',
     bays,
     airlocks: facility.airlocks,
     objectives: parts.flatMap((p) => p.objectives),
@@ -123,7 +137,7 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
   const squads: Record<string, SquadSlot> = {};
   const anchors: Record<string, number> = {};
   // every circuit the table names (N12, LIGHTING-PLAN 4 step 1): a group left out never reaches the client
-  const groups: Record<string, number> = { ...marlowCourseGroups() };
+  const groups: Record<string, number> = { ...marlowCourseGroups(replan ? MARLOW_CIRCUITS_REPLAN : MARLOW_CIRCUITS) };
   const consoles: SecurityConsole[] = [];
   for (const p of parts) {
     into(doors, p.doors, 'door');
@@ -192,6 +206,21 @@ export const ctcourse: MapDef = {
 };
 
 /**
+ * (J14 Marlow re-plan, A16) The re-planned yard: map `ctcourseReplan`, unlisted (`DEV_MAPS`, found by `getMap`). A host with
+ * `?marlowreplan=1` opens its room on it and the client loads whatever map the host's `start` names. Reached by
+ * `?autostart=ctcourseReplan&mode=course`. Dark until switch-on (`flags.marlowReplan`); C1 then points `ctcourse` at it.
+ */
+export const ctcourseReplan: MapDef = {
+  ...ctcourse,
+  id: 'ctcourseReplan',
+  name: 'Marlow Yard (re-plan)',
+  description: "Marlow Yard re-planned: eighteen stations, one forced route, retries in place (dark behind ?marlowreplan=1).",
+  build(b): MapLayout {
+    return buildCtcourse(b, { replan: true }).layout;
+  },
+};
+
+/**
  * (N8, the slice 0 check finding 3) One data build at load: the course registers itself so the lobby's "Start at"
  * (`?course=all`) counts its bays before the course has run, and the lists below are read without a game.
  */
@@ -204,3 +233,12 @@ export const COOP_LIPS: readonly CoopLip[] = LOAD.parts.flatMap((p) => p.lips);
 export const LIGHT_SPOTS: Readonly<Record<SetId | 'facility', readonly LightSpot[]>> = Object.fromEntries([['facility', LOAD.facility.lightSpots], ...LOAD.parts.map((p) => [p.id, p.lightSpots] as const)]) as Record<SetId | 'facility', LightSpot[]>;
 /** The GPU shot vantages: the facility's and each set's (`scripts/shots-ctcourse.mjs`). */
 export const SHOT_VANTAGES: readonly ShotVantage[] = [...LOAD.facility.shotVantages, ...LOAD.parts.flatMap((p) => p.shotVantages)];
+
+/** (J14) The re-plan's data build at load, registered under its own map id (the lobby's "Start at" counts its bays). */
+const LOAD_REPLAN = buildCtcourse(new LevelBuilder(), { replan: true });
+registerCourse('ctcourseReplan', LOAD_REPLAN.layout.course!.def);
+
+/** (J14) The re-plan's co-op lips, light-test spots and GPU vantages (the set slices' tests and `CTLIGHT_VARIANT=replan`). */
+export const COOP_LIPS_REPLAN: readonly CoopLip[] = LOAD_REPLAN.parts.flatMap((p) => p.lips);
+export const LIGHT_SPOTS_REPLAN: Readonly<Record<SetId | 'facility', readonly LightSpot[]>> = Object.fromEntries([['facility', LOAD_REPLAN.facility.lightSpots], ...LOAD_REPLAN.parts.map((p) => [p.id, p.lightSpots] as const)]) as Record<SetId | 'facility', LightSpot[]>;
+export const SHOT_VANTAGES_REPLAN: readonly ShotVantage[] = [...LOAD_REPLAN.facility.shotVantages, ...LOAD_REPLAN.parts.flatMap((p) => p.shotVantages)];

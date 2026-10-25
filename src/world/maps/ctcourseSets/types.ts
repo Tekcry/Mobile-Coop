@@ -500,6 +500,16 @@ export function checkSetPart(p: SetPart): string[] {
     own(z.flag, 'pass zone flag');
     if (!boxInSet(id, z.box, 0.01)) bad.push(at(`pass zone '${z.id}' is outside the set box`));
   }
+  // (J14) the bay's stations (replan variant): numbers whole, 1-18 and rising, marks and the guards they reset the set's own
+  let lastStation = 0;
+  for (const st of p.bay.stations ?? []) {
+    own(st.id, 'station');
+    if (!Number.isInteger(st.n) || st.n < 1 || st.n > 18) bad.push(at(`station '${st.id}' number ${st.n} is not 1-18`));
+    else if (st.n <= lastStation) bad.push(at(`station '${st.id}' number ${st.n} does not rise (after ${lastStation})`));
+    lastStation = st.n;
+    for (const m of st.marks) if (!inSet(id, m.x, m.z)) bad.push(at(`station '${st.id}' mark (${m.x}, ${m.z}) is outside the set box`));
+    for (const g of st.guards) if (!p.bay.squad.includes(g)) bad.push(at(`station '${st.id}' guard '${g}' is not in the bay's squad`));
+  }
   for (const r of p.bay.roles ?? []) for (const d of r.press ?? []) if (!p.devices[d]) bad.push(at(`role claim device '${d}' is not the set's`));
   for (const c of p.camSpaces) if (!boxInSet(id, c.box, 0.01)) bad.push(at('a camera space is outside the set box'));
   for (const s of [...p.navSeeds, ...p.hideSpots]) inside(s.x, s.z, 'a nav seed or hide spot', 0);

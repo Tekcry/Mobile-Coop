@@ -4,7 +4,7 @@ import { provingGrounds } from './provingGrounds';
 import { seclab } from './seclab';
 import { courselab } from './courselab';
 import { bunker } from './bunker';
-import { ctcourse } from './ctcourse';
+import { ctcourse, ctcourseReplan } from './ctcourse';
 import { flags } from '../../core/flags';
 import { warehouse } from './warehouse';
 import { warehouseOps } from './warehouseOps';
@@ -21,8 +21,9 @@ export const MAPS: MapDef[] = [warehouse, warehouseOps, campusOps, provingGround
 
 /** (anim-studio) Dev scenes that are not levels: never listed, never in a menu or a co-op lobby, not in `MAPS` (the map
  *  checks and the level design standard bind playable maps); reached by `getMap` (`?autostart=studio`, the Anim Studio
- *  entries). */
-export const DEV_MAPS: readonly MapDef[] = [studio];
+ *  entries). (J14 Marlow re-plan) `ctcourseReplan` is here too: unlisted like `ctcourse`, a playable course map, dark behind
+ *  `flags.marlowReplan` (a host's room names it in `start`); it is kept out of `MAPS` so the map-wide checks keep their lists. */
+export const DEV_MAPS: readonly MapDef[] = [studio, ctcourseReplan];
 
 export function getMap(id: string): MapDef {
   return MAPS.find((m) => m.id === id) ?? DEV_MAPS.find((m) => m.id === id) ?? provingGrounds;

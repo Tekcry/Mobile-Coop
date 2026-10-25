@@ -647,3 +647,41 @@ export function applyGreybox(b: LevelBuilder, g: Greybox): Record<string, number
   for (const d of g.doors) doors[d.id] = b.door(d.hinge[0], d.hinge[1], d.hinge[2], d.width, d.yaw, { height: d.height, locked: d.locked }).id;
   return doors;
 }
+
+// ---- a floor slab with holes (J14 re-plan) ----
+
+/** A rectangular floor hole in world metres: [x0, z0, x1, z1]. */
+export type FloorHole = readonly [number, number, number, number];
+
+/**
+ * (J14 S0, from `bunkerUpper.ts` `slabWithHoles`) A floor slab over the world rect (x0, z0)-(x1, z1), top at `y`, with
+ * rectangular holes left open. The slab is cut on the hole edges into solid cells, merged along z per x strip, so every
+ * piece is one `b.floor` (0.4 thick). With no holes it is one piece the size of the rect, the same box as `b.floor`.
+ */
+export function slabWithHoles(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, holes: readonly FloorHole[], color: string): void {
+  const xs = [x0, x1];
+  const zs = [z0, z1];
+  for (const h of holes) {
+    xs.push(h[0], h[2]);
+    zs.push(h[1], h[3]);
+  }
+  const ux = [...new Set(xs)].filter((v) => v >= x0 && v <= x1).sort((p, q) => p - q);
+  const uz = [...new Set(zs)].filter((v) => v >= z0 && v <= z1).sort((p, q) => p - q);
+  for (let i = 0; i + 1 < ux.length; i++) {
+    const ax = ux[i]!;
+    const bx = ux[i + 1]!;
+    const mx = (ax + bx) / 2;
+    let run = -1;
+    for (let j = 0; j < uz.length; j++) {
+      const mz = j + 1 < uz.length ? (uz[j]! + uz[j + 1]!) / 2 : NaN;
+      const solid = j + 1 < uz.length && !holes.some((h) => mx > h[0] && mx < h[2] && mz > h[1] && mz < h[3]);
+      if (solid && run < 0) run = j;
+      if (!solid && run >= 0) {
+        const za = uz[run]!;
+        const zb = uz[j]!;
+        b.floor(mx, (za + zb) / 2, bx - ax, zb - za, color, y);
+        run = -1;
+      }
+    }
+  }
+}
