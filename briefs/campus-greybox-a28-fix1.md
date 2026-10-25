@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Sector Ops Build (desktop, Opus) 2026-10-25T21:40Z
 # campus-greybox A28 fix 1 (cloud, Opus): place a client that arrived before the host's run moved to section N
 
 Lead: Night Shift | Sector Ops Build. PR #488 (start-at-section link). Two Opus checkers: FIX, the same one blocking item
