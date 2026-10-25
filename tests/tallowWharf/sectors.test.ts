@@ -12,6 +12,7 @@ import { checkMission, missionSpawnsGuard, type MissionDef } from '../../src/gam
 import { MissionRunner } from '../../src/game/mission/missionRunner';
 import { sectorGuardIds, sectorGuardTalkers } from '../../src/game/mission/sectorMission';
 import { checkSectorCodes, checkSectors, INTEL_LINE_MAX, onBoltSide, SECTOR, type PlanBox, type SectorDef } from '../../src/game/sectors';
+import { ENEMIES } from '../../src/ai/enemyDefs';
 import { inRoom, roomAt } from '../../src/world/rooms';
 import { tallowWharf } from '../../src/world/maps/tallowWharf';
 import { WHARF_GUARD_EXTRAS, WHARF_GUARD_MISSIONS, WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
@@ -106,9 +107,9 @@ describe('tallowWharf sectors: the data checks', () => {
     expect(grants.sort()).toEqual(['tgc-1', 'tgc-opt', 'tgc-tally', 'tgc-tea', 'tkl-4-yard', 'tkl-gate-code', 'tkl-opt']);
   });
 
-  it('perStage 2 everywhere; dogs 1 in W3 and W4; the pair gate uses W3_KEY_POSTS; the keypad is the east gate', () => {
+  it('perStage 2 everywhere; dogs 0 everywhere; the pair gate uses W3_KEY_POSTS; the keypad is the east gate', () => {
     for (const s of WHARF_SECTORS) expect(s.perStage).toBe(2);
-    expect(WHARF_SECTORS.map((s) => s.dogs ?? 0)).toEqual([0, 0, 1, 1]);
+    expect(WHARF_SECTORS.map((s) => s.dogs ?? 0)).toEqual([0, 0, 0, 0]);
     const w3 = WHARF_SECTORS[2]!;
     const g = w3.pairGates![0]!;
     expect(g.a.at).toEqual([W3_KEY_POSTS.east[0], W3_KEY_POSTS.east[2]]);
@@ -116,6 +117,26 @@ describe('tallowWharf sectors: the data checks', () => {
     expect(g.door).toEqual([W3.doors['w3-strongroom']![0], W3.doors['w3-strongroom']![2]]);
     expect(w3.keypads![0]).toEqual({ at: [W3.doors['w3-east-gate']![0], W3.doors['w3-east-gate']![2]], code: 'tkl-gate-code' });
     expect(w3.connector!.nearAt).toEqual([W3.doors['w3-conn-near']![0], W3.doors['w3-conn-near']![2]]);
+  });
+});
+
+describe('tallowWharf sectors: no dogs in the campaign (G155)', () => {
+  it('no guard of any section is a quadruped or has a handler; W3:1 and W4:2 are armed grunts', () => {
+    for (const s of WHARF_SECTORS) {
+      s.guards.forEach((g, k) => {
+        expect(ENEMIES[g.kind].quadruped, `${s.id}:${k}`).toBeFalsy();
+        expect(g.handler, `${s.id}:${k}`).toBeUndefined();
+      });
+    }
+    for (const [sec, k] of [[2, 1], [3, 2]] as const) {
+      const g = WHARF_SECTORS[sec]!.guards[k]!;
+      expect(g.kind).toBe('grunt');
+      expect(ENEMIES[g.kind].weapon).toBeTruthy();
+    }
+  });
+
+  it('the campaign check passes on the wharf sections', () => {
+    expect(checkSectors(WHARF_SECTORS, undefined, undefined, 'campaign')).toEqual([]);
   });
 });
 
