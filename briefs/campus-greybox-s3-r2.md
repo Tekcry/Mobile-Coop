@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-25T11:23:15Z
+status: done feature/campus-greybox-s3-r2 107f42653
 # campus-greybox s3-r2 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
@@ -24,3 +24,17 @@ Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADM
 - Done: every in-scope slice pushed; a report `docs/campus-greybox/checks/s3-r2-build.md` (per slice: files changed,
   tests with counts, assumptions taken with their undo, deviations, findings for the lead, pending PC runs); then
   `status: done feature/campus-greybox-s3-r2 <sha>` here.
+
+## Report (Night Shift | Cloud Builder 4, 2026-10-25)
+- R2a 01a94ca53, R2b ffe5d4169, report + fragment 107f42653. Full report: `docs/campus-greybox/checks/s3-r2-build.md`;
+  fragment `changes/feature-campus-greybox-s3-r2.md`. Only `s3L1.ts` and `tests/campusV2S3L1.test.ts` in code.
+- Built: L1 slab with the listed holes only; landing glass + rail + walkway door + ship ladder platform, fire double
+  door (two 0.9 leaves opening north); z -11 spandrel 5.6 + hall glass + gallery door; z -7 line, write-up glass, sample
+  cases; partitions, core-slot strips (close R1 finding 2 on L1), store shelving, board shelf, desk; sec room walls,
+  counters, hatch, ladder; gallery, spur, bridge plate, drop gate; walkway + caged ladders; hoist hatch rails; ceilings,
+  void deck with the two holes, plenum wall; 9 L1 rooms, 12 seeds, 1 hide spot.
+- Tests: campusV2S3L1 16/16; campusV2S3* + campusS3* 65/65; campusV2 pass; typecheck:fast and eslint clean. Nav tests
+  use stand-ins for R1's roof and chamber (base is the frame commit).
+- Assumptions A-R2-1..12 (derived numbers, each with undo) and 4 findings in the report (void continues west over the
+  goods landing; no rail on the ship-ladder platform edge; drop gate modelled as a 1.1 door anchor; no maxY on rooms).
+- Pending PC runs: e2e-sectorops:1..6 (flag off) at the S3-b head, plan-svg vs P45, V6 measures, R6 nav flood.
