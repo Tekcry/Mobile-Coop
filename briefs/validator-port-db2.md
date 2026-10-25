@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:36:40+11:00
+status: done feature/validator-port-measure-cli 1fb4fa18
 # J12 validator-port, docs slice D-B2 (Sonnet): docs for PR B2 (measure CLI + sheet rows)
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3).
@@ -18,3 +18,24 @@ Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613
   as `mode` does not check allowed values.
 - Checks: `node scripts/doc-lint.mjs` (0 errors on your files), `npx vitest run tests/changesFragments.test.ts`.
 - Report: append what changed; set `status: done feature/validator-port-measure-cli <sha>`.
+
+## Report (Night Shift | Cloud Builder 3, Sonnet builder, 2026-10-26 ~00:05)
+Pushed on `feature/validator-port-measure-cli` (fast-forward 258e8cd3 -> 1fb4fa18), 3 files, +53 / -9.
+- `docs/systems/testing-tools.md` :519-553, new section "Measure CLI (`scripts/level-measure.mjs`)" between "Helper
+  scripts" and "Laptop queue": what it measures; `ways_back` (campaign graphs only, co-op link kinds); the default run
+  and `--doors shut`; per-map merge (`--write` patches only each file's own `measured` members, a second `--write`
+  changes no byte); `--write`; `--check` (target misses, drift tolerances 0.05 and 1.5 s, "no stored measured" only a
+  note); `--points` (one map per call; with `--check`, not `--write`); `--flags` (typed by the key's current type,
+  repeatable, unknown key exits 2, a text key such as `mode` (or `net`) does not check allowed values); exit codes and
+  the two test files. Points to "the validator-port PLAN" (sections 7 and 8) by name: a backticked path to
+  `docs/validator-port/PLAN.md` fails doc lint's link check on this branch (the file is not on it). Notes the CLI is not
+  in `package.json` yet (S5 owns that).
+- `changes/feature-validator-port-measure-cli.md` (kind: patch): one bullet for the measure CLI + the three S7a bullets
+  verbatim; `changes/feature-validator-port-s7a.md` removed (`git rm`).
+- Checks: `node scripts/doc-lint.mjs` 0 errors, 19 warnings (one on testing-tools.md :614, pre-existing, the Laptop
+  queue section's port line); `tests/changesFragments.test.ts` 1 passed. CLI spot checks: `--points` with `--write`
+  exits 2 ("combines with --check, not with --write"), `--points` over 2+ maps exits 2, `--flags nosuch=1` exits 2.
+- Code vs brief: `mode` defaults to `null` in `src/core/flags.ts` (not a string), so `--flags mode=...` takes the text
+  as is (a lone true / false or number-like value is read as such); string keys such as `net` also take text unchecked;
+  the doc says so. Stale line left for D-C: the `level-validate.mjs` bullet in testing-tools.md still says the measure
+  step "(V6, later) will write `measured` values".

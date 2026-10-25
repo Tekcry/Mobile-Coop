@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:36:40+11:00
+status: done feature/player-hygiene-s4 feaa680f1e5f7c7d2d50f3c5cb80f1895c198a30
 
 # Brief: player-hygiene S4 - The open selection wheel stops rebuilding its ring every step (Player Build)
 
@@ -165,3 +165,24 @@ test file and fixture do not change between the two commits.
   deviations) and set line 1 to `status: done feature/player-hygiene-s4 <sha>`; commit, push `cloud-queue`.
 - A question you cannot settle from this brief: line 1 `status: blocked <one-line reason>`, evidence under `## Report`,
   push, move on. The lead answers by editing this brief.
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26 ~00:05)
+Branch `feature/player-hygiene-s4` @ feaa680f1 (two commits on 2d4b290b8). `git diff --stat 2d4b290b8`: the six files
+only; `git diff 2d4b290b8 -- src/ui/hud/gadgetWheel.ts` is the one comment line (:75).
+- Commit 1 7549fd40: `tests/wheelRingAlloc.test.ts` + `tests/fixtures/player-hygiene-s4.json`, the fixture recorded on
+  the unchanged code (`PH_S4_WRITE=1`); a plain run passed (3 tests).
+- Commit 2 feaa680f: `src/game/selectionWheel.ts` `setWheelGun` / `setWheelGadget` after `buildWheel` (as the brief);
+  `src/game/gadgetSystem.ts` imports them (:7), class comment "no time slow (G181)" (:71-72), the `ring` comment
+  (:81-82), `refreshRing()` in place + `buildRing()` (the brief's code); `gadgetWheel.ts:75` comment;
+  `changes/feature-player-hygiene-s4.md` (kind: patch).
+- Tests (`tests/wheelRingAlloc.test.ts`, 3 cases: the 10-step story vs fixture and fresh `buildWheel` + the in-place /
+  rebuilt identity checks behind `REFACTORED`; the allocation readings; the pick). The brief's Test 1 and Test 2 are one
+  `it` (the identity asserts run after the contents asserts on the same sequence); Test 3 and Test 4 as written.
+  `npx vitest run tests/wheelRingAlloc.test.ts tests/selectionWheel.test.ts tests/changesFragments.test.ts`: 14 passed.
+  `npm run typecheck` clean; eslint on the four files clean.
+- Readings (bytes per open-wheel step): before (commit 1) still 2072.3, ammo moving 2072.3; after (commit 2) still 0.0,
+  ammo moving 0.0 (both <= HEAP_NUMBER).
+- Deviation: the test file changed between the commits by one typing line (`:83`, the shape-change pairs typed
+  `[string, string][]`: commit 1's tuple literal failed `npm run typecheck`, which I ran only at commit 2). No assertion,
+  fixture or sequence changed (`git diff 7549fd40 HEAD -- tests/`: 2 lines). Not amended: no force-push on the branch.
+- Pending PC run: affected-e2e (src/game, src/ui), e2e-gadgets (the wheel).
