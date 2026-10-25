@@ -65,6 +65,9 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   lifting_heavy_object ON. KIT-REPORT.md written. (g): poser per phase within one boxed double of rows-off; graph +32 B
   (two doubles into keyed.ts). Palms on the bar 0.00 cm in the hold, up to 54.7 cm in the low lift (tuning item).
 - Step 7: changes/feature-mixamo-kit.md. studio.ts untouched. Slice size 1497 (PASS, tight: the test file was compacted).
-- Head 4e2670a86. PR body drafted (builder scratchpad). ESLint clean on the changed files.
-Next: npm run build size (HEAD build running; base size: build e61e6d6eb from a git archive in scratch), then the DRAFT PR
-to master with the body, then the laptop e2e request (plan 4 list), then the report. Step 8 waits for Player's head.
+- DRAFT PR #490 to master (body: not for the train, rows + readings, tuning items, A1-A7, stub swap lines, size,
+  bundle). Bundle: main chunk 3,950.55 -> 3,957.67 kB (+7.12; gzip +3.70). Laptop e2e requested on 517a07fa4 (set kitmix,
+  plan 4 suites; id 20261025T184554-night-shift-marlow-b-517a07fa-26b6). Look video: pending a PC run.
+Next: the e2e verdict (laptop-e2e/kitmix on 517a07fa4; later heads are docs only), a checker on the PR, then step 8 when
+Player sends a head holding i3 + mixamo-on (+ AnimGraph.animSource): merge it, swap the two stub lines in that merge
+commit, rerun step 6. Open: crawl row (Player wanted it on; the A8 rule turned it off), the lift palms in the low bar.
