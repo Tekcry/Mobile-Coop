@@ -7,6 +7,7 @@ import { AIRLOCK_PAD_INSET, AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } fr
 import { hyp2 } from '../../core/mathx';
 import type { SquadSlot } from '../../world/rooms';
 import type { SecurityConsole } from './securityRoom';
+import type { StationDef } from './stationDef';
 
 /** Player index: 0 = P1 (host), 1 = P2 (client). */
 export type PlayerIdx = 0 | 1;
@@ -181,6 +182,8 @@ export interface BayDef {
    * and the set restarts from its start (`spotFailed`, `CourseMode.fixedUpdate`). At most COURSE_TEXT_MAX characters.
    */
   spotFail?: string;
+  /** (J14 Marlow re-plan) The bay's numbered stations; absent on the built yard. */
+  stations?: readonly StationDef[];
 }
 
 /**

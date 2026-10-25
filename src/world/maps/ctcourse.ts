@@ -103,6 +103,7 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
     drills: p.bay.drills,
     elements: [],
     ...(p.bay.roles?.length ? { roles: p.bay.roles } : {}),
+    stations: p.bay.stations,
     // (section-rating S6, A5) a set with a guard who can see is rated (A1's passive checker is not)
     rated: p.bay.squad.some((s) => !p.squads[s]?.passive),
     title: `${setBay(p.id)} ${SET_NAME[p.id].replace(/^the /, '')}`,

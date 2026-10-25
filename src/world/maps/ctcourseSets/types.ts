@@ -19,6 +19,7 @@
  */
 import type { CourseDevice, CourseObjective, DrillDef, GateDef, RadioLine, RoleClaim } from '../../../game/course/courseDef';
 import type { SecurityConsole } from '../../../game/course/securityRoom';
+import type { StationDef } from '../../../game/course/stationDef';
 import type { LaserDef } from '../../../game/jammer';
 import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { PassZone } from '../../../game/passZones';
@@ -275,7 +276,7 @@ export interface SetPart {
    *  pass (each circuit row with planned lamps has a lamp, a tuned light file per spot). Remove it in the set slice. */
   stub?: boolean;
   /** The bay: squad slots spawned when it starts, its gates, radio lines, drills and role claims (`BayDef`). */
-  bay: { squad: string[]; gates: GateDef[]; radio: RadioLine[]; drills: DrillDef[]; roles?: RoleClaim[] };
+  bay: { squad: string[]; gates: GateDef[]; radio: RadioLine[]; drills: DrillDef[]; roles?: RoleClaim[]; /** (J14) The bay's numbered stations (replan variant only). */ stations?: readonly StationDef[] };
   /** Objective steps in route order (`CourseObjective`, N1, bay = the set's bay id); the last without `done` is the line
    *  shown once the others are done ("Both of you into holding room two."). */
   objectives: CourseObjective[];

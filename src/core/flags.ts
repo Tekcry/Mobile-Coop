@@ -64,6 +64,9 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
+   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged. */
+  marlowReplan: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -133,4 +136,5 @@ export const flags: Flags = {
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  marlowReplan: params.get('marlowreplan') === '1',
 };
