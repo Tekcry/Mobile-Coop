@@ -490,15 +490,14 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 ```
 Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs/VISION.md from origin/master; boot: docs/orchestrator/BOOT.md "Marlow Build" (origin/feature/menu).
 Area: Marlow Yard, level validator, route-runs, guard cap, level standard (docs/level-design.md, docs/templates/map-spec.md).
-Row 6 SIGNED OFF (Michael ~17:00): no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); Michael's 39 answers in ROADMAP "Decided" override it.
-Full burn (orchestrator, swap ~19:40): independent slices in parallel up to desktop CPU ~80% (doc-only planners and checkers cost little CPU).
-Michael ~20:50 picked "Marlow first (Recommended)": after the Mixamo laptop run Marlow requests go first and get desktop CPU priority; aim walk-ready Tue 27 Oct evening, kit stations 29 Oct. Tell the orchestrator each time requests are filed.
-State at the ~21:40 save (agents die at a swap; each PR / plan: read `checker` status on its head):
-- #436, #443 MERGED. #441 J5 (53732e9f3): checker PASS, CI green, affected-e2e queued on the laptop (orchestrator told). Tell it at train-ready.
-- J12 validator-port: plan PASS 10b613dd3. S1 DONE on feature/validator-port-measure 280bbfe10 (+1169; Opus checker was running -> C:/NightShift/scratch/marlow/j12-s1-check.md + status on 280bbfe10; on PASS open PR B with D-B docs + fragment changes/feature-validator-port-measure.md, then laptop affected-e2e (src/world) -> tell orchestrator the request id). S2 Sonnet building in C:/NightShift/Mobile-Coop-validator-port-measure-cli (feature/validator-port-measure-cli from 280bbfe10; PLAN S2 ~:181). S0 Opus in C:/NightShift/Mobile-Coop-validator-port-s0 (feature/validator-port-s0; merge into feature/validator-port = PR A). S7a on cloud-queue briefs/validator-port-s7a.md. Restart any dead builder from its branch head + PLAN slice. Polish left: docs/validator-port/STATE.md.
-- J13 route-runs: #453 (af9fe150), #455 (642130383), #456 (ea2578417) all checker Opus PASS + affected success; waiting CI `test`, then the watchdog labels train-ready. R4a waits for R1 + R3 on master. When J14 PLAN passes, record R1 hook names in route-runs-2 STATE (__course.restarts, lastRetry {st,cause}, retryOff(n); seen/caught->seen, timer, out/down->other).
-- J14 Marlow Yard: plan fix round 2 done (PLAN 0934d5999; F1 = revive cap 2, lone-host Start, M8; one-out = both-down path; R1 retryOff + LastRetry; A7 guard on a7-hall). Fresh plan checker 3 was running -> C:/NightShift/scratch/marlow/j14-plan-check-3.md (missing/IN PROGRESS: rerun). On PASS: wave 1 in worktrees C:/NightShift/Mobile-Coop-marlow-replan-{d1,g0,s0,f1} (branches feature/marlow-replan-<slice>; s0/f1 from master with npm ci, d1/g0 from feature/marlow-replan), R1 from S0 first push. Marlow AT walk cap: ships dark.
+Row 6 SIGNED OFF: no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); ROADMAP "Decided" overrides it.
+Marlow first (Michael ~20:50): Marlow laptop requests first, desktop CPU priority; walk-ready Tue 27 Oct evening, kit stations 29 Oct. Tell the orchestrator each time requests are filed.
+Michael ~21:42: Marlow Yard needs 2 players everywhere (no solo start on any live build). Michael ~22:10: desktop load to the cloud: new tsc + vitest-only builder slices go to cloud-queue briefs; desktop keeps Opus plans / checks, src/net / AI code, GPU / e2e. Run node work at BelowNormal.
+State at ~22:35 (agents die at a swap; read each head's `checker` status; reports in C:/NightShift/scratch/marlow/):
+- #441 J5 and #460 J12 PR B: train-ready, in train 104.
+- J12 validator-port: docs/validator-port/STATE.md on origin/feature/validator-port (resume block there).
+- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2. #455 merged; #453, #456 in train 103. R4a starts when R1 + R3 are on master.
+- J14 Marlow Yard re-plan: docs/marlow-replan/STATE.md on origin/feature/marlow-replan (plan check 4 PASS; wave 1 S0, R1, F1, D1 building; G0 merged). Wave 2 notes: C:/NightShift/scratch/marlow/j14-wave2-notes.md.
 - J21 guard cap: docs/guard-cap/STATE.md. Gate closed: #438, #317, #375 open; then C1.
-- Desktop CPU 99% at boot (desktop queue on both locks + a git auto-repack): doc / single-vitest agents only until under ~80%.
-Next: on each report: J14 fix 2 done -> plan checker 3 -> wave 1; J13 recheck PASS -> tell orchestrator; S1 first push -> start S2 (Sonnet); S0 done -> merge into feature/validator-port, wave 2 briefs; cloud S7a done -> review.
+Next: on each report follow the job STATE "Next" lines; restart a dead builder from its branch head + PLAN slice.
 ```
