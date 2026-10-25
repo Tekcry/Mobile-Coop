@@ -48,15 +48,19 @@ export const MIXAMO_TRAV: Readonly<Record<string, { clip: Clip; slot: MixamoTrav
 
 /**
  * Per capture: whether it plays in the game with the flag on (PLAN "Switch-on": a clip that passes A8 and the checker).
- * The Studio's pick plays its capture whatever this says.
+ * The Studio's pick plays its capture whatever this says. Measured headless on Wren's rig (tests/mixamoTraverse.test.ts,
+ * docs/mixamo-retarget/I2-REPORT.md): a capture whose palms or soles miss their anchors more than the hand-made clip does
+ * stays off (bible 5.12.2 #2) rather than take a hand-made fix.
  */
 export const MIXAMO_ON: Record<string, boolean> = {
   hanging_idle: true,
   braced_hang_shimmy_left: true,
   braced_hang_shimmy_right: true,
-  braced_hang_to_crouch: true,
+  // off: its trunk near upright as the knee comes on takes the palms 29 cm off the lip (hand-made 0.35; climbHands harness)
+  braced_hang_to_crouch: false,
   freehang_climb: true,
-  climbing_ladder: true,
+  // off: the soles move 38 cm on their held plants (hand-made 32); keeping the hand-made foot lift puts the palms 5-6 cm off
+  climbing_ladder: false,
   climbing_ladder_to_standing: true,
   crawling_hands_and_knees: true,
 };

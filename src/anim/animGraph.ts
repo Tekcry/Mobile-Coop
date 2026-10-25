@@ -1270,7 +1270,9 @@ export class AnimGraph {
       // (ct-prototype D+E fix r1) a team climb-up (no ledge grips) keeps the old one-rise clip
       const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
       // (mixamo-retarget I2) Wren with a Mixamo capture in the slot plays it (`mixamo.ts`); else the hand-made clip
-      if (!(WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc, dt, k))) {
+      // (dt as a field: no boxed double argument)
+      if (WREN_TRAV.any) this.mxDt = dt;
+      if (!(WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc))) {
         this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
         // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
         overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
@@ -2912,7 +2914,9 @@ export class AnimGraph {
    * (mixamo-retarget I2) A Wren traversal frame from the resolved Mixamo table (`WREN_TRAV`, `mixamo.ts`): plays the
    * slot's capture (a null slot: its hand-made clip), sets `travNow` and returns true; false when every slot this kind
    * uses is hand-made (the caller plays `tc` as before). The channels `MIXAMO_KEEP` names for the move stay the hand-made
-   * clip's (where the body sits against the grips). Allocation-free.
+   * clip's (where the body sits against the grips). Allocation-free: no double crosses a call (a call the graph does not
+   * inline boxes each double argument, 16 B a frame), so the frame's dt is the field `mxDt` and every blend's time and
+   * weight are the fields `mxT` / `mxW` (`mxOver`, `keepApply`).
    * - hang: the hanging idle on its own clock, the shimmy left / right over it by the pace along the lip (the direction
    *   from the pendulum: the hips trail the hands, so a swing to the left is a shimmy to the right); a pipe hang (no
    *   pendulum) keeps the hand-made clip when moving.
@@ -2920,33 +2924,49 @@ export class AnimGraph {
    * - a lip climb-up: the climb to the crouch, then the stand-up end faded in past `CLIMB_UP_CROUCH_K`; a ladder's
    *   top-out: its capture on the same progress. A drainpipe's or a team climb-up stays hand-made.
    */
-  private mixamoTrav(src: Pose, i: AnimInput, tc: Clip, dt: number, k: number): boolean {
+  private mixamoTrav(src: Pose, i: AnimInput, tc: Clip): boolean {
     const W = WREN_TRAV;
     const t = i.traverseT;
+    const dt = this.mxDt;
     if (i.traverse === 'hang') {
       if (W.hangIdle === null && W.shimmyL === null && W.shimmyR === null) return false;
       const swing = t - Math.floor(t);
       if (t !== 0) this.hangLip = true;
       const S = SHIMMY_SPEED;
+      const k = this.p.height / 1.75;
       this.hangIdleT = (this.hangIdleT + dt / HANG_IDLE_SECONDS) % 1;
       this.shimT = (this.shimT + (i.speed * dt) / (SHIMMY_TRAVEL * k)) % 1;
       const moving = i.speed > S.on;
       this.hangMoveW = (moving ? 1 : 0) + (this.hangMoveW - (moving ? 1 : 0)) * Math.exp(-dt / S.fade);
-      if (this.hangLip && moving && Math.abs(t) > S.swing) this.hangDir = (t < 0 ? 1 : 0) + (this.hangDir - (t < 0 ? 1 : 0)) * Math.exp(-dt / S.dirFade);
+      if (this.hangLip && moving && (t < 0 ? -t : t) > S.swing) this.hangDir = (t < 0 ? 1 : 0) + (this.hangDir - (t < 0 ? 1 : 0)) * Math.exp(-dt / S.dirFade);
       const mv = this.hangMoveW;
       const r = this.hangDir;
       const sl = this.hangLip ? W.shimmyL : null;
       const sr = this.hangLip ? W.shimmyR : null;
       const keep = KEEP_CH.hang;
       this.keepSave(src, keep);
-      // the idle, then left and right over it (sequential blends: their shares come out mv x (1 - r) and mv x r)
+      // the idle, then left and right over it (sequential blends: their shares come out mv x (1 - r) and mv x r); a
+      // capture at full weight covers the ones under it (every capture keys the same channels), so those are skipped
       const b = mv * r;
       const a = b < 1 ? (mv - b) / (1 - b) : 0;
-      if (W.hangIdle) overClip(src, W.hangIdle, this.hangIdleT, 1);
-      else overClip(src, HANG, swing, 1);
-      if (a > 0) overClip(src, sl ?? HANG, sl ? this.shimT : swing, a);
-      if (b > 0) overClip(src, sr ?? HANG, sr ? this.shimT : swing, b);
-      this.keepApply(src, keep, HANG, swing);
+      const full = (b >= 1 && sr !== null) || (a >= 1 && b <= 0 && sl !== null);
+      this.mxW = 1;
+      if (!full) {
+        this.mxT = W.hangIdle ? this.hangIdleT : swing;
+        this.mxOver(src, W.hangIdle ?? HANG);
+      }
+      if (a > 0 && b < 1) {
+        this.mxW = a;
+        this.mxT = sl ? this.shimT : swing;
+        this.mxOver(src, sl ?? HANG);
+      }
+      if (b > 0) {
+        this.mxW = b;
+        this.mxT = sr ? this.shimT : swing;
+        this.mxOver(src, sr ?? HANG);
+      }
+      this.mxT = swing;
+      this.keepApply(src, keep, HANG);
       this.travNow = (mv < 0.5 ? W.hangIdle : r < 0.5 ? sl : sr) ?? tc;
       return true;
     }
@@ -2955,20 +2975,23 @@ export class AnimGraph {
       const c = ladder ? W.ladder : W.crawl;
       if (c === null) return false;
       const keep = ladder ? KEEP_CH.climb : KEEP_CH.crawl;
-      const ct = t - Math.floor(t);
       this.keepSave(src, keep);
-      overClip(src, c, ct, 1);
-      this.keepApply(src, keep, tc, ct);
+      this.mxT = t - Math.floor(t);
+      this.mxW = 1;
+      this.mxOver(src, c);
+      this.keepApply(src, keep, tc);
       this.travNow = c;
       return true;
     }
     if (i.traverse !== 'climbUp' || !i.ledgeClimb) return false;
-    const kk = clamp(t, 0, 1);
+    // (clamp written out: no double argument)
+    this.mxT = t < 0 ? 0 : t > 1 ? 1 : t;
+    this.mxW = 1;
     if (this.travFrom === 'climb') {
       if (W.ladderTop === null) return false;
       this.keepSave(src, KEEP_CH.topOut);
-      overClip(src, W.ladderTop, kk, 1);
-      this.keepApply(src, KEEP_CH.topOut, CLIMB_UP, kk);
+      this.mxOver(src, W.ladderTop);
+      this.keepApply(src, KEEP_CH.topOut, CLIMB_UP);
       this.travNow = W.ladderTop;
       return true;
     }
@@ -2977,12 +3000,34 @@ export class AnimGraph {
     const cb = W.climbUpStand ?? CLIMB_UP;
     if (ca === CLIMB_UP && cb === CLIMB_UP) return false;
     this.keepSave(src, KEEP_CH.climbUp);
-    overClip(src, ca, kk, 1);
-    const sw = cb === ca ? 0 : smoothstep((kk - CLIMB_UP_CROUCH_K) / STAND_FADE);
-    if (sw > 0) overClip(src, cb, kk, sw);
-    this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP, kk);
+    this.mxOver(src, ca);
+    // (smoothstep written out: no double argument)
+    const u = (this.mxT - CLIMB_UP_CROUCH_K) / STAND_FADE;
+    const sw = cb === ca || u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+    if (sw > 0) {
+      this.mxW = sw;
+      this.mxOver(src, cb);
+    }
+    this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP);
     this.travNow = sw > 0.5 ? cb : ca;
     return true;
+  }
+
+  /** (I2) This frame's dt for `mixamoTrav`, and a blend's clip time and weight for `mxOver` / `keepApply` (fields: no
+   *  boxed double arguments). */
+  private mxDt = 0;
+  private mxT = 0;
+  private mxW = 0;
+  /** (I2) `overClip(src, c, mxT, mxW)` with its time and weight read from the fields. */
+  private mxOver(src: Pose, c: Clip): void {
+    const w = this.mxW;
+    const t = this.mxT;
+    if (w === 0) return;
+    for (let k = 0; k < c.keyed.length; k++) {
+      const ch = c.keyed[k]!;
+      const v = evalCurve(c.curves[ch]!, t);
+      src[ch] = src[ch]! + w * (v - src[ch]!);
+    }
   }
 
   /** (I2) The kept channels' values before the capture (the base pose under a channel the hand-made clip does not key). */
@@ -2990,8 +3035,9 @@ export class AnimGraph {
   private keepSave(src: Pose, keep: readonly number[]): void {
     for (let j = 0; j < keep.length; j++) this.keepBase[j] = src[keep[j]!]!;
   }
-  /** (I2) The kept channels back to the hand-made clip `hand` at `t` (as the hand-made path would have set them). */
-  private keepApply(src: Pose, keep: readonly number[], hand: Clip, t: number): void {
+  /** (I2) The kept channels back to the hand-made clip `hand` at `mxT` (as the hand-made path would have set them). */
+  private keepApply(src: Pose, keep: readonly number[], hand: Clip): void {
+    const t = this.mxT;
     for (let j = 0; j < keep.length; j++) {
       const ch = keep[j]!;
       const cv = hand.curves[ch];

@@ -2,9 +2,10 @@
  * (mixamo-retarget I2) The Mixamo traversal captures on Wren (`src/anim/mixamo.ts`, the graph's `mixamoTrav`):
  * - off (the flag's default, no Studio pick): every slot hand-made and the graph bit-identical to a graph that never saw
  *   the switch, after the flag or a Studio pick was on and is cleared again; a guard's graph identical with the flag on;
- * - on: Wren's graph picks the capture of each slot (hanging idle, the shimmy by the pendulum's side, ladder, vent crawl,
- *   the lip climb-up to the crouch then the free-hang stand-up end, the ladder top-out); a team or drainpipe climb-up, a
- *   pipe hang on the move and a guard keep the hand-made clips; `playing.trav` names the capture;
+ * - on: Wren's graph picks the capture of each slot `MIXAMO_ON` lets play (hanging idle, the shimmy by the pendulum's
+ *   side, ladder, vent crawl, the lip climb-up to the crouch then the free-hang stand-up end, the ladder top-out; one
+ *   kept off plays its hand-made clip); a team or drainpipe climb-up, a pipe hang on the move and a guard keep the
+ *   hand-made clips; `playing.trav` names the capture;
  * - headless on Wren's rig driven as attachController drives it (AttachGrips on a lip / ladder): the palms stay on their
  *   grips (rig.gripError) and the soles on their plants as well as on the hand-made clips (bible 5.12.2 #2, within 1 cm);
  * - the Studio's pick (`trav:<loop>/<slug>`) plays that capture with the flag off, and clears.
@@ -17,6 +18,7 @@ import { proportions } from '../src/player/proportions';
 import { flags, onOffFlag } from '../src/core/flags';
 import { STUDIO_ENTRIES } from '../src/anim/studio';
 import type { RigPose } from '../src/player/characterRig';
+import type { Ladder, Ledge } from '../src/world/anchors';
 
 afterEach(() => {
   setMixamo(false);
@@ -101,12 +103,13 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     setMixamo(true);
     expect(WREN_TRAV.any).toBe(true);
     for (const [slug, r] of Object.entries(MIXAMO_TRAV)) expect(WREN_TRAV[r.slot], slug).toBe(MIXAMO_ON[slug] ? r.clip : null);
-    MIXAMO_ON.climbing_ladder = false;
+    const was = MIXAMO_ON.crawling_hands_and_knees === true;
+    MIXAMO_ON.crawling_hands_and_knees = false;
     try {
       setMixamo(true);
-      expect(WREN_TRAV.ladder).toBeNull();
+      expect(WREN_TRAV.crawl).toBeNull();
     } finally {
-      MIXAMO_ON.climbing_ladder = true;
+      MIXAMO_ON.crawling_hands_and_knees = was;
     }
   });
 
@@ -165,20 +168,34 @@ describe('mixamo I2: the graph', () => {
     expect(on.trav).toEqual(off.trav);
   });
 
-  it('on: Wren picks the capture of each slot; team climb-up and a moving pipe hang stay hand-made', () => {
-    setMixamo(true);
-    const r = runGraph(true);
-    expect(r.trav[AT.idle]).toBe(clip('hanging_idle').name);
-    // the hips trail the hands: a swing to the left (traverseT < 0) is a shimmy to the right
-    expect(r.trav[AT.shimR]).toBe(clip('braced_hang_shimmy_right').name);
-    expect(r.trav[AT.shimL]).toBe(clip('braced_hang_shimmy_left').name);
-    expect(r.trav[AT.climbCrouch]).toBe(clip('braced_hang_to_crouch').name);
-    expect(r.trav[AT.climbStand]).toBe(clip('freehang_climb').name);
-    expect(r.trav[AT.pipe]).toBe(HANG.name);
-    expect(r.trav[AT.ladder]).toBe(clip('climbing_ladder').name);
-    expect(r.trav[AT.topOut]).toBe(clip('climbing_ladder_to_standing').name);
-    expect(r.trav[AT.crawl]).toBe(clip('crawling_hands_and_knees').name);
-    expect(r.trav[AT.team]).toBe(CLIMB_UP_TEAM.name);
+  it('on: Wren picks the capture of each slot MIXAMO_ON lets play; team climb-up and a moving pipe hang stay hand-made', () => {
+    // a capture MIXAMO_ON keeps off plays its hand-made clip (mixamo.ts: the reach / plant measures below)
+    const name = (slug: string, hand: string): string => (MIXAMO_ON[slug] ? clip(slug).name : hand);
+    const want = (on: boolean): void => {
+      setMixamo(true);
+      const r = runGraph(true);
+      expect(r.trav[AT.idle]).toBe(name('hanging_idle', HANG.name));
+      // the hips trail the hands: a swing to the left (traverseT < 0) is a shimmy to the right
+      expect(r.trav[AT.shimR]).toBe(name('braced_hang_shimmy_right', HANG.name));
+      expect(r.trav[AT.shimL]).toBe(name('braced_hang_shimmy_left', HANG.name));
+      expect(r.trav[AT.climbCrouch]).toBe(name('braced_hang_to_crouch', CLIMB_UP.name));
+      expect(r.trav[AT.climbStand]).toBe(name('freehang_climb', CLIMB_UP.name));
+      expect(r.trav[AT.pipe]).toBe(HANG.name);
+      expect(r.trav[AT.ladder]).toBe(name('climbing_ladder', CLIMB.name));
+      expect(r.trav[AT.topOut]).toBe(name('climbing_ladder_to_standing', CLIMB_UP.name));
+      expect(r.trav[AT.crawl]).toBe(name('crawling_hands_and_knees', CRAWL.name));
+      expect(r.trav[AT.team]).toBe(CLIMB_UP_TEAM.name);
+      if (on) for (const slug of Object.keys(MIXAMO_TRAV)) expect(MIXAMO_ON[slug], slug).toBe(true);
+    };
+    want(false);
+    // with every capture let on, each slot plays its capture
+    const saved = { ...MIXAMO_ON };
+    try {
+      for (const slug of Object.keys(MIXAMO_ON)) MIXAMO_ON[slug] = true;
+      want(true);
+    } finally {
+      Object.assign(MIXAMO_ON, saved);
+    }
     // the hand-made clips are the ones replaced
     expect([HANG, CLIMB, CRAWL, CLIMB_UP].map((c) => c.name)).toEqual(['hang', 'climb', 'crawl', 'climbUp']);
   });
@@ -255,8 +272,6 @@ async function reach(state: State): Promise<Reach> {
   const { CLIMB_UP_PATH, CLIMB_UP_TIME, CLIMB_UP_STAND, LADDER_TOPOUT_TIME } = await import('../src/player/attachController');
   const { attachGripWeight, climbUpFootWeight } = await import('../src/player/moveState');
   const { makeLedge, TraversalAnchors, HANG: HANG_A } = await import('../src/world/anchors');
-  type Ladder = import('../src/world/anchors').Ladder;
-  type Ledge = import('../src/world/anchors').Ledge;
   const scene = new Scene(new NullEngine());
   const lib = new PartLibrary(scene);
   const anchors = new TraversalAnchors();
