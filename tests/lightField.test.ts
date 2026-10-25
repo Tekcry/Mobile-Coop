@@ -4,7 +4,9 @@ import { LightRegistry } from '../src/world/lights';
 import { bakeMoon, MOON_CELL, type MoonJob } from '../src/voxel/skyBake';
 import { packShapes, type VoxelShape } from '../src/voxel/shapes';
 import { lightBakeHash, type LightBake } from '../src/world/lightBake';
-import { bytesPerCall } from './helpers/allocPerCall';
+import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
+import { CAPSULE, capsuleTransmit, CHAR_LIGHT, CharOccluders, holds, OCC, OCC_KIND, occKey } from '../src/world/charOccluders';
+import type { Occluder } from '../src/world/lights';
 import { nsGrid2 } from './helpers/bounceRead';
 
 describe('ambient grid (3.6)', () => {
@@ -445,6 +447,343 @@ describe('light field (3.6)', async () => {
     expect(level).toBeLessThan(ctl - 32);
     expect(level).toBeLessThanOrEqual(BOXED_BUDGET);
     expect(body).toBeLessThanOrEqual(bodyLimit);
+  });
+
+  // ---- (char-shadow-meter S1, J16) the character term: the gameplay lamp set x the soft capsules (PLAN section 1) ----
+
+  /** A source's position as the field uses it: registry id (a baked lamp with its swing, a non-baked light) or -1 the
+   *  moon (60 m along its direction from the point). */
+  function sourcePos(reg: LightRegistry, b: LightBake, id: number, x: number, y: number, z: number): [number, number, number] {
+    if (id === -1) {
+      const d = b.moon.dir;
+      return [x + d[0] * CHAR_LIGHT.moonFar, y + d[1] * CHAR_LIGHT.moonFar, z + d[2] * CHAR_LIGHT.moonFar];
+    }
+    const l = reg.lights[id]!;
+    const bi = b.lamps!.baked.ids.indexOf(id);
+    if (bi < 0) return [l.x, l.y, l.z];
+    // (the baked position, float32, as the field holds it)
+    const L = b.lamps!.baked.lights;
+    const st = L.length / b.lamps!.baked.ids.length;
+    return [L[bi * st]! + l.swx, L[bi * st + 1]! + l.swy, L[bi * st + 2]! + l.swz];
+  }
+
+  /** The expectation from the parts: today's total, less each set member's share the capsules take (its term x (1 -
+   *  the brute-force product over the contract)). Only while nothing clamps at 1. */
+  function expected(f: InstanceType<typeof LightField>, reg: LightRegistry, b: LightBake, c: CharOccluders, x: number, y: number, z: number, skip: number, occ?: Occluder): { v: number; hit: number[] } {
+    const ids = new Int32Array(64);
+    const lv = new Float32Array(64);
+    const n = f.sourcesInto(x, y, z, ids, lv, 64, occ);
+    let v = f.totalAt(x, y, z, occ);
+    const hit: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const id = ids[k]!;
+      const [sx, sy, sz] = sourcePos(reg, b, id, x, y, z);
+      let t = 1;
+      for (let i = 0; i < c.n; i++) {
+        if (c.owner[i] === skip) continue;
+        const o = i * OCC.stride;
+        const C = c.cap;
+        if (holds(sx, sy, sz, C[o]!, C[o + 1]!, C[o + 2]!, C[o + 3]!, C[o + 4]!, C[o + 5]!, C[o + 6]!)) continue;
+        t *= capsuleTransmit(x, y, z, sx, sy, sz, C[o]!, C[o + 1]!, C[o + 2]!, C[o + 3]!, C[o + 4]!, C[o + 5]!, C[o + 6]!);
+      }
+      if (t < 1) hit.push(id);
+      v -= f.sourceAt(id, x, y, z, occ) * (1 - t);
+    }
+    return { v, hit };
+  }
+
+  const upright = (c: CharOccluders, kind: number, index: number, x: number, y: number, z: number, h = 1.75, r = 0.3): number => c.add(kind, index, x, y + r, z, x, y + h - r, z, r);
+
+  it('no contract, or an empty one, gives today\'s values to the bit', () => {
+    const { reg, bake } = scene();
+    reg.add({ kind: 'flashlight', x: 5, y: 1.5, z: 5, radius: 10, intensity: 0.8, cone: makeCone(0, 0, 1, 0.4), on: true });
+    const f = new LightField(bake, reg);
+    const empty = new CharOccluders();
+    const occ = (): boolean => false;
+    let seed = 41;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 500; i++) {
+      const x = -10 + rnd() * 20;
+      const y = 0.05 + rnd() * 3.5;
+      const z = -10 + rnd() * 20;
+      const t = f.totalAt(x, y, z, occ);
+      expect(Object.is(f.totalAt(x, y, z, occ, null, 5), t)).toBe(true);
+      expect(Object.is(f.totalAt(x, y, z, occ, empty, -1), t)).toBe(true);
+      const body = f.bodyLevel(x, 0, z, 1.75, occ, 0.1, 0);
+      expect(Object.is(f.bodyLevel(x, 0, z, 1.75, occ, 0.1, 0, empty, -1), body)).toBe(true);
+    }
+  });
+
+  it('a guard between one lamp and the chest scales only that lamp\'s share, by the formula (0.15 in the umbra)', () => {
+    const { reg, bake } = scene();
+    const f = new LightField(bake, reg);
+    // the west lamp (id 0, at -3, 3, 0) and a chest 2.4 m from it under the roof; a guard stands across the ray
+    const p = [-1.2, 1.1, -1.6] as const;
+    const [lx, ly, lz] = sourcePos(reg, bake, 0, ...p);
+    const L = f.lampAt(0, ...p);
+    expect(L).toBeGreaterThan(CHAR_LIGHT.minLevel);
+    const before = f.totalAt(...p);
+    expect(before).toBeLessThan(1);
+    const c = new CharOccluders();
+    // (a quarter of the way to the lamp, his head just under the ray)
+    upright(c, OCC_KIND.guard, 4, -1.65, 0, -1.2);
+    const T = capsuleTransmit(...p, lx, ly, lz, -1.65, 0.3, -1.2, -1.65, 1.45, -1.2, 0.3);
+    expect(T).toBeLessThan(1);
+    const got = f.totalAt(...p, undefined, c, -1);
+    const want = expected(f, reg, bake, c, ...p, -1);
+    // only the west lamp is shaded
+    expect(want.hit).toEqual([0]);
+    expect(got).toBeCloseTo(before - L * (1 - T), 12);
+    expect(got).toBeCloseTo(want.v, 12);
+    // straight into the umbra: the lamp's share drops to its floor
+    const u = new CharOccluders();
+    u.add(OCC_KIND.body, 0, -1.65, 1.575, -1.6, -1.65, 1.575, -0.8, 0.3);
+    expect(capsuleTransmit(...p, lx, ly, lz, -1.65, 1.575, -1.6, -1.65, 1.575, -0.8, 0.3)).toBe(CAPSULE.floor);
+    expect(expected(f, reg, bake, u, ...p, -1).hit).toEqual([0]);
+    expect(f.totalAt(...p, undefined, u, -1)).toBeCloseTo(before - L * (1 - CAPSULE.floor), 12);
+    // the sampled character's own capsule never shades him (owner skip; and his chest is on its own surface)
+    const own = new CharOccluders();
+    const key = occKey(OCC_KIND.player, 0);
+    upright(own, OCC_KIND.player, 0, p[0], 0, p[2]);
+    expect(Object.is(f.bodyLevel(p[0], 0, p[2], 1.75, undefined, 0, 0, own, key), f.bodyLevel(p[0], 0, p[2], 1.75))).toBe(true);
+    expect(Object.is(f.bodyLevel(p[0], 0, p[2], 1.75, undefined, 0, 0, own, -1), f.bodyLevel(p[0], 0, p[2], 1.75))).toBe(true);
+  });
+
+  it('random scenes: the field with a contract equals the parts (set members x the brute-force product)', () => {
+    const { reg, bake } = scene();
+    reg.add({ kind: 'flashlight', x: 5, y: 1.5, z: 5, radius: 10, intensity: 0.8, cone: makeCone(0, 0, 1, 0.4), on: true });
+    const f = new LightField(bake, reg);
+    const occ = (): boolean => false;
+    let seed = 77;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    let shaded = 0;
+    let n = 0;
+    for (let s = 0; s < 40; s++) {
+      const c = new CharOccluders();
+      for (let i = 0; i < 12; i++) upright(c, i < 4 ? OCC_KIND.player : OCC_KIND.guard, i, -9 + rnd() * 18, 0, -9 + rnd() * 18);
+      for (let k = 0; k < 40; k++) {
+        const x = -9 + rnd() * 18;
+        const y = 0.3 + rnd() * 1.6;
+        const z = -9 + rnd() * 18;
+        if (f.totalAt(x, y, z, occ) >= 1) continue;
+        const skip = rnd() < 0.5 ? c.owner[Math.floor(rnd() * c.n)]! : -1;
+        const want = expected(f, reg, bake, c, x, y, z, skip, occ);
+        expect(f.totalAt(x, y, z, occ, c, skip), `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`).toBeCloseTo(Math.max(0, want.v), 9);
+        if (want.hit.length) shaded++;
+        n++;
+      }
+    }
+    expect(n).toBeGreaterThan(800);
+    expect(shaded).toBeGreaterThan(40);
+  });
+
+  it('a lamp giving under CHAR_LIGHT.minLevel at the point is never shaded', () => {
+    const { reg, bake } = scene();
+    const f = new LightField(bake, reg);
+    let seed = 3;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    let found = 0;
+    for (let k = 0; k < 4000 && found < 20; k++) {
+      const x = -10 + rnd() * 20;
+      const y = 0.3 + rnd() * 1.5;
+      const z = -10 + rnd() * 20;
+      for (let i = 0; i < bake.lamps!.baked.ids.length; i++) {
+        const L = f.lampAt(i, x, y, z);
+        if (!(L > 0.002 && L < CHAR_LIGHT.minLevel)) continue;
+        const id = bake.lamps!.baked.ids[i]!;
+        const [sx, sy, sz] = sourcePos(reg, bake, id, x, y, z);
+        // a body lying across the ray, a third of the way to the lamp: its umbra
+        const mx = x + (sx - x) / 3;
+        const my = y + (sy - y) / 3;
+        const mz = z + (sz - z) / 3;
+        const ux = -(sz - z);
+        const uz = sx - x;
+        const ul = Math.sqrt(ux * ux + uz * uz) || 1;
+        const c = new CharOccluders();
+        c.add(OCC_KIND.body, 0, mx - (ux / ul) * 0.7, my, mz - (uz / ul) * 0.7, mx + (ux / ul) * 0.7, my, mz + (uz / ul) * 0.7, 0.3);
+        expect(capsuleTransmit(x, y, z, sx, sy, sz, mx - (ux / ul) * 0.7, my, mz - (uz / ul) * 0.7, mx + (ux / ul) * 0.7, my, mz + (uz / ul) * 0.7, 0.3)).toBeLessThan(0.5);
+        const want = expected(f, reg, bake, c, x, y, z, -1);
+        // (the lamp is not a set member there; when the body shades no member the total is today's to the bit)
+        if (f.totalAt(x, y, z) >= 1) continue;
+        expect(want.hit).not.toContain(id);
+        if (want.hit.length === 0) expect(Object.is(f.totalAt(x, y, z, undefined, c, -1), f.totalAt(x, y, z))).toBe(true);
+        else expect(f.totalAt(x, y, z, undefined, c, -1)).toBeCloseTo(want.v, 12);
+        found++;
+      }
+    }
+    expect(found).toBeGreaterThanOrEqual(5);
+  });
+
+  it('the moon: a capsule along moon.dir scales its share', () => {
+    const { reg, bake } = scene();
+    const f = new LightField(bake, reg);
+    // out in the open east of the wall, far from the lamps' columns where possible
+    const p = [8, 0.8, 8] as const;
+    expect(f.moonAt(...p)).toBeGreaterThan(0.99);
+    const moon = bake.moonLight * f.moonAt(...p);
+    const before = f.totalAt(...p);
+    expect(before).toBeLessThan(1);
+    const d = bake.moon.dir;
+    // a guard 1.5 m towards the moon, lying across its ray (an up-tilted ray: a horizontal capsule along z)
+    const cx = p[0] + d[0] * 1.5;
+    const cy = p[1] + d[1] * 1.5;
+    const cz = p[2] + d[2] * 1.5;
+    const c = new CharOccluders();
+    c.add(OCC_KIND.guard, 1, cx, cy, cz - 0.6, cx, cy, cz + 0.6, 0.3);
+    const T = capsuleTransmit(...p, p[0] + d[0] * 60, p[1] + d[1] * 60, p[2] + d[2] * 60, cx, cy, cz - 0.6, cx, cy, cz + 0.6, 0.3);
+    expect(T).toBe(CAPSULE.floor);
+    const want = expected(f, reg, bake, c, ...p, -1);
+    expect(want.hit).toContain(-1);
+    expect(f.totalAt(...p, undefined, c, -1)).toBeCloseTo(want.v, 12);
+    if (want.hit.length === 1) expect(f.totalAt(...p, undefined, c, -1)).toBeCloseTo(before - moon * (1 - T), 12);
+  });
+
+  it('a flashlight held inside a capsule is not shadowed by its holder (A5); a guard in its beam shadows it', () => {
+    const { reg, bake } = scene();
+    const t = reg.add({ kind: 'flashlight', x: 5, y: 1.5, z: 5, radius: 10, intensity: 0.8, cone: makeCone(0, 0, 1, 0.4), on: true });
+    const f = new LightField(bake, reg);
+    const p = [5, 1.3, 8.5] as const;
+    const D = f.sourceAt(t.id, ...p);
+    expect(D).toBeGreaterThan(0.2);
+    const before = f.totalAt(...p);
+    expect(before).toBeLessThan(1);
+    // the holder stands 0.25 m behind his torch
+    const c = new CharOccluders();
+    upright(c, OCC_KIND.guard, 0, 5, 0, 4.75);
+    const held = expected(f, reg, bake, c, ...p, -1);
+    expect(held.hit).not.toContain(t.id);
+    expect(f.totalAt(...p, undefined, c, -1)).toBeCloseTo(held.v, 12);
+    // a second guard standing in the beam, 1.5 m in front of the torch
+    upright(c, OCC_KIND.guard, 1, 5, 0, 6.5);
+    const beam = expected(f, reg, bake, c, ...p, -1);
+    expect(beam.hit).toContain(t.id);
+    const got = f.totalAt(...p, undefined, c, -1);
+    expect(got).toBeCloseTo(beam.v, 12);
+    expect(got).toBeLessThan(before - D * 0.5);
+  });
+
+  it('sourcesInto lists the set the contract term walks, strongest first; sourceAt of each sums with the rest to totalAt', () => {
+    const { reg, bake } = scene();
+    reg.add({ kind: 'flashlight', x: 5, y: 1.5, z: 5, radius: 10, intensity: 0.8, cone: makeCone(0, 0, 1, 0.4), on: true });
+    const f = new LightField(bake, reg);
+    const occ = (): boolean => false;
+    const ids = new Int32Array(32);
+    const lv = new Float32Array(32);
+    const top = new Int32Array(2);
+    const topLv = new Float32Array(2);
+    const ag = bake.ambient;
+    const lampIds = bake.lamps!.baked.ids;
+    let seed = 19;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    let multi = 0;
+    let checked = 0;
+    for (let k = 0; k < 400; k++) {
+      const x = -10 + rnd() * 20;
+      const y = 0.05 + rnd() * 3.5;
+      const z = -10 + rnd() * 20;
+      const n = f.sourcesInto(x, y, z, ids, lv, 32, occ);
+      for (let j = 1; j < n; j++) expect(lv[j]!).toBeLessThanOrEqual(lv[j - 1]!);
+      if (n > 1) multi++;
+      // each member's term, as listed
+      for (let j = 0; j < n; j++) expect(f.sourceAt(ids[j]!, x, y, z, occ)).toBeCloseTo(lv[j]!, 6);
+      // the set: the baked lamps giving at least minLevel here, the moon where it reaches, the lit flashlight
+      const listed = new Set(Array.from(ids.subarray(0, n)));
+      for (let i = 0; i < lampIds.length; i++) expect(listed.has(lampIds[i]!), `lamp ${i}`).toBe(f.lampAt(i, x, y, z) >= CHAR_LIGHT.minLevel);
+      expect(listed.has(-1)).toBe(bake.moonLight * f.moonAt(x, y, z) > 0);
+      // a short list keeps the strongest
+      const m = f.sourcesInto(x, y, z, top, topLv, 2, occ);
+      expect(m).toBe(Math.min(2, n));
+      for (let j = 0; j < m; j++) expect(topLv[j]).toBe(lv[j]);
+      // ambient + bounce + the members + the lamps under minLevel = today's total (while nothing clamps)
+      const total = f.totalAt(x, y, z, occ);
+      if (total >= 1) continue;
+      let sum = trilinear(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z) + f.bounceAt(x, y, z);
+      for (let j = 0; j < n; j++) sum += f.sourceAt(ids[j]!, x, y, z, occ);
+      for (let i = 0; i < lampIds.length; i++) {
+        const L = f.lampAt(i, x, y, z);
+        if (L < CHAR_LIGHT.minLevel) sum += L;
+      }
+      expect(sum, `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`).toBeCloseTo(total, 9);
+      checked++;
+    }
+    expect(multi).toBeGreaterThan(50);
+    expect(checked).toBeGreaterThan(200);
+    // the moon and a non-baked light by id; an unknown id reads 0
+    expect(f.sourceAt(-1, 8, 1, 8)).toBeCloseTo(bake.moonLight * f.moonAt(8, 1, 8), 12);
+    expect(f.sourceAt(-7, 8, 1, 8)).toBe(0);
+    expect(f.sourceAt(999, 8, 1, 8)).toBe(0);
+  });
+
+  it('allocation-free with a contract: totalAt / bodyLevel / sourcesInto / sourceAt add nothing to the no-contract reading', async () => {
+    const { reg, bake } = scene();
+    reg.add({ kind: 'flashlight', x: 5, y: 1.5, z: 5, radius: 10, intensity: 0.8, cone: makeCone(0, 0, 1, 0.4), on: true });
+    const door = { anchor: { hinge: { x: 0, y: 0, z: 0 }, yaw: 0, width: 1.2, height: 2.2 }, open: 0 };
+    const f = new LightField(bake, reg, [door]);
+    const occ = (): boolean => false;
+    // 16 characters spread over the room, so most queries test a few capsules
+    const c = new CharOccluders();
+    let seed = 5;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 16; i++) upright(c, OCC_KIND.guard, i, -9 + rnd() * 18, 0, -9 + rnd() * 18);
+    const N = 2000;
+    const X = inputs(N, (k) => (k % 40) * 0.5 - 10);
+    const Z = inputs(N, (k) => ((k * 7) % 40) * 0.5 - 10);
+    const ids = new Int32Array(8);
+    const lv = new Float32Array(8);
+    const out = new Float64Array(1);
+    let hit = 0;
+    for (let i = 0; i < N; i++) if (f.totalAt(X[i]!, 1, Z[i]!, occ, c, -1) < f.totalAt(X[i]!, 1, Z[i]!, occ)) hit++;
+    const per = (fn: (n: number) => void, goal: number): Promise<number> => bytesPerCall(fn, goal, { n: N, warm: 500000 });
+    const ring: Float64Array[] = new Array<Float64Array>(64);
+    const ctl = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) {
+        const v = new Float64Array(3);
+        v[0] = f.totalAt(X[i]!, 1, Z[i]!, occ, c, -1);
+        ring[i & 63] = v;
+        s += v[0];
+      }
+      out[0] = s;
+    }, -Infinity);
+    const plain = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.totalAt(X[i]!, 1, Z[i]!, occ);
+      out[0] = s;
+    }, -Infinity);
+    const total = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.totalAt(X[i]!, 1, Z[i]!, occ, c, -1);
+      out[0] = s;
+    }, plain);
+    const plainBody = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.bodyLevel(X[i]!, 0, Z[i]!, 1.75, occ);
+      out[0] = s;
+    }, -Infinity);
+    const body = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.bodyLevel(X[i]!, 0, Z[i]!, 1.75, occ, 0, 0, c, 3);
+      out[0] = s;
+    }, plainBody);
+    const src = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.sourcesInto(X[i]!, 1, Z[i]!, ids, lv, 8, occ);
+      out[0] = s;
+    }, 0);
+    const one = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.sourceAt(i & 3, X[i]!, 1, Z[i]!, occ);
+      out[0] = s;
+    }, 0);
+    console.info(`bytes per query with a contract: totalAt ${total.toFixed(1)} (none ${plain.toFixed(1)}), bodyLevel ${body.toFixed(1)} (none ${plainBody.toFixed(1)}), sourcesInto ${src.toFixed(1)}, sourceAt ${one.toFixed(1)}; control with a vector ${ctl.toFixed(1)}; ${hit} of ${N} shaded`);
+    expect(hit).toBeGreaterThan(N / 20);
+    // the contract adds no allocation (measured +2 B and +1.6 B: two boxed doubles of slack for V8's choices; an object
+    // in the character path, 48 B and up, still fails)
+    expect(total).toBeLessThanOrEqual(plain + 2 * HEAP_NUMBER);
+    expect(body).toBeLessThanOrEqual(plainBody + 2 * HEAP_NUMBER);
+    expect(total).toBeLessThan(ctl - 32);
+    expect(src).toBeLessThanOrEqual(BOXED_BUDGET);
+    expect(one).toBeLessThanOrEqual(BOXED_BUDGET);
   });
 
   it('trilinear reads match cell values at centres and clamp at the edges', () => {
