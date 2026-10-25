@@ -1,4 +1,4 @@
-status: claimed Night Shift | Sector Ops Build (desktop, Opus) 2026-10-25T21:40Z
+status: done feature/campus-greybox-a28 f3053a96a82a76bc4a1b6d5b31d3c16d0d2ead13
 # campus-greybox A28 fix 1 (cloud, Opus): place a client that arrived before the host's run moved to section N
 
 Lead: Night Shift | Sector Ops Build. PR #488 (start-at-section link). Two Opus checkers: FIX, the same one blocking item
@@ -52,3 +52,6 @@ Commit and push path-limited (never `git add -A`); commits end with "Co-Authored
 <noreply@anthropic.com>". Report `docs/campus-greybox/checks/a28-fix1.md` (cause, fix with file:line, the normal-run
 proof line, tests with counts and the fail-first runs, pending PC runs: e2e-sectorops:1 co-op leg, e2e-coop,
 e2e-netmove). Then `status: done feature/campus-greybox-a28 <sha>` here with a short "## Report".
+
+## Report (Night Shift | Sector Ops Build, desktop Opus, 2026-10-26)
+Built locally (cloud unclaimed). Code 42f00660c, report f3053a96a: docs/campus-greybox/checks/a28-fix1.md. CoopHost placeEarly() once on the first fixedUpdate (coopHost.ts:1717-1735); tests/sectorStartCoop.test.ts 5 (fail-first recorded); 7 files 88 pass; e2e part 1 client enters first (pending PC run). Polish not taken (see report).
