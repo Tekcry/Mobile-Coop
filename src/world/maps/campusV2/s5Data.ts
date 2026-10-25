@@ -217,4 +217,4 @@ export const S5_PARTS: CampusSectionParts = {
 
 /** (campus-greybox) True while this v2 section is still an exact copy of the live one (`tests/campusV2.test.ts`
  *  checks it equals v1); the lane sets it false with its first layout change. */
-export const S5_V2_COPY = true;
+export const S5_V2_COPY = false;
