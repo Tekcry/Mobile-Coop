@@ -42,6 +42,11 @@ interface FakeGuard {
 
 let guardSeq = 0;
 const guard = (zone?: string): FakeGuard => ({ id: `e${++guardSeq}`, alive: true, alerted: false, passive: false, zone, ko: false, taken: false });
+/** A knock-out as the engine does it (`Enemy.knockOut`): `ko` set, then hp drained, so the guard is not alive either. */
+const knockOut = (g: FakeGuard): void => {
+  g.ko = true;
+  g.alive = false;
+};
 
 function sec(id: string, guards: number, extra: Partial<SectorDef> = {}): SectorDef {
   return { id, guards: Array.from({ length: guards }, () => ({ kind: 'grunt', x: 0, z: 0, yaw: 0, takedownSpot: [0, 0] })), ...extra } as unknown as SectorDef;
@@ -590,7 +595,7 @@ describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he ta
   it('knocked out -> SECTION RESTART, PROTECTED_LINE, no break counted, no move; W2 restarts with him at his table', () => {
     const h = tgcAtW2();
     const m = h.m;
-    h.slots[TEALE]!.ko = true;
+    knockOut(h.slots[TEALE]!);
     run(h, 0.1);
     expect(banners(h)).toEqual([`banner ${SECTION_RESTART_TITLE}`]);
     expect(h.log).toContain(`say ${PROTECTED_LINE}`);
@@ -649,7 +654,7 @@ describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he ta
   it('killed while the mission scope is held (just after a restart): nothing that tick; the break and the move once the hold ends', () => {
     const h = tgcAtW2();
     const m = h.m;
-    h.slots[TEALE]!.ko = true;
+    knockOut(h.slots[TEALE]!);
     run(h, 0.1);
     expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD + 0.5)).toBe(true);
     expect(m.tracker.held).toBe(true);
@@ -696,7 +701,7 @@ describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he ta
     run(h, RULE_HOLD + 0.2);
     expect(h.bolts.length).toBe(2);
     // knocked out at the bolt point
-    h.slots[TEALE]!.ko = true;
+    knockOut(h.slots[TEALE]!);
     run(h, 0.1);
     expect(banners(h)[1]).toBe(`banner ${SECTION_RESTART_TITLE}`);
     expect(m.tracker.breaks).toBe(1);
@@ -722,7 +727,7 @@ describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he ta
       const h = tgcAtW2();
       h.m.intel(h.slots[TEALE]!.id);
       expect(h.m.runner.isDone(TGC3)).toBe(true);
-      if (how === 'ko') h.slots[TEALE]!.ko = true;
+      if (how === 'ko') knockOut(h.slots[TEALE]!);
       else h.slots[TEALE]!.alive = false;
       run(h, 1);
       expect(banners(h)).toEqual([]);
@@ -733,7 +738,7 @@ describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he ta
   it('knocked out in the same tick his intel completes the step -> nothing', () => {
     const h = tgcAtW2();
     h.m.intel(h.slots[TEALE]!.id);
-    h.slots[TEALE]!.ko = true;
+    knockOut(h.slots[TEALE]!);
     run(h, 0.5);
     expect(banners(h)).toEqual([]);
   });
@@ -754,7 +759,7 @@ describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he ta
 
   it('Fenn or Garrow knocked out or killed, or no Teale spawned (slotGuard null) -> no restart', () => {
     const h = tgcAtW2();
-    h.slots[FENN]!.ko = true;
+    knockOut(h.slots[FENN]!);
     h.slots[GARROW]!.alive = false;
     run(h, 1);
     expect(banners(h)).toEqual([]);

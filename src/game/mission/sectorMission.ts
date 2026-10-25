@@ -568,7 +568,8 @@ export class SectorMission {
       if (k < 0 || this.targetSec[i] !== ri || this.runner.isDone(i)) continue;
       const e = this.host.slotGuard(k);
       if (!e) continue;
-      if (!e.alive && this.targetRule[i] === 1) {
+      // a knock-out is `!alive` too (`Enemy.knockOut` sets `ko`, then drains hp to 0), so a kill is `!alive && !ko`
+      if (!e.alive && !e.ko && this.targetRule[i] === 1) {
         if (this.tracker.onTargetKilled(i)) {
           this.runner.spookStep = i;
           // the spook fact at once, as after a decoy read (he is dead, so nothing bolts until the restart respawns him)
