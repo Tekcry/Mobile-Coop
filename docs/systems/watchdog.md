@@ -1,6 +1,9 @@
 # Watchdog (deterministic alerts and opt-in fixes)
 Code, not the orchestrator, watches the pipeline (process audit 2026-10-24 findings 8, 9, 12, 13; Michael approved
-~21:50, "Watchdog + release path"). The orchestrator's cron reads only `C:/NightShift/scratch/watch-status.json`.
+~21:50, "Watchdog + release path"). Its output is `C:/NightShift/scratch/watch-status.json`; once the task runs, the
+orchestrator's cron reads it beside `auto-train-status.json` and `docs/orchestrator/queue-audit.sh` (the cron prompt in
+`docs/orchestrator/STATE.md` lists what it reads). Until then the orchestrator does the label work by hand
+(`docs/RULES.md` "Getting to master").
 Script `scripts/watchdog.mjs` (pure helpers tested in `tests/watchdog.test.ts`; patterns from `scripts/auto-train.mjs`).
 
 ## Running it
@@ -14,6 +17,9 @@ Script `scripts/watchdog.mjs` (pure helpers tested in `tests/watchdog.test.ts`; 
   the dedicated checkout `C:/NightShift/Mobile-Coop-watchdog-live` (detached origin/master, no agent works there) when
   missing and registers "NightShift watchdog" every 2 min from it (hidden, current user, while logged on, IgnoreNew,
   20-min limit). Re-run with `-Fix "locks"`, then `-Fix "locks,labels"` etc. to enable fixes; `-Minutes`, `-Unregister`.
+  Its action runs `C:\NightShift\scratch\watchdog-task.vbs`, so the laptop queue's task guard disables it until the
+  queue-fix job adds `NightShift watchdog` to the guard's allowlist (`TASK_ALLOW` in `scripts/laptop-queue/service.mjs`;
+  `docs/systems/testing-tools.md` "Laptop queue").
 - Self-update: at each tick start in the live checkout (or `--self-update`), when clean and no fix is mid-way (the
   `action` marker in the state, ignored after 15 min), it moves to a detached origin/master; new code runs next tick.
 - Files (`WATCHDOG_SCRATCH` moves them): `watch-status.json`, `watch-state.json` (first-seen times, label heads, Pages
@@ -50,14 +56,14 @@ its service log / run files. Owners: `watch-owners.json`, else the newest laptop
 `v<version> PREVIEW · <sha>` menu label in the bundle of `/preview/index.html`'s module script.
 
 ## The label convention (checker verdict status)
-With `--fix labels`, a PR gets `train-ready` only when all hold on its current head (the rollup is read from the head
+The rule is in `docs/RULES.md` "Getting to master"; this is how the code applies it. With `--fix labels`, a PR gets `train-ready` only when all hold on its current head (the rollup is read from the head
 commit itself, `headRef.target`, and counts only while that is `headRefOid`):
 - CI `check` success;
 - commit status `checker` = success, posted by the lead's fresh checker on PASS:
   `gh api repos/{owner}/{repo}/statuses/<sha> -f state=success -f context=checker -f description="<who> PASS"`
   (a FIX verdict may post `state=failure`);
-- `affected-e2e` = success. Required by default: without it the PR is not labelled (`pr-affected-unavailable`; until
-  #356 posts it on every head). Opt out with `--no-require-affected` / `WATCHDOG_REQUIRE_AFFECTED=0`, or per PR with the
+- `affected-e2e` = success. Required by default: without it the PR is not labelled (`pr-affected-unavailable`; the
+  laptop service posts it on every non-draft head). Opt out with `--no-require-affected` / `WATCHDOG_REQUIRE_AFFECTED=0`, or per PR with the
   `no-affected-e2e` label (the label reason and comment then say "affected-e2e waived", plus a `pr-affected-waived` alert);
 - not a draft, not CONFLICTING, not a `train/<n>` head.
 With `--fix prs` the label comes off when a required check turns red on the head, or when commits land after it that

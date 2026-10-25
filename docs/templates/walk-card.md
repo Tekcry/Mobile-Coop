@@ -1,6 +1,6 @@
 # Walk card <version> - <release title>
 
-<!-- One per release (docs/systems/session-method.md "Intake", walk pacing). Copy to docs/walks/<version>.md, fill
+<!-- One per release (docs/RULES.md "Walk pacing"; docs/systems/session-method.md "Walk card"). Copy to docs/walks/<version>.md, fill
      every <...>, delete these comments. At most 10 minutes for Michael: items ranked by risk, highest first; cut the
      low-risk tail instead of going over. Each item names its look video or shot so he can judge before he plays.
      His verdicts go in the Result column; an accepted item switches its flag on, a rejected one becomes a fix slice. -->
@@ -15,15 +15,14 @@ Build: `/preview/` at <version> (check the version on the title screen). Time: ~
 | 3 | low | ... | ... | ... | ... | ... | |
 
 ## Unwalked features per area (cap 3)
-<!-- Count after this card. An area at 3 starts no new feature until Michael walks it. -->
+<!-- Count after this card. What an area at the cap may still do: docs/RULES.md "Walk pacing". -->
 | Area | Unwalked | Features | At cap |
 | --- | --- | --- | --- |
-| <Marlow> | <n> | <feature (#pr), ...> | <yes / no> |
-| <Sector Ops> | <n> | ... | ... |
-| <AI> | <n> | ... | ... |
-| <Player / anim> | <n> | ... | ... |
-| <Co-op> | <n> | ... | ... |
-| <UI> | <n> | ... | ... |
+| Player / animation | <n> | <feature (#pr), ...> | <yes / no> |
+| Marlow Yard | <n> | ... | ... |
+| Sector Ops | <n> | ... | ... |
+| Guard AI | <n> | ... | ... |
+| Lighting | <n> | ... | ... |
 
 ## Not on this card
 - <feature (#pr)>: <why, e.g. no visible change / waits on an earlier item>

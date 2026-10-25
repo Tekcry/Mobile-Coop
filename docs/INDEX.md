@@ -79,8 +79,9 @@ the old `warehouseOps` stays selectable), Fallow (`bunker`, parked behind `?lega
 | `docs/kestrel/` | The Kestrel map project and editor (paused, G53) | Kestrel work only |
 | `docs/process-audit/` | Process audits; `rules-history-2026-10-24.md`, the rule text before the 2026-10-24 rewrite | The origin of a rule |
 
-History (do not read unless a job names it): `docs/progress.md` (history and the older follow-up backlog),
-`docs/locomotion/` (the movement run, `CT-RESEARCH.md`, `PROTOTYPE-PLAN.md`), `docs/consolidation/` (the 4.0.0 merge),
-`docs/training/` (the Fallow bunker run), `docs/prompts/` (old phase specs and the music spec), `docs/archive/`
-(retired maps, old changelog, testing and progress history, the pre-prototype CT movement build, the laptop queue's
-first plan `laptop-queue-PLAN-2026-10-23.md`). Each job folder `docs/<job>/` holds that job's BRIEF, PLAN and STATE.
+History (do not read unless a job names it): `docs/progress.md` (history and the older follow-up backlog) and
+`docs/archive/`: every finished job's folder `docs/archive/<job>/` (for example `locomotion/` with `CT-RESEARCH.md`
+and `PROTOTYPE-PLAN.md`, `consolidation/` the 4.0.0 merge, `training/` the Fallow bunker run, `prompts/` old phase
+specs and the music spec), retired maps, the old changelog, testing and progress history, the pre-prototype CT
+movement build and the laptop queue's first plan `laptop-queue-PLAN-2026-10-23.md`. Each live job folder `docs/<job>/`
+holds that job's BRIEF, PLAN and STATE; a released job's folder moves to `docs/archive/<job>/`.

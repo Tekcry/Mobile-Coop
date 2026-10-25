@@ -16,14 +16,16 @@ Check, in order, and cite the line for every finding:
    not ask for, anything he asked for that no slice covers, any place the PLAN reads his words more widely than he
    said them. "Michael said" must be a verbatim quote with a time; "Michael picked" the clicked option text.
 2. **Gates.** Does any slice or assumption cross the vision (`docs/VISION.md`, its current focus), a hard rule,
-   or a rule only Michael may change? Such an assumption must be a one-click question in the BRIEF, not an A-line.
+   or a rule only Michael may change? Such an assumption is a one-click question in the BRIEF, or an overnight A-line
+   logged as `docs/RULES.md` "Intake" step 2 says; anything else is a FIX.
    A map or look job must have a sign-off before any greybox or art slice.
 3. **Claims.** Is there a fenced `claims` block, and does it cover every file the slices name? Run
    `node scripts/claims-check.mjs --plan docs/<job>/PLAN.md --name feature/<job>` from the job folder (after
    `git fetch -q origin`) and list every overlap with the other branch and what overlaps.
 4. **Slices.** Each slice <= ~1.5k changed lines (generated assets, baked data, snapshots, lockfiles, docs not counted) or ~4 h.
    Each has files, checks and "done looks like". Unfinished work behind a flag with owner and switch-on date.
-5. **Walk pacing.** The areas touched and their unwalked count; a 4th unwalked feature in an area is a FIX.
+5. **Walk pacing** (`docs/RULES.md` "Walk pacing"). The areas touched and their unwalked count; a slice that switches
+   on a 4th unwalked feature in an area is a FIX (building it dark behind its flag is fine).
 
 Verdict: PASS only when no item needs a change. Otherwise FIX with a numbered list ranked by impact, each with
 "done looks like". Do not rewrite the plan; do not comment on code style.
