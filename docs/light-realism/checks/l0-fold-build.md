@@ -51,54 +51,19 @@ everywhere; with lamps added in lux it passes where the mean reaches 178 lx. Cho
 curve floor (bands.md 3b level 0.92-1.0). Not needed for L1's car park (14 lx is inside the curve).
 
 ## Tests
-- CPU gate per the task (3-sample average under 90; the desktop sat at 96-100% for ~20 min, ran at 64 and 88).
-- : clean (after one null-narrowing fix in the new test, caught by the first run).
--  RUN  v5.0.3 C:/NightShift/Mobile-Coop-light-realism-l0: 17 / 17 passed (12 old, 5 new: the RAB reference and no IES
-  file in the repo; the reference floor tie; one lamp alone; two overlapping lamps read their real sum; bandCheck on
-  the given lux).
--  and  type-checked standalone (strict, noUncheckedIndexedAccess,
-  verbatimModuleSyntax): clean (the only error is 's vite virtual module, outside this run's scope).
-- cpu 96% > 90%: waiting 30 s
-cpu 100% > 90%: waiting 30 s
-cpu 82%: running campusOps
-built campusOps: 1532 boxes, 134 lights, 1066 ms
-baked 34 lamps over (-60, -2, -86)..(46, 16, -10) in 111118 ms
-baked the moon in 804 ms
-sampled park (43 x 25)
-sampled lane (7 x 21)
-sampled gatehouse (7 x 7)
-sampled verge (7 x 25)
-sampled bins (11 x 8)
-sampled bikes (11 x 5)
-sampled smoke (5 x 4)
-sampled dyard (15 x 6)
-sampled forecourt (33 x 13)
-sampled plantroof (15 x 7)
-sampled c1 (9 x 5)
-
-level = 0.28 + 0.32 x log10(lux); dark < 0.28 (1 lx), lit >= 0.6 (10 lx); moon 0.104
-space        plane y  n     mean lv  mean lx  min lx  U0     band (avg / min lx)   result     | meter y  mean lv  dark  mid  lit
-park            0.10  974     0.277     0.98    0.37  0.374  14 / 3                FAIL mean+min |    1.00    0.282   52%   48%    0%
-lane            0.10  137     0.260     0.88    0.37  0.420  3.5 / 0.7 (v)         FAIL mean+min |    1.00    0.267   75%   24%    1%
-gatehouse       0.80  26      0.934   130.71   14.26  0.109  320 (v)               FAIL mean  |    1.00    0.935    0%    0%  100%
-verge           0.10  168     0.239     0.76    0.37  0.487  -                     no band    |    1.00    0.242   96%    3%    1%
-bins            0.10  59      0.247     0.83    0.37  0.444  1.75 / 0.3 (v)        FAIL mean  |    1.00    0.260   76%   24%    0%
-bikes           0.10  49      0.441    25.45    0.43  0.017  3.5 / 0.7 (v)         FAIL max+min |    1.00    0.217   92%    8%    0%
-smoke           0.10  12      0.177     0.52    0.37  0.712  3.5 / 0.7 (v)         FAIL mean+min |    1.00    0.169  100%    0%    0%
-dyard           0.10  63      0.527    29.46    0.37  0.013  20 (v)                PASS       |    1.00    0.439   46%   27%   27%
-forecourt       0.10  371     0.495    18.92    0.37  0.020  7 / 2 (v)             FAIL max+min |    1.00    0.373   59%   27%   14%
-plantroof       4.50  86      0.239     0.75    0.44  0.587  -                     no band    |    5.40    0.250   99%    1%    0%
-c1              0.10  22      0.325     1.49    0.76  0.506  100 (v)               FAIL mean  |    1.00    0.328    5%   91%    5%
-(lux U0 = min / mean in lux; (v) = band to verify; meter: share of cells dark / mid / lit at floor + 1.0)
-
-wrote C:NightShiftMobile-Coop-light-realism-l0docslight-realismmeasurecampusOps.json and 11 SVG in C:NightShiftMobile-Coop-light-realism-l0docslight-realismmeasurecampusOps (113186 ms): prints the RAB table above.
--  (output to scratch, not committed): runs with the lux sum;
-  car park mean 0.98 lx (1.03 on the old curve reading), min 0.37 lx, FAIL mean + min; levels unchanged (0.277 plane,
-  0.282 / 52% dark at y 1.0, the CONFORMANCE L3 numbers).
+- `npx tsc --noEmit -p .`: clean (after one null-narrowing fix in `tests/lux.test.ts`, the WIP's "one tsc fix left";
+  rerun by the lead 2026-10-25 ~22:10).
+- `npx vitest run tests/lux.test.ts`: 17 / 17 passed (12 old, 5 new: the RAB reference and no IES file in the repo; the
+  reference floor tie; one lamp alone; two overlapping lamps read their real sum; bandCheck on the given lux).
+- Measure re-run with the lux sum (`scripts/light-realism` campusOps, under the CPU gate; output kept out of the repo in
+  `C:/NightShift/scratch/light-realism/l0-fold-measure/`): car park (park) mean 0.98 lx, min 0.37 lx, FAIL mean + min
+  against 14 / 3; levels unchanged (0.277 plane, 0.282 / 52% dark at y 1.0, the CONFORMANCE L3 numbers). Only the
+  delivery yard passes its band (20 lx, mean 29.5); gatehouse, c1, forecourt, lane, bins, bikes, smoke fail: L1's job
+  (the "before" picture).
 - No e2e (no game change).
 
 ## Commits
-COMMITS_PLACEHOLDER
+33117b0cc credit and pick; 1509244b6 fold WIP (reference, lux sum, PLAN L1 notes); f44d458a1 tsc fix; then this report.
 
 ## Open
 - GPU "before" shots: laptop request `20261025T092215-night-shift-sector-o-8e20a7a7-af43` still pending.
