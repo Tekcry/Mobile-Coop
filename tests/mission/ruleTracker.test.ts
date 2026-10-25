@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MissionDef, MissionRule } from '../../src/game/mission/missionDef';
 import { MissionRunner } from '../../src/game/mission/missionRunner';
-import { RULE_END, RULE_HOLD, RULE_OK, RULE_RESTART, RuleTracker, SCOPE_A, SCOPE_B, SCOPE_MISSION, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, ruleMark } from '../../src/game/mission/ruleTracker';
+import { RULE_HOLD, RULE_OK, RULE_RESTART, RuleTracker, SCOPE_A, SCOPE_B, SCOPE_MISSION, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, ruleMark } from '../../src/game/mission/ruleTracker';
 import { NO_ALARMS, NO_KILLS, UNDETECTED, ALL_MARKS } from '../../src/game/rating/sectionRating';
 
 // (mission-framework EN1) rules read section-rating's marks per scope; attribution by slot, zone and track box (A8, A9)
@@ -33,7 +33,7 @@ describe('RuleTracker', () => {
     expect(ruleMark('ghost')).toBe(UNDETECTED);
     expect(ruleMark('noKills')).toBe(NO_KILLS);
     expect(ruleMark('noAlarms')).toBe(NO_ALARMS);
-    expect(ruleMark('window')).toBe(0);
+    expect(ruleMark('namedTarget')).toBe(0);
   });
 
   it('mission ghost breaks on a detection or a camera alarm: restart, line, counter; then latched', () => {
@@ -125,20 +125,6 @@ describe('RuleTracker', () => {
     expect(pt.update(0)).toBe(RULE_RESTART);
   });
 
-  it('window: the step not done within its seconds of opening restarts the section', () => {
-    const d = op([{ kind: 'window', scope: 'mission', step: 'roof', seconds: 30, text: 'Thirty seconds.' }]);
-    const r = new MissionRunner(d, 2);
-    const t = new RuleTracker(d, 2, r);
-    r.snapshot('S1', 10);
-    expect(t.update(40, r)).toBe(RULE_OK);
-    expect(t.update(40.5, r)).toBe(RULE_RESTART);
-    r.restore('S1', 50);
-    t.resetSection(50);
-    r.setFlag('roof');
-    r.update(60);
-    expect(t.update(100, r)).toBe(RULE_OK);
-  });
-
   it('per-team reset (M1): a team rule break resets and holds only that team; the other team and the mission keep counting', () => {
     const rules: MissionRule[] = [
       { kind: 'noKills', scope: 'a', text: 'Team A kills nobody.' },
@@ -192,21 +178,5 @@ describe('RuleTracker', () => {
     expect(solo.update(5)).toBe(RULE_OK);
   });
 
-  it('one chance ends the mission: on a failure, and any break while it is held', () => {
-    const t = new RuleTracker(op([{ kind: 'oneChance', scope: 'mission', text: 'One go.' }]), 2);
-    t.onFail();
-    expect(t.update(0)).toBe(RULE_END);
-    expect(t.ended).toBe(true);
-    expect(t.line).toBe('One chance broken. The mission is over.');
-    t.resetSection(1, false);
-    expect(t.update(5)).toBe(RULE_OK);
-    const both = new RuleTracker(op([ghost, { kind: 'oneChance', scope: 'mission', text: 'One go.' }]), 2);
-    both.onDetections(1);
-    expect(both.update(0)).toBe(RULE_END);
-    const stepOnly = new RuleTracker(op([{ kind: 'oneChance', scope: 'mission', step: 'roof', text: 'One try at the roof.' }]), 2);
-    stepOnly.onFail(1);
-    expect(stepOnly.update(0)).toBe(RULE_OK);
-    stepOnly.onFail(0);
-    expect(stepOnly.update(1)).toBe(RULE_END);
-  });
+__NEW__
 });

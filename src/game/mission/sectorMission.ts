@@ -13,12 +13,19 @@
  *   phase, or (the mission's last section is not the run's last) everyone in the section's connector (it cycles).
  *   A download objective opens its exit itself (SectorRun's download), so it is not gated: author it as the section's
  *   last step.
- * - A rule break: the radio line and a banner, then after RULE_HOLD s `restartSection` (a team rule in Sector Ops with 2+
- *   players: that team's mission state only, `tracker.restartTeam`; the world restarts whole, see `restarted`). A
- *   one-chance break ends the mission instead (A12), as does any other restart while it has a step-less one-chance rule.
+ * - A rule break: the radio line and a RULE BROKEN banner, then after RULE_HOLD s `restartSection` (a team rule in Sector
+ *   Ops with 2+ players: that team's mission state only, `tracker.restartTeam`; the world restarts whole, see
+ *   `restarted`). (mission-rules R1) No break ends the mission (G290): only the extraction sets `over`.
  * - Spook (A11): a decoy's read despawns the real target and respawns him unalerted at `bolt` with his info; he stays
  *   spooked across a restart (`MissionRunner.spookStep` is outside the snapshot; the tick bolts the respawned target
- *   again). With the named-target rule the decoy read also breaks it.
+ *   again). With the named-target rule the decoy read also breaks it. (mission-rules R1, A18) The step's spook fact
+ *   (`spookFact`, kept on restore) is set while he is spooked, so its `boltText` names his new place on host and client.
+ * - (mission-rules R1) Protected targets (A1: an open interrogate step's target until his step is done, G145 / G353):
+ *   killed before he talked on a step a named-target rule covers, that rule breaks and he moves, as after a decoy read
+ *   (the Three Grey Coats page Michael signed: "killing Teale before he talks, breaks it", "He moves"); knocked out (or
+ *   killed on a step no rule covers), the section restarts from its checkpoint with a SECTION RESTART banner and
+ *   `PROTECTED_LINE`, not a rule break, and he is not moved (A2 / A3, Michael ~20:25 "Restart the section
+ *   (Recommended)", BRIEF M6).
  * - Per-area alarm stages (beside SectorRun's one site stage, untouched): a camera / laser stage rise counts for the
  *   tracks whose boxes (and height band) hold the device, a guard's alarm for both; `onAlarm` hears every rise.
  * - (EN4, A23) `MissionDef.start`: the run begins at that section (`applyMissionStart`, before the mode starts; the
@@ -31,9 +38,9 @@ import type { GameEvents } from '../gameEvents';
 import type { GameState } from '../gameState';
 import type { SectorMode } from '../modes/sectorMode';
 import { SECTOR, type SectorDef, type SectorPhase, type SectorRun } from '../sectors';
-import { missionSpawnsGuard, teamForSlot, type MissionDef, type MissionEvent, type TeamId } from './missionDef';
+import { missionSpawnsGuard, spookFact, teamForSlot, type MissionDef, type MissionEvent, type TeamId } from './missionDef';
 import { INTERROGATE_DECOY, MissionRunner } from './missionRunner';
-import { RULE_END, RULE_HOLD, RULE_RESTART, RuleTracker, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, type ZoneGuard } from './ruleTracker';
+import { RULE_HOLD, RULE_RESTART, RuleTracker, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, type ZoneGuard } from './ruleTracker';
 import { packMission, type MissionWire } from './missionWire';
 
 /** A section guard's mission id: `<section id>:<index in SectorDef.guards>`. */
@@ -154,8 +161,6 @@ export interface SectorMissionHost {
   restart(team?: 'a' | 'b'): void;
   /** The mission's extraction: the op ends, cleared. */
   finish(): void;
-  /** The mission failed (one chance): the op ends. */
-  fail(line: string): void;
   /** A radio line (subtitle; co-op: to the client too). */
   say(line: string): void;
   banner(title: string, sub: string): void;
@@ -173,7 +178,8 @@ const POLL_BOLT = 3;
 /** Seconds a mission event / rule restart waits after a rule break (the radio line first). */
 export const MISSION_RESTART_HOLD = RULE_HOLD;
 export const RULE_BROKEN_TITLE = 'RULE BROKEN';
-export const MISSION_FAILED_TITLE = 'MISSION FAILED';
+/** (mission-rules R1, A3) The protected restart's banner: the section restarts, no rule broke. */
+export const SECTION_RESTART_TITLE = 'SECTION RESTART';
 
 export class SectorMission {
   readonly def: MissionDef;
@@ -187,7 +193,7 @@ export class SectorMission {
   now = 0;
   /** Rule restarts this adapter asked for (tests). */
   ruleRestarts = 0;
-  /** The mission is over (extracted or failed): the tick does nothing more. */
+  /** The mission is over (extracted): the tick does nothing more. */
   over = false;
   /** (EN4, A23) The run section index the mission starts at (`missionStartIndex`). */
   readonly startIndex: number;
@@ -211,14 +217,19 @@ export class SectorMission {
   /** Per step: its target's run section and guard index (interrogate steps), else -1. */
   private readonly targetSec: Int32Array;
   private readonly targetK: Int32Array;
+  /**
+   * (mission-rules R1) Per step: 1 when it is an interrogate step with a target and a `namedTarget` rule covers it (the
+   * rule names the step, or no step): his kill before he talks breaks that rule; else it is the protected restart.
+   */
+  private readonly targetRule: Uint8Array;
+  /** (mission-rules R1, A18) Per step: its spook fact ('' when it has no bolt). */
+  private readonly spookFlag: string[];
   /** Per step: done and its events raised. */
   private readonly walked: Uint8Array;
-  private readonly hasOneChance: boolean;
   private readonly stageStart = new Int32Array(2);
   private detSeen = 0;
-  /** A rule restart / end waiting out its hold (-1 none). */
+  /** A rule restart waiting out its hold (-1 none). */
   private pendT = -1;
-  private pendEnd = false;
   private pendTeam: 'a' | 'b' | undefined = undefined;
   /** The restart running is this adapter's own (a rule's). */
   private own = false;
@@ -251,15 +262,20 @@ export class SectorMission {
       d.pairGates?.forEach((_, k) => this.addPoll(reads, `${d.id}-gate${k}`, POLL_GATE, sec, k));
       d.bolts?.forEach((_, k) => this.addPoll(reads, `${d.id}-bolt${k}`, POLL_BOLT, sec, k));
     });
+    // (mission-rules R1, A18) the spook facts: set by `spook()`, never polled as a code, kept on restore
+    this.spookFlag = def.steps.map((s) => (s.kind === 'interrogate' && s.bolt ? spookFact(s) : ''));
     // any flag the runner reads may be a code an interrogation gives (`onIntelCode`): every one is polled as a code too
     for (const f of this.runner.flags) {
+      if (this.spookFlag.includes(f)) continue;
       this.addPoll(reads, f, POLL_CODE, -1, -1);
       if (codes.has(f)) this.codeFlags.push(f);
     }
+    for (const f of this.spookFlag) if (f) this.runner.keepOnRestore(f);
     this.extract = def.steps.findIndex((s) => s.kind === 'extract');
     const n = def.steps.length;
     this.targetSec = new Int32Array(n).fill(-1);
     this.targetK = new Int32Array(n).fill(-1);
+    this.targetRule = new Uint8Array(n);
     for (let i = 0; i < n; i++) {
       const s = def.steps[i]!;
       if (s.kind !== 'interrogate') continue;
@@ -268,9 +284,9 @@ export class SectorMission {
         this.targetSec[i] = t.sec;
         this.targetK[i] = t.k;
       }
+      if (s.target && def.rules.some((r) => r.kind === 'namedTarget' && (r.step === undefined || r.step === s.id))) this.targetRule[i] = 1;
     }
     this.walked = new Uint8Array(n);
-    this.hasOneChance = def.rules.some((r) => r.kind === 'oneChance');
   }
 
   private addPoll(reads: ReadonlySet<string>, flag: string, kind: number, sec: number, k: number): void {
@@ -304,8 +320,8 @@ export class SectorMission {
   }
 
   /**
-   * (fix round) A rule restart or the mission's end is waiting out its hold: the mode holds its exits (a connector or the
-   * extraction finished inside the hold would forgive the broken rule).
+   * (fix round) A rule restart (or the protected restart) is waiting out its hold: the mode holds its exits (a connector
+   * or the extraction finished inside the hold would forgive the broken rule).
    */
   get holding(): boolean {
     return this.pendT >= 0;
@@ -343,24 +359,16 @@ export class SectorMission {
   /**
    * The section restarted (`SectorMode.restartSection`, before its begin). The world (guards, doors, codes, devices,
    * players) restarted whole; the mission state goes back for `team` only when this adapter's team rule asked for it
-   * (M1), else for everyone. A restart this adapter did not ask for (everyone down, the pause menu) is a failure: a
-   * step-less one-chance rule ends the mission on it (A12).
+   * (M1), else for everyone. (mission-rules R1) A restart this adapter did not ask for (everyone down, the pause menu)
+   * only restores the state (the pending team's, if a team restart waits); it never ends the mission (G290).
    */
   restarted(team?: 'a' | 'b'): void {
     if (this.over) return;
-    // (fix round) a one-chance end waiting out its hold still ends the mission (a restart cannot skip it)
-    if (this.pendT >= 0 && this.pendEnd) return;
     const own = this.own;
     // (fix round) a restart that lands on a pending team restart is that team's (everyone down meanwhile, the pause menu)
     const pending = this.pendT >= 0 ? this.pendTeam : undefined;
     this.pendT = -1;
-    if (!own) {
-      team = pending;
-      if (this.hasOneChance) {
-        this.tracker.onFail(-1);
-        if (this.tracker.update(this.now, this.runner) === RULE_END) this.broke(RULE_END);
-      }
-    }
+    if (!own) team = pending;
     const si = this.liveSection();
     if (si >= 0) this.runner.restore(si, this.now, team);
     const teams = team !== undefined && this.def.mode === 'sector' && this.runner.players > 1;
@@ -469,15 +477,10 @@ export class SectorMission {
     if (this.pendT >= 0) {
       this.pendT -= dt;
       if (this.pendT < 0) {
-        if (this.pendEnd) {
-          this.over = true;
-          this.host.fail(this.tracker.line);
-        } else {
-          this.ruleRestarts++;
-          this.own = true;
-          this.host.restart(this.pendTeam);
-          this.own = false;
-        }
+        this.ruleRestarts++;
+        this.own = true;
+        this.host.restart(this.pendTeam);
+        this.own = false;
       }
       this.devX = this.devY = this.devZ = Number.NaN;
       return;
@@ -503,8 +506,8 @@ export class SectorMission {
         return;
       }
     }
-    const r = this.tracker.update(this.now, this.runner);
-    if (r === RULE_RESTART || r === RULE_END) this.broke(r);
+    this.protectedCheck();
+    if (this.tracker.update(this.now) === RULE_RESTART) this.broke();
     this.devX = this.devY = this.devZ = Number.NaN;
   }
 
@@ -521,6 +524,7 @@ export class SectorMission {
       done: this.runner.doneBits,
       facts: this.runner.factBits,
       breaks: this.tracker.breaks,
+      protectedRestarts: this.tracker.protectedBreaks,
       line: this.tracker.line,
       ruleRestarts: this.ruleRestarts,
       pending: this.pendT >= 0,
@@ -541,13 +545,38 @@ export class SectorMission {
 
   // ---- internals ----
 
-  private broke(r: number): void {
+  /** A rule broke (RULE BROKEN) or the protected restart fired (SECTION RESTART, `lastRule` -1): the line, then the hold. */
+  private broke(): void {
     const line = this.tracker.line;
     this.host.say(line);
-    this.host.banner(r === RULE_END ? MISSION_FAILED_TITLE : RULE_BROKEN_TITLE, line);
+    this.host.banner(this.tracker.lastRule < 0 ? SECTION_RESTART_TITLE : RULE_BROKEN_TITLE, line);
     this.pendT = MISSION_RESTART_HOLD;
-    this.pendEnd = r === RULE_END;
-    this.pendTeam = r === RULE_END ? undefined : this.tracker.restartTeam;
+    this.pendTeam = this.tracker.restartTeam;
+  }
+
+  /**
+   * (mission-rules R1) The protected check, every tick after the spook and the exit, before the rules: an interrogate
+   * step not yet done whose target (in the live section) is down. Killed on a step a named-target rule covers: that rule
+   * is hit (the page Michael signed) and he will bolt after the restart (`spookStep`); while its scope is held the check
+   * runs again next tick. Knocked out, or killed on a step no rule covers: the protected restart (A2 / A3, BRIEF M6),
+   * which never sets or clears `spookStep`. No allocation.
+   */
+  private protectedCheck(): void {
+    const ri = this.host.index();
+    for (let i = 0; i < this.targetK.length; i++) {
+      const k = this.targetK[i]!;
+      if (k < 0 || this.targetSec[i] !== ri || this.runner.isDone(i)) continue;
+      const e = this.host.slotGuard(k);
+      if (!e) continue;
+      if (!e.alive && this.targetRule[i] === 1) {
+        if (this.tracker.onTargetKilled(i)) this.runner.spookStep = i;
+        return;
+      }
+      if (!e.alive || e.ko) {
+        this.tracker.onProtected();
+        return;
+      }
+    }
   }
 
   private areaAlarm(teams: number, camera: boolean): void {
@@ -589,10 +618,15 @@ export class SectorMission {
     for (let i = 0; i < this.walked.length; i++) this.walked[i] = this.runner.isDone(i) ? 1 : 0;
   }
 
-  /** While a target is spooked and his section is live: a target not at his bolt point (spawned again) is bolted. */
+  /**
+   * While a target is spooked: his step's spook fact is held (mission-rules R1, A18: set once, kept on restore), and while
+   * his section is live a target not at his bolt point (spawned again) is bolted.
+   */
   private spook(): void {
     const st = this.runner.spookStep;
     if (st < 0) return;
+    const f = this.spookFlag[st];
+    if (f) this.runner.setFlag(f);
     const k = this.targetK[st]!;
     if (k < 0 || this.targetSec[st] !== this.host.index()) return;
     const e = this.host.slotGuard(k);
@@ -640,7 +674,6 @@ export function bindSectorMission(g: GameState, mode: SectorMode, slotEnemy: (En
     },
     restart: (team) => mode.restartSection(team),
     finish,
-    fail: (line) => g.endSession(false, line),
     say: (line) => {
       g.hud.barks.say('lantern', line, true);
       g.net?.radioLine?.(line);
