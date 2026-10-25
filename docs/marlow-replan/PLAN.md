@@ -309,8 +309,12 @@ map is `ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`); the A2 entr
 - **How the out player comes back ("out until the next checkpoint", G126 / G349).** Every Marlow airlock needs both
   players inside (`courseState.ts:1155-1162`, `need()` = 2) and every station is a co-op move, so the survivor alone
   could not move on. The fix: while one partner is out, the bay's exit airlock cycles with the one living player.
-  `CourseState` gains `out: [boolean, boolean]` and `setOut(p, on)`; `need()` returns 1 when `solo` or the other player
-  is out (a pair gate still needs two: the survivor waits at a pair gate only on the re-plan, below). In course mode
+  `CourseState` gains `out: [boolean, boolean]`, `setOut(p, on)` and a private `oneMay()` (`solo` or a player out);
+  `need()` returns 1 under `oneMay()`, and the pair gate's "one player works both halves" check (today `solo` only,
+  `pressPair`, `courseState.ts:1112`) reads `oneMay()` too. Drill ticks and team moves are unchanged: on the built yard a team move
+  between the survivor and the exit airlock still needs the partner, and there the pause-menu bay restart (both
+  respawn) stays the way on, as today for every one-out; on the re-plan the station retry below brings the partner
+  back at once. In course mode
   `goOut` (:568-581) calls `setOut(p, true)` instead of `onPlayerDeath()`, then `g.mode.onPlayerOut?.()` (a no-op on
   `CourseMode` until R1). When the airlock seals, the checkpoint advances as on any seal and the host respawns the out
   player inside it, at their slot of `checkpointSpawns()` (`courseMode.ts:896-900`; the client through the existing
@@ -321,12 +325,12 @@ map is `ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`); the A2 entr
   going out starts that station's retry after `SPOT_HOLD` (cause `out`), and the out player respawns at the station
   retry's marks with the survivor, so an untimed co-op station never strands the survivor. On a bay without stations
   it does nothing (F1's airlock rule holds).
-- **File split with R1:** F1 owns only the `out` field, `setOut()` and the body of `need()` in `courseState.ts`; R1 never
-  edits those lines and F1 edits nothing else in that file (hunk ownership, as S0 / R1 below).
-- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/net/session.ts`, `src/game/course/courseState.ts` (the hunk
-  above only),
-  `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`, `changes/feature-marlow-replan-f1.md`.
-  Est. 400.
+- **File split with R1:** F1 owns only the `out` field, `setOut()`, `oneMay()`, the body of `need()` and the pair
+  gate's one-player check in `courseState.ts`; R1 never edits those lines and F1 edits nothing else in that file (hunk
+  ownership, as S0 / R1 below).
+- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/net/session.ts`, `src/game/course/courseState.ts` (the hunks
+  above only), `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`,
+  `changes/feature-marlow-replan-f1.md`. Est. 400.
 - Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` for e2e that rely on one-out restarts or the
   syringe cap (`scripts/e2e-ctcourse/revive.mjs`) and update them in the same PR; laptop: co-op group + affected-e2e.
 - Done looks like: three ratings later the cap is still 2; one player out with the partner up keeps the bay running;
