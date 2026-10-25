@@ -44,7 +44,8 @@ export interface CaughtClock {
  * - `'station'` (A1-A7): a guard in combat (`combat`) or a camera's full detection of a player (`camFull`): `'seen'`.
  * - `'caught'` (A8): a guard holding combat for CAUGHT_HOLD s: `'caught'`; cameras and shorter combat play out.
  * - `'none'` (or a station whose retry is switched off): never.
- * A drill window running out (`'timer'`) is `CourseState`'s own call. `clock` runs only while combat holds. No allocation.
+ * A drill window running out (`'timer'`) is the set's station tick's call (`replan/<set>Ticks.ts`, through the hooks'
+ * `retry` -> `CourseMode.stationRetry`), never this rule's. `clock` runs only while combat holds. No allocation.
  */
 export function stationRetryCause(retry: StationDef['retry'], combat: boolean, camFull: boolean, clock: CaughtClock, dt: number): 'seen' | 'caught' | null {
   if (retry !== 'caught' || !combat) clock.t = 0;

@@ -12,7 +12,7 @@ import type { StationDef } from '../course/stationDef';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
-import { CtDevices } from '../ctDevices';
+import { CAM_KEY, CtDevices } from '../ctDevices';
 import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
 import { inCombat, spotFailed, stationRetryCause, type CaughtClock } from '../course/spotFail';
@@ -38,6 +38,12 @@ import { REPLAN_TICKS, type StationHooks, type StationTick, type TickZone } from
 
 /** (J14 R1 fix 6) The re-planned yard's course id (`ctcourse.ts`): only it runs the sets' station ticks. */
 const REPLAN_COURSE = 'ctcourseReplan';
+
+/**
+ * (fix round 2) The source of the station ticks' `epoch()`: one more on every course start, station retry and bay
+ * restart of any match, never reset, so a tick's module-level window state cannot survive into a new match unnoticed.
+ */
+let tickEpoch = 0;
 
 /** (fix 6) Are feet `p` in tick zone `z` (its plan box, and its height band when it has one)? No allocation. */
 export function inTickZone(z: TickZone, p: { x: number; y: number; z: number }): boolean {
@@ -279,7 +285,19 @@ export class CourseMode implements GameMode {
     retry: (n, cause) => this.stationRetry(n, cause),
     playersIn: (z) => this.playersIn(z),
     now: () => this.state?.clock ?? 0,
+    gate: (id) => this.state?.isGateOpen(id) ?? false,
+    down: (slot) => this.slotDown(slot),
+    jammed: (id) => this.jamHeld(id),
+    tripped: (id) => this.laserBroken(id),
+    epoch: () => this.epochN,
   };
+  /** (fix round 2) The hooks' `epoch()`: a fresh `tickEpoch` as the mode is made, at the course start, on each station
+   *  retry and each bay restart. */
+  private epochN = ++tickEpoch;
+  /** (fix round 2, OQ4) Per laser (`CtDevices.lasers` index): the epoch and the live station of its last counted break
+   *  (`laserTripped`; grown on a break, 0 = none: epochs start at 1). */
+  private tripEp = new Int32Array(0);
+  private tripSt = new Int32Array(0);
   /** (J14 R1) The combat time an A8 `caught` station has counted. */
   private readonly caught: CaughtClock = { t: 0 };
   /** (J14 R1) The station whose marks are the respawn points while `placeT` runs (a station retry or start). */
@@ -355,6 +373,8 @@ export class CourseMode implements GameMode {
       return;
     }
     this.layout = lay;
+    // (fix round 2) a course start is a new epoch for the station ticks
+    this.epochN = ++tickEpoch;
     const st = new CourseState(validateCourse(lay.def, layoutKnownIds(lay)), lay.consoles);
     st.solo = courseSoloFlag();
     this.state = st;
@@ -437,7 +457,11 @@ export class CourseMode implements GameMode {
       },
       dirty: () => (this.dirty = true),
       // (guard-ai S17, G1) a laser broken / a camera's alarm: the guards search the device's spot, never the player's
-      alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
+      alertAt: (x, y, z, key) => {
+        // (fix round 2, OQ4) a laser's break (key: its index; cameras are CAM_KEY + index) is the station ticks' `tripped`
+        if (key < CAM_KEY) this.laserTripped(key);
+        g.enemyMgr?.deviceAlert(x, y, z, key);
+      },
       flag: (f) => this.state?.setFlag(f),
       solo: () => !!this.state?.solo,
       has: (f) => !!this.state?.hasFlag(f),
@@ -920,6 +944,8 @@ export class CourseMode implements GameMode {
       case 'bayRestart':
         this.restartT = -1;
         this.bayRestarts++;
+        // (fix round 2) the station ticks reset their windows
+        this.epochN = ++tickEpoch;
         this.spotHold = SPOT_HOLD;
         // (J14 R1) a bay restart lands in the holding room, never on a station mark
         this.placeT = 0;
@@ -1129,6 +1155,54 @@ export class CourseMode implements GameMode {
   }
 
   /**
+   * (fix round 2, OQ4) Laser `k` (`CtDevices.lasers` index) was broken (host: CtDevices' `alertAt`, the same break that
+   * raises its alarm, after its own cooldown). Kept with the epoch and live station for the hooks' `tripped`; a break in
+   * the hold after a retry or a bay restart (`spotHold`: the players still where they stood) is not kept. Allocates
+   * only to grow the record past the highest laser broken so far.
+   */
+  laserTripped(k: number): void {
+    const st = this.state;
+    if (!st || k < 0 || this.spotHold > 0) return;
+    if (k >= this.tripEp.length) {
+      const ep = new Int32Array(k + 1);
+      const sn = new Int32Array(k + 1);
+      ep.set(this.tripEp);
+      sn.set(this.tripSt);
+      this.tripEp = ep;
+      this.tripSt = sn;
+    }
+    this.tripEp[k] = this.epochN;
+    this.tripSt[k] = st.station();
+  }
+
+  /** (fix round 2) The hooks' `tripped`: laser `id` broken while the live station is live, in this epoch. No allocation. */
+  private laserBroken(id: string): boolean {
+    const st = this.state;
+    const ct = this.ct;
+    if (!st || !ct) return false;
+    const n = st.station();
+    if (n === 0) return false;
+    const ls = ct.lasers;
+    for (let k = 0; k < ls.length; k++) {
+      if (ls[k]!.def.id !== id) continue;
+      return k < this.tripEp.length && this.tripEp[k] === this.epochN && this.tripSt[k] === n;
+    }
+    return false;
+  }
+
+  /** (fix round 2) The hooks' `jammed`: a jammer held on target `id` now (either player). No allocation. */
+  private jamHeld(id: string): boolean {
+    const ct = this.ct;
+    return !!ct && (ct.jamId[0] === id || ct.jamId[1] === id);
+  }
+
+  /** (fix round 2) The hooks' `down`: squad slot `slot`'s guard is not up (`slotUp`); false for no such slot. No allocation. */
+  private slotDown(slot: string): boolean {
+    const k = this.squadIds.indexOf(slot);
+    return k >= 0 && !this.slotUp(k);
+  }
+
+  /**
    * (J14 R1; BRIEF A1, A2; PLAN A17) Station `n` retried (`CourseState.retryStation` reset its gates and flags): LANTERN's
    * line first in the queue; its guards back fresh on their slots, and any other guard in combat with them (a guard
    * already dealt with at an earlier station stays down); thrown gadgets and grenades gone; the cameras forget what they
@@ -1147,6 +1221,8 @@ export class CourseMode implements GameMode {
     this.spotHold = SPOT_HOLD;
     this.caught.t = 0;
     this.camFull = false;
+    // (fix round 2) the station ticks reset their windows
+    this.epochN = ++tickEpoch;
     this.resetStationGuards(n, guards);
     this.forgetSighting();
     this.calmT = SPOT_HOLD;

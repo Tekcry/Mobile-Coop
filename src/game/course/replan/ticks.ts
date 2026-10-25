@@ -31,6 +31,36 @@ export interface StationHooks {
   playersIn(zone: TickZone): number;
   /** The course clock (s since the course started; `CourseState.clock`). */
   now(): number;
+  /**
+   * (fix round 2, STATIONS section 5 "gate window") Is gate `id` open now (`CourseState.isGateOpen`)? An isolator's open
+   * is its dark (`g-a2-neck`, `g-a8-night`), a console pickup's its loop (`g-a4-console`, `g-a8-console`). No allocation.
+   */
+  gate(id: string): boolean;
+  /**
+   * (fix round 2, "pair window") Is squad slot `slotId`'s guard down: knocked out, dead or gone (not up in the guard
+   * manager; once a squadmate wakes him he is up again)? False for a slot the current bay's squad does not have. No
+   * allocation.
+   */
+  down(slotId: string): boolean;
+  /**
+   * (fix round 2, "jam window") Is a jammer held on jam target `targetId` now (either player; the host's `CtDevices` jam
+   * list)? Target ids: a camera's id (`cam-a3-hall`), a laser power panel's id, a lamp `lt-<light registry id>`. Held
+   * only: a device's reboot or a lamp's off time after the jam ends is the tick's own timing. No allocation.
+   */
+  jammed(targetId: string): boolean;
+  /**
+   * (fix round 2, OQ4) Was laser `laserId` broken (a player in its beam: the same break that raises `CtDevices`' alarm)
+   * while the current live station was live and since the last `epoch()` change? A break inside the hold after a retry
+   * or a bay restart (the players still where they stood) does not count. Never an automatic retry: the tick decides
+   * (`retry(n, 'seen')`). No allocation.
+   */
+  tripped(laserId: string): boolean;
+  /**
+   * (fix round 2) A number that rises on every station retry, bay restart and course start, and differs from every
+   * earlier match's (a module counter, never reset). A tick keeps its window state in module-level numbers: it resets
+   * them when this changes.
+   */
+  epoch(): number;
 }
 
 /** One set's station code, called each fixed step while its bay is the current one. */
