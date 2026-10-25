@@ -1,0 +1,14 @@
+{
+  "id": "20261025T073842-night-shift-guard-ai-d6a24987-b71c",
+  "sha": "d6a24987ad39c6796c3a088c80c47a119549aaa5",
+  "branch": "scratch/g327-look",
+  "pr": 438,
+  "kind": "alone",
+  "requester": "Night Shift | Guard AI Build",
+  "steps": [
+    "node scripts/t1-shadow-look.mjs"
+  ],
+  "env": {},
+  "set": "g327-look",
+  "note": "G327 GPU look rerun: #438 head 5e42c152 + #414 script (combo branch scratch/g327-look)"
+}
