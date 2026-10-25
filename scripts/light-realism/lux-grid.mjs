@@ -10,7 +10,7 @@
 // plane, mean level and lux, point minimum (open ground: cells more than 0.6 m from a car, pole or other solid; and every
 // cell), U0, the band and pass / fail, and the meter-height (floor + 1.0) mean.
 // Writes compact JSON (one grid row per line) to docs/light-realism/measure/<map>[-s<N>][-<space>].json and an SVG heat
-// map per space into the folder of the same name. Read-only on src/.
+// map per space into the folder of the same name (the --out file's name without .json). Read-only on src/.
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -105,7 +105,8 @@ async function main() {
   if (spacesFile.map !== map) throw new Error(`${spacesPath} is for map ${spacesFile.map}, not ${map}`);
   const base = `${map}${section ? `-s${section}` : ''}${space ? `-${space}` : ''}`;
   const out = resolve(arg('--out', join(root, `docs/light-realism/measure/${base}.json`)));
-  const svgDir = has('--no-svg') ? null : resolve(arg('--svg-dir', join(dirname(out), base)));
+  // (the SVG folder is named after the JSON it sits beside, so an `--out ...-after.json` run keeps the before SVGs)
+  const svgDir = has('--no-svg') ? null : resolve(arg('--svg-dir', out.replace(/\.json$/, '')));
 
   const lightmap = arg('--lightmap', null);
   if (lightmap && !space) throw new Error('--lightmap needs --space');

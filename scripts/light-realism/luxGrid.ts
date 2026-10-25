@@ -540,7 +540,7 @@ function drawSvg(sp: SpaceOut, which: 'plane' | 'meter', pad: number, lamps: rea
   const P = pad * PX;
   const top = 34 + P;
   const W = Math.max(w + 2 * P, 260) + 20;
-  const legend = lamps ? 3 : 0;
+  const legend = lamps ? 4 : 0;
   const H = top + h + P + 40 + legend * 14;
   const c = which === 'plane' ? sp.plane.check : null;
   const s = which === 'plane' ? sp.plane.stats : sp.meter.stats;
@@ -592,9 +592,10 @@ function drawSvg(sp: SpaceOut, which: 'plane' | 'meter', pad: number, lamps: rea
       lines.push(`<circle cx="${lx + 4}" cy="${ly - 4}" r="4" fill="${col}"/><text x="${lx + 12}" y="${ly}" fill="#eee">${n}</text>`);
       lx += 90;
     }
-    lines.push(`<text x="10" y="${ly + 14}" fill="#aaa">grey dot = pole, white line = arm, coloured dot = light point (its circuit); red ring = open ground under ${sp.band?.min ?? '-'} lx, with its cause</text>`);
+    lines.push(`<text x="10" y="${ly + 14}" fill="#aaa">grey dot = pole, white line = arm, coloured dot = light point (its circuit);</text>`);
+    lines.push(`<text x="10" y="${ly + 28}" fill="#aaa">red ring = open ground under ${sp.band?.min ?? '-'} lx, with its cause</text>`);
     const st = sp.plane.stats;
-    lines.push(`<text x="10" y="${ly + 28}" fill="#eee">average ${st.meanLux} lux (target ${sp.band?.avg ?? '-'} or more), darkest open spot ${st.minLux} lux (target ${sp.band?.min ?? '-'} or more), ${sp.dark.length} dark spots left</text>`);
+    lines.push(`<text x="10" y="${ly + 42}" fill="#eee">average ${st.meanLux} lux (target ${sp.band?.avg ?? '-'} or more), darkest open spot ${st.minLux} lux (target ${sp.band?.min ?? '-'} or more), ${sp.dark.length} dark spots left</text>`);
   }
   lines.push('</svg>');
   return lines.join('\n') + '\n';
