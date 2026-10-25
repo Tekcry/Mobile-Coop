@@ -1,9 +1,10 @@
 # UI
 Purpose: the HUD, menus, the screen stack, display handling, feedback, photo mode and the course HUD.
-Design authority: docs/DECISIONS.md (G77, G107, G108, G113), then docs/design-bible.md (Section 5.10).
+Design authority: docs/DECISIONS.md (G77, G107, G108, G113, G336, G339, G343, G351), then
+docs/design-bible.md (Section 5.10).
 
-Desktop only (G12): pad first, then keyboard and mouse. Menus follow the Arkham Knight style plan
-(feature/menu-ui-spec, G77) and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout (G77).
+Desktop only (G12): pad first, then keyboard and mouse. Menus follow the menu style plan (`docs/menu-ui/SPEC.md`, G77)
+and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout (G77).
 What follows is the UI as built today; "decided, not built yet" marks where the decisions differ.
 
 ## HUD
@@ -22,20 +23,16 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
-- Decided, not built yet (2026-10-25 ~10:45): the current objective fades in and out in game as a short, plain-English
-  line. A tap on View / Select (pad; CT's Back) or O (keyboard) shows it for about 5 s, and it also shows on every
-  objective update (Michael: "Objectives can fade in/out in game, must be a short, plain English objective"; binding
-  "View (Select) + O"). The full list stays in the menu (G108). Marlow Yard keeps its always-on list (G277, G292;
-  below). The HUD layout follows CT (G77).
-- Decided, not built yet (2026-10-25, every mode): no maps at all, no minimap, no compass, no objective blip. Michael:
-  "No maps at all" (the briefing's annotated top-down map and the field-menu map of known intel, bible 5.10, are removed)
-  and, for the minimap, "Remove it too" (no minimap, compass or objective blip in any mode). As built the HUD still draws
-  the compass strip with its markers (`ui/hud/hud.ts`) and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`).
-  Owner: the menu / briefing owner named at the next plan. Do not add a map, a waypoint or a marker to any mode.
-- Decided, not built yet (G290, 2026-10-25): objectives "must name what and where, but no map, level design must flow
-  naturally towards each objective". Guidance is in-world (place names, signs, landmarks, light language). An optional
-  hint layer exists, off by default (G290). Up to 2 strict mission rules are signposted in the briefing and the
-  objective list (G290). Marlow Yard is the exception: it keeps its guidance marks and always-on list (G292).
+- The objective popup and the no-maps rule are owned by bible 5.10 (G336, G339, G343, G351); strict rules by bible
+  5.8 (G290). In short: the current objective is a short, plain English line that names what to do and where; it fades
+  in for about 5 s on every update and on a tap of View / Select (pad) or O (keyboard); the menu keeps the full list
+  (G108). No map, minimap, compass, objective blip, waypoint or marker in any mode. Marlow Yard keeps its guidance
+  marks and always-on list (G277, G292; below).
+- Decided, not built yet (G343, G351): the popup and its binding (View has no action yet, `input/padBinds.ts`; O is
+  unbound). As built the HUD shows the objective line at the top (`Hud.setObjective`, `.hud-objective`).
+- Decided, not built yet (G339): as built the HUD still draws the compass strip with its markers (`ui/hud/hud.ts`)
+  and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`); removing them is a rule fix, allowed at the walk cap
+  (G355). The menu / briefing owner is named at the next plan. Do not add a map, a waypoint or a marker to any mode.
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
