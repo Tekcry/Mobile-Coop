@@ -6,3 +6,7 @@ kind: minor
     shut and the anglers' cut panel re-hung; anti-climb screens on the gatehouse, plant room and pavilion roof edges; the
     bin store's west wall is gone. Every section 1 lamp now comes from one provisional light table (today's values, to be
     calibrated to real-world levels).
+  - G2 gatehouse: rebuilt 6.5 x 6.5 with a glazing band (open rear pane, two fixed panes, the reception window), the door
+    north at (17, -72.5), a roof whose only ledge is the east edge (a wall-jump corner by the A/C condenser), a glazed
+    smoke-vent hatch, a warm desk lamp beside the ceiling tube on the gate circuit, the CCTV desk as a security desk run
+    by the CCTV officer, and a third officer (the night supervisor).

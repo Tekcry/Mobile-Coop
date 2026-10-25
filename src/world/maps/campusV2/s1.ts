@@ -35,7 +35,7 @@ export const S1_DOORS = {
   /** The delivery yard's dock door (locked; opens when C1 seals). */
   dock: [-33, -40] as [number, number],
   /** The gatehouse's north door. */
-  gatehouse: [17, -73] as [number, number],
+  gatehouse: [17, -72.5] as [number, number],
 } as const;
 
 /** The gap (x range) of the C1 doors in the z -34 and z -30 walls: 1.2 wide, on the 0.5 m nav lattice. */
@@ -128,7 +128,7 @@ export const S1_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-31.8, 0, -47.0), yaw: PI, group: S1_GROUPS.parkW },
   { pos: new Vector3(-30.9, 0, -47.0), yaw: PI, group: S1_GROUPS.parkE },
   { pos: new Vector3(-29.5, 0, -40.3), yaw: PI, group: S1_GROUPS.fore },
-  { pos: new Vector3(15.7, 0, -73.3), yaw: PI, group: S1_GROUPS.gate },
+  { pos: new Vector3(15.7, 0, -72.8), yaw: PI, group: S1_GROUPS.gate },
   { pos: new Vector3(-23.85, 0, -32), yaw: PI / 2, group: S1_GROUPS.canopy },
 ];
 
@@ -192,12 +192,14 @@ export interface S1Lights {
   laneFlood: S1Lamp & { poleH: number; poleR: number };
   /** The gatehouse ceiling tube. */
   gate: S1Lamp;
+  /** (G2) The warm desk lamp on the CCTV desk (gate circuit). */
+  deskLamp: S1Lamp;
 }
 
 /** Every lamp of the block as single fittings, in draw order (the tests match the registry against it). */
 export function s1Lamps(L: S1Lights): S1Lamp[] {
   const c = L.column;
-  const out: S1Lamp[] = [L.gate, L.laneFlood];
+  const out: S1Lamp[] = [L.gate, L.deskLamp, L.laneFlood];
   for (const [x, z] of L.columnsW) out.push({ x, y: c.y, z, r: c.r, i: c.i, colour: c.colour, group: c.groupW, cone: c.cone, w: c.w });
   for (const [x, z] of L.columnsE) out.push({ x, y: c.y, z, r: c.r, i: c.i, colour: c.colour, group: c.groupE, cone: c.cone, w: c.w });
   const o = L.bollards;
@@ -255,30 +257,47 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(3.7, 5.6, -32, 0.1, 2.4, 4, STEEL);
   b.mark(f0, { noLedge: true });
 
-  // ---- the gatehouse (14..20, -79..-73): roof 3.3, door north (17, -73), reception window west, rear window east (20, -76)
+  // ---- (G2, S1-detail C2) the gatehouse (13.5..20, -79..-72.5, clear 6.2 x 6.2): walls 3.0, roof 3.3, the door north
+  // (17, -72.5) opening out, a glazing band (the reception window W, the open rear pane E2 and a fixed rear pane E, a fixed
+  // north pane), the roof's east edge the only ledge (the SE wall-jump corner by the condenser), a glazed smoke-vent hatch
   const g0 = b.boxes.length;
-  b.wallX(-79, 14, 20, [], 3.0, WALL, T);
-  b.wallX(-73, 14, 20, [[16.4, 17.6]], 3.0, WALL, T);
-  head(b, 17, -73, 1.2, 2.1, 3.0, true);
-  b.wallZ(14, -79, -73, [[-76.6, -75.4]], 3.0, WALL, T);
-  b.box(14, 0.45, -76, T, 0.9, 1.2, WALL_DARK);
-  head(b, 14, -76, 1.2, 2.1, 3.0, false);
-  b.wallZ(20, -79, -73, [[-76.6, -75.4]], 3.0, WALL, T);
-  b.box(20, 0.45, -76, T, 0.9, 1.2, WALL_DARK);
-  head(b, 20, -76, 1.2, 2.1, 3.0, false);
-  b.box(17, 3.15, -76, 6.3, 0.3, 6.3, ROOF);
-  b.boxes[b.boxes.length - 1]!.overhead = true;
+  b.wallX(-79, 13.5, 20, [], 3.0, WALL, T);
+  b.wallX(-72.5, 13.5, 20, [[16.4, 17.6], [18.6, 19.8]], 3.0, WALL, T);
+  b.wallZ(13.5, -79, -72.5, [[-76.6, -75.4]], 3.0, WALL, T);
+  b.wallZ(20, -79, -72.5, [[-76.6, -75.4], [-74.4, -73.2]], 3.0, WALL, T);
+  head(b, 17, -72.5, 1.2, 2.1, 3.0, true);
+  // the four panes: a 0.9 sill, a head 2.1..3.0 (reception W, E2 and the fixed rear pane E, the fixed north pane)
+  for (const [x, z, alongX] of [[13.5, -76, false], [20, -76, false], [20, -73.8, false], [19.2, -72.5, true]] as const) {
+    b.box(x, 0.45, z, alongX ? 1.2 : T, 0.9, alongX ? T : 1.2, WALL_DARK);
+    head(b, x, z, 1.2, 2.1, 3.0, alongX);
+  }
+  // the roof slab (top 3.3, 0.15 past the walls) round the hatch x 17.8..19.0, z -78.4..-77.2: west, middle south, middle north
+  for (const [x, z, w, d] of [[15.575, -75.75, 4.45, 6.8], [18.4, -78.775, 1.2, 0.75], [18.4, -74.775, 1.2, 4.85]] as const) {
+    b.box(x, 3.15, z, w, 0.3, d, ROOF);
+    b.boxes[b.boxes.length - 1]!.overhead = true;
+  }
   b.mark(g0, { noLedge: true });
-  b.door(16.4, 0, -73, 1.2, PI / 2, { swing: -1 });
-  b.windowAt(14, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: true });
-  // E2: the rear window is open for the kettle steam
+  // the east strip keeps its east lip (the wall-jump corner); its north end and the hatch rim do not hang
+  b.box(19.575, 3.15, -75.75, 1.15, 0.3, 6.8, ROOF);
+  b.boxes[b.boxes.length - 1]!.overhead = true;
+  b.noLedge(19.575, -72.35, 0.4);
+  b.noLedge(18.4, -77.8, 0.7);
+  // the split A/C condenser on its wall bracket off the east wall (y 1.2..2.0): the wall-jump corner's step (a planned climb)
+  b.box(20.4, 1.6, -78.4, 0.5, 0.8, 0.9, STEEL);
+  b.door(16.4, 0, -72.5, 1.2, PI / 2, { swing: -1 });
+  b.windowAt(13.5, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: true });
+  // E2: the rear pane is open for the kettle steam
   b.windowAt(20, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: true, breakable: true });
-  // the CCTV desk, the PC desk by the rear window, the kettle counter
-  b.block(18.8, -73.8, 1.6, 0.75, 0.7, DESK);
+  // the fixed rear pane and the fixed north pane (A2: closed, not breakable)
+  b.windowAt(20, 1.5, -73.8, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: false });
+  b.windowAt(19.2, 1.5, -72.5, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: false });
+  // the CCTV desk flush to the north wall (A5), the PC desk by the rear window, the kettle counter
+  b.block(18.8, -73.0, 1.6, 0.75, 0.7, DESK);
   b.block(19.35, -76, 0.9, 0.75, 1.6, DESK);
   b.block(18.4, -78.55, 1.6, 0.9, 0.6, STEEL);
-  // the gatehouse lamp (switch by its door: lure #1) and an off-circuit fitting nowhere: the interior is one circuit
+  // the ceiling tube and the warm desk lamp on the CCTV desk, both on the gate circuit (switch by the door: lure #1)
   lamp(b, L.gate);
+  lamp(b, L.deskLamp);
 
   // ---- the barrier lane (8..14, -80..-60): rising-arm barrier at z -77 (the arm is down, visual), the island with cam-gate
   b.block(11, -77, 1.0, 1.0, 2.4, KERB);

@@ -72,3 +72,70 @@ eslint on the owned files clean.
   move 0.6 m east (a lead call, not taken).
 
 **Pending PC runs (G1).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags: proves v2 stays dark); no GPU / visual leg.
+
+## G2 Gatehouse (D:305) - BLOCKED on one assert (built, WIP commit)
+
+**Status.** Everything in the G2 brief is built and 7 of the 8 G2 tests pass. One brief test, "G2 roof: east lip only,
+hatch open", fails and cannot pass without a coordinate the brief does not give, so the lane stops here (rule: stop and
+ask the lead).
+
+**The block (B-G2-1).** The brief says the east strip's south lip "is cut by the G1 screen". It is not: the screen is a 0.1
+box at z -79 (z -79.05..-78.95, x 13.5..20), 0.1 m inside the slab's south edge z -79.15, so the ledge generator keeps the
+east strip's south lip `(19, 3.3, -79.15) -> (20.15, 3.3, -79.15)` with `canHang`. The test then sees a 3.3 lip whose ends
+are not both at x 20.15. Proposed fix (one line, verified locally: all 15 tests of `campusV2S1.test.ts` pass with it, not
+committed): `b.noLedge(19.575, -79.15, 0.4)` after `b.noLedge(19.575, -72.35, 0.4)` (s1.ts:283), the mirror of the north
+end. Alternative: leave the south lip (a hang over the verge inside the palisade, harmless) and relax the test to the east
+and south edges.
+
+**Geometry built (s1.ts:260-300; replaces B:192-214).** Walls 3.0 / T 0.3 / WALL: S `wallX(-79, 13.5, 20)` (:264), N
+`wallX(-72.5, 13.5, 20, [[16.4, 17.6], [18.6, 19.8]])` (:265), W `wallZ(13.5, -79, -72.5, [[-76.6, -75.4]])` (:266), E
+`wallZ(20, -79, -72.5, [[-76.6, -75.4], [-74.4, -73.2]])` (:267); door head (17, -72.5) (:268). Four panes, each a 0.9 sill
+and a 2.1..3.0 head (:270-273): reception W (13.5, -76), E2 (20, -76), fixed rear (20, -73.8), north (19.2, -72.5, along x).
+Roof slab y 3.15 h 0.3 overhead (:274-282): west (15.575, -75.75) 4.45 x 6.8, middle south (18.4, -78.775) 1.2 x 0.75,
+middle north (18.4, -74.775) 1.2 x 4.85, all with the walls / sills / heads noLedge (`b.mark(g0)` :279); the east strip
+(19.575, -75.75) 1.15 x 6.8 not noLedge (:281); `b.noLedge(19.575, -72.35, 0.4)` (:283), `b.noLedge(18.4, -77.8, 0.7)`
+(:284). The hatch x 17.8..19.0, z -78.4..-77.2 is open (A3). Condenser `box(20.4, 1.6, -78.4, 0.5, 0.8, 0.9)` not noLedge
+(:286, A4). Door `b.door(16.4, 0, -72.5, 1.2, PI / 2, { swing: -1 })` (:287). Windows (:288-293): reception closed
+breakable, E2 open breakable, fixed rear and north closed not breakable (A2). CCTV desk `block(18.8, -73.0, 1.6, 0.75, 0.7)`
+(:295, A5); PC desk and kettle counter unchanged (:296-297). Lamps: the tube `L.gate` lit (:299), the desk lamp
+`L.deskLamp` (:300). Numbers: D:60-73, SVG:472-482 (as the brief).
+
+**Lights.** `S1_LIGHTS.deskLamp` (s1Data.ts:37): (18.6, 1.2, -73.4) r 2.5 i 0.9 SODIUM group gate w 0.2 (D:67; A6).
+`S1Lights.deskLamp` added (s1.ts:194-195) and to `s1Lamps`. Lit S1 lamps: 30. Measured (analytic, unoccluded, as the v1
+test): the PC desk (19.35, 0.9, -76) reads 0.792 lit, 0.140 with the gate circuit cut (under `LIGHT.shadow` 0.28).
+
+**Devices.** `S1_DOORS.gatehouse = [17, -72.5]` (s1.ts:38); the gate switch (15.7, 0, -72.8) yaw PI (s1.ts:131).
+
+**Data (s1Data.ts).** `S1_DESKS` desk-gate (:113, D:73, SY:9). `S1_ALARMS` (15.0, -72.8) (:116, D:61). Guards: #1 (:57)
+officer post (14.6, -76) yaw -PI/2, takedown (15.1, -76) (A7); #2 (:60) desk (18.3, -73.6) 28 s, kettle (18.4, -77.65) 5 s
+(A8), operator 1; #9 (:101, index 8) officer (15.2, -73.6) 20 s -> (17, -71.6) 5 s, faces [0, -PI/2], role desk. Cycles:
+#2 41.7 s, #9 30.8 s (the test formula).
+
+**Sync-node src lines (for the lead's SYNC.md / graph `syncs[].src`).** `sync-s1-gate-desk`: the desk entry
+`src/world/maps/campusV2/s1Data.ts:113` (`S1_DESKS` desk-gate, at [18.8, -73.2], cameras cam-gate / cam-walk, operator 1 =
+#2 at :60). Ids and device positions match SYNC.md 7c021f01 (SY:9).
+
+**Dress (s1Dress.ts).** `H1:gateDesk` skin -> `bx(18.8, 0.375, -73.0)`; `H1:keyCabinet` z -73.15 -> -72.65; `H1:visitorBoard`
+x 14.15 -> 13.65; `H1:monitorBank` z -73.15 -> -72.65. **New refusal:** the kit refuses `H1:monitorBank` at (18.8, -72.65)
+by rule V (its back spans the new fixed north pane x 18.6..19.8: no wall behind it). Added to `S1_OMITTED` with rule 'V'
+(s1Dress.ts:136). PC desk and kettle skins unchanged. Lead call: move the bank west on the N wall (e.g. x 17.9) if the
+monitors should show (not done: a new coordinate).
+
+**Graph.** `s1-gatehouse` note "PLAN (C2)" -> "BUILT G2 (s1.ts:260-300; C2)"; `s1-gateroof` -> "BUILT G2 (s1.ts:274-284;
+C2)". Targets untouched.
+
+**Tests** (`tests/campusV2S1.test.ts`, 15: G1 7 + G2 8). G2: box / door / corner distances; glazing band; roof east lip and
+hatch (FAILS, B-G2-1); SE climb; light (tube + desk lamp, cut reading); desk-gate + `checkSectors` [] + DESK_POST_RADIUS;
+alarm and switch; #1 / #2 / #9 on nav and cycles. The G1 light test now asserts lit = the block's lamp count (30 after
+G2) and the block's as-built intensities. Slice set (`campusV2S1`, `campusS1`, `campusS1Dress`, `campusRuntimeNav`,
+`campusV2`): **91 tests, 90 passed, 1 failed** (the B-G2-1 assert). Typecheck and eslint clean.
+
+**Findings for the lead.**
+- F2 The G2 condenser (top 2.0, (20.4, -78.4), z -78.85..-77.95) stands 1.1 m from the south palisade (z -80, top 2.4).
+  The helpers' raw landing list has a running jump off it reaching the palisade top (lands up to 3.6 m). The palisade is
+  too thin to stand on, but a jump off a 2.0 m top may clear a 2.4 m fence 1.1 m away and land outside S1 (the ring road).
+  Not measurable in a unit test; PC walk item. A fix would move the condenser north (e.g. z -77.6) or raise the palisade
+  by the gatehouse (lead call).
+- F3 #2's desk stop (18.3, -73.6) is in the 0.5 m nav cell centred z -73.75, 0.4 m off the desk face, as A5 says.
+
+**Pending PC runs (G2).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
