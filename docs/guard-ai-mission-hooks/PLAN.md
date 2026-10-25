@@ -1,10 +1,11 @@
 # guard-ai-mission-hooks: plan
-Owner: Night Shift | Guard AI Build. Status: current (plan stage, waits for the plan checker).
+Owner: Night Shift | Guard AI Build. Status: current (fix round 1 after PLAN-CHECK 76da6d00a; waits for a fresh checker).
 
 Lead: Night Shift | Guard AI Build. Planner: Opus, master 2148ec969. Brief: `docs/guard-ai-mission-hooks/BRIEF.md`.
 Sources: #372 BEAT / SIGNOFF pages (origin/feature/mission-framework `docs/missions/prototypes/`), the mission engine
-(origin/feature/mission-engine `src/game/mission/sectorMission.ts`, `missionDef.ts`, `tallowWharfMissions.ts`),
-conformance rows D6-D9 (`docs/conformance-guard-ai/parts/D-response.md`).
+(origin/feature/mission-engine `src/game/mission/sectorMission.ts`, `missionDef.ts`; `src/world/maps/
+tallowWharfMissions.ts`, `tallowWharfSectors.ts`, `tallowWharfW3.ts`), conformance rows D6-D9
+(`docs/conformance-guard-ai/parts/D-response.md`), J15 PLAN (origin/feature/guard-rules `docs/guard-rules/PLAN.md`).
 
 ## Claims
 ```claims
@@ -17,10 +18,13 @@ files:
   - src/ai/enemy.ts
   - src/ai/enemyManager.ts
   - tests/missionOrders.test.ts
+  - tests/missionOrdersManager.test.ts
+  - tests/missionGroups.test.ts
   - tests/areaAlarms.test.ts
+  - tests/areaAlarmsManager.test.ts
+  - tests/noiseZones.test.ts
   - tests/hearing.test.ts
   - tests/guardAiData.test.ts
-  - tests/missionOrdersManager.test.ts
   - scripts/e2e-stealth-ai.mjs
   - docs/guard-ai-mission-hooks/**
 maps: none
@@ -28,198 +32,239 @@ protocol: none
 save: none
 ```
 
-## Facts the plan stands on (code at master 2148ec969, engine at origin/feature/mission-engine 00b6cde9c)
-- `missionEvent {name, guardTag, postId, via?}` exists only on the engine branch (`gameEvents.ts:13`), raised by
-  `SectorMission.stepEvents` (`sectorMission.ts:566-578`) once per step done. After a restart `syncWalked`
-  (`:581`) marks every step still done as raised, so today an order is never replayed, while the world (guards
-  included) restarted whole (`restarted`, `:342-370`). Data already uses it: Two-Key Ledger `tkl-3`
-  `{telltale, 'w3-lodge-porter', 'w3-passage'}` (`tallowWharfMissions.ts:165`; the porter is W3 slot `zone:
-  'w3-lodge-porter'`, `tallowWharfSectors.ts:150`), Three Grey Coats `mindersArrive`, `campusMissionTest.ts` c1 / c2.
-- Building blocks: `Enemy.sendTo` (`enemy.ts:1260`), `Enemy.resetBreaker` (`:1407`, calm walk, `BREAKER_WALK.giveUp`,
-  ends when the circuit is on), `sendable` (`:1251`), `postDef.secure`, `zone` / `slotIdx` / `section` (`:1640-1660`);
-  `EnemyManager.setAlarmStage` (`enemyManager.ts:1022`), `alarmRaised` (`:249`, once per section load), `raiseAlarm`
-  (`:808`), `contactThrough` (`:830`), caller pick (`:2514`), `setNoisy` / `mapNoisy` (`:557`), `tierOf` reads
-  `ambientDb` per listener (`:2728`), `breakerOff` ctx (`:676`), `clear()` on a section load or restart.
+## Facts (pinned at the plan; every builder re-pins file:line on the head it starts from, see "Order with J15")
+- `missionEvent {name, guardTag, postId, via?}` is on the engine branch only (`gameEvents.ts:13`), raised by
+  `SectorMission.stepEvents` (`sectorMission.ts` ~:573) once per step done; after a restart `syncWalked` (~:588) marks
+  every step still done as raised, so an order is never replayed although the world restarted whole (`restarted`
+  ~:349). Data: Two-Key Ledger `tkl-3` `{telltale, 'w3-lodge-porter', 'w3-passage'}`; the porter is W3 slot 2, `zone:
+  'w3-lodge-porter'`, posted at (117, 48) in room `w3-lodge` [114-120, 44-52] (`tallowWharfW3.ts:102`).
+- Building blocks: `Enemy.sendTo` (`enemy.ts:1260`), `resetBreaker` (`:1407`), `sendable` (`:1251`), `Enemy.secure`
+  (from `PostDef.highSecurity`), `zone` / `slotIdx` / `section`; `EnemyManager.circuitOut` (`enemyManager.ts:1195`,
+  `report('breaker' | 'light', ..., CIRCUIT_KEY + group)`), `circuitBusy` (`:1238`: open incident on the key, or a
+  guard with `breakerGroup === group`), `tierOf` (`:2728`), `noise` (`:2757`), `ctx.breakerOff` (`:676`: returns
+  true, "off", when there is no breaker host), the constructor's `mapNoisy` (`:559-560`) and `setNoisy`; `BreakerHost.
+  switchOf(group, x, z, out)` / `isOff(group)` (`src/ai/breaker.ts:14-16`).
 - `NoisySource` (`hearing.ts:38-52`) has no switch link; no map defines `noisy` (D8).
+
+## Order with J15 (guard-rules, same lead)
+J15's PRs go first; this job re-pins every file:line fact on the head it starts from.
+- S1a starts on the head after J15 PR3 merges (S4 bark causes, S6 posted pairs: `enemy.ts`, `enemyManager.ts`,
+  `flags.ts`, `e2e-stealth-ai`). S1b follows S1a.
+- S2, S3, S4 start after J15 PR4 merges (S7 lookouts: `guardAiData.ts validatePosts`, `placeSlot`; S8 `enemy.ts`).
+- S3 builds on J15 S5 (repeat alarms: the lock at `raiseAlarm` / `contactThrough` / `assignAlarm` / the caller /
+  `radioAlarm`, `ALARM_REPEAT` max 3, `rearm` 60 s). Decision: with areas set, the lock and the count are per area
+  (one lock, one count per area; a panel alarm uses the site lock), because the beats escalate each area on its own
+  and site stage 2 needs both areas: a shared lock would let Ghost's alarm block Shadow's. No areas = J15's one lock.
+- S3 builds on J15 S1's helmet rule (`DifficultyDef.helmets: 'stage' | 'always' | 'locked'`): area gear changes only
+  the `stage` tier (Rookie / Normal); `always` / `locked` are untouched.
+- S1a treats J15 S7 lookouts (copied to high-security posts at `placeSlot`) as secure; `checkMissionOrders` also fails
+  a tag on a `post.lookout` slot. An ordered guard in a J15 S6 pair: his partner reacts as to a partner gone
+  (S6 `missing`), no order of his own.
+- `flags.ts` also overlaps coop-kit, map-ready, player-batch-j19: additive lines, no blocker.
 
 ## Design
 ### 1. Mission orders (D7)
-`src/ai/missionOrders.ts` (new, pure, no Babylon):
-- Types: `OrderKind = 'reset' | 'walk'`; `MissionPost {id, x, z, y?, yaw?, circuit?}`; `OrderEvent` (the engine's
-  event shape, structural: no import from `src/game`).
-- `ORDER` numbers (G4 prototype values): `lookT` 8 s, `joinWait` 20 s, `followGap` 1.5 m, `atVia` 2.5 m,
-  `giveUp` 120 s, `maxOrders` 8.
+`src/ai/missionOrders.ts` (new, pure, no Babylon, no `src/game` import):
+- Types: `OrderKind = 'reset' | 'walk'`; `MissionPost {id, x, z, y?, yaw?, circuits?: number[], bell?: {x, y, z,
+  reach}}`; `OrderEvent` (the engine's event shape, structural); `OrderPhase = 'none' | 'offered' | 'gathering' |
+  'walking' | 'arrived' | 'done' | 'dropped'`.
+- `ORDER` (G4 prototype values): `lookT` 8 s, `joinWait` 20 s, `followGap` 1.5 m, `atVia` 2.5 m, `giveUp` 120 s,
+  `bellTier` 1, `maxOrders` 8, `maxMembers` 4.
 - `matchesTag(tag, zone, sectionId, k)`: zone equal, or `${sectionId}:${k}` equal (A1).
-- `resolvePoint(id, posts, rooms, out)`: mission post, else room centre on its storey (A2); returns false unresolved.
-- `OrderBoard`: a fixed table of `maxOrders` slots (preallocated; no allocation after construction). `add(name,
-  kind, tag, post, via)` fills a slot; events with the same `name` and `via` share a group id (A6). Slots hold the
-  resolved points, the group, its leader and a `members` bitmask over guard ids seen. `clear()` empties it.
-- `OrderLeg` stepper (pure, one per Enemy, reused): phases `toVia -> waitVia -> toPost -> look | reset -> done`;
-  `step(px, pz, dt, leaderX, leaderZ, leaderPhase)` returns the target point, the pace class and the facing into a
-  reused goal object. A follower targets `followGap` behind the leader; a leader at `via` waits for the members or
-  `joinWait`.
-- `checkMissionOrders(events, sections, posts, rooms)`: for Campaign Build's mission tests: each `guardTag` matches at
-  least one guard of a section the mission runs; `postId` / `via` resolve; no secure-post guard is tagged (A7); a
-  `reset` post's circuit is >= 0. Returns readable error strings.
+- `resolvePoint(id, posts, rooms, out)`: mission post, else room centre on its storey (A2); false when unresolved.
+- `OrderBoard`: `maxOrders` preallocated slots; each holds name, kind, resolved points, circuits, group, phase and a
+  fixed member list (`Int32Array(maxMembers)` of enemy ids plus a count; no bitmask, so ids > 31 are fine). `clear()`.
+- `OrderLeg` stepper (one per Enemy, reused): `toVia -> waitVia -> toPost -> look | reset -> done`; `step(...)` writes
+  the target, pace class and facing into a reused goal object; a follower targets `followGap` behind the leader.
+- `checkMissionOrders(events, sections, posts, rooms, noisy, hearAt)`: each tag matches a guard of a section the
+  mission runs; `postId` / `via` resolve; no high-security or lookout slot is tagged (A7); `circuits` are integers
+  >= 0; a `bell` is heard by each tagged guard at his post through one wall plus masking (`hearAt` is the pure tier
+  from `hearing.ts`, `WALL_FACTOR`). Returns readable error strings (Campaign Build expects `[]`, C4).
 
-`EnemyManager` (host / solo; the guard simulation):
-- `setMissionMap(sectionIds, posts)`: once at the mission bind (Campaign Build calls it).
-- `missionOrder(tag, kind, postId, via?, name = '')`: flag `missionOrders` off -> no-op. Resolve the points (fail:
-  dev warn once, return false). Add to the `OrderBoard`, then offer it to every living guard of the live section that
-  matches. `onMissionEvent(ev)` = `missionOrder(ev.guardTag, post.circuit !== undefined ? 'reset' : 'walk', ...)`.
-- Standing orders: a matching guard placed later (`placeSlot`: pending spawns after a restart) or freed later (on a
-  board task when it came) is offered the order in the existing low-rate manager pass (no per-frame scan of tags:
-  the matching guard ids are cached in the slot at `add` and at `placeSlot`).
-- `clear()` (section load / restart) also clears the `OrderBoard` (A8).
-- Debug / e2e getters: `orderOf(e)` (slot, phase), `orders.count`.
+The offer rule (A6), one table for every kind:
+| Kind | Offered when | To whom | Eligible | Ends (done) | Dropped |
+| --- | --- | --- | --- | --- | --- |
+| walk | once, at the event | tagged guards of the live section; a not-yet-placed tagged slot once at its `placeSlot` (same load) | alive, not KO / held / passive / alerted / busy / secure; a `bell` post: also hears the bell (tier >= `bellTier`) | look-round over, back to route | ineligible at the offer; an investigation, search or alert on the way; `giveUp`; unresolved post; `clear()` |
+| reset | as walk | as walk | as walk, except a breaker walk or breaker incident on one of the order's circuits is not "busy": the order takes it over (below) | every listed circuit back on (by him, or by other means) | as walk |
+| group (same name + via) | as its members' kind | each member as above | as above, per member | the leader's end ends the group | per member, as above; the group drops when no member is left |
+A woken guard (`inherit` / revive) is never offered an order. "Busy" = an incident, breaker walk, lure, search or
+another order in hand. Every drop is recorded per order (`orderPhase`), with a dev log line naming the cause.
 
-`Enemy`:
-- `takeOrder(slot, leg)`: refused unless `sendable`, level unaware / cooldown / suspicious, not `secure` (A4, A7).
-  Board task in hand: stays offered until free. Bark: existing `checking` line (no new text).
-- In the unaware / suspicious branch beside the breaker walk (`enemy.ts:2672-2719`): `orderStep(dt)` follows
-  `OrderLeg` with `goTo`, patrol pace, perception live; a glimpse pauses it, anything more drops it (A5).
-- `reset` at the post: hand over to `resetBreaker(post.x, post.z, post.y, -1, circuit)` (existing walk end, switch
-  time, circuit-on check: a replay after a world restart finds the board on and ends at once).
-- `done` / dropped: `walker.rejoin` (back to his route or post), group leader released to the next member.
+Breaker composition (Split Shift; unit test per case):
+- Cut first: #7 notices 55 / 56 go dark (`circuitOut` -> `report('breaker')`) and is on the breaker walk or holds its
+  incident when the order comes. The reset order on circuits [55, 56] takes it over: his breaker walk ends without a
+  reset, the order holds the circuits' incidents, and any other guard's breaker walk on those circuits ends (one goes:
+  the facilities officer). No second guard is sent and the tamper clock does not run.
+- Order first: #7 is on the order when the cut is noticed. `circuitBusy(group)` counts order holders, and
+  `circuitOut` reports nothing for a circuit an order holds (no incident, no tamper clock, no second guard).
+- At the board: the switch point comes from `BreakerHost.switchOf(circuit, x, z, out)`; he works it `BREAKER.resetT`
+  and every listed circuit still off comes back on (`ctx.breakerReset` per circuit). A replay after a world restart
+  finds them on and ends at once (phase `done`).
 
-Restart (A8): Guard AI forgets orders at `clear()`; Campaign Build makes `restarted()` mark done steps that carry
-events as not raised, so the next tick raises them again (C3). The replayed walk starts from his spawn.
+`EnemyManager` (host / solo):
+- `setMissionMap(sectionIds, posts)` (Campaign Build at the bind, C1).
+- `missionOrder(tag, kind, postId, via?, name = '')`: flag off = no-op. Resolve (fail: dropped, dev warn once). Fill a
+  slot; with a `bell`, emit the bell as a device sound at its point: the tagged guards are judged through `tierOf`; the
+  others in reach turn to look (no incident, no report). Offer once to each eligible tagged guard (the table).
+- `onMissionEvent(ev)` = `missionOrder(ev.guardTag, post.circuits ? 'reset' : 'walk', ev.postId, ev.via, ev.name)`.
+- `orderPhase(name): OrderPhase` (supported read for the mission's lamps and lines, C7) and `orderMembers(name)` (how
+  many guards are on it now). Debug: `orderOf(e)`.
+- `clear()` (section load / restart) clears the `OrderBoard` (A8).
 
-### 2. Per-area alarm stages (D6, behind `areaAlarms`; A9 waits on Q1 for switch-on)
+`Enemy`: `takeOrder(slot)` (the gate above); `orderStep(dt)` beside the breaker walk in the unaware / suspicious
+branch: follows `OrderLeg` with `goTo` at patrol pace, perception live; a glimpse pauses it, anything more drops it
+(A5); bark: the existing `checking` line (J15 S4's bark-by-cause once on master); done / dropped: `walker.rejoin`.
+
+Restart (A8): orders go at `clear()`; Campaign Build re-raises still-done steps' events after a restart (C3).
+
+### 2. Per-area alarm stages (D6, flag `areaAlarms`; on master with A9, switch-on by Q1 on the walk card)
 `src/ai/areaAlarms.ts` (new, pure): `AreaBox {boxes: [minX, minZ, maxX, maxZ][], y?: [lo, hi]}` (the engine's track
-shape); `areaOf(areas, x, z, y)` -> 0..1 or -1; `AreaStages` (Int8Array site + 2 areas; `stageFor(area)` = max(site,
-area)); `AREA` numbers.
-`EnemyManager`:
-- `setAreas(areas | null)` (Campaign Build at bind; null or flag off = today). `Enemy.area` set at `placeSlot` from his
-  spawn point; a reinforcement from its entry point (A10).
-- `setAreaStage(area, stage)`: area gear (`stageGear`) to that area's living guards and later placements; `alarmStage`
-  reads for calm carry (`carryCalm`) and helmets (G350) become `stageFor(e.area)` through a new ctx `areaStage(e)`.
-- Alarm per area: a panel alarm stays site-wide (today's `alarmRaised`). A radio command call (`contactThrough`, `p`
-  null) sets `areaRaised[area]` only, so the other area's guards can still raise theirs; the caller pick and the alarm
-  hunt prefer guards of the caller's area. `alarmArea` (the raiser's area, -1 site) is readable by the mode before
-  `onAlarm` fires.
-- Campaign Build's side (C5): stages per area stay in `SectorMission.stages`; it reads `em.alarmArea` in
-  `guardAlarm()` (today TEAM_BOTH), calls `em.setAreaStage`, raises the site stage when both areas reach 1, and runs
-  the area's stage actions (lights, the area reinforcement) in `sectorMode`. Sector Ops adds `area` to the S2 / S4
-  stage actions (groups 50-52, 70-72; reinforcement points (-36, -7), (-40, -16.5), (28, 20.5)).
+shape); `areaOf(areas, x, z, y)` -> 0..1 or -1; `AreaStages` (site + 2 areas, `stageFor(area)` = max(site, area)); the
+per-area lock and count on J15 S5's rule.
+`EnemyManager`: `setAreas(areas | null)` (C5; null or flag off = today); `Enemy.area` at `placeSlot` from his spawn
+point, a reinforcement from its entry (A10); `setAreaStage(area, stage)`: area gear (`stage` helmet tier only) to that
+area's living guards and later placements; calm carry and helmets read `stageFor(e.area)` through ctx `areaStage(e)`; a
+panel alarm stays site-wide; a radio command call (`contactThrough`) locks and counts only the caller's area; the
+caller pick and the alarm hunt prefer the caller's area; `alarmArea` (the raiser's area, -1 site) is readable before
+`onAlarm` fires.
+Campaign Build's side (C5) and Sector Ops' data (area stage actions) are in "Coordination".
 
-### 3. Noise zones (D8, behind `noiseZones`)
-- Data shape (`hearing.ts`): `NoisySource` gains `group?: number` (a power / light circuit) and `on?: 'on' | 'off'`
-  (live while the circuit is on, default; `'off'`: live while it is off) (A11). `ambientDb(src, x, z, y, live?)` skips
-  a source whose `live[i]` is 0 (a Uint8Array the manager owns; absent = all live). `validateNoisy` in
-  `guardAiData.ts`: radius 1-40 m, db 0-24, group integer.
-- `EnemyManager`: `setNoisy` stores the list only with `noiseZones` on (else []); one live mask sized at `setNoisy`,
-  refreshed once per AI tick from `ctx.breakerOff(group)` (no breakers system: live). `ambientAt(x, y, z)` = the same
-  sum the guards use, for the HUD meter (D9).
-- Data owners (not this job): Sector Ops `SectorDef.noisy` (S2 east plant switchgear on groups 55 / 56, S4 data hall
-  CRACs and generator compound, S5 boiler room); Marlow Yard `guardAi.noisy` on `ctcourse` (substation, pump house);
-  Campaign Build on `tallowWharf` (cranes, the W4 weir). The orchestrator renames the bible's `noiseZones` (A12).
+### 3. Noise zones (D8, flag `noiseZones`)
+- `hearing.ts`: `NoisySource.group?: number`, `on?: 'on' | 'off'` (A11); `ambientDb(src, x, z, y, live?)` skips a
+  source whose `live[i]` is 0 (absent = all live). `guardAiData.ts validateNoisy`: radius 1-40 m, db 0-24, integer
+  group.
+- `EnemyManager`: with `noiseZones` off, both the constructor's `mapNoisy` and `setNoisy` store [] (map data is
+  ignored); on, one live mask sized at `setNoisy`, refreshed once per AI tick from `this.breakers.isOff(group)` in its
+  own branch: no breaker host = live (not `ctx.breakerOff`, which reads "off" then). `ambientAt(x, y, z)` = the same
+  sum the guards use, for the HUD (D9); it refreshes the mask itself when the AI tick has not run since the last
+  switch change (a co-op client does not tick the AI).
+- Data owners (not this job): Sector Ops `SectorDef.noisy` (S2 east plant switchgear on 55 / 56, S4 data hall CRACs
+  and generator compound, S5 boiler room); Marlow Yard `ctcourse` `guardAi.noisy` (substation, pump house); Campaign
+  Build `tallowWharf` (cranes, the W4 weir). The orchestrator renames the bible's `noiseZones` (A12).
 
 ## Slices
-Parallel group 1: S1 and S2 (file-disjoint). Then S3, then S4 (both edit `enemy.ts` / `enemyManager.ts`).
+Order: S1a -> S1b; S2 (after J15 PR4, file-disjoint from S1a / S1b, may run beside S1b) -> S3 -> S4.
 
-**S1 Mission orders (Opus).** Section 1 whole, plus the three flags (`missionOrders`, `areaAlarms`, `noiseZones`,
-URL `?missionorders=1` / `?areaalarms=1` / `?noisezones=1`, all default off) so no later slice edits `flags.ts`.
-- Files: `src/core/flags.ts` (~20), `src/ai/missionOrders.ts` (new ~260), `src/ai/enemy.ts` (~170),
-  `src/ai/enemyManager.ts` (~130), `tests/missionOrders.test.ts` (new ~300), `tests/missionOrdersManager.test.ts` (new
-  ~120, the stub-manager harness of `enemyManagerDespawn.test.ts`), `scripts/e2e-stealth-ai.mjs` (scenario
-  `missionOrder` ~140). Est. 1,140 lines.
-- Unit: tag match (zone, `<id>:<k>`, none); post / room / unresolved resolution; group by name + via; leg phases (via
-  wait, join timeout, follower gap, look, reset hand-off); restart clear; secure and KO refusal; standing order taken
-  by a guard placed later; flag off = no-op; `checkMissionOrders` errors; no allocation (the board and legs reuse
-  their objects: a test counts `OrderBoard` slots and leg goal identity across steps).
-- e2e (`e2e-stealth-ai`, warehouse): `?missionorders=1`; order a calm grunt to a room via a second room: he walks via,
-  looks round, rejoins his route; a two-guard group leaves via together; a `reset` on a switched-off circuit relights
-  it; a knocked-out guard ignores the order; `em.clear()` drops it.
-- Done looks like: the porter-style walk visible in the e2e, tsc and the unit files green, nothing changes with the
-  flag off (stealth-ai's other scenarios unchanged).
+**S1a Single-guard orders (Opus).** Section 1 without groups; the three flags (`missionOrders`, `areaAlarms`,
+`noiseZones`; URL `?missionorders=1` / `?areaalarms=1` / `?noisezones=1`; all off) so no later slice edits `flags.ts`.
+- Files: `src/core/flags.ts` (~20), `src/ai/missionOrders.ts` (new ~280), `src/ai/enemy.ts` (~150),
+  `src/ai/enemyManager.ts` (~190: offer, bell, breaker take-over, phase), `tests/missionOrders.test.ts` (new ~260),
+  `tests/missionOrdersManager.test.ts` (new ~160, the stub harness of `enemyManagerDespawn.test.ts`),
+  `scripts/e2e-stealth-ai.mjs` (scenario `missionOrder` ~160). Est. 1,220 lines.
+- Unit: tag match; post / room / unresolved; the offer table row by row (ineligible states dropped, never picked up
+  later, a late-placed slot once, a woken guard never); bell heard / not heard / through a wall plus masking;
+  breaker cut-first and order-first; reset relights both circuits; `orderPhase` sequence; restart clear; flag off =
+  no-op; `checkMissionOrders` errors (lookout, secure, unheard bell); no allocation (slot and goal identity reused).
+- e2e (`e2e-stealth-ai`, warehouse, `?missionorders=1`): a bell order: the guard in the bell's room comes and looks
+  round, a guard outside its reach does not, a knocked-out one does not; a reset order on a cut circuit with the
+  breaker walk already running takes it over and relights it; phases read `walking` -> `arrived` -> `done`.
+- Done looks like: the porter-style and supervisor-style walks in the e2e; nothing changes with the flag off.
 
-**S2 Noise data shape (Opus).** Section 3's pure half: `group` / `on` on `NoisySource`, the live mask in
-`ambientDb`, `validateNoisy`.
+**S1b Groups (Opus).** A6 groups: via wait, join timeout, follow, members dropping out.
+- Files: `src/ai/missionOrders.ts` (~120), `src/ai/enemy.ts` (~60), `src/ai/enemyManager.ts` (~60),
+  `tests/missionGroups.test.ts` (new ~220), `scripts/e2e-stealth-ai.mjs` (scenario `missionGroup` ~130). Est. 590.
+- Unit: a member at via waits; the group leaves when all are in or after `joinWait`; follower gap; a member busy at the
+  event never joins; a member sent to a breaker fault on the way leaves; phase `gathering` -> `walking`.
+- e2e: two warehouse guards, one at the via: they walk the last leg together; with the second guard busy at the
+  event, the first goes alone after the wait.
+- Done looks like: the Split Shift pair behaviour on the warehouse; flag off = nothing.
+
+**S2 Noise data shape (Opus).** Section 3's pure half.
 - Files: `src/ai/hearing.ts` (~50), `src/ai/guardAiData.ts` (~40), `tests/hearing.test.ts` (~120),
   `tests/guardAiData.test.ts` (~60). Est. 270 lines.
-- Unit: a source off by its circuit masks nothing; `on: 'off'` inverts; no mask = today's numbers (existing tests
-  untouched); validator rejects a 0 radius, db over 24, a fractional group.
-- Done looks like: tests green, hearing numbers byte-identical without a mask. Flag: none needed (no caller yet).
+- Unit: a source off by its circuit masks nothing; `on: 'off'` inverts; no mask = today's numbers; the validator
+  rejects a 0 radius, db over 24, a fractional group. Done looks like: tests green, numbers unchanged without a mask.
 
-**S3 Per-area alarm stages (Opus).** Section 2.
-- Files: `src/ai/areaAlarms.ts` (new ~150), `src/ai/enemyManager.ts` (~200), `src/ai/enemy.ts` (~40),
-  `tests/areaAlarms.test.ts` (new ~260), `tests/missionOrdersManager.test.ts` (area cases ~80),
-  `scripts/e2e-stealth-ai.mjs` (scenario `areaAlarm` ~120). Est. 850 lines.
-- Unit: `areaOf` boxes and height band; `stageFor`; a radio alarm in area 0 leaves area 1 able to raise; a panel stays
-  site-wide; gear only to the area's guards; flag off or no areas = today (`alarmCall.test.ts`, `radioWiring.test.ts`,
-  `sectorStageActions.test.ts` untouched and green).
-- e2e (`e2e-stealth-ai`): two test boxes on the warehouse; a contact call in box 0 raises box 0 only; a second call in
-  box 1 raises box 1; flag off: one shared alarm as today.
-- Done looks like: as above, plus `e2e-sectorops:1` green (the `src/ai` affected row) with the flag off.
+**S3 Per-area alarm stages (Opus).** Section 2, on J15 S5 and S1.
+- Files: `src/ai/areaAlarms.ts` (new ~170), `src/ai/enemyManager.ts` (~220), `src/ai/enemy.ts` (~40),
+  `tests/areaAlarms.test.ts` (new ~220), `tests/areaAlarmsManager.test.ts` (new ~140), `scripts/e2e-stealth-ai.mjs`
+  (scenario `areaAlarm` ~120). Est. 910 lines.
+- Unit: `areaOf` boxes and height band; `stageFor`; per-area lock and count (a radio alarm in area 0 leaves area 1
+  free; max 3 per area; rearm); a panel stays site-wide; gear only to the area, `stage` tier only; no areas = J15's
+  rule (`alarmRepeat.test.ts`, `alarmCall.test.ts`, `radioWiring.test.ts` untouched and green).
+- e2e: two test boxes on the warehouse: a contact call in box 0 raises box 0 only, then box 1 its own; flag off: one.
+- Done looks like: as above, plus `e2e-sectorops:1` green with the flag off.
 
-**S4 Noise wiring and the meter read (Opus or Sonnet from S2's brief).** Section 3's manager half.
-- Files: `src/ai/enemyManager.ts` (~70), `tests/missionOrdersManager.test.ts` (noise cases ~60, file renamed in the
-  brief if the lead prefers `tests/noiseZones.test.ts`), `scripts/e2e-stealth-ai.mjs` (scenario `noiseZone` ~100).
-  Est. 230 lines.
-- Unit: flag off = sources ignored; the mask follows a breaker toggle on the next tick; `ambientAt` equals the
-  listener sum.
-- e2e (`e2e-stealth-ai`): `?noisezones=1` and a test source on a warehouse circuit: a footstep inside it is not heard
-  at a range it is heard outside; the circuit off: heard again.
-- Done looks like: masking switchable by power, readable by the HUD; with the flag off nothing changes.
+**S4 Noise wiring and the meter read (Opus, or Sonnet from S2's brief).** Section 3's manager half.
+- Files: `src/ai/enemyManager.ts` (~80), `tests/noiseZones.test.ts` (new ~120), `scripts/e2e-stealth-ai.mjs` (scenario
+  `noiseZone` ~100). Est. 300 lines.
+- Unit: flag off = constructor and `setNoisy` data ignored; no breaker host = live; the mask follows a toggle on the
+  next tick; `ambientAt` equals the listener sum and refreshes without an AI tick.
+- e2e (`?noisezones=1`, a test source on a warehouse circuit): a footstep inside it is not heard at a range heard
+  outside; circuit off: heard again. Done looks like: masking switchable by power, readable by the HUD.
 
-Totals: ~2,490 lines in 4 PRs, each under 1.5k. Builders: Opus for S1-S3 (AI code), S4 Opus or Sonnet. Two
-independent Opus checkers per AI PR (RULES "A job"); every e2e on the laptop queue, `E2E_GPU=1`; the `src/ai` affected
-row also runs `e2e-guard-carry` and `e2e-sectorops:1` on each PR head.
+Totals ~3,290 lines in 5 PRs, each under 1.5k. Two independent Opus checkers per AI PR; e2e on the laptop queue
+(`E2E_GPU=1`); the `src/ai` affected row also runs `e2e-guard-carry` and `e2e-sectorops:1` on each head.
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
 | --- | --- | --- | --- | --- |
-| `missionOrders` (`?missionorders=1`) | off | Night Shift \| Guard AI Build | Michael's prototype walk (date: orchestrator) | S1 passed, C1-C3 on master, the three twists accepted on the walk |
-| `areaAlarms` (`?areaalarms=1`) | off | Night Shift \| Guard AI Build | Michael's prototype walk, after Q1 | S3 passed, C5 on master, Q1 "Yes", Split Shift / Code Relay alarm items accepted |
+| `missionOrders` (`?missionorders=1`) | off | Night Shift \| Guard AI Build | Michael's prototype walk (date: orchestrator) | S1a + S1b passed, C1-C3 and C7 on master, the three twists accepted on the walk |
+| `areaAlarms` (`?areaalarms=1`) | off | Night Shift \| Guard AI Build | Michael's click on Q1 at the prototype walk (walk card) | S3 passed, C5 on master, Q1 "Yes", the alarm items accepted |
 | `noiseZones` (`?noisezones=1`) | off | Night Shift \| Guard AI Build | the walk after map data lands | S2 + S4 passed, a map's sources in, the masking item accepted |
 
 ## Coordination items (exact calls; not this job's files)
 Campaign Build (mission engine, `src/game/mission/**`, mission data):
-- C1 In `bindSectorMission` (`sectorMission.ts`, beside `m.listen`): `g.enemyMgr?.setMissionMap(run.defs.map((d) =>
-  d.id), def.posts ?? [])` and `const off = g.events.on('missionEvent', (ev) => g.enemyMgr?.onMissionEvent(ev))`,
-  unsubscribed with the mission.
-- C2 `MissionDef.posts?: MissionPost[]` (type from `src/ai/missionOrders.ts`) and the events: Split Shift step 3
-  (`sync-s2-power`) two events `{name: 'ss-power', guardTag: 's2:<k of #7>' and 's2:<k of #1>', postId:
-  's2-plant-board', via: 's2-foyer'}` with post `s2-plant-board {x, y, z, circuit: 55}` (coordinates from Sector Ops'
-  board); Code Relay step 3A (`sync-s4-noc`) `{name: 'cr-release', guardTag: 's4:<k of #20>', postId: 's4-cage-front',
-  via: 's4-hall-w'}` with post `s4-cage-front` at the cage front gate (18, 33). Two-Key Ledger as built (`w3-passage`
-  resolves to its room).
+- C1 In `bindSectorMission`, host / solo only (where the manager simulates guards; never on a co-op client), beside
+  `m.listen`: `g.enemyMgr?.setMissionMap(run.defs.map((d) => d.id), def.posts ?? [])` and `const off =
+  g.events.on('missionEvent', (ev) => g.enemyMgr?.onMissionEvent(ev))`, unsubscribed with the mission.
+- C2 `MissionDef.posts?: MissionPost[]` (type from `src/ai/missionOrders.ts`) and these posts and events (floor y 0
+  unless named; k = guard number - 1, `campusSectors.ts:81`):
+  - Two-Key Ledger (as built: `tkl-3`, tag `w3-lodge-porter` = W3 slot 2): post `w3-passage` {x 101, z 53.75, y 0
+    (room `w3-passage` centre), bell {x 118.5, y 1.5, z 50, reach 20}} (the bell on the lodge's inner wall, 1.6 m
+    from the porter's post (117, 48); in reach also the yard watchman and his dog near (112, 46): they turn to look).
+  - Split Shift step 3 (`sync-s2-power`): two events `{name 'ss-power', guardTag 's2:6'}` (#7, facilities) and
+    `{name 'ss-power', guardTag 's2:0'}` (#1, reception), both `postId 's2-plant-board', via 's2-reception'`; posts
+    `s2-plant-board` {x -2, z -17, y 0 (room `plant` centre), circuits [55, 56]} (the walk ends at the board's switch
+    from `switchOf`; Sector Ops builds the board in room `plant`) and `s2-reception` {x -18.5, z -24, y 0} (room
+    `foyer`, in front of #1's desk at (-20, -24.9): #1 counts as at via).
+  - Code Relay step 3A (`sync-s4-noc`): `{name 'cr-release', guardTag 's4:19' (#20, mobile supervisor), postId
+    's4-cage-front', via 's4-west-aisle'}`; posts `s4-cage-front` {x 19.5, z 33, y 0, yaw PI} (room `s4-hall`, beside
+    the keyholder's gate post (18, 33)) and `s4-west-aisle` {x -2.5, z 33, y 0} (on #20's own route, room `s4-hall`):
+    up the west aisle, then east to the cage front.
 - C3 Restart replay: in `SectorMission.restarted()`, replace `this.syncWalked()` with a version that leaves
-  `walked[i] = 0` for steps done that carry `events` (the next tick's `stepEvents` raises them again).
-- C4 Its mission tests call `checkMissionOrders(def.steps' events, sector guards, def.posts, rooms)` and expect `[]`.
-- C5 Areas: at bind `g.enemyMgr?.setAreas(<the def's track boxes and y bands>)`; in `guardAlarm()` read
-  `em.alarmArea` (-1: both); on each area rise `em.setAreaStage(area, stage)`; site stage 2 when both areas are at 1
-  (`run.raiseAlarm()`); area stage actions (`StageAction.area`) in `sectorMode`.
-- C6 The mission e2e part (`scripts/e2e-sectorops-mission.mjs`) asserts the c1 / c2 walk with `?missionorders=1`
-  (reads `em.orderOf`).
-Sector Ops: S2 / S4 post coordinates for C2, `area` on S2 / S4 stage actions (C5), `SectorDef.noisy` data (D8).
-Marlow Yard: `ctcourse` `guardAi.noisy`. HUD owner (D9): the meter marker reads `g.enemyMgr.ambientAt(x, y, z)` at
-the player. Orchestrator: bible 5.2 S2 field name (A12); Q1 to Michael by day.
+  `walked[i] = 0` for steps done that carry `events`, so the next tick's `stepEvents` raises them again; a tagged
+  slot still pending then gets the order once at its `placeSlot` (A6).
+- C4 Mission tests call `checkMissionOrders(events, sector defs, def.posts, rooms, noisy, hearAt)` and expect `[]`.
+- C5 Areas: at bind `g.enemyMgr?.setAreas(<the def's track boxes and y bands>)`; `guardAlarm()` reads `em.alarmArea`
+  (-1: both) instead of TEAM_BOTH; each area rise calls `em.setAreaStage(area, stage)`; site stage 2 when both areas
+  are at 1 (`run.raiseAlarm()`); area stage actions (`StageAction.area`) in `sectorMode`. Sector Ops: `area` on the S2 /
+  S4 stage actions (groups 50-52, 70-72; reinforcement points (-36, -7), (-40, -16.5), (28, 20.5)).
+- C6 The mission e2e part (`scripts/e2e-sectorops-mission.mjs`, or the Tallow mission e2e) asserts, with
+  `?missionorders=1` and real wall rays: the porter takes the bell order (`orderPhase('telltale')` reaches `walking`),
+  and the c1 / c2 walks of `campusMissionTest`.
+- C7 The mission's world leads follow the guard, not the event: the lodge lamp and SEXTON's "Porter's coming" on
+  `orderPhase('telltale') === 'walking'` (a KO'd porter: `dropped`, no lamp, no line); "Two of them coming" when
+  `orderPhase('ss-power') === 'walking'` with `orderMembers('ss-power') === 2`; "Supervisor's off the west aisle" on
+  `orderPhase('cr-release') === 'walking'`. Polled at the mission tick (no allocation).
+Sector Ops: the S2 board in room `plant` (C2), `area` on stage actions (C5), `SectorDef.noisy` (D8). Marlow Yard:
+`ctcourse` `guardAi.noisy`. HUD owner (D9): the meter marker reads `g.enemyMgr.ambientAt(x, y, z)` at the player.
+Orchestrator: bible 5.2 S2 field name (A12); Q1 on the prototype walk card.
 
 ## Hard rules check
-- No allocation in hot paths: `OrderBoard` and `AreaStages` are fixed arrays sized at construction; each Enemy
-  reuses one `OrderLeg` and one goal object (the breaker walk's pattern); tag matching runs at order and placement
-  time only; the noise live mask is a Uint8Array refreshed once per tick; `hyp2` for every distance.
-- Fixed and explainable (VISION 8, G143): no randomness; every walk names its cause (the bell, the cut, the release),
-  uses the guard's own route back, and any detection on the way is the normal perception path.
-- Gameplay never reads graphics: points come from mission posts, rooms and the nav grid; circuit state from the
-  switch system (`breakerOff`), never from lights' rendered state; noise from the noise model.
+- No allocation in hot paths: `OrderBoard` (fixed slots, `Int32Array` member lists) and `AreaStages` are sized at
+  construction; each Enemy reuses one `OrderLeg` and goal object; tag matching and bell judging run at order and
+  placement time only; the noise mask is a Uint8Array refreshed once per tick; `hyp2` for every distance.
+- Fixed and explainable (VISION 8, G143): no randomness; one offer rule; every walk has a heard or named cause; every
+  drop is recorded with its cause; detections on the way are the normal perception path.
+- Gameplay never reads graphics: posts, rooms, the nav grid, the switch state (`BreakerHost`), the noise model.
 - Co-op: host-only simulation, no wire or save change. Dark: all three flags off by default.
 
 ## Walk items
-- Two-Key Ledger W3 (`?missionorders=1`): turn both keys; the porter leaves the lodge, walks to the passage, looks
-  round, goes back - accept when he comes every time the keys turn, never when knocked out first.
-- Split Shift S2: cut the east boards; #7 stops at reception, both walk to the plant room, #7 resets the board -
-  accept when splitting them (atrium board) leaves #7 alone after the wait.
-- Code Relay S4: the release; #20 walks the west aisle to the cage front - accept when a Relay team restart replays it.
-- Areas and noise items after Q1 and the map data.
+- Two-Key Ledger W3 (`?missionorders=1`): turn both keys; the bell rings in the lodge, the porter lights his lamp,
+  walks to the passage, looks round, goes back - accept when he comes each time the keys turn, never when knocked out
+  or moved out of the bell's reach first.
+- Split Shift S2: cut the east boards; #7 stops at reception, both walk to the plant room, #7 resets both boards -
+  accept when pulling the atrium board before the cut leaves #7 to go alone after the wait.
+- Code Relay S4: the release; #20 walks up the west aisle and east to the cage front - accept when a Vault restart (3A
+  still done) replays the walk, and a Relay restart (3A taken back) does not.
+- Q1 (areas) and the noise item after the map data.
 
 ## Risks and open questions
 - Claims overlap (`claims-check` 2026-10-25): feature/guard-rules (J15) on `enemy.ts`, `enemyManager.ts`,
-  `guardAiData.ts`, `flags.ts`, `e2e-stealth-ai.mjs`; `flags.ts` also with coop-kit, map-ready, player-batch-j19. The
-  orchestrator orders guard-rules against this job (same lead, so the lead may simply run them in sequence); flag
-  lines are additive. Each slice adds code in new blocks tagged `(guard-ai-mission-hooks Sn)`.
-- `missionEvent` is not on master until the engine merges; S1 does not depend on it (structural `OrderEvent`), C1 does.
-- A walk over 120 s (`giveUp`) ends early on a long map path; S1's e2e logs walk times, C4 can warn.
-- Q1 (G125) decides `areaAlarms` switch-on; S3 is built dark either way.
+  `guardAiData.ts`, `flags.ts`, `e2e-stealth-ai.mjs`: settled by "Order with J15". New code sits in blocks tagged
+  `(guard-ai-mission-hooks Sn)`. Also char-shadow-meter (J16) on `e2e-stealth-ai.mjs` and `flags.ts`, and coop-kit,
+  map-ready, player-batch-j19, sector-batch on `flags.ts`: additive scenarios / lines; the orchestrator orders them.
+- `missionEvent` is not on master until the engine merges; S1a / S1b do not depend on it (structural `OrderEvent`).
+- A walk over `giveUp` (120 s) ends early on a long path; S1a's e2e logs walk times, C4 can warn.
+- The S2 plant board is not built yet (Sector Ops); until it is, the Split Shift reset is tested on the warehouse.
