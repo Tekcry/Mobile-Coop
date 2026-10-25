@@ -1,0 +1,10 @@
+{
+  "id": "20261025T212720-auto-train-546a2286-5ce3",
+  "sha": "546a22864a8bdc199a52d3d008eab877037e6f94",
+  "branch": "",
+  "pr": 491,
+  "kind": "full",
+  "requester": "auto-train",
+  "set": "train112-rerun",
+  "note": "train 112 docs trim (testing-tools.md 720) after CI lint fail; f0dd603a passed 41/43"
+}
