@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:57Z
+status: done feature/tallow-fixes-g3 3b786864c7a2c60da2729c8f3df4fec8fbd94301
 
 # campaign J8 G3 (cloud copy of docs/tallow-fixes/briefs/G3.md on the base)
 
@@ -266,3 +266,61 @@ east door ~6.5 m, 5.0 s); E10 link 36 (the bulkhead foot, `bolted_in: ["twoKeyLe
 D1 re-measures from the build.
 
 ## Report (append below)
+
+### Report (Night Shift | Cloud Builder 3, built by a Sonnet 5.5 agent, 2026-10-25 ~23:25Z)
+Branch `feature/tallow-fixes-g3` from e144a9216, head 3b786864c. No blockers.
+
+**Commits** (prefix `tallow G3:`):
+- 217a6e9c, step 1, W3 file: the 31-lamp light block and its switches, `W3_DESKS`, `W3_CONDUITS` and `conduit()`, the
+  flood on the lodge's west wall, and the head lamp on a post mass.
+- 94aab6c2, steps 2 and 3:
+  - W3 file: the fire escape moved east, the parapet breaks, the header and its deviations, the `w3-bulkhead-foot` door
+    entry, and debug points (the fire-escape head and foot, and the six vantages).
+  - Sectors file: W3_ROUTES route 2 only (`:284`), its three points. A one-line diff.
+- 6f68e8c0, steps 4-6, W3 file: nine cover masses, nine hide spots, the medkit at {114.0, 8.4, 69.15} yaw PI.
+- 3b786864, step 9: `tests/tallowWharf/w3.test.ts` (+540).
+
+The diff against the base is three files: `tallowWharfSectors.ts` 2 lines, `tallowWharfW3.ts` +184,
+`w3.test.ts` +540.
+
+**Checks:**
+- `npm run typecheck:fast`: clean.
+- `npx vitest run tests/tallowWharf/w3.test.ts tests/tallowWharf/shell.test.ts tests/tallowWharf/sectors.test.ts
+  --maxWorkers=2`: 3 files, 110 passed. `w3.test.ts` alone is 54 tests. I re-ran the line and it passed.
+- eslint on the 3 files: 0 problems.
+
+**Measured** (`levelAt`, the replica estimate at visibility 1, not the bake):
+- Check points: yard centre 0.783, yard wall line 0.250, east wing W / E strips 0.739 / 0.686, west wing NW 0.736,
+  passage centre 1.000, chute boost spot 0.240, coal yard 0.247, roof corner bay 0.244.
+- Vantages: yard-a 0.249, yard-b 0.245, east-a 0.197, east-b 0.166, west-a 0.294, west-b 0.380. All at most 0.45, and
+  every sightline is clear. The west pair needed no slide west.
+- Fire-escape foot to the gate centre: **2.650 m** in plan.
+  - D0 assumed about 2 m (1.5 s). At 1.3 m/s, 2.65 m is about 2.0 s, which puts TKL leg b at about 21.0 s.
+  - Parity stays near 8% against leg a's 22.7 s. This is for D1.
+- Crane line over the drop guard: 0.318 m clearance (guard top 10.6, line y 10.918 at z 52). It hits no collide piece.
+- Takedown spot to the nearest hide spot: g0 3.68, g1 6.61, g2 2.16, g3 3.10, g4 3.10, g5 2.66, g6 5.91, g7 2.02,
+  g8 5.59, g9 3.28 (all within 8 m).
+
+**Other report items:**
+- TKL: the latched sash was not needed. With `ALL_SHUT`, the bolted foot and the two lodge doors, the run returns null
+  without it.
+- Nav seeds added: none (still 14). Both fire-escape paths resolve with the existing seeds.
+- No W3 stair added; the header comment says so.
+
+**Deviations:**
+- Steps 2 and 3 share one commit, and the vantage debug points are in it. The final `debugPoints` order and content are
+  as the brief says.
+- The lamp-radius test compares the registry's `radius` with `lampReach(r)`, because `LightRegistry.add` stores the
+  reach, not the authored r.
+- The door-gap desk test uses a 0.3 m face offset (the thickest wall's half-thickness), not 0.15. This is stricter
+  than the brief's rule.
+- The old W3 "lights" block is replaced by five new describes: lights, switches and conduits, levels, fire escape, and
+  C5 landing side. Cover / desks / medkit and vantages are also new describes.
+- The TGC test is renamed: the fire-escape start moves to [108.65, 51.2] and foot and gate asserts are added. The
+  half-landing check is replaced and the exports test updated (9 hide spots, 13 debug ids), as the brief says. Every
+  other existing test is unchanged.
+- The test door constants `BULKHEAD_FOOT` and `LODGE_DOORS` sit outside the `SHUT` record.
+- Test console output uses `console.info` (the only console method eslint allows besides warn / error).
+
+**Pending PC run:** e2e, GPU, the lux-grid bake, the look of the flood, lamp post and conduits, and the fire escape's
+real walk.
