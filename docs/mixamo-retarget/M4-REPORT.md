@@ -49,7 +49,8 @@ on this branch; its loop list covers `trav:ledge` / `trav:ladder` and names `tra
 ## Open items
 - On both hang climb-ups the take's foot is on top before the first hand off (as in the game's own `CLIMB_UP`, 0.474 /
   0.475), so the foot-on-top anchor (0.56) is dropped there; it lands at 0.394 / 0.463.
-- freehang_climb plays its 2.5 s hang and pull-up in 0.62 s of game time (x4); I2 to judge on the look video.
+- freehang_climb plays its 2.5 s hang and pull-up in 0.62 s of game time (x4); I2 measured its stand-up end popping
+  (trunk 20 cm a frame) and keeps it off in matches (I2-REPORT.md).
 - hanging_idle runs on its own 4.7 s (no cadence); I2 drives it at 1 / 4.7 per second.
 - The ladder top-out only plays 0 - 0.654 in the game (it ends crouched); the stand keys after that are unused there.
-- I2: a Mixamo setup in `ATTACH_PROBE_SETUPS`, the crawl probe state, the `TRAVERSE_CLIP` swap.
+- I2 did the `TRAVERSE_CLIP` swap (Wren only); still open: a Mixamo setup in `ATTACH_PROBE_SETUPS`, the crawl probe state.

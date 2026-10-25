@@ -275,7 +275,8 @@ export class TakedownController {
     for (let k = 0; k < vs.length; k++) {
       const e = vs[k]!;
       // (coop-walk-fixes P6) a guard the partner holds as a hostage is on offer (the team takedown), taken or alert
-      if (!e.alive || ((e.taken || (known && e.level === 'alert')) && !(net?.partnerHolds?.(e) ?? false))) continue;
+      // (G348) a dog: no takedown of any kind, from any state
+      if (!e.alive || e.def.quadruped || ((e.taken || (known && e.level === 'alert')) && !(net?.partnerHolds?.(e) ?? false))) continue;
       const d = hyp2(e.pos.x - p.x, e.pos.z - p.z);
       // insertion into the three nearest
       for (let j = 0; j < TRY; j++) {

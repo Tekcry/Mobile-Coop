@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_BINDINGS, mapPad, PAD, type PadTuning } from '../src/input/gamepadMapping';
 import { assignPadBind, clearPadBind, defaultPadBinds, padBindLabels, padBindTable, PAD_BINDS, sanitizePadBinds } from '../src/input/padBinds';
+import { findConflicts } from '../src/input/conflicts';
 import { defaultSettings, SettingsStore } from '../src/core/settings';
 
 const T: PadTuning = { deadzoneLeft: 0.15, deadzoneRight: 0.15, triggerDeadzone: 0.05, curve: 'linear', invertY: false };
@@ -32,6 +33,14 @@ describe('pad bindings (step 18)', () => {
     expect(mapPad(snap(PAD.DOWN), T).buttons.ctxDown).toBe(true);
     expect(m.get(PAD.LEFT)).toBe('vision');
     expect(m.get(PAD.RIGHT)).toBe('grenade');
+    // (G343) View is the show-objective tap (it was the unbound mission device); the goggles stay on D-pad left
+    expect(m.get(PAD.SELECT)).toBe('objective');
+    expect(mapPad(snap(PAD.SELECT), T).buttons.objective).toBe(true);
+    expect(mapPad(snap(PAD.SELECT), T).buttons.vision).toBeUndefined();
+    expect(defaultPadBinds().objective).toEqual([PAD.SELECT]);
+    expect(PAD_BINDS.find((b) => b.id === 'objective')).toMatchObject({ label: 'Show objective (tap)', actions: ['objective'] });
+    expect(padBindLabels(defaultPadBinds(), 'objective')).toBe('View');
+    expect(findConflicts(defaultPadBinds())).toEqual([]);
     // the triggers (anim-rework S1): LT is the held aim (`ads`), RT fires / strikes; LT no longer raises `altFire`
     const lt = mapPad({ ...snap(), buttons: Array.from({ length: 17 }, (_, i) => (i === PAD.LT ? 1 : 0)) }, T).buttons;
     expect(lt.ads).toBe(true);
@@ -85,5 +94,15 @@ describe('pad bindings (step 18)', () => {
     expect(b.crouch).toEqual([PAD.B]);
     expect(Object.keys(b).length).toBe(PAD_BINDS.length);
     expect(sanitizePadBinds(null)).toEqual(defaultPadBinds());
+  });
+
+  it('(A6, G343) a stored `device` bind carries over to `objective` and is never written back; `objective` wins when both are stored', () => {
+    const old = sanitizePadBinds({ device: [PAD.RB], crouch: [PAD.B] });
+    expect(old.objective).toEqual([PAD.RB]);
+    expect(old).not.toHaveProperty('device');
+    expect(sanitizePadBinds({ device: [] }).objective).toEqual([]);
+    expect(sanitizePadBinds({ device: [PAD.RB], objective: [PAD.LB] }).objective).toEqual([PAD.LB]);
+    expect(sanitizePadBinds({ device: 'x' }).objective).toEqual([PAD.SELECT]);
+    expect(Object.keys(old).length).toBe(PAD_BINDS.length);
   });
 });
