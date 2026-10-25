@@ -490,16 +490,16 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 ```
 Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs/VISION.md from origin/master; boot: docs/orchestrator/BOOT.md "Marlow Build" (origin/feature/menu).
 Area: Marlow Yard, level validator, route-runs, guard cap, level standard (docs/level-design.md, docs/templates/map-spec.md).
-Row 6 SIGNED OFF (Michael ~17:00): no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); Michael's 39 answers in ROADMAP "Decided" override it. Desktop CPU: start agents only when the orchestrator says CPU < 80% (hold from ~18:10 may still stand: ask).
-State at the 18:20 save (each PR: check `checker` status on its head; none -> one fresh Opus checker):
-- #436 J1 docs (feature/marlow-docs-j1 90b0ed82, worktree Mobile-Coop-marlow-docs-j1): checker PASS; train-ready when CI green. Nothing owed.
-- #441 J5 Marlow objective lines (feature/marlow-objective-place 8609e12e): needs its Opus checker (text + tests/ctcourse/objectivePlace.test.ts; affected-e2e runs e2e-ctcourse).
-- #443 G157 level standard (feature/level-standard-g157 49318153): needs its Opus checker (Michael approved the 12 changes ~18:20; also Q5 / Q11 / Q24 in the Training profile).
-- J12 validator-port: plan done, origin/feature/validator-port cd0a5f68 docs/validator-port/{BRIEF,PLAN,STATE}.md (STATE = the one live validator resume block). Next: fresh Opus plan checker (BRIEF + PLAN); on PASS write S0 / S1 / S2 / S7a briefs, launch wave 1.
-- J13 route-runs: plan done, origin/feature/route-runs-2 32b709dc docs/route-runs/ (old feature/route-runs is stale, 1 commit). Next: fresh Opus plan checker; on PASS R1 / R2 / R3 in parallel, then R4a. Q1 (co-op stubs, A1 assumed) is with the orchestrator for Michael. R8 lands after Test Runner's J20 and after #443.
-- J14 Marlow Yard re-plan: planner was mid-work at the save; WIP origin/feature/marlow-replan 527ac416 (docs/marlow-replan/graph.json only). Rerun the planner from its brief (scope: BRIEF, REPLAN.md one page for Michael, to-scale SVGs, graph.json on training profile + validate-run.txt, STATE; Michael's Q5, Q11, Q18, Q24, Q25, Q29, Q2, Q6; format like origin/feature/sector-redesign-signoff docs/sector-redesign/signoff/). When ready: message the orchestrator "re-plan page ready for Michael".
+Row 6 SIGNED OFF (Michael ~17:00): no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); Michael's 39 answers in ROADMAP "Decided" override it.
+CPU hold (orchestrator, swap 18:30): no new agents (checkers, planners, builders) until the orchestrator messages CPU < 80%.
+State at the 18:30 swap (the old account's agents are gone; each PR: read `checker` status on its head):
+- #436 J1 docs (feature/marlow-docs-j1 90b0ed82): checker PASS, labelled train-ready. Nothing owed.
+- #441 J5 Marlow objective lines (feature/marlow-objective-place 8609e12e): affected-e2e queued on the laptop; needs its Opus checker (text + tests/ctcourse/objectivePlace.test.ts).
+- #443 G157 level standard (feature/level-standard-g157 7475af20): the 18:23 checker said FIX on 49318153 but its fix list was lost with the old account. 7475af20 adds the owed scale-sheet relay-row fix (relayMax 4.6 = the hanging partner's feet height). Needs a fresh Opus checker on 7475af20, then one fix round from its list.
+- J12 validator-port: plan done, origin/feature/validator-port cd0a5f68 docs/validator-port/{BRIEF,PLAN,STATE}.md (STATE = the one live validator resume block). The 18:23 plan checker left no result: rerun a fresh Opus plan checker; on PASS write S0 / S1 / S2 / S7a briefs, launch wave 1.
+- J13 route-runs: plan done, origin/feature/route-runs-2 32b709dc docs/route-runs/. The 18:23 plan checker left no result: rerun it; on PASS R1 / R2 / R3 in parallel, then R4a. Q1 (co-op stubs, A1 assumed) is with the orchestrator for Michael. R8 lands after Test Runner's J20 and after #443.
+- J14 Marlow Yard re-plan: origin/feature/marlow-replan 9b96ebf3 has graph.json, validate-run.txt, replan-plan.svg (to-scale plan); REPLAN.md (one page for Michael), BRIEF and STATE are missing. Rerun the planner to finish from those (Michael's Q5, Q11, Q18, Q24, Q25, Q29, Q2, Q6; format like origin/feature/sector-redesign-signoff docs/sector-redesign/signoff/). When ready: message the orchestrator "re-plan page ready for Michael".
 - J21 guard cap: docs on #436; resume block docs/guard-cap/STATE.md. Waits for Guard AI's J4 (G327) on master, then C1.
 Process (walk cap, train-ready, locks, laptop requests): RULES "Walk pacing", "Getting to master", "Machines". Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-- Owed (orchestrator 18:22): next docs PR rewords docs/design/scale-sheet.md:56 - the relay 4.6 is the hanging partner's feet height in code, not a lip height (a factual fix, not a rule change).
-Next: #443 / J12 / J13 checkers were started 18:23 (read their `checker` statuses); #441 checker when CPU < 80%; rerun the J14 planner if its report is missing.
+Next: on the orchestrator's CPU < 80% message, start in this order: #443 checker, J12 and J13 plan checkers, J14 planner, #441 checker.
 ```
