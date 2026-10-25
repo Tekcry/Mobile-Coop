@@ -82,11 +82,12 @@ export interface SectorGuard extends SquadSlot {
   takedownSpot: [number, number];
   /**
    * (sector-redesign G20) A dog's handler: the index, in this section's `guards`, of the armed human guard it works with.
-   * Required for a dog (`checkSectors`); the mode does not read it yet (the heel behaviour is guard-ai's, ENGINE.md
-   * "Requests for guard-ai").
+   * Required for a dog (`checkSectors`); `EnemyManager.placeSlot` binds the dog to him (heel, search, barks; guard-ai S5b,
+   * `docs/systems/ai.md` "Sector tags").
    */
   handler?: number;
-  // (sector-redesign) Placement data for guard-ai (ENGINE.md "Requests for guard-ai"); optional, not read by any code yet.
+  // (sector-redesign) Placement data for guard-ai (ENGINE.md "Requests for guard-ai"); optional, read by
+  // `EnemyManager.placeSlot` (`ai/sectorTags.ts`; guard-ai S5b sector tags, S10 talking pairs).
   /** Squad id within the section (radio checks, the "missed" search, a dog's fallback handler). */
   squad?: number;
   /** Post / zone tags ('secure', 'perimeter', 'lobby', ...): what the guard's post protects. */

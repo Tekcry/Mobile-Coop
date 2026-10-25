@@ -1,7 +1,7 @@
 # Takedowns
 Owner: Player Build. Status: current.
 Purpose: takedown kinds, the grab and hostage, and the close strike.
-Design authority: docs/DECISIONS.md (G23, G42, G43, G49, G180, G348), then docs/design-bible.md (Section 5.4).
+Design authority: docs/DECISIONS.md (G23, G42, G43, G155, G180, G348), then docs/design-bible.md (Section 5.4).
 
 ## Decided direction
 - Built (G43, G23; ct-prototype G5 with Michael 2026-10-20 08:10, 08:20, 08:25): every takedown on offer is a row of
@@ -11,12 +11,14 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49, G180, G348), then docs/
   `STANCE.rtHold` 0.35 s the kill; KBM LMB the same, Z the knockout); a guard who only falls to a lethal one gets no row. Michael: "It shouldn't have kill/knock out/carry in the list", "The guard cannot be let go
   either, only knocked out. Killed, or used as human shield (aiming pistol)", "There is no back to game option once
   the grab is initiated."
-- Decided, not built yet (G42, loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any
-  side on every human guard, recovery about 1.4 s. Campaign co-op missions have no heavies or dogs (G155); Sector Ops
-  has dogs and armoured late guards (G297, G307; ai.md "Decided direction"). Code: the elbow strike below (aware facing
-  guards and heavies from the front only stagger).
+- Built (G42, G155; loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any side on
+  every human guard, aware or not, heavies included, never a dog (`src/game/elbowStrike.ts` `resolveStrike`,
+  `strikeTargetable`; no stagger). Campaign co-op missions have no heavies or dogs (G155); Sector Ops has dogs and
+  armoured late guards (G297, G307; ai.md "Decided direction"). The numbers are in "Palm strike" below; the CT footage
+  numbers are starting values Michael tunes by hand (G356). Decided, not built yet (G396, "About 1.4 s"): recovery
+  about 1.4 s (code: `STRIKE` recovery 0.6 s).
 - Dogs (G348, Sector Ops): no takedown of any kind; sleeping gas knocks a dog out; a dog can be distracted; killing one
-  carries a penalty. Built: no palm strike (`strikeController.ts`), no grab or hang-down take (`def.quadruped`), gas
+  counts as a kill (no Perfect) and costs score (G374). Built: no palm strike (`strikeController.ts`), no grab or hang-down take (`def.quadruped`), gas
   knocks out every enemy, dogs too (`GadgetSystem`). Not built yet: the other takedowns (behind, side, drop and the
   rest) still reach a dog; no dog-kill penalty.
 - G52's dedicated dual takedown is gone (G180): CT's double takedown is two ordinary takedowns timed together. The
@@ -30,26 +32,30 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49, G180, G348), then docs/
   / `overCover` / `above` / `below` / `window` / `drop` / `inverted`) + aligned attacker spot, facing, approach (with
   `arc`), strike, optional `victimTo`; `approachPoint`; `lethalFromHold`. Drop and inverted takedowns from attached
   states: `docs/systems/movement.md`.
-- `game/takedownController.ts`: each fixed step (after traversal) finds the offer (nearest enemy within 5 m, one line of
-  sight ray; attacker state from traversal / window hint / back-to-wall) and shows the `takedown` world prompt; the
-  interact press starts it (`holding` decides lethal after `lethalHold`). `grabRule` (`ai/archetypes.ts`) makes a frontal
-  heavy lethal only and a frontal enforcer impossible (`offer.lethalOnly`). Running: `controller.override.kinematic` along
-  the path, `Enemy.beginTakedown` / `holdAt` / `releaseTakedown` (brain off, struggle pose), `pose.melee` strike,
-  `reachL/R` on the victim, weapon stowed; damage aborts; finish = `applyDamage` (lethal) or `knockOut`, noise.
+- `game/takedownController.ts`: each fixed step (after traversal) finds the offer (enemies within 5 m, the
+  nearest 3 tried, one line of sight ray each; attacker state from traversal / window hint / back-to-wall) and shows the
+  `takedown` world prompt; the interact press starts it (`holding` decides lethal after `lethalHold`). `grabRule`
+  (`ai/archetypes.ts`) makes a frontal enforcer impossible; a heavy gets no rule today ('ok': `takedownController.ts`
+  ~:353, G155 has no heavies in the missions), so `offer.lethalOnly` stays off for him. Running:
+  `controller.override.kinematic` along the path, `Enemy.beginTakedown` / `holdAt` / `releaseTakedown` (brain off,
+  struggle pose), `pose.melee` strike, `reachL/R` on the victim, weapon stowed; damage aborts;
+  finish = `applyDamage` (lethal) or `knockOut`, noise.
 - Back-to-wall states: `wall` / `wallLow` (from `WallCore` phase `on`). `wall` with a guard past the outside end gives
   `corner`; in front of the face an ordinary `behind` / `front` / `side`; behind the wall plane (> 0.2 m) nothing.
   `wallLow` gives `overCover`.
 - Takedowns skip a guard at level alert while the attacker is spotted (`GameState.spottedLocal`; host check on a client's
   `td`, `PF.spotted`).
-- GameState order: a takedown in progress blocks traversal's jump and the team move; Y is a takedown when offered, else
-  team move, traversal, interact.
+- GameState order: the hold-A menu runs first (`contextMenuStep`; A is `interact`, `src/input/padBinds.ts` ~:41, KBM
+  E), so the takedown is a row of it, not a button of its own; Y is jump / traverse. A takedown or strike in progress
+  makes traversal stand aside (`gameState.ts` ~:1890) and blocks the team move (`teamController.ts` ~:672).
 - Co-op: the host approves a client's takedown (`td`); details in `docs/systems/coop.md`.
 
 ## Grab and hostage (3.2.0 phase 4; CT prototype G7)
 - `GRAB` (G7, AUDIT-WALLS rows 5, 11: `approach` 0.42 s step-in, `pull` 0.6 s pull-in, `speedCap` 0.75 m/s, hostage held
-  `hold` 0.32 m in front and `side` 0.1 m to her left (her feet between his), `killTime` 0.5 s; sidearm spread x1.2, shove stagger 1 s, guards hesitate 1.5 s), `GRAB_KINDS`
-  (`behind`), `contactDelay` (when the victim's struggle starts: the plan's approach, derived from where the attacker
-  stands, so the co-op host poses a client's victim alike). `TakedownController` grab (`active.grab`): stage 0 the
+  `hold` 0.32 m in front and `side` 0.1 m to her left (her feet between his), `killTime` 0.5 s; sidearm spread x1.2,
+  guards hesitate 1.5 s; `GRAB.shoveStagger` is unused, the shove is gone), `GRAB_KINDS` (`behind`),
+  `contactDelay` (when the victim's struggle starts: the plan's approach, derived from where the attacker stands,
+  so the co-op host poses a client's victim alike). `TakedownController` grab (`active.grab`): stage 0 the
   step-in (kinematic override, `crouch: false`, the legs step from the measured speed: `pose.freeGait`), stage 1 the
   pull-in (the guard eased from where he stood to the hold, turning to the operator's facing), stage 2 `hold` (no
   override, `speedCap` min(gear, 0.75), the hostage at `holdAt` with the 2 cm sway, `setSolid(false)`, `holdAsHostage`).
@@ -140,7 +146,7 @@ the pistol. Live only while hanging settled (`TeamController.hangActs`); lowerin
   (knockout), held (`STANCE.rtHold`) the neck snap (lethal); KBM LMB the same, Z the choke (`GameState`, before the
   takedown step, `grabTriggerPick`). The ordinary takedown run with kind `hangDown` (`HANG_GRAB.strike` 0.6 s; the guard
   pulled to the hold point; no elbow arc, `pose.melee` -1, no kill tail; the hands on his neck by the takedown's reach
-  IK). The hang ending mid-way ends it as decided (a knockout when not yet decided). The elbow strike never runs from the
+  IK). The hang ending mid-way ends it as decided (a knockout when not yet decided). The palm strike never runs from the
   hang.
 - The pistol (A6): hanging, LT draws the sidearm one-handed (never the rifle) with the inverted pipe's aim
   (`Player.attachAim` inverted, the `PIPE` band and spread, the aim yaw the chest's: the facing + PI) and the camera
@@ -149,18 +155,19 @@ the pistol. Live only while hanging settled (`TeamController.hangActs`); lowerin
   `tests/hangDownNet.test.ts`; e2e-coop "hang-down" (the joiner hangs: pistol, menu grab + Z, RT held neck snap, the
   host's pull-up knocks the held guard out).
 
-## Elbow strike (locomotion step 10)
-To be replaced by the palm strike (G42); this is the current build.
+## Palm strike (locomotion step 10; the files keep the old elbow names)
+The close strike of G42 / G155; this is the build.
 - `fire` pressed while holstered (draw phase 0, not aiming), on the ground and not attached, traversing, in a takedown,
   team move, reload or carrying a body: `StrikeController` (`game/strikeController.ts`), pure rules in
-  `game/elbowStrike.ts` (`STRIKE`: reach 1.2 m, cone 90 deg, contact 0.5 s, recovery 0.4 s, stagger 1.0 s, noise 4 m; 0.9 s
-  in all). Target: the nearest live, unseized guard in reach and cone; none is a whiff. Movement capped to gear 1; the body
-  turns to the target at the press.
-- `resolveStrike`: unaware (any side) KO; aware from the side / behind (facing dot <= 0.5) KO; aware facing stagger
-  (`Enemy.strikeStagger`); a second strike on a staggered guard KO; a heavy from the front only staggers. KO goes through
-  `Enemy.knockOut` with kind `melee` (`takedown: 'strike'`). Event `strike {result}`.
+  `game/elbowStrike.ts` (`STRIKE`: reach 1.3 m, cone 140 deg, contact 0.08 s, recovery 0.6 s, noise 4 m; 0.68 s
+  in all, a whiff 0.38 s; contact reach +0.3 m for the local player, +0.8 m host slack for a client's).
+  Target: the nearest live, unseized guard in reach and cone; none is a whiff. Movement capped to gear 1; the body turns
+  to the target at the press.
+- `resolveStrike` always returns KO: any side, aware or not, heavy or not; no stagger. A guard in reach and cone is
+  knocked out through `Enemy.knockOut` with kind `melee` (`takedown: 'strike'`); the local player's RT / LMB held (the
+  lethal strike) kills through `killOutright`. A dog is never a target (`strikeTargetable`). Event `strike {result}`.
 - Solo and the co-op host start it at once; a client asks the host (`cmove`, kind `strike`, the only committed-move kind).
-  Contact is resolved only where the guards live, at t0 + 0.5 s, re-checking reach and cone.
+  Contact is resolved only where the guards live, at t0 + 0.08 s, re-checking reach and cone.
 - Pose: MoveState `strike` (`ph`, `tid`) -> `poseFromMoveState` `melee` -> the anim graph's elbow arc.
   `PlayerWeapons.handsBusy` blocks the draw, so the local rig and remotes pose from the same inputs (D8). The lethal
   takedown blow and the grab kill share the arc. (anim-n4c / n4d, Michael M1 "Faster arm") Each move's arc is warped

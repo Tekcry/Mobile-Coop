@@ -177,7 +177,9 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (requester `laptop-queue spare`) on the master head, never while a train is building, releasing, waiting on its
   laptop pass or green train-ready PRs wait for one. A pending train head stops a running spare job at once, whatever
   its kind or progress (lib `cutShort`), and the spare job is done, not queued again.
-- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`) is never read: a flag never holds a release (visual-gate BRIEF A1).
+- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`): a light-meter
+  against picture mismatch holds the release, checked every release; other picture flags are advisory (G391). Not built
+  yet: auto-train still never reads `visual-gate` (visual-gate BRIEF A1), so today no flag holds a release.
 
 ## Rules it keeps
 - Never forces anything (merge-train's own `build` force-pushes only `train/<n>`), never touches dev or master

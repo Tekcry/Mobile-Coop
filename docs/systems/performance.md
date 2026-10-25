@@ -12,6 +12,8 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
 - Frame rate (mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average): 1920 x 1200 165 Hz (RT
   reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50), 7680 x 2160 60 with
   TAAU at 67% (High 120). Pending a PC run (Settings > Graphics > Benchmark gives each line).
+- 32 guards alive (the campaign and Sector Ops ceiling, G359): 60 fps on a normal 60 Hz display (G369), the line set
+  once the off-screen animation fix (G327, G382) is measured; the memory goals below hold at every guard count.
 - GPU per frame = the target's frame time minus about 10% headroom: 165 Hz 5.5 ms, 120 Hz 7.5 ms, 100 Hz 9 ms, 90 Hz
   10 ms, 60 Hz 15 ms. Only the laptop can measure it (the benchmark).
 - CPU main thread (the sim's fixed steps, animation and camera, plus the render's JS: LOD, culling, skeletons and
@@ -24,7 +26,8 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
 - Allocations <= 11.5 MB per second (per second, so a 240 Hz display does not double the garbage).
 - Memory: VRAM <= 12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at
   7680 x 2160), tab <= 6 GB, JS heap <= 1.5 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
-  Pending a PC run.
+  Pending a PC run. Load-time aim (G405): a first-ever load takes seconds (shaders compile per GPU), repeat loads are
+  near-instant; the numbers per map are still to be set (G394).
 - Open: no download or texture budget covers the realistic operators (Wren's files are about 80 MB; feature/operators
   owns it, G75).
 - Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8 ran: HOLD. At 24 guards the figures
@@ -78,11 +81,18 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
   hardware depth); DOF's depth renderer runs only while aiming unless RT reflections share it. With TAAU the volumetric
   pass and the G-buffer run at the TAAU ratio and TAAU jitters before every pass; volumetric steps 16 at Epic effects,
   else 8. FXAA is off behind TAAU.
-- Loading: shaders compile on the loading screen (`GameState.create` awaits `scene.whenReadyAsync`, <= `WARMUP_MAX_MS`);
+- Loading (G394): a map is fully built before play starts (today it still builds in the first seconds of play, a fix
+  job), and the graphics warm-up finishes on the loading screen up to a written cap, with a job to shorten it. Shaders
+  compile on the loading screen (`GameState.create` awaits `scene.whenReadyAsync`, <= `WARMUP_MAX_MS`);
   `dropCpuCopy` frees CPU copies of the lamp atlas and its pools; `World.refreshMaterials` re-reads lights when the
   shadow spec changes or the post stack rebuilds.
+- Near-instant loads (G405; decided, not built yet; the map-ready job, Sector Ops): (1) the graphics settings are
+  applied before the shader warm-up, and characters, guards and weapons are warmed up behind the loading screen; (2)
+  the campus lamp bakes ship pre-built instead of baking on the player's PC; (3) the map starts loading in the lobby
+  once it is picked; (4) characters, guards, weapons and compiled shaders are kept between maps and only the level is
+  swapped.
 - Dynamic physics bodies are capped (`physics/budget`); projectiles and effects are pooled, never allocated per shot.
 - Render scale: native DPR x `renderScale` (0.5-2), with the frame governor (graphics-quality.md) inside it; with TAAU
   the canvas stays native and the scene renders at the scale.
-- Awake guards: `MAX_ALIVE` 12 for Marlow Yard; Sector Ops and the campaign cap at 32 alive, a ceiling (G187, G289,
+- Awake guards: `MAX_ALIVE` 12 for Marlow Yard (its sets post only what each exercise needs, G376); Sector Ops and the campaign cap at 32 alive, a ceiling (G187, G289,
   G359).
