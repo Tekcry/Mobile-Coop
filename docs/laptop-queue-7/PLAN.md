@@ -1,9 +1,10 @@
 # laptop-queue-7 - plan
 Owner: Test Runner. Status: current.
 
-Problem, sources and assumptions: `BRIEF.md`. One PR (feature/laptop-queue-7), five slices built in order on the
+Problem, sources and assumptions: `BRIEF.md`. One PR (feature/laptop-queue-7), six slices built in order on the
 branch (they share lib.mjs, service.mjs and the test file, so never in parallel). Builders: slices A, B, E Sonnet 5.5
-from this plan; slices C, D Opus (train path, two concurrent child runs). One Opus checker for the PR (queue code).
+from this plan; slices C, D, F Opus (train path, two concurrent child runs, hold logic). One Opus checker for the
+PR (queue code).
 file:line below is origin/master 2a937eb6.
 
 ## Shared: the PR board (slice A builds it, B uses it)
@@ -142,6 +143,36 @@ file:line below is origin/master 2a937eb6.
   "next train ~" line, and the idle gap per release vs ETA + 5 min. Result one line in STATE.
 - Docs below; changelog fragment; service.mjs header comments (:22-24 reruns, :45-46, :74-94 affected) one line each.
 
+## Slice F - an aged alone gets the gap after the coming train (BRIEF item 6, A12; built before E's docs)
+- Cause (service.mjs): the train-soon filter (:1527) keeps only train reruns and fitting pr runs, so an alone (never
+  fits) is dropped even when aged; the aloneSoon filter (:1471-1475) keeps an aged alone, but the train-soon filter
+  after it drops it again; with train-ready PRs arriving the hold re-arms after every release.
+- lib.mjs (pure, new, beside `agedAlone` :292):
+  - `aloneDue(prev, { requests, front, now, held })`: plain object id -> first-held ms for open alone requests that are
+    aged (`agedAlone` rule) or in `front`, stamped at `now` when `held` (a hold dropped them this pass); keeps old
+    stamps, drops ids no longer open. New object (state.json-safe, `state.aloneDue`).
+  - `aloneGapOpen(due, id, lastTrainEndMs)`: true when `due[id]` exists and `lastTrainEndMs > due[id]`.
+  - `cutShort` (:525): new option `due = false`; a due alone is not cut by `youngAlone` (yields between steps stay).
+- service.mjs:
+  - `lastTrainEnd` (module, ms; also `state.lastTrainEnd`): set when `runTrain` posts its final `laptop-e2e`
+    (success / failure, :1037-1038) and when slice C posts a carry; never on a cut, error or yield.
+  - pass(): compute `state.aloneDue` after the aloneHold / aloneSoon / train-soon filters (held = an aged or front alone
+    was filtered out). The aloneSoon filter (:1475) and the train-soon filter (:1527) keep an alone r when
+    `LQ_ALONE_GAP` is on and `aloneGapOpen(state.aloneDue, r.id, lastTrainEnd)`. `pick` then needs no change: aged /
+    front alone goes ahead of PR work with both slots idle (:272-275), trains still first (:264-268). The aloneHold
+    filter (:1463, an open train without its laptop success) is unchanged: the gap starts after that run ends anyway.
+  - runRequest watch (:1113): `cutShort(r, { ..., due: aloneGapOpen(state.aloneDue, r.id, lastTrainEnd) })`; the
+    due entry is deleted when the alone finishes (done) or is withdrawn.
+  - Log once per id: "<id>: aged alone due after the next train" and "<id>: gap after train <n>: alone goes first".
+- Tests (new describe "aged alone after the coming train"): aloneDue stamps an aged alone only when held, keeps the
+  stamp, drops a done id, ignores a young alone and spare work; aloneGapOpen false before a train ends, true after;
+  pick with the due alone in the list and both slots idle -> the alone (both slots) ahead of a green pr request; a
+  pending train -> the train first; cutShort: a due alone 3 min in is not cut by a pending train, a non-due alone is;
+  timeline: hold on (green candidate), aged alone held at t0, train N runs and ends at t1 > t0, next hold re-armed by a
+  new candidate -> the alone still passes the filter (lib filter helper `holdKeeps(r, { next, due, lastTrainEnd,
+  fits })` exported so the filter is unit-tested, not only the service).
+- Size ~35 lib, ~40 service, ~70 tests.
+
 ## Env knobs (service.mjs env block :119-141)
 | Knob | Default | Off / undo |
 | --- | --- | --- |
@@ -153,6 +184,7 @@ file:line below is origin/master 2a937eb6.
 | `LQ_TRAIN_CARRY` | 1 | 0 = a moved head always runs (A7, A8) |
 | `LQ_TRAIN_CARRY_DEPTH` | 20 | commits walked back to the version commit |
 | `LQ_RERUN_SHARD` | 1 | 0 = one slot (A10) |
+| `LQ_ALONE_GAP` | 1 | 0 = today's holds keep an aged alone back (A12) |
 
 ## Risks
 - GitHub's `mergeable` is computed lazily: a fresh push reads UNKNOWN for a pass or two; UNKNOWN runs (never skipped).
@@ -166,6 +198,8 @@ file:line below is origin/master 2a937eb6.
 - PR board call: one extra gh call per minute per worker (rollup included, 200 PRs); within the rate budget of today's
   affected pass. The desktop adds one call per minute.
 - The RULES.md order line is orchestrator-owned and at budget (A11).
+- Slice F delays the next train by up to one alone run, once per aged request (A12); the train-soon ETA does not know
+  about it, so the hold may lift (ETA + 5 min) while the alone still runs; PR work then waits on both slots anyway.
 
 ## Test tier and verify
 - Tier: queue and train scripts = CI `check` (unit tests; `affected-e2e` passes at once as docs / unit only). A live
@@ -183,10 +217,12 @@ file:line below is origin/master 2a937eb6.
   - "Order" bullet (:568): + conflict retire (A1), + front / green smallest-first / arrival with the knobs.
   - "Train reruns" bullet (:571): "on one laptop slot ... (no sharding" -> sharded across both slots when free
     (`LQ_RERUN_SHARD`), else one slot.
+  - "Train soon" bullet (:595): one sentence, an aged alone gets the gap after the coming train (A12, `LQ_ALONE_GAP`).
   - One line pointer: "A train head that moves: `docs/systems/auto-train.md` 'What the laptop queue service provides'".
   - Lines freed: the stale sentence at :625-626 ("a legacy or GPU suite in the list gates the head today ... another
     PR"; the same bullet already says GPU / LEGACY are dropped), the undo sentence at :607-608 ("Old 3-min gap: ...";
-    kept in docs/laptop-queue-6/BRIEF.md A1), and :651-652 joined into one line. More only by rewording in place.
+    kept in docs/laptop-queue-6/BRIEF.md A1), and :651-652 joined into one line. More only by rewording in place
+    (slice F's sentence needs one more line: reword the "Train soon" bullet in place).
 - docs/systems/auto-train.md "What the laptop queue service provides" (:167; no budget): one bullet, the carry rule
   (A7, A8) and that any other moved head runs as a normal train.
 - docs/RULES.md "Machines" (:167-169, orchestrator-owned, 318/318): the same line count, proposed text:
@@ -199,13 +235,14 @@ file:line below is origin/master 2a937eb6.
 - docs/laptop-queue-7/STATE.md: resume block kept current per slice.
 - changes/feature-laptop-queue-7.md:
   `# Laptop queue: skip conflicting PRs, green PRs smallest first, carry train verdicts over docs-only fixes`,
-  `kind: patch`, four bullets (conflicting affected heads not run; front / green smallest-first order; a moved train
-  head carries a docs-only verdict or runs as a train; a train rerun shards across both laptop slots when free).
+  `kind: patch`, five bullets (conflicting affected heads not run; front / green smallest-first order; a moved train
+  head carries a docs-only verdict or runs as a train; a train rerun shards across both laptop slots when free; an
+  aged alone gets the gap after the coming train).
 
 ## Claims and size
 scripts/laptop-queue/lib.mjs, scripts/laptop-queue/service.mjs, scripts/watchdog.mjs (one line),
 tests/laptop-queue.test.ts, tests/autoTrain.test.ts, docs/systems/testing-tools.md, docs/systems/auto-train.md,
 docs/RULES.md (A11), docs/laptop-queue/STATE.md, docs/laptop-queue-7/**, changes/feature-laptop-queue-7.md.
 Not touched: scripts/auto-train.mjs, scripts/laptop-queue/request.mjs, merge-train.mjs.
-Estimate ~900 changed lines (lib ~175, service ~250, watchdog 1, tests ~380, autoTrain test ~25, docs ~70), under the
-~1.5k cap with the job docs.
+Estimate ~1,050 changed lines (lib ~210, service ~290, watchdog 1, tests ~450, autoTrain test ~25, docs ~75), plus
+~250 lines of job docs: under the ~1.5k cap.

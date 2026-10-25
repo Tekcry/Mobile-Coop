@@ -16,6 +16,11 @@ Owner: Test Runner. Status: current.
    train-critical work waits."
 5. "Verify (test, not new code unless broken) that laptop-queue-6's train ETA hold / fit rule holds claims across the
    next train."
+6. Orchestrator waste audit 09:48 (relayed by the coordinator): three alone requests waited 37 min and more because
+   the laptop-queue-6 train-soon hold ("N train-ready PR(s) waiting for a train: no new alone claims" / "only runs
+   that fit start") never lets an aged alone fit while train-ready PRs keep arriving. Ask: an alone older than
+   `ALONE_AGE_MIN` gets the next slot gap after the coming train (both slots as soon as that train finishes, ahead of
+   PR work), so the hold cannot starve it; trains still go first.
 
 ## Michael said (binding; ROADMAP "Decided" on origin/feature/menu)
 - 2026-10-26 ~00:15: "add all mixamo animations in game, i will fine tune as needed. make this priority overnight".
@@ -80,5 +85,13 @@ Owner: Test Runner. Status: current.
   PR run's 2 + 2) when both laptop slots are free at pick time, no train head is pending, no other train rerun is open
   and its suites expand to 2+ parts. With one slot busy it starts on one slot at once, as today (no waiting for the
   second). Undo: `LQ_RERUN_SHARD=0`.
+- A12. Aged alone after the coming train (item 6). An alone request that is aged (`agedAlone`, over `ALONE_AGE_MIN`)
+  or preempted while the train-soon hold or the aloneSoon hold keeps it back gets a due mark (time first held). Once a
+  train's laptop run ends after that mark (verdict posted, or carried), the alone passes both holds and, as `pick`
+  already orders, takes both slots ahead of PR work once they drain. A train head pending at that moment still goes
+  first. Started in that gap, the next train never kills it in its first 10 min (`cutShort`'s young-alone cut is
+  waived for a due alone); it still yields between steps to a pending train, keeps its finished steps and is due again
+  after that train. Cost: the next train can wait up to one alone run (perf / guard-cap measures, ~10-30 min), at most
+  once per aged request. Undo: `LQ_ALONE_GAP=0` (today's holds).
 - A11. The RULES.md "Machines" order sentence is the orchestrator's: the PR carries the net-zero rewrite (PLAN "Docs")
   for the orchestrator to accept in review. Undo: revert those lines.
