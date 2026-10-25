@@ -1,0 +1,14 @@
+{
+  "id": "20261025T031943-affected-e2e-c85f1e5e-7f86",
+  "sha": "c85f1e5e13074d240a7a4752583894ac5b7c93a5",
+  "branch": "feature/doc-guard",
+  "pr": 400,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-camera-bounds"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T024009-affected-e2e-c85f1e5e-fcb2, rerun on the laptop"
+}
