@@ -306,9 +306,6 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   dual takedown are gone (G180). CT's double takedown is two ordinary takedowns timed together: two finishes within
   `DUAL_WINDOW` 1.5 s (`game/dualTakedown.ts`) -> banner; counted in `StealthRating.duals` and the `dualTakedown` event
   for section-rating (spare 12), no extra knockout.
-- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner; counted in `StealthRating.duals` and the `dualTakedown` event for
-  section-rating (spare 12), no extra knockout). These
-  are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
 - (mission NET, wire change) The co-op kit moves on the wire: `tmove` / `tstart` take `pull` (pull-up) and `shutter`
   (`TeamKind` includes `KitKind`). The host (`onTeamMove`) builds the claimed point when the move `claimsPoint` (the
   pull-up's catch point: `tmove` `lx`, `gy`, `lz`, the start's `l`), checks the move's rule (`checkTeamRequest` ->
@@ -509,7 +506,6 @@ client next to a device first.
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, the exit item and banners use the item and event mirror (no markers: G339).
-  snapshot's `info`. Objectives, markers and banners use the item and event mirror.
 - (mission NET, wire change) `ms` the running mission (`MissionWire`, `game/mission/missionWire.ts`: done bits per team,
   facts, rule breaks `rb` and the last line `rl`, rules kept `rk`), parsed by `parseMissionWire` in `sectorExtra`. The
   client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated; the
