@@ -1,0 +1,18 @@
+{
+  "id": "20261025T183217-night-shift-player-b-4286b721-ccc1",
+  "sha": "4286b72151e5a183d045e509b9debeda9f2028fa",
+  "branch": "feature/mixamo-on",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "smoke",
+    "e2e-menus",
+    "e2e-studio",
+    "e2e-anim",
+    "e2e-move"
+  ],
+  "set": "mixamo-toggle",
+  "note": "Mixamo: toggle + I4 merge",
+  "priority": 1
+}
