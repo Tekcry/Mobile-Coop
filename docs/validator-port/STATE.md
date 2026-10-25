@@ -11,13 +11,11 @@ Owner: Marlow Build. Status: current.
 - Gate: a fresh Opus plan checker on BRIEF + PLAN. Round 1 (FIX on cd0a5f68, report
   `C:/NightShift/scratch/marlow/j12-plan-check.md`) is answered: fixes 1-5 and polish P1-P9 (Done below).
 - Lead decisions applied in round 1 (not to reopen): J13's `resolvePoints` shape, links by merged index
-  (`PLAN.md:303-313`, S1 `PLAN.md:114`, S2 `PLAN.md:129`); split legs = one route A23 `BRIEF.md:117`; ghost path INFO
-  on training, no-kill ERR everywhere A10 `BRIEF.md:123`; relay lip derived after #443 A24 `BRIEF.md:144`; PR sizes as
-  pr-size counts them `PLAN.md:28-51`; six new co-op kinds A25 `BRIEF.md:201`.
-- Open question for Michael (via the orchestrator; blocks nothing): the relay lip band. The code allows a lip up to
-  6.5 m (`TEAM.relayMax` 4.6 + `HANG.drop` 1.9, A24 `BRIEF.md:144`); the scale sheet says 4.6 m
-  (`docs/design/scale-sheet.md:56`). Raise the band's top to 6.5 m, or keep 4.6 m? S7a builds either way
-  (`PLAN.md:138`); on a yes the row and `metrics.json` change in the same PR.
+  (`PLAN.md:303-313`, S1 `PLAN.md:114`, S2 `PLAN.md:129`); split legs = one route A23 `BRIEF.md:119`; ghost path INFO
+  on training, no-kill ERR everywhere A10 `BRIEF.md:125`; relay lip derived after #443 A24 `BRIEF.md:146`; PR sizes as
+  pr-size counts them `PLAN.md:28-51`; six new co-op kinds A25 `BRIEF.md:203`.
+- Relay lip band ANSWERED (~20:20): "Keep 4.6 m (Recommended)" (`BRIEF.md:68`). S7a writes the 6.5 m derivation as the
+  physical ceiling only; the row's top and `metrics.json` stay 4.6 (`PLAN.md:138`).
 - PRs (`PLAN.md:33-39`): A gate core (S0, S3) ~1,390; B measure core (S1) ~1,050; B2 measure CLI + sheet rows (S2,
   S7a) ~740; C training, perfect run, CI, graphs (S4, S6, S5, S7b, S9, S10) ~1,350; D mission re-cut (S8) ~1,060.
   Fallbacks `PLAN.md:49-51`. Order: A and B, then B2, then C, then D (`Job-done` on D).

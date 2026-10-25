@@ -65,6 +65,8 @@ scale-sheet row (Michael's approval).
 - 2026-10-25 ~16:50, Q26: "Freeze it" (no more work on `warehouseOps`).
 - 2026-10-25 ~18:05 (ROADMAP Decided, mission sign-off pages), co-op kit: "Deadweight,Drop Catch,Chimney Pair,Swing
   Pass"; Plank Bridge: "Add it" (all five join the kit; graph kinds A25).
+- 2026-10-25 ~20:20 (via the orchestrator), relay lip band (A24): "Keep 4.6 m (Recommended)" (the sheet's top stays
+  4.6 m; the 6.5 m derivation is written into the row as the physical ceiling only).
 
 ## Recorded decisions this job follows
 G2 (campaign two players), G57 (human ladder 4.5 m, decided, not built: code 4.1), G127 (no mission forces a kill),
@@ -148,8 +150,8 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   hanger's root is `HANG.drop` 1.9 under the lip (`src/world/anchors.ts:219`, `hangPoint` `:640`, at the 1.75 m gameplay
   height of `src/player/attach.ts:299`, so no scaling). Derived lip ceiling = 4.6 + 1.9 = 6.5 m. S7a writes this
   derivation into the row and pins it with a test (the band's top never above `relayMax` + `HANG.drop`); the band's
-  number stays 4.6 until Michael answers (open question in STATE), because the sheet changes only with his approval.
-  Until then `checkDimensions` keeps ERRing a `team_hang` lip above 4.6 (`scripts/level-validate.mjs:461-467`). Undo:
+  number stays 4.6: Michael picked "Keep 4.6 m (Recommended)" (~20:20, "Michael picked" above).
+  `checkDimensions` keeps ERRing a `team_hang` lip above 4.6 (`scripts/level-validate.mjs:461-467`). Undo:
   drop the derivation text and the pin test.
 - **A13 metrics-gen flags (V12).** Any argument other than `--check` (including `--help`) prints the usage and exits 2,
   writing nothing, as level-validate does. Undo: one `if`.
