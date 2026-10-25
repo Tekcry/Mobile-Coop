@@ -88,9 +88,10 @@ an Opus plan; the orchestrator assigns it (G283).
   Opus plans, writes strict slice briefs, checks, and writes AI, animation, engine and `src/net` code; Sonnet 5.5 builds
   from strict Opus briefs (greybox, data, tests, wiring); Haiku 5.5 does chores (logs, STATE, fragments, renames)
   (G302). A slice that fails its checker gets its fix round from Opus, and its sibling slices get Opus builders. One
-  checker per batch of related slices; two independent Opus checkers on AI and `src/net` PRs; Sonnet may check
-  greybox, data and dressing. Every laptop failure gets an Opus triage agent at once (G319), started by the lead whose
-  PR failed (Test Runner for a train failure).
+  checker per batch of related slices; two independent Opus checkers on AI and `src/net` PRs; Sonnet may check greybox,
+  data and dressing. Every laptop failure gets an Opus triage agent at once (G319), started by the lead whose PR failed
+  (Test Runner for a train failure). This is session process: no queue code starts it, so each lead watches its own
+  heads' statuses and the orchestrator's cron run checks failed heads for a triage note.
 - Agents commit and push each sub-step on their branch (path-limited, never `git add -A`), so a swap or cut-off loses
   at most the step in flight. Parallel agents work in their own worktrees (`feature/<job>-<slice>`) and never edit the
   same files; the lead merges them.
@@ -114,10 +115,12 @@ an Opus plan; the orchestrator assigns it (G283).
   `Job-done: <job>` in its body, so the train archives `docs/<job>/` ("Docs" below).
 
 **Getting to master** (G83: master is the live game and the only base).
-- Train-ready (this is the rule's owner; `docs/systems/watchdog.md` "The label convention" is how the code applies
-  it) = on the PR's current head: CI `check` success + `checker` success + `affected-e2e` success. The laptop service
-  runs the `--affected` suites on every non-draft PR head by itself; a docs / unit-only head gets success at once. The
-  `no-affected-e2e` label waives the e2e part for one PR.
+- Train-ready (this is the rule's owner; `docs/systems/watchdog.md` "The label convention" is how the code applies it) =
+  on the PR's current head: CI `check` success + `checker` success + `affected-e2e` success. The laptop service runs the
+  `--affected` suites on every non-draft PR head by itself; a docs / unit-only head gets success at once. Heads older
+  than `LQ_AFFECTED_MAX_AGE_H` (24 h) and fork heads get no automatic run: the lead requests it (`request.mjs --sha
+  <head> --pr <n> --affected --set affected --requester affected-e2e`). The `no-affected-e2e` label waives the e2e part
+  for one PR.
 - Who labels: the watchdog task (`--fix labels`) adds `train-ready` when all three hold and (`--fix prs`) removes it
   when a check turns red or when commits land after the label that touch more than docs, `*.md`, `changes/`
   fragments or CHANGELOG with no new `checker` success on the new head (G325). Until the
@@ -148,6 +151,7 @@ an Opus plan; the orchestrator assigns it (G283).
 | An agent sub-step | `npm run typecheck:fast` + `npx vitest run <files>` | the agent's machine |
 | A PR | CI `check` + `affected-e2e` (the DIRECT tier, `DIRECT_COVERS` in `scripts/e2e-affected.mjs`; `node scripts/run-e2e.mjs --affected origin/master --list` names the suites; `src/net`, `src/save` and wire changes get the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`). A checker gate on top: `DIRECT_COVERS` does not add `e2e-coop` + `e2e-netmove` for `src/player` or `src/game`, so the lead requests them (`request.mjs`) and the checker passes only when they are green | laptop queue |
 | Tuner / Anim Studio / tests only | CI `check` + `affected-e2e` | laptop queue |
+| Queue, train and tool scripts (`scripts/laptop-queue/**`, `scripts/auto-train.mjs`, `scripts/perf.mjs`, `.github/**`) | CI `check` (unit tests; `affected-e2e` passes at once, its text says "docs / unit only"); a live run when the lead says | - / laptop queue |
 | A train | one full `npm run e2e` on the train head | laptop queue |
 | Look or perf | `npm run e2e:gpu`, perf budgets, contact sheets, look videos; slot-alone measures right after a release | laptop 4189 (a one-off on the desktop under `heavy.lock`) |
 - Every e2e run is `E2E_GPU=1` and a GPU failure counts; a software-GL rerun only tells a test-timing bug from a game
@@ -161,9 +165,11 @@ an Opus plan; the orchestrator assigns it (G283).
 - Laptop (Test Runner, Guard AI): the main test machine. The laptop queue service (`scripts/laptop-queue`, branch
   `laptop-queue`, scheduled task every minute) runs on 4189 (GPU and alone runs) and 4192, in this order (lib `pick`):
   trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns (one slot,
-  `E2E_JOBS=1`); then an alone request that has waited over 30 min (`ALONE_AGE_MIN`; it goes ahead of PR work and
-  takes both slots once they drain); then PR requests, requesters in arrival order (one slot, `E2E_JOBS=2`; full runs
-  3); then the other alone measures when both slots are idle. The two sessions keep its CPU under ~80%.
+  `E2E_JOBS=1`); then an alone request that has waited over 30 min (`ALONE_AGE_MIN`; it goes ahead of PR work and takes
+  both slots once they drain); then PR requests, requesters in arrival order (one slot, `E2E_JOBS=2`; full runs 3); then
+  the other alone measures when both slots are idle; last, spare work: after both slots sit idle with nothing open for
+  `LQ_SPARE_IDLE_MIN` (5) min the service queues the next job of `docs/laptop-queue/spare-jobs.json` on the master head,
+  and a waiting real request or a train stops it. The two sessions keep its CPU under ~80%.
 - Desktop (Orchestrator, Player, Marlow, Sector Ops, Campaign): CPU target under ~80% (G306); over 90% the orchestrator
   trims the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc
   and single vitest files, never a full `npm run check` (CI runs it).
