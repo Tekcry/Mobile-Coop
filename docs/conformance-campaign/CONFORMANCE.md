@@ -3,7 +3,7 @@
 Brief: `origin/feature/menu:docs/orchestrator/review-briefs/campaign.md` (G355: "All current maps/features should be
 revised once documentation work has been completed"). Plan only: no src, test, map, script or config change here.
 
-Status: DRAFT (partial push: part A in; parts B mission framework + campaign rules and C HUD guidance next).
+Status: DRAFT (partial push: parts A and C in; part B mission framework + campaign rules next).
 
 **Refs read (2026-10-25).**
 - Docs: origin/master 829a9332 (#407 and train 88 merged). Doc citations are line numbers in that ref.
@@ -86,3 +86,112 @@ WARNs (all validators): `room_class custom` on w1-canal-steps, w2-arcade-roof, w
 - Story and radio lines written to be voiced (G82): every radio line <= 90 characters, intel lines <= 60 (`tallowWharfSectors.ts:230-243`); story decided with the missions (G354) through the TGC / TKL sign-offs.
 - Hot paths and imports (CLAUDE.md hard rules): the map files import Babylon only via `core/babylon` and use `hyp2` (`tallowWharf.ts:1`, `tallowWharfSectors.ts:2`, `:59`); no runtime network dependency.
 - RULES Intake 2: BRIEF.md keeps "Michael said / picked" apart from assumptions with undo lines (BRIEF.md A1-A18, M1-M5 @5181c9db).
+
+## Part C. HUD guidance (compass, blip, minimap, maps, objective popup), every mode
+
+"Cap" = a rule fix allowed at the walk cap (G355, RULES.md:63-67, ROADMAP Now row 7).
+
+| # | Item | Rule (doc:line / G) | Current state (file:line @ref) | Gap | Fix | Size | Needs Michael? |
+|---|---|---|---|---|---|---|---|
+| HG1 | Minimap in every mode | VISION.md:59 rule 5; G339 (DECISIONS.md:1914); bible 5.10 (design-bible.md:730-731); level-design.md:43-44 (Marlow too) | Built for every match: `src/game/gameState.ts:639-640` (new Minimap, hud.setMinimap), drawn every frame `:3637-3639`; canvas `src/ui/hud/minimap.ts:12-106`; slot `src/ui/hud/hud.ts:86, :152, :160, :175-177`; CSS `src/styles.css:1045-1055`. No mode hides it. Worse: enemy blips use `radar = Infinity` for every mode not in the stealth list (`gameState.ts:3617-3629`), and CourseMode is not in it, so Marlow Yard (and free roam / Kestrel sandbox) shows every live guard; co-op adds a live partner dot (`src/net/coopHost.ts:1939-1945`, `src/net/coopClient.ts:1320-1324`), which also breaks G135 (DECISIONS.md:730, "no live partner position on any map") | Hard rule broken in Sector Ops, Marlow Yard, free roam and co-op | Delete `minimap.ts`, the slot, `setMinimap`, the draw call, the enemy / danger / pickup / ally blip build (`gameState.ts:3616-3632`) and `enemyBlips` (`:2139-2140`); drop `.hud-minimap` / `.minimap` CSS and their two zoom-list entries (`styles.css:2341, :3292`); move the context menu to CT's 10.7 % H now nothing sits above it (`styles.css:1291`, comment `:1280`; ui.md:22). Same PR fixes the tests in section 3 below | M | No. Cap |
+| HG2 | Compass strip and its objective marks | VISION.md:59 rule 5; G339; G290 no markers (DECISIONS.md:1566); bible 5.10 (:730-733) | Strip built in `src/ui/hud/hud.ts:131-143`, mounted in `.hud-top` at `:159`, scrolled and marked per frame at `:257-271`; frame fields `:32-35` (`yaw`, `markers`), const `:38`, fields `:57-58`; fed at `src/game/gameState.ts:3613-3614` and `:3633-3635` (every `objective` blip becomes a compass mark); CSS `src/styles.css:956-1006` | Hard rule broken in every mode; the marks are objective markers in Sector Ops (`sectorMode.ts:1355-1359`) | Delete the strip, the marks, `HudFrame.yaw` / `markers`, the bearing loop and the CSS. Keep `.hud-top` (the gadget wheel measures it: `src/ui/hud/gadgetWheel.ts:107`, `wheelLayout.ts:10`) holding the room tag and the objective popup. Tidy comments `hud.ts:306`, `styles.css:207`, `animTunePanel.ts:2363`, `wheelLayout.ts:10` | S | No. Cap |
+| HG3 | Objective blip producers and the Blip type | VISION.md:59 rule 5; G339 (mission-framework A10 void) | `GameMode.blips()` required by `src/game/modes/gameMode.ts:106`; producers `sectorMode.ts:1355-1359`, `infiltrationMode.ts:299-303`, `missionMode.ts:156-160` (objective), `clearMode.ts:221-223`, `courseMode.ts:1122-1124` (empty), `src/game/pickups.ts:96-98` (pickup), coop ally (HG1); plumbing `gameState.ts:31, :260, :399-400, :750, :766-768`. Engine adds a mission gate on top: `sectorMode.ts:1391-1392 @00b6cde9` | Blips feed only the compass and minimap; dead after HG1-HG2 and still a rule break while they draw | Remove `blips()` from the `GameMode` interface, all six modes, `Pickups`, `NetAttachment.blips` and the coop host / client; remove the `Blip` imports (`clearMode.ts:6`, `courseMode.ts:6`, `gameMode.ts:5`, `infiltrationMode.ts:7`, `missionMode.ts:8`, `sectorMode.ts:9`, `coopClient.ts:4`, `coopHost.ts:7`). Land after or rebased on mission-engine: its `sectorMode.ts:1391-1392 @00b6cde9` edit conflicts with the master `:1355` deletion (drop the engine's gate in the rebase) | S | No. Cap |
+| HG4 | "Minimap radar" HQ upgrade (legacy shop) | G339; bible 5.10 (:730) | `src/progression/suit.ts:103-104, :115, :123, :127, :135` (radar 15 / 25 m); read at `gameState.ts:3619`; sold in `src/ui/screens/loadoutScreen.ts:1031` (behind `?legacy=1`, `src/main.ts:289`); save clamp `src/save/schema.ts:169` | Sells a minimap feature; its only effect goes with HG1 | Drop `radar` from `HqId` / `HQ_IDS` / `HQ` / `hqStats`; `sanitizeSave` then ignores an old `hq.radar` key (check `schema.ts:169` loops `HQ_IDS` only). Update `tests/economy.test.ts:75-80, :131-134` | S | No. Cap |
+| HG5 | Objective line is always on, not a popup | VISION.md:48-49; G343 (DECISIONS.md:1933); G351 (:1980); bible 5.10 (:723-727); level-design.md:191-193 | `src/ui/hud/hud.ts:144` `.hud-objective` in `.hud-top` (`:159`), `setObjective` `:302-304` writes text that stays on screen; CSS `src/styles.css:1007-1012`, hidden only when empty (`:1028`). Callers: `sectorMode.ts:775, :795, :1002, :1292`, `infiltrationMode.ts:187`, `missionMode.ts:70`, `clearMode.ts:71`, `gameState.ts:853`, `coopClient.ts:254, :507, :1075`, `coopHost.ts:280-285` | No fade, no ~5 s show, no show-on-update | Turn the element into the popup: on a new objective (text change that is not progress only, see HG9) or a tap, add a `show` class, fade in, hold ~5 s, fade out (opacity, CSS transition). Keep the text in the DOM while faded so `objectiveText` (`hud.ts:297-300`) and the e2e readers keep working (section 3). Pure timer in its own module with a vitest (show on update, on tap, re-tap restarts, ~5 s then hidden). Time value in one const for Michael to tune (G356) | M | No. Cap |
+| HG6 | View / Select and O do not show the objective | G343; VISION.md:48-49; bible 5.10 (:725-726); input-and-loop.md:138 | Pad: `src/input/padBinds.ts:51` `device` "Mission device (not in yet)", `actions: []`, default `PAD.SELECT`; not in `GAME_BINDINGS` (`src/input/gamepadMapping.ts:63-79`). Keyboard: no bind on `KeyO` (`src/input/keyBindings.ts:43-68`; not in `FIXED_KEYS` `:87-99`; no raw handler outside the editor). Only other View user: the animation tuner's pad toggle `src/ui/animTunePad.ts:69, :149-158` (dev, while the tuner is open; it consumes the press) | Binding missing; both buttons are free in play | Add a `objective` ButtonAction (`src/input/actions.ts`); rename the `device` pad bind to `objective` with that action (default View) and add `[PAD.SELECT, 'objective']` to `GAME_BINDINGS`; add a `BINDS` row `objective` default `KeyO`; tap only (no hold). Update the binding table row `docs/systems/input-and-loop.md:138` in the same PR, or `tests/input.test.ts:211-260` goes red. A press the tuner consumed must not open the popup. Old stored pad binds: map a saved `device` key to `objective` in the settings sanitiser | S | No. Cap |
+| HG7 | Engine objective list is always on in Sector Ops (and the campaign) | bible 5.10 (:723-727: popup in game, full list in the menu; always-on list is Marlow only); G343; G108 (DECISIONS.md:492) | `src/ui/hud/missionHud.ts:1-100 @00b6cde9` shows title, rules line and every row from `show()` (`:65-72`) until `hide()`; mounted in `sectorMode.ts:366, :1328 @00b6cde9` and `coopClient.ts:225, :1171-1173 @00b6cde9`. The old `.hud-objective` line still shows the section label beside it (`sectorMode.ts:790, :810 @00b6cde9`) | Always-on list outside Marlow; two objective displays at once | Mission engine job: in game, feed the popup (HG5) with the viewer's current row (`objectiveRows` `missionText.ts:85-103 @00b6cde9`, first open required row for `viewer`) plus its hint line when `gameplay.hints` is on; show it on every runner `version` change for the viewer's rows. Move the full list (rules line, ticked rows) to the field menu (HG8). Stop the sector label writing `setObjective` while a mission runs. Update `scripts/e2e-sectorops-mission.mjs:45-52 @00b6cde9` (asserts the list visible) to assert the popup shows on start and fades, and the pause list | M | No |
+| HG8 | Field menu does not keep the full list outside Infiltration | bible 5.10 (:726-727 "the menu keeps the full list"; :734 field menu: objectives); G343 | `src/game/gameState.ts:1255-1263` returns the full chain only for InfiltrationMode (parked); Sector Ops and missions get one row, the current HUD text. `src/ui/screens/pauseScreen.ts:41-58, :82` shows what it gets. Same @00b6cde9 (`gameState.ts:1244-1252 @00b6cde9`) | Sector Ops sections and engine missions have no full list in the menu | Sector Ops: list every section's objective and exit in order, done / current / to do (from `SectorRun` and the sector defs). Engine missions: map `objectiveRows` plus the rules line into `ObjectiveLine`s. Tidy the `G108` comment at `pauseScreen.ts:11` to cite G343 too | S | No |
+| HG9 | Download progress and co-op status ride on the objective line | G343 (show on every objective update); G351 | Progress: `sectorMode.ts:1292` (and `infiltrationMode.ts:184-187`) rewrite the text every frame with a percent. Status: the co-op client writes "Connecting to host" / stall text into the objective line (`src/net/coopClient.ts:254, :507, :1072-1076`, `src/net/objectiveMirror.ts:17`) | With a popup, a percent would re-trigger it every frame, and the connection status would fade after ~5 s | Popup trigger keys on the objective itself, not the progress suffix (send progress as a separate field, or strip it before the compare). Show the co-op status in its own line (the feed or a banner) and keep `objectiveText` for the real objective; keep `e2e-coop.mjs:1848` and `e2e-coop-gpu.mjs:303` (they wait for the status to clear) passing | S | No |
+| HG10 | Sector Ops objective text missing "where" | G336 (DECISIONS.md:1894); G351; bible 5.8 (:580-583); level-design.md:188-191 | `src/world/maps/warehouseSectors.ts:30` "Download the security DVR", `:157` "Hack the production terminal"; `src/world/maps/campusSectors.ts:406` "Take the Tidewater prototype board". (Others name a place: `campusSectors.ts:315, :361`, `warehouseSectors.ts:94, :158`.) Engine texts name what and where (`tallowWharfMissions.ts:48-199 @00b6cde9`) | Three popup lines do not say where | Add the place to each line (for example "... in the security office"); owner Sector Ops Build, text only | S | No |
+| HG11 | Marlow guidance mark pins to the screen edge with a distance | VISION.md:59-60 (no compass / blip in any mode; Marlow keeps its guidance marks, G292); bible 5.10 (:730-733 "no world waypoints" in any mode, then "Marlow Yard keeps its guidance marks") | `src/game/modes/courseMode.ts:86-99` draws the next-drill diamond with metres; off screen it sits on the left / right edge towards the drill (`:98`), via `src/ui/hud/pings.ts:36-56`; on by default `src/core/settings.ts:161` (`courseMarkers: true`), toggle `src/ui/screens/settingsScreen.ts:156` | The docs do not say whether an off-screen edge pointer with metres is a "guidance mark" (G292) or a compass / waypoint (G339, bible 5.10). Cross-check with the Marlow review (review-briefs/marlow.md:10) | Per Michael's pick. Default in the plan: keep as built (G292 is explicit for Marlow) | S | Yes. Options: "Keep as built (edge pointer and metres)"; "On-screen mark only, no edge pointer or metres"; "Drop the mark, list only" |
+| HG12 | Docs still plan the removed maps or list blips as current | G336 (briefing map and field-menu map removed); G339; G344 doc lint | `docs/menu-ui/SPEC.md:252-253` (annotated top-down briefing map, Phase 4), `:338-340` (field terminal "Map" item); `docs/ct-research/code-inventory.md:197, :203, :246` (minimap ally blip, objective blips as current); `docs/ct-prototype/G5-REPORT.md:48-49`, `F1B-FIXES.md:10`, `audit/AUDIT-ACTIONMENU.md:34` (context menu placed by the minimap: history, mark as replaced); `docs/systems/ui.md:22, :32-37` (the "not built yet" notes, update when HG1-HG6 land) | Doc drift; the SPEC would rebuild what G336 removed | Strike the map lines in SPEC 7.6 and 7.19 (cite G336); mark the inventory rows replaced (G339); add "minimap", "compass", "objective blip", "briefing map" to the doc-lint stale-term list with the decision as the allowed context | S | No |
+| HG13 | Wrong G number for the briefing map | Authority order (CLAUDE.md G86) | `docs/ROADMAP.md:84` "the briefing's annotated map (G134)"; G134 is "Identical characters, complementary per-mission kits" (`docs/DECISIONS.md:725`). The bible's briefing map was replaced by G336 itself (DECISIONS.md:1897-1898) | Citation points at an unrelated decision (the review brief copied it) | Orchestrator: change "(G134)" to "(bible 5.10, replaced by G336)" in ROADMAP Decided | S | No |
+
+Notes for the plan:
+- ROADMAP Now row 7 (`docs/ROADMAP.md:32`) lists "briefing and field-menu maps" for removal: neither exists in code (see section 4), so that part is the SPEC doc fix in HG12, not code.
+- Cap rows: HG1, HG2, HG3, HG4, HG5, HG6 (removals and the popup, ROADMAP Now row 7). HG7-HG10 are follow-ons of the same rule (popup content and the menu list); HG7 and HG8 belong to the mission engine job, HG10 to Sector Ops Build.
+- Marlow Yard after the plan: keeps `src/ui/hud/courseHud.ts` (always-on objective list, `:1-8`), the course marker (`courseMode.ts:86-99`, `pings.ts:16-63`) and the `courseMarkers` setting; loses the minimap and compass like every mode. In Marlow, View / O does nothing extra (the list is always on; bible 5.10 :726-727 "instead"); course mode sets no objective line (`coopClient.ts:251-253` comment), so the popup stays empty there.
+- Parked modes (Infiltration, Mission, Hunter / Clear: legacy only, `src/main.ts:250, :261-285, :307-315`; VISION.md:74) lose their blips through HG3; no text work for them (bible: parked systems get no new work).
+- Suggested PR split: PR A = HG1 + HG2 + HG3 + HG4 (removal, with the test fixes); PR B = HG5 + HG6 + HG9 (popup and binding); HG7 + HG8 in the mission-engine job; HG10 to Sector Ops; HG12 + HG13 docs.
+
+### C. Tests that assert the old behaviour
+
+| Test | Line | Breaks on | Fix |
+|---|---|---|---|
+| `scripts/e2e-desktop.mjs` | :280 (`document.querySelector('.hud-minimap').getBoundingClientRect()`), :282, :286 (minimap right edge in the 32:9 inset check) | HG1: querySelector returns null and throws | Measure the right-hand panel that stays (`.hud-weapon`, or `.hud-ctx` with the menu forced open) for the 16:9 inset; add `assert(!document.querySelector('.hud-minimap, .hud-compass'))` as the hard-rule check. Confirms the Test Runner review's flag |
+| `scripts/e2e-clear.mjs` | :80 (`g.mode.blips().length + g.enemyBlips`), :91 (`s0.blips === 0`) | HG1 / HG3: `blips` is gone, the call throws | Replace with the absence of `.hud-minimap` / `.hud-compass`; drop the field |
+| `tests/minimap.test.ts` | :1-20 | Nothing (it copies the matrix, no import) but it tests deleted code | Delete the file |
+| `tests/economy.test.ts` | :75-80, :131-134 | HG4: `canBuyHq(.., 'radar', ..)`, `hqStats(h).radar`, `bad.hq.radar` | Re-point to `revive` / `restock`; assert an old `hq.radar` key is dropped |
+| `tests/input.test.ts` | :211-260 (binding table vs `BINDS` / `GAME_BINDINGS`); :67 (Select maps to no vision) | HG6 if `input-and-loop.md:138` is not updated in the same PR | Update the doc row (View `objective`, keyboard `objective` (O)); :67 stays green |
+| `scripts/e2e-sectorops-mission.mjs @00b6cde9` | :45-52 (list visible with rows) | HG7 | Assert the popup on start and after a tap; the full list in the pause menu |
+| Text readers: `scripts/e2e-modes.mjs:69-70`, `e2e-clear.mjs:54`, `e2e-coop.mjs:224, :1848-1849, :2120`, `e2e-ctcourse.mjs:324`, `e2e-coop-gpu.mjs:181, :303`, `tests/coopFix.test.ts:81` | as listed | Only if the popup clears its text when it fades, or `objectiveText` / `hookHud` change | Keep the text in the DOM and the `objectiveText` getter (HG5); move the co-op status without breaking the "status clears" waits (HG9) |
+| `tests/animTunePad.test.ts` | :103-133 (Select toggles the tuner) | Nothing if the tuner keeps View | Keep; add a check that a consumed View press does not open the popup |
+| `scripts/e2e-course.mjs` | :140-157 (course markers on by default, hidden by the setting) | Nothing | Keep (Marlow guidance mark) |
+
+New coverage to add with the fixes: a vitest for the popup timer (HG5); an e2e line per mode suite (Sector Ops, Marlow, free roam) that `.hud-minimap` and `.hud-compass` are absent (VISION rule 5 has no assertion today); the binding test above.
+
+### C. Removal inventory
+
+Everything that draws or feeds a compass, minimap, blip, briefing map or field-menu map (@829a9332 unless marked).
+
+| File:line | What | Action |
+|---|---|---|
+| `src/ui/hud/minimap.ts:1-107` | Minimap class and `Blip` type | Delete |
+| `src/ui/hud/hud.ts:5` | `import type { Minimap }` | Delete |
+| `src/ui/hud/hud.ts:32-35` | `HudFrame.yaw`, `HudFrame.markers` | Delete |
+| `src/ui/hud/hud.ts:38` | `COMPASS_PX_PER_RAD` | Delete |
+| `src/ui/hud/hud.ts:57-58` | `compassStrip`, `compassMarks` fields | Delete |
+| `src/ui/hud/hud.ts:86, :152, :160` | `minimapSlot` field, element, mount | Delete |
+| `src/ui/hud/hud.ts:131-143, :159` | Compass build and its place in `.hud-top` | Delete (keep `.hud-top` with room tag and objective) |
+| `src/ui/hud/hud.ts:175-177` | `setMinimap` | Delete |
+| `src/ui/hud/hud.ts:257-271` | Compass scroll and markers per frame | Delete |
+| `src/ui/hud/hud.ts:144, :297-304` | Objective line | Keep, becomes the popup (HG5) |
+| `src/ui/hud/hud.ts:306` | Comment "under the compass" | Reword |
+| `src/game/gameState.ts:31` | Minimap / Blip import | Delete |
+| `src/game/gameState.ts:260` | `NetAttachment.blips?` | Delete |
+| `src/game/gameState.ts:352, :639-640` | `minimap` field, construct, `setMinimap` | Delete |
+| `src/game/gameState.ts:399-400, :750, :766-768` | `extraBlips` and its assignments | Delete |
+| `src/game/gameState.ts:2139-2140` | `enemyBlips` (tests) | Delete |
+| `src/game/gameState.ts:3613-3614` | `yaw`, `markers` in the frame | Delete |
+| `src/game/gameState.ts:3616-3635` | Blip build, radar, objective bearings | Delete |
+| `src/game/gameState.ts:3637-3639` | `minimap.draw` | Delete (keep `updateCoverHud` at :3637) |
+| `src/game/modes/gameMode.ts:5, :106` | `blips()` in the interface | Delete |
+| `src/game/modes/sectorMode.ts:9, :1355-1359` | Objective / exit blips (Sector Ops) | Delete |
+| `src/game/modes/sectorMode.ts:1391-1392 @00b6cde9` | Mission gate on the blips | Delete in the rebase |
+| `src/game/modes/infiltrationMode.ts:7, :299-303` | Objective blips (parked) | Delete |
+| `src/game/modes/missionMode.ts:8, :156-160` | Objective blips (parked) | Delete |
+| `src/game/modes/clearMode.ts:6, :221-223` | Empty blips (parked) | Delete |
+| `src/game/modes/courseMode.ts:6, :1122-1124` | Empty blips (Marlow) | Delete |
+| `src/game/modes/courseMode.ts:86-99, :1137, :1213` | Next-drill guidance mark | Keep for Marlow (HG11 pending) |
+| `src/ui/hud/pings.ts:16-63` | Course marker renderer | Keep for Marlow |
+| `src/core/settings.ts:100, :161, :375`; `src/ui/screens/settingsScreen.ts:156, :213` | `courseMarkers` setting | Keep for Marlow |
+| `src/ui/hud/courseHud.ts:1-8` (class) | Always-on objective list | Keep for Marlow |
+| `src/game/pickups.ts:96-98` | Pickup blips | Delete |
+| `src/net/coopHost.ts:7, :1939-1945` | Ally (partner) blips | Delete |
+| `src/net/coopClient.ts:4, :1320-1324` | Ally (partner) blips | Delete |
+| `src/progression/suit.ts:103-104, :115, :123, :127, :135` | Minimap radar HQ upgrade | Delete the radar entry (HG4) |
+| `src/styles.css:956-1006` | Compass CSS | Delete |
+| `src/styles.css:1045-1055` | Minimap CSS | Delete |
+| `src/styles.css:2341, :3292` | `.hud-minimap` in the HUD zoom lists | Delete the line |
+| `src/styles.css:1280, :1291` | Context menu pushed under the minimap | Set top to 10.7 % H; reword comment |
+| `src/styles.css:1007-1012, :1028` | `.hud-objective` | Keep, restyle as the popup (HG5) |
+| `src/styles.css:207`; `src/ui/hud/wheelLayout.ts:10`; `src/ui/animTunePanel.ts:2363`; `src/world/levelBuilder.ts:60, :76`; `src/world/kit/facilityKit.ts:74` | Comments naming the compass / minimap | Reword |
+| `src/ui/hud/missionHud.ts:1-100 @00b6cde9`; `src/game/modes/sectorMode.ts:366, :1328 @00b6cde9`; `src/net/coopClient.ts:225, :1171-1173 @00b6cde9` | Always-on mission list | Gate by mode: becomes popup content plus the field-menu list (HG7) |
+| `src/ui/screens/briefingScreen.ts:47-100` | Briefing (text, objectives, rules) | Keep: no map drawn |
+| `src/ui/screens/pauseScreen.ts:41-58, :82` | Field menu Objectives | Keep: no map item; fill the full list (HG8) |
+| `docs/menu-ui/SPEC.md:252-253, :338-340` | Planned briefing map and field-menu Map | Strike (HG12) |
+| `src/editor/*` minimap (e.g. `src/editor/main.ts`, `scripts/e2e-editor.mjs:746-793`) | Kestrel level editor's small plan | Keep: a dev tool, not a game mode (G15) |
+
+### C. Checked, conforms
+
+- Briefing map: none in code. `src/ui/screens/briefingScreen.ts:47-100` draws text, objectives and rules only; no canvas or map anywhere in `src/ui/screens/` (doc drift only: HG12).
+- Field-menu map: none. `src/ui/screens/pauseScreen.ts:82` has Objectives; no Map item (doc drift only: HG12).
+- Hint layer: optional, off by default on the engine (`src/core/settings.ts:163 @00b6cde9` `hints: false`; toggle `settingsScreen.ts:157 @00b6cde9`); hint shown only under the viewer's current row (`missionText.ts:94-99 @00b6cde9`). Not on master; arrives with the engine (G290).
+- Engine objective text: short, plain English, names what and where (`tallowWharfMissions.ts:48-199 @00b6cde9`), 90-character cap validated (`missionDef.ts:140, :220-222 @00b6cde9`) (G336, G351).
+- Engine adds no blip or marker (only the gate at `sectorMode.ts:1391-1392 @00b6cde9`, removed with HG3).
+- Marlow Yard always-on objective list: `src/ui/hud/courseHud.ts:1-8` on screen from spawn, never hides (G292, bible 5.10 :726-727). Kept by the plan.
+- Marlow Yard guidance marks: built and on by default (`courseMode.ts:86-99`, `settings.ts:161`); kept by the plan (exact form: HG11).
+- View / Select and O free in play: View has no gameplay action (`padBinds.ts:51`, not in `GAME_BINDINGS`), O has no binding or handler; only the dev tuner uses View while open (`animTunePad.ts:69`). No conflict to resolve beyond HG6.
+- World pings and the partner beacon: player-placed pings only (`src/ui/hud/pings.ts:76`), allowed by G135; no partner marker.
+- Flags: nothing in `src/core/flags.ts` touches the compass, minimap, blips or objective HUD (the minimap has no flag; it is simply on).
+- Interrogation intel shows as text lines only (`src/game/intelReveal.ts:9-20`), no map reveal.
