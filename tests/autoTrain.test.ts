@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
@@ -577,6 +579,22 @@ describe('auto-train: idle self-update', () => {
   it('skips when a sha could not be read', () => {
     expect(selfUpdatePlan({ head: '', master: B, dirty: false }).action).toBe('skip');
     expect(selfUpdatePlan({ head: A, master: '', dirty: false }).action).toBe('skip');
+  });
+  it('fast-forward only: skips when origin/master is not ahead of HEAD', () => {
+    const p = selfUpdatePlan({ head: A, master: B, dirty: false, ff: false });
+    expect(p.action).toBe('skip');
+    expect(p.reason).toContain('not a fast-forward');
+    expect(selfUpdatePlan({ head: A, master: B, dirty: false, ff: true, when: 'after releasing train 86' }))
+      .toEqual({ action: 'update', reason: 'self-updated to bbbbbbbb (after releasing train 86)' });
+  });
+  it('also runs right after a release, before the next build (back-to-back trains never had an idle tick)', () => {
+    const src = fs.readFileSync(path.resolve('scripts/auto-train.mjs'), 'utf8');
+    const rel = src.indexOf('log(`RELEASED train');
+    const upd = src.indexOf('selfUpdate(`after releasing train', rel);
+    const next = src.indexOf('await noTrain(o, labelExists)', rel);
+    expect(rel).toBeGreaterThan(0);
+    expect(upd).toBeGreaterThan(rel);
+    expect(upd).toBeLessThan(next);
   });
   it('only an idle decision triggers it: building and open-train decisions are never idle', () => {
     const cands = [{ branch: 'f/a', pr: 1, head: 'h', fragment: null }];

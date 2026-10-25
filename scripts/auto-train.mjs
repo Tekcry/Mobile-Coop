@@ -325,14 +325,17 @@ export function laptopQueueState(paths, { claims = {}, now = Date.now() } = {}) 
 }
 
 /**
- * Self-update of the checkout the scripts run from, on an idle tick: { action: 'none' | 'update' | 'skip', reason }.
- * Updates (a detached checkout of origin/master) only when HEAD differs from it and the working tree is clean.
+ * Self-update of the checkout the scripts run from, on an idle tick or right after a release: { action: 'none' |
+ * 'update' | 'skip', reason }. Updates (a detached checkout of origin/master) only when HEAD differs from it, the
+ * working tree is clean and the move is a fast-forward (`ff` = HEAD is an ancestor of origin/master; undefined = not
+ * checked). `when` names the trigger in the log line.
  */
-export function selfUpdatePlan({ head, master, dirty }) {
+export function selfUpdatePlan({ head, master, dirty, ff, when = '' }) {
   if (!head || !master) return { action: 'skip', reason: 'self-update skipped: could not read HEAD or origin/master' };
   if (head === master) return { action: 'none', reason: `up to date at ${head.slice(0, 8)}` };
   if (dirty) return { action: 'skip', reason: `self-update skipped: the working tree is not clean (HEAD ${head.slice(0, 8)}, origin/master ${master.slice(0, 8)})` };
-  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}` };
+  if (ff === false) return { action: 'skip', reason: `self-update skipped: origin/master ${master.slice(0, 8)} is not a fast-forward of HEAD ${head.slice(0, 8)}` };
+  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}${when ? ` (${when})` : ''}` };
 }
 
 /** Local calendar day key (YYYY-MM-DD) of a time in ms. */
@@ -782,16 +785,22 @@ function execHere(cmd) {
   return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
 }
 
-/** Idle tick (no train open, nothing building): moves this checkout to origin/master so the next tick runs current scripts. */
-function selfUpdate() {
+/**
+ * Idle tick (no train open, nothing building) or right after a release (the train merged, the next not built yet):
+ * fast-forwards this checkout to origin/master so the next tick runs current scripts. Never between a train's build
+ * and its release. Audit 2026-10-25: back-to-back trains never had an idle tick, the checkout sat at train 80 with
+ * master at 86.
+ */
+function selfUpdate(when = 'idle') {
   try {
-    if (DRY) { log('  [dry-run] would self-update this checkout to origin/master when idle'); return; }
+    if (DRY) { log(`  [dry-run] would self-update this checkout to origin/master (${when})`); return; }
     // only master is read; narrow + lock-race retry (fetch-retry.mjs: another worktree's fetch holds a ref lock)
     if (fetchWithRetry(execHere, ['master'], { log }).status !== 0) { log('self-update skipped: git fetch failed'); return; }
     const head = execHere(['git', 'rev-parse', 'HEAD']).out.trim();
     const master = execHere(['git', 'rev-parse', 'origin/master']).out.trim();
     const dirty = execHere(['git', 'status', '--porcelain']).out.trim() !== '';
-    const plan = selfUpdatePlan({ head, master, dirty });
+    const ff = head && master ? execHere(['git', 'merge-base', '--is-ancestor', head, master]).status === 0 : undefined;
+    const plan = selfUpdatePlan({ head, master, dirty, ff, when });
     if (plan.action === 'update') {
       const r = execHere(['git', 'checkout', '-q', '--detach', 'origin/master']);
       log(r.status === 0 ? plan.reason : `self-update failed: ${r.err.trim().slice(-300)}`);
@@ -1192,6 +1201,8 @@ async function step(o) {
   if (r.code === 0) {
     const onRerun = d.rerunRelease ? `released on the laptop rerun of ${d.rerunRelease.join(',')}` : '';
     log(`RELEASED train ${t.n} as ${t.version}${onRerun ? `: ${onRerun}` : ''}`);
+    // between trains: the next one is built (and later released) by the merge-train.mjs of the new master
+    selfUpdate(`after releasing train ${t.n}`);
     const next = await noTrain(o, labelExists);
     return { ...next, released: `${t.version} (train ${t.n}${onRerun ? `, ${onRerun}` : ''})` };
   }

@@ -32,6 +32,11 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 - Scheduled task: `scripts/auto-train-task.ps1` registers "NightShift auto-train" every minute (`-Minutes`, default 1;
   hidden window through wscript, current user, only while logged on); `-Unregister` removes it. Register it from a checkout that does not
   change branch (`-RepoDir`), never from the train worktree.
+- Self-update (`selfUpdate`, `selfUpdatePlan`): the checkout the scripts run from (`C:/NightShift/Mobile-Coop-autotrain`,
+  detached) fast-forwards to origin/master on an idle tick and right after each release, before the next train is
+  built (so that train is built and released by the same `merge-train.mjs`); never between a train's build and its
+  release, never on a dirty tree or a non-fast-forward. Log: `self-updated to <sha> (<when>)` or `self-update
+  skipped: <why>`. (Audit 2026-10-25: back-to-back trains left no idle tick; the checkout sat at train 80, master 86.)
 - Files (`AUTO_TRAIN_SCRATCH` moves them): lock `C:/NightShift/scratch/auto-train.lock` (created `wx`; a running tick
   touches it every minute; untouched for 30 min = stale and replaced; a held lock skips the tick), log
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
