@@ -14,7 +14,7 @@ import { buildCtcourse } from '../src/world/maps/ctcourse';
 import type { StepCond } from '../src/game/course/courseDef';
 
 const ROOT = path.resolve(__dirname, '..');
-const src = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const src = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 
 /** The non-lethal objective kinds (G127): take something, copy something, break into something. */
 const SECTOR_KINDS = ['hack', 'grab', 'download'];
