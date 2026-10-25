@@ -1,5 +1,38 @@
 # mission-framework - STATE
 
+## RESUME 2026-10-25 ~13:10 (Night Shift | Campaign Build; read this block first, older blocks are history)
+Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
+Marlow Build; Marlow keeps level-validator V6, route-runs, guard-cap). Process: `docs/RULES.md` and `docs/VISION.md`
+from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on origin/feature/menu.
+
+DOCS-FIRST HOLD (G346, G355; ROADMAP Now phase 1 row 2b): until Michael signs off the folded plan (Now row 6), no new
+game work here. Finished PRs may ship. Job 1 = the plan-only conformance review
+(`docs/orchestrator/review-briefs/campaign.md` on origin/feature/menu): branch feature/conformance-campaign, worktree
+C:/NightShift/Mobile-Coop-conformance-campaign, output `docs/conformance-campaign/CONFORMANCE.md`, docs PR + checker.
+Reviewer drafts: C:/NightShift/scratch/conformance-campaign/{A-tallow-wharf,B-mission-rules,C-hud-guidance}.md.
+
+PR A #372 (feature/mission-framework 5181c9db, this branch): open; CI check green on the rerun, affected-e2e green;
+no `checker` status, no `big-pr` label yet. ROADMAP Now 0b: the orchestrator ships it (checker on its head, big-pr,
+Michael's sign-off pages). STATE-only pushes here restart its CI: batch them.
+
+Parked by the hold (all on origin unless noted; resume after row 6 sign-off, ROADMAP Now 7-8):
+1. Engine origin/feature/mission-engine 00b6cde9 = GB5 fix round b0cc988c (report scratch/gb5-fix-report.md; needs a
+   fresh checker) + NET3 merged (checkers A + B PASS).
+2. LOCAL ONLY in C:/NightShift/Mobile-Coop-mission-engine (HEAD bc9e6981, 8 commits ahead, not pushed): merges of
+   feature/mission-flg c6542289 (FLG: flags `missions` / `coopKit`; report scratch/mission-flg-report.md; no checker
+   yet) and feature/mission-gb6 cb562510 (GB6 wharf e2e; scratch/mission-gb6-report.md; never run) + 2 uncommitted
+   lines (`missions=1` param in e2e-sectorops-mission.mjs, `const NET3 = true` in e2e-sectorops-wharf.mjs). Both
+   branches are on origin; push the merge only after their checkers pass.
+3. SS / CR hint-length fix merged here 5181c9db (Sonnet sync check FIX is answered; no re-check run).
+4. NET4 polish brief on cloud-queue (briefs/mission-framework-net4.md). GBM waits for V6 (Marlow).
+5. Phase 2 rows (after sign-off): Now 7 rule fixes (compass / blip / minimap / briefing and field-menu maps removed,
+   objective popup View / O ~5 s, G336 G339 G343 G351); Now 8 GB5 / GB6, the 3 gate-reach ERRs (w2-reading-room
+   20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s), A10 void, A12 re-plan (G339, G334), campaign cap 32 (G359).
+
+Laptop queue: `node scripts/laptop-queue/request.mjs --sha <full> --pr <n> --suites "<space separated>" --set <name>
+--requester "Night Shift | Campaign Build"`. Walk cap, train-ready and locks: RULES "Walk pacing", "Getting to
+master", "Machines". Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / needs Michael.
+
 ## SAVE 2026-10-25 ~09:05 (5-hour save; reset 13:10; read with the block below)
 - NET3 550d99c4: checkers A + B PASS (mission-net3-check-{a,b}.md). Merge into engine AFTER the GB5 fix round: conflict only in tests/mission/sectorMission.test.ts (same decoy test as POL1): keep engine's copy, drop NET3's a56ebeab6 hunk; flip GB6 `const NET3 = true` in that merge. NET4 polish brief on cloud-queue (briefs/mission-framework-net4.md: late() uses sectorMission, checkMission id clamp, changelog + coop.md lines).
 - WIP pushed: feature/mission-engine d45cdb4a (GB5 fix round in progress: tallowWharfSectors.ts, W2.ts, sectors.test.ts; resume from gb5-check.md must-fix 1-4, report gb5-fix-report.md), feature/mission-flg 3bc6be9c (FLG in progress: flags.ts, sectorMission.ts, teamController.ts, settingsScreen.ts; brief = PRC-split.md FLG). GB6 bdbb124a registered suites only: the script scripts/e2e-sectorops-wharf.mjs is not written yet (brief GB6-brief.md).
@@ -91,5 +124,5 @@ KIT notes for NET / Player / Guard AI: pull catchDrop 1.8 m under edge (Player: 
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: mission-framework lead (+ level-validator V6, guard-cap). Read docs/missions/STATE.md top blocks first ("SAVE 2026-10-25 ~09:05" then "RESUME ~09:20"; also route-runs job: docs/route-runs/STATE.md on origin/feature/route-runs): items were running at the save with their reports / worktrees; for each, check C:/NightShift/scratch/<report> or origin for its result and rerun if missing (briefs: PLAN.md rows, slices/GB-briefs.md, that block). Fix worktrees a checker left detached (-mission-kit-pull, -mission-validator). Worktrees: -mission-framework, -mission-engine, -mission-en4, -mission-net2, -mission-validator, -level-validator-v6, -mission-gb1..4, -mission-kit-pull / -kit-shut / -kit0, -joint-flake-3 (node_modules junctions to -mission-framework). Laptop queue: git archive origin/master scripts into scratch, node <scratch>/scripts/laptop-queue/request.mjs --sha <full sha> --set <name> --requester "Night Shift | Marlow Build" --suites "...". PR A #372: rerun pr-size after hotfix #378 merges, then label (self-approval may be blocked: ask the orchestrator). PR #365 labelled by the orchestrator. Batch STATE pushes (each push restarts #372 CI). guard-cap: docs/guard-cap/STATE.md. Rules: CLAUDE.md Sessions; no desktop e2e; single vitest files --maxWorkers=2; CPU rule; message the orchestrator at PR open / train-ready / blocked only.
+Night Shift | Campaign Build: read docs/missions/STATE.md "RESUME 2026-10-25 ~13:10" block first (docs-first hold; job 1 = conformance review, feature/conformance-campaign). Rules: docs/RULES.md and docs/VISION.md from origin/master; start steps docs/orchestrator/BOOT.md "Campaign Build" on origin/feature/menu.
 ```
