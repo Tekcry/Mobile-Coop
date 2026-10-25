@@ -9,17 +9,17 @@ FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to clou
 1. #466 TW23 and #447 J3 PR A: MERGED. B0b done: engine 231bdbfbf (= e37987544 + TW23).
 2. J7 PR D feature/mission-rules eb231778: checker PASS; laptop j7-prd queued. Green -> merge into engine, then push
    held briefs MB / D0 (scratch/campaign/cq/) with the merged engine sha.
-3. J7 PR E fix1 (cloud done) feature/mission-rules-net-fix1 505fc066f: Opus re-check A + B running
-   (j7-pre-fix1-check-a.md / -b.md). PASS x2 -> merge into -net, laptop set (coop group + wharf-tgc / tkl).
-4. J7 R7 (cloud done) feature/mission-rules-r7 1fded85e8: Opus checker running (j7-r7-check.md). PASS -> merge into
-   -net (after fix1), then -net into -hud, then push held R8 brief (scratch cq/campaign-j7-r8.md).
-5. PR F feature/mission-rules-hud d6a5f5b6 (= -net + R6, PASS x2 on 0cb3a4d6). Cloud brief campaign-j7-r6-polish open.
-6. J3b B5 fix1 (cloud done) feature/hud-guidance-b5-fix1 0205c77ed: Opus re-check running (hg-b5-fix1-check.md).
-   PASS -> merge b5 + fix1 into -b, fragment changes/feature-hud-guidance-b.md, laptop sets (lead-notes B5 line).
+3. J7 PR E -net 62b206d2a = fix1 (PASS x2) + R7 (PASS); checker status posted; laptop set j7-pre queued. Green ->
+   FE docs step, then PR E. Resume-hosting has no e2e yet (lead-notes).
+4. PR F -hud 3aa144a2f (= -net + R6). Cloud briefs open: campaign-j7-r6-polish (base d6a5f5b6), campaign-j7-r8
+   (base 3aa144a2f). On done: checker(s), merge both into -hud, laptop e2e-sectorops (all) + e2e-menus.
+5. (merged into 4)
+6. J3b PR B = #482 (head bcff08a3, checker status posted, Job-done: hud-guidance): waits CI + affected-e2e;
+   orchestrator told. Polish list in lead-notes.
 7. Laptop: gb6fix dc2aa9c8 (desktop FAIL at cpu 100%, laptop rerun queued), hg-b4 e72c8eab running; hg-b3 PASS.
 8. Tallow wave 0: cloud briefs tallow-tda / -g0 / -s2 open; MB / D0 held. LP builder rerun (Opus, docs) finishing
    G2-G4 on feature/tallow-fixes-lp (tallow-lp-report.md; EGRESS / LIGHT / G1 pushed).
-Next: act on the four check reports and the LP report; laptop verdicts; PR D green -> engine, push MB / D0 briefs.
+Next: LP report; laptop verdicts (j7-prd, j7-pre, gb6fix, hg-b4, #482); cloud r6-polish / r8 done -> checkers; PR D green -> engine, push MB / D0 briefs. Mixamo runs go first overnight (orchestrator 00:20).
 
 ## OLD RESUME 2026-10-25 ~23:30 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
