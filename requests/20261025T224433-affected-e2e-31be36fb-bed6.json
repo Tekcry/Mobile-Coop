@@ -1,0 +1,20 @@
+{
+  "id": "20261025T224433-affected-e2e-31be36fb-bed6",
+  "sha": "31be36fb8f913f14aebe5dbbc1095e4517c9643b",
+  "branch": "feature/char-shadow-meter-a1",
+  "pr": 459,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-desktop",
+    "e2e-levels",
+    "e2e-lightbake",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #459"
+}
