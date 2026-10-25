@@ -5,38 +5,34 @@ Owner: Marlow Build. Status: current.
 - Branch feature/marlow-replan, worktree C:/NightShift/Mobile-Coop-marlow-replan. Guard: `test "$(git rev-parse
   --abbrev-ref HEAD)" = feature/marlow-replan`. Docs only so far (no src / test / map / script / config change).
 - Michael approved REPLAN ~19:16 "Approve as drawn (Recommended)". Picks since: ~20:40 "12, add two" (guards) and
-  chimney gap "1.4 m" (`BRIEF.md:31-35`); ~20:50 "Marlow first" (`PLAN.md:420`, ROADMAP Decided).
-- Plan check 1 (Opus, FIX, C:/NightShift/scratch/marlow/j14-plan-check.md) answered, one commit per item:
-  - Fix 1 F1 out player returns (dff7647d2, 7ccd46471): the exit airlock cycles with the survivor while the partner is
-    out, the out player respawns inside it, checkpoint advanced; a lone survivor may work a pair gate; on
-    `ctcourseReplan` going out = that station's retry (R1 `onPlayerOut`, cause `out`). Test case named in F1's done
-    line (`PLAN.md:334-363`). F1 owns the `out` / `oneMay()` / `need()` / pair-gate hunks of `courseState.ts`.
-  - Fix 2 guards 12 (b15000a1c): A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3; A7 pod-leg technician, A5 kiosk
-    watcher, A6 pit-side fallback (`PLAN.md:94-107`, A15 `:472`, D1 `:227`, G-A1A7 / G-A5 / G-A6 rows; `BRIEF.md:31-35`,
-    `:44`; graph `a5-inner` guards 2, `a7-pod` guards 1 as a connector). Validator rerun: same 2 ERR, only the a5-inner
-    INFO changed (`validate-run.txt` top and last note).
-  - Fix 3 R1 hooks for J13 R4c (642ef1bc2): `window.__course.restarts` + `lastRetry` (`seen` / `caught` / `timer` /
-    `out` / `down`) on host and client, wire `rs` / `rc` beside `st`, unit test (`PLAN.md:293-304`).
-  - Fix 4 wave 1 seams (ce3b7de43): S0's first commit carries stationDef / flag / `SetPart.bay.stations` / ctcourse
-    mapping / the `BayDef` line, then never edits `courseDef.ts` (`PLAN.md:261-265`); room-map line moved to R1; F1
-    free of S0, ships first; set-slice PRs open after S0 + R1 are released (`PLAN.md:424-436`).
-  - Marlow first in waves (932ef18d9); polish list done (6d9c284f0: 33 overlaps, F1 walk line, R1 done lines, src/net
-    parse rule, A20 in Assume and log, replan calls from ctcourse.ts, S0 owns e2e budgets).
-- Note for checker 2: STATIONS.md does not exist yet (slice D1 writes it); its guard rows are specified in D1's text.
-  F1 built-yard limit stated: a team move between the survivor and the airlock still needs the partner (pause-menu
-  bay restart, as today).
-- PLAN map: code today `PLAN.md:8-50`; design `:52-132`; claims `:134-220`; slices `:221-412`; flags `:413`; waves
-  `:419`; gates `:438`; walk items `:449`; A13-A25 `:463`; Assume and log `:501`; risks `:507`.
+  chimney gap "1.4 m" (`BRIEF.md:31-36`); ~20:50 "Marlow first" (PLAN waves, ROADMAP Decided).
+- Plan check 1 (FIX, C:/NightShift/scratch/marlow/j14-plan-check.md) answered dff7647d2..6d9c284f0 (guards 12, R1
+  hooks, wave 1 seams, polish). Its fix 1 (one-out change) was overruled by plan check 2.
+- Plan check 2 (Opus, FIX on 6d9c284f0, C:/NightShift/scratch/marlow/j14-plan-check-2.md) answered, lead decisions:
+  - Fix 1 (d07f96887): checker's default. F1 = revive cap 2, lone-host Start block, M8 test only; no `out` /
+    `setOut` / `oneMay()` / `need()` / pair-gate change, F1 does not edit `courseState.ts`; A21 three fixes; walk
+    line without one-out; G349 citation gone. Downed rule unchanged (level-design 9.4, REPLAN): on `ctcourseReplan`
+    one out takes the both-down bay restart, R1 records `restarts` cause `out` / `down`; no `onPlayerOut`
+    (`PLAN.md:335`, F1 `:372`, A21 `:516`). No question to Michael.
+  - Fix 2 (fdab780fa): R1 `window.__course.retryOff(n)` (host; station retry off until the bay restarts), unit test in
+    R1's done line; R4c mapping `seen` / `caught` -> seen, `timer` -> timer, `out` / `down` -> other (`PLAN.md:324`);
+    J13 claims bullet says the J13 lead is told when the PLAN passes (`:206-208`).
+  - Polish (c116af71d, 2ea99f224, 0934d5999): claims-check rerun 43 overlaps (two new slice branches), mission-rules
+    R4 / R5 ordered after F1, they rebase and widen F1's checks (`:221`); `scripts/e2e-ctcourse/revive.mjs` claimed;
+    A7 pod-leg technician counted on `a7-hall` (guards 2), `a7-pod` a quiet connector, validator rerun (only the
+    a7-hall INFO changes); `LastRetry = { st, cause } | null` on host and client, wire `rt` + `rc` (`:309`); R1 ~1,100.
+- Note for checker 3: STATIONS.md does not exist yet (slice D1 writes it). After this PLAN passes, tell the J13 lead
+  R1's hook names and the cause mapping.
+- PLAN map: code today `PLAN.md:8-50`; design `:52-137`; claims `:138-236`; slices `:237-438` (R1 `:295`, F1 `:372`);
+  flags `:439`; waves `:445`; gates `:464`; walk items `:475`; A13-A25 `:489`; Assume and log `:528`; risks `:534`.
 - Blocks elsewhere: Player coop-kit part 2 + `kitMoves` (KS1-KS5); Guard AI board-noticed hook (KS5); J12 PR A / S2 /
   S4 / D-A and J13 R6 / R8 for G1's gates.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
-- Plan check 2 (Opus, FIX on 6d9c284f0, C:/NightShift/scratch/marlow/j14-plan-check-2.md): planner working, nothing
-  committed yet. Left: fix 1 (F1 drops one-out: revive cap 2, solo Start block, M8 test only; on `ctcourseReplan`
-  one out = both-down bay restart, R1 cause `out`), fix 2 (R1 `window.__course.retryOff(n)` + R4c cause mapping),
-  polish (41 overlaps, mission-rules order, `a7-pod` guard on `a7-hall`, `lastRetry` shape, R1 size, `revive.mjs`).
-- Next: finish plan check 2 fixes, then fresh plan checker 3
+- Next: fresh plan checker 3 on 0934d5999
 
 ## Done
+- ~21:30 Plan check 2 answered: fix 1 (F1 drops one-out), fix 2 (R1 retryOff + cause mapping), polish (43 overlaps,
+  mission-rules order, a7 guard on a7-hall + validator rerun, LastRetry shape, R1 ~1,100) (d07f96887..0934d5999).
 - ~21:45 Plan check 1 answered: fixes 1-4, Marlow first in waves, polish (dff7647d2..6d9c284f0); guards 12 placed,
   validator rerun.
 - 20:40 Michael picked 12 guards and the 1.4 m chimney gap (6db797a09).
