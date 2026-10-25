@@ -6,8 +6,8 @@
 //
 // Frames. The dump is in Blender world space (Z up, right-handed; the importer leaves the character facing -Y, but the
 // facing is measured here, never assumed). The game frame is +X right, +Y up, +Z forward, left-handed. The rest pose
-// gives the basis: right = the hip line (LeftUpLeg -> RightUpLeg heads), forward = up x right (Blender's cross), checked
-// and averaged with the toe direction (Foot -> ToeBase heads). M = [right; up; forward] (rows) maps a Blender vector to
+// gives the basis: right = the hip line (LeftUpLeg -> RightUpLeg heads), forward = up x right (Blender's cross); the
+// toe direction (Foot -> ToeBase heads) is only reported. M = [right; up; forward] (rows) maps a Blender vector to
 // the game: p_game = M p. det M = -1 (a right- to left-handed map is improper), so a rotation converts by matrices,
 // R_game = M R M^T (a proper rotation again), never by permuting quaternion parts. The dump's rotations are
 // rest-relative world rotations (W R W^-1, mapping a bone's rest world directions onto its posed ones), so after the
@@ -26,7 +26,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, FPS, selfCheck } from './asfamc.mjs';
 import { v3, q4, m3, R2D } from './math.mjs';
-import { baseName, mixamoSlots, resolveMixamoBones, MIXAMO_FPS } from './mixamoMap.mjs';
+import { baseName, mixamoSlots, resolveMixamoBones, MIXAMO_FPS, WREN_SPANS, WREN_CHORD } from './mixamoMap.mjs';
 import { MAP, SEG_END } from './retarget.mjs';
 
 export const MIXAMO_DIR = path.join(ROOT, 'build', 'mocap', 'mixamo');
@@ -35,8 +35,8 @@ export const MIXAMO_RAW = path.join(MIXAMO_DIR, 'raw');
 export const IN_PLACE_M = 0.05;
 /** The source line an intermediate carries (retarget.mjs `buildSlot` `licence`). */
 export const MIXAMO_LICENCE = 'Mixamo (mixamo.com, Adobe), royalty-free for commercial use (docs/art-credits.md)';
-/** Toe-direction vs hip-line forward: averaged when within this angle, else the hip line alone is used. */
-const TOE_AGREE_DEG = 45;
+/** The direction check's limit (BRIEF A6): every Wren segment within this of its matching Mixamo span. */
+export const DIR_LIMIT_DEG = 8;
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r1 = (x) => Math.round(x * 10) / 10;
@@ -66,12 +66,9 @@ export function measureFacing(restOf) {
     const d = flat(v3.sub(restOf(`${S}ToeBase`), restOf(`${S}Foot`)));
     if (v3.len(d) > 1e-6) toe = v3.add(toe, v3.norm(d));
   }
-  let forward = fHip, hipToeDeg = null, from = 'hips';
-  if (v3.len(toe) > 1e-6) {
-    const t = v3.norm(toe);
-    hipToeDeg = Math.acos(Math.max(-1, Math.min(1, v3.dot(t, fHip)))) * R2D;
-    if (hipToeDeg < TOE_AGREE_DEG) { forward = v3.norm(v3.add(fHip, t)); from = 'hips+toes'; }
-  }
+  // the toes are splayed and differ per clip, so they only feed the report
+  const forward = fHip, from = 'hips';
+  const hipToeDeg = v3.len(toe) > 1e-6 ? Math.acos(Math.max(-1, Math.min(1, v3.dot(v3.norm(toe), fHip)))) * R2D : null;
   const right = [forward[1], -forward[0], 0]; // forward x up
   const M = [right[0], right[1], 0, 0, 0, 1, forward[0], forward[1], 0];
   return { M, right, forward, turnDeg: Math.atan2(forward[0], -forward[1]) * R2D, hipToeDeg, from };
@@ -108,7 +105,7 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
   const n0 = dump.frames;
   // rotations: Blender world (w, x, y, z) -> game [x, y, z, w] by R_game = M R M^T, sign-continuous
   const qSrc = new Map();
-  for (const b of new Set(slots.map((s) => s.rot))) {
+  for (const b of new Set(slots.flatMap((s) => (s.blend ? [s.rot, s.blend] : [s.rot])))) {
     const f = dump.rot[full(b)];
     const arr = [];
     for (let i = 0; i < n0; i++) {
@@ -122,11 +119,17 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
   // rest geometry (game frame): each slot's rigid offset from its parent slot's tip
   const restTip = new Map(), off = new Map(), fallbacks = [];
   const bySlot = new Map(slots.map((s) => [s.slot, s]));
+  const restG = (b) => toG(restB.get(b));
   for (const s of slots) {
-    if (s.slot === 'root') { restTip.set('root', toG(restB.get('Hips'))); off.set('root', [0, 0, 0]); continue; }
+    if (s.slot === 'root') { restTip.set('root', restG('Hips')); off.set('root', [0, 0, 0]); continue; }
     const start = restTip.get(s.parent);
     let tip = start;
-    if (s.end) tip = toG(restB.get(s.end));
+    if (s.blend) {
+      const bh = restG(s.blend);
+      const endP = s.end ? restG(s.end) : v3.add(bh, v3.scale(v3.sub(bh, restG(s.rot)), s.extend));
+      if (!s.end) fallbacks.push(s.slot);
+      tip = v3.lerp(bh, endP, s.at ?? 1);
+    } else if (s.end) tip = restG(s.end);
     else if (s.extend) {
       let p = s.parent;
       while (p && v3.len(off.get(p)) < 1e-9) p = bySlot.get(p).parent;
@@ -136,18 +139,43 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     off.set(s.slot, v3.sub(tip, start));
     restTip.set(s.slot, tip);
   }
-  const fk = (rootP, qOf) => {
+  // blend slots (A6): the rot / blend slerp at 0.5 (the twist), swung by the smallest arc so the rest span (rot head ->
+  // blend head -> tip) lands on the posed span the two bones make; a rotation channel of its own, keyed by `qKey`
+  const qKey = (s) => (s.blend ? `${s.rot}>${s.blend}` : s.rot);
+  for (const s of slots) {
+    if (!s.blend || qSrc.has(qKey(s))) continue;
+    const h1 = v3.sub(restG(s.blend), restG(s.rot)), h2 = v3.sub(restTip.get(s.slot), restG(s.blend)), h = v3.add(h1, h2);
+    const q1 = qSrc.get(s.rot), q2 = qSrc.get(s.blend), arr = [];
+    for (let i = 0; i < n0; i++) {
+      const mid = q4.norm(q4.slerp(q1[i], q2[i], 0.5));
+      const posed = v3.add(q4.rotate(q1[i], h1), q4.rotate(q2[i], h2));
+      const q = q4.norm(q4.mul(q4.arc(q4.rotate(mid, h), posed), mid));
+      arr.push(arr.length ? q4.align(q, arr[arr.length - 1]) : q);
+    }
+    qSrc.set(qKey(s), arr);
+  }
+  const fk = (rootP, qOf, pin = null) => {
     const P = new Map([['root', rootP]]);
-    for (const s of slots) if (s.slot !== 'root') P.set(s.slot, v3.add(P.get(s.parent), q4.rotate(qOf(s.rot), off.get(s.slot))));
+    for (const s of slots) if (s.slot !== 'root') P.set(s.slot, pin?.(s) ?? v3.add(P.get(s.parent), q4.rotate(qOf(qKey(s)), off.get(s.slot))));
     return P;
   };
-  // dump sanity: FK tips against the dump's own posed heads
-  let fkErr = 0, fkErrSlot = '';
+  // a slot's measured tip in the dump at source frame i (null when its end bone is missing)
+  const tipAt = (s, i) => (!s.end ? null : s.blend && s.at !== undefined ? v3.lerp(headAt(s.blend, i), headAt(s.end, i), s.at) : headAt(s.end, i));
+  // dump sanity: FK tips against the dump's own posed heads. A blend slot is rigid but the span its two bones make
+  // bends and shortens: its direction is exact, its tip misses by that change of length (`stretchMm`, reported apart);
+  // its measured tip is pinned here so the slots past it test the file alone.
+  let fkErr = 0, fkErrSlot = '', stretch = 0, stretchSlot = '';
   for (let i = 0; i < n0; i++) {
-    const P = fk(headAt('Hips', i), (b) => qSrc.get(b)[i]);
+    const qi = (b) => qSrc.get(b)[i];
+    const P = fk(headAt('Hips', i), qi, (s) => (s.blend && s.end ? tipAt(s, i) : null));
     for (const s of slots) {
       if (!s.end || s.slot === 'root') continue;
-      const e = v3.dist(P.get(s.slot), headAt(s.end, i));
+      if (s.blend) {
+        const e = v3.dist(v3.add(P.get(s.parent), q4.rotate(qi(qKey(s)), off.get(s.slot))), tipAt(s, i));
+        if (e > stretch) { stretch = e; stretchSlot = s.slot; }
+        continue;
+      }
+      const e = v3.dist(P.get(s.slot), tipAt(s, i));
       if (e > fkErr) { fkErr = e; fkErrSlot = s.slot; }
     }
   }
@@ -170,7 +198,7 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
       out.push(out.length ? q4.align(q, out[out.length - 1]) : q);
     }
     const P = fk(rootP, (b) => qOut.get(b)[k]);
-    for (const s of slots) { pos.get(s.slot).push(P.get(s.slot)); quat.get(s.slot).push(qOut.get(s.rot)[k]); }
+    for (const s of slots) { pos.get(s.slot).push(P.get(s.slot)); quat.get(s.slot).push(qOut.get(qKey(s))[k]); }
   }
   // floor: 5th percentile of the lowest foot point per frame (selfCheck's measure), moved to y = 0
   const low = [];
@@ -186,7 +214,7 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
   for (const p of h) excursion = Math.max(excursion, v3.distXZ(h[0], p));
   // still rotations (report only: every Mixamo channel is keyed, so nothing is `dead` in the CMU sense)
   const still = slots.filter((s) => s.kind !== 'offset' && s.kind !== 'hub' && s.kind !== 'alias' && s.slot !== 'root')
-    .filter((s) => qSrc.get(s.rot).every((q) => q4.between(q, qSrc.get(s.rot)[0]) < 1e-4)).map((s) => s.slot);
+    .filter((s) => qSrc.get(qKey(s)).every((q) => q4.between(q, qSrc.get(qKey(s))[0]) < 1e-4)).map((s) => s.slot);
   // the CMU-shaped skeleton: `dir` in the ASF file convention (x mirrored; consumers convert with asfamc toGameDir),
   // lengths in metres (`metres` 1), identity axes, so asfamc restPose / selfCheck run on it unchanged
   const I = m3.I();
@@ -201,7 +229,7 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     const d = len > 1e-9 ? v3.scale(o, 1 / len) : [0, 1, 0];
     skel.bones.set(s.slot, {
       id, name: s.slot, dof: s.kind === 'offset' || s.kind === 'hub' ? [] : ['rx', 'ry', 'rz'], axis: [0, 0, 0], axisOrder: 'XYZ',
-      dir: [-d[0], d[1], d[2]], length: len, C: I, Cinv: I, mixamo: { rot: s.rot, end: s.end, kind: s.kind },
+      dir: [-d[0], d[1], d[2]], length: len, C: I, Cinv: I, mixamo: { rot: s.rot, end: s.end, kind: s.kind, ...(s.blend ? { blend: s.blend } : {}) },
     });
     skel.parent.set(s.slot, s.parent);
     skel.children.set(s.parent, [...(skel.children.get(s.parent) ?? []), s.slot]);
@@ -212,6 +240,31 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     inPlace: travel < IN_PLACE_M, travel, facing: face,
   };
   const lens = (slot) => skel.bones.get(slot)?.length ?? 0;
+  // direction check (A6): at every source frame, the direction each Wren segment takes (its slot's rotation on the
+  // slot's rest span, exactly what retargetTake's rest correction gives Wren) against the matching Mixamo span measured
+  // from the dump's own heads (WREN_SPANS, independent of the slots), worst frame; plus the spine -> neck chord at
+  // Wren's lengths (the file's when no rig is given)
+  const has = (pt) => (Array.isArray(pt) ? pt.slice(0, 2) : [pt]).every((b) => res.full.has(b));
+  const ptAt = (pt, i) => (Array.isArray(pt) ? v3.lerp(headAt(pt[0], i), headAt(pt[1], i), pt[2]) : headAt(pt, i));
+  const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, v3.dot(v3.norm(a), v3.norm(b))))) * R2D;
+  const segDir = (j, i) => { const s = bySlot.get(MAP[j]); return q4.rotate(qSrc.get(qKey(s))[i], v3.norm(off.get(s.slot))); };
+  const spanName = (sp) => sp.map((p) => (Array.isArray(p) ? `${p[0]}+${r3(p[2])}${p[1]}` : p)).join('->');
+  const dirCheck = { limitDeg: DIR_LIMIT_DEG, segments: {}, chord: null, worstDeg: 0, worst: null, over: [] };
+  const worstOf = (f) => { let deg = 0, frame = 0; for (let i = 0; i < n0; i++) { const a = f(i); if (a > deg) { deg = a; frame = i; } } return { deg: r1(deg), frame }; };
+  const note = (name, e) => { if (e.deg >= dirCheck.worstDeg) { dirCheck.worstDeg = e.deg; dirCheck.worst = name; } if (e.deg >= DIR_LIMIT_DEG) dirCheck.over.push(name); };
+  for (const [j, sp] of Object.entries(WREN_SPANS)) {
+    if (!bySlot.has(MAP[j]) || !sp.every(has)) { dirCheck.segments[j] = null; continue; }
+    const e = { span: spanName(sp), ...worstOf((i) => ang(segDir(j, i), v3.sub(ptAt(sp[1], i), ptAt(sp[0], i)))) };
+    dirCheck.segments[j] = e;
+    note(j, e);
+  }
+  {
+    const { from, via, to, span } = WREN_CHORD;
+    const lA = rig ? v3.dist(rig.bind[via], rig.bind[from]) : lens(MAP[from]), lB = rig ? v3.dist(rig.bind[to], rig.bind[via]) : lens(MAP[via]);
+    const e = { span: spanName(span), lengths: rig ? 'wren' : 'mixamo', ...worstOf((i) => ang(v3.add(v3.scale(segDir(from, i), lA), v3.scale(segDir(via, i), lB)), v3.sub(ptAt(span[1], i), ptAt(span[0], i)))) };
+    dirCheck.chord = e;
+    note('chord', e);
+  }
   take.report = {
     slug, file: dump.file ?? null, sha256: dump.sha256 ?? null, prefix: res.prefix,
     fpsIn: dump.fps, framesIn: n0, framesOut: n, seconds: r3((n0 - 1) / dump.fps),
@@ -219,9 +272,11 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     facing: { turnDeg: r1(face.turnDeg), hipToeDeg: face.hipToeDeg === null ? null : r1(face.hipToeDeg), from: face.from },
     floorCm: r1(floorFeet * 100), floorMode: floor, travelCm: r1(travel * 100), excursionCm: r1(excursion * 100),
     inPlace: take.inPlace, fkErrMm: Math.round(fkErr * 1e5) / 100, fkErrSlot: fkErrSlot || null,
+    stretchMm: Math.round(stretch * 1e4) / 10, stretchSlot: stretchSlot || null,
     unknownBones: res.unknown, missingFingers: res.missingFingers, missingEnds: res.missingEnds, fallbacks, still,
     segments: Object.fromEntries(Object.keys(SEG_END).map((j) => [j, { slot: MAP[j], mixamo: r3(lens(MAP[j])), wren: null, ratio: null }])),
     leg: { mixamo: r3(lens('lfemur') + lens('ltibia')), wren: null, scale: null },
+    dirCheck,
   };
   if (rig) addWren(take.report, rig);
   return take;
@@ -261,9 +316,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   for (const slug of slugs) {
     const t = loadMixamoTake(slug, { rig });
     const c = selfCheck(t), r = t.report;
-    console.info(`${slug}: ${r.framesIn} f @${r.fpsIn} -> ${t.frames} f @${FPS} ${c.ok ? 'OK' : 'FAIL'} | facing ${r.facing.turnDeg} deg (${r.facing.from}) | floor ${r.floorCm} cm | travel ${r.travelCm} cm${r.inPlace ? ' (in place)' : ''} | fk ${r.fkErrMm} mm | leg ${r.leg.mixamo} m, scale ${r.leg.scale}`);
+    console.info(`${slug}: ${r.framesIn} f @${r.fpsIn} -> ${t.frames} f @${FPS} ${c.ok ? 'OK' : 'FAIL'} | facing ${r.facing.turnDeg} deg (${r.facing.from}) | floor ${r.floorCm} cm | travel ${r.travelCm} cm${r.inPlace ? ' (in place)' : ''} | fk ${r.fkErrMm} mm | blend stretch ${r.stretchMm} mm (${r.stretchSlot}) | leg ${r.leg.mixamo} m, scale ${r.leg.scale}`);
     for (const l of c.lines) console.info(`  ${l}`);
+    console.info(`  ratio wren/mixamo: ${Object.entries(r.segments).map(([j, s]) => `${j} ${s.ratio}`).join(', ')}`);
+    const dc = r.dirCheck, dd = (e) => (e ? `${e.deg}@${e.frame}` : '-');
+    console.info(`  dir (worst deg@frame): spine ${dd(dc.segments.spine)}, chest ${dd(dc.segments.chest)}, neck ${dd(dc.segments.neck)}, chord ${dd(dc.chord)} | all ${dc.worstDeg} (${dc.worst})${dc.over.length ? ` OVER ${dc.limitDeg}: ${dc.over.join(', ')}` : ''}`);
     if (!c.ok) bad++;
+    if (dc.over.length) bad++;
   }
   process.exit(bad ? 1 : 0);
 }
