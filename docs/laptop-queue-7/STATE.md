@@ -11,4 +11,8 @@ BRIEF.md and PLAN.md written (Opus planner); no code yet.
 - Plan checker FIX round 1 done (starvation bound over greens, carry from the newest final verdict, polish); slice F
   added from the Orchestrator's 09:48 audit.
 
-Next: plan checker re-check of the fix round and slice F, then slice A.
+Slice A done: lib.mjs prBoard :700, affectedNeeds conflicting :1010ish, conflictRetire :1042, conflictStatuses :1055;
+service.mjs env :PR_BOARD_MS / SKIP_CONFLICTING, affectedPass skip :469, prBoardNow :573, applyConflicts :1446, pass()
+call :1510; tests in "affected e2e on every PR head" (4 new). Vitest 156 pass, typecheck:fast clean.
+
+Next: slice B (front, green smallest-first, then arrival; uses `board`).

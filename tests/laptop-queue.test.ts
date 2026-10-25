@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -1179,6 +1179,49 @@ describe('affected e2e on every PR head', () => {
     // a lead's request on the head does not carry affected-e2e: still stuck
     expect(affectedNeeds([pr(5, pending)], [{ requester: 'lead', sha: SHA('5') }]).map((x: { stuck?: boolean }) => x.stuck)).toEqual([true]);
     for (const state of ['SUCCESS', 'FAILURE', 'ERROR']) expect(affectedNeeds([pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state }] })])).toEqual([]);
+  });
+  it('affectedNeeds: a CONFLICTING head comes back marked, MERGEABLE / UNKNOWN / missing stay plain', () => {
+    const got = affectedNeeds([pr(1, { mergeable: 'CONFLICTING' }), pr(2, { mergeable: 'MERGEABLE' }), pr(3, { mergeable: 'UNKNOWN' }), pr(4)]);
+    expect(got.map((x: { conflicting?: boolean }) => x.conflicting)).toEqual([true, undefined, undefined, undefined]);
+    // a final affected-e2e status (the error posted for the conflict) skips it, so the error is posted once per head
+    expect(affectedNeeds([pr(1, { mergeable: 'CONFLICTING', statusCheckRollup: [{ context: AFFECTED_CTX, state: 'ERROR' }] })])).toEqual([]);
+  });
+  it('prBoard: mergeable values, check + checker green, a failed / pending checker or missing rollup is not green', () => {
+    const ok = [{ name: 'check', conclusion: 'SUCCESS' }, { context: 'checker', state: 'SUCCESS' }];
+    const b = prBoard([
+      pr(1, { mergeable: 'CONFLICTING', statusCheckRollup: ok }),
+      pr(2, { mergeable: 'MERGEABLE', statusCheckRollup: ok }),
+      pr(3, { mergeable: 'UNKNOWN' }),
+      pr(4, { statusCheckRollup: [ok[0], { context: 'checker', state: 'FAILURE' }] }),
+      pr(5, { statusCheckRollup: [ok[0], { context: 'checker', state: 'PENDING' }] }),
+      pr(6, { statusCheckRollup: [{ name: 'check', conclusion: 'FAILURE' }, ok[1]] }),
+      pr(7, { statusCheckRollup: undefined }),
+      { headRefOid: SHA('9') },
+    ]);
+    expect(b.get(1)).toEqual({ head: SHA('1'), conflicting: true, green: true });
+    expect(b.get(2)).toEqual({ head: SHA('2'), conflicting: false, green: true });
+    expect(b.get(3)).toEqual({ head: SHA('3'), conflicting: false, green: false });
+    for (const n of [4, 5, 6, 7]) expect(b.get(n).green).toBe(false);
+    expect(b.size).toBe(7);
+    expect(prBoard(undefined).size).toBe(0);
+  });
+  it('conflictRetire: an affected request on the current conflicting head only (A1, A2); an empty board retires nothing', () => {
+    const a = (tag: string, n: number, sha: string, o: Record<string, unknown> = {}) => ({ id: idAt(10, tag), requester: AFFECTED_REQUESTER, kind: 'pr', set: 'affected', pr: n, sha, suites: ['smoke'], ...o });
+    const board = prBoard([pr(1, { mergeable: 'CONFLICTING' }), pr(2, { mergeable: 'UNKNOWN' }), pr(3, { mergeable: 'CONFLICTING' }), pr(4, { mergeable: 'CONFLICTING' })]);
+    const cur = a('c', 1, SHA('1'));
+    const filed = a('f', 4, SHA('4'), { requester: 'lead' });
+    expect(conflictRetire([cur, a('o', 1, SHA('8')), a('u', 2, SHA('2')), a('n', 3, SHA('3'), { set: 'coop', requester: 'lead' }), a('x', 7, SHA('7')), a('p', undefined as unknown as number, SHA('1')), filed], board)).toEqual([cur.id, filed.id]);
+    expect(conflictRetire([cur], new Map())).toEqual([]);
+    expect(conflictRetire(undefined, board)).toEqual([]);
+  });
+  it('conflictStatuses: both contexts for an auto or filed affected request, the PR number in the text', () => {
+    const r = { id: 'x', requester: AFFECTED_REQUESTER, kind: 'pr', set: 'affected', pr: 12, sha: SHA('a'), suites: ['smoke'] };
+    const description = 'not run: PR #12 conflicts with master (a new head runs again)';
+    const both = [{ sha: SHA('a'), state: 'error', context: 'laptop-e2e/affected', description }, { sha: SHA('a'), state: 'error', context: AFFECTED_CTX, description }];
+    expect(conflictStatuses(r)).toEqual(both);
+    expect(conflictStatuses({ ...r, requester: 'lead' })).toEqual(both);
+    expect(conflictStatuses({ ...r, requester: 'lead', set: 'coop' })).toEqual([{ sha: SHA('a'), state: 'error', context: 'laptop-e2e/coop', description }]);
+    expect(conflictStatuses(undefined)).toEqual([]);
   });
   it('affectedRequest: the request.mjs --affected shape, valid for requestProblem', () => {
     const r = affectedRequest({ now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-coop'], suffix: 'beef' });

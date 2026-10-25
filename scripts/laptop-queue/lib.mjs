@@ -692,6 +692,28 @@ export function readyHeads(prs, inTrain = () => false) {
   return out;
 }
 
+/**
+ * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup rows): Map pr number ->
+ * { head, conflicting, green }. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
+ * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. A row without a number or head is skipped.
+ */
+export function prBoard(rows) {
+  const out = new Map();
+  for (const p of Array.isArray(rows) ? rows : []) {
+    const head = String(p?.headRefOid ?? '');
+    if (!Number.isInteger(Number(p?.number)) || !head) continue;
+    const roll = p.statusCheckRollup ?? [];
+    const check = roll.find((s) => s?.name === 'check');
+    const checker = roll.find((s) => s?.context === 'checker');
+    out.set(Number(p.number), {
+      head,
+      conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
+      green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
+    });
+  }
+  return out;
+}
+
 /** Train-ready PRs whose check passed or still runs, not the open train members (readyHeads green + running). */
 export function readyOrPending(prs, inTrain = () => false) {
   const h = readyHeads(prs, inTrain);
@@ -987,12 +1009,13 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false 
 
 /**
  * The open PR heads the affected pass must handle now: [{ pr, sha, branch }], PR order kept. prs = `gh pr list --json
- * number,headRefName,headRefOid,isDraft,labels,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
+ * number,headRefName,headRefOid,isDraft,labels,mergeable,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
  * AFFECTED_SKIP_LABEL label, a head with a final affected-e2e status already (its StatusContext in the rollup: success,
  * failure or error), a head an affected request already names (`requests`: the open, claimed or running ones), and
  * one this process enqueued (`seen`, a Set of shas: the push the next listing has not caught up with). A head whose
  * affected-e2e is pending with no such request is stuck (its request was retired or withdrawn without a final status,
- * Orchestrator audit 2026-10-25) and is requested again: { pr, sha, branch, stuck: true }.
+ * Orchestrator audit 2026-10-25) and is requested again: { pr, sha, branch, stuck: true }. A head with mergeable
+ * CONFLICTING is listed with conflicting: true (the service posts the error once instead of running it).
  */
 export function affectedNeeds(prs, requests = [], seen = new Set()) {
   const have = new Set((requests ?? []).filter((r) => r?.requester === AFFECTED_REQUESTER).map((r) => r.sha));
@@ -1006,8 +1029,34 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
     const pending = Boolean(st) && String(st.state ?? '').toUpperCase() === 'PENDING';
     if (st && !pending) continue;
     if (have.has(sha) || seen.has(sha)) continue;
-    out.push({ pr: Number(p.number), sha, branch, ...(pending ? { stuck: true } : {}) });
+    out.push({ pr: Number(p.number), sha, branch, ...(pending ? { stuck: true } : {}), ...(String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING' ? { conflicting: true } : {}) });
   }
+  return out;
+}
+
+/**
+ * Ids of the open affected requests (set 'affected', automatic or filed) to retire unrun: their PR is on the board,
+ * CONFLICTING, and the board head is the request's sha (an older sha is superseded's job). A named-suite request (any
+ * other set) still runs. An empty board (a GitHub error) retires nothing.
+ */
+export function conflictRetire(requests, board) {
+  const out = [];
+  for (const r of requests ?? []) {
+    const b = r?.set === 'affected' && r.pr != null ? board?.get(Number(r.pr)) : null;
+    if (b?.conflicting && b.head === r.sha) out.push(r.id);
+  }
+  return out;
+}
+
+/**
+ * The statuses for an affected request retired as conflicting: its own laptop-e2e/affected error, and affected-e2e for
+ * an auto request or one filed with set affected (the context the pass and the PR's required check read).
+ */
+export function conflictStatuses(r) {
+  if (!r) return [];
+  const description = `not run: PR #${r.pr} conflicts with master (a new head runs again)`;
+  const out = [{ sha: r.sha, state: 'error', context: contextName(r.kind, r.set, r.suites ?? []), description }];
+  if (r.requester === AFFECTED_REQUESTER || r.set === 'affected') out.push({ sha: r.sha, state: 'error', context: AFFECTED_CTX, description });
   return out;
 }
 

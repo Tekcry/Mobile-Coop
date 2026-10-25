@@ -92,6 +92,10 @@
 // withdrawn before it ran posts error (two listings in a row, lib vanishedRequests / withdrawnStatuses; a laptop rerun
 // closes its own context too), and a head whose affected-e2e is pending with no open, claimed or running affected
 // request is requested again (lib affectedNeeds stuck).
+// Conflicts retire (laptop-queue-7): the PR board (lib prBoard, one gh call per LQ_PR_BOARD_S 60 s on both workers) knows
+// each open PR's mergeable state; a head CONFLICTING gets no auto request (error posted once), and an open affected
+// request on a conflicting current head is marked done unrun (lib conflictRetire / conflictStatuses). LQ_SKIP_CONFLICTING=0
+// runs them. UNKNOWN never skips; a lead's named-suite request still runs.
 // Slot locks (2026-10-25): heavy-lock.mjs parseLock reads both lock formats, so a desktop slot lock left by a killed
 // service ("laptop-queue | ... pid <n> | <iso>", pid dead here) is broken at the gate like a dead heavy-lock line.
 import { execFileSync, spawn } from 'node:child_process';
@@ -100,7 +104,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -138,6 +142,8 @@ const POLL_MS = 30_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000; // laptop: the affected pass (0 = off)
 const SPARE_IDLE_MIN = Number(process.env.LQ_SPARE_IDLE_MIN ?? 5); // laptop: spare work after this many idle min (0 = off)
+const PR_BOARD_MS = Number(process.env.LQ_PR_BOARD_S ?? 60) * 1000; // both workers: the PR board read (lib prBoard)
+const SKIP_CONFLICTING = process.env.LQ_SKIP_CONFLICTING !== '0'; // 0 = a conflicting PR head still runs
 const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
@@ -435,7 +441,7 @@ const affectedLogged = new Set();
 function affectedPass() {
   lastAffected = Date.now();
   try {
-    const prs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid,isDraft,labels,statusCheckRollup']) || '[]');
+    const prs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid,isDraft,labels,mergeable,statusCheckRollup']) || '[]');
     const heads = new Set(prs.map((p) => p.headRefOid));
     for (const s of affectedSeen) if (!heads.has(s)) affectedSeen.delete(s);
     const reqs = [...openListed, ...activeReqs.values(), ...otherActive];
@@ -458,6 +464,12 @@ function affectedPass() {
       if (got.suites.length === 0) {
         postStatus(n.sha, 'success', AFFECTED_CTX, 'no browser suites (docs / unit only)');
         affectedSeen.add(n.sha);
+        continue;
+      }
+      if (n.conflicting && SKIP_CONFLICTING) {
+        postStatus(n.sha, 'error', AFFECTED_CTX, `not run: PR #${n.pr} conflicts with master (a new head runs again)`);
+        affectedSeen.add(n.sha);
+        if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`affected: #${n.pr} ${n.sha.slice(0, 8)}: CONFLICTING, not run`); }
         continue;
       }
       const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, suffix: randomBytes(2).toString('hex') });
@@ -550,6 +562,21 @@ let soonLogged = '';
 let aloneSoonLogged = '';
 let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
+/** The open PR board (lib prBoard), read by prBoardNow every LQ_PR_BOARD_S s; empty after a GitHub error. */
+let board = new Map();
+let lastBoard = 0;
+
+/**
+ * Reads the open PRs once per LQ_PR_BOARD_S (both workers) into `board`. A GitHub error leaves it empty: nothing is
+ * skipped and nothing is green, never act on a GitHub error.
+ */
+function prBoardNow() {
+  if (Date.now() - lastBoard < PR_BOARD_MS) return;
+  lastBoard = Date.now();
+  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup']) || '[]')); }
+  catch (e) { board = new Map(); log(`pr board read failed: ${String(e.message).split('\n')[0]}`); }
+}
+
 /** Train-ready PRs this pass (readyNow): green / running heads and the green ones' first-seen-green times (ms). */
 let ready = { green: [], running: [], firstSeen: [] };
 
@@ -1412,6 +1439,29 @@ function applyDuplicates(requests) {
 }
 
 /**
+ * Retires the open affected requests whose PR head conflicts with master (lib conflictRetire) as done unrun, in one
+ * push like applyDuplicates, and posts their error statuses (lib conflictStatuses). LQ_SKIP_CONFLICTING=0: none.
+ * A lost push is retried next pass.
+ */
+function applyConflicts(requests) {
+  if (!SKIP_CONFLICTING) return requests;
+  const ids = conflictRetire(requests, board);
+  if (ids.length === 0) return requests;
+  const date = new Date().toISOString();
+  if (!DRY && writeClaims(ids, 'done', `conflict ${ids.length} request(s)`) !== true) { log(`conflict push failed for ${ids.length} request(s), retried next pass`); return requests; }
+  for (const id of ids) {
+    const r = requests.find((x) => x.id === id);
+    log(`${id}: not run, PR #${r.pr} conflicts with master`);
+    if (DRY) continue;
+    state.done[id] = { result: 'conflict', date };
+    doneSynced.add(id);
+    for (const s of conflictStatuses(r)) postStatus(s.sha, s.state, s.context, s.description);
+  }
+  saveState();
+  return requests.filter((r) => !ids.includes(r.id));
+}
+
+/**
  * Desktop: the train heads it may take now and why none ('' when it may), from the laptop's claim pushes on the branch
  * (desktopTrainGate; pendingTrains only runs while the laptop is silent).
  */
@@ -1447,6 +1497,7 @@ function trainBuilding() {
 async function pass() {
   // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
   const requests = listRequests().filter((r) => !claimed.has(r.id));
+  prBoardNow();
   const dt = DESKTOP ? desktopTrains() : null;
   for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
   // realOpen: a real request on the full listing (before the hold filters below) keeps a spare from starting (lib pick)
@@ -1456,7 +1507,7 @@ async function pass() {
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
   // supersede and duplicates on the full list (before the alone hold and the desktop's pr filter); the desktop waits for
   // claims on the branch like its gate does
-  else if (!(DESKTOP && claimCount === 0)) queue.requests = applyDuplicates(applySupersedes(queue.requests));
+  else if (!(DESKTOP && claimCount === 0)) queue.requests = applyConflicts(applyDuplicates(applySupersedes(queue.requests)));
   // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
   // an alone request held past ALONE_AGE_MIN still stops new pr / full claims (only train reruns start), so the slots
   // drain for it while the train runs; only while the train can clear the hold by running (lib holdClears) (Orchestrator audit 2026-10-24: 3 newer PR requests went first at 07:25Z)
