@@ -83,7 +83,7 @@ At the save (05:30, 2026-10-26, branch feature/mixamo-i9 on I7 7b076225; I6 cccb
 At the save (2026-10-26 ~08:50, feature/mixamo-i9):
 - Merged origin/feature/mixamo-i6 (9f5847d04). Dump done: all 123 new files dumped (161 in build/mocap/mixamo/raw; heavy.lock taken and released in the same command; no Blender running). Take self-check 123/123 OK, leg scale 0.993 on every pack.
 - I7 parts done (uncommitted before this save): mixamoDup.mjs (0 duplicates under 1 cm; aa_walking 3.8, aa_run_to_stop 1.8, aa_crouched_sneaking_left 4.9 cm: kept, Studio only), emitter travel -z / auto, mirror, place, pack titles; mixamoTake mirrorTake / travelHeading; KeyedTravel '-z'; studio.ts glob for clips/mixamo/studio/.
-- I9: 108 keyed recipes, all emitted (24 game, 84 studio/), 108 Studio rows, 108 credits rows. 5 gaits fell back to loops (pistol_run_arc, pistol_run_backward_arc, rifle_sprint_backward(_left/_right)).
+- I9: 108 keyed recipes, all emitted (24 game, 84 studio/), 108 Studio rows, 108 credits rows. 24 gaits fell back to loops (19 duty 0: toe-first / backward contacts, 5 no clean strikes; 4 of them game slots: I9-REPORT "Numbers").
 - Left: fix 2 test fails (pistol_strafe planted-foot errs 0; aa_left_turn row cycle 0.017 < 0.2), tsc rerun, CLIPS.md check, I9-REPORT, changes/feature-mixamo-i9.md, final STATE.
 
 I7 + I9 built (2026-10-26, feature/mixamo-i9): see [I9-REPORT.md](I9-REPORT.md).
