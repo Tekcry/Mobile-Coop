@@ -24,6 +24,9 @@
 // ai.anim (EnemyManager.frameUpdate: the guards' rigs); nav.findPath / nav.lineClear / nav.flowField; ray.perceive /
 // ray.torch / ray.ai (other guard rays) / ray.other (player, weapons): physics raycastToRef calls and ms; light.totalAt.
 // Render extras: the light rig's shadow pool size and the shadow casters lit, flashlights on, guards per alert level.
+// (guard-cap T1-SHADOW) The counted render sample also times the anim tier where it acts (EnemyManager.frameUpdate per
+// real frame, ms) and counts per frame the guards solved, not camera-drawn and seen by the shadow rule (`anim`); the
+// tier's own shadow test runs in the after-evaluation observer, so its cost lands in eval ms (reported beside it).
 //
 // Usage (the laptop, port 4189, after `npm ci` + `npm run build`, from the repo root; headless, never headed; ~2 min per
 // map x count):
@@ -367,6 +370,12 @@ async function pageRender([secs, counted]) {
   let de = null;
   let da = null;
   let o1 = null, o2 = null, o3 = null;
+  // (guard-cap T1-SHADOW) the anim tally: EnemyManager.frameUpdate ms per frame, then per frame
+  // [anim ms, guards solved, guards not camera-drawn, guards seen by the shadow rule]
+  const animRows = [];
+  let animMs = 0;
+  const emA = g.enemyMgr;
+  let fu0 = null;
   // (review G3) shadow-map renders counted a second way, from each light's shadow map itself (not its RT label)
   let smRenders = 0;
   const smObs = [];
@@ -397,10 +406,33 @@ async function pageRender([secs, counted]) {
       if (fill === 0 || fill === 7) tris += (count / 3) * Math.max(1, inst ?? 1);
       return da.call(this, fill, start, count, inst);
     };
+    // (T1-SHADOW) on top of pageInstall's wrapper (gated by S.on, off here); restored in the finally
+    fu0 = emA.frameUpdate;
+    emA.frameUpdate = function (...a) {
+      const t = performance.now();
+      try {
+        return fu0.apply(this, a);
+      } finally {
+        animMs += performance.now() - t;
+      }
+    };
     o1 = scene.onBeforeActiveMeshesEvaluationObservable.add(() => { evalT = performance.now(); });
     o2 = scene.onAfterActiveMeshesEvaluationObservable.add(() => { evalMs += performance.now() - evalT; });
     o3 = scene.onAfterRenderObservable.add(() => {
       counts.push([draws, tris, shadowRts.size, scene.getActiveMeshes().length, evalMs, smRenders]);
+      // (T1-SHADOW) after this render: `seen.camFrame` / `shadowFrame` hold its frame id when it drew / marked him
+      const fid = scene.getFrameId();
+      let solves = 0, off = 0, shadow = 0;
+      for (const e of emA.enemies) {
+        const at = e.alive ? e.animTier : null;
+        if (!at) continue;
+        if (!at.skipped) solves++;
+        const sn = at.seen;
+        if (sn && (sn.camFrame ?? sn.frame) !== fid) off++;
+        if (sn && sn.shadowFrame === fid) shadow++;
+      }
+      animRows.push([animMs, solves, off, shadow]);
+      animMs = 0;
       smRenders = 0;
       draws = 0;
       tris = 0;
@@ -429,6 +461,7 @@ async function pageRender([secs, counted]) {
       scene.onBeforeActiveMeshesEvaluationObservable.remove(o1);
       scene.onAfterActiveMeshesEvaluationObservable.remove(o2);
       scene.onAfterRenderObservable.remove(o3);
+      if (fu0) emA.frameUpdate = fu0;
       for (const [sm, o] of smObs) sm.onBeforeRenderObservable.remove(o);
     }
     if (q) gl.deleteQuery(q);
@@ -448,6 +481,7 @@ async function pageRender([secs, counted]) {
     gpu,
     gpuTimer: !!ext,
     counts,
+    anim: counted ? animRows : null,
     passes: [...byPass].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, v]) => [k, +v.toFixed(1)]),
     state: {
       alive: em.alive,
@@ -542,6 +576,16 @@ function renderSummary(clean, counted) {
     activeMeshes: counted ? summary(col(counted.counts, 3)) : null,
     evalMs: counted ? summary(col(counted.counts, 4)) : null,
     shadowMapRenders: counted ? summary(col(counted.counts, 5)) : null,
+    // (T1-SHADOW) the anim tier in the counted sample: ms per frame, guards per frame
+    anim: counted?.anim?.length
+      ? {
+          ms: summary(col(counted.anim, 0)),
+          solvesPerFrame: summary(col(counted.anim, 1)).mean,
+          offscreenPerFrame: summary(col(counted.anim, 2)).mean,
+          shadowSeenPerFrame: summary(col(counted.anim, 3)).mean,
+          frames: counted.anim.length,
+        }
+      : null,
     passes: counted?.passes ?? [],
     state: clean.state,
   };
@@ -599,6 +643,9 @@ async function runPage(map, n, ctl) {
       try {
         Object.assign(rec, await withTimeout(fn(), CELL_TIMEOUT, `${map} x ${n} ${name}`));
         log(`${map} x ${n} ${name}: ${rec.sim ? `sim step med ${rec.sim.stepClean.med} p95 ${rec.sim.stepClean.p95} ms (ai ${rec.sim.buckets['ai.manager'].med}); ` : ''}frame med ${rec.render.frameMs.med} ms (${rec.render.fps} fps), cpu ${rec.render.frameCpuMs.med} (sim frames ${rec.render.frameCpuMsWithSim.med}, ${rec.render.cpuMsPerSimStep} per 1/60 s of sim), gpu ${rec.render.gpuMs?.med ?? 'n/a'}, draws ${rec.render.draws?.med}, shadow passes ${rec.render.shadowPasses?.med} / maps ${rec.render.shadowMapRenders?.med}`);
+        // (T1-SHADOW) the anim tally (counted sample)
+        const an = rec.render.anim;
+        if (an) log(`${map} x ${n} ${name}: anim ${an.ms.mean} / ${an.ms.p95} ms per frame (mean / p95), solves ${an.solvesPerFrame}, off-screen ${an.offscreenPerFrame}, shadow-seen ${an.shadowSeenPerFrame} per frame; eval ${rec.render.evalMs?.mean} ms mean`);
         for (const fl of rec.flags ?? []) {
           log(`${map} x ${n} ${name}: FLAG ${fl}`);
           results.flags.push(`${map} x ${n} ${name}: ${fl}`);
@@ -764,6 +811,13 @@ function csvCols() {
   ['shadow_map_renders_med', (c) => c.render?.shadowMapRenders?.med],
   ['active_meshes_med', (c) => c.render?.activeMeshes?.med],
   ['eval_med_ms', (c) => c.render?.evalMs?.med],
+  // (T1-SHADOW) the anim tally (counted sample)
+  ['eval_mean_ms', (c) => c.render?.evalMs?.mean],
+  ['anim_ms_mean', (c) => c.render?.anim?.ms.mean],
+  ['anim_ms_p95', (c) => c.render?.anim?.ms.p95],
+  ['anim_solves_per_frame', (c) => c.render?.anim?.solvesPerFrame],
+  ['anim_offscreen_per_frame', (c) => c.render?.anim?.offscreenPerFrame],
+  ['anim_shadow_seen_per_frame', (c) => c.render?.anim?.shadowSeenPerFrame],
   ['shadow_pool', (c) => c.render?.state.shadowPool],
   ['shadow_lit', (c) => c.render?.state.shadowLit],
   ['torches_on', (c) => c.render?.state.torchesOn],
@@ -869,6 +923,18 @@ function resultsMd(R) {
       L.push(`| ${c.count} | ${c.cell} | ${mp(r.frameMs)} | ${r.fps ?? '-'} | ${mp(r.frameCpuMs)} | ${r.framesWithSim} / ${r.framesNoSim} | ${mp(r.frameMsWithSim)} | ${mp(r.frameCpuMsWithSim)} | ${mp(r.frameCpuMsNoSim)} | ${r.cpuMsPerSimStep ?? '-'} | ${f(r.loopSimMsPerStep)} | ${mp(r.renderCpuMs)} | ${r.gpuMs ? mp(r.gpuMs) : 'n/a'} | ${f(r.draws)} | ${f(r.trisM)} | ${f(r.shadowPasses)}${r.shadowPassesSuspect ? ' (suspect)' : ''} | ${f(r.shadowMapRenders)} | ${f(r.activeMeshes)} | ${f(r.evalMs)} | ${s.shadowPool ?? '-'} / ${s.shadowLit ?? '-'} | ${s.torchesOn ?? '-'} of ${s.torchSlots ?? '-'} | ${Object.entries(r.levelsStart ?? {}).map(([k, v]) => `${k} ${v}`).join(', ')} -> ${Object.entries(s.levels).map(([k, v]) => `${k} ${v}`).join(', ')} |`);
     }
     L.push('');
+    // (T1-SHADOW) the anim tier in the counted render sample
+    const an = ok.filter((x) => x.map === m && x.render.anim);
+    if (an.length) {
+      L.push('### Anim tier (counted render sample, per frame)', '');
+      L.push('| N | cell | anim ms mean / p95 | solves | not camera-drawn | shadow-seen | eval ms mean | frame CPU med / p95 | CPU per 1/60 s sim |');
+      L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+      for (const c of an) {
+        const r = c.render;
+        L.push(`| ${c.count} | ${c.cell} | ${f(r.anim.ms, 'mean')} / ${f(r.anim.ms, 'p95')} | ${r.anim.solvesPerFrame ?? '-'} | ${r.anim.offscreenPerFrame ?? '-'} | ${r.anim.shadowSeenPerFrame ?? '-'} | ${f(r.evalMs, 'mean')} | ${mp(r.frameCpuMs)} | ${r.cpuMsPerSimStep ?? '-'} |`);
+      }
+      L.push('');
+    }
     // per-guard slopes between the smallest and largest count measured (patrol/facing and alert/facing)
     for (const cellName of ['patrol/facing', 'alert/facing']) {
       const cs = ok.filter((x) => x.map === m && x.cell === cellName).sort((a, b) => a.count - b.count);
