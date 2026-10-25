@@ -66,10 +66,12 @@ export function buildCampus(): Campus {
 export function writePlan(): Plan {
   const c = buildCampus();
   const man = join(CACHE, c.h, `${MAP_ID}.json`);
+  // (cached: the manifest holds this key and every file it names is there; a partial restore bakes again)
   let cached = false;
   if (existsSync(man)) {
     try {
-      cached = (JSON.parse(readFileSync(man, 'utf8')) as { key?: string }).key === c.key;
+      const m = JSON.parse(readFileSync(man, 'utf8')) as { key?: string; files?: { name: string }[] };
+      cached = m.key === c.key && Array.isArray(m.files) && m.files.length > 0 && m.files.every((f) => existsSync(join(CACHE, c.h, f.name)));
     } catch {
       cached = false;
     }

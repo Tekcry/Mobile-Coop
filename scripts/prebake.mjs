@@ -1,7 +1,8 @@
 // (map-ready S4, fix (2)) The campus lamps baked at build time (`npm run build` runs this first; brief
 // docs/map-ready/briefs/S4.md, BRIEF A15). Never committed: the files go to `.prebake-cache/` (gitignored; CI keeps it
 // with actions/cache) and the build emits them as `bakes/*` (scripts/prebake/emit.ts).
-//   PREBAKE=0 node scripts/prebake.mjs     -> "prebake skipped": the build ships no bake, the PC bakes as today
+//   PREBAKE=0 node scripts/prebake.mjs     -> "prebake skipped" (and `current.json` removed): the build ships no bake,
+//                                             the PC bakes as today
 //   PREBAKE_THREADS=<n> node scripts/prebake.mjs  (default: all cores but one, at most 4)
 // Phases (vitest runs the TS in Node, scripts/prebake/vitest.prebake.config.ts):
 //   (a) plan.prebake: campusOps built as the game builds it, the game's lamp key -> .prebake-cache/plan.json; when
@@ -23,6 +24,8 @@ const FILE_CAP = 16 * 1024 * 1024;
 const MAP_CAP = 48 * 1024 * 1024;
 
 if (process.env.PREBAKE === '0') {
+  // (an earlier run's `current.json` would still be emitted: the build ships no bake, so it goes)
+  rmSync(join(CACHE, 'current.json'), { force: true });
   console.log('prebake skipped');
   process.exit(0);
 }
