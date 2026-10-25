@@ -6,10 +6,8 @@
   "kind": "pr",
   "requester": "Night Shift | Guard AI Build",
   "suites": [
-    "e2e-stealth-ai",
-    "e2e-sectorops",
-    "e2e-stealth"
+    "e2e-stealth-ai"
   ],
   "set": "mh-s1a2-early",
-  "note": "J26 S1a-2 fix head early run (stacked on J15 PR4, no PR yet)"
+  "note": "J26 S1a-2 fix head early run (stacked on J15 PR4, no PR yet) | trimmed to the area suite (queue audit)"
 }
