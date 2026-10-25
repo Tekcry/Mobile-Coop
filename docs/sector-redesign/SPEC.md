@@ -142,11 +142,18 @@ jammer, a route round, shooting them, or (EW10) the security desk. Total 13 > th
 **Lasers (R5).** Raise an alarm stage, never kill; each has one power panel (jam it to cut the bands), visible from
 the near side, with a reason. Drawn in night vision only (engine fact): every laser fixture is a visible emitter box.
 
-**Lighting rules (M9; LR1-LR12 applied, A33-A44).** Working areas are lit with a visible fitting, a circuit (`group`) and a
+**Lighting rules (M9; LR1-LR12 applied, A33-A44).** *Superseded in part by G329 (2026-10-25, DECISIONS, higher than this
+doc), docs/level-design.md 5.5 interim rule and scale sheet section 9: every space is lit to the real-world band for its
+type (car parks and roads AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464), values set by the light-realism job (ROADMAP
+Now row 10; open question 1b L10, no lux values here). Stealth comes only from real gaps (between poles, under carports,
+behind cars, cut circuits, shot lamps), never from leaving a lit place unlit. The 40-60% shadow share yields to the band.
+Where the standby fill (0.14) and "dark only where nobody works" below read as a darker-than-band default, the band
+wins; the fill number is a tuning input, not a target.* Working areas are lit with a visible fitting, a circuit (`group`) and a
 switch or board where a real one would be (LS 5.1, 16.8.1). Encounter spaces use a standby fill under the shadow
 line, `ambientZone` 0.14 (LR7 applied, A10 / A39), so a cut circuit is true
 dark for picture, meter and guards. Outdoors: moon + sodium columns; transit spaces and connectors 0.30. Dark only
-where nobody works, each dark pocket named with its reason. "Breakers" and "boards" are real boards since EW8 (A11):
+where nobody works, each dark pocket named with its reason (G329: a pocket is a real gap or a cut circuit, never a
+lit place left unlit). "Breakers" and "boards" are real boards since EW8 (A11):
 guards relight cut breakers and boards (guard-ai S15, LR16-4); timed isolators stay the player's. A light cut draws the
 nearest calm armed guard within 25 m (engine `lightsOut`); the S2 reception panel is the one untimed board (lure #1). **Co-op light parity needs slice L (protocol 31)** before any co-op playtest
 that cuts a light (EF7).
@@ -157,7 +164,7 @@ guard-ai's alarm response teams. The tables' enforcer rows place an officer, S5'
 runner, heavy, sniper or droneOp (A3, A12; droneOp is not mirrored in co-op). Dogs are melee animals at a handler's
 heel (A2). Every guard has an employer (Larchmont), a job, a reason at each stop, a cycle of 25-45 s with stops 3-6 s,
 an isolation moment (LS 4.4: spot and second, written in the slice's guard sheet) and an overlap partner (LS 4.5).
-Data tags per guard (our data, guard-ai reads them): `post | zone | squad | reason`. Counts 8 / 12 / 16 / 20 / 24 with
+Data tags per guard (our data, guard-ai reads them): `post | zone | squad | reason`. Counts 8 / 12 / 16 / 20 / 24 (superseded by G328 / G362 and G331 / G332, see the S5 note; campus-greybox, ROADMAP row 9) with
 `perStage` 2 and `alarmMax` 3: S5 peaks at 24 + 6 = 30 <= `SECTOR.maxAlive` 32 and `MAX_ENEMIES` 32 (EF2). Dogs count.
 Perf (guard-cap #180, A64): render-bound, ~4-6 visible awake guards fit 60 Hz at Epic. Counts stay; no more than 6
 awake guards on screen at once from any player position (layout breaks the view); far guards tagged `dormant: true`
@@ -176,8 +183,9 @@ alerts, GA6 aggressive reinforcements with flank / cover / report. Until GA2 lan
 (lockdown, lights to full, the response team's deploy route); fallback: stage reinforcements only.
 
 **Observation (R8, LS 3.1).** Each space opens on a two-person vantage out of every guard's view for the whole cycle,
-from which every guard there is seen within one cycle. Vantages are dark or occluded (A23); those
-that rely on occlusion are marked (A23).
+from which every guard there is seen within one cycle. Vantages are dark or occluded (A23, retired
+2026-10-25 by G329: each vantage gets a real occluder or a cuttable circuit instead, never a dark pocket in a lit place);
+those that rely on occlusion are marked.
 
 ---
 
@@ -240,7 +248,10 @@ and x -40 / x 26; the HQ south facade (z -30) and the lab block's west flank clo
 | alarm-gh | Alarm panel in the gatehouse by the door | The site | Where the officer raises it | Inside a lit room with two officers | - |
 Lasers: none (outdoors; R2-CT: lasers come with assets). Keypads: none (S2 teaches them).
 
-**Lighting.** Lit: sodium columns on the car park (two groups: `s1-park-w` (8 columns), `s1-park-e` (6), cut at the
+**Lighting.** *(S1 car park levels: the 14 columns and the lit-to-dark split below predate G329 "car parks are generally
+well lit"; the numbers are reset by the light-realism job against the car-park band, and the band values wait on the open
+question 1b L10 of docs/conformance-sector-ops/CONFORMANCE.md. Gaps stay as the real ones named here: between poles,
+behind cars, the cut west-half board, a shot column.)* Lit: sodium columns on the car park (two groups: `s1-park-w` (8 columns), `s1-park-e` (6), cut at the
 feeder pillar board), lane floodlight (photocell, shot only), gatehouse interior (switch by its door: lure #1), canopy
 downlights (C1 door circuit; switch inside C1: not cuttable from S1), forecourt bollards (`s1-fore`, board in the
 delivery yard). Dark by reason: the verge (outside the lit site), the bin-store lane (no fitting behind the fence), the
@@ -435,6 +446,9 @@ From the plant deck through the NOC roof light: #14-15. The dog is heard before 
 stays at heel), reinforce at the dock and the UPS corridor; stage 3 +2 grunts.
 
 ### S5 - The Old House (24 guards incl. 2 dogs, ~10 min, tension 5, the set piece)
+*(Count superseded by G328 / G362: two-player counts S1 15, S2 18, S3 20, S4 25, S5 26; 3-4 players add tagged extras,
+G331; cap 32, G332. Built by campus-greybox, ROADMAP Now row 9. The 24 and the 8 / 12 / 16 / 20 / 24 ramp in this doc are
+the v1 plan.)*
 **Footprint** x -66..-26, z 18..48 (40 x 30). Brick, G 0 (4.2), L1 4.2, lead roof 8.4 with a 1.1 parapet; stair hall
 with a first-floor gallery (centre); inner light well (x -48..-44, z 30..34, open to the sky, no door, a window into
 the anteroom); walled garden (W, 2.8 walls); lake terrace (N) to the boathouse jetty (extraction x -50..-40, z 60..66).
@@ -533,7 +547,11 @@ a player downed on the top is revived).
   on." / "You want three things: the prototype board, the build logs and the key that signs them." / "Larchmont runs
   the guarding. Armed, bored, and tonight they have a ceremony to watch." / "Gate, offices, labs, data hall, then the
   Old House. Lights are on everywhere. Make your own dark."
-- Objectives in route order: S1 download, S2 hack, S3 grab, S4 download, S5 grab + extract.
+- Objectives in route order: S1 download, S2 hack, S3 grab, S4 download, S5 grab + extract. *(Review M4: each objective
+  line must name what and where, short (VISION 4 rule 5; G336, G343, G351); S1, S3, S4, S5 lines give no place today.
+  Review M3: the `extract` zone has no world marker in Sector Ops, no beacon or pole (VISION 4 rule 5; level-design 6.4,
+  G290); the door, signs and light guide. Review M8: S4 / S5 guards get helmets by difficulty, not a section tag (G350);
+  armour may stay as G307 late armour. Notes only, no redesign.)*
 - Per section in `SectorDef`: `reinforce` (2-3 points each, named above), `perStage` 2, `alarms`, `switches`,
   `hideSpots`, `routes` (the M8 check data), `bolts` none.
 
@@ -568,7 +586,7 @@ Michael ~01:42: "Apply, logged and undoable". Applied **for this map only** as a
 with its undo); `docs/level-design.md`, the template and the bible are not edited. The design above is built to them.
 | A | # | Rule | Applied as | Why | Used by | Undo |
 | --- | --- | --- | --- | --- | --- | --- |
-| A23 | P1 | LS 3.1 dark entry vantage | Out of every guard's view by darkness or occlusion (same as LR2) | A lit site has few dark doorways | S2 SW stair door, S3 C2 landing | Each occlusion vantage gets a dark pocket |
+| A23 | P1 | LS 3.1 dark entry vantage | ~~Out of every guard's view by darkness or occlusion (same as LR2)~~ **Retired 2026-10-25 (G329): each vantage gets a real occluder or a cuttable circuit instead.** | ~~A lit site has few dark doorways~~ | S2 SW stair door, S3 C2 landing | ~~Each occlusion vantage gets a dark pocket~~ (the undo became the rule: G329 allows no dark pocket in a lit place) |
 | A24 | P2 | LS 3.5 stepping stones 4-8 m | A light cuttable from the route counts | M1 "make shadows" | S1 car park, S4 cold aisles | Add cover / hide spots at 4-8 m |
 | A25 | P3 | LS 5.1 | Lit default with standby fill (LR1, LR7) | M9 | all | Ambient 0.30, darker default |
 | A26 | P4 | LS 5.2 two ways to darken | One way, or crossed by timing, at a deliberate lit test | Photocell columns, S3 viewing corridor | S1, S3 | Add a second way (board / jam) |
