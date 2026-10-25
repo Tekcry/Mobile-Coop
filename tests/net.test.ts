@@ -972,6 +972,27 @@ describe('coop4 N1: slots on the wire, Sector Ops cap 4 (A1, A19)', () => {
     expect(host.players.size).toBe(2);
     expect(host.slotOf('B')).toBe(-1);
   });
+
+  it('(coop4 D4) a room cap below the mode holds a Sector Ops room at 2; 0 restores the mode cap; never above it', () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('sector', 'warehouseOps', 'normal');
+    expect(host.cap).toBe(capacity('sector'));
+    host.roomCap = 2;
+    expect(host.cap).toBe(2);
+    new NetSession(h.make('A'), 'client', 'ABCDE', prof('A'));
+    const b = new NetSession(h.make('B'), 'client', 'ABCDE', prof('B'));
+    let full = false;
+    b.events.on('full', () => (full = true));
+    b.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'B', tag: {}, look: {} }, 'H');
+    expect(full).toBe(true);
+    expect(host.players.size).toBe(2);
+    expect(host.overCapacity).toBe(false);
+    host.roomCap = 9;
+    expect(host.cap).toBe(capacity('sector'));
+    host.roomCap = 0;
+    expect(host.cap).toBe(capacity('sector'));
+  });
 });
 
 import { applyOpenTraps, GAP_HOST_SLACK, GAP_MENU, hostTrapKey, openTrapGaps, pickOpenTrap } from '../src/game/gapMenu';

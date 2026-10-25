@@ -30,7 +30,8 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
 - `NetMode`: `sandbox | clear | infiltration | course | sector`. `capacity(mode)` (`protocol.ts`) is how many players a
   mode takes; it gates joins (`NetSession`'s hello) and `startMatch` (`overCapacity`), and the lobby shows that many
-  seats:
+  seats. (coop4 D4) The host's `NetSession.roomCap` may hold a room below its mode (`cap` = the lower; 0 = the mode's):
+  a campaign mission running in Sector Ops sets 2 (G2). Host side only: a client's lobby still shows the mode's seats:
 
   | Mode | Cap | Constant |
   | --- | --- | --- |

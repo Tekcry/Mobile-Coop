@@ -2,7 +2,8 @@
 kind: minor
 
 - Sector Ops co-op now takes up to 4 players, on both maps (Saltmarsh Park and the Warehouse). Solo, 2, 3 and 4 players
-  all start from the lobby. Marlow Yard (the campaign) stays exactly 2 players and plays as before.
+  all start from the lobby. Marlow Yard stays exactly 2 players and plays as before. The host can hold a room below its
+  mode's cap, so a campaign mission played in Sector Ops can keep its room at exactly 2.
 - The co-op wire changed (a new player slot on every lobby entry, per-player jammer lists, rounded Sector Ops snapshots).
   The train build bumps `PROTOCOL_VERSION` once for the job; an older build cannot join a newer host.
 - Player slots (N0, N1): every player has a fixed slot 0-3 for the match. The host is slot 0 and a joiner takes the

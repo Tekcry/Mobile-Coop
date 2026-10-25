@@ -102,7 +102,7 @@ class CoopController {
     const s = this.session;
     if (!this.isPublic || this.left || !s.isHost) return null;
     const players = [...s.players.values()].filter((p) => !p.away).length;
-    const cap = capacity(s.mode);
+    const cap = s.cap;
     if (s.players.size >= cap) return null;
     return { code: s.code, map: s.map, mode: s.mode, v: LISTED_VERSION, players, cap, host: s.players.get(s.selfId)?.name ?? 'Operator' };
   }
@@ -482,7 +482,7 @@ class LobbyScreen extends MenuScreen {
     const s = this.c.session;
     const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
     // one slot per seat the mode takes (Sector Ops up to 4, Campaign 2)
-    const slots = Math.max(capacity(s.mode), ps.length);
+    const slots = Math.max(s.cap, ps.length);
     const hostName = ps.find((p) => p.host)?.name ?? '';
     this.head.textContent = `Room ${s.code} · ${s.isHost ? 'you host' : hostName ? `host: ${hostName}` : 'connecting'}`;
     this.list.replaceChildren(
@@ -498,7 +498,7 @@ class LobbyScreen extends MenuScreen {
       ),
       ...Array.from({ length: Math.max(0, slots - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
     );
-    const cap = capacity(s.mode);
+    const cap = s.cap;
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
     else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
     else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code to invite your teammates.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
@@ -632,7 +632,7 @@ class LobbyScreen extends MenuScreen {
         autofocus: true,
         key: 'start',
         desc: 'Start the mission for everyone in the room.',
-        blocked: s.overCapacity ? `Too many players for this mode (${capacity(s.mode)})` : !solo && !s.allReady ? 'Waiting for players to ready up' : undefined,
+        blocked: s.overCapacity ? `Too many players for this mode (${s.cap})` : !solo && !s.allReady ? 'Waiting for players to ready up' : undefined,
       });
     } else {
       const me = s.players.get(s.selfId);

@@ -68,6 +68,9 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
+  /** (coop4 D4, FOLDED-PLAN J4) Host: a room cap below the mode's, set by what is played (a campaign mission is exactly
+   *  2 players, G2); 0 = the mode's `capacity`. Host side only: a client's lobby still shows the mode's slots. */
+  roomCap = 0;
   /** (coop-rejoin, host) The course bay a match going to one player starts it at: the current bay, so its load lands
    *  near the checkpoint (`CoopHost` sets it); null: the match's start bay. */
   lateBay: (() => number) | null = null;
@@ -176,7 +179,7 @@ export class NetSession {
       held++;
       only = p.id;
     }
-    return held === 1 && this.players.size >= capacity(this.mode) ? only : null;
+    return held === 1 && this.players.size >= this.cap ? only : null;
   }
 
   private hostReceive(msg: Msg, from: string, conn: string): void {
@@ -202,7 +205,7 @@ export class NetSession {
         }
       }
       // (coop4 A19) a new player takes the lowest free slot; a held one (its rejoin) or a known one keeps its own
-      const slot = !this.players.has(pid) && this.players.size >= capacity(this.mode) ? -1 : this.slots.assign(pid);
+      const slot = !this.players.has(pid) && this.players.size >= this.cap ? -1 : this.slots.assign(pid);
       if (slot < 0) {
         // (coop4 A18) two or more slots held: a page's first hello is tokenless (its token goes only to the host it
         // knows), so it gets the lobby once (it learns the host and sends its token); its next tokenless hello is refused
@@ -408,9 +411,15 @@ export class NetSession {
     return [...this.players.values()].every((p) => p.ready || p.host);
   }
 
-  /** Too many players for the chosen mode (co-op takes 4). */
+  /** Players this room takes: the mode's `capacity`, or `roomCap` when that is lower (coop4 D4). */
+  get cap(): number {
+    const m = capacity(this.mode);
+    return this.roomCap > 0 ? Math.min(this.roomCap, m) : m;
+  }
+
+  /** Too many players for the chosen mode (co-op takes 4) or the room cap. */
   get overCapacity(): boolean {
-    return this.players.size > capacity(this.mode);
+    return this.players.size > this.cap;
   }
 
   /** Host: start the match for everyone. */
