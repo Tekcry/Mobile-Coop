@@ -2,14 +2,14 @@
 kind: minor
 
 - Sector Ops co-op now takes up to 4 players, on both maps (Saltmarsh Park and the Warehouse). Solo, 2, 3 and 4 players
-  all start from the lobby. Marlow Yard stays exactly 2 players and plays as before. The host can hold a room below its
-  mode's cap, so a campaign mission played in Sector Ops can keep its room at exactly 2.
+  all start from the lobby. Marlow Yard stays exactly 2 players and plays as before. Groundwork: a room cap hook so a
+  later campaign mission can hold its room at exactly 2 (nothing sets it yet).
 - The co-op wire changed (a new player slot on every lobby entry, per-player jammer lists, rounded Sector Ops snapshots).
   The train build bumps `PROTOCOL_VERSION` once for the job; an older build cannot join a newer host.
 - Player slots (N0, N1): every player has a fixed slot 0-3 for the match. The host is slot 0 and a joiner takes the
   lowest free slot. Slots never move during a match and close their gaps once, at the start. Late joiners are placed at
   the checkpoint on their slot, or beside the host when the checkpoint cannot be walked to. A player who drops is
-  held for 10 minutes and gets the same slot, colour and place back when they rejoin. A room with two or more held
+  held for 10 minutes and gets the same slot and colour back when they rejoin, placed at the checkpoint on their slot. A room with two or more held
   slots refuses a stranger with "Room is full". Spawns, respawns and revives are placed by slot.
 - Bandwidth (N1): the host still sends one snapshot at 15 Hz to everyone. Sector Ops snapshots round their numbers to 1 mm,
   which keeps 4 players with 32 guards near 6 KB (about 2.1 Mbit/s of host upload for 3 clients) and the worst case under

@@ -31,7 +31,7 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
 - `NetMode`: `sandbox | clear | infiltration | course | sector`. `capacity(mode)` (`protocol.ts`) is how many players a
   mode takes; it gates joins (`NetSession`'s hello) and `startMatch` (`overCapacity`), and the lobby shows that many
   seats. (coop4 D4) The host's `NetSession.roomCap` may hold a room below its mode (`cap` = the lower; 0 = the mode's):
-  a campaign mission running in Sector Ops sets 2 (G2). Host side only: a client's lobby still shows the mode's seats:
+  a hook for a later campaign mission to hold its room at 2 (G2); nothing sets it yet. Host side only: a client's lobby still shows the mode's seats:
 
   | Mode | Cap | Constant |
   | --- | --- | --- |
@@ -172,6 +172,10 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
 Sector Ops (both maps, `campusOps` and `warehouseOps`) is playable by 1 to 4 players; Marlow Yard stays exactly 2 (P1 / P2,
 `COURSE_MAX`). The host stays the authority (no host migration); clients send only to the host and the host broadcasts one
 snapshot to everyone. Join, leave, late join and rejoin work in any slot.
+- **OUT (3-4 players; BRIEF M1 b, "Wait for connector").** From `SECTOR.outWaitsMin` 3 an operator out leaves the
+  play (`GameState.outIds`, left out of `playerRefsInto`, so guards drop him) and follows a teammate (`OutFollow`,
+  `src/game/sectorOut.ts`); the `sector` message's `ot` slot mask mirrors it. The next connector or the extraction
+  returns him (`SectorMode.returnOut` -> `CoopHost.returnOut`); with nobody left up the section restarts.
 - **Slots.** `PlayerInfo.slot` (0-3) rides the `lobby` message; every peer reads a player's slot from it, never from the
   list order. A `lobby` entry without a slot or with junk reads the list order (`slotFromList`: the host 0, the others 1, 2,
   ... in list order); a number rounds and clamps to 0..3. `NetSession` (host) owns one `SlotTable` (`game/playerSlots.ts`,
@@ -243,7 +247,8 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   4 (at most 2 per section, 16 in all over the 8 campus and Warehouse sections); they spawn only when the team at the
   section's load or restart is at least that. A synced takedown is two takedowns by two different players within
   `SYNC_WINDOW`, any pair (`SyncedDetector` over `PLAYER_SLOTS`). One operator out (no syringe left, or the revive window
-  gone) still restarts the section for everyone.
+  gone): with 1-2 players the section restarts for everyone; with 3-4 the operator is OUT until the next connector or
+  the extraction (OUT below).
 
 ## Co-op sync
 - Guard torches (coop-torches, protocol 25): enemy `al` = alert level (bits 0-1) + `AL_SEIZED` 4 + `AL_TORCH` 8
@@ -573,7 +578,7 @@ client next to a device first.
   `onUse` runs the side test again on the client's feet (`SectorBolts.use`), unlocks the door (it leaves `lk`) and turns
   the item off (the item list's `on`). A section restart bolts its doors again (`SectorBolts.rebolt`).
 - Revives are the op's syringes (`CoopHost.reviveClock.cap = syringesFor(difficulty, team size)`, `revivesLeft()`; the team is the players in the room when the op starts, held ones included). `goOut`
-  outside the course calls `GameMode.onPlayerOut` (Sector Ops restarts the section); `onRespawn` in Sector Ops also
+  outside the course calls `GameMode.onPlayerOut` (Sector Ops: 1-2 players restart the section; 3-4 hold the operator OUT); `onRespawn` in Sector Ops also
   brings a partner still up to the checkpoint (`revive` event). Before a section unloads or restarts the mode calls
   `releaseHolds()`: every guard a client holds is released and the client gets `tdDenied` (its takedown or grab
   aborts); despawned guards leave the client by the snapshot's stale sweep (about 0.5 s).

@@ -46,7 +46,9 @@ const REPORT = ['anim-audit'];
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes),
 // (coop4 E2E) 7 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves), (coop4 OUT) 9 (campusOps, three pages: an operator out waits for the connector); 7-9 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9'] };
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (coop4 release check B 2) parts 7-9 (3-4 pages) are named only (`e2e-sectorops:7`): never in a full, quick or affected
+// expansion, so they run alone on the laptop queue as the docs say.
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 

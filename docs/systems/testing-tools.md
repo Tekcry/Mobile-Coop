@@ -44,8 +44,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
   sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
   rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
-  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence. (coop4) `PARTS` lists the
-  jobs `:1` to `:8`; `:7` and `:8` are the 4-page parts and run alone in a laptop slot (`PART_TIMEOUT` 1800 s each).
+  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence. (coop4) `:7` to `:9` (3-4 pages) are
+  named only, never in a full, quick or affected expansion: they run alone in a laptop slot (`PART_TIMEOUT` 1800 s each).
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
@@ -240,7 +240,7 @@ behind a VPN adapter).
     syringe pool at preset + 2 (Normal 4, one used); the connector does not cycle with 3 inside and cycles with 4, door locks
     mirrored; the S4 pair gate opened by slots 2 and 3 while 0 and 1 stand more than 3 m away.
   - Part 8, `warehouseOps` (`sectorGuards=4`), 3 pages then a late 4th: slot 2 drops (`__coop.leave()`) and rejoins from
-    "Rejoin <code>" into slot 2 with the same beacon colour and place (within 1.5 m); a 4th page late-joins the running op into
+    "Rejoin <code>" into slot 2 with the same beacon colour, placed at the checkpoint on its slot (within 3.2 m); a 4th page late-joins the running op into
     slot 3 and stands within 3.2 m of the checkpoint with a loadout, every page sees 3 avatars; pairs 0+1 (leg-up) and 2+3
     (partner throw) are both approved with no denial (the overlap is logged and `CoopHost.teamActive` read, not asserted);
     two climbers on one busy brace: one is served, the other is denied `taken`.
