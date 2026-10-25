@@ -22,7 +22,8 @@ Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchL
   game binds it.
 - Built (G19, G97, G23; one menu since CT prototype G5, Michael 2026-10-19: "identical"): the CT context action menu.
   See "The context action menu (G5)" below.
-- Decided, not built yet (G22): remap capture cancels with Menu / Start or Esc; B stays bindable. Code: B held 1 s or Esc.
+- Built (G22): remap capture cancels with Menu / Start or Esc; B stays bindable (`CAPTURE_CANCEL_BTN` 9,
+  `input/gamepadSource.ts:9`; Esc and the cancel button in `ui/screens/controlsScreen.ts`).
 - Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
   while aiming; grenades and gadgets work holstered.
 - Decided (G24, G98, built): emotes and the carried medkit are deleted; View held does nothing.
@@ -189,8 +190,8 @@ Edit the table and the code together.
   scoped weapon, else Ping, `contextPing`; the controls screen's pad note says so); A3 removed the Traverse + Use pair.
   Any other verb on their input (a player's remap) is still a conflict with each. A conflict is shared, warned on both
   rows and in a summary, and saved (A71).
-- Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
-  Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.
+- Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, Menu / Start (on its press) or Esc
+  cancels (G22; B binds like any button), X on a slot clears (Y resets all). Reset per device with a confirm.
 - Hold / toggle in `Settings.gameplay`: `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; no
   row since anim-rework S1), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
   (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
@@ -214,7 +215,8 @@ you push the stick". No gears, no D-pad speed buttons, no mouse-wheel speed.
   pad's radial dead zone 0.15 first, then `GEARS.deadZone` 0.05), piecewise linear through `STICK_SPEED.at`
   [0, 0.15, 0.45, 0.8, 0.9, 0.97] to [0.4, 0.75, 1.4, 2.1, 3.0, 4.0] m/s standing (anim-rework S2, M6: the run was 4.5) and [0.4, 0.85, 1.3, 1.7, 2.15, 2.6]
   crouched (the slowest creep, then creep / sneak / walk / jog / run). Most of the travel (to 0.8) is the stealth range;
-  the last fifth is the jog and the run. Raw stick 50 / 80 / 90 / 100 % standing (the default radial dead zone 0.15, outer 0.98): ~1.3 / ~2.0 / ~3.0 / 4.5 m/s.
+  the last fifth is the jog and the run. Raw stick 50 / 80 / 90 / 100 % standing (the default radial dead zone 0.15,
+  outer 0.98): ~1.3 / ~2.0 / ~3.0 / 4.0 m/s (full stick is the 4.0 m/s run).
 - Keyboard (A1): WASD at the walk point (2.1 / 1.7 m/s), Left Shift held the run, Left Alt held the creep (`KBM_PACE`).
 - Aiming caps the pace at `adsSpeed` / `adsCrouchSpeed` with the strafe / backstep penalties (`paceSpeed`).
 - `AnalogGear` (allocation-free): `v` the asked speed (continuous; `controller.wantSpeed`), `gear` the nearest named
