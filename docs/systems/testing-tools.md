@@ -338,7 +338,11 @@ behind a VPN adapter).
   `src/ui/tunerLayout`) Picking a loop sets the tuner's state; a walk state on the spot keeps the root within 5 cm while
   the gait runs; a side snap holds the camera to her facing as she turns; the pause menu stops a moving loop. (e2e-menus
   has the tuner-ui pad checks: tabs by LB / RB, the drop-down, values shown and light on dark, the hint strip under the
-  rows, pause while tuning.) (marlow-bays slice T, also covers `src/ui/tunerMouse`, `tunerTarget`) Keyboard and mouse: the
+  rows, pause while tuning.) (tuner-clarity) The Now playing line reads "motion-capture walk" on walk, "hand-made walk"
+  with Keyed ticked and "(motion capture off)" with the More > Panel box off; a Body arm-swing row shows "Hand-made"; a
+  Keys edit on a walk the capture plays shows the edit warning naming Body > Joints; the Keys tab has "Left leg (key)" and
+  "Right leg (key)" parts and no "Whole body"; `legL_ankleYaw` on `key.walk.1` turns the left ankle with `keyed:walk` playing.
+  (marlow-bays slice T, also covers `src/ui/tunerMouse`, `tunerTarget`) Keyboard and mouse: the
   open tuner is in drag view with no pointer lock; a left drag on the scene turns the camera; the header button and F4
   switch to the game camera and back; a row clicked in the Joints part is marked (`tt-sel`) and the scene marker sits on
   its joint, another row moves it, the Camera tab has none; the Keyed box plays `keyed:walk` from `state:walk` and back,
@@ -371,6 +375,12 @@ behind a VPN adapter).
   orbits (camera yaw), a pinch zooms (orbit distance), two fingers pan (the circled point), touches on the panel move
   nothing; the handle collapses and expands. Multi-touch through the DevTools protocol (`Input.dispatchTouchEvent`);
   Babylon's "Max number of touches exceeded" note (the emulator's `maxTouchPoints` is 1) is not counted as an error.
+  (tuner-clarity) The Now playing line shows in the drawer and the sheet, inside the panel width and below the tabs
+  (the `tab.top < 80` and folded-sheet checks hold); reach tags are not touch targets.
+- `tests/tunerReachProbe.test.ts` (tuner-clarity S3; Vitest, not e2e): the motion-capture probe (`runMocapProbe`, the
+  rig holstered at walk, jog, run and sneak, switch on and off) checked against `NO_EFFECT[state].mocap` and the reach
+  tags. Own file with a 600 s timeout, outside `tunerEffect.test.ts`'s budget; a rig change that moves a slider on or
+  off the capture fails it until the tables follow.
   Desktop 1280 x 640 without touch: the T2 layout and dock unchanged, the map's own targets, the readout on.
 - `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
