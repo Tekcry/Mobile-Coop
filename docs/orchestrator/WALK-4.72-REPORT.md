@@ -30,7 +30,7 @@ Michael's words, routed by owner. Each lead: add these to its PLAN as slices (a 
 - M5 Light: "light above s2 locked door is on and half over both rooms but doesnt shed any light into the first room - lighting system doesnt seem to be working properly or spreading light as much as it should. not realistic."
 
 ## Sector Ops Build (lighting review, co-op light sync)
-- S1 Lighting realism: "goods in seems brighter but the lights just dont light up everything like the would normally. theres so many lights but its still hard to see, are the lights actually outputting light as they should realistically??" With M5: measure lamp output / falloff / bounce against real fittings (docs/lighting-review/PROPOSAL.md LR1-LR12), propose one engine fix for all maps; Michael decides.
+- S1 Lighting realism: "goods in seems brighter but the lights just dont light up everything like the would normally. theres so many lights but its still hard to see, are the lights actually outputting light as they should realistically??" With M5: measure lamp output / falloff / bounce against real fittings (docs/archive/lighting-review/PROPOSAL.md LR1-LR12), propose one engine fix for all maps; Michael decides.
 - S2 Co-op lamps: "host shot out light, coop game light turned off too, but coop shooting lights does nothing for either game." (client lamp shots never reach the host)
 - S3 Team doors: "unbolt worked on one side as intended, didnt try client pressing it due to restart issue."
 - Pass: Warehouse restart "everything seem to reset properly" (item 15).
