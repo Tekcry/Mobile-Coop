@@ -30,3 +30,11 @@
 - Failing: climbHands with the flag on: release wrists 9.9 cm a frame (limit 3), trunk step 20 cm (limit 9.6) - the
   freehang_climb stand-up end fading in past CLIMB_UP_CROUCH_K; the flag-off run timed out at 120 s under CPU load.
 - Left: fix or switch off freehang_climb, changes/feature-mixamo-i2.md, I2-REPORT.md, merge origin/feature/mixamo-retarget.
+
+## I3 at the save (2026-10-25, feature/mixamo-i3)
+- Done: branch on I1 c9a0f263; merged origin/feature/mixamo-i2 28566cd0 (crawl row off, I1 rows kept): 75209e04.
+- Read: brief, PLAN I3, A1/A2/A8, I1/I2 reports, keyed block. Player MOVEMENT crouch / stand times are 0.22 / 0.22 s.
+- Plan: sampleKeyed wraps a one-shot at phase 1, so progress maps to p x (N-1)/N (last frame exact); members renamed
+  kSn / sn* (kSt / st* are the strafe's).
+- Left: WREN_STANCE + STANCE_SHOT in mixamo.ts, the shot in the keyed block, tests/mixamoStance.test.ts (a-e, A8),
+  MIXAMO_ON rows from the readings, changes/feature-mixamo-i3.md, I3-REPORT.md, final merge of I1 / I2.
