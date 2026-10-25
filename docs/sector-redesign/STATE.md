@@ -350,32 +350,32 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~00:40 SAVE; paused to the 04:50 reset, same account).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~05:10, after the 04:50 reset, same account).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
 builder slices (tsc + single vitest) go to cloud-queue (worktree C:/NightShift/scratch/cq); desktop does plans, briefs,
-code-review checkers (no tests), GPU / Blender / prebake under heavy.lock. Marlow first on laptop + desktop CPU.
-Checker reports: C:/NightShift/scratch/sector-ops-checks/*.md. Extra laptop gate requests go in with the head push;
-reorder with --priority, never rename a request. Sector Ops AT the walk cap: builds go on dark, no switch-on.
-Order: Guard AI J15 PR1 (#450) lands before any J17 lane PR (S1-S5). J10 datasheet: numbers only, never committed.
-1. PRs, all CI green + checker PASS, waiting only on affected-e2e (laptop queue): #457 J5 sector-marks; #459 J16 A1
-   (df64c0fa4 Node 22 fix, Opus PASS delta); #469 J18 PR C (polish: stale-terms entry for 0.05); #474 J18 PR A (+ coop-gate
-   request queued). Train-ready follows by the watchdog. B4 after #317.
-2. J16 char-shadow-meter: S2 Opus PASS (csm-s2-check.md) -> PR #481 A2 = S2 cherry-picked onto #459 (030150bb1),
-   STACKED on #459: retarget to master when #459 merges; Opus PASS (S2 + delta), affected + coop-gate queued. Next
-   touch: fragment / lighting.md say bodies and guard perception read it (not yet: a2-delta-check.md). S3b reopened 00:10 (option a: merge A1's fix, typed slots into the private steps, gate 2432 B
-   unchanged). S3b-2 after S2.
-3. J17 campus-greybox (cloud, base 024c7c172; lane PRs wait for #450):
-   - S1 6731993b / S2 f61240ca Sonnet PASS, laptop requests queued (campus-s1 / -s2). Switch-on lists: s1-check.md, s2-check.md.
-   - S4 fix1, S5 fix1, A28 (`?sectorStart=N`, Opus; on done TWO Opus checkers + e2e-coop + e2e-netmove + sectorops 1):
-     cloud briefs open. On done: delta checker, laptop run. S4 / S5 split a/b/c per s4-check.md / s5-check.md.
-   - S3: r5 PASS (s3-r5-check.md). Join brief open (r1-r4 into r5, J1-J4, J8 CR3b ledge). r6 brief drafted by Opus
-     (s3-r6-cloud-brief.md): fill <JOIN-HEAD> and push when the join is done. #10/#15/#16 isolation: lead decision at r6.
-   - Lip audit: no depth defects; D1 = join J8. Optional canClimbUp test hardening for S1 / S2 (lip-depth-audit.md).
+code-review checkers (no tests), GPU / Blender / prebake under heavy.lock. Mixamo first on the laptop queue (overnight).
+Checker reports: C:/NightShift/scratch/sector-ops-checks/*.md. Extra laptop gate requests go in with the head push, only
+when affected does not cover them (`node scripts/run-e2e.mjs --affected origin/master --list` in the branch worktree).
+Sector Ops AT the walk cap: builds go on dark, no switch-on. Order: Guard AI J15 PR1 (#450) lands before any J17 lane
+PR (S1-S5). J10 datasheet: numbers only, never committed.
+1. Train-ready (05:00): #457, #459, #469, #474, #483. #481 (J16 A2) STACKED on #459: retarget to master when #459
+   merges (Opus PASS S2 + delta; coop-gate queued). Next touch of #481: fragment / lighting.md say bodies and guard
+   perception read it (not yet: a2-delta-check.md).
+2. PR #488 A28 `?sectorStart=N` (2e5465e32, src/net): TWO Opus checkers IN FLIGHT (a28-check-1.md, -2.md); post one
+   `checker` status when both PASS; affected covers coop + sectorops:1.
+3. J16: S3b-1 done 6fb0adfcf (gate 1616 B <= 2432) -> Opus checker IN FLIGHT (csm-s3b-check.md; says its PR path).
+   S3b-2 (GameState wiring, lead brief) after S2 / #481.
+4. J17 campus-greybox (lane PRs wait for #450):
+   - S1 6731993b / S2 f61240ca Sonnet PASS, laptop campus-s1 / -s2 queued. Switch-on lists: s1-check.md, s2-check.md.
+   - S4 fix1 8706493a4, S5 fix1 b232839a2: Sonnet delta checkers IN FLIGHT; laptop campus-s4 / -s5 queued. Then
+     split S4 / S5 a/b/c per s4-check.md / s5-check.md.
+   - S3: join closed at fb2666fff (143 / 144; the seed fix is r6 step 0a). Cloud brief campus-greybox-s3-r6 OPEN
+     (branch feature/campus-greybox-s3-r6, PR S3-f). #10/#15/#16 isolation: lead decision on r6's report.
    - Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
-4. J21 map-ready: S4 prebake PASS (5.54 MB, 114.5 s cold; docs/map-ready/STATE.md) -> PR #483 (00d942d6f): checker PASS (Opus + Sonnet
-   docs delta); affected + e2e-sectorops:6 queued; add CI build-check seconds / sizes to the PR body.
-   W1 S1 + S9 cloud briefs open (00:15). Then S2, S10; S8.
-5. J10 light-realism: L1 claimed on cloud (Cloud Builder 2) -> Opus checker, 2 laptop requests, SIGNOFF.md to Michael
-   via the orchestrator. PLAN L2-V2 (c19a799c9): v2 sections measured before exit (A29).
-Next: read cloud-queue statuses (join done -> push s3-r6-cloud-brief.md with <JOIN-HEAD>) and laptop verdicts; act on each.
+5. J21 map-ready: #483 S4 train-ready (add CI build-check seconds / sizes to its body). W1 S1 + S9 claimed on cloud
+   (Cloud Builder 2) -> checkers on done (S1 Opus, S9 Opus). Then S2, S10; S8.
+6. J10 light-realism L1 done 475620043 (park mean 27.9 lx, min 3.4, U0 0.12; twin heads): Opus checker IN FLIGHT
+   (light-l1-check.md); laptop GPU shots + video (set light-realism-l1) and e2e (light-realism-l1-e2e) queued on
+   86fb41f8. Then SIGNOFF.md + shots to Michael via the orchestrator.
+Next: act on each checker as it lands (post A28's status after both); pick up S1 / S9 / r6 cloud done within 1 h.
 ```
