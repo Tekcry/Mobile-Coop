@@ -1006,8 +1006,8 @@ orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule
 Open (2026-10-25 ~22:00, new account; full burn; order J4, J6, J15, J26, J16). Laptop gh login works again; the
 ~21:38 local commits are pushed. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`.
 Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops under ~80%.
-1. J4 G327 #438 head 8af8ff6a: checker posted ~20:20; affected-e2e request 20261025T090223 waits in the queue (train
-   103 first). After train-ready: undraft #414.
+1. J4 G327 #438 head 8af8ff6a: TRAIN-READY, labelled; rides the train after 104. #414 still draft (undraft blocked
+   by auto mode; Michael asked).
 2. J4 #317 coop4 head 3100d035 ships ON (Q16). Release checks A + B PASS (docs/guard-ai/checks/coop4-release-check-A/B.md,
    a7653ca7f); checker posted. affected-e2e FAIL 09:52Z "slot 4192 gave no result" (infra); re-request
    20261025T100447 queued. The orchestrator
@@ -1022,10 +1022,12 @@ Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops 
    checker on the head, tell orchestrator. PR2 polish (build on -s5 now, never on feature/guard-rules): responseTeam shield arg default true (gear.ts:178) -> false; KILL_BASE.dog undo keeps
    the headshot bonus off (score.ts:17); GearGuard type redundant.
 5. J15 S5 repeat alarms (PR2): be49ac06 on feature/guard-rules-s5; checks A + B PASS (docs/guard-rules/checks/
-   S5-CHECK-A/B.md, a09495007 local on -s5). After PR1 merges: merge -s5 into feature/guard-rules, PR2 with the PR1
-   polish above + S5 polish (stale comments enemyManager.ts:247/:892; newest-team only in teamSearching :855 and
-   joinAsResponder :985; no "Reinforcements inbound" at stage cap), laptop affected + e2e-coop + e2e-ctcourse.
-   Then wave 3: F0 flags (lead) then S4 / S6; Opus slice briefs -> docs/guard-rules/slices/{F0,S4,S6}-BRIEF.md on -s5.
+   S5-CHECK-A/B.md). PR1 + S5 polish DONE on -s5 69257d7b1, checks A + B PASS (checks/PR2-POLISH-CHECK-A/B.md,
+   e18039094). After PR1 merges: merge -s5 into feature/guard-rules, PR2; gates affected + e2e-coop + e2e-ctcourse +
+   e2e-sectorops + e2e-enemies. PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names,
+   S5-A3 walk note) and the merge note: mission-engine calls responseTeam without `shield`; keep sectorMode's
+   `s.shieldTeams === true` (Campaign Build told). Then wave 3: F0 (lead) then S4 / S6 from
+   docs/guard-rules/slices/{F0,S4,S6}-BRIEF.md (2b76f1364 on -s5).
    node_modules junctions: guard-rules(-s5) -> guard-ai-s24 directly.
 6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
@@ -1034,5 +1036,5 @@ Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops 
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: laptop gates 1-4 (background wait); PR2 polish on -s5 once CPU < 80%; wave 3 briefs.
+Next: laptop gates 2-4 (background wait; #438 train-ready ~22:25, labelled); #414 undraft is Michael's (auto mode).
 ```
