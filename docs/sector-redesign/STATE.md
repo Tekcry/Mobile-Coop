@@ -378,6 +378,7 @@ game work. Finished PRs may ship. Message the orchestrator only at PR open / tra
 Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
 Rules: RULES on origin/master only; never restate them here.
 Previous blocks: git log -p on this file.
-Next: when the #420 checker reports, one fix round (also V14: 6 proof folders now), post checker (or Michael / the
-  orchestrator if auto mode blocks it), message the orchestrator; then HOLD until it says row 6 is signed off.
+Next: #420 checker FIX -> fix round 977bc3a1 pushed (C14-C16, conforms, polish). Re-check of the fixed items running
+  (scratchpad recheck-report.md; if lost, rerun a fresh Opus re-check on 419b54c1..977bc3a1). PASS -> `checker` status
+  on the head (auto mode blocks me: Michael posts it), message the orchestrator; then HOLD until row 6 sign-off.
 ```
