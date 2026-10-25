@@ -20,7 +20,8 @@ import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
-import { mapBootAllowed } from './game/mission/sectorMission';
+import { mapBootAllowed, missionParam } from './game/mission/sectorMission';
+import { campaignStartBlock } from './game/mission/campaign';
 import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
@@ -459,9 +460,17 @@ async function boot(): Promise<void> {
         app.toasts.show('Co-op unavailable', 'warn');
       });
   } else if (autostart) {
-    // infiltration: the mission picks its map
-    const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    // (mission-rules R2, G2 / G48, A9) a URL boot is one player: a campaign map or mission never starts solo (two tabs
+    // over `?net=local`, or Play > Co-op, walk it)
+    const block = flags.mode === 'sector' ? campaignStartBlock(getMap(autostart).missions, missionParam(), 1) : null;
+    if (block) {
+      goToMenu();
+      app.toasts.show(block, 'warn');
+    } else {
+      // infiltration: the mission picks its map
+      const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === autostart) ?? MISSIONS[0]! : null;
+      startGame({ map: getMap(mission ? mission.map : autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    }
   }
   else goToMenu();
   editorWalk?.attach(app);
