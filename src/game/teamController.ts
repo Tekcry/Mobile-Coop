@@ -6,9 +6,10 @@ import { TEAM } from '../config/movement';
 import { findJumpTarget, anchorLength, type JumpTarget } from '../world/anchors';
 import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { ATTACH_SUB } from '../player/moveState';
-import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, KIT_SUB_MASK, isKitKind, type KitKind, type TeamKind, type TeamMoveKind } from './teamMoves';
+import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwDistAt, throwLanding, throwRoom, setThrowSites, clearThrowSites, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, KIT_SUB_MASK, isKitKind, type KitKind, type TeamKind, type TeamMoveKind } from './teamMoves';
 import { clearGripAxis } from '../player/attachGrips';
 import type { GameState } from './gameState';
+import type { ThrowSite } from '../world/mapDef';
 import { KIT_POSE_LOCAL } from '../anim/clips/team';
 import { KitDevices, isKitState, kitMove, kitMoveOfState, kitMoves, kitOfferFree, kitPoseK, kitStateSub, kitStateWireMode, type KitHost, type KitMove, type KitState } from './kit/registry';
 
@@ -80,7 +81,8 @@ const REFUSE_SHOW = 2;
  *   the Co-op action and is boosted onto the ledge in reach (G57 band); the offerer assists.
  * - standing on the ground: offer the PARTNER THROW (B4, CT 1.3; `throwOffer`, wire mode `brace` + `THROW_SUB`). The
  *   partner runs in, presses the Co-op action and is thrown on over the thrower in an arc (`throw`, wire mode `boost`),
- *   landing `TEAM.throwDist` m past them, crouched. The runner checks the room first (a polite refusal when blocked).
+ *   landing `TEAM.throwDist` m past them (a throw site's length at a named site, tallow-fixes A24), crouched. The runner
+ *   checks the room first (a polite refusal when blocked).
  * - hanging from a ledge: offer the LEDGE RELAY (`relayOffer`: the relay bit in the attach sub). The partner under them
  *   presses the Co-op action and climbs up the hanging body to the same ledge (`relayUp`); the hanger holds still
  *   meanwhile (`relayHold`) and then pulls up with the normal climb.
@@ -110,6 +112,8 @@ export class TeamController implements KitHost {
   readonly count = { offers: 0, boosts: 0, ladders: 0, throws: 0, hangs: 0, pulls: 0, drops: 0, ropes: 0, tops: 0, slides: 0, denied: 0, ends: 0 };
   /** (B4) The last throw's landing check ('ok' or why not; tests). */
   lastThrowRoom = '';
+  /** (tallow-fixes A24) the last throw's length (tests, e2e) */
+  lastThrowDist = 0;
   lastDenied = '';
   /** Why the last move ended early (tests, debugging). */
   endWhy = '';
@@ -125,8 +129,21 @@ export class TeamController implements KitHost {
   /** (KIT0) Each kit move's run data on this controller, and the level its devices were set up for. */
   private kitRuns = new Map<KitKind, object>();
   private kitLevel: unknown = null;
+  /** (tallow-fixes TD-b) This map's throw sites, registered for the throw length (null = none). */
+  private readonly sites: readonly ThrowSite[] | null;
 
-  constructor(readonly g: GameState) {}
+  constructor(readonly g: GameState) {
+    // (TD-b) the map's throw sites (host and client build the same map: no wire); a headless test may have no world.
+    // Always set, null too, so a map with no sites overwrites the previous map's list.
+    const list = g.world?.layout?.throwSites ?? null;
+    this.sites = list && list.length > 0 ? list : null;
+    setThrowSites(this.sites);
+  }
+
+  /** (TD-b) Clears the throw sites this controller set (only its own: a newer controller's list stays). */
+  dispose(): void {
+    if (this.sites) clearThrowSites(this.sites);
+  }
 
   /** Team-mates from the net layer (none in single player). */
   mates(): readonly TeamMate[] {
@@ -957,7 +974,11 @@ export class TeamController implements KitHost {
   private requestThrow(m: TeamMate): void {
     const g = this.g;
     const c = g.player.controller;
-    const l = throwLanding(c.pos.x, c.pos.z, m.pos.x, m.pos.z, m.yaw, this.land);
+    // (tallow-fixes A24) the direction first (runner -> thrower, or the thrower's yaw under 5 cm), then the site's length
+    throwLanding(c.pos.x, c.pos.z, m.pos.x, m.pos.z, m.yaw, this.land);
+    const dist = throwDistAt(m.pos.x, m.pos.z, this.land.dx, this.land.dz);
+    this.lastThrowDist = dist;
+    const l = throwLanding(c.pos.x, c.pos.z, m.pos.x, m.pos.z, m.yaw, this.land, dist);
     const by = m.pos.y;
     // the landing floor: down from well over the landing spot
     this.a.set(l.x, by + TEAM.throwDrop + 1.6, l.z);
