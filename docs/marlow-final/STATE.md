@@ -497,7 +497,7 @@ State at the ~22:45 save (agents die at a swap: read each head's `checker` statu
 - PRs: #441 J5 + #460 J12 B in train 104. #463 J14 F1 (Marlow Yard needs two players): checkers PASS, laptop affected + rating running. #464 J12 A (gate core): checker carried, affected should pass at once.
 - J12 validator-port: resume block in docs/validator-port/STATE.md on origin/feature/validator-port.
 - J14 Marlow Yard re-plan: resume block in docs/marlow-replan/STATE.md on origin/feature/marlow-replan (+ C:/NightShift/scratch/marlow/j14-wave2-notes.md).
-- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2 (#455 merged; #453, #456 in train 103; R4a starts when R1 + R3 are on master). R1 J14 hooks: also `?course=station:<n>`, `stationRetry(n, cause)`; downed and pause restarts clear retryOff.
+- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2 (R1-R3 merged; R4a on cloud-queue ~22:55). R1 J14 hooks: also `?course=station:<n>`, `stationRetry(n, cause)`; downed and pause restarts clear retryOff.
 - J21 guard cap: docs/guard-cap/STATE.md. Gate closed: #438, #317, #375 open; then C1.
-Next: follow the job STATE "Next" lines; on each report merge, check, open PRs, tell the orchestrator.
+Next: after the J14 walk-ready path (S0, R1, F1, set slices), J13 R4a -> R4b / R5 / R6 next (Sector Ops campus v2 exit waits on them); follow each job STATE "Next" line.
 ```
