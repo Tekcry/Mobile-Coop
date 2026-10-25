@@ -73,6 +73,7 @@ import {
 import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
 import { applyMissionStart, bindSectorMission, type SectorMission } from '../mission/sectorMission';
+import { CAMPAIGN, campaignGrant, campaignResponseKinds, isCampaignMission, missionSectionLine } from '../mission/campaign';
 import { MissionHud } from '../../ui/hud/missionHud';
 import { MissionHudMount } from '../../ui/hud/missionHudMount';
 
@@ -323,9 +324,10 @@ export class SectorMode implements GameMode {
     const g = this.g;
     const em = g.enemyMgr!;
     em.stealth = true;
-    // M6: the per-mode live cap (a section's guards plus its reinforcements)
+    // M6: the per-mode live cap (a section's guards plus its reinforcements); (mission-rules R2, G359) a campaign
+    // mission's own cap, "32 alive"
     this.prevMaxAlive = em.maxAlive;
-    em.maxAlive = SECTOR.maxAlive;
+    em.maxAlive = isCampaignMission(this.mission?.def) ? CAMPAIGN.maxAlive : SECTOR.maxAlive;
     this.ct = new CtDevices(g, 'host', {
       say: (t) => g.hud.barks.say('lantern', t, true),
       record: () => this.cameraAlarm(),
@@ -768,7 +770,10 @@ export class SectorMode implements GameMode {
       }
     }
     this.mission?.begin(this.run.index);
-    this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
+    // (mission-rules R2, G336 / A12) in a mission the banner names the mission's step here (none: the title only), never
+    // the sector label of another mission's objective
+    const sub = this.mission ? missionSectionLine(this.mission.runner, this.mission.viewer()) : s.objective.label;
+    this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, sub, 2600);
     this.setup(s);
     // (E9-crate, A100) only this section's crate is live
     this.g.crates?.setLive(s.crate ? crateItemId(s.id) : null);
@@ -971,6 +976,9 @@ export class SectorMode implements GameMode {
     // same count, so the live cap holds); it sweeps the section after its search (the section's sweep list, else its
     // route points and posts). Made with the first guard that has a slot (none: no team).
     const nt = responseTeam(stage, send, this.teamKinds);
+    // (mission-rules R2, Q12 "No, armed only", G155) a campaign mission's team has no riot-shield lead: all armed guards
+    // (J15's `shieldFrom` stays upstream in `responseTeam`; this overrides it for the campaign only)
+    if (isCampaignMission(this.mission?.def)) campaignResponseKinds(this.teamKinds, nt);
     let team: SweepTeam<Enemy> | null = null;
     let n = 0;
     for (let i = 0; i < send; i++) {
@@ -1068,6 +1076,8 @@ export class SectorMode implements GameMode {
     // A9 (for the lead): until guard-ai's alarm stage API is on master, Bodies hidden's alarm step is +1 gadget charge
     r.gadget = Math.min(gadgetsAtStart, r.gadget + r.alarmStep);
     r.alarmStep = 0;
+    // (mission-rules R2, Q19 "None", A6) a campaign section's rating grants nothing; the card still shows the marks
+    if (isCampaignMission(this.mission?.def)) campaignGrant(r);
     if (grant) this.owed = r;
     const view: SectionRatingView = { sectionId: s.id, title: s.name, marks, synced, grant: r };
     this.hook.last = view;
