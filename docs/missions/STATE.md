@@ -1,7 +1,7 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~00:50 SAVE (Night Shift | Campaign Build; pause to the 04:50 reset; read this block first)
+## RESUME 2026-10-26 ~05:05 (Night Shift | Campaign Build, after the 04:50 reset; read this block first)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
 FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to cloud-queue; local checks only through
 `node C:/NightShift/scratch/ctcore/low.mjs "<cmd>"` (BelowNormal). Notes / reports: C:/NightShift/scratch/campaign/
@@ -17,11 +17,12 @@ FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to clou
    I merge its checked head into the engine. No-touch list sent to Marlow (lead-notes).
 6. J3b PR B = #482 (head bcff08a3, checker status posted, Job-done: hud-guidance): waits CI + affected-e2e;
    orchestrator told. Polish list in lead-notes.
-7. Laptop: gb6fix dc2aa9c8 (desktop FAIL at cpu 100%, laptop rerun queued), hg-b4 e72c8eab running; hg-b3 PASS.
+7. Laptop: wharf-tgc / wharf-tkl FAIL on dc2aa9c8, eb231778, 62b206d2 -> Opus triage (wharf-triage.md, desktop repro
+   under heavy.lock, fix branch). hg-b3 / hg-b4 PASS. #482 train-ready. Cloud done x5: checkers running (lead-notes).
 8. Tallow wave 0: cloud briefs tallow-tda / -g0 / -s2 open; MB / D0 held. LP DONE 4dac78cce (picks 9-12 accepted, lead-notes);
    LP check FIX (6 items); LP fix round 1 (Opus, docs) running on -lp (report "Fix round 1" in tallow-lp-report.md),
    then a fresh re-check. PASS + PR D in engine -> cut tallow-fixes, merge LP, push D0 brief.
-Next: LP fix round 1 (rerun if tallow-lp-report.md has no done "Fix round 1"), then re-check; laptop verdicts j7-prd / j7-pre / gb6fix / hg-b4 / #482 affected; PR D green -> engine, cut tallow-fixes, merge LP, push MB / D0 briefs; cloud r6-polish / r8 done -> checkers; mixamo-kit merge after #477 + i3 release.
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~23:30 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
@@ -38,7 +39,7 @@ FOLDED-PLAN J-rows. Desktop CPU 100%: tsc / vitest builder slices go to cloud-qu
 6. Engine gb6fix dc2aa9c8 laptop set mission-gb6fix queued; hg-b3 / hg-b4 queued.
 7. Tallow wave 0: cloud briefs campaign-tallow-tda, -g0, -s2 open; MB / D0 held (scratch cq/; D0 waits for LP + PR D).
    LP builder (Opus, docs) on feature/tallow-fixes-lp (tallow-lp-report.md). Rulings ~23:30 in lead-notes.md.
-Next: LP report (rerun LP if tallow-lp-report.md says running with no commits on -lp); cloud briefs done -> fresh
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 Opus checkers; laptop verdicts; B0b merge once #466 releases; PR D green -> engine, push MB brief.
 
 ## OLD RESUME 2026-10-25 ~22:45 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
@@ -66,7 +67,7 @@ below whose report file is missing.
    scratch until J7 PR D merges into the engine; claims-check rerun; tell Sector Ops MB touches their files.
 9. Seams: Marlow #463 (courseStartBlock, addSyringes sector-only) folds with R4 / R5 at the engine's next master pickup;
    Guard AI J15 PR2: keep `s.shieldTeams === true` in sectorMode.ts at that meet (lead-notes.md).
-Next: read check4 / R6 / #466 check / cloud-brief results; post #466 checker status; keep 2-3 open cloud briefs.
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~21:40 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
@@ -91,7 +92,7 @@ Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build"
    throws at links 28 / 33 (33 becomes 32 after D0), `exception: "long_throw"`, width 4.9.
 9. TW23 feature/tallow-spec d42d1596 (stacked on #372): PR after #372 merges.
 10. Known: J12 (Marlow) validator must accept tgc-3 `boltText`, drop oneChance / window.
-Next: when CPU allows, R6 / B5 from their briefs; checkers on R4 / R5; act on laptop verdicts and re-check 3.
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~20:50 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
@@ -117,7 +118,7 @@ roof -> W3 roof = 5.8 m throw over 4.9 m; C4 pie -> clock loft = plank bridge af
 7. TW23 Tallow SPEC: feature/tallow-spec d42d1596 (stacked on #372): PR after #372 merges.
 8. Known gaps: mission-validator optional-without-reward + boltText (J12, Marlow); validator throw-gap row for the two
    5.8 m spots (Marlow, orchestrator told).
-Next: check the three running agents' reports; B3 when CPU allows; gb6fix and #447 results.
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~19:15 save (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
@@ -148,7 +149,7 @@ Working notes, reports, plans: C:/NightShift/scratch/campaign/ (checker reports 
 8. TW23 Tallow SPEC onto the template (G157 template from #443): builder (Opus) on feature/tallow-spec (worktree
    -tallow-spec, stacked on #372, WIP 2ad3ed9b; report scratch/campaign/tw23-report.md). PR after #372 merges.
 9. Known gaps: mission-validator still needs an optional reward and must accept `boltText` (J12, Marlow).
-Next: rerun any agent whose report file is missing (B1, TW23, J7 re-check, J8-J9 check); B2 when a slot frees; J7 R0.
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~18:25 (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: `docs/RULES.md` + `docs/VISION.md` from origin/master; start steps `docs/orchestrator/BOOT.md` "Campaign Build"
@@ -178,7 +179,7 @@ J23 Tallow design docs, TW23 (SPEC onto the template), J25 / J26 later.
    the `coopKit` flag into Player's per-move `kitMoves` list; Player's part 2 (the 5 new moves) starts after the kit
    registry PR is on master. Plan: hud-guidance PLAN pushed 2a702629 (A1 Opus + A3 Sonnet first, after a plan check).
 CPU: the orchestrator paused new agents ~18:10 until desktop CPU < 80%.
-Next: when CPU allows, #372 checker + two FLG checkers + TW23 builder; plan checkers on J3 / J7 / J8-J9; builders.
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~14:05 (history) save (Night Shift | Campaign Build; read this block first, older blocks are history)
 Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
@@ -220,7 +221,7 @@ Parked by the hold (all on origin unless noted; resume after row 6 sign-off, ROA
 Laptop queue: `node scripts/laptop-queue/request.mjs --sha <full> --pr <n> --suites "<space separated>" --set <name>
 --requester "Night Shift | Campaign Build"`. Walk cap, train-ready and locks: RULES "Walk pacing", "Getting to
 master", "Machines". Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / needs Michael.
-Next: HOLD. If #419 goes red, fix it. On the orchestrator's row 6 sign-off message: restart the #372 spec docs from
+Next: wharf triage fix -> merge into the failing heads, re-request laptop sets; act on 6 check reports + LP fix round; PR D green -> engine, cut tallow-fixes; mixamo-kit after #477 + i3 release.
 the restart notes above, then ROADMAP Now 7-8 per CONFORMANCE.md 1d.
 
 ## SAVE 2026-10-25 ~09:05 (5-hour save; reset 13:10; read with the block below)
