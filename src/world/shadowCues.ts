@@ -1,6 +1,6 @@
 /**
  * (char-shadow-meter S3, J16) Cast-shadow cues: per player, the floor footprints of the shadow their capsule casts
- * from the strongest members of the gameplay light set at the chest (`LightField.sourcesInto`). Each footprint is
+ * from the strongest members of the gameplay light set at the chest (`LightField.sourcesQ`). Each footprint is
  * `CUE.points` floor points with a contrast, the source's registry id and the far point's speed. Data only (BRIEF Q14
  * "A faint cue"): Guard AI reads it and decides what is noticed; nothing here knows who looks.
  *
@@ -30,7 +30,7 @@ export const CUE_NONE = -2;
 /** Floor of the contrast's denominator (a source in the dark is not infinitely contrasted). */
 export const CUE_LEVEL_FLOOR = 0.02;
 
-/** Set members read from `sourcesInto` per player (strongest first; more than `CUE.sources` so a skipped one leaves
+/** Set members read from `sourcesQ` per player (strongest first; more than `CUE.sources` so a skipped one leaves
  *  room for the next). */
 const SCAN = 8;
 /** A lamp this close above the feet plane (m) or lower casts no floor shadow. */
@@ -56,11 +56,22 @@ const G_FEET = 11;
 const G_TOP = 12;
 const G_LEN = 13;
 
-/** What the cues read from the light field (`LightField` fits it): the set, one member's term, the level. */
+/**
+ * What the cues read from the light field (`LightField` fits it): the set, one member's term, the level, through the
+ * field's typed point input (S3b): the point is written into `qp[0..2]`, a level read back from `qr[0]`. The field is
+ * called through this interface, a call V8 does not inline, so a double passed or returned would be boxed (16 B each).
+ */
 export interface CueField {
-  sourcesInto(x: number, y: number, z: number, ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number;
-  sourceAt(id: number, x: number, y: number, z: number, occluded?: Occluder): number;
-  totalAt(x: number, y: number, z: number, occluded?: Occluder, chars?: CharOccluders | null, skip?: number): number;
+  /** The point the Q calls read: x, y, z. */
+  readonly qp: Float64Array;
+  /** The level `sourceQ` / `totalQ` write. */
+  readonly qr: Float64Array;
+  /** The gameplay set at `qp`, strongest first (`LightField.sourcesInto`). */
+  sourcesQ(ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number;
+  /** One member's term at `qp` into `qr[0]` (`LightField.sourceAt`). */
+  sourceQ(id: number, occluded?: Occluder): void;
+  /** The level at `qp` into `qr[0]` (`LightField.totalAt` with the contract, `skip` the sampled owner key). */
+  totalQ(occluded: Occluder | undefined, chars: CharOccluders | null, skip: number): void;
 }
 
 /** A registry light's position (`LightDef` fits it): rest position plus a swinging pendant's live offset. */
@@ -207,8 +218,13 @@ export class ShadowCues {
     g[G_TOP] = topY;
     const dt = this.dt;
     // the chest, as `LightField.bodyLevel` samples it (0.6 of the height)
-    const k = this.field.sourcesInto(fx + (tx - fx) * 0.6, feetY + h * 0.6, fz + (tz - fz) * 0.6, this.sid, this.slv, SCAN, occluded);
     const field = this.field;
+    const qp = field.qp;
+    const qr = field.qr;
+    qp[0] = fx + (tx - fx) * 0.6;
+    qp[1] = feetY + h * 0.6;
+    qp[2] = fz + (tz - fz) * 0.6;
+    const k = field.sourcesQ(this.sid, this.slv, SCAN, occluded);
     const lift = feetY + CUE.floorLift;
     const same = this.prevIds[s] === this.ids[s];
     let c = 0;
@@ -227,10 +243,15 @@ export class ShadowCues {
         const d = len * CUE_AT[p]!;
         qx = fx + dx * d;
         qz = fz + dz * d;
-        const ls = field.sourceAt(id, qx, lift, qz, occluded);
+        qp[0] = qx;
+        qp[1] = lift;
+        qp[2] = qz;
+        field.sourceQ(id, occluded);
+        const ls = qr[0]!;
         let con = 0;
         if (ls > 0) {
-          const lv = field.totalAt(qx, lift, qz, occluded, occ, key);
+          field.totalQ(occluded, occ, key);
+          const lv = qr[0]!;
           con = (ls * (1 - CAPSULE.floor)) / (lv > CUE_LEVEL_FLOOR ? lv : CUE_LEVEL_FLOOR);
           if (con > 1 - CAPSULE.floor) con = 1 - CAPSULE.floor;
         }

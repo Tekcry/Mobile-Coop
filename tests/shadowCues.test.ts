@@ -6,8 +6,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CAPSULE, CHAR_LIGHT, CharOccluders, OCC_KIND, occKey } from '../src/world/charOccluders';
-import type { LightField } from '../src/world/lightField';
-import type { LightDef } from '../src/world/lights';
+import { LightField } from '../src/world/lightField';
+import { LightRegistry, type LightDef } from '../src/world/lights';
+import { buildAmbientGrid } from '../src/world/ambientGrid';
+import { bakeLamps } from '../src/voxel/lampBake';
+import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
+import { packShapes } from '../src/voxel/shapes';
+import { bakedLights } from '../src/world/lightBake';
 import { CUE, CUE_AT, CUE_LEVEL_FLOOR, CUE_NONE, ShadowCues, type CueField, type CueLight, type CuePlayer } from '../src/world/shadowCues';
 import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
@@ -85,6 +90,18 @@ class FakeField implements CueField {
     let v = this.ambient + this.sourceAt(-1, x, y, z);
     for (let id = 0; id < this.lamps.length; id++) v += this.sourceAt(id, x, y, z);
     return v > 1 ? 1 : v;
+  }
+  // (S3b) the typed point input over the same maths
+  readonly qp = new Float64Array(3);
+  readonly qr = new Float64Array(1);
+  sourcesQ(ids: Int32Array, lv: Float32Array, max: number): number {
+    return this.sourcesInto(this.qp[0]!, this.qp[1]!, this.qp[2]!, ids, lv, max);
+  }
+  sourceQ(id: number): void {
+    this.qr[0] = this.sourceAt(id, this.qp[0]!, this.qp[1]!, this.qp[2]!);
+  }
+  totalQ(): void {
+    this.qr[0] = this.totalAt(this.qp[0]!, this.qp[1]!, this.qp[2]!);
   }
 }
 
@@ -370,13 +387,19 @@ describe('ShadowCues slots (S3)', () => {
     f.lamp(3, 4, 0, 3);
     stand(occ, 0, 0, 0, 0);
     const seen: number[] = [];
+    const qp = new Float64Array(3);
+    const qr = new Float64Array(1);
     const spy: CueField = {
-      sourcesInto: (x, y, z, ids, lv, max) => f.sourcesInto(x, y, z, ids, lv, max),
-      sourceAt: (id, x, y, z) => f.sourceAt(id, x, y, z),
-      totalAt: (x, y, z, _o, chars, skip) => {
+      qp,
+      qr,
+      sourcesQ: (ids, lv, max) => f.sourcesInto(qp[0]!, qp[1]!, qp[2]!, ids, lv, max),
+      sourceQ: (id) => {
+        qr[0] = f.sourceAt(id, qp[0]!, qp[1]!, qp[2]!);
+      },
+      totalQ: (_o, chars, skip) => {
         expect(chars).toBe(occ);
-        seen.push(skip ?? -99);
-        return f.totalAt(x, y, z);
+        seen.push(skip);
+        qr[0] = f.totalAt(qp[0]!, qp[1]!, qp[2]!);
       },
     };
     const c2 = new ShadowCues(spy, f.lamps, null);
@@ -408,7 +431,9 @@ describe('ShadowCues purity (S3)', () => {
     const set = new Int32Array([0, -1, 1, 2]);
     const lvl = new Float32Array([0.5, 0.3, 0.2, 0.1]);
     class FlatField implements CueField {
-      sourcesInto(_x: number, _y: number, _z: number, ids: Int32Array, lv: Float32Array, max: number): number {
+      readonly qp = new Float64Array(3);
+      readonly qr = new Float64Array(1);
+      sourcesQ(ids: Int32Array, lv: Float32Array, max: number): number {
         const n = max < 4 ? max : 4;
         for (let i = 0; i < n; i++) {
           ids[i] = set[i]!;
@@ -416,11 +441,11 @@ describe('ShadowCues purity (S3)', () => {
         }
         return n;
       }
-      sourceAt(id: number): number {
-        return id === 1 ? 0 : 0.25;
+      sourceQ(id: number): void {
+        this.qr[0] = id === 1 ? 0 : 0.25;
       }
-      totalAt(): number {
-        return 0.6;
+      totalQ(): void {
+        this.qr[0] = 0.6;
       }
     }
     const occ = new CharOccluders();
@@ -444,6 +469,50 @@ describe('ShadowCues purity (S3)', () => {
     expect(pt(cues, 0, 0, 2)[3]).toBeGreaterThan(0);
     expect(pt(cues, 0, 2, 2)[3]).toBe(0);
     expect(per).toBeLessThan(HEAP_NUMBER);
+    expect(ctl).toBeGreaterThan(per + 8);
+  });
+
+  it('(S3b) the real LightField (2 lamps and the moon, 4 players): 2-3 footprints each, near points contrasted; one fill allocates <= 2432 B (target 0)', async () => {
+    // the s1-s3 check's scene, baked as the game does: an open floor under two lamps and the moon
+    const reg = new LightRegistry();
+    reg.ambient = 0.18;
+    reg.add({ x: -2.5, y: 3.5, z: 0, radius: 8, intensity: 0.9 });
+    reg.add({ x: 3, y: 3.2, z: 1.5, radius: 8, intensity: 0.8 });
+    const shapes = packShapes([{ kind: 'box', c: [0, -0.25, 0], s: [24, 0.5, 24], yaw: 0, pitch: 0, mat: 1 }]);
+    const lo: [number, number, number] = [-12, -1, -12];
+    const hi: [number, number, number] = [12, 6, 12];
+    const baked = bakedLights(reg);
+    const r = bakeLamps({ kind: 'lamps', id: 0, shapes, lights: baked.lights, lo, hi });
+    const dir: [number, number, number] = [0.6, 0.8, 0];
+    const n: [number, number, number] = [48, 14, 48];
+    const m = bakeMoon({ kind: 'moon', id: 0, origin: lo, n, shapes, dir });
+    const moonL = 0.12;
+    const sky = reg.ambient - moonL;
+    const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, lo, hi);
+    const field = new LightField({ lo, hi, lampKey: 'k', moonKey: 'm', lamps: { baked, r }, moon: { origin: lo, n, cell: MOON_CELL, vis: m.vis, dir }, ambient, moonLight: moonL, ms: 0 }, reg);
+    const occ = new CharOccluders();
+    for (const [k, x, z] of [[0, -1, -1], [1, 0.5, 1.5], [2, 1.5, -0.5], [3, -0.5, 2.5]] as const) stand(occ, k, x, 0, z);
+    const cues = new ShadowCues(field, reg.lights, dir);
+    cues.fill(occ, PLAYERS, KEYS, 4, 0.1);
+    for (let s = 0; s < 4; s++) {
+      expect(cues.count[s], `slot ${s}`).toBeGreaterThanOrEqual(2);
+      expect(cues.count[s], `slot ${s}`).toBeLessThanOrEqual(3);
+      for (let c = 0; c < cues.count[s]!; c++) expect(pt(cues, s, c, 0)[3], `slot ${s} footprint ${c} near point`).toBeGreaterThan(0);
+    }
+    const ring: unknown[] = new Array<unknown>(64);
+    const ctl = await bytesPerCall((k) => {
+      for (let i = 0; i < k; i++) {
+        cues.fill(occ, PLAYERS, KEYS, 4, 0.1);
+        ring[i & 63] = { v: cues.version };
+      }
+    }, -Infinity, { n: 200, warm: 10000 });
+    const per = await bytesPerCall((k) => {
+      for (let i = 0; i < k; i++) cues.fill(occ, PLAYERS, KEYS, 4, 0.1);
+    }, 0, { n: 200, warm: 10000 });
+    const near: string[] = [];
+    for (let s = 0; s < 4; s++) for (let c = 0; c < cues.count[s]!; c++) near.push(pt(cues, s, c, 0)[3].toFixed(2));
+    console.info(`bytes per ShadowCues.fill with the real LightField (4 players, ${cues.count.join(' / ')} footprints): ${per.toFixed(1)} (before S3b: 5264, s1-s3 check), control with an object ${ctl.toFixed(1)}; near-point contrast ${near.join(' ')}`);
+    expect(per).toBeLessThanOrEqual(2432);
     expect(ctl).toBeGreaterThan(per + 8);
   });
 
