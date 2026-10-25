@@ -136,3 +136,50 @@ G2) and the block's as-built intensities. Slice set (`campusV2S1`, `campusS1`, `
 - F3 #2's desk stop (18.3, -73.6) is in the 0.5 m nav cell centred z -73.75, 0.4 m off the desk face, as A5 says.
 
 **Pending PC runs (G2).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
+
+## G3 Car park and carport (D:306)
+
+**Files:** `s1.ts`, `s1Data.ts`, `s1Dress.ts`, `tests/campusV2S1.test.ts`, `tests/campusV2S1Screen.test.ts` (new), graph.
+
+**Geometry (s1.ts).** `ROW_Z = [-75.75, -71.25, -60.75, -56.25]` (:141, D:77); cars and `bayX` unchanged (:330). Columns 14 ->
+10 in the block: `columnsW` 6 / `columnsE` 4 (s1Data.ts:24-25, D:79-80), drawn at :331-337 (pillars and lamps as built).
+Carport slab `box(-12, 2.8, -58.5, 24, 0.4, 9)` overhead, not noLedge (:340-341); posts r 0.15 h 2.6 at x -24, -18, -12,
+-6, 0 on z -58.5 (:342); downlights from `S1_LIGHTS.carport` (:343-344). Van: bonnet `box(-26.2, 0.55, -62.75, 2.0, 1.1, 1.0)`
+(:346, A10), body `box(-26.2, 1.2, -60.25, 2.0, 2.4, 4.0)` (:347), not noLedge. Bike shelter: roof `box(-7, 2.3, -52, 10, 0.2,
+4)` not noLedge (:360, A11), posts (-11.8, -53.8), (-2.2, -53.8), (-11.8, -50.2), (-2.2, -50.2) (:361), lamp `L.bikes` (:362);
+lockers `block(-9, -49.5, 6, 1.2, 1)` (:363). The old shelter, its posts and its dead fitting are deleted (B:250-255).
+`S1_GROUPS.bikes = 46` (:28); the bike switch (-11.65, 0, -50.4) yaw PI/2 (:136, A25).
+
+**Lights (s1Data.ts).** `S1_LIGHTS.carport` (:41-45): (-21, 2.5, -58.5) and (-15, ...) on parkW, (-9, ...) and (-3, ...) on parkE,
+r 4.5 i 0.85 WHITE cone (0,-1,0,1.0) w 0.5 (A9, B:292 values). `S1_LIGHTS.bikes` (:46): (-7, 2.2, -52) r 3 i 0.5 SODIUM w 0.2
+group 46 (A25). `S1Lights.carport` / `.bikes` types at s1.ts:202-205; `s1Lamps` covers them. Circuits: parkW 6 + 2 = 8,
+parkE 4 + 2 = 6 (the as-built counts); lit S1 lamps 31; no intensity changed; no dead or off fitting left in S1.
+
+**Hide spots (s1.ts:115-122).** (-33.4, -60.75), (-7, -51.2), new (-25, -62); all on nav.
+
+**Guards (s1Data.ts).** #3 (:71-86) z -68.2 / -65.8, takedown (-29, -68.2); #4 (:87-102) z -67.2 / -64.8, takedown (-29, -67.2);
+loop, faces, pairs unchanged. #11 (:114, index 9) officer (-12, -66) <-> (4, -66), waits 4 / 4, takedown (4, -66). Cycles:
+#3 / #4 42 s (loop), #11 42.2 s. Pair-loop legs hold (stops 3-6.2 s).
+
+**Dress (s1Dress.ts).** The dress's `ROW_Z` (:110) follows. Bike stands moved by (-2, -4): x -10, -7, -4 at z -50.8 (:184).
+Kit result: x -4 placed; **x -7 refused by K6** (the K6 entry follows to (-7, -50.8)); **x -10 refused by K4** (new: the
+interactable keepout of the bike switch at (-11.65, -50.4) on the north-west post). Both are in `S1_OMITTED` (:134-135).
+
+**Graph.** `s1-carpark` -> "BUILT G3 (s1.ts:328-347, s1Data.ts:24-25, :41-45; C3)"; `s1-carport` -> "BUILT G3 (s1.ts:338-344,
+:358-363; C3, new)".
+
+**Tests.** `tests/campusV2S1.test.ts` 23 (G3 +8: rows and columns; carport; no lamp lost; van and shelter chains; clearances;
+pair north stop; hide spots; #3 / #4 / #11 with the pair-loop legs). `tests/campusV2S1Screen.test.ts` 1 (new): worst point
+(-12.25, 0, -72.25) sees 10 of the 10 guards built so far (#1-#9, #11), cap 12. Slice set (`campusV2S1`, `campusV2S1Screen`, `campusS1`, `campusS1Dress`, `campusRuntimeNav`, `campusV2`,
+`changesFragments`): **7 files, 101 passed, 0 failed**. Typecheck and eslint clean.
+
+**Deviation D-G3-1 (finding F4).** The brief's clearance test asks both the carport and the bike shelter to be >= 20 m from
+CR1-east (D:91). The carport is 20.0 m; the bike shelter as drawn (x -12..-2, z -54..-50) is **16.0 m** from CR1-east (x -6..4,
+z -34): its north edge is z -50. Moving the shelter would be a new coordinate, so the test asserts the measured 16 m and
+the rule the plan line serves (D:92: rules 2 and 4, nothing solo-standable within 4 m of a lip), which holds with 12 m to
+spare. The plan text "both to CR1-east: 20 m or more" is wrong for the shelter.
+
+**Findings.** F4 above. F5 the screen count with 10 guards already sees all 10 from the car park's south aisle (-12.25,
+-72.25), including the gatehouse officers through the glazing; risk R1 for G6 is real.
+
+**Pending PC runs (G3).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).

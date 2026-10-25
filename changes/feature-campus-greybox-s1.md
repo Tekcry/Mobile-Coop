@@ -10,3 +10,6 @@ kind: minor
     north at (17, -72.5), a roof whose only ledge is the east edge (a wall-jump corner by the A/C condenser), a glazed
     smoke-vent hatch, a warm desk lamp beside the ceiling tube on the gate circuit, the CCTV desk as a security desk run
     by the CCTV officer, and a third officer (the night supervisor).
+  - G3 car park: the rows 2 m south, ten lamp columns plus four downlights under a new solar carport (a roof route at 3.0
+    m, reached off the courier's van or the bike shelter), the bike shelter moved against the carport with cycle lockers
+    and its lamp now lit on its own switch, the car-park pair's loop moved with the rows and a new east-rows patrol.

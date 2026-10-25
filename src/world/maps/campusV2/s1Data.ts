@@ -20,8 +20,9 @@ export const WHITE: S1Colour = [1, 0.95, 0.88];
  */
 export const S1_LIGHTS: S1Lights = {
   // the car-park columns (6.0 pillars, sodium cones) on the feeder pillar's two circuits
-  columnsW: [[-34, -62], [-28, -62], [-22, -62], [-16, -62], [-34, -53], [-28, -53], [-22, -53], [-16, -53]],
-  columnsE: [[-10, -62], [-4, -62], [2, -62], [-10, -53], [-4, -53], [2, -53]],
+  // (G3, D:78-81) 14 -> 10: the rows moved 2 m south, the four z -53 columns under the carport gone (its downlights replace them)
+  columnsW: [[-34, -64], [-28, -64], [-22, -64], [-16, -64], [-34, -55], [-28, -55]],
+  columnsE: [[-10, -64], [-4, -64], [2, -64], [2, -55]],
   column: { pillarH: 6.0, pillarR: 0.15, y: 6.0, r: 12, i: 0.9, colour: SODIUM, cone: [0, -1, 0, 1.15], w: 0.6, groupW: S1_GROUPS.parkW, groupE: S1_GROUPS.parkE },
   // the forecourt light bollards on the yard board's circuit
   bollards: { xs: [-28, -24, -20, -16, -12, -8, -4, 0], z: -45.5, postH: 0.9, postR: 0.08, y: 0.85, r: 4.5, i: 0.5, colour: SODIUM, group: S1_GROUPS.fore, w: 0.2 },
@@ -35,6 +36,14 @@ export const S1_LIGHTS: S1Lights = {
   gate: { x: 17, y: 2.9, z: -76, r: 5.5, i: 0.9, colour: WHITE, group: S1_GROUPS.gate, cone: null, w: 0.6 },
   // (G2, D:67) the warm desk lamp on the CCTV desk, on the gate circuit (colour and intensity A6)
   deskLamp: { x: 18.6, y: 1.2, z: -73.4, r: 2.5, i: 0.9, colour: SODIUM, group: S1_GROUPS.gate, cone: null, w: 0.2 },
+  // (G3, A9) the carport's under-canopy downlights, mid-span between the posts (the canopy downlights' values), each cut with
+  // its half of the car park: x -21 and -15 on park-W, x -9 and -3 on park-E
+  carport: {
+    pts: [[-21, -58.5, S1_GROUPS.parkW], [-15, -58.5, S1_GROUPS.parkW], [-9, -58.5, S1_GROUPS.parkE], [-3, -58.5, S1_GROUPS.parkE]],
+    y: 2.5, r: 4.5, i: 0.85, colour: WHITE, cone: [0, -1, 0, 1.0], w: 0.5,
+  },
+  // (G3, A25) the bike shelter lamp (the smoke shelter's values), its own circuit
+  bikes: { x: -7, y: 2.2, z: -52, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.bikes, cone: null, w: 0.2 },
 };
 /** The lists `s1.ts` re-exports (the dress and the tests read them by these names). */
 export const PARK_COLUMNS_W = S1_LIGHTS.columnsW;
@@ -62,12 +71,13 @@ export const S1_GUARDS: SectorGuard[] = [
   {
     kind: 'grunt',
     x: -29,
-    z: -66.2,
+    z: -68.2,
     yaw: 0,
-    route: [[-29, -66.2], [-21, -66.2], [-21, -63.8], [-29, -63.8]],
+    // (G3, D:94) the loop 2 m south with the rows
+    route: [[-29, -68.2], [-21, -68.2], [-21, -65.8], [-29, -65.8]],
     faces: [0, 0, 0, 0],
     loop: { period: 42, leave: [4.5, 18, 25, 38], t0: 0 },
-    takedownSpot: [-29, -66.2],
+    takedownSpot: [-29, -68.2],
     role: 'patrol',
     zone: 'carpark',
     squad: 1,
@@ -77,12 +87,13 @@ export const S1_GUARDS: SectorGuard[] = [
   {
     kind: 'officer',
     x: -29,
-    z: -65.2,
+    z: -67.2,
     yaw: PI,
-    route: [[-29, -65.2], [-21, -65.2], [-21, -62.8], [-29, -62.8]],
+    // (G3, D:95-96) the north stops 1.8 m under the carport's south edge (the drop takedown)
+    route: [[-29, -67.2], [-21, -67.2], [-21, -64.8], [-29, -64.8]],
     faces: [PI, PI, PI, PI],
     loop: { period: 42, leave: [4.5, 18, 25, 38], t0: 0 },
-    takedownSpot: [-29, -65.2],
+    takedownSpot: [-29, -67.2],
     role: 'patrol',
     zone: 'carpark',
     squad: 1,
@@ -99,6 +110,8 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: -34, z: -41.6, yaw: PI - 1.05, route: [[-34, -41.6], [-32, -41.6]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.2], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
   // 9 (G2, D:241) the night supervisor: the log desk (20 s), the door step facing the lane (5 s), a 30.8 s cycle
   { kind: 'officer', x: 15.2, z: -73.6, yaw: 0, route: [[15.2, -73.6], [17, -71.6]], waits: [20, 5], faces: [0, -PI / 2], takedownSpot: [17, -71.6], role: 'desk', zone: 'gatehouse', squad: 0, reason: 'Night supervisor: signs the log, checks the barrier for the 03:00 courier' },
+  // (no #10) 11 (G3, D:244) the east-rows patrol: the aisle's east half, 4 s stops, a 42.2 s cycle; dark at the east end
+  { kind: 'officer', x: -12, z: -66, yaw: PI / 2, route: [[-12, -66], [4, -66]], waits: [4, 4], takedownSpot: [4, -66], role: 'patrol', zone: 'carpark', squad: 1, reason: 'Walks the rows by the gate where the courier parks' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */

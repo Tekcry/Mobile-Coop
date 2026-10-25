@@ -26,7 +26,7 @@ const { LevelBuilder } = await import('../src/world/levelBuilder');
 const { campusOps } = await import('../src/world/maps/campusOps');
 const { CAMPUS_PARTS, CAMPUS_V2_PARTS } = await import('../src/world/maps/campusSections');
 const { CAMPUS_SECTORS, CAMPUS_SECURITY } = await import('../src/world/maps/campusSectors');
-const { s1Lamps, S1_DOORS, S1_GROUPS } = await import('../src/world/maps/campusV2/s1');
+const { s1Lamps, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, PARK_COLUMNS_E, PARK_COLUMNS_W } = await import('../src/world/maps/campusV2/s1');
 const { S1_LIGHTS } = await import('../src/world/maps/campusV2/s1Data');
 
 const b = new LevelBuilder();
@@ -116,7 +116,7 @@ function analyticNav(rect: readonly [number, number, number, number], o: { cell?
 /** The lit lamps in S1's plan box (x -40..26, z -80..-30). */
 const litS1 = () => b.lights.lights.filter((l) => l.intensity > 0 && l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
 /** The lit S1 lamp count after the slices built so far (lead note (3)). */
-const S1_LIT_NOW = 30;
+const S1_LIT_NOW = 31;
 /** The ledges the level build makes (`LevelBuilder.build`: generated from the box tops, lips off the play area dropped, the
  *  map's `noLedge` points applied). */
 function builtLedges(): Ledge[] {
@@ -404,5 +404,127 @@ describe('G2 gatehouse (S1-detail C2)', () => {
     guardChecks(1, null);
     guardChecks(2, 41.7);
     guardChecks(9, 30.8);
+  });
+});
+
+describe('G3 car park and carport (S1-detail C3)', () => {
+  const lit = (g: number) => b.lights.lights.filter((l) => l.group === g && l.on && l.intensity > 0);
+  const slab = boxWith([-12, 2.8, -58.5], [24, 0.4, 9])!;
+
+  it('G3 rows and columns: 14 cars at the new row z, 6 + 4 columns at the D:79-80 points, parkW 8 and parkE 6 lamps', () => {
+    const cars = solid.filter((p) => near(p.s[0], 1.8) && near(p.s[1], 1.5) && near(p.s[2], 4.2));
+    expect(cars.length).toBe(14);
+    expect([...new Set(cars.map((p) => p.c[2]))].sort((p, q) => p - q)).toEqual([-75.75, -71.25, -60.75, -56.25]);
+    expect(PARK_COLUMNS_W).toEqual([[-34, -64], [-28, -64], [-22, -64], [-16, -64], [-34, -55], [-28, -55]]);
+    expect(PARK_COLUMNS_E).toEqual([[-10, -64], [-4, -64], [2, -64], [2, -55]]);
+    for (const [x, z] of [...PARK_COLUMNS_W, ...PARK_COLUMNS_E]) expect(b.cylinders.some((c) => near(c.c[0], x) && near(c.c[2], z) && near(c.h, 6.0) && near(c.r, 0.15)), `column (${x}, ${z})`).toBe(true);
+    expect(b.cylinders.filter((c) => near(c.h, 6.0) && near(c.r, 0.15) && c.c[2] > -80 && c.c[2] < -50 && c.c[0] < 6).length).toBe(10);
+    expect(lit(S1_GROUPS.parkW).length).toBe(8);
+    expect(lit(S1_GROUPS.parkE).length).toBe(6);
+  });
+
+  it('G3 carport: top 3.0 / underside 2.6 over x -24..0, z -63..-54; 5 posts; four lit downlights under it, two per half', () => {
+    expect(slab).toBeTruthy();
+    expect(top(slab)).toBeCloseTo(3.0);
+    expect(slab.c[1] - slab.s[1] / 2).toBeCloseTo(2.6);
+    expect(slab.noLedge).toBeFalsy();
+    const posts = b.cylinders.filter((c) => near(c.c[2], -58.5) && near(c.r, 0.15) && near(c.h, 2.6));
+    expect(posts.map((c) => c.c[0]).sort((p, q) => p - q)).toEqual([-24, -18, -12, -6, 0]);
+    const under = b.lights.lights.filter((l) => near(l.z, -58.5) && near(l.y, 2.5) && l.x > -24 && l.x < 0);
+    expect(under.map((l) => l.x).sort((p, q) => p - q)).toEqual([-21, -15, -9, -3]);
+    for (const l of under) {
+      expect(l.on && l.intensity > 0 && l.destructible && l.electric, `carport lamp ${l.x}`).toBe(true);
+      expect(l.y).toBeLessThan(2.6);
+      expect(l.group).toBe(l.x < -12 ? S1_GROUPS.parkW : S1_GROUPS.parkE);
+    }
+  });
+
+  it('G3 no lamp lost: at least 29 lit S1 lamps; the kept as-built lamps at their as-built intensity', () => {
+    expect(litS1().length).toBeGreaterThanOrEqual(29);
+    for (const l of [...lit(S1_GROUPS.parkW), ...lit(S1_GROUPS.parkE)]) expect(l.intensity, `lamp (${l.x}, ${l.z})`).toBe(near(l.y, 6.0) ? 0.9 : 0.85);
+    for (const l of lit(S1_GROUPS.fore)) expect(l.intensity).toBe(near(l.y, 0.85) ? 0.5 : 0.8);
+    for (const l of lit(S1_GROUPS.canopy)) expect(l.intensity).toBe(0.85);
+    // the bike shelter fitting is lit now (Q2 "Never"): one lamp on its own circuit and a switch
+    const bk = lit(S1_GROUPS.bikes);
+    expect(bk.length).toBe(1);
+    expect([bk[0]!.x, bk[0]!.y, bk[0]!.z]).toEqual([-7, 2.2, -52]);
+    expect(lay.switches!.filter((q) => q.group === S1_GROUPS.bikes).length).toBe(1);
+    // no dead or off fitting anywhere in S1
+    expect(b.lights.lights.filter((l) => l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30 && (!l.on || l.intensity <= 0)).length).toBe(0);
+  });
+
+  it('G3 van chain and shelter chain are solo climbs (each step under 3.8, none noLedge)', () => {
+    const bonnet = boxWith([-26.2, 0.55, -62.75], [2.0, 1.1, 1.0])!;
+    const body = boxWith([-26.2, 1.2, -60.25], [2.0, 2.4, 4.0])!;
+    const lockers = boxWith([-9, 0.6, -49.5], [6, 1.2, 1])!;
+    const roof = boxWith([-7, 2.3, -52], [10, 0.2, 4])!;
+    for (const chain of [[bonnet, body, slab], [lockers, roof, slab]]) {
+      let floor = 0;
+      for (const p of chain) {
+        expect(p, 'piece').toBeTruthy();
+        expect(p.noLedge, `${p.c}`).toBeFalsy();
+        expect(top(p) - floor).toBeLessThan(3.8);
+        floor = top(p);
+      }
+    }
+    expect([top(bonnet), top(body), top(lockers), top(roof), top(slab)].map((v) => +v.toFixed(2))).toEqual([1.1, 2.4, 1.2, 2.4, 3.0]);
+  });
+
+  it('G3 clearances (D:88-92): carport 14 m from the CR1 lip, bike shelter 10.2 m from the canopy lips; both clear of CR1-east', () => {
+    // plan gap of a box to a segment
+    const gap = (x0: number, x1: number, z0: number, z1: number, ax: number, az: number, bx: number, bz: number): number => {
+      let best = Infinity;
+      for (let t = 0; t <= 1.0001; t += 0.01) {
+        const x = ax + (bx - ax) * t;
+        const z = az + (bz - az) * t;
+        best = Math.min(best, hyp2(Math.max(0, x0 - x, x - x1), Math.max(0, z0 - z, z - z1)));
+      }
+      return best;
+    };
+    const carport = [-24, 0, -63, -54] as const;
+    const shelter = [-12, -2, -54, -50] as const;
+    expect(gap(...carport, -14, -40, -14, -34)).toBeGreaterThanOrEqual(14 - 0.05);
+    expect(gap(...shelter, -14, -40, -14, -34)).toBeGreaterThanOrEqual(10.2 - 0.05);
+    expect(gap(...shelter, -26, -40, -14, -40)).toBeGreaterThanOrEqual(10.2 - 0.05);
+    expect(gap(...carport, -6, -34, 4, -34)).toBeGreaterThanOrEqual(20 - 0.05);
+    // (D-G3-1) the shelter is 16 m from CR1-east (x -6..4, z -34), not the plan's 20: its north edge is z -50; rules 2 and 4
+    // (nothing solo-standable within 4 m of a co-op lip) hold with 12 m to spare
+    const sh = gap(...shelter, -6, -34, 4, -34);
+    // eslint-disable-next-line no-console
+    if (process.env.CAMPUS_PRINT) console.log(`G3 bike shelter to CR1-east: ${sh.toFixed(2)} m`);
+    expect(sh).toBeCloseTo(16, 1);
+    expect(sh).toBeGreaterThan(4);
+  });
+
+  it('G3 pair north stop under the carport edge: #4 at z -64.8 is 1.8 m south of z -63', () => {
+    expect(-63 - guard(4).route![2]![1]).toBeCloseTo(1.8);
+    expect(slab.c[2] - slab.s[2] / 2).toBeCloseTo(-63);
+  });
+
+  it('G3 hide spots: between the cars, the bike shelter, the carport west end; all on nav', () => {
+    const hs = S1_HIDESPOTS.map((h) => [h.pos.x, h.pos.z]);
+    for (const p of [[-33.4, -60.75], [-7, -51.2], [-25, -62]]) expect(hs).toContainEqual(p);
+    for (const [x, z] of hs) expect(onNav(x!, z!), `hide (${x}, ${z})`).toBe(true);
+  });
+
+  it('G3 #3, #4, #11 on nav, cycles 25-45 s (#3 / #4 the 42 s loop, #11 42.2 s), pair loop legs', () => {
+    guardChecks(3, 42);
+    guardChecks(4, 42);
+    guardChecks(11, 42.2);
+    for (const n of [3, 4]) {
+      const g = guard(n);
+      const lp = g.loop!;
+      const speed = ENEMIES[g.kind].walkSpeed;
+      const r = g.route!;
+      for (let i = 0; i < r.length; i++) {
+        const prev = (i + r.length - 1) % r.length;
+        const leg = hyp2(r[i]![0] - r[prev]![0], r[i]![1] - r[prev]![1]) / speed;
+        const gp = (((lp.leave[i]! - lp.leave[prev]!) % lp.period) + lp.period) % lp.period;
+        expect(gp - leg, `#${n} stop ${i}`).toBeGreaterThanOrEqual(3);
+        expect(gp - leg, `#${n} stop ${i}`).toBeLessThanOrEqual(6.2);
+      }
+    }
+    expect(guard(3).loop).toEqual(guard(4).loop);
+    expect([guard(3).pair, guard(4).pair]).toEqual([3, 2]);
   });
 });
