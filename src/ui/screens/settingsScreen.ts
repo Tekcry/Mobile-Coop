@@ -336,8 +336,8 @@ export class SettingsScreen extends MenuScreen {
       }, { class: 'subtle' }), 'Measures this device again and picks the Auto preset from the result.'),
       // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
       ch('Shadows', 'shadows', SHADOW_OPTS, 'Shadows from the moon and the flashlights. Lamps are always lit and shadowed.'),
-      // (LR14) the nearest lamps' character silhouettes: Auto follows Shadows (on from High)
-      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: on from High shadows. Looks only: the light meter and the guards are the same either way.'),
+      // (LR14) the nearest lamps' character silhouettes: Auto follows Shadows (1 lamp on Low / Medium, 2-4 from High)
+      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: the light meter and the guards are the same either way.'),
       ch('Anti-aliasing', 'aa', AA_OPTS, 'Smooths jagged edges. TAA is the smoothest; FXAA is the cheapest.'),
       ch('Textures', 'textures', TIER_OPTS, 'Surface detail. Lower it if the game stutters when you enter a new area.'),
       ch('Detail and draw distance', 'detail', TIER_OPTS, 'How much map dressing is drawn and how far away.'),
