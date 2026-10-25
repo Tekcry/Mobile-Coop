@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:00:48+11:00
+status: done feature/campus-greybox-s5 589f9b69d28728bc619ffa70d0c37e1be4174489
 # campus-greybox s5 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
@@ -19,3 +19,17 @@ Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADM
 - Done: every in-scope slice pushed on `feature/campus-greybox-s5`; a report `docs/campus-greybox/checks/s5-build.md` (per slice: files
   changed, tests with counts, assumptions taken with their undo, deviations, pending PC runs); then
   `status: done feature/campus-greybox-s5 <sha>` here.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-25)
+- Resumed from the old-account builder's head af3c46b3 (P1 3c600cc1, P2 9ea8a93d, P3 af3c46b3; all green on resume, 88 tests).
+- P4 built at 5c57c05f: `S5_COOP_LIPS` CR8-s5 / CR9-s5 / CR10-s5 and `S5_LIP_SEGMENTS` exactly as briefed (s5.ts:173-203),
+  `S5_PARTS.coopLips` (s5Data.ts:232); new tests `campusV2S5Coop` (20: lip rules 1-5, one ledge per lip, LD 11.8, CR7 two
+  players only, K4), `campusV2S5Graph` (6: LD 15, solo past the team doors, LightField at the vantages), `campusV2S5Screen` (1:
+  worst 7 of cap 12); graph keys "1".."4" = 26 at every key, `s5-ante` unavoidable, notes BUILT P4.
+- Report `docs/campus-greybox/checks/s5-build.md` (P1-P4, guard table, sync-node lines, light and screen readings) at 589f9b69.
+- Tests: typecheck and eslint clean; slice set 11 files 115 / 115 (S5 v2 64, v1 29 + 10 + 9 + 3); changesFragments 1 / 1.
+- Validator (five v2 files): 0 errors, 141 warnings; the S5 kinds as D:196-198 plus one new kind: `unknown tag 'unavoidable'`.
+- Deviations: none in the data. Findings for the lead (K4 angles: sash 45 deg off #9, shaft door 30 deg off #28; the solo well
+  route ~24 s; roof NW sees 6, not 8; lit back hall and three hide spots) are in the report.
+- TAG-5 not built (waits for #317). Pending PC run: `e2e-sectorops:1`..`:6` default flags, `affected-e2e`, the measured
+  validator / V6, J13 route-runs, any look check.
