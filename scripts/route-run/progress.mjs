@@ -288,6 +288,9 @@ export class PathProgress {
       }
       if (t < tMin) t = tMin;
       if (t > tMax) t = tMax;
+      // Known limit: the storey check tests only this nearest point of the segment. On a long sloped segment (a stair
+      // run) the nearest point can fail the height check while another point inside the window would pass, which
+      // reads as a stall. If a stair run shows false stalls, test every point inside [tMin, tMax] instead.
       const qy = ay + ey * t;
       if (Math.abs(qy - py) > this.yTol) continue;
       const d = hyp3(ax + ex * t - px, qy - py, az + ez * t - pz);
@@ -307,13 +310,14 @@ export class PathProgress {
 // ---------------------------------------------------------------------------------------------------------------
 
 /** The limit (s) of a link step of `kind`; `lengthM` for a ladder or duct, `holdS` for an objective. Null: no limit
- *  of its own (a walked kind, or a stub the harness holds). */
-export function stepLimit(kind, lengthM = 0, holdS = 0) {
+ *  of its own (a walked kind, or a stub the harness holds), or a duct with no length (R1 does the same; never an
+ *  instant timeout). A ladder with no length gets the base limit. */
+export function stepLimit(kind, lengthM, holdS = 0) {
   switch (kind) {
     case 'door':
       return DOOR_LIMIT_S;
     case 'ladder':
-      return LADDER_LIMIT_S + LADDER_LIMIT_PER_M_S * lengthM;
+      return LADDER_LIMIT_S + LADDER_LIMIT_PER_M_S * (lengthM ?? 0);
     case 'drop':
       return DROP_LIMIT_S;
     case 'window':
@@ -321,7 +325,7 @@ export function stepLimit(kind, lengthM = 0, holdS = 0) {
     case 'hatch':
       return HATCH_LIMIT_S;
     case 'duct':
-      return DUCT_LIMIT_PER_M_S * lengthM;
+      return lengthM == null ? null : DUCT_LIMIT_PER_M_S * lengthM;
     case 'objective':
       return holdS + OBJECTIVE_EXTRA_S;
     default:

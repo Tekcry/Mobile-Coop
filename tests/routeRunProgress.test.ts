@@ -228,6 +228,8 @@ describe('route-run progress: steering and stuck watch (A4)', () => {
     expect([stepLimit('door'), stepLimit('drop'), stepLimit('window'), stepLimit('hatch')]).toEqual([5, 5, 8, 8]);
     expect(stepLimit('ladder', 3.3)).toBeCloseTo(18.3, 12);
     expect(stepLimit('duct', 6)).toBe(12);
+    expect(stepLimit('duct')).toBe(null); // no length: no limit, never an instant timeout
+    expect(stepLimit('ladder')).toBe(15);
     expect(stepLimit('objective', 0, 4)).toBe(9);
     expect(stepLimit('coop_boost')).toBe(null);
     const w = new StuckWatch();
