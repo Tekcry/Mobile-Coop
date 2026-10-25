@@ -19,6 +19,8 @@ import { flags, onOffFlag } from '../src/core/flags';
 import { STUDIO_ENTRIES } from '../src/anim/studio';
 import type { RigPose } from '../src/player/characterRig';
 import type { Ladder, Ledge } from '../src/world/anchors';
+import type { Pose } from '../src/anim/pose';
+import type { Clip } from '../src/anim/clip';
 
 /** MIXAMO_ON as shipped (a test that lets every capture on puts it back). */
 const ON0 = { ...MIXAMO_ON };
@@ -280,55 +282,54 @@ describe('mixamo I2: the graph', () => {
   });
 
   it('no allocation per frame on the capture path (as the hand-made path)', async () => {
-    const { bytesPerCall } = await import('./helpers/allocPerCall');
+    const { bytesPerCall, HEAP_NUMBER } = await import('./helpers/allocPerCall');
     allOn();
+    setMixamo(true);
     const g = new AnimGraph(proportions('average', 1.68));
     g.wrenReady = true;
     const i = defaultInput();
     i.grounded = false;
-    const run = (n: number): void => {
-      for (let k = 0; k < n; k++) g.update(DT, i);
-    };
-    // hanging on the move (a shimmy), hanging still, the lip climb-up
+    for (let k = 0; k < 10; k++) g.update(DT, i);
+    // The capture path's own code, read directly (allocPerCall's gc + new-space method): every line the capture path runs
+    // and the hand-made path does not is in `mixamoTrav` (with `mxOver`, `keepSave`, `keepApply` inlined into it), plus
+    // one typed-array store in update. The whole graph's frame is not compared: its own 0.3-2.4 KB a frame (not this
+    // slice's: AnimGraph's fields are tagged, every double stored boxes 16 B) moved by up to 1.4 KB between rounds of one
+    // run as its tiers changed (hang moving 1664 then 616 on the capture path, 2368 then 271 hand-made, on one PC), so a
+    // capture vs hand-made difference of the whole frame was noise either way (CI +128 B, a PC -432 B). Read this way the
+    // kept channels' `evalCurve` calls (not inlined once mixamoTrav's budget ran out) boxed their time and value: 32-160 B a
+    // frame, fixed with `evalCurveIO` (no double crosses a call). Limit: under one boxed double.
+    type Trav = { mixamoTrav(src: Pose, i: AnimInput, tc: Clip): boolean; travFrom: TraverseKind; src: Pose };
+    const G = g as unknown as Trav;
     const STATES = [
-      { name: 'hang moving', trav: 'hang', t: -0.1, speed: 0.5, ledge: false },
-      { name: 'hang still', trav: 'hang', t: 0.001, speed: 0, ledge: false },
-      { name: 'climb-up', trav: 'climbUp', t: 0.7, speed: 0, ledge: true },
+      { name: 'hang moving', trav: 'hang', t: -0.1, speed: 0.5, ledge: false, from: 'hang', tc: HANG },
+      { name: 'hang still', trav: 'hang', t: 0.001, speed: 0, ledge: false, from: 'hang', tc: HANG },
+      { name: 'climb-up', trav: 'climbUp', t: 0.7, speed: 0, ledge: true, from: 'hang', tc: CLIMB_UP },
+      { name: 'top-out', trav: 'climbUp', t: 0.7, speed: 0, ledge: true, from: 'climb', tc: CLIMB_UP },
+      { name: 'ladder', trav: 'climb', t: 0.3, speed: 0, ledge: false, from: 'climb', tc: CLIMB },
     ] as const;
-    const put = (s: (typeof STATES)[number]): void => {
+    const rows: string[] = [];
+    const res: [string, number][] = [];
+    for (const s of STATES) {
       i.traverse = s.trav;
       i.traverseT = s.t;
       i.speed = s.speed;
       i.ledgeClimb = s.ledge;
-    };
-    // one cold on-then-off reading read whichever path tiered up first (it failed both ways round): both paths warmed
-    // on every state first, then each read in alternating order over ROUNDS rounds and the medians compared
-    for (const s of STATES)
-      for (const on of [true, false]) {
-        setMixamo(on);
-        put(s);
-        run(20_000);
-      }
-    const ROUNDS = 5;
-    const median = (a: number[]): number => [...a].sort((x, y) => x - y)[a.length >> 1]!;
-    const rows: string[] = [];
-    const res: [string, number, number][] = [];
-    for (const s of STATES) {
-      const on: number[] = [];
-      const off: number[] = [];
-      for (let r = 0; r < ROUNDS; r++)
-        for (const cap of r % 2 === 0 ? [true, false] : [false, true]) {
-          setMixamo(cap);
-          put(s);
-          (cap ? on : off).push(await bytesPerCall(run, 0, { n: 1000, warm: 4000 }));
-        }
-      res.push([s.name, median(on), median(off)]);
-      rows.push(`${s.name} ${median(on).toFixed(0)} (hand-made ${median(off).toFixed(0)}; rounds ${on.map((x) => x.toFixed(0)).join('/')} vs ${off.map((x) => x.toFixed(0)).join('/')})`);
+      G.travFrom = s.from;
+      const tc = s.tc;
+      const src = G.src;
+      const b = await bytesPerCall(
+        (n) => {
+          for (let k = 0; k < n; k++) G.mixamoTrav(src, i, tc);
+        },
+        0,
+        { n: 1000, warm: 20_000 },
+      );
+      res.push([s.name, b]);
+      rows.push(`${s.name} ${b.toFixed(1)}`);
     }
     setMixamo(false);
-    console.info(`(mixamo I2) bytes a frame, medians: ${rows.join('; ')}`);
-    // the graph's own frame cost is the hand-made path's (not this slice's): the capture path adds nothing to it
-    for (const [name, on, off] of res) expect(on, name).toBeLessThanOrEqual(off + 16);
+    console.info(`(mixamo I2) capture path (mixamoTrav) bytes a frame: ${rows.join('; ')}`);
+    for (const [name, b] of res) expect(b, name).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   }, 600_000);
 });
 
