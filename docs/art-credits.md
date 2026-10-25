@@ -18,9 +18,9 @@ proportions) is listed under "Reference data" and kept out of the repo.
 
 ## Motion capture (CMU exception, mocap-trial)
 
-The one non-CC0 data source: Michael's exception for CMU motion capture only (docs/archive/mocap-trial/BRIEF.md, 2026-10-22).
+The one non-CC0 data source: Michael's exception for CMU motion capture only (docs/mocap-trial/BRIEF.md, 2026-10-22).
 Raw takes stay out of git (`.mocap-cache/`, gitignored); only clips converted onto Wren are committed and bundled.
-Every take used, with its seconds: `docs/archive/mocap-trial/SOURCES.md`.
+Every take used, with its seconds: `docs/mocap-trial/SOURCES.md`.
 
 | Files (repo path) | What it is | Source (URL) | Terms | Date added | Used by |
 | --- | --- | --- | --- | --- | --- |

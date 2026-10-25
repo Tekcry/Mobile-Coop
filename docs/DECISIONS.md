@@ -1435,7 +1435,7 @@ suite times hold (within ~15%), no new load failures, and CPU stays under ~90% o
 slot; the netmove compare moves to sim time. (Keeps the G269 trial setup.)
 
 **G271. Mocap locomotion, as captured.** Michael (2026-10-22 ~23:20, after the side-by-side sheets and videos,
-feature/mocap-sheets-real docs/archive/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
+feature/mocap-sheets-real docs/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
 the old limits (walk pelvis bob 5.5-6.6 cm vs bible D2 4 cm, walk knee-out 3.5 cm, run wrist swing 24 cm vs his 85 cm
 hand-keyed tune); checkers report those as notes, not fails. Fix rounds still fix pops and slides. Applies to the mocap
 locomotion behind the G264 toggle. (Overrides the bible D2 limits for mocap clips.)

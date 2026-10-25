@@ -84,7 +84,7 @@ everywhere. Twist at lift: jog 13-14, run 7-11 (before 9-14), sprint 5-7 deg (be
 - CT flicks (90 / 180 deg at 6.1-7.85 rad/s, outside the plan's bars): the planted foot still reads across the hip
   midline (-3 to -6 cm at jog / run). In the root frame it is at the midline (-0.5 cm): the hips shift ~3 cm over it in
   the flick, which is the pelvis / carriage (AF2's area) more than the foot. The flick ownership flips are fixed.
-- `docs/archive/mocap-trial/TAKES.md` "clips" section not rewritten (`--no-doc`); its jog / run half numbers are the old ones.
+- `docs/mocap-trial/TAKES.md` "clips" section not rewritten (`--no-doc`); its jog / run half numbers are the old ones.
 
 ## Changelog
 - Mocap jog / run / sprint feet no longer cross or stick in turns: the clips' planted track is centred and measured on

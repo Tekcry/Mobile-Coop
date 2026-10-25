@@ -338,7 +338,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   walking turns / start / stop (walking pace only, `MOCAP_SLOT.walkMax`), a turn on the spot from subject 69.
   `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): all 0 (the capture holds its own
   arm swing, elbows, twist, lean, load and settle) but N1's `turnStep`. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
-  Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/archive/mocap-trial/CLIP-FORMAT.md`.
+  Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and
