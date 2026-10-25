@@ -1,6 +1,32 @@
 # mission-framework - STATE
 
-## RESUME 2026-10-25 ~14:05 save (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~18:25 (Night Shift | Campaign Build; read this block first, older blocks are history)
+Process: `docs/RULES.md` + `docs/VISION.md` from origin/master; start steps `docs/orchestrator/BOOT.md` "Campaign Build"
+(origin/feature/menu). Plan: FOLDED-PLAN (feature/menu) signed off ~17:00; Michael's answers in ROADMAP "Decided"
+override it. Tallow hold LIFTED ~18:05 ("Build now, walk later"); all six #372 pages signed off; the 12 level-rule
+changes (G157) adopted ~18:20 (`docs/orchestrator/G157-12-changes.md` on feature/menu; Marlow edits level-design).
+Campaign jobs: J1 docs, J3 / J3b hud-guidance, J7 engine rules, J8 / J9 Tallow greybox + shutters, J22 campaign mode,
+J23 Tallow design docs, TW23 (SPEC onto the template), J25 / J26 later.
+1. J1 docs PR #434 (feature/campaign-j1-docs, C:/NightShift/Mobile-Coop-campaign-j1-docs): Opus checker PASS on
+   d51ef9d2; train-ready when CI is green. Polish (later, J3): tighten the stale-term allowLines; drop the coop.md
+   blip exception when J3 removes blips; menu-ui/DECISIONS.md MD7 Map marker.
+2. #372 (this branch): picks recorded 4f707252, rewards dropped 16a603ab (Q19), restart notes 26969f6a. Next: fresh
+   checker on the head, then the orchestrator adds big-pr. Assumed: a Teale KO / kill restarts the section from its
+   checkpoint, he does not then move (undo: add the move in the TGC BEAT).
+3. FLG (mission flags): checker FIX (C:/NightShift/scratch/mission-flg-check.md); fix round f8b06637 on
+   origin/feature/mission-engine-flg-gb6 (URL gate `mapBootAllowed`, host `sm` gated, owner Campaign); tsc + 2 test
+   files green. Needs two Opus checkers (src/net/session.ts), then push the engine (local
+   C:/NightShift/Mobile-Coop-mission-engine = feature/mission-engine + FLG + GB6 merges, head f8b06637).
+4. Laptop: set mission-flg-gb6 on c74ce8f5 (wharf-tgc, wharf-tkl, sectorops:mission), first GB6 run.
+5. Plans running / written to C:/NightShift/scratch/campaign/: J7-PLAN.md, J8-J9-PLAN.md; hud-guidance plan on
+   feature/hud-guidance (C:/NightShift/Mobile-Coop-hud-guidance, npm ci done): docs/hud-guidance/{BRIEF,PLAN,STATE}.md.
+   Each needs an Opus plan checker, then builders in parallel.
+6. Known gaps: mission-validator (origin/feature/mission-validator) still requires an optional reward (now fails TGC /
+   TKL graphs: J12 with Marlow); engine code still has oneChance / window, blips, rewards (J7).
+CPU: the orchestrator paused new agents ~18:10 until desktop CPU < 80%.
+Next: when CPU allows, #372 checker + two FLG checkers + TW23 builder; plan checkers on J3 / J7 / J8-J9; builders.
+
+## OLD RESUME 2026-10-25 ~14:05 (history) save (Night Shift | Campaign Build; read this block first, older blocks are history)
 Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
 Marlow Build; Marlow keeps level-validator V6, route-runs, guard-cap). Process: `docs/RULES.md` and `docs/VISION.md`
 from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on origin/feature/menu.
