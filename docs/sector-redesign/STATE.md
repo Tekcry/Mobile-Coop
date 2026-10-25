@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~00:20, after the 23:52 swap).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~00:40 SAVE; paused to the 04:50 reset, same account).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
 builder slices (tsc + single vitest) go to cloud-queue (worktree C:/NightShift/scratch/cq); desktop does plans, briefs,
 code-review checkers (no tests), GPU / Blender / prebake under heavy.lock. Marlow first on laptop + desktop CPU.
@@ -372,10 +372,10 @@ Order: Guard AI J15 PR1 (#450) lands before any J17 lane PR (S1-S5). J10 datashe
      (s3-r6-cloud-brief.md): fill <JOIN-HEAD> and push when the join is done. #10/#15/#16 isolation: lead decision at r6.
    - Lip audit: no depth defects; D1 = join J8. Optional canClimbUp test hardening for S1 / S2 (lip-depth-audit.md).
    - Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
-4. J21 map-ready: S4 prebake PASS (5.54 MB, 114.5 s cold; docs/map-ready/STATE.md) -> PR #483 (00d942d6f): Sonnet
-   docs-delta checker IN FLIGHT; affected + e2e-sectorops:6 queued; add CI build-check seconds / sizes to the PR body.
+4. J21 map-ready: S4 prebake PASS (5.54 MB, 114.5 s cold; docs/map-ready/STATE.md) -> PR #483 (00d942d6f): checker PASS (Opus + Sonnet
+   docs delta); affected + e2e-sectorops:6 queued; add CI build-check seconds / sizes to the PR body.
    W1 S1 + S9 cloud briefs open (00:15). Then S2, S10; S8.
 5. J10 light-realism: L1 claimed on cloud (Cloud Builder 2) -> Opus checker, 2 laptop requests, SIGNOFF.md to Michael
    via the orchestrator. PLAN L2-V2 (c19a799c9): v2 sections measured before exit (A29).
-Next: act on each checker / cloud done as it lands (pick up within 1 h); prebake result -> S4 PR.
+Next: read cloud-queue statuses (join done -> push s3-r6-cloud-brief.md with <JOIN-HEAD>) and laptop verdicts; act on each.
 ```
