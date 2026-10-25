@@ -255,6 +255,8 @@ export class CourseMode implements GameMode {
   private bayRestarts = 0;
   /** (J14 R1) A camera reached full detection of a player since the last step (the station rule's `seen`, A22). */
   private camFull = false;
+  /** (J14 R1 fix 4) s left of the post-retry hold in which a guard going into combat is put back calm (`calmCombat`). */
+  private calmT = 0;
   /** (J14 R1) The combat time an A8 `caught` station has counted. */
   private readonly caught: CaughtClock = { t: 0 };
   /** (J14 R1) The station whose marks are the respawn points while `placeT` runs (a station retry or start). */
@@ -728,6 +730,11 @@ export class CourseMode implements GameMode {
     if (stations) {
       // (fix 1, SA1) which station each squad guard went down / was carried in, before anything below acts on it
       this.noteDowns();
+      // (fix 4) after a retry: a guard told of the old sighting goes back calm, never a second retry
+      if (this.calmT > 0) {
+        this.calmT -= dt;
+        this.calmCombat();
+      }
       const live = st.liveStation();
       const can = !!live && !st.over && this.restartT < 0 && this.spotHold <= 0;
       const rule = can && !st.isRetryOff(live!.n) ? live!.retry : 'none';
@@ -886,6 +893,8 @@ export class CourseMode implements GameMode {
         this.placeT = 0;
         this.placeSt = null;
         this.caught.t = 0;
+        this.calmT = 0;
+        this.retryDoorSt = null;
         // (section-rating S6, A8) the set's rating stats start again; a set already rated is never re-rated, and a grant
         // already given stays (the course has no checkpoint loadout to put back)
         this.rating?.begin(st.bay, st.stats[st.bay]!);
@@ -1099,6 +1108,8 @@ export class CourseMode implements GameMode {
     this.caught.t = 0;
     this.camFull = false;
     this.resetStationGuards(n, guards);
+    this.forgetSighting();
+    this.calmT = SPOT_HOLD;
     const g = this.g;
     g.grenades.clear();
     g.gadgets.clearWorld();
@@ -1140,6 +1151,48 @@ export class CourseMode implements GameMode {
       else if (!redo.includes(this.squadIds[k]!)) redo.push(this.squadIds[k]!);
     }
     for (const id of redo) this.respawnSlot(id);
+  }
+
+  /**
+   * (fix 4, SA1 "the cause of a retry never repeats it") The sighting that caused the retry, out of the guards' shared
+   * memory, as the bay restart's `resetMemory` clears it but with the guards left where they are (those dealt with at
+   * earlier stations stay as left): the radio net's open calls and queued receptions, the incident board, the command
+   * call and alarm, every intruder's last known position.
+   */
+  private forgetSighting(): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    em.radioNet.clear();
+    em.board.clear();
+    em.resetAlarm();
+    em.intruders.clear();
+    em.lkpValid = false;
+    em.sightT = 99;
+  }
+
+  /**
+   * (fix 4) While the post-retry hold runs: a guard who goes into combat (told of the old sighting by a shout or a call
+   * already on its way) is put back calm on his slot (one the course does not know goes), and the station does not retry
+   * again. Allocation-free unless a guard is reset.
+   */
+  private calmCombat(): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    let held = false;
+    for (let i = em.enemies.length - 1; i >= 0; i--) {
+      if (i >= em.enemies.length) continue;
+      const e = em.enemies[i]!;
+      if (!e.alive || e.passive || !e.alerted) continue;
+      if (!held) {
+        held = true;
+        const g = this.g;
+        if (g.takedown.active) g.takedown.reset();
+        g.net?.releaseHolds?.();
+      }
+      const k = this.slotOfGuard(e);
+      if (k < 0) em.despawn(e);
+      else this.respawnSlot(this.squadIds[k]!);
+    }
   }
 
   /** (fix 1) Squad slot `id` back fresh: its guard (and a woken copy of him) gone, a new one on the slot. */

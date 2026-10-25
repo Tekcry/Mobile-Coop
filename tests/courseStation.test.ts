@@ -385,6 +385,32 @@ describe('SA1: a guard on several stations\' lists (fix 1)', () => {
   });
 });
 
+describe('the cause of a retry never repeats it (fix 4)', () => {
+  it('an unlisted guard told of the sighting goes into combat 0.5 s after the retry: back calm on his slot, one retry', () => {
+    const r = rig(def({}, [station(1, { guards: [] }), station(2, { guards: ['gd2'] })]));
+    r.st.setFlag('s1-done');
+    r.step();
+    const gd1 = r.guard('gd1');
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    // the sighting is out of the guards' memory: calls, incidents, the command call, the last known positions
+    expect(r.cleared).toEqual({ radio: 1, board: 1, alarm: 1, intruders: 1 });
+    expect(r.guard('gd1')).toBe(gd1);
+    r.step(5);
+    gd1.alerted = true;
+    r.step(30);
+    expect(r.mode.restarts).toBe(1);
+    expect(r.despawned).toContain(gd1);
+    expect(r.guard('gd1')).not.toBe(gd1);
+    expect(r.guard('gd1').alerted).toBe(false);
+    // after the hold the rule is live again: a real sighting retries
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.restarts).toBe(2);
+  });
+});
+
 describe('a retry\'s gate doors (fix 3)', () => {
   it('the retried station\'s gate door is shut and locked again; an earlier station\'s door stays open', () => {
     const gates: BayDef['gates'] = [
