@@ -146,6 +146,8 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     for (const e of STUDIO_ENTRIES.filter((x) => x.kind === 'trav' && x.id.includes('/'))) {
       expect(e.trav!.tune, e.id).toMatch(/this capture plays/);
       expect(e.trav!.tune, e.id).toMatch(/\?mixamo=1/);
+      // one MIXAMO_ON keeps out of matches says so
+      expect(/stays hand-made/.test(e.trav!.tune), e.id).toBe(!MIXAMO_ON[e.id.split('/')[1]!]);
     }
     const sideOf = (id: string): number => STUDIO_ENTRIES.find((e) => e.id === id)!.trav!.steps.reduce((s, st) => s + (st.x ?? 0) * st.dur, 0);
     expect(sideOf('trav:ledge/braced_hang_shimmy_left')).toBeLessThan(0);

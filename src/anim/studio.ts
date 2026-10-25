@@ -10,6 +10,7 @@
 import type { KeyedClip } from './keyed';
 import type { BodyGroup } from './tune';
 import { stickMagFor } from '../player/speedGears';
+import { MIXAMO_ON } from './mixamo'; // (mixamo-retarget I2) the capture loops' tune text
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -276,7 +277,8 @@ function captureEntries(): StudioEntry[] {
         id: `${b.id}/${slug}`,
         label: `${captureLabel(name, r)} (${b.label.replace(/^traversal: /, '')})`,
         steps: CAPTURE_STEPS[slug] ?? b.steps,
-        tune: `${b.tune}. Here this capture plays in its part of the move (the rest as in a match); in a match the captures play with ?mixamo=1`,
+        // (I2) a capture MIXAMO_ON keeps out of matches says so (its anchor misses: docs/mixamo-retarget/I2-REPORT.md)
+        tune: `${b.tune}. Here this capture plays in its part of the move (the rest as in a match); ${MIXAMO_ON[slug] ? 'in a match the captures play with ?mixamo=1' : 'in a match this one stays hand-made even with ?mixamo=1 (it misses its grips; I2-REPORT)'}`,
       };
       out.push(travel(t));
     }
