@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T21:34Z
+status: done feature/validator-port-s9 b6464dd958d116867e8ed180c3a7679f7020c967
 # J12 validator-port, slice S9 (Sonnet, strict Opus brief): Marlow Yard graph on `training`, measured, run saved
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S4, S6, S7b, S5 checker PASS and
@@ -111,3 +111,36 @@ with the reason), run.txt is the exact CLI output.
 What changed (files, commits), the step 4 numbers, measure times and `--check` result, both validator counts (these go
 to I-C), route counts, the ERR-to-J14 mapping summary, tests with counts, deviations. Then
 `status: done feature/validator-port-s9 <sha>`.
+
+### Report (Night Shift | Cloud Builder 2, 2026-10-25)
+**Done.** Branch `feature/validator-port-s9`, head b6464dd95, cut from 17871b9fe. The four files only:
+`docs/marlow-final/graph/ctcourse.json`, `run.txt`, `REPORT.md`, `changes/feature-validator-port-s9.md` (`kind: patch`).
+- Commits: 077d5d135 (graph, training, taught_by A7, eight teach elements), be052d836 (measured, `--write`), 1cebc372a
+  (saved run and fragment), b6464dd95 (REPORT). Deviation: the brief's third commit was split in two because the
+  builder agent's tool refused to write REPORT.md; the lead session wrote it from the agent's text, with no other change.
+- Step 4 held exactly: 25 error(s), 73 warning(s); `--require-measured` 36 / 73; no "no teach element" line; exactly
+  five "is avoided by an entry-to-exit path" lines (A1 leg-up, A2 light-isolation, A5 partner-throw, A6 rope, A6
+  hang-down); `split 'a4'` and `split 'a7'` ERRs and the A1-A5 side-route ERRs present. Routes:
+  `A1 2, A2 2, A3 3, A4 3, A5 2, A6 1, A7 1, A8 1`.
+- Measure (cloud container, 4 CPUs shared): print only, `--write`, `--write` again each about 40 s (build about 30 ms,
+  nav about 360 ms, bake 38-40 s); the second `--write` left the file byte-identical. `meta.measured.geom`
+  `v83j27-1jwh0b5`. The measure printed 2 ERR (graph findings): `a1-walltop` has no walkable floor cell within 1 m of
+  4.4 (a co-op-only wall top); `a1-cabin` only 10 floor cells.
+- `--check`: exit 1, 13 failure lines, all target misses or the 2 ERR above: shadow a2-neck 0.00, a4-secroom 0.00,
+  a4-dock 0.31, a8-office 0.02; sees a2-neck 0.22, a4-secroom 0.00, a5-inner 0.50, a6-floor 0.59, a7-hall 0.10,
+  a8-hall 0.64; split a8 reach 16.54 s above 15 s. No LOS-break miss, no drift.
+- Validator counts for I-C: plain `34 error(s), 83 warning(s).`; `--require-measured` (saved as `run.txt`, the CLI's
+  exact stdout, re-checked byte for byte) `37 error(s), 83 warning(s).`, 23 INFO (16 light band, 7 guard band).
+- ERR to J14 (REPORT.md table): 12 of 37 are training checks (routes A1-A5, teach avoided A1 / A2 / A5 / A6 x2, split
+  before taught_by a4 / a7), each mapped to its set slice (G-A1A7 :426 ... G-A8 :432); measured sees misses to the set
+  slice then G1 :440; a4-secroom size and a1-cabin dead end "none: graph modelling"; the 3 "no measured leg" split lines
+  (a7 legs, a8 leg a: co-op links are not on the nav grid) "validator reading: lead". J14's planned `graph.json` run
+  through the same validator gives 4 ERR (A8 office approaches), none of these 37.
+- Tests: `npx vitest run tests/levelTraining.test.ts tests/levelGraphs.test.ts tests/changesFragments.test.ts`
+  25 of 27 pass. The 2 failures are in `levelGraphs` on the campus set ("the saved run is the level-validate CLI text
+  for the set", "exits 1 on a count that differs ..."); they fail the same on the untouched base 17871b9fe (the
+  campus `run.txt` and the runner test lack the validator's new "pending V6" INFO lines), so they are not S9's;
+  S10's re-saved campus run should clear the first. `node scripts/doc-lint.mjs`: 0 errors, 26 warnings, none in S9 files.
+- Pending PC run: `node scripts/level-measure.mjs docs/marlow-final/graph/ctcourse.json --check` on the desktop for
+  bake drift (expected: the same 13 lines). `a4-secroom`'s measured 0 sight (vantage from L3's glass slot, a point in
+  the previous section) is worth a look before trusting it.
