@@ -359,10 +359,10 @@ ROADMAP "Decided" override it. Message the orchestrator only at PR open / train-
    map approved together; Q10 keep 32, fill rest; Q14 faint cue from cast shadow; Q16 4p live; Q20 30 s then death,
    wait for next section door; Q21 S2 team doors 2p; Q26 warehouseOps FROZEN; Q27 parity check every release;
    Q31 map fully built before play; Q32 warm-up cap; Q4 60 fps at 32.
-1. J1: PR #433 feature/sector-ops-docs @ b3202ea0b (worktree -sector-ops-docs; replaces feature/sector-ops-docfix).
-   Opus checker running (report: side-session-notes/<orchestrator id>/sector-ops-433-check.md). Then post `checker`
-   (orchestrator posts it if auto mode blocks), message the orchestrator. Assumption A1: warehouseOps keeps dead
-   fittings (frozen); undo: add it to J10.
+1. J1: PR #433 feature/sector-ops-docs @ 023e063f9: checker PASS after one fix round, status posted by the orchestrator
+   (Michael 19:15: when auto mode blocks, send it the report path + head). A1 accepted: warehouseOps frozen as built.
+   J16 plan DONE: feature/char-shadow-meter @ cb236edf6 (PR A S1+S2, PR B S3-S5); needs its Opus plan checker.
+   CPU HOLD (orchestrator ~19:10): no new agents until it says CPU < 80%.
 2. Phase B plans running (Opus, docs only), each on its branch / worktree:
    - J10 light-realism: feature/light-realism (docs/light-realism/BRIEF, PLAN, research/bands.md, STATE).
    - J5 sector-marks: feature/sector-marks; J18 sector-batch: feature/sector-batch (BRIEF, PLAN, STATE, briefs).
@@ -374,5 +374,5 @@ ROADMAP "Decided" override it. Message the orchestrator only at PR open / train-
 Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
 Rules: RULES on origin/master only; never restate them here.
 Previous blocks: git log -p on this file.
-Next: on #433 checker PASS start J5 / J10 / J18 builds; run plan checkers as each plan lands.
+Next: when the CPU hold lifts, plan checkers (J16 first), then J5 / J10 / J18 builds as each plan passes.
 ```
