@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.102.1 - Train 89: Conformance review: Test Runner (plan only) (2026-10-25, PR #413; #410)
+- Docs: `docs/conformance-test-runner/CONFORMANCE.md`, the Test Runner conformance review (G355): a gap table for the
+  suites, the affected-e2e tiers and the laptop queue against RULES, testing-tools, VISION 4-5 and level-design 15,
+  the hard rule to suite map, the 7-day flake budget and the items that conform. Plan only: no script, test, queue or
+  config change.
+
 ## 4.102.0 - Train 88: Docs: level standard per mode, archive sweep, re-audit fixes G344-G363; Stealth pays: client intel (2026-10-25, PR #411; #407, #389)
 
 ### Stealth pays: client intel
