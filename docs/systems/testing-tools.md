@@ -138,6 +138,8 @@ behind a VPN adapter).
 - Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
   polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
   page. A throwing predicate shows as a timeout.
+- Boot waits: with `autostart` in `params`, `launch` / `openPage` wait (120 s cap) for the match; a page that hosts a
+  `?net=local` course / sector room alone returns as soon as it is in the lobby (its match starts when the next page joins).
 - Checks marked "(CT prototype)" below test behaviour the CT prototype replaces (sprint, gear 6, the lean-out, the SWAT
   turn, the crack peek, the planted pivot, 720 deg/s turns); the prototype job rewrites them.
 
