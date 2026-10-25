@@ -1,0 +1,17 @@
+{
+  "id": "20261025T162508-laptop-queue-spare-a28d1853-9f98",
+  "sha": "a28d185301274223e857fdaa1718485873c212e1",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "laptop-queue spare",
+  "set": "spare-perf-campusops",
+  "note": "spare work 8: spare-perf-campusops",
+  "steps": [
+    "serve scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json"
+  ],
+  "env": {
+    "MAP": "campusOps",
+    "MODE": "sector"
+  }
+}
