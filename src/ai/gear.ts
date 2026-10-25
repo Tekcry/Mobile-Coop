@@ -44,7 +44,7 @@ export const GEAR_BY_STAGE: readonly GuardGear[] = [
   { helmet: true, armour: true },
 ];
 
-/** Response team shape: the shield guard leads (`responseTeam`'s `shield`; Sector Ops: `SectorDef.shieldTeams`) and always wears a helmet; `liveTeam` = shield + 2 guards outside Sector Ops. */
+/** Response team shape: the shield guard leads when asked (`responseTeam`'s `shield`; Sector Ops: `SectorDef.shieldTeams`) and always wears a helmet; `liveTeam` = the team outside Sector Ops (3 armed guards, no shield lead: guard-rules A14). */
 export const RESPONSE = { shieldLead: true, shieldHelmet: true, liveTeam: 3 } as const;
 
 /** Sweep numbers: thin route / post points to one per `thin` m, look `dwell` s at each, followers stack `gap` m behind the leader.
@@ -171,8 +171,8 @@ export function gearHit(part: HitPart, kind: HitInfo['kind'], nonLethal: boolean
 
 /**
  * The response team for alarm stage `stage` into `out` (kinds): `perStage` guards, a shield guard (`enforcer`) first when
- * `shield` (default `RESPONSE.shieldLead`: Marlow Yard's live team, A14), the rest `grunt`. (guard-rules S1, A4, M2)
- * Sector Ops passes `SectorDef.shieldTeams` (S4 / S5 only; the campaign never). Stage < 1 or `perStage` < 1 = no team
+ * `shield` (default `RESPONSE.shieldLead`), the rest `grunt`. (guard-rules S1, A4, A14, M2) Every caller names it:
+ * Sector Ops passes `SectorDef.shieldTeams` (S4 / S5 only; the campaign never), the live maps (Marlow Yard) false. Stage < 1 or `perStage` < 1 = no team
  * (`out` emptied). Returns the count.
  */
 export function responseTeam(stage: number, perStage: number, out: EnemyKind[], shield: boolean = RESPONSE.shieldLead): number {
