@@ -332,6 +332,18 @@ def set_world_co(o, co):
     o.data.update()
 
 
+def local_co(o):
+    """(gm-look) The mesh's own vertex coordinates, float32 as stored (set back exactly by set_local_co)."""
+    co = np.empty(len(o.data.vertices) * 3, np.float32)
+    o.data.vertices.foreach_get('co', co)
+    return co
+
+
+def set_local_co(o, co):
+    o.data.vertices.foreach_set('co', co)
+    o.data.update()
+
+
 def vertex_neighbours(me):
     e = np.empty(len(me.edges) * 2, np.int64)
     me.edges.foreach_get('vertices', e)
@@ -972,7 +984,8 @@ def run_base(args, kit, L):
             n = decimate_piece(o, g['tris'][lod], f'garment {g["part"]} LOD{lod}')
             copy = lod == 0 and n == tri_count(src.data)
             occ = [s for s in ctx_occluders if s is not src] + [body_src]
-            add(lod, o, None, 'garment', f'garment:{g["part"]}', g['partTint'], src, copy=copy, occluders=occ)
+            r = add(lod, o, None, 'garment', f'garment:{g["part"]}', g['partTint'], src, copy=copy, occluders=occ)
+            r['prefit'] = world_co(o)   # (gm-look) the surface before the fit below: the texture bake runs on it
             garment_lod[(g['part'], lod)] = o
             prev = o
 
@@ -1053,6 +1066,17 @@ def run_base(args, kit, L):
                      'ao': new_image(nm + '-ao', max(4, w // 2), max(4, h // 2), True),
                      'albedo': new_image(nm + '-albedo', max(4, w), max(4, h), False),
                      'rm': new_image(nm + '-rm', max(4, w // 2), max(4, h // 2), True)}
+    # (gm-look) garment LODs bake on their pre-fit surface: the fit pushes LOD0 cloth up to ~19 mm out, past the
+    # cage * 3 ray, so rays missed the hero (dark blotches). UVs do not move, so the textures fit the fitted mesh.
+    for lod, r in bake_jobs:
+        pre = r.get('prefit')
+        if pre is None:
+            continue
+        if len(pre) != len(r['obj'].data.vertices):
+            note(f'{r["region"]} LOD{lod}: vertex count changed after the fit, baked on the fitted surface')
+            continue
+        r['fitted'] = local_co(r['obj'])
+        set_world_co(r['obj'], pre)
     done = set()
     for lod, r in bake_jobs:      # passes 1-2: the source's own shading (bump) and occlusion
         key = (lod, r['region'])
@@ -1073,6 +1097,11 @@ def run_base(args, kit, L):
             done.add(key)
             cage = COPY_CAGE if r['copy'] else CAGE[lod]
             baker.bake('EMIT', r['obj'], r['source'], [], imgs[key][ik], cage, 2)
+    for lod, r in bake_jobs:      # (gm-look) back to the fitted surface for the weights, assembly and export
+        r.pop('prefit', None)
+        fitted = r.pop('fitted', None)
+        if fitted is not None:
+            set_local_co(r['obj'], fitted)
     rec_of = {}
     for lod, r in bake_jobs:
         rec_of.setdefault((lod, r['region']), r)
