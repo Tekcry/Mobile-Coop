@@ -20,13 +20,16 @@ export const DUMP_PY = path.join(ROOT, 'scripts', 'mocap', 'py', 'mixamo_dump.py
 /**
  * The Clip map's slug rule: the file name without `.fbx` and without any `(...)` note, lower case, every run of
  * characters other than letters and digits -> `_`, trimmed. The note is returned apart (the recipe keeps it).
+ * (mixamo-retarget I6) A note that starts with "Mirror" (the site's Mirror box, e.g. "Walking Left Turn (Mirror = right
+ * turn).fbx") is another take of the same title: its slug gets `_mirror`, so the two do not collide.
  */
 export function slugOf(file) {
   const base = file.replace(/\.fbx$/i, '');
   const notes = [...base.matchAll(/\(([^)]*)\)/g)].map((m) => m[1].trim()).filter(Boolean);
   const slug = base.replace(/\([^)]*\)/g, ' ').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   if (!slug) throw new Error(`mixamo: "${file}" has no letters or digits left for a slug`);
-  return { slug, note: notes.join('; ') || null };
+  const mirror = notes.some((n) => /^mirror\b/i.test(n));
+  return { slug: mirror ? `${slug}_mirror` : slug, note: notes.join('; ') || null };
 }
 
 /** The FBX files in `dir` with their slugs; stops on two files with the same slug. */
