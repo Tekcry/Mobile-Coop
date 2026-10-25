@@ -9,7 +9,8 @@ import { Vector3 } from '../src/core/babylon';
 import { validateCourse, type BayDef, type CourseDef, type CourseKnownIds, type CourseLayout } from '../src/game/course/courseDef';
 import { CourseState } from '../src/game/course/courseState';
 import type { StationDef } from '../src/game/course/stationDef';
-import { CourseMode, courseStationParam, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
+import { CourseMode, courseStationParam, inTickZone, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
+import { REPLAN_TICKS, type StationHooks, type StationTick } from '../src/game/course/replan/ticks';
 import { RESTART_DELAY } from '../src/config/course';
 import { parseMessage } from '../src/net/protocol';
 import { roomMap } from '../src/net/session';
@@ -428,6 +429,50 @@ describe('flags a retry drops (fix 5)', () => {
     r.step();
     expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
     expect(r.consoleCalls.at(-1)).toEqual(['sw2', true]);
+  });
+});
+
+describe('the sets\' station ticks (fix 6, lead decision a)', () => {
+  const ticks = REPLAN_TICKS as Record<string, StationTick>;
+  it('every re-plan bay A1-A8 has a registered tick (the set slices fill their own stubs)', () => {
+    expect(Object.keys(REPLAN_TICKS).sort()).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']);
+    for (const k of Object.keys(REPLAN_TICKS)) expect(typeof REPLAN_TICKS[k]).toBe('function');
+  });
+  it('the re-plan calls the live bay\'s tick each fixed step; its retry goes through stationRetry', () => {
+    const was = ticks.A2!;
+    const seen: number[] = [];
+    let hooks: StationHooks | null = null;
+    ticks.A2 = (h, dt) => {
+      hooks = h;
+      seen.push(dt);
+      // a drill window ends with both players in the zone: the timer retry
+      if (h.live() === 2 && h.flag('s1-done') && h.playersIn([-1, -1, 2, 2]) === 2) h.retry(2, 'timer');
+    };
+    try {
+      const d = { ...def({ id: 'A2' }), id: 'ctcourseReplan' };
+      const r = rig(d);
+      expect(seen.length).toBe(1);
+      r.st.setFlag('s1-done');
+      r.step();
+      expect(r.mode.restarts).toBe(1);
+      expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'timer' });
+      r.step(3);
+      expect(seen.length).toBe(5);
+      // the same hooks object every step (made once)
+      expect(hooks!.now()).toBeCloseTo(r.st.clock, 6);
+      expect(hooks!.playersIn([-1, -1, 2, 2, 5, 6])).toBe(0);
+      // a course that is not the re-plan never runs a set tick
+      seen.length = 0;
+      rig(def({ id: 'A2' })).step(3);
+      expect(seen.length).toBe(0);
+    } finally {
+      ticks.A2 = was;
+    }
+  });
+  it('a tick zone is a plan box with an optional height band', () => {
+    expect(inTickZone([0, 0, 2, 2], { x: 1, y: 9, z: 1 })).toBe(true);
+    expect(inTickZone([0, 0, 2, 2, 0, 1], { x: 1, y: 9, z: 1 })).toBe(false);
+    expect(inTickZone([0, 0, 2, 2], { x: 3, y: 0, z: 1 })).toBe(false);
   });
 });
 

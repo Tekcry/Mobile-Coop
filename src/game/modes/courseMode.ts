@@ -34,6 +34,16 @@ import type { SectorRatingWire } from '../sectors';
 import { updateRatingRecord } from '../../save/ratingRecord';
 import { RatingCard, type RatingView } from '../../ui/hud/ratingCard';
 import { areaSlotPoints, type SlotPoint } from '../spawnSlots';
+import { REPLAN_TICKS, type StationHooks, type StationTick, type TickZone } from '../course/replan/ticks';
+
+/** (J14 R1 fix 6) The re-planned yard's course id (`ctcourse.ts`): only it runs the sets' station ticks. */
+const REPLAN_COURSE = 'ctcourseReplan';
+
+/** (fix 6) Are feet `p` in tick zone `z` (its plan box, and its height band when it has one)? No allocation. */
+export function inTickZone(z: TickZone, p: { x: number; y: number; z: number }): boolean {
+  if (p.x < z[0] || p.x > z[2] || p.z < z[1] || p.z > z[3]) return false;
+  return z.length !== 6 || (p.y >= z[4] && p.y <= z[5]);
+}
 
 /** Seconds between two LANTERN radio lines. */
 const RADIO_GAP = 3;
@@ -257,6 +267,19 @@ export class CourseMode implements GameMode {
   private camFull = false;
   /** (J14 R1 fix 4) s left of the post-retry hold in which a guard going into combat is put back calm (`calmCombat`). */
   private calmT = 0;
+  /** (J14 R1 fix 6, lead decision a) The current bay's station tick on the re-plan (`REPLAN_TICKS`), and its bay index. */
+  private tick: StationTick | null = null;
+  private tickBay = -1;
+  /** (fix 6) The partner's feet this step (the hooks' `playersIn`), null without one. */
+  private remoteFeet: { x: number; y: number; z: number } | null = null;
+  /** (fix 6) What a set's tick reads and does: one object for the match (no allocation per call). */
+  private readonly hooks: StationHooks = {
+    flag: (id) => this.state?.hasShared(id) ?? false,
+    live: () => this.state?.station() ?? 0,
+    retry: (n, cause) => this.stationRetry(n, cause),
+    playersIn: (z) => this.playersIn(z),
+    now: () => this.state?.clock ?? 0,
+  };
   /** (J14 R1) The combat time an A8 `caught` station has counted. */
   private readonly caught: CaughtClock = { t: 0 };
   /** (J14 R1) The station whose marks are the respawn points while `placeT` runs (a station retry or start). */
@@ -735,6 +758,15 @@ export class CourseMode implements GameMode {
         this.calmT -= dt;
         this.calmCombat();
       }
+      // (fix 6) the re-plan's set code: the live bay's tick (drill windows, beams) may call a retry; acted on below
+      if (st.def.id === REPLAN_COURSE && !st.over) {
+        if (this.tickBay !== st.bay) {
+          this.tickBay = st.bay;
+          this.tick = REPLAN_TICKS[st.currentBay.id] ?? null;
+        }
+        this.remoteFeet = r ? r.feet : null;
+        this.tick?.(this.hooks, dt);
+      }
       const live = st.liveStation();
       const can = !!live && !st.over && this.restartT < 0 && this.spotHold <= 0;
       const rule = can && !st.isRetryOff(live!.n) ? live!.retry : 'none';
@@ -1081,6 +1113,14 @@ export class CourseMode implements GameMode {
   private radio(at: string): void {
     const lines = this.state!.currentBay.radio;
     for (let i = 0; i < lines.length; i++) if (lines[i]!.at === at) this.radioQ.push(lines[i]!.text);
+  }
+
+  /** (fix 6) How many players' feet are in `zone` (the host's and the partner's; a downed player counts). No allocation. */
+  private playersIn(zone: TickZone): number {
+    let n = inTickZone(zone, this.g.player.position) ? 1 : 0;
+    const f = this.remoteFeet;
+    if (f && inTickZone(zone, f)) n++;
+    return n;
   }
 
   /** (J14 R1, A22) A camera reached full detection of a player (host; read by the next step's station rule). */
