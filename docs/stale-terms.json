@@ -1,0 +1,122 @@
+{
+  "_about": "Stale terms for scripts/doc-lint.mjs (doc-guard; seeded from the 2026-10-25 docs audit). term = plain text, regex = a case-insensitive pattern. A line with a history word (old, older, was, replaced, lifted, history, ...) is allowed unless history is false. allowLine is checked on the line plus the next one. Known stale lines another PR fixes: docs/doc-lint.json known.",
+  "scope": [
+    "CLAUDE.md",
+    "README.md",
+    "TESTING.md",
+    "docs/*.md",
+    "docs/systems/**",
+    "docs/templates/**"
+  ],
+  "allow": [
+    "docs/DECISIONS.md",
+    "docs/archive/**"
+  ],
+  "terms": [
+    {
+      "id": "old-session-ct-core",
+      "term": "CT Core Build",
+      "why": "old session name",
+      "replacement": "Player Build",
+      "allow": [
+        "docs/RULES.md"
+      ]
+    },
+    {
+      "id": "old-session-menu-notes",
+      "term": "Menu Notes Build",
+      "why": "old session name",
+      "replacement": "Marlow Build",
+      "allow": [
+        "docs/RULES.md"
+      ]
+    },
+    {
+      "id": "old-session-course-ready",
+      "term": "Course Ready Build",
+      "why": "old session name",
+      "replacement": "Sector Ops Build",
+      "allow": [
+        "docs/RULES.md"
+      ]
+    },
+    {
+      "id": "old-session-character",
+      "term": "Character Build",
+      "why": "old session name",
+      "replacement": "Test Runner",
+      "allow": [
+        "docs/RULES.md"
+      ]
+    },
+    {
+      "id": "no-3-4-players",
+      "regex": "no 3-4 player|two players maximum",
+      "why": "Sector Ops is 1-4 players (G308)",
+      "replacement": "the campaign is exactly 2; Sector Ops 1-4"
+    },
+    {
+      "id": "minimap-feature",
+      "regex": "\\bmini-?map\\b",
+      "why": "no minimap in any mode (G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno (maps|markers|minimap)\\b|minimap, (the )?compass|without (a )?minimap|minimap (skips|is removed|goes)|removed|not built"
+    },
+    {
+      "id": "fallow-training",
+      "regex": "Fallow (is|stays|as) (the )?(co-op )?(training|tutorial)|Fallow course is the only training|training course,? Fallow",
+      "why": "Marlow Yard is the training course; Fallow is parked (G184, G292)",
+      "replacement": "Marlow Yard (ctcourse)"
+    },
+    {
+      "id": "desktop-main-test",
+      "regex": "desktop is the main test machine",
+      "why": "the laptop is the main test machine (G259)",
+      "replacement": "the laptop (Test Runner)"
+    },
+    {
+      "id": "current-goal-2026-10-19",
+      "regex": "Current goal \\(2026-10-19\\)|CLAUDE\\.md'?s?,? \"Current goal\"",
+      "why": "the 2026-10-19 goal was lifted (G288, G309); CLAUDE.md has no \"Current goal\"",
+      "replacement": "ROADMAP \"Now\" / docs/VISION.md"
+    },
+    {
+      "id": "claude-md-process-section",
+      "regex": "CLAUDE\\.md'?s?,? \\(?\"(Sessions|Machines|Main test machine|Test tiers|Commands|Ports|Definition of done|Swaps and context|Getting to master|Walk pacing|A job|Talking to Michael|Doc sizes|Branches and previews|Heavy-usage throughput)\"",
+      "why": "the process sections moved from CLAUDE.md to docs/RULES.md (doc-rules)",
+      "replacement": "docs/RULES.md \"<section>\""
+    },
+    {
+      "id": "one-hard-rule",
+      "regex": "at most one (hard|strict) rule|one strict rule per mission",
+      "why": "up to 2 strict rules per mission (G290)",
+      "replacement": "up to 2 strict rules, signposted"
+    },
+    {
+      "id": "two-ways-to-darken",
+      "regex": "darkened (in )?at least two ways|two ways to darken",
+      "why": "hardened lit choke points are allowed with a route around (G333)",
+      "replacement": "two ways to darken, or hardened with a route around (G333)",
+      "allowLine": "harden|G333"
+    },
+    {
+      "id": "five-minute-tick",
+      "regex": "auto-train[^.]{0,40}every 5 min|5-min(ute)? auto-train tick",
+      "why": "auto-train ticks every minute (G286)",
+      "replacement": "every minute"
+    },
+    {
+      "id": "refining-forbidden",
+      "regex": "no refining|refining is (not allowed|forbidden)|no detail art",
+      "why": "refining and detail art are allowed (G288, G309)",
+      "replacement": "refining is paced by the walk cap"
+    },
+    {
+      "id": "briefing-map-feature",
+      "regex": "annotated (briefing |top-down )?map|field-menu map",
+      "why": "no maps at all, in any mode (G336)",
+      "replacement": "say it is removed",
+      "allowLine": "\\bno (briefing |field-menu )?map|removed|not built|decided out"
+    }
+  ]
+}
