@@ -317,6 +317,9 @@ export function emitGait(d, rig, rec) {
   } catch (err) {
     return { out: null, reason: err.message };
   }
+  // (I9) a cycle whose ankles are never pinned (every contact frame's heel past PIN_PITCH: duty 0) has no clip feet to
+  // play; the planner's steps under a loop instead (pistol_strafe)
+  if (!(out.def.duty > 0)) return { out: null, reason: 'no pinned ankle window (duty 0)' };
   if (rec.ownTrack) {
     // as m3.mjs: emitCycle shifts the feet to the walk's TRACK_HALF; the capture's own track is put back
     const dh = out.def.half - out.report.takeHalf;

@@ -63,8 +63,8 @@ const PLAN_KINDS: Record<string, string> = {
       + 'crouch_look_around_corner looking_around cover_idle taking_cover_idle',
     timed: 'pistol_stand_to_kneel pistol_kneel_to_stand pistol_jump pistol_jump_2 rifle_jump_up rifle_jump_down rifle_death_from_the_front rifle_death_from_the_back rifle_death_from_right rifle_death_from_front_headshot '
       + 'rifle_death_from_back_headshot rifle_death_crouching_headshot_front shooter_start_walking shooter_stop_walking shooter_start_walking_backwards shooter_walk_backwards_stop shooter_firing_rifle shooter_jump_forward '
-      + 'shooter_jump_backward shooter_walking_to_dying aa_stand_to_cover aa_stand_to_cover_2 aa_cover_to_stand aa_cover_to_stand_2 aa_jumping_up aa_run_to_stop stand_cover_to_look',
-    turn: 'rifle_turn_90_left rifle_turn_90_right rifle_crouching_turn_90_left rifle_crouching_turn_90_right aa_left_turn aa_right_turn',
+      + 'shooter_jump_backward shooter_walking_to_dying aa_stand_to_cover aa_stand_to_cover_2 aa_cover_to_stand aa_cover_to_stand_2 aa_jumping_up aa_run_to_stop stand_cover_to_look aa_left_turn aa_right_turn',
+    turn: 'rifle_turn_90_left rifle_turn_90_right rifle_crouching_turn_90_left rifle_crouching_turn_90_right',
   }).flatMap(([k, v]) => v.split(' ').map((slug) => [slug, k]))),
 };
 /** (I9) The batch 2 clips with a game slot (BATCH2-PLAN "(1)"; wired by I10 / I13): their modules are `place` game. */

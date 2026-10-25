@@ -158,7 +158,7 @@ describe('mocap sources: the credits', () => {
       const pack = /^(pack-[a-z-]+)\//.exec(r.take ?? '')?.[1];
       if (pack) {
         expect(PACKS[pack], `${name}: a known pack`).toBeDefined();
-        expect(title.startsWith(`${PACKS[pack]}: `), `${name}: the title cell starts with the pack name`).toBe(true);
+        expect(title!.startsWith(`${PACKS[pack]}: `), `${name}: the title cell starts with the pack name`).toBe(true);
         expect(r.title.startsWith(`${PACKS[pack]}: `), `${name}: the row title too`).toBe(true);
       }
       if (r.take) expect(title, `${name}: the file as downloaded`).toContain(`(\`${r.take}\`)`);
