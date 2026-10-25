@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:58+11:00
+status: done feature/campus-greybox-s5 b232839a2f29290afa3d867d95a917b52da9087c
 # campus-greybox s5 fix 1 (cloud): the three co-op lips must be climbable
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). The S5 lane checker (Sonnet, code review, 2026-10-25
@@ -42,3 +42,13 @@ tests/campusRuntimeNav.test.ts tests/campusV2.test.ts`. Pending PC run: E2E-1 cl
 All three lips climbable in data and test; new assertions fail on the base and pass on the head; listed tests green;
 report `docs/campus-greybox/checks/s5-fix1.md`; this brief `status: done feature/campus-greybox-s5 <sha>` with a short
 "## Report".
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26)
+- `s5.ts`: CR8-s5 kerb z 43.75..44.15, CR9-s5 coping x -32.25..-31.85, CR10-s5 kerb x sh0 - 0.4..sh0 (-29.0..-28.6): each
+  0.40 deep, lip faces and lip data unchanged; every number as briefed and checked against the geometry (CR9 stays on
+  the wall top between the parapet runs).
+- Tests: a new case per lip (`canClimbUp` true; the body fits 0.6 m inside at lip + 0.05: CR8 z 43.55, CR9 x -32.45,
+  CR10 x -29.2); on base 589f9b69 it fails (`CR8-s5 canClimbUp: expected false to be true`). "Exactly one canHang ledge
+  per lip" counts true drops > 1.9 (the back faces' 0.2 drop is no lip); `PIECES` and the P1 roof case's `findBox`
+  extents follow the thicker pieces. The listed set **116 / 116**; typecheck:fast and eslint clean.
+- Report: `docs/campus-greybox/checks/s5-fix1.md`. Pending PC run: E2E-1 climbs on the three lips.
