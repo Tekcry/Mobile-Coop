@@ -16,12 +16,7 @@ Owner: Marlow Build. Status: current.
   - R2 pass rule and JSON (`restarts[]`, `drills[].why`, `pushedPast`, `notAtSneakPace`) and done line (push past and
     two timer retries give `pass`; two `other` give `fail`) `PLAN.md:89-121`; R4c causes and done line
     `PLAN.md:192-219`; Risks `PLAN.md:354-358`.
-- Polish done: P1 R8 reruns claims-check when cut, no fixed wait list (`PLAN.md:32-39`, R8 `:257-259`); P2 R6 guard also
-  compares each merged index's from / to / kind (`PLAN.md:237-241`); P5 A4 `DRIFT_S` "comes with J12 S2"
-  (`BRIEF.md:190-197`); P6 bay index from `CourseDef.bays` by id (`BRIEF.md:113-116`, R4a `PLAN.md:142-145`); P7
-  campaign strict-rule restarts out of scope, J23's (BRIEF Limits `:160-164`, R4c `PLAN.md:209-211`); P8 `steps.mjs`
-  seam is Node-side `step(ctx, link)` with both pages (`PLAN.md:154-158`); P9 A13 10 s fallback covers a `teach` space
-  tag (`BRIEF.md:218-222`). Skipped by the lead: P3 (J12's file), P4 (J14's graph fields).
+- Plan-check 2 polish P1-P9: moved to Done (2026-10-25 ~20:40-21:00).
 - Master facts used (94e72b1cd): course hooks `src/game/modes/courseMode.ts:204` (`restarts`), `:285` (`courseBay`),
   `:483` (`verb`), `:593-596` (`spotFail`), `:1039` (locks), `:1078` (`debug`); `src/game/course/courseState.ts:501`
   (`tick`), `:796` (`nextDrill`); `src/game/course/courseDef.ts:162` (`BayDef`), `:231` (`CourseDef.bays`). Master's
@@ -44,8 +39,15 @@ Owner: Marlow Build. Status: current.
   - import the lib set when J12 PR A is on master (R5 or a small R1 follow-up).
 - Next: R4a done (cloud) -> Opus checker, PR, laptop `--alone` selftest + campus S1 code-route run (PLAN R4a checks);
   then R4b, R5, R6 (Sector Ops' campus v2 exit waits on them) as cloud briefs where tsc / vitest only.
+- Briefs (fill Base with R4a's head on PASS): `docs/route-runs/briefs/route-runs-r4b.md` (local), `route-runs-r5.md` (cloud).
 
 ## Done
+- 2026-10-25 ~20:40-21:00 Plan-check 2 polish: P1 R8 reruns claims-check when cut, no fixed wait list (`PLAN.md:32-39`,
+  R8 `:257-259`); P2 R6 guard also compares each merged index's from / to / kind (`PLAN.md:237-241`); P5 A4 `DRIFT_S`
+  "comes with J12 S2" (`BRIEF.md:190-197`); P6 bay index from `CourseDef.bays` by id (`BRIEF.md:113-116`, R4a
+  `PLAN.md:142-145`); P7 campaign strict-rule restarts out of scope, J23's (BRIEF Limits `:160-164`, R4c
+  `PLAN.md:209-211`); P8 `steps.mjs` seam is Node-side `step(ctx, link)` with both pages (`PLAN.md:154-158`); P9 A13 10 s
+  fallback covers a `teach` space tag (`BRIEF.md:218-222`). Skipped by the lead: P3 (J12's file), P4 (J14's graph fields).
 - 2026-10-25 ~20:40-21:00 Fix round 2 (Opus planner): BRIEF Q7 fix 4fac34ba8, PLAN Q7 fix 73c8fb67e, polish
   0e34bee0e, rewrap 6fab6ef0f.
 - 2026-10-25 ~19:45-20:30 Fix round 1 (Opus planner): finished the dead agent's BRIEF edit (late sections "after"
