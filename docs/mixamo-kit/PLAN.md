@@ -1,5 +1,9 @@
 # Mixamo on the co-op kit moves - plan (Marlow Build, Opus planner)
-Owner: Marlow Build. Status: current (plan, fix round 1 after mixamo-kit-plan-check.md FIX; owners' answers settled). Revised 2026-10-26.
+Owner: Marlow Build. Status: current (plan, fix round 1, check 2 answered; owners' answers settled). Revised 2026-10-26.
+Source of truth: docs/mixamo-kit/PLAN.md on origin/feature/mixamo-kit (checks: PLAN-CHECK-1.md; check 2 items 1-6 answered
+here: 1 -> plan 3 "Base" + brief step 0; 2 -> the lead's coop.md commit a9e7cbfa4, verified in step 0; 3 -> plan 2 "Hang
+skip" / "Clear rule" + tests (a), (a2), (i); 4 -> plan 4 "Ownership" + brief step 7; 5 -> brief "Read first"; 6 -> plan 3
+"Merge path" + brief step 0 / Done).
 
 Goal (Michael ~00:15): "add all mixamo animations in game, i will fine tune as needed. make this priority overnight".
 Change (Michael ~00:25): "update - dont set mixamo moves as default in game, allow toggle between hand made, cmu, and
@@ -21,7 +25,7 @@ Local player (the one at this keyboard):
 1. `TeamController.kitPose` (`src/game/teamController.ts:388-398`) writes `KIT_POSE_LOCAL.k / .gap` each fixed step:
    `k = kitPoseK(state, t, move.times)` (`src/game/kit/registry.ts:255`): -1 in `<move>Offer`, t / time in a timed phase
    (clamped 0..1), else 1. `gap` = the shutter's `run.dev.open` (`kit/shutter.ts:793`).
-2. `GameState.teamPoseFrame` (`src/game/gameState.ts:3129-3146`) calls `teamPoseOfState(tm.state, tm.partT,
+2. `GameState.teamPoseFrame` (`src/game/gameState.ts:3131-3148` on the base e61e6d6eb) calls `teamPoseOfState(tm.state, tm.partT,
    TEAM_POSE_LOCAL)` (`src/anim/clips/team.ts:355`, kit default branch 418-428): `move` / `role` from `KIT_POSE_OF`, `k` /
    `gap` from `KIT_POSE_LOCAL`. The pose id itself is NOT kept in `TeamPoseIn` (only move, role, k, gap). `teamLinkFrame`
    (team.ts:448) copies it into `TEAM_LINK` (team.ts:442) for the partner's avatar.
@@ -148,22 +152,26 @@ in `emptyTargets`, and the `kitShot` method's own private fields (scratch keyed 
 `this.wrenReady && WREN_KIT.any`, covering both the traverse case and the crawler mix;
 (c) the hang skip, in its own commit. Every hunk is commented `(mixamo-kit)`.
 
-**Hang skip (check item 4).** Under the Mixamo source, #477's `mixamoTrav` hang branch (animGraph :3014) reads the pull
-partner's `'hang'` with `traverseT` = the haul k as a pendulum swing and the rise speed as a shimmy pace. The skip keys on
-"kit move, role a": `this.kit.move === 'pull' && this.kit.role === 'a'`, which TeamPoser writes whatever the phase (local
-`pullJump` / `pullHang`, and the remote avatar's boost + 8 with ph 0, where the phase is `''`). `mixamoTrav` then returns
-false and the hand-made HANG plays on both screens. One condition at the top of `mixamoTrav`, own commit.
+**Hang skip (check 1 item 4, check 2 item 3).** Under the Mixamo source, #477's `mixamoTrav` hang branch (animGraph
+:3014) reads the pull partner's `'hang'` with `traverseT` = the haul k as a pendulum swing and the rise speed as a shimmy
+pace. `KitShotIn` = `{ clip, time, weight, mode, move: KitPoseMove | '', role: TeamPoseRole | '' }`. TeamPoser writes
+`move` / `role` only when `WREN_KIT.any`, whatever the phase (local `pullJump` / `pullHang`, and the remote avatar's
+boost + 8 with ph 0, where the phase is `''`). The skip, one condition at the top of `mixamoTrav`, own commit:
+`WREN_KIT.any && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false (the hand-made HANG on both screens).
+With every kit row false (`WREN_KIT.any` false) it never fires: #477's behaviour, bit for bit.
 
-**Rig gate (check item 3; Player agreed: lines :2013 / :2422 / :2610 / :2949 only).** In characterRig.ts:
+**Rig gate (check item 3; Player agreed: lines :2013 / :2422 / :2610 / :2949 only).** In characterRig.ts (all three
+edited lines sit in `applyTargets(t, dt, free)` (:2321), so `ks` is a local and `free` is already a parameter):
 - `:2422`: keep `kw` exactly as today (it drives the pelvis offsets, `pex` :2426 on). Add `const ks = free ? t.keyShot : 0`
   (a separate weight; it is 0 on foot, where the crawler uses `kw`).
 - `:2610`: the keyed trunk by `kw * t.keyTrunk + ks`.
 - `:2949`: the keyed arms by `kw > 0 ? t.keyArmW : 0` plus `ks` (same grip / knee-hand gates).
-- `:2013`: only if the trunk / arms path needs `free` exposed; else untouched.
+- `:2013`: not needed (untouched).
 - Nothing else in src/player changes.
 
-**Clear rule (check item 5).** `graph.kit` target weight is set to 0 on every `TeamPoser.begin` path (including the
-`w <= 0` early return and non-kit moves / roles) before anything else, and in `TeamPoser.end`. The bar / wrist targets are
+**Clear rule (check 1 item 5, check 2 item 3).** `graph.kit` target weight is set to 0 AND `move` / `role` to `''` on
+every `TeamPoser.begin` path (including the `w <= 0` early return and non-kit moves / roles) before anything else, and in
+`TeamPoser.end`, so a hang-down or lip hang after a pull keeps #477's hang capture. The bar / wrist targets are
 written only when the shot weight > 0. Tested after a pull ends, aborts (partner gone) and misses.
 
 **Alignment risks.** (1) Pull catch: `PULL.catchDrop` 1.8 m (`kit/pullUp.ts:56`); a kneeling holder's palms reach about
@@ -177,8 +185,12 @@ phase: weight 0, nothing sampled or written: today's pose bit for bit (tests (a)
 
 ## 3. Toggle, table, base, merge path, Studio
 
-**Toggle (Player Build's API, final unless they say).** `src/anim/animSource.ts`: `type AnimSource = 'hand' | 'cmu' |
-'mixamo'`, `setAnimSource(s)` (resolved once per change; default today's game); `MIXAMO.on` (mixamo.ts) true only under
+**Toggle (Player Build's API; pushed on origin/feature/mixamo-on a9b96fe1a).** `src/anim/animSource.ts`:
+`type AnimSource = 'hand' | 'cmu' | 'mixamo'`, `setAnimSource(s)` / `applyAnimSource` (resolved once per change; menu
+Settings > Gameplay > Animation source, default CMU = today's game; the Studio has the switch and a Set filter). That head
+does not hold mixamo-i3, so merging it into feature/mixamo-kit conflicts in Player's files; the lead has asked Player for
+the stack order. Until a Player head holds both i3 and mixamo-on, the slice keeps the one-line stub (below); the merge of
+that head and the stub swap land in the same commit (brief step 8); `MIXAMO.on` (mixamo.ts) true only under
 the Mixamo source; `addMixamoResolver(fn: () => void)` (new in mixamo.ts on feature/mixamo-on) runs at the end of
 `resolveMixamo` on load and every source change. The slice never reads the toggle.
 - Rows appended at the END of `MIXAMO_ON` (after the I3 rows): `kneeling_pull_up: true`, `pulling_up_to_a_ledge: true`,
@@ -195,8 +207,10 @@ the Mixamo source; `addMixamoResolver(fn: () => void)` (new in mixamo.ts on feat
 **Base (check item 1).** New branch `feature/mixamo-kit` in `C:/NightShift/Mobile-Coop-mixamo-kit` (G94): from
 origin/feature/mission-engine 231bdbfbf, merged with origin/feature/mixamo-i3 b932d0311 (mission-engine has no
 src/anim/mixamo.ts, the clips or allocPerCall; i3 is the stack tip with stanceShot). The merge conflicts in three files
-(i3 carries a newer master). Resolutions, all unions, APPROVED by Campaign Build exactly as below; the brief applies
-exactly these (step 0) and stops on any other conflict:
+(i3 carries a newer master). The LEAD MADE THE BASE: merge commit e61e6d6eb (parents 231bdbfbf / b932d0311, verified in
+plan check 2: only the three conflicted files differ from git's automatic merge), then a9e7cbfa4 (docs only: coop.md drops
+4 stale merge-base lines that master had replaced). The builder verifies it (step 0) and never merges i3 or mission-engine
+again. The resolutions it carries, all unions, approved by Campaign Build:
 - `src/net/coopHost.ts:18` (the protocol import): the import list takes both `markIntel` and `type UseOnlyGadget`.
 - `src/game/takedownController.ts:476-481`: master's line
   `} else if (!g.puppet) g.hud.feedItem('Interrogated: nothing new'); // a client: the host's feed answers`
@@ -204,33 +218,34 @@ exactly these (step 0) and stops on any other conflict:
   unchanged.
 - `docs/systems/coop.md`, both hunks (~304, ~514): master's text first ("Team moves (G180...)" / "(no markers: G339)"),
   then the engine's (mission NET) paragraph.
-After the merge commit and before any slice work: `npm run typecheck:fast` and
-`npx vitest run tests/kitNet.test.ts tests/kit tests/teamPose.test.ts tests/mixamoStance.test.ts tests/mixamoTraverse.test.ts`;
+Before any slice work (step 0): `npm ci` (the worktree has no node_modules), `npm run typecheck:fast` and
+`npx vitest run tests/kitNet.test.ts tests/kit tests/teamPose.test.ts tests/mixamoStance.test.ts tests/mixamoTraverse.test.ts tests/mixamoSwitch.test.ts`;
 any failure: stop and report (no fixes).
 
 **Merge path (check item 8).** The PR is a DRAFT to master, body line: "Not for the train: Campaign Build merges
 feature/mixamo-kit into feature/mission-engine after #477 and mixamo-i3 are released on master." It holds the checker and
-laptop statuses only. Slice size is reported as `git diff --stat <merge commit>..HEAD` (under 1.5k lines; the PR's own diff
-to master includes the engine and the stack and is not the slice's size). Player's feature/mixamo-on head, when it has the
-toggle, is taken by MERGE (no rebase, no force push), with the stub swap in that same merge commit. Dark twice in play:
-`?coopkit=1` (the kit) and the Mixamo source (default today's moves).
+laptop statuses only. Slice size = `node scripts/pr-size.mjs --base e61e6d6eb --head HEAD` (the CI rule: docs, `*.md`,
+`changes/**` and baked clips not counted), under 1.5k, reported in the PR body and to the lead (the PR's own diff to master
+includes the engine and the stack and is not the slice's size). Player's toggle comes in by MERGE of a Player head that
+holds both mixamo-i3 and mixamo-on (not a9b96fe1a alone), no rebase, no force push, with the stub swap in that same merge
+commit. Dark twice in play: `?coopkit=1` (the kit) and the Mixamo source (default CMU, today's moves).
 
 **Anim Studio.** Every kit clip already has a Studio loop (mocapSources.ts keyed rows 77 and 83-85 on master), playing
 the take whole in place. `KIT_SHOT` is read by reference each frame, so an edit to it reaches play at once (a code edit in
 this slice; the tuner bag and Studio pair loops for the pull and the shutter, plus tune rows `team.pull.a/b`,
-`team.shutter.a/b` in `teamRowOfWire` (`src/anim/tuneMoveRows.ts:227-231`), are slice 2). studio.ts: zero edits in this
-slice (Player's file).
+`team.shutter.a/b` in `teamRowOfWire` (`src/anim/tuneMoveRows.ts:227-231`), are slice 2). studio.ts: no edit in this slice
+(Player's file); if one seems needed, stop and report to the lead.
 
 ## 4. Claims, sizes, tests, e2e, builder brief
 
 **Ownership (settled).** Player Build agreed: characterRig.ts (the four lines); animGraph.ts (section 2 "Graph scope");
 team.ts (the KIT0 code, the `TeamPoseIn` / `TEAM_LINK` phase fields, `graph.kit` set / clear in TeamPoser and
-`TeamRigIn.graph?`; small hunks, each commented "(mixamo-kit)"; off bit-identical by test; guards unchanged); studio.ts
-zero edits (if one turns out to be needed: one hunk, and the lead tells Player; feature/mixamo-on adds a Studio set filter
-there, merged in when Player sends its head).
+`TeamRigIn.graph?`; small hunks, each commented "(mixamo-kit)"; off bit-identical by test; guards unchanged). studio.ts: no
+edit. If one seems needed, stop and report to the lead. (feature/mixamo-on adds a Studio set filter there; it arrives by
+the step 8 merge of a Player head holding both i3 and mixamo-on.)
 mixamo.ts: the rows at the end only. Campaign's no-touch list (src/game/kit/**, teamController.ts, teamMoves.ts,
 mapDef.ts, sectors.ts, sectorTeamDoors.ts, modes/sectorMode.ts, src/net/**, stealthSystems.ts) is respected by the slice's
-own edits; the base merge's coopHost.ts resolution is the one exception, approved by Campaign.
+own edits (the base merge's coopHost.ts resolution, approved by Campaign, is already in e61e6d6eb).
 
 **File claims (slice, measured from the merge commit).**
 | File | Change | Lines |
@@ -250,9 +265,11 @@ Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAva
 - (a) Off is bit-identical: every frame, as float64 bits, every `RigTargets` field, the graph pose and the rig's bone
   transforms (mixamoStance (a) pattern), plus TeamPoser's reach / plant targets, root writes and `RigPose` fields, for
   every kit pose id at k 0 / 0.5 / 1 and gaps 0 / 0.45 / 0.9: Hand source, CMU source, Mixamo source with every kit row
-  false, and after the source went Mixamo -> Hand. A guard graph (`wrenReady` false) under the Mixamo source too.
+  false (including `pullJump` / `pullHang`: no hang skip, #477's hang capture as before), and after the source went
+  Mixamo -> Hand. A guard graph (`wrenReady` false) under the Mixamo source too.
 - (a2) Mixamo source, kit rows true, no kit move: bit-identical over the non-kit moves that share 'brace' / 'climbUp'
-  (leg-up both roles, throw, hang-down, rope) and plain locomotion.
+  (leg-up both roles, throw, hang-down, rope) and plain locomotion, including a hang-down and a lip hang straight after a
+  pull (the capture hang plays, no skip).
 - (b) On: each mapped pose id samples its clip at the table's time (`sampleKeyed` of the clip at the expected phase);
   optional rows false play today's pose; one row false leaves the others on; the `KIT_SHOT.holdGap` / `crawlGap` copies
   equal `SHUTTER.holdGap` / `crawlGap`.
@@ -272,8 +289,9 @@ Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAva
 - (h) A8 readings for KIT-REPORT.md per clip vs today's placeholder (bone step, velocity pop, elbow / knee ranges, planted
   slide). A clip is "visibly broken" when a joint jumps more than 2x the placeholder's, or a limb goes through the body:
   its row goes false with the reading as its comment (the I2 rule); else it stays true.
-- (i) Stale state: `graph.kit` weight is 0 after a pull ends, aborts (partner gone) and misses, after a shutter ends, and
-  on a non-kit move straight after a kit move.
+- (i) Stale state: `graph.kit` weight is 0 and `move` / `role` are `''` after a pull ends, aborts (partner gone) and
+  misses, after a shutter ends, and on a non-kit move straight after a kit move (a hang-down and a lip hang after a pull
+  play #477's capture hang).
 - Sub-step checks: `npm run typecheck:fast` + `npx vitest run tests/kitMixamo.test.ts tests/teamPose.test.ts
   tests/mixamoStance.test.ts tests/mixamoTraverse.test.ts tests/mixamoSwitch.test.ts tests/kitNet.test.ts tests/kit`.
 
@@ -288,46 +306,56 @@ and the shutter on BOTH screens under the Mixamo source; its path in the PR body
 ```
 Night Shift | Marlow Build - builder: mixamo-kit slice 1 (Opus 5.5)
 Read first: git show origin/master:CLAUDE.md, git show origin/master:docs/RULES.md, then
-C:/NightShift/scratch/marlow/mixamo-kit-plan.md sections 1-4 (this brief's source of truth).
-Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit. Branch guard before every write.
+`git show origin/feature/mixamo-kit:docs/mixamo-kit/PLAN.md` sections 1-4 (this brief's ONE source of truth; the
+scratch copy is not) and docs/mixamo-kit/STATE.md.
+Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit. Branch guard before every write:
+`test "$(git rev-parse --abbrev-ref HEAD)" = feature/mixamo-kit`.
 
-0. Base. Branch from origin/feature/mission-engine 231bdbfbf; `git merge --no-commit origin/feature/mixamo-i3`
-   (b932d0311). Resolve EXACTLY these three conflicts, as unions (approved by Campaign Build):
-   - src/net/coopHost.ts:18 import: both `markIntel` and `type UseOnlyGadget`.
-   - src/game/takedownController.ts:476-481: master's
-     `} else if (!g.puppet) g.hud.feedItem('Interrogated: nothing new'); // a client: the host's feed answers`
-     then the engine's `revealIntel(g, e.pos, info, e.id)` line with its EN2 comment; the shared line unchanged.
-   - docs/systems/coop.md, both hunks (~304, ~514): master's text first ("Team moves (G180...)" /
-     "(no markers: G339)"), then the engine's (mission NET) paragraph.
-   Any OTHER conflict: abort the merge, stop and report. Commit "Merge origin/feature/mixamo-i3 into feature/mixamo-kit".
-   Then: npm run typecheck:fast; npx vitest run tests/kitNet.test.ts tests/kit tests/teamPose.test.ts
-   tests/mixamoStance.test.ts tests/mixamoTraverse.test.ts. Any failure: stop and report, fix nothing. Push.
-   Record the merge commit sha: the slice size is `git diff --stat <merge sha>..HEAD`.
+0. Base (made by the lead at e61e6d6eb; VERIFY, do not redo, never merge i3 or mission-engine again).
+   git fetch; branch guard; local feature/mixamo-kit = origin/feature/mixamo-kit (pull --ff-only), clean tree.
+   Check: `git rev-parse e61e6d6eb^1 e61e6d6eb^2` = 231bdbfbf... / b932d0311...; `git merge-base --is-ancestor
+   e61e6d6eb HEAD`; `git diff --stat $(git merge-tree --write-tree 231bdbfbf b932d0311 | head -1) e61e6d6eb` lists only
+   docs/systems/coop.md, src/game/takedownController.ts, src/net/coopHost.ts.
+   Check the lead's docs commit a9e7cbfa4 (coop.md's 4 stale merge-base lines removed): `git merge-base --is-ancestor
+   a9e7cbfa4 HEAD`; `git show --stat a9e7cbfa4` touches docs/systems/coop.md only; coop.md no longer has the old
+   "Team moves: brace and boost, human ladder, dual takedown" bullet, and the "snapshot's `info`. Objectives, markers and
+   banners use the item and event mirror." line no longer follows master's "(no markers: G339)" line.
+   node_modules is missing in this worktree: npm ci (nothing else installed).
+   npm run typecheck:fast; npx vitest run tests/kitNet.test.ts tests/kit tests/teamPose.test.ts
+   tests/mixamoStance.test.ts tests/mixamoTraverse.test.ts tests/mixamoSwitch.test.ts.
+   Any mismatch or failure: stop and report, fix nothing (no new merge, no rebase, no force push).
+   Slice size base = e61e6d6eb: `node scripts/pr-size.mjs --base e61e6d6eb --head HEAD` (docs, *.md, changes/** and
+   baked clips not counted), under 1.5k.
 1. src/anim/kitMixamo.ts: KIT_SHOT (plan 2 numbers; holdGap / crawlGap copies; crawlStretch 1.85), WREN_KIT,
    resolveKit, the ONE stub line + `addMixamoResolver(resolveKit)`, pure clip-time maps, the gap phase rule. Confirm each
    segment against the clip keys (frame dump in the test); list changes in the PR body.
 2. src/anim/mixamo.ts: the 8 MIXAMO_ON rows appended at the END. Nothing else there.
 3. src/anim/clips/team.ts (Player's file, agreed): KIT0 code, the phase fields and graph.kit set / clear only (plan 4
-   "Ownership"); small hunks, each commented "(mixamo-kit)"; the clear rule (plan 2); hand targets only while the shot
-   weight > 0. KIT_POSE_IDS, KIT_POSE_PLACEHOLDER, TeamState and wire names unchanged.
-4. src/anim/animGraph.ts (Player's file): (a) declarations: public `kit`, `RigTargets.keyShot` + default 0, kitShot's
-   private fields; (b) ONE block straight after the stanceShot call (~:2020) calling kitShot(o) under
-   `this.wrenReady && WREN_KIT.any`; kitShot eases its own weight over KIT_SHOT.flip (start, end, phase change, table
-   swap), holding the last clip; no edit to the mxLast trigger. Commit. (c) The hang skip at the top of mixamoTrav
-   (`this.kit.move === 'pull' && this.kit.role === 'a'` -> return false) in ITS OWN commit. Every hunk commented
-   "(mixamo-kit)". Fields, no double arguments, no closures, no iterators.
-5. src/player/characterRig.ts (agreed by Player Build for these lines only): :2422 keep `kw`, add
-   `const ks = free ? t.keyShot : 0`; :2610 trunk by `kw * t.keyTrunk + ks`; :2949 arms by `(kw > 0 ? t.keyArmW : 0) + ks`
-   with the same gates; :2013 only if needed. The pelvis stays on `kw`. Nothing else in src/player.
+   "Ownership"); small hunks, each commented "(mixamo-kit)"; `KitShotIn` = clip, time, weight, mode, move, role; write
+   move / role only when WREN_KIT.any; the clear rule (plan 2: weight 0 and move / role '' on every begin path and in
+   end); hand targets only while the shot weight > 0. KIT_POSE_IDS, KIT_POSE_PLACEHOLDER, TeamState and wire names
+   unchanged.
+4. src/anim/animGraph.ts (Player's file): (a) additive declarations: public `kit`, `RigTargets.keyShot` + default 0,
+   the private `kitShot` method and its private fields; (b) ONE block straight after the stanceShot call (~:2019)
+   calling kitShot(o) under `this.wrenReady && WREN_KIT.any`; kitShot eases its own weight over KIT_SHOT.flip (start,
+   end, phase change, table swap), holding the last clip; no edit to the mxLast trigger. Commit. (c) The hang skip at
+   the top of mixamoTrav (`WREN_KIT.any && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false) in ITS
+   OWN commit. Every hunk commented "(mixamo-kit)". Fields, no double arguments, no closures, no iterators.
+5. src/player/characterRig.ts (agreed by Player Build for these lines only; all in applyTargets(t, dt, free) :2321):
+   :2422 keep `kw`, add `const ks = free ? t.keyShot : 0`; :2610 trunk by `kw * t.keyTrunk + ks`; :2949 arms by
+   `(kw > 0 ? t.keyArmW : 0) + ks` with the same gates; :2013 not needed (untouched). The pelvis stays on `kw`. Nothing
+   else in src/player.
 6. Tests (a), (a2), (b)-(i) in tests/kitMixamo.test.ts; tests/teamPose.test.ts updates; KIT-REPORT.md with the A8
    readings; a row goes false only by the plan's "visibly broken" rule, the reading as its comment.
-7. changes/feature-mixamo-kit.md. No studio.ts edit (if one is unavoidable: one hunk, then tell the lead so Player
-   hears). KIT_SHOT stays out of the tuner bag. When Player sends the feature/mixamo-on head with its Studio set filter,
-   it comes in by step 8's merge.
-8. When Player pushes the toggle on feature/mixamo-on: `git merge origin/feature/mixamo-on` (no rebase, no force push),
-   with the stub line swapped for `import { addMixamoResolver } from './mixamo';` in that same merge commit; rerun step 6.
+7. changes/feature-mixamo-kit.md. studio.ts: no edit. If one seems needed, stop and report to the lead. KIT_SHOT stays
+   out of the tuner bag. Player's Studio set filter arrives with step 8's merge.
+8. The toggle is on origin/feature/mixamo-on a9b96fe1a, but that head does NOT hold mixamo-i3 (merging it here
+   conflicts in Player's files): do NOT merge it. Keep the stub. Only when the lead hands over a Player head that holds
+   BOTH mixamo-i3 and mixamo-on: `git merge <that head>` (no rebase, no force push), with the stub line swapped for
+   `import { addMixamoResolver } from './mixamo';` in that same merge commit; any conflict in src: stop and report;
+   rerun step 6.
 Never: touch src/game/kit/**, teamController.ts, teamMoves.ts, mapDef.ts, sectors.ts, sectorTeamDoors.ts,
-modes/sectorMode.ts, src/net/** (beyond step 0's resolution), stealthSystems.ts, player.ts, moveState.ts, gameState.ts,
+modes/sectorMode.ts, src/net/**, docs/systems/coop.md, stealthSystems.ts, player.ts, moveState.ts, gameState.ts,
 localMoveState.ts, remoteAvatar.ts, studio.ts, studioStage.ts; read the animation-source toggle anywhere; change gameplay
 timing, reach, capsule or wire; allocate per frame (hyp2 / hyp3, never Math.hypot); trace CT animation.
 Per sub-step: npm run typecheck:fast; npx vitest run <plan 4 files>. Commit and push each sub-step (path-limited, never
@@ -335,9 +363,10 @@ git add -A), with the Co-Authored-By line the session's reminder gives.
 Done = (a)-(i) green; `npm run build` main chunk size before / after reported; DRAFT PR to master with the body line
 "Not for the train: Campaign Build merges feature/mixamo-kit into feature/mission-engine after #477 and mixamo-i3 are
 released on master"; the body lists: the catch reach vs the kneeling clip (PULL.catchDrop 1.8 m kept) as a Michael
-tuning item, A1-A7, the rows on / off with readings, the stub swap line, the slice size from the merge commit, the
-bundle size change, the look video path; the e2e request posted (plan 4 list). Report to the lead: head sha, slice
-size, rows on / off, open questions.
+tuning item, A1-A7, the rows on / off with readings, the stub swap line, the slice size
+(`node scripts/pr-size.mjs --base e61e6d6eb --head HEAD`), the bundle size change, the look video path; the e2e
+request posted (plan 4 list). Update docs/mixamo-kit/STATE.md's resume block at each sub-step. Report to the lead: head
+sha, slice size, rows on / off, open questions.
 ```
 
 ## 5. Settled answers, risks, assumptions

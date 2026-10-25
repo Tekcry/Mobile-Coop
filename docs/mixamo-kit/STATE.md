@@ -1,0 +1,31 @@
+# mixamo-kit - state
+Owner: Marlow Build. Status: current.
+
+Michael ~00:15: "add all mixamo animations in game, i will fine tune as needed. make this priority overnight"; ~00:25:
+"update - dont set mixamo moves as default in game, allow toggle between hand made, cmu, and mixamo".
+Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit.
+
+## Resume block (2026-10-26, plan stage)
+- Plan: docs/mixamo-kit/PLAN.md (the one source of truth; builder brief in its section 4). Check 1: FIX, 10 items,
+  answered (PLAN-CHECK-1.md). Check 2: FIX, 6 small items, answered in PLAN.md (fix round 1, check 2 answered); item 2
+  (coop.md residue) done by the lead in a9e7cbfa4. Not yet rechecked after check 2.
+- Base: merge e61e6d6eb = mission-engine 231bdbfbf + mixamo-i3 b932d0311 (three conflicts resolved as unions, approved by
+  Campaign Build: coopHost.ts:18 both imports; takedownController.ts master feed line then the engine's revealIntel with
+  e.id; coop.md master text then the engine's mission NET paragraph), then a9e7cbfa4 (coop.md: 4 stale merge-base lines
+  dropped). The builder's step 0 verifies both and runs npm ci + typecheck + kit / mixamo tests; never merges again.
+- Owners' terms:
+  - Campaign Build: no edits to src/game/kit/**, teamController.ts, teamMoves.ts, mapDef.ts, sectors.ts,
+    sectorTeamDoors.ts, modes/sectorMode.ts, src/net/**, stealthSystems.ts; KIT_POSE_IDS / TeamState names unchanged;
+    PULL.catchDrop 1.8 m kept (a Michael tuning item); Campaign merges feature/mixamo-kit into feature/mission-engine
+    only after #477 and mixamo-i3 are released on master (draft PR, not for the train).
+  - Player Build: characterRig.ts lines :2422 / :2610 / :2949 (:2013 not needed), pelvis stays on `kw`; animGraph.ts
+    declarations + one block after stanceShot + the hang skip in its own commit; team.ts KIT0 code, phase fields,
+    graph.kit set / clear, "(mixamo-kit)" comments, off bit-identical, guards unchanged; studio.ts no edit (stop and
+    report if one seems needed); MIXAMO_ON rows at the end; the toggle read only through MIXAMO / addMixamoResolver.
+  - Q39: a partner is drawn in the viewer's own animation source (A5).
+- Toggle: on origin/feature/mixamo-on a9b96fe1a (animSource.ts, addMixamoResolver, Settings > Gameplay > Animation
+  source, default CMU). It does not hold mixamo-i3, so it is NOT merged here (conflicts in Player's files); the lead asked
+  Player for the stack order. The slice keeps the one-line local addMixamoResolver stub; when Player sends a head holding
+  both i3 and mixamo-on, the builder merges it and swaps the stub for the real import in the same commit.
+- Size measure: `node scripts/pr-size.mjs --base e61e6d6eb --head HEAD` (docs not counted), under 1.5k.
+Next: start the Opus builder on PLAN.md section 4 (step 0 verify first), after a plan recheck if the lead wants one.
