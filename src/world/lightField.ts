@@ -17,6 +17,7 @@ import { BounceGrid } from './bounceGrid';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
 import type { LightBake } from './lightBake';
 import { lightTerm, type LightRegistry, type Occluder } from './lights';
+import type { CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
@@ -226,9 +227,21 @@ export class LightField {
   }
 
   /** Everything at a point: `levelAt` + `dynamicAt`, clamped. */
-  totalAt(x: number, y: number, z: number, occluded?: Occluder): number {
+  totalAt(x: number, y: number, z: number, occluded?: Occluder, chars: CharOccluders | null = null, skip = -1): number {
+    if (chars && skip === -2) return 0;
     this.totalInto(x, y, z, occluded);
     return this.res;
+  }
+
+  /** (char-shadow-meter) The gameplay set at a point, strongest first: registry light ids (-1 the moon) into `ids`,
+   *  their terms (no character term) into `lv`; returns the count (<= max). No allocation. INTERFACE STUB. */
+  sourcesInto(x: number, y: number, z: number, ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number {
+    return ids.length + lv.length + max + x + y + z < 0 || occluded ? 0 : 0;
+  }
+
+  /** (char-shadow-meter) One set member's term at a point (no character term); 0 where it does not reach. INTERFACE STUB. */
+  sourceAt(id: number, x: number, y: number, z: number, occluded?: Occluder): number {
+    return id + x + y + z < 0 || occluded ? 0 : 0;
   }
 
   /**
@@ -237,7 +250,8 @@ export class LightField {
    * 12) `hx`, `hz`: the head's horizontal offset from the feet (a peek past a wall edge), so the head is sampled where
    * it is (light parity, bible 5.1).
    */
-  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0): number {
+  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, chars: CharOccluders | null = null, skip = -1): number {
+    if (chars && skip === -2) return 0;
     this.totalInto(x, feetY + height * 0.6, z, occluded);
     const chest = this.res;
     if (chest >= 1) return 1;
