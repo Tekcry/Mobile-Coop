@@ -295,7 +295,7 @@ step 5.
 2. PLAN's phase line "gathering -> walking" is listed for groups only; this brief keeps a lone order with a via on
    'walking' (S1b-c), so C7's Code Relay line timing is unchanged from S1a. OK?
 
-## Lead decisions (pending)
-- 1 (dropped member counts as not there, S1b-a): proposed YES.
-- 2 (`gathering` for groups only, S1b-c): proposed YES.
+## Lead decisions (taken 2026-10-26 ~08:35, Guard AI Build: every proposal below adopted)
+- 1 (dropped member counts as not there, S1b-a): TAKEN, YES.
+- 2 (`gathering` for groups only, S1b-c): TAKEN, YES.
 - No split (est. ~800, ~1,100 at the PR4 overrun rate).

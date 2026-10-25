@@ -229,9 +229,9 @@ At J15 PR4's ~1.5x test overrun S4 lands ~520: far under the cap, no split.
    let the J15 owner drop them?
 4. `on: 'off'` with no breaker host reads silent (S4-b). OK?
 
-## Lead decisions (pending)
-- 1 (client meter path): proposed pass to the HUD owner (D9 note), no S4 change.
-- 2 (`isOff` as the power read): proposed accept for the prototypes.
-- 3 (`postsWiring.test.ts`): proposed add to the claims (two flag lines).
-- 4 (`on: 'off'` with no host): proposed silent.
+## Lead decisions (taken 2026-10-26 ~08:35, Guard AI Build: every proposal below adopted)
+- 1 (client meter path): TAKEN, pass to the HUD owner (D9 note), no S4 change.
+- 2 (`isOff` as the power read): TAKEN, accept for the prototypes.
+- 3 (`postsWiring.test.ts`): TAKEN, add to the claims (two flag lines).
+- 4 (`on: 'off'` with no host): TAKEN, silent.
 - No split.

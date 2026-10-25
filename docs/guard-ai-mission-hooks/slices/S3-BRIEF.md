@@ -338,8 +338,8 @@ builder stops and reports if the diff passes 1,500 lines before step 6.
    bounds the reinforcements.
 4. The size: split S3 into S3a / S3b (above)?
 
-## Lead decisions (pending)
-- 1 (split S3a / S3b): proposed SPLIT (S3a can start now, in parallel).
-- 2 (a command call per area, S3-a): proposed YES.
-- 3 (area gear under `stage` only, S3-b): proposed literal PLAN.
-- 4 (independent locks, S3-c): proposed YES.
+## Lead decisions (taken 2026-10-26 ~08:35, Guard AI Build: every proposal below adopted)
+- 1 (split S3a / S3b): TAKEN, SPLIT (S3a can start now, in parallel).
+- 2 (a command call per area, S3-a): TAKEN, YES.
+- 3 (area gear under `stage` only, S3-b): TAKEN, literal PLAN.
+- 4 (independent locks, S3-c): TAKEN, YES.
