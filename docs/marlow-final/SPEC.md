@@ -344,13 +344,22 @@ until the set restarts. Each sheet's "Roles" row names the claim.
   ROUTE-DRAFT's "an alarm resets the set" is proposal P5 (T5), not built unless Michael says yes.
 - **Restart:** the existing set restart (both down 2 s, or pause "Restart at checkpoint") puts both in the set's entry
   holding room, respawns its role-players, re-arms its devices and restores its lamps (N2 fixes `resetLights`).
-- **The one hard rule** stays A3's camera corridor send-back (G125: at most one, signposted).
-- **Timed windows** are device behaviour only: player-started, shown on the device (lamp, sound) and in the objective
-  line (N1), re-armable, never a fail (T4, proposal P3).
+- **No strict rule.** Michael 2026-10-25 (folded plan Q5): "all are retries in marlow yard, as its a training
+  exercise." Nothing in Marlow Yard fails the run or sends a player back: A2's spotted set restart (walk 4.82) and A3's
+  camera corridor send-back become retries of that exercise in place; the Marlow Yard re-plan (folded plan J14) sets
+  their shape.
+- **Timed windows and drills** are player-started, re-armable and shown on the device (lamp, sound) and in the objective
+  line (N1). Timed drills force the players into the situation they train (G342); a failed drill resets in place and is
+  retried, never a checkpoint reload (G361).
+- **One forced route.** Michael 2026-10-25 (Q24): "Close all side routes, force all sections. Only keep a side route
+  when training against enemies later in the training, same design rules as a campaign mission area". The per-set
+  Routes rows below describe today's build; the re-plan (J14) closes every side route except in those late areas.
 - **Strandings:** a thrown, boosted or lowered player always has a way back (a release, a push-bar door, a stair, the
   hang-down drop). No softlock (LD 11.4 intent).
-- **Guards per set:** at most 3, spawned at the set's start (Course mode; `MAX_ALIVE` 12; the template's "9 in total"
-  is proposal P6, T8). Every perceiving guard meets LD section 4: job, cycle 25-45 s, stops 3-6 s, an isolation moment,
+- **Guards per set:** only as many as the set's move or mechanic needs, at most 3 (LD 4.9), spawned at the set's start
+  (Course mode; `MAX_ALIVE` 12 for Marlow Yard, `docs/systems/performance.md`). Michael 2026-10-25 (Q11): "Only the
+  logical amount required to test the specific movement/game mechanic required. Doesn't necessarily always need a
+  guard." Every perceiving guard meets LD section 4: job, cycle 25-45 s, stops 3-6 s, an isolation moment,
   a lure destination, a body-finding patrol, a survivable search.
 - **Holding rooms L1-L7:** quiet connectors (LD 3.8): no guard, a glass slot (visual) onto the next set's first 6 m,
   the pad and checkpoint, 4 s cycle, the door behind locks. Medkits in L4 and L7.
@@ -453,8 +462,9 @@ k. Objective lines are 90 characters or less, British, voiceable (N1 renders the
 - **Routes.** Shadow: the corridor relay. Secret / alternative: the offices through the communicating doors, past the
   cleaner, one short jam at office 3's door (3 m from the east lobby). Loud: shoot the camera (alarm stage, rating).
   Loop: offices 1-2-3 and the corridor.
-- **The hard rule (G125, the one).** A player the camera fully spots in the corridor is sent back to the west lobby
-  (existing `PassZone.hall`, `HALL_BACK_HOLD`), with a LANTERN line. Signposted by the first objective line.
+- **The corridor camera (a retry, Q5).** Today a player the camera fully spots in the corridor is sent back to the
+  west lobby (`PassZone.hall`, `HALL_BACK_HOLD`), with a LANTERN line. It is no longer a strict rule: the re-plan (J14)
+  makes it a retry of the corridor exercise in place.
 - **Guards.** `a3-cleaner`: job, emptying bins office by office. Loop office 1 -> 2 -> 3 through the communicating
   doors, 5 s stop at each desk, cycle 35 s. Isolation moment: office 3's far desk (x 98, z 2), lit but unwatched. Lure:
   switching an office's lights off draws him to its switch. Body: offices are on his loop. Hide spots: the office 1
@@ -840,7 +850,7 @@ not a loosening).
 | C1 | A1 wall, 4.4 m lip | Leg-up, relay, bolt | Lip 0.6 m over solo reach (3.8), wicket bolted on the far side | The wicket (unbolted from the yard side); the yard is ground level |
 | C2 | A2 neck | Timed isolation relay | The isolator is 26 m by route from far cover; the window is 15 s | Both rakes are ground level; the cabinets re-arm |
 | C3 | A2 staging, 4.4 m lip | Leg-up, relay | Lip out of solo reach; the west stair is locked | The east stair |
-| C4 | A3 corridor | Jam relay | A jam needs the jammer standing still; nobody jams himself across | The send-back returns to the lobby, the partner keeps his place |
+| C4 | A3 corridor | Jam relay | A jam needs the jammer standing still; nobody jams himself across | Today the send-back returns him to the west lobby and the partner keeps his place; the re-plan (J14) sets the retry and the lone player's way back (Q5) |
 | C5 | A4 security room + dock | Takedown + console; dual takedown | The talking pair covers each other; the loop helps both | The wicket is egress from the floor side; the security room stays open |
 | C6 | A5 gateway | Partner throw, light jam, release | The beams cover the full 6 m gap; the release is on the far side | The kiosk release frees the thrower; the L5 door needs the release |
 | C7 | A6 gallery, 4.4 m lip | Leg-up, two-person rope (or relay) | Lip out of solo reach | The staff stair at the east end |
@@ -903,7 +913,8 @@ not a loosening).
   - A7: "Two terminals, two routes. You'll be on your own for a bit. Meet at the cage."
   - A8: "Last one. Everything you've done tonight, in one room. Take your time."
   - Window lines: "Lights back in five." / "Cameras back in five." / "Grille's locking again."
-- **Rules.** Both extract (G138); revive 30 s, 2 per mission; set restart when both down; the A3 send-back; rating per
+- **Rules.** Both extract (G138); revive 30 s, at most 2 per mission (G349); set restart when both down; no strict rule,
+  every failure a retry (Q5); a failed drill retries in place (G361); rating per
   set as today (`courseRating.ts`), so the finale's rating now means something (A8 has guards and cameras).
 - **Theme.** Indoor, no moon, no weather; `lightLevel` 0.30 (the lounge, holding rooms and dock), set `ambientZone`s at
   0.14 standby (section 7); grade: neutral-warm facility, each set its own palette (section 6).
@@ -955,10 +966,10 @@ the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS sect
 | --- | --- | --- | --- | --- |
 | P1 | LD 3.1 / bible L7 entry vantage is dark; LD 3.9 checkpoints are dark | A concealed vantage: out of every guard's view by occlusion (a van end, the drum stack, the sump kerb, a counter), dark only where a mixed zone allows; holding rooms lit (0.30) but out of every guard's view | M6: sets are lit by default; the holding rooms are facility lobbies | A dark mixed-zone pocket (no fitting, reason in the register) at each vantage; holding-room lamps on a dimmer at 0.2 |
 | P2 | G225 "keep the open floor at 0.30" (T6) | Sets' `ambientZone` at 0.14 standby; 0.30 kept in the lounge, holding rooms and dock | M6 "lit, players cut it": a cut circuit must be dark (under 0.28) or isolation teaches nothing. Shared all-maps review: `docs/archive/lighting-review/PROPOSAL.md` | Keep 0.30: isolations then work only as guard lures, never as darkness |
-| P3 | LD 6.3, bible 5.8 / 6 "no forced timers in stealth sections" (T4, CR 6) | Device windows only: A2 15 s, A4 / A8 60 s loop, A8 25 s lights, the jam's 5 s; player-started, shown, re-armable, never a fail; no course clock | Michael asked for "timed isolation" and "timed jammer exercises" | Windows become held: an isolator stays off while a player holds it (`timedHold`), the console stays off until restart (today) |
+| P3 | LD 6.3, bible 5.8 / 6 "no forced timers in stealth sections" (T4, CR 6) | Device windows only: A2 15 s, A4 / A8 60 s loop, A8 25 s lights, the jam's 5 s; player-started, shown, re-armable; no course clock. Settled by G342 / G361: a drill may fail and retries in place | Michael asked for "timed isolation" and "timed jammer exercises" | Windows become held: an isolator stays off while a player holds it (`timedHold`), the console stays off until restart (today) |
 | P4 | Level design standard for every map (M5 "review the rule", M6 "levels are quite dark and not realistic") | Proposed new LD 5.5: "Spaces are lit as the real building would be at night. Darkness is made by the players (switches, isolators, jams, shots) or is where the building really has none." | Michael's note covers all levels (01:40: "the rules may be too strict and the levels are very dark and unrealistic ... the player may have to make shadows"); the all-maps proposal is `docs/archive/lighting-review/PROPOSAL.md` (lighting agent), never applied here | Apply to Marlow Yard only |
-| P5 | LD 9.2-9.3, G125 at most one hard rule (T5) | Not used. ROUTE-DRAFT wanted "an alarm resets the set"; this spec keeps escalation and A3's send-back only | - | (If Michael wants it: alarm stage 3 restarts the set, about 30 lines) |
-| P6 | Template "guard total 9 or fewer" (T8) | 12 role-players in the yard (11 perceiving), at most 3 alive per set (Course mode spawns per set; `MAX_ALIVE` 12; G254 "maximum amount") | Every set from A2 needs a live guard; A4 and A8 need pairs. Also listed (T8): the passive A1 checker is classed as a role-player prop, not a section-4 guard | Drop `a4-dock2` and `a8-night2` and the A1 checker's slot moves to A4 (9) |
+| P5 | LD 9.2-9.3, G125 at most one hard rule (T5) | Not used. ROUTE-DRAFT wanted "an alarm resets the set"; settled by Michael 2026-10-25 (Q5): no strict rule in Marlow Yard, every failure a retry | - | (If Michael wants it: alarm stage 3 restarts the set, about 30 lines) |
+| P6 | Template "guard total 9 or fewer" (T8) | 12 role-players in the yard (11 perceiving), at most 3 alive per set (Course mode spawns per set; `MAX_ALIVE` 12); the re-plan (J14) sets each set's count by Q11 (only what the move needs, may be 0) | Every set from A2 needs a live guard; A4 and A8 need pairs. Also listed (T8): the passive A1 checker is classed as a role-player prop, not a section-4 guard | Drop `a4-dock2` and `a8-night2` and the A1 checker's slot moves to A4 (9) |
 | P7 | (Applied as assumed A8, ENGINE-ANSWERS Q2) Course mode ran with `em.stealth` false: a spotted guard radios everyone within 22 m, chases the players' real positions, never searches or cools down, and detections never count | `em.stealth = true` in Course mode (1 line, built in 0a): shout, call-in, shared last known position, search, cooldown, the detection stat | The false setting was the harsher one and broke the rating; this is P7's own former fallback, so it is logged for Michael, not asked | Back to false (1 line) |
 | P8 | LD 3.6 "guards do not look up" vs G44 not built (T10) | Occluders on every high route (A2 screens, A6 cage kick panels, A8 cornice) | Guards see straight up today | Build G44's look-up penalty (~15 lines in `perception.ts`) |
 | P9 | Template "Scope: existing systems only" (T12); N3 also changes Michael's sector-fixes console (permanent off) to a timed loop (CR 6) | New code N1-N4, N6, N8, N9 (section 14; N10-N12 are kit use and data) | M4 asks for N1; Michael's list needs the timed devices; N9 keeps swing-only verbs off slide doors | N1 dropped: one shared step line per set (today's `bayObjective`); N2 -> manual switches and `mains`; N3 -> permanent console; N4 -> a press; N6 -> two hold devices and a `pair` gate; N9 -> hinged doors in the holding rooms |
@@ -975,7 +986,7 @@ the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS sect
 
 | Clash | Resolution |
 | --- | --- |
-| Bible 5.8 / 6, LD 6.3 "no timers in stealth sections" | Proposal P3: shown, player-started device windows only, never a fail, no course clock |
+| Bible 5.8 / 6, LD 6.3 "no timers in stealth sections" | Proposal P3: shown, player-started device windows, no course clock; a failed drill retries in place (G342, G361) |
 | G240 cameras see in the dark | Kept, no proposal: no exercise uses darkness against a camera; lights work on guards and the meter, the jammer and the console on cameras (section 7) |
 | G110 "no rope climb" | Settled by G180 (CT's two-person rope replaces G110's rope ban for that move); A6 uses only that move. SCENARIOS' rope lowering with side steering is not used (Future) |
 | Timed / two-key security console changes Michael's sector-fixes console | Timed: P9 (N3, with its fallback). Two-key: not used (Future) |
@@ -1065,7 +1076,7 @@ are only the P rows of section 15.
 | 27-32 light and sound | Section 7, each set's Lights and Surfaces rows; cameras ignore light (G240) | Per-set light tests; GPU shots at Low |
 | 33-36 pacing, guidance | Section 9 tension, section 10, P3, M4 objective list (section 13) | Beat chart in the set docs |
 | 37 tool / problem matrix, 38 toys, 39 ghost / non-lethal / lethal, 40 gadgets optional | Each set's Routes and Toys rows; no gadget is required (moves and the pistol jammer only) | Set doc matrix; slice 9 ghost e2e |
-| 41-43 fairness, failure, exploration | Section 9 shared rules (escalation, one hard rule), the L7 model (LD 10.3) | Review |
+| 41-43 fairness, failure, exploration | Section 9 shared rules (escalation, no strict rule, retries), the L7 model (LD 10.3) | Review |
 | 44-51 co-op | Sections 12 and 13 | Unit lips tests; e2e on two pages; revive per co-op surface (slice 9) |
 | 52-57 engine and text | Section 19; tuning tables unchanged (section 2); 90-character lines (`validateCourse`); perf per set | Phase 0 answers; `npm run check`; GPU perf via Character Build |
 | 58-60 deliverables, acceptance tests | Section 20 (per-set docs and SVGs), PLAN.md checks | Slice 9 |
@@ -1114,7 +1125,7 @@ collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: sa
 | Id | Element | Real-world reason | Gameplay use | Rule |
 | --- | --- | --- | --- | --- |
 | A3-1 | Corridor 3.5 x 18 | The office floor's main corridor (widened, T16) | The jam relay | - |
-| A3-2 | Ceiling IR camera | Corridor CCTV covering the stair lobby | Jam relay, send-back | Every camera sees in the dark |
+| A3-2 | Ceiling IR camera | Corridor CCTV covering the stair lobby | Jam relay; send-back today, a retry after the re-plan (J14, Q5) | Every camera sees in the dark |
 | A3-3 | Office 2 door reveal 1.0 m | The office door's recess | Stepping stone | - |
 | A3-4 | Offices 1-3, communicating doors | A suite let to one tenant | Alternative route, loop | - |
 | A3-5 | Frosted partitions (`kit.glass` frosted) | Office privacy glazing | Stops sight, jam lines and bullets; passes baked lamp light (the cleaner carries no torch) | All glass as F2 |

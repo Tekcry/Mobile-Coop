@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.103.2 - Train 97: Marlow docs fixes (folded plan J1); Test Runner conformance: doc fixes (J1) (2026-10-25, PR #444; #436, #432)
+
+### Test Runner conformance: doc fixes (J1)
+- Docs (conformance review T16, T18, T19, T22; folded plan Q30): testing-tools lists the laptop's spare-work tier and
+  the request-time refusal of unknown suite names, says `E2E_HEADED` is never used on Michael's PCs, adds the
+  `e2e-menus` bullet and `scripts/e2e-times.json` to the no-suite list, and writes Michael's repeat-quarantine rule
+  (a second quarantine within 14 days makes the suite blocking with a fix job). TESTING.md keeps the desktop and
+  release checklists; the per-job lists move to `docs/archive/testing-job-sections.md`.
+
+### Marlow docs fixes (folded plan J1)
+- Marlow Yard spec follows Michael's 2026-10-25 answers: no strict rule (every failure a retry), failed drills retry
+  in place, one forced route per set (side routes close in the re-plan), only the guards each move needs.
+- Guard cap docs land on master (M0 and M1 measurements, run 4100); any cut below 32 guards goes to Michael first; the
+  60 fps target at 32 guards is recorded for the perf job.
+
 ## 4.103.1 - Train 96: Campaign docs: no compass, blips or map screens (J1) (2026-10-25, PR #439; #434)
 - Docs: the doc check now flags the compass, blips, the briefing map, the field-menu map and the radar upgrade as
   removed features (G336, G339), next to the minimap; three old prototype notes mark the minimap as history.

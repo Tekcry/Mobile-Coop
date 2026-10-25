@@ -1,0 +1,7741 @@
+{
+ "started": "2026-10-24T13:42:47.114Z",
+ "gpu": true,
+ "uncapped": true,
+ "gfx": "epic",
+ "viewport": [
+  1280,
+  720
+ ],
+ "kind": "grunt",
+ "warm": 5,
+ "warmAsked": 5,
+ "secs": 10,
+ "port": 4189,
+ "maps": [
+  "campus",
+  "sectorops"
+ ],
+ "counts": [
+  0,
+  12,
+  24,
+  32
+ ],
+ "players": [
+  2,
+  4
+ ],
+ "cells": [
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 0,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 0,
+    "alive": 0,
+    "capBefore": 32,
+    "cap": 0,
+    "candidates": 0,
+    "patrols": 0,
+    "inSight": 0,
+    "meanDist": 0,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1739,
+     "framesWithSim": 600,
+     "realSecs": 10.002,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 5.3,
+      "p95": 8.3,
+      "mean": 5.79,
+      "max": 28.8,
+      "n": 1739
+     },
+     "fps": 188.7,
+     "frameCpuMs": {
+      "med": 5,
+      "p95": 7.8,
+      "mean": 5.431,
+      "max": 28.1,
+      "n": 1739
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.5,
+      "p95": 11.8,
+      "mean": 6.373,
+      "max": 28.1,
+      "n": 600
+     },
+     "renderCpuMs": {
+      "med": 4.1,
+      "p95": 6.4,
+      "mean": 4.468,
+      "max": 23,
+      "n": 1739
+     },
+     "gpuMs": {
+      "med": 2.328,
+      "p95": 4.048,
+      "mean": 2.592,
+      "max": 9.14,
+      "n": 868
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 293,
+      "p95": 293,
+      "mean": 291,
+      "max": 293,
+      "n": 386
+     },
+     "trisM": {
+      "med": 1.224,
+      "p95": 1.224,
+      "mean": 1.197,
+      "max": 1.224,
+      "n": 386
+     },
+     "activeMeshes": {
+      "med": 307,
+      "p95": 308,
+      "mean": 307.106,
+      "max": 308,
+      "n": 386
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 0,
+      "meshes": 1151,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1945,
+     "framesWithSim": 605,
+     "realSecs": 10.027,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 4.8,
+      "p95": 7.9,
+      "mean": 5.188,
+      "max": 17.1,
+      "n": 1945
+     },
+     "fps": 208.3,
+     "frameCpuMs": {
+      "med": 4.5,
+      "p95": 7.2,
+      "mean": 4.833,
+      "max": 16.1,
+      "n": 1945
+     },
+     "frameCpuMsWithSim": {
+      "med": 4.9,
+      "p95": 10,
+      "mean": 5.558,
+      "max": 16.1,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 3.6,
+      "p95": 5.8,
+      "mean": 3.915,
+      "max": 13.7,
+      "n": 1945
+     },
+     "gpuMs": {
+      "med": 1.804,
+      "p95": 2.832,
+      "mean": 1.963,
+      "max": 6.125,
+      "n": 973
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 285,
+      "p95": 285,
+      "mean": 283,
+      "max": 285,
+      "n": 426
+     },
+     "trisM": {
+      "med": 1.217,
+      "p95": 1.217,
+      "mean": 1.191,
+      "max": 1.217,
+      "n": 426
+     },
+     "activeMeshes": {
+      "med": 183,
+      "p95": 183,
+      "mean": 182.507,
+      "max": 183,
+      "n": 426
+     },
+     "puppets": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "max": 0,
+      "n": 1945
+     },
+     "puppetsEnd": {
+      "n": 0,
+      "alive": 0
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1025,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.002,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 100547,
+      "targeted": 0,
+      "perS": 12.098,
+      "msg": {
+       "med": 758,
+       "p95": 759,
+       "mean": 830.967,
+       "max": 2979,
+       "n": 121
+      },
+      "bps": {
+       "med": 9829,
+       "p95": 11327,
+       "mean": 10054.7,
+       "max": 11327,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.5,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6074,
+      "targeted": 0,
+      "perS": 1.9,
+      "msg": {
+       "med": 319,
+       "p95": 332,
+       "mean": 319.684,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 638,
+       "p95": 664,
+       "mean": 607.4,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 10454,
+     "p95": 12009,
+     "mean": 10703.6,
+     "max": 12009,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 10454,
+     "max": 12009
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.13
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 0,
+   "cell": "away",
+   "spawn": {
+    "spawned": 0,
+    "alive": 0,
+    "capBefore": 32,
+    "cap": 0,
+    "candidates": 0,
+    "patrols": 0,
+    "inSight": 0,
+    "meanDist": 0,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 2761,
+     "framesWithSim": 603,
+     "realSecs": 10.004,
+     "simAdvanced": 10.05,
+     "frameMs": {
+      "med": 3.5,
+      "p95": 4.4,
+      "mean": 3.636,
+      "max": 9.4,
+      "n": 2761
+     },
+     "fps": 285.7,
+     "frameCpuMs": {
+      "med": 3.2,
+      "p95": 4,
+      "mean": 3.331,
+      "max": 8.9,
+      "n": 2761
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.8,
+      "p95": 4.4,
+      "mean": 3.813,
+      "max": 5.9,
+      "n": 603
+     },
+     "renderCpuMs": {
+      "med": 2.6,
+      "p95": 3,
+      "mean": 2.595,
+      "max": 8.3,
+      "n": 2761
+     },
+     "gpuMs": {
+      "med": 1.699,
+      "p95": 2.115,
+      "mean": 1.725,
+      "max": 3.554,
+      "n": 992
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 114,
+      "p95": 114,
+      "mean": 114,
+      "max": 114,
+      "n": 572
+     },
+     "trisM": {
+      "med": 0.881,
+      "p95": 0.881,
+      "mean": 0.881,
+      "max": 0.881,
+      "n": 572
+     },
+     "activeMeshes": {
+      "med": 33,
+      "p95": 33,
+      "mean": 33,
+      "max": 33,
+      "n": 572
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 0,
+      "meshes": 1151,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 3046,
+     "framesWithSim": 602,
+     "realSecs": 10.01,
+     "simAdvanced": 10.033,
+     "frameMs": {
+      "med": 3.2,
+      "p95": 4,
+      "mean": 3.297,
+      "max": 8.9,
+      "n": 3046
+     },
+     "fps": 312.5,
+     "frameCpuMs": {
+      "med": 2.9,
+      "p95": 3.6,
+      "mean": 2.995,
+      "max": 8.4,
+      "n": 3046
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.4,
+      "p95": 3.9,
+      "mean": 3.427,
+      "max": 5.8,
+      "n": 602
+     },
+     "renderCpuMs": {
+      "med": 2.3,
+      "p95": 2.6,
+      "mean": 2.301,
+      "max": 6.5,
+      "n": 3046
+     },
+     "gpuMs": {
+      "med": 1.638,
+      "p95": 1.727,
+      "mean": 1.611,
+      "max": 2.259,
+      "n": 1192
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 112,
+      "p95": 112,
+      "mean": 110.003,
+      "max": 112,
+      "n": 625
+     },
+     "trisM": {
+      "med": 0.88,
+      "p95": 0.88,
+      "mean": 0.854,
+      "max": 0.88,
+      "n": 625
+     },
+     "activeMeshes": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 625
+     },
+     "puppets": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "max": 0,
+      "n": 3046
+     },
+     "puppetsEnd": {
+      "n": 0,
+      "alive": 0
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1025,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.004,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 102963,
+      "targeted": 0,
+      "perS": 11.995,
+      "msg": {
+       "med": 766,
+       "p95": 768,
+       "mean": 858.025,
+       "max": 2986,
+       "n": 120
+      },
+      "bps": {
+       "med": 11394,
+       "p95": 11410,
+       "mean": 10296.3,
+       "max": 11410,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.5,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 6497,
+      "targeted": 0,
+      "perS": 1.999,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 324.85,
+       "max": 332,
+       "n": 20
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 649.7,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 12032,
+     "p95": 12072,
+     "mean": 10987.5,
+     "max": 12072,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 12032,
+     "max": 12072
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.25
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 0,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 0,
+    "alive": 0,
+    "capBefore": 32,
+    "cap": 0,
+    "candidates": 0,
+    "patrols": 0,
+    "inSight": 0,
+    "meanDist": 0,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 0,
+   "pages": {
+    "host": {
+     "frames": 2043,
+     "framesWithSim": 606,
+     "realSecs": 10.046,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 4.9,
+      "p95": 5.8,
+      "mean": 4.942,
+      "max": 7.8,
+      "n": 2043
+     },
+     "fps": 204.1,
+     "frameCpuMs": {
+      "med": 4.6,
+      "p95": 5.4,
+      "mean": 4.622,
+      "max": 7.3,
+      "n": 2043
+     },
+     "frameCpuMsWithSim": {
+      "med": 5,
+      "p95": 5.7,
+      "mean": 5.044,
+      "max": 7.3,
+      "n": 606
+     },
+     "renderCpuMs": {
+      "med": 3.8,
+      "p95": 4.4,
+      "mean": 3.868,
+      "max": 6.3,
+      "n": 2043
+     },
+     "gpuMs": {
+      "med": 2.224,
+      "p95": 3.312,
+      "mean": 2.388,
+      "max": 4.306,
+      "n": 1021
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 289,
+      "p95": 293,
+      "mean": 290.995,
+      "max": 293,
+      "n": 413
+     },
+     "trisM": {
+      "med": 1.17,
+      "p95": 1.224,
+      "mean": 1.197,
+      "max": 1.224,
+      "n": 413
+     },
+     "activeMeshes": {
+      "med": 307,
+      "p95": 308,
+      "mean": 307.104,
+      "max": 308,
+      "n": 413
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 0,
+      "meshes": 1151,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 2270,
+     "framesWithSim": 604,
+     "realSecs": 10.024,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 4.4,
+      "p95": 5.2,
+      "mean": 4.435,
+      "max": 8.8,
+      "n": 2270
+     },
+     "fps": 227.3,
+     "frameCpuMs": {
+      "med": 4,
+      "p95": 4.8,
+      "mean": 4.111,
+      "max": 8.4,
+      "n": 2270
+     },
+     "frameCpuMsWithSim": {
+      "med": 4.4,
+      "p95": 5.1,
+      "mean": 4.483,
+      "max": 6.9,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 3.3,
+      "p95": 3.9,
+      "mean": 3.39,
+      "max": 7.9,
+      "n": 2270
+     },
+     "gpuMs": {
+      "med": 1.828,
+      "p95": 2.206,
+      "mean": 1.882,
+      "max": 3.408,
+      "n": 1135
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 285,
+      "p95": 285,
+      "mean": 283,
+      "max": 285,
+      "n": 454
+     },
+     "trisM": {
+      "med": 1.217,
+      "p95": 1.217,
+      "mean": 1.191,
+      "max": 1.217,
+      "n": 454
+     },
+     "activeMeshes": {
+      "med": 183,
+      "p95": 183,
+      "mean": 182.511,
+      "max": 183,
+      "n": 454
+     },
+     "puppets": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "max": 0,
+      "n": 2270
+     },
+     "puppetsEnd": {
+      "n": 0,
+      "alive": 0
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1025,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.046,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 102625,
+      "targeted": 0,
+      "perS": 12.044,
+      "msg": {
+       "med": 756,
+       "p95": 758,
+       "mean": 848.14,
+       "max": 2977,
+       "n": 121
+      },
+      "bps": {
+       "med": 11295,
+       "p95": 11297,
+       "mean": 10186.9,
+       "max": 11297,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.498,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6152,
+      "targeted": 0,
+      "perS": 1.891,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 323.789,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 615.2,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 11629,
+     "p95": 12029,
+     "mean": 10843.6,
+     "max": 12029,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 11629,
+     "max": 12029
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.159
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 12,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 12,
+    "alive": 12,
+    "capBefore": 32,
+    "cap": 12,
+    "candidates": 12,
+    "patrols": 10,
+    "inSight": 12,
+    "meanDist": 9.514632692799378,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1032,
+     "framesWithSim": 582,
+     "realSecs": 10.024,
+     "simAdvanced": 10.133,
+     "frameMs": {
+      "med": 8.2,
+      "p95": 19.5,
+      "mean": 9.821,
+      "max": 44.9,
+      "n": 1032
+     },
+     "fps": 122,
+     "frameCpuMs": {
+      "med": 7.8,
+      "p95": 18.7,
+      "mean": 9.363,
+      "max": 43.7,
+      "n": 1032
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.5,
+      "p95": 21.2,
+      "mean": 10.75,
+      "max": 43.7,
+      "n": 582
+     },
+     "renderCpuMs": {
+      "med": 5.9,
+      "p95": 13.7,
+      "mean": 6.996,
+      "max": 31.6,
+      "n": 1032
+     },
+     "gpuMs": {
+      "med": 3.454,
+      "p95": 6.685,
+      "mean": 3.801,
+      "max": 17.213,
+      "n": 537
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 360,
+      "p95": 368,
+      "mean": 356.852,
+      "max": 368,
+      "n": 290
+     },
+     "trisM": {
+      "med": 2.225,
+      "p95": 2.351,
+      "mean": 2.186,
+      "max": 2.351,
+      "n": 290
+     },
+     "activeMeshes": {
+      "med": 326,
+      "p95": 328,
+      "mean": 325.91,
+      "max": 328,
+      "n": 290
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 12,
+      "meshes": 2005,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1153,
+     "framesWithSim": 595,
+     "realSecs": 10.01,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 7.4,
+      "p95": 16.9,
+      "mean": 8.757,
+      "max": 41,
+      "n": 1153
+     },
+     "fps": 135.1,
+     "frameCpuMs": {
+      "med": 7,
+      "p95": 16.1,
+      "mean": 8.319,
+      "max": 39.6,
+      "n": 1153
+     },
+     "frameCpuMsWithSim": {
+      "med": 7.6,
+      "p95": 18,
+      "mean": 9.557,
+      "max": 39.6,
+      "n": 595
+     },
+     "renderCpuMs": {
+      "med": 5.3,
+      "p95": 11.4,
+      "mean": 6.252,
+      "max": 29.5,
+      "n": 1153
+     },
+     "gpuMs": {
+      "med": 2.274,
+      "p95": 4.817,
+      "mean": 2.714,
+      "max": 9.967,
+      "n": 601
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 376,
+      "p95": 379,
+      "mean": 370.148,
+      "max": 379,
+      "n": 304
+     },
+     "trisM": {
+      "med": 2.494,
+      "p95": 2.53,
+      "mean": 2.407,
+      "max": 2.53,
+      "n": 304
+     },
+     "activeMeshes": {
+      "med": 227,
+      "p95": 227,
+      "mean": 226.516,
+      "max": 227,
+      "n": 304
+     },
+     "puppets": {
+      "med": 12,
+      "p95": 12,
+      "mean": 12,
+      "max": 12,
+      "n": 1153
+     },
+     "puppetsEnd": {
+      "n": 12,
+      "alive": 12
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1879,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.024,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 280442,
+      "targeted": 0,
+      "perS": 12.071,
+      "msg": {
+       "med": 2227,
+       "p95": 2234,
+       "mean": 2317.702,
+       "max": 4450,
+       "n": 121
+      },
+      "bps": {
+       "med": 28882,
+       "p95": 28982,
+       "mean": 28044.2,
+       "max": 28982,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6074,
+      "targeted": 0,
+      "perS": 1.895,
+      "msg": {
+       "med": 319,
+       "p95": 332,
+       "mean": 319.684,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 638,
+       "p95": 664,
+       "mean": 607.4,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 29579,
+     "p95": 29725,
+     "mean": 28693.1,
+     "max": 29725,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 29579,
+     "max": 29725
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.17
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 12,
+   "cell": "away",
+   "spawn": {
+    "spawned": 12,
+    "alive": 12,
+    "capBefore": 32,
+    "cap": 12,
+    "candidates": 12,
+    "patrols": 10,
+    "inSight": 12,
+    "meanDist": 9.514632692799378,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 2082,
+     "framesWithSim": 604,
+     "realSecs": 10.016,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 4.7,
+      "p95": 5.8,
+      "mean": 4.834,
+      "max": 8.1,
+      "n": 2082
+     },
+     "fps": 212.8,
+     "frameCpuMs": {
+      "med": 4.4,
+      "p95": 5.4,
+      "mean": 4.495,
+      "max": 7.6,
+      "n": 2082
+     },
+     "frameCpuMsWithSim": {
+      "med": 5,
+      "p95": 5.7,
+      "mean": 5.065,
+      "max": 7.6,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 3.5,
+      "p95": 4,
+      "mean": 3.507,
+      "max": 6.6,
+      "n": 2082
+     },
+     "gpuMs": {
+      "med": 1.874,
+      "p95": 3.438,
+      "mean": 2.112,
+      "max": 4.883,
+      "n": 1039
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 133,
+      "p95": 133,
+      "mean": 132.376,
+      "max": 133,
+      "n": 410
+     },
+     "trisM": {
+      "med": 1.099,
+      "p95": 1.099,
+      "mean": 1.091,
+      "max": 1.099,
+      "n": 410
+     },
+     "activeMeshes": {
+      "med": 35,
+      "p95": 35,
+      "mean": 34.688,
+      "max": 35,
+      "n": 410
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 12,
+      "meshes": 2005,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1887,
+     "framesWithSim": 604,
+     "realSecs": 10.017,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 5.3,
+      "p95": 6.2,
+      "mean": 5.336,
+      "max": 8.2,
+      "n": 1887
+     },
+     "fps": 188.7,
+     "frameCpuMs": {
+      "med": 4.9,
+      "p95": 5.8,
+      "mean": 5.003,
+      "max": 7.6,
+      "n": 1887
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.4,
+      "p95": 6,
+      "mean": 5.399,
+      "max": 7.1,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 3.7,
+      "p95": 4.2,
+      "mean": 3.689,
+      "max": 6,
+      "n": 1887
+     },
+     "gpuMs": {
+      "med": 1.812,
+      "p95": 2.261,
+      "mean": 1.879,
+      "max": 2.99,
+      "n": 944
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 168,
+      "p95": 170,
+      "mean": 168.397,
+      "max": 170,
+      "n": 375
+     },
+     "trisM": {
+      "med": 1.724,
+      "p95": 1.744,
+      "mean": 1.726,
+      "max": 1.744,
+      "n": 375
+     },
+     "activeMeshes": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 375
+     },
+     "puppets": {
+      "med": 12,
+      "p95": 12,
+      "mean": 12,
+      "max": 12,
+      "n": 1887
+     },
+     "puppetsEnd": {
+      "n": 12,
+      "alive": 12
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1879,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.016,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 278365,
+      "targeted": 0,
+      "perS": 11.98,
+      "msg": {
+       "med": 2228,
+       "p95": 2240,
+       "mean": 2319.708,
+       "max": 4454,
+       "n": 120
+      },
+      "bps": {
+       "med": 28859,
+       "p95": 29001,
+       "mean": 27836.5,
+       "max": 29001,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 6497,
+      "targeted": 0,
+      "perS": 1.997,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 324.85,
+       "max": 332,
+       "n": 20
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 649.7,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 29523,
+     "p95": 29728,
+     "mean": 28527.7,
+     "max": 29728,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 29523,
+     "max": 29728
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.2
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 12,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 12,
+    "alive": 12,
+    "capBefore": 32,
+    "cap": 12,
+    "candidates": 12,
+    "patrols": 10,
+    "inSight": 12,
+    "meanDist": 9.514632692799378,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 12,
+   "pages": {
+    "host": {
+     "frames": 1241,
+     "framesWithSim": 605,
+     "realSecs": 10.005,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 8,
+      "p95": 9.8,
+      "mean": 8.127,
+      "max": 15.1,
+      "n": 1241
+     },
+     "fps": 125,
+     "frameCpuMs": {
+      "med": 7.5,
+      "p95": 9.1,
+      "mean": 7.561,
+      "max": 14.2,
+      "n": 1241
+     },
+     "frameCpuMsWithSim": {
+      "med": 8,
+      "p95": 9.4,
+      "mean": 8.139,
+      "max": 14.2,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 5.8,
+      "p95": 6.9,
+      "mean": 5.871,
+      "max": 10.4,
+      "n": 1241
+     },
+     "gpuMs": {
+      "med": 3.272,
+      "p95": 5.079,
+      "mean": 3.364,
+      "max": 6.367,
+      "n": 624
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 384,
+      "p95": 444,
+      "mean": 391.76,
+      "max": 458,
+      "n": 258
+     },
+     "trisM": {
+      "med": 2.204,
+      "p95": 2.751,
+      "mean": 2.268,
+      "max": 2.897,
+      "n": 258
+     },
+     "activeMeshes": {
+      "med": 375,
+      "p95": 410,
+      "mean": 376.609,
+      "max": 418,
+      "n": 258
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 12,
+      "meshes": 2005,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1284,
+     "framesWithSim": 607,
+     "realSecs": 10.026,
+     "simAdvanced": 10.117,
+     "frameMs": {
+      "med": 7.7,
+      "p95": 9.4,
+      "mean": 7.868,
+      "max": 13.5,
+      "n": 1284
+     },
+     "fps": 129.9,
+     "frameCpuMs": {
+      "med": 7.3,
+      "p95": 8.7,
+      "mean": 7.386,
+      "max": 12.4,
+      "n": 1284
+     },
+     "frameCpuMsWithSim": {
+      "med": 7.6,
+      "p95": 9.1,
+      "mean": 7.733,
+      "max": 12.4,
+      "n": 607
+     },
+     "renderCpuMs": {
+      "med": 5.5,
+      "p95": 6.5,
+      "mean": 5.632,
+      "max": 9.3,
+      "n": 1284
+     },
+     "gpuMs": {
+      "med": 2.393,
+      "p95": 3.623,
+      "mean": 2.592,
+      "max": 5.659,
+      "n": 646
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 425,
+      "p95": 455,
+      "mean": 423.785,
+      "max": 458,
+      "n": 284
+     },
+     "trisM": {
+      "med": 2.739,
+      "p95": 2.985,
+      "mean": 2.759,
+      "max": 3.075,
+      "n": 284
+     },
+     "activeMeshes": {
+      "med": 223,
+      "p95": 227,
+      "mean": 223.761,
+      "max": 228,
+      "n": 284
+     },
+     "puppets": {
+      "med": 12,
+      "p95": 12,
+      "mean": 12,
+      "max": 12,
+      "n": 1284
+     },
+     "puppetsEnd": {
+      "n": 12,
+      "alive": 12
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1879,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.005,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 284299,
+      "targeted": 0,
+      "perS": 12.094,
+      "msg": {
+       "med": 2276,
+       "p95": 2282,
+       "mean": 2349.579,
+       "max": 4502,
+       "n": 121
+      },
+      "bps": {
+       "med": 29526,
+       "p95": 31823,
+       "mean": 28429.9,
+       "max": 31823,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 84,
+      "bytes": 26464,
+      "targeted": 0,
+      "perS": 8.396,
+      "msg": {
+       "med": 194,
+       "p95": 659,
+       "mean": 315.048,
+       "max": 899,
+       "n": 84
+      },
+      "bps": {
+       "med": 2736,
+       "p95": 3629,
+       "mean": 2646.4,
+       "max": 3629,
+       "n": 10
+      },
+      "msgsPerSecMax": 11,
+      "events": {
+       "med": 1,
+       "p95": 4,
+       "mean": 1.798,
+       "max": 6,
+       "n": 84
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.5,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6165,
+      "targeted": 0,
+      "perS": 1.899,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 324.474,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 616.5,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 31807,
+     "p95": 35919,
+     "mean": 31734.3,
+     "max": 35919,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 31807,
+     "max": 35919
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.25
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 24,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 24,
+    "alive": 24,
+    "capBefore": 32,
+    "cap": 24,
+    "candidates": 24,
+    "patrols": 22,
+    "inSight": 24,
+    "meanDist": 13.517830908071431,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 983,
+     "framesWithSim": 598,
+     "realSecs": 10.042,
+     "simAdvanced": 10.133,
+     "frameMs": {
+      "med": 9.5,
+      "p95": 17.2,
+      "mean": 10.316,
+      "max": 32.2,
+      "n": 983
+     },
+     "fps": 105.3,
+     "frameCpuMs": {
+      "med": 9.1,
+      "p95": 16.6,
+      "mean": 9.893,
+      "max": 31.1,
+      "n": 983
+     },
+     "frameCpuMsWithSim": {
+      "med": 9.6,
+      "p95": 17.4,
+      "mean": 10.772,
+      "max": 31.1,
+      "n": 598
+     },
+     "renderCpuMs": {
+      "med": 6.6,
+      "p95": 11.5,
+      "mean": 7.187,
+      "max": 25.3,
+      "n": 983
+     },
+     "gpuMs": {
+      "med": 3.653,
+      "p95": 6.685,
+      "mean": 3.898,
+      "max": 10.804,
+      "n": 520
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 422,
+      "p95": 442,
+      "mean": 420.836,
+      "max": 442,
+      "n": 238
+     },
+     "trisM": {
+      "med": 3.245,
+      "p95": 3.588,
+      "mean": 3.25,
+      "max": 3.588,
+      "n": 238
+     },
+     "activeMeshes": {
+      "med": 348,
+      "p95": 355,
+      "mean": 349.71,
+      "max": 356,
+      "n": 238
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 24,
+      "meshes": 2857,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1023,
+     "framesWithSim": 599,
+     "realSecs": 10.005,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 9,
+      "p95": 15.3,
+      "mean": 9.874,
+      "max": 34.3,
+      "n": 1023
+     },
+     "fps": 111.1,
+     "frameCpuMs": {
+      "med": 8.7,
+      "p95": 14.7,
+      "mean": 9.447,
+      "max": 33.4,
+      "n": 1023
+     },
+     "frameCpuMsWithSim": {
+      "med": 9,
+      "p95": 16.8,
+      "mean": 10.136,
+      "max": 33.4,
+      "n": 599
+     },
+     "renderCpuMs": {
+      "med": 6.4,
+      "p95": 10.6,
+      "mean": 6.972,
+      "max": 23.9,
+      "n": 1023
+     },
+     "gpuMs": {
+      "med": 2.375,
+      "p95": 4.904,
+      "mean": 2.804,
+      "max": 7.183,
+      "n": 552
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 437,
+      "p95": 440,
+      "mean": 430.537,
+      "max": 441,
+      "n": 244
+     },
+     "trisM": {
+      "med": 3.545,
+      "p95": 3.582,
+      "mean": 3.451,
+      "max": 3.594,
+      "n": 244
+     },
+     "activeMeshes": {
+      "med": 249,
+      "p95": 250,
+      "mean": 249.471,
+      "max": 250,
+      "n": 244
+     },
+     "puppets": {
+      "med": 24,
+      "p95": 24,
+      "mean": 24,
+      "max": 24,
+      "n": 1023
+     },
+     "puppetsEnd": {
+      "n": 24,
+      "alive": 24
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 2731,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.042,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 458209,
+      "targeted": 0,
+      "perS": 11.95,
+      "msg": {
+       "med": 3728,
+       "p95": 3743,
+       "mean": 3818.408,
+       "max": 5956,
+       "n": 120
+      },
+      "bps": {
+       "med": 46794,
+       "p95": 47032,
+       "mean": 45820.9,
+       "max": 47032,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.498,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 6432,
+      "targeted": 0,
+      "perS": 1.992,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 321.6,
+       "max": 332,
+       "n": 20
+      },
+      "bps": {
+       "med": 638,
+       "p95": 664,
+       "mean": 610,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 47364,
+     "p95": 47694,
+     "mean": 46472.4,
+     "max": 47694,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 47364,
+     "max": 47694
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.259
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 24,
+   "cell": "away",
+   "spawn": {
+    "spawned": 24,
+    "alive": 24,
+    "capBefore": 32,
+    "cap": 24,
+    "candidates": 24,
+    "patrols": 22,
+    "inSight": 24,
+    "meanDist": 13.517830908071431,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 2042,
+     "framesWithSim": 605,
+     "realSecs": 10.045,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 4.8,
+      "p95": 6.1,
+      "mean": 4.941,
+      "max": 8.3,
+      "n": 2042
+     },
+     "fps": 208.3,
+     "frameCpuMs": {
+      "med": 4.5,
+      "p95": 5.7,
+      "mean": 4.6,
+      "max": 7.7,
+      "n": 2042
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.2,
+      "p95": 6.1,
+      "mean": 5.264,
+      "max": 7.7,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 3.5,
+      "p95": 4.2,
+      "mean": 3.567,
+      "max": 5.6,
+      "n": 2042
+     },
+     "gpuMs": {
+      "med": 2.087,
+      "p95": 3.945,
+      "mean": 2.384,
+      "max": 5.343,
+      "n": 1019
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 133,
+      "p95": 133,
+      "mean": 132.788,
+      "max": 133,
+      "n": 433
+     },
+     "trisM": {
+      "med": 1.099,
+      "p95": 1.099,
+      "mean": 1.096,
+      "max": 1.099,
+      "n": 433
+     },
+     "activeMeshes": {
+      "med": 35,
+      "p95": 35,
+      "mean": 34.894,
+      "max": 35,
+      "n": 433
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 24,
+      "meshes": 2857,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1463,
+     "framesWithSim": 605,
+     "realSecs": 10.021,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 6.8,
+      "p95": 8,
+      "mean": 6.893,
+      "max": 11.3,
+      "n": 1463
+     },
+     "fps": 147.1,
+     "frameCpuMs": {
+      "med": 6.5,
+      "p95": 7.6,
+      "mean": 6.543,
+      "max": 10.7,
+      "n": 1463
+     },
+     "frameCpuMsWithSim": {
+      "med": 6.8,
+      "p95": 7.9,
+      "mean": 6.955,
+      "max": 10.7,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 4.6,
+      "p95": 5.4,
+      "mean": 4.665,
+      "max": 7.3,
+      "n": 1463
+     },
+     "gpuMs": {
+      "med": 1.842,
+      "p95": 2.462,
+      "mean": 1.937,
+      "max": 3.394,
+      "n": 739
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 200,
+      "p95": 204,
+      "mean": 200.519,
+      "max": 205,
+      "n": 310
+     },
+     "trisM": {
+      "med": 2.242,
+      "p95": 2.287,
+      "mean": 2.245,
+      "max": 2.299,
+      "n": 310
+     },
+     "activeMeshes": {
+      "med": 32,
+      "p95": 33,
+      "mean": 32.274,
+      "max": 33,
+      "n": 310
+     },
+     "puppets": {
+      "med": 24,
+      "p95": 24,
+      "mean": 24,
+      "max": 24,
+      "n": 1463
+     },
+     "puppetsEnd": {
+      "n": 24,
+      "alive": 24
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 2731,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.045,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 458455,
+      "targeted": 0,
+      "perS": 11.946,
+      "msg": {
+       "med": 3729,
+       "p95": 3743,
+       "mean": 3820.458,
+       "max": 5955,
+       "n": 120
+      },
+      "bps": {
+       "med": 46863,
+       "p95": 47043,
+       "mean": 45845.5,
+       "max": 47043,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.498,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6191,
+      "targeted": 0,
+      "perS": 1.892,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 325.842,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 619.1,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 47501,
+     "p95": 47694,
+     "mean": 46506.1,
+     "max": 47694,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 47501,
+     "max": 47694
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.279
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 24,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 24,
+    "alive": 24,
+    "capBefore": 32,
+    "cap": 24,
+    "candidates": 24,
+    "patrols": 22,
+    "inSight": 24,
+    "meanDist": 13.517830908071431,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 24,
+   "pages": {
+    "host": {
+     "frames": 1037,
+     "framesWithSim": 609,
+     "realSecs": 10.054,
+     "simAdvanced": 10.15,
+     "frameMs": {
+      "med": 9.8,
+      "p95": 11.6,
+      "mean": 9.8,
+      "max": 14.8,
+      "n": 1037
+     },
+     "fps": 102,
+     "frameCpuMs": {
+      "med": 9.1,
+      "p95": 10.9,
+      "mean": 9.157,
+      "max": 14.3,
+      "n": 1037
+     },
+     "frameCpuMsWithSim": {
+      "med": 9.6,
+      "p95": 11.2,
+      "mean": 9.721,
+      "max": 14.3,
+      "n": 609
+     },
+     "renderCpuMs": {
+      "med": 6.6,
+      "p95": 7.7,
+      "mean": 6.717,
+      "max": 10.5,
+      "n": 1037
+     },
+     "gpuMs": {
+      "med": 3.327,
+      "p95": 5.767,
+      "mean": 3.638,
+      "max": 7.193,
+      "n": 545
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 444,
+      "p95": 472,
+      "mean": 442.452,
+      "max": 475,
+      "n": 219
+     },
+     "trisM": {
+      "med": 3.104,
+      "p95": 3.341,
+      "mean": 3.07,
+      "max": 3.472,
+      "n": 219
+     },
+     "activeMeshes": {
+      "med": 377,
+      "p95": 400,
+      "mean": 378.397,
+      "max": 402,
+      "n": 219
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 24,
+      "meshes": 2857,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1029,
+     "framesWithSim": 607,
+     "realSecs": 10.011,
+     "simAdvanced": 10.117,
+     "frameMs": {
+      "med": 9.7,
+      "p95": 11.5,
+      "mean": 9.83,
+      "max": 16.1,
+      "n": 1029
+     },
+     "fps": 103.1,
+     "frameCpuMs": {
+      "med": 9.1,
+      "p95": 10.7,
+      "mean": 9.206,
+      "max": 15.5,
+      "n": 1029
+     },
+     "frameCpuMsWithSim": {
+      "med": 9.3,
+      "p95": 10.9,
+      "mean": 9.48,
+      "max": 15.5,
+      "n": 607
+     },
+     "renderCpuMs": {
+      "med": 6.5,
+      "p95": 7.5,
+      "mean": 6.622,
+      "max": 11.1,
+      "n": 1029
+     },
+     "gpuMs": {
+      "med": 2.619,
+      "p95": 4.253,
+      "mean": 2.895,
+      "max": 5.998,
+      "n": 589
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 485,
+      "p95": 513,
+      "mean": 483.8,
+      "max": 514,
+      "n": 225
+     },
+     "trisM": {
+      "med": 3.802,
+      "p95": 3.957,
+      "mean": 3.773,
+      "max": 3.992,
+      "n": 225
+     },
+     "activeMeshes": {
+      "med": 247,
+      "p95": 254,
+      "mean": 247.271,
+      "max": 255,
+      "n": 225
+     },
+     "puppets": {
+      "med": 24,
+      "p95": 24,
+      "mean": 24,
+      "max": 24,
+      "n": 1029
+     },
+     "puppetsEnd": {
+      "n": 24,
+      "alive": 24
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 2731,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.054,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 460378,
+      "targeted": 0,
+      "perS": 11.936,
+      "msg": {
+       "med": 3744,
+       "p95": 3762,
+       "mean": 3836.483,
+       "max": 5976,
+       "n": 120
+      },
+      "bps": {
+       "med": 47119,
+       "p95": 47189,
+       "mean": 46037.8,
+       "max": 47189,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 118,
+      "bytes": 68919,
+      "targeted": 0,
+      "perS": 11.737,
+      "msg": {
+       "med": 520,
+       "p95": 992,
+       "mean": 584.059,
+       "max": 1493,
+       "n": 118
+      },
+      "bps": {
+       "med": 6832,
+       "p95": 8811,
+       "mean": 6891.9,
+       "max": 8811,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": {
+       "med": 3,
+       "p95": 6,
+       "mean": 3.517,
+       "max": 9,
+       "n": 118
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.497,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 6471,
+      "targeted": 0,
+      "perS": 1.989,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 323.55,
+       "max": 332,
+       "n": 20
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 616.5,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 54206,
+     "p95": 56651,
+     "mean": 53587.7,
+     "max": 56651,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 54206,
+     "max": 56651
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.239
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 32,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 29,
+    "inSight": 30,
+    "meanDist": 14.75641927986987,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 772,
+     "framesWithSim": 548,
+     "realSecs": 10.024,
+     "simAdvanced": 10.15,
+     "frameMs": {
+      "med": 10.8,
+      "p95": 27.1,
+      "mean": 13.133,
+      "max": 41.5,
+      "n": 772
+     },
+     "fps": 92.6,
+     "frameCpuMs": {
+      "med": 10.4,
+      "p95": 26.4,
+      "mean": 12.681,
+      "max": 40.8,
+      "n": 772
+     },
+     "frameCpuMsWithSim": {
+      "med": 10.9,
+      "p95": 27,
+      "mean": 13.926,
+      "max": 40.8,
+      "n": 548
+     },
+     "renderCpuMs": {
+      "med": 7.5,
+      "p95": 18.1,
+      "mean": 9.038,
+      "max": 28.7,
+      "n": 772
+     },
+     "gpuMs": {
+      "med": 4.285,
+      "p95": 9.838,
+      "mean": 4.834,
+      "max": 16.145,
+      "n": 447
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 438,
+      "p95": 464,
+      "mean": 440.437,
+      "max": 475,
+      "n": 222
+     },
+     "trisM": {
+      "med": 3.542,
+      "p95": 3.942,
+      "mean": 3.578,
+      "max": 4.128,
+      "n": 222
+     },
+     "activeMeshes": {
+      "med": 358,
+      "p95": 367,
+      "mean": 357.703,
+      "max": 368,
+      "n": 222
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 32,
+      "meshes": 3425,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 813,
+     "framesWithSim": 557,
+     "realSecs": 10.029,
+     "simAdvanced": 10.133,
+     "frameMs": {
+      "med": 10.3,
+      "p95": 25.4,
+      "mean": 12.474,
+      "max": 34.2,
+      "n": 813
+     },
+     "fps": 97.1,
+     "frameCpuMs": {
+      "med": 9.8,
+      "p95": 24.6,
+      "mean": 12.01,
+      "max": 33.5,
+      "n": 813
+     },
+     "frameCpuMsWithSim": {
+      "med": 10.2,
+      "p95": 26.2,
+      "mean": 13.225,
+      "max": 33.5,
+      "n": 557
+     },
+     "renderCpuMs": {
+      "med": 7.2,
+      "p95": 17.6,
+      "mean": 8.756,
+      "max": 22.6,
+      "n": 813
+     },
+     "gpuMs": {
+      "med": 2.725,
+      "p95": 8.268,
+      "mean": 3.664,
+      "max": 11.96,
+      "n": 496
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 479,
+      "p95": 482,
+      "mean": 472.242,
+      "max": 482,
+      "n": 215
+     },
+     "trisM": {
+      "med": 4.253,
+      "p95": 4.278,
+      "mean": 4.143,
+      "max": 4.292,
+      "n": 215
+     },
+     "activeMeshes": {
+      "med": 265,
+      "p95": 266,
+      "mean": 264.586,
+      "max": 266,
+      "n": 215
+     },
+     "puppets": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 813
+     },
+     "puppetsEnd": {
+      "n": 32,
+      "alive": 32
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 3299,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.024,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 577981,
+      "targeted": 0,
+      "perS": 12.072,
+      "msg": {
+       "med": 4707,
+       "p95": 4721,
+       "mean": 4776.702,
+       "max": 6931,
+       "n": 121
+      },
+      "bps": {
+       "med": 58473,
+       "p95": 61273,
+       "mean": 57798.1,
+       "max": 61273,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6074,
+      "targeted": 0,
+      "perS": 1.896,
+      "msg": {
+       "med": 319,
+       "p95": 332,
+       "mean": 319.684,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 638,
+       "p95": 664,
+       "mean": 607.4,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 59194,
+     "p95": 61898,
+     "mean": 58447,
+     "max": 61898,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 59194,
+     "max": 61898
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.329
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 32,
+   "cell": "away",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 29,
+    "inSight": 30,
+    "meanDist": 14.75641927986987,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1916,
+     "framesWithSim": 606,
+     "realSecs": 10.04,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 5.1,
+      "p95": 6.6,
+      "mean": 5.267,
+      "max": 9.1,
+      "n": 1916
+     },
+     "fps": 196.1,
+     "frameCpuMs": {
+      "med": 4.7,
+      "p95": 6.2,
+      "mean": 4.926,
+      "max": 8.5,
+      "n": 1916
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.5,
+      "p95": 6.8,
+      "mean": 5.651,
+      "max": 8.5,
+      "n": 606
+     },
+     "renderCpuMs": {
+      "med": 3.8,
+      "p95": 4.6,
+      "mean": 3.869,
+      "max": 6.2,
+      "n": 1916
+     },
+     "gpuMs": {
+      "med": 2.12,
+      "p95": 4.458,
+      "mean": 2.527,
+      "max": 6.666,
+      "n": 957
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 133,
+      "p95": 133,
+      "mean": 132.794,
+      "max": 133,
+      "n": 407
+     },
+     "trisM": {
+      "med": 1.099,
+      "p95": 1.099,
+      "mean": 1.096,
+      "max": 1.099,
+      "n": 407
+     },
+     "activeMeshes": {
+      "med": 35,
+      "p95": 35,
+      "mean": 34.897,
+      "max": 35,
+      "n": 407
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 32,
+      "meshes": 3425,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1273,
+     "framesWithSim": 606,
+     "realSecs": 10.024,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 7.8,
+      "p95": 9.3,
+      "mean": 7.936,
+      "max": 12.4,
+      "n": 1273
+     },
+     "fps": 128.2,
+     "frameCpuMs": {
+      "med": 7.5,
+      "p95": 8.8,
+      "mean": 7.572,
+      "max": 12.1,
+      "n": 1273
+     },
+     "frameCpuMsWithSim": {
+      "med": 7.8,
+      "p95": 9.4,
+      "mean": 7.95,
+      "max": 12.1,
+      "n": 606
+     },
+     "renderCpuMs": {
+      "med": 5.3,
+      "p95": 6.1,
+      "mean": 5.358,
+      "max": 8.4,
+      "n": 1273
+     },
+     "gpuMs": {
+      "med": 1.774,
+      "p95": 2.543,
+      "mean": 1.89,
+      "max": 4.267,
+      "n": 660
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 221,
+      "p95": 224,
+      "mean": 221.669,
+      "max": 224,
+      "n": 272
+     },
+     "trisM": {
+      "med": 2.588,
+      "p95": 2.616,
+      "mean": 2.594,
+      "max": 2.625,
+      "n": 272
+     },
+     "activeMeshes": {
+      "med": 33,
+      "p95": 34,
+      "mean": 33.103,
+      "max": 34,
+      "n": 272
+     },
+     "puppets": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 1273
+     },
+     "puppetsEnd": {
+      "n": 32,
+      "alive": 32
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 3299,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.04,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 580458,
+      "targeted": 0,
+      "perS": 12.052,
+      "msg": {
+       "med": 4709,
+       "p95": 4721,
+       "mean": 4797.174,
+       "max": 6934,
+       "n": 121
+      },
+      "bps": {
+       "med": 58513,
+       "p95": 58772,
+       "mean": 57574.4,
+       "max": 58772,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.498,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 6165,
+      "targeted": 0,
+      "perS": 1.892,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 324.474,
+       "max": 332,
+       "n": 19
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 616.5,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 58819,
+     "p95": 59423,
+     "mean": 58232.4,
+     "max": 59423,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 58819,
+     "max": 59423
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.309
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "mapId": "campusOps",
+   "players": 2,
+   "count": 32,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 29,
+    "inSight": 30,
+    "meanDist": 14.75641927986987,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 32,
+   "pages": {
+    "host": {
+     "frames": 933,
+     "framesWithSim": 609,
+     "realSecs": 10.055,
+     "simAdvanced": 10.15,
+     "frameMs": {
+      "med": 10.8,
+      "p95": 12.9,
+      "mean": 10.889,
+      "max": 18.6,
+      "n": 933
+     },
+     "fps": 92.6,
+     "frameCpuMs": {
+      "med": 10.2,
+      "p95": 12.2,
+      "mean": 10.288,
+      "max": 17.3,
+      "n": 933
+     },
+     "frameCpuMsWithSim": {
+      "med": 10.6,
+      "p95": 12.8,
+      "mean": 10.785,
+      "max": 17.3,
+      "n": 609
+     },
+     "renderCpuMs": {
+      "med": 7.4,
+      "p95": 8.8,
+      "mean": 7.532,
+      "max": 12.2,
+      "n": 933
+     },
+     "gpuMs": {
+      "med": 3.468,
+      "p95": 6.258,
+      "mean": 3.799,
+      "max": 8.742,
+      "n": 519
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 474,
+      "p95": 516,
+      "mean": 471.884,
+      "max": 526,
+      "n": 198
+     },
+     "trisM": {
+      "med": 3.628,
+      "p95": 4.026,
+      "mean": 3.609,
+      "max": 4.314,
+      "n": 198
+     },
+     "activeMeshes": {
+      "med": 407,
+      "p95": 421,
+      "mean": 407.131,
+      "max": 424,
+      "n": 198
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 32,
+      "meshes": 3425,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 911,
+     "framesWithSim": 609,
+     "realSecs": 10.051,
+     "simAdvanced": 10.15,
+     "frameMs": {
+      "med": 11,
+      "p95": 13.2,
+      "mean": 11.151,
+      "max": 16.9,
+      "n": 911
+     },
+     "fps": 90.9,
+     "frameCpuMs": {
+      "med": 10.5,
+      "p95": 12.5,
+      "mean": 10.615,
+      "max": 16.1,
+      "n": 911
+     },
+     "frameCpuMsWithSim": {
+      "med": 10.7,
+      "p95": 12.8,
+      "mean": 10.856,
+      "max": 16.1,
+      "n": 609
+     },
+     "renderCpuMs": {
+      "med": 7.5,
+      "p95": 8.7,
+      "mean": 7.624,
+      "max": 11.7,
+      "n": 911
+     },
+     "gpuMs": {
+      "med": 2.703,
+      "p95": 4.359,
+      "mean": 2.96,
+      "max": 6.386,
+      "n": 595
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 536,
+      "p95": 594,
+      "mean": 534.744,
+      "max": 599,
+      "n": 195
+     },
+     "trisM": {
+      "med": 4.614,
+      "p95": 5.29,
+      "mean": 4.637,
+      "max": 5.339,
+      "n": 195
+     },
+     "activeMeshes": {
+      "med": 258,
+      "p95": 265,
+      "mean": 258.277,
+      "max": 268,
+      "n": 195
+     },
+     "puppets": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 911
+     },
+     "puppetsEnd": {
+      "n": 32,
+      "alive": 32
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 3299,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.055,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 573951,
+      "targeted": 0,
+      "perS": 11.934,
+      "msg": {
+       "med": 4691,
+       "p95": 4705,
+       "mean": 4782.925,
+       "max": 6915,
+       "n": 120
+      },
+      "bps": {
+       "med": 58468,
+       "p95": 58546,
+       "mean": 57395.1,
+       "max": 58546,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 118,
+      "bytes": 89986,
+      "targeted": 0,
+      "perS": 11.735,
+      "msg": {
+       "med": 691,
+       "p95": 1487,
+       "mean": 762.593,
+       "max": 1689,
+       "n": 118
+      },
+      "bps": {
+       "med": 9264,
+       "p95": 13174,
+       "mean": 8998.6,
+       "max": 13174,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": {
+       "med": 4,
+       "p95": 9,
+       "mean": 4.585,
+       "max": 10,
+       "n": 118
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.497,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 6484,
+      "targeted": 0,
+      "perS": 1.989,
+      "msg": {
+       "med": 332,
+       "p95": 332,
+       "mean": 324.2,
+       "max": 332,
+       "n": 20
+      },
+      "bps": {
+       "med": 651,
+       "p95": 664,
+       "mean": 648.4,
+       "max": 664,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 67353,
+     "p95": 72254,
+     "mean": 67083.6,
+     "max": 72254,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 67353,
+     "max": 72254
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.328
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "campus",
+   "players": 4,
+   "count": 0,
+   "cell": "boot",
+   "error": "campus x 4p x 0: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "campus",
+   "players": 4,
+   "count": 12,
+   "cell": "boot",
+   "error": "campus x 4p x 12: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "campus",
+   "players": 4,
+   "count": 24,
+   "cell": "boot",
+   "error": "campus x 4p x 24: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "campus",
+   "players": 4,
+   "count": 32,
+   "cell": "boot",
+   "error": "campus x 4p x 32: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 0,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 0,
+    "alive": 0,
+    "capBefore": 32,
+    "cap": 0,
+    "candidates": 0,
+    "patrols": 0,
+    "inSight": 0,
+    "meanDist": 0,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 2549,
+     "framesWithSim": 604,
+     "realSecs": 10.023,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 3.8,
+      "p95": 5,
+      "mean": 3.948,
+      "max": 9.7,
+      "n": 2549
+     },
+     "fps": 263.2,
+     "frameCpuMs": {
+      "med": 3.5,
+      "p95": 4.6,
+      "mean": 3.631,
+      "max": 9,
+      "n": 2549
+     },
+     "frameCpuMsWithSim": {
+      "med": 4.1,
+      "p95": 5.3,
+      "mean": 4.206,
+      "max": 7.8,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 2.7,
+      "p95": 3.4,
+      "mean": 2.76,
+      "max": 7.5,
+      "n": 2549
+     },
+     "gpuMs": {
+      "med": 1.932,
+      "p95": 2.367,
+      "mean": 1.974,
+      "max": 3.758,
+      "n": 901
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 132,
+      "p95": 132,
+      "mean": 132,
+      "max": 132,
+      "n": 540
+     },
+     "trisM": {
+      "med": 0.851,
+      "p95": 0.851,
+      "mean": 0.851,
+      "max": 0.851,
+      "n": 540
+     },
+     "activeMeshes": {
+      "med": 130,
+      "p95": 130,
+      "mean": 129.515,
+      "max": 130,
+      "n": 540
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 0,
+      "meshes": 894,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 2528,
+     "framesWithSim": 604,
+     "realSecs": 10.021,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 3.9,
+      "p95": 5,
+      "mean": 3.98,
+      "max": 10.9,
+      "n": 2528
+     },
+     "fps": 256.4,
+     "frameCpuMs": {
+      "med": 3.4,
+      "p95": 4.5,
+      "mean": 3.568,
+      "max": 9.9,
+      "n": 2528
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.9,
+      "p95": 5,
+      "mean": 4.07,
+      "max": 9.9,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 2.6,
+      "p95": 3.3,
+      "mean": 2.706,
+      "max": 8.2,
+      "n": 2528
+     },
+     "gpuMs": {
+      "med": 1.867,
+      "p95": 2.025,
+      "mean": 1.862,
+      "max": 3.102,
+      "n": 968
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 124,
+      "p95": 124,
+      "mean": 124,
+      "max": 124,
+      "n": 540
+     },
+     "trisM": {
+      "med": 0.811,
+      "p95": 0.811,
+      "mean": 0.811,
+      "max": 0.811,
+      "n": 540
+     },
+     "activeMeshes": {
+      "med": 110,
+      "p95": 110,
+      "mean": 109.519,
+      "max": 110,
+      "n": 540
+     },
+     "puppets": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "max": 0,
+      "n": 2528
+     },
+     "puppetsEnd": {
+      "n": 0,
+      "alive": 0
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 882,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.023,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 116606,
+      "targeted": 0,
+      "perS": 11.972,
+      "msg": {
+       "med": 759,
+       "p95": 760,
+       "mean": 971.717,
+       "max": 5880,
+       "n": 120
+      },
+      "bps": {
+       "med": 14195,
+       "p95": 14234,
+       "mean": 11660.6,
+       "max": 14234,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4942,
+      "targeted": 0,
+      "perS": 1.896,
+      "msg": {
+       "med": 259,
+       "p95": 266,
+       "mean": 260.105,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 518,
+       "p95": 532,
+       "mean": 494.2,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 14500,
+     "p95": 14796,
+     "mean": 12196.3,
+     "max": 14796,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 14500,
+     "max": 14796
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.219
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 0,
+   "cell": "away",
+   "spawn": {
+    "spawned": 0,
+    "alive": 0,
+    "capBefore": 32,
+    "cap": 0,
+    "candidates": 0,
+    "patrols": 0,
+    "inSight": 0,
+    "meanDist": 0,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 2899,
+     "framesWithSim": 603,
+     "realSecs": 10.02,
+     "simAdvanced": 10.05,
+     "frameMs": {
+      "med": 3.4,
+      "p95": 4.4,
+      "mean": 3.467,
+      "max": 6.4,
+      "n": 2899
+     },
+     "fps": 294.1,
+     "frameCpuMs": {
+      "med": 3.1,
+      "p95": 4.1,
+      "mean": 3.197,
+      "max": 6.1,
+      "n": 2899
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.6,
+      "p95": 4.6,
+      "mean": 3.751,
+      "max": 6.1,
+      "n": 603
+     },
+     "renderCpuMs": {
+      "med": 2.4,
+      "p95": 3,
+      "mean": 2.427,
+      "max": 4.2,
+      "n": 2899
+     },
+     "gpuMs": {
+      "med": 1.446,
+      "p95": 2.278,
+      "mean": 1.579,
+      "max": 3.928,
+      "n": 1194
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 111,
+      "p95": 111,
+      "mean": 111,
+      "max": 111,
+      "n": 623
+     },
+     "trisM": {
+      "med": 0.838,
+      "p95": 0.838,
+      "mean": 0.838,
+      "max": 0.838,
+      "n": 623
+     },
+     "activeMeshes": {
+      "med": 34,
+      "p95": 34,
+      "mean": 34,
+      "max": 34,
+      "n": 623
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 0,
+      "meshes": 894,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 2936,
+     "framesWithSim": 603,
+     "realSecs": 10.008,
+     "simAdvanced": 10.05,
+     "frameMs": {
+      "med": 3.3,
+      "p95": 4.3,
+      "mean": 3.42,
+      "max": 6.4,
+      "n": 2936
+     },
+     "fps": 303,
+     "frameCpuMs": {
+      "med": 3.1,
+      "p95": 4.1,
+      "mean": 3.186,
+      "max": 6.2,
+      "n": 2936
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.6,
+      "p95": 4.5,
+      "mean": 3.673,
+      "max": 6.2,
+      "n": 603
+     },
+     "renderCpuMs": {
+      "med": 2.4,
+      "p95": 3,
+      "mean": 2.432,
+      "max": 4.8,
+      "n": 2936
+     },
+     "gpuMs": {
+      "med": 1.517,
+      "p95": 1.684,
+      "mean": 1.532,
+      "max": 2.62,
+      "n": 1351
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 106,
+      "p95": 106,
+      "mean": 106,
+      "max": 106,
+      "n": 647
+     },
+     "trisM": {
+      "med": 0.837,
+      "p95": 0.837,
+      "mean": 0.837,
+      "max": 0.837,
+      "n": 647
+     },
+     "activeMeshes": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 647
+     },
+     "puppets": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "max": 0,
+      "n": 2936
+     },
+     "puppetsEnd": {
+      "n": 0,
+      "alive": 0
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 882,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.02,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 118245,
+      "targeted": 0,
+      "perS": 12.076,
+      "msg": {
+       "med": 766,
+       "p95": 768,
+       "mean": 977.231,
+       "max": 5888,
+       "n": 121
+      },
+      "bps": {
+       "med": 14305,
+       "p95": 14314,
+       "mean": 11748.2,
+       "max": 14314,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 5257,
+      "targeted": 0,
+      "perS": 1.996,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 262.85,
+       "max": 266,
+       "n": 20
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 525.7,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 14823,
+     "p95": 14846,
+     "mean": 12315.4,
+     "max": 14846,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 14823,
+     "max": 14846
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.2
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 0,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 0,
+    "alive": 0,
+    "capBefore": 32,
+    "cap": 0,
+    "candidates": 0,
+    "patrols": 0,
+    "inSight": 0,
+    "meanDist": 0,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 0,
+   "pages": {
+    "host": {
+     "frames": 2652,
+     "framesWithSim": 604,
+     "realSecs": 10.022,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 3.6,
+      "p95": 4.9,
+      "mean": 3.793,
+      "max": 11.1,
+      "n": 2652
+     },
+     "fps": 277.8,
+     "frameCpuMs": {
+      "med": 3.3,
+      "p95": 4.6,
+      "mean": 3.49,
+      "max": 10.9,
+      "n": 2652
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.9,
+      "p95": 5.5,
+      "mean": 4.067,
+      "max": 8.8,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 2.6,
+      "p95": 3.5,
+      "mean": 2.713,
+      "max": 9.7,
+      "n": 2652
+     },
+     "gpuMs": {
+      "med": 1.874,
+      "p95": 2.054,
+      "mean": 1.91,
+      "max": 3.266,
+      "n": 312
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 132,
+      "p95": 132,
+      "mean": 131.724,
+      "max": 132,
+      "n": 558
+     },
+     "trisM": {
+      "med": 0.851,
+      "p95": 0.851,
+      "mean": 0.849,
+      "max": 0.851,
+      "n": 558
+     },
+     "activeMeshes": {
+      "med": 129,
+      "p95": 130,
+      "mean": 129.384,
+      "max": 130,
+      "n": 558
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 0,
+      "meshes": 894,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 2683,
+     "framesWithSim": 604,
+     "realSecs": 10.03,
+     "simAdvanced": 10.067,
+     "frameMs": {
+      "med": 3.7,
+      "p95": 4.6,
+      "mean": 3.752,
+      "max": 13,
+      "n": 2683
+     },
+     "fps": 270.3,
+     "frameCpuMs": {
+      "med": 3.2,
+      "p95": 4.2,
+      "mean": 3.341,
+      "max": 7,
+      "n": 2683
+     },
+     "frameCpuMsWithSim": {
+      "med": 3.7,
+      "p95": 4.5,
+      "mean": 3.806,
+      "max": 6.7,
+      "n": 604
+     },
+     "renderCpuMs": {
+      "med": 2.5,
+      "p95": 3.1,
+      "mean": 2.577,
+      "max": 6,
+      "n": 2683
+     },
+     "gpuMs": {
+      "med": 1.782,
+      "p95": 1.975,
+      "mean": 1.808,
+      "max": 2.331,
+      "n": 590
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 124,
+      "p95": 124,
+      "mean": 124,
+      "max": 124,
+      "n": 575
+     },
+     "trisM": {
+      "med": 0.811,
+      "p95": 0.811,
+      "mean": 0.811,
+      "max": 0.811,
+      "n": 575
+     },
+     "activeMeshes": {
+      "med": 110,
+      "p95": 110,
+      "mean": 109.515,
+      "max": 110,
+      "n": 575
+     },
+     "puppets": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "max": 0,
+      "n": 2683
+     },
+     "puppetsEnd": {
+      "n": 0,
+      "alive": 0
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 882,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.022,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 111284,
+      "targeted": 0,
+      "perS": 11.973,
+      "msg": {
+       "med": 757,
+       "p95": 759,
+       "mean": 927.367,
+       "max": 5879,
+       "n": 120
+      },
+      "bps": {
+       "med": 9085,
+       "p95": 14203,
+       "mean": 11128.4,
+       "max": 14203,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4977,
+      "targeted": 0,
+      "perS": 1.896,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 261.947,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 497.7,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 9698,
+     "p95": 14806,
+     "mean": 11667.6,
+     "max": 14806,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 9698,
+     "max": 14806
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.229
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 12,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 12,
+    "alive": 12,
+    "capBefore": 32,
+    "cap": 12,
+    "candidates": 12,
+    "patrols": 3,
+    "inSight": 12,
+    "meanDist": 9.282117646596612,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1211,
+     "framesWithSim": 590,
+     "realSecs": 10.025,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 6.7,
+      "p95": 16.9,
+      "mean": 8.34,
+      "max": 29.1,
+      "n": 1211
+     },
+     "fps": 149.3,
+     "frameCpuMs": {
+      "med": 6.3,
+      "p95": 16,
+      "mean": 7.899,
+      "max": 27.6,
+      "n": 1211
+     },
+     "frameCpuMsWithSim": {
+      "med": 7.7,
+      "p95": 20.2,
+      "mean": 9.714,
+      "max": 27.6,
+      "n": 590
+     },
+     "renderCpuMs": {
+      "med": 4.5,
+      "p95": 11.4,
+      "mean": 5.669,
+      "max": 25,
+      "n": 1211
+     },
+     "gpuMs": {
+      "med": 2.848,
+      "p95": 7.448,
+      "mean": 3.525,
+      "max": 14.498,
+      "n": 607
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 200,
+      "p95": 216,
+      "mean": 206.831,
+      "max": 216,
+      "n": 343
+     },
+     "trisM": {
+      "med": 1.881,
+      "p95": 2.061,
+      "mean": 1.952,
+      "max": 2.061,
+      "n": 343
+     },
+     "activeMeshes": {
+      "med": 146,
+      "p95": 147,
+      "mean": 146.178,
+      "max": 147,
+      "n": 343
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 12,
+      "meshes": 1748,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1197,
+     "framesWithSim": 591,
+     "realSecs": 10.024,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 7,
+      "p95": 16.7,
+      "mean": 8.441,
+      "max": 32.5,
+      "n": 1197
+     },
+     "fps": 142.9,
+     "frameCpuMs": {
+      "med": 6.5,
+      "p95": 15.9,
+      "mean": 8.014,
+      "max": 32,
+      "n": 1197
+     },
+     "frameCpuMsWithSim": {
+      "med": 7.7,
+      "p95": 20.1,
+      "mean": 9.455,
+      "max": 32,
+      "n": 591
+     },
+     "renderCpuMs": {
+      "med": 4.7,
+      "p95": 11.3,
+      "mean": 5.744,
+      "max": 20.9,
+      "n": 1197
+     },
+     "gpuMs": {
+      "med": 2.048,
+      "p95": 4.353,
+      "mean": 2.513,
+      "max": 14.661,
+      "n": 626
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 207,
+      "p95": 208,
+      "mean": 206.973,
+      "max": 208,
+      "n": 328
+     },
+     "trisM": {
+      "med": 2.066,
+      "p95": 2.079,
+      "mean": 2.062,
+      "max": 2.083,
+      "n": 328
+     },
+     "activeMeshes": {
+      "med": 110,
+      "p95": 111,
+      "mean": 109.881,
+      "max": 111,
+      "n": 328
+     },
+     "puppets": {
+      "med": 12,
+      "p95": 12,
+      "mean": 12,
+      "max": 12,
+      "n": 1197
+     },
+     "puppetsEnd": {
+      "n": 12,
+      "alive": 12
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1736,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.025,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 275720,
+      "targeted": 0,
+      "perS": 12.07,
+      "msg": {
+       "med": 2067,
+       "p95": 2074,
+       "mean": 2278.678,
+       "max": 7192,
+       "n": 121
+      },
+      "bps": {
+       "med": 27821,
+       "p95": 29957,
+       "mean": 27365.2,
+       "max": 29957,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4942,
+      "targeted": 0,
+      "perS": 1.895,
+      "msg": {
+       "med": 259,
+       "p95": 266,
+       "mean": 260.105,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 518,
+       "p95": 532,
+       "mean": 494.2,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 28422,
+     "p95": 30516,
+     "mean": 27900.9,
+     "max": 30516,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 28422,
+     "max": 30516
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.309
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 12,
+   "cell": "away",
+   "spawn": {
+    "spawned": 12,
+    "alive": 12,
+    "capBefore": 32,
+    "cap": 12,
+    "candidates": 12,
+    "patrols": 3,
+    "inSight": 12,
+    "meanDist": 9.282117646596612,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 2056,
+     "framesWithSim": 603,
+     "realSecs": 10.004,
+     "simAdvanced": 10.05,
+     "frameMs": {
+      "med": 4.8,
+      "p95": 6.1,
+      "mean": 4.888,
+      "max": 8.3,
+      "n": 2056
+     },
+     "fps": 208.3,
+     "frameCpuMs": {
+      "med": 4.5,
+      "p95": 5.7,
+      "mean": 4.602,
+      "max": 7.8,
+      "n": 2056
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.1,
+      "p95": 6.2,
+      "mean": 5.24,
+      "max": 7.8,
+      "n": 603
+     },
+     "renderCpuMs": {
+      "med": 3.5,
+      "p95": 4.1,
+      "mean": 3.511,
+      "max": 5.6,
+      "n": 2056
+     },
+     "gpuMs": {
+      "med": 1.985,
+      "p95": 3.686,
+      "mean": 2.191,
+      "max": 5.214,
+      "n": 1027
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 164,
+      "p95": 166,
+      "mean": 161.928,
+      "max": 166,
+      "n": 416
+     },
+     "trisM": {
+      "med": 1.49,
+      "p95": 1.519,
+      "mean": 1.471,
+      "max": 1.524,
+      "n": 416
+     },
+     "activeMeshes": {
+      "med": 37,
+      "p95": 37,
+      "mean": 36.714,
+      "max": 37,
+      "n": 416
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 12,
+      "meshes": 1748,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1765,
+     "framesWithSim": 606,
+     "realSecs": 10.053,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 5.6,
+      "p95": 6.7,
+      "mean": 5.727,
+      "max": 9.5,
+      "n": 1765
+     },
+     "fps": 178.6,
+     "frameCpuMs": {
+      "med": 5.4,
+      "p95": 6.4,
+      "mean": 5.472,
+      "max": 9.1,
+      "n": 1765
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.8,
+      "p95": 6.7,
+      "mean": 5.91,
+      "max": 9.1,
+      "n": 606
+     },
+     "renderCpuMs": {
+      "med": 4,
+      "p95": 4.6,
+      "mean": 4.046,
+      "max": 7,
+      "n": 1765
+     },
+     "gpuMs": {
+      "med": 1.654,
+      "p95": 2.218,
+      "mean": 1.749,
+      "max": 3.151,
+      "n": 883
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 178,
+      "p95": 178,
+      "mean": 177.003,
+      "max": 178,
+      "n": 361
+     },
+     "trisM": {
+      "med": 1.779,
+      "p95": 1.783,
+      "mean": 1.769,
+      "max": 1.783,
+      "n": 361
+     },
+     "activeMeshes": {
+      "med": 36,
+      "p95": 36,
+      "mean": 36,
+      "max": 36,
+      "n": 361
+     },
+     "puppets": {
+      "med": 12,
+      "p95": 12,
+      "mean": 12,
+      "max": 12,
+      "n": 1765
+     },
+     "puppetsEnd": {
+      "n": 12,
+      "alive": 12
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1736,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.004,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 274185,
+      "targeted": 0,
+      "perS": 11.996,
+      "msg": {
+       "med": 2072,
+       "p95": 2079,
+       "mean": 2284.875,
+       "max": 7198,
+       "n": 120
+      },
+      "bps": {
+       "med": 29935,
+       "p95": 30018,
+       "mean": 27418.5,
+       "max": 30018,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.5,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 5257,
+      "targeted": 0,
+      "perS": 1.999,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 262.85,
+       "max": 266,
+       "n": 20
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 525.7,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 30453,
+     "p95": 30550,
+     "mean": 27985.7,
+     "max": 30550,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 30453,
+     "max": 30550
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.21
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 12,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 12,
+    "alive": 12,
+    "capBefore": 32,
+    "cap": 12,
+    "candidates": 12,
+    "patrols": 3,
+    "inSight": 12,
+    "meanDist": 9.282117646596612,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 12,
+   "pages": {
+    "host": {
+     "frames": 1482,
+     "framesWithSim": 608,
+     "realSecs": 10.058,
+     "simAdvanced": 10.133,
+     "frameMs": {
+      "med": 6.7,
+      "p95": 8.4,
+      "mean": 6.833,
+      "max": 11.3,
+      "n": 1482
+     },
+     "fps": 149.3,
+     "frameCpuMs": {
+      "med": 6.1,
+      "p95": 7.7,
+      "mean": 6.236,
+      "max": 10.4,
+      "n": 1482
+     },
+     "frameCpuMsWithSim": {
+      "med": 6.9,
+      "p95": 8,
+      "mean": 6.943,
+      "max": 10.4,
+      "n": 608
+     },
+     "renderCpuMs": {
+      "med": 4.3,
+      "p95": 5,
+      "mean": 4.406,
+      "max": 7.8,
+      "n": 1482
+     },
+     "gpuMs": {
+      "med": 2.672,
+      "p95": 4.741,
+      "mean": 2.982,
+      "max": 6.081,
+      "n": 748
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 210,
+      "p95": 218,
+      "mean": 208.305,
+      "max": 227,
+      "n": 318
+     },
+     "trisM": {
+      "med": 1.694,
+      "p95": 1.754,
+      "mean": 1.667,
+      "max": 1.829,
+      "n": 318
+     },
+     "activeMeshes": {
+      "med": 168,
+      "p95": 181,
+      "mean": 168.277,
+      "max": 184,
+      "n": 318
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 12,
+      "meshes": 1748,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1447,
+     "framesWithSim": 606,
+     "realSecs": 10.029,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 6.9,
+      "p95": 8.1,
+      "mean": 6.979,
+      "max": 11,
+      "n": 1447
+     },
+     "fps": 144.9,
+     "frameCpuMs": {
+      "med": 6.4,
+      "p95": 7.6,
+      "mean": 6.465,
+      "max": 10.4,
+      "n": 1447
+     },
+     "frameCpuMsWithSim": {
+      "med": 6.7,
+      "p95": 7.7,
+      "mean": 6.845,
+      "max": 10.4,
+      "n": 606
+     },
+     "renderCpuMs": {
+      "med": 4.6,
+      "p95": 5.2,
+      "mean": 4.636,
+      "max": 7.7,
+      "n": 1447
+     },
+     "gpuMs": {
+      "med": 2.126,
+      "p95": 2.873,
+      "mean": 2.236,
+      "max": 4.482,
+      "n": 731
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 236,
+      "p95": 242,
+      "mean": 235.136,
+      "max": 244,
+      "n": 295
+     },
+     "trisM": {
+      "med": 2.258,
+      "p95": 2.302,
+      "mean": 2.252,
+      "max": 2.317,
+      "n": 295
+     },
+     "activeMeshes": {
+      "med": 114,
+      "p95": 118,
+      "mean": 114.641,
+      "max": 118,
+      "n": 295
+     },
+     "puppets": {
+      "med": 12,
+      "p95": 12,
+      "mean": 12,
+      "max": 12,
+      "n": 1447
+     },
+     "puppetsEnd": {
+      "n": 12,
+      "alive": 12
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 1736,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.058,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 297300,
+      "targeted": 0,
+      "perS": 11.93,
+      "msg": {
+       "med": 2264,
+       "p95": 2291,
+       "mean": 2477.5,
+       "max": 7387,
+       "n": 120
+      },
+      "bps": {
+       "med": 32233,
+       "p95": 32318,
+       "mean": 29730,
+       "max": 32318,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 65,
+      "bytes": 17969,
+      "targeted": 0,
+      "perS": 6.462,
+      "msg": {
+       "med": 197,
+       "p95": 529,
+       "mean": 276.446,
+       "max": 695,
+       "n": 65
+      },
+      "bps": {
+       "med": 1641,
+       "p95": 3406,
+       "mean": 1796.9,
+       "max": 3406,
+       "n": 10
+      },
+      "msgsPerSecMax": 10,
+      "events": {
+       "med": 1,
+       "p95": 3,
+       "mean": 1.615,
+       "max": 4,
+       "n": 65
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.497,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4977,
+      "targeted": 0,
+      "perS": 1.889,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 261.947,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 497.7,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 33477,
+     "p95": 34640,
+     "mean": 32066.1,
+     "max": 34640,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 33477,
+     "max": 34640
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.258
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 24,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 24,
+    "alive": 24,
+    "capBefore": 32,
+    "cap": 24,
+    "candidates": 24,
+    "patrols": 5,
+    "inSight": 12,
+    "meanDist": 8.85570048752478,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1007,
+     "framesWithSim": 581,
+     "realSecs": 10.02,
+     "simAdvanced": 10.117,
+     "frameMs": {
+      "med": 8.1,
+      "p95": 19.4,
+      "mean": 10.045,
+      "max": 41.9,
+      "n": 1007
+     },
+     "fps": 123.5,
+     "frameCpuMs": {
+      "med": 7.8,
+      "p95": 18.7,
+      "mean": 9.619,
+      "max": 40.8,
+      "n": 1007
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.5,
+      "p95": 22,
+      "mean": 11.227,
+      "max": 40.8,
+      "n": 581
+     },
+     "renderCpuMs": {
+      "med": 5.4,
+      "p95": 13.1,
+      "mean": 6.778,
+      "max": 28.8,
+      "n": 1007
+     },
+     "gpuMs": {
+      "med": 3.314,
+      "p95": 8.179,
+      "mean": 3.991,
+      "max": 13.075,
+      "n": 525
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 269,
+      "p95": 276,
+      "mean": 257.625,
+      "max": 276,
+      "n": 280
+     },
+     "trisM": {
+      "med": 2.92,
+      "p95": 3.048,
+      "mean": 2.787,
+      "max": 3.048,
+      "n": 280
+     },
+     "activeMeshes": {
+      "med": 164,
+      "p95": 165,
+      "mean": 164.336,
+      "max": 165,
+      "n": 280
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 24,
+      "meshes": 2600,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1021,
+     "framesWithSim": 588,
+     "realSecs": 10.046,
+     "simAdvanced": 10.15,
+     "frameMs": {
+      "med": 8,
+      "p95": 18.9,
+      "mean": 9.94,
+      "max": 35.3,
+      "n": 1021
+     },
+     "fps": 125,
+     "frameCpuMs": {
+      "med": 7.6,
+      "p95": 18,
+      "mean": 9.493,
+      "max": 34.6,
+      "n": 1021
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.3,
+      "p95": 21.3,
+      "mean": 10.986,
+      "max": 34.6,
+      "n": 588
+     },
+     "renderCpuMs": {
+      "med": 5.4,
+      "p95": 13,
+      "mean": 6.726,
+      "max": 26.4,
+      "n": 1021
+     },
+     "gpuMs": {
+      "med": 2.398,
+      "p95": 5.951,
+      "mean": 3.101,
+      "max": 12.054,
+      "n": 563
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 277,
+      "p95": 281,
+      "mean": 271.592,
+      "max": 281,
+      "n": 284
+     },
+     "trisM": {
+      "med": 3.098,
+      "p95": 3.148,
+      "mean": 3.006,
+      "max": 3.148,
+      "n": 284
+     },
+     "activeMeshes": {
+      "med": 148,
+      "p95": 150,
+      "mean": 148.447,
+      "max": 150,
+      "n": 284
+     },
+     "puppets": {
+      "med": 24,
+      "p95": 24,
+      "mean": 24,
+      "max": 24,
+      "n": 1021
+     },
+     "puppetsEnd": {
+      "n": 24,
+      "alive": 24
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 2588,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.02,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 450730,
+      "targeted": 0,
+      "perS": 12.076,
+      "msg": {
+       "med": 3514,
+       "p95": 3521,
+       "mean": 3725.041,
+       "max": 8636,
+       "n": 121
+      },
+      "bps": {
+       "med": 47230,
+       "p95": 50798,
+       "mean": 45073,
+       "max": 50798,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4942,
+      "targeted": 0,
+      "perS": 1.896,
+      "msg": {
+       "med": 259,
+       "p95": 266,
+       "mean": 260.105,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 518,
+       "p95": 532,
+       "mean": 494.2,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 47809,
+     "p95": 51399,
+     "mean": 45608.7,
+     "max": 51399,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 47809,
+     "max": 51399
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.269
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 24,
+   "cell": "away",
+   "spawn": {
+    "spawned": 24,
+    "alive": 24,
+    "capBefore": 32,
+    "cap": 24,
+    "candidates": 24,
+    "patrols": 5,
+    "inSight": 12,
+    "meanDist": 8.85570048752478,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1894,
+     "framesWithSim": 605,
+     "realSecs": 10.037,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 5.2,
+      "p95": 6.4,
+      "mean": 5.326,
+      "max": 9.3,
+      "n": 1894
+     },
+     "fps": 192.3,
+     "frameCpuMs": {
+      "med": 4.9,
+      "p95": 6.1,
+      "mean": 5.04,
+      "max": 9,
+      "n": 1894
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.6,
+      "p95": 6.4,
+      "mean": 5.671,
+      "max": 9,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 3.9,
+      "p95": 4.5,
+      "mean": 3.919,
+      "max": 6.6,
+      "n": 1894
+     },
+     "gpuMs": {
+      "med": 2.163,
+      "p95": 4.011,
+      "mean": 2.416,
+      "max": 4.99,
+      "n": 947
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 159,
+      "p95": 166,
+      "mean": 162.039,
+      "max": 166,
+      "n": 407
+     },
+     "trisM": {
+      "med": 1.444,
+      "p95": 1.519,
+      "mean": 1.471,
+      "max": 1.519,
+      "n": 407
+     },
+     "activeMeshes": {
+      "med": 37,
+      "p95": 37,
+      "mean": 36.816,
+      "max": 37,
+      "n": 407
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 24,
+      "meshes": 2600,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1432,
+     "framesWithSim": 605,
+     "realSecs": 10.018,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 7,
+      "p95": 8.2,
+      "mean": 7.041,
+      "max": 12,
+      "n": 1432
+     },
+     "fps": 142.9,
+     "frameCpuMs": {
+      "med": 6.7,
+      "p95": 7.9,
+      "mean": 6.777,
+      "max": 11.6,
+      "n": 1432
+     },
+     "frameCpuMsWithSim": {
+      "med": 7,
+      "p95": 8.1,
+      "mean": 7.155,
+      "max": 11.6,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 4.8,
+      "p95": 5.5,
+      "mean": 4.875,
+      "max": 7.9,
+      "n": 1432
+     },
+     "gpuMs": {
+      "med": 1.759,
+      "p95": 2.541,
+      "mean": 1.868,
+      "max": 4.183,
+      "n": 724
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 248,
+      "p95": 249,
+      "mean": 237.937,
+      "max": 249,
+      "n": 318
+     },
+     "trisM": {
+      "med": 2.889,
+      "p95": 2.92,
+      "mean": 2.757,
+      "max": 2.92,
+      "n": 318
+     },
+     "activeMeshes": {
+      "med": 33,
+      "p95": 33,
+      "mean": 33,
+      "max": 33,
+      "n": 318
+     },
+     "puppets": {
+      "med": 24,
+      "p95": 24,
+      "mean": 24,
+      "max": 24,
+      "n": 1432
+     },
+     "puppetsEnd": {
+      "n": 24,
+      "alive": 24
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 2588,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.037,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 447507,
+      "targeted": 0,
+      "perS": 11.955,
+      "msg": {
+       "med": 3516,
+       "p95": 3524,
+       "mean": 3729.225,
+       "max": 8645,
+       "n": 120
+      },
+      "bps": {
+       "med": 47240,
+       "p95": 47367,
+       "mean": 44750.7,
+       "max": 47367,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.498,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4991,
+      "targeted": 0,
+      "perS": 1.893,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 262.684,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 499.1,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 47758,
+     "p95": 47899,
+     "mean": 45291.3,
+     "max": 47899,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 47758,
+     "max": 47899
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.259
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 24,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 24,
+    "alive": 24,
+    "capBefore": 32,
+    "cap": 24,
+    "candidates": 24,
+    "patrols": 5,
+    "inSight": 12,
+    "meanDist": 8.85570048752478,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 24,
+   "pages": {
+    "host": {
+     "frames": 1130,
+     "framesWithSim": 608,
+     "realSecs": 10.029,
+     "simAdvanced": 10.133,
+     "frameMs": {
+      "med": 8.8,
+      "p95": 11.1,
+      "mean": 8.955,
+      "max": 16,
+      "n": 1130
+     },
+     "fps": 113.6,
+     "frameCpuMs": {
+      "med": 8.2,
+      "p95": 10.3,
+      "mean": 8.31,
+      "max": 14.9,
+      "n": 1130
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.7,
+      "p95": 10.7,
+      "mean": 8.974,
+      "max": 14.9,
+      "n": 608
+     },
+     "renderCpuMs": {
+      "med": 5.7,
+      "p95": 6.9,
+      "mean": 5.778,
+      "max": 9.6,
+      "n": 1130
+     },
+     "gpuMs": {
+      "med": 3.21,
+      "p95": 5.366,
+      "mean": 3.499,
+      "max": 7.495,
+      "n": 584
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 284,
+      "p95": 323,
+      "mean": 289.654,
+      "max": 332,
+      "n": 237
+     },
+     "trisM": {
+      "med": 2.834,
+      "p95": 3.343,
+      "mean": 2.928,
+      "max": 3.465,
+      "n": 237
+     },
+     "activeMeshes": {
+      "med": 222,
+      "p95": 262,
+      "mean": 227.219,
+      "max": 275,
+      "n": 237
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 24,
+      "meshes": 2600,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1162,
+     "framesWithSim": 607,
+     "realSecs": 10.019,
+     "simAdvanced": 10.117,
+     "frameMs": {
+      "med": 8.5,
+      "p95": 10.3,
+      "mean": 8.702,
+      "max": 14.6,
+      "n": 1162
+     },
+     "fps": 117.6,
+     "frameCpuMs": {
+      "med": 8,
+      "p95": 9.7,
+      "mean": 8.132,
+      "max": 13.8,
+      "n": 1162
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.3,
+      "p95": 9.9,
+      "mean": 8.462,
+      "max": 13.8,
+      "n": 607
+     },
+     "renderCpuMs": {
+      "med": 5.5,
+      "p95": 6.5,
+      "mean": 5.635,
+      "max": 10.3,
+      "n": 1162
+     },
+     "gpuMs": {
+      "med": 2.479,
+      "p95": 3.515,
+      "mean": 2.649,
+      "max": 5.139,
+      "n": 616
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 311,
+      "p95": 328,
+      "mean": 311.826,
+      "max": 334,
+      "n": 242
+     },
+     "trisM": {
+      "med": 3.373,
+      "p95": 3.546,
+      "mean": 3.376,
+      "max": 3.622,
+      "n": 242
+     },
+     "activeMeshes": {
+      "med": 156,
+      "p95": 160,
+      "mean": 155.917,
+      "max": 164,
+      "n": 242
+     },
+     "puppets": {
+      "med": 24,
+      "p95": 24,
+      "mean": 24,
+      "max": 24,
+      "n": 1162
+     },
+     "puppetsEnd": {
+      "n": 24,
+      "alive": 24
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 2588,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.029,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 510239,
+      "targeted": 0,
+      "perS": 11.965,
+      "msg": {
+       "med": 3912,
+       "p95": 9030,
+       "mean": 4251.992,
+       "max": 9054,
+       "n": 120
+      },
+      "bps": {
+       "med": 52050,
+       "p95": 57289,
+       "mean": 51023.9,
+       "max": 57289,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 106,
+      "bytes": 44259,
+      "targeted": 0,
+      "perS": 10.569,
+      "msg": {
+       "med": 372,
+       "p95": 710,
+       "mean": 417.538,
+       "max": 992,
+       "n": 106
+      },
+      "bps": {
+       "med": 4705,
+       "p95": 6988,
+       "mean": 4425.9,
+       "max": 6988,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": {
+       "med": 2,
+       "p95": 4,
+       "mean": 2.387,
+       "max": 6,
+       "n": 106
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 5229,
+      "targeted": 0,
+      "perS": 1.994,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 261.45,
+       "max": 266,
+       "n": 20
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 522.9,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 57043,
+     "p95": 64550,
+     "mean": 56014.2,
+     "max": 64550,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 57043,
+     "max": 64550
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.309
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 32,
+   "cell": "patrol",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 9,
+    "inSight": 12,
+    "meanDist": 9.472968962098165,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 942,
+     "framesWithSim": 587,
+     "realSecs": 10.043,
+     "simAdvanced": 10.15,
+     "frameMs": {
+      "med": 8.9,
+      "p95": 19.8,
+      "mean": 10.764,
+      "max": 37.3,
+      "n": 942
+     },
+     "fps": 112.4,
+     "frameCpuMs": {
+      "med": 8.6,
+      "p95": 19,
+      "mean": 10.339,
+      "max": 36.1,
+      "n": 942
+     },
+     "frameCpuMsWithSim": {
+      "med": 9.4,
+      "p95": 21.3,
+      "mean": 11.767,
+      "max": 36.1,
+      "n": 587
+     },
+     "renderCpuMs": {
+      "med": 5.9,
+      "p95": 12.7,
+      "mean": 7.12,
+      "max": 23.6,
+      "n": 942
+     },
+     "gpuMs": {
+      "med": 3.555,
+      "p95": 8.06,
+      "mean": 4.091,
+      "max": 14.799,
+      "n": 506
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 293,
+      "p95": 301,
+      "mean": 276.732,
+      "max": 301,
+      "n": 250
+     },
+     "trisM": {
+      "med": 3.326,
+      "p95": 3.461,
+      "mean": 3.113,
+      "max": 3.461,
+      "n": 250
+     },
+     "activeMeshes": {
+      "med": 174,
+      "p95": 175,
+      "mean": 173.852,
+      "max": 175,
+      "n": 250
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 32,
+      "meshes": 3168,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 951,
+     "framesWithSim": 579,
+     "realSecs": 10.03,
+     "simAdvanced": 10.133,
+     "frameMs": {
+      "med": 8.7,
+      "p95": 20.6,
+      "mean": 10.66,
+      "max": 41.1,
+      "n": 951
+     },
+     "fps": 114.9,
+     "frameCpuMs": {
+      "med": 8.2,
+      "p95": 19.9,
+      "mean": 10.178,
+      "max": 40.6,
+      "n": 951
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.9,
+      "p95": 22.3,
+      "mean": 11.592,
+      "max": 40.6,
+      "n": 579
+     },
+     "renderCpuMs": {
+      "med": 5.7,
+      "p95": 13.6,
+      "mean": 7.019,
+      "max": 27.4,
+      "n": 951
+     },
+     "gpuMs": {
+      "med": 2.507,
+      "p95": 6.27,
+      "mean": 3.249,
+      "max": 14.786,
+      "n": 557
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 307,
+      "p95": 311,
+      "mean": 298.48,
+      "max": 311,
+      "n": 254
+     },
+     "trisM": {
+      "med": 3.616,
+      "p95": 3.689,
+      "mean": 3.501,
+      "max": 3.689,
+      "n": 254
+     },
+     "activeMeshes": {
+      "med": 166,
+      "p95": 167,
+      "mean": 166.083,
+      "max": 167,
+      "n": 254
+     },
+     "puppets": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 951
+     },
+     "puppetsEnd": {
+      "n": 32,
+      "alive": 32
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 3156,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.043,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 583602,
+      "targeted": 0,
+      "perS": 12.048,
+      "msg": {
+       "med": 4613,
+       "p95": 4625,
+       "mean": 4823.157,
+       "max": 9737,
+       "n": 121
+      },
+      "bps": {
+       "med": 60253,
+       "p95": 60566,
+       "mean": 58360.2,
+       "max": 60566,
+       "n": 10
+      },
+      "msgsPerSecMax": 13,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.498,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 5208,
+      "targeted": 0,
+      "perS": 1.991,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 260.4,
+       "max": 266,
+       "n": 20
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 520.8,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 60854,
+     "p95": 61181,
+     "mean": 58922.5,
+     "max": 61181,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 60854,
+     "max": 61181
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.289
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 32,
+   "cell": "away",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 9,
+    "inSight": 12,
+    "meanDist": 9.472968962098165,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "pages": {
+    "host": {
+     "frames": 1887,
+     "framesWithSim": 605,
+     "realSecs": 10.029,
+     "simAdvanced": 10.083,
+     "frameMs": {
+      "med": 5.2,
+      "p95": 6.5,
+      "mean": 5.343,
+      "max": 10.9,
+      "n": 1887
+     },
+     "fps": 192.3,
+     "frameCpuMs": {
+      "med": 4.9,
+      "p95": 6.2,
+      "mean": 5.06,
+      "max": 8.6,
+      "n": 1887
+     },
+     "frameCpuMsWithSim": {
+      "med": 5.7,
+      "p95": 6.6,
+      "mean": 5.769,
+      "max": 8.6,
+      "n": 605
+     },
+     "renderCpuMs": {
+      "med": 3.9,
+      "p95": 4.5,
+      "mean": 3.907,
+      "max": 7,
+      "n": 1887
+     },
+     "gpuMs": {
+      "med": 2.048,
+      "p95": 4.098,
+      "mean": 2.329,
+      "max": 5.422,
+      "n": 944
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 164,
+      "p95": 166,
+      "mean": 162.073,
+      "max": 166,
+      "n": 384
+     },
+     "trisM": {
+      "med": 1.49,
+      "p95": 1.519,
+      "mean": 1.471,
+      "max": 1.519,
+      "n": 384
+     },
+     "activeMeshes": {
+      "med": 37,
+      "p95": 37,
+      "mean": 36.836,
+      "max": 37,
+      "n": 384
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 32,
+      "meshes": 3168,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1342,
+     "framesWithSim": 607,
+     "realSecs": 10.041,
+     "simAdvanced": 10.117,
+     "frameMs": {
+      "med": 7.5,
+      "p95": 8.7,
+      "mean": 7.54,
+      "max": 14.5,
+      "n": 1342
+     },
+     "fps": 133.3,
+     "frameCpuMs": {
+      "med": 7.2,
+      "p95": 8.4,
+      "mean": 7.281,
+      "max": 11.9,
+      "n": 1342
+     },
+     "frameCpuMsWithSim": {
+      "med": 7.5,
+      "p95": 9,
+      "mean": 7.652,
+      "max": 11.9,
+      "n": 607
+     },
+     "renderCpuMs": {
+      "med": 5,
+      "p95": 5.8,
+      "mean": 5.098,
+      "max": 8.7,
+      "n": 1342
+     },
+     "gpuMs": {
+      "med": 1.776,
+      "p95": 2.418,
+      "mean": 1.879,
+      "max": 3.742,
+      "n": 700
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 268,
+      "p95": 270,
+      "mean": 258.96,
+      "max": 270,
+      "n": 276
+     },
+     "trisM": {
+      "med": 3.199,
+      "p95": 3.238,
+      "mean": 3.08,
+      "max": 3.238,
+      "n": 276
+     },
+     "activeMeshes": {
+      "med": 33,
+      "p95": 33,
+      "mean": 33,
+      "max": 33,
+      "n": 276
+     },
+     "puppets": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 1342
+     },
+     "puppetsEnd": {
+      "n": 32,
+      "alive": 32
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 3156,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.029,
+    "types": {
+     "snap": {
+      "n": 120,
+      "bytes": 579381,
+      "targeted": 0,
+      "perS": 11.966,
+      "msg": {
+       "med": 4615,
+       "p95": 4627,
+       "mean": 4828.175,
+       "max": 9745,
+       "n": 120
+      },
+      "bps": {
+       "med": 60427,
+       "p95": 60573,
+       "mean": 57938.1,
+       "max": 60573,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 19,
+      "bytes": 4991,
+      "targeted": 0,
+      "perS": 1.895,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 262.684,
+       "max": 266,
+       "n": 19
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 499.1,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 60952,
+     "p95": 61096,
+     "mean": 58478.7,
+     "max": 61096,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 60952,
+     "max": 61096
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.239
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "mapId": "warehouseOps",
+   "players": 2,
+   "count": 32,
+   "cell": "alert",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 9,
+    "inSight": 12,
+    "meanDist": 9.472968962098165,
+    "playerAt": [
+     -20,
+     0.020000000000000018,
+     -24.6
+    ],
+    "yaw": 0.5
+   },
+   "wrenLoaded": true,
+   "puppetFlags": [],
+   "alerted": 32,
+   "pages": {
+    "host": {
+     "frames": 1051,
+     "framesWithSim": 607,
+     "realSecs": 10.022,
+     "simAdvanced": 10.117,
+     "frameMs": {
+      "med": 9.5,
+      "p95": 12.2,
+      "mean": 9.624,
+      "max": 14.8,
+      "n": 1051
+     },
+     "fps": 105.3,
+     "frameCpuMs": {
+      "med": 9,
+      "p95": 11.3,
+      "mean": 9.019,
+      "max": 14,
+      "n": 1051
+     },
+     "frameCpuMsWithSim": {
+      "med": 9.5,
+      "p95": 11.8,
+      "mean": 9.685,
+      "max": 14,
+      "n": 607
+     },
+     "renderCpuMs": {
+      "med": 6.2,
+      "p95": 7.5,
+      "mean": 6.248,
+      "max": 10.3,
+      "n": 1051
+     },
+     "gpuMs": {
+      "med": 3.257,
+      "p95": 5.421,
+      "mean": 3.543,
+      "max": 7.783,
+      "n": 569
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 320,
+      "p95": 344,
+      "mean": 317.672,
+      "max": 357,
+      "n": 229
+     },
+     "trisM": {
+      "med": 3.363,
+      "p95": 3.705,
+      "mean": 3.352,
+      "max": 3.769,
+      "n": 229
+     },
+     "activeMeshes": {
+      "med": 248,
+      "p95": 267,
+      "mean": 248.083,
+      "max": 283,
+      "n": 229
+     },
+     "puppets": null,
+     "puppetsEnd": null,
+     "state": {
+      "hidden": false,
+      "guardsAlive": 32,
+      "meshes": 3168,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    },
+    "client1": {
+     "frames": 1095,
+     "framesWithSim": 606,
+     "realSecs": 10.023,
+     "simAdvanced": 10.1,
+     "frameMs": {
+      "med": 9.1,
+      "p95": 11,
+      "mean": 9.232,
+      "max": 20.1,
+      "n": 1095
+     },
+     "fps": 109.9,
+     "frameCpuMs": {
+      "med": 8.5,
+      "p95": 10.3,
+      "mean": 8.666,
+      "max": 14.8,
+      "n": 1095
+     },
+     "frameCpuMsWithSim": {
+      "med": 8.8,
+      "p95": 10.7,
+      "mean": 9.028,
+      "max": 14.8,
+      "n": 606
+     },
+     "renderCpuMs": {
+      "med": 5.8,
+      "p95": 6.9,
+      "mean": 5.904,
+      "max": 9.5,
+      "n": 1095
+     },
+     "gpuMs": {
+      "med": 2.714,
+      "p95": 3.957,
+      "mean": 2.92,
+      "max": 4.92,
+      "n": 619
+     },
+     "gpuTimer": true,
+     "draws": {
+      "med": 358,
+      "p95": 402,
+      "mean": 358.696,
+      "max": 414,
+      "n": 237
+     },
+     "trisM": {
+      "med": 4.158,
+      "p95": 4.645,
+      "mean": 4.127,
+      "max": 4.733,
+      "n": 237
+     },
+     "activeMeshes": {
+      "med": 172,
+      "p95": 177,
+      "mean": 172.169,
+      "max": 179,
+      "n": 237
+     },
+     "puppets": {
+      "med": 32,
+      "p95": 32,
+      "mean": 32,
+      "max": 32,
+      "n": 1095
+     },
+     "puppetsEnd": {
+      "n": 32,
+      "alive": 32
+     },
+     "state": {
+      "hidden": false,
+      "guardsAlive": null,
+      "meshes": 3156,
+      "renderW": 1280,
+      "renderH": 720
+     }
+    }
+   },
+   "wire": {
+    "realSecs": 10.022,
+    "types": {
+     "snap": {
+      "n": 121,
+      "bytes": 637215,
+      "targeted": 0,
+      "perS": 12.074,
+      "msg": {
+       "med": 5014,
+       "p95": 5048,
+       "mean": 5266.24,
+       "max": 10170,
+       "n": 121
+      },
+      "bps": {
+       "med": 65057,
+       "p95": 70230,
+       "mean": 63220.9,
+       "max": 70230,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": null
+     },
+     "ev": {
+      "n": 116,
+      "bytes": 59529,
+      "targeted": 0,
+      "perS": 11.575,
+      "msg": {
+       "med": 529,
+       "p95": 1018,
+       "mean": 513.181,
+       "max": 1058,
+       "n": 116
+      },
+      "bps": {
+       "med": 6219,
+       "p95": 7062,
+       "mean": 5933.1,
+       "max": 7062,
+       "n": 10
+      },
+      "msgsPerSecMax": 12,
+      "events": {
+       "med": 3,
+       "p95": 6,
+       "mean": 2.922,
+       "max": 6,
+       "n": 116
+      }
+     },
+     "lamps": {
+      "n": 5,
+      "bytes": 415,
+      "targeted": 0,
+      "perS": 0.499,
+      "msg": {
+       "med": 83,
+       "p95": 83,
+       "mean": 83,
+       "max": 83,
+       "n": 5
+      },
+      "bps": {
+       "med": 83,
+       "p95": 83,
+       "mean": 41.5,
+       "max": 83,
+       "n": 10
+      },
+      "msgsPerSecMax": 1,
+      "events": null
+     },
+     "sector": {
+      "n": 20,
+      "bytes": 5229,
+      "targeted": 0,
+      "perS": 1.996,
+      "msg": {
+       "med": 266,
+       "p95": 266,
+       "mean": 261.45,
+       "max": 266,
+       "n": 20
+      },
+      "bps": {
+       "med": 525,
+       "p95": 532,
+       "mean": 522.9,
+       "max": 532,
+       "n": 10
+      },
+      "msgsPerSecMax": 2,
+      "events": null
+     },
+     "other": {
+      "n": 0,
+      "bytes": 0,
+      "targeted": 0,
+      "perS": 0,
+      "msg": {
+       "med": null,
+       "p95": null,
+       "mean": null,
+       "max": null,
+       "n": 0
+      },
+      "bps": {
+       "med": 0,
+       "p95": 0,
+       "mean": 0,
+       "max": 0,
+       "n": 10
+      },
+      "msgsPerSecMax": 0,
+      "events": null
+     }
+    },
+    "totalBps": {
+     "med": 71372,
+     "p95": 77836,
+     "mean": 69718.4,
+     "max": 77836,
+     "n": 10
+    },
+    "totalBpsXClients": {
+     "med": 71372,
+     "max": 77836
+    },
+    "clients": 1,
+    "stringifyMsPerS": 0.309
+   },
+   "flags": [],
+   "suspect": false
+  },
+  {
+   "map": "sectorops",
+   "players": 4,
+   "count": 0,
+   "cell": "boot",
+   "error": "sectorops x 4p x 0: timed out waiting for host sees client [host: sim n/a in 15.0 s wall (x?), -1 fps; page 2: sim n/a in 15.0 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "sectorops",
+   "players": 4,
+   "count": 12,
+   "cell": "boot",
+   "error": "sectorops x 4p x 12: timed out waiting for host sees client [host: sim n/a in 15.0 s wall (x?), -1 fps; page 2: sim n/a in 15.0 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "sectorops",
+   "players": 4,
+   "count": 24,
+   "cell": "boot",
+   "error": "sectorops x 4p x 24: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]"
+  },
+  {
+   "map": "sectorops",
+   "players": 4,
+   "count": 32,
+   "cell": "boot",
+   "error": "sectorops x 4p x 32: timed out waiting for host sees client [host: sim n/a in 15.0 s wall (x?), -1 fps; page 2: sim n/a in 15.0 s wall (x?), -1 fps]"
+  }
+ ],
+ "errors": [
+  "campus x 4p x 0: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]",
+  "campus x 4p x 12: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]",
+  "campus x 4p x 24: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]",
+  "campus x 4p x 32: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]",
+  "sectorops x 4p x 0: timed out waiting for host sees client [host: sim n/a in 15.0 s wall (x?), -1 fps; page 2: sim n/a in 15.0 s wall (x?), -1 fps]",
+  "sectorops x 4p x 12: timed out waiting for host sees client [host: sim n/a in 15.0 s wall (x?), -1 fps; page 2: sim n/a in 15.0 s wall (x?), -1 fps]",
+  "sectorops x 4p x 24: timed out waiting for host sees client [host: sim n/a in 15.1 s wall (x?), -1 fps; page 2: sim n/a in 15.1 s wall (x?), -1 fps]",
+  "sectorops x 4p x 32: timed out waiting for host sees client [host: sim n/a in 15.0 s wall (x?), -1 fps; page 2: sim n/a in 15.0 s wall (x?), -1 fps]"
+ ],
+ "flags": [],
+ "version": "4.93.0",
+ "finished": "2026-10-24T13:57:22.851Z",
+ "minutes": 14.6
+}

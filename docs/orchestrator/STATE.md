@@ -27,6 +27,8 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Locks: RULES "Machines".
 - If a laptop session is missing from ListAgents (Remote Control bridge drop), tell Michael in one line to reopen it;
   the queue service keeps running without it.
+- Over Remote Control the app refuses start_session and proposal cards (2026-10-25 18:30): Michael types "start the
+  leads" in the desktop app, or pastes PROMPTS.md lines 2-5 there.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
 - After a release CI failure: fix on train/<n>, wait for CI, then
   `node scripts/merge-train.mjs release <n> <version> "<title>" --resume`.
@@ -50,7 +52,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Merge green, checked work without asking; ask in chat when auto mode blocks a step only he can approve.
 - Start new sessions only from his own words in the desktop app; when the app refuses a start, propose a card
   (own_initiative) and tell him to click it.
-- Recording passes (Michael 2026-10-25 ~14:10, "Yes, and for all reviews"): when auto mode blocks a lead from posting `checker` on a documentation-only review PR that an independent Opus checker passed, the orchestrator records it without asking. Code PRs still need his OK each time.
+- Recording passes (Michael 2026-10-25 ~18:15, native multiple choice: "Yes, keep doing it (Recommended)"; replaces ~14:10 docs-only): when auto mode blocks a lead from posting `checker` and an independent checker passed the head (read its report: VERDICT PASS on that sha), the orchestrator posts the status, docs or code PRs alike, without asking.
 - When auto mode on the laptop blocks a lead's train-ready label, verify it by RULES "Getting to master" and add it from
   the desktop without asking ("Always label for them"). `gh pr close` is
   allowed on the desktop for failed train PRs and stale PRs whose content is on master.
