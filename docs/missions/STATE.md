@@ -1,6 +1,6 @@
 # mission-framework - STATE
 
-## RESUME 2026-10-25 ~13:55 (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~14:15 (Night Shift | Campaign Build; read this block first, older blocks are history)
 Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
 Marlow Build; Marlow keeps level-validator V6, route-runs, guard-cap). Process: `docs/RULES.md` and `docs/VISION.md`
 from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on origin/feature/menu.
@@ -8,12 +8,17 @@ from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on
 DOCS-FIRST HOLD (G346, G355; ROADMAP Now phase 1 row 2b): until Michael signs off the folded plan (Now row 6), no new
 game work here. Finished PRs may ship. Job 1 = the plan-only conformance review
 (`docs/orchestrator/review-briefs/campaign.md` on origin/feature/menu): branch feature/conformance-campaign, worktree
-C:/NightShift/Mobile-Coop-conformance-campaign. DONE: PR #419 (head c0d8c058, docs only; S1-S25 summary, 7
-Michael questions, proposed jobs). Checker (fresh Opus) RUNNING -> scratch/conformance-campaign/checker.md; if missing at
-resume, rerun it (brief: re-find 40+ citations, re-run master validator, missed scope). PASS -> post `checker` status on
-the head and tell the orchestrator; FIX -> one fix round. Drafts: scratch/conformance-campaign/{A,B,C}-*.md.
-
-PR A #372 (feature/mission-framework 5181c9db, this branch): open; CI check green on the rerun, affected-e2e green;
+C:/NightShift/Mobile-Coop-conformance-campaign. DONE: PR #419 (S1-S25 summary, 7 Michael questions, proposed
+jobs). Checker PASS on c0d8c058 (scratch/conformance-campaign/checker.md); polish fix round head 6b2b8635, re-check ->
+checker2.md (rerun if missing). PASS -> post `checker` on the head, tell the orchestrator, then HOLD.
+HOLD (Michael 13:53 "plan comes first"): no doc fixes, no cloud briefs, no PRs until the orchestrator says Michael signed
+off row 6. WIP kept, no PR: wip/campaign-doc-fixes 953f198f (HG12 menu SPEC / code inventory);
+feature/mission-engine-flg-gb6 c74ce8f5 (local FLG + GB6 merges + 2 e2e lines; feature/mission-engine stays 00b6cde9
+until FLG / GB6 checkers pass); cloud brief campaign-tallow-design withdrawn after Cloud Builder 1 claimed it (its WIP,
+if any, on feature/tallow-design-docs). Restart notes for the #372 spec docs: GB6-brief.md :85, :113 (blips); PLAN
+:38, :72 (window / seconds) with :37, :78, :83-84, :138, :217; coop-kit SIGNOFF has no intent check; TKL page reward
+is a syringe (MF5); TGC page: Teale KO / kill softlocks (MF6).
+PR A #372 (feature/mission-framework, this branch; code head 5181c9db): open; CI check green on the rerun, affected-e2e green;
 no `checker` status, no `big-pr` label yet. ROADMAP Now 0b: the orchestrator ships it (checker on its head, big-pr,
 Michael's sign-off pages). STATE-only pushes here restart its CI: batch them.
 
