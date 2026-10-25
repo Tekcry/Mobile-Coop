@@ -29,6 +29,9 @@ const DOOR_NOTICE_RANGE = 9;
 const DOOR_NOTICE_COS = 0.2;
 /** Seconds between notice checks. */
 const DOOR_NOTICE_EVERY = 0.25;
+/** (J9 S2 fix1) A noticed shutter is heard this far off its plane on the noticing guard's own side (m): the plane point
+ *  itself is shut on the nav grid (J9 S1) and snaps to one fixed side whoever heard it. */
+export const SHUTTER_LOOK_OFF = 0.6;
 const DOOR_BASH_NOISE = 10;
 
 /**
@@ -651,10 +654,10 @@ export class StealthSystems implements LocalCarry {
   /**
    * (J9 S2; G41, R39, A18) A held-open shutter is noticed as a door left open is: by sight, not sound (A17). A calm,
    * alive guard within range, on the same storey, facing a visibly open shutter (`shutterNoticedBy`) with a clear line
-   * to its gap hears it as a noise at the shutter and comes to look, once per opening (`noticed` = `opens`). Its own
-   * clock (not `noticeT`, which runs only while a player-opened door exists). Host / solo only: a co-op client builds no
-   * `StealthSystems` (`gameState.ts` builds it only when not the puppet). Index loops over preallocated state: nothing
-   * grows or allocates per tick.
+   * to its gap hears it as a noise just off the shutter on his own side (`SHUTTER_LOOK_OFF`, fix1) and comes to look,
+   * once per opening (`noticed` = `opens`). Its own clock (not `noticeT`, which runs only while a player-opened door
+   * exists). Host / solo only: a co-op client builds no `StealthSystems` (`gameState.ts` builds it only when not the
+   * puppet). Index loops over preallocated state: nothing grows or allocates per tick.
    */
   private noticeOpenShutters(dt: number): void {
     const list = this.g.team.devices.list;
@@ -673,7 +676,12 @@ export class StealthSystems implements LocalCarry {
         if (!shutterNoticedBy(d, e.pos.x, e.pos.y, e.pos.z, e.yaw)) continue;
         this.noticeA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
         if (!this.g.ballistics.clear(this.noticeA, this.noticeB, MASK.SIGHT)) continue;
-        e.hear(d.x, d.z, SHUTTER_NOTICE.range + 2);
+        // (fix1) look at a spot SHUTTER_LOOK_OFF off the plane on his own side (the sign of his offset along the normal
+        // (sin yaw, cos yaw); on the plane = the + side), so the nav snap keeps him on his side. Scalars only.
+        const nx = Math.sin(d.yaw);
+        const nz = Math.cos(d.yaw);
+        const off = (e.pos.x - d.x) * nx + (e.pos.z - d.z) * nz < 0 ? -SHUTTER_LOOK_OFF : SHUTTER_LOOK_OFF;
+        e.hear(d.x + off * nx, d.z + off * nz, SHUTTER_NOTICE.range + 2);
         d.noticed = d.opens;
         break;
       }

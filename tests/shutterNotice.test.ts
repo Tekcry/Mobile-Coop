@@ -1,11 +1,15 @@
 // (J9 S2; G41, R39, A17, A18) Guards notice a held-open shutter by sight, as a door left open: the pure helper
 // (`shutterNoticedBy`: visible, range, storey, facing), `StealthSystems.noticeOpenShutters` on a fake GameState through
 // the real fixed step (once per opening, its own clock with no door open anywhere, the sight line), and `resetShutter`
-// (A27).
+// (A27). fix1: the look point is off the plane on the noticing guard's own side, on a real nav grid with the opening
+// shut (J9 S1), for both shutter orientations and both sides.
 import { describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { newShutterDevice, resetShutter, SHUTTER, SHUTTER_NOTICE, shutterLift, shutterNoticedBy, shutterRelease, stepShutter, type ShutterDevice, type ShutterSpec } from '../src/game/kit/shutter';
-import { StealthSystems } from '../src/game/stealthSystems';
+import { SHUTTER_LOOK_OFF, StealthSystems } from '../src/game/stealthSystems';
+import { LevelBuilder } from '../src/world/levelBuilder';
+import { closeShutterNav, placeShutter } from '../src/world/shutterDoor';
+import { runtimeNav } from './helpers/runtimeNav';
 
 const DT = 1 / 60;
 // at the origin, its normal +z; the guard stands on the +z side and faces it (-z) with yaw PI
@@ -87,7 +91,8 @@ describe('StealthSystems.noticeOpenShutters (G41, R39, A18)', () => {
     const { steps } = rig([d], [e]);
     steps(1);
     expect(e.hear).toHaveBeenCalledTimes(1);
-    expect(e.hear).toHaveBeenCalledWith(d.x, d.z, SHUTTER_NOTICE.range + 2);
+    // (fix1) heard SHUTTER_LOOK_OFF off the plane on his own side (+z here), not on the plane
+    expect(e.hear).toHaveBeenCalledWith(d.x, d.z + SHUTTER_LOOK_OFF, SHUTTER_NOTICE.range + 2);
     expect(d.noticed).toBe(d.opens);
     steps(180);
     expect(e.hear).toHaveBeenCalledTimes(1);
@@ -161,6 +166,63 @@ describe('StealthSystems.noticeOpenShutters (G41, R39, A18)', () => {
     ss.resetForRestart();
     expect(priv.shutterNoticeT).toBe(0);
   });
+});
+
+describe("the look point is on the noticing guard's own side (fix1, J9 S1 closure)", () => {
+  // a 20 x 20 room split by a wall whose only opening (3 m) holds the shutter: shut on the grid, the sides do not connect
+  const SPEC_Z: ShutterSpec = { id: 'sz', x: 10, y: 0, z: 10, yaw: 0, width: 3, height: 3 };
+  const SPEC_X: ShutterSpec = { id: 'sx', x: 10, y: 0, z: 10, yaw: Math.PI / 2, width: 3, height: 3 };
+  function shutRoom(spec: ShutterSpec) {
+    const b = new LevelBuilder();
+    b.perimeter(0, 20, 0, 20, 3, '#888');
+    b.floor(10, 10, 20, 20, '#666');
+    const gap = [[8.5, 11.5]] as const;
+    if (spec.yaw === 0) b.wallX(10, 0, 20, gap, 3, '#777');
+    else b.wallZ(10, 0, 20, gap, 3, '#777');
+    placeShutter(b, spec);
+    const n = runtimeNav(b, { x: 5, z: 5 }, 1, []);
+    closeShutterNav(n, [spec]);
+    return n;
+  }
+
+  for (const [name, spec] of [
+    ['wall along x (yaw 0)', SPEC_Z],
+    ['wall along z (yaw pi/2)', SPEC_X],
+  ] as const) {
+    for (const side of [-1, 1] as const) {
+      it(`${name}, a guard on the ${side < 0 ? '-' : '+'}normal side: heard on his side, snaps there, a path from his post`, () => {
+        const n = shutRoom(spec);
+        const nx = Math.sin(spec.yaw);
+        const nz = Math.cos(spec.yaw);
+        /** Signed distance off the plane along the normal. */
+        const across = (x: number, z: number): number => (x - spec.x) * nx + (z - spec.z) * nz;
+        // his post 5 m off the plane on his side and 1 m along it, facing the shutter
+        const px = spec.x + side * 5 * nx + nz;
+        const pz = spec.z + side * 5 * nz - nx;
+        const d = held(newShutterDevice(spec));
+        const e = guard(px, 0, pz, spec.yaw + (side > 0 ? Math.PI : 0));
+        const { steps } = rig([d], [e]);
+        steps(1);
+        expect(e.hear).toHaveBeenCalledTimes(1);
+        const [hx, hz, r] = e.hear.mock.calls[0] as unknown as [number, number, number];
+        expect(r).toBe(SHUTTER_NOTICE.range + 2);
+        // SHUTTER_LOOK_OFF off the plane on his side, on the opening's middle line
+        expect(across(hx, hz)).toBeCloseTo(side * SHUTTER_LOOK_OFF, 9);
+        expect((hx - spec.x) * nz - (hz - spec.z) * nx).toBeCloseTo(0, 9);
+        // the nav snap (what `findPath` does with the heard spot) lands on his side
+        const k = n.nearestWalkable(hx, hz);
+        expect(k).toBeGreaterThanOrEqual(0);
+        const [qx, qz] = n.center(k);
+        expect(across(qx, qz) * side).toBeGreaterThan(0);
+        // a path from his post to it, every waypoint on his side
+        const path = n.findPath([px, pz], [hx, hz]);
+        expect(path).not.toBeNull();
+        for (const w of path!) expect(across(w[0], w[1]) * side).toBeGreaterThan(0);
+        // the plane point (S2 before fix1) snaps to the +normal side: the -normal side's guard gets no path there
+        if (side < 0) expect(n.findPath([px, pz], [spec.x, spec.z])).toBeNull();
+      });
+    }
+  }
 });
 
 describe('resetShutter (A27)', () => {
