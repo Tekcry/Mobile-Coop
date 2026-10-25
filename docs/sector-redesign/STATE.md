@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-25 ~23:35, after the 22:50 swap).
+Night Shift | Sector Ops Build: RESUME (2026-10-25 ~23:45 SAVE, after the 22:50 swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
 builder slices (tsc + single vitest) go to cloud-queue (worktree C:/NightShift/scratch/cq); desktop does plans, briefs,
 code-review checkers (no tests), GPU / Blender / prebake under heavy.lock. Marlow first on laptop + desktop CPU.
@@ -360,8 +360,8 @@ Order: Guard AI J15 PR1 (#450) lands before any J17 lane PR (S1-S5). J10 datashe
 1. PRs: #457 J5 sector-marks (Opus x2 PASS, CI green, affected-e2e queued). #459 J16 A1 CI red on Node 22
    (lightField.test.ts:780); cloud brief char-shadow-meter-a1-node22 claimed 23:19 -> on done: delta checker, auto run.
    #469 J18 PR C (B3 door light 0.15): Opus PASS, CI + affected-e2e running; polish: stale-terms entry for 0.05.
-2. J18 PR A = feature/sector-batch 2d5a05851 (B1 Opus PASS + B2 merged). IN FLIGHT: Opus checker B2 + PR A
-   (report sector-batch-b2-prA-check.md, has the PR body) -> open PR A, tell the orchestrator. B4 after #317.
+2. J18 PR A #474 (feature/sector-batch 7a135bdc: B1 + B2 + lead fix of the bite test): Opus PASS (delta), CI + affected
+   + coop-gate (e2e-coop e2e-netmove, laptop-e2e/coop-gate) running; train-ready when all green. B4 after #317.
 3. J17 campus-greybox lanes (cloud, base 024c7c172; lane PRs wait for #450; S4 split S4-a/b/c per s4-check.md):
    - S1 6731993b Sonnet PASS, laptop e2e-sectorops queued (set campus-s1). Before switch-on: M8 #5 #8 #9 #12 #13 #14,
      R1 screen cap (sees all 15).
@@ -372,7 +372,9 @@ Order: Guard AI J15 PR1 (#450) lands before any J17 lane PR (S1-S5). J10 datashe
    - S3: r1 PASS, r2-r4 Opus PASS (s3-r2-r4-check.md, J1-J7). r5 done fc49d354: IN FLIGHT Sonnet checker. Cloud brief
      campus-greybox-s3-join (open): merges r1-r4 into r5 + J1-J6. Then r6 (R6 + R7) brief from r5's head. J7 SYNC.md lines
      at the lead's next campus-greybox commit.
-   - S5 589f9b69 done: IN FLIGHT Sonnet checker (s5-check.md).
+   - S5 589f9b69 Sonnet FIX (CR8/9/10-s5 lips hang-only, < 0.38 deep) -> cloud brief campus-greybox-s5-fix1 (open).
+     Split S5-a/b/c per s5-check.md. IN FLIGHT: Sonnet lip-depth audit of S1 / S2 / S3 r1-r5 + R6 plan numbers
+     (lip-depth-audit.md): defects -> fix briefs; tell the r6 brief the 0.38 rule.
    - A28 start-at-section link `?sectorStart=N`: brief e95f5670c, cloud brief campus-greybox-a28 (Opus builder only:
      src/net). On done: TWO Opus checkers + e2e-coop + e2e-netmove + sectorops part 1. Campaign Build told (copies
      its mission-rules-r1 firstPlace / offSection verbatim).
