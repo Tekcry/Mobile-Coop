@@ -370,6 +370,20 @@ describe('a caught station (A8) and a drill window', () => {
     expect(retryLine([], 's2', 'seen')).toBeNull();
     expect(retryLine([{ at: 'retry:s2', text: 'x' }], 's2', 'timer')).toBe('x');
   });
+  it('one failure, one retry: a timer call plus a guard alert before its handle count once (fix 2)', () => {
+    const r = rig(def({}, [station(1), station(2, { drillS: 15 })]));
+    r.st.setFlag('s1-done');
+    r.step();
+    expect(r.mode.stationRetry(2, 'timer')).toBe(true);
+    // a second call before the handle (a beam in the same step) is refused too
+    expect(r.mode.stationRetry(2, 'seen')).toBe(false);
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'timer' });
+    expect(r.respawns).toHaveLength(1);
+    expect(r.despawned).toHaveLength(1);
+  });
 });
 
 describe('route-runs hooks: restarts and lastRetry on host and client', () => {
