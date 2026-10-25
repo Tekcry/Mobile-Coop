@@ -510,7 +510,7 @@ const LEG_WORDS: Readonly<Record<string, string>> = {
   anklePitch: 'toes up',
   ankleRoll: 'sole in',
   toe: 'toes bend',
-  ankleYaw: 'foot twist (toes out)',
+  ankleYaw: 'foot twist, toes out',
   shinTwist: 'shin twist',
   w: 'leg from the key',
 };

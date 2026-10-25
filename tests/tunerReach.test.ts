@@ -277,7 +277,7 @@ describe('tuner clarity: the Keys legs and fingers have parts of their own (A9)'
       anklePitch: 'toes up',
       ankleRoll: 'sole in',
       toe: 'toes bend',
-      ankleYaw: 'foot twist (toes out)',
+      ankleYaw: 'foot twist, toes out',
       shinTwist: 'shin twist',
       w: 'leg from the key',
     };
