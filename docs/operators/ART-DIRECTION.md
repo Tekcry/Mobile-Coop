@@ -53,7 +53,7 @@ Moth (until step 12). For Wren only the Head and Gloves rows stand; every other 
 | Thigh holster | Drop-leg platform for the pistol (its camera jammer is part of the pistol, not a separate gadget) (Wren: Section 9) |
 | Gloves | Thin, close fitting; suede palm, stretch knit back, low-profile knuckle protection, no bulk at the fingertips |
 | Boots | Low-profile tactical, soft quiet soles, matte leather and suede, short ankle (Wren: Section 9) |
-| Head | Snug matte knit hood or balaclava; an original head-mounted multi-mode optic (night vision, thermal, camera feed) on a low-profile mount; slim earpiece with boom mic. Optic up: the face is in shadow. Optic down: it covers the eyes. Wren's housing is square (green), Moth's round twin lenses (amber) (SPEC 2) |
+| Head | Snug matte knit hood or balaclava; an original head-mounted multi-mode optic (night vision, thermal, camera feed) on a low-profile mount; slim earpiece with boom mic. Optic up: the face is in shadow. Optic down: it covers the eyes. Wren's housing is square (green), Moth's round twin lenses (purple, G196) (SPEC 2) |
 | Back | Compact flat pack, low: rope, tools, spare gear; nothing tied outside (Wren: Section 9) |
 | Comms | Cables under straps, push-to-talk on the chest or shoulder, a small IR strobe for team identification (Wren: Section 9) |
 
@@ -65,7 +65,7 @@ Moth (until step 12). For Wren only the Head and Gloves rows stand; every other 
   distinguishable in near-darkness by texture and sheen alone.
 - Light accents only where real kit has them: the IR strobe, status LEDs. Muted and small. No glowing suit lines, no
   neon, no decorative light.
-- Exception (Michael, D13): the goggle lenses glow clearly in the dark, as SPEC 2's signature (Wren green, Moth amber).
+- Exception (Michael, D13): the goggle lenses glow clearly in the dark, as SPEC 2's signature (Wren green, Moth purple, G196).
 - No bright colours, no camouflage, no flags or patches. Hook-and-loop identity panels stay blank. (Wren: no
   hook-and-loop at all, Section 9.)
 - Wren's metal is gunmetal: dark anodised grey, satin-matte, the only metal on her. Her composite plates are a hair
