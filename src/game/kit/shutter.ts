@@ -21,8 +21,8 @@
  * under it (`stepShutter` floor) and the crawler is pushed clear to the nearer side (`pushTarget`).
  *
  * Guards: `ShutterDevice.visible` (open past `SHUTTER.visibleFrac` of its hold gap, the doors' `DOOR.driveShut` rule),
- * `opens` / `openFor` and `shutterNoticePoint` are what the open-door notice reads (`stealthSystems.noticeOpenDoors`);
- * the Guard AI hook is listed in the KIT-SHUT report (not wired here).
+ * `opens` / `noticed` and `shutterNoticePoint` are what the held-shutter notice reads (`shutterNoticedBy`, called from
+ * `stealthSystems.noticeOpenShutters`, J9 S2); the opening is shut on the guards' nav grid (`shutterDoor.ts`, J9 S1).
  *
  * Numbers are Night Shift's own starting values (the move is not in CT; PLAN 4a gives the 0.9 m gap).
  */
@@ -115,6 +115,8 @@ export interface ShutterDevice extends KitDevice {
   openFor: number;
   /** Bumped each time it becomes visibly open (a perception key: a new opening to notice). */
   opens: number;
+  /** The `opens` count a guard last noticed; -1 none (J9 S2, A18). */
+  noticed: number;
 }
 
 /** `ShutterDevice.user` for the local player (a mate's is their id). */
@@ -158,6 +160,7 @@ export function newShutterDevice(s: ShutterSpec): ShutterDevice {
     visible: false,
     openFor: 0,
     opens: 0,
+    noticed: -1,
   };
 }
 
@@ -288,6 +291,40 @@ export function shutterNoticePoint(d: ShutterDevice, out: { x: number; y: number
   out.y = d.y + d.open * 0.5;
   out.z = d.z;
   return out;
+}
+
+/** (J9 S2) Scratch for `shutterNoticedBy` (no allocation per call). */
+const NOTICE_AT = { x: 0, y: 0, z: 0 };
+
+/**
+ * (J9 S2, A18, G41) A guard at (`ex`, `ey`, `ez`) facing `yaw` notices this shutter held open: it is visibly open, he is
+ * within `SHUTTER_NOTICE.range` (plan) of its notice point, on the same storey (within 1.5 m of its floor, as the door
+ * notice) and facing it (the door notice's facing rule, `stealthSystems.noticeOpenDoors`). The sight line is the
+ * caller's. Pure; no allocation.
+ */
+export function shutterNoticedBy(d: ShutterDevice, ex: number, ey: number, ez: number, yaw: number): boolean {
+  if (!d.visible) return false;
+  const p = shutterNoticePoint(d, NOTICE_AT);
+  const dx = p.x - ex;
+  const dz = p.z - ez;
+  const dist = hyp2(dx, dz);
+  if (dist > SHUTTER_NOTICE.range || Math.abs(d.y - ey) > 1.5) return false;
+  return dist <= 0.5 || (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / dist >= SHUTTER_NOTICE.cos;
+}
+
+/**
+ * A section restart puts the shutter back (J8-J9 A27); S1's `TeamController.resetKit` calls it and ends the team move's
+ * own run. Drops shut at once (no drop run), nobody at the bar, not visible, and the guards' notice mark cleared; `opens`
+ * is kept (the next opening is still a new one).
+ */
+export function resetShutter(d: ShutterDevice): void {
+  d.open = 0;
+  d.phase = 'closed';
+  d.rate = 0;
+  d.user = '';
+  d.visible = false;
+  d.openFor = 0;
+  d.noticed = -1;
 }
 
 /** The holder's choice on a release: 'hold' (none asked), 'wait' (asked, someone is under or crawling: the drop
