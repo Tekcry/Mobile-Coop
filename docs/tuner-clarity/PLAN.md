@@ -54,7 +54,7 @@ while in the game the same state plays motion capture.
 in one table `REACH_WORDS` (A2: "Motion capture", "Hand-made", "Both", "Not playing now"; 'none' shows no tag).
 `rowReach(section, group, id): Reach` from code facts, in this order:
 1. `SECTION_RULE: Record<string, Rule>` covers every registered section (team_* and guard* by prefix):
-   `keys` -> keyed; `cam`, `gear` -> none; `trav`, `cq`, `strike`, `clip`, `team_*`, guard* -> keyed (moves with no capture;
+   `keys` -> keyed; `cam`, `gear` -> none; `trav`, `cq`, `strike`, `clip`, `draw` (src/weapons/drawTune.ts:20), `team_*`, guard* -> keyed (moves with no capture;
    guards never play the keyed sets, `keyedOk` false); `joint`, `ik`, `hand`, `weapon`, `gun`, `speed` -> after-blend;
    `body` -> layer; `step`, `weight` -> probe.
 2. The row's state: `rowState(section, group)` (last group segment; gait rows map back through `BODY_STEP` /
@@ -94,7 +94,7 @@ Speed up, or pick Jog in the Anim Studio."); reach keyed while capture plays ("N
 the walk. Keys change the hand-made walk only. To change it now: Body tab > Joints, Walk."); Stepping on the capture
 ("motion capture places the steps now"). `WORKS_INSTEAD` names where the working setting lives per family: Keys trunk ->
 Joints Hips / Spine / Chest / Neck / Head; Keys arms -> Joints arms or Hands & feet; Keys legs -> Joints thigh / knee /
-"Left ankle turn"; Body arm swing / twist / lean -> none exists, "turn Motion capture off in More > Panel to see it".
+"Left ankle turn" AND Hands & feet foot forward / out (both named, A8); Body arm swing / twist / lean -> none exists, "turn Motion capture off in More > Panel to see it".
 The panel shows it for 5 s in a strip under the edited row (`.tt-warn`) and in a header strip (`.anim-tune-warn`),
 on every slider input, number entry and Keys key-tool edit. More > Panel gets "Warn when an edit changes nothing" (on;
 saved as `clarityWarn` in the tuner's `ui` record, additive).
@@ -114,10 +114,27 @@ Right fingers (key)"; "Whole body" leaves the Keys tab. `plainLabel` leg words: 
 out, Knee bend, Toes up, Sole in, Toes bend, Foot twist (toes out), Shin twist, Leg from the key.
 
 **(e) A1 note.** A fixed note at the top of the Keys tab (`.anim-tune-keys-mocap`, separate from the existing hint, which
-e2e-studio asserts verbatim): "Keys change the hand-made moves only. Motion-capture moves are changed with Hands & feet
-and the motion-capture Body sliders." The Keys readout adds "(motion capture plays this in the game)" for walk, jog,
-run, sneak and glide_strafe (the clips whose state has a capture). The More > Panel box is relabelled "Motion capture
-(walk, jog, run, sneak, aimed strafe)", class unchanged.
+e2e-studio asserts verbatim): "Keys change the hand-made moves only. Motion-capture moves are changed in Body > Joints, Hands & feet and Limb reach." The Keys readout adds "(motion capture plays this in the game)" for walk, jog,
+run, sneak and glide_strafe (the clips whose state has a capture). The More > Panel box is relabelled "Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)", class unchanged.
+
+**(f) Plan checker fixes (fresh Opus plan checker, 2026-10-25 ~16:00).**
+- S1 / S3 interface: S3 does not import `nowPlaying.ts`. `tunerReach.ts` defines its own plain input
+  `ReachNow = { state: BodyGroup | null; mocapShare: number; switchOn: boolean }` used by `rowNow` and `editWarning`;
+  S4 fills it from `NOW_PLAYING`.
+- S2 bit-identity: game poses are unaffected because no clip carries `legd` and `keyedLegDeltas` runs only when
+  `hasLegd` is set (`characterRig.ts:2747`). S2 adds a golden captured on pre-S2 code for an old-channels-only edit
+  (`legL_knee` + `legL_hipYaw`, swing and planted, new channels 0) that stays bit-identical through the new compose
+  and the planted fold; `tests/animSkeletonIdentity.test.ts` and `tests/animSkeletonRig.test.ts` join S2's checks.
+- S2 shin twist order: twist after the knee delta (`knee *= Rx(knee) * Ry(twist)`; Babylon `RotationYawPitchRoll` is
+  qY.qX, so not `(shinTwist, knee, 0)`); test: a shin twist on a bent swinging leg keeps the ankle point within 1 mm.
+- S2 layout: the old field loop stays on the first 7 fields; the 4 twist ids are appended in a new loop after
+  `handR` / `legR_w`; `LEGD_IX` built from all 9. A text test checks `key_clip.py` `LEGD_FIELDS` / `LEGD_SIGN` match
+  `keyed.ts`.
+- S3: derive the slot type inside `tunerReach.ts` from the `KeyedClip | null` fields of `LocoClipSet` (`mocap.ts` is not
+  claimed). `BODY_STEP` / `BODY_WEIGHT` are many-to-one: a row is Both if any mapped state has a capture and the probe
+  shows an effect. Keep `mocap` out of the `tunerEffect.test.ts` `EFFECT_MODES` loop (time budget).
+- S1: record the nearer-clip index only from the holstered `speedSet` call, not the drawn call (:2308). `nowPlaying.ts`
+  keeps its own plain words (no src/ui import); they count as part of A2's one table.
 
 ## 3. Claims
 | Slice | Files (only these) |
@@ -181,15 +198,15 @@ list stays as it is). Affected suites by folder also run: `anim-audit`, `e2e-ani
 - Planted shin twist on a foot already turned by Joints ankle turn: compose order is the S2 builder's to prove by test.
 - The probe adds run time; it gets its own file and timeout.
 - Proposed assumptions for the BRIEF:
-  - A8. Michael's "Hands & feet foot turn" fix is Joints "Left / Right ankle turn" (opened by a tap on her foot); Hands &
-    feet has foot position only. The warning names both. Undo: change the `WORKS_INSTEAD` text.
+  - A8. Michael's fix was Joints "Left / Right ankle turn" (opened by a tap on her foot) or Hands & feet foot forward /
+    out; Hands & feet has foot position only. The warning names both. Undo: change the `WORKS_INSTEAD` text.
   - A9. Keys legs get one part per leg ("Left leg", "Right leg"), and the fingers leave "Whole body" too ("Left / Right
     fingers"), so the Keys tab has no "Whole body" part. Undo: one "Legs" label in `keyRow`.
   - A10. Rows of states with no capture (climbs, walls, holds, co-op, guards, drawn moves) say "Hand-made"; camera and
     gear show no tag. Undo: the `SECTION_RULE` table.
   - A11. "Not playing now" marks a row only for its own state; editing another state's row raises the warning, not a
     tag on every row. Undo: `rowNow` checks the source only.
-  - A12. The tuner's "Mocap locomotion" box is relabelled "Motion capture (walk, jog, run, sneak, aimed strafe)", same
+  - A12. The tuner's "Mocap locomotion" box is relabelled "Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)", same
     behaviour. Undo: the label string.
 
 ## 7. Docs

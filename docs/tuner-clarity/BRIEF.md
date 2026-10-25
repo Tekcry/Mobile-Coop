@@ -32,8 +32,7 @@ Nothing yet (no multiple-choice question asked for this job).
 5. Unclear points are assumed and logged below.
 
 ## Assumed decisions (Assume and log, RULES Intake step 2)
-- A1. The Keys tab does not edit the motion-capture clips in this job. A plain note on the Keys tab says so: "Keys change
-  the hand-made moves only. Motion-capture moves are changed with Hands & feet and the motion-capture Body sliders."
+- A1. The Keys tab does not edit the motion-capture clips in this job. A plain note on the Keys tab says so: "Keys change the hand-made moves only. Motion-capture moves are changed in Body > Joints, Hands & feet and Limb reach."
   Undo: a later job adds per-key offsets on the mocap clips (needs its own plan; the clips are converted CMU takes).
 - A2. Wording: "Motion capture", "Hand-made", "Both", "Not playing now". Colour plus words (never colour alone). Undo:
   change the strings in one table.
@@ -46,14 +45,14 @@ Nothing yet (no multiple-choice question asked for this job).
 - A6. No change to any animation value, clip, default or the game's look; no look video (tool change). The PR carries
   panel screenshots instead. Undo: revert the PR.
 - A7. The tuner's phone layout (G232: touch is allowed in the tuner) gets the same labels and the Now playing line.
-- A8. (planner) Hands & feet has foot position only, no foot rotation; the setting that turned his foot is most likely
-  Body > Joints "Left / Right ankle turn". The warnings name that row. Undo: point them elsewhere once he confirms.
+- A8. (planner, checked) Hands & feet has foot position only, no foot rotation; his fix was either Body > Joints "Left /
+  Right ankle turn" or Hands & feet foot forward / out (which moves the knee through the leg solver). The warnings name
+  both. Undo: point them at one once he confirms.
 - A9. (planner) The Keys tab gets one part per leg plus the finger parts, so nothing keyed sits under "Whole body".
   Undo: regroup in `tunerTarget.ts keyRow`.
 - A10. (planner) Rows for moves with no motion-capture take say "Hand-made"; camera and gear rows get no tag.
 - A11. (planner) "Not playing now" marks only rows tied to a body state that is not the one playing.
-- A12. (planner) The More > Panel "Mocap locomotion" box keeps its behaviour and gets a plain label ("Use motion
-  capture for walking and running (off = hand-made)"). Undo: the old string.
+- A12. (planner) The More > Panel "Mocap locomotion" box keeps its behaviour and gets a plain label ("Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)"). Undo: the old string.
 
 ## Gates
 Opus PLAN.md, a fresh Opus plan checker, then build; Opus builds and checks animation code; e2e `e2e-studio` and
