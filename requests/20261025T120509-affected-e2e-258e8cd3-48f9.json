@@ -1,0 +1,15 @@
+{
+  "id": "20261025T120509-affected-e2e-258e8cd3-48f9",
+  "sha": "258e8cd3bbf1cdcb0dda7f3874a3dcde76236bea",
+  "branch": "feature/validator-port-measure-cli",
+  "pr": 468,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-levels",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #468"
+}
