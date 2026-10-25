@@ -1,10 +1,11 @@
 # Light model, baked lamps and vision rendering
 Purpose: the gameplay light registry and light field, desktop baked lamps, darkness, night vision, thermal and electro
 rendering, and the lamp light volume kept for the level editor.
-Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102), then docs/design-bible.md (Section 5.1).
+Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102, G352), then docs/design-bible.md (Section 5.1).
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
-field (collision, the light bake, the noise model), never the render state.
+field (collision, the light bake, the noise model), never the render state. One gap is decided but not built yet:
+character shadows (G352, Parity below).
 Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
 range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
 not change what a camera sees. Lights matter for guards and the meter only. (camera-range) Only distance thins a camera's
@@ -42,7 +43,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   - contact-hardening penumbra in the bake: `voxel/lampBake.ts` (LR16e)
   - one-bounce fill in the ambient grid's G channel: `voxel/lampBounce.ts`, `world/bounceGrid.ts` (LR16-1)
   - torch shadow atlas: `world/torchShadows.ts`, `world/torchShadowSet.ts` (LR16t)
-  - character shadows on every tier: `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
+  - character shadows on every shadow tier but Off: one lamp (the nearest) on Low and Medium, 2 / 3 / 4 on High /
+    Ultra / Epic (`CHAR_SHADOW_PRESET`; bible L18's "2-4 at High+" is the multi-lamp part); Off keeps the capsules:
+    `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
 - `world/lampMath.ts` (pure): one light model (LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original lighting
   system, focus on only the one new system"). Baked lamps: the photometric falloff `photoFalloff` (inverse square from
   3 m, `PHOTO`, windowed to 0 at the reach = radius x 1.6; `LightRegistry.add` scales fixed lamps' radius once,
@@ -235,9 +238,11 @@ capsules.
 - Budget: one texture per lit shader while on. Without WebGL2 float or half-float targets the capsules stay. (The voxel
   render path and `?voxels=1` are removed, G282.)
 - Parity: the meter and guard perception never had character shadows (capsules were render-only too) and still have
-  none. The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15 inside a
-  silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own limbs;
-  the meter reads that lamp in full there (`lr14-build.md`, parity note).
+  none. Decided, not built yet (G352, replaces G315's render-only shadows and the bible's old L11): light parity holds
+  for character shadows, so the meter and guard perception read the real-time character shadows the picture shows (a
+  build job). The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15
+  inside a silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own
+  limbs; the meter reads that lamp in full there (`lr14-build.md`, parity note).
 - Co-op: each machine uses its own setting and its own nearest lamps; no wire change.
 - Tests: `tests/charShadowSet.test.ts`; `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).
