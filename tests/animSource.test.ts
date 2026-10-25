@@ -14,6 +14,7 @@ import { defaultSettings, sanitizeSettings, SettingsStore } from '../src/core/se
 import { STUDIO_ENTRIES, studioEntriesOf, studioEntrySet } from '../src/anim/studio';
 import { mocapSource } from '../src/anim/mocapSources';
 import { nowPlayingSourceText } from '../src/anim/nowPlaying';
+import { MOCAP_CROUCHED_WALKING } from '../src/anim/clips/mixamo/crouched_walking';
 
 /** Everything the graph reads from the two switches (it reads nothing else of them). */
 function snap(): unknown {
@@ -57,7 +58,11 @@ describe('animation source: each source', () => {
   it('Mixamo: the CMU locomotion with the captures MIXAMO_ON lets play on top; a row off keeps its clip', () => {
     setAnimSource('mixamo');
     expect(ANIM_SOURCE).toMatchObject({ source: 'mixamo', mocap: true, mixamo: true });
-    expect(LOCO.set).toBe(MOCAP_SET);
+    // the CMU set, with the Mixamo crouched walk in its slot when its row is on (I4: mocap.ts MOCAP_SET_MX), the rest by reference
+    expect(LOCO.mocap).toBe(true);
+    const cw = MIXAMO_ON.crouched_walking ? MOCAP_CROUCHED_WALKING : MOCAP_SET.crouchWalk;
+    for (const k of Object.keys(MOCAP_SET) as (keyof typeof MOCAP_SET)[]) expect(LOCO.set[k], k).toBe(k === 'crouchWalk' ? cw : MOCAP_SET[k]);
+    expect(LOCO.set === MOCAP_SET).toBe(!MIXAMO_ON.crouched_walking);
     expect(MIXAMO.on).toBe(true);
     for (const [slug, r] of Object.entries(MIXAMO_TRAV)) expect(WREN_TRAV[r.slot], slug).toBe(MIXAMO_ON[slug] ? r.clip : null);
     expect(WREN_TRAV.any).toBe(true);
