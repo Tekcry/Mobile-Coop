@@ -1,0 +1,16 @@
+{
+  "id": "20261025T133252-night-shift-player-b-9be7701f-1212",
+  "sha": "9be7701fde494f853ad37cbd883ffa49dd054cdf",
+  "branch": "feature/mixamo-i2",
+  "pr": 477,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-traverse",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "mixamo-i2",
+  "note": "Mixamo top priority (Michael 00:15); #477 fix head; co-op checker gate for src/game",
+  "priority": 1
+}
