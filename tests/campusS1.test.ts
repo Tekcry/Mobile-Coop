@@ -438,6 +438,38 @@ describe('S1 lighting (SPEC "Lighting")', () => {
     }
   });
 
+  it('(light-realism L1) every column and the lane floodlight: light point off its pole on an arm; poles clear the cars', () => {
+    const posts: { x: number; z: number; ax: number; az: number; group: number }[] = [
+      ...PARK_COLUMNS_W.map(([x, z, ax, az]) => ({ x, z, ax, az, group: S1_GROUPS.parkW })),
+      ...PARK_COLUMNS_E.map(([x, z, ax, az]) => ({ x, z, ax, az, group: S1_GROUPS.parkE })),
+      { x: 9, z: -66, ax: 1, az: 0, group: S1_GROUPS.lane },
+    ];
+    const cars = b.boxes.filter((p) => Math.abs(p.s[1] - 1.5) < 0.01 && Math.abs(p.s[0] - 1.8) < 0.01 && Math.abs(p.s[2] - 4.2) < 0.01);
+    expect(cars.length).toBe(14);
+    for (const q of posts) {
+      expect(Math.abs(q.ax) + Math.abs(q.az), `arm (${q.x}, ${q.z}) along x or z`).toBe(1);
+      const pole = b.cylinders.find((c) => hyp2(c.c[0] - q.x, c.c[2] - q.z) < 0.01 && c.c[1] + c.h / 2 > 6)!;
+      expect(pole, `pole (${q.x}, ${q.z})`).toBeDefined();
+      const l = lights.find((m) => m.group === q.group && hyp2(m.x - q.x - 0.8 * q.ax, m.z - q.z - 0.8 * q.az) < 0.01)!;
+      expect(l, `light point of (${q.x}, ${q.z})`).toBeDefined();
+      // the light point at least 0.5 m in plan from its pole's axis; the pole circle does not hold its plan point
+      expect(hyp2(l.x - pole.c[0], l.z - pole.c[2])).toBeGreaterThanOrEqual(0.5);
+      expect(hyp2(l.x - pole.c[0], l.z - pole.c[2])).toBeGreaterThan(pole.r);
+      // its arm: from the pole to 0.6 m out, bottom above the light point (nothing of its own under the light)
+      const arm = b.boxes.find((p) => Math.abs(p.c[1] - 6.15) < 0.01 && hyp2(p.c[0] - q.x - 0.3 * q.ax, p.c[2] - q.z - 0.3 * q.az) < 0.01)!;
+      expect(arm, `arm of (${q.x}, ${q.z})`).toBeDefined();
+      expect(arm.c[1] - arm.s[1] / 2).toBeGreaterThan(l.y);
+      const inArm = Math.abs(l.x - arm.c[0]) <= arm.s[0] / 2 && Math.abs(l.z - arm.c[2]) <= arm.s[2] / 2;
+      expect(inArm, `light point of (${q.x}, ${q.z}) is past its arm's end`).toBe(false);
+      // every pole clears every car box by 0.3 m in plan
+      for (const c of cars) {
+        const dx = Math.max(0, Math.abs(q.x - c.c[0]) - c.s[0] / 2);
+        const dz = Math.max(0, Math.abs(q.z - c.c[2]) - c.s[2] / 2);
+        expect(hyp2(dx, dz) - pole.r, `pole (${q.x}, ${q.z}) vs car (${c.c[0]}, ${c.c[2]})`).toBeGreaterThanOrEqual(0.3);
+      }
+    }
+  });
+
   it('the switches: the feeder pillar board cuts the west and east halves (E5), the yard board the forecourt, the gatehouse by its door, the canopy inside C1', () => {
     const sw = lay.switches!;
     const west = sw.find((s) => s.group === S1_GROUPS.parkW)!;
