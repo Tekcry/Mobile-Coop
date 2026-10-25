@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T21:35Z
+status: done feature/validator-port-dc e2a4e63f154b4a7aa63154f77ef4ce18fe4c6835
 # J12 validator-port, docs slice D-C (Sonnet, strict Opus brief): docs for PR C (training, perfect run, engine, sets)
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S4, S5, S6, S7b checker PASS
@@ -137,3 +137,52 @@ solo-twin lines are gone; level-design changed only where listed; one PR C fragm
 ## Report (append below, then set line 1)
 What changed (per file, with line ranges), commits, checks with counts, any code-vs-doc mismatch you found (do not fix
 code), deviations. Then `status: done feature/validator-port-dc <sha>`.
+
+### Report (Night Shift | Cloud Builder 3, 2026-10-25)
+Branch `feature/validator-port-dc` from 17871b9fe, head e2a4e63f1. Commits: b081a7ab7 (D-A merge, clean), 2ae02a2be
+(graph-schema), 8ff181b86 (level-design), 1aa55dc15 (testing-tools), e2a4e63f1 (fragment).
+
+What changed:
+- `graph-schema.md`: intro "Graph sets" bullet (graph-sets.json, `npm run validate:levels`); `meta.taught_by` row;
+  mode profiles: Co-op coverage `- (G392)`, solo twins on training INFO (A7), new rows training checks, no-kill path
+  (ERR/ERR/ERR), ghost path (ERR/ERR/INFO), markers (ERR each/ERR each/INFO count), nav floor WARN in every mode;
+  `spaces[]` `mark` row, tag `teach:<move>`; `links[]` rows `teach`, `requires_kill`, `mark`, `exception`, plus a
+  long-throw paragraph and the `team_throw` long-throw clause (`sizes.throw_long`, sheet section 3); "How the checks
+  read the graph": Training, Perfect run and Engine facts bullets with their known limits; Encounter bullet notes a
+  late training section runs the route rules on itself; stale lines fixed (co-op coverage, solo twins, the Measured
+  values intro: `null` WARNs only for a split `reach_s` and a way back `back_s`; two Measured rows for `ways_back`
+  shape and a missing `back_s` under `--require-measured`; both "(it reaches master with PR B2)"); Rule coverage rows.
+- `level-design.md`: "One linear route" names `meta.taught_by` (G363, G388); section 14 phase 3 item (1) gives the
+  live `level-measure --write` then `level-validate --require-measured` commands (V6-open lines gone, G289 (2) kept);
+  section 15 greybox-measurements line names what is measured now (shadow share info only, light band waits on J10);
+  rule index intro names `scripts/level-checks/`, rows 3.1, 3.4, 5.5, 11.3, 11.6, 6.4, 7.3, 11.9, 14 updated, new
+  rows "Training profile: one route, forced sections" (first) and "12.1 Nav floor" (before 14).
+- `testing-tools.md`: validator bullet (`[--require-measured]`, solo twins INFO on training, `level-measure` writes
+  `measured`, `--require-measured` is the presence gate, checks in `scripts/level-checks/`); new
+  `npm run validate:levels` bullet; Measure CLI notes `npm run level-measure -- <graph.json> ...`. 711 / 720 lines.
+- `changes/feature-validator-port-train.md` (new, `kind: patch`): S4, S5, S6, S7b bullets as written (S7b's
+  `exception` block cut to one bullet) plus one docs bullet; s4 / s5 / s6 / s7b fragments `git rm`-ed.
+
+Checks:
+- `node scripts/doc-lint.mjs`: 0 errors, 26 warnings, the same 26 as before the edits (testing-tools' "ports" owners
+  warning moved from :618 to :626); none new in the three docs.
+- `npx vitest run tests/docLint.test.ts tests/changesFragments.test.ts tests/levelValidate.test.ts
+  tests/levelProfiles.test.ts tests/levelGraphs.test.ts`: 155 passed, 2 FAILED, both in `tests/levelGraphs.test.ts`
+  ("set campus > the saved run is the level-validate CLI text for the set"; "level-graphs runner > exits 1 on a count
+  that differs, and --write fixes the manifest and writes the run"). Pre-existing: Cloud Builder 3 reran the file on a
+  clean checkout of base 17871b9fe and the same 2 fail (8 pass). Cause: the validator at base prints "pending V6 (no
+  measured values)" INFO lines that the saved `docs/level-validator/campus-run/run.txt` and the runner test's
+  hard-coded '\n0 error(s), 0 warning(s).\n' do not have (counts 127 / 174 and example 0 / 0 still match). The fix is
+  code / test / run.txt, outside this slice's files: likely `npm run validate:levels -- --write` plus the runner-test
+  expectation, on S10 (campus) or the PR C integration. LEAD: please route it.
+- `node scripts/level-validate.mjs docs/level-validator/example.graph.json`: `0 error(s), 0 warning(s).`
+- `git diff --stat origin/feature/validator-port-c2...HEAD`: only the D-A merge's files and this slice's files plus
+  the four removed fragments; the dash grep prints nothing.
+
+Code-vs-doc notes (code not touched): `training.mjs` skips the choke test for a teach element on the entry or exit
+space (doc says so); a null split `a_s` / `b_s` or way back under `--require-measured` counts as missing (ERR) while a
+null `reach_s` only WARNs (doc says so).
+
+Deviations: one clause added to graph-schema's Encounter bullet (old "`training` skips these" was no longer exact);
+the non-`team_throw` `exception` ERR lives in `checkEngine`, so it is in the Engine bullet and the links row; S5's
+fragment bullet kept verbatim though "the tool lands in another slice" is slightly stale; S9 / S10 not named.
