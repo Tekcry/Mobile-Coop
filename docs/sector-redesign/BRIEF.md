@@ -42,7 +42,8 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 - M6 (Q1 setting): "Corporate research campus".
 - M7 (Q2 run length): "30-45 min" (one co-op run).
 - M8 (Q3 guards): "up to 24, each section should gradually get harder with more guards and more security." S1 low,
-  rising to 24 in S5. Read the guard-cap report (12 / 16 / 24 awake) and flag perf risk; do not cut the count.
+  rising to 24 in S5. (Superseded by G328 / G362: two-player counts S1 15, S2 18, S3 20, S4 25, S5 26; 3-4 players add
+  tagged extras, G331; cap 32, G332; built by campus-greybox, ROADMAP Now row 9.) Read the guard-cap report (12 / 16 / 24 awake) and flag perf risk; do not cut the count.
 - M9 (Q4 lighting, not asked; the orchestrator took it from M1 "there shouldnt always be shadows, the player may have
   to make shadows (disabling lights etc)"): lit like a real site, players cut lights, dark zones only where believable.
 - M10 (Q5 security tools): "Include guard dogs": cameras, lasers, alarm panels, keypads, then dogs and armed response.
@@ -102,7 +103,8 @@ Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md sectio
 Applied loosenings (Michael ~01:42: "Apply, logged and undoable"; for campusOps only; `docs/level-design.md`, the
 template and the bible are NOT edited; table with per-item detail in SPEC "Applied loosenings"):
 - A23 (CONCEPT P1 = LR2) LS 3.1: an entry vantage is out of every guard's view by darkness OR occlusion. Undo: each
-  occlusion vantage (S2 SW stair door, S3 C2 landing) gets a dark pocket.
+  occlusion vantage (S2 SW stair door, S3 C2 landing) gets a dark pocket. RETIRED 2026-10-25 (G329): each vantage gets a
+  real occluder or a cuttable circuit instead; no dark pocket in a lit place.
 - A24 (P2) LS 3.5: a light the player can cut from the route counts as a stepping stone. Undo: add cover / hide spots.
 - A25 (P3) LS 5.1: the lit default with a standby fill (with A33 / A39). Undo: darker default, ambient 0.30.
 - A26 (P4) LS 5.2: a deliberate lit test chokepoint may be darkened one way or crossed by timing. Undo: second way.
