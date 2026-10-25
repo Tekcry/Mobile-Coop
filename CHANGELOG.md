@@ -1,5 +1,56 @@
 # Changelog
 
+## 4.102.0 - Train 88: Docs: level standard per mode, archive sweep, re-audit fixes G344-G363; Stealth pays: client intel (2026-10-25, PR #411; #407, #389)
+
+### Stealth pays: client intel
+- Co-op: the client can interrogate any guard the host says still has intel (revived guards, after a rejoin, and
+  Sector Ops guards once their slots carry intel), and a guard the host interrogated no longer offers INTERROGATE on the client. Wire change: an
+  optional `EnemyState.in` flag (absent for guards without intel).
+
+### Level standard per mode
+- Level standard (`docs/level-design.md`) now states its rules per mode: every rule is tagged [All] / [Campaign] /
+  [SectorOps] / [Training], with a profile per mode and a rule index (rule, modes, metrics key, validator check,
+  owner). Campaign sections each force a co-op traversal move with a way back; Sector Ops keeps solo routes past team
+  doors; Marlow Yard is a guided linear course with timed drills. Guards as many as realistically possible (Sector Ops
+  32 alive ceiling), real-world light bands replace the shadow share, up to 2 strict rules with section restart,
+  objectives name what and where with no maps, measured validator pass and bot route-runs at greybox exit.
+- Level validator: `meta.mode` campaign / sector / training profiles (forced co-op gate and gate reach, no softlock and
+  the alive ceiling, no route counts for training), the co-op kit kinds (`team_throw`, `team_hang`, `team_pull`, `shutter`) and `bolted` doors, shadow share as INFO. The scale sheet gets
+  `sector_alive_max` and a light-band placeholder; the uploaded stealth skill is reference only.
+
+### Level standard re-audit fixes
+- Level standard (`docs/level-design.md`): campaign missions run on the Sector Ops runtime with a 32 alive ceiling;
+  engine facts rewritten from the code (five speeds, no sprint, silent bands, guard sight above, doors, camera); one
+  checkpoint rule and a downed rule per mode; Marlow Yard's training rules (timed drills, strict rules taught late,
+  campaign downed rule, 15-20 min); security devices with a security register; unavoidable guards in Sector Ops;
+  helmets and dogs per the 2026-10-25 answers; killing a civilian restarts the section; history cut, profiles point
+  to the rules.
+- Level validator: the alive ceiling also checks campaign maps; co-op kit size bands (pull-up, relay, rope, throw,
+  shutter) from new scale-sheet rows; no softlock reads bolted doors one way; `drill_s` (training only) and the
+  `unavoidable` tag. The scale sheet gets the current camera, silent speeds, an interim light rule and patrol timing.
+- The level-validator job's STATE / BRIEF / PLAN / V1-check / V6-PLAN moved to `docs/archive/level-validator/`.
+
+### Process docs polish (doc-clarity re-audit, slice P)
+- Docs: one authority order list in CLAUDE.md (ROADMAP "Decided" right after Michael); RULES owns "assume and log"
+  overnight, the train-ready rule (who labels, the stuck `affected-e2e` case), stale locks, the laptop queue order, CI's
+  four jobs, cloud sessions running unit tests only, the weekly branch clean-up and a walk cap that limits switch-on
+  only; the subagent preamble reads VISION plus RULES "A job" and "Test tiers" and gains a "Cloud sessions" section;
+  swaps, deploy, auto-train (self-update), watchdog and testing-tools (task guard allowlist) match the code; the
+  map-spec, walk-card, brief and plan-check templates follow the current rules.
+
+### Systems docs re-audit polish
+- Docs: the systems docs and TESTING.md follow the current decisions: the held pistol jammer (G152), complementary
+  kits fixed per mission (G134, G153), real-world draw times (G243), CT's team moves (G180), ping on R3 / middle
+  mouse and goggles on D-pad left, dogs (G348), Marlow Yard downed and strict rules (G349, G357), civilian kills
+  restart the section (G353), helmets, the objective popup and no maps point to their bible owners, character
+  shadows for the meter and guards (G352, not built yet); links point at docs/archive/ for moved job folders.
+
+### Finished job docs archived
+- Docs: 93 finished job folders moved from `docs/` to `docs/archive/<name>/` (names kept, nothing deleted), so
+  `docs/` holds only the core docs and the live jobs (39 entries, was 132). Links and backticked paths in live docs now point at
+  the archive paths.
+- Dev shot scripts and the camera-reach table writer default their output to the archived folders.
+
 ## 4.101.2 - Train 87: Co-op lamp shots: no stale round after a restart (2026-10-25, PR #409; #384)
 - In co-op (Marlow Yard and Sector Ops), a client's round at a lamp fired just before a set or section restart no
   longer shoots that lamp out in the fresh run. No wire change.
