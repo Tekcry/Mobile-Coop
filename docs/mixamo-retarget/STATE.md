@@ -82,3 +82,9 @@ I7 + I9 built (2026-10-26, feature/mixamo-i9): see [I9-REPORT.md](I9-REPORT.md).
   clips emitted (24 game slots, 84 Studio only in clips/mixamo/studio/), rows, credits, CLIPS.md, TESTING line, changelog.
   tsc green; 20 vitest files pass (273 + 1 skip); eslint clean. 24 gaits fell back to loops (duty 0 / no strikes), 4 of them game slots.
 - Left: checker; laptop e2e-studio, anim-audit; I8 (lazy load, studio/ off the entry chunk); I10 / I13 wiring; I11 channel clips (15).
+
+At the save (2026-10-26, I9 fix round, feature/mixamo-i9 on 438830085):
+- Lazy glob: not done (no code changed). Found: the 24 new game-slot modules are named by no game code (mixamo.ts imports
+  batch 1 / I4 / I6 by path), so they and clips/mixamo/studio/ can go behind one non-eager glob; batch 1 / I4 / I6 stay eager.
+- Merge of origin/feature/mixamo-i6 (ba01d0f7): not started. Polish (stale "5 gaits" line, toe-first pin item in I10 / Left, ~1.9 MB): not done.
+- Left: all of the fix round (lazy CAPTURE_CLIPS fill on opening the capture group / Set filter Mixamo or All, test of 108 rows, build entry-chunk grep and size before / after), the i6 merge, polish.
