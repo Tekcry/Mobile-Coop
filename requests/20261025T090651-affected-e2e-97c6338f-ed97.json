@@ -1,0 +1,16 @@
+{
+  "id": "20261025T090651-affected-e2e-97c6338f-ed97",
+  "sha": "97c6338f40ee81e2a5c406c55e09858988c5d077",
+  "branch": "feature/guard-ai-alloc",
+  "pr": 446,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-guard-carry",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #446"
+}
