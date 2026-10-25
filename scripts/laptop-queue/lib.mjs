@@ -344,11 +344,62 @@ function arrivalNext(nonAlone, alone, idle, bothIdle) {
  * slots drain for it; trains and train reruns still go first.
  */
 export function agedAlone(requests, now) {
-  return [...(requests ?? [])].sort(sortById).find((r) => {
-    if (r.kind !== 'alone' || r.requester === SPARE_REQUESTER) return false;
-    const t = idTime(r.id);
-    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
-  }) ?? null;
+  return [...(requests ?? [])].sort(sortById).find((r) => isAgedAlone(r, now)) ?? null;
+}
+const isAgedAlone = (r, now) => {
+  if (r?.kind !== 'alone' || r.requester === SPARE_REQUESTER) return false;
+  const t = idTime(r.id);
+  return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
+};
+
+// ---------- laptop-queue-7 A12: an aged alone gets the gap after the coming train ----------
+
+/**
+ * The due marks of alone requests (id -> ms first held), a new plain object (state.json `aloneDue`). prev = the last
+ * marks; requests = the open requests (the full listing, running ones included); front = the preempted alone ids (lib
+ * pick queue.front); held = the ids a hold (aloneHold, aloneSoon, train soon) dropped this pass. An open alone request
+ * that is aged (agedAlone rule) or in front and held gets stamped at now; an old stamp stays while its id is open.
+ * Spare work and young alone requests are never stamped.
+ */
+export function aloneDue(prev, { requests = [], front = new Set(), now, held = new Set() } = {}) {
+  const open = new Map((requests ?? []).filter((r) => r?.kind === 'alone' && r.requester !== SPARE_REQUESTER).map((r) => [r.id, r]));
+  const out = {};
+  for (const [id, t] of Object.entries(prev ?? {})) if (open.has(id) && Number.isFinite(t)) out[id] = t;
+  for (const [id, r] of open) {
+    if (id in out || !held.has(id)) continue;
+    if (front.has(id) || isAgedAlone(r, now)) out[id] = now;
+  }
+  return out;
+}
+
+/** true when alone request id is due (aloneDue) and a train's laptop-e2e ended after its mark (lastTrainEndMs). */
+export function aloneGapOpen(due, id, lastTrainEndMs) {
+  const t = due?.[id];
+  return Number.isFinite(t) && Number.isFinite(lastTrainEndMs) && lastTrainEndMs > t;
+}
+
+/**
+ * The newest final laptop-e2e time (success or failure; pending and error are not an end) on the open train heads
+ * ([{ laptop, laptopAt }], pendingTrains' status reads), never below prev: whoever posted it (this worker, the desktop,
+ * a carry or a train-rerun pass). ms, or prev (NaN when none ever).
+ */
+export function lastTrainEndFrom(heads, prev) {
+  let best = Number.isFinite(prev) ? prev : NaN;
+  for (const h of heads ?? []) {
+    if (!['success', 'failure'].includes(h?.laptop)) continue;
+    const t = Date.parse(h?.laptopAt ?? '');
+    if (Number.isFinite(t) && !(t <= best)) best = t;
+  }
+  return best;
+}
+
+/**
+ * The train-soon filter (lib nextTrain): true when request r still starts while the next train is due. Without a hold
+ * (next null) everything; else a train rerun, a run that fits before the train (fits, lib fitsBeforeTrain) and an alone
+ * request whose gap after a train is open (aloneGapOpen on due; due null = LQ_ALONE_GAP off).
+ */
+export function holdKeeps(r, { next = null, due = null, lastTrainEnd = NaN, fits = false } = {}) {
+  return !next || Boolean(r?.trainRerun) || Boolean(fits) || aloneGapOpen(due, r?.id, lastTrainEnd);
 }
 
 const suiteBase = (s) => String(s).replace(/:.*$/, '');
@@ -636,7 +687,8 @@ export function yieldTo(r, started, trains) {
  * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
  * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way), except an alone run whose steps
  * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
- * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue. A pr run at
+ * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue, unless it is
+ * due (laptop-queue-7 A12: started in its gap after a train, aloneGapOpen). A pr run at
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
  * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
  */
@@ -645,13 +697,15 @@ export const ALONE_PREEMPT_MIN = 10;
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false } = {}) {
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
   if (withdrawn) return 'withdrawn';
   // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
   // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
   if (r?.requester === SPARE_REQUESTER && realOpen) return 'real';
-  const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
+  // a due alone (aloneGapOpen, laptop-queue-7 A12) started in its gap after a train: no young-alone cut (it still
+  // yields between steps)
+  const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || (!due && youngAlone(r, startedAt, now));
   if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
 }

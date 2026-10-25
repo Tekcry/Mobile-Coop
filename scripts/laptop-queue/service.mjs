@@ -104,7 +104,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -151,6 +151,7 @@ const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 36
 const TRAIN_CARRY = process.env.LQ_TRAIN_CARRY !== '0'; // 0 = a moved train head always runs (lib carryFrom; BRIEF A7, A8)
 const TRAIN_CARRY_DEPTH = Number(process.env.LQ_TRAIN_CARRY_DEPTH ?? 20); // first-parent commits walked back to the version commit
 const RERUN_SHARD = process.env.LQ_RERUN_SHARD !== '0'; // 0 = a train rerun runs on one slot (lib pick queue.shardRerun; BRIEF A10)
+const ALONE_GAP = process.env.LQ_ALONE_GAP !== '0'; // 0 = the holds keep an aged alone back as before (lib aloneGapOpen; BRIEF A12)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -186,6 +187,7 @@ state.trains ??= {};
 state.flakes ??= [];
 state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
 state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
+state.aloneDue ??= {}; // { id: ms } aged / preempted alone requests a hold kept back (lib aloneDue; BRIEF A12)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
@@ -567,6 +569,10 @@ let aloneHoldLogged = '';
 let next = null;
 let soonLogged = '';
 let aloneSoonLogged = '';
+/** The newest final laptop-e2e on an open train head ever seen (ms; lib lastTrainEndFrom) and its train, kept in state. */
+let lastTrainEnd = Number.isFinite(state.lastTrainEnd) ? state.lastTrainEnd : NaN;
+let lastTrainN = state.lastTrainN ?? '?';
+const gapLogged = new Set(); // due alone ids whose "gap after train" line is logged
 let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
 let orderLogged = ''; // the last "order:" log line's front / green ids
@@ -723,6 +729,15 @@ function pendingTrains() {
     return [{ ...p, laptop: sts ? (l?.state ?? '') : 'unknown', laptopAt: l?.updated_at ?? '' }];
   });
   aloneHold = trainHold(heads);
+  // laptop-queue-7 A12: the newest train end any worker posted (a train run, a carry, a train-rerun pass), never back
+  const end = lastTrainEndFrom(heads, lastTrainEnd);
+  if (end !== lastTrainEnd && Number.isFinite(end)) {
+    lastTrainEnd = end;
+    lastTrainN = heads.find((h) => Date.parse(h.laptopAt ?? '') === end)?.n ?? '?';
+    state.lastTrainEnd = end;
+    state.lastTrainN = lastTrainN;
+    saveState();
+  }
   // after the status reads: the releasing case needs each head's laptop-e2e success time (lib releasingTrain); readyNow
   // first, in the same pass, so sparePass and the alone check never read the previous pass's candidates
   if (!DESKTOP) { readyNow(openPrs); next = nextTrainNow(openPrs, heads); }
@@ -1287,7 +1302,8 @@ async function runRequest(r, port, pair = null) {
     }
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow() });
+    const due = r.kind === 'alone' && ALONE_GAP && aloneGapOpen(state.aloneDue, r.id, lastTrainEnd); // started in its gap (A12)
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due });
     if (why && !ctl.why) { ctl.by = trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
@@ -1462,6 +1478,7 @@ async function runRequest(r, port, pair = null) {
     withdrawnIds.delete(r.id);
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
+    if (state.done[r.id] && state.aloneDue[r.id]) { delete state.aloneDue[r.id]; gapLogged.delete(r.id); } // done or withdrawn (A12)
     saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
     if (!yielded && !yieldedSteps && ctl.why !== 'train') log(`${r.id}: done`);
@@ -1667,9 +1684,29 @@ function trainBuilding() {
   return m.stale ? null : m;
 }
 
+/**
+ * laptop-queue-7 A12: the due marks after the holds (lib aloneDue): an aged or preempted alone request a hold dropped
+ * this pass (in before, not in after) is stamped; logs once per id when stamped and when its gap opens. An empty
+ * listing (a failed ls-tree reads the same) keeps the marks.
+ */
+function dueMarks(listed, before, after) {
+  if (listed.length === 0) return;
+  const kept = new Set(after.map((r) => r.id));
+  const held = new Set(before.filter((r) => r.kind === 'alone' && !kept.has(r.id)).map((r) => r.id));
+  const prev = state.aloneDue;
+  const due = aloneDue(prev, { requests: listed, front: preemptedAlone, now: Date.now(), held });
+  for (const id of Object.keys(due)) if (!(id in prev)) log(`${id}: aged alone due after the next train`);
+  for (const id of gapLogged) if (!(id in due)) gapLogged.delete(id);
+  for (const id of Object.keys(due)) {
+    if (ALONE_GAP && !gapLogged.has(id) && aloneGapOpen(due, id, lastTrainEnd)) { gapLogged.add(id); log(`${id}: gap after train ${lastTrainN}: alone goes first`); }
+  }
+  if (JSON.stringify(due) !== JSON.stringify(prev)) { state.aloneDue = due; saveState(); }
+}
+
 async function pass() {
   // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
-  const requests = listRequests().filter((r) => !claimed.has(r.id));
+  const listed = listRequests(); // running ones included (aloneDue keeps their marks)
+  const requests = listed.filter((r) => !claimed.has(r.id));
   prBoardNow();
   const dt = DESKTOP ? desktopTrains() : null;
   for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
@@ -1684,6 +1721,7 @@ async function pass() {
   // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
   // an alone request held past ALONE_AGE_MIN still stops new pr / full claims (only train reruns start), so the slots
   // drain for it while the train runs; only while the train can clear the hold by running (lib holdClears) (Orchestrator audit 2026-10-24: 3 newer PR requests went first at 07:25Z)
+  const beforeHolds = queue.requests; // A12: the aged / preempted alone requests the holds below drop get a due mark
   if (!DESKTOP && aloneHold && queue.requests.some((r) => r.kind === 'alone')) {
     const aged = holdClears(aloneHold) ? agedAlone(queue.requests, Date.now()) : null;
     const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop} ${aged?.id ?? ''}`;
@@ -1696,7 +1734,7 @@ async function pass() {
   if (aloneSoonWhy) {
     const aged = agedAlone(queue.requests, Date.now());
     if (aloneSoonWhy !== aloneSoonLogged) { aloneSoonLogged = aloneSoonWhy; log(`${aloneSoonWhy}: no new alone claims`); }
-    queue.requests = queue.requests.filter((r) => r.kind !== 'alone' || r === aged || preemptedAlone.has(r.id));
+    queue.requests = queue.requests.filter((r) => r.kind !== 'alone' || r === aged || preemptedAlone.has(r.id) || (ALONE_GAP && aloneGapOpen(state.aloneDue, r.id, lastTrainEnd)));
   } else if (!aloneSoonWhy) aloneSoonLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
@@ -1749,12 +1787,13 @@ async function pass() {
     if (next.why !== soonLogged) { soonLogged = next.why; log(`${next.why}, next train ~${new Date(next.etaMs).toISOString().slice(11, 16)}Z: only runs that fit start`); }
     const now = Date.now();
     queue.requests = queue.requests.filter((r) => {
-      if (r.trainRerun) return true;
-      const fits = fitsBeforeTrain(r, { now, etaMs: next.etaMs, times, prepS: FIT_PREP_S });
+      const fits = !r.trainRerun && fitsBeforeTrain(r, { now, etaMs: next.etaMs, times, prepS: FIT_PREP_S });
       if (fits) fitted.add(r.id);
-      return fits;
+      // an aged / preempted alone whose gap after a train is open still starts (lib holdKeeps; BRIEF A12)
+      return holdKeeps(r, { next, due: ALONE_GAP ? state.aloneDue : null, lastTrainEnd, fits });
     });
   } else if (!next) soonLogged = '';
+  if (!DESKTOP) dueMarks(listed, beforeHolds, queue.requests);
   const virtual = { ...desktopWait };
   // a slot under a manual lock takes no new request (a train keeps its own wait in runTrain)
   if (queue.trains.length === 0) {

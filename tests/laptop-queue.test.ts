@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -1116,6 +1116,99 @@ describe('cutShort', () => {
     expect(cutShort({ kind: 'alone' }, { ...young, trains: [] })).toBe('');
     expect(cutShort({ kind: 'alone' }, { ...young, started: false })).toBe(''); // before its steps: yieldTo gives the slots back
     expect(cutShort({ kind: 'full' }, young)).toBe('');
+  });
+});
+
+describe('aged alone after the coming train', () => {
+  const MIN = 60_000;
+  const aged = req(ALONE_AGE_MIN + 10, 'alone', 'gc');
+  const young = req(5, 'alone', 'young');
+  const spare = spareReq(90, 'alone');
+  const iso = (ms: number) => new Date(ms).toISOString();
+  it('aloneDue stamps an aged alone only when a hold dropped it, and keeps the stamp', () => {
+    const requests = [aged, young, spare, req(50, 'pr')];
+    expect(aloneDue({}, { requests, now: NOW, held: new Set() })).toEqual({});
+    const held = new Set([aged.id, young.id, spare.id]);
+    const due = aloneDue({}, { requests, now: NOW, held });
+    expect(due).toEqual({ [aged.id]: NOW }); // a young alone and spare work are never stamped
+    expect(aloneDue(due, { requests, now: NOW + 5 * MIN, held })).toEqual({ [aged.id]: NOW }); // the first time stays
+    expect(aloneDue(due, { requests, now: NOW + 5 * MIN, held: new Set() })).toEqual({ [aged.id]: NOW });
+    expect(aloneDue(due, { requests: [young], now: NOW + 5 * MIN, held })).toEqual({}); // done or withdrawn: dropped
+  });
+  it('aloneDue stamps a preempted (front) alone however young', () => {
+    expect(aloneDue({}, { requests: [young], front: new Set([young.id]), now: NOW, held: new Set([young.id]) })).toEqual({ [young.id]: NOW });
+  });
+  it('lastTrainEndFrom takes the newest success / failure time and never goes back', () => {
+    const heads = [
+      { n: '50', laptop: 'success', laptopAt: iso(NOW - 20 * MIN) },
+      { n: '51', laptop: 'failure', laptopAt: iso(NOW - 5 * MIN) },
+      { n: '52', laptop: 'pending', laptopAt: iso(NOW) },
+      { n: '53', laptop: 'error', laptopAt: iso(NOW) },
+      { n: '54', laptop: '', laptopAt: '' },
+    ];
+    expect(lastTrainEndFrom(heads, NaN)).toBe(NOW - 5 * MIN);
+    expect(lastTrainEndFrom(heads, NOW - 30 * MIN)).toBe(NOW - 5 * MIN);
+    expect(lastTrainEndFrom(heads, NOW - MIN)).toBe(NOW - MIN); // a merged train's later end survives
+    expect(lastTrainEndFrom([], NOW - MIN)).toBe(NOW - MIN);
+    expect(lastTrainEndFrom([], undefined)).toBeNaN();
+  });
+  it('aloneGapOpen is false before a train ends after the mark, true after', () => {
+    const due = { [aged.id]: NOW };
+    expect(aloneGapOpen(due, aged.id, NaN)).toBe(false);
+    expect(aloneGapOpen(due, aged.id, NOW - MIN)).toBe(false);
+    expect(aloneGapOpen(due, aged.id, NOW)).toBe(false);
+    expect(aloneGapOpen(due, aged.id, NOW + MIN)).toBe(true);
+    expect(aloneGapOpen(due, young.id, NOW + MIN)).toBe(false);
+    expect(aloneGapOpen(null, aged.id, NOW + MIN)).toBe(false);
+  });
+  it('pick: the due alone takes both slots ahead of a green pr request; a pending train still goes first', () => {
+    const pr = req(50, 'pr', 'green');
+    const order = { green: new Set([pr.id]), wallS: { [pr.id]: 60 }, frontBranches: [], maxWaitMs: 0 };
+    const q = { trains: [], requests: [pr, aged], order };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'alone', request: aged });
+    expect(pick(q, NOW, slots(true, false))).toBeNull(); // the slots drain for it
+    expect(pick({ ...q, trains: [train] }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const preempted = { trains: [], requests: [pr, young], front: new Set([young.id]), order };
+    expect(pick(preempted, NOW, slots(false, false))).toEqual({ kind: 'alone', request: young });
+  });
+  it('cutShort: a pending train does not cut a due alone 3 min in, a non-due one it does', () => {
+    const run = { trains: [train], started: true, startedAt: NOW - 3 * MIN, now: NOW };
+    expect(cutShort({ kind: 'alone' }, { ...run, due: true })).toBe('');
+    expect(cutShort({ kind: 'alone' }, run)).toBe('train');
+    expect(cutShort({ kind: 'alone' }, { ...run, due: true, withdrawn: true })).toBe('withdrawn');
+    expect(cutShort({ kind: 'pr' }, { ...run, due: true })).toBe('train'); // only the young-alone cut is waived
+  });
+  it('timeline: held at t0, train ends at t1, a re-armed hold still lets the alone through', () => {
+    const pr = req(2, 'pr', 'late'); // does not fit before the train
+    const t0 = NOW;
+    const next1 = { why: '1 train-ready PR(s)', etaMs: t0 + 10 * MIN };
+    // pass at t0: the train-soon hold drops the aged alone -> stamped
+    let lastEnd = lastTrainEndFrom([{ n: '49', laptop: 'success', laptopAt: iso(t0 - 60 * MIN) }], NaN);
+    const kept0 = [aged, pr].filter((r) => holdKeeps(r, { next: next1, due: {}, lastTrainEnd: lastEnd, fits: false }));
+    expect(kept0).toEqual([]);
+    let due = aloneDue({}, { requests: [aged, pr], now: t0, held: new Set([aged.id]) });
+    expect(due).toEqual({ [aged.id]: t0 });
+    // train 50 runs and ends at t1 (here, the desktop or a carry: any final laptop-e2e on its head)
+    const t1 = t0 + 25 * MIN;
+    const midway = [{ n: '50', laptop: 'pending', laptopAt: iso(t0 + 2 * MIN) }];
+    lastEnd = lastTrainEndFrom(midway, lastEnd);
+    expect(holdKeeps(aged, { next: next1, due, lastTrainEnd: lastEnd })).toBe(false); // still waiting on the train
+    lastEnd = lastTrainEndFrom([{ n: '50', laptop: 'success', laptopAt: iso(t1) }], lastEnd);
+    expect(lastEnd).toBe(t1);
+    // t2: a new train-ready PR re-arms the hold; the alone passes, PR work does not; the stamp stays
+    const t2 = t1 + 2 * MIN;
+    const next2 = { why: '2 train-ready PR(s)', etaMs: t2 + 15 * MIN };
+    const kept2 = [aged, pr].filter((r) => holdKeeps(r, { next: next2, due, lastTrainEnd: lastEnd, fits: false }));
+    expect(kept2).toEqual([aged]);
+    due = aloneDue(due, { requests: [aged, pr], now: t2, held: new Set() });
+    expect(due).toEqual({ [aged.id]: t0 });
+    expect(pick({ trains: [], requests: kept2 }, t2, slots(false, false))).toEqual({ kind: 'alone', request: aged });
+    // LQ_ALONE_GAP=0: the service passes due null and the hold keeps it back as before
+    expect(holdKeeps(aged, { next: next2, due: null, lastTrainEnd: lastEnd })).toBe(false);
+    // no hold, a train rerun and a fitting run always pass
+    expect(holdKeeps(pr, { next: null })).toBe(true);
+    expect(holdKeeps({ ...pr, trainRerun: true }, { next: next2 })).toBe(true);
+    expect(holdKeeps(pr, { next: next2, fits: true })).toBe(true);
   });
 });
 

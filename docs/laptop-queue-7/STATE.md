@@ -34,4 +34,11 @@ fallback to the other slot alone, "rerun sharded on" :1343, bins split :1414), d
 queue.shardRerun :1777. Tests: 6 new in "train reruns" :1202. Vitest 249 pass, typecheck:fast clean. Header comment
 :22 (reruns "on one slot") left for slice E's header pass.
 
-Next: slice F (aged alone after the coming train; Opus).
+Slice F done: lib.mjs aloneDue :364, aloneGapOpen :376, lastTrainEndFrom :386, holdKeeps :401, cutShort `due` :700;
+service.mjs env ALONE_GAP :154, lastTrainEnd / lastTrainN (state.lastTrainEnd, state.lastTrainN) set in pendingTrains
+:733, runRequest watch `due` :1305 (due entry deleted on done / withdrawn in the finally), dueMarks :1692 (state.aloneDue,
+after the train-soon filter), aloneSoon filter keeps a gap-open alone, train-soon filter via holdKeeps :1793. Tests:
+describe "aged alone after the coming train" :1122 (7). Vitest 256 pass, typecheck:fast clean. Header comments left for
+slice E's header pass.
+
+Next: slice E (verify laptop-queue-6 across the next train + docs + fragment; Sonnet).
