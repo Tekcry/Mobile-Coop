@@ -102,7 +102,14 @@
     },
     "roadmap": "docs/ROADMAP.md"
   },
-  "known": [],
+  "known": [
+    {
+      "check": "stale-terms",
+      "file": "CLAUDE.md",
+      "match": "no-external-art",
+      "note": "the orchestrator rewrites the CLAUDE.md hard rule for G407"
+    }
+  ],
   "headers": {
     "error": [
       "CLAUDE.md",

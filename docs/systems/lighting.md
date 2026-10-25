@@ -159,6 +159,8 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   changes).
 
 ## Per-section lamp bake (section-bake; Saltmarsh Park only)
+Decided, not built yet (G405): the campus lamp bakes ship pre-built with the game instead of baking on the player's PC
+(the map-ready job; `docs/systems/performance.md` "Near-instant loads").
 Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; build report
 `docs/sector-redesign/checks/section-bake-build.md`.
 - Opt-in by map id (`world/sectionBake.ts` `SECTION_BAKE_MAPS`: campusOps; regions in `world/maps/campusBake.ts`, per

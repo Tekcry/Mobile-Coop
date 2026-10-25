@@ -284,7 +284,8 @@ declared in the graph before geometry and measured in greybox: a map whose measu
    is a real boost target. Check: `checkDimensions`, the co-op lip unit test (15).
 9. **Co-op kit and coverage.** [All] The co-op traversal kit (G293): boost up a wall, throw over a gap, human ladder /
    pull-up, hold a shutter or door, rope brace / descent (CT's two-person rope, G180), vent unlock for the partner, plus
-   new creative moves (Michael: "Any other creative coop ideas"); and the synced takedown (4.4). A move the game does
+   new creative moves (Michael: "Any other creative coop ideas"): Deadweight, Drop Catch, Chimney Pair, Swing Pass and
+   Plank Bridge (G403; bible 5.9 C4); and the synced takedown (4.4). A move the game does
    not have yet is built by its co-op job before a map relies on it. Graph kinds: `coop_boost` (boost), `human_ladder`
    (human ladder), `team_pull` (pull-up), `team_hang` (hang-down relay), `team_throw` (throw over a gap), `shutter`
    (hold a shutter or door), `pair_gate` (team door), a `bolted` door (unlocked from the far side after a vent or a

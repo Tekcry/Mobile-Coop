@@ -184,6 +184,24 @@
       "regex": "the one touch exception",
       "why": "menu taps and touch look in play are also an exception (G395)",
       "replacement": "name both exceptions"
+    },
+    {
+      "id": "load-target-under-review",
+      "regex": "load-time target is under review",
+      "why": "the load-time aim is set: first-ever load seconds, repeat loads near-instant (G405)",
+      "replacement": "near-instant repeat loads (G405)"
+    },
+    {
+      "id": "cmu-only-mocap",
+      "regex": "CMU mocap only|CMU motion capture only|one non-CC0 data source",
+      "why": "Mixamo clips retargeted onto our rigs are allowed beside CMU (G406)",
+      "replacement": "CMU takes and Mixamo clips"
+    },
+    {
+      "id": "no-external-art",
+      "regex": "No external art|Only CC0 files are allowed|no external (art|audio)|External art files, except",
+      "why": "any free asset whose licence allows commercial sale is allowed, credited (G407)",
+      "replacement": "free assets with a commercial-sale licence, credited"
     }
   ],
   "resumeScope": [

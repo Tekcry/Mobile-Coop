@@ -338,6 +338,10 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   under 1 rad/s of turn or what turns the body 0.35 rad over one stance, over 0.3 m/s; the gait clock keeps the clip's stance
   window through a hand-off, the rig caps foot pitch at 18 rad/s). The CMU clips: walk / jog / run from subject 16, the
   walking turns / start / stop (walking pace only, `MOCAP_SLOT.walkMax`), a turn on the spot from subject 69.
+  Mixamo clips are also allowed (G406; none converted yet, Player Build): retargeted onto wren-rig-game and the guard
+  rigs (the Mixamo skeleton is never used in game), from FBX without skin that Michael downloads into
+  `C:/NightShift/scratch/mixamo/clips/`; converted clips bundled, raw files not committed, credited in
+  `docs/art-credits.md`.
   `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): all 0 (the capture holds its own
   arm swing, elbows, twist, lean, load and settle) but N1's `turnStep`. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
   Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.

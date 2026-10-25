@@ -26,7 +26,8 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
 - Allocations <= 11.5 MB per second (per second, so a 240 Hz display does not double the garbage).
 - Memory: VRAM <= 12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at
   7680 x 2160), tab <= 6 GB, JS heap <= 1.5 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
-  Pending a PC run. Saltmarsh Park's load-time target is under review (G394).
+  Pending a PC run. Load-time aim (G405): a first-ever load takes seconds (shaders compile per GPU), repeat loads are
+  near-instant; the numbers per map are still to be set (G394).
 - Open: no download or texture budget covers the realistic operators (Wren's files are about 80 MB; feature/operators
   owns it, G75).
 - Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8 ran: HOLD. At 24 guards the figures
@@ -85,6 +86,11 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
   compile on the loading screen (`GameState.create` awaits `scene.whenReadyAsync`, <= `WARMUP_MAX_MS`);
   `dropCpuCopy` frees CPU copies of the lamp atlas and its pools; `World.refreshMaterials` re-reads lights when the
   shadow spec changes or the post stack rebuilds.
+- Near-instant loads (G405; decided, not built yet; the map-ready job, Sector Ops): (1) the graphics settings are
+  applied before the shader warm-up, and characters, guards and weapons are warmed up behind the loading screen; (2)
+  the campus lamp bakes ship pre-built instead of baking on the player's PC; (3) the map starts loading in the lobby
+  once it is picked; (4) characters, guards, weapons and compiled shaders are kept between maps and only the level is
+  swapped.
 - Dynamic physics bodies are capped (`physics/budget`); projectiles and effects are pooled, never allocated per shot.
 - Render scale: native DPR x `renderScale` (0.5-2), with the frame governor (graphics-quality.md) inside it; with TAAU
   the canvas stays native and the scene renders at the scale.

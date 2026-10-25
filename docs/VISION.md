@@ -1,19 +1,19 @@
 # Night Shift - vision (read this first)
 
 Owner: the orchestrator; updated at every DECISIONS fold (G344). Status: current.
-Read from origin/master. Citations: G numbers (`docs/DECISIONS.md`) or ROADMAP "Decided" times; a newer Michael
+Read from origin/master. Citations: G numbers (`docs/DECISIONS.md`) or ROADMAP "Decided" times; the newer
 decision wins.
 
 ## 1. Pitch
-- Pure Chaos Theory (CT) co-op at its core, with original names, story and art (G1, G5, G6). Michael: "I want the game
-  to be pure chaos theory." His recorded decisions (DECISIONS) are the departures.
+- Pure Chaos Theory (CT) co-op at its core, with original names, story and characters (G1, G5, G6). Michael: "I want the game
+  to be pure chaos theory." DECISIONS records the departures.
 - Two NIGHT SHIFT operators have nine nights to stop SUNDOWN, a staged blackout of Hollowmere
   (`docs/story.md` 1).
 - Light and shadow is the core: "like a showcase no matter where you look" (G316).
 - Desktop PWA (G12), pad first, then keyboard and mouse (loco D1).
 - The campaign recreates the CT co-op levels with original maps and story (G3).
-- Current goal: Marlow Yard, Saltmarsh Park and Tallow Wharf in parallel, one lead each, on the signed-off plan (G347,
-  G365); order: ROADMAP "Now".
+- Current goal: Marlow Yard, Saltmarsh Park and Tallow Wharf in parallel on the signed-off plan (G347, G365); order:
+  ROADMAP "Now".
 
 ## 2. Modes
 | | Campaign | Marlow Yard (training) | Sector Ops |
@@ -31,14 +31,14 @@ decision wins.
 | Downed | 30 s revive, twice per mission (G126) | As campaign (G349); a checkpoint restart is a full reset (G312) | Syringes; unreached 30 s: dead till the next section door (G188, G385) |
 | Light | Real-world lux bands, AS/NZS (G329, G368) | Lit, players cut it (G279) | As campaign (G297) |
 
-Helmets (campaign, Sector Ops): always on Realistic and Perfectionist, unshootable on Perfectionist; at alarm stages
-below (G350).
+Helmets (campaign, Sector Ops): always on Realistic and Perfectionist, cannot be shot off on Perfectionist; Rookie and
+Normal: alarm stages only (G350).
 
 ## 3. Main Michael overrides of CT (full list: DECISIONS)
 - Revive and encounter checkpoints (G126); partner beacon and world pings (G135); both players extract (G138); the
   perfect rating (G146); any partner rejoins a saved mission (G147).
 - Selection wheel (weapon, gadget, vision) on LB hold, no time slow (G181, G192).
-- Movement and animation follow a real-world trained operator, not CT footage (G210, G243).
+- Movement and animation follow a trained operator, not CT footage (G210, G243).
 - Cameras see by IR; a faint red laser grid shows what they watch (G240, G222). Every guard is armed (G298).
 - One realistic lighting system with real-time character shadows (G315, G316).
 - Hardened lit choke points allowed, with a route around (G333).
@@ -47,7 +47,7 @@ below (G350).
 - Co-op traversal kit: boost, gap throw, human ladder / pull-up, shutter or door hold, rope brace / descent, vent unlock,
   Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge (G293, G403).
 - Objectives: short, plain, what and where; shown on update or a tap of View / O (G343, G351).
-- CMU mocap only, no switch (G264, G399). Refining and full detail art allowed (G288, G309).
+- Mocap only (CMU, Mixamo), no switch (G264, G399, G406). Refining and full detail art allowed (G288, G309).
 
 ## 4. Ten hard rules (the tie-breakers)
 1. Light parity: picture, meter and guard perception agree, character shadows included; a cast shadow is a faint cue

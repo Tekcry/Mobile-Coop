@@ -185,8 +185,9 @@ Still standing:
 - Decided (G57, G151, G180): team moves work anywhere with room, with a prompt naming the move (G151 replaced G81's
   marked spots); the built set is CT's (leg-up, ledge relay, partner throw, hang-down, rope; G52's brace and dual
   takedown went with G180); one co-op ledge band 4.3-4.5 m. The campaign's co-op traversal kit adds throw over a gap, hold a
-  shutter or door, rope brace / descent and vent unlock for the partner, "plus any other creative coop ideas" (G293);
-  every campaign section forces one with no solo bypass (G292).
+  shutter or door, rope brace / descent and vent unlock for the partner, "plus any other creative coop ideas" (G293),
+  and Deadweight, Drop Catch, Chimney Pair, Swing Pass and Plank Bridge (G403; not built yet, described in bible 5.9
+  C4); every campaign section forces one with no solo bypass (G292).
 
 ## Weapon carry
 - `weapons/weaponCarry.ts` (pure): ready position from context (`pickReady`: compressed near walls, doorways, sprinting,

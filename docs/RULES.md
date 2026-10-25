@@ -18,7 +18,7 @@ follow-ups in the repo docs.
 never renames mid-run. Boot lines: `docs/orchestrator/PROMPTS.md`; per-title start: `docs/orchestrator/BOOT.md` (both
 on origin/feature/menu). Effort is the lead's; its agents keep their own model and effort.
 
-Session layout: Michael 2026-10-25 ~12:50. "Started by" is who opens the session at each swap.
+Session layout (G364). "Started by" is who opens the session at each swap.
 
 | Title | Machine | Model, effort | Started by | Area |
 | --- | --- | --- | --- | --- |

@@ -1,7 +1,7 @@
 # Night Shift - decisions
 Owner: the orchestrator. Status: current.
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G404 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G407 (2026-10-25).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
 Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
@@ -12,7 +12,8 @@ How entries are numbered:
   free G numbers (`docs/RULES.md` "Sessions"), rewriting DECISIONS, the bible and VISION together (G344).
 - A replaced entry keeps its original text and gets a "(Replaced by Gxxx, date)" note on its heading or first line, so
   the newest entry always wins and the trail stays readable; an entry that still holds in part gets "(Narrowed by
-  Gxxx)" instead.
+  Gxxx)" instead; one that a later entry settles, tightens or extends without replacing any of it gets "(Settled /
+  Tightened / Extended by Gxxx)" (a few name the part, e.g. "Kit extended by").
 - Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/archive/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/archive/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
@@ -57,10 +58,11 @@ functional to test features and gameplay. I don't want to spend hours or days fi
 Refinement can come later." (directive, 2026-10-17; extends loco M22.)
 (Replaced by G150 for movement, camera, back-to-wall, doors, palm strike and goggles, 2026-10-18.)
 
-**G5. IP rule: mechanics plus look.** The IP rule stays. CT's mechanics are matched and its visual style and HUD layout
-are copied closely, with original art assets; names, characters, story, logos and UI art stay original. Michael:
-"Mechanics plus look" (chat 1, 2026-10-17; bounds the bible IP rule and loco M20's "mechanics and feel are matched, never
-assets or names"; the option to drop the IP rule was not chosen.)
+**G5. IP rule: mechanics plus look.** (Narrowed by G407, 2026-10-25: free assets whose licence allows commercial sale
+may be used, never CT's; names, characters, story, logos and UI art stay original.) The IP rule stays. CT's mechanics
+are matched and its visual style and HUD layout are copied closely, with original art assets; names, characters, story,
+logos and UI art stay original. Michael: "Mechanics plus look" (chat 1, 2026-10-17; bounds the bible IP rule and loco
+M20's "mechanics and feel are matched, never assets or names"; the option to drop the IP rule was not chosen.)
 
 **G6. No reference names anywhere.** Reference-game names (the hero, his gear, organisations) appear nowhere: not in
 code, UI, specs, docs or research notes. Michael: "Banned everywhere" (VIS-06, 2026-10-17; replaces the research-notes
@@ -92,11 +94,12 @@ loco BIBLE-PROPOSALS 1-9.)
 
 ### Platform and performance
 
-**G12. Deletions happen in this merge.** Inside this consolidation, before the merge request opens, delete: the phone and
-touch code, the touch test, the retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) and the Wave,
-deathmatch and free-for-all code, docs and tests. Hunter is excepted (G7). Michael: "In this merge" (chat 8 / FU-04),
-"Delete code in merge" (PLAT-01), "Delete now" (PLAT-03, LEVEL-07), "Delete completely" (COOP-05) (2026-10-17; replaces
-loco M21's "removed in a later cleanup" and loco A65, A66, A67.)
+**G12. Deletions happen in this merge.** (Narrowed by G395, 2026-10-25: menu taps and touch look in play stay as a
+recorded exception.) Inside this consolidation, before the merge request opens, delete: the phone and touch code, the
+touch test, the retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) and the Wave, deathmatch and
+free-for-all code, docs and tests. Hunter is excepted (G7). Michael: "In this merge" (chat 8 / FU-04), "Delete code in
+merge" (PLAT-01), "Delete now" (PLAT-03, LEVEL-07), "Delete completely" (COOP-05) (2026-10-17; replaces loco M21's
+"removed in a later cleanup" and loco A65, A66, A67.)
 
 **G13. Tests run as a desktop.** Automatic tests switch from phone emulation to desktop with controller, keyboard and
 mouse when the phone code goes, which is in this merge (G12). Michael: "When phone code goes" (PLAT-02, 2026-10-17.)
@@ -278,10 +281,11 @@ bunker lip can go back up. Michael: "Ladder reaches 4.5 m" (LEVEL-06, 2026-10-17
 
 ### Audio and music
 
-**G58. CC0 sound allowed for the whole game.** CC0 recordings may be used for any sound wherever they cut build time and
-sound better; bundled, never fetched, each credited. Michael: "Whole game, we can use CC0 wherever required if it reduces
-build time and achieves a better result." (AUDIO-01, 2026-10-17; confirms the 2026-10-16 "allow CC0 for everything" and
-audio AS9; replaces the "WebAudio synthesis" hard rule and bible S7 / open decision 4.)
+**G58. CC0 sound allowed for the whole game.** (Extended by G407, 2026-10-25: any free recording whose licence allows
+commercial sale, credited.) CC0 recordings may be used for any sound wherever they cut build time and sound better;
+bundled, never fetched, each credited. Michael: "Whole game, we can use CC0 wherever required if it reduces build time
+and achieves a better result." (AUDIO-01, 2026-10-17; confirms the 2026-10-16 "allow CC0 for everything" and audio AS9;
+replaces the "WebAudio synthesis" hard rule and bible S7 / open decision 4.)
 
 **G59. No audio size limit.** Michael: "No limit" (AUDIO-02, 2026-10-17; replaces the 8 MB proposal.)
 
@@ -1403,14 +1407,14 @@ contact ~0.38 s): chose "Faster arm": the knockout timing stays and the strike a
 would benefit" (`docs/RULES.md` "Test tiers"). "Make sure you question rules and ask me if needed, you should be
 picking up these things earlier".
 
-**G264. Mocap trial with CMU locomotion, behind a toggle.** (Default off replaced by G298, 2026-10-23: mocap on by
-default.) Michael (2026-10-22 ~20:45, after walking 4.58.0; walk / jog / run, turns and starts / stops, and weapons look
-broken): "everything else doesn't look convincing". On free mocap: "Are there free mocap animations available? I don't
-want to record anything, and I don't want to impact releasing game in future commercially"; then "Trial and cmu
-animations first. I want to be able to roll back if they aren't good." Job mocap-trial (CT Core, top priority): CMU
-mocap only (free incl. commercial; an approved exception to the "no external art" hard rule for CMU mocap), raw BVH kept
-out of the public repo, locomotion retargeted onto Wren behind a toggle
-(default off), a side-by-side proof for Michael. Weapons stay hand-keyed for now; Mixamo only if he asks later.
+**G264. Mocap trial with CMU locomotion, behind a toggle.** (Extended by G406, 2026-10-25: Mixamo clips allowed beside
+CMU.) (Default off replaced by G298, 2026-10-23: mocap on by default.) Michael (2026-10-22 ~20:45, after walking 4.58.0;
+walk / jog / run, turns and starts / stops, and weapons look broken): "everything else doesn't look convincing". On free
+mocap: "Are there free mocap animations available? I don't want to record anything, and I don't want to impact releasing
+game in future commercially"; then "Trial and cmu animations first. I want to be able to roll back if they aren't good."
+Job mocap-trial (CT Core, top priority): CMU mocap only (free incl. commercial; an approved exception to the "no
+external art" hard rule for CMU mocap), raw BVH kept out of the public repo, locomotion retargeted onto Wren behind a
+toggle (default off), a side-by-side proof for Michael. Weapons stay hand-keyed for now; Mixamo only if he asks later.
 
 **G265. Vent kick: the pad matches the keyboard.** Michael (2026-10-22 ~21:00, T1 feature/vent-kick; the pad's Y then a
 late A also kicked, 33 ms): chose "Yes, match keyboard": holding Y does not kick, the hold carries into A, a Y tap still
@@ -1424,8 +1428,9 @@ level-standard loosenings L1-L15
 **G267. R section 2 gets another co-op route.** Michael (2026-10-22 ~21:20; one co-op route left after two proved
 solo-reachable): "Add another", before R merges.
 
-**G268. More CMU takes without asking.** Michael (2026-10-22 ~21:40; more takes for the mocap trial: starts, run turns,
-on-the-spot turns): "Yes, CMU only"; no asking per download. (Extends G264.)
+**G268. More CMU takes without asking.** (Narrowed by G406, 2026-10-25: Mixamo clips allowed too, downloaded by
+Michael.) Michael (2026-10-22 ~21:40; more takes for the mocap trial: starts, run turns, on-the-spot turns): "Yes, CMU
+only"; no asking per download. (Extends G264.)
 
 **G269. Laptop trial: three browsers on the GPU plus a second slot.** Michael (2026-10-22 ~21:50; laptop GPU full run:
 CPU avg 35%, GPU 3D avg 9%, RAM free min 7.6 GB of 31.7): "trial 3 browsers + 2nd slot. monitor performance and ensure
@@ -1483,13 +1488,14 @@ examples) again you can ask me questions if needed". The no-detail-art rule (the
 every map by G288) is lifted for marlow-final only. Art comes from a reusable kit built by in-repo Blender scripts (headless, CC0 textures only); any
 loosening of the light rules goes to Michael as a proposal in the spec, never applied. (Extends G272.)
 
-**G279. Marlow Yard: lit, the players cut it; a view-only gallery; normal guards.** Michael (2026-10-23 ~00:45,
-marlow-final M6): lighting "lit, players cut it, but you can also use mixed zones if it ends up being a better result. In
-game levels are quite dark and not realistic"; the instructor gallery is "View only"; guards: "normal guards. we will
-need to create a prototype guard avatar replacement eventually." Areas are brightly lit by default (the LED look) and the
-co-op exercises make darkness by isolating lights on timers, with mixed zones where they play better; a change to the
-light rules (G225's 0.30 open floor, docs/level-design.md) is proposed in the spec. The gallery is sight only, out of
-bounds for players. Guards stay normal guards; a prototype guard avatar replacement goes on the roadmap's Later list.
+**G279. Marlow Yard: lit, the players cut it; a view-only gallery; normal guards.** (Narrowed by G367, 2026-10-25: every
+light works, Marlow Yard included; mixed zones come only from cut circuits and shot lamps.) Michael (2026-10-23 ~00:45,
+marlow-final M6): lighting "lit, players cut it, but you can also use mixed zones if it ends up being a better result.
+In game levels are quite dark and not realistic"; the instructor gallery is "View only"; guards: "normal guards. we will
+need to create a prototype guard avatar replacement eventually." Areas are brightly lit by default (the LED look) and
+the co-op exercises make darkness by isolating lights on timers, with mixed zones where they play better; a change to
+the light rules (G225's 0.30 open floor, docs/level-design.md) is proposed in the spec. The gallery is sight only, out
+of bounds for players. Guards stay normal guards; a prototype guard avatar replacement goes on the roadmap's Later list.
 (Extends G272 and G278.)
 
 **G280. Sector Ops team doors: true two-player pathways, solo play unbroken.** Michael (2026-10-23 ~00:45): "true
@@ -1604,17 +1610,17 @@ shadow's feet slide 21-75 cm; a visible shadow artefact loses to the CPU win. Af
 "shadow-in-view counts as seen" (`animTierView.ts`) and measures the saving left; a GPU look of the case goes in
 Michael's morning pack. Undo: label #360 train-ready to ship 8 as is.
 
-**G295. Sector Ops redesign: larger, up to 5 sections, harder security that makes sense.** Michael (2026-10-23 ~01:08):
-"regarding sector ops, i want to make it larger and with more sections (5 max), accomodate more guards in each section,
-more security that gradually gets harder, cameras need to have less range (they currently pick the player up well
-outside of the intended area), should have coop only pathways but still able to complete solo if someone wanted to.
-doesnt have to keep the same layout or warehouse map. level design must be well flowing, no random lasers or cameras for
-the sake of having them, why would they be there in that location, what are they protecting, why would there be melee
-only guards they should all have weapons, guards should interact with eachother and have reason to what they are doing
-or protecting. must take careful planning and observation to pass. review lighting also, i think the rules may be too
-strict and the levels are very dark and unrealistic. there shouldnt always be shadows, the player may have to make
-shadows (disabling lights etc). ask me questions as needed". Job sector-redesign. (Replaces G186's three sections and
-G266's warehouse rebuild; extends G280.)
+**G295. Sector Ops redesign: larger, up to 5 sections, harder security that makes sense.** (Narrowed by G367,
+2026-10-25: no dark spots from lights left off.) Michael (2026-10-23 ~01:08): "regarding sector ops, i want to make it
+larger and with more sections (5 max), accomodate more guards in each section, more security that gradually gets harder,
+cameras need to have less range (they currently pick the player up well outside of the intended area), should have coop
+only pathways but still able to complete solo if someone wanted to. doesnt have to keep the same layout or warehouse
+map. level design must be well flowing, no random lasers or cameras for the sake of having them, why would they be there
+in that location, what are they protecting, why would there be melee only guards they should all have weapons, guards
+should interact with eachother and have reason to what they are doing or protecting. must take careful planning and
+observation to pass. review lighting also, i think the rules may be too strict and the levels are very dark and
+unrealistic. there shouldnt always be shadows, the player may have to make shadows (disabling lights etc). ask me
+questions as needed". Job sector-redesign. (Replaces G186's three sections and G266's warehouse rebuild; extends G280.)
 
 **G296. Sector Ops redesign: r2 folded in, its own session, plan then build.** Michael (2026-10-23 ~01:10): "Stop r2,
 fold into redesign" (the r2-nav / r2-bolt engine fixes kept, the warehouse geometry work stopped); "Parallel, own
@@ -1623,12 +1629,13 @@ first claim on tests); "Plan, then build" (a spec for all sections, then greybox
 morning); the camera-range cut and the lighting rule review on "All maps" (one engine change, one level-design lighting
 proposal for Michael).
 
-**G297. Sector Ops: a corporate research campus, 30-45 min, up to 24 guards, dogs.** (Guard count replaced by G289 and
-G328, 2026-10-25: signed-off counts per section, 32 alive ceiling; how dogs are handled: G348.) Michael (2026-10-23 ~01:20): setting "Corporate
-research campus"; one co-op run "30-45 min"; guards "up to 24, each section should gradually get harder with more guards
-and more security."; security "Include guard dogs" (cameras, lasers, alarm panels, keypads, then dogs and armed
-response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players cut lights to make
-shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
+**G297. Sector Ops: a corporate research campus, 30-45 min, up to 24 guards, dogs.** (Narrowed by G367, 2026-10-25: no
+dark spots from lights left off.) (Guard count replaced by G289 and G328, 2026-10-25: signed-off counts per section, 32
+alive ceiling; how dogs are handled: G348.) Michael (2026-10-23 ~01:20): setting "Corporate research campus"; one co-op
+run "30-45 min"; guards "up to 24, each section should gradually get harder with more guards and more security.";
+security "Include guard dogs" (cameras, lasers, alarm panels, keypads, then dogs and armed response). Lighting, the
+orchestrator's reading of his G295 words: lit like a real site, players cut lights to make shadows, dark zones only
+where believable. (Refines G187's per-section counts for this map.)
 
 **G298. Cameras keep IR; every guard armed; both Sector Ops maps; mocap on by default.** (Mocap switch replaced by G399, the old warehouse frozen by G390, 2026-10-25.) Michael (2026-10-23 ~01:25):
 cameras "Keep IR everywhere" (G240 stands: cutting lights beats guards and the light meter, never cameras); no
@@ -1994,13 +2001,14 @@ G145's mission fail and the bible's "killing a civilian fails the mission".)
 **G354. Tallow Wharf's story is decided with the missions.** Michael (8): "Decide with missions". `docs/story.md` keeps
 its Mission 1 plan (Dead Line) as written, with a status line, until then. (With G120 and STORY-03 / STORY-04.)
 
-**G355. A conformance review before new game work; the walk cap limits switch-on only.** Michael (9), on the walk cap:
-"What do you recommend? All current maps/features should be revised once documentation work has been completed"; the
-recommendation adopted, "Yes (Recommended)": once the doc PRs are on master, each lead runs a plan-only conformance
-review of every map / feature in its area against VISION, RULES and level-design (a gap list with fix sizes); the
-orchestrator folds them into the forward plan for Michael; then signed-off builds (campus greybox, Tallow Wharf) resume
-dark behind flags; the walk cap limits switch-on only; rule fixes to shipped features (for example G339's compass and
-blip) are fixes, allowed at the cap. (Narrows G288's walk cap.)
+**G355. A conformance review before new game work; the walk cap limits switch-on only.** (Narrowed by G381, 2026-10-25:
+4-player Sector Ops goes live when it ships.) Michael (9), on the walk cap: "What do you recommend? All current
+maps/features should be revised once documentation work has been completed"; the recommendation adopted, "Yes
+(Recommended)": once the doc PRs are on master, each lead runs a plan-only conformance review of every map / feature in
+its area against VISION, RULES and level-design (a gap list with fix sizes); the orchestrator folds them into the
+forward plan for Michael; then signed-off builds (campus greybox, Tallow Wharf) resume dark behind flags; the walk cap
+limits switch-on only; rule fixes to shipped features (for example G339's compass and blip) are fixes, allowed at the
+cap. (Narrows G288's walk cap.)
 
 **G356. CT footage numbers are starting values.** Michael (10): "Starting values". The numbers in G25-G36 are starting
 values; Michael tunes them by hand. (With G10 and G227.)
@@ -2031,9 +2039,10 @@ Marlow Yard resets in place; there is no checkpoint reload. (Settles how a G342 
 S4 25, S5 26 (G328) are the two-player counts. One player uses the same counts, with no scale-down; three or four
 players add the guards tagged for them (G331). (Settles the player count G328 left open.)
 
-**G363. Marlow Yard's later sections come after every move is taught.** Michael (3): "After every move taught". The
-later sections, where split paths and multiple objectives are taught (G292), are those after each move of the co-op
-kit has been taught on its own. (Defines G292's "later sections".)
+**G363. Marlow Yard's later sections come after every move is taught.** (Narrowed by G388, 2026-10-25: every section is
+one forced path; side routes only in the later enemy-training areas.) Michael (3): "After every move taught". The later
+sections, where split paths and multiple objectives are taught (G292), are those after each move of the co-op kit has
+been taught on its own. (Defines G292's "later sections".)
 
 **G364. Session layout: a Campaign Build lead; the orchestrator starts the desktop leads.** Michael (2026-10-25 ~12:50,
 native multiple choice) on a new lead "Night Shift | Campaign Build" (desktop, Opus 5.5, high: Tallow Wharf, the mission
@@ -2174,11 +2183,12 @@ not bind the training profile.
 (option: "A second quarantine in 14 days makes it blocking with a fix job"). The suite is not quarantined again: its
 failures fail runs and its owner gets a fix job.
 
-**G394. Maps are fully built before play; the graphics warm-up finishes on the loading screen.** Michael (Q31): "to be
-reviewed. currently when starting maps the level slowly builds while in game at the start, requires work to ensure map
-is fully loaded." The load-time target is reviewed later; a map is fully built before play starts. Q32: "Yes, with a
-cap (Recommended)" (option: "Yes, up to a written cap, plus a job to shorten it"): the graphics warm-up finishes on the
-loading screen, up to a written cap, and a job shortens it.
+**G394. Maps are fully built before play; the graphics warm-up finishes on the loading screen.** (Extended by G405,
+2026-10-25: four fixes; repeat loads near-instant.) Michael (Q31): "to be reviewed. currently when starting maps the
+level slowly builds while in game at the start, requires work to ensure map is fully loaded." The load-time target is
+reviewed later; a map is fully built before play starts. Q32: "Yes, with a cap (Recommended)" (option: "Yes, up to a
+written cap, plus a job to shorten it"): the graphics warm-up finishes on the loading screen, up to a written cap, and a
+job shortens it.
 
 **G395. Touch in play: menu taps and touch look stay, a recorded exception.** Michael (Q33): "Keep as exception
 (Recommended)" (option: "Keep menu taps and touch look as a recorded exception"). (Narrows G12's and G182's no touch
@@ -2237,3 +2247,34 @@ spot", G367) are adopted reworded; 6 (an entry lookout for two, the finale seen 
 every blocked route) and 9 (a designed exit: under 2 min or a different way back for half of it) are adopted. Michael
 confirms them on his Tallow walk (G401). `docs/level-design.md` and the map-spec template carry them (Marlow Build).
 (Settles G157.)
+
+G405-G407 are Michael's native multiple-choice answers of 2026-10-25 on load times (~18:50), Mixamo (~18:55) and
+free assets (~19:00).
+
+**G405. Near-instant map loads: four fixes in the map-ready job.** Michael asked "how does ratchet and clank/spiderman
+etc achieve instant load times between levels? what would make us instantly load into maps?"; he picked "Yes, add them
+(Recommended)". The map-ready job (Sector Ops) adds four fixes: (1) the graphics settings are applied before the shader
+warm-up, and characters, guards and weapons are warmed up behind the loading screen; (2) the campus lamp bakes ship
+pre-built instead of baking on the player's PC; (3) the map starts loading in the lobby once it is picked; (4)
+characters, guards, weapons and compiled shaders are kept between maps and only the level is swapped. Target: a
+first-ever load still takes seconds (shaders compile per GPU); repeat loads are near-instant. (Extends G394.)
+
+**G406. Mixamo motion capture is allowed beside CMU.** (Extended by G407, 2026-10-25: any free asset whose licence
+allows commercial sale.) Michael asked "will mixamo rigging help us streamline animations,
+or only for mixamo animations"; he picked "Yes, allow it now". Mixamo clips become an approved motion-capture source
+beside the CMU takes, retargeted onto the game's own rigs (wren-rig-game and the guard rigs; the Mixamo skeleton is
+never used in game). Same handling as CMU: converted clips bundled, raw Mixamo files not committed, credited in
+`docs/art-credits.md`. Michael downloads the clips himself (Adobe sign-in) into `C:/NightShift/scratch/mixamo/clips/`
+(FBX, without skin). Owner: Player Build. (Extends G264; narrows G268's "CMU only".)
+
+**G407. Free assets of any kind are allowed when the licence allows commercial sale.** Michael: "update rules. im happy
+to use any free animations/sounds and anything else, so long as they are allowed to be sold commercially. no
+copyright."; he picked "Commercial use, credit OK (Recommended)". Any free animation, sound, texture, model, music
+sample or other asset may be used when its licence allows commercial sale: public domain / CC0, CC-BY (the creator
+credited in `docs/art-credits.md` or `docs/audio-credits.md`) and royalty-free game licences such as Mixamo. Not
+allowed: non-commercial, no-derivatives or share-alike licences, and anything whose licence is unclear. Every asset
+records its source URL and licence in the credits file; raw downloads are not committed where the licence or size says
+so. Unchanged (IP, not licensing): no reference-game names, characters, assets, logos or story (G5, G6); names,
+characters, story, logos, UI art and the goggle stay original; the score stays composed for the game (licensed samples
+allowed, as G58). This is Michael's written approval of the change to the `CLAUDE.md` hard rule "No external art".
+(Replaces that hard rule's "CC0 ... CMU" exception list; extends G58 and G406.)

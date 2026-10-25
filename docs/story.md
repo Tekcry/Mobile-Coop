@@ -45,7 +45,8 @@ In the final mission the team turns the lights back on. The last image is Hollow
 - Humour comes from character and understatement, never from jokes that break tension.
 
 **Text now, voice later (G82).** Radio and subtitles are text. Every line is written so it can be voiced later
-(backlog item 6). Sound effects and music may use CC0 recordings (G58); this rule is about voices.
+(backlog item 6). Sound effects and music may use free recordings whose licence allows commercial sale (G58, G407);
+this rule is about voices.
 
 **Radio lines:**
 

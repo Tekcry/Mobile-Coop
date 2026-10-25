@@ -329,9 +329,10 @@ Implementation: `docs/systems/audio.md`.
 - **S6 - What the player hears.** Ambient beds match the zones so the player can hear the masking. The player's own
   footsteps play very softly when guards cannot hear them (G61). One run sound for every running speed (G62). A separate
   Footsteps volume slider exists for testing (G60).
-- **S7 - Audio sources (G58, G59).** CC0 recordings may be used for any sound wherever they cut build time and sound
-  better; synthesis stays where it sounds better. Files are bundled, never fetched at runtime, and each source is credited
-  in `docs/audio-credits.md`. There is no audio size limit.
+- **S7 - Audio sources (G58, G59, G407).** Free recordings whose licence allows commercial sale (Section 6) may be used
+  for any sound wherever they cut build time and sound better; synthesis stays where it sounds better. Files are
+  bundled, never fetched at runtime, and each source is credited in `docs/audio-credits.md`. There is no audio size
+  limit.
 - **S8 - Music.** Music follows every guard's state, never count, distance or direction. Searching plays Cautious; the
   chase music plays only after the players were seen (G63). Step timings and encoding are in `docs/systems/audio.md`
   (G67). The long menu theme ships (G64); the old music plans, test lab and unused music files are kept (G65). The
@@ -768,11 +769,12 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
 - **Keyframed core clips (G208):** walk, jog, run, crouch walk, crouch idle and the wall-knee hand are keyframed clips
   authored headless in Blender, never traced from footage (G5, G209); the procedural layer blends, turns, plants feet.
 - All other animation is generated in code (clips as curves, IK, `FootPlanner`, `AnimGraph`, `Inertializer`). No motion
-  matching, no root motion driving control. The exception is CMU mocap locomotion (G264): kept as captured over the
-  limits and feel notes below (G271), more clips without sheets (G273), the only player locomotion, with no switch: the
-  hand-keyed set is a developer rollback and Michael fine-tunes the clips in the Anim Studio (G298, G399); whether the
-  corrections over the capture stay is decided at his animation walk (G399). Every animation gets fixed, the normal ones
-  too (G312).
+  matching, no root motion driving control. The exception is mocap locomotion from CMU takes (G264) and Mixamo clips
+  retargeted onto the game's own rigs, never the Mixamo skeleton (G406): kept as captured over the limits and feel
+  notes below (G271), more clips without sheets (G273), the only player locomotion, with no switch: the hand-keyed set
+  is a developer rollback and Michael fine-tunes the clips in the Anim Studio (G298, G399); whether the corrections
+  over the capture stay is decided at his animation walk (G399). Every animation gets fixed, the normal ones too
+  (G312).
 - **Every animation looks realistic and believable**: no instant or unrealistic motion, no clipping (G199), no awkward
   poses. The reference is a real-world trained operator, not the CT footage (G210, replaces loco M20 Q9).
 - **Michael's feel notes (G207):** legs and elbows in, never crab-like, also crouched; a slower crouch idle; the
@@ -916,8 +918,9 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 
 ### 5.16 Visual target
 
-- **CT's look (G1, G5):** CT's visual style and HUD layout are copied closely, with original art assets. Desktop aims to
-  surpass CT in fidelity (Michael, 2026-10-09). Visual work never changes gameplay.
+- **CT's look (G1, G5):** CT's visual style and HUD layout are copied closely, never with CT's art assets (free
+  licensed assets allowed, Section 6, G407). Desktop aims to surpass CT in fidelity (Michael, 2026-10-09). Visual
+  work never changes gameplay.
 - **Realistic everywhere (G68).** The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G282).
 - **Guards:** realistic, all male, a larger build than Wren, clear variety by archetype (armour, helmets) (G310);
   mid-detail faces on most kinds, balaclavas on heavy / armoured, the same look after a section restart (G320). Extra
@@ -928,9 +931,9 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 - **Hollowmere's identity:** orange sodium lamps against blue moonlight, rain-wet stone and metal, deep blacks (L7).
 - **Vision modes** as CT (5.5).
 - **Camera finish:** filmic tone mapping and grading, subtle grain, restrained lens effects.
-- **CC0 textures:** free CC0 texture files are allowed for surface detail, bundled with the game (never fetched from third
-  parties at runtime), cached for offline play, each source and licence in `docs/art-credits.md` (created with the first texture). The texture budget is
-  set in its job (G94).
+- **Free textures:** free texture files whose licence allows commercial sale (Section 6, G407) are allowed for surface
+  detail, bundled with the game (never fetched from third parties at runtime), cached for offline play, each source and
+  licence in `docs/art-credits.md`. The texture budget is set in its job (G94).
 - **Each map's documents** define its palette and lighting key (lamp colours, moon, the colours of dark and lit areas).
 - **Beauty shots:** a fixed set of camera positions per map (`scripts/shot.mjs`, GPU runs on Michael's PC). Michael
   compares them privately with CT screenshots; those never go in the repo.
@@ -1037,10 +1040,14 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
 **Never:**
 
 - Reference-game names (G6, G114), story, characters, logos, UI art or art assets (G5).
-- External art files, except CC0 textures (5.16); the operators pipeline's sources are decided on `feature/operators`
-  (G75): a CC0 base human body, built into each operator offline by in-repo Blender scripts and bundled. Audio may use
-  CC0 recordings for any sound (S7). CMU motion-capture takes for the mocap set are allowed (converted clips bundled,
-  raw files not committed, credited in `docs/art-credits.md`; G264, G268, G276).
+- Assets whose licence does not allow commercial sale: non-commercial, no-derivatives or share-alike licences, or an
+  unclear licence (G407). Any free animation, sound, texture, model, music sample or other asset is allowed when its
+  licence allows commercial sale (public domain / CC0, CC-BY with the creator credited, royalty-free game licences such
+  as Mixamo); each records its source URL and licence in `docs/art-credits.md` or `docs/audio-credits.md`, and raw
+  downloads are not committed where the licence or size says so. The operators pipeline builds a CC0 base human body
+  into each operator offline (G75); the mocap set uses CMU takes and Mixamo clips retargeted onto the game's rigs
+  (G264, G268, G276, G406). Names, characters, story, logos, UI art and the goggle stay original and the score stays
+  composed for the game (G5, G6, G58).
 - Random patrols that defeat planning; in the campaign and Sector Ops, forced timers in stealth sections and countdowns
   that close a route (soft windows only, G334; Marlow Yard's timed drills are allowed, G342); world waypoints and maps
   (G336); kill cams; monetisation.
@@ -1073,8 +1080,8 @@ spec template) and the standard's phases and gates.
   co-op scenarios, one co-op run 15-20 min (G272): a believable, luxurious training facility, dressed straight after
   each greybox (G278), with the Marlow Yard audit's shortlist (ceilings, lamp fittings, airlocks, dressing, walls to
   ceilings, paint, lifts, fiction; G225). Lit by default, every light working (G367): the players cut the light, with
-  mixed zones where they play better; a view-only instructor gallery; normal, armed guards (G279, G298), one of whom can
-  be interrogated (G206). A checkpoint restart is a full reset (guards, bodies, cameras, doors); the S3 hallway camera
+  mixed zones made by cut circuits where they play better; a view-only instructor gallery; normal, armed guards (G279,
+  G298), one of whom can be interrogated (G206). A checkpoint restart is a full reset (guards, bodies, cameras, doors); the S3 hallway camera
   is bulletproof (G312).
 - **Sector Ops' Saltmarsh Park** (5.8): five sections S1-S5, signed off 2026-10-25 (G328).
 - **The Fallow bunker** is parked behind `?legacy=1` (Section 6). Its anti-stuck resets (G80) and training D41's linear
@@ -1117,7 +1124,9 @@ in `docs/level-design.md` section 13, its owner. The light plan carries each spa
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14). A guard out
   of view animates at a lower rate, but one whose shadow falls in view counts as seen (G327, G382). 32 guards run at 60
   fps with the memory goals unchanged (G369). A map is fully built and its graphics warmed up on the loading screen, up
-  to a written cap, before play starts (G394).
+  to a written cap, before play starts (G394). Repeat loads are near-instant and a first-ever load takes seconds:
+  settings applied before the warm-up, campus lamp bakes shipped pre-built, the map loaded in the lobby once picked,
+  shared parts kept between maps (G405; detail in `docs/systems/performance.md`).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
   presets, LOD or the governor.
 - **Offline:** the game installs and loads offline; the campaign needs a two-player co-op session, online,
@@ -1208,7 +1217,7 @@ research findings for Michael to confirm are settled by G180):
 - Every movement, camera and timing number (G10); Michael tunes movement himself (G227).
 - Room, corridor and crawl sizes (G54; the scaled room table, G285).
 - The animation corrections over the motion capture, at Michael's animation walk (G399).
-- The load-time target (G394).
+- The load-time numbers (G394; the aim, near-instant repeat loads, is G405).
 - Missing sounds (G66).
 
 **The menu job** (G113): how the lobby picks the course (the campaign's entry and its prologue are settled, G371), what
