@@ -1,0 +1,15 @@
+{
+  "id": "20261025T190601-night-shift-marlow-b-517a07fa-a49e",
+  "sha": "517a07fa453372a27bed437c6aa17aa78c21ddd2",
+  "branch": "feature/mixamo-kit",
+  "pr": 490,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "kitmix",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T184554-night-shift-marlow-b-517a07fa-26b6, rerun on the laptop"
+}
