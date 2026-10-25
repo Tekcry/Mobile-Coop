@@ -3,6 +3,20 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 53 (2026-10-25 ~18:20, before the ~18:22 cap; wins over SAVE 52 where they differ):**
+- Row 6 signed off ~17:00: hold lifted, full burn. Train 96 (4.103.1) on the laptop: watch it, Opus triage if red.
+- J1 docs PR #432 (docs/test-runner-j1, head 9ec03f714, worktree -conformance-docs): checker Opus PASS posted; CI
+  was queued. Supersedes #422 (force-push blocked). RULES lines 1-4 sent to the Orchestrator (its fold PR
+  feature/fold-j2); line 5 (Q27 train row) when J20 S7 lands.
+- J20: BRIEF / PLAN / STATE on feature/test-runner-j20 d395132e8 (worktree C:/NightShift/Mobile-Coop-test-runner-j20,
+  npm ci done). Plan checker (Opus) was running at the save: read the `plan-checker` status on d395132e8; if FIX or
+  missing, run a fresh Opus plan checker (watch: Job-done must be on the last PR to release; one branch per PR).
+- After plan PASS: start group A in parallel (S1, S3b Opus, S4, S5, S6a, S6b, S6c; each in its own worktree
+  feature/test-runner-j20-<slice>), then B (S2, S3a), then C (S7). Overlap: Campaign feature/mission-engine-flg-gb6
+  edits e2e-affected.mjs / run-e2e.mjs.
+- No gap runs queued: a train is pending (rule); spare work runs by itself when idle.
+- Next: check train 96, the plan-checker verdict on d395132e8, then start J20 group A.
+
 **Test Runner SAVE 52 (2026-10-25 ~16:35, new session [080d32]; wins over SAVE 51 where they differ):**
 - Master 4.x 75643e77 (train 94, #429). Trains 93 and 94 green on both slots. Service pid 12732 on 75643e77, queue
   empty, spare guard-cap runs passing. camera-bounds clean rerun 2b79 on c85f1e5e: 31/31.
