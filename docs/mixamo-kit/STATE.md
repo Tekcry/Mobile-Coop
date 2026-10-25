@@ -40,4 +40,13 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   Player for the stack order. The slice keeps the one-line local addMixamoResolver stub; when Player sends a head holding
   both i3 and mixamo-on, the builder merges it and swaps the stub for the real import in the same commit.
 - Size measure: `node scripts/pr-size.mjs --base e61e6d6eb --head HEAD` (docs not counted), under 1.5k.
-Next: start the Opus builder on PLAN.md section 4 (step 0 verify first), after a plan recheck if the lead wants one.
+
+## Build (Opus builder; plan check PASSED, round 4)
+- Step 0: base verified (parents, ancestors, 3-file diff, a9e7cbfa4); npm ci; the 8 named test files pass. The base's
+  typecheck failed on tests/missionNet.test.ts (`INTEL.donePh`, removed by master's joint-flake-3 0fe982983): fixed
+  test-only in dbe5e854b (Campaign approved).
+- Step 1 (d6a0e9cbb): src/anim/kitMixamo.ts (KIT_SHOT, KIT_PULL copies, KIT_TABLES + resolveKit, the two stub lines,
+  setKitSourceOf, KitShotIn, kitClipTime / kitShotTime, the gap trend and phase rule). KitShotIn `time` is the take's
+  progress 0..1 (the crawl: its cycle phase); kitClipTime gives the table's seconds.
+- Step 2: the 8 MIXAMO_ON rows at the end of mixamo.ts (4 takes true, 4 optional phases false).
+Next: step 3 team.ts, then, animGraph.ts, characterRig.ts, tests.

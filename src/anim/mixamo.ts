@@ -90,6 +90,24 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // off: its 2.17 s over the game's 0.22 s stand (10x) jumps the joints' velocity 11.3 cm a frame (hand-made 6.4) and
   // turns a forearm 24.3 deg in a frame (hand-made 14.3)
   crouch_to_stand: false,
+  // (mixamo-kit) the co-op kit moves under the acting player's Mixamo source (src/anim/kitMixamo.ts KIT_TABLES; A8 readings
+  // in docs/mixamo-retarget/KIT-REPORT.md, tests/kitMixamo.test.ts (h))
+  // the pull-up holder's catch and haul (trunk, head and arms; the pelvis stays the game's)
+  kneeling_pull_up: true,
+  // the pull-up partner's scramble over the edge (its rise dropped: the game's root path does it)
+  pulling_up_to_a_ledge: true,
+  // the shutter holder's lift and hold
+  lifting_heavy_object: true,
+  // the crawl under a held shutter, on the distance crawled
+  crawling_prone: true,
+  // (mixamo-kit A1) optional phases, today's pose: the pull offer's held frame
+  kit_pull_offer: false,
+  // the pull partner's hang (local page only: the remote ph is 0 through the hang)
+  kit_pull_hang: false,
+  // the shutter offer's squat to the bar
+  kit_shutter_offer: false,
+  // the shutter let down
+  kit_shutter_drop: false,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
