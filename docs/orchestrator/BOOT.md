@@ -10,21 +10,24 @@ orchestrator; a lead whose resume location changes tells it in its next message.
 3. Read your resume block (your section says where; at most ~40 lines; follow its file:line pointers only), your row
    in ROADMAP "Now" and your area's walk-cap count in "Waiting on Michael"
    (`git show origin/feature/menu:docs/ROADMAP.md | grep ...`).
-4. FIRST job: your conformance review, `docs/orchestrator/review-briefs/<lead>.md` on origin/feature/menu
-   (`player`, `marlow`, `sector-ops`, `guard-ai`, `test-runner`). Plan only: no src, test, map, script or config change;
-   output a docs PR with `docs/conformance-<lead>/CONFORMANCE.md` and a checker (ROADMAP Now phase 1).
-5. No new game work until Michael signs off the folded plan (G346, G355; ROADMAP Now row 6). Finished PRs may ship:
-   keep them green and labelled. Rule fixes and tests stay allowed at the walk cap.
-6. Locks: a lock whose pid is dead on this host is stale and the next take breaks it; a lock with no pid is never
-   broken automatically: ask its owner (RULES "Machines"). Turn off unused connectors (Gmail, Google Drive, Fergus).
+4. Until Michael signs off the folded plan (ROADMAP Now row 6), your first job is your conformance review
+   (`docs/orchestrator/review-briefs/<lead>.md` on origin/feature/menu: `player`, `marlow`, `sector-ops`, `guard-ai`,
+   `test-runner`); no new game work (G346, G355); finished PRs may ship. The review is plan only: no src, test, map,
+   script or config change; output a docs PR with `docs/conformance-<lead>/CONFORMANCE.md` and a checker (ROADMAP Now
+   phase 1).
+5. Refresh your resume block to <= 40 lines with the docs-first hold and fix its pointers (`CLAUDE.md "Sessions"` ->
+   docs/RULES.md), and commit `git checkout origin/master -- CLAUDE.md` on your branch so its auto-loaded CLAUDE.md is
+   the current stub.
+6. Walk cap, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "Getting to master",
+   "Machines"; never restate them in a resume block. Turn off unused connectors (Gmail, Google Drive, Fergus).
 
 Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / needs Michael.
 
 ## Orchestrator
 - Opus 5.5, high, desktop. Worktree C:/NightShift/Mobile-Coop-menu, branch feature/menu (`git pull`).
 - Resume: HANDOFF.md "State at the switch", then STATE.md ("Now", "Known", "How Michael works"); the plan:
-  FORWARD-PLAN.md and ROADMAP "Now".
-- First: check `C:/NightShift/heavy.lock` / `heavy2.lock`; stop tail / grep watchers older than the swap (STATE
+  ROADMAP "Now" (FORWARD-PLAN.md: what to close, open PRs, Michael's walks and questions).
+- First: check `C:/NightShift/heavy.lock` / `heavy2.lock` (RULES "Machines"); stop tail / grep watchers older than the swap (STATE
   "Known"); recreate the cron from STATE "Cron prompt"; `get_usage`; read `C:/NightShift/scratch/auto-train-status.json`
   and act on failed / stale / error; reopen any cloud-queue brief still claimed by an old Cloud Builder.
 - Then print boot lines 2-7 from PROMPTS.md in one message (title, model, effort, machine each), as the last thing in
@@ -37,6 +40,8 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - Resume: the "Resume prompt" block of `docs/orchestrator/resume-ct-core.md` on origin/feature/menu (working copy
   C:/NightShift/scratch/ctcore/, pushed with scratch/ctcore/push-resume.sh). Jobs: `docs/coop-real/STATE.md` on
   origin/feature/coop-real; `docs/guard-models/STATE.md` on origin/feature/gm-flip (#375).
+- Worktrees: C:/NightShift/Mobile-Coop-<job> per job (coop-real, coop-real-c2, gm-flip, gm-look, gm-polish,
+  client-intel, player-batch-25); the conformance review in its own (C:/NightShift/Mobile-Coop-conformance-player).
 - First job: review-briefs/player.md. Area: movement, mocap, animation, takedowns, guard models, co-op player.
 
 ## Marlow Build
@@ -47,6 +52,9 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
   (on master after #407: `docs/archive/level-validator/STATE.md`); V6 on origin/feature/level-validator-v6 (same path);
   route-runs `docs/route-runs/STATE.md` on origin/feature/route-runs; guard-cap `docs/guard-cap/STATE.md` on
   origin/feature/guard-cap.
+- Worktrees: C:/NightShift/Mobile-Coop-<job> per job (mission-framework, mission-engine, marlow-final,
+  level-validator, level-validator-v6, route-runs, guard-cap); the conformance review in its own
+  (C:/NightShift/Mobile-Coop-conformance-marlow).
 - First job: review-briefs/marlow.md. Area: Marlow Yard, missions and Tallow Wharf, level validator, guard cap.
 
 ## Sector Ops Build
@@ -54,6 +62,9 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - Resume: the last fenced block of `docs/sector-redesign/STATE.md` on origin/feature/sector-redesign-polish; campus
   greybox `docs/campus-greybox/STATE.md` on origin/feature/campus-greybox; visual-gate `docs/visual-gate/STATE.md` on
   origin/feature/visual-gate; light-realism has no STATE yet (scripts/light-realism/ on origin/feature/light-realism).
+- Jobs: campus-greybox (S1-S5 lanes, ROADMAP Now 9), light-realism (lux bands, Now 10), visual-gate; worktrees
+  C:/NightShift/Mobile-Coop-campus-greybox, -light-realism, -visual-gate, -sector-redesign-polish; the conformance review in
+  C:/NightShift/Mobile-Coop-conformance-sector-ops.
 - First job: review-briefs/sector-ops.md. Area: Sector Ops (Saltmarsh Park, campusOps), lighting on every map, visual
   gate.
 
@@ -71,8 +82,8 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - Resume: the last fenced block of `docs/guard-ai/STATE.md` on origin/feature/guard-ai (worktree
   C:/NightShift/Mobile-Coop-guard-ai on the laptop: create it with git worktree add if missing, npm ci once).
 - First job: review-briefs/guard-ai.md. Area: `src/ai` on every map, coop4 (#317, worktree
-  C:/NightShift/Mobile-Coop-coop4). e2e only through the laptop queue; AI code and its two checkers stay Opus. Laptop
-  auto mode blocks the train-ready label: tell the orchestrator at train-ready.
+  C:/NightShift/Mobile-Coop-coop4). e2e only through the laptop queue; AI code and its two checkers stay Opus. At
+  train-ready tell the orchestrator (RULES "Getting to master").
 
 ## Cloud Builder
 - Model as Michael starts it; cloud (claude.ai/code on Tekcry/Mobile-Coop). Cannot message other sessions: git is the
