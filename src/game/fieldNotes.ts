@@ -1,7 +1,8 @@
 /**
  * (hud-guidance B5, R12, BRIEF A9) Field Terminal > Notes: this match's interrogation lines, oldest first. Pure,
  * Babylon-free. Solo and the co-op host add the `intel` event's lines; a co-op client adds the host's `feed` events
- * (they also carry Sector Ops keypad radio lines: no wire change). A new match builds a new list (empty).
+ * that are intel or Sector Ops keypad radio lines, never the host's other radio lines (camera desk, joint bluff):
+ * `clientFeedToNotes`, no wire change. A new match builds a new list (empty).
  */
 
 /** At most this many lines; a new line past it drops the oldest. */

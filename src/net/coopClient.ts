@@ -54,7 +54,9 @@ import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
 import { stampKeptBodies } from './keptBodies';
-import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
+import { DESK_LOOP_END_LINE, DESK_LOOP_LINE, DESK_NONE, DESK_OFF_LINE, deskItemId, deskModeOf } from '../game/sectorDesks';
+import { JOINT_BLUFF_FEED } from '../game/jointInterrogation';
+import type { FieldNotes } from '../game/fieldNotes';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import type { SlotPoint } from '../game/spawnSlots';
 import { SectorListMirror } from '../game/sectorObjectives';
@@ -867,8 +869,9 @@ export class CoopClient implements NetAttachment {
         // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
         g.hud.barks.say('lantern', e.text, true);
         g.hud.feedItem(e.text);
-        // (hud-guidance B5, BRIEF A9) and in Field Terminal > Notes (the host's keypad radio lines ride `feed` too)
-        g.notes.add(e.text);
+        // (hud-guidance B5, BRIEF A9) and in Field Terminal > Notes: the intel and keypad radio lines only; the host's
+        // other radio lines (camera desk, bluff) ride `feed` too and stay out, as on the host (A15: no radio log)
+        clientFeedToNotes(g.notes, e.text);
         break;
       case 'pickup':
         if (e.player !== me) break;
@@ -1360,6 +1363,15 @@ export class CoopClient implements NetAttachment {
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;
   }
+}
+
+/** (hud-guidance B5 fix, BRIEF A9 / A15) A host `feed` line into the client's Field Terminal > Notes. Kept: the
+ *  interrogation intel and the keypad radio lines (the host's notes hold those). Skipped: the other `radioLine` texts
+ *  the host's notes never get (camera desk loop / off / loop ended, the joint bluff). Plain compares, no allocation.
+ *  Returns true when the line was added. */
+export function clientFeedToNotes(notes: FieldNotes, text: string): boolean {
+  if (text === DESK_LOOP_LINE || text === DESK_OFF_LINE || text === DESK_LOOP_END_LINE || text === JOINT_BLUFF_FEED) return false;
+  return notes.add(text);
 }
 
 /** (coop-real F1b, S2) Does a client send its lamp rounds (`shot` at `lt-<id>`) to the host in this mode? Sector Ops and

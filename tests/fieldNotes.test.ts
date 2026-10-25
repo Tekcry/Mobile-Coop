@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FIELD_NOTES_CAP, FieldNotes } from '../src/game/fieldNotes';
+import { DESK_LOOP_END_LINE, DESK_LOOP_LINE, DESK_OFF_LINE } from '../src/game/sectorDesks';
+import { JOINT_BLUFF_FEED } from '../src/game/jointInterrogation';
+import { clientFeedToNotes } from '../src/net/coopClient';
 
 // (hud-guidance B5, R12, BRIEF A9) Field Terminal > Notes: this match's interrogation lines, capped, a repeat kept once;
 // solo / host from the `intel` event, a co-op client from the host's `feed` events (no wire change)
@@ -56,10 +59,25 @@ describe('the wiring (source)', () => {
     expect(src).toMatch(/notes: \(\) => this\.notes\.lines\(\),/);
   });
 
-  it('client: the host feed lines go to the notes; no wire change', () => {
+  it('client: the host feed lines go to the notes through clientFeedToNotes; no wire change', () => {
     const src = readFileSync('src/net/coopClient.ts', 'utf8');
-    expect(src).toMatch(/case 'feed':[\s\S]{0,700}?g\.notes\.add\(e\.text\);[\s\S]{0,40}?break;/);
+    expect(src).toMatch(/case 'feed':[\s\S]{0,700}?clientFeedToNotes\(g\.notes, e\.text\);[\s\S]{0,40}?break;/);
+    expect(src).not.toMatch(/g\.notes\.add\(e\.text\)/);
     expect(readFileSync('src/net/protocol.ts', 'utf8')).toMatch(/\| \{ e: 'feed'; text: string \}/);
+  });
+
+  it('client: the camera desk and bluff radio lines add nothing (host parity, A15); an intel line still adds', () => {
+    const n = new FieldNotes();
+    for (const line of [DESK_LOOP_END_LINE, DESK_LOOP_LINE, DESK_OFF_LINE, JOINT_BLUFF_FEED]) {
+      expect(clientFeedToNotes(n, line)).toBe(false);
+    }
+    expect(n.lines()).toEqual([]);
+    expect(DESK_LOOP_END_LINE).toBe('Camera loop ended.');
+    expect(DESK_LOOP_LINE).toBe('Cameras looped.');
+    expect(DESK_OFF_LINE).toBe('Cameras switched off.');
+    expect(JOINT_BLUFF_FEED).toBe('Bluff on. Read his face now.');
+    expect(clientFeedToNotes(n, 'Code: Lab door 4471')).toBe(true);
+    expect(n.lines()).toEqual(['Code: Lab door 4471']);
   });
 
   it('the pause menu: a Notes row right after Objectives; "No notes yet" when empty', () => {
