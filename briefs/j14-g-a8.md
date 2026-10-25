@@ -112,21 +112,6 @@ unchanged and green.
     `StationHooks`): dark then lit before `a8-grille-in` retries 20 once; dark then the grille flag set, no retry; loop
     cleared while 21 is live retries 21 once; 21 going live with the loop already ended retries at once; after a retry
     with the loop off, no retry until a new press ends; an `epoch()` change mid-window forgets it.
-12. **Validator: `a8-office` (J12 S4 check, `j12-c-batch-check.md` S4).** The J12 training module run on the J14 graph
-    gives 4 real ERRs on `a8-office` (A9: A8 is a side-route section after `taught_by`, so campaign route rules apply to
-    its guarded encounter spaces); the same four come from the core `checkEncounters` on the full graph:
-    - `a8-office: 1 approaches (need 3+)`
-    - `a8-office: approaches use 1 route kind(s) (need 2+)`
-    - `a8-office: no shadow approach`
-    - `a8-office: no loud approach`
-    Cause: the only way in is the gallery door (`a8-gallery -> a8-office`, `high`); the office stair down to
-    `a8-lobby-outer` is `one_way` out. Fix it in the A8 set with the smallest real change that gives the office 3+
-    approaches using 2+ route kinds, including a `shadow` and a `loud` one, each from a space a player reaches without
-    passing through the office (for example: the stair's foot door also opening from the lobby side, a shadow way up;
-    a loud way in from the public stair head or the gallery). Keep station 18 (the C2 run to `a8-office-in`) the
-    taught route. The graph's new or changed links (from, to, kind, route, width, `one_way`) go in your report for G1,
-    not into `graph.json`; G1 reruns the validator. If no fix fits inside A8 without breaking the four steps,
-    `status: blocked a8-office approaches: <your proposal>`.
 
 ## Lead decisions that touch A8 (j14-wave2-notes)
 - n 18-21 for badge 18; play order as listed; marks by role (A = gallery / office, B = floor).
@@ -163,6 +148,5 @@ No PR from the builder. The lead opens it to master only after S0 and R1 are on 
 owner Night Shift | Marlow Build, switch-on 2026-10-29.
 
 ## Report (append below, then `status: done feature/marlow-replan-g-a8 <sha>`)
-Built, numbers used (stair, column, rails, glass, lamps, the counters box, the `a8-office` approaches and their graph
-links for G1), files, commits, tests with counts, e2e
+Built, numbers used (stair, column, rails, glass, lamps, the counters box), files, commits, tests with counts, e2e
 "pending PC run", deviations, what Michael should try.
