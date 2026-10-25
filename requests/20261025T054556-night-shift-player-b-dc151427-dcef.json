@@ -1,0 +1,13 @@
+{
+  "id": "20261025T054556-night-shift-player-b-dc151427-dcef",
+  "sha": "dc151427f5799d9a90cb64b3c011664615041b8a",
+  "branch": "",
+  "pr": 430,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "tuner-clarity-coop"
+}
