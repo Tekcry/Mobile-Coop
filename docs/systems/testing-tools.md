@@ -28,14 +28,14 @@ This page lists the suites and how they are picked.
 
 ## The runner (`scripts/run-e2e.mjs`)
 - Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
-  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
+  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run on the machine that runs it; the
+  committed file is a seed, never committed back by the queue, which shards from its own `scratch/laptop-queue/times.json`). Each suite's
   output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
   (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
   `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
-  sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
-  rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
-  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
+  sets in sequence (test-speed A3). The committed `scripts/e2e-times.json` holds 150 s per part as a seed estimate. `e2e-sectorops` runs as `e2e-sectorops:1` to `:6` (sector-fixes-r RE: the suite before slice R, the
+  solo route checks, the co-op routes of sections 1-3; part 6 is Saltmarsh Park, campusOps); named alone it runs all six in sequence.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. The laptop queue runs with
@@ -104,7 +104,7 @@ This page lists the suites and how they are picked.
   (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
   (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
   `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
-  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
+  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
   -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
   `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
   Example: optic-cable 13 jobs direct, 30 wide (e2e-ctcourse is 4 parts); guard-ai-carry-fix 7 direct, 15 wide.
@@ -146,6 +146,9 @@ behind a VPN adapter).
 ## The suites (REQUIRED unless marked)
 - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot); (anim-tuner) opens F3 > Anim, moves
   the walk "foot width" slider through the page and checks the table value and its change-log entry (then puts it back)
+- `e2e-menus` (menu-ui; required) menu parity: the main menu and GAME / SETTINGS driven by keyboard, mouse and a fake
+  pad: default focus, moves, wrap, confirm, Back targets, every legend item, tabs with focus memory, cyclers and sliders,
+  Defaults, a locked row, the remap capture, and a device switch that moves no element (within 0.5 px).
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
   change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
   X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
@@ -239,8 +242,9 @@ behind a VPN adapter).
   after a restart; a two-page `?net=local` pair (the client mirrors the live section's devices, door locks and the
   syringes line, then section 2 after the connector). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as five jobs, `e2e-sectorops:1` to `:5` (`--part=N`; named alone it runs
-  all five in sequence): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's co-op
+  (software GL). (sector-fixes-r RE) It runs as six jobs, `e2e-sectorops:1` to `:6` (`--part=N`; named alone it runs
+  all six in sequence; part 6, sector-redesign, is Saltmarsh Park (campusOps): the S1-S3 greybox routes, guard counts and
+  solo co-op-lip probes): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's co-op
   routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one player
   alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the air;
   R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
@@ -559,14 +563,19 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   stale, logged once; runs already going continue). `LQ_BUILD_MARKER` overrides the path (tests).
 - Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
   a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
+  `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
+  (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester
+  `laptop-queue spare`). Spare work never blocks real work: a waiting real request or a train stops a spare run, and
+  `pick` starts no spare while a real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
 - Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
   2026-10-23 23:59 and held the slot locks for hours): hand-made chains are retired; e2e runs go through the queue
   (`request.mjs`). The permanent tasks are the task guard's allowlist in code (`TASK_ALLOW` in
-  `scripts/laptop-queue/service.mjs`): today `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
-  (`install-task.ps1 -Worker desktop`) and `NightShift auto-train` (`scripts/auto-train-task.ps1`); the queue-fix job
-  adds `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`). The only way to
+  `scripts/laptop-queue/lib.mjs`): today `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
+  (`install-task.ps1 -Worker desktop`) and `NightShift auto-train` (`scripts/auto-train-task.ps1`) and `NightShift watchdog` (`scripts/watchdog-task.ps1`,
+  `docs/systems/watchdog.md`). The only way to
   schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/one-shot-task.ps1
   -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>] [-ExpireMinutes 240] [-WhatIf]`: one hidden
   run whose trigger expires at At + ExpireMinutes (also its run time limit), after which Windows deletes the task.
@@ -602,7 +611,9 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
   Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
-  faked pointer lock; `E2E_HEADED=1` (debugging) opens a window parked off-screen. Browser: `E2E_BROWSER`, the
+  faked pointer lock; `E2E_HEADED=1` opens a window parked off-screen: never on
+  Michael's PCs (`docs/RULES.md` "Machines": headless and invisible) and refused under the runner; only a single suite run
+  directly on another machine. Browser: `E2E_BROWSER`, the
   preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is
   stubbed off so exports take the download path.
 - Graphical and performance checks (perf budgets, contact sheets, visual parity and probe checks, beauty shots) run here
