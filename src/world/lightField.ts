@@ -227,21 +227,20 @@ export class LightField {
   }
 
   /** Everything at a point: `levelAt` + `dynamicAt`, clamped. */
-  totalAt(x: number, y: number, z: number, occluded?: Occluder, chars: CharOccluders | null = null, skip = -1): number {
-    if (chars && skip === -2) return 0;
+  totalAt(x: number, y: number, z: number, occluded?: Occluder, _chars: CharOccluders | null = null, _skip = -1): number {
     this.totalInto(x, y, z, occluded);
     return this.res;
   }
 
   /** (char-shadow-meter) The gameplay set at a point, strongest first: registry light ids (-1 the moon) into `ids`,
    *  their terms (no character term) into `lv`; returns the count (<= max). No allocation. INTERFACE STUB. */
-  sourcesInto(x: number, y: number, z: number, ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number {
-    return ids.length + lv.length + max + x + y + z < 0 || occluded ? 0 : 0;
+  sourcesInto(_x: number, _y: number, _z: number, _ids: Int32Array, _lv: Float32Array, _max: number, _occluded?: Occluder): number {
+    return 0;
   }
 
   /** (char-shadow-meter) One set member's term at a point (no character term); 0 where it does not reach. INTERFACE STUB. */
-  sourceAt(id: number, x: number, y: number, z: number, occluded?: Occluder): number {
-    return id + x + y + z < 0 || occluded ? 0 : 0;
+  sourceAt(_id: number, _x: number, _y: number, _z: number, _occluded?: Occluder): number {
+    return 0;
   }
 
   /**
@@ -250,8 +249,7 @@ export class LightField {
    * 12) `hx`, `hz`: the head's horizontal offset from the feet (a peek past a wall edge), so the head is sampled where
    * it is (light parity, bible 5.1).
    */
-  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, chars: CharOccluders | null = null, skip = -1): number {
-    if (chars && skip === -2) return 0;
+  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, _chars: CharOccluders | null = null, _skip = -1): number {
     this.totalInto(x, feetY + height * 0.6, z, occluded);
     const chest = this.res;
     if (chest >= 1) return 1;

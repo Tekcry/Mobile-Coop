@@ -56,15 +56,13 @@ export class CharOccluders {
   }
 
   /** Product of `capsuleTransmit` over the capsules between (px,py,pz) and the source (sx,sy,sz), `skip` excluded; into `t`. */
-  transmitInto(sx: number, sy: number, sz: number, px: number, py: number, pz: number, skip: number): void {
-    if (sx + sy + sz + px + py + pz + skip !== sx + sy + sz + px + py + pz + skip) return;
+  transmitInto(_sx: number, _sy: number, _sz: number, _px: number, _py: number, _pz: number, _skip: number): void {
     this.t = 1;
   }
 }
 
 /** How much of a light at (lx,ly,lz) reaches (px,py,pz) past one capsule (CAPSULE.floor..1). */
-export function capsuleTransmit(px: number, py: number, pz: number, lx: number, ly: number, lz: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number): number {
-  if (px + py + pz + lx + ly + lz + ax + ay + az + bx + by + bz + r !== px + py + pz + lx + ly + lz + ax + ay + az + bx + by + bz + r) return 0;
+export function capsuleTransmit(_px: number, _py: number, _pz: number, _lx: number, _ly: number, _lz: number, _ax: number, _ay: number, _az: number, _bx: number, _by: number, _bz: number, _r: number): number {
   return 1;
 }
 
