@@ -1,0 +1,3 @@
+- Done (paused for mixamo): parity test `tests/takedownAlloc.test.ts` (WIP d79de91d) and its master fixture `tests/fixtures/player-hygiene-s3.json` committed as the previous builder left them; not yet run or re-verified on unchanged master code. No src change yet.
+- Left: run the parity test on master (`S3_RECORD` only if the fixture is missing), then the refactor in `src/game/takedown.ts` (`pickTakedownInto` / `assistPlanInto`) and `src/game/takedownController.ts` (`hitDistance` for both LOS rays, one member offer, `activePlan` copy in `start()`, index loop in `carryStep`), checks, laptop suites (affected + e2e-coop + e2e-netmove).
+- J15 note: keep `takedownController.ts:278` (the skip) untouched so J15's one-line `e.def.quadruped ||` merges cleanly.
