@@ -65,3 +65,31 @@ change gameplay the wrong way or in another lead's area, and must be fixed befor
   stops at `SectorMode`, so the next reader sees the choice was weighed.
 - S1 at ~450 lines is tight for place / revive / team join plus six test files and two e2e checks; re-estimate if over.
 - warehouseOps is frozen (Q26): say in PR1's body that its e2e edits are test upkeep for a code default, not map work.
+
+## Re-check (fix round)
+Checker: Opus 5.5 (same), head 1fe16b1e0 (BRIEF + PLAN only). Verdict: **PASS**.
+1. Fixed. S1 makes the call `killScore(..., !e.ko)` (`sectorMode.ts:1312`) and owns `score.ts`. `killed` defaults
+   true, so the parked callers and `src/net/validate.ts:144` are unchanged. `killScore.test.ts` covers a killed dog
+   and a gassed one, and walk item 4 adds the gas case.
+2. Fixed. `em.alarmRepeat` is set only at the `SectorMode` section start, so courseMode keeps one alarm per load (unit
+   test plus e2e-ctcourse on PR2). S5 runs alone in wave 2, so its `sectorMode.ts` edit is disjoint.
+3. Fixed. A2 keeps both recorded rules (the helmet is never shot off, and the second headshot kills via
+   `helmetSoaked`). Q1 is withdrawn. On the client, the killing headshot shows a deflect marker first. The PLAN lists
+   this under Risks, the host decides, and it is cosmetic.
+4. Fixed. S4 adds `riseCause` / `riseN` / `stimX` / `stimZ` on `Enemy`. S7 reads them after `e.update` in the
+   manager loop (`enemyManager.ts:3643-3652`), using the public `bark` (`enemy.ts:982`) and `report` (2392). S7 makes
+   no `enemy.ts` edit, so wave 4 is disjoint.
+5. Fixed. There is one order: PR1 first, then J17's campus data, then S9 in PR4. A15's check is in S1 with tests.
+   `campusS4Data.ts` / `campusS5Data.ts` are claimed. They are the same files J17 edits, but in a set order: the
+   orchestrator must hold J17's first campus data edit until PR1 is on master. feature/mission-engine has no helmet
+   tags of its own (only the master campus copies), so J7 does not trip the check.
+6. Fixed. A14 is logged with its undo and with Marlow Build as confirmer, and it is under Coordination and Risks.
+7. Fixed. `tests/archetypes.test.ts` is claimed (S4), and `sectorMode.ts` / `score.ts` are in S1's wave-1 files.
+The fix round broke nothing. Waves stay file-disjoint (S2 keeps only takedown files). PR sizes are PR1 ~890,
+PR2 ~380, PR3 ~665 and PR4 ~715, all under 1.5k. Claims, wire (`bark`, `td`) and save (none) are unchanged.
+
+Polish (fix round, not blocking):
+- S7's per-guard `riseN` / call-time typed arrays are "sized at load", but reinforcements grow `enemies` during the
+  run. Size them to the alive cap, or index by lookout, so no step allocates or overruns.
+- The client deflect marker could stop after the first soak: the client can track the soak from its own predicted
+  deflect with no wire bit. This is for the Risks note, if wanted later.
