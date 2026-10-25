@@ -1,5 +1,9 @@
 # level-validator - plan
 
+> **History, archived 2026-10-25 (doc-clarity).** The level-validator job's record, kept for reference only. The
+> current rules are `docs/level-design.md`, the graph format `docs/level-validator/graph-schema.md`, the numbers
+> `docs/design/scale-sheet.md`. Where this file differs from them, they win.
+
 > History: the job record. Current rules are `docs/level-design.md` and `docs/level-validator/graph-schema.md`.
 
 Opus plan, 2026-10-24 ~20:05. Read with `BRIEF.md` (the ask, the approval record, the rule mapping table, A1-A12).

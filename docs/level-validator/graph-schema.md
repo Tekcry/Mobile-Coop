@@ -3,12 +3,12 @@
 Every map is written as a connectivity graph (`<map>.graph.json`) before any geometry, and the graph passes
 `node scripts/level-validate.mjs <graph.json> [more.json ...]` with 0 errors before Phase 3 (build); every WARN is
 justified in the map's design doc (Michael 2026-10-24, "Add 1-4 as extras"; `docs/level-design.md` section 14). For a
-map that is already greyboxed (campus) the graph describes the map AS BUILT and the run is an audit (BRIEF A12, A9).
+map that is already greyboxed (campus) the graph describes the map AS BUILT and the run is an audit.
 
 - Worked example: `docs/level-validator/example.graph.json` (two campaign sections, each with a forced co-op gate, one
   spine link, one split with an overwatch and an assist; V1's CLI smoke fixture, 0 errors).
-- Rules: `docs/level-design.md` (its rule index names the check for each rule; `BRIEF.md` and `PLAN.md` here are the
-  job's history); numbers: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` sections 1, 3, 7
+- Rules: `docs/level-design.md` (its rule index names the check for each rule; the job's history is in
+  `docs/archive/level-validator/`); numbers: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` sections 1, 3, 7
   (room sizes by type) and 8 (validator numbers). No number in this doc or in the validator is a source of truth: the
   sheet is.
 - Severity: **ERR** = validator ERROR (exit 1); **WARN** = justify in the design doc; **INFO** = printed, no exit code.
@@ -101,7 +101,7 @@ spaces are two links. Links are two-way unless `one_way` is set or the kind is `
 Speeds come from scale-sheet section 8: 1.3 m/s on split legs, 3.0 m/s to reach a downed partner. Kinds with no
 walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or reach path.
 
-| Kind | Two players needed | Dimension rule (BRIEF mapping table; numbers from the sheet) |
+| Kind | Two players needed | Dimension rule (numbers from the sheet) |
 | --- | --- | --- |
 | `door` | no | ERR width < 1.0; WARN 1.0-1.19 (nav passes only on a half-metre centre); target 1.2 x 2.1; ERR height < 2.0 or > 2.2 |
 | `double_door` | no | ERR width < 1.8; 1.8 or 2.0 x 2.1 |
@@ -130,7 +130,7 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 
 No zipline. The core schema's "no rope (G110)" line is out of date: G180 restored the two-person rope (`team_rope`).
 
-## Lead decisions on the known gaps (Marlow Build, 2026-10-24 ~20:25; V1 and V5a-e follow these)
+## Lead decisions (Marlow Build, 2026-10-24 ~20:25; the validator follows these)
 1. New co-op kind `pair_gate` for team doors (counts as a co-op link in no-softlock and coverage).
 2. New kinds `team_rope` (co-op) and `rappel` (solo, one way by default). Hang-down stays `drop`; jam-and-pass is an
    `assist` reason, not a kind.
@@ -220,9 +220,9 @@ beside each target, and the map fails if a measurement misses its target.
 - **Partner reach and split times** come from `length` / `time_s`, so measure them on the plan, not by eye. Climbs:
   about 1 s per metre of ladder plus the walk; a co-op boost about 4-6 s.
 
-## Rule coverage (BRIEF mapping table -> field)
+## Rule coverage (rule -> field)
 
-| BRIEF row | Field(s) | | BRIEF row | Field(s) |
+| Rule | Field(s) | | Rule | Field(s) |
 | --- | --- | --- | --- | --- |
 | Snap grid | `size`, `width`, `height`, `length` | | Rule of three | links per encounter, `route` |
 | Player size | info only (no field) | | Routes cross | `route`, `entry` / `exit`, `section` |
@@ -246,18 +246,3 @@ beside each target, and the map fails if a measurement misses its target.
 The campus graphs (`docs/sector-redesign/graph/`) follow `docs/level-validator/campus-run/CONVENTIONS.md`: storeys,
 connectors as `spine` links, posted choke guards, dogs, and what stays out of the graph.
 
-## Known gaps (as found by V0; settled in "Lead decisions on the known gaps" above)
-
-1. **Team doors** (pair gate / pair bolt: campus CR5 S4 cage, CR6 S5 archive): no kind. Written as `door` they count
-   as solo links, so the no-softlock and coverage checks would miscount. Needs a co-op kind (e.g. `pair_gate`).
-2. **Two-person rope** (CR7, S5 light well; G180 restores CT's two-person rope over G110) and **rappel** (S5 high
-   route; `RAPPEL` in `src/config/movement.ts:370`): no kinds. The core schema's "no rope (G110)" is out of date for
-   both. Hang-down (CR4) fits `drop`; jam-and-pass fits `assist`-style `reason` text, not a kind.
-3. **Connector tension.** With connectors as spine links, pacing cannot see the release a connector gives (links have
-   no `tension`); V1 may treat each `spine` link as a release, or the lead adds `tension` to spine links.
-4. **`length` semantics.** This doc defines middle-to-middle walking length; V1 must not also add A5's half long side
-   per space (M4 replaced A5).
-5. **Speeds per kind.** Section 8 has only 1.3 / 3.0 m/s; climbs, crawls and co-op moves rely on `time_s`. V1: a
-   split leg or reach path through such a link with no `time_s` should WARN, not silently use walking speed.
-6. **Open sky.** Section 7 `yard` ceilings are `open`; `size[2]` has no open value (this doc: 12.0). V1 / V1a must
-   skip the ceiling range for `open` classes and the 3.0 ceiling WARN for `exterior` spaces.

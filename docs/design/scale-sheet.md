@@ -38,7 +38,7 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Corridor | 3.5 - 4.0 m wide (never under 3.0) |
 | Play space | at least 6 m on the short side |
 | Ceiling | 3.0 m rooms and corridors; 4.5 - 6.0 m halls. Storey height (floor to floor) 3.3 m with a 0.3 slab |
-| Ceiling minimum | 2.4 m clear wherever a player walks: the validator's hard floor (ERR), not a room height; rooms and corridors stay 3.0 m (row above); ducts and open sky exempt (level-validator BRIEF mapping, row "Ceiling") |
+| Ceiling minimum | 2.4 m clear wherever a player walks: the validator's hard floor (ERR), not a room height; rooms and corridors stay 3.0 m (row above); ducts and open sky exempt |
 | Fire stair (enclosed) | 1.3 m wide, two flights and a 1.3 m landing, fire door top and bottom (1.2 wide), the only stairs with doors |
 | Open feature stair | 2.4 m wide, rise 0.165, run 0.285 (slope 0.58, 30 deg), mid landing 2.0 m, no door, rails on open sides |
 | Stair height rule | floor to floor 3.3 m = 20 risers, so two flights of 10 (NCC allows 2 - 18 per flight) |
@@ -146,7 +146,7 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 | `step_band_min_m` | 0.40 | m | level changes between this and `step_band_max_m` are forbidden (player 0.42 vs nav 0.45 disagree, section 3) |
 | `step_band_max_m` | 0.45 | m | upper edge of the forbidden step band |
 | `grid_m` | 0.5 | m | snap grid for every size, width, height and length (nav cell, section 1) |
-| `dead_end_max_m` | 15 | m | a dead end (one neighbour) is allowed only for a reward or objective space no longer than this (level-validator BRIEF mapping, row "Dead ends"; level-design 3.4, 16.6.3) |
+| `dead_end_max_m` | 15 | m | a dead end (one neighbour) is allowed only for a reward or objective space no longer than this (level-design 3.4, 16.6.3) |
 | `guards_early` | 3 - 6 | guards | per encounter space and player count in the first half of the spine; WARN below the low end only, no upper limit (Michael 2026-10-24: "as many guards as realistically possible"; bounded by the guard-cap perf floor and passable routes; level-design 4.9) |
 | `guards_late` | 6 - 10 | guards | the same in the second half of the spine; WARN below the low end only (level-design 4.9) |
 | `sector_alive_max` | 32 | guards | Sector Ops: the most guards alive at once, a ceiling per section and player count, not a target (`SECTOR.maxAlive`, `src/game/sectors.ts:508`; G187); level-design 4.9 |
