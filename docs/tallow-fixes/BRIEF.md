@@ -32,6 +32,11 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-25 ~19:00 (plan), fix round
 - G285 (c) 2+ independent routes per section; G333 hardened lit chokes -> "Everywhere"; G335 lookouts and pairs -> "Add
   both".
 - ROADMAP "Decided" ~19:00 (relayed by the lead): free assets allowed when the licence permits commercial sale, credited.
+- 2026-10-25 ~20:45 (native multiple choice, relayed by the orchestrator) Tallow throw gaps -> "Mix of both": per spot,
+  the plank bridge (G403, waits for Player Build's kit moves) or a longer throw at that spot (5.8 m over a 4.9 m gap;
+  Marlow updates the validator's throw-gap row only for the spots that use it); at least one spot buildable now. The
+  lead's picks: M2.
+- 2026-10-25 ~20:45 closed rooms at night -> "Yes, night lights only (Recommended)" (A1 confirmed): M1.
 
 ## Goal
 Tallow Wharf (campaign Mission 1) becomes a greybox that meets the level standard and the hard rules: every throw needs
@@ -48,10 +53,16 @@ so the greybox exit (measured validator, bot route-runs, Michael's walk) can run
 - Flag: `missions` (`?missions=1`), owner Night Shift | Campaign Build, switch-on date 2026-11-01 (A26).
 
 ## Answers (M) and assumptions (A)
-No M answers yet. Assumptions (full text and numbers in the plan, section 3):
-- A1 Q2 "Never" on Tallow: every fitting works; closed spaces (pie shop, clock loft, lane-window loft, strongroom,
-  partners' office, shed two) are lit only by night and emergency fittings. Overnight, a narrow reading of Q2: one
-  click for Michael by day. Undo: light the closed spaces to their working bands (data per section).
+- M1 (~20:45, was A1) Closed spaces (pie shop, clock loft, lane-window loft, strongroom, partners' office, shed two)
+  are lit only by night and emergency fittings; every fitting works.
+- M2 (~20:45 "Mix of both"; spots picked by the lead) C4 pawn loft -> reading room (Three Grey Coats' main route) and C5
+  arcade roof -> W3 roof (both missions pass it): a longer throw, 5.8 m over 4.9 m (built now, TD). C4 pie loft -> clock
+  loft (only on the route after a broken rule): the plank bridge (G403), built when Player Build's plank move lands;
+  until then that gap stays 2.5 m with today's throw, flagged as not yet forced. Why: the two routes every run needs
+  are buildable now; the realistic plank goes where a loft-to-loft lightwell suits it. Undo: swap a spot's kind (data
+  per throw site).
+Assumptions (full text and numbers in the plan, section 3):
+- A1 Answered: M1.
 - A2 Provisional bands from light-realism's draft table. Undo: data re-tune when Michael's table differs.
 - A3 Night floors as the campus. Undo: restore `ambient 0.3` / `lightLevel 0.3`.
 - A4 Forced throws: each Tallow throw site carries a 5.8 m throw over a 4.9 m gap (beats both solo-jump models by over
@@ -74,9 +85,8 @@ No M answers yet. Assumptions (full text and numbers in the plan, section 3):
 - A22 Validator gate: 0 ERR on master's validator (three named throw-gap lines excepted until Marlow's TV lands). Undo:
   J12's ported validator once on master.
 - A23 Free assets only after the greybox gates, each download with the lead's go. Undo: in-repo props.
-- A24 Per-site throw length (layout throw sites; default 3.2 m everywhere else) and the scale sheet "Throw gap" row
-  following it. Overnight, touches the level standard (scale sheet: "a change needs Michael's approval"): one click
-  for Michael by day. Undo: remove Tallow's sites and the two standard edits (A4's undo).
+- A24 Answered: M2 (per-site throw length at the two throw spots; default 3.2 m everywhere else; the scale sheet
+  "Throw gap" row follows it for those spots only, Marlow).
 - A25 The reading room's stair-head door opens from inside only (forces C4; exits open from inside). Undo: unbolt it and
   drop the bridges (the gate-reach errors return).
 - A26 `missions` switch-on date 2026-11-01, after Michael's Tallow walk; on only when he accepts. Undo: move the date.
@@ -84,10 +94,7 @@ No M answers yet. Assumptions (full text and numbers in the plan, section 3):
   per A4.
 
 ## Questions for Michael (one click each, asked by day)
-- Q-A1: Closed rooms at night: "Night and emergency lights only (Recommended)" / "Lit like working rooms". Blocks:
-  nothing (built to A1). Default: A1.
-- Q-A24: Throw gaps on Tallow: "Longer throw at these three spots (Recommended)" / "Keep the standard throw (gaps stay
-  jumpable alone)". Blocks: TV (the standard text); TD builds dark meanwhile. Default: A24.
+- None open (Q-A1 and Q-A24 answered ~20:45: M1, M2).
 
 ## Sign-off needed
 No new page: Michael approved the drawing (~18:05) and confirms the changes on his walk (A12); the changes list goes on
