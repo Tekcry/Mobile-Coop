@@ -24,12 +24,22 @@ The `mixamo` flag and its default are untouched (a separate slice builds the "An
 | Capture | Before (I2) | After (I2b) | Hand-made | Row |
 | --- | --- | --- | --- | --- |
 | crawling_hands_and_knees | spYaw -4.72..-1.42 rad; joints 13.8 cm a frame, 24.9 pop | spYaw -0.10..0.15; 3.4 cm, 1.7 pop | 0.5 / 0.1 | on |
-| climbing_ladder | palms 0.00, soles 38.4 cm | unchanged; on, the top-out's first frame jumps a joint 23.5 cm (capture to capture) | 0.00 / 31.6; 15.7 | off |
+| climbing_ladder | palms 0.00, soles 38.4 cm | unchanged; on, the top-out's first frame jumps a joint 23.5 cm (capture to capture) | 0.00 / 31.6; 15.7 | on (fix round: 19.9 cm, below) |
 | braced_hang_to_crouch | palms 29.3 cm | climbHands: palms 58.5 cm off the lip, shoulders 0.85 m (arm 0.54), knee 2.0 cm into the clearance, wrists 16.5 pop | 0.0 cm, 0.49 m, 2.6, 2.8 | off |
 | freehang_climb | trunk 20 cm a frame, wrists 9.9 pop | trunk 19.7 / 9.9 pop, wrists 11.1 pop at k 0.85 (hips turn to 1.5 rad) | 8.6 / 2.7, 2.8 | off |
 Unchanged and on: hanging_idle, both shimmies (palms 0.00), climbing_ladder_to_standing (palms 7.0 vs 11.8).
 
-## Why three stay off (visible)
+## Fix round (00:30-00:45)
+- `src/anim/animGraph.ts:1284-1288,3029-3031`: a capture giving way to another capture across a move change (`mxKind`,
+  the traversal kind) triggers the inertializer, as capture <-> hand-made did; the hang's idle / shimmy blend (same
+  kind) does not. Flag off: no capture plays, nothing changes.
+- climbing_ladder on: the top-out's first frame moves the right ankle 19.9 cm (was 23.5; hand-made 15.7); top-out palms
+  3.15 cm (was 4.15). `tests/mixamoTraverse.test.ts` caps that frame at hand-made + 5 cm when the ladder capture is on;
+  the inertializer test measures the hand-made ladder to the top-out capture (ladder row set off inside it).
+- Allocation test: passed once (1344 vs 1360 B), failed once (568 vs 440 B, rounds 1616/568... vs 440): the JIT swing,
+  left to the #477 fixer making it robust on feature/mixamo-i2.
+
+## Why two stay off (visible, at the first save the ladder too)
 - climbing_ladder: from the ladder capture the top-out capture's first frame jumps a joint 23.5 cm (hand-made 15.7):
   a capture-to-capture switch the graph does not inertialize (`animGraph.ts` `mxLast` is capture vs hand-made only).
 - braced_hang_to_crouch: the hands leave the lip by about half a metre before the foot is on top.
@@ -51,7 +61,6 @@ mocapSwitch, animSkeletonIdentity, changesFragments, mixamoChannels.
 - No per-clip anchor offset tried for braced / ladder (out of time before the 00:52 cap).
 
 ## Open
-- Ladder: inertialize a capture-to-capture switch (track the capture clip, not a boolean, in `mxLast`), then on.
 - freehang_climb: re-centre the stand-up's hip turn (pelYaw toward 0 past the crouch) and retime the stand-up end;
   then climbHands with it on.
 - braced_hang_to_crouch: hold the palms on the lip until release (a per-clip reach alignment of hLX..hRZ / the pelvis

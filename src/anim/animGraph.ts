@@ -1281,8 +1281,11 @@ export class AnimGraph {
       // (I2 fix) a capture giving way to a hand-made clip (or the reverse) inside the traverse state is a source switch
       // the state change does not see (the still hang's capture to the hand-made climb-up jumped fLPitch 0.73 rad and the
       // ankle 31 cm in a frame): inertialized as a state change is. Flag off no capture ever plays: no trigger, as before
-      if (cap !== this.mxLast) trigger = true;
+      // (I2b) and one capture giving way to another across a move change (the ladder capture to the top-out capture
+      // jumped a joint 23.5 cm on the first frame, hand-made 15.7); within a move (the hang's idle / shimmy blend) no trigger
+      if (cap !== this.mxLast || (cap && i.traverse !== this.mxKind)) trigger = true;
       this.mxLast = cap;
+      this.mxKind = i.traverse;
       this.slot(i.traverse, 1, i.traverseT);
       if (i.traverse === 'mantle') {
         // (anim-n4b, PASS2 row 61) the hands plant on the top edge (`mantlePlant`, put over the hanging hands below) and
@@ -3026,6 +3029,8 @@ export class AnimGraph {
   private mxW = 0;
   /** (I2 fix) Last frame's traversal played a capture (a switch to or from the hand-made clip is inertialized). */
   private mxLast = false;
+  /** (I2b) The traversal kind last frame's capture played in (a capture to capture switch across kinds is inertialized). */
+  private mxKind: TraverseKind = 'none';
   /** (I2) `overClip(src, c, mxT, mxW)` with its time and weight read from the fields. */
   private mxOver(src: Pose, c: Clip): void {
     const w = this.mxW;

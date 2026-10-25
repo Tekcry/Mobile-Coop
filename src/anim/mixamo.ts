@@ -63,9 +63,9 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // off (visibly broken, I2b): its stand-up end turns the hips 86 deg (pelYaw to 1.5 rad) and snaps the trunk 19.7 cm and
   // the wrists 11.1 cm velocity change in a frame (k 0.85; limits 9.6 / 3; climbHands harness)
   freehang_climb: false,
-  // off (visibly broken, I2b): from it the top-out's first frame jumps a joint 23.5 cm (hand-made ladder 15.7; capture to
-  // capture, not inertialized). Else fine: palms 0.00 cm, soles 38 cm vs 32 (the rig's climb foot cap, not contact)
-  climbing_ladder: false,
+  // on (I2b): palms 0.00 cm (hand-made 0.00); soles 38 cm vs 32 (the rig's climb foot cap, not contact); into the top-out
+  // the first frame moves the right ankle 19.9 cm (hand-made 15.7; 23.5 before the capture-to-capture trigger, animGraph)
+  climbing_ladder: true,
   climbing_ladder_to_standing: true,
   // on (I2b): the M4 chest yaw fixed (from the right axis past 75 deg pitch: spYaw -0.10 to 0.15, was -4.72 to -1.42); the
   // joints step 3.4 cm a frame, 1.7 cm velocity change (hand-made 0.5 / 0.1; was 13.8 / 24.9 with the flip)

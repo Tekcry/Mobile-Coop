@@ -43,5 +43,7 @@
   braced re-emitted (other 5 clips byte-identical). MIXAMO_ON: crawl on (3.4 / 1.7 cm, was 13.8 / 24.9); ladder off
   (top-out first frame jumps 23.5 cm, capture to capture not inertialized); braced_hang_to_crouch off (palms 58 cm off the lip), freehang_climb off
   (stand-up hips turn 86 deg, trunk 19.7 cm a frame). Report: I2B-REPORT.md.
-- Left: ladder (inertialize capture-to-capture in animGraph mxLast); freehang stand-up (re-centre its pelYaw turn, retime the x2.85 end) and braced (hands on the lip: anchor the
+- At the save (00:40, fix round): animGraph inertializes capture -> capture across a move change (mxKind); ladder ON
+  (top-out first frame 19.9 cm vs hand-made 15.7, was 23.5). mixamoTraverse 11/12 (allocation test: JIT swing, #477 fixer).
+- Left: braced (hand pin on the lip) not started; freehang stand-up (re-centre its pelYaw turn, retime the x2.85 end) and braced (hands on the lip: anchor the
   palms to the lip through release) so climbHands passes with them on; the flag default unchanged (feature/mixamo-on).
