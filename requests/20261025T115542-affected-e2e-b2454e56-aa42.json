@@ -1,0 +1,19 @@
+{
+  "id": "20261025T115542-affected-e2e-b2454e56-aa42",
+  "sha": "b2454e5615cd18c9602e7cf5528e5b0921ded66d",
+  "branch": "feature/mixamo-retarget",
+  "pr": 452,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-menus",
+    "e2e-move",
+    "e2e-studio",
+    "e2e-tuner-phone",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #452"
+}
