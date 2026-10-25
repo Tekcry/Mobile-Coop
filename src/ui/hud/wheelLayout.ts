@@ -7,7 +7,7 @@ export interface WheelFit {
   /** The safe-area box. */
   w: number;
   h: number;
-  /** Height taken at the top (the top HUD: compass, area label, objective), measured from the box top. */
+  /** Height taken at the top (the top HUD: area label, objective), measured from the box top. */
   top: number;
   /** The hint box size (its text is set before the layout runs). */
   hintW: number;

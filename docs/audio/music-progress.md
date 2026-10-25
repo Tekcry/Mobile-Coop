@@ -737,7 +737,7 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 
 ---
 
-Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `docs/audio/music-direction-v2.md`
+Spec: `docs/archive/prompts/music-spec.md` (Section 2 rules still apply). Direction: `docs/archive/audio/music-direction-v2.md`
 (replaces `music-direction.md`). Brief: `C:\NightShift\bundles\music-direction-v2.md`. Branch: `feature/music`.
 
 ## Status
@@ -761,12 +761,12 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 ---
 
 ## Stage M0 report
-- Done: `docs/audio/music-direction.md` - palette (40 sounds with synthesis), key centre D, tempos (84 / 96 / 168),
+- Done: `docs/archive/audio/music-direction.md` - palette (40 sounds with synthesis), key centre D, tempos (84 / 96 / 168),
   chord set and progressions, the five-note Night Shift motif and its eight forms, layer map (9 stems x 4 states),
   transition and hysteresis rules, stingers, Warehouse and Kestrel themes, menu / briefing / results themes, mix rules,
   originality rules, engine notes for M1.
 - Done: this progress file.
-- Files changed: `docs/audio/music-direction.md` (new), `docs/audio/music-progress.md` (new).
+- Files changed: `docs/archive/audio/music-direction.md` (new), `docs/audio/music-progress.md` (new).
 - Decisions:
   - Spec names guard states `relaxed / ... / search`; the code's `AlertLevel` is `unaware | suspicious | investigating |
     searching | alert | cooldown` -> direction 7.1 maps the real names; `cooldown` counts as calm (guards are back on
@@ -857,13 +857,13 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 ---
 
 ## Stage V0 report (direction v2)
-- Done: `docs/audio/music-direction-v2.md` - the MGS + Chaos Theory blend, five phases (Infiltration, Caution, Alert,
+- Done: `docs/archive/audio/music-direction-v2.md` - the MGS + Chaos Theory blend, five phases (Infiltration, Caution, Alert,
   Evasion, back down), tempos and keys, instruments with synthesis (synth-brass, strings, bells and mallets, sub and
   distorted mid bass, big synth drums, risers and a Shepard loop, the M1 found-sound kit), the stinger language, motif
   rules and where each form appears, the technique map (T1-T10), character, space and mix glue, mix rules, menu /
   briefing / results and map colours, originality rules, engine notes for V2.
 - Done: `music-direction.md` marked as replaced; this file's status table moved to the V plan.
-- Files changed: `docs/audio/music-direction-v2.md` (new), `docs/audio/music-direction.md`, `docs/audio/music-progress.md`.
+- Files changed: `docs/archive/audio/music-direction-v2.md` (new), `docs/archive/audio/music-direction.md`, `docs/audio/music-progress.md`.
   Merged `origin/ct-movement` (clean).
 - Decisions (for Michael to veto):
   - Key centre stays D minor (the M1 engine and found sounds are tuned there).
@@ -913,7 +913,7 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   | C | Undertow | D Eb D A C Bb A | A semitone rub on D, a drop to low A and a sigh back to it. Dark, ostinato-friendly. | Eb -> E, ends on D |
 
 - Files: `src/audio/music/{candidates,orchestra}.ts` (new), `library.ts`, `music.ts`, `musicLab.ts`, `offline.ts`,
-  `tests/music.test.ts`, `scripts/e2e-music.mjs`, `docs/systems/testing-tools.md`, `docs/audio/music-direction-v2.md`
+  `tests/music.test.ts`, `scripts/e2e-music.mjs`, `docs/systems/testing-tools.md`, `docs/archive/audio/music-direction-v2.md`
   (rule 3: resolved by one or two notes), this file.
 - Decisions:
   - Samples (Michael allowed CC0): not in V1. The candidates are judged on melody; V2 brings the sample set and the

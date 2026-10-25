@@ -28,7 +28,7 @@ prototype slices (Sonnet, medium).
 Before M1: the operators PR (Wren replaces the player body for both players, G123) merges first, so posture and
 animation are tuned once, on Wren. The menu job runs alongside on its own branch.
 
-### Movement track (from docs/locomotion/PROTOTYPE-PLAN.md P1-P4, updated to docs/DECISIONS.md)
+### Movement track (from docs/archive/locomotion/PROTOTYPE-PLAN.md P1-P4, updated to docs/DECISIONS.md)
 | Slice | What Michael plays | Built |
 | --- | --- | --- |
 | M1 Body | Walk, crouch and stop like CT | Five analog speeds standing and crouched, no sprint (loco M20 Q8), max-speed rocker with no indicator, gear pips removed (G107); starts, stops frozen mid-stride at every speed (G26), ease to idle after about 1.7 s (G27), turns as the footage (G25, G33), CT posture, roll on held crouch (G32); silent bands two standing, three crouched (G40). |

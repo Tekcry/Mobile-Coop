@@ -323,6 +323,8 @@ try {
   assert(visB.info.some((i) => i.inFrustum && i.active), `host avatar in the client camera's view (${JSON.stringify(visB)})`);
   const objB = await GB(() => window.__app.current.hud.objectiveText);
   assert(!/Connecting to host/.test(objB), `connecting label gone once in game (${objB})`);
+  // (G339) Marlow Yard keeps its drill marker and pings but draws no minimap or compass, on either page
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) assert(await P.evaluate(() => !document.querySelector('.hud-minimap, .minimap, .hud-compass')), `no minimap or compass (G339) on the ${tag}`);
   await until(A, () => window.__app.current.net.remotes.values().next().value.avatar.figure.current >= 0, null, 20000, 'client figure LOD shown on the host');
   const visA = await avatarDrawn(A, 'host');
   assert(visA.ok, `client avatar drawn on the host (${JSON.stringify(visA)})`);

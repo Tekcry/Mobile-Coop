@@ -1,6 +1,6 @@
 # Night Shift - music direction v3
 
-Version 3.0 - 2026-10-09. Replaces `docs/audio/music-direction-v2.md` (kept for history). Approval: Michael, by ear in
+Version 3.0 - 2026-10-09. Replaces `docs/archive/audio/music-direction-v2.md` (kept for history). Approval: Michael, by ear in
 the music lab.
 
 **Why v3 (Michael, 2026-10-09):** he does not like where the music was going. The target is the feel of Amon Tobin's
@@ -94,13 +94,13 @@ that loop in sync**; the game moves their gains by threat. **Alert adds percussi
 
 ## 7. Samples (hard rule)
 
-- **CC0 only**, every file logged with its source URL in `docs/audio/samples.md` (generated from
-  `scripts/music/samples.json`, pinned to a commit of each library).
+- **Free samples whose licence allows commercial sale** (G407; the rule: bible Section 6), every file logged with its
+  source URL and licence in `docs/audio/samples.md` (generated from `scripts/music/samples.json`, pinned to a commit of
+  each library).
 - Current sources: **VSCO 2 Community Edition** and the **Versilian Community Sample Library (VCSL)**, both CC0 1.0,
   107 files (112 MB raw).
 - Raw WAVs are never committed: `npm run music:fetch` downloads them into `.music-cache/` (git-ignored). Only the
-  rendered stems ship. This is a written extension of the CLAUDE.md "no external audio" rule for the score, like the
-  v2 Section 13 exception; CLAUDE.md and the bible are updated when Michael merges.
+  rendered stems ship. The score stays composed for the game; licensed samples are allowed (G58, G407).
 
 ## 8. Delivery: offline render to compressed stems
 

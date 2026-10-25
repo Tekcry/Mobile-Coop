@@ -2,14 +2,14 @@
 // Studio at ?gfx=high (Wren's LOD0, the studio's stage light), plays `keyed:jog` paused on its contact key (phase 0, the
 // left heel strike) and on phase 0.25, untuned and then with the S4 rows: the Joints clavicle rows (roll 15, the left
 // mirrored: both shoulders shrug) and leg deltas on jog key 0 (left knee + 25, hip yaw + 20: the planted foot stays on
-// its plant, the knee turns out). One labelled contact sheet: docs/anim-skeleton/s4/jog-s4-rows.webp (< 600 KB).
+// its plant, the knee turns out). One labelled contact sheet: docs/archive/anim-skeleton/s4/jog-s4-rows.webp (< 600 KB).
 //   E2E_GPU=1 node scripts/anim-skeleton/gpushot-s4.mjs            (needs a prior `npm run build`)
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { launch, waitOperator } from '../e2e-lib.mjs';
 
 const PORT = 4189;
-const OUT = 'docs/anim-skeleton/s4';
+const OUT = 'docs/archive/anim-skeleton/s4';
 const BODY = ['idle', 'walk', 'jog', 'run', 'crouchIdle', 'sneak', 'crouchWalk'];
 mkdirSync(OUT, { recursive: true });
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });

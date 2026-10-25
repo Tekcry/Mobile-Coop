@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_INTRUDERS, mayBeSeen, nearestTarget, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from '../src/ai/targetPick';
+import { CALM_KEEP, MAX_INTRUDERS, mayBeSeen, nearestTarget, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from '../src/ai/targetPick';
 import { sightRate, type SightInput } from '../src/ai/perception';
 
 // (guard-ai S23) Co-op perception, the pure part: `mayBeSeen` (no ray for a player a calm guard cannot see) agrees with
@@ -52,6 +52,29 @@ describe('pickTarget', () => {
     expect(pickTarget(2, false, -1, -1, L(0, 1), D(0.1, 0.9), D(4, 9))).toBe(1);
     expect(pickTarget(2, false, -1, -1, L(1, 1), D(1.2, 0.4), D(6, 3))).toBe(0);
     expect(pickTarget(3, false, -1, -1, L(0, 0, 0), D(0, 0, 0), D(7, 3, 5))).toBe(1);
+  });
+
+  it('(polish C1, A169) calm: keeps cur until another rate beats his by CALM_KEEP (1.25); solo unchanged', () => {
+    expect(CALM_KEEP).toBe(1.25);
+    // near-equal rates: cur stays, whichever he is (no swap every think)
+    expect(pickTarget(2, false, 0, -1, L(1, 1), D(1.0, 1.1), D(6, 4))).toBe(0);
+    expect(pickTarget(2, false, 1, -1, L(1, 1), D(1.1, 1.0), D(4, 6))).toBe(1);
+    // equal rates, the other nearer: cur stays (before: the nearer)
+    expect(pickTarget(2, false, 0, -1, L(1, 1), D(0.5, 0.5), D(6, 4))).toBe(0);
+    // clearly better seen: switch
+    expect(pickTarget(2, false, 0, -1, L(1, 1), D(1.0, 1.3), D(6, 4))).toBe(1);
+    // exactly 1.25 x is not "beats": stays
+    expect(pickTarget(2, false, 0, -1, L(1, 1), D(2, 2.5), D(6, 4))).toBe(0);
+    // cur not seen any more (rate 0) or dead: the best seen
+    expect(pickTarget(2, false, 0, -1, L(0, 1), D(0, 0.2), D(6, 4))).toBe(1);
+    expect(pickTarget(2, false, 0, -1, L(1, 1), D(1.0, 0.9), D(X, 4))).toBe(1);
+    // cur out of range: ignored
+    expect(pickTarget(2, false, 3, -1, L(1, 1), D(1.0, 1.1), D(6, 4))).toBe(1);
+    // solo: the one seen, as before
+    expect(pickTarget(1, false, 0, -1, L(1), D(0.4), D(5))).toBe(0);
+    expect(pickTarget(1, false, -1, -1, L(1), D(0.4), D(5))).toBe(0);
+    // no cur (TARGETS.sticky false passes -1): the highest rate as before
+    expect(pickTarget(2, false, -1, -1, L(1, 1), D(1.0, 1.1), D(6, 4))).toBe(1);
   });
 
   it('alerted: keeps cur while he has los; else the nearest visible; else hunt, then cur, then the nearest', () => {

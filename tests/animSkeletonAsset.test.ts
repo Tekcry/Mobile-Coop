@@ -1,4 +1,4 @@
-// (anim-skeleton S1, docs/anim-skeleton/PLAN.md) The shipped Wren files carry the clavicle joints (every LOD) and the
+// (anim-skeleton S1, docs/archive/anim-skeleton/PLAN.md) The shipped Wren files carry the clavicle joints (every LOD) and the
 // hero's finger joints (LOD0 / LOD1), skinned, within the LOD budgets; the runtime poser loads them and, until the rig
 // drives them (S2), the clavicles follow the chest and the fingers the wrist exactly, so the game looks as before.
 import { readFileSync } from 'node:fs';

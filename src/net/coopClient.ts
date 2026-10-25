@@ -1,7 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
-import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Body, deathLieOn } from '../ai/body';
 import { newLie } from '../ai/bodyLie';
@@ -223,10 +222,8 @@ export class CoopClient implements NetAttachment {
       g.ctDev = ct;
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
-      // (slice L) the host's lamps; our round through a lamp asks the host to shoot it out (host-authoritative)
+      // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
       this.lamps = new LampMirror();
-      g.weapons.onRay = (a, b) => this.lampRay(a, b);
-      this.offs.push(() => (g.weapons.onRay = null));
       this.offs.push(() => {
         ct.dispose();
         g.ctDev = null;
@@ -240,6 +237,12 @@ export class CoopClient implements NetAttachment {
         this.card = null;
         this.onRating = null;
       });
+    }
+    // (slice L; coop-real F1b, S2: Course mode too) our round through a lamp asks the host to shoot it out
+    // (host-authoritative); first in the onRay chain, the sway and ricochet hooks chain after it
+    if (clientLampShots(g.opts.mode)) {
+      g.weapons.onRay = (a, b) => this.lampRay(a, b);
+      this.offs.push(() => (g.weapons.onRay = null));
     }
     // (39, LR16-5b) Marlow Yard's swinging pendants: our round past one asks the host to kick it (no local kick: the
     // host's `sway` event swings it on both pages alike)
@@ -497,14 +500,16 @@ export class CoopClient implements NetAttachment {
         // (guard-ai S9) our own deflect shown at once; his helmet falling when the host's bit clears
         np.onDeflect = () => this.deflects.predict(this.time);
         np.onDropHelmet = (x, y, z, top, dx, dz, hex, w, h, d) => this.dropHelmet(x, y, z, top, dx, dz, hex, w, h, d);
-        // (PR 3) the training guard's information: the course slot he appeared at (both sides load the same map; no wire data)
-        np.info = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
+        // (PR 3) the lines the training guard says: the course slot he appeared at (both sides load the same map); whether
+        // he still has intel is the host's `in` flag (stealth-pays client intel, below)
+        np.spawnInfo = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
         np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
         this.puppets.set(e.id, np);
         p = np;
       }
       p.stale = 0;
+      p.setIntel(e.in === 1);
       p.buf.push(m.time, e);
     }
     // enemies the host no longer reports (despawned without a kill event)
@@ -726,7 +731,8 @@ export class CoopClient implements NetAttachment {
   }
 
   /** (slice L) Our round's segment: the first lamp along it that can be shot goes to the host as a `shot` at `lt-<id>`
-   *  (the host checks it and shoots it out; we see it dark from its next `lamps`). Nothing is shot out here. */
+   *  (the host checks it and shoots it out; we see it dark from its next `lamps`, or (coop-real F1b) its next `course`
+   *  `lights.dead` in Course mode). Nothing is shot out here. */
   private lampRay(a: Vector3, b: Vector3): void {
     const reg = this.g.world.level.lights;
     const id = lightOnRay(reg, a.x, a.y, a.z, b.x, b.y, b.z);
@@ -1032,6 +1038,8 @@ export class CoopClient implements NetAttachment {
       this.kitSection = msg.ls;
       this.g.weapons.markCheckpoint();
     }
+    // (section-bake, SB10) the host's live section bakes first here too (a late join or rejoin past section 1)
+    if (msg.ls !== undefined && msg.ls >= 0) this.g.world.lightBake?.sections?.setLive(msg.ls);
     if (ct) {
       if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
       if (msg.dn) ct.applyDestroyed(msg.dn);
@@ -1379,15 +1387,6 @@ export class CoopClient implements NetAttachment {
     for (const p of this.puppetList) if (p.alive) b.add(p.pos.x, p.pos.y, p.pos.z, 0.4 * p.def.scale);
   }
 
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const [id, a] of this.avatars) {
-      const slot = this.s.slotOf(id);
-      out.push(slot < 0 ? { x: a.pos.x, z: a.pos.z, kind: 'ally' } : { x: a.pos.x, z: a.pos.z, kind: 'ally', slot });
-    }
-    return out;
-  }
-
   dispose(): void {
     for (const o of this.offs) o();
     for (const id of [...this.avatars.keys()]) this.dropAvatar(id);
@@ -1410,4 +1409,10 @@ export class CoopClient implements NetAttachment {
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;
   }
+}
+
+/** (coop-real F1b, S2) Does a client send its lamp rounds (`shot` at `lt-<id>`) to the host in this mode? Sector Ops and
+ *  Course mode (the host's rule: `hostLampShots`). */
+export function clientLampShots(mode: string | undefined): boolean {
+  return mode === 'sector' || mode === 'course';
 }

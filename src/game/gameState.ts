@@ -2,6 +2,7 @@ import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
 import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
+import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
@@ -14,6 +15,7 @@ import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
 import { PauseLook } from '../vfx/pauseLook';
+import { mapLampBeams } from '../vfx/volLights';
 import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
@@ -26,7 +28,6 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import type { WheelView } from '../ui/hud/gadgetWheel';
 import { keyLabels } from '../ui/prompts';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
-import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
@@ -264,7 +265,6 @@ export interface NetAttachment {
   /** Extra pickers for pickups (host: remote players). */
   pickers?(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[];
   onPickup?(kind: PickupKind, who: string): void;
-  blips?(): Blip[];
   /** (guard-ai S9) Client: where guard `who`'s line shows (over his puppet's head) into `out`; false when not here. */
   barkAt?(who: string, out: Vector3): boolean;
   /** (coop-carry) Client: the local player's body carry (the host has its own in `StealthSystems`). */
@@ -362,7 +362,6 @@ export class GameState implements AppState {
   readonly weapons: PlayerWeapons;
   readonly target: PlayerTarget;
   readonly hud: Hud;
-  readonly minimap: Minimap;
   readonly traversal: TraversalController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
@@ -408,9 +407,6 @@ export class GameState implements AppState {
   private time = 0;
   private respawnT = -1;
   private onTarget = false;
-  private tmp = new Vector3();
-  /** Extra blips/markers contributed by the active mode. */
-  extraBlips: () => Blip[] = () => [];
   readonly nav: NavGrid | null = null;
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
@@ -645,6 +641,8 @@ export class GameState implements AppState {
       // fog: moonlit shafts under the skylights and through the doors (the baked moon's visibility)
       sky: world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
+      // (fog triage) Saltmarsh Park: its cone fittings haze under their shade, only torches beam
+      lampBeams: mapLampBeams(world.map.theme),
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
     if (world.lamps) world.lamps.capsules = this.rtCapsules;
@@ -668,8 +666,6 @@ export class GameState implements AppState {
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
-    this.minimap = new Minimap(world.level);
-    this.hud.setMinimap(this.minimap);
 
     this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
@@ -779,7 +775,6 @@ export class GameState implements AppState {
         // the round lands somewhere: a thud / ricochet close by is heard
         this.enemyMgr?.hear(b, IMPACT_NOISE);
       };
-      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => {
         const em = this.enemyMgr;
         if (!em) return '';
@@ -795,9 +790,6 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox') {
-      this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
-    }
     // (LR16-5b) Marlow Yard's swinging pendants (solo and host; a co-op client asks the host, `CoopClient.swayRay`): our
     // rounds, the guards' rounds and blasts kick them on the shared clock; the host sends each accepted kick
     // (`CoopHost`: `onKick`). Head bumps: `updateLight`. The hooks are made once here, not per frame.
@@ -950,7 +942,16 @@ export class GameState implements AppState {
     // (`?gfx=min`: the blockout's boxes in standard materials; every other preset draws them smooth - PBR with the
     // surface atlas and baked lamps)
     const plain = q.minimal;
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
+    // (section-bake robust, check A P8) a load that throws after its lamp bake started (no GameState to dispose it): the
+    // bake's workers stop here
+    const bakers = sectionBakerMark();
+    let world: World;
+    try {
+      world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
+    } catch (e) {
+      disposeSectionBakersSince(bakers);
+      throw e;
+    }
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     // (anim-studio) the studio stage: single player only (never offered in a co-op session)
@@ -988,8 +989,16 @@ export class GameState implements AppState {
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
     // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
     // screen and under the same cap (`guardWarm.ts`; the flag off waits for exactly what it did)
+    // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
+    // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
     const ready = g.scene.whenReadyAsync();
-    await Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
+    const sb = world.lightBake?.sections;
+    await Promise.all([
+      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
+      sb ? sb.whenReady(sb.plan.live) : null,
+    ]);
+    // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
+    sb?.markPlaying();
     return g;
   }
 
@@ -1280,6 +1289,8 @@ export class GameState implements AppState {
     this.target.dispose();
     this.vfx.dispose();
     this.player.dispose();
+    // (section-bake, SB11) a background lamp bake stops with the match (nothing more lands, nothing is cached)
+    this.world.lightBake?.sections?.dispose();
     this.world.dispose();
   }
 
@@ -2173,9 +2184,6 @@ export class GameState implements AppState {
       }
     }
   }
-
-  /** Enemy blips on the minimap last frame (tests). */
-  enemyBlips = 0;
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
@@ -3648,33 +3656,9 @@ export class GameState implements AppState {
       crosshair: this.weapons.drawPhase === 2 && this.player.ads,
       onTarget: this.onTarget,
       ads: this.player.cam.ads > 0.5,
-      yaw: cam.yaw,
-      markers: [],
     };
-    const blips: Blip[] = [];
-    // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)
-    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode || this.mode instanceof SectorMode;
-    const radar = stealthMode ? this.hq.radar : Infinity;
-    let enemyBlips = 0;
-    if (radar > 0) {
-      const pp = this.player.position;
-      for (const t of this.registry.hostiles('player')) {
-        t.center(this.tmp);
-        if (hyp2(this.tmp.x - pp.x, this.tmp.z - pp.z) > radar) continue;
-        blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
-        enemyBlips++;
-      }
-    }
-    this.enemyBlips = enemyBlips;
-    for (const g of this.grenades.positions()) blips.push({ x: g.x, z: g.z, kind: 'danger' });
-    blips.push(...this.extraBlips());
-    for (const b of blips) {
-      if (b.kind === 'objective') f.markers.push({ bearing: Math.atan2(b.x - this.player.position.x, b.z - this.player.position.z), kind: 'objective' });
-    }
     this.hud.update(f);
     this.updateCoverHud();
-    const p = this.player.controller.renderPos;
-    this.minimap.draw(performance.now(), p.x, p.z, cam.yaw, blips);
   }
 }
 

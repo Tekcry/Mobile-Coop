@@ -7,7 +7,6 @@ import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import { ITEM_SCOPE_OFF } from '../itemScope';
-import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
@@ -387,7 +386,8 @@ export class SectorMode implements GameMode {
       const see = (body: unknown, x: number, y: number, z: number): boolean =>
         w.doors.seeThrough(body) || w.breakables.seeThrough(body) || inSheet(sheets, x, y, z);
       const views = (): number => w.doors.viewVersion() + w.breakables.viewVersion();
-      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views);
+      // (guard-render S10b) the torch / character shadow atlas slots count as shadowing lights
+      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views, { torch: w.torchShadows, chars: w.charShadows });
     }
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     // (section-rating S2) the section's alarms and found bodies; the dev / test view of the rating
@@ -731,6 +731,8 @@ export class SectorMode implements GameMode {
   /** Section `i` loads: its guards (unaware, on their routes; `?sectorGuards=N` caps them) and its devices. */
   private loadSection(i: number): void {
     const s = this.run.defs[i];
+    // (section-bake) the lamp bake (a map baking per section) bakes this section first
+    if (s) this.g.world.lightBake?.sections?.setLive(i);
     this.deskSec = s ? i : -1;
     this.ct?.setLive(s ? i : -1);
     // (cap fix) co-op mirrors this section's items only (plus the untagged ones)
@@ -888,7 +890,10 @@ export class SectorMode implements GameMode {
       if (this.run.extractStep(dt, all)) this.complete();
       return;
     }
-    this.connIn.allInside = all;
+    // (section-bake, SB9) the cycle waits until the next section's lamps are in (a map baking per section; in play they
+    // landed long before: the whole background bake takes well under a section's play)
+    const sb = this.g.world.lightBake?.sections;
+    this.connIn.allInside = all && (!sb || sb.ready(this.run.index + 1));
     this.connIn.doorwayClear = !doorway;
     const prev = this.run.index;
     const ev = this.run.step(dt, this.connIn);
@@ -1488,12 +1493,6 @@ export class SectorMode implements GameMode {
   /** Co-op host: a client's held jammer target, on the sender's slot (coop4 D1; one no longer listed reads as 1). */
   onRemoteJam(id: string, tgt: string, eye?: readonly [number, number, number], slot?: number): void {
     this.ct?.onRemoteJam(tgt, eye, slot ?? slotOfId(this.g, this.refs, id, 1));
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const it of this.its) if (it.enabled && !it.done) out.push({ x: it.pos.x, z: it.pos.z, kind: 'objective' });
-    return out;
   }
 
   /** Test view (`window.__sector.debug()`). */

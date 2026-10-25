@@ -34,7 +34,7 @@ Branch `feature/menu`, 2026-10-18. Prototype first (G87). Desktop only (G12). Co
   "Objectives4"), `.mission-rating`, `.course-panel`, `.rewards`, the "Play again" button in co-op / course.
 
 ## Files
-- New: `src/vfx/pauseLook.ts`, `tests/pauseLook.test.ts`, `scripts/menu-shots5.mjs`, `docs/menu-ui/SLICE5.md`,
+- New: `src/vfx/pauseLook.ts`, `tests/pauseLook.test.ts`, `scripts/archive/menu-shots5.mjs`, `docs/menu-ui/SLICE5.md`,
   `docs/menu-ui/shots/slice5-*.png`.
 - Changed: `src/ui/screens/pauseScreen.ts`, `resultsScreen.ts`, `src/game/gameState.ts` (pause, objectiveLines, disconnect,
   pause look, results nav), `src/vfx/postStack.ts` (`pauseK`, `hasDof`), `src/ui/hud/hud.ts` (`objectiveText`),
@@ -67,7 +67,7 @@ Branch `feature/menu`, 2026-10-18. Prototype first (G87). Desktop only (G12). Co
 - NOT run to completion: e2e-pad (its pause assertions were edited: four Downs to Report feedback, Stay focused, Right to
   Quit), e2e-mouse, e2e-coop. The runner was stopped for time. Rerun these on a quiet PC.
 - Shots: `docs/menu-ui/shots/slice5-pause.png`, `slice5-objectives.png`, `slice5-quit-confirm.png`, `slice5-results.png`
-  (taken before the final results CSS fix: re-run `scripts/menu-shots5.mjs` to refresh the results shot).
+  (taken before the final results CSS fix: re-run `scripts/archive/menu-shots5.mjs` to refresh the results shot).
 
 ## Follow-up: G146 rating
 - `missionRating(done, alarms, kills)` in `src/game/missions.ts`: 0 stars for a lost mission; otherwise 1 star for all primary objectives, +1 for no alarms raised, +1 for no kills (G146). The old formula (bonus rules and detections) is gone.

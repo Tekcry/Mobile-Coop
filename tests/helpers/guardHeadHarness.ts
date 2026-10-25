@@ -74,7 +74,7 @@ export interface Sc {
   /** T3: the steady bound after a change. */
   steady?: number;
   /** A written exception: a looser every-frame bound (and T3 steady bound) for this case, with why (the measured worst
-   *  error is in the reason; see docs/guard-render/STATE.md "S3a fix round"). */
+   *  error is in the reason; see docs/archive/guard-render/STATE.md "S3a fix round"). */
   except?: { bound: number; steady?: number; why: string };
 }
 

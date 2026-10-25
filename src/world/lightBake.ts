@@ -4,7 +4,9 @@
  * only on the map, seed, canonical shapes, lights and moon direction. `LightField` (gameplay) and the renderers read
  * this one thing (bible 5.1).
  */
-import { bakeLevelLamps, bakeLevelMoon, LAMP_VERSION, MOON_VERSION } from '../voxel/lampJobs';
+import { bakeLevelLamps, bakeLevelMoon, LAMP_VERSION, MOON_VERSION, readLampCache } from '../voxel/lampJobs';
+import { SectionBaker } from '../voxel/sectionJobs';
+import { lampSectionMasks, sectionBakeFor } from './sectionBake';
 import { CANON_VERSION, fnv } from '../voxel/lightShapes';
 import { MOON_CELL } from '../voxel/skyBake';
 import { buildAmbientGrid, type AmbientGrid } from './ambientGrid';
@@ -51,6 +53,11 @@ export interface LightBake {
   moonLight: number;
   /** Load time of the lamp and moon bakes together (ms; a cache hit reads in a few). */
   ms: number;
+  /**
+   * (section-bake) A Sector Ops map baking per section (`sectionBake.ts`, SB1) on a cache miss: `lamps.r` fills as its
+   * lamps land, the live section first (`GameState.create` waits for it); null or absent for a full or cached bake.
+   */
+  sections?: SectionBaker | null;
 }
 
 export interface LightBakeInput {
@@ -86,10 +93,38 @@ export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
   let lamps: LightBake['lamps'] = null;
   const hasLamps = !!baked && baked.ids.length > 0;
   if (hasLamps) lampKey = `lamps:${inp.mapId}:${inp.seed}:v${LAMP_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${hashFloats(baked.lights)}`;
-  const [r, m] = await Promise.all([hasLamps ? bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey) : Promise.resolve(null), bakeLevelMoon(inp.shapes, inp.lo, inp.hi, dir, moonKey)]);
+  // (section-bake, SB1 / SB2) an opted-in map on a cache miss: the result is laid out in full now and fills as the lamps
+  // land, the live section first (`GameState.create` waits for it), the others in the background
+  const def = hasLamps ? sectionBakeFor(inp.mapId) : null;
+  // (a holder: the job below sets it after an await, which a plain `let` would narrow away; `dead`: the bake already
+  // failed, so a job still awaiting the cache read starts nothing (section-bake robust, polish3))
+  const held: { sb: SectionBaker | null; dead: boolean } = { sb: null, dead: false };
+  const lampJob = async (): Promise<LampResult | null> => {
+    if (!baked || !hasLamps) return null;
+    if (!def) return bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey);
+    const hit = await readLampCache(lampKey, baked.ids.length);
+    if (held.dead) return null;
+    if (hit) return hit;
+    const sb = new SectionBaker({ shapes: inp.shapes, lights: baked.lights, lo: inp.lo, hi: inp.hi, masks: lampSectionMasks(baked.lights, def), sections: def.regions.length, key: lampKey });
+    held.sb = sb;
+    sb.start();
+    return sb.result;
+  };
+  let r: LampResult | null;
+  let m: Awaited<ReturnType<typeof bakeLevelMoon>>;
+  try {
+    [r, m] = await Promise.all([lampJob(), bakeLevelMoon(inp.shapes, inp.lo, inp.hi, dir, moonKey)]);
+  } catch (e) {
+    // (section-bake robust, check A P8) the moon failed beside a started section bake: its workers stop here; one not
+    // yet started (the job still awaits the cache read) never starts (polish3)
+    held.dead = true;
+    held.sb?.dispose();
+    throw e;
+  }
+  const sections = held.sb;
   if (r && baked) lamps = { baked, r };
   const moon: MoonGrid = { origin: [inp.lo[0], inp.lo[1], inp.lo[2]], n: [Math.max(1, Math.ceil((inp.hi[0] - inp.lo[0]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[1] - inp.lo[1]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[2] - inp.lo[2]) / MOON_CELL))], cell: MOON_CELL, vis: m.vis, dir };
-  return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, moonLight: inp.moonLight, ms: performance.now() - t0 };
+  return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, moonLight: inp.moonLight, ms: performance.now() - t0, sections };
 }
 
 /** A content hash of everything baked (the parity checks compare it across renderers; base 36). */

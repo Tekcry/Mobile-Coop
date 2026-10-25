@@ -1,7 +1,7 @@
 # Guard models: plan
 
 Planned on master 41204e30 (4.80.0). File:line refs are on that commit. Budget numbers are guard-render's
-(`docs/guard-render/STATE.md` "M1 result", `docs/guard-render/run-s1/REPORT.md`, laptop RTX 4090, Epic 1920x1080).
+(`docs/archive/guard-render/STATE.md` "M1 result", `docs/archive/guard-render/run-s1/REPORT.md`, laptop RTX 4090, Epic 1920x1080).
 Brief, limits, Michael's answers M1-M3 and assumed decisions A2-A15: `BRIEF.md`.
 Re-budget 2026-10-23 ~20:00 for M1 (mid-detail faces), M2 (fix pass G10), M3 (look seed on the wire, G6n) and laptop
 bakes (A12, slices GB and L0).
@@ -75,6 +75,10 @@ as its scripts are pushed; a slice's bake is one request with one step per stage
   `bake/guard-models` with git plumbing (temp index, no checkout, like `request.mjs`); the lead fetches it and copies
   the files into `src/operators/assets/guards/` in a normal commit after `operators:check` passes there.
 - Desktop fallback (A12): the same command under `heavy.lock` with `--par 2`.
+- (gm-bake-abort) A lost console (a job's exit `0xC0000142` after an account swap, or any job failing in under 2 s with
+  an empty log) stops the stage: no new job starts, the running ones finish, the rest are marked not started, and the
+  driver prints `ABORT: console lost, restart the bake detached` and exits 5 (no push). Restart the bake from a detached
+  process.
 - Pure parts (stage graph, hash keys, job split) in `scripts/operators/guardBakePlan.mjs` + Vitest.
 - Model: Sonnet from an Opus brief; Opus checker (it spawns processes and pushes). ~1 h.
 
@@ -229,7 +233,7 @@ Original designs, generic ids, every piece on the rigid-kit path (`rigid_skin.py
   --cells=patrol,away,alert --out=docs/guard-models/run-g8-on`, then the same with `?guardmodels=0` to `run-g8-off`,
   plus one `--cells=near` row (all 24 inside 8 m: the LOD0 worst case of section 6). Compare against section 6; fill
   the table in STATE.md.
-- Look check (`docs/guard-render/look-shot.js` adapted): one guard at 1.5 m, 3 m, 8 m, 25 m; every face in every
+- Look check (`docs/archive/guard-render/look-shot.js` adapted): one guard at 1.5 m, 3 m, 8 m, 25 m; every face in every
   tone; thermal, night vision; helmet on / knocked off; vest; plate; shield; the 24-guard line-up for variety; the
   same guards before and after a section restart (M3).
 - Model: Sonnet runs (laptop queue alone request), Opus reads the numbers. ~2 h.

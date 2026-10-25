@@ -39,6 +39,15 @@ export const SEARCH_AREA = {
 
 const N = SEARCH_AREA.points;
 
+/** (guard-ai polish B4) A plan rebuilt round the same last known position skips every candidate within `spacing` of a
+ *  point already searched or of the position itself (the searcher's first look), so each rebuild hands out new points
+ *  instead of re-offering the same top `points` and marking them done again. Undo: false (the 4.97.1 rule: the same
+ *  candidates re-offered, the searched ones re-marked done after the offers). */
+export const PLAN_SKIP_SEARCHED = true;
+
+/** Searched points a plan remembers across rebuilds round one position (a ring: the oldest is overwritten). */
+const SEARCHED = N * 4;
+
 /** R for a search started `sinceSeen` seconds after the intruder was last seen: clamp(base + speed x t, base, max).
  *  A negative, zero or NaN time gives `base`. */
 export function areaRadius(sinceSeen: number): number {
@@ -99,6 +108,16 @@ export class SearchPlan {
   cx = 0;
   cz = 0;
   builtAt = -1;
+  /** (guard-ai polish B4) The points searched (or found unreachable) since the plan's centre last moved: `sn` of them
+   *  (at most `SEARCHED`, the oldest overwritten), kept across a rebuild round the same position (`reset` with `keep`). */
+  readonly sx = new Float32Array(SEARCHED);
+  readonly sz = new Float32Array(SEARCHED);
+  sn = 0;
+  private sw = 0;
+  /** (polish2 A188) Guard num who took the last known position itself (a combat searcher's first look; -1 none): the
+   *  others of this plan start on plan points. Cleared when the centre moves (`reset` without `keep`) or its holder
+   *  leaves the search (`EnemyManager.planSweep`). */
+  lkpBy = -1;
 
   /** Candidate in, kept only if it beats the worst (or there is room) and is >= spacing from every kept point. A
    *  near-duplicate (closer than spacing) wins only by a strictly higher score; it then replaces every kept point it is
@@ -169,8 +188,38 @@ export class SearchPlan {
   /** Point k searched (or unreachable): done, unclaimed, never handed out again until `reset`. */
   finish(k: number): void {
     if (k < 0 || k >= this.n) return;
+    if (!this.done[k]) {
+      this.sx[this.sw] = this.x[k]!;
+      this.sz[this.sw] = this.z[k]!;
+      this.sw = (this.sw + 1) % SEARCHED;
+      if (this.sn < SEARCHED) this.sn++;
+    }
     this.done[k] = 1;
     this.claim[k] = -1;
+  }
+
+  /** (guard-ai polish B4) (x, z) is within `spacing` of the centre or of a point searched since it last moved: not worth
+   *  offering again (`PLAN_SKIP_SEARCHED`). */
+  covered(x: number, z: number): boolean {
+    const sp = SEARCH_AREA.spacing;
+    if (hyp2(x - this.cx, z - this.cz) < sp) return true;
+    for (let j = 0; j < this.sn; j++) if (hyp2(x - this.sx[j]!, z - this.sz[j]!) < sp) return true;
+    return false;
+  }
+
+  /** (S25b, the 4.97.1 rule kept for `PLAN_SKIP_SEARCHED` false) Every kept point within `spacing` of a searched one is
+   *  done again (no claim). */
+  remarkSearched(): void {
+    const sp = SEARCH_AREA.spacing;
+    for (let k = 0; k < this.n; k++) {
+      for (let j = 0; j < this.sn; j++) {
+        if (hyp2(this.x[k]! - this.sx[j]!, this.z[k]! - this.sz[j]!) < sp) {
+          this.done[k] = 1;
+          this.claim[k] = -1;
+          break;
+        }
+      }
+    }
   }
 
   /** (S25b) The point searcher `num` holds, -1 none. Found by the claim, never by an index saved earlier: `offer`
@@ -193,8 +242,14 @@ export class SearchPlan {
     return false;
   }
 
-  /** Empties the plan round a new centre (the last known position) built at `now`. */
-  reset(cx: number, cz: number, now: number): void {
+  /** Empties the plan round a new centre (the last known position) built at `now`. `keep` (a rebuild round the same
+   *  position): the searched points stay remembered; else they are forgotten too. */
+  reset(cx: number, cz: number, now: number, keep = false): void {
+    if (!keep) {
+      this.sn = 0;
+      this.sw = 0;
+      this.lkpBy = -1;
+    }
     this.n = 0;
     this.claim.fill(-1);
     this.done.fill(0);

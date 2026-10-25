@@ -1,7 +1,7 @@
 # S11 report: guard figure CPU cost (feature/gm-s11)
 
 Toward the G8 gate (sectorops 24: frame CPU p95 within +0.5 ms of figures-off; patrol cells missed by +0.6 ms with equal
-draws, so per-guard render CPU). Test Runner's PLAN2 S11 a-c (`origin/feature/guard-render-2:docs/guard-render/PLAN2.md`).
+draws, so per-guard render CPU). Test Runner's PLAN2 S11 a-c (`origin/feature/guard-render-2:docs/archive/guard-render/PLAN2.md`).
 All render-only: gameplay reads none of it; no allocation per frame.
 
 ## What was built

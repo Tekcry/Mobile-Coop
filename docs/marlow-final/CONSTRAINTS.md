@@ -316,7 +316,7 @@ references and six claims below were corrected on 2026-10-23 (spec writer).
 - Keep 3.0+ and say the mock-up is widened for two operators.
 
 **T17 - LD 13 / 14 process vs G55, G87 and M2.**
-- The deliverables go in `docs/marlow-final/`, not `docs/prompts/` (open item 5).
+- The deliverables go in `docs/marlow-final/`, not `docs/archive/prompts/` (open item 5).
 - No phase stops (open item 6; M2).
 - The coverage table's verb source is open item 7.
 - The scale sheet predates the CT camera (open item 8, G54): re-measure corridor widths, as an engine question.

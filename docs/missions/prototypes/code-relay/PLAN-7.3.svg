@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="740" height="740" viewBox="0 0 740 740" font-family="monospace" font-size="9">
+<title>Code Relay - S4, storey 7.3 (orange Relay, blue Vault)</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#444"/></marker><marker id="arrowC" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d0198c"/></marker></defs>
+<rect width="740" height="740" fill="#ffffff"/>
+<text x="20" y="24" font-size="16" font-weight="bold">Code Relay - S4, storey 7.3 (orange Relay, blue Vault)</text>
+<text x="20" y="40" font-size="10" fill="#444">graph: campusOps-S4-plan-7.3.json, code-relay-7.3.json   |   1 spaces, 0 links, mode sector, sections S4</text>
+<text x="20" y="54" font-size="10" fill="#444">scale 1 m = 10 px | north up: +z up the page, +x to the right | grid every 10 m, labels in world metres (x along the top, z down the left)</text>
+<text x="20" y="68" font-size="10" fill="#1f4e9c">mission codeRelay | sector | players [1,2,3,4] | start s4-dock | budget 17</text>
+<g id="plan" transform="translate(20,72)">
+<rect width="700" height="500" fill="#fbfaf6" stroke="#999"/>
+<g opacity="0.5"><svg x="40" y="60" width="620" height="440" viewBox="0 0 620 440" preserveAspectRatio="none">
+<rect width="620" height="440" fill="#f4f2ec"/>
+<line x1="0.0" y1="0" x2="0.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="10" fill="#a09a8a">-16</text>
+<line x1="60.0" y1="0" x2="60.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="62" y="10" fill="#a09a8a">-10</text>
+<line x1="120.0" y1="0" x2="120.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="122" y="10" fill="#a09a8a">-4</text>
+<line x1="180.0" y1="0" x2="180.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="182" y="10" fill="#a09a8a">2</text>
+<line x1="240.0" y1="0" x2="240.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="242" y="10" fill="#a09a8a">8</text>
+<line x1="300.0" y1="0" x2="300.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="302" y="10" fill="#a09a8a">14</text>
+<line x1="360.0" y1="0" x2="360.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="362" y="10" fill="#a09a8a">20</text>
+<line x1="420.0" y1="0" x2="420.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="422" y="10" fill="#a09a8a">26</text>
+<line x1="480.0" y1="0" x2="480.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="482" y="10" fill="#a09a8a">32</text>
+<line x1="540.0" y1="0" x2="540.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="542" y="10" fill="#a09a8a">38</text>
+<line x1="600.0" y1="0" x2="600.0" y2="440" stroke="#d8d4c8" stroke-width="1"/><text x="602" y="10" fill="#a09a8a">44</text>
+<line x1="0" y1="440.0" x2="620" y2="440.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="438" fill="#a09a8a">10</text>
+<line x1="0" y1="380.0" x2="620" y2="380.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="378" fill="#a09a8a">16</text>
+<line x1="0" y1="320.0" x2="620" y2="320.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="318" fill="#a09a8a">22</text>
+<line x1="0" y1="260.0" x2="620" y2="260.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="258" fill="#a09a8a">28</text>
+<line x1="0" y1="200.0" x2="620" y2="200.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="198" fill="#a09a8a">34</text>
+<line x1="0" y1="140.0" x2="620" y2="140.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="138" fill="#a09a8a">40</text>
+<line x1="0" y1="80.0" x2="620" y2="80.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="78" fill="#a09a8a">46</text>
+<line x1="0" y1="20.0" x2="620" y2="20.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="18" fill="#a09a8a">52</text>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-24.5" y="-1.4999999999999858" width="49" height="2.9999999999999716" fill="rgb(225,225,233)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(149.5 120.0) rotate(0.00)"/>
+<text x="149.5" y="120.0" text-anchor="middle" fill="#7a1010">-0.3</text>
+<rect x="-6.000000000000001" y="-1.4999999999999858" width="12.000000000000002" height="2.9999999999999716" fill="rgb(225,225,233)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(180.0 120.0) rotate(0.00)"/>
+<rect x="-24.5" y="-1.4999999999999858" width="49" height="2.9999999999999716" fill="rgb(225,225,233)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(210.5 120.0) rotate(0.00)"/>
+<text x="210.5" y="120.0" text-anchor="middle" fill="#7a1010">-0.3</text>
+<rect x="-5.499999999999989" y="-1.4999999999999858" width="10.999999999999979" height="2.9999999999999716" fill="rgb(225,225,233)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(481.0 120.0) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(482.0 107.1) rotate(0.00)"/>
+<rect x="-2.5" y="-0.17500000000000002" width="5" height="0.35000000000000003" fill="none" fill-opacity="0.85" stroke="#999" stroke-width="0.6" transform="translate(506.6 310.0) rotate(90.00)"/>
+<rect x="-0.5000000000000071" y="-5.999999999999979" width="1.0000000000000142" height="11.999999999999957" fill="rgb(207,207,215)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(475.5 108.0) rotate(0.00)"/>
+<rect x="-6.999999999999993" y="-0.5000000000000071" width="13.999999999999986" height="1.0000000000000142" fill="rgb(207,207,215)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(482.0 114.5) rotate(0.00)"/>
+<rect x="-0.5000000000000071" y="-5.999999999999979" width="1.0000000000000142" height="11.999999999999957" fill="rgb(207,207,215)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(488.5 108.0) rotate(0.00)"/>
+<rect x="-1.4999999999999858" y="-31.25" width="2.9999999999999716" height="62.5" fill="rgb(207,207,215)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(500.0 347.3) rotate(0.00)"/>
+<text x="500.0" y="347.3" text-anchor="middle" fill="#7a1010">1.1</text>
+<rect x="-1.4999999999999858" y="-121.25" width="2.9999999999999716" height="242.5" fill="rgb(207,207,215)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(500.0 182.8) rotate(0.00)"/>
+<text x="500.0" y="182.8" text-anchor="middle" fill="#7a1010">1.1</text>
+<rect x="-20" y="-10" width="40" height="20" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(220.0 220.0) rotate(0.00)"/>
+<text x="220.0" y="220.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<rect x="-20" y="-10" width="40" height="20" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(300.0 220.0) rotate(0.00)"/>
+<text x="300.0" y="220.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<rect x="-20" y="-10" width="40" height="20" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(380.0 220.0) rotate(0.00)"/>
+<text x="380.0" y="220.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<rect x="-20" y="-10" width="40" height="20" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(440.0 220.0) rotate(0.00)"/>
+<text x="440.0" y="220.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<rect x="-221.5" y="-1.4999999999999858" width="443" height="2.9999999999999716" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(280.0 60.0) rotate(0.00)"/>
+<text x="280.0" y="60.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<rect x="-221.5" y="-1.4999999999999947" width="443" height="2.9999999999999893" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(280.0 380.0) rotate(0.00)"/>
+<text x="280.0" y="380.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<rect x="-1.5000000000000036" y="-158.5" width="3.000000000000007" height="317" fill="rgb(193,193,201)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(60.0 220.0) rotate(0.00)"/>
+<text x="60.0" y="220.0" text-anchor="middle" fill="#7a1010">2.0</text>
+<line x1="-233.0" y1="776.0" x2="-233.0" y2="764.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-233.0" y1="776.0" x2="-233.0" y2="764.0" stroke="#10a040" stroke-width="4"/>
+<line x1="169.0" y1="541.0" x2="181.0" y2="541.0" stroke="#10a040" stroke-width="4"/>
+<line x1="169.0" y1="541.0" x2="181.0" y2="541.0" stroke="#10a040" stroke-width="4"/>
+<line x1="85.0" y1="756.0" x2="85.0" y2="744.0" stroke="#10a040" stroke-width="4"/>
+<line x1="85.0" y1="576.0" x2="85.0" y2="564.0" stroke="#10a040" stroke-width="4"/>
+<line x1="114.0" y1="540.0" x2="126.0" y2="540.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-176.0" y1="580.0" x2="-164.0" y2="580.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-140.0" y1="536.0" x2="-140.0" y2="524.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-46.0" y1="765.0" x2="-34.0" y2="765.0" stroke="#10a040" stroke-width="4"/>
+<line x1="54.0" y1="765.0" x2="66.0" y2="765.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-6.0" y1="540.0" x2="6.0" y2="540.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-196.0" y1="159.0" x2="-184.0" y2="159.0" stroke="#10a040" stroke-width="4"/>
+<text x="616" y="436" text-anchor="end" font-size="12" fill="#333">Saltmarsh Park - Sector Ops - storey y 7.3 - 1 m = 10 px, grid 6 m, north up</text>
+<rect x="8" y="422" width="100" height="5" fill="#333"/><text x="8" y="418" fill="#333" font-size="11">10 m</text>
+<polygon points="130,406 124,426 136,426" fill="#333"/><text x="126" y="402" fill="#333" font-size="11">N</text>
+<defs><pattern id="s4hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#888" stroke-width="1.2"/></pattern></defs>
+<g id="plan">
+<rect x="220" y="62" width="12" height="12" fill="none" stroke="#222" stroke-width="2.5"/>
+<text x="236" y="84" fill="#111" font-size="7">NOC roof hatch + rails</text>
+<rect x="160" y="85" width="40" height="20" fill="none" stroke="#2a8fd8" stroke-width="2"/>
+<text x="125" y="113" fill="#1a5f98" font-size="7">NOC rooflight (glass)</text>
+<rect x="216" y="196" width="8" height="4" fill="none" stroke="#d01818" stroke-width="1.2" stroke-dasharray="3,2"/>
+<line x1="216" y1="196" x2="224" y2="200" stroke="#d01818" stroke-width="1"/><line x1="224" y1="196" x2="216" y2="200" stroke="#d01818" stroke-width="1"/>
+<rect x="296" y="196" width="8" height="4" fill="none" stroke="#d01818" stroke-width="1.2" stroke-dasharray="3,2"/>
+<line x1="296" y1="196" x2="304" y2="200" stroke="#d01818" stroke-width="1"/><line x1="304" y1="196" x2="296" y2="200" stroke="#d01818" stroke-width="1"/>
+<rect x="376" y="196" width="8" height="4" fill="none" stroke="#d01818" stroke-width="1.2" stroke-dasharray="3,2"/>
+<line x1="376" y1="196" x2="384" y2="200" stroke="#d01818" stroke-width="1"/><line x1="384" y1="196" x2="376" y2="200" stroke="#d01818" stroke-width="1"/>
+<rect x="436" y="196" width="8" height="4" fill="none" stroke="#d01818" stroke-width="1.2" stroke-dasharray="3,2"/>
+<line x1="436" y1="196" x2="444" y2="200" stroke="#d01818" stroke-width="1"/><line x1="444" y1="196" x2="436" y2="200" stroke="#d01818" stroke-width="1"/>
+<circle cx="130" cy="300" r="75" fill="#fff6c0" fill-opacity="0.35" stroke="#c8a800" stroke-width="0.8" stroke-dasharray="3,3"/>
+<circle cx="130" cy="300" r="3" fill="#c8a800"/>
+<circle cx="240" cy="180" r="75" fill="#fff6c0" fill-opacity="0.35" stroke="#c8a800" stroke-width="0.8" stroke-dasharray="3,3"/>
+<circle cx="240" cy="180" r="3" fill="#c8a800"/>
+<circle cx="360" cy="300" r="75" fill="#fff6c0" fill-opacity="0.35" stroke="#c8a800" stroke-width="0.8" stroke-dasharray="3,3"/>
+<circle cx="360" cy="300" r="3" fill="#c8a800"/>
+<circle cx="400" cy="160" r="75" fill="#fff6c0" fill-opacity="0.35" stroke="#c8a800" stroke-width="0.8" stroke-dasharray="3,3"/>
+<circle cx="400" cy="160" r="3" fill="#c8a800"/>
+<text x="135" y="364" fill="#111" font-size="7">pole floods 5 m (r 7.5): lit middle, dark edges</text>
+<polyline points="506,310 490,305 490,100 460,70 232,68" fill="none" stroke="#e07b00" stroke-width="2.5" stroke-linejoin="round" opacity="0.9"/>
+<polyline points="514,310 506,310" fill="none" stroke="#e07b00" stroke-width="3" stroke-linejoin="round" stroke-dasharray="6,4" opacity="0.9"/>
+<text x="502" y="326" fill="#e07b00" font-size="7">CR10 boost</text>
+<polyline points="482,108 470,72" fill="none" stroke="#1f4fbf" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
+<polyline points="280,180 460,180" fill="none" stroke="#d01818" stroke-width="1" stroke-dasharray="2,2" opacity="0.8"/>
+<circle cx="460" cy="180" r="3.5" fill="#d01818" stroke="#d01818" stroke-width="1.5"/>
+<text x="464" y="183" fill="#d01818" font-size="7">13</text>
+<circle cx="340" cy="240" r="3.5" fill="#d01818" stroke="#d01818" stroke-width="1.5"/>
+<text x="344" y="243" fill="#d01818" font-size="7">24*</text>
+<circle cx="280" cy="180" r="4" fill="none" stroke="#7a2fb8" stroke-width="2"/>
+<text x="286" y="191" fill="#7a2fb8" font-size="7">radio stop (Dunmore)</text>
+<path d="M482,108 L322.6,121.9 A160,160 0 0 0 468.1,267.4 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
+<polygon points="482,103 487,112 477,112" fill="#2a8fd8" stroke="#fff" stroke-width="0.8"/>
+<text x="489" y="102" fill="#1a5f98" font-size="7">deck</text>
+<path d="M496,140 L489.0,219.7 A80,80 0 0 0 568.5,173.8 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
+<polygon points="496,135 501,144 491,144" fill="#2a8fd8" stroke="#fff" stroke-width="0.8"/>
+<text x="503" y="134" fill="#1a5f98" font-size="7">yard below</text>
+<path d="M180,95 L145.4,115.0 A40,40 0 0 0 214.6,115.0 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
+<polygon points="180,90 185,99 175,99" fill="#2a8fd8" stroke="#fff" stroke-width="0.8"/>
+<text x="187" y="89" fill="#1a5f98" font-size="7">NOC below</text>
+<rect x="4" y="13" width="612" height="46" fill="#fff" fill-opacity="0.93" stroke="#333" stroke-width="1"/>
+<g transform="translate(10,21)"><line x1="0" y1="0" x2="16" y2="0" stroke="#222" stroke-width="4"/><text x="20" y="3" font-size="8" fill="#111">new / moved wall</text></g>
+<g transform="translate(132,21)"><rect x="0" y="-4" width="14" height="8" fill="none" stroke="#d01818" stroke-dasharray="3,2"/><line x1="0" y1="-4" x2="14" y2="4" stroke="#d01818"/><text x="20" y="3" font-size="8" fill="#111">removed</text></g>
+<g transform="translate(254,21)"><rect x="0" y="-4" width="14" height="8" fill="url(#s4hatch)" stroke="#555"/><text x="20" y="3" font-size="8" fill="#111">widened / re-cut</text></g>
+<g transform="translate(376,21)"><line x1="0" y1="0" x2="16" y2="0" stroke="#1f4fbf" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">dark route (Vault, B)</text></g>
+<g transform="translate(498,21)"><line x1="0" y1="0" x2="16" y2="0" stroke="#e07b00" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">high / vent (Relay, A)</text></g>
+<g transform="translate(10,32)"><line x1="0" y1="0" x2="16" y2="0" stroke="#1a9a3a" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">social / tool (loud)</text></g>
+<g transform="translate(132,32)"><line x1="0" y1="0" x2="16" y2="0" stroke="#555" stroke-width="2.5" stroke-dasharray="6,4"/><text x="20" y="3" font-size="8" fill="#111">co-op only (dashed)</text></g>
+<g transform="translate(254,32)"><polygon points="7,-6 13,0 7,6 1,0" fill="#7a2fb8"/><text x="20" y="3" font-size="8" fill="#111">sync node</text></g>
+<g transform="translate(376,32)"><circle cx="7" cy="0" r="4" fill="none" stroke="#7a2fb8" stroke-width="2"/><text x="20" y="3" font-size="8" fill="#111">lead</text></g>
+<g transform="translate(498,32)"><polygon points="7,-6 9,-2 13,-2 10,1 11,6 7,3 3,6 4,1 1,-2 5,-2" fill="#f2c200" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">landmark</text></g>
+<g transform="translate(10,43)"><polygon points="7,-5 12,4 2,4" fill="#2a8fd8"/><text x="20" y="3" font-size="8" fill="#111">vantage + view</text></g>
+<g transform="translate(132,43)"><circle cx="7" cy="0" r="5" fill="none" stroke="#000" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">choke</text></g>
+<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (*new, o dormant)</text></g>
+<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new/moved door</text></g>
+<text x="8" y="57" font-size="8" fill="#111" font-weight="bold">S4 PLAN y 7.3 plant deck - Relay crosses the dark east and north edges to the NOC roof hatch</text>
+</g>
+</svg></g>
+<line x1="0" y1="0" x2="0" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="9" font-size="7" fill="#9a9482">-20</text>
+<line x1="100" y1="0" x2="100" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="102" y="9" font-size="7" fill="#9a9482">-10</text>
+<line x1="200" y1="0" x2="200" y2="500" stroke="#d6d2c4" stroke-width="1"/><text x="202" y="9" font-size="7" fill="#9a9482">0</text>
+<line x1="300" y1="0" x2="300" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="302" y="9" font-size="7" fill="#9a9482">10</text>
+<line x1="400" y1="0" x2="400" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="402" y="9" font-size="7" fill="#9a9482">20</text>
+<line x1="500" y1="0" x2="500" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="502" y="9" font-size="7" fill="#9a9482">30</text>
+<line x1="600" y1="0" x2="600" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="602" y="9" font-size="7" fill="#9a9482">40</text>
+<line x1="700" y1="0" x2="700" y2="500" stroke="#d6d2c4" stroke-width="1"/><text x="702" y="9" font-size="7" fill="#9a9482">50</text>
+<line x1="0" y1="500" x2="700" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="498" font-size="7" fill="#9a9482">10</text>
+<line x1="0" y1="400" x2="700" y2="400" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="398" font-size="7" fill="#9a9482">20</text>
+<line x1="0" y1="300" x2="700" y2="300" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="298" font-size="7" fill="#9a9482">30</text>
+<line x1="0" y1="200" x2="700" y2="200" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="198" font-size="7" fill="#9a9482">40</text>
+<line x1="0" y1="100" x2="700" y2="100" stroke="#d6d2c4" stroke-width="1"/><text x="2" y="98" font-size="7" fill="#9a9482">50</text>
+<line x1="0" y1="0" x2="700" y2="0" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="-2" font-size="7" fill="#9a9482">60</text>
+<rect x="100" y="120" width="440" height="320" fill="#e6a93c" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s4-deck"/>
+<text x="320" y="283" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s4-deck @7.3</text>
+<circle cx="320" cy="267" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="320" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">1</text>
+<rect x="4" y="474" width="118" height="22" fill="#fff" fill-opacity="0.85" stroke="#999" stroke-width="0.5"/><line x1="10" y1="488" x2="110" y2="488" stroke="#111" stroke-width="2"/><line x1="10" y1="484" x2="10" y2="492" stroke="#111" stroke-width="1.5"/><line x1="110" y1="484" x2="110" y2="492" stroke="#111" stroke-width="1.5"/><text x="60" y="484" text-anchor="middle" font-size="8" fill="#111">10 m</text>
+<g transform="translate(684,24)"><polygon points="0,-12 5,4 0,1 -5,4" fill="#111"/><text y="16" text-anchor="middle" font-size="8" fill="#111">N</text></g>
+</g>
+<g id="legend" transform="translate(20,590)">
+<rect x="0" y="0" width="14" height="10" fill="#e8806a" fill-opacity="0.7" stroke="#333"/><text x="19" y="9" font-size="9">encounter</text>
+<rect x="78" y="0" width="14" height="10" fill="#9fb4c7" fill-opacity="0.7" stroke="#333"/><text x="97" y="9" font-size="9">transit</text>
+<rect x="146" y="0" width="14" height="10" fill="#86c486" fill-opacity="0.7" stroke="#333"/><text x="165" y="9" font-size="9">rest</text>
+<rect x="199" y="0" width="14" height="10" fill="#5b9bea" fill-opacity="0.7" stroke="#333"/><text x="218" y="9" font-size="9">split leg A</text>
+<rect x="287" y="0" width="14" height="10" fill="#e6a93c" fill-opacity="0.7" stroke="#333"/><text x="306" y="9" font-size="9">split leg B</text>
+<rect x="375" y="0" width="14" height="10" fill="#ffffff" fill-opacity="0.7" stroke="#333" stroke-dasharray="4 2"/><text x="394" y="9" font-size="9">upper storey (dashed, drawn on top)</text>
+<line x1="0" y1="23" x2="22" y2="23" stroke="#444" stroke-width="1.1"/><text x="27" y="27" font-size="9">link (tag = kind)</text>
+<line x1="130" y1="23" x2="152" y2="23" stroke="#111" stroke-width="2"/><text x="157" y="27" font-size="9">spine link</text>
+<line x1="225" y1="23" x2="247" y2="23" stroke="#d0198c" stroke-width="2.2"/><text x="252" y="27" font-size="9" font-weight="bold" fill="#d0198c">co-op link (coop_boost, human_ladder, pair_gate, team_rope, team_throw, team_hang, team_pull, shutter)</text>
+<line x1="560" y1="23" x2="582" y2="23" stroke="#444" stroke-width="1.1" marker-end="url(#arrow)"/><text x="590" y="27" font-size="9">one way / drop</text>
+<ellipse cx="8" cy="41" rx="7" ry="4" fill="#fff" stroke="#222"/><circle cx="8" cy="41" r="2" fill="#222"/><text x="22" y="45" font-size="9">vantage.at (dashed line to the observed space, sees %)</text>
+<circle cx="330" cy="41" r="6" fill="#1f4e9c"/><text x="342" y="45" font-size="9">objective</text><polygon points="400,34 408,41 400,48 392,41" fill="#7a3fa0"/><text x="414" y="45" font-size="9">sync</text><rect x="452" y="35" width="12" height="12" fill="#0b7a75"/><text x="470" y="45" font-size="9">lead</text>
+<text x="0" y="67" font-size="9" font-weight="bold">#</text><text x="26" y="67" font-size="9" font-weight="bold">node</text><text x="86" y="67" font-size="9" font-weight="bold">id</text><text x="250" y="67" font-size="9" font-weight="bold">space</text><text x="400" y="67" font-size="9" font-weight="bold">detail</text><line x1="0" y1="71" x2="660" y2="71" stroke="#999" stroke-width="0.5"/>
+<text x="0" y="81" font-size="9" fill="#1f4e9c" font-weight="bold">1</text><text x="26" y="81" font-size="9">objective</text><text x="86" y="81" font-size="9">cr-1a</text><text x="250" y="81" font-size="9">s4-deck</text><text x="400" y="81" font-size="9" fill="#333">intel, team a, S4</text>
+<text x="0" y="94" font-size="9" fill="#0b7a75" font-weight="bold">2</text><text x="26" y="94" font-size="9">lead</text><text x="86" y="94" font-size="9">lead:cr-1a</text><text x="250" y="94" font-size="9" fill="#b00020">s4-yard (not drawn)</text><text x="400" y="94" font-size="9" fill="#333">lead for objective 1 (cr-1a)</text>
+<text x="0" y="113" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a)</text>
+</g>
+</svg>

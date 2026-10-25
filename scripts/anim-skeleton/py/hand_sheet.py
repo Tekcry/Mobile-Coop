@@ -4,7 +4,7 @@ Reads the right hand of the shipped LOD0 as skin.mjs patches it, without and wit
 (`node scripts/anim-skeleton/skin.mjs --check --dump build/anim-skeleton/s1`: lod0-hand-{before,after}.json, glTF frame),
 builds each as a Blender mesh skinned to an armature made from the file's joints, curls the fingers (P0's curl: MCP / PIP /
 DIP 70 / 85 / 55 deg, thumb 25 / 40 / 35 + opposition), and renders both from three views into
-docs/anim-skeleton/s1/hand-knuckle-loops.webp. Run headless through scripts/anim-skeleton/proto.mjs (heavy lock):
+docs/archive/anim-skeleton/s1/hand-knuckle-loops.webp. Run headless through scripts/anim-skeleton/proto.mjs (heavy lock):
 
   node scripts/anim-skeleton/proto.mjs hand_sheet
 """
@@ -30,7 +30,7 @@ if tuple(bpy.app.version) != (5, 2, 2):
 ROOT = args.root
 SRC = os.path.join(ROOT, 'build', 'anim-skeleton', 's1')
 TILES = os.path.join(SRC, 'tiles')
-DOCS = os.path.join(ROOT, 'docs', 'anim-skeleton', 's1')
+DOCS = os.path.join(ROOT, 'docs', 'archive', 'anim-skeleton', 's1')
 os.makedirs(TILES, exist_ok=True)
 os.makedirs(DOCS, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)

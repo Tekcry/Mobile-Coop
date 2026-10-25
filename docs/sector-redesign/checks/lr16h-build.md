@@ -8,7 +8,7 @@ Branch `feature/sector-redesign-lr16h` at base `f8008542`. Docs and one script l
 | `docs/systems/lighting.md` | Dropped the Classic / `?falloff=photo` / `start.lf` sentences (line ~36-38). Added a one-model list above the `lampMath.ts` bullet: LR16b `world/lampMath.ts`, LR16e `world/lightBake.ts`, LR16-1 `world/ambientGrid.ts`, LR16t (no file), LR16-7 / LR16f / LR16-3 `world/charShadows.ts`, `world/charShadowSet.ts`. |
 | `docs/systems/ui.md` | Deleted the "Lamp falloff" Settings item (LR13). Character shadows item kept. |
 | `docs/systems/testing-tools.md` | Deleted the "## Lamp falloff (lightrev LR13)" section (`E2E_FALLOFF=photo`). |
-| `docs/lighting-review/PROPOSAL.md` | Appended "## 8. LR16 (2026-10-23): one light model" (Michael quotes ~18:08 and ~18:12, LR16a removal, LR16b / e / 1 / t / g, pointer to `lr16-plan.md`). Section 7.x untouched. |
+| `docs/archive/lighting-review/PROPOSAL.md` | Appended "## 8. LR16 (2026-10-23): one light model" (Michael quotes ~18:08 and ~18:12, LR16a removal, LR16b / e / 1 / t / g, pointer to `lr16-plan.md`). Section 7.x untouched. |
 | `scripts/lamp-audit.mjs` | Deleted line 34 `lampMath.setLampFalloff?.('photometric');`. |
 | `changes/feature-sector-redesign-lr16.md` | Added bullet "Docs name one light model (no Lamp falloff setting)." |
 | `docs/sector-redesign/checks/lr16h-build.md` | This report. |

@@ -1,27 +1,26 @@
 # World, level design pointers and characters
+Owner: Player Build (characters, guard models). Status: current.
 Purpose: maps, the level builder, the Warehouse, and the shared character rig (proportions, animation, foot planner, weapons).
 Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.md (Sections 5.12 and 7).
 
 ## Level design
-- `docs/level-design.md`: the standard every map follows - architecture first ("why is it here?"), a linear spine of
-  encounter spaces, a dark vantage and three routes plus a secret per guarded space, loops not dead ends, guards with
-  jobs, isolation moments and overlapping coverage, light from fixtures, sound from materials, teach / test / twist
-  pacing, co-op layering (Section 11; its solo-first rules are an open item against G2), engine facts (Section 12),
-  required design deliverables (section 13), phases (section 14) and acceptance tests (section 15).
+- The level rules live in `docs/level-design.md` only (the standard every map follows, per mode); this file does not
+  restate them. Read it, then docs/DECISIONS.md, before laying out a map.
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
-- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`; Kestrel
-  in `docs/kestrel/`, the bunker in `docs/training/`. Decided, not built yet (G55): one folder per map under one maps
-  folder, Kestrel and the bunker moved there after the merge. Kestrel is paused until the CT co-op research (G53).
-  The retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in
-  `docs/archive/maps/`.
+- Map specs: Marlow Yard in `docs/marlow-final/` (SPEC.md, PLAN.md), Saltmarsh Park in `docs/sector-redesign/`
+  (SPEC.md, PLAN.md), Tallow Wharf (campaign Mission 1) and the first four mission prototypes in `docs/missions/` (the
+  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in
+  `docs/archive/training/`. Decided, not built yet (G55): one folder per map under one maps folder. The retired maps
+  (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in `docs/archive/maps/`.
 
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
-  `world/maps/index.ts` (`MAPS`: `warehouse`, `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every
-  menu), `courselab` and `bunker` (the Fallow bunker, built from `bunkerUpper` / `bunkerPlant` / `bunkerShaft` /
-  `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts` `LISTED_MAP_IDS` (`warehouse`, `proving`,
-  `kestrel`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
+  `world/maps/index.ts` (`MAPS`: `warehouse`, `warehouseOps` (the old Sector Ops map), `campusOps` (Saltmarsh Park,
+  Sector Ops), `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every menu), `ctcourse` (Marlow Yard,
+  Course mode), `courselab`, and with `?legacy=1` `bunker` (the Fallow bunker, built from `bunkerUpper` /
+  `bunkerPlant` / `bunkerShaft` / `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts`
+  `LISTED_MAP_IDS` (`warehouse`, `proving`, `kestrel`, `campusOps`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
   mode is its default (a mode change on the Play screen starts on its default map). The 2.x maps are parked in
   `maps/parked.ts` (not imported). Free Roam
   (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.
@@ -131,7 +130,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   pre-layer Wren fixture).
 - (anim-weight) The local player's Weight layers (lean, bank, plant / landing load, chest / head / arm / gear springs,
   anticipation) sit after the graph's pose in `AnimGraph.writeTargets` (`weightApplyPose`) and on the carried guns
-  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`, `docs/anim-tuner/WEIGHT.md`).
+  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`,
+  `docs/archive/anim-tuner/WEIGHT.md`).
 - Wren's hands (weapons job, anim-cleanup): morph targets `gripR`, `gripL`, `wrapR`, `relaxR`, `relaxL` on her game files,
   blended by `rig.handGrip` and `rig.rightTrigger` (trigger, support, wrap, relaxed). Magazines are a separate `<id>-mag`
   mesh moved by the reload clips (`reloadClipFor`); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
@@ -169,7 +169,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   a no-op here (only the player's camera fades a head). Flag `guardMerge` (`?guardmerge=0`: the old instanced parts, for
   comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
   forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
-  `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
+  `docs/archive/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
   out, the compile failed, its program was disposed under it, or as a last resort 90 s and 30 frames unready; a slow
   parallel compile is left to finish, body watchdog) is dropped and recompiled,
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
@@ -327,19 +327,34 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; `?mocap=0/1`, then the tuner's More > Panel box for that page;
-  ON otherwise: anim-fix-pass AF5 removed the Settings row and a stored `gameplay.mocapLoco: false` no longer sticks,
-  core/app.ts; the switch is per machine and drives the co-op partner's copy on this machine too): `LOCO.set` picks the clip set the standing holstered
-  speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;
-  the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
-  turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode
+- (mocap-trial) Mocap locomotion (`anim/mocap.ts`) is the player's only path: players get mocap only, with no
+  player-facing switch (G399; anim-fix-pass AF5 removed the Settings row; a stored `gameplay.mocapLoco: false` no
+  longer sticks, `core/app.ts` ~:136-140). The hand-keyed set is a developer rollback only: `?mocap=0/1`, then the
+  animation tuner's More > Panel box (a dev tool: this page only, not saved); it is per machine and drives the co-op
+  partner's copy on this machine too. `LOCO.set` picks the
+  clip set the standing holstered speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`,
+  `anim/clips/mocap/*` in the keyed format), plus its optional one-shot slots (`MocapSlots`: turn in place, turn on
+  the move L / R, start, stop). The set also holds three more captures: the crouched sneak band (`crouchWalk`, CMU
+  136_09, `crouchSet`), the sprint past the run (`sprint`, 127_07) and the aimed strafe (`strafeL` 69_59 / `strafeR`
+  69_56, `keyedDrawnSet`, side-step `mocapSideStep`; `mocap.ts` ~:176-195). The faster crouched bands, the drawn gait
+  (gun out) apart from its strafe, the idle and the wall sets stay hand-keyed.
+  A mocap clip with a `feet` channel drives the planner's clip feet mode
   (`FootPlanner.clipFoot`: the clip places the steps, the planner grounds and pins them; `MOCAP_FEET` gates it: holstered,
   under 1 rad/s of turn or what turns the body 0.35 rad over one stance, over 0.3 m/s; the gait clock keeps the clip's stance
   window through a hand-off, the rig caps foot pitch at 18 rad/s). The CMU clips: walk / jog / run from subject 16, the
   walking turns / start / stop (walking pace only, `MOCAP_SLOT.walkMax`), a turn on the spot from subject 69.
-  `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): all 0 (the capture holds its own
-  arm swing, elbows, twist, lean, load and settle) but N1's `turnStep`. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
-  Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
+  Mixamo clips are also allowed (G406; none converted yet, Player Build): retargeted onto wren-rig-game and the guard
+  rigs (the Mixamo skeleton is never used in game), from FBX without skin that Michael downloads into
+  `C:/NightShift/scratch/mixamo/clips/`; converted clips bundled, raw files not committed, credited in
+  `docs/art-credits.md`.
+  `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): 0 for the arm swing, twist,
+  lean, pelvis follow, load, elbows, stop settle and N2's motion layers (the capture holds its own); 1 for
+  `motionArmCap` and `keyPelRate` (the two limiters stay, `mocap.ts` ~:95-96) and `turnStep` (N1's turn rules
+  stay). (afp-af2) The run carriage over the capture (`MOCAP_RUN_POSE`, `characterRig.ts` `mocapRunPose`, eased in
+  from 2 to 3 m/s, none walking): the capture's own means are followed, its bob scaled and the whole lifted, the chest
+  pitched to the CT run and sprint lean; its four `MOCAP_LAYERS` entries (`pelHeight`, `trunkMean`, `bankWipe`,
+  `armSmooth`) are 0 (1 undoes it). Nothing on the wire. With placeholder clips the plumbing is bit-identical on and
+  off (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and
@@ -412,9 +427,12 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   Hands & feet values (base table plus tuner delta, every Wren rig) plus the clip slot `rig.fingerClip`), the grip morphs left at 0 on those files;
   LOD2 has no finger joints. A clavicle per side (`clavL` / `clavR`, `anim/clavicle.ts`, input `rig.clavIn`; at zero
   the shoulders are exactly as before) and goggle joints `goggleUse` / `goggleStow` under the head (`GOGGLE_OFFSET`,
-  copied per rig in `goggleFrame`). Asset patch: `scripts/anim-skeleton/skin.mjs`; docs/anim-skeleton). Keyed clips carry optional channels `clav`, `fing`,
-  `leg` (FK legs over the planner by a per-key weight) and `legd` (per-joint leg deltas; a planted leg is re-solved onto
-  its plant, `anim/legDelta.ts`, so the foot never slides; `rig.footSlide` reports it); the Keys tab edits them on every
-  clip and a clip opts in on its first edit (anim-skeleton S3 / S4). Joints rows `clavicleL` / `clavicleR`.; a weapon hand out of reach brings its shoulder forward (`PROTRACT_MAX` 7 cm). Swaps: holster at 38%, take the next from its
-  slot at 58%, in the aim pocket at 80% (0.9 s). Co-op remotes build the same from the lobby `loadout`. Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
-  and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.
+  copied per rig in `goggleFrame`). Asset patch: `scripts/anim-skeleton/skin.mjs`; docs/archive/anim-skeleton). Keyed
+  clips carry optional channels `clav`, `fing`, `leg` (FK legs over the planner by a per-key weight) and `legd`
+  (per-joint leg deltas; a planted leg is re-solved onto its plant, `anim/legDelta.ts`, so the foot never slides;
+  `rig.footSlide` reports it); the Keys tab edits them on every clip and a clip opts in on its first edit (anim-skeleton
+  S3 / S4). Joints rows `clavicleL` / `clavicleR`.; a weapon hand out of reach brings its shoulder forward
+  (`PROTRACT_MAX` 7 cm). Swaps: holster at 38%, take the next from its slot at 58%, in the aim pocket at 80% (0.9 s).
+  Co-op remotes build the same from the lobby `loadout`. Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with
+  ball-and-socket joints at hips and shoulders, limbs never collide with their own torso, capped by
+  `BUDGET.maxRagdolls`.

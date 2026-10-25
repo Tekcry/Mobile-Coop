@@ -1,8 +1,15 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
-// and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it.
+// and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
+// suite selection affectedSuites shares with request.mjs --affected).
+import { selectSuites, affectedGateSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+// parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
+import { parseLock } from '../heavy-lock.mjs';
 
-/** Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5). */
-export const ALONE_AGE_MIN = 45;
+/**
+ * Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5; 45 -> 30, Orchestrator audit
+ * 2026-10-24: coop4's alone gate waited 106 min while newer PR requests kept the slots busy).
+ */
+export const ALONE_AGE_MIN = 30;
 
 const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
@@ -32,25 +39,70 @@ export function contextName(kind, set, suites = [], trainRerun = false) {
   return `laptop-e2e/${kind === 'alone' ? 'alone-' : ''}${clean}`;
 }
 
-/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (desktop fail)", 140 chars. */
-export function rerunPassed(suites) {
-  const tail = ' (desktop fail)';
+/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (<why>)", 140 chars (why: desktop fail, or confirm rerun). */
+export function rerunPassed(suites, why = 'desktop fail') {
+  const tail = ` (${why})`;
   let list = (suites ?? []).join(',');
   const room = 140 - 'laptop rerun passed: '.length - tail.length;
   if (list.length > room) list = `${list.slice(0, room - 3)}...`;
   return `laptop rerun passed: ${list}${tail}`;
 }
 
-/** The problem with a request object, or '' when it is fine. */
-export function requestProblem(r) {
+/**
+ * The branch a request names when --branch is not given (Orchestrator 2026-10-25: 171 open requests had branch ""), so
+ * its failure comments reach the right PR: the ref asked for; else nothing for a sha already on master (every later
+ * branch contains it); else the requester's checkout branch when the sha IS its head; else the one remote work branch
+ * whose tip is the sha, then the one that contains it (master, train/*, dev, laptop-queue and HEAD never count); ''
+ * when none or several (checker FIX: a master or stacked-parent sha took the requester's branch and PR).
+ */
+const NOT_WORK_BRANCH = /^(HEAD|master|main|dev|laptop-queue|cloud-queue|ct-movement|train\/.*)$/;
+export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIsSha = false, pointsAt = [], containing = [] } = {}) {
+  if (ref) return ref.replace(/^origin\//, '');
+  if (onMaster) return '';
+  if (headBranch && headIsSha && !NOT_WORK_BRANCH.test(headBranch)) return headBranch;
+  const work = (lines) => [...new Set(lines.map((b) => b.trim().replace(/^origin\//, '')).filter((b) => b && !b.includes(' -> ') && !NOT_WORK_BRANCH.test(b)))];
+  const tips = work(pointsAt);
+  if (tips.length) return tips.length === 1 ? tips[0] : '';
+  const all = work(containing);
+  return all.length === 1 ? all[0] : '';
+}
+
+/** --suites text -> suite names, split on spaces and / or commas ("e2e-a,e2e-b" reached run-e2e as one name). */
+export const splitSuites = (text) => String(text ?? '').split(/[\s,]+/).filter(Boolean);
+
+/** scripts/e2e-<x>.mjs files that are modules, not suites (run-e2e NOT_SUITES plus the shared e2e libraries). */
+export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib'];
+
+/**
+ * The suite names run-e2e can run at a sha, from its `git ls-tree --name-only <sha> scripts/` paths: `smoke`,
+ * `anim-audit` and every scripts/e2e-<x>.mjs that is not a module (run-e2e runs a named suite as `scripts/<name>.mjs`,
+ * so this is its whole REQUIRED / LEGACY / AUDIO / GPU / REPORT table plus by-name suites like e2e-editor).
+ */
+export function knownSuites(paths) {
+  const names = (paths ?? []).map((p) => /^scripts\/((?:e2e-[a-z0-9-]+)|smoke|anim-audit)\.mjs$/.exec(String(p).trim())?.[1]).filter(Boolean);
+  return new Set(names.filter((n) => !NOT_SUITE_SCRIPTS.includes(n)));
+}
+
+/** The suite names not in `known` (a `name:N` part counts as its base name); [] when all are known. */
+export const unknownSuites = (suites, known) => (suites ?? []).filter((s) => !known.has(String(s).split(':')[0]));
+
+/**
+ * The problem with a request object, or '' when it is fine. `known` (request.mjs: knownSuites at the request's sha)
+ * refuses an unknown suite name at request time (before, a bad name reached run-e2e: MODULE_NOT_FOUND, a false failure).
+ */
+export function requestProblem(r, { known } = {}) {
   if (!r || typeof r !== 'object') return 'not an object';
   if (typeof r.id !== 'string' || !r.id) return 'no id';
   if (!/^[0-9a-f]{40}$/.test(String(r.sha))) return 'sha is not a full 40-hex sha';
   if (!['pr', 'full', 'alone'].includes(r.kind)) return `bad kind ${r.kind}`;
   const strings = (a) => Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x);
   if (r.kind === 'pr' && !strings(r.suites)) return 'pr request needs suites';
+  const bad = r.kind === 'pr' && known ? unknownSuites(r.suites, known) : [];
+  if (bad.length) return `unknown suite(s) ${bad.join(', ')} (run-e2e runs smoke, anim-audit and scripts/e2e-<name>.mjs at the sha; a part is name:N)`;
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
   if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
+  if (r.laptopRerun && r.kind !== 'pr') return 'laptop rerun needs kind pr';
+  if (r.priority !== undefined && !Number.isInteger(r.priority)) return 'priority must be an integer';
   return '';
 }
 
@@ -75,54 +127,174 @@ export function claimBlocks(claim, worker, now, maxMs) {
   return now - Date.parse(claim.at) < maxMs;
 }
 
-/** Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. */
-export function desktopGate(backlog, cpu, minBacklog, maxCpu) {
+/**
+ * Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. cpu is the
+ * gated load (gatedCpu: BelowNormal / Idle processes left out); total (optional, the whole machine) only goes into the
+ * reason so the log explains a wait, e.g. "cpu 62% >= 50% (Normal+ priority; total 95%)".
+ */
+export function desktopGate(backlog, cpu, minBacklog, maxCpu, total) {
   if (!(backlog > minBacklog)) return `backlog ${backlog} <= ${minBacklog}`;
   if (!Number.isFinite(cpu)) return 'cpu unknown';
-  if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%`;
+  if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%${Number.isFinite(total) ? ` (Normal+ priority; total ${total}%)` : ''}`;
   return '';
 }
 
 /**
  * Per-slot desktop gate: '' when the slot may start, else why it waits. s = { lockName, lockHeld, dirOk, backlog, cpu,
- * minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU); lock and dir are checked before desktopGate.
+ * cpuTotal?, minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU; cpu the gated load, cpuTotal the
+ * whole machine for the reason only); lock and dir are checked before desktopGate.
  */
 export function desktopSlotGate(s) {
   if (s.lockHeld) return `${s.lockName} held`;
   if (!s.dirOk) return 'worktree missing';
-  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu);
+  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal);
+}
+
+/**
+ * Waste audit 2026-10-25 (4191 blocked by heavy.lock 21:57 to 01:20+ with 4-10 requests waiting; the gate only checked
+ * that the file exists): what to do with a slot lock read twice. `first` / `second` are the file text of two reads
+ * (null: absent); `host` this machine, `alive(pid)` the pid probe (heavy-lock.mjs pidAlive). -> { action, why }:
+ * 'free' (no lock), 'break' (it names a pid that is dead on this host and both reads match, so no fresh taker raced
+ * us), or 'hold' (no parseable pid, another host, a live pid, or the text changed between the reads). Same rule and
+ * parser as heavy-lock.mjs isStale: an old-format line with no pid is never broken; the service's own "laptop-queue |
+ * ... pid <n> | <iso>" line names no host and is this machine's (2026-10-25 ~10:51: a killed desktop service's pid 4484
+ * lines held heavy.lock / heavy2.lock for 10+ min because the gate read no pid in them).
+ */
+export function slotLockDecision(first, second, { host, alive }) {
+  const a = first == null ? '' : String(first).trim();
+  if (!a) return { action: 'free', why: 'no lock' };
+  const { pid, host: h } = parseLock(a);
+  if (pid === null) return { action: 'hold', why: 'no pid in the lock' };
+  if (h !== null && h !== host) return { action: 'hold', why: `pid ${pid} is on ${h}, not ${host}` };
+  if (alive(pid)) return { action: 'hold', why: `pid ${pid} is alive` };
+  const b = second == null ? '' : String(second).trim();
+  if (b !== a) return { action: 'hold', why: 'the lock changed between two reads' };
+  return { action: 'break', why: `pid ${pid} is not alive on ${host}` };
+}
+
+/**
+ * Whole-machine busy % between two os.cpus() snapshots (user+nice+sys+irq over all times, idle included), rounded and
+ * clamped 0-100; NaN when either is missing, the core count differs or no time passed.
+ */
+export function cpuTotalPct(before, after) {
+  if (!Array.isArray(before) || !Array.isArray(after) || !before.length || before.length !== after.length) return NaN;
+  let busy = 0;
+  let all = 0;
+  for (let i = 0; i < after.length; i++) {
+    const a = before[i]?.times;
+    const b = after[i]?.times;
+    if (!a || !b) return NaN;
+    const d = (k) => (Number(b[k]) || 0) - (Number(a[k]) || 0);
+    const work = d('user') + d('nice') + d('sys') + d('irq');
+    busy += work;
+    all += work + d('idle');
+  }
+  if (!(all > 0)) return NaN;
+  return Math.round(Math.min(100, Math.max(0, (busy / all) * 100)));
+}
+
+/**
+ * Background CPU from service.mjs BG_CPU_PS output: "a <pid> <ms>" lines (first Get-Process snapshot) and "b <pid> <ms>"
+ * (second) for processes below Normal base priority (< 8: BelowNormal 6, Idle 4; pid 0 is left out), plus "el <ms>" (wall
+ * time between the snapshots). Returns { bgMs, elapsedMs }: CPU ms the background processes used in the window, summed
+ * over pids in both snapshots (a pid in only one started, ended or changed priority in the window and is skipped, so
+ * the gate leans toward counting load). elapsedMs is NaN when the el line is missing or not positive.
+ */
+export function backgroundCpuMs(text) {
+  const a = new Map();
+  const b = new Map();
+  let elapsedMs = NaN;
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const m = /^\s*([ab])\s+(\d+)\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
+    if (m) {
+      if (m[2] !== '0') (m[1] === 'a' ? a : b).set(m[2], Number(m[3]));
+      continue;
+    }
+    const e = /^\s*el\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
+    if (e && Number(e[1]) > 0) elapsedMs = Number(e[1]);
+  }
+  let bgMs = 0;
+  for (const [pid, ms] of b) if (a.has(pid)) bgMs += Math.max(0, ms - a.get(pid));
+  return { bgMs, elapsedMs };
+}
+
+/**
+ * The CPU % the desktop gates use: total (cpuTotalPct over the same window) minus the background processes' share
+ * (bgMs / (elapsedMs * cores)), rounded and clamped 0-100; NaN when total, elapsedMs or cores is unusable. 2026-10-24
+ * 22:34-23:36: port 4192 started nothing for ~62 min with 5 requests waiting because a BelowNormal Blender bake kept the
+ * machine over its 50% gate; work below Normal priority yields to the e2e run, so it no longer blocks a start.
+ */
+export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
+  if (!Number.isFinite(total) || !(elapsedMs > 0) || !(cores > 0)) return NaN;
+  const bg = ((Number(bgMs) || 0) / (elapsedMs * cores)) * 100;
+  return Math.round(Math.min(100, Math.max(0, total - bg)));
 }
 
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
- * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
- * slots drain (preemption). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
+ * request, slot } (one free slot), or null. The lowest pending train wins and, while a slot is busy, blocks all new work
+ * so the slots drain (preemption); only a rerun of a LOWER train (rerunTrain) goes before it, on one free slot (overlap
+ * plan section 3: train N's rerun never waits behind N+1's full run). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
  * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
+ * An alone run preempted by a train (queue.front, a Set of ids; cutShort) goes first among alone requests and counts as
+ * aged, so it runs as soon as the trains and their reruns leave both slots idle.
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
- * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
+ * and that requester's OLDEST non-alone request runs, unless one of its requests has a higher `priority` (request.mjs
+ * --priority N, default 0; higher first, then oldest). A stale older request is retired before pick by superseded()
+ * (same PR / branch, newer head), so oldest-first never runs it. Orchestrator 2026-10-24: newest-first let Guard AI's
+ * newer #360 / #363 requests jump its #317 request for 70 min while that PR waited for train-ready. A laptop rerun
+ * keeps its place by its id time. priority only orders one requester's own requests, never across requesters.
+ * The auto affected-e2e requests queue one requester per branch (queueRequester), so PRs take turns with the leads.
+ * Spare work (SPARE_REQUESTER) is picked only when no other request is open: never aged, never at the front. The
+ * service also sets queue.realOpen (lib realWaiting on the full listing, before its alone hold filters) so a real
+ * request it holds back still keeps a spare from starting.
  */
 export function pick(queue, now, slots) {
+  const all = [...queue.requests].sort(sortById);
+  const real = all.filter((r) => r.requester !== SPARE_REQUESTER);
+  if (real.length || queue.realOpen || !all.length || queue.trains.length) return pickFrom({ ...queue, requests: real }, now, slots);
+  return pickFrom({ trains: [], requests: all, front: new Set() }, -Infinity, slots); // spare only: nothing ages
+}
+
+function pickFrom(queue, now, slots) {
   const idle = slots.filter((s) => !s.busy);
   const bothIdle = idle.length === slots.length;
-  if (queue.trains.length > 0) return bothIdle ? { kind: 'train', train: queue.trains[0] } : null;
   const reqs = [...queue.requests].sort(sortById);
+  if (queue.trains.length > 0) {
+    const front = sortTrains(queue.trains)[0];
+    const early = reqs.find((r) => r.trainRerun && trainBelow(rerunTrain(r), front.n));
+    if (early) return idle[0] ? { kind: 'request', request: early, slot: idle[0].port } : null;
+    return bothIdle ? { kind: 'train', train: front } : null;
+  }
   const rerun = reqs.find((r) => r.trainRerun);
   if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
-  const alone = reqs.filter((r) => r.kind === 'alone');
-  const aged = alone.find((r) => {
-    const t = idTime(r.id);
-    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
-  });
+  const front = queue.front ?? new Set();
+  const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
+  const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
-  const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
-  for (const r of nonAlone) newest.set(r.requester ?? '', r);
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
-  const next = first ? newest.get(first.requester ?? '') : undefined;
+  const prio = (r) => (Number.isInteger(r.priority) ? r.priority : 0);
+  let next;
+  // that requester's highest priority, then oldest (reqs is sorted by id, so the first of a priority wins)
+  if (first) for (const r of nonAlone) if (queueRequester(r) === queueRequester(first) && (!next || prio(r) > prio(next))) next = r;
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
+}
+
+/**
+ * The oldest alone request that has waited over ALONE_AGE_MIN (by its id time), or null. While there is one no new pr /
+ * full request starts (pick; the service applies it also while the train hold keeps alone requests back), so the
+ * slots drain for it; trains and train reruns still go first.
+ */
+export function agedAlone(requests, now) {
+  return [...(requests ?? [])].sort(sortById).find((r) => {
+    if (r.kind !== 'alone' || r.requester === SPARE_REQUESTER) return false;
+    const t = idTime(r.id);
+    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
+  }) ?? null;
 }
 
 const suiteBase = (s) => String(s).replace(/:.*$/, '');
@@ -134,6 +306,9 @@ const suiteBase = (s) => String(s).replace(/:.*$/, '');
  * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
  * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester, nor a pinned
  * one (`pin: true`, request.mjs --pin: an A/B or baseline run kept on purpose; it may still supersede older ones).
+ * A laptop rerun (`laptopRerun`, a desktop failure handed to the laptop) supersedes nothing; a newer head may supersede it.
+ * The auto affected-e2e requests (requester AFFECTED_REQUESTER, set 'affected') compare per branch (queueRequester): a
+ * newer head of the same PR branch supersedes the older one (rebased or not), another PR's never does.
  */
 export function superseded(requests, isAncestor) {
   const reqs = [...requests].sort(sortById);
@@ -144,7 +319,8 @@ export function superseded(requests, isAncestor) {
     if (!r.requester || r.requester === 'unknown') return;
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
-      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
+      if (n.id === r.id || queueRequester(n) !== queueRequester(r) || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
+      if (n.laptopRerun) continue; // a laptop rerun rechecks an older run's failure: it never retires another request
       const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
       const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
       if (rSet && nSet && rSet !== nSet) continue;
@@ -158,6 +334,80 @@ export function superseded(requests, isAncestor) {
     }
   });
   return out;
+}
+
+/**
+ * How far a run is through its expected wall: elapsedMs over the heaviest of `jobs` bins of its suites by times.json
+ * weight (lib shard, unknown suites at the median), so 1 = due to finish now. NaN when nothing is known.
+ */
+export function runProgress(suites, times, jobs, elapsedMs) {
+  const wallS = expectedWallS(suites, times, jobs);
+  return wallS > 0 ? elapsedMs / (wallS * 1000) : NaN;
+}
+
+/**
+ * A run's expected wall in s: the heaviest of `jobs` bins of its suites by times.json weight (runProgress's
+ * denominator; a train posts it per shard as "expect ~N s" for auto-train's late poll). NaN when unknown.
+ */
+export function expectedWallS(suites, times, jobs) {
+  if (!(suites ?? []).length || !Object.keys(times ?? {}).length) return NaN;
+  // a named suite runs as its parts (e2e-desktop -> e2e-desktop:1..4, the keys times.json holds); a suite with no time
+  // at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
+  const parts = [];
+  for (const s of suites) {
+    const own = Object.keys(times).filter((k) => k.startsWith(`${s}:`));
+    if (own.length) parts.push(...own);
+    else if (Number.isFinite(times[s])) parts.push(s);
+    else return NaN;
+  }
+  const bins = shard(parts, times, Math.max(1, Number(jobs) || 1));
+  const wallS = Math.max(...bins.map((b) => b.weight));
+  return wallS > 0 ? wallS : NaN;
+}
+
+/**
+ * The laptop's alone hold before a train exists (Orchestrator audit 2026-10-24: #323 was labelled 18 s before a 30-min
+ * guard-cap alone run claimed both slots): '' or why new alone claims wait. openTrains = open train/<n> PRs, candidates =
+ * open train-ready PRs with a green check. An alone request older than ALONE_AGE_MIN still starts (aged; never starved).
+ */
+export function aloneSoon(openTrains, candidates) {
+  return openTrains === 0 && candidates > 0 ? `${candidates} train-ready PR(s) waiting for a train` : '';
+}
+
+/** Train heads by train number, lowest first (ls-remote lists them as text: train/100 before train/99). New array. */
+export function sortTrains(trains) {
+  return [...(trains ?? [])].sort((a, b) => Number(a.n) - Number(b.n));
+}
+
+/** true when train number a is below b (both numeric); '?' or '' never is. */
+export function trainBelow(a, b) {
+  const x = Number(a);
+  const y = Number(b);
+  return String(a ?? '') !== '' && String(b ?? '') !== '' && Number.isFinite(x) && Number.isFinite(y) && x < y;
+}
+
+/** The train a train rerun belongs to: its set train<n>-rerun (auto-train rerunSet), else a train/<n> branch; '' when neither. */
+export function rerunTrain(r) {
+  return /^train(\d+)-rerun$/.exec(String(r?.set ?? ''))?.[1] ?? /^train\/(\d+)$/.exec(String(r?.branch ?? ''))?.[1] ?? '';
+}
+
+/**
+ * Trains the desktop may still start while auto-train's build marker stands: only those below the train being built
+ * (overlap plan section 3; the N+1 build must not hold back train N). An unreadable marker ('?') blocks every train.
+ */
+export function trainsUnderMarker(trains, marker) {
+  return (trains ?? []).filter((t) => trainBelow(t.n, marker?.train));
+}
+
+/**
+ * Void-train watch: consecutive checks on which a running train head was not an open train PR head. heads = the open
+ * train PR head shas (a Set), or null when the listing failed (the count stays). The run is cut at VOID_MISSES, so one
+ * bad listing never kills it (as withdrawn requests).
+ */
+export const VOID_MISSES = 2;
+export function voidMisses(prev, sha, heads) {
+  if (!heads) return prev;
+  return heads.has(sha) ? 0 : prev + 1;
 }
 
 /**
@@ -183,7 +433,9 @@ export function dupKey(r) {
   const env = Object.entries(r.env ?? {}).map(([k, v]) => `${k}=${v}`).sort();
   const what = r.kind === 'alone' ? r.steps ?? [] : r.kind === 'pr' ? [...(r.suites ?? [])].sort() : [];
   const opt = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
-  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr)]);
+  // a laptop rerun of a desktop failure never matches the desktop run it rechecks (that run is still active when it is
+  // pushed); the extra element only on reruns, so older keys in state.done stay comparable
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr), ...(r.laptopRerun ? ['laptopRerun'] : [])]);
 }
 
 /**
@@ -194,13 +446,24 @@ export function dupKey(r) {
  * retires a request (a rerun of a failure is meant to run: checker FIX 2026-10-24, the desktop retired the laptop
  * reruns of its own failures). Different requesters still match (player a8ff2d45, 2026-10-23: supersede only joins
  * one requester's pr / full requests and never alone ones); a different set, jobs or pr does not (dupKey).
+ * An auto affected request (AFFECTED_REQUESTER) is retired only against another affected request (active, else open) or
+ * a recent success, never against another requester's open or running run: that run posts no affected-e2e, so the
+ * head's check would stay pending (Orchestrator audit 2026-10-25; duplicateStatuses posts the retired one's status).
  */
 export function duplicates(requests, recentDone, now, windowMs) {
   const reqs = [...(requests ?? [])].sort(sortById);
   const out = new Map();
   const active = new Map();
+  const activeAff = new Map();
   const firstOpen = new Map();
-  for (const r of reqs) if (r.active && !active.has(dupKey(r))) active.set(dupKey(r), r.id);
+  const firstOpenAff = new Map();
+  const aff = (r) => r.requester === AFFECTED_REQUESTER;
+  for (const r of reqs) {
+    if (!r.active) continue;
+    const k = dupKey(r);
+    if (!active.has(k)) active.set(k, r.id);
+    if (aff(r) && !activeAff.has(k)) activeAff.set(k, r.id);
+  }
   const done = new Map();
   for (const d of recentDone ?? []) {
     if (!d?.key || d.result !== 'success' || !(now - Date.parse(d.date) < windowMs)) continue;
@@ -209,8 +472,10 @@ export function duplicates(requests, recentDone, now, windowMs) {
   for (const r of reqs) {
     if (r.active) continue;
     const k = dupKey(r);
-    const by = active.get(k) ?? firstOpen.get(k) ?? done.get(k);
-    if (by) out.set(r.id, by); else firstOpen.set(k, r.id);
+    const by = aff(r) ? activeAff.get(k) ?? firstOpenAff.get(k) ?? done.get(k) : active.get(k) ?? firstOpen.get(k) ?? done.get(k);
+    if (by) { out.set(r.id, by); continue; }
+    if (!firstOpen.has(k)) firstOpen.set(k, r.id);
+    if (aff(r) && !firstOpenAff.has(k)) firstOpenAff.set(k, r.id);
   }
   return out;
 }
@@ -246,12 +511,25 @@ export function yieldTo(r, started, trains) {
  * when every other run on this worker (others) is a plain pr request too: a train starts with both slots idle, so
  * killing one beside a full, alone or train-rerun run would only waste it. A train rerun, a full run and an alone run
  * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
- * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way).
+ * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way), except an alone run whose steps
+ * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
+ * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue. A pr run at
+ * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
+ * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
  */
+export const ALONE_PREEMPT_MIN = 10;
+/** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
+export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [] } = {}) {
+const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false } = {}) {
   if (withdrawn) return 'withdrawn';
-  if (started && preemptible(r) && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
+  // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
+  // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
+  if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
+  if (r?.requester === SPARE_REQUESTER && realOpen) return 'real';
+  const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
+  if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
 }
 
@@ -383,6 +661,78 @@ export function trainHold(heads) {
 }
 
 /**
+ * The open train about to be released, for trainSoon's releasing case: of heads ([{ n, laptop, laptopAt }], laptopAt =
+ * the laptop-e2e status' updated_at), the one whose laptop-e2e success is youngest, as { n, ageMs }; null when none
+ * has a success with a readable time.
+ */
+export function releasingTrain(heads, now) {
+  let best = null;
+  for (const h of heads ?? []) {
+    const t = Date.parse(h?.laptopAt ?? '');
+    if (h?.laptop !== 'success' || !Number.isFinite(t)) continue;
+    if (!best || now - t < best.ageMs) best = { n: h.n, ageMs: Math.max(0, now - t) };
+  }
+  return best;
+}
+
+/** How long a released-to-be train (laptop-e2e success, PR still open) holds new claims (trainSoon releasing). */
+export const RELEASE_HOLD_MS = 10 * 60_000;
+
+/**
+ * Train-ready PRs counted by the releasing hold: prs = [{ head, check: { status, conclusion } | null }] (the `check` run
+ * of gh's statusCheckRollup); a check that passed or is still running (status not COMPLETED) counts, a failed or
+ * missing one does not, nor a head inTrain(head) says the open train already carries (its members keep the label).
+ */
+export function readyOrPending(prs, inTrain = () => false) {
+  return (prs ?? []).filter((p) => {
+    const c = p?.check;
+    if (!c || inTrain(p.head)) return false;
+    return String(c.conclusion ?? '').toUpperCase() === 'SUCCESS' || (Boolean(c.status) && String(c.status).toUpperCase() !== 'COMPLETED');
+  }).length;
+}
+
+/**
+ * Why the laptop should start no new non-train work now because a train is about to need both slots, or '' (Orchestrator
+ * audit 2026-10-24: the laptop claimed an alone run 51 s before train 60's build began, so the train waited ~4.5 min).
+ * building = an open train PR whose head is not its version commit yet ({ n, ageMs }; merge-train opens the PR before it
+ * pushes the version commit), held while younger than buildMaxMs; release = the newest merged train PR ({ n, ageMs }),
+ * held for gapMs after it while candidates (open train-ready PRs with a green check) > 0, the next build being due.
+ * releasing = an open train PR whose laptop-e2e is success ({ n, ageMs from that status' updated_at }): auto-train
+ * releases it and builds the next one within minutes, so every new claim is held for releaseMs while candidates
+ * (here: train-ready PRs not in the train whose check is green OR still running, readyOrPending) > 0 (Orchestrator
+ * waste audit 2026-10-24: an alone run claimed 17 s after train 67's laptop-e2e success was preempted by train 68).
+ */
+export function trainSoon({ building = null, releasing = null, release = null, candidates = 0 } = {}, { gapMs, buildMaxMs, releaseMs = RELEASE_HOLD_MS }) {
+  if (building && building.ageMs < buildMaxMs) return `train ${building.n} building`;
+  if (releasing && releasing.ageMs < releaseMs && candidates > 0) return `train ${releasing.n} releasing, ${candidates} train-ready PR(s) next`;
+  if (release && release.ageMs < gapMs && candidates > 0) return `train ${release.n} released, ${candidates} train-ready PR(s) waiting`;
+  return '';
+}
+
+/**
+ * The slots a manual lock (any holder line not written by the queue service: `laptop-queue |`) holds now: { port: line }.
+ * locks = { port: lock file text, or null when absent }. A pr / alone request is not claimed onto such a slot (a
+ * requester's own heavy.lock left its claimed run waiting 12.9 min, audit 2026-10-24); trains keep their own wait.
+ */
+export function manualLocks(locks) {
+  const out = {};
+  for (const [port, text] of Object.entries(locks ?? {})) {
+    const line = String(text ?? '').trim();
+    if (line && !line.startsWith('laptop-queue |')) out[port] = line;
+  }
+  return out;
+}
+
+/**
+ * Whether an aged alone request may stop new pr claims under this train hold: only while the holding train can still
+ * clear by running here (laptop-e2e none or pending). A failed train, an error or an unreadable PR list ('unknown')
+ * may hold for hours, so pr requests keep running then (checker FIX 2026-10-24: no starvation the other way).
+ */
+export function holdClears(hold) {
+  return Boolean(hold) && ['', 'pending'].includes(hold.laptop ?? '');
+}
+
+/**
  * An assert line reduced to what names it: bracketed parts ([host: sim 90.30 s ...] timing and state dumps) dropped,
  * numbers as #, spaces collapsed. '' for no assert.
  */
@@ -390,12 +740,83 @@ export function assertKey(line) {
   return String(line ?? '').replace(/\[[^\]]*\]/g, '').replace(/\d+(?:\.\d+)?/g, '#').replace(/\s+/g, ' ').trim();
 }
 
+// ---------- flake budget and quarantine (process audit 2026-10-24 finding 5; replaces "flake stands") ----------
+
+/** Days a flake counts against its suite's budget. */
+export const FLAKE_BUDGET_DAYS = 7;
+/** Flakes a suite may have in FLAKE_BUDGET_DAYS; one more quarantines it (autoQuarantine). */
+export const FLAKE_BUDGET = 2;
+/** How long an automatic quarantine lasts. */
+export const QUARANTINE_TTL_MS = 48 * 3600_000;
+export const DEFAULT_OWNER = 'Night Shift | Orchestrator';
+
+/** The live quarantine entry for suite (its own name, or a whole-suite entry for a part), null when none or expired. */
+export function quarantined(list, suite, now) {
+  const base = String(suite).split(':')[0];
+  return (list ?? []).find((q) => (q?.suite === suite || q?.suite === base) && Date.parse(q.expiry) > now) ?? null;
+}
+
+/** The owner of suite in an owners map (its own name, then the whole suite), else DEFAULT_OWNER. */
+export function suiteOwner(owners, suite) {
+  return owners?.[suite] ?? owners?.[String(suite).split(':')[0]] ?? DEFAULT_OWNER;
+}
+
+/** Adds one run per suite name to day counts { 'YYYY-MM-DD': { suite: n } }; days older than keepDays drop. New map. */
+export function countRuns(days, suites, now, keepDays = FLAKE_BUDGET_DAYS) {
+  const out = {};
+  const oldest = new Date(now - keepDays * 86400_000).toISOString().slice(0, 10);
+  for (const [d, m] of Object.entries(days ?? {})) if (d >= oldest) out[d] = { ...m };
+  const today = new Date(now).toISOString().slice(0, 10);
+  out[today] ??= {};
+  for (const s of suites) out[today][s] = (out[today][s] ?? 0) + 1;
+  return out;
+}
+
 /**
- * The failure stands without an alone rerun: the same suite flaked within windowMs on the same assert key. A flake
- * recorded without a key (older state) or a failure with no assert never matches, so it is rerun.
+ * Per-suite budget rows for the suites that flaked in the window: { suite, runs, flakes, rate, over } (over = flakes past
+ * budget), worst first. flakes = state.flakes ({ suite, date }), days = countRuns' map. starts = { suite: ISO } of each
+ * suite's last automatic quarantine: only flakes after it count, so an expired quarantine never renews itself on the
+ * same flakes (checker FIX 2026-10-24: it re-armed every 48 h for the whole 7-day window).
  */
-export function flakeStands(flakes, suite, key, now, windowMs) {
-  return Boolean(key) && (flakes ?? []).some((f) => f.suite === suite && f.key === key && now - Date.parse(f.date) < windowMs);
+export function flakeBudget(flakes, days, now, windowDays = FLAKE_BUDGET_DAYS, budget = FLAKE_BUDGET, starts = {}) {
+  const since = now - windowDays * 86400_000;
+  const oldest = new Date(since).toISOString().slice(0, 10);
+  const count = new Map();
+  for (const f of flakes ?? []) {
+    const t = Date.parse(f.date);
+    if (t >= since && !(t <= Date.parse(starts?.[f.suite] ?? ''))) count.set(f.suite, (count.get(f.suite) ?? 0) + 1);
+  }
+  const rows = [...count].map(([suite, n]) => {
+    let runs = 0;
+    for (const [d, m] of Object.entries(days ?? {})) if (d >= oldest) runs += m[suite] ?? 0;
+    runs = Math.max(runs, n);
+    return { suite, runs, flakes: n, rate: n / runs, over: n > budget };
+  });
+  return rows.sort((a, b) => b.flakes - a.flakes || b.rate - a.rate || a.suite.localeCompare(b.suite));
+}
+
+/**
+ * New quarantine entries for the over-budget rows that no list already quarantines: { suite, owner, expiry, reason, auto }.
+ * lists = the arrays to check (the committed file's and the service's own).
+ */
+export function autoQuarantine(rows, lists, owners, now, ttlMs = QUARANTINE_TTL_MS) {
+  const out = [];
+  for (const r of rows ?? []) {
+    if (!r.over || lists.some((l) => quarantined(l, r.suite, now))) continue;
+    out.push({ suite: r.suite, owner: suiteOwner(owners, r.suite), expiry: new Date(now + ttlMs).toISOString(), reason: `flake budget: ${r.flakes} flakes in ${r.runs} runs over ${FLAKE_BUDGET_DAYS} d (budget ${FLAKE_BUDGET})`, auto: true });
+  }
+  return out;
+}
+
+/** Markdown: the budget rows (flaked suites only) with each one's quarantine, or '' when nothing flaked. */
+export function flakeSummary(rows, quarantine, owners, now) {
+  if (!rows?.length) return '';
+  const lines = [`Flake budget (${FLAKE_BUDGET_DAYS} d, ${FLAKE_BUDGET} flakes allowed; over it a suite is quarantined: it runs, its failure prints KNOWN FLAKY):`, '', '| Suite | Flakes / runs | Owner | Quarantine |', '| --- | --- | --- | --- |'];
+  for (const r of rows) {
+    const q = quarantined(quarantine, r.suite, now);
+    lines.push(`| ${r.suite} | ${r.flakes} / ${r.runs} (${Math.round(r.rate * 100)}%) | ${q?.owner ?? suiteOwner(owners, r.suite)} | ${q ? `until ${q.expiry.slice(0, 16).replace('T', ' ')} UTC` : r.over ? 'over budget' : '-'} |`);
+  }
+  return lines.join('\n');
 }
 
 /**
@@ -408,36 +829,56 @@ export function trainBuildFailed(statuses) {
 
 /**
  * A worker's claim pushes on the laptop-queue branch, from `git log --format="%ct %s" -- claims/` lines (writeClaims
- * subjects end "(<worker>)"): { last, trainClaims } = epoch ms of its newest push (NaN when none) and whether it ever
- * pushed a "claim train ..." (it runs the service that claims trains).
+ * subjects end "(<worker>)", newest first): { last, trainClaims, openTrain } = epoch ms of its newest push (NaN when
+ * none), whether it ever pushed a "claim train ..." (it runs the service that claims trains), and the train number of its
+ * newest "claim train <n>" with no later "done train <n>" / "release train <n>" ('' when none: it runs no train).
  */
 export function workerActivity(logText, worker) {
   let last = NaN;
   let trainClaims = false;
   const tail = ` (${worker})`;
+  const seen = new Map(); // train n -> { t, open } of its newest event (the first line wins a same-second tie)
   for (const l of String(logText).replace(/\r\n/g, '\n').split('\n')) {
     const m = /^(\d+) (.*)$/.exec(l.trim());
     if (!m || !m[2].endsWith(tail)) continue;
     const t = Number(m[1]) * 1000;
     if (!(t <= last)) last = t;
     if (m[2].startsWith('claim train ')) trainClaims = true;
+    const e = /^(claim|done|release) train (\d+)\b/.exec(m[2]);
+    if (e && !(seen.get(e[2])?.t >= t)) seen.set(e[2], { t, open: e[1] === 'claim' });
   }
-  return { last, trainClaims };
+  // only the NEWEST train claim counts: an older claim whose done push was lost must never look open for good (checker FIX)
+  let newest = '';
+  let newestAt = -Infinity;
+  for (const [n, e] of seen) if (e.open && e.t > newestAt) { newest = n; newestAt = e.t; }
+  for (const e of seen.values()) if (e.t > newestAt) newest = ''; // a later done / release of any train: the laptop moved on
+  return { last, trainClaims, openTrain: newest };
 }
 
 /**
  * Desktop train gate: '' when the desktop may take a train head, else why not. a = { laptop: workerActivity(...,
- * 'laptop'), now, silentMs, trainAgeMs, graceMs }. Only while the laptop has pushed no claim / done for silentMs, only
- * once the laptop claims trains itself (an older laptop service would rerun a desktop-claimed train), and only for a
- * head older than graceMs (a live idle laptop claims a new head within one pass). The claim push stays the real guard.
+ * 'laptop'), now, silentMs, trainAgeMs, graceMs, train }. Only while the laptop has pushed no claim / done for silentMs,
+ * or while it runs a DIFFERENT train (laptop.openTrain; overlap plan section 3: train N+1 goes to the desktop beside N;
+ * train omitted = any train other than the laptop's), only once the laptop claims trains itself (an older laptop service
+ * would rerun a desktop-claimed train), and only for a head older than graceMs (a live idle laptop claims a new head
+ * within one pass). The claim push stays the real guard.
  */
 export function desktopTrainGate(a) {
   if (!a.laptop.trainClaims) return 'laptop service does not claim trains yet';
+  const open = String(a.laptop.openTrain ?? '');
+  const beside = open !== '' && (a.train === undefined || String(a.train) !== open);
   const quiet = a.now - a.laptop.last;
-  if (quiet < a.silentMs) return `laptop active ${Math.round(quiet / 60_000)} min ago`;
+  if (!beside && quiet < a.silentMs) return `laptop active ${Math.round(quiet / 60_000)} min ago`;
   if (!(a.trainAgeMs >= a.graceMs)) return 'train head too new';
   return '';
 }
+
+/**
+ * The permanent scheduled tasks the task guard never disables (exact names; service.mjs adds env LQ_TASK_ALLOW).
+ * "NightShift watchdog" (scripts/watchdog-task.ps1) runs C:\NightShift\scratch\watchdog-task.vbs, so without its entry
+ * staleTasks disabled it within one guard pass (Orchestrator audit 2026-10-25).
+ */
+export const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train', 'NightShift watchdog'];
 
 const SCRATCH_RE = /c:[\\/]+nightshift[\\/]+scratch/i;
 const RUNNER_RE = /laptop-runner\.ps1/i;
@@ -465,4 +906,235 @@ export function staleTasks(tasks, allow) {
     if (why) out.push({ name, path: t.path ?? '\\', state: t.state, why });
   }
   return out;
+}
+
+// ---------- affected e2e on every PR head (process audit 2026-10-24, finding 5) ----------
+
+/** The requester (and request id slug) of the requests the laptop service enqueues for PR heads by itself. */
+export const AFFECTED_REQUESTER = 'affected-e2e';
+/** The commit status context the affected pass posts on a PR head (beside the request's own laptop-e2e/affected). */
+export const AFFECTED_CTX = 'affected-e2e';
+/** A PR with this label gets no automatic affected request (a lead's own requests still run). */
+export const AFFECTED_SKIP_LABEL = 'no-affected-e2e';
+
+/**
+ * The requester a request queues under (pick's turn order, superseded's "same requester"): an auto affected request
+ * queues per PR branch ("affected-e2e:<branch>"), any other request under its own requester.
+ */
+export function queueRequester(r) {
+  return r?.requester === AFFECTED_REQUESTER ? `${AFFECTED_REQUESTER}:${r.branch ?? ''}` : r?.requester;
+}
+
+/**
+ * The suites a committed change must pass, shared by request.mjs --affected and the service's affected pass: the files
+ * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected selectSuites
+ * (DIRECT_COVERS; wide: WIDE_COVERS). run(args) runs git and returns its stdout (injected: this file stays pure); it must
+ * throw on failure (a failed diff read as "no files" would pass the head). Returns { base: merge-base, files, suites },
+ * or null when there is no merge-base or git failed; suites [] = no browser suite reached (docs / unit only).
+ */
+export function affectedSuites(run, sha, { base = 'origin/master', wide = false } = {}) {
+  let mb;
+  let out;
+  try {
+    mb = String(run(['merge-base', base, sha]) ?? '').trim();
+    if (!mb) return null;
+    out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
+  } catch { return null; }
+  const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
+  return { base: mb, files, suites: affectedGateSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS)) };
+}
+
+/**
+ * The open PR heads the affected pass must handle now: [{ pr, sha, branch }], PR order kept. prs = `gh pr list --json
+ * number,headRefName,headRefOid,isDraft,labels,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
+ * AFFECTED_SKIP_LABEL label, a head with a final affected-e2e status already (its StatusContext in the rollup: success,
+ * failure or error), a head an affected request already names (`requests`: the open, claimed or running ones), and
+ * one this process enqueued (`seen`, a Set of shas: the push the next listing has not caught up with). A head whose
+ * affected-e2e is pending with no such request is stuck (its request was retired or withdrawn without a final status,
+ * Orchestrator audit 2026-10-25) and is requested again: { pr, sha, branch, stuck: true }.
+ */
+export function affectedNeeds(prs, requests = [], seen = new Set()) {
+  const have = new Set((requests ?? []).filter((r) => r?.requester === AFFECTED_REQUESTER).map((r) => r.sha));
+  const out = [];
+  for (const p of prs ?? []) {
+    const sha = String(p?.headRefOid ?? '');
+    const branch = String(p?.headRefName ?? '');
+    if (!/^[0-9a-f]{40}$/.test(sha) || !branch || branch.startsWith('train/') || p.isDraft) continue;
+    if ((p.labels ?? []).some((l) => (typeof l === 'string' ? l : l?.name) === AFFECTED_SKIP_LABEL)) continue;
+    const st = (p.statusCheckRollup ?? []).find((s) => s?.context === AFFECTED_CTX);
+    const pending = Boolean(st) && String(st.state ?? '').toUpperCase() === 'PENDING';
+    if (st && !pending) continue;
+    if (have.has(sha) || seen.has(sha)) continue;
+    out.push({ pr: Number(p.number), sha, branch, ...(pending ? { stuck: true } : {}) });
+  }
+  return out;
+}
+
+/**
+ * The request the affected pass enqueues for a PR head: the shape request.mjs --affected writes (kind pr, set
+ * 'affected', so its own context is laptop-e2e/affected), requester AFFECTED_REQUESTER, the PR number (the failure
+ * comment goes there). suffix = 4 random hex (injected), as request.mjs adds.
+ */
+export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
+  return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+}
+
+// ---------- desktop failures rechecked on the laptop (Orchestrator waste audit 2026-10-24, laptop-queue-3) ----------
+
+/** Median of the finite numbers in xs, NaN when none. */
+export function median(xs) {
+  const v = (xs ?? []).filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+  if (!v.length) return NaN;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+
+/** Desktop CPU median over this (%): the handed-off status says so, the failure may be load, not the change. */
+export const DESKTOP_HOT_CPU = 90;
+
+/**
+ * The pending description a desktop PR run posts when suites failed and the laptop rerun is queued:
+ * "desktop FAIL a,b (cpu 87%), laptop rerun queued", plus "; desktop cpu>90%" when the run's median CPU was over
+ * DESKTOP_HOT_CPU; the suite list is cut to keep the whole within GitHub's 140 chars.
+ */
+export function desktopFailDesc(suites, cpu) {
+  const pct = Number.isFinite(cpu) ? `${Math.round(cpu)}%` : '?%';
+  const tail = ` (cpu ${pct}), laptop rerun queued${cpu > DESKTOP_HOT_CPU ? `; desktop cpu>${DESKTOP_HOT_CPU}%` : ''}`;
+  const head = 'desktop FAIL ';
+  let list = (suites ?? []).join(',');
+  const room = 140 - head.length - tail.length;
+  if (list.length > room) list = `${list.slice(0, room - 3)}...`;
+  return `${head}${list}${tail}`;
+}
+
+/**
+ * The laptop-only request for a desktop run's failed suites: same sha, set, pr, requester and branch, suites = the
+ * failed ones, "laptopRerun": true (the desktop never claims it). With no set, the set is the original suites joined
+ * by "+", so the rerun posts its verdict on the very context the desktop left pending (lib contextName). suffix = 4
+ * random hex (injected), as request.mjs adds.
+ */
+export function laptopRerunRequest(r, suites, { now, suffix }) {
+  return { id: `${requestId(now, r.requester, r.sha)}-${suffix}`, sha: r.sha, branch: r.branch ?? '', pr: r.pr ?? null, kind: 'pr', requester: r.requester, suites: [...suites], set: r.set || (r.suites ?? []).join('+'), laptopRerun: true, note: `desktop failure of ${r.id}, rerun on the laptop` };
+}
+
+/**
+ * The statuses applySupersedes closes when request `old` is retired by `by` (a newer head): [{ sha, state, context,
+ * description }]. A laptop rerun closes its "desktop FAIL ..., laptop rerun queued" pending on its own context (else it
+ * stays pending forever: the rerun never runs); an auto affected request (rerun or not) closes its affected-e2e, or,
+ * when the surviving request (`survivor`, optional) is an affected request on the same sha, hands affected-e2e over to
+ * it (pending "handed over to <by>"; the survivor posts the verdict there).
+ */
+export function supersedeStatuses(old, by, survivor = null) {
+  if (!old) return [];
+  const out = [];
+  if (old.laptopRerun) out.push({ sha: old.sha, state: 'error', context: contextName(old.kind, old.set, old.suites ?? []), description: `superseded by ${by}` });
+  if (old.requester === AFFECTED_REQUESTER) {
+    out.push(survivor?.requester === AFFECTED_REQUESTER && survivor.sha === old.sha
+      ? { sha: old.sha, state: 'pending', context: AFFECTED_CTX, description: `handed over to ${by}` }
+      : { sha: old.sha, state: 'error', context: AFFECTED_CTX, description: `superseded by a newer head (${by})` });
+  }
+  return out;
+}
+
+// ---------- spare work when the laptop is idle (laptop-queue-5) ----------
+
+/** The requester of a spare-work request (docs/laptop-queue/spare-jobs.json). */
+export const SPARE_REQUESTER = 'laptop-queue spare';
+
+/**
+ * Whether the idle laptop queues its next spare job (env LQ_SPARE_IDLE_MIN, 0 = off): `idleSince` = ms both slots went
+ * idle with an empty queue (null when not idle), `openSpare` = a spare request is open, claimed or running anywhere,
+ * `jobs` = spare-jobs.json's `jobs` ({ set, ... }), `history` = state.spare { last: index, ran: { [sha]: [set] } }.
+ * Round-robin from the job after `last`, skipping a set already queued on `sha`. -> { job, index } or { why }.
+ */
+export function spareNext({ now, idleSince, idleMin, openSpare, sha, jobs, history }) {
+  if (!(idleMin > 0)) return { why: 'off' };
+  if (idleSince == null) return { why: 'not idle' };
+  if (now - idleSince < idleMin * 60_000) return { why: `idle ${Math.floor((now - idleSince) / 60_000)}/${idleMin} min` };
+  if (openSpare) return { why: 'a spare request is open' };
+  if (!/^[0-9a-f]{40}$/.test(String(sha))) return { why: 'no origin/master sha' };
+  const list = (jobs ?? []).filter((j) => j && typeof j.set === 'string' && j.set);
+  if (!list.length) return { why: 'no spare jobs' };
+  const ran = new Set(history?.ran?.[sha] ?? []);
+  const last = Number.isInteger(history?.last) ? history.last : -1;
+  for (let k = 1; k <= list.length; k++) {
+    const index = (last + k) % list.length;
+    if (!ran.has(list[index].set)) return { job: list[index], index };
+  }
+  return { why: `every spare job already ran on ${String(sha).slice(0, 8)}` };
+}
+
+/**
+ * The request for spare job `job` on `sha` (kind pr / full / alone as the job says; requester SPARE_REQUESTER, no
+ * branch or PR). `<sha8>` and `<n>` in its steps become the sha's first 8 hex and the spare count `n`.
+ */
+export function spareRequest({ now, job, sha, n, suffix }) {
+  const fill = (s) => String(s).replaceAll('<sha8>', String(sha).slice(0, 8)).replaceAll('<n>', String(n));
+  const r = { id: `${requestId(now, SPARE_REQUESTER, sha)}-${suffix}`, sha, branch: '', pr: null, kind: job.kind ?? 'pr', requester: SPARE_REQUESTER, set: job.set, note: `spare work ${n}: ${job.set}` };
+  if (r.kind === 'pr') r.suites = [...(job.suites ?? [])];
+  if (r.kind === 'alone') { r.steps = (job.steps ?? []).map(fill); r.env = { ...(job.env ?? {}) }; }
+  if (job.jobs) r.jobs = job.jobs;
+  return r;
+}
+
+/**
+ * Whether a real (non-spare) request waits: one in `listed` (the open requests of the branch listing, before any hold
+ * filter) that this worker has not claimed (`claimedIds`, a Set). While one does, no spare job starts (pick
+ * queue.realOpen) and a running one stops (cutShort realOpen): spare work never blocks real work.
+ */
+export function realWaiting(listed, claimedIds = new Set()) {
+  return (listed ?? []).some((r) => r && r.requester !== SPARE_REQUESTER && !claimedIds.has(r.id));
+}
+
+/** state.spare after queueing job `index` on `sha`: only that sha's sets are kept (an older sha never blocks again). */
+export function spareRecord(history, sha, index, set) {
+  return { last: index, n: (history?.n ?? 0) + 1, ran: { [sha]: [...new Set([...(history?.ran?.[sha] ?? []), set])] } };
+}
+
+/**
+ * The statuses applyDuplicates posts when request `old` is retired as a duplicate of `by` (Orchestrator audit
+ * 2026-10-25: a retired affected request left affected-e2e pending forever). Only an auto affected request posts:
+ * survivor (the open, claimed or running request `by`) an affected request -> affected-e2e pending "handed over to
+ * <by>" (it posts the verdict); else doneResult 'success' (`by` passed this exact run here) -> affected-e2e success
+ * "duplicate of <by>, passed"; else error "duplicate of <by>, no affected verdict" (lib duplicates never retires an
+ * affected request against another requester's run, so this is a fallback). Others: [] (the survivor posts on the same
+ * context).
+ */
+export function duplicateStatuses(old, by, survivor = null, doneResult = '') {
+  if (old?.requester !== AFFECTED_REQUESTER) return [];
+  const s = (state, description) => [{ sha: old.sha, state, context: AFFECTED_CTX, description }];
+  if (survivor?.requester === AFFECTED_REQUESTER) return s('pending', `handed over to ${by}`);
+  if (!survivor && doneResult === 'success') return s('success', `duplicate of ${by}, passed`);
+  return s('error', `duplicate of ${by}, no affected verdict`);
+}
+
+/**
+ * The statuses for a request withdrawn before it ran (its file left the laptop-queue branch while unclaimed; a running
+ * one posts its own "withdrawn by the requester, run stopped"): an auto affected request closes affected-e2e, a laptop
+ * rerun closes its "desktop FAIL ..., laptop rerun queued" pending (both would stay pending forever).
+ */
+export function withdrawnStatuses(old) {
+  if (!old) return [];
+  const out = [];
+  const description = 'withdrawn by the requester (not run)';
+  if (old.laptopRerun) out.push({ sha: old.sha, state: 'error', context: contextName(old.kind, old.set, old.suites ?? []), description });
+  if (old.requester === AFFECTED_REQUESTER) out.push({ sha: old.sha, state: 'error', context: AFFECTED_CTX, description });
+  return out;
+}
+
+/**
+ * Open requests whose file left the branch (withdrawn), two listings in a row as for a running request (one bad
+ * listing never counts). tracked = Map(id -> request) of open requests seen before, listed = the ids on the branch now
+ * (the caller skips an empty listing), misses = Map(id -> listings missed so far). -> { gone: [request], misses: the new
+ * Map } (an id listed again starts over).
+ */
+export function vanishedRequests(tracked, listed, misses = new Map()) {
+  const gone = [];
+  const next = new Map();
+  for (const [id, r] of tracked ?? []) {
+    if (listed.has(id)) continue;
+    const n = (misses.get(id) ?? 0) + 1;
+    if (n >= 2) gone.push(r); else next.set(id, n);
+  }
+  return { gone, misses: next };
 }

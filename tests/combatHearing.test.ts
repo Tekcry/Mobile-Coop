@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EnemyManager } from '../src/ai/enemyManager';
+import { EnemyManager, POLISH2 } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { AlertMachine } from '../src/ai/alertState';
 import { COMBAT_HEAR, combatHearAct, type HearTier } from '../src/ai/hearing';
@@ -407,6 +407,55 @@ describe('EnemyManager.hear in a fight and a search (guard-ai S26)', () => {
     }
   });
 
+  it("(guard-ai polish B3) hunting a fresh A, B's step: B located, his throttle not restarted, so A's next step is heard at once", () => {
+    const A = player('host', -10, 0);
+    const B = player('guest', 10, 0);
+    const { em, ctx, add, tick } = manager([A, B]);
+    const c = add(guard(0, -5, 'alert'));
+    const sa = ctx.reportSighting(A);
+    c.hunt = sa;
+    tick(2);
+    em.hear(at(1, -1), STEP, 'noise', null, 'guest');
+    const sb = em.intruders.find('guest');
+    expect(em.intruders.valid[sb]).toBe(1);
+    expect([c.hunt, c.heardAt]).toEqual([sa, 99]);
+    // A's step right after (inside COMBAT_HEAR.gap of B's): heard, A located there (before B3 he was deaf to it)
+    em.hear(at(-2, -3), STEP, 'noise', null, 'host');
+    expect([em.lkpOf(sa)!.x, em.lkpOf(sa)!.z, em.intruders.locT[sa]]).toEqual([-2, -3, 0]);
+    expect([c.hunt, c.heardAt]).toEqual([sa, 0]);
+  });
+
+  it('(guard-ai polish B3) a searcher told of A who switches to B by a noise is re-told B (pendingHunt B, not the old A)', () => {
+    const A = player('host', -10, 0);
+    const B = player('guest', 10, 0);
+    const { em, ctx, add, tick } = manager([A, B]);
+    const s = add(guard(4, 4, 'searching'));
+    const sa = ctx.reportSighting(A);
+    (s as unknown as { pendingHunt: number }).pendingHunt = sa;
+    tick(2);
+    em.hear(at(5, 4), STEP, 'noise', null, 'guest');
+    const sb = em.intruders.find('guest');
+    expect(sb).not.toBe(sa);
+    expect([s.hunt, (s as unknown as { pendingHunt: number }).pendingHunt]).toEqual([sb, sb]);
+  });
+
+  it('(guard-ai polish B6) a flashbanged calm guard hears nothing: no turn, no board report', () => {
+    const A = player('host', 10, 0);
+    const { em, priv, add } = manager([A]);
+    const g = add(guard(0, 0, 'searching', { blindT: 2 }));
+    g.aware.set('unaware');
+    const report = vi.spyOn(priv, 'report').mockImplementation(() => {});
+    em.hear(at(1, 0), STEP, 'noise', null, 'host');
+    em.hear(at(1, 0), STEP, 'noise');
+    expect(g.hearTurn).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
+    // the flash wears off: today's path
+    (g as unknown as { blindT: number }).blindT = 0;
+    em.hear(at(1, 0), STEP, 'noise');
+    expect(g.hearTurn).toHaveBeenCalled();
+    expect(report).toHaveBeenCalledTimes(1);
+  });
+
   it('calm guards: today\'s path (hearTurn and the incident board), whatever `by`', () => {
     const A = player('host', 10, 0);
     const { em, priv, add } = manager([A]);
@@ -563,7 +612,8 @@ describe('hearing with 3-4 intruders (coop4 AI3)', () => {
         if (fixed) {
           expect(s).toBeGreaterThan(0);
           expect([em.lkpOf(s)!.x, em.lkpOf(s)!.z, em.intruders.locT[s]]).toEqual([0, 0, 0]);
-          expect(c.heardAt).toBe(0);
+          // (guard-ai polish B3) he hunts the fresh host: the client's noise does not restart his re-aim throttle
+          expect([c.hunt, c.heardAt]).toEqual([0, 99]);
         } else {
           expect(s).toBe(-1);
           expect(c.heardAt).toBe(99);
@@ -573,4 +623,36 @@ describe('hearing with 3-4 intruders (coop4 AI3)', () => {
       }
     }
   });
+});
+
+describe('(polish2 A185) one "I heard something." per noise', () => {
+  afterEach(() => {
+    POLISH2.oneHeardBark = true;
+  });
+  for (const on of [true, false]) {
+    it(`three searchers hear one step: all three walk to it, ${on ? 'one' : 'three (undo)'} investigate bark${on ? '' : 's'}`, () => {
+      POLISH2.oneHeardBark = on;
+      const A = player('host', 30, 0);
+      const { em, add } = manager([A]);
+      const gs = [add(guard(0, 0, 'searching')), add(guard(2, -2, 'searching')), add(guard(-2, -2, 'searching'))];
+      em.hear(at(0, 3), STEP, 'noise', null, null);
+      let barks = 0;
+      for (const g of gs) {
+        const sp = spotOf(g);
+        expect(Math.hypot(sp[0] - 0, sp[1] - 3)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-6);
+        expect(g.heardAt).toBe(0);
+        barks += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'investigate').length;
+      }
+      expect(barks).toBe(on ? 1 : 3);
+      // the next noise 2 s on: the speaker is still in his own throttle (`COMBAT_HEAR.bark`), the next searcher says it
+      if (on) {
+        for (const g of gs) (g as unknown as { heardT: number }).heardT = 99;
+        em.hear(at(0, 4), STEP, 'noise', null, null);
+        let again = 0;
+        for (const g of gs) again += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'investigate').length;
+        expect(again).toBe(2);
+        expect((gs[0]!.bark as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
+      }
+    });
+  }
 });

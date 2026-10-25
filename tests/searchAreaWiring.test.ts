@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EnemyManager } from '../src/ai/enemyManager';
+import { EnemyManager, POLISH2 } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { AlertMachine, emptyAlertInput } from '../src/ai/alertState';
 import { ringPoint, SEARCH_BODY, SEARCH_DEVICE, SEARCH_PLAIN, searchSpec } from '../src/ai/response';
@@ -67,6 +67,8 @@ interface FakeGuard {
   level: string;
   hunt: number;
   onPlan: boolean;
+  inCombatSearch: boolean;
+  ownSearch: boolean;
   pos: Vector3;
   def: { kind: string };
   handler: null;
@@ -75,7 +77,7 @@ interface FakeGuard {
 let n = 0;
 function guard(x: number, z: number): FakeGuard {
   const num = 9700 + n++;
-  return { id: `s${num}`, num, alive: true, alerted: false, level: 'searching', hunt: 0, onPlan: true, pos: new Vector3(x, 0, z), def: { kind: 'grunt' }, handler: null };
+  return { id: `s${num}`, num, alive: true, alerted: false, level: 'searching', hunt: 0, onPlan: true, inCombatSearch: true, ownSearch: false, pos: new Vector3(x, 0, z), def: { kind: 'grunt' }, handler: null };
 }
 
 type Priv = { ctx: AiContext; slotFlowStep(dt: number): void; planSweep(): void; planClock: number; raiseAlarm(e: Enemy, p: null): void };
@@ -203,7 +205,7 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     expect(plan.claimOf(gs[2]!.num)).toBe(-1);
   });
 
-  it('a searched point stays done by its claim; no rebuild while a claim is live; a rebuild keeps the searched points done', () => {
+  it('a searched point stays done by its claim; no rebuild while a claim is live; a rebuild never offers the searched points again', () => {
     const a = guard(0, 0);
     const b = guard(0, 0);
     const { em, ctx, point, plan, priv } = manager([a, b]);
@@ -219,15 +221,19 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     ctx.searchDone!(a as unknown as Enemy, true);
     ctx.searchDone!(b as unknown as Enemy, false);
     expect(plan.claimOf(a.num)).toBe(-1);
-    // no claim live and the plan is old: rebuilt round the same position with the larger R; the corner stays done
+    // no claim live and the plan is old: rebuilt round the same position with the larger R; (guard-ai polish B4) the
+    // searched corner and b's point are remembered, so neither (nor any point within `spacing` of them) is offered again
     const p2 = point(a);
     expect(plan.builtAt).toBeGreaterThan(built);
     expect(p2).not.toBeNull();
     expect(p2).not.toEqual([-6, 0]);
     expect(p2).not.toEqual(pb);
-    const k = pts(plan).findIndex(([x, z]) => x === -6 && z === 0);
-    expect(k).toBeGreaterThanOrEqual(0);
-    expect(plan.done[k]).toBe(1);
+    expect(plan.sn).toBe(2);
+    for (const [x, z] of pts(plan)) {
+      expect(Math.hypot(x + 6, z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+      expect(Math.hypot(x - pb![0], z - pb![1])).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+    }
+    for (let k = 0; k < plan.n; k++) expect(plan.done[k]).toBe(0);
   });
 
   it('(guard-ai S26, A157) a plan built 10 s after the sighting but 0.5 s after a heard report: R = areaRadius(0.5)', () => {
@@ -545,10 +551,15 @@ describe('S25b fix: stale plans and held claims (check A polish 1-4)', () => {
     expect(pb).not.toBeNull();
     expect([plan.cx, plan.cz]).toEqual([-5, -2]);
     expect(plan.claimOf(a.num)).toBe(-1);
-    // a's look ends: nothing to finish (found by claim), harmless; his next point is the new plan's
+    // a's look ends: nothing to finish (found by claim), harmless; his next point is the new plan's. (guard-ai polish
+    // B4) The new plan has one point here, (-3, 2): the corner cover (-6, 0) is within `spacing` of the new last known
+    // position (his first look), so it is never offered; while b holds it a gets none (the ring), then b's point
     ctx.searchDone!(a as unknown as Enemy, true);
     expect(plan.claimOf(b.num)).toBeGreaterThanOrEqual(0);
-    expect(point(a)).not.toBeNull();
+    expect(pts(plan)).toEqual([[-3, 2]]);
+    expect(point(a)).toBeNull();
+    plan.release(b.num);
+    expect(point(a)).toEqual(pb);
   });
 
   it('A2: a response-team member holding a point when his team starts sweeping lets it go', () => {
@@ -598,5 +609,167 @@ describe('S25b fix: stale plans and held claims (check A polish 1-4)', () => {
     em.intruders.valid[0] = 0;
     priv.raiseAlarm(raiser as unknown as Enemy, null);
     expect(pr.alarmHunt).toBe(-1);
+  });
+});
+
+describe('guard-ai polish B4: a rebuild round the same position hands out new points', () => {
+  it('12 points searched, the plan rebuilt: 12 new ones, none within spacing of a searched point or of the LKP', () => {
+    const g = guard(0, 0);
+    const { ctx, point, plan, priv } = manager([g], 8, { open: true, covers: [], light: () => DARK });
+    const searched: P2[] = [];
+    for (let k = 0; k < SEARCH_AREA.points; k++) {
+      const p = point(g);
+      expect(p).not.toBeNull();
+      searched.push(p!);
+      ctx.searchDone!(g as unknown as Enemy, true);
+    }
+    // exhausted: the ring until the plan is due
+    expect(point(g)).toBeNull();
+    const built = plan.builtAt;
+    priv.planClock += SEARCH_AREA.rebuild + 0.1;
+    const p = point(g);
+    expect(plan.builtAt).toBeGreaterThan(built);
+    expect(p).not.toBeNull();
+    expect(plan.n).toBe(SEARCH_AREA.points);
+    expect(plan.sn).toBe(SEARCH_AREA.points);
+    for (const [x, z] of pts(plan)) {
+      expect(Math.hypot(x - LKP.x, z - LKP.z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+      for (const [sx, sz] of searched) expect(Math.hypot(x - sx, z - sz)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+    }
+    for (const [x, z] of searched) expect(Math.hypot(x - LKP.x, z - LKP.z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+  });
+});
+
+describe('(polish2 A188) one look at the last known position per plan', () => {
+  afterEach(() => {
+    POLISH2.lkpOnce = true;
+  });
+
+  it('three searchers of one plan: the first takes the LKP, the other two are sent to plan points; a moved centre clears it', () => {
+    const a = guard(0, -2);
+    const b = guard(1, -2);
+    const c = guard(-1, -2);
+    const { em, priv, ctx, plan, players } = manager([a, b, c]);
+    const lkp = (g: FakeGuard) => ctx.searchLkp!(g as unknown as Enemy);
+    expect([lkp(a), lkp(b), lkp(c)]).toEqual([true, false, false]);
+    expect(plan.lkpBy).toBe(a.num);
+    // he keeps it (asked again on his own spot pick)
+    expect(lkp(a)).toBe(true);
+    // the plan rebuilt round the same position (no claims): still his
+    priv.planClock += SEARCH_AREA.rebuild + 1;
+    expect(lkp(b)).toBe(false);
+    // the intruder seen again and lost 5.4 m west: the plan round the new position, the look is free again
+    players[0]!.feet.set(-5, 0, -2);
+    expect(ctx.reportSighting(players[0]!)).toBe(0);
+    em.intruders.seenT[0] = 2;
+    priv.slotFlowStep(1);
+    expect(lkp(b)).toBe(true);
+    expect([plan.cx, plan.cz, plan.lkpBy]).toEqual([-5, -2, b.num]);
+    // its holder leaves the search (or dies): freed for the next
+    b.level = 'cooldown';
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
+    expect(lkp(c)).toBe(true);
+  });
+
+  it('a lone searcher, the undo and the parked modes: he looks (true), as before', () => {
+    const a = guard(0, -2);
+    const b = guard(1, -2);
+    const { em, ctx } = manager([a, b]);
+    const lkp = (g: FakeGuard) => ctx.searchLkp!(g as unknown as Enemy);
+    expect(lkp(a)).toBe(true);
+    POLISH2.lkpOnce = false;
+    expect(lkp(b)).toBe(true);
+    POLISH2.lkpOnce = true;
+    em.stealth = false;
+    expect(lkp(b)).toBe(true);
+  });
+
+  it('on the search branch: told no (a mate has it), his first spot is the plan point, not the LKP; told yes, the LKP first', async () => {
+    for (const mine of [false, true]) {
+      const plan: P2[] = [[-1, -1], [9, -7]];
+      let i = 0;
+      const searchPoint = vi.fn((_e: Enemy, out: P2) => {
+        const p = plan[i++];
+        if (!p) return false;
+        out[0] = p[0];
+        out[1] = p[1];
+        return true;
+      });
+      const searchLkp = vi.fn(() => mine);
+      const e = await searcher({ searchPoint, searchDone: vi.fn(), searchLkp });
+      combat(e);
+      const got = spots(e, 3);
+      expect(got).toEqual(mine ? [[5, -3], [-1, -1], [9, -7]] : [[-1, -1], [9, -7], ...ring(5, -3, 1)]);
+      expect(searchLkp).toHaveBeenCalled();
+    }
+    // a calm search (searchOwn) never asks
+    const searchLkp = vi.fn(() => false);
+    const e = await searcher({ searchPoint: vi.fn(() => false), searchLkp });
+    e.aware.set('searching');
+    e.hunt = 0;
+    e.searchOwn = true;
+    spots(e, 2);
+    expect(searchLkp).not.toHaveBeenCalled();
+  });
+
+  /** (fix) A real searcher (num 4242) on the real manager's plan round the LKP (0, 0), with `holder` holding it. */
+  async function wired(holder: FakeGuard) {
+    const m = manager([holder]);
+    const lkp = (g: FakeGuard | Searcher) => m.ctx.searchLkp!(g as unknown as Enemy);
+    const e = await searcher({
+      searchPoint: (g, out) => m.ctx.searchPoint!(g, out),
+      searchDone: (g, r) => m.ctx.searchDone!(g, r),
+      searchLkp: (g) => m.ctx.searchLkp!(g),
+      lkpOf: (sl) => m.ctx.lkpOf!(sl),
+    });
+    m.em.enemies.push(e as unknown as Enemy);
+    combat(e);
+    e.pos.set(2, 0, -2);
+    return { ...m, lkp, e };
+  }
+
+  it('(fix) told no, he asks again at each pick: its holder knocked out before his look, a mate looks at the LKP', async () => {
+    const a = guard(0, -2);
+    const { priv, plan, lkp, e } = await wired(a);
+    expect(lkp(a)).toBe(true);
+    // a holds it: e starts on plan points (B4: never the centre itself)
+    const before = spots(e, 2);
+    expect(before.some((q) => q[0] === 0 && q[1] === 0)).toBe(false);
+    expect(plan.lkpBy).toBe(a.num);
+    // a is knocked out on his way (down: not alive) and the sweep frees it
+    a.alive = false;
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
+    // e's next pick takes the LKP and looks there, then goes on with the plan
+    const after = spots(e, 3);
+    expect(after.slice(1).some((q) => q[0] === 0 && q[1] === 0)).toBe(true);
+    expect(plan.lkpBy).toBe(e.num);
+    const i = after.findIndex((q) => q[0] === 0 && q[1] === 0);
+    expect(after.length).toBeGreaterThan(i + 1);
+  });
+
+  it('(fix) a holder pulled onto a body search (or his own search) frees the LKP for a mate', async () => {
+    const b = guard(1, -2);
+    const { priv, plan, lkp, e } = await wired(b);
+    // b takes it first, then is freed; the real searcher takes it on his first pick
+    expect(lkp(b)).toBe(true);
+    b.level = 'cooldown';
+    priv.planSweep();
+    b.level = 'searching';
+    expect(spots(e, 1)).toEqual([[0, 0]]);
+    expect(plan.lkpBy).toBe(e.num);
+    expect(lkp(b)).toBe(false);
+    // e finds a body: still searching, alive, on the same hunt, but off the combat plan search
+    e.bodySearch(3, -6);
+    expect((e as unknown as Enemy).level).toBe('searching');
+    expect(e.hunt).toBe(0);
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
+    expect(lkp(b)).toBe(true);
+    // a holder on his own stimulus search frees it too
+    b.ownSearch = true;
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
   });
 });

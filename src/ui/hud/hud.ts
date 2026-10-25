@@ -2,7 +2,6 @@ import { h } from '../dom';
 import { SD_LOW } from '../../weapons/sdRounds';
 import { icon } from '../icons';
 import { keyLabels, verbPromptHtml } from '../prompts';
-import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
 import { GadgetWheel } from './gadgetWheel';
@@ -29,13 +28,7 @@ export interface HudFrame {
   ads: boolean;
   /** (step 09) Crosshair shown (drawn and aiming only). */
   crosshair: boolean;
-  /** Camera yaw (radians) for the compass. */
-  yaw: number;
-  /** Compass markers: world bearing (radians) + label/colour. */
-  markers: { bearing: number; kind: 'objective' | 'enemy' }[];
 }
-
-const COMPASS_PX_PER_RAD = 120;
 
 /** In-game DOM HUD. Updated per frame with cheap property writes only when values change. */
 export class Hud {
@@ -54,8 +47,6 @@ export class Hud {
   private hit: HTMLElement;
   private ring: SVGCircleElement;
   private dmgWrap: HTMLElement;
-  private compassStrip: HTMLElement;
-  private compassMarks: HTMLElement;
   private objective: HTMLElement;
   private modeInfo: HTMLElement;
   private weaponEl!: HTMLElement;
@@ -83,7 +74,6 @@ export class Hud {
   readonly pings: PingView;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
-  readonly minimapSlot: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.hpFill = h('div', { class: 'bar-fill hp' });
@@ -128,19 +118,6 @@ export class Hud {
     this.ring.setAttribute('r', '17');
     svg.appendChild(this.ring);
     this.dmgWrap = h('div', { class: 'dmg-wrap' });
-    const ticks: string[] = [];
-    const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    for (let rep = -1; rep <= 1; rep++) {
-      for (let i = 0; i < 24; i++) {
-        const deg = i * 15;
-        const x = ((rep * 360 + deg) * Math.PI / 180) * COMPASS_PX_PER_RAD;
-        const lbl = deg % 45 === 0 ? labels[deg / 45]! : '';
-        ticks.push(`<span class="ctick${lbl ? ' major' : ''}" style="left:${x}px">${lbl || '·'}</span>`);
-      }
-    }
-    this.compassStrip = h('div', { class: 'compass-strip', html: ticks.join('') });
-    this.compassMarks = h('div', { class: 'compass-marks' });
-    const compass = h('div', { class: 'hud-compass' }, this.compassStrip, this.compassMarks, h('div', { class: 'compass-caret' }));
     this.objective = h('div', { class: 'hud-objective' });
     this.modeInfo = h('div', { class: 'hud-mode' });
     this.roomEl = h('div', { class: 'hud-room' });
@@ -149,15 +126,13 @@ export class Hud {
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.suppressEl = h('div', { class: 'hud-suppress' });
-    this.minimapSlot = h('div', { class: 'hud-minimap' });
     this.el = h(
       'div',
       { class: 'hud' },
       this.vignette,
       this.suppressEl,
       vitals,
-      h('div', { class: 'hud-top' }, compass, this.roomEl, this.objective, this.modeInfo),
-      this.minimapSlot,
+      h('div', { class: 'hud-top' }, this.roomEl, this.objective, this.modeInfo),
       weapon,
       h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
@@ -170,10 +145,6 @@ export class Hud {
     this.pings = new PingView(this.el);
     this.world = new WorldPrompts(parent);
     this.gadgets = new GadgetWheel(parent);
-  }
-
-  setMinimap(m: Minimap): void {
-    this.minimapSlot.replaceChildren(m.canvas);
   }
 
   /** Health shown as bars (else only the screen-edge vignette); ammo always on (else it fades when unchanged). */
@@ -254,21 +225,6 @@ export class Hud {
       this.ring.style.strokeDasharray = `${c * f.reloadProgress} ${c}`;
       this.ring.parentElement!.classList.toggle('on', f.reloadProgress > 0);
     });
-    const yawPx = Math.round(f.yaw * COMPASS_PX_PER_RAD);
-    this.set('yaw', yawPx, () => (this.compassStrip.style.transform = `translateX(${-yawPx}px)`));
-    // markers (rebuild only when count changes; positions every frame are cheap transforms)
-    if (this.compassMarks.children.length !== f.markers.length) {
-      this.compassMarks.replaceChildren(...f.markers.map((m) => h('i', { class: `cmark ${m.kind}` })));
-    }
-    f.markers.forEach((m, i) => {
-      let d = m.bearing - f.yaw;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
-      const el = this.compassMarks.children[i] as HTMLElement;
-      const x = Math.max(-1.2, Math.min(1.2, d)) * COMPASS_PX_PER_RAD;
-      el.style.transform = `translateX(${x}px)`;
-      el.classList.toggle('edge', Math.abs(d) > 1.2);
-    });
   }
 
   hitMarker(kind: 'hit' | 'head' | 'kill' | 'deflect'): void {
@@ -303,7 +259,7 @@ export class Hud {
     this.set('obj', text, () => (this.objective.textContent = text));
   }
 
-  /** Room tag under the compass (close-quarters maps); `cleared` marks it as secured. */
+  /** Room tag at the top (close-quarters maps); `cleared` marks it as secured. */
   setRoom(name: string | null, cleared = false): void {
     const key = name ? `${name}|${cleared}` : '';
     this.set('room', key, () => {

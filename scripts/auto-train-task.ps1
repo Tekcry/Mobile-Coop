@@ -1,9 +1,9 @@
 # Registers (or with -Unregister removes) the Windows scheduled task "NightShift auto-train" that runs
-# `node scripts/auto-train.mjs tick` every 5 minutes (docs/systems/auto-train.md). Headless: the task starts
+# `node scripts/auto-train.mjs tick` every minute (G286; docs/systems/auto-train.md). Headless: the task starts
 # wscript.exe on a small generated .vbs that runs node with a hidden window, so no console window ever appears.
 # Run it from Windows PowerShell on the desktop (no admin needed; the task runs as the current user, only while
 # logged on, so gh and git keep their credentials):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\auto-train-task.ps1 [-RepoDir <checkout>] [-Worktree <dir>] [-Minutes 5] [-TickArgs "--min-interval 60"]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\auto-train-task.ps1 [-RepoDir <checkout>] [-Worktree <dir>] [-Minutes 1] [-TickArgs "--min-interval 60"]
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\auto-train-task.ps1 -Unregister
 # -RepoDir: the checkout whose scripts\auto-train.mjs and scripts\merge-train.mjs run (default: this file's repo);
 # pick one that does not change branch under the task (not the train worktree).
@@ -12,7 +12,7 @@ param(
   [switch]$Unregister,
   [string]$RepoDir = (Split-Path -Parent $PSScriptRoot),
   [string]$Worktree = 'C:\NightShift\Mobile-Coop-train',
-  [int]$Minutes = 5,
+  [int]$Minutes = 1,
   [string]$TickArgs = '',
   [string]$TaskName = 'NightShift auto-train',
   [string]$Scratch = 'C:\NightShift\scratch'

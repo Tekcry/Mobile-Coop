@@ -38,6 +38,9 @@ const G = (f, a) => page.evaluate(f, a);
 // (gpu-tests-2) the tuner panel refreshes its effect mode every 250 ms and the Keys readout every 100 ms of wall
 // time; a few frames on a hardware GPU pass in ~50 ms, so a read of either waits out one refresh first
 const panel = () => new Promise((r) => setTimeout(r, 300));
+// (tuner-clarity S4) the panel's Now playing line: wait for a text (the line holds a change 300 ms), and read it
+const waitPlay = (src) => page.waitForFunction((x) => new RegExp(x).test(document.querySelector('.anim-tune-playing')?.textContent ?? ''), src, { timeout: 6000 }).catch(() => {});
+const playText = () => G(() => document.querySelector('.anim-tune-playing')?.textContent ?? '');
 const st = () => G(() => window.__studio.state());
 // (anim-bake-1022) the clip the item 23 / 25 steps retime and add a key on (walk), read from the tuner meta: its bake frames
 // (of 48) and the readout's frame (of its own frames) as keyTimeline.keyFrame rounds them
@@ -723,6 +726,10 @@ try {
   await page.waitForFunction(() => { const k = window.__studio.keyedState(); return !k.checked && !k.disabled; }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const k0 = await G(() => window.__studio.keyedState());
   assert(!k0.checked && !k0.disabled, `a state with a keyed clip: the box clear and enabled (${JSON.stringify(k0)})`);
+  // (tuner-clarity S4) the capture plays the walk: the Now playing line says so, in the panel and in the Loop player
+  await waitPlay('^Now playing: motion-capture [(]CMU[)] walk$');
+  const np0 = await G(() => ({ line: document.querySelector('.anim-tune-playing')?.textContent ?? '', studio: window.__studio.playing(), hook: window.__animTune.playing() }));
+  assert(/motion-capture [(]CMU[)] walk/.test(np0.line) && np0.studio === np0.line && np0.hook.text === np0.line && np0.hook.mocap >= 0.9, `state:walk: the Now playing line says motion-capture (CMU) walk, the Loop player the same (${JSON.stringify(np0)})`);
   await G(() => window.__studio.keyed(true));
   await frames(page, 8);
   await page.waitForFunction(() => { const k = window.__studio.keyedState(); const d = window.__app.current.player.rig.graph.drive; return k.checked && k.entry === 'keyed:walk' && d?.clip?.name === 'walk' && window.__studio.state().frames > 0; }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
@@ -730,6 +737,10 @@ try {
   const kd1 = await drive();
   const kf1 = (await st()).frames;
   assert(k1.checked && k1.entry === 'keyed:walk' && kd1?.clip === 'walk' && kf1 > 0, `ticked: the walk plays its keyed clip (${JSON.stringify(k1)}, drive ${JSON.stringify(kd1)}, ${kf1} keys)`);
+  // (tuner-clarity S4) Keyed ticked: the hand-made walk
+  await waitPlay('hand-made walk');
+  const np1 = await playText();
+  assert(/hand-made walk/.test(np1), `Keyed ticked: the Now playing line says hand-made walk (${np1})`);
   // (marlow-bays item 29 phase 2, Michael: "with Keyed ticked the Body sliders do nothing") the keyed walk on the spot
   // tunes with the walk's rows (it was idle: no speed), and the Body tab greys the sliders that do nothing in it
   await G(() => window.__animTune.tab('body'));
@@ -740,7 +751,10 @@ try {
   const ke1 = await G(() => ({ st: { ...window.__animTune.state }, eff: window.__animTune.effect() }));
   const kb1 = ke1.eff.sections.find((s) => s.id === 'body');
   assert(ke1.st.body === 'walk' && ke1.st.joint === 'joint.walk' && ke1.st.ik === 'ik.walk', `keyed walk: her rig tunes with the walk (${ke1.st.body}, ${ke1.st.joint}, ${ke1.st.ik})`);
-  assert(ke1.eff.mode === 'keyed' && kb1?.group === 'walk' && kb1.off.includes('strideMul') && !kb1.off.includes('armSwingMul') && /procedural only: the keyed clip is playing/.test(kb1.note), `keyed walk: Step length greyed, Arm swing not, the reason shown (${JSON.stringify(kb1)})`);
+  assert(ke1.eff.mode === 'keyed' && kb1?.group === 'walk' && kb1.off.includes('strideMul') && !kb1.off.includes('armSwingMul') && /Only when she really moves/.test(kb1.note), `keyed walk: Step length greyed, Arm swing not, the reason shown (${JSON.stringify(kb1)})`);
+  // (tuner-clarity S4) Body > Arm swing: motion capture ignores it (its layer scale is 0), nothing captured plays: Hand-made
+  const badge1 = await G(() => { const b = document.querySelector('.anim-tune-rows-body input[data-id="armSwingMul"]')?.closest('.tt-row')?.querySelector('.tt-reach'); return b ? { text: b.textContent, hidden: b.hidden, cls: b.className, title: b.title } : null; });
+  assert(!!badge1 && !badge1.hidden && badge1.text === 'Hand-made' && /tt-reach-keyed/.test(badge1.cls) && badge1.title.length > 10, `Body > Arm swing carries the Hand-made badge (${JSON.stringify(badge1)})`);
   // a Joints slider moves the keyed walk (the probe's fix, live): her right elbow turns
   const elbow = () => G(() => { const q = window.__app.current.player.rig.elbowR.rotationQuaternion; return [q.x, q.y, q.z, q.w]; });
   // (the offsets ease in while she plays; the pose is compared paused at one phase)
@@ -761,9 +775,19 @@ try {
   await frames(page, 8);
   await panel();
   // (N4b train-8 fix) the same 250 ms panel refresh as the keyed wait above, the other way
-  await page.waitForFunction(() => window.__animTune.effect().mode === 'procedural', null, { timeout: 3000 }).catch(() => {});
-  const ke2 = await G(() => window.__animTune.effect());
-  assert(ke2.mode === 'procedural', `cleared: the procedural mode (${ke2.mode})`);
+  await page.waitForFunction(() => window.__animTune.effect().mode !== 'keyed', null, { timeout: 3000 }).catch(() => {});
+  // (tuner-clarity S4) the panel reports `mocap` while the capture plays 90 % or more of the body, else `procedural`
+  await waitPlay('^Now playing: motion-capture [(]CMU[)] walk$');
+  await page.waitForFunction(() => window.__animTune.effect().mode === (window.__animTune.playing().mocap >= 0.9 ? 'mocap' : 'procedural'), null, { timeout: 3000 }).catch(() => {});
+  const ke2 = await G(() => ({ ...window.__animTune.effect(), share: window.__animTune.playing().mocap }));
+  assert(ke2.mode === (ke2.share >= 0.9 ? 'mocap' : 'procedural') && ke2.mode === 'mocap', `cleared: the capture plays the walk, the mode is mocap (${ke2.mode}, capture share ${ke2.share})`);
+  // (S4) the capture switch off (More > Panel): the hand-made walk plays, the line says so; back on after
+  await G(() => { const b = document.querySelector('.anim-tune-mocap'); if (b && !b.disabled && b.checked) b.click(); });
+  await waitPlay('[(]motion capture off[)]');
+  const np2 = await playText();
+  assert(/hand-made walk [(]motion capture off[)]/.test(np2), `the capture switch off: the line says (motion capture off) (${np2})`);
+  await G(() => { const b = document.querySelector('.anim-tune-mocap'); if (b && !b.disabled && !b.checked) b.click(); });
+  await waitPlay('^Now playing: motion-capture [(]CMU[)] walk$');
   const k2 = await G(() => window.__studio.keyedState());
   const kd2 = await drive();
   const kf2 = (await st()).frames;
@@ -866,6 +890,17 @@ try {
   );
   assert(k15.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 4') && k15.keys.hint === 'Key edits change one pose; whole-cycle changes go in the state tabs.', `the readout names the key and its mirror, the hint shows (${JSON.stringify(k15.keys)})`);
   assert(k15.keys.mirror && k15.keys.list.join(',') === '0,1,2,3', `the Mirror box is on and the list shows the own keys (${k15.keys.list.join(',')})`);
+  // (tuner-clarity S4) the fixed note says Keys change the hand-made moves only; the readout says the capture plays this move;
+  // the legs have their own parts and nothing keyed sits under "Whole body"
+  const k15n = await G(() => ({
+    note: document.querySelector('.anim-tune-sec-keys .anim-tune-keys-mocap')?.textContent ?? '',
+    groups: [...document.querySelectorAll('.anim-tune-sec-keys .tt-grp')].map((h) => h.firstElementChild?.textContent ?? ''),
+    sum: document.querySelector('.anim-tune-sec-keys .tt-reach-sum')?.textContent ?? '',
+  }));
+  assert(/^Keys change the hand-made moves only./.test(k15n.note) && k15n.note.includes('Joints'), `the Keys tab shows the hand-made-only note (${k15n.note})`);
+  assert(k15.keys.readout.includes('(motion capture plays this in the game)'), `the jog readout says the capture plays it (${k15.keys.readout})`);
+  assert(k15n.groups.includes('Left leg') && k15n.groups.includes('Right leg') && !k15n.groups.includes('Whole body'), `the Keys tab has Left leg and Right leg parts and no Whole body (${k15n.groups.join(' | ')})`);
+  assert(k15n.sum === 'This part changes: Hand-made only', `the Keys part says Hand-made only (${k15n.sum})`);
   await G(() => window.__animTune.keysStep(1));
   await frames(page, 12);
   await panel();
@@ -934,6 +969,42 @@ try {
   const elMoved = Math.hypot(t1.elRp[0] - t0.elRp[0], t1.elRp[1] - t0.elRp[1], t1.elRp[2] - t0.elRp[2]);
   assert(twist > 30 && twist < 60 && elMoved < 0.005, `a forearm twist edit turns the forearm bone (${twist.toFixed(1)} deg, the elbow moved ${(elMoved * 1000).toFixed(1)} mm)`);
   await G(() => window.__animTune.set('key.walk.1', 'armR_twist', 0));
+
+  // (tuner-clarity S4, S2) a key's ankle twist turns her ankle: legL_ankleYaw on key.walk.1 with the keyed walk playing
+  const ankleQ = () => G(() => { const n = window.__app.current.player.rig.ankleL; n.computeWorldMatrix(true); const a = n.absoluteRotationQuaternion; return [a.x, a.y, a.z, a.w]; });
+  await G(() => window.__studio.showKey('walk', 1));
+  await frames(page, 6);
+  const ay0 = await ankleQ();
+  await G(() => window.__animTune.set('key.walk.1', 'legL_ankleYaw', 30));
+  await frames(page, 6);
+  const ay1 = await ankleQ();
+  const ayTurn = qAng(ay0, ay1);
+  assert((await st()).entry === 'keyed:walk' && ayTurn > 10 && ayTurn < 50, `legL_ankleYaw on key.walk.1 turns the left ankle with keyed:walk playing (${ayTurn.toFixed(1)} deg)`);
+  await G(() => window.__animTune.set('key.walk.1', 'legL_ankleYaw', 0));
+
+  // (tuner-clarity S4) a Keys edit on the walk while the capture plays it: the header warning names where it does work
+  await G(() => {
+    window.__animTune.tab('keys');
+    window.__animTune.pickLevel('keys', 0, 'walk');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 4);
+  await G(() => window.__studio.pick('state:walk'));
+  await frames(page, 4);
+  await waitPlay('^Now playing: motion-capture [(]CMU[)] walk$');
+  const wn = await G(() => {
+    window.__animTune.tab('keys');
+    const i = document.querySelector('.anim-tune-rows-keys input[data-id="armL_elbow"]');
+    if (!i) return null;
+    const v0 = Number(i.value);
+    const g = i.dataset.group;
+    i.value = String(v0 + 4);
+    i.dispatchEvent(new Event('input'));
+    const r = { warn: window.__animTune.warn(), strip: document.querySelector('.anim-tune-warn')?.hidden === false, rowStrip: document.querySelector('.tt-warn')?.hidden === false };
+    window.__animTune.set(g, 'armL_elbow', v0);
+    return r;
+  });
+  assert(!!wn && wn.warn !== '' && wn.warn.includes('Joints') && wn.strip && wn.rowStrip, `a Keys edit on the walk while the capture plays shows the warning naming Joints (${JSON.stringify(wn)})`);
 
   // (T1a, item 18) Mirror on: a left arm edit at key 2 shows on the right arm at key 6; Mirror off: the right arm at key 6
   // is set back on its own while the left arm at key 2 keeps the edit (the arms differ)

@@ -21,7 +21,7 @@ import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
 import { depthWanted, fStopFor, stepAperture } from './dofAperture';
 import { pauseAperture } from './pauseLook';
-import { writeVolLight } from './volLights';
+import { writeVolLights } from './volLights';
 import { Taau, VIEW_Z_GLSL, type DepthSource } from './taau';
 import { PaniniPass } from './paniniPass';
 
@@ -153,6 +153,8 @@ export interface PostStackOptions {
   /** Sky visibility (the baked moon) for the fog's light shafts, and the shafts' colour x strength (0: none). */
   sky?: { tex: BaseTexture; origin: [number, number, number]; cell: number; dims: [number, number, number] } | null;
   shafts?: [number, number, number];
+  /** (fog triage) The map's `theme.lampBeams`: false = only torches draw a long beam (`vfx/volLights.ts`). */
+  lampBeams?: boolean;
 }
 
 /**
@@ -461,14 +463,8 @@ export class PostStack {
     if (this.vol && reg) {
       const p = this.camera.globalPosition;
       const n = Math.min(this.volMax, nearest(reg, p.x, p.y, p.z, this.ids, this.dist));
-      let k = 0;
-      for (let i = 0; i < n; i++) {
-        // lamps and LED fittings scatter under their shade (a short cone), torches and floods along the beam
-        // (stopped by geometry): `volLights.ts` (vol-cone-fix)
-        writeVolLight(reg.lights[this.ids[i]!]!, k, this.lPos, this.lDir, this.lCol);
-        k++;
-      }
-      this.volCount = k;
+      // lamps and LED fittings scatter under their shade, torches and floods along the beam: `volLights.ts`
+      this.volCount = writeVolLights(reg.lights, this.ids, n, this.opts.lampBeams ?? true, this.lPos, this.lDir, this.lCol);
     }
     const dof = this.def?.depthOfFieldEnabled ? this.def.depthOfField : null;
     if (dof) {

@@ -5,7 +5,7 @@ import { WEIGHT_GROUPS, WEIGHT_TUNABLES, weightGroupFor, WeightLayers, weightMov
 /**
  * (anim-weight) The tuner's Weight section (registered from its own file through the section registry): procedural
  * weight per gait / state (`weight.walk / jog / run` holstered, `weight.crouch`, `weight.drawn`). The layers and every
- * slider are in `src/anim/weight.ts`; `docs/anim-tuner/WEIGHT.md` lists them. Identity at default.
+ * slider are in `src/anim/weight.ts`; `docs/archive/anim-tuner/WEIGHT.md` lists them. Identity at default.
  *
  * - Momentum (gameplay): `weightSim` around the local player's motion step (PlayerController), like the Speed
  *   section: this machine and the local player only; remotes still pose from MoveState.

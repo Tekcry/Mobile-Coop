@@ -2,7 +2,6 @@ import type { CourseSummary } from '../course/courseRating';
 import type { Enemy } from '../../ai/enemy';
 import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
-import type { Blip } from '../../ui/hud/minimap';
 import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 import type { SlotPoint } from '../spawnSlots';
@@ -108,6 +107,5 @@ export interface GameMode {
   checkpointSpawns?(): SlotPoint[];
   /** (coop-rejoin) Co-op host: send the mode's whole state on the next step (a client joined or reconnected mid-run). */
   resync?(): void;
-  blips(): Blip[];
   dispose(): void;
 }

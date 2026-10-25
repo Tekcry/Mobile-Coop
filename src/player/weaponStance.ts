@@ -29,7 +29,7 @@ export const STANCE = {
   /** (anim-rework S3, M2) A long gun's sling draw: its own path (WeaponModel TRAVEL_VIA.sling, backDiag.diagTurnSling),
    *  2.5 x the 0.3 s draw = 0.75 s: off the sling round the right side, under the arm, swung up into the shoulder.
    *  (anim-natural N3) 1.36 x the 1.1 s draw (DRAW_TIME_PRIMARY) = 1.5 s: the draw plus the raise to the shoulder
-   *  (`docs/anim-natural/n3/DRAW-TIMES.md`). Undo: 2.5 with the 0.3 s draw. */
+   *  (`docs/archive/anim-natural/n3/DRAW-TIMES.md`). Undo: 2.5 with the 0.3 s draw. */
   slingDrawLong: 1.36,
   /** (M3) RT / LMB held this long (s) holstered or holding a guard: the kill; released sooner: the knockout. */
   rtHold: 0.35,

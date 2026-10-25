@@ -1,6 +1,6 @@
 /**
  * (LR16-1) One-bounce fill (pure; runs in the voxel workers beside the lamp bake, cached with it). Real rooms return
- * 1/5-2/5 of the direct light to their walls and ceiling (`docs/lighting-review/PROPOSAL.md:268-270`); before this the
+ * 1/5-2/5 of the direct light to their walls and ceiling (`docs/archive/lighting-review/PROPOSAL.md:268-270`); before this the
  * walls took N.L of the direct term only and every ceiling over a downward lamp was black.
  *
  * Per lamp, from its own baked visibility (`bakeLamps`):

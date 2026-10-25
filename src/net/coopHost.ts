@@ -4,7 +4,6 @@ import type { GameState, NetAttachment } from '../game/gameState';
 import type { Enemy } from '../ai/enemy';
 import type { HitInfo } from '../game/damage';
 import type { Interactable } from '../game/interactables';
-import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { MASK } from '../physics/groups';
@@ -15,7 +14,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, snapEnemyState, snapItem, snapPlayerState, wirePlayerState } from './protocol';
+import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, snapEnemyState, snapItem, snapPlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -23,7 +22,7 @@ import { goggleColour } from '../operators/runtime/goggle';
 import type { OperatorFigure } from '../operators/runtime/figure';
 import type { PlayerSlot, TeamRef } from '../game/playerSlots';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, lampShotStale, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
@@ -50,7 +49,7 @@ import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
-import { takeInfo } from '../ai/guardInfo';
+import { hasInfo, takeInfo } from '../ai/guardInfo';
 import { revealIntel, revealJoint } from '../game/intelReveal';
 import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointHasLines, jointOf, type Bluff, type JointIntel } from '../game/jointInterrogation';
 import { interrogationEnded } from '../game/intel';
@@ -217,10 +216,15 @@ export class CoopHost implements NetAttachment {
   private reviveSec = new Map<string, number>();
   /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state to the client (`lamps`), null elsewhere. */
   private readonly lampTx: LampSender | null;
+  /** (coop-real F1b, S2) A client's round through a lamp is checked and shot out: Sector Ops and Course mode. */
+  private readonly lampShots: boolean;
   /** A `lamps` message goes on the next step whatever changed (a join, a rejoin, a section restart). */
   private lampForce = true;
   /** The mode's restart count last seen (a section restart forces a `lamps` send). */
   private lampRestarts = 0;
+  /** (coop-real F1c) The host sim time (`time`) of the mode's last set / section restart (Course mode, Sector Ops):
+   *  a client's lamp round fired before it is stale (`lampShotStale`). */
+  private lampRestartAt = -Infinity;
   /** A client's lamp shots: rate limit per client (a lamp shot is a second message for a round). */
   private lampLim = new Map<string, TickLimiter>();
   private readonly lampA = new Vector3();
@@ -245,6 +249,7 @@ export class CoopHost implements NetAttachment {
     // (coop4 A4) the team pool scales with the players at the op start (late joiners do not change it)
     if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty, s.players.size);
     this.lampTx = mode === 'sector' ? new LampSender() : null;
+    this.lampShots = hostLampShots(mode);
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
     for (const p of s.players.values()) if (p.id !== s.selfId) this.addRemote(p);
@@ -754,6 +759,7 @@ export class CoopHost implements NetAttachment {
     this.push({ e: 'kill', enemy: e.id, kind: e.def.kind, by, head: h.part === 'head' });
     this.history.delete(e.id);
     this.seized.delete(e.id);
+    this.interPh.delete(e.id);
     const t = this.tallies.get(by);
     if (t && by !== this.s.selfId) {
       t.kills++;
@@ -941,6 +947,8 @@ export class CoopHost implements NetAttachment {
 
   /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
   addSyringes(n: number): void {
+    // (J14 F1, conformance M3, G126) the one "no syringe grant outside Sector Ops" rule: Course mode keeps 2 revives
+    if (this.g.opts.mode !== 'sector') return;
     const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
     this.reviveClock.cap += k;
   }
@@ -1005,10 +1013,14 @@ export class CoopHost implements NetAttachment {
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
       e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
+      // (joint-flake-3 check) a td 'start' resets interPh: a read aborted mid-way (the td 'abort' ends the seize before
+      // a seized step sees the hold go) never counts as ended on this new hold's first step (`interrogationEnded`)
+      this.interPh.delete(e.id);
       return;
     }
     if (!held || held.by !== r.id) return;
     this.seized.delete(e.id);
+    this.interPh.delete(e.id);
     if (m.ph === 'abort') {
       e.releaseTakedown();
       return;
@@ -1464,19 +1476,31 @@ export class CoopHost implements NetAttachment {
   }
 
   /**
-   * (sector-redesign slice L, protocol 31) Sector Ops: a client's round through a lamp (`shot` target `lt-<id>`). The
-   * host checks the draw, the weapon, a rate (4 a second), the round's origin at the shooter's body, the lamp first
-   * along the claimed ray in its own registry (`lampShotOk`) and a clear static line to it; then shoots it out as its
-   * own round would (sparks, noise, a guard comes to look). The client sees it dark from the next `lamps` message.
+   * (sector-redesign slice L, protocol 31; coop-real F1b, S2: Course mode too) Sector Ops and Course mode: a client's
+   * round through a lamp (`shot` target `lt-<id>`). The host checks the draw, the weapon, a rate (4 a second), the
+   * round's origin at the shooter's body, the lamp first along the claimed ray in its own registry (`lampShotOk`) and a
+   * clear static line to it; then shoots it out as its own round would (sparks, noise, a guard comes to look). The
+   * client sees it dark from the next `lamps` message (Sector Ops) or `course` message (`lights.dead`, Course mode).
+   * A round fired before the mode's last restart is dropped quietly (`lampShotStale`, coop-real F1c).
    */
   private onLampShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
-    if (!this.lampTx || !r.alive || !this.g.stealth) return;
+    if (!this.lampShots || !r.alive || !this.g.stealth) return;
     const id = lampTargetId(m.target);
     if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    // (coop-real F1c) a round fired before the last set / section restart (in flight across it): the restart put the
+    // lamps back, so it would shoot one out in the fresh run; dropped with no violation, before the rate limit
+    if (lampShotStale(m.rt, this.lampRestartAt)) return;
+    // (player-batch-25) a restart `sendLamps` has not polled yet (the pause menu's restart runs outside the mode's
+    // fixedUpdate, so `lampRestartAt` lags it by up to a frame): the round cannot be judged against it, so it is
+    // dropped the same way (Sector Ops and Course mode both count `restarts`)
+    if (((this.g.mode as { restarts?: number } | null)?.restarts ?? 0) !== this.lampRestarts) return;
+    // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
+    // nothing to do and no violation (`lampShotOk` would refuse it as one)
+    const reg = this.g.world.level.lights;
+    if (reg.lights[id]?.destroyed) return;
     let lim = this.lampLim.get(r.id);
     if (!lim) this.lampLim.set(r.id, (lim = new TickLimiter()));
     if (!lim.take(this.time)) return;
-    const reg = this.g.world.level.lights;
     const o = { x: m.ox, y: m.oy, z: m.oz };
     if (!lampShotOk(reg, id, o, { x: m.dx, y: m.dy, z: m.dz }, m.dist, r.feet, WEAPONS[m.w].range)) {
       r.violations++;
@@ -1752,8 +1776,10 @@ export class CoopHost implements NetAttachment {
       // (coop-torches) every snapshot carries every listed guard's torch bit (no deltas), so a guard that drops out of
       // the list and comes back is shown right from his first snapshot; the client places the light from x, y, z,
       // yaw and st as `Enemy.placeTorch` does here
-      // (coop4 N1, A24) numbers rounded on the wire (`snapEnemyState`): the 4-player snapshot budget
       const es: EnemyState = { id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) };
+      // (stealth-pays client intel) his unspent intel: the client offers INTERROGATE from this, both modes;
+      // (coop4 N1, A24) numbers rounded on the wire (`snapEnemyState`): the 4-player snapshot budget
+      markIntel(es, hasInfo(e));
       enemies.push(this.round ? snapEnemyState(es) : es);
     }
     const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(this.round ? snapPlayerState : wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
@@ -1925,6 +1951,9 @@ export class CoopHost implements NetAttachment {
         }
       }
       s.hfOn = false;
+      // (joint-flake-3) no grab on him this step: a grab that ended mid-read leaves a stale ph, which
+      // `interrogationEnded` (any progress counts) would count as a finished read on a re-grab within TD_MAX
+      this.interPh.delete(eid);
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);
@@ -1959,15 +1988,17 @@ export class CoopHost implements NetAttachment {
   }
 
   /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state on a change, a join / rejoin, a section
-   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. */
+   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. (coop-real F1c) In every mode it first notes
+   *  the time of the mode's last restart (`lampRestartAt`, the stale lamp round rule). */
   private sendLamps(dt: number): void {
-    const tx = this.lampTx;
-    if (!tx) return;
     const rs = (this.g.mode as { restarts?: number } | null)?.restarts ?? 0;
     if (rs !== this.lampRestarts) {
       this.lampRestarts = rs;
       this.lampForce = true;
+      this.lampRestartAt = this.time;
     }
+    const tx = this.lampTx;
+    if (!tx) return;
     const w = tx.step(this.g.world.level.lights, dt, this.lampForce);
     this.lampForce = false;
     if (w) this.s.send({ t: 'lamps', n: w.n, of: w.of, sh: w.sh });
@@ -2102,14 +2133,6 @@ export class CoopHost implements NetAttachment {
     const r = this.remotes.get(who);
     if (!r) return;
     this.push({ e: 'pickup', player: who, kind });
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const r of this.remotes.values()) {
-      out.push({ x: r.feet.x, z: r.feet.z, kind: 'ally', slot: r.ref.slot });
-    }
-    return out;
   }
 
   onEnd(won: boolean, subtitle: string): void {

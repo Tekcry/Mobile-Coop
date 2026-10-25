@@ -105,7 +105,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       sealUnlocks: [[2, 16.05]],
       checkpoint: { x: -1.2, y: 0, z: 14.8, yaw: Math.PI },
     },
-    // (BUILD-S2.md 8.3: the checker, driver, stocktaker and tour guard waits, the stocktaker's south end and the tour guard's lane point are the M8 ladder's adjustments; docs/warehouse-s23/step-s2-report.md)
+    // (BUILD-S2.md 8.3: the checker, driver, stocktaker and tour guard waits, the stocktaker's south end and the tour guard's lane point are the M8 ladder's adjustments; docs/archive/warehouse-s23/step-s2-report.md)
     guards: [
       // 1 the checker (team leader): the staged delivery against the put-away list, along the marshalling lane
       { kind: 'grunt', x: -21.6, z: -5.0, yaw: 0, route: [[-21.6, -5.0], [-9.6, -5.0]], wait: 5, waits: [8, 2], faces: [0, 0], takedownSpot: [-21.6, -5.0] },

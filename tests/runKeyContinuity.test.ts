@@ -9,7 +9,7 @@
 //   e2e-anim's crab quantities (knee separation, planted track, knee bow, elbow wing: RUN_TUNE in scripts/e2e-anim.mjs).
 // RUNKEY_PRINT=1 prints the table. RUNKEY_EDIT="0:pelvis_yaw=-3;1:chest_yaw=2" measures a candidate edit through the
 // tuner's live key preview (key.run.<n> deltas; exact against a rebake for the trunk, the arms within ~0.7 cm;
-// tests/keyedExactPreview.test.ts) instead of the shipped clip: the asserts are then skipped. docs/anim-natural-n2/BRIEF.md A1.
+// tests/keyedExactPreview.test.ts) instead of the shipped clip: the asserts are then skipped. docs/archive/anim-natural-n2/BRIEF.md A1.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { keyGroupId } from '../src/anim/tuneKeysFile';
 import { tuneKeysFilesReady, tuneKeysSync } from '../src/anim/tuneKeys';

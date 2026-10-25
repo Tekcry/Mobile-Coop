@@ -1,0 +1,130 @@
+{
+  "_about": "scripts/doc-lint.mjs settings (doc-guard). Current docs = the files every session reads; job docs (docs/<job>/) are per-job records, archived by Job-done. docs/ROADMAP.md and docs/orchestrator/ are orchestrator-owned and synced from origin/feature/menu by the trains: no stale-term, owner or header checks there, and only a WARN for ROADMAP \"Decided\" entries older than today. headers: G344 owner / status lines.",
+  "include": [
+    "**/*.md"
+  ],
+  "exclude": [
+    "docs/archive/**",
+    "CHANGELOG.md",
+    "changes/**",
+    "node_modules/**",
+    "dist/**",
+    "public/**"
+  ],
+  "citations": {
+    "scope": [
+      "CLAUDE.md",
+      "README.md",
+      "TESTING.md",
+      "docs/*.md",
+      "docs/systems/**",
+      "docs/templates/**"
+    ],
+    "skip": [],
+    "ownerDocs": [
+      "docs/VISION.md",
+      "docs/RULES.md",
+      "docs/design-bible.md",
+      "docs/level-design.md",
+      "docs/systems/*.md"
+    ],
+    "ignore": [
+      {
+        "file": "docs/systems/ai.md",
+        "text": "walk 4.72 G4"
+      },
+      {
+        "file": "docs/systems/coop.md",
+        "text": "rig-pose-fix S1, G11 / G12"
+      },
+      {
+        "file": "docs/systems/movement.md",
+        "text": "G4, matched to the CT footage"
+      }
+    ]
+  },
+  "links": {
+    "scope": [
+      "CLAUDE.md",
+      "README.md",
+      "TESTING.md",
+      "docs/*.md",
+      "docs/systems/**",
+      "docs/templates/**"
+    ],
+    "errorScope": [
+      "CLAUDE.md",
+      "README.md",
+      "TESTING.md",
+      "docs/*.md",
+      "docs/systems/**",
+      "docs/templates/**"
+    ],
+    "warnScope": [
+      "docs/DECISIONS.md"
+    ],
+    "skip": [],
+    "offBranch": [
+      "docs/orchestrator/**",
+      "docs/missions/**"
+    ]
+  },
+  "owners": {
+    "scope": [
+      "CLAUDE.md",
+      "README.md",
+      "TESTING.md",
+      "docs/*.md",
+      "docs/systems/**",
+      "docs/templates/**"
+    ],
+    "skip": [
+      "docs/DECISIONS.md",
+      "docs/ROADMAP.md",
+      "docs/orchestrator/**"
+    ]
+  },
+  "sizes": {
+    "words": {
+      "docs/VISION.md": 900
+    },
+    "lines": {
+      "docs/RULES.md": 318,
+      "CLAUDE.md": 60,
+      "docs/systems/testing-tools.md": 720
+    },
+    "stateResume": {
+      "glob": "docs/*/STATE.md",
+      "max": 40
+    },
+    "wordsRaw": {
+      "docs/VISION.md": 1000
+    },
+    "roadmap": "docs/ROADMAP.md"
+  },
+  "known": [],
+  "headers": {
+    "error": [
+      "CLAUDE.md",
+      "docs/VISION.md",
+      "docs/RULES.md",
+      "docs/INDEX.md",
+      "docs/DECISIONS.md",
+      "docs/design-bible.md",
+      "docs/level-design.md",
+      "docs/design/scale-sheet.md",
+      "docs/systems/*.md",
+      "docs/templates/*.md"
+    ],
+    "warn": [
+      "README.md",
+      "TESTING.md",
+      "docs/*.md"
+    ],
+    "skip": [
+      "docs/ROADMAP.md",
+      "docs/orchestrator/**"
+    ],
+    "lines": 10
+  }
+}

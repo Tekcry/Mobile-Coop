@@ -3,7 +3,6 @@ import type { Enemy } from '../../ai/enemy';
 import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
-import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
@@ -20,6 +19,7 @@ import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
 import { groupBaseOn } from '../../world/lights';
+import type { LightDef, LightRegistry } from '../../world/lights';
 import { SectionStartState } from '../sectorReset';
 import { COURSE_RESTART_TITLE, packRated, unpackRated } from '../course/courseWire';
 import type { PlayerRef } from '../../ai/enemy';
@@ -1069,8 +1069,7 @@ export class CourseMode implements GameMode {
     for (const d of g.world.doors.list) if (d.anchor.locked) locks.push(d.index);
     const groups: [number, boolean][] = [];
     for (const gid of Object.values(this.layout!.groups ?? {})) groups.push([gid, this.groupOn(gid)]);
-    const dead: number[] = [];
-    for (const l of g.world.level.lights.lights) if (l.destroyed) dead.push(l.id);
+    const dead = deadLamps(g.world.level.lights, []);
     return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN, ...(this.ct ? { sec: this.ct.wire() } : {}), rt: { ...this.rt }, ...(this.rating ? { rh: packRated(this.rating.marks, this.rating.synced) } : {}) };
   }
 
@@ -1117,10 +1116,6 @@ export class CourseMode implements GameMode {
     this.hud.update(st, 0);
     this.hud.setStatus(st.airlockStatus());
     drawMarker(this.g, st, this.layout!, 0);
-  }
-
-  blips(): Blip[] {
-    return [];
   }
 
   dispose(): void {
@@ -1303,8 +1298,39 @@ function mirrorApply(g: GameState, w: CourseWire): void {
   }
 }
 
+/** (coop-real F1a, S2) Host: the ids of every shot-out lamp into `out` (cleared first), for `course`'s `lights.dead`.
+ *  No allocation. */
+export function deadLamps(reg: LightRegistry, out: number[]): number[] {
+  out.length = 0;
+  for (const l of reg.lights) if (l.destroyed) out.push(l.id);
+  return out;
+}
+
+/**
+ * (coop-real F1a, S2) Client: put the host's `course` lights on a registry, in this order: a lamp shot here but not in
+ * `dead` comes back (a course restart), every lamp in `dead` is killed (`onShot` fires once per lamp newly killed here:
+ * the sparks cue), then each group takes the host's switch state (`setGroup` skips shot lamps). Ids the registry lacks
+ * are skipped. Returns how many lamps were newly killed. No allocation.
+ */
+export function applyCourseLights(reg: LightRegistry, lights: CourseWire['lights'], onShot?: (l: LightDef) => void): number {
+  const dead = lights.dead;
+  for (const l of reg.lights) if (l.destroyed && !dead.includes(l.id)) reg.restore(l.id);
+  let shot = 0;
+  for (const id of dead) {
+    const l = reg.lights[id];
+    if (!l || l.destroyed) continue;
+    reg.kill(id);
+    shot++;
+    onShot?.(l);
+  }
+  for (const [gid, on] of lights.groups) reg.setGroup(gid, on);
+  return shot;
+}
+
 /** Client: apply a `course` message to the local world (door locks, anchor locks, lights) and show a new refusal. */
 export function applyCourseWire(g: GameState, w: CourseWire): void {
+  // the first `course` message this page applies (a join or rejoin) sparks no lamp already dead (coop-real F1a, S2)
+  const first = !mirrors.has(g);
   if (w.rn !== shownRn) {
     if (w.rn > shownRn && w.ref) g.hud.banner('', w.ref, 1800);
     shownRn = w.rn;
@@ -1321,13 +1347,9 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   const dis = g.traversal.attachCtl.disabled;
   dis.clear();
   for (const id of w.anchors) dis.add(id);
-  const reg = g.world.level.lights;
-  for (const l of reg.lights) if (l.destroyed && !w.lights.dead.includes(l.id)) reg.restore(l.id);
-  for (const id of w.lights.dead) reg.kill(id);
-  for (const [gid, on] of w.lights.groups) {
-    reg.setGroup(gid, on);
-    g.stealth?.syncGroup(gid, on);
-  }
+  // a lamp the host reports newly shot out goes dark with the host's sparks, as Sector Ops' `lampSparks` (coop-real F1a, S2)
+  applyCourseLights(g.world.level.lights, w.lights, first ? undefined : (l) => g.vfx.sparks(new Vector3(l.x, l.y, l.z), Vector3.Down(), 10, '#fff1c8'));
+  for (const [gid, on] of w.lights.groups) g.stealth?.syncGroup(gid, on);
   mirrorApply(g, w);
   const mm = mirrorOf(g);
   if (mm) mirrorRating(g, mm, w.rt, w.rh);

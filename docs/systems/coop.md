@@ -1,13 +1,16 @@
 # Co-op
+Owner: Player Build (co-op player; Guard AI Build for coop4). Status: current.
 Purpose: transports, the host and client sims, the wire protocol, co-op sync, team moves and the training course's
 wire.
-Design authority: docs/DECISIONS.md (G2, G48-G52), then docs/design-bible.md (Section 5.9).
+Design authority: docs/DECISIONS.md (G2, G48-G52, G180, G349), then docs/design-bible.md (Section 5.9).
 
-The campaign (Marlow Yard, Course mode) is a 2-player co-op (G2): no bot partner (G48), no player-versus-player mode
-(G8, G9; Wave, deathmatch and free-for-all are deleted). Sector Ops takes up to 4 players (coop4: G50's 2-player cap is
-overturned for Sector Ops only; see "Four-player Sector Ops" below). Co-op is tested with two browser tabs (four for Sector
-Ops), the two- and four-page e2e suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves
-are host-approved; vision, camera and rumble stay local; partners never pass through each other (loco D8, G52).
+Player counts per mode: campaign missions and Marlow Yard (Course mode) take exactly 2 players (G2, G50, G292); Sector
+Ops takes 1 to 4 (G308; coop4, PR #317: G50's 2-player cap is overturned for Sector Ops only, live with no off switch,
+G381; see "Four-player Sector Ops" below). No bot partner (G48), no player-versus-player mode (G8, G9; Wave, deathmatch
+and free-for-all are deleted). Co-op is tested with two browser tabs (four for Sector Ops), the two- and four-page e2e
+suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
+camera and rumble stay local; partners never pass through each other (loco D8, G52). Small animation fields may go
+over the wire so a partner looks exact on every screen (G400); remotes still pose from `MoveState`.
 
 ## Entry and transport (`src/net`)
 - `main.ts` registers the Co-op menu entry and `?room=CODE` handling; both `import('./net/coopUi')`. `CoopApi`
@@ -26,12 +29,14 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
-  `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
+  `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/archive/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
 - `NetMode`: `sandbox | clear | infiltration | course | sector`. `capacity(mode)` (`protocol.ts`) is how many players a
   mode takes; it gates joins (`NetSession`'s hello) and `startMatch` (`overCapacity`), and the lobby shows that many
-  seats. (coop4 D4) The host's `NetSession.roomCap` may hold a room below its mode (`cap` = the lower; 0 = the mode's):
-  a hook for a later campaign mission to hold its room at 2 (G2); nothing sets it yet. Host side only: a client's lobby still shows the mode's seats:
+  seats. The rule: Marlow Yard and the campaign 2 (G2), Sector Ops up to 4 (G308); never cap Sector Ops at 2. (coop4
+  D4) The host's `NetSession.roomCap` may hold a room below its mode (`cap` = the lower; 0 = the mode's): a hook for a
+  later campaign mission to hold its room at 2 (G2); nothing sets it yet. Host side only: a client's lobby still shows
+  the mode's seats. (J14 F1, R36) Course mode's Start needs two players; the lobby says why (`courseStartBlock`):
 
   | Mode | Cap | Constant |
   | --- | --- | --- |
@@ -60,8 +65,8 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
   the hand toward the tip as far as `ph` (`opticPlaceOf`, `opticCableEnd`: the same code as the owner's own cable,
   `world.ropes` slot `<remote>-optic`). The view at the tip is local, never sent. A ping from the view uses the
   existing ping: `sendPing` casts from `cam.gamePos`, which `OpticSystem.frameUpdate` sets to the tip, and the hit goes
-  to the host (`ping` message) and to every player (`ping` event); no ping input is bound yet (`gameState.ts`
-  "pings are unbound for now").
+  to the host (`ping` message) and to every player (`ping` event); the ping input (R3 / middle mouse, below) works
+  from the view.
 - OPEN TRAP (optic-coop M1, CHECK-M B1): the trap panel over an optic gap is collision (`Breakables`, `G.STATIC`:
   movement, shots, perception rays), so its open goes through the host like a door. A client's pick sends client ->
   host `panel {g}` (`g` the gap index, wire bound `OPTIC_POINT_MAX`; `NetAttachment.panelOpen`, client only) and
@@ -80,7 +85,7 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
-  pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
+  pickups, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
   sending (`net/bgTicks.ts`; the hidden-page tick, input-and-loop.md).
 - (marlow-bays items 3-4) The host's pause menu restarts at the checkpoint (`GameMode.restartCheckpoint`; the host's
@@ -233,13 +238,14 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
 - **Beacon colours (H1).** The CT partner beacon (G135) is by slot: 0 blue, 1 red (unchanged), 2 amber, 3 violet (`BEACON` in
   `player/goggleGlow.ts`, four entries). `CharacterRig.setBeacon(player)` takes 1-4 (clamped; the own rig gets
   `localSlot + 1`, a remote avatar `PlayerInfo.slot + 1`, falling back to the host-or-not rule without a slot). The goggle
-  glow keeps `GOGGLE_COLOURS` by slot. Minimap ally dots (`Blip.slot`) take the beacon's idle colour, `#3fc1ff` without a slot.
+  glow keeps `GOGGLE_COLOURS` by slot.
 - **Lobby (L1).** The lobby shows `capacity(mode)` seats (Sector Ops 4, Campaign 2). Start is blocked with "Too many players
   for this mode (N)" while `overCapacity` (a 4-seat room switched to Campaign with 3 in it). A refused page shows "Room full"
   with the room's cap ("That room already has its N players ..."): the refusal carries `bye.mode` and the client takes
-  `session.mode` from it before `full` fires. The host's status line reads "Share the code to invite your teammates." The
-  same-device autostart (`?net=local&autostart=...&mode=sector`) starts when `flags.players` (`?players=2..4`, dev and tests;
-  default 2) players are in. A new room is Campaign (cap 2), so a 3rd player can join only after the host picks Sector Ops.
+  `session.mode` from it before `full` fires. The host's status line reads "Share the code to invite your teammates."
+  (in Course mode with one player it starts "Marlow Yard needs two players.", J14 F1). The same-device autostart
+  (`?net=local&autostart=...&mode=sector`) starts when `flags.players` (`?players=2..4`, dev and tests; default 2)
+  players are in. A new room is Campaign (cap 2), so a 3rd player can join only after the host picks Sector Ops.
 - **Team scale (SM, DATA).** Marks, grants and the section rating stay per team. The syringe pool is per team:
   `syringesFor(preset, players)` = preset + `SECTOR.syringeExtra` 1 per player beyond 2 (Normal 2 / 3 / 4 at 2 / 3 / 4
   players; 1 player = 2). Alarm reinforcements per stage = the section's `perStage` + `SECTOR.reinforcePerExtra` 1 per player
@@ -284,6 +290,13 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
       helmet. No second message carries the look.
     - Bodies: `snap.bodies` carries enemy ids only, so no record carries a seed: a client's ragdoll is its own puppet's
       rig (it had the seed), a carried body is never mirrored, and the host reads `body.guard.look`.
+- Guard intel (stealth-pays client intel; wire change, the train bumps `PROTOCOL_VERSION`): `EnemyState.in` is 1 while
+  the host's guard has unspent interrogation intel (`hasInfo(e)`: Marlow course slots, Sector Ops slots, a revived guard
+  through `inherit`), absent otherwise (0 bytes for most guards). `protocol.markIntel` writes it in `CoopHost`'s
+  snapshot; the parser keeps it only when exactly 1. `EnemyPuppet.setIntel` offers INTERROGATE from the flag's rise
+  (`info` = the course slot's lines from `infoAtSpawn` (`spawnInfo`), else `guardInfo.HOST_INFO`: no lines, the
+  host's intel feed answers) and drops it when the host clears it, so a host or client interrogation, a rejoin and a
+  revive show the same on both screens. A local spend is not undone while the flag is still set.
     - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
       distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
       course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
@@ -352,6 +365,9 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   (`hear(.., 'noise', null, r.ref.id)`): a searching or alerted guard who hears one locates the client's slot only and
   walks to it / turns his hunt to it; the host's slot never moves for it. Host only, no wire change.
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
+  The campaign and Marlow Yard share G126's rule (G349): a revive within `REVIVE_WINDOW` 30 s, at most
+  `REVIVES_PER_MISSION` 2 (`game/reviveClock.ts`); a player past them is out (`CoopHost.goOut`): the course restarts
+  the bay, Sector Ops the section (its syringes per difficulty, below).
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those bodies (`Body`, coop-carry) and drop the rest.
   (rig-pose-fix S5, P13) The wire carries no body position: a client `Body` lies on the host's sim lie computed from
   the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`), its
@@ -375,23 +391,28 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   a door faced, Drop body) and pose. A partner's carry shows on both pages through `RemoteAvatar.carryLoad` /
   `carrySide` / `carryKnees` (the bend, the carry lean, the hands on the knees). Save shape unchanged. Tests:
   `tests/coopCarry.test.ts`; e2e-coop "client carries a body".
-- Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
-  `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
+- Pings (action `ping`: R3, which zooms instead while aiming a scoped weapon (`contextPing`); KBM middle mouse;
+  `input/padBinds.ts`, `input/keyBindings.ts`): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate
+  0.8 s) -> `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,
   <= 40 m) and runs `remoteEffect` on its guards.
-- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner; counted in `StealthRating.duals` and the `dualTakedown` event for
-  section-rating (spare 12), no extra knockout). These
-  are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
+- Team moves (G180, CT's set, built): the leg-up (`boost`), the ledge relay (`ladder`; the wire names stay), the
+  partner throw, the hang-down and the two-person rope (`TeamKind`, `game/teamMoves.ts`). G52's brace and dedicated
+  dual takedown are gone (G180). CT's double takedown is two ordinary takedowns timed together: two finishes within
+  `DUAL_WINDOW` 1.5 s (`game/dualTakedown.ts`) -> banner; counted in `StealthRating.duals` and the `dualTakedown` event
+  for section-rating (spare 12), no extra knockout.
 - (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
   the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
   landing, from the host's start time) and replays it each fixed step; descending feet within `TEAM.throwKoReach` m
   across of a guard and `throwKoLow`..`throwKoHigh` m over his feet (`teamMoves.throwKoHit`) knock him out through
   `Enemy.knockOut` (melee, `takedown: 'throw'`, the strike's noise), one guard per throw. Credit and the client's view
   ride the existing kill event and guard state sync: no wire change.
-- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`). A client's
-  interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2, `ph` >= `INTEL.donePh` then the bit drops:
-  `interrogationEnded`): the host spends the guard's information and reveals the intel once (joint-interrogation: plus
-  the joint lines when a partner's bluff is live, checked before the spend). A client interrogating from the
+- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`).
+  A client's interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2 seen, then the bit drops while
+  the hold goes on: `interrogationEnded`; any progress counts, so a host frame gap over the read's tail no longer loses
+  it; `interPh` resets at each td 'start' / 'done' / 'abort' and a kill, so an aborted read never counts): the host
+  spends the guard's information and reveals the intel once (joint-interrogation: plus the joint lines when a
+  partner's bluff is live, checked before the spend). A client interrogating from the
   hang-down (`boost`) gives only the guard's own lines (gap). No wire change. A client shows every `feed` event as the radio
   subtitle and as a feed line (the host's intel is in its feed).
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
@@ -434,8 +455,7 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   (2 m) apart and either faster than `SNAP_SPEED` (25 m/s) or, across a gap over `SNAP_GAP` (0.3 s), further than
   max(`SNAP_MIN`, sqrt(2) x |v| x gap) from where the velocity before the gap would carry the partner. The blocker parks
   for 3 frames when the shown feet jump more than 0.6 m between syncs.
-- Graphics never change gameplay: each player keeps their own graphics settings and FOV (fog on every preset,
-  `tests/losParity.test.ts`).
+- Graphics never change gameplay: each player keeps their own graphics settings and FOV (fog on every preset).
 - Remote animation audit: `node scripts/anim-audit.mjs --remote` (testing-tools.md).
 
 ## Training course wire (`course`)
@@ -444,6 +464,13 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   door indices (`Doors.setLocked`), locked anchor ids, light state (`lights.groups`, `lights.dead`) and P2's last
   refusal (`ref` / `rn`). A door the host reports locked is shut on the client too; nothing on the client unlocks a
   course door by itself. Clients press and hold course devices through `use`.
+- (coop-real F1b, S2) Lamp shots: a client's round through a lamp goes to the host as Sector Ops' `shot` at `lt-<id>`
+  (the same host checks, `onLampShot`; a repeat round at a lamp the host already has out is dropped with no
+  violation), and `lights.dead` includes it from the next `course` message (no `lamps` message in Course mode). (F1a)
+  The client plays the sparks cue for a newly dead lamp, and none on the first message after a join or rejoin.
+  (coop-real F1c) A lamp round fired before the last set or section restart (`rt + CLIENT_INTERP_DELAY` earlier than
+  the restart's host time + `LAMP_RESTART_SLACK` 0.2 s; `lampShotStale`) is dropped with no violation, so a round in
+  flight across a restart never puts out a lamp the restart brought back (Sector Ops alike).
 - Drill ticks (`ctick`, client -> host `{ verb }`, `TickLimiter` 4 a second): `game/course/drillDetect.ts` is the one
   place course verbs are derived (edge-triggered); `CourseFeed` fills its snapshot each fixed step. The client sends
   only `CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, gadget); the host ticks what
@@ -455,7 +482,7 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   bay index; the finish's rating has its grant zeroed). The client mirror takes each new bay once: the results line, its
   own gadget top-up and the card (not for the last set); the first message after a join or rejoin only records it. `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
   airlock, each on its own slot (coop-rejoin: `courseSlotPoints` / `startSlotPoints`).
-- Friendly fire in the course (D38, G49 pending the research): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
+- Friendly fire (G141: a host option, on by default; built so far as always on in Course mode, no option yet): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
   makes partners hostile in course mode; host `Hitboxes` + `RemotePlayer.shootable`, client `PartnerTarget`, `blast`
   carry team damage; a partner at zero is downed and revivable.
 - The CT devices (`game/ctDevices.ts`) ride `course` as `sec` (see Sector Ops below). The client sends its jam intent as
@@ -555,14 +582,15 @@ client next to a device first.
   origin at the shooter, the lamp first on the ray in the host's registry, a clear static line; `lampShotOk`), which
   shoots it out as its own round would (`StealthSystems.shootLight`). (rig-pose-fix S7) The origin may be up to
   `LAMP_SHOT_ORIGIN` 2.1 m (was 2) from feet + 1.2, so an inverted-hang claim (up to 2.013 m) is taken. Switches are items (`use`) as before. Change
-  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode unchanged.
-- `NetMode` `sector`, up to four players (coop4; two before). The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
-  every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd` (one entry per player slot since coop4), the
+  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode: see `course`.
+- `NetMode` `sector`, 1 to 4 players (G308; coop4, two before). The host runs `SectorMode` and sends `sector` (host ->
+  all) on a device change and every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch`
+  and cooldown `cd` (one entry per player slot since coop4), the
   jammed / recovering devices `dv`, alarm stage; the same field rides the course message) and (protocol 24) `ls` the live section (-1
   during a connector cycle), `lk` the locked door indices, `dn` the camera ids shot out, `sy` the revive syringes left.
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
-  snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+  snapshot's `info`. Objectives, the exit item and banners use the item and event mirror (no markers: G339).
 - (section-rating, protocol 42) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
   (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
   section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and

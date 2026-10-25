@@ -18,6 +18,7 @@ import type { TraversalAnchors } from '../world/anchors';
 import type { SectorRatingWire } from '../game/sectors';
 import type { RatingView } from '../ui/hud/ratingCard';
 import { unpackRated } from '../game/course/courseWire';
+import { CLIENT_INTERP_DELAY } from './interp';
 
 export interface V3 {
   x: number;
@@ -258,6 +259,26 @@ export function hostShotAllowed(dw: number | undefined): boolean {
  */
 export function hostShotWeapon<W extends string>(w: W, held: W | undefined, loadout: readonly W[]): boolean {
   return (held !== undefined && w === held) || loadout.includes(w);
+}
+
+/** (coop-real F1b, S2) Does the host take a client's lamp round (`shot` at `lt-<id>`) in this mode? Sector Ops and
+ *  Course mode (the client's rule: `clientLampShots`). */
+export function hostLampShots(mode: string | undefined): boolean {
+  return mode === 'sector' || mode === 'course';
+}
+
+/** (coop-real F1c) Seconds past a restart in which a client's lamp round still counts as fired before it: covers
+ *  the client clock's jitter, and stays under the shortest respawn delay (Sector Ops 0.3 s), so a round fired after
+ *  the client's respawn at the checkpoint is never dropped. */
+export const LAMP_RESTART_SLACK = 0.2;
+
+/** (coop-real F1c) A client's lamp round (`shot` at `lt-<id>`) fired before the mode's last set or section restart
+ *  (which put every lamp back) is stale: the host drops it with no violation. `rt` is the round's render time on
+ *  the host clock (the client's `renderTime`: its estimate of the host sim time less `CLIENT_INTERP_DELAY`), so it
+ *  was fired at `rt + CLIENT_INTERP_DELAY`; `restartAt` is the host sim time of the last restart (-Infinity
+ *  before any). */
+export function lampShotStale(rt: number, restartAt: number): boolean {
+  return rt + CLIENT_INTERP_DELAY < restartAt + LAMP_RESTART_SLACK;
 }
 
 /**

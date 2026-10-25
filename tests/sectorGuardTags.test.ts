@@ -188,6 +188,7 @@ interface FakeGuard {
   squad: number;
   section: number;
   coverIdx: number;
+  roleBound: boolean;
   roleFlags: number;
   job: string;
   zone: string;
@@ -231,6 +232,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     squad: -1,
     section: 0,
     coverIdx: -1,
+    roleBound: false,
     roleFlags: 0,
     job: '',
     zone: '',

@@ -56,7 +56,7 @@ export const S3_SWITCHES: NonNullable<MapLayout['switches']> = [
 export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /**
- * (sector-fixes R3, docs/sector-fixes/r/R3.md) Section 3's co-op-only routes. Plan boxes [x0, x1] x [z0, z1], slab tops (m).
+ * (sector-fixes R3, docs/archive/sector-fixes/r/R3.md) Section 3's co-op-only routes. Plan boxes [x0, x1] x [z0, z1], slab tops (m).
  * - `valve`: the hall main's zone-valve platform in the east bay, hung from the roof beside the main; its fixed ladder is
  *   gone (the bay is the forklift lane; fitters bring the scissor lift). Leg-up from the bay floor onto its 4.4 m lip, the
  *   partner by the relay or the rope; from its west lip a jump up to the main (0.4 m across, 0.6 m up), then north to the
@@ -87,7 +87,7 @@ export const S3_COOP = {
 export const S3_ROOF_HOODS: readonly (readonly [number, number, number, number])[] = [S3_COOP.valve, S3_COOP.drive].map((p) => [p.x0, p.x1, p.z0, p.z1] as const);
 
 /**
- * (sector-fixes R3, the team-door contract in docs/sector-fixes/r/PLAN.md) The plant room's service door into the fire-exit
+ * (sector-fixes R3, the team-door contract in docs/archive/sector-fixes/r/PLAN.md) The plant room's service door into the fire-exit
  * lobby, barrel-bolted on the lobby side (the exit lobby is never a way into the plant; the engineer uses the hall doors).
  * `at` the door's plan centre, `side` toward the lobby (the side that unbolts it). One drops in by the lobby roof hatch or
  * comes by the fire door and unbolts it for the partner in the plant room (the duct route's way out past the tour guard).
