@@ -26,18 +26,17 @@ with them); warehouseOps (frozen, Q26); the objective popup and field-menu list 
 Campaign); the compass / objective blip (M1: J3, Campaign).
 
 ## Michael said (verbatim)
-- Q26, old warehouse map (ROADMAP "Decided", origin/feature/menu, 2026-10-25 ~16:50): "Freeze it" (no more work on
-  warehouseOps).
-- G290 (docs/DECISIONS.md:1567): "no markers plus an optional hint layer (off by default); guidance is in-world only
-  (objective text names places, leads, light language, landmarks)" (the orchestrator's record of Michael's pick).
 - G336 (2026-10-25 ~09:45): "Objectives must name what and where, but no map, level design must flow naturally towards
   each objective."
 - G343 (2026-10-25 ~10:45): "Objectives can fade in/out in game, must be a short, plain English objective."
-- G351: "What and where".
 
 ## Michael picked
+- G290 (docs/DECISIONS.md:1567, the orchestrator's record of his pick): "no markers plus an optional hint layer (off by
+  default); guidance is in-world only (objective text names places, leads, light language, landmarks)".
 - G336 (7b): "No maps at all".
 - G351 (5): "What and where".
+- Q26, old warehouse map (ROADMAP "Decided", origin/feature/menu, 2026-10-25 ~16:50): "Freeze it" (no more work on
+  warehouseOps).
 
 ## Rules this job answers to
 VISION 4 rule 5 (no maps, minimap, compass or objective blip; no markers in the campaign and Sector Ops); bible 5.10
@@ -67,9 +66,3 @@ VISION 4 rule 5 (no maps, minimap, compass or objective blip; no markers in the 
 - A7 The test never loads Marlow Yard (it imports campus modules only), so Marlow's lines cannot fail it.
 - A8 `hyp2` changes no placement: the S4 hero log is compared before and after (brief B1 step 5). If any hero moves the
   builder stops (a tie broken differently) and the lead decides.
-</content>
-</invoke>
-<invoke name="Bash">
-<parameter name="command">cd /c/NightShift/Mobile-Coop-sector-marks && test "$(git rev-parse --abbrev-ref HEAD)" = feature/sector-marks && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-sector-marks" && git add docs/sector-marks/BRIEF.md && git commit -q -m "sector-marks: BRIEF
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git push -q -u origin feature/sector-marks 2>&1 | tail -2; git log --oneline -1

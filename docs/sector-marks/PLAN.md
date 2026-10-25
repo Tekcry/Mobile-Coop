@@ -5,6 +5,28 @@ Owner: Night Shift | Sector Ops Build. Status: current.
 Opus plan for `docs/sector-marks/BRIEF.md`. One PR, one slice (B1, Sonnet builder from `briefs/B1.md`). Every
 file:line below was re-found on origin/master 2148ec96.
 
+## Claims
+
+```claims
+files:
+  - src/game/interactables.ts
+  - src/game/gameState.ts
+  - src/net/coopClient.ts
+  - src/world/maps/campusSectors.ts
+  - src/world/maps/campusS4Data.ts
+  - src/world/maps/campusS5Data.ts
+  - src/world/maps/campusS4Dress.ts
+  - tests/campusObjectivePlace.test.ts
+  - tests/exitBeacon.test.ts
+  - scripts/e2e-sectorops.mjs
+  - TESTING.md
+  - docs/systems/modes-and-progression.md
+  - docs/sector-marks/**
+maps: campusOps
+protocol: none
+save: none
+```
+
 ## 1. What changes
 
 | # | File | Line(s) on master | Change |
@@ -64,9 +86,19 @@ shipped feature, G355).
   the start of a section, where no exit item exists yet.
 - `SectorMode.blips()` (sectorMode.ts:1355-1359) still sends the exit as an objective blip to the compass until J3
   (Campaign) removes the compass. Not this job.
-- Cross-job overlap: sector-batch (same lead) edits `campusSectors.ts` routes (:231-260, :329-350, :375-390),
-  `campusS4Data.ts:81-95`, `campusS5Data.ts:100-120`, `coopClient.ts` ~:617, `gameState.ts` ~:191 and TESTING.md
-  :31-32, :46-48; none touches these lines, so the train merges both.
+- Cross-job overlap, feature/campus-greybox (same lead, J17): it moves the S1 / S3 sector data out of
+  `campusSectors.ts` into `campusS1Data.ts` / `campusS3Data.ts` and keeps v2 copies (`campusV2/s<N>Data.ts`) that a
+  test holds equal to live. Lead's order: sector-marks merges first (a small rule fix, G355); campus-greybox then
+  carries the four new labels into its split files and its v2 copies when it next takes master (its BRIEF A23 path).
+  B1 edits master's files as they are on master.
+- Other overlaps (`node scripts/claims-check.mjs --plan docs/sector-marks/PLAN.md`, 2026-10-25 ~19:30; file level,
+  each a few lines in a big file, no shared lines found; the train merges or the later branch rebases):
+  feature/coop-kit and feature/player-batch-j19 (`gameState.ts`, `coopClient.ts`), feature/player-hygiene
+  (`coopClient.ts`), feature/hud-guidance (+ -a1, -a3: `gameState.ts`, `coopClient.ts`, `e2e-sectorops.mjs`,
+  TESTING.md), feature/guard-rules (`campusS4Data.ts`, `campusS5Data.ts`, `e2e-sectorops.mjs`: guard rows, not the
+  objective labels), feature/test-runner-j20 (+ -s3b, -s4, -s5, -s6c: `e2e-sectorops.mjs`; S6c adds a part-6 check,
+  ours is one assertion after :91), feature/map-ready (same lead; it waits on its re-plan, sector-marks goes first).
+  feature/sector-batch (same lead, J18) is being planned; its PLAN orders itself after this one.
 
 ## 5. Done looks like
 No green disc or pole at any Sector Ops exit, on the host and on a co-op client; the four campus lines name their
