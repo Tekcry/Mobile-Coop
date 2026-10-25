@@ -27,6 +27,9 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Locks: RULES "Machines".
 - If a laptop session is missing from ListAgents (Remote Control bridge drop), tell Michael in one line to reopen it;
   the queue service keeps running without it.
+- Once Test Runner's J20 PR-B releases: each cron run also reads `alerts/*-fixjob-*.json` on the laptop-queue branch
+  (a suite auto-quarantined twice in 14 days turns blocking and needs an owner fix job); start that fix job with its
+  owner the same run. J20 release order: #445 PR-C, then PR-A, then PR-B (Job-done).
 - Over Remote Control the app refuses start_session and proposal cards (2026-10-25 18:30): Michael types "start the
   leads" in the desktop app, or pastes PROMPTS.md lines 2-5 there.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
