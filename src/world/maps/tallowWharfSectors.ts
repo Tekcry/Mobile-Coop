@@ -142,10 +142,10 @@ const W2_GUARDS: SectorGuard[] = [
 
 // ---- W3 counting house (10) ----
 const W3_GUARDS: SectorGuard[] = [
-  // 0 the yard watchman, 1 the dog on a running line (handler 0)
-  walker([[102, 40], [112, 40], [112, 47], [102, 47]], { zone: 'yard', role: 'patrol', reason: 'Yard watchman: the east yard and the dog line' }),
+  // 0 the yard watchman, 1 his mate at the lodge end
+  walker([[102, 40], [112, 40], [112, 47], [102, 47]], { zone: 'yard', role: 'patrol', reason: 'Yard watchman: the east yard and the gate lodge' }),
   // the running line stays in the yard (the lodge's west wall is x 114); he waits at its lodge end facing the lodge, so his spot is west of him
-  walker([[112.5, 46], [109.5, 46]], { zone: 'yard', role: 'dog', reason: "The watchman's dog on a running line by the gate lodge", handler: 0, yaw: PI / 2 }, 'dog'),
+  walker([[112.5, 46], [109.5, 46]], { zone: 'yard', role: 'patrol', reason: "Yard watchman's mate: walks the lodge end of the yard", yaw: PI / 2 }),
   // 2 the lodge porter (the Two-Key Ledger twist walker)
   posted(117, 48, { zone: 'w3-lodge-porter', role: 'porter', reason: 'Lodge porter: sleeps in the gate lodge until the bell rings', yaw: PI }),
   // 3, 4 the night clerks in the east wing offices
@@ -162,10 +162,10 @@ const W3_GUARDS: SectorGuard[] = [
 
 // ---- W4 wharf sheds (12) ----
 const W4_GUARDS: SectorGuard[] = [
-  // shed yard: 0 the yard watchman, 1 the dog handler, 2 the dog (handler 1), 3 the crane watchman, 4, 5 Pell's minders
+  // shed yard: 0 the yard watchman, 1 and 2 the yard patrol, 3 the crane watchman, 4, 5 Pell's minders
   walker([[46, 26], [70, 26], [70, 9], [46, 9]], { zone: 'shed-yard', role: 'patrol', reason: 'Yard watchman: the wharf apron and the shed doors' }),
-  walker([[50, 20], [66, 20]], { zone: 'shed-yard', role: 'handler', reason: 'Dog handler: walks the yard with his dog' }),
-  walker([[51.5, 20.5], [67.5, 20.5]], { zone: 'shed-yard', role: 'dog', reason: "The handler's dog, at his heel along the yard", handler: 1 }, 'dog'),
+  walker([[50, 20], [66, 20]], { zone: 'shed-yard', role: 'patrol', reason: 'Yard patrol: walks the shed doors end to end' }),
+  walker([[51.5, 20.5], [67.5, 20.5]], { zone: 'shed-yard', role: 'patrol', reason: 'Yard patrol on the canal side of the yard, a pace off his mate' }),
   posted(60, 13.6, { zone: 'crane', role: 'posted', reason: 'Crane watchman: keeps the yard leg of the crane', yaw: PI }),
   // Pell's minders arrive when Teale misses his check-in: tagged for the mission event, posted at the yard end
   posted(48, 26, { zone: 'tgc-minders', role: 'pair', reason: "Pell's minder, off the launch: waits at the yard end until the twist", pair: 5, yaw: -PI / 2 }),
@@ -307,7 +307,7 @@ export const WHARF_SECTORS: SectorDef[] = [
     name: 'Night market',
     start: { ...W1_START },
     start2: { ...W1_START2 },
-    objective: { kind: 'grab', label: "Take the warden's tally book", x: 2.5, y: 4.5, z: 50, yaw: 0 },
+    objective: { kind: 'grab', label: "Take the tally book from the warden's gallery office", x: 2.5, y: 4.5, z: 50, yaw: 0 },
     connector: {
       label: 'Service passage to the arcade',
       box: [36.2, 58.2, 39.8, 61.8],
@@ -363,7 +363,7 @@ export const WHARF_SECTORS: SectorDef[] = [
     guards: W3_GUARDS,
     reinforce: [[103, 40], [94, 46]],
     perStage: 2,
-    dogs: 1,
+    dogs: 0,
     routes: W3_ROUTES,
     bolts: W3_BOLTS,
     keypads: [{ at: at2(W3.doors['w3-east-gate']!), code: 'tkl-gate-code' }],
@@ -387,7 +387,7 @@ export const WHARF_SECTORS: SectorDef[] = [
     guards: W4_GUARDS,
     reinforce: [[46, 30.5], [118, 31.5]],
     perStage: 2,
-    dogs: 1,
+    dogs: 0,
     routes: W4_ROUTES,
     bolts: W4_BOLTS,
   },
