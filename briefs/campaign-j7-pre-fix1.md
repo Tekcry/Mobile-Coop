@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:08:35+11:00
 
 # campaign J7 PR E fix round 1 (Opus 5.5, src/net)
 
