@@ -312,7 +312,7 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     // (builder L2) The SPEC's (18.5, -76) is 1.95 m from where a player stands at the window (the wall face x 20.15 + the 0.3 body):
     // the default interact reach is 1.8 (`Interactables.nearest`), so the download could not be started from the verge. The PC sits
     // on its desk at x 19.3 (0.8 m east, 1.15 m from the window).
-    objective: { kind: 'download', label: "Download tonight's visitor list and the courier badge template", x: 19.3, y: 0, z: -76, yaw: PI / 2 },
+    objective: { kind: 'download', label: "Download tonight's visitor list in the gatehouse", x: 19.3, y: 0, z: -76, yaw: PI / 2 },
     connector: {
       label: 'Into the staff entrance',
       box: [C1_BOX[0], C1_BOX[1], C1_BOX[2], C1_BOX[3]],
@@ -403,7 +403,7 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     // weapons crate (E9): the glazed bridge south wall, strip to the walkway
     crate: { at: [7, C2_FLOOR, -15.3], yaw: 0 },
     // grab the Tidewater prototype board off the shelf at the store's east end (L1), past las-store: opens C3
-    objective: { kind: 'grab', label: 'Take the Tidewater prototype board', x: 51.0, y: S3_L1, z: -3.8, yaw: PI / 2 },
+    objective: { kind: 'grab', label: 'Take the Tidewater board from the prototype store', x: 51.0, y: S3_L1, z: -3.8, yaw: PI / 2 },
     connector: {
       label: 'Along the dock link to the data hall',
       box: [22, 0, 26, 16],

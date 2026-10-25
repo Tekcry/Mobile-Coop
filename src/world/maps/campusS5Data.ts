@@ -166,7 +166,7 @@ export const S5_SECTOR: SectorDef = {
   start: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
   // weapons crate (E9): the colonnade south wall, strip to the colonnade
   crate: { at: [S5_AMMO_CRATE.x, S5_AMMO_CRATE.y, S5_AMMO_CRATE.z], yaw: S5_AMMO_CRATE.yaw },
-  objective: { kind: 'grab', label: 'Take the signing key token', x: -43, y: 0, z: 43.4, yaw: 0 },
+  objective: { kind: 'grab', label: 'Take the signing key token from the strongroom', x: -43, y: 0, z: 43.4, yaw: 0 },
   extract: { label: 'Extract at the boathouse jetty', box: [-50, 60, -40, 66] },
   guards: S5_GUARDS,
   // stage 1: the hall's front door and the service wing
