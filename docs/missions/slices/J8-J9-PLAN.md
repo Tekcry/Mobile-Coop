@@ -1250,8 +1250,8 @@ Open after fix round 3:
 - **A30's form (new, fix round 3).** The ~22:10 ruling preferred a TKL-only bolt through existing per-mission door
   data, else the cheapest map-wide alternative that keeps the TGC crossing. No per-mission door state exists, and no
   map-wide state keeps TGC's crossing and stops a lone B (section 2, A30), so the plan takes the mission-scoped bolt as
-  a new ~60-line Opus slice (MB, PR G1, wave 0), under the ~80-line limit. The lead confirms MB, or takes A30's undo
-  (no bulkhead bolt) as the map-wide fallback, before the wave-0 briefs go out.
+  a new ~60-line Opus slice (MB, PR G1, wave 0), under the ~80-line limit. RULED (Campaign Build ~22:40): MB
+  confirmed; A30's undo (no bulkhead bolt) stays the fallback only if MB's build fails its checker.
 - `EGRESS.md`'s north-range row: is the bridge route to the south lofts' fire stair a second staircase under 16.2.7, or
   does G2 add the clock loft back stair? (LP proposes; Marlow, as the level-design owner, may rule.)
 
