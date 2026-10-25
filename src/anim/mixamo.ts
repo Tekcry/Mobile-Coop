@@ -27,6 +27,12 @@ import { MOCAP_BRACED_HANG_TO_CROUCH } from './clips/mixamo/trav_braced_hang_to_
 import { MOCAP_CLIMBING_LADDER } from './clips/mixamo/trav_climbing_ladder';
 import { MOCAP_CLIMBING_LADDER_TO_STANDING } from './clips/mixamo/trav_climbing_ladder_to_standing';
 import { MOCAP_CRAWLING_HANDS_AND_KNEES } from './clips/mixamo/trav_crawling_hands_and_knees';
+// (mixamo-retarget I1) the standing idle and the crouched walk
+import type { KeyedClip } from './keyed';
+import { KEYED_IDLE } from './clips/keyed/idle';
+import { MOCAP_STANDING_IDLE } from './clips/mixamo/standing_idle';
+import { MOCAP_CROUCHED_WALKING } from './clips/mixamo/crouched_walking';
+import { setMocapCrouchWalk } from './mocap';
 
 /** A Wren traversal slot (above). */
 export type MixamoTravSlot = 'hangIdle' | 'shimmyL' | 'shimmyR' | 'climbUpCrouch' | 'climbUpStand' | 'ladder' | 'ladderTop' | 'crawl';
@@ -64,6 +70,13 @@ export const MIXAMO_ON: Record<string, boolean> = {
   climbing_ladder: false,
   climbing_ladder_to_standing: true,
   crawling_hands_and_knees: true,
+  // (mixamo-retarget I1) measured headless on Wren's rig against the clip it would replace (tests/mixamoSwitch.test.ts (d),
+  // docs/mixamo-retarget/I1-REPORT.md; A8: Studio only unless at least as good)
+  // off: the elbows 12.8 cm outside the shoulders (e2e-anim's idle limit 8, the hand-made idle 7.2); seam 0.0 deg
+  standing_idle: false,
+  // off: the capture's hips turned 31-48 deg off its travel: a knee 20 cm outside its ankle, the elbows 27 cm out (CMU
+  // 136_09: 5.4 / 5.3 cm); slide and bone steps as the CMU clip
+  crouched_walking: false,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
@@ -117,6 +130,7 @@ export function resolveMixamo(): void {
     out.length = 0;
     for (const c of MIXAMO_KEEP[m]) out.push(CH[c]);
   }
+  resolveMixamoKeyed(); // (mixamo-retarget I1)
 }
 
 /** The flag (`?mixamo=1`): the captures on Wren's traversal (those `MIXAMO_ON` lets play). */
@@ -139,6 +153,38 @@ export function mixamoStudioEntry(id: string): void {
   const m = /^trav:[^/]+\/(.+)$/.exec(id);
   const slug = m && MIXAMO_TRAV[m[1]!] ? m[1]! : '';
   if (slug !== MIXAMO.studio) setMixamoStudio(slug);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (mixamo-retarget I1) The standing idle and the crouched walk on Wren (PLAN "Clip map" rows 8 and 15, "I1").
+// - The idle (A2: it follows only the `mixamo` flag): `WREN_KEYED.idle` / `.idlePeriod`, read by reference by the
+//   graph's standing keyed set (`animGraph.ts` `keyedSet`, Wren rigs only: the keyed set needs `wrenReady`). Off it
+//   holds `KEYED_IDLE` / 12 s, so the graph's arithmetic is the same doubles in the same order (byte-identical).
+// - The crouched walk (A2: a locomotion clip, so it also needs the "Mocap locomotion" switch): handed to `mocap.ts`
+//   (`setMocapCrouchWalk`), which plays it through `LOCO.set` only while that switch is on; null keeps the CMU 136_09.
+// Rebuilt once per change by `resolveMixamo` (not per frame).
+
+/** The standing idle capture's take seconds a loop (its header: frames 0-180 at 30 fps, 0-6 s): its clock a cycle. */
+export const STANDING_IDLE_SECONDS = 6;
+
+/**
+ * The hand-made idle's cycle (s): `KEYED_IDLE_PERIOD` (`animGraph.ts`, "the keyed idle's cycle"). Not imported:
+ * animGraph imports this module, and its const is not yet set when this module's last line resolves the table at load
+ * (an import cycle); tests/mixamoSwitch.test.ts asserts the two are equal.
+ */
+export const KEYED_IDLE_PERIOD_S = 12;
+
+/** The resolved keyed clips on Wren (the same object always: fields rewritten once per change). */
+export const WREN_KEYED: { idle: KeyedClip; idlePeriod: number; crouchWalk: KeyedClip | null } = { idle: KEYED_IDLE, idlePeriod: KEYED_IDLE_PERIOD_S, crouchWalk: null };
+
+/** Rewrite `WREN_KEYED` from the flag and `MIXAMO_ON`, and hand the crouched walk to the mocap set (once per change). */
+function resolveMixamoKeyed(): void {
+  const K = WREN_KEYED;
+  const idle = MIXAMO.on && MIXAMO_ON.standing_idle === true;
+  K.idle = idle ? MOCAP_STANDING_IDLE : KEYED_IDLE;
+  K.idlePeriod = idle ? STANDING_IDLE_SECONDS : KEYED_IDLE_PERIOD_S;
+  K.crouchWalk = MIXAMO.on && MIXAMO_ON.crouched_walking === true ? MOCAP_CROUCHED_WALKING : null;
+  setMocapCrouchWalk(K.crouchWalk);
 }
 
 setMixamo(flags.mixamo === true);

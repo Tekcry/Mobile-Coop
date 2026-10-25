@@ -207,10 +207,26 @@ export function hasSlots(S: LocoClipSet): boolean {
  */
 export const LOCO: { set: LocoClipSet; mocap: boolean; slots: boolean } = { set: HAND_KEYED_SET, mocap: false, slots: false };
 
+/**
+ * (mixamo-retarget I1, PLAN Claims "crouch-walk slot") The mocap set with another crouched walk in its slot (the Mixamo
+ * capture under `?mixamo=1`; `mixamo.ts` hands it over, this module never imports that one): a copy of `MOCAP_SET` made
+ * once, and the set the switch's ON side uses (`MOCAP_SET` itself, untouched, unless a crouched walk is handed over).
+ */
+const MOCAP_SET_MX: { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] } = { ...MOCAP_SET };
+let mocapActive: LocoClipSet = MOCAP_SET;
+
+/** (mixamo-retarget I1) The crouched walk in the mocap set's slot (null: the CMU 136_09 back); once per change. */
+export function setMocapCrouchWalk(c: KeyedClip | null): void {
+  Object.assign(MOCAP_SET_MX, MOCAP_SET); // the set as it is now (tests swap its clips), then the slot
+  MOCAP_SET_MX.crouchWalk = c ?? MOCAP_SET.crouchWalk;
+  mocapActive = c ? MOCAP_SET_MX : MOCAP_SET;
+  if (LOCO.mocap) setMocapLocomotion(true);
+}
+
 /** Switch the clip set (once per change; a toggle mid-stride takes the new set on the next frame). */
 export function setMocapLocomotion(on: boolean): void {
   LOCO.mocap = on;
-  LOCO.set = on ? MOCAP_SET : HAND_KEYED_SET;
+  LOCO.set = on ? mocapActive : HAND_KEYED_SET;
   LOCO.slots = hasSlots(LOCO.set);
   noteMoveSources(LOCO.set); // (mixamo-retarget M5) the Now playing line's source per move (CMU / Mixamo)
 }
@@ -243,7 +259,7 @@ export function mocapWanted(url: boolean | null, setting: boolean): boolean {
 /** Resolve and apply the switch (settings load and every settings change; not per frame). Returns the state. */
 export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean {
   const on = mocapWanted(url, setting);
-  if (on !== LOCO.mocap || LOCO.set !== (on ? MOCAP_SET : HAND_KEYED_SET)) setMocapLocomotion(on);
+  if (on !== LOCO.mocap || LOCO.set !== (on ? mocapActive : HAND_KEYED_SET)) setMocapLocomotion(on);
   return on;
 }
 

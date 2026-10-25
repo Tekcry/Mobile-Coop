@@ -50,6 +50,7 @@ import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
 import { KEYED_IDLE } from './clips/keyed/idle';
+import { WREN_KEYED } from './mixamo'; // (mixamo-retarget I1) Wren's keyed idle
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
@@ -2169,7 +2170,11 @@ export class AnimGraph {
     let kneeOut = this.sKneeOut;
     this.kDuty = this.sDuty;
     this.kLift = this.sLift;
-    if (needIdle) sampleKeyed(KEYED_IDLE, this.idleT / KEYED_IDLE_PERIOD, 1, this.kB);
+    // (mixamo-retarget I1) the idle: a Wren rig's from WREN_KEYED (the hand-made KEYED_IDLE over 12 s, or with ?mixamo=1
+    // the Mixamo standing idle over its 6 s), every other rig's the hand-made one (HAND_IDLE: an unarmed rig walking along
+    // its facing reaches this set too); read by reference, so off it is the same clip and period as before
+    const KI = this.wrenReady ? WREN_KEYED : HAND_IDLE;
+    if (needIdle) sampleKeyed(KI.idle, this.idleT / KI.idlePeriod, 1, this.kB);
     // the idle's scan: the keyed neck's yaw in the body frame (the sum of the chain's local yaws), by the idle's share
     let scan = 0;
     if (needIdle) for (let s = 0; s < 16; s += 4) scan += 2 * Math.atan2(this.kB.q[s + 1]!, this.kB.q[s + 3]!);
@@ -2177,8 +2182,8 @@ export class AnimGraph {
     if (needLoco && needIdle) mixKeyed(this.kA, this.kB, idleShare, o.keyed);
     else if (needLoco) mixKeyed(this.kA, this.kA, 0, o.keyed);
     else if (needIdle) mixKeyed(this.kB, this.kB, 0, o.keyed);
-    half += (KEYED_IDLE.half - half) * idleShare;
-    kneeOut += (KEYED_IDLE.kneeOut - kneeOut) * idleShare;
+    half += (KI.idle.half - half) * idleShare;
+    kneeOut += (KI.idle.kneeOut - kneeOut) * idleShare;
     // (mocap-trial) the mocap set's share of this standing pose (its gait), then its filled slots over it (start, stop, turn)
     let share = this.mOn && needLoco ? 1 - idleShare : 0;
     if (this.mSl && o.keyW > 0) {
@@ -3132,6 +3137,8 @@ export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.5, t
 export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8, runTo: 4.2, sprintFrom: 5.0 } as const;
 /** (anim-rework S2) The keyed idle's cycle (s): three slow breaths, a weight shift each way and a head scan each way. */
 export const KEYED_IDLE_PERIOD = 12;
+/** (mixamo-retarget I1) The hand-made idle and its cycle, as `WREN_KEYED` holds them off: every rig but Wren's. */
+const HAND_IDLE: { readonly idle: KeyedClip; readonly idlePeriod: number } = { idle: KEYED_IDLE, idlePeriod: KEYED_IDLE_PERIOD };
 /**
  * (anim-rework S4, BRIEF 3 "Stealth") The crouched keyed set (S4-KEYS.md), on the crouched effort pace (GAIT_REF.crouch
  * units, `effortSpeed` crouched): the sneak alone up to `sneakTo` (0.7: ~1.1 m/s), cross-faded into the crouch walk by
