@@ -79,14 +79,14 @@ export const A8_WEST_COLUMN = { x: 112, z: 75, w: 0.4 } as const;
 export const A8_VESTIBULE_LAMPS: readonly (readonly [number, number, number])[] = [[107.5, 3.8, 62.1], [107.5, 3.8, 67.6]];
 export const A8_VESTIBULE_SWITCH = { id: 'a8-sw-vestibule', group: 85, pos: { x: 106.35, y: 1.2, z: 62.5 }, yaw: Math.PI / 2 } as const;
 /** Group 86 (the west bays behind the counters): a counter lamp on the main run's west half and a brass wall light on the new column; the switch on the same column. */
-export const A8_WEST_COUNTER_LAMP = { x: 115.2, y: 1.6, z: 65.9 } as const;
+export const A8_WEST_COUNTER_LAMP = { x: 117.6, y: 1.6, z: 65.9 } as const;
 export const A8_WEST_WALL_LAMP = { x: 112.0, y: 2.3, z: 74.65 } as const;
 export const A8_WEST_SWITCH = { id: 'a8-sw-west', group: 86, pos: { x: 112.0, y: 1.2, z: 74.75 }, yaw: Math.PI } as const;
 /** The lamp radius and intensity per new fitting (tuned with the light file `tests/ctcourse/replan/a8Strongroom.light.json`). */
 export const A8_LAMP = {
   vestibule: { radius: 4.5, intensity: 0.3 },
-  counter: { radius: 3.0, intensity: 0.5 },
-  wall: { radius: 5.0, intensity: 0.3 },
+  counter: { radius: 3.5, intensity: 0.5 },
+  wall: { radius: 6.0, intensity: 0.45 },
 } as const;
 
 const OAK = '#5a4130';
@@ -198,7 +198,7 @@ export function replanA8Strongroom(b: LevelBuilder, kit: FacilityKit, part: SetP
   });
 
   // ---- A8-R5: the vestibule's two ceiling panels (group 85) and the west bays' counter lamp and brass wall light (group 86) ----
-  tally(b, part.register, 'A8-R5', 'Lamps on the re-plan: vestibule circuit 85 (two warm ceiling panels at 3.8 under the return slab, between its soffit beams), west bays circuit 86 (a counter lamp over the main run at (115.2, 1.6, 65.9) and a brass wall light on the x 112 column at (112, 2.3, 74.65)); each circuit on its own wall switch', () => {
+  tally(b, part.register, 'A8-R5', 'Lamps on the re-plan: vestibule circuit 85 (two warm ceiling panels at 3.8 under the return slab, between its soffit beams), west bays circuit 86 (a counter lamp over the main run at (117.6, 1.6, 65.9) and a brass wall light on the x 112 column at (112, 2.3, 74.65)); each circuit on its own wall switch', () => {
     for (const [x, y, z] of A8_VESTIBULE_LAMPS) lamp(x, y, z, G_VESTIBULE, A8_LAMP.vestibule.radius, A8_LAMP.vestibule.intensity, WARM, [0.6, 0.05, 0.6]);
     const c = A8_WEST_COUNTER_LAMP;
     lamp(c.x, c.y, c.z, G_WEST, A8_LAMP.counter.radius, A8_LAMP.counter.intensity, WARM, [0.2, 0.2, 0.2]);
@@ -315,11 +315,12 @@ export function replanA8Strongroom(b: LevelBuilder, kit: FacilityKit, part: SetP
   };
   spot('A8 vestibule').band = 'read';
   spot('A8 jam spot').band = 'read';
+  spot('A8 leg-up mark').band = 'any';
   part.lightSpots.push(
     { name: 'A8 vestibule cut', kind: 'body', x: 107.6, y: 0, z: 64.5, band: 'cut', off: [85] },
     { name: 'A8 jam spot cut', kind: 'body', x: 118.0, y: 0, z: 67.2, band: 'cut', off: [86] },
-    { name: 'A8 west bay', kind: 'body', x: 113.5, y: 0, z: 71.0, band: 'read' },
-    { name: 'A8 west bay cut', kind: 'body', x: 113.5, y: 0, z: 71.0, band: 'cut', off: [86] },
+    { name: 'A8 west bay', kind: 'body', x: 112.8, y: 0, z: 72.8, band: 'read' },
+    { name: 'A8 west bay cut', kind: 'body', x: 112.8, y: 0, z: 72.8, band: 'cut', off: [86] },
   );
 
   // ---- map data the e2e and the debug menu read ----
