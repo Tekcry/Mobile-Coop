@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T21:35Z
 # J12 validator-port, docs slice D-D (Sonnet, strict Opus brief): docs for PR D (mission re-cut) plus S8 polish
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S8 checker PASS (fa4abab62) and
