@@ -39,7 +39,7 @@ import { warmGuardModels } from '../ai/guardWarm';
 import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
 import { CompileLog, type CompileLogRecord } from '../core/compileLog';
 import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
-import { compileOrderOf } from './compileOrder';
+import { compileGroupsDue, compileOrderOf, GROUP_ALL, GROUP_GUARDS, GROUP_LEVEL, GROUP_OWN, GROUP_REST, type CompileDueInput } from './compileOrder';
 import { MAP_READY_CAP_MS, runMapGate, type MapGateInput, type MapGateProbe, type MapGateResult } from './mapGate';
 import { MIN_LODS } from '../operators/runtime/playerFigure';
 import { LOD_0, LOD_1, LOD_2 } from '../operators/runtime/manifest';
@@ -2391,6 +2391,7 @@ export class GameState implements AppState {
     const log = new CompileLog(t0, compileOrderOf(typeof location === 'undefined' ? '' : location.search));
     this.compileLog = log;
     this.compileT0 = t0;
+    this.gateOrder = log.record.order;
     const c = this.compiledEffects();
     const keys = c ? Object.keys(c) : [];
     for (const key of keys) {
@@ -2520,9 +2521,13 @@ export class GameState implements AppState {
   private gateContent = false;
   /** (map-ready S2) The player's play LODs failed to load (the gate does not wait for them). */
   private gateFigureFailed = false;
-  /** (map-ready S2) The `shaders` step's priority compile: 0 not started; 1-4 the group started (the player's body and
-   *  weapons, the level and its art, the guards nearest first, every other mesh); 5 done. */
-  private gateCompile = 0;
+  /** (map-ready S2, S14 cut A) The `shaders` step's compile groups (`compileOrder.ts` bits: the player's body and weapons,
+   *  the level and its art, the guards nearest first, every other mesh): started, settled, the order (`?compileorder`),
+   *  and the one input object `compileGroupsDue` reads each gate read. */
+  private gateStarted = 0;
+  private gateSettled = 0;
+  private gateOrder: 'parallel' | 'serial' = 'parallel';
+  private readonly gateDue: CompileDueInput = { quality: false, content: false, bodies: false, started: 0, settled: 0 };
   /** (map-ready S2) Banners queued during the hold, the last objective set, and the HUD's own two calls. */
   private readonly gateBanners: [string, string | undefined, number | undefined][] = [];
   private gateObjective: string | null = null;
@@ -2579,9 +2584,17 @@ export class GameState implements AppState {
       for (let i = 0; i < gb.length; i++) if (!gb[i]!.shown) bodies = false;
     }
     g.bodies = bodies;
-    // (the compile starts once the real settings are in, the content placed and the bodies loaded: Q1 priority order)
-    if (bodies && g.quality && g.content && this.gateCompile === 0) void this.gateCompileAll();
-    g.shaders = this.gateCompile >= 4 && this.gateDrawReady();
+    // (S14 cut A) each compile group starts as its inputs come in, in priority order, none waiting on another (parallel);
+    // `?compileorder=serial` keeps S2's order, each group after the one before settled
+    const d = this.gateDue;
+    d.quality = g.quality;
+    d.content = g.content;
+    d.bodies = bodies;
+    d.started = this.gateStarted;
+    d.settled = this.gateSettled;
+    const due = compileGroupsDue(d, this.gateOrder);
+    if (due) this.gateCompileAll(due);
+    g.shaders = this.gateStarted === GROUP_ALL && this.gateDrawReady();
     g.probe = w.probeCaptured;
     g.bakeAll = (!sb || sb.done || sb.disposed) && (w.lamps?.tilesPending ?? 0) === 0;
     // (S3 adds the audio step, S5 the peers step)
@@ -2627,38 +2640,67 @@ export class GameState implements AppState {
     });
   }
 
-  /** (map-ready S2, Q1) The `shaders` step's compile in priority order, each group's meshes together: the player's body
-   *  and weapons (S5 adds the partners'), the level and its art, the guards nearest the player first, then every other
-   *  mesh. A cap hit then leaves only far parts compiling after the reveal. Lists are built once per group start. */
-  private async gateCompileAll(): Promise<void> {
-    this.gateCompile = 1;
+  /** (map-ready S2, Q1; S14 cut A) Start the compile groups in `due` in priority order: the player's body and weapons (S5
+   *  adds the partners'), the level and its art, the guards nearest the player first, then every other mesh. Each group
+   *  sets its settled bit when its compiles settle (a thrown compile too). A cap hit then leaves only far parts compiling
+   *  after the reveal. Lists are built once per group start. */
+  private gateCompileAll(due: number): void {
+    if (due & GROUP_OWN) this.gateStart(GROUP_OWN, 'own');
+    if (due & GROUP_LEVEL) this.gateStart(GROUP_LEVEL, 'level');
+    if (due & GROUP_GUARDS) this.gateStart(GROUP_GUARDS, 'guards');
+    // (the full readiness sweep, `gateDrawReady`, starts with this group)
+    if (due & GROUP_REST) this.gateStart(GROUP_REST, 'rest');
+  }
+
+  /** (S14 cut A) Start one group (logged in the compile log) and mark it settled when its compiles settle. */
+  private gateStart(bit: number, name: string): void {
+    this.gateStarted |= bit;
+    this.compileLog?.group(name, performance.now());
+    const settle = (): void => {
+      this.gateSettled |= bit;
+    };
+    let p: Promise<unknown>;
     try {
-      const own = new Set<AbstractMesh>(this.player.rig.root.getChildMeshes(false));
-      for (const s of this.weapons.slots) for (const m of s.model.node.getChildMeshes(false)) own.add(m);
-      await GameState.gateCompileMeshes(own);
-      if (this.exited) return;
-      this.gateCompile = 2;
-      const w = this.world;
-      const lvl: AbstractMesh[] = [...w.level.meshes, ...(w.kit?.meshes ?? []), ...(w.facilityProps?.meshes ?? [])];
-      for (const m of this.scene.meshes) if (m.name.startsWith('campus-')) lvl.push(m);
-      await GameState.gateCompileMeshes(lvl);
-      if (this.exited) return;
-      this.gateCompile = 3;
-      const p = this.player.position;
-      const es = this.enemyMgr ? [...this.enemyMgr.enemies] : [];
-      es.sort((a, b) => hyp2(a.pos.x - p.x, a.pos.z - p.z) - hyp2(b.pos.x - p.x, b.pos.z - p.z));
-      for (const e of es) {
-        await GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false));
-        if (this.exited) return;
-      }
-      // (the full readiness sweep, `gateDrawReady`, starts with this group)
-      this.gateCompile = 4;
-      await GameState.gateCompileMeshes(this.scene.meshes.slice());
+      p = this.gateGroup(bit);
     } catch (e) {
       // (the sweep still compiles everything)
       console.info('map-ready: the priority compile stopped early', e);
+      p = Promise.resolve();
     }
-    this.gateCompile = 5;
+    void p.then(settle, settle);
+  }
+
+  /** (S14 cut A) One group's compiles. The guards all start together, nearest first (parallel); `serial` keeps S2's one
+   *  guard after the other. */
+  private gateGroup(bit: number): Promise<unknown> {
+    if (bit === GROUP_OWN) {
+      const own = new Set<AbstractMesh>(this.player.rig.root.getChildMeshes(false));
+      for (const s of this.weapons.slots) for (const m of s.model.node.getChildMeshes(false)) own.add(m);
+      return GameState.gateCompileMeshes(own);
+    }
+    if (bit === GROUP_LEVEL) {
+      const w = this.world;
+      const lvl: AbstractMesh[] = [...w.level.meshes, ...(w.kit?.meshes ?? []), ...(w.facilityProps?.meshes ?? [])];
+      for (const m of this.scene.meshes) if (m.name.startsWith('campus-')) lvl.push(m);
+      return GameState.gateCompileMeshes(lvl);
+    }
+    if (bit === GROUP_GUARDS) {
+      const p = this.player.position;
+      const es = this.enemyMgr ? [...this.enemyMgr.enemies] : [];
+      es.sort((a, b) => hyp2(a.pos.x - p.x, a.pos.z - p.z) - hyp2(b.pos.x - p.x, b.pos.z - p.z));
+      if (this.gateOrder === 'serial') {
+        return (async () => {
+          for (const e of es) {
+            await GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false));
+            if (this.exited) return;
+          }
+        })();
+      }
+      const all: Promise<unknown>[] = [];
+      for (const e of es) all.push(GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false)));
+      return Promise.all(all);
+    }
+    return GameState.gateCompileMeshes(this.scene.meshes.slice());
   }
 
   /** (map-ready S2) `forceCompilationAsync` for each mesh's material (with instances when it draws them); resolves when
@@ -2678,7 +2720,7 @@ export class GameState implements AppState {
   private gateDescribe(): string {
     const w = this.world;
     const sb = w.lightBake?.sections;
-    return `${w.map.id}: figure ${this.player.figure.loaded}, compile group ${this.gateCompile}, probe ${w.probeCaptured ? 'in' : 'waiting'}, sections ${sb ? (sb.done ? 'done' : 'baking') : 'none'}, tiles ${w.lamps?.tilesPending ?? 0}, programs ${this.spikeShaders}`;
+    return `${w.map.id}: figure ${this.player.figure.loaded}, compile ${this.gateOrder} started ${this.gateStarted} settled ${this.gateSettled} of ${GROUP_ALL}, probe ${w.probeCaptured ? 'in' : 'waiting'}, sections ${sb ? (sb.done ? 'done' : 'baking') : 'none'}, tiles ${w.lamps?.tilesPending ?? 0}, programs ${this.spikeShaders}`;
   }
 
   /** (map-ready S2) During the hold the mode's banners wait for the release and its objective is recorded (no HUD or
