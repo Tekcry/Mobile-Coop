@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:32:44+11:00
 
 # Brief: player-hygiene S3 - Takedown offer scan and carry pick make no per-step garbage, behaviour bit-identical (Player Build)
 
