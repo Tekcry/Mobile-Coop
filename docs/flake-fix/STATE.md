@@ -23,7 +23,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   session-free work, nothing extra filed. Mixamo requests filed during the pause are NOT re-filed: do it first on resume.
 - Laptop C:/NightShift/Mobile-Coop sits on feature/training-bunker (gone) with a local edit to src/world/bakedLamps.ts
   (an old lighting / training-bunker job). Orchestrator ~00:50: leave it exactly as it is (on Michael's command list).
-- Still waiting: #445 affected f3e4c511 and j20-s6c 259bbe55 (both queued).
+- ~00:55: #445 affected f3e4c511 GREEN 11/11 and j20-s6c 259bbe55 GREEN 5/5: PR-C #445 is train-ready (check +
+  checker + affected-e2e); confirm the label and its train on resume.
 - Next: on resume, re-file any new Mixamo request (git grep -il mixamo origin/laptop-queue -- requests/), read the #445
   and j20-s6c verdicts, then SAVE 58 Next line (PR-C merge -> D-A docs, PR-A, PR-B, j20-parity-pre-2), laptop-queue-7.
 
