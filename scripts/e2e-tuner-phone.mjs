@@ -55,6 +55,17 @@ const smallTargets = (page, min) =>
     return { n, bad };
   }, min);
 
+/** (tuner-clarity S4) The Now playing line: its text, whether it sits inside the panel's width and below the tabs. */
+const playingLine = (page) =>
+  page.evaluate(() => {
+    const e = document.querySelector('.anim-tune-playing');
+    const p = document.querySelector('.anim-tune').getBoundingClientRect();
+    const t = document.querySelector('.anim-tune-tabs').getBoundingClientRect();
+    if (!e) return { text: '', shown: false, inside: false, below: false };
+    const r = e.getBoundingClientRect();
+    return { text: e.textContent ?? '', shown: r.width > 0 && r.height > 0, inside: r.left >= p.left - 0.5 && r.right <= p.right + 0.5, below: r.top >= t.bottom - 1, r: { l: r.left, r: r.right, t: r.top, pl: p.left, pr: p.right, tb: t.bottom } };
+  });
+
 /** (26b) The tallest visible slider row and the panel's font (px). */
 const rowSizes = (page) =>
   page.evaluate(() => {
@@ -183,6 +194,9 @@ async function padWalk(page, b, max) {
     assert(sc.can && sc.moved && sc.oy === 'auto' && sc.ta.includes('pan-y'), `the drawer scrolls inside itself (${JSON.stringify(sc)})`);
     const tb = await topBlock(page);
     assert(tb.st > 40 && tb.tab.ok && tb.play.ok && tb.tab.top < 80, `scrolled to its end, the drawer keeps the tabs and the playback bar at the top (${JSON.stringify(tb)})`);
+    // (tuner-clarity S4) the Now playing line shows in the drawer, inside its width, below the tabs
+    const pl = await playingLine(page);
+    assert(/^Now playing/.test(pl.text) && pl.shown && pl.inside && pl.below, `the drawer shows the Now playing line inside its width, below the tabs (${JSON.stringify(pl)})`);
 
     // the readout: More's toggle shows and hides it; F3 (a keyboard) still toggles it and the box follows
     await G(() => window.__animTune.more(true));
@@ -323,6 +337,9 @@ async function padWalk(page, b, max) {
     await frames(page, 2);
     const tb = await topBlock(page);
     assert(tb.st > 40 && tb.tab.ok && tb.play.ok, `portrait: scrolled to its end, the sheet keeps the tabs and the playback bar at its top (${JSON.stringify(tb)})`);
+    // (tuner-clarity S4) the Now playing line shows in the sheet, inside its width, below the tabs
+    const pl = await playingLine(page);
+    assert(/^Now playing/.test(pl.text) && pl.shown && pl.inside && pl.below, `the sheet shows the Now playing line inside its width, below the tabs (${JSON.stringify(pl)})`);
     await G(() => window.__animTune.fold(true));
     await frames(page, 3);
     const f = await G(() => ({ ...window.__animTune.phone(), top: document.querySelector('.anim-tune').getBoundingClientRect().top, ch: window.__app.canvas.getBoundingClientRect().height }));

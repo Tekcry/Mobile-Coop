@@ -112,8 +112,33 @@ function bodyRow(id: string, out: TuneTarget): TuneTarget {
   return body(out);
 }
 
-/** The Keys section's fields (`tuneKeysFile` KEY_FIELDS: trunk segments, then the arms and wrists per side). */
+/**
+ * (tuner-clarity S3, BRIEF A9) A key's leg field (`tuneKeysFile` KEY_LEGD, the FK weight `w`; S2's `ankleYaw` /
+ * `shinTwist` by name) on its own leg: one target label per leg (one fold group in the panel), the marker on the hip,
+ * knee, ankle or toe by field.
+ */
+function keyLeg(side: 'L' | 'R', f: string, out: TuneTarget): TuneTarget {
+  const label = `${SIDE(side)} leg (key)`;
+  if (f.startsWith('hip')) return bone(out, `hip${side}`, `knee${side}`, label);
+  if (f === 'knee') return one(out, `knee${side}`, label);
+  if (f === 'shinTwist') return bone(out, `knee${side}`, `ankle${side}`, label);
+  if (f.startsWith('ankle')) return one(out, `ankle${side}`, label);
+  if (f === 'toe') return one(out, `toe${side}`, label);
+  // the FK leg weight (`w`) and any later field: the whole leg, hip and ankle marked
+  return pair(out, `hip${side}`, `ankle${side}`, label);
+}
+
+/** The Keys section's fields (`tuneKeysFile` KEY_FIELDS: trunk segments, the arms and wrists per side, then (S4) the
+ *  clavicles, the fingers and the legs). (tuner-clarity S3) Nothing keyed falls to "Whole body": the legs and fingers
+ *  have parts of their own (BRIEF A9). */
 function keyRow(id: string, out: TuneTarget): TuneTarget {
+  const leg = /^leg([LR])_(.+)$/.exec(id);
+  if (leg) return keyLeg(leg[1] as 'L' | 'R', leg[2]!, out);
+  const hand = /^hand([LR])_/.exec(id);
+  if (hand) {
+    const side = hand[1] as 'L' | 'R';
+    return one(out, `wrist${side}`, `${SIDE(side)} fingers (key)`);
+  }
   const m = /^arm([LR])_(.+)$/.exec(id);
   if (m) {
     const side = m[1] as 'L' | 'R';

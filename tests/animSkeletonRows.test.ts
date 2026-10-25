@@ -47,7 +47,8 @@ function legdDef(legd: number[]): KeyedClipDef {
 }
 
 describe('anim-skeleton S4: the legd channel (pure)', () => {
-  const A = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7];
+  // (tuner-clarity S2) 9 a side: the ankle yaw and the shin twist appended
+  const A = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9];
   it('samples between frames, absent = 0 with its flag off, mirror swaps the sides and negates the yaws and rolls', () => {
     const c = keyedClip(legdDef([...A, ...A.map((v) => v * 2)]));
     const p = newKeyedPose();
@@ -60,7 +61,7 @@ describe('anim-skeleton S4: the legd channel (pure)', () => {
     sampleKeyed(c, 0, 1, p);
     const before = [...p.legd];
     mirrorKeyed(p);
-    const neg = new Set<number>([KD.hipYaw, KD.hipRoll, KD.ankleRoll]);
+    const neg = new Set<number>([KD.hipYaw, KD.hipRoll, KD.ankleRoll, KD.ankleYaw, KD.shinTwist]);
     for (let s = 0; s < 2; s++) for (let k = 0; k < KEYED_LEGD_SIDE; k++) {
       const o = before[(1 - s) * KEYED_LEGD_SIDE + k]!;
       expect(p.legd[s * KEYED_LEGD_SIDE + k]).toBeCloseTo(neg.has(k) ? -o : o, 6);
@@ -77,7 +78,7 @@ describe('anim-skeleton S4: the legd channel (pure)', () => {
 
   it('the key signs: mirrored key files swap sides; the left table is the right with the yaws and rolls negated', () => {
     for (let k = 0; k < KEYED_LEGD_SIDE; k++) {
-      const neg = k === KD.hipYaw || k === KD.hipRoll || k === KD.ankleRoll;
+      const neg = k === KD.hipYaw || k === KD.hipRoll || k === KD.ankleRoll || k === KD.ankleYaw || k === KD.shinTwist;
       expect(LEGD_SIGN[0]![k]).toBe(neg ? -LEGD_SIGN[1]![k]! : LEGD_SIGN[1]![k]!);
     }
     expect(mirrorDelta({ legL_knee: 5, handR_indexCurl: 0.4, armL_clavRoll: 3 })).toEqual({ legR_knee: 5, handL_indexCurl: 0.4, armR_clavRoll: 3 });
