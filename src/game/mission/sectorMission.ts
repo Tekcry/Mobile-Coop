@@ -569,7 +569,11 @@ export class SectorMission {
       const e = this.host.slotGuard(k);
       if (!e) continue;
       if (!e.alive && this.targetRule[i] === 1) {
-        if (this.tracker.onTargetKilled(i)) this.runner.spookStep = i;
+        if (this.tracker.onTargetKilled(i)) {
+          this.runner.spookStep = i;
+          // the spook fact at once, as after a decoy read (he is dead, so nothing bolts until the restart respawns him)
+          this.spook();
+        }
         return;
       }
       if (!e.alive || e.ko) {
