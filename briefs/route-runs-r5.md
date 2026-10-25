@@ -1,4 +1,4 @@
-status: claimed Cloud Builder (elegant-rubin) 2026-10-25T22:49Z
+status: done feature/route-runs-r5 26eeb8f53a0d324c4d54ec0e9db3a6b064c1e70b
 # J13 route-runs, slice R5 (Opus-grade brief): link steps, pad only
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 6fab6ef0f). R1-R3 are on master; R4a ships
@@ -149,3 +149,69 @@ rappel), so the builder transcribes them into pure step machines and tests every
 the page reader is small. What tsc and vitest cannot show (a prompt that shows late on a loaded laptop, an `at` point a
 little off a ladder foot) is found by the pending PC runs, and that fix round is a local Opus job on the lead's side.
 It runs beside R4b (local) without sharing a file.
+
+## Report (Cloud Builder elegant-rubin, 2026-10-25)
+Branch `feature/route-runs-r5` from R4a `ee27da535` (R4a not yet on master), head `26eeb8f53`. Commits 15f887260,
+985b6ec73, 26eeb8f53.
+
+**Changed.** `scripts/route-run/steps.mjs`: six pure step machines (`LadderStep`, `DropStep`, `WindowStep`, `HatchStep`,
+`DuctStep`, `RappelStep`: `update(reading, t) -> { stick, press, hold, done, result }`), `geometry` (stand point, push
+direction, far floor from the page's anchor or the link), `limitFor`, the code-climb classifier `classifyClimb`, the page
+reader (`window.__rrStep`: one reading object, buttons as bit masks, a press down one poll, a hold kept), the Node glue
+(`drive`, leader then follower), the table. `tests/fixtures/route-run/selftest-steps.graph.json` (S1 copy + link 22, a
+fixture ladder on open lawn at (20, 0, -44); runs: ladder 12 + drop 19, ladder 12 + drop 20, window 0, window 2, the
+missing ladder [4, 22, 7], the two boosts with drops). `tests/routeRunSteps.test.ts`. `changes/feature-route-runs-r5.md`.
+
+**Tests.** `npx tsc --noEmit -p .` clean. `npx vitest run tests/routeRunSteps.test.ts tests/routeRunPlan.test.ts
+tests/routeRunProgress.test.ts tests/routeRunReport.test.ts tests/routeRunCli.test.ts`: 5 files, 138 passed (Steps 33
+new, Plan 19, Progress 29, Report 18, Cli 39). eslint clean on the test. The dry run opens no browser and lists the ladder
+(12, 22), drop (19) and window (0) steps, but see deviation 9.
+
+**Deviations.**
+1. The table is keyed on the step's `action` (R1's field; it equals the kind for every solo off-nav kind), not on
+   `kind` as R4a did: R4a's `routeRunCli.test.ts:236` asserts `stepFor({ kind: 'ladder' })` is the stub, and keying on
+   the action keeps it passing. Code climbs (kind `climb`, action `stub`) go to the classifier by kind.
+2. R4a's ctx has no `clock`, `limit` or pads (`pads: null`). The steps advance with `window.__rr.tick(dt)`, the same
+   in-page tick the door step uses through `until`, so guard polls and no-damage keep running. They use `ctx.clock(dt)`
+   (or `.step(dt)`) once R4b adds it. Input goes through `window.__pad` on the robot's own page. The limit is computed
+   in the step.
+3. The reading adds `camYaw` (the stick is camera-relative), `crouched` and `geo` (`traversal.hint.kind`). A window
+   vault is a traversal offer, not an attach hint, and the HUD label follows rendered frames. The window offer is the
+   prompt or `geo === 'vault'`. `hint` is put together on the Node side from `hintKind` / `hintEntry`, so the page
+   allocates no string.
+4. The approach goes to a stand point taken from the nearest anchor of the kind within 6 m of `at`. S1's ladder link
+   `at` is an edge point 5 m from its ladder. The robot then pushes toward the move, because the game's offer reads the
+   stick direction. With no anchor it pushes from `at` toward `past` and walks back when it is 1 m out, so it runs to
+   the limit.
+5. Sequence timings are named in steps.mjs; they are not A4 tolerances, and progress.mjs is untouched: re-press after
+   1.2 s, edge stall 0.6 s / 0.1 m, B held 0.6 s, hang wait 1.5 s, A held at most 3 s, crawl-in wait 1 s, hook wait 3 s.
+   Not in the suites: a descent with no 0.05 m of drop in 1 s lets go with B.
+6. With no limit, the stall watch is R3 `StuckWatch` on R3 `PathProgress` along start -> stand point -> far end. The
+   plain distance from the start barely grows on a rappel that starts beside the edge.
+7. A drop hangs only on `ledge:above`, as briefed. An edge that stops the walk with only the traversal's `drop` offer
+   runs to its 5 s limit (Y there would drop it; I did not add that).
+8. The classifier applies the 1.5 m radius at either end to every anchor kind. Order: ladder, window, duct, rappel, then
+   drop. A code ladder's limit uses the anchor's height, a code duct's its path length. Rare kinds give
+   `no step yet: <kind>`; R4a's `stub` keeps `STUB_WHY_SOLO` for unknown kinds (R4a's test).
+9. The briefed dry run (`--dry-run --graph <fixture>`) prints R1's plan of the fixture without its points: R4a reads a
+   fixture's `points` only under `--selftest`, and `--selftest --dry-run` throws. `stepText` prints no limits. The
+   selftest runs' link steps and limits (ladders 19.4, drops 5, windows 8, boosts `stub`) are asserted in the unit test
+   through R4a's `stepsForPath` / `addPast`.
+10. Size about 1,730 lines (steps.mjs 1,006 in the repo's one-statement-a-line style, test 628, fixture 96), over the
+   ~1.5k guide.
+11. S2's code routes have no `climbs` legs (master `campusSectors.ts`: S1 high [8, 12], S3, S4, S5 only), so the S2
+   code run takes no R5 step.
+
+**For R4b (driver changes, not made).** (a) `linkStep`'s stop logs `robot: 'host'`: take `r.robot` from the step result
+(the follower's timeout), and place the follower too on a recovery. (b) Add `ctx.clock` so both pages step in lockstep.
+The follower page needs it, or `window.__rr` installed on the client. (c) `--dry-run --selftest <fixture>` could print
+the selftest runs with `limit_s`.
+
+**Risks the PC runs will show.** Drop 19's `at` is the hatch hole: the driver's walk goal there (nearest walkable cell)
+could resolve to the forecourt below. The window `at`s are edge points on the gatehouse wall, so the walk may end
+inside. The missing ladder's recovery placement (past toward the plant roof at y 4.4) should land on the lawn.
+
+**Pending PC runs (lead).** `serve scripts/route-run.mjs http://127.0.0.1:4189/ --selftest
+tests/fixtures/route-run/selftest-steps.graph.json --players 1` (set `route-run-selftest-steps`); campusOps
+`--routes code --section S1` then `--section S2`, `--players 1` (set `route-run-steps-s1s2`); R4a's own selftest again;
+after R4b the steps selftest at `--players 2`.
