@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:01Z
+status: blocked 16 B goal not reachable in brief scope: residual is V8 HeapNumber boxing (in-file ray/floor number|null returns + MotionDriver/AnalogGear/hyp2); accept the "no allocation > 16 B on 1 call in 10" assertion or widen - built and pushed bb4590ab
 
 # Brief: player-hygiene S1 - Player step and traversal make no per-step garbage, behaviour bit-identical (Player Build)
 
@@ -197,3 +197,45 @@ again on commit 2.
   push `cloud-queue`.
 - A question you cannot settle from this brief: line 1 `status: blocked <one-line reason>`, evidence under `## Report`,
   push, move on. The lead answers by editing this brief.
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Branch `feature/player-hygiene-s1` at bb4590ab442a0e9679fc7a9a1ee65814b0cb6b48 (a2692a06 test + fixture on unchanged
+code, then bb4590ab the refactor; test and fixture byte-identical in both).
+
+- `src/player/playerController.ts` (items 1-5): member scratch block :202-230 (support info, `move`, `fwd`, `crossTmp`,
+  `stick`, `grav`, `halfUp`, `kinPos`, `kinUp`, `zero`, headroom vectors, result, query); `syncFeet` :279;
+  `hasHeadroom` :488 (`raycastToRef`; no engine still returns true); kinematic step :516-517; `checkSupportToRef`
+  :659-660; `calculateMovementToRef` into a zeroed `move` :671-672; slope `CrossToRef` x2 :679-681; stick force
+  `scaleToRef` :685; air arc :711-712; `forwardVec` :853. Extra (not in the brief): `stepAssist` :824/833/837 calls
+  `r.reset(a, b)` (Babylon's no-argument `reset()` builds two zero vectors from default parameters, 96 B a step; Havok
+  resets with the same ends, behaviour identical).
+- `src/player/traversal.ts` (items 6-12): `PROBE_HEIGHTS`, `WINDOW_KINDS` :17-19; members :86-94 (`moveOv`,
+  `probeOut`, `pickIn`, `probeD`, `glassKeys` WeakMap); `glassKey` :219; `probeResult` :229 at every return; index loop
+  :246; `pickTraversal(pi)` :300-305; `probeDir` :337-345; override :382-386; glass key :315, :493 (`?.` still skips
+  the lookup with no breakables); kick-through :124 left as is. Extra: `ray` / `floor` :203-216 reset the result with
+  their ends (same default-parameter fix).
+- Done-when grep: only module constants, member initialisers, the constructor (:252) and `teleport` (:400-401).
+- `changes/feature-player-hygiene-s1.md`: `kind: patch`, two bullets.
+- Tests: `typecheck:fast` and eslint (3 files) clean; the 8 vitest files: 81 / 81 pass on the refactor.
+  `tests/playerStepAlloc.test.ts` (15 tests) recorded on unchanged code, re-recorded byte-identical, passed twice before
+  the refactor (bit patterns stable, no 1e-9 rounding); after the refactor every trace (walk 260 steps, crouch 372,
+  ledge 170, ramp 220, kinematic 110), probe row (vault, mantle, drop, hop, nothing, window) and committed path (vault,
+  mantle, drop, hop, window) equals the fixture.
+- Readings, `bytesPerCall` B per call, before -> after: walk 768 -> 304, run 696 -> 176, ramp 1008 -> 368, air 448 ->
+  240, crouch under ceiling 488 -> 32, kinematic 392 -> 64, probe vault 640 -> 288, mantle 1088 -> 736, drop 616 ->
+  288, hop 568 -> 240, nothing 144 -> 32, probeDir 0 -> 0, committed step 112 -> 48.
+- **Why blocked.** A sampling heap profile per state finds the per-call objects before the refactor (Vector3, `scale`,
+  `cross`, `forwardVec`, `hasHeadroom`, `add` / `Zero`, probe and override literals); after it every remaining sampled
+  allocation is exactly 16 B: doubles boxed into HeapNumbers across calls V8 does not inline. In the two files: `ray` /
+  `floor` returning `number | null` (the mantle depth loop alone ~40 boxes), `Vector3.set` arguments. Outside (A3):
+  `MotionDriver.step` / `stepCt` / `finish` / `speed` / `stepLength`, `AnalogGear` `stickCurve` / `stickSpeed`, `hyp2`.
+  The amount varies run to run (walk 288-416 B on identical code), so fixed ceilings would be flaky. The committed test
+  therefore asserts "no allocation bigger than a HeapNumber on at least 1 call in 10" after the refactor and logs the
+  bytes, not `<= HEAP_NUMBER`. Reaching `<= 16 B` needs `ray` / `floor` / `set` call patterns rewritten (out-parameter
+  returns) and modules outside the claim changed. Lead: accept this assertion, or widen the slice (Answer: section).
+- Outside allocator (A3): the window probe makes an object per call in `reach` via `nearestInReach`
+  (`src/world/anchors.ts` ~785-815); window probe 344 -> 120 B, logged, not asserted.
+- Deviations: test file 769 lines (plan ~330); the fake player ~50 lines, so (c) measures probe, probeDir and the
+  committed step.
+- Pending PC run: e2e-move, e2e-anim, e2e-stealth, e2e-clip, e2e-traverse, plus e2e-coop and e2e-netmove (RULES
+  checker gate for `src/player`).
