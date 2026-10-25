@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~17:20; row 6 signed off ~17:00, hold lifted).
+Night Shift | Sector Ops Build: RESUME (SAVE 2026-10-25 ~18:20, swap at 100%; row 6 signed off ~17:00).
 git fetch; read docs/RULES.md and docs/VISION.md from origin/master (never a branch copy); BOOT.md "Sector Ops Build"
 on origin/feature/menu. Full burn. Plan: docs/orchestrator/FOLDED-PLAN.md (feature/menu); Michael's 39 answers in
 ROADMAP "Decided" override it. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
@@ -374,5 +374,7 @@ ROADMAP "Decided" override it. Message the orchestrator only at PR open / train-
 Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
 Rules: RULES on origin/master only; never restate them here.
 Previous blocks: git log -p on this file.
-Next: when the CPU hold lifts, plan checkers (J16 first), then J5 / J10 / J18 builds as each plan passes.
+Next: planners may have been cut off at the swap: per branch in item 2, read STATE / PLAN; relaunch an Opus planner
+  for any missing file (sector-marks and sector-batch had none pushed at the save; J17 also folds Split Shift / Code
+  Relay devices, orchestrator ~18:05). Then plan checkers (J16 first), then builds, once the orchestrator lifts any CPU hold.
 ```
