@@ -56,7 +56,8 @@ describe('mixamoEmit: recipes', () => {
   it('the committed recipes are valid: the 12 keyed slugs with the plan\'s kinds', () => {
     const rs = E.loadRecipes();
     expect(Object.fromEntries(rs.map((r) => [r.slug, r.kind]))).toEqual(PLAN_KINDS);
-    for (const r of rs) expect(r.channels).toContain('head');
+    // (I4) the stance changes write no head channel (the neck stepped 26-30 deg at the shot's fade with it)
+    for (const r of rs) if (r.slug !== 'stand_to_crouch' && r.slug !== 'crouch_to_stand') expect(r.channels).toContain('head');
   });
 
   it('a wrong recipe is refused with its reason', () => {
