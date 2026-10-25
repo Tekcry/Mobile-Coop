@@ -124,11 +124,11 @@
 <text x="570.2" y="478.2" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A4 The Goods Shed</text>
 <text x="570.2" y="488.2" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">3 guards, 3 cameras</text>
 <text x="318.2" y="310.2" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A5 The Substation</text>
-<text x="318.2" y="320.2" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">1 guard</text>
+<text x="318.2" y="320.2" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">2 guards</text>
 <text x="318.2" y="140.8" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A6 The Pump House</text>
 <text x="318.2" y="150.8" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">1 guard</text>
 <text x="570.2" y="140.8" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A7 The Data Hall</text>
-<text x="570.2" y="150.8" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">1 guard, 2 cameras</text>
+<text x="570.2" y="150.8" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">2 guards, 2 cameras</text>
 <text x="804.0" y="290.6" font-size="10.5" text-anchor="start" font-weight="bold" fill="#000" class="h">A8 The Strongroom</text>
 <text x="804.0" y="300.6" font-size="8" text-anchor="start" font-weight="normal" fill="#000" class="h">3 guards, 3 cameras</text>
 <rect x="34" y="544" width="42.0" height="42.0" fill="#f6f6f6" stroke="#000" stroke-width="1"/>
