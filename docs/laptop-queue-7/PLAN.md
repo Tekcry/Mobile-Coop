@@ -80,8 +80,12 @@ file:line below is origin/master 2a937eb6.
     JSON is read by the game and by suites).
   - `carryFrom(chain, filesBetween)`: chain = [{ sha, laptop }] from H's parent back to V (newest first). C = the
     newest with a final verdict (success, failure or error). Returns { from: C } when C's verdict is success and
-    `carryFiles(filesBetween(C))` holds; { wait: P } when a commit newer than C (or any, with no C) is `pending` and
-    `carryFiles(filesBetween(P))` holds (its run is going: A7, A8); else null.
+    `carryFiles(filesBetween(C))` holds; { wait: P } when a commit newer than C (or any, with no C) is `pending`,
+    `live(P)` is true and `carryFiles(filesBetween(P))` holds (its run is going: A7, A8); else null. A pending commit
+    with `live(P)` false counts as no verdict (skipped, the walk goes on). `live` is injected: the service passes
+    `claimed.has(P) || claimBlocks(parseClaim(claims/<P>.json), WORKER, now, CLAIM_MAX_MS)`, read on both sides as
+    `claimBlocks` (:123) already does for train claims, so a dead run (restart, crash, lost final post) never makes H
+    wait: the stale-pending path (service.mjs:645) only covers open heads, and P no longer is one.
   - `carryDesc(sha)`: "carried from <sha8>, docs-only delta" (under 140 chars).
 - service.mjs:
   - `pendingTrains` (:629): replace the subject test with: H's subject is the version (as today), else `versionAt`
@@ -105,7 +109,8 @@ file:line below is origin/master 2a937eb6.
   changes/f.md, CHANGELOG.md, src/a/README.md) -> carried; `src/x.ts`, `package.json` or
   `docs/kestrel/kestrel.blocks.json` in the delta -> null; newest success wins over an older one; a failure (or
   error) after a success -> null (V pass, D1 fail, H = D2: not carried); failure / no status on every chain commit ->
-  null; a pending docs-only ancestor -> { wait }; a pending ancestor with a code delta -> null; docsOnlyFiles([])
+  null; a pending docs-only ancestor with a live claim -> { wait }; the same with no live claim -> null (H runs), and
+  -> { from } when an older commit has a success over a docs-only delta; a pending ancestor with a code delta -> null; docsOnlyFiles([])
   false and the watchdog re-export is the same function; carryDesc length.
 - Size ~60 lib, ~70 service, ~1 watchdog, ~25 autoTrain tests, ~70 tests.
 
@@ -154,8 +159,10 @@ file:line below is origin/master 2a937eb6.
   - `aloneGapOpen(due, id, lastTrainEndMs)`: true when `due[id]` exists and `lastTrainEndMs > due[id]`.
   - `cutShort` (:525): new option `due = false`; a due alone is not cut by `youngAlone` (yields between steps stay).
 - service.mjs:
-  - `lastTrainEnd` (module, ms; also `state.lastTrainEnd`): set when `runTrain` posts its final `laptop-e2e`
-    (success / failure, :1037-1038) and when slice C posts a carry; never on a cut, error or yield.
+  - `lastTrainEnd` (module, ms): set by `pendingTrains` from the newest `updated_at` of a final `laptop-e2e` (success
+    or failure) on the open train heads it already reads (`laptopAt`, :617), and kept as the max ever seen (also
+    `state.lastTrainEnd`, so a merged train's time survives). This counts desktop-run trains, the other worker's
+    carries and train-rerun passes (:1257), not only this worker's runs. lib `lastTrainEndFrom(heads, prev)` (pure).
   - pass(): compute `state.aloneDue` after the aloneHold / aloneSoon / train-soon filters (held = an aged or front alone
     was filtered out). The aloneSoon filter (:1475) and the train-soon filter (:1527) keep an alone r when
     `LQ_ALONE_GAP` is on and `aloneGapOpen(state.aloneDue, r.id, lastTrainEnd)`. `pick` then needs no change: aged /
@@ -165,7 +172,8 @@ file:line below is origin/master 2a937eb6.
     due entry is deleted when the alone finishes (done) or is withdrawn.
   - Log once per id: "<id>: aged alone due after the next train" and "<id>: gap after train <n>: alone goes first".
 - Tests (new describe "aged alone after the coming train"): aloneDue stamps an aged alone only when held, keeps the
-  stamp, drops a done id, ignores a young alone and spare work; aloneGapOpen false before a train ends, true after;
+  stamp, drops a done id, ignores a young alone and spare work; lastTrainEndFrom takes the newest success / failure
+  time, ignores pending / error, never goes back; aloneGapOpen false before a train ends, true after;
   pick with the due alone in the list and both slots idle -> the alone (both slots) ahead of a green pr request; a
   pending train -> the train first; cutShort: a due alone 3 min in is not cut by a pending train, a non-due alone is;
   timeline: hold on (green candidate), aged alone held at t0, train N runs and ends at t1 > t0, next hold re-armed by a
@@ -198,7 +206,8 @@ file:line below is origin/master 2a937eb6.
 - PR board call: one extra gh call per minute per worker (rollup included, 200 PRs); within the rate budget of today's
   affected pass. The desktop adds one call per minute.
 - The RULES.md order line is orchestrator-owned and at budget (A11).
-- Slice F delays the next train by up to one alone run, once per aged request (A12); the train-soon ETA does not know
+- Slice F: each train that comes while a due alone runs can wait up to one of its steps, until the alone's steps run
+  out (a yield makes it due again, A12); the train-soon ETA does not know
   about it, so the hold may lift (ETA + 5 min) while the alone still runs; PR work then waits on both slots anyway.
 
 ## Test tier and verify

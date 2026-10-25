@@ -74,8 +74,10 @@ Owner: Test Runner. Status: current.
   (success, failure or error) has success, and C differs from H only in docs-only files: the G325 set (F4) minus any
   non-`.md` file under `docs/` (F6), so a JSON the game or a suite reads never carries. A newer failure is never
   skipped to reach an older success. Otherwise H runs as a normal pending train (sharded, `LQ_TRAIN_JOBS`), not a
-  JOBS=1 rerun. While a docs-only ancestor between V and H still has `laptop-e2e` pending (its run going, A8), H waits:
-  neither worker starts it, and the carry is posted when that run passes. Undo: `LQ_TRAIN_CARRY=0` (moved heads still
+  JOBS=1 rerun. While a docs-only ancestor between V and H still has `laptop-e2e` pending and a live claim (claimed
+  here, or its claims/<P>.json open and under `LQ_CLAIM_MAX_H`; its run going, A8), H waits: neither worker starts
+  it, and the carry is posted when that run passes. A pending P with no live claim (its run died: restart, crash, a
+  lost final post) counts as no verdict, so H never waits on it for good. Undo: `LQ_TRAIN_CARRY=0` (moved heads still
   run as trains).
 - A8. A train run on C whose head moves mid-run to a docs-only descendant is not voided: the void watch counts H as
   C's head, and on a pass the carried success is posted on the then-current head too. A code delta voids as today.
@@ -87,11 +89,13 @@ Owner: Test Runner. Status: current.
   second). Undo: `LQ_RERUN_SHARD=0`.
 - A12. Aged alone after the coming train (item 6). An alone request that is aged (`agedAlone`, over `ALONE_AGE_MIN`)
   or preempted while the train-soon hold or the aloneSoon hold keeps it back gets a due mark (time first held). Once a
-  train's laptop run ends after that mark (verdict posted, or carried), the alone passes both holds and, as `pick`
+  train's laptop-e2e gets a final verdict after that mark (any worker: a train run, a carry or a train-rerun pass), the
+  alone passes both holds and, as `pick`
   already orders, takes both slots ahead of PR work once they drain. A train head pending at that moment still goes
   first. Started in that gap, the next train never kills it in its first 10 min (`cutShort`'s young-alone cut is
   waived for a due alone); it still yields between steps to a pending train, keeps its finished steps and is due again
-  after that train. Cost: the next train can wait up to one alone run (perf / guard-cap measures, ~10-30 min), at most
-  once per aged request. Undo: `LQ_ALONE_GAP=0` (today's holds).
+  after that train. Cost: each train that comes while a due alone runs can wait up to one of its steps (perf / guard-cap
+  steps, ~10-30 min; the whole run when it has one step), until the alone's steps run out: a yield makes it due again
+  after that train. Undo: `LQ_ALONE_GAP=0` (today's holds).
 - A11. The RULES.md "Machines" order sentence is the orchestrator's: the PR carries the net-zero rewrite (PLAN "Docs")
   for the orchestrator to accept in review. Undo: revert those lines.
