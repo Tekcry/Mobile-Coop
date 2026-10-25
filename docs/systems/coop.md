@@ -192,6 +192,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
       helmet. No second message carries the look.
     - Bodies: `snap.bodies` carries enemy ids only, so no record carries a seed: a client's ragdoll is its own puppet's
       rig (it had the seed), a carried body is never mirrored, and the host reads `body.guard.look`.
+- Guard intel (stealth-pays client intel; wire change, the train bumps `PROTOCOL_VERSION`): `EnemyState.in` is 1 while
+  the host's guard has unspent interrogation intel (`hasInfo(e)`: Marlow course slots, Sector Ops slots, a revived guard
+  through `inherit`), absent otherwise (0 bytes for most guards). `protocol.markIntel` writes it in `CoopHost`'s
+  snapshot; the parser keeps it only when exactly 1. `EnemyPuppet.setIntel` offers INTERROGATE from the flag's rise
+  (`info` = the course slot's lines from `infoAtSpawn` (`spawnInfo`), else `guardInfo.HOST_INFO`: no lines, the
+  host's intel feed answers) and drops it when the host clears it, so a host or client interrogation, a rejoin and a
+  revive show the same on both screens. A local spend is not undone while the flag is still set.
     - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
       distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
       course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
