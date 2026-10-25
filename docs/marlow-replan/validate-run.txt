@@ -1,7 +1,24 @@
-$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master validator, unchanged; read-only run 2026-10-25 evening)
+$ node scripts/level-validate.mjs docs/marlow-replan/graph.json   (master 94e72b1cd validator, unchanged; read-only rerun 2026-10-25 ~20:45 after meta.taught_by and the teach: tags)
 
 ERROR: co-op links reach 3 of 8 encounter spaces (need at least half)
 ERROR: section A3 has no co-op link
+WARN:  a1-walltop: unknown tag 'teach:boost'
+WARN:  a1-walltop: unknown tag 'teach:human_ladder'
+WARN:  a2-lane: unknown tag 'teach:shutter_hold'
+WARN:  a2-neck: unknown tag 'teach:timed_light_cut'
+WARN:  a2-pitside: unknown tag 'teach:plank_bridge'
+WARN:  a3-corridor: unknown tag 'teach:vent_unlock'
+WARN:  a3-corridor: unknown tag 'teach:jam_relay'
+WARN:  a4-cross: unknown tag 'teach:deadweight'
+WARN:  a4-main-aisle: unknown tag 'teach:camera_loop'
+WARN:  a4-dock: unknown tag 'teach:synced_takedown'
+WARN:  a5-walltop: unknown tag 'teach:chimney_pair'
+WARN:  a5-apron: unknown tag 'teach:swing_pass'
+WARN:  a5-inner: unknown tag 'teach:throw'
+WARN:  a6-gallery: unknown tag 'teach:rope'
+WARN:  a6-bridge: unknown tag 'teach:hang_down'
+WARN:  a6-pit: unknown tag 'teach:drop_catch'
+WARN:  a7-cage: unknown tag 'teach:synced_hack'
 WARN:  a1-lounge: room_class custom (justify the size in the design doc)
 WARN:  a1-apron: room_class custom (justify the size in the design doc)
 WARN:  a1-cabin: room_class custom (justify the size in the design doc)
@@ -72,7 +89,8 @@ INFO:  a7-hall: 1 guards (2 players) below the late band 6-10
 INFO:  a8-hall: 2 guards (2 players) below the late band 6-10
 INFO:  a8-office: 1 guards (2 players) below the late band 6-10
 
-2 error(s), 61 warning(s).
+2 error(s), 78 warning(s).
+
 exit code: 1
 
 ## What each line means (J14 planner)
@@ -108,3 +126,8 @@ mechanic required. Doesn't necessarily always need a guard."
 Stand-in kinds: the five new kit moves (BRIEF A3) have no validator kind yet; graph.json draws each with the nearest kind
 and a `move` field (plank_bridge pair_gate, deadweight shutter, chimney_pair team_rope, swing_pass team_throw with the
 real gap in `gap_m`, drop_catch drop). Marlow Build adds the kinds when the moves are built.
+
+Teach tags (17 WARN "unknown tag 'teach:...'", new at the ~20:45 rerun): `meta.taught_by` ("A6") and one `teach:<move>`
+space tag per lesson (16 lessons plus A7's synced hack) were added for J12 S4 `training.mjs` (validator-port BRIEF A8,
+A9, A21) and J13 route-runs (late sections = after `taught_by`). Master's validator does not know the tags yet and
+ignores `taught_by`; J12 S4 turns them into checks. Not a gap in the plan. Why A6 and space tags: J14 PLAN A13.

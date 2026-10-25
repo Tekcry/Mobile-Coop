@@ -35,18 +35,20 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
 - 16 lessons, each on its own, in order: boost, human ladder, shutter, timed light cut, plank bridge, vent unlock, jam
   relay, camera loop, deadweight, synced takedown, chimney pair, swing pass, throw, rope, hang-down, drop catch. Then
   A7 split paths with a synced hack and A8 the graduation (everything combined).
-- Guards only where the lesson needs eyes or ears: A1 0, A2 1, A3 0 (one camera), A4 3, A5 1, A6 1, A7 1, A8 3 (12).
+- Guards only where the lesson needs eyes or ears: A1 0, A2 1, A3 0 (one camera), A4 3, A5 1, A6 1, A7 1, A8 3 (10 in all; REPLAN's
+  "12 in all" is a sum slip, the per-set counts are built: J14 PLAN A15).
 - No strict rule and no send-back anywhere (Q5). A failed drill retries in place; spotted in A1-A7 retries that
-  station; A8 plays a detection out like a campaign area; downed is the campaign rule.
+  station; in A8 guards react as on a mission and being caught retries that step in place; downed is the campaign rule.
 - Every light works (Q2); the plan re-lamps the A6 sump and the A8 vestibule.
 
 ## Assumptions (each with its undo)
 - A1. Spotted in a teaching set (A1-A7) retries that station from its start mark, guards and devices reset (Q5 plus
   ~11:55 "Retry the drill only"). This replaces the built A2 "back to the start of the set" and the A3 camera's send-back
   to the west lobby. Undo: retry from the set's holding room instead (a constant per set).
-- A2. A8 plays a detection out (break line of sight, re-hide, fight) instead of a retry, because Q24 says its side routes
-  follow "the same design rules as a campaign mission area". Its timed drills still retry in place. Undo: A8 spotted =
-  retry from holding room 7, like A1-A7.
+- A2. In A8 the guards react as they would on a mission (suspicion, search, break line of sight, re-hide), because Q24
+  says its side routes follow "the same design rules as a campaign mission area"; if the pair is caught, or a timed step
+  runs out, that step retries in place (Q5 "all are retries"; REPLAN A8 row, as Michael approved it ~19:16). "Caught":
+  J14 PLAN A14. Undo: A8 spotted = retry at once, like A1-A7.
 - A3. The five new kit moves are not built yet. Their stations (5 plank, 9 deadweight, 11 chimney, 12 swing,
   16 drop catch) are built dark with each move and open when it ships; until then that station's crossing is a plain
   door. LOOSENS Q29 for that time (a move not yet built is not trained). Undo: hold the whole re-plan's switch-on until
@@ -68,13 +70,13 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
   A8 to the campaign band once the set's cap is lifted (a Michael call).
 - A8. With 18 stations the co-op run may pass the 15-20 min target (G272). Measured at the walk. Undo: shorten repeated
   steps (the A6 practised boost, the A8 board drill) before cutting a lesson.
-- A9. The pending Training-profile text in PR #443 (one forced route, guards per move, no strict rule, no campaign
-  co-op checks) is taken as the standard here. Undo: if #443 changes before merge, recheck the plan against it.
+- A9. The Training-profile text of PR #443 (one forced route, guards per move, no strict rule, no campaign co-op checks)
+  is the standard here; #443 merged in 4.103.3 (master `docs/level-design.md:39-60`). Undo: none needed.
 - A10. The five new moves have no validator kind yet; graph.json draws each with the nearest kind and a `move` field
   (validate-run.txt). Undo: when Marlow Build adds the kinds, swap them in; nothing else changes.
 - A11. The A1 gate checker stays as a seated role-player who cannot see or hear (grab and questioning practice); he is
   not counted as a guard. Undo: remove him (A1 then has no person at all).
 - A12. No shield-led alarm team in Marlow Yard (Guard AI J15 A14 dropped by Marlow Build ~19:10): guards are Normal,
   armed (G279, G298), only those each lesson needs (Q11), failures retry (Q5); a late enemy section teaching alarm
-  response uses plain armed guards (campaign Q12 "armed only", Marlow = training prologue Q6). The 12 guards above are
+  response uses plain armed guards (campaign Q12 "armed only", Marlow = training prologue Q6). The 10 guards above are
   the whole count; no alarm team is added on top. Undo: Guard AI restores the team in Marlow's alarm config.
