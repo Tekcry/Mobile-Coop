@@ -7,13 +7,24 @@ import { doorIn, duct, lamp, mass, standIn, T, wall, type WharfSection } from '.
 
 /**
  * Tallow Wharf section W1, the night market (mission-framework GB1; `docs/missions/slices/GB-briefs.md` "GB1"; graph
- * `docs/missions/prototypes/campaign-map/graph.json`). Frame: world metres, x east, z north, y up; a `y` is a walking
- * surface's feet height. Seven spaces: the canal steps (the start), the tea stall, the market square, the gallery (a solid
- * 4.5 m deck, two co-op boost lips), the warden's office (up on the gallery), the fish hall and the service passage.
+ * `docs/missions/prototypes/campaign-map/graph.json`; J8 G1: `docs/tallow-fixes/LIGHT.md` section 2, `EGRESS.md`). Frame: world
+ * metres, x east, z north, y up; a `y` is a walking surface's feet height. Seven spaces: the canal steps (the start), the tea
+ * stall, the market square, the gallery (a solid 4.5 m deck, two co-op boost lips and the trimmer's caged ladder at its canal-steps
+ * end), the warden's office (up on the gallery), the fish hall and the service passage.
  *
- * Forced co-op in W1: the gallery and the office are reached only by a boost (C1) or the bolted warden's stair (GB5 bolts its
- * foot door), and the fish hall's north shutter (C2) is a closed stand-in until the shutter is wired (brief 0.2: no
- * `placeShutter` here; the wiring slice deletes the stand-in by its tag). The ice-melt drain is the secret crouch duct.
+ * Forced co-op in W1: the gallery and the office are reached only by a boost (C1), the bolted warden's stair (GB5 bolts its foot
+ * door) or the caged ladder (its anti-climb door at the foot is bolted from the cage side, `W1_BOLTS`: no solo bypass), and the fish
+ * hall's north shutter (C2) is a closed stand-in until the shutter is wired (brief 0.2: no `placeShutter` here; the wiring slice
+ * deletes the stand-in by its tag). The ice-melt drain is the secret crouch duct. No W1 stair is added (EGRESS section 3, pick 2).
+ *
+ * Lights (LIGHT.md section 2): 28 lamps in groups 60-67, every one working (no "lit by default" lamps): the market strings, the
+ * fish hall pendants and facade brackets, the passage bulkheads and the canal and tea-stall lamps are lit to their bands, with
+ * darkness only from cover, real gaps, cut circuits and shot lamps. The warden's office is closed tonight (M1, LP pick 13: he is
+ * out on his rounds): only his desk lamp is left on over the tally desk (group 63, a socket circuit switched by the gallery door),
+ * so the inspection hatch in its east wall reads dark. That hatch is route 1's own way into the hall, so it is the hall's entry
+ * vantage (two crouched points); the gallery over the market holds the market's two standing points. Cover objects (the ledger
+ * press, the ice store and benches, fish-box stacks, the oil bin) shade the hall and the stall rows and each takedown spot has a
+ * hide spot within 8 m. Every switched group has a visible conduit run (`W1_CONDUITS`), and the desk is a built box (`W1_DESKS`).
  */
 
 const WALL = '#8d887c';
@@ -22,6 +33,9 @@ const COUNTER = '#8a7358';
 const FLOOR = '#5d5a54';
 const DECK = '#6e6a62';
 const WARM: [number, number, number] = [1, 0.82, 0.55];
+const IRON = '#3d4146';
+const CONDUIT = '#4f5459';
+const WOOD = '#6b5a45';
 
 /** The C2 fish hall shutter, reserved as data (the plane's normal points +z, toward the passage). */
 const SHUTTER: ShutterSpec = { id: 'w1-shutter', x: 22, y: 0, z: 58, yaw: 0, width: 3, height: 3 };
@@ -37,6 +51,26 @@ const DOORS = {
   'w1-hall-back': [30, 0, 58],
   'w1-conn-near': [36, 0, 60],
 } as const;
+
+/** The warden's tally desk [x0, z0, x1, z1, floorY] (LIGHT.md rule 7): a visual-only box, top floor + 0.75, under lamp 63. */
+export const W1_DESKS: readonly (readonly [number, number, number, number, number])[] = [[2.0, 50.1, 3.2, 50.7, 4.5]];
+
+/** The switched groups' conduit runs (LIGHT.md rule 6): one polyline per fitting, from its switch's wall point up to `yRun`, along x, along z. */
+export const W1_CONDUITS: readonly { group: number; pts: readonly (readonly [number, number, number])[] }[] = (() => {
+  const runs: { group: number; pts: readonly (readonly [number, number, number])[] }[] = [];
+  const string = (group: number, sx: number, sz: number, lampXs: readonly number[], lampZ: number): void => {
+    // the string's wire at 3.0 is level with its lamps
+    for (const x of lampXs) runs.push({ group, pts: [[sx, 1.2, sz], [sx, 3.0, sz], [x, 3.0, sz], [x, 3.0, lampZ]] });
+  };
+  string(60, 11.5, 20.5, [15.5, 20, 25.5, 31], 18.5);
+  string(61, 11.5, 35.5, [13.5, 19, 24.5, 30], 37);
+  // the hall circuit: eight pendants at yRun 5.7, then a 0.3 m drop to each; the two facade brackets out through the south wall at 3.6
+  for (const z of [47.5, 54.5]) for (const x of [11, 19, 26, 33]) runs.push({ group: 62, pts: [[24.4, 1.2, 44.6], [24.4, 5.7, 44.6], [x, 5.7, 44.6], [x, 5.7, z], [x, 5.4, z]] });
+  for (const x of [18, 26]) runs.push({ group: 62, pts: [[24.4, 1.2, 44.6], [24.4, 3.6, 44.6], [x, 3.6, 44.6], [x, 3.6, 43.7]] });
+  // the desk lamp's socket circuit: a floor duct from the switch by the gallery door, up the desk's leg
+  runs.push({ group: 63, pts: [[5.2, 5.7, 46.6], [5.2, 4.55, 46.6], [2.6, 4.55, 46.6], [2.6, 4.55, 50.4], [2.6, 5.45, 50.4]] });
+  return runs;
+})();
 
 const room = (id: string, name: string, a: readonly [number, number, number, number], y: { minY?: number; maxY?: number }): RoomDef => ({ id, name, minX: a[0], minZ: a[1], maxX: a[2], maxZ: a[3], ...y });
 
@@ -55,6 +89,20 @@ function blk(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y0
   const i0 = b.boxes.length;
   b.box((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, color);
   b.mark(i0, overhead ? { noLedge: true, overhead: true } : { noLedge: true });
+}
+
+/** A visual-only conduit along a polyline of axis-aligned legs: 0.05 x 0.05 boxes (`collide` false, so no nav cell or light row changes). */
+function conduit(b: LevelBuilder, pts: readonly (readonly [number, number, number])[]): void {
+  const t = 0.05;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [ax, ay, az] = pts[i]!;
+    const [bx, by, bz] = pts[i + 1]!;
+    const dx = Math.abs(bx - ax);
+    const dy = Math.abs(by - ay);
+    const dz = Math.abs(bz - az);
+    if (dx + dy + dz < 1e-6) continue;
+    b.box((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, dx + t, dy + t, dz + t, CONDUIT, 0, 0, false);
+  }
 }
 
 function build(b: LevelBuilder): void {
@@ -147,15 +195,23 @@ function build(b: LevelBuilder): void {
   wall(b, false, 36, 58, 62, [[59.4, 60.6]], 0, 3);
   doorIn(b, false, 36, 60, 0);
 
-  // ---- lights (groups 60-67, lit by default) ----
-  for (const x of [14, 20, 26, 32]) lamp(b, x, 3.0, 19, { r: 8, i: 0.9, group: 60, colour: WARM });
-  for (const x of [14, 20, 26, 32]) lamp(b, x, 3.0, 37, { r: 8, i: 0.9, group: 61, colour: WARM });
-  for (const x of [14, 22, 30]) lamp(b, x, 5.4, 51, { r: 9, i: 1.0, group: 62, colour: WARM });
-  lamp(b, 3, 5.4, 50, { r: 5, i: 0.8, group: 63, colour: WARM });
-  lamp(b, 16, 2.4, 12, { r: 6, i: 0.8, group: 64, colour: WARM });
-  lamp(b, 7, 3.5, 6.4, { r: 6, i: 0.7, group: 65 });
-  lamp(b, 22, 7.5, 43.6, { r: 6, i: 0.6, group: 66, destructible: false, electric: false });
-  lamp(b, 38, 2.6, 60, { r: 5, i: 0.5, group: 67 });
+  // ---- lights (groups 60-67: LIGHT.md section 2, 28 lamps, every one on) ----
+  for (const x of [15.5, 20, 25.5, 31]) lamp(b, x, 3.0, 18.5, { r: 8, i: 0.6, group: 60, colour: WARM }); // row S stall string
+  for (const x of [13.5, 19, 24.5, 30]) lamp(b, x, 3.0, 37, { r: 8, i: 0.45, group: 61, colour: WARM }); // row N stall string
+  for (const z of [47.5, 54.5]) for (const x of [11, 19, 26, 33]) lamp(b, x, 5.4, z, { r: 8, i: 1.5, group: 62 }); // fish hall pendants
+  for (const x of [18, 26]) lamp(b, x, 3.6, 43.7, { r: 6, i: 0.5, group: 62, colour: WARM }); // facade brackets flanking the arch
+  // the office is closed (M1): only the warden's desk lamp is left on, standing on his tally desk
+  lamp(b, 2.6, 5.7, 50.4, { r: 3.5, i: 0.5, group: 63, colour: WARM });
+  lamp(b, 16, 2.4, 12, { r: 6, i: 0.3, group: 64, colour: WARM, electric: false }); // the tea man's paraffin lamp, switched at the lamp
+  lamp(b, 7, 3.5, 6.4, { r: 6, i: 0.3, group: 65 }); // the canal company's lamp post (photocell)
+  lamp(b, 22, 7.5, 43.6, { r: 6, i: 0.6, group: 66, destructible: false, electric: false }); // the clock dial's gas jet
+  for (const x of [10, 16, 22, 28, 34]) lamp(b, x, 2.85, 60, { r: 5, i: 1.0, group: 67 }); // the passage's maintained bulkheads
+  lamp(b, 38, 2.6, 60, { r: 5, i: 0.35, group: 67 }); // the vestibule bulkhead
+
+  // the warden's tally desk (LIGHT.md rule 7): visual only, so it adds no nav cell, cover or light row
+  for (const [x0, z0, x1, z1, fy] of W1_DESKS) b.box((x0 + x1) / 2, fy + 0.375, (z0 + z1) / 2, x1 - x0, 0.75, z1 - z0, WOOD, 0, 0, false);
+  // the visible links from each switch to its fittings (LIGHT.md rule 6)
+  for (const run of W1_CONDUITS) conduit(b, run.pts);
 }
 
 export const W1: WharfSection = {
@@ -167,7 +223,7 @@ export const W1: WharfSection = {
     { pos: new Vector3(11.5, 0, 35.5), yaw: -Math.PI / 2, group: 61 },
     { pos: new Vector3(24.4, 0, 44.6), yaw: 0, group: 62 },
     { pos: new Vector3(5.2, 4.5, 46.6), yaw: 0, group: 63 },
-    { pos: new Vector3(13, 0, 12.9), yaw: 0, group: 64 },
+    { pos: new Vector3(16, 0, 12.6), yaw: 0, group: 64 },
   ],
   hideSpots: [{ pos: new Vector3(20, 0, 23.6) }, { pos: new Vector3(9.5, 0, 46) }],
   navSeeds: [new Vector3(7, 0, 10), new Vector3(20, 0, 28), new Vector3(4, 4.5, 30), new Vector3(3, 4.5, 50), new Vector3(20, 0, 51), new Vector3(20, 0, 60), new Vector3(38, 0, 60)],
