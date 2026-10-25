@@ -1,0 +1,24 @@
+{
+  "id": "20261025T233835-affected-e2e-41e84773-6f36",
+  "sha": "41e847735a1e23cce9b102ea91a8e73515f2dd89",
+  "branch": "feature/mixamo-on",
+  "pr": 494,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-combat",
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-menus",
+    "e2e-move",
+    "e2e-pad",
+    "e2e-park",
+    "e2e-studio",
+    "e2e-tuner-phone",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #494"
+}
