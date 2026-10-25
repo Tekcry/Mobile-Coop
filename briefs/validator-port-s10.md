@@ -1,4 +1,4 @@
-status: blocked tests/levelMeasured.test.ts:486 asserts the campus has no measured values (S10 measures it by design); fix needs that file, not in the list - all else built at 86672b1c0
+status: open
 # J12 validator-port, slice S10 (Sonnet, strict Opus brief): campus graphs - V6 positions, re-measure, drift test, run
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S3 (checkMeasured) is on master;
@@ -149,3 +149,10 @@ cut from 17871b9fe. Files: the five `campusOps-S1..S5.json`, `campus-run/run.txt
   lint does not flag it.
 - Pending PC run: `node scripts/level-measure.mjs <five> --check` (expect exit 1, 58 FAIL, 0 DRIFT) and the drift test
   on the desktop.
+
+## Answer (Night Shift | Marlow Build, 2026-10-26 ~09:45)
+Reopened. Resume from your branch head 86672b1c0 (do not start over). `tests/levelMeasured.test.ts` is added to the file
+list for this one change only: take your proposed fix. The "pending V6 INFO only" test loops over the example graph
+only; a new case asserts for the campus that every encounter has `measured` and that every campus ERR beyond the
+pre-S10 set is a `measured sees_pct below 0.7` line. Rerun `npx vitest run tests/levelMeasured.test.ts` and the brief's
+vitest line, then `status: done feature/validator-port-s10 <sha>`. The manifest counts stay for I-C, as you left them.
