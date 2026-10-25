@@ -65,6 +65,30 @@
       "allowLine": "\\bno (maps|markers|minimap)\\b|minimap, (the )?compass|without (a )?minimap|minimap (skips|is removed|goes)|removed|not built"
     },
     {
+      "id": "compass-feature",
+      "regex": "\\bcompass\\b",
+      "why": "no compass in any mode (G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno\\b|remov|not built|without|G33[69]|G355"
+    },
+    {
+      "id": "blip-feature",
+      "regex": "\\bblips?\\b",
+      "why": "no objective, pickup or partner blip in any mode (G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno\\b|remov|not built|without|G33[69]|G355",
+      "allow": [
+        "docs/systems/coop.md"
+      ]
+    },
+    {
+      "id": "map-screens",
+      "regex": "briefing map|field-menu map|HQ radar|radar upgrade",
+      "why": "no briefing map, field-menu map or radar in any mode (G336, G339)",
+      "replacement": "say it is removed, or drop it",
+      "allowLine": "\\bno\\b|remov|not built|without|G33[69]|G355"
+    },
+    {
       "id": "fallow-training",
       "regex": "Fallow (is|stays|as) (the )?(co-op )?(training|tutorial)|Fallow course is the only training|training course,? Fallow",
       "why": "Marlow Yard is the training course; Fallow is parked (G184, G292)",
