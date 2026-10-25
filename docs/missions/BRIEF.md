@@ -95,3 +95,7 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
   then W1's shutter exit and TKL's shed two way are closed, and playtests use debug teleports. Undo: none (temporary).
 - A23 Two engine follow-ups before GB6 (slice EN4): a mission may start at a later section (TKL starts at W2; the sector
   run always starts at section 0 today), and per-mission guard lists (one map, two missions). Undo: one mission per map.
+- A24 Three Grey Coats: killing Teale before he talks breaks the rule and he moves, as on the page Michael signed
+  (~18:05, "He moves"). Knocking him out before he talks is not on that page: it restarts the section with Teale still
+  at his table (protected character, G353), so the mission never stalls. To confirm with Michael. Undo: treat the
+  knock-out like a kill (a rule break, he moves).
