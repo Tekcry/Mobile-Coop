@@ -1,7 +1,7 @@
 # Night Shift - decisions
 Owner: the orchestrator. Status: current.
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G363 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G400 (2026-10-25).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
 Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
@@ -584,10 +584,11 @@ Still unanswered and not settled by the directive or chat (asked again later, no
 Still in force:
 - loco D1: the pad is the primary target, then keyboard and mouse (touch part void, G12).
 - loco D2: no-bob limits as starting limits (the sprint value is void).
-- loco D7: full remapping with conflict warnings and reset; hold or toggle for every hold action; settings in
-  IndexedDB (sprint and custom difficulty parts void, G7).
+- loco D7: full remapping with conflict warnings and reset; hold or toggle for every hold action (narrowed by G398:
+  plain holds only); settings in IndexedDB (sprint and custom difficulty parts void, G7).
 - loco D8: co-op parity: every feature works in co-op, committed moves host-approved, vision / camera / rumble local,
-  partners never interpenetrate (2-4 players now 2, G2; bot and 4-player lines void, G48, G50).
+  partners never interpenetrate (2-4 players now 2, G2; bot and 4-player lines void, G48, G50; partner animation fields
+  allowed on the wire, G400).
 - loco D11: the network simulator lives in the test transport only (bot parts void).
 - loco M4: A38 (no stride phase on the wire) and A43 (releasing aim never cancels a reload).
 - loco M12: no bot partner (extended by G48).
@@ -809,7 +810,7 @@ dogs exception and the heavies part of G49.)
 **G156. Voice chat after the prototype.** Proximity voice (G129) and the always-clear partner voice (G140) are built
 after the prototype. Michael: "After the prototype" (chat, 2026-10-18.)
 
-**G157. Level standard changes reviewed later.** The 12 proposed level standard changes (design-kit-digest appendix)
+**G157. Level standard changes reviewed later.** (Narrowed by G366, 2026-10-25: reviewed before any more Tallow Wharf work.) The 12 proposed level standard changes (design-kit-digest appendix)
 come to Michael item by item before the first real mission map. Michael: "Review list later" (chat, 2026-10-18.)
 
 **G158. Prototype slices on Sonnet, medium.** (Replaced by G302, 2026-10-23: Opus plans and checks, Sonnet builds from
@@ -817,7 +818,7 @@ strict briefs.) Prototype slices (menu, movement, co-op) are built with Sonnet a
 tuning later. Since G150 this covers the menu and gameplay prototype slices only. Michael: "Sonnet, medium" (chat,
 2026-10-18; replaces G88 for prototype work.)
 
-**G159. Manual camera.** The exploring camera never moves or adjusts by itself; the player controls it. Michael: "Camera
+**G159. Manual camera.** (Narrowed by G397, 2026-10-25: the open-space pull-back stays; no doorway push-in.) The exploring camera never moves or adjusts by itself; the player controls it. Michael: "Camera
 doesn't automatically adjust/move at all in CT, it's manually controlled." (M1 feedback, chat, 2026-10-18; replaces G29's
 gentle swing toward travel, the "exploring camera swings by itself" part of G17 and loco M20 Q11's lead room.)
 
@@ -988,7 +989,7 @@ session, 2026-10-18); "no time slow" relayed from the main session (2026-10-19).
 on LB hold, LB tap switches weapon, the vision toggle on D-pad left. (Replaces G100's cycle order and the goggle part
 of G96's exact CT layout.)
 
-**G182. A phone can launch the game, for testing only.** A phone or tablet (touch as its main pointer) opens the game
+**G182. A phone can launch the game, for testing only.** (Narrowed by G395, 2026-10-25: menu taps and touch look stay as a recorded exception.) A phone or tablet (touch as its main pointer) opens the game
 on the minimum settings (`?gfx=min`: every feature off, DPR 1, the lowest operator LOD, no governor, no Auto
 detection), with the 1280 x 720 menu and HUD layout scaled down to fit its screen; the canvas fills the screen in
 either orientation inside the safe areas. No touch controls: a Bluetooth pad (or keyboard) drives it. No phone checks,
@@ -1031,7 +1032,7 @@ alive by G359, so `MAX_ALIVE = 12` stays for Marlow Yard only; the 32 ceiling st
 then measure on the PC. `MAX_ALIVE = 12` stays for the other modes; Sector Ops has its own cap (32, the ceiling, not a
 target). The PC perf run with full counts sets the number.
 
-**G188. No lives; revive syringes and checkpoints.** Michael (2026-10-19, M7): in co-op a downed player is revived by
+**G188. No lives; revive syringes and checkpoints.** (Narrowed by G385, 2026-10-25: a downed player nobody reaches dies after 30 s and waits for the next section door.) Michael (2026-10-19, M7): in co-op a downed player is revived by
 the partner with a limited revive syringe; if both are down, or in solo, the run restarts at the last checkpoint (the
 connector).
 
@@ -1556,7 +1557,7 @@ look videos for animation and lighting; (4) "Yes, one-click sign-off": before gr
 change, Michael approves a one-page to-scale plan and a 5-line intent check with one click. (Replaces G179's "No fine
 tuning until that loop plays".)
 
-**G289. Level validator: campus waits for the mission audit; measured pass at greybox exit; dense guards.** Michael
+**G289. Level validator: campus waits for the mission audit; measured pass at greybox exit; dense guards.** (Dense guards narrowed for Marlow Yard by G376, 2026-10-25.) Michael
 (2026-10-24 ~22:00, native multiple choice on PR #346): (1) the campus S1-S5 fixes and the S3 re-plan wait for the
 mission design audit, then are planned with its rules and his one-click sign-off; (2) "Yes, require it": a measured
 validator pass (V6 `--require-measured`) is part of the greybox exit; (3) guard density: "I would prefer having as many
@@ -1579,7 +1580,7 @@ Next: a mission-framework job (objective chains with parallel tracks, rules per 
 interrogate-a-named-target objective, validator objective and rule nodes), then the four prototypes; the campus S1-S5
 fixes are planned against it with one-click sign-off.
 
-**G292. Marlow Yard is a guided linear course; campaign sections force co-op traversal.** Michael (2026-10-24 ~22:45):
+**G292. Marlow Yard is a guided linear course; campaign sections force co-op traversal.** (Marlow Yard narrowed by G388 and G392, 2026-10-25: side routes closed, no co-op coverage checks.) Michael (2026-10-24 ~22:45):
 "Marlow is a training course and may have different rules to standard mission, ie its heavily guided and must teach the
 players the basics of coop gameplay. All campaign missions are strictly coop and cannot be completed solo, must have
 forced coop traversal to proceed (help player climb a wall, throw coop player over a gap to open a locked pathway for
@@ -1629,7 +1630,7 @@ and more security."; security "Include guard dogs" (cameras, lasers, alarm panel
 response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players cut lights to make
 shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
 
-**G298. Cameras keep IR; every guard armed; both Sector Ops maps; mocap on by default.** Michael (2026-10-23 ~01:25):
+**G298. Cameras keep IR; every guard armed; both Sector Ops maps; mocap on by default.** (Mocap switch replaced by G399, the old warehouse frozen by G390, 2026-10-25.) Michael (2026-10-23 ~01:25):
 cameras "Keep IR everywhere" (G240 stands: cutting lights beats guards and the light meter, never cameras); no
 melee-only guards on "Every map" (Marlow Yard and Sector Ops guards all armed); old warehouse "Keep both" (the research
 campus is a new Sector Ops map, the warehouse stays selectable); mocap "On by default" once mocap-trial-2 and the new
@@ -1716,7 +1717,7 @@ co-op takedowns reward more than shooting;
 (13) heavier late guards: body armour, torso shots only stagger; (14) thermal / night-vision cameras late. Not chosen:
 ghost-run bonus gear.
 
-**G308. Sector Ops goes to 4 players after the redesign; Marlow Yard stays at 2.** Michael (2026-10-23 ~10:25): "make a
+**G308. Sector Ops goes to 4 players after the redesign; Marlow Yard stays at 2.** (Switch-on settled by G381, 2026-10-25: live when it ships.) Michael (2026-10-23 ~10:25): "make a
 note to increase sector ops to 4 player coop after the redesigned map is completed. marlow yard stays at 2." Sector Ops
 only, up to 4 players, after sector-redesign; Marlow Yard (the campaign training level) stays 2 players. (Replaces
 G50's two-player maximum for Sector Ops only; G2 and G50 stand for the campaign and Marlow Yard.)
@@ -1846,7 +1847,7 @@ no session needed; auto mode still blocks self-approval by sessions. Michael ins
 size also and remove redundant files". The desktop scratch copies were deleted (~14.3 GB freed; top-level notes kept in
 scratch/archive-notes); Test Runner reviews the laptop's Night Shift folders.
 
-**G327. Off-screen guard animation: a shadow in view counts as seen.** Michael (2026-10-25 ~08:50, native multiple
+**G327. Off-screen guard animation: a shadow in view counts as seen.** (Rate settled by G382, 2026-10-25: like an on-screen guard.) Michael (2026-10-25 ~08:50, native multiple
 choice): "Yes, shadow in view = seen". A guard whose shadow falls in view animates at full rate. Guard AI implements it
 in `animTierView.ts` (#360 T1) and measures the CPU saving left; the same `ANIM_TIER_OFFSCREEN` governs guard-cap C1.
 (Replaces G294's assumption.)
@@ -1857,7 +1858,7 @@ guards" (3.9 m balcony strips); S3 "Re-plan as drawn, 20 guards"; S4 "One 6 m go
 dog included); S5 "26 guards, inside the 32 cap" (no cap raise, no protocol bump). Sector Ops greyboxes all five; the
 greybox exit needs the measured validator pass (G289). (Replaces G297's "up to 24" for the campus; settles G289 (1).)
 
-**G329. Real-world light levels.** Michael (2026-10-25 ~09:05): "How do you know campus design gameplay flow is good,
+**G329. Real-world light levels.** (Tightened by G367, 2026-10-25: no dark spots from lights left off; bands set by G368.) Michael (2026-10-25 ~09:05): "How do you know campus design gameplay flow is good,
 and that there is a realistic amount of light? On the current build the s1 car park is still very dark which is
 unrealistic, car parks are generally well lit"; native multiple choice: "Real-world levels". Each space type gets a
 real-world illuminance band from the lighting standards (outdoor car parks and roads AS/NZS 1158.3.1, interiors AS/NZS
@@ -1866,7 +1867,7 @@ from real gaps (between poles, under carports, behind cars, cut circuits, shot l
 unlit. Job light-realism (Sector Ops; the S1 car park first, then every map). (The 40-60% shadow share of G284 (3) and
 `docs/level-design.md` 5.5 yields to the band; replaces G225's 0.30 open-floor level, already loosened by G279.)
 
-**G330. Bot route-runs at greybox exit, then a walk.** Michael (2026-10-25 ~09:05, the same question): "Bot route-runs
+**G330. Bot route-runs at greybox exit, then a walk.** (Pass defined by G372, 2026-10-25: never stuck.) Michael (2026-10-25 ~09:05, the same question): "Bot route-runs
 + your walk". At greybox exit a scripted run walks every declared route (dark / high / loud) of each space against live
 guards, logging time, detections and dead stops; then Michael gets a 10-minute walk card. A level-validator slice
 (Marlow Build); campus S1-S5 is the first user.
@@ -1966,7 +1967,7 @@ question order (1)-(14).
 campus and Tallow Wharf each move under their own lead, after the conformance review of G355 (`docs/VISION.md` section
 1). (Replaces the bible's Marlow Yard first goal.)
 
-**G348. Sector Ops dogs.** Michael (2): "Penalty for killing, can be knocked out with gas, no takedown, or can be
+**G348. Sector Ops dogs.** (Penalty settled by G374, 2026-10-25: a kill that costs score.) Michael (2): "Penalty for killing, can be knocked out with gas, no takedown, or can be
 distracted". A dog cannot be taken down (no palm strike, no grab); gas knocks it out; it can be distracted; killing one
 carries a penalty. (Settles how G297's dogs are handled; with G42.)
 
@@ -1982,7 +1983,7 @@ Sector Ops (G341). (Names the difficulties of G338 and G341.)
 **G351. The objective popup shows what and where.** Michael (5): "What and where". The objective that fades in (G343)
 names what to do and where. (Applies G336 to G343.)
 
-**G352. Character shadows count for the meter and guards.** Michael (6): "Meter and guards read them". Light parity holds
+**G352. Character shadows count for the meter and guards.** (Extended by G379, 2026-10-25: a cast shadow is a faint cue to guards.) Michael (6): "Meter and guards read them". Light parity holds
 for character shadows: the meter and guard perception read the real-time character shadows the picture shows. A build
 job; not built yet. (Replaces G315's render-only character shadows and the bible's old L11, "characters do not occlude
 gameplay light".)
@@ -2004,7 +2005,7 @@ blip) are fixes, allowed at the cap. (Narrows G288's walk cap.)
 **G356. CT footage numbers are starting values.** Michael (10): "Starting values". The numbers in G25-G36 are starting
 values; Michael tunes them by hand. (With G10 and G227.)
 
-**G357. Marlow Yard teaches strict rules late.** Michael (11): "Taught late". Marlow Yard has no strict rules in its
+**G357. Marlow Yard teaches strict rules late.** (Replaced by G370, 2026-10-25: no fail or send-back rules; every failure is a retry.) Michael (11): "Taught late". Marlow Yard has no strict rules in its
 early sections; one strict rule is taught in a late section. (Settles Marlow Yard's strict rules, left open by G290 and
 G292.)
 
@@ -2033,3 +2034,173 @@ players add the guards tagged for them (G331). (Settles the player count G328 le
 **G363. Marlow Yard's later sections come after every move is taught.** Michael (3): "After every move taught". The
 later sections, where split paths and multiple objectives are taught (G292), are those after each move of the co-op
 kit has been taught on its own. (Defines G292's "later sections".)
+
+**G364. Session layout: a Campaign Build lead; the orchestrator starts the desktop leads.** Michael (2026-10-25 ~12:50,
+native multiple choice) on a new lead "Night Shift | Campaign Build" (desktop, Opus 5.5, high: Tallow Wharf, the mission
+framework / engine, campaign rules): "Yes add it, but do we need to keep so many sessions open? Every additional session
+is something I need to start again when changing accounts". Auto-start: "Yes you should automate as much as possible to
+speed it up." (the orchestrator starts Player, Marlow, Sector Ops and Campaign Build and one Cloud Builder at each swap;
+Michael pastes the orchestrator line and the two laptop lines). Laptop: Guard AI and Test Runner stay separate ("I want
+context to remain minimal on each to maintain job clarity without drifting Or hallucinations"); the Cloud Builder idles
+when no brief waits. The layout: "Yes, adopt it (Recommended)". The table is in `docs/RULES.md` "Sessions".
+
+G365-G400 are Michael's answers on the folded conformance plan (2026-10-25 ~16:40-17:00, native multiple choice). Q
+numbers are the questions of `docs/orchestrator/FOLDED-PLAN.md` section 2 (origin/feature/menu); a picked option is
+quoted as its label, with the option text where the label is short.
+
+**G365. The folded plan is signed off.** Michael (~17:00): "Sign off, start (Recommended)". The folded conformance plan
+(ROADMAP "Now" row 6, G355) is the plan: the leads resume at its J1 (doc-only fixes), then phase B (hard-rule fixes).
+On the 30 questions after the first nine: "Show me them first" (asked in batches; G375-G400).
+
+**G366. Tallow Wharf waits for Michael's review of the 12 level-rule changes.** Michael (Q1): "Review all 12 first"
+(option: "Review all 12 before any more Tallow work"). No more Tallow Wharf work until he has reviewed the 12 proposed
+changes to the level standard (design-kit-digest appendix) item by item. Tallow's four sign-off pages (Q22), Michael: "I
+haven't seen this, show me": they are shown to him after that review. (Narrows G157's "before the first real mission
+map" to "before any more Tallow work".)
+
+**G367. No dark spots from lights left off, on any map.** Michael (Q2): "Never" (option: "Never: every light works;
+darkness only from cover, cut circuits and shot lamps"). Every fitting on a map works and is on; no dead, failed or
+switched-off light makes a dark pocket, in any mode, Marlow Yard included. Darkness comes only from cover (the real gaps
+between and behind things), cut power and shot lamps. (Replaces the "dark by design" pockets on every map; tightens
+G295 and G329; `docs/level-design.md` 5.1 and 5.5 change with this approval.)
+
+**G368. Light levels from the Australian standards, after one lux calibration.** Michael (Q3): "Australian standards
+(Recommended)" (option: "Take the levels from the Australian lighting standards, after one test that matches the game's
+brightness to real light units; you approve the table and the car-park light map together"). The light-realism job
+calibrates engine light to lux once, fills the band table from AS/NZS 1158.3.1 and AS/NZS 1680 (EN 12464 where AS/NZS
+is silent), and Michael approves the table together with the S1 car-park light map. (Settles how G329's bands are set.)
+
+**G369. 32 guards at 60 fps; the memory target is unchanged.** Michael (Q4): "60 fps (Recommended)" (option: "Smooth on
+a normal monitor (60 fps), set after the off-screen animation fix is measured; memory target unchanged on every map").
+With 32 guards alive (G332, G359) the frame-rate goal is 60 fps, set once the off-screen animation fix (G327, G382) is
+measured; the memory goals stay the same on every map. (Adds a 32-guard goal to G14's.)
+
+**G370. Marlow Yard has no fail or send-back rules: every failure is a retry.** Michael (Q5): "all are retries in
+marlow yard, as its a training exercise." No strict rule, fail or send-back anywhere in Marlow Yard; a failed exercise
+or drill is retried in place (G361). (Replaces G357.)
+
+**G371. The campaign starts in the co-op lobby; Marlow Yard is its training prologue.** Michael (Q6): "coop lobby.
+Marlow Yard is mission 1, which is training"; asked whether Tallow Wharf then becomes Mission 2: "Tallow stays Mission
+1" (option: Marlow Yard is a Mission 0 / prologue before it). The campaign is entered from the co-op lobby; Marlow Yard
+is its training prologue, played before Mission 1, and Tallow Wharf stays Mission 1 (G340). Marlow Yard keeps its own
+training rules (G292). (Settles the campaign part of the menu job's "how the lobby picks the course".)
+
+**G372. A bot route-run passes when it never gets stuck.** Michael (Q7): "Never stuck (Recommended)" (option: "Pass =
+it never gets stuck; the times it was seen go on your walk card"). Detections during a route-run do not fail it; they
+are listed on the walk card. (Defines G330's pass.)
+
+**G373. No civilians on Mission 1.** Michael (Q8): "None on Mission 1 (Recommended)" (option: "Campaign's pick: none on
+Mission 1; only the named people are protected, everyone else is an armed guard; civilians come after Mission 1").
+Tallow Wharf has no civilians: its named people are protected (G353), everyone else is an armed guard (G298); civilians
+come in a later mission.
+
+**G374. Killing a dog is a kill and costs score.** Michael (Q9): "Kill + lose score (Recommended)" (option: "Sector Ops'
+pick: it counts as a kill (no Perfect) and costs score"). In Sector Ops a dead dog counts as a kill, so the run cannot
+be Perfect, and it takes score off. (Settles G348's "penalty".)
+
+**G375. Sector Ops S5 with 3-4 players stays inside 32.** Michael (Q10): "Keep 32, fill rest (Recommended)" (option:
+"Keep 32; reinforcements fill what is left"). S5's tagged extras and alarm reinforcements share the 32 alive ceiling;
+no cap raise. (With G328, G331, G332.)
+
+**G376. Marlow Yard posts only the guards each lesson needs.** Michael (Q11): "Only the logical amount required to
+test the specific movement/game mechanic required. Doesn't necessarily always need a guard." A Marlow set has the
+guards its exercise needs, sometimes none, within `SET_GUARDS_MAX` 3. (Narrows G289's "as many guards as realistically
+possible" for Marlow Yard.)
+
+**G377. Campaign alarm teams carry no riot shields.** Michael (Q12): "No, armed only (Recommended)" (option: "No, armed
+guards only, as CT"). Riot shields stay a Sector Ops response-team item (G307). (With G155.)
+
+**G378. A vent lookout overlooks the vent run.** Michael (Q13): "Overlooking it (Recommended)" (option: "Where he
+overlooks the vent run or exit"). A static lookout on a vent route (G335) stands where he overlooks the vent run or its
+exit, not inside the vent.
+
+**G379. A player's cast shadow is a faint cue to guards.** Michael (Q14): "A faint cue" (not the recommended "No,
+shadows only darken, as CT"). A player's real-time cast shadow in a guard's view gives him a faint cue: a small rise in
+suspicion, never a sighting on its own. (Extends G352; a departure from CT.)
+
+**G380. Guards keep a last-seen spot per player.** Michael (Q15): "Yes, each player (Recommended)" (option: "Yes, as
+built"). Guards keep a separate last known position for each player (guard-ai S24). (Settles the bible's open
+per-player LKP; with G139.)
+
+**G381. 4-player Sector Ops goes live when it ships.** Michael (Q16): "Live now" (not the recommended "Merge behind a
+switch, on after the campus walk"). #317 coop4 ships switched on, with no off switch. (For this one feature, overrides
+the flag-until-walked rule of `CLAUDE.md` and the walk-cap switch-on of G288 and G355; with G308.)
+
+**G382. An off-screen guard whose shadow is in view animates like an on-screen guard.** Michael (Q17): "Like on screen
+(Recommended)" (option: "Like an on-screen guard"). (Settles the rate of G327.)
+
+**G383. Marlow Yard keeps its next-drill pointer.** Michael (Q18): "Keep as built (Recommended)". The screen-edge
+pointer with the metres to the next drill stays, one of Marlow Yard's guidance marks (G292).
+
+**G384. No rewards in the campaign.** Michael (Q19): "None (Recommended)" (option: "None; optional objectives only
+raise the rating, as CT"). Campaign sections grant no kit; secondary and opportunity objectives only raise the rating.
+Sector Ops keeps its section rewards.
+
+**G385. Sector Ops: a downed player nobody reaches dies after 30 s and waits for the next section door.** Michael
+(Q20): "30 seconds then death and wait until next section door". A downed player not revived within 30 s dies and waits
+out of play until the team reaches the next section door (the connector), where he comes back; the team plays on. Both
+down, or solo, restarts the section as before (G188). (Narrows G188.)
+
+**G386. Saltmarsh S2's team doors stay two-player.** Michael (Q21): "No, two players (Recommended)" (option: "No, they
+stay two-player; solo goes round"). (With G280.)
+
+**G387. Tallow Wharf's throw gaps force co-op.** Michael (Q23): "Force co-op" (option: "Make them force co-op"). A throw
+gap is wider than a solo player can jump, so it is a forced co-op move (G292).
+
+**G388. Marlow Yard closes its side routes.** Michael (Q24): "Close all side routes, force all sections. Only keep a
+side route when training against enemies later in the training, same design rules as a campaign mission area". Every
+section is one forced path; a side route stays only in the later enemy-training areas, built to the campaign's
+mission-area rules. (Narrows G292's late split paths and G363.)
+
+**G389. Marlow Yard teaches the shutter hold and the vent unlock where they fit.** Michael (Q25): "Wherever they slot
+into the training yard logically". Each is taught where the yard's layout gives it a real reason. (With G293, G363.)
+
+**G390. The old warehouse Sector Ops map is frozen.** Michael (Q26), told that full campus rules cost about 2-3 days
+and the core rules about half a day: "Freeze it". `warehouseOps` gets no more work; it stays selectable as it is.
+(Narrows G298's "Keep both".)
+
+**G391. The picture gate: the meter against the picture holds every release; look baselines need Michael's OK.**
+Michael (Q27): "Yes, every release (Recommended)" (option: "Yes, checked on every release (3-5 min more); other picture
+flags advisory for now"): a light-meter-against-picture mismatch holds the release; other picture flags are advisory.
+Q28: "Me, with your OK (Recommended)" (option: "Orchestrator, only with your sign-off on record"): the orchestrator
+accepts a deliberate look change into the picture baseline only with Michael's sign-off on record.
+
+**G392. Marlow Yard is exempt from the campaign's co-op coverage checks.** Michael (Q29): "marlow yard in particular is
+an isolated training level which forces training of each individual coop move and coop gameplay, and does not need the
+same checks". Each Marlow exercise forces the one co-op move it teaches; the co-op coverage and forced-gate checks do
+not bind the training profile.
+
+**G393. A second quarantine in 14 days makes a test blocking.** Michael (Q30): "Becomes blocking (Recommended)"
+(option: "A second quarantine in 14 days makes it blocking with a fix job"). The suite is not quarantined again: its
+failures fail runs and its owner gets a fix job.
+
+**G394. Maps are fully built before play; the graphics warm-up finishes on the loading screen.** Michael (Q31): "to be
+reviewed. currently when starting maps the level slowly builds while in game at the start, requires work to ensure map
+is fully loaded." The load-time target is reviewed later; a map is fully built before play starts. Q32: "Yes, with a
+cap (Recommended)" (option: "Yes, up to a written cap, plus a job to shorten it"): the graphics warm-up finishes on the
+loading screen, up to a written cap, and a job shortens it.
+
+**G395. Touch in play: menu taps and touch look stay, a recorded exception.** Michael (Q33): "Keep as exception
+(Recommended)" (option: "Keep menu taps and touch look as a recorded exception"). (Narrows G12's and G182's no touch
+controls; desktop only stands.)
+
+**G396. Palm strike recovery about 1.4 s.** Michael (Q34): "About 1.4 s (Recommended)" (option: "Back to about 1.4 s").
+(Restores loco M25 (5) over the built 0.6 s; with G42.)
+
+**G397. The camera keeps its open-space pull-back and drops the doorway push-in.** Michael (Q35): "Pull-back only
+(Recommended)" (option: "Keep the open-space pull-back, drop the doorway push-in"). The exploring camera's boom eases
+out in an open space and in in a tight one; it no longer pushes in at a doorway. (Narrows G159.)
+
+**G398. Toggles for plain holds.** Michael (Q36): "Plain holds only (Recommended)" (option: "Toggles for plain holds;
+tap / hold buttons and aim excepted"). A plain hold action gets a hold or toggle setting; a button whose tap and hold do
+different things, and the aim (G214), get none. (Narrows loco D7's "hold or toggle for every hold action".)
+
+**G399. Mocap only for players; animation corrections decided at the walk.** Michael (Q38): "mocap only, i will fine
+tune them in anim dev" (option: "Mocap only, developer rollback"): players get motion capture only, with no switch; the
+hand-keyed set stays as a developer rollback, and Michael fine-tunes the clips in the Anim Studio. Q37, on the
+corrections layered over the capture: "Decide at your walk (Recommended)": they are kept or dropped at his animation
+walk. (Replaces G298's "the hand-keyed set behind the switch".)
+
+**G400. Partner animation fields go over the network.** Michael (Q39): "yes players must look exact in everyones games"
+(option: "Allow small animation fields"). Small animation fields may be sent so a partner looks exact on every screen;
+remotes still pose from `MoveState`. (Replaces loco D8's body layer "with no extra bandwidth".)
