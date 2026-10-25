@@ -27,6 +27,7 @@ import type { FlagGate, HoldGate } from '../../../../game/course/courseDef';
 import type { StationDef } from '../../../../game/course/stationDef';
 import type { FacilityKit } from '../../../kit/facilityKit';
 import type { LevelBuilder } from '../../../levelBuilder';
+import { FacilityProps } from '../../../props/facilityProps';
 import type { FloorHole } from '../../ctcourseGreybox';
 import { A2_BACK_DOOR, A2_ISO_2, A2_ROADS, A2_SHUNTER, A2_SHUNTER_FACES, A2_SHUNTER_WAITS, A2_WATCH_E, A2_WATCH_W } from '../a2CarriageShed';
 import { HALL_H, tally, type SetPart } from '../types';
@@ -108,9 +109,8 @@ export const A2_RETRY_LINES: readonly { at: string; text: string }[] = [
   { at: 'retry:a2-lights:timer', text: 'Lights came back with you in the neck. Back to the cabin and the lane.' },
   { at: 'retry:a2-plank', text: 'The shunter saw the board. Back to the board stack at the east end.' },
 ];
-/** The built entry line the re-plan drops (no spotters, no staging) and its replacement. */
+/** The built entry line the re-plan drops (no spotters, no staging); nothing replaces it (the stations' own lines carry the retries). */
 export const A2_BUILT_STAGING_LINE = 'Two spotters on the staging. Seen in the neck lights and we start again.';
-export const A2_ENTER_LINE = 'One shunter tonight, facing east down the neck. Seen, and you retry that step.';
 /** The built objective steps the re-plan replaces. */
 const BUILT_STEPS = ['a2-neck', 'a2-back', 'a2-lock'];
 /** Built map data the re-plan's geometry retires: the deck's leg-up mark, the old cabinet 2 spot, the deck and coat corner
@@ -190,6 +190,10 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     slab(A2_CAB2_REPLAN.x - 0.45, A2_CAB2_REPLAN.x + 0.45, 11.3, A2_CAB2_REPLAN.z, 0, 1.6, STEEL);
   });
   p.devices[A2_ISO_2] = { x: A2_CAB2_REPLAN.x, y: 0, z: A2_CAB2_REPLAN.z, yaw: 0, label: 'Isolate neck lights' };
+  // its push station (the built one hung on the east wall; a prop with no collision: nothing to write)
+  const props = new FacilityProps();
+  props.add('pushStation', A2_CAB2_REPLAN.x, A2_CAB2_REPLAN.z, 0, { y: 0.6 });
+  p.props.push(...props.placements);
 
   // ---- station 5: the pit, its step irons, the far barrier, the walkway stand-in ----
   const { x0: px0, x1: px1, z0: pz0, z1: pz1, depth } = A2_PIT;
@@ -276,7 +280,7 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     { id: 'a2-lock', bay: 'A2', text: 'Both of you into holding room two.' },
   );
   p.bay.radio = p.bay.radio.filter((r) => r.text !== A2_BUILT_STAGING_LINE);
-  p.bay.radio.push({ at: 'enter', text: A2_ENTER_LINE }, ...A2_RETRY_LINES);
+  p.bay.radio.push(...A2_RETRY_LINES);
 
   // ---- map data: debug points, nav seeds, spaces, light spots, shots ----
   p.debugPoints = p.debugPoints.filter((d) => !DROP_DEBUG.includes(d.id));
@@ -295,7 +299,7 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     { name: 'A2 coat corner cut', kind: 'body', x: 28.95, y: 0, z: 4.25, band: 'cut', off: [22] },
     { name: 'A2 stores bay', kind: 'body', x: 31.0, y: 0, z: 12.0, band: 'any' },
     { name: 'A2 walkway', kind: 'body', x: 67.5, y: 0, z: 12.0, band: 'any' },
-    { name: 'A2 far landing', kind: 'body', x: 69.4, y: 0, z: 10.0, band: 'any' },
+    { name: 'A2 far landing', kind: 'body', x: 69.4, y: 0, z: 12.4, band: 'any' },
     { name: 'A2 pit floor', kind: 'body', x: 67.5, y: yb, z: 5.0, band: 'any' },
   );
   p.shotVantages = p.shotVantages.filter((v) => !DROP_SHOTS.includes(v.name));
