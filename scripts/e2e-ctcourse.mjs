@@ -8,8 +8,9 @@
 // co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery) and revived from that level (`e2e-ctcourse/revive.mjs`);
 // after every set the bay's ghost ledger (detections, alarms, knock-outs, kills, bodies) is logged (report only).
 //
-// `--part=N` runs one pair of sets (the runner runs the four as parallel jobs): 1 A1-A2, 2 A3-A4, 3 A5-A6, 4 A7-A8
-// (SPEC 16). Named alone the suite runs all eight sets. A part after the first starts the course at its first set (the
+// `--part=N` runs one pair of sets (the runner runs the parts as parallel jobs): 1 A1-A2, 2 A3-A4, 3 A5-A6, 4 A7-A8
+// (SPEC 16). (J14 re-plan) Parts 5-8 are the same pairs on the re-planned yard (map `ctcourseReplan`, `?autostart=ctcourseReplan`),
+// walking `scripts/e2e-ctcourse/replan/<set>.mjs` (S0: stubs re-exporting the built walks until each set slice replaces its own). Named alone the suite runs all eight sets. A part after the first starts the course at its first set (the
 // host session's `courseBay`, the lobby's "Start at"); every set still ends through its exit holding room, so the parts
 // together cover the whole run.
 //
@@ -29,16 +30,30 @@ import * as a5Substation from './e2e-ctcourse/a5Substation.mjs';
 import * as a6PumpHouse from './e2e-ctcourse/a6PumpHouse.mjs';
 import * as a7DataHall from './e2e-ctcourse/a7DataHall.mjs';
 import * as a8Strongroom from './e2e-ctcourse/a8Strongroom.mjs';
+import * as r1Gate from './e2e-ctcourse/replan/a1Gate.mjs';
+import * as r2CarriageShed from './e2e-ctcourse/replan/a2CarriageShed.mjs';
+import * as r3OfficeRange from './e2e-ctcourse/replan/a3OfficeRange.mjs';
+import * as r4GoodsShed from './e2e-ctcourse/replan/a4GoodsShed.mjs';
+import * as r5Substation from './e2e-ctcourse/replan/a5Substation.mjs';
+import * as r6PumpHouse from './e2e-ctcourse/replan/a6PumpHouse.mjs';
+import * as r7DataHall from './e2e-ctcourse/replan/a7DataHall.mjs';
+import * as r8Strongroom from './e2e-ctcourse/replan/a8Strongroom.mjs';
 import { SURFACES, reviveOn, freeRevive } from './e2e-ctcourse/revive.mjs';
 
-const SETS = [a1Gate, a2CarriageShed, a3OfficeRange, a4GoodsShed, a5Substation, a6PumpHouse, a7DataHall, a8Strongroom];
+const BUILT_SETS = [a1Gate, a2CarriageShed, a3OfficeRange, a4GoodsShed, a5Substation, a6PumpHouse, a7DataHall, a8Strongroom];
+const REPLAN_SETS = [r1Gate, r2CarriageShed, r3OfficeRange, r4GoodsShed, r5Substation, r6PumpHouse, r7DataHall, r8Strongroom];
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
 /** Revives done this run (each surface and the dock): the end screen's team count. */
 let revivesDone = 0;
-const Q = 'net=local&autostart=ctcourse&mode=course';
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
-const GROUPS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8] };
+// (J14) parts 5-8: the re-planned yard, its own map id and walks
+const REPLAN = PART >= 5;
+const MAP_ID = REPLAN ? 'ctcourseReplan' : 'ctcourse';
+const SETS = REPLAN ? REPLAN_SETS : BUILT_SETS;
+// (J14 S0 fix 1) the re-plan parts carry the flag too, as a host on the re-plan does
+const Q = `net=local&autostart=${MAP_ID}&mode=course${REPLAN ? '&marlowreplan=1' : ''}`;
+const GROUPS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8], 5: [1, 2], 6: [3, 4], 7: [5, 6], 8: [7, 8] };
 const [FIRST, LAST] = GROUPS[PART] ?? [1, 8];
 
 // (co-op test fix) `until` and the pauses are e2e-net-lib's: polled from Node (G13), timed on both pages' sim clocks
@@ -306,7 +321,7 @@ try {
   B = opened.page;
   eB = opened.errors;
   setSimPages([A, B]);
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, LOAD_MS, `${tag} in the ctcourse match`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, (id) => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === id, MAP_ID, LOAD_MS, `${tag} in the ${MAP_ID} match`);
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
