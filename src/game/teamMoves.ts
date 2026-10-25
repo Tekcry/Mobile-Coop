@@ -130,7 +130,8 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
     const l = r.land;
     if (!l) return 'noTarget';
     const dist = throwDistAt(r.b.x, r.b.z, l.x - r.b.x, l.z - r.b.z); // (tallow-fixes A24) a throw site's length, else the standard
-    if (!throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z, dist)) return 'noTarget';
+    // (TD-b) at a site the host also takes the standard band: its view of the thrower lags the runner's (reach / facing edge)
+    if (!throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z, dist) && (dist === TEAM.throwDist || !throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z))) return 'noTarget';
     return null;
   }
   if (r.b.mode !== 'brace' || throwOffer) return 'notBraced';
@@ -216,6 +217,12 @@ let throwSites: readonly ThrowSite[] | null = null;
 /** (tallow-fixes A24) Sets the map's throw sites (setup time only; null or an empty list = none). */
 export function setThrowSites(list: readonly ThrowSite[] | null): void {
   throwSites = list && list.length > 0 ? list : null;
+}
+
+/** (tallow-fixes TD-b) Clears the throw sites only when `list` is the one set (identity): a new controller may start
+ *  before the old one is disposed (a bench hand-off), and the old dispose must not clear the new map's sites. */
+export function clearThrowSites(list: readonly ThrowSite[]): void {
+  if (throwSites === list) throwSites = null;
 }
 
 /**
