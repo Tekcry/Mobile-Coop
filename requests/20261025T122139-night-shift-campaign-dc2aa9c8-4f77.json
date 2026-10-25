@@ -1,0 +1,15 @@
+{
+  "id": "20261025T122139-night-shift-campaign-dc2aa9c8-4f77",
+  "sha": "dc2aa9c87c00ae4ff4bbeaefd1d6c59710a96017",
+  "branch": "",
+  "pr": 0,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "mission-gb6fix",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T091850-night-shift-campaign-dc2aa9c8-ae35, rerun on the laptop"
+}
