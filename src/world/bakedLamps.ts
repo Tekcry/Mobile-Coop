@@ -269,6 +269,12 @@ export class BakedLamps implements CharShadowLamps {
   landings = 0;
   rescans = 0;
 
+  /** (map-ready S2) Atlas uploads still owed: the queued tiles, plus 1 while a whole re-upload is due (the load gate's
+   *  `bake-all` step waits for 0). Render side only. */
+  get tilesPending(): number {
+    return this.tileTail - this.tileHead + (this.atlasDue ? 1 : 0);
+  }
+
   constructor(
     private scene: Scene,
     private reg: LightRegistry,
