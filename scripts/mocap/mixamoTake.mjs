@@ -2,12 +2,15 @@
 // format in docs/mixamo-retarget/PLAN.md "Dump format") -> the take shape asfamc.mjs `loadTake` returns, so the CMU
 // pipeline (retarget.mjs `retargetTake` / `buildSlot`, analyze.mjs `analyzeTake`) runs on it through its injected loader:
 //   buildSlot(rig, pick, choice, '', null, { load: mixamoLoader(), licence: MIXAMO_LICENCE, inPlace })
-//   node scripts/mocap/mixamoTake.mjs [slug ...]     self-check + report per dump (all dumps when none named)
+//   node scripts/mocap/mixamoTake.mjs [slug ...]     self-check, report and direction check per dump (all when none
+//                                                    named); exits 1 when a check fails or a segment is >= 8 deg off
+// Direction check (A6, `mixamoDirCheck`): the take retargeted onto Wren, each Wren segment against the Mixamo segment
+// measured from the dump's own heads (mixamoMap.mjs WREN_SPANS), at every source frame.
 //
 // Frames. The dump is in Blender world space (Z up, right-handed; the importer leaves the character facing -Y, but the
 // facing is measured here, never assumed). The game frame is +X right, +Y up, +Z forward, left-handed. The rest pose
-// gives the basis: right = the hip line (LeftUpLeg -> RightUpLeg heads), forward = up x right (Blender's cross); the
-// toe direction (Foot -> ToeBase heads) is only reported. M = [right; up; forward] (rows) maps a Blender vector to
+// gives the basis: right = the hip line (LeftUpLeg -> RightUpLeg heads), forward = up x right (Blender's cross), checked
+// and averaged with the toe direction (Foot -> ToeBase heads). M = [right; up; forward] (rows) maps a Blender vector to
 // the game: p_game = M p. det M = -1 (a right- to left-handed map is improper), so a rotation converts by matrices,
 // R_game = M R M^T (a proper rotation again), never by permuting quaternion parts. The dump's rotations are
 // rest-relative world rotations (W R W^-1, mapping a bone's rest world directions onto its posed ones), so after the
@@ -26,8 +29,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, FPS, selfCheck } from './asfamc.mjs';
 import { v3, q4, m3, R2D } from './math.mjs';
-import { baseName, mixamoSlots, resolveMixamoBones, MIXAMO_FPS, WREN_SPANS, WREN_CHORD } from './mixamoMap.mjs';
-import { MAP, SEG_END } from './retarget.mjs';
+import { baseName, mixamoSlots, resolveMixamoBones, MIXAMO_FPS, WREN_SPANS } from './mixamoMap.mjs';
+import { MAP, SEG_END, retargetTake } from './retarget.mjs';
 
 export const MIXAMO_DIR = path.join(ROOT, 'build', 'mocap', 'mixamo');
 export const MIXAMO_RAW = path.join(MIXAMO_DIR, 'raw');
@@ -35,7 +38,9 @@ export const MIXAMO_RAW = path.join(MIXAMO_DIR, 'raw');
 export const IN_PLACE_M = 0.05;
 /** The source line an intermediate carries (retarget.mjs `buildSlot` `licence`). */
 export const MIXAMO_LICENCE = 'Mixamo (mixamo.com, Adobe), royalty-free for commercial use (docs/art-credits.md)';
-/** The direction check's limit (BRIEF A6): every Wren segment within this of its matching Mixamo span. */
+/** Toe-direction vs hip-line forward: averaged when within this angle, else the hip line alone is used. */
+const TOE_AGREE_DEG = 45;
+/** The direction check's limit (BRIEF A6): every retargeted Wren segment within this of its Mixamo segment. */
 export const DIR_LIMIT_DEG = 8;
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
@@ -66,9 +71,12 @@ export function measureFacing(restOf) {
     const d = flat(v3.sub(restOf(`${S}ToeBase`), restOf(`${S}Foot`)));
     if (v3.len(d) > 1e-6) toe = v3.add(toe, v3.norm(d));
   }
-  // the toes are splayed and differ per clip, so they only feed the report
-  const forward = fHip, from = 'hips';
-  const hipToeDeg = v3.len(toe) > 1e-6 ? Math.acos(Math.max(-1, Math.min(1, v3.dot(v3.norm(toe), fHip)))) * R2D : null;
+  let forward = fHip, hipToeDeg = null, from = 'hips';
+  if (v3.len(toe) > 1e-6) {
+    const t = v3.norm(toe);
+    hipToeDeg = Math.acos(Math.max(-1, Math.min(1, v3.dot(t, fHip)))) * R2D;
+    if (hipToeDeg < TOE_AGREE_DEG) { forward = v3.norm(v3.add(fHip, t)); from = 'hips+toes'; }
+  }
   const right = [forward[1], -forward[0], 0]; // forward x up
   const M = [right[0], right[1], 0, 0, 0, 1, forward[0], forward[1], 0];
   return { M, right, forward, turnDeg: Math.atan2(forward[0], -forward[1]) * R2D, hipToeDeg, from };
@@ -124,12 +132,7 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     if (s.slot === 'root') { restTip.set('root', restG('Hips')); off.set('root', [0, 0, 0]); continue; }
     const start = restTip.get(s.parent);
     let tip = start;
-    if (s.blend) {
-      const bh = restG(s.blend);
-      const endP = s.end ? restG(s.end) : v3.add(bh, v3.scale(v3.sub(bh, restG(s.rot)), s.extend));
-      if (!s.end) fallbacks.push(s.slot);
-      tip = v3.lerp(bh, endP, s.at ?? 1);
-    } else if (s.end) tip = restG(s.end);
+    if (s.end) tip = restG(s.end);
     else if (s.extend) {
       let p = s.parent;
       while (p && v3.len(off.get(p)) < 1e-9) p = bySlot.get(p).parent;
@@ -159,23 +162,21 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     for (const s of slots) if (s.slot !== 'root') P.set(s.slot, pin?.(s) ?? v3.add(P.get(s.parent), q4.rotate(qOf(qKey(s)), off.get(s.slot))));
     return P;
   };
-  // a slot's measured tip in the dump at source frame i (null when its end bone is missing)
-  const tipAt = (s, i) => (!s.end ? null : s.blend && s.at !== undefined ? v3.lerp(headAt(s.blend, i), headAt(s.end, i), s.at) : headAt(s.end, i));
   // dump sanity: FK tips against the dump's own posed heads. A blend slot is rigid but the span its two bones make
   // bends and shortens: its direction is exact, its tip misses by that change of length (`stretchMm`, reported apart);
   // its measured tip is pinned here so the slots past it test the file alone.
   let fkErr = 0, fkErrSlot = '', stretch = 0, stretchSlot = '';
   for (let i = 0; i < n0; i++) {
     const qi = (b) => qSrc.get(b)[i];
-    const P = fk(headAt('Hips', i), qi, (s) => (s.blend && s.end ? tipAt(s, i) : null));
+    const P = fk(headAt('Hips', i), qi, (s) => (s.blend && s.end ? headAt(s.end, i) : null));
     for (const s of slots) {
       if (!s.end || s.slot === 'root') continue;
       if (s.blend) {
-        const e = v3.dist(v3.add(P.get(s.parent), q4.rotate(qi(qKey(s)), off.get(s.slot))), tipAt(s, i));
+        const e = v3.dist(v3.add(P.get(s.parent), q4.rotate(qi(qKey(s)), off.get(s.slot))), headAt(s.end, i));
         if (e > stretch) { stretch = e; stretchSlot = s.slot; }
         continue;
       }
-      const e = v3.dist(P.get(s.slot), tipAt(s, i));
+      const e = v3.dist(P.get(s.slot), headAt(s.end, i));
       if (e > fkErr) { fkErr = e; fkErrSlot = s.slot; }
     }
   }
@@ -240,31 +241,6 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     inPlace: travel < IN_PLACE_M, travel, facing: face,
   };
   const lens = (slot) => skel.bones.get(slot)?.length ?? 0;
-  // direction check (A6): at every source frame, the direction each Wren segment takes (its slot's rotation on the
-  // slot's rest span, exactly what retargetTake's rest correction gives Wren) against the matching Mixamo span measured
-  // from the dump's own heads (WREN_SPANS, independent of the slots), worst frame; plus the spine -> neck chord at
-  // Wren's lengths (the file's when no rig is given)
-  const has = (pt) => (Array.isArray(pt) ? pt.slice(0, 2) : [pt]).every((b) => res.full.has(b));
-  const ptAt = (pt, i) => (Array.isArray(pt) ? v3.lerp(headAt(pt[0], i), headAt(pt[1], i), pt[2]) : headAt(pt, i));
-  const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, v3.dot(v3.norm(a), v3.norm(b))))) * R2D;
-  const segDir = (j, i) => { const s = bySlot.get(MAP[j]); return q4.rotate(qSrc.get(qKey(s))[i], v3.norm(off.get(s.slot))); };
-  const spanName = (sp) => sp.map((p) => (Array.isArray(p) ? `${p[0]}+${r3(p[2])}${p[1]}` : p)).join('->');
-  const dirCheck = { limitDeg: DIR_LIMIT_DEG, segments: {}, chord: null, worstDeg: 0, worst: null, over: [] };
-  const worstOf = (f) => { let deg = 0, frame = 0; for (let i = 0; i < n0; i++) { const a = f(i); if (a > deg) { deg = a; frame = i; } } return { deg: r1(deg), frame }; };
-  const note = (name, e) => { if (e.deg >= dirCheck.worstDeg) { dirCheck.worstDeg = e.deg; dirCheck.worst = name; } if (e.deg >= DIR_LIMIT_DEG) dirCheck.over.push(name); };
-  for (const [j, sp] of Object.entries(WREN_SPANS)) {
-    if (!bySlot.has(MAP[j]) || !sp.every(has)) { dirCheck.segments[j] = null; continue; }
-    const e = { span: spanName(sp), ...worstOf((i) => ang(segDir(j, i), v3.sub(ptAt(sp[1], i), ptAt(sp[0], i)))) };
-    dirCheck.segments[j] = e;
-    note(j, e);
-  }
-  {
-    const { from, via, to, span } = WREN_CHORD;
-    const lA = rig ? v3.dist(rig.bind[via], rig.bind[from]) : lens(MAP[from]), lB = rig ? v3.dist(rig.bind[to], rig.bind[via]) : lens(MAP[via]);
-    const e = { span: spanName(span), lengths: rig ? 'wren' : 'mixamo', ...worstOf((i) => ang(v3.add(v3.scale(segDir(from, i), lA), v3.scale(segDir(via, i), lB)), v3.sub(ptAt(span[1], i), ptAt(span[0], i)))) };
-    dirCheck.chord = e;
-    note('chord', e);
-  }
   take.report = {
     slug, file: dump.file ?? null, sha256: dump.sha256 ?? null, prefix: res.prefix,
     fpsIn: dump.fps, framesIn: n0, framesOut: n, seconds: r3((n0 - 1) / dump.fps),
@@ -276,7 +252,6 @@ export function takeFromDump(dump, { rig = null, floor = 'feet', bytes = 0, slug
     unknownBones: res.unknown, missingFingers: res.missingFingers, missingEnds: res.missingEnds, fallbacks, still,
     segments: Object.fromEntries(Object.keys(SEG_END).map((j) => [j, { slot: MAP[j], mixamo: r3(lens(MAP[j])), wren: null, ratio: null }])),
     leg: { mixamo: r3(lens('lfemur') + lens('ltibia')), wren: null, scale: null },
-    dirCheck,
   };
   if (rig) addWren(take.report, rig);
   return take;
@@ -292,6 +267,39 @@ export function addWren(report, rig) {
   report.leg.wren = r3(rig.leg);
   report.leg.scale = report.leg.mixamo > 0 ? r3(rig.leg / report.leg.mixamo) : null;
   return report;
+}
+
+/**
+ * The direction check (A6). The take goes through retarget.mjs `retargetTake` (the path every Mixamo clip takes onto
+ * Wren); at every source frame, each driven Wren segment's posed direction (its world rotation on its bind segment,
+ * joint -> SEG_END child) is measured against the Mixamo segment WREN_SPANS names for it, taken from the dump's own
+ * posed heads (child head minus head, in the game frame). Nothing is shared with the slots but the frame change, so a
+ * slot on the wrong bone shows up here. `take` defaults to takeFromDump(dump). Returns { limitDeg, maxDeg, worst
+ * ('<joint>@<source frame>'), segments: { joint: { span, deg, frame } | null (a span bone missing) }, over: [joint] }.
+ */
+export function mixamoDirCheck(rig, dump, { take = takeFromDump(dump) } = {}) {
+  const res = resolveMixamoBones(dump.bones);
+  const M = take.facing.M;
+  const headAt = (b, i) => { const f = dump.pos[res.full.get(b)]; return m3.apply(M, [f[3 * i], f[3 * i + 1], f[3 * i + 2]]); };
+  const R = retargetTake(rig, take.take, { load: () => take });
+  const ratio = FPS / dump.fps;
+  const out = { limitDeg: DIR_LIMIT_DEG, maxDeg: 0, worst: null, segments: {}, over: [] };
+  for (const [j, [a, b]] of Object.entries(WREN_SPANS)) {
+    if (!res.full.has(a) || !res.full.has(b)) { out.segments[j] = null; continue; }
+    const bindSeg = v3.sub(rig.bind[SEG_END[j]], rig.bind[j]);
+    let deg = 0, frame = 0;
+    for (let i = 0; i < dump.frames; i++) {
+      const k = Math.round(i * ratio);
+      if (Math.abs(k - i * ratio) > 1e-6 || k >= R.qw[j].length) continue; // only the 120 fps frames on a source frame
+      const w = v3.norm(q4.rotate(R.qw[j][k], bindSeg)), s = v3.norm(v3.sub(headAt(b, i), headAt(a, i)));
+      const e = Math.acos(Math.max(-1, Math.min(1, v3.dot(w, s)))) * R2D;
+      if (e > deg) { deg = e; frame = i; }
+    }
+    out.segments[j] = { span: `${a}->${b}`, deg: Math.round(deg * 100) / 100, frame };
+    if (deg > out.maxDeg) { out.maxDeg = Math.round(deg * 100) / 100; out.worst = `${j}@${frame}`; }
+    if (deg >= DIR_LIMIT_DEG) out.over.push(j);
+  }
+  return out;
 }
 
 /** Reads `<dir>/<slug>.json` (default build/mocap/mixamo/raw) and adapts it (takeFromDump). */
@@ -314,13 +322,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   const rig = wrenRig();
   let bad = 0;
   for (const slug of slugs) {
-    const t = loadMixamoTake(slug, { rig });
+    const dump = JSON.parse(readFileSync(path.join(MIXAMO_RAW, `${slug}.json`), 'utf8'));
+    const t = takeFromDump(dump, { rig, bytes: statSync(path.join(MIXAMO_RAW, `${slug}.json`)).size, slug });
     const c = selfCheck(t), r = t.report;
     console.info(`${slug}: ${r.framesIn} f @${r.fpsIn} -> ${t.frames} f @${FPS} ${c.ok ? 'OK' : 'FAIL'} | facing ${r.facing.turnDeg} deg (${r.facing.from}) | floor ${r.floorCm} cm | travel ${r.travelCm} cm${r.inPlace ? ' (in place)' : ''} | fk ${r.fkErrMm} mm | blend stretch ${r.stretchMm} mm (${r.stretchSlot}) | leg ${r.leg.mixamo} m, scale ${r.leg.scale}`);
     for (const l of c.lines) console.info(`  ${l}`);
     console.info(`  ratio wren/mixamo: ${Object.entries(r.segments).map(([j, s]) => `${j} ${s.ratio}`).join(', ')}`);
-    const dc = r.dirCheck, dd = (e) => (e ? `${e.deg}@${e.frame}` : '-');
-    console.info(`  dir (worst deg@frame): spine ${dd(dc.segments.spine)}, chest ${dd(dc.segments.chest)}, neck ${dd(dc.segments.neck)}, chord ${dd(dc.chord)} | all ${dc.worstDeg} (${dc.worst})${dc.over.length ? ` OVER ${dc.limitDeg}: ${dc.over.join(', ')}` : ''}`);
+    const dc = mixamoDirCheck(rig, dump, { take: t }), dd = (e) => (e ? `${e.deg}@${e.frame}` : '-');
+    console.info(`  dir (retargeted Wren vs Mixamo heads, worst deg@frame): spine ${dd(dc.segments.spine)}, chest ${dd(dc.segments.chest)}, neck ${dd(dc.segments.neck)} | all ${dc.maxDeg} (${dc.worst})${dc.over.length ? ` OVER ${dc.limitDeg}: ${dc.over.join(', ')}` : ''}`);
     if (!c.ok) bad++;
     if (dc.over.length) bad++;
   }

@@ -9,14 +9,15 @@
 // `offset` slot carrying the rigid hop in the parent bone's frame (as CMU's `lhipjoint`). A `hub` slot has no length
 // (its tip is its start) and exists so CMU names analyze.mjs reads (`lowerneck`, `lwrist`) are present.
 //
-// Spine (A6): Mixamo has three spine bones, Wren two; matched by rest height (standing_idle, game frame: Wren spine 1.008
-// / chest 1.133 / neck 1.421 / head 1.571 m, Mixamo heads Spine 1.015 / Spine1 1.127 / Neck 1.399 / Head 1.471 m).
-// Wren `spine` is Mixamo `Spine` (`upperback`: Spine head -> Spine1 head). Wren `chest` spans Spine1 + Spine2
-// (`thorax`: Spine1 head -> Neck head, a `blend` slot). Wren `neck` (15 cm) spans Neck + the lower Head bone (`upperneck`:
-// Neck head -> a point NECK_AT up the Head bone, Wren's head joint). A blend slot turns with the slerp halfway between
-// its two bones (the twist), then swings by the smallest arc so its rest span lands exactly on the posed span the two
-// bones make; its tip is a measured joint again. `lowerback` is a hub (CMU name only). Fingers, clavicles: extra slots
-// for the keyed `fing` / `clav` channels (A7; M3 emits them). WREN_SPANS (below) is the independent check table.
+// Spine (A6): Mixamo has three spine bones, Wren two; matched by rest height (standing_idle heads above the hips head:
+// Mixamo Spine 0.096 / Spine1 0.208 / Spine2 0.336 / Neck 0.480 m; Wren above the pelvis: spine 0.130 / chest 0.255 /
+// neck 0.543 m). Wren `spine` (spine -> chest joint) is Mixamo `Spine` (`upperback`: Spine head -> Spine1 head); Wren
+// `chest` (chest -> neck joint) spans Spine1 + Spine2 (`thorax`: Spine1 head -> Neck head, a `blend` slot). A blend
+// slot turns with the slerp halfway between its two bones (the twist), then swings by the smallest arc so its rest span
+// lands exactly on the posed span the two bones make: its direction is the measured Spine1 -> Neck direction at every
+// frame. `lowerback` is a hub (CMU name only). Neck as the plan: `upperneck` = Neck (Neck head -> Head head). Fingers,
+// clavicles: extra slots for the keyed `fing` / `clav` channels (A7; M3 emits them). WREN_SPANS (below) is the
+// independent table the direction check (mixamoTake.mjs `mixamoDirCheck`) measures against.
 // `*_End`, `HeadTop_End` and the finger `4` bones are end points only. Lengths here are the file's; the retarget always
 // uses Wren's own lengths (rest correction aims Wren's segments).
 
@@ -44,41 +45,28 @@ export const MIXAMO_FINGER_BONES = SIDES.flatMap(([, S]) => FINGERS.flatMap((F) 
 export const MIXAMO_ALL = [...MIXAMO_REQUIRED, ...MIXAMO_FINGER_BONES, ...MIXAMO_ENDS];
 
 /**
- * Wren's head joint on the Mixamo Head bone, as the fraction from the Head head to HeadTop_End. Wren's neck is 15.0 cm of
- * a 41.3 cm spine-to-neck chord; on the dumps' 38.4 cm Spine -> Neck chord that is 13.9 cm above the Neck head, i.e.
- * 6.8 cm up the 20.7 cm Head bone past the 7.2 cm Neck bone: 1/3.
- */
-export const NECK_AT = 1 / 3;
-/** HeadTop_End missing: the Head bone guessed as this many Neck -> Head hops long (20.7 / 7.2 cm on the 21 dumps). */
-export const HEAD_GUESS = 2.9;
-
-/**
- * The direction check (A6, mixamoTake.mjs `report.dirCheck`): Wren joint -> the Mixamo span its segment must follow,
- * [from, to], matched by rest height, independent of MIXAMO_MAP's slots. A point is a bone head, or [a, b, k] = the point
- * k of the way from a's head to b's head. `chord`: Wren spine -> neck against Mixamo Spine -> Neck heads.
+ * The direction check's source spans (A6, mixamoTake.mjs `mixamoDirCheck`): Wren joint -> [from, to], the Mixamo bones
+ * whose heads span the segment that starts at the joint (retarget.mjs SEG_END), matched by rest height. Written out
+ * here, independent of MIXAMO_MAP's slots, so a slot on the wrong bone shows as a direction error.
  */
 export const WREN_SPANS = {
-  spine: ['Spine', 'Spine1'], chest: ['Spine1', 'Neck'], neck: ['Neck', ['Head', 'HeadTop_End', NECK_AT]],
+  spine: ['Spine', 'Spine1'], chest: ['Spine1', 'Neck'], neck: ['Neck', 'Head'],
   ...Object.fromEntries(SIDES.flatMap(([s, S]) => {
     const j = s.toUpperCase();
     return [[`sh${j}`, [`${S}Arm`, `${S}ForeArm`]], [`el${j}`, [`${S}ForeArm`, `${S}Hand`]], [`wr${j}`, [`${S}Hand`, `${S}HandMiddle1`]],
       [`hip${j}`, [`${S}UpLeg`, `${S}Leg`]], [`kn${j}`, [`${S}Leg`, `${S}Foot`]], [`an${j}`, [`${S}Foot`, `${S}ToeBase`]]];
   })),
 };
-export const WREN_CHORD = { from: 'spine', via: 'chest', to: 'neck', span: ['Spine', 'Neck'] };
-
 /**
- * slot -> { rot, end, parent, kind, extend?, blend?, at? }. Insertion order is parents before children.
+ * slot -> { rot, end, parent, kind, extend?, blend? }. Insertion order is parents before children.
  *   rot     the Mixamo bone whose rotation turns the slot
  *   end     the Mixamo bone whose head is the slot's tip; null for a hub (tip = start)
  *   parent  the slot whose tip is this slot's start (null for `root`, whose tip is the Hips head)
  *   kind    'core' (drives a Wren segment or the trunk chain), 'offset' (rigid hop), 'hub', 'clav', 'finger',
  *           'alias' (a CMU name analyze.mjs reads, the same data as a finger slot)
- *   extend  when `end` is missing in the file: the tip = start + extend x the parent slot's rest vector (a blend slot
- *           with `at`: the missing end = blend head + extend x the rot -> blend head hop)
- *   blend   (blend slot) the child of `rot` the slot also spans: rot head -> blend head -> tip, turning with the
+ *   extend  when `end` is missing in the file: the tip = start + extend x the parent slot's rest vector
+ *   blend   (blend slot) the child of `rot` the slot also spans: rot head -> blend head -> end head, turning with the
  *           rot / blend slerp at 0.5 swung onto the posed span (`end`'s parent is `blend`, `blend`'s parent `rot`)
- *   at      (blend slot) the tip is this fraction from the blend head to the end head (default 1: the end head)
  */
 export const MIXAMO_MAP = (() => {
   const m = {};
@@ -86,12 +74,11 @@ export const MIXAMO_MAP = (() => {
   add('root', 'Hips', 'Hips', null, 'core');
   add('spinejoint', 'Hips', 'Spine', 'root', 'offset');
   add('lowerback', 'Spine', null, 'spinejoint', 'hub');
-  add('upperback', 'Spine', 'Spine1', 'lowerback', 'core');
-  add('thorax', 'Spine1', 'Neck', 'upperback', 'core', 0, { blend: 'Spine2' });
+  add('upperback', 'Spine', 'Spine1', 'lowerback', 'core'); // Wren's spine
+  add('thorax', 'Spine1', 'Neck', 'upperback', 'core', 0, { blend: 'Spine2' }); // Wren's chest: Spine1 + Spine2
   add('lowerneck', 'Spine2', null, 'thorax', 'hub');
-  add('upperneck', 'Neck', 'HeadTop_End', 'lowerneck', 'core', HEAD_GUESS, { blend: 'Head', at: NECK_AT });
-  // HeadTop_End missing: upperneck guesses it (HEAD_GUESS), the head's tip lands on the same guess
-  add('head', 'Head', 'HeadTop_End', 'upperneck', 'core', ((1 - NECK_AT) * HEAD_GUESS) / (1 + NECK_AT * HEAD_GUESS));
+  add('upperneck', 'Neck', 'Head', 'lowerneck', 'core');
+  add('head', 'Head', 'HeadTop_End', 'upperneck', 'core', 1.7);
   for (const [s, S] of SIDES) {
     add(`${s}clavjoint`, 'Spine2', `${S}Shoulder`, 'thorax', 'offset');
     add(`${s}clavicle`, `${S}Shoulder`, `${S}Arm`, `${s}clavjoint`, 'clav');
@@ -156,7 +143,7 @@ export function resolveMixamoBones(bones) {
 }
 
 /**
- * The slots a resolved file supports, parents first: [{ slot, rot, end, parent, kind, extend, blend, at }], `end` null for a
+ * The slots a resolved file supports, parents first: [{ slot, rot, end, parent, kind, extend, blend }], `end` null for a
  * hub or when the end bone is missing (then `extend` gives the tip). A missing finger drops its slots; the CMU aliases
  * `lfingers` / `lthumb` then become hubs on the hand.
  */
@@ -173,7 +160,7 @@ export function mixamoSlots(res) {
     if (endMissing && !d.extend) throw new Error(`mixamo: slot ${slot} needs ${d.end}`);
     out.push({
       slot, rot: d.rot, end: endMissing ? null : d.end, parent: d.parent, kind: d.kind,
-      ...(d.extend ? { extend: d.extend } : {}), ...(d.blend ? { blend: d.blend } : {}), ...(d.at !== undefined ? { at: d.at } : {}),
+      ...(d.extend ? { extend: d.extend } : {}), ...(d.blend ? { blend: d.blend } : {}),
     });
   }
   return out;

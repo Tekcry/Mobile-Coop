@@ -4,7 +4,8 @@
 // same whatever the armature's turn, the rotations reproduce the dump's own heads, a left turn reads as a left turn,
 // segments end at child heads, 30 -> 120 fps by slerp, the floor at y = 0, asfamc selfCheck passes, A4 in-place
 // detection, and the CMU pipeline (retargetTake, buildSlot with `inPlace`, analyzeTake) runs through the injected
-// loader. Plus the CMU regression: the default path equals the injected CMU loader (cached take, else skipped).
+// loader. The direction check (A6): a strongly bent spine retargeted onto Wren follows the Mixamo heads (Wren spine =
+// Spine -> Spine1, chest = Spine1 -> Neck), where the map before the fix (spine on Spine1, chest on Spine2) is far off. Plus the CMU regression: the default path equals the injected CMU loader (cached take, else skipped).
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,6 +18,8 @@ import * as retargetMod from '../scripts/mocap/retarget.mjs';
 import * as analyzeMod from '../scripts/mocap/analyze.mjs';
 // @ts-expect-error plain .mjs build script without types
 import * as asfMod from '../scripts/mocap/asfamc.mjs';
+// @ts-expect-error plain .mjs build script without types
+import * as mapMod from '../scripts/mocap/mixamoMap.mjs';
 
 type V = number[];
 type Q = number[]; // [x, y, z, w]
@@ -40,7 +43,11 @@ const T = takeMod as {
   mixamoLoader: (o?: { dir?: string }) => (slug: string) => Take;
   MIXAMO_LICENCE: string;
   IN_PLACE_M: number;
+  DIR_LIMIT_DEG: number;
+  mixamoDirCheck: (rig: Rig, d: Dump) => DirCheck;
 };
+interface DirCheck { limitDeg: number; maxDeg: number; worst: string | null; segments: Record<string, { span: string; deg: number; frame: number } | null>; over: string[] }
+const MAPS = mapMod as { MIXAMO_MAP: Record<string, { rot: string; end: string | null; parent: string | null; kind: string; blend?: string }> };
 interface Slot { format: string; root: number[][]; speed: number | null; cycleDistance: number | null; inPlace?: boolean; source: { licence: string; take: string }; quality: { retargetDirErrDeg: number } }
 const RT = retargetMod as {
   wrenRig: () => Rig;
@@ -210,7 +217,8 @@ describe('loadMixamoTake (synthetic M1 dumps)', () => {
     expectSeg('ltibia', 'LeftLeg', 'LeftFoot');
     expectSeg('lfoot', 'LeftFoot', 'LeftToeBase');
     expectSeg('ltoes', 'LeftToeBase', 'LeftToe_End');
-    expectSeg('upperback', 'Spine1', 'Spine2');
+    expectSeg('upperback', 'Spine', 'Spine1');
+    expectSeg('thorax', 'Spine1', 'Neck');
     expectSeg('upperneck', 'Neck', 'Head');
     expectSeg('head', 'Head', 'HeadTop_End');
     expectSeg('lhipjoint', 'Hips', 'LeftUpLeg');
@@ -251,7 +259,7 @@ describe('loadMixamoTake (synthetic M1 dumps)', () => {
     // every source frame k (120 fps frame 4k): each slot's rotation maps its rest segment onto the canonical posed one
     for (let i = 0; i < WALK.n; i += 5) {
       const { P } = fkCanon(WALK.pose(i));
-      const seg: [string, string, string][] = [['lfemur', 'LeftUpLeg', 'LeftLeg'], ['ltibia', 'LeftLeg', 'LeftFoot'], ['lradius', 'LeftForeArm', 'LeftHand'], ['lindex1', 'LeftHandIndex1', 'LeftHandIndex2'], ['upperback', 'Spine1', 'Spine2'], ['rhumerus', 'RightArm', 'RightForeArm']];
+      const seg: [string, string, string][] = [['lfemur', 'LeftUpLeg', 'LeftLeg'], ['ltibia', 'LeftLeg', 'LeftFoot'], ['lradius', 'LeftForeArm', 'LeftHand'], ['lindex1', 'LeftHandIndex1', 'LeftHandIndex2'], ['upperback', 'Spine', 'Spine1'], ['thorax', 'Spine1', 'Neck'], ['rhumerus', 'RightArm', 'RightForeArm']];
       for (const [slot, a, b] of seg) {
         const bone = w.skel.bones.get(slot)!;
         const posed = rot(w.quat.get(slot)![4 * i]!, [-bone.dir[0]!, bone.dir[1]!, bone.dir[2]!]);
@@ -332,6 +340,46 @@ describe('the CMU pipeline on a Mixamo take (injected loader)', () => {
     const R = RT.retargetTake(rig, 'walk', { load });
     expect(R.dirErrDeg).toBeLessThan(0.5);
     expect(R.scaleLeg).toBeCloseTo(rig.leg / (0.43 + Math.hypot(0.02, 0.42)), 4);
+  });
+
+  it('direction check: a strongly bent spine follows Spine -> Spine1 and Spine1 -> Neck; the map before the fix did not', () => {
+    // a lift / kneel: Spine, Spine1 and Spine2 each bend forward by a different amount, with a side lean and a twist
+    const BENT: Clip = {
+      n: 31,
+      pose: (i) => {
+        const k = i / 30;
+        return {
+          T: [0, 0, -0.3 * k],
+          L: { Spine: qax(X, 0.7 * k), Spine1: qax(add(X, [0, 0.5, 0]), 0.8 * k), Spine2: qax(add(Z, [0, 0.6, 0]), 0.6 * k), Neck: qax(X, -0.4 * k), LeftArm: qax(Y, 1.2), RightArm: qax(Y, -1.2) },
+        };
+      },
+    };
+    const d = dumpOf(BENT, { slug: 'bent', theta: 0.9, t: [0.4, -1, 0] });
+    const now = T.mixamoDirCheck(rig, d);
+    for (const j of ['spine', 'chest', 'neck', 'shL', 'hipR']) expect(now.segments[j]!.deg, j).toBeLessThan(0.5);
+    expect(now.maxDeg).toBeLessThan(0.5);
+    expect(now.over).toEqual([]);
+    expect(now.segments.spine!.span).toBe('Spine->Spine1');
+    expect(now.segments.chest!.span).toBe('Spine1->Neck');
+    // the same check with the M2 map before the fix (Wren spine on Spine1 -> Spine2, chest on Spine2 -> Neck, Spine only
+    // carried the chain): the spine and chest miss the Mixamo heads by far more than A6's 8 deg
+    const m = MAPS.MIXAMO_MAP, saved = { lowerback: m.lowerback!, upperback: m.upperback!, thorax: m.thorax! };
+    try {
+      m.lowerback = { rot: 'Spine', end: 'Spine1', parent: 'spinejoint', kind: 'core' };
+      m.upperback = { rot: 'Spine1', end: 'Spine2', parent: 'lowerback', kind: 'core' };
+      m.thorax = { rot: 'Spine2', end: 'Neck', parent: 'upperback', kind: 'core' };
+      const old = T.mixamoDirCheck(rig, d);
+      expect(old.segments.spine!.deg).toBeGreaterThan(30);
+      expect(old.segments.chest!.deg).toBeGreaterThan(T.DIR_LIMIT_DEG);
+      expect(old.over).toEqual(expect.arrayContaining(['spine', 'chest']));
+      expect(old.segments.shL!.deg).toBeLessThan(0.5); // the limbs never depended on the spine slots
+    } finally {
+      Object.assign(m, saved);
+    }
+    expect(T.mixamoDirCheck(rig, d).maxDeg).toBe(now.maxDeg);
+    // the walk too (30 fps), and a 60 fps dump: every source frame lands on a 120 fps frame
+    expect(T.mixamoDirCheck(rig, dumps.walk!).maxDeg).toBeLessThan(0.5);
+    expect(T.mixamoDirCheck(rig, dumpOf(BENT, { fps: 60 })).maxDeg).toBeLessThan(0.5);
   });
 
   it('buildSlot { inPlace } keeps an on-the-spot loop\'s root fixed, with the Mixamo source line', () => {
