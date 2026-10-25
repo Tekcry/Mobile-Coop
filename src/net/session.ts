@@ -6,6 +6,13 @@ import { capacity, parseMessage, PROTOCOL_VERSION, sectorMissionId, type Difficu
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { REJOIN_HOLD_S } from '../core/rejoin';
+import { MAPS } from '../world/maps';
+import type { MissionDef } from '../game/mission/missionDef';
+import { campaignStartBlock, isCampaignMap, isCampaignMission } from '../game/mission/campaign';
+
+/** (mission-rules R4, G2 "2 player coop campaign only", G48 "No bot anywhere") A campaign room holds exactly two,
+ *  whatever the mode's `capacity()` (coop4 takes Sector Ops to 4; a campaign room stays 2). */
+export const CAMPAIGN_ROOM = 2;
 
 export interface LocalProfile {
   name: string;
@@ -161,7 +168,7 @@ export class NetSession {
       held++;
       only = p.id;
     }
-    return held === 1 && this.players.size >= capacity(this.mode) ? only : null;
+    return held === 1 && this.players.size >= this.cap ? only : null;
   }
 
   private hostReceive(msg: Msg, from: string, conn: string): void {
@@ -185,7 +192,7 @@ export class NetSession {
           this.route.set(held, conn);
         }
       }
-      if (!this.players.has(pid) && this.players.size >= capacity(this.mode)) {
+      if (!this.players.has(pid) && this.players.size >= this.cap) {
         this.send({ t: 'bye', reason: 'Room is full' }, conn);
         return;
       }
@@ -353,16 +360,48 @@ export class NetSession {
     return [...this.players.values()].every((p) => p.ready || p.host);
   }
 
-  /** Too many players for the chosen mode (co-op takes 4). */
-  get overCapacity(): boolean {
-    return this.players.size > capacity(this.mode);
+  /** (mission-rules R4) The room's map's missions (Sector Ops only: no other mode binds a mission). */
+  private sectorMissions(): readonly MissionDef[] | undefined {
+    if (this.mode !== 'sector') return undefined;
+    return MAPS.find((m) => m.id === this.map)?.missions;
   }
 
-  /** Host: start the match for everyone. */
+  /**
+   * (mission-rules R4, BRIEF A9) The room plays the campaign: Sector Ops on a campaign map (Tallow Wharf: every mission
+   * campaign, A8) or with a campaign mission picked. A client knows only the map (the host's mission comes with `start`),
+   * so its view follows the map; the host decides every start and join.
+   */
+  get campaign(): boolean {
+    const missions = this.sectorMissions();
+    return isCampaignMap(missions) || isCampaignMission(missions?.find((m) => m.id === this.sectorMission));
+  }
+
+  /** Players this room takes: `CAMPAIGN_ROOM` (2) for the campaign, else the mode's `capacity`. */
+  get cap(): number {
+    return this.campaign ? CAMPAIGN_ROOM : capacity(this.mode);
+  }
+
+  /**
+   * (mission-rules R4, G2) Why the host cannot start the campaign now (`CAMPAIGN_PICK_MISSION`: a campaign map with no
+   * campaign mission picked; `CAMPAIGN_TWO_PLAYERS`: not exactly two in the room), or null (any other match, as before).
+   */
+  get campaignBlock(): string | null {
+    const missions = this.sectorMissions();
+    return missions ? campaignStartBlock(missions, this.sectorMission || null, this.players.size) : null;
+  }
+
+  /** Too many players for the chosen mode (co-op takes 4) or for the campaign (2). */
+  get overCapacity(): boolean {
+    return this.players.size > this.cap;
+  }
+
+  /** Host: start the match for everyone; null (and the room stays in the lobby) when it cannot start. */
   startMatch(): StartInfo | null {
     if (!this.isHost) return null;
+    // (mission-rules R4, BRIEF A19) a blocked start returns before the phase changes, so the room can still start once
+    // the partner is in (before, a lone host was left in `playing` and never started)
+    if (this.overCapacity || this.campaignBlock !== null) return null;
     this.phase = 'playing';
-    if (this.overCapacity) return null;
     // (NET3) a Sector Ops match carries the host's mission (none: the start as before)
     const sm = this.mode === 'sector' ? this.sectorMission : '';
     this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1, ...(sm ? { sectorMission: sm } : {}) };
