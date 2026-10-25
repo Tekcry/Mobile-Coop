@@ -216,8 +216,9 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
 ## Docs
 - Map: `docs/VISION.md` the game, `docs/RULES.md` process, `docs/DECISIONS.md` why (every G entry and its history),
   `docs/design-bible.md` systems, `docs/level-design.md` maps, `docs/INDEX.md` lookup (module map, doc index),
-  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record. The roadmap lives on origin/feature/menu
-  (`git show origin/feature/menu:docs/ROADMAP.md`); master's `docs/ROADMAP.md` only points there.
+  `docs/systems/*.md` detail per system, `docs/<job>/` one job's record. `docs/ROADMAP.md` and `docs/orchestrator/`
+  are the orchestrator's, edited on feature/menu and synced to master by the trains; doc lint skips their stale-term,
+  owner, size and header checks.
 - Every current doc starts with `Owner: <who>. Status: current | history.` under its title (G344): the orchestrator for
   VISION, RULES, INDEX, DECISIONS and the bible; Marlow Build for level-design and the scale sheet (changes need
   Michael's approval); the area lead for each `docs/systems/*.md`.

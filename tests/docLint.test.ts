@@ -210,7 +210,7 @@ describe('owner / status headers (G344)', () => {
     const read = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
     const lint = read('docs/doc-lint.json');
     const core = ['CLAUDE.md', 'docs/VISION.md', 'docs/RULES.md', 'docs/INDEX.md', 'docs/DECISIONS.md', 'docs/design-bible.md',
-      'docs/level-design.md', 'docs/design/scale-sheet.md', 'docs/ROADMAP.md',
+      'docs/level-design.md', 'docs/design/scale-sheet.md',
       ...fs.readdirSync('docs/systems').map((f) => `docs/systems/${f}`), ...fs.readdirSync('docs/templates').map((f) => `docs/templates/${f}`)];
     const files = new Map(core.map((f) => [f, fs.readFileSync(f, 'utf8')]));
     expect(checkHeaders(files, lint.headers)).toEqual([]);
