@@ -19,4 +19,13 @@ Slice B done: lib.mjs isFront :234, greenIds :245, pickFrom order tiers :305 (+ 
 service.mjs env GREEN_FIRST / FRONT_BRANCHES / GREEN_MAX_WAIT_MS ~:147, queue.order + "order:" log :1602 (before the pick loop);
 tests: describe "pick: front, green smallest first" (11) beside the first pick describe. Vitest 167 pass, typecheck:fast clean.
 
-Next: slice C (a train head that moves; Opus).
+Slice C done: lib.mjs docsOnlyFiles :467 (watchdog.mjs:227 re-exports it), isVersionHead :470, versionAt :480,
+carryFiles :496, carryFrom :510 (live injected), carryDesc :520; service.mjs env TRAIN_CARRY / TRAIN_CARRY_DEPTH :151,
+nextTrainNow isVersion :611, trainChain :631, carryMoved :656 (chain reads, live(P), carry / wait / run), pendingTrains
+moved-head call :753, openTrainHeads Map :760, followsTrain :772, voidHeads :791 (void watch :1112), carryOnto :1195
+(after a pass). lastTrainEndFrom left for slice F (PLAN places it there). Tests: describe "train head moves (trains 111
+/ 112)" :1534 (5), autoTrain carried-release case :810. Vitest 243 pass (+ watchdog 28), typecheck:fast clean.
+PR body note (PLAN Risks): no src/ or e2e read of a docs/ .md file; only offline scripts/kestrel/p03b-*-check-*.mjs read
+docs/kestrel/*.md (not laptop suites).
+
+Next: slice D (train rerun sharding; Opus).

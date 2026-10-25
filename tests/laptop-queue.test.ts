@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -1526,5 +1528,98 @@ describe('affected-e2e never stuck pending (Orchestrator audit 2026-10-25)', () 
     const two = vanishedRequests(tracked, new Set([b.id]), one.misses);
     expect(two.gone).toEqual([a]);
     expect(two.misses.size).toBe(0);
+  });
+});
+
+describe('train head moves (trains 111 / 112)', () => {
+  const sh = (c: string) => c.repeat(40);
+  const H = sh('a'), D2 = sh('b'), D1 = sh('c'), V = sh('d');
+  const vSub = (n: number) => `4.106.0: version at merge, train ${n} (G183)`;
+  // `git log --first-parent --format=%H%x09%s` lines, newest first
+  const lines = [`${H}\ttrain 112: doc fix`, `${D2}\ttrain 112: fix 2`, `${D1}\tMerge origin/feature/a into train/112`, `${V}\t${vSub(112)}`, `${sh('e')}\tolder`];
+  // the service's live(P): claimed here, or an open claim under LQ_CLAIM_MAX_H (a done claim never counts)
+  const T = Date.parse('2026-10-26T10:00:00Z');
+  const MAX = 3 * 3600_000;
+  const liveOf = (claims: Record<string, string>, claimed = new Set<string>()) => (p: string) => {
+    if (claimed.has(p)) return true;
+    const c = parseClaim(claims[p] ?? '');
+    return !!c && !c.done && claimBlocks(c, 'laptop', T, MAX);
+  };
+  const docs = ['docs/x.md', 'changes/f.md', 'CHANGELOG.md', 'src/a/README.md'];
+  const delta = (byFrom: Record<string, string[]>) => (from: string) => byFrom[from] ?? docs;
+
+  it('versionAt finds V under a fix commit, not past depth, not another train\'s version; isVersionHead', () => {
+    expect(versionAt(lines, 112)).toEqual({ versionSha: V, index: 3 });
+    expect(versionAt(lines, '112', 20)).toEqual({ versionSha: V, index: 3 });
+    expect(versionAt([`${V}\t${vSub(112)}`], 112)).toEqual({ versionSha: V, index: 0 });
+    expect(versionAt(lines, 112, 3)).toBeNull();
+    expect(versionAt(lines, 111)).toBeNull();
+    expect(versionAt([`${H}\tfix`, `${V}\t${vSub(111)}`, `${sh('e')}\t${vSub(112)}`], 112)).toBeNull();
+    expect(versionAt([], 112)).toBeNull();
+    expect(isVersionHead(vSub(112), 112)).toBe(true);
+    expect(isVersionHead(`${vSub(112)}\n`, '112')).toBe(true);
+    expect(isVersionHead(vSub(112), 11)).toBe(false);
+    expect(isVersionHead('4.106.0: version at merge (G183)', 112)).toBe(false);
+    expect(isVersionHead('train 112: doc fix', 112)).toBe(false);
+  });
+
+  it('carryFiles: the G325 docs-only set minus non-.md files under docs/', () => {
+    expect(carryFiles(docs)).toBe(true);
+    expect(carryFiles(['src/x.ts', 'docs/a.md'])).toBe(false);
+    expect(carryFiles(['package.json'])).toBe(false);
+    expect(carryFiles(['docs/kestrel/kestrel.blocks.json'])).toBe(false);
+    expect(docsOnlyFiles(['docs/kestrel/kestrel.blocks.json'])).toBe(true); // the G325 set alone would carry it
+    expect(carryFiles([])).toBe(false);
+    expect(carryFiles(null)).toBe(false);
+    expect(docsOnlyFiles([])).toBe(false);
+    expect(watchdogDocsOnly).toBe(docsOnlyFiles);
+  });
+
+  it('carryFrom: the newest final verdict decides; a newer failure is never skipped', () => {
+    const chain = (...st: string[]) => st.map((s, i) => ({ sha: [D2, D1, V][i], laptop: s }));
+    // V pass, docs-only delta -> carried from V
+    expect(carryFrom(chain('', '', 'success'), delta({}))).toEqual({ from: V });
+    // code (or docs JSON) in the delta -> null (H runs as a train)
+    for (const f of ['src/x.ts', 'package.json', 'docs/kestrel/kestrel.blocks.json']) expect(carryFrom(chain('', '', 'success'), delta({ [V]: [...docs, f] }))).toBeNull();
+    // the newest success wins over an older one
+    expect(carryFrom(chain('', 'success', 'success'), delta({}))).toEqual({ from: D1 });
+    // V pass, D1 fail, H = D2 -> null; an error after a success too
+    expect(carryFrom([{ sha: D1, laptop: 'failure' }, { sha: V, laptop: 'success' }], delta({}))).toBeNull();
+    expect(carryFrom(chain('error', '', 'success'), delta({}))).toBeNull();
+    // failure or no status on every chain commit -> null
+    expect(carryFrom(chain('', '', 'failure'), delta({}))).toBeNull();
+    expect(carryFrom(chain('', '', ''), delta({}))).toBeNull();
+    expect(carryFrom([], delta({}))).toBeNull();
+    // a git error on the delta -> null
+    expect(carryFrom(chain('', '', 'success'), () => null)).toBeNull();
+  });
+
+  it('carryFrom waits only on a live docs-only run; a dead pending run counts as no verdict', () => {
+    const pend = [{ sha: D2, laptop: 'pending' }, { sha: D1, laptop: '' }, { sha: V, laptop: 'failure' }];
+    const open = JSON.stringify({ worker: 'desktop', at: '2026-10-26T09:30:00.000Z' });
+    const done = JSON.stringify({ worker: 'desktop', at: '2026-10-26T09:30:00.000Z', done: true });
+    const old = JSON.stringify({ worker: 'desktop', at: '2026-10-26T06:00:00.000Z' });
+    // live: claimed here, or the other worker's open claim
+    expect(carryFrom(pend, delta({}), liveOf({}, new Set([D2])))).toEqual({ wait: D2 });
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: open }))).toEqual({ wait: D2 });
+    // no claim, a done claim (lost final post), an open claim over LQ_CLAIM_MAX_H, this worker's own open claim (a
+    // restart) -> not live: H runs (V failed)
+    expect(carryFrom(pend, delta({}), liveOf({}))).toBeNull();
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: done }))).toBeNull();
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: old }))).toBeNull();
+    expect(carryFrom(pend, delta({}), liveOf({ [D2]: JSON.stringify({ worker: 'laptop', at: '2026-10-26T09:30:00.000Z' }) }))).toBeNull();
+    // ... or carries from an older success over a docs-only delta
+    const older = [{ sha: D2, laptop: 'pending' }, { sha: D1, laptop: 'success' }, { sha: V, laptop: 'success' }];
+    expect(carryFrom(older, delta({}), liveOf({}))).toEqual({ from: D1 });
+    expect(carryFrom(older, delta({}), liveOf({ [D2]: done }))).toEqual({ from: D1 });
+    // a live pending ancestor with a code delta -> null (H runs)
+    expect(carryFrom(pend, delta({ [D2]: ['src/x.ts'] }), liveOf({ [D2]: open }))).toBeNull();
+    // no injected live: never waits
+    expect(carryFrom(pend, delta({}))).toBeNull();
+  });
+
+  it('carryDesc fits a status description', () => {
+    expect(carryDesc('546a2286' + 'f'.repeat(32))).toBe('carried from 546a2286, docs-only delta');
+    expect(carryDesc(sh('9')).length).toBeLessThan(140);
   });
 });

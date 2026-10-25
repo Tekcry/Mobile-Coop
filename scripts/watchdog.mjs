@@ -223,8 +223,8 @@ export function normalizePr(node) {
   };
 }
 
-/** True when every path is docs only (docs/, *.md, changes/ fragments, CHANGELOG). */
-export const docsOnlyFiles = (files) => files.length > 0 && files.every((f) => /^(docs\/|changes\/|CHANGELOG)|\.md$/.test(f));
+/** True when every path is docs only (docs/, *.md, changes/ fragments, CHANGELOG); one definition in laptop-queue lib. */
+export const docsOnlyFiles = lq.docsOnlyFiles;
 
 const statusOf = (pr, ctx) => pr.statuses?.[ctx]?.state ?? 'missing';
 export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));

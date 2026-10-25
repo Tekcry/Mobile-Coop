@@ -458,6 +458,67 @@ export function voidMisses(prev, sha, heads) {
   return heads.has(sha) ? 0 : prev + 1;
 }
 
+// ---------- a train head that moves (laptop-queue-7 slice C, BRIEF A7-A9) ----------
+
+/**
+ * The G325 docs-only set (`docs/`, `changes/`, `CHANGELOG*`, `*.md`); an empty list is not docs-only. scripts/watchdog.mjs
+ * re-exports this one definition (it imports lib, so lib cannot import it back; BRIEF F4).
+ */
+export const docsOnlyFiles = (files) => files.length > 0 && files.every((f) => /^(docs\/|changes\/|CHANGELOG)|\.md$/.test(f));
+
+/** True when a commit subject is train n's version commit "<v>: version at merge, train <n> (G183)". */
+export function isVersionHead(subject, n) {
+  const m = /^\d+\.\d+\.\d+: version at merge, train (\d+) \(G183\)$/.exec(String(subject ?? '').trim());
+  return !!m && m[1] === String(n);
+}
+
+/**
+ * Train n's newest version commit in `git log --first-parent -n <depth> --format=%H%x09%s <head>` lines (newest
+ * first): { versionSha, index } (index 0 = the head itself), or null when it is not within depth lines or another
+ * train's version commit comes first (the walk never passes another train).
+ */
+export function versionAt(lines, n, depth = Infinity) {
+  const rows = (lines ?? []).map((l) => String(l).trim()).filter(Boolean).slice(0, depth);
+  for (let i = 0; i < rows.length; i++) {
+    const tab = rows[i].indexOf('\t');
+    const sha = tab < 0 ? rows[i] : rows[i].slice(0, tab);
+    const subject = tab < 0 ? '' : rows[i].slice(tab + 1);
+    if (isVersionHead(subject, n)) return { versionSha: sha, index: i };
+    if (/: version at merge, train \d+ \(G183\)$/.test(subject.trim())) return null;
+  }
+  return null;
+}
+
+/**
+ * A delta a train verdict may carry over: docs-only (G325) and no non-`.md` file under `docs/` (BRIEF F6: docs/kestrel
+ * JSON is read by the game and by suites). Not a list (a git error) is false.
+ */
+export function carryFiles(files) {
+  return Array.isArray(files) && docsOnlyFiles(files) && !files.some((f) => f.startsWith('docs/') && !f.endsWith('.md'));
+}
+
+const FINAL = new Set(['success', 'failure', 'error']);
+/**
+ * The carry decision for a moved train head H (BRIEF A7). chain = [{ sha, laptop }] from H's parent back to the version
+ * commit, newest first (laptop = that commit's laptop-e2e state, '' when none). filesBetween(sha) = the changed files
+ * from sha to H. live(sha) = its run is going (a claim held here, or an open claim under LQ_CLAIM_MAX_H).
+ * C = the newest commit with a final verdict (success, failure or error): { from: C } when that verdict is success and
+ * the C..H delta carries (carryFiles); a newer failure is never skipped. A pending commit newer than C whose run is live:
+ * { wait: P } when the P..H delta carries, else null. A pending commit with no live run counts as no verdict (skipped).
+ * null = H runs as a normal train.
+ */
+export function carryFrom(chain, filesBetween, live = () => false) {
+  for (const c of chain ?? []) {
+    const st = c?.laptop ?? '';
+    if (FINAL.has(st)) return st === 'success' && carryFiles(filesBetween(c.sha)) ? { from: c.sha } : null;
+    if (st === 'pending' && live(c.sha)) return carryFiles(filesBetween(c.sha)) ? { wait: c.sha } : null;
+  }
+  return null;
+}
+
+/** The carried laptop-e2e success description (GitHub caps it at 140 chars). */
+export const carryDesc = (sha) => `carried from ${String(sha).slice(0, 8)}, docs-only delta`;
+
 /**
  * auto-train's build marker (auto-train-building.json, { train, version, pid, at }, written while `merge-train build`
  * runs): null when absent (text null), else { train, key, ageMs, stale }. Its age is from `at` (the file's mtime when

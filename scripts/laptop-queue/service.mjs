@@ -104,7 +104,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -148,6 +148,8 @@ const GREEN_FIRST = process.env.LQ_GREEN_FIRST !== '0'; // 0 = arrival order onl
 const FRONT_BRANCHES = (process.env.LQ_FRONT_BRANCHES ?? 'mixamo').split(',').map((x) => x.trim()).filter(Boolean); // branch front tier, empty = none
 const GREEN_MAX_WAIT_MS = Number(process.env.LQ_GREEN_MAX_WAIT_MIN ?? 30) * 60_000; // starvation bound of the green tier (0 = none)
 const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
+const TRAIN_CARRY = process.env.LQ_TRAIN_CARRY !== '0'; // 0 = a moved train head always runs (lib carryFrom; BRIEF A7, A8)
+const TRAIN_CARRY_DEPTH = Number(process.env.LQ_TRAIN_CARRY_DEPTH ?? 20); // first-parent commits walked back to the version commit
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -549,8 +551,9 @@ function syncDone() {
  * Train heads still to run: no laptop-e2e status, or a stale `pending` one (not claimed by this process; the pid lock
  * means no other service can be running it). Read from the combined status (latest state per context). A gh / network
  * error skips the head this pass (never read as "no status"). Merged heads and heads older than LQ_TRAIN_MAX_AGE_H
- * (default 24) are skipped. Only the head of an open train/<n> PR whose subject is the train's version commit runs:
- * a closed train, a PR not open yet or a pre-version head is never run; a failed PR list skips every train this pass.
+ * (default 24) are skipped. Only the head of an open train/<n> PR whose subject is the train's version commit runs, or
+ * a head moved past it (carryMoved: a docs-only delta carries, else it runs as a normal train): a closed train, a PR
+ * not open yet or a pre-version head is never run; a failed PR list skips every train this pass.
  * A head whose auto-train/* status is failure or error is skipped (logged once per head per process), and so is one
  * the other worker claimed (claims/<sha>.json; claimBlocks). The stale-pending rule needs that claim check: a train
  * the other worker runs is `pending` too.
@@ -604,7 +607,8 @@ function nextTrainNow(openPrs, heads = []) {
   const now = Date.now();
   const lim = { buildMaxMs: TRAIN_BUILD_MAX_MS, gapMs: TRAIN_GAP_MS, readyLagMs: TRAIN_READY_LAG_MS, mergeLagMs: TRAIN_MERGE_LAG_MS, lateMs: TRAIN_LATE_MS };
   const cand = { green: ready.firstSeen, running: ready.running.length, now };
-  const isVersion = (p) => new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${p.n} \\(G183\\)$`).test(git(['show', '-s', '--format=%s', p.sha], { soft: true }));
+  // the version head, or a head moved past it (a fix on top, lib versionAt): never "building"
+  const isVersion = (p) => trainChain(p.sha, p.n) !== null;
   const b = openPrs.find((p) => !isVersion(p));
   if (b) return nextTrain({ building: { n: b.n, ageMs: now - Date.parse(b.createdAt) }, now }, lim);
   if (!ready.green.length && !ready.running.length) return null; // no candidate: no merged-PR call
@@ -617,6 +621,75 @@ function nextTrainNow(openPrs, heads = []) {
     if (!last) return null;
     return nextTrain({ ...cand, lastMerge: { n: String(last.headRefName).replace(/^train\//, ''), atMs: Date.parse(last.mergedAt) } }, lim);
   } catch { return null; /* unreadable: no hold (never block on a GitHub error) */ }
+}
+
+/**
+ * Train n's chain under head sha (lib versionAt within LQ_TRAIN_CARRY_DEPTH first-parent commits): the shas from the
+ * head's parent back to the version commit, newest first ([] when the head is the version commit), or null when no
+ * version commit of train n is found (a pre-version head).
+ */
+function trainChain(sha, n) {
+  const lines = git(['log', '--first-parent', '-n', String(TRAIN_CARRY_DEPTH), '--format=%H%x09%s', sha], { soft: true }).split('\n');
+  const v = versionAt(lines, n, TRAIN_CARRY_DEPTH);
+  return v ? lines.map((l) => l.trim()).filter(Boolean).slice(1, v.index + 1).map((l) => l.split('\t')[0]) : null;
+}
+
+/** The changed files from a to b (git diff --name-only), or null on a git error. */
+function filesBetween(a, b) {
+  try { return git(['diff', '--name-only', a, b]).split('\n').map((x) => x.trim()).filter(Boolean); } catch { return null; }
+}
+
+/** A commit's laptop-e2e state ('' when none); throws on a gh error. */
+const laptopState = (sha) => gh(['api', `repos/${REPO}/commits/${sha}/status`, '--jq', '[.statuses[] | select(.context == "laptop-e2e") | .state][0] // ""']).trim();
+
+/**
+ * Moved train heads (BRIEF A7): head -> 'run' once its chain read says it runs as a normal train (read once per head per
+ * process). A carry or a wait is not kept: a carry sets state.trains, a wait reads again next pass.
+ */
+const carryChecked = new Map();
+const carryWaitLogged = new Set();
+
+/**
+ * A moved train head with no laptop-e2e status (lib carryFrom): 'carried' (success posted), 'wait' (a live docs-only
+ * ancestor run; neither worker starts it), 'skip' (a gh error, this pass) or 'run' (a normal sharded train).
+ */
+function carryMoved(sha, n, chain) {
+  if (carryChecked.get(sha) === 'run') return 'run';
+  const rows = [];
+  try {
+    // newest first, stopping at the first final verdict (carryFrom never reads past it)
+    for (const c of chain) {
+      const laptop = laptopState(c);
+      rows.push({ sha: c, laptop });
+      if (laptop === 'success' || laptop === 'failure' || laptop === 'error') break;
+    }
+  } catch (e) {
+    log(`train ${n} ${sha.slice(0, 8)}: chain status read failed, skipped this pass: ${String(e.message).split('\n')[0]}`);
+    return 'skip';
+  }
+  const now = Date.now();
+  // a dead run (restart, crash, lost final post) is not live: H never waits on it for good (claimBlocks is true for
+  // any done claim, so a done claim with a lost final post must not count)
+  const live = (p) => {
+    if (claimed.has(p)) return true;
+    const c = parseClaim(git(['show', `origin/laptop-queue:claims/${p}.json`], { soft: true }));
+    return !!c && !c.done && claimBlocks(c, WORKER, now, CLAIM_MAX_MS);
+  };
+  const r = carryFrom(rows, (c) => filesBetween(c, sha), live);
+  if (r?.from) {
+    postStatus(sha, 'success', 'laptop-e2e', carryDesc(r.from));
+    state.trains[sha] = { result: 'carried', from: r.from, date: new Date().toISOString() };
+    saveState();
+    log(`train ${n} ${sha.slice(0, 8)}: carried from ${r.from.slice(0, 8)}, docs-only delta`);
+    return 'carried';
+  }
+  if (r?.wait) {
+    const key = `${sha} ${r.wait}`;
+    if (!carryWaitLogged.has(key)) { carryWaitLogged.add(key); log(`train ${n} ${sha.slice(0, 8)}: waits for ${r.wait.slice(0, 8)}, docs-only delta`); }
+    return 'wait';
+  }
+  carryChecked.set(sha, 'run');
+  return 'run';
 }
 
 function pendingTrains() {
@@ -656,8 +729,10 @@ function pendingTrains() {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
     // merge-train `build` opens the PR before it pushes the version commit: run only the version head (versionSubject)
+    // or a head moved past it (a fix on top: lib versionAt finds the version commit; BRIEF A7)
     const subject = git(['show', '-s', '--format=%s', m[1]], { soft: true });
-    if (!new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${m[2]} \\(G183\\)$`).test(subject)) continue;
+    const chain = isVersionHead(subject, m[2]) ? [] : trainChain(m[1], m[2]);
+    if (!chain) continue;
     const age = Date.now() / 1000 - Number(git(['show', '-s', '--format=%ct', m[1]], { soft: true }));
     if (!(age < maxAge)) continue;
     try { git(['merge-base', '--is-ancestor', m[1], 'origin/master']); continue; } catch { /* not merged */ }
@@ -674,16 +749,66 @@ function pendingTrains() {
       continue;
     }
     const st = sts.find((s) => s.context === 'laptop-e2e')?.state ?? '';
+    // a moved head with no laptop-e2e status: carry a docs-only verdict, wait on a live docs-only run, or run (sharded)
+    if (st === '' && chain.length && TRAIN_CARRY && carryMoved(m[1], m[2], chain) !== 'run') continue;
     if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending', ageMs: age * 1000 });
   }
   return sortTrains(out); // ls-remote order is text order; the lowest train runs first (overlap plan section 3)
 }
 
-/** The head shas of the open train/<n> PRs, or null when the listing failed (the void-train watch then waits). */
+/** The open train/<n> PRs as a Map n -> head sha, or null when the listing failed (the void-train watch then waits). */
 function openTrainHeads() {
   try {
-    return new Set(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | .headRefOid]']) || '[]'));
+    const rows = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | {n: (.headRefName | ltrimstr("train/")), sha: .headRefOid}]']) || '[]');
+    return new Map(rows.map((r) => [String(r.n), r.sha]));
   } catch { return null; }
+}
+
+const followMemo = new Map();
+/**
+ * True when head is a descendant of a running train's sha over a carry-safe delta (lib carryFiles; BRIEF A8): the run
+ * on sha still tests head. Fetches train/<n> once when head is not here yet; a git error is false (not memoised).
+ */
+function followsTrain(sha, n, head) {
+  if (!TRAIN_CARRY || !head || head === sha) return false;
+  const key = `${sha}>${head}`;
+  if (followMemo.has(key)) return followMemo.get(key);
+  if (!git(['rev-parse', '-q', '--verify', `${head}^{commit}`], { soft: true })) {
+    git(['fetch', '-q', 'origin', `+refs/heads/train/${n}:refs/remotes/origin/train/${n}`], { soft: true });
+  }
+  try { git(['merge-base', '--is-ancestor', sha, head]); } catch { return false; }
+  const files = filesBetween(sha, head);
+  if (!files) return false;
+  const r = carryFiles(files);
+  followMemo.set(key, r);
+  return r;
+}
+
+/**
+ * The open train heads the void watch reads for a run on train.sha: train n's head counts as train.sha while it is a
+ * docs-only descendant (followsTrain); null when the listing failed.
+ */
+function voidHeads(train) {
+  const heads = openTrainHeads();
+  if (!heads) return null;
+  const set = new Set(heads.values());
+  if (followsTrain(train.sha, train.n, heads.get(String(train.n)))) set.add(train.sha);
+  return set;
+}
+
+/**
+ * After a train pass: train n's current head, when it moved to a docs-only descendant of the run's sha and has no
+ * laptop-e2e status yet, gets the carried success too (BRIEF A8).
+ */
+function carryOnto(train) {
+  const head = openTrainHeads()?.get(String(train.n));
+  if (!head || !followsTrain(train.sha, train.n, head)) return;
+  let st;
+  try { st = laptopState(head); } catch (e) { log(`train ${train.n} ${head.slice(0, 8)}: status read failed, no carry: ${String(e.message).split('\n')[0]}`); return; }
+  if (st !== '') return;
+  postStatus(head, 'success', 'laptop-e2e', carryDesc(train.sha));
+  state.trains[head] = { result: 'carried', from: train.sha, date: new Date().toISOString() };
+  log(`train ${train.n} ${head.slice(0, 8)}: carried from ${train.sha.slice(0, 8)}, docs-only delta`);
 }
 
 // ---------- processes, locks, ports ----------
@@ -984,7 +1109,7 @@ async function runTrain(train, ports = PORTS) {
   let voided = false;
   const watch = DRY ? null : setInterval(() => {
     if (voided) return;
-    misses = voidMisses(misses, train.sha, openTrainHeads());
+    misses = voidMisses(misses, train.sha, voidHeads(train)); // a docs-only descendant head is not a miss (BRIEF A8)
     if (misses < VOID_MISSES) return;
     voided = true;
     log(`train ${train.n} ${train.sha.slice(0, 8)}: no longer an open train PR head (closed, voided or rebuilt), run stopped`);
@@ -1067,6 +1192,7 @@ async function runTrain(train, ports = PORTS) {
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
+    if (ok && !DRY) carryOnto(train); // the head moved mid-run to a docs-only descendant: it carries this pass (BRIEF A8)
     saveState();
     try { await runVisual(train, ports, locks, ctls[ports[0]], runDir, prNumber, ok); } catch (e) { log(`train ${train.n} visual-gate service error: ${e.stack ?? e.message}`); postStatus(train.sha, 'error', VISUAL_CONTEXT, 'service error, see log'); }
   } finally {
