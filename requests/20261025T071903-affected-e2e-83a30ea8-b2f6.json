@@ -1,0 +1,16 @@
+{
+  "id": "20261025T071903-affected-e2e-83a30ea8-b2f6",
+  "sha": "83a30ea80b9baa4f36f8ec2a871510f69fb15057",
+  "branch": "feature/tuner-clarity-polish",
+  "pr": 440,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-menus",
+    "e2e-studio",
+    "e2e-tuner-phone",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #440"
+}
