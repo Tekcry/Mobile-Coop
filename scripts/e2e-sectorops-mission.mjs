@@ -1,6 +1,6 @@
 // (mission-framework EN2) e2e-sectorops part `mission` (run-e2e: `e2e-sectorops:mission`): the campus test mission
-// (`src/world/maps/campusMissionTest.ts`) on Saltmarsh Park sections 1-2, solo. The mission is picked by `?mission=`;
-// no compass / minimap objective blip while it runs (A10). Section 1: the download is the intel step (its Guard AI
+// (`src/world/maps/campusMissionTest.ts`) on Saltmarsh Park sections 1-2, solo. The mission is picked by `?mission=`
+// (no compass, minimap or blip exists any more, G339). Section 1: the download is the intel step (its Guard AI
 // event is raised), a kill breaks No kills (the radio line), the section restarts after the 2 s hold and the step
 // goes back; the download again, C1. Section 2: the BMS hack is the exploit (it needs the badge fact), the exit opens,
 // and everyone in C2 is the extraction: the op ends cleared. The guards are frozen and the player cannot be hurt (the
@@ -38,11 +38,9 @@ try {
     g.events.on('missionEvent', (e) => window.__mev.push(e));
   });
   const S = await G(() => window.__app.current.world.map.sectors.map((s) => ({ id: s.id, cp: s.connector ? s.connector.checkpoint : null })));
-  // (a) the mission is picked by ?mission=, section 1 is its first; no objective blip while it runs (A10)
+  // (a) the mission is picked by ?mission=, section 1 is its first
   const d0 = await dbg();
   assert(d0.mission && d0.mission.id === 'campusMissionTest' && d0.mission.section === 0 && d0.mission.done === 0 && d0.index === 0, `the test mission runs on section 1 (${JSON.stringify(d0.mission)})`);
-  const blips = await G(() => window.__sector.blips().length);
-  assert(blips === 0, `no objective blip while a mission runs (${blips})`);
   // (mission-rules R8, G343 / HG7) no always-on objective list: the HUD's objective line (`.hud-objective`, not its hint line
   // `.hud-objective-hint`, hud.ts) is the current mission step (missionFeed.ts `MissionFeed`): the badge step's text
   const step = await G(() => {
