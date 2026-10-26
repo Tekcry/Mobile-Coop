@@ -135,12 +135,36 @@ export function sideStepAt(v: number): number {
 }
 
 /**
+ * (player-hygiene S1b) `stepLength`'s inputs (speed, lateral, tense, crouch, back, glide) and its result (index 6): the
+ * driver's gait clock fills them and calls `stepLengthIn` every step, so no double crosses a call (a double passed to or
+ * returned from a call V8 does not inline boxes, 16 B).
+ */
+export const STEP_LEN_IN = new Float64Array(7);
+
+/**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
  */
 export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0, mside = false, cs: CrouchStepLine = CROUCH_STEP): number {
-  const v = Math.max(0, speed);
+  STEP_LEN_IN[0] = speed;
+  STEP_LEN_IN[1] = lateral;
+  STEP_LEN_IN[2] = tense;
+  STEP_LEN_IN[3] = crouch;
+  STEP_LEN_IN[4] = back;
+  STEP_LEN_IN[5] = glide;
+  stepLengthIn(M, mside, cs);
+  return STEP_LEN_IN[6]!;
+}
+
+/** `stepLength` on `STEP_LEN_IN[0..5]`, the result in `STEP_LEN_IN[6]` (player-hygiene S1b). No allocation. */
+export function stepLengthIn(M: MotionTuning, mside: boolean, cs: CrouchStepLine): void {
+  const v = Math.max(0, STEP_LEN_IN[0]!);
+  const lateral = STEP_LEN_IN[1]!;
+  const tense = STEP_LEN_IN[2]!;
+  const crouch = STEP_LEN_IN[3]!;
+  const back = STEP_LEN_IN[4]!;
+  const glide = STEP_LEN_IN[5]!;
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
   let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
   // (anim-rework S2, M6) the player's crouched gaits take their own step line (CROUCH_STEP; afp AF3: short at the low gears,
@@ -155,11 +179,17 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   // (G1, audit row 26) the tense sneak's long deliberate steps, by its weight 0..1
   const base = s + (TENSE.step - s) * tense;
   const old = base * (1 - 0.4 * lateral * lateral);
-  if (M !== MOVEMENT) return old * TUNE_CUR.strideMul;
+  if (M !== MOVEMENT) {
+    STEP_LEN_IN[6] = old * TUNE_CUR.strideMul;
+    return;
+  }
   // (anim-rework S3) the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP); (anim-rework S4) crouched
   // too (the crouched aimed strafe opened the feet 33-44 cm off the line with the old 60 % side-step)
   const g = Math.max(0, Math.min(1, glide));
-  if (g <= 0) return old * TUNE_CUR.strideMul;
+  if (g <= 0) {
+    STEP_LEN_IN[6] = old * TUNE_CUR.strideMul;
+    return;
+  }
   const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
   const l2 = lateral * lateral;
   // (mocap-trial-2, strafe) a carrier's mocap strafe side-step standing (GLIDE_SIDE; NaN or not `mside`: the glide's, as before)
@@ -169,7 +199,7 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const sideM = mside && gs > 0 && v > 0 ? 0.5 * gs * Math.pow(v / (gs / GLIDE_SIDE.cycle), GLIDE_SIDE.exp) : Number.NaN;
   const side = Math.min(fwd, !Number.isNaN(sideM) ? sideG + (sideM - sideG) * (1 - Math.max(0, Math.min(1, crouch))) : sideG);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
-  return (old + (step - old) * g) * TUNE_CUR.strideMul;
+  STEP_LEN_IN[6] = (old + (step - old) * g) * TUNE_CUR.strideMul;
 }
 
 /**
@@ -223,7 +253,8 @@ export class MotionDriver {
   /** Output root velocity this step (with the stride modulation). */
   outX = 0;
   outZ = 0;
-  yaw: number;
+  /** (player-hygiene S1b) Initialised to a number: a field that has held `undefined` boxes every double stored into it. */
+  yaw = 0;
   /** Body angular velocity (rad/s). */
   yawRate = 0;
   state: MotionState = 'idle';
@@ -287,12 +318,13 @@ export class MotionDriver {
     if (hyp2(vx, vz) > 0.05) this.go('move');
   }
 
-  reset(yaw = this.yaw): void {
+  /** (player-hygiene S1b) No `yaw`: the facing stays (was the default `yaw = this.yaw`, whose value boxed). */
+  reset(yaw?: number): void {
     this.vx = this.vz = this.ax = this.az = this.outX = this.outZ = 0;
     this.paceSpring.reset(0);
     this.heading = Number.NaN;
     this.backward = false;
-    this.yaw = yaw;
+    if (yaw !== undefined) this.yaw = yaw;
     this.yawRate = 0;
     this.go('idle');
   }
@@ -488,11 +520,15 @@ export class MotionDriver {
     const px0 = this.paceSpring.x;
     if (Math.abs((px0 < 0 ? -px0 : px0) - sp) > 1e-6) this.paceSpring.reset(sp);
     else if (px0 < 0) sp = px0;
-    const omega = target < sp || (settle > 0 && !pushed) ? CT_STOP_W / (CT.stopTime * WEIGHT_MOVE.stopMul) : CT_START_W / (CT.startTime * WEIGHT_MOVE.startMul);
+    // (player-hygiene S1b) omega worked out in each branch (the stop's when settling): one value for both calls made it a
+    // tagged phi, boxed every step
     if (settle > 0 && !pushed) {
-      springStep(this.paceSpring, 0, omega, 1 - settle, dt);
+      springStep(this.paceSpring, 0, CT_STOP_W / (CT.stopTime * WEIGHT_MOVE.stopMul), 1 - settle, dt);
       sp = this.paceSpring.x;
-    } else sp = this.paceSpring.step(target, omega, dt);
+    } else {
+      const omega = target < sp ? CT_STOP_W / (CT.stopTime * WEIGHT_MOVE.stopMul) : CT_START_W / (CT.startTime * WEIGHT_MOVE.startMul);
+      sp = this.paceSpring.step(target, omega, dt);
+    }
     this.wantPace = target;
     // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every speed)
     if (settle > 0 && !pushed) {
@@ -541,9 +577,30 @@ export class MotionDriver {
       const bk = sp > 0.02 ? Math.min(1, Math.max(0, -(this.vx * Math.sin(this.yaw) + this.vz * Math.cos(this.yaw)) / sp)) : 0;
       // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
       const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
-      const rate = gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0, false);
+      // (player-hygiene S1b) gaitRate(spc, yawRate, M, lat, tense, crouch, bk, glide, mside) written out, `stepLength`
+      // through `STEP_LEN_IN` (a call with doubles boxes them)
+      const ar = Math.abs(this.yawRate);
+      const ang = ar > TURN_GAIT_MIN ? ar / (2 * TURN_STEP) : 0;
+      let lin = 0;
+      let linM = 0;
+      if (spc > 0.02) {
+        STEP_LEN_IN[0] = spc;
+        STEP_LEN_IN[1] = lat;
+        STEP_LEN_IN[2] = this.tense;
+        STEP_LEN_IN[3] = i.crouch ?? 0;
+        STEP_LEN_IN[4] = bk;
+        STEP_LEN_IN[5] = i.aiming ? 1 : 0;
+        stepLengthIn(M, false, CROUCH_STEP);
+        lin = spc / (2 * STEP_LEN_IN[6]!);
+        // (the inputs stay: only the result is written)
+        if (i.mocapSide === true) {
+          stepLengthIn(M, true, CROUCH_STEP);
+          linM = spc / (2 * STEP_LEN_IN[6]!);
+        }
+      }
+      const rate = lin > ang ? lin : ang;
       // (G17) the drawn clock may take the mocap side-step; the sim clock never does
-      const drawn = i.mocapSide === true ? gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0, true) : rate;
+      const drawn = i.mocapSide === true ? (linM > ang ? linM : ang) : rate;
       this.phase = (this.phase + drawn * dt) % 1;
       this.simPhase = (this.simPhase + rate * dt) % 1;
     }
@@ -552,7 +609,7 @@ export class MotionDriver {
     this.outZ = this.vz * mod;
 
     // --- facing
-    this.updateYaw(dt, i, sp, M);
+    this.updateYaw(dt, i, M);
   }
 
   /** One stepped turn chunk (at most `turnChunk`) towards a yaw error. */
@@ -565,7 +622,10 @@ export class MotionDriver {
     this.go('turn');
   }
 
-  private updateYaw(dt: number, i: MotionInput, sp: number, M: MotionTuning): void {
+  /** (player-hygiene S1b) `sp` is the speed `finish` read (`hyp2(vx, vz)` written out: the velocity has not changed since);
+   *  a double argument boxes. */
+  private updateYaw(dt: number, i: MotionInput, M: MotionTuning): void {
+    const sp = Math.sqrt(this.vx * this.vx + this.vz * this.vz);
     const err = wrapPi(i.yaw - this.yaw);
     if (this.state === 'turn') {
       const k = Math.min(1, this.stateT / this.turnDur);
