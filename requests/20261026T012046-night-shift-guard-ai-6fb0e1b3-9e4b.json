@@ -1,0 +1,15 @@
+{
+  "id": "20261026T012046-night-shift-guard-ai-6fb0e1b3-9e4b",
+  "sha": "6fb0e1b32d5708d5abc1e71417081634f371822b",
+  "branch": "feature/guard-ai-mission-hooks-s4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-guard-carry",
+    "e2e-sectorops:1"
+  ],
+  "set": "mh-s4",
+  "note": "J26 S1a-2 triage fix + S1b + S3b area alarms + S4 noise zones (one set for the stack); deciding scenarios 'mission order', 'mission group', 'area alarm', 'noise zone'"
+}
