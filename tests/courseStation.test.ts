@@ -147,6 +147,10 @@ function rig(d: CourseDef, o: RigOpts = {}) {
       if (k >= 0) enemies.splice(k, 1);
     },
     resetMemory: () => (enemies.length = 0),
+    // (gm-look-seeds) a set's look seeds (`spawnSquad`): none here, `spawn` picks
+
+    pointLooks: () => [],
+
     placeSlot: () => undefined,
   };
   const doors = {

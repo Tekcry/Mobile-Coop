@@ -147,10 +147,18 @@ function pieceEntries(section) {
 }
 
 /**
+ * (G10a D5) Kit sections only the runtime and the sheet read (guardTints.ts, guardKit.ts, guardSheetPlan.mjs): no bake or
+ * check script does (grep of scripts/operators, 2026-10-24), so they stay out of every bake / check job's kit hash and a
+ * colour change costs a sheet run, not a full bake.
+ */
+export const RUNTIME_ONLY = ['skinTones', 'hairColours', 'tintJitter'];
+
+/**
  * Reads a kit (the parsed guards.json) tolerantly into what the job split needs: bases, head variants (base from the
  * entry's `base`, else the id's prefix before the last `-`), garments, pieces, hair caps. `shared` is every other
- * section; it joins each job's kit hash so a change to budgets or tint slots rebakes everything, while a change to one
- * base's entry rebakes only that base's jobs.
+ * section; `bakeShared` (shared without RUNTIME_ONLY) joins each bake / check job's kit hash so a change to budgets or
+ * tint slots rebakes everything, while a change to one base's entry rebakes only that base's jobs. The sheet's hash takes
+ * the full `shared` (it draws the tones, hair colours and jitter).
  *  - Garments: pieces of kind `outfit` become garment jobs (their parts, OUTFIT_GARMENTS) on the bases whose kinds wear
  *    them; a kit without outfit pieces uses its `garments` list, else DEFAULT_GARMENTS.
  *  - Gear: every other piece. With `kinds`, `pieceUse` names per base the pieces its kinds can show (headwear,
@@ -221,7 +229,8 @@ export function normalizeKit(raw) {
   }).filter((h) => h.caps.length);
 
   const shared = Object.fromEntries(Object.entries(raw).filter(([k]) => !['bases', 'heads', 'garments', 'pieces', 'gear'].includes(k)));
-  return { bases, heads, garments, pieces: pieces.filter((p) => !own(p)), ownGlb: owned, pieceUse, hairCapBases, shared };
+  const bakeShared = Object.fromEntries(Object.entries(shared).filter(([k]) => !RUNTIME_ONLY.includes(k)));
+  return { bases, heads, garments, pieces: pieces.filter((p) => !own(p)), ownGlb: owned, pieceUse, hairCapBases, shared, bakeShared };
 }
 
 /** Deterministic JSON: object keys sorted, so key order in guards.json never changes a hash. */
@@ -241,7 +250,7 @@ export function scriptFile(job) {
 const lib = (stage) => LIBS[stage].map((f) => `${PY_REL}/${f}`);
 
 const idOf = (stage, ...parts) => [stage, ...parts].join('-');
-const slice = (nk, entry) => ({ entry, shared: nk.shared });
+const slice = (nk, entry) => ({ entry, shared: nk.bakeShared });
 
 /** The outfits a garment part serves on a base (empty for kit-listed or default garments). */
 const garmentOutfits = (g, b) => (g.outfits ?? []).filter((o) => g.outfitBases?.[o.id]?.includes(b));
@@ -383,7 +392,8 @@ const LODS_FILES = [...G4_JS, 'scripts/operators/ktx2.mjs', 'scripts/operators/b
   ...['bake_lods.py', 'bake_guard.py', 'guard_lod_util.py', 'guard_skin.py', 'materials.py', 'common.py'].map((f) => `${PY_REL}/${f}`)];
 const CHECK_FILES = [...G4_JS, 'src/operators/guards/guardBudget.ts', 'src/operators/guards/guardKit.ts', 'src/operators/guards/gearMask.ts'];
 // the sheet's own files plus the config that builds its page and the runtime modules the page imports (G4s check P1)
-const SHEET_FILES = ['scripts/operators/guard-sheet.mjs', 'scripts/operators/guardSheetPlan.mjs', 'src/operators/lab/guardSheet.ts', 'guards.html',
+const SHEET_FILES = ['scripts/operators/guard-sheet.mjs', 'scripts/operators/guardSheetPlan.mjs', 'src/operators/lab/guardSheet.ts',
+  'src/operators/lab/guardSheetRig.ts', 'guards.html',
   'vite.operators.config.ts',
   ...['guardFigure', 'guardFigurePlugin', 'figure', 'lodPick', 'manifest', 'pose'].map((f) => `src/operators/runtime/${f}.ts`),
   ...['guardAssets', 'gearMask', 'guardVariant', 'guardTints'].map((f) => `src/operators/guards/${f}.ts`),
@@ -395,7 +405,7 @@ function g4Slice(nk, baseId) {
   const used = nk.pieceUse?.[baseId];
   const all = [...nk.pieces, ...nk.ownGlb]; // outfits come in through the garments (each part carries its outfit pieces)
   return {
-    entry: nk.bases.find((b) => b.id === baseId), shared: nk.shared, heads: nk.heads.filter((h) => h.base === baseId),
+    entry: nk.bases.find((b) => b.id === baseId), shared: nk.bakeShared, heads: nk.heads.filter((h) => h.base === baseId),
     pieces: used ? all.filter((p) => used.has(p.id)) : all, garments: nk.garments.filter((g) => !g.bases || g.bases.includes(baseId)),
   };
 }

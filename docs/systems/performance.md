@@ -30,10 +30,9 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
   near-instant; the numbers per map are still to be set (G394).
 - Open: no download or texture budget covers the realistic operators (Wren's files are about 80 MB; feature/operators
   owns it, G75).
-- Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8 ran: HOLD. At 24 guards the figures
-  cost +1.1 to +2.5 ms frame CPU p95 over figures-off (gate +0.5 ms; `docs/guard-models/STATE.md` "G8 budget run",
-  `docs/guard-models/run-g8/`), so the flag stays off by default (`?guardmodels=1` turns them on) while a perf
-  follow-up (per-guard render CPU) runs, then G8 reruns and flips the default. `tests/guardKit.test.ts` enforces the
+- Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8's first runs held (+1.1 to +2.5 ms
+  frame CPU p95 at 24 guards, gate +0.5 ms; `docs/guard-models/STATE.md` "G8 budget run", `docs/guard-models/run-g8/`);
+  after gm-perf the gate passed ("Guard models" below) and gm-flip made the figures the default (`?guardmodels=0` off). `tests/guardKit.test.ts` enforces the
   kit data, `tests/guardAssets.test.ts` the bundled files in `src/operators/assets/guards/`. Per guard,
   LOD0 (< 8 m) / LOD1 (8-25 m) / LOD2 (> 25 m):
   - triangles shown (body, head, shown pieces) <= 20,000 / 7,000 / 2,800; in the buffer (every head, cap and piece)
@@ -68,6 +67,24 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
 - `E2E_GPU=1` (Michael's PC only) swaps in the laptop goals above (`LOCAL_BUDGET`: no machine-speed scaling; main
   thread and frame pacing enforced; draws, triangles and allocations keep the script's limits). Cloud sessions never
   claim a perf result: they mark it "pending PC run".
+
+## Guard models (2026-10-24)
+Realistic guard models are on by default (`?guardmodels=0` is off). Gate: frame CPU p95 with the models on within
++0.5 ms of off at 24 guards. Measured on the laptop RTX 4090, 1080p epic, `E2E_GPU=1`, `scripts/guard-cap.mjs`
+(branch `shots/gm-perf-408ab154`, after frozen guard materials and the lazy visible-only pose): PASS.
+
+| Map, cell (24 guards) | Frame p95 ON (ms) | Frame p95 OFF (ms) |
+| --- | --- | --- |
+| sectorops patrol | 6.5 | 6.5 |
+| sectorops away | 4.6 | 4.7 |
+| sectorops alert | 7.2 | 7.4 |
+| campusops patrol | 9.0 | 9.7 |
+| campusops away | 4.5 | 4.8 |
+| campusops alert | 9.2 | 10.0 |
+
+At 12 guards campusops ON is +0.4 to +0.6 ms. The merged armour, shield and visor meshes (S13) came after this run and
+have no GPU number yet (they only act on the flag-off and fallback path). Detail: `docs/guard-models/reports/PERF-REPORT.md`,
+`GM-PERF-CHECK.md`.
 
 ## What keeps the frame inside the budget
 - Static level geometry: thin instances, `freezeWorldMatrix()`, frozen materials. (marlow-final S9) The facility kit and

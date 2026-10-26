@@ -213,8 +213,9 @@ describe('seam per base (G1h fix round) and completeness', () => {
 });
 
 describe('hair cap report check', () => {
+  const line = (dev: number, turn: number) => ({ boundaryVerts: 120, maxDevMm: dev, maxTurnDeg: turn });
   const cap = (tris: number[], mm: number) => ({ tris: { lod0: tris[0], lod1: tris[1] }, thicknessMm: [0.4, mm],
-    png: { albedo: 'a', normal: 'n', orm: 'o' } });
+    png: { albedo: 'a', normal: 'n', orm: 'o' }, hairline: { lod0: line(0.4, 38), lod1: line(1.2, 52) } });
   it('passes the base\'s styles inside budget', () => {
     const r = { base: 'lean', caps: { buzz: cap([500, 200], 2), fade: cap([690, 240], 3) },
       variantPush: { 'lean-1': { capRegionMaxAbsMm: 0 } }, envelope: { json: 'heads/lean/envelope.json' } };
@@ -227,6 +228,24 @@ describe('hair cap report check', () => {
     for (const re of [/cap fade missing/, /crop not worn/, /buzz lod0: 520/, /buzz lod1: 210/, /thickness/, /lean-3/, /no envelope/]) {
       expect(f.some((x) => re.test(x))).toBe(true);
     }
+  });
+  // (G10a D4) the hairline after decimation: snapped onto the dense contour, no sawtooth
+  it('hairline: passes at the limits, flags a tooth, a deviation and a missing measure', () => {
+    const ok = (lean: Record<string, unknown>) => ({ base: 'lean', caps: lean, variantPush: {}, envelope: { json: 'e' } });
+    const at = { ...cap([500, 200], 2), hairline: { lod0: line(1.5, 75), lod1: line(3, 75) } };
+    expect(checkCapsReport(ok({ buzz: at, fade: cap([690, 240], 3) }), kit())).toEqual([]);
+    const tooth = { ...cap([500, 200], 2), hairline: { lod0: line(0.3, 151), lod1: line(1, 40) } };
+    expect(checkCapsReport(ok({ buzz: tooth, fade: cap([690, 240], 3) }), kit())).toEqual(['lean buzz lod0: hairline turns 151 deg > 75 (sawtooth)']);
+    const dev = { ...cap([500, 200], 2), hairline: { lod0: line(1.6, 30), lod1: line(3.4, 30) } };
+    expect(checkCapsReport(ok({ buzz: dev, fade: cap([690, 240], 3) }), kit())).toEqual([
+      'lean buzz lod0: hairline 1.6 mm off the contour > 1.5', 'lean buzz lod1: hairline 3.4 mm off the contour > 3']);
+    const none = { ...cap([500, 200], 2), hairline: { lod0: line(0.3, 30) } };
+    const bare = cap([690, 240], 3) as Record<string, unknown>;
+    delete bare.hairline;
+    expect(checkCapsReport(ok({ buzz: none, fade: bare }), kit())).toEqual([
+      'lean buzz lod1: no hairline measure (boundaryVerts, maxDevMm, maxTurnDeg)',
+      'lean fade lod0: no hairline measure (boundaryVerts, maxDevMm, maxTurnDeg)',
+      'lean fade lod1: no hairline measure (boundaryVerts, maxDevMm, maxTurnDeg)']);
   });
 });
 
