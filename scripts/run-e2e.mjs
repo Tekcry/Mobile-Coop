@@ -246,6 +246,9 @@ async function runOne(s) {
   }
   const sec = (Date.now() - t0) / 1000;
   results.push({ s, code, sec });
+  // laptop-queue-8 A10: streamed suites print the parallel result line too, so a run cut mid-way (a train preempt)
+  // shows which suites finished (laptop-queue lib finishedSuites)
+  if (streamed) console.log(`\n=== ${s} (${report(s) ? `REPORT ONLY, exit ${code}` : code === 0 ? 'ok' : 'FAIL'}, ${sec.toFixed(0)}s) ===`);
   if (!streamed) {
     // the whole log in one block: parallel suites never interleave
     console.log(`\n=== ${s} (${report(s) ? `REPORT ONLY, exit ${code}` : code === 0 ? 'ok' : 'FAIL'}, ${sec.toFixed(0)}s) ===\n${log.trimEnd()}`);
