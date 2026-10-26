@@ -1,0 +1,13 @@
+{
+  "id": "20261026T235101-night-shift-player-b-b5496b77-e039",
+  "sha": "b5496b77f340b4194a6055dc9a6e8d0d0346505d",
+  "branch": "feature/player-j16",
+  "pr": 697,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "j16p-coop"
+}
