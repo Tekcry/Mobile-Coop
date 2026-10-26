@@ -13,6 +13,7 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    tell Sector Ops the head (SO2 / SO4 build on it; told the branch ~21:05). S2 intro + EMP (Opus) on
    feature/piano-escape-s2 (worktree -s2), brief S2-brief.md, report S2-report.md, on stubs (#602-#604 TODO lines).
    S5 PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
+   S5 also adds Michael's three Grohl-form prototypes (~21:15; grohl-a/b/c + grohl-form.mjs; brief addendum).
    Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
 4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
 5. Tallow: #522 merged; #578 train-ready (base master); then retarget #581 -> master, then #583.
