@@ -9,7 +9,7 @@ walk cap (G355). No wire change, no save change, no `PROTOCOL_VERSION` touch.
 
 ## Goal
 Test Runner's J20 S6b (`tests/replayDeterminism.test.ts`, on master) allowlists the last five `Math.random` calls in
-`src/ai` and asks Guard AI to seed them (`docs/test-runner-j20/PLAN.md` S6b step 4):
+`src/ai` and asks Guard AI to seed them (`docs/archive/test-runner-j20/PLAN.md` S6b step 4):
 - `src/ai/enemy.ts` ~424 `private thinkT = Math.random() * 0.25;` (think-cadence start) and ~2402
   `this.thinkT = 0.22 + Math.random() * 0.08;` (think cadence).
 - `src/ai/enemyManager.ts` ~656 (`callAlert`: radio delay jitter `Math.random() * 0.3`) and ~669 (`shout`, the parked

@@ -45,6 +45,8 @@ export const CIRCUIT_KEY = 100000;
 export function darkState(reg: LightRegistry, l: LightDef, host: BreakerHost | null): number {
   if (l.kind === 'flashlight') return DARK_NONE;
   if (l.destroyed) return DARK_SHOT;
+  // (piano SO1) the mains are off for good: no switch of it can put it right, so it is never a cut circuit
+  if (reg.mainsCut(l.id)) return DARK_NONE;
   if (l.group >= 0 && host && !reg.baseOn(l) && host.isOff(l.group)) return DARK_CUT;
   return DARK_NONE;
 }

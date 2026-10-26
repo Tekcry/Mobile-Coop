@@ -23,7 +23,6 @@ export const S5_ART_TAGS: Record<string, ArtTag> = {
   's5-pass': 'oh-corridor',
   's5-ante': 'oh-ante',
   's5-strong': 'strongroom',
-  's5-vest': 'oh-corridor',
   's5-back': 'oh-service',
   's5-plant': 'plant',
   's5-lobby': 'oh-service',
@@ -120,8 +119,18 @@ export function dressS5(d: CampusDresser): void {
   }
   // the gallery's two display screens (L1, 2.2 high), rows along z
   for (const [x0, x1, z0, z1] of S5_BOX.screens) d.skinRow('H5:displayScreen', boxAt(bs, (x0 + x1) / 2, ys(S5_L1, 2.2), (z0 + z1) / 2), false, 1, { why: 'gallery display screens hung with framed plans of the house' });
-  // the archive's rolling stacks
-  for (const [x0, z0, x1, z1] of S5_BOX.stacks) d.skin('H5:rollingStack', boxAt(bs, (x0 + x1) / 2, ys(S5_L1, S5_BOX.stacksTop), (z0 + z1) / 2), 0, { why: 'the archive rolling stacks, handwheel on the aisle end' });
+  // the archive's rolling stacks (P1, L3: the free-standing row and the wall shelving)
+  // rows along x, fronts south (a refusal, e.g. the 0.7 m shelving under the piece's depth range, is logged, not fatal)
+  for (const [x0, z0, x1, z1] of S5_BOX.stacks) {
+    try {
+      d.skinRow('H5:rollingStack', boxAt(bs, (x0 + x1) / 2, ys(S5_L1, S5_BOX.stacksTop), (z0 + z1) / 2), true, -1, { why: 'the archive rolling stacks, handwheel on the aisle end' });
+    } catch (e) {
+      if (!(e instanceof ArtRuleError)) throw e;
+      const drops = (d.report.dropped['H5:rollingStack'] ??= {});
+      drops[e.rule] = (drops[e.rule] ?? 0) + 1;
+      S5_HERO_LOG.push(e.message);
+    }
+  }
   // the token table: the plinth faces the door (south), top flush at 0.9 for the token model
   {
     const [x0, z0, x1, z1] = S5_BOX.token;
@@ -136,8 +145,8 @@ export function dressS5(d: CampusDresser): void {
     const [x0, z0, x1, z1] = S5_BOX.van;
     d.skinHide('H5:panelVan', boxAt(bs, (x0 + x1) / 2, 1.2, (z0 + z1) / 2), 0, { why: 'the courier panel van' });
   }
-  // the terrace balustrade: three runs, the gate and the boathouse path left open
-  for (const [x0, x1] of [[-70, -64.6], [-63.4, -44.6], [-43.4, -26]] as const) d.skinRow('H5:balustrade', boxAt(bs, (x0 + x1) / 2, 0.5, 50.0), true, 1, { why: 'the terrace balustrade, stone balusters under a coping' });
+  // the terrace balustrade (1.2, P1 G13): three runs, the gate and the boathouse path left open
+  for (const [x0, x1] of [[-70, -64.6], [-63.4, -44.6], [-43.4, -26]] as const) d.skinRow('H5:balustrade', boxAt(bs, (x0 + x1) / 2, 0.6, 50.0), true, 1, { why: 'the terrace balustrade, stone balusters under a coping' });
 
   // the kitchen counter (z 34..38, 0.8 x 4.0 x 0.9, artnext B6): the fit kitchenRun along z, fronts to the room (east), and the
   // wall cupboards over it on the kitchen's west wall (3 fit modules, backs on the wall face x -31.85)

@@ -88,6 +88,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   EMP and shots move the base, the jam only its flicker; at the end of the jam the lamp takes its base as it is then (a
   group switched off or EMPed during the jam stays off). `baseOn` / `groupBaseOn` leave the jam out: the course's mains
   gates read them, so a jam never counts as the group switched off.
+- (piano SO1) `LightRegistry.mainsOff(x, y, z, over = 0.8)`: the mains cut for good. Every electric light (not shot) goes
+  dark nearest first, the farthest at `over` s (the per-step `update` runs the ripple, no allocation); torches and
+  `window` lights stay. No switch, jam end, EMP outage end, `restore` or `resetTo` (a section restart) turns one back on,
+  and `breaker.ts` `darkState` reads it as `DARK_NONE` (no reset walk). The client gets it in the `lamps` snapshot.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
 - (guard-ai S15) Guards turn circuits back on: a guard who resets a breaker calls `StealthSystems.resetCircuit`, the

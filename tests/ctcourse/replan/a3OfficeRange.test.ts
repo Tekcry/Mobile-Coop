@@ -15,6 +15,7 @@ import { hyp2, hyp3 } from '../../../src/core/mathx';
 import { layoutKnownIds, retryKey, validateCourse } from '../../../src/game/course/courseDef';
 import { CourseState, REFUSE_BOLT } from '../../../src/game/course/courseState';
 import type { StationDef } from '../../../src/game/course/stationDef';
+import { pickJamTarget, type JamTarget } from '../../../src/game/jammer';
 import { camPitch, camRange, inFrame } from '../../../src/security/camera';
 import type { Duct } from '../../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
@@ -410,6 +411,30 @@ describe('Marlow re-plan A3: the camera, the crawl\'s exit and the fire door', (
     for (let x = x0; x <= x1 + 1e-9; x += 0.1) for (let z = z0; z <= z1 + 1e-9; z += 0.1) for (const y of HEADS) expect(inSweep(x, y, z), `(${x.toFixed(1)}, ${z.toFixed(1)}) at ${y}`).toBe(false);
     for (let x = A3_GRILLE.x0; x <= A3_GRILLE.x1 + 1e-9; x += 0.1) for (const y of [0.3, 0.75, 1.4]) expect(inSweep(x, y, A3_GRILLE.face)).toBe(false);
     expect(HEADS.some((y) => inSweep(84.0, y, 10.75))).toBe(true);
+  });
+
+  it('(marlow-play C1) station 7: the jammer takes the camera, not the corridor lamp 0.6 m in front of its lens, aimed at either', () => {
+    const lights = b.lights.lights.filter((l) => l.electric && (l.kind === 'lamp' || l.kind === 'spot'));
+    const targets: JamTarget[] = [
+      ...lights.map((l): JamTarget => ({ id: `lt-${l.id}`, kind: 'light', x: l.x, y: l.y, z: l.z })),
+      { id: cam.id, kind: 'camera', x: cam.at[0], y: cam.y, z: cam.at[1] },
+    ];
+    const lamp = lights.find((l) => l.x === 96 && Math.abs(l.z - cam.at[1]) < 0.5)!;
+    expect(lamp, 'the corridor lamp at x 96').toBeDefined();
+    const st7 = part.bay.stations!.find((s) => s.n === 7)!;
+    for (const m of st7.marks) {
+      for (const y of [1.5, 1.7, 1.9]) {
+        for (const [ax, ay, az] of [[cam.at[0], cam.y, cam.at[1]], [lamp.x, lamp.y, lamp.z]] as const) {
+          const d = hyp3(ax - m.x, ay - y, az - m.z);
+          const i = pickJamTarget(targets, m.x, y, m.z, (ax - m.x) / d, (ay - y) / d, (az - m.z) / d);
+          expect(targets[i]?.id, `eye (${m.x}, ${y}, ${m.z}) aimed at (${ax}, ${az})`).toBe(cam.id);
+        }
+        // teeth: aimed at the lamp it is the nearer angle, and with no camera in the list it is the pick
+        const d = hyp3(lamp.x - m.x, lamp.y - y, lamp.z - m.z);
+        const noCam = targets.filter((t) => t.kind === 'light');
+        expect(noCam[pickJamTarget(noCam, m.x, y, m.z, (lamp.x - m.x) / d, (lamp.y - y) / d, (lamp.z - m.z) / d)]?.id).toBe(`lt-${lamp.id}`);
+      }
+    }
   });
 });
 
