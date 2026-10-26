@@ -55,7 +55,8 @@ export interface Flags {
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
   /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
-   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none = off (default OFF until the orchestrator rules). */
+   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none =
+   *  off, on /preview/ on (preview-flags: `setMixamo(flags.mixamo ?? PREVIEW_ON)`). */
   mixamo: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
