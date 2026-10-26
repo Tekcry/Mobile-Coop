@@ -1,0 +1,17 @@
+{
+  "id": "20261026T041508-night-shift-sector-o-7131f54f-a691",
+  "sha": "7131f54f870cabe05ba7ca8e4ce70dfd0a634535",
+  "branch": "feature/map-ready-s3",
+  "pr": 551,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "npm run build",
+    "node scripts/run-e2e.mjs e2e-ctcourse e2e-sectorops e2e-coop e2e-netmove"
+  ],
+  "env": {
+    "E2E_PARAMS": "mapready=1",
+    "E2E_GPU": "1"
+  },
+  "set": "map-ready-s3-on"
+}
