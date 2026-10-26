@@ -379,11 +379,16 @@ report on that exact head, and retargets its stacked PRs to master itself, Orche
   allocation flake, failed job rerun.
 - OPEN lane PRs (J17, dark): S1 #523 (master) -> #524 -> #525; S2 #526 (master) -> #527 -> #528 -> #529 (check
   lane-s1-s2-check.md, lane checks s1-check.md / s2-check.md). `gh pr edit <n> --base master` as each parent lands.
-- Desktop agents (claimed off cloud-queue fb6c526e9): campus-greybox-stack-s3 (worktree -campus-greybox-stack-s3), -s4
-  (worktree -campus-greybox-lanes), -s5 (-campus-greybox-stack-s5), map-ready-S3 Opus (-map-ready-s3, on S14). A lost
-  one reruns from its brief. On done: one checker per stack, PRs, brief marked done on cloud-queue.
+- S5 stack DONE: PRs #533 (master) -> #534 -> #535, checker posted (lane-s5-check.md), brief done on cloud-queue.
+- S3 stack BUILT (all pushed): s3-a a077ff1a, -b 217d3a1c, -c 32085177, -d c7487b40, -e 191a0971, -f 644c0ae7 (tsc
+  clean, vitest green each, 659-1354 counted). Sonnet check running at the 14:17 SAVE (report lane-s3-check.md); on PASS:
+  open 6 stacked PRs (bodies docs/campus-greybox/lane-campus-greybox-s3-<x>-pr-body.md on each branch), post checker,
+  mark brief campus-greybox-stack-s3 done on cloud-queue. If the report is missing: rerun the check (prompt = S5's).
+- S4 stack: s4-a a14f3592, -b 6af62e8e, -c 991400db pushed; builder (worktree -campus-greybox-lanes) still running at
+  the SAVE. Next: check its PR bodies / tests on the branches, Sonnet check like S5, PRs, brief done.
+- map-ready S3 (Opus builder, worktree -map-ready-s3, branch feature/map-ready-s3 on S14): steps 1-4 pushed (0c8589ea);
+  still running at the SAVE. Finish from the brief (cloud-queue briefs/map-ready-S3.md, claimed by this session), then
+  two Opus checkers + Guard AI review of src/ai, PC runs from its report.
 - S14 763fc7bf: gate + alone requests open on the laptop queue (no PR yet; stacks on #513).
-- Orchestrator hold 13:32: no new local builders until "go: start builders"; tsc / vitest slices go to cloud-queue.
-Next: on each agent result: check / PR / mark brief done; map-ready S3 gets two Opus checkers + Guard AI review of
-src/ai; S14 PR after its runs; S10 PR after #511 / #512 land; L2 on HOLD until Michael's S1 walk.
+Next: S3 check -> PRs; S4 check -> PRs; map-ready S3 finish + checkers; S14 PR after its runs; S10 PR after #511 / #512.
 ```
