@@ -1,0 +1,12 @@
+{
+  "id": "20261026T041130-night-shift-guard-ai-a51c951b-9bf2",
+  "sha": "a51c951b78af0eb5f13aec59d7ef608daad56592",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-sectorops"
+  ],
+  "set": "coop4-sectorops"
+}
