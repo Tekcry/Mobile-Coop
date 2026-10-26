@@ -180,11 +180,7 @@ files:
   - tests/teamClimb.test.ts
   - tests/net.test.ts
   - tests/kit/{deadweight,dropCatch,chimneyPair,swingPass,plankBridge}.test.ts
-  - tests/kit/{pullUp,registry,shutter}.test.ts  # A1 coopKit fold (files from PR #578)
-  - tests/shutterWiring.test.ts  # A1 coopKit fold
   - tests/previewFlags.test.ts  # A1 (kitMoves preview read; coopKit line from #578)
-  - tests/lookVideo.test.ts  # A1, only if the `?coopkit=1` alias changes the Tallow params
-  - scripts/look-video/tallowWharf.json  # A1, as above
   - scripts/e2e-netmove.mjs
   - docs/design/scale-sheet.md
   - docs/level-design.md
@@ -210,6 +206,10 @@ block), with the files and the order note:
   `src/net/remoteAvatar.ts`, `coopHost.ts`, `coopClient.ts`, `src/anim/animGraph.ts` (`animSource`),
   `src/anim/animSource.ts`, `src/anim/mixamo.ts`, `src/anim/mocap.ts`. Order: on master before A2 and B2 are cut (they
   sit on its per-owner source); A1 and B1 do not wait for it.
+- **PRs #581, #583** (Campaign Build, mission-engine follow-ups built on #578; #583 mission-d-wharf adds
+  `tests/missionFlags.test.ts`, which sets and reads `flags.coopKit`): order: either before or after A1; A1 keeps the
+  writable `flags.coopKit` gate (only its load value reads `kitMoves`), so neither breaks the other; Campaign folds its
+  readers and drops the field in its own later PR.
 - **player-hygiene** (docs/player-hygiene/PLAN.md, -s4; S5 not built): `playerController.ts` (K2), `moveState.ts`,
   `teamController.ts` (S5), `remoteAvatar.ts`, `coopHost.ts`, `coopClient.ts`, `protocol.ts`, `src/anim/mocap.ts`.
   Order: whichever lands second rebases; the orchestrator orders S5 against A1 / B1 (all edit `teamController.ts`).
@@ -267,21 +267,21 @@ beside-the-holder offer and prompt (`teamController.ts:684-721`); `begin` from t
 floor ray, `ropeClimb` down to the floor and the step-off end; `ropeOver` in `ROPE_CLIMBER`, `mode`, `wireSub`, `wireS`
 = 1 from the top (`:1142-1180`); placeholder pose `climbUp` with `traverseT` 1 -> 0. The flag `kitMoves` (Design
 "Both moves": `readKitMoves`, `KIT_BUILT` = `descent`, `pull`, `shutter`, `KIT_MOVES_ON` empty, the preview default).
-**The coopKit fold** (BRIEF A8; #578 is on master by then): `flags.coopKit` goes; its reader `teamController.ts`
-(`flags.coopKit ? this.kitIdle(...)`, #578 line 806) offers each kit kind only when its id is in `kitMoves`;
-`?coopkit=1` / `0` stays an alias for `pull` + `shutter`; its tests switch to `kitMoves` (`tests/kit/pullUp.test.ts`,
-`registry.test.ts`, `shutter.test.ts`, `tests/shutterWiring.test.ts` set `kitMoves` in `beforeAll` and restore it;
-`tests/previewFlags.test.ts` checks the `kitMoves` read instead of the `coopKit` line). Tallow's look-video params
-(`scripts/look-video/tallowWharf.json`, `tests/lookVideo.test.ts`) keep `coopkit=1` through the alias; edited only if
-the alias cannot carry them. Docs: scale sheet line 57 "climb up or rappel down" (reviewer Marlow Build, G293), the
+**The coopKit fold** (BRIEF A8; #578 is on master by then; plan check 3): `flags.coopKit` STAYS a plain writable
+boolean and stays the gate its readers use (`teamController.ts` `flags.coopKit ? this.kitIdle(...)`, #578 line 806,
+unchanged), because Campaign's open PRs set and read it (#583 `tests/missionFlags.test.ts` assigns `flags.coopKit` and
+expects the kit offer to follow; #581 builds on #578). A1 only changes its load value: `flags.coopKit` = `?coopkit=1`,
+else `?coopkit=0` off, else true when `kitMoves` holds `pull` or `shutter` (so /preview/ turns them on through
+`KIT_BUILT`). No reader, test or Tallow look-video param of Campaign's changes; #581 / #583 land in either order.
+Campaign folds its readers onto `kitMoves` ids and removes the field in its own later PR (a note in A1's PR body and a
+message to Campaign Build). Docs: scale sheet line 57 "climb up or rappel down" (reviewer Marlow Build, G293), the
 rope paragraph of `docs/systems/coop.md`.
 - Files: `src/game/teamMoves.ts`, `src/game/teamController.ts`, `src/core/flags.ts`, `tests/teamMoves.test.ts`,
-  `tests/ropeDescent.test.ts` (new), `tests/previewFlags.test.ts`, `tests/kit/{pullUp,registry,shutter}.test.ts`,
-  `tests/shutterWiring.test.ts`, (`tests/lookVideo.test.ts`, `scripts/look-video/tallowWharf.json` only if needed),
+  `tests/ropeDescent.test.ts` (new), `tests/previewFlags.test.ts` (the `kitMoves` read and the `coopKit` load value;
+  Campaign's tests/kit, shutterWiring, lookVideo and Tallow params stay unedited),
   `scripts/e2e-netmove.mjs` (a descent step: the client rappels from beside the host, the host sees `boost` + sub 4
   with `s` 1, the client steps off at the floor, the host is freed; then `?kitmoves=0`: no offer),
-  `docs/design/scale-sheet.md`, `docs/systems/coop.md`, `changes/feature-coop-kit-a1.md`. Est. 750 (650 descent + ~100
-  fold).
+  `docs/design/scale-sheet.md`, `docs/systems/coop.md`, `changes/feature-coop-kit-a1.md`. Est. 700 (650 descent + ~50 flag).
 - Checks: `npx vitest run tests/teamMoves.test.ts tests/ropeDescent.test.ts tests/hangDownNet.test.ts
   tests/previewFlags.test.ts tests/kit tests/shutterWiring.test.ts`; typecheck; one test set: `affected-e2e` (the
   co-op group: `teamMoves.ts` is a wire path once #578 is on master; ctcourse proves A6's rescue line unchanged). One
@@ -289,7 +289,7 @@ rope paragraph of `docs/systems/coop.md`.
 - Done looks like: with `?kitmoves=descent` on both pages the partner beside the holder rappels down and steps off;
   with `?kitmoves=0` nothing changes (the climb from the foot, e2e-ctcourse A6's rescue line, unchanged); a unit test
   of both flag paths: `readKitMoves(null, true)` = `KIT_BUILT`, `readKitMoves(null, false)` = empty, `0` / `none` =
-  empty, an unbuilt id dropped; `?coopkit=1` still turns on pull and shutter; tests/kit pass under `kitMoves`.
+  empty, an unbuilt id dropped; `?coopkit=1` still turns on pull and shutter; `flags.coopKit` is still a writable field (load value true with `pull` or `shutter` in `kitMoves`) and Campaign's tests (tests/kit, `tests/shutterWiring.test.ts`, and `tests/missionFlags.test.ts` once #583 is on master) pass unedited on the A1 head.
 - Flag: `kitMoves` id `descent`. Depends on: PR #578 on master (the fold).
 
 **A2 Rope descent, animation and the remote view (Opus).** Hand-made plus Mixamo per role, research for the hand-made

@@ -118,7 +118,9 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   locks a stand-in for a move that does not exist. Each id switches on in the live game alone when Michael accepts its
   walk item (the walk cap counts moves, not the kit). Campaign's `coopKit` (`?coopkit=1`, pull-up and shutter) lands
   first on PR #578 (origin/feature/mission-b-sector); slice A1 then folds it into `kitMoves` as ids `pull` and
-  `shutter` (its `KitKind` names, `teamMoves.ts` `KIT_KINDS` on #578); `?coopkit=1` stays an alias for those two ids.
+  `shutter` (its `KitKind` names, `teamMoves.ts` `KIT_KINDS` on #578) by its load value only: `flags.coopKit` stays a
+  writable field and the gate its readers use, true at load with `?coopkit=1` or `pull` / `shutter` in `kitMoves`
+  (Campaign's #581 / #583 set and read it; plan check 3); Campaign moves its readers and removes the field later.
   The two ids stay Campaign's to switch on live. Agreed with the orchestrator ~18:25 2026-10-25 and changed with Campaign
   Build 2026-10-26 ~09:50 (`docs/missions/STATE.md` item 7). Undo: one boolean flag per move, `coopKit` restored.
 - A9: Every role is "hand-made + Mixamo <slug>", or hand-made only where Mixamo has no fit (G399, G406, bible 5.12,
