@@ -40,7 +40,12 @@ const FLOOR = '#4b4137';
 const SACK = '#ddc29f';
 const STEEL = '#8d9296';
 const DARK = '#2c3033';
-const ROOF = '#2d2a28';
+const ROOF = '#3d342c';
+/** (walk ~09:50, "lights but no roof") The roof's tie beams: across the hall every 4 m, under the ceiling, above every lamp
+ *  and the intro's highest camera (7.5 m); drawn only (overhead, nothing reaches them). */
+export const ROOF_BEAM_Y = 8.45;
+const ROOF_BEAM_D = 0.25;
+const ROOF_BEAM_X: readonly number[] = [2, 6, 10, 14, 18, 22, 26, 30];
 
 /** The path spaces of the plan (x0, z0, x1, z1), ground floor. Everything else on the ground floor is the machinery floor. */
 export const THORNBECK_SPACES = {
@@ -518,6 +523,20 @@ function buildLamps(b: LevelBuilder): void {
   b.light({ kind: 'lamp', x: s.x, y: s.y, z: s.z, radius: 1.5, intensity: 0.3, color: [0.5, 1, 0.6], electric: true, fixture: { sx: 0.4, sy: 0.2, sz: 0.08, oy: 0 } });
 }
 
+/**
+ * (walk ~09:50) The roof reads as a roof: tie beams across the hall under the ceiling, a ridge purlin along it, and each
+ * lamp hung on a chain from the ceiling. Drawn only; the chains are thinner than the light bake's minimum (CANON_MIN_THICK),
+ * the beams sit above every lamp, so the floor light does not change; the ceiling stays the one closed slab.
+ */
+function buildRoofFrame(b: LevelBuilder): void {
+  for (const x of ROOF_BEAM_X) box(b, x - ROOF_BEAM_D / 2, x + ROOF_BEAM_D / 2, ROOF_BEAM_Y, ROOF_BEAM_Y + ROOF_BEAM_D, 0, 18, TIMBER, { collide: false });
+  box(b, 0, 32, ROOF_BEAM_Y + ROOF_BEAM_D, WALL_H, 8.85, 9.15, TIMBER, { collide: false });
+  for (const [, x, y, z] of THORNBECK_LAMPS) {
+    const top = y + 0.14;
+    b.cylinders.push({ c: [x, (top + WALL_H) / 2, z], r: 0.012, h: WALL_H - top, color: '#3a3d40', collide: false });
+  }
+}
+
 /** Every piece is `noLedge`: nothing hangs, climbs or drops anywhere; the low cover is vaulted by the controller as usual. */
 function noLedges(b: LevelBuilder): void {
   b.mark(0, { noLedge: true });
@@ -557,6 +576,7 @@ export const thornbeckMill: MapDef = {
     buildMachinery(b);
     buildSurfaces(b);
     buildLamps(b);
+    buildRoofFrame(b);
     noLedges(b);
     return {
       playerSpawns: [

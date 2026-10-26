@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.130.0 - Train 162: Route-runs docs; Character shadows settings help; Guards and character shadows, part 2 (dark); Tallow Wharf: the first campaign map (greybox) (2026-10-27, PR #677; #674, #673, #670, #583)
+
+### Character shadows settings help
+- Settings > Graphics > Character shadows: the help text now explains the light meter when the character shadow meter is on. With it off, the text is unchanged.
+
+### Guards and character shadows, part 2 (dark)
+- (behind `charShadowLight`, waits on the shadow list being filled in play) Guards, dogs and bodies feed the character
+  shadow list, and a calm guard who sees a moving player's shadow grows a little suspicious and looks at it, silently;
+  a shadow never sends him to investigate on its own, never cancels a reaction to a sight or sound (J16).
+
+### Tallow Wharf: the first campaign map (greybox)
+- Tallow Wharf, the first campaign map, as a greybox: four sections along a canal wharf with its two co-op missions,
+  Three Grey Coats and Two-Key Ledger. Every mission needs both players and forced co-op moves (leg-up, partner throw,
+  pull-up, the roller shutters).
+- Sections 1 and 3 are re-lit to real-site levels: every light works, and a room goes dark only under cover, with the
+  power cut or after a shot lamp. Hide spots, medkit stations and lookout spots in each section.
+- Three Grey Coats: knocking Teale out before he talks restarts the section with him at his table; killing him or
+  questioning a decoy breaks the rule and he moves.
+- Tallow Wharf is not on any menu. It opens by URL only, and its missions need the `missions` and `coopKit` flags: off
+  in the live game, on in /preview/. Nothing changes in the live game.
+
+### Route-runs docs
+- Docs: `docs/systems/testing-tools.md` "Route-runs" (command, laptop request, outputs, dead stops, drills, stubs) and Q7's pass rule in `docs/level-design.md` 14 and 15.
+
 ## 4.129.0 - Train 161: Light field: no allocation in the meter, guard and shadow-cue queries (F57); Realistic guard models on by default; Guard models offline warm; Guards and character shadows, part 1 (dark); +2 more (2026-10-27, PR #672; #671, #669, #667, #612, #375)
 
 ### Light field: no allocation in the meter, guard and shadow-cue queries (F57)

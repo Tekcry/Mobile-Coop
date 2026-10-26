@@ -24,9 +24,9 @@ export const DOUBLE_GAP = 0.5;
 /** A clock step bigger than this (s) is a jump (a seek, a late join, a stalled page): re-seek, fire nothing. */
 export const JUMP_S = 1;
 
-/** The rain's level on the ground floor and on the gallery (nearer the roof). */
-export const RAIN_GROUND = 0.1;
-export const RAIN_GALLERY = 0.17;
+/** The rain's level on the ground floor and on the gallery (nearer the roof). Michael 2026-10-27 ~09:10 "the rain is defening", then ~09:40 "still way too loud": now about a twentieth of the first level (-26 dB). */
+export const RAIN_GROUND = 0.005;
+export const RAIN_GALLERY = 0.009;
 /** The two heights the level runs between (m): the floor and the gallery deck (thornbeckMill.ts). */
 export const RAIN_GROUND_Y = 0;
 export const RAIN_GALLERY_Y = DECK_Y;

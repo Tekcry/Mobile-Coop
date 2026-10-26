@@ -339,6 +339,8 @@ export const DIRECT_COVERS = {
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
+  // (mission-framework GB6) Tallow Wharf: its missions run in e2e-sectorops (wharf-tgc / wharf-tkl)
+  'src/world/maps/tallowWharf': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
   // the Warehouse map itself: its routes suite (legacy) and the usual world suites
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],

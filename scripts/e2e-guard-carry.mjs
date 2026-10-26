@@ -458,9 +458,11 @@ await browser.close();
   const G2 = (f, a) => fig.page.evaluate(f, a);
   const err2 = fig.errors;
   try {
-    console.log('figures on: a grunt whose figure shader compile is forced to time out (5 s): the merged body stands in');
+    // (train 164) the fault holds the figure 20 s, not 5: the stand-in's own shader compiles normally and a cold D3D11
+    // compile takes 8 s and more on a busy machine, so a 5 s fault let the figure take over before the stand-in ever drew
+    console.log('figures on: a grunt whose figure shader compile is forced to time out (20 s): the merged body stands in');
     await frames(fig.page, 10);
-    const s2 = await G2(SETUP, { spot: spotArg, define: 'GUARDFIG', faultMs: 5000 });
+    const s2 = await G2(SETUP, { spot: spotArg, define: 'GUARDFIG', faultMs: 20000 });
     assert(!!s2.spot, `figures on: a walkable spot near ${spotArg}`);
     const [fx, fz] = s2.spot;
     await G2(() => window.__gc.reset());
