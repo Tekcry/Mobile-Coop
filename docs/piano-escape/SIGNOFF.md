@@ -99,7 +99,8 @@ page asks only about the mill.**
   <rect x="100" y="88" width="768" height="72" fill="#7d93ad" fill-opacity="0.35" stroke="#1f3a5f" stroke-width="2" stroke-dasharray="8 4"/>
   <line x1="100" y1="160" x2="388" y2="160" stroke="#1f3a5f" stroke-width="2"/>
   <line x1="580" y1="160" x2="868" y2="160" stroke="#1f3a5f" stroke-width="2"/>
-  <text x="430" y="156" fill="#1f3a5f" font-size="9">crane bay: open rail</text>
+  <line x1="388" y1="160" x2="580" y2="160" stroke="#8a4b1c" stroke-width="3" stroke-dasharray="10 4"/>
+  <text x="404" y="156" fill="#8a4b1c" font-size="9">crane bay: drop bar + chain (no way down)</text>
   <g fill="#c9a77a" stroke="#6d4c2a">
     <rect x="172" y="88" width="57.6" height="9.6"/>
     <rect x="580" y="88" width="57.6" height="21.6"/>
@@ -139,12 +140,12 @@ page asks only about the mill.**
     <line x1="184" y1="311.2" x2="306.4" y2="311.2"/><line x1="184" y1="328" x2="306.4" y2="328"/>
     <polyline points="328,472 592,472 592,352 647.2,352"/>
     <polyline points="508,275.2 704.8,275.2 704.8,227.2"/>
-    <polyline points="599.2,313.6 599.2,227.2 690.4,227.2"/>
+    <polyline points="599.2,313.6 599.2,227.2 676,227.2"/>
   </g>
   <g fill="none" stroke="#1f3a5f" stroke-width="1.6" stroke-dasharray="6 4">
-    <line x1="820" y1="131.2" x2="642.4" y2="131.2"/>
+    <line x1="791.2" y1="131.2" x2="642.4" y2="131.2"/>
     <line x1="400" y1="143.2" x2="613.6" y2="143.2"/><line x1="400" y1="124" x2="613.6" y2="124"/>
-    <line x1="136" y1="133.6" x2="256" y2="133.6"/><line x1="136" y1="114.4" x2="256" y2="114.4"/>
+    <line x1="136" y1="133.6" x2="232" y2="133.6"/><line x1="136" y1="114.4" x2="232" y2="114.4"/>
   </g>
   <!-- intro: guards close in from two sides -->
   <g stroke="#e65100" stroke-width="2" stroke-dasharray="2 3" fill="none">
@@ -157,7 +158,7 @@ page asks only about the mill.**
     <circle cx="599.2" cy="304" r="6"/><circle cx="796" cy="282.4" r="6"/>
   </g>
   <g fill="#c62828" stroke="#1f3a5f" stroke-width="1.5">
-    <rect x="814" y="125" width="12" height="12"/><rect x="394" y="137" width="12" height="12"/><rect x="394" y="118" width="12" height="12"/>
+    <rect x="785" y="125" width="12" height="12"/><rect x="394" y="137" width="12" height="12"/><rect x="394" y="118" width="12" height="12"/>
     <rect x="305" y="125" width="12" height="12"/><rect x="130" y="128" width="12" height="12"/><rect x="130" y="108" width="12" height="12"/>
   </g>
   <g fill="#c62828" font-weight="bold" font-size="10">
@@ -165,7 +166,7 @@ page asks only about the mill.**
     <text x="604" y="300">G5</text><text x="800" y="300">G6</text>
   </g>
   <g fill="#1f3a5f" font-weight="bold" font-size="10">
-    <text x="826" y="124">G7</text><text x="446" y="119">G8+G9</text><text x="300" y="122">G10</text><text x="142" y="105">G11+G12</text>
+    <text x="782" y="121">G7</text><text x="446" y="119">G8+G9</text><text x="300" y="122">G10</text><text x="142" y="105">G11+G12</text>
   </g>
 
   <!-- stretch numbers -->
@@ -183,9 +184,10 @@ page asks only about the mill.**
   <!-- players and intro camera -->
   <g fill="#2e7d32"><circle cx="196" cy="409.6" r="6"/><circle cx="196" cy="376" r="6"/></g>
   <text x="104" y="510" fill="#2e7d32" font-weight="bold" font-size="10">START: backs to W1</text>
-  <line x1="186" y1="393" x2="126" y2="393" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="3 3"/>
-  <polygon points="120,393 130,388 130,398" fill="#6a1b9a"/>
-  <text x="112" y="384" fill="#6a1b9a" font-size="9">intro camera</text>
+  <line x1="181.6" y1="392.8" x2="123" y2="485" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="3 3"/>
+  <polygon points="119.2,491.2 120.5,479.5 129.5,485" fill="#6a1b9a"/>
+  <text x="104" y="458" fill="#6a1b9a" font-size="9">intro camera:</text>
+  <text x="104" y="468" fill="#6a1b9a" font-size="9">back, up to 7.5 m</text>
 
   <!-- labels -->
   <g fill="#333" font-weight="bold" font-size="10">
@@ -248,13 +250,14 @@ windows (blue) light anything.
 10. The hoist door: the last two pace by the way out. Take them together; the door unlocks and you leave.
 
 **The opening (against the 2 min 14 s piano track, as approved).** 0-3 s black, rain. 3-9 s fade in on the chest, empty
-pistol, calm breathing, a dry click. 16-30 s the camera pulls back from the grain bins: bullets from two sides in slow
-motion. 30-38 s on the first swell: surrounded, four guards closing in from the stair and the aisle. 38 s: one button
+pistol, calm breathing, a dry click. 16-30 s the camera pulls back and up from the grain bins: bullets from two sides in slow
+motion. 30-38 s on the first swell, the camera high over the bins: surrounded, four guards closing in from the stair and the
+aisle. 38 s: one button
 sets off the EMP, every lamp dies, torches click on, and you have control.
 
-**The storm.** Lightning lights everyone, you and the guards, for about half a second: a flash every 12 s at first,
-then every 7-8 s, and a double flash on each swell of the music, the same every time, so you learn to move between
-them. Rain on the roof halves how far guards can hear you.
+**The storm.** Lightning lights everyone, you and the guards, for about half a second. The first flash comes 6 s after
+the EMP; then a flash every 12 s, later every 7-8 s, with a double flash on each swell of the music, the same every
+time, so you learn to move between them. Rain on the roof halves how far guards can hear you.
 
 **If 12 torches are too heavy for the graphics card** (one test decides): fewer guards, never fewer than 8, and never
 a guard without a torch. If it allows, up to 16.
@@ -264,7 +267,8 @@ a guard without a torch. If it allows, up to 16.
 - One set path, no side routes, loops or secret ways (as you asked: not open world).
 - One checkpoint, at the start.
 - Nearly every guard runs the same slow sweep instead of a mix of posts and patrols; guard numbers are not graded.
-- No lures, switches, lamps or gadgets to play with after the EMP: knife and night vision only.
+- No lures, switches, lamps or gadgets to play with after the EMP (knife and night vision only), and no pacing chart
+  or teach-then-test beats.
 - No security devices (cameras, lasers, keypads) and no security sheet.
 - Knife kills only: no sneaking past to the end or knocking out (as you picked for this scene).
 - One player may play it for testing (the standard says exactly two).
@@ -289,6 +293,16 @@ a guard without a torch. If it allows, up to 16.
 Q: Build the storm mill escape to this plan, with the rule skips above (this scene only)?
 - "Approve, build it (Recommended)"
 - "Change it first"
+
+Q2: At the start, how many guards search round your wall?
+- "Only the two you take together (Recommended)"
+- "All four, as drawn"
+
+Q3: Playing alone, the guard pairs need two people at once. What should one player get?
+- "Testing only, pairs stay (Recommended)"
+- "Split each pair for one player"
+
+The plan follows the recommended answers until you pick.
 
 ## Michael's pick
 Sign-off 1 (the piano works): approved 2026-10-26 ~20:15, "Approve, build it (Recommended)"; it stands for the opening,
