@@ -1003,7 +1003,7 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~10:20 SAVE before the swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~12:35 SAVE, cap ~12:42; all worktrees clean + pushed; full burn; order J4, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
@@ -1011,7 +1011,7 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
 2. J4 #317 coop4: master 4.106.0 merged f720d29e3; merge 2 checks A + B PASS, checker posted on head 3c06444f8
    (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). lost train-ready 12:10 (conflict with master 4.110.0
    campusSectors.ts); master merged ed34b4005 (S1-S3 tables moved to campusS<N>Data.ts; coop4 guards appended there and in
-   campusV2/s1-s5Data seed copies; tsc / vitest 24 files green). Orchestrator carries checker + label on affected green. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
+   campusV2/s1-s5Data seed copies; tsc / vitest 24 files green). Orchestrator merge check PASS + checker posted; it labels on affected green. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
    `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
 4. J15 PR1 #450 b718293df: in train 112 (#491, laptop rerun at 08:30).
