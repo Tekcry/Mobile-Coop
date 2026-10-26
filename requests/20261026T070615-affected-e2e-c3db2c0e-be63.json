@@ -1,0 +1,15 @@
+{
+  "id": "20261026T070615-affected-e2e-c3db2c0e-be63",
+  "sha": "c3db2c0e33c0eed449a998d28fe1bf78abe0ccf7",
+  "branch": "feature/guard-ai-play",
+  "pr": 585,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-gadgets",
+    "e2e-park",
+    "e2e-section-rating"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #585"
+}
