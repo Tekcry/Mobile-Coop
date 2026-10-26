@@ -250,6 +250,7 @@ describe('sector rules', () => {
     for (const k of ['grunt', 'officer', 'sniper', 'droneOp'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
     expect(checkSectorGuards(sec([g('grunt'), g('enforcer')]))).toEqual(['s: guard 1 is a riot shield (only in alert response teams, G307)']);
     // M1: no melee-only guards; G155: no heavies
+    expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
     expect(checkSectorGuards(sec([g('heavy')]))).toEqual(['s: guard 0 is a heavy (G155)']);
     // dogs: none by default; allowed by `dogs`, each with an armed human handler of the section
     expect(checkSectorGuards(sec([g('grunt'), g('dog', 0)]))).toEqual(['s: 1 dogs, the section allows 0']);
@@ -258,17 +259,9 @@ describe('sector rules', () => {
     expect(checkSectorGuards(sec([g('grunt'), g('dog')], 1))).toEqual(['s: dog 1 has no handler']);
     expect(checkSectorGuards(sec([g('grunt'), g('dog', 5)], 1))).toEqual(['s: dog 1 has no handler']);
     expect(checkSectorGuards(sec([g('dog', 1), g('dog', 0)], 2))).toEqual(["s: dog 0's handler 1 is not an armed human guard", "s: dog 1's handler 0 is not an armed human guard"]);
-    // (J19 S4) every human kind is armed now (G298): an unarmed runner is simulated to keep the M1 check's teeth
-    const runnerWeapon = ENEMIES.runner.weapon;
-    ENEMIES.runner.weapon = null;
-    try {
-      expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
-      expect(checkSectorGuards(sec([g('runner'), g('dog', 0)], 1))).toEqual(['s: guard 0 (runner) carries no gun (M1)', "s: dog 1's handler 0 is not an armed human guard"]);
-      // checkSectors runs it on every section
-      expect(checkSectors([sec([g('runner')])])).toContain('s: guard 0 (runner) carries no gun (M1)');
-    } finally {
-      ENEMIES.runner.weapon = runnerWeapon;
-    }
+    expect(checkSectorGuards(sec([g('runner'), g('dog', 0)], 1))).toEqual(['s: guard 0 (runner) carries no gun (M1)', "s: dog 1's handler 0 is not an armed human guard"]);
+    // checkSectors runs it on every section
+    expect(checkSectors([sec([g('runner')])])).toContain('s: guard 0 (runner) carries no gun (M1)');
     // the reinforcements are armed guards, not heavies (G155)
     expect(SECTOR_REINFORCE_KIND).toBe('grunt');
     expect(ENEMIES[SECTOR_REINFORCE_KIND].weapon).toBeTruthy();
