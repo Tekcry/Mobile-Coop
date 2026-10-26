@@ -41,6 +41,10 @@ import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
 import type { LightDef, Occluder } from '../world/lights';
 import type { LightField } from '../world/lightField';
+import { OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import type { ShadowCues } from '../world/shadowCues';
+import { NI_X, NI_YAW, NI_Z, NO_DIST, NO_X, NO_Y, NO_Z, NOTICE_IN, NOTICE_OUT, noticeInto, SHADOW_NOTICE } from './shadowNotice';
+import { guardOccR } from './guardOccluders';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
@@ -190,6 +194,13 @@ export interface AiContext {
   /** (LR16t) Static geometry for the light field's flashlights (`EnemyManager.bodyOccluder`): the light on a target
    *  without its own sample is tested as a body's is, so a torch behind a wall does not light it. */
   lightOccluder?: Occluder;
+  /** (guard-ai-j16 G3, G352) The character-occluder contract the guards' light reads take (`EnemyManager.chars`): a
+   *  getter, never a value, so a contract set on the manager after construction reaches every guard (plan check 1
+   *  item 1). Null or absent: no character shadows (today's light to the bit). */
+  chars?(): CharOccluders | null;
+  /** (guard-ai-j16 G3, G379) The players' cast-shadow cues (`EnemyManager.cues`, Sector Ops' 10 Hz fill), read by the
+   *  shadow cue (`Enemy.shadowLook`). A getter as `chars`. Null or absent: no cue (today's perception). */
+  cues?(): ShadowCues | null;
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
@@ -247,9 +258,13 @@ export interface AiContext {
 
 let nextId = 1;
 /** (LR16t) The light field at a point for a guard's perception, its flashlights tested with the context's occluder
- *  (`AiContext.lightOccluder`), as a body's light is. */
-export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder'>, x: number, y: number, z: number): number {
-  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+ *  (`AiContext.lightOccluder`), as a body's light is. (guard-ai-j16 G3) With a character contract (`AiContext.chars`)
+ *  the characters' shadows count, `skip` the sampled character's owner key (a player: `occKey(OCC_KIND.player, i)`);
+ *  without one the call is today's, argument for argument. */
+export function fieldLight(ctx: Pick<AiContext, 'world' | 'lightOccluder' | 'chars'>, x: number, y: number, z: number, skip = -1): number {
+  const chars = ctx.chars?.() ?? null;
+  if (chars === null) return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder);
+  return ctx.world.lightField.totalAt(x, y, z, ctx.lightOccluder, chars, skip);
 }
 
 /** The paces table lives in `response.ts` (pure; guard-ai S19 added the rush), re-exported here for its readers. */
@@ -548,6 +563,21 @@ export class Enemy implements Damageable {
   }
   /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
   private turnT = 0;
+  /** (guard-ai-j16 G3, A9) His character-occluder radius: the hit capsule's `bodyR` (`guardOccR`), cached at spawn. */
+  readonly occR: number;
+  /** (guard-ai-j16 G3, A11) His last shadow cue (`shadowLook`): seconds since (Infinity: none yet), the floor point he
+   *  turned to (x, z; his stimulus) and the player's `ShadowCues` slot. Read by the debug probe and the e2e. */
+  cueT = Infinity;
+  cueX = 0;
+  cueZ = 0;
+  cueSlot = -1;
+  /** (G3) `noticeInto`'s result for one player, and the nearest so far over the players (`NOTICE_OUT` each). */
+  private readonly cueOut = new Float64Array(NOTICE_OUT);
+  private readonly cueBest = new Float64Array(NOTICE_OUT);
+  /** (G3) The cue ray's end (the floor point). */
+  private readonly cueV = new Vector3();
+  /** (G3, A5) The cue lifts him from calm this step: that rise says nothing (`onLevel`). Cleared each step. */
+  private cueRise = false;
   /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
    *  (calm), in combat, or on another search. */
   incident = -1;
@@ -772,6 +802,8 @@ export class Enemy implements Damageable {
     // (guard-render S4) anim tiers: off-screen / far guards solve their pose less often (`animTier.ts`)
     this.animTier = new GuardAnimTier(ctx.scene, this.rig.voxel?.meshes[0] ?? null, this.num, def.height, ctx.world);
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
+    // (guard-ai-j16 G3) the hit capsule's radius as his occluder's (once: `guardOccR` allocates)
+    this.occR = guardOccR(def.build, def.scale);
     this.headRest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
     this.voice = new BarkVoice(this.num);
     const parts = ctx.world.parts;
@@ -2340,7 +2372,8 @@ export class Enemy implements Damageable {
     const hush = this.quietRise;
     if (to !== 'suspicious') this.quietRise = false;
     if (to === 'suspicious') {
-      if (!hush) this.bark('suspicious');
+      // (guard-ai-j16 G3, A5) a rise from his shadow cue alone (no sight, no sound) is silent: the white arc only
+      if (!hush && !(this.cueRise && this.riseCause === RISE_NONE)) this.bark('suspicious');
     }
     // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
     else if (to === 'investigating') {
@@ -2640,6 +2673,7 @@ export class Enemy implements Damageable {
     this.stagger = Math.max(0, this.stagger - dt);
     this.strikeStaggerT = Math.max(0, this.strikeStaggerT - dt);
     this.lastSeenT += dt;
+    this.cueT += dt;
     this.grenadeCd -= dt;
     this.doorCheck = Math.max(0, this.doorCheck - dt);
     this.strafeT -= dt;
@@ -2756,7 +2790,8 @@ export class Enemy implements Damageable {
       const los = chest || head;
       const expo = alerted ? (los ? 1 : 0) : seen / (t.headPoint ? 3 : 2);
       // light on him (perception reads it): the owner's sample, else the light field at the aim point
-      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
+      // (guard-ai-j16 G3) his own capsule skipped: the contract's player key is the players() index (`fillPlayers`)
+      const light = p.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z, occKey(OCC_KIND.player, i));
       // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
       const si = P_SIGHT;
       si.dist = d;
@@ -2818,7 +2853,7 @@ export class Enemy implements Damageable {
       this.sawOnce = true;
     }
     let light = P_LIGHT[k]!;
-    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z);
+    if (Number.isNaN(light)) light = best.light ?? fieldLight(this.ctx, this.tmp.x, this.tmp.y, this.tmp.z, occKey(OCC_KIND.player, k));
     this.targetLight = light;
     const si = this.sight;
     si.dist = this.dist;
@@ -2845,6 +2880,64 @@ export class Enemy implements Damageable {
     }
     if (alerted && this.los) this.takeSighting(best);
     this.lookForBodies(eye);
+    // (guard-ai-j16 G3, plan check 1 item 6) last: the cue's stimulus is not overwritten by a sub-leak glimpse above
+    this.shadowLook(eye, capped);
+  }
+
+  /**
+   * (guard-ai-j16 G3, G379 "A faint cue"; BRIEF A4-A6, A11, PLAN section 1) A player's moving cast shadow in his focused
+   * cone: he grows suspicious and looks at it, never more. Who (A6): not alerted, passive or a dog, at unaware /
+   * cooldown / suspicious with no incident task, and seeing nobody this think (every player's rate <= `leak`: sight
+   * keeps his look). Over every live player in the cues (`slotOf`), the nearest qualifying point (`noticeInto`), one
+   * line-of-sight ray from his eye to it (A4; at 3+ players only inside `PERCEIVE.maxRays`, counted there). Clear: the
+   * hearing turn's reaction (`hearTurn`, A5), written here so no double crosses a call: meter at least
+   * `SHADOW_NOTICE.meter`, the point as his stimulus, `turnT` = `ALERT.hearLook`; no `heard`, report, `lastKnown`,
+   * `sawOnce` or target change; a rise from calm says nothing (`cueRise`). Records `cueT` / `cueX` / `cueZ` / `cueSlot`.
+   * No cues (null or absent): nothing, today's perception. No allocation.
+   */
+  private shadowLook(eye: Vector3, capped: boolean): void {
+    const cues = this.ctx.cues?.() ?? null;
+    if (cues === null || !SHADOW_NOTICE.enabled) return;
+    if (this.alerted || this.passive || this.dog !== null || this.incident >= 0) return;
+    const lvl = this.aware.level;
+    if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return;
+    // (A4, plan check 1 item 6) 3+ players: the cue's ray only while the think stays within the budget
+    if (capped && this.raysThink + 1 > PERCEIVE.maxRays) return;
+    const players = this.ctx.players();
+    const n = players.length < MAX_INTRUDERS ? players.length : MAX_INTRUDERS;
+    for (let i = 0; i < n; i++) if (P_RATE[i]! > PERCEPTION.leak) return;
+    NOTICE_IN[NI_X] = this.pos.x;
+    NOTICE_IN[NI_Z] = this.pos.z;
+    NOTICE_IN[NI_YAW] = this.yaw;
+    const out = this.cueOut;
+    const best = this.cueBest;
+    let slot = -1;
+    for (let i = 0; i < n; i++) {
+      const p = players[i]!;
+      if (!p.target.alive) continue;
+      const s = cues.slotOf(p.id);
+      if (s < 0 || noticeInto(cues, s, out) < 0) continue;
+      if (slot >= 0 && !(out[NO_DIST]! < best[NO_DIST]!)) continue;
+      best.set(out);
+      slot = s;
+    }
+    if (slot < 0) return;
+    this.raysThink++;
+    this.raysStep++;
+    const v = this.cueV;
+    v.set(best[NO_X]!, best[NO_Y]!, best[NO_Z]!);
+    if (!this.losTo(eye, v, SHADOW_NOTICE.slack)) return;
+    // the hearing turn's reaction (A5); from calm the rise is silent
+    if (lvl !== 'suspicious') this.cueRise = true;
+    if (this.meter < SHADOW_NOTICE.meter) this.meter = SHADOW_NOTICE.meter;
+    this.stimulus[0] = v.x;
+    this.stimulus[1] = v.z;
+    this.hasStimulus = true;
+    this.turnT = ALERT.hearLook;
+    this.cueT = 0;
+    this.cueX = v.x;
+    this.cueZ = v.z;
+    this.cueSlot = slot;
   }
 
   /** Not in combat: notice a downed body (light, distance, field of view, line of sight). One ray at most. */
@@ -2942,6 +3035,7 @@ export class Enemy implements Damageable {
     this.heard = false;
     this.gunfire = false;
     this.searchReq = false;
+    this.cueRise = false;
   }
 
   /** Head towards a floor point: straight when the line is clear, else along an A* path (replanned when the
