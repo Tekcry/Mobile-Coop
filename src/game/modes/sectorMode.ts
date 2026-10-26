@@ -1518,6 +1518,12 @@ export class SectorMode implements GameMode {
     };
   }
 
+  /** (mission-rules R6) The bound mission while it runs in the live section (not over); null otherwise. No allocation. */
+  private missionLive(): SectorMission | null {
+    const m = this.mission;
+    return m && !m.over && m.runner.section >= 0 ? m : null;
+  }
+
   /**
    * (mission-rules R6, HG8) Field Terminal > Objectives while a mission is bound: its rules line and steps
    * (`missionObjectiveLines`), never the sector rows. (hud-guidance B4, G343) Otherwise every section's objective and
@@ -1527,12 +1533,6 @@ export class SectorMode implements GameMode {
     const m = this.mission;
     if (m) return missionObjectiveLines(m.runner, m.viewer(), this.g.app.settings.get().gameplay.hints);
     return this.run.defs.length ? sectorObjectiveLines(this.run.defs, this.run.index, this.run.phase) : null;
-  }
-
-  /** (mission-rules R6) The bound mission while it runs in the live section (not over); null otherwise. No allocation. */
-  private missionLive(): SectorMission | null {
-    const m = this.mission;
-    return m && !m.over && m.runner.section >= 0 ? m : null;
   }
 
   dispose(): void {
