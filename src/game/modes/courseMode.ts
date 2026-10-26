@@ -38,6 +38,14 @@ import { REPLAN_TICKS, type StationHooks, type StationTick, type TickZone } from
 
 /** (J14 R1 fix 6) The re-planned yard's course id (`ctcourse.ts`): only it runs the sets' station ticks. */
 const REPLAN_COURSE = 'ctcourseReplan';
+/** (marlow-play C2) The re-plan's A2 neck isolator (`ctcourseSets/a2CarriageShed.ts` `A2_GATE`): no lights-out lure there, or the
+ *  shunter walks down the crossers' lane to the cabinet. */
+const REPLAN_NO_LURE_GATE = 'g-a2-neck';
+
+/** (marlow-play C2) Does an isolator gate going dark lure the nearest calm guard to its cabinet? All but the re-plan's A2 neck. */
+export function isolatorLures(courseId: string, gateId: string): boolean {
+  return !(courseId === REPLAN_COURSE && gateId === REPLAN_NO_LURE_GATE);
+}
 
 /**
  * (fix round 2) The source of the station ticks' `epoch()`: one more on every course start, station retry and bay
@@ -1579,10 +1587,16 @@ export class CourseMode implements GameMode {
     const x = dv ? dv.x : 0;
     const z = dv ? dv.z : 0;
     const s = this.g.stealth;
-    if (s) s.isolate(gid, on, x, z);
-    else {
+    // (marlow-play C2) no lure: the circuit and its switches follow as `isolate` does, but no guard comes to the cabinet
+    const lure = isolatorLures(this.state ? this.state.def.id : '', gateId);
+    if (s && lure) s.isolate(gid, on, x, z);
+    else if (s) {
       this.g.world.level.lights.setGroup(gid, on);
-      if (!on) this.g.enemyMgr?.lightsOut(x, z);
+      s.syncGroup(gid, on);
+      this.g.events.emit('lightSwitch', { on });
+    } else {
+      this.g.world.level.lights.setGroup(gid, on);
+      if (!on && lure) this.g.enemyMgr?.lightsOut(x, z);
     }
     this.dirty = true;
   }
