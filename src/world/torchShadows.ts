@@ -139,9 +139,10 @@ export class TorchShadows implements TorchShadowLink {
   ) {
     this.depthSign = scene.getEngine().useReverseDepthBuffer ? -1 : 1;
     this.n = rig.torchSlotIds.length;
-    let sh = 0;
-    for (const l of reg.lights) if (l.kind === 'flashlight' && !l.beamCut) sh++;
-    this.shadowed = Math.max(1, Math.min(this.n, sh));
+    // (every slot shadowed unless the registry holds beamCut torches: those take the last slots, `LightRig.torchFixed`)
+    let cut = 0;
+    for (const l of reg.lights) if (l.kind === 'flashlight' && l.beamCut) cut++;
+    this.shadowed = Math.max(1, this.n - cut);
     this.mats = new Float32Array(this.n * 16);
     this.params = new Float32Array(this.n * 4);
     // (`World.create` runs `addTorchSlots` before this: a bright map's registry has no flashlight)

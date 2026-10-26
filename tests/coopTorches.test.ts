@@ -260,6 +260,21 @@ describe('coop-torches: TorchMirror', () => {
     expect(reg.lights.every((l) => !l.on)).toBe(true);
   });
 
+  it('(piano SO3) a map with 8 or 16 slots: the client builds the same count and lights that many', () => {
+    for (const n of [8, 16]) {
+      const reg = new LightRegistry();
+      reg.ambient = 0.2;
+      addTorchSlots(reg, n);
+      const m = new TorchMirror(reg, hitXYZ);
+      expect(m.slots.length).toBe(n);
+      const gs = Array.from({ length: n + 2 }, (_, i) => mk(`g${i}`));
+      m.update(gs);
+      expect(reg.lights.filter((l) => l.on).length).toBe(n);
+      expect(m.slotOf(`g${n - 1}`)?.on).toBe(true);
+      expect(m.slotOf(`g${n}`)).toBeNull();
+    }
+  });
+
   it('a lit map has no slots: nothing to mirror', () => {
     const reg = new LightRegistry();
     reg.ambient = 0.8;
