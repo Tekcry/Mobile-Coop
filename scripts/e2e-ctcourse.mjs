@@ -19,6 +19,8 @@
 // starts with the course at that set and must leave both players free to be moved onto the exit pad. The old bunker
 // stations' steps (camera hallway, security room, laser and panel, throw, hang-down, scanners, rope) are in git at
 // 5920cce5 (scripts/e2e-ctcourse.mjs) for the set slices to adapt.
+// Debug only: `E2E_STALL_HOST_MS=3000` blocks the host page's thread that long when the client tab reaches the room
+// (the boot-deadlock proof, F7); unset (the default) it does nothing.
 import { launch, openPage, assert } from './e2e-lib.mjs';
 import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 import * as a1Gate from './e2e-ctcourse/a1Gate.mjs';
@@ -302,6 +304,21 @@ try {
   await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
   // (the match starts once the client tab joins: the start set is set before it opens)
   if (FIRST > 1) await GA((n) => (window.__coop.session.courseBay = n), FIRST);
+  const stallMs = Number(process.env.E2E_STALL_HOST_MS ?? 0);
+  if (stallMs > 0) {
+    // on the client tab's first peer join (its session opening the room), before the host answers it
+    console.log(`  (E2E_STALL_HOST_MS: the host page's thread blocks ${stallMs} ms when the client tab reaches the room)`);
+    await GA((ms) => {
+      const tr = window.__coop.session.transport;
+      const f = tr.onPeerJoin;
+      tr.onPeerJoin = (id) => {
+        tr.onPeerJoin = f;
+        const t0 = performance.now();
+        while (performance.now() - t0 < ms);
+        f?.(id);
+      };
+    }, stallMs);
+  }
   const opened = await openPage(ctx, url, Q);
   B = opened.page;
   eB = opened.errors;
