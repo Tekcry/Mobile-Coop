@@ -1043,9 +1043,13 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    orchestrator were both blocked by auto mode (12:35); Michael posts it or allows it (not routed via peers). ONE laptop set mh-s4 on 6fb0e1b32 covers the
    stack (S1a-2 fix, S1b, S3b, S4; stealth-ai, guard-carry, sectorops:1); mh-s1b-fix + mh-s3b withdrawn 12:20. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
    Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
+7b. NEW (orchestrator 12:41, rule fix G298, not walk-capped): the runner guard must be armed. J19 S4 gave him the
+   grunt weapon block as data only; src/ai/enemy.ts ~3250 (master) still runs his melee branch. Slice: he draws and fires
+   like the other armed kinds. Opus planner -> brief on feature/guard-ai-runner-armed (worktree -runner-armed off
+   master); then Opus builder, 2 Opus checkers, laptop set, PR (kind patch).
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); S4 checker status (Michael); J26 PRs open after J15 PR4 merges.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); S4 checker status (Michael); J26 PRs open after J15 PR4 merges; runner-armed brief -> builder.
 ```
