@@ -53,13 +53,13 @@ restart sets it again, so every run has the same lap timing), talking pairs are 
 is put on his sweep. While true, `placeSlot` puts each new guard on his sweep before pairs are built, and `buildPair` is
 skipped (the scene's `pair` tag means sweep partner: no meetings, no lines, no pair warnings).
 
-**The sweep plan** (new pure `src/ai/sweep.ts`, built once per guard at placement, load-time allocation only).
-`sweepPlan(route, postX, postZ, postYaw)` returns the stops and a timed schedule at `SWEEP.pace`:
-- Stops = the route's points as a loop. No route (a plain post): one stop at the post, wait `SWEEP.postPan`, face the
+**The sweep plan** (new pure `src/ai/sceneSweep.ts`, built once per guard at placement, load-time allocation only).
+`sweepPlan(route, postX, postZ, postYaw)` returns the stops and a timed schedule at `SCENE_SWEEP.pace`:
+- Stops = the route's points as a loop. No route (a plain post): one stop at the post, wait `SCENE_SWEEP.postPan`, face the
   post yaw.
-- A stop's wait = `waits[i]`, else `wait`, else `SWEEP.panTime` (3 s; not `PATROL.wait`). Wait 0 = a corner: pass
+- A stop's wait = `waits[i]`, else `wait`, else `SCENE_SWEEP.panTime` (3 s; not `PATROL.wait`). Wait 0 = a corner: pass
   through, no pan, never held.
-- Leg time = straight-line length / `SWEEP.pace`, plus `SWEEP.slack` on each walked leg into a pan stop (starts, stops,
+- Leg time = straight-line length / `SCENE_SWEEP.pace`, plus `SCENE_SWEEP.slack` on each walked leg into a pan stop (starts, stops,
   turns). `leave[]`, `period` follow; loop time 0 = arriving at stop 0. The phase at the epoch comes from `start`:
   loop time = `leave[idx] - wait`. An authored `loop` is not used on the scene (A3).
 - Each pan stop's **centre** = `faces[i]`, else the heading of the leg into it. A stop reached by a zero-length leg with
@@ -70,7 +70,7 @@ skipped (the scene's `pair` tag means sweep partner: no meetings, no lines, no p
 **The walker** (`PatrolWalker.setSweep(plan, side, t0)`; `t0` = the guard's phase + the sweep clock now). In sweep mode
 `step` walks the plan's stops: at a pan stop it holds until the schedule's `leave` (half-period rule as now) and sets
 `lookYaw` every step from `panYaw(...)`: a pure piecewise-linear offset on the stop's cycle `D` (= its nominal wait):
-0 to D/4 centre to `-side x SWEEP.panYaw` (left), D/4 to 3D/4 across to the right, then hold right; a hold longer than D
+0 to D/4 centre to `-side x SCENE_SWEEP.panYaw` (left), D/4 to 3D/4 across to the right, then hold right; a hold longer than D
 repeats the cycle from 0, a shorter one is cut. At 3 s and 0.7 rad that is 53 deg/s, under the 60 deg/s calm turn, so
 the body (torch and sight) tracks it; same order every lap. Yaw grows towards +x (`atan2(dx, dz)`), so "left" is a
 negative offset.
@@ -79,8 +79,8 @@ negative offset.
 wrap, at most one lap), then on with the schedule. So a guard is always back in step with his own clock, and two guards
 with one schedule (a pair) end up abreast again whatever order they came back in.
 
-**Pace.** A sweeping guard walks at `SWEEP.pace` (0.7 m/s, capped at his `walkSpeed`) unaware or cooldown
-(`enemy.ts:2842`). While `sceneDark`, investigating at the calm pace is `SWEEP.pace` too (`enemy.ts:2985`); a rush
+**Pace.** A sweeping guard walks at `SCENE_SWEEP.pace` (0.7 m/s, capped at his `walkSpeed`) unaware or cooldown
+(`enemy.ts:2842`). While `sceneDark`, investigating at the calm pace is `SCENE_SWEEP.pace` too (`enemy.ts:2985`); a rush
 (bodies, shots, missing man) and the search pace (0.675 m/s for a grunt) stay as built.
 
 **Pairs.** Data gives each partner his own lane route with the same stops, waits and `start`, and `pair` both ways, so
@@ -103,12 +103,12 @@ sacks within 4 s, no guard past suspicious); the walk judges the rest.
 ## 3. Files
 | File | Change |
 | --- | --- |
-| `src/ai/sweep.ts` (new, pure) | `SWEEP` {pace 0.7, panTime 3, panYaw 0.7, postPan 8, slack 0.8}; `SweepPlan`; `sweepPlan`, `sweepPeriod`, `panYaw`, `nearestStop`. |
+| `src/ai/sceneSweep.ts` (new, pure) | `SCENE_SWEEP` {pace 0.7, panTime 3, panYaw 0.7, postPan 8, slack 0.8}; `SweepPlan`; `sweepPlan`, `sweepPeriod`, `panYaw`, `nearestStop`. |
 | `src/ai/patrol.ts` | `PatrolWalker.setSweep`, `sweeping`; sweep branch in `step` (pan each step, corners pass, schedule holds) and `rejoin` (nearest stop, catch-up hold). Non-sweep paths untouched. |
 | `src/ai/separation.ts` | `steerFrom(..., skip: SepBody | null = null)`. |
 | `src/ai/enemy.ts` | Sweep pace (:2842), scene investigate pace (:2985), `sweepMate` passed to `steerFrom` (:3953) while calm and sweeping. |
 | `src/ai/enemyManager.ts` | `sceneDark` accessor + sweep clock (ticks in `update` while dark); `sweepify(e)` (plan, side, mate, `t0`) from `placeSlot` and the setter; `buildPair` skipped while dark; GA7 partner follow at the board tick. |
-| `tests/sweep.test.ts`, `tests/patrolSweep.test.ts` (new) | Pure tests (below). |
+| `tests/sceneSweep.test.ts`, `tests/patrolSweep.test.ts` (new) | Pure tests (below). |
 | `tests/pianoGuards.test.ts`, `tests/guardAiAllocManager.test.ts` | Wiring and no-allocation cases. |
 | `docs/systems/ai.md` | A short "Scene sweep" section. |
 
@@ -129,12 +129,12 @@ sacks within 4 s, no guard past suspicious); the walk judges the rest.
 ## Claims
 ```claims
 files:
-  - src/ai/sweep.ts
+  - src/ai/sceneSweep.ts
   - src/ai/patrol.ts
   - src/ai/separation.ts
   - src/ai/enemy.ts
   - src/ai/enemyManager.ts
-  - tests/sweep.test.ts
+  - tests/sceneSweep.test.ts
   - tests/patrolSweep.test.ts
   - tests/pianoGuards.test.ts
   - tests/guardAiAllocManager.test.ts
@@ -149,7 +149,7 @@ flags: none new (gated on sceneDark, set only by the scene behind pianoEscape)
 `enemy.ts` and `enemyManager.ts` are shared with GA4 (GuardActor, next): seams only, rebase before merge.
 
 ## 4. Slices (Opus builds both: AI code; one PR, two independent Opus checkers)
-**GA6a Pure sweep (~480 lines).** `sweep.ts`, the walker's sweep mode, `separation.ts` skip; `tests/sweep.test.ts`,
+**GA6a Pure sweep (~480 lines).** `sweep.ts`, the walker's sweep mode, `separation.ts` skip; `tests/sceneSweep.test.ts`,
 `tests/patrolSweep.test.ts`. Code ~230, tests ~250. Needs nothing.
 **GA6b Wiring + GA7 (~420 lines).** `enemy.ts`, `enemyManager.ts`, `docs/systems/ai.md`; `pianoGuards`,
 `guardAiAllocManager` cases. Code ~150, tests ~270. After GA6a.
@@ -158,7 +158,7 @@ Checks per slice: `npm run typecheck:fast`; vitest the named files plus `pairs`,
 `e2e-piano` (S4), which waits for GA6.
 
 ## 5. Tests (vitest, pure first)
-- `sweep.test.ts`: `leave` / `period` from lengths, waits, slack (a G4-shaped 40 s lap); corners add no hold; default
+- `sceneSweep.test.ts`: `leave` / `period` from lengths, waits, slack (a G4-shaped 40 s lap); corners add no hold; default
   3 s stop; `start` phase; centre = face or arrival heading; face pan on the shortest arc; `panYaw` left, centre, right
   at D/4, D/2, 3D/4, repeat past D, mirrored for side -1, rate under 60 deg/s at 3 s; `nearestStop` ties.
 - `patrolSweep.test.ts` (walker on a straight-line stand-in): lap times identical over 5 laps and across two runs; the
@@ -182,7 +182,7 @@ Checks per slice: `npm run typecheck:fast`; vitest the named files plus `pairs`,
 - Partner follow could bring two torches onto one hide: S4's start check and the walk judge it (4.8).
 
 ## 7. Assumed decisions (logged for Michael's next look)
-- **GA6-A1** Sweep pace 0.7 m/s, pan 3 s, +-0.7 rad (40 deg), posts 8 s, all in `SWEEP`. Undo: change the constants.
+- **GA6-A1** Sweep pace 0.7 m/s, pan 3 s, +-0.7 rad (40 deg), posts 8 s, all in `SCENE_SWEEP`. Undo: change the constants.
 - **GA6-A2** No new data field: pan stops are `waits` > 0, centres `faces`, phase `start`, posts two points on one spot.
   Undo: add an optional `pan` per point to `SquadSlot` and read it in `sweepPlan`.
 - **GA6-A3** On the scene every route runs on a schedule derived at sweep pace; an authored `loop` is ignored there.
@@ -191,8 +191,45 @@ Checks per slice: `npm run typecheck:fast`; vitest the named files plus `pairs`,
   own rejoin (the schedule's next point, `patrol.ts:180-193`).
 - **GA6-A5** Yaw-only pan at the fixed torch pitch. Undo: a per-stop pitch is a later ask (torch pitch is mirrored to
   the client: a `src/net` change).
-- **GA6-A6** Scene pairs never meet or talk (no `PairMeet`): the pan wins. Undo: stop skipping `buildPair` while dark.
+- **GA6-A6** Scene pairs never meet or talk (no meet points, no lines): the pan wins; the missing-partner watch stays
+  (section 8, F1). Undo: stop skipping `buildPair` while dark.
 - **GA6-A7** Lower slot pans left first, partner right first. Undo: a per-guard side from the lanes (outer first).
 - **GA6-A8** The partner follows a glimpse only within 4 m (`PAIRS.togetherR`). Undo: drop the distance test.
 - **GA6-A9** Searching pace and rushes stay as built; only patrol and calm investigation use the sweep pace. Undo: apply
-  `SWEEP.pace` in the search branch too.
+  `SCENE_SWEEP.pace` in the search branch too.
+- **GA6-A10** On the scene the sweep pairs' missing-partner watch (G335) is always on, whatever `flags.guardPairs`
+  says (dark elsewhere until walk item 5): the scene is built on paired co-op kills. Undo: gate it on
+  `flags.guardPairs`.
+- **GA6-A11** Rejoin picks the pan stop he can be back in step at soonest (section 8, N3). Undo: the plain nearest stop.
+
+## 8. Plan check fixes (lead, after PIANO-GA6-PLAN-CHECK.md: FIX)
+These override sections 2-5 where they differ.
+- **F1 Pair watch kept.** While dark, `buildPair` is still skipped for meetings and lines, but each sweep pair gets a
+  watch-only pair: `PairMeet.watch` (`pairs.ts:388-420`) with no meet points, no lines and no `pairWhyNot` timed-loop
+  test. One partner taken alone: the other is `missing` after `PAIRS.notice` (3 s) and reacts as built; both taken
+  within `DUAL_WINDOW`: nothing. Off the scene: unchanged. Tests in pianoGuards (those three cases). GA6b.
+- **F2 Names.** `src/ai/gear.ts:56` already exports `SWEEP` and `tests/sweep.test.ts` exists (the response team):
+  the new module is `src/ai/sceneSweep.ts` with `SCENE_SWEEP`, its test `tests/sceneSweep.test.ts` (renamed above);
+  `tests/sweep.test.ts` is untouched.
+- **N1 Phase without `start`:** `{ idx: 0, wait: the stop's wait }` (he arrives at stop 0 at the epoch).
+- **N2 Turn time per leg.** `sweepPlan` adds a deterministic turn time to each walked leg: the angle from the last pan
+  yaw (or arrival heading) to the leg heading over the calm turn rate (`ENEMY_CALM_MOTION`, 60 deg/s) plus its
+  `turnAccel` ramp, on top of `slack`. A stop whose centre is far off the arrival heading starts its pan cycle only
+  once the body is within 0.15 rad of the centre (the hold still ends at `leave`). Real-class test in pianoGuards: at a
+  lane end the body yaw reaches both pan extremes, lap after lap (5 laps).
+- **N3 Rejoin target.** Only pan stops (wait > 0) are rejoin targets (corners have no pan cycle). Pick the stop with
+  the smallest `wrap(leave[k] - now - dist_k / pace)`, ties the nearest: the soonest he is back in step (A11).
+- **N4 Set false.** `sceneDark = false` takes every walker off the sweep (`clearSweep`: back to his authored route
+  rules, `rejoin` as built), clears the watch-only pairs and the follow buffer; off the scene nothing is left changed.
+  Test: set true then false, the walker behaves as a never-swept one.
+- **N5 Partners both ways.** When the second partner is placed later (a far slot spawns late in `fill`), `sweepify`
+  sets `sweepMate` and the pan side on both guards.
+- **N6 One line.** The partner's glimpse follow barks once (the `sendTo` `checking`; his rise does not add `heard`).
+- **N7 Flags line ref:** `flags.guardPairs` is `flags.ts:89`.
+- **To Campaign (with GA5, on PR #617):** pair both ways on G1/G2, G4/G5, G8/G9, G11/G12; G4 / G5 without `loop` /
+  `wait`, per-point `waits` (0 corners, 4 at the door), both laps 40 s at 0.7 m/s (`sweepPeriod`); `start` on every
+  route; lanes G8 / G9 z 15.5 / 16.6, G11 / G12 z 15.9 / 17.0, spawns moved with them; G1 / G2 at 0.7 m vs PB4's
+  1-1.5 m is their PLAN's own conflict (relax the 0.5 m clearance on that wall, or amend PB4 for K1); a restart resets
+  the sweep clock but not `world.lightning.t0` (guards vs flashes differ from run 1; stretch 7 says "between flashes");
+  gallery torches reach the hall floor only ~10 m out at the fixed pitch.
+
