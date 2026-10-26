@@ -131,10 +131,10 @@ plan; the orchestrator assigns it (G283).
   withdrawn before it ran posts error "withdrawn by the requester (not run)". Fallback, if one still sits pending: the
   orchestrator (or the lead) re-requests it: `node scripts/laptop-queue/request.mjs --sha <head> --pr <n> --affected
   --set affected --requester affected-e2e` (only that requester's verdict is also posted on `affected-e2e`).
-- Auto-train (scheduled task every minute, G286; `docs/systems/auto-train.md`) builds `train/<n>` from labelled PRs
-  with a green check, makes the version commit (fragments into `CHANGELOG.md`, the next version, the one
-  `PROTOCOL_VERSION` bump when a member touches a wire path), and the queue runs one full e2e on the train head. CI and
-  e2e green: it releases (merge, tag, `dev` moves `/preview/`, member PRs closed).
+- Auto-train (scheduled task every minute, G286; `docs/systems/auto-train.md`) builds `train/<n>` from train-ready PRs
+  (labelled with a green check, or meeting the rule above), makes the version commit (fragments into `CHANGELOG.md`, the
+  next version, the one `PROTOCOL_VERSION` bump when a member touches a wire path), and the queue runs one full e2e on
+  the train head. CI and e2e green: it releases (merge, tag, `dev` moves `/preview/`, member PRs closed).
 - A failing member leaves the train and the rest rerun (auto-drop, G286); a desktop red is never final without a laptop
   rerun.
 - A member that conflicts is left out of the train by the code: it loses `train-ready` and gets a comment; its lead

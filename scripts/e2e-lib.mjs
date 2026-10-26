@@ -228,8 +228,13 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       if (window.__app?.current?.player) return 'match';
       const s = window.__coop?.session;
       return s?.isHost && s.phase === 'lobby' && s.players.size < 2 ? 'lobby' : false;
-    }, null, { timeout: 120000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
+    }, null, { timeout: 180000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
     if (why === 'lobby') return { page, errors };
+    // (F33-a) a match that never started is an error here, not a dead page handed back (a null `__app.current` three calls later)
+    if (why === 'timeout') {
+      const boot = await page.evaluate(() => document.getElementById('boot-status')?.textContent ?? '').catch(() => '');
+      throw new Error(`launch: the autostart match did not start within 180 s (boot status "${String(boot).trim()}")`);
+    }
     // (map-ready S2) `mapready=1`: the match is held behind the boot screen until its load gate releases (`mapGate.ts`):
     // wait for the release so no suite steps a held sim (a timeout warns; the run goes on held and says so)
     if (mapReadyPage) {
