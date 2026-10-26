@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 73 (2026-10-27 ~02:40, Orchestrator save at 91%, reset 03:50, no swap; session [058b5c]; wins over SAVE 72):**
+- Service healthy (task running), trains 139-148 green; 10 requests queued plus spare work on idle: session-free through the reset.
+- Piano walk (Michael Tue ~09:00): task env LQ_FRONT_BRANCHES='mixamo,feature/piano-,feature/guard-ai-piano'. UNDO
+  after the walk: Arguments back to 'mixamo', restart the service between trains (stop task, taskkill /T the
+  service.mjs node, start task).
+- Hand-fronted laptop reruns (F52 not released yet): set "place" to an early id (e.g. 20261026T074500-...) on the
+  request file in origin/laptop-queue. Done for #604 / #605 and #631 (storm mill; its rerun failed e2e-piano for real,
+  Campaign triaging). Front Campaign's #631 re-file the same way when it lands (feature/piano-escape-s4 is already a
+  front branch; a --fix re-file takes the fix tier by itself).
+- PR #638 (feature/laptop-queue-16: F52 laptop reruns = fix tier; F55 no-affected-e2e waives a never-run / error
+  affected-e2e): head 4856b0ce, CI + checker + affected-e2e green, train-ready, label fix, Job-done.
+- Scratch worktree C:/NightShift/scratch/lq-branch-edit (detached origin/laptop-queue) for request edits.
+- Next: watch #638 ride a train; front the #631 re-file; undo the piano front after the walk; triage any train
+  failure (Opus) and tell the Orchestrator.
+
 **Test Runner SAVE 72 (2026-10-26 ~22:55, new session [058b5c] at boot; wins over SAVE 71):**
 - Service healthy (task running), train 139 (7131cdd8) running on 4189 + 4192, 21 requests queued. No heavy.lock.
 - #615 (F8, J20 PR-B) MERGED. Connectors already off.
