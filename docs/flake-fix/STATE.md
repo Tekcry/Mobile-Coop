@@ -3,6 +3,13 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 75 (2026-10-27 ~07:50, Orchestrator save at 83%, reset 08:50; session [058b5c]; wins over SAVE 74):**
+- #664 (affected cap 1) MERGED. Service healthy, 2 requests queued; spare work (docs/laptop-queue/spare-jobs.json, once per
+  master sha) fills idle slots through the reset.
+- Open from SAVE 74: e2e-netmove laptop quarantine to 2026-10-29T00:00Z (Player F5 removes it); UNDO the piano front
+  (LQ_FRONT_BRANCHES back to 'mixamo', restart between trains) after Michael's ~09:00 walk.
+- Next: undo the piano front after the walk; triage any train failure (Opus) and tell the Orchestrator.
+
 **Test Runner SAVE 74 (2026-10-27 ~05:00, after the 03:50 reset; session [058b5c]; wins over SAVE 73):**
 - #638 (F52 + F55) RELEASED; the laptop service runs it (laptop reruns = fix tier). #631 storm mill shipped as 4.127.0.
 - e2e-netmove QUARANTINED on the laptop list (C:/NightShift/scratch/laptop-queue/quarantine.json, owner Player, expiry
