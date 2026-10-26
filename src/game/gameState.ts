@@ -1158,7 +1158,7 @@ export class GameState implements AppState {
       this.paused = true;
       this.app.input.setGameplayActive(false);
       this.hud.setVisible(false);
-      const rewards = GameState.rewardHook ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
+      const rewards = GameState.rewardHook && !this.stats.practice ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
       void rewards.then((el) =>
         this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit(), this.resultsNav())),
       );
