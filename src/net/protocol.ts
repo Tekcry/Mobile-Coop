@@ -726,7 +726,7 @@ function courseRh(v: unknown): { rh?: number[] } {
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
 /** (J14 R1) A course retry's causes (`PackedCourse.rc`). */
-const RETRY_CAUSES: readonly RetryCause[] = ['seen', 'caught', 'timer', 'out', 'down'];
+const RETRY_CAUSES: readonly RetryCause[] = ['seen', 'caught', 'timer', 'out', 'down', 'other'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
   const out: number[] = [];
   if (!Array.isArray(v)) return out;
