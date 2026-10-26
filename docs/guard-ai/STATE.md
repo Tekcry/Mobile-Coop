@@ -997,36 +997,30 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ```
 Guard AI Build resume (laptop). Rules: docs/RULES.md + docs/VISION.md from origin/master; BOOT.md "Common start" and
 "Guard AI Build" on origin/feature/menu. Read this block only. Branch guard before every write. Never merge master
-into a branch except to clear a conflict on our own PR. 2 Opus checkers on AI / src/net PRs; Opus triage on every
-laptop failure. Laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs
---sha <sha> --pr <n> --set <name> --requester "Night Shift | Guard AI Build" --suites "a b"; verdict = status
-laptop-e2e/<set>. One affected run per head covers its suites: no duplicates. Walk cap: Guard AI AT CAP (new
-behaviour dark; rule fixes ship on, G355).
-AUTO MODE (2026-10-26 ~15:00): the lead AND its agents are blocked from posting `checker` statuses (self-approval) and
-from asking the orchestrator to post them. Checkers write verdict files only; the lead reports verdicts to the
-orchestrator (RULES: it posts when auto mode blocks a lead). Connector toggles are blocked too.
-Michael 15:40: the orchestrator posts checker marks from the lead's reports. Michael 15:55: "Sessions should never get
-held up": the first time you would wait on another session, message the orchestrator at once; never wait over 10 min.
-FIX FREEZE (orchestrator ~15:55): #317 and #558 are drafts; their checker marks are posted when the freeze ends.
-Open (2026-10-26 ~15:35 SAVE; all worktrees clean + pushed, no agents running):
-1. #531 runner-armed (fix): fix round 13cf2b9c9 (guns.ts runner AK; e2e-enemies clear-lane spawn; e2e-modes reads the
-   G5 context menu - was red on master). Re-check PASS (slices/checks/RUNNER-ARMED-RECHECK.md). Head 1f3a20fd5 (docs
-   only after). Laptop runner-armed (enemies, modes, levels, weapon-audio) filed on 13cf2b9c9; affected on the head.
-   Checker POSTED by the orchestrator on 1f3a20fd. Laptop runner-armed re-filed on 1f3a20fd (modes, enemies). Polish: opts[0] assert in e2e-modes; pressing guards never route
-   round waist-high blocks (all aggressive kinds; ask Michael); stale melee-runner comments (check B P-a..P-f).
-2. #537 seed-random (fix): head d51202fa3, checker posted, CI green; waits on affected-e2e.
-3. #317 coop4 (LIVE): master 4.112.1 merged a51c951b7 (5 conflicts); merge check B PASS, A FIX 1 (nextAlarmSends
-   counted 3-4 player extras that never spawn) fixed 21ee1fc1b, re-check PASS (docs/coop4/checks/MERGE3*.md). Head
-   2ec31a280. Laptop coop4-sectorops filed on a51c951b7; affected (co-op group) on the head. Checker status NOT posted.
-   Polish -> coop4-pol: placeEarly 3-4 spots, 4-page ?sectorStart leg, raiseAlarm doc, MERGE3-CHECK-A/B old note path,
-   snapBudget fake guards, main.ts:332 Co-op card text, sectorMode OUT slot, run-e2e.mjs:152 comment.
-4. J15 PR2 #500 MERGED. PR3 = #558 (feature/guard-rules-f0) OPENED ~15:10: master 4.112.1 merged 7c74b551d (flags.ts
-   additive), merge check PASS (checks/PR3-MERGE-CHECK.md), head ae3d37a74 (ai.md docs after). Checker status NOT
-   posted. PR4 = feature/guard-rules-pr4 b111c9aa1 opens after #558 merges (merge master, merge check).
-5. J26 mission hooks stack (on PR4): S1a-1, S1a-2, S1b, S2, S3a, S3b, S4 built and checked (docs/guard-ai mission-hooks
-   briefs on feature/guard-ai-mission-hooks). One laptop set mh-s4 on 77e65e3f6 (stealth-ai, guard-carry, sectorops:1)
-   still unclaimed at 15:30 (queue = Test Runner). PRs open after PR4 merges. Polish lists in checks/S1a*/S1b*/S3a*.
-6. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489).
-Next: watch #531 / #537 / #317 / #558 laptop + affected verdicts: green + checker posted -> label train-ready + tell
-orchestrator; red -> Opus triage. On #558 merge open PR4; then J26 PRs; then polish rows or the J16 perception plan.
+into a branch except to clear a conflict on our own PR. 2 Opus checkers on AI / src/net PRs (one for small fixes in
+prototype mode); Opus triage on every laptop failure. Laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc &&
+node scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --requester "Night Shift | Guard AI Build"
+--suites "a"; verdict = status laptop-e2e/<set>.
+PROTOTYPE MODE (Michael ~16:05, ROADMAP Decided e18f09d2f on feature/menu: read it): fixes ship in one batch train; the
+freeze ends when it ships; every feature on in /preview/; ONE closest test set per change, no proof runs, flaky suites
+quarantined; build toward playable pieces, not polish or tooling. Michael's playthrough decides what comes next.
+Michael 15:40: the orchestrator posts checker marks from the lead's reports (auto mode blocked self-posting).
+Michael 15:55: never held up - the first time you would wait on another session, message the orchestrator; never
+wait over 10 min.
+Open (2026-10-26 ~16:15 SAVE; all worktrees clean + pushed; F27 checker agent may still be running):
+1. #531 runner-armed (F21) + #537 seed-random (F25): TRAIN-READY, ride the batch train (#531 no-affected-e2e).
+2. #317 coop4 (LIVE, draft under the freeze; back to ready after the batch train). Master 4.112.1 merged + checks A, B,
+   fix re-check PASS (docs/coop4/checks/MERGE3*.md). F27 (playerRefsInto fills by index, tests/playerRefsInto.test.ts)
+   on 74c54fce6; check docs/coop4/checks/F27-CHECK.md. Checker marks: orchestrator posts after the freeze.
+3. #558 J15 PR3 (draft under the freeze): merge check PASS, head ae3d37a74. PR4 = feature/guard-rules-pr4 b111c9aa1
+   opens after #558 merges (merge master, merge check).
+4. J26 mission hooks stack (on PR4): S1a-1..S4 built and checked; laptop mh-s4 parked by the orchestrator at the
+   freeze (re-file only if needed). PRs after PR4.
+5. NEXT GOAL (orchestrator 16:07): guards that play well in Marlow Yard and Saltmarsh Park S1 for Michael's
+   playthrough on /preview/. Plan: list what a player meets there (kinds, routes, alarms, runner now armed), play-risk
+   bugs first; small PRs, one test set each.
+6. Polish (only if it helps the playthrough): pressing guards never route round waist-high blocks (all aggressive
+   kinds); e2e-modes opts[0]; coop4-pol list (docs/coop4/checks/MERGE3*.md); J16 perception half after Sector Ops' J16.
+Next: after the batch train ships, undraft #317 / #558 (or let the orchestrator), post their checks via the
+orchestrator; start the Marlow Yard + Saltmarsh S1 guard play pass (item 5).
 ```
