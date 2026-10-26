@@ -109,6 +109,12 @@ export class TakedownController {
   offer: { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null = null;
   /** Running; `decided` once tap / hold is known (released early = non-lethal, held through = lethal). */
   active: { e: TakedownVictim; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number; grab: GrabState | null } | null = null;
+  /** (piano-knife S2, S1 checker polish 1) A takedown owns the attacker: running, or a knife kill's tail after `limp`
+   *  (`active` is null then, the clip still plays and the knife is in hand). GameState stows the weapon and holds off
+   *  traversal on it. */
+  get busy(): boolean {
+    return this.active !== null || this.kOn;
+  }
   /** (A4) The grab menu's pick this step (set by GameState, read and cleared by the hold). */
   menuPick: GrabOpt | null = null;
   /** (A4) A carry pick: the body to shoulder once it exists (enemy id, seconds left to find it). */
@@ -851,7 +857,8 @@ export class TakedownController {
     const ph = this.kt / R.seconds;
     const d = this.kDrive;
     d.clip = knifeClip(this.kr, false);
-    d.phase = ph;
+    // (piano-knife S2) the clip's window at its own speed (`attackerPhase`, written out as below)
+    d.phase = R.attackerFrom + ph * (R.attackerTo - R.attackerFrom);
     d.w = Math.min(1, this.kt / KNIFE.blendIn);
     g.player.rig.graph.kill = d;
     // his clip's phase (`victimPhase`) and buckle (`buckleAt` x `bucklePitchOf`), written out here: those helpers,
@@ -876,8 +883,8 @@ export class TakedownController {
     if (ph >= R.limp) this.finish();
   }
 
-  /** (piano-knife S1) After a knife row's `limp`: the attacker held on his spot while his clip plays to its end, then
-   *  blends out over `blendOut`; the hands release over `release` (`knifeFrame`); then the knife away and he is free.
+  /** (piano-knife S1) After a knife row's `limp`: the attacker held on his spot while his clip window plays to its end,
+   *  then blends out over `blendOut`; the hands release over `release` (`knifeFrame`); then the knife away and he is free.
    *  No allocation. */
   private knifeTail(dt: number): void {
     const g = this.g;
@@ -890,7 +897,7 @@ export class TakedownController {
     if (this.kRel >= 0) this.kRel += dt;
     const ph = this.kt / R.seconds;
     const d = this.kDrive;
-    d.phase = ph;
+    d.phase = R.attackerFrom + ph * (R.attackerTo - R.attackerFrom);
     d.w = ph <= 1 ? 1 : Math.max(0, 1 - (this.kt - R.seconds) / KNIFE.blendOut);
     if (d.w <= 0) {
       this.knifeEnd();
@@ -1077,8 +1084,9 @@ export class TakedownController {
     // (piano-knife S1) a knife row counts as `knife`
     const kind = knifeRow ? 'knife' : a.grab ? (hangDown ? 'hangGrab' : 'grab') : a.plan.kind;
     this.done.byKind[kind] = (this.done.byKind[kind] ?? 0) + 1;
-    // (piano-knife S1, A5) a knife row is near silent (the choke's radius)
-    const r = knifeRow ? KNIFE.noise : a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
+    // (piano-knife S1, A5) a knife row is near silent (the choke's radius); (S2, S1 checker polish) so is the switch-on
+    // move without a row (the -1 path): every piano kill is quiet
+    const r = this.kOn ? KNIFE.noise : a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
     // (guard-ai S26) his own noise: it locates him
     g.enemyMgr?.hear(g.player.position, r, 'noise', null, g.localId);
     if (this.kOn) {

@@ -10,8 +10,15 @@
  * A row (BRIEF A14, A15): one two-body move on one clock. The attacker's clip plays on his graph (`killDrive.ts`), the
  * victim's on the guard's, the guard's root is driven from the attacker's frame every step and frame (`knifePair.ts`),
  * hand IK puts the grip hand, the knife tip and the guard's hands on their marks. Phases are shares of `seconds`:
- * `contact` the stab lands, `limp` the guard dies (the ragdoll takes him). Starting values (prototype); S2 swaps the
- * stand-in clips (A8) for the CLIP-LIST pairs and measures `standoff` / `contact` / `victimFrom`.
+ * `contact` the stab lands, `limp` the guard dies (the ragdoll takes him).
+ *
+ * (piano-knife S2) The clips are Michael's Mixamo downloads (CLIP-LIST), emitted into `src/anim/clips/mixamo/piano/` (the
+ * piano scene's own lazy clips; the S1 stand-ins are gone): attacker `Stabbing` (behind, behindLow, front) and
+ * `Standing Melee Attack Downward` (corner); victim `Falling Forward Death` (behind), `Dying` (behindLow, front) and
+ * `Falling Back Death` (corner). The attacker clips are 2.1-2.6 s long and the move 1.0-1.5 s (A15): the move plays the
+ * clip's window around the stab (`attackerFrom` .. `attackerTo`) at its own speed, not the whole clip sped up.
+ * `contact`, `limp`, the windows, `victimTo`, `standoff` and `side` are measured by `tests/knifePairFit.test.ts`
+ * (KP_FIT=1) on 2026-10-26 (one run).
  *
  * (Michael ~20:05) "Palm strike knockout disabled, only knife kills, and no slashing, only animations with the guard":
  * no knife slash row (the plan's `KNIFE_SLASH` is dropped); the RT strike is off while the switch is on (`gameState`).
@@ -36,8 +43,8 @@ export function knifeSceneOn(flagOn: boolean, scene: string | undefined, live: b
  * the target, ending `lead` s before contact (the arm settles on it by then); `victimHandsIn` his hands to the forearm,
  * on `lead` s before contact; `release` the hands off after `limp`;
  * the buckle (`buckleAt`): `bucklePitch` the fold (0.18, half the plan's 0.35: the full fold took his mouth 9 cm out of
- * the grip from behind), in over `buckleRise`, out over `buckleDecay`; `contactTol` the rule (3 cm; S1's stand-ins miss it
- * on some rows: `tests/knifePair.test.ts` S1_REACHED, S2 closes it).
+ * the grip from behind), in over `buckleRise`, out over `buckleDecay`; `contactTol` the rule (3 cm; the measured misses
+ * over it are `tests/knifePair.test.ts` KNOWN_MISS, accepted until Michael plays: BRIEF A16).
  */
 export const KNIFE = {
   noise: 1.2,
@@ -64,8 +71,13 @@ export interface KnifeKillRow {
   id: KnifeKillId;
   attacker: string;
   victim: string;
-  /** The move's length (s): the attacker's clip runs over it (the bible's 1.0-1.5 s takedown). */
+  /** The move's length (s): the attacker's clip window runs over it (the bible's 1.0-1.5 s takedown). */
   seconds: number;
+  /** (piano-knife S2) The attacker clip's window (shares of his clip) the move plays over `seconds`: its length x the
+   *  clip's own seconds = `seconds` (the clip at its own speed); after `seconds` it runs on at that speed through the
+   *  blend-out (`attackerPhase`). */
+  attackerFrom: number;
+  attackerTo: number;
   /** The stab lands at this share of `seconds`; the guard dies (limp, the ragdoll) at `limp`. */
   contact: number;
   /** The victim's clip from `victimFrom` at the move's start to `victimTo` at its end (shares of his clip). */
@@ -82,19 +94,12 @@ export interface KnifeKillRow {
   target: 'kidney' | 'neck' | 'chest';
 }
 
-/**
- * The rows (index = `KNIFE_KILL_IDS` order). S1 stand-ins (A8): attacker `mocap_cross_punch` (`mocap_crouch_to_stand`
- * crouched: he rises into the kill), victim the Pro Rifle Pack deaths.
- * Deviations from the S1 brief's table (contact rule, bible 5.12.2, measured by `tests/knifePair.test.ts`): the stand-in
- * deaths drop the pelvis 0.3-0.7 m from 45% of the clip on, so his clip runs only to `victimTo` 0.4 while the attacker
- * holds him (the collapse is the ragdoll's after `limp`); `standoff` 0.3 with `side` -0.1 from behind and at a corner (0.55 put
- * his mouth past her arm's reach), 0.5 face to face (his arms fold on her forearm).
- */
+/** The rows (index = `KNIFE_KILL_IDS` order; the real pairs, see the header). */
 export const KNIFE_KILLS: readonly KnifeKillRow[] = [
-  { id: 'behind', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'mouth', target: 'kidney' },
-  { id: 'behindLow', attacker: 'mocap_crouch_to_stand', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'mouth', target: 'kidney' },
-  { id: 'corner', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_right', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'shoulder', target: 'neck' },
-  { id: 'front', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_front', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.5, side: 0, yawOff: Math.PI, grip: 'shoulder', target: 'chest' },
+  { id: 'behind', attacker: 'mocap_stabbing', victim: 'mocap_falling_forward_death', seconds: 1.5, attackerFrom: 0.258, attackerTo: 0.828, contact: 0.55, victimFrom: 0, victimTo: 0.286, limp: 0.9, standoff: 0.25, side: -0.15, yawOff: 0, grip: 'mouth', target: 'kidney' },
+  { id: 'behindLow', attacker: 'mocap_stabbing', victim: 'mocap_dying', seconds: 1.5, attackerFrom: 0.258, attackerTo: 0.828, contact: 0.55, victimFrom: 0, victimTo: 0.5, limp: 0.9, standoff: 0.2, side: -0.15, yawOff: 0, grip: 'mouth', target: 'kidney' },
+  { id: 'corner', attacker: 'mocap_standing_melee_attack_downward', victim: 'mocap_falling_back_death', seconds: 1.5, attackerFrom: 0.025, attackerTo: 0.728, contact: 0.55, victimFrom: 0, victimTo: 0.299, limp: 0.9, standoff: 0.5, side: -0.15, yawOff: 0, grip: 'shoulder', target: 'neck' },
+  { id: 'front', attacker: 'mocap_stabbing', victim: 'mocap_dying', seconds: 1.5, attackerFrom: 0.258, attackerTo: 0.828, contact: 0.55, victimFrom: 0, victimTo: 0.25, limp: 0.9, standoff: 0.45, side: -0.05, yawOff: Math.PI, grip: 'shoulder', target: 'chest' },
 ];
 
 /** The row for a takedown kind (`crouched`: the attacker crouched; from behind he rises into the kill), -1 none: the
@@ -143,6 +148,12 @@ export function bucklePitchOf(row: KnifeKillRow): number {
   return row.yawOff === 0 ? -KNIFE.bucklePitch : KNIFE.bucklePitch;
 }
 
+/** (piano-knife S2) The attacker clip's phase at the move's phase `ph` (0..1 over `seconds`; past 1, through the tail,
+ *  it runs on at the same speed and the drive holds the clip's last frame). */
+export function attackerPhase(row: KnifeKillRow, ph: number): number {
+  return row.attackerFrom + ph * (row.attackerTo - row.attackerFrom);
+}
+
 /** The victim clip's phase at the move's phase `ph` (0..1). */
 export function victimPhase(row: KnifeKillRow, ph: number): number {
   const p = ph < 0 ? 0 : ph > 1 ? 1 : ph;
@@ -156,24 +167,22 @@ const VIC: (KeyedClip | null)[] = [null, null, null, null];
 let loading: Promise<void> | null = null;
 let ready = false;
 
-/** The clip modules by clip name (each a separate chunk). The rifle deaths are the Studio's lazy captures: they come
- *  through the lazy set's own chunk (`studioCapturesLazy.ts`; no game code names a lazy module, the
- *  `studioCapturesLazy` test), picked by the clip's name. */
+/** The clip modules by clip name (each its own chunk by a literal path: the piano scene's clips, `clips/mixamo/piano/`,
+ *  stay off the entry chunk; the Studio reaches them through its lazy set). */
 function loadClip(name: string): Promise<KeyedClip | null> {
   switch (name) {
-    case 'mocap_cross_punch':
-      return import('../anim/clips/mixamo/cross_punch').then((m) => m.MOCAP_CROSS_PUNCH);
-    case 'mocap_crouch_to_stand':
-      return import('../anim/clips/mixamo/crouch_to_stand').then((m) => m.MOCAP_CROUCH_TO_STAND);
+    case 'mocap_stabbing':
+      return import('../anim/clips/mixamo/piano/stabbing').then((m) => m.MOCAP_STABBING);
+    case 'mocap_standing_melee_attack_downward':
+      return import('../anim/clips/mixamo/piano/standing_melee_attack_downward').then((m) => m.MOCAP_STANDING_MELEE_ATTACK_DOWNWARD);
+    case 'mocap_falling_forward_death':
+      return import('../anim/clips/mixamo/piano/falling_forward_death').then((m) => m.MOCAP_FALLING_FORWARD_DEATH);
+    case 'mocap_dying':
+      return import('../anim/clips/mixamo/piano/dying').then((m) => m.MOCAP_DYING);
+    case 'mocap_falling_back_death':
+      return import('../anim/clips/mixamo/piano/falling_back_death').then((m) => m.MOCAP_FALLING_BACK_DEATH);
     default:
-      return import('../anim/studioCapturesLazy').then((m) => {
-        for (const mod of m.LAZY_CAPTURE_MODULES) {
-          for (const v of Object.values(mod)) {
-            if (v && typeof v === 'object' && (v as { name?: unknown }).name === name) return v as KeyedClip;
-          }
-        }
-        return null;
-      });
+      return Promise.resolve(null);
   }
 }
 
