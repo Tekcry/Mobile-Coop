@@ -236,7 +236,7 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await tickedOn(P, 'a5-trench', `A5: the ${tag} sees the trench step ticked`);
     await stationLive(P, 13, `A5: station 13 is live on the ${tag} page`);
-    await sees(P, /Throw one of you over the beams/, `A5: the ${tag} reads station 13's step line`);
+    await sees(P, /Throw your partner from the mark|Land behind the transformer/, `A5: the ${tag} reads station 13's step line`);
   }
 
   // ---- 4. station 13: wait for his back, the throw ----

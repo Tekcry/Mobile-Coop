@@ -131,7 +131,9 @@ export async function walk(t, n) {
   await until(A, (id) => !!window.__course.debug().gates[id], WICKET_GATE, 8000, 'A1: the bolt gate opens again');
   await until(A, (cid) => !window.__course.state.locked(cid), WICKET_DOOR, 8000, 'A1: the wicket unlocks on the host');
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(WICKET_DOOR), 15000, 'A1: the client sees the wicket unlocked');
-  const aid =await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
+  const aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
+  // the lock list comes in the course message; the client's door item mirrors the next snapshot, so wait for that too
+  await until(B, (id) => !!window.__app.current.interactables?.items.find((i) => i.id === id)?.enabled, `door-${aid}`, 15000, 'A1: the client is offered the wicket');
   assert((await use(B, `door-${aid}`)) === 'ok', 'A1: the client opens the wicket');
   const wi = await doorIndex(WICKET_DOOR);
   await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.5, wi, 8000, 'A1: the wicket opens (host)');
