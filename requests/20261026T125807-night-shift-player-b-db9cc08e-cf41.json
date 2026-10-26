@@ -1,0 +1,14 @@
+{
+  "id": "20261026T125807-night-shift-player-b-db9cc08e-cf41",
+  "sha": "db9cc08e7794b5dc44ea25be3b5b2f8138a87215",
+  "branch": "feature/gm-flip",
+  "pr": 375,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "gm-flip"
+}
