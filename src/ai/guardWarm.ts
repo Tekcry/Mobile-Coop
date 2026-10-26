@@ -1,32 +1,58 @@
 /**
  * (guard-models G7b) The level load's guard step, with `flags.guardModels` on only (PLAN G7 last bullet, PLAN 8 risk):
- * - LOD2 of every guard base the map's guards can use is in the scene's guard library before play, so a guard's
- *   figure shows on its first frame instead of a moment after (the merged body covered that gap before);
+ * - every game LOD of every guard base the map's guards can use is in the scene's guard library before play ((F59)
+ *   LOD2, then LOD0 and LOD1, as a guard loads them; `?gfx=min` LOD2 only), so a guard's figure shows on its first
+ *   frame instead of a moment after (the merged body covered that gap before);
  * - the guard shader (the operator PBR material with `GuardFigurePlugin`, GUARDFIG on: G5's plugin variant) and its
- *   shadow-depth variant are compiled on the loading screen, once per base, not on the first guard's first draw.
+ *   shadow-depth variant are compiled on the loading screen, once per base and LOD, not at a guard's first draw;
+ * - (F59) with the level's part library given, the merged S1 body's shader too (`partSkinMat`, SMOOTHBODY on): with
+ *   figures on, a guard's merged body is disabled before it ever draws, so its program would first compile when it has
+ *   to stand in (gm-watchdog: the figure's shader not ready), and D3D11 takes seconds on it.
  *
  * Which bases: every human kind's (`ENEMIES` minus the dog). Reinforcements, response squads and the sector slots
  * can bring any kind into a level, and a base is per kind (G6), so this is the set of bases the map's guards use:
- * three LOD2 files at most (while Wren stands in, all three are Wren's LOD2, already loaded for the player).
+ * three bases at most (while Wren stands in, all three are Wren's files, already loaded for the player).
  *
- * The compile: one hidden mesh per (base, LOD2 primitive), built exactly as a guard's (the shared static vertex
+ * The compile: one hidden mesh per (base, LOD, primitive), built exactly as a guard's (the shared static vertex
  * buffers, a `gvis` buffer, a skeleton with the LOD's bone count, 4 influences, shadows received) so its defines are a
- * guard's, and the engine's effect cache hands every later guard the compiled program. The mesh stays in the scene,
- * disabled (never drawn, freed with the scene): its sub-mesh holds the effects, so the engine never releases them
- * before the first guard takes them. Render side only; gameplay reads none of it.
+ * guard's, and the engine's effect cache hands every later guard the compiled program; the merged body's is a real
+ * `SmoothBody` over one part of the guard part library. The meshes stay in the scene, disabled (never drawn, freed
+ * with the scene): their sub-meshes hold the effects, so the engine never releases them before a guard takes them.
+ * (F59) The cap (`capMs`, the loading screen's): one deadline for the whole step. Past it the step stops waiting; a
+ * load landing later still builds its warm meshes and starts their compile, and a guard drawn before that compile is
+ * done shows the merged stand-in (gm-watchdog). Render side only; gameplay reads none of it.
  */
-import { Bone, Matrix, Mesh, Skeleton, VertexBuffer, type Scene } from '../core/babylon';
+import { Bone, Matrix, Mesh, Skeleton, TransformNode, VertexBuffer, type Scene } from '../core/babylon';
 import { flags } from '../core/flags';
 import type { GuardBase } from '../operators/guards/gearMask';
 import { guardAsset } from '../operators/guards/guardAssets';
 import { createVariant, guardVariant } from '../operators/guards/guardVariant';
 import { guardLibrary, type GuardLodAsset } from '../operators/runtime/guardFigure';
-import { LOD_2 } from '../operators/runtime/manifest';
+import { LOD_0, LOD_1, LOD_2, LOD_NAMES } from '../operators/runtime/manifest';
 import { pageLeaving } from '../operators/runtime/offline';
+import { buildSmoothBody } from '../player/smoothBody';
+import type { PartLibrary } from '../world/partLibrary';
 import { ENEMIES, ENEMY_KINDS } from './enemyDefs';
 
-/** A warm compile that never gets ready (a shader error) stops polling after this long (ms). */
+/** A warm compile that never gets ready (a shader error) stops polling after this long (ms), unless a cap is given. */
 const WARM_GIVE_UP_MS = 20000;
+
+/** (F59) The `WARMED` key of the merged S1 body's warm. */
+const S1_KEY = 's1';
+
+/** (F59) The figure LODs a guard loads in play, far first (`GuardBody`: `?gfx=min` LOD2 only, else LOD2, then LOD0
+ *  and LOD1 together). */
+export function guardGameLods(): readonly number[] {
+  return flags.gfx === 'min' ? [LOD_2] : [LOD_2, LOD_0, LOD_1];
+}
+
+/** (F59) The level load's options. */
+export interface GuardWarmOptions {
+  /** The level's part library: the merged S1 body's shader is warmed too (not without it). */
+  parts?: Pick<PartLibrary, 'instance'>;
+  /** The whole step stops waiting this long after the call (ms): the loading screen's cap. Default `WARM_GIVE_UP_MS`. */
+  capMs?: number;
+}
 
 /** The human kinds (the dog keeps its own model). */
 export function guardKinds(): string[] {
@@ -46,6 +72,15 @@ export function guardBasesOf(kinds: readonly string[], mapId = ''): GuardBase[] 
 
 /** Asset keys warmed per scene (a second call warms nothing twice). */
 const WARMED = new WeakMap<Scene, Set<string>>();
+
+/** (F59) Per scene: guard bases whose loads are still in flight (their warm meshes not all built yet). */
+const PENDING = new WeakMap<Scene, { n: number }>();
+
+/** (F59) Guard bases of `scene` still loading for the warm (0: every warm mesh is built). The map-ready gate reads it
+ *  each gate read: no allocation. */
+export function guardWarmPending(scene: Scene): number {
+  return PENDING.get(scene)?.n ?? 0;
+}
 
 /** (tests) The hidden warm meshes of `scene`. */
 export function guardWarmMeshes(scene: Scene): Mesh[] {
@@ -77,6 +112,28 @@ function warmMeshes(scene: Scene, a: GuardLodAsset): Mesh[] {
 }
 
 /**
+ * (F59) A hidden merged S1 body built as a guard's (`buildSmoothBody` over one part of the guard part library, on a
+ * joint under its own root), both meshes disabled; none when merging is off (`?guardmerge=0`). Load time, allocates.
+ * One joint: the bone count is not in the defines where bones live in a texture (every desktop WebGL2).
+ */
+function smoothWarmMeshes(scene: Scene, parts: Pick<PartLibrary, 'instance'>): Mesh[] {
+  const root = new TransformNode('guard-warm-s1-root', scene);
+  const joint = new TransformNode('guard-warm-s1-joint', scene);
+  joint.parent = root;
+  const part = parts.instance('capsule', '#808080', 'enemy-warm');
+  part.parent = joint;
+  const body = buildSmoothBody(scene, root, [part], 'guard-warm-s1');
+  // (the body copied what it needs; the part was only its source)
+  part.dispose();
+  if (!body) {
+    root.dispose();
+    return [];
+  }
+  for (const m of body.meshes) m.setEnabled(false);
+  return body.meshes;
+}
+
+/**
  * The main pass (the guard material) and every shadow generator of the mesh's lights are compiled for `m` (whatever
  * their cast lists: a guard joins them at spawn). Mirrors `Mesh.isReady(true)` minus the render-list filter.
  */
@@ -104,8 +161,9 @@ function warmReady(m: Mesh): boolean {
   return ok;
 }
 
-function untilWarm(scene: Scene, meshes: readonly Mesh[]): Promise<void> {
-  const until = Date.now() + WARM_GIVE_UP_MS;
+/** Polls `meshes` until every one is compiled or `until` (`Date.now()` ms) passes, then stops waiting (the compile its
+ *  first poll started goes on). */
+function untilWarm(scene: Scene, meshes: readonly Mesh[], until: number): Promise<void> {
   return new Promise((resolve) => {
     const tick = (): void => {
       // (every mesh asked each tick: their programs compile in parallel)
@@ -123,14 +181,68 @@ function untilWarm(scene: Scene, meshes: readonly Mesh[]): Promise<void> {
   });
 }
 
+/** Builds `a`'s warm meshes now; resolves once they compiled or the cap passed (true), false when the build threw. */
+function warmAsset(scene: Scene, a: GuardLodAsset, done: Set<string>, until: number): Promise<boolean> {
+  if (scene.isDisposed) return Promise.resolve(false);
+  if (done.has(a.key)) return Promise.resolve(true);
+  done.add(a.key);
+  // (G7b check polish 1) a throw while building the warm meshes must not reject the level load
+  try {
+    return untilWarm(scene, warmMeshes(scene, a), until).then(() => true);
+  } catch (e: unknown) {
+    console.warn(`[guards] ${a.key} shader warm failed (it compiles at the first draw)`, e);
+    return Promise.resolve(false);
+  }
+}
+
 /**
- * The level load's guard step (`GameState.create`, before play): LOD2 of every base of `kinds` (default: every human
- * kind) loaded into the scene's guard library and the guard shader compiled for each. Resolves with the number of
- * bases warmed; never rejects (a failed load is reported and the merged body covers that base, as before). Nothing
- * with the flag off.
+ * (F59) One base: its game LODs loaded as a guard loads them (the far one first; a far load that fails stops there, as
+ * the guard's own load does), each LOD's warm meshes built on arrival. Counted in `PENDING` until every load settled.
+ * True when every game LOD warmed.
  */
-export async function warmGuardModels(scene: Scene, mapId = '', kinds: readonly string[] = guardKinds()): Promise<number> {
+async function warmBase(scene: Scene, id: string, load: (lod: number) => Promise<GuardLodAsset>, done: Set<string>, until: number): Promise<boolean> {
+  const lods = guardGameLods();
+  const waits: Promise<boolean>[] = [];
+  let ok = true;
+  let pend = PENDING.get(scene);
+  if (!pend) PENDING.set(scene, (pend = { n: 0 }));
+  pend.n++;
+  try {
+    for (const batch of [lods.slice(0, 1), lods.slice(1)]) {
+      const got = await Promise.all(
+        batch.map((lod) =>
+          load(lod).catch((e: unknown) => {
+            if (!pageLeaving() && !scene.isDisposed) {
+              console.warn(lod === LOD_2 ? `[guards] ${id} LOD2 not loaded for the level (the merged body stays)` : `[guards] ${id} ${LOD_NAMES[lod] ?? lod} not loaded for the level (it loads at the spawn)`, e);
+            }
+            return null;
+          }),
+        ),
+      );
+      for (const a of got) {
+        if (a) waits.push(warmAsset(scene, a, done, until));
+        else ok = false;
+      }
+      if (!ok || scene.isDisposed) break;
+    }
+  } finally {
+    pend.n--;
+  }
+  const res = await Promise.all(waits);
+  for (const r of res) if (!r) ok = false;
+  return ok && !scene.isDisposed;
+}
+
+/**
+ * The level load's guard step (`GameState.create`, before play): every game LOD of every base of `kinds` (default:
+ * every human kind) loaded into the scene's guard library and the guard shader compiled for each; (F59) with
+ * `opts.parts`, the merged S1 body's shader too. Resolves with the number of bases whose every game LOD warmed, at the
+ * latest at `opts.capMs` (later loads go on warming without it); never rejects (a failed load is reported and the
+ * merged body covers that base, as before). Nothing with the flag off.
+ */
+export async function warmGuardModels(scene: Scene, mapId = '', kinds: readonly string[] = guardKinds(), opts: GuardWarmOptions = {}): Promise<number> {
   if (!flags.guardModels) return 0;
+  const until = Date.now() + (opts.capMs ?? WARM_GIVE_UP_MS);
   let done = WARMED.get(scene);
   if (!done) {
     done = new Set();
@@ -143,32 +255,25 @@ export async function warmGuardModels(scene: Scene, mapId = '', kinds: readonly 
     const m = guardAsset(base).manifest;
     if (seen.has(m.id)) continue;
     seen.add(m.id);
-    const warmed = done;
-    runs.push(
-      lib.load(m, LOD_2).then(
-        async (a) => {
-          if (scene.isDisposed) return false;
-          if (!warmed.has(a.key)) {
-            warmed.add(a.key);
-            // (G7b check polish 1) a throw while building the warm meshes must not reject the level load
-            try {
-              await untilWarm(scene, warmMeshes(scene, a));
-            } catch (e: unknown) {
-              console.warn(`[guards] ${m.id} shader warm failed (it compiles at the first draw)`, e);
-              return false;
-            }
-          }
-          return true;
-        },
-        (e: unknown) => {
-          if (!pageLeaving() && !scene.isDisposed) console.warn(`[guards] ${m.id} LOD2 not loaded for the level (the merged body stays)`, e);
-          return false;
-        },
-      ),
-    );
+    runs.push(warmBase(scene, m.id, (lod) => lib.load(m, lod), done, until));
   }
-  const ok = await Promise.all(runs);
+  let s1: Promise<void> | null = null;
+  if (opts.parts && !done.has(S1_KEY)) {
+    done.add(S1_KEY);
+    try {
+      s1 = untilWarm(scene, smoothWarmMeshes(scene, opts.parts), until);
+    } catch (e: unknown) {
+      console.warn('[guards] the merged body shader warm failed (it compiles at the first draw)', e);
+    }
+  }
+  // (past the cap: stop waiting, counting the bases done by then; the loads and compiles in flight go on)
+  const settled: boolean[] = [];
+  const all = Promise.all([...runs.map((r) => r.then((b) => void settled.push(b))), s1]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cap = new Promise<void>((r) => (timer = setTimeout(r, Math.max(0, until - Date.now()))));
+  await Promise.race([all, cap]);
+  clearTimeout(timer);
   let n = 0;
-  for (const b of ok) if (b) n++;
+  for (const b of settled) if (b) n++;
   return n;
 }

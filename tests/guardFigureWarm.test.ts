@@ -1,9 +1,10 @@
 /**
  * (guard-models G7b) The guard shader's one packed varying (behaviour identical to G5's two: every heat / flash level
- * decodes to the same values, with interpolation noise), and the level load's guard step (`warmGuardModels`): LOD2 of
- * every guard base in the scene's library and the guard shader compiled before play on hidden meshes whose defines are
- * a real guard's (the later guard gets the very same compiled effect); nothing with the flag off; a failed base does
- * not hold or break the load.
+ * decodes to the same values, with interpolation noise), and the level load's guard step (`warmGuardModels`): every
+ * game LOD ((F59) LOD2 first, then LOD0 and LOD1) of every guard base in the scene's library and the guard shader
+ * compiled before play on hidden meshes whose defines are a real guard's (the later guard gets the very same compiled
+ * effect at each LOD); (F59) the merged S1 body's too; the cap stops the wait, not the warm; nothing with the flag off;
+ * a failed base does not hold or break the load.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Scene } from '../src/core/babylon';
@@ -140,7 +141,7 @@ describe('the level load\'s guard step (warmGuardModels)', () => {
     expect(new Set(bases).size).toBe(bases.length);
   });
 
-  it('flag on: LOD2 of every base in the library before play, the shader compiled on hidden meshes, the later guard on the same effect', async () => {
+  it('flag on: every game LOD of every base in the library before play, the shader compiled on hidden meshes, the later guard on the same effect', async () => {
     const { B, scene, world, render, buildEnemyRig, W, guardLibrary, ENEMIES } = await setup();
     // the level's camera exists at the load (the player's), 100 m away: the guard below shows LOD2
     const cam = new B.FreeCamera('far', new B.Vector3(0, 1.6, 100), scene);
@@ -149,11 +150,18 @@ describe('the level load\'s guard step (warmGuardModels)', () => {
     const bases = W.guardBasesOf(W.guardKinds());
     const n = await W.warmGuardModels(scene, 'testmap');
     expect(n).toBe(bases.length);
-    // LOD2 only: never LOD0 / LOD1 on the loading screen
-    expect(fetched.every((u) => u.endsWith('-lod2.glb'))).toBe(true);
-    expect(guardLibrary(scene).sharedCount).toBe(bases.length);
+    // (F59) LOD2, LOD0 and LOD1 of each base, its LOD2 first (as a guard loads them)
+    for (const b of bases) {
+      const at = (l: string): number => fetched.indexOf(`/guard-${b}-${l}.glb`);
+      expect(at('lod2')).toBeGreaterThanOrEqual(0);
+      expect(at('lod0')).toBeGreaterThan(at('lod2'));
+      expect(at('lod1')).toBeGreaterThan(at('lod2'));
+    }
+    expect(fetched.length).toBe(bases.length * 3);
+    expect(guardLibrary(scene).sharedCount).toBe(bases.length * 3);
+    expect(W.guardWarmPending(scene)).toBe(0);
     const warm = W.guardWarmMeshes(scene);
-    expect(warm.length).toBe(bases.length);
+    expect(warm.length).toBe(bases.length * 3);
     for (const m of warm) {
       expect(m.isEnabled(false)).toBe(false); // never drawn
       expect(m.isVerticesDataPresent('gvis')).toBe(true);
@@ -176,6 +184,22 @@ describe('the level load\'s guard step (warmGuardModels)', () => {
     const own = warm.find((m) => m.material === gm.material)!;
     expect(own).toBeDefined();
     expect(gsm.effect).toBe(own.subMeshes[0]!.effect);
+    // (F59) closer: LOD1 at 15 m, then LOD0 at 3 m, each on its warmed program; nothing fetched (the warm loaded them)
+    for (const [z, lod] of [[15, 2], [3, 1]] as const) {
+      cam.position.set(0, 1.6, z);
+      cam.getViewMatrix(true);
+      await vi.waitFor(() => {
+        render();
+        expect(gb.figure.current).toBe(lod);
+      });
+      const m = gb.figure.lodMeshes(lod)[0]!;
+      const sm = m.subMeshes[0]!;
+      await vi.waitFor(() => expect(m.material!.isReadyForSubMesh(m, sm)).toBe(true));
+      const w = warm.find((x) => x.material === m.material)!;
+      expect(w).toBeDefined();
+      expect(sm.effect).toBe(w.subMeshes[0]!.effect);
+    }
+    expect(fetched.length).toBe(before);
     scene.dispose();
   });
 
@@ -232,7 +256,110 @@ describe('the level load\'s guard step (warmGuardModels)', () => {
     const n = await W.warmGuardModels(scene, 'testmap');
     expect(n).toBe(bases.filter((b) => b !== 'broad').length);
     expect(warn).toHaveBeenCalled();
+    // (F59) its far load failed: its near ones are not tried (as the guard's own load), and nothing stays pending
+    expect(fetched).not.toContain('/x0.glb');
+    expect(fetched).not.toContain('/x1.glb');
+    expect(W.guardWarmPending(scene)).toBe(0);
     warn.mockRestore();
+    scene.dispose();
+  });
+});
+
+describe('(F59) LOD0 / LOD1, the merged S1 body and the cap', () => {
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    const { flags } = await import('../src/core/flags');
+    flags.gfx = null;
+  });
+
+  /** Bones in a float texture, as every desktop WebGL2 (NullEngine reports none): a mesh's bone count then stays out
+   *  of its defines, so the one-joint warm body and a guard's ~20-joint merged body share one program. */
+  const boneTexture = (scene: Scene): void => {
+    const caps = scene.getEngine().getCaps() as { textureFloat: boolean; maxVertexTextureImageUnits: number };
+    caps.textureFloat = true;
+    caps.maxVertexTextureImageUnits = Math.max(caps.maxVertexTextureImageUnits, 16);
+  };
+
+  it('?gfx=min: LOD2 only, as a guard loads there', async () => {
+    const { scene, W } = await setup();
+    const { flags } = await import('../src/core/flags');
+    flags.gfx = 'min';
+    const bases = W.guardBasesOf(W.guardKinds());
+    expect(await W.warmGuardModels(scene, 'testmap')).toBe(bases.length);
+    expect(fetched.length).toBe(bases.length);
+    expect(fetched.every((u) => u.endsWith('-lod2.glb'))).toBe(true);
+    expect(W.guardWarmMeshes(scene).length).toBe(bases.length);
+    scene.dispose();
+  });
+
+  it('the merged S1 body: a hidden smooth body compiled at the load; a later guard\'s merged body takes its program', async () => {
+    const { scene, world, buildEnemyRig, W, ENEMIES } = await setup();
+    boneTexture(scene);
+    const bases = W.guardBasesOf(W.guardKinds());
+    expect(await W.warmGuardModels(scene, 'testmap', undefined, { parts: world.parts })).toBe(bases.length);
+    const s1 = W.guardWarmMeshes(scene).filter((m) => m.name.startsWith('guard-warm-s1-'));
+    expect(s1.map((m) => m.name).sort()).toEqual(['guard-warm-s1-smooth', 'guard-warm-s1-smooth-lod']);
+    for (const m of s1) {
+      expect(m.isEnabled(false)).toBe(false); // never drawn
+      expect(m.material).toBe(world.parts.skinMaterial);
+      const fx = m.subMeshes[0]!.effect as unknown as { defines: string; isReady(): boolean } | null;
+      expect(fx?.defines).toContain('#define SMOOTHBODY');
+      expect(fx?.isReady()).toBe(true);
+    }
+    // a second call builds no second body
+    await W.warmGuardModels(scene, 'testmap', undefined, { parts: world.parts });
+    expect(W.guardWarmMeshes(scene).filter((m) => m.name.startsWith('guard-warm-s1-')).length).toBe(2);
+    // the guard's merged body (the gm-watchdog stand-in): its first ask is answered from the warmed program
+    const gb = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'g1').figure!;
+    const body = gb.rig.voxel!.meshes[0]!;
+    const sm = body.subMeshes[0]!;
+    expect(body.material!.isReadyForSubMesh(body, sm, false)).toBe(true);
+    expect(sm.effect).toBe(s1[0]!.subMeshes[0]!.effect);
+    scene.dispose();
+  });
+
+  it('the cap: compiles that never finish stop the wait at `capMs`; every warm mesh is still built, nothing left pending', async () => {
+    const { B, scene, world, W } = await setup();
+    const never = (): boolean => false;
+    vi.spyOn(B.PBRMaterial.prototype, 'isReadyForSubMesh').mockImplementation(never);
+    vi.spyOn(B.StandardMaterial.prototype, 'isReadyForSubMesh').mockImplementation(never);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const bases = W.guardBasesOf(W.guardKinds());
+    const t0 = Date.now();
+    const n = await W.warmGuardModels(scene, 'testmap', undefined, { parts: world.parts, capMs: 200 });
+    const ms = Date.now() - t0;
+    expect(ms).toBeGreaterThanOrEqual(190);
+    expect(ms).toBeLessThan(2000);
+    expect(n).toBe(0);
+    // (each poll stops at its next tick past the cap, with the existing line)
+    await vi.waitFor(() => expect(warn.mock.calls.some((c) => String(c[0]).includes('did not compile on the loading screen'))).toBe(true));
+    expect(W.guardWarmMeshes(scene).length).toBe(bases.length * 3 + 2);
+    expect(W.guardWarmPending(scene)).toBe(0);
+    scene.dispose();
+  });
+
+  it('the cap: a load landing after it is not waited for, still builds its warm meshes (their compile starts), pending meanwhile', async () => {
+    const { scene, W } = await setup();
+    const plain = globalThis.fetch;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('-lod0.glb')) await gate;
+      return plain(url);
+    });
+    const bases = W.guardBasesOf(W.guardKinds());
+    const t0 = Date.now();
+    const p = W.warmGuardModels(scene, 'testmap', undefined, { capMs: 200 });
+    expect(W.guardWarmPending(scene)).toBe(bases.length);
+    expect(await p).toBe(0); // (no base has every LOD by the cap)
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(W.guardWarmPending(scene)).toBe(bases.length);
+    expect(W.guardWarmMeshes(scene).filter((m) => m.name.includes(':1-')).length).toBe(0);
+    release();
+    await vi.waitFor(() => expect(W.guardWarmPending(scene)).toBe(0));
+    const late = W.guardWarmMeshes(scene).filter((m) => m.name.includes(':1-'));
+    expect(late.length).toBe(bases.length);
+    for (const m of late) expect(m.subMeshes[0]!.effect).not.toBeNull();
     scene.dispose();
   });
 });
