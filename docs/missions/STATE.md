@@ -1,7 +1,27 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~15:00 (Night Shift | Campaign Build, after the 14:21 swap; read this block first)
+## RESUME 2026-10-26 ~16:15 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
+report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
+Bypass mode: the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mjs.
+PROTOTYPE MODE (ROADMAP Decided ~16:05, e18f09d2f): the freeze ends once the fix train ships; one closest test set
+per change, no proof runs; build toward playable pieces. Goal: Tallow W1 (Three Grey Coats) playable in /preview/.
+My old tallow laptop requests are cancelled: re-file one set per change only. Never wait >10 min on a session (15:55).
+1. F28 #567 (base master, contains #553; checker PASS; label fix). Both conflict with master in scripts/e2e-ctcourse.mjs
+   only (#553 part). Asked Marlow 16:10 who resolves; >10 min silent -> orchestrator. CI green -> train-ready +
+   no-affected-e2e; rides with #553.
+2. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate). NOT in the engine yet: tallow-fixes-2 05302cc94 (G1-G4,
+   E8, D1 as is, each PASS; docs/tallow-fixes/G5-plan.md + briefs/G5.md, D1-report.md) and tallow-shutters b2df51d9a
+   (S-a PASS). Merge both in with one closest set each (prototype mode).
+3. G5 (TGC split: caged stair for the gallery ladder, leg b re-cut; plan docs/tallow-fixes/G5-plan.md) waits on its
+   Opus plan check (scratch/campaign/tallow-g5-plan-check.md); then a Marlow note (S11 reach message + assist bolt).
+4. Master has none of the campaign: C1 #521, C2 #522 open (16-member split plan scratch/campaign/prc-split-refresh.md).
+   Proposed to the orchestrator: fewer, bigger members in prototype mode; flags via #560 darkFlag (on in /preview/).
+5. #549 look-video tool (PASS); its first Tallow run was cancelled with the parked requests.
+Next: #567 conflict + train-ready; engine <- tallow-fixes-2 + shutters; land the engine for a /preview/ Tallow W1.
+
+## OLD RESUME 2026-10-26 ~15:00 (Night Shift | Campaign Build, after the 14:21 swap)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the orchestrator). Bypass mode: the lead posts `checker`
