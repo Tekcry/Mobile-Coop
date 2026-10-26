@@ -39,6 +39,8 @@ import { MAPS } from '../src/world/maps';
 import { flags } from '../src/core/flags';
 import { checkSectorGuards, checkSectors, exitZone, inZone, type SectorDef, type SectorGuard } from '../src/game/sectors';
 import { NOISY_LIMITS, validateGuardAi } from '../src/ai/guardAiData';
+import { sweepPeriod, sweepPlan } from '../src/ai/sceneSweep';
+import type { PatrolRoute } from '../src/ai/patrol';
 import { LightRegistry } from '../src/world/lights';
 import { FLASHLIGHTS, addTorchSlots } from '../src/world/torches';
 import { camSpaceAt } from '../src/world/camSpaces';
@@ -229,7 +231,7 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
       expect(c.route!.every((p) => p[1] === c.z)).toBe(true);
       expect(a.waits).toEqual(c.waits);
     }
-    // G4 + G5 (GA5 items 2 and 3): per-point waits, no `loop` / `wait`, faces kept, 1.2 m apart at the door, one 40 s lap each
+    // G4 + G5 (GA5 items 2 and 3): per-point waits, no `loop` / `wait`, faces kept, 1.2 m apart at the door, one 47 s lap each
     const g4 = THORNBECK_GUARDS[3]!;
     const g5 = THORNBECK_GUARDS[4]!;
     expect([g4.pair, g5.pair]).toEqual([4, 3]);
@@ -245,36 +247,19 @@ describe('Thornbeck Mill: guards (PLAN section 3)', () => {
     const door4 = g4.route![2]!;
     const door5 = g5.route![2]!;
     expect(hyp2(door4[0] - door5[0], door4[1] - door5[1])).toBeCloseTo(1.2, 6);
-    // our own lap formula (GA6a's sweepPeriod is not on this base): the route out and back at 0.7 m/s (no turn time) plus the waits
-    const PACE = 0.7;
-    const lap = (g: SectorGuard): number => {
-      const r = g.route!;
-      let len = 0;
-      for (let i = 0; i < r.length; i++) {
-        const q = r[(i + 1) % r.length]!;
-        len += hyp2(q[0] - r[i]![0], q[1] - r[i]![1]);
-      }
-      return len / PACE + g.waits!.reduce((t, w) => t + w, 0);
-    };
-    expect(lap(g4)).toBeCloseTo(lap(g5), 3);
-    expect(lap(g4)).toBeCloseTo(40, 3);
-    // TODO(GA6a): assert sweepPeriod(route, waits) === 40
-    // the time (s into the lap) the guard leaves point k, from the start phase: pausing `wait` s more at point `idx` at t = 0 (wait 0: the full pause there)
-    const leaveAt = (g: SectorGuard, k: number): number => {
-      const r = g.route!;
-      const st = g.start!;
-      let t = st.wait > 0 ? st.wait : g.waits![st.idx]!;
-      let i = st.idx;
-      while (i !== k) {
-        const q = r[(i + 1) % r.length]!;
-        t += hyp2(q[0] - r[i]![0], q[1] - r[i]![1]) / PACE + g.waits![(i + 1) % r.length]!;
-        i = (i + 1) % r.length;
-      }
-      return t % lap(g);
-    };
-    // the door stops (point 2) coincide: they leave it together every lap, after a 4 s stop
-    expect(leaveAt(g4, 2)).toBeCloseTo(leaveAt(g5, 2), 2);
-    expect(leaveAt(g4, 2)).toBeCloseTo(25.43, 2);
+    // (S4) GA6b's lap: `sweepPeriod` on each guard's route object (the legs at sweep pace, the turns, the waits); equal laps
+    // of 47 s (40 s does not fit: G4's lap without its end pause is 46.13 s)
+    const route = (g: SectorGuard): PatrolRoute => ({ points: g.route!, waits: g.waits, faces: g.faces, start: g.start });
+    const G4 = route(g4);
+    const G5 = route(g5);
+    expect(sweepPeriod(G4)).toBeCloseTo(sweepPeriod(G5), 6);
+    expect(sweepPeriod(G4)).toBeCloseTo(47, 6);
+    // the door stops (point 2) coincide: they leave it together every lap (sweep time from the start), after a 4 s stop
+    const p4 = sweepPlan(G4, 0, 0, 0);
+    const p5 = sweepPlan(G5, 0, 0, 0);
+    const doorAt = (p: typeof p4): number => (((p.leave[2]! - p.phase) % p.period) + p.period) % p.period;
+    expect(doorAt(p4)).toBeCloseTo(doorAt(p5), 6);
+    expect(doorAt(p4)).toBeCloseTo(23.56, 2);
   });
 
   it('validateGuardAi is clean on all 16 slots', () => {

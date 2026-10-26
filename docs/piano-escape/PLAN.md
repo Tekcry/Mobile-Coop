@@ -196,7 +196,7 @@ start and route point is at least 0.5 m clear of a collider.
 | G1 + G2 (pair; guard-list slots 0, 1) | (7.5, 8.7), (8.3, 8.0): came down the stair; the only ones searching round W1 (Q2) | After the search: side by side north of W1, lanes z 8.0 and 8.7, x 3.5 - 8.6 and back | 1, K1 |
 | G3 (slot 2) | (9.0, 2.0): came along the aisle; straight to his sweep | (9.5, 2.0) - (20.5, 2.0) - (20.5, 7.0) - (22.8, 7.0), 6 s pan stop, back | 2, K2 |
 | G4 (slot 3) | (10.0, 3.4): came along the aisle; straight back to the sack bay | (17, 10.2) - (25.2, 10.2) - (25.2, 12.2), 4 s door check, back | 3 and 5, K5 |
-| G5 | (20.8, 9.0) | (20.8, 8.6) - (20.8, 12.2) - (24.0, 12.2), 4 s door check, back; a 40 s lap like G4, so they stand 1.2 m apart at the door every 40 s | 3 and 5, K5 |
+| G5 | (20.8, 9.0) | (20.8, 8.6) - (20.8, 12.2) - (24.0, 12.2), 4 s door check, back; a 47 s lap like G4 (`sweepPeriod`; 40 s does not fit G4), so they stand 1.2 m apart at the door every 47 s | 3 and 5, K5 |
 | G6 | (29.0, 9.9) | Post at the desk, torch panning the east window and the west door, 8 s each way | 4, K4 |
 | G7 | (28.8, 16.2), gallery | (28.8, 16.2) - (22.6, 16.2), 6 s pan stop, back (his east end 2.5 m from the hatch) | 6, K6 |
 | G8 + G9 (pair) | (12.5, 15.7), (12.5, 16.5), gallery | Side by side (12.5, 16.1) - (21.4, 16.1), torches panning down into the crane well, back | 7 and 8, K8 |
