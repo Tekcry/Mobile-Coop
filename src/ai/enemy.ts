@@ -190,6 +190,9 @@ export interface AiContext {
   /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
    *  Absent / false (Hunter, Mission): the old paces. */
   coordinated?(): boolean;
+  /** (piano escape GA1) A scene blackout runs (`EnemyManager.sceneDark`): every guard who carries a torch has it on, in
+   *  every state. Absent / false: the torch rule as built. */
+  sceneDark?(): boolean;
   /** Shared last known position of the target (valid once anyone has seen / located it). (guard-ai S24) The freshest
    *  intruder's (the guards read their own intruder's, `lkpOf`). */
   lkp: Vector3;
@@ -2110,6 +2113,9 @@ export class Enemy implements Damageable {
     // (coop-torches) the test hook (e2e-coop) forces the rule; a dog still carries none
     const o = this.torchOverride;
     if (typeof o === 'boolean') return o && carriesTorch(this.def);
+    // (piano escape GA1) a scene blackout: a carrier has his on in every state while he is up (not held in a takedown)
+    // (stand-in guards in unit tests carry no context: the rule as built)
+    if ((this.ctx as Partial<AiContext> | undefined)?.sceneDark?.() === true) return carriesTorch(this.def) && !this.taken;
     // (warehouse-redesign M1) dogs carry no light: the rule says no before the field is read
     // (guard-ai S4, design 4) cautious and calm: the torch rule of a searching guard
     const lvl = this.caution > 0 && this.aware.calmNow ? 'searching' : this.aware.level;
