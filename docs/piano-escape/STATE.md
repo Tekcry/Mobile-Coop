@@ -14,7 +14,9 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    feature/piano-escape-s2 (worktree -s2), brief S2-brief.md, report S2-report.md, on stubs (#602-#604 TODO lines).
    GA4 GuardActor = PR #611 (feature/guard-ai-piano-actor; API in its docs/guard-ai/slices/PIANO-GA4-REPORT.md): S2 told
    to shape the stand-in seam to its API (TODO(#611)); swap in when #611 is on master (G1 + G2 need nav; start ~2 m back).
-   S5 PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
+   S2 DONE ad72540cb (report S2-report.md: ~1,540 source lines; e2e-piano via DIRECT_COVERS only); Opus checker
+   running -> S2-check.md. PASS -> own PR to master (base feature/piano-escape until #606 lands).
+   S5 RESUMED ~21:55 (steps 2-3 + addendum). Was: PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
    S5 also adds Michael's three Grohl-form prototypes (~21:15; grohl-a/b/c + grohl-form.mjs; brief addendum).
    Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
 4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
