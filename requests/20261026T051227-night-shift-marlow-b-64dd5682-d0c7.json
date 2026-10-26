@@ -1,0 +1,14 @@
+{
+  "id": "20261026T051227-night-shift-marlow-b-64dd5682-d0c7",
+  "sha": "64dd56820f80bfe80944d8df52622adc3e856035",
+  "branch": "feature/route-runs-r5-on-r4b",
+  "pr": 520,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/ --selftest tests/fixtures/route-run/selftest-steps.graph.json --players 1"
+  ],
+  "env": {},
+  "set": "route-run-selftest-steps",
+  "note": "F29 fix (prototype mode: one closest test set)"
+}
