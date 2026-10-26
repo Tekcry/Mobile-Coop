@@ -1,0 +1,14 @@
+{
+  "id": "20261026T232936-night-shift-player-b-9d5fb8b7-287e",
+  "sha": "9d5fb8b7870927f086787ad28f1dc8144dc02e6b",
+  "branch": "feature/gm-watchdog",
+  "pr": 676,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-guard-carry",
+    "e2e-enemies"
+  ],
+  "set": "wd-guard",
+  "fix": true
+}
