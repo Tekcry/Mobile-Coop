@@ -1123,6 +1123,12 @@ export class CoopClient implements NetAttachment {
 
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
+    // (piano-escape S4) a scene: no results screen; our page fades with the host's (2 s, the piano with it), then the
+    // host takes both pages back to the room's lobby (the session's `lobby`)
+    if (this.piano) {
+      this.piano.finish();
+      return;
+    }
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
     if (this.g.opts.mode === 'sector' && end.won && !this.practice) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);

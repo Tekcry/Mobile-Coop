@@ -1,7 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import type { PlayerRef } from '../ai/enemy';
 import type { AmmoSlot } from '../weapons/loadoutSnapshot';
-import type { GameState } from './gameState';
+import type { GameState, SessionCallbacks } from './gameState';
 import type { Interactable } from './interactables';
 import { EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
 import { exitZone, inZone, type SectorDef } from './sectors';
@@ -222,6 +222,10 @@ export interface PianoWorld {
    * any item use. The client's spawn, search, mains cut and reveals are the host's; its intro ends on `hostEmp`.
    */
   askEmp?(): void;
+  /** (S4) Co-op host only: the client's page fades with ours (the existing `end` message; the client shows no results). */
+  endNet?(): void;
+  /** (S4) Co-op host only: every page back to the room's lobby (the session's `lobby` hook). False: no hook. */
+  toLobby?(): boolean;
 }
 
 /** (S2, S4) The EMP items' ids: `piano-emp-<k>`, k the operator spot (0 the section's start, 1 its start2). */
@@ -359,6 +363,14 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
     },
     view: (intro, onSkip) => m.view(intro, onSkip),
     knifeScene: (on) => knifeSwitch(g, on),
+    endNet: () => g.net?.onEnd?.(true, ''),
+    toLobby() {
+      // the session's callbacks (`GameState.cb`, private: the pause menu's own lobby hook reads the same)
+      const cb = (g as unknown as { cb: SessionCallbacks }).cb;
+      if (!g.net || !cb.lobby) return false;
+      cb.lobby();
+      return true;
+    },
   };
 }
 
@@ -645,17 +657,20 @@ export class PianoScene {
     this.world?.music?.piano.fadeOut(PIANO_FADE_S);
     this.fade = this.makeFade();
     this.fade?.to(1, PIANO_FADE_S);
+    // (S4) co-op host: the client's page fades at the same moment (no results screen there either)
+    if (this.host.net) this.world?.endNet?.();
     return PIANO_FADE_S;
   }
 
   /**
-   * Seam 3, the fade is done: back to the menu (solo), no results screen, nothing written. Co-op, or no hook: the host's
-   * ordinary end (S4 gives co-op its lobby). Once.
+   * Seam 3, the fade is done: back to the menu (solo), no results screen, nothing written. (S4) Co-op host: every page
+   * back to the room's lobby (the client's page faded with ours on the `end` message). No hook: the ordinary end. Once.
    */
   leave(): void {
     if (this.left) return;
     this.left = true;
     if (leaveToMenu && !this.host.net) leaveToMenu();
+    else if (this.host.net && this.world?.toLobby?.()) return;
     else this.host.endSession(true, '');
   }
 

@@ -1,5 +1,7 @@
 // (piano-escape S4) Co-op: the host's EMP press as one optional field of the `sector` message (`ep`, parsed in
 // `sectorExtra`), and the client page's scene on it (its intro ends, the lightning's t0, the music switch, the knife).
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EP_MAX, parseMessage, type Msg } from '../src/net/protocol';
 import { EMP_ITEM, LIGHTNING_OFF_T0, PianoScene, nearestEmpItem, type PianoEmpHooks, type PianoHost, type PianoWorld } from '../src/game/pianoScene';
@@ -129,5 +131,51 @@ describe('the client page: its own intro, ended by the host EMP', () => {
     expect(nearestEmpItem(thornbeckMill, s.start2!.x, s.start2!.z)).toBe(`${EMP_ITEM}1`);
     expect(nearestEmpItem(thornbeckMill, s.start.x, s.start.z)).toBe(`${EMP_ITEM}0`);
     expect(nearestEmpItem({}, 0, 0)).toBe(`${EMP_ITEM}0`);
+  });
+});
+
+describe('(S4) the co-op end: no results screen on either page, both fade, back to the lobby', () => {
+  function hostScene(lobby: boolean) {
+    const log: string[] = [];
+    const h: PianoHost = {
+      weapons: { slots: [], gadgets: { counts: {} }, index: 0, switchTo: () => undefined },
+      hud: { feedItem: () => undefined },
+      net: {},
+      endSession: () => void log.push('results'),
+      playerRefsInto: () => [],
+    };
+    const w = {
+      hooks: { mainsOff: () => 0, lightningT0: () => undefined, sceneDark: () => undefined, blackoutSearchSlots: () => 0 },
+      music: null,
+      knifeScene: () => undefined,
+      endNet: () => void log.push('end to client'),
+      toLobby: () => (log.push('lobby'), lobby),
+    } as unknown as PianoWorld;
+    const sc = new PianoScene(h, () => ({ to: (a: number, s: number) => void log.push(`fade ${a} ${s}`), dispose: () => undefined }), w);
+    return { sc, log };
+  }
+
+  it('host: the fade and the end message to the client together; after it, the lobby (no results)', () => {
+    const s = hostScene(true);
+    s.sc.finish();
+    expect(s.log).toEqual(['fade 1 2', 'end to client']);
+    s.sc.finish();
+    s.sc.leave();
+    s.sc.leave();
+    expect(s.log).toEqual(['fade 1 2', 'end to client', 'lobby']);
+  });
+
+  it('host without a lobby hook: the ordinary end', () => {
+    const s = hostScene(false);
+    s.sc.finish();
+    s.sc.leave();
+    expect(s.log).toEqual(['fade 1 2', 'end to client', 'lobby', 'results']);
+  });
+
+  it("client: the host's end message fades the scene and shows no results (the source seam)", () => {
+    const c = readFileSync(resolve(__dirname, '..', 'src/net/coopClient.ts'), 'utf8');
+    const i = c.indexOf('private onEndMsg(');
+    const body = c.slice(i, c.indexOf('this.g.endSession(', i));
+    expect(body).toMatch(/if \(this\.piano\) \{\s+this\.piano\.finish\(\);\s+return;\s+\}/);
   });
 });
