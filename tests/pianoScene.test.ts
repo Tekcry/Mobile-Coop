@@ -6,7 +6,8 @@ import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PREVIEW_ON, darkFlag, flags } from '../src/core/flags';
 import { MAPS, getMap } from '../src/world/maps';
-import { THORNBECK_SECTORS, thornbeckMill } from '../src/world/maps/thornbeckMill';
+import { THORNBECK_LIGHTNING, THORNBECK_SECTORS, thornbeckMill } from '../src/world/maps/thornbeckMill';
+import { Lightning } from '../src/world/lightning';
 import { SectorRun, checkSectors, clearDone, exitZone, type SectorDef } from '../src/game/sectors';
 import {
   BELT_Y,
@@ -20,8 +21,10 @@ import {
   SEARCH_Z,
   emptyKit,
   isPianoScene,
+  LIGHTNING_OFF_T0,
+  empHooks,
   setPianoLeave,
-  stubEmpHooks,
+  stubMainsOff,
   type FadeLayer,
   type PianoEmpHooks,
   type PianoHost,
@@ -344,7 +347,8 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     const s = started();
     expect(s.sc.holdsSpawn).toBe(true);
     expect(s.sc.inPlay).toBe(false);
-    expect(s.log).toEqual(['hud false', 'music true', 'piano start']);
+    // (S4) no flash in the intro: the lightning's t0 is off until the press
+    expect(s.log).toEqual([`t0 ${LIGHTNING_OFF_T0}`, 'hud false', 'music true', 'piano start']);
     // before the prompt: no items, a press does nothing
     s.intro.musicStarted();
     s.intro.step(20);
@@ -352,7 +356,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     s.sc.step(1 / 60, true);
     expect(s.sc.pressed).toBe(false);
     expect(s.sc.press('local')).toBe(false);
-    expect(s.log).toHaveLength(3);
+    expect(s.log).toHaveLength(4);
   });
 
   it('the skip seeks the music to 38 s', () => {
@@ -481,20 +485,57 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     }
   });
 
-  it('stubEmpHooks: a whole-map disrupt that never ends; no flashes, the torch rule of today, no search', () => {
+  it('(S4) empHooks: the lightning t0, the scene dark and the search on the real APIs; the mains cut stand-in (#602)', () => {
     const calls: number[][] = [];
-    const h = stubEmpHooks({ disrupt: (...a: number[]) => (calls.push(a), 7) });
+    const lights = { disrupt: (...a: number[]) => (calls.push(a), 7) };
+    const lt = new Lightning(THORNBECK_LIGHTNING);
+    const searched: string[] = [];
+    const em = {
+      sceneDark: false,
+      blackoutSearchSlots: (s: readonly number[], x: number, z: number) => (searched.push(`${s.join(',')} ${x} ${z}`), s.length),
+    };
+    const h = empHooks(lights, () => lt, () => em);
     expect(h.mainsOff(1, 2, 3, 0.8)).toBe(7);
-    expect(calls).toEqual([[1, 2, 3, Infinity, Infinity]]);
+    expect(stubMainsOff(lights, 4, 5, 6)).toBe(7);
+    expect(calls).toEqual([
+      [1, 2, 3, Infinity, Infinity],
+      [4, 5, 6, Infinity, Infinity],
+    ]);
     h.lightningT0(5);
+    expect(lt.t0).toBe(5);
     h.sceneDark(true);
-    expect(h.blackoutSearchSlots([0, 1], 5.5, 5.25)).toBe(0);
-    // each stub names the real API it stands in for
+    expect(em.sceneDark).toBe(true);
+    h.sceneDark(false);
+    expect(em.sceneDark).toBe(false);
+    expect(h.blackoutSearchSlots([0, 1], 5.5, 5.25)).toBe(2);
+    expect(searched).toEqual(['0,1 5.5 5.25']);
+    // no lightning on the map, no guard manager (a co-op client): nothing happens, no search
+    const none = empHooks(lights, () => null, () => null);
+    none.lightningT0(5);
+    none.sceneDark(true);
+    expect(none.blackoutSearchSlots([0, 1], 5.5, 5.25)).toBe(0);
+    // the one stand-in left names its real API; the others are gone
     const p = src('src/game/pianoScene.ts');
     expect(p).toContain('TODO(#602): `world.level.lights.mainsOff(x, y, z, 0.8)`');
-    expect(p).toContain('TODO(#604): `world.lightning.t0 = simTime`');
-    expect(p).toContain('TODO(#603): `em.sceneDark = on`');
-    expect(p).toContain('TODO(#603): `return em.blackoutSearchSlots(slots, x, z)`');
+    expect(p).not.toContain('TODO(#603)');
+    expect(p).not.toContain('TODO(#604)');
+  });
+
+  it('(S4) no flash before the EMP: t0 off reads 0 at every sim time; the press time starts the timetable', () => {
+    const lt = new Lightning(THORNBECK_LIGHTNING);
+    lt.t0 = LIGHTNING_OFF_T0;
+    for (let t = 0; t < 400; t += 0.05) expect(lt.levelAt(t)).toBe(0);
+    lt.t0 = 100;
+    const first = THORNBECK_LIGHTNING.flashes[0]!.t;
+    expect(lt.levelAt(100 + first - 0.5)).toBe(0);
+    expect(lt.levelAt(100 + first + 0.05)).toBeGreaterThan(0);
+  });
+
+  it('(S4) the map carries its lightning and its rain', () => {
+    expect(thornbeckMill.lightning).toBe(THORNBECK_LIGHTNING);
+    const rain = THORNBECK_SECTORS[0]!.noisy ?? [];
+    expect(rain).toHaveLength(1);
+    expect(rain[0]).toMatchObject({ id: 'rain', db: 6, radius: Infinity });
   });
 });
 

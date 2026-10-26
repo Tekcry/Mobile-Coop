@@ -389,6 +389,14 @@ describe('Thornbeck Mill: light (PLAN section 2b and "Spaces, levels and lamps")
     expect(THORNBECK_RAIN).toEqual({ id: 'rain', db: 6, label: 'rain' });
     expect(THORNBECK_RAIN.db).toBeGreaterThanOrEqual(NOISY_LIMITS.dbMin);
     expect(THORNBECK_RAIN.db).toBeLessThanOrEqual(NOISY_LIMITS.dbMax);
+    // (S4) on the section as a map-wide source, and validateGuardAi takes it
+    const noisy = THORNBECK_SECTORS[0]!.noisy ?? [];
+    expect(noisy).toEqual([{ id: THORNBECK_RAIN.id, x: 0, z: 0, radius: Infinity, db: THORNBECK_RAIN.db, label: THORNBECK_RAIN.label }]);
+    expect(validateGuardAi({ noisy }, THORNBECK_GUARDS, { section: 0, sections: 1, bounds: { minX: -6, maxX: 34, minZ: -2, maxZ: 20 } })).toEqual([]);
+  });
+
+  it('(S4) the map carries the timetable as its lightning (SO5)', () => {
+    expect(thornbeckMill.lightning).toBe(THORNBECK_LIGHTNING);
   });
 
   it('the windows and board gaps are real openings: glass panes (light passes, bodies stop) and a gap in the boards', () => {

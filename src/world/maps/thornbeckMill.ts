@@ -3,6 +3,8 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { CamSpace } from '../camSpaces';
 import type { RoutePt, SectorBolt, SectorDef, SectorGuard } from '../../game/sectors';
+import type { LightningData } from '../lightning';
+import { mapWideNoise } from '../../ai/hearing';
 
 /**
  * Thornbeck Mill (piano-escape, `scene: 'piano'`): a storm grain mill in Hollowmere, the setting of the piano escape
@@ -208,7 +210,8 @@ export const THORNBECK_SECTORS: readonly SectorDef[] = [
     extract: { label: 'Get out', box: [-2.4, 15.5, 0, 17.7], floorY: DECK_Y },
     guards: THORNBECK_GUARDS,
     reinforce: [],
-    // rain: see THORNBECK_RAIN (TODO(#603): noisy: [mapWideNoise('rain', 6)])
+    // rain on the roof over the whole mill (PLAN section 2b, THORNBECK_RAIN): 6 dB halves every guard's hearing reach
+    noisy: [mapWideNoise('rain', 6)],
     bolts: THORNBECK_BOLTS,
     perStage: 0,
     // the one directed path; the ladder leg (ladder foot -> deck) is a climb
@@ -253,7 +256,7 @@ export const THORNBECK_LAMPS: readonly (readonly [string, number, number, number
 /** The exit sign over the hoist door (a small green light; electric like the lamps). */
 export const THORNBECK_EXIT_SIGN = { x: 0.2, y: 6.5, z: 15.7 } as const;
 
-/** One lightning strike (the shape of `MapDef.lightning.flashes` in #604 / SO5): `t` s on the scene clock, `peak` 0..1, `len` s. */
+/** One lightning strike (`MapDef.lightning.flashes`, SO5's `Flash`): `t` s on the scene clock, `peak` 0..1, `len` s. */
 export interface ThornbeckFlash {
   t: number;
   peak: number;
@@ -309,21 +312,19 @@ export const THORNBECK_OPENINGS: readonly ThornbeckOpening[] = [
 
 /**
  * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every mission-track loop (160.04 s),
- * and the openings it comes through (SO5b). The `lightning` field is not on this base (#604 / SO5 adds it with this exact shape).
+ * and the openings it comes through (SO5b). It is the map's `lightning` (SO5's `LightningData`; the light itself comes
+ * in through the bake's sky visibility, so the openings are data for the look check).
  */
-// TODO(#604): set as MapDef.lightning
-export const THORNBECK_LIGHTNING: { flashes: readonly ThornbeckFlash[]; period: number; openings: readonly ThornbeckOpening[] } = {
+export const THORNBECK_LIGHTNING: LightningData & { flashes: readonly ThornbeckFlash[]; period: number; openings: readonly ThornbeckOpening[] } = {
   flashes: lightningFlashes(),
   period: THORNBECK_LIGHTNING_PERIOD,
   openings: THORNBECK_OPENINGS,
 };
 
 /**
- * Rain on the roof: 6 dB of masking over the whole map halves every guard's hearing reach (PLAN section 2b). On the
- * section it is `noisy: [mapWideNoise('rain', 6)]` once #603 is on master (`mapWideNoise` is not on this base; its radius
- * is infinite, which this base's `validateGuardAi` would reject).
+ * Rain on the roof: 6 dB of masking over the whole map halves every guard's hearing reach (PLAN section 2b). The
+ * section carries it as `noisy: [mapWideNoise('rain', 6)]` (an infinite radius: map-wide, GA7).
  */
-// TODO(#603): noisy: [mapWideNoise('rain', 6)]
 export const THORNBECK_RAIN = { id: 'rain', db: 6, label: 'rain' } as const;
 
 /** Where a carried body can be hidden (PLAN section 3 "Hide spots"): [what, x, z, y]. One by every kill spot's stretch. */
@@ -530,6 +531,8 @@ export const thornbeckMill: MapDef = {
   modes: ['sector'],
   scene: 'piano',
   sectors: THORNBECK_SECTORS,
+  // (S4) the storm's strikes on the scene clock (t0 = the EMP press: `world.lightning.t0`, set by the scene)
+  lightning: THORNBECK_LIGHTNING,
   detail: false,
   navLayers: 5,
   theme: {

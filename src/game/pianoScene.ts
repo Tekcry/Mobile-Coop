@@ -16,8 +16,8 @@ import { hyp2 } from '../core/mathx';
  * rating or results screen; `SectorMode.complete`).
  *
  * The intro (S2, `pianoIntro.ts`, drawn by `pianoIntroView.ts`) plays once per scene: a restart never replays it and the
- * music plays on. The EMP beat runs in the PLAN's order (section 2) on a small local seam (`PianoEmpHooks`) whose
- * default stands in for the APIs not on master yet (#602, #603, #604); the lead swaps them in when those land.
+ * music plays on. The EMP beat runs in the PLAN's order (section 2) on a small local seam (`PianoEmpHooks`, `empHooks`:
+ * the real `sceneDark`, `blackoutSearchSlots` and lightning clock; the mains cut's stand-in until #602 is on the base).
  *
  * Never imports `src/net` (co-op reaches it through the host and the lobby, S4).
  */
@@ -38,6 +38,11 @@ export const SEARCH_SLOTS: readonly number[] = [0, 1];
 /** (S2) The search's point (W1's middle). */
 export const SEARCH_X = 5.5;
 export const SEARCH_Z = 5.25;
+/**
+ * (S4) The lightning's t0 before the EMP: the clock never reaches it, so no flash in the intro (`Lightning.flashAt` of
+ * -Infinity is 0; tested). The press sets the real t0.
+ */
+export const LIGHTNING_OFF_T0 = Number.POSITIVE_INFINITY;
 /** (S2) A restart after the EMP: the spawn waits this long (s), past the players' respawn (0.3 s). */
 export const RESTART_SPAWN_S = 0.4;
 /** (S2) The EMP goes off at the operator's belt (m above the feet). */
@@ -116,8 +121,8 @@ export function setPianoLeave(fn: (() => void) | null): void {
 // ------------------------------------------------------------------ S2: the EMP seam and the world the scene drives
 
 /**
- * (S2) The EMP beat's world calls. The real APIs are on open PRs (#602 `mainsOff`, #603 `sceneDark` and
- * `blackoutSearchSlots`, #604 the lightning clock); `stubEmpHooks` stands in until they reach master.
+ * (S2, S4) The EMP beat's world calls: `empHooks` drives the real APIs (#603 `sceneDark` and `blackoutSearchSlots`,
+ * #604 the lightning clock); `mainsOff` (#602) is not on this base yet, so its stand-in stays (`stubMainsOff`).
  */
 export interface PianoEmpHooks {
   /** The mains cut at (x, y, z): every electric lamp out, nearest first, the last `over` s later, for good. Lamps cut. */
@@ -130,24 +135,42 @@ export interface PianoEmpHooks {
   blackoutSearchSlots(slots: readonly number[], x: number, z: number): number;
 }
 
-/** (S2) Today's stand-ins: a whole-map `disrupt` that never ends, today's torch rule, no flashes, no search. */
-export function stubEmpHooks(lights: { disrupt(x: number, y: number, z: number, radius: number, seconds: number): number }): PianoEmpHooks {
+/** (S2) The lamps' side of the stand-in: `LightRegistry.disrupt`. */
+export interface DisruptLights {
+  disrupt(x: number, y: number, z: number, radius: number, seconds: number): number;
+}
+
+/** (S4) The guards' side of the beat: `EnemyManager`'s scene dark and blackout search (#603, GA1 / GA3). */
+export interface SceneGuards {
+  sceneDark: boolean;
+  blackoutSearchSlots(slots: readonly number[], x: number, z: number): number;
+}
+
+/** (S2) The mains cut's stand-in: a whole-map `disrupt` that never ends. */
+export function stubMainsOff(lights: DisruptLights, x: number, y: number, z: number): number {
+  // TODO(#602): `world.level.lights.mainsOff(x, y, z, 0.8)` (nearest first over 0.8 s, holds through a restart; then
+  // SectorMode's `retakeStart` stand-in can go). #602 is on master but not on the S4 base.
+  return lights.disrupt(x, y, z, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+}
+
+/**
+ * (S4) The beat's world calls on the real APIs: the lightning clock's t0 (`world.lightning`, #604; null on a map without
+ * lightning), the scene's dark and the pair's search on the guards (`em`, #603; null before the manager exists or on a
+ * co-op client, whose guards are the host's). The mains cut is the stand-in until #602 reaches the base.
+ */
+export function empHooks(lights: DisruptLights, lightning: () => { t0: number } | null, em: () => SceneGuards | null): PianoEmpHooks {
   return {
-    mainsOff(x, y, z) {
-      // TODO(#602): `world.level.lights.mainsOff(x, y, z, 0.8)` (nearest first over 0.8 s, holds through a restart; then
-      // SectorMode's `retakeStart` stand-in can go)
-      return lights.disrupt(x, y, z, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    mainsOff: (x, y, z) => stubMainsOff(lights, x, y, z),
+    lightningT0(simTime) {
+      const lt = lightning();
+      if (lt) lt.t0 = simTime;
     },
-    lightningT0() {
-      // TODO(#604): `world.lightning.t0 = simTime` (no flashes until then)
+    sceneDark(on) {
+      const e = em();
+      if (e) e.sceneDark = on;
     },
-    sceneDark() {
-      // TODO(#603): `em.sceneDark = on` (today's torch rule until then)
-    },
-    blackoutSearchSlots() {
-      // TODO(#603): `return em.blackoutSearchSlots(slots, x, z)` (called with [0, 1], 5.5, 5.25 once fill() has spawned
-      // the four; no search until then)
-      return 0;
+    blackoutSearchSlots(slots, x, z) {
+      return em()?.blackoutSearchSlots(slots, x, z) ?? 0;
     },
   };
 }
@@ -217,7 +240,11 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
   const items: Interactable[] = [];
   const refs: PlayerRef[] = [];
   return {
-    hooks: stubEmpHooks(g.world.level.lights),
+    hooks: empHooks(
+      g.world.level.lights,
+      () => g.world.lightning,
+      () => g.enemyMgr ?? null,
+    ),
     music: g.app.music,
     spawn: () => m.spawn(),
     spawned: (k) => m.spawned(k),
@@ -338,6 +365,8 @@ export class PianoScene {
     const intro = (this.intro = new PianoIntro(0));
     this.holdsSpawn = true;
     this.inPlay = false;
+    // (S4) no flash in the intro: the lightning starts with the EMP
+    w.hooks.lightningT0(LIGHTNING_OFF_T0);
     w.hud(false);
     const m = w.music;
     if (m) {
