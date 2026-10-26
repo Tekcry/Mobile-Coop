@@ -43,6 +43,8 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
   piano for the intro, suspense thriller once in the mission."; he liked "1 Held Breath"; prototypes A-C: "none. they
   all dont sound realistic, like they are part of a 2 bit game or something"; D-F: "none". (S5b; the lightning re-times
   to the mission track: assumed, logged in Decided, undo by his word.)
+- 2026-10-26 ~21:55 (via the orchestrator): "music isnt settled, i still want more prototypes. can you provide more
+  realistic versions of both songs." (the intro / mission wiring stays as the working choice; the picker stays open.)
 - 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked

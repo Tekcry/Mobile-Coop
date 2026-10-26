@@ -30,7 +30,9 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
 4. PR #606 (S1 + S3): was CONFLICTING (CI never ran); master merged in ~22:45 at 6f89eec17 (keep both: main.ts imports,
    sectorOps unlisted + scene), tsc + 47 tests, checker re-posted; CI + affected follow. Docs pushes re-post checker.
 4b. MUSIC PICK (Michael ~21:50): intro = Investigation Piano, mission = Suspense Thriller from the EMP press, loop whole;
-   Held Breath the one dev alternative; A-F dropped. S5b (Opus) building on feature/piano-escape-s5 (#618), brief S5b-brief.md.
+   Held Breath the one dev alternative; A-F dropped. NOT settled (Michael ~21:55 "music isnt settled, i still want more
+   prototypes. can you provide more realistic versions of both songs."): the picker stays open (intro + mission slots) for
+   intro-1/2, mission-1/2 from the orchestrator (feature/music-real, scratch/music/real/); add them when it says they landed. S5b (Opus) building on feature/piano-escape-s5 (#618), brief S5b-brief.md.
    Lightning re-timed (period 160.04, doubles on the Grohl section changes; PLAN 2b) + Guard AI GA5's six data deltas:
    S1b-2 (Sonnet) building on feature/piano-escape-s1b (#617), brief S1b2-brief.md. Sector Ops (SO5) and Guard AI told.
 5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
