@@ -26,8 +26,9 @@
 // row title "Pro Rifle Pack: walk forward"); travel `-z` (a backward gait: faced as a sideways one, travelling -z) and
 // `auto` (mixamoTake.mjs `travelHeading`: the nearest axis of the measured heading, diagonals and arcs flagged in
 // CLIPS.md); `mirror` (the take mirrored left <-> right first, mixamoTake.mjs `mirrorTake`); `place` 'game' (default,
-// `src/anim/clips/mixamo/<slug>.ts`) or 'studio' (an Anim Studio only clip, `src/anim/clips/mixamo/studio/<slug>.ts`, the
-// folder I8 loads lazily). A manifest row with `dupOf` (mixamoDup.mjs) is never emitted.
+// `src/anim/clips/mixamo/<slug>.ts`), 'studio' (an Anim Studio only clip, `src/anim/clips/mixamo/studio/<slug>.ts`, the
+// folder I8 loads lazily) or 'piano' (piano-knife S2: the piano scene's clips, `src/anim/clips/mixamo/piano/<slug>.ts`,
+// loaded lazily by the game and the Studio). A manifest row with `dupOf` (mixamoDup.mjs) is never emitted.
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -48,8 +49,9 @@ const SHEETS = path.join(OUT, 'mixamo', 'sheets');
 
 export const KINDS = ['gait', 'loop', 'timed', 'turn'];
 export const TRAVELS = ['z', '+x', '-x', '-z', 'auto', 'none'];
-/** (I7) Where a module goes: the game's captures, or the Anim Studio only ones (`studio/`). */
-export const PLACES = ['game', 'studio'];
+/** (I7) Where a module goes: the game's captures, the Anim Studio only ones (`studio/`), or (piano-knife S2) the piano
+ *  scene's lazily loaded ones (`piano/`). */
+export const PLACES = ['game', 'studio', 'piano'];
 const sideways = (t) => t === '+x' || t === '-x';
 /** (mixamo-retarget I6) The planner bands a gait recipe may name (emit.mjs's tables; a sprint is the run band, as CMU's;
  *  `strafe` the sideways band, travel +x / -x). */
@@ -382,8 +384,8 @@ export function moduleText(rec, d, res, info) {
   if (noHead) body = body.replace('  // head turn: the local quaternion (x, y, z, w) on the neck\n  head: [],\n', '');
   body = body.slice(body.indexOf("import { keyedClip } from '../../keyed';"));
   body = body.replace('from the first push', 'from its first moving frame (the trimmed span)');
-  // (I7) an Anim Studio only clip sits one folder down
-  if (rec.place === 'studio') body = body.replaceAll("from '../../keyed'", "from '../../../keyed'");
+  // (I7) an Anim Studio only clip (piano-knife S2: or a piano scene one) sits one folder down
+  if (rec.place && rec.place !== 'game') body = body.replaceAll("from '../../keyed'", "from '../../../keyed'");
   const [f0, f1] = info.frames30;
   const what = res.kind === 'gait' ? `Gait cycle (${res.out.def.frames} frames, phase 0 at the left strike, clip feet)`
     : res.kind === 'loop' ? `Loop (${res.out.def.frames} frames at even phases, no clip feet)${res.fallback ? '; a gait recipe emitted as a loop (CLIPS.md)' : ''}`
@@ -408,8 +410,8 @@ export function rowTitle(rec) {
   return pack ? `${PACK_NAME[pack]}: ${t}` : t;
 }
 
-/** (I7) A recipe's module path (`place` studio: one folder down). */
-export const modulePath = (rec, dir = MIXAMO_CLIPS_DIR) => path.join(dir, ...(rec.place === 'studio' ? ['studio'] : []), `${rec.slug}.ts`);
+/** (I7) A recipe's module path (every place but `game` one folder down: `studio/`, `piano/`). */
+export const modulePath = (rec, dir = MIXAMO_CLIPS_DIR) => path.join(dir, ...(rec.place && rec.place !== 'game' ? [rec.place] : []), `${rec.slug}.ts`);
 
 /** The clip's source row (one line, the keyed marker block of mocapSources.ts). */
 export function sourceRow(rec, res) {
@@ -487,6 +489,7 @@ export function clipsDoc(results, { checked }) {
     if (r.rec.slot) notes.push(`game slot \`${r.rec.slot}\``);
     if (r.res.kind === 'turn') notes.push(`turned ${r2(r.res.out.report.turnedDeg)} deg (recipe ${r.rec.turnDeg}) over ${r3(r.res.out.seconds)} s of take`);
     if (r.rec.place === 'studio') notes.push('Anim Studio only');
+    if (r.rec.place === 'piano') notes.push('piano scene only (lazy)');
     if (r.rec.mirror) notes.push('mirrored left <-> right');
     if (r.heading && (r.auto || r.heading.flags.length)) notes.push(`travel ${r.auto ? 'auto' : r.rec.travel} -> ${r.rec.travel} (heading ${r.heading.headingDeg} deg, ${r.heading.offDeg} off the axis, arc ${r.heading.arcDeg} deg${r.heading.flags.length ? `; FLAGGED ${r.heading.flags.join(', ')}` : ''})`);
     if (r.d.travel) notes.push(`faced: travel heading ${r.d.travel.headingDeg} deg, the take's facing ${r.d.travel.bodyTurnedDeg} deg off the travel root (faceTake)`);
@@ -561,9 +564,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       writeFileSync(path.join(SHEETS, `${rec.slug}.svg`), sheetSvg(d));
       mkdirSync(path.dirname(modulePath(R)), { recursive: true });
       writeFileSync(modulePath(R), moduleText(R, d, res, info));
-      // (I7) a clip that changed place leaves no copy in the other folder
-      const other = modulePath({ ...R, place: R.place === 'studio' ? 'game' : 'studio' });
-      if (existsSync(other)) unlinkSync(other);
+      // (I7) a clip that changed place leaves no copy in the other folders
+      for (const place of PLACES) {
+        if (place === R.place) continue;
+        const other = modulePath({ ...R, place });
+        if (existsSync(other)) unlinkSync(other);
+      }
     }
     console.log(docRow(r));
     if (res.fallback) console.log(`   ${res.fallback}`);
