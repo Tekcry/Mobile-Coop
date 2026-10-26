@@ -1,5 +1,5 @@
 {
-  "id": "20261026T035745-affected-e2e-ac225a4b-edce",
+  "id": "20191231T035745-affected-e2e-ac225a4b-edce",
   "sha": "ac225a4b16bc04bc16d77d88368fbcc115a4bcb2",
   "branch": "feature/ctcourse-flake-fix",
   "pr": 553,
@@ -11,5 +11,5 @@
     "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #553"
+  "note": "auto affected-e2e, PR #553; fronted by the orchestrator: fix PR (Michael 15:05 fixes first)"
 }

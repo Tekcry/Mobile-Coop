@@ -1,5 +1,5 @@
 {
-  "id": "20261026T032337-affected-e2e-2fbfbd30-b259",
+  "id": "20191231T032337-affected-e2e-2fbfbd30-b259",
   "sha": "2fbfbd303af097b15835960650cc8a87c62ad1dd",
   "branch": "feature/laptop-queue-8b",
   "pr": 552,
@@ -11,5 +11,5 @@
     "e2e-move"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #552 (re-filed at cap 3)"
+  "note": "auto affected-e2e, PR #552 (re-filed at cap 3); fronted by the orchestrator: fix PR (Michael 15:05 fixes first)"
 }

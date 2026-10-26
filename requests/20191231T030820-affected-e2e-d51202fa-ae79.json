@@ -1,5 +1,5 @@
 {
-  "id": "20261026T030820-affected-e2e-d51202fa-ae79",
+  "id": "20191231T030820-affected-e2e-d51202fa-ae79",
   "sha": "d51202fa3d275e26b2c6e6b623553180c342f06d",
   "branch": "feature/guard-ai-seed-random",
   "pr": 537,
@@ -11,5 +11,5 @@
     "e2e-stealth-ai"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #537 (re-filed at cap 3)"
+  "note": "auto affected-e2e, PR #537 (re-filed at cap 3); fronted by the orchestrator: fix PR (Michael 15:05 fixes first)"
 }

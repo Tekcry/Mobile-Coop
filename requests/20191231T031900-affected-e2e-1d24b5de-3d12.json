@@ -1,5 +1,5 @@
 {
-  "id": "20261026T031900-affected-e2e-1d24b5de-3d12",
+  "id": "20191231T031900-affected-e2e-1d24b5de-3d12",
   "sha": "1d24b5de7d46428d656d99327ac8b1ed945dc2ae",
   "branch": "feature/player-flake-fix",
   "pr": 548,
@@ -11,5 +11,5 @@
     "smoke"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #548"
+  "note": "auto affected-e2e, PR #548; fronted by the orchestrator: fix PR (Michael 15:05 fixes first)"
 }

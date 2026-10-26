@@ -1,5 +1,5 @@
 {
-  "id": "20261026T030531-night-shift-guard-ai-d51202fa-93b2",
+  "id": "20191231T030531-night-shift-guard-ai-d51202fa-93b2",
   "sha": "d51202fa3d275e26b2c6e6b623553180c342f06d",
   "branch": "feature/guard-ai-seed-random",
   "pr": 537,
@@ -10,5 +10,6 @@
     "e2e-sectorops",
     "e2e-enemies"
   ],
-  "set": "seed-random"
+  "set": "seed-random",
+  "note": "fronted by the orchestrator: fix PR (Michael 15:05 fixes first)"
 }
