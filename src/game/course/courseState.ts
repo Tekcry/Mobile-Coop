@@ -453,14 +453,15 @@ export class CourseState {
     this.events.push({ t: 'flagCleared', flag });
   }
 
-  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a). */
-  private addFlag(flag: string, bay: number): void {
+  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a).
+   *  (marlow-play C5) `st`: the station that owns it (a step's mark: its condition's), else the live station. */
+  private addFlag(flag: string, bay: number, st?: number): void {
     if (this.flags.has(flag)) return;
     this.flags.add(flag);
     this.flagBay.set(flag, bay);
     // (J14 R1) owned by the live station (its retry clears it); a done flag moves the live station on
     if (bay === this.bay && this.hasStations) {
-      const n = this.station();
+      const n = st ?? this.station();
       if (n > 0) this.flagSt.set(flag, n);
       this.advanceStations();
     }
@@ -716,12 +717,17 @@ export class CourseState {
    * `restarts` / `lastRetry` and emits `stationRetry` (the mode resets its guards, devices and lamps and puts the players
    * on its marks). `n` (a set's drill window or beam, `CourseMode.stationRetry`): only while station `n` is live. False
    * (nothing changes): no live station (or not `n`), its retry is 'none' (unless the cause is `other`: a set's way out
-   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, or the course is over.
+   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, the course is over, or
+   * (marlow-play B5) the bay's exit airlock is cycling or sealed.
    */
   retryStation(cause: StationCause, n?: number): boolean {
     const s = this.liveRt();
     if (!s || this.over || (s.def.retry === 'none' && cause !== 'other') || this.retryOffSet.has(s.def.n)) return false;
     if (n !== undefined && n !== s.def.n) return false;
+    // (marlow-play B5) never while the bay's exit holding room cycles or has sealed: its near door locks for good and the
+    // retry's marks would strand both players behind it on the old set
+    const ea = this.exitAirlockOf(this.bay);
+    if (ea && (ea.phase === 'cycling' || ea.phase === 'sealed')) return false;
     const sn = s.def.n;
     // (fix 7) a stand-in standing open stays open (and its flag set) through the retry
     const keep = this.standInGate(s);
@@ -1312,8 +1318,27 @@ export class CourseState {
     for (let i = 0; i < list.length; i++) {
       const s = list[i]!;
       if (!s.cond || this.flags.has(s.key) || !this.condHolds(s.cond)) continue;
-      this.addFlag(s.key, this.bay);
+      // (marlow-play C5) the mark belongs to the station that owns the step's flag, not the one live as it ticks (a done
+      // flag moves the live station on first): a retry of the next station kept un-ticking the step
+      this.addFlag(s.key, this.bay, this.hasStations ? this.condOwner(s.cond) : undefined);
       this.events.push({ t: 'stepDone', step: s.o.id });
+    }
+  }
+
+  /** (marlow-play C5) The station owning step condition `c`: the latest owner among its set flags (a gate: the live
+   *  station), 0 none. No allocation. */
+  private condOwner(c: CondRt): number {
+    switch (c.k) {
+      case 0:
+        return Math.max(this.flagSt.get(c.flag) ?? 0, this.flagSt.get(c.key1) ?? 0, this.flagSt.get(c.key2) ?? 0);
+      case 1:
+        return this.station();
+      case 2:
+      case 3: {
+        let n = 0;
+        for (let i = 0; i < c.kids.length; i++) n = Math.max(n, this.condOwner(c.kids[i]!));
+        return n;
+      }
     }
   }
 

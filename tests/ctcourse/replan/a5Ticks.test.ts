@@ -4,11 +4,13 @@
  * the flood lit again before `a5-release` retries 13 once (cause `timer`); the release set first, or a flood shot out (dark for
  * good), is no fail; a lit flood before any window opens is no fail; `laser-a5` tripped retries 13 once (cause `seen`), checked
  * before the flood rule; an `epoch()` change disarms the window; (fix 1) only a lit-to-dark change within the attempt arms it
- * (a jam running on past a retry does not), and a refused `retry()` spends nothing; nothing happens while 13 is not live. The tick reads only
+ * (a jam running on past a retry does not), and a refused `retry()` spends nothing; nothing happens while 13 is not live;
+ * (marlow-play B1) a flood change counts only after 0.6 s held, so the real jam flicker (`JAM_LIGHT`) neither arms nor fails it. The tick reads only
  * `live`, `lit`, `flag`, `tripped`, `epoch` and calls `retry`.
  */
 import { describe, expect, it } from 'vitest';
-import { a5Tick, A5_BEAMS, A5_FLOOD_GROUP, A5_THROW_DONE, A5_THROW_N } from '../../../src/game/course/replan/a5Ticks';
+import { a5Tick, A5_BEAMS, A5_FLOOD_GROUP, A5_FLOOD_SETTLE, A5_THROW_DONE, A5_THROW_N } from '../../../src/game/course/replan/a5Ticks';
+import { flickerLit, JAM_LIGHT, JAMMER } from '../../../src/game/jammer';
 import { REPLAN_TICKS, type StationHooks } from '../../../src/game/course/replan/ticks';
 import { A5_LASER, A5_RELEASE_FLAG } from '../../../src/world/maps/ctcourseSets/a5Substation';
 
@@ -83,6 +85,9 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     f.step(60 * 5);
     expect(f.retries).toEqual([]);
     f.s.flood = true;
+    // (marlow-play B1) lit 0.6 s in a row before it counts: 36 steps after the change step
+    f.step(36);
+    expect(f.retries).toEqual([]);
     f.step();
     expect(f.retries).toEqual([[13, 'timer']]);
     // the flood stays lit: the window is spent, no second retry in the same epoch
@@ -110,10 +115,10 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     const f = fake();
     f.fresh();
     f.s.flood = false;
-    f.step(30);
+    f.step(60);
     f.s.released = true;
     f.s.flood = true;
-    f.step();
+    f.step(60);
     expect(f.retries).toEqual([]);
   });
 
@@ -175,19 +180,19 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     f.s.flood = true;
     f.step(60);
     expect(f.retries).toEqual([]);
-    // the new epoch's own window: dark, then lit
+    // the new epoch's own window: dark, then lit (each held 0.6 s)
     f.s.flood = false;
-    f.step(30);
+    f.step(60);
     f.s.flood = true;
-    f.step();
+    f.step(37);
     expect(f.retries).toEqual([[13, 'timer']]);
     // a retry bumps the epoch (the real hook): the next window is a fresh one that can fail again
     f.s.epoch += 1;
     f.step();
     f.s.flood = false;
-    f.step(30);
+    f.step(60);
     f.s.flood = true;
-    f.step();
+    f.step(37);
     expect(f.retries).toEqual([[13, 'timer'], [13, 'timer']]);
   });
 
@@ -227,7 +232,7 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     expect(f.retries).toEqual([]);
     // a window armed on 13, then 13 not live (the bay left it), then 13 live again with the flood lit: spent
     f.s.flood = false;
-    f.step(30);
+    f.step(60);
     f.s.live = 0;
     f.step(30);
     f.s.live = 13;
@@ -301,9 +306,9 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     f.step(120);
     f.st.refuse = true;
     f.s.flood = false;
-    f.step(30);
+    f.step(60);
     f.s.flood = true;
-    f.step();
+    f.step(37);
     expect(f.retries.at(-1)).toEqual([13, 'timer']);
     expect(f.accepted).toHaveLength(2);
     f.st.refuse = false;
@@ -332,13 +337,76 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     expect(f.retries).toEqual([[13, 'seen'], [13, 'timer']]);
   });
 
+  /**
+   * (marlow-play B1) The real jam timeline on the flood (`JAM_LIGHT`, `flickerLit`): jammed at `j0` (a flicker to dark: dark
+   * at once, lit again 0.06 s in, ...), held `JAMMER.useMax`, then off `offHold` and a flicker back on. `t` s into the run.
+   */
+  const jamLitAt = (t: number, j0: number): boolean => {
+    const jt = t - j0;
+    if (jt < 0) return true;
+    if (jt < JAM_LIGHT.flickerOff) return flickerLit(jt, false);
+    if (jt < JAMMER.useMax) return false;
+    const rt = jt - JAMMER.useMax;
+    if (rt < JAM_LIGHT.offHold) return false;
+    return flickerLit(rt - JAM_LIGHT.offHold, true);
+  };
+
+  it('(marlow-play B1) the real jam flicker: no retry at the start flicker; one timer retry 0.6 s after the flicker back on ends', () => {
+    expect(A5_FLOOD_SETTLE).toBeGreaterThan(JAM_LIGHT.flickerOff);
+    expect(jamLitAt(1.0, 1.0)).toBe(false);
+    expect(jamLitAt(1.07, 1.0)).toBe(true);
+    const f = held();
+    f.fresh();
+    const dt = 1 / 60;
+    const j0 = 1.0;
+    let firedAt = -1;
+    for (let i = 1; i <= 60 * 14; i++) {
+      const t = i * dt;
+      f.s.flood = jamLitAt(t, j0);
+      f.step();
+      if (firedAt < 0 && f.retries.length > 0) firedAt = t;
+    }
+    expect(f.accepted).toEqual([[13, 'timer']]);
+    expect(f.retries).toEqual([[13, 'timer']]);
+    // the flicker back on starts at j0 + useMax + offHold; its last edge lights it 0.44 s in; then the 0.6 s settle
+    const lastLit = j0 + JAMMER.useMax + JAM_LIGHT.offHold + JAM_LIGHT.edges[JAM_LIGHT.edges.length - 1]!;
+    expect(firedAt).toBeGreaterThanOrEqual(lastLit + A5_FLOOD_SETTLE - 2 * dt);
+    expect(firedAt).toBeLessThanOrEqual(lastLit + A5_FLOOD_SETTLE + 2 * dt);
+  });
+
+  it('(marlow-play B1) the real jam flicker with the release during the dark: no retry at all', () => {
+    const f = held();
+    f.fresh();
+    const dt = 1 / 60;
+    for (let i = 1; i <= 60 * 14; i++) {
+      const t = i * dt;
+      f.s.flood = jamLitAt(t, 1.0);
+      if (t >= 4.0) f.s.released = true;
+      f.step();
+    }
+    expect(f.retries).toEqual([]);
+  });
+
+  it('(marlow-play B1) a jam started and let go inside the flicker (dark under 0.6 s) never arms the window', () => {
+    const f = held();
+    f.fresh();
+    const dt = 1 / 60;
+    for (let i = 1; i <= 60 * 5; i++) {
+      const t = i * dt;
+      // the start flicker only, then lit again (a too-short dark run)
+      f.s.flood = t >= 1.0 && t < 1.0 + JAM_LIGHT.flickerOff ? flickerLit(t - 1.0, false) : true;
+      f.step();
+    }
+    expect(f.retries).toEqual([]);
+  });
+
   it('reads only live, lit(52), flag(a5-release), tripped(laser-a5) and epoch; calls retry(13, ...) and nothing else', () => {
     const f = fake();
     f.fresh();
     f.s.flood = false;
-    f.step(10);
+    f.step(60);
     f.s.flood = true;
-    f.step(10);
+    f.step(40);
     f.s.tripped = true;
     f.step(10);
     expect(f.retries.every(([n]) => n === 13)).toBe(true);
