@@ -117,14 +117,16 @@
 // The desktop holds for a due train as the laptop does, fitted at one job (LQ_DESKTOP_TRAIN_SOON; the build marker stays
 // the backstop); its CPU gate counts the queue's own Idle Playwright browsers as load (LQ_CPU_COUNT_E2E) and each desktop
 // start and refusal logs the gated and total reading (lib cpuNote). Stacked PRs (board base not master) queue after the
-// master-based ones on both workers (LQ_STACKED_LAST).
+// master-based ones on both workers (LQ_STACKED_LAST). A quarantine entry forgives only the failures whose assert key is in
+// its `keys` (auto entries fill them from the flakes that tripped the budget; LQ_QUARANTINE_KEYS); a keyless entry forgives
+// any failure for LQ_KEYLESS_QUARANTINE_H (48) h after this worker first sees it, then its failures count.
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote, quarantineKeys, quarantineForgives } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { AFFECTED_MAX } from '../e2e-affected.mjs';
@@ -195,6 +197,10 @@ const DESKTOP_TRAIN_SOON = process.env.LQ_DESKTOP_TRAIN_SOON !== '0';
 const CPU_COUNT_E2E = process.env.LQ_CPU_COUNT_E2E !== '0';
 // laptop-queue-10 A8 (F22): 0 = stacked PRs (base not master) queue as master-based ones (lib pick queue.order.stacked)
 const STACKED_LAST = process.env.LQ_STACKED_LAST !== '0';
+// laptop-queue-10 A10 (F26): 0 = a quarantine entry forgives any failure of its suite, as before (no key check)
+const QUARANTINE_KEYS = process.env.LQ_QUARANTINE_KEYS !== '0';
+// laptop-queue-10 A11: hours a keyless entry forgives any failure after this worker first sees it (0 = until its expiry)
+const KEYLESS_MS = Number(process.env.LQ_KEYLESS_QUARANTINE_H ?? 48) * 3600_000;
 /** lib claimBlocks for this worker now, with the heartbeat bound (A17). */
 const blocks = (c) => claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS, CLAIM_BEATS);
 const argv = process.argv.slice(2);
@@ -232,6 +238,7 @@ state.trains ??= {};
 state.flakes ??= [];
 state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
 state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
+state.keylessSeen ??= {}; // { suite: ISO } a keyless quarantine entry was first seen (laptop-queue-10 A11)
 state.aloneDue ??= {}; // { id: ms } aged / preempted alone requests a hold kept back (lib aloneDue; BRIEF A12)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
@@ -1336,6 +1343,33 @@ function quarantineNow() {
 }
 
 /**
+ * laptop-queue-10 A10, A11 (F26): a KNOWN FLAKY failure counts unless its quarantine entry forgives its assert key (lib
+ * quarantineForgives); a counted one turns flaky false, so rerunFlakes reruns it alone and the verdict lists it under
+ * FAIL. A keyless entry forgives any failure for KEYLESS_MS after this worker first sees it (state.keylessSeen). A
+ * suite run-e2e calls quarantined with no live entry here (its head's own list) counts as keyless.
+ */
+function checkQuarantine(result, runDir) {
+  const now = Date.now();
+  for (const x of result.suites.filter((s) => !s.ok && s.flaky)) {
+    const entry = quarantined(quarantineNow(), x.s, now) ?? { suite: x.s };
+    const key = assertKey(failureExcerpt(sectionOf(runDir, x.s)).assert);
+    let keylessUntil = Infinity;
+    if (!entry.keys?.length) {
+      if (!state.keylessSeen[entry.suite]) {
+        state.keylessSeen[entry.suite] = new Date(now).toISOString();
+        saveState();
+        log(`quarantine of ${entry.suite} has no keys: forgives any failure until ${KEYLESS_MS > 0 ? new Date(now + KEYLESS_MS).toISOString() : 'its expiry'}`);
+      }
+      if (KEYLESS_MS > 0) keylessUntil = Date.parse(state.keylessSeen[entry.suite]) + KEYLESS_MS;
+    }
+    if (quarantineForgives(entry, key, { now, keylessUntil })) continue;
+    x.flaky = false;
+    const why = entry.keys?.length ? entry.keys.map((k) => `"${k}"`).join(', ') : `any failure until ${new Date(keylessUntil).toISOString()}`;
+    log(`${x.s}: quarantined for ${why}, this failure is "${key}": counts`);
+  }
+}
+
+/**
  * Reruns each failed (non-quarantined) suite once alone; a pass is a flake (state.flakes, counted against the suite's
  * flake budget, see updateBudget). Mutates result.suites, returns flake names. Replaces "flake stands" (process audit
  * 2026-10-24): a suite that keeps flaking goes over budget and into quarantine with an owner and an expiry instead.
@@ -1384,6 +1418,8 @@ function updateBudget(result) {
   const own = (Array.isArray(read) ? read : []).filter((q) => Date.parse(q?.expiry) > now);
   const rows = flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts);
   const added = autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
+  // laptop-queue-10 A10: the flakes that tripped the budget (flakeBudget counts only those after the last start)
+  for (const q of added) { q.keys = quarantineKeys(state.flakes, q.suite, state.quarantineStarts[q.suite] ?? ''); delete state.keylessSeen[q.suite]; }
   for (const q of added) state.quarantineStarts[q.suite] = new Date(now).toISOString();
   for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
   const quarantine = [...repo.quarantine, ...own, ...added];
@@ -1593,6 +1629,7 @@ async function runTrain(train, ports = PORTS) {
     const slotOf = {};
     runs.forEach((r, i) => r.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
     const result = { suites: runs.flatMap((r) => r.suites), wall: 0, flakes: [] };
+    if (QUARANTINE_KEYS) checkQuarantine(result, runDir);
     result.flakes = await rerunFlakes(result, slotOf, job, runDir, ports[0], ctls[ports[0]]);
     if (voided) return closedEnd();
     if (hung) return hungEnd(prNumber);
@@ -1960,6 +1997,7 @@ async function runRequest(r, port, pair = null) {
     const keptRows = keptNow.map((k) => ({ s: k.s, ok: true, flaky: false, report: false, sec: k.sec, kept: true }));
     const result = { suites: [...keptRows, ...runs.flatMap((x) => x.suites)], wall: 0, flakes: [], kept: keptRows.length };
     // a request reruns on its own locked slot(s) and worktree (its sha): a sharded rerun's suite on the slot that ran it
+    if (QUARANTINE_KEYS) checkQuarantine(result, runDir);
     result.flakes = await rerunFlakes(result, slotOf, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();
     result.wall = (Date.now() - t0) / 1000;

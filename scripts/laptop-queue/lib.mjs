@@ -1302,6 +1302,31 @@ export function assertKey(line) {
   return String(line ?? '').replace(/\[[^\]]*\]/g, '').replace(/\d+(?:\.\d+)?/g, '#').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * laptop-queue-10 A10 (F26): the unique non-empty keys (lib assertKey) of flakes ({ suite, key, date }) for this exact
+ * suite (a part stays a part) dated at or after since ('' = all), in first-seen order: an auto quarantine's `keys`.
+ */
+export function quarantineKeys(flakes, suite, since = '') {
+  const from = Date.parse(since);
+  const out = [];
+  for (const f of flakes ?? []) {
+    if (f?.suite !== suite || !f.key || out.includes(f.key) || Date.parse(f.date) < from) continue;
+    out.push(f.key);
+  }
+  return out;
+}
+
+/**
+ * laptop-queue-10 A10, A11 (F26; e2e-pad rode 6 trains under a quarantine that forgave any failure, PR #548): whether a
+ * quarantine entry forgives a failure with this key. No entry: false. An entry with a non-empty `keys` array: only a key
+ * in it. A keyless entry: while now < keylessUntil (Infinity = until its own expiry).
+ */
+export function quarantineForgives(entry, key, { now, keylessUntil = Infinity }) {
+  if (!entry) return false;
+  if (Array.isArray(entry.keys) && entry.keys.length) return entry.keys.includes(key);
+  return now < keylessUntil;
+}
+
 // ---------- flake budget and quarantine (process audit 2026-10-24 finding 5; replaces "flake stands") ----------
 
 /** Days a flake counts against its suite's budget. */
