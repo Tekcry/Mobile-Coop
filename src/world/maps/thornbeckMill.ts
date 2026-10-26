@@ -283,12 +283,40 @@ function lightningFlashes(): ThornbeckFlash[] {
   return out;
 }
 
+/** (SO5b ask) One opening the lightning comes through: centre (x, y, z) on the wall's inner face, width / height, inward unit normal. */
+export interface ThornbeckOpening {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  h: number;
+  nx: number;
+  nz: number;
+}
+
 /**
- * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every mission-track loop (160.04 s).
- * The `lightning` field is not on this base (#604 / SO5 adds it with this exact shape).
+ * Every window and board gap of `buildShell`, the same holes: south windows (sill 1.0, head 3.4), north gallery windows
+ * (deck + 1.0 to + 3.4), the west window, the east office window (1.0-2.6) and the east board gap (1.9-2.3). The hoist
+ * doorway is left out: its door is shut until the end, so no flash comes through it.
+ */
+export const THORNBECK_OPENINGS: readonly ThornbeckOpening[] = [
+  ...[3, 12, 22].map((x) => ({ x, y: 2.2, z: 0, w: 2, h: 2.4, nx: 0, nz: 1 })),
+  ...[5, 14, 18, 26].map((x) => ({ x, y: DECK_Y + 2.2, z: 18, w: 2, h: 2.4, nx: 0, nz: -1 })),
+  { x: 0, y: 2.2, z: 4, w: 2, h: 2.4, nx: 1, nz: 0 },
+  { x: 32, y: 1.8, z: 9.25, w: 1.5, h: 1.6, nx: -1, nz: 0 },
+  { x: 32, y: 2.1, z: 2.5, w: 1, h: 0.4, nx: -1, nz: 0 },
+];
+
+/**
+ * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every mission-track loop (160.04 s),
+ * and the openings it comes through (SO5b). The `lightning` field is not on this base (#604 / SO5 adds it with this exact shape).
  */
 // TODO(#604): set as MapDef.lightning
-export const THORNBECK_LIGHTNING: { flashes: readonly ThornbeckFlash[]; period: number } = { flashes: lightningFlashes(), period: THORNBECK_LIGHTNING_PERIOD };
+export const THORNBECK_LIGHTNING: { flashes: readonly ThornbeckFlash[]; period: number; openings: readonly ThornbeckOpening[] } = {
+  flashes: lightningFlashes(),
+  period: THORNBECK_LIGHTNING_PERIOD,
+  openings: THORNBECK_OPENINGS,
+};
 
 /**
  * Rain on the roof: 6 dB of masking over the whole map halves every guard's hearing reach (PLAN section 2b). On the
