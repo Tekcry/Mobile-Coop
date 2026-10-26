@@ -40,7 +40,9 @@ export const POST = {
   lureSweepPeriod: 3,
   /** Time (s) he holds his post yaw after he is back, before the lure counts as done (the turn back to his post). */
   returnFace: 0.8,
-  /** Longest walk (s) to the leash point: a blocked path looks from where he got to rather than walking for ever. */
+  /** Longest walk (s) to the leash point: a blocked path looks from where he got to rather than walking for ever.
+   *  (guard-ai play A, P3-5) The walk back to the post too: he faces his post from where he got to (the calm walk home
+   *  takes him on from there). */
   lureWalkMax: 12,
   /** Suggested arrival radius (m) for the caller's `atTarget`. */
   arrive: 0.3,
@@ -181,7 +183,7 @@ export class PostLure {
         break;
       case LURE.back:
         this.t += dt;
-        if (arrived) this.enter(LURE.face);
+        if (arrived || this.t >= POST.lureWalkMax) this.enter(LURE.face);
         break;
       case LURE.face:
         this.t += dt;

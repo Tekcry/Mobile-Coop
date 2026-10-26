@@ -1651,7 +1651,8 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
-      if (!e.alive || !e.alerted || e.def.melee) continue;
+      // (guard-ai play A, P2-1) not a guard who gave a run up this fight (no way to the panel)
+      if (!e.alive || !e.alerted || e.def.melee || e.alarmBarred) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
       // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
