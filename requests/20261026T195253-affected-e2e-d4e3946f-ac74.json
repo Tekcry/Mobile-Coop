@@ -1,0 +1,13 @@
+{
+  "id": "20261026T195253-affected-e2e-d4e3946f-ac74",
+  "sha": "d4e3946f8297ae992f69bfbc6ea1d31e630d38c8",
+  "branch": "feature/cue-alloc-fix",
+  "pr": 667,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-lightbake"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #667"
+}
