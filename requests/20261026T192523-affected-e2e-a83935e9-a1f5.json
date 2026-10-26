@@ -1,0 +1,13 @@
+{
+  "id": "20261026T192523-affected-e2e-a83935e9-a1f5",
+  "sha": "a83935e989af7581feaf36b1a43e49758e41a135",
+  "branch": "feature/affected-cap-1",
+  "pr": 664,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-combat"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #664"
+}
