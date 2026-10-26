@@ -907,6 +907,8 @@ export class CoopClient implements NetAttachment {
         break;
       case 'revive':
         if (e.player !== me) break;
+        // (marlow-play C4) a station retry / restart ends a rope climb / hang-down / hold (as `back` does)
+        g.team.end(true);
         g.player.controller.override = null;
         g.traversal.reset();
         // (strike-pops, n4d polish 1) a bay or section restart brings an alive partner back too: no strike or kill
