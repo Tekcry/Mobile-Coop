@@ -738,7 +738,8 @@ table in `docs/systems/coop.md`.
   `a6-dropcatch` uses the real move when the id `dropCatch` is on.
 - Flag: `dropCatch`. Depends on: K0.
 
-**KD Part 2 bands into the level standard (docs only; after A12 is answered).** When Michael answers the A12 question
+**KD Part 2 bands into the level standard (docs only) - PARKED: Michael picked "Not yet" (~18:47 2026-10-26, BRIEF
+M3); no level-design.md / scale-sheet edit and no new map plans on these moves until he asks. Kept for that day.** When Michael answers the A12 question
 (or the overnight A-line stands), the lead adds the five graph kinds to level-design 11.9 (`deadweight`, `drop_catch`,
 `chimney_pair`, `swing_pass`, `plank_bridge`: Marlow's teach ids, `stationDef.ts:5` `lesson`) and five rows to scale
 sheet section 3 with the numbers he approved; reviewer Marlow Build (owner of both docs); Marlow's validator slice adds
@@ -761,7 +762,7 @@ client on Hand-made, both screens match). Flag: the move's id. Depends on: its K
 
 ### Order (by playability: the re-plan stations in the order Michael meets them)
 K0 -> K5a -> K5b (A2 st5 plank) -> K1 (A4 st9 deadweight) -> K3 and K4 (A5 st11 chimney, st12 swing) -> K2 (A6 st16
-drop catch); KD when A12 is answered; KA1-KA5 after Michael's playthrough. The order is the priority for builder
+drop catch); KD parked (Michael "Not yet", M3); KA1-KA5 after Michael's playthrough. The order is the priority for builder
 slots; under full burn K1, K3, K4 and K2 run in parallel with K5a / K5b once K0 is on master (own files; one-line
 `KIT_BUILT` rebases). Marlow wires each station after the K slice that makes its move playable lands. Estimates: K0
 500, K5a 1,000, K5b 800, K1 600, K3 1,000, K4 800, K2 550, KD 40, KA1-KA5 600-800 each: all under ~1.5k.

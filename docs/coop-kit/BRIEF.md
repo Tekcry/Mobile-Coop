@@ -45,6 +45,9 @@ added to the kit (below). Planner: Opus 5.5. Revised for plan check 2 (2026-10-2
 - 2026-10-26 ~16:05 Q: testing and pace -> picked: "Prototype mode (Recommended)" ("turn everything on in preview,
   lighter testing ... Building follows your playthrough"; ROADMAP Decided: one closest test set per change, no repeat
   proof runs, playable over polish).
+- 2026-10-26 ~18:47 Q: the part 2 move sizes in the level rules (A12) -> picked: "Not yet" (the moves are still built
+  and used at Marlow Yard's five spots on the A17 starting sizes; docs/level-design.md and the scale sheet stay as they
+  are and no new map may plan on them yet; via the orchestrator).
 
 ## Goal
 Part 1: two players can do the CT shoulder stand (one stands on the partner's shoulders to reach a 4.5 m lip, or stays
@@ -86,6 +89,9 @@ playable pieces first, no fine-tuning passes, one test set per PR.
 
 ## Answers (M) and assumptions (A)
 - M1 2026-10-25 ~18:05: the five proposed kit moves join the kit (Michael picked, above).
+- M3 2026-10-26 ~18:47: the A12 sizes question -> "Not yet" (Michael picked, above): the five moves keep the A17
+  starting sizes as move constants only; slice KD is parked (no level-design.md / scale-sheet edit) until Michael asks
+  to add them.
 - M2 2026-10-25 ~20:20: `TEAM.relayMax` stays 4.6 (Michael picked "Keep 4.6 m (Recommended)"); scale sheet line 56
   already says so on master. The relay keeps wire kind `ladder` and is not the shoulder stand (A1); this job leaves it
   alone.
@@ -180,7 +186,7 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   grate piece). Undo: fold each KA slice into its K slice (one PR per move, as first planned).
 
 ## Questions for Michael (one click each, asked by day)
-- Part 2 bands (A12; the orchestrator asks it by day, native multiple choice; meanwhile A17). Question: "The five new
+- ANSWERED 2026-10-26 ~18:47: "Not yet" (M3). Part 2 bands (A12; the orchestrator asks it by day, native multiple choice; meanwhile A17). Question: "The five new
   co-op moves need sizes in the level rules so maps are built to fit them. Add these sizes?
   - Deadweight: the chain hangs 2.2-2.6 m up (a jump to grab it), 1-3 m from the grate, one chain on each side.
   - Drop Catch: a drop of 2.5-6.5 m into your partner's arms (the Pump House drop is 6 m).
