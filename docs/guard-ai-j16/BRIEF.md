@@ -53,14 +53,27 @@ grows suspicious and looks at it: a small rise, never a sighting, never a walk o
   No bark (G3, plan check 1 item 2): the unaware / cooldown -> suspicious rise the cue alone causes is hushed
   (`Enemy.cueRise`, set only when his meter was below `PERCEPTION.suspicious` before the cue, read in `onLevel`): the
   white arc only. A rise with sight behind it, a heard noise (`hear`), or a look-turn sound (`hearTurn`) that already
-  lifted him past suspicious earlier the same step barks as today (G3 fix round, check A polish 1 / 6).
+  lifted him past suspicious earlier the same step barks as today (G3 fix round, check A polish 1 / 6). The way down
+  is silent too (fix round 2, check B FIX 1): while the episode rests on the cue alone (`Enemy.cueQuiet`, set by the
+  hushed rise), his calm-down to cooldown says no 'clear'. A real sight or a sound (`hear`, a `hearTurn` loud enough
+  to lift him) in the episode makes it theirs: he says the 'suspicious' line the rise skipped and the calm-down barks
+  as today (check B polish 1); an ack, or a `hearTurn` too faint to lift him, makes it theirs without that line. Two
+  things kept as they are, each "adding suspicion": the cue ignores difficulty (`diff.perception`, `perceptionMul`), so
+  an easy guard notices a shadow as a hard one does (a fixed rule, tuned at the walk); and a cue on a cooldown guard
+  restarts his 45 s `cooldownTime` clock (`AlertMachine.set` resets `t`), as a `hearTurn` does: more caution, never
+  less (check B polish 3 / 6).
 - A6 Who: a guard not alerted, not passive, not a dog, at unaware / cooldown / suspicious with no incident task, who
   sees nobody this think (every player's sight rate <= `PERCEPTION.leak`: sight keeps his look; G3), and whose calm
   moment does not rest on sight (`Enemy.sawMoment` false; G3 fix round, check A FIX 1): a guard suspicious from a real
   glimpse keeps his own look and its linger rule (suspicious 3.2 s, then he investigates), so a shadow never re-stamps
   his look and holds that investigation back. A shadow may add suspicion, never remove it; `sawMoment` clears when he
   calms or his meter drains to 0, and the cue comes back then. A lured posted guard (`lure.active`) is excluded for the
-  mission-order reason: he would go suspicious and keep walking his lure (G3 fix round, check A polish 5). A guard on
+  mission-order reason: he would go suspicious and keep walking his lure (G3 fix round, check A polish 5); so is a
+  guard on the breaker walk (`brkGroup >= 0`: `calmDecide` keeps `breakerStep` running while `rate <= 0`; fix round 2,
+  check B polish 2). Sound first (fix round 2, check B FIX 2): no cue while his calm moment rests on a sound (`heard`
+  this step, `heardMoment` after) or while a hearing or ack look is running (`turnT` > 0 and not the cue's own,
+  `Enemy.cueTurn`, cleared by `hearTurn` / `ack`): the cue never re-aims a noise's walk-over (`hear`, a board send)
+  nor takes a `hearTurn` / ack look (a thrown noisemaker's unsent hearers) to the thrower's shadow. A guard on
   a mission order (guard-ai-mission-hooks `orderSlot >= 0`, not on master at G3) is excluded too: the line goes into
   the gate list when that branch and this one meet (plan check 1 item 3). Undo: the gate list in `Enemy.shadowLook`
   (one function).

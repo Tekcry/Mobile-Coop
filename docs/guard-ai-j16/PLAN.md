@@ -86,7 +86,9 @@ meter floor 0.35; it records `cueT`, `cueX`, `cueZ`, `cueSlot`.
 
 **G4a Occluder fill call (Opus). After G3.** In `fillChars` (`gameState.ts:1860`): `this.enemyMgr ?
 this.enemyMgr.fillOccluders(occ, L, n) : fillVictims(...)` (client keeps puppets); `enemyMgr.chars =
-this.charOccluders` after construction (`:765`). Est. ~15 lines. Checks: tsc fast; vitest charOccluderFill,
+this.charOccluders` after construction (`:765`). Set `chars` and switch the fill to `fillOccluders` in one commit (PR 1
+check B polish 5): `witnessKill` and `stepBodies` skip by `num`, `fillVictims` keys guards by list index, so either
+half alone makes a guard or body shade itself. Est. ~15 lines. Checks: tsc fast; vitest charOccluderFill,
 guardOccluders; affected-e2e plus requested `e2e-coop,e2e-netmove` (src/game gate). Done: flag on, warehouse, a guard
 standing between a lamp and you drops your meter as before (A2's probe) and a lying body is darker with you over it.
 
@@ -126,6 +128,10 @@ so his linger rule fires exactly as with cues off. The other way round is allowe
 `aware.sensitivity`, so a sub-leak glimpse of another player can turn into a real one and he may then investigate,
 by sight (RISE_SIGHT). In `tests/shadowNoticePerceive.test.ts` (33 glimpse cases) he never investigates less with
 cues on, and 3 cases (1.5-3 s at light 0.3) investigate only with cues on, each by sight.
+Sound first and silent both ways (fix round 2, check B): no cue on the breaker walk, while his moment rests on a sound
+(`heard` / `heardMoment`) or while a hearing or ack look runs (`turnT` not the cue's `cueTurn`), so cues on never
+changes where he goes or looks when a sound or sight caused the reaction (sweep in `tests/shadowNoticePerceive.test.ts`);
+a cue-only episode (`cueQuiet`) calms back to cooldown without 'clear', and a sight or sound in it says the skipped line.
 
 ## 2. Hot path (per think, per guard)
 Nothing allocates: module typed-array scratch, `hyp2`, `Math.atan2`, `wrapAngle`; `slotOf` is a string scan; the ray
