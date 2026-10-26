@@ -38,3 +38,11 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   'hung'. Tests: new describe "hung runs and attempt folders (laptop-queue-10 S1)", 7 cases; laptop-queue 237 +
   autoTrain 71 = 308 pass (301 at 2fbfbd303 was both files). typecheck:fast clean.
 - S1: train 118 folder check is laptop-only, left for Test Runner (A12).
+- 2026-10-26: S2 (Opus builder, feature/laptop-queue-10b): desktop cap by parts and time (F14) and desktop hand-off
+  (F11). lib desktopWallS (no time = median of times.json, 60 s when empty, never NaN), desktopTooLong(r, times, maxS,
+  parts = keptPlan rest), failFast. service LQ_DESKTOP_FAIL_FAST, partsOf (run-e2e --list memo), quarantineNow, desktop
+  filter / order over partsOf, runRequest queueRerun / handOff: fail fast in the watch while run-e2e runs, cutEnd
+  'handed-off', the desktop 'hung' hand-off (failed + unfinished parts; not under the knob), the desktop incomplete
+  hand-off (the parts it ran, kept suites excluded). Tests: describe "desktop wall by parts and fail fast (laptop-queue-10
+  S2)", 3 cases + the desktopTooLong case updated; laptop-queue 240 + autoTrain 71 = 311 pass; typecheck:fast clean.
+  +176 / -25 counted lines (lib 30/7, service 106/15, tests 40/3).
