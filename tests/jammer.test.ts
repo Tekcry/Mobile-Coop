@@ -335,6 +335,18 @@ describe('jam target pick', () => {
     ];
     expect(two[pickJamTarget(two, 0, 0, 0, 0, 0, 1)]!.id).toBe('b');
   });
+  it('(marlow-play C1) a camera in the cone wins over a nearer-angle light; a panel does not; out of the cone it never does', () => {
+    const lamp: JamTarget = { id: 'lamp', kind: 'light', x: 0, y: 0, z: 10 };
+    const cam: JamTarget = { id: 'cam', kind: 'camera', x: 0.6, y: 0, z: 10.6 };
+    const panel: JamTarget = { id: 'panel', kind: 'panel', x: 0.6, y: 0, z: 10.6 };
+    const far: JamTarget = { id: 'far', kind: 'camera', x: 5, y: 0, z: 10 };
+    expect([lamp, cam][pickJamTarget([lamp, cam], 0, 0, 0, 0, 0, 1)]!.id).toBe('cam');
+    expect([cam, lamp][pickJamTarget([cam, lamp], 0, 0, 0, 0, 0, 1)]!.id).toBe('cam');
+    expect([lamp, panel][pickJamTarget([lamp, panel], 0, 0, 0, 0, 0, 1)]!.id).toBe('lamp');
+    expect([lamp, far][pickJamTarget([lamp, far], 0, 0, 0, 0, 0, 1)]!.id).toBe('lamp');
+    // a skipped camera (refused) leaves the light
+    expect(pickJamTarget([lamp, cam], 0, 0, 0, 0, 0, 1, JAMMER.range, JAMMER.cone, (t) => t.kind === 'camera')).toBe(0);
+  });
 });
 
 describe('laser touch', () => {

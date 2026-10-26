@@ -240,6 +240,9 @@ export interface JamTarget {
 /**
  * The target nearest the aim line: inside `range` and the `cone` around the unit direction (dx, dy, dz) from the eye
  * (ox, oy, oz), not refused by `skip` (a light switched off). Returns its index in `targets`, or -1.
+ * (marlow-play C1) A camera inside the cone wins over a nearer-angle light: a ceiling lamp in front of a lens (A3's
+ * corridor lamp 0.6 m before `cam-a3-hall`) took the jam, the light went out and the camera kept watching. Panels and
+ * lasers keep the plain nearest-angle pick against a light. No allocation.
  */
 export function pickJamTarget(
   targets: readonly JamTarget[],
@@ -255,6 +258,8 @@ export function pickJamTarget(
 ): number {
   let best = -1;
   let bestA = cone;
+  let cam = -1;
+  let camA = cone;
   for (let i = 0; i < targets.length; i++) {
     const t = targets[i]!;
     if (skip && skip(t)) continue;
@@ -269,8 +274,12 @@ export function pickJamTarget(
       bestA = a;
       best = i;
     }
+    if (t.kind === 'camera' && a < camA) {
+      camA = a;
+      cam = i;
+    }
   }
-  return best;
+  return cam >= 0 && targets[best]!.kind === 'light' ? cam : best;
 }
 
 /** A laser device: beams across a plan segment (x1, z1) - (x2, z2) at the listed heights above `floorY`. */
