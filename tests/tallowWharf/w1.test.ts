@@ -582,6 +582,11 @@ describe('W1 gallery stair (J8 G5, EGRESS E5)', () => {
     expect(15.8 + gs.len).toBeCloseTo(23.5, 1);
     // a 0.8 m foot landing between the flight's foot and the archway (z 24.3)
     expect(24.3 - (15.8 + gs.len)).toBeCloseTo(0.8, 1);
+    // the sealed void under the flight's upper half is filled in three steps, each top under the ramp's underside
+    for (const [z0, z1, top] of [[15.8, 17.8, 2.9], [17.8, 19.8, 1.75], [19.8, 21.3, 0.9]] as const) {
+      expect(boxAt([6.7, top / 2, (z0 + z1) / 2], [1.3, top, z1 - z0]), `fill z ${z0}-${z1}`).toBe(true);
+      expect(4.5 * (15.8 + gs.len - z1) / gs.len - 0.35).toBeGreaterThan(top);
+    }
     // every new collide piece in the core's plan is noLedge
     const inCore = b.boxes.filter((p) => p.collide && p.c[0] >= 5.9 && p.c[0] <= 7.55 && p.c[2] >= 14.35 && p.c[2] <= 24.45);
     expect(inCore.length).toBeGreaterThan(0);

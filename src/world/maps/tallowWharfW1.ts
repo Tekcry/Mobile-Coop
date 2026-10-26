@@ -158,6 +158,11 @@ function build(b: LevelBuilder): void {
     const i0 = b.boxes.length;
     b.stairs(6.7, 15.8 + gs.len / 2, 1.3, gs.len, 4.5, gs.steps, IRON, Math.PI, 0);
     b.mark(i0, { noLedge: true });
+    // the void under the flight's upper half had floor cells on the nav grid (sealed, but walkable to it): filled as W3 :221, in
+    // three steps whose tops stay under the ramp's underside, leaving less than a crouch's height above each
+    mass(b, 6.05, 15.8, 7.35, 17.8, 0, 2.9);
+    mass(b, 6.05, 17.8, 7.35, 19.8, 0, 1.75);
+    mass(b, 6.05, 19.8, 7.35, 21.3, 0, 0.9);
   }
 
   // ---- the warden's office (x 0-8, z 46-54, floor 4.5, walls 4.5-7.5, ceiling 7.5-7.8) ----
