@@ -1,0 +1,15 @@
+{
+  "id": "20261026T035745-affected-e2e-ac225a4b-edce",
+  "sha": "ac225a4b16bc04bc16d77d88368fbcc115a4bcb2",
+  "branch": "feature/ctcourse-flake-fix",
+  "pr": 553,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #553"
+}
