@@ -3,7 +3,7 @@ Owner: Night Shift | Player Build. Status: current.
 
 ## Resume
 - Job: knife kill animations (paired, Michael ~19:45) + intro pose for the piano escape scene (ROADMAP Now row 20, main
-  focus). Player's part only; Campaign (`feature/piano-escape`) owns scene, map `pianoWorks`, intro camera, music, EMP,
+  focus). Player's part only; Campaign (`feature/piano-escape`) owns scene, map `underhollow`, intro camera, music, EMP,
   the `pianoEscape` flag and the scene switch in `src/game/pianoScene.ts`.
 - Branch `feature/piano-knife` in `C:/NightShift/Mobile-Coop-piano-knife`, base master 1b58989ed.
 - Docs: `BRIEF.md` (Michael's words, picks, A1-A15), `PLAN.md` (today with file:line, design, claims, slices, PB map,
