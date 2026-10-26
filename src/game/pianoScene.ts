@@ -8,6 +8,7 @@ import { exitZone, inZone, type SectorDef } from './sectors';
 import { hyp2 } from '../core/mathx';
 import { flags } from '../core/flags';
 import { knifeSceneOn } from './knifeKill';
+import { createSceneStorm, type PianoStorm } from '../audio/sceneStorm';
 
 /**
  * The piano escape scene's own logic (piano-escape S1, S2), on the Sector Ops runtime. `SectorMode` calls it at named
@@ -193,6 +194,8 @@ export interface PianoView {
 export interface PianoWorld {
   readonly hooks: PianoEmpHooks;
   readonly music: PianoMusic | null;
+  /** (S6) The storm's sound (rain, thunder; `createSceneStorm`): started with the intro, stepped on the shared clock. */
+  readonly storm?: PianoStorm | null;
   /** The section's guards spawn now: the opening four on their stop spots (the scene's start-spawn exception). */
   spawn(): void;
   /** Guard-list slot `k` of the live section has a living guard (fill has spawned it). */
@@ -263,6 +266,7 @@ export function pianoClientWorld(g: GameState, c: PianoClientSeam): PianoWorld {
       blackoutSearchSlots: () => 0,
     },
     music: g.app.music,
+    storm: createSceneStorm(g.app.audio, g.world.map.lightning ?? null),
     spawn: () => undefined,
     spawned: () => false,
     sectionGuards: () => sec?.guards.length ?? 0,
@@ -313,6 +317,7 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
       () => g.enemyMgr ?? null,
     ),
     music: g.app.music,
+    storm: createSceneStorm(g.app.audio, g.world.map.lightning ?? null),
     spawn: () => m.spawn(),
     spawned: (k) => m.spawned(k),
     sectionGuards: () => m.sectionGuards(),
@@ -448,6 +453,8 @@ export class PianoScene {
     // (S4) no flash in the intro: the lightning starts with the EMP
     w.hooks.lightningT0(LIGHTNING_OFF_T0);
     w.hud(false);
+    // (S6) the rain from the first intro frame
+    w.storm?.start();
     const m = w.music;
     if (m) {
       m.scene(true);
@@ -476,6 +483,11 @@ export class PianoScene {
     const w = this.world;
     const intro = this.intro;
     if (!w || !intro) return;
+    // (S6) the storm's sound: thunder from the scene clock (t0 off before the press), rain by the operator's height
+    if (w.storm) {
+      w.operatorAt('local', this.at);
+      w.storm.step(w.simTime(), this.t0 >= 0 ? this.t0 : LIGHTNING_OFF_T0, this.at.y);
+    }
     if (!this.pressed) {
       if (!intro.promptOn) return;
       // (S4) a co-op client sends its press to the host (once per button press); its beat comes with `hostEmp`
@@ -655,6 +667,7 @@ export class PianoScene {
     this.finished = true;
     this.onKnifeScene(false);
     this.world?.music?.piano.fadeOut(PIANO_FADE_S);
+    this.world?.storm?.fadeOut(PIANO_FADE_S);
     this.fade = this.makeFade();
     this.fade?.to(1, PIANO_FADE_S);
     // (S4) co-op host: the client's page fades at the same moment (no results screen there either)
@@ -708,6 +721,7 @@ export class PianoScene {
     const w = this.world;
     if (w) {
       w.empItems(false, null);
+      w.storm?.dispose();
       // the scene's dark ends with the scene
       if (this.dark) w.hooks.sceneDark(false);
       this.dark = false;
