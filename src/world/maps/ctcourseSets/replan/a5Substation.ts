@@ -147,17 +147,17 @@ export const A5_RETRY_TIMER = 'The floodlight came back. Back behind the transfo
 
 /** The bay's objective lines on the re-plan: one per station (what and where), then the holding-room line. */
 export const A5_OBJECTIVES: readonly CourseObjective[] = [
-  { id: 'a5-wall', bay: 'A5', text: 'Through the wicket door in the wall onto the apron.', done: { flag: A5_APRON_E_FLAG } },
-  { id: 'a5-trench', bay: 'A5', text: "Cross the cable trench to the apron's west side: footbridge or plates.", done: { flag: A5_APRON_W_FLAG } },
+  { id: 'a5-wall', bay: 'A5', text: 'Go through the wicket onto the apron', done: { flag: A5_APRON_E_FLAG } },
+  { id: 'a5-trench', bay: 'A5', text: 'Cross the trench by footbridge or plates', done: { flag: A5_APRON_W_FLAG } },
   {
     id: 'a5-throw',
     bay: 'A5',
-    text: 'Throw one of you over the beams, jam the kiosk floodlight, key the release.',
-    a: 'Throw your partner from the mark, then jam the floodlight through the gateway.',
-    b: 'Land behind the transformer, cross under the jam and key the release at the kiosk.',
+    text: 'Get over the beams, jam the floodlight',
+    a: 'Throw your partner over the beams, then jam the kiosk floodlight.',
+    b: 'Cross under the jam and key the release at the kiosk.',
     done: { flag: A5_RELEASE_FLAG },
   },
-  { id: 'a5-lock', bay: 'A5', text: 'Beams are off. Both of you into holding room five.' },
+  { id: 'a5-lock', bay: 'A5', text: 'Beams are off, into holding room five' },
 ];
 
 const GREY = '#6a6f74';

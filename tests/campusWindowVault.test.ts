@@ -15,7 +15,7 @@
  * - the arc is clear: the line from the take-off to the landing at the sill + 0.45 (the generic probe's `arcY`).
  * Ramps (pitched boxes) are left out of the floor cast; no campus window has one under it.
  * Run twice: on the live map and on the map with section 1 from its v2 rebuild (`flags.campusV2 = [1]`), so the v2
- * gatehouse (its own desks, W and E2) is guarded too.
+ * gatehouse (its own desks, W and E2) is guarded too. (S1 v3) The v2 E2 is fixed glass (Michael: no rear window): only the live map keeps the E2 vault.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { LevelBuilder, type BoxPiece, type CylPiece } from '../src/world/levelBuilder';
@@ -159,7 +159,7 @@ const live = builtOf(b, CAMPUS_SECTORS[0]!.objective, campusOps.build(b, 0));
 
 // (F42, v2 S1) the same map with section 1 from its v2 rebuild (`flags.campusV2 = [1]`, the modules loaded fresh as
 // `tests/campusV2S1.test.ts` does: the selection is made at load). The v2 gatehouse is 13.5..20 x -79..-72.5 with its own
-// desks, the reception window W at (13.5, -76) and the open rear pane E2 at (20, -76).
+// desks, the reception window W at (13.5, -76) and (S1 v3) the fixed rear pane E2 at (20, -76).
 vi.resetModules();
 const v2Flags = await import('../src/core/flags');
 v2Flags.flags.campusV2 = [1];
@@ -177,10 +177,11 @@ describe.each([
   ['live', live],
   ['v2 S1 (flags.campusV2 = [1])', v2],
 ] as const)('campus window vaults (F42): %s', (_name, m) => {
-  it('the campus declares window vaults (the S1 gatehouse rear window, the S5 sash among them)', () => {
+  it('the campus declares window vaults (the live S1 gatehouse rear window, the S5 sash among them)', () => {
     expect(m.built).toBe(true);
     expect(m.vaultable.length).toBeGreaterThanOrEqual(2);
-    expect(m.vaultable.some((a) => Math.abs(a.c.x - 20) < E && Math.abs(a.c.z + 76) < E && a.open)).toBe(true);
+    // (S1 v3) the v2 rear pane E2 is fixed glass: only the live map still declares the vault at (20, -76)
+    if (m === live) expect(m.vaultable.some((a) => Math.abs(a.c.x - 20) < E && Math.abs(a.c.z + 76) < E && a.open)).toBe(true);
   });
 
   it('every declared window vault lands within 0.6 m of its take-off floor, with room for the body and a clear arc', () => {
@@ -199,7 +200,8 @@ describe.each([
     expect(none).toEqual([]);
   });
 
-  it('S1 E2: the gatehouse rear window vaults both ways (the verge in, the gatehouse out), the PC desk clear of the landing', () => {
+  it('S1 E2: the gatehouse rear window vaults both ways (the verge in, the gatehouse out), the PC desk clear of the landing', (ctx) => {
+    if (m !== live) return ctx.skip();
     const a = m.vaultable.find((x) => Math.abs(x.c.x - 20) < E && Math.abs(x.c.z + 76) < E)!;
     const outside = windowVault(m.w, a, 1);
     const inside = windowVault(m.w, a, -1);
@@ -220,20 +222,21 @@ describe.each([
 });
 
 describe('campus window vaults (F42): the v2 S1 gatehouse glazing', () => {
-  it('the v2 S1 vault windows are the reception window W (breakable) and E2 (open), both vaultable both ways; the fixed panes are not vaults', () => {
+  it('the v2 S1 vault window is the reception window W (breakable), vaultable both ways; E2 and the other panes are fixed (no rear-window vault)', () => {
     const w = windowAt(b2, 13.5, -76);
     const e2 = windowAt(b2, 20, -76);
     expect(w).toMatchObject({ open: false, breakable: true });
-    expect(e2).toMatchObject({ open: true });
-    for (const a of [w!, e2!]) {
+    expect(e2).toMatchObject({ open: false, breakable: false });
+    expect(v2.vaultable.some((a) => Math.abs(a.c.x - 20) < E && Math.abs(a.c.z + 76) < E)).toBe(false);
+    for (const a of [w!]) {
       for (const sd of [1, -1] as const) {
         const r = windowVault(v2.w, a, sd);
         expect(r, `window (${a.c.x}, ${a.c.z}) side ${sd} offers the vault`).not.toBeNull();
         expect(r!.fails, `window (${a.c.x}, ${a.c.z}) side ${sd}`).toEqual([]);
       }
     }
-    // the fixed rear pane E and the fixed north pane (A2) are closed and not breakable: no vault there
-    for (const [x, z] of [[20, -73.8], [19.2, -72.5]] as const) {
+    // E2, the fixed rear pane E and the fixed north pane (A2) are closed and not breakable: no vault there
+    for (const [x, z] of [[20, -76], [20, -73.8], [19.2, -72.5]] as const) {
       const a = windowAt(b2, x, z);
       expect(a, `pane (${x}, ${z})`).toBeDefined();
       expect(a!.open || a!.breakable, `pane (${x}, ${z})`).toBe(false);

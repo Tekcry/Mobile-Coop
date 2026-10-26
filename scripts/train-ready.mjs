@@ -12,8 +12,8 @@ export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
 
 /**
  * The commit statuses of a head's rollup (GraphQL `contexts.nodes`, or gh's `statusCheckRollup`): the newest
- * StatusContext per context (createdAt; gh names it startedAt) -> { [context]: { state, description, at } }, error ->
- * failure, expected -> pending. CheckRuns are not statuses (CI `check` is read with ciState).
+ * StatusContext per context (createdAt; gh names it startedAt) -> { [context]: { state, description, at, error? } }, error ->
+ * failure with `error: true` (a run that never ran: withdrawn, conflict, superseded; F55), expected -> pending. CheckRuns are not statuses (CI `check` is read with ciState).
  */
 export function statusesFromRollup(rollup) {
   const statuses = {};
@@ -22,7 +22,7 @@ export function statusesFromRollup(rollup) {
     const at = Date.parse(s.createdAt || s.startedAt || '') || 0;
     if (statuses[s.context] && statuses[s.context].at > at) continue;
     const st = String(s.state).toLowerCase();
-    statuses[s.context] = { state: st === 'error' ? 'failure' : st === 'expected' ? 'pending' : st, description: s.description ?? '', at };
+    statuses[s.context] = { state: st === 'error' ? 'failure' : st === 'expected' ? 'pending' : st, description: s.description ?? '', at, ...(st === 'error' ? { error: true } : {}) };
   }
   return statuses;
 }
@@ -30,8 +30,18 @@ export function statusesFromRollup(rollup) {
 const statusOf = (pr, ctx) => pr.statuses?.[ctx]?.state ?? 'missing';
 
 /**
+ * F55: the `no-affected-e2e` label waives a missing `affected-e2e` or one that never ran (an `error` status: withdrawn,
+ * conflict, superseded); a real failure (a suite went red) or a pending run is never waived.
+ */
+export function affectedWaived(pr) {
+  if (!pr?.labels?.includes(NO_AFFECTED_LABEL)) return false;
+  const s = pr.statuses?.[AFFECTED_CONTEXT];
+  return !s || s.state === 'missing' || s.error === true;
+}
+
+/**
  * Whether a PR is train-ready on its current head (CI `check` + `checker` + `affected-e2e` success; the
- * `no-affected-e2e` label waives a missing `affected-e2e`) -> { ready, why, affectedMissing }.
+ * `no-affected-e2e` label waives a missing or never-run `affected-e2e`, affectedWaived) -> { ready, why, affectedMissing }.
  */
 export function trainReady(pr, { requireAffected = true } = {}) {
   const no = (why, affectedMissing = false) => ({ ready: false, why, affectedMissing });
@@ -42,9 +52,9 @@ export function trainReady(pr, { requireAffected = true } = {}) {
   const checker = statusOf(pr, CHECKER_CONTEXT);
   if (checker !== 'success') return no(`${CHECKER_CONTEXT} ${checker}`);
   const aff = statusOf(pr, AFFECTED_CONTEXT);
-  const waived = aff === 'missing' && !!pr.labels?.includes(NO_AFFECTED_LABEL);
+  const waived = affectedWaived(pr);
   if (aff === 'missing' && requireAffected && !waived) return no(`${AFFECTED_CONTEXT} unavailable`, true);
-  if (aff !== 'missing' && aff !== 'success') return no(`${AFFECTED_CONTEXT} ${aff}`);
+  if (aff !== 'missing' && aff !== 'success' && !waived) return no(`${AFFECTED_CONTEXT} ${aff}`);
   const desc = pr.statuses[CHECKER_CONTEXT].description;
   const affWhy = aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : waived ? `, ${AFFECTED_CONTEXT} waived (${NO_AFFECTED_LABEL})` : '';
   return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${affWhy}` };

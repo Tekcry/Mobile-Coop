@@ -5,7 +5,7 @@
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
  *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill, never blended across a wall:
- *           `BounceGrid.sampleInto`) + moon x moon visibility + sum over the
+ *           `BounceGrid.sampleInto`) + (moon + lightning flash) x moon visibility + sum over the
  *           lamps listed for the point's 2 m column (as the shaders list them) of `LAMP_LEVEL_GAIN` x intensity x
  *           falloff x cone x baked visibility, with closed doors cutting lamps
  *
@@ -19,11 +19,18 @@
  */
 import { AMBIENT_CELL } from './ambientGrid';
 import { BounceGrid } from './bounceGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER, torchCut } from './lampMath';
+import { hyp3 } from '../core/mathx';
 import type { LightBake } from './lightBake';
-import { lightTerm, type LightRegistry, type Occluder } from './lights';
+import { lightTerm, type LightDef, type LightRegistry, type Occluder } from './lights';
 import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
+
+/** (piano SO3) A `beamCut` torch's cut at a point: `torchCut` at its reach (capped at the radius), as the picture's
+ *  `writeTorchDraw` / torch loop cut it. Allocation-free. */
+function beamCutAt(l: LightDef, x: number, y: number, z: number): number {
+  return torchCut(hyp3(x - l.x, y - l.y, z - l.z), Math.min(l.reach ?? l.radius, l.radius));
+}
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): shut for light when `open` is `DOOR_SHUT` or less. */
 export interface FieldDoor {
@@ -133,7 +140,7 @@ export class LightField {
   private readonly isBaked: Uint8Array;
   /** (char-shadow-meter) Registry id -> bake index (-1 not baked), for `sourceAt`. */
   private readonly bakeIdx: Int32Array;
-  private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
+  private readonly grid: { data: Uint16Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
@@ -228,7 +235,22 @@ export class LightField {
   /** (char-shadow-meter) Scratch: the segment ax, ay, az, bx, by, bz `doorBlocksOne` tests, for the same reason. */
   private readonly seg = new Float64Array(6);
 
-  /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
+  /** (piano SO5) The lightning flash's gameplay level now (`Lightning.levelAt`; 0 between flashes and on maps without
+   *  lightning), added to the moon's level wherever the sky is seen. */
+  private flash = 0;
+
+  /** (piano SO5) Set the flash level for this sim step, before the meter and guards sample (`GameState.updateLight`).
+   *  With 0 every query is today's to the bit. */
+  setFlash(level: number): void {
+    this.flash = level > 0 ? level : 0;
+  }
+
+  /** (piano SO5) The flash level set for this step. */
+  get flashLevel(): number {
+    return this.flash;
+  }
+
+  /** Static light at a point: ambient + moon (+ a lightning flash) + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
     this.levelInto(x, y, z);
     return this.res;
@@ -302,9 +324,11 @@ export class LightField {
     pt[1] = y;
     pt[2] = z;
     const b = this.bake;
-    if (b && b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now, through the same visibility
+    const sky = b ? b.moonLight + this.flash : 0;
+    if (b && sky > 0) {
       this.moonInto();
-      const m = b.moonLight * this.res;
+      const m = sky * this.res;
       if (m > 0) {
         this.pushLv[0] = m;
         n = this.pushRes(ids, lv, n, max, -1);
@@ -339,9 +363,10 @@ export class LightField {
     pt[2] = z;
     if (id === -1) {
       const b = this.bake;
-      if (!b || !(b.moonLight > 0)) return 0;
+      const sky = b ? b.moonLight + this.flash : 0;
+      if (!b || !(sky > 0)) return 0;
       this.moonInto();
-      return b.moonLight * this.res;
+      return sky * this.res;
     }
     if (id < 0) return 0;
     if (id < this.isBaked.length && this.isBaked[id]) {
@@ -370,9 +395,11 @@ export class LightField {
     pt[1] = q[1]!;
     pt[2] = q[2]!;
     const b = this.bake;
-    if (b && b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now, through the same visibility
+    const sky = b ? b.moonLight + this.flash : 0;
+    if (b && sky > 0) {
       this.moonInto();
-      const m = b.moonLight * this.res;
+      const m = sky * this.res;
       if (m > 0) {
         this.pushLv[0] = m;
         n = this.pushRes(ids, lv, n, max, -1);
@@ -408,12 +435,13 @@ export class LightField {
     const r = this.qr;
     if (id === -1) {
       const b = this.bake;
-      if (!b || !(b.moonLight > 0)) {
+      const sky = b ? b.moonLight + this.flash : 0;
+      if (!b || !(sky > 0)) {
         r[0] = 0;
         return;
       }
       this.moonInto();
-      r[0] = b.moonLight * this.res;
+      r[0] = sky * this.res;
       return;
     }
     if (id < 0) {
@@ -549,9 +577,12 @@ export class LightField {
       this.bounceInto(x, y, z);
       v += this.res;
     }
-    if (b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now (`setFlash`), through the moon's visibility, so a
+    // window lets a flash in, a closed room stays dark and a character between shadows it (the moon's set member, -1)
+    const sky = b.moonLight + this.flash;
+    if (sky > 0) {
       this.moonInto();
-      let m = b.moonLight * this.res;
+      let m = sky * this.res;
       // (char-shadow-meter) the moon's source: `moonFar` m along its direction from the point
       if (ch !== null && m > 0) {
         const d = b.moon.dir;
@@ -764,7 +795,11 @@ export class LightField {
       // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
       let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
       if (t <= 0.01) continue;
-      if (occluded && occluded(l, x, y, z)) continue;
+      if (l.beamCut) {
+        // (piano SO3) a torch with no shadow map: the picture's own cut at the beam's reach, not the ray test
+        t *= beamCutAt(l, x, y, z);
+        if (t <= 0.01) continue;
+      } else if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
       // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
       if (ch !== null) {
@@ -797,9 +832,13 @@ export class LightField {
     const x = pt[0]!;
     const y = pt[1]!;
     const z = pt[2]!;
-    const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+    let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
     if (t <= 0.01) return;
-    if (occluded && occluded(l, x, y, z)) return;
+    if (l.beamCut) {
+      // (piano SO3) as `dynamicInto`
+      t *= beamCutAt(l, x, y, z);
+      if (t <= 0.01) return;
+    } else if (occluded && occluded(l, x, y, z)) return;
     if (this.doors.length) {
       const sg = this.seg;
       sg[0] = l.x;

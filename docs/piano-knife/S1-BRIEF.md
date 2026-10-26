@@ -13,13 +13,13 @@ takedown is exactly today's. Runs fully on clips already in the repo (Mixamo dow
 in). Campaign PB5 and PB1 (plus the PB2 and PB3 rows); they block Campaign S4.
 
 ## Out of scope (do not build)
-Co-op: no `src/net` edit, no `EnemyPuppet` edit, no MoveState bits, no `td` kind (S3). No RT slash behaviour (S3; S1
-only writes its data row). No real knife clips or CMU check (S2). No intro pose or slide (S4). No `flags.ts` edit and
+Co-op: no `src/net` edit, no `EnemyPuppet` edit, no MoveState bits, no `td` kind (S3). No knife slash anywhere
+(Michael ~20:05). No real knife clips or CMU check (S2). No intro pose or slide (S4). No `flags.ts` edit and
 no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scoring change.
 
 ## Files and exact behaviour
 1. `src/game/knifeKill.ts` (new; pure, no Babylon import, no allocation after load)
-   - `PIANO_SCENE = 'piano'`, `PIANO_MAP_ID = 'pianoWorks'`.
+   - `PIANO_SCENE = 'piano'`, `PIANO_MAP_ID = 'thornbeckMill'`.
    - `knifeSceneOn(flagOn: boolean, scene: string | undefined, live: boolean): boolean` returns
      `flagOn && live && scene === PIANO_SCENE`.
    - `KNIFE = { noise: 1.2, blendIn: 0.12, blendOut: 0.15, gripIn: 0.45, stabIn: 0.12, victimHandsIn: 0.1,
@@ -35,8 +35,11 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
      | corner | mocap_cross_punch | mocap_rifle_death_from_right | 1.3 | 0.45 | 0.8 | 0.55 | 0 | 0 | shoulder | neck |
      | front | mocap_cross_punch | mocap_rifle_death_from_the_front | 1.3 | 0.45 | 0.8 | 0.55 | 0 | pi | shoulder | chest |
      `victimFrom` 0 on every row.
-   - `KNIFE_SLASH = { attacker: 'mocap_elbow_strike', noise: 1.2 }` (data only; S3 uses it, so S3 never edits this
-     file).
+   - Palm strike off (A10, Michael ~20:05 "Palm strike knockout disabled, only knife kills, and no slashing, only
+     animations with the guard"): while the switch is on, `gameState.ts:2191-2192` passes no strike start to `StrikeController` (RT tap,
+     RT hold and altFire do nothing) and `takedownController` takes no non-lethal path (no knockout, no grab row); every
+     takedown is the paired knife kill. Switch off = today. Tests in `tests/knifeTakedown.test.ts`: switch on, RT tap /
+     hold / altFire start no strike and knock nobody out; switch off, unchanged.
    - `pickKnifeKill(kind: TakedownKind, crouched: boolean): number`: `behind` -> crouched ? 1 : 0; `corner`,
      `overCover` -> 2; `front`, `side` -> 3; every other kind -> -1.
    - `loadKnifeClips(): Promise<void>` (dynamic `import()` of the six clip modules into a module table, once; a second
@@ -119,7 +122,7 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
 ## Tests (one closest set, run once; a red test gets one fix and one rerun)
 - `tests/knifeKill.test.ts`: gate truth table over every `MAPS` and `DEV_MAPS` entry (read `scene` as
   `(m as { scene?: string }).scene`) x flag x live, true only for `scene: 'piano'` with both on, plus a synthetic
-  `{ id: 'pianoWorks', scene: 'piano' }`; `pickKnifeKill` over every `TakedownKind` x crouched; every row: `seconds`
+  `{ id: 'thornbeckMill', scene: 'piano' }`; `pickKnifeKill` over every `TakedownKind` x crouched; every row: `seconds`
   in 1.0-1.5, `0 < contact < limp < 1`, both clips are `mocapSources` keys; `KNIFE_KILL_IDS.length <= 8`; `buckleAt`
   0 before contact, at most 1, 0 after rise + decay.
 - `tests/killDrive.test.ts`: identity at `w` 0 and `buckle` 0; buckle touches spine and chest pitch only; 1000 calls
@@ -136,13 +139,13 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
   before contact aborts and releases; damage after contact finishes; knife hidden and both drives null at the end.
 - Existing, must stay green: `tests/takedown.test.ts`, `tests/takedownAlloc.test.ts` (add: a knife run allocates
   nothing per step), `tests/mocapGuards.test.ts`, `tests/grabMenu.test.ts` (add: switch on = no grab row),
-  `tests/mocapSources.test.ts`, `tests/dualTakedown.test.ts`.
+  `tests/mocapSources.test.ts`, `tests/dualTakedown.test.ts`, `tests/elbowStrike.test.ts`.
 
 ## Checks
 - `npm run typecheck:fast`
 - `npx vitest run tests/knifeKill.test.ts tests/killDrive.test.ts tests/knifePair.test.ts tests/knifeTakedown.test.ts
   tests/takedown.test.ts tests/takedownAlloc.test.ts tests/mocapGuards.test.ts tests/grabMenu.test.ts
-  tests/mocapSources.test.ts tests/dualTakedown.test.ts`
+  tests/mocapSources.test.ts tests/dualTakedown.test.ts tests/elbowStrike.test.ts`
 - Laptop: the PR head's `affected-e2e`; the lead requests `e2e-coop` + `e2e-netmove` (`request.mjs`; `src/game`,
   RULES test table) and the checkers pass only when they are green.
 - Two independent Opus checkers. Each confirms: switch off changes nothing; no `src/net` import or edit; nothing

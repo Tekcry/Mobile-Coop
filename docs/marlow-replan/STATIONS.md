@@ -191,27 +191,27 @@ a guard or camera, a `timer` line for a drill window, an `other` line for A1's e
 
 | n | id | Seen / caught | Timer | Other |
 | --- | --- | --- | --- | --- |
-| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the mark. |
-| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the wall. |
+| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. Back to the striped mark. |
+| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. Back to the wall. |
 | 3 | `a2-shutter` | Seen at the roller door. Back to the stores bay. | - | - |
-| 4 | `a2-lights` | The shunter saw you in the neck. Back to the cabin and the lane. | Lights came back with you in the neck. Back to the cabin and the lane. | - |
-| 5 | `a2-plank` | The shunter saw the board. Back to the board stack at the east end. | - | - |
+| 4 | `a2-lights` | Seen in the neck. Back to the cabin and the lane. | Lights came back on you. Back to the cabin and the lane. | - |
+| 5 | `a2-plank` | Seen on the board. Back to the east end board stack. | - | - |
 | 6 | `a3-vent` | The camera had you. Back to the west lobby. | - | - |
-| 7 | `a3-jam` | The camera had you. Back to the corridor's west end; jam it again. | - | - |
+| 7 | `a3-jam` | The camera had you. Back to the corridor's west end. | - | - |
 | 9 | `a4-deadweight` | The duty officer saw you. Back to the security room door. | - | - |
-| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room; loop it again. | The cameras came back. Back to the security room; loop it again. | - |
-| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Both loaders at once, or the other one sees. Back behind the stacks. | - |
+| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room. | The cameras came back. Back to the security room. | - |
+| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Not together, so the other loader saw. Back behind the stacks. | - |
 | 11 | `a5-chimney` | (none: nothing can fail) | - | - |
 | 12 | `a5-swing` | (none: nothing can fail) | - | - |
 | 13 | `a5-throw` | Seen in the floodlight. Back behind the transformer. | The floodlight came back. Back behind the transformer. | - |
 | 14 | `a6-rope` | The attendant saw you. Back to the sump bay, behind the kerb. | - | - |
-| 15 | `a6-hangdown` | The attendant saw you on the bridge. Back to the bridge's north end. | - | - |
-| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge; catch your partner. | - | - |
+| 15 | `a6-hangdown` | Seen on the bridge. Back to the bridge's north end. | - | - |
+| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge. | - | - |
 | 17 | `a7-split` | Seen in the data hall. Back to the entry lobby. | - | - |
 | 18a | `a8-c2run` | Caught in the banking hall. Back to the vestibule. | - | - |
-| 18b | `a8-loopset` | Caught at the security office. Back to the office door and the board. | - | - |
+| 18b | `a8-loopset` | Caught at the security office. Back to the office door. | - | - |
 | 18c | `a8-isolate` | Caught at the lighting board. Back to the board. | The hall lights came back. Back to the lighting board. | - |
-| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console and the lobby. | The cameras came back. Loop them again from the office console. | - |
+| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console. | The cameras came back. Loop them again from the office console. | - |
 
 ## 7. Start marks and their space boxes
 Each mark is checked against its graph space's `area` box (G0, 7bc609ba2; rechecked at the D1 check, J14 wave 2). All 42

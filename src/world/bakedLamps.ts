@@ -1,5 +1,5 @@
 import { BaseTexture, Constants, max3DTextureSize, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
-import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampAtlas, type LampResult } from '../voxel/lampBake';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampAtlas, type LampResult } from '../voxel/lampBake';
 import { sectionBakerOf, type SectionBaker } from '../voxel/sectionJobs';
 import { slabDepth } from './sectionBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
@@ -9,7 +9,7 @@ import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from '.
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lampDoorListInto, lampDoorLists, type FieldDoor } from './lightField';
-import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
+import { torchDrawGlsl, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
 import { LAMP_CAPSULE_GLSL } from './charOccluders';
@@ -34,6 +34,10 @@ export { LEVEL_TO_RENDER };
 
 /** What the canonical bake adds to the baked lamps (3.6). */
 export interface BakeExtras {
+  /** (piano SO3) The map's drawn torch slots (`World.torchSlots`; default `TORCH_DRAW_SLOTS`) and whether some have no
+   *  shadow map (`torchCut`: the loop's reach-cut branch). */
+  torchSlots?: number;
+  torchCut?: boolean;
   /** The baked moon: the sun light is multiplied by it (static moon shadows). */
   moon?: MoonGrid | null;
   /** Doors (`Doors.list`): a closed leaf stops the lamps listed for it. */
@@ -160,6 +164,9 @@ export class BakedLamps implements CharShadowLamps {
     return this.standard;
   }
   readonly moonLight: number;
+  /** (piano SO5) The lightning flash's gameplay level this step (`World.setFlash`, the light field's own value): added
+   *  to the curve's moon term (`lampDark.y`), through the same baked sky visibility. 0 without lightning. */
+  skyFlash = 0;
   /** Step 4b, rendering only: the night-vision gain (1 off; `GameState` eases it) and the curve's shape (the look's
    *  set; tests may tune it). Gameplay never reads either. */
   visionGain = 1;
@@ -177,6 +184,9 @@ export class BakedLamps implements CharShadowLamps {
   /** (LR15; the per-lamp loop only) The flashlights without a shadow map, drawn by the plugin with
    *  the light field's formula x their beam's cut (`shadowAccuracy.writeTorchDraw`; the light rig writes it each frame). */
   readonly torchDraw: Float32Array | null;
+  /** (piano SO3) Drawn torch slots (the shader loop, `lampTorch` and the atlas uniforms) and the reach-cut branch. */
+  readonly torchSlots: number;
+  readonly torchCut: boolean;
   private readonly buf: Float32Array;
   /** (LR16-P F1) The rows `frame` re-sends (`lampDataRows`): the first, their count, and `buf` from the first on. */
   readonly dynY0: number;
@@ -312,7 +322,9 @@ export class BakedLamps implements CharShadowLamps {
     // (shadow audit) the light field's own list: doorways the lamp cannot see take no slot
     this.doorSlots = DOORS_PER_LAMP_ACCURATE;
     this.lampDoors = lampDoorLists(baked.lights, this.doors, bakeVisSampler(r), this.doorSlots);
-    this.torchDraw = !volume && !this.standard ? new Float32Array(TORCH_DRAW_SLOTS * TORCH_DRAW_STRIDE) : null;
+    this.torchSlots = !volume && !this.standard ? (extra.torchSlots ?? TORCH_DRAW_SLOTS) : TORCH_DRAW_SLOTS;
+    this.torchCut = !volume && !this.standard && !!extra.torchCut;
+    this.torchDraw = !volume && !this.standard ? new Float32Array(this.torchSlots * TORCH_DRAW_STRIDE) : null;
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);
@@ -351,6 +363,7 @@ export class BakedLamps implements CharShadowLamps {
     dropCpuCopy(this.vis);
     const grid = lampGrid(baked.lights, lo, hi);
     if (grid.worst > LAMP_GRID_SLOTS) console.warn(`BakedLamps: a 2 m column has ${grid.worst} lamps in reach, past the ${LAMP_GRID_SLOTS} slots: the farthest are dropped`);
+    if (grid.dropped > 0) console.warn(`BakedLamps: ${grid.dropped} lamps past the grid's ${LAMP_GRID_MAX_LIGHTS} ids: unlit`);
     this.gridInfo = { lox: lo[0]!, loz: lo[2]!, cols: grid.cols, rows: grid.rows };
     const n = baked.ids.length;
     // (LR16b) `LAMP_GRID_TEXELS` texels a column; (LR15: with 8 door slots, the lamps' second door texels first)
@@ -1381,7 +1394,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_TSHADOW: false, LAMP_PAGES: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false, LAMP_CSHADOW: false, LAMP_DOORS8: false, LAMP_TORCH: false, LAMP_TSHADOW: false, LAMP_PAGES: false, LAMP_TORCH8: false, LAMP_TORCH12: false, LAMP_TORCH16: false, LAMP_TORCHCUT: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -1393,6 +1406,15 @@ export class LampPlugin extends MaterialPluginBase {
    *  field: Babylon collects the injection points inside the base constructor, before a field could be set.) */
   private get std(): boolean {
     return this._material.getClassName() === 'StandardMaterial';
+  }
+
+  /** (piano SO3) The map's drawn torch slots and reach-cut branch (the defaults while Babylon's base constructor asks
+   *  for the code points, before `lamps` is set). */
+  private get nTorch(): number {
+    return (this.lamps as BakedLamps | undefined)?.torchSlots ?? TORCH_DRAW_SLOTS;
+  }
+  private get cutTorch(): boolean {
+    return (this.lamps as BakedLamps | undefined)?.torchCut ?? false;
   }
 
   override getClassName(): string {
@@ -1421,6 +1443,13 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_TORCH = !!mesh && !this.lamps.volume && !!this.lamps.torchDraw && !this.std;
     // (LR16t) every drawn torch shadowed from one atlas (one texture more; the light rig's spot shadows go: net -1)
     defines.LAMP_TSHADOW = !!mesh && !this.lamps.volume && !!this.lamps.torchDraw && !this.std && !!this.lamps.torchShadows?.on;
+    // (piano SO3) the map's torch slot count and the reach-cut branch: their own shader variants (the uniforms' sizes and
+    // the loop differ; Babylon caches an effect by its defines)
+    const nT = this.lamps.torchSlots;
+    defines.LAMP_TORCH8 = !!mesh && nT === 8;
+    defines.LAMP_TORCH12 = !!mesh && nT === 12;
+    defines.LAMP_TORCH16 = !!mesh && nT === 16;
+    defines.LAMP_TORCHCUT = !!mesh && this.lamps.torchCut;
     // (lr-tex3d) a paged lamp atlas: each lamp's page offset from its t7.y
     defines.LAMP_PAGES = !!mesh && this.lamps.atlasPages > 1;
   }
@@ -1430,6 +1459,7 @@ export class LampPlugin extends MaterialPluginBase {
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
+    const nT = this.nTorch;
     return {
       ubo: [
         { name: 'lampInfo', size: 4, type: 'vec4' },
@@ -1456,13 +1486,13 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampCsP', size: 4, type: 'vec4', arraySize: 4 },
         { name: 'lampCsI', size: 4, type: 'vec4' },
         // (LR15) the drawn flashlights (`TORCH_DRAW_GLSL`)
-        { name: 'lampTorch', size: 4, type: 'vec4', arraySize: TORCH_DRAW_SLOTS * TORCH_VEC4 },
+        { name: 'lampTorch', size: 4, type: 'vec4', arraySize: nT * TORCH_VEC4 },
         // (LR16t) the torch shadow atlas: per slot its view-projection, params, the atlas info (`torchShadows.ts`)
-        { name: 'lampTsM', size: 4, type: 'vec4', arraySize: 16 },
-        { name: 'lampTsP', size: 4, type: 'vec4', arraySize: 4 },
+        { name: 'lampTsM', size: 4, type: 'vec4', arraySize: nT * 4 },
+        { name: 'lampTsP', size: 4, type: 'vec4', arraySize: nT },
         { name: 'lampTsI', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampBounceC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${TORCH_DRAW_SLOTS * TORCH_VEC4}];\nuniform vec4 lampTsM[16];\nuniform vec4 lampTsP[4];\nuniform vec4 lampTsI;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampBounceC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\nuniform vec4 lampCsM[16];\nuniform vec4 lampCsP[4];\nuniform vec4 lampCsI;\nuniform vec4 lampTorch[${nT * TORCH_VEC4}];\nuniform vec4 lampTsM[${nT * 4}];\nuniform vec4 lampTsP[${nT}];\nuniform vec4 lampTsI;\n#endif`,
     };
   }
 
@@ -1475,7 +1505,8 @@ export class LampPlugin extends MaterialPluginBase {
     ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
     // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve. (nv-pass slice 1) Under the
     // goggles the curve's floor rises (`visionDark`) and the non-voxel fill is capped (z: how far night vision is on)
-    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight, visionAmount(l.visionGain), 0);
+    // (piano SO5) the moon term carries the lightning flash too (the light field sums them the same way)
+    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight + l.skyFlash, visionAmount(l.visionGain), 0);
     const d = visionDark(l.dark, l.visionGain, l.darkNow);
     ubo.updateFloat4('lampDarkP', d.centre, d.steep, d.floor, d.top);
     if (f && l.fillTex) {
@@ -1566,7 +1597,7 @@ ${LAMP_GLSL}
 ${CHAR_SHADOW_GLSL}
 ${DARK_GLSL}
 #ifdef LAMP_TORCH
-${TORCH_DRAW_GLSL}
+${torchDrawGlsl(this.nTorch, this.cutTorch)}
 #endif
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;

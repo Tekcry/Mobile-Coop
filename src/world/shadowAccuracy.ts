@@ -20,7 +20,7 @@
  *   its own shadow map and an exact shut-door test instead of the reach cut (`TORCH_DRAW_GLSL` under `LAMP_TSHADOW`);
  *   no torch is a Babylon light then. Parity notes: `torchShadowSet.ts`.
  */
-import { LAMP_CONE_COS, LAMP_EXP, lampTerm, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, lampTerm, LIGHT_GAIN, SPOT_EXP, TORCH_CUT_SOFT, torchCut } from './lampMath';
 import { hyp3 } from '../core/mathx';
 import { TORCH_SHADOW_GLSL } from './torchShadowSet';
 
@@ -79,14 +79,17 @@ export function rayOccluder(hit: StaticHit): (l: { x: number; y: number; z: numb
   };
 }
 
-/** (LR15) Flashlights the baked lamps' shader can draw itself (`torches.FLASHLIGHTS`). */
+/** (LR15) Flashlights the baked lamps' shader can draw itself (`torches.FLASHLIGHTS`): the default. (piano SO3) A map
+ *  may ask for more (`MapDef.torchSlots`, `torches.torchSlotCount`): 8, 12 or 16, up to `TORCH_DRAW_MAX`; the shader's
+ *  loop, the `lampTorch` uniforms and the light rig's slots then follow that map's count (`torchDrawGlsl`). */
 export const TORCH_DRAW_SLOTS = 4;
+export const TORCH_DRAW_MAX = 16;
 /** Floats per drawn torch (four vec4): position + cut (the beam's reach; 0: slot empty), axis + cos cut, colour x
  *  intensity x `LIGHT_GAIN` + radius, (LR16t) the shut doors the torch tests (ids + 1, 0: none; `TorchShadows` writes
  *  them, `writeTorchDraw` leaves them on a write and clears them with the slot). */
 export const TORCH_DRAW_STRIDE = 16;
-/** The cut ramps to 0 over this much (m) before the reach: past the wall the beam lands on (`beamReach` adds 0.4 m). */
-export const TORCH_CUT_SOFT = 0.2;
+/** The cut ramps to 0 over this much (m) before the reach (`lampMath`, read by the light field too). */
+export { TORCH_CUT_SOFT, torchCut };
 
 /** A flashlight as `writeTorchDraw` / `torchDrawTerm` read it (`LightDef` fits). */
 export interface DrawTorch {
@@ -99,13 +102,6 @@ export interface DrawTorch {
   cone?: { dx: number; dy: number; dz: number; cosOuter: number } | null;
   /** Rendering only: where the beam stops at a wall (`torches.beamReach`); the radius when unset. */
   reach?: number;
-}
-
-/** The beam's cut at distance `d` (1 inside the reach, 0 past it, a short ramp before it). */
-export function torchCut(d: number, cut: number): number {
-  if (d >= cut) return 0;
-  const t = (cut - d) / TORCH_CUT_SOFT;
-  return t >= 1 ? 1 : t;
 }
 
 /**
@@ -152,6 +148,14 @@ export function writeTorchDraw(out: Float32Array, slot: number, l: (DrawTorch & 
 /** vec4 per drawn torch in the shader's `lampTorch` array. */
 const TV = TORCH_DRAW_STRIDE / 4;
 
+/** The atlas path's shadow term (every slot shadowed: the default, byte for byte what it was). */
+const PLAIN_SH = `    float sh = nsTorchShadow(c, p, gn, ta.xyz);
+`;
+/** (piano SO3) Some slots without a shadow map (`lampTsP` w 3, `TorchShadows`): those take the beam's reach cut, the
+ *  same cut the light field gives that torch (`LightDef.beamCut`), so the meter and the picture agree. */
+const CUT_SH = `    float sh = lampTsP[c].w > 2.5 ? (d >= ta.w ? 0.0 : min(1.0, (ta.w - d) / ${TORCH_CUT_SOFT.toFixed(2)})) : nsTorchShadow(c, p, gn, ta.xyz);
+`;
+
 /**
  * `torchDrawTerm` in GLSL x colour x N.L, summed over the slots (uniform `lampTorch`, four vec4 a slot). The torch's
  * falloff is the linear `lampTerm` (the photometric falloff is the baked lamps' only), its cone `nsLampCone`
@@ -161,12 +165,15 @@ const TV = TORCH_DRAW_STRIDE / 4;
  * (LR16t) `LAMP_TSHADOW` (the torch shadow atlas): x the slot's shadow map (`nsTorchShadow`, soft with distance, sharp
  * at contact) and 0 behind one of its shut doors (`nsTorchDoors`: the light field's door test); no reach cut. Else
  * (WebGL1 / no float target: the fallback) today's reach cut.
+ * (piano SO3) For `n` drawn slots; `cut`: some slots have no shadow map. Built per map by the baked lamps' plugin
+ * (`LampPlugin`; its `LAMP_TORCH8` / `12` / `16` and `LAMP_TORCHCUT` defines keep the variants apart in the effect cache).
  */
-export const TORCH_DRAW_GLSL = `${TORCH_SHADOW_GLSL}
+export function torchDrawGlsl(n: number, cut = false): string {
+  return `${TORCH_SHADOW_GLSL}
 #ifdef LAMP_TSHADOW
 vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
   vec3 s = vec3(0.0);
-  for (int c = 0; c < ${TORCH_DRAW_SLOTS}; c++) {
+  for (int c = 0; c < ${n}; c++) {
     vec4 ta = lampTorch[c * ${TV}];
     if (ta.w <= 0.0) continue;
     vec4 tc = lampTorch[c * ${TV} + 2];
@@ -180,8 +187,7 @@ vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
     float ndl = dot(n, L);
     if (ndl <= 0.0) continue;
     if (nsTorchDoors(ta.xyz, p, lampTorch[c * ${TV} + 3])) continue;
-    float sh = nsTorchShadow(c, p, gn, ta.xyz);
-    if (sh <= 0.0) continue;
+${cut ? CUT_SH : PLAIN_SH}    if (sh <= 0.0) continue;
     s += tc.rgb * ((1.0 - d / tc.w) * nsLampCone(ca, tb.w, ${SPOT_EXP.toFixed(1)}) * sh * ndl);
   }
   return s;
@@ -189,7 +195,7 @@ vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
 #else
 vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
   vec3 s = vec3(0.0);
-  for (int c = 0; c < ${TORCH_DRAW_SLOTS}; c++) {
+  for (int c = 0; c < ${n}; c++) {
     vec4 ta = lampTorch[c * ${TV}];
     if (ta.w <= 0.0) continue;
     vec4 tc = lampTorch[c * ${TV} + 2];
@@ -208,3 +214,7 @@ vec3 nsTorches(vec3 p, vec3 n, vec3 gn) {
 }
 #endif
 `;
+}
+
+/** The default loop (4 slots, every slot shadowed). */
+export const TORCH_DRAW_GLSL = torchDrawGlsl(TORCH_DRAW_SLOTS);

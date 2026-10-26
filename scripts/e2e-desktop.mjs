@@ -464,7 +464,8 @@ try {
   assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
   // (PC1 fix) the near level chunks once reached 17 textures with the guards alerted and stopped drawing. (LR16t) With
   // the torch shadow atlas on, no flashlight takes the rig's shadow pool (capped at 0): every torch on is drawn by the
-  // baked lamps (up to TORCH_DRAW_SLOTS = 4) and shadowed through ONE atlas sampler. Alert them and count again.
+  // baked lamps (up to the map's torch slots: TORCH_DRAW_SLOTS = 4 by default, Warehouse sets none; piano SO3
+  // `MapDef.torchSlots` up to 16) and shadowed through ONE atlas sampler. Alert them and count again.
   await e.page.evaluate(() => {
     const g = window.__app.current;
     for (const en of g.enemyMgr.enemies) en.alert();

@@ -19,12 +19,11 @@ CMU has no knife take in the subjects the pipeline reads today; S2 checks the CM
 - Mixamo search is fuzzy: type the search name, take the result whose title matches; if it is missing, take the
   listed alternate and note it in STATE.
 
-## Knife kills (S2; K3 for S3's slash once downloaded)
+## Knife kills (S2)
 | # | Mixamo search name | Save as | Use (pair) | Alternate if missing |
 |---|---|---|---|---|
 | K1 | Stabbing | Stabbing.fbx | attacker: behind (with V1), front and the crouched rise (with V2) | Standing Melee Attack Downward |
 | K2 | Standing Melee Attack Downward | Standing Melee Attack Downward.fbx | attacker: corner (with V3) | Stabbing |
-| K3 | Standing Melee Attack Horizontal | Standing Melee Attack Horizontal.fbx | attacker: the RT knife slash (S3 runs on `elbow_strike` until then) | Standing Melee Attack Backhand |
 | V1 | Falling Forward Death | Falling Forward Death.fbx | victim: behind, falls forward | Dying |
 | V2 | Dying | Dying.fbx | victim: front and crouched rise, folds to the knees and down | Standing Death Forward |
 | V3 | Falling Back Death | Falling Back Death.fbx | victim: corner, pulled round, falls back | Dying Backwards |
@@ -40,5 +39,5 @@ the in-game stand-in use in the `docs/art-credits.md` "Used by" column).
 
 Already on disk: pack-pistol `pistol idle.fbx` (arm reference), `Cover Idle (standing cover against object).fbx`.
 
-Total new downloads: 7 (K1-K3, V1-V3, I1), all after Michael's sign-in. After download: S2's builder dumps and emits
+Total new downloads: 6 (K1, K2, V1-V3, I1; K3 Horizontal dropped with the slash, Michael ~20:05), all after Michael's sign-in. After download: S2's builder dumps and emits
 them (`scripts/mocap/mixamo.mjs`, `mixamoEmit.mjs`) and adds the `mocapSources.ts` and `art-credits.md` rows.

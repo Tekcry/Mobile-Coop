@@ -767,6 +767,32 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   - T1: `tests/reconDroneSight.test.ts` covers the recon drone's sight verdict (a hit within 0.3 m of the aim point
     sees; a miss sees; no ray outside the cone unless within 3 m).
 
+## Scene sweep (storm-mill scene, guard-ai piano GA6)
+Michael 2026-10-26: "The guards must move slowly and methodically to find both players". Scene only: everything is
+gated on `EnemyManager.sceneDark` (set by the piano scene behind `flags.pianoEscape`); off the scene nothing changes.
+Plan: `docs/guard-ai/slices/PIANO-GA6-PLAN.md` (section 8 over 2-5); reports `PIANO-GA6A-REPORT.md`, `PIANO-GA6B-REPORT.md`.
+- **Plan** (`src/ai/sceneSweep.ts`, pure): a guard's route (or post) becomes a fixed timed lap at `SCENE_SWEEP.pace`
+  (0.7 m/s): corners (wait 0) pass, a pan stop (wait > 0, default 3 s) holds until its `leave`; pan centre = `faces[i]`
+  or the arrival heading; two points on one spot with `faces` = a face pan (posts, 8 s each way). Leg times add the
+  calm turn (N2) and `slack`. Built once per guard (`Enemy.startSweep`, cached).
+- **Walker** (`PatrolWalker.setSweep` / `clearSweep`): the pan (left `-side x 0.7` rad at D/4, across to the right,
+  hold) is fed to the goal face, so torch and sight turn together (light parity). It starts once the body is within
+  0.15 rad of it. A long hold looks at the centre first: an early arrival until `leave - D`, then one full cycle; a
+  rejoin's catch-up hold until whole cycles end at `leave`. Any calm return rejoins the pan stop he can be back in step
+  at soonest (`rejoinStop`), at most a lap.
+- **Wiring** (`enemyManager.ts`): every `sceneDark = true` (the EMP, each restart) restarts the sweep clock at 0
+  (it ticks in `update` while dark), clears the talking pairs and puts every placed guard on his sweep (`sweepify`);
+  `placeSlot` sweeps a guard placed while dark instead of `buildPair`. The `pair` tag means sweep partner: the lower
+  slot pans left first, the partner right first, both get each other (`sweepMate`) whichever is placed first; the pair
+  keeps only the missing-partner watch (a `PairMeet` whose window never opens, `watch` on whatever `flags.guardPairs`
+  says: one partner taken, the other notices after 3 s). `sceneDark = false`: everyone off the sweep and rejoined as
+  built, the watch pairs gone.
+- **Enemy** (`enemy.ts`): calm on the sweep he walks at `min(0.7, walkSpeed)`, a calm investigation too (a rush and
+  the search pace as built); the body yaw gates the pan; the soft push skips his sweep mate (the 0.65 m floor stays).
+- **A glimpse** (the PLAN's GA7): no new sight rule. At the board tick, a guard whose rise moved on sight and who is
+  suspicious or investigating sends his calm sweep partner within `PAIRS.togetherR` (4 m) to the same spot
+  (`followGlimpse`: a calm `sendTo`, incident -1, one line: `checking`).
+
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal
   only, enforcer frontal = none; `TakedownController` offers `lethalOnly`), `sniperRelocate`, `glint`, `smellRate`,

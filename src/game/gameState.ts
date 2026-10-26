@@ -378,6 +378,8 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (piano SO5) The lightning level set last step (`updateLight`). */
+  private flashWas = 0;
   /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
    *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
   readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
@@ -1755,6 +1757,15 @@ export class GameState implements AppState {
     reg.tickFlicker(this.net?.simTime?.() ?? this.time);
     // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
     reg.tickSway(this.net?.simTime?.() ?? this.time);
+    // (piano SO5) lightning: this step's flash on the same shared clock, set once before the meter, the guards and the
+    // picture read it; the meter samples every step while a flash is lit (and the step after) so a short strike shows
+    const lt = this.world.lightning;
+    if (lt) {
+      const fl = lt.levelAt(this.net?.simTime?.() ?? this.time);
+      this.world.setFlash(fl);
+      if (fl > 0 || this.flashWas > 0) this.lightT = 0;
+      this.flashWas = fl;
+    }
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
@@ -2039,7 +2050,7 @@ export class GameState implements AppState {
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.carrier?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
-    const busy0 = this.takedown.active !== null || this.strike.active;
+    const busy0 = this.takedown.busy || this.strike.active; // (piano-knife S2) busy: a knife kill's tail too
     // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
     this.doorPeekStep(dt, inp, busy0 || carrying);
     this.doorOpenStep(dt);
@@ -2122,7 +2133,7 @@ export class GameState implements AppState {
     const draw = (sidearm || grabHold) && (pl.ads || pl.adsWanted);
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
     const teamHands = this.team.active;
-    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
+    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.busy || teamHands, draw);
     // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
     // remotes never see)
     this.weapons.handsBusy = this.strike.active;
@@ -2204,7 +2215,7 @@ export class GameState implements AppState {
       const pl = this.player;
       pl.weaponLocked = this.takedown.hostage !== null;
       // (any attach, the one-handed sidearm aim too: its LT is the attach's own aim, never the free low ready)
-      pl.weaponSuspend = this.traversal.attached || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.active !== null && !pl.weaponLocked) || this.strike.active;
+      pl.weaponSuspend = this.traversal.attached || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.busy && !pl.weaponLocked) || this.strike.active;
     }
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
