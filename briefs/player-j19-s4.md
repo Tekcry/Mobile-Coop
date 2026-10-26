@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T01:38Z
+status: done feature/player-j19-s4 92a14fac69d7be67d47695aeca2e30679f966b44
 
 # Brief: player-batch-j19 S4 - Guard arms and goggle default (Player Build)
 
@@ -178,3 +178,43 @@ Step 3 - fragment and report (commit "J19 S4: changelog fragment", push; then th
 - Every e2e is pending PC run: CORE, `e2e-park`, `e2e-cosmetics`, `e2e-progression`, `e2e-move`, `e2e-anim`,
   `e2e-stealth`, `e2e-clip`, plus `e2e-coop` and `e2e-netmove` (the lead requests them: `src/player`), and `e2e-modes` /
   `e2e-levels` (they spawn the runner).
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-26 ~02:05Z)
+- Branch `feature/player-j19-s4` from 29f03b6c0. Commits: 4fbce7eff (R16), 141451675 (R17), 92a14fac6 (fragment). Head
+  92a14fac69d7be67d47695aeca2e30679f966b44. `git diff --stat 29f03b6c0` lists the nine files only (+107 / -42).
+- **Step 1 (R16):** `src/config/enemies.json` runner `weapon` = the grunt's block (same keys, order, values; checked by parsing);
+  `melee` and `gun: null` kept. `tests/enemyArms.test.ts` (new) cases (a)-(d) as briefed (the map scan finds the warehouse runner;
+  the mode scan finds `missionMode.ts` runner). `tests/sectors.test.ts`: the three runner asserts moved into the
+  unarmed-runner `try / finally` block before the reinforcements comment; the M1 / G155 comment stays with the heavy line.
+- **Step 2 (R17):** `avatarLook.ts` `HELMETS` without `'trilens'` (:8), legacy row `{ horns: 'headset', trilens: 'headset' }`
+  (:17) with the one comment line (:11), doc comment (:61), `helmet: 'headset'`; `catalog.ts` trilens row deleted, headset row
+  without `req`; `suit.ts:95` as briefed; `characterRig.ts` exactly three hunks (import :3, neck :1571, the `case 'trilens'` block);
+  `tests/economy.test.ts` the opLook comment / expectation and the new R17 `it` in the same describe.
+- **Step 3:** `changes/feature-player-j19-s4.md` as briefed.
+- `git grep -n trilens -- src tests`: only `avatarLook.ts` (:11 the comment line the brief asked for, :17 the legacy row) and the
+  new economy case.
+
+**Tests:** `npm run typecheck:fast` clean; eslint clean on the seven listed files. The full vitest line (`--maxWorkers=2`), 17 files,
+338 passed + 1 skipped, 0 failed: enemyArms 4/4, economy 10/10, sectors 28/28, cosmetics 5/5, save 20/20, campusS2 40/40,
+campusS3 32/32, campusS4 41/41, ctcourse 28/28, guardAiAlloc 5/5, animSkeletonGuardIdentity 1/1 + 1 skipped (its fixture-capture
+case, `skipIf(!CAPTURE)`, by design), mocapGuards 5/5, rig 21/21, animRig 10/10, operatorsRuntimeFigure 3/3, net 84/84,
+changesFragments 1/1. No pre-existing failures.
+
+**`trilens` / "tri-lens" left (not fixed, for the polish list):** `src/progression/suit.ts:40-42` (gear names "Tri-lens Mk1-3"),
+`src/ui/screens/brightnessScreen.ts:25`, `src/game/gameState.ts:2664`, `src/player/characterRig.ts:223, :1713, :1732` (comments on
+`LENS_OFF` / `lenses` / `setLensGlow`), `src/player/goggleGlow.ts:4`, `scripts/gen-icons.mjs:63`, `docs/systems/world-and-characters.md:251`,
+`docs/operators/BRIEF.md:26, :34`, `docs/operators/SPEC.md:767`, `docs/menu-ui/SPEC.md:227`, `docs/menu-ui/FINDINGS.md:9`,
+`docs/menu-ui/steps/12-menu-setups.md:15`, `docs/menu-ui/menu-mock.patch:195, :309`, `docs/ct-prototype/A5-GOGGLES.md:14`,
+`docs/ct-prototype/audit/AUDIT-EXTRA-NEW.md:30`, `docs/conformance-player/CONFORMANCE.md:56` (the R17 row itself); plus history under
+`docs/archive/**` (CHANGELOG-pre-3.0, TESTING-pre-3.0, consolidation/AUDIT, goggle/PLAN, locomotion, menu-notes, operators-runtime,
+progress-phases, prompts).
+
+**Deviations:**
+1. `npm ci` not run: `package.json` / `package-lock.json` differ from the session's installed tree only in the version and script
+   lines (same dependencies), so the worktree uses that `node_modules`.
+2. `tests/sectors.test.ts`: the `// checkSectors runs it on every section` comment moved with its assert into the block (it
+   describes that line).
+3. The economy case casts `'trilens' as AvatarLook['helmet']` (the type no longer has it) and imports `AvatarLook` as a type.
+
+**e2e pending PC run:** CORE, `e2e-park`, `e2e-cosmetics`, `e2e-progression`, `e2e-move`, `e2e-anim`, `e2e-stealth`, `e2e-clip`,
+`e2e-coop`, `e2e-netmove`, `e2e-modes`, `e2e-levels`.
