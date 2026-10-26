@@ -44,6 +44,7 @@ import { wrap01 } from './studioDrive';
 import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
+import { KNIFE_KILL_IDS, KNIFE_KILLS } from '../game/knifeKill'; // (piano-knife S1) the knife pair rows
 import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry, type TravStep } from './studioTraversal';
 import { MOCAP_SOURCE_NAMES, MOCAP_SOURCE_WORD, mocapSource, type MocapSource } from './mocapSources';
 
@@ -88,6 +89,9 @@ export interface StudioEntry {
   trav: TravEntry | null;
   /** (marlow-bays item 24, track A) A guard puppet's loop (`guard:<name>`: a real guard rig, no AI), else null. */
   gloop: GuardLoop | null;
+  /** (piano-knife S1) A knife kill pair: the `KNIFE_KILLS` row Wren and the guard play on one clock (`studioStage`
+   *  through the game's `KillDrive` and `knifePair`); absent otherwise. */
+  knife?: number;
 }
 
 /**
@@ -138,6 +142,16 @@ function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: numbe
 /** (anim-studio-2) A co-op pair: both roles of a team move on one clock (`studioPairs.ts`). */
 function teamPair(m: TeamMoveId): StudioEntry {
   return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null, gloop: null };
+}
+
+/** (piano-knife S1) A knife pair's rest (s) after the move before it loops. */
+export const KNIFE_PAIR_REST = 0.5;
+
+/** (piano-knife S1) A knife kill pair (`pair:knife_<id>`): Wren and a guard through the game's kill drive and pairing
+ *  (the real Mixamo pairs since piano-knife S2), the knife shown, looping with `KNIFE_PAIR_REST`. For the look video. */
+function knifePair(k: number): StudioEntry {
+  const id = KNIFE_KILL_IDS[k]!;
+  return { id: `pair:knife_${id}`, label: `pair: knife ${id}`, kind: 'pair', clip: null, pace: 0, cycle: KNIFE_KILLS[k]!.seconds + KNIFE_PAIR_REST, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null, knife: k };
 }
 
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
@@ -368,6 +382,7 @@ const ENTRIES: StudioEntry[] = [
   holdPair('hold_back', base('keyed:hold_back'), base('keyed:guard_held_stumble')),
   holdPair('hold_choke', base('keyed:hold_choke'), base('keyed:guard_choke_sag')),
   holdPair('hold_knife', base('keyed:hold_knife'), base('keyed:guard_knife_collapse')),
+  ...KNIFE_KILL_IDS.map((_, k) => knifePair(k)),
   ...TRAV_ENTRIES.map(travel),
   // (marlow-bays item 24, track A) the guard puppet's loops (a real guard rig on the spot; Wren stands by, hidden)
   guardLoop('idle', 'idle', { speed: 0, aim: 0.2, crouch: false, wall: false, dash: false }),
