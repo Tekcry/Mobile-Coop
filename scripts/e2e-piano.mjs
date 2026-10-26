@@ -70,9 +70,11 @@ try {
   assert(d.dark, 'the scene dark is on (em.sceneDark)');
   assert(await G(() => window.__app.current.enemyMgr.sceneDark === true), 'the guards are in the scene dark (torches on)');
   assert(d.knife, 'the knife scene is on from the EMP');
+  // the mains cut ripples out nearest first over EMP_OUT_S (0.8 s): every lamp is dead once it has run
+  await sim(0.8);
   assert(await G(() => window.__app.current.world.level.lights.lights.filter((l) => l.electric && l.on && !l.destroyed).length === 0), `every lamp is dead (${d.lampsCut} cut)`);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === true), 'input still held in the black-out beat');
-  await sim(2.8);
+  await sim(2.0);
   d = await dbg();
   assert(d.inPlay && d.shot === 'play', `the cut to play at press + 2.5 s (${d.shot})`);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === false), 'input on at the cut');
