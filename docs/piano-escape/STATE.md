@@ -22,4 +22,9 @@ stealth / stalking / solo kills / paired co-op kills (~20:16). The approved open
    C:/NightShift/scratch/music/proto/ (sketch-1-held-breath, sketch-2-thornbeck, sketch-3-last-round; .wav + .mp3).
    S5 starts from these (bundle the mp3s + piano.mjs as the in-repo source, dev A/B picker with the Pixabay track)
    instead of composing from scratch: Sonnet, smaller. Michael picks favourites via the orchestrator.
+6. SO5 lightning built (PR #604): MapDef `lightning: { flashes: [{ t, peak, len }], period? }` (double = two entries);
+   clock = shared sim clock minus `world.lightning.t0`; set t0 at the EMP press (host + client both get it); drive
+   thunder AND music cues from `flashAt`, never each machine's music time (drift). Light enters only through real
+   openings (windows, board gaps); keep the pre-EMP electric lamps (window-pool path needs one fixed lamp). Look:
+   `?lightning=1`. TODO after re-check 2: PLAN flash timetable restated from t0 = EMP press (not track time), S6 uses it.
 Next: finish the mill redraw -> re-check -> SIGNOFF to the orchestrator; S1 report -> S1 + S3 checker -> PR.
