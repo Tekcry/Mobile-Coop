@@ -359,8 +359,10 @@ never change for a map; change the geometry.
 - Speeds and footstep noise: five speeds per stance on the stick (creep, sneak, walk, jog, run; no sprint), values in
   scale sheet section 1. Footsteps are silent on every surface at the crouched creep, sneak and walk and the standing
   creep and sneak (`NOISE_QUIET`, `src/config/movement.ts:273-276`); the surface only scales audible steps.
-- Doors: a door blocks light, sound and guard sight until it is open past `DOOR_SHUT` 0.05 of its swing
-  (`src/world/lightField.ts:29`); the peek crack (0.12) counts as closed. Guards push doors open as they walk through
+- Doors: a door blocks light until it is open past `DOOR_SHUT` 0.15 of its swing (`src/world/lightField.ts:34`, G41);
+  the peek crack and a stick-driven door under `DOOR.driveShut` 0.15 keep the swing at 0, shut to light, sound and
+  sight; an ordinary open drops the door's body at once, so guard sight and sound pass from its start (Guard AI, J15).
+  Guards push doors open as they walk through
   (`Doors.pushOpen`), and a door a guard opened shuts behind him (`DOOR.autoCloseTime`, `src/world/doors.ts:42`). The
   door menu (`src/game/doorMenu.ts`) offers open, stealth open, bash (loud; knocks out a guard right behind the leaf)
   and the optic cable.
@@ -377,7 +379,7 @@ never change for a map; change the geometry.
 ### 12.2 Decided, not built yet
 The design bible holds Michael's decided rules (`docs/design-bible.md` section 5): design new maps against them and
 re-confirm against the code when they land. Those that change a floor plan now:
-- Doors (G41): light, sound and sight pass past about 15% open (the code: 5%, 12.1); guards notice a door open that
+- Doors (G41): light, sound and sight pass past about 15% open (the code: light at 15%; on an ordinary open sight and sound pass from its start, 12.1); guards notice a door open that
   should be shut.
 - Corridor widths, crawl heights and aisles are re-measured on the CT camera before new floor plans (G54).
 - The human ladder reaches 4.5 m (G57; the code: 4.1 m, open item 1).
@@ -391,6 +393,8 @@ one, it leaves this list.
   check (`e2e-sectorops`, its control now fires from beside the guard). No map spec relies on everyone walking over.
 - Kestrel (paused, G53) and the Fallow bunker (parked) rely on the old speeds, camera and moves; they are re-checked if
   they resume (`docs/kestrel/00-facts.md`, `docs/archive/maps/`).
+- Doors (sector-batch, G41): the light cut `DOOR_SHUT` went from 0.05 to 0.15 of the swing (12.1). Map decisions that
+  relied on 0.05: none.
 
 ## 13. Required design deliverables (templates) [All]
 This section owns the per-map deliverables (the design bible points here). Phases 1 and 2 of every map produce them in

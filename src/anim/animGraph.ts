@@ -15,7 +15,7 @@
 import type { Proportions } from '../player/proportions';
 import { rollRide } from '../player/traversePath';
 import { overClip, addClip, type Clip } from './clip';
-import { evalCurve } from './curves';
+import { evalCurve, evalCurveIO } from './curves';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
 import { CROUCH_STEP, CROUCH_STEP_GUARD, GLIDE_SIDE, gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
@@ -40,22 +40,27 @@ import {
 } from './clips/locomotion';
 import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
 import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
-import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
+import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_CROUCH_K, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
-import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
+import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, KQ, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
 import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
 import { KEYED_IDLE } from './clips/keyed/idle';
+import { WREN_KEYED } from './mixamo'; // (mixamo-retarget I1) Wren's keyed idle
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
+import { STANCE_SHOT, WREN_STANCE } from './mixamo'; // (mixamo-retarget I3) Wren's stance shots
+import { CARRY_STRIKE_SHOT, WREN_CARRY, WREN_STRIKE } from './mixamo'; // (mixamo-retarget I5) Wren's carry and strike
+import { STRIKE_ARC_CONTACT } from './strikeBody'; // (mixamo-retarget I5) the arc's contact for the strike capture
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, WREN_HOLD, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, WREN_STAND, STAND_YAW, STAND_SLOW, STAND_YAW_CH, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -343,6 +348,9 @@ export interface RigTargets {
    *  pole out-share. The rig blends toward it after its procedural solve. */
   keyW: number;
   keyArmW: number;
+  /** (mixamo-retarget I5) A Mixamo strike capture's share of the keyed pose (0 none): the rig takes that share of its
+   *  hand-made strike body layer out (`strikeBody.ts` `strikeBodyAt`). */
+  strikeCap: number;
   keyed: KeyedPose;
   keyKneeOut: number;
   /** (anim-rework S2) The standing holstered weight (on foot, standing, free hands; not faded by turning or moving): the
@@ -404,6 +412,7 @@ export function emptyTargets(): RigTargets {
     kneeHand: 0,
     keyW: 0,
     keyArmW: 0,
+    strikeCap: 0,
     keyed: newKeyedPose(),
     keyKneeOut: KEYED_WALK.kneeOut,
     keyHol: 0,
@@ -687,6 +696,24 @@ export interface ClipSlot {
 }
 
 const SLOTS = 10;
+/** (mixamo-retarget I2 fix) Slots of `AnimGraph.mx`, the capture path's per-frame doubles. */
+const MX_DT = 0;
+const MX_T = 1;
+/** evalCurveIO's value (after MX_T, its time) */
+const MX_V = 2;
+const MX_W = 3;
+const MX_MOVE_W = 4;
+const MX_DIR = 5;
+const MX_IDLE_T = 6;
+const MX_SHIM_T = 7;
+/** (I2b) the held climb-up capture's weight (`WREN_HOLD`) */
+const MX_CW = 8;
+/** A fresh `mx` (the shimmy's direction starts centred). */
+function newMx(): Float64Array {
+  const m = new Float64Array(9);
+  m[MX_DIR] = 0.5;
+  return m;
+}
 
 export class AnimGraph {
   readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, wall: 0, traverse: 0 };
@@ -710,6 +737,18 @@ export class AnimGraph {
   readonly playing: GraphPlaying = newGraphPlaying();
   /** (mixamo-retarget M5) The traversal clip this frame's pose played (null: none), for `playing.trav`. */
   private travNow: Clip | null = null;
+  /** (mixamo-retarget I2) The traversal kind before the current climb-up ('hang' a lip, 'climb' a ladder). */
+  private travFrom: TraverseKind = 'none';
+  /** (I2) The hang: a lip's pendulum seen (a pipe hang's time stays 0). Its doubles are slots of `mx` (MX_*). */
+  private hangLip = false;
+  /**
+   * (I2 fix) The capture path's per-frame doubles: the frame's dt, a blend's clip time and weight (`mxOver`,
+   * `keepApply`: no double crosses a call), the shimmy's weight and direction (0 left .. 1 right), the hanging idle's and
+   * the shimmy's clocks (0..1). A typed array, not fields: AnimGraph's fields are all tagged (`@ Any` in %DebugPrint), so
+   * a double stored in a field can box a 16 B HeapNumber; the capture path stored up to ten a frame, the hand-made path
+   * none (`mixamoTrav` reads 0 B a frame: tests/mixamoTraverse.test.ts).
+   */
+  private readonly mx = newMx();
   /** Final pose (after inertialization) and the pre-inertialization source. */
   readonly pose: Pose = newPose();
   private src: Pose = newPose();
@@ -927,6 +966,38 @@ export class AnimGraph {
   private mPh = 0;
   private mCarry = false;
   private kCk = 0;
+  /** (mixamo-retarget I3) Wren's stance shot (WREN_STANCE, `stanceShot`): its direction (+1 down, -1 up, 0 none), the
+   *  direction it reversed from (fading out), last frame's crouch blend, the cross-fade into the new direction (0..1;
+   *  1 settled), this frame's crouch blend, weight and dt (fields: no boxed double arguments), and two scratch poses
+   *  (the direction's sample, the old direction's during a reversal). Named sn*: kSt / st* are the strafe's. */
+  private snDir = 0;
+  private snOld = 0;
+  private snPrev = 0;
+  private snFlip = 1;
+  private snK = 0;
+  private snW = 0;
+  private snDt = 0;
+  private readonly kSn = newKeyedPose();
+  private readonly kSn2 = newKeyedPose();
+  /** (mixamo-retarget I5) Wren's carry and strike captures (WREN_CARRY / WREN_STRIKE, `carryShot` / `strikeShot`): the
+   *  carry's eased share of the keyed weight and this frame's gate (the body's load), the carry idle's clock (s), the
+   *  strike capture's eased weight, this frame's gait phase and dt (fields: no boxed doubles), two scratch poses. */
+  private caS = 0;
+  private caOn = 0;
+  private caT = 0;
+  private skW = 0;
+  private caPh = 0;
+  private caDt = 0;
+  /** (I5) This frame's carry capture weight in the keyed pose; the strike's arc (`melee`), gate and free-hands share. */
+  private caW = 0;
+  /** (I5) `carryGate`'s inputs: the keyed target before the carry, the crouch blend. */
+  private caK = 0;
+  private caCk = 0;
+  private skArc = -1;
+  private skGate = 0;
+  private skFw = 0;
+  private readonly kCa = newKeyedPose();
+  private readonly kCa2 = newKeyedPose();
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
   /** (S5 round 2) The wall slide's pelvis twist cut this frame (WALL_KEYS.slideYawCut x the slide x the wall share). */
@@ -1259,9 +1330,23 @@ export class AnimGraph {
     if (i.traverse !== 'none') {
       // (ct-prototype D+E fix r1) a team climb-up (no ledge grips) keeps the old one-rise clip
       const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
-      this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
-      // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
-      overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
+      // (mixamo-retarget I2) Wren with a Mixamo capture in the slot plays it (`mixamo.ts`); else the hand-made clip
+      // (dt as a field: no boxed double argument)
+      if (WREN_TRAV.any) this.mx[MX_DT] = dt;
+      const cap = WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc);
+      if (!cap) {
+        this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
+        // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
+        overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
+      }
+      // (I2 fix) a capture giving way to a hand-made clip (or the reverse) inside the traverse state is a source switch
+      // the state change does not see (the still hang's capture to the hand-made climb-up jumped fLPitch 0.73 rad and the
+      // ankle 31 cm in a frame): inertialized as a state change is. Flag off no capture ever plays: no trigger, as before
+      // (I2b) and one capture giving way to another across a move change (the ladder capture to the top-out capture
+      // jumped a joint 23.5 cm on the first frame, hand-made 15.7); within a move (the hang's idle / shimmy blend) no trigger
+      if (cap !== this.mxLast || (cap && i.traverse !== this.mxKind)) trigger = true;
+      this.mxLast = cap;
+      this.mxKind = i.traverse;
       this.slot(i.traverse, 1, i.traverseT);
       if (i.traverse === 'mantle') {
         // (anim-n4b, PASS2 row 61) the hands plant on the top edge (`mantlePlant`, put over the hanging hands below) and
@@ -1288,8 +1373,18 @@ export class AnimGraph {
       }
       // (3.2.0) a sidearm aimed one-handed from a split / hanging inverted: the weapon hand takes the grip
       if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
-    }
+    } else this.mxLast = false;
     if (i.traverse !== 'split') this.splitT = 0;
+    // (mixamo-retarget I2) the kind a climb-up started from (a lip hang, a ladder) and the hang's clocks: read only by
+    // `mixamoTrav`, so the hand-made path is unchanged
+    if (i.traverse !== 'climbUp') this.travFrom = i.traverse;
+    if (i.traverse !== 'hang') {
+      this.hangLip = false;
+      this.mx[MX_MOVE_W] = 0;
+      this.mx[MX_DIR] = 0.5;
+      this.mx[MX_IDLE_T] = 0;
+      this.mx[MX_SHIM_T] = 0;
+    }
     this.airT = i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
     // (anim-n4b fix) a fall straight out of a wall-front hold (a ladder, a drainpipe, a hang, ...) keeps the legs under the
     // body; a fall from anything else (a walk off a ledge, a jump) leads with them ('drop' keeps it: the vent drop's lower
@@ -1937,7 +2032,16 @@ export class AnimGraph {
       // (anim-rework S5) back to a wall: the wall keyed set (wallKeyed.ts), holstered (free hands) on foot and not
       // aiming; a drawn weapon keeps the procedural wall pose (WALL_READY, the edge lean-outs)
       const kWl = i.wall && i.grounded && i.traverse === 'none' ? wallW * fw * (1 - this.raiseS) : 0;
-      const kT = kH + kDr + kWl;
+      let kT = kH + kDr + kWl;
+      // (mixamo-retarget I5) Wren carrying a body with a carry capture: the keyed set on by the body's load on the shoulder
+      // (the hoist eases it in, the put down's hand-over out), standing (a crouch keeps the hand-made carry); without one
+      // (the flag off) none of this runs
+      if (WREN_CARRY.any && this.wrenReady) {
+        this.caK = kT;
+        this.caCk = crouchK;
+        this.caDt = dt;
+        kT = this.carryGate(i);
+      } else this.caOn = this.caS = 0;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
       if (kT > 1e-4) this.keyDS = approach(this.keyDS, kDr / kT, B.tau, dt);
@@ -1964,12 +2068,34 @@ export class AnimGraph {
         this.crouchSet(ph, this.cPace, this.cIdleS, this.kCr, mcC);
       }
       this.keyedSet(ph, this.mOn ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
+      // (mixamo-retarget I3) Wren's stance shot over the standing / crouched pose by the still share (moving keeps the
+      // hand-made blend), less the drawn and wall shares; both shots null (the flag off): skipped, byte-identical
+      if (this.wrenReady && (WREN_STANCE.down !== null || WREN_STANCE.up !== null)) {
+        this.snK = crouchK;
+        this.snDt = dt;
+        this.snW = o.keyW > 0 && loco + still > 1e-4 ? (still / (loco + still)) * (1 - dS) * (1 - this.keyWallS) : 0;
+        this.stanceShot(o);
+      }
+      // (mixamo-retarget I5) Wren's carry and strike captures over the keyed pose (both null with the flag off: skipped)
+      o.strikeCap = 0;
+      this.caW = 0;
+      if (this.wrenReady && (this.caS > 0 || this.skW > 0 || WREN_CARRY.any || WREN_STRIKE.clip !== null)) {
+        this.caPh = ph;
+        this.caDt = dt;
+        this.skArc = i.melee;
+        this.skGate = (1 - this.kCk) * (1 - dS) * (1 - this.keyWallS);
+        this.skFw = fw;
+        this.mixamoShots(o);
+      }
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
       // (anim-rework S4) the crouched clips' height is the crouch's whole depth: by the crouched share it replaces the
       // procedural one (the rig adds the keyed height to the pose's)
       if (this.kCk > 0) o.keyed.pel[1] = o.keyed.pel[1]! - this.kCk * pose[CH.pelY]!;
+      // (mixamo-retarget I5) the carry capture's height (its own carry crouch) replaces the procedural carry's (the bend's
+      // drop, the step dip) by its share, as the crouched clips' does
+      if (this.caW > 0) o.keyed.pel[1] = o.keyed.pel[1]! - this.caW * pose[CH.pelY]!;
       // (anim-rework S4) the squat's hands on the knees: its share of the keyed arms
       o.kneeRest = this.kCk > 0 ? o.keyArmW * this.kCk * this.cIdle : 0;
       if (o.keyW > 0 && this.keyWallS > 1e-4) this.keyedWallSet(ph, this.keyWallS, crouchK, Math.abs(bd) / WALL_KEYS.peekLean, pose, o);
@@ -2144,7 +2270,11 @@ export class AnimGraph {
     let kneeOut = this.sKneeOut;
     this.kDuty = this.sDuty;
     this.kLift = this.sLift;
-    if (needIdle) sampleKeyed(KEYED_IDLE, this.idleT / KEYED_IDLE_PERIOD, 1, this.kB);
+    // (mixamo-retarget I1) the idle: a Wren rig's from WREN_KEYED (the hand-made KEYED_IDLE over 12 s, or with ?mixamo=1
+    // the Mixamo standing idle over its 6 s), every other rig's the hand-made one (HAND_IDLE: an unarmed rig walking along
+    // its facing reaches this set too); read by reference, so off it is the same clip and period as before
+    const KI = this.wrenReady ? WREN_KEYED : HAND_IDLE;
+    if (needIdle) sampleKeyed(KI.idle, this.idleT / KI.idlePeriod, 1, this.kB);
     // the idle's scan: the keyed neck's yaw in the body frame (the sum of the chain's local yaws), by the idle's share
     let scan = 0;
     if (needIdle) for (let s = 0; s < 16; s += 4) scan += 2 * Math.atan2(this.kB.q[s + 1]!, this.kB.q[s + 3]!);
@@ -2152,8 +2282,8 @@ export class AnimGraph {
     if (needLoco && needIdle) mixKeyed(this.kA, this.kB, idleShare, o.keyed);
     else if (needLoco) mixKeyed(this.kA, this.kA, 0, o.keyed);
     else if (needIdle) mixKeyed(this.kB, this.kB, 0, o.keyed);
-    half += (KEYED_IDLE.half - half) * idleShare;
-    kneeOut += (KEYED_IDLE.kneeOut - kneeOut) * idleShare;
+    half += (KI.idle.half - half) * idleShare;
+    kneeOut += (KI.idle.kneeOut - kneeOut) * idleShare;
     // (mocap-trial) the mocap set's share of this standing pose (its gait), then its filled slots over it (start, stop, turn)
     let share = this.mOn && needLoco ? 1 - idleShare : 0;
     if (this.mSl && o.keyW > 0) {
@@ -2184,6 +2314,168 @@ export class AnimGraph {
     }
     this.kHalf = half;
     o.keyKneeOut = kneeOut;
+  }
+
+  /**
+   * (mixamo-retarget I3, PLAN "I3") Wren's stance shot (WREN_STANCE: the Mixamo stand-to-crouch / crouch-to-stand) over
+   * this frame's keyed pose, played BY PROGRESS on the game's stance blend: going down at the crouch blend (`snK`), going
+   * up at one less it, so the whole take spans the controller's own crouch / stand time and the stance is never faster
+   * or slower than without it. Its weight: `snW` (the still share less the drawn and wall shares) by the edge fades
+   * (STANCE_SHOT.edge: 0 at a settled stance, so standing and crouched are the hand-made sets exactly), less a kneel. A
+   * reversal mid-change cross-fades the old direction's shot into the new over STANCE_SHOT.flip s. The pelvis height
+   * stays the blend's (the take crouches to its own 47 / 54 cm, not the game's crouch height); the rest (pelvis x / z,
+   * trunk, neck, head, arms) comes from the shot by the weight. No allocation.
+   */
+  private stanceShot(o: RigTargets): void {
+    const k = this.snK;
+    let dir = this.snDir;
+    if (k > this.snPrev + 1e-6) dir = 1;
+    else if (k < this.snPrev - 1e-6) dir = -1;
+    if (k <= 0 || k >= 1) dir = 0;
+    if (dir !== this.snDir) {
+      // a reversal mid-change fades the old direction's shot out; a start from a settled stance has none to fade
+      if (dir !== 0 && this.snDir !== 0) {
+        this.snOld = this.snDir;
+        this.snFlip = 0;
+      } else this.snFlip = 1;
+      this.snDir = dir;
+    }
+    this.snPrev = k;
+    const flip = this.snFlip;
+    if (flip < 1) this.snFlip = Math.min(1, flip + this.snDt / STANCE_SHOT.flip);
+    if (dir === 0) return;
+    const S = WREN_STANCE;
+    const cNew = dir > 0 ? S.down : S.up;
+    const cOld = flip < 1 ? (this.snOld > 0 ? S.down : S.up) : null;
+    // the edge fades and the kneel (smoothsteps written out: no call with double arguments)
+    const e = k < 1 - k ? k : 1 - k;
+    const t = e >= STANCE_SHOT.edge ? 1 : e / STANCE_SHOT.edge;
+    const kn = this.kneelW;
+    let w = t * t * (3 - 2 * t) * this.snW * (1 - kn * kn * (3 - 2 * kn));
+    if (cNew === null) w *= cOld === null ? 0 : 1 - flip;
+    else if (cOld === null) w *= flip;
+    if (w <= 1e-4) return;
+    // progress p onto a one-shot's frames: p 1 is its last frame (sampleKeyed wraps phase 1 to the first frame)
+    const pNew = dir > 0 ? k : 1 - k;
+    if (cNew !== null) sampleKeyed(cNew, (pNew * (cNew.frames - 1)) / cNew.frames, 1, this.kSn);
+    if (cOld !== null) {
+      const pOld = this.snOld > 0 ? k : 1 - k;
+      sampleKeyed(cOld, (pOld * (cOld.frames - 1)) / cOld.frames, 1, cNew !== null ? this.kSn2 : this.kSn);
+      if (cNew !== null) mixKeyed(this.kSn2, this.kSn, flip, this.kSn);
+    }
+    // (the takes key the pelvis, trunk, arms and head only: the forearm twists, shoulders, clavicles, fingers and edits
+    // stay the blend's, `edits` false)
+    const pelY = o.keyed.pel[1]!;
+    mixKeyed(o.keyed, this.kSn, w, o.keyed, false);
+    o.keyed.pel[1] = pelY;
+  }
+
+  /**
+   * (mixamo-retarget I5, PLAN "Clip map" row 12) Wren's body carry capture (WREN_CARRY) over this frame's keyed pose by
+   * the carry's share of the keyed weight (`caS`): the carry walk on the gait phase (`caPh`, left strike 0, as the planner
+   * steps) by the moving share, the carry idle on its own 10 s clock standing. The trunk, head, arms and the pelvis height
+   * are the take's (the height replaces the procedural carry's: `caW`); the pelvis placement across and along (x, z)
+   * stays the keyed set's: the walk take's pelvis drifts up to 69 cm behind its feet over a half cycle (its root path), so
+   * the planner's feet keep the body over them. The legs and feet stay the planner's; the hands stay on the carried body
+   * (the rig's reach, as before). No allocation.
+   */
+  /** (I5) Both shots, fields set by the caller (their own methods: the update stays inside V8's inlining budget). */
+  private mixamoShots(o: RigTargets): void {
+    if (this.caS > 0 || WREN_CARRY.any) this.carryShot(o);
+    if (WREN_STRIKE.clip !== null || this.skW > 0) {
+      this.skGate *= 1 - this.caS;
+      this.strikeShot(o);
+    }
+  }
+
+  /** (I5) The carry's keyed gate: the keyed target `caK` with the body's load added (standing: `caCk` the crouch blend),
+   *  and the carry's eased share of it (`caS`, over `caDt`). */
+  private carryGate(i: AnimInput): number {
+    const ld = i.cqCarry < 0 ? -i.cqCarry : i.cqCarry;
+    this.caOn = i.cqBody && i.grounded && i.traverse === 'none' && !i.wall ? (ld > 1 ? 1 : ld) * (1 - this.caCk) : 0;
+    const kT = this.caK + this.caOn;
+    // (approach written out: no boxed double arguments)
+    if (kT > 1e-4) {
+      const cT = this.caOn / kT;
+      this.caS = cT + (this.caS - cT) * Math.exp(-this.caDt / KEYED_WALK_BAND.tau);
+    }
+    return kT;
+  }
+
+  private carryShot(o: RigTargets): void {
+    const C = WREN_CARRY;
+    const w = o.keyW > 0 ? this.caS : 0;
+    if (C.idle !== null) {
+      this.caT += this.caDt;
+      if (this.caT >= C.idlePeriod) this.caT -= C.idlePeriod;
+    }
+    if (w <= 1e-4 || !C.any) return;
+    const mv = this.moveW;
+    const walk = C.walk !== null && (mv > 1e-4 || C.idle === null);
+    const idle = C.idle !== null && mv < 1 - 1e-4;
+    if (walk) sampleKeyed(C.walk!, this.caPh, 1, this.kCa);
+    if (idle) sampleKeyed(C.idle!, this.caT / C.idlePeriod, 1, walk ? this.kCa2 : this.kCa);
+    if (walk && idle) mixKeyed(this.kCa, this.kCa2, 1 - mv, this.kCa);
+    // a row off: the other capture over its own share only (the keyed set keeps the rest)
+    const ww = w * (C.walk === null ? 1 - mv : C.idle === null ? mv : 1);
+    if (ww <= 1e-4) return;
+    const px = o.keyed.pel[0]!;
+    const pz = o.keyed.pel[2]!;
+    mixKeyed(o.keyed, this.kCa, ww, o.keyed, false);
+    o.keyed.pel[0] = px;
+    o.keyed.pel[2] = pz;
+    this.caW = ww;
+  }
+
+  /**
+   * (mixamo-retarget I5, PLAN "Clip map" row 14) Wren's strike capture (WREN_STRIKE: the elbow strike, or the cross
+   * punch) over this frame's keyed pose while the arc plays (`skArc` = `melee`: the knockout strike and the kill blows, on
+   * their own timing, `strikeWarp` / `killWarp`): the take's progress follows the arc with its contact frame on the arc's
+   * contact (`STRIKE_ARC_CONTACT`, the hit), linear either side, so the take is fitted to the game's strike and never
+   * changes it. Weight: eased in / out (CARRY_STRIKE_SHOT) by `skGate` (standing, holstered, off a wall, not carrying).
+   * The take's spine, chest, head, arms and pelvis height (the pelvis turn and x / z stay the keyed set's); its share of
+   * the arms (`keyArmW`, which the hand-made arc leaves at 0 in a strike) and of the body (`strikeCap`: the rig takes
+   * that share of its hand-made shoulder line and neck turn out, keeping its hips). The legs and feet stay the planner's.
+   * No allocation.
+   */
+  private strikeShot(o: RigTargets): void {
+    const S = WREN_STRIKE;
+    const arc = this.skArc;
+    const on = arc >= 0 && S.clip !== null;
+    const tau = on ? CARRY_STRIKE_SHOT.strikeIn : CARRY_STRIKE_SHOT.strikeOut;
+    this.skW += ((on ? 1 : 0) - this.skW) * (1 - Math.exp(-this.caDt / tau));
+    if (!on && this.skW < 1e-4) this.skW = 0;
+    if (S.clip === null || o.keyW <= 0) return;
+    const w = this.skW * this.skGate;
+    if (w <= 1e-4) return;
+    // the arc onto the take: 0 -> its first frame, the arc's contact -> its contact, 1 -> its last; after the arc (easing
+    // out) the last frame
+    const a = arc < 0 ? 1 : arc > 1 ? 1 : arc;
+    const Cc = STRIKE_ARC_CONTACT;
+    const pc = S.contact;
+    const p = a <= Cc ? (pc * a) / Cc : pc + ((1 - pc) * (a - Cc)) / (1 - Cc);
+    const c = S.clip;
+    sampleKeyed(c, (p * (c.frames - 1)) / c.frames, 1, this.kCa);
+    // the pelvis turn and placement stay the keyed set's (the hand-made strike's hip turn goes on in the rig): the takes
+    // spin the hips 92 / 55 deg over the planted feet (the knees twisted across); the take's spine, chest, neck and arms
+    // (chest frame) ride on the hand-made hips
+    const K = o.keyed;
+    const px = K.pel[0]!;
+    const pz = K.pel[2]!;
+    const q0 = K.q[KQ.pelvis]!;
+    const q1 = K.q[KQ.pelvis + 1]!;
+    const q2 = K.q[KQ.pelvis + 2]!;
+    const q3 = K.q[KQ.pelvis + 3]!;
+    mixKeyed(K, this.kCa, w, K, false);
+    K.pel[0] = px;
+    K.pel[2] = pz;
+    K.q[KQ.pelvis] = q0;
+    K.q[KQ.pelvis + 1] = q1;
+    K.q[KQ.pelvis + 2] = q2;
+    K.q[KQ.pelvis + 3] = q3;
+    o.strikeCap = w;
+    const arm = o.keyW * this.skFw * w;
+    if (arm > o.keyArmW) o.keyArmW = arm;
   }
 
   /**
@@ -2885,6 +3177,191 @@ export class AnimGraph {
     this.mPh = o.gait.phase;
   }
 
+  /**
+   * (mixamo-retarget I2) A Wren traversal frame from the resolved Mixamo table (`WREN_TRAV`, `mixamo.ts`): plays the
+   * slot's capture (a null slot: its hand-made clip), sets `travNow` and returns true; false when every slot this kind
+   * uses is hand-made (the caller plays `tc` as before). The channels `MIXAMO_KEEP` names for the move stay the hand-made
+   * clip's (where the body sits against the grips). Allocation-free: no double crosses a call (a call the graph does not
+   * inline boxes each double argument, 16 B a frame) and none is stored in a field (a field store boxes one too): the
+   * frame's dt, every blend's time and weight (`mxOver`, `keepApply`) and the hang's clocks are slots of the typed `mx`.
+   * - hang: the hanging idle on its own clock, the shimmy left / right over it by the pace along the lip (the direction
+   *   from the pendulum: the hips trail the hands, so a swing to the left is a shimmy to the right); a pipe hang (no
+   *   pendulum) keeps the hand-made clip when moving.
+   * - ladder / vent crawl: the capture on the hand cadence.
+   * - a lip climb-up: the climb to the crouch, then the stand-up end faded in past `CLIMB_UP_CROUCH_K`; a ladder's
+   *   top-out: its capture on the same progress. A drainpipe's or a team climb-up stays hand-made.
+   */
+  private mixamoTrav(src: Pose, i: AnimInput, tc: Clip): boolean {
+    const W = WREN_TRAV;
+    const t = i.traverseT;
+    const mx = this.mx;
+    const dt = mx[MX_DT]!;
+    if (i.traverse === 'hang') {
+      if (W.hangIdle === null && W.shimmyL === null && W.shimmyR === null) return false;
+      const swing = t - Math.floor(t);
+      if (t !== 0) this.hangLip = true;
+      const S = SHIMMY_SPEED;
+      const k = this.p.height / 1.75;
+      const idleT = (mx[MX_IDLE_T]! + dt / HANG_IDLE_SECONDS) % 1;
+      const shimT = (mx[MX_SHIM_T]! + (i.speed * dt) / (SHIMMY_TRAVEL * k)) % 1;
+      mx[MX_IDLE_T] = idleT;
+      mx[MX_SHIM_T] = shimT;
+      const moving = i.speed > S.on;
+      const mv = (moving ? 1 : 0) + (mx[MX_MOVE_W]! - (moving ? 1 : 0)) * Math.exp(-dt / S.fade);
+      mx[MX_MOVE_W] = mv;
+      if (this.hangLip && moving && (t < 0 ? -t : t) > S.swing) mx[MX_DIR] = (t < 0 ? 1 : 0) + (mx[MX_DIR]! - (t < 0 ? 1 : 0)) * Math.exp(-dt / S.dirFade);
+      const r = mx[MX_DIR]!;
+      const sl = this.hangLip ? W.shimmyL : null;
+      const sr = this.hangLip ? W.shimmyR : null;
+      const keep = KEEP_CH.hang;
+      this.keepSave(src, keep);
+      // the idle, then left and right over it (sequential blends: their shares come out mv x (1 - r) and mv x r); a
+      // capture at full weight covers the ones under it (every capture keys the same channels), so those are skipped
+      const b = mv * r;
+      const a = b < 1 ? (mv - b) / (1 - b) : 0;
+      const full = (b >= 1 && sr !== null) || (a >= 1 && b <= 0 && sl !== null);
+      mx[MX_W] = 1;
+      if (!full) {
+        mx[MX_T] = W.hangIdle ? idleT : swing;
+        this.mxOver(src, W.hangIdle ?? HANG);
+      }
+      if (a > 0 && b < 1) {
+        mx[MX_W] = a;
+        mx[MX_T] = sl ? shimT : swing;
+        this.mxOver(src, sl ?? HANG);
+      }
+      if (b > 0) {
+        mx[MX_W] = b;
+        mx[MX_T] = sr ? shimT : swing;
+        this.mxOver(src, sr ?? HANG);
+      }
+      mx[MX_T] = swing;
+      this.keepApply(src, keep, HANG);
+      this.travNow = (mv < 0.5 ? W.hangIdle : r < 0.5 ? sl : sr) ?? tc;
+      return true;
+    }
+    if (i.traverse === 'climb' || i.traverse === 'crawl') {
+      const ladder = i.traverse === 'climb';
+      const c = ladder ? W.ladder : W.crawl;
+      if (c === null) return false;
+      const keep = ladder ? KEEP_CH.climb : KEEP_CH.crawl;
+      this.keepSave(src, keep);
+      mx[MX_T] = t - Math.floor(t);
+      mx[MX_W] = 1;
+      this.mxOver(src, c);
+      this.keepApply(src, keep, tc);
+      this.travNow = c;
+      return true;
+    }
+    if (i.traverse !== 'climbUp' || !i.ledgeClimb) return false;
+    // (clamp written out: no double argument)
+    const ct = t < 0 ? 0 : t > 1 ? 1 : t;
+    mx[MX_T] = ct;
+    mx[MX_W] = 1;
+    if (this.travFrom === 'climb') {
+      if (W.ladderTop === null) return false;
+      this.keepSave(src, KEEP_CH.topOut);
+      this.mxOver(src, W.ladderTop);
+      this.keepApply(src, KEEP_CH.topOut, CLIMB_UP);
+      this.travNow = W.ladderTop;
+      return true;
+    }
+    if (this.travFrom !== 'hang') return false;
+    const ca = W.climbUpCrouch ?? CLIMB_UP;
+    const cb = W.climbUpStand ?? CLIMB_UP;
+    if (ca === CLIMB_UP && cb === CLIMB_UP) return false;
+    this.keepSave(src, KEEP_CH.climbUp);
+    // (I2b) a capture with a hold (`WREN_HOLD`, the braced take): the hand-made climb-up under it while the hands hold
+    // the lip, the capture blended in as the grips let go (smoothstep written out: no double argument)
+    // (the feet stay the hand-made climb-up's to the crouch: `HOLD_FEET_CH`; every hold value read from the typed
+    // `WREN_HOLD` and the capture's weight kept in `mx[MX_CW]`: no double boxed)
+    const H = WREN_HOLD;
+    const k0 = H[HOLD_K0]!;
+    const hold = k0 >= 0 && ca !== CLIMB_UP;
+    mx[MX_CW] = 1;
+    if (hold) {
+      this.mxOver(src, CLIMB_UP);
+      for (let j = 0; j < HOLD_FEET_CH.length; j++) this.holdBase[j] = src[HOLD_FEET_CH[j]!]!;
+      const v = (ct - k0) / H[HOLD_SPAN]!;
+      mx[MX_CW] = v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v);
+      mx[MX_W] = mx[MX_CW]!;
+      // the take's end eased to a stop at the crouch over `ease` of k (its last ease / 2 not reached; the take is cut
+      // mid-move at the crouch)
+      const C = CLIMB_UP_CROUCH_K;
+      const from = H[HOLD_FROM]!;
+      // (each branch a store of its own: a phi of the typed reads and the module constant boxed one double a frame)
+      if (ct <= k0) mx[MX_T] = from;
+      else if (ct >= C) mx[MX_T] = C;
+      else mx[MX_T] = from + ((ct - k0) * (C - from)) / (C - k0);
+      const e = H[HOLD_EASE]!;
+      const r = C - mx[MX_T]!;
+      if (e > 0 && r < e) mx[MX_T] = C - e / 2 - (r * r) / (2 * e);
+    }
+    this.mxOver(src, ca);
+    mx[MX_T] = ct;
+    if (hold) for (let j = 0; j < HOLD_FEET_CH.length; j++) src[HOLD_FEET_CH[j]!] = this.holdBase[j]!;
+    // (smoothstep written out: no double argument)
+    // (the hold's stand fade; `STAND_FADE` there without a hold: resolveMixamo)
+    const u = (ct - CLIMB_UP_CROUCH_K) / H[HOLD_STAND]!;
+    const sw = cb === ca || u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+    if (sw > 0) {
+      mx[MX_W] = sw;
+      if (cb === CLIMB_UP) this.mxOver(src, cb);
+      else {
+        // (I2b) a stand-up capture (`WREN_STAND`, typed): its clock slowed through the middle of the stand-up and quicker
+        // at its ends (x + slow sin(2 pi x) / 2 pi over the crouch to the end: the same take, start and end), and its yaw
+        // turn kept at `yaw` of its own over the hand-made climb-up's
+        const S = WREN_STAND;
+        const YC = STAND_YAW_CH;
+        for (let j = 0; j < YC.length; j++) this.standBase[j] = src[YC[j]!]!;
+        const x = (ct - CLIMB_UP_CROUCH_K) / (1 - CLIMB_UP_CROUCH_K);
+        mx[MX_T] = CLIMB_UP_CROUCH_K + (1 - CLIMB_UP_CROUCH_K) * (x + (S[STAND_SLOW]! * Math.sin(2 * Math.PI * x)) / (2 * Math.PI));
+        this.mxOver(src, cb);
+        mx[MX_T] = ct;
+        for (let j = 0; j < YC.length; j++) src[YC[j]!] = this.standBase[j]! + S[STAND_YAW]! * (src[YC[j]!]! - this.standBase[j]!);
+      }
+    }
+    this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP);
+    this.travNow = sw > 0.5 ? cb : mx[MX_CW]! > 0.5 ? ca : CLIMB_UP;
+    return true;
+  }
+
+  /** (I2 fix) Last frame's traversal played a capture (a switch to or from the hand-made clip is inertialized). */
+  private mxLast = false;
+  /** (I2b) The traversal kind last frame's capture played in (a capture to capture switch across kinds is inertialized). */
+  private mxKind: TraverseKind = 'none';
+  /** (I2) `overClip(src, c, mx[MX_T], mx[MX_W])` with its time and weight read from `mx`. */
+  private mxOver(src: Pose, c: Clip): void {
+    const mx = this.mx;
+    const w = mx[MX_W]!;
+    if (w === 0) return;
+    for (let k = 0; k < c.keyed.length; k++) {
+      const ch = c.keyed[k]!;
+      evalCurveIO(c.curves[ch]!, mx, MX_T);
+      src[ch] = src[ch]! + w * (mx[MX_V]! - src[ch]!);
+    }
+  }
+
+  /** (I2b) The hand-made climb-up's feet under a held capture (`HOLD_FEET_CH`). */
+  private readonly holdBase = new Float64Array(8);
+  /** (I2b) The yaw channels under the stand-up capture (`STAND_YAW_CH`). */
+  private readonly standBase = new Float64Array(2);
+  /** (I2) The kept channels' values before the capture (the base pose under a channel the hand-made clip does not key). */
+  private readonly keepBase = new Float64Array(64);
+  private keepSave(src: Pose, keep: readonly number[]): void {
+    for (let j = 0; j < keep.length; j++) this.keepBase[j] = src[keep[j]!]!;
+  }
+  /** (I2) The kept channels back to the hand-made clip `hand` at `mx[MX_T]` (as the hand-made path would have set them). */
+  private keepApply(src: Pose, keep: readonly number[], hand: Clip): void {
+    const mx = this.mx;
+    for (let j = 0; j < keep.length; j++) {
+      const ch = keep[j]!;
+      const cv = hand.curves[ch];
+      if (cv) evalCurveIO(cv, mx, MX_T);
+      src[ch] = cv ? mx[MX_V]! : this.keepBase[j]!;
+    }
+  }
+
   /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
   private readyLow: ReadyPose = READY_POSES.low;
   private readyPistol: ReadyPose = PISTOL_READY;
@@ -2972,6 +3449,8 @@ export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.5, t
 export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8, runTo: 4.2, sprintFrom: 5.0 } as const;
 /** (anim-rework S2) The keyed idle's cycle (s): three slow breaths, a weight shift each way and a head scan each way. */
 export const KEYED_IDLE_PERIOD = 12;
+/** (mixamo-retarget I1) The hand-made idle and its cycle, as `WREN_KEYED` holds them off: every rig but Wren's. */
+const HAND_IDLE: { readonly idle: KeyedClip; readonly idlePeriod: number } = { idle: KEYED_IDLE, idlePeriod: KEYED_IDLE_PERIOD };
 /**
  * (anim-rework S4, BRIEF 3 "Stealth") The crouched keyed set (S4-KEYS.md), on the crouched effort pace (GAIT_REF.crouch
  * units, `effortSpeed` crouched): the sneak alone up to `sneakTo` (0.7: ~1.1 m/s), cross-faded into the crouch walk by

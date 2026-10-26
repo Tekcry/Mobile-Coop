@@ -71,7 +71,7 @@ Working notes, reports, plans: C:/NightShift/scratch/campaign/ (checker reports 
 5. J3b PR B: branch feature/hud-guidance-b (cut from b28293c1); B1 popup builder (Opus) on feature/hud-guidance-b1
    (worktree -hud-guidance-b1, WIP 9ad0b4f4; brief scratch/campaign/hg-b1-brief.md, report hg-b1-report.md). Next
    B2 (Sonnet) parallel with B1; B3 / B4 / B5 Opus (src/net, two checkers); merge order B1 -> B3 -> B4. Forward-merge
-   PR A fix rounds into B. Plan: docs/hud-guidance/PLAN.md (plan check PASS after two fix rounds).
+   PR A fix rounds into B. Plan: docs/archive/hud-guidance/PLAN.md (plan check PASS after two fix rounds).
 6. J7 (mission rules): BRIEF docs/mission-rules/BRIEF.md, PLAN docs/missions/slices/J7-PLAN.md on the engine
    branch (08c9e094). Lead ruling: a Teale KO / kill before he talks = protected section restart (G353), not a rule
    break, he stays at his table; only a rule break moves him (signed TGC page). Fresh plan re-check running (report
@@ -102,7 +102,7 @@ J23 Tallow design docs, TW23 (SPEC onto the template), J25 / J26 later.
    C:/NightShift/Mobile-Coop-mission-engine = feature/mission-engine + FLG + GB6 merges, head f8b06637).
 4. Laptop: set mission-flg-gb6 on c74ce8f5 (wharf-tgc, wharf-tkl, sectorops:mission), first GB6 run.
 5. Plans running / written to C:/NightShift/scratch/campaign/: J7-PLAN.md, J8-J9-PLAN.md; hud-guidance plan on
-   feature/hud-guidance (C:/NightShift/Mobile-Coop-hud-guidance, npm ci done): docs/hud-guidance/{BRIEF,PLAN,STATE}.md.
+   feature/hud-guidance (C:/NightShift/Mobile-Coop-hud-guidance, npm ci done): docs/archive/hud-guidance/{BRIEF,PLAN,STATE}.md.
    Each needs an Opus plan checker, then builders in parallel.
 6. Known gaps: mission-validator (origin/feature/mission-validator) still requires an optional reward (now fails TGC /
    TKL graphs: J12 with Marlow); engine code still has oneChance / window, blips, rewards (J7).

@@ -10,6 +10,7 @@
 import type { KeyedClip } from './keyed';
 import type { BodyGroup } from './tune';
 import { stickMagFor } from '../player/speedGears';
+import { MIXAMO_ON } from './mixamo'; // (mixamo-retarget I2) the capture loops' tune text
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -43,7 +44,7 @@ import { wrap01 } from './studioDrive';
 import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
-import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
+import { travCycle, travEntry, TRAV_ENTRIES, type TravEntry, type TravStep } from './studioTraversal';
 import { MOCAP_SOURCE_NAMES, MOCAP_SOURCE_WORD, mocapSource, type MocapSource } from './mocapSources';
 
 /** The studio map's id (`world/maps/studio.ts`; `?autostart=studio`). */
@@ -237,10 +238,23 @@ function captureLabel(name: string, r: MocapSource): string {
 }
 
 /**
+ * (mixamo-retarget I2) A traversal capture's own act on its prop where the prop's loop would hide it (the stick in the
+ * camera frame, as `TravStep`): the hanging idle hangs still for its whole 4.7 s cycle, each shimmy goes its own way
+ * along the lip, the free-hang climb holds the stick at the crouch so it stands up (the climb's stand-up end).
+ */
+const CAPTURE_STEPS: Readonly<Record<string, readonly TravStep[]>> = {
+  hanging_idle: [{ dur: 0.3, press: 'jump' }, { dur: 5.0 }, { dur: 1.8, press: 'jump' }, { dur: 0.6 }],
+  braced_hang_shimmy_left: [{ dur: 0.3, press: 'jump' }, { dur: 0.6 }, { dur: 2.4, x: -1 }, { dur: 0.4 }, { dur: 1.8, press: 'jump' }, { dur: 0.6 }],
+  braced_hang_shimmy_right: [{ dur: 0.3, press: 'jump' }, { dur: 0.6 }, { dur: 2.4, x: 1 }, { dur: 0.4 }, { dur: 1.8, press: 'jump' }, { dur: 0.6 }],
+  freehang_climb: [{ dur: 0.3, press: 'jump' }, { dur: 1.0 }, { dur: 0.5, press: 'jump' }, { dur: 1.3, y: 1 }, { dur: 0.6 }],
+};
+
+/**
  * (M5) The loop list's "motion capture" group: one loop per source row (table order: CMU, then Mixamo) whose clip is
  * found. A keyed capture through `keyed()` (in place on the treadmill at its own pace: its stride over its cycle), a
  * channel capture as its prop's traversal loop under its own id (`trav:<loop>/<slug>`): the game's traversal plays it
- * there (the hand-made clip until I2 switches the capture on: the mixamo switch, `?mixamo=1`).
+ * there. (I2) Choosing the loop picks its capture (`studioStage.ts` -> `mixamoStudioEntry`): it plays in its slot on
+ * the Studio's Wren whatever the `?mixamo` flag says; leaving the loop or the Studio clears the pick.
  */
 function captureEntries(): StudioEntry[] {
   const out: StudioEntry[] = [];
@@ -257,11 +271,14 @@ function captureEntries(): StudioEntry[] {
     } else {
       const b = travEntry(st.loop);
       if (!b) continue;
+      const slug = name.replace(/^mocap_/, '');
       const t: TravEntry = {
         ...b,
-        id: `${b.id}/${name.replace(/^mocap_/, '')}`,
+        id: `${b.id}/${slug}`,
         label: `${captureLabel(name, r)} (${b.label.replace(/^traversal: /, '')})`,
-        tune: `${b.tune}. The capture plays with the mixamo switch on (?mixamo=1), else the hand-made clip`,
+        steps: CAPTURE_STEPS[slug] ?? b.steps,
+        // (I2) a capture MIXAMO_ON keeps out of matches says so (its anchor misses: docs/mixamo-retarget/I2-REPORT.md)
+        tune: `${b.tune}. Here this capture plays in its part of the move (the rest as in a match); ${MIXAMO_ON[slug] ? 'in a match the captures play with ?mixamo=1' : 'in a match this one stays hand-made even with ?mixamo=1 (it misses its holds or pops; I2-REPORT)'}`,
       };
       out.push(travel(t));
     }

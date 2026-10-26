@@ -19,16 +19,7 @@ import type { ArtTag } from '../campusArt/artTags';
 import type { RoomDef } from '../rooms';
 import { CAMPUS_SECTORS } from './campusSectors';
 import { CAMPUS_COOP_LIPS } from './campusLips';
-import { S1_ROOMS } from './campusS1';
-import { S2_ROOMS } from './campusS2';
-import { S3_ROOMS } from './campusS3';
-import { S4_ROOMS } from './campusS4';
-import { S5_BOX, S5_ROOMS } from './campusS5';
-import { dressS1, HERO_S1, S1_ART_TAGS } from './campusS1Dress';
-import { dressS2, HERO_S2, S2_ART_TAGS } from './campusS2Dress';
-import { dressS3, HERO_S3, S3_ART_TAGS } from './campusS3Dress';
-import { dressS4, HERO_S4, S4_ART_TAGS } from './campusS4Dress';
-import { dressS5, HERO_S5, S5_ART_TAGS } from './campusS5Dress';
+import { CAMPUS_PARTS } from './campusSections';
 
 export type SectionDresser = (d: CampusDresser) => void;
 export interface CampusArtLayout {
@@ -37,10 +28,11 @@ export interface CampusArtLayout {
   catalogues: string[];
 }
 
-const DRESSERS: readonly SectionDresser[] = [dressS1, dressS2, dressS3, dressS4, dressS5];
-const TAGS: readonly Readonly<Record<string, ArtTag>>[] = [S1_ART_TAGS, S2_ART_TAGS, S3_ART_TAGS, S4_ART_TAGS, S5_ART_TAGS];
-const HEROES: readonly (PropCatalogue | null)[] = [HERO_S1, HERO_S2, HERO_S3, HERO_S4, HERO_S5];
-const ROOMS: readonly (readonly RoomDef[])[] = [S1_ROOMS, S2_ROOMS, S3_ROOMS, S4_ROOMS, S5_ROOMS];
+// (campus-greybox P0) each section's dresser, tags, hero set and rooms from its live or v2 parts (`campusSections.ts`)
+const DRESSERS: readonly SectionDresser[] = CAMPUS_PARTS.map((p) => p.dress);
+const TAGS: readonly Readonly<Record<string, ArtTag>>[] = CAMPUS_PARTS.map((p) => p.artTags);
+const HEROES: readonly (PropCatalogue | null)[] = CAMPUS_PARTS.map((p) => p.hero);
+const ROOMS: readonly (readonly RoomDef[])[] = CAMPUS_PARTS.map((p) => p.rooms);
 
 /** The catalogues a section's dresser sees: F, K and its own hero set. */
 export function sectionCatalogues(k: number): CatalogueSet {
@@ -85,7 +77,7 @@ export function sectionContext(b: LevelBuilder, lay: MapLayout, k: number, split
     boxes: b.boxes,
     cylinders: b.cylinders,
     // the Old House chimney stacks: an oh-formal room under one gets its fireplace (ART-PLAN 4.2)
-    chimneys: k === 4 ? S5_BOX.chimneys : undefined,
+    chimneys: CAMPUS_PARTS[k]!.chimneys,
     get splits() {
       return splits();
     },

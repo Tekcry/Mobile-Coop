@@ -322,7 +322,9 @@ try {
   assert(visB.ok, `host avatar drawn on the client (${JSON.stringify(visB)})`);
   assert(visB.info.some((i) => i.inFrustum && i.active), `host avatar in the client camera's view (${JSON.stringify(visB)})`);
   const objB = await GB(() => window.__app.current.hud.objectiveText);
-  assert(!/Connecting to host/.test(objB), `connecting label gone once in game (${objB})`);
+  assert(!/Connecting to host|Waiting for host/.test(objB), `connecting label gone once in game (${objB})`);
+  // (hud-guidance B3, HG9) the notice rode its own net-status line and is gone (polled: a stall shows "Waiting for host")
+  await until(B, () => window.__app.current.hud.netStatusText === '', null, 10000, 'net-status line empty once in game (HG9)');
   // (G339) Marlow Yard keeps its drill marker and pings but draws no minimap or compass, on either page
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) assert(await P.evaluate(() => !document.querySelector('.hud-minimap, .minimap, .hud-compass')), `no minimap or compass (G339) on the ${tag}`);
   await until(A, () => window.__app.current.net.remotes.values().next().value.avatar.figure.current >= 0, null, 20000, 'client figure LOD shown on the host');
@@ -364,6 +366,10 @@ try {
     const mod = SETS[n - 1];
     console.log(`set ${n} (${mod.SET})`);
     await until(A, (b) => window.__course.debug().bay === b, n - 1, 15000, `the course is at set ${n}`);
+    // (test-runner-j20 S6c, H8, Q11) every guard the set spawns is alive and none fell through; an empty set passes
+    const gl = await GA(() => { const es = window.__app.current.enemyMgr.enemies; return { n: es.length, dead: es.filter((e) => !e.alive).length, low: es.filter((e) => e.pos.y < -5).length }; });
+    console.log(`  (H8 set ${n}: ${gl.n} guards, ${gl.dead} not alive, ${gl.low} below -5 m)`);
+    assert(gl.dead === 0 && gl.low === 0, `set ${n}: every guard is alive and none fell through the floor (${JSON.stringify(gl)})`);
     await mod.walk(t, n);
     const led = await GA((i) => { const s = window.__course.state.stats?.[i]; return s ? { detections: s.detections, alarms: s.alarms, knockouts: s.knockouts, kills: s.kills, bodies: s.bodies } : null; }, n - 1);
     console.log(`  (ghost ledger A${n} after the walk: ${JSON.stringify(led)})`);

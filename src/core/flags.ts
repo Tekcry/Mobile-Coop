@@ -40,6 +40,9 @@ export interface Flags {
   devDraft: boolean;
   /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
   spawn: { x: number; z: number; level: string; yaw: number } | null;
+  /** (campus-greybox A28) Sector Ops, dev and walk links (`?sectorStart=N`, N 1-9): every run on the page starts at section
+   *  N as its connectors leave it, a practice run (nothing saved); null when absent. The co-op host's link wins. */
+  sectorStart: number | null;
   /** Music project: `?musiclab=1` opens the music lab (a debug screen) after boot. */
   musicLab: boolean;
   /** `?foleylab=1` opens the foley lab (movement sounds, a debug screen) after boot. */
@@ -51,6 +54,9 @@ export interface Flags {
   /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
+  /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
+   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none = off (default OFF until the orchestrator rules). */
+  mixamo: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
@@ -70,6 +76,28 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
+   *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). */
+  charShadowLight: boolean;
+  /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
+   *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
+   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off. */
+  mapReady: boolean;
+  /** (campus-greybox; owner Sector Ops Build) The Saltmarsh Park sections (1-5) built from their v2 layouts
+   *  (`src/world/maps/campusV2/`) instead of the live ones. Default `CAMPUS_V2_ON` (none: production unchanged); a
+   *  section joins it when Michael accepts its walk. `?campusv2=1,3`: exactly those sections; `?campusv2=0`: none. Every
+   *  co-op peer must open the same link (the layout is not on the wire). */
+  campusV2: readonly number[];
+}
+
+/** (campus-greybox) The campus sections switched on to their v2 layouts by default: a section number joins this list
+ *  when Michael accepts that section's walk (switch-on; the date goes in the PR body and the ROADMAP). */
+export const CAMPUS_V2_ON: readonly number[] = [];
+
+/** (campus-greybox) `?campusv2=` as a sorted section list (1-5); absent or unreadable: the default. "0" means none. */
+export function readCampusV2(v: string | null): readonly number[] {
+  if (v === null || !/^[0-5](,[0-5])*$/.test(v)) return CAMPUS_V2_ON;
+  return [...new Set(v.split(',').map(Number))].filter((n) => n > 0).sort((a, b) => a - b);
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -128,11 +156,13 @@ export const flags: Flags = {
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
+  sectorStart: /^[1-9]$/.test(params.get('sectorStart') ?? '') ? Number(params.get('sectorStart')) : null,
   musicLab: params.get('musiclab') === '1',
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
+  mixamo: onOffFlag(params.get('mixamo')),
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
   guardModels: params.get('guardmodels') === '1',
@@ -141,4 +171,7 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  charShadowLight: params.get('charlight') === '1',
+  mapReady: params.get('mapready') === '1',
+  campusV2: readCampusV2(params.get('campusv2')),
 };

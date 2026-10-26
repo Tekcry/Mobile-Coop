@@ -46,9 +46,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
   ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
   light meter reads as before.
-- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
-  and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
-  partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star and every easier one are
+  filled beside Sector Ops (Saltmarsh Park's stars) and in the op list (best time in the context panel). Co-op Sector
+  Ops: the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
+  section with both players at the room.
+- [ ] (sector-batch) Sector Ops result: a run with no kill and no alarm ends "PERFECT" on the result line and the
+  extraction banner (with "GHOST" too when never spotted); an alarm takes Perfect away.
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
@@ -247,10 +250,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
     the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
   - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
     sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
-  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
-    the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
-    falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
-    armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
+  - Helmet knock-off: raise the alarm to the helmet stage (two alarms in Sector Ops on Rookie / Normal, or `e.setGear`
+    in the console); the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet
+    leaves his head and falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests
+    show only with the armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
   - Same looks after a restart: note three guards (a face, hair, cap); restart at the checkpoint or the section: the same
     guards in the same places look the same.
   - Bodies: carry and drop a guard: the body keeps his face, clothes and helmet state; thermal and night vision show him
@@ -266,10 +269,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
   pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
   hall, or another spot) or hold. A plain window still lets their rounds through.
-- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
-  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
-  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
-  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Response teams (guard-ai S13, guard-rules S1 / S5, Sector Ops, Normal): raise the alarm twice (guard-rules S5:
+  once the first team is in and searching, or a minute later, a guard who sees you again raises the next stage; up to
+  three guard alarms a section, Marlow Yard still one): every guard now wears armour and a helmet. In Saltmarsh Park
+  sections 4 and 5 each alarm's team comes in behind a shield guard; in sections 1-3, the warehouse and Marlow Yard the
+  team is armed guards only. Hide: after about a minute at your last spot the team walks the section point to point
+  (shield first where there is one, the rest close behind, a look round at each, torches in the dark), still hunting
+  minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Helmets and dogs (guard-rules S1 / S2, Sector Ops): on Realistic every guard wears a helmet from the start; on
+  Rookie and Normal no guard does until the second alarm. On Perfectionist a head shot on a helmet only staggers him and
+  the helmet stays on; a second head shot kills. Walk behind a dog: no takedown prompt (also in co-op on the joiner);
+  gas knocks it out and the section can still end with "No kills"; shoot a dog dead instead: the rating loses "No kills"
+  and Perfect and the score drops.
 - [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
   report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
   a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
@@ -420,7 +431,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Pick "state: idle": she is back in the middle.
 - [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
   run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
-  climbing ones on their props, playing the capture with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
+  climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
+  captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").

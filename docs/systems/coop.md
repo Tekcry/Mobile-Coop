@@ -132,9 +132,14 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   over 1 m snaps with no speed spike): `holdAt`'s speed, the hostage's gait, holds steady below 60 fps.
 - (marlow-bays item 2) Course items: the host's own press passes `'local'` (`gameState.ts`); `courseUser` reads it as
   P1, a client's peer id as P2 (it read `'local'` as P2, so a host unbolting alone was tested on the client's feet).
-- Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
-  snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
-  without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+- Objective and net-status lines (coop-fix, hud-guidance B3 / HG9, `net/objectiveMirror.ts`): the client shows
+  "Connecting to host…" on the net-status line (`Hud.setNetStatus`) until the first snapshot, and "Waiting for host…"
+  there after 2 s without one, until the next; the objective line only ever holds the host's objective (a snapshot's
+  line clears the notice, an empty course-mode objective included). Every write goes through `CoopClient.showLine`.
+  The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+- (hud-guidance B5, A9) Field Terminal > Notes: the host fills `GameState.notes` from its `intel` event (its own and a
+  client's interrogations); a client adds every `feed` event's text (the same relay, plus Sector Ops keypad radio
+  lines): no wire change.
 - `CoopHost`: remote players (`RemotePlayer` = Damageable + split hit volumes from the sim body model, rig-pose-fix S1:
   `PlayerHitVolumes` on `playerBody(wireBodyIn(accepted state))`, the client's own model, headshots x1.3 and legs x0.75 as
   the local player's + PlayerRef), 15 Hz snapshots, event queue, enemy

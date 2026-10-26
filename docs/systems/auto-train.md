@@ -113,7 +113,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`gh pr edit <pr> --remove-label train-ready`, logged; a failed removal is logged, not fatal), so it stops being a
   candidate and no longer causes repeat empty builds (audit 2026-10-24), and it gets one comment per head
   (`<!-- auto-train:left-out:<sha> -->`) saying the label was removed: the lead fixes the conflict and re-adds
-  `train-ready`. Under `--dry-run` both are printed only.
+  `train-ready`. Under `--dry-run` both are printed only. A member whose merge adds a doc-lint ERROR to the train tree
+  (`merge-train build` runs `scripts/doc-lint.mjs` on git objects after each member; e.g. two members together over a
+  doc budget) is left out the same way, with a comment asking the lead to fix the doc (audit 2026-10-26: trains 111
+  and 112 lost ~7 h to one line each).
 - Auto-drop (Michael 2026-10-24 ~21:00, "Auto-drop on failure"; a failed train used to wait 10-30 min for the
   orchestrator): the failing suites come from the `laptop-e2e` (or rerun) description's `FAIL:` list, else from the
   newest laptop-queue failure comment on the head (`**<suite>**` / `Failing assert:` lines, which also give the assert).
@@ -171,6 +174,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`laptop-e2e/train<n>-rerun` here). The desktop worker
   prefixes its own `laptop-e2e` descriptions with `desktop: ` (`scripts/laptop-queue/service.mjs`; the failed suites
   follow `FAIL:` as in `lib.mjs describe`).
+- A train head that moves (a docs-only commit after the version commit, `LQ_TRAIN_CARRY`): the laptop carries the
+  newest final `laptop-e2e` verdict of an earlier head onto it (success "carried from <sha>", never a failure) when
+  every file between the two is docs-only (lib `carryFrom`, up to `LQ_TRAIN_CARRY_DEPTH` commits back), also onto a
+  head pushed mid-run; a live docs-only ancestor run is waited for. Any other moved head runs as a normal train.
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
 - Spare work (`docs/archive/laptop-queue-PLAN-2026-10-23.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
