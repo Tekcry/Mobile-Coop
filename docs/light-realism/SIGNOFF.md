@@ -1,6 +1,6 @@
 # light-realism: sign-off 1 - S1 car park light map and the band table
 
-Status: L1 filled the measured numbers; ready for the orchestrator's question.
+Status: answered 2026-10-26 (S1 only; see Michael's pick).
 
 ## Picture
 - Light map, to scale: `docs/light-realism/signoff/s1-lightmap.svg` (1 m = 10 px, 10 m scale bar, north arrow). The
@@ -44,4 +44,7 @@ numbers (`measure/S1-carpark.md`), the band table and curve (`research/bands.md`
 (`signoff/level-design-5.5.md`). L1: the PR number.
 
 ## Michael's pick
-(filled by the orchestrator)
+2026-10-26 ~11:45 (native multiple choice, via the orchestrator; ROADMAP Decided): "Approve but only s1, let me walk it
+before doing any more". So L1 ships the S1 car park and the band table as built here; S2-S5 and the warehouse
+re-lights wait for his S1 walk (plans and briefs only, no builds). The draft level-standard text
+(`signoff/level-design-5.5.md`) stays a draft until then.
