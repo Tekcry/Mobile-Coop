@@ -1,0 +1,12 @@
+{
+  "id": "20261026T063718-affected-e2e-763fc7bf-8514",
+  "sha": "763fc7bfba8d856aa576711cae9c4fd4b9cb4beb",
+  "branch": "feature/map-ready-s14",
+  "pr": 550,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-park"
+  ],
+  "set": "affected"
+}
