@@ -1,0 +1,14 @@
+{
+  "id": "20261026T030531-night-shift-guard-ai-d51202fa-93b2",
+  "sha": "d51202fa3d275e26b2c6e6b623553180c342f06d",
+  "branch": "feature/guard-ai-seed-random",
+  "pr": 537,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-sectorops",
+    "e2e-enemies"
+  ],
+  "set": "seed-random"
+}
