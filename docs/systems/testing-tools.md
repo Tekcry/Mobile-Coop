@@ -611,18 +611,18 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
-- Affected e2e on every PR head (process audit 2026-10-24, finding 5; laptop service only, every `LQ_AFFECTED_POLL_MIN`
-  (2; 0 = off) min): each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request
-  gets the suites `request.mjs --affected` picks (merge-base with `origin/master`, `git diff --name-only --no-renames`,
-  the DIRECT tier; the same code, `affectedSuites` in `scripts/laptop-queue/lib.mjs`), without the GPU and LEGACY
-  suites (`affectedGateSuites` in `scripts/e2e-affected.mjs`, which holds the runner's GPU / LEGACY lists: a request's
-  suites run by name, where nothing is REPORT ONLY, so they used to run and gate; audit 2026-10-25). No browser suite reached: the
-  head gets `affected-e2e` success "no browser suites (docs / unit only)". Otherwise the service enqueues a pr request
-  itself (requester `affected-e2e`, set `affected`, the PR number and branch) and posts `affected-e2e` pending; the run
-  posts its verdict on `laptop-e2e/affected` and on `affected-e2e` (failures comment on the PR as usual). A newer head
-  on the same branch supersedes the older open request (its `affected-e2e` gets error "superseded"); other PRs' requests
-  never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
-  per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
+- Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min):
+  each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request gets the suites
+  `request.mjs --affected` picks (merge-base with `origin/master`, `--no-renames`, the DIRECT tier; lib
+  `affectedSuites`), without the GPU and LEGACY suites (`affectedGateSuites` in `scripts/e2e-affected.mjs`; audit
+  2026-10-25: run by name, nothing is REPORT ONLY, so they gated). None reached: `affected-e2e` success "no browser
+  suites (docs / unit only)". Otherwise it enqueues a pr request (requester `affected-e2e`, set `affected`, PR number,
+  branch) and posts `affected-e2e` pending; the verdict goes to `laptop-e2e/affected` and `affected-e2e` (failures
+  comment on the PR as usual). A conflicting head gets error, not a run; F51: after master moves, open affected
+  requests' PRs are re-read (`LQ_MERGE_RECHECK_S` 60 s, `LQ_MERGE_RECHECK_MIN` 10 min) until known and a conflict
+  retires at once. A newer head on the same branch supersedes the older open request (its `affected-e2e` gets error
+  "superseded"); other PRs never supersede each other and take turns in arrival order beside the leads' requests. Opt
+  out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
   affected request is requested again (4.101.1). A lead's own `request.mjs --affected` still works as before.
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.

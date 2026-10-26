@@ -97,6 +97,8 @@
 // each open PR's mergeable state; a head CONFLICTING gets no auto request (error posted once), and an open affected
 // request on a conflicting current head is marked done unrun (lib conflictRetire / conflictStatuses). LQ_SKIP_CONFLICTING=0
 // runs them. UNKNOWN never skips; a lead's named-suite request still runs.
+// laptop-queue-15 F51: GitHub computes mergeable lazily, so after origin/master moves each open affected request's PR is
+// read on its own (mergeRecheckNow) until known and a CONFLICTING one retires at once (LQ_MERGE_RECHECK_S / _MIN).
 // Pick order (laptop-queue-7, lib pickFrom): pr requests go front branches (LQ_FRONT_BRANCHES), green PRs smallest first
 // (LQ_GREEN_FIRST; LQ_GREEN_MAX_WAIT_MIN bound), then arrival. A moved train head carries a docs-only verdict or runs
 // (carryMoved, LQ_TRAIN_CARRY). An aged alone gets the gap after the coming train (LQ_ALONE_GAP; lastTrainEnd, also
@@ -112,6 +114,7 @@ import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
+import { mergeRecheck, recordMergeable, withMergeable } from './lib.mjs'; // laptop-queue-15 (F51)
 import { parseAffectedMax } from '../e2e-affected.mjs';
 // the automatic affected cap: E2E_AFFECTED_MAX on the task (prototype mode 2026-10-26: 1), else e2e-affected's AFFECTED_MAX
 const AFFECTED_MAX = parseAffectedMax(process.env.E2E_AFFECTED_MAX);
@@ -155,6 +158,8 @@ const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000;
 const SPARE_IDLE_MIN = Number(process.env.LQ_SPARE_IDLE_MIN ?? 5); // laptop: spare work after this many idle min (0 = off)
 const PR_BOARD_MS = Number(process.env.LQ_PR_BOARD_S ?? 60) * 1000; // both workers: the PR board read (lib prBoard)
 const SKIP_CONFLICTING = process.env.LQ_SKIP_CONFLICTING !== '0'; // 0 = a conflicting PR head still runs
+const MERGE_RECHECK_MS = Number(process.env.LQ_MERGE_RECHECK_S ?? 60) * 1000; // F51: re-read gap of an UNKNOWN mergeable after master moves
+const MERGE_RECHECK_MAX_MS = Number(process.env.LQ_MERGE_RECHECK_MIN ?? 10) * 60_000; // F51: how long after a master move (0 = off)
 const GREEN_FIRST = process.env.LQ_GREEN_FIRST !== '0'; // 0 = arrival order only (lib pick queue.order)
 const FRONT_BRANCHES = (process.env.LQ_FRONT_BRANCHES ?? 'mixamo').split(',').map((x) => x.trim()).filter(Boolean); // branch front tier, empty = none
 const GREEN_MAX_WAIT_MS = Number(process.env.LQ_GREEN_MAX_WAIT_MIN ?? 30) * 60_000; // starvation bound of the green tier (0 = none)
@@ -667,6 +672,28 @@ function prBoardNow() {
   lastBoard = Date.now();
   try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup,isDraft']) || '[]')); }
   catch (e) { board = new Map(); log(`pr board read failed: ${String(e.message).split('\n')[0]}`); }
+}
+
+/** laptop-queue-15 F51: mergeRecheck's state (master sha, per PR head the last `gh pr view` mergeable read). */
+let recheck = null;
+/**
+ * F51: after origin/master moves (fetched by listRequests), reads each open affected request's PR mergeable state
+ * (lib mergeRecheck: every LQ_MERGE_RECHECK_S 60 s while UNKNOWN, for LQ_MERGE_RECHECK_MIN 10 min) and lays the
+ * CONFLICTING reads on the board (lib withMergeable), so applyConflicts retires them this pass and posts their error
+ * statuses. A failed read counts as UNKNOWN. LQ_SKIP_CONFLICTING=0 or LQ_MERGE_RECHECK_MIN=0: off.
+ */
+function mergeRecheckNow(requests) {
+  if (!SKIP_CONFLICTING || MERGE_RECHECK_MAX_MS <= 0) return;
+  const master = git(['rev-parse', 'origin/master'], { soft: true });
+  const r = mergeRecheck(recheck, { master: master || null, requests, board, now: Date.now(), retryMs: MERGE_RECHECK_MS, maxMs: MERGE_RECHECK_MAX_MS });
+  if (r.state !== recheck && recheck) log(`master moved to ${String(master).slice(0, 8)}: re-checking open affected requests for conflicts`);
+  recheck = r.state;
+  for (const d of r.due) {
+    let v = null;
+    try { v = JSON.parse(gh(['pr', 'view', String(d.pr), '-R', REPO, '--json', 'headRefOid,mergeable']) || 'null'); } catch (e) { log(`PR #${d.pr} mergeable read failed: ${String(e.message).split('\n')[0]}`); }
+    recheck = recordMergeable(recheck, d.pr, v?.headRefOid ?? d.head, v?.mergeable, Date.now());
+  }
+  board = withMergeable(board, recheck);
 }
 
 /** Train-ready PRs this pass (readyNow): green / running heads and the green ones' first-seen-green times (ms). */
@@ -1832,6 +1859,7 @@ async function pass() {
   const listed = listRequests(); // running ones included (aloneDue keeps their marks)
   const requests = listed.filter((r) => !claimed.has(r.id));
   prBoardNow();
+  mergeRecheckNow(requests); // F51: after a master move, conflicting affected requests retire in applyConflicts below
   const dt = DESKTOP ? desktopTrains() : null;
   for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
   // realOpen: a real request on the full listing (before the hold filters below) keeps a spare from starting (lib pick)
