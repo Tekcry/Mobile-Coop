@@ -1,137 +1,85 @@
 /**
- * (piano-escape S5) The scene music A/B: `?pianomusic=` parsing and its default, the loop rule per track length, the
- * track table against the bundled folder, and the loop start reaching `ScenePiano` (on a fake audio context; nothing is
+ * (piano-escape S5, S5b) The scene music slots: `?pianointro=` / `?pianomusic=` parsing and their defaults, the track
+ * table against the bundled folder, each track's loop point, and the chosen source reaching `ScenePiano` (nothing is
  * fetched, decoded or played).
  */
 import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import type { AudioEngine } from '../src/audio/audioEngine';
-import { CROSSFADE, LOOP_START, ScenePiano } from '../src/audio/music/scenePiano';
+import { LOOP_START, sceneMusicSource } from '../src/audio/music/scenePiano';
 import {
-  DEFAULT_SCENE_TRACK,
-  MIN_LENGTH_FOR_LOOP_POINT,
+  DEFAULT_INTRO_TRACK,
+  DEFAULT_MISSION_TRACK,
+  MISSION_OFF,
   SCENE_LOOP_START,
   SCENE_TRACKS,
-  loopStartFor,
-  parseSceneTrack,
+  parseMissionTrack,
+  parseSlotTrack,
+  sceneMusicFromSearch,
   sceneTrack,
-  sceneTrackFromSearch,
-  type SceneTrackId,
 } from '../src/audio/music/sceneTracks';
 
 const SCENE_DIR = fileURLToPath(new URL('../src/assets/music/scene/', import.meta.url));
 
-describe('scene tracks: ?pianomusic=', () => {
-  it('names twelve tracks; the default is the Pixabay one (S3)', () => {
-    expect(SCENE_TRACKS.map((t) => t.id)).toEqual(['pixabay', 'grohl', '1', '2', '3', '4', 'a', 'b', 'c', 'd', 'e', 'f']);
-    expect(DEFAULT_SCENE_TRACK).toBe('pixabay');
+describe('scene tracks: the table', () => {
+  it('names three tracks in two slots: Investigation Piano for the intro, Suspense Thriller (default) and Held Breath for the mission', () => {
+    expect(SCENE_TRACKS.map((t) => `${t.slot}:${t.id}`)).toEqual(['intro:pixabay', 'mission:grohl', 'mission:1']);
+    expect(DEFAULT_INTRO_TRACK).toBe('pixabay');
+    expect(DEFAULT_MISSION_TRACK).toBe('grohl');
+    expect(sceneTrack('grohl').length).toBe(162.04);
   });
 
-  it('reads every value', () => {
-    for (const t of SCENE_TRACKS) expect(sceneTrackFromSearch(`?pianomusic=${t.id}`)).toBe(t.id);
-    expect(sceneTrackFromSearch('?x=1&pianomusic=grohl&y=2')).toBe('grohl');
-    expect(sceneTrackFromSearch('?pianomusic=B')).toBe('b');
-    expect(sceneTrackFromSearch('?pianomusic=d')).toBe('d');
-    expect(sceneTrackFromSearch('?pianomusic=F')).toBe('f');
-    expect(sceneTrackFromSearch('?pianomusic=%20PIXABAY%20')).toBe('pixabay');
-  });
-
-  it('no param, empty or unknown is the default', () => {
-    for (const s of ['', '?', '?other=1', '?pianomusic=', '?pianomusic=5', '?pianomusic=g', '?pianomusic=sketch-1']) {
-      expect(sceneTrackFromSearch(s)).toBe('pixabay');
-    }
-    expect(parseSceneTrack(null)).toBe('pixabay');
-    expect(parseSceneTrack(undefined)).toBe('pixabay');
-    expect(sceneTrack('4').id).toBe('4');
+  it('the intro track loops from S3s 41 s, the mission tracks whole', () => {
+    expect(SCENE_LOOP_START).toBe(LOOP_START);
+    expect(sceneTrack('pixabay').loopFrom).toBe(41);
+    expect(sceneTrack('grohl').loopFrom).toBe(0);
+    expect(sceneTrack('1').loopFrom).toBe(0);
   });
 
   it('each track has its own file in the scene folder, and every file there is a track', () => {
     const files = readdirSync(SCENE_DIR).filter((f) => f.endsWith('.mp3')).sort();
-    expect(files).toEqual([
-      'alexgrohl-suspense-thriller-552495.mp3',
-      'grohl-a-clockwork.mp3',
-      'grohl-b-storm-piano.mp3',
-      'grohl-c-heartbeat.mp3',
-      'grohl-d-hybrid-ops.mp3',
-      'grohl-e-last-stand.mp3',
-      'grohl-f-ghost-signal.mp3',
-      'piano-escape.mp3',
-      'sketch-1-held-breath.mp3',
-      'sketch-2-thornbeck.mp3',
-      'sketch-3-last-round.mp3',
-      'sketch-4-pulse.mp3',
-    ]);
+    expect(files).toEqual(['alexgrohl-suspense-thriller-552495.mp3', 'piano-escape.mp3', 'sketch-1-held-breath.mp3']);
     expect(readdirSync(SCENE_DIR).some((f) => f.endsWith('.wav'))).toBe(false);
     expect(files.length).toBe(SCENE_TRACKS.length);
   });
 });
 
-describe('scene tracks: loop rule', () => {
-  it('uses the same 41 s point as S3', () => {
-    expect(SCENE_LOOP_START).toBe(LOOP_START);
+describe('scene tracks: ?pianointro= and ?pianomusic=', () => {
+  it('no params: the Leberch intro, then Suspense Thriller', () => {
+    for (const s of ['', '?', '?other=1', '?pianomusic=', '?pianointro=']) {
+      expect(sceneMusicFromSearch(s)).toEqual({ intro: 'pixabay', mission: 'grohl' });
+    }
   });
 
-  it('a long track loops from 41 s, a short one whole from 0', () => {
-    expect(loopStartFor(134.03)).toBe(41);
-    expect(loopStartFor(162.04)).toBe(41);
-    expect(loopStartFor(163)).toBe(41);
-    expect(loopStartFor(MIN_LENGTH_FOR_LOOP_POINT)).toBe(41);
-    expect(loopStartFor(MIN_LENGTH_FOR_LOOP_POINT - 0.01)).toBe(0);
-    expect(loopStartFor(96.43)).toBe(0);
-    expect(loopStartFor(93.5)).toBe(0);
-    expect(loopStartFor(83.78)).toBe(0);
-    expect(loopStartFor(78)).toBe(0);
-    expect(loopStartFor(0)).toBe(0);
-    expect(loopStartFor(Number.NaN)).toBe(0);
+  it('?pianomusic= picks the mission track; pixabay is no mission track (S3s behaviour); unknown is the default', () => {
+    expect(sceneMusicFromSearch('?pianomusic=grohl').mission).toBe('grohl');
+    expect(sceneMusicFromSearch('?x=1&pianomusic=1&y=2').mission).toBe('1');
+    expect(sceneMusicFromSearch('?pianomusic=%20GROHL%20').mission).toBe('grohl');
+    expect(sceneMusicFromSearch('?pianomusic=pixabay')).toEqual({ intro: 'pixabay', mission: null });
+    expect(sceneMusicFromSearch('?pianomusic=PixaBay').mission).toBeNull();
+    expect(MISSION_OFF).toBe('pixabay');
+    for (const v of ['2', '4', 'a', 'f', 'sketch-1', 'mission-1']) expect(parseMissionTrack(v), v).toBe('grohl');
+    expect(parseMissionTrack(null)).toBe('grohl');
+    expect(parseMissionTrack(undefined)).toBe('grohl');
   });
 
-  it('per track, from its measured length', () => {
-    const want: Record<SceneTrackId, number> = { pixabay: 41, grohl: 41, '1': 0, '2': 0, '3': 0, '4': 0, a: 41, b: 41, c: 41, d: 41, e: 41, f: 41 };
-    for (const t of SCENE_TRACKS) expect(loopStartFor(t.length), t.id).toBe(want[t.id]);
+  it('?pianointro= picks the intro track; a mission id or unknown is the default', () => {
+    expect(sceneMusicFromSearch('?pianointro=pixabay').intro).toBe('pixabay');
+    expect(parseSlotTrack('intro', 'grohl')).toBe('pixabay');
+    expect(parseSlotTrack('intro', '1')).toBe('pixabay');
+    expect(parseSlotTrack('intro', 'intro-1')).toBe('pixabay');
+    expect(parseSlotTrack('mission', 'pixabay')).toBe('grohl');
   });
 });
 
-// ------------------------------------------------------------------ the seam in ScenePiano
-
-class FakeNode {
-  gain = { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, setValueCurveAtTime() {}, cancelScheduledValues() {} };
-  buffer: unknown = null;
-  starts: { at: number; offset: number }[] = [];
-  onended: (() => void) | null = null;
-  connect(): void {}
-  disconnect(): void {}
-  start(at: number, offset: number): void {
-    this.starts.push({ at, offset });
-  }
-  stop(): void {}
-}
-function fakeAudio(): { audio: AudioEngine; sources: FakeNode[] } {
-  const sources: FakeNode[] = [];
-  const ctx = {
-    currentTime: 10,
-    destination: new FakeNode(),
-    createGain: () => new FakeNode(),
-    createBufferSource: () => {
-      const n = new FakeNode();
-      sources.push(n);
-      return n;
-    },
-  };
-  const audio = { ctx, whenReady: (fn: () => void) => fn(), out: () => new FakeNode() } as unknown as AudioEngine;
-  return { audio, sources };
-}
-
-describe('scene tracks: the loop start reaches the player', () => {
-  it('a 162 s track loops back to 41 s, a 78 s track to 0', async () => {
-    for (const [length, start] of [[162, 41], [78, 0]] as const) {
-      const { audio, sources } = fakeAudio();
-      const p = new ScenePiano(audio, () => Promise.resolve({ duration: length } as AudioBuffer));
-      await p.start();
-      expect(sources[0]!.starts[0]!.offset).toBe(0);
-      expect(sources[1]!.starts[0]!.offset).toBe(start);
-      expect(sources[1]!.starts[0]!.at - sources[0]!.starts[0]!.at).toBeCloseTo(length - CROSSFADE, 9);
-      p.stop();
-    }
+describe('scene tracks: the source ScenePiano gets', () => {
+  it('default: the intro loops from 41 s and there is a mission loader; pixabay: none', () => {
+    const d = sceneMusicSource('');
+    expect(d.introLoop).toBe(41);
+    expect(d.mission).not.toBeNull();
+    const old = sceneMusicSource('?pianomusic=pixabay');
+    expect(old.introLoop).toBe(41);
+    expect(old.mission).toBeNull();
+    expect(sceneMusicSource('?pianomusic=1').mission).not.toBeNull();
   });
 });

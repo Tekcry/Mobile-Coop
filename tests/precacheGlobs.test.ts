@@ -61,8 +61,8 @@ describe('scene music A/B (piano-escape S5): no file of the scene folder is prec
     writeFileSync(join(DIST, f), 'x');
   }
 
-  it('the folder holds the twelve tracks', () => {
-    expect(built.length).toBe(12);
+  it('the folder holds the three tracks', () => {
+    expect(built.length).toBe(3);
   });
 
   it('the shell glob takes none, and the ignore drops each even if a pattern took every mp3', () => {
