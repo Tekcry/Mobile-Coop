@@ -679,6 +679,8 @@ export class GameState implements AppState {
     this.weather.occluder = (x, z) => world.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
+    // (thermal-read) thermal and electro rebuild the scene's surfaces from the stack's depth (picture only)
+    this.post.setDepthSource(this.stack);
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.strike = new StrikeController(this);
