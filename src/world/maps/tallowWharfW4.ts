@@ -168,20 +168,26 @@ function build(b: LevelBuilder): void {
   b.ladder(60, 14.55, 0, Y.gantry, 0); // the yard leg, on the gantry's south face (climber south, facing +z)
   b.ladder(84.6, 29.85, 0, Y.gantry, PI); // the arm's ladder, off its north end down to the apron
 
-  // ---- lights ----
-  // 91 shed three pendants (side aisle x 84-86 stays dark)
-  for (const [x, z] of [[75, 14], [75, 22], [81, 14], [81, 22]] as const) lamp(b, x, 5.4, z, { r: 8, i: 0.9, group: 91 });
-  // 92 loading-door flood over the jetty's middle
+  // ---- lights (LIGHT.md section 5: every fitting on; darkness from the stacks, the carts, real gaps, cuts and shots) ----
+  // 91 shed three pendants over the working floor (switch by the fire door)
+  for (const [x, z] of [[75, 13.5], [75, 21.5], [80.5, 13.5], [80.5, 21.5]] as const) lamp(b, x, 5.4, z, { r: 8, i: 1.5, group: 91 });
+  // 92 loading-door flood over the jetty's middle (switch inside the loading door)
   lamp(b, 79, 4.0, 9.6, { r: 12, i: 1.3, group: 92, cone: makeCone(0, -1, -0.6, 1.1) });
-  // 93 yard flood at the lane gate (the cart lines stay dark)
+  // 93 yard flood at the lane gate and the two crane work floods under the gantry deck (switch: the gate box)
   lamp(b, 66, 6.0, 27.2, { r: 16, i: 1.4, group: 93, cone: makeCone(0, -1, -0.7, 1.2) });
-  // 94 quay lamps (photocell: no switch), 95 the lane lamp at the yard gate
-  lamp(b, 50, 4.0, 6.6, { r: 7, i: 0.6, group: 94 });
-  lamp(b, 64, 4.0, 6.6, { r: 7, i: 0.6, group: 94 });
-  lamp(b, 66, 4.0, 30.4, { r: 6, i: 0.6, group: 95 });
-  // 96 shed two emergency lamp (always on), 97 the crane's red aviation lamp (a landmark)
+  for (const x of [53, 65]) lamp(b, x, 9.6, 17, { r: 16, i: 3.5, group: 93, cone: makeCone(0, -1, 0, 1.0) });
+  // 94 quay lamps and the gangway lamp (photocell: no switch)
+  lamp(b, 50, 4.0, 6.6, { r: 7, i: 0.4, group: 94 });
+  lamp(b, 64, 4.0, 6.6, { r: 7, i: 0.4, group: 94 });
+  lamp(b, 88, 4.0, 9.7, { r: 7, i: 0.4, group: 94 });
+  // 95 lane lamps on wall brackets, the council's (photocell): the yard gate's and three on the masses' lane face (z 34)
+  lamp(b, 66, 4.0, 30.4, { r: 7, i: 0.3, group: 95 });
+  for (const x of [48, 104, 117]) lamp(b, x, 5.0, 33.6, { r: 7, i: 0.3, group: 95 });
+  // 96 shed two exit lamp at the canal door (maintained, vandal cage), 97 the crane's red aviation lamp on the jib head (its own supply)
   lamp(b, 93, 2.4, 10.6, { r: 4, i: 0.4, group: 96, destructible: false });
-  lamp(b, 88, 12, 5, { r: 6, i: 0.6, group: 97, colour: [1, 0.1, 0.1], destructible: false, electric: false });
+  lamp(b, 88, 14, 5, { r: 6, i: 0.6, group: 97, colour: [1, 0.1, 0.1], destructible: false, electric: false });
+  // 98 the launch's masthead light (the launch's own battery, no shore switch)
+  lamp(b, 90, 3.0, 3, { r: 3, i: 0.15, group: 98 });
 }
 
 const ROOMS: RoomDef[] = [
