@@ -1,0 +1,16 @@
+{
+  "id": "20261026T123133-affected-e2e-f8cb0cab-fc31",
+  "sha": "f8cb0cab48d8f9522ad92ed549ea7384bfc2eb73",
+  "branch": "feature/campus-s1-fence",
+  "pr": 629,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-sectorops:7",
+    "e2e-sectorops:8",
+    "e2e-sectorops:9"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #629"
+}
