@@ -1,0 +1,14 @@
+{
+  "id": "20261026T015337-affected-e2e-9a326d4e-bcf9",
+  "sha": "9a326d4e4bb41a2a02c618e8e8eafdcb56430ef1",
+  "branch": "feature/mixamo-on",
+  "pr": 494,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-studio"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T003214-affected-e2e-9a326d4e-efe8, rerun on the laptop"
+}
