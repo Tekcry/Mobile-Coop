@@ -3,6 +3,19 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 74 (2026-10-27 ~05:00, after the 03:50 reset; session [058b5c]; wins over SAVE 73):**
+- #638 (F52 + F55) RELEASED; the laptop service runs it (laptop reruns = fix tier). #631 storm mill shipped as 4.127.0.
+- e2e-netmove QUARANTINED on the laptop list (C:/NightShift/scratch/laptop-queue/quarantine.json, owner Player, expiry
+  2026-10-29T00:00Z, backup quarantine.pre-netmove.json): "strike: host mode ground" fails on most co-op runs; Player's F5
+  fix (fix/f5-netmove-strike) removes it. #601 kept train-ready (watchdog re-added).
+- PR #664 (feature/affected-cap-1: AFFECTED_MAX default 1, G421; co-op group whole): head a83935e9, Opus checker PASS
+  posted, label fix, Job-done.
+- Piano walk ~09:00: UNDO after it: task NightShift-laptop-queue Arguments back to LQ_FRONT_BRANCHES='mixamo', restart the
+  service between trains (stop task, taskkill /T the service.mjs node, start task).
+- Hand front (now mostly unneeded): "laptopRerun": true + an early "place" on a request file in origin/laptop-queue
+  (scratch worktree C:/NightShift/scratch/lq-branch-edit) puts it in the laptop fix tier and off the desktop.
+- Next: watch #664 ride a train; undo the piano front after the walk; triage any train failure (Opus).
+
 **Test Runner SAVE 73 (2026-10-27 ~02:40, Orchestrator save at 91%, reset 03:50, no swap; session [058b5c]; wins over SAVE 72):**
 - Service healthy (task running), trains 139-148 green; 10 requests queued plus spare work on idle: session-free through the reset.
 - Piano walk (Michael Tue ~09:00): task env LQ_FRONT_BRANCHES='mixamo,feature/piano-,feature/guard-ai-piano'. UNDO
