@@ -14,8 +14,10 @@
  * - the body lands clear: no piece in the capsule (radius 0.3) from the landing floor + 0.2 to + 1.6;
  * - the arc is clear: the line from the take-off to the landing at the sill + 0.45 (the generic probe's `arcY`).
  * Ramps (pitched boxes) are left out of the floor cast; no campus window has one under it.
+ * Run twice: on the live map and on the map with section 1 from its v2 rebuild (`flags.campusV2 = [1]`), so the v2
+ * gatehouse (its own desks, W and E2) is guarded too.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LevelBuilder, type BoxPiece, type CylPiece } from '../src/world/levelBuilder';
 import type { WindowAnchor } from '../src/world/anchors';
 import { campusOps } from '../src/world/maps/campusOps';
@@ -139,23 +141,53 @@ function windowVault(w: Pieces, a: WindowAnchor, sd: 1 | -1): { feet: number; fa
   return { feet, fails };
 }
 
-const b = new LevelBuilder();
-const lay = campusOps.build(b, 0);
-const w = piecesOf(b);
-/** The declared window vaults: open, or glazed and breakable (`windowProbe`'s gate). */
-const vaultable = b.anchors.windows.filter((a) => a.open || a.breakable);
+/** One built map: its collision pieces, its declared window vaults and its S1 objective. */
+interface Built {
+  w: Pieces;
+  vaultable: WindowAnchor[];
+  objective: (typeof CAMPUS_SECTORS)[number]['objective'];
+  built: boolean;
+}
 
-describe('campus window vaults (F42)', () => {
+/** The declared window vaults of a built map: open, or glazed and breakable (`windowProbe`'s gate). */
+function builtOf(b: LevelBuilder, objective: Built['objective'], lay: unknown): Built {
+  return { w: piecesOf(b), vaultable: b.anchors.windows.filter((a) => a.open || a.breakable), objective, built: !!lay };
+}
+
+const b = new LevelBuilder();
+const live = builtOf(b, CAMPUS_SECTORS[0]!.objective, campusOps.build(b, 0));
+
+// (F42, v2 S1) the same map with section 1 from its v2 rebuild (`flags.campusV2 = [1]`, the modules loaded fresh as
+// `tests/campusV2S1.test.ts` does: the selection is made at load). The v2 gatehouse is 13.5..20 x -79..-72.5 with its own
+// desks, the reception window W at (13.5, -76) and the open rear pane E2 at (20, -76).
+vi.resetModules();
+const v2Flags = await import('../src/core/flags');
+v2Flags.flags.campusV2 = [1];
+const v2Builder = await import('../src/world/levelBuilder');
+const v2Ops = await import('../src/world/maps/campusOps');
+const v2Sectors = await import('../src/world/maps/campusSectors');
+const b2 = new v2Builder.LevelBuilder();
+const v2 = builtOf(b2, v2Sectors.CAMPUS_SECTORS[0]!.objective, v2Ops.campusOps.build(b2, 0));
+v2Flags.flags.campusV2 = [];
+
+/** The window anchor at (x, z) among a map's windows (any state). */
+const windowAt = (m: LevelBuilder, x: number, z: number): WindowAnchor | undefined => m.anchors.windows.find((a) => Math.abs(a.c.x - x) < E && Math.abs(a.c.z - z) < E);
+
+describe.each([
+  ['live', live],
+  ['v2 S1 (flags.campusV2 = [1])', v2],
+] as const)('campus window vaults (F42): %s', (_name, m) => {
   it('the campus declares window vaults (the S1 gatehouse rear window, the S5 sash among them)', () => {
-    expect(vaultable.length).toBeGreaterThanOrEqual(2);
-    expect(vaultable.some((a) => Math.abs(a.c.x - 20) < E && Math.abs(a.c.z + 76) < E && a.open)).toBe(true);
+    expect(m.built).toBe(true);
+    expect(m.vaultable.length).toBeGreaterThanOrEqual(2);
+    expect(m.vaultable.some((a) => Math.abs(a.c.x - 20) < E && Math.abs(a.c.z + 76) < E && a.open)).toBe(true);
   });
 
   it('every declared window vault lands within 0.6 m of its take-off floor, with room for the body and a clear arc', () => {
     const bad: string[] = [];
-    for (const a of vaultable) {
+    for (const a of m.vaultable) {
       for (const sd of [1, -1] as const) {
-        const r = windowVault(w, a, sd);
+        const r = windowVault(m.w, a, sd);
         if (r && r.fails.length) bad.push(`window ${a.id} (${a.c.x}, ${a.c.z}) from the ${sd > 0 ? '+normal' : '-normal'} side (feet ${r.feet.toFixed(2)}): ${r.fails.join('; ')}`);
       }
     }
@@ -163,27 +195,48 @@ describe('campus window vaults (F42)', () => {
   });
 
   it('every declared window vault can be taken from at least one side', () => {
-    const none = vaultable.filter((a) => !windowVault(w, a, 1) && !windowVault(w, a, -1)).map((a) => `window ${a.id} (${a.c.x}, ${a.c.z})`);
+    const none = m.vaultable.filter((a) => !windowVault(m.w, a, 1) && !windowVault(m.w, a, -1)).map((a) => `window ${a.id} (${a.c.x}, ${a.c.z})`);
     expect(none).toEqual([]);
   });
 
   it('S1 E2: the gatehouse rear window vaults both ways (the verge in, the gatehouse out), the PC desk clear of the landing', () => {
-    const a = vaultable.find((x) => Math.abs(x.c.x - 20) < E && Math.abs(x.c.z + 76) < E)!;
-    const outside = windowVault(w, a, 1);
-    const inside = windowVault(w, a, -1);
+    const a = m.vaultable.find((x) => Math.abs(x.c.x - 20) < E && Math.abs(x.c.z + 76) < E)!;
+    const outside = windowVault(m.w, a, 1);
+    const inside = windowVault(m.w, a, -1);
     expect(outside, 'the verge side offers the vault').not.toBeNull();
     expect(inside, 'the gatehouse side offers the vault').not.toBeNull();
     expect(outside!.fails).toEqual([]);
     expect(inside!.fails).toEqual([]);
     // the objective terminal (`Interactables` 'terminal': a visual cabinet 0.45 x 0.7 at the objective, turned by its yaw)
     // stands clear of the landing column (x 20 - 0.9, z -76 +- 0.4, the capsule 0.3 round it) and on the PC desk
-    const o = CAMPUS_SECTORS[0]!.objective;
+    const o = m.objective;
     const half = Math.abs(Math.sin(o.yaw)) > 0.5 ? [0.225, 0.35] : [0.35, 0.225];
     const landX = [20 - LAND_OUT - MOVEMENT.radius, 20 - LAND_OUT + MOVEMENT.radius];
     const landZ = [-76 - 0.4 - MOVEMENT.radius, -76 + 0.4 + MOVEMENT.radius];
     const overlaps = o.x + half[0]! > landX[0]! && o.x - half[0]! < landX[1]! && o.z + half[1]! > landZ[0]! && o.z - half[1]! < landZ[1]!;
     expect(overlaps, `the terminal at (${o.x}, ${o.z})`).toBe(false);
-    expect(floorAt(w, o.x, o.z, 1.0, 1.0), 'the terminal stands on the PC desk (0.75)').toBeCloseTo(0.75, 6);
-    expect(lay).toBeTruthy();
+    expect(floorAt(m.w, o.x, o.z, 1.0, 1.0), 'the terminal stands on the PC desk (0.75)').toBeCloseTo(0.75, 6);
+  });
+});
+
+describe('campus window vaults (F42): the v2 S1 gatehouse glazing', () => {
+  it('the v2 S1 vault windows are the reception window W (breakable) and E2 (open), both vaultable both ways; the fixed panes are not vaults', () => {
+    const w = windowAt(b2, 13.5, -76);
+    const e2 = windowAt(b2, 20, -76);
+    expect(w).toMatchObject({ open: false, breakable: true });
+    expect(e2).toMatchObject({ open: true });
+    for (const a of [w!, e2!]) {
+      for (const sd of [1, -1] as const) {
+        const r = windowVault(v2.w, a, sd);
+        expect(r, `window (${a.c.x}, ${a.c.z}) side ${sd} offers the vault`).not.toBeNull();
+        expect(r!.fails, `window (${a.c.x}, ${a.c.z}) side ${sd}`).toEqual([]);
+      }
+    }
+    // the fixed rear pane E and the fixed north pane (A2) are closed and not breakable: no vault there
+    for (const [x, z] of [[20, -73.8], [19.2, -72.5]] as const) {
+      const a = windowAt(b2, x, z);
+      expect(a, `pane (${x}, ${z})`).toBeDefined();
+      expect(a!.open || a!.breakable, `pane (${x}, ${z})`).toBe(false);
+    }
   });
 });
