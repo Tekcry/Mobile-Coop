@@ -14,6 +14,7 @@ Last rewritten: 2026-10-25 ~12:35 Sydney from docs/orchestrator/FORWARD-PLAN.md 
 ## Now
 Ranked. Gate = what must be true before the next step. The walk cap limits switch-on only; rule fixes are allowed at
 the cap (G355).
+**Main focus (Michael 2026-10-26 ~19:40): row 20, the piano escape scene, comes first for every lead it touches; extra capacity goes to the other rows.**
 
 | # | Item | Owner | Gate | Depends on |
 | --- | --- | --- | --- | --- |
@@ -82,6 +83,7 @@ last walk, confirmed at the next walk card):
 | Guard AI | 4.72-4.73 | report-then-engage, hearing in fights, cover lines, response sweep, sight rays | 5: AT CAP |
 | Lighting | 4.78.0 (2026-10-23 ~18:08) | LR16 on every map, moving lights LR16-5, thermal through doors | 3: AT CAP |
 
+- Piano scene is the main focus (2026-10-26 ~19:40, Michael typed: "I want main focus to be on piano scene. Extra capacity can go towards the remaining tasks."). Row 20 comes first for Campaign (scene, map, camera), Player (knife kills), Guard AI (scene guards) and Sector Ops (scene lighting); the other rows use the spare capacity. The G288 one-click map plan gate and the token-efficiency limits still apply.
 ## Decided
 - Piano escape experiment (2026-10-26 ~19:28, native multiple choice): Michael picked "Inside Night Shift (Recommended)" (a standalone co-op scene on a small test map reusing guards, shadows, co-op and takedowns, kept apart from the main plan) and "Kills, this scene only (Recommended)" (brutal knife kills allowed as a named exception for this one experiment; the no-forced-kill rule G127 and the perfect rating stay everywhere else). ROADMAP Now row 20.
 Today only (2026-10-25), newest first; folded as G324-G343 (4.101.0) and G344-G363 (#407). Older entries:
