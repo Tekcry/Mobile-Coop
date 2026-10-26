@@ -174,6 +174,15 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
   let buf: AudioBuffer | null = null;
   let nodes: AudioScheduledSourceNode[] = [];
   let lastGain = -1;
+  /** Every roll plays through this one gain, so the end fade and dispose reach a roll in flight. */
+  let thunderOut: GainNode | null = null;
+  /** The live rolls' sources (a ring: a roll lasts at most ~6.4 s, so 8 slots never wrap onto a live one). */
+  const live: (AudioScheduledSourceNode | null)[] = [null, null, null, null, null, null, null, null];
+  let liveAt = 0;
+  const keep = (n: AudioScheduledSourceNode): void => {
+    live[liveAt] = n;
+    liveAt = (liveAt + 1) % live.length;
+  };
 
   /** A noise buffer shaped like rain (pink-ish: a running average of white noise) from a fixed seed. */
   const makeNoise = (c: AudioContext): AudioBuffer => {
@@ -206,6 +215,7 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     const out = engine.out('sfx', 0, 0, Number.POSITIVE_INFINITY);
     if (!out) return;
     rainOut = out;
+    thunderOut = engine.out('sfx', 1, 0, Number.POSITIVE_INFINITY);
     buf = makeNoise(ctx);
     out.gain.value = rainGain(0);
     lastGain = rainGain(0);
@@ -252,20 +262,24 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     nodes = [bed, gust, body, pat, trem];
     gust.start();
     trem.start();
-    if (fading) out.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+    if (fading) {
+      out.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+      thunderOut?.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+    }
   };
 
   /** One roll: a slow-attack low body with a long tail, and a short mid growl; the variation from the roll's index. */
   const roll = (r: Roll): void => {
     const c = ctx;
-    if (!c || c.state !== 'running' || !buf || fading || dead) return;
+    if (!c || c.state !== 'running' || !buf || !thunderOut || fading || dead) return;
     const t = c.currentTime;
     const tail = 3.6 + rollVar(r.i, 1) * 2.4;
     const att = 0.35 + rollVar(r.i, 2) * 0.3;
     const level = (0.55 + 0.35 * r.peak) * (0.85 + 0.3 * rollVar(r.i, 3));
     const dur = att + tail;
-    const out = engine.out('sfx', level, 0, dur + 0.1);
-    if (!out) return;
+    const out = c.createGain();
+    out.gain.value = level;
+    out.connect(thunderOut);
     const lowF = 150 + rollVar(r.i, 4) * 120;
     const off = rollVar(r.i, 5) * (NOISE_S - 1);
     const body = c.createBufferSource();
@@ -282,6 +296,7 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     body.connect(f).connect(g).connect(out);
     body.start(t, off, dur + 0.05);
+    keep(body);
     const mid = c.createBufferSource();
     mid.buffer = buf;
     mid.loop = true;
@@ -295,6 +310,9 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
     mg.gain.exponentialRampToValueAtTime(0.0001, t + att + tail * 0.5);
     mid.connect(bf).connect(mg).connect(out);
     mid.start(t, (off + 2.5) % (NOISE_S - 1), att + tail * 0.5 + 0.05);
+    keep(mid);
+    // the roll's own gain leaves the graph once its sources end
+    body.onended = () => out.disconnect();
   };
 
   return {
@@ -324,6 +342,12 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
         rainOut.gain.setValueAtTime(rainOut.gain.value, t);
         rainOut.gain.linearRampToValueAtTime(0, t + Math.max(0.05, s));
       }
+      if (thunderOut && ctx) {
+        const t = ctx.currentTime;
+        thunderOut.gain.cancelScheduledValues(t);
+        thunderOut.gain.setValueAtTime(thunderOut.gain.value, t);
+        thunderOut.gain.linearRampToValueAtTime(0, t + Math.max(0.05, s));
+      }
     },
     dispose() {
       if (dead) return;
@@ -336,8 +360,18 @@ export function createSceneStorm(engine: AudioEngine, data: { readonly flashes: 
         }
       }
       nodes = [];
+      for (let i = 0; i < live.length; i++) {
+        try {
+          live[i]?.stop();
+        } catch {
+          // already stopped
+        }
+        live[i] = null;
+      }
       rainOut?.disconnect();
       rainOut = null;
+      thunderOut?.disconnect();
+      thunderOut = null;
       buf = null;
     },
   };
