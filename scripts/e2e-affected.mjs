@@ -148,7 +148,7 @@ const lightSuites = (extra = ['e2e-levels', 'e2e-ctcourse']) => ['e2e-lightbake'
 // --affected --wide: the wide set. A path under `src/` not listed here runs smoke + CORE. The first matching prefix wins, so a
 // specific file comes before its folder. Cross-area rules (evidence: what each suite drives, grep of scripts/e2e-*.mjs):
 //  - src/weapons -> e2e-stealth-ai and e2e-sectorops:1 (they set `weapons.lastShotNoise`, which drives guard hearing; train 30 failed in e2e-stealth-ai on a weapons-only change)
-//  - src/ai -> the guard suites: e2e-stealth-ai, e2e-guard-carry, e2e-takedown, e2e-weapons-carry (guards carry weapons), e2e-coop (the host runs the guards), e2e-sectorops parts 1 and 6 (guards in sections, Saltmarsh Park)
+//  - src/ai -> the guard suites: e2e-stealth-ai, e2e-guard-carry, e2e-takedown, e2e-weapons-carry (guards carry weapons), e2e-coop (the host runs the guards), e2e-sectorops parts 1 and 6-9 (guards in sections, Saltmarsh Park)
 //  - src/net, src/save, the wire (protocol, security/data) -> the co-op group e2e-coop, e2e-netmove, e2e-ctcourse
 //  - src/world light files, src/voxel -> e2e-lightbake and the suites that read lamps (desktop, stealth-ai, security, darkness)
 //  - src/player, src/anim -> the animation and movement suites (anim, clip, takedown, move, ...)
@@ -212,7 +212,7 @@ export const WIDE_COVERS = {
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
   // (train 30) weapons.lastShotNoise drives guard hearing: the stealth AI suite and Sector Ops part 1 read it
   'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-enemies', 'e2e-gadgets', 'e2e-clip', 'e2e-stealth-ai', 'e2e-sectorops:1'],
-  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops:1', 'e2e-sectorops:6'],
+  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
@@ -335,8 +335,8 @@ export const DIRECT_COVERS = {
   // the Warehouse map itself: its routes suite (legacy) and the usual world suites
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
-  // (J20 T5) Saltmarsh Park: its suite is e2e-sectorops part 6
-  'src/world/maps/campus': ['e2e-sectorops:6', 'e2e-levels', 'e2e-anchors'],
+  // (J20 T5) Saltmarsh Park: its suite is e2e-sectorops parts 6-9
+  'src/world/maps/campus': ['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-levels', 'e2e-anchors'],
   // the lamp files: the bake suite, the desktop renderer and the GPU darkness read-back (dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,

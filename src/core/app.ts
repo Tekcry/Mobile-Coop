@@ -28,7 +28,7 @@ import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceT
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
 import { flags } from './flags';
-import { applyMocapSwitch, mocapWanted } from '../anim/mocap';
+import { ANIM_SOURCE, applyAnimSource } from '../anim/animSource'; // (mixamo-retarget Toggle)
 import { kept as keptParts, type KeptParts } from './keptParts';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
@@ -151,13 +151,23 @@ export class App {
     // Settings row) no longer turns it off; `?mocap=0/1`, then the tuner's "Mocap locomotion" box (this page only, not
     // saved), are the developer rollback.
     let mocapTuner: boolean | null = null;
-    const mocapApply = (): boolean => applyMocapSwitch(flags.mocap ?? mocapTuner, true);
+    // (mixamo-retarget Toggle) the mocap half is now one part of the Animation source (Options > Gameplay; default CMU,
+    // today's game): `?anim=`, `?mocap=0/1`, the tuner box and `?mixamo=0/1` override it for this page
+    const mocapApply = (): boolean =>
+      applyAnimSource({ setting: this.settings.get().gameplay.animSource, url: flags.anim, mocapUrl: flags.mocap, mocapTuner, mixamoUrl: flags.mixamo }).mocap;
     mocapApply();
     tune.mocapHost = {
-      get: () => mocapWanted(flags.mocap ?? mocapTuner, true),
+      get: () => ANIM_SOURCE.mocap,
       set: (on) => {
         mocapTuner = on;
         mocapApply();
+      },
+    };
+    // (mixamo-retarget Toggle) the Anim Studio's Animation source switch: the same saved setting as Options > Gameplay
+    tune.animSourceHost = {
+      get: () => this.settings.get().gameplay.animSource,
+      set: (v) => {
+        if (v === 'hand' || v === 'cmu' || v === 'mixamo') this.settings.update((d) => void (d.gameplay.animSource = v));
       },
     };
     this.settings.subscribe((s) => {

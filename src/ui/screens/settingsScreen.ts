@@ -14,6 +14,12 @@ import { BrightnessScreen } from './brightnessScreen';
 import { toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
+/** (mixamo-retarget Toggle) Options > Gameplay > "Animation source" (`src/anim/animSource.ts` `ANIM_SOURCE_LABEL`). */
+const ANIM_SOURCE_OPTS: { value: 'hand' | 'cmu' | 'mixamo'; label: string }[] = [
+  { value: 'hand', label: 'Hand-made' },
+  { value: 'cmu', label: 'CMU' },
+  { value: 'mixamo', label: 'Mixamo' },
+];
 const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'classic', label: 'Classic' },
@@ -156,6 +162,8 @@ export class SettingsScreen extends MenuScreen {
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             // (mission-framework FLG) the Hints row only with `?missions=1` (`flags.missions`)
             flags.missions ? desc(toggle('Hints', () => s().gameplay.hints, (v) => upd((d) => void (d.gameplay.hints = v))), 'Shows a hint line under the current mission objective.') : null,
+            // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Anim Studio has the same switch
+            desc(choice('Animation source', ANIM_SOURCE_OPTS, () => s().gameplay.animSource, (v) => upd((d) => void (d.gameplay.animSource = v))), 'Which animation set Wren moves with. CMU is the game as it ships; Hand-made the original keyed clips; Mixamo the CMU set with the Mixamo captures on top (hang, shimmy, ladder top-out).'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`
             // or the tuner box turn it off for one page); (LR16a) no Lamp falloff row: one photometric light model
@@ -215,6 +223,7 @@ export class SettingsScreen extends MenuScreen {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
         d.gameplay.hints = def.gameplay.hints;
+        d.gameplay.animSource = def.gameplay.animSource;
       }),
     );
     this.resets.set('video', () => st.reset('video'));
