@@ -993,7 +993,7 @@ export class SectorMode implements GameMode {
   }
 
   /**
-   * (piano-escape S2) The scene's seams into the mode: its EMP spawn, the live section's slots, the start state, the
+   * (piano-escape S2) The scene's seams into the mode: its EMP spawn, the live section's slots, the
    * operators' spots. Built once at the scene's start.
    */
   private pianoSeam(): PianoModeSeam {
@@ -1001,7 +1001,6 @@ export class SectorMode implements GameMode {
     return {
       spawn: () => this.sceneSpawn(),
       spawned: (k) => this.slotEnemy[k]?.alive === true,
-      retakeStart: () => this.startState.take(g.world.level.lights, g.world.doors),
       sectionGuards: () => this.run.current?.guards.length ?? 0,
       spots: () => {
         const b = this.run.checkpoint2;

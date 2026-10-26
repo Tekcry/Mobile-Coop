@@ -123,8 +123,8 @@ export function setPianoLeave(fn: (() => void) | null): void {
 // ------------------------------------------------------------------ S2: the EMP seam and the world the scene drives
 
 /**
- * (S2, S4) The EMP beat's world calls: `empHooks` drives the real APIs (#603 `sceneDark` and `blackoutSearchSlots`,
- * #604 the lightning clock); `mainsOff` (#602) is not on this base yet, so its stand-in stays (`stubMainsOff`).
+ * (S2, S4) The EMP beat's world calls: `empHooks` drives the real APIs (#602 `mainsOff`, #603 `sceneDark` and
+ * `blackoutSearchSlots`, #604 the lightning clock).
  */
 export interface PianoEmpHooks {
   /** The mains cut at (x, y, z): every electric lamp out, nearest first, the last `over` s later, for good. Lamps cut. */
@@ -137,9 +137,9 @@ export interface PianoEmpHooks {
   blackoutSearchSlots(slots: readonly number[], x: number, z: number): number;
 }
 
-/** (S2) The lamps' side of the stand-in: `LightRegistry.disrupt`. */
-export interface DisruptLights {
-  disrupt(x: number, y: number, z: number, radius: number, seconds: number): number;
+/** (S4) The lamps' side of the beat: `LightRegistry.mainsOff` (#602, piano SO1). */
+export interface MainsLights {
+  mainsOff(x: number, y: number, z: number, over?: number): number;
 }
 
 /** (S4) The guards' side of the beat: `EnemyManager`'s scene dark and blackout search (#603, GA1 / GA3). */
@@ -148,21 +148,14 @@ export interface SceneGuards {
   blackoutSearchSlots(slots: readonly number[], x: number, z: number): number;
 }
 
-/** (S2) The mains cut's stand-in: a whole-map `disrupt` that never ends. */
-export function stubMainsOff(lights: DisruptLights, x: number, y: number, z: number): number {
-  // TODO(#602): `world.level.lights.mainsOff(x, y, z, 0.8)` (nearest first over 0.8 s, holds through a restart; then
-  // SectorMode's `retakeStart` stand-in can go). #602 is on master but not on the S4 base.
-  return lights.disrupt(x, y, z, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
-}
-
 /**
- * (S4) The beat's world calls on the real APIs: the lightning clock's t0 (`world.lightning`, #604; null on a map without
- * lightning), the scene's dark and the pair's search on the guards (`em`, #603; null before the manager exists or on a
- * co-op client, whose guards are the host's). The mains cut is the stand-in until #602 reaches the base.
+ * (S4) The beat's world calls on the real APIs: the mains cut (`world.level.lights.mainsOff`, #602: nearest first, for
+ * good, through every restart), the lightning clock's t0 (`world.lightning`, #604; null on a map without lightning), the
+ * scene's dark and the pair's search on the guards (`em`, #603; null before the manager exists).
  */
-export function empHooks(lights: DisruptLights, lightning: () => { t0: number } | null, em: () => SceneGuards | null): PianoEmpHooks {
+export function empHooks(lights: MainsLights, lightning: () => { t0: number } | null, em: () => SceneGuards | null): PianoEmpHooks {
   return {
-    mainsOff: (x, y, z) => stubMainsOff(lights, x, y, z),
+    mainsOff: (x, y, z, over) => lights.mainsOff(x, y, z, over),
     lightningT0(simTime) {
       const lt = lightning();
       if (lt) lt.t0 = simTime;
@@ -204,8 +197,6 @@ export interface PianoWorld {
   spawn(): void;
   /** Guard-list slot `k` of the live section has a living guard (fill has spawned it). */
   spawned(k: number): boolean;
-  /** (stand-in until #602) The lamps as they are now become what a section restart puts back. */
-  retakeStart(): void;
   /** The shared sim clock (co-op: the host's). */
   simTime(): number;
   /** The local operator pressed interact this step. */
@@ -270,7 +261,6 @@ export function pianoClientWorld(g: GameState, c: PianoClientSeam): PianoWorld {
     music: g.app.music,
     spawn: () => undefined,
     spawned: () => false,
-    retakeStart: () => undefined,
     sectionGuards: () => sec?.guards.length ?? 0,
     simTime: () => g.net?.simTime?.() ?? (g as unknown as { time: number }).time,
     localPress: () => g.player.alive && g.app.input.state.pressed('interact'),
@@ -298,11 +288,10 @@ export function knifeSwitch(g: { readonly takedown: { setKnifeScene(on: boolean)
   g.takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, g.world.map.scene, on));
 }
 
-/** (S2) SectorMode's side of the scene: its spawn with the exception, its slots, its start state, its spots. */
+/** (S2) SectorMode's side of the scene: its spawn with the exception, its slots, its spots. */
 export interface PianoModeSeam {
   spawn(): void;
   spawned(k: number): boolean;
-  retakeStart(): void;
   sectionGuards(): number;
   /** The operators' start spots (the section's start and start2). */
   spots(): readonly { readonly x: number; readonly y: number; readonly z: number }[];
@@ -322,7 +311,6 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
     music: g.app.music,
     spawn: () => m.spawn(),
     spawned: (k) => m.spawned(k),
-    retakeStart: () => m.retakeStart(),
     sectionGuards: () => m.sectionGuards(),
     // the shared sim clock (`GameState.simNow`, private: the same `time` read here)
     simTime: () => g.net?.simTime?.() ?? (g as unknown as { time: number }).time,
@@ -530,8 +518,6 @@ export class PianoScene {
     this.view?.burst(x, y, z);
     // 1. the mains cut at the pressing operator, nearest first, all dead by 0.8 s
     this.lampsCut = w.hooks.mainsOff(x, y, z, EMP_OUT_S);
-    // (stand-in until #602: a restart puts the recorded lamps back, so the dead ones are recorded; harmless after)
-    w.retakeStart();
     // 2. the lightning clock from the press (solo: here; co-op: the host's t0 goes to the client in the sector state, S4)
     this.t0 = w.simTime();
     w.hooks.lightningT0(this.t0);

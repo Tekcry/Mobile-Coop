@@ -25,7 +25,6 @@ import {
   empHooks,
   knifeSwitch,
   setPianoLeave,
-  stubMainsOff,
   type FadeLayer,
   type PianoEmpHooks,
   type PianoHost,
@@ -296,7 +295,6 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
       music,
       spawn: () => void log.push('spawn'),
       spawned: (k) => slots[k] === true,
-      retakeStart: () => void log.push('retake'),
       simTime: () => 123.5,
       localPress: () => local,
       empItems: (on, u) => {
@@ -377,7 +375,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     s.sc.step(1 / 60, true);
     expect(s.sc.pressed).toBe(true);
     expect(s.sc.pressedBy).toBe('local');
-    expect(s.log).toEqual(['items false', `mainsOff 4 ${BELT_Y} 4.6 ${EMP_OUT_S}`, 'retake', 't0 123.5', `seek ${EMP_SEEK}`, 'dark true', 'spawn', 'knife true']);
+    expect(s.log).toEqual(['items false', `mainsOff 4 ${BELT_Y} 4.6 ${EMP_OUT_S}`, 't0 123.5', `seek ${EMP_SEEK}`, 'dark true', 'spawn', 'knife true']);
     expect(s.sc.t0).toBe(123.5);
     expect(s.sc.lampsCut).toBe(16);
     expect(s.sc.holdsSpawn).toBe(false);
@@ -525,9 +523,9 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     }
   });
 
-  it('(S4) empHooks: the lightning t0, the scene dark and the search on the real APIs; the mains cut stand-in (#602)', () => {
-    const calls: number[][] = [];
-    const lights = { disrupt: (...a: number[]) => (calls.push(a), 7) };
+  it('(S4) empHooks: the mains cut, the lightning t0, the scene dark and the search on the real APIs', () => {
+    const calls: (number | undefined)[][] = [];
+    const lights = { mainsOff: (x: number, y: number, z: number, over?: number) => (calls.push([x, y, z, over]), 7) };
     const lt = new Lightning(THORNBECK_LIGHTNING);
     const searched: string[] = [];
     const em = {
@@ -536,11 +534,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     };
     const h = empHooks(lights, () => lt, () => em);
     expect(h.mainsOff(1, 2, 3, 0.8)).toBe(7);
-    expect(stubMainsOff(lights, 4, 5, 6)).toBe(7);
-    expect(calls).toEqual([
-      [1, 2, 3, Infinity, Infinity],
-      [4, 5, 6, Infinity, Infinity],
-    ]);
+    expect(calls).toEqual([[1, 2, 3, 0.8]]);
     h.lightningT0(5);
     expect(lt.t0).toBe(5);
     h.sceneDark(true);
@@ -554,9 +548,9 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     none.lightningT0(5);
     none.sceneDark(true);
     expect(none.blackoutSearchSlots([0, 1], 5.5, 5.25)).toBe(0);
-    // the one stand-in left names its real API; the others are gone
+    // no stand-in is left (#602, #603, #604 are all on the base)
     const p = src('src/game/pianoScene.ts');
-    expect(p).toContain('TODO(#602): `world.level.lights.mainsOff(x, y, z, 0.8)`');
+    expect(p).not.toMatch(/TODO(#60[234])|disrupt|retakeStart/);
     expect(p).not.toContain('TODO(#603)');
     expect(p).not.toContain('TODO(#604)');
   });

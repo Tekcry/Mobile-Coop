@@ -52,7 +52,6 @@ describe('the client page: its own intro, ended by the host EMP', () => {
       },
       spawn: () => void log.push('spawn'),
       spawned: () => false,
-      retakeStart: () => void log.push('retake'),
       simTime: () => 50,
       localPress: () => local,
       empItems: (on) => void log.push(`items ${on}`),
