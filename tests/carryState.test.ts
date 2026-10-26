@@ -247,6 +247,8 @@ async function guard(o: { alarm?: boolean; stealth?: boolean } = {}): Promise<Pr
     rng: { range: (a: number) => a },
     // (guard-ai S16) no armour on the fire line: the S16 gate is not under test here
     armourBlocks: () => false,
+    // (guard-ai aim fix) facing the target: the FIRE_CONE gate is not under test here (tests/guardAimFix.test.ts)
+    facesAim: () => true,
     shots: 0,
     shoot(this: Probe) {
       this.shots++;
