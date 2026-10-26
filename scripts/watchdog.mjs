@@ -15,13 +15,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { takeTouchLock, pidAlive } from './heavy-lock.mjs';
 import { ciState, ciGreenAt, selfUpdatePlan } from './auto-train.mjs';
 import * as lq from './laptop-queue/lib.mjs';
+import * as tr from './train-ready.mjs';
 
 export const CHECKS = ['locks', 'orphans', 'prs', 'labels', 'release', 'pages', 'autotrain', 'laptop', 'cloud'];
 export const FIXABLE = ['locks', 'orphans', 'prs', 'labels', 'release', 'cloud'];
-export const LABEL = 'train-ready';
-export const CHECKER_CONTEXT = 'checker';
-export const AFFECTED_CONTEXT = 'affected-e2e'; // also the requester of the laptop service's auto affected requests (#356)
-export const NO_AFFECTED_LABEL = 'no-affected-e2e';
+// the train-ready rule's names and code: scripts/train-ready.mjs (shared with auto-train, F16)
+export const LABEL = tr.LABEL;
+export const CHECKER_CONTEXT = tr.CHECKER_CONTEXT;
+export const AFFECTED_CONTEXT = tr.AFFECTED_CONTEXT;
+export const NO_AFFECTED_LABEL = tr.NO_AFFECTED_LABEL;
 /** Thresholds in minutes (docs/systems/watchdog.md). */
 export const LIMITS = {
   lockStaleMin: 60, lockOldMin: 240, orphanMin: 30, orphanKillMin: 120, greenMin: 30, devGraceMin: 5, tagGraceMin: 5, memberGraceMin: 10,
@@ -193,14 +195,7 @@ export function normalizePr(node) {
   const commit = node?.headRef?.target ?? {};
   const onHead = !!commit.oid && commit.oid === node.headRefOid;
   const rollup = onHead ? commit.statusCheckRollup?.contexts?.nodes ?? [] : [];
-  const statuses = {};
-  for (const s of rollup) {
-    if (s?.__typename !== 'StatusContext') continue;
-    const at = Date.parse(s.createdAt || '') || 0;
-    if (statuses[s.context] && statuses[s.context].at > at) continue;
-    const st = String(s.state).toLowerCase();
-    statuses[s.context] = { state: st === 'error' ? 'failure' : st === 'expected' ? 'pending' : st, description: s.description ?? '', at };
-  }
+  const statuses = tr.statusesFromRollup(rollup);
   const labels = (node?.labels?.nodes ?? []).map((l) => l.name);
   let labeledAt = null;
   for (const e of node?.timelineItems?.nodes ?? []) {
@@ -233,23 +228,8 @@ export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
 export const redChecks = (pr) => [pr.check === 'failure' ? 'check' : null,
   ...[CHECKER_CONTEXT, AFFECTED_CONTEXT].map((c) => (statusOf(pr, c) === 'failure' ? c : null))].filter(Boolean);
 
-/** Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md) -> { ready, why, affectedMissing }. */
-export function labelReady(pr, { requireAffected = true } = {}) {
-  const no = (why, affectedMissing = false) => ({ ready: false, why, affectedMissing });
-  if (isTrain(pr.branch)) return no('train PR');
-  if (pr.draft) return no('draft');
-  if (pr.mergeable === 'CONFLICTING') return no('conflicting');
-  if (pr.check !== 'success') return no(`check ${pr.check}`);
-  const checker = statusOf(pr, CHECKER_CONTEXT);
-  if (checker !== 'success') return no(`${CHECKER_CONTEXT} ${checker}`);
-  const aff = statusOf(pr, AFFECTED_CONTEXT);
-  const waived = aff === 'missing' && !!pr.labels?.includes(NO_AFFECTED_LABEL);
-  if (aff === 'missing' && requireAffected && !waived) return no(`${AFFECTED_CONTEXT} unavailable`, true);
-  if (aff !== 'missing' && aff !== 'success') return no(`${AFFECTED_CONTEXT} ${aff}`);
-  const desc = pr.statuses[CHECKER_CONTEXT].description;
-  const affWhy = aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : waived ? `, ${AFFECTED_CONTEXT} waived (${NO_AFFECTED_LABEL})` : '';
-  return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${affWhy}` };
-}
+/** Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md) -> { ready, why, affectedMissing }: the shared rule. */
+export const labelReady = tr.trainReady;
 
 /** PR and label alerts (docs/systems/watchdog.md); `labelHeads` = { [pr]: head when first seen labelled } -> { alerts, labelHeads }. */
 export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix = false, requireAffected = true, limits = LIMITS } = {}) {
@@ -275,6 +255,11 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
       const checked = statusOf(pr, CHECKER_CONTEXT) === 'success';
       const red = redChecks(pr);
       const unlabel = (reason) => ({ fix: { check: 'prs', type: 'unlabel', pr: pr.number, head: pr.head, branch: pr.branch, reason, desc: `remove ${LABEL} from #${pr.number} and comment` } });
+      if (pr.draft) { // F34: a draft never keeps train-ready (#487 rode train 122 as a draft)
+        heads[pr.number] = from ?? pr.head;
+        alerts.push(alert('pr-label-draft', subj, 'warn', `${LABEL} but the PR is a draft; owner ${who}`, unlabel('the PR is a draft')));
+        continue;
+      }
       if (red.length) {
         heads[pr.number] = from ?? pr.head;
         const reason = `${red.join(', ')} red on head ${short(pr.head)}`;
@@ -424,7 +409,23 @@ export function autoTrainAlerts(a, { limits = LIMITS } = {}) {
 /** Paths that never make a request stale (the queue-audit rule): docs, tests, e2e scripts, fragments, CHANGELOG, *.md. */
 export const nonTestFiles = (files) => files.filter((f) => f && !/^(docs\/|tests\/|scripts\/e2e|changes\/|CHANGELOG)|\.md$/.test(f));
 
-/** q = { requests, claims, trainHeads, activity, desktopBeat, stale: { [id]: { ref, files } }, now } (docs/systems/watchdog.md). */
+/**
+ * `git log --diff-filter=A --no-renames --format=@%ct --name-only -- requests/` text (newest first) -> { [id]: ms of the
+ * newest commit that added requests/<id>.json }. A re-filed id keeps its old timestamp, so age reads this, not the id (F20).
+ */
+export function requestAddTimes(logText) {
+  const out = {};
+  let at = 0;
+  for (const raw of String(logText ?? '').split('\n')) {
+    const line = raw.trim();
+    if (line.startsWith('@')) { at = Number(line.slice(1)) * 1000 || 0; continue; }
+    const m = /^requests\/(.+)\.json$/.exec(line);
+    if (m && at && !(m[1] in out)) out[m[1]] = at;
+  }
+  return out;
+}
+
+/** q = { requests, claims, trainHeads, activity, desktopBeat, stale: { [id]: { ref, files } }, addedAt?: { [id]: ms }, now } (docs/systems/watchdog.md). */
 export function laptopAlerts(q, { limits = LIMITS } = {}) {
   const out = [];
   const reqIds = new Set(q.requests.map((r) => r.id));
@@ -447,7 +448,7 @@ export function laptopAlerts(q, { limits = LIMITS } = {}) {
     const st = q.stale?.[r.id];
     if (st && !r.pin) out.push(alert('lq-request-stale', r.id, 'warn', `${who} [${r.set ?? ''}]: ${st.ref} moved past ${short(r.sha)} in ${st.files} non-test file(s); the verdict cannot count`, { advice: `alert only (${who}: withdraw it)` }));
     if (c) continue; // claimed: the claim checks cover it
-    const age = mins(q.now - lq.idTime(r.id));
+    const age = mins(q.now - (q.addedAt?.[r.id] ?? lq.idTime(r.id)));
     if (age >= limits.requestOldMin) out.push(alert('lq-request-old', r.id, 'warn', `${who} [${r.set ?? ''}]: queued ${age} min, unclaimed`));
   }
   return out;
@@ -617,7 +618,9 @@ function gather(o) {
       }
       const logText = git(['log', '-n', '500', '--format=%ct %s', 'origin/laptop-queue']);
       const activity = { laptop: lq.workerActivity(logText, 'laptop').last || 0, desktop: lq.workerActivity(logText, 'desktop').last || 0 };
-      return { requests, claims, activity };
+      let addedAt = {};
+      try { addedAt = requestAddTimes(git(['log', '--since=7.days', '--diff-filter=A', '--no-renames', '--format=@%ct', '--name-only', 'origin/laptop-queue', '--', 'requests/'])); } catch { /* falls back to the id time */ }
+      return { requests, claims, activity, addedAt };
     });
   }
   if (need('prs', 'labels', 'cloud')) {
@@ -713,7 +716,7 @@ function checkAutoTrain(ctx) {
 
 function checkLaptop(ctx) {
   if (!ctx.lq) throw new Error(`laptop-queue unavailable: ${ctx.errors['laptop-queue']}`);
-  const { requests, claims, activity } = ctx.lq;
+  const { requests, claims, activity, addedAt } = ctx.lq;
   const trainHeads = new Set((ctx.prs ?? []).filter((p) => isTrain(p.branch)).map((p) => p.head));
   let desktopBeat = 0;
   for (const f of ['log.txt', 'runs']) {
@@ -734,7 +737,7 @@ function checkLaptop(ctx) {
     const files = nonTestFiles(d.out.split('\n').map((s) => s.trim())).length;
     if (files > 0) stale[r.id] = { ref, files };
   }
-  return laptopAlerts({ requests, claims, trainHeads, activity, desktopBeat, stale, now: ctx.now });
+  return laptopAlerts({ requests, claims, trainHeads, activity, desktopBeat, stale, addedAt, now: ctx.now });
 }
 
 function checkCloud(ctx) {

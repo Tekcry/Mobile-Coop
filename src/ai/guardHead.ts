@@ -20,8 +20,8 @@
  * sweep `tests/guardHeadSweep.test.ts` (the parity test's harness: the rig fed as `Enemy.frame` feeds it, a
  * `MotionDriver` giving the velocity and the gait clock). Regenerate (S3a fix 2), from the repo root:
  *   MOVE (between the `<guard-head-fit free>` markers): grunt, heavy, sniper, enforcer, officer, droneOp armed, the runner
- *   unarmed; aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 / 0.3), crouch 0 / 1, 14 directions, 0.15 m/s up to the
- *   run speed, in 8 parts (one vitest each):
+ *   unarmed (as fitted before G298 armed him; refit: polish P1); aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 /
+ *   0.3), crouch 0 / 1, 14 directions, 0.15 m/s up to the run speed, in 8 parts (one vitest each):
  *     for i in 0 1 2 3 4 5 6 7; do GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=free GUARD_HEAD_EVERY=3 GUARD_HEAD_PART=$i/8 \
  *       GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done
  *     node scripts/guard-head-fit.mjs free free-*.tsv --write

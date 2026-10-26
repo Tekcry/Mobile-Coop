@@ -37,9 +37,9 @@ This page lists the suites and how they are picked.
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it still runs as its
   four parts, parallel jobs in the pool (a named suite with parts expands; `name:N` names one part).
   `scripts/e2e-times.json` holds 150 s per part as an estimate; it changes only when someone commits a rewrite.
-  `e2e-sectorops` runs as `e2e-sectorops:1` to `:6` (sector-fixes-r RE: the suite before slice R, the solo route checks,
-  the co-op routes of sections 1-3, and part 6 the campusOps S1-S3 greybox routes; `PARTS` in `scripts/run-e2e.mjs`);
-  named alone its six parts run as parallel jobs.
+  `e2e-sectorops` runs as `e2e-sectorops:1` to `:9` (sector-fixes-r RE: the suite before slice R, the solo route checks,
+  the co-op routes of sections 1-3, and parts 6-9 the solo campusOps (Saltmarsh Park) checks: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5 (split from one part 6 in F33: it ran near the 900 s kill); `PARTS` in `scripts/run-e2e.mjs`);
+  named alone its nine parts run as parallel jobs.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
@@ -95,7 +95,7 @@ This page lists the suites and how they are picked.
   uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
-  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite; Saltmarsh Park `src/world/maps/campus*` -> `e2e-sectorops:6`);
+  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite; Saltmarsh Park `src/world/maps/campus*` -> `e2e-sectorops:6` to `:9`);
   the lamp files (`src/world/light*`, `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` -> lightbake, desktop;
   `src/config`, `src/core` -> CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); `src/weapons` -> combat, weapons-carry, stealth-ai,
   `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30); `src/ai` -> stealth-ai, guard-carry,
@@ -114,7 +114,7 @@ This page lists the suites and how they are picked.
   -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
   `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
 - WIDE rules (`--wide`): DIRECT plus the cross-area readers: `src/weapons` also enemies, gadgets, clip; `src/ai` also levels,
-  tactics, takedown, weapons-carry, coop, `e2e-sectorops:6`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
+  tactics, takedown, weapons-carry, coop, `e2e-sectorops:6` to `:9`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
   also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse (campus: all of `e2e-sectorops`); the lamp files and `src/voxel` the light readers
   (desktop, stealth-ai, security, darkness); `src/net` / `src/save` the quick rows plus the co-op group; `src/game/rating` also
   sectorops and course, `src/save/ratingRecord` also sectorops and menus (the missions screen reads it); the Marlow Yard map and
@@ -246,7 +246,7 @@ behind a VPN adapter).
   syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
   brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as six jobs, `e2e-sectorops:1` to `:6` (`--part=N`; named alone its parts
+  (software GL). (sector-fixes-r RE) It runs as nine jobs, `e2e-sectorops:1` to `:9` (`--part=N`; named alone its parts
   still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
   co-op routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one
   player alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the
@@ -258,7 +258,7 @@ behind a VPN adapter).
   and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
-  re-bolted on both pages by the host's checkpoint restart. Part 6's H8 block (hard rule 9): in campus sections 2-5
+  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5
   every spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`).
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
@@ -283,7 +283,7 @@ behind a VPN adapter).
 - `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
   restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
-- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course`, Marlow Yard A1-A8 as four parts
+- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course` (client `&autojoin=1`, F7), Marlow Yard A1-A8 as four parts
   (`--part=N`, run as the jobs `:1` A1-A2, `:2` A3-A4, `:3` A5-A6, `:4` A7-A8; a part after the first starts at its first
   set through the host session's `courseBay`). `scripts/e2e-ctcourse.mjs` owns the helper object `t` (`t.A` host page,
   `t.B` client page, `until`, `assert`, `moveHost` / `moveClient`, `use`, the team-move and jammer helpers, `t.point(id)`)
@@ -456,12 +456,12 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
+- `E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/look-video.mjs <dir> <plan.json> [sections]` (campaign look-video): a 1280 x 720 walk video per section of a plan (`scripts/look-video/tallowWharf.json`: Tallow Wharf W1-W4, ~75 s each), the photo camera flying the plan's path over the frozen world: `<dir>/<section>.webm` and `<section>.json` (`start`: the flight's offset after the boot). The look video a lighting or animation PR links; never committed. Pure parts: `tests/lookVideo.test.ts`.
 - `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
   (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
   `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
   is master's rule, `--query=animshadow=0` tier 8 camera only.
-- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
-  quality, heap growth (leak check)
+- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
   (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
   writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,

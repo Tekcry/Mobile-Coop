@@ -1,5 +1,97 @@
 # Changelog
 
+## 4.114.1 - Train 126: Training course and bunker test fixes; Marlow Yard test fixes (2026-10-26, PR #577; #567)
+
+### Marlow Yard test fixes
+- The Marlow Yard co-op test no longer stalls at the start when the computer is busy: its second window now always
+  joins the first as a partner instead of sometimes opening a second room of its own.
+- The test measures the partner throw over the laser beams on every game step, so a busy computer can no longer make a
+  good throw look too low; a slow page load also gets two minutes instead of one.
+
+### Training course and bunker test fixes
+- The training course and bunker co-op tests no longer risk stalling at the start when the computer is busy: their
+  second window now always joins the first as a partner instead of sometimes opening a second room of its own. If a
+  start ever stalls again, the test prints what both windows saw.
+
+## 4.114.0 - Train 124: Guard AI: the runner is armed; Auto-train: fewer missed and wasted trains; Light allocation check; Animation source: hand-made, CMU or Mixamo; Preview: every feature on; +2 more (2026-10-26, PR #575; #571, #568, #560, #559, #531, #494, #457)
+
+### Guard AI: the runner is armed
+- Guards: the runner now carries a rifle and fights like the other armed guards (G298: every guard is armed). He draws,
+  aims and fires bursts, holsters when calm, and joins alarm runs, body checks and investigations like any guard; no
+  more hand-to-hand strikes or lunges. He is still the fast, light guard without cover who weaves as he runs in and
+  presses close while firing. Seen in the parked Warehouse modes; no live map places a runner.
+
+### Auto-train: fewer missed and wasted trains
+- Auto-train no longer stops on a brief GitHub hiccup: a read that fails for a passing reason (such as HTTP 499) is tried
+  once more after 5 seconds. Writes are never repeated.
+- A train with nothing new in it no longer fails: auto-train goes idle and waits until a PR or master changes.
+- A release no longer waits for the live site to update. Auto-train keeps watching the site on later ticks and repairs
+  the deploy once if it is still behind 20 minutes after the release.
+- The next train is paced by the laptop only: waiting requests and desktop work no longer hold it back, so trains go out
+  about every hour again.
+- A PR that meets the train-ready rule but was never labelled (as #460 was for train 103) now rides the next train;
+  auto-train adds the label when it builds. A PR that lost the label on its current head stays out.
+- Auto-train reads the PR list again at the start of a build, so a PR that turned ready seconds before (as #521 did for
+  train 119) is no longer left for the next train.
+- A draft PR is never taken into a train, never labelled, and loses a stray `train-ready`; the desktop test worker files
+  no laptop rerun for a draft's failure.
+- The watchdog's "request waiting too long" alert counts from the commit that added the request, so a re-filed request
+  is not flagged because of its old id.
+
+### Light allocation check
+- Tests: the light and shadow allocation checks no longer flake on busy CI machines
+
+### Animation source: hand-made, CMU or Mixamo
+- Settings > Gameplay > Animation source picks the set Wren moves with: CMU (the default, the game as before), Hand-made
+  (the original keyed clips) or Mixamo (the CMU set with the Mixamo captures on top: the ledge hang, the shimmies and
+  the ladder top-out; a move with no Mixamo clip keeps its CMU or hand-made one). A look choice only: timing, reach and
+  the co-op wire are unchanged, and a co-op partner is drawn with your own choice. Saved with the settings.
+- The Anim Studio has the same switch, and a Set filter on the Loop list (All / Hand-made / CMU / Mixamo) that shows
+  only that set's loops. The Now playing line names the source in use. `?anim=hand|cmu|mixamo` sets it for one page.
+
+### Preview: every feature on
+- The preview build turns on every feature still behind a switch (new guard figures, character shadows in the light
+  meter, the map-ready loading, the new Saltmarsh Park layouts, the re-planned Marlow Yard, the Mixamo moves); add `=0`
+  to the link to turn one off. The live game is unchanged.
+
+### Sector Ops: no exit beacon; objectives say where
+- Sector Ops: the green disc and glowing pole at every exit are gone (no markers); the connector doors, signs and light
+  show the way out.
+- Saltmarsh Park: each section's objective is a short line that says what and where (the gatehouse, the facilities
+  office, the prototype store, the server cage, the strongroom).
+- Tests: a data test checks that every Saltmarsh Park objective line names its room; the data hall dressing uses the
+  allocation-free distance helper.
+
+### Sector Ops test part 6 split
+- Test runner: the Saltmarsh Park Sector Ops checks now run as four shorter jobs (parts 6-9) so none nears the time limit; a launch whose match never starts now fails with a clear message (after 180 s) instead of a confusing error later; the runner prints a SLOW line for any passing suite past 75% of its time limit.
+
+## 4.113.1 - Train 123: Guard AI: replayable guard timing (2026-10-26, PR #569; #537)
+- Guards: their reaction timing, radio delays and recon drone orbits now come from fixed seeds instead of chance, so
+  from a fresh load the same play gives the same guard timing (hard rule 8: every detection explainable).
+
+## 4.113.0 - Train 122: Marlow Yard re-plan: station retries (dark) (2026-10-26, PR #565; #487)
+
+### Marlow Yard re-plan: station retries (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 R1): the re-planned yard's numbered stations run a retry
+  instead of a set restart. Seen by a guard or a camera in a teaching set, or caught for 2 s in the Strongroom, puts both
+  players back on that station's start marks with only its guards, gates, gate doors and flags reset; a guard dealt
+  with at an earlier station stays down, and earlier stations stay done. A set's drill window or beam can call the same
+  retry from its own station code. A station whose new team move is not playable yet opens its stand-in gate. Downed
+  still restarts the set from its holding room. A host with the flag opens its room on the re-planned yard.
+- The built yard plays as before, with one fix: the pause menu's set restart holds the spotted rule at once, so a guard
+  still in combat from before the restart can no longer restart the set a second time.
+- Route-run hooks: `window.__course.restarts`, `lastRetry` and (host) `retryOff(n)`; `?course=station:<n>` starts at a
+  station. The `course` message carries the live station and the last retry (wire change).
+
+### Marlow Yard re-plan: variant base
+- Marlow Yard re-plan, slice S0 (dark behind `?marlowreplan=1`, default off): the re-planned yard builds as its own unlisted
+  map `ctcourseReplan` (same set builders, then a per-set `replan/<set>.ts`, the site floor cut round each set's floor
+  holes, a re-plan light circuit table where every light works). A bay can now carry numbered stations (`StationDef`).
+  With the flag off nothing changes: the built yard, its geometry checksums and light files are untouched.
+
+## 4.112.2 - Train 121: Look-video recorder (2026-10-26, PR #555; #549)
+- A tool that records map walk videos for review (`scripts/look-video.mjs`; Tallow Wharf's four sections planned).
+
 ## 4.112.1 - Train 120: Mission framework: mission core (2026-10-26, PR #554; #521)
 - Groundwork for campaign missions: the code that describes a mission (its sections, steps, rule and checkpoints) and
   runs it step by step, with its tests. Nothing uses it yet, so the game does not change.
