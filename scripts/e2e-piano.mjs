@@ -254,6 +254,8 @@ if (ok) {
     );
   /** Host step hook: walk the host to (x, z) (the camera faces it, the stick forward); result: { t } s taken (-1: over `cap`). */
   const HOST_WALK = (g, a, st) => {
+    // the cut leaves him on the wall (knife S4b): off it first, as a player would
+    if (g.wallCore?.active) g.wallCore.leave('e2e walk');
     const p = g.player.position;
     const dx = a.x - p.x;
     const dz = a.z - p.z;
@@ -274,6 +276,7 @@ if (ok) {
           const g = window.__app.current;
           const t0 = g.time;
           const tick = () => {
+            if (g.wallCore?.active) g.wallCore.leave('e2e walk');
             const p = g.player.position;
             const dx = x - p.x;
             const dz = z - p.z;

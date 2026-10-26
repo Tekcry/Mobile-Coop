@@ -1,7 +1,26 @@
 # piano-escape - STATE
 Owner: Night Shift | Campaign Build. Status: current.
 
-## RESUME 2026-10-26 ~22:30 SAVE (Night Shift | Campaign Build; read this block first; swap ~22:41)
+## RESUME 2026-10-27 ~01:50 SAVE (Night Shift | Campaign Build; read this block first; meter reset 03:50)
+Storm mill only (Michael ~23:25); Tallow resumes when the orchestrator says. Pace: one agent at a time, small fixes by the
+lead. Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end); briefs / reports / checks in
+C:/NightShift/scratch/campaign/piano/. All worktrees clean and pushed at this save.
+1. WALK BUILD = PR #631 feature/piano-escape-s4 (worktree -s4, base master, big-pr): every piano part at its checked head
+   + S4 (knife, co-op, ep) + S6 storm sound + S4b intro pose wiring + S7 GuardActor intro guards + the intro body-fade
+   fix + SO3 torchSlots 16. Checker posted on each head. e2e: solo part green; the two-player part's last fail was the
+   scripted walk pushing into wall cover (S4b keeps both on the wall at the cut): the walk leaves the wall first (this
+   head). Re-filed e2e-piano --fix on this head. Red again -> one triage (laptop log in the PR comment), fix here.
+2. S8 one-shot opening (Michael ~00:20, ROADMAP Decided) on feature/piano-escape-s8 (worktree -s8) at dfbceaf01: two
+   Opus PASS (S8-check.md, S8-check-2.md), recorded by the orchestrator (video3/, video4/). Merge it into -s4 ONLY once
+   #631's e2e-piano is green, then tell the orchestrator to re-record. S8 also edits scripts/e2e-piano.mjs (EMP_CUT_S
+   3.5: sim 2.5 + 1.3): keep both sides' fixes in the merge. Walk notes (no more polish, orchestrator ~01:21): the knife
+   reads as an open hand, the hero shot frames him small, the glide into play is dark.
+3. The other piano PRs (#606, #616, #617, #618, #604, #605, #611, #614 merged, #620, #624) land on their own; #631 can
+   ride with or after them.
+4. Tallow #583 152c85c18: wharf e2e kills fixed (body / melee on Realistic helmets); set wharf filed; out of draft.
+Next: #631 e2e-piano green -> merge S8 into -s4 (keep both e2e-piano edits), tsc + piano tests, push, re-file, tell the orchestrator.
+
+## OLD RESUME 2026-10-26 ~22:30 SAVE (Night Shift | Campaign Build; read this block first; swap ~22:41)
 Main focus: the mill (Michael ~19:40). Worktrees C:/NightShift/Mobile-Coop-piano-escape[-s1b|-s2|-s4|-s5]; briefs, reports
 and checks in C:/NightShift/scratch/campaign/piano/. Prototype mode; the lead posts `checker`; docs pushes re-post it.
 PRs (all checker PASS, posted):
