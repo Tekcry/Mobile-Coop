@@ -201,11 +201,19 @@ export function strikeBodyRest(out: StrikeBodyOut): StrikeBodyOut {
 }
 
 /**
- * The offsets at strike phase `ph` (0..1; < 0 the rest pose) with the tuner's sliders on `STRIKE_BODY`. Pure: writes
- * `out`. No allocation.
+ * The offsets at strike phase `ph` (0..1; < 0 the rest pose) with the tuner's sliders on `STRIKE_BODY`, by `k` (1: as
+ * keyed; (mixamo-retarget I5) a Mixamo strike capture's share of the body takes its share of the shoulder line's turn past
+ * the hips and the neck's out: the take turns its own spine and chest over these hips). Pure: writes `out`. No allocation.
  */
-export function strikeBodyAt(ph: number, out: StrikeBodyOut): StrikeBodyOut {
-  if (ph < 0) return strikeBodyRest(out);
+export function strikeBodyAt(ph: number, out: StrikeBodyOut, k = 1): StrikeBodyOut {
+  if (ph < 0 || k <= 0) return strikeBodyRest(out);
+  if (k < 1) {
+    strikeBodyAt(ph, out, 1);
+    // the hips' turn and the weight shift stay; the shoulder line's turn past the hips and the neck's go
+    out.chest = out.pel + (out.chest - out.pel) * k;
+    out.neck *= k;
+    return out;
+  }
   const p = ph > 1 ? 1 : ph;
   const B = STRIKE_BODY;
   const turn = tv('turn');

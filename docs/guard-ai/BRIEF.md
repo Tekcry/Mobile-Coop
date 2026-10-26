@@ -627,11 +627,11 @@ A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A
   `spawn(.., true)` already binds a valid slot, and with nothing valid the extra call only bound a positionless alarm
   slot. Such a guard now binds on the next call or sighting (`hunt` -1 until then); the freshest fallback in `sendIn`
   is for the parked modes only. Undo: `POLISH_B.alarmTell = false` in `src/ai/enemyManager.ts` (restores the two calls).
-- **A183** (guard-cap T1, PR #360) T1 (off-screen anim tier 4 -> 8) is HELD, not train-ready, for Michael's look call:
-  both checkers (`slices/T1-CHECK-A.md` / `-B.md` on feature/guard-ai-t1-anim-tier) found that "seen" is the camera
-  pass only, so an off-view guard's shadow in view refreshes at 7.5 Hz (3.75 Hz at 30 fps; feet slide up to 21 / 75 cm).
-  Light and shadow is the core pillar, so the lead does not ship it blind. Options: ship 8; count shadow-in-view as
-  seen (after gm-flip; the saving then mostly goes); close T1. Undo: mark #360 train-ready (Michael picks ship 8).
+- **A183** CLOSED, answered by G327 (Michael 2026-10-25 ~08:50, "Yes, shadow in view = seen"; again ~16:50, Q17
+  "Like on screen"): a guard whose shadow falls in view animates at full rate. Both T1 checkers had found "seen" was
+  the camera pass only (`slices/T1-CHECK-A.md` / `-B.md` on feature/guard-ai-t1-anim-tier). The build is FOLDED-PLAN
+  J4: a fresh PR from the #360 branch counts shadow-in-view as seen in `animTierView.ts`, measures the saving left,
+  and #360 closes when it opens.
 
 ## Guard AI polish batch 2 (`feature/guard-ai-polish2`, `POLISH2-PLAN.md`, Opus planner 2026-10-25)
 A184-A194, ranked by player-visible impact; the source ids are the checkers' (S28-CHECK-B, POLISH-CHECK-A, ...). Host
@@ -681,3 +681,10 @@ only, no protocol or save change. T1 (the recon drone's sight verdict) is a test
 - **A194** (POLISH-CHECK-A 2) The in-cover known-spot exits (`blockCover`, too close) need a spot: a hunt position, a
   sighting or a stimulus; else today's feet rule. Hardening, not reachable today. Undo: `KNOWN_NEEDS_SPOT = false` in
   `src/ai/enemy.ts`.
+
+## G327 shadow in view (`feature/guard-ai-g327`, PR #438; replaces #360)
+- **A195** (G327, Q17 "Like on screen") An off-view guard counts as seen when a shadow of his can fall in a local view
+  (the render freeze's frustum test `guardFrustum`: moon capsule, lamp and torch shadow volumes, character-atlas slots;
+  frustum only, so a shadow behind a wall still counts); he then animates like a guard in view (every frame; every 2nd
+  past 22 m, as on screen). A guard with neither body nor shadow in view solves every 8th frame (was 4th). Undo:
+  `flags.animShadow` default false (`?animshadow=0` for one run) and `ANIM_TIER_OFFSCREEN` 4 in `src/ai/animTier.ts`.

@@ -113,7 +113,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`gh pr edit <pr> --remove-label train-ready`, logged; a failed removal is logged, not fatal), so it stops being a
   candidate and no longer causes repeat empty builds (audit 2026-10-24), and it gets one comment per head
   (`<!-- auto-train:left-out:<sha> -->`) saying the label was removed: the lead fixes the conflict and re-adds
-  `train-ready`. Under `--dry-run` both are printed only.
+  `train-ready`. Under `--dry-run` both are printed only. A member whose merge adds a doc-lint ERROR to the train tree
+  (`merge-train build` runs `scripts/doc-lint.mjs` on git objects after each member; e.g. two members together over a
+  doc budget) is left out the same way, with a comment asking the lead to fix the doc (audit 2026-10-26: trains 111
+  and 112 lost ~7 h to one line each).
 - Auto-drop (Michael 2026-10-24 ~21:00, "Auto-drop on failure"; a failed train used to wait 10-30 min for the
   orchestrator): the failing suites come from the `laptop-e2e` (or rerun) description's `FAIL:` list, else from the
   newest laptop-queue failure comment on the head (`**<suite>**` / `Failing assert:` lines, which also give the assert).
@@ -177,7 +180,9 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (requester `laptop-queue spare`) on the master head, never while a train is building, releasing, waiting on its
   laptop pass or green train-ready PRs wait for one. A pending train head stops a running spare job at once, whatever
   its kind or progress (lib `cutShort`), and the spare job is done, not queued again.
-- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`) is never read: a flag never holds a release (visual-gate BRIEF A1).
+- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`): a light-meter
+  against picture mismatch holds the release, checked every release; other picture flags are advisory (G391). Not built
+  yet: auto-train still never reads `visual-gate` (visual-gate BRIEF A1), so today no flag holds a release.
 
 ## Rules it keeps
 - Never forces anything (merge-train's own `build` force-pushes only `train/<n>`), never touches dev or master

@@ -48,7 +48,7 @@ describe('GUARD_LOD', () => {
     expect(run(2, all)).toEqual([0, 2, 4, 6]);
     // called only on odd frames (an anim tier at half rate, out of phase): every call
     expect(run(0, [1, 3, 5, 7])).toEqual([1, 3, 5, 7]);
-    // called every 4th frame (the off-screen tier): every call
+    // called every `ANIM_TIER_OFFSCREEN` th frame (the off-screen tier): every call
     expect(run(1, [0, 4, 8])).toEqual([0, 4, 8]);
     for (const lod of [LOD_0, LOD_1]) expect(guardPosesNow(lod, 1, 4, 3)).toBe(true);
   });

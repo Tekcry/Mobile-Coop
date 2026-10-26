@@ -1,6 +1,6 @@
 // Enemy archetypes on the night Warehouse (Clear rules): heavy (plates, weak back / face plate, no frontal
 // choke), enforcer (shield stops frontal rounds, no frontal grab, pushes forward), sniper (laser, glint refuses a
-// mark, relocates after its shots), dog (smells a hidden crouched operator in the dark, a non-lethal takedown),
+// mark, relocates after its shots), dog (smells a hidden crouched operator in the dark, no takedown (G348), gas knocks it out),
 // drone operator (its recon drone spots and alerts; shot down; EMP drops it), officer (buffs squadmates, runs the
 // alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist
 // (difficulty autostart). `node scripts/e2e-enemies.mjs [url] [--only=name]`
@@ -208,7 +208,7 @@ await run('autostart=warehouse&mode=clear', [
         t.step(2.5);
         const near = e.meter;
         const level = e.level;
-        // a non-lethal takedown puts it down
+        // (G348, guard-rules S2) no takedown on a dog: behind it, no offer, the press does nothing, it stays up
         t.reset();
         const d = t.spawn('dog', 8, 4, 0);
         t.freeze(d);
@@ -219,11 +219,16 @@ await run('autostart=warehouse&mode=clear', [
         t.step(1 / 60);
         window.__app.input.state.set('t', 'interact', false);
         t.step(1.5);
-        return { far, near, level, offer, down: !d.alive, kept: g.enemyMgr['dogCorpses'].length };
+        const up = d.alive && !g.takedown.active;
+        // gas knocks it out (the gadget's hit): it lies where it fell
+        d.knockOut({ amount: 9999, point: d.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'explosion', attackerTeam: 'player', attackerId: 'local', sourcePos: d.pos.clone(), impulse: 0.5 });
+        t.step(0.2);
+        return { far, near, level, offer, up, down: !d.alive, kept: g.enemyMgr['dogCorpses'].length };
       });
       assert(r.far < 0.05, `out of its smell radius nothing (${r.far.toFixed(2)})`);
       assert(r.near > 0.3 && r.level !== 'unaware', `inside it the dog smells a hidden operator in the dark (${r.near.toFixed(2)}, ${r.level})`);
-      assert(r.offer === 'behind' && r.down && r.kept === 1, `a takedown puts the dog down (${r.offer}); it lies where it fell`);
+      assert(r.offer === null && r.up, `no takedown on a dog: no offer behind it, it stays up (${r.offer}, up ${r.up})`);
+      assert(r.down && r.kept === 1, `gas knocks the dog out; it lies where it fell (${r.down}, ${r.kept})`);
     },
   ],
   [

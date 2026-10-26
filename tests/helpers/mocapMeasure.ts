@@ -36,6 +36,8 @@ export interface PlanStep {
   rec: boolean;
   /** (mt2-crouch) The crouch 0..1 (absent: standing). */
   crouch?: number;
+  /** (mixamo-retarget I5) More pose fields for this step (a carry's bend and load, a strike's `melee`); absent: none. */
+  pose?: Partial<RigPose>;
 }
 export type Plan = (k: number, t: number) => PlanStep;
 
@@ -104,6 +106,7 @@ export async function driveRig(steps: number, plan: Plan, onStep?: (rig: Charact
       p.crouch = s.crouch ?? 0;
       p.localZ = s.speed > 0 ? 1 : 0;
       p.stride = 'facing';
+      if (s.pose) Object.assign(p, s.pose);
       rig.animate(DT, p);
       onStep?.(rig, k);
       if (!s.rec) continue;

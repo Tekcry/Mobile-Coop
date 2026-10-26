@@ -2518,7 +2518,9 @@ export class CharacterRig {
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
     // (strike-pops) at the trunk's pace (`STRIKE_BODY_RATE`): the strike's drive over 3 frames, not on the arm's fastest 2
     this.sbPh = strikeBodyPhase(this.sbPh, this.graph.wrenReady ? this.input.melee : -1, dt);
-    const sb = strikeBodyAt(this.sbPh, this.sb);
+    // (mixamo-retarget I5) less a Mixamo strike capture's share of the body (its share of the keyed pose, `strikeCap`, by
+    // the keyed weight; 0 without one: the layer as before)
+    const sb = strikeBodyAt(this.sbPh, this.sb, 1 - t.strikeCap * kw);
     if (!free) pex += sb.side;
     const peZ = pez + this.restShift + (free ? 0 : sb.fwd);
     const yc = Math.cos(yaw);
