@@ -1,0 +1,17 @@
+{
+  "id": "20261026T012809-affected-e2e-effa5958-9e78",
+  "sha": "effa5958f85587f173fe39cdf90815f1f75f8407",
+  "branch": "feature/char-shadow-meter-a2",
+  "pr": 481,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-gadgets",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #481"
+}
