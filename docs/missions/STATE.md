@@ -1,7 +1,29 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~10:50 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
+## RESUME 2026-10-26 ~11:45 (Night Shift | Campaign Build, after the 11:25 swap; read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 11:25 swap". Rerun any agent whose
+report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
+Desktop CPU 93% at start: tsc / vitest builders go to cloud-queue; local checks via scratch/ctcore/low.mjs.
+1. DONE: J7 PR D, E, F all green (j7-prd / j7-pre / j7-prf) and merged into feature/mission-engine -> 5e72f83b0
+   (code = PR F head; engine-only diff is docs). Marlow told the sha. cloud-queue campaign-tallow-d0 closed (65f11c018).
+2. FE + FF (J7 docs) Haiku on feature/mission-rules-docs (worktree -mission-rules-docs, report j7-fef-report.md) ->
+   lead merges into the engine.
+3. PR T feature/tallow-throw: engine merged in (local, check log tallow-throw-merge-check.log). Green -> push, checker
+   status, withdraw request 20261025T230719 (6c4219cd2, unclaimed), request e2e-coop e2e-netmove e2e-ctcourse
+   e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl (set tallow-prt) on the new head. Green -> merge T into the engine
+   FIRST (plan section 5 order T, G1, G2, S).
+4. PR G1 feature/tallow-fixes: engine merged in; FG1 Haiku (tallow-fg1-report.md) pushes. Then tsc + tallowWharf tests
+   (low.mjs), laptop set (wharf-tgc wharf-tkl mission + e2e-coop e2e-netmove + affected list, plan :1069-1080), look
+   videos W1 / W3 (Test Runner queue, 4189), claims-check rerun, one PR-level Opus checker. Then merge into the engine.
+5. PR S feature/tallow-shutters: next = merge the PR T head in, then S1 late hunks A (teamController update call +
+   resetKit + test) and B (gameState armDoors(this.nav) + checkpointReset resetKit): spec tallow-s1-report.md :42-71.
+6. Cloud G2 claimed (elegant-rubin, base tallow-fixes-2 24964a624). Done -> merge tallow-fixes (now with the engine)
+   into tallow-fixes-2, then the G2 checker; G4 brief next; E8 is unblocked by PR F (needs G2 + G4); D1 after G1-G4.
+7. PR C (engine to master): docs/missions/slices/PRC-split.md is stale (sizes at 533c02a66); refresh after T / G1 / G2 / S.
+Next: throw check -> PR T laptop; FG1 + tsc -> PR G1 laptop + videos; S1 late hunks; G2 pickup.
+
+## OLD RESUME 2026-10-26 ~10:50 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 09:35 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 1. Laptop (wharf-tgc + wharf-tkl only): j7-prd on PR D c2802450a (carries gb6fix2), j7-pre on PR E 162f43204, j7-prf
