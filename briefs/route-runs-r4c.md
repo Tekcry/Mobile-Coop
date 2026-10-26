@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:34:47Z
+status: done feature/route-runs-r4c 7c54c35b958f423529f6ae2cc6ace80231e254f2
 # J13 route-runs, slice R4c (Opus-grade brief): course mode, drill gates and restarts
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3). R1-R4a are on master; R4b (the robot pair, PR #510,
@@ -225,3 +225,127 @@ SR1-SR5 are built in their own slice (`briefs/route-runs-seams.md`, on the #520 
 `driver.mjs` here; code against the hooks as the SR text names them (`course.onRestart`, `checkCourseExpect`, the
 interrupt event). Your calls (drill hold once per door, the 3 m + 6 m/s check, `spotHold = 1e9`, the S9 fixture, one
 laptop step for A1 + A2) are accepted.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-26)
+Branch `feature/route-runs-r4c` from f8b0429c (R4b, PR #510), pushed, head `7c54c35b958f423529f6ae2cc6ace80231e254f2`.
+Note: SEAMS (SR1-SR5) was built in parallel on `feature/route-runs-seams` (36424fb4, base bf8a91ee); its report is in
+`briefs/route-runs-seams.md`. The seam sketches below are R4c's own reading, kept for the lead's cross-check.
+
+### Tests
+- `npx vitest run` on the six named files: 6 files, 148 passed (`routeRunCourse` 30; the other five 118, unchanged).
+- `npm run typecheck:fast`: clean.
+
+### Commits
+- `5922ef3ff` `course.mjs`, the tests, the fixture. `7c54c35b9` the changelog fragment (`kind: patch`).
+
+### What changed
+`scripts/route-run/course.mjs` (704 lines) fills R4a's seam, both hook names and shapes kept.
+- Constants with their BRIEF notes: `CAUSE_WINDOW_S` 2, `PER_PLACE` 2, `DRILL_HOLD_S` 10 (A13), `UNLOCK_WAIT_S` 5,
+  `AIRLOCK_WAIT_S` = `AIRLOCK_CYCLE_S` 4 + 5 (4 s from `src/config/course.ts:7` `AIRLOCK_CYCLE`, imported by
+  `courseState.ts:13`, used at :1227), `JUMP_M` 3, `JUMP_SPEED_MPS` 6, `VERB_CAP` 16; added `LOCK_POLL_S` 0.2,
+  `SPOT_OFF` 1e9.
+- Pure, unit-tested: `drillActions`, `drillHold`, `causeWindow`, `classify`, `jumped`, `follow` / `followState`,
+  `rejoinIndex`, `pushPastTarget`, `restartLine`, `linkRestarts`, `checkCourseExpect`, a local `spaceAt` (copy of the
+  driver's rule).
+- Page access through `coursePage(ctx)` (tests swap in `ctx.coursePage`); one host evaluate per poll, plus one client
+  evaluate only when SR3's `posN` exists. J14 fields (`lastRetry`, `station()`, `retryOff`) are feature-detected.
+- `onLockedDoor`: finds the course door id with courseMode's own lookup (`layout.doors` by anchor id,
+  `courseMode.ts:252-256`, applied by `applyLocks` :1032-1047); a door not in `debug().locks` returns false at once; a
+  cycling airlock is waited for with no stubs; otherwise the A13 hold (only when a drill is open), one drill stub per
+  drill and player (the first carries the hold); an airlock's far door with the robots not both on the pad: both placed
+  on the pad; then the lock is polled with `ctx.advance(0.2)`.
+- `onPoll`: first poll of a run is the baseline; a restart is a rise of `restarts` or (with `posN`) a jump, run through
+  `classify` and `follow`, logged `{ t, space, set, restart, detection: null, then }`; a rejoin / push past is queued,
+  then `__rr.interrupt?.()`; spotted rule off sets `spotHold = 1e9`, re-applied after later restarts in the same set,
+  0 when the bay changes (J14: `retryOff(st)`, a refusal becomes a run note); timer drill stubs run on the next poll;
+  the `restart-loop` dead stop is written with its screenshot; the selftest raise hook uses `squadOf(slot)` or the
+  enemy id, then `aware.set('alert')` (spotFail reads `alerted` = `aware.level === 'alert'`). It never waits, places or
+  advances (tested). When the clock goes back (next run's restart) the old run's watcher ends.
+- Seam exports: `onRestart(ctx, run, steps, i)`, `onRunEnd(ctx, run)`, `checkCourseExpect(block, log)`.
+- `tests/routeRunCourse.test.ts` (602 lines, 30 tests): every unit-test line in the brief, plus fixture shape checks.
+- `tests/fixtures/route-run/selftest-course.graph.json` (new): S9's A1 and A2 spaces (12) and links 0-20 (merged
+  indices equal S9's); `meta.map` ctcourse, `mode` training, `sections` [A1, A2]; no `taught_by` (meta note says why);
+  S9 commit b6464dd95 in a meta note; its own points table; `expect.players` 2.
+
+### Where the base differed from the brief (read first)
+1. Master's yard has no drills: every ctcourse bay's `drills` is empty (`ctcourse.ts:103` takes `p.bay.drills`, no set
+   adds any). So no drill stub and no A13 hold on master; an airlock cycles as soon as both players are on its pad.
+   a1-gate's `course.drills` line (`why: gate`, `hold_s: 0`) passes with no stubs; "A2's drills stubbed, hold 10 s" is
+   dropped from the A2 runs. The drill-gate path is unit-tested only.
+2. L1-near and L2-near are not course locks on master: an airlock's near door locks only once it cycles, its far door
+   stays locked until the cycle seals (`courseState.ts:637-643`). The A1 gate is L1-far (link 9). `onLockedDoor` puts
+   both robots on the pad (as e2e-ctcourse `throughHoldingRoom` does) unless the phase is `ready`, then waits up to
+   `AIRLOCK_WAIT_S`. Change from the brief: `waiting` is not a pure wait (one robot on the pad never starts the cycle);
+   only `cycling` is. A sealed near door is locked for good and returns false at once.
+3. a1-walltop has no nav cells (S9: "no area / floor cells on a1-walltop"): a placement snaps to the nearest walkable
+   cell and a walk to a point 4.4 m up never arrives (`STOREY_Y_TOL_M` 1.5). Links 3 and 6 do not use their declared
+   `at`: the leg-up is held at its mark on the apron floor, A1_MARK (10.8, 0, 6), atFrom `mark`; the drop at the apron
+   foot of the wall (11.4, 0, 11), atFrom `stub`, its past (12.6, 0, 11) in the yard. Once R5 walks drops, link 6 needs
+   its declared point back plus a driver change that can place a robot on the wall top. The other 19 links use their
+   declared `at`.
+4. The driver's guard poll never sees the alert that triggers the spotted rule: the guard reaches alert in
+   `enemyMgr.update` (`gameState.ts:2096`); in the same step `mode.fixedUpdate` (:2113) runs the spotted rule
+   (`courseMode.ts:595-598`) and `handle` drops and respawns the squad (:704-705), all before the driver's 0.1 s poll.
+   Unfixed, every master spotFail restart would class as `other` and the second would be a `restart-loop` stop. Fix in
+   course.mjs: the first host read wraps `__course.restartCheckpoint` once; at each restart it records the alerted,
+   non-passive guards in the raw rise shape; `classify` counts these as detection rises; at run end `linkRestarts`
+   writes the detection line from this record (causes.mjs `lineOf`) when the driver logged none. The brief's run note
+   is kept for a seen restart with neither a logged rise nor a record.
+5. `jumped`: the brief's `JUMP_M + dt * JUMP_SPEED_MPS` contradicts its own test line (3.1 m in 0.05 s gives a 3.3 m
+   threshold). Used `max(JUMP_M, dt * JUMP_SPEED_MPS)`: all three test lines hold and BRIEF's 3 m rule stands.
+6. J14 `timer` gives `restart: 'timer'`, not `retry` (BRIEF A14 logs `restart: timer`, R2's `slowSteps` reads
+   `'timer'`, `linkRestarts` recognises seen restarts by `set | retry`). Mapping: seen and caught -> `retry`; out, down,
+   other -> `other`.
+7. `debug().gates` lists every gate, not only timed ones: timed gates come from the course def (isolator, timedHold, a
+   pickup whose console has `seconds`), cached once per CourseMode.
+8. Rises are read inside the single host poll evaluate (`window.__rr.rises(since)`, this file's own index per run),
+   not a separate `ctx.driver.rises` call: same data, one evaluate per poll.
+9. Smaller: `restarts` is a plain field on master (`courseMode.ts:203`), a getter on J14, read as a number either way;
+   the guard to raise is found with `squadOf(slot)` (`courseMode.ts:982`); the A13 hold is skipped when no drill is
+   open.
+
+### R4c's seam reading (diff sketches on f8b0429c; compare with SEAMS)
+- SR1 `scripts/route-run.mjs:382-383`: compute `mode` first, then
+  `const forgive = o.detections === 'forgive' && mode !== 'course';` (BRIEF A2).
+- SR2 `scripts/route-run.mjs:421`: add `graphs, selftest: fixture?.expect ?? null` to the `Object.assign(ctx, ...)`.
+- SR3 `driver.mjs` page side: `let cev = ''` and `let placements = 0` beside `noHurt` (:129); in tick (:570-571)
+  `if (cev !== '') { ev = cev; cev = ''; stopStick(); holdA(false, g.time); mode = IDLE; } else ev = pre(g);`;
+  `placements++` in place (:853); `interrupt() { cev = 'course'; return true; }` and `posN()` beside `pos()`
+  (:872-875). The follower latches `course` into `fev`; course.mjs calls `interrupt` on the host page only; not in
+  pair.mjs `STARTS`. Node side, `runSteps` (:1112-1115), at the top of each iteration: call `course.onRestart` (for a
+  walk that hands back `course`, with the interrupted step's own `i`), place the leader, `i = rr.resume - 1`. linkStep's
+  door wait (:1193) and objectiveStep's waits (:1227, :1232, :1236) return on `course` as on `stall`; split legs
+  return `'course'`, `pair.split` ends both legs, the top level calls `onRestart` at the split's index.
+- SR4 `driver.mjs:1103-1104`: `await course.onRunEnd?.(ctx, log);` after the detection and notice lines (and
+  `pair.nameRobots`), before `return log`.
+- SR5 `scripts/route-run.mjs`: import `checkCourseExpect` at :26; in `checkSelftest` after the outcomes loop (:250)
+  `if (er.course) problems.push(...checkCourseExpect(er.course, log));`.
+
+### Fixture link indices (merged indices equal S9's)
+0 lounge>apron double_door; 1 apron>cabin door; 2 apron>yard door (wicket); 3 apron>walltop coop_boost `teach: leg-up`
+6 s; 4 apron>walltop human_ladder; 5 yard>walltop coop_boost; 6 walltop>yard drop; 7 walltop>apron drop;
+8 yard>a1-hold-l1 double_door (L1 near); 9 a1-hold-l1>a2-west double_door (L1 far); 10, 11 west>cabin door;
+12, 13 west>neck opening (loud, shadow); 14, 15 neck>east opening (loud, shadow); 16, 17 west>staging coop_boost,
+human_ladder; 18 staging>west drop; 19 staging>east open_stair; 20 east>a2-hold-l2 double_door (L2 near). S9's link 21
+(L2 far into A3) left out.
+Runs: a1-gate [0, 3, 6, 8, 9] (8, 9 walked); a2-seen-once [13, 15, 20] (all walked; one seen `set` restart from
+a2-neck, rejoined, linked; 1 `set` detection); a2-seen-twice [13, 15, 20] (13, 20 walked; two seen restarts from
+a2-neck, rejoined then pushed past, both linked; 2 `set` detections). All three: guardsAll, noDeadStops, robots leader
+and follower.
+
+### Risks for the page run
+- The walk to L1-far may stall before `onLockedDoor` runs: it targets (28, 0, 11) within 0.4 m but the door sits in a
+  0.5 m wall. A stall logs a `locked` stop from the walk (:1132-1141) and `onLockedDoor` is never called. Fix: a driver
+  change (a stall at the door link's own locked door counts as arrived) or a near-side `at` for link 9 in the fixture.
+- A natural sighting can add restarts: A2's neck is lit and watched by three guards, so `a2-seen-once` can come out
+  with two restarts.
+- The selftest only means something with SR1-SR5 in. Without SR3, after a restart the robots walk on from the
+  checkpoint and the old walk will likely stall into a false dead stop.
+
+### Pending PC runs
+Laptop queue, `E2E_GPU=1`, alone, on a head with SR1-SR5 in:
+`node scripts/laptop-queue/request.mjs --sha <head> --pr <n> --alone --step "serve scripts/route-run.mjs
+http://127.0.0.1:4189/ --selftest tests/fixtures/route-run/selftest-course.graph.json --players 2" --set
+route-run-selftest-course --requester "Night Shift | Marlow Build"` (verdict `laptop-e2e/alone-route-run-selftest-course`);
+R4b's pair selftest and R4a's selftest again on that head as regression (`onPoll` runs on every map; on a page with no
+`window.__course` it reads once per run).
