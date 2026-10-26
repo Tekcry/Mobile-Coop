@@ -444,6 +444,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Mixamo: hang on a ledge and shimmy, then top out a ladder: the Mixamo captures ("motion-capture (Mixamo) hang").
   Restart: the choice is kept. In the Anim Studio the same switch sits over the Loop list, with Set (All / Hand-made /
   CMU / Mixamo) showing only that set's loops. `?anim=hand|cmu|mixamo` sets it for one page.
+- [ ] (F45) /preview/ with no pick yet: Settings > Gameplay > Animation source shows Mixamo and a ledge hang plays the
+  Mixamo capture; pick CMU, restart: CMU is kept. The live game with no pick: CMU.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
