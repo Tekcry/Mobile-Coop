@@ -5,16 +5,20 @@
 // (guard-ai S1) Hearing is the coordinated rule the live modes use (`EnemyManager.coordinated`; Clear mode, parked,
 // keeps the old one, so the suite turns it on): one guard is sent to a noise, the others turn.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
-import { launch, assert, frames } from './e2e-lib.mjs';
+import { launch, openPage, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+// (guard-ai-j16 G5) charlight=0: the main page is the shadow-cue flag-off control on any URL (a /preview/ build turns the flag
+// on by default, and a cue floors a guard's meter at 0.35 and turns him: the light-pinned scenarios would read it). The
+// 'shadowCue' block opens its own charlight=1 page.
+const { browser, ctx, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear&charlight=0' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
-  await G(() => {
+  // the scenario helpers: installed on the main page here, and again on the shadowCue page by its block
+  function installT() {
     const a = window.__app;
     const g = a.current;
     a.loop.manual = true;
@@ -136,7 +140,8 @@ try {
         else e.applyDamage(h);
       },
     };
-  });
+  }
+  await G(installT);
   const scen = async (name, f) => {
     if (only && !name.includes(only)) return;
     console.log(name);
@@ -1483,6 +1488,205 @@ try {
     // (guard-ai S15) was "the room going dark is investigated": a switch off is now a fault he goes to reset, calm
     assert(r.kind2 === 'breaker' && r.brk2 >= 0 && (r.lv2 === 'unaware' || r.lv2 === 'cooldown' || r.lv2 === 'suspicious'), `the room going dark sends him to the switch to reset it, calm (${r.kind2}, circuit ${r.brk2}, ${r.lv2})`);
   });
+
+  // (guard-ai-j16 G5) the shadow cue, on its own `charlight=1` page: a calm guard who can neither see nor hear the player,
+  // facing away from him, notices the player's MOVING cast shadow in his focused cone: suspicious (never investigating,
+  // fighting or barking), a look at it. Standing still the shadow does nothing; with the flag off (the main page) the same
+  // walk does nothing. The meter is never pinned on the cue page (no `t.light`: `updateLight` stays the prototype's, or the
+  // cue fill stops). After every teleport the player settles 0.3 s with NO guard in the scene (the first cue fill after a
+  // jump reads it as a fast footprint), then the guard spawns.
+  if (!only || 'shadowCue'.includes(only)) {
+    console.log('shadowCue');
+    // in the page: the lamp footprint to walk beside (a lamp, 8 directions, 3-6 m: contrast >= 0.5, length >= 4 m, the
+    // largest contrast then length) and the guard's place from it
+    const shadowPick = () => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const cues = g.shadowCues;
+      const wrap = (v) => Math.atan2(Math.sin(v), Math.cos(v));
+      t.reset();
+      const cands = [];
+      for (const lamp of g.world.level.lights.lights) {
+        if (lamp.kind !== 'lamp' || !lamp.on || lamp.destroyed || lamp.y >= 6) continue;
+        for (let dir = 0; dir < 8; dir++) {
+          for (const m of [3, 4, 5, 6]) {
+            const x = lamp.x + m * Math.cos((dir * Math.PI) / 4);
+            const z = lamp.z + m * Math.sin((dir * Math.PI) / 4);
+            if (em.nav.cellOf(x, z, 0) < 0) continue;
+            t.tp(x, z, 0);
+            t.step(0.25);
+            const s = cues.slotOf('local');
+            for (let k = 0; s >= 0 && k < cues.count[s]; k++) {
+              if (cues.source[s * 3 + k] !== lamp.id) continue;
+              const i = ((s * 3 + k) * 3 + 2) * 4;
+              const q = cues.pts[i + 3];
+              const L = Math.hypot(cues.pts[i] - x, cues.pts[i + 2] - z);
+              if (q >= 0.5 && L >= 4) cands.push({ lamp: lamp.id, fx: x, fz: z, Fx: cues.pts[i], Fz: cues.pts[i + 2], q, L });
+            }
+          }
+        }
+      }
+      cands.sort((p, q) => (Math.abs(p.q - q.q) > 1e-6 ? q.q - p.q : q.L - p.L));
+      for (const c of cands) {
+        const d = { x: (c.Fx - c.fx) / c.L, z: (c.Fz - c.fz) / c.L };
+        const nrm = { x: -d.z, z: d.x };
+        const yaw = Math.atan2(d.x, d.z);
+        // the walk's two ends are floor too
+        if (em.nav.cellOf(c.fx - 0.6 * nrm.x, c.fz - 0.6 * nrm.z, 0) < 0 || em.nav.cellOf(c.fx + 0.6 * nrm.x, c.fz + 0.6 * nrm.z, 0) < 0) continue;
+        for (const off of [0.6, 0.4, 0.8]) {
+          const G = { x: c.fx + 2.4 * d.x + off * nrm.x, z: c.fz + 2.4 * d.z + off * nrm.z };
+          const toF = Math.hypot(c.Fx - G.x, c.Fz - G.z);
+          const ok =
+            em.nav.cellOf(G.x, G.z, 0) >= 0 &&
+            Math.hypot(G.x - c.fx, G.z - c.fz) >= 2.3 &&
+            Math.abs(wrap(Math.atan2(c.fx - G.x, c.fz - G.z) - yaw)) >= (120 * Math.PI) / 180 &&
+            Math.abs(wrap(Math.atan2(c.Fx - G.x, c.Fz - G.z) - yaw)) <= (27.5 * Math.PI) / 180 &&
+            toF >= 1 &&
+            toF <= 10;
+          if (ok) return { n: cands.length, lamp: c.lamp, feet: { x: c.fx, z: c.fz }, F: { x: c.Fx, z: c.Fz }, q: c.q, L: c.L, d, nrm, G, off, yaw };
+        }
+      }
+      return { n: cands.length, none: true };
+    };
+    // in the page: one run (tp to the walk start, or to `feet` when standing; settle; spawn; walk; rest) and what it saw.
+    // mode 'run' (cue page, walk, 20 s), 'still' (cue page, no stick, 6 s), 'off' (flag-off page, walk, 6 s)
+    const shadowRun = ({ pick, mode }) => {
+      const t = window.__t;
+      const a = window.__app;
+      const g = a.current;
+      const em = g.enemyMgr;
+      const st = a.input.state;
+      const wrap = (v) => Math.atan2(Math.sin(v), Math.cos(v));
+      const r3 = (v) => (Number.isFinite(v) ? +v.toFixed(3) : v);
+      const on = mode !== 'off';
+      const wired = on ? !!g.shadowCues && !!g.charOccluders && em.cues === g.shadowCues && em.chars === g.charOccluders : !g.shadowCues && !g.charOccluders && em.cues === null && em.chars === null;
+      const nrm = pick.nrm;
+      const walk = mode !== 'still';
+      const barks = [];
+      let hears = 0;
+      let noises = 0;
+      const oB = em.onBark;
+      const oH = em.hear;
+      const oN = em.noise;
+      try {
+        t.reset();
+        t.crouch(false);
+        if (!on) t.light(null);
+        const v0 = g.shadowCues ? g.shadowCues.version : 0;
+        if (walk) t.tp(pick.feet.x - 0.6 * nrm.x, pick.feet.z - 0.6 * nrm.z, Math.atan2(nrm.x, nrm.z));
+        else t.tp(pick.feet.x, pick.feet.z, Math.atan2(nrm.x, nrm.z));
+        t.step(0.3);
+        em.onBark = (e, line, ...rest) => {
+          barks.push([e.id, line]);
+          return oB ? oB.call(em, e, line, ...rest) : undefined;
+        };
+        em.hear = (...rest) => (hears++, oH.apply(em, rest));
+        em.noise = (...rest) => (noises++, oN.apply(em, rest));
+        const e = t.spawn('grunt', pick.G.x, pick.G.z, pick.yaw);
+        t.step(1);
+        e.yaw = pick.yaw;
+        const calm0 = { level: e.level, meter: e.meter, cueT: e.cueT };
+        const P = g.player.position;
+        const slot = g.shadowCues ? g.shadowCues.slotOf('local') : -1;
+        const x0 = P.x;
+        const z0 = P.z;
+        const samples = [];
+        let simT = 0;
+        let tFirst = -1;
+        let firstCue = null;
+        let faceErr = Infinity;
+        let arcMax = 0;
+        const sample = (ph) => {
+          const s = {
+            ph, t: r3(simT), noise: g.noise, dist: r3(Math.hypot(P.x - e.pos.x, P.z - e.pos.z)),
+            ang: r3(Math.abs(wrap(Math.atan2(P.x - e.pos.x, P.z - e.pos.z) - e.yaw))), cueT: e.cueT, level: e.level,
+            meter: r3(e.meter), cueLook: e.cueLook, turning: e.turning, cueSlot: e.cueSlot,
+          };
+          if (e.cueT === 0 && slot >= 0) {
+            const c = g.shadowCues;
+            let best = Infinity;
+            for (let k = 0; k < c.count[slot]; k++) {
+              for (let j = 0; j < 3; j++) {
+                const i = ((slot * 3 + k) * 3 + j) * 4;
+                best = Math.min(best, Math.hypot(c.pts[i] - e.cueX, c.pts[i + 2] - e.cueZ));
+              }
+            }
+            s.cueErr = best;
+            if (!firstCue) {
+              tFirst = simT;
+              firstCue = { x: e.cueX, z: e.cueZ, err: best, slot: e.cueSlot };
+            }
+          }
+          if (tFirst >= 0 && simT - tFirst <= 1.5) faceErr = Math.min(faceErr, Math.abs(wrap(Math.atan2(e.cueX - e.pos.x, e.cueZ - e.pos.z) - e.yaw)));
+          samples.push(s);
+        };
+        if (walk) {
+          st.setMove('t', 0, 0.4);
+          for (let k = 0; k < 240 && (P.x - x0) * nrm.x + (P.z - z0) * nrm.z < 1.2; k++) {
+            t.step(1 / 60);
+            simT += 1 / 60;
+            g.frameUpdate(1 / 60, 1);
+            arcMax = Math.max(arcMax, g.hud.arcs.shown);
+            sample('walk');
+          }
+          st.setMove('t', 0, 0);
+        }
+        const moved = (P.x - x0) * nrm.x + (P.z - z0) * nrm.z;
+        for (let k = 0; k < (mode === 'run' ? 80 : 24); k++) {
+          t.step(0.25);
+          simT += 0.25;
+          sample('rest');
+        }
+        return {
+          pick, mode, wired, calm0, slot, moved: r3(moved), samples, firstCue, faceErr: r3(faceErr), arcMax,
+          updateLightOwn: g.updateLight === Object.getPrototypeOf(g).updateLight,
+          versionGrew: g.shadowCues ? g.shadowCues.version > v0 : false,
+          barks: barks.filter((b) => b[0] === e.id), hears, noises,
+        };
+      } finally {
+        st.setMove('t', 0, 0);
+        em.onBark = oB;
+        em.hear = oH;
+        em.noise = oN;
+        if (!on) t.light(null);
+      }
+    };
+    const why = (r, f) => JSON.stringify({ pick: r.pick, sample: r.samples.find(f) ?? r.samples[r.samples.length - 1] });
+    const { page: p2, errors: errors2 } = await openPage(ctx, url, 'autostart=warehouse&mode=clear&charlight=1');
+    await frames(p2, 10);
+    await p2.evaluate(installT);
+    const pick = await p2.evaluate(shadowPick);
+    assert(!pick.none, `shadowCue: a lamp footprint (contrast >= 0.5, length >= 4 m) with a guard place beside it (${pick.n} candidates)`);
+    console.log(`  pick ${JSON.stringify(pick)}`);
+    const run = await p2.evaluate(shadowRun, { pick, mode: 'run' });
+    const S = run.samples;
+    const W = S.filter((s) => s.ph === 'walk');
+    const lvOk = (l) => l === 'unaware' || l === 'cooldown' || l === 'suspicious';
+    const maxMeter = Math.max(...S.map((s) => s.meter));
+    console.log(`  walked ${run.moved} m, first notice ${JSON.stringify(run.firstCue)}, arcs shown max ${run.arcMax}`);
+    assert(run.wired, 'shadowCue: the cue page wires em.cues / em.chars to the game\'s shadowCues / charOccluders (non-null)');
+    assert(run.calm0.level === 'unaware' && run.calm0.meter === 0 && run.calm0.cueT === Infinity, `shadowCue: the guard starts calm (${JSON.stringify(run.calm0)})`);
+    assert(run.moved >= 1.2, `shadowCue: the player walked 1.2 m along n (${run.moved} m)`);
+    assert(W.some((s) => s.cueT < 1) && run.firstCue && run.firstCue.slot === run.slot && run.firstCue.err < 1e-3, `shadowCue: he notices the moving shadow during the walk, at one of the local slot's points (${JSON.stringify(run.firstCue)}, slot ${run.slot}; ${why(run, (s) => s.cueT < 1)})`);
+    assert(S.some((s) => s.level === 'suspicious') && S.every((s) => lvOk(s.level)), `shadowCue: suspicious and never above it (${why(run, (s) => !lvOk(s.level))})`);
+    assert(lvOk(S[S.length - 1].level) && S[S.length - 1].level !== 'suspicious', `shadowCue: back to cooldown / unaware by the end (${S[S.length - 1].level})`);
+    assert(run.faceErr <= 0.35, `shadowCue: he faces the point within 1.5 s of the notice (${run.faceErr} rad; ${JSON.stringify(run.pick)})`);
+    assert(S.every((s) => !s.turning || s.cueLook), `shadowCue: every look is the cue's own, no hearing look (${why(run, (s) => s.turning && !s.cueLook)})`);
+    assert(maxMeter <= 0.36 && maxMeter < 0.6, `shadowCue: the meter stays at the cue's 0.35 (max ${maxMeter}; ${why(run, (s) => s.meter > 0.36)})`);
+    assert(run.barks.length === 0 && run.hears === 0 && run.noises === 0 && S.every((s) => s.noise === 0), `shadowCue: silent: no bark, no em.hear / em.noise call, g.noise 0 (barks ${JSON.stringify(run.barks)}, hear ${run.hears}, noise ${run.noises}; ${why(run, (s) => s.noise !== 0)})`);
+    assert(Math.min(...S.map((s) => s.dist)) >= 2.3 && Math.min(...S.map((s) => s.ang)) >= (120 * Math.PI) / 180, `shadowCue: spacing held, >= 2.3 m and >= 120 deg off his facing (${why(run, (s) => s.dist < 2.3 || s.ang < 2.094)})`);
+    assert(run.updateLightOwn && run.versionGrew, `shadowCue: the meter was never pinned and the cue fill ran (updateLight own ${run.updateLightOwn}, version grew ${run.versionGrew})`);
+    // control: standing still, the same spot: the shadow does nothing
+    const still = await p2.evaluate(shadowRun, { pick, mode: 'still' });
+    assert(still.wired && still.samples.every((s) => s.cueT === Infinity && s.level === 'unaware' && s.meter === 0), `shadowCue: standing still, no cue, unaware, meter 0 (${why(still, (s) => s.cueT !== Infinity || s.level !== 'unaware' || s.meter !== 0)})`);
+    // control: flag off (the main page, charlight=0): the same walk does nothing
+    const off = await page.evaluate(shadowRun, { pick, mode: 'off' });
+    assert(off.wired, 'shadowCue: flag off: em.cues / em.chars and the game\'s shadowCues / charOccluders are null');
+    assert(off.moved >= 1.2 && off.samples.every((s) => s.cueT === Infinity && s.level === 'unaware'), `shadowCue: flag off, the same walk: no cue, unaware (${off.moved} m; ${why(off, (s) => s.cueT !== Infinity || s.level !== 'unaware')})`);
+    const real2 = errors2.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
+    assert(real2.length === 0, `shadowCue: no console errors on the cue page (${real2.join(' | ')})`);
+  }
 
   await scen('breaker', async () => {
     // (guard-ai S15, stealth over shooting item 8, A42) the factory floor circuit off at its wall switch with two guards
