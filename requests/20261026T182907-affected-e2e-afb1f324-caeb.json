@@ -1,0 +1,14 @@
+{
+  "id": "20261026T182907-affected-e2e-afb1f324-caeb",
+  "sha": "afb1f3243c62436fef3202a86f86ca254355fdf6",
+  "branch": "feature/gm-flip",
+  "pr": 375,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T171125-affected-e2e-afb1f324-7ea4, rerun on the laptop"
+}
