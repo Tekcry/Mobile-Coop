@@ -265,6 +265,30 @@ describe('piano-knife S3: the host gates a client\'s takedown on its own knife s
   });
 });
 
+describe('piano-knife S3: the host holds a client\'s knife victim on the drawn pair only', () => {
+  // (checker A FIX 1) the drawn avatar runs ~0.13 s behind: right after a chained second kill its pair is still on g1
+  function hold(tid: string): { e2: FakeEnemy & { holdAt: ReturnType<typeof vi.fn> } } {
+    const h = Object.create(CoopHost.prototype) as CoopHost;
+    const e2 = Object.assign(enemy('g2'), { holdAt: vi.fn() });
+    Object.assign(h, { g: { enemyMgr: { enemies: [e2] } } });
+    const knife = new RemoteKnife();
+    knife.rootOn = true;
+    knife.tid = tid;
+    Object.assign(knife.root, { x: 5, y: 0, z: 5, yaw: 1 });
+    const mv = { ...emptyMoveState(), m: 'takedown', tid: 'g2', sub: knifeSub(0) } as MoveState;
+    (h as unknown as { knifeHold(eid: string, by: unknown, mv: MoveState): void }).knifeHold('g2', { avatar: { knife } }, mv);
+    return { e2 };
+  }
+
+  it('the drawn pair still on the first guard: the second guard is not moved', () => {
+    expect(hold('g1').e2.holdAt).not.toHaveBeenCalled();
+  });
+
+  it('the drawn pair on this guard: he is held on its root', () => {
+    expect(hold('g2').e2.holdAt).toHaveBeenCalledWith(5, 0, 5, 1);
+  });
+});
+
 describe('piano-knife S3: no RT strike and no throw knockout while the host\'s switch is on', () => {
   const strike = (knife: boolean) => {
     const s = host(knife);

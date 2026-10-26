@@ -31,7 +31,7 @@ import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
 import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
-import { emptyMoveState, knifeRowOfSub, moveChanged } from '../player/moveState';
+import { emptyMoveState, knifeRowOfSub, moveChanged, type MoveState } from '../player/moveState';
 import { KNIFE } from '../game/knifeKill'; // (piano-knife S3)
 import type { CharacterRig } from '../player/characterRig';
 import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../player/playerVolumes';
@@ -1974,13 +1974,7 @@ export class CoopHost implements NetAttachment {
           continue;
         }
       }
-      // (piano-knife S3) a client's knife kill: his sim feet on the drawn pair (`RemoteKnife.root`), so his body lies
-      // where he fell and the snapshots carry that place; then on as today (`TD_MAX` is far over the move)
-      if (by && by.alive && mv?.m === 'takedown' && mv.tid === eid && knifeRowOfSub(mv.sub) >= 0 && by.avatar.knife.rootOn) {
-        const e = this.aliveEnemy(eid);
-        const kr = by.avatar.knife.root;
-        if (e) e.holdAt(kr.x, kr.y, kr.z, kr.yaw);
-      }
+      if (by && by.alive) this.knifeHold(eid, by, mv);
       s.hfOn = false;
       // (joint-flake-3) no grab on him this step: a grab that ended mid-read leaves a stale ph, which
       // `interrogationEnded` (any progress counts) would count as a finished read on a re-grab within TD_MAX
@@ -2056,6 +2050,18 @@ export class CoopHost implements NetAttachment {
   private readonly partnerOut = emptyPlayerBodyOut();
   private readonly partnerHead = new Vector3();
   private readonly partnerHips = new Vector3();
+  /** (piano-knife S3) A client's knife kill on seized guard `eid`: his sim feet on the drawn pair (`RemoteKnife.root`),
+   *  so his body lies where he fell and the snapshots carry that place; then on as today (`TD_MAX` is far over the
+   *  move). Only while the drawn pair is on this guard (checker A FIX 1): the drawn avatar runs ~0.13 s behind the
+   *  client's state, so a second kill chained right after the first must not take the first guard's spot. */
+  private knifeHold(eid: string, by: RemotePlayer, mv: MoveState | undefined): void {
+    if (mv?.m !== 'takedown' || mv.tid !== eid || knifeRowOfSub(mv.sub) < 0) return;
+    const k = by.avatar.knife;
+    if (!k.rootOn || k.tid !== eid) return;
+    const e = this.aliveEnemy(eid);
+    if (e) e.holdAt(k.root.x, k.root.y, k.root.z, k.root.yaw);
+  }
+
   /** (piano-knife S3) The alive enemy with id `id` (an index loop, no closure per call); null: none. */
   private aliveEnemy(id: string): Enemy | null {
     const es = this.g.enemyMgr?.enemies;
