@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -774,12 +774,13 @@ describe('desktop order and long-run skip (laptop-queue-8 slice D)', () => {
     for (const r of requests) wallS[r.id] = expectedWallS(r.suites, times, 1);
     return pick({ trains: [], requests, order: { fix: new Set(fix), green: new Set(), wallS, frontBranches: [], maxWaitMs: 30 * 60_000, smallest: true } }, NOW, slots(false, false))?.request;
   };
-  it('desktopTooLong: over the limit at E2E_JOBS=1, never when unknown or the limit is 0', () => {
+  it('desktopTooLong: over the limit at E2E_JOBS=1 (no time = the median), never when the limit is 0', () => {
     expect(desktopTooLong({ suites: ['long'] }, times, 900)).toBe(true);
     expect(desktopTooLong({ suites: ['quick', 'mid'] }, times, 900)).toBe(false);
     expect(desktopTooLong({ suites: ['mid', 'mid2', 'e2e-desktop:1'] }, times, 900)).toBe(true); // 1100 s serial
     expect(desktopTooLong({ suites: ['e2e-desktop'] }, times, 900)).toBe(true); // both parts, one job: 1000 s
-    expect(desktopTooLong({ suites: ['nope'] }, times, 900)).toBe(false); // NaN: taken
+    expect(desktopTooLong({ suites: ['nope'] }, times, 900)).toBe(false); // median 400 s
+    expect(desktopTooLong({ suites: ['nope', 'nope2', 'nope3'] }, times, 900)).toBe(true); // 1 200 s
     expect(desktopTooLong({ suites: [] }, times, 900)).toBe(false);
     expect(desktopTooLong({ suites: ['long'] }, times, 0)).toBe(false);
     // only what still runs counts: 'long' kept on this sha (lib keptPlan), 'quick' left (checker polish)
@@ -805,6 +806,42 @@ describe('desktop order and long-run skip (laptop-queue-8 slice D)', () => {
     const x = pr(10, 'x', ['quick']);
     const y = pr(5, 'y', ['quick'], { place: idAt(50, 'old') });
     expect(desk([x, y])?.id).toBe(y.id);
+  });
+});
+
+describe('desktop wall by parts and fail fast (laptop-queue-10 S2)', () => {
+  it('desktopWallS weighs a part with no time as the median of times.json (60 s when empty), never NaN', () => {
+    expect(desktopWallS(['a', 'b'], { a: 100, b: 50 })).toBe(150);
+    expect(desktopWallS(['a', 'zz'], { a: 100, b: 50, c: 300 })).toBe(200); // median 100
+    expect(desktopWallS(['x', 'y'], {})).toBe(120);
+    expect(desktopWallS(['p', 'q', 'r'], { p: 300, q: 100, r: 100 }, 2)).toBe(300);
+    expect(desktopWallS([], { a: 100 })).toBe(0);
+  });
+  it('tallow-prg1 replay: 7 suites as 17 parts are over 15 min on the desktop (NaN took them before)', () => {
+    const times: Record<string, number> = { smoke: 40 };
+    for (const n of [1, 2, 3, 4, 5]) times[`e2e-sectorops:${n}`] = 200;
+    for (const n of [1, 2, 3, 4]) { times[`e2e-ctcourse:${n}`] = 180; times[`e2e-desktop:${n}`] = 150; }
+    const camp = ['e2e-campaign-a', 'e2e-campaign-b', 'e2e-campaign-c', 'e2e-campaign-d'];
+    const r = { id: 'tallow-prg1', sha: 'c648c5d8', suites: ['e2e-sectorops', 'e2e-ctcourse', 'e2e-desktop', ...camp] };
+    // as run-e2e --list expands them (its PARTS): sectorops:1-6, ctcourse:1-4, desktop:1, :2, :4 and the four
+    const parts = [...[1, 2, 3, 4, 5, 6].map((n) => `e2e-sectorops:${n}`), ...[1, 2, 3, 4].map((n) => `e2e-ctcourse:${n}`), 'e2e-desktop:1', 'e2e-desktop:2', 'e2e-desktop:4', ...camp];
+    expect(parts).toHaveLength(17);
+    expect(desktopWallS(parts, times, 1)).toBe(3070); // median 180 s for sectorops:6 and the four
+    expect(desktopTooLong(r, times, 900, parts)).toBe(true);
+    expect(Number.isNaN(expectedWallS(r.suites, times, 1))).toBe(true); // why it was taken
+    expect(desktopTooLong(r, times, 0, parts)).toBe(false);
+  });
+  it('failFast: the first counted failure hands off the failed and unfinished parts', () => {
+    const none = () => false;
+    const a = { s: 'a', ok: true, report: false };
+    const b = { s: 'b', ok: false, report: false };
+    expect(failFast([a, b], ['a', 'b', 'c', 'd'], none)).toEqual({ failed: ['b'], rerun: ['b', 'c', 'd'] });
+    expect(failFast([a, { s: 'b', ok: false, report: true }], ['a', 'b', 'c'], none)).toBeNull(); // REPORT ONLY
+    expect(failFast([a, b], ['a', 'b', 'c'], (s: string) => s === 'b')).toBeNull(); // quarantined
+    expect(failFast([a], ['a', 'b'], none)).toBeNull();
+    expect(failFast([], ['a'], none)).toBeNull();
+    const c = { s: 'c', ok: false, report: false };
+    expect(failFast([c, a, b], ['a', 'b', 'c', 'd'], none)).toEqual({ failed: ['c', 'b'], rerun: ['c', 'b', 'd'] });
   });
 });
 

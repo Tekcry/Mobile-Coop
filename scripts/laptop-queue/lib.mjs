@@ -251,14 +251,26 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
 export const gateCpu = (c, mode) => (mode === 'total' ? c?.total : c?.gated);
 
 /**
- * The desktop leaves a request to the laptop when its expected wall at E2E_JOBS=1 is over maxS (laptop-queue-8 A9,
- * LQ_DESKTOP_MAX_MIN 15): times = the seed merged with the desktop's times.json; unknown (NaN) is taken; maxS <= 0 = no
- * limit.
+ * The desktop leaves a request to the laptop when its wall at E2E_JOBS=1 (lib desktopWallS) is over maxS (laptop-queue-8
+ * A9, LQ_DESKTOP_MAX_MIN 15): times = the seed merged with the desktop's times.json; parts = what still runs (A10 kept
+ * suites) as run-e2e lists it (service partsOf; default lib suiteParts over times). A part with no time weighs the
+ * median, so an unknown request is no longer taken (laptop-queue-10 A6, F14); maxS <= 0 = no limit.
  */
-export function desktopTooLong(r, times, maxS) {
-  if (!(maxS > 0)) return false;
-  const w = expectedWallS(keptPlan(r, r?.sha, times).rest, times, 1); // only what still runs (A10 kept suites)
-  return Number.isFinite(w) && w > maxS;
+export function desktopTooLong(r, times, maxS, parts = suiteParts(keptPlan(r, r?.sha, times).rest, times)) {
+  return maxS > 0 && desktopWallS(parts, times, 1) > maxS;
+}
+
+/**
+ * A desktop run's wall in s (laptop-queue-10 A6): the heaviest of `jobs` bins (lib shard) of its parts, a part weighing
+ * its times.json value, else the median of every time there (60 s when none: run-e2e's own default). 0 for no parts,
+ * never NaN (lib expectedWallS is NaN for any suite with no time: tallow-prg1's 17 parts, ~60 min, were taken).
+ */
+export function desktopWallS(parts, times, jobs = 1) {
+  if (!(parts ?? []).length) return 0;
+  const m = median(Object.values(times ?? {}));
+  const fill = Number.isFinite(m) ? m : 60;
+  const w = Object.fromEntries(parts.map((p) => [p, Number.isFinite(times?.[p]) ? times[p] : fill]));
+  return Math.max(...shard(parts, w, Math.max(1, Number(jobs) || 1)).map((b) => b.weight));
 }
 
 /** Front tier of lib pick (laptop-queue-7): a branch naming a LQ_FRONT_BRANCHES entry (case-insensitive substring), or an early-id re-file (no id time, or before 2020). */
@@ -938,6 +950,17 @@ export function idleStep(prev, count, now, limitMs) {
 export function unfinishedParts(parts, rows) {
   const done = new Set((rows ?? []).map((x) => x.s));
   return (parts ?? []).filter((p) => !done.has(p));
+}
+
+/**
+ * A desktop run's fail fast (laptop-queue-10 A5, F11): null until a result row (lib finishedSuites) failed that is not
+ * REPORT ONLY and not quarantined (isQuarantined(s), any key); then { failed, rerun }: the failed suites in log order
+ * and those plus the parts with no row yet (lib unfinishedParts), the laptop rerun's list. Passed suites are not rerun.
+ */
+export function failFast(rows, parts, isQuarantined) {
+  const failed = [...new Set((rows ?? []).filter((x) => !x.ok && !x.report && !isQuarantined(x.s)).map((x) => x.s))];
+  if (!failed.length) return null;
+  return { failed, rerun: [...new Set([...failed, ...unfinishedParts(parts, rows)])] };
 }
 
 /**
