@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:34:47Z
 # J13 route-runs, slice R4c (Opus-grade brief): course mode, drill gates and restarts
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3). R1-R4a are on master; R4b (the robot pair, PR #510,
