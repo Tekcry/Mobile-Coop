@@ -1,0 +1,15 @@
+{
+  "id": "20261026T154033-affected-e2e-0be0662f-6c8c",
+  "sha": "0be0662ff2e59fcede4a9e7d80a24df77d97b358",
+  "branch": "feature/piano-lights-so3",
+  "pr": 605,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #605"
+}
