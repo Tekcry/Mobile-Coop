@@ -97,14 +97,16 @@ export function introBreath(t: number): number {
   const by = TUNE_FLAGS.bypass;
   const cycle = INTRO_BREATH.cycle * (by ? 1 : EFF['cycleMul']!);
   const u = (t % cycle) / cycle;
-  if (!clip) return Math.sin(u * 2 * Math.PI) * INTRO_BREATH.amp;
+  // the first call starts the load (a remote copy's page too: it never calls IntroPose)
+  const c = clip ?? introBreathClip();
+  if (!c) return Math.sin(u * 2 * Math.PI) * INTRO_BREATH.amp;
   scratch ??= newKeyedPose();
   const from = INTRO_BREATH.from + (by ? 0 : EFF['fromAdd']!);
   if (from !== meanFrom) {
     let sum = 0;
-    for (let k = 0; k < 64; k++) sum += trunkAt(clip, from + ((k + 0.5) / 64) * INTRO_BREATH.len);
+    for (let k = 0; k < 64; k++) sum += trunkAt(c, from + ((k + 0.5) / 64) * INTRO_BREATH.len);
     mean = sum / 64;
     meanFrom = from;
   }
-  return (trunkAt(clip, from + u * INTRO_BREATH.len) - mean) * INTRO_BREATH.gain * (by ? 1 : EFF['breathGain']!);
+  return (trunkAt(c, from + u * INTRO_BREATH.len) - mean) * INTRO_BREATH.gain * (by ? 1 : EFF['breathGain']!);
 }
