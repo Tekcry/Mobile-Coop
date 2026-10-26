@@ -399,7 +399,11 @@ describe('light field (3.6)', async () => {
     // meets its limit (a query that allocates an object never gets there). Still flaky under load (4.60.0): the rounds
     // read whatever tier a starved background compiler had reached (bodyLevel in Sparkplug 100-127 B against 128), so
     // the helper now tiers up synchronously and every run reads the optimized code (levelAt 32.0, bodyLevel 64.8,
-    // control 272.0). The method is shared: tests/helpers/allocPerCall.ts (heap-asserts).
+    // control 272.0). Still flaky on CI (train 117: bodyLevel 138.8 B against 88, levelAt 16.0): a starved machine
+    // varied which calls the optimized loop inlined (32.8, 61.6 or 78.8 B: bodyLevel or totalInto out of line when its
+    // own optimized code had used up Turbofan's inlining budget), so the helper now recompiles the loop after the
+    // warm-up with that budget lifted (lightfield-heap-3): bodyLevel 32.0 B in every run (its two out-of-line levelInto
+    // calls, 2 x levelAt), control 256.0. The method is shared: tests/helpers/allocPerCall.ts (heap-asserts).
     const per = (fn: (n: number) => void, goal = -Infinity, n = 5000): Promise<number> => bytesPerCall(fn, goal, { n, warm: 500000 });
     // a control that makes one 3-vector per query: what a real allocation looks like (kept in a small ring so it
     // escapes: a fully optimized loop otherwise scalar-replaces part of it and the control read 63 B instead of 272)
@@ -712,6 +716,63 @@ describe('light field (3.6)', async () => {
     expect(f.sourceAt(-1, 8, 1, 8)).toBeCloseTo(bake.moonLight * f.moonAt(8, 1, 8), 12);
     expect(f.sourceAt(-7, 8, 1, 8)).toBe(0);
     expect(f.sourceAt(999, 8, 1, 8)).toBe(0);
+  });
+
+  it('(S3b) the Q calls equal their plain calls to the bit on 500 random points (with and without a contract, every set member id, -1 the moon)', () => {
+    const { reg, bake } = scene();
+    reg.add({ kind: 'flashlight', x: 5, y: 1.5, z: 5, radius: 10, intensity: 0.8, cone: makeCone(0, 0, 1, 0.4), on: true });
+    const door = { anchor: { hinge: { x: 0, y: 0, z: 0 }, yaw: 0, width: 1.2, height: 2.2 }, open: 0 };
+    const f = new LightField(bake, reg, [door]);
+    const occ = (): boolean => false;
+    const c = new CharOccluders();
+    let seed = 23;
+    const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 8; i++) upright(c, OCC_KIND.guard, i, -9 + rnd() * 18, 0, -9 + rnd() * 18);
+    const ids = new Int32Array(16);
+    const lv = new Float32Array(16);
+    const qIds = new Int32Array(16);
+    const qLv = new Float32Array(16);
+    const moonId = -1;
+    let members = 0;
+    let moon = 0;
+    for (let k = 0; k < 500; k++) {
+      const x = -10 + rnd() * 20;
+      const y = 0.05 + rnd() * 3.5;
+      const z = -10 + rnd() * 20;
+      f.qp[0] = x;
+      f.qp[1] = y;
+      f.qp[2] = z;
+      for (const max of [16, 2]) {
+        const n = f.sourcesInto(x, y, z, ids, lv, max, occ);
+        expect(f.sourcesQ(qIds, qLv, max, occ)).toBe(n);
+        for (let j = 0; j < n; j++) {
+          expect(qIds[j]).toBe(ids[j]);
+          expect(qLv[j]).toBe(lv[j]);
+        }
+      }
+      const n = f.sourcesInto(x, y, z, ids, lv, 16, occ);
+      for (let j = 0; j < n; j++) {
+        f.sourceQ(ids[j]!, occ);
+        expect(f.qr[0]).toBe(f.sourceAt(ids[j]!, x, y, z, occ));
+        members++;
+        if (ids[j] === moonId) moon++;
+      }
+      // the moon, an unknown id and a negative one, every registry id
+      for (const id of [moonId, -7, 999, 0, 1, 2, 3, 4]) {
+        f.sourceQ(id, occ);
+        expect(f.qr[0], `id ${id}`).toBe(f.sourceAt(id, x, y, z, occ));
+      }
+      f.totalQ(occ, null, -1);
+      expect(f.qr[0]).toBe(f.totalAt(x, y, z, occ));
+      f.totalQ(undefined, null, -1);
+      expect(f.qr[0]).toBe(f.totalAt(x, y, z));
+      for (const skip of [-1, 3]) {
+        f.totalQ(occ, c, skip);
+        expect(f.qr[0]).toBe(f.totalAt(x, y, z, occ, c, skip));
+      }
+    }
+    expect(members).toBeGreaterThan(500);
+    expect(moon).toBeGreaterThan(50);
   });
 
   it('allocation-free with a contract: totalAt / bodyLevel / sourcesInto / sourceAt add nothing to the no-contract reading', async () => {

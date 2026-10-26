@@ -2,7 +2,9 @@ import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { GearTag } from '../../ai/gear';
 import type { SecurityDesk } from '../../game/sectorDesks';
-import { S4_DOORS } from './campusS4';
+import type { CampusSectionParts } from './campusParts';
+import { buildCampusS4, S4_BOARDS, S4_COOP_LIPS, S4_DOORS, S4_HIDESPOTS, S4_LASERS, S4_NAV_SEEDS, S4_PANELS, S4_ROOMS, S4_SWITCHES } from './campusS4';
+import { dressS4, HERO_S4, S4_ART_TAGS } from './campusS4Dress';
 
 const PI = Math.PI;
 
@@ -177,7 +179,7 @@ export const S4_SECTOR: SectorDef = {
   // weapons crate (E9): the dock link east wall, strip to the link
   crate: { at: [S4_AMMO_CRATE.x, S4_AMMO_CRATE.y, S4_AMMO_CRATE.z], yaw: S4_AMMO_CRATE.yaw },
   // download (10 s, within 4 m) the build and signing logs at the cage terminal: opens C4
-  objective: { kind: 'download', label: 'Download the build and signing logs', x: 18, y: 0, z: 38.3, yaw: PI },
+  objective: { kind: 'download', label: 'Download the signing logs in the server cage', x: 18, y: 0, z: 38.3, yaw: PI },
   connector: {
     label: 'Along the colonnade to the Old House',
     box: [-26, 26, -10, 32],
@@ -207,4 +209,27 @@ export const S4_SECTOR: SectorDef = {
     { stage: 2, releaseDogs: true, responseRoute: [[-7, 42], [-7, 38], [-2.5, 36], [-2.5, 24]], lockDoors: [[14, 17]] },
     { stage: 3, lockDoors: [[-4, 25]] },
   ],
+};
+
+/** (campus-greybox P0) Section 4's parts for the map (`campusSections.ts`). */
+export const S4_PARTS: CampusSectionParts = {
+  build: buildCampusS4,
+  spawns: [],
+  pickups: [],
+  hideSpots: S4_HIDESPOTS,
+  switches: S4_SWITCHES,
+  rooms: S4_ROOMS,
+  navSeeds: S4_NAV_SEEDS,
+  lasers: S4_LASERS,
+  panels: S4_PANELS,
+  boards: S4_BOARDS,
+  sector: S4_SECTOR,
+  cameras: S4_CAMERAS,
+  desks: S4_DESKS,
+  levels: {},
+  alarms: S4_ALARMS,
+  coopLips: S4_COOP_LIPS,
+  dress: dressS4,
+  artTags: S4_ART_TAGS,
+  hero: HERO_S4,
 };

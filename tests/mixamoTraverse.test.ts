@@ -101,7 +101,7 @@ function differ(a: number[], b: number[]): number {
 }
 
 /** The sequence's frame ranges by name (indices into `sequence()`). */
-const AT = { idle: 59, shimR: 119, shimL: 179, climbCrouch: 180 + 30, climbStand: 180 + 74, pipe: 180 + 79 + 30 + 59, ladder: 180 + 79 + 30 + 60 + 30 + 59, topOut: 180 + 79 + 30 + 60 + 30 + 60 + 40, crawl: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 59, team: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 60 + 30 };
+const AT = { idle: 59, shimR: 119, shimL: 179, climbCrouch: 180 + 58, climbStand: 180 + 74, pipe: 180 + 79 + 30 + 59, ladder: 180 + 79 + 30 + 60 + 30 + 59, topOut: 180 + 79 + 30 + 60 + 30 + 60 + 40, crawl: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 59, team: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 60 + 30 };
 
 describe('mixamo I2: the switch and the resolved Wren table', () => {
   it('the flag reads ?mixamo=0/1 (absent: null = off) and the table starts hand-made', () => {
@@ -110,7 +110,7 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     expect(flags.mixamo).toBeNull();
     expect(MIXAMO.on).toBe(false);
     expect(WREN_TRAV.any).toBe(false);
-    for (const [k, v] of Object.entries(WREN_TRAV)) if (k !== 'any') expect(v, k).toBeNull();
+    for (const [k, v] of Object.entries(WREN_TRAV)) if (k !== 'any' && k !== 'hold' && k !== 'stand') expect(v, k).toBeNull();
   });
 
   it('on: every capture MIXAMO_ON lets play fills its slot; one switched off stays hand-made', () => {
@@ -134,7 +134,7 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
       const r = MIXAMO_TRAV[slug]!;
       expect(WREN_TRAV[r.slot], id).toBe(r.clip);
       // only its slot (the free-hang climb is a whole climb-up: its crouch part too)
-      const filled = Object.entries(WREN_TRAV).filter(([k, v]) => k !== 'any' && v !== null).map(([k]) => k).sort();
+      const filled = Object.entries(WREN_TRAV).filter(([k, v]) => k !== 'any' && k !== 'hold' && k !== 'stand' && v !== null).map(([k]) => k).sort();
       expect(filled, id).toEqual(slug === 'freehang_climb' ? ['climbUpCrouch', 'climbUpStand'] : [r.slot]);
     }
     mixamoStudioEntry('trav:ledge');
@@ -191,6 +191,7 @@ describe('mixamo I2: the graph', () => {
       // the hips trail the hands: a swing to the left (traverseT < 0) is a shimmy to the right
       expect(r.trav[AT.shimR]).toBe(name('braced_hang_shimmy_right', HANG.name));
       expect(r.trav[AT.shimL]).toBe(name('braced_hang_shimmy_left', HANG.name));
+      // (I2b) k 0.744: the braced capture's hold has it in (MIXAMO_HOLD: from k 0.58), the stand-up not yet past half
       expect(r.trav[AT.climbCrouch]).toBe(name('braced_hang_to_crouch', CLIMB_UP.name));
       expect(r.trav[AT.climbStand]).toBe(name('freehang_climb', CLIMB_UP.name));
       expect(r.trav[AT.pipe]).toBe(HANG.name);
@@ -268,6 +269,15 @@ describe('mixamo I2: the graph', () => {
     });
     const handHang = switchStep(hang, hangAt);
     const handLad = switchStep(lad, ladAt);
+    // (I2b) the braced capture's held climb-up (hand-made under it to k 0.58): the hanging idle capture to it is a capture to
+    // capture switch across a move change, inertialized too
+    setMixamo(true);
+    expect(WREN_TRAV.climbUpCrouch).not.toBeNull();
+    const heldHang = switchStep(hang, hangAt);
+    // (I2b) the hand-made ladder to the top-out capture (the ladder capture to it: the anchor test's first exit frame), and
+    // the hanging idle to the hand-made climb-up (the braced capture off)
+    MIXAMO_ON.climbing_ladder = false;
+    MIXAMO_ON.braced_hang_to_crouch = false;
     setMixamo(true);
     expect(WREN_TRAV.hangIdle).not.toBeNull();
     expect(WREN_TRAV.climbUpCrouch).toBeNull();
@@ -275,9 +285,10 @@ describe('mixamo I2: the graph', () => {
     expect(WREN_TRAV.ladderTop).not.toBeNull();
     const capHang = switchStep(hang, hangAt);
     const capLad = switchStep(lad, ladAt);
-    console.info(`(mixamo I2) largest channel change on the switch frame: hanging idle -> climb-up ${capHang.toFixed(4)} (hand-made ${handHang.toFixed(4)}), ladder -> top-out capture ${capLad.toFixed(4)} (hand-made ${handLad.toFixed(4)})`);
+    console.info(`(mixamo I2) largest channel change on the switch frame: hanging idle -> climb-up ${capHang.toFixed(4)} (held braced ${heldHang.toFixed(4)}, hand-made ${handHang.toFixed(4)}), ladder -> top-out capture ${capLad.toFixed(4)} (hand-made ${handLad.toFixed(4)})`);
     // (before the fix: 0.73 rad hanging idle -> climb-up, 0.92 ladder -> top-out; the hand-made switches 0.40 and 0.25)
     expect(capHang).toBeLessThanOrEqual(handHang * 1.25);
+    expect(heldHang).toBeLessThanOrEqual(handHang * 1.25);
     expect(capLad).toBeLessThanOrEqual(handLad * 1.25);
   });
 
@@ -528,7 +539,7 @@ async function crawlJoints(): Promise<{ pos: number[]; step: number; pop: number
 }
 
 describe('mixamo I2: the vent crawl (headless, Wren rig)', () => {
-  it('the crawl capture jumps the joints far past the hand-made crawl (its yaw wraps round -pi), so MIXAMO_ON keeps it off', async () => {
+  it('the crawl capture plays without a visible break (I2b: the chest yaw no longer flips), and MIXAMO_ON ships it', async () => {
     const hand = await crawlJoints();
     // with every capture let on, the capture plays
     allOn();
@@ -538,13 +549,15 @@ describe('mixamo I2: the vent crawl (headless, Wren rig)', () => {
     Object.assign(MIXAMO_ON, ON0);
     setMixamo(true);
     const shipped = await crawlJoints();
-    const near = cap.step <= hand.step * 2 + 0.01 && cap.pop <= hand.pop * 2 + 0.01;
-    console.info(`(mixamo I2) vent crawl joint step a frame: capture ${(cap.step * 100).toFixed(1)} cm, pop ${(cap.pop * 100).toFixed(1)} cm (hand-made ${(hand.step * 100).toFixed(1)} / ${(hand.pop * 100).toFixed(1)}); near the hand-made: ${near}`);
+    console.info(`(mixamo I2b) vent crawl joint step a frame: capture ${(cap.step * 100).toFixed(1)} cm, pop ${(cap.pop * 100).toFixed(1)} cm (hand-made ${(hand.step * 100).toFixed(1)} / ${(hand.pop * 100).toFixed(1)})`);
     expect(hand.step).toBeGreaterThan(0);
     expect(differ(cap.pos, hand.pos)).toBeGreaterThan(0);
-    // a capture that pops past the hand-made crawl stays out of matches (the slice rule)
-    if (!near) expect(MIXAMO_ON.crawling_hands_and_knees).toBe(false);
-    if (!MIXAMO_ON.crawling_hands_and_knees) expect(differ(shipped.pos, hand.pos)).toBe(0);
+    // a visible break (I2b cap: Michael 2026-10-26, the capture wins unless visibly broken): the yaw flip stepped 13.8 cm a
+    // frame and popped 24.9 cm; the fixed take 3.4 / 1.7 (a 1.8 s crawl's reach)
+    expect(cap.step).toBeLessThanOrEqual(0.06);
+    expect(cap.pop).toBeLessThanOrEqual(0.04);
+    // as shipped: the capture plays (off it would be the hand-made crawl, joint for joint)
+    expect(differ(shipped.pos, MIXAMO_ON.crawling_hands_and_knees ? cap.pos : hand.pos)).toBe(0);
   }, 300_000);
 });
 
@@ -565,10 +578,15 @@ describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => 
     for (const [st, hand, mix] of res) {
       expect(mix.frames, st).toBeGreaterThan(0);
       expect(mix.hand, `${st} palms`).toBeLessThanOrEqual(Math.max(0.01, hand.hand + 0.002));
-      expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(Math.max(0.01, hand.foot + 0.002));
+      // (I2b) the ladder's sole measure is the rig's climb foot cap on both clips (I2-REPORT "Known gaps"), not contact: the
+      // capture reads 38 cm vs 32 (Michael 2026-10-26: worse numbers are tuned in the Studio); capped for a visible break
+      if (st === 'ladder') expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(hand.foot + 0.1);
+      else expect(mix.foot, `${st} soles`).toBeLessThanOrEqual(Math.max(0.01, hand.foot + 0.002));
       // the switch from the hang's / ladder's clip to the exit's (a capture to the hand-made clip, or the reverse) steps no
       // joint further than the hand-made switch does (the graph inertializes it)
-      expect(mix.sw, `${st} first exit frame`).toBeLessThanOrEqual(hand.sw + 0.005);
+      // (I2b) the ladder capture to the top-out capture (inertialized across the move change): 19.9 cm on the right ankle
+      // vs the hand-made 15.7 (was 23.5 before the capture-to-capture trigger); capped at +5 cm for a visible break
+      expect(mix.sw, `${st} first exit frame`).toBeLessThanOrEqual(hand.sw + (st === 'topOut' && MIXAMO_ON.climbing_ladder ? 0.05 : 0.005));
     }
   }, 600_000);
 });

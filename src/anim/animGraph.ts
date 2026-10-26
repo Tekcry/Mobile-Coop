@@ -60,7 +60,7 @@ import { STRIKE_ARC_CONTACT } from './strikeBody'; // (mixamo-retarget I5) the a
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
-import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE } from './mixamo'; // (mixamo-retarget I2)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, STAND_YAW, STAND_SLOW, STAND_YAW_CH } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -706,9 +706,11 @@ const MX_MOVE_W = 4;
 const MX_DIR = 5;
 const MX_IDLE_T = 6;
 const MX_SHIM_T = 7;
+/** (I2b) the held climb-up capture's weight (the table's `hold`) */
+const MX_CW = 8;
 /** A fresh `mx` (the shimmy's direction starts centred). */
 function newMx(): Float64Array {
-  const m = new Float64Array(8);
+  const m = new Float64Array(9);
   m[MX_DIR] = 0.5;
   return m;
 }
@@ -1342,8 +1344,11 @@ export class AnimGraph {
       // (I2 fix) a capture giving way to a hand-made clip (or the reverse) inside the traverse state is a source switch
       // the state change does not see (the still hang's capture to the hand-made climb-up jumped fLPitch 0.73 rad and the
       // ankle 31 cm in a frame): inertialized as a state change is. Flag off no capture ever plays: no trigger, as before
-      if (cap !== this.mxLast) trigger = true;
+      // (I2b) and one capture giving way to another across a move change (the ladder capture to the top-out capture
+      // jumped a joint 23.5 cm on the first frame, hand-made 15.7); within a move (the hang's idle / shimmy blend) no trigger
+      if (cap !== this.mxLast || (cap && i.traverse !== this.mxKind)) trigger = true;
       this.mxLast = cap;
+      this.mxKind = i.traverse;
       this.slot(i.traverse, 1, i.traverseT);
       if (i.traverse === 'mantle') {
         // (anim-n4b, PASS2 row 61) the hands plant on the top edge (`mantlePlant`, put over the hanging hands below) and
@@ -3268,21 +3273,65 @@ export class AnimGraph {
     const cb = W.climbUpStand ?? CLIMB_UP;
     if (ca === CLIMB_UP && cb === CLIMB_UP) return false;
     this.keepSave(src, KEEP_CH.climbUp);
+    // (I2b) a capture with a hold (the table's `hold`, the braced take): the hand-made climb-up under it while the hands hold
+    // the lip, the capture blended in as the grips let go (smoothstep written out: no double argument)
+    // (the feet stay the hand-made climb-up's to the crouch: `HOLD_FEET_CH`; every hold value read from the typed
+    // `hold` and the capture's weight kept in `mx[MX_CW]`: no double boxed)
+    const H = W.hold;
+    const k0 = H[HOLD_K0]!;
+    const hold = k0 >= 0 && ca !== CLIMB_UP;
+    mx[MX_CW] = 1;
+    if (hold) {
+      this.mxOver(src, CLIMB_UP);
+      for (let j = 0; j < HOLD_FEET_CH.length; j++) this.holdBase[j] = src[HOLD_FEET_CH[j]!]!;
+      const v = (ct - k0) / H[HOLD_SPAN]!;
+      mx[MX_CW] = v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v);
+      mx[MX_W] = mx[MX_CW]!;
+      // the take's end eased to a stop at the crouch over `ease` of k (its last ease / 2 not reached; the take is cut
+      // mid-move at the crouch)
+      const C = CLIMB_UP_CROUCH_K;
+      const from = H[HOLD_FROM]!;
+      // (each branch a store of its own: a phi of the typed reads and the module constant boxed one double a frame)
+      if (ct <= k0) mx[MX_T] = from;
+      else if (ct >= C) mx[MX_T] = C;
+      else mx[MX_T] = from + ((ct - k0) * (C - from)) / (C - k0);
+      const e = H[HOLD_EASE]!;
+      const r = C - mx[MX_T]!;
+      if (e > 0 && r < e) mx[MX_T] = C - e / 2 - (r * r) / (2 * e);
+    }
     this.mxOver(src, ca);
+    mx[MX_T] = ct;
+    if (hold) for (let j = 0; j < HOLD_FEET_CH.length; j++) src[HOLD_FEET_CH[j]!] = this.holdBase[j]!;
     // (smoothstep written out: no double argument)
-    const u = (ct - CLIMB_UP_CROUCH_K) / STAND_FADE;
+    // (the hold's stand fade; `STAND_FADE` there without a hold: resolveMixamo)
+    const u = (ct - CLIMB_UP_CROUCH_K) / H[HOLD_STAND]!;
     const sw = cb === ca || u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
     if (sw > 0) {
       mx[MX_W] = sw;
-      this.mxOver(src, cb);
+      if (cb === CLIMB_UP) this.mxOver(src, cb);
+      else {
+        // (I2b) a stand-up capture (the table's `stand`, typed): its clock slowed through the middle of the stand-up and quicker
+        // at its ends (x + slow sin(2 pi x) / 2 pi over the crouch to the end: the same take, start and end), and its yaw
+        // turn kept at `yaw` of its own over the hand-made climb-up's
+        const S = W.stand;
+        const YC = STAND_YAW_CH;
+        for (let j = 0; j < YC.length; j++) this.standBase[j] = src[YC[j]!]!;
+        const x = (ct - CLIMB_UP_CROUCH_K) / (1 - CLIMB_UP_CROUCH_K);
+        mx[MX_T] = CLIMB_UP_CROUCH_K + (1 - CLIMB_UP_CROUCH_K) * (x + (S[STAND_SLOW]! * Math.sin(2 * Math.PI * x)) / (2 * Math.PI));
+        this.mxOver(src, cb);
+        mx[MX_T] = ct;
+        for (let j = 0; j < YC.length; j++) src[YC[j]!] = this.standBase[j]! + S[STAND_YAW]! * (src[YC[j]!]! - this.standBase[j]!);
+      }
     }
     this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP);
-    this.travNow = sw > 0.5 ? cb : ca;
+    this.travNow = sw > 0.5 ? cb : mx[MX_CW]! > 0.5 ? ca : CLIMB_UP;
     return true;
   }
 
   /** (I2 fix) Last frame's traversal played a capture (a switch to or from the hand-made clip is inertialized). */
   private mxLast = false;
+  /** (I2b) The traversal kind last frame's capture played in (a capture to capture switch across kinds is inertialized). */
+  private mxKind: TraverseKind = 'none';
   /** (I2) `overClip(src, c, mx[MX_T], mx[MX_W])` with its time and weight read from `mx`. */
   private mxOver(src: Pose, c: Clip): void {
     const mx = this.mx;
@@ -3295,6 +3344,10 @@ export class AnimGraph {
     }
   }
 
+  /** (I2b) The hand-made climb-up's feet under a held capture (`HOLD_FEET_CH`). */
+  private readonly holdBase = new Float64Array(8);
+  /** (I2b) The yaw channels under the stand-up capture (`STAND_YAW_CH`). */
+  private readonly standBase = new Float64Array(2);
   /** (I2) The kept channels' values before the capture (the base pose under a channel the hand-made clip does not key). */
   private readonly keepBase = new Float64Array(64);
   private keepSave(src: Pose, keep: readonly number[]): void {

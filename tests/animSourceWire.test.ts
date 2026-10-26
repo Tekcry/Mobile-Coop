@@ -14,7 +14,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, applyAnimSource, PAGE_TABLES, setAnimSource, SOURCE_TABLES, wireAnimSource, type AnimSource, type SourceTables } from '../src/anim/animSource';
 import { LOCO, MOCAP_SET } from '../src/anim/mocap';
-import { MIXAMO, MIXAMO_LOCO, MIXAMO_ON, setMixamo, WREN_CARRY, WREN_KEYED, WREN_STANCE, WREN_STRIKE, WREN_TRAV } from '../src/anim/mixamo';
+import { fillWrenTrav, HOLD_K0, MIXAMO, MIXAMO_HOLD, MIXAMO_LOCO, MIXAMO_STAND, newWrenTrav, STAND_SLOW, MIXAMO_ON, setMixamo, WREN_CARRY, WREN_KEYED, WREN_STANCE, WREN_STRIKE, WREN_TRAV } from '../src/anim/mixamo';
 import { MOCAP_CARRY_BODY_WALKING } from '../src/anim/clips/mixamo/carry_body_walking';
 import { MOCAP_ELBOW_STRIKE } from '../src/anim/clips/mixamo/elbow_strike';
 import { strikeWarp } from '../src/anim/strikeBody';
@@ -166,7 +166,13 @@ describe('source wire: each source has its own tables', () => {
     for (const s of ANIM_SOURCES) {
       setAnimSource(s);
       expect(contents(SOURCE_TABLES[s]), s).toEqual(contents(PAGE_TABLES));
-      for (const k of Object.keys(SOURCE_TABLES[s].trav)) expect((SOURCE_TABLES[s].trav as Record<string, unknown>)[k], `${s} ${k}`).toBe((PAGE_TABLES.trav as Record<string, unknown>)[k]);
+      for (const k of Object.keys(SOURCE_TABLES[s].trav)) {
+        const a = (SOURCE_TABLES[s].trav as Record<string, unknown>)[k];
+        const b = (PAGE_TABLES.trav as Record<string, unknown>)[k];
+        // the hold / stand-up values (I2b) are each table's own typed arrays: the same values
+        if (a instanceof Float64Array) expect(Array.from(a), `${s} ${k}`).toEqual(Array.from(b as Float64Array));
+        else expect(a, `${s} ${k}`).toBe(b);
+      }
       expect(SOURCE_TABLES[s].keyed.idle).toBe(PAGE_TABLES.keyed.idle);
       expect(SOURCE_TABLES[s].stance.down).toBe(PAGE_TABLES.stance.down);
     }
@@ -394,4 +400,20 @@ describe('source wire: no allocation a frame', () => {
     console.info(`(source wire) bytes a frame: handed mixamo ${handed} (page mixamo ${page})`);
     expect(handed).toBeLessThanOrEqual(page + HEAP_NUMBER);
   }, 240_000);
+});
+
+describe('source wire: the climb-up hold travels with the table (I2b merge)', () => {
+  it("each table carries its own capture's hold and stand-up, not the page's", () => {
+    const own = newWrenTrav();
+    fillWrenTrav(own, false, 'braced_hang_to_crouch');
+    expect(own.hold[HOLD_K0]).toBe(MIXAMO_HOLD.braced_hang_to_crouch!.k0);
+    const stand = newWrenTrav();
+    fillWrenTrav(stand, false, 'freehang_climb');
+    expect(stand.stand[STAND_SLOW]).toBe(MIXAMO_STAND.freehang_climb!.slow);
+    const none = newWrenTrav();
+    fillWrenTrav(none, false, '');
+    expect(none.hold[HOLD_K0]).toBe(-1);
+    expect(none.stand[STAND_SLOW]).toBe(0);
+    expect(own.hold).not.toBe(WREN_TRAV.hold);
+  });
 });

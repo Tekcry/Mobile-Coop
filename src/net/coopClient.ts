@@ -14,7 +14,7 @@ import { SWAY } from '../world/lampSway';
 import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
-import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
+import { Interactables, KIND_COLOR, drawsExitBeacon, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
 import { animSourceWire, BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
@@ -59,6 +59,7 @@ import { DESK_LOOP_END_LINE, DESK_LOOP_LINE, DESK_NONE, DESK_OFF_LINE, deskItemI
 import { JOINT_BLUFF_FEED } from '../game/jointInterrogation';
 import type { FieldNotes } from '../game/fieldNotes';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
+import { practiceFromRh } from '../game/sectorStart';
 import type { SlotPoint } from '../game/spawnSlots';
 import { SectorListMirror } from '../game/sectorObjectives';
 import type { ObjectiveLine } from '../ui/screens/pauseScreen';
@@ -146,6 +147,8 @@ export class CoopClient implements NetAttachment {
   };
   /** (integration) A sector message has arrived since this client connected (the first one's rating is history). */
   private sawSector = false;
+  /** (campus-greybox A28) The host's run never rated section 1 (its `?sectorStart` link): practice, no star. */
+  private practice = false;
   /** (integration) Sector Ops: the section rating card on our HUD (null elsewhere). */
   private card: RatingCard | null = null;
   /** (coop-torches) The guards' flashlights: the world's slots lit and placed from the snapshot's torch bits. */
@@ -252,7 +255,7 @@ export class CoopClient implements NetAttachment {
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
     if (g.opts.mode !== 'sandbox' || !own) {
-      this.ints = new Interactables(g.scene, g.world.parts);
+      this.ints = new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode));
       (g as { interactables: Interactables | null }).interactables = this.ints;
     } else this.ints = own;
     // (free roam mirrors only the host's wall medkits)
@@ -993,6 +996,8 @@ export class CoopClient implements NetAttachment {
         }
       }
     } else if (msg.rt && msg.rt.sec !== this.ratedSec) this.takeRating(msg.rt);
+    // (campus-greybox A28) a run that never rated section 1 began later (the host's start-at-section link): practice
+    if (msg.rh) this.practice = practiceFromRh(msg.rh);
     // (sector-restart, M9) a later section went live (the connector loaded it): our loadout now is the one a restart of
     // it gives back (the host records its own as the section begins)
     if (msg.ls !== undefined && msg.ls > this.kitSection) {
@@ -1069,8 +1074,9 @@ export class CoopClient implements NetAttachment {
     this.ended = true;
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
-    if (this.g.opts.mode === 'sector' && end.won) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
+    if (this.g.opts.mode === 'sector' && end.won && !this.practice) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
+    if (this.practice) this.g.stats.practice = true;
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
     this.g.endSession(end.won, end.subtitle);
   }
