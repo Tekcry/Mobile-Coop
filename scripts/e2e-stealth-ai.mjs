@@ -3519,8 +3519,13 @@ try {
           // fresh event for his tag at once (before his search starts, so only the woken gate can refuse him; he is
           // inside the bell's reach) records him dropped 'woken' and he is not on it. A build without the gate puts
           // him on 'e2e-later'.
+          // (S1a-2 e2e triage) unhide the body first: (a) hid it so nobody finds him, and a hidden body is not
+          // `present`, which `revive` refuses (a body in a container never wakes); no step runs between, so nobody finds it
           const kb2 = em.bodies.find((b) => b.guard === K);
-          if (kb2) em.ctx.revive(kb2, null);
+          if (kb2) {
+            kb2.hidden = false;
+            em.ctx.revive(kb2, null);
+          }
           const K2 = em.enemies.find((e) => e !== K && e.alive && e.zone === tag && e.woken);
           let kOrd = null;
           let kSt = -1;
