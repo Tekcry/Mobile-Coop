@@ -1057,11 +1057,13 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    (P1), in-sight jog beyond engageMax?, perf.mjs:104 trend step, melee fakes kind 'runner'.
 8. J20 S6b seed-random: brief 994e636d2 on feature/guard-ai-seed-random (worktree -seed-random off master 29f03b6c0,
    slices/SEED-RANDOM-BRIEF.md; 5 Math.random sites -> senseRng / seeded01; allowlist -> {}). Builder starts AFTER the
-   runner-armed builder pushes (both edit src/ai/enemy.ts). BUILT bcc705955 (vitest 10 files 128 pass, no A4+; merges clean on master 99fbd37fd); laptop seed-random filed; checks A + B running 14:15. Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
+   runner-armed builder pushes (both edit src/ai/enemy.ts). checks A + B PASS on bcc705955; fix e0c238825 (vision-detect pins senseRng; fragment) re-check PASS. PR #537 head
+   d51202fa3, label fix, checker posted, laptop seed-random filed on the head; orchestrator told. Polish: spawn-slot keys
+   for restart replay, match seed not 0x5eed, stale comments e2e-stealth-ai:527 / e2e-sectorops:557,:3555, enemyManager:657. Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
 FIXES FIRST (Michael ~14:00; tracker docs/orchestrator/FIXES.md on feature/menu): tell the orchestrator when a fix opens.
    Own flakes: e2e-stealth-ai 1/66, e2e-guard-carry 1/63 (under budget). Laptop queue was STALLED 01:01Z-~02:40Z (0 trains / 0 requests every pass, ~40 open requests, train 118 open): told Test
    Runner 13:32 (its area). #317 affected + mh-s4 wait on it.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); J26 PRs open after J15 PR4 merges; #531 laptop + affected -> label train-ready; seed-random checks A + B -> checker -> PR (fix) -> orchestrator.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); J26 PRs open after J15 PR4 merges; #531 / #537 laptop + affected green -> label train-ready + tell orchestrator (red: Opus triage at once).
 ```
