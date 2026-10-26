@@ -1017,14 +1017,15 @@ Open (2026-10-26 ~18:35 SAVE, orchestrator save before a likely swap; all worktr
 3. PLAY PASS (docs/guard-ai/PLAY-PASS.md on feature/guard-ai-play):
    - #585 slice B (feature/guard-ai-play, worktree -guard-ai-play): check PASS, checker POSTED on 5485a2069;
      affected-e2e pending. Polish: orphaned onEnemyJoined comment (courseMode.ts:1394-1407), PLAY-PASS slice B text.
-   - #588 slice A (feature/guard-ai-home, worktree -guard-ai-home): check B FIX (homeLongPlan 20000 A* = 4-8 ms per
-     call, no per-frame cap -> 100-180 ms hitch when a squad calms; docs/guard-ai/checks/PLAY-A-CHECK-B.md). Opus FIX
-     ROUND RUNNING at the save (one long plan per frame via the manager, smaller budget if tests pass, a two-guard
-     test; folds check A's items). Check A was running (writes PLAY-A-CHECK-A.md in that worktree, uncommitted).
-     After the fix: one Opus re-check of the fix head (both lists), post checker, report train-ready.
+   - #588 slice A (feature/guard-ai-home, worktree -guard-ai-home): checks A + B FIX -> Opus fix round (one long plan
+     per frame via EnemyManager / AiContext.longPlan, budget 10000 = ~2.4 ms p50, progress-based give-ups) -> re-check
+     PASS (docs/guard-ai/checks/PLAY-A-RECHECK.md); checker POSTED on 9ef20808b; affected-e2e pending.
+     Polish: hard backstop on wake-body / alarm walks; "can't get through" bark; a post guard off his storey re-plans
+     every 5 s.
 4. Owners: Marlow #574 and Sector Ops #525 re-land (train 127 dropped them); the orchestrator told Michael to hold Marlow
    Yard and S1 until they ship. Sector Ops did: S1 v2 smoker 14 post, campusV2 stacks whole (#529 #544 #547 #535).
 5. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; NetSession.roomCap unused;
    guardpairs=0 on the flag-off talking-pairs e2e; autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: read #588 fix round (git log origin/feature/guard-ai-home) and PLAY-A-CHECK-A.md; Opus re-check; post checker.
+Next: when #317 / #585 / #588 affected-e2e are green (one triage + one rerun at most if red), tell the orchestrator
+train-ready; then PR4 after #558 merges.
 ```
