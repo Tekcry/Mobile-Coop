@@ -83,6 +83,7 @@ last walk, confirmed at the next walk card):
 | Sector Ops | campus walk in progress | campus S1-S5 art + lighting, coop4 AI, per-section bake | 3: AT CAP until the walk lands |
 | Guard AI | 4.72-4.73 | report-then-engage, hearing in fights, cover lines, response sweep, sight rays | 5: AT CAP |
 | Lighting | 4.78.0 (2026-10-23 ~18:08) | LR16 on every map, moving lights LR16-5, thermal through doors | 3: AT CAP |
+- Piano scene takedowns (2026-10-26 ~20:05, Michael typed: "Palm strike knockout disabled, only knife kills, and no slashing, only animations with the guard"; earlier ~19:45: "Killing a guard should be a physical alteration between them both, 2 character animation if possible."): in the piano scene the palm-strike knockout is off, every takedown is a paired two-person knife kill with the guard, and there is no free knife slash. The 7 Mixamo clips for it were downloaded ~20:00.
 
 - Piano scene is the main focus (2026-10-26 ~19:40, Michael typed: "I want main focus to be on piano scene. Extra capacity can go towards the remaining tasks."). Row 20 comes first for Campaign (scene, map, camera), Player (knife kills), Guard AI (scene guards) and Sector Ops (scene lighting); the other rows use the spare capacity. The G288 one-click map plan gate and the token-efficiency limits still apply.
 ## Decided
