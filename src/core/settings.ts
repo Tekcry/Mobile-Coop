@@ -391,8 +391,9 @@ export function sanitizeSettings(raw: unknown): Settings {
       mocapLoco: typeof r.mocapV === 'number' && r.mocapV >= MOCAP_V ? bool(gp.mocapLoco, d.gameplay.mocapLoco) : d.gameplay.mocapLoco,
       // (mixamo-retarget Toggle) a save from before the field (or a bad value) takes the default (CMU: today's game)
       animSource: pick(gp.animSource, ['hand', 'cmu', 'mixamo'] as const, d.gameplay.animSource),
-      // (F45) a save from before the field: not picked (a stored 'cmu' then was only the default)
-      animSourceSet: bool(gp.animSourceSet, false),
+      // (F45) a save from before the field: a stored 'cmu' was only the default (not picked); 'hand' / 'mixamo' could
+      // only come from a pick
+      animSourceSet: bool(gp.animSourceSet, gp.animSource === 'hand' || gp.animSource === 'mixamo'),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),

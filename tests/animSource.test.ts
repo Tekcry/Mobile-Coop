@@ -208,6 +208,8 @@ describe('F45: /preview/ plays Mixamo until the player picks a source', () => {
     expect(settingAnimSource(old.gameplay, true)).toBe('mixamo');
     const picked = sanitizeSettings({ gameplay: { animSource: 'hand', animSourceSet: true } });
     expect(settingAnimSource(picked.gameplay, true)).toBe('hand');
+    // an old save holding Hand-made or Mixamo was a pick (only CMU was the default)
+    for (const s of ['hand', 'mixamo'] as const) expect(sanitizeSettings({ gameplay: { animSource: s } }).gameplay.animSourceSet, s).toBe(true);
   });
 
   it('applied on /preview/ with no pick, the Mixamo switch is on', () => {
