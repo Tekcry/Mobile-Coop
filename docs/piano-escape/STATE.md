@@ -18,7 +18,8 @@ BUILDING: S4 (Opus) on feature/piano-escape-s4 = LOCAL INTEGRATION branch (orche
   At the save: step 1 DONE 02ea8de08 (real sceneDark / blackoutSearchSlots / lightning t0; MapDef.lightning + rain set);
   steps 2-5 left (all worktrees pushed, nothing uncommitted). No extra laptop runs queued (automatic affected only).
   Done -> two Opus checkers (src/net) -> when the parts are on master, re-merge onto master and open its PR.
-  Re-merge Guard AI's final sweep head when they send it (GA6b still finishing).
+  S4 told (~22:45) to merge at its next step boundary: SO5b 345c55ac8 (window lights, passed) and Guard AI's final
+  sweep 89f13ef1c (PR #624, two Opus checkers running), then re-tune G4 / G5 end waits with sweepPeriod (equal laps).
 Waiting on others: #603 / #604 (+ SO5b window lights) / #611 GuardActor (S2 TODO) / #614 + #620 knife / GA6-GA7 PR.
 Music: Michael ~21:50 picked intro Investigation Piano, mission Suspense Thriller (S5b); ~21:55 "music isnt settled":
   the orchestrator's 4 realistic tracks (intro-1/2, mission-1/2, feature/music-real) go in as picker rows when it says.
