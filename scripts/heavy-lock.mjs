@@ -1,4 +1,4 @@
-// Heavy lock helper (CLAUDE.md "Machines"): one heavy job per machine, held in a lock file created atomically (wx).
+// Heavy lock helper (docs/RULES.md "Machines"): one heavy job per machine, held in a lock file created atomically (wx).
 // The lock text is "<label> | <iso start> | pid <n> | host <hostname>". A lock whose pid is dead on this host is stale:
 // `take` logs it and replaces it (rename to <path>.stale.<pid>, unique per taker, then a wx create; the renamed file is
 // removed). Old-format lines with no pid (the noclobber way) are never broken automatically.
@@ -25,10 +25,19 @@ export function formatLock(label, { pid, host = os.hostname(), start = new Date(
   return `${label} | ${start.toISOString()} | pid ${pid} | host ${host}`;
 }
 
-/** { pid, host } from a lock text; pid null for an old-format line (no "| pid <n>"). */
+/**
+ * { pid, host } from a slot lock text, the one parser for both writers: this file's "<label> | <iso> | pid <n> | host
+ * <h>", and the laptop queue service's own "laptop-queue | <label> <sha8> pid <n> | <iso>" (no host: lock files are per
+ * machine, so host null with a pid means this machine's). pid and host null for an old-format line with no pid.
+ * 2026-10-25 ~10:51: a killed desktop service left heavy.lock / heavy2.lock naming pid 4484; the gate read no pid and held
+ * them for 10+ min.
+ */
 export function parseLock(text) {
-  const m = /\|\s*pid (\d+)\s*\|\s*host ([^|\r\n]+?)\s*$/.exec(text.trim());
-  return m ? { pid: Number(m[1]), host: m[2] } : { pid: null, host: null };
+  const t = String(text ?? '').trim();
+  const m = /\|\s*pid (\d+)\s*\|\s*host ([^|\r\n]+?)\s*$/.exec(t);
+  if (m) return { pid: Number(m[1]), host: m[2] };
+  const q = /^laptop-queue \|[^|\r\n]*\bpid (\d+)\s*\|\s*[^|\r\n]+$/.exec(t);
+  return q ? { pid: Number(q[1]), host: null } : { pid: null, host: null };
 }
 
 /** True unless signal 0 to `pid` fails with ESRCH (EPERM means alive, owned by someone else). */
@@ -36,10 +45,13 @@ export function pidAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return e?.code !== 'ESRCH'; }
 }
 
-/** True when the lock names a pid on `host` that is not alive; an old-format line is never stale. */
+/**
+ * True when the lock names a pid on `host` (a laptop-queue line: this machine) that is not alive; an old-format line is
+ * never stale.
+ */
 export function isStale(text, { host = os.hostname(), alive = pidAlive } = {}) {
   const { pid, host: h } = parseLock(text);
-  return pid !== null && h === host && !alive(pid);
+  return pid !== null && (h === null || h === host) && !alive(pid);
 }
 
 /** True when the lock text was written for `label` ("<label> | ..." or exactly "<label>"). */

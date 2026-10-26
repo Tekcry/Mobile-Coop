@@ -1,6 +1,121 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-26: laptop-queue-8 (feature/laptop-queue-8): fixes first (`fix` label or `--fix`), a new head keeps its
+  request's place and stops the old run, a train preempt keeps passed suites, the desktop takes the smallest request
+  and skips any over 15 min (CPU mode knob), a docs-only PR commit carries affected-e2e. Rules: RULES.md "Machines",
+  testing-tools.md "Laptop queue"; resume: docs/laptop-queue-8/STATE.md.
+- 2026-10-25: laptop-queue-6 (feature/laptop-queue-6): the train hold predicts the next train (lib `nextTrain`, ETA
+  from the merge + 6.5 min or a newly green candidate + 3 min, late window 5 min) and lets only pr runs that fit
+  before it start (lib `fitsBeforeTrain`); replaces `trainSoon` / `LQ_RELEASE_HOLD_MIN`. Rules: testing-tools.md
+  "Train soon"; resume: docs/laptop-queue-6/STATE.md.
+- 2026-10-25: laptop-queue-5 (feature/laptop-queue-5, worktree C:/NightShift/Mobile-Coop-laptop-queue-5, stacked on
+  feature/laptop-queue-4 head 283daf5d, PR #374), three fixes:
+  - request.mjs `--suites` splits on spaces / commas (lib `splitSuites`); unknown names refused at request time
+    against the sha's scripts/ (lib `knownSuites`, `requestProblem(r, { known })`; the service's parse is unchanged).
+  - auto-train confirm rerun: a tier 2-3 (guessed) drop on the train's own first laptop failure waits for one
+    `--train-rerun` on the same head; only a failed rerun drops (scripts/auto-train.mjs `confirmPlan`, `autoDrop`; `decide` releases on its pass via the record's `confirm`).
+  - Spare work: laptop service `sparePass` + lib `spareNext` / `spareRequest` / `spareRecord`; a pending train stops
+    a spare run (lib `cutShort`, done, not re-queued); `pick` takes spares only when nothing else is open. List `docs/laptop-queue/spare-jobs.json`, env `LQ_SPARE_IDLE_MIN` (5, 0 = off). PLAN.md "Spare work".
+- 2026-10-25 ~04:40: laptop-queue-4 (feature/laptop-queue-4, worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on
+  feature/laptop-queue-3 = PR #366 head f3eaceed; PR #374), Orchestrator waste audit (gap 00:20-04:10), three fixes:
+  - request.mjs fills `branch` and `pr` by default (171 open requests had branch ""): lib `pickBranch` (lib.mjs, above
+    requestProblem): the ref; '' for a sha on master; the checkout branch when the sha is its HEAD; else the one remote
+    work branch whose tip is the sha, then the one containing it; `pr` from `gh pr list --head <branch>` (checker FIX:
+    master / stacked-parent shas took the requester's branch and PR). Used by failure comments, job.ref and dupKey. Carries master's scripts/pr-size.mjs + glob-match.mjs (identical) for CI.
+  - Dead-pid heavy.lock at the desktop gate (4191 blocked 21:57 to 01:20+): lib `slotLockDecision` (lib.mjs:118; reuses
+    heavy-lock.mjs `parseLock`): break only when the pid is dead on this host and two reads match; no pid / other host /
+    live pid / changed text = hold. service.mjs `breakIfStale` (:653; rename to `staleName`, copy back when a fresh taker
+    raced; --dry-run only logs), `slotLockHeld` (:678; holder logged once per change), used by both desktop gate calls
+    (:1352 train, :1368 requests) and in takeLock's wait (:633). Tests: tests/laptop-queue.test.ts:368.
+  - "CI running": auto-train.mjs `ciLabel` (:233; ciState, but 'running' while `checkWaitReason` sees CI working, own
+    laptop-e2e / auto-train / checker statuses ignored), used for train.ci (:902) and the candidate log (:926).
+    Tests: tests/autoTrain.test.ts:126.
+- 2026-10-24 ~23:40: laptop-queue-3 (feature/laptop-queue-3, worktree C:/NightShift/Mobile-Coop-laptop-queue-3, stacked on
+  feature/affected-flake f89751fd), Orchestrator waste audit, five fixes (pushed):
+  - Release gap hold: lib `trainSoon` releasing case (lib.mjs:541), `releasingTrain` (:504), `readyOrPending` (:522),
+    `RELEASE_HOLD_MS` 10 min (:515). service.mjs `pendingTrains` reads each open train's laptop-e2e `updated_at`
+    (:524) and sets `soon` after the status reads (:528); `trainSoonNow` (:480), `readyOrPendingCandidates` (:472,
+    train-ready PRs with check success or running, minus heads an open train contains). Logged once per change by the
+    existing `soon` hold (train reruns still start). Env `LQ_RELEASE_HOLD_MIN`.
+  - Desktop failures to the laptop: runRequest (service.mjs:1060) posts pending `desktopFailDesc` (lib.mjs:825) and pushes
+    `laptopRerunRequest` (lib.mjs:841; same sha / set / pr / requester, failed suites, `laptopRerun: true`; no set: the
+    old suites joined by "+", so it posts on the same context) through `pushFile`; `finish` `handedOff` (:763) posts
+    pending, no comment. CPU sampled every 5 s watch tick (now in-process `os.cpus()` deltas, see the CPU gate fix
+    below). Desktop filter skips `laptopRerun`. lib `dupKey` / `superseded` / `requestProblem` know `laptopRerun`.
+  - auto-train: `fastPollPlan` `late` -> `FAST_POLL_LATE_S` 30 (auto-train.mjs:497, :530), `pendingSince` (:502),
+    `laptopLate` (:513, "expect ~N s" in the pending status, else `LAPTOP_EXPECT_MIN` 10); openTrain `laptopSince`
+    (:726), step `laptopLate` (:894), main loop (:983). runTrain restamps its pending status with
+    "expect ~N s" (service.mjs:876, lib `expectedWallS` :206) once the shards are known.
+  - Desktop CPU gates leave out background work (waste audit 22:34-23:36: 4192 started nothing for ~62 min with 5
+    requests waiting, a BelowNormal Blender bake held the 50% gate): service.mjs `cpuGated` (:1153) = `os.cpus()` total
+    over the call minus two `Get-Process` snapshots 1 s apart of processes below Normal base priority (`BG_CPU_PS`
+    :1139; ~2-3 s under load; the per-process WMI perf class took ~18 s, rejected); `lazyCpu` (:1163) feeds both gates
+    (:1309 train, :1325 requests). lib `cpuTotalPct` (lib.mjs:111), `backgroundCpuMs` (:135), `gatedCpu` (:159);
+    `desktopGate` (:89) reason shows both: "cpu 62% >= 50% (Normal+ priority; total 95%)". Unreadable processes (other
+    users / protected) stay counted. The run's CPU samples (desktopFailDesc, "; desktop cpu>90%") stay whole-machine
+    load, now in-process `os.cpus()` deltas every 5 s tick (service.mjs:934), no PowerShell per tick (cpuLoadAsync gone).
+  - merge-train "cannot lock ref" (release 23:30:50, another worktree fetched at once): new scripts/fetch-retry.mjs
+    (`FETCH_LOCK_RE` :7, `shouldRetryFetch` :13, `fetchBackoffMs` :16 2-5 s, `fetchWithRetry` :30 up to 5 tries,
+    `fetchOrigin` :47 skips missing optional branches). merge-train.mjs fetches only: mergeAndTag master (:636; the
+    merge commit and closeMembers' member heads are in master), build master + train/* + members (:772; --keep reads
+    train/<n>, --on checks all origin/train/*), release master + train/* (:904; a stacked base is a train head), single
+    master + the branch (:975). auto-train.mjs self-update master only, with the retry (:597).
+  - Checker fix: a superseded laptop rerun posts error "superseded by <id>" on its own context, closing the desktop's
+    "desktop FAIL ..., laptop rerun queued" pending (lib `supersedeStatuses` lib.mjs:913, service.mjs:1198).
+  - Pick order (orchestrator: newest-first let Guard AI's #360 / #363 jump its #317, unclaimed 70 min): lib `pick`
+    (lib.mjs:183) runs a requester's highest `priority` then OLDEST open request (superseded() still retires stale
+    ones first); cross-requester order by arrival unchanged; laptop reruns keep their place by id time. `priority`
+    (integer, default 0) checked in `requestProblem` (lib.mjs:50); `request.mjs --priority N` (request.mjs:82).
+    Tests: tests/laptop-queue.test.ts "pick oldest first per requester" (:54).
+  - Not merged with master (project rule: conflicts go to the train build). origin/master conflicts in
+    scripts/merge-train.mjs (mergeAndTag: master's releaseTail replaces the tag / dev pushes; keep releaseTail, use
+    `fetchOrigin(exec, ['master', 'dev'])` since releaseTail reads origin/dev; also give master's new `repair` and
+    release (already-merged path) fetches 'dev'), tests/autoTrain.test.ts (keep both import lists) and
+    tests/mergeTrain.test.ts (keep both new describe blocks).
+  Rollout: update the laptop service (C:/NightShift/Mobile-Coop-laptop-queue-svc) before or together with the desktop
+  worker. An older laptop's `dupKey` has no laptopRerun element, so a rerun with all suites failed and a set (always
+  the case for affected requests) dedupes against the still-active desktop original and never runs.
+  Tests: tests/laptop-queue.test.ts (gate cpu :336, supersedeStatuses :1026), tests/mergeTrain.test.ts (fetch-retry
+  :552), tests/autoTrain.test.ts.
+- 2026-10-24 ~19:20: feature/laptop-queue-2 (worktree C:/NightShift/Mobile-Coop-laptop-queue-2, from #329 head 80d6087e),
+  Orchestrator audit (b)-(d): ALONE_AGE_MIN 30; an aged alone request stops pr claims under the train hold too, only
+  while the holding train can clear (lib holdClears); desktop CPU gates 80/80; install-task.ps1 trigger 1 min (re-run it
+  on the laptop and the desktop after the merge). b9ac3b72 + checker FIX 976863da. PR opens after #329 lands.
+  Polish: a task-started powershell may flash a console when the trigger fires while a manual service holds the pid.
+- 2026-10-24 ~18:30 (Orchestrator audit: withdrawn aab8f4f0 held 4191 16:55-18:02, aabc5a31 held 4192 to 17:55,
+  train 56 waited 11 min): e48a735d - lib `cutShort`; runRequest kills the command tree (sh `ctl`, `cut`) when the
+  request file left the branch on two listings in a row (error status, done) or, for a plain pr request in its suites,
+  when a train head is pending (claim released, queued again). `request.mjs --pin` / `pin: true`: never superseded.
+  #252 merged at e9363533 only: the 11 later audit commits (f0b9ea20..61171362) had no PR; they ride in the new PR
+  with this fix. Opus checker FIX (2): a request whose id is not its file name is now a bad request (the withdrawal check matches by
+  name); no preemption beside a full / alone / train-rerun run here (lib cutShort `others`; the train needs both slots).
+  Fixed in one round; PR #329, train-ready on CI green.
+- 2026-10-24 (Orchestrator audit 2026-10-23 20:30-23:35Z, ~56 + ~10 min of train time lost): duplicates (lib
+  `dupKey` / `duplicates`, `LQ_DUP_WINDOW_MIN` 60) are marked done unrun; pr / full / alone runs not yet in their
+  suites or steps yield to a pending train (lib `yieldTo`); train reruns (`request.mjs --train-rerun`, lib `pick`,
+  `contextName`, `rerunPassed`) run right after trains and post `laptop-e2e` success on a pass; the desktop starts
+  nothing while auto-train's build marker is fresh (lib `buildMarker`, `LQ_BUILD_MARKER_MAX_MIN` 30). Detail:
+  `docs/systems/testing-tools.md` "Laptop queue". The audit's a8ff2d45 pair was a pr (e2e-enemies, set
+  gm-enemies-off, 19 s) and an alone guard bake (8 steps, set guard-bake-all, 3294 s): two different runs, so neither
+  supersede nor the duplicate rule joins them; the bake started its steps at 21:14:45, before the train head appeared
+  (21:21), so yield would not have stopped it either. Interface for auto-train: `--train-rerun`, the build marker file.
+  Rollout: the laptop service must run this before auto-train sends `--train-rerun` (an older service runs it as a
+  plain pr request). Checker FIX (same day): a train rerun with a set posts `laptop-e2e/<set>` (auto-train's
+  `laptop-e2e/train<n>-rerun`), `rerun-<suites>` only without a set; duplicates match set, jobs and pr too and only a
+  success (never a failure) in the window; the desktop's build-marker path follows `AUTO_TRAIN_SCRATCH`; state.done
+  entries over 7 days old are pruned on save.
+- 2026-10-24 (Michael 07:13 "All three", after 87 old hand-made `NightShift-chain-*` one-shots fired again at 2026-10-23
+  23:59 and held heavy-4189 / heavy-4192 for hours): hand-made chains are RETIRED; runs go through the queue
+  (`request.mjs`). Permanent tasks: `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
+  (`install-task.ps1 -Worker desktop`), `NightShift auto-train` (`scripts/auto-train-task.ps1`, master). The only way to
+  schedule an ad-hoc run: `scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "..."` (expires
+  after `-ExpireMinutes` 240, then Windows deletes it; `-WhatIf` prints only).
+  Task guard in `service.mjs` (both workers): at start and every `LQ_TASK_GUARD_MIN` (10) min, disables stale tasks
+  (lib `staleTasks`: enabled `NightShift-*` not allowlisted, or any enabled task whose action mentions
+  `C:\NightShift\scratch` / `laptop-runner.ps1`; allowlist + `LQ_TASK_ALLOW`), never stops / kills / deletes, and pushes
+  `alerts/<ts>-<worker>-tasks.json` to the `laptop-queue` branch. Dry run 07:19: the 87 chain tasks were already gone; it would
+  disable 18 enabled tasks, 17 `ns-chain-1022*` + `ns-cpu-burner` (scratch actions), at the next service start.
 - `pendingTrains()` skips a train head with an `auto-train/*` status in failure / error (lib `trainBuildFailed`),
   logged once per head (train 37 held both slots 18 min after vitest had failed).
 - Trains are claimed (`claims/<train-sha>.json`) by both workers; the desktop takes a train head when the laptop has

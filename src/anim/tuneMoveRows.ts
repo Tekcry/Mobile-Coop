@@ -227,6 +227,8 @@ export function teamRowOfWire(mode: string, sub: number): string {
   const B = TEAM_WIRE_BITS;
   if (mode === 'brace' || mode === 'boost') {
     const r = mode === 'brace' ? 'b' : 'a';
+    // (mission NET) a kit move (PULL_SUB 8, SHUTTER_SUB 16) has no tuner row yet: never the leg-up's
+    if ((sub & 24) !== 0) return '';
     if ((sub & B.rope) !== 0) return r === 'a' ? 'team.rope.a' : 'team.rope.b';
     if ((sub & B.hang) !== 0) return r === 'a' ? 'team.hang.a' : 'team.hang.b';
     if ((sub & B.throw) !== 0) return r === 'a' ? 'team.throw.a' : 'team.throw.b';

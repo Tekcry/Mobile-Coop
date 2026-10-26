@@ -1,4 +1,4 @@
-// (anim-skeleton S3b, docs/anim-skeleton/PLAN.md S3) The baked test clip `skeleton_test` proves key_clip.py's frames:
+// (anim-skeleton S3b, docs/archive/anim-skeleton/PLAN.md S3) The baked test clip `skeleton_test` proves key_clip.py's frames:
 // sampled through keyed.ts onto the real Wren rig (node, no GPU), its FK leg (knee, ankle, ball of the foot and a toe
 // tip) and its clavicle-carried shoulders land where the Blender bake put them (key_clip.py's `check` block, written by
 // build.mjs to tests/fixtures/keyed-check-skeleton_test.json) within 1.5 cm, and a keyed finger curl closes the hand

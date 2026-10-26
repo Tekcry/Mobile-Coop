@@ -49,11 +49,16 @@ export type BarkEvent =
   | 'tripped'
   // (guard-ai S22) a security console found switched off: he turns it back on; off again soon after: he checks it
   | 'console'
-  | 'consoleCheck';
+  | 'consoleCheck'
+  // (guard-rules S4, A8) a rise by sound; the lookout's radioed sighting (S7)
+  | 'heard'
+  | 'spotCall'
+  // (guard-rules S4 fix) a rise by sight (the sight lines; `investigate` keeps the neutral ones)
+  | 'saw';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
-  investigate: ['Checking it out.', 'Going to look.', 'I heard something.', 'Moving to check.'],
+  investigate: ['Checking it out.', 'Going to look.', 'Better take a look.', 'Moving to check.'],
   contact: ['Contact!', 'There he is!', 'Intruder!', 'Hostile spotted!'],
   lost: ['Lost him!', "Where'd he go?", 'No visual!'],
   search: ['Spread out!', 'Search the area!', 'Find him!'],
@@ -93,6 +98,10 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   // (guard-ai S22) original lines, written to be voiced later (G82)
   console: ["Console's dropped out again. Getting it back up.", 'Monitors are dark. Switching them back on.'],
   consoleCheck: ["Console's off again. Someone's been at it. Checking.", 'Monitors down twice now. Taking a look.'],
+  // (guard-rules S4, A8) original lines, written to be voiced later (G82)
+  heard: ['I heard something.', 'What was that noise?', 'Heard something over there.'],
+  spotCall: ['Control, movement below me. Someone check it.', 'Control, I saw something down there. Need eyes on it.'],
+  saw: ['Thought I saw something.', 'Something moved over there.', 'Saw movement. Checking it.'],
 };
 
 /**
@@ -123,6 +132,10 @@ export const BARK_EVENTS: readonly BarkEvent[] = [
   'tripped',
   // (guard-ai S22, A135) the console lines, appended (same train as S9: protocol 41 since A142)
   'console', 'consoleCheck',
+  // (guard-rules S4, A8) appended (the train's protocol bump covers it)
+  'heard', 'spotCall',
+  // (guard-rules S4 fix) appended (same train)
+  'saw',
 ];
 
 /** (guard-ai S9) The wire index of `ev` (-1 unknown). */
@@ -145,9 +158,10 @@ export function barkLine(b: number, n: number, u: number): string | null {
 }
 
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport', 'consoleCheck']);
-/** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once. */
-const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport', 'command', 'shotsReport', 'missingReport', 'consoleCheck', 'spotCall']);
+/** Urgent lines cut through a speaker's cooldown. (guard-ai S14) `missed` too: it follows his own "Radio check." at once.
+ *  (guard-rules S7) `spotCall` too: the lookout's radio follows his own "Huh?". */
+const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport', 'command', 'missed', 'shots', 'shotsReport', 'missingReport', 'spotCall']);
 
 export const BARK = {
   /** Seconds between one speaker's lines; on screen this long. */

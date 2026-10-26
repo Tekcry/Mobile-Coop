@@ -87,6 +87,8 @@ async function run(players: readonly [number, number][]): Promise<Run> {
       const f = along(a, q);
       return { hit: f < 1, distance: len(a, q) * f };
     },
+    // (guard-ai R1) losClear casts through hitDistance when the ballistics has it (the noop proxy would answer undefined)
+    hitDistance: (a: P3, q: P3) => len(a, q) * along(a, q),
     armouredFirst: () => false,
   };
   // anything else combat asks of the ballistics or the effects: nothing

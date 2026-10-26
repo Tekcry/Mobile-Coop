@@ -17,7 +17,17 @@ import {
   studioSpeed,
   studioStepPhase,
   type StudioInputOut,
+  CLIP_BODY,
+  captureClip,
+  loadStudioCaptures,
+  studioBodyPin,
 } from '../src/anim/studio';
+import { MOCAP_SOURCE_NAMES, mocapSource } from '../src/anim/mocapSources';
+import { MOCAP_LAYERS } from '../src/anim/mocap';
+import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
+import { travEntry } from '../src/anim/studioTraversal';
+import { loopGroups, plainLoop } from '../src/ui/tunerLayout';
+import { TUNE_CUR } from '../src/anim/tune';
 import { newStudioDrive, studioDriveTargets, studioFeet, treadmillFoot, wrap01, type StudioFoot, type TreadOut } from '../src/anim/studioDrive';
 import { emptyTargets } from '../src/anim/animGraph';
 import { newKeyedPose, sampleKeyed } from '../src/anim/keyed';
@@ -49,7 +59,8 @@ afterEach(() => {
 describe('anim studio: the loop list', () => {
   it('has every keyed clip of src/anim/clips/keyed and the procedural states, ids unique', () => {
     const files = readdirSync('src/anim/clips/keyed').filter((f) => f.endsWith('.ts')).map((f) => f.slice(0, -3));
-    const keyed = STUDIO_ENTRIES.filter((e) => e.kind === 'keyed');
+    // (mixamo-retarget M5) the motion captures are keyed loops too (their own group, below)
+    const keyed = STUDIO_ENTRIES.filter((e) => e.kind === 'keyed' && mocapSource(e.clip!.name) === null);
     expect(keyed.map((e) => e.clip!.name).sort()).toEqual(files.sort());
     for (const e of keyed) expect(e.id).toBe(`keyed:${e.clip!.name}`);
     const states = STUDIO_ENTRIES.filter((e) => e.kind === 'state').map((e) => e.id);
@@ -62,6 +73,92 @@ describe('anim studio: the loop list', () => {
     for (const e of keyed) expect(e.cycle).toBeGreaterThan(0.2);
     expect(studioEntry('keyed:walk').cycle).toBeCloseTo(1.0, 5);
     expect(keyed.filter((e) => e.guard).map((e) => e.clip!.name).every((n) => n.startsWith('guard_'))).toBe(true);
+  });
+
+  it('(mixamo-retarget M5) a "motion capture" group: every capture with its source in the label, picked up from its row', async () => {
+    // (I9 fix round) batch 2's captures load lazily, as the Studio opens
+    await loadStudioCaptures();
+    const ids = STUDIO_ENTRIES.map((e) => e.id);
+    const capIdx: number[] = [];
+    let keyedCaps = 0;
+    let travCaps = 0;
+    for (const name of MOCAP_SOURCE_NAMES) {
+      const r = mocapSource(name)!;
+      const word = r.source === 'cmu' ? 'CMU' : 'Mixamo';
+      const st = r.studio;
+      if (st.kind === 'keyed') {
+        // a keyed capture: through keyed() (`keyed:<clip name>`), its module's own clip, its cycle, the state it tunes in
+        const e = studioEntry(`keyed:${name}`);
+        expect(e.id, `${name} is in the loop list`).toBe(`keyed:${name}`);
+        expect(e.kind).toBe('keyed');
+        expect(e.clip).toBe(captureClip(name));
+        expect(e.clip!.name).toBe(name);
+        expect(e.label).toBe(`motion capture (${word}): ${name.slice(6).split('_').join(' ')}`);
+        expect(plainLoop(e.id, e.label)).toBe(`Motion capture (${word}): ${name.slice(6).split('_').join(' ')}`);
+        expect(e.cycle).toBeCloseTo(st.cycle, 9);
+        if ((st.move ?? 'none') !== 'none') expect(e.pace, `${name}: its own stride over its cycle`).toBeCloseTo((e.clip!.stride * 1.68) / 1.75 / st.cycle, 9);
+        else expect(e.pace).toBe(0);
+        expect([e.crouch, e.drawn, e.aim]).toEqual([st.crouch ?? false, st.drawn ?? false, st.aim ?? false]);
+        expect(CLIP_BODY[name]).toBe(st.body);
+        expect(studioBodyPin(e), `${name}: the Studio pins the state the game plays it in`).toBe(st.body);
+        expect(loopGroups(e.id).body).toBe(st.body);
+        capIdx.push(ids.indexOf(e.id));
+        keyedCaps++;
+      } else {
+        // a channel capture: its prop's traversal loop under its own id, the source in the label
+        const id = `${st.loop}/${name.slice(6)}`;
+        const e = studioEntry(id);
+        expect(e.id, `${name} is in the loop list`).toBe(id);
+        expect(e.kind).toBe('trav');
+        expect(e.trav!.prop).toBe(travEntry(st.loop)!.prop);
+        expect(e.label.startsWith(`motion capture (${word}): `)).toBe(true);
+        expect(loopGroups(id).body).toBe(loopGroups(st.loop).body);
+        capIdx.push(ids.indexOf(e.id));
+        travCaps++;
+      }
+    }
+    // the CMU captures today (12 modules in clips/mocap); Mixamo rows as M3 / M4 add them
+    expect(keyedCaps).toBeGreaterThanOrEqual(12);
+    expect(STUDIO_ENTRIES.filter((e) => e.label.startsWith('motion capture')).length).toBe(keyedCaps + travCaps);
+    // one group: together, after the hand-keyed clips, before the pairs
+    const first = Math.min(...capIdx);
+    expect(Math.max(...capIdx) - first + 1).toBe(capIdx.length);
+    expect(STUDIO_ENTRIES[first - 1]!.kind).toBe('keyed');
+    expect(mocapSource(STUDIO_ENTRIES[first - 1]!.clip!.name)).toBeNull();
+    expect(STUDIO_ENTRIES[first + capIdx.length]!.kind).toBe('pair');
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('(M5) a capture plays on the drive as the game plays it: the mocap share and its layer scales; a hand-made clip not', () => {
+    const o = emptyTargets();
+    const d = newStudioDrive();
+    d.clip = MOCAP_WALK;
+    studioDriveTargets(d, o, 1 / 60);
+    expect(o.keyMocap).toBe(1);
+    // the arm swing slider is off the capture (MOCAP_LAYERS.armSwing 0), as in the game; on a hand-made clip it applies
+    expect(MOCAP_LAYERS.armSwing).toBe(0);
+    tuneSet('walk', 'armSwingMul', 2);
+    const pose = newKeyedPose();
+    const was = TUNE_CUR.armSwingK;
+    TUNE_CUR.armSwingK = 2;
+    try {
+      d.phase = 0.25;
+      d.held = true;
+      studioDriveTargets(d, o, 0);
+      sampleKeyed(MOCAP_WALK, 0.25, 1, pose, null);
+      const raw = Array.from(pose.arm);
+      const got = Array.from(o.keyed.arm);
+      sampleKeyed(MOCAP_WALK, 0.25, 1, pose, MOCAP_LAYERS);
+      expect(got).toEqual(Array.from(pose.arm));
+      expect(got).not.toEqual(raw);
+      d.clip = KEYED_WALK;
+      studioDriveTargets(d, o, 0);
+      expect(o.keyMocap).toBe(0);
+      sampleKeyed(KEYED_WALK, 0.25, 1, pose, null);
+      expect(Array.from(o.keyed.arm)).toEqual(Array.from(pose.arm));
+    } finally {
+      TUNE_CUR.armSwingK = was;
+    }
   });
 
   it('studio state resets to its defaults (inactive, idle, no rigs)', () => {

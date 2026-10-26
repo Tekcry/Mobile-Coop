@@ -118,11 +118,12 @@ HAS_LEGS = bool(clip.get('legs'))
 FINGER_NAMES = ('thumb', 'index', 'middle', 'ring', 'little')
 # (anim-skeleton S4) auto opt-in: a key file whose keys set a non-zero clavicle or finger value (the tuner's Keys edits
 # on any clip) gets that channel without the flag; any non-zero leg delta `legL` / `legR` `d` {hipPitch, hipYaw, hipRoll,
-# knee, anklePitch, ankleRoll, toe} (deg, anatomical: the same sense on both sides) gets the `legd` channel (14 a frame,
-# rad in the rig frame, src/anim/keyed.ts `KD`): deltas on the foot planner's solved IK leg. Untouched files: unchanged.
-LEGD_FIELDS = ('hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe')
+# knee, anklePitch, ankleRoll, toe, (tuner-clarity S2) ankleYaw (+ toes out), shinTwist (+ shin turned out)} (deg,
+# anatomical: the same sense on both sides) gets the `legd` channel (18 a frame, 9 a side, rad in the rig frame,
+# src/anim/keyed.ts `KD`): deltas on the foot planner's solved IK leg. Untouched files: unchanged.
+LEGD_FIELDS = ('hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe', 'ankleYaw', 'shinTwist')
 # key degrees -> the rig frame per side (src/anim/keyed.ts LEGD_SIGN, the same table)
-LEGD_SIGN = {'L': (-1, -1, -1, 1, -1, 1, -1), 'R': (-1, 1, 1, 1, -1, -1, -1)}
+LEGD_SIGN = {'L': (-1, -1, -1, 1, -1, 1, -1, -1, -1), 'R': (-1, 1, 1, 1, -1, -1, -1, 1, 1)}
 HAS_CLAV = HAS_CLAV or any(any((k.get(a, {}).get('clav') or {}).get(x, 0) for x in ('pitch', 'yaw', 'roll')) for k in clip['keys'] for a in ('armL', 'armR'))
 HAS_FING = HAS_FING or any(any((k.get(h, {}).get(fn) or {}).get(x, 0) for fn in FINGER_NAMES for x in ('curl', 'spread')) for k in clip['keys'] for h in ('handL', 'handR'))
 HAS_LEGD = any(any((k.get(g, {}).get('d') or {}).get(x, 0) for x in LEGD_FIELDS) for k in clip['keys'] for g in ('legL', 'legR'))

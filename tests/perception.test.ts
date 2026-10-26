@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { fieldFactor, instantDetect, lightFactor, motionFactor, noiseSuspicion, PERCEPTION, pitchFactor, seenAt, sightRate, stepMeter, type SightInput } from '../src/ai/perception';
+import { describe, expect, it, vi } from 'vitest';
+import { MASK } from '../src/physics/groups';
+import { fieldFactor, instantDetect, lightFactor, losClear, motionFactor, noiseSuspicion, PERCEPTION, pitchFactor, seenAt, sightRate, stepMeter, type SightInput } from '../src/ai/perception';
 import { AlertMachine, ALERT, emptyAlertInput, SENSITIVITY } from '../src/ai/alertState';
 import { PatrolWalker, searchPoint, PATROL, type Pt } from '../src/ai/patrol';
 import { LightRegistry } from '../src/world/lights';
@@ -425,5 +426,54 @@ describe('light fixtures', () => {
     const t = rayBox(p.x, p.y, p.z, 0, h2, 0, -50, 6.8, 27, 0.1, 0.5, 1);
     expect(t).toBeGreaterThanOrEqual(0);
     expect(t).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('losClear (guard-ai R1: allocation-free sight rays)', () => {
+  const eye = { x: 0, y: 1.55, z: 0 };
+  const to = { x: 0, y: 1.55, z: 4 };
+  const len = 4;
+  const slack = 0.3;
+  /** A ray-only double: the old path (editor rays, test doubles). */
+  const rayOnly = (hit: boolean, d: number) => ({ ray: () => ({ hit, distance: hit ? d : len }) });
+  /** Both methods, as the game's Ballistics: hitDistance returns the hit distance, or the segment length on a miss. */
+  const both = (hit: boolean, d: number) => ({
+    ray: vi.fn(() => ({ hit, distance: hit ? d : len })),
+    hitDistance: vi.fn(() => (hit ? d : len)),
+  });
+  const cases: [string, boolean, number, boolean][] = [
+    ['a hit before the point', true, 2, false],
+    ['a hit inside the slack', true, 3.8, true],
+    ['a hit past the point', true, 5, true],
+    ['a miss', false, 0, true],
+  ];
+  for (const [name, hit, d, want] of cases) {
+    it(`${name}: hitDistance only, the same verdict as the ray path`, () => {
+      const b = both(hit, d);
+      const v = losClear(b, eye, to, slack);
+      expect(b.hitDistance).toHaveBeenCalledTimes(1);
+      expect(b.hitDistance).toHaveBeenCalledWith(eye, to, MASK.SIGHT);
+      expect(b.ray).not.toHaveBeenCalled();
+      expect(v).toBe(want);
+      expect(losClear(rayOnly(hit, d), eye, to, slack)).toBe(want);
+    });
+  }
+  it('a slack of 0 keeps the ray path (a miss at the full length would read blocked through hitDistance)', () => {
+    const b = both(false, 0);
+    expect(losClear(b, eye, to, 0)).toBe(true);
+    expect(b.ray).toHaveBeenCalledTimes(1);
+    expect(b.hitDistance).not.toHaveBeenCalled();
+    expect(losClear(rayOnly(false, 0), eye, to, 0)).toBe(true);
+  });
+  it('(polish C3) a ray-only miss reporting distance 0 is still clear: the !hit branch ignores the distance', () => {
+    const ray = vi.fn(() => ({ hit: false, distance: 0 }));
+    expect(losClear({ ray }, eye, to, slack)).toBe(true);
+    expect(losClear({ ray }, eye, to, 0)).toBe(true);
+    expect(ray).toHaveBeenCalledTimes(2);
+  });
+  it('a ray-only double still works (the ray is cast with the sight mask)', () => {
+    const ray = vi.fn(() => ({ hit: true, distance: 2 }));
+    expect(losClear({ ray }, eye, to, slack)).toBe(false);
+    expect(ray).toHaveBeenCalledWith(eye, to, MASK.SIGHT);
   });
 });

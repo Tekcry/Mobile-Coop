@@ -21,8 +21,11 @@ export interface BreakerHost {
 }
 
 /** The reset walk's limits: he gives up the walk after `giveUp` s; he works the switch within `reach` m of his stand
- *  point (the walkable cell next to the switch). Starting values (G4). */
-export const BREAKER_WALK = { giveUp: 30, reach: 0.7 } as const;
+ *  point (the walkable cell next to the switch). Starting values (G4). (guard-ai polish B1, A168) `retry`: a cut circuit
+ *  whose incident is over (the tamper check ended, the walker was knocked out, gave up or was drawn away) with nobody
+ *  walking to it and still off is forgotten by late discovery after `retry` s, so the next guard who sees it dark notices
+ *  it again (the reset walk). Undo: `retry = Infinity` (it stays dark for good, the 4.97.1 rule). */
+export const BREAKER_WALK = { giveUp: 30, reach: 0.7, retry: 20 } as const;
 
 /** Late discovery's scan: one pass every `tick` s over a share of the guards, so each guard is looked at about
  *  `perGuardHz` times a second (a round robin, no allocation). Starting values. */
@@ -42,6 +45,8 @@ export const CIRCUIT_KEY = 100000;
 export function darkState(reg: LightRegistry, l: LightDef, host: BreakerHost | null): number {
   if (l.kind === 'flashlight') return DARK_NONE;
   if (l.destroyed) return DARK_SHOT;
+  // (piano SO1) the mains are off for good: no switch of it can put it right, so it is never a cut circuit
+  if (reg.mainsCut(l.id)) return DARK_NONE;
   if (l.group >= 0 && host && !reg.baseOn(l) && host.isOff(l.group)) return DARK_CUT;
   return DARK_NONE;
 }
@@ -114,6 +119,19 @@ export class DarkList {
       if (l.group === group && !l.destroyed && l.kind !== 'flashlight') this.known[l.id] = DARK_CUT;
     }
     this.dirty = true;
+  }
+
+  /** (guard-ai polish B1, A168) Forget that circuit `group` is cut (its incident is over and nobody turned it back on):
+   *  its dark lamps go back on the list, so late discovery finds them again. Shot lamps stay known. No allocation. */
+  unmarkGroup(reg: LightRegistry, group: number): void {
+    const ls = reg.lights;
+    const known = this.known;
+    for (let i = 0; i < ls.length; i++) {
+      const l = ls[i]!;
+      if (l.group !== group || known[l.id] !== DARK_CUT) continue;
+      known[l.id] = DARK_NONE;
+      this.dirty = true;
+    }
   }
 
   /** The guards react to the incident of board key `key` (a light id, or `CIRCUIT_KEY` + a circuit): mark it known. */

@@ -2,13 +2,13 @@ import { h } from '../dom';
 import { SD_LOW } from '../../weapons/sdRounds';
 import { icon } from '../icons';
 import { keyLabels, verbPromptHtml } from '../prompts';
-import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
 import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
 import { ContextMenuView } from './contextMenuView';
+import { OBJECTIVE_POPUP, ObjectivePopup } from './objectivePopup';
 
 export interface HudFrame {
   hp: number;
@@ -29,13 +29,7 @@ export interface HudFrame {
   ads: boolean;
   /** (step 09) Crosshair shown (drawn and aiming only). */
   crosshair: boolean;
-  /** Camera yaw (radians) for the compass. */
-  yaw: number;
-  /** Compass markers: world bearing (radians) + label/colour. */
-  markers: { bearing: number; kind: 'objective' | 'enemy' }[];
 }
-
-const COMPASS_PX_PER_RAD = 120;
 
 /** In-game DOM HUD. Updated per frame with cheap property writes only when values change. */
 export class Hud {
@@ -54,9 +48,15 @@ export class Hud {
   private hit: HTMLElement;
   private ring: SVGCircleElement;
   private dmgWrap: HTMLElement;
-  private compassStrip: HTMLElement;
-  private compassMarks: HTMLElement;
   private objective: HTMLElement;
+  /** (G343) When the objective line shows; `objShown` is the `.show` class as set, `objText` the line as written. */
+  private readonly popup = new ObjectivePopup();
+  private objShown = false;
+  private objText = '';
+  /** (hud-guidance A7) The co-op connection notice, its own small line under the objective (empty: hidden). */
+  private netStatus: HTMLElement;
+  /** (mission-rules R6) The objective's hint line (`setObjectiveHint`), made on first use. */
+  private objHint: HTMLElement | null = null;
   private modeInfo: HTMLElement;
   private weaponEl!: HTMLElement;
   private roomEl: HTMLElement;
@@ -83,7 +83,6 @@ export class Hud {
   readonly pings: PingView;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
-  readonly minimapSlot: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.hpFill = h('div', { class: 'bar-fill hp' });
@@ -128,20 +127,9 @@ export class Hud {
     this.ring.setAttribute('r', '17');
     svg.appendChild(this.ring);
     this.dmgWrap = h('div', { class: 'dmg-wrap' });
-    const ticks: string[] = [];
-    const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    for (let rep = -1; rep <= 1; rep++) {
-      for (let i = 0; i < 24; i++) {
-        const deg = i * 15;
-        const x = ((rep * 360 + deg) * Math.PI / 180) * COMPASS_PX_PER_RAD;
-        const lbl = deg % 45 === 0 ? labels[deg / 45]! : '';
-        ticks.push(`<span class="ctick${lbl ? ' major' : ''}" style="left:${x}px">${lbl || '·'}</span>`);
-      }
-    }
-    this.compassStrip = h('div', { class: 'compass-strip', html: ticks.join('') });
-    this.compassMarks = h('div', { class: 'compass-marks' });
-    const compass = h('div', { class: 'hud-compass' }, this.compassStrip, this.compassMarks, h('div', { class: 'compass-caret' }));
     this.objective = h('div', { class: 'hud-objective' });
+    this.objective.style.setProperty('--obj-fade', `${OBJECTIVE_POPUP.fadeS}s`);
+    this.netStatus = h('div', { class: 'hud-net-status', attrs: { role: 'status' } });
     this.modeInfo = h('div', { class: 'hud-mode' });
     this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
@@ -149,15 +137,13 @@ export class Hud {
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.suppressEl = h('div', { class: 'hud-suppress' });
-    this.minimapSlot = h('div', { class: 'hud-minimap' });
     this.el = h(
       'div',
       { class: 'hud' },
       this.vignette,
       this.suppressEl,
       vitals,
-      h('div', { class: 'hud-top' }, compass, this.roomEl, this.objective, this.modeInfo),
-      this.minimapSlot,
+      h('div', { class: 'hud-top' }, this.roomEl, this.objective, this.netStatus, this.modeInfo),
       weapon,
       h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
@@ -170,10 +156,6 @@ export class Hud {
     this.pings = new PingView(this.el);
     this.world = new WorldPrompts(parent);
     this.gadgets = new GadgetWheel(parent);
-  }
-
-  setMinimap(m: Minimap): void {
-    this.minimapSlot.replaceChildren(m.canvas);
   }
 
   /** Health shown as bars (else only the screen-edge vignette); ammo always on (else it fades when unchanged). */
@@ -246,6 +228,12 @@ export class Hud {
       this.ammoKey = ak;
       this.ammoT = now;
     }
+    // (G343) the objective popup: the class flips only when the visibility does (the CSS fade runs OBJECTIVE_POPUP.fadeS)
+    const vis = this.popup.visible(now / 1000);
+    if (vis !== this.objShown) {
+      this.objShown = vis;
+      this.objective.classList.toggle('show', vis);
+    }
     const quiet = !this.ammoAlways && now - this.ammoT > 3000;
     this.set('aq', quiet, () => this.weaponEl.classList.toggle('quiet', quiet));
     const rp = Math.round(f.reloadProgress * 50);
@@ -253,21 +241,6 @@ export class Hud {
       const c = 2 * Math.PI * 17;
       this.ring.style.strokeDasharray = `${c * f.reloadProgress} ${c}`;
       this.ring.parentElement!.classList.toggle('on', f.reloadProgress > 0);
-    });
-    const yawPx = Math.round(f.yaw * COMPASS_PX_PER_RAD);
-    this.set('yaw', yawPx, () => (this.compassStrip.style.transform = `translateX(${-yawPx}px)`));
-    // markers (rebuild only when count changes; positions every frame are cheap transforms)
-    if (this.compassMarks.children.length !== f.markers.length) {
-      this.compassMarks.replaceChildren(...f.markers.map((m) => h('i', { class: `cmark ${m.kind}` })));
-    }
-    f.markers.forEach((m, i) => {
-      let d = m.bearing - f.yaw;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
-      const el = this.compassMarks.children[i] as HTMLElement;
-      const x = Math.max(-1.2, Math.min(1.2, d)) * COMPASS_PX_PER_RAD;
-      el.style.transform = `translateX(${x}px)`;
-      el.classList.toggle('edge', Math.abs(d) > 1.2);
     });
   }
 
@@ -299,11 +272,55 @@ export class Hud {
     return this.objective.textContent ?? '';
   }
 
+  /** (G343, BRIEF A4) A real change of the line shows it for `OBJECTIVE_POPUP.holdS` (restarting the hold if it is up;
+   *  the fade-in plays only when it was hidden); an empty line hides it. */
   setObjective(text: string): void {
-    this.set('obj', text, () => (this.objective.textContent = text));
+    if (text === this.objText) return;
+    this.objText = text;
+    this.objective.textContent = text;
+    if (text) this.popup.show(performance.now() / 1000);
+    else this.popup.hide();
   }
 
-  /** Room tag under the compass (close-quarters maps); `cleared` marks it as secured. */
+  /** (G343, BRIEF A5) View / Select or O: shows the current line again for `OBJECTIVE_POPUP.holdS`. An empty line
+   *  (Marlow Yard, Clear) shows nothing. Returns whether it showed. */
+  showObjective(): boolean {
+    if (!this.objText) return false;
+    this.popup.show(performance.now() / 1000);
+    return true;
+  }
+
+  /** (hud-guidance A7) The co-op connection notice ("Connecting to host…"), on its own line; '' hides it. */
+  setNetStatus(text: string): void {
+    if (this.netStatus.textContent !== text) this.netStatus.textContent = text;
+  }
+
+  get netStatusText(): string {
+    return this.netStatus.textContent ?? '';
+  }
+
+  /**
+   * (mission-rules R6, HG7) The hint line under the objective (a mission's current step, the hint layer on); null or ''
+   * hides it. Made on the first non-empty call, right after the objective line; it shares `hud-objective`, so once
+   * hud-guidance B1's popup is in it shows and fades with the objective. Cached: a repeat call writes nothing. (R6
+   * polish) Its size is its own, in px as the objective's 13px (`.hud-objective`): about 0.8 of it (an `em` would scale
+   * from the parent, not from the objective line).
+   */
+  setObjectiveHint(text: string | null): void {
+    const t = text ?? '';
+    if (!this.objHint) {
+      if (!t) return;
+      this.objHint = h('div', { class: 'hud-objective hud-objective-hint', style: { fontSize: '10.5px', opacity: '0.8' } });
+      this.objective.after(this.objHint);
+    }
+    const el = this.objHint;
+    this.set('objHint', t, () => {
+      el.textContent = t;
+      el.hidden = !t;
+    });
+  }
+
+  /** Room tag at the top (close-quarters maps); `cleared` marks it as secured. */
   setRoom(name: string | null, cleared = false): void {
     const key = name ? `${name}|${cleared}` : '';
     this.set('room', key, () => {

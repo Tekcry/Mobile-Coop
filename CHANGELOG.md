@@ -1,5 +1,1698 @@
 # Changelog
 
+## 4.122.1 - Train 141: Guard AI: piano intro actors; Marlow Yard re-plan walks, part 2 (2026-10-26, PR #628; #611, #610)
+
+### Guard AI: piano intro actors
+- (guard-ai piano GA4) `GuardActor` (`src/ai/guardActor.ts`, path in `guardActorPath.ts`): a guard rig with no brain that walks a path at its own playback rate with the aimed walk, fire kick and muzzle flash, for the piano intro (not used yet); `Vfx.muzzleFlash` takes an optional life.
+
+### Marlow Yard re-plan walks, part 2
+- Marlow Yard re-plan walks: seven test-side fixes so the quarantined walks run to the end.
+
+## 4.122.0 - Train 140: Piano scene knife kills (piano-knife S1) (2026-10-26, PR #626; #614)
+- Piano scene (dark until Campaign's scene switch): every takedown on a guard is a one-press paired knife kill. The
+  operator grips the guard (mouth from behind, shoulder at a corner or face to face), the guard is held to her for the
+  whole move, the knife goes in, he buckles with his hands on her forearm and falls as an ordinary body. 1.2 m of
+  noise, no grab, no knockout, no RT palm strike in the scene. Stand-in Mixamo clips until the real knife clips (S2).
+- Anim Studio: `pair: knife behind / behindLow / corner / front` rows play the kill on Wren and a guard.
+
+## 4.121.0 - Train 139: Missions and the co-op kit in co-op (2026-10-26, PR #625; #581)
+- Co-op: the host's mission reaches the partner. The partner sees their own team's step on the objective line, the
+  Field Terminal's mission list and the radio line when a rule is broken.
+- Co-op: the pull-up and the roller shutter work between two players, with the host judging the catch.
+- Campaign missions start only with exactly two players; with one the lobby says why. "Resume hosting" a campaign match
+  waits for the partner, then starts on its own when they rejoin. Campaign missions give 2 revives at every difficulty.
+
+## 4.120.0 - Train 138: Storm scene guards: torches, the blackout search, rain masking; Guards get home (2026-10-26, PR #621; #603, #588)
+
+### Guards get home
+- Guards find their way back to their posts after a search; the alarm runner gives up an unreachable panel.
+
+### Storm scene guards: torches, the blackout search, rain masking
+- (scene only, `?piano=1`) During the scene's blackout every guard keeps his flashlight on in every state, calm
+  included, while he is up; dogs carry none. The scene's one reaction to the blackout: the guards it names search
+  round the intro wall (about 6 m), then go back to their rounds; a light going out sends nobody else.
+- (scene only) Rain on the roof masks sound for every guard across the map (`mapWideNoise`): at 6 dB a footstep is
+  heard at half the distance.
+
+## 4.119.2 - Train 137: Test Runner batch (J20), PR-B: laptop queue; Mains-off blackout (piano SO1) (2026-10-26, PR #619; #615, #602)
+
+### Mains-off blackout (piano SO1)
+- Lighting: `LightRegistry.mainsOff(x, y, z, over = 0.8)` cuts every electric light for good, nearest first over 0.8 s;
+  torches and window lights stay; no switch, jam end, outage end or section restart turns one back on, and guards never
+  walk to reset it. Dark: nothing calls it until the piano scene does.
+
+### Test Runner batch (J20), PR-B: laptop queue
+- Every train run also runs `e2e-darkness`: a light meter that disagrees with the picture holds the release. Off
+  without a release: `config/train-parity.json` `{ "off": true, "why", "by" }` on the `laptop-queue` branch, or
+  `LQ_TRAIN_PARITY=off` on a worker.
+- Affected runs gate only on their gate suites; the legacy and audio suites they reach run after them, REPORT ONLY, in
+  the slots the affected cap leaves. A desktop failure's laptop rerun keeps gate suites only.
+- A perf step in an alone request enforces its budgets unless it says `--no-budget`.
+- `flake-budget.md` lists known-flaky failures and quarantined suites, escapes owners with `|`, and warns while fewer
+  than 7 days of runs are counted.
+- A suite over its flake budget again within 14 days of its last quarantine is BLOCKING: no new quarantine, a
+  `alerts/<ts>-<worker>-fixjob-<suite>.json` alert on the `laptop-queue` branch and a line in the PR comment.
+
+## 4.119.1 - Train 136: Marlow Yard re-plan: geometry for the plank and swing kit moves (2026-10-26, PR #613; #608)
+- Marlow Yard re-plan: geometry for the plank and swing kit moves (#608)
+
+## 4.119.0 - Train 135: Lookouts and dog release (2026-10-26, PR #609; #595)
+- (dark, `?lookouts=1`) Lookouts: a guard on a lookout post (first: the Saltmarsh Park S5 roof marksman) never leaves
+  his perch. A noise only turns him within a metre of it; when he glimpses you he radios it in and the best-placed calm
+  guard nearby walks to where you stood. One call at most every 20 seconds.
+- (dark, `?dogrelease=1`) Dog release: when the Sector Ops alarm reaches the stage that lets the dogs go (Saltmarsh
+  Park S4 stage 2, S5 stage 1), each free dog of the section hurries to where you were last seen (or round its handler
+  when nobody knows), searches, then returns to heel.
+
+## 4.118.0 - Train 134: Marlow Yard re-plan walks: fix the three quarantined steps (test only); Missions: Sector Ops missions and the co-op kit (2026-10-26, PR #607; #596, #578)
+
+### Marlow Yard re-plan walks: fix the three quarantined steps (test only)
+- Marlow Yard re-plan walks: fix the three quarantined steps (test only) (#596)
+
+### Missions: Sector Ops missions and the co-op kit
+- Sector Ops can run a mission on top of a map's sections: a briefing, steps (copy intel, hack, get out), a rule such
+  as "no kills" (breaking it restarts the section) and the objective line and Field Terminal list that follow it. The
+  Saltmarsh Park test mission runs this way in /preview/ (`?autostart=campusOps&mode=sector&mission=campusMissionTest`).
+- New co-op moves for later maps: the pull-up (one player crouches at a ledge, the other jumps and is hauled up) and the
+  roller shutter (one player holds it open while the other crawls under). Guards notice an open shutter. They need the
+  co-op part and the Tallow Wharf map, which come in the next missions updates.
+- All of this is behind the `missions` and `coopKit` flags: off in the live game, on in /preview/. Nothing changes in
+  the live game.
+
+## 4.117.0 - Train 133: Queue fixes: CI-length train hold, early conflict retire; Marlow Yard re-plan: clearer steps for the first two-player walk; Marlow Yard re-plan: fixes for the first two-player walk; +6 more (2026-10-26, PR #600; #597, #594, #587, #552, #548, #522, #518)
+
+### Campus greybox S1-a (v2, dark): perimeter and gatehouse
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G1 perimeter: an anti-climb steel palisade (2.4 m, no handholds) closes the whole section, with the sliding gate leaf
+    shut and the anglers' cut panel re-hung; anti-climb screens on the gatehouse, plant room and pavilion roof edges; the
+    bin store's west wall is gone. Every section 1 lamp now comes from one provisional light table (today's values, to be
+    calibrated to real-world levels).
+  - G2 gatehouse: rebuilt 6.5 x 6.5 with a glazing band (open rear pane, two fixed panes, the reception window), the door
+    north at (17, -72.5), a roof whose only ledge is the east edge (a wall-jump corner by the A/C condenser), a glazed
+    smoke-vent hatch, a warm desk lamp beside the ceiling tube on the gate circuit, the CCTV desk as a security desk run
+    by the CCTV officer, and a third officer (the night supervisor).
+
+### Campus greybox S1-b (v2, dark): car park, service yard and plant room
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G3 car park: the rows 2 m south, ten lamp columns plus four downlights under a new solar carport (a roof route at 3.0
+    m, reached off the courier's van or the bike shelter), the bike shelter moved against the carport with cycle lockers
+    and its lamp now lit on its own switch, the car-park pair's loop moved with the rows and a new east-rows patrol.
+  - G4 service yard and plant room: the bin store opens into one 14 x 14 service yard with a low bin screen, a roll cage
+    beside the cage trolley and a new storeman; the plant room is deeper, its goods door is unlocked, and a fixed ladder
+    climbs to a roof hatch; the canopy breaker sits on the yard board beside the forecourt switch; a new co-op leg-up
+    (CR1-yard) at the plant roof's hoist bay.
+
+### Campus greybox S1-c (v2, dark): forecourt, lawn, pavilion, rooms, routes and graph
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G5 forecourt, lawn and pavilion: the forecourt gets grit bins and a walkway patrol plus a courier escort at the kerb;
+    the lawn gets two trees, a lit smoking shelter on its own switch, a second smoker and a north-east fence patrol; the
+    pavilion top is a closed roof walk whose east half carries a new co-op leg-up (CR1-east). Section 1 now has 15 guards.
+  - G6 rooms, routes and graph: fourteen room tags (the roof walks, the carport, the plant room and the lawn get their own,
+    the bin, bike and smoking shelter rooms go), three solo routes redrawn for the new layout (the verge and east side, the
+    south footway and yard board, the caged ladder and canopy hatch), the fence patrol's takedown spot moves to his
+    south stop, and the plan graph reads as built (the forecourt is tagged as the section's unavoidable guard).
+
+### Saltmarsh Park gatehouse window vault
+- Saltmarsh Park, section 1: you can now vault through the gatehouse's open rear window both ways. The PC desk stood
+  right under the window, so the jump in landed on the desk and the game refused it. The desk now stands against the
+  same wall just south of the window, the PC sits on its end nearest the window and can still be downloaded from the
+  verge, and the kettle counter moved a little west to make room.
+- A new test checks every vaultable window on the campus: the landing on the far side must be clear and close to the
+  floor height you jump from.
+
+### Laptop queue: quarantine and claim-time skips
+- Laptop queue (F48): the desktop worker keeps no automatic quarantine list of its own (it drops an old one at start),
+  so it forgives only the committed `scripts/e2e-quarantine.json`; its failures go to a laptop rerun, where the
+  laptop's list applies. A desktop-only `e2e-sectorops:6` entry had forgiven #525's affected run.
+- Laptop queue (F46): just before a claim, both workers read the request's PR fresh and withdraw it (a done claim,
+  error statuses, a log line) when the PR is merged or closed, the sha is no longer the PR head, or CI `check` failed
+  on the head. A GitHub error still runs it.
+- Laptop queue: every `gh` call retries once on a TLS handshake timeout.
+
+### Queue fixes: CI-length train hold, early conflict retire
+- Auto-train holds the build for a train-ready PR whose CI is still running until its expected CI finish (its CI run's
+  start + the median CI time of the open PRs' green checks + 2 min, capped at 20 min, `AUTO_TRAIN_CHECK_WAIT_CAP_MIN`),
+  not a flat 3 min (F50: train 131 gave up on #591 71 s before its CI finished). Unknown start or median: the old 3 min.
+- The laptop queue re-reads each open affected request's PR mergeable state after origin/master moves (every
+  `LQ_MERGE_RECHECK_S` 60 s while UNKNOWN, for `LQ_MERGE_RECHECK_MIN` 10 min) and retires a conflicting one at once with
+  its error statuses, instead of finding the conflict at pick time (F51: #581 / #590 waited 36-50 min).
+
+### Laptop queue: fixes first, a new head keeps its place
+- Fixes (PR label `fix` or `request.mjs --fix`) are tested before new features, on the laptop and the desktop.
+- A new head of a PR keeps its request's place in the queue and stops the run on the old head.
+- The desktop takes the smallest request, skips any estimated over 15 minutes, and has a CPU mode knob
+  (`LQ_DESKTOP_CPU_MODE`).
+- A train preempt keeps the suites that already passed, so only the rest rerun.
+- A docs-only commit on a PR head carries the earlier affected-e2e verdict.
+- A train verdict or done claim lost in a GitHub outage is retried on later passes, so a green train no longer holds
+  every alone request; both workers heartbeat their claims, a silent claim frees after 20 minutes, and a run whose
+  claim was taken stops.
+
+### Saltmarsh Park car park lit to real levels
+- Light: the Section 1 car park in Saltmarsh Park is now lit like a staffed site at night (Australian car-park
+  levels: about 28 lux on average, no open spot under 3 lux). Each column carries an arm with twin heads, a new south
+  row covers the bays, and the lane floodlight is softer. Hiding there now means behind cars, under a cut circuit or
+  a shot lamp. Other sections and the warehouse are unchanged for now.
+- Tools: a lux measure for each space, light maps and before / after shots (`scripts/light-realism/`).
+- Light: the rebuilt Section 1 car park (the preview layout with the carport) gets the same lighting: twin-head arm
+  columns on its rows and the softer lane floodlight; the strips along the carport's front and back edges stay dark for now.
+
+### Marlow Yard re-plan: clearer steps for the first two-player walk
+- Marlow Yard (re-plan): a player who drops and rejoins lands on the live step's mark; a lone host's step line says it
+  waits for the partner.
+- Marlow Yard (re-plan): the HUD's retry rule and step number follow the live step (A4 now counts 8, 9, 10 in play
+  order).
+- Marlow Yard (re-plan): a step retry keeps who took which job, leaves a kept roller door open and resets a running
+  scanner hack without damage.
+- Marlow Yard (re-plan): a new set clears the guards' shared memory from the last one.
+- Marlow Yard (re-plan): the substation wall line names the wicket door; a third step iron between the trench decks;
+  the strongroom's A mark sits by the office door, off the officer's back; the data hall's A line counts the partner in.
+
+### Marlow Yard re-plan: fixes for the first two-player walk
+- Marlow Yard (re-plan): jamming the substation floodlight no longer sends you back the moment the jam flickers
+  (station 13).
+- Marlow Yard (re-plan): the goods shed's wicket camera stays off once the lift grille is done, so the synced takedown
+  at the loaders is no longer seen every time the 60 s camera loop runs out (station 10).
+- Marlow Yard (re-plan): the gap from the carriage shed's pit walkway to the next door is wide enough to walk through.
+- Marlow Yard (re-plan): the roller door, dock run and synced takedown lines say what each player does next; the
+  rescue line step says to face the drop and press Co-op standing.
+- Marlow Yard (re-plan): the neck isolators no longer draw the shunter into the crossing lane.
+- Marlow Yard (re-plan): both players stuck in the pump house drive pit get a retry; a retry ends a rope climb or
+  hang-down; no retry fires while the exit holding room is cycling; the strongroom's objective list no longer steps
+  back after a retry.
+- The jammer picks a camera in its aim over a nearby ceiling lamp.
+- Co-op: "Resume hosting" restarts at the set you were in, not at the start of Marlow Yard.
+
+### Mission framework: mission rules, mission text and the Hints setting
+- Groundwork for campaign missions: the code that checks a mission's rules (for example no kills or no alarms), writes
+  the objective line and the Field Terminal's Objectives list (the rule first, then each step as done, current or to
+  do), and packs the mission's state for the co-op partner. Nothing uses it yet.
+- New setting Gameplay > Hints: a hint line under the current mission objective (off by default).
+- New flags: `missions` (`?missions=1`) and `coopKit` (`?coopkit=1`). Both are off in the live game and on in /preview/.
+- All of this ships dark behind the `missions` flag (`?missions=1`) in the live game; /preview/ has it on.
+
+### Test fixes: pad and co-op movement
+- The controller test walks the whole pause menu, Notes row included, and runs again in full (it was set aside as
+  unreliable); two co-op movement checks (the climb up a hanging partner, the roll) no longer fail on a busy PC.
+
+## 4.116.0 - Train 131: Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void; Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof; +15 more (2026-10-26, PR #593; #585, #547, #544, #535, #529)
+
+### Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- Section 2 v2 greybox, G floor (S2-G1): the reception and the atrium hall are one lobby; the feature stair is two flights
+  of 13 risers with a 2.0 m mid landing and rails on both sides; the plant room gets a locked, breachable north door to the
+  NE lobby; back-of-house doors join the mail room, the lift lobby and the store; the old mail lift is a shaft with a
+  service ladder up to L1 behind the cages; two post cages and a body hide spot in the post room.
+- S2-G2: the atrium void narrows to 14.5 m so the L1 and L2 balcony strips are 3.9 m wide; the CR2 slab nose re-cut on the
+  new edge (planter gone); the roof light rim follows the void; eight balcony downlights per floor; every S2 lamp in one
+  provisional block for the light-realism retune.
+
+### Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G3: the L1 rooms re-cut: a wider kitchen, the project room (print room and meeting room 4 merged), meeting room doors,
+  the east wing rebuilt (facilities office with a glazed west wall and two doors, comms room, bridge landing), the
+  sunshade ledge and the facilities window, 1.3 m fire-stair landings, doors swinging into their rooms.
+- S2-G4: L2 and roof: office A's second door, office B's side door into the east wing, a larger board room with two doors,
+  the roof plant room rebuilt (4.0 m walls) with a floor hatch and a cat ladder down to L2, and a window-cleaning davit whose
+  rope ends on the sunshade by the facilities window.
+
+### Campus greybox S2-c (dark, behind ?campusv2=2): guards, Split Shift devices and room lights
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G6a: 18 guards (was 12): new cafe, atrium-stair, west-plan, north-plan torch, relief and L2 north-strip rounds; the
+  bridge officer moves to face the comms door; the mailroom and L2 lift guards are awake.
+- S2-G5a: the Split Shift devices as data: the comms room CCTV patch panel, the plant room breaker for the east wing
+  lights, keypads on both facilities office doors (the code is overheard at the kitchen), the plant log in the mail room,
+  and two-player key doors at the bridge landing and the executive suite; wing, landing and goods-door downlights.
+- S2-G5c: every enclosed room is its own room (meeting rooms, the L2 executive suite, offices, board room and roof plant room
+  tagged on the HUD) and every room that had no light gets ceiling fittings on its own switched circuit with a wall switch by
+  its door; the fire stairs get landing lights on a riser circuit each. Nothing changes in the live section 2.
+
+### Campus greybox S2-d (dark, behind ?campusv2=2): routes and map graph
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G6b: the three ways in redrawn on the new doors (the post room and north open plan, the roof between the two
+  bulkheads, the turnstiles and the east wing), the section's map data as built (guards per player count, the section's
+  tagged unavoidable guard, the two-player door notes), wider fire-stair landings so guards path through them,
+  and route and map-data tests.
+
+### Campus greybox S3-a (v2, dark): frame
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's frame (its shared
+  plan boxes, doors and light circuits), behind `?campusv2=3`.
+
+### Campus greybox S3-b (v2, dark): shell, ground floor and upper floor
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's shell and ground
+  floor, behind `?campusv2=3`.
+- Sector Ops build work on the signed S3 re-plan: the new lab block's upper floor (the bridge landing, the viewing
+  corridor and east lobby, the north rooms, the security room, the escape gallery, the crane walkway and the ceiling
+  void), behind `?campusv2=3`.
+
+### Campus greybox S3-c (v2, dark): three fire stairs
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's three fire stairs
+  (west, north and east cores: walls, doors, two flights of 27 risers, landings, rails), behind `?campusv2=3`.
+
+### Campus greybox S3-d (v2, dark): lamps, devices and sync
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan: the new lab block's lamps (every room lit on a switchable circuit),
+  switches, the timed lighting isolator, the laser beams and their panels, the cameras, the security desk, the keypads,
+  the sign-out board and the alarm panels, behind `?campusv2=3`.
+
+### Campus greybox S3-e (v2, dark): 20 guards and routes (J1-J4, J8)
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan: the new lab block's 20 guards (posts, patrols, the posted dock officer
+  at the goods door), its four routes, its sector (keypads, code board, isolator board, cameras, desk and alarms wired
+  in), behind `?campusv2=3`.
+
+### Campus greybox S3-f (v2, dark): lips, co-op, graph and dressing
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan, behind `?campusv2=3`: the two co-op climbs of the new lab block (the
+  test chamber's roof and the goods landing over the loading pad, each a 4.4 m boost), checks that a player alone cannot
+  get up either one, that every room is reachable from the start and that each fire stair links the floors on its own,
+  the section's map data as built (guards per room for 1-4 players), and the lab block's dressing redone for the new
+  rooms.
+
+### Campus greybox S4-a (dark, behind ?campusv2=4): south band and return-air plenum
+- No player-visible change: the live Saltmarsh Park section 4 plays exactly as before; the new layout is built only with
+  `?campusv2=4` (test builds).
+- Section 4 v2 greybox, south band (S4-G4.1): the service corridor and the hall lobby are one 6 m goods-in lobby; the
+  mantrap moves 1 m west with an open trolley alcove beside it; the mantrap desk moves west; three 1.2 m parcel cages give
+  low cover along the goods lane; the dock and battery room doors sit 1.5 m off the corners; two new lobby lamps, a
+  mantrap lamp and a dock board lamp (every as-built lamp kept, all of them in one `S4_LIGHTS` block); the hall panel and
+  lobby switches move; a body hide spot in the alcove.
+- S4-G4.2: a return-air plenum over the lobby ceiling as a crawl route: grilles from the ends of cable baskets B1 and B2
+  (which now run on to the hall wall), from the dock and from the battery room (co-op leg-ups CR8 and CR8-west onto their
+  4.4 m sills, which can be climbed over as well as hung from), and a ceiling hatch down into the lobby; the battery racks
+  are 2.0 m high with no climbable top.
+
+### Campus greybox S4-b (dark, behind ?campusv2=4): G4.3 + G4.4 + G4.5
+- S4-G4.3: the west strip: the colonnade corridor widens to 3.3 m under a ceiling slab with its two doors 3 m apart and the
+  hall door into it walled up; a staff door joins the UPS room to the security room; an essential-lighting board by the
+  battery room (cuts the NOC and security room lamps for 25 s) and a battery room lamp with its own switch; the colonnade
+  sentry (#19) stands deeper in the corridor.
+- S4-G4.4: the NOC block: a dog-leg fire stair (two 1.3 m flights and a mid landing) replaces the one steep flight; the NOC
+  gets a roof hatch with a ladder to the plant deck, an escape door onto a platform and a caged ladder down to the north
+  corridor (the side door moves north to clear it), and a rooflight onto the NOC seats; a warm console lamp in the
+  security room and three lamps with their own switch in the north corridor.
+- S4-G4.5: the riser partition moves 0.1 m west and its keypad door shows a keypad on the riser side; a new keypad door
+  (the cable-pull door) joins the generator compound to the riser; the plant ladder now starts on top of a locked
+  anti-climb cage (a co-op leg-up onto the cage reaches the rungs); four floodlight poles light the plant deck; the riser
+  has a lamp with its own switch.
+
+### Campus greybox S4-c (dark, behind ?campusv2=4): G4.6 + fix 1
+- S4-G4.6: 25 guards (five new: the goods-in officer, the second keyholder, the tank watch, the chiller watch, the night runner;
+  the battery checker's round now runs through the new colonnade), three renamed routes, the mantrap interlock as a
+  two-player pair gate, the Code Relay lead items (a duty roster, a deck radio, a console and a seat placard on the NOC
+  window ledge), and tests for the guards, sync nodes, screen count, graph and lights. The section no longer carries a
+  helmet tag (guard rules PR1 first).
+- S4 fix 1: the co-op leg-ups CR8 and CR8-west onto their 4.4 m sills can be climbed over as well as hung from.
+
+### Campus greybox S5-a (dark, behind ?campusv2=5): shell re-cut
+- No player-visible change: the live Saltmarsh Park section 5 plays exactly as before; the new layout is built only with
+  `?campusv2=5` (test builds).
+- Section 5 v2 greybox, shell re-cut (S5-P1): the stair hall takes the back corridor's south half as a dark screens
+  passage behind a 2.2 m timber screen with two settles; the old west passage is the hall's open alcove; a back hall with
+  the anteroom's side door and a kitchen door; the anteroom grows to 8.8 x 6.3 with an audit table and a 3 m glazed screen
+  onto the light well; the strongroom's day gate stands open; the shaft moves north beside it; the kitchen is 1 m wider;
+  the lobby doors are off each other's line; the hall stair is 2.4 m wide in two flights with a landing; new doors from the
+  control room to the garden and between the boardroom and the CEO suite; the archive gets one free-standing row, wall
+  shelving, a plan chest and a rooflight with a hatch and ladder; the cage moves over the shaft; a cleaning ladder in the
+  light well; a flue ladder and hatch from the plant room and a smoke hatch to the low roof; a gutter kerb and a roof
+  coping for co-op boosts; a west rappel over the garden; 1.2 m hedges and balustrade; every lamp in one `S5_LIGHTS` block.
+
+### Campus greybox S5-b (dark, behind ?campusv2=5): devices, light and guards
+- S5-P2 devices and light: the hoist door onto the light well is a two-player pair gate (two key switches in the archive),
+  the way down a hang-drop; the cage pair gate, the shaft beams and their panel move with the shaft; a house lighting board
+  on the back landing (cuts the anteroom and the hall wall lamps for 45 s) and the garden board moves with the kitchen wall
+  (30 s); the archive keypad moves to the landing side; the hall camera moves to the south wall; lamps added: a warm
+  audit desk lamp, archive reading lamp and jetty lantern, a lane lamp, the van's work light, roof walk and bulkhead lamps,
+  and fittings with their own switches in the drawing room, back hall, plant room, lobby, archive, back landing and
+  service stair (every as-built lamp kept; the strongroom lamp moves 1 m with its room and turns warm).
+- S5-P3 guards and routes: 26 guards (the 24 kept, ten of them moved: the hall walk, the keyholders flanking the open day
+  gate, the audit escort, the door officer, the archive round, the lobby officer and the clocking round down the screens
+  passage; new: an audit officer at the table and a jetty sentry), inside the 32 live cap with the six reinforcements;
+  the three ways in rewritten (the screens passage and the side door; the hall front and the anteroom's hall door; the
+  service stair, the archive, the roof and the light well) with the exit west through the open alcove.
+
+### Campus greybox S5-c (dark, behind ?campusv2=5): co-op lips and checks
+- S5-P4 co-op and checks: three co-op boost lips (the low roof's gutter kerb from the lawn, the roof's coping from the low
+  roof, the smoke hatch's kerb from the kitchen), each out of reach of a solo jump and climbable once reached (not only hung from); unit tests for the lips, the
+  two-player hoist door, the keyholders' choke, the map graph (guards counted on every player key) and the screen count.
+
+### Guard AI play pass: spawns and the course alarm banner
+- Marlow Yard no longer promises reinforcements that never come; one bad guard spawn no longer stops the rest.
+
+## 4.115.0 - Train 130: Character shadows count in the light (co-op client partners, dark); Guard barks and pairs; Laptop queue: suite parts per head, SLOW warnings; Auto-drop finds train members past 100 commits (F44); +18 more (2026-10-26, PR #592; #586, #582, #579, #574, #572, #562, #561, #558, #557, #550, #532, #516, #514)
+
+### Character shadows count in the light (co-op client partners, dark)
+- Light: with `?charlight=1` a co-op client's meter and round shadows now count its partners' shadows.
+
+### Guard barks and pairs
+- A guard who comes to investigate now says what drove it: a noise gives a line about hearing something, a glimpse
+  a line about seeing something, and a light or body check a neutral line. A guard who saw you no longer says
+  "I heard something."
+- (dark, `?guardpairs=1`) Guards who patrol together notice within about 3 seconds when their partner goes missing,
+  and two posted guards close together chat every 40 seconds and check on each other the same way.
+
+### Laptop queue: suite parts per head, SLOW warnings
+- Laptop queue: a suite split into parts is now sharded by the parts the tested commit's own runner lists, not by
+  old timing records, so no part is skipped or invented; a passing suite near its time limit (a SLOW line) now shows
+  on the run's status and in the flake budget summary.
+
+### Auto-drop finds train members past 100 commits (F44)
+- Auto-train reads a train's members from `git log --first-parent --merges origin/master..<head>` instead of gh's
+  PR commit list, which stops at the oldest 100 commits: a big train (127, 168 commits) lost its merge subjects there,
+  so auto-drop found no member to drop and the master-moved rebuild had nobody to rebuild. gh's list stays as the
+  fallback when git cannot read the log.
+
+### Map load: shader compile log and parallel compile
+- Load timing: each map load now logs every shader it compiles (what kind, how long, how many at once), shown in the
+  feedback note and read by the measure script, which can now run cold loads only and compare compile orders.
+- Behind the map-ready loading screen (off by default): the shader compile groups (your body and weapons, the level,
+  the guards, the rest) now start together in priority order instead of one after another, so the browser can compile
+  them at the same time. `?compileorder=serial` keeps the old order for comparison.
+
+### Marlow Yard re-plan: no trap at the Gate (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 A26). At the Gate (A1), a player who drops into the yard before
+  the human ladder is done is no longer stuck there: once they have stood in the yard for 5 seconds with nobody on or
+  climbing the wall, both of you go back to the start of that step (the striped mark, and the wall top for the one who
+  was up), with a short radio line saying why. A partner still on the wall top can hang down for a ladder, so the clock
+  waits while anyone is up there.
+- The built yard is unchanged.
+
+### Marlow Yard re-plan: the Gate and the Data Hall (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A1A7). The Gate (A1) is now two steps that cannot fail:
+  one player boosts the other onto the yard wall top at the striped mark, then the one on top hangs down and the partner
+  climbs (the human ladder). The wicket gate stays shut until both have been on the wall top; after that it is only the way
+  back. The seated gate checker is still there, passive.
+- The Data Hall (A7): the entry lobby's east wall is a full-height glass screen with the hall door kept, so you can watch
+  the rack hall from the lobby while the technicians cannot see you there. A second technician works the north side of
+  the hall: from the cage's north-east corner he looks through the cage at the pod and terminal two, then goes back to
+  the pod's panel. The hall player can see him through the cage and call the pod player's moves, as the pod player
+  watches the first technician: each partner covers the other. Seen in the data hall: both go back to the entry lobby and
+  try the split and the synced hack again; a missed hack still just resets the terminals.
+- The built yard is unchanged.
+
+### Marlow Yard re-plan: the Carriage Shed (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A2): the Carriage Shed is one forced route with three stations.
+  The cleaning staging, its stair and the two spotters are gone; one shunter watches the neck, facing east down it.
+  Station 3: the stores bay is shut off by a wall, and its roller door only lifts while one player holds it; the other
+  goes under. Once both are through, the roller door stays up for the rest of the set. Station 4: the neck's two isolators run one 15 s window per crossing, and the lights coming back with a
+  player in the neck sends both back to the cabin and the lane. Station 5: an open wheel-drop pit, 1.6 m deep, wall to
+  wall in front of the L2 door; a hoarded maintenance walkway stands in for the plank until the team move is built.
+- The cabin's back door is locked for good, the isolator cabinet by the pit moves to the near side, a wall lamp now
+  lights the coat corner on the cabin switch, and a strip on the shed switch lights the stores bay. The built yard is unchanged.
+
+### Marlow Yard re-plan: A3 the Office Range (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A3): A3 the Office Range teaches the vent unlock and the jam
+  relay with no guard. The corridor's west end is closed by the landlord's locked fire door; one player opens the riser
+  cupboard's grille in the west lobby, crawls the sealed services crawl and comes out by a grille in the corridor's west
+  end, out of the camera's reach, then opens the fire door's push bar for the partner. Then the two jam the corridor
+  camera for each other to the east lobby. The offices are locked for good and the cleaner is gone.
+- Seen by the camera now retries that step from its start marks (LANTERN says where) instead of the built send-back to
+  the lobby; the vent unlock stays done when the jam relay retries.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: A4 the Goods Shed (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A4): A4 the Goods Shed teaches the lift grille, the camera
+  loop and the synced takedown on one floor route. Players slip the duty officer, one hangs on the counterweighted lift
+  grille at the staff passage mouth while the other ducks under (the grille's own motor button stands in until the move
+  is playable), then loop the three floor cameras at the console and cross the cross aisle and the main aisle to the
+  dock inside the 60 s loop, and take both loaders at once from behind the pallet stacks. Pallet-rack end frames close
+  the west back aisle, aisle 2, the east lane and the mezzanine stairs; the dispatch office is locked for good. The back
+  aisle and the dispatch office are lit; the loader who walked a kettle loop now stays at the desk.
+- The loop running out before both are at the dock, or a loader taken alone, retries that station from its start marks
+  (LANTERN says where) instead of a set restart; the grille stays open through a retry.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: A5 the Substation (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A5): A5 the Substation is re-planned for the new moves. A 6 m
+  perimeter wall stands inside L4's far door with a 1.4 m gap between it and the holding room's face; a wicket in the wall
+  and a fixed access ladder on its inside face are the way over until the chimney move lands. The cable trench moves
+  west and is 3.5 m wide, with step irons on its east face and a hoarded footbridge across it (the trench plates are laid
+  from the west side). The drums, the apron bulkheads and the apron switch moved to fit.
+- Station 13 (the throw) gets a second guard, a static watcher at the release kiosk who sees the floodlit strip: the
+  jam is now needed. A flood that comes back before the release, or a broken beam, retries the throw from its start
+  marks (LANTERN says why). The switchroom's back door is locked for good, the north trench path is fenced at both ends
+  and the beam power panel moved inside the switchroom, so the beams are beaten only by the throw.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: the Pump House (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A6). The Pump House is three steps: get both of you onto the
+  motor gallery (a leg-up, then the rescue line), lower one of you through the gland plate on the bridge to the drive
+  panel, then one of you drops through a new opening in the bridge into the drive pit while the other catches. The staff
+  stair is gone: the gallery and the bridge are reached only by the team moves. The loading edge takes one leg-up: once one
+  of you is on the gallery it closes, so the second climbs the rescue line; seen on that step, it opens again.
+- The drive cage now stands over a pit 1.6 m deep. Inside it, steps lead up to a landing at the cage door and the exit
+  release on the cabinet's back opens the door from there. The way on to holding room six is a covered outfall culvert from
+  the pit, up a ramp under a low housing to the room's door: the pump floor no longer reaches that door.
+- The gauge board is on the culvert housing and the attendant's round passes it on the north side. Until the drop catch
+  move is playable, a fixed ladder from the bridge down into the pit stands in for it and unlocks when the drop step starts.
+- Every light works: the sump bay's high-bay and the two west gallery lamps are live, on a new switch on the sump bay's
+  south wall by the holding room five door.
+- Seen by the attendant: both players go back to that step's start marks. Earlier steps stay done.
+- While the ladder stands in for the drop catch, the drop step's objective and its retry line tell you both to go down
+  the cage ladder through the bridge opening into the drive pit.
+- Nobody gets stuck on the pump floor: once the loading edge has closed, if one of you is down there with nobody on the
+  gallery or the bridge (or climbing to them) for 5 seconds, the step starts again from its marks with a radio line.
+- The built yard is unchanged.
+
+### Marlow Yard re-plan: A8 the Strongroom (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A8): A8 the Strongroom keeps its side routes and its three
+  guards and now retries in place. A guard holding combat on you for 2 seconds sends both of you back to the start of that
+  step (LANTERN says where); a short sighting that breaks off plays out as on a mission. Four steps: the gallery run under
+  the jammed camera (back to the vestibule), the console loop (back to the office door and the board), the lighting board's
+  25 seconds of dark (the lights coming back before someone is through the grille retries it) and the throw and paired
+  hack inside the console's 60 second loop (the loop ending retries it; a loop that already ended when the step starts
+  retries at once).
+- The public stair is a real banking hall's 2.4 m wide, the security office's west wall is a glazed screen onto the
+  gallery (it still stops guards' and cameras' sight), the vestibule and the west bays behind the counters have lights on
+  their own switches, and a new column carries the west bays' switch.
+- The built yard plays as before.
+
+### Marlow Yard re-plan: step numbers and the retry rule on the objective list (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 R2; owner Night Shift | Marlow Build, switch-on 2026-10-29): the
+  objective list's header names the live step, "A2 - objectives - step 4 of 18" (the Strongroom's four steps read 18a to
+  18d), and a line under it says what sends you back in this set: "Seen: you go back to the start of this step.", with
+  "or out of time" where a step has a timed window, and "Caught" in the Strongroom. The Gate has no such line: nothing
+  there can send you back. Host and client both see it.
+- The Gate and the Office Range stay unrated (no guard who can see); a step retry keeps the set's rating going, so
+  only a full set restart starts it again. The built yard's objective list is unchanged.
+
+### Mixamo batch 2 in the Anim Studio: the pistol, rifle, shooter and action-adventure packs (108 clips)
+- The Anim Studio lists 108 more Mixamo captures ("Motion capture (Mixamo): rifle walk forward" ...): the Pistol/Handgun
+  Locomotion, Pro Rifle, Shooter and Action Adventure packs plus five cover and look-around clips. Each plays on Wren and
+  follows its tuner rows.
+- The new captures load when the Anim Studio opens (one download), so the game itself starts no slower.
+- Matches do not use them yet (the drawn-weapon and wall sets come in later steps); with the default source (CMU)
+  nothing changes.
+
+### Takedown search and body pick-up make no per-step garbage
+- No behaviour change: the takedown offer scan reuses one plan and one offer and the shorter sight check, and a started
+  takedown keeps its own copy of the plan; the pick-up of a knocked-out body no longer builds a closure every step.
+
+### Selection wheel ring updated in place
+- No behaviour change: the open selection wheel updates its slots (ammo, gadget counts) in place instead of rebuilding
+  the ring every step (rebuilt only when its shape changes); a stale "time slows" comment corrected (G181).
+
+### Palm strike recovery
+- The palm strike recovers in about 1.4 s after the hit (was 0.6 s): the hit lands as fast as before, then the arm
+  follows through and settles back into the stance before you are free to move on.
+
+### The comms headset replaces the three-lens goggle
+- The operator's default headgear is the comms headset, now free; the three-lens goggle is gone from the look menu,
+  and a saved look that wore it shows the headset.
+
+### Look videos for the walk cards
+- A developer tool records 1-2 minute videos of scripted scenes (walks, takedowns, camera views) without opening a
+  window, for Michael's walk cards. Nothing in the game changes.
+
+### Preview campus prebake
+- The preview build ships the campus lamps for its own layout, so Saltmarsh Park loads without baking on the PC.
+
+### Preview plays the Mixamo animations
+- The preview build now starts with the Mixamo animation set, as every other new feature there. Once you pick an
+  animation set yourself (Options > Gameplay > Animation source, or the Anim Studio's switch) your pick is kept. The
+  live game is unchanged (CMU until you pick). (F45)
+
+## 4.114.1 - Train 126: Training course and bunker test fixes; Marlow Yard test fixes (2026-10-26, PR #577; #567)
+
+### Marlow Yard test fixes
+- The Marlow Yard co-op test no longer stalls at the start when the computer is busy: its second window now always
+  joins the first as a partner instead of sometimes opening a second room of its own.
+- The test measures the partner throw over the laser beams on every game step, so a busy computer can no longer make a
+  good throw look too low; a slow page load also gets two minutes instead of one.
+
+### Training course and bunker test fixes
+- The training course and bunker co-op tests no longer risk stalling at the start when the computer is busy: their
+  second window now always joins the first as a partner instead of sometimes opening a second room of its own. If a
+  start ever stalls again, the test prints what both windows saw.
+
+## 4.114.0 - Train 124: Guard AI: the runner is armed; Auto-train: fewer missed and wasted trains; Light allocation check; Animation source: hand-made, CMU or Mixamo; Preview: every feature on; +2 more (2026-10-26, PR #575; #571, #568, #560, #559, #531, #494, #457)
+
+### Guard AI: the runner is armed
+- Guards: the runner now carries a rifle and fights like the other armed guards (G298: every guard is armed). He draws,
+  aims and fires bursts, holsters when calm, and joins alarm runs, body checks and investigations like any guard; no
+  more hand-to-hand strikes or lunges. He is still the fast, light guard without cover who weaves as he runs in and
+  presses close while firing. Seen in the parked Warehouse modes; no live map places a runner.
+
+### Auto-train: fewer missed and wasted trains
+- Auto-train no longer stops on a brief GitHub hiccup: a read that fails for a passing reason (such as HTTP 499) is tried
+  once more after 5 seconds. Writes are never repeated.
+- A train with nothing new in it no longer fails: auto-train goes idle and waits until a PR or master changes.
+- A release no longer waits for the live site to update. Auto-train keeps watching the site on later ticks and repairs
+  the deploy once if it is still behind 20 minutes after the release.
+- The next train is paced by the laptop only: waiting requests and desktop work no longer hold it back, so trains go out
+  about every hour again.
+- A PR that meets the train-ready rule but was never labelled (as #460 was for train 103) now rides the next train;
+  auto-train adds the label when it builds. A PR that lost the label on its current head stays out.
+- Auto-train reads the PR list again at the start of a build, so a PR that turned ready seconds before (as #521 did for
+  train 119) is no longer left for the next train.
+- A draft PR is never taken into a train, never labelled, and loses a stray `train-ready`; the desktop test worker files
+  no laptop rerun for a draft's failure.
+- The watchdog's "request waiting too long" alert counts from the commit that added the request, so a re-filed request
+  is not flagged because of its old id.
+
+### Light allocation check
+- Tests: the light and shadow allocation checks no longer flake on busy CI machines
+
+### Animation source: hand-made, CMU or Mixamo
+- Settings > Gameplay > Animation source picks the set Wren moves with: CMU (the default, the game as before), Hand-made
+  (the original keyed clips) or Mixamo (the CMU set with the Mixamo captures on top: the ledge hang, the shimmies and
+  the ladder top-out; a move with no Mixamo clip keeps its CMU or hand-made one). A look choice only: timing, reach and
+  the co-op wire are unchanged, and a co-op partner is drawn with your own choice. Saved with the settings.
+- The Anim Studio has the same switch, and a Set filter on the Loop list (All / Hand-made / CMU / Mixamo) that shows
+  only that set's loops. The Now playing line names the source in use. `?anim=hand|cmu|mixamo` sets it for one page.
+
+### Preview: every feature on
+- The preview build turns on every feature still behind a switch (new guard figures, character shadows in the light
+  meter, the map-ready loading, the new Saltmarsh Park layouts, the re-planned Marlow Yard, the Mixamo moves); add `=0`
+  to the link to turn one off. The live game is unchanged.
+
+### Sector Ops: no exit beacon; objectives say where
+- Sector Ops: the green disc and glowing pole at every exit are gone (no markers); the connector doors, signs and light
+  show the way out.
+- Saltmarsh Park: each section's objective is a short line that says what and where (the gatehouse, the facilities
+  office, the prototype store, the server cage, the strongroom).
+- Tests: a data test checks that every Saltmarsh Park objective line names its room; the data hall dressing uses the
+  allocation-free distance helper.
+
+### Sector Ops test part 6 split
+- Test runner: the Saltmarsh Park Sector Ops checks now run as four shorter jobs (parts 6-9) so none nears the time limit; a launch whose match never starts now fails with a clear message (after 180 s) instead of a confusing error later; the runner prints a SLOW line for any passing suite past 75% of its time limit.
+
+## 4.113.1 - Train 123: Guard AI: replayable guard timing (2026-10-26, PR #569; #537)
+- Guards: their reaction timing, radio delays and recon drone orbits now come from fixed seeds instead of chance, so
+  from a fresh load the same play gives the same guard timing (hard rule 8: every detection explainable).
+
+## 4.113.0 - Train 122: Marlow Yard re-plan: station retries (dark) (2026-10-26, PR #565; #487)
+
+### Marlow Yard re-plan: station retries (dark)
+- Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 R1): the re-planned yard's numbered stations run a retry
+  instead of a set restart. Seen by a guard or a camera in a teaching set, or caught for 2 s in the Strongroom, puts both
+  players back on that station's start marks with only its guards, gates, gate doors and flags reset; a guard dealt
+  with at an earlier station stays down, and earlier stations stay done. A set's drill window or beam can call the same
+  retry from its own station code. A station whose new team move is not playable yet opens its stand-in gate. Downed
+  still restarts the set from its holding room. A host with the flag opens its room on the re-planned yard.
+- The built yard plays as before, with one fix: the pause menu's set restart holds the spotted rule at once, so a guard
+  still in combat from before the restart can no longer restart the set a second time.
+- Route-run hooks: `window.__course.restarts`, `lastRetry` and (host) `retryOff(n)`; `?course=station:<n>` starts at a
+  station. The `course` message carries the live station and the last retry (wire change).
+
+### Marlow Yard re-plan: variant base
+- Marlow Yard re-plan, slice S0 (dark behind `?marlowreplan=1`, default off): the re-planned yard builds as its own unlisted
+  map `ctcourseReplan` (same set builders, then a per-set `replan/<set>.ts`, the site floor cut round each set's floor
+  holes, a re-plan light circuit table where every light works). A bay can now carry numbered stations (`StationDef`).
+  With the flag off nothing changes: the built yard, its geometry checksums and light files are untouched.
+
+## 4.112.2 - Train 121: Look-video recorder (2026-10-26, PR #555; #549)
+- A tool that records map walk videos for review (`scripts/look-video.mjs`; Tallow Wharf's four sections planned).
+
+## 4.112.1 - Train 120: Mission framework: mission core (2026-10-26, PR #554; #521)
+- Groundwork for campaign missions: the code that describes a mission (its sections, steps, rule and checkpoints) and
+  runs it step by step, with its tests. Nothing uses it yet, so the game does not change.
+- Docs: the mission rules plans (`docs/mission-rules/`), the J7 and J8-J9 plans, and the Three Grey Coats beat chart
+  updated (after Teale moves, the step reads "the clock-mender's back loft").
+
+## 4.112.0 - Train 119: Pad reading makes no per-frame garbage; affected-cap: each change's automatic test runs at most its 3 closest suites; Map ready gate; Kept model files and textures between maps; +8 more (2026-10-26, PR #536; #519, #517, #513, #512, #507, #506, #505, #501, #489, #488, #481)
+
+### Smaller automatic test per change
+- The automatic `affected-e2e` run on a PR head now runs at most 3 suites, the closest to the folders the change touches
+  (`affectedPick` in `scripts/e2e-affected.mjs`); `src/net`, `src/save` and wire changes run exactly the co-op group
+  (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`). The train's full run catches the rest; `--affected-max` /
+  `E2E_AFFECTED_MAX` lift the cap (0 = no cap).
+- The laptop queue re-files every open automatic affected request over the cap in place (same id and queue place), so
+  the backlog drops at once.
+
+### Start-at-section link for Sector Ops
+- Sector Ops dev and walk link `?sectorStart=N`: the run starts at section N as if the sections before it were cleared
+  through their connectors (the last connector is the checkpoint, its doors as the cycle leaves them). A practice run:
+  the results line ends "PRACTICE from section N" and nothing is saved (no star, no best section rating, no
+  progression). In co-op the host's link decides and the partner is put at the host's checkpoint. Works with
+  `?campusv2=N` for the campus walk cards.
+
+### Character shadows count in the light (part 2, dark)
+- Light: with `?charlight=1` (flag `charShadowLight`) the players and the live guards (dogs as guards) now fill the
+  shared shadow shapes each step, so the light meter and the picture's round shadows darken from the same characters
+  by the same amount. Bodies and a co-op client's partners come in later parts. Off by default until the guards' cue
+  lands and Michael walks it.
+- Tests: the fill (players, guards, slot order) and the picture feed allocate nothing per call.
+
+### Character shadows as a faint guard cue (part 3, groundwork, dark)
+- Light: the shadow-cue maths guards will use to notice a character's cast shadow (Michael's "A faint cue") is in, with
+  light calls that take the point through a shared slot so a full 4-player update allocates almost nothing. Not wired
+  into the game yet; nothing changes in play.
+- Tests: the cue footprints, and the new light calls match the old ones exactly on 500 random points.
+
+### Laptop queue: skip conflicting PRs, green PRs smallest first, carry train verdicts over docs-only fixes
+- The laptop queue no longer runs affected e2e on a PR head that conflicts with master (it posts an error once and runs
+  again on the next head).
+- PR requests now run front branches first, then green PRs smallest first, then in arrival order, with a bound so no
+  request waits forever.
+- A train head that moves by a docs-only commit carries the earlier laptop-e2e success; any other moved head runs as a
+  normal sharded train.
+- A train rerun shards across both laptop slots when they are free.
+- An alone request that has waited long gets the gap after the coming train instead of waiting behind train-ready PRs.
+
+### Map load measure
+- Load timing record: each map load now records how long it takes to appear and what still builds in the 10 seconds
+  after (shaders, lamps, pop-ins, frame times). A new measure script reads it for cold, cached, repeat and
+  map-to-map loads. Measurement only: play is unchanged.
+
+### Map ready gate
+- Map ready gate (behind `?mapready=1`, off by default): the loading screen now stays up until the map is fully built
+  and warmed - graphics settings applied first, then lights, the player's body and weapons, every shader (player and
+  weapons first, then the level, then the nearest guards), the reflection probe and every lamp, plus five quiet frames.
+  The game is frozen behind it and starts at the reveal: the letterbox, banners and objective play from then. The wait
+  is capped at 20 seconds after the level is built (the live lamps are always waited for); past the cap play starts with
+  what is ready and the feedback note records it. Test runs can set `E2E_PARAMS=mapready=1` to turn it on everywhere.
+
+### Kept model files and textures between maps
+- Faster repeat map loads (behind the map-ready switch, off for now): the game keeps the model files and textures it
+  has already read, so loading the next map in the same session does not read and decode them again. The old match is
+  still freed in full.
+
+### Mixamo traversal: every capture on Wren's climbs (dark)
+- Behind the Mixamo animation source (`?mixamo=1`, still off by default; the default source is unchanged): Wren's vent crawl, ladder climb and
+  both lip climb-up captures now play in matches, so every traversal capture is on. The crawl's chest no longer spins
+  round (a conversion fix).
+- The braced climb-up keeps her hands on the lip until her foot is on the top, then the capture takes over; the
+  free-hang stand-up turns her hips far less and stands up at a steadier pace, so nothing snaps as she gets up.
+
+### Mixamo pack driver
+- The Mixamo dump script now also reads the four downloaded packs (pistol, rifle, shooter, action-adventure: 106
+  files) from their own folders, gives each a unique name with its pack in front, and records which pack it came from
+  for the credits. The 55 single files keep their names. No animation in the game changes.
+
+### Player step and traversal make no per-step garbage
+- No behaviour change: the player's movement step, the obstacle probe and the committed vault / mantle / drop now
+  reuse their vectors, results and records instead of making new ones every step (less garbage-collector stutter).
+- Proved bit-identical by a golden trace on real physics (walk, run, crouch under a ceiling, a ledge, a ramp, a
+  committed move) recorded before the change.
+
+### Pad reading makes no per-frame garbage
+- No behaviour change: the controller read each frame (the pad list, the button snapshot, the stick dead zones and
+  curves, the mapped frame) now reuses its records instead of making new ones, so it leaves nothing for the garbage
+  collector; proved bit-identical against a recording made before the change (`tests/padPollAlloc.test.ts`).
+
+## 4.111.0 - Train 118: Guard rules (repeat alarms); Route-run robot pair (2026-10-26, PR #515; #510, #500)
+
+### Guard rules (repeat alarms)
+- In Sector Ops and the campaign, a guard who sees you again after the response team is in, or a minute later, can
+  raise the next alarm, up to three in a section; Marlow Yard still raises one.
+
+### Route-run robot pair
+- Route-runs (J13 R4b, test tooling only): `scripts/route-run.mjs` now walks every map with two robots by default
+  (`--players 2`): the leader on the host page and the follower on the client page over `?net=local`, both stepped on the
+  host's game clock. The follower trails the leader about 2 m behind, crouched, opens doors on its way and has its own
+  dead-stop watch; at a split the two walk both legs at once and wait for each other at the rejoin; at a co-op link both
+  stand at it for its time and are then placed past it. Detections and dead stops name which robot. Sector Ops hack
+  objectives (S2) are now held for their full time instead of tapped. `--players 1` keeps the one-robot run.
+
+## 4.110.0 - Train 117: Campus greybox: per-section v2 switch; Mixamo body carry on Wren (behind ?mixamo=1) (2026-10-26, PR #509; #503, #493)
+
+### Campus greybox: per-section v2 switch
+- No player-visible change: Saltmarsh Park plays exactly as before.
+- Sector Ops build plumbing for the signed-off S1-S5 re-plans: each campus section can now be built from a new,
+  separate layout that stays off by default (`flags.campusV2`, `?campusv2=1,3` for test builds), so the five sections can be
+  rebuilt in parallel and switched on one by one after each walk. The new layouts start as exact copies of today's.
+
+### Mixamo body carry on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): carrying a body on the shoulder, Wren's trunk, head and pelvis height play the
+  Mixamo carry walk (on the game's own step timing) and carry idle; the feet, the carry pace and the hands on the body
+  are unchanged. The co-op partner sees the same.
+- The Mixamo elbow strike and cross punch are wired to the knockout strike's timing (on Wren's own hips) but stay
+  hand-made in matches: squeezed onto the game's fast strike, their forearms snap too far in one frame. The kneel-down capture stays in the Anim
+  Studio only (the game has no kneeling put-down yet).
+
+## 4.109.0 - Train 116: Test Runner batch (J20), PR-A: affected suites and runner; Character shadows count in the light (part 1, dark) (2026-10-26, PR #508; #492, #459)
+
+### Character shadows count in the light (part 1, dark)
+- Light: a character standing between a lamp, the moon or a torch and another character now darkens that spot in the
+  light model the meter and guards read, with the same soft shadow shape the picture draws. Off by default
+  (`?charlight=1`, flag `charShadowLight`) until the meter wiring and the guards' cue land and Michael walks it.
+- Tests: the shadow shape, the light-field term and the torch holder rule; the shadow maths allocates nothing per call.
+
+### Test Runner batch (J20), PR-A: affected suites and runner
+- `--affected` adds the co-op group (e2e-coop, e2e-netmove, e2e-ctcourse) for any file on the wire: `src/net/` and the
+  files `src/net/protocol.ts` imports, read at the tested commit.
+- Saltmarsh Park map files pick `e2e-sectorops` part 6 (all of `e2e-sectorops` with `--wide`).
+- The audio suites join the legacy ones as REPORT ONLY: an affected request never gates on them.
+- A quarantined suite that times out or crashes now fails the run; only an assert failure (exit 1) counts as KNOWN
+  FLAKY. `E2E_REPORT` names suites that run REPORT ONLY in any run.
+- `perf.mjs` prints the map and mode it measured.
+
+## 4.108.0 - Train 115: Mixamo walking, jogging, starts, stops, turns and strafes on Wren (behind the Mixamo animation source); Route-run harness core (one robot) (2026-10-26, PR #504; #499, #496)
+
+### Mixamo walking, jogging, starts, stops, turns and strafes on Wren (behind the Mixamo animation source)
+- With the Mixamo animation source on (and "Mocap locomotion" on), Wren's walk, jog, start from standing, stop, turn on
+  the spot, turns while walking and aimed strafes play Mixamo captures in place of the CMU ones. Speeds and timing are
+  the game's own: the clips are fitted to the game's stride and to the CMU clips' seconds or turn angle.
+- The Mixamo run and sprint stay off in matches for now (their knees cross at the game's run speed); they and the run
+  stop, the left turn on the spot, the crouched side-steps and the backwards walk and run play in the Anim Studio.
+- With the default source (CMU) nothing changes.
+
+### Route-run harness core (one robot)
+- Route-runs (J13 R4a, test tooling only): `node scripts/route-run.mjs <url> --graph <files>` walks a robot through every
+  planned route of a map against its live guards, headless, with the pad, in game time, and writes the run log,
+  `route-run.json` and a plain `REPORT.md` (detections and notices with their inferred cause, dead stops with a
+  screenshot, stubbed links). `--dry-run` prints the plan without a browser, `--routes code` walks the map's own Sector
+  Ops routes, `--selftest` checks a fixture's expected outcomes, `--publish` / `--merge` carry laptop results to the
+  desktop through the `route-run-results` branch. Caller query params such as `?campusv2=2` stay on every page. One robot
+  for now; the pair, course drill gates and real link moves follow (R4b, R4c, R5).
+
+## 4.107.0 - Train 114: Mixamo standing idle and crouched walk on Wren (behind ?mixamo=1); Mixamo crouch and stand-up on Wren (behind ?mixamo=1); +1 more (2026-10-26, PR #502; #485)
+
+### Mixamo standing idle and crouched walk on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): Wren's standing idle and, with Mocap locomotion on, her crouched sneak can now
+  play the Mixamo standing idle and crouched walk; guards keep the hand-made idle. Both stay hand-made in matches for
+  now (the idle holds the elbows too far out, the crouched walk turns the hips and knees out); the Anim Studio still
+  plays both captures.
+
+### Mixamo crouch and stand-up on Wren (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): standing still, Wren's crouching down and standing up can play the Mixamo
+  stand-to-crouch and crouch-to-stand captures on the game's own stance timing (the stance is never faster or slower).
+  Both stay hand-made in matches for now: squeezed into the game's 0.22 s change the captures jerk the body and hold
+  the elbows out more than the hand-made blend; the Anim Studio still plays both.
+
+### Mixamo idle, crouched walk and stance changes fixed and switched on (behind ?mixamo=1)
+- Behind `?mixamo=1` (off by default): the Mixamo standing idle (arms brought in 11 deg), crouched walk (its trunk
+  turned onto the direction it walks) and crouch-down / stand-up (cut to the drop and the rise, on the game's own 0.22 s
+  stance) now play on Wren in matches when Mixamo is picked; the Anim Studio plays the same corrected clips for tuning.
+
+## 4.106.1 - Train 113: Trains: doc-lint left-outs; a fix commit no longer hides the version commit (2026-10-26, PR #497; #495)
+- Train build: `merge-train build` runs doc-lint on the merged tree after each member and leaves out a member that
+  adds a doc-lint error (for example two members together over a doc budget), with a comment asking its lead to fix
+  the doc; the rest of the train ships instead of the whole train failing CI `lint`.
+- Auto-train: a fix commit on top of a train of over 100 commits no longer hides its version commit ("no version
+  commit: rebuild", train 112); the head's newest commits are read when it is missing.
+
+## 4.106.0 - Train 112: Guard rules; Objective pop-up, objective list and Notes; Saltmarsh Park lamp light ships pre-built (dark); Marlow batch fixes; Mixamo traversal captures on Wren (dark); Doors: one 15% light threshold; +1 more (2026-10-26, PR #491; #483, #482, #477, #474, #471, #469, #450)
+
+### Guard rules
+- Helmets follow the difficulty in Sector Ops (and the campaign, which runs on it): on Realistic and Perfectionist every
+  guard wears a helmet from the start. On Perfectionist a helmet is never shot off: the first headshot only staggers
+  him and the second kills. On Rookie and Normal guards are bare-headed until alarm stage 2.
+- Alarm stage 2 now gives every guard a helmet as well as body armour.
+- Riot shields lead the alarm response teams only in the later Saltmarsh Park sections (4 and 5). Earlier sections,
+  the warehouse and Marlow Yard send armed guards only.
+- Killing a guard dog now counts as a kill (no Perfect, no "No kills") and costs score. Knocking one out with gas
+  still scores as a knockout.
+- Sector Ops data checks reject a riot shield guard placed on the map and any helmet named in map data: helmets come
+  from the difficulty and the alarm stage. Saltmarsh Park sections 4 and 5 keep their body armour.
+- Dogs can no longer be taken down in any way (behind, side, drop, from a ledge, the co-op team takedown); in co-op
+  the host also refuses a takedown on a dog. Sleeping gas still knocks a dog out.
+
+### Objective pop-up, objective list and Notes
+- A tap of View (pad) or O (keyboard) shows the current objective for a few seconds; it also shows whenever the
+  objective changes (G343).
+- Sector Ops: Pause > Objectives lists the full objective list for the operation, on the host and the co-op client
+  (G343).
+- Pause > Notes: the lines learned from interrogations this match, newest focused, "No notes yet" when empty. A co-op
+  client keeps the intel and keypad radio lines only; a client that drops and rejoins starts with empty notes.
+- Co-op: connection notices no longer take over the objective line; they show on their own status line.
+- Tests: e2e-sectorops, e2e-pad, e2e-mouse, e2e-coop, e2e-takedown and e2e-menus check the pop-up, the binds, the
+  objective list and the Notes screen.
+
+### Saltmarsh Park lamp light ships pre-built (dark)
+- Loading: the campus lamp light is now baked once when the game is built and shipped with it (5 files, 5.5 MB), so a
+  player's PC no longer bakes it at the start of a match. Off by default (`?mapready=1`, flag `mapReady`) until the
+  Sector Ops and Marlow Yard walks land; any mismatch falls back to the PC bake as before.
+- Tests: the shipped light matches the PC bake byte for byte; a stale, missing or damaged file is never used.
+
+### Marlow batch fixes
+- e2e-ctcourse A8 pass 2: the close by hand of the relocked grille waits until the door's item is live on the host, so
+  a `use` read between the two host steps of a relock no longer reads 'disabled' (train 106 flake; docs/backlog.md
+  "Flaky e2e suites").
+
+### Mixamo traversal captures on Wren (dark)
+- Behind `?mixamo=1` (off by default): Wren's ledge hang plays the Mixamo hanging idle, the shimmy left / right by the
+  way she moves along the lip, and the ladder top-out its capture; guards and team climb-ups keep the hand-made clips.
+  On the hang and the shimmies the palms stay on their grips as on the hand-made clip; the top-out misses its grips by
+  7 cm (the hand-made clip by 11.8).
+- The ladder climb, both lip climb-up captures and the vent crawl stay hand-made in matches for now (they took the hands
+  or feet off their holds, or popped); the Anim Studio still plays every traversal capture on its loop and says which
+  ones stay hand-made.
+
+### Doors: one 15% light threshold
+- Light: a door opened or closed by hand now stops lamp light until it is past 15% open, the same line a slowly
+  pushed door already used (it was 5%); the light meter, the picture and torch light agree.
+
+### Sector Ops: stars fill lower, Perfect, Saltmarsh Park stars on the menu
+- Sector Ops: clearing an op on a harder difficulty now fills every easier star too (old records included).
+- Sector Ops: a run with no kills and no alarm is marked PERFECT on the result line and the extraction banner.
+- Main menu: the stars beside Sector Ops are Saltmarsh Park's, and its line names Saltmarsh Park.
+- Tests: a data check that every Saltmarsh Park section with team doors keeps a route past them for a solo player.
+
+## 4.105.3 - Train 111: Test Runner batch (J20), PR-C: quarantine and hard-rule checks (2026-10-26, PR #486; #445)
+- Every REQUIRED e2e suite has an owner in `scripts/e2e-quarantine.json`, and `tests/e2eQuarantine.test.ts` checks the
+  file (owners, complete entries, ISO expiry, each quarantined suite written up in `docs/backlog.md`).
+- New unit tests for three hard rules: no route timer in Sector Ops (rule 6), the graphics import boundary (rule 10)
+  and patrol and detection replay under a poisoned `Math.random` (rule 8).
+- `e2e-sectorops` part 6 checks every spawned guard is alive at start on Saltmarsh Park sections 2-5, and `e2e-ctcourse`
+  checks every guard is alive at each Marlow Yard set (rule 9).
+
+## 4.105.2 - Train 110: Validator port B2: measure CLI, scale sheet rows and strict metrics-gen; Level validator docs (2026-10-26, PR #484; #480, #479)
+
+### Validator port B2: measure CLI, scale sheet rows and strict metrics-gen
+- `scripts/level-measure.mjs` (run as `node scripts/level-measure.mjs <graph.json> ...`): measures a map's greybox
+  (floor shadow, vantage, LOS break, split legs and partner reach, link times) and writes it back as `measured`. The
+  files of one map are merged, measured once, and each file gets only its own spaces and links, so cross-file links get
+  times and a second `--write` of the same values changes no byte; a campaign graph also gets `meta.measured.ways_back`.
+  `--check` exits 1 on a target miss or a drift; `--points <out.json>` writes the resolved points for one map per call
+  (with `--check`, not `--write`); `--flags <key>=<value>[,<value>]` sets a `flags` key by its current type (a text key
+  such as `mode` is not checked against its allowed values; an unknown key exits 2). Documented in
+  `docs/systems/testing-tools.md` "Measure CLI".
+- `scripts/metrics-gen.mjs` prints its usage and exits 2 on any argument but `--check` (`--help` included), writing
+  nothing.
+- Scale sheet section 3: the Relay lip row states the physical lip ceiling, `TEAM.relayMax` 4.6 + `HANG.drop` 1.9 =
+  6.5 m, and keeps the 4.3 - 4.6 m band (Michael picked "Keep 4.6 m"); a new "Long throw (named spots only)" row (gap at
+  most 4.9 m at two named Tallow Wharf spots) is read into `sizes.throw_long`.
+- Scale sheet section 8: `nav_floor_depth_m` 1.5 and the mission-validator rows (`mission_steps`, `mission_step_min`,
+  `mission_total_min`, `mission_rules_max`, `sector_parallel_min`, `sector_syncs_min`); `metrics.json` regenerated.
+
+### Level validator docs
+- Level validator docs: the graph schema now describes the measured values, the new area and opening-point fields and
+  all six new co-op link kinds, and the level standard's co-op kit list names the vent unlock door.
+
+## 4.105.1 - Train 109: Laptop queue: hold PR runs until the next train (2026-10-25, PR #478; #475)
+- The laptop queue predicts when the next train arrives (from the last release's deploy wait or a newly green
+  train-ready PR) and holds new PR runs until then, so trains stop cutting runs they let start.
+- Under that hold only runs that fit before the next train start (known expected time, 120 s prep, 1.2 x slack).
+
+## 4.105.0 - Train 108: Level validator: measured checks; Mixamo motion capture in the Anim Studio (2026-10-25, PR #476; #472, #452)
+
+### Mixamo motion capture in the Anim Studio
+- 21 Mixamo motion-capture moves on Wren's rig, listed in Main menu > Anim Studio (dev) > "Motion capture" as
+  "Motion capture (Mixamo): <name>" and tunable there like the CMU captures (Body > Joints, Hands & feet, Limb reach):
+  idle, crouched walk, stance changes, carry, crawl, strikes, kneel, team pull, lift, hang, shimmy, ladder, climb-ups.
+- The Now playing line names the capture source ("motion-capture (CMU) walk"); one source table for every capture.
+- Offline pipeline: headless Blender dump of the downloaded takes, Mixamo bone map onto Wren (spine and chest checked
+  under 8 degrees on every take), keyed and traversal clip emitters; CMU clips unchanged. Credits in
+  `docs/art-credits.md`. In-game use comes in later PRs behind the `mixamo` flag.
+
+### Level validator: measured checks
+- Level validator (tooling, no game change): the validator now checks a map's greybox measurements against the scale
+  sheet. A measured view of an encounter space that is too small, or a broken line of sight that lasts too long, is an
+  error; a measured shadow share outside 40-60% is only information, since the real-world light band is the target.
+  Split paths are checked for leg time, for both legs taking about the same time, and for how quickly one partner can
+  reach the other; on campaign maps, each co-op move's way back for the partner is checked against the revive reach.
+- With `--require-measured` (the greybox exit gate) every encounter space, every split and every campaign co-op way
+  back must have measured values. A move the nav grid cannot time is a warning to justify in the design doc, and its
+  hand-written time is still checked. Maps without measurements yet print "pending V6" notes and pass as before.
+
+## 4.104.2 - Train 107: Tallow Wharf map spec; Marlow Yard rule fixes; No minimap, compass or blips; Guard AI allocation fixes (2026-10-25, PR #470; #466, #463, #447, #446)
+
+### Guard AI allocation fixes
+- Guards no longer create garbage when they shoot, bite or think: shots, bites and their moves reuse kept
+  values, and the guard manager's half-second checks use plain loops.
+
+### No minimap, compass or blips
+- The minimap, the compass strip and every objective, pickup, partner and enemy dot are gone from every mode (G339,
+  G135): Sector Ops, Marlow Yard, free roam and co-op. The Marlow Yard drill pointer, world pings and the partner's
+  goggle colour stay. The context menu moves up to its CT spot now nothing sits above it.
+- The legacy HQ "Minimap radar" upgrade is gone; saves move to version 10 (an old radar level is dropped, credits are
+  not refunded).
+- Tests: every suite that read the minimap or blips is flipped; Sector Ops, Marlow Yard, free roam and the co-op
+  client now each check that no minimap or compass is on screen.
+
+### Marlow Yard rule fixes
+- Marlow Yard needs two players: the co-op lobby will not start Course mode with one player, on every build, and the
+  lobby says why ("Marlow Yard needs two players").
+- Revives in Marlow Yard stay capped at two: a good set rating no longer gives a syringe, and the rating card never
+  offers one. Gadget charges and medkits are still granted; Sector Ops ratings still give syringes.
+- The A2 Carriage Shed's entry vantage is now checked as out of the deck watchers' view.
+
+### Tallow Wharf map spec
+- Docs: `docs/tallowWharf-map/SPEC.md` is the Tallow Wharf (campaign Mission 1) spec on the map-spec template: Michael's
+  binding words, stairs and exits, guard totals under the 32 cap, co-op routes with the way back per gate, the objective
+  chain, and real-world light bands with a light table for every space (no space dark by design).
+
+## 4.104.1 - Train 106: Level validator: gate core (2026-10-25, PR #467; #464)
+- Level validator (tooling, no game change): the shared graph helpers move into one library
+  (`scripts/level-graph-lib.mjs`) that the level validator, the measure tool and the mission validator all import.
+  Each map mode (campaign, training, Sector Ops) now has its own rule profile, with empty check modules ready for the
+  measured, training, perfect-run and engine checks that follow. The new co-op kit moves (plank bridge, deadweight,
+  vent unlock, chimney pair, swing pass, drop catch) are known link kinds, and `teach:<move>` space tags are accepted.
+  Validator output on every map is unchanged.
+
+## 4.104.0 - Train 105: Guard anim tier: off-screen every 8th frame (guard-cap T1) (2026-10-25, PR #465; #438)
+- A guard drawn in no local view now solves his animation every 8th frame (was every 4th); the far tier (every 2nd),
+  the 4 m near-player rule, takedowns, holds, emotes, climbs and the frozen tier are unchanged, and the skipped time is
+  still carried into the next solve. Guard-cap M0 measured the anim solve at 55-59% of the sim growth with 24-32
+  guards. Gameplay is unaffected (hit volumes come from the sim). `?animtier=0` still turns the tiers off.
+- A guard out of view whose shadow (a lamp's, the moon's, a torch's) can fall in the view counts as seen and animates
+  like a guard in view (every frame; every 2nd past 22 m, as on screen), so his shadow never steps (A195, G327,
+  Michael 2026-10-25 "shadow in view = seen"). The test is the Sector render
+  freeze's own frustum test (frustum only: a shadow behind a wall still counts). `?animshadow=0` turns the shadow rule
+  off and `?animoff=N` sets the off-screen period, for A/B runs on one build.
+
+## 4.103.9 - Train 104: Level validator: measure core; Marlow Yard objective lines name the place; Tuner clarity polish (2026-10-25, PR #462; #460, #441, #440)
+
+### Marlow Yard objective lines name the place
+- Marlow Yard's objective lines now say where as well as what: the way-back and swap steps name the neck and the far lobby, and the list's last row says "holding room two" (or the cash dock) instead of a code.
+
+### Tuner clarity polish
+- The tuner's "Motion capture / Hand-made" tags no longer flicker when the live share sits right on the edge, the tag
+  is never cut off on narrow panels, and the key tools stay quiet when no slider is picked.
+- Editing a "no gun" row while she has a gun drawn now says so: "Holster to see it."
+
+### Level validator: measure core
+- Level validator (tooling, no game change): the measuring module from the V6 work joins master. It times every walk
+  between spaces on the real nav grid, finds the point on each shared wall where a link sits, measures each campaign
+  co-op link's way back for the partner, and gives the robot route-runs one shared table of space and link positions.
+  A link whose shared wall has two or more gaps gets no guessed time; the validator reports it instead.
+
+## 4.103.8 - Train 103: Route-runs: progress, stuck and steering math; Route-run report; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #461; #456, #453, #372)
+
+### Route-run report
+- Route-runs R2: `scripts/route-run/report.mjs` turns a robot run log into `route-run.json` and a plain-English `REPORT.md` with walk-card lines and the Marlow time line; tooling and tests only, no game change.
+
+### Route-runs: progress, stuck and steering math
+- Route-runs (J13 R3): the test robots' pure math in `scripts/route-run/progress.mjs`: progress along the planned
+  path (one storey at a time), the stuck watch (under 0.5 m in 8 s while walking; per-step time limits), the pad stick
+  and pace that give the crouched sneak speed from `docs/design/metrics.json`, the partner's trail point, which guard
+  level changes count as a detection or a notice, and the inferred cause of each. Tooling only.
+
+## 4.103.7 - Train 102: Route-runs: route planner; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #458; #455, #372)
+- Route-runs (J13 R1): a route planner for the robot test runs. From a map's connectivity graph and its points table it
+  picks the fewest runs that walk every declared approach (shadow, high, loud) of every guarded space, plus the one
+  start-to-exfil run on Marlow Yard and the late sections that keep a side route. Tooling and tests only.
+
+## 4.103.6 - Train 101: Fold: Michael's plan answers (G364-G407) (2026-10-25, PR #454; #442)
+- Docs: Michael's decisions of 2026-10-25 folded as G364-G407 (session layout, the folded-plan sign-off and its 39
+  answers, the mission sign-off pages, five more co-op kit moves, the 12 level-rule changes, near-instant map loads,
+  Mixamo motion capture, free assets with a commercial-sale licence) into `docs/DECISIONS.md`, the design bible,
+  `docs/VISION.md`, `docs/level-design.md` (Michael-approved by the same decisions) and the owner docs of each changed
+  rule; replaced wording added to `docs/stale-terms.json`.
+- Docs: RULES lines from Test Runner J1 (#432): the failed-head triage watch, old-head affected-e2e requests, a tier
+  row for queue / train / tool scripts and the laptop's spare work.
+
+## 4.103.5 - Train 100: Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #451; #372)
+- Mission framework A: specs and sign-off pages (Tallow Wharf, 4 missions, co-op kit) + graph-svg (#372)
+
+## 4.103.4 - Train 99: Mission framework: specs and sign-off pages, graph-svg; Sector Ops docs: conformance fixes (2026-10-25, PR #449; #433, #372)
+
+### Mission framework: specs and sign-off pages, graph-svg
+- Docs: `docs/missions/` holds the mission framework's BRIEF, PLAN and STATE, plus the research behind it. Six sign-off packs sit in `docs/missions/prototypes/`, all signed off by Michael on 2026-10-25; each has a beat chart, a mission graph, a plan image and a one-question sign-off page:
+  - the new campaign map Tallow Wharf (4 sections, every section forces a co-op kit move);
+  - its two missions, Three Grey Coats and Two-Key Ledger;
+  - the Sector Ops missions Split Shift (campus S2) and Code Relay (campus S4);
+  - the co-op kit moves.
+- Tooling: `scripts/graph-svg.mjs` draws a level graph to scale from its `area` boxes and `at` points: 1 m = 10 px, north up, a scale bar, tracks coloured, objective / sync / lead nodes. `--base <svg>` overlays a plan SVG. Tests: `tests/graphSvg.test.ts`.
+
+### Sector Ops docs: conformance fixes
+- Saltmarsh Park plan docs follow the new lighting rule: every space lit to the real-world band for its type, every
+  light working, darkness only from cover, cut power and shot lamps; the old dark-vantage allowance is retired.
+- Saltmarsh Park plan docs give the signed-off guard counts (S1 15, S2 18, S3 20, S4 25, S5 26 at two players).
+- The first campus validator reports are marked as history: their 40-60% shadow errors no longer apply.
+- Graphics settings: the Character shadows help text now says Auto gives the nearest lamp's shadow on Low and Medium.
+- Lighting system doc: character shadows on Low and Medium and the glass rule match the game; dead fittings are
+  marked for re-lighting (every light works).
+
+## 4.103.3 - Train 98: Level standard: Michael's 12 level-rule changes (G157); Player docs match the game; Guard AI docs match the code and Michael's answers (2026-10-25, PR #448; #443, #437, #435)
+
+### Guard AI docs match the code and Michael's answers
+- Guard AI docs (FOLDED-PLAN J1): `docs/systems/ai.md` now says what is built for glass, lookouts and pairs, the
+  guard cap per mode (campaign 32), the campus guard counts, the close-range distance, the modes, the one-alarm rule,
+  downed players and the Sector Ops guard tags; two stale code comments fixed; BRIEF A183 closed by G327.
+
+### Level standard: Michael's 12 level-rule changes (G157)
+- The level standard writes in the 12 level-rule changes Michael adopted (G157): a vantage for two, the finale seen
+  early, a designed exit, pacing targets in minutes, teamwork minimums, the two-minute test, readable machines and
+  windows, real stairs, exits, signs and security, and the two-player final tests. Marlow Yard is exempt from the
+  campaign's built-for-two checks.
+- The map spec template gains fill lines for them; fire alarms unlocking doors as a player tool stays a separate
+  decision (level-design open item 3).
+- Marlow Yard: every failure is a retry, a set has only the guards its move needs (maybe none, at most 3), and side
+  routes stay closed except a late section that trains against enemies. The scale sheet's relay lip row now says the
+  relay's 4.6 m limit is how high the hanging partner's feet sit, not a lip height.
+
+### Player docs match the game
+- Player docs now match the game as built: movement, controls, takedowns (the palm strike is built) and which moves use motion capture.
+- Finished animation job notes moved to the archive; reference-game names removed from the operator art notes.
+
+## 4.103.2 - Train 97: Marlow docs fixes (folded plan J1); Test Runner conformance: doc fixes (J1) (2026-10-25, PR #444; #436, #432)
+
+### Test Runner conformance: doc fixes (J1)
+- Docs (conformance review T16, T18, T19, T22; folded plan Q30): testing-tools lists the laptop's spare-work tier and
+  the request-time refusal of unknown suite names, says `E2E_HEADED` is never used on Michael's PCs, adds the
+  `e2e-menus` bullet and `scripts/e2e-times.json` to the no-suite list, and writes Michael's repeat-quarantine rule
+  (a second quarantine within 14 days makes the suite blocking with a fix job). TESTING.md keeps the desktop and
+  release checklists; the per-job lists move to `docs/archive/testing-job-sections.md`.
+
+### Marlow docs fixes (folded plan J1)
+- Marlow Yard spec follows Michael's 2026-10-25 answers: no strict rule (every failure a retry), failed drills retry
+  in place, one forced route per set (side routes close in the re-plan), only the guards each move needs.
+- Guard cap docs land on master (M0 and M1 measurements, run 4100); any cut below 32 guards goes to Michael first; the
+  60 fps target at 32 guards is recorded for the perf job.
+
+## 4.103.1 - Train 96: Campaign docs: no compass, blips or map screens (J1) (2026-10-25, PR #439; #434)
+- Docs: the doc check now flags the compass, blips, the briefing map, the field-menu map and the radar upgrade as
+  removed features (G336, G339), next to the minimap; three old prototype notes mark the minimap as history.
+- Docs: the menu spec drops the briefing map and the field terminal's Map item, and the co-op code inventory marks the
+  minimap ally blip and objective blips as replaced (G336, G339, G135).
+
+## 4.103.0 - Train 95: Animation tuner clarity (2026-10-25, PR #431; #430)
+- The animation tuner now shows whether each setting changes the motion-captured animation, the hand-made one, or both.
+- It shows what is playing now, for example "Now playing: motion-capture walk", under the tabs and in the Anim Studio.
+- It warns for a few seconds when an edit changes nothing on screen, and says which setting does work instead. Turn this off in More > Panel.
+- The Keys tab has Left leg and Right leg parts, with "foot twist, toes out" and "shin twist" rows for each leg.
+
+## 4.102.6 - Train 94: Doc guard; Doc hygiene (2026-10-25, PR #429; #400, #425)
+
+### Doc guard
+- `npm run lint` also runs the doc lint (`scripts/doc-lint.mjs`, so CI's `lint` and `check` run it): stale terms
+  (`docs/stale-terms.json`), G citations (missing or replaced entries cited as current), broken links and repo paths,
+  key rules restated outside their owner file (`docs/doc-owners.json`), size budgets, and appended "Note 2026-" lines
+  in the design bible. Errors fail CI; warnings print.
+- A job's final PR carries a `Job-done: <job>` line; the train's version commit then moves `docs/<job>/` to
+  `docs/archive/<job>/` and fixes the links to it.
+- `scripts/prune-merged.mjs` lists (and with `--apply` removes) idle merged worktrees and merged branches older than
+  7 days; `scripts/prune-task.ps1` registers it as a weekly task.
+- `docs/RULES.md` "Docs": the doc map, one home per rule, folds rewrite in place, the drift audit, doc lint, the weekly
+  prune and `Job-done:`.
+
+### Doc hygiene
+- `docs/RULES.md`: every resume block ends with one `Next:` line; the signed-off plan is the only plan (superseded plan
+  files are archived the same day); a short orchestrator tidy-up daily and after each release; updates to Michael in
+  plain English and brief dot points.
+
+## 4.102.5 - Train 93: Co-op lamp guard and guard bake abort polish (2026-10-25, PR #428; #427)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp that reaches the host in the frame after a pause
+  menu restart, before the host has noted the restart, is dropped quietly too. No wire change.
+- Tools: when the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage, the ABORT line now names the
+  first lost job and its cause: a spawn error (ENOENT, EPERM, ...), exit 0xC0000142, or a quick failure with an empty
+  log.
+
+## 4.102.4 - Train 92: Conformance review: Guard AI (plan only); Saltmarsh Park section bake: clean shutdown of light-bake workers; Conformance review: Sector Ops (plan only); +3 more (2026-10-25, PR #426; #423, #421, #420, #419, #417, #416)
+
+### Conformance review: Campaign (plan only)
+- Docs: plan-only conformance review of Tallow Wharf, the mission framework / engine and the campaign rules against
+  VISION, RULES, level-design and DECISIONS (`docs/conformance-campaign/CONFORMANCE.md`). No game change.
+
+### Conformance review: Guard AI (plan only)
+- Docs: Guard AI conformance review against VISION, RULES, the bible and level-design: gap table with fix sizes,
+  what conforms, and archetypes per map (`docs/conformance-guard-ai/CONFORMANCE.md`; plan only, G355).
+
+### Conformance review: Marlow (plan only)
+- Docs: `docs/conformance-marlow/CONFORMANCE.md`, the Marlow Build conformance review (G355): a gap table for Marlow
+  Yard (map, mode, HUD guidance), the level validator, the bot route-runs and the guard cap against VISION, the level
+  design standard, the bible, RULES "Intake" and G292-G363, plus the items that conform. Plan only: no src, test, map,
+  script or config change.
+
+### Conformance review: Player (plan only)
+- Docs: Player Build conformance review of movement, animation, takedowns, the co-op player and guard models against
+  VISION, the bible, level-design and DECISIONS (`docs/conformance-player/CONFORMANCE.md`; plan only, G355).
+
+### Conformance review: Sector Ops (plan only)
+- Docs: `docs/conformance-sector-ops/CONFORMANCE.md`, the Sector Ops conformance review (G355): a gap table for
+  Saltmarsh Park S1-S5, the old warehouseOps map, the Sector Ops mode rules and stars, lighting on every map and the
+  visual gate against VISION, level-design, the bible and the G entries, the items that conform and a per-map
+  lighting line. Plan only: no src, test, map, script or config change.
+
+### Saltmarsh Park section bake: clean shutdown of light-bake workers
+- Leaving a match mid-bake now ends every light-bake job, the running ones included, instead of leaving some waiting.
+- If a replacement light-bake worker cannot start, the bake carries on one worker short instead of failing.
+- A lamp that takes over a minute in a worker is noted once in the log.
+
+## 4.102.3 - Train 91: Tooling audit B fixes (2026-10-25, PR #424; #412)
+- Auto-train pacing reads the laptop queue as it is (`requests/` and `claims/`, one GraphQL call): busy while a request
+  has no claim yet (under 12 h old) or a claim is open (under 3 h old). The old read looked for `pending/` / `running*`
+  markers the branch never had, so every tick read idle and pacing never waited.
+- Auto-train self-updates its checkout (fast-forward only, clean tree) right after each release as well as on idle
+  ticks, before the next train is built; back-to-back trains had left it at train 80 with master at 86.
+- `swap.mjs` save check reads the laptop slot locks (`heavy-4189.lock`, `heavy-4192.lock`) and any other
+  `heavy*.lock` beside `heavy.lock` / `heavy2.lock`; a dead pid in any of them is an item.
+- Affected e2e requests leave out the GPU-only and legacy suites (`affectedGateSuites`; the runner's GPU / LEGACY
+  lists now live in `scripts/e2e-affected.mjs`), so affected-e2e never runs or gates on them.
+- Dead scripts moved to `scripts/archive/` (no package script, workflow, live script or scheduled task used them):
+  `ghost-strip`, `menu-shots3/4/5`, `menu-boot-time`, `camera-cue-shots`, `nv-shots`, `sector-fixes-c-shots`,
+  `wheel-shots`, `laptop-runner.ps1`; doc paths updated.
+
+## 4.102.2 - Train 90: Laptop queue: suite names checked at request time, confirm rerun before a guessed auto-drop, spare work when idle (2026-10-25, PR #415; #408)
+### Changed
+- Laptop queue: `request.mjs --suites` takes names split by spaces or commas, and refuses an unknown suite name at request time (checked against the sha's `scripts/`; `name:N` parts by their base name) instead of letting it reach the runner as a false failure.
+- Auto train: when a train's own laptop failure maps to no member (a tier 2-3 guess), it first reruns the failing suites once on the same head; a member is dropped only if that rerun fails too.
+- Laptop queue: after 5 idle minutes (`LQ_SPARE_IDLE_MIN`, 0 = off) the laptop queues one spare job from `docs/laptop-queue/spare-jobs.json` on the master head (full e2e, e2e-coop x5, guard-cap ctcourse 24 / campusops 32, campusOps perf), round-robin, one at a time, each once per master sha. A spare job never starts while a real request is open and stops (done, not rerun) as soon as a train or a real request arrives.
+
+## 4.102.1 - Train 89: Conformance review: Test Runner (plan only) (2026-10-25, PR #413; #410)
+- Docs: `docs/conformance-test-runner/CONFORMANCE.md`, the Test Runner conformance review (G355): a gap table for the
+  suites, the affected-e2e tiers and the laptop queue against RULES, testing-tools, VISION 4-5 and level-design 15,
+  the hard rule to suite map, the 7-day flake budget and the items that conform. Plan only: no script, test, queue or
+  config change.
+
+## 4.102.0 - Train 88: Docs: level standard per mode, archive sweep, re-audit fixes G344-G363; Stealth pays: client intel (2026-10-25, PR #411; #407, #389)
+
+### Stealth pays: client intel
+- Co-op: the client can interrogate any guard the host says still has intel (revived guards, after a rejoin, and
+  Sector Ops guards once their slots carry intel), and a guard the host interrogated no longer offers INTERROGATE on the client. Wire change: an
+  optional `EnemyState.in` flag (absent for guards without intel).
+
+### Level standard per mode
+- Level standard (`docs/level-design.md`) now states its rules per mode: every rule is tagged [All] / [Campaign] /
+  [SectorOps] / [Training], with a profile per mode and a rule index (rule, modes, metrics key, validator check,
+  owner). Campaign sections each force a co-op traversal move with a way back; Sector Ops keeps solo routes past team
+  doors; Marlow Yard is a guided linear course with timed drills. Guards as many as realistically possible (Sector Ops
+  32 alive ceiling), real-world light bands replace the shadow share, up to 2 strict rules with section restart,
+  objectives name what and where with no maps, measured validator pass and bot route-runs at greybox exit.
+- Level validator: `meta.mode` campaign / sector / training profiles (forced co-op gate and gate reach, no softlock and
+  the alive ceiling, no route counts for training), the co-op kit kinds (`team_throw`, `team_hang`, `team_pull`, `shutter`) and `bolted` doors, shadow share as INFO. The scale sheet gets
+  `sector_alive_max` and a light-band placeholder; the uploaded stealth skill is reference only.
+
+### Level standard re-audit fixes
+- Level standard (`docs/level-design.md`): campaign missions run on the Sector Ops runtime with a 32 alive ceiling;
+  engine facts rewritten from the code (five speeds, no sprint, silent bands, guard sight above, doors, camera); one
+  checkpoint rule and a downed rule per mode; Marlow Yard's training rules (timed drills, strict rules taught late,
+  campaign downed rule, 15-20 min); security devices with a security register; unavoidable guards in Sector Ops;
+  helmets and dogs per the 2026-10-25 answers; killing a civilian restarts the section; history cut, profiles point
+  to the rules.
+- Level validator: the alive ceiling also checks campaign maps; co-op kit size bands (pull-up, relay, rope, throw,
+  shutter) from new scale-sheet rows; no softlock reads bolted doors one way; `drill_s` (training only) and the
+  `unavoidable` tag. The scale sheet gets the current camera, silent speeds, an interim light rule and patrol timing.
+- The level-validator job's STATE / BRIEF / PLAN / V1-check / V6-PLAN moved to `docs/archive/level-validator/`.
+
+### Process docs polish (doc-clarity re-audit, slice P)
+- Docs: one authority order list in CLAUDE.md (ROADMAP "Decided" right after Michael); RULES owns "assume and log"
+  overnight, the train-ready rule (who labels, the stuck `affected-e2e` case), stale locks, the laptop queue order, CI's
+  four jobs, cloud sessions running unit tests only, the weekly branch clean-up and a walk cap that limits switch-on
+  only; the subagent preamble reads VISION plus RULES "A job" and "Test tiers" and gains a "Cloud sessions" section;
+  swaps, deploy, auto-train (self-update), watchdog and testing-tools (task guard allowlist) match the code; the
+  map-spec, walk-card, brief and plan-check templates follow the current rules.
+
+### Systems docs re-audit polish
+- Docs: the systems docs and TESTING.md follow the current decisions: the held pistol jammer (G152), complementary
+  kits fixed per mission (G134, G153), real-world draw times (G243), CT's team moves (G180), ping on R3 / middle
+  mouse and goggles on D-pad left, dogs (G348), Marlow Yard downed and strict rules (G349, G357), civilian kills
+  restart the section (G353), helmets, the objective popup and no maps point to their bible owners, character
+  shadows for the meter and guards (G352, not built yet); links point at docs/archive/ for moved job folders.
+
+### Finished job docs archived
+- Docs: 93 finished job folders moved from `docs/` to `docs/archive/<name>/` (names kept, nothing deleted), so
+  `docs/` holds only the core docs and the live jobs (39 entries, was 132). Links and backticked paths in live docs now point at
+  the archive paths.
+- Dev shot scripts and the camera-reach table writer default their output to the archived folders.
+
+## 4.101.2 - Train 87: Co-op lamp shots: no stale round after a restart (2026-10-25, PR #409; #384)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp fired just before a set or section restart no
+  longer shoots that lamp out in the fresh run. No wire change.
+
+## 4.101.1 - Train 86: Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck; Guard AI: one-mover fix; Saltmarsh Park section bake: stuck workers replaced (2026-10-25, PR #406; #403, #387, #385)
+
+### Guard AI: one-mover fix
+- Guard AI: a guard still walking to his reporter or overwatch cover is no longer made the flank while the point is
+  on his own bound, so only one of point and flank is ever on the move at a time (the one-mover rule; e2e-stealth-ai
+  'squad roles' was red on 4.100.2). Undo: `ONE_MOVER.roles` false in `src/ai/squadRoles.ts`.
+
+### Saltmarsh Park section bake: stuck workers replaced
+- A light-bake worker that stops answering is now shut down and replaced when its lamp gives up on it, so the rest of
+  the bake keeps every worker instead of running one short. A silently dead worker holds the load about 90 s at worst
+  (the earlier note said about 85 s; the 5 s check counts on both tries).
+
+### Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck
+- Slot locks: `scripts/heavy-lock.mjs` `parseLock` reads the laptop queue service's own line
+  (`laptop-queue | <label> <sha> pid <n> | <iso>`, no host: this machine) as well as the heavy-lock line, so a slot lock
+  left by a killed service is broken at the desktop gate (and by `heavy-lock.mjs take` / `check`) once its pid is dead.
+  A lock with no pid is still never broken automatically (2026-10-25: pid 4484 held heavy.lock / heavy2.lock 10+ min).
+- Task guard: "NightShift watchdog" is on the allowlist (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`); its .vbs in
+  `C:\NightShift\scratch` no longer gets it disabled.
+- affected-e2e: a duplicate affected request hands affected-e2e over to the surviving affected request (pending "handed
+  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
+  a supersede on the same sha hands over instead of posting error; an affected request or laptop rerun withdrawn before
+  it ran posts error "withdrawn by the requester (not run)"; a head whose affected-e2e is pending with no open, claimed
+  or running affected request is requested again.
+
+## 4.101.0 - Train 85: Design bible rewritten to today's game; decisions fold G324-G343; Rules in one place; Guard AI polish batch 2; Co-op e2e boot wait (2026-10-25, PR #405; #396, #394, #377, #373)
+
+### Design bible rewritten to today's game; decisions fold G324-G343
+- docs/design-bible.md: rewritten in place to the current decisions (G1-G343): three modes and player counts
+  (campaign and Marlow Yard 2, Sector Ops 1-4), refining allowed, up to 2 strict rules with section restart, no maps,
+  minimap, compass or objective blip in any mode, objectives that fade in and out (View / Select or O), real-world
+  light levels (L17), hardened choke points with a route around, Sector Ops as one current block (Saltmarsh Park
+  S1-S5, signed-off counts, scaling, stars, helmets by difficulty), the same helmet rule in the campaign, Tallow Wharf
+  as campaign Mission 1, Marlow Yard timed drills, G180's team moves, rope and medkits, Marlow Yard as the training
+  course (Fallow parked), one owner for the revive rule (5.9 C6), the work order and open list; dated notes folded into
+  the text.
+- docs/DECISIONS.md: the 2026-10-25 roadmap decisions folded in as G324-G343; "Replaced by" notes on 46 superseded
+  entries; the one-page vision replaced by a pointer to docs/VISION.md; G291 says Sector Ops is 1-4 players.
+
+### Rules in one place
+- Process rules move from `CLAUDE.md` into `docs/RULES.md`, read from origin/master at every session start; `CLAUDE.md`
+  is now a short, stable stub (what Night Shift is, read RULES.md and VISION.md from master, the authority order, the
+  code hard rules). The module map and doc index move to `docs/INDEX.md`.
+- One owner per rule: one train-ready definition (CI `check` + `checker` + `affected-e2e`, labelled by the watchdog),
+  desktop CPU gates as the queue really runs them, a 1-minute auto-train tick, swaps (a save, fresh sessions at a swap,
+  resume after a same-account reset); testing-tools owns the flaky rule; session-method, agent-preamble and auto-train
+  point to RULES.md instead of restating it.
+- The laptop queue's first build plan is archived (`docs/archive/laptop-queue-PLAN-2026-10-23.md`).
+
+### Co-op e2e boot wait
+- e2e: `launch` / `openPage` (`scripts/e2e-lib.mjs`) no longer wait 120 s for the match on the page that hosts a
+  `?net=local&autostart=...&mode=course|sector` room: that match starts only when the second page joins, so the wait
+  ends once the page hosts alone in the lobby. Saves about 2 minutes per boot in e2e-ctcourse (each of its 4 parts),
+  e2e-course (the walk URL) and e2e-bunker.
+
+### Guard AI polish batch 2
+- Guard AI polish: a guard sent to a noise behind a locked door he cannot get through now walks to the nearest point
+  he can reach and looks from there, instead of standing where he was (A184).
+- Guard AI polish: several guards searching who hear the same step now give one "I heard something." between them,
+  not one each in the same moment (A185).
+- Guard AI polish: a guard covering from behind a high wall while a mate moves up holds his peek spot, so his
+  covering fire starts from where he can see (A186).
+- Guard AI polish: guards searching the same spot no longer all walk to your last known position and look there; the
+  first does, once, and the rest take their search points at once; if he is taken down before he gets there, a mate
+  goes instead (A188).
+- Guard AI polish (co-op): a guard who goes alert on a call about one player while he sees the other calls that
+  player in once (A187). A calm guard who sees one player far off and the other clearly lit right in front of him
+  notices the near one at once (A190).
+- Guard AI polish: a flank walk may bend further round your cover before it is dropped (A189). A responder who goes
+  back to searching a device room no longer says "Clear." first (A191).
+- Guard AI polish (code health): armour cover checks go to the best cover spots first (A192); a guard in cover with
+  nothing to go on stays in cover (A194); new test for the recon drone's sight.
+
+## 4.100.9 - Train 84: Docs: system docs match the current rules (2026-10-25, PR #401; #395)
+- Docs (doc-clarity, systems slice): the system docs, TESTING.md, the backlog and the research digests now state the
+  current rules. Player counts per mode (campaign and Marlow Yard 2, Sector Ops 1-4); Sector Ops is the five-section
+  Saltmarsh Park campus; section restart and up to 2 strict rules; no maps, minimap, compass or blip; stars fill every
+  tier below a clear; guard caps, per-mode archetypes, helmets by difficulty, lookouts and paired patrols; real-world
+  light bands and hardened choke points; the objective fade with View / O (decided). The CT movement rules G210 / G227 replaced are marked replaced. The research
+  digests, docs/ct-prototype/ and docs/progress.md carry history banners; docs/story.md gets a status note.
+
+## 4.100.8 - Train 83: One-page game vision (2026-10-25, PR #399; #393)
+- docs/VISION.md: a one-page vision every session reads first: the pitch, the three modes (campaign, Marlow Yard,
+  Sector Ops) side by side, Michael's overrides of pure CT, ten hard design rules, build gates, what is never in the
+  game, each line citing its G entry or ROADMAP Decided time.
+
+## 4.100.7 - Train 82: Decisions fold G283-G323 (2026-10-25, PR #397; #386)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-24 ~15:10 to ~23:46 folded in as G283-G294 (idle-lead rule, level
+  validator and standard extras, train speed-ups, test jobs, process audit, mission rules and prototypes, Marlow Yard
+  and campaign co-op traversal, guard off-screen animation tier).
+- docs/DECISIONS.md: the archived roadmap decisions of 2026-10-23 ~01:08 to ~21:08 not yet recorded folded in as
+  G295-G323 (Sector Ops redesign, Guard AI, models and pacing, stealth over shooting, Sector Ops 4 players, guard
+  models, lighting, release and pipeline speed-ups, moving lights).
+- docs/design-bible.md: dated notes for most of G283-G323; the voxel retirement lines in 5.14 and 5.16 now cite G282.
+
+## 4.100.6 - Train 81: Sector Ops polish 3 (2026-10-25, PR #392; #379)
+- Light bake: when the moon bake fails while a section bake still waits on its cache read, no section baker starts
+  afterwards (it used to start one that nobody stopped).
+- Vol lights: `writeVolLights` writes slot `i` and returns `n` (one counter, not two); the wiring guard test reads its
+  sources relative to the test file and names what to do when its regex stops matching.
+
+## 4.100.5 - Train 80: pr-size loads its script from the base branch (2026-10-25, PR #391; #378)
+- CI: the `pr-size` job runs `scripts/pr-size.mjs` (and `glob-match.mjs`) as taken from the base branch, so PR
+  branches cut before 4.100.0, which lack the script, no longer fail `check` with "Cannot find module".
+
+## 4.100.4 - Train 79: Laptop queue: dead-pid heavy.lock broken at the desktop gate, "CI running" in the auto-train status (2026-10-25, PR #390; #374)
+### Changed
+- Laptop queue: the desktop slot gate logs the slot lock's holder once per change ("4191 held by heavy.lock: <text>") and breaks a lock whose pid is dead on this host when its text is unchanged on a second read (logged; a lock with no pid or a live pid is respected). A train's slot-lock wait breaks such a lock too.
+- Auto train: the status and log say "CI running" (was "CI missing" or "CI pending") while a CI run for the head has no conclusion yet; "CI missing" only when the head has no CI run or check at all.
+- Requests fill `branch` and `pr` by default (the asked ref; nothing for a sha already on master; the requester's checkout when the sha is its head; else the one remote work branch at or containing it, and its open PR), so failure comments reach the right PR and queue audits can see each request's branch.
+
+## 4.100.3 - Train 78: Guard bake: stop on a lost console (2026-10-25, PR #383; #380)
+- Tools: the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage at the first job whose launch dies
+  with a lost console (exit 0xC0000142, or a failure under 2 s with no output), waits for running jobs, prints
+  "ABORT: console lost, restart the bake detached" and exits 5 without pushing, instead of failing every remaining job.
+
+## 4.100.2 - Train 76: Co-op Course mode: client lamp shots (walk bug S2); Laptop queue: visual-gate after green trains (2026-10-25, PR #381; #371, #367)
+
+### Co-op Course mode: client lamp shots (walk bug S2)
+- Marlow Yard co-op: the client's round through a lamp now shoots it out on the host with the same checks as Sector
+  Ops (draw, weapon, rate, origin, the lamp first on the ray, a clear line), and both pages see it dark (the client
+  from the host's next `course` message, with the host's sparks cue, not on a join or rejoin); a course restart brings
+  it back. No wire change.
+- Co-op lamp shots (Sector Ops and Course mode): a client's repeat round at a lamp the host already has out is
+  dropped quietly instead of counting as a violation.
+
+### Laptop queue: visual-gate after green trains
+- Laptop queue: after a green train whose head has `scripts/e2e-visual.mjs`, the service frees the second slot and
+  runs the picture gate on the first, posting a `visual-gate` status (clean / flags / error) that never holds a release.
+- A flagged run comments on the train PR with the gate's table, thumbnail links and the accept command; the desktop
+  lane posts "skipped", and `LQ_VISUAL=0` turns the step off (`docs/laptop-queue/visual-gate.md`).
+
+## 4.100.1 - Train 75: lightField allocation test deterministic in CI; Saltmarsh Park section bake: live lamps first (2026-10-25, PR #376; #369, #361)
+
+### Saltmarsh Park section bake: live lamps first
+- A lamp of the section you are in whose bake failed twice now bakes at once during play instead of waiting for every
+  other lamp, so that spot is no longer dark for the rest of the background bake. Lamps elsewhere still wait for the
+  workers to go idle, or bake as soon as their section goes live. A stuck second try now gives up after 20 s, so a
+  silently dead worker holds the load about 85 s at worst instead of about 125 s.
+
+### lightField allocation test deterministic in CI
+#### Changed
+- `tests/lightField.test.ts` "allocation-free under a loop": bodyLevel is judged against the run's own levelAt
+  (2 x levelAt + 56 B) instead of an absolute 144 B. About 1 CI run in 15 (Node 22) reads exactly 173.2 B for the
+  whole process (normal 126.8), so the old limit failed train/71 and PR #361 on code that never touched it. A vector,
+  object or closure per query is still caught (an injected object in totalInto read 296.9 B against 169.6).
+
+## 4.100.0 - Train 74: Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll; Co-op interrogation read under host load; Guard AI polish batch; Intake gates and the PR size cap (2026-10-25, PR #370; #366, #365, #363, #351)
+
+### Guard AI polish batch
+- Guard AI polish: a guard picks cover by the walk, not the straight line (A167). Up to 3 candidates are tried; a
+  cover a mate holds is skipped and one behind a long detour (over 1.5 x the straight line + 3 m) is passed over, so
+  he no longer walks the long way round to cover he cannot fight from, or freezes on a mate's cover. A failed open-wait
+  pick retries every 3 s.
+- Guard AI polish: a device responder who hears a noise goes back to searching the device room after the look,
+  instead of standing still.
+- Guard AI polish: a circuit cut twice inside 60 s, or one whose reset walk never finished (the walker knocked out, the
+  alarm, the 30 s give-up), is found and relit again after 20 s instead of staying dark for good (A168).
+- Guard AI polish: a guard in cover with the player out of sight judges his cover against where he last knew the
+  player was, not the player's real position, so he no longer pops up into an upright strafe and re-picks cover.
+- Guard AI polish (co-op): a guard with no intruder of his own heads for what he himself sensed, not for the partner
+  nobody told him about (A165). A guard hunting one player who sees the other calls him in once, so that fight gets a
+  reporter (A166).
+- Guard AI polish: the search plan hands out new points on each rebuild and never re-looks the last known position
+  as its second point; heard spots no longer skip a search point; search points snap to the right floor; a clamped
+  plan point is not counted as searched.
+- Guard AI polish: one-mover rule counts only a trip to the role's own cover (fixes a squad e2e flake); a fighter who
+  hears the other player keeps hearing his own target; two intruder groups are never sent to the same free cover; a
+  blinded calm guard no longer turns to or reports noises.
+- Guard AI polish: overwatch suppress rechecks its line each episode and counts crates as blocking, so no rounds go
+  into a wall or a crate; a stale advance after an open-wait pick no longer churns cover / chase.
+- Guard AI polish (co-op): first shots at a newly picked target use a fresh aim settle; a dog in a fight follows a
+  partner he can smell.
+- Guard AI polish: a calm guard with two players in view keeps looking at the one he picked until the other is seen
+  clearly better (25%, A169), instead of switching every think.
+- Guard AI polish: a still-locked door forced open opens its doorway on the guards' nav grid at once, not one update
+  late.
+- Guard AI polish: an alerted reinforcement with no valid intruder binds on the next call or sighting, not to an alarm
+  slot with no position (A182).
+- Guard AI polish (code health): fewer allocations and cheaper checks in `pickCover`, `consoleStep`, `boardStep` and
+  the per-step manager loops; new tests for the locked-door open, the calm target hold and the sight-ray miss.
+
+### Intake gates and the PR size cap
+- Intake gates (process audit 2026-10-24): BRIEF splits "Michael said" from "Michael picked", PLAN carries a claims
+  block, a fresh Opus plan checker runs before build, maps and looks get a one-page sign-off, and slices stay at
+  ~1.5k lines or ~4 h with unfinished work dark behind a flag (`docs/systems/session-method.md` "Intake").
+- Templates: `docs/templates/brief.md`, `plan.md`, `plan-check.md`, `signoff.md`, `walk-card.md` (walk pacing: at most 3
+  unwalked features per area, a 10-minute risk-ranked walk card per release).
+- CI: a `pr-size` job inside `check` fails a PR over 1500 counted changed lines (generated assets, snapshots,
+  lockfiles and docs not counted) unless it has the `big-pr` label; train and docs-only PRs are exempt
+  (`scripts/pr-size.mjs`).
+- `scripts/claims-check.mjs` reports overlapping file globs, maps, wire and save claims between open job PLANs.
+
+### Co-op interrogation read under host load
+- Fix: co-op: a client's interrogation read is no longer lost when the host frame rate dips. The host counted the end
+  only when one of its frames caught the read's last 0.3 s; it now counts any seen read whose bit drops while the hold
+  goes on, and forgets it when the hold ends (the e2e-coop joint interrogation flake at x0.3 host speed).
+- Tests: `interrogationEnded` cases for a read whose tail fell between host frames (ph 0.4 straight to the bit dropped).
+
+### Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll
+#### Changed
+- Laptop queue: for up to 10 min after an open train's laptop-e2e success (while train-ready PRs not in it have a green or running check) no new request is claimed, aged alone requests included, so the next train is not preempting a fresh alone run; train reruns still start (`LQ_RELEASE_HOLD_MIN`).
+- Laptop queue: a desktop PR run whose suites fail posts pending "desktop FAIL <suites> (cpu N%), laptop rerun queued" (plus "; desktop cpu>90%" when its median CPU was over 90) and queues a laptop-only rerun of the failed suites; the laptop's verdict is final.
+- Auto train: the fast poll runs every 30 s (was 60) once the train's laptop-e2e pending status is older than its expected wall (the laptop's "expect ~N s", else 10 min), so a release follows the laptop verdict within a minute.
+- Laptop queue: the desktop CPU gates leave out processes at BelowNormal or Idle priority (a background Blender bake no longer holds the desktop slots); the wait reason shows the gated and the total load.
+- Laptop queue: a superseded laptop rerun closes the desktop's "desktop FAIL ..., laptop rerun queued" pending status.
+- Merge train: `git fetch` takes only the branches each step reads and retries up to 5 times when another worktree's fetch holds a ref lock (also auto-train's self-update).
+- Laptop queue: each requester's oldest open request runs first (was newest), unless one of its requests has a higher `--priority N` (request.mjs); the order between requesters is unchanged.
+
+## 4.99.1 - Train 73: Watchdog: deterministic pipeline alerts (2026-10-25, PR #368; #350)
+- Pipeline: `scripts/watchdog.mjs tick` (every 2 min via `scripts/watchdog-task.ps1` from the self-updating checkout
+  `C:/NightShift/Mobile-Coop-watchdog-live`) writes `C:/NightShift/scratch/watch-status.json`: dead or stale heavy
+  locks, orphaned e2e runners, CONFLICTING / re-committed / red `train-ready` PRs, PRs ready for the label, release-tail
+  gaps (dev behind, missing tag, merged members still open: alert only), a stale `/preview/`, auto-train health,
+  laptop-queue claims and requests, stuck cloud-queue claims. Fixes are opt-in per check (`--fix locks,labels,...`).
+- Label convention: `train-ready` only on CI `check` green + a `checker` commit status success + `affected-e2e`
+  success (required unless opted out: `no-affected-e2e` label or `WATCHDOG_REQUIRE_AFFECTED=0`). See `docs/systems/watchdog.md`.
+
+## 4.99.0 - Train 72: Auto affected-e2e and flake budget; Swap tools; Rulebook: current rules only (process audit 2026-10-24) (2026-10-24, PR #364; #356, #349, #347)
+
+### Rulebook: current rules only (process audit 2026-10-24)
+- CLAUDE.md "Sessions" rewritten as one current rulebook (~150 lines): no dated layers, every contradiction resolved
+  to Michael's newest decision. New rules: no-refining rule lifted, walk cap 3 per area plus a walk card per release,
+  one-click visual sign-off before map greybox / art / big look changes, a plan checker before building, PRs under
+  ~1.5k lines or ~4 h with unfinished work dark behind an owned flag, agents commit each sub-step, checkers post a
+  `checker` commit status, leads never merge master, rules read from origin/master only.
+- `docs/systems/agent-preamble.md` matches it. The old text is kept verbatim in
+  `docs/process-audit/rules-history-2026-10-24.md`.
+
+### Auto affected-e2e and flake budget
+#### Changed
+- Laptop queue: every open PR head gets an automatic affected-e2e run (the suites its change drives) and an `affected-e2e` commit status; a newer head supersedes the older request.
+- Flake budget and quarantine replace "flake stands": a suite may flake 2 times in 7 days, the next flake quarantines it for 48 h with an owner; quarantined suites always run and print KNOWN FLAKY. `scripts/e2e-quarantine.json` holds the committed list (e2e-pad) and the suite owners; PR comments carry a flake-rate table when a run flaked.
+
+### Swap tools
+- Swap gate `scripts/swap.mjs`: `save` / `status` scan every worktree on the machine (uncommitted, unpushed, detached
+  local-only commits; merged and stale-debris worktrees skipped), the heavy locks with pid liveness, the laptop queue and
+  the auto-train status, and end with `SAFE` or `NOT SAFE: <n> items` (`C:/NightShift/scratch/swap-status.json`);
+  `save --commit-wip` commits dirty job worktrees as WIP and pushes their branches (never protected branches, never force).
+- `swap.mjs prune --dry-run|--yes` removes clean worktrees of branches merged into origin/master (branches kept).
+- `scripts/cloud-queue-expire.mjs` reopens cloud briefs whose claim missed its 30-min heartbeat for 90 min with no push
+  to the brief's branch; the cloud-queue README text for the heartbeat is in `docs/cloud-queue-README.patch.md`.
+- The swap procedure as commands, with targets (cap to every session up under 10 min): `docs/systems/swaps.md`.
+
+## 4.98.3 - Train 70: Release path hardening (2026-10-24, PR #359; #353)
+- merge-train: the release title, minor / patch kind and CHANGELOG heading come from the members actually merged
+  into `train/<n>` (a left-out member no longer names the release; the version follows the merged fragments).
+- merge-train build: the version commit is built and the CHANGELOG assembled on git objects first (fragment format,
+  empty train, nothing new, docs-only train); only a valid train is pushed, once, and its PR opened after the push.
+- merge-train release / repair: the tail (tag, dev, member PRs, deploy) is idempotent; `release` of a merged train and
+  the new `merge-train repair` (latest released version) redo only what is missing.
+- Pages: one deploy per release, dispatched after dev moves with the tested head; lint and vitest are skipped when the
+  live tree is that head's tree; each slot gets `version.json` and merge-train waits up to ~20 min, then prints
+  whether `/preview/` serves the release (`PREVIEW: OK | STALE | UNKNOWN`).
+- merge-train: `build 063` is train 63; a non-stacked build reusing a train PR drops a stale base marker.
+
+## 4.98.2 - Train 69: Saltmarsh Park fog fix wiring test (2026-10-24, PR #358; #357)
+- Tests: a test now guards the wiring of the Saltmarsh Park fog fix (the map's lamp-beam setting reaching the
+  volumetric light pass), so dropping it fails CI. No player-visible change.
+
+## 4.98.1 - Train 68: Saltmarsh Park section bake hardening (2026-10-24, PR #355; #354)
+- Saltmarsh Park's per-section lamp bake is sturdier: a lamp whose bake fails is retried once on the worker pool, then
+  on the main thread only while no worker job runs (one lamp per task, so frames keep running), and a job stuck past
+  60 s counts as failed instead of hanging the load. A failed lamp is never cached, so the next load bakes it again. A
+  failed map load no longer leaks bake workers, finished batches no longer re-upload the whole light atlas, and lamps
+  of the live section jump to the front of the queue. Picture, light meter and guards read the same light as before.
+
+## 4.98.0 - Train 67: Level validator: connectivity graph, validator, metrics JSON, scale-sheet room table, level standard; Auto-train drops the failing member and rebuilds at once (2026-10-24, PR #352; #346, #343)
+
+### Auto-train drops the failing member and rebuilds at once
+- Pipeline: a train whose laptop e2e fails (or whose laptop rerun after a desktop failure fails) no longer waits for
+  the orchestrator. Auto-train maps each member's changed files to suites with the `--affected` folder map
+  (`DIRECT_COVERS` in `scripts/e2e-affected.mjs`), drops every member that touches a failing suite (else the one with
+  the most `src/` files under that suite's `--quick` folders, else the newest-labelled; never `feature/menu`), removes
+  its `train-ready` label with a comment naming the train, suite and assert, closes the train PR and builds the next
+  train in the same tick. Status `dropped: [{ pr, branch, suite }]` and `lastDrop`, log "DROPPED" lines;
+  `--no-autodrop` restores the wait. No drop (left for the orchestrator) over 3 failing suites, when every code member
+  matches, on a suite the last auto-dropped train also failed, or on a desktop / rerun failure without a usable FAIL
+  list. CI / build-time vitest failures, the desktop-fail laptop rerun and the exit-3 rebuild guard are unchanged.
+
+### Level validator: connectivity graph, validator, metrics JSON, scale-sheet room table, level standard
+- Tooling: every map now has a connectivity graph (JSON, one object or one file per section) written before any
+  geometry; the schema, every rule each field feeds and an example graph are in `docs/level-validator/graph-schema.md`
+  and `docs/level-validator/example.graph.json`, and `docs/templates/map-spec.md` requires a passing validator run
+  before Phase 3.
+- Tooling: `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <path>]` validates a graph against
+  our metrics: reachability and no softlock for two players, the linear spine between sections, 3+ approaches of 2+
+  kinds per encounter space (links that can enter it), dead ends (counted by ways out), room-class sizes, opening
+  minimums, the 0.5 m grid, ceilings, 2+ independent routes per section, co-op coverage, co-op moves one player can
+  make anyway (a solo twin: ERROR on a campaign map, WARN on Sector Ops), split parity and beat pacing. Exit 0 / 1 (any ERROR) / 2 (bad usage). Tests:
+  `tests/levelValidate.test.ts`.
+- Tooling: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` by `scripts/metrics-gen.mjs`, is the
+  one source of every size and time the validator uses (no constant in the script); `tests/metricsGen.test.ts` fails
+  when the sheet changes without a regeneration.
+- Design: `docs/design/scale-sheet.md` gains section 7, "Room sizes by type" (a room table scaled about 1.4x real and
+  floored by the camera rule: 6 m short side for encounter spaces, 3.5 m for any walk-through room), and section 8,
+  "Validator numbers" (speeds, split and reach times, shared width, shadow, vantage and line-of-sight targets).
+- Design: `docs/level-design.md` section 11 is rewritten for two players (spine between sections, splits <= 90 s per
+  leg within 20% by traversal time, partners act for each other, an overwatch spot per split, a downed partner
+  reachable within 15 s, shared routes >= 2.0 m wide), and the numeric targets are added: a vantage sees about 70% of
+  an encounter space, 40-60% of its floor in shadow, routes cross at least once, line of sight breakable within about
+  5 s, guard counts 3-6 early / 6-10 late. The graph is a Phase 2 deliverable and the validator run its gate to
+  greybox (Michael 2026-10-24, "Add 1-4 as extras").
+- Tooling: the first validator run covers all five campus Sector Ops sections (S1-S5; Michael, about 20:12), with a
+  patch or re-plan verdict per section in `docs/level-validator/campus-run/REPORT.md`.
+
+## 4.97.1 - Train 66: Laptop queue: overlapping trains, alone preemption (2026-10-24, PR #348; #342)
+- Test tooling (laptop queue, overlap plan slice 3): pending trains run lowest number first, and a lower train's rerun
+  goes before a higher pending train; the desktop takes a second, different train while the laptop runs one; auto-train's
+  build marker holds back only trains at or above the one being built; a running train whose head is no longer an open
+  train PR head (closed, voided or rebuilt; two checks a minute apart) is killed, posts laptop-e2e error "train closed"
+  and releases its claim. Inert while no stacked trains exist.
+- A pending train now cuts an alone run whose steps started under 10 min ago; it is queued again at the head of the
+  alone queue (train 64 went to the desktop behind a 4-min-old guard-cap run).
+- Audit fixes (train 64 went to the desktop behind a 30-min alone run): the laptop pushes a heartbeat claim refresh
+  every 5 min while it runs anything; a pr run past 80% of its expected wall is never preempted; no new alone claim
+  while a green train-ready PR waits and no train PR is open (aged alone requests still start); an alone run yields
+  between steps to a pending train and resumes after its finished steps. install-task.ps1 takes -DesktopCpu (80) and
+  -DesktopBacklog (0) for the desktop worker, so a re-register keeps them.
+
+## 4.97.0 - Train 65: Merge train: stacked builds and release guards (overlapping trains); Saltmarsh Park lights without fog; Faster Saltmarsh Park load (per-section lamp bake); E2E affected-suite selection (2026-10-24, PR #345; #344, #339, #333, #251)
+
+### E2E affected-suite selection
+- Test tooling: `node scripts/run-e2e.mjs --affected <base-ref> [--wide] [--list]` picks the e2e suites a PR must pass from its
+  committed diff (merge-base to HEAD, so it works on a detached commit); `--list` prints them and exits. The default is the
+  DIRECT tier (only the suites that drive the changed area: e.g. optic-cable 13 jobs, guard-ai-carry-fix 7); `--wide` adds the
+  cross-area readers (30 and 15). `src/weapons` -> `e2e-stealth-ai` + `e2e-sectorops:1` in both (train 30). The section rating
+  files pick `e2e-section-rating`, the Marlow Yard sets and `scripts/e2e-ctcourse/` pick `e2e-ctcourse`, and every LEGACY / GPU
+  suite is reachable from the area that owns it. Docs-only changes pick no suites. The maps live in the pure module
+  `scripts/e2e-affected.mjs`; `--quick` keeps master's map and rules unchanged (`QUICK_COVERS` and `SUITE_DIRS`, checked row by
+  row against a frozen copy of master's map at train 62). `tests/e2eAffected.test.ts`; `docs/systems/testing-tools.md`
+  "Choosing suites for a change".
+- Laptop queue: `node scripts/laptop-queue/request.mjs --sha <ref> --affected [--wide]` picks the suites from the diff against origin/master (DIRECT tier; `--wide` the cross-area set) instead of a hand-picked `--suites` list; a diff that reaches no browser suite is refused.
+
+### Merge train: stacked builds and release guards (overlapping trains)
+- merge-train: `build <n> ... --on <sha>` builds a train on another unreleased train's version head (overlapping
+  trains, slice 1): the sha must be an `origin/train/<m>` head with master and train m's version commit in it; members,
+  the CHANGELOG heading and the member PRs closed at release are only train n's own; `PROTOCOL_VERSION` is bumped from
+  the base head's value; the train PR body carries `<!-- auto-train:base train/<m> <sha> -->`.
+- merge-train release: a head carrying another train's version commit that master lacks stops with exit 4 ("base train
+  not merged"), for every release and lone-PR release. A stacked train is released only after its base merged exactly at
+  the recorded sha, tagged, with `git merge-tree` showing GitHub's merge keeps the tested tree; its `gh pr merge` is
+  retried up to ~2 min while GitHub settles, and a merge commit whose tree differs from the tested head exits 5.
+  Inert until auto-train builds stacked trains.
+
+### Faster Saltmarsh Park load (per-section lamp bake)
+- Saltmarsh Park (Sector Ops) no longer waits for every lamp of all five sections on a cold first load: the lamp bake
+  runs beside the rest of the load, the match starts once the live section's lamps are in, and the other sections bake
+  in the background (one lamp per worker job, biggest first) and are in long before the players reach them. The picture,
+  the light meter and the guards read the same light as before at every point of the live section; lamps landing
+  elsewhere fade in over 1.5 s. The finished bake is cached as before, so later loads are unchanged. Other maps are
+  unchanged.
+
+### Saltmarsh Park lights without fog
+- Saltmarsh Park (Sector Ops): the ceiling downlights, pendants and hall lights no longer fill the rooms with fog
+  you cannot see through. On Medium and up, 76 of the campus's light fittings drew a long volumetric beam (up to 14 m,
+  as wide as the light cone, 1.6x brighter), meant for torches and floods; they now scatter a short, faint haze under
+  their shade, as the Sector Ops warehouse lights have since 4.61.0. Torches keep their beams. Rendering only: the
+  light meter and the guards see exactly what they did. Marlow Yard and the other maps are unchanged.
+
+## 4.96.0 - Train 64: Guard rendering phase 2 (24 guards) (2026-10-24, PR #341; #323)
+- guard-render S9: the moon's cascades draw a moving caster only in the layers its shadow can land in on screen. On top of
+  the light-space square test (S6), the caster's view depth +- (radius + moon shadow length x light . view) must overlap
+  the layer's split range plus the blend band (`src/world/sunCascadeCull.ts`). The shadow length is 4 m over the moon's
+  steepness, capped at 12 m. The split depths are read from the cascaded shadow generator's private fields through one
+  accessor, pinned by a unit test. Render only: the light field, the meter and perception are unchanged; `?guardsun=0`
+  still turns all of it off.
+- guard-render S10: the Sector guard freeze no longer keeps every guard in a shadowing lamp's reach drawn when the
+  lamp's sphere is in view. Per lamp it now tests the guard's own shadow volume (the cone his body throws away from the
+  lamp, out to where the lamp's shadow map ends; none outside a spot's cone) against the view, and where it is in view,
+  camera rays to where the shadow of his head and middle lands decide, as for the moon (`src/game/sectorGuardFreeze.ts`,
+  `sectorGuardFreezeView.ts`). Render only; `?guardfreeze=0` still turns the freeze off.
+- guard-render S9b: the moon's cascades no longer carry meshes they never draw. A disabled mesh (a guard figure's
+  other LODs, the merged body the figure replaced, a frozen guard), an invisible one, or a low LOD registered under its
+  full mesh (drawn through the full mesh's entry) stays out of the moon's caster list, and the list refills the frame
+  after a caster is enabled or disabled (`src/world/sunCascadeCull.ts` `sunCasterDrawn`, `src/world/world.ts`). CPU
+  only: Babylon already skipped these at draw time, so the shadows look the same.
+- guard-render S10b: the Sector guard freeze now also counts the guard-torch and character shadow maps' slots as
+  shadow lights (they light nothing themselves, so it skipped them): an off-screen guard whose shadow from a partner's
+  flashlight or from a nearby lamp's character shadow would land on screen stays drawn, and a guard thawed for it is in
+  that frame's shadow map (the maps keep frozen guards listed and re-render when one is thawed). A guard's own
+  flashlight never counts for him. Render only; `?guardfreeze=0` still turns the freeze off.
+
+## 4.95.3 - Train 63: Laptop queue: alone starvation, desktop CPU gates, faster restart (2026-10-24, PR #340; #335)
+- Tooling: an alone measurement that has waited over 30 min (was 45) stops new PR claims on the laptop until it runs,
+  also while a train holds alone runs back; the desktop overflow lanes start under 80 % CPU (was 60 / 50 %); the queue
+  task triggers every minute (was 5), so a self-update restart takes about a minute.
+- Tooling: the laptop starts no new request while a train builds or for 3 min after a train release with train-ready
+  PRs waiting, and claims no request onto a slot held by a manual lock.
+
+## 4.95.2 - Train 62: Pages deploys queue instead of cancelling; Player batch 24; Train fallback fragment and idle self-update (2026-10-24, PR #338; #337, #331, #330)
+
+### Player batch 24
+- e2e-tuner-phone flake fix (train 54, "pad focus down the Body tab"): the D-pad walk down the Body tab holds each
+  press for exactly one input poll (e2e-lib `press`) and steps until the drawer has scrolled (40 at most), then checks
+  the focused row shows below the tabs and the playback bar; ten presses held for rendered frames could lose presses
+  (a skipped poll) or double them (the wall-clock repeat under load) and end with the drawer unscrolled.
+
+### Train fallback fragment and idle self-update
+- merge-train: a member PR whose branch adds no `changes/*.md` (a test-only PR) gets a synthesised `kind: patch`
+  fragment in the train, noted in the train PR body, so the version commit no longer fails with "nothing to assemble".
+- auto-train: an idle tick (no train open, nothing building) moves its checkout to `origin/master` when the working tree
+  is clean, so the scheduled checkout never runs stale scripts.
+
+### Pages deploys queue instead of cancelling
+- CI: the site deploy no longer cancels itself when a release push and the dev preview trigger overlap; pull request runs still cancel their older run.
+
+## 4.95.1 - Train 60: Allocation-free sight rays (2026-10-24, PR #334; #326)
+- Performance: guard and recon drone sight rays no longer allocate in our code (`losClear` and the drone use `Ballistics.hitDistance`),
+  so 24-32 guards thinking no longer feed the garbage collector every think; same sight verdicts.
+
+## 4.95.0 - Train 59: Laptop queue: audit fixes; e2e-coop joint interrogation flake; lightField allocation check retry; Optic cable: the partner's view, hatches and grilles (engine); Co-op body carry on the client (2026-10-24, PR #332; #329, #328, #327, #314, #313)
+
+### Co-op body carry on the client
+- (coop-carry) Co-op: the joiner can pick up, carry, put down and hide a downed guard's body, host-approved, with the
+  same 2 s lift, slow bent carry and 0.8 s put down as the host; both screens show a partner carrying (the host's own
+  carry now shows on the joiner too). Bodies ride the item mirror as kind `body` (wire change: the train bumps the
+  protocol). The carry code moved from `StealthSystems` to `game/bodyCarry.ts` unchanged.
+
+### e2e-coop joint interrogation flake
+- e2e-coop "joint interrogation: host bluffs, client reads": the client's hold starts as soon as the host stores its bluff
+  and the client's bluff line is checked alongside, so Node polls under load no longer spend the bluff's 6 s host-time
+  window before the read ends (a 28 fps host timed out on the joint count); a timeout now prints the host's bluff age.
+
+### Laptop queue: audit fixes
+- Tooling: the laptop queue service stops a request its requester withdrew (the run is killed, the slot freed), and a
+  pending train preempts a running PR request (re-queued). `request.mjs --pin` keeps A/B and baseline runs from being
+  superseded.
+- Tooling: duplicate requests are marked done unrun; runs not yet in their suites yield to a pending train; train
+  reruns (`--train-rerun`) run at train priority and turn `laptop-e2e` green on a pass; alone runs wait while an open
+  train lacks a laptop verdict; the desktop takes no new claims while auto-train builds a train; a task guard disables
+  stale scheduled tasks (`one-shot-task.ps1` is the only way to schedule an ad-hoc run).
+
+### Optic cable: the partner's view, hatches and grilles (engine)
+- (ct-toolkit 3.2, optic-coop) Co-op: a partner now sees the optic cable. While one player feeds it under a door their
+  copy on the other screen kneels in front of the leaf with the right hand at the door's foot and a thin cable running
+  out under the door, growing over the 1.2 s feed and shrinking over the 0.6 s pull out; the view stays local. The
+  player's own body shows the same hand and cable. Wire: MoveState mode `optic` (`sub` the kind: door, hatch, panel,
+  grille; `a` the door or gap; `ph` the cable fed out); an unknown kind or a door or gap the level lacks is dropped.
+  A ping from the view already casts from the tip and reaches the team; no ping input is bound yet.
+- (optic-coop) Engine side of the optic cable's other gaps (map field `optic`): floor hatches, ceiling panels (fed
+  standing), vent grilles and shaft tops (`LevelBuilder.opticGap`, `OpticSystem.pickPoint`): the kneel spot, the tip
+  0.3 m into the space (or the map's own tip point), the look 50 deg down or up through a floor or ceiling gap, and the
+  refusals "Too far" and "No gap". No map places one yet.
+- (optic-coop M1) At a hatch, ceiling panel, grille or shaft top the optic cable starts from the action menu, the same
+  as doors: hold A (E) for OPEN TRAP (only where a panel covers the gap; it opens quietly) and OPTIC CABLE; "Too far"
+  and "No gap" show as at a door. In co-op OPEN TRAP goes through the host like a door, so the panel opens for both
+  players (and for a partner who joins or rejoins later); wire: client -> host `panel`, the snapshot's `trp`.
+- (optic-coop M2) Ping is bound: middle mouse on keyboard and mouse, R3 on the pad, and it works from the optic view
+  (the ping comes from the tip, from the view's first moment). R3 is shared with Zoom by context (Michael): while aiming
+  a scoped weapon R3 zooms and does not ping; otherwise it pings and does not zoom. Middle mouse always pings. The
+  controls screen shows no conflict for the default R3 pair (another verb put on R3 still shows one).
+- (optic-coop) A level holds at most 256 optic gaps (the network's bound); more are refused with a warning.
+
+### lightField allocation check retry
+- Tests: the lightField allocation check re-measures a query over its limit once from a fresh warm-up (CI flake 173.2 > 144 on #322).
+
+## 4.94.0 - Train 58: e2e-lightbake shader-compile wait; Guard models (2026-10-24, PR #325; #322, #318)
+
+### e2e-lightbake shader-compile wait
+- Tests: e2e-lightbake waits for every drawn shader to compile (120 s cap) before its 16-texture check and names stuck materials (train 55 timing flake).
+
+### Guard models
+- Guards can draw as varied, realistic figures from the operator pipeline (guard-models). It is behind `?guardmodels=1`
+  for now (the default is off until the budget run flips it); `?guardmodels=0` is today's merged body. What you see:
+  - Three builds: average (grunt, drone operator, officer), lean (runner, sniper) and broad (heavy, enforcer).
+  - Faces: eight faces in four skin tones, six hair cuts in four hair colours, some with stubble or a beard; the heavy
+    and the enforcer wear a balaclava.
+  - Outfits and headwear per kind: field uniform, rolled sleeves on the sniper, work jacket on the runner, field
+    jacket and peaked cap on the officer, caps, beanies, a boonie, a headset, glasses, belts, holsters and a radio.
+  - Gear that matches gameplay: a helmet shows only while the guard's helmet would stop a round, a vest only with
+    armour, the heavy and enforcer always show their plate, and the enforcer carries a riot shield.
+  - Helmet knock-off: the first head hit takes the helmet off his head; it drops at his feet as the same helmet and his
+    cap or hair shows again.
+  - Every guard's look comes from a per-guard seed, so it is the same after a section restart and the same on both co-op
+    screens; carried bodies keep their look.
+- Guard figures are off by default; their files load only with `?guardmodels=1`, never precached. The baked files
+  (three builds and the riot shield, LOD0-2, about 29 MB) are bundled, but the service worker never precaches them and
+  nothing fetches them while the flag is off; with it on they load on demand and are kept in the worker's own `guards`
+  cache for offline play. A build whose files are missing or broken falls back to a stand-in (the operator's figure
+  at guard height).
+- Co-op: the enemy `al` carries the look seed in bits 9-15 (`AL_LOOK`; `AL_MAX` is 65535); host and client derive the
+  same look from it. The protocol version is bumped by the train build.
+- Tests and docs: Vitest for the kit data, variation, piece mask, look seed on the wire, figure (NullEngine) and the
+  bundled files against the budgets, the precache lists and the flag-off path (no guard file precached or fetched,
+  `guardAssetsOffline`); `e2e-coop` checks the seed and visible
+  pieces on host and client, the seed after a bay restart and the helmet bit drop (`E2E_GUARDMODELS=1` for the pieces);
+  guards section in `world-and-characters.md`, the budget line in `performance.md`, the look bits in `coop.md`, MPFB2
+  credited for the guards' bodies and faces, a desktop checklist item in `TESTING.md`.
+
 ## 4.93.0 - Train 56: Guards against up to 4 intruders (coop4 AI) (2026-10-24, PR #321; #319)
 - Guard AI coop4 AI1: intruder slots are reused. A player who leaves keeps his slot for his rejoin (same slot, last
   known position kept); with 3+ players a new player takes a gone player's slot when none is free (its search plan,

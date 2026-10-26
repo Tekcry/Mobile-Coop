@@ -7,7 +7,7 @@ import { B4_COOP_LIPS, type PlantLip } from './bunkerShaft';
 import { deck, roof, wallXDoors, wallZDoors } from './bunkerPlant';
 
 /**
- * Fallow, the Deep level, BAYS v2 (T5g; docs/training/BAYS.md sections 0, B7, B8, B9; y 0): B7 The House (the cavern
+ * Fallow, the Deep level, BAYS v2 (T5g; docs/archive/training/BAYS.md sections 0, B7, B8, B9; y 0): B7 The House (the cavern
  * and the kill house), airlock A7, B8 The Range, airlock A8 (medkit), B9 The Plot and the exit lift L9. Every
  * coordinate below is a BAYS local coordinate; `deepAt` / the per-bay `X` / `Z` / `Y` add the bay's offset.
  *

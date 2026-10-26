@@ -1,5 +1,5 @@
 import { Vector3, type Scene } from '../core/babylon';
-import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
+import { dropBadDoorMove, dropBadOpticMove, dropBadWallMove, moveKneels } from '../player/moveState';
 import { attachLiftOf, crouchBlendOf, crouchStep, emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody, PLAYER_OPERATOR_HEIGHT, wireBodyIn, wireKneel, wireTense } from '../player/playerVolumes';
 import { PlayerHitVolumes, playerPartMult } from '../game/playerHitVolumes';
 import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
@@ -105,12 +105,14 @@ export class RemotePlayer implements Damageable {
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
    */
-  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null): void {
+  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null, opticCount: number | null = null): void {
     // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
     // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
     if (segs) dropBadWallMove(s, segs.length);
     // (step 13) a door peek on a door this level does not have: no door pose
     if (doorCount !== null) dropBadDoorMove(s, doorCount);
+    // (optic-coop) the optic cable at a gap this level does not have: no kneel pose from it
+    if (opticCount !== null) dropBadOpticMove(s, opticCount);
     s.w = hostWeapon(s.w, this.loadout, this.lastW);
     this.lastW = s.w;
     if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
@@ -165,7 +167,7 @@ export class RemotePlayer implements Damageable {
     const crouched = (s.f & PF.crouch) !== 0;
     this.crouchK = crouchStep(this.crouchK, crouched, dt);
     const mvm = s.mv?.m;
-    this.kneelT = crouched && this.ref.speed < 0.15 && (!mvm || mvm === 'ground' || mvm === 'wall' || mvm === 'doorPeek') ? this.kneelT + dt : 0;
+    this.kneelT = crouched && this.ref.speed < 0.15 && (!mvm || moveKneels(mvm)) ? this.kneelT + dt : 0;
     // the travel's sideways share from the accepted step (the owner's local move)
     const strafe = d > 0.01 ? Math.abs(dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw)) / d : 0;
     const lift = attachLiftOf(s.mv, anchors && s.mv ? anchors.all[s.mv.a] : undefined, PLAYER_OPERATOR_HEIGHT, this.liftTmp);

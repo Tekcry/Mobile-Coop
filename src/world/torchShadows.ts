@@ -20,6 +20,7 @@
  * `standard`: no torch draw, no guard torches) and the menu's scenes (no baked lamps).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { frozenCasterSphere, thawed } from './frozenCaster';
 import type { LightRegistry } from './lights';
 import { TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { casterInTorchCone, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchForceRender, torchHolderScore, torchLitSphere, torchPoseMoved, torchPoseStale, torchPoseTurned, torchRefreshEvery, torchShadowFov, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
@@ -61,6 +62,8 @@ interface TsSlot {
   map: RenderTargetTexture;
   /** The casters this frame (the map's custom render list, refilled in place). */
   list: AbstractMesh[];
+  /** (guard-render S10b) Of them, the character casters the guard freeze had disabled at the gather. */
+  frozen: AbstractMesh[];
   /** The torch placed now (-1 idle) and the torch whose map is in the tile (-1: none yet). */
   id: number;
   ready: number;
@@ -106,6 +109,10 @@ export class TorchShadows implements TorchShadowLink {
   private readonly depthSign: number;
   private readonly doorDist = new Float32Array(TORCH_SHADOW.doors);
   private readonly sphere = new Float32Array(4);
+  /** (S10b) A frozen caster's stand-in sphere. */
+  private readonly fzSphere = new Float32Array(4);
+  /** (S10b) After each camera evaluation (the freeze's verdict): a slot whose listed frozen caster was thawed renders. */
+  private thawObs: Observer<Scene> | null = null;
   private logged = false;
   /** (lr16pol E, lr16t check A 6) A torch slot in the registry: else `configure` builds nothing (no generators,
    *  targets or atlas), `on` stays false, so `LAMP_TSHADOW` is off and the lit shaders lose the atlas sampler. */
@@ -131,6 +138,18 @@ export class TorchShadows implements TorchShadowLink {
 
   get on(): boolean {
     return this.slots.length > 0 && !!this.atlas;
+  }
+
+  /** (guard-render S10b) The slots built (the Sector guard freeze reads each). */
+  get slotCount(): number {
+    return this.slots.length;
+  }
+
+  /** (S10b) Slot `s`'s spot while it holds a torch this frame (placed by `frame`: position, direction, angle and
+   *  shadowMaxZ as its map renders), else null (unused). Read only: the freeze treats it as a shadowing light. */
+  slotLight(s: number): SpotLight | null {
+    const sl = this.slots[s];
+    return sl && sl.id >= 0 ? sl.light : null;
   }
 
   /** WebGL2 with float or half-float render targets (texelFetch, the depth metric): else the old path stays. */
@@ -174,7 +193,19 @@ export class TorchShadows implements TorchShadowLink {
     this.info[3] = this.depthSign;
     for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile, size));
     this.restoreObs = engine.onContextRestoredObservable.add(() => this.invalidate());
+    this.thawObs = this.scene.onAfterActiveMeshesEvaluationObservable.add(this.onThaw);
   }
+
+  /** (S10b) A guard thawed in this evaluation is in his slots' lists (`gather`): their maps render now, with him. */
+  private readonly onThaw = (): void => {
+    const slots = this.slots;
+    for (let s = 0; s < slots.length; s++) {
+      const f = slots[s]!.frozen;
+      if (!f.length || !thawed(f)) continue;
+      f.length = 0;
+      slots[s]!.map.resetRefreshCounter();
+    }
+  };
 
   /** Every tile as not ready (a restored context's blank atlas): dark until each map copies again. */
   private invalidate(): void {
@@ -200,7 +231,7 @@ export class TorchShadows implements TorchShadowLink {
     const map = sg.getShadowMap()!;
     map.renderList = [];
     map.refreshRate = 1e6;
-    const slot: TsSlot = { light, sg, map, list: [], id: -1, ready: -1, every: 0, pose: new Float32Array(6), obs: null, vp: new Viewport(torchTileX(s, tile) / size, torchTileY(s, tile) / size, tile / size, tile / size) };
+    const slot: TsSlot = { light, sg, map, list: [], frozen: [], id: -1, ready: -1, every: 0, pose: new Float32Array(6), obs: null, vp: new Viewport(torchTileX(s, tile) / size, torchTileY(s, tile) / size, tile / size, tile / size) };
     map.getCustomRenderList = () => slot.list;
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
     return slot;
@@ -250,6 +281,7 @@ export class TorchShadows implements TorchShadowLink {
         slot.id = -1;
         slot.ready = -1;
         slot.list.length = 0;
+        slot.frozen.length = 0;
         this.params[s * 4 + 3] = 0;
         this.setEvery(slot, 0);
         for (let k = 0; k < 4; k++) draw[o + k] = 0;
@@ -281,6 +313,7 @@ export class TorchShadows implements TorchShadowLink {
           this.params[s * 4 + 3] = 0;
         }
         slot.list.length = 0;
+        slot.frozen.length = 0;
         this.setEvery(slot, 0);
         continue;
       }
@@ -316,29 +349,51 @@ export class TorchShadows implements TorchShadowLink {
    * lr16t check A 5) Only the holder drops: the character caster scoring lowest in `torchHolderScore` (`pickTorchHolder`'s
    * rule: nearest the feet `placeTorch` put the torch ahead of) names him, and every character caster under the same
    * root node (his rig: body, gun, helmet, armour) leaves the list; a second guard or the player beside him, or in front
-   * of him in his beam, still casts. Allocation-free.
+   * of him in his beam, still casts. (guard-render S10b) A character caster the guard freeze disabled is listed too, at
+   * its stand-in sphere (`frozenCasterSphere`): the map skips it while it is disabled when it renders, and draws him
+   * in the frame the freeze thaws him (`onThaw`). Allocation-free.
    */
   private gather(slot: TsSlot, lx: number, ly: number, lz: number, ax: number, ay: number, az: number, cosOuter: number, radius: number): void {
     const list = slot.list;
     list.length = 0;
+    const fl = slot.frozen;
+    fl.length = 0;
+    const fs = this.fzSphere;
     const cs = this.rig.casters;
     let holder: AbstractMesh | null = null;
     let hd = Infinity;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
-      if (!m.isEnabled() || !m.isVisible) continue;
-      const b = m.getBoundingInfo().boundingSphere;
-      const p = b.centerWorld;
-      const r = b.radiusWorld;
-      if (!casterInTorchCone(lx, ly, lz, ax, ay, az, cosOuter, radius, p.x, p.y, p.z, r)) continue;
+      if (!m.isVisible) continue;
+      let px: number;
+      let py: number;
+      let pz: number;
+      let r: number;
+      let frozen = false;
+      if (m.isEnabled()) {
+        const b = m.getBoundingInfo().boundingSphere;
+        const p = b.centerWorld;
+        px = p.x;
+        py = p.y;
+        pz = p.z;
+        r = b.radiusWorld;
+      } else if (this.isChar(m) && frozenCasterSphere(m, fs)) {
+        px = fs[0]!;
+        py = fs[1]!;
+        pz = fs[2]!;
+        r = fs[3]!;
+        frozen = true;
+      } else continue;
+      if (!casterInTorchCone(lx, ly, lz, ax, ay, az, cosOuter, radius, px, py, pz, r)) continue;
       if (this.isChar(m)) {
-        const d = torchHolderScore(lx, ly, lz, ax, az, p.x, p.y, p.z, r);
+        const d = torchHolderScore(lx, ly, lz, ax, az, px, py, pz, r);
         if (d >= 0 && d < hd) {
           hd = d;
           holder = m;
         }
       }
       list.push(m);
+      if (frozen) fl.push(m);
     }
     if (!holder) return;
     const root = rootNode(holder);
@@ -349,6 +404,13 @@ export class TorchShadows implements TorchShadowLink {
       list[k++] = m;
     }
     list.length = k;
+    k = 0;
+    for (let i = 0; i < fl.length; i++) {
+      const m = fl[i]!;
+      if (rootNode(m) === root) continue;
+      fl[k++] = m;
+    }
+    fl.length = k;
   }
 
   private setEvery(slot: TsSlot, every: number): void {
@@ -402,6 +464,8 @@ export class TorchShadows implements TorchShadowLink {
   private disposeSlots(): void {
     if (this.restoreObs) this.scene.getEngine().onContextRestoredObservable.remove(this.restoreObs);
     this.restoreObs = null;
+    if (this.thawObs) this.scene.onAfterActiveMeshesEvaluationObservable.remove(this.thawObs);
+    this.thawObs = null;
     for (const s of this.slots) {
       if (s.obs) s.map.onAfterUnbindObservable.remove(s.obs);
       s.sg.dispose();

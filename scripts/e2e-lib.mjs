@@ -195,13 +195,17 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
   // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator
   const q1 = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
-  const q = q1;
+  // (map-ready S2) E2E_PARAMS (optional, e.g. `mapready=1`): appended to every page's query, so a laptop alone run can
+  // turn a flag on for suites that do not set it; a key the suite already names keeps the suite's value
+  const q = (process.env.E2E_PARAMS ?? '').split('&').filter((kv) => kv && !new RegExp(`(^|&)${kv.split('=')[0]}=`).test(q1) && !new RegExp(`[?&]${kv.split('=')[0]}=`).test(url)).reduce((a, kv) => `${a}&${kv}`, q1);
+  const mapReadyPage = /(^|&)mapready=1(&|$)/.test(q) || /[?&]mapready=1(&|$)/.test(url);
   await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,
-    { timeout: 60000 },
+    // (F7) the same 120 s as the navigation guard: six pages booting at once ran a client page's boot past 60 s
+    { timeout: 120000 },
   );
   });
   if (PROFILE) {
@@ -216,8 +220,36 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     }).catch(() => {});
   }
   // autostart: the match itself (the level builds before it starts)
+  // (e2e-boot) a `?net=local` co-op autostart (course / sector, `autoLocalCourse`): the first page hosts the room and its
+  // match starts only once a second page joins, which a suite opens after this returns, so the wait ends as soon as the
+  // page hosts alone in the lobby (it sat out the whole 120 s before: every co-op course boot). A joining page still
+  // waits for its match; single-player pages (no co-op session) are unchanged.
   if (/(^|&)autostart=/.test(params)) {
-    await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
+    const why = await timed('match', () => page.waitForFunction(() => {
+      if (window.__app?.current?.player) return 'match';
+      const s = window.__coop?.session;
+      return s?.isHost && s.phase === 'lobby' && s.players.size < 2 ? 'lobby' : false;
+    }, null, { timeout: 180000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
+    if (why === 'lobby') return { page, errors };
+    // (F33-a) a match that never started is an error here, not a dead page handed back (a null `__app.current` three calls later)
+    if (why === 'timeout') {
+      const boot = await page.evaluate(() => document.getElementById('boot-status')?.textContent ?? '').catch(() => '');
+      throw new Error(`launch: the autostart match did not start within 180 s (boot status "${String(boot).trim()}")`);
+    }
+    // (map-ready S2) `mapready=1`: the match is held behind the boot screen until its load gate releases (`mapGate.ts`):
+    // wait for the release so no suite steps a held sim (a timeout warns; the run goes on held and says so)
+    if (mapReadyPage) {
+      await timed('match', () => page.waitForFunction(() => !!window.__mapReady?.released, null, { timeout: 120000, polling: 250 }).catch((e) => {
+        console.warn(`[e2e-lib] map-ready release wait timed out or failed (120 s cap): ${String(e?.message ?? e).split('\n')[0]}; the run goes on with the match held`);
+      }));
+    }
+    // (section-bake, SB12) a map baking its lamps per section (campusOps on a cold cache): the match starts once the
+    // live section is in and the rest lands in the background; suites drive sections in sim time, so wait for all of it
+    // (what the load waited for before). No-op on every other map.
+    // (section-bake robust, check B 10) a timeout is logged: a suite then runs on a half-baked campus and says so
+    await timed('match', () => page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240000, polling: 250 }).catch((e) => {
+      console.warn(`[e2e-lib] section bake wait timed out or failed (240 s cap): ${String(e?.message ?? e).split('\n')[0]}; the run goes on with lamps still landing`);
+    }));
     warmed = false;
     if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return w?.lightInfo?.().ms ?? 0; }).catch(() => 0);
   }

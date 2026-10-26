@@ -1,4 +1,6 @@
 import { crackedHandle } from '../world/doorPeek';
+import { OPTIC } from '../config/tools';
+import { emptyOpticPlace, opticCableEnd, opticPlaceOf } from '../player/opticCable';
 import { DOOR } from '../world/doors';
 import { KNEEL_STILL } from '../player/playerController';
 import { tenseNear } from '../player/tenseSneak';
@@ -29,7 +31,7 @@ import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOW
 import { MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { GAMEPLAY_HEIGHT } from '../player/attach';
 import { findRopeLip, newRopeLip, ROPE_SUB, ropeLipHands, ropeSeenStep, type RopeSeen } from '../game/teamMoves';
-import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, moveKneels, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { teamRowOfWire } from '../anim/tuneMoveRows';
@@ -70,6 +72,14 @@ export class RemoteAvatar {
   holdSub = 0;
   private cqBend = 0;
   private cqDrop = 0;
+  /** (coop-carry) A body on this partner's shoulder (`CarryView`): its weight 0..1 (the carry bend and lean), the
+   *  shoulder (1 right, -1 left) and the body whose knees take the hands (null: none). */
+  carryLoad = 0;
+  carrySide = 1;
+  carryKnees: { knees(outL: Vector3, outR: Vector3): void } | null = null;
+  private carryHandOn = false;
+  private readonly kneeL = new Vector3();
+  private readonly kneeR = new Vector3();
   private hhL = { x: 0, y: 0, z: 0 };
   private hhR = { x: 0, y: 0, z: 0 };
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
@@ -164,6 +174,11 @@ export class RemoteAvatar {
   private pipeKey = 'hands>hands';
   private readonly ropeKey = `remote-${++ropeKeys}`;
   private roped = false;
+  /** (optic-coop) The optic cable: the place its MoveState poses (the kneel's hand, the tip), its prop slot, shown. */
+  private readonly opticPl = emptyOpticPlace();
+  private readonly opticEnd = { x: 0, y: 0, z: 0 };
+  private readonly opticKey = `${this.ropeKey}-optic`;
+  private opticOn = false;
   /** Seconds the remote has held still on its anchor (settling onto the owner's grips waits for it). */
   private stillT = 0;
   private carryW = { low: 1, high: 0, compressed: 0 };
@@ -231,6 +246,11 @@ export class RemoteAvatar {
 
   get dead(): boolean {
     return (this.flags & PF.dead) !== 0;
+  }
+
+  /** (char-shadow-meter S2c) A state has been shown: `pos` is real. */
+  get shown(): boolean {
+    return this.placed;
   }
 
   /** A model for a carried weapon (created once, kept for the session). */
@@ -422,6 +442,25 @@ export class RemoteAvatar {
     } else if (this.doorHandOn) {
       this.rig.reachL.w = this.rig.reachR.w = 0;
       this.doorHandOn = false;
+    }
+    // (ct-toolkit 3.2, optic-coop) the optic cable: the right hand on the feed point and the cable from it as far as the
+    // owner has fed it (`ph`), placed from the door or gap and where this body kneels, as the owner's (`opticPlaceOf`)
+    const opl = mv?.m === 'optic' && !rp ? opticPlaceOf(mv.sub, this.world.doors.list[mv.a]?.anchor, this.world.level.opticPoints[mv.a], this.pos.x, this.pos.z, DOOR.thickness, this.opticPl) : null;
+    if (opl) {
+      const r = this.rig.reachR;
+      clearGripAxis(r);
+      r.x = opl.hx;
+      r.y = opl.hy;
+      r.z = opl.hz;
+      r.w = Math.min(1, mv!.ph * 3);
+      const e = opticCableEnd(opl, mv!.ph, this.opticEnd);
+      if (mv!.ph > 0.02) this.world.ropes.set(this.opticKey, opl.hx, opl.hy, opl.hz, e.x, e.y, e.z, OPTIC.cableR);
+      else this.world.ropes.hide(this.opticKey);
+      this.opticOn = true;
+    } else if (this.opticOn) {
+      this.rig.reachR.w = 0;
+      this.world.ropes.hide(this.opticKey);
+      this.opticOn = false;
     }
     // (G7, AUDIT-WALLS rows 5, 19, 20) holding a guard: the owner's hold hands in the body frame (the hostage stands
     // GRAB.hold in front on every machine), lowered with the knockout, the left hand to his jaw interrogating; the
@@ -642,7 +681,8 @@ export class RemoteAvatar {
     const upside = mp.tumble > 2;
     // (F3) the crouch idle kneel, as the owner's controller decides it (crouched and still a moment, free on the ground)
     // (G6) and side-on crouched on a wall (the graph kneels there only side-on, as the owner's)
-    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && (mv?.m === 'ground' || mv?.m === 'wall' || mv?.m === 'doorPeek') ? this.kneelT + dt : 0;
+    // (optic-coop) and feeding the optic cable (`moveKneels`; under a ceiling panel the owner stands: no crouch bit)
+    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && moveKneels(mv?.m) ? this.kneelT + dt : 0;
     // (G1, audit row 26) the tense sneak: crouched on the ground near an unaware guard (the same guards as the owner's)
     const tense = this.crouch > 0.5 && mv?.m === 'ground' && tenseNear(this.pos.x, this.pos.z);
     this.tense = tense;
@@ -693,6 +733,25 @@ export class RemoteAvatar {
       const az = (s.from.az ?? 0) + ((s.to.az ?? 0) - (s.from.az ?? 0)) * ka;
       accelFwd = ax * sy + az * cy;
       accelSide = ax * cy - az * sy;
+    }
+    // (coop-carry) carrying a body: the hands on its knees over the shoulder, as the owner's (`BodyCarry.frameUpdate`)
+    if (this.carryKnees && this.carryLoad > 0) {
+      const rg = this.rig;
+      this.carryKnees.knees(this.kneeL, this.kneeR);
+      clearGripAxis(rg.reachL);
+      clearGripAxis(rg.reachR);
+      rg.reachR.x = this.kneeR.x;
+      rg.reachR.y = this.kneeR.y;
+      rg.reachR.z = this.kneeR.z;
+      rg.reachR.w = this.carryLoad;
+      rg.reachL.x = this.kneeL.x;
+      rg.reachL.y = this.kneeL.y - 0.05;
+      rg.reachL.z = this.kneeL.z;
+      rg.reachL.w = 0.8 * this.carryLoad;
+      this.carryHandOn = true;
+    } else if (this.carryHandOn) {
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      this.carryHandOn = false;
     }
     const rpose: RigPose = {
       speed: this.speed,
@@ -749,8 +808,11 @@ export class RemoteAvatar {
       // (anim-joints J2, A6) the partner's own team role (its move mode and sub on the wire): the tuner's team rows
       tuneTeam: mv ? teamRowOfWire(mv.m, mv.sub) : '',
       melee: mp.melee,
-      bend: this.cqBend,
-      bendDrop: this.cqDrop,
+      bend: this.cqBend + CQ.carryBend * this.carryLoad,
+      bendDrop: this.cqDrop + CQ.carryDrop * this.carryLoad,
+      // (coop-carry) the carry walk and its lean away from the loaded shoulder, as the owner's pose
+      carryBody: this.carryLoad > 0,
+      carrySide: this.carrySide * this.carryLoad,
     };
     // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
     teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
@@ -832,6 +894,7 @@ export class RemoteAvatar {
     return out;
   }
   dispose(): void {
+    if (this.opticOn) this.world.ropes.hide(this.opticKey);
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();

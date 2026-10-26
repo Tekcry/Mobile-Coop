@@ -1,10 +1,11 @@
 # Progression and saves
+Owner: the orchestrator. Status: current.
 Purpose: the save schema, migrations, the export format, the settings record and the course record.
 Design authority: docs/design-bible.md (Section 5.11). Saves only go through `src/save` (IndexedDB); `localStorage`
 never holds a save.
 
 ## Save (profile)
-- Schema: `save/schema.ts`, `SAVE_VERSION` 9 (the current number lives there). Changing the shape = bump the version,
+- Schema: `save/schema.ts`, `SAVE_VERSION` 10 (the current number lives there). Changing the shape = bump the version,
   add a migration in `save/migrations.ts` (input is the previous version's raw object), extend `sanitizeSave`, and add
   a test in `tests/save.test.ts` with a literal old save. Leaving an unused field readable is fine when simpler (as
   `profile.stats.bestWave` stays, never written).
@@ -14,6 +15,8 @@ never holds a save.
   loadout or a preset becomes the kept gun of its slot (`DELETED_GUNS`: pistols -> `pistolSd`, the rest -> `rifle`),
   its `weapons` progress entry and its unlocks (`weapon:<gun>`, `camo:<gun>:...`, `att:lethalBolts`) are dropped; a
   preset's `drone` gadget is dropped (the preset's default comes back). Spent credits are not refunded.
+- v9 -> v10 (hud-guidance A, G339): the minimap is removed, so the HQ radar upgrade (`hq.radar`) is dropped.
+  Spent credits are not refunded.
 - `migrate` refuses a save from a newer version; `SaveManager.readOnly` then plays on an in-memory profile and writes
   nothing (conventions.md, Robustness).
 - Pure progression maths in `progression/` (levels, rewards, upgrades, attachments, unlocks, profile ops). UI calls

@@ -4,9 +4,10 @@
  * INTERROGATE only then (`grabMenu.addGrabRows`), and the interrogation spends it: `takeInfo` returns the lines once and
  * clears them, so a guard interrogated once gives no menu again.
  *
- * The data rides on a squad slot (`rooms.SquadSlot.info`), so the host sets it when the slot spawns. No wire change: a
- * co-op client's puppet of the guard finds the same slot by where it first appears (`infoAtSpawn`: both sides load the
- * same map, and a post guard has not moved when the first snapshot names him).
+ * The data rides on a squad slot (`rooms.SquadSlot.info`), so the host sets it when the slot spawns. Co-op: whether a
+ * guard still has it comes from the host (`EnemyState.in`, stealth-pays client intel); a client's puppet takes the
+ * lines it says from the course slot it first appears at (`infoAtSpawn`: both sides load the same map), else
+ * `HOST_INFO` (the host's feed carries the intel).
  */
 
 import { hyp2 } from '../core/mathx';
@@ -28,17 +29,23 @@ export interface HasInfo {
   info?: GuardInfo | null;
 }
 
+/** (stealth-pays client intel) A co-op client's puppet whose host says he has intel (`EnemyState.in`) while the
+ *  client has no lines for him (a Sector Ops slot, a revived or rejoined guard): INTERROGATE is offered, the host
+ *  resolves it and its intel reaches the team as feed lines; the puppet says nothing itself. */
+export const HOST_INFO: GuardInfo = Object.freeze({ lines: Object.freeze([]) as readonly string[] });
+
 /** The guard has information to give (and has not given it yet). */
 export function hasInfo(v: HasInfo): boolean {
-  return !!v.info && v.info.lines.length > 0;
+  return !!v.info && (v.info.lines.length > 0 || v.info === HOST_INFO);
 }
 
-/** The interrogation's yield: the lines, once. The information is gone after (null when he had none). */
+/** The interrogation's yield: the lines, once. The information is gone after (null when he had none, or when the host
+ *  holds it: `HOST_INFO`). */
 export function takeInfo(v: HasInfo): readonly string[] | null {
   if (!hasInfo(v)) return null;
   const lines = v.info!.lines;
   v.info = null;
-  return lines;
+  return lines.length > 0 ? lines : null;
 }
 
 /** The information of the slot nearest (x, z) within `GUARD_INFO_NEAR`, null when none (the co-op puppet's lookup). */

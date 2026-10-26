@@ -49,8 +49,15 @@ describe('codes and the end of an interrogation', () => {
   it('interrogationEnded', () => {
     expect(interrogationEnded(0.97, 0)).toBe(true);
     expect(interrogationEnded(0.97, 2)).toBe(false);
-    expect(interrogationEnded(0.5, 0)).toBe(false);
+    expect(interrogationEnded(0.5, 2)).toBe(false);
+    expect(interrogationEnded(0, 0)).toBe(true);
     expect(interrogationEnded(-1, 0)).toBe(false);
+    expect(interrogationEnded(-1, 2)).toBe(false);
+  });
+  it("interrogationEnded: a host frame that missed the read's tail still sees its end", () => {
+    // (joint-flake-3) the host saw ph 0.4, then its next frame has the bit dropped (the 0.4..1 tail fell between frames)
+    expect(interrogationEnded(0.4, 2)).toBe(false);
+    expect(interrogationEnded(0.4, 0)).toBe(true);
   });
 });
 

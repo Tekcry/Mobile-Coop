@@ -181,7 +181,7 @@ own grid (not given); the box here is the S1 footprint with the facade yard, so 
 ## Open items / for the lead
 1. C1 (174 stealth points in pools): the big one. Decide between a layout slice (routes / lamps) and the CAP's scope.
 2. C2 S7 stair top lamp, C3 S2 A1 mouth, C4 S3 pockets: owners above.
-3. Files outside the brief's list: none. Not updated: `docs/marlow-bunker/LIGHT.md` and `docs/warehouse-s23/LIGHT-S*.md`
+3. Files outside the brief's list: none. Not updated: `docs/archive/marlow-bunker/LIGHT.md` and `docs/archive/warehouse-s23/LIGHT-S*.md`
    level tables (docs, not in the list); no changelog fragment (the LR16 batch PR carries one).
 4. GPU sheet: item 1 (atrium pool ~0.47 on the meter, cafe dark), item 2 (Marlow stations 1-8 brighter: readers ~0.59,
    corners ~0.48), item 3 (warehouse pools dimmer where lamps went to 0.5x: S1 workshop (10.7, -15.8), lobby panel

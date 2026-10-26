@@ -39,15 +39,21 @@ function cacheOk(hit: LampResult | undefined, n: number): hit is LampResult {
   );
 }
 
-export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array, lo: [number, number, number], hi: [number, number, number], key: string | null): Promise<LampResult> {
-  if (key) {
-    try {
-      const hit = await dbGet<LampResult>('kv', key);
-      if (cacheOk(hit, lights.length / LAMP_STRIDE)) return hit;
-    } catch {
-      /* no cache */
-    }
+/** (section-bake) The cached full lamp bake under `key` for `n` lights, or null (a miss, a stale entry, no store). */
+export async function readLampCache(key: string | null, n: number): Promise<LampResult | null> {
+  if (!key) return null;
+  try {
+    const hit = await dbGet<LampResult>('kv', key);
+    if (cacheOk(hit, n)) return hit;
+  } catch {
+    /* no cache */
   }
+  return null;
+}
+
+export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array, lo: [number, number, number], hi: [number, number, number], key: string | null): Promise<LampResult> {
+  const hit = await readLampCache(key, lights.length / LAMP_STRIDE);
+  if (hit) return hit;
   const n = lights.length / LAMP_STRIDE;
   const pool = new WorkerPool();
   let parts: LampResult[];
@@ -101,7 +107,8 @@ export async function bakeLevelLamps(shapes: Float32Array, lights: Float32Array,
   return r;
 }
 
-async function saveLamps(key: string, r: LampResult): Promise<void> {
+/** Cache a full lamp bake under `key` (the newest `KEEP` kept). (section-bake: the joined result once every lamp landed.) */
+export async function saveLamps(key: string, r: LampResult): Promise<void> {
   try {
     await dbPut('kv', key, r);
     const idx = ((await dbGet<string[]>('kv', INDEX)) ?? []).filter((k) => k !== key);

@@ -1,14 +1,11 @@
 # Commands, e2e suites, test helpers and the debug overlay
+Owner: Test Runner. Status: current.
 Purpose: every npm command, the headless e2e suites with what each checks, the helper scripts and the in-game debug overlay.
 Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then docs/design-bible.md (Section 9).
 
 ## Commands
-- `npm run dev` - dev server (`vite --host`, also reachable on the LAN)
-- `npm run editor` - the Kestrel level editor on this PC (`editor.html`, port 5199, dev server only; docs/kestrel/editor.md)
-- `npm run build` - typecheck + production build into `dist/`
-- `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
-- `npm run lint` - ESLint (typescript-eslint)
-- `npm run check` - lint + tests + build (what every job end must pass)
+The core commands (dev, build, typecheck, test, lint, check, e2e and its variants): `docs/RULES.md` "Commands". Also:
+- `npm run dev` serves with `vite --host` (also reachable on the LAN); `npm run editor` opens `editor.html` on port 5199
 - `npm run icons` - regenerate procedural PWA icons into `public/icons/`
 - `npm run sfx:fetch` / `sfx:render` (movement foley), `sfx:fetch-weapons` / `sfx:render-weapons` (weapon sounds),
   `music:fetch` / `music:orch` (the score): download the CC0 sources (SHA-256 checked) into git-ignored caches and
@@ -18,16 +15,11 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `npm run e2e:audio` - the audio suites; `npm run e2e:gpu` - the visual read-backs (Michael's PC, `E2E_GPU=1` only);
   `npm run e2e:editor` - the level editor suite (not required).
 
-## Test tiers (process audit, approved by Michael 2026-10-19; CLAUDE.md "Sessions" is the rule)
-| Change | Runs | Where |
-| --- | --- | --- |
-| Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
-| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop, or the laptop test runner when the desktop lock is held (CLAUDE.md "Machines") |
-| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
-| Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
-- One runner per machine: never two e2e runners, or a `check` beside a full run (the 2026-10-19 full run overlapped
-  another job's runner and an orphan `check` and read 30-60 % slow).
+## Test tiers
+Which change runs what, where, and on which machine: `docs/RULES.md` "Test tiers" and "Machines" (the only owner).
+This page lists the suites and how they are picked.
+
+## Stale literals in asserts
 - Asserts that copy a tuning value go stale when the table changes (the holster budget read 400 ms against
   `HOLSTER_TIME` 0.55). Read the number from the game's own table (through `window.__app`) instead of a literal when a
   suite is next touched. Known literals: e2e-netmove's walk-off (1.55 m in 6 s, crouched), e2e-ctcourse's 12 s leg-up
@@ -37,34 +29,44 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 
 ## The runner (`scripts/run-e2e.mjs`)
 - Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
-  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
+  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten locally by a clean full run; the laptop
+  queue keeps its own times seeded from it and never rewrites the committed file). Each suite's
   output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
   (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
   `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
-  set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
-  sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
-  rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
-  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
-- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
-  cloud VMs (two suites at a time, G94).
-- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
-  `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
+  set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it still runs as its
+  four parts, parallel jobs in the pool (a named suite with parts expands; `name:N` names one part).
+  `scripts/e2e-times.json` holds 150 s per part as an estimate; it changes only when someone commits a rewrite.
+  `e2e-sectorops` runs as `e2e-sectorops:1` to `:9` (sector-fixes-r RE: the suite before slice R, the solo route checks,
+  the co-op routes of sections 1-3, and parts 6-9 the solo campusOps (Saltmarsh Park) checks: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5 (split from one part 6 in F33: it ran near the 900 s kill); `PARTS` in `scripts/run-e2e.mjs`);
+  named alone its nine parts run as parallel jobs.
+- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
+  `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
+- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
+  only, never a timeout, signal or other code (`scripts/e2e-verdict.mjs`). The laptop queue runs with `E2E_SUITE_TIMEOUT=900`
+  (e2e-desktop about 553 s, e2e-mouse about 405 s solo). `E2E_REPORT` (space or comma list) makes those suites or parts REPORT ONLY.
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
-  changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
+  changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
   `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-studio` plus their folder's suites; `tuner*`, `animTune*`, `studioStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
-  and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
+  and `flags` by file, the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`; `courseMode`
+  and `sectorMode` also pick `e2e-section-rating`), the Marlow Yard sets (`src/world/maps/ctcourseSets/`, `ctcourseGreybox.ts`:
+  `e2e-ctcourse`), then the folders); a set step module `scripts/e2e-ctcourse/<set>.mjs` reruns `e2e-ctcourse` (`SUITE_DIRS`);
+  an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
+- The folder -> suites maps live in `scripts/e2e-affected.mjs` (pure, tested by `tests/e2eAffected.test.ts`): `QUICK_COVERS`
+  (`--quick`, master's map and rules unchanged; the test holds a frozen copy and checks it row by row), `DIRECT_COVERS`
+  (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
+  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts. `scripts/auto-train.mjs` reads them too (auto-drop:
+  `suiteSetFor` over `DIRECT_COVERS` picks the failed train's culprit, `coverFolders` over `QUICK_COVERS` is its fallback).
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
-- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-pad` only since the co-op test fix (2026-10-19). A suite
-  on the list always runs; its failure prints KNOWN FLAKY and does not fail the run. Any other failure counts only if it also
-  fails in a solo rerun.
+- Flaky and quarantined suites: "Flakes and quarantine" below.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the pages' own sim clocks
   (`e2e-net-lib.mjs` `until` / `waitSim`, `setSimPages`): on software GL the sim runs at a fraction of real time
   (at most 4 fixed steps per rendered frame), so a wall-clock timeout expired mid-move. A wall cap (10 x the timeout,
@@ -78,21 +80,50 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   suite's second page is a background tab), page navigations wait up to 120 s, and `press` / `stick` hold for exactly
   one input poll (a page without the app's input falls back to a 3-frame hold), so a slow frame can neither drop nor
   double a press. Read fades, toasts and screens with a condition wait (a cap of a few seconds), never a fixed pause.
-- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name
-  (`e2e-wall:flanker`, `e2e-desktop:3`).
+- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name (`e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
 
+## Choosing suites for a change
+- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
+  `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
+  laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
+  (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
+  (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
+  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: at most 3 suites, the closest
+  (RULES "Test tiers"; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
+  uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
+- DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
+  tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
+  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite; Saltmarsh Park `src/world/maps/campus*` -> `e2e-sectorops:6` to `:9`);
+  the lamp files (`src/world/light*`, `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` -> lightbake, desktop;
+  `src/config`, `src/core` -> CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); `src/weapons` -> combat, weapons-carry, stealth-ai,
+  `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30); `src/ai` -> stealth-ai, guard-carry,
+  `e2e-sectorops:1`; `src/net`, `src/save` (the shape; the tuner store picks the studio) and `src/security/data` -> the co-op group
+  (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`); the studio and tuner files -> `e2e-studio` (and `e2e-tuner-phone` / `e2e-menus`);
+  the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`: a kv key, not the save shape)
+  -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
+  `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
+  Every LEGACY and GPU suite is reachable from the area that owns it (an affected pick gates them out at any size and with `--wide`; `--quick` runs LEGACY / AUDIO REPORT ONLY, GPU only `--gpu`):
+  `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
+  `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies, the Fallow files
+  (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
+  (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
+  `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
+  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
+  -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
+  `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
+- WIDE rules (`--wide`): DIRECT plus the cross-area readers: `src/weapons` also enemies, gadgets, clip; `src/ai` also levels,
+  tactics, takedown, weapons-carry, coop, `e2e-sectorops:6` to `:9`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
+  also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse (campus: all of `e2e-sectorops`); the lamp files and `src/voxel` the light readers
+  (desktop, stealth-ai, security, darkness); `src/net` / `src/save` the quick rows plus the co-op group; `src/game/rating` also
+  sectorops and course, `src/save/ratingRecord` also sectorops and menus (the missions screen reads it); the Marlow Yard map and
+  set files also `e2e-section-rating` (it rates A2-A8).
+- Selection is pure (`selectSuites(files, map)`, map = `DIRECT_COVERS` by default: paths in, sorted unique suite list out); `affectedPick` gates and caps it.
+
 ## Ports
-Two jobs on one PC never share a port. Each job names its pair in its RULES (G94).
-| Port | Use |
-| --- | --- |
-| 4173 | `e2e-lib` / `anim-audit` / `perf.mjs` default when no url is given |
-| 4179 | `run-e2e.mjs` default (`E2E_PORT`), `scripts/kestrel/render-top.mjs` |
-| 4189 | locomotion run, GPU (`E2E_GPU=1`) runs |
-| 4191 | the consolidation (and the locomotion run's software-GL e2e) |
-| 4195-4199 | the menu-ui job |
-| 5199 | `npm run editor` |
+Which port is for what, and freeing one: `docs/RULES.md` "Ports" (G94). Script defaults when no port or url is given:
+4173 (`e2e-lib`, `anim-audit`, `perf.mjs`) and 4179 (`run-e2e.mjs`, `E2E_PORT`; `scripts/kestrel/render-top.mjs`).
 `E2E_HOST` overrides the host; on Windows the runner binds 127.0.0.1 (`localhost` can resolve to a blocked `::1`
 behind a VPN adapter).
 
@@ -111,21 +142,26 @@ behind a VPN adapter).
 - Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
   polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
   page. A throwing predicate shows as a timeout.
+- Boot waits: with `autostart` in `params`, `launch` / `openPage` wait (120 s cap) for the match; a page that hosts a
+  `?net=local` course / sector room alone returns as soon as it is in the lobby (its match starts when the next page joins).
 - Checks marked "(CT prototype)" below test behaviour the CT prototype replaces (sprint, gear 6, the lean-out, the SWAT
   turn, the crack peek, the planted pivot, 720 deg/s turns); the prototype job rewrites them.
 
 ## The suites (REQUIRED unless marked)
 - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot); (anim-tuner) opens F3 > Anim, moves
   the walk "foot width" slider through the page and checks the table value and its change-log entry (then puts it back)
+- `e2e-menus` (menu-ui; required) menu parity: the main menu and GAME / SETTINGS driven by keyboard, mouse and a fake
+  pad: default focus, moves, wrap, confirm, Back targets, every legend item, tabs with focus memory, cyclers and sliders,
+  Defaults, a locked row, the remap capture, and a device switch that moves no element (within 0.5 px).
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
   change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
-  X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
+  X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel); D-pad left toggles the goggles; View tap shows the objective and leaves the goggles untouched (G343); the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
   the pad verb table (every default button raises its action); remap capture (B held until the capture ends); a pad
   disconnect falls back to keyboard and mouse; the Difficulty row by d-pad (fixed levels). (Process audit: the palm
   strike, wall, door menu and edge verb sections went to their system suites.)
 - `e2e-mouse` mouse capture: a click captures (never fires), look, RMB held aims and LMB fires, let go low ready (no
   fire), X holsters, the wheel and = / - change no speed, W / Shift + W / Alt + W walk / run / creep, T swaps, Esc pauses,
-  Resume re-captures; the keyboard verb table; N toggles vision; Controls remap. (Process audit: the palm strike, wall
+  Resume re-captures; the keyboard verb table (O raises the objective verb); N toggles vision; Controls remap. (Process audit: the palm strike, wall
   medkit, wall, difficulty, edge verb, door menu and loadout sections went to their system suites.)
 - `e2e-move` (`gear=none`: no cap) every named speed at its stick point both stances, half stick, the cap kept through stances, zero
   velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride (aiming lets go; crouched: no
@@ -149,7 +185,7 @@ behind a VPN adapter).
   drift / sprint FOV (CT prototype) / stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity
   (anim-metrics) plus the anti-crab metrics per gait (knee separation, planted track, knee over ankle, slide, elbow
   wing; report-only until `CRAB_GATES` turns a gait on; `CRAB_JSON=1` prints them as JSON; `CRAB_STATES=1` adds the walk sub-states at speeds 1-3;
-  `docs/anim-rework/METRICS.md`). The same metrics show live in the debug overlay (F3)
+  `docs/archive/anim-rework/METRICS.md`). The same metrics show live in the debug overlay (F3)
 - `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
   same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
 - `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
@@ -159,8 +195,7 @@ behind a VPN adapter).
   both ways, a guard placed 1.2 m behind a shut hinged door shows one silhouette that reads dim blue at his chest as
   projected on screen against the same pixels with him gone, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
-- `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
-  respawn
+- `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death / respawn
 - `e2e-modes` (LEGACY) mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration
 - `e2e-clip` traversal: no body point > 3 cm into the world while climbing, hanging, shimmying, crawling, dropping
   through a vent, vaulting a window, on a zipline or rolling; the weapon clipping sweep along a wall (both sides), crouch
@@ -208,13 +243,14 @@ behind a VPN adapter).
   reached only through the connector). Step 3 and the fix round add: the star saved at the extraction and shown filled
   in the op list; a guard (AI on) running section 2's own alarm panel, the stage rising through the panel, and again
   after a restart; a two-page `?net=local` pair (the client mirrors the live section's devices, door locks and the
-  syringes line, then section 2 after the connector). The quick map picks it for the Sector Ops files, `src/net/`,
+  syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
+  brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as five jobs, `e2e-sectorops:1` to `:5` (`--part=N`; named alone it runs
-  all five in sequence): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's co-op
-  routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one player
-  alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the air;
-  R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
+  (software GL). (sector-fixes-r RE) It runs as nine jobs, `e2e-sectorops:1` to `:9` (`--part=N`; named alone its parts
+  still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
+  co-op routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one
+  player alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the
+  air; R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
   deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups under the 1.63 m roof, the
   valve platform's west lip to the hall main and back, the drive platform's east lip to the branch and the main), every
   way down alone, and each section's team door (the near side gets no Unbolt and stays locked, the far side's Unbolt
@@ -222,7 +258,8 @@ behind a VPN adapter).
   and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
-  re-bolted on both pages by the host's checkpoint restart.
+  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5
+  every spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`).
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
@@ -246,7 +283,7 @@ behind a VPN adapter).
 - `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
   restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
-- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course`, Marlow Yard A1-A8 as four parts
+- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course` (client `&autojoin=1`, F7), Marlow Yard A1-A8 as four parts
   (`--part=N`, run as the jobs `:1` A1-A2, `:2` A3-A4, `:3` A5-A6, `:4` A7-A8; a part after the first starts at its first
   set through the host session's `courseBay`). `scripts/e2e-ctcourse.mjs` owns the helper object `t` (`t.A` host page,
   `t.B` client page, `until`, `assert`, `moveHost` / `moveClient`, `use`, the team-move and jammer helpers, `t.point(id)`)
@@ -264,7 +301,7 @@ behind a VPN adapter).
   rescue line, the hang-down hold (the client's hold pulses the host's noise), the cage fallback pass; A7 the claim, the
   corridor in the camera's blind windows, the late-hack fail (10 HP) and the synced hack, cage and east door; A8 the leg-up,
   the cross-level jam, the console loop, the board (25 s cut, grille), the throw over the beams, the time locks, the vault
-  and `a8-out`. Teleport legs are allowed on open floor (the walks are the unit tests'); a door a route opens is opened
+  and `a8-out`. At each set every guard must be alive and above y -5 (hard rule 9). Teleport legs are allowed on open floor (the walks are the unit tests'); a door a route opens is opened
   by `use(P, 'door-<anchor id>')` and asserted open on both pages first. The old bunker stations' steps are in git at
   5920cce5. The ghost run with every bonus and the revive on each co-op surface (A1 yard, A2 staging, A6 gallery, A8
   gallery) are not in the suite yet. Results for the head: pending laptop run.
@@ -309,7 +346,11 @@ behind a VPN adapter).
   `src/ui/tunerLayout`) Picking a loop sets the tuner's state; a walk state on the spot keeps the root within 5 cm while
   the gait runs; a side snap holds the camera to her facing as she turns; the pause menu stops a moving loop. (e2e-menus
   has the tuner-ui pad checks: tabs by LB / RB, the drop-down, values shown and light on dark, the hint strip under the
-  rows, pause while tuning.) (marlow-bays slice T, also covers `src/ui/tunerMouse`, `tunerTarget`) Keyboard and mouse: the
+  rows, pause while tuning.) (tuner-clarity) The Now playing line reads "motion-capture walk" on walk, "hand-made walk"
+  with Keyed ticked and "(motion capture off)" with the More > Panel box off; a Body arm-swing row shows "Hand-made"; a
+  Keys edit on a walk the capture plays shows the edit warning naming Body > Joints; the Keys tab has "Left leg" and
+  "Right leg" parts and no "Whole body"; `legL_ankleYaw` on `key.walk.1` turns the left ankle with `keyed:walk` playing.
+  (marlow-bays slice T, also covers `src/ui/tunerMouse`, `tunerTarget`) Keyboard and mouse: the
   open tuner is in drag view with no pointer lock; a left drag on the scene turns the camera; the header button and F4
   switch to the game camera and back; a row clicked in the Joints part is marked (`tt-sel`) and the scene marker sits on
   its joint, another row moves it, the Camera tab has none; the Keyed box plays `keyed:walk` from `state:walk` and back,
@@ -342,6 +383,12 @@ behind a VPN adapter).
   orbits (camera yaw), a pinch zooms (orbit distance), two fingers pan (the circled point), touches on the panel move
   nothing; the handle collapses and expands. Multi-touch through the DevTools protocol (`Input.dispatchTouchEvent`);
   Babylon's "Max number of touches exceeded" note (the emulator's `maxTouchPoints` is 1) is not counted as an error.
+  (tuner-clarity) The Now playing line shows in the drawer and the sheet, inside the panel width and below the tabs
+  (the `tab.top < 80` and folded-sheet checks hold); reach tags are not touch targets.
+- `tests/tunerReachProbe.test.ts` (tuner-clarity S3; Vitest, not e2e): the motion-capture probe (`runMocapProbe`, the
+  rig holstered at walk, jog, run and sneak, switch on and off) checked against `NO_EFFECT[state].mocap` and the reach
+  tags. Own file with a 600 s timeout, outside `tunerEffect.test.ts`'s budget; a rig change that moves a slider on or
+  off the capture fails it until the tables follow.
   Desktop 1280 x 640 without touch: the T2 layout and dock unchanged, the map's own targets, the readout on.
 - `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
@@ -378,7 +425,7 @@ behind a VPN adapter).
   to every `?net=local` page (coop.md). Report mode, never a gate: `assert` prints `NETSIM FAIL - <check>` and carries
   on, and the suite ends with `NETSIM REPORT (<preset>): N check(s) failed`. Every page runs a probe: `NETSIM-POP` for
   a remote root step more than 25 cm beyond a 7 m/s pace in one frame (host teleport grace excluded), and `NETSIM-STAT`
-  every 5 s. `E2E_NETSIM=off` runs the same probe on a clean network (the baseline). Results: docs/locomotion/LOG.md
+  every 5 s. `E2E_NETSIM=off` runs the same probe on a clean network (the baseline). Results: docs/archive/locomotion/LOG.md
   "20b".
 
 ## Helper scripts
@@ -409,13 +456,17 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
-- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
-  quality, heap growth (leak check)
+- `E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/look-video.mjs <dir> <plan.json> [sections]` (campaign look-video): a 1280 x 720 walk video per section of a plan (`scripts/look-video/tallowWharf.json`: Tallow Wharf W1-W4, ~75 s each), the photo camera flying the plan's path over the frozen world: `<dir>/<section>.webm` and `<section>.json` (`start`: the flight's offset after the boot). The look video a lighting or animation PR links; never committed. Pure parts: `tests/lookVideo.test.ts`.
+- `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
+  (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
+  `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
+  is master's rule, `--query=animshadow=0` tier 8 camera only.
+- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
   (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
   writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
   then prints the key clips' rebake commands (Blender is never run). Shared targets, refusals and the mapping:
-  `docs/anim-tuner/BAKE.md`. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
+  `docs/archive/anim-tuner/BAKE.md`. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
 - `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `bunker`; output in
   `test-results/training/`, never committed)
 - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots]
@@ -442,46 +493,216 @@ behind a VPN adapter).
     recordings. Report mode exits 0 unless the harness errors; `--strict` exits 1 on any fail. `--compare=<file>` lists
     regressions against a baseline (worse than max(10%, the noise tolerance) or a new fail; remote `poseError`, 60 Hz
     `pops`, `pairAlign` and `lodSkip` gated against the baseline's noise band, the rest report-only); like modes only.
-    `--band=<baseline.json>` keeps both runs' worst and spread. Committed baseline: `docs/locomotion/audit/anim-baseline.json`.
+    `--band=<baseline.json>` keeps both runs' worst and spread. Committed baseline: `docs/archive/locomotion/audit/anim-baseline.json`.
   - Serves `dist/` itself when no url is given and nothing is up on 4173. `--shots` is PC only (`E2E_GPU=1`). In
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
+- `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics docs/design/metrics.json]` (level-validator)
+  the level-graph validator (pure Node, no Babylon, no `src/` import; CI runs its Vitest, `tests/levelValidate.test.ts`).
+  Reads one map graph (several files, one per section, are merged: `meta` from the first, `spaces` and `links`
+  concatenated) and checks it against OUR numbers: structure, dimensions (room classes, openings, 0.5 m grid, ceilings,
+  level changes in the step band over 0.40 up to 0.45 m, corridor widths), 2-player reach with no softlock, the linear
+  spine between sections, encounter approaches (3+ links that can enter the space, of 2+ kinds, shadow + high + loud,
+  routes cross; dead ends counted by ways out), 2+ edge-disjoint routes per section (entry to exit), co-op coverage,
+  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops) and splits (legs <= 90 s, parity within 20% by link traversal time, an
+  overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m) and beat pacing. Declared `shadow_pct`,
+  `sees_pct`, `los_break_s` and partner reach are targets (missing or outside = ERROR); the greybox measurement step
+  (V6, later) will write `measured` values beside them. It holds no size or time constant: every number comes from
+  `docs/design/metrics.json` (`--metrics <path>` overrides it). Output: `ERROR: ...` / `WARN:  ...` / `INFO:  ...` lines,
+  then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late WARN; no upper limit, Michael 2026-10-24). Exit codes: 0 no errors (WARNs allowed, justify them in the map's design doc), 1 any ERROR, 2 bad
+  usage. When it runs: for every map, before Phase 3 (greybox), as the gate at the end of Phase 2 (`docs/level-design.md`
+  sections 11, 14 and 15; `docs/templates/map-spec.md`). Schema and an example graph: `docs/level-validator/graph-schema.md`,
+  `docs/level-validator/example.graph.json`. First run: campus Sector Ops, all five sections (S1-S5).
+- `node scripts/metrics-gen.mjs` (level-validator) parses `docs/design/scale-sheet.md` (sections 1 and 3, the section 7
+  room table "Room sizes by type" and section 8 "Validator numbers": speeds, split / reach times, shared width, shadow,
+  vantage and LOS targets, step band, grid) and writes `docs/design/metrics.json`, the one source of sizes and times
+  for the validator. Run it after every edit to those sheet sections and commit the JSON: `tests/metricsGen.test.ts`
+  fails when the committed JSON differs from a fresh generation. `node scripts/metrics-gen.mjs --check` writes nothing
+  and compares instead (exit 0 matches, 1 the JSON differs from the sheet, 2 a table is missing or malformed). Without
+  `--check`: exit 0 on success, non-zero when a table is missing or malformed.
+
+## Measure CLI (`scripts/level-measure.mjs`)
+`node scripts/level-measure.mjs <graph.json> [more.json ...] [options]` (level-validator, validator-port S2) measures on
+the built greybox what a map graph only declares, and writes the numbers back beside the targets as `measured`. Headless Node
+(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session. It is not in
+`package.json` yet (validator-port S5 owns that): run it as `node scripts/level-measure.mjs`. The rules it holds a graph
+to, and the order of the validator-port work, are in the validator-port PLAN (section 8 for `--points`, section 7 for
+`--flags`); this section only says how to run it.
+- What it measures, per space with an `area`: floor shadow %, vantage visibility %, LOS-break time; per split: leg times
+  and partner reach; per link with an area at both ends: traversal time and path length. A campaign graph
+  (`meta.mode` `campaign`) also gets `meta.measured.ways_back`: for every co-op link, the time back from the `to` floor to
+  the `from` floor on the solo nav (`back_s: null` with a `why` when there is no such path, for example a drop or ladder).
+  Every limit comes from `docs/design/metrics.json` `rules` (`--metrics <file>` swaps the file), none from the CLI.
+- Default run: prints a declared / measured table per space, split and link, and changes nothing. A space with no `area`
+  is listed as skipped. `--doors shut` bakes the light with every door shut (default open) to see whether a space that
+  fails open passes shut; `--write` then stores the shut numbers.
+- Merged per map: all files of one map (same `meta.map`, or the `--map <id>` override) are merged in the validator's file
+  order and measured once, so a link between two section files is measured against both ends. `--write` puts back into
+  each file only its own spaces, links and `meta`, by merged index. The rest of a file stays byte-identical (only the
+  `measured` members change, numbers to 2 decimals), so a second `--write` of the same values changes no byte and a
+  re-measure after a flag or map change diffs only what moved.
+- `--write`: write `measured` into the graph files. A map where no space has an area builds nothing and writes nothing.
+- `--check`: writes nothing and exits 1 on any failure: an encounter space outside its shadow band, below the vantage
+  minimum or over the LOS-break maximum, a split whose partner reach is over its maximum, a stored `measured` value that
+  has drifted from a fresh measure (over 0.05 for fractions, over 1.5 s for times), or an ERR from the measure step.
+  A space with no stored `measured` is only noted: `scripts/level-validate.mjs --require-measured` is the presence gate.
+- `--points <out.json>`: writes the resolved point for every space and every merged link (`resolvePoints`, PLAN section 8)
+  and touches no graph file. It takes the files of one map per call (files of two maps exit 2). It works with `--check`
+  (points file, then the check) but not with `--write` (exit 2).
+- `--flags <key>=<value>[,<value>]`: sets a key of `flags` (`src/core/flags.ts`) before the map builds, to measure with
+  a switch on, as validator-port J17 does. The value is read by the key's current type: boolean (1/0, true/false,
+  on/off), number, or a comma list of numbers. Repeat the option for more keys. An unknown key, or a value of the wrong
+  type, exits 2 and never adds a key. A text key such as `mode` (or `net`) takes the text as given: allowed values are
+  not checked, so a typo such as `mode=cours` is accepted and the build just runs with it.
+- Exit codes: 0 ok, 1 a `--check` failure, 2 bad usage, an unreadable file or an unknown map. Tests:
+  `tests/levelMeasureCli.test.ts` (parsing, the JSON patcher, `--flags`) and `tests/levelMeasure.test.ts`.
 
 ## Laptop queue
-A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task, see `docs/laptop-queue/PLAN.md`) runs
-e2e for you and posts the verdict as a commit status on the tested sha. No message per verdict.
+A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task every minute; its first build plan:
+`docs/archive/laptop-queue-PLAN-2026-10-23.md`, history) runs e2e for you and posts the verdict as a commit status on the
+tested sha. No message per verdict. Slots, job counts and the desktop's gates: `docs/RULES.md` "Machines".
 - Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
   [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
-  Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
-  the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
+  Needs a pushed sha; pushes `requests/<id>.json` to the `laptop-queue` branch, prints the id (`--dry-run`: shows, no push).
+  An `--alone` step may start with `serve ` (`serve.mjs`); a `scripts/perf.mjs` step gets `--budget` unless it says `--no-budget` (`perfStep`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then pr / full
-  requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): fixes
+  (PR label `fix` or `request.mjs --fix`; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
+  no wait bound, by design: Michael's Mixamo priority), green PRs smallest first (`LQ_GREEN_FIRST`; the oldest non-front
+  request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a request that supersedes another keeps its place;
+  a head conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`)
+  ahead of pr work, fixes too). A moved train head: `docs/systems/auto-train.md` "What the laptop queue service provides".
+- Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
+  `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
+  the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
+  Its context is `laptop-e2e/<set>` like any pr request (auto-train sends `--set train<n>-rerun` and reads
+  `laptop-e2e/train<n>-rerun`); only a rerun with no `--set` gets `laptop-e2e/rerun-<suites without e2e->`. A full pass also posts `laptop-e2e` success on the sha,
+  "laptop rerun passed: <suites> (desktop fail)": the combined status keeps the latest status per context, so that
+  replaces the desktop's `laptop-e2e` failure and release sees the train green. A fail posts only its own context (the
+  train stays red) and comments on the PR as usual.
+- Duplicates (2026-10-24): a new request that runs exactly what another one runs (same sha, kind, suites sorted or steps
+  in order, env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" (one push, no status) while
+  that one is open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN`
+  (60) min with result success. A failure, error, build, nosha or incomplete result never retires a new request (a
+  rerun of a failure runs: a laptop rerun of a desktop failure, a `--jobs 1` solo rerun). Supersede still retires one
+  requester's older pr / full requests; on the same sha it hands over instead of posting error. Affected requests
+  (4.101.1): a duplicate hands `affected-e2e` over to the surviving affected request (pending "handed over to <id>") or
+  posts success when it repeats a recent pass, and is never retired against another requester's run; an affected
+  request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not run)". state.json keeps done entries 7 days.
+- Yield (2026-10-24): while a train head is pending, a pr / full / alone run that has not started its suites or steps
+  (waiting for its lock, fetch, npm ci, build) gives its slot back: locks released, claim dropped, log "<id>: yields to
+  train <n>"; the request stays queued. Once started it runs on, except where lib `cutShort` cuts it: a withdrawn
+  request stops; a plain pr run under 80% of its expected wall is killed for a pending train when every other run on the
+  worker is a plain pr too; an alone run younger than 10 min is killed and queued again first; a pr run on an old PR head
+  stops when a newer head queues (`LQ_STOP_SUPERSEDED` 0 = off). A train preempt keeps the suites that passed
+  (`LQ_KEEP_FINISHED` 0 = off). A train rerun never yields.
+- Train soon (laptop-queue-6, lib `nextTrain`): the laptop predicts the next train head (ETA) and, while no train is
+  pending, holds new claims until ETA + `LQ_TRAIN_LATE_MIN` (5) min. Candidates: train-ready PRs whose head is in no
+  open train and not in `origin/master`; green = `check` passed (its first-seen-green time is kept in state.json),
+  running = `check` not done, a failed or missing check counts for nothing. Held while: a train PR has no version head
+  yet (up to `LQ_TRAIN_BUILD_MAX_MIN` (20) min; ETA = now); an open train has its `laptop-e2e` success (merge = then +
+  `LQ_TRAIN_MERGE_LAG_MIN` (2)) or the last train merged, with green or running candidates: ETA = max(merge +
+  `LQ_TRAIN_GAP_MIN` (6.5), newest first-seen-green + `LQ_TRAIN_READY_LAG_MIN` (3)); no train open and green candidates
+  long after the merge: ETA = newest first-seen-green + 3. Running heads keep a merge hold on but never set the ETA or
+  start a hold. Any other open train: no hold. Under the hold only train reruns and pr runs that fit start (lib
+  `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a
+  fitted run an early train catches falls to `cutShort`'s 80% rule. Log: "<why>, next train ~HH:MMZ: only runs that
+  fit start". Pacing assumption: auto-train builds right after the release, in the same tick; when its pacing waits, the
+  late window caps the held slots at 11.5 min per release. An aged alone gets the gap after it (`LQ_ALONE_GAP`).
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
-- Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
-  for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
+- Light parity on every train (Michael 2026-10-25, Q27; J20): each train run adds `e2e-darkness` (lib `TRAIN_PARITY`), so a
+  light-meter-vs-picture failure fails `laptop-e2e` and holds the release. Off with no release: `config/train-parity.json`
+  `{ "off": true, "why", "by" }` on `laptop-queue` (pending says "; parity off"; delete to undo; tell Sector Ops) or `LQ_TRAIN_PARITY=off`.
+- Affected e2e on every PR head (process audit 2026-10-24; laptop only, every `LQ_AFFECTED_POLL_MIN` (2; 0 = off) min): each
+  open non-train, non-draft PR head with no `affected-e2e` status and no open affected request gets the suites `request.mjs
+  --affected` picks (merge-base with `origin/master`, `--no-renames`, the DIRECT tier; lib `affectedSuites`). Only gate suites
+  gate, also in a desktop failure's laptop rerun (`affectedGateSuites`: no GPU, LEGACY or AUDIO); LEGACY / AUDIO ones go in its
+  `report` list in the slots the cap leaves (lib `affectedReport`) and run after them with `E2E_REPORT`, REPORT ONLY (J20 T4).
+  None reached: `affected-e2e` success "no browser suites (docs / unit only)". Otherwise it enqueues a pr request (requester
+  `affected-e2e`, set `affected`, PR number, branch) and posts `affected-e2e` pending; the verdict goes to
+  `laptop-e2e/affected` and `affected-e2e` (failures comment on the PR as usual). A conflicting head gets error, not a run;
+  F51: after master moves, open affected requests' PRs are re-read (`LQ_MERGE_RECHECK_S` 60 s, `LQ_MERGE_RECHECK_MIN` 10 min)
+  until known and a conflict retires at once. A newer head on the same branch supersedes the older open request (its
+  `affected-e2e` gets error "superseded"); other PRs never supersede each other and take turns in arrival order beside the
+  leads' requests. Opt out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork
+  heads (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
+  affected request is requested again (4.101.1). A head with only docs-only commits since the last final verdict carries it, or
+  waits for a live older request (`LQ_PR_CARRY` 0 = off).
+- Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
-- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
-  `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
-  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock`, `E2E_GPU=1 E2E_JOBS=1`, and starts one only
-  while more than 3 requests wait and desktop CPU is under 60%. Full and alone runs stay on the laptop. Trains too, unless
-  the laptop is silent: no claim / done push by the laptop for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min
-  old; then the desktop takes the train (no backlog gate; lock and CPU gates kept), sharded on 4191+4192, E2E_JOBS=1. Its
-  statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
-- Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
-  a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` takes pr requests only
+  (fixes first, then smallest first, none over `LQ_DESKTOP_MAX_MIN` (15) min), on 4191 in
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `heavy.lock` (4192: `...-testrun-4192`, `heavy2.lock`), `E2E_GPU=1
+  E2E_JOBS=1`. Start gates: `docs/RULES.md` "Machines"; env `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1`
+  0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`;
+  `LQ_DESKTOP_CPU_MODE=total` = whole machine), `LQ_LAPTOP_SILENT_MIN` (10). Statuses read "desktop: ..."; logs
+  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`. While auto-train's build marker
+  (`docs/systems/auto-train.md`; `LQ_BUILD_MARKER` overrides its path for tests) is under `LQ_BUILD_MARKER_MAX_MIN` (30)
+  min old the desktop starts no new request or train (logged once per marker; an older one is ignored).
+- Claims: before a run each worker pushes `claims/<id>.json` (a train: `claims/<sha>.json`) to `laptop-queue`, marked
+  done after. Both workers heartbeat their running claims (`LQ_HEARTBEAT_MIN` 5; a failed push retries each loop); an
+  open claim unbeaten for `LQ_CLAIM_BEATS` (4) beats, 20 min, is taken over (no beat field: `LQ_CLAIM_MAX_H`, 3 h) and
+  the run that lost it stops, posting nothing. A lost train verdict or done claim retries each pass (`LQ_TRAIN_RETRY` 0
+  = off); the alone hold drops a head whose verdict this worker holds or that has a done claim.
+- Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
+  `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
+  (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester
+  `laptop-queue spare`). Spare work never blocks real work: a waiting real request or a train stops a spare run, and
+  `pick` starts no spare while a real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
+- Scheduled tasks (Michael 2026-10-24; old `NightShift-chain-*` one-shots held the slot locks): hand-made chains are
+  retired; e2e runs go through the queue (`request.mjs`). The permanent tasks are the task guard's allowlist in code
+  (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue` (`install-task.ps1`),
+  `NightShift-desktop-queue` (`install-task.ps1 -Worker desktop`), `NightShift auto-train`
+  (`scripts/auto-train-task.ps1`) and `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`).
+  The only way to schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File
+  scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>]
+  [-ExpireMinutes 240] [-WhatIf]`: one hidden run that expires at At + ExpireMinutes, then Windows deletes the task.
+- Task guard: at start and every `LQ_TASK_GUARD_MIN` (10; 0 = off) min on both workers, disable (Disable-ScheduledTask
+  only; never stop, kill or delete; a running instance keeps running) every enabled task not on the allowlist (above,
+  plus `LQ_TASK_ALLOW`, a comma list) and not a `NightShift-run-*` with an expiry, when it is named `NightShift-*` or
+  its action mentions `C:\NightShift\scratch` or `laptop-runner.ps1` (so a task launched from a `.vbs` in scratch, as
+  the watchdog's is, needs the allowlist). Log line "task guard: disabled <name> (<state>, <why>)";
+  each pass that disabled something pushes `alerts/<ts>-<worker>-tasks.json` ({ worker, disabled, at }) to the `laptop-queue`
+  branch for the orchestrator. `--dry-run` logs "would disable" / "keeps" only.
+
+## Flakes and quarantine
+The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; replaces "flake stands" and the old
+`KNOWN_FLAKY` list in `docs/backlog.md`).
+- What counts: an assert failure (exit 1) of a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry), not a
+  fail; a timeout or crash always fails (J20 T8). Any other failure counts only if a solo rerun on the same sha fails too; fail
+  then pass on the same sha is a flake: a pass, and its owner fixes the test in the next batch PR.
+- Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like `e2e-sectorops:6` or a
+  whole suite) and `owners` (every REQUIRED suite has one). Add an entry only with an owner, an ISO expiry and the failure under
+  `docs/backlog.md` "Flaky e2e suites"; expired counts again; the owner removes it once fixed (`tests/e2eQuarantine.test.ts`
+  enforces it, `_doc` names this heading). run-e2e also reads `E2E_QUARANTINE_FILE`.
+- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is a flake
+  (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
+  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from
+  `owners`, else the orchestrator): later runs print it KNOWN FLAKY instead of rerunning it. `flake-budget.md` there lists each
+  suite that flaked, failed KNOWN FLAKY (`knownFlaky`) or is quarantined in the window, with its BLOCKING state (line 1 says rates
+  read high until 7 days are counted); a run that flaked or hit a quarantined failure adds it to its PR comment (a pass only on a
+  new flake). Only flakes after a suite's last auto quarantine count; an auto entry just expires. One automatic list, the
+  laptop's (F48): the desktop drops its own, forgives only the committed list, decides no quarantine or blocking, and reruns its
+  failures on the laptop. Older commits ignore `E2E_QUARANTINE_FILE`. Slow table: 7 days of `SLOW:` lines (F35), "; slow:".
+- Hard-rule checks (vitest): `tests/noRouteTimer.test.ts` (rule 6, G334; allowlist `pairGates[].window`, SECTOR holds);
+  `tests/importBoundary.test.ts` (rule 10: quality, `qualityManager`, governor fenced; allowlist `benchmark.ts`, display
+  readers); `tests/replayDeterminism.test.ts` (rule 8, G143; `Math.random` allowlist in `src/ai` shrinks as Guard AI seeds).
+- Repeat quarantine (Q30, "Becomes blocking"; lib `REPEAT_DAYS` 14): due a second auto quarantine within 14 days of the last, a
+  suite stays blocking (normal rule); once per 14 days the laptop pushes `alerts/<ts>-<worker>-fixjob-<suite>.json` to `laptop-queue`
+  and comments "BLOCKING: <suite> needs a fix job"; the orchestrator's cron reads `alerts/*-fixjob-*.json`, opens the fix job.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
   Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
-  faked pointer lock; `E2E_HEADED=1` (debugging) opens a window parked off-screen. Browser: `E2E_BROWSER`, the
-  preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is
-  stubbed off so exports take the download path.
+  faked pointer lock; `E2E_HEADED=1` opens a window parked off-screen: never on Michael's PCs (`docs/RULES.md`
+  "Machines": headless and invisible) and refused under the runner; only a single suite run directly on another machine.
+  Browser: `E2E_BROWSER`, the preinstalled Chromium, else playwright-core's (`npx playwright-core install chromium`).
+  `navigator.canShare` is stubbed off so exports take the download path.
 - Graphical and performance checks (perf budgets, contact sheets, visual parity and probe checks, beauty shots) run here
   only. Cloud sessions run unit tests and logic e2e and report those checks "pending PC run"; they never claim a perf or
   visual result from SwiftShader.

@@ -16,14 +16,14 @@ the game, built against the post-merge code (CharacterRig, player body path, bui
   step, run locally with the GPU). Ignore its branch and "do not edit existing files" setup: this step works on
   feature/operators and may make the small existing-file edits listed below.
 - The current player body path, CharacterRig and the build (a read-only Explore survey first; write
-  `docs/operators-runtime/SURVEY.md`).
+  `docs/archive/operators-runtime/SURVEY.md`).
 
 ## Do
 
 1. Survey (parallel read-only Explore agents allowed): player body creation and disposal, menus / photo mode / close
    cameras (hero candidates, D21), co-op remote bodies, silhouettes / glow, light meter and guard perception
    (gameplay isolation), how assets are bundled after the merge.
-2. `docs/operators-runtime/DESIGN.md`: module layout and APIs; asset manifest (from step 10 output names); LOD picker
+2. `docs/archive/operators-runtime/DESIGN.md`: module layout and APIs; asset manifest (from step 10 output names); LOD picker
    (distance bands with hysteresis, per camera; hero for menus and registered close-up cameras, D21; desktop only,
    D29); loading and shared GPU resources for co-op bodies of the same operator; skeleton link to CharacterRig
    (Bone.linkTransformNode, rig stays the pose authority, non-allocating per-frame path); materials (KTX2 via the

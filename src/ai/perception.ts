@@ -76,10 +76,21 @@ interface P3 {
 /**
  * Line of sight as perception tests it (`Enemy.losTo`; ON7: the editor's guard view tester calls this too): one ray
  * against static geometry (closed doors included), clear when nothing is hit nearer than the point less `slack`.
+ * (guard-ai R1) With `hitDistance` (the game's `Ballistics`: the first hit's distance, or the segment's length on a
+ * miss) it casts without allocating; a miss stays clear for any slack > 0, so the verdicts equal the `ray` path's
+ * (every caller passes 0.1-0.35; the editor passes the game's `Ballistics` too). Test doubles without it, and a slack of 0,
+ * keep the `ray` path.
  */
-export function losClear(b: { ray(from: P3, to: P3, mask: number): { hit: boolean; distance: number } }, eye: P3, to: P3, slack: number): boolean {
+export function losClear(
+  b: { ray(from: P3, to: P3, mask: number): { hit: boolean; distance: number }; hitDistance?(from: P3, to: P3, mask: number): number },
+  eye: P3,
+  to: P3,
+  slack: number,
+): boolean {
+  const len = hyp3(to.x - eye.x, to.y - eye.y, to.z - eye.z);
+  if (b.hitDistance && slack > 0) return b.hitDistance(eye, to, MASK.SIGHT) > len - slack;
   const h = b.ray(eye, to, MASK.SIGHT);
-  return !h.hit || h.distance > hyp3(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack;
+  return !h.hit || h.distance > len - slack;
 }
 
 export interface SightInput {

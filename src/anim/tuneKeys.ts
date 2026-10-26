@@ -5,7 +5,7 @@
  * first edit, rewritten in place after) that `sampleKeyed` blends exactly as it blends the clip. A key's offset spreads
  * linearly to its neighbouring keys (the mirrored half of a mirrored clip follows, as the bake makes it).
  * No edits: every `keyOff` is null and the sampler is bit-identical. Export: `tuneKeysClipValues` + `applyKeyEdits`, or
- * the panel's Export file through `scripts/anim-keys/apply-tune.mjs` (docs/tuner-v2/ITEM4.md).
+ * the panel's Export file through `scripts/anim-keys/apply-tune.mjs` (docs/archive/tuner-v2/ITEM4.md).
  * (marlow-bays T1a) Item 17: head, shoulder, upper arm and forearm twist and the pelvis shift per key. Item 18: a
  * mirrored clip has groups for its mirrored half too (`key.<clip>.<n .. 2n-1>`) and a Mirror box (`key.<clip>.mirror`,
  * slider `mirror`, 1 on by default): on, the mirrored half follows the own keys (an edit shows on both arms half a cycle
@@ -27,7 +27,7 @@
  */
 import './tuneV2Sections'; // the tuner-v2 sections register first (the panel order ends Stepping, then Keys)
 import type { KeyedClip, KeyedOffsets, KeyedTime } from './keyed';
-import { KEYED_LEGD_SIDE, LEGD_SIGN } from './keyed'; // (anim-skeleton S4) the leg deltas' key -> rig signs
+import { KEYED_LEGD, KEYED_LEGD_SIDE, LEGD_SIGN } from './keyed'; // (anim-skeleton S4) the leg deltas' key -> rig signs
 import { KEY_CLIPS } from './tuneKeysMeta';
 import { KEY_FIELDS, KEY_FIELD_INDEX, keyGroupId, keyMirrorGroupId, mirrorDelta, parseKeyGroup, readKeys, type KeyFile } from './tuneKeysFile';
 import { KEY_FINGERS, KEY_LEGD, keySidePartner } from './tuneKeysFile'; // (anim-skeleton S4)
@@ -855,13 +855,13 @@ function buildSkeleton(e: ClipEdit): void {
       }
       const li = LEGD_IX[side]!;
       const sgn = LEGD_SIGN[side]!;
-      for (let k = 0; k < li.length; k++) off.legd[f * 14 + side * KEYED_LEGD_SIDE + k] = sgn[k]! * D[li[k]!]! * D2R;
+      for (let k = 0; k < li.length; k++) off.legd[f * KEYED_LEGD + side * KEYED_LEGD_SIDE + k] = sgn[k]! * D[li[k]!]! * D2R;
       off.legW[f * 2 + side] = D[LEGW_IX[side]!]!;
     }
   }
   meanInto(off.clav, N, 8, off.clavMean);
   meanLin(off.fing, N, 20, off.fingMean);
-  meanLin(off.legd, N, 14, off.legdMean);
+  meanLin(off.legd, N, KEYED_LEGD, off.legdMean);
   meanLin(off.legW, N, 2, off.legWMean);
   const on = (ix: readonly number[]): number => {
     for (let r = 0; r < m; r++) for (const j of ix) if (kv[r * NF + j] !== 0) return 1;
@@ -983,8 +983,8 @@ function syncClip(ci: number): void {
         fing: new Float32Array(N * 20),
         fingMean: new Float32Array(20),
         fingOn: 0,
-        legd: new Float32Array(N * 14),
-        legdMean: new Float32Array(14),
+        legd: new Float32Array(N * KEYED_LEGD),
+        legdMean: new Float32Array(KEYED_LEGD),
         legdOn: 0,
         legW: new Float32Array(N * 2),
         legWMean: new Float32Array(2),

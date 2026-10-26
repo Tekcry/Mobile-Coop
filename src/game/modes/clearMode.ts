@@ -3,7 +3,6 @@ import type { Enemy } from '../../ai/enemy';
 import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
-import type { Blip } from '../../ui/hud/minimap';
 import { roomAt, roomCentre, type RoomDef, type SquadSlot } from '../../world/rooms';
 import { RoomClearTracker } from '../roomClear';
 import { hyp2 } from '../../core/mathx';
@@ -216,10 +215,6 @@ export class ClearMode implements GameMode {
     }
     this.g.hud.banner('DOWN', '', 2500);
     this.g.scheduleRespawn(this.checkpoint, 3);
-  }
-
-  blips(): Blip[] {
-    return [];
   }
 
   dispose(): void {

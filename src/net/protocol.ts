@@ -7,18 +7,21 @@ import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
-import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { OPTIC_POINT_MAX, packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
-import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
+import type { AirlockPhase, PackedCourse, RetryCause } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
+import { TEAM_KINDS, type TeamKind } from '../game/teamMoves';
+import { parseMissionWire } from '../game/mission/missionWire';
+import type { GadgetId } from '../game/gadgets';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 52;
+export const PROTOCOL_VERSION = 74;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -33,6 +36,9 @@ const WORLD = 400;
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
+/** (mission NET) The gadgets whose use reaches the host only as a `gused` (no effect message: a frag goes as `blast`). */
+export type UseOnlyGadget = Exclude<GadgetId, NetGadget>;
+export const USE_ONLY_GADGETS: readonly UseOnlyGadget[] = ['frag', 'mine', 'stickyCam'];
 export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector';
 export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector'];
 /** The training course and Sector Ops take two players (P1 host, P2 client; G2). */
@@ -137,6 +143,9 @@ export interface EnemyState {
    *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`);
    *  (guard-models G6n) bits 9-15 (`AL_LOOK`) his look seed (`Enemy.look`). `packAlert` builds it. */
   al: number;
+  /** (stealth-pays client intel) 1: he has unspent interrogation intel (the host's `Enemy.info`); absent otherwise.
+   *  Host-authoritative: a revived guard, a client rejoin and an interrogation on either side all follow it. */
+  in?: 1;
 }
 
 /** `EnemyState.al` bits over the alert level (bits 0-1): seized in a takedown, and (protocol 25) the torch on. */
@@ -194,10 +203,18 @@ export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean,
   return head ? 'head' : 'hit';
 }
 
+/** (stealth-pays client intel) The host's writer of `EnemyState.in`: set while the guard has unspent intel, absent
+ *  otherwise (no bytes for a guard without). */
+export function markIntel(s: EnemyState, has: boolean): EnemyState {
+  if (has) s.in = 1;
+  else delete s.in;
+  return s;
+}
+
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate' | 'body';
   x: number;
   y: number;
   z: number;
@@ -208,8 +225,14 @@ export interface NetItem {
   on: boolean;
   /** (30, marlow-final Q12) The hold's noise radius (m) when it is a noisy hold; absent: silent. */
   hn?: number;
+  /** (coop-carry) A `body` item: the enemy id the body was (the client keeps his body by it). */
+  e?: string;
+  /** (coop-carry) A `body` item: the player carrying it (absent: lying when `on`; gone from the list: hidden). */
+  by?: string;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate', 'body'];
+/** (coop-carry) The `use` id a client sends to put its carried body down (at its put down's hand-over). */
+export const DROP_BODY_ID = 'drop-body';
 
 /** (polish 8) The host's event queue holds `MAX_EVENTS * 2`; a `crate` fill is never dropped (a dropped one left that
  *  client's use recorded but never filled until a restart). Crate events are bounded by crates x players. */
@@ -265,25 +288,34 @@ export type Msg =
   | { t: 'you'; id: string }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number }
+  /** `mission`: Infiltration's. (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
+   *  `?mission=`; absent / '': none), so a client starts in the mission's start section and follows the host's. */
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number; sm?: string }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
+  /** (optic-coop, CHECK-M B1) `trp`: the optic gaps (`BuiltLevel.opticPoints` indices) whose trap panel is open, sent
+   *  with `doors` (on a change, every few seconds and at a rejoin), so a late joiner opens them too. */
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; trp?: number[]; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). (30, marlow-final Q12) `pulse`: not the
    *  use but one noise pulse of a noisy hold under way (its first moment, then every `HOLD_NOISE_PULSE` s); the host
    *  checks it the same way and its guards hear the item as for the host's own hold (`holdPulse.ts`). */
   | { t: 'use'; id: string; pulse?: true }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
+  /** (optic-coop, CHECK-M B1) Client OPEN TRAP: open the trap panel over optic gap `g` (index bound `OPTIC_POINT_MAX`);
+   *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
+  | { t: 'panel'; g: number }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
-  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'rope' | 'hangEnd' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
+  /** (mission NET) + the kit kinds `pull` / `shutter` (`TeamKind`); a kit request may claim a point (`lx`, `gy`, `lz`:
+   *  the pull-up's catch point, `KitMove.claimsPoint`). `hangEnd` also ends a kit pair (`target` 0 'pull', 1 'drop'). */
+  | { t: 'tmove'; kind: TeamKind | 'hangEnd' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
   /** The host started a team move: `a` climbs, `b` is braced. (CT prototype B4, protocol 19) `throw`: `a` is thrown
    *  over the standing `b` to the landing `l` (feet; a `tmove` throw claims it as `lx`, `gy`, `lz`). */
-  | { t: 'tstart'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'rope'; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
+  | { t: 'tstart'; kind: TeamKind; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
   /**
@@ -301,6 +333,9 @@ export type Msg =
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
   | { t: 'gadget'; kind: NetGadget; x: number; y: number; z: number }
+  /** (mission NET) Client: one of its gadgets with no effect on the wire (`USE_ONLY_GADGETS`: frag, mine, sticky cam) was
+   *  thrown or placed; the host's mode counts it (`onRemoteGadget`: a mission's No gadgets rule). */
+  | { t: 'gused'; kind: UseOnlyGadget }
   | { t: 'ev'; events: NetEvent[] }
   /** Client grenade detonation (host validates distance and applies damage). */
   | { t: 'blast'; x: number; y: number; z: number }
@@ -329,6 +364,8 @@ const safeText = (v: unknown, max: number): string | null => {
 };
 const bool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
 const oneOf = <T extends string>(v: unknown, list: readonly T[]): T | null => (list.includes(v as T) ? (v as T) : null);
+/** (mission NET) `tmove` kinds: every team move (the kit's too) and the two ends. */
+const TMOVE_KINDS: readonly (TeamKind | 'hangEnd' | 'end')[] = [...TEAM_KINDS, 'hangEnd', 'end'];
 const HEX = /^#[0-9a-f]{6}$/i;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const id = (v: unknown): string | null => (typeof v === 'string' && ID.test(v) ? v : null);
@@ -394,7 +431,9 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, AL_MAX) ?? 0) };
+  const out: EnemyState = { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, AL_MAX) ?? 0) };
+  if (v.in === 1) out.in = 1;
+  return out;
 }
 
 function netItem(v: unknown): NetItem | null {
@@ -409,6 +448,13 @@ function netItem(v: unknown): NetItem | null {
   // (30, Q12) a noisy hold's radius; absent, 0 or malformed reads as a silent item
   const hn = num(v.hn, 0, 30);
   if (hn) item.hn = hn;
+  // (coop-carry) a body item's enemy id and carrier; junk drops the field only
+  if (k === 'body') {
+    const e = id(v.e);
+    if (e) item.e = e;
+    const by = id(v.by);
+    if (by) item.by = by;
+  }
   return item;
 }
 
@@ -579,6 +625,8 @@ function endStats(v: unknown): EndStats | null {
 const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
+/** (NET3) A Sector Ops mission id (`MissionDef.id`: camelCase, as `MISSION_WIRE.idMax`); anything else is '' (none). */
+export const sectorMissionId = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9_-]{0,64}$/.test(v) ? v : '');
 
 /** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
 const SEC_CAMS = 16;
@@ -648,6 +696,9 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
   const rh = courseRh(raw.rh).rh;
   if (rh) out.rh = rh;
+  // (mission NET) the running mission (`missionWire.ts`; malformed: dropped)
+  const ms = parseMissionWire(raw.ms);
+  if (ms) out.ms = ms;
   return out;
 }
 
@@ -694,6 +745,8 @@ function courseRh(v: unknown): { rh?: number[] } {
 
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
+/** (J14 R1) A course retry's causes (`PackedCourse.rc`). */
+const RETRY_CAUSES: readonly RetryCause[] = ['seen', 'caught', 'timer', 'out', 'down', 'other'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
   const out: number[] = [];
   if (!Array.isArray(v)) return out;
@@ -750,6 +803,11 @@ function parseCourse(raw: Obj): Msg | null {
     pstats: [stat(ps[0]), stat(ps[1])],
     locks: strs(s.locks),
     anchors: strs(s.anchors),
+    // (J14 R1) the live station, the retry count and the last retry (plain fields; an older host sends none)
+    st: Math.round(n0(s.st, 0, 64)),
+    rs: Math.round(n0(s.rs, 0, 1e6)),
+    rt: Math.round(n0(s.rt, 0, 64)),
+    rc: oneOf(s.rc, RETRY_CAUSES) ?? '',
   };
   const groups: [number, boolean][] = [];
   for (const x of arr(lights.groups)) {
@@ -802,6 +860,10 @@ export function parseMessage(raw: unknown): Msg | null {
       const crack = bool(raw.crack);
       return i === null || crack === null ? null : { t: 'door', i, crack };
     }
+    case 'panel': {
+      const g = typeof raw.g === 'number' && Number.isInteger(raw.g) && raw.g >= 0 && raw.g < OPTIC_POINT_MAX ? raw.g : null;
+      return g === null ? null : { t: 'panel', g };
+    }
     case 'sector':
       return { t: 'sector', ...secWire(raw.sec), ...sectorExtra(raw) };
     case 'course':
@@ -828,6 +890,11 @@ export function parseMessage(raw: unknown): Msg | null {
       const z = num(raw.z, -WORLD, WORLD);
       return kind && x !== null && y !== null && z !== null ? { t: 'gadget', kind, x, y, z } : null;
     }
+    case 'gused': {
+      // (mission NET) a client's frag / mine / sticky cam used (no effect message)
+      const kind = oneOf(raw.kind, USE_ONLY_GADGETS);
+      return kind ? { t: 'gused', kind } : null;
+    }
     case 'ping': {
       const x = num(raw.x, -WORLD, WORLD);
       const y = num(raw.y, -50, 100);
@@ -836,7 +903,7 @@ export function parseMessage(raw: unknown): Msg | null {
       return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
     }
     case 'tmove': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'rope', 'hangEnd', 'end'] as const);
+      const kind = oneOf(raw.kind, TMOVE_KINDS);
       const partner = raw.partner === '' ? '' : id(raw.partner);
       if (!kind || partner === null) return null;
       const out: Extract<Msg, { t: 'tmove' }> = { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
@@ -846,16 +913,32 @@ export function parseMessage(raw: unknown): Msg | null {
         if (lx === null || lz === null) return null;
         out.lx = lx;
         out.lz = lz;
+      } else if (kind === 'pull' || kind === 'shutter') {
+        // (mission NET) a kit request's claimed point is optional here (the move's host rule needs it or not)
+        const lx = num(raw.lx, -WORLD, WORLD);
+        const lz = num(raw.lz, -WORLD, WORLD);
+        if (lx !== null && lz !== null) {
+          out.lx = lx;
+          out.lz = lz;
+        }
       }
       return out;
     }
     case 'tstart': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'rope'] as const);
+      const kind = oneOf(raw.kind, TEAM_KINDS);
       const a = id(raw.a);
       const b = id(raw.b);
       if (!kind || !a || !b) return null;
       const out: Extract<Msg, { t: 'tstart' }> = { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
       if (kind === 'throw' || kind === 'hang' || kind === 'rope') {
+        const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
+        const lx = la ? num(la[0], -WORLD, WORLD) : null;
+        const ly = la ? num(la[1], -50, 100) : null;
+        const lz = la ? num(la[2], -WORLD, WORLD) : null;
+        if (lx === null || ly === null || lz === null) return null;
+        out.l = [lx, ly, lz];
+      } else if ((kind === 'pull' || kind === 'shutter') && raw.l !== undefined) {
+        // (mission NET) a kit start carries `l` when its request claimed a point (the pull-up's catch point)
         const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
         const lx = la ? num(la[0], -WORLD, WORLD) : null;
         const ly = la ? num(la[1], -50, 100) : null;
@@ -912,7 +995,9 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1) };
+      // (NET3) the sector mission rides only when set (a run with none: the message as before)
+      const sm = sectorMissionId(raw.sm);
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), ...(sm ? { sm } : {}) };
     }
     case 'pstate': {
       const s = playerState(raw.s);
@@ -969,6 +1054,15 @@ export function parseMessage(raw: unknown): Msg | null {
           if (!cs.includes(d)) cs.push(d);
         }
         out.dcr = cs;
+      }
+      // (optic-coop, CHECK-M B1) open trap panels as optic gap indices: out-of-range entries dropped, never clamped
+      if (Array.isArray(raw.trp)) {
+        const ts: number[] = [];
+        for (const g of raw.trp.slice(0, OPTIC_POINT_MAX)) {
+          if (typeof g !== 'number' || !Number.isInteger(g) || g < 0 || g >= OPTIC_POINT_MAX) continue;
+          if (!ts.includes(g)) ts.push(g);
+        }
+        out.trp = ts;
       }
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
       return out;

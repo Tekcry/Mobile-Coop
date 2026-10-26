@@ -5,7 +5,7 @@
 // ignored the two sliders).
 import { describe, expect, it } from 'vitest';
 import { runEffectProbe, PROBE_STATES, type ProbeLoop } from './helpers/tuneEffectProbe';
-import { EFFECT_MODES, NO_EFFECT, effectMode, effectState, sliderEffect } from '../src/ui/tunerEffect';
+import { EFFECT_MODES, EFFECT_REASONS, NO_EFFECT, effectMode, effectState, sliderEffect } from '../src/ui/tunerEffect';
 import { JOINT_KEYS } from '../src/anim/tuneV2Sections';
 
 describe('tuner v3: the keyed-clip effect table', () => {
@@ -32,12 +32,14 @@ describe('tuner v3: the keyed-clip effect table', () => {
   }, 300000);
 
   it('names why a slider does nothing now, and the state of a group', () => {
-    expect(sliderEffect('body', 'jog', 'strideMul', 'keyed')).toBe('procedural only: the keyed clip is playing');
+    // (tuner-clarity S3) plain reasons (BRIEF A2; "Keyed" names the Anim Studio's box)
+    expect(sliderEffect('body', 'jog', 'strideMul', 'keyed')).toBe('Only when she really moves: untick Keyed in the Anim Studio to see it');
     expect(sliderEffect('body', 'jog', 'strideMul', 'procedural')).toBe('');
-    expect(sliderEffect('body', 'jog', 'armSwingMul', 'procedural')).toBe('keyed clip only: tick Keyed to see it');
+    expect(sliderEffect('body', 'jog', 'armSwingMul', 'procedural')).toBe('Only on the clip on the spot: tick Keyed in the Anim Studio to see it');
     expect(sliderEffect('body', 'jog', 'armSwingMul', 'keyed')).toBe('');
-    expect(sliderEffect('body', 'jog', 'armSwingGrow', 'keyed')).toBe('no effect on the keyed clip on the spot');
-    expect(sliderEffect('body', 'jog', 'armSwingGrow', 'armed')).toBe('no effect in this state');
+    expect(sliderEffect('body', 'jog', 'armSwingGrow', 'keyed')).toBe('Does nothing on the clip on the spot');
+    expect(sliderEffect('body', 'jog', 'armSwingGrow', 'armed')).toBe('Does nothing in this move');
+    for (const r of Object.values(EFFECT_REASONS)) expect(r.replace(/\bKeyed in the Anim Studio\b/g, '')).not.toMatch(/procedural|keyed|mocap/i);
     expect(sliderEffect('joint', 'joint.jog', 'elbowR_x', 'keyed')).toBe('');
     // not probed: nothing is known, nothing greys
     expect(sliderEffect('body', 'ladder', 'kneeLiftMul', 'keyed')).toBe('');
@@ -51,5 +53,20 @@ describe('tuner v3: the keyed-clip effect table', () => {
     expect(effectMode(true, false, false)).toBe('keyedMoving');
     expect(sliderEffect('body', 'jog', 'armSwingGrow', 'keyedMoving')).toBe('');
     expect(sliderEffect('body', 'jog', 'strideMul', 'keyedMoving')).toBe('');
+    // (tuner-clarity S3) the motion capture playing: its own probe's list (tunerReachProbe.test.ts), more sections
+    expect(effectMode(false, false, true, true)).toBe('mocap');
+    expect(effectMode(false, true, true, true)).toBe('armed');
+    expect(effectMode(true, false, true, true)).toBe('keyed');
+    expect(sliderEffect('body', 'walk', 'armSwingMul', 'mocap')).toBe(EFFECT_REASONS.handMadeOnly);
+    expect(sliderEffect('body', 'walk', 'kneeOutMul', 'mocap')).toBe('');
+    expect(sliderEffect('step', 'step.walk', 'lift', 'mocap')).toBe(EFFECT_REASONS.handMadeOnly);
+    expect(sliderEffect('weight', 'weight.jog', 'plantDrop', 'mocap')).toBe(EFFECT_REASONS.handMadeOnly);
+    expect(sliderEffect('hand', 'hand.none.walk', 'footLFwd', 'mocap')).toBe('');
+    expect(sliderEffect('step', 'step.walk', 'lift', 'procedural')).toBe('');
+    expect(effectState('hand', 'hand.none.walk')).toBe('walk');
+    expect(effectState('hand', 'hand.rifle.walk')).toBe('rifle.walk');
+    expect(effectState('step', 'step.walk')).toBe('walk');
+    // the mocap mode stays out of the keyed-clip probe's loop (its own file, its own time budget)
+    expect(EFFECT_MODES).not.toContain('mocap');
   });
 });

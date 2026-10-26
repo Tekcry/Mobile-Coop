@@ -20,8 +20,8 @@
  * sweep `tests/guardHeadSweep.test.ts` (the parity test's harness: the rig fed as `Enemy.frame` feeds it, a
  * `MotionDriver` giving the velocity and the gait clock). Regenerate (S3a fix 2), from the repo root:
  *   MOVE (between the `<guard-head-fit free>` markers): grunt, heavy, sniper, enforcer, officer, droneOp armed, the runner
- *   unarmed; aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 / 0.3), crouch 0 / 1, 14 directions, 0.15 m/s up to the
- *   run speed, in 8 parts (one vitest each):
+ *   unarmed (as fitted before G298 armed him; refit: polish P1); aim 0.2 / 0.4 / 0.7 / 1 (aim 1 also at pitch -0.3 /
+ *   0.3), crouch 0 / 1, 14 directions, 0.15 m/s up to the run speed, in 8 parts (one vitest each):
  *     for i in 0 1 2 3 4 5 6 7; do GUARD_HEAD_SWEEP=1 GUARD_HEAD_CASES=free GUARD_HEAD_EVERY=3 GUARD_HEAD_PART=$i/8 \
  *       GUARD_HEAD_OUT=free-$i.tsv npx vitest run tests/guardHeadSweep.test.ts; done
  *     node scripts/guard-head-fit.mjs free free-*.tsv --write
@@ -441,7 +441,7 @@ const MOVE: Record<MoveClass, MoveTable> = {
  *  stride slips sideways and the rig's head dips up to 11 cm below its mean for ~0.5 s at irregular times (the foot
  *  planner catching up; 52-60 deg at 0.45 m/s, 54-60 at 0.6, 58-60 at 0.75): the fit gives the mean there.
  *  (The rig also takes stride 'velocity' when the held guard's `aimWeight()` is 0.5 or more; the sim gets aim 0 when
- *  held and assumes the calm weight: a follow-up, docs/guard-render/STATE.md "Fix round 3".)
+ *  held and assumes the calm weight: a follow-up, docs/archive/guard-render/STATE.md "Fix round 3".)
  *
  *  After a release (`releaseTakedown`) the held weight `poseW` fades over 0.2 s with the last held pose kept, and
  *  `HELD_MOVE` and the free-move side removal (`sxm`) still apply scaled by it while the guard moves: a known short

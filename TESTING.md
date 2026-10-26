@@ -4,10 +4,12 @@ Desktop only (G12): pad first, then keyboard and mouse. One current checklist pl
 on the build under test: the live game, the one chosen preview (G85) or a local `npm run dev`. F3 (or `?debug=1`) shows
 the debug overlay. Tick each item; note anything off in Pause > Report feedback.
 
-Items marked (CT prototype) describe today's movement, which the CT prototype replaces; the prototype job rewrites them.
+Items marked (CT prototype) describe today's movement as built. CT movement values are not build targets: CT movement
+references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT target.
 Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version lists:
 [docs/archive/testing-history.md](docs/archive/testing-history.md) (3.0.0 to the consolidation) and
-[docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
+[docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md); per-job lists moved out on 2026-10-25 (conformance T22):
+[docs/archive/testing-job-sections.md](docs/archive/testing-job-sections.md).
 
 ## Desktop checklist
 
@@ -23,22 +25,36 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
-  `?legacy=1`). Sector Ops opens the op list (the Warehouse with four stars), then its briefing: the sectors listed,
-  Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
-- [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
-  you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
-  there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
-- [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
+  `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
+  briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] (sector-marks) Sector Ops: no green disc or glowing pole at any connector or at the extraction (host and co-op
+  client). Each Saltmarsh Park objective says what and where: S1 the gatehouse, S2 the facilities office, S3 the
+  prototype store, S4 the server cage, S5 the strongroom.
+- [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
+  data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
+  the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
+  were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
+  finishes it (team doors keep a solo route, G280).
+- [ ] (G339) No minimap, compass or objective dots in Sector Ops, Marlow Yard (co-op) or free roam; the Marlow drill
+  pointer and pings still show.
+- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
+  and objective read by lamp light, with dark
+  pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
   on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
   through a ceiling; a lamp switched off or shot goes dark on its diffuser. The roof's open strips are pale corrugated
   sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
   and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
-- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
-  and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
-  partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
+  ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
+  light meter reads as before.
+- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star and every easier one are
+  filled beside Sector Ops (Saltmarsh Park's stars) and in the op list (best time in the context panel). Co-op Sector
+  Ops: the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
+  section with both players at the room.
+- [ ] (sector-batch) Sector Ops result: a run with no kill and no alarm ends "PERFECT" on the result line and the
+  extraction banner (with "GHOST" too when never spotted); an alarm takes Perfect away.
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
@@ -57,10 +73,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   tab and rejoin from its menu (or toggle its network off and on): the joiner comes back in the A3 entry airlock (or
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
+- [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
   beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
+- [ ] (section-bake) Saltmarsh Park cold load: clear the site data (or a private window), start the campus and time
+  the load against the last build: it starts sooner. In S1 the car park floods and the meter read as before; within
+  the first minute nothing on screen pops (far buildings' lamps fade in). Play into S2 through C1: S2 is lit at once.
+  Co-op: a client joining while the host is in S2 or later gets the section's lamps within seconds. Reload: a warm
+  load as before.
 - [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
   campusOps: HQ L1 breakout kitchen; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
   out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.
@@ -176,6 +198,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Character shadows (LR14, High and up): under a lamp near you a guard, your partner, a body or a held rifle throws
   its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
   Graphics > Character shadows Off) the soft capsule shadows return.
+- [ ] Guard shadow in view (guard-cap T1-SHADOW, A195): Marlow, a guard just out of view under a lamp, his shadow in
+  view: his shadow's feet do not step or slide (`&animshadow=0` shows the camera-only 1/8 rate).
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
@@ -190,6 +214,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Alarm by radio (guard-ai S6, Sector Ops): get spotted and let the radio calls through: "Command, contact. Send
   backup.", ALARM STAGE about 6.5 s after the spotter saw you, and reinforcements run in hunting. Take the spotter down
   before his first radio line: no alarm, nobody comes.
+- [ ] Barks by cause (guard-rules S4): let a guard glimpse you at the edge of a light: he says a seeing line ("Thought
+  I saw something."); throw a bottle near another: he says a hearing line; neither ever says the other kind.
+- [ ] Lookouts (guard-rules S7 / S9, Sector Ops S5, `?lookouts=1`): throw a bottle near the roof marksman: he only
+  turns and edges within 1 m of his spot and someone else comes. Let him glimpse you lit: a startled line (e.g.
+  "Huh?"), then a radio line, and a calm guard nearby walks to where you stood while he stays put. A second glimpse
+  within 20 s: no second call.
+- [ ] Dog release (guard-rules S8, Sector Ops S4 / S5, `?dogrelease=1`): raise S4 to alarm stage 2: each free dog runs
+  to where you were last seen, searches, then goes back to its handler. A camera or laser alarm (no guard has seen
+  you): the dogs search round their handlers instead.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
   check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
   handler and the dog stays by him and barks.
@@ -203,6 +236,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
   clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
   every guard in the section draws his gun and none holsters while the alarm stage holds.
+- [ ] Guard AI polish (Sector Ops): break sight on a group next to a wall: no guard walks a long way round to cover
+  behind it, none freezes in the open (A2). Trip a device, then make a noise near its responder: after his look he
+  searches the device room again (A1). Cut a breaker, let a guard relight it, cut it again inside a minute: after the
+  light check it is relit, never dark for good (B1). Co-op: a guard who only heard player 1 never walks to player 2;
+  hunted by one guard, show him player 2: one radio call names player 2 (A3 / A4).
+- [ ] Guard AI polish 2 (Sector Ops): make a noise behind a locked door a guard cannot open: he walks to the near side
+  of it, looks about 4 s and stands down, not 20 s on the spot (A184; Marlow A7 cage). Make one noise with three guards searching: one "I heard
+  something." line, all three still go (A185). Break sight with a squad: the covering guard behind a high wall steps to
+  his edge and fires at your last spot while a mate moves up (A186). Three guards searching after a fight: one looks
+  at your last known spot once, the others go to their search points at once (A188).
 - [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
   line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
   moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go
@@ -219,10 +262,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
     the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
   - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
     sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
-  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
-    the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
-    falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
-    armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
+  - Helmet knock-off: raise the alarm to the helmet stage (two alarms in Sector Ops on Rookie / Normal, or `e.setGear`
+    in the console); the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet
+    leaves his head and falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests
+    show only with the armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
   - Same looks after a restart: note three guards (a face, hair, cap); restart at the checkpoint or the section: the same
     guards in the same places look the same.
   - Bodies: carry and drop a guard: the body keeps his face, clothes and helmet state; thermal and night vision show him
@@ -241,10 +284,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
   pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
   hall, or another spot) or hold. A plain window still lets their rounds through.
-- [ ] Response teams (guard-ai S13, Sector Ops): raise the alarm twice: every guard now wears armour; a third time:
-  helmets too. Each alarm's team comes in behind a shield guard; hide: after about a minute at your last spot the team
-  walks the section point to point (shield first, the rest close behind, a look round at each, torches in the dark),
-  still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Response teams (guard-ai S13, guard-rules S1 / S5, Sector Ops, Normal): raise the alarm twice (guard-rules S5:
+  once the first team is in and searching, or a minute later, a guard who sees you again raises the next stage; up to
+  three guard alarms a section, Marlow Yard still one): every guard now wears armour and a helmet. In Saltmarsh Park
+  sections 4 and 5 each alarm's team comes in behind a shield guard; in sections 1-3, the warehouse and Marlow Yard the
+  team is armed guards only. Hide: after about a minute at your last spot the team walks the section point to point
+  (shield first where there is one, the rest close behind, a look round at each, torches in the dark), still hunting
+  minutes later; the cameras are as before. A restart drops the gear with the stage.
+- [ ] Helmets and dogs (guard-rules S1 / S2, Sector Ops): on Realistic every guard wears a helmet from the start; on
+  Rookie and Normal no guard does until the second alarm. On Perfectionist a head shot on a helmet only staggers him and
+  the helmet stays on; a second head shot kills. Walk behind a dog: no takedown prompt (also in co-op on the joiner);
+  gas knocks it out and the section can still end with "No kills"; shoot a dog dead instead: the rating loses "No kills"
+  and Perfect and the score drops.
 - [ ] Section alert (guard-ai S14, Sector Ops): knock a squad guard out unseen and wait for the radio check: "Unit N,
   report... Nothing.", then "a unit's not answering" on the radio; the section's guards walk slower and look longer for
   a few minutes (cautious), two search the spot. Do it again but take the caller down while he is still on the radio:
@@ -276,7 +327,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
   the alarm is up, stays at low ready. Co-op (A126): on the client the same guard is holstered, draws and holsters
   with the host (a moment behind), never stuck at low ready.
-- [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] D-pad left (N) turns the goggles on and off; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
@@ -343,7 +394,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "wide ranges" doubles every range; typing a number in a row's field applies on Enter; the search box filters rows.
 - [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
   drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
-  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
+  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/archive/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
   "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
   twice as slow and it cannot fire until it is up. Rifle / Pistol holster (one row each), swap (LB), grenade throw and Every clip speed change their
@@ -393,115 +444,28 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   choke on one clock. "traversal: ladder up and over the top": Wren walks to the ladder, climbs it, tops out, resets and
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
-
-### Every tuner slider bakes (anim-bake-targets)
-- [ ] Open the tuner: the info line says the baked values are built in (none of the 2026-10-22 values left as changes).
-- [ ] Walk, jog and run: the feet land close to one line, the arms swing more at jog and run, the knees lift more at
-  run; at low ready the elbows sit out and the rifle tuck is lighter, the pistol elbows untucked.
-- [ ] Co-op: the partner shows the same track, swing and elbows. Guards look as before.
-
-### Every slider bakes, also those with no code value (anim-bake-all)
-- [ ] Tune one slider in each of Camera (FOV on explore, zoom on rifle aim), Gun (rifle aim gun up), Speed (aimed glide
-  forward), Stepping (walk stride middle), Weight (walk chest damping), Body (walk step length, then jog at another
-  value) and a co-op or traversal move (vault body fwd). Export, run `node scripts/anim-tune-bake.mjs <export> --dry-run`:
-  every row "baked" or "baked (base table)", 0 manual; the walk and jog step lengths are two rows
-  (`sections.body.walk.strideMul`, `sections.body.jog.strideMul`).
-- [ ] After the real run and a reload (the tuner resets those sliders), each state looks and moves as it did tuned: the
-  wider / narrower FOV while exploring, the rifle aim's zoom and gun height, the faster glide (gameplay), the step length
-  at walk and jog apart. Hold the bypass: the baked values stay (they are the code defaults now).
-- [ ] Co-op: the partner and the guards look as before (none of these act on other rigs, Stepping excepted: every foot
-  planner reads it, as in the tuner).
-
-### Wren's hands and joints (anim-skeleton S1+S2)
-- [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
-  the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
-- [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
-- [ ] Co-op: the partner's hands also close on their gun.
-- [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
-- [ ] (S3+S4) Anim Studio: play skeleton_test: shrug, right shoulder forward, fingers curl one by one then spread, a
-  left kick with the right foot planted.
-- [ ] (S3+S4) Keys tab on jog: on a contact key raise the knee: the leg bends but the planted foot does not slide (foot
-  slide readout under 0.5 cm); on a swing key the leg moves as keyed. A collarbone or finger field changes that key.
-- [ ] (S3+S4) Joints tab: the collarbone row shrugs and pushes the shoulder forward; reset returns it exactly.
-
-### Playtest 2 changes (controller, CT prototype; /ct/)
-- [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
-  before.
-- [ ] Back to a wall, shuffle to each end: the body leans only to the open side (swing the camera both ways: it never
-  flips) and the camera slides past the edge as you look or push toward it. Holstered, the camera is always over the
-  right shoulder; swap to the left while aiming, holster: it returns to the right and the next draw is on the right.
-- [ ] Swap shoulders while aiming: no gun flick. Press A from a short distance (under 0.5 m): you settle onto the wall
-  without sliding; from further away it does nothing.
-- [ ] Footsteps from a creep to a sneak (crouched to the crouch walk) are quiet and the noise meter is silent; a run is
-  louder on both.
-- [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
-  height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
-  turning on the spot; crouch idle kneels with a gun out (one knee down, back upright), crouch walking blends out of it
-  cleanly.
-- [ ] (anim-rework S4) Holstered, crouched: stand still (a deep squat, each hand on top of its knee, palm down, slow
-  breaths, a slow look round); push the stick slowly to full: sneak, crouch walk, crouch run with no pop, knees and feet
-  under the hips (from the front), the run leaning forward and low. Crouch and stand in every state (still, walking,
-  running, low ready, aiming, strafing aimed): no snap. Sneak, stop, stand up: the feet step back under the hips.
-- [ ] (anim-rework S2) Holstered, standing: push the stick slowly from a creep to full: the walk turns into a jog and a
-  run with no pop, the knees and feet stay under the hips (from the front the legs look near vertical), the arms hang
-  along the sides and swing a little more as you speed up, no lean until the run. Stand still: she breathes, shifts her
-  weight and looks round slowly. Start, stop, turn round from a standstill and change direction 90 / 180 deg at a walk
-  and a run: no foot slides, no hop.
-- [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
-  comes from the back straight to the shoulder (no low-ready dip).
-- [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
-  Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
-  A team boost climb-up still works.
-- [ ] Marlow Yard A3 (co-op, marlow-jammer): the corridor camera. Aim the pistol at the camera, hold RB / F and
-  stand still: the red grid goes, the camera stops turning, its LED flashes, a quiet buzz plays (both hear it); the HUD
-  counts 5 s, then COOLDOWN 5 s; released, the camera stays blind 1.5 s and cannot be jammed meanwhile. One jams while
-  the other runs; from the east lobby, the one through jams for the other; both there ends the step. The camera's
-  grid never shows through a wall. Jam a lamp: it flickers off, stays off 4 s after you let go, flickers on.
-  Walk the corridor without a jam: the camera catches you and you are put back at the west lobby (radio line).
-- [ ] Camera range (camera-range): Marlow Yard A3 (camera range 14 m), stand in the west lobby in line with the corridor (stand, crouch,
-  run on the spot): the camera never picks you up there; step a metre into the corridor and it does. Sector Ops: walk
-  toward each camera from just past the far end of its red grid: nothing until you are inside the grid's far edge.
-- [ ] Cameras and lasers (sector-fixes C): in Sector Ops and Marlow Yard A3 / A4 / A7 / A8 each camera points down at the floor
-  in front of it; its red grid is faint (thin lines) and covers only that patch, never far walls or the ceiling, and it
-  catches you only there. Lasers are invisible until night vision (not in thermal or electro); walking through one
-  raises the alarm stage (banner, radio) and costs no health.
-- [ ] Laser power panels (sector-fixes P): every laser has a small wall panel nearby, hidden (Sector Ops: in the office
-  void off the workshop catwalk, behind the plant deck's AHU, on R2N's rack top by the VNA sensor, under the mezzanine
-  behind the parts store's back shelf; Marlow Yard A5: high on the switchroom's south face, seen through the gateway; A8's curtain has its own).
-  Electro shows it; its LED is green. Jam it from its vantage (pistol, RB / F, stand still): the LED blinks cyan and its
-  lasers are off (walk through: no alarm), amber for the 1.5 s reboot, then the lasers are back. Aiming at the beams
-  jams nothing. In co-op the partner's page shows the same.
-- [ ] Scanners (co-op course; A7 terminals, A8 time locks): a lone hack with the partner never started costs nothing; a
-  late or abandoned hack costs 10 HP; both hacks within 1.5 s open the cage (A7) or the vault (A8).
-- [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the
-  walk is upright, the run quick with a lean; stop from a run: a small split, upright; crouch and stop: she kneels at
-  once; near an unaware guard, crouch-walk slowly: the tense high-kneed sneak with a hand over the knife.
-- [ ] Camera: the yard frames the whole body from further back, rooms and airlocks closer; aim: head on the left, the
-  reticle clear; FOV 86 (a saved 75 moves once).
-- [ ] Rifle draw: muzzle up at the right shoulder, then down onto the line (no chest hold); holster near instant; aim,
-  release and aim again quickly: no sweep through the body. Pistol: lower, compact two-handed hold.
-- [ ] Walls (G6): crouch on a wall and slide: side-on, hand on the knee; reverse: she turns through; stop: she kneels.
-  Open a door: a step to the latch, hand on the leaf; stealth open is slower. Grab a guard (G7): pull-in, forearm on
-  the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
-- [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
-  on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (only the
-  Marlow Yard A1's checker, A4's and A8's officers have information: hold A, INTERROGATE, two lines, then no menu again), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
-- [ ] Optic cable (ct-toolkit 3.2): at a closed door hold A, OPTIC CABLE: she kneels, after about 1.2 s the view is
-  under the door on the far side at floor height (feed overlay); the stick turns it (+-75 deg, -10..+60 deg), D-pad
-  left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
-- [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
-  ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
-
-### Hits come from game state (rig-pose fix)
-- [ ] Co-op: let a guard shoot each player in turn, standing, crouched and on a wall; both take head / body / leg hits the same way.
-- [ ] Co-op: headshot a guard as the client, also one peeking from cover; it counts as a headshot.
-- [ ] Shoot from a wall edge and while hanging upside down: rounds leave from the gun side and hit where aimed.
-- [ ] Kill a guard at a ledge lip: the body lies on the floor below; pick it up on both machines.
+- [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
+  run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
+  climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
+  captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
+  line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
+  follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
+  playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").
+- [ ] (mixamo-retarget I9) Anim Studio, Set "Mixamo": the batch 2 packs are listed ("Motion capture (Mixamo): rifle walk forward",
+  pistol, shooter, aa ...); each plays on Wren and moves with its tuner rows.
+- [ ] Animation source (mixamo-retarget Toggle): Settings > Gameplay > Animation source. CMU (default) is the game as
+  before; Hand-made: the walk / jog / run are the keyed clips (Now playing "hand-made ... (animation source: Hand-made)");
+  Mixamo: hang on a ledge and shimmy, then top out a ladder: the Mixamo captures ("motion-capture (Mixamo) hang").
+  Restart: the choice is kept. In the Anim Studio the same switch sits over the Loop list, with Set (All / Hand-made /
+  CMU / Mixamo) showing only that set's loops. `?anim=hand|cmu|mixamo` sets it for one page.
+- [ ] (F45) /preview/ with no pick yet: Settings > Gameplay > Animation source shows Mixamo and a ledge hang plays the
+  Mixamo capture; pick CMU, restart: CMU is kept. The live game with no pick: CMU.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
-- [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab
-  wheel, N goggles, Z ping, V shoulder swap; Esc pauses and Resume re-captures.
+- [ ] RMB aims, LMB fires, C crouches, Space jumps, Caps Lock backs to a wall, E uses, F is the co-op action, R reloads,
+  X draws / holsters, T / Q swap, Z knocks out, G gadget, Tab wheel, N goggles, middle mouse pings, V shoulder swap;
+  Esc or P pauses and Resume re-captures.
 - [ ] Settings > Mouse & Keyboard: rebind a key, a conflict warns, Esc cancels a capture.
 - [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Anim Studio): the cursor stays free; drag
   the scene with the left button to turn the camera, the wheel zooms, sliders and lists click; no shot fires. F4 (or the
@@ -550,94 +514,6 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   not cover her. Outside the studio (Pause > Animation tuner) the panel overlays play with no dock; in co-op the same
   (no dock, the HUD stays).
 
-### Tuner on a phone (marlow-bays item 26; the tuner and Anim Studio only, the game stays desktop only)
-- [ ] On a phone, open the studio (`?autostart=studio`, or the main menu's studio row). Landscape: the panel is a
-  drawer on the right, she stands in the left part; no F3 readout. Portrait: a bottom sheet, she stands above it.
-- [ ] Tap "Hide panel" (the handle): only the header stays and she gets the whole screen; "Show panel" brings it back.
-- [ ] Landscape: the drawer is about 38% of the width; portrait: the sheet about 45% of the height. Text small but
-  readable (13 px).
-- [ ] Press a button on a paired controller: the panel gets smaller again (26 px rows, 11 px text, one-line sliders, a
-  narrower drawer / lower sheet) with no reload; touch the screen: back to the touch size.
-- [ ] Tabs, buttons, chips, the body map's joints, the playback bar and the sliders are easy to hit with a thumb; the
-  panel scrolls with a finger; a slider drags without scrolling the panel.
-- [ ] One finger dragged on the scene turns the view round her; a pinch zooms; two fingers dragged move the view's
-  centre; a tap on her head shows only the head's sliders. A drag on the panel never moves the camera.
-- [ ] Settings > "Debug readout (F3)" shows and hides the readout; reopening the studio keeps the choice.
-- [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
-- [ ] On the desktop the panel looks as before (docked right, no handle).
-
-### Tuner v3 and game touch (marlow-bays item 29)
-- [ ] The tuner looks the same with the pad, the mouse and touch (only the hints change); on a phone (844 x 390 and
-  390 x 844) scroll the Body tab to the end: the tabs and the playback bar stay at the top.
-- [ ] Anim Studio, jog, Keyed ticked: Body > Lean and a Joints slider move her; Step length is greyed with
-  "procedural only: the keyed clip is playing". Untick Keyed: Arm swing greys ("keyed clip only").
-- [ ] No green skeleton over her at start; More > View aids turns it on.
-- [ ] Weapon tab with a rifle: "Support hand ..." moves only the left hand; "Gun ... in the gun hand" moves the gun and
-  the left hand stays on it; values read in cm and degrees.
-- [ ] View tab: Side, then Side again: her right, then her left. "Around her" at 90 / 180: her right / her front; the
-  right stick moves the slider.
-- [ ] Keys tab: scroll down, focus a slider, step the key twice: the panel stays where it was.
-- [ ] Touch screen, main menu: tap Settings, tap Back; in a match drag on the view to look round (she does not move),
-  the pause button appears top centre, tap it, tap Resume; press a key: the button hides.
-
-### Guard tuning (marlow-bays item 24)
-- [ ] Anim Studio, Body tab: Who = Guard. A guard stands where Wren stood (she is hidden), idle; the what-row shows
-  Who, then the guard state; the rows read "Right elbow bend" and the like.
-- [ ] Loop list: Guard: patrol walk, run, aim, crouched aim, wall cover: each plays on the spot; the guard state list
-  follows (walk, run, aim, crouched, wall cover). Pause and Speed work; the highlight dot sits on the guard.
-- [ ] Patrol walk, a Guard joints elbow slider: the guard's elbow turns. Who = Wren, walk: her elbow is as before.
-- [ ] Stepping tab, Who = Guard: Foot lift on the walk lifts the guard's feet; Weight tab, Who = Guard, patrol walk:
-  Hip drop per step dips the guard's hips at each step (the lean and spring sliders need real travel: a match).
-- [ ] A Hands & feet tab with Who = Guard shows "Wren's sliders: guards have ..." over her rows.
-- [ ] Export with guard rows, Import it back: the guard values return. A Warehouse match: guards patrol with the tune.
-
-### Key tools and the exact preview (marlow-bays item 30)
-- [ ] Anim Studio, Keys tab, jog key 2: open "Key tools", Wave, Channel "Chest turn", Amount 8, "Fill keys": the chest
-  turns side to side over the run (the other half mirrored); Undo once takes all of it back.
-- [ ] Select a Keys slider (Right forearm twist), set it on key 2, Apply to keys with keys 3 and 4 ticked: only those
-  change. Smooth between key 1 and key 4: keys 2 and 3 ease between the two poses.
-- [ ] Tick Compare: a light grey ghost of the previous key shows over her (paused, she flicks to that key and back
-  once) and a line "Key 2 vs key 1: ..." names the largest differences; untick: both go.
-- [ ] Pad only: reach Compare, the fold, the tool list, Amount (left / right), the ticks and the buttons; keyboard and
-  touch the same.
-- [ ] Edit a jog key, export and rebake (BAKE.md): the in-betweens look as they did in the preview (no shift).
-
-### Holds and carries (anim-natural N4)
-- [ ] Warehouse: grab a guard, walk: her hips and shoulders turn against each other with each step (not as one block).
-  Carry a body (grab menu Carry): she leans away from the shoulder the body is on and each step dips a little; she
-  walks in to the body standing, crouches, and her feet step (no slide) before she stands with it. F3 tuner, "Holds
-  and carries": each slider moves only its walk; reset puts it back.
-
-### Campus detail art (Sector Ops, campusOps)
-- [ ] Sector Ops, campus, `?gfx=min` first: the plain boxes show (no props) and every route below still plays. Then Epic.
-- [ ] S1 (gatehouse, car park, grounds): walk the gate route, the verge and the car park. No prop stops you, blocks a
-  hiding spot, a ledge, a vent or a door. The gatehouse desk, monitors and key cabinet stand on the inner walls. Cars,
-  planters and trees look finished, nothing floats.
-- [ ] S2 (HQ offices round the atrium): the atrium shows its hero set (the model on the reception desk, green wall,
-  seating) and the offices their desks, boards and ceiling tiles. Both stair and lift routes stay open; no desk in a
-  doorway or on a patrol line.
-- [ ] S3 (lab block): lab hall, clean room and stores show their benches, hoods and shelving. Cover stays where it was;
-  walk the gown room and the airlock doors free.
-- [ ] S4 (data hall, plant, dock): racks, pods, UPS and battery racks, ducts and the dock fit their boxes. Climb every
-  ledge and vent you used before; no rack edge blocks the lip. Raised-floor and pallets do not sink or float.
-- [ ] S5 (Old House, strongroom): oak panel, bookcases, the fireplace and the strongroom vault set read as 1960s. The
-  vault door, deposit wall and time-lock stay usable; the objective prompts still show.
-- [ ] In each section: every lamp you see is a lamp the light meter reacts to. Stand in a shadow beside a prop: the
-  meter stays dark; stand in light: it lights. Props never change what a guard or camera sees.
-- [ ] No prop floats, sinks into a wall or clips another prop; no flicker or z-fighting up close.
-- [ ] Frame rate holds steady in the busiest views (S2 atrium, S1 car park, S4 data hall) with 20 and with 24 guards
-  (laptop GPU; the draw and triangle numbers are in `docs/systems/world-and-characters.md`, "Campus art kit").
-
-### Campus art (artnext)
-- [ ] Load: Sector Ops campus loads with no console error on `?gfx=min`, then Epic; the props show, and the load is no
-  slower than the #226 build.
-- [ ] Views s1-a to s5-g (`scripts/campus-art-shots.mjs`, laptop GPU): each shot reads as finished dressing; nothing
-  floats, sinks or blocks a door, route, hiding spot or light.
-- [ ] No greybox showing: no bare grey box where a skin or hero belongs (S2 green wall, S5 kitchen run).
-- [ ] Draws: each section within 40 draws, 150 k triangles and 2500 placements (`world-and-characters.md`, "Campus art
-  kit"); S1 35, S2 33 of 40, and the GPU draw count matches the `artCounts` in the dump.
-- [ ] Gate: `tests/campusArtGameplay.test.ts` passes on the build (routes, cover, nav, lips, ledges, split gaps).
-
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.
@@ -648,6 +524,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
+- [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
+  kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
+  her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and
+  joiner). (M2) R3 / middle mouse pings; a ping from the view marks what the tip sees on both tabs, also in the
+  view's first moment. R3 while aiming a scoped weapon zooms and sends no ping; R3 otherwise pings and does not zoom;
+  middle mouse pings while scoped too. Controls screen: Zoom and Ping both on R3 show no conflict (the pad note names
+  the context); put another verb on R3 and it shows as a conflict.
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
@@ -670,8 +553,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ## Release checklist (before a job merges)
 
 ### Checks
-- [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
-  suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
+- [ ] A job that adds or changes a map: the map's graph passes `node scripts/level-validate.mjs <graph.json>` with 0 errors
+  and every WARN is justified in the design doc (before greybox).
+- [ ] CI `check` passes and the PR's suites pass on the laptop queue on the PR head (the PR tier, `docs/RULES.md`;
+  known-flaky suites excepted); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
 - [ ] A suite that stops with no error at `E2E_JOBS=1` may have been killed at the suite limit (the streamed output
   drops the KILLED line): check its time before reading a hang into it (havok-stall).

@@ -1,4 +1,5 @@
 # Graphics and quality
+Owner: Sector Ops Build (lighting, visual gate). Status: current.
 Purpose: presets, auto graphics, the frame governor, the benchmark, the renderer, materials, TAAU and weather.
 Design authority: docs/DECISIONS.md (G12, G14, G68, G99-G102), then docs/design-bible.md (Section 8).
 
@@ -85,7 +86,7 @@ Budgets: performance.md.
   `World.applyQuality`: the sun / moon `CascadedShadowGenerator`. Blob shadows only with shadows off.
   `vfx/postStack.ts` `PostStack` (rebuilt on a change): TAA, SSAO2, SSR, screen motion blur, the volumetric pass
   (depth renderer; per light a ray / sphere stretch marched for cone in-scatter, closed-form height fog; 12 nearest
-  lights), then `DefaultRenderingPipeline` (HDR, MSAA samples, FXAA, bloom, DOF focused by `focus` / `focusOn`:
+  lights; which lights beam and which haze under their shade: `vfx/volLights.ts`, per map `theme.lampBeams`), then `DefaultRenderingPipeline` (HDR, MSAA samples, FXAA, bloom, DOF focused by `focus` / `focusOn`:
   aiming = the aim ray's hit; not aiming = fully sharp, f/1e7, so its depth pass may pause - `vfx/dofAperture.ts`
   eases the aperture and opens it only while that depth renders (3.6: the old idle f/32 read the paused depth as
   "at the lens" and blurred the whole frame on High / Ultra / Epic with ray tracing off), chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
@@ -101,11 +102,11 @@ Budgets: performance.md.
   height. Cost per pixel over step 14: +4 taps electro, +2 night, thermal unchanged; no texture, no target. Perception,
   the light meter and the wire never read any of it (`tests/visionIsolation.test.ts`). Decided, not built yet: the
   goggle modes are night, thermal and electro (G99), switched by an instant cut in CT's order (thermal, electro, night,
-  off; no flip, G100); grain as in CT (G101); thermal follows CT's colour ramp and shows people behind closed doors as a
-  dim silhouette (G102). The passes ahead of tone mapping (TAA, SSAO2,
-  SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float when the
-  GPU can render it (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew
-  contour bands and blocky speckle.
+  off; G100; the wheel picks the mode and the flip plays only on on / off, G181); grain as in CT (G101); thermal follows
+  CT's colour ramp and shows people behind closed doors as a dim silhouette (G102). The passes ahead of tone mapping
+  (TAA, SSAO2, SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half
+  float when the GPU can render it (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark
+  band drew contour bands and blocky speckle.
 - Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
   GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
   (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`
@@ -121,7 +122,7 @@ Budgets: performance.md.
   assigned after the capture to avoid a feedback loop). The menu stage has its own atlas for the operator.
 - Detail (3.0): `world/detailPass.ts` (pure) `detailPieces(boxes, mapId, tier)` - skirting, conduit + junction
   boxes + switches, wall boxes / vents / signs (ultra), floor stains / puddles / debris (epic); every piece
-  `collide: false`, `noLedge`, `detail` (the minimap skips it); `LevelBuilder.build(.., { detail })` from
+  `collide: false`, `noLedge`, `detail`; `LevelBuilder.build(.., { detail })` from
   `WorldOptions.detail` (the Detail tier when the map loads; none with `?gfx=min`); a test builds every map and checks
   cover faces, ledges and the solid set are unchanged. `QualityLevel.detailScale` scales `PartLibrary.setLodScale`
   and `setAnimLodScale` (characterRig). `Vfx`: spent brass (`Brass`: one bounce, then lies at the shooter's floor;

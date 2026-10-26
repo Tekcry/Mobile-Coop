@@ -17,7 +17,7 @@ import { NavRepeater } from '../input/navRepeat';
  *
  * Modes: `off` (panel closed), `tuner` (the pad drives the panel), `game` (the pad plays). After opening, closing or
  * switching, every press is swallowed until all buttons are up (`quiet`), so the press that opened the panel never selects
- * and the B that backs out never crouches. The map is in `docs/anim-tuner/STATE.md` ("Pad map").
+ * and the B that backs out never crouches. The map is in `docs/archive/anim-tuner/STATE.md` ("Pad map").
  */
 export type TunePadMode = 'off' | 'tuner' | 'game';
 
@@ -65,7 +65,7 @@ export const SCROLL_DZ = 0.35;
 export const SCROLL_SLOW_S = 0.32;
 export const SCROLL_FULL_S = 0.07;
 export const SCROLL_FAST_S = 1.0;
-/** The button that moves the pad between the tuner and the game (View / Back / Select; unbound in play by default). */
+/** The button that moves the pad between the tuner and the game (View / Back / Select; also the game's show-objective tap, G343: the tuner consumes it while it is open). */
 export const TUNE_PAD_TOGGLE = PAD.SELECT;
 
 /** The left stick's scroll repeat interval (s) for a deflection `t` (0 at the threshold .. 1 full) held `heldS` seconds. */

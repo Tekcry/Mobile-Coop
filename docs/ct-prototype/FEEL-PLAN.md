@@ -11,8 +11,8 @@ Goal: CT movement, camera and aim, back-to-wall and doors, palm strike and grab,
 Michael signs off each area as "feels like Chaos Theory". Co-op slices C1-C7 come after (`PLAN.md`).
 
 Sources, in authority order: Michael > `docs/DECISIONS.md` (G25-G41, G96-G103, G107, G109, G110, and G124-G160 from the
-research, merged 2026-10-18) > the bible > `docs/locomotion/PROTOTYPE-PLAN.md` (P1-P4) and
-`docs/locomotion/research/ct-measure-*.md` > code. Research facts in `docs/ct-research/moves-mechanics-digest.md`
+research, merged 2026-10-18) > the bible > `docs/archive/locomotion/PROTOTYPE-PLAN.md` (P1-P4) and
+`docs/archive/locomotion/research/ct-measure-*.md` > code. Research facts in `docs/ct-research/moves-mechanics-digest.md`
 sections 2-3; its "findings for Michael to confirm" are not decisions.
 
 ## Step 0 - code review (done)
@@ -44,7 +44,7 @@ The held pistol jammer (G152) is kit work after core feel, unless it touches the
 - The menu job owns menu screens and the menu scene.
 
 ## Phase 2 - the co-op training bunker (G179, G180)
-The Fallow bunker (`src/world/maps/bunker*.ts`, the `course` mode, `docs/training/`) rebuilt as CT's co-op training
+The Fallow bunker (`src/world/maps/bunker*.ts`, the `course` mode, `docs/archive/training/`) rebuilt as CT's co-op training
 level on the pure-CT moves (G78, G79: every jump and reach re-checked; G80 resets kept; G117 its own map rules; G130
 heightened moves; G151 team moves anywhere with room). CT's drill order (moves-mechanics digest, "Training order (M0)";
 levels digest 2.1): read panels, leg-up over a wall, jam a camera, partner throw over a laser, leg-up plus ledge relay,

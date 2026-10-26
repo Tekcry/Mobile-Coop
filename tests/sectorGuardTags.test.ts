@@ -184,6 +184,7 @@ interface FakeGuard {
   squad: number;
   section: number;
   coverIdx: number;
+  roleBound: boolean;
   roleFlags: number;
   job: string;
   zone: string;
@@ -227,6 +228,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     squad: -1,
     section: 0,
     coverIdx: -1,
+    roleBound: false,
     roleFlags: 0,
     job: '',
     zone: '',
@@ -490,6 +492,35 @@ describe('the handler tag: a dog heels on its handler', () => {
     em.despawn(E(back));
     expect(gs[1]!.handler).toBeNull();
     expect(em.guardAtSlot(0)).toBeNull();
+  });
+
+  it('(POL1) a mission guard list that drops slots (sectorMode.fill: the full list, gaps): no handler, no partner, no crash', () => {
+    // slot 0 (the handler) and slot 3 (slot 2's pair) are not spawned, as a mission's `spawns(i, k)` or
+    // `?sectorGuards=N` leaves them out; the placed guards still read the full list
+    const slots: Slot[] = [
+      { kind: 'grunt', x: 0, z: 0, yaw: 0, squad: 0, role: 'handler' },
+      { kind: 'dog', x: 1, z: 0, yaw: 0, handler: 0 },
+      { kind: 'grunt', x: 6, z: 0, yaw: 0, squad: 0, pair: 3 },
+      { kind: 'grunt', x: 9, z: 0, yaw: 0, squad: 0 },
+    ];
+    const gs = [guard(0, 0), dog(1, 0), guard(6, 0), guard(9, 0)];
+    const { em, priv, down } = manager([gs[1]!, gs[2]!]);
+    place(em, gs, slots, 0, [1, 2]);
+    // the dog has no handler and runs with the slot's squad (its handler's), beside the lone partner
+    expect(gs[1]!.handler).toBeNull();
+    expect(gs[1]!.handlerSlot).toBe(0);
+    expect(gs[1]!.squad).toBe(squadId(0, 0));
+    expect(priv.squads.get(squadId(0, 0))).toEqual([E(gs[1]!), E(gs[2]!)]);
+    // the pair partner is absent: no pair, nothing skipped, he walks his own route
+    expect(gs[2]!.pairSlot).toBe(3);
+    expect(em.pairs).toHaveLength(0);
+    expect(em.pairSkips).toHaveLength(0);
+    expect(em.guardAtSlot(0)).toBeNull();
+    expect(em.guardAtSlot(3)).toBeNull();
+    // a radio check and a member down run as usual
+    expect(() => em.radioCheckNow()).not.toThrow();
+    expect(() => down(gs[2]!)).not.toThrow();
+    expect(gs[1]!.handler).toBeNull();
   });
 
   it('Enemy.findLeader keeps a bound handler, alive or down', async () => {

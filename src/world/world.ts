@@ -28,6 +28,7 @@ import { LightRig } from './lightRig';
 import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
+import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
 import { Ropes } from './ropes';
 import { addTorchSlots } from './torches';
 import { applyMapFlicker } from './lampFlicker';
@@ -45,12 +46,12 @@ import { CharShadows } from './charShadows';
 import { TorchShadows } from './torchShadows';
 import { torchShadowSpec } from './torchShadowSet';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
-import { LightField } from './lightField';
+import { LightField, type FieldDoor } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
-import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
+import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, sunCasterDrawn, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -90,6 +91,14 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (J9 S1) The roller shutters' curtains (`shutterDoor.ts`; null: the map places none). Armed with the doors
+   *  (`armDoors`); the team controller moves them after the kit ticks. */
+  readonly shutters: ShutterDoors | null;
+  /**
+   * (J9 S1, A16) The doors light tests (the gameplay field, the baked lamps on screen, the torch shadows): the door
+   * leaves, then each shutter as an always-shut leaf. The same array as `doors.list` on a map without shutters.
+   */
+  readonly lightDoors: readonly FieldDoor[];
   /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
   campusArt: CampusArtRender | null = null;
   /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
@@ -151,6 +160,7 @@ export class World {
     // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
     probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
       if (scene.isDisposed) return;
+      this.probeCaptured = true;
       scene.environmentTexture = probe.cubeTexture;
       // night maps: the captured room is mostly dark - keep its reflections faint
       scene.environmentIntensity = (th.lightLevel ?? 0.75) < 0.5 ? 0.25 : 0.7;
@@ -160,8 +170,14 @@ export class World {
     this.doors = new Doors(scene, level.anchors);
     // (3.6: flashlights draw their whole radius and their shadow maps stop them - at closed doors too)
     if (this.doors.leafMesh) this.lightRig.addCaster(this.doors.leafMesh);
+    // (J9 S1) the shutters' curtains (only where the map places one), shadow casters for the flashlights as the leaves
+    const shutterLeaves = shutterLightLeaves(level);
+    this.shutters = shutterLeaves.length ? new ShutterDoors(scene, level) : null;
+    if (this.shutters?.curtainMesh) this.lightRig.addCaster(this.shutters.curtainMesh);
+    // (A16) a shut curtain stops lamp light as a closed door: one list for the field and the screen
+    this.lightDoors = shutterLeaves.length ? [...this.doors.list, ...shutterLeaves] : this.doors.list;
     // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
-    this.lightField = new LightField(lightBake, level.lights, this.doors.list);
+    this.lightField = new LightField(lightBake, level.lights, this.lightDoors);
   }
 
   static async create(engine: Engine, mapIn: MapDef, opts: WorldOptions): Promise<World> {
@@ -221,7 +237,7 @@ export class World {
       const k = w.hemi.intensity * Math.PI;
       const sk = w.hemi.diffuse;
       const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.lightDoors, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
@@ -230,7 +246,7 @@ export class World {
       // (LR16t) every drawn torch shadowed from one atlas, its shut doors tested exactly (configured in `applyQuality`)
       if (w.lamps.torchDraw) {
         const charSet = w.charSet;
-        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.doors.list, (m) => charSet.has(m));
+        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.lightDoors, (m) => charSet.has(m));
         w.lamps.torchShadows = w.torchShadows;
       }
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
@@ -248,6 +264,15 @@ export class World {
       }
     }
     return w;
+  }
+
+  /**
+   * Collision on for the doors and (J9 S1) the shutters, once the guards' nav grid is built (it walks every doorway):
+   * the shutters' openings are shut on that grid for good (A15; `nav` null on a co-op client or without guards).
+   */
+  armDoors(nav: ShutterNav | null = null): void {
+    this.doors.arm();
+    this.shutters?.arm(nav);
   }
 
   /**
@@ -310,10 +335,34 @@ export class World {
   private readonly cascadeLists = new SunCascadeLists();
   private readonly sunReach: number[] = [];
   private readonly sunNear: boolean[] = [];
-  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact). */
+  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact); (S9) and only
+   *  those whose shadow can land at a view depth that samples the cascade (split + blend band). Under the baked moon
+   *  (the only time these lists run) the list holds moving casters only: the static level is not in this path. */
   private readonly cascadeList = (layer: number): AbstractMesh[] | null => {
     const g = this.shadow;
-    return g instanceof CascadedShadowGenerator ? this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null) : null;
+    if (!(g instanceof CascadedShadowGenerator)) return null;
+    const cam = this.scene.activeCamera;
+    const d = this.sun.direction;
+    this.cascadeLists.setDepth(cam ? cam.getViewMatrix().m : null, csmSplitZ(g), csmSplitLen(g), g.cascadeBlendPercentage, d.x, d.y, d.z);
+    return this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null);
+  };
+
+  /** (guard-render S9b) A moving caster was enabled or disabled (itself or an ancestor): the moon's list refills on the
+   *  next frame (as `LightRig.fillCasters`), so a newly shown mesh casts at once, not at the next 4 Hz pass. One closure. */
+  private readonly markSun = (): void => {
+    this.sunT = 0;
+    this.sunDirty = true;
+  };
+  /** (S9b checker fix) A caster enabled after `frame()` (the freeze's thaw in onBeforeActiveMeshesEvaluation, a LOD
+   *  switch in the player's update) must cast this frame: refill once after active-mesh evaluation, before the shadow
+   *  maps render. One closure, registered once on the scene. */
+  private sunDirty = false;
+  private sunFocus: Vector3 | null = null;
+  private sunRefillOn = false;
+  private readonly sunRefill = (): void => {
+    if (!this.sunDirty || !this.sunFocus) return;
+    this.sunT = 0;
+    this.updateSunCasters(0, this.sunFocus);
   };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
@@ -321,12 +370,17 @@ export class World {
     this.sunT -= dt;
     if (this.sunT > 0) return;
     this.sunT = 0.25;
+    this.sunDirty = false;
     const tmp = this.sunTmp;
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
     const cp = focus; // (the player, not the orbit camera: the boom would flip guards at the edge)
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
+      // (guard-render S9b) only what Babylon would draw from this entry: not a disabled mesh (a figure's other LODs, the
+      // merged body it replaced, a frozen guard) nor a LOD level (its master's entry draws it); `markSun` refills on an
+      // enabled change
+      if (!sunCasterDrawn(m)) continue;
       // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
       // (guard-render S6) guards: in the moon's list only near the player (`GUARD_SUN_REACH`, hysteresis)
@@ -340,7 +394,7 @@ export class World {
         this.sunNear[i] = near;
         if (!near) continue;
       }
-      if (this.bakedMoon && m.isEnabled()) {
+      if (this.bakedMoon) {
         // (smooth-world: no sky bake - the roof grid; under the baked moon a caster indoors shades nothing the bake
         // has not already darkened)
         const b = m.getBoundingInfo().boundingBox;
@@ -397,6 +451,7 @@ export class World {
       this.sunReach.push(flags.guardSun ? sunReach : Infinity);
       this.sunNear.push(true);
       this.sunT = 0;
+      m.onEffectiveEnabledStateChangedObservable.add(this.markSun);
       m.onDisposeObservable.addOnce(() => {
         const i = this.sunMoving.indexOf(m);
         if (i >= 0) {
@@ -414,6 +469,8 @@ export class World {
   }
 
   private probe: ReflectionProbe | null = null;
+  /** (map-ready S2) The environment probe has captured (the load gate's `probe` step). Render side only. */
+  probeCaptured = false;
   /** The level's procedural surface textures. */
   surfaces: SurfaceAtlas | null = null;
 
@@ -534,6 +591,10 @@ export class World {
       sm.renderList = this.sunCasters;
       if (useCascadeLists(flags.guardSun, this.bakedMoon)) sm.getCustomRenderList = this.cascadeList;
     }
+    if (!this.sunRefillOn) {
+      this.sunRefillOn = true;
+      this.scene.onAfterActiveMeshesEvaluationObservable.add(this.sunRefill);
+    }
     this.shadow = csm;
   }
 
@@ -548,6 +609,7 @@ export class World {
       this.charShadows.frame(focus.x, focus.y, focus.z, c.x, c.y, c.z, dt);
     }
     this.lamps?.frame();
+    this.sunFocus = focus;
     this.updateSunCasters(dt, focus);
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
@@ -570,6 +632,7 @@ export class World {
     this.breakables.dispose();
     this.campusArt?.dispose();
     this.doors.dispose();
+    this.shutters?.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();

@@ -1,5 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import type { InputState } from '../input/inputState';
+import { contextZoom } from '../input/conflicts';
 import type { Player } from '../player/player';
 import type { World } from '../world/world';
 import { MASK } from '../physics/groups';
@@ -154,6 +155,11 @@ export class PlayerWeapons {
   /** The current weapon has a magnifying scope (sway when aimed). */
   get scoped(): boolean {
     return this.current.scoped;
+  }
+
+  /** (optic-coop M2) Aiming a scoped weapon: Zoom's context (R3 zooms then and does not ping, `contextPing`). */
+  get scopedAim(): boolean {
+    return this.player.ads && this.current.scoped;
   }
 
   /** Suit gloves: swaps take this much of the time. */
@@ -676,8 +682,8 @@ export class PlayerWeapons {
     // (anim-rework S1) out at low ready or aiming (`Player.drawWanted`); the host's forced holster holds until the
     // player asks for the gun again
     if (!this.player.drawWanted) this.drawLock = false;
-    if (!this.player.ads || !this.current.scoped) this.zoomOn = false;
-    else if (inp.pressed('zoom')) this.zoomOn = !this.zoomOn;
+    if (!this.scopedAim) this.zoomOn = false;
+    else if (contextZoom(this.scopedAim, inp.pressed('zoom'))) this.zoomOn = !this.zoomOn;
     this.applyAimCamera();
     if (this.attachMode) {
       if (this.stowed) this.draw.holster();

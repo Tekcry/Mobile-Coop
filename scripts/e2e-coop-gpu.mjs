@@ -1,4 +1,4 @@
-// coop-fix GPU suite (docs/coop-fix/FIX-REPORT.md): the host's character is drawn on the joiner at High and Epic, through
+// coop-fix GPU suite (docs/archive/coop-fix/FIX-REPORT.md): the host's character is drawn on the joiner at High and Epic, through
 // the REAL menu flow (title -> main menu -> Co-op -> Host a room / Join with code -> lobby -> Ready -> Start mission,
 // Marlow Yard, Course mode), on the GPU (`E2E_GPU=1`, Michael's PC, `npm run e2e:gpu`, port 4189). The bug it guards: at
 // gfx high / epic the baked-lamp plugin on a shared figure material broke a later material clone, the partner figure
@@ -178,7 +178,7 @@ const measure = (P, side) => P.evaluate(async (side) => {
 const repro = (P) => P.evaluate(() => {
   const R = window.__repro ?? {};
   const app = window.__app;
-  return { ...R, fps: Math.round(app.engine.getFps?.() ?? -1), hidden: document.hidden, time: app.current?.time ?? null, obj: app.current?.hud?.objectiveText ?? null };
+  return { ...R, fps: Math.round(app.engine.getFps?.() ?? -1), hidden: document.hidden, time: app.current?.time ?? null, obj: app.current?.hud?.objectiveText ?? null, net: app.current?.hud?.netStatusText ?? null };
 });
 
 // ---- the menu flow ----
@@ -299,8 +299,9 @@ async function runVariant(kind, GFX) {
     await B.bringToFront();
     res.avatarCreated = await waitFor(B, () => window.__app.current.net.avatars.size === 1, null, 30000, 'joiner has the host avatar');
     res.lodShown = res.avatarCreated && (await waitFor(B, () => window.__app.current.net.avatars.values().next().value.figure.current >= 0, null, 120000, 'host figure LOD shown on the joiner'));
-    // the objective must leave "Connecting to host" (a Marlow Yard match has none) within seconds of snapshots
-    res.objectiveCleared = await waitFor(B, () => !/connecting to host/i.test(window.__app.current?.hud?.objectiveText ?? ''), null, 30000, 'objective no longer Connecting to host');
+    // "Connecting to host" must leave the net-status line (hud-guidance B3: never the objective; a Marlow Yard match has
+    // none) within seconds of snapshots
+    res.objectiveCleared = await waitFor(B, () => { const h = window.__app.current?.hud; return !!h && !/connecting to host/i.test(h.netStatusText + ' ' + h.objectiveText); }, null, 30000, 'net-status line no longer Connecting to host');
     res.joinerAtStart = await measure(B, 'client');
     res.joinerCounters = await repro(B);
     res.hostCounters = await repro(A);
@@ -344,7 +345,7 @@ for (const [kind, gfx] of variants) {
   const body = list.find((i) => /body/i.test(i.name)) ?? [...list].sort((x, y) => y.size - x.size)[0];
   check(!!body && body.en && body.isVisible && body.visibility > 0 && body.active && body.size > 0.5, `${tag}: the host is drawn on the joiner (body ${body ? `${body.name} en=${body.en} vis=${body.isVisible} active=${body.active} size=${body.size}` : 'none'})`);
   check(!!m.drawn, `${tag}: every shown host mesh is enabled and visible`);
-  check(!!r.objectiveCleared && !/connecting to host/i.test(r.joinerCounters?.obj ?? ''), `${tag}: "Connecting to host" is not shown in game (${JSON.stringify(r.joinerCounters?.obj ?? null)})`);
+  check(!!r.objectiveCleared && !/connecting to host/i.test(`${r.joinerCounters?.net ?? ''} ${r.joinerCounters?.obj ?? ''}`), `${tag}: "Connecting to host" is not shown in game (net ${JSON.stringify(r.joinerCounters?.net ?? null)}, objective ${JSON.stringify(r.joinerCounters?.obj ?? null)})`);
 }
 clearTimeout(kill);
 stop();

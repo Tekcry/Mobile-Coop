@@ -1,0 +1,28 @@
+{
+ "levels": {
+  "A2 neck centre": 1,
+  "A2 neck crossing": 1,
+  "A2 neck centre cut": 0.14,
+  "A2 neck crossing cut": 0.14,
+  "A2 neck crossing west cut": 0.17,
+  "A2 neck crossing east cut": 0.17,
+  "A2 neck cess west cut": 0.14,
+  "A2 neck cess east cut": 0.18,
+  "A2 rake gap": 0.7,
+  "A2 rake gap cut": 0.17,
+  "A2 cess": 0.69,
+  "A2 vantage": 0.5,
+  "A2 cabinet 1": 0.61,
+  "A2 cabin cut": 0.14,
+  "A2 east rake gap": 0.7,
+  "A2 neck floor": 0.93,
+  "A2 neck standby": 0.14,
+  "A2 cabinet 2": 0.51,
+  "A2 coat corner lamp": 0.58,
+  "A2 coat corner cut": 0.14,
+  "A2 stores bay": 0.37,
+  "A2 walkway": 0.53,
+  "A2 far landing": 0.44,
+  "A2 pit floor": 0.18
+ }
+}

@@ -32,8 +32,22 @@ import {
   type StepCond,
 } from './courseDef';
 import type { SecurityConsole } from './securityRoom';
+import type { StationDef } from './stationDef';
 
 export type AirlockPhase = 'open' | 'waiting' | 'ready' | 'cycling' | 'sealed';
+
+/**
+ * (J14 R1) Why the players went back: `seen` (A1-A7 guard combat or a camera's full detection), `caught` (A8, combat held
+ * CAUGHT_HOLD s), `timer` (a station's `drillS` window ran out), `out` (a downed bay restart with one player still up:
+ * the partner is out), `down` (both down), `other` (J14 A26: a set's own way out of a soft-lock, e.g. A1's early drop
+ * into the yard; the only cause that also retries a `retry: 'none'` station). Route-runs (J13 R4c) read seen / caught as
+ * seen, timer as timer, out / down / other as other.
+ */
+export type RetryCause = 'seen' | 'caught' | 'timer' | 'out' | 'down' | 'other';
+/** (J14 R1) The causes of a station retry (the downed ones restart the bay instead). */
+export type StationCause = Exclude<RetryCause, 'out' | 'down'>;
+/** (J14 R1) The last counted retry: `st` the station live when it fired (0 on a bay without stations). Host and client. */
+export type LastRetry = { st: number; cause: RetryCause } | null;
 
 export type CourseEvent =
   | { t: 'airlockCycling'; airlock: string }
@@ -52,7 +66,10 @@ export type CourseEvent =
   /** (N1) An objective step was latched done. */
   | { t: 'stepDone'; step: string }
   /** (gap list 6b) A role claim: player `a` has the A job in the current bay. */
-  | { t: 'roleClaimed'; bay: string; a: PlayerIdx };
+  | { t: 'roleClaimed'; bay: string; a: PlayerIdx }
+  /** (J14 R1) Station `st` retried: its gates and flags are reset; the mode resets its `guards`, devices and lamps and
+   *  puts both players on its marks. */
+  | { t: 'stationRetry'; st: number; cause: RetryCause; guards: readonly string[] };
 
 export interface BayStats {
   time: number;
@@ -105,7 +122,37 @@ export interface PackedCourse {
   /** Derived (for clients that mirror without running the state). */
   locks: string[];
   anchors: string[];
+  /** (J14 R1) The live station's number (0: none, or a bay without stations). */
+  st: number;
+  /** (J14 R1) Counted retries (`CourseState.restarts`). */
+  rs: number;
+  /** (J14 R1) The last retry's station (`lastRetry.st`, 0 none). */
+  rt: number;
+  /** (J14 R1) The last retry's cause ('' none yet). */
+  rc: RetryCause | '';
 }
+
+/** (J14 R1) A station at run time: its gates (precomputed, the drill window reads them per step) and done keys. */
+interface StRt {
+  def: StationDef;
+  gates: GateRt[];
+  /** `${doneFlag}@1` / `@2` (precomputed: the per-step checks must not allocate). */
+  d1: string;
+  d2: string;
+}
+
+const NO_ST_RT: StRt[] = [];
+
+/**
+ * (J14 R1 fix 7, lead decision b) Is station kit move `kit` playable on the host? How it is detected: it is not, in any
+ * build yet. Player's move hookups (KS1-KS5, with their `kitMoves` switch on feature/coop-kit) are not on master, so this
+ * answers false and every station's stand-in gate opens as its station goes live. Each KS slice replaces this with the
+ * host's `kitMoves` check for its move (true: the stand-in stays locked and the real move is the way through).
+ */
+export function kitMoveOn(_kit: NonNullable<StationDef['kit']>): boolean {
+  return false;
+}
+const NO_GATE_DOORS: readonly string[] = [];
 
 interface GateRt {
   def: GateDef;
@@ -188,6 +235,16 @@ export class CourseState {
   readonly pstats: [BayStats, BayStats] = [newStats(), newStats()];
   /** Events since the last `clearEvents()`. */
   readonly events: CourseEvent[] = [];
+  /**
+   * (J14 R1) Counted retries since the match start: every station retry (`retryStation`: seen, caught, timer) and every
+   * downed bay restart (`restart('out' | 'down')`). The pause menu's restart and the built yard's spotted restart
+   * (`restart()` with no cause) and A3's hall send-back do not count. Route-runs read it as `window.__course.restarts`.
+   */
+  restarts = 0;
+  /** (J14 R1) The last counted retry, null before the first. */
+  lastRetry: LastRetry = null;
+  /** (J14 R1) Any bay has stations (the re-planned yard). */
+  readonly hasStations: boolean;
 
   private readonly feet = [0, 0, 0, 0, 0, 0];
   private readonly padTmp: [number, number, number, number] = [0, 0, 0, 0];
@@ -219,6 +276,14 @@ export class CourseState {
   private readonly flagDrills: { d: DrillDef; flag: string }[][] = [];
   /** Whether `setPlayer` has given each player's feet yet (a role zone never claims for a player not there). */
   private readonly feetSet: [boolean, boolean] = [false, false];
+  /** (J14 R1) Per bay: its stations in order. */
+  private readonly stRt: StRt[][] = [];
+  /** (J14 R1) The live station's index in the current bay's list (the list's length: none left). */
+  private stIdx = 0;
+  /** (J14 R1, J13 R4c) Stations whose retry is switched off until any bay restart. */
+  private readonly retryOffSet = new Set<number>();
+  /** (J14 R1) Flag -> the station live when it was set in the current bay (a station retry clears its own). */
+  private readonly flagSt = new Map<string, number>();
 
   /**
    * `consoles` (the layout's security consoles): a console with `seconds` makes its pickup gate a timed loop (N3).
@@ -272,12 +337,31 @@ export class CourseState {
       }
       this.steps.push(list);
     });
+    let any = false;
+    def.bays.forEach((b, i) => {
+      const list: StRt[] = [];
+      for (const s of b.stations ?? []) {
+        const gates: GateRt[] = [];
+        for (const id of s.gates) for (const g of this.gates) if (g.bay === i && g.def.id === id) gates.push(g);
+        list.push({ def: s, gates, d1: `${s.doneFlag}@1`, d2: `${s.doneFlag}@2` });
+        any = true;
+      }
+      this.stRt.push(list);
+    });
+    this.hasStations = any;
     this.emitBayStarted();
+    // (fix 7) the first station's stand-in (none on the re-plan today: station 1 teaches the boost)
+    if (any) this.openStandIn();
   }
 
   private gateRt(id: string): GateRt | null {
     for (const g of this.gates) if (g.def.id === id) return g;
     return null;
+  }
+
+  /** (J14 R1 fix 3) The course doors gate `id` unlocks (none for a device id or an unknown gate). */
+  gateDoorIds(id: string): readonly string[] {
+    return this.gateRt(id)?.doors ?? NO_GATE_DOORS;
   }
 
   private condAny(list: readonly StepCond[]): CondRt {
@@ -364,15 +448,23 @@ export class CourseState {
   clearFlag(flag: string): void {
     if (!this.flags.delete(flag)) return;
     this.flagBay.delete(flag);
+    this.flagSt.delete(flag);
     this.tickGen++;
     this.events.push({ t: 'flagCleared', flag });
   }
 
-  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a). */
-  private addFlag(flag: string, bay: number): void {
+  /** Set a flag (owned by bay `bay`: its restart clears it); `flag:<flag>` drills of the current bay tick (6a).
+   *  (marlow-play C5) `st`: the station that owns it (a step's mark: its condition's), else the live station. */
+  private addFlag(flag: string, bay: number, st?: number): void {
     if (this.flags.has(flag)) return;
     this.flags.add(flag);
     this.flagBay.set(flag, bay);
+    // (J14 R1) owned by the live station (its retry clears it); a done flag moves the live station on
+    if (bay === this.bay && this.hasStations) {
+      const n = st ?? this.station();
+      if (n > 0) this.flagSt.set(flag, n);
+      this.advanceStations();
+    }
     this.tickGen++;
     this.events.push({ t: 'flagSet', flag });
     if (this.over) return;
@@ -552,35 +644,222 @@ export class CourseState {
     const entry = this.currentBay.entry;
     this.checkpoint = entry;
     this.events.length = 0;
+    this.newBayStations();
     this.emitBayStarted();
+  }
+
+  /**
+   * (J14 R1) Start at station `n` (`?course=station:<n>`; dev, tests, route-runs): its bay as `startAt` does, the bay's
+   * earlier stations done (their done flags set). False: no station `n` in the course.
+   */
+  startStation(n: number): boolean {
+    for (let b = 0; b < this.stRt.length; b++) {
+      const list = this.stRt[b]!;
+      for (let k = 0; k < list.length; k++) {
+        if (list[k]!.def.n !== n) continue;
+        this.startAt(b + 1);
+        for (let i = 0; i < k; i++) this.addFlag(list[i]!.def.doneFlag, b);
+        this.stIdx = k;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- stations (J14 R1) ----
+
+  /** The live station's number: the current bay's first station whose done flag is not set (0: none). No allocation. */
+  station(): number {
+    return this.liveRt()?.def.n ?? 0;
+  }
+
+  /** The live station, or null. */
+  liveStation(): StationDef | null {
+    return this.liveRt()?.def ?? null;
+  }
+
+  /** Station `n` of any bay, or null. */
+  stationDef(n: number): StationDef | null {
+    for (let b = 0; b < this.stRt.length; b++) {
+      const list = this.stRt[b]!;
+      for (let k = 0; k < list.length; k++) if (list[k]!.def.n === n) return list[k]!.def;
+    }
+    return null;
+  }
+
+  /** Does the current bay have stations (its spotted rule is the station retry, never `spotFail`)? */
+  bayHasStations(): boolean {
+    return (this.stRt[this.bay]?.length ?? 0) > 0;
+  }
+
+  /**
+   * (J13 R4c hook, host) Switch station `n`'s retry off: it then acts as `retry: 'none'` (an alert, a caught hold or a drill
+   * window ending plays out) until any bay restart. False: `n` is not a station of the current bay.
+   */
+  retryOff(n: number): boolean {
+    const list = this.stRt[this.bay] ?? NO_ST_RT;
+    for (let k = 0; k < list.length; k++) {
+      if (list[k]!.def.n !== n) continue;
+      this.retryOffSet.add(n);
+      return true;
+    }
+    return false;
+  }
+
+  /** Is station `n`'s retry switched off (`retryOff`)? */
+  isRetryOff(n: number): boolean {
+    return this.retryOffSet.has(n);
+  }
+
+  /**
+   * (J14 R1; BRIEF A1, A2; PLAN A17, A23) Retry the live station: only its gates (and their flags) and the flags set while
+   * it was live (objective steps among them); earlier stations stay done, drills stay ticked; (marlow-play-2 C11) the bay's
+   * role claim stays (a bay restart clears it), so the marks keep each player's job. Counts in
+   * `restarts` / `lastRetry` and emits `stationRetry` (the mode resets its guards, devices and lamps and puts the players
+   * on its marks). `n` (a set's drill window or beam, `CourseMode.stationRetry`): only while station `n` is live. False
+   * (nothing changes): no live station (or not `n`), its retry is 'none' (unless the cause is `other`: a set's way out
+   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, the course is over, or
+   * (marlow-play B5) the bay's exit airlock is cycling or sealed.
+   */
+  retryStation(cause: StationCause, n?: number): boolean {
+    const s = this.liveRt();
+    if (!s || this.over || (s.def.retry === 'none' && cause !== 'other') || this.retryOffSet.has(s.def.n)) return false;
+    if (n !== undefined && n !== s.def.n) return false;
+    // (marlow-play B5) never while the bay's exit holding room cycles or has sealed: its near door locks for good and the
+    // retry's marks would strand both players behind it on the old set
+    const ea = this.exitAirlockOf(this.bay);
+    if (ea && (ea.phase === 'cycling' || ea.phase === 'sealed')) return false;
+    const sn = s.def.n;
+    // (fix 7) a stand-in standing open stays open (and its flag set) through the retry
+    const keep = this.standInGate(s);
+    const kd = keep?.def;
+    const keepFlag = kd && (kd.kind === 'flag' || kd.kind === 'anchorLock' || kd.kind === 'pickup' || kd.kind === 'pair') ? kd.flag : undefined;
+    for (let i = 0; i < s.gates.length; i++) {
+      const g = s.gates[i]!;
+      if (g === keep) continue;
+      const d = g.def;
+      if (d.kind === 'flag' || d.kind === 'anchorLock' || d.kind === 'pickup' || (d.kind === 'pair' && d.flag !== undefined)) {
+        const f = d.flag!;
+        this.dropFlag(f);
+        this.dropFlag(`${f}@1`);
+        this.dropFlag(`${f}@2`);
+      }
+      this.resetGate(g);
+    }
+    for (const [flag, k] of this.flagSt) if (k === sn && flag !== keepFlag) this.dropFlag(flag);
+    // a stand-in the station's own gates do not hold (or one shut by hand) opens again
+    this.openStandIn();
+    this.roleHoldT = ROLE_HOLD;
+    this.tickGen++;
+    this.restarts++;
+    this.lastRetry = { st: sn, cause };
+    this.events.push({ t: 'stationRetry', st: sn, cause, guards: s.def.guards });
+    return true;
+  }
+
+  /** Both players down (a lone player: the one there)? The cause a downed bay restart records: `down`, else `out`. */
+  downCause(): 'out' | 'down' {
+    return this.downed[0] && (this.downed[1] || !this.feetSet[1]) ? 'down' : 'out';
+  }
+
+  private liveRt(): StRt | null {
+    return (this.stRt[this.bay] ?? NO_ST_RT)[this.stIdx] ?? null;
+  }
+
+  /** A new bay (or a restart of this one): its first station not done is live. */
+  private newBayStations(): void {
+    this.stIdx = 0;
+    this.advanceStations();
+    this.openStandIn();
+  }
+
+  /** Move the live station on past every station whose done flag is set (global or either player's); (fix 7) the new
+   *  live station's stand-in opens. No allocation. */
+  private advanceStations(): void {
+    const list = this.stRt[this.bay] ?? NO_ST_RT;
+    const was = this.stIdx;
+    while (this.stIdx < list.length) {
+      const s = list[this.stIdx]!;
+      if (!this.flags.has(s.def.doneFlag) && !this.flags.has(s.d1) && !this.flags.has(s.d2)) break;
+      this.stIdx++;
+    }
+    if (this.stIdx !== was) this.openStandIn();
+  }
+
+  /** (J14 R1 fix 7) Station `s`'s stand-in gate when it is to stand open (its kit move is not playable), else null. */
+  private standInGate(s: StRt): GateRt | null {
+    const id = s.def.standIn;
+    if (id === undefined || (s.def.kit !== undefined && kitMoveOn(s.def.kit))) return null;
+    return this.gateRt(id);
+  }
+
+  /**
+   * (J14 R1 fix 7, lead decision b; PLAN "The five new-move stations") The live station's stand-in gate opens as the
+   * station goes live while its kit move is not playable (`kitMoveOn`), and stays open through its retries. Host state:
+   * the course wire's `gates` / `flags` take it to the client.
+   */
+  private openStandIn(): void {
+    const s = this.liveRt();
+    const g = s ? this.standInGate(s) : null;
+    if (!g || this.gateOpen(g)) return;
+    const d = g.def;
+    if (d.kind === 'flag' || d.kind === 'anchorLock') {
+      this.addFlag(d.flag, g.bay);
+      return;
+    }
+    if ((d.kind === 'pickup' || d.kind === 'pair') && d.flag !== undefined) this.addFlag(d.flag, g.bay);
+    this.setOpen(g, true);
+  }
+
+  /** A station retry drops a flag: as `clearFlag` (fix 5: `flagCleared`, so the mode's console edge tells the guards a
+   *  looped console is back on); the caller counts `tickGen` once. */
+  private dropFlag(flag: string): void {
+    if (!this.flags.delete(flag)) return;
+    this.flagBay.delete(flag);
+    this.flagSt.delete(flag);
+    this.events.push({ t: 'flagCleared', flag });
+  }
+
+  /** A gate back to shut (a restart or a station retry); a mains gate stays open while its group is off. */
+  private resetGate(g: GateRt): void {
+    const wasOpen = g.open;
+    g.open = false;
+    g.t = 0;
+    g.holders = 0;
+    g.ta = -1;
+    g.tb = -1;
+    g.pa = -1;
+    g.pb = -1;
+    if (g.def.kind === 'mains' && this.groupsOff.has(g.def.group)) g.open = true;
+    if (wasOpen && !g.open) this.events.push({ t: 'gateClosed', gate: g.def.id });
   }
 
   /**
    * Restart the current bay (both players downed for RESTART_DELAY does it on its own): its gates and the flags set in
    * it reset, its exit airlock reopens; drills already ticked stay ticked (D36). Returns the squad slot ids to respawn;
    * the players respawn at `checkpoint`.
+   * (J14 R1) `cause` (a downed restart: one out, or both down) counts it in `restarts` / `lastRetry` with the station it
+   * interrupted; none (the pause menu, the built yard's spotted rule) does not. Every restart undoes the bay's stations
+   * (G312) and turns every `retryOff` back on.
    */
-  restart(): string[] {
+  restart(cause?: 'out' | 'down'): string[] {
     const bi = this.bay;
+    if (cause) {
+      this.restarts++;
+      this.lastRetry = { st: this.station(), cause };
+    }
+    this.retryOffSet.clear();
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
-      if (g.bay !== bi) continue;
-      const wasOpen = g.open;
-      g.open = false;
-      g.t = 0;
-      g.holders = 0;
-      g.ta = -1;
-      g.tb = -1;
-      g.pa = -1;
-      g.pb = -1;
-      if (g.def.kind === 'mains' && this.groupsOff.has(g.def.group)) g.open = true;
-      if (wasOpen && !g.open) this.events.push({ t: 'gateClosed', gate: g.def.id });
+      if (g.bay === bi) this.resetGate(g);
     }
     for (const [flag, b] of this.flagBay) {
       if (b !== bi) continue;
       this.flags.delete(flag);
       this.flagBay.delete(flag);
+      this.flagSt.delete(flag);
     }
+    this.newBayStations();
     const a = this.airById.get(this.currentBay.exit);
     if (a && a.phase !== 'sealed') {
       a.phase = 'open';
@@ -627,7 +906,7 @@ export class CourseState {
     const bothDown = this.solo ? this.downed[0] || this.downed[1] : this.downed[0] && this.downed[1];
     if (bothDown) {
       this.downT += dt;
-      if (this.downT >= RESTART_DELAY - 1e-9) this.restart();
+      if (this.downT >= RESTART_DELAY - 1e-9) this.restart(this.downCause());
     } else this.downT = 0;
   }
 
@@ -665,7 +944,8 @@ export class CourseState {
     return other ? otherShut : egress;
   }
 
-  /** Is the anchor locked (an anchorLock gate whose flag is not set)? */
+  /** Is the anchor locked (an anchorLock gate whose flag is not set; a `lockOn` one whose flag is set)? Host and client
+   *  both read it from the course flags (the client's mirror takes them from the wire). No allocation. */
   anchorLocked(anchorId: string): boolean {
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
@@ -939,6 +1219,10 @@ export class CourseState {
       pstats: [{ ...this.pstats[0] }, { ...this.pstats[1] }],
       locks: this.lockedDoors(),
       anchors: this.lockedAnchors(),
+      st: this.station(),
+      rs: this.restarts,
+      rt: this.lastRetry?.st ?? 0,
+      rc: this.lastRetry?.cause ?? '',
     };
   }
 
@@ -990,6 +1274,15 @@ export class CourseState {
       Object.assign(this.pstats[0], p.pstats[0]);
       Object.assign(this.pstats[1], p.pstats[1]);
     }
+    // (J14 R1) the live station as the host has it, the retry count and the last retry (one shape on both sides)
+    const list = this.stRt[this.bay] ?? NO_ST_RT;
+    let k = 0;
+    while (k < list.length && list[k]!.def.n !== p.st) k++;
+    this.stIdx = k;
+    this.restarts = p.rs;
+    const lr = this.lastRetry;
+    if (!p.rc) this.lastRetry = null;
+    else if (!lr || lr.st !== p.rt || lr.cause !== p.rc) this.lastRetry = { st: p.rt, cause: p.rc };
   }
 
   // ---- internals ----
@@ -1026,8 +1319,27 @@ export class CourseState {
     for (let i = 0; i < list.length; i++) {
       const s = list[i]!;
       if (!s.cond || this.flags.has(s.key) || !this.condHolds(s.cond)) continue;
-      this.addFlag(s.key, this.bay);
+      // (marlow-play C5) the mark belongs to the station that owns the step's flag, not the one live as it ticks (a done
+      // flag moves the live station on first): a retry of the next station kept un-ticking the step
+      this.addFlag(s.key, this.bay, this.hasStations ? this.condOwner(s.cond) : undefined);
       this.events.push({ t: 'stepDone', step: s.o.id });
+    }
+  }
+
+  /** (marlow-play C5) The station owning step condition `c`: the latest owner among its set flags (a gate: the live
+   *  station), 0 none. No allocation. */
+  private condOwner(c: CondRt): number {
+    switch (c.k) {
+      case 0:
+        return Math.max(this.flagSt.get(c.flag) ?? 0, this.flagSt.get(c.key1) ?? 0, this.flagSt.get(c.key2) ?? 0);
+      case 1:
+        return this.station();
+      case 2:
+      case 3: {
+        let n = 0;
+        for (let i = 0; i < c.kids.length; i++) n = Math.max(n, this.condOwner(c.kids[i]!));
+        return n;
+      }
     }
   }
 
@@ -1083,7 +1395,9 @@ export class CourseState {
 
   private claim(p: PlayerIdx, c: RoleClaim): void {
     const a: PlayerIdx = c.role === 'a' ? p : p === 0 ? 1 : 0;
-    this.addFlag(this.roleKeys[this.bay]![a], this.bay);
+    // (marlow-play-2 C11) owned by no station: a station retry keeps the claim (the jobs never swap on a retry), a bay
+    // restart still clears it with the bay's flags
+    this.addFlag(this.roleKeys[this.bay]![a], this.bay, 0);
     this.events.push({ t: 'roleClaimed', bay: this.currentBay.id, a });
   }
 
@@ -1094,7 +1408,11 @@ export class CourseState {
 
   private gateOpen(g: GateRt): boolean {
     const d = g.def;
-    if (d.kind === 'flag' || d.kind === 'anchorLock') return this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
+    if (d.kind === 'flag' || d.kind === 'anchorLock') {
+      const set = this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
+      // (J14 R1) a lockOn anchorLock is open until its flag is set
+      return d.kind === 'anchorLock' && d.lockOn === true ? !set : set;
+    }
     return g.open;
   }
 
@@ -1246,6 +1564,7 @@ export class CourseState {
     this.events.push({ t: 'airlockCycled', airlock: a.def.id, nearDoor: a.def.nearDoor, farDoor: a.def.farDoor });
     if (this.bay < this.def.bays.length - 1) {
       this.bay++;
+      this.newBayStations();
       this.emitBayStarted();
     }
   }

@@ -14,6 +14,14 @@
  * Lines: one two-line exchange per meeting from `PAIR_LINES` (or the pair's own table, for map intel), chosen by
  * (pair id + meeting count); the opener alternates by meeting count. No randomness (G143, A7); no allocation per step.
  * The caller fills `a` / `b` each tick, calls `step(dt)`, then reads the outputs (`sayWho` / `sayLine` for this step only).
+ *
+ * (guard-rules S6, A10, A11) Watch and posted pairs. A def with `watch` also checks outside the window: while both are
+ * up, they count as walking together when within `PAIRS.togetherR`; if one then goes down or absent and the other stays
+ * calm for `PAIRS.notice` s, the pair goes missing at once (the same outputs as the window's `grace` path; inside the
+ * window this check fires first when they were together). The timer counts only while the one left is calm. A posted
+ * pair (`postedDef`: two standing guards, the manager builds it behind `flags.guardPairs`) runs the same clock with its
+ * meet points at the two posts: a fixed `PAIRS.postedPeriod` s period whose window is its first `PAIRS.postedOpen` s,
+ * opening on the first step (no randomness, G143), with `watch` on.
  */
 import { hyp2 } from '../core/mathx';
 import type { PatrolRoute, Pt } from './patrol';
@@ -38,6 +46,14 @@ export const PAIRS = {
   meetTie: 0.05,
   /** (S10 wiring) The manager steps every pair at the incident board's rate (s). */
   tick: 0.2,
+  /** (guard-rules S6, A10) A partner this close (m) counts as walking with him (`PairDef.watch`). */
+  togetherR: 4,
+  /** (guard-rules S6, A10) A partner who walked with him gone this long (s, the one left calm): missing. */
+  notice: 3,
+  /** (guard-rules S6, A11) A posted pair's clock (s): it talks once per period (`postedDef`). */
+  postedPeriod: 40,
+  /** (guard-rules S6, A11) A posted pair's window (s): the first part of each period. */
+  postedOpen: 12,
 } as const;
 
 /** A two-line exchange: [opener, reply]. */
@@ -88,6 +104,11 @@ export interface PairDef {
   bPt: Pt;
   /** The pair's own lines (map intel, e.g. this site's keypad code); default `PAIR_LINES`. */
   lines?: readonly PairExchange[];
+  /** (guard-rules S6, A10) Also check outside the window: a partner who walked with him gone `PAIRS.notice` s -> missing. */
+  watch?: boolean;
+  /** (guard-rules S6, A11) Built from two posts (`postedDef`; informational: the clock is `period` / `t0` / `open` /
+   *  `close`). */
+  posted?: boolean;
 }
 
 /** A window in loop time (s). */
@@ -198,6 +219,15 @@ export function pickMeet(ra: PatrolRoute, rb: PatrolRoute, speed: number, maxD: 
   return found;
 }
 
+/**
+ * (guard-rules S6, A11) A posted pair's def: meet points at the two posts, a fixed `PAIRS.postedPeriod` s clock whose
+ * window (the first `PAIRS.postedOpen` s) opens on the first step after build (no randomness, G143), `watch` on. Load
+ * time only (allocates).
+ */
+export function postedDef(id: number, aPt: Pt, bPt: Pt): PairDef {
+  return { id, period: PAIRS.postedPeriod, t0: 0, open: 0, close: PAIRS.postedOpen, aPt, bPt, watch: true, posted: true };
+}
+
 const newGuard = (pt: Pt): PairGuard => ({ present: true, calm: true, x: pt[0], z: pt[1], routeX: pt[0], routeZ: pt[1] });
 
 /** One talking pair's meeting clock and talk. */
@@ -230,6 +260,9 @@ export class PairMeet {
   private tMeet = 0;
   private missT = 0;
   private opener = 0;
+  /** (guard-rules S6) Watch: both up and within `PAIRS.togetherR` at the last step both were up; gone time (s). */
+  private together = false;
+  private goneT = 0;
   private lastAX: number;
   private lastAZ: number;
   private lastBX: number;
@@ -269,6 +302,8 @@ export class PairMeet {
     this.lookFor = -1;
     this.requested = false;
     this.missT = 0;
+    this.together = false;
+    this.goneT = 0;
     this.wasIn = this.inWindow();
     this.clearTalk();
   }
@@ -288,6 +323,8 @@ export class PairMeet {
       this.lastBX = b.routeX;
       this.lastBZ = b.routeZ;
     }
+    // (guard-rules S6) the walking-together check fires first; the pair is missing until `reset`
+    if (this.def.watch && this.state !== 'missing' && this.watch(dt)) return;
     const inW = this.inWindow();
     const opened = inW && !this.wasIn;
     this.wasIn = inW;
@@ -344,6 +381,45 @@ export class PairMeet {
       return;
     }
     if (this.at(a, this.def.aPt, PAIRS.meetR) && this.at(b, this.def.bPt, PAIRS.meetR)) this.startMeeting();
+  }
+
+  /**
+   * (guard-rules S6, A10) The walking-together check (`def.watch`): true on the step the missing request fires. Both up:
+   * together when within `PAIRS.togetherR`. One gone after walking together, the one left calm for `PAIRS.notice` s:
+   * missing (as `waiting`: `lookFor` the one left, `lookX` / `lookZ` the partner's last route point). The one left busy
+   * (not calm) does not notice: the timer restarts, `together` is kept. No allocation.
+   */
+  private watch(dt: number): boolean {
+    const a = this.a;
+    const b = this.b;
+    if (a.present && b.present) {
+      this.together = hyp2(a.x - b.x, a.z - b.z) <= PAIRS.togetherR;
+      this.goneT = 0;
+      return false;
+    }
+    if (!a.present && !b.present) {
+      this.together = false;
+      this.goneT = 0;
+      return false;
+    }
+    if (!this.together) return false;
+    const left = a.present ? a : b;
+    if (!left.calm) {
+      this.goneT = 0;
+      return false;
+    }
+    this.goneT += dt;
+    if (this.goneT < PAIRS.notice) return false;
+    this.clearTalk();
+    this.state = 'missing';
+    this.requested = true;
+    this.lookFor = a.present ? 0 : 1;
+    this.lookX = a.present ? this.lastBX : this.lastAX;
+    this.lookZ = a.present ? this.lastBZ : this.lastAZ;
+    this.together = false;
+    this.goneT = 0;
+    this.missT = 0;
+    return true;
   }
 
   private startMeeting(): void {

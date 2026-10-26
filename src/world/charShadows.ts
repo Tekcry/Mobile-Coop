@@ -10,6 +10,7 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { frozenCasterSphere, thawed } from './frozenCaster';
 import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, casterInReach, coneCovers, doorSphere, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
@@ -70,6 +71,8 @@ interface CsSlot {
   map: RenderTargetTexture;
   /** The casters this frame (the map's custom render list, refilled in place). */
   list: AbstractMesh[];
+  /** (guard-render S10b) Of them, the character casters the guard freeze had disabled at the gather. */
+  frozen: AbstractMesh[];
   /** The lamp placed now (-1 idle) and the lamp whose map is in the atlas tile (-1: none yet). */
   lamp: number;
   ready: number;
@@ -190,6 +193,10 @@ export class CharShadows implements CharShadowLink {
   private dynProps: CharShadowProps | null = null;
   /** Shadow maps copied into the atlas so far (tests, the debug line). */
   copies = 0;
+  /** (S10b) A frozen caster's stand-in sphere. */
+  private readonly fzSphere = new Float32Array(4);
+  /** (S10b) After each camera evaluation (the freeze's verdict): a slot whose listed frozen caster was thawed renders. */
+  private thawObs: Observer<Scene> | null = null;
   /** The map's metric with a reversed depth buffer runs the other way. */
   private readonly depthSign: number;
 
@@ -212,6 +219,28 @@ export class CharShadows implements CharShadowLink {
 
   get on(): boolean {
     return this.slots.length > 0 && !!this.atlas;
+  }
+
+  /** (guard-render S10b) The slots built (the Sector guard freeze reads each). */
+  get slotCount(): number {
+    return this.slots.length;
+  }
+
+  /**
+   * (S10b) Slot `s`'s lamp this frame (the picker's, set in `frame`): its x, y, z and how far from it a shadow can land
+   * (the map's far plane: the light's reach + 0.5) into `out`; false when the slot holds no lamp (unused). The lamp, not
+   * the fitted cone: the cone is fitted round the casters listed. Read only: the freeze treats it as a shadowing light.
+   */
+  slotLamp(s: number, out: Float32Array): boolean {
+    const sl = this.slots[s];
+    const lamp = sl ? sl.lamp : -1;
+    if (lamp < 0 || lamp >= this.lamps.count) return false;
+    const S = this.lamps.spheres;
+    out[0] = S[lamp * 4]!;
+    out[1] = S[lamp * 4 + 1]!;
+    out[2] = S[lamp * 4 + 2]!;
+    out[3] = (this.lamps.lightReach?.[lamp] ?? S[lamp * 4 + 3]!) + 0.5;
+    return true;
   }
 
   /** WebGL2 with float or half-float render targets (texelFetch, the metric): else capsules stay. */
@@ -253,7 +282,19 @@ export class CharShadows implements CharShadowLink {
     this.info[3] = this.depthSign;
     for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile, size));
     this.restoreObs = engine.onContextRestoredObservable.add(() => this.invalidate());
+    this.thawObs = this.scene.onAfterActiveMeshesEvaluationObservable.add(this.onThaw);
   }
+
+  /** (S10b) A guard thawed in this evaluation is in his slots' lists (`gather`): their maps render now, with him. */
+  private readonly onThaw = (): void => {
+    const slots = this.slots;
+    for (let s = 0; s < slots.length; s++) {
+      const f = slots[s]!.frozen;
+      if (!f.length || !thawed(f)) continue;
+      f.length = 0;
+      slots[s]!.map.resetRefreshCounter();
+    }
+  };
 
   /** Every slot's tile as empty (a restored context's blank atlas): capsules until each map copies again. */
   private invalidate(): void {
@@ -282,7 +323,7 @@ export class CharShadows implements CharShadowLink {
     // (an empty list of its own, never filled: the casters come from `getCustomRenderList`)
     map.renderList = [];
     map.refreshRate = 0;
-    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), sp: new Float32Array(MAX_SPHERES * 4), k: 0, spReady: new Float32Array(MAX_SPHERES * 4), kReady: 0, every: 0, obs: null, vp: new Viewport(tileX(s, tile) / size, tileY(s, tile) / size, tile / size, tile / size) };
+    const slot: CsSlot = { light, sg, map, list: [], frozen: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), sp: new Float32Array(MAX_SPHERES * 4), k: 0, spReady: new Float32Array(MAX_SPHERES * 4), kReady: 0, every: 0, obs: null, vp: new Viewport(tileX(s, tile) / size, tileY(s, tile) / size, tile / size, tile / size) };
     map.getCustomRenderList = () => slot.list;
     // (after the generator's own observer, which restores the camera's matrices)
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
@@ -323,7 +364,9 @@ export class CharShadows implements CharShadowLink {
         slot.ready = -1;
       }
       slot.list.length = 0;
+      slot.frozen.length = 0;
       if (lamp < 0 || !this.gather(slot, lamp)) {
+        slot.frozen.length = 0;
         slot.ready = -1;
         this.setEvery(slot, 0);
         continue;
@@ -333,7 +376,9 @@ export class CharShadows implements CharShadowLink {
     }
   }
 
-  /** List the characters in the lamp's reach and fit the slot's cone; false when none can be fitted. */
+  /** List the characters in the lamp's reach and fit the slot's cone; false when none can be fitted. (guard-render S10b)
+   *  A character the guard freeze disabled is listed and fitted too, at its stand-in sphere (`frozenCasterSphere`): the
+   *  map skips him while he is disabled when it renders, and draws him in the frame the freeze thaws him (`onThaw`). */
   private gather(slot: CsSlot, lamp: number): boolean {
     const S = this.lamps.spheres;
     const lx = S[lamp * 4]!;
@@ -342,23 +387,41 @@ export class CharShadows implements CharShadowLink {
     const reach = S[lamp * 4 + 3]!;
     const cs = this.casters;
     const sp = slot.sp;
+    const fs = this.fzSphere;
     let k = 0;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
-      if (!m.isEnabled() || !m.isVisible) continue;
-      const b = m.getBoundingInfo().boundingSphere;
-      const c = b.centerWorld;
-      const r = b.radiusWorld;
-      const dx = c.x - lx;
-      const dy = c.y - ly;
-      const dz = c.z - lz;
+      if (!m.isVisible) continue;
+      let cx: number;
+      let cy: number;
+      let cz: number;
+      let r: number;
+      let frozen = false;
+      if (m.isEnabled()) {
+        const b = m.getBoundingInfo().boundingSphere;
+        const c = b.centerWorld;
+        cx = c.x;
+        cy = c.y;
+        cz = c.z;
+        r = b.radiusWorld;
+      } else if (frozenCasterSphere(m, fs)) {
+        cx = fs[0]!;
+        cy = fs[1]!;
+        cz = fs[2]!;
+        r = fs[3]!;
+        frozen = true;
+      } else continue;
+      const dx = cx - lx;
+      const dy = cy - ly;
+      const dz = cz - lz;
       const rr = reach + r;
       if (dx * dx + dy * dy + dz * dz > rr * rr) continue;
       slot.list.push(m);
+      if (frozen) slot.frozen.push(m);
       if (k < MAX_SPHERES) {
-        sp[k * 4] = c.x;
-        sp[k * 4 + 1] = c.y;
-        sp[k * 4 + 2] = c.z;
+        sp[k * 4] = cx;
+        sp[k * 4 + 1] = cy;
+        sp[k * 4 + 2] = cz;
         sp[k * 4 + 3] = r;
         k++;
       }
@@ -511,6 +574,8 @@ export class CharShadows implements CharShadowLink {
   private disposeSlots(): void {
     if (this.restoreObs) this.scene.getEngine().onContextRestoredObservable.remove(this.restoreObs);
     this.restoreObs = null;
+    if (this.thawObs) this.scene.onAfterActiveMeshesEvaluationObservable.remove(this.thawObs);
+    this.thawObs = null;
     for (const s of this.slots) {
       if (s.obs) s.map.onAfterUnbindObservable.remove(s.obs);
       s.sg.dispose();

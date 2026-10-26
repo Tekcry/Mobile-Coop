@@ -15,14 +15,14 @@ with master 4.63.1 (d21f4eda). Started 2026-10-23 ~01:45. Report to "Night Shift
   review lighting also, i think the rules may be too strict and the levels are very dark and unrealistic. there
   shouldnt always be shadows, the player may have to make shadows (disabling lights etc). ask me questions as needed"
 - M2 (~01:40): "Stop r2, fold into redesign": r2-nav / r2-bolt engine fixes kept; the r2 warehouse geometry work
-  (r2-paths, r2-jump) stopped, its findings kept as spec notes (docs/sector-fixes/r/R2-PATHS.md, R2-JUMP.md).
+  (r2-paths, r2-jump) stopped, its findings kept as spec notes (docs/archive/sector-fixes/r/R2-PATHS.md, R2-JUMP.md).
 - M3 (~01:40): "Parallel, own session": Course Ready leads this job and drops the marlow-final second-builder role;
   Marlow Yard and mocap keep first claim on the laptop.
 - M4 (~01:40): "Plan, then build": research, then SPEC.md (from docs/templates/map-spec.md) and PLAN.md for up to 5
   sections, then greybox slices straight on. Michael reviews both in the morning.
 - M5 (~01:40): camera-range cut and lighting rule review on "All maps": the range cut is one engine change (its own
   small PR, `feature/camera-range`; keep off ctDevices.ts / securityRoom.ts, owned by Menu Notes tonight); the lighting
-  review is one proposal for Michael, shared with Menu Notes' lighting agent in `docs/lighting-review/PROPOSAL.md`
+  review is one proposal for Michael, shared with Menu Notes' lighting agent in `docs/archive/lighting-review/PROPOSAL.md`
   (on origin/feature/marlow-final): loosenings proposed, never applied without his approval.
 - Earlier, kept: 2026-10-23 ~00:45 "true 2-player pathways that cannot be used solo, but doesnt break solo play".
 
@@ -34,7 +34,7 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 
 ## Limits
 - docs/level-design.md and docs/templates/map-spec.md change only with Michael's approval: proposals go in
-  docs/lighting-review/PROPOSAL.md or a "Proposed loosenings" list in SPEC.md.
+  docs/archive/lighting-review/PROPOSAL.md or a "Proposed loosenings" list in SPEC.md.
 - Hard rules (CLAUDE.md): no runtime network, light parity, gameplay never reads graphics state, hot paths allocate nothing.
 - Sector Ops stays low priority for the laptop behind Marlow Yard and mocap.
 
@@ -42,7 +42,9 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 - M6 (Q1 setting): "Corporate research campus".
 - M7 (Q2 run length): "30-45 min" (one co-op run).
 - M8 (Q3 guards): "up to 24, each section should gradually get harder with more guards and more security." S1 low,
-  rising to 24 in S5. Read the guard-cap report (12 / 16 / 24 awake) and flag perf risk; do not cut the count.
+  rising in each section. Counts now G328 / G362: S1 15, S2 18, S3 20, S4 25, S5 26 at two players; 3-4 players add
+  tagged extras (G331); cap 32 (G332); campus-greybox v2 builds them (FOLDED-PLAN J17). Read the guard-cap report
+  (12 / 16 / 24 awake) and flag perf risk; do not cut the count.
 - M9 (Q4 lighting, not asked; the orchestrator took it from M1 "there shouldnt always be shadows, the player may have
   to make shadows (disabling lights etc)"): lit like a real site, players cut lights, dark zones only where believable.
 - M10 (Q5 security tools): "Include guard dogs": cameras, lasers, alarm panels, keypads, then dogs and armed response.
@@ -72,8 +74,9 @@ Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md sectio
 - A3 No runners, heavies, snipers or droneOps; armour only on enforcers (response team, supervisors). Undo: swap kinds.
 - A4 Keypad codes are found in the level (overheard, a handover board, the S2 BMS hack), never typed. Undo: keys.
 - A5 Every co-op lip meets SPEC "Co-op-only reach" rules 1-8 (tables, benches, cars kept >= 4 m off). Undo: none.
-- A6 No motion-sensor (PIR) lights in the first build; "PIR off" rooms are simply unlit. Undo: add PIR later.
-- A7 Guards 8 / 12 / 16 / 20 / 24, `perStage` 2, `alarmMax` 3 (S5 peak 30 <= 32). Undo: data.
+- A6 No motion-sensor (PIR) lights in the first build; those rooms are lit on their own switch, cuttable (G329). Undo: add PIR later.
+- A7 Guards: v1 built 8 / 12 / 16 / 20 / 24; now G328 / G362 15 / 18 / 20 / 25 / 26 at two players (J17); `perStage` 2,
+  `alarmMax` 3, alive never over 32 (G332). Undo: data.
 - A8 One map `campusOps` (new id, new stars record; main-menu stars at `src/main.ts:151` to point at it). Why: sections
   are native data, one live at a time (ENGINE fact 1); per-section maps need an L-size swap system. Undo: chunks (EW-L1).
 - A9 (replaced by M11 "Keep both"): Warehouse Ops stays listed as a second Sector Ops map, never delisted; campusOps
@@ -101,19 +104,21 @@ Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md sectio
   P11 cite LR items. Superseded by A33-A44 (LR1-LR12 applied for this map). Undo: n/a.
 Applied loosenings (Michael ~01:42: "Apply, logged and undoable"; for campusOps only; `docs/level-design.md`, the
 template and the bible are NOT edited; table with per-item detail in SPEC "Applied loosenings"):
-- A23 (CONCEPT P1 = LR2) LS 3.1: an entry vantage is out of every guard's view by darkness OR occlusion. Undo: each
-  occlusion vantage (S2 SW stair door, S3 C2 landing) gets a dark pocket.
+- A23 (CONCEPT P1 = LR2) LS 3.1: retired by G329. Each entry vantage (S2 SW stair door, S3 C2 landing included) is out
+  of every guard's view by a real occluder or a circuit the players cut, never a dark pocket in a lit place.
 - A24 (P2) LS 3.5: a light the player can cut from the route counts as a stepping stone. Undo: add cover / hide spots.
 - A25 (P3) LS 5.1: the lit default with a standby fill (with A33 / A39). Undo: darker default, ambient 0.30.
 - A26 (P4) LS 5.2: a deliberate lit test chokepoint may be darkened one way or crossed by timing. Undo: second way.
-- A27 (P5 = LR4) LS 4.4: isolation moment alone and unwatched, dark or darkenable from cover. Undo: dark pockets.
+- A27 (P5 = LR4) LS 4.4: isolation moment alone and unwatched, dark or darkenable from cover. Undo: move the stops behind an occluder
+  or onto a cuttable circuit (G329).
 - A28 (P6) LS 15: lit vantages tested for "out of sight". Undo: dark-only test.
 - A29 (P7) LS 11.6: co-op verbs add the two-person rope, hang-down, jam-and-pass and the pair gate. Undo: CR4 basket
   overwatch only, CR5-CR6 pair bolts at a plain door, CR7 cut.
 - A30 (P8) LS 11.2: visible dual-control doors and a padlocked ladder guard are allowed. Undo: plain doors, no ladder.
 - A31 (P9) Warehouse L1-L15 (DEC G266) carried to the campus. Undo: per rule, back to LS.
 - A32 (P10) LS 4.2: no repeat of the patrol mix judged per section, not per space. Undo: re-mix adjacent spaces.
-- A33 (LR1) new LS 5.5 "lit by default; the players make the dark"; dark pockets named with reasons. Undo: dark default.
+- A33 (LR1) new LS 5.5 "lit by default; the players make the dark"; dark only where a real site has no fitting,
+  named (G329). Undo: dark default.
 - A34 (LR2) = A23.
 - A35 (LR3) LS 3.9: checkpoint in the dark OR in a quiet connector no guard enters (connectors at 0.30). Undo: 0.14.
 - A36 (LR4) = A27.
@@ -124,7 +129,7 @@ template and the bible are NOT edited; table with per-item detail in SPEC "Appli
 - A39 (LR7) fill: encounter spaces 0.14 standby, transit 0.30 (same as A10). Undo: 0.30 everywhere.
 - A40 (LR8) LS 15: darkness acceptance as A28 plus "a cut circuit drops the pool under 0.28 on host and client". Undo: A28.
 - A41 (LR9) bible L7 read as "darkness is the exception, and true dark". Undo: n/a.
-- A42 (LR10) template / space sheet: slice build sheets record the lit default, circuits, cut ways and dark pockets.
+- A42 (LR10) template / space sheet: slice build sheets record the lit default, circuits, cut ways and places with no fitting.
   Undo: old field.
 - A43 (LR11) bible 7 light plan per space: same, in the build sheets. Undo: old field.
 - A44 (LR12) LS 12.1 fact recorded (Sector does not sync light state); slice L (protocol 31) closes it. Undo: n/a.
@@ -173,7 +178,7 @@ Lead, M12 chokes (2026-10-23, after the clear; A52-A59 are left for the slice L 
   registry id 1023 are not synced (`LAMP_MAX`). Undo: add jam timers to `lamps`, predict the shot, raise `LAMP_MAX`.
 Lead, guard render budget (2026-10-23, orchestrator from guard-cap #180: render-bound, ~4-6 visible awake guards fit
 60 Hz at Epic; Character Build builds guard-render: mesh merge, LOD, dormant + culled off-screen guards):
-- A64 Counts stay (M8: 8 / 12 / 16 / 20 / 24), but every section is laid out so no more than 6 awake guards are on
+- A64 Counts stay (G328 / G362: 15 / 18 / 20 / 25 / 26 at two players; v1 built 8 / 12 / 16 / 20 / 24), but every section is laid out so no more than 6 awake guards are on
   screen at once from any player position (walls, floors, sight lines break the view); each slice's build sheet lists
   its worst view and its count, and a unit test samples player points and counts guards in an unoccluded frustum.
   Guards that may sleep when far from both players carry `dormant: true` as data (posts and patrols away from the
@@ -252,7 +257,7 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
 Lead, A64 lift (2026-10-23, guard-render S1 / S3a / S5 / S6 / S7 in; checks/a64-lift.md):
 - A99 The A64 screen cap goes from 6 awake guards to 12 guards, every guard counted (`CAMPUS_SCREEN_CAP` in
   `campusSectors.ts`; the S2-S5 screen-count tests assert it, same sampling as A64 / A70). Basis: guard-render's merged
-  body run (`docs/guard-render/run-s1`, laptop 4090, Epic 1920x1080) holds Sector Ops 24 alive / 12 in sight alert at
+  body run (`docs/archive/guard-render/run-s1`, laptop 4090, Epic 1920x1080) holds Sector Ops 24 alive / 12 in sight alert at
   frame CPU p95 11.1 ms, GPU p95 7.2 ms (60 Hz line 12 / 15), and Marlow 24 in sight at 8.6 / 5.6; 12 in sight is the
   densest cell measured on a sector map, and the campus scene (with the detail art) is not measured yet, so the cap stays
   at the measured cell, not 24. `dormant` is not read by any code (guard-render shipped no sleep; its S4 anim tiers, in

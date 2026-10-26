@@ -1,0 +1,127 @@
+{
+  "pick": {
+    "ground": {
+      "n": 71680,
+      "hash": "eed7265386755f00",
+      "kinds": {
+        "null": 57096,
+        "above": 9760,
+        "front": 1848,
+        "side": 696,
+        "behind": 2280
+      }
+    },
+    "wallLow": {
+      "n": 215040,
+      "hash": "b91a4aa6760da81c",
+      "kinds": {
+        "null": 198000,
+        "front": 4128,
+        "side": 3288,
+        "behind": 5304,
+        "overCover": 4320
+      }
+    },
+    "wall": {
+      "n": 322560,
+      "hash": "ad727938b5b397d3",
+      "kinds": {
+        "null": 304578,
+        "front": 4248,
+        "side": 1524,
+        "behind": 5064,
+        "corner": 7146
+      }
+    },
+    "hang": {
+      "n": 71680,
+      "hash": "4bf38bcaf79ee92e",
+      "kinds": {
+        "null": 64600,
+        "below": 4200,
+        "drop": 2880
+      }
+    },
+    "climb": {
+      "n": 71680,
+      "hash": "731c4a817fe31d44",
+      "kinds": {
+        "null": 59480,
+        "above": 12200
+      }
+    },
+    "zipline": {
+      "n": 71680,
+      "hash": "eb7bb9369f830fb1",
+      "kinds": {
+        "null": 58880,
+        "above": 9920,
+        "drop": 2880
+      }
+    },
+    "duct": {
+      "n": 71680,
+      "hash": "731c4a817fe31d44",
+      "kinds": {
+        "null": 59480,
+        "above": 12200
+      }
+    },
+    "window": {
+      "n": 107520,
+      "hash": "251f7a7329525763",
+      "kinds": {
+        "null": 101520,
+        "window": 6000
+      }
+    },
+    "split": {
+      "n": 71680,
+      "hash": "2fee6b8254732c53",
+      "kinds": {
+        "null": 68800,
+        "drop": 2880
+      }
+    },
+    "pipe": {
+      "n": 71680,
+      "hash": "2fee6b8254732c53",
+      "kinds": {
+        "null": 68800,
+        "drop": 2880
+      }
+    },
+    "inverted": {
+      "n": 71680,
+      "hash": "44515cb972010c9b",
+      "kinds": {
+        "null": 67840,
+        "inverted": 3840
+      }
+    },
+    "rappel": {
+      "n": 71680,
+      "hash": "2fee6b8254732c53",
+      "kinds": {
+        "null": 68800,
+        "drop": 2880
+      }
+    },
+    "hangDown": {
+      "n": 71680,
+      "hash": "295a0b9a4307d5a5",
+      "kinds": {
+        "null": 70720,
+        "hangDown": 960
+      }
+    }
+  },
+  "assist": {
+    "n": 3584,
+    "hash": "10ee95f8bd537ea3",
+    "kinds": {
+      "null": 3308,
+      "assist": 276
+    }
+  }
+}

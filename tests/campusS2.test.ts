@@ -550,8 +550,8 @@ describe('S2 lighting (SPEC "Lighting")', () => {
       expect(group(g)[0]!.intensity).toBe(0.25);
     }
     for (const l of lights.filter((q) => q.intensity > 0 && q.group >= 50 && q.group <= 58)) expect(l.destructible && l.electric, `lamp ${l.id}`).toBe(true);
-    // the S1 circuits are untouched
-    expect(group(S1_GROUPS.parkW).length).toBe(8);
+    // the S1 circuits are untouched by S2 (light-realism L1 put twin heads on the car-park columns: 8 west columns, 16 heads)
+    expect(group(S1_GROUPS.parkW).length).toBe(16);
   });
 
   it('the reception panel is a board (untimed, section 1) and no switch; one switch at each stair door for each balcony (L1 and L2), the kitchen, the L1 corridor (lure #7); the stair doors are within 2.5 m', () => {

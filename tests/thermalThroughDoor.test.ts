@@ -79,23 +79,23 @@ describe('thermal through a shut door: the pure rules', () => {
 
 describe('thermal through a shut door: the co-op client keeps its bodies cooling (LR16-6 fix)', () => {
   it('stampKeptBodies marks each kept rig a body this frame with its age: past half coolTime it no longer shows', () => {
-    const fresh = { rig: { bodyFrame: -1, bodyAge: 0 } };
-    const old = { rig: { bodyFrame: -1, bodyAge: 0 } };
+    const fresh = { view: { bodyFrame: -1, bodyAge: 0 } };
+    const old = { view: { bodyFrame: -1, bodyAge: 0 } };
     const kept = new Map([['e1', fresh], ['e2', old]]);
     const at = new Map([['e1', 100], ['e2', 100 - THERMAL.coolTime * 0.6]]);
     stampKeptBodies(kept, at, 105, 7);
-    expect(fresh.rig.bodyFrame).toBe(7);
-    expect(old.rig.bodyFrame).toBe(7);
-    expect(fresh.rig.bodyAge).toBeCloseTo(5, 9);
-    expect(old.rig.bodyAge).toBeCloseTo(5 + THERMAL.coolTime * 0.6, 9);
+    expect(fresh.view.bodyFrame).toBe(7);
+    expect(old.view.bodyFrame).toBe(7);
+    expect(fresh.view.bodyAge).toBeCloseTo(5, 9);
+    expect(old.view.bodyAge).toBeCloseTo(5 + THERMAL.coolTime * 0.6, 9);
     // what paintHeat then gives them (the host's curve): the fresh body ghosts, the old one no longer
-    expect(ghostWarm(bodyHeat(fresh.rig.bodyAge))).toBe(true);
-    expect(ghostWarm(bodyHeat(old.rig.bodyAge))).toBe(false);
+    expect(ghostWarm(bodyHeat(fresh.view.bodyAge))).toBe(true);
+    expect(ghostWarm(bodyHeat(old.view.bodyAge))).toBe(false);
     // a body with no recorded time counts as fresh (age 0)
-    const lone = { rig: { bodyFrame: -1, bodyAge: 3 } };
+    const lone = { view: { bodyFrame: -1, bodyAge: 3 } };
     stampKeptBodies(new Map([['e3', lone]]), at, 105, 8);
-    expect(lone.rig.bodyFrame).toBe(8);
-    expect(lone.rig.bodyAge).toBe(0);
+    expect(lone.view.bodyFrame).toBe(8);
+    expect(lone.view.bodyAge).toBe(0);
   });
 });
 

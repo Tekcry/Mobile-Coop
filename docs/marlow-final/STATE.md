@@ -3,7 +3,7 @@
 ## MORNING-REVIEW (for Michael)
 Michael ~01:42 (ROADMAP Decided "Overnight"): rule loosenings proposed tonight are "Apply, logged and undoable": the
 build uses them as assumed decisions, each listed here with its undo. The text of `docs/level-design.md`, the template,
-the bible and DECISIONS is NOT edited: the wording for each LR item is in `docs/lighting-review/PROPOSAL.md` section 3,
+the bible and DECISIONS is NOT edited: the wording for each LR item is in `docs/archive/lighting-review/PROPOSAL.md` section 3,
 ready to fold in if you keep it. Finished and green: the PR goes to the next train for /preview/.
 
 Marlow Yard (SPEC section 15; full rows there with the reason):
@@ -27,7 +27,7 @@ Marlow Yard (SPEC section 15; full rows there with the reason):
 | P16 no co-op markers | Striped leg-up squares at A1, A2, A6, A8 | No marks; the objective line names the spot |
 | P17 G45 clear glass passes sight | All glass stops sight, camera sight and jam lines; light passes | Build G45's clear-glass sight |
 
-All maps (`docs/lighting-review/PROPOSAL.md`; undo per item in its section 6):
+All maps (`docs/archive/lighting-review/PROPOSAL.md`; undo per item in its section 6):
 | Item | Change | Undo |
 | --- | --- | --- |
 | LR1 | New LD 5.5 "Lit by default; the players make the dark", mixed zones allowed (= P4) | Lower fittings to the old dark read |
@@ -406,7 +406,7 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
 - ~02:30 0g N9 slide doors IN (slices/S0g-doors.md; 6 files 43 tests). Engine answers folded into SPEC /
   CONSTRAINTS / PLAN. Set docs (slice step 1) started: A1-A4 and A5-A8 agents (docs/marlow-final/sets/, plans/*.svg).
   Still running: 0a course code, greybox tests, props, client hold noise.
-- ~02:20 lighting IN (471c3a98): LIGHTING-PLAN.md, shared docs/lighting-review/PROPOSAL.md (LR1-LR12 for Michael,
+- ~02:20 lighting IN (471c3a98): LIGHTING-PLAN.md, shared docs/archive/lighting-review/PROPOSAL.md (LR1-LR12 for Michael,
   none applied), src/world/lighting/ (levels, circuitSchedule, marlowCircuits) + 23 tests. Integration (map groups,
   switches, zones, isolator timings, ctcourseLight rewrite) is 0d / set slices: LIGHTING-PLAN section 4. Client
   hold-noise agent started (protocol.ts, coopHost, coopClient; slices/S0-holdnoise.md).
@@ -424,7 +424,7 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
 - Michael 01:40 (via the orchestrator): Course Ready leads the Sector Ops redesign and is NO LONGER our second builder;
   marlow-final builds every slice (up to 6 agents). Lighting for ALL maps: "review lighting also, i think the rules
   may be too strict and the levels are very dark and unrealistic. there shouldnt always be shadows, the player may
-  have to make shadows (disabling lights etc)": the lighting agent writes the shared docs/lighting-review/PROPOSAL.md
+  have to make shadows (disabling lights etc)": the lighting agent writes the shared docs/archive/lighting-review/PROPOSAL.md
   (proposals only, never applied). Course Ready's camera-range cut (feature/camera-range) stays off ctDevices.ts /
   securityRoom.ts or sends us the hunk. Their greybox helpers arrived later (8ae26f6a): src/world/maps/ctcourseGreybox.ts +
   GREYBOX-HELPERS.md now on this branch, unwired, NO tests yet (slice 0 writes them; list in the doc).
@@ -488,7 +488,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume marlow-final + section-rating + marlow-polish. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), ROADMAP Decided by grep ("marlow-final M1-M6", "stealth over shooting", "Pipeline speed-ups"), git fetch.
+Night Shift | Marlow Build: resume marlow-final + section-rating + marlow-polish. Read docs/RULES.md ("Sessions"), ROADMAP Decided by grep ("marlow-final M1-M6", "stealth over shooting", "Pipeline speed-ups"), git fetch.
 Rules now (orchestrator ~19:15): no e2e on the desktop (all suites to "Night Shift | Test Runner", E2E_GPU=1; desktop heavy.lock = builds / check only); checker + laptop request on the same commit in parallel; at train-ready also `gh pr edit <n> --add-label train-ready` + message "Night Shift | Orchestrator".
 Released: master 4.80.0 (train 31, PROTOCOL 41). Ours = train 32 (old script; we set PROTOCOL 42 ourselves, done):
 - marlow-final PR https://github.com/Tekcry/Mobile-Coop/pull/237, worktree C:/NightShift/Mobile-Coop-marlow-final, head 9ea069bb (master 4.80.0 merged, 42; protocol-assert unit tests 241 pass). All slices incl. walk 4.72 W1-W5 done; A3 lure fix 4b laptop :2 PASS 444 s on 16caeacd.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NUDGE_FAST_S, SCROLL_DZ, SCROLL_FAST_S, scrollInterval, STICK_ACCEL_MAX, STICK_DZ, TunePadCtl } from '../src/ui/animTunePad';
-import { PAD } from '../src/input/gamepadMapping';
+import { mapPad, PAD } from '../src/input/gamepadMapping';
 
 const B = (...i: number[]): number => i.reduce((m, x) => m | (1 << x), 0);
 const DT = 1 / 60;
@@ -123,6 +123,25 @@ describe('TunePadCtl (marlow-bays item 29: the v3 map)', () => {
     c.update(0, 0, 0, t + 0.3, DT);
     c.update(B(PAD.SELECT), 0, 0, t + 0.4, DT);
     expect(c.mode).toBe('tuner');
+  });
+
+  it('(G343) a View press the tuner consumes never reaches the game actions (no objective popup from the toggle)', () => {
+    const snap = (down: number): { buttons: number[]; axes: number[] } => ({ buttons: Array.from({ length: 17 }, (_, i) => ((down >> i) & 1) * 1), axes: [0, 0, 0, 0] });
+    const tuning = { deadzoneLeft: 0.15, deadzoneRight: 0.15, triggerDeadzone: 0.05, curve: 'linear' as const, invertY: false };
+    // what `GamepadSource.poll` does: a frame the tuner consumes is taken by the hook and never mapped
+    const toGame = (c: TunePadCtl, mask: number, t: number): boolean => {
+      const o = c.update(mask, 0, 0, t, DT);
+      return !o.consume && mapPad(snap(mask), tuning).buttons.objective === true;
+    };
+    const { c, t } = opened();
+    expect(toGame(c, B(PAD.SELECT), t)).toBe(false);
+    expect(c.mode).toBe('game');
+    // held on, the swallow after the toggle keeps the press away from the game too
+    expect(toGame(c, B(PAD.SELECT), t + 0.1)).toBe(false);
+    toGame(c, 0, t + 0.2);
+    // with the tuner closed the same press is the game's
+    const closed = new TunePadCtl();
+    expect(toGame(closed, B(PAD.SELECT), 0)).toBe(true);
   });
 
   it('L3 is an edge in the tuner, never in the game', () => {

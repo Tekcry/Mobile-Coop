@@ -35,6 +35,7 @@ interface FakeGuard {
   incident: number;
   state: string;
   coverIdx: number;
+  roleBound: boolean;
   tacticsProfile: number;
   seesTarget: boolean;
   def: { melee: object | null; kind: string; scale: number; usesCover: boolean };
@@ -73,6 +74,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     incident: -1,
     state: 'chase',
     coverIdx: -1,
+    roleBound: false,
     tacticsProfile: 0,
     seesTarget: false,
     def: { melee: null, kind: 'grunt', scale: 1, usesCover: true },

@@ -1,0 +1,14 @@
+{
+  "note": "Spare work for the idle laptop (service.mjs, LQ_SPARE_IDLE_MIN): after both slots sat idle with an empty queue, the next job round-robin runs as an ordinary request on the origin/master head (requester 'laptop-queue spare'), one at a time, each set once per sha. Steps: <sha8> and <n> (the spare count) are filled in.",
+  "jobs": [
+    { "set": "spare-full", "kind": "full" },
+    { "set": "spare-coop-soak", "kind": "alone", "steps": [
+      "node scripts/run-e2e.mjs e2e-coop", "node scripts/run-e2e.mjs e2e-coop", "node scripts/run-e2e.mjs e2e-coop",
+      "node scripts/run-e2e.mjs e2e-coop", "node scripts/run-e2e.mjs e2e-coop"] },
+    { "set": "spare-guard-cap", "kind": "alone", "steps": [
+      "node scripts/guard-cap.mjs --maps=ctcourse --counts=24 --cells=patrol,alert --secs=20 --out=C:/NightShift/scratch/guard-cap/spare-<sha8>-<n>/ctcourse",
+      "node scripts/guard-cap.mjs --maps=campusops --counts=32 --cells=patrol,alert --secs=20 --out=C:/NightShift/scratch/guard-cap/spare-<sha8>-<n>/campusops"] },
+    { "set": "spare-perf-campusops", "kind": "alone", "env": { "MAP": "campusOps", "MODE": "sector" }, "steps": [
+      "serve scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json"] }
+  ]
+}

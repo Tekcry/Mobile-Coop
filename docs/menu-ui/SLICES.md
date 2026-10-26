@@ -1,7 +1,7 @@
 # Menu job - slices and resume point (2026-10-18)
 
 Michael: "Proceed with 1-4. 5 can proceed when wren has been pushed." Each slice: one implementer (Sonnet, medium effort from slice 3; Michael 2026-10-18: prototype slices run lighter, fine tuning later on Opus;
-docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Michael, then the next slice.
+docs/archive/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Michael, then the next slice.
 
 | Slice | Content (menu steps) | Status |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ this menu job and the other sessions. Open items it was holding:
    src/world/menuScene.ts, now free), on Sonnet medium; then open the menu PR feature/menu -> master (Michael's menu
    notes first). Move the preview with `git push origin feature/menu:dev`.
 3. After Wren merges: the operators session builds the Blender placeholder weapons (rifle with launcher tube and
-   suppressor, suppressed pistol with jammer emitter, knife; docs/progress.md row on this branch).
+   suppressor, suppressed pistol with jammer emitter, knife; docs/archive/progress.md row on this branch).
 4. Scratch Moth (estimated half a day to a day in the operators pipeline after the weapons; Michael asked "don't
    action yet").
 5. Michael has not answered whether to delete the merged branch feature/ct-research (the raw research is kept as the tag

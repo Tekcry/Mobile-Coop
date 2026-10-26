@@ -6,7 +6,7 @@
  * size, and which tuner groups a loop of the Anim Studio uses.
  */
 import { ARMED_JOINT_STATES } from '../anim/tuneRows';
-import { CLIP_BODY, STUDIO_ENTRIES } from '../anim/studio';
+import { CAPTURE_LABEL, CLIP_BODY, STUDIO_ENTRIES } from '../anim/studio';
 import { STEP_GAITS, stepGaitIndex } from '../anim/tuneStep';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
@@ -499,6 +499,23 @@ const PLAIN: Readonly<Record<string, string>> = {
 const FINGERS = ['thumb', 'index', 'middle', 'ring', 'little'];
 
 /**
+ * (tuner-clarity S3) A key's leg fields in plain words (`tuneKeysFile` KEY_LEGD and the FK weight; S2's two twists),
+ * after "Left" / "Right". The sense is the key file's: + is the word's way on both sides.
+ */
+const LEG_WORDS: Readonly<Record<string, string>> = {
+  hipPitch: 'thigh forward',
+  hipYaw: 'knee turned out',
+  hipRoll: 'thigh out',
+  knee: 'knee bend',
+  anklePitch: 'toes up',
+  ankleRoll: 'sole in',
+  toe: 'toes bend',
+  ankleYaw: 'foot twist, toes out',
+  shinTwist: 'shin twist',
+  w: 'leg from the key',
+};
+
+/**
  * A slider's name in short plain words (display only): the table above, then the patterns of the generated sliders
  * (joints, limbs, fingers, keys), then the registry label without its brackets or second wording.
  */
@@ -540,6 +557,15 @@ export function plainLabel(section: string, id: string, label: string): string {
     };
     return `${side} ${what[m[2]!] ?? plainWords(m[2]!).toLowerCase()}`;
   }
+  // (tuner-clarity S3) the keys' legs (`legL_hipPitch`, S2's `legR_ankleYaw`, the FK weight `legL_w`)
+  m = /^leg([LR])_(\w+)$/.exec(id);
+  if (m) {
+    const w = LEG_WORDS[m[2]!];
+    if (w) return `${m[1] === 'L' ? 'Left' : 'Right'} ${w}`;
+  }
+  // (tuner-clarity S3) the keys' fingers (`handL_thumbCurl`)
+  m = /^hand([LR])_([a-z]+)(Curl|Spread)$/.exec(id);
+  if (m && FINGERS.includes(m[2]!)) return `${m[1] === 'L' ? 'Left' : 'Right'} ${m[2]} ${m[3]!.toLowerCase()}`;
   // limbs: IK strength (`handL`), targets (`handLFwd`) and hand rotation (`handLPitch`)
   m = /^(hand|foot)([LR])(Fwd|Up|Out|Pitch|Yaw|Roll)?$/.exec(id);
   if (m) {
@@ -564,6 +590,8 @@ export function plainLabel(section: string, id: string, label: string): string {
 /** A loop of the Anim Studio in plain words (`id` as in `STUDIO_ENTRIES`, `label` its own label). */
 export function plainLoop(id: string, label: string): string {
   if (id === 'off') return 'Off (you move)';
+  // (mixamo-retarget M5) a motion capture: its label as it is (the source in it), "Motion capture (CMU): walk"
+  if (label.startsWith(CAPTURE_LABEL)) return label[0]!.toUpperCase() + label.slice(1);
   const i = label.indexOf(': ');
   const rest = i < 0 ? label : label.slice(i + 2);
   if (id.startsWith('state:')) return plainWords(rest.replace(/\bfwd\b/g, 'forward'));
@@ -756,10 +784,10 @@ const TRAV_LOOP: Readonly<Record<string, { body: string; trav: string }>> = {
   wall: { body: 'wallIdle', trav: '' },
 };
 /** The Stepping gait per body state (the planner's gaits; the crouch run its own). */
-const BODY_STEP: Readonly<Record<string, string>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk', crouchRun: 'crouchRun' };
-const BODY_WEIGHT: Readonly<Record<string, string>> = { walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouch', crouchWalk: 'crouch', crouchRun: 'crouch', crouchIdle: 'crouch', aim: 'drawn', aimStill: 'drawn', lowReady: 'drawn' };
+export const BODY_STEP: Readonly<Record<string, string>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk', crouchRun: 'crouchRun' };
+export const BODY_WEIGHT: Readonly<Record<string, string>> = { walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouch', crouchWalk: 'crouch', crouchRun: 'crouch', crouchIdle: 'crouch', aim: 'drawn', aimStill: 'drawn', lowReady: 'drawn' };
 /** The gun hold's state per body state (the weapon stays as picked). */
-const BODY_GUN: Readonly<Record<string, string>> = { lowReady: 'lowReady', aim: 'aim', aimStill: 'aim', aimCrouch: 'aimCrouch', aimCrouchMove: 'aimCrouch' };
+export const BODY_GUN: Readonly<Record<string, string>> = { lowReady: 'lowReady', aim: 'aim', aimStill: 'aim', aimCrouch: 'aimCrouch', aimCrouchMove: 'aimCrouch' };
 
 /** (tuner-ui fix round) What a body state carries to the other sections ('' none). */
 export interface BodyCarry {
@@ -807,9 +835,10 @@ export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: ''
     if (name.startsWith('hold_')) {
       out.body = 'hold';
       out.clip = name;
-    } else out.team = `team.${name}.a`;
+    } else if (!name.startsWith('knife_')) out.team = `team.${name}.a`; // (piano-knife S1) a knife pair: no tuner groups
   } else if (kind === 'trav') {
-    const t = TRAV_LOOP[name];
+    // (mixamo-retarget M5) a capture's loop `trav:<loop>/<slug>` plays through its prop's loop's groups
+    const t = TRAV_LOOP[name.includes('/') ? name.slice(0, name.indexOf('/')) : name];
     if (t) {
       out.body = t.body;
       out.trav = t.trav ? `trav.${t.trav}` : '';

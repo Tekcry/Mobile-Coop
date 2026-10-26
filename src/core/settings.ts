@@ -98,10 +98,18 @@ export interface Settings {
   gameplay: { defaultShoulder: 'right' | 'left'; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number;
     /** Training course: the next drill's marker (D19; default on). */
     courseMarkers: boolean;
+    /** (mission-framework EN3) Hints: a hint line under the current mission objective (default off). */
+    hints: boolean;
     /** (mocap-trial) Mocap locomotion: Wren's holstered walk / jog / run (and the mocap turn / start / stop clips) from
      *  the CMU mocap set instead of the hand-keyed one (default on since mocap-trial-2, Michael M4; `?mocap=0/1` overrides it for a page; this machine
      *  only: the co-op partner drawn here follows it, nothing on the wire). */
-    mocapLoco: boolean };
+    mocapLoco: boolean;
+    /** (mixamo-retarget Toggle) The Animation source (`src/anim/animSource.ts`): hand-made, CMU (today's game, the
+     *  default) or Mixamo on top of CMU. A look choice on this machine only (a co-op partner drawn here follows it). */
+    animSource: 'hand' | 'cmu' | 'mixamo';
+    /** (F45) The player picked the Animation source (Options or the Anim Studio). Until then /preview/ plays Mixamo
+     *  (`settingAnimSource`, preview-flags "All on in preview"); the live game keeps the default. */
+    animSourceSet: boolean };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -136,6 +144,14 @@ const adsLook = (v: unknown, d: number, lo: number): number => {
   return n === 0.55 || n === 0.6 ? ADS_LOOK : n;
 };
 
+/**
+ * (F45) The Animation source the stored setting asks for: the player's pick, or until they pick one, Mixamo on
+ * /preview/ (`preview`: flags `PREVIEW_ON`; Michael 2026-10-26 ~13:55 "All on in preview") and the default elsewhere.
+ */
+export function settingAnimSource(g: Pick<Settings['gameplay'], 'animSource' | 'animSourceSet'>, preview: boolean): Settings['gameplay']['animSource'] {
+  return !g.animSourceSet && preview ? 'mixamo' : g.animSource;
+}
+
 export function defaultSettings(): Settings {
   return {
     gamepad: {
@@ -158,7 +174,7 @@ export function defaultSettings(): Settings {
     mocapV: MOCAP_V,
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, charShadows: 'auto', fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
-    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, mocapLoco: true },
+    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true, hints: false, mocapLoco: true, animSource: 'cmu', animSourceSet: false },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -373,8 +389,14 @@ export function sanitizeSettings(raw: unknown): Settings {
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
       rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
       courseMarkers: bool(gp.courseMarkers, d.gameplay.courseMarkers),
+      hints: bool(gp.hints, d.gameplay.hints),
       // (mocap-trial-2, M4) a save from before MOCAP_V (off was the default) takes the new default (on) once
       mocapLoco: typeof r.mocapV === 'number' && r.mocapV >= MOCAP_V ? bool(gp.mocapLoco, d.gameplay.mocapLoco) : d.gameplay.mocapLoco,
+      // (mixamo-retarget Toggle) a save from before the field (or a bad value) takes the default (CMU: today's game)
+      animSource: pick(gp.animSource, ['hand', 'cmu', 'mixamo'] as const, d.gameplay.animSource),
+      // (F45) a save from before the field: a stored 'cmu' was only the default (not picked); 'hand' / 'mixamo' could
+      // only come from a pick
+      animSourceSet: bool(gp.animSourceSet, gp.animSource === 'hand' || gp.animSource === 'mixamo'),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),

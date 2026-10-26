@@ -83,7 +83,7 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   overruns. Per built item it judges `rigidKit` (src/operators/rigidKit.ts: shape within 1 mm of the design after a
   best-fit rigid alignment, depth into the suit, seats over 3 mm mounted, small hardware on its host, true sizes, the
   D28 bone rule) from check_garment.py's `rigid` data.
-  anim-rig (docs/anim-rework/RIG.md): the game LODs skin 19 joints, the toe box on `toeL` / `toeR` (the ball of the foot).
+  anim-rig (docs/archive/anim-rework/RIG.md): the game LODs skin 19 joints, the toe box on `toeL` / `toeR` (the ball of the foot).
 - `toe-skin.mjs` (anim-rig, `node scripts/operators/toe-skin.mjs [--check] [hero.glb lod.glb ...]`; default: the bundled
   `src/operators/assets/wren/` files, in place) - gives LOD files baked before anim-rig (toes folded into the ankle) the
   toe weights of a fresh bake without a rebuild: each ankle-weighted vertex takes the toe share of its nearest hero

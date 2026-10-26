@@ -29,6 +29,8 @@ export type BindId =
   | 'shoulder'
   | 'goggles'
   | 'coop'
+  | 'ping'
+  | 'objective'
   | 'pause';
 
 export interface BindDef {
@@ -61,6 +63,9 @@ export const BINDS: readonly BindDef[] = [
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Vision on / off (mode picked on the wheel)', actions: ['vision'], defaults: ['KeyN'] },
   { id: 'coop', label: 'Co-op action (aiming the pistol: jammer, hold)', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
+  // (optic-coop M2, Michael 2026-10-24: "Bind ping: middle mouse on keyboard, R3 on pad; it works from the optic view too")
+  { id: 'ping', label: 'Ping (co-op; from the optic view too)', actions: ['ping'], defaults: ['Mouse1'] },
+  { id: 'objective', label: 'Show objective (tap)', actions: ['objective'], defaults: ['KeyO'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 

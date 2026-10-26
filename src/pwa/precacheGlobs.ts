@@ -18,8 +18,9 @@ export const PRECACHE_GLOBS: readonly string[] = [
   'assets/weapons-*.mp3',
 ];
 
-/** Never precached (workbox's default `**\/node_modules/**\/*` kept): the guard figures' files. */
-export const PRECACHE_IGNORES: readonly string[] = ['**/node_modules/**/*', '**/guard-*.glb', '**/guard-*.ktx2'];
+/** Never precached (workbox's default `**\/node_modules/**\/*` kept): the guard figures' files; (map-ready S4) the
+ *  shipped campus lamps (`bakes/*`, tens of MB: fetched on a campus load, then kept by the `bakes` runtime rules). */
+export const PRECACHE_IGNORES: readonly string[] = ['**/node_modules/**/*', '**/guard-*.glb', '**/guard-*.ktx2', '**/bakes/**'];
 
 /**
  * A guard figure file (`/assets/guard-<name>-<hash>.glb`). The `guards` runtime rule writes this regex out as a literal

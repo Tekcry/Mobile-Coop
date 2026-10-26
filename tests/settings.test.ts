@@ -173,6 +173,9 @@ describe('settings: the A3 D-pad layout (F7, playtest 2 "D pad left and right is
     expect(s.pad.throwCam).toEqual([PAD.RIGHT]);
     expect(s.pad.crouch).toEqual([PAD.B]);
     expect(s.padV).toBe(3);
+    // (A6, G343) the stored `device: [8]` (View) is the show-objective bind now, and `device` is not written back
+    expect(s.pad.objective).toEqual([8]);
+    expect(s.pad).not.toHaveProperty('device');
   });
   it('keeps a verb the player remapped, and never migrates the D-pad of a padV 2 save again', () => {
     const custom = sanitizeSettings({ ...structuredClone(A3_SAVE), pad: { ...A3_SAVE.pad, vision: [PAD.RB] } });
@@ -203,6 +206,8 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     expect(s.pad).not.toHaveProperty('gearUp');
     expect(s.pad.draw).toEqual([PAD.X]);
     expect(s.pad.vision).toEqual([PAD.LEFT]);
+    expect(s.pad.objective).toEqual([8]);
+    expect(s.pad).not.toHaveProperty('device');
     expect(s.keys).not.toHaveProperty('speedUp');
     expect(s.keys).not.toHaveProperty('speedDown');
     expect(s.keys.wall).toEqual(['CapsLock']);
@@ -225,10 +230,11 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     expect(notes[0]).toMatch(/left stick sets the speed/);
     expect(notes).toContain('Keyboard: Creep (hold) and Crouch share Alt.');
     expect(notes.some((n) => /Controller: Co-op action .* and Aim share LT/.test(n))).toBe(true);
-    // the plain old layout: what moved, no clash
+    // the plain old layout: what moved; (optic-coop M2, "contextual") Zoom and Ping on R3 are an allowed pair: no clash named
     const plain = controlsMigrationNotes(OLD_413, sanitizeSettings(structuredClone(OLD_413)));
     expect(plain).toHaveLength(2);
     expect(plain[1]).toMatch(/Caps Lock/);
+    expect(plain.some((n) => /Zoom|Ping/.test(n))).toBe(false);
     // a fresh profile or a current save: nothing to say
     expect(controlsMigrationNotes(undefined, defaultSettings())).toEqual([]);
     expect(controlsMigrationNotes(defaultSettings(), defaultSettings())).toEqual([]);
@@ -298,5 +304,38 @@ describe('(LR14) Graphics > Character shadows', () => {
     }
     // (render only: it lives with the graphics settings, never in gameplay)
     expect('charShadows' in defaultSettings().gameplay).toBe(false);
+  });
+});
+
+// (mission-framework EN3) gameplay.hints: the hint line under the current mission objective, off by default
+describe('settings: gameplay.hints (mission-framework EN3)', () => {
+  beforeEach(() => resetDbCache());
+
+  it('defaults to false, also for a stored block without it', () => {
+    expect(defaultSettings().gameplay.hints).toBe(false);
+    expect(sanitizeSettings(structuredClone(PRE_STEP_18)).gameplay.hints).toBe(false);
+    expect(sanitizeSettings({}).gameplay.hints).toBe(false);
+  });
+
+  it('keeps a stored true and sanitizes a non-boolean to false', () => {
+    expect(sanitizeSettings({ gameplay: { hints: true } }).gameplay.hints).toBe(true);
+    for (const bad of ['yes', 1, 0, null, {}, []]) expect(sanitizeSettings({ gameplay: { hints: bad } }).gameplay.hints).toBe(false);
+  });
+
+  it('round trip through SettingsStore and fake-indexeddb kv/settings', async () => {
+    let saved!: () => void;
+    const done = new Promise<void>((r) => (saved = r));
+    const st = new SettingsStore(async (v) => {
+      await dbPut('kv', 'settings', v);
+      saved();
+    });
+    st.load(await dbGet('kv', 'settings'));
+    expect(st.get().gameplay.hints).toBe(false);
+    st.update((d) => void (d.gameplay.hints = true));
+    await dbPut('kv', 'settings', st.get());
+    const back = new SettingsStore();
+    back.load(await dbGet('kv', 'settings'));
+    expect(back.get().gameplay.hints).toBe(true);
+    await done;
   });
 });

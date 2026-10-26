@@ -13,8 +13,22 @@ export interface Conflict {
   input: string | number;
 }
 
-/** Pairs that may share an input (none: A3 split Y into jump and A into interact, G96). */
-export const ALLOWED_PAIRS: ReadonlyArray<readonly [string, string]> = [];
+/** Pairs that may share an input (A3 split Y into jump and A into interact, G96). (optic-coop M2, Michael 2026-10-24
+ *  "contextual: R3 pings normally and zooms only while aiming a scoped weapon (no ping while scoped)") Zoom and Ping:
+ *  one press is one of them by context (`contextZoom` / `contextPing`), so the default R3 pair is not a conflict;
+ *  any other verb on their input still is. */
+export const ALLOWED_PAIRS: ReadonlyArray<readonly [string, string]> = [['zoom', 'ping']];
+
+/** (optic-coop M2) Zoom on a press: only while aiming a scoped weapon (`PlayerWeapons`; normal aim never zooms, G29). */
+export function contextZoom(scopedAim: boolean, zoom: boolean): boolean {
+  return scopedAim && zoom;
+}
+
+/** (optic-coop M2) Ping on a press: a press that is also Zoom (their shared input, R3 by default) is Zoom only while
+ *  aiming a scoped weapon, Ping otherwise. Ping on its own input (middle mouse) pings whatever the aim. */
+export function contextPing(scopedAim: boolean, zoom: boolean, ping: boolean): boolean {
+  return ping && !(scopedAim && zoom);
+}
 
 function allowedPair(a: string, b: string, allowed: ReadonlyArray<readonly [string, string]>): boolean {
   for (const [x, y] of allowed) if ((x === a && y === b) || (x === b && y === a)) return true;

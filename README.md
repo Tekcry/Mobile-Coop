@@ -16,9 +16,11 @@ campaign is also playable in online co-op for 2-4 players.
 - **Parked:** Wave, Hunter, Mission, PvP, the economy and cosmetics are behind `?legacy=1`.
 - **Controls:** touch (editable layout), any standard controller with full menu navigation, keyboard and mouse;
   Settings > Accessibility lists every binding.
-- **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, no external art
-  or audio, and IndexedDB saves with export/import.
-- **Docs:** design authority is [docs/design-bible.md](docs/design-bible.md); status is [docs/progress.md](docs/progress.md).
+- **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, free assets
+  only where the licence allows commercial sale (credited in `docs/art-credits.md`, `docs/audio-credits.md`), and
+  IndexedDB saves with export/import.
+- **Docs:** design authority is [docs/design-bible.md](docs/design-bible.md); the current focus is ROADMAP "Now"
+  (on origin/feature/menu); the old status log is [docs/archive/progress.md](docs/archive/progress.md).
 
 ## Play
 

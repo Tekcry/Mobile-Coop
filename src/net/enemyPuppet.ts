@@ -13,7 +13,7 @@ import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
 import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, alertCarry, alertLook, type EnemyState } from './protocol';
 import type { TorchHolder } from './torchMirror';
-import type { GuardInfo } from '../ai/guardInfo';
+import { HOST_INFO, type GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from '../ai/gearParts';
 import type { GuardBody } from '../ai/guardBody';
@@ -73,8 +73,12 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   dead = false;
   /** Seized by the local player's takedown (position from `holdAt`, not the host). */
   taken = false;
-  /** (PR 3) What INTERROGATE gets out of him: the map slot he appeared at (`infoAtSpawn`, no wire data). */
+  /** (PR 3) What INTERROGATE gets out of him, while the host says he has intel (`setIntel`); null: none, or spent. */
   info: GuardInfo | null = null;
+  /** (PR 3) The lines he says: the course slot he appeared at (`infoAtSpawn`), null when none (then `HOST_INFO`). */
+  spawnInfo: GuardInfo | null = null;
+  /** (stealth-pays client intel) The host's last `EnemyState.in`. */
+  private intel = false;
   /** A takedown started on the host and not yet finished / aborted (the controller clears `taken` first). */
   private seized = false;
   /** Seconds since the host last mentioned this enemy. */
@@ -287,6 +291,15 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   /** (G7) The held pose, the same code as the host's `Enemy` (`closeQuarters.GuardCq`). */
   private readonly cq = new GuardCq();
   private readonly cqEmote = (_r: CharacterRig, t: number): FkPose | undefined => this.cq.pose(t) ?? undefined;
+
+  /** (stealth-pays client intel) The host's flag from each snapshot (`EnemyState.in`): INTERROGATE is offered from its
+   *  rise until the host clears it. A local interrogation spends `info` at once and the flag, still set until the host
+   *  hears of it, does not bring it back (only a rise does). */
+  setIntel(on: boolean): void {
+    if (on && !this.intel) this.info = this.spawnInfo ?? HOST_INFO;
+    else if (!on) this.info = null;
+    this.intel = on;
+  }
 
   beginTakedown(choke: boolean, delay = 0): void {
     if (!this.seized) this.onTakedown?.('start', !choke);

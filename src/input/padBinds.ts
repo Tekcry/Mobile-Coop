@@ -2,13 +2,15 @@
  * (locomotion step 18, D7; CT prototype A3, G96) Controller bindings (pure, unit-tested). Every remappable pad verb has up
  * to two buttons (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons
  * (`UI_BINDINGS`) stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire).
- * The defaults are `GAME_BINDINGS` (docs/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown; every
+ * The defaults are `GAME_BINDINGS` (docs/archive/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown; every
  * weapon state, Michael 14:55 "Interact always"), B crouch, Y jump / traverse, X holster / draw (tap) and reload (held while drawn), LT
  * aim (held; fixed), RT fire while aiming, holstered or holding a guard tap knockout / hold kill (fixed), L3
  * back-to-wall (not aiming) / swap shoulder (aiming), R3 zoom (aiming, scoped), RB co-op action (CT's Black), LB
- * selection wheel (hold) / switch weapon (tap), View mission device (no action yet), D-pad left the selected vision mode
+ * selection wheel (hold) / switch weapon (tap), View show objective (tap), D-pad left the selected vision mode
  * on / off, right quick-use of the selected gadget. D-pad up / down are unbound in play (the speed rocker is gone,
- * anim-rework S1); they step the held context menu's highlight (fixed).
+ * anim-rework S1); they step the held context menu's highlight (fixed). (optic-coop M2) R3 also pings (co-op; Michael
+ * 2026-10-24), shared with zoom by context ("contextual": Zoom only while aiming a scoped weapon, Ping otherwise; the
+ * allowed pair in `ALLOWED_PAIRS`, so not a conflict).
  */
 import type { ButtonAction } from './actions';
 import { PAD, type PadStyle } from './gamepadMapping';
@@ -24,7 +26,8 @@ export type PadBindId =
   | 'zoom'
   | 'throwCam'
   | 'vision'
-  | 'device'
+  | 'objective'
+  | 'ping'
   | 'pause';
 
 export interface PadBindDef {
@@ -45,7 +48,10 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'zoom', label: 'Zoom (aiming, scoped weapon)', actions: ['zoom'], defaults: [PAD.RS] },
   { id: 'vision', label: 'Vision on / off (the mode picked on the wheel)', actions: ['vision'], defaults: [PAD.LEFT] },
   { id: 'throwCam', label: 'Quick-use selected gadget (hold to aim)', actions: ['grenade'], defaults: [PAD.RIGHT] },
-  { id: 'device', label: 'Mission device (not in yet)', actions: [], defaults: [PAD.SELECT] },
+  { id: 'objective', label: 'Show objective (tap)', actions: ['objective'], defaults: [PAD.SELECT] },
+  // (optic-coop M2, Michael 2026-10-24 "contextual") R3, shared with Zoom: Ping, or Zoom while aiming a scoped weapon
+  // (an allowed pair, not a conflict)
+  { id: 'ping', label: 'Ping (co-op; optic view too; Zoom while scoped)', actions: ['ping'], defaults: [PAD.RS] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: [PAD.START] },
 ];
 
@@ -102,7 +108,8 @@ export function sanitizePadBinds(raw: unknown): PadBinds {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
   const r = raw as Record<string, unknown>;
   for (const b of PAD_BINDS) {
-    const v = r[b.id];
+    // (A6, G343) a pad save from before the objective verb stored View as `device`: it carries over (never written back)
+    const v = b.id === 'objective' ? (r.objective ?? r.device) : r[b.id];
     if (!Array.isArray(v)) continue;
     const list: number[] = [];
     for (const i of v) if (padBindable(i) && !list.includes(i) && list.length < 2) list.push(i);

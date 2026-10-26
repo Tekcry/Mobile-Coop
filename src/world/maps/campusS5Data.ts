@@ -2,7 +2,9 @@ import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { GearTag } from '../../ai/gear';
 import type { ArmourPiece } from './campusS4Data';
-import { S5_BOX, S5_DOORS } from './campusS5';
+import type { CampusSectionParts } from './campusParts';
+import { buildCampusS5, S5_BOARDS, S5_BOX, S5_DOORS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './campusS5';
+import { dressS5, HERO_S5, S5_ART_TAGS } from './campusS5Dress';
 
 const PI = Math.PI;
 
@@ -31,21 +33,21 @@ type GearGuard = SectorGuard & { gear?: GearTag };
  * takedown spots, the facings of route guards) are in `docs/sector-redesign/checks/slice5-build.md`.
  */
 export const S5_GUARDS: GearGuard[] = [
-  // gear (stealth over shooting): every guard wears a helmet (section default); the response team (#1-#4) and the two token room officers wear body armour as well; dogs never get gear
+  // gear (stealth over shooting): the response team (#1-#4) and the two token room officers wear body armour; helmets come from the difficulty and the alarm stage (guard-rules A15); dogs never get gear
   // 1-3 the response team's standing force in the control room, for the ceremony
-  { kind: 'grunt', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'both', reason: 'Standing reaction force for the ceremony' },
-  { kind: 'grunt', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'both', reason: 'Standing reaction force for the ceremony' },
-  { kind: 'grunt', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'both', reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'armour', reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'armour', reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'armour', reason: 'Standing reaction force for the ceremony' },
   // 4 the team's hall walk
-  { kind: 'grunt', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, gear: 'both', reason: "The response team's hall walk" },
+  { kind: 'grunt', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, gear: 'armour', reason: "The response team's hall walk" },
   // 5-8 the grounds: the garden team and the lake-side team (a handler and a dog each, on one clock)
   { kind: 'grunt', x: -63, z: 23.5, yaw: 0, route: [[-63, 23.5], [-63, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-63, 23.0], role: 'handler', zone: 'garden', squad: 1, reason: 'Grounds patrol for the ceremony' },
   { kind: 'dog', x: -62, z: 23.5, yaw: 0, route: [[-62, 23.5], [-62, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-62, 23.0], role: 'dog', zone: 'garden', squad: 1, handler: 4, reason: 'At heel with the garden handler' },
   { kind: 'grunt', x: -36, z: 47, yaw: -PI / 2, route: [[-36, 47], [-53, 47]], faces: [-PI / 2, PI / 2], loop: LOOP, takedownSpot: [-35.5, 47], role: 'handler', zone: 'terrace', squad: 1, reason: 'Lake-side patrol' },
   { kind: 'dog', x: -36, z: 46, yaw: -PI / 2, route: [[-36, 46], [-53, 46]], faces: [-PI / 2, PI / 2], loop: LOOP, takedownSpot: [-35.5, 46], role: 'dog', zone: 'terrace', squad: 1, handler: 6, reason: 'At heel with the lake-side handler' },
   // 9-10 the token room's keyholders (K4): neither alone with the token
-  { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, gear: 'both', reason: 'Two-person rule: neither is alone with the token' },
-  { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, gear: 'both', reason: 'Two-person rule: neither is alone with the token' },
+  { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, gear: 'armour', reason: 'Two-person rule: neither is alone with the token' },
+  { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, gear: 'armour', reason: 'Two-person rule: neither is alone with the token' },
   // 11 the audit escort
   { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 34.0]], waits: [4, 4, 4], takedownSpot: [-39.0, 34.3], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
   // 12 the front door
@@ -60,8 +62,8 @@ export const S5_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: -51.6, y: Y1, z: 32.0, yaw: PI, takedownSpot: [-51.6, 32.4], role: 'post', zone: 'ceo', squad: 3, reason: "The CEO's safe and laptop" },
   // 18 the archive round
   { kind: 'grunt', x: -45, y: Y1, z: 33, yaw: 0, route: [[-45, 33], [-45, 43], [-42.2, 43], [-42.2, 33]], waits: [3, 3, 3, 3], takedownSpot: [-45, 43.3], role: 'patrol', zone: 'archive', squad: 3, reason: 'Archive round; alone in the dark stacks' },
-  // 19 the roof marksman
-  { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
+  // 19 the roof marksman: a lookout (guard-rules S9, A9; read only with ?lookouts=1)
+  { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], post: { leash: 1, lookout: true }, role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
   // 20 the terrace gate
   { kind: 'grunt', x: -44, z: 50.7, yaw: 0, route: [[-44, 50.7], [-47.8, 57.6], [-48.1, 62.2], [-47.5, 57.6]], waits: [6, 0, 6, 0], takedownSpot: [-48.1, 62.6], role: 'gate', zone: 'terrace', squad: 1, reason: 'The terrace gate, lake side' },
   // 21 the service round
@@ -166,16 +168,17 @@ export const S5_SECTOR: SectorDef = {
   start: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
   // weapons crate (E9): the colonnade south wall, strip to the colonnade
   crate: { at: [S5_AMMO_CRATE.x, S5_AMMO_CRATE.y, S5_AMMO_CRATE.z], yaw: S5_AMMO_CRATE.yaw },
-  objective: { kind: 'grab', label: 'Take the signing key token', x: -43, y: 0, z: 43.4, yaw: 0 },
+  objective: { kind: 'grab', label: 'Take the signing key token from the strongroom', x: -43, y: 0, z: 43.4, yaw: 0 },
   extract: { label: 'Extract at the boathouse jetty', box: [-50, 60, -40, 66] },
   guards: S5_GUARDS,
   // stage 1: the hall's front door and the service wing
   reinforce: [[-44, 21], [-29, 21]],
-  // gear: a helmet on every guard (section default; the dogs are left unset)
-  gear: 'helmet',
+  // (guard-rules S1, A15) no section gear: helmets come from the difficulty and the alarm stage (G350)
   // sweep points (response team): the vestibule, the anteroom side door, the anteroom, the strongroom approach, the hall door side and the terrace landing under the north parapet rappel
   sweep: [[-36.5, 33.5], [-41.0, 33.4], [-43.0, 35.6], [-43.0, 42.2], [-42.0, 30.8], [-54.0, 45.4]],
   perStage: 2,
+  // (guard-rules S1, A4) a riot-shield guard leads each response team (the later sections only, G307 (3))
+  shieldTeams: true,
   dogs: 2,
   routes: S5_ROUTES,
   keypads: [{ at: [-38, 41.0], code: 's5-arch' }],
@@ -186,4 +189,28 @@ export const S5_SECTOR: SectorDef = {
     { stage: 2, lightsFull: [81, 84], lockDoors: [[-56, 40]] },
     { stage: 3, lightsFull: [80, 88], lockDoors: [[-38, 33.5]] },
   ],
+};
+
+/** (campus-greybox P0) Section 5's parts for the map (`campusSections.ts`). No co-op lips yet; the chimney stacks feed the art pass. */
+export const S5_PARTS: CampusSectionParts = {
+  build: buildCampusS5,
+  spawns: [],
+  pickups: [],
+  hideSpots: S5_HIDESPOTS,
+  switches: S5_SWITCHES,
+  rooms: S5_ROOMS,
+  navSeeds: S5_NAV_SEEDS,
+  lasers: S5_LASERS,
+  panels: S5_PANELS,
+  boards: S5_BOARDS,
+  sector: S5_SECTOR,
+  cameras: S5_CAMERAS,
+  desks: [],
+  levels: { 's5-l1': 4.2 },
+  alarms: S5_ALARMS,
+  coopLips: [],
+  dress: dressS5,
+  artTags: S5_ART_TAGS,
+  hero: HERO_S5,
+  chimneys: S5_BOX.chimneys,
 };

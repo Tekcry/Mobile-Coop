@@ -1,7 +1,7 @@
 /**
  * Enemy archetype rules (pure, unit-tested): heavy armour by hit direction and its frontal grab immunity, the
- * enforcer's shield arc, the sniper's relocation and glint, the dog's smell, the officer's buff, squad radio
- * checks, and the difficulty tiers.
+ * enforcer's shield arc, the runner's weave and press, the sniper's relocation and glint, the dog's smell, the
+ * officer's buff, squad radio checks, and the difficulty tiers.
  */
 import { hyp2 } from '../core/mathx';
 
@@ -20,6 +20,14 @@ export const ARCHETYPE = {
     shieldHalf: (70 * Math.PI) / 180,
     /** Pushes forward at this speed (m/s) while firing. */
     pushSpeed: 1.1,
+  },
+  runner: {
+    /** (guard-ai runner-armed, G298) He weaves on the run in (the old charge's zigzag, `Enemy.chasePoint`, beyond 5 m
+     *  of his target). Undo: false. */
+    weave: true,
+    /** He presses in while he fires, as an aggressive guard does (closes to `engageMin` + 3 m in the attack state).
+     *  Undo: false. */
+    pressIn: true,
   },
   sniper: {
     /** Relocate after this many shots, or this long (s) after the first shot of a position. */
@@ -183,13 +191,23 @@ export interface DifficultyDef {
   perception: number;
   /** Reaction delays (radio call-in, first shot settle, alarm panel raise). */
   reaction: number;
+  /**
+   * (guard-rules S1, G350, BRIEF M4) Helmets by difficulty, read by `EnemyManager.useDifficultyHelmets` (Sector Ops and
+   * the campaign only, A1): `stage` = bare-headed until the alarm stage gives one (`GEAR_BY_STAGE`); `always` = every
+   * human guard helmeted from his placement; `locked` = as `always`, and no helmet can be shot off (it soaks the first
+   * headshot only, the second kills: A2, `GEAR.lockHelmets`).
+   */
+  helmets: HelmetRule;
 }
 
+/** (guard-rules S1) A difficulty's helmet rule (`DifficultyDef.helmets`). */
+export type HelmetRule = 'stage' | 'always' | 'locked';
+
 export const DIFFICULTY: Record<DifficultyPreset, DifficultyDef> = {
-  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35 },
-  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1 },
-  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8 },
-  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7 },
+  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35, helmets: 'stage' },
+  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1, helmets: 'stage' },
+  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8, helmets: 'always' },
+  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7, helmets: 'locked' },
 };
 
 /** A stored / received difficulty, including the 1.x names (easy / hard); the old 'custom' (G106) reads as Normal. */

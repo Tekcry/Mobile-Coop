@@ -198,7 +198,13 @@ const LOOK = {
   print: '#4b5560',
 } as const;
 
-export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
+/**
+ * (J14) `opts.replan`: the re-planned yard (`replan/a3OfficeRange.ts`), where the riser cupboard's services crawl runs from the west lobby's
+ * south-west corner through the lobby wall and office 1's west strip to a grille in the corridor's south wall: the pieces it passes through
+ * (the lobby wall's south run, the corridor's south wall west of the recess, office 1's first desk and its north desk run, and the skins and
+ * kit panels on them) are left out here and built cut round the crawl there.
+ */
+export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): SetPart {
   const p = emptyPart('a3OfficeRange');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean } = {}): void => {
@@ -232,7 +238,8 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
   const camera: CameraDevice = { ...hall.cameras[0]!, range: A3_CAMERA_RANGE };
   p.cameras.push(camera);
   tally(b, p.register, 'A3-1', 'Corridor 3.5 x 17.5 (jamRelay a3-hall): 0.3 m noLedge walls, the recess 1.4 x 1.0 on the south wall at x 88.25 with its camera-side hide spot (88.6, 8.5), the jam post marks (78.5 and 98.0, z 10.75); office 3 corridor door cut at x 91.4-92.6', () => {
-    applyGreybox(b, { ...hall, doors: [] });
+    // (J14) not on the re-plan: the south wall's west piece (x 79.5-87.55), which the crawl's grille cuts (`replan/a3OfficeRange.ts`)
+    applyGreybox(b, { ...hall, doors: [], boxes: hall.boxes.filter((q) => !opts.replan || !(q.tag === 'corridor wall' && q.c[2] < A3_CORRIDOR.at.z && q.c[0] < A3_RECESS.x)) });
   });
   p.register.push({ id: 'A3-2', element: 'Ceiling IR camera cam-a3-hall at (96.6, 2.8, 10.75) facing west, sweep 262-278, aim 8.75, range 17 (A3-D4): jam, send-back, shot (device data, no pieces)' });
 
@@ -240,7 +247,8 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
   tally(b, p.register, 'A3-8', "Lift lobbies: the west lobby's east wall (x 79.5, 0.3 m) with office 1's door and the corridor archway (z 9-12.5, open), the east lobby's wall on office 3's east side (x 97); lobbies 3.1 and 2.6 m clear, full depth", () => {
     const lx = A3_LOBBY_WALL_X;
     const [d0, d1] = A3_LOBBY_DOOR_Z;
-    slab(lx - h, lx + h, SHELL.south, d0, 0, CEIL, KIT_BOX_COLOR);
+    // (J14) not on the re-plan: the crawl passes under this run (`replan/a3OfficeRange.ts` builds it round the crawl)
+    if (!opts.replan) slab(lx - h, lx + h, SHELL.south, d0, 0, CEIL, KIT_BOX_COLOR);
     slab(lx - h, lx + h, d1, A3_CORRIDOR.at.z - A3_CORRIDOR.width / 2, 0, CEIL, KIT_BOX_COLOR);
     slab(lx - h, lx + h, d0, d1, A3_DOOR_H, CEIL, KIT_BOX_COLOR);
     slab(A3_EAST_WALL_X - h, A3_EAST_WALL_X + h, SHELL.south, A3_CORRIDOR.at.z - A3_CORRIDOR.width / 2, 0, CEIL, KIT_BOX_COLOR);
@@ -269,9 +277,10 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
   // ---- A3-9 / A3-7: desks 0.75 m, desk runs 0.9 m (cover, the cleaner's stops), the pockets ----
   tally(b, p.register, 'A3-9', "Office desks (0.75 m) and desk runs (0.9 m), all noLedge: office 1's desks and its desk-run pocket (x 79.65-81.0, z 7.0-8.7), office 2's desk and the trolley bay (x 90.0-91.15, z 7.0-8.7), office 3's desks, desk run and the far desk against its east wall", () => {
     // office 1: two desks on the south wall (the cleaner's stop faces the second), the north desk run leaving the west corner pocket
-    slab(80.0, 81.6, SHELL.south, 1.5, 0, 0.75, DESK);
+    // (J14) not on the re-plan: the first desk and the run's west end stand in the crawl (the replan file builds the run trimmed)
+    if (!opts.replan) slab(80.0, 81.6, SHELL.south, 1.5, 0, 0.75, DESK);
     slab(82.0, 84.2, SHELL.south, 1.5, 0, 0.75, DESK);
-    slab(81.0, A3_OFFICES[0][1], 7.9, A3_OFFICE_Z1, 0, 0.9, RUN);
+    if (!opts.replan) slab(81.0, A3_OFFICES[0][1], 7.9, A3_OFFICE_Z1, 0, 0.9, RUN);
     // office 2: the desk at the cleaner's stop, a desk run west of the recess door, a cabinet that makes the trolley bay (x 90.0-91.15)
     slab(87.1, 89.5, SHELL.south, 1.5, 0, 0.75, DESK);
     slab(A3_OFFICES[1][0], 87.25, 7.9, A3_OFFICE_Z1, 0, 0.9, RUN);
@@ -319,7 +328,7 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     {
       id: 'a3-in',
       bay: 'A3',
-      text: 'Jam the camera for each other. If it sees you, you start again.',
+      text: 'Jam the corridor camera for each other. If it sees you, you start again.',
       a: 'Hold the jammer on the camera while your partner moves.',
       b: 'Move on the jam: the recess first, then the far lobby.',
       done: { flag: A3_FAR1_FLAG },
@@ -327,7 +336,7 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     {
       id: 'a3-swap',
       bay: 'A3',
-      text: 'Swap: the far player jams now.',
+      text: 'Swap: jam the corridor camera from the far lobby.',
       a: "Move on your partner's jam: the recess, then the far lobby.",
       b: 'Jam the camera from the far lobby for your partner.',
       done: { flag: A3_FAR_FLAG },
@@ -441,6 +450,8 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     plaster('s', zN, x0, x1);
     face('s', zN, x0, x1, 0.9, 0.96, LOOK.steel, 1);
     for (const [a, e] of [[x0, RECESS.x0], [RECESS.x1, A3_CORR_DOOR_X[0]], [A3_CORR_DOOR_X[1], x1]] as const) {
+      // (J14) not on the re-plan: the west run is cut round the crawl's grille (`replan/a3OfficeRange.ts`)
+      if (opts.replan && a === x0) continue;
       plaster('n', zS, a, e);
       face('n', zS, a, e, 0.9, 0.96, LOOK.steel, 1);
     }
@@ -469,7 +480,8 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     face('s', zN, 92.8, 92.92, 0.72, 0.8, LOOK.black, 1);
     face('s', zN, 92.72, 93.0, 0.3, 0.34, LOOK.steelDark, 1);
     // south wall: prints
-    framed('n', zS, 81.2, 82.0, 1.4, 1.95, LOOK.paper);
+    // (J14) not on the re-plan: it would hang over the crawl's grille (the replan file hangs it 0.5 m east)
+    if (!opts.replan) framed('n', zS, 81.2, 82.0, 1.4, 1.95, LOOK.paper);
     framed('n', zS, 83.4, 84.4, 1.4, 1.9, LOOK.paper);
     framed('n', zS, 85.4, 86.2, 1.4, 1.95, LOOK.paper);
     framed('n', zS, 89.7, 90.6, 1.4, 1.9, LOOK.paper);
@@ -494,10 +506,12 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     // office 1: the west wall (the lobby door's gap with its lintel) and the corridor wall; office 2: the corridor wall west of the recess, the recess back, east of it;
     // office 3: the corridor wall either side of its door, the east wall
     const [d0, d1] = A3_LOBBY_DOOR_Z;
-    plaster('e', lobbyFace, z0, d0);
+    // (J14) not on the re-plan: the crawl goes through this face (the replan file plasters it round the crawl)
+    if (!opts.replan) plaster('e', lobbyFace, z0, d0);
     plaster('e', lobbyFace, d1, z1);
     plaster('e', lobbyFace, d0, d1, A3_DOOR_H, CEIL);
-    plaster('s', z1, A3_OFFICES[0][0], A3_OFFICES[0][1]);
+    // (J14) not on the re-plan: the crawl's mouth is in this face (the replan file plasters it round the crawl)
+    if (!opts.replan) plaster('s', z1, A3_OFFICES[0][0], A3_OFFICES[0][1]);
     plaster('s', z1, A3_OFFICES[1][0], 87.25);
     plaster('s', recessFace, 87.25, A3_RECESS_DOOR_X[0]);
     plaster('s', recessFace, A3_RECESS_DOOR_X[0], A3_RECESS_DOOR_X[1], A3_DOOR_H, CEIL);
@@ -519,10 +533,11 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
       }
     }
     // wall furniture. Office 1: a whiteboard, a print and a clock over the desks, a pin board on the west wall, upper cupboards and a pin board over the run
-    framed('n', z0, 80.2, 81.4, 1.3, 1.95, LOOK.board);
+    // (J14) not on the re-plan: the whiteboard and the west pin board hang where the crawl runs
+    if (!opts.replan) framed('n', z0, 80.2, 81.4, 1.3, 1.95, LOOK.board);
     framed('n', z0, 82.6, 83.6, 1.4, 1.9, LOOK.paper);
     face('n', z0, 84.2, 84.5, 2.15, 2.45, LOOK.board, 1);
-    framed('e', lobbyFace, 0.6, 1.8, 1.3, 1.9, LOOK.cork);
+    if (!opts.replan) framed('e', lobbyFace, 0.6, 1.8, 1.3, 1.9, LOOK.cork);
     for (let k = 0; k < 4; k++) face('s', z1, 81.2 + 0.55 * k + 0.01, 81.2 + 0.55 * k + 0.54, 1.55, 2.25, LOOK.cab, 1);
     framed('s', z1, 83.8, 85.0, 1.3, 1.9, LOOK.cork);
     // office 2: a whiteboard over the trolley, a print over the desk, a clock, a whiteboard over the west run, a pin board over the bay's drawer unit
@@ -542,6 +557,8 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
   // ---- A3-15: the desks and runs (laminate tops round the props, panels, cabinet fronts, drawers, the far desk's own screen) ----
   tally(b, p.register, 'A3-15', "Desk and run dressing (visual skins, no collision): laminate round each desk prop, dark end and front panels over the greybox desks, a skinned screen, keyboard and mouse on the far desk, worktops, cabinet fronts with handles on the three wall runs, a three-drawer unit on the bay's run", () => {
     for (const d of A3_DESKS) {
+      // (J14) not on the re-plan: the first desk is gone (the crawl)
+      if (opts.replan && d === A3_DESKS[0]) continue;
       const cx = (d.x0 + d.x1) / 2;
       const pz = d.z1 - 0.45;
       ring(d.x0, d.x1, d.z0, d.z1, 0.75, 0.75 + 0.01, [cx - 0.8, cx + 0.8, pz - 0.4, pz + 0.4], LOOK.laminate);
@@ -565,6 +582,8 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     skin(f.x0 + 0.12, f.x0 + 0.18, 0.76, 0.775, zm + 0.3, zm + 0.36, LOOK.black);
     // the runs: worktop, plinth, cabinet fronts with handles (the bay's run is a drawer unit on two faces)
     for (const r of A3_RUNS) {
+      // (J14) not on the re-plan: office 1's run is built trimmed (`replan/a3OfficeRange.ts`)
+      if (opts.replan && r === A3_RUNS[0]) continue;
       skin(r.x0, r.x1, 0.9, 0.93, r.z0, r.z1, LOOK.laminate);
       face('w', r.x0, r.z0, r.z1, 0, 0.9, LOOK.panel);
       if (r.z0 > 7.5) {
@@ -603,10 +622,11 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     const alongX = (z: number, yaw: number, a: number, e: number): void => run((a + e) / 2, z, e - a, yaw);
     const lobbyX = A3_LOBBY_WALL_X - h;
     // west lobby: the outer wall (south of the L2 door's frame), office 1's wall either side of its door, the south wall, the north wall short of the corridor switch
-    alongZ(SHELL.west, Math.PI / 2, 0.34, 8.9);
-    alongZ(lobbyX, -Math.PI / 2, 0.34, A3_LOBBY_DOOR_Z[0] - 0.1);
+    // (J14) not on the re-plan: the riser cupboard and the crawl stand in the south-west corner (the replan file runs the panels from them)
+    if (!opts.replan) alongZ(SHELL.west, Math.PI / 2, 0.34, 8.9);
+    if (!opts.replan) alongZ(lobbyX, -Math.PI / 2, 0.34, A3_LOBBY_DOOR_Z[0] - 0.1);
     alongZ(lobbyX, -Math.PI / 2, A3_LOBBY_DOOR_Z[1] + 0.1, 8.9);
-    alongX(SHELL.south, 0, 76.34, 79.26);
+    if (!opts.replan) alongX(SHELL.south, 0, 76.34, 79.26);
     alongX(SHELL.north, Math.PI, 76.34, 78.3);
     // east lobby: the outer wall either side of the L3 door's frame, the office wall either side of the services cupboard, the south and north walls
     const eastX = A3_EAST_WALL_X + h;
@@ -665,8 +685,9 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
 
   // ---- A3-18: the props kit (PROPS.md 3 A3): four desks over the greybox desks, five chairs, the cleaner's trolley, five hung plates ----
   const props = new FacilityProps();
-  for (const d of A3_DESKS) props.add('officeDesk', (d.x0 + d.x1) / 2, d.z1 - 0.45, 0, { y: A3_DESK_LIFT, tint: [0, 0, 0] });
-  for (const c of A3_CHAIRS) props.add('officeChair', c.x, c.z, c.yaw, { free: true });
+  // (J14) not on the re-plan: the first desk and its chair (the crawl)
+  for (const d of A3_DESKS) if (!opts.replan || d !== A3_DESKS[0]) props.add('officeDesk', (d.x0 + d.x1) / 2, d.z1 - 0.45, 0, { y: A3_DESK_LIFT, tint: [0, 0, 0] });
+  for (const c of A3_CHAIRS) if (!opts.replan || c !== A3_CHAIRS[0]) props.add('officeChair', c.x, c.z, c.yaw, { free: true });
   const trolley = props.add('cleanerTrolley', A3_TROLLEY.x, A3_TROLLEY.z, Math.PI / 2);
   // plates (hung, bottom edge at 2.55 m): over office 3's corridor door, office 2's recess door and office 1's lobby door, and a lift display over each lobby's pair
   // (S3-7 S1) each plate's backlit face is on the circuit that lights its wall: the corridor panels (30) for the two in the corridor, the landlord's lobby circuit (34) for the three in the lobbies

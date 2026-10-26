@@ -2007,7 +2007,7 @@ conflicts: master deleted nothing the operators work had touched.
   36 ok; KNOWN FLAKY failed: e2e-netmove, e2e-coop, e2e-pad; 5 failed: e2e-anchors, e2e-kestrel, e2e-camera-bounds,
   e2e-music, e2e-editor. Serial rerun of the 5: e2e-anchors and e2e-music pass (load); e2e-kestrel ("camera rays along
   the tour"), e2e-camera-bounds (level U) and e2e-editor fail. All three are the pre-existing Kestrel-owned failures in
-  master's consolidation PR (docs/consolidation/PR-BODY.md 48, AGENT-PREAMBLE.md 42); none touches operators code.
+  master's consolidation PR (docs/archive/consolidation/PR-BODY.md 48, AGENT-PREAMBLE.md 42); none touches operators code.
 - Merge commit a804c48 (not pushed). Uncommitted after it: this LOG draft, STATE.md, the orchestrator's 11d / 11e step
   file edits, and a line-ending-only touch of tests/__snapshots__/visionIsolation.test.ts.snap from the Vitest run.
 - Status: merged; check passed; e2e failures are master's known ones.
@@ -2019,7 +2019,7 @@ Status: draft (implementer). D31 / G123 (Wren is the player body for both player
 Michael (2026-10-18: "I want wren in the game first"). Assumed decisions A96-A98. No asset changes.
 
 **Built**
-- `docs/operators-runtime/SURVEY.md` (player body, co-op bodies, cameras, shadows, gameplay isolation, bundling;
+- `docs/archive/operators-runtime/SURVEY.md` (player body, co-op bodies, cameras, shadows, gameplay isolation, bundling;
   file:line) and `DESIGN.md` (modules and API, manifest, LOD / hero choice, bundling, sizes and load time, sharing,
   skeleton link, materials, goggle states, the asset follow-up, disposal, the 11e integration map, risks).
 - Pure, Babylon-free (`src/operators/runtime/`): `manifest.ts` (LOD names, `manifestFromUrls`, `validateManifest`,
@@ -2331,7 +2331,7 @@ Fix list `steps/11e-fixes-r1.md` items 0-3 plus the checker's two notes (ktx2.ts
   kept whole, then this run's "Operators run" section, renumbered) and `docs/design-bible.md` 5.14 (master: "the
   core-feel job tunes movement on Wren (G150), ahead of G70's order (Wren behind a dev switch...)"; ours: Wren is the
   player for both, no dev switch (G123). Kept ours and added master's G150 core-feel tuning to it). Everything else
-  merged clean (`docs/progress.md`, the new `docs/ct-research/*`, `docs/ct-prototype/PLAN.md`).
+  merged clean (`docs/archive/progress.md`, the new `docs/ct-research/*`, `docs/ct-prototype/PLAN.md`).
 - Renumbered this run's G124-G139 to G161-G176 (old n -> n + 37, same order); G123 kept (reserved for us on master).
   Changed only references to our entries: DECISIONS.md's operators section and header line, CHANGELOG, docs/operators
   (DECISIONS, LOG, steps/11e-*), docs/systems/movement.md and world-and-characters.md, src (attach, attachController,

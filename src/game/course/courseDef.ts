@@ -7,6 +7,7 @@ import { AIRLOCK_PAD_INSET, AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } fr
 import { hyp2 } from '../../core/mathx';
 import type { SquadSlot } from '../../world/rooms';
 import type { SecurityConsole } from './securityRoom';
+import type { StationDef } from './stationDef';
 
 /** Player index: 0 = P1 (host), 1 = P2 (client). */
 export type PlayerIdx = 0 | 1;
@@ -65,8 +66,12 @@ export interface EgressGate { kind: 'egress'; id: string; switchId: string; door
 export interface MainsGate { kind: 'mains'; id: string; group: string; doorId: string }
 /** Unlocked once the course flag is set (a key, a card, a code). */
 export interface FlagGate { kind: 'flag'; id: string; flag: string; doorId: string }
-/** The anchor is unusable until the flag is set (the B3 fan guard). */
-export interface AnchorLockGate { kind: 'anchorLock'; id: string; anchorId: string; flag: string }
+/**
+ * The anchor is unusable until the flag is set (the B3 fan guard). (J14 R1) `lockOn: true` turns it round: the anchor is
+ * usable (the gate open) until the flag is set, then locked (the gate shut); a retry of a station that lists the gate
+ * drops the flag, so the anchor opens again (A6's loading edge `g-a6-edge`). A lockOn gate is never a station's stand-in.
+ */
+export interface AnchorLockGate { kind: 'anchorLock'; id: string; anchorId: string; flag: string; lockOn?: boolean }
 /** A switch that sets a flag (per player when `perPlayer`). A security console's pickup gets a timer from its
  *  `SecurityConsole.seconds` / `rearm` (N3): the flag then clears after `seconds` and the console re-arms after `rearm`. */
 export interface PickupGate { kind: 'pickup'; id: string; switchId: string; flag: string; perPlayer: boolean }
@@ -101,6 +106,17 @@ export const TIMED_WARN = 5;
 export function warnKey(gateId: string): string {
   return `warn:${gateId}`;
 }
+
+/**
+ * (J14 R1, STATIONS.md SA2) The `bay.radio` key of LANTERN's line when station `id` retries (what and where, G343): `seen`
+ * / `caught` at `retry:<id>`, a drill window (`timer`, or `true`) at `retry:<id>:timer`, a set's soft-lock way out
+ * (`other`, J14 A26) at `retry:<id>:other`. No line: the retry is silent.
+ */
+export function retryKey(stationId: string, kind: boolean | 'timer' | 'other' = false): string {
+  return kind === 'other' ? `retry:${stationId}:other` : kind ? `retry:${stationId}:timer` : `retry:${stationId}`;
+}
+
+const STATION_RETRY: readonly string[] = ['none', 'station', 'caught'];
 
 export interface RadioLine {
   /**
@@ -181,6 +197,8 @@ export interface BayDef {
    * and the set restarts from its start (`spotFailed`, `CourseMode.fixedUpdate`). At most COURSE_TEXT_MAX characters.
    */
   spotFail?: string;
+  /** (J14 Marlow re-plan) The bay's numbered stations; absent on the built yard. */
+  stations?: readonly StationDef[];
 }
 
 /**
@@ -318,7 +336,8 @@ function unique(seen: Set<string>, id: string, what: string): void {
 /**
  * Check a course: unique ids; every gate, airlock and drill names known ids; the bays chain start -> airlocks -> end;
  * airlocks 6 x 6 (+-0.5); radio lines, spotted lines and drill steps <= 90 characters; every flag read is set by a pickup, a pair gate
- * or `def.externalFlags`.
+ * or `def.externalFlags`; (J14 R1) stations with unique numbers and a known retry kind, their guards in the bay's squad,
+ * a stand-in gate of the bay, two finite marks and a done flag that is set somewhere.
  * Throws with the offending id; returns the definition.
  */
 export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef {
@@ -359,6 +378,9 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
   const elemIds = new Set<string>();
   const flagsSet = new Set<string>(def.externalFlags);
   const flagsRead: [string, string][] = [];
+  const stationIds = new Set<string>();
+  const stationNs = new Set<string>();
+  const doneFlags: [string, string][] = [];
   const text = (owner: string, s: string, what: string): void => {
     if (!s) fail(owner, `empty ${what}`);
     if (s.length > COURSE_TEXT_MAX) fail(owner, `${what} is ${s.length} characters (max ${COURSE_TEXT_MAX})`);
@@ -433,8 +455,28 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
       if ((d.count ?? 1) < 1) fail(d.id, 'count below 1');
     }
     for (const e of b.elements) unique(elemIds, e.id, 'element');
+    // (J14 R1) the stations, in play order (not always `n` order: A4 is 9, 8, 10): unique whole numbers, a known retry
+    // kind, guards from the bay's squad, a stand-in that is a gate of the bay, two finite marks; `gates` may also name
+    // devices (cameras, beams); done flags checked below once every flag set is known
+    const bayGates = new Set(b.gates.map((g) => g.id));
+    for (const s of b.stations ?? []) {
+      unique(stationIds, s.id, 'station');
+      if (!Number.isInteger(s.n) || s.n < 1) fail(s.id, `station number ${s.n} is not a whole number from 1`);
+      unique(stationNs, String(s.n), 'station number');
+      if (!STATION_RETRY.includes(s.retry)) fail(s.id, `station retry '${String(s.retry)}' is not none, station or caught`);
+      if (s.drillS !== undefined && !(s.drillS > 0)) fail(s.id, 'station drillS must be above 0');
+      if (s.marks.length !== 2) fail(s.id, 'a station has two start marks');
+      for (const m of s.marks) if (![m.x, m.y, m.z, m.yaw].every(Number.isFinite)) fail(s.id, 'a station mark is not a finite point');
+      for (const q of s.guards) if (!b.squad.includes(q)) fail(s.id, `station guard '${q}' is not in ${b.id}'s squad`);
+      if (s.standIn !== undefined && !bayGates.has(s.standIn)) fail(s.id, `stand-in gate '${s.standIn}' is not a gate of ${b.id}`);
+      if (s.standIn !== undefined && b.gates.some((g) => g.id === s.standIn && g.kind === 'anchorLock' && g.lockOn === true)) fail(s.id, `stand-in gate '${s.standIn}' is a lockOn anchorLock (it only shuts)`);
+      if (!s.doneFlag) fail(s.id, 'a station names its done flag');
+      doneFlags.push([s.id, s.doneFlag]);
+    }
   });
   for (const [owner, flag] of flagsRead) if (!flagsSet.has(flag)) fail(owner, `flag '${flag}' is never set`);
+  const objFlags = new Set((def.objectives ?? []).filter((o) => o.done !== undefined).map((o) => `obj:${o.id}`));
+  for (const [owner, flag] of doneFlags) if (!flagsSet.has(flag) && !objFlags.has(flag)) fail(owner, `done flag '${flag}' is never set (a pass zone's flag goes in externalFlags)`);
   if (def.objectives) {
     const objIds = new Set<string>();
     const cond = (owner: string, c: StepCond): void => {

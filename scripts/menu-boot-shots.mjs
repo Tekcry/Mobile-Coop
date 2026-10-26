@@ -15,7 +15,7 @@ import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 import { fakePointerLock, launchOptions } from './e2e-lib.mjs';
 
-const out = process.argv[2] ?? 'docs/menu-notes/shots';
+const out = process.argv[2] ?? 'docs/archive/menu-notes/shots';
 mkdirSync(out, { recursive: true });
 const base = process.env.URL ?? `http://127.0.0.1:${process.env.E2E_PORT ?? 4173}/`;
 const gfx = process.env.SHOT_GFX ?? 'high';

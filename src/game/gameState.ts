@@ -1,8 +1,10 @@
 import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
-import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
+import { type AbstractMesh, Color3, type Effect, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
+import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
+import { CharOccluders } from '../world/charOccluders';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -13,7 +15,9 @@ import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
+import { FieldNotes } from './fieldNotes';
 import { PauseLook } from '../vfx/pauseLook';
+import { mapLampBeams } from '../vfx/volLights';
 import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
@@ -26,7 +30,6 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import type { WheelView } from '../ui/hud/gadgetWheel';
 import { keyLabels } from '../ui/prompts';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
-import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
@@ -34,13 +37,22 @@ import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import { warmGuardModels } from '../ai/guardWarm';
+import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
+import { CompileLog, type CompileLogRecord } from '../core/compileLog';
+import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
+import { compileGroupsDue, compileOrderOf, GROUP_ALL, GROUP_GUARDS, GROUP_LEVEL, GROUP_OWN, GROUP_REST, type CompileDueInput } from './compileOrder';
+import { MAP_READY_CAP_MS, runMapGate, type MapGateInput, type MapGateProbe, type MapGateResult } from './mapGate';
+import { MIN_LODS } from '../operators/runtime/playerFigure';
+import { LOD_0, LOD_1, LOD_2 } from '../operators/runtime/manifest';
+import { sectionBakeFor } from '../world/sectionBake';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
-import { Interactables, type Interactable } from './interactables';
+import { Interactables, drawsExitBeacon, type Interactable } from './interactables';
 import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
+import { addGapRows, GAP_KIND, gapMenuCandidate, pickOpenTrap, type GapOpt } from './gapMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
 import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
@@ -63,10 +75,11 @@ import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
-import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
+import { GRAB, type TakedownKind } from './takedown';
+import { takedownRow } from './knifeKill'; // (piano-knife S1)
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
-import type { TeamKind } from './teamMoves';
+import type { TeamMoveKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
 import type { SwaySet } from '../world/lampSway';
@@ -93,6 +106,7 @@ import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel, type VisionMode } from './vision';
 import { StealthSystems } from './stealthSystems';
+import type { LocalCarry, NetCarry } from './bodyCarry';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
 import type { SectorNetExtra } from './sectors';
@@ -114,6 +128,7 @@ import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, se
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
+import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto, slotInto } from './charOccluderFill';
 import { GadgetSystem } from './gadgetSystem';
 import { OpticSystem } from './opticSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -127,6 +142,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
+import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
@@ -182,6 +198,8 @@ export interface NetAttachment {
   onLocalDeath(): boolean;
   /** Host: the session ended (broadcast results). */
   onEnd?(won: boolean, subtitle: string): void;
+  /** (hud-guidance B4, HG8) Client: Field Terminal > Objectives rows; null: none (GameState shows its own). */
+  objectiveLines?(): ObjectiveLine[] | null;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
@@ -190,8 +208,11 @@ export interface NetAttachment {
   wallOthers?(seg: number, out: Float64Array): number;
   /** (step 13) Client: ask the host to crack (or close the crack of) door `i`; the host's own player cracks directly. */
   doorCrack?(i: number, on: boolean): void;
+  /** (optic-coop, CHECK-M B1) Client: ask the host to open the trap panel over optic gap `g` (`panel`); the host opens
+   *  it and its snapshots' `trp` open it on every page. The host's own player opens directly (no hook). */
+  panelOpen?(g: number): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
-  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
+  teamRequest?(kind: TeamMoveKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
   /** (CT prototype B5) End the hang-down (either player): pull the partner up or (the holder) drop them. */
@@ -249,9 +270,14 @@ export interface NetAttachment {
   /** Extra pickers for pickups (host: remote players). */
   pickers?(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[];
   onPickup?(kind: PickupKind, who: string): void;
-  blips?(): Blip[];
   /** (guard-ai S9) Client: where guard `who`'s line shows (over his puppet's head) into `out`; false when not here. */
   barkAt?(who: string, out: Vector3): boolean;
+  /** (coop-carry) Client: the local player's body carry (the host has its own in `StealthSystems`). */
+  readonly carry?: NetCarry;
+  /** (map-ready S2) Co-op: this peer's release waits for the others (host: every start player's `mr`; client: `go`). */
+  holdsStart?(): boolean;
+  /** (map-ready S2) This peer's own gate finished (S5 sends `mr` from it). */
+  onLocalReady?(info: { capHit: boolean; ms: number }): void;
   dispose(): void;
 }
 
@@ -282,8 +308,12 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
 /** Solo: no remote players (one shared array, so the per-step accessor never allocates). */
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
+/** (char-shadow-meter S2c) Solo and host: no client partner slots (`charMatesInto`). */
+const NO_MATES = (): number => 0;
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
+/** (map-ready S14) The compile log closes this long after its zero point (ms) whatever is still pending. */
+const COMPILE_LOG_MAX_MS = 150_000;
 /** (LR16-5b) Head points a pendant-bump pass takes (the players and the live guards). */
 const MAX_SWAY_HEADS = 40;
 const SHOT_NOISE = 28;
@@ -339,7 +369,6 @@ export class GameState implements AppState {
   readonly weapons: PlayerWeapons;
   readonly target: PlayerTarget;
   readonly hud: Hud;
-  readonly minimap: Minimap;
   readonly traversal: TraversalController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
@@ -349,6 +378,24 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
+   *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
+  readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
+  /** (char-shadow-meter S2) Per player slot (`FILL_IN`): feet, the meter's sample height, the head offset. */
+  private readonly lightIn = new Float64Array(FILL.players * FILL_IN);
+  /** (char-shadow-meter S2) Each slot's owner key in the contract (S3b-2 passes these to `ShadowCues.fill`). */
+  private readonly charKeys = new Int32Array(FILL.players);
+  /** (char-shadow-meter S2) `playerRefsInto` order (slot 0 local); S3b-2 reuses it. */
+  private readonly charRefs: PlayerRef[] = [];
+  private charN = 0;
+  private charFull = 0;
+  /** (char-shadow-meter S2, debug only) The meter tick's ms with the contract: the last and a ring of 100. */
+  private charMs = 0;
+  private readonly charMsRing = new Float32Array(100);
+  private charMsAt = 0;
+  /** (char-shadow-meter S2) The picture's round shadows from the contract (`BakedLamps.capsules`). */
+  private readonly charCapsules = (a: Float32Array, b: Float32Array, max: number): number =>
+    pictureInto(this.charOccluders!, a, b, max, this.lightIn);
   /** (G3) The feet last step (the camera's door passage reads the move across a doorway). */
   private camPrevX = Number.NaN;
   private camPrevZ = Number.NaN;
@@ -385,9 +432,6 @@ export class GameState implements AppState {
   private time = 0;
   private respawnT = -1;
   private onTarget = false;
-  private tmp = new Vector3();
-  /** Extra blips/markers contributed by the active mode. */
-  extraBlips: () => Blip[] = () => [];
   readonly nav: NavGrid | null = null;
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
@@ -397,6 +441,10 @@ export class GameState implements AppState {
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
+  /** (coop-carry) The local player's body carry: `StealthSystems` (solo / host) or the co-op client's (`net.carry`). */
+  get carrier(): LocalCarry | null {
+    return this.stealth ?? this.net?.carry ?? null;
+  }
   /** Cameras (and later the other security devices) of a map that has `layout.security`; host side, never on a co-op client. */
   readonly security: SecuritySystem | null = null;
   /** (CT prototype B3) The course's held jammer, cameras' jam state and lasers (set by the course mode / client mirror). */
@@ -442,6 +490,9 @@ export class GameState implements AppState {
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
+  /** (char-shadow-meter S2c) Co-op client: writes its partners' slot inputs (`slotInto`) into `pin` slots from..max-1
+   *  and returns how many. Set by `CoopClient` with the flag on. Solo and host: none. Read only by `fillChars`. */
+  charMatesInto: (pin: Float64Array, from: number, max: number) => number = NO_MATES;
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
@@ -478,6 +529,9 @@ export class GameState implements AppState {
   /** (A3, G19; G5) The door set and (A4, G23; G5) the grab set as seen from outside (tests, tools). */
   readonly doorMenu = new DoorMenuView(this.ctxMenu);
   readonly grabMenu = new GrabMenuView(this.ctxMenu);
+  /** (optic-coop M1) The gap set listed this step (row order) and its gap's index (-1: none); tests, tools. */
+  readonly gapMenuOpts: GapOpt[] = [];
+  gapMenuGap = -1;
   /** A Stealth open pick waiting for the peek step; the door the peek is on offer at. */
   private stealthPick = false;
   private peekOffer = -1;
@@ -501,6 +555,9 @@ export class GameState implements AppState {
   private wallOv: MoveOverride = {};
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
+  /** (hud-guidance B5, R12, BRIEF A9) Field Terminal > Notes: this match's interrogation lines (solo / host: the `intel`
+   *  event; a co-op client: the host's `feed` events, `coopClient.ts`). A new match is a new GameState: empty. */
+  readonly notes = new FieldNotes();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
   /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
@@ -594,9 +651,11 @@ export class GameState implements AppState {
       // fog: moonlit shafts under the skylights and through the doors (the baked moon's visibility)
       sky: world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
+      // (fog triage) Saltmarsh Park: its cone fittings haze under their shade, only torches beam
+      lampBeams: mapLampBeams(world.map.theme),
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
-    if (world.lamps) world.lamps.capsules = this.rtCapsules;
+    if (world.lamps) world.lamps.capsules = this.charOccluders ? this.charCapsules : this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
     // (no rain under roofs: the canonical shapes' tops; render only)
     this.weather.occluder = (x, z) => world.roofAt(x, z);
@@ -617,8 +676,6 @@ export class GameState implements AppState {
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
-    this.minimap = new Minimap(world.level);
-    this.hud.setMinimap(this.minimap);
 
     this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
@@ -657,13 +714,17 @@ export class GameState implements AppState {
       if (r) app.input.haptic(r);
     };
     this.player.onFootPlant = () => {
-      if (this.player.controller.gear >= 6 || this.stealth?.carrying) app.input.haptic('footfallHeavy');
+      if (this.player.controller.gear >= 6 || this.carrier?.carrying) app.input.haptic('footfallHeavy');
     };
     this.events.on('takedown', (e) => {
       if (e.phase === 'done') app.input.haptic('takedownDone');
     });
     this.events.on('strike', (e) => {
       if (e.result !== 'miss') app.input.haptic('elbowHit');
+    });
+    // (hud-guidance B5) solo / host: every interrogation's lines (the client's own come from the host as `feed`)
+    this.events.on('intel', (e) => {
+      for (const line of e.lines) this.notes.add(line);
     });
     this.player.onLand = (v) => {
       this.vfx.landDust(this.player.position, Math.min(1.5, v / 8));
@@ -706,7 +767,7 @@ export class GameState implements AppState {
       };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
-      w.interactables = new Interactables(this.scene, world.parts);
+      w.interactables = new Interactables(this.scene, world.parts, drawsExitBeacon(opts.mode));
       w.crates = new WeaponCrates(this);
       this.addMedkitWalls(w.interactables);
       w.mode =
@@ -728,7 +789,6 @@ export class GameState implements AppState {
         // the round lands somewhere: a thud / ricochet close by is heard
         this.enemyMgr?.hear(b, IMPACT_NOISE);
       };
-      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => {
         const em = this.enemyMgr;
         if (!em) return '';
@@ -744,9 +804,6 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox') {
-      this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
-    }
     // (LR16-5b) Marlow Yard's swinging pendants (solo and host; a co-op client asks the host, `CoopClient.swayRay`): our
     // rounds, the guards' rounds and blasts kick them on the shared clock; the host sends each accepted kick
     // (`CoopHost`: `onKick`). Head bumps: `updateLight`. The hooks are made once here, not per frame.
@@ -772,8 +829,9 @@ export class GameState implements AppState {
       };
     }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
-    // host's door states (snapshots)
-    world.doors.arm();
+    // host's door states (snapshots); (J9 S1) the shutters too, their openings shut on the guards' grid (nav null on a
+    // client or in a sandbox)
+    world.armDoors(this.nav);
     if (world.layout.security && !this.puppet) {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
@@ -849,6 +907,14 @@ export class GameState implements AppState {
       );
     }
     app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
+    // (char-shadow-meter S2) the contract's count, its overflow and the meter tick (last, p95 of the last 100)
+    if (flags.debug && this.charOccluders) {
+      app.debug.extra.set('charlight', () => {
+        const occ = this.charOccluders!;
+        const ms = Array.from(this.charMsRing).sort((x, y) => x - y);
+        return `contract ${occ.n} (full ${this.charFull}) meter ${this.charMs.toFixed(3)} ms p95 ${(ms[94] ?? 0).toFixed(3)} ms`;
+      });
+    }
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
       const stance = c.kneeling ? ' kneel' : c.crouched ? ' crouch' : '';
@@ -899,8 +965,32 @@ export class GameState implements AppState {
     // (`?gfx=min`: the blockout's boxes in standard materials; every other preset draws them smooth - PBR with the
     // surface atlas and baked lamps)
     const plain = q.minimal;
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
+    // (section-bake robust, check A P8) a load that throws after its lamp bake started (no GameState to dispose it): the
+    // bake's workers stop here
+    const bakers = sectionBakerMark();
+    // (map-ready S1) the load record's start: the clock and the programs compiled so far
+    const readyT0 = performance.now();
+    const readyP0 = GameState.readyPrograms(app);
+    let world: World;
+    try {
+      world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
+    } catch (e) {
+      disposeSectionBakersSince(bakers);
+      throw e;
+    }
+    const readyWorld = performance.now();
     const g = new GameState(app, world, opts, cb);
+    // (map-ready S1) the load record (counter reads only; `window.__mapReady`)
+    const rs = new MapReadyStats(opts.map.id, opts.mode, flags.mapReady, readyT0, readyP0);
+    g.readyStats = rs;
+    rs.step('world', readyWorld);
+    rs.setBake(bakeSourceOf(undefined, !!sectionBakeFor(opts.map.id), !!world.lightBake?.sections), world.lightBake?.ms ?? -1);
+    g.scene.onNewMaterialAddedObservable.add(() => {
+      g.readyMats++;
+    });
+    if (typeof window !== 'undefined') (window as unknown as { __mapReady: MapReadyRecord }).__mapReady = rs.record;
+    // (map-ready S14) the compile log from the same zero point (reads only, flag on or off; `window.__compileLog`)
+    g.compileLogStart(readyWorld);
     if (opts.net) g.net = opts.net.attach(g);
     // (anim-studio) the studio stage: single player only (never offered in a co-op session)
     else if (opts.map.id === STUDIO_MAP_ID)
@@ -933,16 +1023,39 @@ export class GameState implements AppState {
           if (i >= 0) g.weapons.switchTo(i);
         },
       });
+    if (flags.mapReady) {
+      // (map-ready S2) no warm-up race here: `app.setState` runs with the sim held (`holding`) and the load gate
+      // (`runGate`, `mapGate.ts`) waits for the live lamps, the real quality, the content, the bodies, every shader, the
+      // probe and every lamp behind the boot screen; `release` then marks the bake playing and reveals. The cap's zero
+      // point is here (the end of World.create, the S1 `world` step).
+      g.holding = true;
+      g.gateWorldAt = readyWorld;
+      // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest)
+      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id).catch(() => undefined);
+      rs.step('create', performance.now());
+      return g;
+    }
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
     // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
     // screen and under the same cap (`guardWarm.ts`; the flag off waits for exactly what it did)
+    // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
+    // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
     const ready = g.scene.whenReadyAsync();
-    await Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
+    const sb = world.lightBake?.sections;
+    await Promise.all([
+      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
+      sb ? sb.whenReady(sb.plan.live) : null,
+    ]);
+    // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
+    sb?.markPlaying();
+    rs.step('create', performance.now());
     return g;
   }
 
   applyQuality(level: QualityLevel): void {
+    // (map-ready S2) the load gate's `quality` step: the real settings are in before its compile
+    this.gateQuality = true;
     const builds = this.stack.builds;
     this.world.applyQuality(level);
     this.stack.apply(level);
@@ -1054,6 +1167,8 @@ export class GameState implements AppState {
     this.weapons.restoreCheckpoint();
     this.grenades.clear();
     this.gadgets.clearWorld();
+    // (J9 S1, A27) the kit back: our shutter move ends, every shutter shut at once (the client too, on the banner)
+    this.team.resetKit();
     this.stealth?.resetForRestart();
     this.suppression.reset();
     this.evNoise = 0;
@@ -1086,7 +1201,7 @@ export class GameState implements AppState {
       this.paused = true;
       this.app.input.setGameplayActive(false);
       this.hud.setVisible(false);
-      const rewards = GameState.rewardHook ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
+      const rewards = GameState.rewardHook && !this.stats.practice ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
       void rewards.then((el) =>
         this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit(), this.resultsNav())),
       );
@@ -1117,7 +1232,8 @@ export class GameState implements AppState {
   }
 
   get simulating(): boolean {
-    return !this.paused;
+    // (map-ready S2) held behind the boot screen: the loop passes no fixed step and a 0 dt (`core/app.ts`, `core/loop.ts`)
+    return !this.paused && !this.holding;
   }
 
   /** (tuner-ui) The pause menu (or the results) is open: the animation tuner gives the pad to the menus meanwhile. */
@@ -1126,8 +1242,12 @@ export class GameState implements AppState {
   }
 
   enter(): void {
+    // (map-ready S2) held: the reveal is the gate's release (`release`)
+    if (!this.holding) this.readyReveal();
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
+    // (map-ready S2) the mode's banners wait for the release; its objective is recorded for it
+    if (this.holding) this.holdHud();
     this.mode?.start();
     // a controller dropping out mid-match opens the pause menu with the way back (MD12)
     this.padOff = this.app.input.events.on('padDisconnected', () => {
@@ -1158,6 +1278,9 @@ export class GameState implements AppState {
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
     }
+    // (map-ready S2) the gate's `content` step: guards and devices placed inside the hold; input stays off until the release
+    this.gateContent = true;
+    if (this.holding) this.app.input.setGameplayActive(false);
   }
 
   exit(): void {
@@ -1198,6 +1321,7 @@ export class GameState implements AppState {
     this.stealth?.dispose();
     this.security?.dispose();
     this.gadgets.dispose();
+    this.team.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
     for (const d of this.dummies) d.dispose();
@@ -1206,6 +1330,8 @@ export class GameState implements AppState {
     this.target.dispose();
     this.vfx.dispose();
     this.player.dispose();
+    // (section-bake, SB11) a background lamp bake stops with the match (nothing more lands, nothing is cached)
+    this.world.lightBake?.sections?.dispose();
     this.world.dispose();
   }
 
@@ -1215,6 +1341,8 @@ export class GameState implements AppState {
 
   /** The mission's objectives and their state for the pause menu (G108). */
   objectiveLines(): ObjectiveLine[] {
+    const own = this.mode?.objectiveLines?.() ?? this.net?.objectiveLines?.();
+    if (own) return own;
     const m = this.mode;
     if (m instanceof InfiltrationMode) {
       const c = m.chain;
@@ -1257,6 +1385,7 @@ export class GameState implements AppState {
         {
           coop: !!this.net,
           objectives: () => this.objectiveLines(),
+          notes: () => this.notes.lines(),
           dof: this.stack.hasDof,
           notice,
           // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
@@ -1300,13 +1429,13 @@ export class GameState implements AppState {
     const inputS = this.app.input.state;
     const pressI = inputS.pressed('interact') && !this.ctxOwnsA;
     // a takedown on offer / running takes the button; (G7) so does a body being lifted or put down
-    if (this.takedown.offer || this.takedown.active || this.stealth?.busy) {
+    if (this.takedown.offer || this.takedown.active || this.carrier?.busy) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
       this.hud.setInteract(null);
       return;
     }
-    const carryIt = this.stealth?.carryTarget(this.player.position) ?? null;
+    const carryIt = this.carrier?.carryTarget(this.player.position) ?? null;
     const it = carryIt ?? (this.player.alive ? ints.nearest(this.player.position) : null);
     if (it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
@@ -1366,7 +1495,7 @@ export class GameState implements AppState {
     // one press never runs both
     const hangDirect = hangActs && td.offer === null && td.active === null;
     this.hangDirectA = hangDirect;
-    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
+    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.carrier?.busy ?? false);
     // (Michael 08:10 / 08:20; anim-rework S1, M3) a held guard: RT tap knocks him out, RT hold kills (KBM Z knocks out
     // too; not aiming: LT aims the pistol over his shoulder and RT then fires); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
     // B, Y and BACK TO GAME only close the list.
@@ -1381,6 +1510,8 @@ export class GameState implements AppState {
     m.begin();
     let it: Interactable | null = null;
     this.doorMenu.opts.length = 0;
+    this.gapMenuOpts.length = 0;
+    this.gapMenuGap = -1;
     if (!aside && !(pick && pick !== 'device')) {
       if (holding) {
         addGrabRows(m, td.hostage !== null && hasInfo(td.hostage));
@@ -1394,13 +1525,22 @@ export class GameState implements AppState {
           // (joint-interrogation, G148) the partner's hostage with joint information: BLUFF lists above TEAM TAKEDOWN
           // (`assist` is only on offer in co-op: `net.partnerHolds`)
           if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
-          if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
-          else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
+          // (piano-knife S1, A2) the knife switch: no grab, the takedown row is the knife kill (`start` forces it)
+          if (takedownRow(o.plan.kind, o.e.def.quadruped, td.knife) === 'grab') m.add(TD_KIND, 'grab', -1, 'Grab character');
+          else m.add(TD_KIND, 'ko', -1, td.knife ? 'Takedown' : TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
+        else {
+          // (optic-coop M1) no door faced: the optic gap in reach (OPEN TRAP where its panel opens, OPTIC CABLE)
+          const gIdx = this.gapMenuCandidate();
+          if (gIdx >= 0) {
+            this.gapMenuGap = gIdx;
+            addGapRows(m, gIdx, this.gapOpenable(gIdx), this.gapMenuOpts);
+          }
+        }
         // (hang-down) no body is picked up from the hang
-        it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
+        it = hangDirect ? null : ((hangActs ? null : this.carrier?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
         if (it && it.kind === 'door' && it.id.startsWith('door-')) {
           // a door's own item: the door set covers the closed door faced; else it opens or closes the door
@@ -1459,6 +1599,7 @@ export class GameState implements AppState {
       if (g === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[g]}: not built yet`, 'warn');
       else if (g) td.menuPick = g;
     } else if (kind === DOOR_KIND) this.doorMenuPick(opt as DoorOpt, ref);
+    else if (kind === GAP_KIND) this.gapMenuPick(opt as GapOpt, ref);
     else if (kind === ITEM_KIND && it) {
       if (it.onUse) it.onUse(it, 'local');
       else this.mode?.onInteract?.(it);
@@ -1484,12 +1625,39 @@ export class GameState implements AppState {
   /** (A3) The closed, unlocked door in reach (1.6 m) the operator faces (within 90 deg of the camera), else -1. */
   private doorMenuCandidate(): number {
     const doors = this.world.doors;
-    if (!doors.list.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
+    if (!doors.list.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.carrier?.carrying) return -1;
     const p = this.player.position;
     const d = doors.nearest(p.x, p.z, 1.6);
     if (!d || d.target !== 0 || d.anchor.locked || Math.abs(d.anchor.hinge.y - p.y) > 1.2) return -1;
     const cy = this.player.cam.yaw;
     return (d.cx - p.x) * Math.sin(cy) + (d.cz - p.z) * Math.cos(cy) > 0 ? d.index : -1;
+  }
+
+  /** (optic-coop M1) The optic gap in reach (`gapMenuCandidate`), with the door set's stand-asides, else -1. */
+  private gapMenuCandidate(): number {
+    const pts = this.world.level.opticPoints;
+    if (!pts.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
+    const p = this.player.position;
+    return gapMenuCandidate(pts, p.x, p.y, p.z, this.player.cam.yaw);
+  }
+
+  /** (optic-coop M1) Gap `gi` is covered by a panel that is still closed (OPEN TRAP is listed). */
+  private gapOpenable(gi: number): boolean {
+    const t = this.world.level.opticPoints[gi]?.trap;
+    return !!t && !this.world.breakables.isOpen(t);
+  }
+
+  /** (optic-coop M1) The picked gap option: OPEN TRAP opens the covering panel (quiet, as an unscrewed grate; CHECK-M B1:
+   *  a co-op client asks the host, `panel`, as a door; single player and the host open it at once, the host's snapshots
+   *  carry it as `trp`), OPTIC CABLE feeds the cable (`OpticSystem.pickPoint`: "Too far" / "No gap" as at a door). */
+  private gapMenuPick(o: GapOpt, gi: number): void {
+    const pt = this.world.level.opticPoints[gi];
+    if (!pt) return;
+    if (o === 'trap') {
+      if (pt.trap && this.gapOpenable(gi)) pickOpenTrap(gi, pt.trap, this.world.breakables, this.net);
+      return;
+    }
+    this.optic.pickPoint(gi);
   }
 
   /** The picked door option (A3, G97; a context menu row since G5). */
@@ -1592,6 +1760,47 @@ export class GameState implements AppState {
     this.lightT = 1 / LIGHT.playerHz;
     if (reg.sway && !this.puppet) this.swayBumps(reg.sway);
     const f = this.world.lightField;
+    // (char-shadow-meter S2) with the contract: every slot's sample from `lightIn` (this step's `fillChars`), the
+    // characters' capsules counted, each player's own skipped
+    const occ = this.charOccluders;
+    if (occ) {
+      const t0 = flags.debug ? performance.now() : 0;
+      const L = this.lightIn;
+      for (let s = 0; s < this.charN; s++) {
+        const o = s * FILL_IN;
+        const v = f.bodyLevel(L[o]!, L[o + 1]!, L[o + 2]!, L[o + 3]!, this.lightOccluder, L[o + 4]!, L[o + 5]!, occ, this.charKeys[s]);
+        // (S2c) a client's partner slots sit past `charRefs`: their light is not kept (the host's sample drives guards)
+        if (s === 0) {
+          this.lightLevel = v;
+          this.localRef.light = v;
+        } else if (s < this.charRefs.length) this.charRefs[s]!.light = v;
+      }
+      if (flags.debug) {
+        this.charMs = performance.now() - t0;
+        this.charMsRing[this.charMsAt] = this.charMs;
+        this.charMsAt = (this.charMsAt + 1) % this.charMsRing.length;
+      }
+      return;
+    }
+    this.localSampleInto(0);
+    const L = this.lightIn;
+    this.lightLevel = f.bodyLevel(L[0]!, L[1]!, L[2]!, L[3]!, this.lightOccluder, L[4]!, L[5]!);
+    this.localRef.light = this.lightLevel;
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i]!;
+      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
+      const rh = r.head;
+      if (rh) {
+        const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
+        r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
+      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+    }
+  }
+
+  /** The local player's meter sample into `lightIn[o..o+5]`: feet, sample height, head offset (the flag-off meter and
+   *  the contract's slot 0 read the same doubles). */
+  private localSampleInto(o: number): void {
     const p = this.player.position;
     // (operators 11e r1, G166) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
     const h = lightSampleHeight(this.player.rig.height, this.player.controller.crouchBlend);
@@ -1611,18 +1820,33 @@ export class GameState implements AppState {
       oz = hs.oz;
       hh = hs.h;
     }
-    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, hh, this.lightOccluder, ox, oz);
-    this.localRef.light = this.lightLevel;
-    const rs = this.remotePlayers();
-    for (let i = 0; i < rs.length; i++) {
-      const r = rs[i]!;
-      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
-      const rh = r.head;
-      if (rh) {
-        const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
-        r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
-      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
-    }
+    const L = this.lightIn;
+    L[o] = p.x;
+    L[o + 1] = p.y;
+    L[o + 2] = p.z;
+    L[o + 3] = hh;
+    L[o + 4] = ox;
+    L[o + 5] = oz;
+  }
+
+  /**
+   * (char-shadow-meter S2) The character contract from the sim, every step before `updateLight` (not inside it: the
+   * stealth-AI e2e pins the meter by replacing `updateLight`, and the picture keeps its capsules): the players in
+   * `playerRefsInto` order (slot 0 local: the meter's own sample; S2c: then a co-op client's partners, `charMatesInto`),
+   * then the living guards near them (a client's puppets through the same `takedownVictims`). Nothing with the flag off.
+   */
+  private fillChars(): void {
+    const occ = this.charOccluders;
+    if (!occ) return;
+    const refs = this.playerRefsInto(this.charRefs);
+    const nr = refs.length < FILL.players ? refs.length : FILL.players;
+    this.localSampleInto(0);
+    const L = this.lightIn;
+    for (let s = 1; s < nr; s++) slotInto(L, s, refs[s]!);
+    const n = nr + this.charMatesInto(L, nr, FILL.players);
+    this.charN = n;
+    fillPlayers(occ, L, n, this.charKeys);
+    this.charFull = fillVictims(occ, this.takedownVictims(), L, n);
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
 
@@ -1753,13 +1977,17 @@ export class GameState implements AppState {
   };
 
   fixedUpdate(dt: number): void {
-    if (this.exited) return;
+    // (map-ready S2) held: no step (suites calling `stepHeadless` directly), the clock stays at 0
+    if (this.exited || this.holding) return;
     const realIn = this.app.input.state;
     if (realIn.pressed('pause')) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
     }
+    // (G343, BRIEF A5) View / O shows the objective again, every mode and both co-op sides; not under the pause or field
+    // menu (co-op runs the sim under it: the line would pop up behind the menu)
+    if (!this.paused && !this.menuOpen && realIn.pressed('objective')) this.hud.showObjective();
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
@@ -1800,13 +2028,16 @@ export class GameState implements AppState {
     const inp = takes || ctxHeld ? this.blankInp : holdingGuard ? this.grabInp : real;
     // (G5) A belongs to the menu while a list is up (or its press is still held): the other A readers see it up
     const aFree = !this.ctxOwnsA;
-    // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
-    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the view's ray: `OpticSystem.frameUpdate`)
-    if ((this.optic.viewing ? real : inp).pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // (CT prototype B2) RB / F is the co-op action (team moves). (optic-coop M2) The ping is R3 / middle mouse
+    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the tip's ray: `OpticSystem.tipRay`). (optic-coop M2,
+    // Michael 2026-10-24 "contextual") R3 is Zoom only while aiming a scoped weapon, Ping otherwise (`contextPing`)
+    const pingIn = this.optic.viewing ? real : inp;
+    const scopedAim = !this.optic.viewing && this.weapons.scopedAim;
+    if (contextPing(scopedAim, pingIn.pressed('zoom'), pingIn.pressed('ping')) && this.net && this.player.alive) this.sendPing();
     // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
     this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
-    const carrying = this.stealth?.carrying ?? false;
+    const carrying = this.carrier?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
     const busy0 = this.takedown.active !== null || this.strike.active;
     // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
@@ -1919,6 +2150,7 @@ export class GameState implements AppState {
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate(inp.pressed('crouch'));
+    this.net?.carry?.fixedUpdate(inp.pressed('crouch'));
     this.security?.fixedUpdate(dt);
     // (CT prototype B3; Michael 2026-10-20 14:55 "Another button - what makes sense? RF?", read as RB) the pistol jammer:
     // the co-op button (pad RB, KBM F / PgDn) held while aiming the drawn pistol jams the camera or laser under the
@@ -1943,7 +2175,7 @@ export class GameState implements AppState {
     // (G7) close quarters: the bend over a held guard / a body, the hold's sway (the anim graph eases them)
     {
       const pz = this.player.pose;
-      const st = this.stealth;
+      const st = this.carrier;
       pz.bend = this.takedown.bend + (st ? st.bend : 0);
       pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
       // (marlow-bays T1a) the tuner's carry row: the bend is the body's, not a held guard's
@@ -1963,7 +2195,8 @@ export class GameState implements AppState {
     // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
-      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown, rt === 'hold');
+      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on
+      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
@@ -2003,6 +2236,7 @@ export class GameState implements AppState {
       if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle, 'noise', null, this.localRef.id);
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
+    this.fillChars();
     this.updateLight(dt);
     this.updateVision(dt);
     this.landingNoise();
@@ -2032,6 +2266,8 @@ export class GameState implements AppState {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
+        // (marlow-play C4) a retry ends a rope climb / hang-down / hold, or runRope / runHang put the body back next frame
+        this.team.end(true);
         this.player.controller.override = null;
         this.traversal.reset();
         this.wallCore?.reset();
@@ -2055,9 +2291,6 @@ export class GameState implements AppState {
       }
     }
   }
-
-  /** Enemy blips on the minimap last frame (tests). */
-  enemyBlips = 0;
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
@@ -2199,7 +2432,450 @@ export class GameState implements AppState {
     if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
     if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
     ctx.spikes = this.spikes.summary();
+    if (this.readyStats) ctx.mapReady = this.readyStats.summary();
+    // (map-ready S2, A3) the load gate's cap: hit or not, and the step it cut
+    const rr = this.readyStats?.record;
+    if (rr?.gated && rr.released) ctx.mapReadyCap = rr.capHit ? `hit at ${rr.capStep}` : 'no';
+    // (map-ready S14) the load's shader compiles: count, peak at once, the longest, sum over span
+    if (this.compileLog) ctx.compiles = this.compileLog.summary(performance.now());
     return ctx;
+  }
+
+  /** (map-ready S1) The load record (`window.__mapReady`; null before `create` makes it). */
+  private readyStats: MapReadyStats | null = null;
+  /** (map-ready S1) Materials added to the scene (one observer, added in `create`). */
+  private readyMats = 0;
+  /** (map-ready S1) Body / weapon / guard mesh swaps seen (the load record's pop-ins). */
+  private readyPop = 0;
+  /** (map-ready S1) The last seen operator LOD (`player.figure.current`), each weapon slot's `meshPending` (1 / 0). */
+  private readyFigure = -1;
+  private readonly readyWeapons = new Uint8Array(16);
+  /** (map-ready S1) Guard bodies already shown (each counts once), and the scene's live list once it exists. */
+  private readonly readyGuards = new WeakSet<GuardBody>();
+  private readyGuardList: readonly GuardBody[] | null = null;
+  /** (map-ready S1) The one reusable frame sample. */
+  private readonly readySample: FrameSample = { programs: 0, landings: 0, tileUploads: 0, materials: 0, popIns: 0 };
+
+  /** (map-ready S1) Programs the engine has compiled so far (once per load, at its start). */
+  private static readyPrograms(app: App): number {
+    const c = (app.engine as unknown as { _compiledEffects?: Record<string, unknown> })._compiledEffects;
+    return c ? Object.keys(c).length : 0;
+  }
+
+  /** (map-ready S14) The compile log (`window.__compileLog`; null before `create` makes it), its zero point, the program
+   *  count it last walked at, and the programs still compiling with their keys (one reusable pair of arrays, emptied at
+   *  `finish`: S10 keeps effects across matches, the log holds none once done). */
+  private compileLog: CompileLog | null = null;
+  private compileT0 = 0;
+  private compileSeen = 0;
+  private readonly compilePending: Effect[] = [];
+  private readonly compileKeys: string[] = [];
+
+  /** (map-ready S14) The engine's program cache (cache key -> effect). */
+  private compiledEffects(): Record<string, Effect> | undefined {
+    return (this.app.engine as unknown as { _compiledEffects?: Record<string, Effect> })._compiledEffects;
+  }
+
+  /** (map-ready S14) An effect's shader name: the name string, or the fragment of a `{ vertex, fragment }` name. */
+  private static effectName(e: Effect): string {
+    const n = e.name as unknown;
+    if (typeof n === 'string') return n;
+    const o = n as { fragment?: unknown; fragmentElement?: unknown } | null;
+    const f = o?.fragment ?? o?.fragmentElement;
+    return typeof f === 'string' ? f : '';
+  }
+
+  /** (map-ready S14) The log at `create`, t0 the S1 `world` step: every program already ready is known (never logged), one
+   *  still compiling is logged from 0 (`early`) and watched. */
+  private compileLogStart(t0: number): void {
+    const log = new CompileLog(t0, compileOrderOf(typeof location === 'undefined' ? '' : location.search));
+    this.compileLog = log;
+    this.compileT0 = t0;
+    this.gateOrder = log.record.order;
+    const c = this.compiledEffects();
+    const keys = c ? Object.keys(c) : [];
+    for (const key of keys) {
+      const e = c![key]!;
+      if (e.isReady()) log.known(key);
+      else {
+        log.seen(key, GameState.effectName(e), typeof e.defines === 'string' ? e.defines : '', t0, true);
+        this.compilePending.push(e);
+        this.compileKeys.push(key);
+      }
+    }
+    this.compileSeen = keys.length;
+    if (typeof window !== 'undefined') (window as unknown as { __compileLog: CompileLogRecord }).__compileLog = log.record;
+  }
+
+  /**
+   * (map-ready S14) Per frame while the log is open: on a frame whose program count changed, the cache's keys are walked
+   * once (load time only) and each new one is logged and watched; each watched effect that is ready, failed (a compile
+   * error, Babylon's fallback gave up) or disposed is logged and dropped (swap-remove). The log closes once nothing is
+   * pending and S1's after-window is done, or `COMPILE_LOG_MAX_MS` after t0, and lets go of every effect. No allocation on
+   * a frame with no new program.
+   */
+  private compilePoll(now: number): void {
+    const log = this.compileLog!;
+    const pend = this.compilePending;
+    const keys = this.compileKeys;
+    if (this.spikeShaders !== this.compileSeen) {
+      this.compileSeen = this.spikeShaders;
+      const c = this.compiledEffects();
+      if (c) {
+        const all = Object.keys(c);
+        const ent = log.record.entries;
+        for (let i = 0; i < all.length; i++) {
+          const key = all[i]!;
+          const e = c[key]!;
+          const n = ent.length;
+          log.seen(key, GameState.effectName(e), typeof e.defines === 'string' ? e.defines : '', now);
+          if (ent.length > n) {
+            pend.push(e);
+            keys.push(key);
+          }
+        }
+      }
+    }
+    for (let i = pend.length - 1; i >= 0; i--) {
+      const e = pend[i]!;
+      let failed: boolean;
+      if (e.isDisposed) failed = true;
+      else if (e.isReady()) failed = false;
+      else if (e.getCompilationError()) failed = true;
+      else continue;
+      log.ready(keys[i]!, now, e.isDisposed ? -1 : (e._fragmentSourceCode?.length ?? -1), failed);
+      const last = pend.length - 1;
+      pend[i] = pend[last]!;
+      keys[i] = keys[last]!;
+      pend.length = last;
+      keys.length = last;
+    }
+    const after = this.readyStats?.record.after.done ?? true;
+    if ((pend.length === 0 && after) || now - this.compileT0 > COMPILE_LOG_MAX_MS) {
+      log.finish();
+      pend.length = 0;
+      keys.length = 0;
+    }
+  }
+
+  /** (map-ready S1) The reveal (with the flag off, today's `app.setState` -> `enter`): the window's zero point. */
+  private readyReveal(): void {
+    const rs = this.readyStats;
+    if (!rs || rs.record.released) return;
+    this.readyPoll();
+    // (once per match) the program count now; later frames reuse `spikeShaders`
+    this.readySample.programs = GameState.readyPrograms(this.app);
+    const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+    rs.reveal(performance.now(), this.readySample, mem ? mem.usedJSHeapSize / (1024 * 1024) : -1);
+  }
+
+  /** (map-ready S1) Fill the frame sample: counter reads and the pop-in watch. No allocation once the lists exist. */
+  private readyPoll(): void {
+    const s = this.readySample;
+    s.programs = this.spikeShaders;
+    const lamps = this.world.lamps;
+    s.landings = lamps ? lamps.landings : 0;
+    s.tileUploads = lamps ? lamps.tileUploads : 0;
+    s.materials = this.readyMats;
+    // the operator body: a LOD swap after the first one loaded
+    const fig = this.player.figure.current;
+    if (fig !== this.readyFigure) {
+      if (this.readyFigure >= 0) this.readyPop++;
+      this.readyFigure = fig;
+    }
+    // a weapon model's baked mesh arriving (pending -> not)
+    const slots = this.weapons.slots;
+    const ws = this.readyWeapons;
+    for (let i = 0; i < slots.length && i < ws.length; i++) {
+      const p = slots[i]!.model.meshPending ? 1 : 0;
+      if (ws[i] && !p) this.readyPop++;
+      ws[i] = p;
+    }
+    // a guard body shown (each once); guard bodies exist only with the guard models
+    if (flags.guardModels) {
+      let gl = this.readyGuardList;
+      if (!gl) {
+        const l = liveGuardBodies(this.scene);
+        if (l.length) gl = this.readyGuardList = l;
+      }
+      if (gl)
+        for (let i = 0; i < gl.length; i++) {
+          const b = gl[i]!;
+          if (b.shown && !this.readyGuards.has(b)) {
+            this.readyGuards.add(b);
+            this.readyPop++;
+          }
+        }
+    }
+    s.popIns = this.readyPop;
+  }
+
+  // ---- (map-ready S2) the load gate: the sim held behind the boot screen until the map is built and warmed ----
+
+  /** (map-ready S2) Held behind the boot screen (`flags.mapReady`): no fixed step, input off, clock 0, until `release`. */
+  private holding = false;
+  /** (map-ready S2) The end of World.create (ms): the cap's zero point. */
+  private gateWorldAt = 0;
+  /** (map-ready S2) Probe inputs set elsewhere: the first `applyQuality` ran (`app.setState`), `enter` ran. */
+  private gateQuality = false;
+  private gateContent = false;
+  /** (map-ready S2) The player's play LODs failed to load (the gate does not wait for them). */
+  private gateFigureFailed = false;
+  /** (map-ready S2, S14 cut A) The `shaders` step's compile groups (`compileOrder.ts` bits: the player's body and weapons,
+   *  the level and its art, the guards nearest first, every other mesh): started, settled, the order (`?compileorder`),
+   *  and the one input object `compileGroupsDue` reads each gate read. */
+  private gateStarted = 0;
+  private gateSettled = 0;
+  private gateOrder: 'parallel' | 'serial' = 'parallel';
+  private readonly gateDue: CompileDueInput = { quality: false, content: false, bodies: false, started: 0, settled: 0 };
+  /** (map-ready S2) Banners queued during the hold, the last objective set, and the HUD's own two calls. */
+  private readonly gateBanners: [string, string | undefined, number | undefined][] = [];
+  private gateObjective: string | null = null;
+  private gateHud: { banner: Hud['banner']; setObjective: Hud['setObjective'] } | null = null;
+
+  /** (map-ready S2) Held behind the boot screen (tests, e2e). */
+  get held(): boolean {
+    return this.holding;
+  }
+
+  /**
+   * (map-ready S2) With `flags.mapReady`, right after `app.setState` (`main.ts`): the load gate (`mapGate.ts`) runs on
+   * this state's probe until the map is built and warmed or the cap (`capMs`, counted from the end of World.create)
+   * cuts it, then `release` starts play. `report` gets the progress (0..1) and the boot bar's text. Resolves once
+   * released (or the state went away); never rejects.
+   */
+  async runGate(report: (progress: number, text: string) => void, capMs = MAP_READY_CAP_MS): Promise<MapGateResult> {
+    if (!this.holding) return { status: 'ready', capStep: '', ms: 0 };
+    const fig = this.player.figure;
+    const lod2 = 1 << LOD_2;
+    const playMask = MIN_LODS || this.app.quality.level.minimal ? lod2 : (1 << LOD_0) | (1 << LOD_1) | lod2;
+    // (a play LOD that fails to load: the gate does not wait for it; these are the loads `loadPlayLods` started, shared
+    // by `OperatorLibrary.load`, in the same order)
+    void fig
+      .load(LOD_2)
+      .then(() => (playMask === lod2 ? undefined : Promise.all([fig.load(LOD_0), fig.load(LOD_1)])))
+      .catch(() => {
+        this.gateFigureFailed = true;
+      });
+    const probe: MapGateProbe = {
+      read: (g) => this.gateRead(g, playMask),
+      tick: () => this.gateTick(),
+      closed: () => this.exited,
+      describe: () => this.gateDescribe(),
+    };
+    const r = await runMapGate(probe, report, Math.max(0, capMs - (performance.now() - this.gateWorldAt)));
+    if (r.status !== 'closed') this.release(r, capMs);
+    return r;
+  }
+
+  /** (map-ready S2) The gate's probe: fills every field but `warmFrames`. Render side reads only; no allocation once the
+   *  guard body list exists. */
+  private gateRead(g: MapGateInput, playMask: number): void {
+    const w = this.world;
+    const sb = w.lightBake?.sections;
+    g.bakeLive = !sb || sb.disposed || sb.ready(sb.plan.live);
+    g.quality = this.gateQuality;
+    g.content = this.gateContent;
+    let bodies = (this.player.figure.loaded & playMask) === playMask || this.gateFigureFailed;
+    const slots = this.weapons.slots;
+    for (let i = 0; i < slots.length; i++) if (slots[i]!.model.meshPending) bodies = false;
+    if (flags.guardModels) {
+      const gb = liveGuardBodies(this.scene);
+      for (let i = 0; i < gb.length; i++) if (!gb[i]!.shown) bodies = false;
+    }
+    g.bodies = bodies;
+    // (S14 cut A) each compile group starts as its inputs come in, in priority order, none waiting on another (parallel);
+    // `?compileorder=serial` keeps S2's order, each group after the one before settled
+    const d = this.gateDue;
+    d.quality = g.quality;
+    d.content = g.content;
+    d.bodies = bodies;
+    d.started = this.gateStarted;
+    d.settled = this.gateSettled;
+    const due = compileGroupsDue(d, this.gateOrder);
+    if (due) this.gateCompileAll(due);
+    g.shaders = this.gateStarted === GROUP_ALL && this.gateDrawReady();
+    g.probe = w.probeCaptured;
+    g.bakeAll = (!sb || sb.done || sb.disposed) && (w.lamps?.tilesPending ?? 0) === 0;
+    // (S3 adds the audio step, S5 the peers step)
+    g.audio = true;
+    g.peers = true;
+    // (the S1 frame sample's count, never a second `shaderCount()`)
+    g.programs = this.spikeShaders;
+  }
+
+  /** (map-ready S2) Every mesh with sub-meshes ready (disabled ones too: frozen off-screen guards and far-culled art must
+   *  compile), every post process ready, nothing waiting (`menuScene.ts` `drawReady` without its enabled / visible skip).
+   *  Asking compiles what is missing. */
+  private gateDrawReady(): boolean {
+    const scene = this.scene;
+    let ok = scene.getWaitingItemsCount() === 0;
+    const ms = scene.meshes;
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i]!;
+      if (!m.subMeshes?.length) continue;
+      // (no early exit: every material starts compiling at once)
+      if (!m.isReady(true)) ok = false;
+    }
+    const pps = scene.postProcesses;
+    for (let i = 0; i < pps.length; i++) {
+      const pp = pps[i];
+      if (pp && !pp.isReady()) ok = false;
+    }
+    return ok;
+  }
+
+  /** (map-ready S2) The next rendered frame (true), or a tick of 100 ms when no frame comes (a hidden tab; false). */
+  private gateTick(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const obs = this.scene.onAfterRenderObservable;
+      const o = obs.addOnce(() => {
+        clearTimeout(id);
+        resolve(true);
+      });
+      const id = setTimeout(() => {
+        obs.remove(o);
+        resolve(false);
+      }, 100);
+    });
+  }
+
+  /** (map-ready S2, Q1; S14 cut A) Start the compile groups in `due` in priority order: the player's body and weapons (S5
+   *  adds the partners'), the level and its art, the guards nearest the player first, then every other mesh. Each group
+   *  sets its settled bit when its compiles settle (a thrown compile too). A cap hit then leaves only far parts compiling
+   *  after the reveal. Lists are built once per group start. */
+  private gateCompileAll(due: number): void {
+    if (due & GROUP_OWN) this.gateStart(GROUP_OWN, 'own');
+    if (due & GROUP_LEVEL) this.gateStart(GROUP_LEVEL, 'level');
+    if (due & GROUP_GUARDS) this.gateStart(GROUP_GUARDS, 'guards');
+    // (the full readiness sweep, `gateDrawReady`, starts with this group)
+    if (due & GROUP_REST) this.gateStart(GROUP_REST, 'rest');
+  }
+
+  /** (S14 cut A) Start one group (logged in the compile log) and mark it settled when its compiles settle. */
+  private gateStart(bit: number, name: string): void {
+    this.gateStarted |= bit;
+    this.compileLog?.group(name, performance.now());
+    const settle = (): void => {
+      this.gateSettled |= bit;
+    };
+    let p: Promise<unknown>;
+    try {
+      p = this.gateGroup(bit);
+    } catch (e) {
+      // (the sweep still compiles everything)
+      console.info('map-ready: the priority compile stopped early', e);
+      p = Promise.resolve();
+    }
+    void p.then(settle, settle);
+  }
+
+  /** (S14 cut A) One group's compiles. The guards all start together, nearest first (parallel); `serial` keeps S2's one
+   *  guard after the other. */
+  private gateGroup(bit: number): Promise<unknown> {
+    if (bit === GROUP_OWN) {
+      const own = new Set<AbstractMesh>(this.player.rig.root.getChildMeshes(false));
+      for (const s of this.weapons.slots) for (const m of s.model.node.getChildMeshes(false)) own.add(m);
+      return GameState.gateCompileMeshes(own);
+    }
+    if (bit === GROUP_LEVEL) {
+      const w = this.world;
+      const lvl: AbstractMesh[] = [...w.level.meshes, ...(w.kit?.meshes ?? []), ...(w.facilityProps?.meshes ?? [])];
+      for (const m of this.scene.meshes) if (m.name.startsWith('campus-')) lvl.push(m);
+      return GameState.gateCompileMeshes(lvl);
+    }
+    if (bit === GROUP_GUARDS) {
+      const p = this.player.position;
+      const es = this.enemyMgr ? [...this.enemyMgr.enemies] : [];
+      es.sort((a, b) => hyp2(a.pos.x - p.x, a.pos.z - p.z) - hyp2(b.pos.x - p.x, b.pos.z - p.z));
+      if (this.gateOrder === 'serial') {
+        return (async () => {
+          for (const e of es) {
+            await GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false));
+            if (this.exited) return;
+          }
+        })();
+      }
+      const all: Promise<unknown>[] = [];
+      for (const e of es) all.push(GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false)));
+      return Promise.all(all);
+    }
+    return GameState.gateCompileMeshes(this.scene.meshes.slice());
+  }
+
+  /** (map-ready S2) `forceCompilationAsync` for each mesh's material (with instances when it draws them); resolves when
+   *  all have settled (a shader error never holds the next group). */
+  private static gateCompileMeshes(ms: Iterable<AbstractMesh>): Promise<unknown> {
+    const out: Promise<void>[] = [];
+    for (const m of ms) {
+      const mat = m.material;
+      if (!mat || !m.subMeshes?.length || m instanceof InstancedMesh || m.isDisposed()) continue;
+      const inst = m.hasThinInstances || ((m as { instances?: readonly unknown[] }).instances?.length ?? 0) > 0;
+      out.push(mat.forceCompilationAsync(m, { useInstances: inst }).catch(() => undefined));
+    }
+    return Promise.all(out);
+  }
+
+  /** (map-ready S2) For the cap's log line. */
+  private gateDescribe(): string {
+    const w = this.world;
+    const sb = w.lightBake?.sections;
+    return `${w.map.id}: figure ${this.player.figure.loaded}, compile ${this.gateOrder} started ${this.gateStarted} settled ${this.gateSettled} of ${GROUP_ALL}, probe ${w.probeCaptured ? 'in' : 'waiting'}, sections ${sb ? (sb.done ? 'done' : 'baking') : 'none'}, tiles ${w.lamps?.tilesPending ?? 0}, programs ${this.spikeShaders}`;
+  }
+
+  /** (map-ready S2) During the hold the mode's banners wait for the release and its objective is recorded (no HUD or
+   *  mode edit: the two calls are wrapped on this HUD instance; `release` puts them back). */
+  private holdHud(): void {
+    const hud = this.hud;
+    const own = { banner: hud.banner, setObjective: hud.setObjective };
+    this.gateHud = own;
+    hud.banner = (title: string, sub?: string, ms?: number): void => {
+      if (this.holding) this.gateBanners.push([title, sub, ms]);
+      else own.banner.call(hud, title, sub, ms);
+    };
+    hud.setObjective = (text: string): void => {
+      this.gateObjective = text;
+      own.setObjective.call(hud, text);
+    };
+  }
+
+  /**
+   * (map-ready S2) The release (PLAN section 2): input live, the sim's first fixed step next frame, the bake playing
+   * (its cache write from here), the S1 record's cap fields and reveal, the net layer told (S5), the queued banners
+   * replayed in order and the objective re-applied (G343 / G351: hud-guidance B1's popup shows on that call). The 2.8 s
+   * letterbox needs nothing: its timer runs on the frame dt, 0 while held. A cap hit logs one line (A3).
+   */
+  private release(r: MapGateResult, capMs: number): void {
+    this.holding = false;
+    try {
+      if (!this.bench) this.app.input.setGameplayActive(true);
+      this.world.lightBake?.sections?.markPlaying();
+      const capHit = r.status === 'cap';
+      const rs = this.readyStats;
+      if (rs) {
+        rs.record.capHit = capHit;
+        rs.record.capStep = r.capStep;
+      }
+      this.readyReveal();
+      this.net?.onLocalReady?.({ capHit, ms: performance.now() - this.gateWorldAt });
+      const own = this.gateHud;
+      if (own) {
+        this.gateHud = null;
+        const hud = this.hud;
+        hud.banner = own.banner;
+        hud.setObjective = own.setObjective;
+        for (const [t, s, ms] of this.gateBanners) hud.banner(t, s, ms);
+        this.gateBanners.length = 0;
+        if (this.gateObjective !== null) hud.setObjective(this.gateObjective);
+      }
+      if (capHit) {
+        const line = `map-ready: the ${Math.round(capMs / 1000)} s load cap cut the gate at '${r.capStep}' (${this.gateDescribe()}); play starts with what is ready`;
+        if (navigator.webdriver) console.info(line);
+        else console.warn(line);
+      } else if (r.status === 'error') console.warn(`map-ready: the load gate failed (${this.gateDescribe()}); play starts with what is ready`);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   /** 3.3: long frames this match (or this benchmark run) and what was happening around each. */
@@ -2447,6 +3123,15 @@ export class GameState implements AppState {
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
     this.trackSpikes();
+    // (map-ready S14) the compile log (no work once it is done; this runs during S2's hold too: the loop passes 0 dt)
+    const cl = this.compileLog;
+    if (cl && !cl.record.done) this.compilePoll(performance.now());
+    // (map-ready S1) the load record's after-reveal window (no polling once it closes)
+    const rs = this.readyStats;
+    if (rs && rs.record.released && !rs.record.after.done) {
+      this.readyPoll();
+      rs.frame(performance.now(), this.readySample);
+    }
     if (this.photo) {
       // frozen: only the lights follow the free camera
       // (tuner-camera fix) the photo camera is the game view meanwhile (gameplay reads gamePos)
@@ -2497,8 +3182,10 @@ export class GameState implements AppState {
     }
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
+    this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
     this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
@@ -2522,7 +3209,7 @@ export class GameState implements AppState {
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();
-    if (this.bench) this.benchFrame();
+    if (this.bench && !this.holding) this.benchFrame(); // map-ready S2: no bench frames while held behind the loading screen
   }
 
   /** Contact shadows: the player, enemies, dummies, the net layer's characters. */
@@ -3274,11 +3961,14 @@ export class GameState implements AppState {
     this.app.sfx.hitMarker('hit');
   }
 
-  /** The ping button: what the crosshair is on (a guard, else the spot), up to 120 m. */
+  /** The ping button: what the crosshair is on (a guard, else the spot), up to 120 m. (optic-coop, check A polish 5) In
+   *  the optic view the ray is the tip's from the view's first step (`OpticSystem.tipRay`), never the shoulder camera's. */
   private sendPing(): void {
     const cam = this.player.cam;
-    const o = cam.gamePos;
-    const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
+    const o = cam.gamePos.clone();
+    const dir = cam.forward.clone();
+    this.optic.tipRay(o, dir);
+    const hit = this.ballistics.ray(o, o.add(dir.scale(120)), MASK.PLAYER_SHOT);
     if (!hit.hit) return;
     const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
     this.mode?.onLocalPing?.();
@@ -3365,7 +4055,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : this.takedown.knife ? 'Takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.menuReady) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills
@@ -3526,33 +4216,9 @@ export class GameState implements AppState {
       crosshair: this.weapons.drawPhase === 2 && this.player.ads,
       onTarget: this.onTarget,
       ads: this.player.cam.ads > 0.5,
-      yaw: cam.yaw,
-      markers: [],
     };
-    const blips: Blip[] = [];
-    // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)
-    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode || this.mode instanceof SectorMode;
-    const radar = stealthMode ? this.hq.radar : Infinity;
-    let enemyBlips = 0;
-    if (radar > 0) {
-      const pp = this.player.position;
-      for (const t of this.registry.hostiles('player')) {
-        t.center(this.tmp);
-        if (hyp2(this.tmp.x - pp.x, this.tmp.z - pp.z) > radar) continue;
-        blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
-        enemyBlips++;
-      }
-    }
-    this.enemyBlips = enemyBlips;
-    for (const g of this.grenades.positions()) blips.push({ x: g.x, z: g.z, kind: 'danger' });
-    blips.push(...this.extraBlips());
-    for (const b of blips) {
-      if (b.kind === 'objective') f.markers.push({ bearing: Math.atan2(b.x - this.player.position.x, b.z - this.player.position.z), kind: 'objective' });
-    }
     this.hud.update(f);
     this.updateCoverHud();
-    const p = this.player.controller.renderPos;
-    this.minimap.draw(performance.now(), p.x, p.z, cam.yaw, blips);
   }
 }
 

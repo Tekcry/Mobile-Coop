@@ -4,7 +4,7 @@ import type { InputState } from '../input/inputState';
 import { G, MASK } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
-import { buildWheel, SelectionWheel, type WheelGadget, type WheelGun, type WheelPick, type WheelSeg } from './selectionWheel';
+import { buildWheel, SelectionWheel, setWheelGadget, setWheelGun, type WheelGadget, type WheelGun, type WheelPick, type WheelSeg } from './selectionWheel';
 import type { HitInfo } from './damage';
 import type { GameState } from './gameState';
 
@@ -68,8 +68,8 @@ interface Mine {
 }
 
 /**
- * Gadgets at run time (phase 5): the wheel (hold to open: time slows, the stick / mouse picks a slot, release
- * selects; an unlocked mouse may click a slot), the gadget button (held: the predicted arc;
+ * Gadgets at run time (phase 5): the wheel (hold to open over the live game, no time slow (G181); the stick / mouse
+ * picks a slot, release selects; an unlocked mouse may click a slot), the gadget button (held: the predicted arc;
  * released: thrown), and what each does once out - sleeping gas clouds (knock-outs), flashbangs (blind, then
  * alert; white-out for the player when facing it), EMP (lights out for a while), noisemakers (lure pulses), sticky
  * cams (a remote view with the camera feed look: lure ping / gas / marking from a cam), proximity mines.
@@ -78,7 +78,8 @@ export class GadgetSystem {
   /** (F1a, G181) The selection wheel: LB / Tab held opens it over the live game (no time slow), the right stick / mouse
    *  moves the cursor, release picks (vision mode, gun or gadget); a tap of the button switches weapon. */
   readonly sel = new SelectionWheel();
-  /** The ring while the wheel is open (rebuilt each step: counts and ammo move). */
+  /** The ring while the wheel is open (updated in place each step: counts and ammo move; rebuilt only when its shape
+   *  changes, player-hygiene S4). */
   ring: WheelSeg[] = [];
   /** The button's press that opened the wheel (a press that never opened it is a tap = switch weapon). */
   private lbOpened = false;
@@ -202,7 +203,7 @@ export class GadgetSystem {
     // the gadget button: held shows the arc, release throws; placed ones go on the press
     const sel = g.weapons.gadgets.selected;
     const use = GADGETS[sel].use;
-    const busy = g.takedown.active !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
+    const busy = g.takedown.active !== null || (g.carrier?.carrying ?? false) || g.traversal.attached;
     if (inp.pressed('grenade') && !busy) {
       if (sel === 'stickyCam' && this.cams.length && g.weapons.gadgets.count === 0) this.enterRemote('cam', this.cams.length - 1);
       else if (use === 'place') g.weapons.useGadget();
@@ -232,8 +233,27 @@ export class GadgetSystem {
     }
   }
 
-  /** The ring from the live loadout: vision, the guns (loaded / reserve), the kit's gadgets (counts). */
+  /** The ring from the live loadout: vision, the guns (loaded / reserve), the kit's gadgets (counts). (player-hygiene
+   *  S4) Updated in place every step; rebuilt (allocating) only when its shape changes: the slot count, a gun's index
+   *  or name, or a gadget slot. */
   private refreshRing(): void {
+    const w = this.g.weapons;
+    const ring = this.ring;
+    const nGun = w.slots.length;
+    let ok = ring.length === 1 + nGun + GADGET_IDS.length && ring[0]?.kind === 'vision';
+    for (let i = 0; ok && i < nGun; i++) {
+      const s = w.slots[i]!;
+      ok = setWheelGun(ring, 1 + i, i, s.def.name, s.mag, s.reserve);
+    }
+    for (let k = 0; ok && k < GADGET_IDS.length; k++) {
+      const id = GADGET_IDS[k]!;
+      ok = setWheelGadget(ring, 1 + nGun + k, id, GADGETS[id].name, w.gadgets.counts[id]);
+    }
+    if (!ok) this.ring = this.buildRing();
+  }
+
+  /** The ring built fresh (today's code: on open with a new shape, or after a gun is added or removed). */
+  private buildRing(): WheelSeg[] {
     const w = this.g.weapons;
     const guns: WheelGun[] = [];
     for (let i = 0; i < w.slots.length; i++) {
@@ -242,7 +262,7 @@ export class GadgetSystem {
     }
     const kit: WheelGadget[] = [];
     for (const id of GADGET_IDS) kit.push({ id, name: GADGETS[id].name, count: w.gadgets.counts[id] });
-    this.ring = buildWheel(guns, kit);
+    return buildWheel(guns, kit);
   }
 
   openWheel(): void {

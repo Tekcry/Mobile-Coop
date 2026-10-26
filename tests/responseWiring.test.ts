@@ -19,7 +19,8 @@ import type { Vfx } from '../src/vfx/vfx';
 
 // (guard-ai S13, stealth over shooting items 3, 4, 11; A37-A39) Response teams wired in: the alarm stage's gear on every
 // living guard at the rise and on later spawns (a restart drops it with the stage); each stage's reinforcements are a
-// response team, shield guard first (helmeted), same count; outside Sector Ops the alarm brings shield + 2; after the
+// response team, shield guard first (helmeted) where the section asks (guard-rules S1: `shieldTeams`), same count;
+// outside Sector Ops the alarm brings 3 armed guards (guard-rules S1, A14: no shield lead); after the
 // search the team sweeps the section's points (nearest the last known position first, the shield guard leading, the
 // rest stacked behind, a look at each, again and again), a sighting stops it and the next full search starts it
 // again; never calm; no camera touched. Stand-ins on the real classes' prototypes (no rig, no scene, no nav).
@@ -102,6 +103,7 @@ function sector(defs: SectorDef[]) {
   const cams = [{ id: 'cam-1', on: true, state: 'sweep', yaw: 0.3, live: true }];
   const ct = { alarm: 0, cams, setLive: vi.fn(), repair: vi.fn(), fixedUpdate: vi.fn() };
   const g = {
+    world: {},
     enemyMgr: em,
     hud: { banner: vi.fn() },
     stealth: { setLiveAlarms: vi.fn() },
@@ -128,8 +130,9 @@ describe('stage gear (item 4, A37)', () => {
     em.enemies.push(asE(a), asE(b), asE(down));
     em.setAlarmStage(1);
     expect([a.helmet, a.armour, b.helmet, b.armour]).toEqual([false, false, true, false]);
+    // (guard-rules S1, A3) stage 2 gives the helmet as well as the armour
     em.setAlarmStage(2);
-    expect([a.helmet, a.armour, b.helmet, b.armour]).toEqual([false, true, true, true]);
+    expect([a.helmet, a.armour, b.helmet, b.armour]).toEqual([true, true, true, true]);
     em.setAlarmStage(3);
     expect([a.helmet, a.armour]).toEqual([true, true]);
     // a guard down when it rose gets nothing now (he gets it if he is woken)
@@ -147,11 +150,11 @@ describe('stage gear (item 4, A37)', () => {
     expect(section.every((f) => !f.helmet && !f.armour)).toBe(true);
     m.onAlarm();
     expect(m.run.alarm).toBe(2);
-    expect(section.every((f) => !f.helmet && f.armour)).toBe(true);
-    // the stage 2 team spawned after the rise: armour from placeSlot, and the shield guard's helmet
+    expect(section.every((f) => f.helmet && f.armour)).toBe(true);
+    // the stage 2 team spawned after the rise: armour and helmet from placeSlot (A3); no shield lead (no `shieldTeams`)
     const team2 = em.teams[1]!.members as unknown as Fake[];
-    expect(team2.every((f) => f.armour)).toBe(true);
-    expect(team2.map((f) => f.helmet)).toEqual([true, false]);
+    expect(kinds(team2)).toEqual(['grunt', 'grunt']);
+    expect(team2.every((f) => f.armour && f.helmet)).toBe(true);
     m.onAlarm();
     expect(m.run.alarm).toBe(3);
     expect(spawned.filter((f) => f.alive).every((f) => f.helmet && f.armour)).toBe(true);
@@ -178,12 +181,12 @@ describe('stage gear (item 4, A37)', () => {
     load(1);
     const next = spawned.slice(before);
     expect(next.length).toBe(2);
-    expect(next.every((f) => f.armour && !f.helmet)).toBe(true);
+    expect(next.every((f) => f.armour && f.helmet)).toBe(true);
     // the woken guard (a new Enemy on the body) gets the stage gear on top of what he went down in
     const give = (em as unknown as { giveStageGear(e: Enemy): void }).giveStageGear.bind(em);
     const woke = fake();
     give(asE(woke));
-    expect([woke.helmet, woke.armour]).toEqual([false, true]);
+    expect([woke.helmet, woke.armour]).toEqual([true, true]);
   });
 
   it('no camera is added, woken or retuned by a stage rise (the devices only show the stage)', () => {
@@ -203,8 +206,18 @@ describe('stage gear (item 4, A37)', () => {
 });
 
 describe('response team (item 3, A38)', () => {
-  it("each stage's reinforcements are a team: the shield guard first (helmeted), the rest armed guards, count perStage", () => {
+  it("(guard-rules S1, A4) no `shieldTeams` (S1-S3, warehouseOps, the campaign): the team is armed guards only", () => {
     const { m, em, load } = sector([def('s1', 0, true, { perStage: 3 })]);
+    load(0);
+    m.onAlarm();
+    const t = em.teams[0]!.members as unknown as Fake[];
+    expect(kinds(t)).toEqual(['grunt', 'grunt', 'grunt']);
+    expect(t.every((f) => !f.helmet)).toBe(true);
+    expect(m.reinforced).toBe(3);
+  });
+
+  it("each stage's reinforcements are a team: the shield guard first (helmeted) with `shieldTeams`, the rest armed guards, count perStage", () => {
+    const { m, em, load } = sector([def('s1', 0, true, { perStage: 3, shieldTeams: true })]);
     load(0);
     m.onAlarm();
     expect(em.teams.length).toBe(1);
@@ -241,7 +254,7 @@ describe('response team (item 3, A38)', () => {
     expect(v.posts).toEqual([[0, 30]]);
   });
 
-  it('outside Sector Ops (live maps, StealthSystems.onAlarm): shield + 2 in place of grunt, grunt, heavy; stage 1, no gear', () => {
+  it('outside Sector Ops (live maps, StealthSystems.onAlarm): 3 armed guards in place of grunt, grunt, heavy (A14: no shield lead); stage 1, no gear', () => {
     const { em, spawned } = manager();
     const caller = fake('grunt', 0, 0);
     caller.routePoints = [[0, 0], [20, 0]];
@@ -258,9 +271,9 @@ describe('response team (item 3, A38)', () => {
     };
     Object.assign(s, { g, em, panels: [], entryScratch: [], teamKinds: [], teamRoutes: [], teamPosts: [] });
     (s as unknown as { onAlarm(e: Enemy, p: null): void }).onAlarm(asE(caller), null);
-    expect(kinds(spawned)).toEqual(['enforcer', 'grunt', 'grunt']);
+    expect(kinds(spawned)).toEqual(['grunt', 'grunt', 'grunt']);
     expect(spawned.length).toBe(RESPONSE.liveTeam);
-    expect(spawned.map((f) => [f.helmet, f.armour])).toEqual([[true, false], [false, false], [false, false]]);
+    expect(spawned.map((f) => [f.helmet, f.armour])).toEqual([[false, false], [false, false], [false, false]]);
     expect(em.teams.length).toBe(1);
     const t = em.teams[0]!;
     expect(t.members.length).toBe(3);

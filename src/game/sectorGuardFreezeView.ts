@@ -4,8 +4,9 @@
 // Shadow maps render after the evaluation in the same camera pass, so they see the same state; disabled meshes skip
 // the evaluation, the skeleton prepare and every shadow draw. Render only: gameplay reads none of it.
 //
-// Two tests: the frustum (exact, every evaluation) and, for a guard whose body or moon shadow is in the frustum,
-// occlusion: rays from the camera to his sample points (`occlusionPoints`) against static geometry (walls, floors,
+// Two tests: the frustum (exact, every evaluation) and, for a guard whose body, moon shadow or (guard-render S10) a
+// lamp's shadow of him is in the frustum, occlusion: rays from the camera to his sample points (`occlusionPoints`; the
+// moon / lamp shadow landings: `shadowProbe`, `lampProbe`) against static geometry (walls, floors,
 // closed doors; never glass or fences; a door leaf not shut, a breakable pane and a roof sheet are stepped past:
 // `seeThroughRay`). Occlusion is re-tested every `RETEST` evaluations per guard (staggered, at most `TESTS_PER_EVAL`
 // guards per evaluation), at once after a camera cut; a guard found visible stays drawn `HOLD` evaluations before
@@ -15,12 +16,33 @@
 // part (re-entering the frustum, the body joining the shadow), or after a cut; a hidden verdict with a blocker within
 // `EDGE` of a sample point (stepping out of cover, a doorway) is re-tested every evaluation. Guards are walked from a
 // rotating start, so the per-evaluation budget is shared fairly.
+// (guard-render S10b) The torch and character shadow atlases (`torchShadows.ts`, `charShadows.ts`) render with
+// intensity-0 slot spots (the real light is the guards' flashlights and the baked lamps): `readLights` skips those
+// lights and reads each ACTIVE slot instead (`FreezeAtlas`), as that slot renders this frame (the atlases place their
+// slots in `World.frame`, before `scene.render`, so this evaluation sees this frame's slots). The atlases list a
+// frozen guard's casters too (the map draws only what is enabled when it renders, after this evaluation) and re-render
+// a slot at once when one of its listed casters is thawed, so a guard thawed here is in every map of this frame.
 // `?guardfreeze=0` turns it off (A/B runs).
 
 import { DirectionalLight, PointLight, SpotLight, Vector3, type Observer, type Scene } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
-import { hyp3 } from '../core/mathx';
-import { FREEZE_DRAW, FREEZE_MAX_POINTS, FREEZE_SHADOW_IN, FreezeLights, guardFrustum, occlusionPoints, shadowLanding, shadowProbe } from './sectorGuardFreeze';
+import { hyp2, hyp3 } from '../core/mathx';
+import { TORCH } from '../world/torches';
+import {
+  FREEZE_DRAW,
+  FREEZE_LAMP_BIT0,
+  FREEZE_LAMP_IN,
+  FREEZE_MAX_POINTS,
+  FREEZE_PROBES,
+  FREEZE_SHADOW_IN,
+  FreezeLights,
+  guardFrustum,
+  lampLanding,
+  lampProbe,
+  occlusionPoints,
+  shadowLanding,
+  shadowProbe,
+} from './sectorGuardFreeze';
 
 /** What the freeze reads of the guards (the enemy manager). */
 export interface FreezeGuards {
@@ -32,6 +54,25 @@ export interface FreezeGuards {
  *  so the freeze's `rays` debug counter includes them. */
 export type FreezeRay = ((from: Vector3, to: Vector3) => number) & { recasts?: number };
 
+/** (guard-render S10b) The guard-torch shadow atlas (`TorchShadows`): per slot its spot light while it holds a torch
+ *  this frame (position, `getShadowDirection()`, `angle`, `shadowMaxZ` as the slot renders), null when unused. */
+export interface FreezeTorchSlots {
+  readonly slotCount: number;
+  slotLight(s: number): SpotLight | null;
+}
+/** (S10b) The character shadow atlas (`CharShadows`): per slot its lamp this frame into `out` (x, y, z, how far from it a
+ *  shadow can land: the map's far plane), false when unused. The map's cone is fitted around the casters drawn, so the
+ *  lamp's whole reach is read, not the cone (a frozen guard is outside a fit made without him). */
+export interface FreezeCharSlots {
+  readonly slotCount: number;
+  slotLamp(s: number, out: Float32Array): boolean;
+}
+/** (S10b) The shadow atlases the freeze reads (either may be absent: a bright map, a tier without them). */
+export interface FreezeAtlas {
+  readonly torch?: FreezeTorchSlots | null;
+  readonly chars?: FreezeCharSlots | null;
+}
+
 /** Occlusion re-test period (camera evaluations) of a guard found hidden. */
 export const RETEST = 4;
 /** A guard found visible is drawn this many evaluations before the next test (no flicker at a corner). */
@@ -41,8 +82,8 @@ export const CUT = 0.75;
 /** A sample point counts as seen when the ray stops within this of it (m). */
 const SLACK = 0.25;
 /** At most this many guards get an occlusion test per evaluation (a camera cut re-tests every hidden verdict: spread
- *  over the next evaluations; a guard waiting for his test is drawn meanwhile). At most `FREEZE_TEST_RAYS` (11) rays
- *  each, 5-7 typical. */
+ *  over the next evaluations; a guard waiting for his test is drawn meanwhile). At most `FREEZE_TEST_RAYS` (19, S10:
+ *  with two lamp shadows) rays each, 5-7 typical. */
 export const TESTS_PER_EVAL = 8;
 /** (frzpol) A hidden verdict whose blocker stops within this (m) of a sample point is near the edge: re-tested every
  *  evaluation (within the budget). */
@@ -101,6 +142,84 @@ export function seeThroughRay(cast: (from: Vector3, to: Vector3) => FreezeHit, s
   return ray;
 }
 
+/** The frame's shadow-casting lights into `L`: the moon / sun with moving shadows, and every lit spot / point shadow map;
+ *  (S10b) the atlas slots (`torch`, `chars`) as they render this frame; `slot4` is scratch for a character slot's lamp.
+ *  (guard-cap T1-SHADOW) Shared with the guard anim tier's shadow rule (`animTierView.ts`). Allocation-free. */
+export function readFreezeLights(
+  scene: Scene,
+  L: FreezeLights,
+  torch: FreezeTorchSlots | null | undefined,
+  chars: FreezeCharSlots | null | undefined,
+  slot4: Float32Array,
+): void {
+  L.clear();
+  const ls = scene.lights;
+  for (let i = 0; i < ls.length; i++) {
+    const l = ls[i]!;
+    if (!l.shadowEnabled || l.intensity <= 0 || !l.isEnabled() || l.getShadowGenerator() === null) continue;
+    if (l instanceof DirectionalLight) {
+      const d = l.direction;
+      const len = hyp3(d.x, d.y, d.z) || 1;
+      // (several suns: the first is read, the rest make the rule give up)
+      if (L.sun) L.overflow = true;
+      L.sun = true;
+      L.sx = d.x / len;
+      L.sy = d.y / len;
+      L.sz = d.z / len;
+    } else if (l instanceof SpotLight) addSpotLight(L, l);
+    else if (l instanceof PointLight) {
+      const p = l.getAbsolutePosition();
+      const z = l.shadowMaxZ;
+      // (S10) how far from the lamp a shadow can land: the shadow map ends at depth shadowMaxZ along its view axis
+      // (sqrt 3 at a cube face corner), the light at its range
+      let reach = Number.isFinite(z) && z > 0 ? z * Math.sqrt(3) : Infinity;
+      const rg = l.range;
+      if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
+      L.addSpot(p.x, p.y, p.z, reach);
+    } else L.overflow = true;
+  }
+  // (S10b) the atlas slots (intensity 0, skipped above): each active one as it renders this frame; unused ones skipped
+  if (torch) {
+    for (let s = 0; s < torch.slotCount; s++) {
+      const l = torch.slotLight(s);
+      if (l) addSpotLight(L, l, true);
+    }
+  }
+  if (chars) {
+    const q = slot4;
+    for (let s = 0; s < chars.slotCount; s++) {
+      if (chars.slotLamp(s, q)) L.addSpot(q[0]!, q[1]!, q[2]!, q[3]! > 0 ? q[3]! : Infinity);
+    }
+  }
+}
+
+/** A shadowing spot as its map renders: position, axis, cone, reach (S10); (S10b) a guard torch slot (`torch`) also
+ *  its holder's feet, `placeTorch` undone as `torchHolderScore` does (the slot's map drops its holder). */
+function addSpotLight(L: FreezeLights, l: SpotLight, torch = false): void {
+  const p = l.getAbsolutePosition();
+  const z = l.shadowMaxZ;
+  // (S10) how far from the lamp a shadow can land: the shadow map ends at depth shadowMaxZ along its view axis
+  // (radially up to / cos(half angle) at a spot's rim), the light at its range
+  let reach = Number.isFinite(z) && z > 0 ? z : Infinity;
+  const half = l.angle * 0.5;
+  const cos = Math.cos(half);
+  reach = half < Math.PI / 2 ? reach / Math.max(cos, 0.05) : Infinity;
+  const rg = l.range;
+  if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
+  const d = l.getShadowDirection();
+  const len = hyp3(d.x, d.y, d.z) || 1;
+  let hx = Number.NaN;
+  let hz = Number.NaN;
+  const h = hyp2(d.x, d.z);
+  if (torch && h > 1e-6) {
+    const sn = d.x / h;
+    const cs = d.z / h;
+    hx = p.x - sn * TORCH.ahead - cs * TORCH.side;
+    hz = p.z - cs * TORCH.ahead + sn * TORCH.side;
+  }
+  L.addSpot(p.x, p.y, p.z, reach, d.x / len, d.y / len, d.z / len, half, hx, hz);
+}
+
 export class SectorGuardFreeze {
   private obs: Observer<Scene> | null;
   private readonly planes = new Float64Array(24);
@@ -116,7 +235,8 @@ export class SectorGuardFreeze {
   private memoE: (Enemy | null)[] = [];
   private memoHidden: Uint8Array = new Uint8Array(0);
   private memoWait: Int16Array = new Int16Array(0);
-  private memoBits: Uint8Array = new Uint8Array(0);
+  /** (S10) 32-bit: the lamp bits (`FREEZE_LAMP_BIT0 << i`) sit above the body / moon / lamp bits. */
+  private memoBits: Uint32Array = new Uint32Array(0);
   private memoUrgent: Uint8Array = new Uint8Array(0);
   private memoEdge: Uint8Array = new Uint8Array(0);
   private memoAge: Int16Array = new Int16Array(0);
@@ -124,6 +244,8 @@ export class SectorGuardFreeze {
   private readonly lastPos = new Vector3(Number.NaN, 0, 0);
   /** (frzpol) The moon-shadow probe: from, to, landing. */
   private readonly probe = new Float64Array(9);
+  /** (S10b) A character-atlas slot's lamp (x, y, z, reach). */
+  private readonly slotLamp4 = new Float32Array(4);
   /** (frzpol) The last test's hidden verdict was near the edge. */
   private edge = false;
   /** (frzpol) The view epoch at the last evaluation. */
@@ -142,6 +264,8 @@ export class SectorGuardFreeze {
     private readonly guards: FreezeGuards,
     private readonly ray: FreezeRay | null = null,
     private readonly views: FreezeViews | null = null,
+    /** (S10b) The torch / character shadow atlases: each active slot is a shadowing light. */
+    private readonly atlas: FreezeAtlas | null = null,
   ) {
     this.obs = scene.onBeforeActiveMeshesEvaluationObservable.add(this.step);
   }
@@ -276,6 +400,25 @@ export class SectorGuardFreeze {
         if (this.seen(c, pr[6]!, pr[7]!, pr[8]!)) return false;
       }
     }
+    // (S10) each lamp whose shadow volume of him is in the frustum: where the shadow of his head and of his middle
+    // lands (the probe away from the lamp, out to its reach), the camera must not see it
+    if (bits & FREEZE_LAMP_IN) {
+      const pr = this.probe;
+      const L = this.lights;
+      for (let i = 0; i < L.spotN; i++) {
+        if ((bits & (FREEZE_LAMP_BIT0 << i)) === 0) continue;
+        for (let k = 0; k < FREEZE_PROBES; k++) {
+          if (!lampProbe(pr, x, y, z, h, k === 0 ? 1 : 0.5, L, i)) continue;
+          this.from.set(pr[0]!, pr[1]!, pr[2]!);
+          this.to.set(pr[3]!, pr[4]!, pr[5]!);
+          this.rays++;
+          // no landing within reach (a low or wall lamp, or near the reach edge): his shadow may still show, so draw
+          // him (light parity over the saving; checker note 2026-10-24)
+          if (!lampLanding(pr, this.ray!(this.from, this.to))) return false;
+          if (this.seen(c, pr[6]!, pr[7]!, pr[8]!)) return false;
+        }
+      }
+    }
     return true;
   }
 
@@ -295,7 +438,7 @@ export class SectorGuardFreeze {
     if (this.memoHidden.length >= n) return;
     const m = Math.max(n, 32);
     this.memoHidden = grow8(this.memoHidden, m);
-    this.memoBits = grow8(this.memoBits, m);
+    this.memoBits = grow32(this.memoBits, m);
     this.memoUrgent = grow8(this.memoUrgent, m);
     this.memoEdge = grow8(this.memoEdge, m);
     this.memoWait = grow16(this.memoWait, m);
@@ -303,29 +446,9 @@ export class SectorGuardFreeze {
     while (this.memoE.length < m) this.memoE.push(null);
   }
 
-  /** The frame's shadow-casting lights: the moon / sun with moving shadows, and every lit spot / point shadow map. */
+  /** The frame's shadow-casting lights (`readFreezeLights`). */
   private readLights(): void {
-    const L = this.lights;
-    L.clear();
-    const ls = this.scene.lights;
-    for (let i = 0; i < ls.length; i++) {
-      const l = ls[i]!;
-      if (!l.shadowEnabled || l.intensity <= 0 || !l.isEnabled() || l.getShadowGenerator() === null) continue;
-      if (l instanceof DirectionalLight) {
-        const d = l.direction;
-        const len = hyp3(d.x, d.y, d.z) || 1;
-        // (several suns: the first is read, the rest make the rule give up)
-        if (L.sun) L.overflow = true;
-        L.sun = true;
-        L.sx = d.x / len;
-        L.sy = d.y / len;
-        L.sz = d.z / len;
-      } else if (l instanceof SpotLight || l instanceof PointLight) {
-        const p = l.getAbsolutePosition();
-        const z = l.shadowMaxZ;
-        L.addSpot(p.x, p.y, p.z, Number.isFinite(z) && z > 0 ? z : Infinity);
-      } else L.overflow = true;
-    }
+    readFreezeLights(this.scene, this.lights, this.atlas?.torch, this.atlas?.chars, this.slotLamp4);
   }
 
   private thaw(k: number): void {
@@ -358,6 +481,11 @@ function grow8(a: Uint8Array, m: number): Uint8Array {
 }
 function grow16(a: Int16Array, m: number): Int16Array {
   const b = new Int16Array(m);
+  b.set(a);
+  return b;
+}
+function grow32(a: Uint32Array, m: number): Uint32Array {
+  const b = new Uint32Array(m);
   b.set(a);
   return b;
 }

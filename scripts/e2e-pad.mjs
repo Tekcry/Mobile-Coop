@@ -4,6 +4,15 @@ import { launch, openPage, press, pressPair, stick, frames, BTN, focusedText, fo
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
+// (player-flake-fix) a later navigation of the main page is printed when it happens (only src/pwa reloads a page: a
+// waiting update applied at the main menu). One desktop run (68c15083, 2026-10-25) died "Execution context was
+// destroyed" right after the quit to the main menu; the next one names itself
+let navigations = 0;
+page.on('framenavigated', (f) => {
+  if (f !== page.mainFrame()) return;
+  navigations++;
+  console.log(`  (main page navigated: ${f.url()})`);
+});
 const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const settings = () => page.evaluate(() => window.__app.settings.get());
 let failed = false;
@@ -276,6 +285,19 @@ try {
   await page.waitForTimeout(150);
   const v2 = await G(() => window.__app.current.vision.mode);
   assert(v0 === 'off' && v1 === 'electro' && v2 === 'off', `D-pad left toggles the vision picked on the wheel, on then off (${v0} -> ${v1} -> ${v2})`);
+  // (G343, hud-guidance B2) a View tap shows the current objective (~5 s, real time: the popup reads performance.now()),
+  // and leaves the goggles alone (View was the goggles' old key; D-pad left and N are the goggles)
+  {
+    if (!(await G(() => window.__app.current.hud.objectiveText))) await G(() => window.__app.current.hud.setObjective('Test objective'));
+    await page.waitForFunction(() => !document.querySelector('.hud-objective.show'), null, { timeout: 8000 }).catch(() => {});
+    const before = await G(() => ({ shown: !!document.querySelector('.hud-objective.show'), mode: window.__app.current.vision.mode }));
+    await page.evaluate(() => window.__pad.set(8, 1));
+    await page.waitForTimeout(150);
+    await page.evaluate(() => window.__pad.set(8, 0));
+    const popped = await page.waitForFunction(() => !!document.querySelector('.hud-objective.show'), null, { timeout: 1000 }).then(() => true, () => false);
+    const after = await G(() => window.__app.current.vision.mode);
+    assert(!before.shown && popped && after === before.mode, `View tap shows the objective, goggles untouched (G343) (was shown: ${before.shown}, shown after: ${popped}, vision ${before.mode} -> ${after})`);
+  }
   // vision switched between modes (the wheel with the goggles on): no flip, no off in between
   {
     await press(page, BTN.LEFT);
@@ -449,7 +471,7 @@ try {
   });
   assert(dr.aNoReload, 'A at low ready does not reload (Michael: "Interact always")');
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
-  // (anim-natural N3, docs/anim-natural/n3/DRAW-TIMES.md) X draws to low ready in 1.1 s (rifle) / 0.75 s (pistol), the
+  // (anim-natural N3, docs/archive/anim-natural/n3/DRAW-TIMES.md) X draws to low ready in 1.1 s (rifle) / 0.75 s (pistol), the
   // holster takes 1.0 / 0.9 s, the LT sling draw 1.5 / 1.2 s (undo: 0.3 / 0.5 s draws, 0.15 s holster)
   const drawT = dr.cls === 'pistol' ? 0.75 : 1.1;
   const holT = dr.cls === 'pistol' ? 0.9 : 1.0;
@@ -473,20 +495,32 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  for (let i = 0; i < 3; i++) await press(page, BTN.DOWN); // Resume, Objectives, Settings, Report feedback (menu-notes A2: no Controls item)
-  assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
-  await press(page, BTN.DOWN);
-  assert(/Animation tuner/.test(await focusedText(page)), 'focus Animation tuner (dev)'); // (anim-tuner: before Quit)
-  await press(page, BTN.DOWN);
-  assert(/Quit/.test(await focusedText(page)), 'focus Quit');
+  assert(await q('.pause-screen'), 'Start opens pause again');
+  // (player-flake-fix) the pad walks the whole field menu in its order (pauseScreen.ts): Resume, Objectives, Notes
+  // (hud-guidance B5), Settings, Report feedback, Animation tuner (dev, before Quit), Quit to menu (menu-notes A2: no
+  // Controls item). Read by the rows' keys; the old fixed three downs to Report feedback broke when B5 added Notes
+  const pauseKey = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
+  const pauseWant = ['resume', 'objectives', 'notes', 'settings', 'report-feedback', 'anim-tuner', 'quit'];
+  const pauseSeen = [await pauseKey()];
+  for (let i = 1; i < pauseWant.length; i++) {
+    await press(page, BTN.DOWN);
+    pauseSeen.push(await pauseKey());
+  }
+  assert(JSON.stringify(pauseSeen) === JSON.stringify(pauseWant), `the pad walks the field menu in order, ending on Quit (${pauseSeen.join(', ')})`);
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');
   assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
   await press(page, BTN.RIGHT);
   assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
+  // (player-flake-fix r2) the quit can apply a waiting update: src/pwa reloads the page at the main menu (laptop run
+  // flake-fix-1 died here, "Execution context was destroyed", 2026-10-26). The check waits across the reload
+  // (waitForSelector survives a navigation, page.evaluate does not). The reload itself lands after the menu shows (the
+  // pwa poll), so the reloaded page gets its fake pad back before the main page's next use ("disconnect" below)
+  const navBefore = navigations;
   await press(page, BTN.A);
   await page.waitForTimeout(400);
-  assert(await q('.main-menu'), 'quit returns to main menu');
+  const home = await page.waitForSelector('.main-menu', { timeout: 60000 }).then(() => true, () => false);
+  assert(home, `quit returns to main menu${navigations > navBefore ? ' (the page reloaded: a waiting update applied)' : ''}`);
 
   // (process audit, 2026-10-19) the gameplay sections that each opened their own match (palm strike, back to a wall,
   // door menu, wall edge verb) are gone: the pad verb table below checks every button's action, and the behaviour is
@@ -654,7 +688,7 @@ try {
         };
         // [button, any of these actions]: L3 swaps the shoulder while aiming; (anim-rework S1) A interacts, LT is
         // the held aim, D-pad up / down only the held context menu's highlight
-        const PADV = [[0, 'interact'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
+        const PADV = [[0, 'interact'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [8, 'objective'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
         const out = [];
         for (const [b, ...want] of PADV) {
           acts.clear();
@@ -768,10 +802,18 @@ try {
       const pad = () => G(() => window.__app.settings.get().pad);
       const view = () => G((p) => ({ tab: document.querySelector('.controls-screen .tab.active')?.textContent, rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.gamepad.capturing, screen: !!document.querySelector('.controls-screen') }), panel);
       assert((await view()).tab === 'Controller', `the Controller tab first (${(await view()).tab})`);
+      // (optic-coop M2, Michael 2026-10-24 "contextual") Zoom and Ping share R3 by default as an allowed pair: no conflict
+      const v0 = await view();
+      assert(v0.rows === '' && !v0.sum, `the defaults show no conflict (Zoom / Ping on R3 allowed; "${v0.rows}")`);
       // X on a slot clears it (menu-ui SPEC 7.12): R3 off Zoom
       await focusSlot('zoom:0');
       await press(P, BTN.X);
       assert((await pad()).zoom.length === 0, 'X clears the focused slot (R3 off Zoom)');
+      // (optic-coop M2) R3 is also Ping by default: clear it too, so R3 is free for the draw (draw on Ping's R3 would be
+      // the player's own conflict, still reported)
+      await focusSlot('ping:0');
+      await press(P, BTN.X);
+      assert((await pad()).ping.length === 0, 'X clears the focused slot (R3 off Ping)');
       // A, then R3: draw / holster moves from X to R3
       await focusSlot('draw:0');
       // (load-latent-ui1) A and R3 in one evaluate (pressPair): the capture's 5 s timeout is wall clock and under CPU load
@@ -902,7 +944,8 @@ try {
       await P.waitForTimeout(200);
       v = await view();
       const def = await pad();
-      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)})`);
+      // (optic-coop M2, "contextual") the defaults share R3 between Zoom and Ping as an allowed pair: no conflict after the reset
+      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && JSON.stringify(def.ping) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)}, conflicts "${v.rows}")`);
     } finally {
       await R.browser.close();
     }
@@ -931,6 +974,15 @@ try {
   }
 
   console.log('disconnect');
+  // (player-flake-fix r2) the main page's first use since the quit: if the update reload came, the page booted again
+  // with its fake pad disconnected, so it waits for the boot and the menu and connects the pad as the first section did
+  if (navigations > navBefore) {
+    console.log('  (the main page reloaded after the quit: a waiting update applied; reconnecting the pad)');
+    await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && !!document.querySelector('.main-menu'), null, { timeout: 60000 });
+    await page.evaluate(() => window.__pad.connect());
+    await press(page, BTN.LB); // harmless on the main menu; reveals the pad, as the first connect
+    await page.waitForFunction(() => document.body.classList.contains('input-gamepad'), null, { timeout: 8000 }).catch(() => {});
+  }
   await page.evaluate(() => window.__pad.disconnect());
   // the pad is noticed on the next poll; under software GL a frame can take a while
   await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /disconnected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});

@@ -16,6 +16,9 @@ concurrency:
 
 jobs:
   check:
+    # a merge-train release moves dev to a merge whose tree CI already tested; merge-train dispatches the one deploy
+    # itself (deploy.yml, tested_sha), so this check and the deploy it would trigger are skipped for it
+    if: "!contains(github.event.head_commit.message, 'merge-train: Pages deploy is dispatched after dev moves')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

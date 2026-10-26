@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { PAIRS, PAIR_LINES, pickMeet, type MeetPick } from '../src/ai/pairs';
@@ -6,6 +6,7 @@ import { PATROL, PatrolWalker, type PatrolRoute } from '../src/ai/patrol';
 import { AlertMachine } from '../src/ai/alertState';
 import { PostLure } from '../src/ai/posts';
 import { hyp2 } from '../src/core/mathx';
+import { flags } from '../src/core/flags';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
 import type { P2 } from '../src/ai/navGrid';
@@ -95,6 +96,7 @@ function guard(route: PatrolRoute | null, x = 0, z = 0, o: Partial<FakeGuard> = 
     squad: -1,
     section: 0,
     coverIdx: -1,
+    roleBound: false,
     roleFlags: 0,
     job: '',
     setGear: vi.fn(), // (guard-ai S12) placeSlot puts gear on him
@@ -111,6 +113,9 @@ function guard(route: PatrolRoute | null, x = 0, z = 0, o: Partial<FakeGuard> = 
     disturbed: false,
     pairFace: Number.NaN,
     pairPt: [0, 0],
+    // (guard-rules S6) read by `postedWhyNot` (flag on): no post tag; his post centre is his spawn point
+    postDef: null,
+    postPoint: p0 ? [p0[0], p0[1]] : [x, z],
     def: { melee: null, kind: 'grunt', scale: 1, walkSpeed: SPEED },
     pos: new Vector3(p0 ? p0[0] : x, 0, p0 ? p0[1] : z),
     yaw: 0,
@@ -253,11 +258,20 @@ describe('live map data', () => {
         if (j === undefined || j < i) return;
         const b = s.guards[j]!;
         pairs++;
-        const ra: PatrolRoute = { points: a.route!, loop: a.loop };
-        const rb: PatrolRoute = { points: b.route!, loop: b.loop };
-        const m: MeetPick = { stopA: 0, stopB: 0, open: 0, close: 0, d: 0 };
-        const speed = Math.min(ENEMIES[a.kind].walkSpeed, ENEMIES[b.kind].walkSpeed);
-        expect(pickMeet(ra, rb, speed, PAIRS.meetMax, m), `${s.id} ${i} + ${j}`).toBe(true);
+        const ids = `${s.id} ${i} + ${j}`;
+        if (a.loop && b.loop) {
+          // two timed loops: a meeting window
+          const ra: PatrolRoute = { points: a.route ?? [], loop: a.loop };
+          const rb: PatrolRoute = { points: b.route ?? [], loop: b.loop };
+          const m: MeetPick = { stopA: 0, stopB: 0, open: 0, close: 0, d: 0 };
+          const speed = Math.min(ENEMIES[a.kind].walkSpeed, ENEMIES[b.kind].walkSpeed);
+          expect(pickMeet(ra, rb, speed, PAIRS.meetMax, m), ids).toBe(true);
+        } else if (!a.route && !b.route) {
+          // (guard-rules S6) two standing guards: a posted pair (flag on) needs their posts within `meetMax`
+          expect(hyp2(a.x - b.x, a.z - b.z), ids).toBeLessThanOrEqual(PAIRS.meetMax);
+        } else {
+          expect.fail(`${ids}: neither two timed loops nor two standing guards`);
+        }
       });
     }
     expect(pairs).toBeGreaterThanOrEqual(1);
@@ -570,5 +584,130 @@ describe('Enemy: the talking pair hold', () => {
     g.rate = 1;
     expect(g.disturbed).toBe(true);
     expect(g.routePoint([0, 0])).toEqual([2, 3]);
+  });
+});
+
+// ----- (guard-rules S6, A10, A11) flags.guardPairs: posted pairs and the walking-together check -----
+
+/** Two standing guards (no route), `gap` m apart, back to back, tagged as a pair. */
+const standSlots = (gap: number): Slot[] => [
+  { kind: 'grunt', x: 0, z: 0, yaw: -Math.PI / 2, squad: 0, pair: 1 },
+  { kind: 'grunt', x: gap, z: 0, yaw: Math.PI / 2, squad: 0, pair: 0 },
+];
+/** Two timed loops side by side, 1 m apart at every stop (the campus car-park shape). */
+const sideA = (): PatrolRoute => ({ points: [[-29, -66.2], [-21, -66.2], [-21, -63.8], [-29, -63.8]], loop: { period: 42, leave: [4.5, 18, 25, 38], t0: 0 } });
+const sideB = (): PatrolRoute => ({ points: [[-29, -65.2], [-21, -65.2], [-21, -62.8], [-29, -62.8]], loop: { period: 42, leave: [4.5, 18, 25, 38], t0: 0 } });
+
+describe('(guard-rules S6) posted pairs and the walking-together check', () => {
+  const flagWas = flags.guardPairs;
+  afterEach(() => {
+    flags.guardPairs = flagWas;
+  });
+
+  it('flag off: two standing guards tagged as a pair are not a pair (today: not on a timed loop)', () => {
+    flags.guardPairs = false;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const gs = [guard(null, 0, 0), guard(null, 1.2, 0)];
+    const { em } = manager(gs);
+    place(em, gs, standSlots(1.2));
+    expect(em.pairs.length).toBe(0);
+    expect(em.pairSkips.join(' ')).toContain('timed loop');
+    expect(em.pairSkips.join(' ')).not.toContain('posted pair');
+    warn.mockRestore();
+  });
+
+  it('flag on: the same two, 1.2 m apart, are a posted pair at their posts; they talk at once', () => {
+    flags.guardPairs = true;
+    const gs = [guard(null, 0, 0), guard(null, 1.2, 0)];
+    const { em, priv } = manager(gs);
+    place(em, gs, standSlots(1.2), 2);
+    expect(em.pairSkips).toEqual([]);
+    expect(em.pairs.length).toBe(1);
+    const p = em.pairs[0]!;
+    expect([p.sa, p.sb]).toEqual([0, 1]);
+    expect(p.pm.def.posted && p.pm.def.watch).toBe(true);
+    expect(p.pm.def.aPt).toEqual([0, 0]);
+    expect(p.pm.def.bPt).toEqual([1.2, 0]);
+    expect(p.pm.def.id).toBe(200);
+    sim(priv, gs, 12);
+    expect(em.pairLines).toBe(2);
+    expect(gs[0]!.sayLine).toHaveBeenCalledTimes(1);
+    expect(gs[1]!.sayLine).toHaveBeenCalledTimes(1);
+  });
+
+  it('flag on: standing guards 8 m apart are skipped (posted pair: over 6 m)', () => {
+    flags.guardPairs = true;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const gs = [guard(null, 0, 0), guard(null, 8, 0)];
+    const { em } = manager(gs);
+    place(em, gs, standSlots(8));
+    expect(em.pairs.length).toBe(0);
+    const msg = em.pairSkips.join(' ');
+    expect(msg).toContain('timed loop');
+    expect(msg).toContain('posted pair');
+    expect(msg).toContain(`over ${PAIRS.meetMax} m`);
+    warn.mockRestore();
+  });
+
+  it('flag on: one timed loop + one standing is skipped (today: not on a timed loop)', () => {
+    flags.guardPairs = true;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const gs = [guard(routeA()), guard(null, 1, 0)];
+    const { em } = manager(gs);
+    place(em, gs, standSlots(1.2));
+    expect(em.pairs.length).toBe(0);
+    expect(em.pairSkips.join(' ')).toContain('timed loop');
+    warn.mockRestore();
+  });
+
+  it('a timed-loop pair gets the walking-together check with the flag on, not with it off', () => {
+    for (const on of [true, false]) {
+      flags.guardPairs = on;
+      const gs = [guard(routeA()), guard(routeB())];
+      const { em } = manager(gs);
+      place(em, gs, pairSlots());
+      expect(em.pairs.length).toBe(1);
+      expect(em.pairs[0]!.pm.def.watch).toBe(on);
+      expect(em.pairs[0]!.pm.def.posted).toBeUndefined();
+    }
+  });
+
+  it('flag on: two timed loops walking side by side, B down between meetings: A is sent `notice` s later', () => {
+    flags.guardPairs = true;
+    const gs = [guard(sideA()), guard(sideB())];
+    const { em, priv } = manager(gs);
+    place(em, gs, pairSlots());
+    const [A, B] = gs as [FakeGuard, FakeGuard];
+    // the meeting is at stop 1 (the longest stay at 1.2 m/s: 11.2 .. 18 s); at 27 s they walk from stop 2 to stop 3
+    const take = 27;
+    let takenAt = -1;
+    let sentAt = -1;
+    let gap = -1;
+    let stateAtTake = '';
+    sim(priv, gs, 35, (t) => {
+      if (takenAt < 0 && t >= take) {
+        // walking together, the meeting over and its window closed
+        gap = hyp2(A.pos.x - B.pos.x, A.pos.z - B.pos.z);
+        stateAtTake = em.pairs[0]!.pm.state;
+        B.alive = false;
+        B.ko = true;
+        takenAt = t;
+      }
+      if (sentAt < 0 && A.pairSearch.mock.calls.length) sentAt = t;
+    });
+    expect(gap).toBeLessThan(PAIRS.togetherR);
+    expect(stateAtTake).toBe('idle');
+    expect(em.pairLines).toBe(2);
+    expect(em.pairMisses).toBe(1);
+    expect(A.pairSearch).toHaveBeenCalledTimes(1);
+    expect(sentAt - takenAt).toBeGreaterThanOrEqual(PAIRS.notice - 0.05);
+    expect(sentAt - takenAt).toBeLessThanOrEqual(PAIRS.notice + PAIRS.tick + 0.05);
+    const [x, z, inc, lead] = A.pairSearch.mock.calls[0]!;
+    // B's last route point: stop 3 (where he was heading)
+    expect(x).toBeCloseTo(-29, 4);
+    expect(z).toBeCloseTo(-62.8, 4);
+    expect(lead).toBe(true);
+    expect(em.board.kindOf(inc as number)).toBe('missing');
+    expect(em.pairs[0]!.pm.state).toBe('missing');
   });
 });

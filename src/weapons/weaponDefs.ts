@@ -4,7 +4,7 @@ import grenadeRaw from '../config/grenade.json';
 /**
  * The CT kit (G76): the rifle (the Heron Carbine, suppressed; its sniper / shotgun / launcher attachments are a later
  * research job) and the suppressed pistol (the Hush 9 SD, which carries the light disruptor). Every other gun was
- * deleted in the consolidation (G115, docs/consolidation/deleted-guns.md).
+ * deleted in the consolidation (G115, docs/archive/consolidation/deleted-guns.md).
  */
 export type WeaponId = 'rifle' | 'pistolSd';
 export const WEAPON_IDS: readonly WeaponId[] = ['rifle', 'pistolSd'];

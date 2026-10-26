@@ -32,3 +32,8 @@ kind: minor
 - Guard figures: a guard thawed from the render freeze, or killed while frozen, shows his current pose on the first
   frame (the figure poses at once instead of at the skeleton's next compute, which could be a frame late; the death
   frame showed the pose at the freeze).
+- Guard cloth fixes (gm-look, a fresh LOD bake): no skin showing through the lean guards' work-jacket elbows and no
+  jagged hem shards at the jacket hem and hips; garment LODs come from the sewn cloth shell and sit clear of the body.
+  Known and left for Michael's look: dark patches at the chest / thigh pockets on the new bake (fix in the bake script,
+  rebake later).
+- Guard models are on everywhere, including the live game (Michael 2026-10-26 "Just switch them on").

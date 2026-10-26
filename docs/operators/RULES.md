@@ -10,7 +10,7 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 2. Read only the files the step file lists (grep, line ranges). `ART-DIRECTION.md` is the look standard beside SPEC 1.
    `BRIEF.md` is the original prompt; read it when a rule here is unclear. History is in `LOG.md`; do not read it
    whole.
-3. Skip `docs/progress.md` and the phase specs: this run is not a roadmap phase.
+3. Skip `docs/archive/progress.md` and the phase specs: this run is not a roadmap phase.
 4. Authority: Michael (DECISIONS.md, quoted) > ART-DIRECTION.md > BRIEF.md > the bible > SPEC.md > other docs > code.
 5. Stay inside the step: its objective, its files, its checks. Anything else goes into LOG.md as a follow-up.
 
@@ -40,7 +40,7 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
   carry on (the final review sees the open list). Never weaken a check to pass it.
 
 ## Step loop (orchestrator session, Michael 2026-10-16, D18; overrides each step file's "Finish" and "Chaining")
-Exactly like the locomotion run (docs/locomotion/RULES.md "Step loop"): one long-lived orchestrator session (Opus 5.5
+Exactly like the locomotion run (docs/archive/locomotion/RULES.md "Step loop"): one long-lived orchestrator session (Opus 5.5
 High) starts subagents with the Agent tool, one code-changing agent at a time, and commits itself. Every subagent
 prompt starts with "Read docs/operators/steps/AGENT-PREAMBLE.md first", then its role, step and handover.
 1. Implement: a subagent (PLAN.md model and effort) builds, renders on the GPU, runs `npm run operators:check` and
