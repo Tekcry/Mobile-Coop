@@ -198,12 +198,14 @@ export const MARLOW_CIRCUITS: MarlowCircuit[] = [
  * (J14 Marlow re-plan, A20; BRIEF Q2 "Never": every light works, darkness only from cover, cut power and shot lamps) The circuit
  * table of the map `ctcourseReplan`: the built table with the lights left off tonight now live. Group 49 (A4 back aisle) and
  * 69 (A6 sump and west gallery) become switched read circuits; the A4 dispatch office (44), the A8 vestibule (85) and the A8
- * west bays (86) get fittings on their own switches; the A2 coat corner gets a lamp on the cabin's circuit (22). Switch spots
+ * west bays (86) get fittings on their own switches; the A2 coat corner gets a lamp on the cabin's circuit (22) and the A2 stores
+ * bay a seventh strip on the shed general (20, J14 G-A2 lead answer 4). Switch spots
  * are plan points (builders may move them up to 1 m, SPEC 9); each set slice places the lamps (`replan/<set>.ts`) and the
  * lamp counts here are the budget they build to. The built `MARLOW_CIRCUITS` is untouched.
  */
 export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
   ...MARLOW_CIRCUITS.flatMap((c): MarlowCircuit[] => {
+    if (c.group === 20) return [{ ...c, fitting: 'Strips on wires under the roof tie, one over the stores bay', lamps: 7 }];
     if (c.group === 22) return [{ ...c, name: "Shunter's cabin panel and coat corner lamp", fitting: 'Ceiling panel over the desk, a wall lamp over the coat hooks', lamps: 2 }];
     if (c.group === 49) {
       return [
