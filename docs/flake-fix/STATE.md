@@ -3,6 +3,15 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 68 (2026-10-26 ~17:15, new session [627e4d] at boot; wins over SAVE 67):**
+- Service healthy (task running, pid 60760), 0 trains / 0 requests, no heavy locks, ports 4189 / 4192 free.
+- Train 125 failed on e2e-ctcourse 5-8 (cause #574, already dropped by the Orchestrator; no triage needed).
+- laptop-queue-9 (#571) MERGED. #572 (-11, 063d5b81): checker PASS + CI green -> told the Orchestrator to add it to the
+  batch. #552 (-8b) all green, unlabelled (Orchestrator labels the batch).
+- #570 (-10b, Player): CI `test` red on tests/laptopQueueVisual.test.ts (expects `E2E_SUITE_TIMEOUT: '900'` in
+  service.mjs); told Player.
+- Next: check #570's new head when Player pushes; watch the batch train; quarantine (not chase) any flaky suite.
+
 **Test Runner SAVE 67 (2026-10-26 ~17:15, Orchestrator save at 81%; PROTOTYPE MODE, ROADMAP Decided e18f09d2f; wins over SAVE 66):**
 - Prototype mode: one batch train of fixes, freeze over, lighter testing; flaky suite = quarantine, no repeat proofs, no
   new test-machinery work after #572.
