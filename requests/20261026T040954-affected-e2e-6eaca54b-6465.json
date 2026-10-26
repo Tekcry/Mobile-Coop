@@ -1,0 +1,15 @@
+{
+  "id": "20261026T040954-affected-e2e-6eaca54b-6465",
+  "sha": "6eaca54b863a2df4435e72eda983fb0f521a7946",
+  "branch": "feature/char-shadow-meter-s2c",
+  "pr": 557,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #557"
+}
