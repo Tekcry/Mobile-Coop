@@ -1,0 +1,15 @@
+{
+  "id": "20261026T061605-night-shift-campaign-8d4feb8e-b16c",
+  "sha": "8d4feb8ecb9683686cf41ddfdeac54dccd1e0b89",
+  "branch": "feature/mission-b-sector",
+  "pr": 578,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-section-rating",
+    "e2e-stealth",
+    "e2e-gadgets"
+  ],
+  "set": "mb"
+}
