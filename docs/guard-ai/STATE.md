@@ -1020,8 +1020,10 @@ TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) g
 fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
 fresh Opus checker RUNNING -> slices/AIM-FIX-CHECK.md -> post checker, head to the orchestrator. (B) mill guards: top alert, never calm,
 slow tactical room-by-room close-in on a fixed readable order (Michael ~10:05 "fixed readble path is good"), corners
-cleared, groups <= 2: Opus planner RUNNING on feature/guard-ai-mill-hunt (worktree -guard-ai-mill-hunt) ->
-docs/guard-ai/mill-hunt/BRIEF + PLAN; build stacked on (A) once it is pushed (both touch enemy.ts).
+cleared, groups <= 2: BRIEF + PLAN 597df8bce on feature/guard-ai-mill-hunt (worktree -guard-ai-mill-hunt;
+flag millHunt; H1 map data Sonnet + H2 pure rules Opus start now in parallel; H3 wiring after #694; PR 1 = H1-H3,
+PR 2 = H4 reactions). Plan check RUNNING -> mill-hunt/PLAN-CHECK.md. Asked Michael via the orchestrator: gallery
+guards stay upstairs (assumed) or come down.
 Open (2026-10-27 ~08:55, new window to ~13:50, 1 agent; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
