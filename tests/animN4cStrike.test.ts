@@ -4,7 +4,7 @@
 // (strikeWarp): the contact frame against STRIKE.hitAt, the hips still first, back to rest, the largest per-frame steps.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RigPose } from '../src/player/characterRig';
-import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY, STRIKE_HIT_PH, STRIKE_SECTION, newStrikeBody, strikeBodyAt, strikeWarp } from '../src/anim/strikeBody';
+import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY, STRIKE_HIT_PH, STRIKE_SECTION, newStrikeBody, strikeBodyAt, strikeWarp, arcWarp } from '../src/anim/strikeBody';
 import { STRIKE, STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
 
@@ -219,11 +219,11 @@ describe('anim-n4c: the elbow strike from the hips and trunk (AUDIT row 49)', ()
     expect(STRIKE_ARM_LAG).toBeCloseTo(DT, 12);
     expect(strikeWarp(strikePhase(STRIKE.hitAt - STRIKE_ARM_LAG))).toBeCloseTo(STRIKE_ARC_CONTACT, 9);
     expect(strikeWarp(STRIKE_HIT_PH)).toBeGreaterThan(STRIKE_ARC_CONTACT); // past contact at the hit
-    expect(strikeWarp(STRIKE_HIT_PH, STRIKE_HIT_PH)).toBeCloseTo(STRIKE_ARC_CONTACT, 9);
+    expect(arcWarp(STRIKE_HIT_PH, STRIKE_HIT_PH)).toBeCloseTo(STRIKE_ARC_CONTACT, 9);
     expect(strikeWarp(0)).toBe(0);
     expect(strikeWarp(1)).toBe(1);
     expect(strikeWarp(-1)).toBe(-1);
-    expect(strikeWarp(0.3, 0)).toBe(0.3); // no hit phase: unwarped
+    expect(arcWarp(0.3, 0)).toBe(0.3); // no hit phase: unwarped
     let prev = 0;
     for (let k = 1; k <= 400; k++) {
       const w = strikeWarp(k / 400);

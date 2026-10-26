@@ -45,7 +45,10 @@ type StrikeFrames = {
   wx: number[];
 };
 
-async function strikeFrames(): Promise<StrikeFrames> {
+/** (J19 S2) The arc StrikeController poses `t` s into the strike. */
+const nowArc = (t: number): number => strikeWarp(strikePhase(t));
+
+async function strikeFrames(arcAt: (t: number) => number = nowArc, posed = Math.ceil(STRIKE_DUR / DT)): Promise<StrikeFrames> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Matrix, Scene } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
@@ -78,10 +81,9 @@ async function strikeFrames(): Promise<StrikeFrames> {
   const pp = rig.hips.getAbsolutePosition().clone();
   let psh = yawOf(rig.shoulderL, rig.shoulderR);
   let phip = yawOf(rig.hipL, rig.hipR);
-  // the strike (as StrikeController: the arc warped onto the hit), then 6 frames after it ends
-  const n = Math.ceil(STRIKE_DUR / DT);
-  for (let k = 1; k <= n + 6; k++) {
-    pose.melee = k <= n ? strikeWarp(strikePhase(k * DT)) : -1;
+  // the strike (as StrikeController: `posed` frames of the arc), then 6 frames after it ends
+  for (let k = 1; k <= posed + 6; k++) {
+    pose.melee = k <= posed ? arcAt(k * DT) : -1;
     rig.animate(DT, pose);
     settle();
     const w = rig.wristR.getAbsolutePosition();
