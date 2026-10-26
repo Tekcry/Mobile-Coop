@@ -1,0 +1,16 @@
+{
+  "id": "20261026T130913-affected-e2e-d284c374-4186",
+  "sha": "d284c374c8713ca3edf555f18bedb68fa5acff87",
+  "branch": "feature/campus-s1-v3",
+  "pr": 634,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-sectorops:7",
+    "e2e-sectorops:8",
+    "e2e-sectorops:9"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #634"
+}
