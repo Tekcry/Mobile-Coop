@@ -504,6 +504,11 @@ approval). G127 / G146 are already his pick for this scene; G367 holds (the EMP 
   the lightning on the music, the four paired kills - accept when it is tense, cinematic and never feels like
   exploring.
 - The end: the hoist door unlocks on the last kill; both on the platform; fade out - accept when it ends cleanly.
+- The storm sound (S6): rain on the roof from the first frame, louder on the gallery, thunder 2 s after each flash. It is
+  computer-made (no recording): ask Michael whether a real recorded storm is wanted (a download needs his OK).
+- Walk notes, not fixes: a partner who joins late hears the mission track from its start (it can sit off the flashes); a
+  host restart in the partner's intro leaves the partner's intro pose on; the partner sees "Host ended the match" after
+  a good run.
 
 ## Risks and open questions
 - S4 waits on three teams (knife S1 + S3, GA6 / GA7, SO2-SO5); S1, S1b, S3, S5 and S6 build first.
