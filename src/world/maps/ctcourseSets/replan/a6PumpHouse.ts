@@ -151,7 +151,7 @@ export const A6_OBJECTIVES: readonly CourseObjective[] = [
     text: 'Both of you onto the motor gallery',
     a: 'Boost your partner up, then climb the rescue line.',
     // (marlow-play C8) the rope is offered standing at the open loading edge (crouched it is a hang-down offer)
-    b: 'Take the leg-up, then face the drop at the edge and press Co-op.',
+    b: 'Take the leg-up, then press Co-op standing at the open edge.',
     done: { flag: A6_GAL_FLAG },
   },
   {

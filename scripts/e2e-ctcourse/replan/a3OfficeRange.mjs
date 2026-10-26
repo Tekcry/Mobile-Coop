@@ -127,7 +127,7 @@ export async function walk(t, n) {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) { r.damageMul = 0; r.protectT = 0; } });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 6, `A3: station 6 is live on the ${tag} page`);
-    await sees(P, /Crawl through to open the fire door/, `A3: the ${tag} reads station 6's step line`);
+    await sees(P, /Crawl the riser to the fire door/, `A3: the ${tag} reads station 6's step line`);
     assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
   }
   assert((await GA(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive).length)) === 0, 'A3: no guard in the set (the cleaner is gone)');

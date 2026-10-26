@@ -317,7 +317,7 @@ describe('Marlow re-plan A6: the guard and the stations (STATIONS sections 3, 6,
     }
     // (marlow-play C8) station 14's B line: the leg-up first, then the rope offered standing at the open edge (never "brace":
     // crouched it is a hang-down offer)
-    expect(part.objectives[0]!.b).toBe('Take the leg-up, then face the drop at the edge and press Co-op.');
+    expect(part.objectives[0]!.b).toBe('Take the leg-up, then press Co-op standing at the open edge.');
     expect(part.objectives[0]!.b!.toLowerCase()).not.toMatch(/brace|crouch/);
     expect(part.objectives[3]!.text).toMatch(/culvert/);
     expect(part.objectives[3]!.text).toMatch(/holding room six/);

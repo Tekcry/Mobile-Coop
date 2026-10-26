@@ -306,7 +306,7 @@ export function replanA3OfficeRange(b: LevelBuilder, kit: FacilityKit, part: Set
     {
       id: 'a3-vent',
       bay: 'A3',
-      text: 'Crawl through to open the fire door',
+      text: 'Crawl the riser to the fire door',
       done: { flag: A3_FIRE_FLAG },
     },
     {
