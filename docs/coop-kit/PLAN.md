@@ -278,7 +278,8 @@ cut from an earlier slice's head shows only its own lines once that one has rele
 ~16:05 item 4, ~16:20; RULES "Test tiers"): each PR runs ONE test set, its `affected-e2e`. Where the PR touches
 `src/net` or a wire path (a file `protocol.ts` imports: `teamMoves.ts` once #578 is on master, `moveState.ts`,
 `courseState.ts`) that set is exactly the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`, which also covers
-the `src/game` / `src/player` checker gate; else it is `e2e-netmove`. No extra suites, no repeat proof runs: a red
+the `src/game` / `src/player` checker gate; else it is `e2e-netmove`, requested by the lead (the automatic
+`affected-e2e` pick is not the gate). No extra suites, no repeat proof runs: a red
 test gets one fix round and one rerun, then it is quarantined or noted and the work ships. Two fresh Opus checkers
 only where the PR edits `src/net` or changes what goes on the wire (A2, B1, B2, K0); one Opus checker otherwise.
 Bars: bible 5.12.2 (paired contact within 3 cm on host and client, `anim-audit` minimums) and the 1-2 min look video;
@@ -430,6 +431,8 @@ master it is cut from. A fresh Opus plan checker passes this section before K0 s
   move from the flag to the wire to Marlow's station.
 
 ### The Marlow API (what each K slice sends Marlow Build)
+Campaign Build uses the same API for Tallow Wharf C4's Plank Bridge (Michael "Keep it" ~18:52, BRIEF M4): K5b also sends
+Campaign the id `plankBridge`, the spot fields and the done call.
 Marlow Build wires the stations (Marlow 2026-10-26 ~18:20, binding; BRIEF A18): it rewires `kitMoveOn` to
 `flags.kitMoves.has(kit)` and, per station, places the move and switches the stand-in off. Each K slice ends by sending
 Marlow (a message to Marlow Build, the text in its PR body) three things:
@@ -617,9 +620,10 @@ Michael's playthrough; one closest test set per PR, one fix round and one rerun 
 where the PR edits `src/net` or a wire path (a file `src/net/protocol.ts` imports: here K0 only), one Opus checker
 otherwise; bible 5.12.2 (paired contact within 3 cm on host and client, `anim-audit` minimums) and a 1-2 min look video
 only on the KA animation PRs. The test set: a wire PR runs the co-op group (`e2e-coop` + `e2e-netmove` +
-`e2e-ctcourse`); a non-wire K slice runs `affected-e2e` capped at 1 (its closest suite; expected `e2e-netmove`), which
-stands in for RULES' `src/game` checker-gate pair under prototype mode (ROADMAP ~16:05 item 4 "ONE closest test set",
-authority 1 over RULES; settles plan check 3's note). No K slice adds an e2e step: each proves its rule and both
+`e2e-ctcourse`); a non-wire K slice runs ONE set, `e2e-netmove`, requested by the lead (`request.mjs --suites e2e-netmove`), and its
+checker passes only with it green: the RULES `src/game` checker gate kept at one suite under prototype mode (ROADMAP
+~16:05 item 4 "ONE closest test set"); the automatic `affected-e2e` pick (a one-player suite) is not the gate (part 2
+plan check 1, item 1). No K slice adds an e2e step: each proves its rule and both
 sides' paths headless in `tests/kit/<move>.test.ts` (two `TeamController`s on a stub host, as Campaign's
 `tests/kit/shutter.test.ts`), and the real move's walk is Marlow's station wiring PR (its re-plan e2e). Each slice adds
 its id to `KIT_BUILT` (`flags.ts`) in the PR that makes the move playable and ends by sending Marlow the id, the spot

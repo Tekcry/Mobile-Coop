@@ -65,8 +65,8 @@ playable pieces first, no fine-tuning passes, one test set per PR.
   2026-10-27: Campaign is a second user of the same API (`addKitSpot`, `onKitDone`); Michael picked "Keep it" ~18:52 (M4): Tallow C4's plank stands
   (approved before the 18:47 "Not yet"), same move and sizes as Marlow Yard; only further new map uses wait); the level validator's code (`scripts/level-validate.mjs`, Marlow Build); the pull-up and
   shutter poses Player owes Marlow (resume-ct-core: pull and shutter clips): this job only names the files it shares
-  with them; the ledge relay's reach (M2); guard reactions beyond naming the hooks Guard AI owns (Plank Bridge, a lifted
-  grate).
+  with them; the ledge relay's reach (M2); guard reactions beyond the laid plank's notice that K5b adds in
+  `stealthSystems.ts` (Deadweight's open grate is a door left open under the existing door rules).
 - Rules that hold: CLAUDE.md hard rules (no static `src/net` import, hot paths allocate nothing, `hyp2` / `hyp3`, flags
   for unfinished work); G57 (one 4.3-4.5 m band for boost and human ladder), G151 (anywhere with room, a prompt naming
   the move), G180 (pure CT mechanics), G210 / bible 5.12 (real-world trained-operator animation, the 5.12.2 realism
