@@ -133,12 +133,20 @@ interface GuardOpts {
  * An object on `proto` with `fields`, built by a constructor of named stores (`this.k = src.k`), as a class's own
  * initialisers would: fast properties whose doubles are stored in place. (`Object.assign` of this many fields onto
  * `Object.create(proto)` leaves a dictionary-mode object, and the prototype trick back to fast gives tagged fields,
- * where every double store boxes 16 B: the allocation test would read the stand-in, not the code.)
+ * where every double store boxes 16 B: the allocation test would read the stand-in, not the code.) One constructor per
+ * field list, so every stand-in shares one map as a class's instances do (a new constructor per guard gave each its own
+ * map, and after a few dozen guards the stores in `shadowLook` went megamorphic and boxed: G3 fix round).
  */
+const STAND_INS = new Map<string, new (s: object) => object>();
 function standIn(proto: object, fields: Record<string, unknown>): object {
   const keys = Object.keys(fields);
-  const C = new Function('s', keys.map((k) => `this.${k} = s.${k};`).join(' ')) as unknown as new (s: object) => object;
-  C.prototype = proto;
+  const key = keys.join(',');
+  let C = STAND_INS.get(key);
+  if (!C) {
+    C = new Function('s', keys.map((k) => `this.${k} = s.${k};`).join(' ')) as unknown as new (s: object) => object;
+    C.prototype = proto;
+    STAND_INS.set(key, C);
+  }
   return new C(fields);
 }
 
@@ -306,6 +314,18 @@ describe('G3: the cue in perceive', () => {
     expect((p as unknown as { cueRise: boolean }).cueRise).toBe(false);
   });
 
+  it('a hearTurn earlier the same step that already lifted him past suspicious still barks (polish 1)', () => {
+    const { p, e } = scene();
+    e.hearTurn(0, 4, 20);
+    expect(p.meter).toBeGreaterThanOrEqual(PERCEPTION.suspicious);
+    p.perceive();
+    expect(p.cueT).toBe(0);
+    p.updateAwareness(DT);
+    expect(p.aware.level).toBe('suspicious');
+    expect(p.riseCause).toBe(RISE_NONE);
+    expect(p.bark).toHaveBeenCalledWith('suspicious');
+  });
+
   it('a rise with no cue still barks (the hush is the cue only)', () => {
     const { p } = scene({ cues: null });
     p.meter = 0.4;
@@ -328,7 +348,7 @@ describe('G3: the cue in perceive', () => {
     }
   });
 
-  it('gates (A6): alerted, passive, a dog, an incident task, investigating: no reaction and no ray', () => {
+  it('gates (A6): alerted, passive, a dog, an incident task, investigating, a glimpse moment, a lure: no reaction and no ray', () => {
     const cases: ((p: Priv) => void)[] = [
       (p) => p.aware.set('alert'),
       (p) => (p.passive = true),
@@ -336,6 +356,9 @@ describe('G3: the cue in perceive', () => {
       (p) => (p.incident = 3),
       (p) => p.aware.set('investigating'),
       (p) => p.aware.set('searching'),
+      // (fix 1) a calm moment resting on a glimpse keeps sight's look; (polish 5) a lured post keeps to his lure
+      (p) => ((p as unknown as { sawMoment: boolean }).sawMoment = true),
+      (p) => ((p as unknown as { lure: { active: boolean } }).lure.active = true),
     ];
     for (const set of cases) {
       const { p, floor } = scene();
@@ -485,21 +508,66 @@ describe('G3: the cue never escalates (PLAN section 1, alertState stepped)', () 
     expect(levels.has('investigating')).toBe(false);
   });
 
-  it('a cue right after a real glimpse: any escalation is sight\'s (cause RISE_SIGHT), never alert', () => {
-    // B lit in front for one think (a glimpse above the leak), then behind a wall; A's shadow keeps cueing
-    const A = player('a', 0, -5, { light: 0.3 });
-    const B = player('b', 2, 9, { light: 1 });
-    const cues = cuesFor(['a', 'b']);
-    footprint(cues, 0, 0, 4);
-    const { p } = guard([A, B], { cues });
-    const think = { t: 0 };
-    run(p, THINK, () => {}, think);
-    expect(p.rate).toBeGreaterThan(PERCEPTION.leak);
-    B.hidden.chest = B.hidden.head = B.hidden.hips = true;
-    const levels = new Set<string>();
-    run(p, 20, (l) => levels.add(l), think);
-    expect(levels.has('alert')).toBe(false);
-    if (levels.has('investigating')) expect(p.riseCause).toBe(RISE_SIGHT);
+  it('a shadow never holds back what sight started (fix 1): with cues on he investigates whenever he does with cues off', () => {
+    // B in front at (2, 9) is seen for `seen` s in light `light`, then goes behind a wall; A's moving shadow stays in his
+    // cone at (0, 4-6) the whole 20 s. Cues null vs on: the same outcome, and an investigation is sight's both times.
+    const glimpse = (seen: number, light: number, on: boolean) => {
+      const A = player('a', 0, -5, { light: 0.3 });
+      const B = player('b', 2, 9, { light });
+      const cues = on ? cuesFor(['a', 'b']) : null;
+      if (cues) footprint(cues, 0, 0, 4);
+      const { p } = guard([A, B], { cues });
+      const think = { t: 0 };
+      const r = { inv: false, cause: -1, cued: false };
+      const look = (l: string) => {
+        if (l === 'investigating' && !r.inv) {
+          r.inv = true;
+          r.cause = p.riseCause;
+        }
+      };
+      run(p, seen, look, think);
+      B.hidden.chest = B.hidden.head = B.hidden.hips = true;
+      run(p, 20, look, think);
+      r.cued = p.cueT !== Infinity;
+      return r;
+    };
+    // the checker's three: each investigates with cues off (the scenario is live), and with cues on, by sight
+    const checker: [number, number][] = [
+      [0.75, 0.6],
+      [0.75, 1.0],
+      [2, 0.4],
+    ];
+    for (const [seen, light] of checker) {
+      const off = glimpse(seen, light, false);
+      const on = glimpse(seen, light, true);
+      expect(off.inv, `off ${seen} s @ ${light}`).toBe(true);
+      expect(on.inv, `on ${seen} s @ ${light}`).toBe(true);
+      expect(off.cause).toBe(RISE_SIGHT);
+      expect(on.cause).toBe(RISE_SIGHT);
+    }
+    // a sweep of glimpse length x light: never less with cues on. It can be more: a cue's suspicion sharpens his eye
+    // (`aware.sensitivity`), so a sub-leak glimpse of B can become a real one, and that walk is sight's (RISE_SIGHT)
+    let offInv = 0;
+    let more = 0;
+    let cued = 0;
+    // (the stand-in has no combat: brighter glimpses past 1 s go alert, where today's sight rules alone decide)
+    for (const seen of [0.25, 0.5, 0.75, 1, 1.5, 2, 3]) {
+      for (const light of seen <= 1 ? [0.2, 0.3, 0.4, 0.6, 0.8, 1] : [0.2, 0.3, 0.4]) {
+        const off = glimpse(seen, light, false);
+        const on = glimpse(seen, light, true);
+        const at = `${seen} s @ ${light}`;
+        if (off.inv) expect(on.inv, at).toBe(true);
+        if (on.inv) expect(on.cause, at).toBe(RISE_SIGHT);
+        if (off.inv) offInv++;
+        if (on.inv && !off.inv) more++;
+        if (on.cued) cued++;
+      }
+    }
+    // both kinds of run are in the sweep, and the cue still fires once the glimpse's moment is over
+    expect(offInv).toBeGreaterThan(3);
+    expect(offInv).toBeLessThan(33);
+    expect(cued).toBeGreaterThan(0);
+    expect(more).toBeLessThan(33 - offInv);
   });
 });
 
@@ -679,8 +747,10 @@ describe('G3: allocation', () => {
       }
     }, 0);
     expect(p.cueSlot).toBe(0);
-    // the stand-in's think (today's perceive, megamorphic after the cases above: 16-80 B by file order) is the bar: the
-    // cue's work in the same think adds nothing to it (shadowLook alone: the case above)
+    // the stand-in's think (today's perceive: 16-48 B by what ran before it in the file, outside the cue) is the bar:
+    // the cue's work in the same think adds nothing to it (shadowLook alone: the case above). With one stand-in map
+    // (G3 fix round) this reading caught 32 B on the ray path, now gone: `SHADOW_NOTICE.slack` loaded from the object
+    // and passed to `losTo` (16 B; now `CUE_SLACK`) and `cueV.set(x, y, z)` called out of line (16 B; now stores)
     expect(per).toBeLessThanOrEqual(base);
   }, 60000);
 });
