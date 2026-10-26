@@ -49,6 +49,11 @@ export function titleOf(file) {
   return path.posix.basename(file.replace(/\\/g, '/')).replace(/\.fbx$/i, '').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/** (I9 polish) A clip's credits title cell: "<pack name>: <title>" in a pack folder, else the title alone. */
+export function clipTitle(file, pack = packOf(file)) {
+  return pack ? `${PACK_NAME[pack] ?? pack}: ${titleOf(file)}` : titleOf(file);
+}
+
 /**
  * The Clip map's slug rule: the file name without `.fbx` and without any `(...)` note, lower case, every run of
  * characters other than letters and digits -> `_`, trimmed. The note is returned apart (the recipe keeps it).
@@ -81,11 +86,16 @@ const isDir = (e) => typeof e !== 'string' && e.isDirectory();
  * The FBX files in `dir` and in its `pack-*` subfolders (one level) with their slugs, sorted by path; stops on two files
  * with the same slug. (I7) `file` is the path relative to `dir` with `/` (`pack-rifle/walk forward.fbx`), `pack` the
  * folder or null, `title` the credits title cell's text ("Pro Rifle Pack: walk forward"; a root file its title alone).
+ * (I9 polish) A `pack-*` folder that is a link (symlink or Windows junction) is not followed: `warn` names it.
  */
-export function listClips(dir, { readdir = readdirSync } = {}) {
+export function listClips(dir, { readdir = readdirSync, warn = (m) => console.warn(m) } = {}) {
   const files = [];
   for (const e of readdir(dir, { withFileTypes: true })) {
     const name = entryName(e);
+    if (typeof e !== 'string' && typeof e.isSymbolicLink === 'function' && e.isSymbolicLink() && PACK_RE.test(name)) {
+      warn(`mixamo: ${name} is a link (symlink or junction): not followed, its clips are skipped; copy the folder in instead`);
+      continue;
+    }
     if (isDir(e)) {
       if (!PACK_RE.test(name)) continue;
       for (const f of readdir(path.join(dir, name), { withFileTypes: true })) {
@@ -101,7 +111,7 @@ export function listClips(dir, { readdir = readdirSync } = {}) {
     const other = seen.get(slug);
     if (other) throw new Error(`mixamo: "${file}" and "${other}" both slug to "${slug}"; rename one`);
     seen.set(slug, file);
-    const title = pack ? `${PACK_NAME[pack] ?? pack}: ${titleOf(file)}` : titleOf(file);
+    const title = clipTitle(file, pack);
     return { file, slug, note, pack, title, fbx: path.join(dir, file) };
   });
 }
@@ -182,7 +192,7 @@ export async function dumpAll({ dir = DEFAULT_DIR, outDir = MIXAMO_OUT, force = 
   const io = deps.io ?? defaultIo;
   const writeFile = deps.writeFile ?? writeFileSync;
   const mkdir = deps.mkdir ?? ((p) => mkdirSync(p, { recursive: true }));
-  let clips = listClips(dir, { readdir: deps.readdir ?? readdirSync });
+  let clips = listClips(dir, { readdir: deps.readdir ?? readdirSync, ...(deps.warn ? { warn: deps.warn } : {}) });
   if (!clips.length) throw new Error(`mixamo: no .fbx files in ${dir}`);
   if (only) {
     const missing = only.filter((s) => !clips.some((c) => c.slug === s));
@@ -203,8 +213,10 @@ export async function dumpAll({ dir = DEFAULT_DIR, outDir = MIXAMO_OUT, force = 
   const manifest = manifestOf(planned, { readDump: io.readDump });
   const mPath = path.join(outDir, 'manifest.json');
   if (only && io.exists(mPath)) {
-    // (I6) a partial run keeps the other clips' entries
-    const kept = (io.readDump(mPath).clips ?? []).filter((c) => !only.includes(c.slug));
+    // (I6) a partial run keeps the other clips' entries; (I9 polish) rows from before I7 get their pack and title from their file
+    const kept = (io.readDump(mPath).clips ?? [])
+      .filter((c) => !only.includes(c.slug))
+      .map((c) => ({ ...c, pack: c.pack ?? packOf(c.file), title: c.title ?? clipTitle(c.file) }));
     manifest.clips = [...kept, ...manifest.clips].sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
   }
   writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 1) + '\n');

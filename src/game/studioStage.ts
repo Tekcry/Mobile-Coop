@@ -24,7 +24,7 @@ import { buildEnemyRig } from '../ai/enemyRig';
 import { ENEMIES } from '../ai/enemyDefs';
 import { TUNE_WHO } from '../anim/tuneGuard';
 import type { WeaponModel } from '../weapons/weaponModel';
-import { stageLightKeep, stageLightMeshes } from '../anim/studio';
+import { loadStudioCaptures, stageLightKeep, stageLightMeshes } from '../anim/studio';
 import { LOD_NAMES } from '../operators/runtime/manifest';
 
 /** What the stage needs from the match (GameState). */
@@ -147,6 +147,8 @@ export class StudioStage {
   constructor(private readonly host: StudioHost) {
     studioReset();
     STUDIO.active = true;
+    // (mixamo-retarget I9 fix round) batch 2's captures, one lazy chunk (once; the loop list fills when it lands)
+    void loadStudioCaptures();
     STUDIO_RIGS.push(host.player.rig);
     for (const l of STAGE_LIGHTS) {
       const p = new PointLight(`studio-stage-${l.name}`, new Vector3(0, -50, 0), host.scene);
