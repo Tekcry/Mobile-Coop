@@ -344,6 +344,10 @@ describe('jam target pick', () => {
     expect([cam, lamp][pickJamTarget([cam, lamp], 0, 0, 0, 0, 0, 1)]!.id).toBe('cam');
     expect([lamp, panel][pickJamTarget([lamp, panel], 0, 0, 0, 0, 0, 1)]!.id).toBe('lamp');
     expect([lamp, far][pickJamTarget([lamp, far], 0, 0, 0, 0, 0, 1)]!.id).toBe('lamp');
+    // (check FIX 1) a camera in the cone but over JAM_CAM_NEAR from the lamp (behind a wall, across a room) leaves the lamp
+    const behind: JamTarget = { id: 'behind', kind: 'camera', x: 0.3, y: 0, z: 11.5 };
+    expect([lamp, behind][pickJamTarget([lamp, behind], 0, 0, 0, 0, 0, 1)]!.id).toBe('lamp');
+    expect([lamp, behind, cam][pickJamTarget([lamp, behind, cam], 0, 0, 0, 0, 0, 1)]!.id).toBe('cam');
     // a skipped camera (refused) leaves the light
     expect(pickJamTarget([lamp, cam], 0, 0, 0, 0, 0, 1, JAMMER.range, JAMMER.cone, (t) => t.kind === 'camera')).toBe(0);
   });

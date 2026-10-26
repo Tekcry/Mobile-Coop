@@ -237,12 +237,16 @@ export interface JamTarget {
   z: number;
 }
 
+/** (marlow-play C1) m: a camera this close to the light the aim picked takes the jam instead of the light. */
+export const JAM_CAM_NEAR = 1.0;
+
 /**
  * The target nearest the aim line: inside `range` and the `cone` around the unit direction (dx, dy, dz) from the eye
  * (ox, oy, oz), not refused by `skip` (a light switched off). Returns its index in `targets`, or -1.
- * (marlow-play C1) A camera inside the cone wins over a nearer-angle light: a ceiling lamp in front of a lens (A3's
- * corridor lamp 0.6 m before `cam-a3-hall`) took the jam, the light went out and the camera kept watching. Panels and
- * lasers keep the plain nearest-angle pick against a light. No allocation.
+ * (marlow-play C1) A camera inside the cone and within `JAM_CAM_NEAR` of the picked light wins over it: a ceiling lamp
+ * in front of a lens (A3's corridor lamp 0.63 m before `cam-a3-hall`) took the jam, the light went out and the camera
+ * kept watching. A camera farther from the lamp (behind a wall, across a room) leaves the lamp picked. Panels and lasers
+ * keep the plain nearest-angle pick against a light. No allocation.
  */
 export function pickJamTarget(
   targets: readonly JamTarget[],
@@ -274,12 +278,26 @@ export function pickJamTarget(
       bestA = a;
       best = i;
     }
-    if (t.kind === 'camera' && a < camA) {
+  }
+  if (best < 0 || targets[best]!.kind !== 'light') return best;
+  // (C1) a camera in the cone right beside the picked lamp takes the jam instead
+  const lt = targets[best]!;
+  for (let i = 0; i < targets.length; i++) {
+    const t = targets[i]!;
+    if (t.kind !== 'camera' || (skip && skip(t))) continue;
+    if (hyp3(t.x - lt.x, t.y - lt.y, t.z - lt.z) > JAM_CAM_NEAR) continue;
+    const vx = t.x - ox;
+    const vy = t.y - oy;
+    const vz = t.z - oz;
+    const d = hyp3(vx, vy, vz);
+    if (d > range || d < 0.05) continue;
+    const a = Math.acos(Math.max(-1, Math.min(1, (vx * dx + vy * dy + vz * dz) / d)));
+    if (a < camA) {
       camA = a;
       cam = i;
     }
   }
-  return cam >= 0 && targets[best]!.kind === 'light' ? cam : best;
+  return cam >= 0 ? cam : best;
 }
 
 /** A laser device: beams across a plan segment (x1, z1) - (x2, z2) at the listed heights above `floorY`. */
