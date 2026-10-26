@@ -198,6 +198,23 @@ export class BounceGrid {
    * shader's `nsGrid2` is this, step for step (`tests/bounceGrid.test.ts`). Allocation-free.
    */
   sampleInto(x: number, y: number, z: number): void {
+    const q = this.q;
+    q[0] = x;
+    q[1] = y;
+    q[2] = z;
+    this.sampleQ();
+  }
+
+  /** (F57) The point `sampleQ` reads: x, y, z. `LightField` writes it and calls `sampleQ`, so no double crosses the
+   *  call (passed as arguments to this out-of-line read they boxed 3 HeapNumbers a light-field query: 1296 B a
+   *  3-player cue fill, 128 B a 3-player meter tick). */
+  readonly q = new Float64Array(3);
+
+  /** `sampleInto` at the point in `q`, into `out`. */
+  sampleQ(): void {
+    const x = this.q[0]!;
+    const y = this.q[1]!;
+    const z = this.q[2]!;
     const nx = this.n[0];
     const ny = this.n[1];
     const nz = this.n[2];

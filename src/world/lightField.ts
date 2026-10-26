@@ -252,7 +252,11 @@ export class LightField {
 
   /** Static light at a point: ambient + moon (+ a lightning flash) + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
-    this.levelInto(x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.levelInto();
     return this.res;
   }
 
@@ -279,7 +283,11 @@ export class LightField {
   /** (LR16-1) The one-bounce fill at a point (0..1): the bounce grid read by `BounceGrid.sampleInto` (the walls kept),
    *  as `levelAt` adds it. */
   bounceAt(x: number, y: number, z: number): number {
-    this.bounceInto(x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.bounceInto();
     return this.res;
   }
 
@@ -295,7 +303,11 @@ export class LightField {
 
   /** Lights that are not baked (flashlights, anything added after the bake), each tested with `occluded`. 0..1. */
   dynamicAt(x: number, y: number, z: number, occluded?: Occluder): number {
-    this.dynamicInto(x, y, z, occluded);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.dynamicInto(occluded);
     return this.res;
   }
 
@@ -306,7 +318,11 @@ export class LightField {
    * character's owner key); without one (or `null`) it is today's value to the bit.
    */
   totalAt(x: number, y: number, z: number, occluded?: Occluder, chars: CharOccluders | null = null, skip = -1): number {
-    this.totalInto(x, y, z, occluded, chars, skip);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.totalInto(occluded, chars, skip);
     return this.res;
   }
 
@@ -459,8 +475,13 @@ export class LightField {
 
   /** (S3b) `totalAt` at `qp` (with the contract `chars`, `skip` the sampled character's owner key), into `qr[0]`. */
   totalQ(occluded: Occluder | undefined, chars: CharOccluders | null, skip: number): void {
+    // (F57) the point copied once into `pt`, as `sourceQ`: passed on as x, y, z it boxed 3 doubles a call
     const q = this.qp;
-    this.totalInto(q[0]!, q[1]!, q[2]!, occluded, chars, skip);
+    const pt = this.pt;
+    pt[0] = q[0]!;
+    pt[1] = q[1]!;
+    pt[2] = q[2]!;
+    this.totalInto(occluded, chars, skip);
     this.qr[0] = this.res;
   }
 
@@ -471,22 +492,31 @@ export class LightField {
    * it is (light parity, bible 5.1).
    */
   bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, chars: CharOccluders | null = null, skip = -1): number {
-    this.totalInto(x, feetY + height * 0.6, z, occluded, chars, skip);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = feetY + height * 0.6;
+    pt[2] = z;
+    this.totalInto(occluded, chars, skip);
     const chest = this.res;
     if (chest >= 1) return 1;
-    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded, chars, skip);
+    pt[0] = x + hx;
+    pt[1] = feetY + height * 0.95;
+    pt[2] = z + hz;
+    this.totalInto(occluded, chars, skip);
     const head = this.res;
     return chest > head ? chest : head;
   }
 
-  private totalInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
-    this.levelInto(x, y, z, ch, skip);
+  /** `totalAt` at the `pt` point into `res`. (F57) The point is read from `pt`, never passed: V8 boxed the x, y, z this
+   *  passed on to the out-of-line `levelInto` / `dynamicInto` (1296 B a 3-player cue fill). */
+  private totalInto(occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+    this.levelInto(ch, skip);
     const s = this.res;
     if (s >= 1) {
       this.res = 1;
       return;
     }
-    this.dynamicInto(x, y, z, occluded, ch, skip);
+    this.dynamicInto(occluded, ch, skip);
     const v = s + this.res;
     this.res = v > 1 ? 1 : v;
   }
@@ -557,24 +587,25 @@ export class LightField {
     out[2] = this.lamp[o + 2]! + l.swz;
   }
 
-  private levelInto(x: number, y: number, z: number, ch: CharOccluders | null = null, skip = -1): void {
+  /** `levelAt` at the `pt` point into `res` (F57: the point read from `pt`, never passed). */
+  private levelInto(ch: CharOccluders | null = null, skip = -1): void {
+    const pt = this.pt;
+    const x = pt[0]!;
+    const y = pt[1]!;
+    const z = pt[2]!;
     const b = this.bake;
     // (no bake: the registry's ambient; every light is dynamic)
     if (!b) {
       this.res = this.reg.ambientAt(x, y, z);
       return;
     }
-    const pt = this.pt;
-    pt[0] = x;
-    pt[1] = y;
-    pt[2] = z;
     // (shadow audit) the ambient fill read trilinearly, as the shaders' bilinear `lampAmb` texture reads it
     this.triInto(b.ambient.data, this.ambG!, 0);
     let v = this.res;
     // (LR16-1) the lit lamps' bounce: the same cells, read without blending across a wall (fix round), as the shader
     // reads the fill texture's green channel
     if (this.bounce.active) {
-      this.bounceInto(x, y, z);
+      this.bounceInto();
       v += this.res;
     }
     // (piano SO5) the sky term: the moon plus the lightning flash now (`setFlash`), through the moon's visibility, so a
@@ -712,15 +743,21 @@ export class LightField {
     this.triInto(this.bake!.lamps!.r.vis, this.lamp, i * LS + LG);
   }
 
-  /** The bounce grid (synced to the registry first: one compare when nothing changed) into `res`. */
-  private bounceInto(x: number, y: number, z: number): void {
+  /** The bounce grid at the `pt` point (synced to the registry first: one compare when nothing changed) into `res`.
+   *  (F57) The point goes through the grid's `q` slots: `sampleInto(x, y, z)` is not inlined here and boxed all three. */
+  private bounceInto(): void {
     const bg = this.bounce;
     if (!bg.active) {
       this.res = 0;
       return;
     }
     bg.sync(this.reg);
-    bg.sampleInto(x, y, z);
+    const pt = this.pt;
+    const q = bg.q;
+    q[0] = pt[0]!;
+    q[1] = pt[1]!;
+    q[2] = pt[2]!;
+    bg.sampleQ();
     this.res = bg.out;
   }
 
@@ -785,7 +822,12 @@ export class LightField {
   }
 
   /** The non-baked lights (every light, without a bake), into `res`. */
-  private dynamicInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+  private dynamicInto(occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+    // (F57) the point read from `pt` once (an occluder callback cannot move it under the loop)
+    const pt = this.pt;
+    const x = pt[0]!;
+    const y = pt[1]!;
+    const z = pt[2]!;
     let v = 0;
     const ls = this.reg.lights;
     for (let i = 0; i < ls.length; i++) {
@@ -800,7 +842,17 @@ export class LightField {
         t *= beamCutAt(l, x, y, z);
         if (t <= 0.01) continue;
       } else if (occluded && occluded(l, x, y, z)) continue;
-      if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
+      if (this.doors.length) {
+        // (F57) the segment through `seg`, as `dynTermInto` (`doorBlocks` took it as 6 doubles)
+        const sg = this.seg;
+        sg[0] = l.x;
+        sg[1] = l.y;
+        sg[2] = l.z;
+        sg[3] = x;
+        sg[4] = y;
+        sg[5] = z;
+        if (this.segBlocked()) continue;
+      }
       // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
       if (ch !== null) {
         const q = ch.q;
