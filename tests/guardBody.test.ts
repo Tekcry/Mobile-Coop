@@ -6,7 +6,7 @@
  * host's `Enemy` and the client's `EnemyPuppet` gear sync (on stand-ins, as gearWiring.test.ts).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mesh, Scene } from '../src/core/babylon';
+import type { Effect, Mesh, Scene } from '../src/core/babylon';
 import type { GuardManifest } from '../src/operators/guards/gearMask';
 import type { GuardAsset } from '../src/operators/guards/guardAssets';
 import type * as GuardAssets from '../src/operators/guards/guardAssets';
@@ -318,6 +318,190 @@ describe('flag on: the guard figure over the rig', () => {
     expect(gb.helmetOn).toBe(true);
     expect(Array.from((gb as unknown as { tints: Uint8Array }).tints)).toEqual([255, 255, 255]);
     await vi.waitFor(() => expect(gb.shown).toBe(true));
+  });
+});
+
+const TIMEOUT = 'Error: Operation timed out after maximum retries.  - Effect: pbr';
+
+/** Make `e` look like Babylon's state after the readiness poll timed out (all fallbacks used, no program). */
+function timeOut(e: Effect): void {
+  const x = e as unknown as { _isReady: boolean; _pipelineContext: unknown; _compilationError: string; _allFallbacksProcessed: boolean };
+  x._isReady = false;
+  x._pipelineContext = null;
+  x._compilationError = TIMEOUT;
+  x._allFallbacksProcessed = true;
+}
+
+/** Make `e` look like a parallel compile still running (program not linked yet, no error). */
+function compiling(e: Effect): void {
+  const x = e as unknown as { _isReady: boolean; _pipelineContext: unknown; _compilationError: string; _allFallbacksProcessed: boolean };
+  x._isReady = false;
+  x._pipelineContext = { isReady: false, _isDisposed: false };
+  x._compilationError = '';
+  x._allFallbacksProcessed = false;
+}
+
+describe('(gm-watchdog) the figure shader watchdog', () => {
+  type GB = import('../src/ai/guardBody').GuardBody;
+  const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+  /** Babylon's draw-time readiness call for the shown LOD's meshes (makes their effects). */
+  const ask = (gb: GB): boolean => {
+    let ok = true;
+    for (const m of gb.figure.lodMeshes(gb.figure.current)) if (!m.material!.isReadyForSubMesh(m, m.subMeshes[0]!, false)) ok = false;
+    return ok;
+  };
+  const shownMesh = (gb: GB): Mesh => gb.figure.lodMeshes(gb.figure.current)[0]! as Mesh;
+  const figWarns = (warn: { mock: { calls: unknown[][] } }): string[] =>
+    warn.mock.calls.map((c) => String(c[0])).filter((s) => s.startsWith('guard figure '));
+  /** While `fault.on`, every new figure effect (GUARDFIG) is held timed out (as Babylon's poll leaves it). */
+  const faultFigure = (scene: Scene, fault: { on: boolean }): void => {
+    const engine = scene.getEngine();
+    const create = engine.createEffect.bind(engine);
+    vi.spyOn(engine, 'createEffect').mockImplementation((...a: Parameters<typeof engine.createEffect>) => {
+      const e = create(...a);
+      if (fault.on && e.key.includes('GUARDFIG')) {
+        timeOut(e);
+        for (const [k, v] of [['_isReady', false], ['_pipelineContext', null], ['_compilationError', TIMEOUT]] as const) Object.defineProperty(e, k, { get: () => v, set: () => {}, configurable: true });
+      }
+      return e;
+    });
+  };
+  /** A grunt whose figure has every LOD in (the shown LOD is stable: LOD0 with no camera). */
+  const grunt = async (s: Awaited<ReturnType<typeof setup>>, name: string) => {
+    const { rig, figure } = s.buildEnemyRig(s.scene, s.world as never, s.ENEMIES.grunt, name);
+    const gb = figure!;
+    await vi.waitFor(() => expect(gb.shown).toBe(true));
+    await vi.waitFor(() => expect(gb.figure.loaded).toBe(0b1110));
+    return { rig, gb, merged: rig.renderMeshes };
+  };
+  /** Asks until the shown LOD's effects are ready (the Null engine finishes a compile over a few ticks). */
+  const askReady = async (gb: GB): Promise<boolean> => {
+    for (let i = 0; i < 50; i++) {
+      if (ask(gb)) return true;
+      await sleep(10);
+    }
+    return false;
+  };
+
+  beforeEach(async () => {
+    (await import('../src/player/bodyEffectRecovery')).resetEffectRecovery();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('W1 a figure effect that times out: the merged body stands in, the effect is recompiled, the figure takes over once ready; `shown` never drops', async () => {
+    const s = await setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fault = { on: true };
+    faultFigure(s.scene, fault);
+    const { rig, gb, merged } = await grunt(s, 'w1');
+    s.render();
+    expect(gb.shown).toBe(true);
+    expect(gb.fallback).toBe(false);
+    expect(ask(gb)).toBe(false);
+    const m = shownMesh(gb);
+    const bad = m.subMeshes[0]!.effect!;
+    expect(bad.getCompilationError()).toBe(TIMEOUT);
+    s.render();
+    expect(gb.shown).toBe(true);
+    expect(gb.fallback).toBe(true);
+    expect(gb.fallbacks).toBe(1);
+    expect(merged.every((x) => x.isEnabled(false))).toBe(true);
+    expect(gb.viewMesh).toBe(rig.voxel!.meshes[0]);
+    expect(figWarns(warn)).toEqual([expect.stringMatching(/^guard figure \S+: body shader compile timed out, recompiling \(1\/3\)$/)]);
+    expect(bad.isDisposed).toBe(true);
+    expect(m.subMeshes[0]!.effect).toBeNull();
+    // nothing asked since the drop: state 0 holds the stand-in
+    s.render();
+    expect(gb.fallback).toBe(true);
+    expect(gb.shown).toBe(true);
+    fault.on = false;
+    let back = false;
+    for (let i = 0; i < 40 && !back; i++) {
+      ask(gb);
+      await sleep(5);
+      s.render();
+      expect(gb.shown).toBe(true);
+      back = !gb.fallback;
+    }
+    expect(back).toBe(true);
+    expect(merged.every((x) => !x.isEnabled(false))).toBe(true);
+    expect(gb.viewMesh).toBe(shownMesh(gb));
+    expect(shownMesh(gb).subMeshes[0]!.effect!.isReady()).toBe(true);
+    expect(gb.fallbacks).toBe(1);
+    expect(figWarns(warn)).toHaveLength(1);
+  });
+
+  it('W2 nothing asked for yet: no judgement, no stand-in', async () => {
+    const s = await setup();
+    const { gb, merged } = await grunt(s, 'w2');
+    for (let i = 0; i < 3; i++) s.render();
+    expect(gb.fallback).toBe(false);
+    expect(gb.fallbacks).toBe(0);
+    expect(merged.every((x) => !x.isEnabled(false))).toBe(true);
+  });
+
+  it('W3 a compile still running: the merged body stands in, nothing logged, recompiled only after STUCK_MS and STUCK_FRAMES', async () => {
+    const s = await setup();
+    const rec = await import('../src/player/bodyEffectRecovery');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { gb, merged } = await grunt(s, 'w3');
+    gb.frame(s.scene.activeCamera, 0);
+    expect(await askReady(gb)).toBe(true);
+    const e = shownMesh(gb).subMeshes[0]!.effect!;
+    compiling(e);
+    for (let f = 0; f < 40; f++) gb.frame(s.scene.activeCamera, f * 16);
+    expect(rec.STUCK_FRAMES).toBeLessThan(40);
+    expect(gb.fallback).toBe(true);
+    expect(merged.every((x) => x.isEnabled(false))).toBe(true);
+    expect(figWarns(warn)).toHaveLength(0);
+    for (let f = 0; f < 3; f++) gb.frame(s.scene.activeCamera, rec.STUCK_MS + f * 16);
+    expect(figWarns(warn)).toEqual([expect.stringMatching(/^guard figure \S+: body shader compile stuck, recompiling \(1\/3\)$/)]);
+    expect(e.isDisposed).toBe(true);
+    expect(gb.fallback).toBe(true);
+  });
+
+  it('W4 frozen or disabled: no judgement', async () => {
+    const s = await setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { rig, gb } = await grunt(s, 'w4');
+    s.render();
+    expect(await askReady(gb)).toBe(true);
+    compiling(shownMesh(gb).subMeshes[0]!.effect!);
+    rig.root.setEnabled(false);
+    for (let i = 0; i < 3; i++) s.render();
+    expect(gb.fallback).toBe(false);
+    gb.figure.setEnabled(false);
+    rig.root.setEnabled(true);
+    for (let i = 0; i < 3; i++) s.render();
+    expect(gb.fallback).toBe(false);
+    expect(gb.fallbacks).toBe(0);
+    expect(figWarns(warn)).toHaveLength(0);
+  });
+
+  it('W5 past MAX_RECOMPILES per variant the merged body stays', async () => {
+    const s = await setup();
+    const rec = await import('../src/player/bodyEffectRecovery');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    faultFigure(s.scene, { on: true });
+    const { gb, merged } = await grunt(s, 'w5');
+    s.render();
+    for (let i = 0; i <= rec.MAX_RECOMPILES; i++) {
+      expect(ask(gb)).toBe(false);
+      s.render();
+    }
+    const w = figWarns(warn);
+    expect(w.filter((x) => / recompiling \(\d\/3\)$/.test(x))).toHaveLength(rec.MAX_RECOMPILES);
+    expect(w.filter((x) => x.endsWith('3 recompiles done, left to Babylon'))).toHaveLength(1);
+    expect(w).toHaveLength(rec.MAX_RECOMPILES + 1);
+    expect(gb.fallback).toBe(true);
+    expect(gb.fallbacks).toBe(1);
+    expect(merged.every((x) => x.isEnabled(false))).toBe(true);
+    // held unready, left to Babylon: the stand-in stays, nothing more logged
+    s.render();
+    expect(gb.fallback).toBe(true);
+    expect(figWarns(warn)).toHaveLength(rec.MAX_RECOMPILES + 1);
   });
 });
 
