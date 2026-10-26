@@ -29,6 +29,12 @@ Owner: Night Shift | Player Build. Status: current (job doc).
   origin/feature/mission-b-sector (#578, still open: red CI test, behind #522) as feature/coop-kit-a1 in
   C:/NightShift/Mobile-Coop-coop-kit-a1 (PR base feature/mission-b-sector), retargeted to master when #578 lands.
   Undo: rebase A1 onto master after #578.
+- 2026-10-26 ~18:30 part 2 detail IN PROGRESS (Opus planner, WIP save): written so far: PLAN header, section 1
+  Marlow bullet (Marlow rewires `kitMoveOn`, no Player edit of courseState / re-plan files), claims (courseState and
+  counterweightGrate dropped; kitApi, gameMode, kitNet, tuneMoveRows, splitJump, world.ts added), Shared (#581
+  kitNet, marlow-replan, feature/marlow-play, K-slice one-liners), Order line. Left: the "Part 2 (detailed)" section
+  (K0, K5a, K5b, K1, K3, K4, K2, KD bands docs, KA animation), Walk items / Risks lines, BRIEF A17-A20 and the A12
+  question text, then claims-check and push.
 - Next: A1 (Opus builder) in C:/NightShift/Mobile-Coop-coop-kit-a1; then its checker, one test set, PR; send
   CLIP-LIST to the orchestrator.
 

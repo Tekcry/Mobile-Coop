@@ -3,8 +3,8 @@ Owner: Night Shift | Player Build. Status: current (job doc).
 
 Lead: Night Shift | Player Build. Planner: Opus 5.5, master 2148ec969; revised for plan check 2 at master 65411ea65.
 Brief: `docs/coop-kit/BRIEF.md`. Two parts (lead note ~18:10): **part 1** (R32 shoulder stand, R34 rope descent) is
-planned in full; **part 2** (the five moves Michael added at ~18:05) is planned to slice-brief depth and gets its own
-detailed PLAN section once Campaign's kit registry (PR #578) is on master (A11). All file:line pointers are
+planned in full; **part 2** (the five moves Michael added at ~18:05) is planned in full in "Part 2 (detailed)" below
+(2026-10-26 ~18:30; pointers on PR #578 a8bac697b, #581 752e106be, #574 61fa85fc8; A11). Part 1 file:line pointers are
 origin/master 65411ea65 (2026-10-26). PR #578 lands before A1 is cut and moves `teamMoves.ts` / `teamController.ts`
 lines (on #578: rope offer 687 -> 820, `ropeOffer` set 791 -> 924, `checkTeamRequest` 55 -> 85, relay line 64 -> 100,
 `ropeTopPath` 364 -> 449, `ropeSeenStep` 542 -> 627), so each slice brief re-takes its pointers from the master that
@@ -47,12 +47,14 @@ slice is cut from.
   `ANIM_SOURCE_DEFAULT = 'cmu'` (today's game). On master a co-op partner is drawn with the viewer's source; PR #498
   (feature/mixamo-source-wire, open) sends each player's source on the wire (`PlayerState.an`) and hands it to that
   player's graph (`AnimGraph.animSource`, `sourceTablesFor`), so every screen draws the owner's choice (G400, ~00:55).
-- **Marlow's kit stations.** `kitMoveOn` (`src/game/course/courseState.ts:151`, read at `:783`) answers false for every
-  station kit id (`StationDef.kit`: `deadweight | dropCatch | chimneyPair | swingPass | plankBridge`,
-  `src/game/course/stationDef.ts:12`), so each station's stand-in gate opens; its comment says Player's slices replace
-  it with the host's `kitMoves` check. The stations (marlow-replan `docs/marlow-replan/STATIONS.md`): 5 `a2-plank`
-  (plankBridge), 9 `a4-deadweight`, 11 `a5-chimney` (chimneyPair), 12 `a5-swing` (swingPass), 16 `a6-dropcatch`
-  (dropCatch). `descent` and `stand` have no station.
+- **Marlow's kit stations.** `kitMoveOn` (`src/game/course/courseState.ts:151`, read at `:783`; #574 `:152`, `:785`)
+  answers false for every station kit id (`StationDef.kit`: `deadweight | dropCatch | chimneyPair | swingPass |
+  plankBridge`, `src/game/course/stationDef.ts:12`), so each station's stand-in gate opens (`openStandIn`, #574
+  `:794-805`). Marlow Build rewires `kitMoveOn` to read our `kitMoves` list and wires each station from the kit id and
+  the done API part 2 gives it (Marlow 2026-10-26 ~18:20, binding; BRIEF A18): no Player slice edits `courseState.ts` or
+  a re-plan set file. The stations (#574 `docs/marlow-replan/STATIONS.md`): 5 `a2-plank` (plankBridge), 9
+  `a4-deadweight`, 11 `a5-chimney` (chimneyPair), 12 `a5-swing` (swingPass), 16 `a6-dropcatch` (dropCatch). `descent`
+  and `stand` have no station.
 
 ## 2. Design
 
@@ -152,7 +154,12 @@ files:
   - src/game/gameState.ts
   - src/game/ropeLine.ts
   - src/game/kit/{deadweight,dropCatch,chimneyPair,swingPass,plankBridge}.ts
-  - src/game/course/courseState.ts  # SHARED with marlow-replan (Marlow Build): `kitMoveOn` only (K0)
+  - src/game/kit/kitApi.ts  # K0 (new): kit spots, pair rules, the done call
+  - src/game/modes/gameMode.ts  # K0: the optional `onKitDone` hook only (implemented by Marlow's courseMode)
+  - src/net/kitNet.ts  # SHARED with Campaign (#581): K0 makes the pair rule generic
+  - src/anim/tuneMoveRows.ts  # K0: kit sub bits -> tuner rows
+  - src/player/splitJump.ts  # K3: a chimney spot takes its shaft out of the split-gap search
+  - src/world/world.ts  # SHARED (#578 shutters, mission family): K5a builds the plank boards beside the shutters
   - src/config/movement.ts
   - src/core/flags.ts
   - src/net/protocol.ts
@@ -172,14 +179,13 @@ files:
   - src/player/playerController.ts  # K2 (landing bands)
   - src/world/maps/bunkerShaft.ts
   - src/world/plankBridge.ts
-  - src/world/counterweightGrate.ts
   - tests/teamMoves.test.ts
   - tests/ropeDescent.test.ts
   - tests/shoulderStand.test.ts
   - tests/teamPose.test.ts
   - tests/teamClimb.test.ts
   - tests/net.test.ts
-  - tests/kit/{deadweight,dropCatch,chimneyPair,swingPass,plankBridge}.test.ts
+  - tests/kit/{kitApi,deadweight,dropCatch,chimneyPair,swingPass,plankBridge}.test.ts
   - tests/previewFlags.test.ts  # A1 (kitMoves preview read; coopKit line from #578)
   - scripts/e2e-netmove.mjs
   - docs/design/scale-sheet.md
@@ -189,7 +195,7 @@ files:
   - docs/art-credits.md  # credit rows
   - docs/coop-kit/**
 maps: none
-protocol: tmove, tstart (kind `stand`; part 2: the five kit kinds through Campaign's TEAM_KINDS)
+protocol: tmove, tstart (kind `stand`; part 2: the five kit kinds through Campaign's TEAM_KINDS, a kit request's spot index in `target` and phase in `s`, a claimed point for any kit kind)
 save: none
 ```
 
@@ -209,7 +215,10 @@ block), with the files and the order note:
 - **PRs #581, #583** (Campaign Build, mission-engine follow-ups built on #578; #583 mission-d-wharf adds
   `tests/missionFlags.test.ts`, which sets and reads `flags.coopKit`): order: either before or after A1; A1 keeps the
   writable `flags.coopKit` gate (only its load value reads `kitMoves`), so neither breaks the other; Campaign folds its
-  readers and drops the field in its own later PR.
+  readers and drops the field in its own later PR. #581 adds `src/net/kitNet.ts` and the host's kit branch
+  (`coopHost.ts:1197-1262` on 752e106be): K0 edits both (the generic pair rule, the spot, the done call), so K0 is cut
+  after #581 is on master. K0 does not edit Campaign's `src/game/kit/registry.ts`, `pullUp.ts` or `shutter.ts` (its
+  spots, pair rules and done call live in our new `kitApi.ts`).
 - **player-hygiene** (docs/player-hygiene/PLAN.md, -s4; S5 not built): `playerController.ts` (K2), `moveState.ts`,
   `teamController.ts` (S5), `remoteAvatar.ts`, `coopHost.ts`, `coopClient.ts`, `protocol.ts`, `src/anim/mocap.ts`.
   Order: whichever lands second rebases; the orchestrator orders S5 against A1 / B1 (all edit `teamController.ts`).
@@ -220,8 +229,16 @@ block), with the files and the order note:
 - **map-ready** (docs/map-ready/PLAN.md; open #550, #551, #556): `flags.ts`, `gameState.ts`, `protocol.ts`,
   `coopHost.ts`, `coopClient.ts`; wire. Order: its open PRs land first; ours rebase.
 - **marlow-replan** (docs/marlow-replan/PLAN.md; #574 marlow-replan-base, -d1, -g0, Marlow Build): `flags.ts`,
-  `protocol.ts`, `coopHost.ts`; wire; and `src/game/course/courseState.ts` `kitMoveOn` (K0 edits its body only, the
-  station data stays Marlow's). Order: #574 first; K0 after it.
+  `protocol.ts`, `coopHost.ts`; wire. `courseState.ts` (`kitMoveOn`) and every re-plan set file stay Marlow's: Marlow
+  rewires `kitMoveOn` to `flags.kitMoves` and wires each station from the id and done API each K slice sends it (Marlow
+  2026-10-26 ~18:20). Order: #574 first; then each K slice's station wiring is Marlow's PR after that K slice lands.
+- **feature/marlow-play** (Marlow Build, stacked on #574; the play-blocker fixes): `replan/a2CarriageShed.ts`,
+  `a4GoodsShed.ts`, `a6PumpHouse.ts`, `courseState.ts`, its tests. No file overlap with this job (we edit none of them);
+  listed so the orchestrator orders Marlow's station wiring after both marlow-play and the K slice it uses.
+- **K slices among themselves:** each K1-K5b adds one id line to `KIT_BUILT` in `flags.ts` and may add one line to
+  K0's kit table in `docs/systems/coop.md`: whichever lands second rebases (one-line conflicts). K5a edits `world.ts`
+  (shared with #578's shutter lines and the mission family): a few lines beside `shutters`; whichever lands second
+  rebases.
 - **mission-rules family** (docs/mission-rules/PLAN.md: r1-r8, tallow-*, mixamo-kit, mission-engine; ~30 branches):
   `gameState.ts`, `coopHost.ts`, `coopClient.ts`, `docs/systems/coop.md`; wire. Order: the orchestrator's train order;
   whichever lands second rebases (our `coop.md` edits are the rope and stand paragraphs only).
@@ -246,8 +263,9 @@ block), with the files and the order note:
   origin/feature/menu; changed with Campaign Build 2026-10-26 ~09:50, Campaign's `docs/missions/STATE.md` item 7):**
   PR #578 lands first on its own `coopKit` flag. A1 is then cut and folds `coopKit` into `kitMoves` as ids `pull` and
   `shutter` (`?coopkit=1` stays an alias). B1 adds `stand` to `BuiltinTeamKind` / `TEAM_KINDS`. A2 and B2 wait for
-  #498. Part 2 starts after #578 and part 1. Mission-engine `docs/missions/PLAN.md` row 106 (human ladder = relay):
-  the orchestrator fixes it (BRIEF A1).
+  #498. Part 2 (detailed below) starts with K0 once #578, #581 and A1 are on master; it runs beside A2 / B1 / B2
+  (K0 and B1 both add kinds and sub bits in `teamMoves.ts`: no number clash, whichever lands second rebases).
+  Mission-engine `docs/missions/PLAN.md` row 106 (human ladder = relay): the orchestrator fixes it (BRIEF A1).
 
 ## Slices: part 1
 
