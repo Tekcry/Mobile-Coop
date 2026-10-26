@@ -1,5 +1,5 @@
 // Marlow Yard (`ctcourse`, marlow-final): the co-op training course on two pages over
-// `?net=local&autostart=ctcourse&mode=course` (the first tab hosts, the second joins). The runner (slice 0d) owns the
+// `?net=local&autostart=ctcourse&mode=course` (the first tab hosts, the second joins with `&autojoin=1`). The runner (slice 0d) owns the
 // shared helpers and the part dispatch; each set's steps live in `scripts/e2e-ctcourse/<set>.mjs` (owned by its set
 // slice), called in route order. Between sets both players stand on the holding room's pad: the near door locks behind
 // them, the far door unlocks on both pages and the course moves to the next set. Every part checks the join (both
@@ -319,11 +319,20 @@ try {
       };
     }, stallMs);
   }
-  const opened = await openPage(ctx, url, Q);
+  // (F7) the second tab joins as a client with no probe deadline (`&autojoin=1`): a busy host page that answered the
+  // 1.5 s probe late made it host too, and the two hosts never started (the boot deadlock)
+  const opened = await openPage(ctx, url, `${Q}&autojoin=1`);
   B = opened.page;
   eB = opened.errors;
   setSimPages([A, B]);
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, LOAD_MS, `${tag} in the ctcourse match`);
+  try {
+    for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, LOAD_MS, `${tag} in the ctcourse match`);
+  } catch (e) {
+    // both tabs' sessions: two hosts is the deadlock; a client with no hostId never heard the host
+    const s = (P) => P.evaluate(() => { const x = window.__coop?.session; return x ? { isHost: x.isHost, phase: x.phase, players: x.players.size, hostId: x.hostId } : null; }).catch((err) => String(err));
+    console.log(`  (boot timeout: host tab ${JSON.stringify(await s(A))}, client tab ${JSON.stringify(await s(B))})`);
+    throw e;
+  }
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
