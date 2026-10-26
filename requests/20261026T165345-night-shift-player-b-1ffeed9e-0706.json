@@ -1,0 +1,14 @@
+{
+  "id": "20261026T165345-night-shift-player-b-1ffeed9e-0706",
+  "sha": "1ffeed9e10c7bda51e6d80624760b6169f6e5a03",
+  "branch": "feature/piano-knife-s3",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "pk-s3-coop",
+  "fix": true
+}
