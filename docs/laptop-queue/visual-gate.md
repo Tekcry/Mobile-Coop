@@ -20,7 +20,8 @@ Code: `scripts/laptop-queue/service.mjs` `runVisual` (I/O), `scripts/laptop-queu
 ## Statuses (context `visual-gate`, at most 140 chars)
 - pending `running on 4189`.
 - success `clean: 76 shots vs 4.97.0, 152 s` (`; 1 known`, `; 2 warn` when there are any; `vs no baseline` when none).
-- failure `3 flags: <top keys> vs 4.97.0` (flags + parity misses; never blocks a release).
+- failure `3 flags: <top keys> vs 4.97.0` (flags + parity misses; a parity miss is to hold the release, G391, not built:
+  auto-train does not read it yet).
 - error `error: <reason>` (the gate's own error: "no baseline for renderer <r>", "over budget: ..."), `over 300 s
   (killed), no result`, `no result (exit <code>)`, `unreadable result block`, `exit <code> with a clean block`,
   `service error, see log`, or the desktop skip above.
@@ -35,8 +36,10 @@ Code: `scripts/laptop-queue/service.mjs` `runVisual` (I/O), `scripts/laptop-queu
 - "no baseline for renderer <r>": the laptop's GPU driver or Chrome changed the renderer string. The orchestrator
   accepts the newest recorded run on the new renderer: `node scripts/visual-gate/baseline.mjs accept --sha <run> --by
   orchestrator --why "renderer change"` (A9); the next train compares against it.
-- A flag: the job that owns the change fixes it, or Michael / the orchestrator accepts it (A9).
-- auto-train never reads `visual-gate` (A1): a flag or error never holds a release.
+- A flag: the job that owns the change fixes it, or the orchestrator accepts it into the baseline only with Michael's
+  sign-off on record (G391; replaces A9's orchestrator-alone accept). A renderer change is not a look change.
+- auto-train never reads `visual-gate` yet (A1); G391 makes a meter-against-picture mismatch hold the release (other
+  flags advisory), a follow-up job.
 - Deploy: the services fast-forward to master when idle and restart themselves when `scripts/laptop-queue` changed
   (`selfUpdate`); restart `NightShift-laptop-queue` by hand only when its `LQ_FOLLOW` is not master. `--dry-run` prints
   the step after the shard preview.

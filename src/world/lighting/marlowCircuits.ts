@@ -192,6 +192,50 @@ export const MARLOW_CIRCUITS: MarlowCircuit[] = [
   { group: 84, key: 'a8-vault', room: 'A8', name: 'Vault lobby', kind: 'device', role: 'read', fitting: 'Ceiling panels', tone: 'white', owner: 'Vault company (set)', switches: [], noSwitch: "On the time lock's circuit", cutBy: ['jam', 'shot'], lamps: 2, electric: true, destructible: true },
 ];
 
+// ------------------------------------------------------------------------------------------ the re-plan (J14)
+
+/**
+ * (J14 Marlow re-plan, A20; BRIEF Q2 "Never": every light works, darkness only from cover, cut power and shot lamps) The circuit
+ * table of the map `ctcourseReplan`: the built table with the lights left off tonight now live. Group 49 (A4 back aisle) and
+ * 69 (A6 sump and west gallery) become switched read circuits; the A4 dispatch office (44), the A8 vestibule (85) and the A8
+ * west bays (86) get fittings on their own switches; the A2 coat corner gets a lamp on the cabin's circuit (22) and the A2 stores
+ * bay a seventh strip on the shed general (20, J14 G-A2 lead answer 4). Switch spots
+ * are plan points (builders may move them up to 1 m, SPEC 9); each set slice places the lamps (`replan/<set>.ts`) and the
+ * lamp counts here are the budget they build to. The built `MARLOW_CIRCUITS` is untouched.
+ */
+export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
+  ...MARLOW_CIRCUITS.flatMap((c): MarlowCircuit[] => {
+    if (c.group === 20) return [{ ...c, fitting: 'Strips on wires under the roof tie, one over the stores bay', lamps: 7 }];
+    // (J14 a2-rows) cabinet 2 moved off the east wall to the pit's near side on the road 2 east van (A2_CAB2_REPLAN); cabinet 1 as built
+    if (c.group === 21) return [{ ...c, switches: [c.switches[0]!, sw('a2-iso-2', 'isolator', 63.5, 11.6, 'cabinet 2, by the pit on the road 2 east van')] }];
+    // (J14 a2-rows) the staging is gone: its switch comes down to the floor on the north wall, its strips stay high where it stood
+    if (c.group === 23) return [{ ...c, fitting: 'Strips high on the north wall, where the staging stood', switches: [sw('a2-sw-staging', 'wall', 40.0, 19.7, 'on the north wall, west of the neck closures')] }];
+    if (c.group === 22) return [{ ...c, name: "Shunter's cabin panel and coat corner lamp", fitting: 'Ceiling panel over the desk, a wall lamp over the coat hooks', lamps: 2 }];
+    // (J14 G-A5 fix 2) the apron switch moved onto the perimeter wall's inside face with the apron's two east bulkheads (the
+    // built row keeps the built yard's spot at the L4 door)
+    if (c.group === 50) return [{ ...c, switches: [sw('a5-sw-apron', 'wall', 67.8, 36.0, "on the perimeter wall's inside face, by the apron's east bulkheads")] }];
+    if (c.group === 49) {
+      return [
+        { ...c, name: 'Bulk-store row (back aisle)', kind: 'switch', role: 'read', fitting: 'Strips over the back aisle', switches: [sw('a4-sw-bulk', 'wall', 99.0, 24.3, "on the back aisle's south wall, west of the lift grille")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true },
+        { group: 44, key: 'a4-dispatch', room: 'A4', name: 'Dispatch office', kind: 'switch', role: 'toy', fitting: 'Ceiling panel', tone: 'white', owner: 'Port operator (set)', switches: [sw('a4-sw-dispatch', 'wall', 79.4, 38.4, 'inside the office by its door')], cutBy: ['switch', 'jam', 'shot'], lamps: 1, electric: true, destructible: true },
+      ];
+    }
+    if (c.group === 69) return [{ ...c, name: 'Sump high-bay and west gallery fittings', kind: 'switch', role: 'read', fitting: 'High-bay, bulkheads', switches: [sw('a6-sw-sump', 'wall', 51.0, 54.3, "on the sump bay's south wall, west of the L5 door")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true }];
+    if (c.group === 84) {
+      return [
+        c,
+        { group: 85, key: 'a8-vestibule', room: 'A8', name: 'Vestibule', kind: 'switch', role: 'read', fitting: 'Ceiling panels under the gallery return', tone: 'warm', owner: 'Vault company (set)', switches: [sw('a8-sw-vestibule', 'wall', 106.5, 62.5, 'by the L7 door')], cutBy: ['switch', 'jam', 'shot'], lamps: 2, electric: true, destructible: true },
+        { group: 86, key: 'a8-west', room: 'A8', name: 'West bays behind the counters', kind: 'switch', role: 'read', fitting: 'Brass wall lights and counter lamps', tone: 'warm', owner: 'Vault company (set)', switches: [sw('a8-sw-west', 'wall', 112.0, 74.6, 'on the north wall, west end')], cutBy: ['switch', 'jam', 'shot'], lamps: 2, electric: true, destructible: true },
+      ];
+    }
+    return [c];
+  }),
+];
+
+/** The built dark pockets minus those the re-plan lights (BRIEF Q2): the A2 coat corner, the A4 back aisle, the A6 sump bay,
+ *  west gallery and pump 3 (all circuit 69), the A8 vestibule and west bays. A5's two (cone and shade geometry) stay. */
+export const MARLOW_POCKETS_REPLAN: DarkPocket[] = MARLOW_POCKETS.filter((p) => !['a2-coat', 'a4-back', 'a6-sump', 'a6-west', 'a6-westfloor', 'a6-pump3', 'a8-vest', 'a8-west'].includes(p.id));
+
 /** Exercise timings for the timed circuits (SPEC 9): the crossing a window must cover and the one-player route it
  *  must not (m, at `SILENT_PACE`). */
 export interface TimedExercise {
@@ -233,7 +277,7 @@ const inBox = (b: readonly number[], x: number, z: number): boolean => x >= b[0]
 const dist = (a: readonly number[], x: number, z: number): number => Math.sqrt((a[0]! - x) ** 2 + (a[1]! - z) ** 2);
 
 /** Check a circuit table against the plan's rules. Returns one line per problem (empty = fine). */
-export function validateMarlowCircuits(circuits: readonly MarlowCircuit[] = MARLOW_CIRCUITS, timed: readonly TimedExercise[] = MARLOW_TIMED): string[] {
+export function validateMarlowCircuits(circuits: readonly MarlowCircuit[] = MARLOW_CIRCUITS, timed: readonly TimedExercise[] = MARLOW_TIMED, pockets: readonly DarkPocket[] = MARLOW_POCKETS): string[] {
   const bad: string[] = [];
   const groups = new Set<number>();
   const keys = new Set<string>();
@@ -311,7 +355,7 @@ export function validateMarlowCircuits(circuits: readonly MarlowCircuit[] = MARL
     if (cross + t.slack > c.timed.seconds) bad.push(`${t.key}: ${c.timed.seconds} s does not cover the ${t.crossM} m crossing (${cross.toFixed(1)} s) with ${t.slack} s spare`);
     if (t.soloM > 0 && t.soloM / SILENT_PACE <= c.timed.seconds) bad.push(`${t.key}: one player can press and reach cover inside ${c.timed.seconds} s`);
   }
-  for (const p of MARLOW_POCKETS) {
+  for (const p of pockets) {
     if (p.room === 'F') continue;
     const b = MARLOW_ROOMS[p.room];
     if (!(inBox(b, p.box[0], p.box[1]) && inBox(b, p.box[2], p.box[3]))) bad.push(`pocket ${p.id}: outside ${p.room}`);

@@ -15,6 +15,7 @@ import { TUNE_BODY, TUNE_PIN } from '../anim/tune';
 import { TUNE_FLAGS, TUNE_STATE_BAG } from '../anim/tuneRegistry';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 import { newStudioDrive } from '../anim/studioDrive';
+import { mixamoStudioEntry } from '../anim/mixamo';
 import { newPairRole, pairFrames, pairPose, ropeHoldLine, ropeLine, type PairRole } from '../anim/studioPairs';
 import { TeamPoser } from '../anim/clips/team';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
@@ -23,7 +24,7 @@ import { buildEnemyRig } from '../ai/enemyRig';
 import { ENEMIES } from '../ai/enemyDefs';
 import { TUNE_WHO } from '../anim/tuneGuard';
 import type { WeaponModel } from '../weapons/weaponModel';
-import { stageLightKeep, stageLightMeshes } from '../anim/studio';
+import { loadStudioCaptures, stageLightKeep, stageLightMeshes } from '../anim/studio';
 import { LOD_NAMES } from '../operators/runtime/manifest';
 
 /** What the stage needs from the match (GameState). */
@@ -146,6 +147,8 @@ export class StudioStage {
   constructor(private readonly host: StudioHost) {
     studioReset();
     STUDIO.active = true;
+    // (mixamo-retarget I9 fix round) batch 2's captures, one lazy chunk (once; the loop list fills when it lands)
+    void loadStudioCaptures();
     STUDIO_RIGS.push(host.player.rig);
     for (const l of STAGE_LIGHTS) {
       const p = new PointLight(`studio-stage-${l.name}`, new Vector3(0, -50, 0), host.scene);
@@ -462,6 +465,7 @@ export class StudioStage {
     else if (!wantGuard && this.guard) this.dropGuard();
     this.detach();
     if (clipChanged) {
+      mixamoStudioEntry(e.id); // (mixamo-retarget I2) a traversal capture's loop plays that capture (else none)
       this.pairPhase = 0;
       this.holdTr.n = 0;
       this.holdTr.last = 0;
@@ -799,6 +803,7 @@ export class StudioStage {
   }
 
   dispose(): void {
+    mixamoStudioEntry(''); // (mixamo-retarget I2) the Studio's capture pick ends with the Studio
     for (const p of this.stageLights) p.dispose();
     this.stageLights.length = 0;
     delete (window as unknown as { __studioStage?: unknown }).__studioStage;

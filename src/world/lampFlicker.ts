@@ -202,6 +202,9 @@ export const STUTTER_TUBES: Readonly<Record<string, readonly StutterTube[]>> = {
   ],
 };
 
+/** (J14) The map whose lamp tables (stutter tube, sway pendants) and flicker seed a map uses: the Marlow re-plan is the same yard. */
+export const lampMapId = (mapId: string): string => (mapId === 'ctcourseReplan' ? 'ctcourse' : mapId);
+
 /** A stutter tube's match tolerance (m, each axis). */
 export const TUBE_TOL = 0.05;
 
@@ -222,6 +225,7 @@ export function findTube(reg: LightRegistry, t: StutterTube): number {
  * Returns the tube's registry id, or -1 when the map has none (or none of its candidates matched).
  */
 export function applyMapFlicker(reg: LightRegistry, mapId: string, seed: number): number {
+  mapId = lampMapId(mapId);
   reg.flickerSeed = mapFlickerSeed(mapId, seed);
   const list = STUTTER_TUBES[mapId];
   if (!list) return -1;

@@ -7,7 +7,8 @@ import { migrate } from '../src/save/migrations';
 import { emptyStats } from '../src/game/modes/gameMode';
 import { WEAPONS, WEAPON_IDS, modelExtents, validateWeaponDefs } from '../src/weapons/weaponDefs';
 import { computeStats } from '../src/weapons/weaponStats';
-import { defaultLook } from '../src/cosmetics/avatarLook';
+import { defaultLook, HELMETS, sanitizeLook, type AvatarLook } from '../src/cosmetics/avatarLook';
+import { PART_OPTIONS } from '../src/cosmetics/catalog';
 
 describe('arsenal', () => {
   it('the CT kit validates: one rifle and one pistol (G76)', () => {
@@ -63,21 +64,29 @@ describe('suit', () => {
     const look = suitLook({ ...defaultLook(), torso: 'vest', helmet: 'combat' }, { ...owned, vest: 2, goggles: 1 });
     expect(look.torso).toBe('armor');
     expect(look.helmet).toBe('headset');
-    // the operator keeps the suit and the tri-lens; heavy armour plates the legs
+    // the operator keeps the suit; goggles show the comms headset; heavy armour plates the legs
     const opLook = suitLook(defaultLook(), { ...owned, vest: 3, goggles: 1 });
-    expect(opLook).toMatchObject({ torso: 'operator', helmet: 'trilens', legs: 'armored' });
+    expect(opLook).toMatchObject({ torso: 'operator', helmet: 'headset', legs: 'armored' });
+  });
+
+  it('(J19 S4, R17) no three-lens goggle: the default is the comms headset, a stored trilens reads as it', () => {
+    expect(defaultLook().helmet).toBe('headset');
+    expect(HELMETS as readonly string[]).not.toContain('trilens');
+    expect(sanitizeLook({ ...defaultLook(), helmet: 'trilens' as AvatarLook['helmet'] }).helmet).toBe('headset');
+    expect(PART_OPTIONS.helmet.some((o) => o.value === 'trilens')).toBe(false);
+    expect(PART_OPTIONS.helmet.find((o) => o.value === 'headset')!.req).toBeUndefined();
   });
 });
 
 describe('HQ, challenges', () => {
   it('HQ upgrades by level and price; their effects', () => {
     const h = defaultHq();
-    expect(canBuyHq(h, 'radar', 1, 99999)).toMatchObject({ ok: false, reason: 'level' });
-    expect(canBuyHq(h, 'radar', 10, 99999).ok).toBe(true);
-    h.radar = 2;
+    expect(canBuyHq(h, 'revive', 1, 99999)).toMatchObject({ ok: false, reason: 'level' });
+    expect(canBuyHq(h, 'revive', 10, 99999).ok).toBe(true);
+    h.revive = 2;
     h.restock = 1;
-    expect(canBuyHq(h, 'radar', 10, 99999)).toMatchObject({ ok: false, reason: 'maxed' });
-    expect(hqStats(h)).toMatchObject({ radar: 25, restock: true });
+    expect(canBuyHq(h, 'revive', 10, 99999)).toMatchObject({ ok: false, reason: 'maxed' });
+    expect(hqStats(h)).toMatchObject({ reviveSpeed: 1.6, restock: true });
   });
   it('challenge progress from a session', () => {
     const p = challengeProgress({ takedownsByKind: { above: 3, behind: 2 }, knockouts: 4, headshots: 1, gadgetKos: 1, mode: 'infiltration', won: true, detections: 0, alarms: 0 });
@@ -128,10 +137,11 @@ describe('profile ops and save v6', () => {
     expect(s.profile.credits).toBe(777);
     expect(s.suit.owned).toEqual(defaultSuit());
     expect(s.presets.length).toBe(3);
-    const bad = sanitizeSave({ ...data, suit: { owned: { vest: 99 }, worn: { vest: 99, boots: 2 } }, hq: { radar: 7 }, preset: 9, presets: [{ name: '<b>x', primary: 'lmg' }] });
+    const bad = sanitizeSave({ ...data, suit: { owned: { vest: 99 }, worn: { vest: 99, boots: 2 } }, hq: { revive: 7, radar: 7 }, preset: 9, presets: [{ name: '<b>x', primary: 'lmg' }] });
     expect(bad.suit.owned.vest).toBe(3);
     expect(bad.suit.worn.boots).toBe(0);
-    expect(bad.hq.radar).toBe(2);
+    expect(bad.hq.revive).toBe(2);
+    expect('radar' in bad.hq).toBe(false);
     expect(bad.preset).toBe(2);
     expect(bad.presets[0]!.primary).toBe('pistolSd');
     expect(bad.presets[0]!.name).toBe('bx');

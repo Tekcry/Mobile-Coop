@@ -61,11 +61,14 @@ export function setStatsInto(out: SectionStats, now: BayStats, base: BayStats, c
 /**
  * The grant a course rating earns (as Sector Ops, S2): the reward table (S1) with A9 applied (Bodies hidden's alarm
  * step is +1 gadget charge until guard-ai's stage API lands), gadgets capped at the starting carry `gadgetsAtStart`.
+ * (J14 F1, conformance M3, G126) No syringe in Course mode, co-op or solo: the revives stay at 2 a mission, so the card,
+ * the wire (`rt.syringe`) and the revive cap agree. Gadget and medkit grants are kept. Sector Ops calls `rewardsFor`.
  */
 export function courseGrant(marks: number, synced: number, coop: boolean, preset: number, syringesLeft: number, gadgetsAtStart: number): Grant {
   const r = rewardsFor(marks, synced, { coop, preset, gadgetsAtStart, syringesAtStart: syringesLeft });
   r.gadget = Math.min(gadgetsAtStart, r.gadget + r.alarmStep);
   r.alarmStep = 0;
+  r.syringe = 0;
   return r;
 }
 

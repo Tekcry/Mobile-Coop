@@ -215,7 +215,7 @@ try {
       const st = window.__app.input.state;
       const rnd = Math.random;
       const run = (mode) => {
-        // the same random draws every run (guard reaction jitter): only the vision mode differs
+        // the same random draws every run (anything left on Math.random): only the vision mode differs
         let seed = 12345;
         Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
         t.reset();
@@ -223,6 +223,10 @@ try {
         g.vision.reset();
         g.vision.set(mode);
         const e = t.spawn('grunt', 0, 5, Math.PI);
+        // (guard-ai seed-random) his think cadence comes from his own seeded stream (keyed by his spawn number, new
+        // each run), not Math.random: pin it so the three runs think on the same frames
+        e.senseRng.reseed(12345);
+        e.thinkT = 0;
         t.tp(-0.5, -3, 0);
         t.step(0.4);
         g.frameUpdate(0.4, 1);

@@ -623,7 +623,7 @@ futures are decided (G53, G79), and U1 can test the story.md campaign table agai
    designed for the pair; removing a player makes it impossible or clearly worse; two-person requirements have a written
    real-world reason; at least one vertical route per mission needs a team move (closes its open item 1).
 2. Section 11 / 12.2: free moves usable wherever the geometry allows vs boosts at marked spots only (G81) - decide;
-   then fix 11.5 (open item 3).
+   then fix 11.8.
 3. 11.4 and 12.1: revive becomes a 30 s window, 2 per mission, both down reloads (D-03); drop "there is no bleed-out".
 4. New co-op beat minimums (1.9), idle under 60 s, split ends at a named merge, separation under about 3 min, roles
    alternate, multi-use moves, handshake and sync rules (tolerance window, ready state, non-lethal fail, pings only).

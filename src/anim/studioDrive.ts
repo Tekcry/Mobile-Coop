@@ -17,6 +17,8 @@ import { mirrorKeyed, sampleKeyed, type KeyedClip } from './keyed';
 import type { RigTargets } from './animGraph';
 import { TUNE_CUR } from './tune';
 import { cqKeyedHold } from './cqGait';
+import { MOCAP_LAYERS } from './mocap';
+import { mocapSource } from './mocapSources';
 
 export interface StudioDrive {
   /** The clip played (null: the drive does nothing). */
@@ -68,7 +70,10 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
     if (!d.held && dt > 0 && d.cycle > 0) d.phase = wrap01(d.phase + dt / d.cycle);
   } else d.phase = wrap01(o.gait.phase);
   d.live = d.phase;
-  sampleKeyed(c, d.mirror ? d.phase + 0.5 : d.phase, 1, o.keyed);
+  // (mixamo-retarget M5) a capture (a row in mocapSources.ts: CMU or Mixamo) plays as the game plays it, on the mocap
+  // share: the MOCAP_LAYERS scales (the Body sliders the game keeps off a capture stay off it here too)
+  const cap = mocapSource(c.name) !== null;
+  sampleKeyed(c, d.mirror ? d.phase + 0.5 : d.phase, 1, o.keyed, cap ? MOCAP_LAYERS : null);
   if (d.mirror) mirrorKeyed(o.keyed);
   if (d.cq !== 'none') cqKeyedHold(o.keyed.pel, o.keyed.q, d.cq === 'walk', d.phase, d.phase * d.cycle); // (anim-n4b)
   o.keyW = 1;
@@ -78,8 +83,9 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
   o.keyDrawn = d.drawn ? 1 : 0;
   o.keyTrunk = d.drawn ? 1 - o.aimW : 1;
   o.keyKneeOut = c.kneeOut;
-  // (mocap-trial) the loop player's clip is not the mocap gait: no mocap layer scales, no clip feet
-  o.keyMocap = 0;
+  // (mocap-trial) the loop player's clip is not the mocap gait: no clip feet (the treadmill's feet); (M5) a capture's
+  // pose is the whole mocap share (the rig's layer scales: pelvis follow, elbow out, the run carriage), a hand-made clip none
+  o.keyMocap = cap ? 1 : 0;
   o.clipFeet.valid = o.clipFeet.on = false;
   if (d.inPlace) {
     o.gait.phase = d.phase;

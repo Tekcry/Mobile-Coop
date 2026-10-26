@@ -35,13 +35,17 @@ describe('AF5: mocap is the only player path (BRIEF A1)', () => {
   afterEach(() => void applyMocapSwitch(null, true));
   const app = src('src/core/app.ts');
 
-  it('app.ts never resolves the switch from the stored setting', () => {
-    const calls = app.match(/applyMocapSwitch\([^)]*\)/g) ?? [];
+  it('app.ts never resolves the switch from the stored mocapLoco setting', () => {
+    // (mixamo-retarget Toggle) the switch is the mocap half of the Animation source (`animSource.ts`): the stored
+    // `gameplay.animSource` (default CMU = on), then ?anim=, then ?mocap= and the tuner box (tests/animSource.test.ts)
+    const calls = app.match(/applyAnimSource\([^)]*\)/g) ?? [];
     expect(calls.length).toBeGreaterThan(0);
     for (const c of calls) expect(c).not.toMatch(/mocapLoco/);
-    // the boot and every settings change go through the same resolver: url, then the tuner box, over ON
-    expect(app).toMatch(/applyMocapSwitch\(flags\.mocap \?\? mocapTuner, true\)/);
-    expect(app).toMatch(/mocapWanted\(flags\.mocap \?\? mocapTuner, true\)/);
+    expect(app).not.toMatch(/applyMocapSwitch\(/);
+    // the boot and every settings change go through the same resolver: the source, then url, then the tuner box
+    // (F45) the setting, Mixamo on /preview/ until picked
+    expect(app).toMatch(/applyAnimSource\(\{ setting: settingAnimSource\(this\.settings\.get\(\)\.gameplay, PREVIEW_ON\), url: flags\.anim, mocapUrl: flags\.mocap, mocapTuner, mixamoUrl: flags\.mixamo \}\)/);
+    expect(app).toMatch(/get: \(\) => ANIM_SOURCE\.mocap/);
     // the tuner box does not write the save
     expect(app).not.toMatch(/d\.gameplay\.mocapLoco\s*=/);
   });

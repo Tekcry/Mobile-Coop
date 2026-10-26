@@ -76,6 +76,14 @@ Format: `N. Item - destination - status`.
 the expiry, a failure in any other suite does. Remove the entry when the test is fixed. Rerun a suspect alone
 (`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
+- **e2e-ctcourse:5, e2e-ctcourse:7, e2e-ctcourse:8, the re-planned yard (quarantined to 2026-10-29 under the prototype rule; owner Marlow Build)** -
+  #574 (J14) red on train 125; one fix (6c180bd99: A1 trap zone, A7 retry zone hold, A4 / A5 walk checks) moved each
+  part further and part 6 passed, then train 127 failed the next steps, which had never run before: :5 "A1: the wicket
+  unlocks on the host" (`scripts/e2e-ctcourse/replan/a1Gate.mjs` ~:117, after the human ladder), :7 "A5: the host takes
+  the wall's access ladder at its head" (`a5Substation.mjs`), :8 "A8: the host reads the split line" (`a8Strongroom.mjs`
+  ~:144). Logs: train-127-d7cda0a0 on the laptop (PR #580 comment). Cause (walk or game) not yet known; triaged
+  with Michael's playthrough findings, before the re-plan is switched on in the live game.
+
 Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed
 by their own desktop job (the likely shared cause: wall-clock waits against a sim slower than real time on software
 GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/archive/coop-tests/`): the cause confirmed and fixed
@@ -110,6 +118,24 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
     `teamLog` (e2e-net-lib) now adds those gates (wall core, door peek and door open active, pistol aim asked, the
     current weapon class, carrying), so the next failure says why.
 
+- **e2e-ctcourse:4 "A8 pass 2 grille: closes A8-grille" (fixed in the test, marlow-batch-1025 2026-10-25; owner Marlow
+  Build)** - auto-quarantined 48 h after 2 flakes in 44 runs this week (5 "failure stands" on 10-23); train 106 failed
+  it on the first try and passed it alone on the rerun. The assert is the door item's `use` in `closeDoor`
+  (`scripts/e2e-ctcourse/a8Strongroom.mjs`), right after the grille relocks open; the `use` helper
+  (`scripts/e2e-ctcourse.mjs` `use`) returns 'disabled' when the item is off (it skips reach, so the host's position and
+  a guard nearby play no part). The "fails=1, 1:late" sync in the log is step 8's deliberate late hack of pass 1, not
+  part of this failure. Cause: on the host step the lock lands, `StealthSystems.fixedUpdate` (`gameState.ts` ~:2000)
+  sets the item from the Q9 rule (open, so usable though locked) before the lock, then `CourseMode.applyLocks` (in
+  `mode.fixedUpdate`, ~:2109; `courseMode.ts` ~:1047) turns it off with `!locked` and sends the course message with the
+  lock; the next step's `StealthSystems.fixedUpdate` turns it back on. The test waits for the lock on the host and on
+  the client, both of which can be seen inside that one-step gap, and on a loaded host frame (a few frames a second,
+  up to 4 steps each) the gap is long enough for the `use` to land in it. Fix: `closeDoor` waits (sim clock, 5 s) until
+  the page's door item is enabled before the `use`; a door item that stays off still fails the step there, and the
+  relock-keeps-it-open, the close and the shut-and-locked 'disabled' asserts are unchanged. Evidence pending: the
+  laptop e2e-ctcourse run on the fix head. Game-side follow-up (not changed here, a src change for Marlow Build):
+  `applyLocks` writes `!on` against the Q9 rule `!locked || target !== 0`, so for one step the item is off; a
+  player's own press never sees it (`updateInteract` runs after the stealth step), but a client's `use` message handled
+  between steps (`coopHost.onUse`, `!it.enabled`) would be dropped and the mirrored item list can carry `on: false` once.
 - **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/archive/havok-stall/REPORT.md`)** -
   the full suite failed 5 of 5 on the desktop (i7-7700K, software GL) right after "tuner: Menu closes it and the game
   runs". It was not a hang: the runner killed the suite at its 600 s limit (`E2E_SUITE_TIMEOUT`), and at `E2E_JOBS=1`
@@ -142,10 +168,12 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   printed) and #71 ("the guard there sees the peeking head only": los true, head false); passed solo on both. On #67
   (S2b) the edge peek fails solo too: real there. Suspect load timing in the peek sampling. Not on `KNOWN_FLAKY`; if it
   fails a third time on a head without S2b, read its log and add a settle wait.
-- **e2e-kestrel, e2e-camera-bounds (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - both fail alone on master 9295c65 (the Wren merge)
-  and on feature/weapons: kestrel "camera rays along the tour: ... 133 inside them go to P04"; camera-bounds "level U
-  (U-Z4V): crouched, walking its length and turning, the camera stays between floor and ceiling". Camera vs level checks,
+- **e2e-kestrel (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - fails alone on master 9295c65 (the Wren merge)
+  and on feature/weapons: "camera rays along the tour: ... 133 inside them go to P04". Camera vs level check,
   found by the weapons job (2026-10-19); for the test fixes job or the camera tuning.
+- **e2e-camera-bounds (LEGACY, parked with Kestrel; known failure)** - fails at level U (U-Z4V): the operator falls
+  through the floor (head y -33 to -35), so the camera check reads below the floor. Known legacy failure: REPORT ONLY
+  in affected runs once J20 T4 lands (S3a); for the camera tuning or the test fixes job.
 - **e2e-foley** (moved to AUDIO, parked) - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
 - **e2e-bunker** (LEGACY, off the flaky list) - "the partner teleported across the host's spot is never solid" fails intermittently (training REVIEW-NOTES T5b2 under load; in the consolidation 2 of 4 solo runs failed with 6-13 frames solid, 2 passed). Suspect: host-page timing in the desktop browser context (snapshot gaps near the 0.3 s stall rule). The co-op test fixes job (G51) looks at it with e2e-coop and e2e-netmove.
 - **e2e-anim draw pop (fixed in feature/anim-cleanup)** - the draw from holstered popped (~0.14 per frame on the right

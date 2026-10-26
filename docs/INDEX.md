@@ -28,7 +28,7 @@ Read on demand (`CLAUDE.md` points here). Rules: `docs/RULES.md`; the game: `doc
 | `pwa/`, `config/` | Service worker, fullscreen, gestures; JSON / TS content and feel tables |
 
 Maps: Marlow Yard (`ctcourse`, Course mode, `?autostart=ctcourse&mode=course`), Sector Ops Saltmarsh Park (`campusOps`;
-the old `warehouseOps` stays selectable), Fallow (`bunker`, parked behind `?legacy=1`).
+the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked behind `?legacy=1`).
 
 ## Doc index
 | File | Covers | Read when |

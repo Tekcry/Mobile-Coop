@@ -1,6 +1,6 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { buildSmoothBody, type SmoothBody } from './smoothBody';
-import { addGlow, BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
+import { BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -1568,9 +1568,7 @@ export class CharacterRig {
 
     // neck + head
     const H = p.head;
-    // (the balaclava covers the neck)
-    const masked = look.helmet === 'trilens';
-    part('limbA', masked ? c.torso : c.skin, masked ? 'torso' : 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
+    part('limbA', c.skin, 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
     const hs = look.head === 'oval' ? [0.94, 1.0, 1.0] : look.head === 'long' ? [0.95, 1.07, 0.98] : look.head === 'strong' ? [1.02, 1.0, 1.0] : [1, 1, 1];
     const jaw = look.head === 'strong' ? 0.92 : look.head === 'oval' ? 0.76 : 0.82;
     const hw = H.w * hs[0]!;
@@ -1626,28 +1624,6 @@ export class CharacterRig {
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, -hw * 0.54, 0, 0);
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, hw * 0.54, 0, 0);
         break;
-      case 'trilens': {
-        // balaclava over the head and face (eyes open), a strap, the tri-lens goggle on its mount: two lenses at
-        // the eyes, one above between them; they glow in a vision mode (`setLensGlow`)
-        part('sphere', c.torso, 'torso', this.headNode, hw * 1.05, hh * 0.9, hd * 1.04, 0, hh * 0.08, -0.004);
-        part('sphere', c.torso, 'torso', this.headNode, hw * jaw * 1.05, hh * 0.52, hd * 0.84, 0, -hh * 0.2, 0.012);
-        part('torus', c.helmet, 'helmet', this.headNode, hw * 1.08, hh * 0.18, hd * 1.08, 0, hh * 0.12, -0.004, -0.1);
-        const z = hd * 0.5 + 0.012;
-        part('rbox', c.helmet, 'helmet', this.headNode, 0.1, 0.05, 0.035, 0, 0.04, z);
-        const lens = (x: number, y: number): void => {
-          part('rcyl', c.helmet, 'helmet', this.headNode, 0.034, 0.042, 0.034, x, y, z + 0.022, Math.PI / 2);
-          this.lenses.push(part('rcyl', LENS_OFF, 'lens', this.headNode, 0.026, 0.006, 0.026, x, y, z + 0.044, Math.PI / 2) as InstancedMesh);
-          // (Step 4b) the goggle glow: the lens as an emissive point, seen in the dark (visual only)
-          this.glows.push(addGlow(this.headNode.getScene(), this.headNode, x, y, z + 0.047, 0.02));
-        };
-        lens(-0.026, 0.022);
-        lens(0.026, 0.022);
-        lens(0, 0.058);
-        // the goggle's battery pack at the back of the strap, its LED the glow the camera behind sees (Step 4b)
-        part('rbox', c.helmet, 'helmet', this.headNode, 0.05, 0.034, 0.022, 0, hh * 0.12, -hd * 0.52 - 0.006);
-        this.glows.push(addGlow(this.headNode.getScene(), this.headNode, 0, hh * 0.12, -hd * 0.52 - 0.019, 0.014));
-        break;
-      }
       case 'hood':
         // a loose hood over a cap, drawn down at the back (the sniper)
         part('dome', c.helmet, 'helmet', this.headNode, hw * 1.22, hh * 0.78, hd * 1.2, 0, hh * 0.1, -0.012, -0.1);
@@ -2518,7 +2494,9 @@ export class CharacterRig {
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
     // (strike-pops) at the trunk's pace (`STRIKE_BODY_RATE`): the strike's drive over 3 frames, not on the arm's fastest 2
     this.sbPh = strikeBodyPhase(this.sbPh, this.graph.wrenReady ? this.input.melee : -1, dt);
-    const sb = strikeBodyAt(this.sbPh, this.sb);
+    // (mixamo-retarget I5) less a Mixamo strike capture's share of the body (its share of the keyed pose, `strikeCap`, by
+    // the keyed weight; 0 without one: the layer as before)
+    const sb = strikeBodyAt(this.sbPh, this.sb, 1 - t.strikeCap * kw);
     if (!free) pex += sb.side;
     const peZ = pez + this.restShift + (free ? 0 : sb.fwd);
     const yc = Math.cos(yaw);

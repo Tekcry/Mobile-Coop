@@ -31,6 +31,12 @@
  * their kill lands at the blow's end (unchanged: approach + `TAKEDOWN.strike`, `GRAB.killTime`), so the arc's contact
  * lands there (a frame early, `STRIKE_ARM_LAG`) and the follow-through and the return run on after the kill
  * (`KillBlow.tail`, pose only: `TakedownController`'s tail, `RemoteAvatar`'s). The wire keeps the blow's own phase.
+ *
+ * (J19 S2, R8; Michael Q34 2026-10-25 "About 1.4 s") The strike frees 1.4 s after contact (`STRIKE_DUR` 1.48 s). The
+ * arc is timed in seconds (`strikeArcAt`): the wind-up, the drive and the contact keep their times (the arc's contact
+ * at 0.063 s, the hit at 0.08 s), the follow-through keeps its 84 ms, and the extra 0.8 s goes to the settle: the arm
+ * returns to the stance over the rest of the strike (`STRIKE_SETTLE`), moving every frame until the free. The kill
+ * blows keep the linear warp (`arcWarp`).
  */
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import { GRAB, TAKEDOWN } from '../game/takedown';
@@ -39,21 +45,67 @@ import { registerTuneSection, TUNE_FLAGS, type TuneTunable } from './tuneRegistr
 /** The arc's contact phase: the elbow at its forward extreme (`meleeSweep` peaks at 0.556), the shoulders driven
  *  through (their drive ends at 0.48, the hips' at 0.38). */
 export const STRIKE_ARC_CONTACT = 0.56;
-/** The elbow strike's hit phase (`STRIKE.hitAt` over `STRIKE_DUR`, ~0.118): the knockout resolves here. */
+/** The elbow strike's hit phase (`STRIKE.hitAt` over `STRIKE_DUR`, ~0.054): the knockout resolves here. */
 export const STRIKE_HIT_PH = STRIKE.hitAt / STRIKE_DUR;
 /** (s) The arm's lag: at this pace the rig's shoulder and elbow rate limits (22 / 24 rad/s, `JOINT_RATE`) hold the hand
  *  about 2 frames behind the arc, so the arc's contact is put a frame ahead of the hit: the hand is within ~8 cm of
  *  contact on the hit's step (0.083 s) and fully across a frame later (0.1 s); the trunk is through by the hit. */
 export const STRIKE_ARM_LAG = 1 / 60;
-/** The strike phase `strikeWarp` puts the arc's contact at (~0.093). */
-export const STRIKE_WARP_PH = (STRIKE.hitAt - STRIKE_ARM_LAG) / STRIKE_DUR;
+/** (J19 S2, R8) Seconds into the strike of the arc's contact (~0.063 s): a frame before the hit, as before R8. */
+export const STRIKE_CONTACT_T = STRIKE.hitAt - STRIKE_ARM_LAG;
+/** The strike phase the arc's contact lands on (`STRIKE_CONTACT_T` over `STRIKE_DUR`, ~0.043). */
+export const STRIKE_WARP_PH = STRIKE_CONTACT_T / STRIKE_DUR;
+/** (J19 S2, R8) The follow-through (s): the arc from its contact (0.56) to the return's start (`REC_FROM`, 0.62) at
+ *  the pace it had before R8 (84 ms, 5 frames); every arc curve holds its contact pose over it while the arm and the
+ *  trunk arrive (the rig's joint rate limits, `STRIKE_BODY_RATE`). */
+export const STRIKE_FOLLOW = 0.084;
+/**
+ * (J19 S2, R8) The settle: the return (arc `REC_FROM` -> 1) over the rest of the strike. Its share at `s` (0..1 of
+ * its time) is the cubic with slope `start` at the follow-through's end and `end` at the free:
+ * `s (start + (3 - 2 start - end) s + (start + end - 2) s^2)` = `s (2.5 - 2.6 s + 1.1 s^2)`. `start` 2.5 leaves the
+ * follow-through at its own arc pace (no change of pace for the arc, or for a capture fitted to it); `end` 0.6
+ * arrives at the free still moving (no held pose). The graph's smoothstep return on top starts and ends at rest; per
+ * 60 Hz frame its hand weight never moves, or changes its pace, more than the 0.6 s return before R8 did.
+ */
+export const STRIKE_SETTLE = { start: 2.5, end: 0.6 } as const;
 
 /**
- * (anim-n4c M1) The elbow strike's phase (0..1, time-linear; < 0 none) -> the arc's phase (the `melee` pose input):
- * `hitPh` maps onto the arc's contact, linear on both sides (the arc's own curves ease it; they are at rest at contact,
- * so the change of pace there shows no kink). Monotonic, 0 -> 0, 1 -> 1, < 0 passes through. Pure.
+ * (J19 S2, R8) The elbow strike's arc (the `melee` pose input, 0..1) at `t` seconds into the strike, in seconds rather
+ * than phase so the longer recovery keeps the hit as quick as before: linear to the arc's contact at
+ * `STRIKE_CONTACT_T` (as before R8), the follow-through to `REC_FROM` over `STRIKE_FOLLOW`, then the settle to rest
+ * at `STRIKE_DUR` (`STRIKE_SETTLE`). Monotonic and continuous; <= 0 -> 0, `STRIKE_DUR` and on -> 1. Pure, no allocation.
  */
-export function strikeWarp(ph: number, hitPh = STRIKE_WARP_PH): number {
+export function strikeArcAt(t: number): number {
+  if (t <= 0) return 0;
+  if (t >= STRIKE_DUR) return 1;
+  const C = STRIKE_ARC_CONTACT;
+  if (t <= STRIKE_CONTACT_T) return (C * t) / STRIKE_CONTACT_T;
+  const tR = STRIKE_CONTACT_T + STRIKE_FOLLOW;
+  if (t <= tR) return C + ((REC_FROM - C) * (t - STRIKE_CONTACT_T)) / STRIKE_FOLLOW;
+  const a = STRIKE_SETTLE.start;
+  const b = STRIKE_SETTLE.end;
+  const s = (t - tR) / (STRIKE_DUR - tR);
+  const x = (((a + b - 2) * s + (3 - 2 * a - b)) * s + a) * s;
+  return x < 1 ? REC_FROM + REC_LEN * x : 1;
+}
+
+/**
+ * (anim-n4c M1; J19 S2, R8) The elbow strike's phase (0..1, time-linear over `STRIKE_DUR`: `strikePhase`, the
+ * MoveState's `ph`; < 0 none) -> the arc's phase: `strikeArcAt` of its seconds. < 0 passes through, 1 and on -> 1. Pure.
+ */
+export function strikeWarp(ph: number): number {
+  if (ph < 0) return ph;
+  if (ph >= 1) return 1;
+  return strikeArcAt(ph * STRIKE_DUR);
+}
+
+/**
+ * (anim-n4c M1, anim-n4d) A blow's phase (0..1, time-linear; < 0 none) -> the arc's phase with the arc's contact on
+ * `hitPh`, linear on both sides (the arc's own curves ease it; they are at rest at contact, so the change of pace
+ * there shows no kink). The kill blows' warp (`killWarp`); before J19 S2 also the elbow strike's (then `strikeWarp`
+ * with a hit phase). Monotonic, 0 -> 0, 1 -> 1, < 0 passes through; no hit phase in (0, 1): unwarped. Pure.
+ */
+export function arcWarp(ph: number, hitPh: number): number {
   if (ph < 0) return ph;
   if (ph >= 1) return 1;
   if (!(hitPh > 0 && hitPh < 1)) return ph;
@@ -66,7 +118,7 @@ export function strikeWarp(ph: number, hitPh = STRIKE_WARP_PH): number {
  * (`dur` s, the nominal length). The arc's contact is put a frame before the kill (`STRIKE_ARM_LAG`) and the arc's
  * follow-through and return (after contact) run on after the kill for `tail` s, at the arc's own pace
  * (`1 - STRIKE_ARC_CONTACT` of `dur`, as unwarped). `hit`: the contact's place on the whole posed timeline
- * (`dur + tail`), the `strikeWarp` hit phase (above the arc's contact: the wind-up and drive slow to land on the kill).
+ * (`dur + tail`), the `arcWarp` hit phase (above the arc's contact: the wind-up and drive slow to land on the kill).
  */
 export interface KillBlow {
   readonly dur: number;
@@ -90,12 +142,12 @@ export const KILL_SEEN = 0.85;
 
 /**
  * (anim-n4d, M1) A kill blow's phase `u` (0..1 the blow, the kill at 1; 1..`KILL_TAIL_END` the follow-through after
- * the kill; < 0 none) -> the arc's phase (the `melee` pose input): `strikeWarp` on the whole posed timeline with the
+ * the kill; < 0 none) -> the arc's phase (the `melee` pose input): `arcWarp` on the whole posed timeline with the
  * blow's own hit phase. Monotonic and continuous, 0 -> 0, `KILL_TAIL_END` -> 1, < 0 passes through. Pure.
  */
 export function killWarp(u: number, b: KillBlow): number {
   if (u < 0) return u;
-  return strikeWarp((u * b.dur) / (b.dur + b.tail), b.hit);
+  return arcWarp((u * b.dur) / (b.dur + b.tail), b.hit);
 }
 
 /** The strike's body amounts (Wren). Yaw + is a turn to the right (Babylon yaw), x + right, z + forward. */
@@ -119,7 +171,9 @@ export const STRIKE_BODY = {
 };
 
 /** Arc timing (phase 0..1, the `melee` input): the wind-up loads by WIND_END, the drive runs from DRIVE_FROM over
- *  DRIVE_LEN (the shoulders; the hips `lead` earlier), the recovery eases back from REC_FROM over REC_LEN. */
+ *  DRIVE_LEN (the shoulders; the hips `lead` earlier), the recovery eases back from REC_FROM over REC_LEN.
+ *  (J19 S2) `strikeArcAt` times the elbow strike's follow-through and settle on REC_FROM / REC_LEN (the graph's
+ *  `meleeHandW` / `meleeSweep` return on the same 0.62 / 0.38). */
 const WIND_END = 0.17;
 const DRIVE_FROM = 0.12;
 const DRIVE_LEN = 0.36;
@@ -201,11 +255,19 @@ export function strikeBodyRest(out: StrikeBodyOut): StrikeBodyOut {
 }
 
 /**
- * The offsets at strike phase `ph` (0..1; < 0 the rest pose) with the tuner's sliders on `STRIKE_BODY`. Pure: writes
- * `out`. No allocation.
+ * The offsets at strike phase `ph` (0..1; < 0 the rest pose) with the tuner's sliders on `STRIKE_BODY`, by `k` (1: as
+ * keyed; (mixamo-retarget I5) a Mixamo strike capture's share of the body takes its share of the shoulder line's turn past
+ * the hips and the neck's out: the take turns its own spine and chest over these hips). Pure: writes `out`. No allocation.
  */
-export function strikeBodyAt(ph: number, out: StrikeBodyOut): StrikeBodyOut {
-  if (ph < 0) return strikeBodyRest(out);
+export function strikeBodyAt(ph: number, out: StrikeBodyOut, k = 1): StrikeBodyOut {
+  if (ph < 0 || k <= 0) return strikeBodyRest(out);
+  if (k < 1) {
+    strikeBodyAt(ph, out, 1);
+    // the hips' turn and the weight shift stay; the shoulder line's turn past the hips and the neck's go
+    out.chest = out.pel + (out.chest - out.pel) * k;
+    out.neck *= k;
+    return out;
+  }
   const p = ph > 1 ? 1 : ph;
   const B = STRIKE_BODY;
   const turn = tv('turn');

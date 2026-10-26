@@ -4,9 +4,9 @@ Purpose: the audio engine, voices and game wiring.
 Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Section 5.2).
 
 ## Rules
-- CC0 recordings may be used for any sound wherever they cut build time and sound better: bundled, never fetched at
-  runtime, each credited in `docs/audio-credits.md` (G58). WebAudio synthesis stays as the fallback and for sounds not
-  recorded yet. No audio size limit (G59).
+- Free recordings whose licence allows commercial sale (bible Section 6, G407) may be used for any sound wherever they
+  cut build time and sound better: bundled, never fetched at runtime, each credited in `docs/audio-credits.md` (G58).
+  WebAudio synthesis stays as the fallback and for sounds not recorded yet. No audio size limit (G59).
 - Guards hear the noise model, never the audio: the foley and gun sounds read nothing from it and change nothing in it.
 - Missing sounds come after the prototype: guards' footsteps first, then ambience, then the rest (G66).
 - Music (the V4 score) is in and provisional: its direction, briefing / results / pause music, the long menu theme
@@ -124,7 +124,7 @@ stat), which nothing here reads or changes.
   - Levels: shots and suppressed shots by body RMS (peaks under 0.97), handling and brass by body RMS.
 - **Planner** (`audio/weapons/guns.ts`, pure, allocation-free per call, tested in `tests/weapons-audio.test.ts`):
   - `GUNS` maps the two CT kit guns (`rifle`, `pistolSd`) and the guns the guards sound like to a recording, rate,
-    level, suppressed bank, casing, action (bolt or none) and reload kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt AK, heavy LMG,
+    level, suppressed bank, casing, action (bolt or none) and reload kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt and runner AK, heavy LMG,
     sniper, enforcer semi-auto shotgun, drone operator SMG, officer pistol).
   - A shot: one take, rate +-3.5 %, level +-12 %, never the same take twice in a row (`TakePicker`). Remote shots
     crossfade near to far between 8 and 30 m (equal power) and low-pass with distance.

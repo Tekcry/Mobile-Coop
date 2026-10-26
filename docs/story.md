@@ -1,11 +1,12 @@
 # Night Shift - Story and world
 Owner: the orchestrator (it edits; Michael decides, G354). Status: current.
 
-> **Status (2026-10-25).** Maps that exist now: Marlow Yard (co-op training, `ctcourse`), Saltmarsh Park (Sector Ops,
-> `campusOps`). Tallow Wharf, the new small campaign map, is campaign Mission 1 (G340): specced
-> (PR #372, `docs/missions/`), not built yet. Its story is decided with the missions (G354); until then Mission 1 below
-> stays "Dead Line" as written, and "Dead Line" on the Kestrel map is paused (G53). The mission list below is the story
-> plan, not the build order.
+> **Status (2026-10-25).** Maps that exist now: Marlow Yard (co-op training, `ctcourse`; the campaign's training
+> prologue before Mission 1, G371), Saltmarsh Park (Sector Ops, `campusOps`). Tallow Wharf, the new small campaign map,
+> is campaign Mission 1 (G340): specced (PR #372, `docs/missions/`), not built yet. Its story is decided with the
+> missions (G354); until then Mission 1 below stays "Dead Line" as written, and "Dead Line" on the Kestrel map is paused
+> (G53). Mission 1 has no civilians (G373): the duty engineer of 6.1 waits for a later mission. The mission list below
+> is the story plan, not the build order.
 
 Version 2.1 - 2026-10-18. (2.1: two-player campaign with Wren and Moth in the field and Tally and Sexton on the radio
 (G2, G71, G112); no traitor and no player-versus-player finale (G9); text now, voiced later (G82); Wren stays 1.68 m
@@ -44,7 +45,8 @@ In the final mission the team turns the lights back on. The last image is Hollow
 - Humour comes from character and understatement, never from jokes that break tension.
 
 **Text now, voice later (G82).** Radio and subtitles are text. Every line is written so it can be voiced later
-(backlog item 6). Sound effects and music may use CC0 recordings (G58); this rule is about voices.
+(backlog item 6). Sound effects and music may use free recordings whose licence allows commercial sale (G58, G407);
+this rule is about voices.
 
 **Radio lines:**
 

@@ -2,20 +2,22 @@
 Owner: the orchestrator. Status: current.
 Purpose: the game modes as built, the Fallow training course, what `?legacy=1` parks, and the parked arsenal / suit /
 HQ economy and cosmetics.
-Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G357), then
+Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G370, G371, G384, G385), then
 docs/design-bible.md (Sections 5.8 and 6).
 
 The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
 - Campaign: exactly 2 players, cannot be completed solo, no bot (G2, G253); every section forces a co-op traversal move
   with no solo bypass (G292, G293). Campaign Mission 1 is Tallow Wharf, the new small campaign map, with the first
-  prototypes Three Grey Coats and Two-Key Ledger (G293, G340; the mission-framework job); Kestrel is
-  paused (G53). The campaign mission framework is not built yet: today's missions run in
+  prototypes Three Grey Coats and Two-Key Ledger (G293, G340, G402; the mission-framework job); Kestrel is
+  paused (G53). Decided, not built yet: the campaign is entered from the co-op lobby, with Marlow Yard as its training
+  prologue before Mission 1 (G371); campaign sections grant no rewards, optional objectives only raise the rating
+  (G384); Mission 1 has no civilians (G373). The campaign mission framework is not built yet: today's missions run in
   Infiltration.
 - Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
-  marks and objective list (G292). Downed: the campaign rule (G349, G126). Strict rules: none in the early sections,
-  one taught in a late section (G357; not built yet).
-- Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map): 1 to 4 players, solo
-  always possible (G280, G308).
+  marks and objective list (G292). Downed: the campaign rule (G349, G126). No strict rule, fail or send-back: every
+  failure is a retry (G370).
+- Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map, frozen, G390): 1 to 4
+  players, live when coop4 ships (G381), solo always possible (G280, G308).
 - Campaign and Sector Ops: strict rules and section restart are owned by bible 5.8 (G290); no maps, markers or
   waypoints, and objectives that name what and where, by bible 5.10 (G336, G339, G343, G351). Marlow Yard is the
   guided exception (G292). Killing a civilian or a protected character restarts the section (G353, replaces G145's
@@ -72,25 +74,35 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   tests only). Mode: `game/modes/sectorMode.ts` (doors by position, `loadSection` / `unloadSection`, `CtDevices.setLive`,
   alarm stage from the run, restart after `RESTART_DELAY` 2.5 s with everyone down, extraction and result). The live
   guard cap is `SECTOR.maxAlive` (32) for this mode only; `?sectorGuards=N` caps the guards per section.
+  `?sectorStart=N` (campus-greybox A28, `game/sectorStart.ts`) starts every run on the page at section N as its
+  connectors leave it: a practice run (results line "PRACTICE from section N"; no star, no best rating, no progression);
+  in co-op the host's link wins and the host puts the client at its checkpoint (`firstPlace`, the `restore` event).
+- No exit beacon (G290, sector-marks): a connector or the extraction is a zone only; its `extract` item draws nothing
+  in Sector Ops (`drawsExitBeacon`, `game/interactables.ts`; the co-op client's mirror too). Each objective line names
+  the room it stands in, within 50 characters (`tests/campusObjectivePlace.test.ts`, Saltmarsh Park only).
 - Team doors (sector-fixes-r RT, the course's B2 bolt): `SectorDef.bolts` (`S1_BOLTS`..`S3_BOLTS` from the section
   files: door centre `at`, unbolting `side`). The door stays locked (guards treat it as any locked door; no guard route
   uses one, `tests/sectorBolt.test.ts`); a player with the feet past the door plane on `side` within 1.6 m gets
   "Unbolt" (`Interactable.side`); using it unlocks the door for both. A section restart bolts its doors again.
   Pure: `SectorBolts`, `onBoltSide`, `boltItemId` / `boltById`. Test hooks: `__sector.boltInfo()`,
   `__sector.useBolt(sec, k)`, `debug().bolts`.
-- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided (G331), not built yet:
-  a clear on tier N fills every star below N too (Michael: "Completing a higher difficulty also considers the lower
-  tiers completed also"); as built only the cleared tier's star fills. `save/sectorRecord.ts`, kv key `sector:ops`
+- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. A clear on tier N fills
+  every star below N too (G331; Michael: "Completing a higher difficulty also considers the lower tiers completed
+  also"): `starsOf` derives the fill from the hardest tier cleared, so old saves get it; `done` and the best times stay
+  as cleared. `save/sectorRecord.ts`, kv key `sector:ops`
   (per op id: the presets completed and the best time per preset; no profile change, no SAVE_VERSION bump). The
   extraction calls `markCompleted(map.id, difficulty, time)` (solo and co-op host; the co-op client on a won `end`, no
   time). The menu entry opens `SectorOpsScreen` (`ui/screens/missionsScreen.ts`: maps with `sectors` and the `sector`
   mode; `starsText` in DIFFICULTIES order, best times in the context panel), then the briefing. The main menu counter
-  and the host's lobby Map row show the stars.
+  shows Saltmarsh Park's stars (`campusOps`); the host's lobby Map row shows each op's. The result line and the
+  extraction banner add PERFECT (no kills and no alarm raised all op, restarts included: `SectorRun.alarmsRaised`,
+  G146; `sectorResult`, `resultBadge`) before GHOST.
 - Revive syringes (M7, A10): co-op only. The host's `ReviveClock.cap` is `syringesFor(difficulty)` (Rookie 3, Normal 2,
   Realistic 1, Perfectionist 1), per op (a restart keeps the count used); the HUD line shows "Syringes n"
   (`sectorInfoHtml`; solo shows none). An operator out (no syringe left, or the window over) calls
   `GameMode.onPlayerOut` and the section restarts; on its respawn a partner still up also comes back to the checkpoint
-  (A22). Everyone down restarts as before. The connector and the extraction count every player, downed too (A20).
+  (A22). Decided, not built yet (G385): a downed player nobody revives within 30 s dies and waits out of play until the
+  team reaches the next section door, where he comes back; the section no longer restarts for him. Everyone down restarts as before. The connector and the extraction count every player, downed too (A20).
   A restart repairs the section's shot-out cameras and clears their meters (`CtDevices.repair`).
 - Alarm panels (fix round): tagged by section (`WAREHOUSE_OPS_ALARMS`, `MapLayout.alarms[].section`). On every section
   load and restart `StealthSystems.setLiveAlarms(i)` leaves only that section's panel working (and re-arms one the

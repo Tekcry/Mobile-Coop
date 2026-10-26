@@ -1,7 +1,7 @@
 import { runningOnWindows, type HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
-import { flags } from '../../core/flags';
-import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
+import { flags, PREVIEW_ON } from '../../core/flags';
+import { defaultSettings, setAuto, setGfx, setPreset, settingAnimSource, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode,type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
@@ -14,6 +14,12 @@ import { BrightnessScreen } from './brightnessScreen';
 import { toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
+/** (mixamo-retarget Toggle) Options > Gameplay > "Animation source" (`src/anim/animSource.ts` `ANIM_SOURCE_LABEL`). */
+const ANIM_SOURCE_OPTS: { value: 'hand' | 'cmu' | 'mixamo'; label: string }[] = [
+  { value: 'hand', label: 'Hand-made' },
+  { value: 'cmu', label: 'CMU' },
+  { value: 'mixamo', label: 'Mixamo' },
+];
 const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'classic', label: 'Classic' },
@@ -154,6 +160,11 @@ export class SettingsScreen extends MenuScreen {
         build: () =>
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
+            // (mixamo-retarget Toggle) the Animation source: a look choice (gameplay unchanged); the Anim Studio has the same switch
+            desc(choice('Animation source', ANIM_SOURCE_OPTS, () => settingAnimSource(s().gameplay, PREVIEW_ON), (v) => upd((d) => {
+              d.gameplay.animSource = v;
+              d.gameplay.animSourceSet = true; // (F45) picked: /preview/ stops defaulting to Mixamo
+            })), 'Which animation set Wren moves with. CMU is the game as it ships; Hand-made the original keyed clips; Mixamo the CMU set with the Mixamo captures on top (hang, shimmy, ladder top-out).'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`
             // or the tuner box turn it off for one page); (LR16a) no Lamp falloff row: one photometric light model
@@ -212,6 +223,8 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
+        d.gameplay.animSource = def.gameplay.animSource;
+        d.gameplay.animSourceSet = def.gameplay.animSourceSet;
       }),
     );
     this.resets.set('video', () => st.reset('video'));
@@ -336,8 +349,8 @@ export class SettingsScreen extends MenuScreen {
       }, { class: 'subtle' }), 'Measures this device again and picks the Auto preset from the result.'),
       // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
       ch('Shadows', 'shadows', SHADOW_OPTS, 'Shadows from the moon and the flashlights. Lamps are always lit and shadowed.'),
-      // (LR14) the nearest lamps' character silhouettes: Auto follows Shadows (on from High)
-      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: on from High shadows. Looks only: the light meter and the guards are the same either way.'),
+      // (LR14) the nearest lamps' character silhouettes: Auto follows Shadows (1 lamp on Low / Medium, 2-4 from High)
+      desc(choice('Character shadows', CHAR_SHADOW_OPTS, () => s().video.charShadows, (v) => upd((d) => void (d.video.charShadows = v))), 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: the light meter and the guards are the same either way.'),
       ch('Anti-aliasing', 'aa', AA_OPTS, 'Smooths jagged edges. TAA is the smoothest; FXAA is the cheapest.'),
       ch('Textures', 'textures', TIER_OPTS, 'Surface detail. Lower it if the game stutters when you enter a new area.'),
       ch('Detail and draw distance', 'detail', TIER_OPTS, 'How much map dressing is drawn and how far away.'),

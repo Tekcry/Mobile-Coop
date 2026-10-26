@@ -28,6 +28,14 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 - `--min-interval` (default 60) and `--max-per-day` (default 0 = off) pace builds, not releases: a green train always
   releases.
 - `--no-autodrop`: a failed laptop run stays state `failed` for the orchestrator (the behaviour before auto-drop).
+- gh retry (`AUTO_TRAIN_GH_RETRY_S`, default 5; 0 = none): a read-only gh or git call that fails for a transient reason
+  (HTTP 499, a dropped connection) is run once more after that many seconds, once per step. Writes (`act`) never retry,
+  nor does a timeout, a first try over 30 s or a definite HTTP 4xx.
+- Env knobs (read at start; each off value gives the old behaviour): `AUTO_TRAIN_UNLABELLED` (1; 0 = labelled PRs
+  only), `AUTO_TRAIN_REREAD` (1; 0 = one read before the build, no second plan), `AUTO_TRAIN_DEPLOY_WAIT_MIN` (0, passed
+  to merge-train as `MERGE_TRAIN_DEPLOY_WAIT_MIN`; 20 = the old blocking wait after release),
+  `AUTO_TRAIN_DEPLOY_REPAIR_MIN` (20; 0 = watch only, never repair), `AUTO_TRAIN_GH_RETRY_S` (above) and
+  `AUTO_TRAIN_PAGES_URL` (where the deploy watch reads `/preview/version.json`; default the repo's Pages site).
 - `--dry-run`: reads GitHub only (gh, `git ls-remote`, no fetch) and prints each write as `[dry-run] would run: ...`;
   it still writes the log and the status (with `"dryRun": true`).
 - Scheduled task: `scripts/auto-train-task.ps1` registers "NightShift auto-train" every minute (`-Minutes`, default 1;
@@ -45,8 +53,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
   `C:/NightShift/scratch/auto-train-status.json`: one JSON line `{ state, train, version, head, reason, time, ... }`
   (extra keys: `pr`, `members`, `leftOut`, `candidates`, `checkWait`, `released`, `rebuildFailed`, `rerun`, `rerunRequestFailed`,
-  `dryRun`; `rerun` is carried into every status of the same train head, error ticks included, and so is
-  `rerunRequestFailed` on error ticks), build marker
+  `nothingNew`, `deployWatch`, `draftSkipped`, `dryRun`; `rerun` is carried into every status of the same train head, error
+  ticks included, and so is `rerunRequestFailed` on error ticks; `nothingNew: { heads, master }` and
+  `deployWatch: { version, at, repaired }` are carried until a status sets its own, a release or the watch closes;
+  `draftSkipped: [n]` lists the draft PRs left out of the candidates), build marker
   `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`, written just before
   `merge-train build`, deleted by merge-train as soon as the version commit is pushed (`AUTO_TRAIN_BUILD_MARKER`), and
   again in a finally, also on errors; the laptop queue reads it). A `--dry-run` tick uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log`,
@@ -71,14 +81,15 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | `laptop-e2e` failure or error from the laptop itself (no `desktop:` prefix) | the next train's state (built, holding, ...) | auto-drop (below); failed, none, when it cannot pick a member (no failing suite in the description or a failure comment, a member diff unreadable, only docs members, the guards below) or under `--no-autodrop` (the orchestrator decides which member leaves) |
 | A desktop failure whose suites cannot be parsed (no `FAIL:` part, a list cut at 140 chars, no result) | failed | none (no laptop rerun was possible, so no auto-drop; the orchestrator decides) |
 | Open train with no `"<version>: version at merge, train <n> (G183)"` commit (its build died before it) | error | none ("train <n> has no version commit: rebuild"); it is never released |
-| `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>" --head <tested head> --no-fallback` (`--resume` when commits follow the version commit); release STOPs unless `origin/train/<n>` is still that head, merges with `gh pr merge --match-head-commit <head>`, and never takes the old-style path; exit 0 -> released, then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; a failed rebuild is recorded (`rebuildFailed: { head, master }`, reason "rebuild failed for <head>") and later ticks skip the release (state failed) until the train head or master changes; exit 2 -> failed; head moved (the `--head` STOP) -> pending |
+| `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>" --head <tested head> --no-fallback` (`--resume` when commits follow the version commit); release STOPs unless `origin/train/<n>` is still that head, merges with `gh pr merge --match-head-commit <head>`, and never takes the old-style path; exit 0 -> released (no deploy wait: see the deploy watch below), then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; a failed rebuild is recorded (`rebuildFailed: { head, master }`, reason "rebuild failed for <head>") and later ticks skip the release (state failed) until the train head or master changes; exit 2 -> failed; head moved (the `--head` STOP) -> pending |
 | No `laptop-e2e` status 3 h after the head was pushed | stale | none (orchestrator alert) |
 | `check` success but no `laptop-e2e` status 10 min after it turned green (check run `completedAt` / status `updated_at`; `AUTO_TRAIN_LAPTOP_MISSING_MIN`) | laptop-missing | none (status `waitingMin`; orchestrator chases the laptop queue) |
 | Anything else (CI or laptop pending / missing) | pending | wait (fast poll) |
-| No open train, no `train-ready` PR with a green `check` | idle | none |
+| No open train, no candidate (see the Candidates bullet below) | idle | none |
+| Candidates, but `merge-train build` exits 6 (nothing new to release: no member changes anything master lacks), or the heads and master are those of the last exit 6 | idle | none; the status keeps `nothingNew: { heads, master }` and no build runs until a member head or master moves. A rebuild after release exit 3 that exits 6 is `rebuildFailed` as before |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
 | Candidates, paced to go, and a `train-ready` PR whose `check` is not green yet while its CI still runs (`check` queued / in progress, any other check run or status pending, or `check` missing while lint / test / build-check all passed), for under `AUTO_TRAIN_CHECK_WAIT_MIN` (3) min since that head was first seen waiting (`checkWait: { <head>: <ISO> }` in the status, carried across ticks and error ticks) | holding | none (audit 2: PR #299 missed train 47, its `check` was missing 43 s before it went green); a PR whose CI failed or has no CI activity never holds; after the wait the build goes on without it |
-| Candidates, paced to go | building / built | (the candidates are read again right before the build, so the member list is fresh; build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 3 -> failed (every member left out); any other non-zero exit -> error |
+| Candidates, paced to go | building / built | (re-read at build start, `AUTO_TRAIN_REREAD`: the candidates are read, planned, read again and planned again when the set changed, so a PR labelled or pushed in between joins or leaves; log "re-read at build start: +b, -a"; no candidate left -> idle; an unlabelled member gets `train-ready` added first and one whose add fails is left out; build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 3 -> failed (every member left out); any other non-zero exit -> error |
 | Any command error, or no version for the open train | error | none |
 
 - `merge-train build` ends with the push of the version commit (the train head): no local vitest and no `heavy.lock`
@@ -100,9 +111,23 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   Known gap: on a rebuild (exit 3) auto-train retitles the PR with its planned version and title after `build`.
 - Version of an open train: its newest `"<version>: version at merge, train <n> (G183)"` commit, else its PR title
   `"<version>: Train <n>: <title>"`, else a CHANGELOG heading that names `Train <n>`.
-- Candidates: open PRs to master labelled `train-ready` (the tick creates the label when missing) whose `check` passed
-  on their current head, plus `feature/menu` when it is ahead of master in docs only (`*.md`, `docs/**`); feature/menu
-  only rides along, it never starts a train by itself.
+- Candidates: open PRs to master that are train-ready on their current head, plus `feature/menu` when it is ahead of
+  master in docs only (`*.md`, `docs/**`); feature/menu only rides along, it never starts a train by itself. Two kinds
+  qualify: a PR labelled `train-ready` (the tick creates the label when missing) with a green `check` on the head; or an
+  unlabelled PR that meets `docs/RULES.md` "Getting to master" on the head, as `scripts/train-ready.mjs` applies it (the
+  code the watchdog's labelling shares), provided the label was not removed since that head was pushed (a drop, a
+  left-out, a watchdog unlabel or a hold stays out until a new head) and the head's own combined status still agrees
+  (`AUTO_TRAIN_UNLABELLED=0`: labelled PRs only). One `gh pr list` with no label filter; a PR whose only gap is a running
+  `check` waits like a labelled one (`holding`); a failed read keeps that PR out of the tick. A draft is never a candidate
+  (F34): a labelled draft is dropped from the list, named in `draftSkipped` and logged once per head; auto-train never
+  changes its label, the watchdog does; the desktop laptop-queue worker likewise files no laptop rerun for a draft PR's
+  failure (the failure stands). A build adds `train-ready` to each unlabelled member just before
+  `merge-train build`, so auto-drop, left-out, the watchdog and the laptop queue see one label.
+- Deploy watch (F18): release no longer waits for Pages (it cost about 6 min per train). It leaves
+  `deployWatch: { version, at, repaired }`; `deployStep` runs before every step, reads `/preview/version.json` and drops
+  the watch once that version or a newer one is served. Still stale `AUTO_TRAIN_DEPLOY_REPAIR_MIN` (20) min after the
+  release, it runs `merge-train repair` once (no wait, under the tick lock); that long after the repair it gives up and
+  closes the watch (the watchdog's `pages-behind` alert is then the orchestrator's).
 - Stacked PRs: a candidate whose head is contained in another candidate's head is not passed to `build` (the tip
   carries it); its fragment still counts for the version and the title.
 - Version: master's `package.json` bumped minor when any member's `changes/<branch>.md` says `kind: minor`, has no
@@ -113,7 +138,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`gh pr edit <pr> --remove-label train-ready`, logged; a failed removal is logged, not fatal), so it stops being a
   candidate and no longer causes repeat empty builds (audit 2026-10-24), and it gets one comment per head
   (`<!-- auto-train:left-out:<sha> -->`) saying the label was removed: the lead fixes the conflict and re-adds
-  `train-ready`. Under `--dry-run` both are printed only.
+  `train-ready`. Under `--dry-run` both are printed only. A member whose merge adds a doc-lint ERROR to the train tree
+  (`merge-train build` runs `scripts/doc-lint.mjs` on git objects after each member; e.g. two members together over a
+  doc budget) is left out the same way, with a comment asking the lead to fix the doc (audit 2026-10-26: trains 111
+  and 112 lost ~7 h to one line each).
 - Auto-drop (Michael 2026-10-24 ~21:00, "Auto-drop on failure"; a failed train used to wait 10-30 min for the
   orchestrator): the failing suites come from the `laptop-e2e` (or rerun) description's `FAIL:` list, else from the
   newest laptop-queue failure comment on the head (`**<suite>**` / `Failing assert:` lines, which also give the assert).
@@ -140,10 +168,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   the dropped branches. Log: one `DROPPED #<pr> <branch> from train <n>: <suite> (tier k)` line each; status: the next
   train's fields plus `dropped: [{ pr, branch, suite }]`, `closedTrain: { train, pr, head, failing }`, `dropReason`.
 - The pacing laptop queue: `origin/laptop-queue` read in one GitHub GraphQL call (the `requests/` names and the
-  `claims/` texts; `laptopQueueState`). Busy while a `requests/<id>.json` has no `claims/<id>.json` yet (queued; a
-  request id over 12 h old no longer counts, a bad request is never claimed) or a claim is open (`"done": false`,
-  `at` under 3 h old: a request or train head running); idle otherwise (every finished, superseded, duplicate or
-  withdrawn request has a done claim). No such branch: the interval alone paces. (Audit 2026-10-25: the old read
+  `claims/` texts; `laptopQueueState`). Busy only while the laptop is running something: a claim with `"done": false`,
+  `at` under 3 h old, `worker` `laptop` and an id that is not spare work (`-laptop-queue-spare-`); idle otherwise.
+  Unclaimed requests and desktop claims never hold a train (F19: the old rule counted them, so pacing sat off from
+  2026-10-25 15:35). No such branch: the interval alone paces. (Audit 2026-10-25: the old read
   looked for `pending/` and `running*` markers the branch never had, so 483 ticks in a row read idle, 0 waits; the
   "Optional, for pacing" line under "What the laptop queue service provides" still names that old layout.)
 
@@ -171,19 +199,25 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`laptop-e2e/train<n>-rerun` here). The desktop worker
   prefixes its own `laptop-e2e` descriptions with `desktop: ` (`scripts/laptop-queue/service.mjs`; the failed suites
   follow `FAIL:` as in `lib.mjs describe`).
+- A train head that moves (a docs-only commit after the version commit, `LQ_TRAIN_CARRY`): the laptop carries the
+  newest final `laptop-e2e` verdict of an earlier head onto it (success "carried from <sha>", never a failure) when
+  every file between the two is docs-only (lib `carryFrom`, up to `LQ_TRAIN_CARRY_DEPTH` commits back), also onto a
+  head pushed mid-run; a live docs-only ancestor run is waited for. Any other moved head runs as a normal train.
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
 - Spare work (`docs/archive/laptop-queue-PLAN-2026-10-23.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
   (requester `laptop-queue spare`) on the master head, never while a train is building, releasing, waiting on its
   laptop pass or green train-ready PRs wait for one. A pending train head stops a running spare job at once, whatever
   its kind or progress (lib `cutShort`), and the spare job is done, not queued again.
-- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`) is never read: a flag never holds a release (visual-gate BRIEF A1).
+- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`): a light-meter
+  against picture mismatch holds the release, checked every release; other picture flags are advisory (G391). Not built
+  yet: auto-train still never reads `visual-gate` (visual-gate BRIEF A1), so today no flag holds a release.
 
 ## Rules it keeps
 - Never forces anything (merge-train's own `build` force-pushes only `train/<n>`), never touches dev or master
   directly (merge-train's `release` merges the PR, tags and moves dev); the only PR it closes is a train whose laptop
-  run failed (auto-drop), and the only label it removes is `train-ready`, from a member left out on a conflict or
-  dropped from a failed train.
+  run failed (auto-drop), and the only label it changes is `train-ready`: removed from a member left out on a conflict or
+  dropped from a failed train, added to an unlabelled member it builds.
 - Every gh or git write goes through one `act()` (and merge-train calls through `mergeTrain()`); both only print under
   `--dry-run`.
 

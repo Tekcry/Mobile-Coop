@@ -2,7 +2,9 @@ import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { GearTag } from '../../ai/gear';
 import type { ArmourPiece } from './campusS4Data';
-import { S5_BOX, S5_DOORS } from './campusS5';
+import type { CampusSectionParts } from './campusParts';
+import { buildCampusS5, S5_BOARDS, S5_BOX, S5_DOORS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './campusS5';
+import { dressS5, HERO_S5, S5_ART_TAGS } from './campusS5Dress';
 
 const PI = Math.PI;
 
@@ -166,7 +168,7 @@ export const S5_SECTOR: SectorDef = {
   start: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
   // weapons crate (E9): the colonnade south wall, strip to the colonnade
   crate: { at: [S5_AMMO_CRATE.x, S5_AMMO_CRATE.y, S5_AMMO_CRATE.z], yaw: S5_AMMO_CRATE.yaw },
-  objective: { kind: 'grab', label: 'Take the signing key token', x: -43, y: 0, z: 43.4, yaw: 0 },
+  objective: { kind: 'grab', label: 'Take the signing key token from the strongroom', x: -43, y: 0, z: 43.4, yaw: 0 },
   extract: { label: 'Extract at the boathouse jetty', box: [-50, 60, -40, 66] },
   guards: S5_GUARDS,
   // stage 1: the hall's front door and the service wing
@@ -187,4 +189,28 @@ export const S5_SECTOR: SectorDef = {
     { stage: 2, lightsFull: [81, 84], lockDoors: [[-56, 40]] },
     { stage: 3, lightsFull: [80, 88], lockDoors: [[-38, 33.5]] },
   ],
+};
+
+/** (campus-greybox P0) Section 5's parts for the map (`campusSections.ts`). No co-op lips yet; the chimney stacks feed the art pass. */
+export const S5_PARTS: CampusSectionParts = {
+  build: buildCampusS5,
+  spawns: [],
+  pickups: [],
+  hideSpots: S5_HIDESPOTS,
+  switches: S5_SWITCHES,
+  rooms: S5_ROOMS,
+  navSeeds: S5_NAV_SEEDS,
+  lasers: S5_LASERS,
+  panels: S5_PANELS,
+  boards: S5_BOARDS,
+  sector: S5_SECTOR,
+  cameras: S5_CAMERAS,
+  desks: [],
+  levels: { 's5-l1': 4.2 },
+  alarms: S5_ALARMS,
+  coopLips: [],
+  dress: dressS5,
+  artTags: S5_ART_TAGS,
+  hero: HERO_S5,
+  chimneys: S5_BOX.chimneys,
 };

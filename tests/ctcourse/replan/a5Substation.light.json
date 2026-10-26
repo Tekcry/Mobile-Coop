@@ -1,0 +1,25 @@
+{
+ "levels": {
+  "A5 strip centre": 0.75,
+  "A5 strip centre cut": 0.18,
+  "A5 strip east cut": 0.18,
+  "A5 kiosk": 1,
+  "A5 kiosk cut": 0.16,
+  "A5 landing": 0.15,
+  "A5 landing mark": 0.17,
+  "A5 pen 1 gap": 0.14,
+  "A5 inner zone": 0.52,
+  "A5 inner zone cut": 0.14,
+  "A5 switchroom": 0.69,
+  "A5 switchroom cut": 0.14,
+  "A5 apron": 0.9,
+  "A5 apron cut": 0.14,
+  "A5 vantage": 0.19,
+  "A5 throw mark": 0.16,
+  "A5 strip floor": 0.56,
+  "A5 strip standby": 0.14,
+  "A5 strip east": 0.22,
+  "A5 west strip": 0.17,
+  "A5 east strip": 0.6
+ }
+}

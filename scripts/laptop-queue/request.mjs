@@ -1,9 +1,11 @@
 // Laptop queue request CLI (docs/laptop-queue/PLAN.md): adds requests/<id>.json to the laptop-queue branch with git
 // plumbing only (temp index, no checkout), never touching the working tree, the worktree index or HEAD. Prints the id.
 //   node scripts/laptop-queue/request.mjs --sha <ref> [--pr N] [--set name] [--jobs N] [--requester "<title>"]
-//     (--suites "a b c" (or "a,b,c"; unknown names refused) | --affected [--wide] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
-// --affected [--wide]: the suites come from scripts/e2e-affected.mjs (DIRECT tier, --wide the cross-area set) for the
-// committed diff from the merge-base with origin/master to --sha; a diff that reaches no browser suite is refused.
+//     (--suites "a b c" (or "a,b,c"; unknown names refused) | --affected [--wide] [--affected-max N] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
+// --affected [--wide]: the suites come from scripts/e2e-affected.mjs affectedPick (DIRECT tier, --wide the cross-area set;
+// the wire rule, the gate, at most 3 closest suites) for the committed diff from the merge-base with origin/master to
+// --sha; a diff that reaches no browser suite is refused. --affected-max N (else env E2E_AFFECTED_MAX): another cap, 0 = no
+// cap; --wide is uncapped unless one is given.
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
 // laptop at train priority; "trainRerun": true, kind pr. Context laptop-e2e/<set> (no --set: laptop-e2e/rerun-<suites>).
 // A pass also posts laptop-e2e success on the sha.
@@ -17,6 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { affectedSuites, knownSuites, pickBranch, requestId, requestProblem, splitSuites } from './lib.mjs';
+import { parseAffectedMax } from '../e2e-affected.mjs';
 
 const argv = process.argv.slice(2);
 const opts = { step: [], env: [] };
@@ -38,10 +41,10 @@ const git = (args, { env = {}, input, soft = false } = {}) => {
   }
 };
 
-if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--priority N] [--dry-run]'); process.exit(1); }
+if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] [--affected-max N] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--priority N] [--dry-run]'); process.exit(1); }
 
 if (opts.affected && (opts.suites || opts.full || opts.alone || opts['train-rerun'])) { console.error('--affected replaces --suites (no --full / --alone / --train-rerun)'); process.exit(1); }
-if (opts.wide && !opts.affected) { console.error('--wide needs --affected'); process.exit(1); }
+if ((opts.wide || opts['affected-max'] !== undefined) && !opts.affected) { console.error('--wide and --affected-max need --affected'); process.exit(1); }
 
 if (opts['train-rerun'] && (!opts.pr || !opts.suites || opts.full || opts.alone)) { console.error('--train-rerun needs --pr N and --suites (no --full / --alone)'); process.exit(1); }
 
@@ -55,10 +58,13 @@ if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 /** --affected: the suites for the committed diff from the merge-base with origin/master to sha. */
 function prSuites() {
   // lib affectedSuites: the same selection the service's affected pass makes for every PR head
-  const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide) });
+  // the cap: --affected-max, else E2E_AFFECTED_MAX, else 3; --wide with neither stays uncapped (BRIEF A5)
+  const given = opts['affected-max'] ?? process.env.E2E_AFFECTED_MAX;
+  const max = opts.wide && given === undefined ? undefined : parseAffectedMax(given);
+  const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide), max });
   if (!got) { console.error(`--affected: no merge-base between origin/master and ${sha} (or git diff failed)`); process.exit(1); }
   const { files, suites } = got;
-  console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s): ${suites.join(' ') || '-'}`);
+  console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s) (${max ? `cap ${max}` : 'no cap'}): ${suites.join(' ') || '-'}`);
   if (!suites.length) { console.error('--affected: no browser suite reached (docs / unit tests only): nothing to request'); process.exit(1); }
   return suites;
 }

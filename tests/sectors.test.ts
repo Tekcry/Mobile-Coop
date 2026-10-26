@@ -182,6 +182,7 @@ describe('SectorRun', () => {
     expect(r.progress).toBe(0);
     expect(r.downloading).toBe(false);
     expect(r.alarm).toBe(1);
+    expect(r.alarmsRaised).toBe(3); // (sector-batch, G146) a restart puts the stage back, not the alarms raised
     expect(r.checkpoint).toEqual(pose(50));
     // any number of restarts (no lives): the run never fails
     for (let i = 0; i < 10; i++) r.restartSection();
@@ -246,10 +247,20 @@ describe('sector rules', () => {
     const g = (kind: SectorDef['guards'][number]['kind'], handler?: number): SectorDef['guards'][number] => ({ kind, x: 0, z: 0, yaw: 0, takedownSpot: [0, 0], ...(handler !== undefined ? { handler } : {}) });
     const sec = (guards: SectorDef['guards'], dogs?: number): SectorDef => ({ ...def('s', 0, true), guards, ...(dogs !== undefined ? { dogs } : {}) });
     // every armed kind passes but the riot shield (guard-rules S1: shields only lead alert response teams, G307 (3))
-    for (const k of ['grunt', 'officer', 'sniper', 'droneOp'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
+    for (const k of ['grunt', 'officer', 'sniper', 'droneOp', 'runner'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
     expect(checkSectorGuards(sec([g('grunt'), g('enforcer')]))).toEqual(['s: guard 1 is a riot shield (only in alert response teams, G307)']);
     // M1: no melee-only guards; G155: no heavies
-    expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
+    // (guard-ai runner-armed) no shipped human kind lacks a gun since G298: a stand-in def keeps the M1 rule tested
+    const keep = ENEMIES.runner;
+    ENEMIES.runner = { ...keep, weapon: null, gun: null };
+    try {
+      expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
+      expect(checkSectorGuards(sec([g('runner'), g('dog', 0)], 1))).toEqual(['s: guard 0 (runner) carries no gun (M1)', "s: dog 1's handler 0 is not an armed human guard"]);
+      // checkSectors runs it on every section
+      expect(checkSectors([sec([g('runner')])])).toContain('s: guard 0 (runner) carries no gun (M1)');
+    } finally {
+      ENEMIES.runner = keep;
+    }
     expect(checkSectorGuards(sec([g('heavy')]))).toEqual(['s: guard 0 is a heavy (G155)']);
     // dogs: none by default; allowed by `dogs`, each with an armed human handler of the section
     expect(checkSectorGuards(sec([g('grunt'), g('dog', 0)]))).toEqual(['s: 1 dogs, the section allows 0']);
@@ -258,9 +269,6 @@ describe('sector rules', () => {
     expect(checkSectorGuards(sec([g('grunt'), g('dog')], 1))).toEqual(['s: dog 1 has no handler']);
     expect(checkSectorGuards(sec([g('grunt'), g('dog', 5)], 1))).toEqual(['s: dog 1 has no handler']);
     expect(checkSectorGuards(sec([g('dog', 1), g('dog', 0)], 2))).toEqual(["s: dog 0's handler 1 is not an armed human guard", "s: dog 1's handler 0 is not an armed human guard"]);
-    expect(checkSectorGuards(sec([g('runner'), g('dog', 0)], 1))).toEqual(['s: guard 0 (runner) carries no gun (M1)', "s: dog 1's handler 0 is not an armed human guard"]);
-    // checkSectors runs it on every section
-    expect(checkSectors([sec([g('runner')])])).toContain('s: guard 0 (runner) carries no gun (M1)');
     // the reinforcements are armed guards, not heavies (G155)
     expect(SECTOR_REINFORCE_KIND).toBe('grunt');
     expect(ENEMIES[SECTOR_REINFORCE_KIND].weapon).toBeTruthy();
@@ -295,7 +303,7 @@ describe('sector rules', () => {
   });
 
   it('Ghost needs no kills and never spotted', () => {
-    expect(sectorResult({ time: 125, kills: 0, spotted: 0 })).toEqual({ ghost: true, line: 'Time 2:05  ·  Kills 0  ·  Spotted 0  ·  GHOST' });
+    expect(sectorResult({ time: 125, kills: 0, spotted: 0 })).toEqual({ ghost: true, perfect: false, line: 'Time 2:05  ·  Kills 0  ·  Spotted 0  ·  GHOST' });
     expect(sectorResult({ time: 60, kills: 1, spotted: 0 }).ghost).toBe(false);
     expect(sectorResult({ time: 60, kills: 0, spotted: 2 }).ghost).toBe(false);
     expect(fmtTime(59.9)).toBe('0:59');

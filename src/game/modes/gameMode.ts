@@ -2,10 +2,10 @@ import type { CourseSummary } from '../course/courseRating';
 import type { Enemy } from '../../ai/enemy';
 import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
-import type { Blip } from '../../ui/hud/minimap';
 import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 import type { SlotPoint } from '../spawnSlots';
+import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops. */
 export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector';
@@ -37,6 +37,8 @@ export interface SessionStats {
   alarms?: number;
   /** Training course: the results panel (T1c). */
   course?: CourseSummary;
+  /** (campus-greybox A28) A `?sectorStart=N` run (or its co-op client's): nothing goes to the save (no progression). */
+  practice?: boolean;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
@@ -99,6 +101,8 @@ export interface GameMode {
   /** (marlow-bays item 3) The pause menu's "Restart at checkpoint" (solo or the co-op host): the same clean retry as
    *  everyone down (Sector Ops: the section; Course: the bay), every player back at the checkpoint. False: not now. */
   restartCheckpoint?(): boolean;
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives rows; null: none here (GameState asks the net layer). */
+  objectiveLines?(): ObjectiveLine[] | null;
   /** (marlow-bays R3) The checkpoint a resumed co-op match starts from (course: the current bay, 1-based). */
   resumeBay?(): number;
   /** (coop-rejoin) The current checkpoint's slot points (slot 0 the host, slot 1 the partner; one is fine): where the
@@ -106,6 +110,5 @@ export interface GameMode {
   checkpointSpawns?(): SlotPoint[];
   /** (coop-rejoin) Co-op host: send the mode's whole state on the next step (a client joined or reconnected mid-run). */
   resync?(): void;
-  blips(): Blip[];
   dispose(): void;
 }

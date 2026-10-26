@@ -218,7 +218,7 @@ export async function walk(t, n) {
   assert(!(await lockedOnClient('L2-far')), 'A3: the L2 far door is open to the client');
   assert(await GA((i) => !window.__app.current.world.doors.list[i].anchor.locked, await doorIndex('L2-far')), 'A3: the L2 far door is unlocked on the host');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
-    await until(P, () => /Jam the camera for each other/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `the ${tag} sees the shared step line`);
+    await until(P, () => /Jam the corridor camera for each other/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `the ${tag} sees the shared step line`);
     assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
   }
   // nobody has claimed: the lead of the odd set (the host) reads the A line, the client the B line

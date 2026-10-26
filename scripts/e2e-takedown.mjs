@@ -317,6 +317,22 @@ try {
     assert(JSON.stringify(r.codes) === JSON.stringify(['e2e-code']), `the code flag reaches the mode (${JSON.stringify(r.codes)})`);
     assert(r.feed.includes('Code: Lab door 4471'), `the feed shows the code (${r.feed})`);
     assert(r.info === null && r.n === 1, 'his information is spent, one interrogation');
+    // (hud-guidance B5, R12, A9) Pause > Field Terminal > Notes lists the interrogation's lines
+    const notes = await G(() => {
+      const g = window.__app.current;
+      const S = window.__app.screens;
+      g.pause();
+      document.querySelector('.pause-screen [data-key="notes"]')?.click();
+      const top = S.top?.el.classList[1] ?? '(none)';
+      const rows = [...document.querySelectorAll('.notes-screen .ms-item .btn-label')].map((x) => x.textContent);
+      S.back(S.top);
+      S.top?.resume?.();
+      return { top, rows, paused: g.paused };
+    });
+    assert(
+      notes.top === 'notes-screen' && notes.rows.includes('Code: Lab door 4471') && notes.rows.some((t) => t.startsWith('Patrols near: 1')) && !notes.paused,
+      `Field Terminal > Notes lists the interrogation lines (G343 field menu, A9) (${JSON.stringify(notes)})`,
+    );
   });
 
   // (Michael 08:10 / 08:20) RT kills; Carry is not a row (a script pick: knock out, then shoulder); nothing lets him go
