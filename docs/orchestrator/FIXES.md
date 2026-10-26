@@ -24,3 +24,4 @@ PR #552 (fix, squash onto master, 1094 lines), checker PASS 2fbfbd30, 301/301 un
 | F24 | Desktop worker logs the CPU reading at each start (verify the 80% gate) | starts at 13:41 / 13:49 / 13:56 with CPU reported 100% | Test Runner | 2026-10-26 14:10 | new |
 | F25 | No Math.random in src/ai: replayable guard timing (hard rule 8) | J20 S6b | Guard AI Build (#537) | 2026-10-26 14:10 | PR open, checker PASS, laptop seed-random |
 | F26 | A quarantine matches a named step or error text, not any failure in the suite | e2e-pad was broken (not flaky) for 6 trains, hidden by its quarantine | Test Runner | 2026-10-26 14:20 | new |
+| F27 | playerRefsInto (src/game/gameState.ts:1083) allocates every sim step (`out.length = 0` then push); hot paths allocate nothing (CLAUDE.md hard rules) | Sector Ops side finding 2026-10-26 ~15:05 | Guard AI Build (coop4) | 2026-10-26 15:05 | new |
