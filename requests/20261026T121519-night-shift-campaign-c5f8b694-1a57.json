@@ -1,0 +1,13 @@
+{
+  "id": "20261026T121519-night-shift-campaign-c5f8b694-1a57",
+  "sha": "c5f8b694e6fbf2a9c6ac8645ec1084e7308a3464",
+  "branch": "feature/piano-escape-s4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-piano",
+    "e2e-coop"
+  ],
+  "set": "piano-s4"
+}
