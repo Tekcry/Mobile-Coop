@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T01:32Z
+status: done feature/validator-port-ic 8078660d610e756b10d6da4e1a9e977dde1cce8b
 # J12 validator-port, slice I-C (chore, Sonnet/Haiku): close PR C - Marlow set in the manifest, counts rewritten, fragments folded
 
 Lead: Night Shift | Marlow Build. PLAN: `docs/validator-port/PLAN.md` row I-C ("add the Marlow Yard set (S9's graph and
@@ -43,3 +43,24 @@ Manifest has example, campus, Marlow; counts pinned; levelGraphs green; fragment
 report below (commits, counts, test counts), set `status: done feature/validator-port-ic <sha>`.
 
 ## Report (append below)
+
+Night Shift | Cloud Builder 3, 2026-10-26. Branch `feature/validator-port-ic` from `b2d2a2554`, three commits:
+`b1755c5a` (manifest + `--write`), `a7af8f96` (levelGraphs), `8078660d` (fragments folded, A28). 7 files, +40 / -30.
+
+- **Manifest:** `marlow` after `campus`: `docs/marlow-final/graph/ctcourse.json`, flags `["--require-measured"]` (S9's
+  saved `run.txt` is the `--require-measured` run), run `docs/marlow-final/graph/run.txt`. `npm run validate:levels --
+  --write`: example 0 / 0, campus 139 / 200 (was 127 / 174, as S10 said), marlow 37 / 83. Both saved runs came out
+  byte-identical to the committed ones (only the manifest changed). Plain `npm run validate:levels` exits 0 (it runs in
+  the cloud).
+- **levelGraphs:** the runner test's expected run text is now the CLI's real output for that temp root, read from a run:
+  the example graph's two `INFO:  s1-yard / s2-hall: pending V6 (no measured values)` lines, then the counts.
+- **Fragments:** S9, S10 and S11 folded into `changes/feature-validator-port-train.md` as one plain bullet each (the
+  graph-sets bullet now names the Marlow set and today's pinned counts); the three files deleted. **A28** added to
+  `docs/validator-port/BRIEF.md` after A27, from the S11 brief, with the undo (drop the fork exception in `checkCoop`'s
+  split block).
+- **Checks:** `npx tsc --noEmit -p tsconfig.json` clean; `levelGraphs` 13 / 13, `changesFragments` 1 / 1,
+  `levelValidate` 94 / 94 (108 / 108). The base had 3 levelGraphs failures (campus counts x2, the run text); all gone.
+  `node scripts/doc-lint.mjs`: 0 errors, no warning in the touched docs.
+- **Deviation (one more test line than "no other test edit"):** adding the Marlow set breaks the manifest test
+  `lists the example and the five campus graphs`, which pins the set names to `['example', 'campus']`. It now expects
+  `['example', 'campus', 'marlow']` (title says so too); nothing else in it changed. Undo: drop the Marlow set and that line.
