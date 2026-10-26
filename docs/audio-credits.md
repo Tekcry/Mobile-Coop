@@ -39,20 +39,10 @@ Pixabay Content License (commercial use allowed, no attribution required; credit
 | --- | --- | --- | --- | --- |
 | "Investigation Piano" | leberch | https://pixabay.com/music/search/investigation%20piano/ (search URL: no other Pixabay row exists to copy the track page form from, and the page slug was not confirmed) | 611639 | `f4926dfd5294f26335de986f4c10298a15c1a93c3fd992cd41e418d75c81918d` |
 
-### Scene music A/B (piano-escape S5; dev picker `?pianomusic=` and the Music Lab "Scene" list)
-Five more files in `src/assets/music/scene/`, played only when picked (default stays "Investigation Piano" above). Same
+### Scene music: the mission track (piano-escape S5; dev picker `?pianomusic=` and the Music Lab "Scene" list)
+Two more files in `src/assets/music/scene/`. The intro always plays "Investigation Piano" above; the EMP press cross-fades
+into the mission track, "Suspense Thriller" by default, "Held Breath" as a dev alternative (`?pianomusic=1`). Same
 handling as the row above: loaded only when the scene starts, out of the offline cache.
-
-Four original sketches, made in this repo by `scripts/music/piano.mjs` (sketches 1-3, a Node synth) and
-`scripts/music/pulse.mjs` (sketch 4): original notes, synthesised, no samples and no downloads. Rendered to WAV by the
-scripts, encoded to MP3 (160 kb/s, 44.1 kHz stereo) with `scripts/music/encode-mp3.ps1`. No third-party licence applies.
-
-| Sketch | Source | Length | File | File SHA-256 |
-| --- | --- | --- | --- | --- |
-| 1 "Held Breath" (D minor, 54 bpm) | original, `scripts/music/piano.mjs` | 83.78 s | `src/assets/music/scene/sketch-1-held-breath.mp3` | `d732f1b64f91cdacb9e5ecf31e420d81253f7502c3e73f935ab9678afa761179` |
-| 2 "Thornbeck" (A minor, 48 bpm) | original, `scripts/music/piano.mjs` | 93.50 s | `src/assets/music/scene/sketch-2-thornbeck.mp3` | `d973a37efe3dcd93e33221c230fdc027151e942766878dcb462f9d83530324b4` |
-| 3 "Last Round" (C minor, 60 bpm) | original, `scripts/music/piano.mjs` | 78.00 s | `src/assets/music/scene/sketch-3-last-round.mp3` | `c019de5ebabf0c53848c9d480da391c57cfaa50155fa024e03ed4aa10271ae91` |
-| 4 "Pulse" (dark electronic, 84 bpm) | original, `scripts/music/pulse.mjs` | 96.43 s | `src/assets/music/scene/sketch-4-pulse.mp3` | `9189f07decca3e53963d3872c299febb385f2e958063d7bb05c47945475040a5` |
 
 One more Pixabay track, the download as is (162.04 s, 44.1 kHz stereo, 256 kb/s, 5.19 MB). Licence: Pixabay Content
 License (commercial use allowed, no attribution required; credited anyway).
@@ -61,23 +51,10 @@ License (commercial use allowed, no attribution required; credited anyway).
 | --- | --- | --- | --- | --- | --- |
 | "Suspense Thriller" | Alex Grohl | https://pixabay.com/music/search/suspense%20thriller/ (search URL: the page slug was not confirmed) | 552495 | `src/assets/music/scene/alexgrohl-suspense-thriller-552495.mp3` | `b7b1df7d44176d6b9ab794d65a9fa574f1fa57ac3a6433cfce702826953fafe2` |
 
-Three more original prototypes on the form of the "Suspense Thriller" track above (about 163 s, 192 kb/s MP3), made in
-this repo by `scripts/music/grohl-form.mjs`: original notes and sounds, no samples, nothing taken from the track. No
-third-party licence applies. Prototypes only (no tuning); the lightning keeps its 91.03 s timetable and they do not follow it.
+One original sketch, made in this repo by `scripts/music/piano.mjs` (a Node synth): original notes, synthesised, no
+samples and no downloads. Rendered to WAV by the script, encoded to MP3 (160 kb/s, 44.1 kHz stereo) with
+`scripts/music/encode-mp3.ps1`. No third-party licence applies.
 
-| Prototype | Source | File | File SHA-256 |
-| --- | --- | --- | --- |
-| a "Clockwork" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-a-clockwork.mp3` | `a12a182b98acbd39ea12feee0161cde4a43320343e8efcc029c33e3e5992b278` |
-| b "Storm Piano" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-b-storm-piano.mp3` | `916450e57f2a0ecb8977c61f44837649b0d03a6cf8443b52ab877fb2015b2bc0` |
-| c "Heartbeat" | original, `scripts/music/grohl-form.mjs` | `src/assets/music/scene/grohl-c-heartbeat.mp3` | `456950d62916cb4f9326a01cddd22377bc2ee7a5cab36f2b7503944c9506240a` |
-
-Three more original prototypes in an epic hybrid orchestral style, on the same form as the "Suspense Thriller" track above
-(about 163 s, 192 kb/s MP3), made in this repo by `scripts/music/grohl-epic.mjs`: original notes and sounds, no samples,
-nothing taken from any track. No third-party licence applies. Prototypes only (no tuning); the lightning keeps its 91.03 s
-timetable and they do not follow it.
-
-| Prototype | Source | File | File SHA-256 |
-| --- | --- | --- | --- |
-| d "Hybrid Ops" | original, `scripts/music/grohl-epic.mjs` | `src/assets/music/scene/grohl-d-hybrid-ops.mp3` | `00a2ca4bc5e67f9ef51d6322d29c8a4503b75287f66d661d92df552278cbc070` |
-| e "Last Stand" | original, `scripts/music/grohl-epic.mjs` | `src/assets/music/scene/grohl-e-last-stand.mp3` | `6ee91ef55446c87babb4ec64e080e4cc332f7f0b6f8886a3a3bcfc96828a51e4` |
-| f "Ghost Signal" | original, `scripts/music/grohl-epic.mjs` | `src/assets/music/scene/grohl-f-ghost-signal.mp3` | `e1f888fd644bc45f283721e248081ab434258602fe3a62e9e111f4659e83dff4` |
+| Sketch | Source | Length | File | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| 1 "Held Breath" (D minor, 54 bpm) | original, `scripts/music/piano.mjs` | 83.78 s | `src/assets/music/scene/sketch-1-held-breath.mp3` | `d732f1b64f91cdacb9e5ecf31e420d81253f7502c3e73f935ab9678afa761179` |
