@@ -402,6 +402,29 @@ export class PairDriver {
     return res;
   }
 
+  /** (driver linkStep) Where a link step's stopped robot stands (`tick` 0 on its own page). */
+  stopPos(robot) {
+    return robot === 'follower' ? this.fcall('tick', 0) : this.lcall('tick', 0);
+  }
+
+  /** (driver linkStep) The recovery past a link after a step's dead stop: the follower at the stub's far spot beside
+   *  `past`, and the leader placed on `past` too unless only the follower stopped (the leader took the step). */
+  async recoverPast(step, robot) {
+    const past = step.past ?? step.at;
+    if (!past) return;
+    const far = step.at && step.past ? stubSpots(step.at, step.past).followerFar : null;
+    if (robot === 'follower' && far) {
+      await this.placeFollower(far);
+      return;
+    }
+    this.farSpot = far;
+    try {
+      await this.place(past);
+    } finally {
+      this.farSpot = null;
+    }
+  }
+
   /** A split: leg a the leader's, leg b the follower's, at once (`runLeg(ctx, steps)` is driver.mjs `runSteps`); each leg
    *  ends at the rejoin (the leader on its centre, the follower beside); the first there waits idle. Logged in
    *  `log.splits`. Returns 'exit' when the leader's leg ended in the section's exit. */

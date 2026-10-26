@@ -250,7 +250,27 @@ export function checkDimensions(graph, metrics) {
       case 'team_rope':
         outside(lc, 'sizes.rope_span', 'rope climb', 'err');
         break;
+      // Long throw (BRIEF A27, slice S7b): `exception: "long_throw"` at a spot the sheet's "Long throw (named spots
+      // only)" row lists (`sizes.throw_long` = { max, spots }, spots `<meta.map>:<from>><to>`) is judged against its
+      // max; an unlisted spot or another value ERRs; no field (listed spots too) keeps the throw gap row. A missing or
+      // malformed `sizes.throw_long`: one WARN and the link falls back to the throw gap row.
       case 'team_throw': {
+        if (l.exception !== undefined && l.exception !== 'long_throw') {
+          c.err(`${name}: exception '${l.exception}' unknown (a team_throw takes only "long_throw")`);
+          break;
+        }
+        if (l.exception === 'long_throw') {
+          const long = c.obj('sizes.throw_long', 'the long-throw check (falls back to the throw gap row)');
+          const ok = long && typeof long.max === 'number' && Number.isFinite(long.max) && Array.isArray(long.spots);
+          if (long && !ok) c.warn('metrics: sizes.throw_long is not { max, spots }; the long-throw check skipped (falls back to the throw gap row)');
+          if (ok) {
+            const spot = `${graph.meta.map}:${l.from}>${l.to}`;
+            if (!long.spots.includes(spot)) c.err(`${name}: not an approved long-throw spot (${spot} is not in the scale sheet's Long throw row)`);
+            else if (width !== undefined && width > long.max + EPS) c.err(`${name}: gap ${fmt(width)} m above the ${fmt(long.max)} m long throw`);
+            else c.info(`${name}: long throw at an approved spot (${spot}, the scale sheet's Long throw row, Michael's approval), gap up to ${fmt(long.max)} m`);
+            break;
+          }
+        }
         const max = c.num('sizes.throw_gap_max', 'the throw gap check');
         if (width !== undefined && max !== undefined && width > max + EPS) c.err(`${name}: gap ${fmt(width)} m above the ${fmt(max)} m throw`);
         break;
@@ -762,6 +782,20 @@ export function checkCoop(graph, metrics) {
     }
     return best;
   };
+  // A28 (S11): a co-op link from the fork may be one leg's entry (both partners are at the fork for the boost, then
+  // separate). Walked from its `from` end only, a `bolted` one never (as `soloArcsOf` treats a bolt).
+  const coopArcs = arcsOf(links, (l) => COOP_KINDS.has(l.kind) && !BOLTED_KINDS.has(l.kind))
+    .filter((a) => a.from === a.link.from && a.link.bolted !== true);
+  /** The fastest co-op arc x -> y, timed ones first. */
+  const fastestCoop = (x, y, speed) => {
+    let best = null;
+    for (const a of coopArcs) {
+      if (a.from !== x || a.to !== y) continue;
+      const t = timeOf(a.link, speed);
+      if (!best || (best.untimed && !t.untimed) || (best.untimed === t.untimed && t.t < best.t)) best = { ...t, link: a.link };
+    }
+    return best;
+  };
   const order = new Map(spaces.map((s, i) => [s.id, i]));
 
   for (const [id, legs] of splits) {
@@ -776,11 +810,26 @@ export function checkCoop(graph, metrics) {
     // Leg times (graph-schema "How the checks read the graph"): the link into the first leg space (from the fork, the
     // space that leads into both legs), the links between leg spaces, the fastest link out of the last leg space to
     // the rejoin space (the first space, in file order, both last leg spaces lead to). Solo links only: a leg is walked
-    // alone.
+    // alone (A28: one leg may be entered by a co-op link from the fork, below).
     const inLegs = new Set([...legs.a, ...legs.b]);
     const intoA = new Set(soloArcs.filter((a) => a.to === legs.a[0] && !inLegs.has(a.from)).map((a) => a.from));
     const intoB = new Set(soloArcs.filter((a) => a.to === legs.b[0] && !inLegs.has(a.from)).map((a) => a.from));
-    const fork = [...intoA].filter((x) => intoB.has(x)).sort((x, y) => order.get(x) - order.get(y))[0];
+    let fork = [...intoA].filter((x) => intoB.has(x)).sort((x, y) => order.get(x) - order.get(y))[0];
+    // No solo fork: the first space (file order) that leads into one leg by a solo arc and into the other only by a
+    // co-op link (A28). Never both legs by co-op links: after the boost nobody is left to help the other partner.
+    let coopSide;
+    if (fork === undefined) {
+      const coopInto = (first) => new Set(coopArcs.filter((a) => a.to === first && !inLegs.has(a.from)).map((a) => a.from));
+      const coopA = coopInto(legs.a[0]);
+      const coopB = coopInto(legs.b[0]);
+      const mixed = [...new Set([...intoA, ...intoB])]
+        .filter((x) => (intoA.has(x) && coopB.has(x)) || (intoB.has(x) && coopA.has(x)))
+        .sort((x, y) => order.get(x) - order.get(y))[0];
+      if (mixed !== undefined) {
+        fork = mixed;
+        coopSide = intoA.has(mixed) ? 'b' : 'a';
+      }
+    }
     const lastA = legs.a[legs.a.length - 1];
     const lastB = legs.b[legs.b.length - 1];
     const outOf = (x) => new Set(soloArcs.filter((a) => a.from === x && !inLegs.has(a.to) && a.to !== fork).map((a) => a.to));
@@ -805,7 +854,9 @@ export function checkCoop(graph, metrics) {
       const hops = [[from, leg[0]], ...leg.slice(1).map((x, i) => [leg[i], x]), [leg[leg.length - 1], rejoin]];
       let total = 0;
       for (const [x, y] of hops) {
-        const arc = fastest(x, y, splitSpeed);
+        const coopEntry = side === coopSide && x === from && y === leg[0];
+        const arc = coopEntry ? fastestCoop(x, y, splitSpeed) : fastest(x, y, splitSpeed);
+        if (arc && coopEntry) c.info(`split ${id} leg ${side}: entered by ${linkName(arc.link)} (co-op, from the fork ${from})`);
         if (!arc) {
           c.err(`split ${id} leg ${side}: no solo link from ${x} to ${y}`);
           broken = true;
