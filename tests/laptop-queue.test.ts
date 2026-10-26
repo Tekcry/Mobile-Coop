@@ -9,6 +9,8 @@ const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'l
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 // @ts-expect-error plain .mjs module without types
 import { overCapAffected } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs module without types
+import { partsTable, slowLines, slowNote, slowRecord, slowSummary } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -1373,6 +1375,66 @@ describe('train reruns', () => {
     expect(suiteParts(['e2e-desktop:2'], times)).toEqual(['e2e-desktop:2']);
     expect(suiteParts(['e2e-coop'], {})).toEqual(['e2e-coop']);
     expect(suiteParts(['e2e-coop'], times).length).toBe(1); // one part: the service never marks it for a shard
+  });
+});
+
+describe('laptop-queue-11: parts per head (F36) and SLOW lines (F35)', () => {
+  const MASTER_SRC = "const REPORT = ['anim-audit'];\nconst PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };\nconst expand = (list) => list;";
+  const PR568_SRC = MASTER_SRC.replace("'5', '6'] }", "'5', '6', '7', '8', '9'] }");
+  // the scratch times.json today: stale e2e-desktop:3 and e2e-sectorops:mission, no rows for sectorops 7-9
+  const times = { 'e2e-desktop:1': 60, 'e2e-desktop:2': 50, 'e2e-desktop:3': 70, 'e2e-desktop:4': 40, 'e2e-sectorops:1': 300, 'e2e-sectorops:2': 200, 'e2e-sectorops:3': 100, 'e2e-sectorops:4': 100, 'e2e-sectorops:5': 100, 'e2e-sectorops:6': 600, 'e2e-sectorops:mission': 30 };
+  it('partsTable reads a run-e2e PARTS line; null when absent or malformed', () => {
+    expect(partsTable(MASTER_SRC)).toEqual({ 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4', '5', '6', '7', '8'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] });
+    expect(partsTable(PR568_SRC)['e2e-sectorops']).toHaveLength(9);
+    expect(partsTable('')).toBeNull();
+    expect(partsTable("const PARTS = { 'a': 1 };")).toBeNull();
+    expect(partsTable("const PARTS = { 'a': [x] };")).toBeNull();
+  });
+  it('suiteParts with a head table: the head\'s parts only, never stale times keys', () => {
+    const master = partsTable(MASTER_SRC);
+    expect(suiteParts(['e2e-desktop'], times, master)).toEqual(['e2e-desktop:1', 'e2e-desktop:2', 'e2e-desktop:4']);
+    expect(suiteParts(['e2e-sectorops'], times, master)).toEqual(['1', '2', '3', '4', '5', '6'].map((n) => `e2e-sectorops:${n}`));
+    expect(suiteParts(['e2e-sectorops'], times, partsTable(PR568_SRC))).toHaveLength(9);
+    expect(suiteParts(['e2e-sectorops:2', 'e2e-coop'], times, master)).toEqual(['e2e-sectorops:2', 'e2e-coop']);
+    // the sound fallback {} (no table could be read): whole suites, no invented parts
+    expect(suiteParts(['e2e-desktop', 'e2e-coop'], times, {})).toEqual(['e2e-desktop', 'e2e-coop']);
+    // no table at all: the times keys as before (expectedWallS)
+    expect(suiteParts(['e2e-desktop'], times)).toHaveLength(4);
+  });
+  it('a #568 head shards all nine parts; parts with no time weigh the median of the known ones', () => {
+    const parts = suiteParts(['e2e-sectorops'], times, partsTable(PR568_SRC));
+    const bins = shard(parts, times, 2);
+    expect(bins.flatMap((b: { suites: string[] }) => b.suites).sort()).toEqual([...parts].sort());
+    // known 100,100,100,200,300,600 -> median 200 for parts 7-9: total 1400 + 600 = 2000
+    expect(bins.reduce((a: number, b: { weight: number }) => a + b.weight, 0)).toBe(2000);
+  });
+  it('slowLines reads the SLOW lines; none on a master log', () => {
+    expect(slowLines(RUN)).toEqual([]);
+    const log = `${RUN}\nSLOW: e2e-sectorops:6 684s of 900s\r\nSLOW: e2e-coop 700s of 900s\nnot SLOW: x 1s of 2s\n`;
+    expect(slowLines(log)).toEqual([{ s: 'e2e-sectorops:6', sec: 684, limit: 900 }, { s: 'e2e-coop', sec: 700, limit: 900 }]);
+  });
+  it('describe appends the slow suites, harmless without them, still cut to 140', () => {
+    const ok = { suites: [{ s: 'a', ok: true, report: false }], wall: 700, flakes: [] };
+    expect(describeRun(ok)).toBe('1/1 pass, 700 s');
+    expect(describeRun({ ...ok, slow: [] })).toBe('1/1 pass, 700 s');
+    expect(slowNote(undefined)).toBe('');
+    expect(describeRun({ ...ok, slow: [{ s: 'e2e-sectorops:6', sec: 684, limit: 900 }] })).toBe('1/1 pass, 700 s; slow: e2e-sectorops:6 684/900s');
+    const slow = Array.from({ length: 12 }, (_, i) => ({ s: `e2e-sectorops:${i}`, sec: 700, limit: 900 }));
+    expect(describeRun({ ...ok, slow }).length).toBe(140);
+  });
+  it('slowRecord keeps the window; slowSummary lists the worst per suite', () => {
+    const now = NOW;
+    const old = { s: 'e2e-coop', sec: 800, limit: 900, sha: 'aaaaaaaa', ref: 'x', date: new Date(now - 8 * 86400_000).toISOString() };
+    const rec = slowRecord([old], [{ s: 'e2e-sectorops:6', sec: 684, limit: 900 }, { s: 'e2e-coop', sec: 690, limit: 900 }], { sha: 'b'.repeat(40), ref: 'feature/x', now });
+    expect(rec.map((x: { s: string }) => x.s)).toEqual(['e2e-sectorops:6', 'e2e-coop']);
+    expect(rec[0]).toMatchObject({ sha: 'bbbbbbbb', ref: 'feature/x', date: new Date(now).toISOString() });
+    const rec2 = slowRecord(rec, [{ s: 'e2e-sectorops:6', sec: 720, limit: 900 }], { sha: 'c'.repeat(40), ref: 'train/9', now });
+    const md = slowSummary(rec2);
+    expect(md.split('\n')[3]).toBe('| e2e-sectorops:6 | 2 | 720s of 900s | cccccccc train/9 2026-10-23T20:00 |');
+    expect(md.split('\n')[4]).toContain('| e2e-coop | 1 | 690s of 900s |');
+    expect(slowSummary([])).toBe('');
+    expect(slowSummary(undefined)).toBe('');
+    expect(slowRecord(undefined, [], { now })).toEqual([]);
   });
 });
 

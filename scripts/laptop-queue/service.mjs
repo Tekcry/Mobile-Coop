@@ -112,6 +112,7 @@ import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockD
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { AFFECTED_MAX } from '../e2e-affected.mjs';
+import { partsTable, slowLines, slowRecord, slowSummary } from './lib.mjs'; // laptop-queue-11 (F35, F36)
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -212,6 +213,32 @@ function cmd(exe, args, { cwd = HERE, soft = false, input, env } = {}) {
 }
 const git = (args, opts) => cmd('git', args, opts);
 const gh = (args, opts) => cmd('gh', args, opts);
+
+// laptop-queue-11 F36: a suite's parts come from the run's head (run-e2e PARTS differs by branch), never the times keys
+const partsMemo11 = new Map(); // sha -> the head's PARTS table (only heads git could read are kept)
+/**
+ * Planning, before a slot is checked out: the PARTS table of `sha`'s run-e2e.mjs (git show here; the service fetches
+ * origin every pass), else this checkout's own run-e2e.mjs, else {} (no expansion: a whole suite, never a part the head
+ * may lack). lib suiteParts takes it.
+ */
+function planParts(sha) {
+  if (partsMemo11.has(sha)) return partsMemo11.get(sha);
+  const head = sha ? partsTable(git(['show', `${sha}:scripts/run-e2e.mjs`], { soft: true })) : null;
+  if (head) {
+    if (partsMemo11.size > 200) partsMemo11.clear();
+    partsMemo11.set(sha, head);
+    return head;
+  }
+  let own = null;
+  try { own = partsTable(fs.readFileSync(path.join(HERE, 'scripts/run-e2e.mjs'), 'utf8')); } catch { /* none */ }
+  return own ?? {};
+}
+/** Run time, the slot checked out at the head: what its own run-e2e lists for `list` (`--list`), else planParts. */
+function runParts(list, port, sha) {
+  if (!(list ?? []).length) return [];
+  const out = cmd('node', ['scripts/run-e2e.mjs', '--list', ...list], { cwd: SLOTS[port].dir, soft: true }).split('\n').map((x) => x.trim()).filter(Boolean);
+  return out.length ? out : suiteParts(list, times, planParts(sha));
+}
 
 /** Posts a commit status (dry run: prints the gh command); true when posted (or a dry run), false when the post failed. */
 function postStatus(sha, status, context, description) {
@@ -1115,7 +1142,7 @@ function updateBudget(result) {
   for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
   const quarantine = [...repo.quarantine, ...own, ...added];
   writeJson('quarantine.json', [...own, ...added]);
-  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${flakeSummary(rows, quarantine, repo.owners, now) || 'No flakes in the window.'}
+  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${[flakeSummary(rows, quarantine, repo.owners, now) || 'No flakes in the window.', slowSummary(state.slow)].filter(Boolean).join('\n\n')}
 `); } catch { /* summary only */ } }
   saveState();
   const touched = new Set([...(result.flakes ?? []), ...result.suites.filter((x) => !x.ok && x.flaky).map((x) => x.s)]);
@@ -1125,11 +1152,32 @@ function updateBudget(result) {
 }
 
 /**
+ * laptop-queue-11 F35: the SLOW lines (#568's run-e2e: a passing suite over 75% of its kill limit) in a finished run's
+ * logs (the last run-e2e block of each, flake reruns too; the worst per suite) go on result.slow (lib describe appends
+ * "; slow: ..." to the status) and into state.slow (pruned to the budget window; flake-budget.md lists them). No SLOW
+ * line (master today): result.slow = [], nothing changes.
+ */
+function noteSlow(job, result, runDir) {
+  const worst = new Map();
+  let names = [];
+  try { names = fs.readdirSync(runDir).filter((f) => f.endsWith('.log')); } catch { /* no logs */ }
+  for (const f of names) {
+    let text = '';
+    try { text = fs.readFileSync(path.join(runDir, f), 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? ''; } catch { continue; }
+    for (const x of slowLines(text)) if (!(worst.get(x.s)?.sec >= x.sec)) worst.set(x.s, x);
+  }
+  result.slow = [...worst.values()];
+  state.slow = slowRecord(state.slow, result.slow, { sha: job.sha, ref: job.ref, now: Date.now() });
+  if (result.slow.length) log(`${job.sha.slice(0, 8)}: slow ${result.slow.map((x) => `${x.s} ${x.sec}/${x.limit}s`).join(', ')}`);
+}
+
+/**
  * Posts the verdict on ctx (a context or a list: an affected request posts affected-e2e too), comments a failure, folds
  * the times. handedOff (desktop): a failure whose laptop rerun is queued posts pending with this description instead,
  * and no failure comment (the laptop rerun's verdict is the final one).
  */
 function finish(job, ctx, result, runDir, prNumber, { handedOff = '' } = {}) {
+  noteSlow(job, result, runDir); // laptop-queue-11 F35: result.slow for describe, state.slow for flake-budget.md
   const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report);
   const ok = result.suites.length > 0 && bad.length === 0;
   const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
@@ -1332,7 +1380,7 @@ async function runRequest(r, port, pair = null) {
   // part runs on the other slot alone, as a one-slot rerun
   const ctls = { [port]: ctl };
   if (pair?.length > 1) {
-    const two = r.kind === 'pr' && r.trainRerun && shard(suiteParts(r.suites, times), times, pair.length).every((b) => b.suites.length);
+    const two = r.kind === 'pr' && r.trainRerun && shard(suiteParts(r.suites, times, planParts(r.sha)), times, pair.length).every((b) => b.suites.length);
     if (two) { ports = [...pair]; for (const p of pair) ctls[p] ??= { child: null, why: '', by: null }; }
     else for (const p of pair) if (p !== port) busy[p] = null; // nothing to split: the other slot takes queue work again
   }
@@ -1490,7 +1538,7 @@ async function runRequest(r, port, pair = null) {
     // a train rerun: E2E_JOBS=1 per slot; split over both slots when pick gave it both (laptop-queue-7 A10), else one
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2);
     const split = ports.length > 1;
-    const bins = split ? shard(suiteParts(list, times), times, ports.length) : [{ suites: list }];
+    const bins = split ? shard(runParts(list, port, r.sha), times, ports.length) : [{ suites: list }];
     if (split) bins.forEach((b, i) => log(`${r.id}: bin ${ports[i]}: ${b.suites.length} parts, weight ${Math.round(b.weight)} s`));
     const t0 = Date.now();
     started = true;
@@ -1882,7 +1930,7 @@ async function pass() {
     if (key !== orderLogged) { orderLogged = key; if (frontIds.length || green.size) log(`order: front ${frontIds.length}, green ${green.size} (smallest first)`); }
   }
   // laptop-queue-7 A10: an open train rerun whose suites expand to 2+ parts may shard across both slots (lib pick)
-  if (!DESKTOP && RERUN_SHARD) queue.shardRerun = new Set(queue.requests.filter((r) => r.trainRerun && suiteParts(r.suites, times).length >= 2).map((r) => r.id));
+  if (!DESKTOP && RERUN_SHARD) queue.shardRerun = new Set(queue.requests.filter((r) => r.trainRerun && suiteParts(r.suites, times, planParts(r.sha)).length >= 2).map((r) => r.id));
   let started = false;
   for (let i = 0; i < 4 && !started; i++) {
     const slots = PORTS.map((port) => ({ port, busy: Boolean(busy[port] || virtual[port]) }));

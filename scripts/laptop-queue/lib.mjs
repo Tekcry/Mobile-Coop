@@ -451,11 +451,12 @@ export function runProgress(suites, times, jobs, elapsedMs) {
 }
 
 /**
- * The parts a suite list runs as: a named suite with parts in times.json (e2e-desktop -> e2e-desktop:1..4, the keys
- * times.json holds) expands to them; any other name (a part, a suite without parts, an unknown one) stays as given.
- * expectedWallS and the train rerun shard (laptop-queue-7 A10) read it.
+ * The parts a suite list runs as. table = a head's run-e2e PARTS (lib partsTable; F36: the truth per head, times.json
+ * keys go stale: e2e-desktop:3, e2e-sectorops:mission): a suite in it expands to `<s>:<n>`, any other name stays as
+ * given. With no table: the times.json keys (e2e-desktop -> e2e-desktop:1..4; expectedWallS's estimate).
  */
-export function suiteParts(suites, times) {
+export function suiteParts(suites, times, table) {
+  if (table) return (suites ?? []).flatMap((s) => (Array.isArray(table[s]) && table[s].length ? table[s].map((n) => `${s}:${n}`) : [s]));
   const keys = Object.keys(times ?? {});
   return (suites ?? []).flatMap((s) => {
     const own = keys.filter((k) => k.startsWith(`${s}:`));
@@ -781,7 +782,7 @@ export function mergeTimes(times, suites) {
   return out;
 }
 
-/** Status description: "<pass>/<n> pass, <wall> s" + "; flake: a,b" + "; known flaky: c" + "; FAIL: d", cut to 140. */
+/** Status description: "<pass>/<n> pass, <wall> s" + "; flake: a,b" + "; known flaky: c" + "; FAIL: d" + "; slow: e 684/900s" (F35), cut to 140. */
 export function describe(result) {
   const real = result.suites.filter((x) => !x.report);
   const pass = real.filter((x) => x.ok).length;
@@ -792,6 +793,7 @@ export function describe(result) {
   if (kf.length) d += `; known flaky: ${names(kf)}`;
   const bad = real.filter((x) => !x.ok && !x.flaky);
   if (bad.length) d += `; FAIL: ${names(bad)}`;
+  d += slowNote(result.slow);
   return d.length > 140 ? `${d.slice(0, 137)}...` : d;
 }
 
@@ -1419,4 +1421,57 @@ export function vanishedRequests(tracked, listed, misses = new Map()) {
     if (n >= 2) gone.push(r); else next.set(id, n);
   }
   return { gone, misses: next };
+}
+
+/**
+ * F36: the PARTS table of a run-e2e.mjs source (`const PARTS = { 'e2e-desktop': ['1', '2', '4'], ... };`, one line) as
+ * { suite: [part, ...] }; null when absent or unreadable (the caller falls back).
+ */
+export function partsTable(src) {
+  const m = /^const PARTS = (\{.*\});\s*$/m.exec(String(src ?? ''));
+  if (!m) return null;
+  try {
+    const t = JSON.parse(m[1].replace(/'/g, '"'));
+    if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
+    return Object.values(t).every((v) => Array.isArray(v) && v.every((x) => typeof x === 'string')) ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+/** F35: the `SLOW: <suite> <s>s of <limit>s` lines of a run-e2e output (#568's e2e-verdict slowLine) as [{ s, sec, limit }]. */
+export function slowLines(text) {
+  const out = [];
+  for (const m of String(text ?? '').matchAll(/^SLOW: (\S+) (\d+)s of (\d+)s\s*$/gm)) out.push({ s: m[1], sec: +m[2], limit: +m[3] });
+  return out;
+}
+
+/** F35: the status description's slow part, "; slow: a 684/900s,b 700/900s" ('' when none). */
+export function slowNote(slow) {
+  return (slow ?? []).length ? `; slow: ${slow.map((x) => `${x.s} ${x.sec}/${x.limit}s`).join(',')}` : '';
+}
+
+/**
+ * F35: the slow sightings kept for flake-budget.md: prev plus this run's (each { s, sec, limit, sha, ref, date }),
+ * pruned to `days` before now.
+ */
+export function slowRecord(prev, slow, { sha = '', ref = '', now, days = FLAKE_BUDGET_DAYS }) {
+  const date = new Date(now).toISOString();
+  const kept = (Array.isArray(prev) ? prev : []).filter((x) => now - Date.parse(x?.date) < days * 86400_000);
+  return [...kept, ...(slow ?? []).map((x) => ({ ...x, sha: sha.slice(0, 8), ref, date }))];
+}
+
+/** F35: the flake-budget.md section for the slow sightings: per suite its count and its worst run ('' when none). */
+export function slowSummary(list) {
+  const by = new Map();
+  for (const x of list ?? []) {
+    const r = by.get(x.s) ?? { s: x.s, n: 0, worst: x };
+    r.n++;
+    if (x.sec / x.limit > r.worst.sec / r.worst.limit) r.worst = x;
+    by.set(x.s, r);
+  }
+  if (!by.size) return '';
+  const rows = [...by.values()].sort((a, b) => b.worst.sec / b.worst.limit - a.worst.sec / a.worst.limit || (a.s < b.s ? -1 : 1));
+  return ['Slow (passed past 75% of the kill limit, SLOW lines):', '| Suite | Times | Worst | Head |', '| --- | --- | --- | --- |',
+    ...rows.map((r) => `| ${r.s} | ${r.n} | ${r.worst.sec}s of ${r.worst.limit}s | ${r.worst.sha} ${r.worst.ref} ${r.worst.date.slice(0, 16)} |`)].join('\n');
 }
