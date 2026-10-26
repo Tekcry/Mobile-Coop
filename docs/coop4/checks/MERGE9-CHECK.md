@@ -118,3 +118,73 @@ merge commit only. Files both sides touched since the base: `src/net/protocol.ts
 - Runs: typecheck clean; sectorTeamScale, tests/mission (4), playerSlots, sectorOut, net, charMates: 10 files, 229 passed.
 - Owner rule left open (check's note): two players left on slots 0 / 2 both read team A under fixed parity. Goes to the
   coop4 BRIEF watch list with Polish 1-3 (kit moves in the busy map, campaign cap at 3-4 in co-op, `gused` by slot).
+
+## Re-check (head 196d303a0)
+
+**FIX**
+
+Checker: fresh Opus. Scope: commit 196d303a0 (the lead's FIX 1 round) only.
+
+### FIX
+1. `slotOf('local')` now reads team B when the host is OUT (`src/game/playerSlots.ts:203-208`, bound at
+   `src/game/mission/sectorMission.ts:665`).
+   - The old host returned 0 for 'local' / '' without looking at the list. `slotOfId` maps '' to 'local' and then
+     looks it up in `playerRefsInto`, which leaves the local ref out while he is OUT (`gameState.ts:1181`). Not found,
+     it returns `none` = 1, so the host's mission events read slot 1 = team B.
+   - Reachable at 3-4 players: the host goes OUT while his own gadget is still live. Gas clouds, mines and frags all
+     credit `attackerId: 'local'` (`gadgetSystem.ts:313`, `:588`). A KO or kill from them after he is OUT reaches
+     `mission.kill(ko, 'local')` (`sectorMode.ts:1544`), and a no-kills / no-bodies rule breaks for team B, so
+     `restartSection('b')` restarts the wrong team. The old code got this case right.
+   - Fix (smallest): in `slotOfId`, return `g.localSlot` for 'local' / '' before the list walk (`localRef.slot`: 0 on
+     the host, the client's own slot on a client). This is pure and allocates nothing. It also fixes the same read in
+     the rating sync (`sectorMode.ts:1554`). `onPlayerOut`'s `slotOfId(.., id, -1)` (`:1574`) is unchanged for
+     'local', because it already read `localRef.slot` while he was listed.
+   - Test: in `tests/sectorTeamScale.test.ts`, list only `player('c', 2)` (local OUT) with team size 3, then
+     `slotOfId(gs, [], 'local', 1)` and `slotOfId(gs, [], '', 1)` must be 0. The fake has no `localSlot`, so give it
+     one, as `GameState` does.
+
+### Checked, fine
+- Remote ids: `refSlot` reads `TeamRef.slot`. `CoopHost` sets it at add (`coopHost.ts:434`) and on every table
+  change (`:266`), so a listed remote reads his fixed slot, not his list place. An id that is not listed (OUT, held or
+  unknown) still reads 1, as before. No remote event reaches the mission while he is unlisted: `gadget` is refused when
+  `!r.alive` (`coopHost.ts:876`), and remote shots and takedowns need a live sender.
+- `players`: `teamSizeOf` -> `g.teamSize()` -> `CoopHost.teamSize()` = 1 + remotes, held included. OUT players stay in
+  `remotes`, so the team size no longer drops when someone goes OUT or is held, and `teamForSlot` keeps every
+  connected player's team. The mission now agrees with the mode's own team size (`sectorMode.ts:431`, `:820`).
+- Callers in src/game/mission: `kill` (`sectorMission.ts:434`), `remoteGadget` (`:444`) and `intel` (`:461`) use
+  `slotOf`. `begin` / `tick` (`:347`, `:475`) use `players`, then `runner.players` / `tracker.players` (`> 1` /
+  `<= 1` reads, `teamForSlot`). `viewer()` (`:339`) stays slot 0. The local `gadget` event uses `listen(.., () => 0)`
+  (`:707`), the host's slot. None of them depended on list-index semantics apart from FIX 1 above.
+- 2 players on slots 0 / 1, both connected: `slotOf` gives 0 / 1 and `players` gives 2, the same as before. Single
+  player: `teamSize()` = 1 -> 'all', the same as before. One change: a 2-player client who drops and is held now
+  keeps `players` at 2 (teams A / B kept) where it used to drop to 1 ('all'). This matches A10 (connected + held)
+  and the mode's guard spawns. It reverts to 'all' once the hold is released. Not a fix.
+- `playerSlots.ts`: imports are `import type` only (PlayerRef, GameState, MoveState), with no Babylon and no
+  `src/net`. Runtime importers are sectorMode and sectorMission (one-way), and protocol / session as before. There is
+  no new runtime cycle, and `gameState.ts` takes only types from it. The `export { refSlot, slotOfId, teamSizeOf }`
+  in `sectorMode.ts:207` keeps the test's old import path working, and typecheck passes. No allocation: the per-tick
+  `players()` is an optional call.
+- New tests: "sectorMission binds players / slotOf ..." (the source regex) fails on the old code. "slot 1 OUT or
+  held ..." calls only `slotOfId` / `teamForSlot`, which the fix did not change, so it passes on the old code too. The
+  regex is the only guard on the binding. That is acceptable, but FIX 1's test should also go in.
+
+### Note (not this fix, master's code)
+- A client's gas / flash runs on the host through `remoteEffect` -> `detonate` -> `hit()` with `attackerId: 'local'`
+  (`gadgetSystem.ts:351`, `:588`). Its knock-outs count as the host's (slot 0, team A) in `mission.kill` and in the
+  rating sync. Add it to the coop4 BRIEF watch list with Polish 3 (`gused` by slot).
+
+### Runs
+- `npm run typecheck:fast`: clean.
+- `npx vitest run tests/sectorTeamScale.test.ts tests/mission tests/playerSlots.test.ts tests/sectorOut.test.ts`:
+  8 files, 122 passed.
+
+## Lead fix round 2 (re-check FIX 1)
+- `slotOfId` (`src/game/playerSlots.ts`): 'local' / '' return `g.localSlot` (0 on the host, the client's own slot)
+  before the list walk, so an OUT host's live gadget credits his own slot / team (also the rating sync,
+  `sectorMode.ts:1554`). `onPlayerOut`'s lookup reads the same slot as before.
+- Test (`tests/sectorTeamScale.test.ts`): local not listed (OUT), team 3: 'local' and '' read 0; with `localSlot` 3
+  they read 3 (team B).
+- Runs: typecheck clean; sectorTeamScale, tests/mission (4), playerSlots, sectorOut, charMates, net: 10 files, 230
+  passed. Exactly the re-check's suggested fix and test; verified by the lead, no third round.
+- Watch list for the coop4 BRIEF (next merge / switch-on): Polish 1-3 above; the two-left-on-slots-0/2 team rule; a
+  client's gas / flash run on the host credits `attackerId: 'local'` (the host, team A).

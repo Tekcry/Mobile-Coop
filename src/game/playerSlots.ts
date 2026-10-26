@@ -199,10 +199,13 @@ export function refSlot(r: PlayerRef, index: number): number {
   return (r as Partial<TeamFields>).slot ?? index;
 }
 
-/** (coop4 SM) The slot of player `id` ('local' or '' = this machine's player), or `none` when it is not listed. No allocation. */
+/**
+ * (coop4 SM) The slot of player `id` ('local' or '' = this machine's player: `g.localSlot`, listed or not, so an OUT
+ * host's own live gadget still reads his slot; merge 9 re-check), or `none` when another id is not listed. No allocation.
+ */
 export function slotOfId(g: GameState, refs: PlayerRef[], id: string, none: number): number {
-  const want = id === '' ? 'local' : id;
+  if (id === '' || id === 'local') return (g as { localSlot?: number }).localSlot ?? 0;
   const rs = g.playerRefsInto(refs);
-  for (let i = 0; i < rs.length; i++) if (rs[i]!.id === want) return refSlot(rs[i]!, i);
+  for (let i = 0; i < rs.length; i++) if (rs[i]!.id === id) return refSlot(rs[i]!, i);
   return none;
 }

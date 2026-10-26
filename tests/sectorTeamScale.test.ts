@@ -249,6 +249,16 @@ describe('the mission reads fixed slots, not list places (coop4 merge 9, check F
     expect(teamForSlot(1, 3, 'sector')).toBe('b');
   });
 
+  it('the local player OUT (not listed): local and "" still read his own slot (localSlot), not none', () => {
+    const { g } = sector([sec('s', 0, true)], [player('c', 2)], () => 3);
+    const gs = g as unknown as GameState;
+    expect(slotOfId(gs, [], 'local', 1)).toBe(0);
+    expect(slotOfId(gs, [], '', 1)).toBe(0);
+    (g as { localSlot?: number }).localSlot = 3;
+    expect(slotOfId(gs, [], 'local', 1)).toBe(3);
+    expect(teamForSlot(slotOfId(gs, [], 'local', 1), 3, 'sector')).toBe('b');
+  });
+
   it('sectorMission binds players / slotOf through teamSizeOf / slotOfId (no list-index read)', () => {
     const src = readFileSync(resolve(__dirname, '../src/game/mission/sectorMission.ts'), 'utf8');
     expect(src).toMatch(/players: \(\) => teamSizeOf\(g, refs\)/);
