@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-26T01:18Z
 
 # campaign J8 G4 (cloud copy of docs/tallow-fixes/briefs/G4.md on the base)
 
