@@ -6,8 +6,9 @@
 //        stepped `s` game seconds in lockstep, the driver's course hook run each tick). Inside a split leg `robot` is
 //        'leader' or 'follower' and only that robot takes the step.
 //   link the planner's link step (`{ index, kind, from, to, at, past, action, limit_s, hold_s, holdFrom, reverse }`).
-// It returns `{ outcome: 'walked' | 'stub' | 'step-timeout', stub?, robot?, limit_s?, t?, why?, phase? }`; the driver
-// logs a stop and does the recovery past the link (R4a `linkStep`).
+// It returns `{ outcome: 'walked' | 'stub' | 'step-timeout' | 'course', stub?, robot?, limit_s?, t?, why?, phase? }`;
+// the driver logs a stop and does the recovery past the link (R4a `linkStep`), or on 'course' (a course restart during
+// the step: SR3) hands it to `course.onRestart`.
 //
 // R5 (pad only, the sequences of the game's own traversal suites, scripts/e2e-traverse.mjs and e2e-ct-warehouse.mjs):
 // `ladder` (walk into the foot, Y, climb, step off at the top; down from the top), `drop` (walk off the edge; a hang
@@ -881,15 +882,22 @@ function maskOf(list) {
 /**
  * Drive `machine` on `page` until it is done (or `STEP_CAP_S` game s, or `STEP_MAX_POLLS` polls): its result. The game
  * advances only through `ctx.advance(s)` (R4b: every page in lockstep, the driver's course hook each tick; `ctx.clock`
- * is a read, never an advance); a ctx without one (a page alone) steps the robot's page in the page.
+ * is a read, never an advance); a ctx without one (a page alone) steps the robot's page in the page. (J13 hold restart)
+ * A course event pending on the driver (`ctx.driver.takeCourse()`: a restart or retry the course hook queued) ends the
+ * step at once with outcome 'course', taken, so the driver hands it to `course.onRestart`.
  */
 export async function drive(ctx, page, machine) {
   const advance = typeof ctx?.advance === 'function' ? ctx.advance : null;
+  const take = typeof ctx?.driver?.takeCourse === 'function' ? () => ctx.driver.takeCourse() : () => null;
   await page.evaluate(stepPageScript());
   let r = withHint(await call(page, 'begin', advance ? 0 : STEP_POLL_S));
   const t0 = r.t;
   for (let n = 0; ; n++) {
     const t = r.t - t0;
+    if (take()) {
+      await call(page, 'release');
+      return { outcome: 'course', t: Math.round(t * 100) / 100, phase: machine.phase, why: 'course', limit_s: machine.limit };
+    }
     const o = machine.update(r, t);
     if (o.done || t > STEP_CAP_S || n >= STEP_MAX_POLLS) {
       await call(page, 'release');
@@ -954,6 +962,9 @@ export const rappel = robotStep('rappel');
 async function holdStub(ctx, link, why) {
   const hold = typeof link.hold_s === 'number' && link.hold_s > 0 ? link.hold_s : 0;
   await ctx.driver.hold(hold);
+  // (J13 hold restart) a course restart during the hold (or pending at it): no placement past the link, the driver hands
+  // it to `course.onRestart` (its rejoin or push past)
+  if (ctx.driver.takeCourse?.()) return { outcome: 'course', why: 'course' };
   await ctx.driver.place(link.past ?? link.at);
   return { outcome: 'stub', stub: { link: link.index, kind: link.kind, hold_s: hold, why } };
 }

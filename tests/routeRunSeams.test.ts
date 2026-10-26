@@ -77,7 +77,7 @@ function fakeGame(x: number, z: number) {
     },
     async screenshot() {},
   };
-  return { game, guard, em, pos, page, calls };
+  return { game, guard, em, pos, page, calls, window };
 }
 
 async function oneCtx(forgive = true) {
@@ -232,6 +232,149 @@ describe('SR3: the course interrupt', () => {
   });
 });
 
+/** The course hook interrupts once, at the first poll after the page `P` has seen a call named `name` (from `onPoll`). */
+function interruptOnCall(P: { calls: string[] }, name: string) {
+  let fired = false;
+  hook.onPoll = vi.fn(async (ctx: Obj) => {
+    if (!fired && P.calls.includes(name)) {
+      fired = true;
+      await ctx.driver.call('interrupt');
+    }
+  });
+}
+
+/** A grounded robot that lands on y -2 past z `edge` (a drop's far floor), as routeRunPair's drop pair. */
+function dropEdge(G: ReturnType<typeof fakeGame>, edge: number) {
+  const c = G.game.player.controller;
+  c.grounded = true;
+  const loop = G.window.__app.loop;
+  const orig = loop.stepHeadless;
+  loop.stepHeadless = (dt: number) => {
+    orig(dt);
+    if (c.grounded && G.pos.z > edge) G.pos.y = -2;
+  };
+}
+
+describe('J13 hold restart: a course restart during a link machine or a stub hold (j13-final-check seams deviation 3)', () => {
+  const link99 = (kind: string) => ({ type: 'link', index: 99, kind, action: kind, from: 'near', to: 'far', at: [0, 0, 4], past: [0, 0, 6], limit_s: 5 });
+  const machineRun = (kind: string) => ({ id: 'm', section: null, steps: [{ type: 'walk', to: [0, 0, 4], space: 'near', link: 99 }, link99(kind), walk([0, 0, 10])] });
+  const stubRun = { id: 's', section: null, steps: [{ type: 'walk', to: [0, 0, 4], space: 'near', link: 17 }, { type: 'link', index: 17, kind: 'coop_boost', action: 'coop_boost', from: 'near', to: 'far', at: [0, 0, 4], past: [0, 0, 8], hold_s: 6 }, walk([0, 0, 2])] };
+  const count = (P: { calls: string[] }, n: string) => P.calls.filter((c) => c === n).length;
+  async function machineCtx() {
+    const o = await oneCtx();
+    // the steps context's clock advance (route-run.mjs stepsContext): the machines step the game through the driver
+    Object.assign(o.ctx, { advance: (s: number) => o.ctx.driver.advance(s), stick: pace.stick });
+    o.A.game.player.controller.grounded = true;
+    return o;
+  }
+
+  it.each(['ladder', 'drop'])('one page, mid-%s: the step ends with outcome course, onRestart takes it, no step-timeout', async (kind) => {
+    const { A, ctx } = await machineCtx();
+    interruptOnCall(A, 'after');
+    hook.onRestart = vi.fn(async () => ({ resume: 2, place: { leader: [0, 0, 8], follower: null } }));
+    const run = machineRun(kind);
+    const log = await runOne(ctx, run);
+    expect(hook.onRestart).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart.mock.calls[0][3]).toBe(1);
+    expect(log.deadStops).toEqual([]);
+    expect(log.links).toEqual([]);
+    // the machine ended within a few polls of the interrupt (its 5 s limit is 50 polls)
+    expect(count(A, 'after')).toBeLessThan(10);
+    expect(A.pos.z).toBeCloseTo(10, 0);
+    expect(ctx.driver.courseHit).toBe(null);
+  });
+
+  it('one page, during a stub hold: no placement past the stub, no stub logged, onRestart takes it and the run goes on from there', async () => {
+    const { A, ctx } = await oneCtx();
+    interruptOnCall(A, 'holdStart');
+    hook.onRestart = vi.fn(async () => ({ resume: 2, place: null }));
+    const log = await runOne(ctx, stubRun);
+    expect(hook.onRestart).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart.mock.calls[0][3]).toBe(1);
+    expect([log.stubs, log.deadStops, log.links]).toEqual([[], [], []]);
+    // never placed (no stub placement onto `past`); it walked back from the near side
+    expect((await ctx.driver.call('posN'))[3]).toBe(0);
+    expect(A.pos.z).toBeCloseTo(2, 0);
+    // the hold ended at the interrupt, not after its 6 s
+    expect(log.time_s).toBeLessThan(6);
+  });
+
+  it('the pair, during a stub hold: neither robot placed past it, onRestart once, the follower never interrupted', async () => {
+    const { A, B, ctx } = await pairCtx();
+    interruptOnCall(A, 'holdStart');
+    hook.onRestart = vi.fn(async () => ({ resume: 2, place: null }));
+    const log = await runOne(ctx, stubRun);
+    expect(hook.onRestart).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart.mock.calls[0][3]).toBe(1);
+    expect([log.stubs, log.deadStops]).toEqual([[], []]);
+    expect((await ctx.pair.host.call('posN'))[3]).toBe(0);
+    expect(A.pos.z).toBeCloseTo(2, 0);
+    expect(B.calls).not.toContain('interrupt');
+  });
+
+  it("the pair: the leader walks the drop, the follower's machine is interrupted; its advance does not swallow it", async () => {
+    const { A, B, ctx } = await pairCtx();
+    dropEdge(A, 4.5);
+    interruptOnCall(B, 'after');
+    hook.onRestart = vi.fn(async () => ({ resume: 2, place: null }));
+    const log = await runOne(ctx, { id: 'd', section: null, steps: [{ type: 'walk', to: [0, 0, 4], space: 'near', link: 99 }, { ...link99('drop'), past: [0, -2, 6] }] });
+    expect(hook.onRestart).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart.mock.calls[0][3]).toBe(1);
+    expect([log.deadStops, log.links]).toEqual([[], []]);
+    expect(count(B, 'after')).toBeLessThan(10);
+    expect(count(A, 'interrupt')).toBe(1);
+    expect(B.calls).not.toContain('interrupt');
+  });
+
+  it('no course: the same runs as before (the step-timeout at its limit and the placement past; the stub held and placed; the follower stop)', async () => {
+    for (const kind of ['ladder', 'drop']) {
+      const { A, ctx } = await machineCtx();
+      const log = await runOne(ctx, machineRun(kind));
+      expect(log.deadStops.map((d: Obj) => [d.class, d.link, d.limit_s])).toEqual([['step-timeout', 99, 5]]);
+      expect(log.deadStops[0].step_t).toBeGreaterThanOrEqual(5);
+      expect(log.deadStops[0].step_t).toBeLessThanOrEqual(5.5);
+      expect(log.links).toEqual([{ index: 99, kind, outcome: 'step-timeout' }]);
+      expect((await ctx.driver.call('posN'))[3]).toBe(1);
+      expect(A.pos.z).toBeCloseTo(10, 0);
+    }
+    const one = await oneCtx();
+    const sl = await runOne(one.ctx, stubRun);
+    expect(sl.stubs).toEqual([{ link: 17, kind: 'coop_boost', hold_s: 6, why: expect.any(String) }]);
+    expect(sl.time_s).toBeGreaterThan(6);
+    expect((await one.ctx.driver.call('posN'))[3]).toBe(1);
+    expect(one.A.pos.z).toBeCloseTo(2, 0);
+    const p = await pairCtx();
+    dropEdge(p.A, 4.5);
+    const pl = await runOne(p.ctx, { id: 'd', section: null, steps: [{ type: 'walk', to: [0, 0, 4], space: 'near', link: 99 }, { ...link99('drop'), past: [0, -2, 6] }] });
+    expect(pl.deadStops.map((d: Obj) => [d.robot, d.class, d.link, d.limit_s])).toEqual([['follower', 'step-timeout', 99, 5]]);
+    expect(pl.links).toEqual([{ index: 99, kind: 'drop', outcome: 'step-timeout' }]);
+    expect(hook.onRestart).not.toHaveBeenCalled();
+    // (nothing pending: the same assertions pass on the code before this fix)
+    expect([one.ctx.driver.courseHit ?? null, p.ctx.pair.host.courseHit ?? null]).toEqual([null, null]);
+  });
+
+  it('a pending course: the next until returns it without a tick; a hold does not start; a restart or begin drops a stale one', async () => {
+    const { A, ctx } = await oneCtx();
+    const d = ctx.driver;
+    await d.call('begin');
+    await d.call('interrupt');
+    // a tick-0 position read (a stop's position) leaves it pending
+    expect((await d.call('tick', 0)).ev).toBe('course');
+    const ticks = count(A, 'tick');
+    await d.hold(3);
+    expect(A.calls).not.toContain('holdStart');
+    await d.place([1, 0, 1]);
+    expect(d.courseHit).toMatchObject({ ev: 'course' });
+    expect((await d.until()).ev).toBe('course');
+    expect(count(A, 'tick')).toBe(ticks + 1);
+    expect(d.courseHit).toBe(null);
+    await d.call('interrupt');
+    await d.call('tick', 0);
+    await d.call('restart');
+    expect(d.courseHit).toBe(null);
+  });
+});
+
 /** (J13) A locked door at (0, 10) that the fake robot cannot walk through (held at z 9 until it opens); placements pass. */
 function lockedDoorAhead(A: ReturnType<typeof fakeGame>) {
   const door = { open: 0, anchor: { locked: true, id: 'd9' } };
@@ -266,6 +409,28 @@ describe('J13: a walk stalled at the locked door of its door link', () => {
     expect(log.deadStops).toEqual([]);
     expect(log.links).toEqual([{ index: 9, kind: 'double_door', outcome: 'walked' }]);
     expect(A.pos.z).toBeCloseTo(14, 0);
+  });
+
+  it('a restart during course.onLockedDoor (its drill hold / lock poll): onRestart once, no locked stop, never placed past', async () => {
+    const { A, ctx } = await oneCtx();
+    const door = lockedDoorAhead(A);
+    hook.onLockedDoor = vi.fn(async (c: Obj) => {
+      await c.driver.call('interrupt');
+      await c.driver.advance(1);
+      return false;
+    });
+    hook.onRestart = vi.fn(async () => {
+      door.anchor.locked = false;
+      door.open = 1;
+      return { resume: 2, place: null };
+    });
+    const log = await runOne(ctx, { id: 'r', section: null, steps });
+    expect(hook.onLockedDoor).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart.mock.calls[0][3]).toBe(1);
+    expect([log.deadStops, log.links]).toEqual([[], []]);
+    expect((await ctx.driver.call('posN'))[3]).toBe(0);
+    expect(ctx.driver.courseHit).toBe(null);
   });
 
   it('no course: the same locked stop on the link, the robot placed past it', async () => {
