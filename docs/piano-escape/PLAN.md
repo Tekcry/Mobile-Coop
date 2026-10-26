@@ -127,10 +127,10 @@ until every guard is down.
 
 | # | Stretch (where) | Forces | Guards | How |
 | --- | --- | --- | --- | --- |
-| 1 | The bins (start bay, SW ground, x 0-9.4, z 0-10.4) | Paired co-op kill | G1 + G2 | The pair that came down the stair searches round W1's north end side by side; both players take them at once at K1 (6.0, 8.6). |
+| 1 | The bins (start bay, SW ground, x 0-9.4, z 0-10.4) | Paired co-op kill | G1 + G2 | The pair that came down the stair searches round W1's north end side by side; both players take them at once at K1 (6.0, 8.4). |
 | 2 | South aisle (x 9.4-20, z 0-4) | Stalking to a kill spot | G3 | G3 walks east down the aisle under the south windows; follow in the flash shadows of the sack stacks to his stop in the roller mill's shadow; kill at K2 (22.8, 7.0). |
 | 3 | Sack bay (x 16-26, z 8-13) | Stealth past a sweep | G4, G5 | Their sweeps cross the bay; slip from the mill bay's north opening (x 24-26, z 8) to the office door (x 26, z 11.6-12.8) between torch passes. No kill here. |
-| 4 | Office (x 26-32, z 6-13) | Solo knife kill | G6 | At the desk, torch on the east window; from behind at K4 (29.0, 9.6). |
+| 4 | Office (x 26-32, z 6-13) | Solo knife kill | G6 | At the desk, torch on the east window; from behind at K4 (28.2, 9.9). |
 | 5 | Office door | Paired co-op kill | G4 + G5 | Every lap their sweeps meet at the office door to check it; both players inside, one each side of the frame, take them at once at K5 (25.4, 12.2). |
 | 6 | East gallery (up the lobby ladder, x 22-32, z 15-18) | Stalking to a kill spot | G7 | From the deck hatch, follow G7 west to his stop by sack stack GS2; kill at K6 (22.8, 16.2). |
 | 7 | Crane bay (gallery, x 12-22) | Stealth past a sweep | G8 + G9 | The pair sweeps east to the crane bay's end; hide behind GS2 while they turn 1.2 m away, between flashes through the north windows. |
@@ -145,10 +145,10 @@ until every guard is down.
 | Start bay | 0-9.4, 0-10.4 | ground | Grain bins W1 (4.5-6.5, 3-7.5, 2.8 m: the intro wall); low sacks (1.5-3.9, 1-2.2); sack wall north (0-8.2, 9.2-10.4); bin row east (9.4-10.6, 5.2-10.4); the stair foot gate (8.2-9.4, z 10.4) | 2 |
 | South aisle | 9.4-20, 0-4 | ground | Low sack stacks Sb1 (13-14.2, 0.2-1.2), Sb2 (16.5-17.7, 2.6-3.8); sack wall north (10.6-20, 4-5.2) | 2 |
 | Mill bay | 20-26, 0-8 | ground | Roller mill M1 (21.5-24, 3.5-6, 2.2 m); bin row west (18.8-20, 5.2-8); the sealed bin bank east (26-32, 0-6) | 1 |
-| Sack bay | 16-26, 8-13 | ground | Low sacks Sd1 (17.5-19.9, 11.2-12.4), Sd2 (22.5-23.7, 11-12.2); bin row west (14.8-16, 5.2-14.2); sack wall north (14.8-26, 13-14.2) | 2 |
+| Sack bay | 16-26, 8-13 | ground | Low sacks Sd1 (17.5-19.9, 11.2-12.4), Sd2 (17.6-18.8, 8.8-9.6), Sd3 (23.6-24.8, 8.6-9.4); sack wall south (16-18.8, 7.4-8.6); bin row west (14.8-16, 5.2-14.2); sack wall north (14.8-26, 13-14.2) | 2 |
 | Office | 26-32, 6-13 | ground | Desk (28-30.4, 10.6-11.4); window east (z 8.5-10); doors west (z 11.6-12.8) and north (x 29-30.2) | 1 |
 | Ladder lobby | 26-32, 13-18 | ground | Timber partition west (x 26); ladder L1 at (31.2, 15.6) up through a deck hatch | 1 |
-| Upper gallery | 0-32, 15-18 | +4.2 m | Timber deck with a rail; sack stacks GS1 (3-5.4, 17.2-18), GS2 (20-22.4, 17.1-18), GS3 (26-28.4, 17.1-18); the crane bay (x 12-20: the rail open over the crane well); the main stair head (x 8.2-9.4); the hoist door (west gable, z 15.8-17.4) | 5 + hoist lamp + exit sign |
+| Upper gallery | 0-32, 15-18 | +4.2 m | Timber deck with a rail; sack stacks GS1 (3-5.4, 17.6-18), GS2 (20-22.4, 17.1-18), GS3 (26-28.4, 17.1-18); the crane bay (x 12-20: the rail open over the crane well); the main stair head (x 8.2-9.4); the hoist door (west gable, z 15.8-17.4) | 5 + hoist lamp + exit sign |
 | Machinery floor (off the path) | rest of the ground floor | ground | Roller mills, sifter, crane well; seen, not walked | 1 |
 
   16 lamps plus the exit sign. Map ambient 0. Windows (lightning only): south wall x 2-4, 11-13, 21-23; west gable z
@@ -171,11 +171,11 @@ start and route point is at least 0.5 m clear of a collider.
 
 | Guard | Start (at the EMP) | Fixed sweep (patrol points) | Stretch / kill spot |
 | --- | --- | --- | --- |
-| G1 + G2 (pair; `mill:0`, `mill:1`) | (7.5, 8.6), (8.6, 7.6): came down the stair; searching round W1 | After the search: side by side round W1's north end, (3.5, 8.6) - (8.6, 8.6) and back | 1, K1 |
+| G1 + G2 (pair; `mill:0`, `mill:1`) | (7.5, 8.7), (8.3, 8.0): came down the stair; searching round W1 | After the search: side by side north of W1, lanes z 8.0 and 8.7, x 3.5 - 8.6 and back | 1, K1 |
 | G3 (`mill:2`) | (9.0, 2.0): came along the aisle; searching | (9.5, 2.0) - (20.5, 2.0) - (20.5, 7.0) - (22.8, 7.0), 6 s pan stop, back | 2, K2 |
 | G4 (`mill:3`) | (10.0, 3.4): came along the aisle; searching | (17, 10.2) - (25.2, 10.2) - (25.2, 12.2), 4 s door check, back | 3 and 5, K5 |
-| G5 | (24, 11) | (20.8, 8.6) - (20.8, 12.2) - (24.6, 12.2), 4 s door check, back; meets G4 at the door every 40 s | 3 and 5, K5 |
-| G6 | (29.0, 10.2) | Post at the desk, torch panning the east window and the west door, 8 s each way | 4, K4 |
+| G5 | (20.8, 9.0) | (20.8, 8.6) - (20.8, 12.2) - (24.6, 12.2), 4 s door check, back; meets G4 at the door every 40 s | 3 and 5, K5 |
+| G6 | (29.0, 9.9) | Post at the desk, torch panning the east window and the west door, 8 s each way | 4, K4 |
 | G7 | (30, 16.2), gallery | (30, 16.2) - (22.6, 16.2), 6 s pan stop, back | 6, K6 |
 | G8 + G9 (pair) | (12.5, 15.7), (12.5, 16.5), gallery | Side by side (12.5, 16.1) - (21.4, 16.1), torches panning down into the crane well, back | 7 and 8, K8 |
 | G10 | (8.8, 16.2), gallery | Post at the stair head, facing south, torch panning the hall below | 9, K9 |
