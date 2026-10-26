@@ -2,7 +2,9 @@
 // gives each `--mission=<id>`): Tallow Wharf (`src/world/maps/tallowWharf*.ts`) in co-op, a host page and a client page over `?net=local`.
 // Three Grey Coats (W1 -> W4) and Two-Key Ledger (W2 -> W4) are each played from their start section to the extraction and the
 // results screen (VICTORY), with one forced co-op move per section done with real pad input on both pages (leg-up, partner throw,
-// pull-up; the shutters print SKIP: no `placeShutter` yet, GB-briefs 0.2), a broken rule that restarts the section to its checkpoint
+// pull-up; the shutters are walked for real (J9 S4): a lone walk stopped, hold and crawl with pad input, the W1 bar drawn by the one
+// through, a frozen guard's notice of a held shutter, and A27 (a restart with the shutter held drops it on both pages)), a broken
+// rule that restarts the section to its checkpoint
 // while the mission carries on (TGC: a decoy knocked out restarts nothing, Teale knocked out is the protected restart, Teale killed
 // and then a decoy read break `namedTarget` and he bolts; TKL: a guard killed, `noKills`), and the client's mirror of the host's
 // mission (`net.mission.runner.doneBits`; (mission-rules R8) the objective line and Field Terminal > Objectives on both pages,
@@ -10,7 +12,8 @@
 // campaign, the lobby on Realistic gives 2 revives, no dog spawns. (tallow E8) The W2 pawn throw is a 5.8 m site throw read
 // from the layout's `throwSites` (tallow-fixes A24, TD-b: `team.lastThrowDist`); A30: Two-Key Ledger's W3 bolt 4 bolts the
 // roof bulkhead's foot door, Three Grey Coats has no such bolt and the door stands unlocked. Run with no `--mission` it plays both in sequence.
-// The guards are frozen and nobody can be hurt (the test reads the mission, not the stealth). Needs `E2E_GPU=1` (laptop queue only).
+// The guards are frozen and nobody can be hurt (the test reads the mission, not the stealth); the notice still runs (the host's
+// `stealth.fixedUpdate` is not stubbed). Needs `E2E_GPU=1` (laptop queue only).
 import { tmpdir } from 'node:os';
 import { join as joinPath } from 'node:path';
 import { launch, openPage, BTN, assert } from './e2e-lib.mjs';
@@ -415,6 +418,235 @@ async function run(id) {
     assert(res === 'VICTORY', `${what}: the op ends cleared (${res})`);
   };
 
+  // ---- (tallow S4, J9) the shutters (src/game/kit/shutter.ts, src/world/shutterDoor.ts) ----
+  /**
+   * Page `P`'s shutter `id`: the kit device (`g.team.devices`: phase, open, user, visible, opens, noticed) and its curtain slot
+   * (`world.shutters.slots`, private, read at runtime: open, bottom), with the page's team state.
+   */
+  const shutterState = (P, id) => P.evaluate((id) => {
+    const g = window.__app.current;
+    const d = g.team.devices.list.find((q) => q.id === id && q.kind === 'shutter');
+    const s = g.world.shutters?.slots?.find((q) => q.spec.id === id);
+    return {
+      dev: d ? { x: d.x, y: d.y, z: d.z, yaw: d.yaw, phase: d.phase, open: d.open, user: d.user, visible: d.visible, opens: d.opens, noticed: d.noticed } : null,
+      slot: s ? { open: s.open, bottom: s.bottom } : null,
+      state: g.team.state,
+    };
+  }, id);
+  /** `shutterLocal`'s `across` of (x, z) from shutter `id` (the host's device): (x - d.x) sin yaw + (z - d.z) cos yaw, + = the normal's side. */
+  const side = async (id, x, z) => {
+    const d = (await shutterState(A, id)).dev;
+    if (!d) throw new Error(`no shutter device ${id} on the host`);
+    return (x - d.x) * Math.sin(d.yaw) + (z - d.z) * Math.cos(d.yaw);
+  };
+  /** Page `P`'s `across` from shutter `id` of its own player (`self`) or of its remote (the host's view of the client). */
+  const ACROSS_ON = ([id, self]) => {
+    const g = window.__app.current;
+    const d = g.team.devices.list.find((q) => q.id === id);
+    const p = self ? g.player.controller.pos : g.net.remotes.values().next().value.feet;
+    return (p.x - d.x) * Math.sin(d.yaw) + (p.z - d.z) * Math.cos(d.yaw);
+  };
+  const acrossOn = (P, id, self) => P.evaluate(ACROSS_ON, [id, self]);
+  /**
+   * A pad walk on page `P` to (x, z) (the axis pattern of e2e-move.mjs:172): every ~100 ms `cam.yaw` toward the target
+   * (atan2(dx, dz)) with the stick forward (`__pad.axis(1, -1)`, eased under 1.5 m) until within 0.35 m; the stick is always
+   * zeroed in `finally`. Then the host sees its player (or the client, its remote feet) there.
+   */
+  const walkTo = async (P, x, z, what, timeout = 12000) => {
+    const t0 = await P.evaluate(() => window.__app.current.time);
+    const wall0 = Date.now();
+    try {
+      for (;;) {
+        const r = await P.evaluate(([x, z]) => {
+          const g = window.__app.current;
+          const p = g.player.controller.pos;
+          const dx = x - p.x;
+          const dz = z - p.z;
+          const d = Math.hypot(dx, dz);
+          window.__pad.axis(0, 0);
+          if (d < 0.35) window.__pad.axis(1, 0);
+          else {
+            g.player.cam.yaw = Math.atan2(dx, dz);
+            window.__pad.axis(1, -Math.max(0.5, Math.min(1, d / 1.5)));
+          }
+          return { d, t: g.time };
+        }, [x, z]);
+        if (r.d < 0.35) break;
+        if ((r.t - t0) * 1000 > timeout || Date.now() - wall0 > Math.max(timeout * 4, 60000)) throw new Error(`timed out waiting for ${what}: the walk to ${x}, ${z} (${r.d.toFixed(2)} m left)`);
+        await new Promise((res) => setTimeout(res, 100));
+      }
+    } finally {
+      await P.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, 0); }).catch(() => {});
+    }
+    if (P === B) await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.5; }, [x, z], 8000, `${what}: the host sees the client at ${x}, ${z}`);
+    else await until(A, ([x, z]) => { const p = window.__app.current.player.controller.pos; return Math.hypot(p.x - x, p.z - z) < 0.5; }, [x, z], 8000, `${what}: the host at ${x}, ${z}`);
+    assert(true, `${what}: walked with the pad to ${x}, ${z}`);
+  };
+  /** The host alone at (x, z) facing the shut shutter walks into it for 1.5 s sim: grounded, still on his side, |across| >= 0.2. */
+  const loneWalk = async (id, x, z, yaw, what) => {
+    await moveHost(x, z, yaw);
+    await padReady(A);
+    await sim(300);
+    const a0 = await side(id, x, z);
+    try {
+      await GA((w) => { window.__app.current.player.cam.yaw = w; window.__pad.axis(0, 0); window.__pad.axis(1, -1); }, yaw);
+      await sim(1500);
+    } finally {
+      await GA(() => { window.__pad.axis(0, 0); window.__pad.axis(1, 0); }).catch(() => {});
+    }
+    await sim(300);
+    const grounded = await GA(() => window.__app.current.player.controller.grounded);
+    const p = await hostFeet();
+    const a = await side(id, p[0], p[2]);
+    assert(grounded && Math.sign(a) === Math.sign(a0) && Math.abs(a) >= 0.2, `${what}: a lone player walking into the closed shutter stays on his side (across ${a.toFixed(2)})`);
+  };
+  /** Both pages show shutter `id` at its gap: the device open >= 0.85 (`SHUTTER.crawlGap`) and the curtain body's bottom >= 0.75. */
+  const atGap = async (id, what) => {
+    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+      await until(P, (id) => { const g = window.__app.current; const d = g.team.devices.list.find((q) => q.id === id); const s = g.world.shutters?.slots?.find((q) => q.spec.id === id); return !!d && !!s && d.open >= 0.85 && s.bottom >= 0.75; }, id, 8000, `${what}: the ${who} shows ${id} at its gap`);
+    }
+  };
+  /**
+   * Hold and crawl with pad input (`c = { id, holder: 'client' | 'host', hold: [x, z, yaw], crawl: [x, z, yaw], during?, note? }`):
+   * each placed on its own near side (the only move before the crawl), the holder grips (RB) and holds, both pages at the gap,
+   * `during` (the notice check), the crawler crouches and crawls (RB) to the far side, the holder lets go (RB), both curtains shut.
+   */
+  const shutterCross = async (c) => {
+    const hostHolds = c.holder === 'host';
+    const H = hostHolds ? A : B;
+    const C = hostHolds ? B : A;
+    const crawler = hostHolds ? 'client' : 'host';
+    const [hx, hz, hyaw] = c.hold;
+    const [cx, cz, cyaw] = c.crawl;
+    if (hostHolds) {
+      await moveHost(hx, hz, hyaw);
+      await moveClient(cx, cz, cyaw);
+    } else {
+      await moveClient(hx, hz, hyaw);
+      await moveHost(cx, cz, cyaw);
+    }
+    // each one's near side: the crawler's start side (TGC W4: the holder is on the other one, shed two)
+    const nearH = Math.sign(await side(c.id, hx, hz));
+    const near = Math.sign(await side(c.id, cx, cz));
+    assert(nearH !== 0 && near !== 0, `${c.id}: the holder and the crawler start off the plane (${nearH}, ${near})`);
+    await sim(500);
+    await padReady(A);
+    await padReady(B);
+    await holdUntil(H, RB, () => window.__app.current.team.state === 'shutterOffer', `${c.id}: the ${c.holder} grips the shutter`);
+    await until(H, () => window.__app.current.team.state === 'shutterHold', null, 6000, `${c.id}: the ${c.holder} holds it at the gap`);
+    await atGap(c.id, c.id);
+    await c.during?.();
+    await crouch(C);
+    await holdUntil(C, RB, () => window.__app.current.team.state === 'crawlUnder', `${c.id}: the ${crawler} crawls under`);
+    await until(C, () => window.__app.current.team.state === 'none', null, 8000, `${c.id}: the ${crawler}'s crawl ends`);
+    // the host reads the crawler (its own player, or the client's remote feet); a client crawler's own page too
+    // (`until` sends the condition as text: the across is written out, as ACROSS_ON)
+    await until(A, ([id, self, near]) => {
+      const g = window.__app.current;
+      const d = g.team.devices.list.find((q) => q.id === id);
+      const p = self ? g.player.controller.pos : g.net.remotes.values().next().value.feet;
+      return ((p.x - d.x) * Math.sin(d.yaw) + (p.z - d.z) * Math.cos(d.yaw)) * near <= -0.5;
+    }, [c.id, !hostHolds, near], 8000, `${c.id}: the host sees the ${crawler} on the far side`);
+    const ca = await acrossOn(A, c.id, !hostHolds);
+    if (hostHolds) {
+      const own = await acrossOn(B, c.id, true);
+      assert(own * near <= -0.5, `${c.id}: the client's own page has it on the far side (across ${own.toFixed(2)})`);
+    }
+    const ha = await acrossOn(A, c.id, hostHolds);
+    assert(ha * nearH > 0, `${c.id}: the ${c.holder} is still on the near side (across ${ha.toFixed(2)})`);
+    await holdUntil(H, RB, () => window.__app.current.team.state !== 'shutterHold', `${c.id}: the ${c.holder} lets go`);
+    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+      await until(P, (id) => { const g = window.__app.current; const d = g.team.devices.list.find((q) => q.id === id); const s = g.world.shutters?.slots?.find((q) => q.spec.id === id); return !!d && !!s && d.phase === 'closed' && d.open === 0 && s.open === 0 && s.bottom === 0; }, c.id, 4000, `${c.id}: the ${who}'s shutter is shut again`);
+    }
+    assert(true, `${c.id}: ${c.holder} held, ${crawler} crawled through (across ${ca.toFixed(2)}), both curtains at the gap then shut${c.note ?? ''}`);
+  };
+  /**
+   * (A27, the lead's P1 add) After a section restart: on both pages every shutter shut (phase closed, open 0, no user, not
+   * visible, the curtain at 0) and no team move; then 3 s sim on the host, sampled every ~100 ms: no shutter noticed and no live
+   * guard `heard` with his stimulus within 1.5 m of a shutter. The largest `open` the host saw is printed.
+   */
+  const shuttersBack = async (what) => {
+    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+      await until(P, () => {
+        const g = window.__app.current;
+        const ds = g.team.devices.list.filter((d) => d.kind === 'shutter');
+        const ss = g.world.shutters?.slots ?? [];
+        return ds.length === 2 && ss.length === 2 && ds.every((d) => d.phase === 'closed' && d.open === 0 && d.user === '' && !d.visible) && ss.every((s) => s.open === 0 && s.bottom === 0) && g.team.state === 'none';
+      }, null, 8000, `${what}: every shutter shut and nobody at a bar on the ${who}`);
+    }
+    const t0 = await GA(() => window.__app.current.time);
+    const wall0 = Date.now();
+    let big = 0;
+    for (;;) {
+      const s = await GA(() => {
+        const g = window.__app.current;
+        const ds = g.team.devices.list.filter((d) => d.kind === 'shutter');
+        const heard = g.enemyMgr.enemies.filter((e) => e.alive && e.heard && ds.some((d) => Math.hypot(e.stimulus[0] - d.x, e.stimulus[1] - d.z) < 1.5)).map((e) => e.id);
+        return { t: g.time, open: Math.max(0, ...ds.map((d) => d.open)), noticed: ds.filter((d) => d.noticed !== -1).map((d) => `${d.id} ${d.noticed}`), heard };
+      });
+      big = Math.max(big, s.open);
+      if (s.noticed.length || s.heard.length) assert(false, `${what}: a shutter was noticed after the restart (noticed ${JSON.stringify(s.noticed)}, heard at a shutter ${JSON.stringify(s.heard)}, largest open seen ${big.toFixed(2)})`);
+      if (s.t - t0 >= 3 || Date.now() - wall0 > 60000) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    assert(true, `${what}: both curtains shut on host and client, no lift run, no guard noticed a shutter for 3 s (largest open seen ${big.toFixed(2)})`);
+  };
+  /**
+   * The notice set-up for shutter `id`: the live, not alerted guard of the live section's slot `k` (the first slot from `k`
+   * whose feet are within 1 m of the shutter's floor; one `hear` can reach: not melee, not passive) placed at `at` facing the
+   * shutter (`yaw`, which `noticeOpenShutters` reads), `heard` / `hasStimulus` false, `meter` 0; every other live guard within
+   * 12 m (plan) of the shutter faces directly away (the facing rule fails: nobody else takes the one notice). Guards stay frozen.
+   */
+  const noticeCheck = async (id, k, at) => {
+    const r = await GA(([id, k, at]) => {
+      const g = window.__app.current;
+      const d = g.team.devices.list.find((q) => q.id === id);
+      const slots = window.__sector['slotEnemy'];
+      let e = null;
+      for (let j = k; j < slots.length && !e; j++) {
+        const q = slots[j];
+        if (q && q.alive && !q.alerted && !q.passive && !q.def.melee && Math.abs(q.pos.y - d.y) < 1) e = q;
+      }
+      if (!e) return null;
+      e.pos.set(at[0], e.pos.y, at[1]);
+      e.yaw = Math.atan2(d.x - at[0], d.z - at[1]);
+      e.heard = false;
+      e.hasStimulus = false;
+      e.meter = 0;
+      const away = [];
+      for (const o of g.enemyMgr.enemies) {
+        if (o === e || !o.alive) continue;
+        const dx = o.pos.x - d.x;
+        const dz = o.pos.z - d.z;
+        if (Math.hypot(dx, dz) > 12) continue;
+        o.yaw = Math.atan2(dx, dz);
+        away.push(o.id);
+      }
+      return { id: e.id, slot: slots.indexOf(e), away, pending: window.__sector['pending']?.length ?? -1 };
+    }, [id, k, at]);
+    assert(!!r, `${id}: a live, calm guard of the section (slot ${k} on) to notice it`);
+    assert(true, `${id}: guard ${r.id} (slot ${r.slot}) placed at ${JSON.stringify(at)} facing the shutter; turned away: ${JSON.stringify(r.away)}; guards not yet spawned: ${r.pending}`);
+    return r.id;
+  };
+  /** 1.5 s sim with shutter `id` shut: the host device's `opens` unchanged and `noticed` -1. */
+  const shutQuiet = async (id, what) => {
+    const o0 = (await shutterState(A, id)).dev.opens;
+    await sim(1500);
+    const s = (await shutterState(A, id)).dev;
+    assert(s.opens === o0 && s.noticed === -1 && !s.visible, `${what}: shut, nobody notices it (opens ${s.opens}, noticed ${s.noticed})`);
+  };
+  /**
+   * `shutterCross`'s `during` for the notice: the host device's `noticed === opens` within 4 s, then guard `gid` has `heard`,
+   * his stimulus within 0.05 m of (sx, sz) (`SHUTTER_LOOK_OFF` 0.6 off the plane on his own side, S2 fix1) and `meter` > 0.
+   */
+  const noticeDuring = (id, gid, sx, sz, tagLine, room) => async () => {
+    await until(A, (id) => { const d = window.__app.current.team.devices.list.find((q) => q.id === id); return !!d && d.opens > 0 && d.noticed === d.opens; }, id, 4000, `${tagLine}: a guard notices the held shutter`);
+    const e = await GA((gid) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.id === gid); return e ? { heard: e.heard, sx: e.stimulus[0], sz: e.stimulus[1], meter: e.meter, x: e.pos.x, z: e.pos.z } : null; }, gid);
+    assert(!!e, `${tagLine}: guard ${gid} is there`);
+    const own = Math.sign(await side(id, e.x, e.z)) === Math.sign(await side(id, e.sx, e.sz));
+    assert(e.heard && Math.hypot(e.sx - sx, e.sz - sz) <= 0.05 && e.meter > 0 && own, `${tagLine} notice: guard ${gid} heard the held shutter at (${e.sx.toFixed(2)}, ${e.sz.toFixed(2)}), on his own side (${room}); shut: no notice (meter ${e.meter.toFixed(2)})`);
+  };
+
   try {
     // (mission-rules R7) the start with the client in. On this base a room made with "Host a room" does not start on its own
     // once the partner is in (only "Resume hosting" holds a blocked start), so the client readies and the host starts, as
@@ -452,6 +684,17 @@ async function run(id) {
       g.hud.banner = (title, sub = '', ms) => { window.__banners.push([title, sub]); banner(title, sub, ms); };
     });
     SEC = await readSectors();
+    // (tallow S4, S1 check-a P1) the shutters' world wiring: the host's curtains (spec order) shut on its nav grid, none on the
+    // client (no grid there); on both pages each shutter is one always-shut light leaf past the doors and one kit device
+    const wire = [];
+    for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+      wire.push(await P.evaluate((who) => {
+        const w = window.__app.current.world;
+        return { who, ids: (w.shutters?.slots ?? []).map((s) => s.spec.id), nav: w.shutters?.navClosures.length ?? -1, light: w.lightDoors.length, doors: w.doors.list.length, devs: window.__app.current.team.devices.list.filter((d) => d.kind === 'shutter').length };
+      }, who));
+    }
+    const [wh, wc] = wire;
+    assert(JSON.stringify(wh.ids) === JSON.stringify(['w1-shutter', 'w4-shutter']) && wh.nav === 2 && wc.nav === 0 && wire.every((q) => q.light === q.doors + 2 && q.devs === 2), `the shutters are wired: host slots ${JSON.stringify(wh.ids)}, nav closures host ${wh.nav} / client ${wc.nav}, light leaves = doors + 2 and two shutter devices on both pages (${JSON.stringify(wire)})`);
     await padReady(A);
     await padReady(B);
     await noDogs(`${tag} start`);
@@ -468,7 +711,6 @@ async function run(id) {
       await clientHud(`${tag} start`);
 
       where = 'TGC W1';
-      console.log('SKIP: shutter w1-shutter is a stand-in until the shutter wiring slice (GB-briefs 0.2)');
       await legUp({ id: 'w1-lip-steps', spot: [4, 13.5], yaw: 0, lipY: 4.5 });
       await pullUp(A, 'W1 C1');
       const hf1 = await hostFeet();
@@ -485,6 +727,32 @@ async function run(id) {
       await sim(5000);
       assert((await stepDone('tgc-2')) === 1 && (await fact('tgc-courier')), 'tgc-2: the courier is learned (step and fact)');
       await until(A, () => window.__sector.debug().phase === 'connector', null, 8000, 'W1: the exit opens');
+      // (tallow S4, J9) C2: the fish hall shutter is the section's forced exit (SPEC :226); SPEC C2 "B holds, A crawls, then A
+      // lifts the bar for B": the client holds, the host crawls, draws the hall back door's bar (W1 bolt 1) and the client walks
+      // through it. Nobody is placed across the shutter: the host crawls, the client comes through the door.
+      where = 'TGC W1 shutter';
+      await loneWalk('w1-shutter', 22, 56.8, 0, 'W1 C2');
+      // the notice: a guard on the hall side (the -normal side, where the pre-fix look point was wrong), 4.6 m off
+      const g1 = await noticeCheck('w1-shutter', 0, [22, 53]);
+      await shutQuiet('w1-shutter', 'W1 C2 before the lift');
+      await shutterCross({ id: 'w1-shutter', holder: 'client', hold: [21.2, 57.4, 0], crawl: [22.8, 57.3, 0], during: noticeDuring('w1-shutter', g1, 22, 57.4, 'W1', 'hall') });
+      // the bar: W1 bolt 1, unbolted from the passage side (useBolt's spot is there: no shutter is crossed), then the door
+      // opened on both pages (the E8 pawn-door lines' pattern)
+      const bb = await boltAt(0, 30, 58);
+      assert(!!bb && bb.k === 1, `the hall back door is W1 bolt 1 (${JSON.stringify(bb)})`);
+      const hb = await useBolt(0, bb.k);
+      await GA((i) => { const w = window.__app.current.world; w.doors.open(w.doors.list[i], 'quiet'); }, hb.door);
+      await until(B, (i) => !window.__app.current.world.doors.list[i].anchor.locked, hb.door, 8000, 'the hall back door is unlocked on the client');
+      await GB((i) => { const w = window.__app.current.world; w.doors.open(w.doors.list[i], 'quiet'); }, hb.door);
+      await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.9, hb.door, 8000, 'the hall back door is open on the host');
+      await until(B, (i) => window.__app.current.world.doors.list[i].open > 0.9, hb.door, 8000, 'the hall back door is open on the client');
+      // the client walks from the bar along the hall to the back door and through it (the spot audit proves the legs clear)
+      await padReady(B);
+      await walkTo(B, 30, 56.8, 'W1 C2: the client to the hall back door');
+      await walkTo(B, 30, 59.3, 'W1 C2: the client through the hall back door');
+      const w1h = await hostFeet();
+      const w1c = await clientFeet();
+      assert(w1h[2] > 58.3 && w1c[2] > 58.3, `W1 C2: the host crawled, drew the bar, the client came through the back door; no teleport across the shutter (host ${JSON.stringify(w1h)}, client ${JSON.stringify(w1c)})`);
       await cross(0, 'W1 connector');
       await mirror('W1');
 
@@ -532,6 +800,8 @@ async function run(id) {
       // (R8 polish) the restart itself raises no second SECTION RESTART banner on the client
       const cb1 = await GB((s) => window.__banners.filter((b) => b[0] === 'SECTION RESTART' && b[1] === s).length, PROTECTED_LINE);
       assert(cb1 === 1, `after the protected restart the client still has exactly one SECTION RESTART banner (${cb1})`);
+      // (tallow S4, A27 cheap check) a restart leaves every shutter shut on both pages, no lift run, nothing noticed
+      await shuttersBack('TGC W2 restart');
       const ak = await dbg();
       assert(ak.mission.breaks === 0 && ak.mission.spook === -1 && ak.mission.line === PROTECTED_LINE, `the protected restart: ruleRestarts 1, breaks 0, spook -1 (${JSON.stringify(ak.mission)})`);
       await until(A, (i) => window.__mission.runner.isOpen(i), T3, 8000, 'tgc-3 is open after the protected restart');
@@ -602,7 +872,6 @@ async function run(id) {
       await mirror('W3');
 
       where = 'TGC W4 clerestory';
-      console.log('SKIP: shutter w4-shutter is a stand-in until the shutter wiring slice (GB-briefs 0.2)');
       await legUp({ id: 'w4-lip-clerestory', spot: [79, 29.2], yaw: PI, lipY: 4.4 });
       await pullUp(A, 'W4 C9');
       const hf4 = await hostFeet();
@@ -614,6 +883,15 @@ async function run(id) {
       const mev = await GA(() => window.__mev.slice());
       assert(mev.some((e) => e.name === 'mindersArrive' && e.guardTag === 'tgc-minders' && e.postId === 'w4-quay'), `the minders are sent (${JSON.stringify(mev)})`);
       await mirror('W4');
+      // (tallow S4, J9) C8 on Three Grey Coats: off TGC's route (SPEC :334, Three Grey Coats never needs shed two's shutter),
+      // walked so both shutters are walked on this mission (lead ruling 1: a device check, not a route). After the objective
+      // the host holds from shed two (moved there from shed three on the shed side) and the client crawls in from the apron,
+      // so the pair leaves through shed two to the jetty.
+      where = 'TGC W4 shutter';
+      await shutterCross({ id: 'w4-shutter', holder: 'host', hold: [91.2, 27.4, 0], crawl: [92.8, 28.7, PI], note: ' (TGC: a device check, off the route, SPEC :334)' });
+      const w4h = await hostFeet();
+      const w4c = await clientFeet();
+      assert(w4h[2] < 27.9 && w4c[2] < 27.9, `W4 C8 (TGC): both in shed two before the extraction (host ${JSON.stringify(w4h)}, client ${JSON.stringify(w4c)})`);
       // tgc-1, 2, 3, 4, 5 = bits 0, 1, 2, 4, 5 (value 55); tgc-opt (bit 3, value 8) clear
       await extract(63, 55, 'TGC W4');
     } else {
@@ -710,8 +988,33 @@ async function run(id) {
       await cross(2, 'W3 connector');
       await mirror('W3');
 
+      // (tallow S4, J9) C8: shed two's shutter from the apron / back lane (SPEC C8 "B holds, A crawls"): the client holds, the
+      // host crawls into shed two (then the jetty pull's holder), after a lone walk into it and A27's held restart
+      where = 'TKL W4 shutter';
+      await loneWalk('w4-shutter', 92, 29.4, PI, 'W4 C8');
+      // A27 (lead ruling 2: TKL's rule is noKills, mission scope; any kill restarts the current section): the client lifts and
+      // holds, no crawl; the host kills a W4 guard; the restart drops the held shutter on both pages and ends the hold
+      where = 'TKL W4 held restart';
+      await moveClient(91.2, 28.7, PI);
+      await sim(500);
+      await padReady(B);
+      await holdUntil(B, RB, () => window.__app.current.team.state === 'shutterOffer', 'W4 A27: the client grips the shutter');
+      await until(B, () => window.__app.current.team.state === 'shutterHold', null, 6000, 'W4 A27: the client holds it at the gap');
+      await atGap('w4-shutter', 'W4 A27');
+      await down(0, false, 'W4 guard 0');
+      // TKL's W3 restart was the first
+      await restarted(3, SEC[2].conn.cp, 'W4 rule restart (shutter held)', 2);
+      await shuttersBack('TKL W4 restart with the shutter held');
+      await holdOver('the W4 restart');
+      assert(true, 'A27: the section restart dropped the held shutter on host and client and ended the hold');
+      where = 'TKL W4 shutter';
+      // the notice: a guard in shed two (the -normal side)
+      const g4 = await noticeCheck('w4-shutter', 0, [92, 23]);
+      await shutQuiet('w4-shutter', 'W4 C8 before the lift');
+      await shutterCross({ id: 'w4-shutter', holder: 'client', hold: [91.2, 28.7, PI], crawl: [92.8, 28.8, PI], during: noticeDuring('w4-shutter', g4, 92, 27.4, 'W4', 'shed two') });
+      // the pull as before: the host on the jetty top came through shed two and its canal door; the client's canal-bed spot is
+      // not across a shutter
       where = 'TKL W4 jetty';
-      console.log('SKIP: shutter w4-shutter is a stand-in until the shutter wiring slice (GB-briefs 0.2)');
       await pull({ id: 'w4-pull-jetty', holder: [73.5, 0.1, 6.35], partner: [73.5, -4.3, 5.3], upY: -0.3 });
       await mirror('W4');
       // tkl-1, 2, 3, 4, 5 = bits 0, 1, 2, 3, 5 (value 47); tkl-opt (bit 4, value 16) clear
