@@ -13,10 +13,13 @@ files:
   - scripts/train-ready.mjs
   - scripts/merge-train.mjs
   - scripts/watchdog.mjs
+  - scripts/laptop-queue/service.mjs
+  - scripts/laptop-queue/lib.mjs
   - tests/autoTrain.test.ts
   - tests/trainReady.test.ts
   - tests/mergeTrain.test.ts
   - tests/watchdog.test.ts
+  - tests/laptop-queue.test.ts
   - docs/systems/auto-train.md
   - docs/systems/watchdog.md
   - docs/RULES.md
@@ -37,8 +40,8 @@ file claimed here. The table below is #507's hunks, now on master (keep at least
 | `tests/autoTrain.test.ts` | appends one `it` at the end (:806-816) | one new line inside the import list (after :9) and new describes inserted before `describe('auto-train: decision'` (:231). Never append at the end of the file |
 | `docs/systems/auto-train.md` | 4 lines after :176 ("What the laptop queue service provides") | the sections named in S4 only. Never edit "What the laptop queue service provides" (master :167-190) |
 | `docs/RULES.md` | :164-185 ("Machines") | :134-135 only ("Getting to master", Auto-train bullet), line-neutral (the 318-line budget is full) |
-Not shared: `scripts/laptop-queue/**`, `tests/laptop-queue.test.ts`, `docs/systems/testing-tools.md`, `scripts/run-e2e.mjs`
-(theirs); `scripts/auto-train.mjs`, `scripts/merge-train.mjs`, `scripts/train-ready.mjs`, the other tests and
+Not shared: `docs/systems/testing-tools.md`, `scripts/run-e2e.mjs`, the rest of `scripts/laptop-queue/**` (theirs; S6
+adds small hunks in `service.mjs`, `lib.mjs` and `tests/laptop-queue.test.ts`, one line shared with #552: S6 "Overlap"); `scripts/auto-train.mjs`, `scripts/merge-train.mjs`, `scripts/train-ready.mjs`, the other tests and
 `docs/systems/watchdog.md` (ours). At 14:40 #507 rides open train 119 (#536), which carries the same watchdog,
 autoTrain.test, auto-train.md (+4 after :176) and RULES "Machines" hunks: once it releases, every pointer in this PLAN
 still holds (no shift above those lines). Other branches touching these files (feature/doc-polish*,
@@ -238,6 +241,45 @@ F23 re-read at build start:
 F16, F18, F19, F20, F23 to done with the version. Not before the release: the old `laptopQueueState` would hold trains on
 desktop claims again.
 
+**S6 drafts never ride a train: F34 (Opus; after S2, on S2's head ced837000; brief by Marlow Build for the
+orchestrator, 2026-10-26 ~15:50, Test Runner silent).** Fix work under the fix freeze.
+Evidence: #487 was drafted by the orchestrator under the fix freeze but still rode train 122 (it kept `train-ready`).
+Train 122 is left to finish; nothing here touches a running train (a train's own members and rebuilds are not re-read).
+1. auto-train: S2's `candidates()` :1248 already lists `isDraft`, and `trainReady` refuses an unlabelled draft, but
+   `splitCandidates` :471 takes a labelled PR on a green `check` alone. It now drops every draft first, before the
+   label and rule paths, into a new `drafts` list. A dropped draft is logged once per head ("#<n> draft: not a
+   candidate", new pure export `draftNotes(drafts, prevHeads)`; the heads ride in the status as `draftHeads`) and listed
+   in the status as `draftSkipped: [n]` beside `leftOut` (set in `safeStep` :1682, carried while no tick reads the PR
+   list). No label change from auto-train (the watchdog owns labels).
+2. watchdog `prAlerts` :235, the `if (pr.labeled)` block :248: a labelled draft gets a new alert `pr-label-draft`
+   (warn) with the existing `unlabel(...)` fix :257, reason "the PR is a draft"; it comes before the red / moved checks
+   :258 and `continue`s. `labelReady` :232 (= `trainReady`) already refuses drafts: kept, pinned with a test. The
+   unlabel comment stays `unlabelComment` (per-head marker).
+3. desktop worker (`scripts/laptop-queue/service.mjs` :1522, the "failed suites go to the laptop" block, DESKTOP only):
+   when the request's PR is a draft on the PR board (`prBoardNow` :633, read every `LQ_PR_BOARD_S` on both workers;
+   `isDraft` added to its `gh pr list` fields, lib `prBoard` :877 keeps `draft`; no new gh call per request), no laptop
+   rerun is filed and the desktop failure stands as final with the description suffix "; draft PR, no laptop rerun".
+   New lib export `laptopRerunFor(r, board)` -> `{ rerun, why }` holds the rule; lib `describe` :785 keeps
+   `result.note` at the end of the description (room left for the "desktop: " prefix). An empty board (a GitHub error)
+   reads as not a draft: the rerun is filed as before.
+- Overlap with #552 (laptop-queue-8b, slice H): it edits service.mjs :111 (the lib import), :636 (the board fields:
+  `+labels`), `finish` :1135-1139, and lib `prBoard` :873-874 / :888. S6 keeps out of those lines except :636 (one
+  shared line: the merge keeps both fields, `...,statusCheckRollup,labels,isDraft`); its import is a new line after
+  :113, `draft` goes after `head,` :886, the call site is in :1517-1540 (no #552 hunk).
+- Files: `scripts/auto-train.mjs`, `scripts/watchdog.mjs`, `scripts/laptop-queue/service.mjs`,
+  `scripts/laptop-queue/lib.mjs`, `tests/autoTrain.test.ts`, `tests/watchdog.test.ts`, `tests/laptop-queue.test.ts`.
+  Est. lines: code 60, tests 90.
+- Checks: `npx vitest run tests/trainReady.test.ts tests/autoTrain.test.ts tests/watchdog.test.ts
+  tests/mergeTrain.test.ts tests/laptop-queue.test.ts`, `npm run typecheck:fast`, `node scripts/auto-train.mjs tick
+  --dry-run --once --preview-next`.
+- Vitest (each fails on the pre-S6 code): `tests/autoTrain.test.ts` "a labelled draft is not a candidate" (and an
+  unlabelled green draft; `draftNotes` once per head); `tests/watchdog.test.ts` "a labelled draft is unlabelled
+  (pr-label-draft)" and "labelReady refuses a draft"; `tests/laptop-queue.test.ts` "a desktop failure on a draft PR
+  files no laptop rerun" (`prBoard` keeps `draft`, `laptopRerunFor`, `describe` keeps the note).
+- Docs (S4 folds them, line-neutral): `docs/systems/auto-train.md` candidates bullet, `docs/systems/watchdog.md` label
+  convention ("a draft never keeps train-ready"), FIXES F34 Status names the three guards.
+- Checker: Test Runner's Opus checker with S1 + S2; if Test Runner is silent, a fresh Opus checker from Marlow Build.
+
 ## Size
 | Slice | Builder | Code | Tests | Docs |
 | --- | --- | --- | --- | --- |
@@ -245,8 +287,9 @@ desktop claims again.
 | S2 F16 F23 | Opus | 230 | 230 | - |
 | S3 F20 | Sonnet | 30 | 50 | - |
 | S4 docs | Sonnet | - | - | 60 |
-| Total | | 410 | 460 | 60 |
-~870 counted lines (930 with docs): one PR, under the ~1.5k cap. Test tier: queue / train / tool scripts (CI `check`;
+| S6 F34 | Opus | 60 | 90 | - |
+| Total | | 470 | 550 | 60 |
+~1020 counted lines (1080 with docs): one PR, under the ~1.5k cap. Test tier: queue / train / tool scripts (CI `check`;
 `affected-e2e` passes at once). Checker: one fresh Opus checker for S1 + S2, one Opus checker for S3, Sonnet for S4.
 
 ## Flags (dark until accepted)
