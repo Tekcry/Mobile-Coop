@@ -31,7 +31,9 @@ import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
 import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
-import { emptyMoveState, moveChanged } from '../player/moveState';
+import { emptyMoveState, knifeRowOfSub, moveChanged } from '../player/moveState';
+import { KNIFE } from '../game/knifeKill'; // (piano-knife S3)
+import type { CharacterRig } from '../player/characterRig';
 import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../player/playerVolumes';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
@@ -399,6 +401,7 @@ export class CoopHost implements NetAttachment {
   private addRemote(p: PlayerInfo): void {
     const g = this.g;
     const avatar = new RemoteAvatar(g.world, g.vfx, g.ballistics, p);
+    avatar.victimRigOf = this.knifeRigOf;
     avatar.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
     const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, this.spawnPoint(this.remotes.size + 1));
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
@@ -932,6 +935,13 @@ export class CoopHost implements NetAttachment {
       if (m.ph === 'start') deny();
       return;
     }
+    // (piano-knife S3, PLAN-CHECK-3 item 4) the host's knife switch decides: a knife start only while it is on; with it on
+    // no other takedown start (assist included; a bluff is speech, never a seize)
+    const kOn = this.g.takedown.knife;
+    if (m.ph === 'start' && (m.kind === 'knife' ? !kOn : kOn && m.kind !== 'bluff')) {
+      deny();
+      return;
+    }
     // (coop-walk-fixes P6) the team takedown on a partner's hostage (the guard stays in the holder's hands until done)
     if (m.kind === 'assist') {
       this.onAssist(r, m, e, deny);
@@ -951,7 +961,8 @@ export class CoopHost implements NetAttachment {
         return;
       }
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
-      e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
+      // (piano-knife S3) with the knife switch on: the lethal struggle (a knife kill is never a choke)
+      e.beginTakedown(kOn ? false : !m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
       // (joint-flake-3 check) a td 'start' resets interPh: a read aborted mid-way (the td 'abort' ends the seize before
       // a seized step sees the hold go) never counts as ended on this new hold's first step (`interrogationEnded`)
@@ -969,9 +980,11 @@ export class CoopHost implements NetAttachment {
     e.bodyRig.emote = null;
     const dir = new Vector3(e.pos.x - r.feet.x, 0, e.pos.z - r.feet.z).normalize();
     const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: r.id, sourcePos: r.feet.clone(), impulse: 1 };
-    if (m.lethal) e.applyDamage(hit);
+    // (piano-knife S3) no knockout while the knife switch is on; every piano kill quiet (A5: the knife's radius)
+    const lethal = m.lethal || kOn;
+    if (lethal) e.applyDamage(hit);
     else e.knockOut(hit);
-    this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
+    this.g.enemyMgr?.hear(r.feet, kOn ? KNIFE.noise : m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
     this.takedownDone(r.id);
     this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
@@ -1141,6 +1154,8 @@ export class CoopHost implements NetAttachment {
 
   /** (throw-ko) The thrown player `by` (feet at `at`) came down on `e`: knocked out through the game's own path. */
   private throwKnockOut(by: string, e: Enemy, at: { readonly x: number; readonly y: number; readonly z: number }): void {
+    // (piano-knife S3, A10: "only knife kills") no throw knockout while the knife switch is on
+    if (this.g.takedown.knife) return;
     const src = new Vector3(at.x, at.y, at.z);
     const dir = new Vector3(e.pos.x - at.x, 0, e.pos.z - at.z);
     if (dir.lengthSquared() > 1e-6) dir.normalize();
@@ -1365,6 +1380,14 @@ export class CoopHost implements NetAttachment {
     const alive = self ? this.g.player.alive : r!.alive;
     const mode = self ? 'ground' : (r!.state?.mv?.m ?? 'ground');
     const active = !self && this.strikes.has(by);
+    // (piano-knife S3, PLAN-CHECK-3 item 3) no RT strike while the knife switch is on (Michael: "Palm strike knockout
+    // disabled, only knife kills"): refused as busy (an existing reason), no `strikes` entry, so it never knocks out
+    if (kind === 'strike' && this.g.takedown.knife) {
+      this.commitLast.set(by, now);
+      this.s.send({ t: 'cdeny', a: by, id, kind, reason: 'busy' });
+      if (self) this.g.strike.denied(id, 'busy');
+      return;
+    }
     const why = checkCommitted({
       kind,
       alive,
@@ -1951,6 +1974,13 @@ export class CoopHost implements NetAttachment {
           continue;
         }
       }
+      // (piano-knife S3) a client's knife kill: his sim feet on the drawn pair (`RemoteKnife.root`), so his body lies
+      // where he fell and the snapshots carry that place; then on as today (`TD_MAX` is far over the move)
+      if (by && by.alive && mv?.m === 'takedown' && mv.tid === eid && knifeRowOfSub(mv.sub) >= 0 && by.avatar.knife.rootOn) {
+        const e = this.aliveEnemy(eid);
+        const kr = by.avatar.knife.root;
+        if (e) e.holdAt(kr.x, kr.y, kr.z, kr.yaw);
+      }
       s.hfOn = false;
       // (joint-flake-3) no grab on him this step: a grab that ended mid-read leaves a stale ph, which
       // `interrogationEnded` (any progress counts) would count as a finished read on a re-grab within TD_MAX
@@ -2026,11 +2056,35 @@ export class CoopHost implements NetAttachment {
   private readonly partnerOut = emptyPlayerBodyOut();
   private readonly partnerHead = new Vector3();
   private readonly partnerHips = new Vector3();
+  /** (piano-knife S3) The alive enemy with id `id` (an index loop, no closure per call); null: none. */
+  private aliveEnemy(id: string): Enemy | null {
+    const es = this.g.enemyMgr?.enemies;
+    if (!es) return null;
+    for (let k = 0; k < es.length; k++) {
+      const e = es[k]!;
+      if (e.id === id && e.alive) return e;
+    }
+    return null;
+  }
+
+  /** (piano-knife S3) A client's knife victim's drawn rig (`RemoteAvatar.victimRigOf`): the alive enemy's body rig. */
+  private readonly knifeRigOf = (tid: string): CharacterRig | null => {
+    const e = this.aliveEnemy(tid);
+    return e ? e.bodyRig : null;
+  };
+
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
     this.holdClock.frame(now, this.time);
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
+      // (piano-knife S3) a client's knife kill on a guard it holds here: his root, clip and hands off the client as drawn
+      // (the enemies posed earlier this frame: his clip and hands one frame behind, BRIEF S3 Doubt 1)
+      const kn = r.avatar.knife;
+      if (kn.posesVictim) {
+        const e = this.aliveEnemy(kn.tid);
+        if (e && this.seized.get(e.id)?.by === r.id) kn.victim(r.avatar.rig, e.bodyRig, e);
+      }
       // (rig-pose-fix S1, G3 / G4) the client's hit volumes, perception points and wall head come from its sim body at
       // the accepted state (`RemotePlayer.accept`), no longer from this drawn copy's rig
       r.blocker?.sync(r.avatar.pos, r.crouched, r.alive && !partnerPassable(r.avatar.mode));
