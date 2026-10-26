@@ -231,6 +231,7 @@ export async function walk(t, n) {
   // ---- 8. station 21: the console again, the client on the inner side, both hack the time locks inside the window ----
   console.log('  A8 (re-plan): the loop again, the paired hack');
   await moveHost(AT_CONSOLE[0], AT_CONSOLE[1], 4.5, EAST);
+  await knockOut([N1, N2, OFFICER]); // the station 20 and 21 retries stood all three guards back up
   assert((await use(A, CONSOLE)) === 'ok', 'A8: the host presses the console again');
   await until(A, (f) => window.__course.state.hasFlag(f), LOOP_FLAG, 8000, 'A8: the loop is set again');
   await moveClient(LANDING[0], LANDING[1], 0.1, EAST);
