@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
 // @ts-expect-error - plain ESM script without types
-import { blenderArgs, dumpAll, listClips, PACK_NAME, planDumps, slugOf } from '../scripts/mocap/mixamo.mjs';
+import { blenderArgs, clipTitle, dumpAll, listClips, PACK_NAME, planDumps, slugOf } from '../scripts/mocap/mixamo.mjs';
 // @ts-expect-error - plain ESM script without types
 import { dupPairs, markDups, poseDistance, slugTail } from '../scripts/mocap/mixamoDup.mjs';
 
@@ -381,6 +381,42 @@ describe('mixamo dump driver: pack folders (I7)', () => {
     expect(third.ran.map((c: Clip) => c.slug)).toEqual(['rifle_walk_forward']);
     const only = await dumpAll({ dir: DIR, outDir: OUT, only: ['pistol_strafe_2'], force: true, deps: fs.deps });
     expect(only.ran.map((c: Clip) => c.slug)).toEqual(['pistol_strafe_2']);
+  });
+
+  it('(I9 polish) a linked pack-* folder warns and is skipped; another link is silent', () => {
+    const link = (name: string) => ({ name, isDirectory: () => false, isSymbolicLink: () => true });
+    const readdir = (dir: string) => (dir === DIR ? ['Walking.fbx', link('pack-rifle'), link('old')] : []);
+    const warned: string[] = [];
+    const warn = (m: string) => warned.push(m);
+    const clips: Clip[] = listClips(DIR, { readdir, warn });
+    expect(clips.map((c) => c.slug)).toEqual(['walking']);
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toMatch(/pack-rifle is a link/);
+  });
+
+  it("(I9 polish) --only fills the kept rows' pack and title from their file", async () => {
+    const fs = fakeFs(['Standing Idle.fbx', 'Walking.fbx', 'pack-rifle/idle.fbx']);
+    const mPath = path.join(OUT, 'manifest.json');
+    fs.dumps.set(mPath, {
+      clips: [
+        { file: 'Standing Idle.fbx', slug: 'standing_idle' },
+        { file: 'pack-rifle/idle.fbx', slug: 'rifle_idle' },
+        { file: 'Cross Punch.fbx', slug: 'cross_punch', pack: null, title: 'X' },
+      ],
+    } as never);
+    await dumpAll({ dir: DIR, outDir: OUT, only: ['walking'], deps: fs.deps });
+    const m = JSON.parse(fs.written.get(mPath)!);
+    expect(m.clips.map((c: { file: string; pack: string | null; title: string }) => [c.file, c.pack, c.title])).toEqual([
+      ['Cross Punch.fbx', null, 'X'],
+      ['Standing Idle.fbx', null, 'Standing Idle'],
+      ['Walking.fbx', null, 'Walking'],
+      ['pack-rifle/idle.fbx', 'pack-rifle', 'Pro Rifle Pack: idle'],
+    ]);
+  });
+
+  it('(I9 polish) clipTitle: the pack name and title in a pack folder, else the title', () => {
+    expect(clipTitle('pack-rifle/walk forward.fbx')).toBe('Pro Rifle Pack: walk forward');
+    expect(clipTitle('Standing Idle.fbx')).toBe('Standing Idle');
   });
 });
 
