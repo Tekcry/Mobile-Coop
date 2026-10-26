@@ -59,6 +59,7 @@ import { CARRY_STRIKE_SHOT, WREN_CARRY, WREN_STRIKE } from './mixamo'; // (mixam
 import { STRIKE_ARC_CONTACT } from './strikeBody'; // (mixamo-retarget I5) the arc's contact for the strike capture
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { killDriveTargets, type KillDriveState } from './killDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
 import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, WREN_HOLD, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, WREN_STAND, STAND_YAW, STAND_SLOW, STAND_YAW_CH, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
@@ -728,6 +729,9 @@ export class AnimGraph {
   readonly out = emptyTargets();
   /** (anim-studio) The Anim Studio's loop player (`studioDrive.ts`): set on one rig's graph inside the studio only. */
   drive: StudioDrive | null = null;
+  /** (piano-knife S1) A paired knife kill's clip (`killDrive.ts`): set by the takedown on the attacker's and the
+   *  victim's graphs while the move plays; null otherwise. */
+  kill: KillDriveState | null = null;
   /**
    * (tuner-clarity S1, BRIEF A3) What this graph plays (`nowPlaying.ts`): the motion-capture, hand-keyed and graph-code
    * shares of the body, the captured move and the studio's clip, written at the end of each `update` (`notePlaying`).
@@ -2117,6 +2121,7 @@ export class AnimGraph {
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
+    if (this.kill !== null) killDriveTargets(this.kill, o); // (piano-knife S1) the knife kill's clip; null outside one
     this.bodyMotion(i, o, dt);
     this.notePlaying(o); // (tuner-clarity S1) after the studio drive; display only
     return o;

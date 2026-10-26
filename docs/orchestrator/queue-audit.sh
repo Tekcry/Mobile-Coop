@@ -57,7 +57,8 @@ for (let i = 0; i < n; i++) {
   const req = reqOf(j), set = setOf(j);
   let k = 0;
   const sm = j.replace(/[\n ]/g, '').match(/"suites":\[([^\]]*)\]/);
-  if (sm) k = sm[1].split(',').map(x => x.replace(/"/g, '').replace(/e2e-/g, '')).filter(Boolean).length;
+  // distinct suites: the parts of one sharded suite (`e2e-sectorops:6`, `:7`, ...) count once
+  if (sm) k = new Set(sm[1].split(',').map(x => x.replace(/"/g, '').replace(/e2e-/g, '').replace(/:\d+$/, '')).filter(Boolean)).size;
   const pin = /"pin": *true/.test(j) ? '1' : '';
   lines.push([ids[i], first(j, /"sha": "([0-9a-f]*)"/), first(j, /"kind": "([^"]*)"/), req, set, k, pin, newestOf(i), first(cl, /"at":"([^"]*)"/), first(j, /"branch": "([^"]*)"/)].join(US));
 }

@@ -214,6 +214,14 @@ describe('watchdog: PRs and the label convention', () => {
     expect(prAlerts([{ ...byHand, labels: ['train-ready', 'no-affected-e2e'] }], { now: NOW }).alerts.map((a: { kind: string }) => a.kind)).toEqual(['pr-affected-waived']);
   });
 
+  it('F55: a withdrawn (ERROR) affected-e2e never unlabels a no-affected-e2e PR; a FAILURE still does', () => {
+    const withAff = (state: string) => normalizePr(prNode({ labels: ['train-ready', 'no-affected-e2e'],
+      contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'SUCCESS'), ctxNode('affected-e2e', state, '2026-10-24T10:00:00Z', 'not run: withdrawn')] }));
+    const kinds = (p: unknown) => prAlerts([p], { now: NOW, labelFix: true }).alerts.map((a: { kind: string }) => a.kind);
+    expect(kinds(withAff('ERROR'))).toEqual(['pr-affected-waived']);
+    expect(kinds(withAff('FAILURE'))).toEqual(['pr-affected-waived', 'pr-label-red']);
+  });
+
   it('drops the label when any required check is red on the current head, even with checker success', () => {
     const red = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z',
       contexts: [runNode('check', 'FAILURE'), ctxNode('checker', 'SUCCESS')] }));

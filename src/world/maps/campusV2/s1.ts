@@ -38,6 +38,20 @@ export const S1_DOORS = {
   gatehouse: [17, -72.5] as [number, number],
 } as const;
 
+/** (campus-s1-fence) The top (m) of the perimeter's collision-only anti-climb cap: over the highest S1 launch near a
+ *  perimeter line (the plant-roof parapet 5.5 + the mantle 1.8) with room to spare. */
+export const S1_FENCE_CAP = 8;
+/** (campus-s1-fence) The perimeter lines the cap stands on: x0, z0, x1, z1 (one axis fixed) and the line's own top there
+ *  (the palisade 2.4; the plant-roof and pavilion roof screens 6.8). */
+export const S1_FENCE_CAP_LINES: readonly (readonly [number, number, number, number, number])[] = [
+  [-40, -80, 26, -80, 2.4], // south, the gate leaf and the cut panel included
+  [26, -80, 26, -34, 2.4], // east
+  [-40, -80, -40, -40, 2.4], // west palisade
+  [-40, -40, -40, -30, 6.8], // west, over the plant room wall and the roof screens
+  [4, -34, 26, -34, 2.4], // north-east
+  [3.7, -34, 3.7, -30, 6.8], // the pavilion top's east screen
+];
+
 /** The gap (x range) of the C1 doors in the z -34 and z -30 walls: 1.2 wide, on the 0.5 m nav lattice. */
 export const C1_GAP: readonly [number, number] = [-20.6, -19.4];
 
@@ -325,6 +339,13 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(-40, 5.6, -37, 0.1, 2.4, 6, STEEL);
   b.box(-40, 5.6, -32, 0.1, 2.4, 4, STEEL);
   b.box(3.7, 5.6, -32, 0.1, 2.4, 4, STEEL);
+  // (campus-s1-fence) the anti-climb cap: a collision-only sheet over every perimeter line up to `S1_FENCE_CAP` (not drawn,
+  // not baked, no cover, no ledges). The 2.4 palisade alone was a launch line: a leap off the gatehouse roof's open south
+  // corners or off the condenser, or a mantle off the yard bins, the bin screen or the plant-roof parapet carried a player
+  // over it (`tests/campusV2S1Fence.test.ts`)
+  for (const [x0, z0, x1, z1, y0] of S1_FENCE_CAP_LINES) {
+    b.box((x0 + x1) / 2, (y0 + S1_FENCE_CAP) / 2, (z0 + z1) / 2, x1 - x0 || 0.1, S1_FENCE_CAP - y0, z1 - z0 || 0.1, STEEL, 0, 0, true, false);
+  }
   b.mark(f0, { noLedge: true });
 
   // ---- (G2, S1-detail C2) the gatehouse (13.5..20, -79..-72.5, clear 6.2 x 6.2): walls 3.0, roof 3.3, the door north

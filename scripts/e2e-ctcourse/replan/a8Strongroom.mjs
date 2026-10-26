@@ -225,12 +225,16 @@ export async function walk(t, n) {
   await moveClient(INSIDE_GRILLE[0], INSIDE_GRILLE[1], 0.1, EAST);
   await assertRetry('A8 station 21 (loop over)', r2, 21, 'timer', ST21, /The cameras came back/);
   assert(await hasFlag('a8-grille-in'), 'A8: a8-grille-in stays set through the station 21 retry');
+  // the check is the loop's window only: the retry stood the officer back up 5.6 m from A's mark, and the night guards knocked
+  // out at :216 can miss a squad radio check (every 40 +- 8 s), which sends him out of the office past A (a caught retry, triage 4)
+  await knockOut([N1, N2, OFFICER]);
   await waitSim(4000);
-  assert((await restarts(A)) === r2 + 1, `A8: with the loop off a station 21 retry waits for the next press (${await restarts(A)} of ${r2 + 1})`);
+  assert((await restarts(A)) === r2 + 1, `A8: with the loop off a station 21 retry waits for the next press (${await restarts(A)} of ${r2 + 1}, last ${JSON.stringify(await lastRetry(A))})`);
 
   // ---- 8. station 21: the console again, the client on the inner side, both hack the time locks inside the window ----
   console.log('  A8 (re-plan): the loop again, the paired hack');
   await moveHost(AT_CONSOLE[0], AT_CONSOLE[1], 4.5, EAST);
+  await knockOut([N1, N2, OFFICER]); // the station 20 and 21 retries stood all three guards back up
   assert((await use(A, CONSOLE)) === 'ok', 'A8: the host presses the console again');
   await until(A, (f) => window.__course.state.hasFlag(f), LOOP_FLAG, 8000, 'A8: the loop is set again');
   await moveClient(LANDING[0], LANDING[1], 0.1, EAST);

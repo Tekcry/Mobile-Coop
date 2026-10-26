@@ -52,3 +52,15 @@ describe('held guard (G5, Michael 08:10 / 08:20 / 08:25)', () => {
     expect(v.labels()[4]).toBe('Interrogate');
   });
 });
+
+// (piano-knife S1, BRIEF A2) with the piano scene's knife switch on there is no grab row: the takedown row (`'ko'`,
+// TD_LABEL) is the one-press knife kill (`TakedownController.start` forces it); off, today's grab from behind
+describe('takedown row with the knife switch (piano-knife S1)', () => {
+  it('switch on: no grab row for any kind; off: the grab from behind on a guard on two legs', async () => {
+    const { takedownRow } = await import('../src/game/knifeKill');
+    expect(takedownRow('behind', false, false)).toBe('grab');
+    expect(takedownRow('hangDown', false, false)).toBe('grab');
+    expect(takedownRow('front', false, false)).toBe('ko');
+    for (const k of ['behind', 'hangDown', 'front', 'corner', 'side', 'overCover'] as const) expect(takedownRow(k, false, true), k).toBe('ko');
+  });
+});

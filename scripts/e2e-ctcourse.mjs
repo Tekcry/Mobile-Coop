@@ -40,7 +40,7 @@ import * as r5Substation from './e2e-ctcourse/replan/a5Substation.mjs';
 import * as r6PumpHouse from './e2e-ctcourse/replan/a6PumpHouse.mjs';
 import * as r7DataHall from './e2e-ctcourse/replan/a7DataHall.mjs';
 import * as r8Strongroom from './e2e-ctcourse/replan/a8Strongroom.mjs';
-import { SURFACES, reviveOn, freeRevive } from './e2e-ctcourse/revive.mjs';
+import { SURFACES, REPLAN_SURFACES, reviveOn, freeRevive } from './e2e-ctcourse/revive.mjs';
 
 const BUILT_SETS = [a1Gate, a2CarriageShed, a3OfficeRange, a4GoodsShed, a5Substation, a6PumpHouse, a7DataHall, a8Strongroom];
 const REPLAN_SETS = [r1Gate, r2CarriageShed, r3OfficeRange, r4GoodsShed, r5Substation, r6PumpHouse, r7DataHall, r8Strongroom];
@@ -450,7 +450,8 @@ try {
     await mod.walk(t, n);
     const led = await GA((i) => { const s = window.__course.state.stats?.[i]; return s ? { detections: s.detections, alarms: s.alarms, knockouts: s.knockouts, kills: s.kills, bodies: s.bodies } : null; }, n - 1);
     console.log(`  (ghost ledger A${n} after the walk: ${JSON.stringify(led)})`);
-    if (SURFACES[n]) revivesDone += await reviveOn(t, SURFACES[n]);
+    const surf = (REPLAN ? REPLAN_SURFACES : SURFACES)[n];
+    if (surf) revivesDone += await reviveOn(t, surf);
     if (n < 8) await throughHoldingRoom(n);
   }
 

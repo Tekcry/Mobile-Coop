@@ -4,6 +4,7 @@
  * rules a request must pass (checked by the host on both players' movement states) and the timing both sides play
  * from the host's start time. (G151: anywhere with room; G180: CT had it; G52's brace is gone.)
  */
+import { flags } from '../core/flags';
 import { hyp2 } from '../core/mathx';
 import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
@@ -102,10 +103,14 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   }
   const ropeOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & ROPE_SUB) !== 0;
   if (r.kind === 'rope') {
-    // (B7) the two-person rope: the partner holds a rope at an edge above; the climber stands at its foot below
+    // (B7) the two-person rope: the partner holds a rope at an edge above; the climber stands at its foot below.
+    // (coop-kit A1, R34) or beside the holder on the same floor to rappel down it: only with the host's `descent` kit id
     if (!ropeOffer) return 'notOffering';
     const up = r.b.y - r.a.y;
-    if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.ropeReach || up < TEAM.ropeMin - 0.4 || up > TEAM.ropeMax + 0.4) return 'far';
+    const across = hyp2(r.a.x - r.b.x, r.a.z - r.b.z);
+    if (across > TEAM.ropeReach) return 'far';
+    const fromTop = ropeFromTop(r.b.y, r.a.y);
+    if (fromTop ? !flags.kitMoves.has('descent') : up < TEAM.ropeMin - 0.4 || up > TEAM.ropeMax + 0.4) return 'far';
     const l = r.land;
     if (!l || !hangPointOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z)) return 'noTarget';
     return null;
@@ -396,6 +401,31 @@ export function ropeRoom(edgeY: number, floorY: number): RopeRoom {
   if (d > TEAM.ropeMax) return 'deep';
   return 'ok';
 }
+
+/** (coop-kit A1, R34) A rope taker on the holder's floor (+-0.4 m: beside them at the top) rappels down; else it climbs
+ *  from the foot. The holder's and the taker's feet heights (m). */
+export function ropeFromTop(holderY: number, takerY: number): boolean {
+  return Math.abs(holderY - takerY) <= 0.4;
+}
+
+/**
+ * (coop-kit A1) The descent's over-the-edge path at `k` (0..1 over `TEAM.ropeOver`): the top-out's (`ropeTopPath`, from
+ * still) run backwards, so the body leaves the spot beside the holder (k 0: rise 1, across 1) for the rope's top pulled in
+ * to the face (k 1: rise 0, across 0): out over the edge first, then down. No allocation.
+ */
+export function ropeOverPath(k: number, out: { rise: number; across: number }): { rise: number; across: number } {
+  return ropeTopPath(1 - Math.max(0, Math.min(1, k)), 0, out);
+}
+
+/** (coop-kit A1) The rappel's step off at the floor: the feet on it (within 1 cm) and the stick held down (starting value
+ *  -0.5, G10: a firm push, not a drift). */
+export function ropeStepOff(y: number, floorY: number, stickY: number): boolean {
+  return y <= floorY + 0.01 && stickY <= -0.5;
+}
+
+/** (coop-kit A1) How far under the rope's top (m) a rappeller must have gone before the top counts as a top-out again
+ *  (starting value: the stick pushed up just after going over does not climb straight back out). */
+export const ROPE_DESCENT_ARM = 0.3;
 
 /** The climber's feet when the hands reach the edge (the top-out starts there). */
 export function ropeTopY(edgeY: number): number {
