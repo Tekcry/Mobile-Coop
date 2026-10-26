@@ -1,0 +1,16 @@
+{
+  "id": "20261026T030820-affected-e2e-d51202fa-ae79",
+  "sha": "d51202fa3d275e26b2c6e6b623553180c342f06d",
+  "branch": "feature/guard-ai-seed-random",
+  "pr": 537,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-guard-carry",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #537"
+}
