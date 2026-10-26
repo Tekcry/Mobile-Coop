@@ -1,0 +1,13 @@
+{
+  "id": "20261026T145721-night-shift-campaign-152c85c1-4da2",
+  "sha": "152c85c182595044800ef0cdb2e9db29c5800cc1",
+  "branch": "feature/mission-d-wharf",
+  "pr": 583,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "wharf"
+}
