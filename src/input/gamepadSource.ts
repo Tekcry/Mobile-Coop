@@ -142,7 +142,7 @@ export class GamepadSource {
     // the reload is X held). LT is the held aim (`ads`); X's tap / hold is read by the player (`Player.stance`)
     for (const a of [
       'fire', 'ads', 'interact', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
-      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'ctxUp', 'ctxDown',
+      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'ctxUp', 'ctxDown', 'objective',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
     ] as const) {
       const on = frame.buttons[a] === true;

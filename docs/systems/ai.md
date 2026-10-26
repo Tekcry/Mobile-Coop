@@ -10,7 +10,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   `DOOR_NOTICE_RANGE` 9 m, facing a door the player opened, with a clear line, hears it at the door (suspicion, he comes
   to look) and it joins the doors guards shut (`noticeOpenDoors`). The 15% threshold is `DOOR.driveShut` 0.15
   (`world/doors.ts`): a stick-driven door under it is still a crack, shut to the body, light and sight; the light
-  field's own cut for a swinging leaf stays `DOOR_SHUT` 0.05 (`world/lightField.ts`, `docs/systems/lighting.md`).
+  field's cut for a swinging leaf is the same 15% (`DOOR_SHUT` 0.15, `world/lightField.ts`, sector-batch). Not at 15%
+  yet: an ordinary open drops the door's body at once (`Doors.open`), so guard sight and hearing pass from 0% (J15).
 - Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
   sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
@@ -33,12 +34,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way");
     alarm teams are armed guards only, no riot shields (G377).
   - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
-    alert response teams, and armour per alarm stage (G307).
+    alert response teams of the later sections (S4 / S5: `SectorDef.shieldTeams`, guard-rules A4), and armour per
+    alarm stage (G307). The campaign's and Marlow Yard's teams are armed guards only (guard-rules M2, A13, A14).
   - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted; killing one counts as a kill (no
-    Perfect) and costs score (G374).
+    Perfect) and costs score (G374), a gassed dog costs nothing (guard-rules M1, A5; Modes below).
     What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
-  - Helmets by difficulty: the rule is in bible 5.6 (G350). Not built yet: helmets come from a slot tag, a section
-    default or the alarm stage (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
+  - Helmets by difficulty (G350, bible 5.6; built in guard-rules S1, Sector Ops and the campaign only, A1): Realistic and
+    Perfectionist place every human guard helmeted, Perfectionist's helmets never come off (the first headshot is
+    soaked, the second kills, A2); Rookie / Normal are bare-headed until alarm stage 2. Map data never names a helmet
+    (A15). Gear below.
   - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
 - Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
@@ -228,7 +232,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
-  Decided, not built yet: helmets by difficulty (G350; owner bible 5.6), see "Decided direction".
+- Helmets by difficulty (guard-rules S1, G350, A1-A3): `DifficultyDef.helmets` (`ai/archetypes.ts`): `stage` (Rookie /
+  Normal), `always` (Realistic), `locked` (Perfectionist). `EnemyManager.useDifficultyHelmets()` takes it into
+  `helmetRule` (`SectorMode.start`; `stop` sets it back to `stage`; Marlow Yard and the parked modes never call it).
+  `placeSlot` adds the helmet on `always` / `locked` (dogs never) and clears `Enemy.helmetSoaked`; `placeSlot`, `revive`
+  and `joinTeam` set `Enemy.helmetLocked` on `locked`, so every helmet he wears or is given later (stage, shield lead) is
+  locked. `gearHit` with a locked helmet (`GuardGear.helmetLocked`, `GEAR.lockHelmets`): not yet soaked = 0 dealt, no
+  knock-off, the 0.9 s stagger, `GearHit.soak` (`applyDamage` sets `helmetSoaked`); soaked = the bare-head result (the
+  caller kills), the helmet stays on and the `AL_HELMET` bit never clears. A woken guard keeps lock and soak (`inherit`
+  through `setGear`). Co-op: the client's deflect marker (`predictDeflect`) also shows on the killing second headshot
+  (cosmetic; host decides). Undo: `GEAR.lockHelmets` false (A2), `GEAR_BY_STAGE[2].helmet` false (A3).
+  Tests: `tests/helmetRule.test.ts`, `tests/gear.test.ts`; e2e-sectorops S13 block (Realistic: all helmeted at load).
 - Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
   `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
   radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
@@ -397,13 +411,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   reinforcements (grunt, grunt, heavy), unchanged.
 - Response teams (guard-ai S13, stealth over shooting items 3, 4, 11, A37-A39; `ai/sweepTeam.ts` pure, numbers
   `RESPONSE` / `SWEEP` / `GEAR_BY_STAGE` in `ai/gear.ts`). Stage gear: `EnemyManager.setAlarmStage(stage, now)` keeps
-  the stage's gear (`alarmGear`; stage 2 armour, stage 3 armour + helmet) and with `now` gives it to every living
+  the stage's gear (`alarmGear`; stages 2 and 3 armour + helmet, guard-rules A3) and with `now` gives it to every living
   guard on top of his own; `placeSlot` and `revive` add it to every later guard. Sector Ops calls it on each rise
   (`sectorMode.raised`, camera alarms too) and at each section load with the run's stage (`loadSection`; a restart
   goes back to the section's start stage, so the dropped stage's gear goes with it). Other live maps: the one alarm is
   stage 1 (no gear). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
-  (an `enforcer` first, helmeted by `joinTeam`, the rest grunts); `StealthSystems.onAlarm` on live maps sends shield +
-  2 (`RESPONSE.liveTeam`) with the section's guard routes and posts as the sweep source (`sweepSource`). A team is an
+  (an `enforcer` first, helmeted by `joinTeam`, only where the section sets `shieldTeams`: campus S4 / S5, guard-rules
+  A4; elsewhere, warehouseOps and the campaign included, armed guards only); `StealthSystems.onAlarm` on live maps sends
+  3 armed guards (`RESPONSE.liveTeam`, no shield lead: A14, Marlow Build) with the section's guard routes and posts as
+  the sweep source (`sweepSource`). A team is an
   `EnemyManager.teams` entry (`newTeam`, index = its order in the section = its start offset); `Enemy.crew` /
   `teamRank`. Sweep: `SweepTeam.tick` (each step, before the guards think) ranks the members (the first one up leads)
   and switches the sweep on when the leader has searched `ALERT.searchTime` (`begin`: the points once per switch from
@@ -712,7 +728,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
 
 ## Difficulty (G106)
 - `DIFFICULTY` (`ai/archetypes.ts`): `rookie | normal | realistic | perfectionist` (`DifficultyPreset`; `Difficulty` is the
-  same type): perception, damage, accuracy, hp, reaction, reward. `parseDifficulty` reads easy / hard, and an old `custom`
+  same type): perception, damage, accuracy, hp, reaction, reward, helmets (guard-rules S1: Gear above). `parseDifficulty` reads easy / hard, and an old `custom`
   or unknown name as Normal. `resolveDifficulty(d)` returns the level's def.
 - `GameState` resolves it once at match start (`GameState.diff` = `difficultyDef`) and hands it to `EnemyManager.diff` /
   `AiContext.diff`: every AI read goes through it. `reaction` scales the radio call-in (`callInDelay`), squad radio delays,
@@ -759,12 +775,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   alias of `clear`; dev and tests).
 - Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
   fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
-  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements: `perStage` per stage at
-  the stage's response route, else the section's entries (guard-ai S6), as a response team: a riot-shield guard first,
-  the rest `SECTOR_REINFORCE_KIND` grunts (`responseTeam` in `ai/gear.ts`, called by `sectorMode.ts`; S13 "Response teams" above). Bible 5.7
-  keeps riot shields to later sections: job guard-rules (FOLDED-PLAN J15, Guard AI B16). The `SectorGuard` tags
-  (`squad`, `handler`, `zone`, `role`, `reason`, `pair`) are read by `placeSlot` ("Sector tags" and "Talking pairs"
-  above), so Sector Ops squads run radio checks.
+  and a dog without a `handler` (an armed human guard of the section); since guard-rules S1 also a placed riot shield
+  (`enforcer`: shields only lead response teams, G307 (3)) and a slot or section `gear` of `helmet` / `both` (A15:
+  helmets come from difficulty and stage; `armour` stays for late armour). Score (`game/modes/score.ts`, guard-rules
+  A5, M1, G374): `onEnemyKilled` passes `killScore(kind, head, 2, !e.ko)`; a killed dog scores -120 x the tier (no
+  headshot bonus) and counts in `kills` (No kills and Perfect go), a gassed dog keeps +120 and counts in `knockouts`
+  (`tests/killScore.test.ts`; undo `KILL_BASE.dog` 120). Alarm reinforcements: `perStage` per stage at the stage's
+  response route, else the section's entries (guard-ai S6), as a response team: a riot-shield guard first where the
+  section has `shieldTeams` (S4 / S5, guard-rules A4), the rest `SECTOR_REINFORCE_KIND` grunts (`responseTeam` in
+  `ai/gear.ts`, called by `sectorMode.ts`; S13 "Response teams" above). The `SectorGuard` tags (`squad`, `handler`,
+  `zone`, `role`, `reason`, `pair`) are read by `placeSlot` ("Sector tags" and "Talking pairs" above), so Sector Ops
+  squads run radio checks.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
   (solo, host and a client's strike on the host). Dogs carry no flashlight (G201; it still holds after the G295
   redesign; `carriesTorch`).

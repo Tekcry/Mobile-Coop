@@ -467,7 +467,8 @@ try {
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
     // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
     // (batch-23) no Anim Studio row in the pause menu: the studio opens from the main menu only
-    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
+    // (hud-guidance B5, R12) Notes right after Objectives
+    assert(keys === 'resume,objectives,notes,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
     assert(!keys.includes('anim-studio') && keys.includes('anim-tuner'), `the pause menu has Animation tuner (dev) and no Anim Studio row (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
@@ -476,6 +477,14 @@ try {
     await GM(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
     await frames(P, 3);
     assert((await mtop()) === 'pause-screen' && (await mkey()) === 'objectives', 'Back from Objectives returns with focus kept');
+    // (hud-guidance B5, A9) a new match has no notes yet
+    await GM(() => { const b = document.querySelector('.pause-screen [data-key="notes"]'); window.__app.nav.focus(b); b.click(); });
+    await frames(P, 3);
+    const notes = await GM(() => [...document.querySelectorAll('.notes-screen .ms-item .btn-label')].map((b) => b.textContent));
+    assert((await mtop()) === 'notes-screen' && notes.join() === 'No notes yet', `Notes on a new match: "No notes yet" (${notes.join(' | ')})`);
+    await GM(() => document.querySelector('.notes-screen [data-legend="back"]').click());
+    await frames(P, 3);
+    assert((await mtop()) === 'pause-screen' && (await mkey()) === 'notes', 'Back from Notes returns with focus kept');
     await GM(() => document.querySelector('.pause-screen [data-key="quit"]').click());
     await frames(P, 3);
     assert(await GM(() => document.querySelector('.dialog-buttons .btn.focused, .dialog-buttons .btn[data-focused]')?.textContent === 'Stay' || window.__app.nav.focused?.textContent === 'Stay'), 'Quit confirm opens on Stay');

@@ -1,3 +1,5 @@
+> Superseded (TW23, 2026-10-25): the current Tallow Wharf spec is [`docs/tallowWharf-map/SPEC.md`](../../../tallowWharf-map/SPEC.md); this text stays as the record the signed pages point to.
+
 # Task: Tallow Wharf - a canal-side merchants' quarter at night, two co-op missions on one small map
 
 Map spec (mission-framework slice CMS, 2026-10-24), filled from `graph.json` (slice CMG) on the section list of
