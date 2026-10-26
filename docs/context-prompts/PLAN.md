@@ -14,7 +14,10 @@ then the item in reach or the carry target (`ITEM_KIND`). Holding A opens the li
 up / down / mouse wheel moves the highlight (`CtxNav`, `ctxUp` / `ctxDown`), releasing A runs the row (`ctxRun`
 ~1625); a tap runs row 1. Separately, world-anchored prompts already exist (`src/ui/hud/worldPrompts.ts`, fed by
 `updateCoverHud` ~4134: traversal, team move, takedown label) and a centre "use" prompt (`Hud.setInteract`) serves the
-team-move direct path (`updateInteract` ~1444). Note: the "Y = jump + use + takedown" line in the header of
+team-move direct path (`updateInteract` ~1444). While `team.active` and not `hangActs` (a move, or a free offer:
+`offer`, `hangOffer`, `ropeOffer`, the kit offers), `contextMenuStep` stands aside and A acts directly twice: on the item
+in reach (`updateInteract`, centre prompt) and on the takedown on offer (`tdk.fixedUpdate(..., team.active &&
+!hangActs && aFree && pressed('interact'), ...)` ~2229, shown by the `takedown` world prompt). Note: the "Y = jump + use + takedown" line in the header of
 `src/input/conflicts.ts` is stale since A3 / G96 split Y (jump / traverse) from A (interact); S2 fixes the comment.
 
 ## 1. Inventory: every interaction today
@@ -51,7 +54,7 @@ team-move direct path (`updateInteract` ~1444). Note: the "Y = jump + use + take
 | 26 | Weapons crate | item, hold `CRATE_HOLD` (`weaponCrates.ts`) | Menu hold row |
 | 27 | Revive the partner (co-op) | item `revive-*` (host `coopHost.ts` ~639; client mirrors, `coopClient.ts` ~663) | Menu hold row |
 | 28 | Mission objectives: terminal (3 s), cache, extract | `missionMode.ts` | Menu item / hold row |
-| 29 | Infiltration intel "Take the intel", extract | `infiltrationMode.ts` | Menu item row |
+| 29 | Infiltration (the default mode): "Start the upload" (`terminal`, tap), plant / sabotage (`terminal` / `charge`, hold `o.time`), rescue (`vip`, hold, at the VIP), "Take the intel" (`intel`), extract | `src/game/modes/infiltrationMode.ts` 105-160 | Menu item / hold row |
 | 30 | Sector Ops: keypad (hold), board "Read" (hold), desk (hold), objective / hack (hold or tap), exit (tap) | `sectorMode.ts` | Menu item / hold row |
 | 31 | Sector Ops: team door "Unbolt" (one side), key switch "Turn key" (two players) | `sectorTeamDoors.ts`, `pairPress.ts` | Menu item row |
 | 32 | Training course devices (`c-*` switches, tap or hold) and gates "Unbolt" | `courseMode.ts` | Menu item / hold row |
@@ -64,9 +67,12 @@ team-move direct path (`updateInteract` ~1444). Note: the "Y = jump + use + take
 | 39 | Kit moves: pull-up, shutter lift / crawl, chimney pair | `kit/*.ts` (`h.prompt`) | Direct RB / F |
 | 40 | Jammer (aiming the pistol) | `ctDevices` | Direct RB held while aiming, no prompt |
 | 41 | Ping | `sendPing` | Direct R3 / middle mouse, no prompt |
+| 42 | Team move or offer under way (`team.active`, not `hangActs`): the item in reach or the carry target | `updateInteract` ~1444 | Direct A with the centre prompt (`Hud.setInteract`) |
+| 43 | Team move or offer under way: the takedown on offer | `tdk.fixedUpdate` ~2229 (A press) | Direct A; `takedown` world prompt |
+| 44 | A owned by another system: the wheel's vision slot (`gadgetSystem.ts` 194), the sticky-cam remote view's gas (575), the piano intro's EMP press (any A press while the intro prompt is up, `pianoScene.ts` 546-556; a client has no EMP item and shows no world prompt, as today) | as listed | Direct A, no world prompt |
 
-Rows 34-41 are not in the box today; they stay on their buttons and only rows 34-36 and 38-39 get the new look (A13,
-A14). Rows 37, 40 and 41 keep no prompt.
+Rows 34-44 are not in the box today. Rows 34-36 and 38-39 stay on their buttons and get the new look (A13, A14); rows
+42-43 move into the provider (section 2). Rows 37, 40, 41 and 44 are unchanged and keep no world prompt.
 
 ## 2. The new mapping
 
@@ -87,7 +93,7 @@ are starting values (G10).
 | 11 | Hang-down: item in reach | A as the item (row 20-33) | the item's prompt; `[RB] Pull me up` on the partner | the item |
 | 12 | Partner's hostage | A tap: Team takedown | `[A] Team takedown` | above the hostage |
 | 13 | Partner's hostage with joint information | Alt tap: Bluff | `[D-pad up] Bluff` under the A row | above the hostage |
-| 14 | Knife scene guard | A tap or hold: Knife takedown; holstered RT: Knife takedown | `[A] Knife takedown` / `[RT] Knife takedown` | above the head |
+| 14 | Knife scene guard (every guard on two legs except the partner's hostage, which stays row 12: `takedownController.start` exempts `assist`) | A tap or hold: Knife takedown; holstered RT: Knife takedown | `[A] Knife takedown` / `[RT] Knife takedown` | above the head |
 | 15 | Closed unlocked door faced | A tap: Open, A hold: Bash. Alt tap: Peek (only when the peek is on offer), Alt hold: Optic cable | `[A] Open · hold Bash` / `[D-pad up] Peek · hold Optic cable` | the leaf, latch side, 1.1 m up |
 | 16 | Sliding door | A tap: Open | `[A] Open` | the leaf, 1.1 m up |
 | 17 | Open door | A tap: Close | `[A] Close` | the leaf, 1.1 m up |
@@ -99,15 +105,21 @@ are starting values (G10).
 | 24 | Carrying | A tap: Hide body / Open / Close / Drop body; B at the lift lets go | `[A] Hide body` (or the door / drop label) | the hide spot / door / 1 m ahead at the floor |
 | 25-26 | Medkit station, weapons crate | A hold (fill) | `[A] hold Medkit` / `[A] hold Weapons crate` | the cabinet / crate lid |
 | 27 | Revive the partner | A hold (fill) | `[A] hold Revive <name> (<s>)` | the partner's chest |
-| 28-33 | Objectives, intel, keypads, boards, desks, exits, bolts, key switches, course devices, EMP | A tap or A hold as the item's `holdTime` | the item's label (hold: "hold" + ring) | the item, at `KIND_PROMPT_Y[kind]` over `pos` |
+| 28-33 | Objectives, upload, plant / sabotage, rescue (VIP), intel, keypads, boards, desks, exits, bolts, key switches, course devices, EMP | A tap or A hold as the item's `holdTime` | the item's label (hold: "hold" + ring) | the item, at `KIND_PROMPT_Y[kind]` over `pos`; the table covers all 14 `InteractKind`s (`interactables.ts` 9, incl. `vip`, `charge`, `hide`) |
 | 34-35 | Traversal | Y as today | `[Y] Vault` etc., same look | as today |
 | 36 | Closed vent | Y tap: Kick in, Y hold: Unscrew | `[Y] Kick in · hold Unscrew` | the grate |
 | 38-39 | Team and kit moves | RB as today | `[RB] Leg-up` etc. (the move named, G151); waiting text as a small second line | the partner (or the ledge / shutter point, as today) |
 | 37, 40, 41 | Wall, jammer, ping | unchanged | none | - |
+| 42 | Team move or offer under way, item in reach | A as the item (rows 20-33, carry row 24) | the item's prompt (replaces the centre prompt) | the item |
+| 43 | Team move or offer under way, takedown on offer | A as rows 1-5 (the guard keeps A over the item, as today) | as rows 1-5 | above the head |
+| 44 | Vision slot, sticky-cam gas, piano intro EMP press | unchanged | none | - |
 
 One target has the focus (section 4); A, Alt, RT and LT act on it. The prompt lists only the buttons that do something
-there. Stand-asides are today's (`aside` in `contextMenuStep`): down, a team move (except the hang-down rows), a door
-peek (its own prompt), the optic view, a remote view, the wheel, a takedown / finisher / lift running.
+there. Stand-asides are today's (`aside` in `contextMenuStep`): down, a door peek (its own prompt), the optic view, a
+remote view, the wheel, a takedown / finisher / lift running. A team move is not a stand-aside: while `team.active` and
+not `hangActs` the provider runs with only rows 42-43 (as it runs with only rows 10-11 while hanging), in every state
+today's direct paths run in. `updateInteract` and the ~2229 press are not gated on `team.busy`, so the provider is not
+either (parity; the takedown system's own offer rules decide whether a guard is on offer).
 
 ## 3. Button maps and the conflict check
 
@@ -144,7 +156,10 @@ peek (its own prompt), the optic view, a remote view, the wheel, a takedown / fi
   old list reads `ctxUp` only while it is held open, and `interactAlt` is read only with the flag on, so one press never
   does both. S7 deletes `CTX_BINDINGS`.
 - `interactAlt` keys: H and `Mouse4` are bound to nothing, not in `FIXED_KEYS`, `RESERVED` or `MENU_NAV_KEYS`.
-- A player who already put a verb on D-pad up, H or Mouse4 gets the normal conflict warning (bindings still save).
+- With the flag on, a player who already put a verb on D-pad up, H or Mouse4 gets the normal conflict warning
+  (bindings still save). With the flag off the verb stays dark: `controlsScreen.ts` (which lists every `PAD_BINDS` /
+  `BINDS` row and runs `findConflicts`) hides the `interactAlt` row on both devices and leaves it out of the conflict
+  check, so the live game shows no dead row and no new warning.
 - A (E) gains tap / hold meanings on some targets: per G398 such a button gets no hold-or-toggle setting; the plain hold
   items (A9) keep `access.holdToggle`. `gameplay.grabToggle` (A hold keeps the grabbed guard) is untouched: from behind
   A has no hold action (A5).
@@ -152,16 +167,20 @@ peek (its own prompt), the optic view, a remote view, the wheel, a takedown / fi
   jump / traverse / vent; X = draw / reload; RB = co-op / jammer while aiming; RT = fire / strike / held-guard finisher.
 - The menu group (`uiUp`, `uiConfirm`, ...) never clashes with gameplay verbs (separate group), so H / D-pad up in menus
   are unaffected.
-- Tests and scripts that assert bindings: `tests/padBinds.test.ts`, `tests/keyBindings.test.ts`,
-  `tests/conflicts.test.ts`, `scripts/e2e-pad.mjs`, `scripts/e2e-mouse.mjs` (S2 greps `scripts/` and `tests/` for
-  D-pad up, `KeyH`, `Mouse4` and the bind id lists and updates them in the same change).
+- Tests and scripts that assert bindings: `tests/padBinds.test.ts`, `tests/keybinds.test.ts`,
+  `tests/conflicts.test.ts`, `tests/settings.test.ts` (the literal old settings object), `tests/input.test.ts`
+  ~225-291 (the binding table in `docs/systems/input-and-loop.md` must match `GAME_BINDINGS` and `BINDS` both ways, so
+  the table gains the `interactAlt` row in the same change), `scripts/e2e-pad.mjs` 691 (the `PADV` table: button 12
+  gains `interactAlt` beside `ctxUp`), `scripts/e2e-mouse.mjs`. S2 greps `scripts/` and `tests/` for D-pad up, `KeyH`,
+  `Mouse4` and the bind id lists and updates them in the same change.
 
 ## 4. Target choice
 - Candidates each step, from today's providers and reaches (A11): the held guard; the takedown offer (the takedown
   system's own plan, unchanged); the partner's hostage; the closed door faced (`doorMenuCandidate`, 1.6 m, within
   90 deg of the camera); else the optic gap (`gapMenuCandidate`, 1.6 m); the interactables in reach
   (`Interactables.nearest`, 1.8 m or the item's `reach`, `side` and `itemScope` rules); the carry target while carrying.
-  Up to `CTX_CANDS` = 8, fixed slots.
+  Up to `CTX_CANDS` = 8, fixed slots. In a team move or offer (rows 42-43) only the takedown offer and the item in
+  reach are candidates; hanging, only rows 10-11.
 - Priority, then score: a held guard, then a takedown offer (the guard keeps A, as row 1 did), then the rest scored by
   `distance + CTX_FOCUS.angleW x angle off the camera's forward` (the camera's aim, not the body's). Starting values:
   `angleW` 1.0 m per radian.
@@ -170,8 +189,11 @@ peek (its own prompt), the optic view, a remote view, the wheel, a takedown / fi
 - Locked: while A, Alt or RT (on a guard) is down, the focus does not change; if the target leaves reach mid-hold the
   hold cancels with no action (the old "a guard turning must not turn KNOCK OUT into KILL under the thumb").
 - Several actions on one target: one cluster, one row per button (A, Alt, RT, LT), each row "tap label · hold label".
-- Faint markers (choice 3, A10): other candidates and interactables within `CTX_FAINT_R` = 3 m, in front of the camera,
-  within 1.5 m of the feet's height, at most 6, show a dim marker with no text.
+- Only the focused target shows anything (choice 3 recommended, A10): no marker on other candidates, which keeps VISION
+  rule 5 / G290, G339 and G135. The other option loosens G290 (Michael's rule), so it is built only if he picks it, as
+  `CTX_FAINT` in the view (S4, ~100 lines): other candidates and interactables within `CTX_FAINT_R` = 3 m, in front of the camera,
+  within 1.5 m of the feet's height, at most 6, show a dim marker with no text; never the partner (no revive or
+  team-move candidate, G135).
 - A press is owned (`ctxOwnsA`, as today): a press the system used is swallowed until released, so the door peek, the
   vent hold and the team-move press never see it.
 - Scripted taps (`InputState.tap('interact')`, tests and tools) run the tap action at once (no hold timing); tests drive
@@ -185,21 +207,26 @@ peek (its own prompt), the optic view, a remote view, the wheel, a takedown / fi
 - The focused target: the marker at the anchor and a small stack of rows under it, one per button:
   `[A] Open · hold Bash`, `[D-pad up] Peek · hold Optic cable`. The hold half is dimmer until held; a ring round the
   glyph fills while the button is held (the centre prompt's `.hold-ring` style), the same for item holds.
-- Fade: a candidate's marker fades in from 3 m (opacity 0 to 0.35); the focused target's cluster fades to full over
-  0.15 s (CSS opacity transition, no per-frame style writes beyond the transform). Off screen: clamped to the screen
+- Fade: the focused target's cluster fades to full over 0.15 s when it gains the focus and out when it loses it (CSS
+  opacity transition, no per-frame style writes beyond the transform). Nothing else is drawn (A10). Off screen: clamped to the screen
   edge as `worldPrompts` does today (8-92 % across, 10-97 % down); behind the camera: hidden.
 - Size: text in `vh` units like the old box (about 2.2 vh, the old 11 px at 720 p), times `--hud-scale` (Settings >
   Accessibility, 0.8-1.4); S4 sets `--hud-scale` on the world layer, which today sits outside the HUD element.
 - Glyphs per device: all variants are emitted and the body class picks Xbox, PlayStation, Nintendo or the key label, so
   prompts swap at once when the pad connects or disconnects (bible 8). D-pad up gets a glyph entry (`DU`: "D-pad ↑" pill
   on pads); keys show the bound key (H). Remapped buttons show their new glyph (`padButtons` / `keyLabels`).
-- DOM: fixed elements (one cluster, 4 rows, 6 faint markers) written only when their text changes (a version counter,
+- DOM: fixed elements (one cluster, 4 rows) written only when their text changes (a version counter,
   as `ContextMenuView`); positions as transforms only when they move.
 - With the flag on, the top-right box (`.hud-ctx`) and the centre use prompt (`Hud.setInteract`) never show; the old
-  `takedown` world prompt id is folded into the cluster.
+  `takedown` world prompt id is folded into the cluster. Their jobs in a team move or offer (rows 42-43) move to the
+  cluster with them, so no A action runs without a prompt.
+- The seam (S1 / S3 / S4): S1 defines the view interface in `contextPrompts.ts` (`CtxPromptSink { update(model):
+  void }`, the model being the focus, its anchor and rows); S3 calls it every step through an optional `hud` member of
+  that type (a no-op when absent, as in the provider tests); S4 implements it in `hud.ts` / `contextPromptView.ts`.
 - The comment in `worldPrompts.ts` that names another game is rewritten (G6) when S4 touches the file.
 - Look sign-off: the builder posts three screenshots (door, guard from behind, hold item) in the PR body for the walk
-  card; a big look change otherwise needs Michael's one click (G288), which choice 3 and the summary sheet cover.
+  card; a big look change otherwise needs Michael's one click (G288), which choice 3 and the summary sheet cover (a
+  mock-up shot of choice 3 helps him if the lead has one to hand).
 
 ## 6. Co-op and the knife scene
 - No wire change, no `PROTOCOL_VERSION` touch, no save change (A18). Actions run through today's calls: the client's
@@ -215,11 +242,15 @@ peek (its own prompt), the optic view, a remote view, the wheel, a takedown / fi
 - Hang-down: the hanging player's rows 10-11 (`[A] Grab` / `[RT] Choke · hold Neck snap` on the guard; an item in
   reach on A; `[RB] Pull me up` on the holder). The A9 direct path (`updateInteract`) is folded into the provider under
   the flag; the old path stays for the flag off.
+- A team move or offer under way (rows 42-43): the provider runs with the takedown offer and the item in reach only, so
+  A keeps today's direct jobs with a world prompt (for example, offering a leg-up next to a panel: `[A] Lights off`
+  on the panel, the team-move prompt as today).
 - Team move text: `teamController.ts` ~817 ("Hanging: A to use what is in reach, hold A by a guard to grab...") and the
   other "Co-op: ..." lines become the short move names under the flag (the full lines stay for the flag off).
 - Key switches and team doors: each player's own A on their own half (unchanged rule, `pairPress.ts`).
-- The knife scene (G426, `knifeSceneOn`): every guard row is `[A] Knife takedown` (tap or hold, both the knife kill:
-  `start(lethalOnly)` forces it); the holstered attack press stays the knife kill (`knifeAttack`, #682) and the prompt
+- The knife scene (G426, `knifeSceneOn`): every guard on two legs shows `[A] Knife takedown` (tap or hold, both the
+  knife kill: `start(lethalOnly)` forces it), except the partner's hostage, which stays `[A] Team takedown`
+  (`takedownController.start` exempts `assist`); the holstered attack press stays the knife kill (`knifeAttack`, #682) and the prompt
   names it `[RT] Knife takedown`; no grab, no strike, no free slash; the "Knife ready: get behind or beside a guard" cue
   unchanged. The knife's pair runs host-side as today.
 
@@ -228,60 +259,77 @@ peek (its own prompt), the optic view, a remote view, the wheel, a takedown / fi
   its doc line: owner Night Shift | Player Build, switch-on at Michael's walk, target 2026-10-31). Live default off;
   `/preview/` on; `?ctxprompts=1` / `0` override (G416).
 - `GameState`: with the flag on, `contextPromptStep` runs where `contextMenuStep` runs now and owns A the same way
-  (`ctxOwnsA`); with it off nothing changes. The other readers of `ctxMenu.state === 'active'` (the frame's blank move
-  ~3254, the vision toggle ~3319, `knifeAttack` ~2260) read a shared `ctxListOpen` getter that is always false under the
+  (`ctxOwnsA`); with it off nothing changes. The other readers of `ctxMenu.state === 'active'` (`ctxWas` / `ctxHeld`
+  ~2070-2072, which blank the input; the frame's blank move ~3254, the vision toggle ~3319, `knifeAttack` ~2260) read a shared `ctxListOpen` getter that is always false under the
   flag (no list, walking free, A12).
 - The old box, its code, its CSS and every test that drives it stay until switch-on (S7). e2e builds are not preview
   builds, so the existing suites keep testing the old box; the new steps pass `?ctxprompts=1`.
 - Walk pacing (G288): Player area. The orchestrator counts it against the Player cap at switch-on; it builds dark now.
 - Switch-on (S7, after Michael accepts it): the default flips on, the old-menu tests move to the new system, the old
-  box is deleted, and the orchestrator folds A1-A20 and Michael's picks into DECISIONS (G198, G203, G205, G206 replaced;
-  G96, G77 narrowed) and the bible's 5.4 / 5.10 / controls lines.
+  box is deleted, and the orchestrator folds A1-A20 and Michael's picks into DECISIONS and the bible:
+  - Replaced: G198, G203, G205, G206, G19, G5 (the menu half of AUDIT-ACTIONMENU).
+  - Narrowed: G96, G77, G97; G290 / VISION rule 5 only if Michael picks the faint-marker option of choice 3 (with the
+    recommended "Only the one you face" it is kept). G135 and G339 are kept either way.
+  - Bible lines: the Doors row ("A CT door list"), the Interaction table's optic row ("a door-list choice"), the 5.4
+    bullets (the hold-A menu, G203, G205, the positional takedowns' "one KNOCK OUT row"), 5.10 and the controls lines.
 
 ## 8. Slices
 Claims: no maps, no wire paths, no save paths. Settings gain one bind id per device (`interactAlt`); `sanitizePadBinds`
 and `sanitizeBinds` start from the defaults, so old settings load with the default (S2 adds a test with a literal old
-settings object; no `SAVE_VERSION` or layout version bump). One PR per row of "PR", each under ~1.5k changed lines.
+settings object in `tests/settings.test.ts`; no `SAVE_VERSION` or layout version bump). One PR per row of "PR", each
+under ~1.5k changed lines. Before S1 starts, the lead (Haiku may write it) puts `docs/context-prompts/STATE.md` on the
+branch (RULES "A job").
 
 | Slice | PR | Model | Files (new *) | Size | Depends |
 | --- | --- | --- | --- | --- | --- |
-| S1 Core model | P1 | Opus | *`src/game/contextPrompts.ts` (targets, fixed slots, focus pick / sticky / lock, tap vs hold resolver, ownership, `CTX_HOLD`, `CTX_FOCUS`, `CTX_SLOT_BUTTON`); *`tests/contextPrompts.test.ts` | ~750 | - |
-| S2 Second-action verb | P1 | Opus | `src/input/actions.ts`, `padBinds.ts`, `keyBindings.ts`, `conflicts.ts` (stale header), `gamepadSource.ts` (button list), `gamepadMapping.ts` (`DU` glyph), `src/ui/prompts.ts` (`padButtons` / `keyLabels`), `src/core/app.ts` (labels); `tests/padBinds.test.ts`, `tests/keyBindings.test.ts`, `tests/conflicts.test.ts` | ~300 | - |
-| S3 Providers and wiring | P2 | Opus | `src/core/flags.ts`; *`src/game/contextProviders.ts` (rows 1-8, 12, 15-33 of section 2 from a narrow `CtxHost`); `src/game/gameState.ts` (`contextPromptStep`, `ctxListOpen`, the host methods); *`tests/contextProviders.test.ts`; `scripts/e2e-takedown.mjs`, `scripts/e2e-stealth-ai.mjs` (new `?ctxprompts=1` steps) | ~1,200 | S1, S2 |
-| S4 Prompt view | P3 | Sonnet (strict Opus brief) | *`src/ui/hud/contextPromptView.ts`; *`src/ui/hud/promptLayout.ts` (pure: fade band, clamp, overlap push); `src/ui/hud/worldPrompts.ts`, `src/ui/hud/hud.ts`, `src/styles.css`; *`tests/promptLayout.test.ts`; `scripts/e2e-pad.mjs` (glyph swap step) | ~800 | S1 (types); parallel with S3 |
-| S5 Co-op, hang-down, carry, knife | P4 | Opus | `src/game/contextProviders.ts` (rows 10-11, 13-14, 24, 27, 38-39 anchors), `src/game/gameState.ts` (`updateInteract` under the flag, team prompt anchor), `src/game/teamController.ts`, `src/game/kit/pullUp.ts`, `shutter.ts`, `chimneyPair.ts` (short move names under the flag); `tests/contextProviders.test.ts`; `scripts/e2e-coop.mjs`, `scripts/e2e-piano.mjs` | ~900 | S3 |
-| S6 Docs and walk prep | P4 | Haiku | `docs/systems/input-and-loop.md`, `ui.md`, `takedowns.md`, `movement.md`, `ct-toolkit.md`; `TESTING.md`; `changes/feature-context-prompts.md` (kind: minor); `docs/context-prompts/STATE.md` | ~200 | S5 |
-| S7 Switch-on (after Michael's yes) | P5, P6 | Opus | P5: flag default on, old-menu asserts moved (`scripts/e2e-takedown.mjs` 15, `e2e-coop.mjs` 7, `e2e-stealth-ai.mjs` 5, `e2e-sectorops.mjs` 3, `e2e-pad.mjs` 2, `e2e-modes.mjs` 1, `e2e-gadgets.mjs` 1, `e2e-ctcourse/a3OfficeRange.mjs`, `a6PumpHouse.mjs`, `route-run/driver.mjs`, `anim-sheet.mjs`, `anim-natural/audit.mjs`; `tests/doorMenu`, `grabMenu`, `guardInfo`, `marlowN9SlideDoor`, `routeRunPair`, `ctcourse/a4GoodsShed`). P6: delete `contextMenu.ts`, `contextMenuView.ts`, `CtxNav`, `CTX_BINDINGS`, `ctxUp` / `ctxDown`, `.hud-ctx` CSS, the flag-off branches | ~1,000 + ~900 | Michael's walk |
+| S1 Core model | P1 | Opus | *`src/game/contextPrompts.ts` (targets, fixed slots, focus pick / sticky / lock, tap vs hold resolver, ownership, `CTX_HOLD`, `CTX_FOCUS`, `CTX_SLOT_BUTTON`, the view interface `CtxPromptSink`); *`tests/contextPrompts.test.ts` | ~780 | - |
+| S2 Second-action verb | P1 | Opus | `src/input/actions.ts`, `padBinds.ts`, `keyBindings.ts`, `conflicts.ts` (stale header), `gamepadSource.ts` (button list), `gamepadMapping.ts` (`DU` glyph), `src/ui/prompts.ts` (`padButtons` / `keyLabels`), `src/core/app.ts` (labels), `src/ui/screens/controlsScreen.ts` (the `interactAlt` row hidden and out of `findConflicts` while the flag is off); `docs/systems/input-and-loop.md` (binding table rows only); `tests/padBinds.test.ts`, `tests/keybinds.test.ts`, `tests/conflicts.test.ts`, `tests/input.test.ts`, `tests/settings.test.ts`; `scripts/e2e-pad.mjs` (the `PADV` row only) | ~380 | - |
+| S3 Providers and wiring | P2 | Opus | `src/core/flags.ts`; *`src/game/contextProviders.ts` (rows 1-8, 12, 15-23, 25-26, 28-33 of section 2 from a narrow `CtxHost`); `src/game/gameState.ts` (`contextPromptStep`, `ctxListOpen`, the host methods, the optional `hud: CtxPromptSink` call); *`tests/contextProviders.test.ts`; `scripts/e2e-takedown.mjs`, `scripts/e2e-stealth-ai.mjs` (new `?ctxprompts=1` steps) | ~1,150 | S1, S2 |
+| S4 Prompt view | P3 | Sonnet (strict Opus brief) | *`src/ui/hud/contextPromptView.ts` (implements `CtxPromptSink`); *`src/ui/hud/promptLayout.ts` (pure: fade, clamp, overlap push); `src/ui/hud/worldPrompts.ts`, `src/ui/hud/hud.ts`, `src/styles.css`; *`tests/promptLayout.test.ts`; `scripts/e2e-pad.mjs` (glyph swap step, edited after P1 is on the branch) | ~750 (~850 if choice 3's faint-marker option) | S1 (types); built in parallel with S3; its e2e runs on a head that contains P2 (the lead merges S3 into S4's branch first) |
+| S5 Co-op, hang-down, carry, knife, team states | P4 | Opus | `src/game/contextProviders.ts` (rows 10-11, 13-14, 24, 27, 38-39 anchors, 42-43), `src/game/gameState.ts` (`updateInteract` and the ~2229 press under the flag, team prompt anchor), `src/game/teamController.ts`, `src/game/kit/pullUp.ts`, `shutter.ts`, `chimneyPair.ts` (short move names under the flag); `tests/contextProviders.test.ts`; `scripts/e2e-coop.mjs`, `scripts/e2e-piano.mjs` | ~1,050 | S3 |
+| S6 Docs and walk prep | P4 | Sonnet 5.5 (strict Opus brief); Haiku only the fragment | `docs/systems/input-and-loop.md` (prose only; the table is S2's), `ui.md`, `takedowns.md`, `movement.md`, `ct-toolkit.md`; `TESTING.md`; `changes/feature-context-prompts.md` (kind: minor, Haiku) | ~200 | S5 |
+| S7 Switch-on (after Michael's yes) | P5, P6 | Opus | P5: flag default on, old-menu asserts moved (`scripts/e2e-takedown.mjs` 15, `e2e-coop.mjs` 7, `e2e-stealth-ai.mjs` 5, `e2e-sectorops.mjs` 3, `e2e-pad.mjs` 2, `e2e-modes.mjs` 1, `e2e-gadgets.mjs` 1, `e2e-ctcourse/a3OfficeRange.mjs`, `a6PumpHouse.mjs`, `route-run/driver.mjs`, `anim-sheet.mjs`, `anim-natural/audit.mjs`; `tests/doorMenu`, `grabMenu`, `guardInfo`, `marlowN9SlideDoor`, `routeRunPair`, `ctcourse/a4GoodsShed`). P6: delete `contextMenu.ts`, `contextMenuView.ts`, `CtxNav`, `CTX_BINDINGS`, `ctxUp` / `ctxDown`, `.hud-ctx` CSS, the flag-off branches, the controls-screen hide | ~1,000 + ~900 | Michael's walk |
 
-Tests per slice (agents: `npm run typecheck:fast` + `npx vitest run <files>`; e2e only through the laptop queue):
+PR totals: P1 ~1,160, P2 ~1,150, P3 ~750 (~850), P4 ~1,250, P5 ~1,000, P6 ~900. All under ~1.5k.
+
+Tests per slice (agents: `npm run typecheck:fast` + `npx vitest run <files>`; e2e only through the laptop queue). Gate
+(RULES "Test tiers"): every PR that touches `src/game` or `src/player` (P1, P2, P4, P5 when it does, P6) needs
+`e2e-coop` + `e2e-netmove` green before the checker passes; the old-box steps stay green with the flag off.
 - S1: `tests/contextPrompts.test.ts`: focus by priority and score; sticky margin and dwell; lock while held and the
   cancel when the target leaves; tap on press (no hold action) vs tap on release and hold at `CTX_HOLD`; item fill and
-  early release; scripted tap; ownership (`ctxOwnsA`) until release; no allocation per step (slot reuse).
-- S2: the three binding tests (defaults, sanitize from a literal old settings object, conflicts with D-pad up / H /
-  Mouse4 taken). Affected e2e: `e2e-pad`, `e2e-mouse`, `e2e-move`, `e2e-menus`.
+  early release; scripted tap; ownership (`ctxOwnsA`) until release; no allocation per step (slot reuse). Gate: P1.
+- S2: `tests/padBinds.test.ts`, `tests/keybinds.test.ts` (defaults), `tests/settings.test.ts` (sanitize from a literal
+  old settings object), `tests/conflicts.test.ts` (D-pad up / H / Mouse4 taken), `tests/input.test.ts` (the doc table
+  matches both ways), a controls-screen check (flag off: no `interactAlt` row, no conflict from it). Affected e2e:
+  `e2e-pad`, `e2e-mouse`, `e2e-move`, `e2e-menus`. Gate: P1.
 - S3: `tests/contextProviders.test.ts` (a fake host: each target kind's rows, the sliding / open / locked door, the gap
-  with and without a trap, lethal-only, quadruped, knife on). e2e with `?ctxprompts=1`: `e2e-takedown` (A tap grabs from
-  behind; front: tap knocks out, hold kills; RT unchanged; held guard interrogate), `e2e-stealth-ai` (door: tap opens,
-  hold bashes and knocks out the guard behind, Alt tap peeks, Alt hold feeds the optic). Gate (src/game):
-  `e2e-coop` + `e2e-netmove` green before the checker passes; the old-box steps must stay green (flag off).
-- S4: `tests/promptLayout.test.ts`; `e2e-pad` step: the cluster shows on a door with the pad glyph, swaps to the key
-  label on a key press; `e2e-desktop` by `affected-e2e`. Three screenshots in the PR body.
-- S5: provider tests for the partner rows; `e2e-coop` with `?ctxprompts=1` on both tabs (revive prompt and hold, team
-  takedown and bluff on the hostage, hang-down grab, team-move prompt on the partner), `e2e-netmove`, `e2e-ctcourse`
-  (the co-op group, `src/game`); `e2e-piano` (A and RT knife takedown, no grab).
+  with and without a trap, lethal-only, quadruped, knife on, a `vip` and a `charge` item; `KIND_PROMPT_Y` has all 14
+  kinds). e2e with `?ctxprompts=1`: `e2e-takedown` (A tap grabs from behind; front: tap knocks out, hold kills; RT
+  unchanged; held guard interrogate), `e2e-stealth-ai` (door: tap opens, hold bashes and knocks out the guard behind,
+  Alt tap peeks, Alt hold feeds the optic). Gate: P2.
+- S4: `tests/promptLayout.test.ts`; `e2e-pad` step (on a head with P2): the cluster shows on a door with the pad glyph,
+  swaps to the key label on a key press; `e2e-desktop` by `affected-e2e`. Three screenshots in the PR body.
+- S5: provider tests for the partner rows and rows 42-43; `e2e-coop` with `?ctxprompts=1` on both tabs (revive prompt
+  and hold, team takedown and bluff on the hostage, hang-down grab, team-move prompt on the partner, and: offer a leg-up
+  next to an item, the item's prompt shows and A uses it), `e2e-netmove`, `e2e-ctcourse` (the co-op group, `src/game`);
+  `e2e-piano` (A and RT knife takedown, no grab). Gate: P4.
 - S6: docs only (CI `check`).
-- S7: the full suites the moved asserts live in, then the train's full run.
+- S7: the full suites the moved asserts live in, then the train's full run. Gate: P5 if it touches `src/game`, P6.
 
 Walk items (for the orchestrator's card, `/preview/`, pad first):
 1. At a closed door: the prompt fades in on the door; tap A opens, hold A bashes (a guard behind it drops); D-pad up
-   peeks, hold D-pad up runs the optic cable. Keyboard: E and H.
+   peeks, hold D-pad up runs the optic cable. At a hatch or grille the optic cable is a D-pad up tap (no hold there).
+   Keyboard: E and H.
 2. Behind a guard: `[A] Grab` on his head; RT tap knocks out, RT hold kills. In front of a guard: tap A knocks out, hold
    A kills. Holding a guard: the rows for interrogate, RT, LT.
 3. A light switch (tap), an alarm panel (hold, the ring fills), a body (pick up, carry, hide).
 4. Co-op: each player sees only their own prompts; revive a downed partner (hold A on them); a team move named on the
-   partner; the partner's hostage: team takedown, bluff.
-5. The knife scene: A or the attack button on a guard is the knife takedown.
-6. The old box never shows; walking never stops while prompts show.
+   partner; the partner's hostage: team takedown, bluff; offering a leg-up beside a switch, A still uses the switch.
+   A co-op client's door shows "hold Bash" but gets a plain open through the host, as today.
+5. The knife scene: A or the attack button on a guard is the knife takedown (the partner's hostage stays a team
+   takedown).
+6. The old box never shows; walking never stops while prompts show; nothing near you is marked except the thing you
+   face.
 
 ## 9. Risks and open questions
 - Hold delay on taps: on targets with a hold action (doors, faced guards) the tap runs on release, up to 0.35 s later
@@ -290,15 +338,15 @@ Walk items (for the orchestrator's card, `/preview/`, pad first):
   label and the filling ring show it; choice 2 lets Michael keep kills off A.
 - Priority hides the door while a guard is on offer (one focus). Open: if Michael wants both reachable at once, Alt
   could act on the door while A acts on the guard (a later change in the provider table, not built now).
-- Faint markers with no line-of-sight test can show an item through a thin wall (height band and facing limit it).
-  Open: a raycast per marker if the walk shows leaks.
-- Mouse4 is the browser's "forward" button: `keyboardMouseSource.ts` must stop its default (S2 checks; H alone is the
-  fallback).
+- Only if Michael picks faint markers (choice 3): with no line-of-sight test they can show an item through a thin wall
+  (height band and facing limit it). Open: a raycast per marker if the walk shows leaks.
 - Tests: about 40 asserts in 12 e2e files and 6 vitest files read the old menu (`ctxMenu`, `doorMenu`, `grabMenu`,
   `.hud-ctx`). They stay green with the flag off and move at S7, a large but mechanical slice.
 - `gameState.ts` is 4,339 lines: the providers go in their own file behind a narrow host interface to keep its growth
   to the wiring (~250 lines).
 - Co-op: a client's predicted prompt can show an action the host then refuses (a door already opened by the partner);
   the refusal paths are today's, so the result is the same as a refused menu row.
+- With the recommended "Only the one you face" (A10), a usable thing just off your aim shows nothing until you turn to
+  it. That is the no-markers rule as it stands (VISION rule 5 / G290); the walk tells whether it is enough.
 - G6: nothing in code, UI, specs or docs names the game in Michael's quote; reviewers check the diff for it.
 - Open for Michael: the three choices in the brief. Everything else is assumed (A1-A20) and logged.
