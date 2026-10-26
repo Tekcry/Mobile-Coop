@@ -22,13 +22,14 @@
  *   of reach from the pit floor (2.8 m over it), so dropping in first skips nothing;
  * - station 16's stand-in: the cage's fixed ladder `a6-pit-ladder` from the pit floor up through the drop opening to the deck,
  *   locked by the `anchorLock` gate `g-a6-pit-ladder` (the base opens it while `dropCatch` is not playable, R1 fix 7);
- * - the closed routes (Q24): no staff stair (the gallery's east end gets a 1.2 m screen across its head);
+ * - the closed routes (Q24): no staff stair (the gallery's east end gets a 1.2 m screen across its head); the self-closing edge
+ *   gate `g-a6-edge` (SA11, an `anchorLock` with `lockOn`): the loading edge's lip `a6-gallery-lip` is usable for the first
+ *   player's leg-up and locks once one player stands on the gallery (`a6-gal1`), so the second climbs by the rope; a station 14
+ *   retry drops the flag and the lip opens again;
  * - circuit 69 re-lamped (Q2): the sump high-bay and the two west gallery bulkheads (3 lamps, the table's budget), switched at
  *   `a6-sw-sump` on the sump bay's south wall by the L5 door;
  * - the stations (STATIONS section 3, verbatim), the pit's pass zone (section 8), LANTERN's retry lines (section 6), the
  *   objective lines (one per station and the outfall line).
- * Not built: the self-closing edge gate `g-a6-edge` (SA11) needs a gate that shuts on a flag (every course gate kind opens on its
- * condition, `anchorLock` included), which is R1's code: the loading edge's lip stays open (the brief's report).
  * Only type imports from `../` besides the set file's constants (the facility imports nothing from here).
  */
 import { retryKey, type AnchorLockGate, type CourseObjective } from '../../../../game/course/courseDef';
@@ -38,7 +39,7 @@ import type { LevelBuilder } from '../../../levelBuilder';
 import { makeCone } from '../../../lights';
 import { MARLOW_LEVEL } from '../../../lighting/levels';
 import type { FloorHole } from '../../ctcourseGreybox';
-import { A6_ATTENDANT, A6_BRIDGE, A6_CAGE, A6_DEAD_FITTINGS, A6_DECK, A6_DRIVE_FLAG, A6_GAL_FLAG, A6_HANG, A6_HOLDER, A6_PASS_WAIT, A6_PLATE, A6_SHELL } from '../a6PumpHouse';
+import { A6_ATTENDANT, A6_BRIDGE, A6_CAGE, A6_DEAD_FITTINGS, A6_DECK, A6_DRIVE_FLAG, A6_GAL_FLAG, A6_GALLERY_LIP, A6_HANG, A6_HOLDER, A6_PASS_WAIT, A6_PLATE, A6_SHELL } from '../a6PumpHouse';
 import { HALL_H, tally, type SetPart } from '../types';
 
 // ---------------------------------------------------------------------------------------------------- the geometry
@@ -106,6 +107,12 @@ export const A6_ATTENDANT_FACES_REPLAN = [Math.PI, Number.NaN, Math.PI, Number.N
 /** The new done flag's pass zone (STATIONS section 8): both players in the drive pit. */
 export const A6_PIT_FLAG = 'a6-pit';
 export const A6_PIT_ZONE: [number, number, number, number] = [49.55, 62.15, 53.45, 66.05];
+/** The self-closing edge gate (SA11) and its flag: the lip is usable until one player stands on the gallery, then locked. */
+export const A6_EDGE_GATE = 'g-a6-edge';
+export const A6_GAL1_FLAG = 'a6-gal1';
+/** Its pass zone (any player, floor 4.4): the gallery deck from 0.3 m back off the loading edge (a player hanging on the lip or
+ *  mid-climb is not in it) to the north wall, west of the stair-head screen. */
+export const A6_GAL1_ZONE: [number, number, number, number] = [A6_SHELL.west, A6_DECK.z + 0.3, A6_STAIR_SCREEN.x0, A6_SHELL.north];
 
 /** Stations 14-16 (STATIONS.md section 3, the A6 block). */
 export const A6_PUMP_HOUSE_STATIONS: readonly StationDef[] = [
@@ -316,6 +323,9 @@ export function replanA6PumpHouse(b: LevelBuilder, kit: FacilityKit, part: SetPa
     p.anchors[A6_PIT_LADDER] = b.ladder(A6_PIT_LADDER_AT.x, A6_PIT_LADDER_AT.z, P.y, deck, 0, '#5b5f63').id;
   });
   p.bay.gates.push({ kind: 'anchorLock', id: A6_PIT_LADDER_GATE, anchorId: A6_PIT_LADDER, flag: A6_PIT_LADDER } satisfies AnchorLockGate);
+  // the self-closing edge gate (SA11): the set file names the loading edge's lip; station 14 lists the gate (its retry reopens the lip)
+  if (p.anchors[A6_GALLERY_LIP] === undefined) throw new Error('replan a6: the loading edge lip is not named');
+  p.bay.gates.push({ kind: 'anchorLock', id: A6_EDGE_GATE, anchorId: A6_GALLERY_LIP, flag: A6_GAL1_FLAG, lockOn: true } satisfies AnchorLockGate);
 
   // ---- A6-R6: the closed stair head (Q24) ----
   tally(b, p.register, 'A6-R6', "The staff stair closed (Q24): no flight; a 1.2 m screen across the gallery's east end (x 55.9-56.0, z 69.6-71.775, noLedge) where its head was", () => {
@@ -341,7 +351,8 @@ export function replanA6PumpHouse(b: LevelBuilder, kit: FacilityKit, part: SetPa
   p.squads[A6_ATTENDANT] = { ...att, route: A6_ATTENDANT_ROUTE_REPLAN, waits: A6_ATTENDANT_WAITS_REPLAN, faces: A6_ATTENDANT_FACES_REPLAN };
   p.bay.stations = A6_PUMP_HOUSE_STATIONS;
   p.passZones.push({ id: 'a6-p-pit', box: A6_PIT_ZONE, flag: A6_PIT_FLAG, floorY: A6_PIT_Y });
-  p.externalFlags.push(A6_PIT_FLAG, A6_PIT_LADDER);
+  p.passZones.push({ id: 'a6-p-gal1', box: A6_GAL1_ZONE, flag: A6_GAL1_FLAG, floorY: A6_DECK.lip, any: true });
+  p.externalFlags.push(A6_PIT_FLAG, A6_PIT_LADDER, A6_GAL1_FLAG);
   for (const r of A6_RETRY_LINES) p.bay.radio.push({ at: retryKey(r.id), text: r.text });
   p.objectives.length = 0;
   p.objectives.push(...A6_OBJECTIVES.map((o) => ({ ...o })));

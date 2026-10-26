@@ -7,7 +7,8 @@
  * STATIONS section 3 has them, standing room at every mark (B of 16 on the pit floor); on the guards' runtime nav, the pump
  * floor reaches neither the pit nor the L6 door, the pit reaches L6 only through the outfall, the stair is closed; the drop
  * opening and the 6 m fall through it; the drive panel out of reach from the pit, the exit release in reach from the
- * landing only; the stand-in ladder; circuit 69 live with its three lamps and its switch at the sump bay; LANTERN's lines
+ * landing only; the stand-in ladder; the self-closing edge gate (the lip locked once one player is up, no other grip at the
+ * loading edge, a station 14 retry reopening it); circuit 69 live with its three lamps and its switch at the sump bay; LANTERN's lines
  * and the objective lines. The built A6 is `tests/ctcourse/a6PumpHouse.test.ts` (its `GREY` proves the flag-off build
  * unchanged).
  */
@@ -21,11 +22,12 @@ import { MOVEMENT, TEAM } from '../../../src/config/movement';
 import { layoutKnownIds, retryKey, validateCourse } from '../../../src/game/course/courseDef';
 import { CourseState } from '../../../src/game/course/courseState';
 import { hangDepthMax, hangReaches } from '../../../src/game/teamMoves';
+import { findJumpTarget, generateLedges } from '../../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
 import { MARLOW_CIRCUITS_REPLAN } from '../../../src/world/lighting/marlowCircuits';
 import { buildCtcourse } from '../../../src/world/maps/ctcourse';
 import { INTERACT_DY, INTERACT_REACH } from '../../../src/world/maps/ctcourseGreybox';
-import { A6_ATTENDANT, A6_CAGE, A6_CAGE_DOOR, A6_DEAD_FITTINGS, A6_DECK, A6_EXIT, A6_OUTFALL_DOOR, A6_PANEL, A6_SHELL, A6_SUMP } from '../../../src/world/maps/ctcourseSets/a6PumpHouse';
+import { A6_ATTENDANT, A6_CAGE, A6_CAGE_DOOR, A6_DEAD_FITTINGS, A6_DECK, A6_EXIT, A6_GALLERY_LIP, A6_LIP_X, A6_MARK, A6_OUTFALL_DOOR, A6_PANEL, A6_SHELL, A6_SUMP } from '../../../src/world/maps/ctcourseSets/a6PumpHouse';
 import {
   A6_ATTENDANT_FACES_REPLAN,
   A6_ATTENDANT_ROUTE_REPLAN,
@@ -34,6 +36,9 @@ import {
   A6_CULVERT_1,
   A6_CULVERT_2,
   A6_DROP,
+  A6_EDGE_GATE,
+  A6_GAL1_FLAG,
+  A6_GAL1_ZONE,
   A6_GAUGE_REPLAN,
   A6_HOUSING,
   A6_LANDING,
@@ -502,6 +507,98 @@ describe('Marlow re-plan A6: the drop opening, the panel, the exit release, the 
     s.update(1 / 60);
     expect(s.liveStation()?.n).toBe(16);
     expect(s.anchorLocked(A6_PIT_LADDER)).toBe(false);
+  });
+});
+
+describe('Marlow re-plan A6: the self-closing edge gate g-a6-edge (SA11)', () => {
+  /** The whole map's grips as the game has them (its generated lips over the helpers' manual ledges), on a builder of its own. */
+  const lb = new LevelBuilder();
+  const lbPart = buildCtcourse(lb, { replan: true }).parts[5]!;
+  const grips = generateLedges(lb.boxes, lb.anchors);
+  const lipId = lbPart.anchors[A6_GALLERY_LIP]!;
+  /** The floor side of the loading edge (the built test's 4.7 m keep-clear) and the gallery over it. */
+  const edge: [number, number, number, number] = [36, A6_DECK.z - 4.7, 50, A6_SHELL.north];
+
+  it('the set file names the loading edge\'s lip; the gate is a lockOn anchorLock on it, set by an any-player zone on the gallery; station 14 lists it', () => {
+    const id = part.anchors[A6_GALLERY_LIP]!;
+    const lip = b.anchors.all.find((a) => a.id === id)!;
+    expect(lip.kind).toBe('ledge');
+    if (lip.kind !== 'ledge') return;
+    expect(lip.piece).toBe(0);
+    expect(lip.top).toBeCloseTo(A6_DECK.lip, 9);
+    expect([lip.a.x, lip.b.x].sort((p, q) => p - q)).toEqual(A6_LIP_X);
+    expect(lip.a.z).toBeCloseTo(A6_DECK.z, 9);
+    expect(course.anchors?.[A6_GALLERY_LIP]).toBe(id);
+    expect(part.bay.gates).toContainEqual({ kind: 'anchorLock', id: A6_EDGE_GATE, anchorId: A6_GALLERY_LIP, flag: A6_GAL1_FLAG, lockOn: true });
+    expect(part.passZones).toContainEqual({ id: 'a6-p-gal1', box: A6_GAL1_ZONE, flag: A6_GAL1_FLAG, floorY: A6_DECK.lip, any: true });
+    expect(part.externalFlags).toContain(A6_GAL1_FLAG);
+    expect(A6_PUMP_HOUSE_STATIONS[0]!.gates).toEqual([A6_EDGE_GATE]);
+    // the zone is the gallery deck: its floor is 4.4 everywhere sampled; the lip, a body hanging on it and the leg-up mark are outside
+    const [zx0, zz0, zx1, zz1] = A6_GAL1_ZONE;
+    for (let x = zx0 + 0.3; x < zx1; x += 1) for (const z of [zz0 + 0.05, (zz0 + zz1) / 2, zz1 - 0.3]) expect(floorAt(x, z, 6), `(${x}, ${z})`).toBeCloseTo(A6_DECK.lip, 6);
+    expect(zz0).toBeGreaterThanOrEqual(A6_DECK.z + MOVEMENT.radius);
+    expect(inBox(A6_GAL1_ZONE, A6_MARK.x, A6_MARK.z)).toBe(false);
+  });
+
+  it('with the edge gate shut no ledge or lip at the loading edge is reachable from the floor', () => {
+    // the named lip is the one grip over 0.9 m at the loading edge (no generated lip, no ladder, pipe or rappel point there)
+    const near = grips.all.filter((a) => {
+      if (a.kind === 'ledge') return a.top >= 0.9 && inBox(edge, (a.a.x + a.b.x) / 2, (a.a.z + a.b.z) / 2, 0.3);
+      if (a.kind === 'ladder' || a.kind === 'pipeV' || a.kind === 'rappel') return inBox(edge, a.kind === 'rappel' ? a.top.x : a.base.x, a.kind === 'rappel' ? a.top.z : a.base.z, 0.3);
+      if (a.kind === 'pipeH') return inBox(edge, (a.a.x + a.b.x) / 2, (a.a.z + a.b.z) / 2, 0.3);
+      return false;
+    });
+    expect(near.map((a) => a.id)).toEqual([lipId]);
+    // the game's jump search along the edge, from a body on the floor and from a boosted one: the lip or nothing; locked, the
+    // attach is refused (`AttachController`: a disabled anchor gives no grip), so the floor reaches nothing at the edge
+    let found = 0;
+    for (let x = A6_LIP_X[0] - 1; x <= A6_LIP_X[1] + 1 + 1e-9; x += 0.25) {
+      for (const y of [0, MOVEMENT.radius, TEAM.boostMax - 1.15]) {
+        const t = findJumpTarget(grips, { x, y, z: A6_MARK.z }, -1, 0, 1, 1, 2.5, 0.2);
+        if (!t) continue;
+        expect(t.anchor.id, `(${x}, ${y})`).toBe(lipId);
+        found++;
+      }
+    }
+    expect(found).toBeGreaterThan(0);
+    const s = new CourseState(def, course.consoles);
+    s.startAt(6);
+    s.setFlag(A6_GAL1_FLAG);
+    s.update(1 / 60);
+    expect(s.isGateOpen(A6_EDGE_GATE)).toBe(false);
+    expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(true);
+    expect(s.lockedAnchors()).toContain(A6_GALLERY_LIP);
+  });
+
+  it('the lip is open for the first leg-up, locks once one player is on the gallery, and a station 14 retry reopens it', () => {
+    const s = new CourseState(def, course.consoles);
+    s.startAt(6);
+    s.setPlayer(0, 51.0, 0, 56.5, false);
+    s.setPlayer(1, 52.5, 0, 56.5, false);
+    s.update(1 / 60);
+    expect(s.liveStation()?.n).toBe(14);
+    expect(s.isGateOpen(A6_EDGE_GATE)).toBe(true);
+    expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(false);
+    // one player up (the any-player zone sets the flag): the lip locks, station 14 still live (the rope is to come)
+    s.setFlag(A6_GAL1_FLAG);
+    s.update(1 / 60);
+    expect(s.liveStation()?.n).toBe(14);
+    expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(true);
+    // seen: the retry drops the flag, the lip opens again for the next leg-up
+    expect(s.retryStation('seen')).toBe(true);
+    s.update(1 / 60);
+    expect(s.liveStation()?.n).toBe(14);
+    expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(false);
+    expect(s.isGateOpen(A6_EDGE_GATE)).toBe(true);
+    // up again, then both (station 14 done): the lip stays locked through station 15's retry (its gates do not list it)
+    s.setFlag(A6_GAL1_FLAG);
+    s.setFlag('a6-gal');
+    s.update(1 / 60);
+    expect(s.liveStation()?.n).toBe(15);
+    expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(true);
+    expect(s.retryStation('seen')).toBe(true);
+    s.update(1 / 60);
+    expect(s.anchorLocked(A6_GALLERY_LIP)).toBe(true);
   });
 });
 

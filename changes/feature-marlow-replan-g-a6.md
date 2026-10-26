@@ -3,7 +3,8 @@ kind: minor
 - Marlow Yard re-plan, dark behind `?marlowreplan=1` (J14 G-A6). The Pump House is three steps: get both of you onto the
   motor gallery (a leg-up, then the rescue line), lower one of you through the gland plate on the bridge to the drive
   panel, then one of you drops through a new opening in the bridge into the drive pit while the other catches. The staff
-  stair is gone: the gallery and the bridge are reached only by the team moves.
+  stair is gone: the gallery and the bridge are reached only by the team moves. The loading edge takes one leg-up: once one
+  of you is on the gallery it closes, so the second climbs the rescue line; seen on that step, it opens again.
 - The drive cage now stands over a pit 1.6 m deep. Inside it, steps lead up to a landing at the cage door and the exit
   release on the cabinet's back opens the door from there. The way on to holding room six is a covered outfall culvert from
   the pit, up a ramp under a low housing to the room's door: the pump floor no longer reaches that door.

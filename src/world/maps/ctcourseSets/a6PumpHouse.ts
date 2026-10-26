@@ -93,6 +93,8 @@ export const A6_OUTFALL_DOOR = setExitDoor('a6PumpHouse')!;
 /** Both players on the motor gallery or the bridge (the `a6-up` step) and the zone that sets it (floor 4.4). */
 export const A6_GAL_FLAG = 'a6-gal';
 export const A6_GAL_ZONE: [number, number, number, number] = [40.3, 61.6, 63.7, 71.775];
+/** (J14) The loading edge's lip anchor by name (`part.anchors`): the re-plan's self-closing edge gate `g-a6-edge` locks it. */
+export const A6_GALLERY_LIP = 'a6-gallery-lip';
 
 /** The motor gallery (`coopDeck` at its front edge's centre), the open loading edge along x, the leg-up mark, the rope spot. */
 export const A6_DECK = { x: 48.15, z: 69.6, span: 15.7, depth: 2.175, lip: 4.4, open: [-7.35, -2.85] as [number, number], rope: -5.0 } as const;
@@ -240,7 +242,9 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit, opts: { repl
     for (const [a, e] of A6_SCREENS) if (a >= x0 - 1e-6 && e <= x1 + 1e-6) screens.push({ ...s, c: [(a + e) / 2, s.c[1], s.c[2]], s: [e - a, s.s[1], s.s[2]] });
   }
   tally(b, p.register, 'A6-2', 'Motor gallery: a 4.4 m solid deck x 40.3-56.0, z 69.6-71.775 (noLedge, depth to the north wall, A6-D8), the open loading edge x 40.8-45.3 its one co-op lip (leg-up mark at 43.05, 69.1), 1.2 m edge screens on x 40.3-40.8, 45.3-49.0 and 54.0-56.0 (split for the bridge, A6-D4), chequer plate (metal, loud)', () => {
-    applyGreybox(b, { ...deck, boxes: [...deck.boxes.filter((x) => x.tag === 'deck' || x.tag === 'mark legUp'), ...screens], stairs: [], doors: [] });
+    applyGreybox(b, { ...deck, boxes: [...deck.boxes.filter((x) => x.tag === 'deck' || x.tag === 'mark legUp'), ...screens], stairs: [], ledges: [], doors: [] });
+    // the loading edge's lip (the greybox's one manual ledge, built where applyGreybox would), named for the re-plan's edge gate
+    for (const l of deck.ledges) p.anchors[A6_GALLERY_LIP] = b.ledge(l.ax, l.az, l.bx, l.bz, l.top).id;
     b.surface('metal', 40.3, 56.0, A6_DECK.z, A6_SHELL.north, A6_DECK.lip);
   });
   tally(b, p.register, 'A6-3', "Davit box and rescue line: the box (0.6 m, noLedge) on the gallery's back wall at x 43.15, the rope's anchor plate and the holder's striped spot (43.15, 4.4, 70.2) on the open span (two-person rope, once, untimed)", () => {

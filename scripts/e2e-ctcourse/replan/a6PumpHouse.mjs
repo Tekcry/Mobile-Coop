@@ -3,11 +3,11 @@
 // first player onto the motor gallery takes B (the hanger). Stations 14 (`a6-rope`), 15 (`a6-hangdown`), 16 (`a6-dropcatch`), all
 // retry 'station' on the attendant's sight; one guard (the attendant, re-routed north of the outfall housing).
 //   1. the start in the sump bay: station 14 live, the attendant alive and armed, the cage door and the outfall door (L6 near)
-//      locked on the client, the stand-in ladder `a6-pit-ladder` locked on both pages, the sump bay lit by circuit 69 (Q2) and the
-//      same on both pages;
-//   2. station 14: while the attendant is east of x 55 the host boosts the client onto the open span (the client claims B), the
-//      client drops the rescue line and the host climbs it: `a6-gal`, station 15 live. (The self-closing edge gate `g-a6-edge` is
-//      not built, the brief's report: its "edge shut after one player is up" assertion is left out until it is);
+//      locked on the client, the stand-in ladder `a6-pit-ladder` locked on both pages, the loading edge's lip `a6-gallery-lip` open
+//      on both pages, the sump bay lit by circuit 69 (Q2) and the same on both pages;
+//   2. station 14: while the attendant is east of x 55 the host boosts the client onto the open span (the client claims B); the
+//      self-closing edge gate `g-a6-edge` shuts (`a6-gal1`: the lip locked on both pages); the client drops the rescue line and
+//      the host climbs it: `a6-gal`, station 15 live;
 //   3. station 15, one seen retry: the host holds at the striped spot on the bridge, the client stands on the pump floor in front
 //      of the attendant at his desk: he sees it, LANTERN's retry line, `lastRetry` 15 / seen, both players land on station 15's
 //      marks at the bridge's north end (A the host at (50.5, 68.5), B the client at (52.5, 68.5)), station 14 still done
@@ -30,6 +30,9 @@ const DRIVE = 'a6-drive';
 const GAL = 'a6-gal';
 const PIT = 'a6-pit';
 const LADDER = 'a6-pit-ladder';
+/** The loading edge's lip and the flag that locks it (the self-closing edge gate `g-a6-edge`: one player on the gallery). */
+const LIP = 'a6-gallery-lip';
+const GAL1 = 'a6-gal1';
 const DECK_Y = 4.4;
 const PIT_Y = -1.6;
 /** The leg-up mark, the rope spot on the gallery and its foot on the floor. */
@@ -62,6 +65,9 @@ export async function walk(t) {
   const ladderId = await GA((name) => window.__app.current.world.layout.anchors?.[name] ?? -1, LADDER);
   /** Is the stand-in ladder locked: on the host (the course state), on the client (the course wire's disabled anchors)? */
   const ladderLocked = async () => [await GA((name) => window.__course.state.anchorLocked(name), LADDER), await GB((id) => window.__course.wire.anchors.includes(id), ladderId)];
+  const lipId = await GA((name) => window.__app.current.world.layout.anchors?.[name] ?? -1, LIP);
+  /** Is the loading edge's lip locked: on the host, on the client? */
+  const lipLocked = async () => [await GA((name) => window.__course.state.anchorLocked(name), LIP), await GB((id) => window.__course.wire.anchors.includes(id), lipId)];
   /** The attendant on the host (the one live guard in the set box): place, alert state, awareness meter, his route stop. */
   const attendant = () =>
     GA(() => {
@@ -173,6 +179,9 @@ export async function walk(t) {
   assert(ladderId >= 0, `A6: the stand-in ladder is a named anchor (${ladderId})`);
   const [lh0, lc0] = await ladderLocked();
   assert(lh0 && lc0, `A6: the stand-in ladder starts locked on both pages (host ${lh0}, client ${lc0})`);
+  assert(lipId >= 0, 'A6: the loading edge lip is named in the layout');
+  const [eh0, ec0] = await lipLocked();
+  assert(!eh0 && !ec0, `A6: the loading edge lip starts open on both pages (host ${eh0}, client ${ec0})`);
   const [sa, sb] = [await level(A, 51.0, 0, 56.6), await level(B, 51.0, 0, 56.6)];
   assert(sa >= 0.4 && Math.abs(sa - sb) < 0.02, `A6: the sump bay reads lit (circuit 69) and the same on both pages (host ${sa.toFixed(3)}, client ${sb.toFixed(3)})`);
 
@@ -182,6 +191,9 @@ export async function walk(t) {
   await hostBoostsClient('A6 station 14');
   await until(A, () => window.__course.state.roleClaimed() && window.__course.state.roleOf(1) === 'b', null, 10000, 'A6: the client on the gallery takes B');
   assert(!(await hasFlag(GAL)), 'A6: one player up does not set a6-gal');
+  await until(A, (f) => window.__course.state.hasFlag(f), GAL1, 10000, 'A6: one player on the gallery sets a6-gal1 (the edge gate shuts)');
+  await until(A, (name) => window.__course.state.anchorLocked(name), LIP, 8000, 'A6: the loading edge lip locks on the host');
+  await until(B, (id) => window.__course.wire.anchors.includes(id), lipId, 15000, 'A6: the client sees the loading edge lip locked');
   await hostClimbsRope('A6 station 14');
   await until(A, (f) => window.__course.state.hasFlag(f), GAL, 10000, 'A6: both on the gallery set a6-gal');
   await until(A, () => window.__course.station() === 15, null, 8000, 'A6: station 15 is live');
@@ -199,6 +211,7 @@ export async function walk(t) {
   for (const P of [A, B]) await sees(P, /saw you on the bridge|Lower one of you/, 'A6 retry: the retry line, then the hang step');
   assert((await station()) === 15, 'A6 retry: station 15 is still live');
   assert(await hasFlag(GAL), 'A6 retry: station 14 stays done (a6-gal set)');
+  assert((await lipLocked())[0], "A6 retry: the loading edge lip stays locked (station 15's retry does not list the edge gate)");
   assert(!(await hasFlag(DRIVE)), 'A6 retry: a6-drive is not set');
   await until(A, () => window.__app.current.enemyMgr.enemies.some((e) => e.alive && !e.alerted && e.pos.x > 40 && e.pos.x < 64 && e.pos.z > 54 && e.pos.z < 72), null, 15000, 'A6 retry: the attendant is back on his round, unalerted');
 
