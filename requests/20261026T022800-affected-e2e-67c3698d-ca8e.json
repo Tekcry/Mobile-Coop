@@ -1,0 +1,21 @@
+{
+  "id": "20261026T022800-affected-e2e-67c3698d-ca8e",
+  "sha": "67c3698dd0d91c0f6e15c3a2eada7bb31b02ac54",
+  "branch": "feature/player-hygiene",
+  "pr": 516,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-gadgets",
+    "e2e-menus",
+    "e2e-pad",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #516"
+}
