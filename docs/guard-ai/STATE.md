@@ -1050,8 +1050,9 @@ PR 2 built 6a203cbba (G4a / G4b / G6 + slices/G5-BRIEF.md,
 +236 counted lines; check PASS a19fa1c41 (slices/PR2-CHECK.md; G5 brief fixed: step 0.3 s after a teleport);
 orchestrator 09:20: charlight=0 on e2e-stealth-ai's main page YES (in G5), teleport-jump note
 passed to Sector Ops, G5 built 13c844815 (shadowCue block on its own charlight=1 page; charlight=0 on the main page):
-Opus G5 check RUNNING -> "## G5 check" in PR2-CHECK.md; laptop e2e-stealth-ai queued (set j16-g5, request
-...-13c84481-e4b5) -> laptop-e2e/j16-g5; brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
+G5 check PASS d7fc1f6d5 (fixed the spot pick: walkable cells, snapped spot; second page closed).
+Laptop e2e-stealth-ai: set j16-g5 on the old head 13c844815 (running, expect a pick failure), set j16-g5b on d7fc1f6d5
+(the real verdict; read its "arcs shown max" line: if the arc shows, assert it); brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
 e2e-stealth-ai risk (cue live where the main page sets no charlight), the G5 brief, ai.md), branch feature/guard-ai-j16-2 (worktree -guard-ai-j16-2) stacked on #670 with Sector Ops #665's branch
 merged in locally -> slices/PR2-REPORT.md; then checker; PR after #669 / #670 / #665 merge.
 S3b-2 = Sector Ops PR #665 (GameState.shadowCues,
