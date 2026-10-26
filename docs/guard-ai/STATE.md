@@ -1009,32 +1009,37 @@ Michael 15:55: never held up - the first time you would wait on another session,
 wait over 10 min.
 TOKEN RULE (Michael 2026-10-26 ~19:22, ROADMAP Decided): full burn ended: at most 2 agents at a time (AI code and its
 checkers stay Opus), nothing briefed more than one slice ahead, background waits, no polling.
-Open (2026-10-26 ~19:30, new session; #585 and #558 merged in trains 131 / 130; #531 runner-armed shipped):
-1. #317 coop4 (feature/coop4, worktree -coop4): merge 6 (master 4.115.0, 24b75b79: PROTOCOL_VERSION 71, S2c charMates
-   beside coop4 slots) check FIX (docs/coop4/checks/MERGE6-CHECK.md) -> lead fix round 6adf988e5 (F1 fillChars
-   charRefAt: an out host no longer shifts a partner's light slot; F2 client mates skip OUT partners, relist on mask
-   change; tests/charMates.test.ts). Then train 131 (4.116.0) conflicted in campusV2 s2-s5Data (Sector Ops re-lay):
-   Opus resolver in side worktree C:/NightShift/Mobile-Coop-coop4-m7 (detached, merge commit not pushed; notes
-   docs/coop4/checks/MERGE7-NOTES.md) re-places the minPlayers 3/4 extras. Next: merge m7's commit + 6adf988e5 onto
-   feature/coop4, ONE Opus check of fix + merge 7, push, affected-e2e (co-op group), then train-ready + orchestrator.
-2. #595 J15 PR4 (feature/guard-rules-pr4, worktree -guard-rules-pr4; lookouts + dog release dark; master 4.116.0
-   merged eaf6a1dd1, conflicts ai.md + e2e-sectorops H8 block, both kept): Opus merge check running ->
-   docs/guard-rules/checks/PR4-MERGE-CHECK.md. PASS -> orchestrator posts checker; affected-e2e green -> train-ready.
-   Body has `Job-done: guard-rules`. J26 mission hooks after it merges.
-3. #588 play pass A (feature/guard-ai-home): GREEN all three on 9ef20808b; orchestrator told train-ready ~19:30.
-   Polish: hard backstop on wake-body / alarm walks; "can't get through" bark; a post guard off his storey re-plans
-   every 5 s. #585 polish: orphaned onEnemyJoined comment (courseMode.ts:1394-1407), PLAY-PASS slice B text.
-4. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; NetSession.roomCap unused;
-   guardpairs=0 on the flag-off talking-pairs e2e; autojoin 5th tab gets bye not "Room full"; J16 perception half.
-PRIORITY (Michael ~19:40 via the orchestrator, ROADMAP Now row 20): the piano scene first: a standalone 2-player
-scene, an intro of guards firing and closing in slow motion on an operator back to the wall, then a quiet escape where
-every guard is knifed in the shadows (kills allowed in this scene only). Campaign Build plans it and names what it
-needs from Guard AI (scene guard behaviour, the slow-motion approach): those requests go first when they come.
-Michael ~19:55: an EMP kills every light just before the players get control; the escape is pure darkness and every
-guard switches to a flashlight (flashlight search, sight limited to the beam, reacting to the blackout). Already on
-master: torchRule (archetypes.ts:160-167, on only while looking and below TORCH_DARK), carriesTorch (dogs none),
-breaker.ts blackout knowledge (DARK_CUT per circuit). Gaps to build when Campaign asks: torch on for every state in a
-scene blackout, sight inside the beam cone only, one EMP reaction for all circuits at once.
-Next: land coop4 merge 7 + its one check, then #317 / #595 train-ready to the orchestrator; piano scene requests
-first as they arrive; J26 mission hooks with spare capacity.
+PRIORITY (Michael ~19:40): the storm scene first (ROADMAP Now row 20; Campaign Build leads; PLAN
+docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape). Setting now (Michael ~20:15): Thornbeck
+Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
+down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
+fixed timeline data (Sector Ops SO5), guards just read the light.
+Open (2026-10-26 ~20:30 SAVE):
+1. Piano asks, job feature/guard-ai-piano (worktree -guard-ai-piano, node_modules junction to -guard-ai-home):
+   - GA1 + GA3 BUILT 81a43f950 (no PR yet): EnemyManager.sceneDark (torch on in every state, Enemy.torchWanted),
+     blackoutSearch(guards, x, z) with SEARCH_BLACKOUT (6 m ring, response.ts), lightsOut sends nobody while sceneDark;
+     tests/pianoGuards.test.ts 5/5, AI tests 90 files green. Next: PR (minor fragment in), TWO Opus checkers, tell
+     Campaign the API (scene sets em.sceneDark = true at the EMP, calls em.blackoutSearch([G1..G4], wallX, wallZ)).
+   - GA7 rain masking: a map-wide noisy source through hearing.ts / setNoisy; agree the hook with Sector Ops (their
+     brief scratch/sector-ops-checks/briefs/piano-SO5.md, desktop). Not started.
+   - GA4 intro actors (0.3x slow-motion guards, aimed walk + fire, no AI, not in enemy lists): check whether
+     sectorGuardFreeze.ts + an anim rate does it (Campaign's S2 stub) or build actors. Not started.
+   - GA6 slow methodical torch sweep (Michael ~20:10 "The guards must move slowly and methodically to find both
+     players"): fixed readable pattern, some in pairs, slow walk, checking behind cover, deterministic (VISION 8).
+     Plan only once Campaign's thornbeckMill room data lands. GA5 (patrol review) waits for the map too.
+2. #588 play pass A (feature/guard-ai-home): train 132 failed guardHome (S1 v2-c gatehouse: ~45000 A* expansions
+   needed). Fix e967d906e: sliced long plan (NavGrid sliceStart/sliceStep, 10000 per frame up to 60000); guardHome
+   limits scale with the path walk; verified on master + #518. Opus check running -> PLAY-A-TRAIN132-CHECK.md. PASS ->
+   post checker on the new head, affected-e2e, tell the orchestrator to re-label.
+3. #317 coop4: fix round + merge 7 check PASS (MERGE7-CHECK.md), checker POSTED on 412c4435e; waits on its co-op
+   group affected-e2e. Green -> tell the orchestrator train-ready. Sector Ops TAG lanes may later replace the S3-S5
+   extras (told the orchestrator).
+4. #595 J15 PR4: merge check PASS, checker POSTED on 258be2999 (adds the v2 S5 marksman lookout post); waits on
+   affected-e2e. Green -> train-ready. Job-done: guard-rules. J26 mission hooks after it, spare capacity only.
+5. Polish (only if it helps the playthrough): #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
+   post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
+   pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
+   autojoin 5th tab gets bye not "Room full"; J16 perception half.
+Next: #588 check verdict -> status; GA1 + GA3 PR + two Opus checkers; GA7 hook with Sector Ops; GA4; GA6 when the map
+lands; #317 / #595 train-ready as their e2e go green.
 ```
