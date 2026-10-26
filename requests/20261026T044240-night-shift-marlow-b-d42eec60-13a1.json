@@ -1,5 +1,5 @@
 {
-  "id": "20261026T032508-night-shift-marlow-b-d42eec60-13a1",
+  "id": "20261026T044240-night-shift-marlow-b-d42eec60-13a1",
   "sha": "d42eec6005b4d46dd678230f4b48937b986ebe76",
   "branch": "feature/ctcourse-flake-fix",
   "pr": 553,
@@ -15,5 +15,6 @@
   "env": {
     "E2E_STALL_HOST_MS": "3000"
   },
-  "set": "f7-stall-before"
+  "set": "f7-stall-before",
+  "note": "age reset by the orchestrator: behind fix affected runs (aged alone runs go first)"
 }

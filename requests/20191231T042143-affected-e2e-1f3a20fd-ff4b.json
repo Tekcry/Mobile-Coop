@@ -1,5 +1,5 @@
 {
-  "id": "20261026T042143-affected-e2e-1f3a20fd-ff4b",
+  "id": "20191231T042143-affected-e2e-1f3a20fd-ff4b",
   "sha": "1f3a20fd54678437dd77f3756090392831bc5c3a",
   "branch": "feature/guard-ai-runner-armed",
   "pr": 531,
@@ -11,5 +11,5 @@
     "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #531"
+  "note": "auto affected-e2e, PR #531; fronted by the orchestrator: fix PR (freeze)"
 }
