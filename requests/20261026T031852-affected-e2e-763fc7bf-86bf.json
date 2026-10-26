@@ -1,0 +1,20 @@
+{
+  "id": "20261026T031852-affected-e2e-763fc7bf-86bf",
+  "sha": "763fc7bfba8d856aa576711cae9c4fd4b9cb4beb",
+  "branch": "feature/map-ready-s14",
+  "pr": 550,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-gadgets",
+    "e2e-move",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #550"
+}
