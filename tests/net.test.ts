@@ -993,7 +993,35 @@ describe('coop4 N1: slots on the wire, Sector Ops cap 4 (A1, A19)', () => {
     host.roomCap = 0;
     expect(host.cap).toBe(capacity('sector'));
   });
+
+  it('(coop4 merge 15 check) a scene map (the piano escape, PLAN A2: 1-2 players) holds a Sector Ops room at 2', () => {
+    // the map is listed only behind `flags.pianoEscape` (off in tests): list it for this case
+    MAPS.push(thornbeckMill);
+    try {
+      const h = hub();
+      const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+      host.setSettings('sector', 'thornbeckMill', 'normal');
+      expect(host.sceneRoom).toBe(true);
+      expect(host.cap).toBe(2);
+      new NetSession(h.make('A'), 'client', 'ABCDE', prof('A'));
+      const b = new NetSession(h.make('B'), 'client', 'ABCDE', prof('B'));
+      let full = false;
+      b.events.on('full', () => (full = true));
+      b.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'B', tag: {}, look: {} }, 'H');
+      expect(full).toBe(true);
+      expect(host.players.size).toBe(2);
+      // any other Sector Ops map keeps the mode's cap
+      host.setSettings('sector', 'warehouseOps', 'normal');
+      expect(host.sceneRoom).toBe(false);
+      expect(host.cap).toBe(capacity('sector'));
+    } finally {
+      MAPS.splice(MAPS.indexOf(thornbeckMill), 1);
+    }
+  });
 });
+
+import { MAPS } from '../src/world/maps';
+import { thornbeckMill } from '../src/world/maps/thornbeckMill';
 
 import { applyOpenTraps, GAP_HOST_SLACK, GAP_MENU, hostTrapKey, openTrapGaps, pickOpenTrap } from '../src/game/gapMenu';
 import { OPTIC_POINT_MAX, type OpticPoint } from '../src/player/opticCable';

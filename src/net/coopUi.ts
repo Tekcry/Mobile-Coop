@@ -518,7 +518,7 @@ class LobbyScreen extends MenuScreen {
     const cap = s.cap;
     const block = s.isHost ? s.campaignBlock : null;
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
-    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
+    else if (s.overCapacity) this.status.textContent = `${s.campaign ? 'The campaign' : s.sceneRoom ? 'This scene' : MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
     // (mission-rules R4) why the campaign cannot start yet
     else if (block) this.status.textContent = block === CAMPAIGN_TWO_PLAYERS && ps.length < 2 ? `${block}. Share the code to invite your partner.` : `${block}.`;
     else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your ${cap > 2 ? 'teammates' : 'partner'}.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
@@ -656,7 +656,7 @@ class LobbyScreen extends MenuScreen {
         desc: 'Start the mission for everyone in the room.',
         // (mission-rules R4) a campaign start needs exactly two players and a campaign mission; (J14 F1, R36) Course mode
         // needs two players
-        blocked: s.overCapacity ? `Too many players for ${s.campaign ? 'the campaign' : 'this mode'} (${s.cap})` : (s.campaignBlock ?? courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
+        blocked: s.overCapacity ? `Too many players for ${s.campaign ? 'the campaign' : s.sceneRoom ? 'this scene' : 'this mode'} (${s.cap})` : (s.campaignBlock ?? courseStartBlock(s.mode, s.players.size) ?? (!solo && !s.allReady ? 'Waiting for players to ready up' : undefined)),
       });
     } else {
       const me = s.players.get(s.selfId);

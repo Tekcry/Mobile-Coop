@@ -469,9 +469,17 @@ export class NetSession {
     return isCampaignMap(missions) || isCampaignMission(missions?.find((m) => m.id === this.sectorMission));
   }
 
-  /** Players this room takes: `CAMPAIGN_ROOM` (2) for the campaign, else the mode's `capacity`; `roomCap` when that is lower (coop4 D4). */
+  /**
+   * (coop4 merge 15 check) The room plays a scene map in Sector Ops (`MapDef.scene`: the piano escape, G426; its PLAN
+   * A2 "1-2 players, built and tuned for 2"). It holds two like the campaign; one may still play it alone (no start block).
+   */
+  get sceneRoom(): boolean {
+    return this.mode === 'sector' && MAPS.find((m) => m.id === this.map)?.scene !== undefined;
+  }
+
+  /** Players this room takes: `CAMPAIGN_ROOM` (2) for the campaign and a scene map, else the mode's `capacity`; `roomCap` when that is lower (coop4 D4). */
   get cap(): number {
-    const m = this.campaign ? CAMPAIGN_ROOM : capacity(this.mode);
+    const m = this.campaign || this.sceneRoom ? CAMPAIGN_ROOM : capacity(this.mode);
     return this.roomCap > 0 ? Math.min(this.roomCap, m) : m;
   }
 
