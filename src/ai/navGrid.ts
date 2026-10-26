@@ -84,6 +84,32 @@ const NB_MAX = 16;
 /** A height within this of a surface picks it (m). */
 const LAYER_PICK = 1.2;
 
+/** (guard-ai play A, train 132 fix) Asks by others before an idle owner's sliced search is taken over (`sliceFree`). */
+const SLICE_IDLE = 8;
+
+/** (guard-ai play A, train 132 fix) One A* spread over several calls (`NavGrid.sliceStart` / `sliceStep`): the owner,
+ *  the ends, the expansions so far, the nav version it started under and its own buffers. */
+interface SliceState {
+  by: object | null;
+  idle: number;
+  gen: number;
+  s: number;
+  g: number;
+  gx: number;
+  gz: number;
+  fx: number;
+  fz: number;
+  tx: number;
+  tz: number;
+  expanded: number;
+  ver: number;
+  readonly heap: Heap;
+  readonly gScore: Float64Array;
+  readonly came: Int32Array;
+  readonly cameLink: Int32Array;
+  readonly stamp: Uint32Array;
+}
+
 /** Binary min-heap keyed by Float32 priorities, on growable typed arrays (reused: no per-query allocation). */
 class Heap {
   private items = new Int32Array(256);
@@ -181,6 +207,8 @@ export class NavGrid {
   partialEnd = false;
   /** (polish2 A184) The partial end's cell centre (scratch). */
   private endP: P2 = [0, 0];
+  /** (guard-ai play A, train 132 fix) The sliced search (`sliceStart`), null until first used. */
+  private slice: SliceState | null = null;
   /**
    * Bumped whenever a closure opens or shuts: an agent holding a path (or a cached flow field) compares it with the
    * value it planned under and replans when it changed.
@@ -669,19 +697,25 @@ export class NavGrid {
       tx = c[0];
       tz = c[1];
     }
+    return this.buildPath(g, this.came, this.cameLink, from[0], from[1], tx, tz);
+  }
+
+  /** The smoothed waypoints of a finished search, walking `came` / `cameLink` back from cell `g` (`findPath`,
+   *  `sliceStep`). */
+  private buildPath(g: number, came: Int32Array, cameLink: Int32Array, fx: number, fz: number, tx: number, tz: number): Waypoint[] {
     const cells: number[] = [];
     const via: number[] = [];
-    for (let c = g; c !== -1; c = this.came[c]!) {
+    for (let c = g; c !== -1; c = came[c]!) {
       cells.push(c);
-      via.push(this.cameLink[c]!);
+      via.push(cameLink[c]!);
     }
     cells.reverse();
     via.reverse();
     // smooth each walked stretch; links split them
     const out: Waypoint[] = [];
     let segStart = 0;
-    let sx = from[0];
-    let sz = from[1];
+    let sx = fx;
+    let sz = fz;
     for (let k = 1; k <= cells.length; k++) {
       const last = k === cells.length;
       const lk = last ? -1 : via[k]!;
@@ -699,6 +733,104 @@ export class NavGrid {
       segStart = k;
     }
     return out;
+  }
+
+  /** (guard-ai play A, train 132 fix) Whether `owner` may run the sliced search now: it is free, his, or left idle by
+   *  its owner over `SLICE_IDLE` asks by others (a guard that stopped walking home mid-search: dead, in a fight). */
+  sliceFree(owner: object): boolean {
+    const sl = this.slice;
+    if (!sl || sl.by === null || sl.by === owner) return true;
+    return ++sl.idle > SLICE_IDLE;
+  }
+
+  /**
+   * (guard-ai play A, train 132 fix) Starts one A* from `from` to `to` that runs over several `sliceStep` calls on its
+   * own buffers (allocated on the first use), so the shared `findPath` / flow queries in between leave it alone. One at
+   * a time: a new start takes the search over. False if either end has no walkable cell (nothing started).
+   */
+  sliceStart(owner: object, from: P2, to: P2, fromY = Number.NaN, toY = Number.NaN): boolean {
+    const s = this.nearestWalkable(from[0], from[1], 12, fromY);
+    const g = this.nearestWalkable(to[0], to[1], 12, toY);
+    if (s < 0 || g < 0) return false;
+    const n = this.gScore.length;
+    let sl = this.slice;
+    if (!sl) {
+      sl = { by: null, idle: 0, gen: 1, s: 0, g: 0, gx: 0, gz: 0, fx: 0, fz: 0, tx: 0, tz: 0, expanded: 0, ver: 0, heap: new Heap(), gScore: new Float64Array(n), came: new Int32Array(n), cameLink: new Int32Array(n), stamp: new Uint32Array(n) };
+      this.slice = sl;
+    }
+    sl.by = owner;
+    sl.idle = 0;
+    const gen = ++sl.gen;
+    sl.s = s;
+    sl.g = g;
+    const c = this.centerInto(g, this.endP);
+    sl.gx = c[0];
+    sl.gz = c[1];
+    sl.fx = from[0];
+    sl.fz = from[1];
+    sl.tx = to[0];
+    sl.tz = to[1];
+    sl.expanded = 0;
+    sl.ver = this.version;
+    sl.heap.clear();
+    sl.stamp[s] = gen;
+    sl.gScore[s] = 0;
+    sl.came[s] = -1;
+    sl.cameLink[s] = -1;
+    sl.heap.push(s, this.octile(s, sl.gx, sl.gz));
+    return true;
+  }
+
+  /**
+   * (guard-ai play A, train 132 fix) Up to `budget` more expansions of `owner`'s sliced search: its path (as
+   * `findPath`'s), null when it ends without one (unreachable, `cap` expansions in all, a closure changed, or another
+   * owner took it), undefined while it still runs. A finished search frees the slot.
+   */
+  sliceStep(owner: object, budget: number, cap: number): Waypoint[] | null | undefined {
+    const sl = this.slice;
+    if (!sl || sl.by !== owner) return null;
+    sl.idle = 0;
+    if (sl.ver !== this.version) {
+      sl.by = null;
+      return null;
+    }
+    if (sl.s === sl.g) {
+      sl.by = null;
+      return [[sl.tx, sl.tz]];
+    }
+    const heap = sl.heap;
+    const gen = sl.gen;
+    const end = Math.min(cap, sl.expanded + budget);
+    while (heap.size && sl.expanded < end) {
+      sl.expanded++;
+      const cur = heap.pop();
+      if (cur === sl.g) {
+        sl.by = null;
+        return this.buildPath(cur, sl.came, sl.cameLink, sl.fx, sl.fz, sl.tx, sl.tz);
+      }
+      const gc = sl.gScore[cur]!;
+      const n = this.fillNeighbours(cur);
+      for (let k = 0; k < n; k++) {
+        const j = this.nb[k]!;
+        const ng = gc + this.nbCost[k]!;
+        if (sl.stamp[j] !== gen || ng < sl.gScore[j]!) {
+          sl.stamp[j] = gen;
+          sl.gScore[j] = ng;
+          sl.came[j] = cur;
+          sl.cameLink[j] = this.nbLink[k]!;
+          heap.push(j, ng + this.octile(j, sl.gx, sl.gz));
+        }
+      }
+    }
+    if (heap.size && sl.expanded < cap) return undefined;
+    sl.by = null;
+    return null;
+  }
+
+  /** (guard-ai play A, train 132 fix) `owner` drops his sliced search (a new goal): the slot is free. */
+  sliceCancel(owner: object): void {
+    const sl = this.slice;
+    if (sl && sl.by === owner) sl.by = null;
   }
 
   private octile(i: number, gx: number, gz: number): number {

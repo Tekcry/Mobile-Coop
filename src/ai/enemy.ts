@@ -263,10 +263,12 @@ const ENTRY_MAX = 30;
 /** (guard-ai play A, docs/guard-ai/PLAY-PASS.md P1-1, P2-1) Give-ups. The calm walk home: under `homeMove` m moved in
  *  `homeT` s he plans once with an A* budget of `homeExpand` (`goTo`'s is 3000; once per point, one per frame across the
  *  guards: `AiContext.longPlan`; 10000 is ~2.4 ms p50, 3.2 ms max on S1 campus, 20000 was ~4 / 6 ms); no
- *  progress again and a route walker moves on to his next point, a post guard stands where he is (this calm spell). The run
+ *  progress again and a route walker moves on to his next point, a post guard stands where he is (this calm spell). (train
+ *  132 fix) The long plan is one A* sliced over frames (`NavGrid.sliceStep`): `homeExpand` per frame, up to `homeCap` in
+ *  all (S1 v2: the gate officer from the east needs ~45000, past one frame's 10000; never a straight press). The run
  *  to an alarm panel and the walk to a body to wake end when he cannot get there: no path, or under `homeMove` m moved in
  *  `homeT` s (`walkStalled`; check A: not on time, a long way round is still walked). */
-export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000 } as const;
+export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000, homeCap: 60000 } as const;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
 
@@ -601,6 +603,8 @@ export class Enemy implements Damageable {
   private homeT = 0;
   /** The long plan (`GIVE_UP.homeExpand`) was tried for this point. */
   private homeLong = false;
+  /** (train 132 fix) His sliced long plan to `homeG` is running (`NavGrid.sliceStep`, one slice per long-plan frame). */
+  private homeSlicing = false;
   /** (guard-ai play A, P2-1) He gave a run to the alarm panel up this fight (not sent again). */
   private alarmQuit = false;
   /** (guard-ai play A, P3-5) The body he gave up waking (not sent to it again). */
@@ -2798,6 +2802,14 @@ export class Enemy implements Damageable {
       this.homeX = this.pos.x;
       this.homeZ = this.pos.z;
       this.homeLong = false;
+      if (this.homeSlicing) this.ctx.nav.sliceCancel(this);
+      this.homeSlicing = false;
+    }
+    // (train 132 fix) a long plan running: its next slice when the frame's long plan is his; meanwhile the partial path
+    if (this.homeSlicing) {
+      const lp = this.longPlanFree() ? this.homeLongPlan(g) : null;
+      if (lp) return lp;
+      if (this.homeSlicing) return wp;
     }
     // a partial plan to this point (the full one is past goTo's budget; `routeGoal` g: not a previous point's flag): one
     // long plan first (a partial end can be a dead end). One per frame across the guards (`AiContext.longPlan`): denied,
@@ -2848,15 +2860,28 @@ export class Enemy implements Damageable {
     return this.ctx.longPlan?.() ?? true;
   }
 
-  /** (guard-ai play A, P1-1) One A* to `g` with the budget `GIVE_UP.homeExpand` (a way round past `goTo`'s), once per
-   *  walker point: his route on a path, else null (he stands; the stuck check gives the point up). */
+  /** (guard-ai play A, P1-1) One A* to `g` past `goTo`'s budget (a way round), once per walker point, (train 132
+   *  fix) sliced: `GIVE_UP.homeExpand` expansions per call, up to `GIVE_UP.homeCap`. His route on a path; null while it
+   *  runs (`homeSlicing`), when another guard's plan holds the slot, or with no path (he stands; the stuck check gives
+   *  the point up). */
   private homeLongPlan(g: P2): Waypoint | null {
-    this.homeLong = true;
     const nav = this.ctx.nav;
-    const me = this.meP;
-    me[0] = this.pos.x;
-    me[1] = this.pos.z;
-    const path = nav.findPath(me, g, GIVE_UP.homeExpand, this.pos.y, this.homeY);
+    if (!this.homeSlicing) {
+      // (train 132 fix) another guard's sliced plan is running: he asks again on a later frame
+      if (!nav.sliceFree(this)) return null;
+      const me = this.meP;
+      me[0] = this.pos.x;
+      me[1] = this.pos.z;
+      if (!nav.sliceStart(this, me, g, this.pos.y, this.homeY)) {
+        this.homeLong = true;
+        return null;
+      }
+      this.homeSlicing = true;
+    }
+    const path = nav.sliceStep(this, GIVE_UP.homeExpand, GIVE_UP.homeCap);
+    if (path === undefined) return null;
+    this.homeSlicing = false;
+    this.homeLong = true;
     if (!path || path.length === 0) return null;
     this.routePath = path;
     this.routeGoal[0] = g[0];

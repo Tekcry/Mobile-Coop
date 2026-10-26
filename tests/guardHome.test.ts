@@ -13,6 +13,7 @@ import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { ENEMIES } from '../src/ai/enemyDefs';
+import { PACE } from '../src/ai/response';
 import { runtimeNav } from './helpers/runtimeNav';
 
 // (guard-ai play A, docs/guard-ai/PLAY-PASS.md P1-1, P2-1, P2-2) Guards get home. After a search the calm walk to his
@@ -98,6 +99,8 @@ async function calmGuard(nav: NavGrid, at: [number, number, number], post: [numb
     homeX: 0,
     homeZ: 0,
     homeT: 0,
+    homeLong: false,
+    homeSlicing: false,
     // links (ladders, stairs drops)
     link: null,
     linkS: 0,
@@ -225,10 +228,23 @@ describe('Saltmarsh Park S1 (campusV2): guards get back to their posts after a s
       expect(nav.lineClear([at[0], at[1]], post)).toBe(false);
       expect(nav.findPath([at[0], at[1]], post, 3000)).toBeNull();
       expect(nav.findPath([at[0], at[1]], post, 60000)).not.toBeNull();
+      // (train 132 fix) S1 v2-c rebuilt the gatehouse round the gate post: from the east the only way in is round the
+      // site (~250 m). The limit is `within` or the walk of the shortest path at his calm pace with a 1.5 margin,
+      // whichever is longer: the case proves he never presses a wall, not that the map is compact
+      const way = nav.findPath([at[0], at[1]], post, 200000)!;
+      let len = 0;
+      let px = at[0];
+      let pz = at[1];
+      for (const w of way) {
+        len += hyp2(w[0] - px, w[1] - pz);
+        px = w[0];
+        pz = w[1];
+      }
+      const lim = Math.max(c.within, (1.5 * len) / (ENEMIES.officer.walkSpeed * PACE.patrol));
       const e = await calmGuard(nav, [at[0], at[1], nav.heightAt(at[0], at[1], 0)], post, homeY);
-      const t = runCalm(e, c.within, () => hyp2(e.pos.x - post[0], e.pos.z - post[1]) < PATROL.arrive * 1.5);
-      console.info(`guard ${c.guard} from (${at[0]}, ${at[1]}) ${d.toFixed(1)} m out, ${c.note}: home in ${t.toFixed(1)} s`);
-      expect(t).toBeLessThan(c.within);
+      const t = runCalm(e, lim, () => hyp2(e.pos.x - post[0], e.pos.z - post[1]) < PATROL.arrive * 1.5);
+      console.info(`guard ${c.guard} from (${at[0]}, ${at[1]}) ${d.toFixed(1)} m out (path ${len.toFixed(0)} m), ${c.note}: home in ${t.toFixed(1)} s (limit ${lim.toFixed(0)} s)`);
+      expect(t).toBeLessThan(lim);
     }
   });
 });
@@ -327,15 +343,16 @@ describe('one long plan per frame across the guards (check B: AiContext.longPlan
       blockers: [wall],
       agentRadius: 0.32, stepHeight: 0.45, seed: [-5, -5],
     });
-    // goTo's 3000 plan is made partial (as past its budget on a large map); the long plans are counted
+    // goTo's 3000 plan is made partial (as past its budget on a large map); the long plans' slices are counted (train
+    // 132 fix: the long plan is a sliced A*, `GIVE_UP.homeExpand` per slice; on this small map one slice ends it)
     const find = nav.findPath.bind(nav);
+    vi.spyOn(nav, 'findPath').mockImplementation((a, b, _budget, ya, yb) => find(a, b, 3, ya, yb, true));
+    const step = nav.sliceStep.bind(nav);
     let longs = 0;
-    vi.spyOn(nav, 'findPath').mockImplementation((a, b, budget, ya, yb, partial) => {
-      if (budget === GIVE_UP.homeExpand) {
-        longs++;
-        return find(a, b, budget, ya, yb, partial);
-      }
-      return find(a, b, 3, ya, yb, true);
+    vi.spyOn(nav, 'sliceStep').mockImplementation((o, budget, cap) => {
+      expect(budget).toBe(GIVE_UP.homeExpand);
+      longs++;
+      return step(o, budget, cap);
     });
     const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] }, addShadowCaster: vi.fn() };
     const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);

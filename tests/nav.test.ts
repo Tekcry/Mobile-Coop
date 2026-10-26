@@ -250,3 +250,51 @@ describe('(polish2 A184 fix) findPath partial keeps the goal storey', () => {
     expect(p!.every((q) => q[1] < 8)).toBe(true);
   });
 });
+
+describe('NavGrid sliced search (guard-ai play A, train 132 fix)', () => {
+  // a long wall along x = 0 with a gap at its north end: the way round is past a small budget
+  const wallGrid = () => grid([{ cx: 0, cz: -1, hx: 0.2, hz: 9, yaw: 0, bottom: 0, top: 3 }]);
+  const A: [number, number] = [-5, -5];
+  const B: [number, number] = [5, -5];
+
+  it('over several slices it finds the path findPath finds, with shared queries in between', () => {
+    const g = wallGrid();
+    const whole = g.findPath(A, B, 60000)!;
+    expect(whole).not.toBeNull();
+    expect(g.findPath(A, B, 50)).toBeNull();
+    const me = {};
+    expect(g.sliceFree(me)).toBe(true);
+    expect(g.sliceStart(me, A, B)).toBe(true);
+    let r: ReturnType<NavGrid['sliceStep']>;
+    let slices = 0;
+    do {
+      r = g.sliceStep(me, 50, 60000);
+      slices++;
+      // another agent's ordinary query between slices leaves the sliced search alone
+      g.findPath([-8, 8], [-6, 8], 6000);
+    } while (r === undefined && slices < 10000);
+    expect(slices).toBeGreaterThan(1);
+    expect(r).not.toBeNull();
+    expect(pathLen(r!, A)).toBeCloseTo(pathLen(whole, A), 1);
+    // done: the slot is free for anyone
+    expect(g.sliceFree({})).toBe(true);
+  });
+
+  it('ends with null past its cap; another owner waits, then takes an idle search over', () => {
+    const g = wallGrid();
+    const me = {};
+    const other = {};
+    g.sliceStart(me, A, B);
+    expect(g.sliceStep(me, 20, 1000)).toBeUndefined();
+    let asks = 0;
+    while (!g.sliceFree(other)) asks++;
+    expect(asks).toBeGreaterThan(0);
+    g.sliceStart(other, A, B);
+    // the first owner lost it
+    expect(g.sliceStep(me, 20, 1000)).toBeNull();
+    let r: ReturnType<NavGrid['sliceStep']>;
+    do r = g.sliceStep(other, 20, 100);
+    while (r === undefined);
+    expect(r).toBeNull();
+  });
+});
