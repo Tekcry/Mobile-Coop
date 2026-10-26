@@ -1,0 +1,13 @@
+{
+  "id": "20261026T104216-affected-e2e-f6636c63-f4bc",
+  "sha": "f6636c63256430eeb4e0c213036e965e35a8f073",
+  "branch": "feature/piano-knife-s1",
+  "pr": 614,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-park"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #614"
+}
