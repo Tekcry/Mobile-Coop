@@ -50,7 +50,8 @@ sanitised on read, never throws):
 ```
 campaign:progress  { v: 1, done: { [entryKey]: { best: number /* -1: no % (prologue, A6) */, plays: number, intel: number, at: number } } }
 campaign:save      { v: 1, key, map, mission, difficulty, section /* run index */, st: number[], f: number,
-                     revivesUsed: number, breaks: number, tally: { kills, knockouts, alarms, spotted, bodies, optional }, time: number, at: number }
+                     revivesUsed: number, breaks: number, alarm: number /* the stage carried into the section */,
+                     tally: { kills, knockouts, alarms, spotted, bodies, optional }, time: number, at: number }
 ```
 `st` / `f` are the runner's done and fact bits, the same packing as `MissionWire` (`src/game/mission/missionWire.ts:11-23`).
 One save slot per host (A7). `recordFinish(key, pct, intel)` keeps the best. `SAVE_VERSION` stays (A8).
@@ -67,8 +68,13 @@ One save slot per host (A7). `recordFinish(key, pct, intel)` keeps the best. `SA
   (`src/net/coopUi.ts:203-225`) fills them. `bindSectorMission` reads `g.opts.sectorMission`, falling back to `missionParam()`
   for URL boots.
 - A resume at section i: `applyMissionStart(run, i)` (EN4, already used by Two-Key Ledger's W2 start), then
-  `runner.applyWire(st, f)` (`src/game/mission/missionRunner.ts:450`) so the earlier sections' required steps read as
-  done. Without that the extraction never opens. The tracker's breaks and the revive clock's used count come back from
+  `applyMissionWire(runner, w)` (`src/game/mission/missionWire.ts:99-108`, w built from `st` / `f`) so the earlier
+  sections' required steps read as done. Without that the extraction never opens.
+- The rating survives a Continue (G146: 100% means no kills and no alarms in the whole run, plan check 1): the resume
+  seeds `run.alarmsRaised` and `run.alarm` / `alarmAtStart` (`src/game/sectors.ts:770-775`) from the save, and keeps
+  the saved tally (kills, knock-outs, spotted, bodies, time) as a carried tally that CM5's rating adds to the live counts
+  (kills today are `g.stats.kills - g.stats.knockouts`, `src/game/modes/sectorMode.ts:1202`). CM3's test: a Continue
+  after a kill and an alarm ends at 99% or less, not perfect, and the resumed section starts at the saved alarm stage. The tracker's breaks and the revive clock's used count come back from
   the save (G126: two per mission, not per session; `matchRevives`, `src/net/coopHost.ts:104`).
 - `SectorMode.resumeBay()` returns `run.index + 1`, so the 10-minute "Resume hosting" record resumes at the current
   section too (A11). `RejoinRecord` gains `sm` (tab storage, not a save).
@@ -103,7 +109,7 @@ near :348, hidden with no save; it opens hosting through the existing dynamic im
 - Changed: `src/core/flags.ts` (the flag), `src/core/rejoin.ts`, `src/net/protocol.ts` (lobby `sm` parse only),
   `src/net/session.ts`, `src/net/coopUi.ts`, `src/net/coopHost.ts` (revives on resume), `src/net/coopClient.ts` /
   `src/net/missionMirror.ts` (start section, client record), `src/game/gameState.ts` (GameOptions fields, results nav),
-  `src/game/mission/sectorMission.ts`, `src/game/mission/missionRunner.ts` (none expected: `applyWire` exists),
+  `src/game/mission/sectorMission.ts`, `src/game/mission/missionRunner.ts` (none expected: `applyMissionWire` exists),
   `src/game/mission/missionWire.ts` (`pc`), `src/game/modes/sectorMode.ts` (hooks only), `src/game/modes/courseMode.ts`
   (prologue record), `src/ui/screens/resultsScreen.ts`, `src/main.ts` (Continue item, Co-op text), `scripts/e2e-coop.mjs`,
   `docs/systems/coop.md` (wire notes), `TESTING.md` (one line), the fragment `changes/feature-campaign-mode.md`.
@@ -168,7 +174,7 @@ J7 is on master (`campaign.ts`). PR 1 to PR 3 need nothing else and merge dark. 
 (Tallow's greybox exit) and Michael's walk gate the switch-on, not this build.
 
 ## 8. Risks
-1. Resume without the earlier steps: a mission started at section i needs `applyWire(st, f)` before the first update, or
+1. Resume without the earlier steps: a mission started at section i needs `applyMissionWire` before the first update, or
    the required steps of sections 0..i-1 stay open and the extraction never opens. CM3's test resumes Three Grey Coats
    at W3 and finishes it.
 2. Mission-wide tallies: the rating must read op-wide counts (kills, `alarmsRaised`), never the per-section counters
