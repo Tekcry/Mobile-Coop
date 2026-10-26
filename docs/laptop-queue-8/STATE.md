@@ -28,9 +28,17 @@ A-C pointers are this branch after slice C (shifted by D, E: find by name); D, E
 - Slice E (docs-only affected-e2e carry for PR heads): lib `prChain` :695; service header :103-106, `PR_CARRY` :168,
   affectedPass call :488 (skipped for a conflicting head under LQ_SKIP_CONFLICTING), `prCarry` :527; tests describe
   "docs-only carry for PR heads" :2091.
+- Slice G (lost train verdict, 778c08658; PLAN fix round 1 2e6a28c21): lib `claimBlocks` beats :132, `trainHold` lost
+  :1000, `trainFinal` :1006, `trainRepair` :1024; service header :108, `TRAIN_RETRY` / `CLAIM_BEATS` / `blocks`
+  :173-176, writeClaims per-id claim check and `beat` :360-373, hold log every 15 min `HOLD_LOG_MS` :655 / :2045,
+  `trainHeadsNow` :811 (split out of pendingTrains), `trainLost` :849, `syncTrains` :863 (called in pass :2023 on
+  both workers), heartbeat on both workers :1313, finish `result.posted` / `desc` :1278, `trainVerdict` :1328,
+  runTrain finally `doneSynced` :1437; tests "claimBlocks: heartbeat bound" :660, workerActivity done train 118 :861,
+  trainHold lost :1040, describe "trainRepair" :1050. 298 tests pass (laptop-queue + autoTrain), typecheck clean.
 Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
-Next: the Opus checker on the head. Dry runs
-(`node scripts/laptop-queue/service.mjs --once --dry-run`, also with `LQ_WORKER=desktop`) not yet run.
+Dry runs not run: `--dry-run` still fetches origin (listRequests, train refs) into the shared
+C:/NightShift/Mobile-Coop/.git; run them where that is allowed.
+Next: one Opus checker on the PR head (A-G), then PR to master.
 Carry-ins (2026-10-26 ~13:45, after #517 merges):
 - #517 checker polish: refileOverCap passes `mustExist` to pushFile (withdrawal race); a null / [] recompute goes in a
   skip set; capAffected's coop / smoke checks use `norm()`; testing-tools.md:38 drop the restated "at most 3" and wrap;
