@@ -665,6 +665,14 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
     expect(steps[2]!.text).toMatch(/pallet stacks/);
     expect(steps[2]!.a).toBeDefined();
     expect(steps[2]!.b).toBeDefined();
+    // (marlow-play C7) the job lines are all the HUD shows: 8's name the run to the dock and its 60 s, 10's the man by
+    // position (A's mark north, B's south) and the push bar the step ends at
+    for (const t of [steps[1]!.a!, steps[1]!.b!]) expect(t).toMatch(/then run.*dock - 60 s/);
+    expect(steps[1]!.a).toMatch(/back aisle, cross aisle, main aisle west/);
+    expect(steps[2]!.a).toMatch(/north man/);
+    expect(steps[2]!.b).toMatch(/south man/);
+    expect(SHEET[2]!.marks[0]!.z).toBeGreaterThan(SHEET[2]!.marks[1]!.z);
+    for (const t of [steps[2]!.a!, steps[2]!.b!]) expect(t).toMatch(/count down and go together, then both to the push bar by the L4 door/);
     expect(steps[3]!.text).toMatch(/holding room four/);
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {

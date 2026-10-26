@@ -235,8 +235,9 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
       id: 'a4-s8',
       bay: 'A4',
       text: 'Loop the cameras at the security console, then cross the main aisle to the dock in 60 s.',
-      a: 'Take the duty officer from behind if he is still up.',
-      b: 'Use the console once the officer is down.',
+      // (marlow-play C7) the job line is all the HUD shows: each one names the run to the dock and its 60 s
+      a: 'Down the officer, then run: back aisle, cross aisle, main aisle west to the dock - 60 s',
+      b: 'Use the console once the officer is down, then run west to the dock - 60 s',
       done: { flag: A4_WEST_FLAG },
       timer: A4_GATE,
     },
@@ -244,8 +245,9 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
       id: 'a4-s10',
       bay: 'A4',
       text: 'Two loaders at the dock desk: take both at once from behind the pallet stacks.',
-      a: 'Take the man nearest the office when your partner is set.',
-      b: 'Take the man nearest the racking when your partner is set.',
+      // (marlow-play C7) A's mark is the north crouch spot (D1), B's the south (D2); the step ends at the push bar (`a4-wicket`)
+      a: 'Take the north man: count down and go together, then both to the push bar by the L4 door.',
+      b: 'Take the south man: count down and go together, then both to the push bar by the L4 door.',
       done: { flag: A4_WICKET_FLAG },
     },
     { id: 'a4-lock', bay: 'A4', text: 'Push the bar at the dock wicket, then both into holding room four. Medkit inside.' },

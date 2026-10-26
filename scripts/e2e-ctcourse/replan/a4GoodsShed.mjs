@@ -56,8 +56,8 @@ const LOOP_S = 60;
 const BACK_AISLE = [100, 25.8];
 /** Stations 8 and 10 have A and B lines, so each page's step line is its player's job line (`CourseState.stepLine`), never the shared
  *  text: either job's line counts (the unit test pins both against these). */
-export const S8_LINE = /duty officer from behind|console once the officer is down/;
-export const S10_LINE = /nearest the (office|racking) when your partner is set/;
+export const S8_LINE = /(Down the officer|console once the officer is down), then run/;
+export const S10_LINE = /Take the (north|south) man: count down and go together/;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
