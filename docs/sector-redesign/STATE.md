@@ -350,35 +350,26 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~15:10, new account since ~14:21, bypass mode).
-git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. This session posts its
-own `checker` statuses from an independent written report on that exact head and retargets stacked PRs itself.
-Reports: C:/NightShift/scratch/sector-ops-checks/ (PR bodies in pr-bodies/). tsc / vitest at BelowNormal,
---maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules. Desktop CPU ~70% at 15:00.
-Landed in train 119/120: #481, #488, #489, #511, #512, #513.
-0. FIX FREEZE since 15:20 (FIXES.md "Fix freeze", feature/menu): no feature builders or feature queue requests; my
-   feature PRs are drafted by the orchestrator and their requests parked. Fix work: F33 PR #568 (e2e-sectorops part 6:
-   named slow-start error, part split 6-9, SLOW line; label fix; triage f28-sectorops6-triage.md), Opus checker
-   PASS posted on 9804f784; f33-parts (:6-:9) fronted. Label train-ready when affected-e2e is green (orchestrator).
-   F35 / F36 (queue side) are Test Runner's. #457 (fix) waits on affected. F32 watch only.
-1. Waiting on laptop affected-e2e only (checker posted): #518 light L0+L1, #457 marks (master merged at e45be943, docs
-   conflict only; checker carried, marks-merge-e45be943.md), lane bases #523 / #526 / #533 / #539 / #545.
-   Lane stacks (J17, dark): S1 #523 -> #524 -> #525; S2 #526 -> #527 -> #528 -> #529; S3 #539 -> ... -> #544;
-   S4 #545 -> #546 -> #547; S5 #533 -> #534 -> #535. `gh pr edit <n> --base master` as each parent lands.
-2. J21 map-ready: #550 S14 on master (Opus PASS, gate 2/2). #551 S3 (on #550): 2x Opus FIX (warm-set leak) -> fix 1
-   7131f54f -> both re-checks PASS (map-ready-s3-check-a.md / -b.md); Guard AI re-review of guardWarm.ts asked;
-   gate e2e-coop/netmove requested (set map-ready-s3-gate): post checker when green; retarget when #550 lands.
-   #556 S10 (master, Opus desk PASS s10-check.md): gate e2e-coop/netmove (set map-ready-s10-gate; trimmed from 4
-   suites at the orchestrator's word); post checker when green.
-   Next slices: S15 (laptop GPU per step; builder waits for CPU < 80%), S5 after #317, S16 / A20 (docs/map-ready/PLAN.md).
-3. J16 char-shadow-meter: #557 S2c (master): 2x Opus FIX -> fix 1 6eaca54b -> both PASS, checker posted; waits on
-   affected-e2e (co-op group). Next: S4 (after J11 PR B on master). F27 (playerRefsInto) logged to Guard AI.
-   F32 (mine, watch): shadowCues S3b over its 2432 B limit once in a full parallel run (#559 body); a fix on the
-   first CI / e2e fail, with a repeat guard.
-4. J10 light: Michael 11:45 "Approve but only s1, let me walk it before doing any more". L2-S1/S2/S3 briefs on HOLD
-   until his S1 walk (feature/light-realism-l2). No L2 builds.
-5. Polish carried (not blocking): S1/S2 lane fragments `kind: minor`; s4-a fragment wording; S3 r1 polish
-   (s3-r1-check.md); map-ready S3 Guard AI polish (stand-ins skip the thermal loop, warm dog off LIVE_DOGS).
-Fixes first (Michael 15:05; FIXES.md on feature/menu; every fix PR names its repeat guard). Next: S3 / S10 checkers
-after their gates; retarget stacks as parents land; S15 builder when CPU allows.
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~16:15 SAVE at 81%, PROTOTYPE MODE).
+git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
+"PROTOTYPE MODE" (~16:05, e18f09d2f): finished fixes ship in one batch train, the freeze ends when it ships, every
+feature on in /preview/ (#560), lighter testing (ONE closest test set per change, no proof runs, flaky = quarantine),
+next goal Michael's playthrough. Build toward playable pieces, not polish or tooling.
+This session posts its own `checker` statuses from an independent written report on that exact head and retargets
+stacked PRs itself. Reports: C:/NightShift/scratch/sector-ops-checks/ (PR bodies in pr-bodies/). tsc / vitest at
+BelowNormal, --maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
+1. Fix PRs in the batch train: #568 F33 (part-6 split, named slow-start error, SLOW line; head 5271043a, train-ready +
+   no-affected-e2e), #457 J5 marks (e45be943). F32 watch only (shadowCues S3b limit).
+2. F42 (S1 gatehouse PC desk campusS1.ts:210 blocks the open rear-window vault landing, traversal.ts ~:283 0.6 m):
+   Opus builder on feature/campus-s1-vault-fix (worktree -campus-s1-vault-fix), report f42-build.md; it also checks the
+   v2 gatehouse (#523). Then: one Opus checker, PR labelled fix, one closest test set.
+3. GOAL: Saltmarsh Park S1 playable end to end in /preview/. With #560 campusV2 on, preview plays the v2 S1
+   (#523 -> #524 -> #525, stacked, drafted; checker posted on each). Blockers sent to the orchestrator ~16:15: the S1
+   stack must land (collapse or land in order); #518's L1 lights are v1 campusS1.ts only, so v2 S1 needs an L1 port;
+   v2 lamps miss the shipped bake (PC bakes at load in preview).
+4. Drafted feature PRs go back to ready after the batch train (orchestrator): #518, lane stacks S1 #523-#525,
+   S2 #526-#529, S3 #539-#544, S4 #545-#547, S5 #533-#535, map-ready #550 #551 #556, J16 #557. Re-file ONE test
+   set per change only. #551 needs Guard AI's re-review of guardWarm.ts before train-ready.
+5. J10 light: L2 (S2-S5) HOLD until Michael's S1 walk. Polish carried: see the 16:00 list in git history of this file.
+Next: F42 PR; the S1 playthrough blockers (L1 port to v2 S1 when the orchestrator says); re-ready PRs after the train.
 ```
