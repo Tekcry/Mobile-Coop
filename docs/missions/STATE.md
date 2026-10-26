@@ -11,12 +11,12 @@ go to cloud-queue; local checks via scratch/ctcore/low.mjs.
 2. PR T feature/tallow-throw 34e92c991 (checker PASS), laptop tallow-prt running. Green -> merge into the engine FIRST.
 3. PR G1 feature/tallow-fixes c648c5d85 (checker PASS), laptop tallow-prg1 running. Green -> engine after T. Then C3.
 4. PR C split: C1 #521 feature/mission-c1-core 9419b8f29 (base master), C2 #522 feature/mission-c2-rules 29892a271
-   (base C1; missionText.test moved to C12). Laptop prc-c1 / prc-c2 requested. Checker reports prc-c1-check.md /
-   prc-c2-check.md: both PASS. C2 status NOT posted (auto mode blocks self-approval): Michael posts or allows it.
+   (base C1; missionText.test moved to C12). Laptop co-op gate only: prc-c1 025035 / prc-c2 025041. Reports prc-c1-check.md /
+   prc-c2-check.md: both PASS, statuses posted. Preview flags (Michael 13:55): missions / coopKit read via darkFlag(.., PREVIEW_ON) if C2 lands after Player's player-preview-flags.
 5. G4 done (cloud) feature/tallow-fixes-g4 06c1bc4a6: Sonnet checker tallow-g4-check.md. G2 reopened on cloud-queue
    (branch head 3c4aaa4b4 = steps 1-10, 12; tests left). Both done + PASS -> merge c648c5d85 + G2 + G4 into
    tallow-fixes-2 (G2 checker Opus; FIX -> Opus fix round).
-6. DONE s1-polish PASS x2, tallow-shutters = b2df51d9a (status not posted, as C2). Laptop tallow-prs-a requested.
+6. DONE s1-polish PASS x2 (status posted), tallow-shutters = b2df51d9a. Laptop tallow-prs-a requested.
    S-a green -> merge S into the engine after T, G1 (order T, G1, G2, S).
 7. Cloud open: campaign-net3-gate (Opus; done -> two Opus src/net checkers -> engine before C7), campaign-look-video
    (Sonnet, base master; recorder for the W1-W4 videos, PC run on 4189 pending). Held in scratch cq/: E8, D1, S3, S4.
