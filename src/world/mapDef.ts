@@ -142,6 +142,11 @@ export interface MapDef {
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
+  /**
+   * (piano-escape) A test scene on the Sector Ops runtime (`game/pianoScene.ts`): the run writes no star, record or
+   * rating and ends on a fade out to the menu, not the results screen. Absent: an ordinary map.
+   */
+  scene?: 'piano';
   /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */
   navLayers?: number;
   /**

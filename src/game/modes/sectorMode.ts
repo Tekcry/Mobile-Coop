@@ -9,6 +9,7 @@ import { ITEM_SCOPE_OFF } from '../itemScope';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
+import { PianoScene, isPianoScene } from '../pianoScene';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
@@ -30,6 +31,7 @@ import {
   SECTOR,
   SECTOR_REINFORCE_KIND,
   SECTOR_RESTART_TITLE,
+  clearDone,
   type SectorBolts,
   type SectorPairGates,
   SectorRun,
@@ -206,6 +208,8 @@ export class SectorMode implements GameMode {
   private readonly slotEnemy: (Enemy | null)[] = [];
   private fillT = 0;
   private endT = -1;
+  /** (piano-escape) The scene's logic when the map is the piano scene (`MapDef.scene`); null on every other map. */
+  private scene: PianoScene | null = null;
   private restartT = -1;
   private reinforceK = 0;
   private readonly connIn: ConnectorInput = { allInside: false, doorwayClear: true };
@@ -391,6 +395,11 @@ export class SectorMode implements GameMode {
       const cp = this.run.checkpoint;
       g.player.controller.teleport(new Vector3(cp.x, cp.y, cp.z), cp.yaw);
       g.player.cam.yaw = cp.yaw;
+    }
+    // (piano-escape seam 1) the scene's empty kit, before the section's checkpoint records the loadout
+    if (isPianoScene(g.world.map)) {
+      this.scene = new PianoScene(g);
+      this.scene.start();
     }
     g.letterbox(2.8);
     this.loadSection(this.run.index);
@@ -857,6 +866,11 @@ export class SectorMode implements GameMode {
       return;
     }
     const o = s.objective;
+    // (piano-escape) a `clear` objective has no site and no item: the guards going down is the objective (`clearStep`)
+    if (o.kind === 'clear') {
+      g.hud.setObjective(o.label);
+      return;
+    }
     const site = new Vector3(o.x, o.y, o.z);
     const kind = o.kind === 'grab' ? 'intel' : 'terminal';
     const label = o.kind === 'grab' ? 'Take it' : o.kind === 'hack' ? 'Hack' : 'Start the download';
@@ -903,6 +917,16 @@ export class SectorMode implements GameMode {
     const done = m ? missionDoneLine(m.runner) : s.objective.label;
     if (done) g.hud.feedItem(`${done} - done`, 'xp');
     this.setup(s);
+  }
+
+  /**
+   * (piano-escape) A `clear` objective is done once every guard is down and none is pending (`clearDone`). A section
+   * with no guards is done at once.
+   */
+  private clearStep(s: SectorDef): void {
+    const em = this.g.enemyMgr;
+    if (!em || !clearDone(this.pending.length, em.alive)) return;
+    this.objectiveDone(s);
   }
 
   /** Every living player in the connector cycles it (the next section), or in the extraction ends the run. */
@@ -1115,6 +1139,11 @@ export class SectorMode implements GameMode {
     for (const it of this.its) g.interactables?.remove(it);
     this.its.length = 0;
     g.hud.setObjective('');
+    // (piano-escape seam 3) a scene writes no star, record or rating and shows no banner or results: a fade, then the menu
+    if (this.scene) {
+      this.endT = this.scene.finish();
+      return;
+    }
     // (section-rating S2) the last section is rated at the extraction (nothing follows it to grant)
     this.rate(this.run.index, false);
     // co-op: the last rating goes now (the sector sends stop once the op ends), ahead of the end message
@@ -1359,6 +1388,10 @@ export class SectorMode implements GameMode {
       this.endT -= dt;
       if (this.endT <= 0) {
         this.endT = 0;
+        if (this.scene) {
+          this.scene.leave();
+          return;
+        }
         if (this.result().ghost) g.stats.score += 2000;
         g.endSession(true, this.practiceFrom ? practiceLine(this.result().line, this.practiceFrom) : this.result().line);
       }
@@ -1404,6 +1437,9 @@ export class SectorMode implements GameMode {
     const s = this.run.current;
     if (!s) return;
     this.overhearStep(dt, this.run.index, s);
+    if (this.run.phase === 'objective' && s.objective.kind === 'clear') this.clearStep(s);
+    // (piano-escape seam 2) a player on the porch with a guard still up
+    if (this.scene && this.run.phase === 'objective') this.scene.porchStep(s, g.playerRefsInto(this.refs));
     if (this.run.phase === 'objective' && this.run.downloading) {
       const o = s.objective;
       const refs = g.playerRefsInto(this.refs);
@@ -1565,6 +1601,8 @@ export class SectorMode implements GameMode {
     this.mission?.dispose();
     this.freeze?.dispose();
     this.freeze = null;
+    this.scene?.dispose();
+    this.scene = null;
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;
