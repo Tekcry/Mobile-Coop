@@ -1044,8 +1044,9 @@ G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
 2.4 s look, never escalates alone (A1-A11 in BRIEF). Plan check 1 PASS ef5889a44 (PLAN-CHECK.md: 7 fold-ins; items 1, 2, 3, 6 go into the G3 brief, 7 into G5; 4 in
 G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + G2 built af4146d7c, check PASS a6f54fa04
-(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). G3 (src/ai wiring) Opus builder RUNNING (06:10) -> slices/G3-REPORT.md;
-then two Opus checkers (one at a time), PR 1 = G1 + G2 + G3 (dark).
+(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). G3 built 0883c34d0 (slices/G3-REPORT.md: getters, bark hushed, mission-order guards gated
+out, cue after perceive, +2083 lines total incl. 1374 test). Checker A RUNNING -> slices/G3-CHECK-A.md; then checker B;
+then split: PR 1a G1 + G2 (~1.0k), PR 1b G3 (~0.9k, stacked); post checker on each.
 Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
 held (prototype mode: on in /preview/, the walk cap limits live switch-on only).
 ```
