@@ -1,0 +1,13 @@
+{
+  "id": "20261026T221723-night-shift-guard-ai-13c84481-e4b5",
+  "sha": "13c8448155a8485e4a722d4427bf490b84359190",
+  "branch": "feature/guard-ai-j16-2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "j16-g5",
+  "note": "J16 G5 shadowCue block + charlight=0 main page (pre-PR)"
+}
