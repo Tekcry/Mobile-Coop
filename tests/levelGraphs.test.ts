@@ -21,8 +21,8 @@ const sets = JSON.parse(fs.readFileSync(path.join(ROOT, MANIFEST), 'utf8')) as G
 const COUNTS = /(\d+) error\(s\), (\d+) warning\(s\)\.$/;
 
 describe('graph-sets manifest', () => {
-  it('lists the example and the five campus graphs, files that exist', () => {
-    expect(sets.map((s) => s.name)).toEqual(['example', 'campus']);
+  it('lists the example, the five campus graphs and the Marlow Yard graph, files that exist', () => {
+    expect(sets.map((s) => s.name)).toEqual(['example', 'campus', 'marlow']);
     expect(sets[1]?.files.length).toBe(5);
     for (const s of sets) {
       for (const f of s.files) expect(fs.existsSync(path.join(ROOT, f)), f).toBe(true);
@@ -90,7 +90,10 @@ describe('level-graphs runner', () => {
     expect(go(['--write'], root).code).toBe(0);
     const [set] = JSON.parse(fs.readFileSync(path.join(root, MANIFEST), 'utf8')) as GraphSet[];
     expect(set).toMatchObject({ errors: 0, warns: 0 });
-    expect(fs.readFileSync(path.join(root, 'out/run.txt'), 'utf8')).toBe('\n0 error(s), 0 warning(s).\n');
+    // (validator-port I-C) the CLI's real text for the example graph: its two areas are not measured yet
+    expect(fs.readFileSync(path.join(root, 'out/run.txt'), 'utf8')).toBe(
+      'INFO:  s1-yard: pending V6 (no measured values)\nINFO:  s2-hall: pending V6 (no measured values)\n\n0 error(s), 0 warning(s).\n',
+    );
     expect(go([], root).code).toBe(0);
   });
 
