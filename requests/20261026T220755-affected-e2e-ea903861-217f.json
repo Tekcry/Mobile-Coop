@@ -1,0 +1,13 @@
+{
+  "id": "20261026T220755-affected-e2e-ea903861-217f",
+  "sha": "ea903861f00fcd41457bbba84d07684a8aefd6c5",
+  "branch": "feature/light-parity-suite",
+  "pr": 681,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-combat"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #681"
+}
