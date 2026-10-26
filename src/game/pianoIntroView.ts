@@ -6,6 +6,7 @@ import {
   ACTOR_LEN,
   ACTOR_RATE,
   ACTOR_WALK,
+  actorHeightAt,
   actorPath,
   ACTOR_START,
   AIM_X,
@@ -287,7 +288,9 @@ export class PianoIntroView implements SceneView, PianoView {
   private makeActor(i: number): IntroActor {
     const g = this.g;
     const a = INTRO_ACTORS[i]!;
-    return new GuardActor(g.scene, g.world, ENEMIES.grunt, actorPath(i), { speed: ACTOR_WALK, rate: 0, vfx: g.vfx, nav: g.nav, y: a.pts[0]![1], name: `piano-actor-${i}` });
+    // the co-op client has no nav: the stair height from the actor's own path data (S7 check)
+    const nav = g.nav ?? { heightAt: (x: number, z: number) => actorHeightAt(i, x, z) };
+    return new GuardActor(g.scene, g.world, ENEMIES.grunt, actorPath(i), { speed: ACTOR_WALK, rate: 0, vfx: g.vfx, nav, y: a.pts[0]![1], name: `piano-actor-${i}` });
   }
 
   /** The intro (to the cut) and a framed reveal hold the operator's input. */
