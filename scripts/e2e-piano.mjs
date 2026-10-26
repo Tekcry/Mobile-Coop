@@ -82,10 +82,18 @@ try {
   const lv = await G(() => window.__app.current.lightLevel);
   assert(lv < SHADOW, `the meter reads dark (${lv.toFixed(3)} < ${SHADOW})`);
   const q0 = await G(() => { const p = window.__app.current.player.position; return [p.x, p.z]; });
-  await G(() => window.__pad.axis(1, -1));
+  // the cut leaves him on the wall (knife S4b: on the bins, facing west): the stick slides him along it
+  // (the camera may look along the wall or off it: sideways first, then forward if that was into the wall)
+  await G(() => window.__pad.axis(0, 1));
   await sim(1);
-  await G(() => window.__pad.axis(1, 0));
-  const q1 = await G(() => { const p = window.__app.current.player.position; return [p.x, p.z]; });
+  await G(() => window.__pad.axis(0, 0));
+  let q1 = await G(() => { const p = window.__app.current.player.position; return [p.x, p.z]; });
+  if (Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) <= 0.3) {
+    await G(() => window.__pad.axis(1, -1));
+    await sim(1);
+    await G(() => window.__pad.axis(1, 0));
+    q1 = await G(() => { const p = window.__app.current.player.position; return [p.x, p.z]; });
+  }
   assert(Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) > 0.3, 'the stick moves the operator after the cut');
 
   // ---- a restart: no intro, the lamps stay dead, the music plays on
