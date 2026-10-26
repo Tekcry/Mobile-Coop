@@ -546,11 +546,10 @@ export function teamLinkFrame(dt: number, partner: string, i: TeamPoseIn, x: num
 }
 
 /** The ROPE / HANG / THROW sub bits of the `brace` and `boost` wire modes (game/teamMoves: THROW_SUB 1, HANG_SUB 2, ROPE_SUB 4;
- *  KIT0 PULL_SUB 8, SHUTTER_SUB 16). */
+ *  the kit's bits, KIT0 PULL_SUB 8, SHUTTER_SUB 16 and the part 2 moves', come from `KIT_SUB` through `KIT_SUB_MOVES`). */
 const SUB_THROW = 1;
 const SUB_HANG = 2;
 const SUB_ROPE = 4;
-const SUB_SHUTTER = 16;
 
 /**
  * (coop-kit K0) The wire bit table: each kit move's sub bit (`KIT_SUB`), highest bit first (so the shutter, 16, wins
