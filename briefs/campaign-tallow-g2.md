@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:24:56Z
+status: done feature/tallow-fixes-g2 36a207232b0805ce321df671cee54ababc93e7ef
 
 # campaign J8 G2 (cloud copy of docs/tallow-fixes/briefs/G2.md on the base)
 
@@ -452,3 +452,77 @@ analytic tests cannot make). The report also gives the throw lengths `throwCheck
 `throwSites` identity result.
 
 ## Report (append below)
+
+## Report (Night Shift | Cloud Builder 1, resumed after the swap, 2026-10-26)
+
+### Commits (on base 24964a62)
+| sha | what |
+| --- | --- |
+| 3c4aaa4b | Previous builder: steps 1-10 and 12 (W2 geometry, lights, cover, desks, medkit, W2/W3 bolts and routes, W3 guard 1) |
+| ed9b6042 | step 0b: `WharfThrow.dist`, `layout.throwSites` built inside `build()` (`hyp2`); W2 drops its local `SiteThrow` type; shell test |
+| 53251b6e | step 13: `throwCheck` takes the site length (optional `sites`, `ThrowReport.dist`); sectors tests |
+| 36a20723 | step 13: W2 tests |
+
+Files changed vs base: `src/world/maps/tallowWharfW2.ts`, `tallowWharfSectors.ts`, `tallowWharfKit.ts` (only `dist?`),
+`tallowWharf.ts` (only `throwSites` and the `hyp2` import), `tests/tallowWharf/{w2,sectors,shell}.test.ts`,
+`tests/tallowWharf/helpers.ts` (only `throwCheck` / `ThrowReport` and their imports).
+
+### The old head, checked against the brief
+- Steps 1-10 and 12 were in and match the brief. Missing and now built: step 0b (W2 used a local `SiteThrow` type) and
+  all of step 13.
+- W3 guard 1 dropped J7 R3's `yaw: PI / 2`: it only set the old two-point walker's takedown spot; the brief's call has
+  none. The new spot is (110.27, 47.29), as the brief says.
+
+### Steps 5, 11, 12
+- Step 5: no game code reads `breachable`. Only the connector, keypad, pair gates, bolts and course mode call
+  `setLocked`, and the clock door has no bolt now. Nothing opens it for a lone player.
+- Step 11 (check only): `W1_BOLTS` already ends with the cage bolt; `CORES['w1-ladder-cage']` and the `want.W1` row are
+  present. Nothing added.
+- Step 12: done (MB and G3 in the base). W3 route 1's nav legs pass with `climbs: [2, 13, 14]` (5 not needed). Route 2's
+  fire-escape points read as G3 left them.
+
+### Tests
+- `npm run typecheck:fast` clean; eslint clean on every touched file.
+- The brief's four files (w2, shell, sectors, throwSites): 155 passed.
+- All of `tests/tallowWharf/` plus throwSites and sectorBolt: 10 files, 315 passed (239 on the base).
+- Other tests that import the map: 8 files, 98 passed.
+
+### Numbers measured
+- Gaps: pawn 4.9, lane 4.9, pie 2.5 (not yet forced).
+- Throw lengths with the map's sites: pawn 5.8, pie 3.2, lane 5.8, all `ok`, room `'ok'`. Landings (51.2, 73.0),
+  (63, 72.8), (82.5, 66). With no sites all three throw 3.2 and the pawn and lane throws are not ok.
+- `throwSites` identity: two builds give equal arrays that are not the same object.
+- Thrower marks: z 67.0 / 67.3 (pawn) and x 76.5 / 76.8 (lane) all land with the body 0.3 m inside the stage.
+- Reach edges (0.99 m off the spot): pawn mark inside; pawn +x / -x land on the stage with the body over the side edge;
+  pawn +z no floor under the thrower, refused (arc); pawn -z refused (arc); lane mark inside; lane +x no floor under
+  the thrower, lands inside; lane -x refused (arc); lane +z / -z inside. None lands on a floor outside the stage.
+- Levels match LIGHT.md: arcade mid 0.838, checkpoint 0.191, boost spot 0.249, walkway 0.721; pie loft, pawn loft and
+  the three reading-room points 1.0; pie shop back 0.140; clock loft 0.140, lane-window loft 0.185, pawn stage 0.244;
+  all four vantages 0.244; downpipe foot 1.0 lit / 0.244 with group 79 cut, mid-climb and top-out 0.244.
+- Nearest hide spot to each W2 takedown spot: at most 7.4 m.
+- Bolt counts at hand-in `[3, 7, 5, 2]`. The 2.0 m bolts are W2 indexes 2 and 3. The W3 bulkhead foot is bolt 4,
+  `missions: ['twoKeyLedger']`; `W3-bolt4` is not among Three Grey Coats' flags.
+
+### Deviations for the lead
+1. Reach-edge rule relaxed. The brief says each edge lands with the body 0.3 m inside the stage or is refused. Pawn
+   +x / -x do neither: they land 0.01 m inside the 2.0 m stage's side edge (any thrower 0.7-1.0 m off the mark sideways
+   does the same). The test asserts the safety rule instead (nothing lands on a floor outside the stage; the mark lands
+   inside) and logs every edge. Closing it needs a narrower sideways reach or a wider stage: lead's call.
+2. Pawn-stage `soloLevelThreats` runs on a test-side model of the screens. On the built solid set it reports the arcade
+   roof east of x 54 at 3.99 m, a false positive: G0's helper samples the flight at 20 steps (~0.25 m) and steps across
+   the kit's 0.1 m screen; no jump clears a 2.2 m screen. The test models the two screens 0.26 thick on their own
+   lines, says why, and has a control showing the screens are what blocks it. A finer flight sample in G0's helper is
+   for G0 / D0 (`helpers.ts` was frozen apart from `throwCheck`).
+3. Pawn-stage `soloJumpThreats` is not `[]`: with a grip assumed on the stage edge it finds the lightwell drain duct's
+   lid (top 1.7), 1.01 m off the stage corner. The stage is `noLedge` and the test asserts no ledge anchor runs along
+   its edges, so an in-air grab has nothing to take; the test allows only that one entry. If the stage ever gets a
+   ledge, this becomes a real way from the lightwell pit to the reading room.
+4. Medkit check counts shut doors as walls: Fenn's post is 3.7 m from the box and the sight line runs through the loft
+   door gap; the test counts the 2.1 m shut door as the wall.
+5. W3 guard 1 no longer has J7 R3's `yaw` (above).
+
+### Pending PC run
+E8 rows: pawn stage [50.2, 72.5, 52.2, 73.5], thrower (51.2, 4.5, 67.2), runner (51.2, 4.5, 65.9); lane thrower
+(76.7, 8.4, 66), runner (75.1, 8.4, 66); the jetty pull, unchanged; the west downpipe (E11): foot (47.5, 4.5, 61.0)
+facing +z, climb and pull-up to the top-out (47.5, 8.4, 62.15) (analytic tests cannot make this one); a visual walk of
+the screens, the cage, the bridges, the tank room and the lights.
