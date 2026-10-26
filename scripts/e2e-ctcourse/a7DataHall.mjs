@@ -118,14 +118,14 @@ export async function walk(t, n) {
   await moveClient(72.5, 62.6, 0.1, Math.PI / 2);
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
-    await until(P, () => /Split up: one through the hall/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A7: the ${tag} sees the shared step line`);
+    await until(P, () => /Split up: hall and plant corridor/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A7: the ${tag} sees the shared step line`);
     for (const id of [T1, T2]) assert(await P.evaluate((id) => !!window.__app.current.interactables?.items.find((i) => i.id === id), id), `A7: the ${tag} has the terminal ${id}`);
     const sc = await scan(P);
     assert(!!sc && sc.flag === 'a7-sync' && sc.ph.every((p) => p === 'idle'), `A7: the ${tag} has the scanner pair sc-a7, idle (${JSON.stringify(sc)})`);
   }
   // the odd set's lead is the host: the A (hall) line until somebody claims
-  await sees(A, /Hall route: slip past the technician/, 'A7: the host (the lead) reads the A line');
-  await sees(B, /Plant corridor: quiet on the grating/, 'A7: the client reads the B line');
+  await sees(A, /Slip past the technicians in the hall/, 'A7: the host (the lead) reads the A line');
+  await sees(B, /Creep past the camera on the grating/, 'A7: the client reads the B line');
   assert(!(await claimed()), 'A7: nobody has claimed a path yet');
   const g0 = await tech();
   assert(!!g0 && !g0.passive && g0.idx >= 0, `A7: the technician is alive, armed and on his loop (${JSON.stringify(g0)})`);
@@ -148,15 +148,15 @@ export async function walk(t, n) {
   await openDoor(A, DOORS.plant, 'A7 claim swap');
   await moveHost(72.8, 54.0, 0.1, Math.PI / 2);
   await until(A, () => window.__course.state.roleClaimed() && window.__course.state.roleOf(0) === 'b', null, 10000, 'A7 claim swap: the host in the corridor first takes B');
-  await sees(A, /Plant corridor: quiet on the grating/, 'A7 claim swap: the host reads the B line');
-  await sees(B, /Hall route: slip past the technician/, 'A7 claim swap: the client reads the A line');
+  await sees(A, /Creep past the camera on the grating/, 'A7 claim swap: the host reads the B line');
+  await sees(B, /Slip past the technicians in the hall/, 'A7 claim swap: the client reads the A line');
   assert(await GA(() => window.__course.restartCheckpoint()), 'A7: the host restarts at the checkpoint');
   const cp = await GA(() => { const p = window.__course.checkpointPos(); return [p.x, p.z]; });
   await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 2.5; }, cp, 15000, 'A7: the restart brings the client back');
   await waitSim(2200);
   await noDamage();
   assert(!(await claimed()), 'A7: the restart clears the claim');
-  await sees(A, /Hall route: slip past the technician/, 'A7: after the restart the host (the lead) reads the A line again');
+  await sees(A, /Slip past the technicians in the hall/, 'A7: after the restart the host (the lead) reads the A line again');
   for (const cid of [DOORS.cageW, DOORS.cageE, DOORS.east]) assert(await lockedOnClient(cid), `A7: ${cid} is still locked after the restart`);
 
   // ---- 3. the split: the client through the plant door takes B ----
@@ -168,8 +168,8 @@ export async function walk(t, n) {
   await until(A, () => window.__course.state.roleClaimed() && window.__course.state.roleOf(1) === 'b', null, 10000, 'A7: the client in the corridor takes B');
   const r = await roles();
   assert(r[0] === 'a' && r[1] === 'b', `A7: the host is A, the client B (${r})`);
-  await sees(B, /Plant corridor: quiet on the grating/, 'A7: the client reads the B line');
-  await sees(A, /Hall route: slip past the technician/, 'A7: the host reads the A line');
+  await sees(B, /Creep past the camera on the grating/, 'A7: the client reads the B line');
+  await sees(A, /Slip past the technicians in the hall/, 'A7: the host reads the A line');
 
   // ---- 4. the corridor: lee to lee in cam2's blind windows, the pod door in the 220 window, into the pod ----
   console.log('  A7: the corridor in the blind windows, the pod');

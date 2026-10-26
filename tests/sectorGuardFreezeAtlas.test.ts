@@ -225,3 +225,51 @@ describe('guard-render S10b: no allocation in the per-frame atlas paths (structu
     }
   });
 });
+
+describe('piano SO3: a map with more torch slots', () => {
+  async function atlas(n: number, shadowed: number) {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const B = await import('../src/core/babylon');
+    const { TorchShadows } = await import('../src/world/torchShadows');
+    const scene = new B.Scene(new NullEngine());
+    const reg = new LightRegistry();
+    reg.ambient = 0.2;
+    addTorchSlots(reg, n, shadowed);
+    const ids = new Int32Array(n).fill(-1);
+    const draw = new Float32Array(n * TORCH_DRAW_STRIDE);
+    const ts = new TorchShadows(scene, reg, { casters: [], torchSlotIds: ids }, draw, [], () => false);
+    vi.spyOn(ts as unknown as { supported: () => boolean }, 'supported').mockReturnValue(true);
+    ts.configure(256, 8);
+    return { scene, reg, ids, draw, ts };
+  }
+
+  it('the default stays 4 shadow slots; 16 slots all shadowed build 16; 16 with 4 shadowed build 4 tiles', async () => {
+    for (const [n, sh, want] of [[TORCH_DRAW_SLOTS, TORCH_DRAW_SLOTS, 4], [16, 16, 16], [16, 4, 4]] as const) {
+      const { scene, ts } = await atlas(n, sh);
+      expect(ts.n).toBe(n);
+      expect(ts.shadowed).toBe(want);
+      expect(ts.slotCount).toBe(want);
+      expect(ts.mats.length).toBe(n * 16);
+      expect(ts.params.length).toBe(n * 4);
+      scene.getEngine().dispose();
+    }
+  });
+
+  it('a lit slot past the shadowed ones reads params w 3 (the reach cut) and has no slot light; off, 0', async () => {
+    const { scene, reg, ids, ts } = await atlas(16, 4);
+    const fl = reg.lights.filter((l) => l.kind === 'flashlight');
+    const l = fl[10]!;
+    l.x = 0;
+    l.y = 1.45;
+    l.z = 0;
+    l.on = true;
+    ids[10] = l.id;
+    ts.frame(0, 1.6, -3);
+    expect(ts.params[10 * 4 + 3]).toBe(3);
+    expect(ts.slotLight(10)).toBeNull();
+    l.on = false;
+    ts.frame(0, 1.6, -3);
+    expect(ts.params[10 * 4 + 3]).toBe(0);
+    scene.getEngine().dispose();
+  });
+});

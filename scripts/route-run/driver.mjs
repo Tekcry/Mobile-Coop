@@ -1006,9 +1006,14 @@ export class PageDriver {
     this.opts = pageOptions({ pace, forgive, role });
     this.points = points;
     this.onChunk = async () => {};
+    // (SR3, J13 hold restart) a course event no step has taken yet: a leader tick that handed back 'course' outside
+    // `until` (a clock advance under a steps.mjs machine, a stub's hold, a placement's settle, a tick-0 position read).
+    // The next `until` returns it at once; a machine or a stub ends with outcome 'course' on it (`takeCourse`).
+    this.courseHit = null;
   }
 
-  /** (R4b: the steps context's clock advance) Let `s` game seconds pass, whatever the robot is doing. */
+  /** (R4b: the steps context's clock advance) Let `s` game seconds pass, whatever the robot is doing (a course event
+   *  stays pending: `call`). */
   async advance(s) {
     for (let left = s; left > 1e-9; ) {
       const r = await this.call('tick', Math.min(EVAL_S, left));
@@ -1021,12 +1026,33 @@ export class PageDriver {
     await this.page.evaluate(pageScript(this.opts));
   }
 
-  call(name, ...args) {
-    return this.page.evaluate(([n, a]) => window.__rr[n](...a), [name, args]);
+  /** A page call. A leader's tick that hands back 'course' leaves it pending (`courseHit`); a run's restart or begin
+   *  drops a stale one. */
+  async call(name, ...args) {
+    if (name === 'restart' || name === 'begin') this.courseHit = null;
+    const r = await this.page.evaluate(([n, a]) => window.__rr[n](...a), [name, args]);
+    if (name === 'tick' && r && r.ev === 'course' && this.opts.role !== 'follower') this.courseHit = r;
+    return r;
   }
 
-  /** Tick until an event (or `capS` game seconds pass: event 'cap'). */
+  /** The pending course event (cleared), or null. */
+  takeCourse() {
+    const c = this.courseHit;
+    this.courseHit = null;
+    return c;
+  }
+
+  /** Tick until an event (or `capS` game seconds pass: event 'cap'). A pending course event is returned at once. */
   async until(capS = RUN_CAP_S) {
+    const c = this.takeCourse();
+    if (c) return c;
+    const r = await this.ticks(capS);
+    if (r.ev === 'course') this.courseHit = null;
+    return r;
+  }
+
+  /** Tick until an event or `capS` game seconds (a hold, a placement's settle): a course event stays pending. */
+  async ticks(capS) {
     let left = capS;
     for (;;) {
       const r = await this.call('tick', Math.min(EVAL_S, left));
@@ -1037,16 +1063,17 @@ export class PageDriver {
     }
   }
 
+  /** Stand still `s` game seconds; a course event (pending or during it) ends it, left pending. */
   async hold(s) {
-    if (!(s > 0)) return;
+    if (!(s > 0) || this.courseHit) return;
     await this.call('holdStart', s);
-    await this.until(s + 1);
+    await this.ticks(s + 1);
   }
 
   async place(pt) {
     if (!pt) return null;
     const at = await this.call('place', pt[0], pt[1], pt[2], null);
-    await this.until(1);
+    await this.ticks(1);
     return at;
   }
 
@@ -1255,7 +1282,10 @@ async function linkStep(ctx, log, step, stop) {
     const how = await d.call('doorStart', at[0], at[2], limit);
     if (how === 'none' || how === 'open') return 'walked';
     if (how === 'locked') {
-      if (await course.onLockedDoor(ctx, log, step)) return 'walked';
+      const open = await course.onLockedDoor(ctx, log, step);
+      // (J13 hold restart) a restart during the drill hold or the lock poll: the restart, not the door outcome
+      if (d.takeCourse()) return 'course';
+      if (open) return 'walked';
       const p = await d.call('tick', 0);
       await stop('locked', step, p, ctx.robot);
       await d.place(step.past ?? at);
@@ -1272,6 +1302,9 @@ async function linkStep(ctx, log, step, stop) {
   // (pair, both robots) the follower to its near-side spot beside the leader first; both placed past it (pair.mjs)
   const both = !!ctx.pair && !ctx.robot;
   const r = both ? await ctx.pair.linkStep(ctx, step, step_) : await step_(ctx, step);
+  // (J13 hold restart) a course interrupt during a machine or a stub's hold: no stop, no placement past the link;
+  // `runSteps` hands it to `course.onRestart`
+  if (r.outcome === 'course') return 'course';
   if (r.stub) log.stubs.push(r.stub);
   if (r.outcome !== 'walked' && r.outcome !== 'stub') {
     // the robot the step names (a follower's own stop: its page's position), the step's own time and limit; then both

@@ -1,5 +1,77 @@
 # Changelog
 
+## 4.127.0 - Train 156: Piano escape: knife kills, co-op, the storm and the full run (2026-10-27, PR #659; #631)
+
+### Co-op kit: groundwork for five new moves
+- Co-op: groundwork for five new two-player moves (deadweight, drop catch, chimney pair, swing pass, plank bridge):
+  their names, their place on the network and a stand-in look for each while a partner does one. None of them can be
+  used yet, in the live game or in /preview/; each arrives in its own update. The pull-up, the shutter and the rope
+  descent are unchanged.
+- For map builders: a map can now mark where each of these moves is done (a "kit spot"), and the host tells the game
+  mode when a move is finished at a spot, so a course station can count it.
+
+### Piano escape: Thornbeck Mill greybox
+- Thornbeck Mill, the storm grain mill for the piano escape: the greybox, 12 guards on fixed sweeps, 16 lamps; dark behind `?piano=1`.
+
+### Piano escape: intro and EMP
+- The piano escape opening: a cinematic intro (skip by holding Start / Back), then the EMP blacks out the mill and play begins; dark behind `?piano=1`.
+
+### Piano escape: knife kills, co-op, the storm and the full run
+- The piano escape plays start to end: the real blackout and lightning, knife kills after the EMP, the intro pose, rain on the roof and thunder after each flash, and the co-op run (the partner's intro ends on the host's EMP; both pages fade to the lobby at the end); dark behind `?piano=1`.
+
+### Piano escape: the intro piano, then the mission track
+- Piano escape music: the intro plays the investigation piano; the EMP press cross-fades into the mission track ("Suspense Thriller"), which loops; "Held Breath" as a dev alternative (`?pianomusic=1`); dark behind `?piano=1`.
+
+### Piano escape
+- The piano escape scene (Thornbeck Mill, knife and night vision only, a stealth escape in the dark), dark behind `?piano=1`.
+
+### Piano scene: co-op knife kills
+- Co-op (piano scene, still hidden): both players' knife kills look the same on both screens; the host checks every
+  takedown in the scene is a knife kill.
+
+### Piano intro pose
+- (piano-knife S4b) The piano scene's intro pose: the operator's back to the wall, the empty pistol low in both hands
+  with its slide locked back, one calm captured breath every 4 s (mirror and crouch variants for the partner). Dark
+  until Campaign's piano scene calls it; Anim Studio rows `piano intro (stand / mirror / crouch)`.
+
+### Piano escape: Thornbeck Mill light-meter check
+- A test of the mill's light field (dark after the EMP, flash bands and shadows, meter and guard-sight parity) and the lux-grid tool can now read the mill; no game change.
+
+### Piano escape: lightning lights the room through its windows
+- Each window and gap a map lists for its lightning now throws a short flash of light into the room, with shadows from what stands in the way; it never touches the mains cut and is dark between strikes. Maps without lightning openings are unchanged.
+
+## 4.126.2 - Train 155: Lamp ids past 255; Route-runs: a course restart during a link step; Marlow yard step lines (2026-10-27, PR #657; #655, #649, #627)
+
+### Lamp ids past 255
+- (F56) The lamp grid (which lamps reach each 2 m column) holds lamp ids in 16 bits: up to 65535 lamps a map, was 255.
+  Saltmarsh Park with every section on the v2 layout (/preview/) has 260 lamps; the last 5 (the S5 service stair) were
+  dark in the picture and the light meter. Every lamp is now lit in both, and the guards see it. A map past 65535
+  lamps warns at load. The lamp bakes are unchanged (no rebake, no prebake key change); no wire or save change.
+
+### Marlow yard step lines
+- Marlow Yard re-plan: shorter, plainer step lines (what to do and where).
+- Marlow Yard: the set lamps no longer draw long light beams, which made the lights blinding on the Epic setting.
+- Marlow Yard re-plan walks: e2e-ctcourse parts 5, 7 and 8 are out of quarantine (all green on the laptop after the test fixes in #610 and #632).
+
+### Route-runs: a course restart during a link step
+- Route-run harness: a course restart or retry that lands while a robot is mid-ladder, mid-drop or holding at a
+  stubbed link is no longer lost. The step ends there and the run follows the course's rejoin or push-past, instead
+  of a false step-timeout or a placement past the stub.
+
+## 4.126.1 - Train 154: Docs: the 2026-10-26 / 27 decisions folded (G408-G434); Guard torch slots per map (piano SO3) (2026-10-27, PR #654; #650, #605)
+
+### Docs: the 2026-10-26 / 27 decisions folded (G408-G434)
+- Docs: ROADMAP "Decided" of 2026-10-26 and early 2026-10-27 folded into `docs/DECISIONS.md` as G408-G434 (Mixamo and
+  the Hand-made / CMU / Mixamo toggle, fixes first, preview flags, prototype mode, pacing to the 5-hour reset, the piano
+  escape experiment, Saltmarsh S1 v3, the S1 light approval, the new guards on). The bible, VISION, RULES, CLAUDE.md
+  and the Tallow Wharf map spec are rewritten in place; replaced wording joins `docs/stale-terms.json`.
+- RULES "Machines": a laptop rerun of a desktop red ranks with fixes in the laptop queue (F52, #638).
+
+### Guard torch slots per map (piano SO3)
+- Lighting: a map can ask for 8, 12 or 16 guard torch slots (`MapDef.torchSlots`, default 4) and cap how many cast
+  shadows (`MapDef.torchShadows`); unshadowed torches stop at their beam's reach in the picture, the meter and guard
+  sight alike. Dark: no map sets it yet; other maps are unchanged.
+
 ## 4.126.0 - Train 152: Saltmarsh Park S1: the courier's van (2026-10-27, PR #648; #634)
 - Sector Ops (v2 layout, section 1, flag `?campusv2=1`): the job moves to the middle of the car park. Clone the courier's
   badge at his bright yellow-orange van, west end of the solar carport, about 55 m from the start (it was the gatehouse
