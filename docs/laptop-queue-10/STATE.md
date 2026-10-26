@@ -30,3 +30,11 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
 - 2026-10-26: plan check 1 (Opus): FIX, fixed in place: base re-based to laptop-queue-8b 2fbfbd303 (rebase --onto,
   line refs), S2 keeps keptPlan in desktopTooLong, S2 adds the desktop incomplete hand-off (F11 widened), F27 tracker
   id clash noted, RULES / testing-tools overlaps recorded. Size ~790.
+- 2026-10-26: S1 (Opus builder, branch feature/laptop-queue-10b, on laptop-queue-8b 2fbfbd303): hung cut (F10) and per-
+  attempt run folders (tracker F31; the BRIEF / PLAN call it F27). lib suiteEvents, idleLimitMs, idleStep,
+  unfinishedParts, hungTrainDesc (optional prefix: the desktop's "desktop: ", so auto-train desktopFailSuites still
+  reads a desktop hung train), attemptDir, cutShort `hung`; service SUITE_TIMEOUT_S / SUITE_IDLE_MS (start log),
+  attemptEvents (+ force read for the verdict), newestLog, runRequest / runTrain attempt folders and hung watch, cutEnd
+  'hung'. Tests: new describe "hung runs and attempt folders (laptop-queue-10 S1)", 7 cases; laptop-queue 237 +
+  autoTrain 71 = 308 pass (301 at 2fbfbd303 was both files). typecheck:fast clean.
+- S1: train 118 folder check is laptop-only, left for Test Runner (A12).
