@@ -3,6 +3,16 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 64 (2026-10-26 ~11:40, after the 11:25 account swap; wins over SAVE 63):**
+- Service pid 57500 healthy, 11 requests. #492 MERGED. #507 (laptop-queue-7, head 3791f2f1c) all green + Opus checker
+  PASS, but no `checker` status (auto mode blocks my post): Michael decides who posts it.
+- affected-cap: BRIEF / PLAN / STATE pushed (feature/affected-cap a000357a6). Fresh Opus plan checker running.
+- laptop-queue-8: Opus planner running (plans on top of feature/laptop-queue-7, avoids affected-cap hunks).
+- Train 117 (#509) CI `test` failed once: tests/lightField.test.ts "allocation-free under a loop" 138.8 > 88; train does
+  not touch lightField; first time for this test in 200 runs. Orchestrator reran; a pass = flake (vitest, no quarantine
+  file for unit tests): note it in docs/backlog.md and harden the heap check in the next batch PR.
+- Next: plan checker -> affected-cap slices 1-3 -> Opus checker -> PR; then laptop-queue-8 plan checker and build.
+
 **Test Runner SAVE 63 (2026-10-26 ~11:00, usage cap; session [f1a362]; wins over SAVE 62):**
 - laptop-queue-7 PR #507 open, head 3791f2f1c: plan checker PASS, Opus code checker PASS after 1 fix round. `checker`
   status NOT posted (auto mode Self-Approval block, same as #492 on 8a8d000c): Michael to decide who posts both.
