@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:47:28Z
+status: done feature/preview-flags bef6b2bf44c16eab75a8736331ab90e4372d2afa
 priority: top
 
 # Brief: preview-flags - every dark feature flag ON in /preview/ (Player Build)
@@ -122,3 +122,19 @@ anything the brief does not settle is `status: blocked`, not a guess.
   affected-e2e and a /preview/ hand check after the train are "pending PC run".
 
 ## Report (builder fills in)
+
+Night Shift | Cloud Builder 1, 2026-10-26. Branch `feature/preview-flags` from 29f03b6c, head bef6b2bf.
+- Commits: step 1 `src/core/flags.ts`; step 2 `tests/previewFlags.test.ts`; steps 3-4 `docs/systems/deploy.md`
+  + `changes/feature-preview-flags.md` (`git log 29f03b6c..bef6b2bf`). Diff: those 4 files only, +103 / -12.
+- flags.ts: `PREVIEW_ON`, `darkFlag`, `CAMPUS_V2_ALL` added after `onOffFlag` with the brief's doc comments;
+  `readCampusV2(v, preview = false)`; the four `flags` lines switched; the four `Flags` doc sentences appended. To keep
+  lines under 120, three appended sentences (guardModels, charShadowLight, mapReady, campusV2) wrap onto a new comment
+  line; the `readCampusV2` doc sentence is its own line. No other line changed; `mixamo` untouched (A1).
+- Tests: `npm run typecheck:fast` clean; `npx vitest run tests/previewFlags.test.ts tests/campusV2.test.ts
+  tests/guardBody.test.ts tests/charOccluders.test.ts`: 4 files, 43 passed (previewFlags 7). Also
+  `tests/changesFragments.test.ts` passes; eslint clean on the two TS files; doc-lint 0 errors.
+- `git merge-tree --write-tree --name-only origin/master HEAD` clean (master at fetch time).
+- Deviations: none beyond the comment wrapping above. The fragment title is "Preview: every feature on".
+- Pending PC run: the lead's laptop affected-e2e on the PR head, and a /preview/ hand check after the train (guards as
+  the new figures, light meter with character shadows, map-ready loading, Saltmarsh Park v2 sections; `=0` turns each
+  off).
