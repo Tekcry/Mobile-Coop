@@ -20,8 +20,16 @@
  * optimized code inlined: lightField's bodyLevel read 32.8 B on an idle machine but 61.6 B in 2 of 4 runs pinned to
  * one CPU with a busy loop, and 138.8 B (all 80 rounds) on train 117's CI against its 88 B limit, all at Turbofan
  * (0x51). So after the warm-up the loop is deoptimized and recompiled on the main thread from its full feedback
- * (`%OptimizeFunctionOnNextCall`): its inlining no longer depends on when a background compile landed (pinned runs:
- * 32.8 B every time). An allocation per call is still in every reading.
+ * (`%OptimizeFunctionOnNextCall`). That alone was not enough: under load bodyLevel still read 61.6 B in 2 of 6 runs.
+ * `--trace-turbo-inlining` showed why: Turbofan charges a callee's own optimized code (the bytecode that code
+ * inlined) against the caller's 920-bytecode inlining budget, and which callees already had their own code, with how
+ * much inlined, depended on when Maglev / Sparkplug background compiles landed (Maglev stays concurrent whatever the
+ * flags). 32.8 B: bodyLevel and both totalInto calls inlined; 61.6 B: totalInto had its own code (832 inlined) and was
+ * called out of line; 78.8 B: bodyLevel had its own code (689) and was called out of line. So the recompile runs with
+ * that budget lifted (`MAX_INLINE`): every callee under V8's per-function limit (460 bytecodes) is inlined, whatever
+ * its history, and the reading depends on the code alone (bodyLevel 32.0 B: its two out-of-line levelInto calls, 30
+ * of 30 stressed runs; was 2 bad in 30). The budget is restored after; nothing else compiles under it. An allocation
+ * per call is still in every reading: a control vector kept in a ring still reads 256 B.
  *
  * The measured loop must not allocate itself: inputs precomputed with `inputs()` (no double arithmetic in the loop),
  * results into a typed array such as `sink` (`acc += x` on a captured `let` boxes 16 B an iteration), no closures or
@@ -54,6 +62,14 @@ const optStatus = new Function('f', 'return %GetOptimizationStatus(f)') as (f: u
 const deopt = new Function('f', '%DeoptimizeFunction(f)') as (f: unknown) => void;
 const prepare = new Function('f', '%PrepareFunctionForOptimization(f)') as (f: unknown) => void;
 const optimizeNext = new Function('f', '%OptimizeFunctionOnNextCall(f)') as (f: unknown) => void;
+/** The lifted Turbofan inlining budget for the measured loop's recompile (bytecodes; V8's defaults: 920 cumulative, 4600
+ *  absolute). Far above any hot path here, so only V8's per-function limit decides what is inlined. */
+const MAX_INLINE = 100000;
+/** Sets both budgets (`null`: V8's defaults, Node 24). Read by Turbofan at the start of each compile. */
+function inlineBudget(b: number | null): void {
+  v8.setFlagsFromString(`--max-inlined-bytecode-size-cumulative=${b ?? 920}`);
+  v8.setFlagsFromString(`--max-inlined-bytecode-size-absolute=${b ?? 4600}`);
+}
 const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
 
 export interface AllocOpts {
@@ -69,23 +85,33 @@ export async function bytesPerCall(fn: (n: number) => void, goal: number, opts: 
   const n = opts.n ?? 2000;
   const warm = opts.warm ?? 50 * n;
   for (let w = 0; w < warm; w += n) fn(n);
-  // a fresh synchronous Turbofan compile from the full feedback (see the header): the same inlining on any machine
+  // a fresh synchronous Turbofan compile from the full feedback, with the inlining budget lifted so the callees' own
+  // code cannot change what is inlined (see the header): the same inlining on any machine
   deopt(fn);
   prepare(fn);
   fn(n);
   optimizeNext(fn);
-  fn(n);
+  inlineBudget(MAX_INLINE);
+  try {
+    fn(n);
+  } finally {
+    inlineBudget(null);
+  }
   const trace: string[] | null = process.env.ALLOC_TRACE ? [] : null;
   let best = Infinity;
+  const gcs = new v8.GCProfiler();
   for (let k = 0; k < 40; k++) {
     gc();
+    gcs.start();
     const r0 = newSpace();
     const r1 = newSpace(); // r1 - r0: what one read allocates
     fn(n);
     const r2 = newSpace();
-    // a scavenge inside the round (r2 under r1) is not a reading
-    if (r2 >= r1) best = Math.min(best, Math.max(0, r2 - r1 - (r1 - r0)) / n);
-    trace?.push(`${k}:${((r2 - r1 - (r1 - r0)) / n).toFixed(1)}/0x${optStatus(fn).toString(16)}${r2 < r1 ? '/scavenge' : ''}`);
+    // a GC inside the round is not a reading. Counted, not inferred from r2 under r1: a scavenge can leave new space
+    // at or just above r1 (with only that check, shadowCues' 32 B control once read 0.8 B under load)
+    const clean = gcs.stop().statistics.length === 0;
+    if (clean) best = Math.min(best, Math.max(0, r2 - r1 - (r1 - r0)) / n);
+    trace?.push(`${k}:${((r2 - r1 - (r1 - r0)) / n).toFixed(1)}/0x${optStatus(fn).toString(16)}${clean ? '' : '/gc'}`);
     if (k >= 4 && best <= goal) break;
     await new Promise((r) => setImmediate(r));
   }
