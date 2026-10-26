@@ -1,0 +1,24 @@
+{
+  "id": "20261026T023223-affected-e2e-29892a27-ec73",
+  "sha": "29892a27160b2e6f9abcc7422664213c581596de",
+  "branch": "feature/mission-c2-rules",
+  "pr": 522,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-gadgets",
+    "e2e-menus",
+    "e2e-move",
+    "e2e-pad",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #522"
+}
