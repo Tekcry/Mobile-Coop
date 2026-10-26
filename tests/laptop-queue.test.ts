@@ -1900,7 +1900,7 @@ describe('affected e2e on every PR head', () => {
   it('affectedSuites: merge-base diff through the DIRECT map, wide through WIDE, null on a git failure', () => {
     const calls: string[][] = [];
     const run = (files: string) => (args: string[]) => { calls.push(args); return args[0] === 'merge-base' ? 'b'.repeat(40) : files; };
-    const got = affectedSuites(run('docs/x.md\nsrc/game/sectors/a.ts\n'), SHA('1'));
+    const got = affectedSuites(run('docs/x.md\nsrc/game/sectors/a.ts\n'), SHA('1'), { max: 3 });
     expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')], ['show', `${SHA('1')}:src/net/protocol.ts`]]);
     expect(got.files).toEqual(['docs/x.md', 'src/game/sectors/a.ts']);
     expect(got.suites).toEqual(['e2e-gadgets', 'e2e-park', 'e2e-sectorops']);
@@ -1919,7 +1919,8 @@ describe('affected e2e on every PR head', () => {
     };
     const proto = "import type { MoveState } from '../player/moveState';\n";
     expect(affectedSuites(run('src/player/moveState.ts', proto), SHA('1')).suites).toEqual(['e2e-coop', 'e2e-ctcourse', 'e2e-netmove']);
-    expect(affectedSuites(run('src/player/moveState.ts', null), SHA('1')).suites).toEqual(['e2e-clip', 'e2e-move', 'e2e-stealth']);
+    expect(affectedSuites(run('src/player/moveState.ts', null), SHA('1'), { max: 3 }).suites).toEqual(['e2e-clip', 'e2e-move', 'e2e-stealth']);
+    expect(affectedSuites(run('src/player/moveState.ts', null), SHA('1')).suites).toHaveLength(1); // the default cap, G421
     const all = affectedSuites(run('src/game/sectors/a.ts\nsrc/world/lightBake.ts', ''), SHA('1'), { max: 0 }).suites;
     expect(all).toEqual(['e2e-desktop', 'e2e-gadgets', 'e2e-lightbake', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown', 'smoke']);
   });
@@ -2386,7 +2387,7 @@ describe('J20 affected report (on master: affectedPick, the cap)', () => {
     const wire = affectedSuites(run('src/player/moveState.ts', protocol), SHA('1'));
     for (const s of ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse']) expect(wire.suites).toContain(s);
     expect(wire.report).toEqual([]);
-    const prog = affectedSuites(run('src/progression/x.ts', protocol), SHA('1'));
+    const prog = affectedSuites(run('src/progression/x.ts', protocol), SHA('1'), { max: 3 }); // the default cap (1) leaves no report slot, as the max: 1 line below shows
     expect(prog.suites).toEqual(['e2e-park']);
     expect(prog.report).toEqual(['e2e-progression']);
     // the cap wins: no slot left, no report suite; no cap: every one
