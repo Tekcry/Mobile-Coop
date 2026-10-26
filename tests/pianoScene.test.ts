@@ -605,3 +605,28 @@ describe('S2: the spawn seam and the 7 m rule (SectorMode on a stub game)', () =
     expect(mode).toContain('const minD = this.sceneNear ? SCENE_SPAWN_MIN : SPAWN_MIN_DIST;');
   });
 });
+
+describe('S2: the view and the gameState render-override seam', () => {
+  it('one SceneView seam in gameState: the field, the held input and pause, the frame after the game view', () => {
+    const g = src('src/game/gameState.ts');
+    expect(g).toContain('export interface SceneView {');
+    expect(g).toContain('sceneView: SceneView | null = null;');
+    expect(g).toContain("if (realIn.pressed('pause') && !sv?.ownsPause) {");
+    expect(g).toContain('const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp');
+    const fu = g.indexOf('sv?.frame(dt);');
+    expect(fu).toBeGreaterThan(g.indexOf('this.player.frameUpdate(dt, alpha, look'));
+  });
+
+  it("the intro actor API is Guard AI's GuardActor's (#611): the stand-in implements it; the swap is one line", () => {
+    const v = src('src/game/pianoIntroView.ts');
+    const api = v.slice(v.indexOf('export interface IntroActor {'), v.indexOf('}', v.indexOf('export interface IntroActor {')));
+    for (const k of ['setRate(r: number)', 'aimAt(x: number, y: number, z: number)', 'step(realDt: number)', 'fire(): boolean', 'muzzle(out: Vector3): Vector3', 'dispose(): void', 'done', 'pos', 'yaw', 'travelled', 'length', 'playRate', 'isDisposed']) {
+      expect(api, k).toContain(k);
+    }
+    expect(v).toContain('class PosedStandIn implements IntroActor');
+    expect(v).toContain('TODO(#611): GuardActor');
+    // Babylon only through core/babylon; never src/net
+    expect(v).not.toMatch(/@babylonjs/);
+    expect(v).not.toMatch(/from '\.\.\/net|from '\.\/net/);
+  });
+});

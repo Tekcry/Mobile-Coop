@@ -4,7 +4,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  ACTOR_LEN,
   ACTOR_SPEED,
+  ACTOR_START,
   EMP_CUT_S,
   EMP_OUT_S,
   INTRO_ACTORS,
@@ -16,6 +18,7 @@ import {
   SHOT_T,
   START_BAY,
   actorAt,
+  actorPath,
   actorPose,
   introCam,
   introCamera,
@@ -210,18 +213,25 @@ describe('the actors and their shots (0.3x)', () => {
     expect(actorAt(2, 10, p).x).toBeGreaterThan(15);
   });
 
-  it('they move at 0.3x walking pace, never faster', () => {
+  it('they move at 0.3x a grunt walk (0.9 m/s), never faster, from their start times; GuardActor paths are flat x, z', () => {
+    for (let i = 0; i < 4; i++) {
+      const p = actorPath(i);
+      expect(p).toHaveLength(INTRO_ACTORS[i]!.pts.length * 2);
+      expect(ACTOR_START[i]! + ACTOR_LEN[i]! / ACTOR_SPEED).toBeCloseTo(PROMPT_AT - 1, 6);
+      expect(ACTOR_START[i]).toBeGreaterThan(0);
+    }
     const a = actorPose();
     const b = actorPose();
     for (let i = 0; i < 4; i++) {
       actorAt(i, 0, a);
       for (let t = 0.1; t <= PROMPT_AT; t += 0.1) {
         actorAt(i, t, b);
-        expect(hyp3(b.x - a.x, b.y - a.y, b.z - a.z) / 0.1).toBeLessThanOrEqual(ACTOR_SPEED + 1e-6);
+        // over the ground (GuardActor's flat path; the stair's height is the nav's)
+        expect(hyp2(b.x - a.x, b.z - a.z) / 0.1).toBeLessThanOrEqual(ACTOR_SPEED + 1e-6);
         Object.assign(a, b);
       }
     }
-    expect(ACTOR_SPEED).toBeCloseTo(0.39, 6);
+    expect(ACTOR_SPEED).toBeCloseTo(0.27, 6);
   });
 
   it('shots from 9 s to the prompt only, hitting W1 by the operators; muzzle flashes flicker', () => {

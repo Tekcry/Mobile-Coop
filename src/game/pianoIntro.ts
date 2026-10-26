@@ -1,4 +1,4 @@
-import { hyp3 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
 
 /**
  * (piano-escape S2) The piano escape's intro as data and pure maths: the shot list (PLAN section 2), the diagonal camera
@@ -247,7 +247,8 @@ type P3 = readonly [number, number, number];
 /**
  * The four intro actors (the opening four: guard-list slots 0-3): two down the main stair from the north-east (G1, G2),
  * two along the south aisle from the east (G3, G4). Each walks at 0.3x and stops on his stop spot (the guard's start at
- * the EMP) at 38 s, 4-6 m from the players.
+ * the EMP) by 37 s, 4-6 m from the players, and idles aimed until the press. Guard AI's GuardActor (#611) drives the
+ * same paths (flat x, z: `actorPath`) at the same speed and rate.
  */
 export const INTRO_ACTORS: readonly { readonly name: string; readonly pts: readonly P3[] }[] = [
   { name: 'G1', pts: [[8.6, 3.0, 13.8], [8.6, 0, 10.6], [8.6, 0, 9.6], [7.5, 0, 8.7]] },
@@ -255,21 +256,36 @@ export const INTRO_ACTORS: readonly { readonly name: string; readonly pts: reado
   { name: 'G3', pts: [[17.0, 0, 2.0], [9.0, 0, 2.0]] },
   { name: 'G4', pts: [[18.0, 0, 3.4], [10.0, 0, 3.4]] },
 ];
-/** Their walk (m/s): a slow advance played at 0.3x. */
-export const ACTOR_SPEED = 1.3 * ACTOR_RATE;
-/** Where they aim: the operators behind W1. */
-const AIM_X = 4.0;
-const AIM_Z = 5.3;
+/** Their walk (m/s, a grunt's `walkSpeed`, GuardActor's `speed`), played at 0.3x: `ACTOR_SPEED` on screen. */
+export const ACTOR_WALK = 0.9;
+export const ACTOR_SPEED = ACTOR_WALK * ACTOR_RATE;
+/** Where they aim (`aimAt`): the operators behind W1, at the chest. */
+export const AIM_X = 4.0;
+export const AIM_Y = 1.3;
+export const AIM_Z = 5.3;
+/** They arrive this long (s) before the prompt (GuardActor eases into its stop), then idle aimed. */
+const ARRIVE_EARLY = 1;
 
-const ACTOR_LEN: readonly number[] = INTRO_ACTORS.map((a) => {
+/** Each actor's path length over the ground (m; GuardActor's paths are flat x, z: the stair's height is the nav's). */
+export const ACTOR_LEN: readonly number[] = INTRO_ACTORS.map((a) => {
   let s = 0;
   for (let i = 1; i < a.pts.length; i++) {
     const p = a.pts[i - 1]!;
     const q = a.pts[i]!;
-    s += hyp3(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+    s += hyp2(q[0] - p[0], q[2] - p[2]);
   }
   return s;
 });
+
+/** Intro time (s) actor `i` starts walking (rate 0 until then, `ACTOR_RATE` after): on his spot 1 s before the prompt. */
+export const ACTOR_START: readonly number[] = ACTOR_LEN.map((l) => PROMPT_AT - ARRIVE_EARLY - l / ACTOR_SPEED);
+
+/** Actor `i`'s path as GuardActor takes it: flat [x0, z0, x1, z1, ...] (new array: build time only). */
+export function actorPath(i: number): number[] {
+  const out: number[] = [];
+  for (const p of INTRO_ACTORS[i]!.pts) out.push(p[0], p[2]);
+  return out;
+}
 
 export interface ActorPose {
   x: number;
@@ -283,29 +299,30 @@ export function actorPose(): ActorPose {
   return { x: 0, y: 0, z: 0, yaw: 0 };
 }
 
-/** Actor `i` at intro time `t`: on his way in at `ACTOR_SPEED`, arriving on his stop spot at 38 s (then he idles). */
-export function actorAt(i: number, t: number, out: ActorPose): ActorPose {
-  const a = INTRO_ACTORS[i]!;
-  const len = ACTOR_LEN[i]!;
-  let s = len - Math.max(0, PROMPT_AT - t) * ACTOR_SPEED;
-  if (s < 0) s = 0;
-  const pts = a.pts;
-  let k = 1;
-  for (; k < pts.length; k++) {
+/** Actor `i` `s` m along his path (clamped; the stair's height interpolated), facing the operators. No allocation. */
+export function actorAtDist(i: number, s: number, out: ActorPose): ActorPose {
+  const pts = INTRO_ACTORS[i]!.pts;
+  let d = s < 0 ? 0 : s;
+  for (let k = 1; k < pts.length; k++) {
     const p = pts[k - 1]!;
     const q = pts[k]!;
-    const seg = hyp3(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
-    if (s <= seg || k === pts.length - 1) {
-      const u = seg > 0 ? Math.min(1, s / seg) : 1;
+    const seg = hyp2(q[0] - p[0], q[2] - p[2]);
+    if (d <= seg || k === pts.length - 1) {
+      const u = seg > 0 ? Math.min(1, d / seg) : 1;
       out.x = lerp(p[0], q[0], u);
       out.y = lerp(p[1], q[1], u);
       out.z = lerp(p[2], q[2], u);
       break;
     }
-    s -= seg;
+    d -= seg;
   }
   out.yaw = Math.atan2(AIM_X - out.x, AIM_Z - out.z);
   return out;
+}
+
+/** Actor `i` at intro time `t`: still until `ACTOR_START[i]`, then on his way at `ACTOR_SPEED`; on his spot by 37 s. */
+export function actorAt(i: number, t: number, out: ActorPose): ActorPose {
+  return actorAtDist(i, Math.max(0, t - ACTOR_START[i]!) * ACTOR_SPEED, out);
 }
 
 /** Shots: from 9 s (the hold) to the prompt, each actor every `SHOT_PERIOD[i]` s from `SHOT_OFFSET[i]`. */

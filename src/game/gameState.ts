@@ -301,6 +301,17 @@ export interface SessionCallbacks {
   briefing?(missionId: string): void;
 }
 
+/**
+ * (piano-escape S2) A scene's render-only view override (`game/pianoIntroView.ts`): `frame` places the rendered camera
+ * after the game view each frame (gameplay keeps reading `cam.gamePos`). While `holdsInput` the operator takes no move
+ * or button input (the scene reads its own button); while `ownsPause` the pause button is the scene's (its skip hold).
+ */
+export interface SceneView {
+  readonly holdsInput: boolean;
+  readonly ownsPause: boolean;
+  frame(dt: number): void;
+}
+
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
@@ -423,6 +434,8 @@ export class GameState implements AppState {
   private postKey = '';
   private beatT = 0;
   private letterboxT = 0;
+  /** (piano-escape S2) The scene's render-only view override (`SceneView`); null on every other map. */
+  sceneView: SceneView | null = null;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -1974,7 +1987,9 @@ export class GameState implements AppState {
     // (map-ready S2) held: no step (suites calling `stepHeadless` directly), the clock stays at 0
     if (this.exited || this.holding) return;
     const realIn = this.app.input.state;
-    if (realIn.pressed('pause')) {
+    // (piano-escape S2) a scene view held: the pause button is its skip (hold), its own button its press
+    const sv = this.sceneView;
+    if (realIn.pressed('pause') && !sv?.ownsPause) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
@@ -1986,7 +2001,7 @@ export class GameState implements AppState {
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
     // (tuner-ui) the pause menu open (co-op: the shared sim runs on): no synthesised input at all, the body stands
-    const real = this.paused || this.menuOpen ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
+    const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -3175,7 +3190,10 @@ export class GameState implements AppState {
     this.stealth?.frameUpdate();
     this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    const sv = this.sceneView;
+    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    // (piano-escape S2) the scene's view places the rendered camera after the game view (render only)
+    sv?.frame(dt);
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
     this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);

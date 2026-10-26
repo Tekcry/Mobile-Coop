@@ -10,6 +10,7 @@ import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
 import { PianoScene, SCENE_SPAWN_MIN, isPianoScene, pianoWorld, type PianoModeSeam } from '../pianoScene';
+import { PianoIntroView } from '../pianoIntroView';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
@@ -949,7 +950,7 @@ export class SectorMode implements GameMode {
         const b = this.run.checkpoint2;
         return b ? [this.run.checkpoint, b] : [this.run.checkpoint];
       },
-      view: () => null,
+      view: (intro, onSkip) => new PianoIntroView(g, intro, onSkip),
     };
   }
 
