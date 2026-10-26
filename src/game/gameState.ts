@@ -1607,6 +1607,17 @@ export class GameState implements AppState {
     this.hud.ctx.update(m);
   }
 
+  /** (knife-attack) The holstered attack press with the knife switch on: the knife kill on the guard on offer (the same
+   *  `start` as the context menu's TAKEDOWN row: the switch forces the knife); no guard in reach: a short cue, nothing
+   *  else (no free slash, Michael ~20:05). `aFree`: the context menu's list is not open (blocked: nothing at all). */
+  private knifeAttack(aFree: boolean): void {
+    const td = this.takedown;
+    const o = td.offer;
+    if (td.busy || this.strike.active || !aFree) return;
+    if (o) td.start(o.lethalOnly);
+    else this.hud.feedItem('Knife ready: get behind or beside a guard');
+  }
+
   /** Run a context menu row (the same calls the pre-G5 press, door menu and grab menu made). */
   private ctxRun(kind: string, opt: string, ref: number, it: Interactable | null): void {
     const td = this.takedown;
@@ -2231,8 +2242,14 @@ export class GameState implements AppState {
     // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
-      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on
-      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown && !this.takedown.knife, rt === 'hold');
+      const atk = ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown;
+      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on;
+      // (knife-attack, Michael's walk 2026-10-27 ~09:15 "pressing attack button holstered in piano map doesnt use knife")
+      // the attack press is the knife kill on a guard in reach, as the takedown row; none in reach: a cue, no free slash
+      // (checker FIX 1) free unless the menu's list is open: `aFree` is false whenever the menu has a row, and a guard on
+      // offer always adds the TAKEDOWN row
+      if (atk && this.takedown.knife) this.knifeAttack(this.ctxMenu.state !== 'active');
+      this.strike.fixedUpdate(dt, atk && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
