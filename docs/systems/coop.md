@@ -400,7 +400,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
 
   | Move (slice) | Id / wire kind | Sub bit | Role b (`brace`) states | Role a (`boost`) states | Remote placeholder b / a | Done by | Marlow station |
   | --- | --- | --- | --- | --- | --- | --- | --- |
-  | Deadweight (K1) | `deadweight` | 64 | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (pass under the grate) | 9 `a4-deadweight` |
+  | Deadweight (K1) | `deadweight` | 64; `s` +(spot index + 1) hanging / passing, - grab / drop | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (a pass under the held grate) | 9 `a4-deadweight` |
   | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
   | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | brace / climb | a | 11 `a5-chimney` |
   | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
