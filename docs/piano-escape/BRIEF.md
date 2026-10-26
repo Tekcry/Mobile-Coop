@@ -16,6 +16,9 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 - 2026-10-26 ~19:22, chat: "Continue all other work, but make it more efficient with token usage, don't burn 100%"
   (pace for this job too).
 
+- 2026-10-26 ~19:40, chat (relayed by the orchestrator): "I want main focus to be on piano scene. Extra capacity can go
+  towards the remaining tasks."
+
 ## Michael picked
 - 2026-10-26 ~19:28 Q: where the experiment lives -> picked: "Inside Night Shift (Recommended)" (a standalone co-op
   scene on a small test map reusing guards, shadows, co-op and takedowns, kept apart from the main plan).
