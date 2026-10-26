@@ -7,6 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Effect, Mesh, Scene } from '../src/core/babylon';
+import type { GuardBody } from '../src/ai/guardBody';
 import type { GuardManifest } from '../src/operators/guards/gearMask';
 import type { GuardAsset } from '../src/operators/guards/guardAssets';
 import type * as GuardAssets from '../src/operators/guards/guardAssets';
@@ -342,7 +343,7 @@ function compiling(e: Effect): void {
 }
 
 describe('(gm-watchdog) the figure shader watchdog', () => {
-  type GB = import('../src/ai/guardBody').GuardBody;
+  type GB = GuardBody;
   const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
   /** Babylon's draw-time readiness call for the shown LOD's meshes (makes their effects). */
   const ask = (gb: GB): boolean => {
