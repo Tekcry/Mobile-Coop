@@ -68,7 +68,7 @@ Nothing is wired: no existing source file changed. The only edit to an existing 
 ## For the checker
 - Dog shape: the PLAN says "rump to `simHead` at `DOG_BODY_Y`". I read that as a level capsule with both ends at
   `DOG_BODY_Y`, b at the sim head's x / z ("dog lies along its yaw"). The real head centre is about 0.28 m higher. To
-  use the full head point instead, change one line (`S[4]`, :158).
+  use the full head point instead, change one line (`S[4]`, :156).
 - Body shape follows A9 literally: pelvis to `headReach`. The legs (about the hip height on the other side of the
   pelvis) are not covered, and the capsule ends r past the head's top. Both are open to the walk.
 - `putX` culls before the full check, so a far character is `OCC_FAR`, never counted as overflow (as `fillVictims`
