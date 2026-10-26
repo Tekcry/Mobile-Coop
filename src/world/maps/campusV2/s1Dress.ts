@@ -184,7 +184,7 @@ export function dressS1(d: CampusDresser): void {
   };
   hero('H1:monitorBank', 18.8, 0, -72.65, PI, { cls: 'visual', group: S1_GROUPS.gate, why: 'the CCTV officer cam-gate / cam-walk monitors on the north wall' });
   hero('H1:keyCabinet', 15.2, 0, -72.65, PI, { cls: 'visual', why: 'the site keys by the door' });
-  hero('H1:visitorBoard', 13.65, 0, -78.0, PI / 2, { cls: 'visual', why: 'the night's visitor list on paper' });
+  hero('H1:visitorBoard', 13.65, 0, -78.0, PI / 2, { cls: 'visual', why: "the night's visitor list on paper" });
   hero('H1:barrierHousing', 11.0, 1.0, -76.2, 0, { cls: 'visual', why: 'the motor housing on the island top' });
   hero('H1:intercomPost', 12.6, 0, -79.3, 0, { cls: 'see', why: 'the drivers intercom by the gate' });
   hero('K:siteSign', 6.8, 0, -79.0, PI, { cls: 'solid', why: 'the Orrin site sign at the gate' });
