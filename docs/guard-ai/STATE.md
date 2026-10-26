@@ -1016,14 +1016,17 @@ down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); light
 fixed timeline data (Sector Ops SO5), guards just read the light.
 Open (2026-10-26 ~20:30 SAVE):
 1. Piano asks, job feature/guard-ai-piano (worktree -guard-ai-piano, node_modules junction to -guard-ai-home):
-   - GA1 + GA3 BUILT 81a43f950 (no PR yet): EnemyManager.sceneDark (torch on in every state, Enemy.torchWanted),
+   - GA1 + GA3 BUILT 81a43f950, PR #603; Opus checker A running -> docs/guard-ai/checks/PIANO-GA13-CHECK-A.md; B
+     (covers GA7 too) after the #588 check frees a slot: EnemyManager.sceneDark (torch on in every state, Enemy.torchWanted),
      blackoutSearch(guards, x, z) with SEARCH_BLACKOUT (6 m ring, response.ts), lightsOut sends nobody while sceneDark;
      tests/pianoGuards.test.ts 5/5, AI tests 90 files green. Next: PR (minor fragment in), TWO Opus checkers, tell
      Campaign the API (scene sets em.sceneDark = true at the EMP, calls em.blackoutSearch([G1..G4], wallX, wallZ)).
-   - GA7 rain masking: a map-wide noisy source through hearing.ts / setNoisy; agree the hook with Sector Ops (their
-     brief scratch/sector-ops-checks/briefs/piano-SO5.md, desktop). Not started.
-   - GA4 intro actors (0.3x slow-motion guards, aimed walk + fire, no AI, not in enemy lists): check whether
-     sectorGuardFreeze.ts + an anim rate does it (Campaign's S2 stub) or build actors. Not started.
+   - GA7 BUILT cdd11c540 on #603: hearing.ts mapWideNoise(id, db) (infinite radius: full dB at every listener);
+     AGREED with Sector Ops ~20:40: noisy: [mapWideNoise('rain', 6)] in the scene section, constant level.
+     Campaign told the GA1 / GA3 / GA7 API ~20:40.
+   - GA4 intro actors: sectorGuardFreeze.ts is a render-only cull (brain and rig run on), so freeze + anim rate does
+     NOT do it; Campaign told to stub with posed stand-ins. Next slice: a GuardActor (buildEnemyRig + MotionDriver,
+     enemy.ts:713-719 and :3978, driven along a path at a rate, aimed walk + fire pose, no AI, not in the enemy lists).
    - GA6 slow methodical torch sweep (Michael ~20:10 "The guards must move slowly and methodically to find both
      players"): fixed readable pattern, some in pairs, slow walk, checking behind cover, deterministic (VISION 8).
      Plan only once Campaign's thornbeckMill room data lands. GA5 (patrol review) waits for the map too.
