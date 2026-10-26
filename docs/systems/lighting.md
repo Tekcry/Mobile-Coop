@@ -171,7 +171,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 
 ## Per-section lamp bake (section-bake; Saltmarsh Park only)
 Decided, not built yet (G405): the campus lamp bakes ship pre-built with the game instead of baking on the player's PC
-(the map-ready job; `docs/systems/performance.md` "Near-instant loads").
+(the map-ready job; `docs/systems/performance.md` "Near-instant loads"). The pre-built maps are
+`world/shippedBake.ts` `SHIPPED_BAKE_MAPS` (campusOps, thornbeckMill; piano SO2): `scripts/prebake.mjs` bakes each into
+its own `.prebake-cache/<h>/` folder and the game reads `bakes/<map>.json` for each; a map with no section split ships
+one file.
 Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; build report
 `docs/sector-redesign/checks/section-bake-build.md`.
 - Opt-in by map id (`world/sectionBake.ts` `SECTION_BAKE_MAPS`: campusOps; regions in `world/maps/campusBake.ts`, per
