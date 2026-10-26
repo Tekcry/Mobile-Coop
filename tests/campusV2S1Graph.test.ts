@@ -148,8 +148,8 @@ describe('LD 15: the S1 plan graph matches the build', () => {
       const d = b.anchors.doors.find((q) => hyp2(centreOf(q)[0] - p[0], centreOf(q)[1] - p[1]) <= 0.6);
       expect(d, `door of ${l.from} -> ${l.to} at ${p}`).toBeTruthy();
     }
-    // every window link has its window anchor too: the reception window (13.5, -76) and the open rear pane (20, -76)
-    for (const [x, z] of [[13.5, -76], [20, -76]] as const) {
+    // every window link has its window anchor too: the reception window (13.5, -76) (S1 v3: the rear pane E2 is fixed glass, no link)
+    for (const [x, z] of [[13.5, -76]] as const) {
       expect(b.anchors.windows.some((w) => hyp2(w.c.x - x, w.c.z - z) <= 0.6), `window (${x}, ${z})`).toBe(true);
     }
   });
@@ -203,9 +203,14 @@ describe('LD 15: S1 asks nothing of a team', () => {
       top: l.top.top + 1.8,
     }));
     expect(CAMPUS_COOP_LIPS.filter((l) => l.section === 0).map((l) => l.id)).toEqual(['CR1', 'CR1-south', 'CR1-yard', 'CR1-east']);
-    const solo = analyticNav([-42, -82, 28, -28], lipTops);
+    // (S1 v3) the shut garden gate (a pair gate: two players) is a blocker across its opening too, as `campusV2S2Graph.test.ts`
+    const gateShut: NavBlocker = { cx: 23, cz: -58, hx: 0.6, hz: 0.1, yaw: 0, bottom: 0, top: 2.1 };
+    const solo = analyticNav([-42, -82, 28, -28], [...lipTops, gateShut]);
     const start: [number, number] = [S1.start.x, S1.start.z];
+    // the objective is the courier's van; both solo routes (0, 1) reach it with the gate shut
     const obj = S1.routes[0]!.pts[S1.routes[0]!.obj]!;
+    const obj1 = S1.routes[1]!.pts[S1.routes[1]!.obj]!;
+    expect(solo.findPath(start, [obj1[0], obj1[1]], 1e6, 0, 0)).not.toBeNull();
     const c1: [number, number] = [-20, -34];
     // the blockers took the tops away (a stand on the canopy / plant roof / pavilion east block is no longer walkable)
     expect(nav.isWalkable(nav.cellOf(-20, -37, 4.4))).toBe(true);
@@ -219,9 +224,9 @@ describe('LD 15: S1 asks nothing of a team', () => {
     // and in through the gatehouse door to the desk side of the room, then out the door and on to C1
     expect(solo.findPath(start, [17, -75], 1e6, 0, 0)).not.toBeNull();
     expect(solo.findPath([17, -75], c1, 1e6, 0, 0)).not.toBeNull();
-    // no pair gate or bolt: the only locked doors in S1 are C1's own two
+    // the only locked doors in S1 are C1's own two and (S1 v3) the garden gate, the one team door (routes 0 and 1 go round it)
     const locked = b.anchors.doors.filter((d) => d.locked && d.hinge.x > -40 && d.hinge.x < 26 && d.hinge.z > -80 && d.hinge.z < -29).map((d) => [d.hinge.x, d.hinge.z]);
-    expect(locked).toEqual([[-20.6, -34], [-20.6, -30]]);
+    expect(locked).toEqual([[22.4, -58], [-20.6, -34], [-20.6, -30]]);
     void lay;
   });
 });

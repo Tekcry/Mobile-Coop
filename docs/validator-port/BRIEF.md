@@ -289,6 +289,12 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
     would leave the runner no landing margin, and the 2.7 m row's own rule (the throw less a 0.5 m margin) would give
     5.3 m; both pass gaps wider than the one he approved.
   - Undo: delete the row, the `exception` field and its case (every throw back to the 2.7 m ERR).
+- **A28 A split leg may start with a co-op link from the fork (lead ruling 2026-10-26, S11; Campaign Build's Tallow
+  `tgc-leads`).** Both partners are at the fork for the boost, then separate. At most one leg may start that way; the
+  other leg needs a solo entry from the same fork; the co-op link's time counts for its leg and an INFO line names it.
+  Not a loosening of `docs/level-design.md` 11.3 (the legs are still walked alone after the fork). Campaign's Tallow
+  `tgc-leads` is ruled yes. Undo: drop the fork exception in `checkCoop`'s split block (`scripts/level-validate.mjs`) and
+  let the `no solo link leads into` ERR stand.
 
 ## Lead answers (Marlow Build, 2026-10-25 ~19:00)
 None of these loosens a Michael-only rule; each settles a reading of his words.
