@@ -17,7 +17,8 @@ G7's ends are already in the form GA6 reads.
 2. **G4 / G5 without `loop` and `wait`.** The scene derives every schedule at 0.7 m/s and ignores `loop` (GA6-A3). Give
    per-point `waits`: G4 `[X, 0, 4, 0]` (door stop (25.2, 12.2)), G5 `[Y, 0, 4, 0]` (door stop (24.0, 12.2)); keep
    their `faces`. X / Y tune both laps to 40 s: assert `sweepPeriod(route, waits) === 40` (from `src/ai/sceneSweep.ts`,
-   GA6a, coming) in your S1b test; until it lands, about X 4 s for G4 and Y 15 s for G5 at 0.7 m/s.
+   GA6a, coming) in your S1b test. Rough guide: G4 walks 20.4 m (29 s at 0.7 m/s) plus turns, so X is small (0-2 s);
+   G5 walks 13.6 m (19 s), so Y is about 8-10 s. If G4 cannot fit 40 s, lengthen both laps together (say 45 s).
 3. **`start` on G4 / G5** so their door stops' `leave` coincide (they meet 1.2 m apart every 40 s). Every other route
    may omit `start` (the default phase: arriving at point 0 at the EMP); partners keep identical starts.
 4. **Lanes:** G8 / G9 at z 15.5 / 16.6 (today 15.7 / 16.5), G11 / G12 at z 15.9 / 17.0 (today 16.1 / 16.9); move their
