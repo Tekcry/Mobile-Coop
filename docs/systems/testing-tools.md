@@ -37,13 +37,14 @@ This page lists the suites and how they are picked.
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it still runs as its
   four parts, parallel jobs in the pool (a named suite with parts expands; `name:N` names one part).
   `scripts/e2e-times.json` holds 150 s per part as an estimate; it changes only when someone commits a rewrite.
-  `e2e-sectorops` runs as `e2e-sectorops:1` to `:6` (sector-fixes-r RE: the suite before slice R, the solo route checks,
-  the co-op routes of sections 1-3, and part 6 the campusOps S1-S3 greybox routes; `PARTS` in `scripts/run-e2e.mjs`);
-  named alone its six parts run as parallel jobs.
+  `e2e-sectorops` runs as `e2e-sectorops:1` to `:9` (sector-fixes-r RE: the suite before slice R, the solo route checks,
+  the co-op routes of sections 1-3, and parts 6-9 the solo campusOps (Saltmarsh Park) checks: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5 (split from one part 6 in F33: it ran near the 900 s kill); `PARTS` in `scripts/run-e2e.mjs`);
+  named alone its nine parts run as parallel jobs.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
-- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. The laptop queue runs with
-  `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
+- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
+  only, never a timeout, signal or other code (`scripts/e2e-verdict.mjs`). The laptop queue runs with `E2E_SUITE_TIMEOUT=900`
+  (e2e-desktop about 553 s, e2e-mouse about 405 s solo). `E2E_REPORT` (space or comma list) makes those suites or parts REPORT ONLY.
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
@@ -79,21 +80,22 @@ This page lists the suites and how they are picked.
   suite's second page is a background tab), page navigations wait up to 120 s, and `press` / `stick` hold for exactly
   one input poll (a page without the app's input falls back to a 3-frame hold), so a slow frame can neither drop nor
   double a press. Read fades, toasts and screens with a condition wait (a cap of a few seconds), never a fixed pause.
-- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name
-  (`e2e-wall:flanker`, `e2e-desktop:3`).
+- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name (`e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
 
 ## Choosing suites for a change
-- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the
-  bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
+- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
   `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
   laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
-  (what the laptop queue service and leads use to know what a PR must pass). Without `--list` it runs them like `--quick`:
-  `smoke` first, suites outside REQUIRED REPORT ONLY, GPU suites never.
+  (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
+  (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
+  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: at most 3 suites, the closest
+  (RULES "Test tiers"; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
+  uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
-  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite);
+  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite; Saltmarsh Park `src/world/maps/campus*` -> `e2e-sectorops:6` to `:9`);
   the lamp files (`src/world/light*`, `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` -> lightbake, desktop;
   `src/config`, `src/core` -> CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); `src/weapons` -> combat, weapons-carry, stealth-ai,
   `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30); `src/ai` -> stealth-ai, guard-carry,
@@ -102,7 +104,7 @@ This page lists the suites and how they are picked.
   the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`: a kv key, not the save shape)
   -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
-  Every LEGACY and GPU suite is reachable from the area that owns it (REPORT ONLY / dropped outside `--gpu` by the runner):
+  Every LEGACY and GPU suite is reachable from the area that owns it (an affected pick gates them out at any size and with `--wide`; `--quick` runs LEGACY / AUDIO REPORT ONLY, GPU only `--gpu`):
   `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
   `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies, the Fallow files
   (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
@@ -111,15 +113,13 @@ This page lists the suites and how they are picked.
   Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**`, `scripts/e2e-times.json` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
   -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
   `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
-  Example: optic-cable 13 jobs direct, 30 wide (e2e-ctcourse is 4 parts); guard-ai-carry-fix 7 direct, 15 wide.
 - WIDE rules (`--wide`): DIRECT plus the cross-area readers: `src/weapons` also enemies, gadgets, clip; `src/ai` also levels,
-  tactics, takedown, weapons-carry, coop, `e2e-sectorops:6`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
-  also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse; the lamp files and `src/voxel` the light readers
+  tactics, takedown, weapons-carry, coop, `e2e-sectorops:6` to `:9`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
+  also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse (campus: all of `e2e-sectorops`); the lamp files and `src/voxel` the light readers
   (desktop, stealth-ai, security, darkness); `src/net` / `src/save` the quick rows plus the co-op group; `src/game/rating` also
   sectorops and course, `src/save/ratingRecord` also sectorops and menus (the missions screen reads it); the Marlow Yard map and
   set files also `e2e-section-rating` (it rates A2-A8).
-- Selection is pure (`selectSuites(files, map)`, map = `DIRECT_COVERS` by default: paths in, sorted unique suite list out); the runner orders it (REQUIRED first) and
-  drops GPU suites and suites without a script.
+- Selection is pure (`selectSuites(files, map)`, map = `DIRECT_COVERS` by default: paths in, sorted unique suite list out); `affectedPick` gates and caps it.
 
 ## Ports
 Which port is for what, and freeing one: `docs/RULES.md` "Ports" (G94). Script defaults when no port or url is given:
@@ -246,7 +246,7 @@ behind a VPN adapter).
   syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
   brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as six jobs, `e2e-sectorops:1` to `:6` (`--part=N`; named alone its parts
+  (software GL). (sector-fixes-r RE) It runs as nine jobs, `e2e-sectorops:1` to `:9` (`--part=N`; named alone its parts
   still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
   co-op routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one
   player alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the
@@ -258,7 +258,7 @@ behind a VPN adapter).
   and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
-  re-bolted on both pages by the host's checkpoint restart. Part 6's H8 block (hard rule 9): in campus sections 2-5
+  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5
   every spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`).
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
@@ -283,7 +283,7 @@ behind a VPN adapter).
 - `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
   restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
-- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course`, Marlow Yard A1-A8 as four parts
+- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course` (client `&autojoin=1`, F7), Marlow Yard A1-A8 as four parts
   (`--part=N`, run as the jobs `:1` A1-A2, `:2` A3-A4, `:3` A5-A6, `:4` A7-A8; a part after the first starts at its first
   set through the host session's `courseBay`). `scripts/e2e-ctcourse.mjs` owns the helper object `t` (`t.A` host page,
   `t.B` client page, `until`, `assert`, `moveHost` / `moveClient`, `use`, the team-move and jammer helpers, `t.point(id)`)
@@ -456,12 +456,12 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
+- `E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/look-video.mjs <dir> <plan.json> [sections]` (campaign look-video): a 1280 x 720 walk video per section of a plan (`scripts/look-video/tallowWharf.json`: Tallow Wharf W1-W4, ~75 s each), the photo camera flying the plan's path over the frozen world: `<dir>/<section>.webm` and `<section>.json` (`start`: the flight's offset after the boot). The look video a lighting or animation PR links; never committed. Pure parts: `tests/lookVideo.test.ts`.
 - `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
   (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
   `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
   is master's rule, `--query=animshadow=0` tier 8 camera only.
-- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
-  quality, heap growth (leak check)
+- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
   (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
   writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
@@ -566,11 +566,14 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full
-  requests (one slot), then alone-measurements (both slots; one waiting over 30 min (`ALONE_AGE_MIN`) goes ahead of pr work).
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): front
+  branches (`LQ_FRONT_BRANCHES`; no wait bound, by design: Michael's Mixamo priority), green PRs smallest first
+  (`LQ_GREEN_FIRST`; the oldest non-front request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a head
+  conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`) ahead
+  of pr work). A train head that moves: `docs/systems/auto-train.md` "What the laptop queue service provides".
 - Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
   `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
-  the alone hold, on one laptop slot at `E2E_JOBS=1` with the suites at once (no sharding; the desktop never takes it).
+  the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
   Its context is `laptop-e2e/<set>` like any pr request (auto-train sends `--set train<n>-rerun` and reads
   `laptop-e2e/train<n>-rerun`); only a rerun with no `--set` gets `laptop-e2e/rerun-<suites without e2e->`. A full pass also posts `laptop-e2e` success on the sha,
   "laptop rerun passed: <suites> (desktop fail)": the combined status keeps the latest status per context, so that
@@ -604,8 +607,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   `fitsBeforeTrain`: expected wall known, not alone / full, now + `LQ_FIT_PREP_S` (120) s + 1.2 x wall <= ETA); a
   fitted run an early train catches falls to `cutShort`'s 80% rule. Log: "<why>, next train ~HH:MMZ: only runs that
   fit start". Pacing assumption: auto-train builds right after the release, in the same tick; when its pacing waits, the
-  late window caps the held slots at 11.5 min per release. Old 3-min gap: `LQ_TRAIN_GAP_MIN=3 LQ_TRAIN_LATE_MIN=0
-  LQ_TRAIN_READY_LAG_MIN=0`.
+  late window caps the held slots at 11.5 min per release. An aged alone gets the gap after it (`LQ_ALONE_GAP`).
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
@@ -622,9 +624,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
   per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). The service runs the picked suites by name, so a legacy or GPU suite
-  in the list gates the head today (not REPORT ONLY there; the fix is in another PR). A lead's own
-  `request.mjs --affected` still works as before.
+  affected request is requested again (4.101.1). A lead's own `request.mjs --affected` still works as before.
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.

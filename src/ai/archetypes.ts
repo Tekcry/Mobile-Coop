@@ -1,7 +1,7 @@
 /**
  * Enemy archetype rules (pure, unit-tested): heavy armour by hit direction and its frontal grab immunity, the
- * enforcer's shield arc, the sniper's relocation and glint, the dog's smell, the officer's buff, squad radio
- * checks, and the difficulty tiers.
+ * enforcer's shield arc, the runner's weave and press, the sniper's relocation and glint, the dog's smell, the
+ * officer's buff, squad radio checks, and the difficulty tiers.
  */
 import { hyp2 } from '../core/mathx';
 
@@ -20,6 +20,14 @@ export const ARCHETYPE = {
     shieldHalf: (70 * Math.PI) / 180,
     /** Pushes forward at this speed (m/s) while firing. */
     pushSpeed: 1.1,
+  },
+  runner: {
+    /** (guard-ai runner-armed, G298) He weaves on the run in (the old charge's zigzag, `Enemy.chasePoint`, beyond 5 m
+     *  of his target). Undo: false. */
+    weave: true,
+    /** He presses in while he fires, as an aggressive guard does (closes to `engageMin` + 3 m in the attack state).
+     *  Undo: false. */
+    pressIn: true,
   },
   sniper: {
     /** Relocate after this many shots, or this long (s) after the first shot of a position. */

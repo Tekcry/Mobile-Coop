@@ -38,7 +38,10 @@ try {
 
   // (havok-stall) the chases are deterministic: the sim runs on the manual clock (no real-time frames move it between
   // the steps), and each chase draws its random numbers (the guard's think ticks) from a fixed seed. Unseeded, the
-  // climb-up took 9-30 s of game time (the runner takes the ladder once sight breaks).
+  // climb-up took 9-30 s of game time (the runner takes the ladder once sight breaks). (guard-ai runner-armed, A8) The
+  // runner is armed since G298, and an armed guard in sight fights from his own storey: the chase blinds him (and, A13,
+  // marks the alarm raised so he is never sent to a panel), so he follows the reported last known position across the
+  // ladder as the melee runner did once sight broke.
   // (guard-ai S13) The wait is sim time, never wall clock: the loop steps 0.25 s of game time at a time until the runner
   // has taken a link and stands on the player's storey (within 0.4 m), or the sim budget runs out. The budget comes from
   // the design: the run to the ladder at the runner's run speed plus the climb at the link walk's climb speed is the
@@ -71,7 +74,14 @@ try {
         // (`EnemyManager.sendIn`); he chases its last known position across the ladder on its own flow field
         const p0 = up ? top : floor;
         const slot = em.ctx.reportSighting({ id: g.localRef.id, feet: new V(p0.x, p0.y, p0.z), spotted: false });
+        // (guard-ai runner-armed, A13) an alerted armed guard runs to a panel in the stealth rules (a melee kind never
+        // did): the alarm counts as raised, so this stays a ladder-link test
+        em.alarmRaised = true;
         const e = em.spawn('runner', up ? floor : new V(top.x + fx * 0.4, L.top.y, top.z + fz * 0.4), true, 0);
+        // (guard-ai runner-armed, A8) an armed guard in sight fights from his storey; this is a ladder-link test:
+        // sightless, he follows the reported last known position across the ladder (`sendIn` below), as the melee
+        // runner did once sight broke
+        e.losTo = () => false;
         const hunt = [slot, e.hunt];
         const y0 = e.pos.y;
         // the budget (sim s): the flat run to the ladder and across the top at the runner's run speed + the rise at the climb speed

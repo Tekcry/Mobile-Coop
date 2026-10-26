@@ -53,8 +53,9 @@ export const GUNS: Record<string, GunSound> = {
 /** A weapon class (a guard's tracer carries only the class) to its gun. The CT kit has the rifle and pistol classes only. */
 export const CLASS_GUN: Record<string, string> = { pistol: 'pistol', rifle: 'rifle', heavy: 'lmg' };
 
-/** Guard archetypes to the gun they sound like (`enemies.json`). */
-export const GUARD_GUN: Record<string, string> = { grunt: 'ak', heavy: 'lmg', sniper: 'sniper', enforcer: 'semiShotgun', droneOp: 'smg', officer: 'pistol' };
+/** Guard archetypes to the gun they sound like (`enemies.json`). (guard-ai runner-armed, G298) The runner carries the
+ *  grunt's weapon block and rifle model, so he sounds like the grunt. */
+export const GUARD_GUN: Record<string, string> = { grunt: 'ak', runner: 'ak', heavy: 'lmg', sniper: 'sniper', enforcer: 'semiShotgun', droneOp: 'smg', officer: 'pistol' };
 
 /** (coop-walk-fixes P7) The gun a remote shot sounds like: the partner's weapon id when it has a sound (`pistolSd`, `rifle`),
  *  else its class's (`CLASS_GUN`; a guard's tracer has only the class). */

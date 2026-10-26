@@ -1,0 +1,19 @@
+{
+ "levels": {
+  "A6 desk": 0.75,
+  "A6 gauge board": 0.84,
+  "A6 outfall approach": 1,
+  "A6 outfall cut": 0.15,
+  "A6 gauge board cut": 0.14,
+  "A6 vantage": 0.14,
+  "A6 pump 3": 0.14,
+  "A6 leg-up mark": 0.14,
+  "A6 west floor": 0.14,
+  "A6 rope spot": 0.14,
+  "A6 holder": 0.49,
+  "A6 holder cut": 0.14,
+  "A6 cage": 0.81,
+  "A6 floor standby": 0.14,
+  "A6 pump floor": 0.64
+ }
+}
