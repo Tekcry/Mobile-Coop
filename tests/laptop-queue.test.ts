@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, placeFor, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, placeFor, supersededRunning, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -405,6 +405,80 @@ describe('superseded', () => {
     expect(m.get(a.id)).toBe(c.id);
     expect(m.get(b.id)).toBe(c.id);
     expect(m.has(c.id)).toBe(false);
+  });
+});
+
+describe('supersededRunning: stop a running request on a newer head (laptop-queue-8 slice B)', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const r = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: 'A', kind: 'pr', branch: 'feature/x', pr: 5, sha: SHA('1'), suites: ['e2e-coop', 'e2e-pad'], ...o });
+  const anc = (a: string, b: string) => a === SHA('1') && b === SHA('2');
+  const stop = (run: unknown[], cands: unknown[], progress: Record<string, number> = {}) => supersededRunning(run, cands, anc, (id: string) => progress[id] ?? NaN);
+
+  it('a running request stops when a newer head contains it and the suites overlap', () => {
+    const a = r(30, 'a');
+    const b = r(5, 'b', { sha: SHA('2'), suites: ['e2e-pad', 'e2e-menu'] });
+    expect([...stop([a], [b, a])]).toEqual([[a.id, b.id]]);
+  });
+  it('a rebased head (not an ancestor), no overlap or the same sha does not stop it', () => {
+    const a = r(30, 'a');
+    expect(stop([a], [r(5, 'b', { sha: SHA('3') })]).size).toBe(0);
+    expect(stop([a], [r(5, 'b', { sha: SHA('2'), suites: ['e2e-menu'] })]).size).toBe(0);
+    expect(stop([a], [r(5, 'b')]).size).toBe(0);
+  });
+  it('pinned, train rerun, full and alone runs are never stopped', () => {
+    const b = r(5, 'b', { sha: SHA('2') });
+    expect(stop([r(30, 'a', { pin: true })], [b]).size).toBe(0);
+    expect(stop([r(30, 'a', { trainRerun: true })], [{ ...b, trainRerun: true }]).size).toBe(0);
+    expect(stop([r(30, 'a', { kind: 'full', suites: undefined })], [{ ...b, kind: 'full', suites: undefined }]).size).toBe(0);
+    expect(stop([r(30, 'a', { kind: 'alone', steps: ['x'] })], [{ ...b, kind: 'alone', steps: ['x'] }]).size).toBe(0);
+  });
+  it('at or past 80% of its expected wall the run finishes', () => {
+    const a = r(30, 'a');
+    const b = r(5, 'b', { sha: SHA('2') });
+    expect(stop([a], [b], { [a.id]: 0.85 }).size).toBe(0);
+    expect(stop([a], [b], { [a.id]: PREEMPT_MAX_PROGRESS }).size).toBe(0);
+    expect(stop([a], [b], { [a.id]: 0.5 }).get(a.id)).toBe(b.id);
+  });
+  it('another requester, an older request or a laptop rerun as the newer request does not stop it', () => {
+    const a = r(30, 'a');
+    expect(stop([a], [r(5, 'b', { sha: SHA('2'), requester: 'B' })]).size).toBe(0);
+    expect(stop([a], [r(40, 'b', { sha: SHA('2') })]).size).toBe(0);
+    expect(stop([a], [r(5, 'b', { sha: SHA('2'), laptopRerun: true })]).size).toBe(0);
+  });
+  it('an affected request: another PR branch never stops it, nor does it stop a lead run on the same branch', () => {
+    const affA = r(30, 'a', { requester: AFFECTED_REQUESTER, set: 'affected' });
+    const affOther = r(5, 'b', { requester: AFFECTED_REQUESTER, set: 'affected', sha: SHA('2'), branch: 'feature/y' });
+    expect(stop([affA], [affOther]).size).toBe(0);
+    const affSame = { ...affOther, branch: 'feature/x' };
+    expect(stop([affA], [affSame]).get(affA.id)).toBe(affSame.id);
+    // a rebased affected head (not an ancestor) does not stop it, unlike superseded's per-branch rule
+    expect(stop([affA], [{ ...affSame, sha: SHA('3') }]).size).toBe(0);
+    const lead = r(30, 'lead', { requester: 'Lead', set: 'mine' });
+    expect(stop([lead], [affSame]).size).toBe(0);
+  });
+  it('an unknown or missing requester and two different sets never pair', () => {
+    expect(stop([r(30, 'a', { requester: 'unknown' })], [r(5, 'b', { requester: 'unknown', sha: SHA('2') })]).size).toBe(0);
+    expect(stop([r(30, 'a', { requester: '' })], [r(5, 'b', { requester: '', sha: SHA('2') })]).size).toBe(0);
+    expect(stop([r(30, 'a', { set: 'off' })], [r(5, 'b', { set: 'on', sha: SHA('2') })]).size).toBe(0);
+    expect(stop([r(30, 'a', { set: 's' })], [r(5, 'b', { set: 's', sha: SHA('2') })]).size).toBe(1);
+  });
+  it('the newer request may be claimed or running (not in the open list) and the newest pairs; the run itself is skipped', () => {
+    const a = r(30, 'a');
+    const b = r(10, 'b', { sha: SHA('2') });
+    const c = r(5, 'c', { sha: SHA('2') });
+    expect(stop([a], [a, b, c]).get(a.id)).toBe(c.id);
+    expect(stop([a, b], [a, b]).get(a.id)).toBe(b.id);
+    expect(stop([a], [a]).size).toBe(0);
+    // a newer request that is active only (claimed or running) gets no queue place: placeFor only sees open survivors
+    expect(placeFor(stop([a], [b]), [a]).size).toBe(0);
+    expect(placeFor(stop([a], [b]), [a, b]).get(b.id)).toBe(a.id);
+  });
+  it('cutShort: superseded before and after the suites start; withdrawn wins', () => {
+    const t = { sha: 'f'.repeat(40), n: '9' };
+    expect(cutShort({ kind: 'pr' }, { superseded: 'x' })).toBe('superseded');
+    expect(cutShort({ kind: 'pr' }, { superseded: 'x', started: true, trains: [t] })).toBe('superseded');
+    expect(cutShort({ kind: 'pr' }, { superseded: 'x', withdrawn: true })).toBe('withdrawn');
+    expect(cutShort({ kind: 'pr' }, { superseded: '' })).toBe('');
   });
 });
 

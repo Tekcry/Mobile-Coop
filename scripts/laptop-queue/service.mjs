@@ -108,7 +108,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, supersededRunning, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -157,6 +157,7 @@ const TRAIN_CARRY_DEPTH = Number(process.env.LQ_TRAIN_CARRY_DEPTH ?? 20); // fir
 const RERUN_SHARD = process.env.LQ_RERUN_SHARD !== '0'; // 0 = a train rerun runs on one slot (lib pick queue.shardRerun; BRIEF A10)
 const ALONE_GAP = process.env.LQ_ALONE_GAP !== '0'; // 0 = the holds keep an aged alone back as before (lib aloneGapOpen; BRIEF A12)
 const FIX_FIRST = process.env.LQ_FIX_FIRST !== '0'; // laptop-queue-8 A3: 0 = no fix tier (lib pick queue.order.fix)
+const STOP_SUPERSEDED = process.env.LQ_STOP_SUPERSEDED !== '0'; // laptop-queue-8 A6: 0 = runs on old heads finish
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -1129,6 +1130,10 @@ ${budget}`);
 const claimed = new Set();
 /** Requests claimed or running here (id -> request), for the duplicate check. */
 const activeReqs = new Map();
+/** laptop-queue-8 A6: running id -> the newer request that stops it (lib supersededRunning, set each pass; cutShort). */
+let runningSup = new Map();
+/** A request run's share of its expected wall (runRequest's watch writes it; lib supersededRunning reads it). */
+const progressById = new Map();
 /** Alone requests a train preempted (cutShort): they go first among alone requests (lib pick queue.front) until claimed again. */
 const preemptedAlone = new Set();
 /** Train heads running here, for the heartbeat. */
@@ -1340,8 +1345,9 @@ async function runRequest(r, port, pair = null) {
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
     const due = r.kind === 'alone' && ALONE_GAP && aloneGapOpen(state.aloneDue, r.id, lastTrainEnd); // started in its gap (A12)
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due });
-    if (why && !ctl.why) { ctl.by = trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
+    progressById.set(r.id, progress());
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), superseded: runningSup.get(r.id)?.id ?? '', trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due });
+    if (why && !ctl.why) { ctl.by = why === 'superseded' ? runningSup.get(r.id) : trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;
@@ -1366,6 +1372,16 @@ async function runRequest(r, port, pair = null) {
       for (const c of verdictCtx) if (posted || c === AFFECTED_CTX) postStatus(r.sha, 'error', c, 'withdrawn by the requester, run stopped');
       state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
       if (state.aloneSteps) delete state.aloneSteps[r.id];
+      return;
+    }
+    if (ctl.why === 'superseded') {
+      // laptop-queue-8 A7: a newer head of the same PR is queued; the old head's error never blocks (train-ready reads
+      // the current head)
+      const by = ctl.by?.id ?? '?';
+      const desc = `stopped: new head ${String(ctl.by?.sha ?? '?').slice(0, 8)} queued (${by})`;
+      log(`${r.id}: stopped, new head ${String(ctl.by?.sha ?? '?').slice(0, 8)} queued (${by})`);
+      for (const c of verdictCtx) if (posted || c === AFFECTED_CTX) postStatus(r.sha, 'error', c, desc.length > 140 ? `${desc.slice(0, 137)}...` : desc);
+      state.done[r.id] = { result: 'superseded-run', by, date: new Date().toISOString() };
       return;
     }
     const n = ctl.by?.n ?? '?';
@@ -1514,6 +1530,7 @@ async function runRequest(r, port, pair = null) {
     state.done[r.id] = { result: ok ? 'success' : rerunId ? 'laptop-rerun' : 'failure', wall: result.wall, date: new Date().toISOString(), ...(rerunId ? { rerun: rerunId } : {}) };
   } finally {
     if (watch) clearInterval(watch);
+    progressById.delete(r.id);
     missing.delete(r.id);
     withdrawnIds.delete(r.id);
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
@@ -1644,6 +1661,31 @@ function applySupersedes(requests) {
   saveState();
   const places = keepPlaces(sup, requests);
   return requests.filter((r) => !sup.has(r.id)).map((r) => places.get(r.id) ?? r);
+}
+
+/**
+ * laptop-queue-8 A6: sets runningSup (lib supersededRunning) for the pr requests claimed or running here against the open
+ * requests (after supersede, duplicates and conflicts) plus the ones claimed or running on either worker; each run's
+ * watch then stops (lib cutShort 'superseded'). A newer request still open takes the stopped run's queue place (A4,
+ * keepPlaces); a claimed or running one needs none. Returns the open requests with the places applied.
+ */
+function stopSuperseded(requests) {
+  if (!STOP_SUPERSEDED || activeReqs.size === 0) { runningSup = new Map(); return requests; }
+  const running = [...activeReqs.values()];
+  const cands = [...requests, ...otherActive, ...running];
+  const sup = supersededRunning(running, cands, isAncestor, (id) => progressById.get(id));
+  const next = new Map();
+  for (const [rid, nid] of sup) {
+    const n = cands.find((c) => c.id === nid);
+    if (!runningSup.has(rid) && n) log(`${rid}: newer head ${String(n.sha).slice(0, 8)} queued (${nid}), stopping the run`);
+    if (n) next.set(rid, n);
+  }
+  runningSup = next;
+  const open = new Set(requests.map((x) => x.id));
+  const toOpen = new Map([...sup].filter(([, nid]) => open.has(nid)));
+  if (toOpen.size === 0) return requests;
+  const places = keepPlaces(toOpen, [...running, ...requests]);
+  return requests.map((x) => places.get(x.id) ?? x);
 }
 
 /**
@@ -1784,6 +1826,7 @@ async function pass() {
   // supersede and duplicates on the full list (before the alone hold and the desktop's pr filter); the desktop waits for
   // claims on the branch like its gate does
   else if (!(DESKTOP && claimCount === 0)) queue.requests = applyConflicts(applyDuplicates(applySupersedes(queue.requests)));
+  queue.requests = stopSuperseded(queue.requests);
   // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
   // an alone request held past ALONE_AGE_MIN still stops new pr / full claims (only train reruns start), so the slots
   // drain for it while the train runs; only while the train can clear the hold by running (lib holdClears) (Orchestrator audit 2026-10-24: 3 newer PR requests went first at 07:25Z)

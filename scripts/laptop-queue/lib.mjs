@@ -484,6 +484,40 @@ export function placeFor(sup, requests) {
 }
 
 /**
+ * Running requests a newer head makes moot (laptop-queue-8 A6, BRIEF 3): Map runningId -> newer id. running = the pr
+ * requests claimed or running on this worker (lock wait and prepare included); candidates = the open requests plus the
+ * ones claimed or running on either worker (R itself is skipped). R pairs with the newest N exactly as lib superseded
+ * pairs two open requests (same queueRequester, same kind, no train rerun, compatible set: two different non-empty sets
+ * never pair; R not pinned, R's requester known; N not a laptop rerun; N newer by id), with three changes: the suite
+ * bases overlap (not cover), R.sha !== N.sha and isAncestor(R.sha, N.sha) always (affected requests too: a rebased
+ * head never stops a run), and R is under PREEMPT_MAX_PROGRESS of its expected wall (progressOf(id), NaN = unknown).
+ * Kind 'pr' only: a full run is never stopped. Pure.
+ */
+export function supersededRunning(running, candidates, isAncestor, progressOf = () => NaN) {
+  const out = new Map();
+  const cands = [...(candidates ?? [])].sort(sortById);
+  for (const r of running ?? []) {
+    if (r?.kind !== 'pr' || r.trainRerun || r.pin) continue;
+    if (!r.requester || r.requester === 'unknown') continue;
+    if (progressOf(r.id) >= PREEMPT_MAX_PROGRESS) continue;
+    const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
+    const rBases = new Set((r.suites ?? []).map(suiteBase));
+    for (let j = cands.length - 1; j >= 0; j--) {
+      const n = cands[j];
+      if (!n || n.id === r.id || !(n.id > r.id)) continue;
+      if (queueRequester(n) !== queueRequester(r) || n.kind !== 'pr' || n.trainRerun || n.laptopRerun) continue;
+      const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
+      if (rSet && nSet && rSet !== nSet) continue;
+      if (!(n.suites ?? []).some((s) => rBases.has(suiteBase(s)))) continue;
+      if (r.sha === n.sha || !isAncestor(r.sha, n.sha)) continue;
+      out.set(r.id, n.id);
+      break;
+    }
+  }
+  return out;
+}
+
+/**
  * How far a run is through its expected wall: elapsedMs over the heaviest of `jobs` bins of its suites by times.json
  * weight (lib shard, unknown suites at the median), so 1 = due to finish now. NaN when nothing is known.
  */
@@ -733,14 +767,18 @@ export function yieldTo(r, started, trains) {
  * due (laptop-queue-7 A12: started in its gap after a train, aloneGapOpen). A pr run at
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
  * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
+ * 'superseded' (laptop-queue-8 A6) when `superseded` names the newer request lib supersededRunning paired with it, at any
+ * stage (lock wait, prepare, suites); 'withdrawn' wins.
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+export function cutShort(r, { withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
   if (withdrawn) return 'withdrawn';
+  // laptop-queue-8 A6: a newer head of the same PR is queued (lib supersededRunning; the id): stop at any stage
+  if (superseded) return 'superseded';
   // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
   // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
