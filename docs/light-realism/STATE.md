@@ -25,6 +25,11 @@
   warehouseOps files (frozen, A1); ctcourse sets (Marlow Build).
 
 Next: L1 (S1 car park light point, south row, tune to P11a on the lux-sum reading) and SIGNOFF.md for Michael.
+- L2 briefs (2026-10-26, `feature/light-realism-l2`; HOLD: no build until Michael's S1 walk is accepted, SIGNOFF.md):
+  - `briefs/L2-S1.md`: S1's other spaces (gatehouse, bins, shelters, forecourt, canopy, C1), no new circuit; after #518
+    merges; A15-A22.
+  - `briefs/L2-S2.md`: the HQ, 26 circuits, riser board, the spaces `exclude` and floor meter points (A23); A23-A29.
+  - `briefs/L2-S3.md`: the lab block, stacked on L2-S2's step 1, east yard wall packs, landing circuit; A30-A34.
 
 ## Done
 - 2026-10-25 ~09:08: S1 probe scripts (`scripts/light-realism/s1-grid.mjs`, `s1Grid.ts`, `s1-shots.mjs`), commit
