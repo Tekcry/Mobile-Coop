@@ -1,0 +1,14 @@
+{
+  "id": "20261026T141836-night-shift-player-b-fe08e9b8-d6e1",
+  "sha": "fe08e9b8abef117100a4e51d08dbf1641a5aaec2",
+  "branch": "feature/mantle-rise-fix",
+  "pr": 640,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "mrf-coop",
+  "fix": true
+}
