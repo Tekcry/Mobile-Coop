@@ -1029,3 +1029,29 @@ describe('cause other: a set\'s way out of a soft-lock (J14 A26)', () => {
     expect(r.mode.stationRetry(2, 'other')).toBe(false);
   });
 });
+
+describe('(marlow-play B5) no station retry while the exit holding room cycles or has sealed', () => {
+  it('both on the pad with station 2 still live: retry works before the cycle, is refused while it cycles and once sealed', () => {
+    const lock = { id: 'L1', box: [50, 0, 54, 4] as [number, number, number, number], floorY: 0, nearDoor: 'dn', farDoor: 'df' };
+    const st = new CourseState({ ...def({ exit: 'L1', drills: [] }), airlocks: [lock] });
+    st.setFlag('s1-done');
+    st.setPlayer(0, 20, 0, 5, false);
+    st.setPlayer(1, 21, 0, 5, false);
+    st.update(DT);
+    expect(st.station()).toBe(2);
+    expect(st.retryStation('seen')).toBe(true);
+    st.setPlayer(0, 52, 0, 2, false);
+    st.setPlayer(1, 52.5, 0, 2, false);
+    st.update(DT);
+    expect(st.airlockPhase('L1')).toBe('cycling');
+    expect(st.retryStation('seen')).toBe(false);
+    expect(st.retryStation('timer', 2)).toBe(false);
+    expect(st.retryStation('other')).toBe(false);
+    expect(st.restarts).toBe(1);
+    for (let i = 0; i < 50; i++) st.update(DT);
+    expect(st.airlockPhase('L1')).toBe('sealed');
+    expect(st.station()).toBe(2);
+    expect(st.retryStation('seen')).toBe(false);
+    expect(st.restarts).toBe(1);
+  });
+});

@@ -716,12 +716,17 @@ export class CourseState {
    * `restarts` / `lastRetry` and emits `stationRetry` (the mode resets its guards, devices and lamps and puts the players
    * on its marks). `n` (a set's drill window or beam, `CourseMode.stationRetry`): only while station `n` is live. False
    * (nothing changes): no live station (or not `n`), its retry is 'none' (unless the cause is `other`: a set's way out
-   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, or the course is over.
+   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, the course is over, or
+   * (marlow-play B5) the bay's exit airlock is cycling or sealed.
    */
   retryStation(cause: StationCause, n?: number): boolean {
     const s = this.liveRt();
     if (!s || this.over || (s.def.retry === 'none' && cause !== 'other') || this.retryOffSet.has(s.def.n)) return false;
     if (n !== undefined && n !== s.def.n) return false;
+    // (marlow-play B5) never while the bay's exit holding room cycles or has sealed: its near door locks for good and the
+    // retry's marks would strand both players behind it on the old set
+    const ea = this.exitAirlockOf(this.bay);
+    if (ea && (ea.phase === 'cycling' || ea.phase === 'sealed')) return false;
     const sn = s.def.n;
     // (fix 7) a stand-in standing open stays open (and its flag set) through the retry
     const keep = this.standInGate(s);
