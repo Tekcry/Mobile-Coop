@@ -9,6 +9,7 @@ import {
   failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
   ghRetryable, withRetry, GH_RETRY_S, buildExitState, nothingNewSkip, carryNothingNew, NOTHING_NEW_EXIT, deployPlan, carryDeployWatch, DEPLOY_REPAIR_MIN, SPARE_ID_TAG,
   splitCandidates, headStatusAgrees, labelTaken, freshPlan, sameMembers, memberChanges,
+  draftNotes, withDrafts,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 // @ts-expect-error plain .mjs script without types
@@ -461,8 +462,6 @@ describe('auto-train: unlabelled train-ready PRs (F16, #460 missed train 103)', 
     expect(off.waiting.map((c: { pr: number }) => c.pr)).toEqual([2]);
     expect(off.held).toEqual([]);
     expect(splitCandidates(prs).cands.map((c: { pr: number }) => c.pr)).toEqual([1]);
-    // a labelled PR is unchanged even as a draft (G325 stays the watchdog's)
-    expect(splitCandidates([gh(1, { labels: ready, isDraft: true, statusCheckRollup: [run('check')] })], {}).cands.map((c: { pr: number }) => c.pr)).toEqual([1]);
   });
 
   it('headStatusAgrees: the head\'s own combined status must name the head and keep the rule', () => {
@@ -561,6 +560,53 @@ describe('auto-train: re-read at build start (F23, #521 missed train 119 by 27 s
     expect(b.indexOf('nothingNewIdle(')).toBeLessThan(b.indexOf('labelTaken('));
     const nt = src.slice(src.indexOf('async function noTrain('), src.indexOf('async function step('));
     expect(nt).toContain('return build(nextN(), fresh, { reread: REREAD ? () => pick().cands : null })');
+  });
+});
+
+describe('auto-train: drafts never ride a train (F34, #487 rode train 122 as a draft)', () => {
+  const T0 = '2026-10-26T12:00:00Z';
+  const run = (name: string) => ({ __typename: 'CheckRun', name, status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: T0, startedAt: T0 });
+  const sc = (context: string) => ({ __typename: 'StatusContext', context, state: 'SUCCESS', startedAt: T0 });
+  const gh = (number: number, o: Record<string, unknown> = {}) => ({ number, headRefName: `feature/p${number}`, headRefOid: `h${number}`, title: `t${number}`,
+    isDraft: true, mergeable: 'MERGEABLE', labels: [] as { name: string }[], statusCheckRollup: [run('check'), sc('checker'), sc('affected-e2e')], ...o });
+  const open = { unlabelled: true, heldOff: () => false, agrees: () => true };
+
+  it('a labelled draft is not a candidate', () => {
+    const s = splitCandidates([gh(487, { labels: [{ name: 'train-ready' }] })], open);
+    expect(s.cands).toEqual([]);
+    expect(s.waiting).toEqual([]);
+    expect(s.drafts).toEqual([{ pr: 487, branch: 'feature/p487', head: 'h487', title: 't487' }]);
+    // a labelled draft whose check still runs holds no build either
+    expect(splitCandidates([gh(1, { labels: [{ name: 'train-ready' }], statusCheckRollup: [{ ...run('check'), status: 'IN_PROGRESS', conclusion: '' }] })], open).waiting).toEqual([]);
+  });
+
+  it('an unlabelled green draft is not a candidate, and asks no gh read', () => {
+    const asked: number[] = [];
+    const s = splitCandidates([gh(2), gh(3, { isDraft: false })], { unlabelled: true, heldOff: (p: { pr: number }) => { asked.push(p.pr); return false; }, agrees: () => true });
+    expect(s.cands.map((c: { pr: number }) => c.pr)).toEqual([3]);
+    expect(s.drafts.map((c: { pr: number }) => c.pr)).toEqual([2]);
+    expect(asked).toEqual([3]);
+  });
+
+  it('draftNotes: one log line per draft head; withDrafts lists them in the status, carried when no list was read', () => {
+    const d = [{ pr: 487, branch: 'feature/x', head: 'aaaaaaaa11', title: 'x' }, { pr: 9, branch: 'feature/y', head: 'bbbbbbbb22', title: 'y' }];
+    const first = draftNotes(d, {});
+    expect(first.lines).toEqual(['  #487 draft: not a candidate (feature/x aaaaaaaa)', '  #9 draft: not a candidate (feature/y bbbbbbbb)']);
+    expect(first.draftSkipped).toEqual([487, 9]);
+    expect(draftNotes(d, first.draftHeads).lines).toEqual([]);
+    expect(draftNotes([{ ...d[0], head: 'cccccccc33' }], first.draftHeads).lines).toEqual(['  #487 draft: not a candidate (feature/x cccccccc)']);
+    const st = withDrafts({ state: 'idle', reason: 'r', leftOut: ['a: b'] }, first, null);
+    expect(st).toMatchObject({ leftOut: ['a: b'], draftSkipped: [487, 9], draftHeads: { 487: 'aaaaaaaa11', 9: 'bbbbbbbb22' } });
+    expect(withDrafts({ state: 'pending', reason: 'r' }, null, st)).toMatchObject({ draftSkipped: [487, 9] });
+    expect(withDrafts({ state: 'idle', reason: 'r', draftSkipped: [1] }, draftNotes([], {}), st)).toEqual({ state: 'idle', reason: 'r' });
+  });
+
+  it('the shell: candidates logs the drafts and safeStep writes them into every status', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'auto-train.mjs'), 'utf8').replace(/\r\n/g, '\n');
+    const cs = src.slice(src.indexOf('function candidates('), src.indexOf('export function plan('));
+    expect(cs).toContain('DRAFTS = draftNotes(s.drafts,');
+    const ss = src.slice(src.indexOf('async function safeStep('), src.indexOf('function writeStatus('));
+    expect(ss).toMatch(/const carry = \(s\) => withDrafts\(.*, DRAFTS, before\)/);
   });
 });
 

@@ -19,7 +19,8 @@
 //     CI / build-time vitest failures stay "failed" (nothing destructive); pending ->
 //     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
-//   no open train: open PRs to master that are train-ready: labelled `train-ready` with a green `check` on their head,
+//   no open train: open PRs to master, never a draft (F34: `draftSkipped` in the status), that are train-ready:
+//     labelled `train-ready` with a green `check` on their head,
 //     or unlabelled and meeting the train-ready rule on their head (scripts/train-ready.mjs; its owner is docs/RULES.md
 //     "Getting to master") without having lost the label since that head was pushed; auto-train adds the label when it
 //     builds them (AUTO_TRAIN_UNLABELLED=0: labelled only). Plus feature/menu when it differs from master in docs only,
@@ -467,15 +468,18 @@ export function headStatusAgrees(pr, combined, { requireAffected = true } = {}) 
  * (headStatusAgrees on the head's combined status) -> a candidate with `unlabelled: true` (also in `ruleReady`); one
  * that fails the rule only on a `check` CI is still running toward goes to `waiting` (F23: it holds the build like a
  * labelled one). `held` = [{ pr, branch, head, why }] kept out by heldOff / agrees. The injected checks default to "out".
+ * F34 (#487 rode train 122 as a draft): a draft goes to `drafts` before any other rule, labelled or not.
  */
 export function splitCandidates(prs, { unlabelled = true, heldOff = () => true, agrees = () => false } = {}) {
   const cands = [];
   const waiting = [];
   const ruleReady = [];
   const held = [];
+  const drafts = [];
   for (const p of prs ?? []) {
     const rollup = p.statusCheckRollup ?? [];
     const c = { pr: p.number, branch: p.headRefName, head: p.headRefOid, title: p.title };
+    if (p.isDraft) { drafts.push(c); continue; }
     const labels = (p.labels ?? []).map((l) => (typeof l === 'string' ? l : l?.name)).filter(Boolean);
     if (labels.includes(LABEL)) {
       if (ciState(rollup, 'check') === 'success') cands.push(c);
@@ -491,7 +495,29 @@ export function splitCandidates(prs, { unlabelled = true, heldOff = () => true, 
     if (!agrees({ ...flat, check: 'success' })) { held.push({ ...c, why: `its head's own status disagrees with the rollup (${tr.CHECKER_CONTEXT} / ${tr.AFFECTED_CONTEXT})` }); continue; }
     if (ready) { cands.push({ ...c, unlabelled: true }); ruleReady.push(c); } else waiting.push({ ...c, why, ci: ciLabel(rollup, 'check'), unlabelled: true });
   }
-  return { cands, waiting, ruleReady, held };
+  return { cands, waiting, ruleReady, held, drafts };
+}
+
+/**
+ * F34: the drafts splitCandidates dropped -> { lines, draftSkipped: [pr], draftHeads: { [pr]: head } }. A log line
+ * ("#<n> draft: not a candidate") only for a draft whose head differs from `prevHeads` (the last status's draftHeads),
+ * so each draft head is logged once.
+ */
+export function draftNotes(drafts, prevHeads = {}) {
+  const draftHeads = {};
+  const lines = [];
+  for (const d of drafts ?? []) {
+    draftHeads[d.pr] = d.head;
+    if (prevHeads?.[d.pr] !== d.head) lines.push(`  #${d.pr} draft: not a candidate (${d.branch} ${short(d.head)})`);
+  }
+  return { lines, draftSkipped: (drafts ?? []).map((d) => d.pr), draftHeads };
+}
+
+/** F34: the status with `draftSkipped` / `draftHeads` from this step's PR list (`notes`), else the last status's (no list read). None: no keys. */
+export function withDrafts(status, notes, prev) {
+  const src = notes ?? prev;
+  const { draftSkipped: _s, draftHeads: _h, ...out } = status ?? {};
+  return src?.draftSkipped?.length ? { ...out, draftSkipped: src.draftSkipped, draftHeads: src.draftHeads ?? {} } : out;
 }
 
 /**
@@ -1031,6 +1057,7 @@ const UNLABELLED = envMin('AUTO_TRAIN_UNLABELLED', 1) > 0;
 const REREAD = envMin('AUTO_TRAIN_REREAD', 1) > 0;
 /** The read-only retry budget of one step (withRetry): reset at the start of each step. */
 const GH_BUDGET = { left: 1 };
+let DRAFTS = null; // F34: draftNotes of the last PR list this process read (candidates), for the status (safeStep)
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -1249,6 +1276,8 @@ function candidates() {
   const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--limit', '100', '--json', 'number,headRefName,headRefOid,title,isDraft,mergeable,labels,statusCheckRollup']);
   if (prs.length >= 100) log(`WARNING: ${prs.length} open PRs to master read (the list's limit): older PRs are not candidates this tick`);
   const s = splitCandidates(prs, { unlabelled: UNLABELLED, heldOff: isHeldOff, agrees: headAgrees });
+  DRAFTS = draftNotes(s.drafts, DRAFTS?.draftHeads ?? readStatus(FILES.realStatus)?.draftHeads);
+  for (const l of DRAFTS.lines) log(l);
   for (const w of s.waiting) log(`  #${w.pr} ${w.branch}: check ${w.ci}, not a candidate${w.unlabelled ? ' yet (train-ready by rule otherwise, no label)' : ''}${w.why ? ` (CI still running: ${w.why})` : ''}`);
   for (const h of s.held) log(`  #${h.pr} ${h.branch}: train-ready by rule on ${short(h.head)} but left out: ${h.why}`);
   for (const r of s.ruleReady) log(`  #${r.pr} ${r.branch}: train-ready by rule on ${short(r.head)} (no label)`);
@@ -1682,7 +1711,7 @@ async function deployStep(prev) {
 async function safeStep(o) {
   const before = readStatus(FILES.realStatus);
   const watch = await deployStep(before);
-  const carry = (s) => carryDeployWatch({ deployWatch: watch }, carryNothingNew(before, s));
+  const carry = (s) => withDrafts(carryDeployWatch({ deployWatch: watch }, carryNothingNew(before, s)), DRAFTS, before);
   try { return carry(carryLastDrop(before, await step(o))); } catch (e) {
     const prevStatus = readStatus(FILES.realStatus);
     log(`ERROR: ${e.message}`);
