@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T01:36Z
+status: open
 # char-shadow-meter s2c (cloud): a co-op client's partners in the character contract (J16, slice S2c)
 
 Lead: Night Shift | Sector Ops Build. Job char-shadow-meter (FOLDED-PLAN J16; G352). Source of truth on the base:

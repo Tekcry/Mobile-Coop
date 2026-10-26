@@ -1,4 +1,4 @@
-status: claimed Cloud Builder (elegant-rubin) 2026-10-25T23:24Z
+status: open
 
 # campaign J8 G2 (cloud copy of docs/tallow-fixes/briefs/G2.md on the base)
 
