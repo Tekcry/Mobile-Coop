@@ -26,7 +26,7 @@ A127-A131 + A152. Branch `feature/sector-redesign-art-s1` off the ART-KIT head (
 | Verge trees x 2 | cylinders (22.5, -66), (24.5, -60), r 0.3, h 5 | K treeSkin | `skinCyl` |
 | Cage trolley | (-30.5, 0.6, -44) / 1.0 x 1.2 x 0.8 | H1 cageTrolley | `skin` yaw 0 |
 | CCTV desk | (18.8, 0.375, -73.8) / 1.6 x 0.75 x 0.7 | H1 gateDesk | `skin` yaw PI (operator side south, faces the north wall) |
-| PC desk | (19.35, 0.375, -76) / 0.9 x 0.75 x 1.6 | H1 pcDesk | `skin` yaw -PI / 2 (operator side west; the window east) |
+| PC desk | (19.35, 0.375, -77.75) / 0.9 x 0.75 x 1.6 | H1 pcDesk | `skin` yaw -PI / 2 (operator side west; just south of the window, F42) |
 | Kettle counter | (18.4, 0.45, -78.55) / 1.6 x 0.9 x 0.6 | H1 teaPoint | `skin` yaw 0 (front north) |
 | Barrier island | (11, 0.5, -77) / 1.0 x 1.0 x 2.4 | H1 trafficIsland | `skin` yaw 0 |
 | Barrier arm (visual box) | (12.75, 1.0, -77) / 2.5 x 0.08 x 0.1 | H1 barrierArm | `skin` yaw 0 (pivot at x 11.5) |
