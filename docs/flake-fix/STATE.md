@@ -3,6 +3,29 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 65 (2026-10-26 ~14:15, Orchestrator save; session [e881f8]; wins over SAVE 64):**
+- Rule now (Michael ~14:00): fixes first, tracker docs/orchestrator/FIXES.md on origin/feature/menu (Orchestrator owns it;
+  send it updates). Order: F1-F3, F6, F8, then the rest. Session is in bypass mode: post checker / laptop statuses and
+  restart the queue service yourself.
+- Train 118 stall (F1-F3): swap outage 00:57-01:00Z lost its laptop-e2e post + done claim; alone hold blocked the queue
+  1.5 h. Fixed by hand (service killed, state.trains entry removed; backup scratch/laptop-queue/state.pre-118-rerun.json),
+  rerun green 42/43, released. Service healthy, queue ~27 deep (session-free work for hours).
+- checker PASS posted on #507 (lq7, train-ready) and #517 (affected-cap2 92a7c997; its affected-e2e queued).
+- laptop-queue-8 (F1-F3): slices A-G built, head e714c6e38 (G = syncTrains retry, heartbeat-stale claims, live-claim
+  alone hold). Fresh Opus code checker was running at the save. Counted ~970 lines once #507 merges (2075 before).
+  Next: checker verdict -> fix round if any -> post `checker` -> PR to master (Job-done: laptop-queue-8, label fix).
+- F6 lightField: Opus builder on feature/lightfield-heap-3 (worktree -lightfield-heap-3), PR with label fix expected.
+- F8 J20 PR-B: Opus porting to feature/test-runner-j20-prb2 (worktree -test-runner-j20-prb2) from master, D-B docs,
+  then PR (Job-done: test-runner-j20, label fix). Parity prechecks pre-1..3 green. Then a fresh Opus checker.
+- laptop-queue-9 (F12, F16+F23, F18, F19, F20; auto-train / merge-train / watchdog): Opus planner, worktree
+  -laptop-queue-9 from master. Next: plan checker -> build -> checker -> PR.
+- laptop-queue-10 (F9 desktop, F10, F11, F14 by time, F15, F22, F24, F26 quarantine keys, F27 rerun logs overwrite):
+  Opus planner, worktree -laptop-queue-10 stacked on laptop-queue-8. Next: plan checker -> build.
+- F13, F17 done on master. Marlow owns ctcourse fix (logs pushed: laptop-queue logs/ctcourse-flakes/); Player owns
+  netmove F5 (logs/netmove-flakes/).
+- Next: check each agent's commit on origin (rerun any with none), then the Next steps above in order: lq8 PR, F6 PR,
+  F8 PR, lq9 / lq10 plan checkers.
+
 **Test Runner SAVE 64 (2026-10-26 ~11:40, after the 11:25 account swap; wins over SAVE 63):**
 - Service pid 57500 healthy, 11 requests. #492 MERGED. #507 (laptop-queue-7, head 3791f2f1c) all green + Opus checker
   PASS, but no `checker` status (auto mode blocks my post): Michael decides who posts it.
