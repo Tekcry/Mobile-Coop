@@ -8,12 +8,12 @@ Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Ses
 2. D1 cloud brief closed done (cloud-queue df606035f): merged as is, the TGC split ruled to G5.
 3. (a) #522 feature/mission-c2-rules 17e8738ba: master merged in (settings: Hints + Animation source kept; tsc +
    settings tests green); checker status posted; train-ready returns via the watchdog after CI + affected-e2e.
-4. (b) feature/mission-b-sector 8d4feb8ec (= (a) merged in, tsc 0). Opus checker running -> scratch/campaign/member-b-check.md.
-   PASS -> PR (base feature/mission-c2-rules, big-pr), one laptop set (cut report "Closest single test set").
+4. (b) PR #578 feature/mission-b-sector 8d4feb8ec (base (a), big-pr): Opus PASS (member-b-check.md), status posted,
+   laptop set mb 20261026T061605 + affected. Retarget to master after #522 lands (A27). Polish: the check report.
 5. (c) net + (d) Tallow cut by Opus -> scratch/campaign/member-cd-cut-report.md (feature/mission-c-net on (b),
    feature/mission-d-wharf on (c)). Then a checker each ((c): two Opus src/net checkers), PRs, one set each.
 6. G5 after (d) (A30); #549 look-video merged (master).
-Next: member-b-check verdict -> (b) PR; (c)/(d) cut report -> checkers; Tallow W1 in /preview/ when (d) lands.
+Next: #578 / #522 verdicts; (c)/(d) cut report -> checkers; Tallow W1 in /preview/ when (d) lands.
 
 ## OLD RESUME 2026-10-26 ~16:15 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
