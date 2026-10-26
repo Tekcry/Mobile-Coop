@@ -2507,15 +2507,16 @@ export class EnemyManager {
     return '';
   }
 
-  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
-  private fillPair(g: PairGuard, e: Enemy | null): void {
+  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). (GA6 fix round, check A FIX 1) A sweep pair's
+   *  watch (`sweep`): calm = walking his sweep (`Enemy.sweepCalm`; cooldown and caution count). No allocation. */
+  private fillPair(g: PairGuard, e: Enemy | null, sweep: boolean): void {
     if (!e || !e.alive || e.taken) {
       g.present = false;
       g.calm = false;
       return;
     }
     g.present = true;
-    g.calm = e.pairCalm;
+    g.calm = sweep ? e.sweepCalm : e.pairCalm;
     g.x = e.pos.x;
     g.z = e.pos.z;
     const p = e.routePoint(this.pairTmp);
@@ -2537,8 +2538,9 @@ export class EnemyManager {
       const pm = p.pm;
       const A = this.guardAtSlot(p.sa);
       const B = this.guardAtSlot(p.sb);
-      this.fillPair(pm.a, A);
-      this.fillPair(pm.b, B);
+      const sw = p.watchOnly === true;
+      this.fillPair(pm.a, A, sw);
+      this.fillPair(pm.b, B, sw);
       if ((pm.state === 'waiting' || pm.state === 'meeting') && ((pm.a.present && A!.disturbed) || (pm.b.present && B!.disturbed))) pm.interrupt();
       pm.step(dt);
       const meet = pm.state === 'meeting';
@@ -4236,6 +4238,8 @@ export class EnemyManager {
     this.pairs.length = 0;
     this.pairSkips.length = 0;
     this.pairT = 0;
+    // (GA6 fix round, check B Polish 2) the sweep clock from 0 (`darkOn` kept: the scene's own setter turns it off)
+    this.sweepClock = 0;
     // (guard-rules S7) and the lookouts
     this.lookoutN = 0;
     this.lookRise.fill(0);

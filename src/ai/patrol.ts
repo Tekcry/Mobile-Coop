@@ -183,9 +183,10 @@ export class PatrolWalker {
    * Next point to walk to, or null while waiting / standing post. `bodyYaw` (the guard's body yaw, optional): on a sweep
    * the pan cycle starts once the body is within `SCENE_SWEEP.panGate` of it (NaN: at once). (guard-ai play A, P2-2)
    * `away`: he is off his post's storey (a gallery post, him on the floor below), so standing under it is not being on it.
+   * (GA6 fix round) On the sweep too: away, no stop is reached.
    */
   step(dt: number, x: number, z: number, bodyYaw = Number.NaN, away = false): Pt | null {
-    if (this.sw) return this.sweepStep(dt, x, z, bodyYaw);
+    if (this.sw) return this.sweepStep(dt, x, z, bodyYaw, away);
     const r = this.route;
     if (!r || r.points.length === 0) return this.post(dt, x, z, away);
     if (this.waitT > 0) {
@@ -222,20 +223,28 @@ export class PatrolWalker {
 
   /**
    * (GA6) A step on the sweep: walk to the stop, pass a corner, hold a pan stop until its `leave` (early or late within
-   * half a lap of its planned arrival), panning every step; a rejoin's stop until he is back in step.
+   * half a lap of its planned arrival), panning every step; a rejoin's stop until he is back in step. (GA6 fix round,
+   * check A FIX 2) `away` (off his storey, under a gallery stop): not arrived, the stop to walk to; never a hold or a pan.
    */
-  private sweepStep(dt: number, x: number, z: number, bodyYaw: number): Pt | null {
+  private sweepStep(dt: number, x: number, z: number, bodyYaw: number, away: boolean): Pt | null {
     const pl = this.sw!;
     const n = pl.pts.length;
     const now = this.swNow();
     if (this.swHoldEnd === this.swHoldEnd) {
       if (now < this.swHoldEnd) {
-        this.swPan(dt, bodyYaw);
-        return null;
+        if (!away) {
+          this.swPan(dt, bodyYaw);
+          return null;
+        }
+      } else {
+        this.swHoldEnd = Number.NaN;
+        this.swPanE = Number.NaN;
+        this.idx = (this.idx + 1) % n;
       }
-      this.swHoldEnd = Number.NaN;
-      this.swPanE = Number.NaN;
-      this.idx = (this.idx + 1) % n;
+    }
+    if (away) {
+      this.lookYaw = Number.NaN;
+      return pl.pts[this.idx]!;
     }
     // at most one pass round the stops (corners and one-spot legs are passed in the same step)
     for (let k = 0; k <= n; k++) {

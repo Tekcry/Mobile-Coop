@@ -662,3 +662,136 @@ describe("GA7 (the PLAN's): a player seen in a flash", () => {
     }
   });
 });
+
+describe('GA6 fix round', () => {
+  const run = (em: EnemyManager, secs: number): void => {
+    for (let k = 1; k <= Math.round(secs / PAIRS.tick); k++) priv(em).pairStep(PAIRS.tick);
+  };
+  /** A sweep pair on the scene, walked together a second; then `a` is taken with `b` as `busy` leaves him. */
+  const takenWith = (busy: (b: SweepGuard) => void) => {
+    const { em, list } = sweepManager();
+    em.sceneDark = true;
+    const [a, b] = placeAll(em, list, [lane(0), lane(0.7)], [1, 0]);
+    run(em, 1);
+    busy(b!);
+    a!.taken = true;
+    run(em, PAIRS.notice - 0.2);
+    const early = priv(em).report.mock.calls.length;
+    run(em, 0.4);
+    return { em, b: b!, early };
+  };
+
+  it('check A FIX 1: the sweep watch hears with the survivor in cooldown or the section cautious: missing after PAIRS.notice', () => {
+    expect(PAIRS.notice).toBe(3);
+    for (const busy of [
+      (b: SweepGuard) => b.aware.set('cooldown'),
+      (b: SweepGuard) => {
+        (b as unknown as { caution: number }).caution = 1;
+      },
+      (b: SweepGuard) => {
+        b.aware.set('cooldown');
+        (b as unknown as { caution: number }).caution = 1;
+      },
+    ]) {
+      const { em, b, early } = takenWith(busy);
+      expect(asEnemy(b).pairCalm).toBe(false);
+      expect(asEnemy(b).sweepCalm).toBe(true);
+      expect(early).toBe(0);
+      expect(priv(em).report).toHaveBeenCalledTimes(1);
+      expect(priv(em).report.mock.calls[0]![0]).toBe('missing');
+      expect(priv(em).missingCall.mock.calls[0]![0]).toBe(asEnemy(b));
+    }
+    // still deaf on a board task or while looking (suspicious)
+    for (const busy of [
+      (b: SweepGuard) => {
+        (b as unknown as { incident: number }).incident = 4;
+      },
+      (b: SweepGuard) => b.aware.set('suspicious'),
+    ]) {
+      const { em } = takenWith(busy);
+      run(em, 10);
+      expect(priv(em).report).not.toHaveBeenCalled();
+    }
+  });
+
+  it('check A FIX 1: off the scene a talking pair still fills calm from pairCalm (cooldown or cautious: not calm)', () => {
+    const { em, list } = sweepManager();
+    const [, b] = placeAll(em, list, [SIDE_A(), SIDE_B()], [1, 0]);
+    expect(em.pairs.length).toBe(1);
+    expect(em.pairs[0]!.watchOnly).toBeUndefined();
+    const pm = em.pairs[0]!.pm;
+    priv(em).pairStep(PAIRS.tick);
+    expect(pm.b.calm).toBe(true);
+    b!.aware.set('cooldown');
+    priv(em).pairStep(PAIRS.tick);
+    expect(pm.b.calm).toBe(false);
+    b!.aware.set('unaware');
+    (b as unknown as { caution: number }).caution = 1;
+    priv(em).pairStep(PAIRS.tick);
+    expect(pm.b.calm).toBe(false);
+  });
+
+  it('check A FIX 2: a swept deck guard on the floor under his stop walks to it on his storey, never holds under it; up there he holds', () => {
+    const ys: number[] = [];
+    const g = sweepGuard([], 0, 0, -Math.PI / 2, LANE, {
+      homeY: 3,
+      // the nav stand-in as `goTo`: null only within `near` on the asked storey
+      goTo(this: { pos: { x: number; y: number; z: number } }, p: [number, number], _dt: number, near = 0.6, y = Number.NaN): [number, number] | null {
+        ys.push(y);
+        return hyp2(p[0] - this.pos.x, p[1] - this.pos.z) < near && !(Math.abs(y - this.pos.y) >= 1.2) ? null : p;
+      },
+    });
+    g.startSweep(0, 1);
+    const stop = g.walker.sweepPlan!.pts[g.walker.idx]!;
+    g.pos.x = stop[0];
+    g.pos.z = stop[1];
+    expect(g.pos.y).toBe(0);
+    for (let k = 0; k < Math.round(4 / DT); k++) {
+      g.walker.tick(DT);
+      const goal = g.calmDecide(DT);
+      expect(goal.point).toBe(stop);
+      expect(g.walker.waiting).toBe(0);
+      expect(Number.isNaN(g.walker.lookYaw)).toBe(true);
+    }
+    expect(ys.length).toBeGreaterThan(0);
+    expect(ys.every((y) => y === 3)).toBe(true);
+    // up on the deck: at his stop
+    g.pos.y = 3;
+    g.walker.tick(DT);
+    expect(g.calmDecide(DT).point).toBeNull();
+  });
+
+  it('check B Polish 2: clear() sets the sweep clock to 0 and keeps sceneDark', () => {
+    const { em } = sweepManager();
+    em.sceneDark = true;
+    em.sweepClock = 12.5;
+    em.clear();
+    expect(em.sweepClock).toBe(0);
+    expect(em.sceneDark).toBe(true);
+  });
+
+  it('check A Polish 3 / B Polish 8: em.update with sceneDark advances the sweep clock and runs glimpseFollow at the board tick; off, neither', () => {
+    const mk = () => {
+      const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] }, lightField: { levelAt: () => 0 } };
+      const nav = { version: 0, walk: new Uint8Array(4), cols: 2, rows: 2, heightAt: () => 0, sliceTick: () => {} };
+      const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+      const follow = vi.spyOn(em as unknown as { glimpseFollow(): void }, 'glimpseFollow');
+      return { em, follow };
+    };
+    const dt = 1 / 60;
+    {
+      const { em, follow } = mk();
+      em.sceneDark = true;
+      for (let k = 0; k < 60; k++) em.update(dt);
+      expect(em.sweepClock).toBeCloseTo(1, 9);
+      // the board at 5 Hz: 5 ticks in 1 s
+      expect(follow).toHaveBeenCalledTimes(5);
+    }
+    {
+      const { em, follow } = mk();
+      for (let k = 0; k < 60; k++) em.update(dt);
+      expect(em.sweepClock).toBe(0);
+      expect(follow).not.toHaveBeenCalled();
+    }
+  });
+});

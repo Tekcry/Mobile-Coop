@@ -1911,6 +1911,13 @@ export class Enemy implements Damageable {
     return this.aware.level === 'unaware' && this.caution === 0 && this.incident < 0 && !this.taken && this.camBody === null;
   }
 
+  /** (GA6 fix round, check A FIX 1) Walking his scene sweep, for a sweep pair's watch: up, not held, unaware or in
+   *  cooldown, no board task. Caution is not tested: a cautious sweeping guard still notices his partner gone. */
+  get sweepCalm(): boolean {
+    const lv = this.aware.level;
+    return (lv === 'unaware' || lv === 'cooldown') && this.incident < 0 && !this.taken && this.camBody === null && this.alive;
+  }
+
   /** (guard-ai S21, A120) In a calm area (`calmArea`): calm himself, no alarm, not a high-security post, not on a
    *  response; stealth rules only (the parked modes keep low ready). (guard-ai S27, A164) Any alarm stage (Sector Ops:
    *  a panel, a camera or a laser) is an alarm too: no guard of the live section holsters after it. */
@@ -3074,10 +3081,12 @@ export class Enemy implements Damageable {
           }
         }
         // (GA6b) on the scene sweep his body yaw gates the pan (N2: the pan starts once he faces it); (guard-ai play A,
-        // P2-2) off his home storey he is not at his post, even straight under it
+        // P2-2) off his home storey he is not at his post, even straight under it ((GA6 fix round, check A FIX 2) on the
+        // sweep too: a deck guard sent to the floor walks back up to his stop)
+        const away = Math.abs(this.pos.y - this.homeY) >= 1.2;
         const g = this.walker.sweeping
-          ? this.walker.step(dt, this.pos.x, this.pos.z, this.motion.yaw)
-          : this.walker.step(dt, this.pos.x, this.pos.z, Number.NaN, Math.abs(this.pos.y - this.homeY) >= 1.2);
+          ? this.walker.step(dt, this.pos.x, this.pos.z, this.motion.yaw, away)
+          : this.walker.step(dt, this.pos.x, this.pos.z, Number.NaN, away);
         // (guard-ai S10) his talking pair is meeting: on to his meet point, then stand there facing his partner. The
         // walker still steps (its clock and schedule run on): he walks on late after the talk and the timed loop's
         // next stop takes the delay back
@@ -3101,8 +3110,9 @@ export class Enemy implements Damageable {
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
         // (GA6 x play A, merge) on the scene sweep the plain walk (its legs are clear straight lines, GA5; the home walk's
-        // give-up would drop him off his schedule); off it the home walk (play A: sliced long plan, give-up)
-        const wp = g ? (this.walker.sweeping ? (this.goTo(g, dt, 0.05) ?? g) : this.homeStep(g, dt)) : null;
+        // give-up would drop him off his schedule), on his home storey (GA6 fix round, check A FIX 2); off it the home walk
+        // (play A: sliced long plan, give-up)
+        const wp = g ? (this.walker.sweeping ? (this.goTo(g, dt, 0.05, this.homeY) ?? g) : this.homeStep(g, dt)) : null;
         // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace); (GA6b) the scene
         // sweep at its own slow pace, capped at his walk
         const sp = this.walker.sweeping

@@ -210,9 +210,12 @@ describe('guard-ai piano GA6b: the scene sweep', () => {
         }
       },
       3 * HEAP_NUMBER,
-      { n: 600, warm: 6000 },
+      // (GA6 fix round, check B Polish 1) a long warm-up: calmDecide reaches Turbofan whatever ran before it in the file
+      // (with 6000, in file order it read 192 B until round 27 of 40); the bound one HeapNumber over the 48 B reading (an
+      // object, 48 B or more, still fails it)
+      { n: 600, warm: 30000 },
     );
-    expect(per).toBeLessThanOrEqual(3 * HEAP_NUMBER);
+    expect(per).toBeLessThanOrEqual(4 * HEAP_NUMBER);
   }, 60000);
 });
 

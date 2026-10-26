@@ -347,6 +347,43 @@ describe('patrol sweep: rejoin (N3)', () => {
   });
 });
 
+describe('patrol sweep: off his storey (GA6 fix round, check A FIX 2)', () => {
+  const plan = sweepPlan(ROUTE, 0, 0, 0);
+
+  it('away under a stop: the stop to walk to, never a hold or a pan; back on his storey he holds there', () => {
+    const w = new PatrolWalker(ROUTE, 0, 0, 0);
+    w.setSweep(plan, 1, plan.phase);
+    const k = w.idx;
+    const p = plan.pts[k]!;
+    expect(plan.wait[k]).toBeGreaterThan(0);
+    for (let s = 0; s < Math.round((plan.period + 5) / DT); s++) {
+      w.tick(DT);
+      expect(w.step(DT, p[0], p[1], Number.NaN, true)).toBe(p);
+      expect(w.idx).toBe(k);
+      expect(w.waiting).toBe(0);
+      expect(Number.isNaN(w.lookYaw)).toBe(true);
+    }
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1])).toBeNull();
+  });
+
+  it('a hold in progress is not panned while away; he is sent back to the stop, the hold goes on once he is up', () => {
+    const w = new PatrolWalker(ROUTE, 0, 0, 0);
+    w.setSweep(plan, 1, plan.phase);
+    const p = plan.pts[w.idx]!;
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1])).toBeNull();
+    const left = w.waiting;
+    expect(left).toBeGreaterThan(4 * DT);
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1], Number.NaN, true)).toBe(p);
+    expect(Number.isNaN(w.lookYaw)).toBe(true);
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1])).toBeNull();
+    expect(w.waiting).toBeCloseTo(left - 2 * DT, 9);
+  });
+});
+
 describe('patrol sweep: off the sweep nothing changes (N4)', () => {
   /** Step a plain walker as `enemy.ts` does, returning everything it said. */
   const trace = (w: PatrolWalker, x0: number, z0: number): number[] => {
