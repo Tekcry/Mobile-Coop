@@ -1,0 +1,13 @@
+{
+  "id": "20261026T094702-affected-e2e-3ad76f36-714b",
+  "sha": "3ad76f361ae60d1e7de5e956a68284dcf9333af8",
+  "branch": "feature/marlow-kit-geo",
+  "pr": 608,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-ctcourse"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #608"
+}
