@@ -1,0 +1,13 @@
+{
+  "id": "20261026T005150-night-shift-guard-ai-15de6911-4cbe",
+  "sha": "15de69118a0af705f4a86159a986ffef462bebc0",
+  "branch": "feature/guard-ai-mission-hooks-s1b",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "mh-s1b-fix",
+  "note": "J26 S1a-2 e2e triage fix (unhide K before revive) merged into S1b; covers S1a-2 + S1b"
+}
