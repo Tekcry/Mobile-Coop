@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
 import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
-// @ts-expect-error plain .mjs process script without types
-import { REPEAT_DAYS, markReport, perfStep, TRAIN_PARITY, parityLine, trainBins, trainList, trainParity } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { REPEAT_DAYS, markReport, perfStep, TRAIN_PARITY, parityLine, trainBins, trainList, trainParity } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -1277,6 +1277,112 @@ describe('supersedeStatuses', () => {
   });
 });
 
+describe('J20 affected report and wire', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const run = (files: string, protocol: string | (() => string)) => (args: string[]) => {
+    if (args[0] === 'merge-base') return 'b'.repeat(40);
+    if (args[0] === 'diff') return files;
+    return typeof protocol === 'function' ? protocol() : protocol;
+  };
+  it('affectedSuites: the wire rule reads protocol.ts at the sha; LEGACY / AUDIO go to report; a failed show is null', async () => {
+    const fs = await import('node:fs');
+    const protocol = fs.readFileSync('src/net/protocol.ts', 'utf8');
+    const wire = affectedSuites(run('src/player/moveState.ts', protocol), SHA('1'));
+    for (const s of ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse']) expect(wire.suites).toContain(s);
+    expect(wire.report).toEqual([]);
+    // the same file with an empty protocol text: no wire, so no co-op group from the wire rule
+    expect(affectedSuites(run('src/player/moveState.ts', ''), SHA('1')).suites).not.toContain('e2e-ctcourse');
+    const prog = affectedSuites(run('src/progression/x.ts', protocol), SHA('1'));
+    expect(prog.suites).toEqual(['e2e-park', 'smoke']);
+    expect(prog.report).toEqual(['e2e-progression']);
+    expect(affectedSuites(run('src/progression/x.ts', () => { throw new Error('no protocol.ts'); }), SHA('1'))).toBeNull();
+  });
+  it('affectedRequest writes report only when non-empty; dupKey counts it only when present', () => {
+    const base = { now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-park'], suffix: 'beef' };
+    const plain = affectedRequest(base);
+    expect('report' in plain).toBe(false);
+    expect('report' in affectedRequest({ ...base, report: [] })).toBe(false);
+    const rep = affectedRequest({ ...base, report: ['e2e-progression'] });
+    expect(rep.report).toEqual(['e2e-progression']);
+    expect(requestProblem(rep)).toBe('');
+    expect(dupKey(rep)).not.toBe(dupKey(plain));
+    // a request without report keeps the key it had before J20 (state.done stays comparable)
+    expect(dupKey(plain)).toBe(JSON.stringify([SHA('a'), 'pr', false, ['e2e-park', 'smoke'], [], 'affected', '', '12']));
+    expect(dupKey({ ...rep, report: ['b', 'a'] })).toBe(dupKey({ ...rep, report: ['a', 'b'] }));
+  });
+  it('markReport: an old affected request gets LEGACY / GPU / AUDIO rows as report; its report list counts; a lead is left alone', () => {
+    const rows = [{ s: 'smoke', ok: true, flaky: false, report: false, sec: 5 }, { s: 'e2e-security', ok: false, flaky: false, report: false, sec: 40 }, { s: 'e2e-foley', ok: false, flaky: false, report: false, sec: 9 }];
+    const old = { requester: AFFECTED_REQUESTER, suites: ['smoke', 'e2e-security'] };
+    const got = markReport(old, rows);
+    expect(got.map((x: { s: string; ok: boolean; report: boolean }) => [x.s, x.ok, x.report])).toEqual([['smoke', true, false], ['e2e-security', true, true], ['e2e-foley', true, true]]);
+    expect(rows[1]?.ok).toBe(false); // pure
+    const lead = { requester: 'Night Shift | Player Build', suites: ['e2e-security'] };
+    expect(markReport(lead, rows)).toEqual(rows);
+    // a request's own report list marks its rows (a part counts by its whole suite)
+    expect(markReport({ requester: 'lead', report: ['e2e-wall'] }, [{ s: 'e2e-wall:2', ok: false, flaky: false, report: false, sec: 3 }])[0]).toMatchObject({ ok: true, report: true });
+    // a failed gate row of an affected request stays failed
+    expect(markReport(old, [{ s: 'e2e-coop', ok: false, flaky: false, report: false, sec: 3 }])[0]).toMatchObject({ ok: false, report: false });
+  });
+  it('laptopRerunRequest: an affected rerun drops LEGACY / GPU / AUDIO, null when none is left; a lead keeps its suites', () => {
+    const aff = { id: idAt(5, 'a'), requester: AFFECTED_REQUESTER, sha: SHA('c'), branch: 'feature/x', pr: 3, set: 'affected', suites: ['smoke'] };
+    expect(laptopRerunRequest(aff, ['e2e-camera-bounds', 'e2e-coop'], { now: NOW, suffix: 'beef' }).suites).toEqual(['e2e-coop']);
+    expect(laptopRerunRequest(aff, ['e2e-darkness'], { now: NOW, suffix: 'beef' })).toBeNull();
+    expect(laptopRerunRequest(aff, ['e2e-foley'], { now: NOW, suffix: 'beef' })).toBeNull();
+    const lead = { ...aff, requester: 'Night Shift | Marlow Build', set: 'j1' };
+    expect(laptopRerunRequest(lead, ['e2e-kestrel'], { now: NOW, suffix: 'beef' }).suites).toEqual(['e2e-kestrel']);
+  });
+  it('perfStep: adds --budget once, keeps --budget and --no-budget, ignores other steps', () => {
+    expect(perfStep('node scripts/perf.mjs --json')).toBe('node scripts/perf.mjs --json --budget');
+    expect(perfStep(perfStep('node scripts/perf.mjs'))).toBe('node scripts/perf.mjs --budget');
+    expect(perfStep('MAP=campusOps node scripts/perf.mjs --budget --preset=epic')).toBe('MAP=campusOps node scripts/perf.mjs --budget --preset=epic');
+    expect(perfStep('node scripts/perf.mjs --no-budget')).toBe('node scripts/perf.mjs --no-budget');
+    expect(perfStep('node scripts/run-e2e.mjs e2e-move')).toBe('node scripts/run-e2e.mjs e2e-move');
+    expect(perfStep('node scripts/perf-report.mjs')).toBe('node scripts/perf-report.mjs');
+  });
+});
+
+describe('train parity (J20 S7, Q27)', () => {
+  it('trainParity: no file -> base; off -> none; suites [] -> none; suites [x] -> [x]; bad JSON -> base; env off wins', () => {
+    expect(TRAIN_PARITY).toEqual(['e2e-darkness']);
+    expect(trainParity('')).toEqual({ suites: ['e2e-darkness'], off: false, why: '' });
+    expect(trainParity(undefined, undefined)).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    const off = trainParity('{ "off": true, "why": "red on master", "by": "Night Shift | Test Runner" }');
+    expect(off).toMatchObject({ suites: [], off: true });
+    expect(off.why).toContain('red on master');
+    expect(trainParity('{"suites":[]}')).toMatchObject({ suites: [], off: true });
+    expect(trainParity('{"suites":["x"]}')).toEqual({ suites: ['x'], off: false, why: '' });
+    expect(trainParity('{not json')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{"suites":"x"}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{"off":false}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
+    expect(trainParity('{"suites":["x"]}', 'off')).toMatchObject({ suites: [], off: true, why: 'LQ_TRAIN_PARITY=off' });
+    expect(trainParity('', 'OFF')).toMatchObject({ suites: [], off: true });
+    expect(trainParity('', '', ['a'])).toMatchObject({ suites: ['a'] });
+  });
+  it('trainList: appends once, keeps order, no duplicate, empty = unchanged', () => {
+    expect(trainList(['smoke', 'e2e-move'], ['e2e-darkness'])).toEqual(['smoke', 'e2e-move', 'e2e-darkness']);
+    expect(trainList(['smoke', 'e2e-darkness', 'e2e-move'], ['e2e-darkness'])).toEqual(['smoke', 'e2e-darkness', 'e2e-move']);
+    expect(trainList(['smoke'], ['a', 'b', 'a'])).toEqual(['smoke', 'a', 'b']);
+    expect(trainList(['smoke'], [])).toEqual(['smoke']);
+    const list = ['smoke'];
+    trainList(list, ['x']);
+    expect(list).toEqual(['smoke']);
+  });
+  it('trainBins (train run and dry-run plan): bins include e2e-darkness, LQ_TRAIN_PARITY=off drops it', () => {
+    const list = ['smoke', 'e2e-move', 'e2e-coop'];
+    const times = { smoke: 30, 'e2e-move': 60, 'e2e-coop': 90, 'e2e-darkness': 42 };
+    const on = trainBins(list, trainParity(''), times, 2).flatMap((b: { suites: string[] }) => b.suites);
+    expect(on).toContain('e2e-darkness');
+    expect(on).toHaveLength(4);
+    const off = trainBins(list, trainParity('', 'off'), times, 2).flatMap((b: { suites: string[] }) => b.suites);
+    expect(off).not.toContain('e2e-darkness');
+    expect(off.sort()).toEqual([...list].sort());
+  });
+  it('parityLine: the log line names the suites or why it is off', () => {
+    expect(parityLine(trainParity(''))).toBe('train parity: e2e-darkness');
+    expect(parityLine(trainParity('', 'off'))).toBe('train parity: off (LQ_TRAIN_PARITY=off)');
+  });
+});
+
 describe('spare work when the laptop is idle', () => {
   const sha = 'b'.repeat(40);
   const jobs = [{ set: 'spare-full', kind: 'full' }, { set: 'spare-soak', kind: 'alone', steps: ['x --out=C:/s/spare-<sha8>-<n>'] }, { set: 'spare-pr', kind: 'pr', suites: ['e2e-coop'] }];
@@ -1432,111 +1538,5 @@ describe('affected-e2e never stuck pending (Orchestrator audit 2026-10-25)', () 
     const two = vanishedRequests(tracked, new Set([b.id]), one.misses);
     expect(two.gone).toEqual([a]);
     expect(two.misses.size).toBe(0);
-  });
-});
-
-describe('J20 affected report and wire', () => {
-  const SHA = (c: string) => c.repeat(40);
-  const run = (files: string, protocol: string | (() => string)) => (args: string[]) => {
-    if (args[0] === 'merge-base') return 'b'.repeat(40);
-    if (args[0] === 'diff') return files;
-    return typeof protocol === 'function' ? protocol() : protocol;
-  };
-  it('affectedSuites: the wire rule reads protocol.ts at the sha; LEGACY / AUDIO go to report; a failed show is null', async () => {
-    const fs = await import('node:fs');
-    const protocol = fs.readFileSync('src/net/protocol.ts', 'utf8');
-    const wire = affectedSuites(run('src/player/moveState.ts', protocol), SHA('1'));
-    for (const s of ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse']) expect(wire.suites).toContain(s);
-    expect(wire.report).toEqual([]);
-    // the same file with an empty protocol text: no wire, so no co-op group from the wire rule
-    expect(affectedSuites(run('src/player/moveState.ts', ''), SHA('1')).suites).not.toContain('e2e-ctcourse');
-    const prog = affectedSuites(run('src/progression/x.ts', protocol), SHA('1'));
-    expect(prog.suites).toEqual(['e2e-park', 'smoke']);
-    expect(prog.report).toEqual(['e2e-progression']);
-    expect(affectedSuites(run('src/progression/x.ts', () => { throw new Error('no protocol.ts'); }), SHA('1'))).toBeNull();
-  });
-  it('affectedRequest writes report only when non-empty; dupKey counts it only when present', () => {
-    const base = { now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-park'], suffix: 'beef' };
-    const plain = affectedRequest(base);
-    expect('report' in plain).toBe(false);
-    expect('report' in affectedRequest({ ...base, report: [] })).toBe(false);
-    const rep = affectedRequest({ ...base, report: ['e2e-progression'] });
-    expect(rep.report).toEqual(['e2e-progression']);
-    expect(requestProblem(rep)).toBe('');
-    expect(dupKey(rep)).not.toBe(dupKey(plain));
-    // a request without report keeps the key it had before J20 (state.done stays comparable)
-    expect(dupKey(plain)).toBe(JSON.stringify([SHA('a'), 'pr', false, ['e2e-park', 'smoke'], [], 'affected', '', '12']));
-    expect(dupKey({ ...rep, report: ['b', 'a'] })).toBe(dupKey({ ...rep, report: ['a', 'b'] }));
-  });
-  it('markReport: an old affected request gets LEGACY / GPU / AUDIO rows as report; its report list counts; a lead is left alone', () => {
-    const rows = [{ s: 'smoke', ok: true, flaky: false, report: false, sec: 5 }, { s: 'e2e-security', ok: false, flaky: false, report: false, sec: 40 }, { s: 'e2e-foley', ok: false, flaky: false, report: false, sec: 9 }];
-    const old = { requester: AFFECTED_REQUESTER, suites: ['smoke', 'e2e-security'] };
-    const got = markReport(old, rows);
-    expect(got.map((x: { s: string; ok: boolean; report: boolean }) => [x.s, x.ok, x.report])).toEqual([['smoke', true, false], ['e2e-security', true, true], ['e2e-foley', true, true]]);
-    expect(rows[1]?.ok).toBe(false); // pure
-    const lead = { requester: 'Night Shift | Player Build', suites: ['e2e-security'] };
-    expect(markReport(lead, rows)).toEqual(rows);
-    // a request's own report list marks its rows (a part counts by its whole suite)
-    expect(markReport({ requester: 'lead', report: ['e2e-wall'] }, [{ s: 'e2e-wall:2', ok: false, flaky: false, report: false, sec: 3 }])[0]).toMatchObject({ ok: true, report: true });
-    // a failed gate row of an affected request stays failed
-    expect(markReport(old, [{ s: 'e2e-coop', ok: false, flaky: false, report: false, sec: 3 }])[0]).toMatchObject({ ok: false, report: false });
-  });
-  it('laptopRerunRequest: an affected rerun drops LEGACY / GPU / AUDIO, null when none is left; a lead keeps its suites', () => {
-    const aff = { id: idAt(5, 'a'), requester: AFFECTED_REQUESTER, sha: SHA('c'), branch: 'feature/x', pr: 3, set: 'affected', suites: ['smoke'] };
-    expect(laptopRerunRequest(aff, ['e2e-camera-bounds', 'e2e-coop'], { now: NOW, suffix: 'beef' }).suites).toEqual(['e2e-coop']);
-    expect(laptopRerunRequest(aff, ['e2e-darkness'], { now: NOW, suffix: 'beef' })).toBeNull();
-    expect(laptopRerunRequest(aff, ['e2e-foley'], { now: NOW, suffix: 'beef' })).toBeNull();
-    const lead = { ...aff, requester: 'Night Shift | Marlow Build', set: 'j1' };
-    expect(laptopRerunRequest(lead, ['e2e-kestrel'], { now: NOW, suffix: 'beef' }).suites).toEqual(['e2e-kestrel']);
-  });
-  it('perfStep: adds --budget once, keeps --budget and --no-budget, ignores other steps', () => {
-    expect(perfStep('node scripts/perf.mjs --json')).toBe('node scripts/perf.mjs --json --budget');
-    expect(perfStep(perfStep('node scripts/perf.mjs'))).toBe('node scripts/perf.mjs --budget');
-    expect(perfStep('MAP=campusOps node scripts/perf.mjs --budget --preset=epic')).toBe('MAP=campusOps node scripts/perf.mjs --budget --preset=epic');
-    expect(perfStep('node scripts/perf.mjs --no-budget')).toBe('node scripts/perf.mjs --no-budget');
-    expect(perfStep('node scripts/run-e2e.mjs e2e-move')).toBe('node scripts/run-e2e.mjs e2e-move');
-    expect(perfStep('node scripts/perf-report.mjs')).toBe('node scripts/perf-report.mjs');
-  });
-});
-
-describe('train parity (J20 S7, Q27)', () => {
-  it('trainParity: no file -> base; off -> none; suites [] -> none; suites [x] -> [x]; bad JSON -> base; env off wins', () => {
-    expect(TRAIN_PARITY).toEqual(['e2e-darkness']);
-    expect(trainParity('')).toEqual({ suites: ['e2e-darkness'], off: false, why: '' });
-    expect(trainParity(undefined, undefined)).toMatchObject({ suites: ['e2e-darkness'], off: false });
-    const off = trainParity('{ "off": true, "why": "red on master", "by": "Night Shift | Test Runner" }');
-    expect(off).toMatchObject({ suites: [], off: true });
-    expect(off.why).toContain('red on master');
-    expect(trainParity('{"suites":[]}')).toMatchObject({ suites: [], off: true });
-    expect(trainParity('{"suites":["x"]}')).toEqual({ suites: ['x'], off: false, why: '' });
-    expect(trainParity('{not json')).toMatchObject({ suites: ['e2e-darkness'], off: false });
-    expect(trainParity('{"suites":"x"}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
-    expect(trainParity('{"off":false}')).toMatchObject({ suites: ['e2e-darkness'], off: false });
-    expect(trainParity('{"suites":["x"]}', 'off')).toMatchObject({ suites: [], off: true, why: 'LQ_TRAIN_PARITY=off' });
-    expect(trainParity('', 'OFF')).toMatchObject({ suites: [], off: true });
-    expect(trainParity('', '', ['a'])).toMatchObject({ suites: ['a'] });
-  });
-  it('trainList: appends once, keeps order, no duplicate, empty = unchanged', () => {
-    expect(trainList(['smoke', 'e2e-move'], ['e2e-darkness'])).toEqual(['smoke', 'e2e-move', 'e2e-darkness']);
-    expect(trainList(['smoke', 'e2e-darkness', 'e2e-move'], ['e2e-darkness'])).toEqual(['smoke', 'e2e-darkness', 'e2e-move']);
-    expect(trainList(['smoke'], ['a', 'b', 'a'])).toEqual(['smoke', 'a', 'b']);
-    expect(trainList(['smoke'], [])).toEqual(['smoke']);
-    const list = ['smoke'];
-    trainList(list, ['x']);
-    expect(list).toEqual(['smoke']);
-  });
-  it('trainBins (train run and dry-run plan): bins include e2e-darkness, LQ_TRAIN_PARITY=off drops it', () => {
-    const list = ['smoke', 'e2e-move', 'e2e-coop'];
-    const times = { smoke: 30, 'e2e-move': 60, 'e2e-coop': 90, 'e2e-darkness': 42 };
-    const on = trainBins(list, trainParity(''), times, 2).flatMap((b: { suites: string[] }) => b.suites);
-    expect(on).toContain('e2e-darkness');
-    expect(on).toHaveLength(4);
-    const off = trainBins(list, trainParity('', 'off'), times, 2).flatMap((b: { suites: string[] }) => b.suites);
-    expect(off).not.toContain('e2e-darkness');
-    expect(off.sort()).toEqual([...list].sort());
-  });
-  it('parityLine: the log line names the suites or why it is off', () => {
-    expect(parityLine(trainParity(''))).toBe('train parity: e2e-darkness');
-    expect(parityLine(trainParity('', 'off'))).toBe('train parity: off (LQ_TRAIN_PARITY=off)');
   });
 });

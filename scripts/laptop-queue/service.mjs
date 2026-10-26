@@ -101,8 +101,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
-import { REPEAT_DAYS, markReport, perfStep, parityLine, trainBins, trainParity } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
+// J20 (test-runner-j20 PR-B): own line, so the queue branches' edits to the lib import above merge cleanly
+import { REPEAT_DAYS, markReport, perfStep, parityLine, trainBins, trainParity } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -173,10 +174,10 @@ const state = readJson('state.json', {});
 state.done ??= {};
 state.trains ??= {};
 state.flakes ??= [];
-state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
-state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
 state.knownFlaky ??= []; // { suite, sha, date } of each KNOWN FLAKY failure in the budget window (flake-budget.md, T10)
 state.blocking ??= {}; // { suite: { since, owner, last, reason, alerted } }: over budget again within REPEAT_DAYS (Q30)
+state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
+state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
@@ -475,7 +476,8 @@ function affectedPass() {
         affectedSeen.add(n.sha);
         continue;
       }
-      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, report: got.report, suffix: randomBytes(2).toString('hex') });
+      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, suffix: randomBytes(2).toString('hex') });
+      if (got.report.length) r.report = [...got.report]; // (J20 T4) the LEGACY / AUDIO suites it reached, REPORT ONLY (lib affectedRequest report)
       if (DRY) { log(`dry-run: ${tag}: would enqueue ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}${got.report.length ? ` (report only: ${got.report.join(' ')})` : ''}`); continue; }
       if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify(r, null, 2)}\n`, `request ${r.id}`)) { log(`${tag}: request push failed, retried next affected pass`); continue; }
       affectedSeen.add(n.sha);
@@ -901,9 +903,9 @@ function pushFixJob(suite, entry) {
  */
 function updateBudget(result, sha = '') {
   const now = Date.now();
-  const inWindow = (x) => now - Date.parse(x.date) < FLAKE_BUDGET_DAYS * 86400_000;
   state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report).map((x) => x.s), now);
-  state.flakes = state.flakes.filter(inWindow);
+  state.flakes = state.flakes.filter((f) => now - Date.parse(f.date) < FLAKE_BUDGET_DAYS * 86400_000);
+  const inWindow = (x) => now - Date.parse(x.date) < FLAKE_BUDGET_DAYS * 86400_000;
   for (const x of result.suites) if (!x.ok && x.flaky) state.knownFlaky.push({ suite: x.s, sha, date: new Date(now).toISOString() });
   state.knownFlaky = state.knownFlaky.filter(inWindow);
   for (const [s, b] of Object.entries(state.blocking)) if (!(now - Date.parse(b?.since) < REPEAT_DAYS * 86400_000)) delete state.blocking[s];
