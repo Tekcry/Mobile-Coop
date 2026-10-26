@@ -47,6 +47,18 @@ export function isPart2Kit(k: string): k is Part2KitKind {
   return PART2_KIT_SET.has(k);
 }
 
+/** (coop-kit K0) A kit move is switched on on this page: a part 2 move by its own `kitMoves` id, the pull-up and the
+ *  shutter by `flags.coopKit` (as before). No allocation. */
+export function kitIdOn(kind: KitKind): boolean {
+  return isPart2Kit(kind) ? flags.kitMoves.has(kind) : flags.coopKit;
+}
+
+/** (coop-kit K0) Any part 2 kit id on (the kit offers run for it without `flags.coopKit`). No allocation. */
+export function anyPart2KitOn(): boolean {
+  for (let i = 0; i < PART2_KIT_KINDS.length; i++) if (flags.kitMoves.has(PART2_KIT_KINDS[i]!)) return true;
+  return false;
+}
+
 /** (mission KIT0) The kit moves' sub bits on the `brace` / `boost` wire modes (after THROW 1, HANG 2, ROPE 4). */
 export const PULL_SUB = 8;
 export const SHUTTER_SUB = 16;
@@ -136,7 +148,8 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   if (r.a.id === r.b.id) return 'notMates';
   if (isKitKind(r.kind)) {
     // (mission KIT0) a kit move's own rule (its file, via the registry), before the ground check: the pull-up's
-    // partner asks in the air
+    // partner asks in the air. (coop-kit K0) A part 2 move whose id the host has off is not offered (the per-id gate).
+    if (isPart2Kit(r.kind) && !flags.kitMoves.has(r.kind)) return 'notOffering';
     const check = KIT_CHECKS[r.kind];
     return check ? check(r) : 'notOffering';
   }

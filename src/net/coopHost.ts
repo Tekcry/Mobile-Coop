@@ -37,8 +37,9 @@ import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
-import { checkTeamRequest, isKitKind, type TeamMoveKind, type TeamSide } from '../game/teamMoves';
+import { checkTeamRequest, isKitKind, type KitKind, type TeamMoveKind, type TeamSide } from '../game/teamMoves';
 import { kitMove } from '../game/kit/registry';
+import { kitDone } from '../game/kit/kitApi';
 import { kitEnd, kitPairOver, newKitPair, pullLag, sameAttempt, type KitPair } from './kitNet';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
@@ -1199,7 +1200,12 @@ export class CoopHost implements NetAttachment {
       // when the move is paired, started at once (not the boost / relay path)
       const m = kitMove(kind);
       const land = m?.claimsPoint && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
-      const why = checkTeamRequest({ kind, a, b, target: -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
+      // (coop-kit K0) the request's `target` is a spot index into the host's kit devices (-1 none; an index out of range
+      // or naming another kind's device is none): the rule gets the device as `spot`, the start carries the index and
+      // the request's `s` (its phase, e.g. a plank lay 2)
+      const at = this.kitSpotAt(kind, target);
+      const spot = at >= 0 ? this.g.team.devices.list[at] : undefined;
+      const why = checkTeamRequest({ kind, a, b, target: at, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land, spot });
       this.teamLast.set(by, now);
       if (why) return deny(why);
       // (NET2) a new move ends both players' earlier pairs (a pull-up's kept pair, a lingering shutter)
@@ -1208,11 +1214,11 @@ export class CoopHost implements NetAttachment {
       if (m?.paired) {
         this.teamPairs.set(by, partner);
         this.teamPairs.set(partner, by);
-        const kp = newKitPair(kind, by, partner, now);
+        const kp = newKitPair(kind, by, partner, now, spot?.id ?? '');
         this.kitPairs.set(by, kp);
         this.kitPairs.set(partner, kp);
       }
-      const start = land ? { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] } : { kind, a: by, b: partner, target: -1, s: 0, t0: now };
+      const start = land ? { kind, a: by, b: partner, target: at, s: ss, t0: now, l: [land.x, land.y, land.z] as [number, number, number] } : { kind, a: by, b: partner, target: at, s: ss, t0: now };
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);
       this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -1261,6 +1267,16 @@ export class CoopHost implements NetAttachment {
     if (kitPairOver(p, v)) this.unpair(p.a, p.b);
     this.s.send({ t: 'tend', a: p.a, b: p.b, k: v });
     if (p.a === self || p.b === self) this.g.team.ended(v);
+    // (coop-kit K0) the move's success end (its `doneBy` side's 'pull', the pull-up's catch): the mode is told once
+    if (v === 'pull') kitDone(this.g, p.kind, p.spot, p.a === self ? undefined : p.a, p.b === self ? undefined : p.b);
+  }
+
+  /** (coop-kit K0) A kit request's spot index `target` checked against the host's kit devices: the index when it names a
+   *  device of `kind`, else -1 (none). */
+  private kitSpotAt(kind: KitKind, target: number): number {
+    if (target < 0) return -1;
+    const list = this.g.team.devices.list;
+    return target < list.length && list[target]!.kind === kind ? target : -1;
   }
 
   /** (mission NET) A kit pair past its time (a pull-up's haul is over): gone without a word. */
