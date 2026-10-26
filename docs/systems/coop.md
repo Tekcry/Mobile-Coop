@@ -68,6 +68,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   start, routing. A new host room starts on Infiltration with the first listed mission (Hunter with `?legacy=1`).
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
+- Campaign start: a campaign mission (Sector Ops on a campaign map, or a campaign mission picked) starts only with exactly
+  two players in the room (`campaignStartBlock`, G2, G48). A blocked start leaves the room in `lobby`, with the reason on
+  the Start button and the status line. "Resume hosting" re-arms the start (`startWhenUnblocked`): the match starts on its
+  own once the partner rejoins.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
   pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and

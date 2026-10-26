@@ -22,8 +22,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
-- Decided, not built yet: mission objectives live in the menu, as in CT (G108); the Fallow course keeps its always-on
-  list (below). The HUD layout follows CT (G77).
+- Mission objectives live in the field menu, as in CT (G108); the Fallow course keeps its always-on list (below). The HUD
+  layout follows CT (G77).
+- Mission lines (`flags.missions`): the HUD objective line (`hud.setObjective`) shows the current mission step, on the host
+  and on the client. The field menu's Objectives screen (Field Terminal) lists the rules line first, then every step of the
+  sections reached so far, each as done, current or to do. The old always-on mission panel is gone.
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
