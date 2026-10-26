@@ -1,0 +1,13 @@
+{
+  "id": "20261026T235327-affected-e2e-6c5b3b39-896c",
+  "sha": "6c5b3b3961887a36172c181bf782b553f7328ea5",
+  "branch": "feature/context-prompts-p1",
+  "pr": 699,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-move"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #699"
+}
