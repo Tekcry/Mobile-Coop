@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote, quarantineKeys, quarantineForgives } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -1121,6 +1121,62 @@ describe('flake budget and quarantine', () => {
     const md = flakeSummary([{ suite: 'e2e-ctcourse:1', runs: 10, flakes: 3, rate: 0.3, over: true }, { suite: 'smoke', runs: 4, flakes: 1, rate: 0.25, over: false }], q, {}, NOW);
     expect(md).toContain('| e2e-ctcourse:1 | 3 / 10 (30%) | Marlow | until ');
     expect(md).toContain(`| smoke | 1 / 4 (25%) | ${DEFAULT_OWNER} | - |`);
+  });
+});
+
+describe('quarantine keys (laptop-queue-10 S5)', () => {
+  const hour = 3600_000;
+  const t = (h: number) => new Date(NOW + h * hour).toISOString();
+  it('quarantineKeys: unique keys of that exact suite since the last start, first seen first', () => {
+    const flakes = [
+      { suite: 'e2e-pad', key: 'k1', date: t(1) },
+      { suite: 'e2e-pad', key: 'k1', date: t(2) },
+      { suite: 'e2e-pad', key: 'k2', date: t(3) },
+      { suite: 'e2e-pad', key: '', date: t(4) },
+      { suite: 'e2e-pad:1', key: 'kp', date: t(4) },
+      { suite: 'e2e-move', key: 'k3', date: t(2) },
+      { suite: 'e2e-pad', date: t(5) }, // a flake recorded before keys
+    ];
+    expect(quarantineKeys(flakes, 'e2e-pad')).toEqual(['k1', 'k2']);
+    expect(quarantineKeys(flakes, 'e2e-pad', '')).toEqual(['k1', 'k2']);
+    expect(quarantineKeys(flakes, 'e2e-pad', t(3))).toEqual(['k2']);
+    expect(quarantineKeys(flakes, 'e2e-pad:1')).toEqual(['kp']);
+    expect(quarantineKeys(flakes, 'e2e-menus')).toEqual([]);
+    expect(quarantineKeys(undefined, 'e2e-pad')).toEqual([]);
+  });
+  it('quarantineForgives: only its keys; keyless until keylessUntil; no entry never', () => {
+    const q = { suite: 'e2e-pad', owner: 'P', expiry: t(48), reason: 'r' };
+    expect(quarantineForgives({ ...q, keys: ['k1'] }, 'k1', { now: NOW })).toBe(true);
+    expect(quarantineForgives({ ...q, keys: ['k1'] }, 'k9', { now: NOW })).toBe(false);
+    expect(quarantineForgives({ ...q, keys: [] }, 'k9', { now: NOW, keylessUntil: NOW + 1 })).toBe(true);
+    expect(quarantineForgives(q, 'k9', { now: NOW, keylessUntil: NOW + 1 })).toBe(true);
+    expect(quarantineForgives(q, 'k9', { now: NOW, keylessUntil: NOW })).toBe(false);
+    expect(quarantineForgives(q, 'k9', { now: NOW })).toBe(true); // LQ_KEYLESS_QUARANTINE_H=0: until its own expiry
+    expect(quarantineForgives(null, 'k1', { now: NOW })).toBe(false);
+  });
+  it('e2e-pad replay (trains 112-118): the keyless entry forgives for 48 h after first seen; keys of another failure do not forgive', () => {
+    const committed = { suite: 'e2e-pad', owner: 'Night Shift | Player Build', expiry: '2026-11-07T00:00:00Z', reason: 'parked' };
+    const remap = assertKey('Error: expected remap to bind ButtonSouth, got ButtonEast [pad 0: 12 buttons, 4 axes]');
+    const seen = NOW; // state.keylessSeen['e2e-pad'] on the first KNOWN FLAKY failure
+    const keylessUntil = seen + 48 * hour;
+    expect(quarantined([committed], 'e2e-pad', NOW + 47 * hour)).toBe(committed);
+    expect(quarantineForgives(committed, remap, { now: NOW + 47 * hour, keylessUntil })).toBe(true);
+    expect(quarantineForgives(committed, remap, { now: NOW + 49 * hour, keylessUntil })).toBe(false);
+    // an auto entry made from netmove-style timeout flakes does not hide an e2e-pad "expected" assert
+    const flakes = [{ suite: 'e2e-pad', key: assertKey('timed out waiting for B2: peer pose within 0.5 m [host: sim 31.2 s]'), date: t(1) }];
+    const auto = { ...committed, auto: true, keys: quarantineKeys(flakes, 'e2e-pad') };
+    expect(quarantineForgives(auto, assertKey('timed out waiting for B2: peer pose within 0.8 m [host: sim 40.0 s]'), { now: NOW })).toBe(true);
+    expect(quarantineForgives(auto, remap, { now: NOW })).toBe(false);
+    // the counted failure (flaky false after checkQuarantine) is listed under FAIL, not known flaky
+    const row = { s: 'e2e-pad', ok: false, flaky: true, report: false, sec: 30 };
+    expect(describeRun({ suites: [row], wall: 30, flakes: [] })).toBe('0/1 pass, 30 s; known flaky: e2e-pad');
+    expect(describeRun({ suites: [{ ...row, flaky: false }], wall: 30, flakes: [] })).toBe('0/1 pass, 30 s; FAIL: e2e-pad');
+  });
+  it('assertKey ties one assert across runs: other numbers and a bracketed dump give one key', () => {
+    const a = 'Error: expected 3 to be 4 at remap step 2 [pad: 12 buttons, t=31.20 s]';
+    const b = 'Error: expected 5 to be 4 at remap step 7 [pad: 16 buttons, t=2.05 s, extra]';
+    expect(assertKey(a)).toBe(assertKey(b));
+    expect(quarantineKeys([{ suite: 'e2e-pad', key: assertKey(a), date: t(1) }, { suite: 'e2e-pad', key: assertKey(b), date: t(2) }], 'e2e-pad')).toHaveLength(1);
   });
 });
 
