@@ -45,7 +45,7 @@ Owner: Test Runner. Status: current.
   exactly e2e-coop + e2e-netmove + e2e-ctcourse, whatever else the PR touches, when (a) any changed file's DIRECT row
   names all three (`src/net/`, `src/save/` (the shape), `src/save/sectorRecord`, `src/security/data`), or (b) a
   changed file is on the wire: `touchesWire(files, wirePaths(protocolTs))`, protocol.ts as committed at the tested
-  head (today `src/net/` plus the 14 files it imports, e.g. `src/player/moveState.ts`, `src/game/ctDevices.ts`,
+  head (today `src/net/` plus the 14 files beyond it that protocol.ts imports, 15 paths in all, e.g. `src/player/moveState.ts`, `src/game/ctDevices.ts`,
   `src/game/sectors.ts`, `src/weapons/weaponDefs.ts`, `src/core/mathx.ts`). `affectedPick` applies `withWireSuites`
   before the gate, so the uncapped list is run-e2e's list of today, gated. Lib `affectedSuites` reads protocol.ts at the
   sha (`git show <sha>:src/net/protocol.ts`, '' on failure = no wire rule), so the service and request.mjs gain the

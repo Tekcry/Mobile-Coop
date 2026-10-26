@@ -85,13 +85,14 @@ This page lists the suites and how they are picked.
   `stepHeadless`, screenshots).
 
 ## Choosing suites for a change
-- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the
-  bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
+- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
   `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
   laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
-  (what the laptop queue service and leads use to know what a PR must pass). Without `--list` it runs them like `--quick`:
-  `smoke` first, suites outside REQUIRED REPORT ONLY, GPU suites never. Wire rule: a change on the wire (`src/net/` or a file
-  `src/net/protocol.ts` imports, read at HEAD) also adds the co-op group (`withWireSuites`, after the map).
+  (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
+  (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
+  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: at most 3 suites, the closest
+  (RULES "Test tiers"; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
+  uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
   `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite; Saltmarsh Park `src/world/maps/campus*` -> `e2e-sectorops:6`);
@@ -103,7 +104,7 @@ This page lists the suites and how they are picked.
   the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`: a kv key, not the save shape)
   -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
   `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
-  Every LEGACY and GPU suite is reachable from the area that owns it (LEGACY and AUDIO run REPORT ONLY, GPU is dropped outside `--gpu`; an affected request gates on neither, `affectedGateSuites` / `affectedReportSuites`):
+  Every LEGACY and GPU suite is reachable from the area that owns it (an affected pick gates them out at any size and with `--wide`; `--quick` runs LEGACY / AUDIO REPORT ONLY, GPU only `--gpu`):
   `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
   `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies, the Fallow files
   (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
@@ -118,8 +119,7 @@ This page lists the suites and how they are picked.
   (desktop, stealth-ai, security, darkness); `src/net` / `src/save` the quick rows plus the co-op group; `src/game/rating` also
   sectorops and course, `src/save/ratingRecord` also sectorops and menus (the missions screen reads it); the Marlow Yard map and
   set files also `e2e-section-rating` (it rates A2-A8).
-- Selection is pure (`selectSuites(files, map)`, map = `DIRECT_COVERS` by default: paths in, sorted unique suite list out); the runner orders it (REQUIRED first) and
-  drops GPU suites and suites without a script.
+- Selection is pure (`selectSuites(files, map)`, map = `DIRECT_COVERS` by default: paths in, sorted unique suite list out); `affectedPick` gates and caps it.
 
 ## Ports
 Which port is for what, and freeing one: `docs/RULES.md` "Ports" (G94). Script defaults when no port or url is given:
