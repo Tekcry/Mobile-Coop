@@ -56,10 +56,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   (guard-rules S7, A9; Posts below).
 - Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
   like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438; `animShadow`).
-- Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
-  shows them (light parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a
-  faint cue, a small rise in suspicion, never a sighting on its own (G379; planned in FOLDED-PLAN J16). Today guards
-  read only the light field.
+- Decided (G352): guard perception reads the players' real-time character shadows, as the picture shows them (light
+  parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a faint cue, a small rise
+  in suspicion, never a sighting on its own (G379). Built dark behind `charShadowLight` (guard-ai-j16; "Shadow cue"
+  below); with it off guards read only the light field.
 - Decided, built (G380, "Yes, each player"): guards keep a last known position per player (guard-ai S24, "Two
   intruders" below).
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
@@ -92,6 +92,19 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   `Enemy.hear` anywhere in reach. Hunter and Mission (parked) set `coordinated = false`: everyone in reach hears and
   walks over (the exact old wall ray: beyond `MUFFLE` of the reach), gunfire sends everyone in reach to combat, the old
   lights-out rule and paces. `noiseSuspicion` rises with the square of closeness.
+- Shadow cue (guard-ai-j16, G379 "A faint cue"; dark behind `charShadowLight`, owner Sector Ops, on by default on
+  /preview/; host and solo only). The manager gets the character contract (`chars`: players, then guards, dogs and
+  lying bodies from `fillOccluders`, keyed by `Enemy.num` / `Body.num`) and the players' footprints (`cues`,
+  `GameState.shadowCues`, 10 Hz); a co-op client has neither. Guard-side light reads skip their own capsule. On each
+  think `Enemy.shadowLook` (`ai/shadowNotice.ts`, `SHADOW_NOTICE`, pure): a guard not alerted, passive, a dog, lured,
+  on the breaker walk or tasked, at unaware / cooldown / suspicious, who sees nobody above `leak` and whose moment
+  rests on no sight or sound (no hearing or ack look running) takes the nearest footprint point with contrast >= 0.40,
+  footprint speed >= 0.3 m/s, 1-10 m away and within the focus half-angle 27.5 deg; one ray (slack 0.2, in
+  `maxRays` at 3+ players). Clear: `hearTurn`'s reaction with meter floor 0.35 (above suspicious 0.3, below
+  investigate 0.6), the point as stimulus, `hearLook` 2.4 s; no `heard`, report, `lastKnown` or target. A cue-only
+  rise and its calm-down say nothing (`cueRise` / `cueQuiet`: the white arc only). It never escalates: the turn holds
+  the linger rule off and 0.35 drains below 0.15 before the look ends (break point 0.366). Record `cueT`, `cueX`,
+  `cueZ`, `cueSlot`, `cueLook` (debug / e2e). Tests: `shadowNotice`, `shadowNoticePerceive`, `guardShadowGame`.
 - Incident board (guard-ai S2, `ai/incidents.ts`, pure; `EnemyManager.board`, 5 Hz plus an immediate pass on each
   report): one incident per event (`INCIDENT`: pool 16; same kind within 6 m / 10 s of its last report merges; a light
   by its id or circuit; a plain noise under a light that just went out merges into it). Who goes: the guards who
