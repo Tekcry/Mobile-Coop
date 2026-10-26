@@ -62,9 +62,35 @@ export type MoveMode = (typeof MOVE_MODES)[number];
 export const ATTACHED_MODES: readonly MoveMode[] = ['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'];
 export const COMMITTED_MODES: readonly MoveMode[] = ['step', 'vault', 'mantle', 'drop', 'hop', 'roll', 'windowVault', 'landing'];
 
+/**
+ * (coop-kit K0) A remote kit partner's body (`boost` + a part 2 kit sub bit, game/teamMoves `KIT_SUB`; a test keeps the
+ * bits equal): the role A placeholder traverse per move, played at the wire's `ph` ('none' = no traverse: crouched or
+ * walking by its flags). Deadweight 64 (`grateUnder`: the crouched pass), Drop Catch 128 (`dropInto`: the drop), Chimney
+ * Pair 256 (the ladder climb), Swing Pass 512 (`swingRide`: the throw's vault), Plank Bridge 1024 (walking with the
+ * board). Starting choices (prototype); a KA slice's pose file may replace its move's entry at load.
+ */
+export const KIT_A_TRAVERSE: Record<number, TraverseKind> = { 64: 'none', 128: 'drop', 256: 'climb', 512: 'vault', 1024: 'none' };
+/** The part 2 kit bits, in a fixed order (the lowest first). */
+export const KIT_A_BITS: readonly number[] = [64, 128, 256, 512, 1024];
+
 /** (pose-parity, protocol 36) `takedown` `sub` bit: the blow is running (`ph` its phase); clear = a choke or the lethal
  *  approach (the owner's `blowPh` -1: no arc). */
 export const TAKEDOWN_SUB_BLOW = 1;
+/** (piano-knife S3) takedown sub bit: a knife kill (the knife in hand); bits 4-16 its row (KNIFE_KILLS index, 7 =
+ *  KNIFE_ROW_NONE: the switch-on move without a row); ph the move's phase over knifeSpan, s the approach's progress. */
+export const TAKEDOWN_SUB_KNIFE = 2;
+export const KNIFE_ROW_NONE = 7;
+
+/** (piano-knife S3) A knife kill's `takedown` sub: the knife bit and the row (0-6 a `KNIFE_KILLS` index; anything else
+ *  `KNIFE_ROW_NONE`) in bits 4-16. */
+export function knifeSub(row: number): number {
+  return TAKEDOWN_SUB_KNIFE | ((row >= 0 && row < KNIFE_ROW_NONE ? row : KNIFE_ROW_NONE) << 2);
+}
+
+/** (piano-knife S3) The knife row of a `takedown` sub: -1 without the knife bit, else 0-7 (`KNIFE_ROW_NONE`: no row). */
+export function knifeRowOfSub(sub: number): number {
+  return (sub & TAKEDOWN_SUB_KNIFE) === 0 ? -1 : (sub >> 2) & 7;
+}
 
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
 export const isCommittedMode = (m: MoveMode): boolean => COMMITTED_MODES.includes(m);
@@ -461,6 +487,17 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       if (mv.sub & 8) {
         out.traverse = mv.ph > 0 ? 'climbUp' : 'hang';
         out.traverseT = mv.ph;
+        return out;
+      }
+      // (coop-kit K0) a part 2 kit move's partner: its role A placeholder traverse (`KIT_A_TRAVERSE`), never the leg-up's
+      for (let i = 0; i < KIT_A_BITS.length; i++) {
+        const bit = KIT_A_BITS[i]!;
+        if ((mv.sub & bit) === 0) continue;
+        const tr = KIT_A_TRAVERSE[bit] ?? 'none';
+        if (tr !== 'none') {
+          out.traverse = tr;
+          out.traverseT = mv.ph;
+        }
         return out;
       }
       // (B4) sub bit 1 = thrown over the partner: the vault pose along the arc

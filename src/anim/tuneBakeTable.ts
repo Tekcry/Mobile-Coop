@@ -354,7 +354,8 @@ manuals.push(manual('joint', 'mirror', 'a panel option (the mirror lock), nothin
  * generic table (`sections.<team_move | trav>.<group>.<id>`), which the local rig reads as today; the remote partner
  * reading them is a later job (the role on the wire).
  */
-export const TEAM_MOVE_IDS = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'] as const;
+// (coop-kit K0) + the part 2 kit moves' sections (moveTune `KIT_TUNE_MOVES`, registered after `trav`)
+export const TEAM_MOVE_IDS = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive', 'deadweight', 'dropCatch', 'chimneyPair', 'swingPass', 'plankBridge'] as const;
 export const TRAV_KIND_IDS = ['vault', 'mantle', 'step', 'climbUp', 'windowVault', 'rappel', 'drop', 'hop', 'roll', 'wallKick', 'split'] as const;
 
 // ------------------------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
+import type { CharacterRig } from '../player/characterRig';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Body, deathLieOn } from '../ai/body';
 import { newLie } from '../ai/bodyLie';
@@ -76,6 +77,16 @@ const SEND_HZ = 20;
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
 /**
+ * (piano-knife S3) Our takedown's message for the host: `kind` `'knife'` on every phase while our knife switch is on
+ * (the host seizes a guard in the piano scene only for a knife start), else the course kind on `done` only (today's);
+ * no `kind` field when it is empty (the switch off: byte-for-byte today's messages).
+ */
+export function tdOut(target: string, ph: 'start' | 'done' | 'abort', lethal: boolean, knife: boolean, courseKind: string): Extract<Msg, { t: 'td' }> {
+  const kind = knife ? 'knife' : ph === 'done' ? courseKind : '';
+  return kind ? { t: 'td', target, ph, lethal, kind } : { t: 'td', target, ph, lethal };
+}
+
+/**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
  * and health come from host snapshots. Own hits are resolved against local puppets (course: the partner's hit volumes)
  * for instant feedback and sent to the host for the real outcome; objectives, doors and revives are used through
@@ -91,6 +102,14 @@ export class CoopClient implements NetAttachment {
   private readonly mateOrder: RemoteAvatar[] = [];
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
   private heldPuppet: EnemyPuppet | null = null;
+  /** (piano-knife S3) The puppet the partner's knife kill holds (posed from its MoveState, `RemoteKnife`). */
+  private knifePuppet: EnemyPuppet | null = null;
+  /** (piano-knife S3) A partner's knife victim's drawn rig: the puppet, alive and not in our own takedown (one bound
+   *  method, no closure per call). */
+  private readonly knifeRigOf = (tid: string): CharacterRig | null => {
+    const p = this.puppets.get(tid);
+    return p && p.alive && !p.taken ? p.bodyRig : null;
+  };
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PartnerTarget>();
@@ -450,6 +469,7 @@ export class CoopClient implements NetAttachment {
       if (!info) return null;
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
+      a.victimRigOf = this.knifeRigOf;
       a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
       setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
@@ -557,7 +577,8 @@ export class CoopClient implements NetAttachment {
         // he still has intel is the host's `in` flag (stealth-pays client intel, below)
         np.spawnInfo = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
-        np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
+        // (piano-knife S3) with our knife switch on every phase says `knife` (the host's gate in the piano scene)
+        np.onTakedown = (ph, lethal) => this.s.toHost(tdOut(np.id, ph, lethal, g.takedown.knife, this.tdKind));
         this.puppets.set(e.id, np);
         p = np;
       }
@@ -1295,6 +1316,19 @@ export class CoopClient implements NetAttachment {
     }
     if (this.heldPuppet && this.heldPuppet !== held) this.heldPuppet.remoteHeld(-1, 0);
     this.heldPuppet = held;
+    // (piano-knife S3) the partner's knife kill: its guard's root, clip and hands off the partner as drawn here (one
+    // partner: the first); a puppet it no longer holds is let go
+    let kp: EnemyPuppet | null = null;
+    for (const a of this.avatars.values()) {
+      if (!a.knife.posesVictim) continue;
+      const p = this.puppets.get(a.knife.tid);
+      if (!p || !p.alive || p.taken) continue;
+      a.knife.victim(a.rig, p.bodyRig, p);
+      kp = p;
+      break;
+    }
+    if (this.knifePuppet && this.knifePuppet !== kp && this.knifePuppet.alive && !this.knifePuppet.taken) this.knifePuppet.knifeVictim(null, 0, 0);
+    this.knifePuppet = kp;
     for (const tg of this.targets.values()) tg.sync();
     for (let i = 0; i < this.blockers.length; i++) {
       const e = this.blockers[i]!;
@@ -1515,6 +1549,7 @@ export class CoopClient implements NetAttachment {
     this.torches.clear();
     this.helmetDrops?.clear();
     this.puppets.clear();
+    this.knifePuppet = null;
     this.puppetList = [];
     this.dying.length = 0;
     this.kept.clear();

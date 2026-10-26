@@ -44,6 +44,9 @@ import { bodyFromMoveState, PLAYER_OPERATOR_HEIGHT, wireKneel, type PlayerBodyIn
 import type { MoveState } from '../player/moveState';
 import { RemoteShots } from './remoteShots';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
+import { RemoteKnife } from './remoteKnife'; // (piano-knife S3)
+import { KnifeModel } from '../weapons/knifeModel';
+import { WREN_HANDS } from '../operators/handFrame';
 
 /** Rope slots per remote (`Ropes` keys). */
 let ropeKeys = 0;
@@ -70,6 +73,12 @@ export class RemoteAvatar {
   holdTid = '';
   holdPh = 0;
   holdSub = 0;
+  /** (piano-knife S3) The partner's knife kill posed from its MoveState, the knife in its hand (built on first use), and
+   *  the guard's drawn rig by id (set once by the owner: the client's puppet, the host's enemy; null: none). */
+  readonly knife = new RemoteKnife();
+  private knifeModel: KnifeModel | null = null;
+  private knifeOn = false;
+  victimRigOf: ((tid: string) => CharacterRig | null) | null = null;
   private cqBend = 0;
   private cqDrop = 0;
   /** (coop-carry) A body on this partner's shoulder (`CarryView`): its weight 0..1 (the carry bend and lean), the
@@ -822,6 +831,20 @@ export class RemoteAvatar {
       carryBody: this.carryLoad > 0,
       carrySide: this.carrySide * this.carryLoad,
     };
+    // (piano-knife S3) a knife kill: the knife in hand (the gun hand hold steps aside: `holdingKnife`; the weapon is
+    // holstered from the owner's `dw`), her clip and hands on the guard as drawn here (`RemoteKnife`)
+    const kOn = !!mv && !rp && !this.dead && this.knife.read(mv, s.from.mv ?? null, s.to.mv ?? null, s.k);
+    if (kOn) {
+      let km = this.knifeModel;
+      if (!km) km = this.knifeModel = new KnifeModel(this.world.scene, this.rig, WREN_HANDS.R, (m) => this.world.addShadowCaster(m));
+      if (!km.visible) km.show(true);
+      this.knifeOn = true;
+      this.knife.attacker(this.rig, this.victimRigOf ? this.victimRigOf(this.knife.tid) : null, km);
+    } else if (this.knifeOn) {
+      this.knifeOn = false;
+      this.knife.off(this.rig);
+      this.knifeModel?.show(false);
+    }
     // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
     teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
     this.teamPose.begin(dt, this.teamIn, rpose, this.rig);
@@ -906,6 +929,8 @@ export class RemoteAvatar {
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();
+    this.knifeModel?.dispose();
+    this.knifeModel = null;
     this.figure.dispose();
     this.rig.dispose();
   }
