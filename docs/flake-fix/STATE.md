@@ -12,7 +12,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   the task's Arguments, restart the service between trains. Campaign withdrew its walk-build
   request (c5f8b694) to re-file at the S4 PR; the re-file is fronted by branch. Trains 139-142 green.
 - walkfix3 logs (PR #610) pushed to origin/laptop-queue logs/marlow-walkfix3/ for Marlow's triage.
-- Next: watch trains; triage any train failure (Opus) and tell the Orchestrator; undo the piano front after the walk.
+- #604 / #605 netmove laptop reruns starved ~2 h (laptop reruns outside the fix / green tiers, older-place front work
+  ahead): hand fix = place 20261026T080000-... on both request files (laptop-queue e7a83aa04). Real fix F52: PR #638
+  (feature/laptop-queue-16, head 4b1d9932, label fix, Job-done), Opus checker PASS posted; Orchestrator told.
+- Next: watch trains and #638; triage any train failure (Opus) and tell the Orchestrator; undo the piano front after
+  the walk.
 
 **Test Runner SAVE 71 (2026-10-26 ~21:45, new session [d96552] at boot; wins over SAVE 70):**
 - Service healthy; trains 134 and 135 (4.119.0) released. #552, #587, #597 MERGED (F50 / F51 shipped, Orchestrator watching).
