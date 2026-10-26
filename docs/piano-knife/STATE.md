@@ -7,7 +7,7 @@ Owner: Night Shift | Player Build. Status: current.
   the `pianoEscape` flag and the scene switch in `src/game/pianoScene.ts`.
 - Branch `feature/piano-knife` in `C:/NightShift/Mobile-Coop-piano-knife`, base master 1b58989ed.
 - Docs: `BRIEF.md` (Michael's words, picks, A1-A15), `PLAN.md` (today with file:line, design, claims, slices, PB map,
-  Campaign answered), `S1-BRIEF.md` (the next slice, full), `CLIP-LIST.md` (6 Mixamo downloads; 2 in, 4 coming),
+  Campaign answered), `S1-BRIEF.md` (the next slice, full), `S4a-BRIEF.md` (empty pistol slide, Sonnet), `CLIP-LIST.md` (6 Mixamo downloads; 2 in, 4 coming),
   this file.
 - Phase: plan fix round 1 applied (plan check FIX, 8 items + polish; Campaign answers; paired kill). No code.
 - Slices: S1 paired knife kill core on stand-ins (Opus ~1200, two Opus checkers) | S3 co-op (Opus
@@ -38,3 +38,5 @@ Next: the orchestrator passes the fix round to the plan checker (or signs off); 
   knife and night vision only; 12-16 guards sweeping in PAIRS, paired knife kills on the sweeping pairs (S3 double kill
   matters more); gantries / ladders may add a rail-side kill or a crouched kill behind grain sacks: approach list
   follows Michael's approval of Campaign's new page.
+- 2026-10-26: S4a-BRIEF (Opus planner): separate `pistolSd-slide` mesh, `WeaponModel.slideLock(on)`, one Blender run
+  under `heavy.lock`; claims add `wlib.py`, `pistolSd.json`, `tests/pistolSlide.test.ts` (lead updates PLAN 3).
