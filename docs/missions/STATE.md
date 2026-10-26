@@ -15,7 +15,7 @@ Michael 16:20: no tuning before he plays; a red test gets one fix + one rerun ma
 2. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate). NOT in the engine yet: tallow-fixes-2 05302cc94 (G1-G4,
    E8, D1 as is, each PASS; docs/tallow-fixes/G5-plan.md + briefs/G5.md, D1-report.md) and tallow-shutters b2df51d9a
    (S-a PASS). Merge both in with one closest set each (prototype mode).
-3. G5 (TGC split: caged stair for the gallery ladder, leg b re-cut; plan docs/tallow-fixes/G5-plan.md) waits on its
+3. G5 plan fixed (round 1, on the engine docs/tallow-fixes/G5-plan.md + briefs/G5.md; held until after member (d) and S3;
    Opus plan check (scratch/campaign/tallow-g5-plan-check.md); then a Marlow note (S11 reach message + assist bolt).
 4. Engine to master as 4 big-pr members (BRIEF A29, 7c0ddfa48): (a) = #522 2a202c430 (C1 #521 already released; contains #560;
    missions / coopKit on in /preview/; checker PASS x2; CI running). (b) cut by Opus -> scratch/campaign/member-b-cut-report.md
