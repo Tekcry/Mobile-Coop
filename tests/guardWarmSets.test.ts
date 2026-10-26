@@ -13,6 +13,8 @@ import type { EnemyKind } from '../src/ai/enemyDefs';
 import type { GearWorld } from '../src/ai/gearParts';
 import type { GuardAsset } from '../src/operators/guards/guardAssets';
 import type * as GuardAssets from '../src/operators/guards/guardAssets';
+import type { GuardManifest } from '../src/operators/guards/gearMask';
+import { guardGlb, type GuardTri } from './helpers/guardGlb';
 
 const H = vi.hoisted(() => ({ assets: new Map<string, unknown>(), shield: null as [string, string, string, string] | null }));
 
@@ -347,3 +349,109 @@ describe('map-ready S3: the guard warm sets', () => {
   });
 });
 
+
+// ---- (step 2) the helmet drop and the shield file at load (the `guardHelmetDrop` / `guardShieldShare` mocks) ----
+
+const tris = (pieces: readonly string[]): GuardTri[] =>
+  pieces.map((p, i) => ({ piece: i, tint: i % 3, joint: i === 0 ? 'wrL' : p === 'plate_heavy' ? 'chest' : 'head', at: [0.02 * i, 1.6 + 0.01 * i, 0.1] }));
+const manifest = (base: 'average' | 'lean' | 'broad', pieces: string[]): GuardManifest => ({
+  id: `guard-${base}`, base, urls: ['', `/guard-${base}-lod0.glb`, `/guard-${base}-lod1.glb`, `/guard-${base}-lod2.glb`], pieces, tintSlots: 3, refHeight: 1.77,
+});
+const AVG = manifest('average', ['average', 'helmet_std', 'vest_soft']);
+const BROAD = manifest('broad', ['broad', 'broad-1', 'balaclava', 'helmet_heavy', 'plate_heavy', 'pouch_belt', 'uniform']);
+const SHIELD: [string, string, string, string] = ['', '/shield-lod0.glb', '/shield-lod1.glb', '/shield-lod2.glb'];
+const SHIELD_TRIS: GuardTri[] = [
+  { piece: 0, tint: 0, joint: 'elL', at: [-0.3, 1.1, 0.3] },
+  { piece: 0, tint: 0, joint: 'wrL', at: [-0.35, 0.95, 0.3] },
+];
+
+/** The files of `ms` (and the shield's) served from memory; every fetch recorded. */
+async function serve(ms: readonly GuardManifest[]): Promise<string[]> {
+  const bin: Record<string, ArrayBuffer> = {};
+  for (const m of ms) for (const l of ['lod0', 'lod1', 'lod2']) bin[`/guard-${m.base}-${l}.glb`] = guardGlb(tris(m.pieces));
+  for (const l of ['lod0', 'lod1', 'lod2']) bin[`/shield-${l}.glb`] = guardGlb(SHIELD_TRIS);
+  const fetched: string[] = [];
+  vi.stubGlobal('fetch', async (url: string) => {
+    fetched.push(url);
+    return bin[url] ? new Response(bin[url]!.slice(0)) : new Response(null, { status: 404 });
+  });
+  const { forgetModels } = await import('../src/operators/runtime/figure');
+  forgetModels();
+  return fetched;
+}
+
+describe('map-ready S3: the helmet drop and the shield at load', () => {
+  it('helmetDropReady: true with one disabled warm instance; the first drop then takes the same source, no second fetch', async () => {
+    H.assets.set('average', { manifest: AVG, standIn: false, problems: [] });
+    const fetched = await serve([AVG]);
+    const { scene, B } = await setup();
+    const G = await import('../src/ai/guardHelmet');
+    expect(await G.helmetDropReady(scene)).toBe(true);
+    const warm = scene.meshes.filter((m) => m.name === 'helmet-drop-warm');
+    expect(warm.length).toBe(1);
+    const w = warm[0] as InstanceType<typeof B.InstancedMesh>;
+    expect(w).toBeInstanceOf(B.InstancedMesh);
+    expect(w.isEnabled(false)).toBe(false);
+    expect(w.isPickable).toBe(false);
+    const n = fetched.length;
+    expect(fetched.filter((u) => u === '/guard-average-lod1.glb').length).toBe(1);
+    const src = G.helmetDropSource(scene);
+    expect(src).not.toBeNull();
+    expect(w.sourceMesh).toBe(src!.mesh);
+    // a second call: the same load, the same warm instance
+    expect(await G.helmetDropReady(scene)).toBe(true);
+    expect(scene.meshes.filter((m) => m.name === 'helmet-drop-warm').length).toBe(1);
+    expect(fetched.length).toBe(n);
+    scene.dispose();
+  });
+
+  it('helmetDropReady: false with no helmet_std file in the build (nothing fetched), false when the load fails', async () => {
+    H.assets.set('average', { manifest: { ...AVG, pieces: ['average', 'vest_soft'] }, standIn: false, problems: [] });
+    H.assets.set('lean', { manifest: manifest('lean', ['lean']), standIn: true, problems: [] });
+    const fetched = await serve([]);
+    const a = await setup();
+    const G = await import('../src/ai/guardHelmet');
+    expect(G.helmetManifest()).toBeNull();
+    expect(await G.helmetDropReady(a.scene)).toBe(false);
+    expect(fetched).toEqual([]);
+    expect(a.scene.meshes.some((m) => m.name === 'helmet-drop-warm')).toBe(false);
+    a.scene.dispose();
+    // the file named but missing
+    H.assets.set('average', { manifest: { ...AVG, urls: ['', '/x0.glb', '/missing-lod1.glb', '/x2.glb'] }, standIn: false, problems: [] });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const b = await setup();
+    expect(await G.helmetDropReady(b.scene)).toBe(false);
+    expect(G.helmetDropSource(b.scene)).toBeNull();
+    expect(warn).toHaveBeenCalled();
+    b.scene.dispose();
+  });
+
+  it('preloadShield, then the enforcer\'s guardShieldFor: the shield url fetched once in total', async () => {
+    const { flags } = await import('../src/core/flags');
+    flags.guardModels = true;
+    H.assets.set('broad', { manifest: BROAD, standIn: false, problems: [] });
+    H.shield = SHIELD;
+    const fetched = await serve([BROAD]);
+    const { scene, parts, ENEMIES } = await setup();
+    const S = await import('../src/ai/guardShield');
+    const { buildEnemyRig } = await import('../src/ai/enemyRig');
+    expect(await S.preloadShield()).toBe(true);
+    expect(fetched.filter((u) => u === '/shield-lod1.glb').length).toBe(1);
+    const world = { parts, map: { id: 'testmap', theme: { faction: 'urban' } }, addShadowCaster: () => {} };
+    const gb = buildEnemyRig(scene, world as never, ENEMIES.enforcer, 'e1').figure!;
+    expect(gb).not.toBeNull();
+    const sh = S.guardShieldFor(scene, gb, () => {});
+    expect(sh).not.toBeNull();
+    await vi.waitFor(() => expect(S.sharedShieldCount(scene)).toBe(1));
+    expect(fetched.filter((u) => u === '/shield-lod1.glb').length).toBe(1);
+    scene.dispose();
+  });
+
+  it('preloadShield: false with no shield files (shieldUrls null), nothing fetched', async () => {
+    H.shield = null;
+    const fetched = await serve([]);
+    const S = await import('../src/ai/guardShield');
+    expect(await S.preloadShield()).toBe(false);
+    expect(fetched).toEqual([]);
+  });
+});

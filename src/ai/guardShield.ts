@@ -214,3 +214,15 @@ export function guardShieldFor(scene: Scene, gb: GuardBody, casters: (m: Mesh) =
   if (!url || gb.standIn || gb.def.kind !== 'enforcer') return null;
   return new GuardShield(scene, gb.figure, url, casters);
 }
+
+/** (map-ready S3) The shield's LOD1 file fetched and parsed now (the enforcer's later `GuardShield` gets it from the
+ *  model cache); false when the build has none or it failed. Never rejects. */
+export function preloadShield(): Promise<boolean> {
+  const url = shieldUrls()?.[LOD_1];
+  if (!url) return Promise.resolve(false);
+  // (`loadModel`'s cache per url: `GuardShield`'s constructor and `guardShieldFor` read the same entry)
+  return loadModel(url).then(
+    () => true,
+    () => false,
+  );
+}
