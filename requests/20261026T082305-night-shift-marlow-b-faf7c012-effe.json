@@ -1,0 +1,15 @@
+{
+  "id": "20261026T082305-night-shift-marlow-b-faf7c012-effe",
+  "sha": "faf7c01280dd5b50d768d666eecb19bee3de7acc",
+  "branch": "feature/marlow-walkfix",
+  "pr": 596,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:5",
+    "e2e-ctcourse:7",
+    "e2e-ctcourse:8"
+  ],
+  "set": "walkfix",
+  "note": "un-quarantine check, quar-triage.md"
+}
