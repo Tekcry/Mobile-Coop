@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~17:20, PROTOTYPE MODE; booted ~17:05 after the swap).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~17:35, PROTOTYPE MODE; booted ~17:05 after the swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
 "PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
 one fix + one rerun at most, no tuning passes before Michael plays.
@@ -362,13 +362,11 @@ head. Reports: C:/NightShift/scratch/sector-ops-checks/ (briefs/ for builder bri
    (merge-conflict-fix-check.md), fix + no-affected-e2e: auto-train takes it on green CI.
 3. #525 v2 S1 rebuild (feature/campus-greybox-s1-c @ 5b2c40bf, big-pr, ready): same conflict fixed, checker PASS;
    waits on its one affected-e2e set. #523 / #524 closed (inside #525).
-4. GOAL: S1 playable end to end in /preview/. IN FLIGHT: Opus builder ports the L1 car-park lighting onto the v2 S1
-   layout on the #518 branch (worktree -light-realism-l1, brief scratch/sector-ops-checks/briefs/l1-v2s1-port.md, report
-   l1-v2s1-build.md; merges #525 in, one lux measure). Then ONE checker, post checker, `gh pr ready 518` (orchestrator
-   accepted ~17:15; #518 is draft until then), message the orchestrator. Rerun the builder from the brief if no report.
-   Known gap: v2 lamps miss the shipped bake (the PC bakes at load in preview).
+4. GOAL: S1 playable end to end in /preview/. #518 READY (feature/light-realism-l1 @ a353ff82, big-pr, checker PASS
+   l1-v2s1-check.md): L1 car-park lighting ported onto v2 S1, #525 merged in; open ground 31.5 / 3.5 lux, carport edges
+   dark (real gap). Lands after #525 or with it. Known gap: v2 lamps miss the shipped bake (PC bakes at load in preview).
 5. Other drafted feature PRs (S2-S5 lanes, map-ready #550 #551 #556, J16 #557) were un-drafted by the orchestrator;
    re-file ONE test set per change only when asked. #551 needs Guard AI's re-review of guardWarm.ts before train-ready.
 6. J10 light: L2 (S2-S5) HOLD until Michael's S1 walk.
-Next: L1 port check, then #518 ready; watch #573 / #525 land; then the next S1 playthrough blocker from the orchestrator.
+Next: watch #573 / #525 land; then the next S1 playthrough blocker from the orchestrator.
 ```
