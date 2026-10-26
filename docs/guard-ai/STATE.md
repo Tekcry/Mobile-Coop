@@ -1045,9 +1045,7 @@ S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving 
 2.4 s look, never escalates alone (A1-A11 in BRIEF). Plan check 1 PASS ef5889a44 (PLAN-CHECK.md: 7 fold-ins; items 1, 2, 3, 6 go into the G3 brief, 7 into G5; 4 in
 G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + G2 built af4146d7c, check PASS a6f54fa04
 (slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). PR 1 checked (G3 check A FIX -> fix round; check B FIX 2 -> fix round 2 54cc1b8f8 -> re-check PASS
-d808f062b). #669 (part 1) MERGED (train 161). #670 (part 2, G3) out of draft at 4610d6844 (master
-merged, no conflicts, 1231 counted lines, checker carried): affected-e2e 1/1 pass; out of draft again (orchestrator 08:20: inert alone) -> CI test
-green -> train-ready. PR 2 (G4 gameState wiring) HELD until after Michael's walk and #665.
+d808f062b). #669 (part 1) and #670 (part 2, G3) MERGED (08:45; dark, inert until PR 2 sets chars / cues). PR 2 (G4 gameState wiring) HELD until after Michael's walk and #665.
 PR 2 built 6a203cbba (G4a / G4b / G6 + slices/G5-BRIEF.md,
 +236 counted lines; its Opus checker was stopped at 08:00 for the meter: rerun it after the
 08:50 resume -> slices/PR2-CHECK.md; brief = check flag-off, G4a fill / set-once across restarts, G4b, the /preview/
