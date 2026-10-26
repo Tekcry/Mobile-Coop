@@ -1,8 +1,25 @@
-PR #552 (fix, squash onto master, 1094 lines), checker PASS 2fbfbd30, 301/301 unit; trains ahead of F8 |||| # | Fix | Evidence | Owner | Opened | Status |
+# Open fixes (the one tracker)
+
+Owner: the orchestrator. Status: current.
+
+Every fix found by an audit, a train failure, a flake or a session report goes here the same turn, with an owner. The
+orchestrator's cron run reads this table every run (Michael 2026-10-26 ~14:00: "how are you making sure all these fixes
+are being handled automatically and not continuing to cause issues"; ~15:05: "main priority is getting all the fixes
+out and staying on top of them constantly to ensure issues dont re-occur unncessarily"):
+- fixes come before feature work for every owner (ROADMAP Decided 14:00, 15:05);
+- no PR or branch 24 h after Opened: message the owner for a date; 48 h: reassign it or start an Opus fix agent;
+- every fix PR adds a guard that catches a repeat (a unit test, an e2e step, an alert or an audit check), named in its
+  Status; a fix with no guard is not done;
+- a shipped fix stays in the table as "shipped <version>, watching" for a day; the cron checks its Evidence signal
+  (queue log, auto-train log, CI) every run and reopens it with the new evidence if the problem shows up again;
+- Done rows move to `archive/FIXES-done.md` with the PR, version and guard once shipped and quiet for a day.
+Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there).
+
+| # | Fix | Evidence | Owner | Opened | Status |
 | --- | --- | --- | --- | --- | --- |
-| F1 | Laptop service retries a failed train status post and done push | train 118 passed 11:57, verdict lost in the swap, ~1h45m stall | Test Runner (laptop-queue-8 slice G) | 2026-10-26 13:45 | laptop-queue-8 checker FIX (heartbeat stops a run whose claim another worker took), Opus fix round, then PR |
-| F2 | A claim whose heartbeat stopped counts as stale (train-level timeout) | train 118 claim held 2 h after its run ended | Test Runner (laptop-queue-8 slice G) | 2026-10-26 13:45 | building (laptop-queue-8 slice G) |
-| F3 | The alone hold needs a live train claim, not just a pending status | the alone hold froze every laptop PR claim 12:01-13:39 | Test Runner (laptop-queue-8 slice G) | 2026-10-26 13:45 | building (laptop-queue-8 slice G) |
+| F1 | Laptop service retries a failed train status post and done push | train 118 passed 11:57, verdict lost in the swap, ~1h45m stall | Test Runner (laptop-queue-8 slice G) | 2026-10-26 13:45 | PR #552 (fix, squash onto master, 1094 lines), checker PASS 2fbfbd30, 301/301 unit; trains ahead of F8 |
+| F2 | A claim whose heartbeat stopped counts as stale (train-level timeout) | train 118 claim held 2 h after its run ended | Test Runner (laptop-queue-8 slice G) | 2026-10-26 13:45 | PR #552 (fix, squash onto master, 1094 lines), checker PASS 2fbfbd30, 301/301 unit; trains ahead of F8 |
+| F3 | The alone hold needs a live train claim, not just a pending status | the alone hold froze every laptop PR claim 12:01-13:39 | Test Runner (laptop-queue-8 slice G) | 2026-10-26 13:45 | PR #552 (fix, squash onto master, 1094 lines), checker PASS 2fbfbd30, 301/301 unit; trains ahead of F8 |
 | F4 | e2e-pad flake (remap section), out of quarantine | parked till 2026-11-07, no fix planned | Player Build | 2026-10-26 13:58 | PR #548 (fix, test-only, quarantine removed), Opus checker running, laptop proof x5 queued |
 | F5 | e2e-netmove flake | flaked in train 118 | Player Build | 2026-10-26 13:58 | PR #548 with F4 |
 | F6 | lightField "allocation-free under a loop" unit flake | train 117 CI red once; #457 CI red once (10-26) | Test Runner (feature/lightfield-heap-3) | 2026-10-26 11:40 | building (fix PR next) |
