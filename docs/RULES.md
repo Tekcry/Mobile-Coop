@@ -164,11 +164,11 @@ plan; the orchestrator assigns it (G283).
 **Machines.** Two heavy slots, both Michael's PCs.
 - Laptop (Test Runner, Guard AI): the main test machine. The laptop queue service (`scripts/laptop-queue`, branch
   `laptop-queue`, scheduled task every minute) runs on 4189 (GPU and alone runs) and 4192, in this order (lib `pick`):
-  trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns (one slot,
-  `E2E_JOBS=1`); then an alone request that has waited over 30 min (`ALONE_AGE_MIN`; it goes ahead of PR work and takes
-  both slots once they drain); then PR requests, requesters in arrival order (one slot, `E2E_JOBS=2`; full runs 3); then
-  the other alone measures when both slots are idle; last, spare work: after both slots sit idle with nothing open for
-  `LQ_SPARE_IDLE_MIN` (5) min the service queues the next job of `docs/laptop-queue/spare-jobs.json` on the master head,
+  trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns (`E2E_JOBS=1`,
+  both slots when free); then an alone request waiting over 30 min (`ALONE_AGE_MIN`; ahead of PR work, both slots once
+  they drain); then PR requests (one slot, `E2E_JOBS=2`; full runs 3): front branches (`LQ_FRONT_BRANCHES`) first, then
+  green PRs smallest first, then arrival order; then other alone measures when both slots idle; spare work: after both
+  slots sit idle for `LQ_SPARE_IDLE_MIN` (5) min the service queues the next job of `docs/laptop-queue/spare-jobs.json`,
   and a waiting real request or a train stops it. The two sessions keep its CPU under ~80%.
 - Desktop (Orchestrator, Player, Marlow, Sector Ops, Campaign): CPU target under ~80% (G306); over 90% the orchestrator
   trims the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc
