@@ -1,7 +1,27 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~17:20 (Night Shift | Campaign Build, after the ~17:05 swap; read this block first)
+## RESUME 2026-10-26 ~18:35 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
+Process: prototype mode (one closest set per change = the automatic affected run only, no extra sets; a red test gets one
+fix + one rerun, then note and ship). Bypass: the lead posts `checker` itself. Local checks via scratch/ctcore/low.mjs.
+Junctions ONLY to C:/NightShift/Mobile-Coop-menu/node_modules. Notes: scratch/campaign/lead-notes.md "Session after
+the 17:05 swap". All worktrees clean and pushed at the save.
+The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retargets to master once the one below lands (A27):
+1. (a) #522 feature/mission-c2-rules 17e8738ba, base master: TRAIN-READY (CI, checker, affected all green). Rides the next train.
+2. (b) #578 feature/mission-b-sector a8bac697b, base (a): CI green, checker posted; affected 20261026T071851 pending.
+   When #522 is on master: `gh pr edit 578 --base master`, then train-ready comes from the watchdog.
+3. (c) #581 feature/mission-c-net 752e106be, base (b): CI green, checker posted (two Opus src/net PASS); affected pending.
+   Retarget after #578 lands.
+4. (d) #583 feature/mission-d-wharf cf9fa7e4f, base (c): CI test pending at the save, checker posted; affected pending.
+   Retarget after #581 lands. When it lands, Tallow W1 is playable in /preview/ (missions flag): tell the orchestrator
+   (walk card: uneven TGC split, gallery reach 16.3 s; 47 Tallow lamps in lampBoxAlign KNOWN_EMBEDDED, a light-pass item).
+5. A red check on any member: fix it on the lowest member it touches and merge upward (b -> c -> d), re-post `checker`.
+6. Then G5 (A30): docs/tallow-fixes/G5-plan.md + briefs/G5.md on the engine (held; plan check scratch/campaign/tallow-g5-plan-check.md).
+7. Polish lists: scratch/campaign/member-{b,c-check-1,c-check-2,d}-check*.md; Player Build's coop-kit A1 adds a kitMoves
+   flag (flags.coopKit stays; moving my readers to kitMoves ids is mine, any time).
+Next: watch #522 into a train; retarget #578 -> #581 -> #583 in order as each lands; then G5.
+
+## OLD RESUME 2026-10-26 ~17:20 (Night Shift | Campaign Build, after the ~17:05 swap; read this block first)
 Process as in the 16:15 block below (prototype mode, bypass: the lead posts `checker`, low.mjs, junctions to
 Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Session after the 17:05 swap".
 1. #567 (F28, contains #553) rode train 125, which failed on e2e-ctcourse shards 5-8; the orchestrator triages it.
