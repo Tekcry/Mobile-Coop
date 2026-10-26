@@ -206,6 +206,10 @@ export const MARLOW_CIRCUITS: MarlowCircuit[] = [
 export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
   ...MARLOW_CIRCUITS.flatMap((c): MarlowCircuit[] => {
     if (c.group === 20) return [{ ...c, fitting: 'Strips on wires under the roof tie, one over the stores bay', lamps: 7 }];
+    // (J14 a2-rows) cabinet 2 moved off the east wall to the pit's near side on the road 2 east van (A2_CAB2_REPLAN); cabinet 1 as built
+    if (c.group === 21) return [{ ...c, switches: [c.switches[0]!, sw('a2-iso-2', 'isolator', 63.5, 11.6, 'cabinet 2, by the pit on the road 2 east van')] }];
+    // (J14 a2-rows) the staging is gone: its switch comes down to the floor on the north wall, its strips stay high where it stood
+    if (c.group === 23) return [{ ...c, fitting: 'Strips high on the north wall, where the staging stood', switches: [sw('a2-sw-staging', 'wall', 40.0, 19.7, 'on the north wall, west of the neck closures')] }];
     if (c.group === 22) return [{ ...c, name: "Shunter's cabin panel and coat corner lamp", fitting: 'Ceiling panel over the desk, a wall lamp over the coat hooks', lamps: 2 }];
     // (J14 G-A5 fix 2) the apron switch moved onto the perimeter wall's inside face with the apron's two east bulkheads (the
     // built row keeps the built yard's spot at the L4 door)
