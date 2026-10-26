@@ -81,9 +81,16 @@ function selftestPointProblems(fx: Obj, map = true): string[] {
   for (const r of fx.expect.runs) {
     const steps = addPast(stepsForPath([fx], fx.points, r.path, metrics.rules.split_speed_mps), fx.points);
     for (const { to, link } of stepPoints(steps)) {
+      const name = `link ${link.index} (${link.kind} ${link.from} -> ${link.to}) point ${JSON.stringify(to)}`;
+      // (J13) a stand-in point (atFrom 'stub': the real start is not standable) is honest only when each run over it
+      // expects a stop there; it is not checked as a stand point
+      if (fx.points?.links?.[link.index]?.atFrom === 'stub') {
+        const want = r.outcomes?.[link.index];
+        if (!want || want === 'walked' || want === 'stub') problems.push(`${name}: a stand-in point (atFrom 'stub'), but ${r.id} expects ${want ?? 'no outcome'} there, not a stop`);
+        continue;
+      }
       if (seen.has(link.index)) continue;
       seen.add(link.index);
-      const name = `link ${link.index} (${link.kind} ${link.from} -> ${link.to}) point ${JSON.stringify(to)}`;
       const sp = spaces.get(link.from);
       if (!sp) {
         problems.push(`${name}: no points entry for ${link.from}`);
@@ -137,5 +144,23 @@ describe('route-run selftest fixtures: the walk point before each link step (F29
     expect(of(12).some((s) => s.includes('no walkable nav cell'))).toBe(true);
     expect(of(19).some((s) => s.includes('the floor under it is at 0.00'))).toBe(true);
     expect(of(19).some((s) => s.includes('no walkable nav cell'))).toBe(true);
+  });
+
+  it("lets a stand-in point (atFrom 'stub') pass only where its run expects a stop (the course fixture's drop 6)", () => {
+    const fx = JSON.parse(readFileSync(new URL('selftest-course.graph.json', DIR), 'utf8'));
+    expect(fx.points.links[6].atFrom).toBe('stub');
+    expect(selftestPointProblems(fx, false).filter((s) => s.startsWith('link 6 '))).toEqual([]);
+    const a1 = fx.expect.runs.find((r: Obj) => r.id === 'a1-gate');
+    for (const want of ['walked', 'stub', undefined]) {
+      if (want) a1.outcomes['6'] = want;
+      else delete a1.outcomes['6'];
+      const p = selftestPointProblems(fx, false).filter((s) => s.startsWith('link 6 '));
+      expect(p, String(want)).toHaveLength(1);
+      expect(p[0]).toContain(`a stand-in point (atFrom 'stub'), but a1-gate expects ${want ?? 'no outcome'} there`);
+    }
+    // any other point is still checked as a stand point: the same point marked declared fails the stand checks
+    fx.points.links[6].atFrom = 'declared';
+    a1.outcomes['6'] = 'step-timeout';
+    expect(selftestPointProblems(fx, false).some((s) => s.startsWith('link 6 '))).toBe(true);
   });
 });

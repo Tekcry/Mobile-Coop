@@ -378,7 +378,7 @@ describe('the course fixture', () => {
       ['a2-seen-once', 'A2', [13, 15, 20]],
       ['a2-seen-twice', 'A2', [13, 15, 20]],
     ]);
-    // the two stubs carry the pair over the wall: the drop's past lands in the yard
+    // the drop's past lands in the yard: its step-timeout's recovery places the pair there
     const a1 = addPast(stepsForPath([fx], fx.points, [0, 3, 6, 8, 9], metrics.rules.split_speed_mps), fx.points);
     const drop = a1.find((s: Obj) => s.type === 'link' && s.index === 6);
     expect(C.spaceAt(fx.points, drop.past[0], drop.past[1], drop.past[2])).toBe('a1-yard');

@@ -18,7 +18,7 @@
       "splits": {}
     },
     "note": "Fixture (route-runs R4c): the A1 Gate and A2 Carriage Shed spaces and links (0-20) of J12 S9's as-built yard graph, origin/feature/validator-port-s9 docs/marlow-final/graph/ctcourse.json at b6464dd95 (meta.measured from it, splits dropped: A1 / A2 have none). No taught_by: two sections of a fixture, not the whole course (the planner's full training run is not what this checks).",
-    "points_note": "Points by hand: each space's first area box, centre its middle at the storey's floor; each link's declared at (atFrom 'declared') except links 3 and 6. a1-walltop has no nav cells (S9 measured: 'no area / floor cells on a1-walltop'), so a harness placement cannot leave a robot on the wall top (driver place snaps to the nearest walkable cell) and a walk to a point 4.4 m up never arrives (progress STOREY_Y_TOL_M 1.5). So the leg-up (3) is held at its mark on the apron floor (A1_MARK (10.8, 6), the link's note; atFrom 'mark') and the drop (6) at the apron foot of the wall below its declared point (atFrom 'stub'): its stub places both robots 1.2 m past it into the yard. The two stubs carry the pair over the wall. Once R5 walks drops, link 6 needs its declared point and a placement onto the wall top (a driver change).",
+    "points_note": "Points by hand: each space's first area box, centre its middle at the storey's floor; each link's declared at (atFrom 'declared') except links 3 and 6. a1-walltop has no nav cells (S9 measured: 'no area / floor cells on a1-walltop'), so a harness placement cannot leave a robot on the wall top (driver place snaps to the nearest walkable cell) and a walk to a point 4.4 m up never arrives (progress STOREY_Y_TOL_M 1.5). So the leg-up (3) is held at its mark on the apron floor (A1_MARK (10.8, 6), the link's note; atFrom 'mark'): its stub leaves both robots on the apron floor. The drop (6) has its point at the apron foot of the wall below its declared point (atFrom 'stub', a stand-in). Since R5 drops are walked, and this one cannot start on the wall top (no nav cell there): DropStep walks to the stand-in and pushes into the locked wicket, so a1-gate expects a step-timeout dead stop on link 6 at its limit; the recovery then places both robots past it in the yard (12.6, 0, 11), and 8 and 9 are walked from there. R9's real leg-up and a wall-top placement (a driver change) are what would let it walk.",
     "drills_note": "Master's yard lists no drills (every CourseDef bay's drills is empty: src/world/maps/ctcourse.ts:103 takes p.bay.drills, which no set pushes), so the airlocks cycle as soon as both robots are on the pad: course.drills passes with no drill stubs and the A13 hold never runs here (the drill-gate path is unit tested in tests/routeRunCourse.test.ts). L1-near and L2-near are not course locks on master (an airlock's near door locks only once it cycles); L1-far is, until L1 cycles (courseState.ts:637-643)."
   },
   "spaces": [
@@ -1470,7 +1470,7 @@
       {
         "id": "a1-gate",
         "section": "A1",
-        "name": "Selftest course: lounge, apron, the leg-up and the drop (stubs) into the yard, holding room one, its airlock into A2",
+        "name": "Selftest course: lounge, apron, the leg-up (stub) and the drop (a step-timeout at the locked wicket, recovered into the yard), holding room one, its airlock into A2",
         "path": [
           0,
           3,
@@ -1479,6 +1479,9 @@
           9
         ],
         "outcomes": {
+          "0": "walked",
+          "3": "stub",
+          "6": "step-timeout",
           "8": "walked",
           "9": "walked"
         },
@@ -1487,7 +1490,10 @@
             "type": "guardsAll"
           },
           {
-            "type": "noDeadStops"
+            "type": "deadStop",
+            "class": "step-timeout",
+            "link": 6,
+            "atLimit": true
           },
           {
             "type": "robots",
