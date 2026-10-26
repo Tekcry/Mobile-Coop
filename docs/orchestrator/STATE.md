@@ -40,8 +40,8 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   desktop app has the SSH connection "AME Laptop" (folder C:\NightShift). start_session refuses Windows SSH hosts
   ("cannot place a session there yet", 20:58), so at each swap print the two laptop boot lines; Michael starts them
   from the desktop app (New session -> AME Laptop -> C:\NightShift) or on the laptop. Retry start_session at each swap.
-- Cloud Builder: start_session target cloud is refused from this session (project folder C:/NightShift is not a git
-  checkout); Michael starts it under New session -> Cloud (Tekcry/Mobile-Coop) when open briefs wait.
+- Cloud Builder: start_session target cloud works when the call names `repository: "Tekcry/Mobile-Coop"` (2026-10-26
+  13:25); without it the app refuses (C:/NightShift is not a git checkout).
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
 - After a release CI failure: fix on train/<n>, wait for CI, then
   `node scripts/merge-train.mjs release <n> <version> "<title>" --resume`.
