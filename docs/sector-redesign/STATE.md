@@ -350,34 +350,30 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:55 SAVE, PROTOTYPE MODE).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~20:30 SAVE, PROTOTYPE MODE, token-efficient: max 2 builders).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
-"PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
-one fix + one rerun at most, no tuning passes before Michael plays.
-This session posts its own `checker` statuses (lone gh api command) from an independent written report on that exact
-head. Reports: C:/NightShift/scratch/sector-ops-checks/ (briefs/ for builder briefs, pr-bodies/). tsc / vitest at
-BelowNormal, --maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
-GOAL (orchestrator ~17:45, prototype step 6): Saltmarsh Park finishable end to end on /preview/ (campusV2 = all sections
-there). Seven PRs carry it, every one checker PASS on its head, waiting on CI + one affected-e2e set (auto-train takes
-them when train-ready; orchestrator told ~18:05):
-1. #573 F42 window vault fix (fix; no-affected-e2e removed ~18:30 for its own rerun) @ 2a520d94. Train 127 dropped it
-   and #525: sectorops:6 walk stood 1.84 m from the moved PC (reach 1.8); fixed: stand at the window south end (1.5 m).
-2. #525 v2 S1 (big-pr) @ dba89c74 (+ smoker #16 post leash 3, Guard AI ask). #518 S1 L1 lighting on v2 (contains #525)
-   @ 17def8cc. Checker PASS on all three (part6-window-fix-check.md); the auto affected runs are the one rerun.
-3. #529 S2 @ bc06fe5b, #544 S3 @ 79559a3f, #547 S4 @ c77442d6, #535 S5 @ 2d0686af: stacks collapsed ~18:00 (lower PRs
-   closed), master merged in. All five + #518 merged together: no conflicts, tsc clean, 66 campus files 905 pass
-   (scratch campus-v2-all.log; test branch test/campus-v2-all, local only, worktree -campus-v2-int). ~18:40 their
-   pr-size was red only because big-pr came after the run: failed jobs rerun; if still red, check the job log.
-4. #582 prebake-preview @ 308ae524 (Opus PASS; TRAIN-READY ~18:40): the preview build pre-bakes its own campus layout; deploy.yml caches per
-   variant. Should land with or before the first v2 section, else preview bakes on the PC at load.
-On a red: one Opus triage, one fix, one rerun, then quarantine / note and ship. On a conflict between them: merge
-master into that branch, resolve, one checker.
-4b. ~18:50 level validator on the five v2 graphs (docs/sector-redesign/graph/v2/): 0 errors, 172 warnings
-   (scratch v2-validate.log); --require-measured 33 errors (no measured values; V6 not live, RULES). QUEUED laptop alone
-   request 20261026T075231-night-shift-sector-o-bfe27e3f-0cfe: route-run S1-S5 code routes, 1 player, on origin
-   test/campus-v2-all @ bfe27e3f (all v2 PRs merged), published to branch route-run-results; verdict laptop-e2e/
-   routerun-campus-v2. Read REPORT.md: a dead stop or a stuck leg = a playthrough blocker -> one fix on that section PR.
-5. J10 light: L2 (S2-S5 re-light) HOLD until Michael's S1 walk. Known: v2 S1 carport edges dark (real gap).
-Next: check S2-S5 CI after the rerun; watch #573 / #525 / #518 affected reruns (sectorops:6, no longer
-quarantined on the desktop, FIXES F48); on green the watchdog labels; watch all land; then ask the orchestrator for the next playable piece (e.g. a bot route-run of v2 S1-S5).
+"PROTOTYPE MODE" / "Prototype, not polish" / end of full burn (~19:22). Posts its own `checker` statuses. Reports:
+C:/NightShift/scratch/sector-ops-checks/ (briefs/, pr-bodies/). tsc / vitest BelowNormal --maxWorkers=2; node_modules
+junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
+FIRST PRIORITY: the piano scene (ROADMAP Now 20, Campaign Build leads, docs/piano-escape/PLAN.md on
+origin/feature/piano-escape "Sector Ops Build asks"). Setting now (Michael ~20:15): a tall timber STORM GRAIN MILL at
+night; after the EMP the only light is guard torches + lightning through windows / gaps; more guards, every torch lit.
+1. SO1 mains-off blackout (permanent, distance ripple over 0.8 s, survives restart, rides lampSync): Opus builder on
+   feature/piano-lights-so1 (worktree -piano-lights-so1); brief scratch/sector-ops-checks/briefs/piano-SO1.md,
+   progress piano-SO1-progress.md. Finish -> one checker -> PR (dark, patch) -> send Campaign the call signature.
+2. SO3 torch slots per map (`MapDef.torchSlots` up to 16; other maps unchanged) + laptop alone GPU check at Low:
+   4 / 8 / 12 / 16 lit (+ 16 lit with 4 or 8 shadowed if shadows are the cost; parity either way): Opus builder on
+   feature/piano-lights-so3; brief piano-SO3.md (+ scope change in its progress file), progress piano-SO3-progress.md
+   (request id). Verdict laptop-e2e/so3-gpu -> tell Campaign + orchestrator the highest count that holds.
+3. SO5 lightning (sky light through the baked moon / sky visibility grid; one flash value per sim step for meter,
+   guard sight and shader; fixed data timeline on the scene clock; rain masking = a hook proposal for Guard AI):
+   brief piano-SO5.md ready; start on the next free builder (worktree -piano-lights-so5 from origin/master).
+4. SO4 (ambient 0, lux check) + SO2 (pre-built lamp bake as #582) wait for Campaign's mill map (id / branch from
+   Campaign; was `underhollow` on feature/piano-escape-s1, now redrawn).
+SALTMARSH PARK (spare capacity): S2-S5 released 4.116.0. #518 (S1 lighting, contains #525 v2 S1, contains #573 vault
+fix) train-ready, all green; rides the next train. #588 (Guard AI walk-home) was dropped: its test fails on our S1
+gatehouse post (14.6, -76) (stuck at (14.8, -80.7), A* 3000 vs 60000); Guard AI fixes its fallback. Route-run v2: no
+map blocker (docs/campus-greybox/checks/routerun-v2-triage.md on feature/campus-greybox; polish list in its STATE;
+tool gaps sent to Marlow). J10 L2 (S2-S5 re-light) HOLD until Michael's S1 walk.
+Next: on each builder's report: checker, PR, message Campaign; start SO5 when a builder frees; SO2 / SO4 on the mill map.
 ```
