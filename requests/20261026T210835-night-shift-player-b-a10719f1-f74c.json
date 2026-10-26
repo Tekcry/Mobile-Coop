@@ -10,5 +10,8 @@
     "e2e-enemies"
   ],
   "set": "wd-guard",
-  "fix": true
+  "fix": true,
+  "laptopRerun": true,
+  "place": "20261026T073000-orchestrator-front-a10719f1",
+  "note": "laptop only, earliest place by hand (Orchestrator: guard invisibility fix live in /preview/ before the 09:00 walk)"
 }
