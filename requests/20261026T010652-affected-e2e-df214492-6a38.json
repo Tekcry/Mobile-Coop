@@ -1,0 +1,28 @@
+{
+  "id": "20261026T010652-affected-e2e-df214492-6a38",
+  "sha": "df214492f2a94bfb81bc2e0ea4b0f19f75d6e7fa",
+  "branch": "feature/mixamo-source-wire",
+  "pr": 498,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-menus",
+    "e2e-move",
+    "e2e-netmove",
+    "e2e-pad",
+    "e2e-park",
+    "e2e-stealth",
+    "e2e-studio",
+    "e2e-tuner-phone",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #498"
+}
