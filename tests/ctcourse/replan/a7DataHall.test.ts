@@ -346,6 +346,23 @@ describe('Marlow re-plan A7: station 17 (STATIONS.md sections 3, 6)', () => {
     expect(def.objectives!.filter((o) => o.bay === 'A7').map((o) => o.id)).toEqual(['a7-split', 'a7-sync', 'a7-lock']);
   });
 
+  it('a seen retry with the pod leg in the pod drops the split (a7-pod, its step) and the claim; the course state alone', () => {
+    // the e2e's `the split is cleared`: the state side holds; a pass zone setting a7-pod again on the old positions is the
+    // mode's (its zone hold must start before the step's device update)
+    const s = runAt([75.3, 60.5], [72.8, 54.0]);
+    for (let i = 0; i < 120; i++) s.update(1 / 60);
+    expect(s.roleOf(1)).toBe('b');
+    s.setPlayer(1, A7_T2_SPOT[0], 0, A7_T2_SPOT[1], false);
+    s.setFlag('a7-pod');
+    s.update(1 / 60);
+    expect(s.hasFlag('a7-pod')).toBe(true);
+    expect(s.retryStation('seen')).toBe(true);
+    expect(s.hasFlag('a7-pod')).toBe(false);
+    expect(s.hasFlag('obj:a7-split')).toBe(false);
+    expect(s.roleClaimed()).toBe(false);
+    expect(s.station()).toBe(17);
+  });
+
   it('the terminals keep their spots: T1 in the hall, T2 in the pod', () => {
     expect(inHall(A7_T1_SPOT[0], A7_T1_SPOT[1])).toBe(true);
     expect(inBox(POD, A7_T2_SPOT[0], A7_T2_SPOT[1])).toBe(true);

@@ -9,6 +9,7 @@
  * (groups 49 and 44, A4 at its 24), the pass zones, the objective, radio and retry lines. The drill windows of stations 8 and
  * 10 are `a4Ticks.test.ts`; the built A4 is `tests/ctcourse/a4GoodsShed.test.ts`.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { GUARD_INFO_LINE_MAX } from '../../../src/ai/guardInfo';
@@ -682,6 +683,23 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
     // the built lines stay: the bay's welcome and the console's two
     expect(at('enter').length).toBeGreaterThan(0);
     expect(at(A4_GATE)).toEqual(['Cameras looped. Go.']);
+  });
+
+  it("the e2e walk's step-line patterns match both job lines of stations 8 and 10 (the HUD shows the player's own job line, `stepLine`)", () => {
+    const src = readFileSync('scripts/e2e-ctcourse/replan/a4GoodsShed.mjs', 'utf8');
+    const pat = (name: string): RegExp => {
+      const m = new RegExp(`export const ${name} = /(.+)/;`).exec(src);
+      expect(m, name).not.toBeNull();
+      return new RegExp(m![1]!);
+    };
+    for (const [i, name] of [[1, 'S8_LINE'], [2, 'S10_LINE']] as const) {
+      const re = pat(name);
+      const o = steps[i]!;
+      for (const t of [o.a, o.b]) {
+        expect(t, o.id).toBeDefined();
+        expect(t!, o.id).toMatch(re);
+      }
+    }
   });
 });
 

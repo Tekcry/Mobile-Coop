@@ -267,6 +267,8 @@ describe('Marlow re-plan A1: an early drop is never a trap (A26, Q5 / G370)', ()
   const TOP = P(12.0, 4.4, 9);
   /** A yard-face hang off the lip (feet about 2 m under it, a body's width out from the face). */
   const HANG = P(12.6, 2.4, 9);
+  /** (e2e fix) A let-go off that hang: straight down, feet just off the face (12.3 + the hang's 0.22 m). */
+  const LANDED = P(12.52, 0, 9);
   /** A climb or a boost at the apron face (feet 1.6 m up). */
   const CLIMB = P(11.4, 1.6, 6);
   const LOUNGE = P(2, 0, 12);
@@ -314,7 +316,11 @@ describe('Marlow re-plan A1: an early drop is never a trap (A26, Q5 / G370)', ()
   }
 
   it('the zones: the yard floor is the set\'s yard zone (a hop still counts), the climb band is the wall\'s faces and top', () => {
-    expect(A1_TRAP_YARD.slice(0, 4)).toEqual(A1_YARD_ZONE);
+    expect(A1_TRAP_YARD.slice(1, 4)).toEqual(A1_YARD_ZONE.slice(1));
+    // from the yard face, not the pass zone's 12.6: a let-go off the yard-face hang lands just off the face
+    expect(A1_TRAP_YARD[0]).toBe(A1_WALL.far);
+    expect(inTickZone(A1_TRAP_YARD, LANDED)).toBe(true);
+    expect(inTickZone(A1_TRAP_CLIMB, LANDED)).toBe(false);
     expect(inTickZone(A1_TRAP_YARD, P(15, 0.8, 11))).toBe(true);
     expect(inTickZone(A1_TRAP_CLIMB, P(15, 0.8, 11))).toBe(false);
     for (const f of [TOP, HANG, CLIMB, P(11.3, 2.4, 6)]) expect(inTickZone(A1_TRAP_CLIMB, f), JSON.stringify(f)).toBe(true);
@@ -389,6 +395,19 @@ describe('Marlow re-plan A1: an early drop is never a trap (A26, Q5 / G370)', ()
     run(A1_TRAP_GRACE - 0.2);
     expect(calls).toHaveLength(1);
     expect(s.restarts).toBe(1);
+  });
+
+  it('station 2 (the e2e early drop): the one on top lets go off the yard-face hang, the partner on the mark: station 2 retries (other)', () => {
+    const { s, calls, run, put } = trap(TOP, APRON, { top1: true });
+    run(10);
+    put(0, HANG);
+    run(2);
+    put(0, LANDED);
+    run(A1_TRAP_GRACE - 0.2);
+    expect(calls).toEqual([]);
+    run(0.3);
+    expect(calls).toEqual([[2, 'other']]);
+    expect(s.lastRetry).toEqual({ st: 2, cause: 'other' });
   });
 
   it('station 1: a player over the wall before the top flag, the partner in the lounge: station 1 retries (other)', () => {

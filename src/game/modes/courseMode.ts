@@ -369,6 +369,9 @@ export class CourseMode implements GameMode {
     if (!st || this.restartT >= 0 || this.spotHold > 0 || !st.retryStation(cause, n)) return false;
     // (fix 2) one failure, one retry: nothing retries again before this one's `handle` (which sets the hold again)
     this.spotHold = SPOT_HOLD;
+    // (J14 fix) hold the pass zones now: this step's device update runs before `handle` sees `stationRetry`, and a zone
+    // whose flag the retry dropped would set it again on the players' old positions
+    this.ct?.holdZones(2);
     this.dirty = true;
     return true;
   }
@@ -806,7 +809,11 @@ export class CourseMode implements GameMode {
       const cause = stationRetryCause(rule, rule !== 'none' && inCombat(list), this.camFull, this.caught, dt);
       // the retry's events (gates, `stationRetry`) are acted on in this step's `handle`; (fix 2) the hold blocks a second
       // retry (the set code's `stationRetry`) before then
-      if (cause && st.retryStation(cause)) this.spotHold = SPOT_HOLD;
+      if (cause && st.retryStation(cause)) {
+        this.spotHold = SPOT_HOLD;
+        // (J14 fix) as `stationRetry`: the pass zones held before this step's device update
+        this.ct?.holdZones(2);
+      }
     } else if (sf && !st.over && this.restartT < 0 && this.spotHold <= 0 && spotFailed(st.currentBay, list)) {
       this.radioQ.unshift(sf);
       if (this.radioQ.length > 4) this.radioQ.length = 4;

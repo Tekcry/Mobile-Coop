@@ -53,6 +53,10 @@ const WICKET_AT = [77.2, 34.0];
 const LOOP_S = 60;
 /** The back aisle's lit middle (group 49). */
 const BACK_AISLE = [100, 25.8];
+/** Stations 8 and 10 have A and B lines, so each page's step line is its player's job line (`CourseState.stepLine`), never the shared
+ *  text: either job's line counts (the unit test pins both against these). */
+export const S8_LINE = /duty officer from behind|console once the officer is down/;
+export const S10_LINE = /nearest the (office|racking) when your partner is set/;
 
 /** @param {object} t the runner's helpers (scripts/e2e-ctcourse.mjs) @param {number} n the set's number */
 export async function walk(t, n) {
@@ -192,7 +196,7 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stepTicked(P, 'a4-s9', `A4: the ${tag} sees station 9's step ticked`);
     await stationLive(P, 8, `A4: station 8 is live on the ${tag} page`);
-    await sees(P, /security console/, `A4: the ${tag} reads station 8's step line`);
+    await sees(P, S8_LINE, `A4: the ${tag} reads station 8's step line`);
   }
   assert((await retries()) === r0, 'A4: the grille cost no retry');
   await camerasHold('A4 back aisle');
@@ -243,7 +247,7 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stepTicked(P, 'a4-s8', `A4: the ${tag} sees station 8's step ticked`);
     await stationLive(P, 10, `A4: station 10 is live on the ${tag} page`);
-    await sees(P, /loaders/, `A4: the ${tag} reads station 10's step line`);
+    await sees(P, S10_LINE, `A4: the ${tag} reads station 10's step line`);
   }
   assert((await retries()) === r2, 'A4: the crossing inside the loop cost no retry');
   await camerasHold('A4 dock');

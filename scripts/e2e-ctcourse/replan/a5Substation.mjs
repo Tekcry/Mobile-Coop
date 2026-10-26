@@ -72,13 +72,13 @@ export async function walk(t, n) {
   const stationLive = (P, k, what) => (P === A ? until(A, (k) => window.__course.state.station() === k, k, 15000, what) : until(B, (k) => window.__course.wire?.s?.st === k, k, 15000, what));
   const level = (P, x, z) => P.evaluate(([x, z]) => window.__app.current.world.lightField?.bodyLevel(x, 0, z, 1.7) ?? -1, [x, z]);
   const laserOn = (P) => P.evaluate((id) => window.__ctdev.debug().lasers.find((l) => l.id === id)?.on, LASER_ID);
-  const guards = () => GA(() => window.__app.current.enemyMgr.enemies.filter((q) => q.alive && q.pos.x > 40 && q.pos.x < 70 && q.pos.z > 24 && q.pos.z < 48).map((e) => ({ x: e.pos.x, z: e.pos.z, idx: e.walker?.idx ?? -1, alerted: !!e.alerted, passive: !!e.passive })));
-  /** The patrol (the guard with a route walker) has left the kiosk for pen 1 (route index 1) and is `d` m off it. */
-  const leftKiosk = (what, d = 1.5) => until(A, ([kx, kz, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.walker && q.pos.x > 40 && q.pos.x < 70 && q.pos.z > 24 && q.pos.z < 48); return !!e && !e.alerted && e.walker.idx === 1 && Math.hypot(e.pos.x - kx, e.pos.z - kz) > d; }, [K[0], K[1], d], 90000, what);
+  const guards = () => GA(() => window.__app.current.enemyMgr.enemies.filter((q) => q.alive && q.pos.x > 40 && q.pos.x < 70 && q.pos.z > 24 && q.pos.z < 48).map((e) => ({ x: e.pos.x, z: e.pos.z, idx: e.walker?.route ? e.walker.idx : -1, alerted: !!e.alerted, passive: !!e.passive })));
+  /** The patrol (the guard whose walker has a route: every guard has a walker, the watcher's route is null) has left the kiosk for pen 1 (route index 1) and is `d` m off it. */
+  const leftKiosk = (what, d = 1.5) => until(A, ([kx, kz, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.walker?.route && q.pos.x > 40 && q.pos.x < 70 && q.pos.z > 24 && q.pos.z < 48); return !!e && !e.alerted && e.walker.idx === 1 && Math.hypot(e.pos.x - kx, e.pos.z - kz) > d; }, [K[0], K[1], d], 90000, what);
   /** His back to the gateway: walking R4 -> K (index 0, off both stops) or K -> R2 / at R2 (index 1). */
   const backTurned = (what) =>
     until(A, ([kx, kz, rx, rz]) => {
-      const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.walker && q.pos.x > 40 && q.pos.x < 70 && q.pos.z > 24 && q.pos.z < 48);
+      const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.walker?.route && q.pos.x > 40 && q.pos.x < 70 && q.pos.z > 24 && q.pos.z < 48);
       if (!e || e.alerted) return false;
       const i = e.walker.idx;
       return i === 1 || (i === 0 && Math.hypot(e.pos.x - kx, e.pos.z - kz) > 3 && Math.hypot(e.pos.x - rx, e.pos.z - rz) > 1);

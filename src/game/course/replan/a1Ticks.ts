@@ -15,8 +15,10 @@ import type { StationTick, TickZone } from './ticks';
 
 /** s a player stands on the yard floor with nobody on or climbing the wall before the station retries (A26). */
 export const A1_TRAP_GRACE = 5;
-/** The yard floor: `A1_YARD_ZONE` (`ctcourseSets/a1Gate.ts`) with the feet on the ground (a hop's 0.8 m apex counts). */
-export const A1_TRAP_YARD: TickZone = [12.6, 2.3, 22, 19.7, -0.5, 1.0];
+/** The yard floor: `A1_YARD_ZONE` (`ctcourseSets/a1Gate.ts`) but from the yard face (`A1_WALL.far` 12.3, not the pass
+ *  zone's 12.6: a let-go off the yard-face lip lands a hang's 0.22 m out, feet about x 12.5-12.6) with the feet on the
+ *  ground (a hop's 0.8 m apex counts). */
+export const A1_TRAP_YARD: TickZone = [12.3, 2.3, 22, 19.7, -0.5, 1.0];
 /** On or climbing the wall: either face's 0.7 m strip and the 0.6 m top (`A1_WALL` 11.7-12.3), feet 1.2-6 m up (a
  *  hang, a ladder climb, a boost in the air, the 4.4 m top). */
 export const A1_TRAP_CLIMB: TickZone = [11.0, 2.3, 13.0, 19.7, 1.2, 6.0];
