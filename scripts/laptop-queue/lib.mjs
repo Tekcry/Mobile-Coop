@@ -838,6 +838,45 @@ export function parseRun(text) {
 }
 
 /**
+ * The suites a run-e2e output finished (laptop-queue-8 A10), in log order: [{ s, ok, report, sec }] from its result
+ * lines "=== <s> (ok|FAIL|REPORT ONLY, exit n, <N>s) ===" (the parallel header; streamed runs print it after each suite
+ * since laptop-queue-8). A streamed start header ("=== s ===") and the times table are not results.
+ */
+export function finishedSuites(text) {
+  const out = [];
+  for (const l of String(text ?? '').replace(/\r\n/g, '\n').split('\n')) {
+    const m = /^=== (\S+) \((ok|FAIL|REPORT ONLY, exit -?\d+), (\d+)s\) ===\s*$/.exec(l);
+    if (m) out.push({ s: m[1], ok: m[2] === 'ok', report: m[2].startsWith('REPORT'), sec: +m[3] });
+  }
+  return out;
+}
+
+/**
+ * What a pr request still runs after a train preempt kept its passed suites (laptop-queue-8 A10): r.kept = { sha,
+ * suites: [{ s, sec }] } from the cut run. -> { kept: [{ s, sec }], rest: [suite] }. Only when r.kept.sha is `sha`
+ * (else nothing is kept). A suite of r.suites is kept when a kept row names it exactly; a base name with parts (lib
+ * suiteParts over times) only when every one of its parts is kept, else it reruns whole. Kept rows of suites no longer
+ * in r.suites (an affected-cap re-file dropped them) do not count.
+ */
+export function keptPlan(r, sha, times = {}) {
+  const suites = [...(r?.suites ?? [])];
+  const k = r?.kept;
+  if (!k || typeof k !== 'object' || k.sha !== sha || !Array.isArray(k.suites)) return { kept: [], rest: suites };
+  const rows = new Map(k.suites.filter((x) => x && typeof x.s === 'string' && x.s).map((x) => [x.s, { s: x.s, sec: Number(x.sec) || 0 }]));
+  const kept = [];
+  const rest = [];
+  const seen = new Set();
+  const keep = (x) => { if (!seen.has(x.s)) { seen.add(x.s); kept.push(x); } };
+  for (const s of suites) {
+    if (rows.has(s)) { keep(rows.get(s)); continue; }
+    const parts = suiteParts([s], times).filter((p) => p !== s);
+    if (parts.length && parts.every((p) => rows.has(p))) { for (const p of parts) keep(rows.get(p)); continue; }
+    rest.push(s);
+  }
+  return { kept, rest };
+}
+
+/**
  * True when a parsed run is a full verdict: its summary line was seen and it reports at least `expected` suites
  * (exact = true: exactly `expected`, for a train shard whose job list is already expanded). Anything else (a runner
  * killed before its summary, a missing suite) must never post success.

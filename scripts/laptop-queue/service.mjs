@@ -108,7 +108,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, supersededRunning, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -158,6 +158,7 @@ const RERUN_SHARD = process.env.LQ_RERUN_SHARD !== '0'; // 0 = a train rerun run
 const ALONE_GAP = process.env.LQ_ALONE_GAP !== '0'; // 0 = the holds keep an aged alone back as before (lib aloneGapOpen; BRIEF A12)
 const FIX_FIRST = process.env.LQ_FIX_FIRST !== '0'; // laptop-queue-8 A3: 0 = no fix tier (lib pick queue.order.fix)
 const STOP_SUPERSEDED = process.env.LQ_STOP_SUPERSEDED !== '0'; // laptop-queue-8 A6: 0 = runs on old heads finish
+const KEEP_FINISHED = process.env.LQ_KEEP_FINISHED !== '0'; // laptop-queue-8 A10: 0 = a preempted run reruns all its suites
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -1076,7 +1077,7 @@ function failureComment(job, result, runDir) {
  */
 function updateBudget(result) {
   const now = Date.now();
-  state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report).map((x) => x.s), now);
+  state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report && !x.kept).map((x) => x.s), now);
   state.flakes = state.flakes.filter((f) => now - Date.parse(f.date) < FLAKE_BUDGET_DAYS * 86400_000);
   let repo = { owners: {}, quarantine: [] };
   try {
@@ -1108,7 +1109,8 @@ function updateBudget(result) {
 function finish(job, ctx, result, runDir, prNumber, { handedOff = '' } = {}) {
   const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report);
   const ok = result.suites.length > 0 && bad.length === 0;
-  const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
+  // laptop-queue-8 A10: "; K kept" when passes kept from a run a train preempted count in this verdict
+  const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}${result.kept > 0 ? `; ${result.kept} kept` : ''}`;
   const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
   const late = !ok && handedOff;
   for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : late ? 'pending' : 'failure', c, late ? handedOff : desc); // an affected request: also affected-e2e
@@ -1366,6 +1368,26 @@ async function runRequest(r, port, pair = null) {
     writeClaims([r.id], 'release', `release ${r.id} (yields to train ${yielded.n})`);
     claimed.delete(r.id);
   };
+  // laptop-queue-8 A10: the passes this request already holds (r.kept on this sha, lib keptPlan) and, on a train
+  // preempt, the passed suites of the cut run written back to the request file (same id) for the next run, either worker
+  let keptNow = [];
+  const keepFinished = () => {
+    const passes = new Map(keptNow.map((k) => [k.s, k]));
+    let lines = 0;
+    for (const p of ports) {
+      let text = '';
+      try { text = fs.readFileSync(path.join(runDir, `${p}.log`), 'utf8'); } catch { continue; }
+      // log order: a later fail of the same suite (the log appends across tries) drops an earlier pass
+      for (const x of finishedSuites(text)) { lines++; if (x.ok && !x.report) passes.set(x.s, { s: x.s, sec: x.sec }); else passes.delete(x.s); }
+    }
+    if (passes.size === 0) { log(`${r.id}: keeps no finished suite${lines ? '' : ' (no result lines; a head before laptop-queue-8 prints none at E2E_JOBS=1)'}`); return; }
+    let fresh = r;
+    try { fresh = JSON.parse(git(['show', `origin/laptop-queue:requests/${r.id}.json`])); } catch { /* the listed copy */ }
+    const next = { ...fresh, kept: { sha: r.sha, suites: [...passes.values()] } };
+    if (DRY) { log(`dry-run: ${r.id}: would keep ${passes.size} finished suite(s)`); return; }
+    if (pushFile(`requests/${r.id}.json`, `${JSON.stringify(next, null, 2)}\n`, `kept ${r.id}`, { mustExist: true })) log(`${r.id}: keeps ${passes.size} finished suite(s)`);
+    else log(`${r.id}: kept push failed, the next run reruns all`);
+  };
   const cutEnd = () => {
     if (ctl.why === 'withdrawn') {
       log(`${r.id}: withdrawn by the requester, run stopped`);
@@ -1388,6 +1410,7 @@ async function runRequest(r, port, pair = null) {
     if (spare) return spareDone(ctl.why === 'real' ? 'a waiting real request' : `train ${n}`);
     log(`${r.id}: preempted by train ${n}, queued again${r.kind === 'alone' ? ' (head of the alone queue)' : ''}`);
     if (r.kind === 'alone') preemptedAlone.add(r.id);
+    if (KEEP_FINISHED && r.kind === 'pr' && !r.trainRerun && started) keepFinished();
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
     writeClaims([r.id], 'release', `release ${r.id} (preempted by train ${n})`);
     claimed.delete(r.id);
@@ -1477,7 +1500,11 @@ async function runRequest(r, port, pair = null) {
       state.done[r.id] = { result: good ? 'success' : 'failure', date: new Date().toISOString() };
       return;
     }
-    const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : r.suites;
+    // laptop-queue-8 A10: a pr request a train preempted runs only the suites it has not passed on this sha (lib keptPlan)
+    const plan = r.kind === 'pr' && KEEP_FINISHED ? keptPlan(r, r.sha, times) : { kept: [], rest: r.suites };
+    keptNow = plan.kept;
+    if (keptNow.length) log(`${r.id}: ${keptNow.length} suite(s) kept from a preempted run, runs ${plan.rest.length}`);
+    const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : plan.rest;
     // a train rerun: E2E_JOBS=1 per slot; split over both slots when pick gave it both (laptop-queue-7 A10), else one
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2);
     const split = ports.length > 1;
@@ -1486,10 +1513,11 @@ async function runRequest(r, port, pair = null) {
     const t0 = Date.now();
     started = true;
     progress = () => runProgress(list, times, jobs, Date.now() - t0);
-    const runs = await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)), Object.values(ctls));
+    // every suite kept: no e2e call, the verdict comes from the kept passes
+    const runs = list.length ? await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)), Object.values(ctls)) : [];
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard, per slot; at least the listed suites (a named suite may expand into parts)
-    const broken = ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length));
+    const broken = list.length ? ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length)) : -1;
     if (broken >= 0) {
       const [bp, run, n] = [ports[broken], runs[broken], bins[broken].suites.length];
       log(`${r.id}: run incomplete${split ? ` on ${bp}` : ''} (exit ${run.code}, ${run.suites.length}/${n} suites, summary ${run.complete ? 'seen' : 'missing'})`);
@@ -1500,7 +1528,8 @@ async function runRequest(r, port, pair = null) {
     }
     const slotOf = {};
     if (split) runs.forEach((x, i) => x.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
-    const result = { suites: runs.flatMap((x) => x.suites), wall: 0, flakes: [] };
+    const keptRows = keptNow.map((k) => ({ s: k.s, ok: true, flaky: false, report: false, sec: k.sec, kept: true }));
+    const result = { suites: [...keptRows, ...runs.flatMap((x) => x.suites)], wall: 0, flakes: [], kept: keptRows.length };
     // a request reruns on its own locked slot(s) and worktree (its sha): a sharded rerun's suite on the slot that ran it
     result.flakes = await rerunFlakes(result, slotOf, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();

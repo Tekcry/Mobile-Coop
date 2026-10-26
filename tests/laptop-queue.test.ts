@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, placeFor, supersededRunning, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -1292,6 +1292,67 @@ describe('holdClears', () => {
     expect(holdClears({ n: '57', sha: 'a', laptop: 'error' })).toBe(false);
     expect(holdClears({ n: '?', sha: '', laptop: 'unknown' })).toBe(false);
     expect(holdClears(null)).toBe(false);
+  });
+});
+
+describe('kept suites after a train preempt (laptop-queue-8 slice C)', () => {
+  const SHA = 'c'.repeat(40);
+  it('finishedSuites reads streamed and parallel result lines, not start headers or the times table', () => {
+    const streamed = [
+      '$ node scripts/run-e2e.mjs e2e-coop e2e-pad e2e-menu',
+      '',
+      '=== e2e-coop ===',
+      'ok 1 - lobby',
+      '',
+      '=== e2e-coop (ok, 41s) ===',
+      '',
+      '=== e2e-pad ===',
+      'not ok 2 - stick',
+      '',
+      '=== e2e-pad (FAIL, 12s) ===',
+      '',
+      '=== anim-audit (REPORT ONLY: never fails the run) ===',
+      '',
+      '=== anim-audit (REPORT ONLY, exit 1, 9s) ===',
+      '',
+      '=== e2e-menu ===',
+      'ok 1 - menu',
+    ].join('\r\n');
+    expect(finishedSuites(streamed)).toEqual([
+      { s: 'e2e-coop', ok: true, report: false, sec: 41 },
+      { s: 'e2e-pad', ok: false, report: false, sec: 12 },
+      { s: 'anim-audit', ok: false, report: true, sec: 9 },
+    ]);
+    const parallel = '[start] e2e-desktop:1\n[start] e2e-coop\n\n=== e2e-desktop:1 (ok, 80s) ===\nlog\n\ntimes (GPU, 2 at a time):\n  e2e-desktop:1 ok 80s\n  e2e-coop FAIL 30s\n';
+    expect(finishedSuites(parallel)).toEqual([{ s: 'e2e-desktop:1', ok: true, report: false, sec: 80 }]);
+    expect(finishedSuites('')).toEqual([]);
+  });
+  it('keptPlan: same sha -> the rest without the kept suites; another sha or no kept -> everything', () => {
+    const r = { suites: ['e2e-coop', 'e2e-pad', 'e2e-menu'], kept: { sha: SHA, suites: [{ s: 'e2e-coop', sec: 41 }] } };
+    expect(keptPlan(r, SHA)).toEqual({ kept: [{ s: 'e2e-coop', sec: 41 }], rest: ['e2e-pad', 'e2e-menu'] });
+    expect(keptPlan(r, 'd'.repeat(40))).toEqual({ kept: [], rest: ['e2e-coop', 'e2e-pad', 'e2e-menu'] });
+    expect(keptPlan({ suites: ['e2e-pad'] }, SHA)).toEqual({ kept: [], rest: ['e2e-pad'] });
+  });
+  it('keptPlan: a base name keeps only when every part is kept, else it reruns whole', () => {
+    const times = { 'e2e-desktop:1': 80, 'e2e-desktop:2': 70, 'e2e-coop': 40 };
+    const one = { suites: ['e2e-desktop', 'e2e-coop'], kept: { sha: SHA, suites: [{ s: 'e2e-desktop:1', sec: 80 }] } };
+    expect(keptPlan(one, SHA, times)).toEqual({ kept: [], rest: ['e2e-desktop', 'e2e-coop'] });
+    const both = { suites: ['e2e-desktop', 'e2e-coop'], kept: { sha: SHA, suites: [{ s: 'e2e-desktop:2', sec: 70 }, { s: 'e2e-desktop:1', sec: 80 }] } };
+    expect(keptPlan(both, SHA, times)).toEqual({ kept: [{ s: 'e2e-desktop:1', sec: 80 }, { s: 'e2e-desktop:2', sec: 70 }], rest: ['e2e-coop'] });
+    // a part named on its own keeps by exact name
+    expect(keptPlan({ suites: ['e2e-desktop:2'], kept: both.kept }, SHA, times).rest).toEqual([]);
+  });
+  it('keptPlan: every suite kept -> rest empty; a kept suite no longer in r.suites (re-filed) is dropped', () => {
+    const all = { suites: ['e2e-coop'], kept: { sha: SHA, suites: [{ s: 'e2e-coop', sec: 41 }] } };
+    expect(keptPlan(all, SHA)).toEqual({ kept: [{ s: 'e2e-coop', sec: 41 }], rest: [] });
+    const refiled = { suites: ['e2e-pad'], kept: { sha: SHA, suites: [{ s: 'e2e-coop', sec: 41 }] } };
+    expect(keptPlan(refiled, SHA)).toEqual({ kept: [], rest: ['e2e-pad'] });
+    // a malformed kept block keeps nothing
+    expect(keptPlan({ suites: ['e2e-coop'], kept: { sha: SHA, suites: 'x' } }, SHA).rest).toEqual(['e2e-coop']);
+  });
+  it('kept rows count as passes in the verdict description', () => {
+    const result = { suites: [{ s: 'e2e-coop', ok: true, flaky: false, report: false, sec: 41, kept: true }, { s: 'e2e-pad', ok: true, flaky: false, report: false, sec: 12 }], wall: 20 };
+    expect(describeRun(result)).toBe('2/2 pass, 20 s');
   });
 });
 
