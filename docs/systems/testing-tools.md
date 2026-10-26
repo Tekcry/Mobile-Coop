@@ -90,8 +90,8 @@ This page lists the suites and how they are picked.
   laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
   (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
   (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
-  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: at most 3 suites, the closest
-  (RULES "Test tiers"; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
+  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: `AFFECTED_MAX` suites, the closest
+  (3 in code; RULES "Test tiers" sets one, G421; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
   uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,

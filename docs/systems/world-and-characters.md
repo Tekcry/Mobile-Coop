@@ -330,11 +330,11 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion (`anim/mocap.ts`) is the player's only path: players get mocap only, with no
-  player-facing switch (G399; anim-fix-pass AF5 removed the Settings row; a stored `gameplay.mocapLoco: false` no
-  longer sticks, `core/app.ts` ~:136-140). The hand-keyed set is a developer rollback only: `?mocap=0/1`, then the
-  animation tuner's More > Panel box (a dev tool: this page only, not saved); it is per machine and drives the co-op
-  partner's copy on this machine too. `LOCO.set` picks the
+- (mocap-trial, mixamo-retarget) The Animation source setting (`anim/animSource.ts`; Options > Gameplay, and the same
+  switch in the Anim Studio) picks Hand-made, CMU (the default: the CMU mocap locomotion, `anim/mocap.ts`) or Mixamo
+  (the CMU set with the Mixamo captures on top) (G410). Page overrides: `?anim=hand|cmu|mixamo`, then `?mocap=0/1` and
+  `?mixamo=0/1`, then the animation tuner's More > Panel box (this page only, not saved). Today a co-op partner drawn
+  here uses this machine's source; G411 sends each player's own source (a wire change). `LOCO.set` picks the
   clip set the standing holstered speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`,
   `anim/clips/mocap/*` in the keyed format), plus its optional one-shot slots (`MocapSlots`: turn in place, turn on
   the move L / R, start, stop). The set also holds three more captures: the crouched sneak band (`crouchWalk`, CMU
