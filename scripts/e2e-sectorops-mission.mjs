@@ -6,6 +6,7 @@
 // and everyone in C2 is the extraction: the op ends cleared. The guards are frozen and the player cannot be hurt (the
 // test reads the mission, not the stealth). `?sectorGuards=4` keeps software GL quick.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
+import { until } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=campusOps&mode=sector&mission=campusMissionTest&missions=1&sectorGuards=4';
@@ -42,14 +43,32 @@ try {
   assert(d0.mission && d0.mission.id === 'campusMissionTest' && d0.mission.section === 0 && d0.mission.done === 0 && d0.index === 0, `the test mission runs on section 1 (${JSON.stringify(d0.mission)})`);
   const blips = await G(() => window.__sector.blips().length);
   assert(blips === 0, `no objective blip while a mission runs (${blips})`);
-  // (EN4) the objective list is on the HUD: visible, with section 1's rows (the badge step open)
-  await frames(page, 3);
-  const mh = await G(() => {
-    const el = document.querySelector('.mission-hud');
-    const rows = el ? [...el.querySelectorAll('.mh-row')].map((r) => r.textContent ?? '') : [];
-    return { shown: !!el && !el.hidden && el.getBoundingClientRect().width > 0, rows };
+  // (mission-rules R8, G343 / HG7) no always-on objective list: the HUD's objective line (`.hud-objective`, not its hint line
+  // `.hud-objective-hint`, hud.ts) is the current mission step (missionFeed.ts `MissionFeed`): the badge step's text
+  const step = await G(() => {
+    const r = window.__mission.runner;
+    const sec = r.def.sections[r.section];
+    const i = r.def.steps.findIndex((q, k) => q.section === sec && !q.optional && r.isOpen(k));
+    return i >= 0 ? r.def.steps[i].text : null;
   });
-  assert(mh.shown && mh.rows.length >= 1 && mh.rows.some((t) => t.includes('courier badge')), `the mission HUD shows its objective rows (${JSON.stringify(mh)})`);
+  assert(!!step && step.includes('courier badge'), `the current mission step is the badge step (${step})`);
+  await until(page, (t) => document.querySelector('.hud-objective:not(.hud-objective-hint)')?.textContent === t, step, 8000, 'the objective line is the mission step');
+  assert(true, `the objective line reads the mission step: "${step}"`);
+  // hints are off by default (Settings > Gameplay > Hints): no hint line under it
+  const hint = await G(() => document.querySelector('.hud-objective-hint')?.textContent ?? '');
+  assert(hint === '', `no hint line with hints off (${JSON.stringify(hint)})`);
+  // (HG8) the field menu (Field Terminal > Objectives, pauseScreen.ts `ObjectivesScreen`): the rules line first (counter
+  // "Rule", class `obj-note`), then section 1's steps (the badge step current; later sections are not listed yet)
+  await G(() => window.__app.current.pause());
+  await until(page, () => !!document.querySelector('.pause-screen [data-key="objectives"]'), null, 8000, 'the pause menu opens');
+  await G(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
+  await until(page, () => document.querySelectorAll('.objectives-screen .ms-item').length > 0, null, 8000, 'the Objectives screen opens');
+  const rows = await G(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => ({ cls: [...b.classList].find((c) => c.startsWith('obj-')) ?? '', label: b.querySelector('.btn-label')?.textContent ?? '', ctr: b.querySelector('.ms-ctr')?.textContent ?? '' })));
+  assert(rows.length === 2 && rows[0].cls === 'obj-note' && rows[0].ctr === 'Rule' && rows[1].cls === 'obj-current' && rows[1].ctr === 'Current' && rows[1].label === step, `Objectives: the rule first, then the badge step current (${JSON.stringify(rows)})`);
+  await G(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
+  await until(page, () => !!document.querySelector('.pause-screen [data-key="resume"]') && !document.querySelector('.objectives-screen'), null, 8000, 'back to the pause menu');
+  await G(() => document.querySelector('.pause-screen [data-key="resume"]').click());
+  await until(page, () => !window.__app.current.paused && !document.querySelector('.pause-screen'), null, 8000, 'the pause menu closes');
 
   // (b) section 1: the download from the open rear window is the intel step; its Guard AI event goes out
   await tp(20.6, 0, -76, -Math.PI / 2);

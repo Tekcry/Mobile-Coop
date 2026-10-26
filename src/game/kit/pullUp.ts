@@ -297,7 +297,9 @@ export const PULL_UP: KitMove<PullRun> = {
     }
     if (!below) return null;
     const p = dropAhead(h, c.pos.x, c.pos.y, c.pos.z, c.yaw);
-    if (!p || !Number.isFinite(p.floorY) || pullBand(c.pos.y - p.floorY) !== 'ok' || Math.abs(below.pos.y - p.floorY) > 0.4) return null;
+    // (wharf fix) the band feet to feet, as the host's rule reads it (`checkPullRequest`): feet rest 0.02 m over their
+    // floor, so the holder's feet over the drop's floor read a 4.5 m lip as 4.52 ('high') and offered the hang-down
+    if (!p || !Number.isFinite(p.floorY) || pullBand(c.pos.y - below.pos.y) !== 'ok' || Math.abs(below.pos.y - p.floorY) > 0.4) return null;
     if (!h.prompt) {
       h.prompt = 'Co-op: offer a pull-up (catch your partner as they jump)';
       h.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);

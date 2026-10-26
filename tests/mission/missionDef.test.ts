@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMission, condFlags, factsOf, stepCond, teamForSlot, type MissionDef } from '../../src/game/mission/missionDef';
+import { checkMission, condFlags, factsOf, RULE_KINDS, spookFact, stepCond, teamForSlot, type MissionDef, type MissionRule } from '../../src/game/mission/missionDef';
 
 // (mission-framework EN1) the data model's structural checks (PLAN section 2)
 
@@ -127,15 +127,57 @@ describe('checkMission', () => {
     expect(checkMission(d, GUARDS)).toEqual([]);
   });
 
-  it('checks rule steps: named target on an interrogate step, window with seconds', () => {
+  it('checks rule steps: named target on an interrogate step', () => {
     const d = op();
-    d.rules = [
-      { kind: 'namedTarget', scope: 'mission', text: 'Only the officer.', step: 'cage' },
-      { kind: 'window', scope: 'a', text: 'Thirty seconds.', step: 'cage' },
-    ];
-    const e = checkMission(d, GUARDS).join('\n');
-    expect(e).toMatch(/namedTarget\): needs an interrogate step/);
-    expect(e).toMatch(/window\): needs seconds > 0/);
+    d.rules = [{ kind: 'namedTarget', scope: 'mission', text: 'Only the officer.', step: 'cage' }];
+    expect(checkMission(d, GUARDS).join('\n')).toMatch(/namedTarget\): needs an interrogate step/);
+  });
+
+  it('(mission-rules R1, G290 / G334) oneChance and window are unknown rule kinds', () => {
+    for (const kind of ['oneChance', 'window']) {
+      const d = op();
+      d.rules = [{ kind, scope: 'mission', text: 'Old rule.', step: 'cage' } as unknown as MissionRule];
+      expect(checkMission(d, GUARDS).join('\n')).toContain(`rule 0 (${kind}): unknown kind`);
+      expect(RULE_KINDS).not.toContain(kind);
+    }
+  });
+
+  it('(mission-rules R1, A18) boltText: an interrogate step with a bolt, 1-90 characters', () => {
+    const d = op();
+    d.steps[4]!.boltText = 'Question the NOC officer in the back office';
+    expect(checkMission(d, GUARDS)).toEqual([]);
+    d.steps[4]!.boltText = 'x'.repeat(91);
+    expect(checkMission(d, GUARDS).join('\n')).toMatch(/boltText empty or over 90 characters/);
+    d.steps[4]!.boltText = '';
+    expect(checkMission(d, GUARDS).join('\n')).toMatch(/boltText empty/);
+    const nb = op();
+    delete nb.steps[4]!.bolt;
+    delete nb.steps[4]!.decoys;
+    nb.steps[4]!.boltText = 'Somewhere else';
+    expect(checkMission(nb, GUARDS).join('\n')).toMatch(/boltText needs an interrogate step with a bolt/);
+    const ni = op();
+    ni.steps[0]!.boltText = 'Somewhere else';
+    expect(checkMission(ni, GUARDS).join('\n')).toMatch(/roof.*boltText needs an interrogate step with a bolt/);
+  });
+
+  it('(mission-rules R1, Q19 "None") a campaign optional step with a reward is an error; Sector Ops may reward', () => {
+    const d = op();
+    d.steps.splice(5, 0, { id: 'bonus', section: 'S2', team: 'a', kind: 'reach', text: 'Optional: the roof safe', optional: { reward: 'medkit' } });
+    expect(checkMission(d, GUARDS)).toEqual([]);
+    const c = op();
+    c.mode = 'campaign';
+    c.players = [2];
+    delete c.tracks;
+    c.rules = [];
+    for (const s of c.steps) {
+      s.team = 'all';
+      delete s.soloWindow;
+    }
+    c.steps = c.steps.filter((s) => s.id !== 'cut');
+    c.steps.splice(4, 0, { id: 'bonus', section: 'S2', team: 'all', kind: 'reach', text: 'Optional: the roof safe', optional: { reward: 'medkit' } });
+    expect(checkMission(c, GUARDS).join('\n')).toMatch(/bonus.*campaign optional objectives give no reward \(rating only\)/);
+    c.steps[4]!.optional = {};
+    expect(checkMission(c, GUARDS)).toEqual([]);
   });
 
   it('checks interrogate, sync, text length and optional steps', () => {
@@ -163,8 +205,16 @@ describe('mission helpers', () => {
     expect(condFlags(stepCond(d.steps[0]!)!)).toEqual(['a', 'b', 'c']);
   });
 
-  it('factsOf lists each gives once in step order', () => {
-    expect(factsOf(op())).toEqual(['code-cage']);
+  it('factsOf lists each gives once in step order, then (mission-rules R1) the spook facts of interrogate steps with a bolt', () => {
+    expect(factsOf(op())).toEqual(['code-cage', 'ask-spooked']);
+    const d = op();
+    d.steps[4]!.gives = 'code-z';
+    // every gives first, so the existing fact bits keep their order
+    expect(factsOf(d)).toEqual(['code-cage', 'code-z', 'ask-spooked']);
+    expect(spookFact(d.steps[4]!)).toBe('ask-spooked');
+    delete d.steps[4]!.bolt;
+    delete d.steps[4]!.decoys;
+    expect(factsOf(d)).toEqual(['code-cage', 'code-z']);
   });
 
   it('teamForSlot (A9): 0 / 2 Team A, 1 / 3 Team B, solo and campaign carry both', () => {

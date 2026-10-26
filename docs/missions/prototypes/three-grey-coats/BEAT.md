@@ -17,8 +17,9 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
 - **Breaking it:** interrogating a decoy, or killing Teale before he talks, breaks the rule: LANTERN's line, then
   section restart at that section's checkpoint (M1). Per A11 Teale is despawned and respawns unalerted at his bolt point
   (W2 clock-mender's back loft) with his info. The restart keeps the spook, so the retry is a new route, not a replay.
-  Engine note for EN2: `restore(section)` keeps the `tgc-spooked` flag (PLAN 3 resets section facts; this is the one
+  Engine note for EN2: `restore(section)` keeps the `tgc-3-spooked` flag (PLAN 3 resets section facts; this is the one
   exception). Michael picked this (2026-10-25 ~18:05, "He moves (Recommended)"), so there is no put-him-back fallback.
+  After the move tgc-3 reads: Take the grey coat with the black umbrella in the clock-mender's back loft
 - **Teale knocked out before he talks** (Michael ~20:25, "Restart the section (Recommended)"; BRIEF M6): he is the mission's
   protected character, so this restarts the section from its checkpoint with Teale still at his table (G353; Michael
   ~11:20: "Section restart"); it is not a rule break. A courier who is down cannot talk, so without the restart the
@@ -28,7 +29,7 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
 | # | Sec | Min | Kind | Objective-list line | In-world lead | Forced co-op move (section) | New mechanic | Intel -> exploit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | W1 | 3 | reach | Find the three grey coats under the fish hall clock | Landmark: the lit fish hall clock, seen from the canal steps; SEXTON names the spot | Boost up a wall (canal steps -> stall-roof gallery) | - | - |
-| 2 | W1 | 4 | intel | Learn which grey coat is Pell's: the warden's tally book, the tea stall talk | Document: tally book on the warden's desk, gallery office (rules out the brass-tag satchel). Overheard: two porters at the tea stall (rules out the flat cap) | Hold shutter (fish hall service shutter -> arcade passage, the W1 exit) | Split leads: each player holds one half of the answer | gives `tgc-courier` (the black umbrella) |
+| 2 | W1 | 4 | intel | Which grey coat is Pell's? The warden's gallery office, the tea stall by the canal steps | Document: tally book on the warden's desk, gallery office (rules out the brass-tag satchel). Overheard: two porters at the tea stall (rules out the flat cap) | Hold shutter (fish hall service shutter -> arcade passage, the W1 exit) | Split leads: each player holds one half of the answer | gives `tgc-courier` (the black umbrella) |
 | 3 | W2 | 5 | interrogate | Take the grey coat with the black umbrella in the reading room loft | Overheard: SEXTON tracks the umbrella up the arcade stair; the reading room lamp in its window | Boost and rope (arcade ground -> loft walkway, west pier); throw over the lightwell (south lofts -> north lofts) | Named-target interrogation (decoys spook him) | needs `tgc-courier`; gives `tgc-chest` (shed three, the candle chest) |
 | 4 | W4 | 4 | exploit (twist) | Find the chest stencilled with a candle in shed three | Interrogation answer (Teale: "Shed three. Candle on the lid. Under the tea."); shed three's lit loading door seen from the crane gantry | Boost (back lane -> shed three's lane-side clerestory, 4.4 m) | - (the twist is a patrol change) | needs `tgc-chest` |
 | 5 | W4 | 3 | extract | Both of you, over the gangway to the boat under the crane | Landmark: the crane's red lamp over the jetty | Pull-up (canal ledge -> jetty lip, 4.4 m) | - | - |

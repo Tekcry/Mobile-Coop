@@ -13,6 +13,21 @@ export interface ObjectiveLine {
   label: string;
   done: boolean;
   current: boolean;
+  /** (mission-rules R6, HG8) A line with no done / current state: the mission's rule (the counter reads "Rule"). */
+  note?: true;
+  /** (mission-rules R6, HG8) The hint layer's line for this objective (the current one, hints on). */
+  hint?: string;
+}
+
+/** (mission-rules R6) The rules line's description in the Objectives screen. */
+export const OBJ_NOTE_DESC = "The mission's rule. Breaking it restarts the section.";
+
+/** (mission-rules R6) An Objectives row's counter and description: a `note` row is the rule; a hint follows the desc. */
+export function objectiveRowState(o: ObjectiveLine): { ctr: string; desc: string } {
+  if (o.note) return { ctr: 'Rule', desc: OBJ_NOTE_DESC };
+  const ctr = o.done ? 'Done' : o.current ? 'Current' : 'To do';
+  const desc = `${ctr}. ${o.done ? 'Completed.' : o.current ? 'Do this next.' : 'Comes after the current objective.'}`;
+  return { ctr, desc: o.hint ? `${desc} Hint: ${o.hint}` : desc };
 }
 
 export interface PauseOpts {
@@ -47,14 +62,14 @@ export class ObjectivesScreen extends MenuScreen {
       list.append(button('No objectives', () => {}, { class: 'ms-item', key: 'none', autofocus: true, desc: 'Free roam has no objectives. Explore the map.' }));
     }
     lines.forEach((o, i) => {
-      const state = o.done ? 'Done' : o.current ? 'Current' : 'To do';
+      const row = objectiveRowState(o);
       const b = button(o.label, () => {}, {
-        class: `ms-item obj-${o.done ? 'done' : o.current ? 'current' : 'todo'}`,
+        class: `ms-item obj-${o.note ? 'note' : o.done ? 'done' : o.current ? 'current' : 'todo'}`,
         key: `obj-${i}`,
         autofocus: o.current || (i === 0 && !lines.some((x) => x.current)),
-        desc: `${state}. ${o.done ? 'Completed.' : o.current ? 'Do this next.' : 'Comes after the current objective.'}`,
+        desc: row.desc,
       });
-      b.append(h('span', { class: 'ms-ctr', text: state }));
+      b.append(h('span', { class: 'ms-ctr', text: row.ctr }));
       list.append(b);
     });
     this.body.append(list);

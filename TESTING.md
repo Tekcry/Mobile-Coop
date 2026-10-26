@@ -48,6 +48,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Section rating: clear a Sector Ops section unseen; as the connector shuts, a card shows four ticks and the
   rewards that land (none with a full kit and health; use a gadget first and it names the charges), then fades. Set off
   an alarm (panel or camera) in the next: No alarms is a cross. The results list one line per section.
+- [ ] (mission-rules) With `?missions=1`, Three Grey Coats on Tallow Wharf: knock Teale out before he talks and the section restarts with him back at his table (no break); kill him or question a decoy and the rule breaks, he moves to the clock-mender's back loft, and the section restarts.
 - [ ] Marlow Yard rating: clear A2 unseen with a gadget used; as its airlock seals a card shows four ticks and the
   charges. In A3 get seen, restart the set: the card at its exit ignores the sighting. Co-op: both screens show it.
 - [ ] (sector-fixes R) Co-op Sector Ops, each section: leg-up your partner onto a 4.4 m lip (section 1 the high door

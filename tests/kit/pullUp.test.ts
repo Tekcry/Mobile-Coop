@@ -214,6 +214,13 @@ describe('the holder (KIT-PULL)', () => {
     expect(KIT_POSE_LOCAL.k).toBe(-1);
   });
 
+  it('(wharf fix) a 4.5 m lip, the band top, with both feet resting 0.02 m over their floors: the pull-up offer', () => {
+    const f = fakeGame([0, 4.52, 0], Math.PI / 2, [1.2, 0.02, 0], 0, 4.5);
+    f.controller.crouched = f.controller.crouchIntent = true;
+    f.tick(1, true);
+    expect(f.tm.state).toBe('pullOffer');
+  });
+
   it('too low for the pull-up (a solo climb reaches it): no pull offer, the hang-down as before', () => {
     const f = holderGame(3.5);
     f.mate.pos.y = 0;

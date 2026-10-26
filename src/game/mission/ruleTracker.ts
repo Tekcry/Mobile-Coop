@@ -7,17 +7,21 @@
  * (a knock-out is not a kill, a camera alarm breaks ghost). Attribution (A9): a kill, knock-out, gadget, interrogation or
  * take by its player's slot (one player carries both teams); team ghost by the alerted guard's track zone (spotFail's
  * test, per track); an alarm, camera alarm or found body by its position in a track's boxes, else against both teams.
- * The other rules: no gadgets, named target (a decoy read), plant-not-take (a take), a named window (the step not done
- * `seconds` after it opened) and one chance (a failure; it ends the mission, A12). A break restarts the section: a team
- * rule's break only that team in Sector Ops (`restartTeam`; `MissionRunner.restore(.., team)`, `resetSection(.., scope)`,
- * M1), a mission rule's everyone; while a mission has a one-chance rule without a step, any restart ends the mission
- * instead. After `resetSection` the reset scopes hold RULE_HOLD s so a rule cannot fire again before the players
- * respawn. Feeds and `update` do not allocate.
+ * The other rules: no gadgets, named target (a decoy read; or the target killed before he talked on a step the rule
+ * covers, `onTargetKilled`, as the Three Grey Coats page Michael signed says) and plant-not-take (a take).
+ * (mission-rules R1) Every break restarts the section and the mission continues (G290); no rule ends a mission or times
+ * a step (G334). A team rule's break restarts only that team in Sector Ops (`restartTeam`;
+ * `MissionRunner.restore(.., team)`, `resetSection(.., scope)`, M1), a mission rule's everyone.
+ * The protected restart (`onProtected`: an interrogation target knocked out before he talks, or killed on a step no
+ * named-target rule covers; G353, A2 / A3, BRIEF M6) is not a rule break: it restarts the section for everyone with
+ * `PROTECTED_LINE` and `lastRule` -1, and never counts in `breaks`, `kept()` or `brokenCount`.
+ * After `resetSection` the reset scopes hold RULE_HOLD s so a rule cannot fire again before the players respawn. Feeds
+ * and `update` do not allocate.
  */
 import { DEFAULT_RULES, UNDETECTED, NO_KILLS, NO_ALARMS, BODIES_HIDDEN, newSectionStats, rateSection, resetSectionStats, type RatingRules, type SectionStats } from '../rating/sectionRating';
 import { teamForSlot, type MissionDef, type MissionRule, type RuleKind } from './missionDef';
 import type { MissionRunner } from './missionRunner';
-import { breakLine } from './missionText';
+import { breakLine, PROTECTED_LINE } from './missionText';
 
 export const SCOPE_MISSION = 0;
 export const SCOPE_A = 1;
@@ -30,10 +34,8 @@ export const TEAM_BOTH = TEAM_A_BIT | TEAM_B_BIT;
 
 /** `update` outcomes. */
 export const RULE_OK = 0;
-/** A rule broke: the host says `line` and restarts the section. */
+/** A rule broke (or the protected restart): the host says `line` and restarts the section. */
 export const RULE_RESTART = 1;
-/** A one-chance rule broke: the mission ends. */
-export const RULE_END = 2;
 
 /** Seconds after a section restart before a rule can break again (courseMode SPOT_HOLD pattern). */
 export const RULE_HOLD = 2;
@@ -75,14 +77,16 @@ export class RuleTracker {
   breaks = 0;
   /** The last break's radio line (the wire's `rl`), '' none. */
   line = '';
-  /** The last broken rule (index in `def.rules`), -1 none. */
+  /** The last broken rule (index in `def.rules`), -1 none or the protected restart. */
   lastRule = -1;
-  /** The last break's outcome (RULE_RESTART / RULE_END), RULE_OK none. */
+  /** The last break's outcome (RULE_RESTART), RULE_OK none. */
   outcome = RULE_OK;
   /** A break fired and the section has not been reset yet: nothing more fires. */
   tripped = false;
-  /** The mission ended on a one-chance break. */
-  ended = false;
+  /** (mission-rules R1) Protected restarts this mission (not rule breaks: never in `breaks`). */
+  protectedBreaks = 0;
+  /** A protected restart waits for the next `update`. */
+  private protectedPending = false;
   private now = 0;
   /** Hold end per scope (s). */
   private readonly holdUntil = new Float64Array(SCOPES).fill(-Infinity);
@@ -90,11 +94,10 @@ export class RuleTracker {
   private readonly scope: Int32Array;
   private readonly mark: Int32Array;
   private readonly ruleStep: Int32Array;
-  /** Event rules hit since the last reset (no gadgets, named target, plant-not-take, one chance). */
+  /** Event rules hit since the last reset (no gadgets, named target, plant-not-take). */
   private readonly hit: Uint8Array;
   /** Breaks per rule over the whole mission. */
   private readonly broken: Uint16Array;
-  private readonly endsOnRestart: boolean;
 
   constructor(def: MissionDef, players: number, runner?: MissionRunner, ratingRules: Readonly<RatingRules> = DEFAULT_RULES) {
     this.def = def;
@@ -107,15 +110,12 @@ export class RuleTracker {
     this.ruleStep = new Int32Array(n).fill(-1);
     this.hit = new Uint8Array(n);
     this.broken = new Uint16Array(n);
-    let ends = false;
     for (let i = 0; i < n; i++) {
       const r = def.rules[i]!;
       this.scope[i] = scopeIndex(r.scope);
       this.mark[i] = ruleMark(r.kind);
       if (r.step !== undefined) this.ruleStep[i] = runner ? runner.stepIndex(r.step) : def.steps.findIndex((s) => s.id === r.step);
-      if (r.kind === 'oneChance' && r.step === undefined) ends = true;
     }
-    this.endsOnRestart = ends;
   }
 
   /** Is the tracker holding after a whole-section restart (the mission scope: its feeds ignored, its rules quiet)? */
@@ -251,23 +251,44 @@ export class RuleTracker {
     this.hitRules('plantNotTake', this.slotTeams(slot), -1);
   }
 
-  /** A failure: everyone down (`step` -1) or a one-try step failed (its index). One-chance rules read it. */
-  onFail(step = -1): void {
-    const rules = this.def.rules;
-    for (let i = 0; i < rules.length; i++) {
-      if (rules[i]!.kind !== 'oneChance' || this.isHeld(this.scope[i]!)) continue;
-      const rs = this.ruleStep[i]!;
-      if (rs < 0 || rs === step) this.hit[i] = 1;
-    }
+  /**
+   * (mission-rules R1, the Three Grey Coats page Michael signed: "killing Teale before he talks, breaks it") The target
+   * of interrogate step `step` was killed before he talked: the named-target rules on that step (or with no step) are hit
+   * for both teams, as a decoy read with the asker unknown; the next `update` breaks one the normal way (breaks +1, its
+   * kept bit cleared, `breakLine`). False when no rule was hit (none covers the step, or its scope is held after a
+   * restart).
+   */
+  onTargetKilled(step: number): boolean {
+    return this.hitRules('namedTarget', TEAM_BOTH, step);
   }
 
   /**
-   * Host tick: RULE_OK, or on a new break RULE_RESTART / RULE_END (with `line`, `lastRule`, `breaks` set). Window rules
-   * read `runner`'s step clock. After a break nothing fires until `resetSection`. No allocation.
+   * (mission-rules R1, G353, A2 / A3, BRIEF M6) The protected restart: an interrogation target knocked out before he
+   * talks (or killed on a step no named-target rule covers). The next `update` returns RULE_RESTART with `PROTECTED_LINE`
+   * and `lastRule` -1 (everyone goes back); it is not a rule break (`breaks`, `kept()` and `brokenCount` untouched).
+   * Ignored while the mission scope is held after a restart, or while a break waits for its reset.
    */
-  update(now: number, runner?: MissionRunner): number {
+  onProtected(): void {
+    if (this.tripped || this.isHeld(SCOPE_MISSION)) return;
+    this.protectedPending = true;
+  }
+
+  /**
+   * Host tick: RULE_OK, or on a new break RULE_RESTART (with `line`, `lastRule`, `breaks` set; a protected restart sets
+   * `line` and `lastRule` -1 only). After a break nothing fires until `resetSection`. No allocation.
+   */
+  update(now: number): number {
     this.now = now;
-    if (this.tripped || this.ended) return RULE_OK;
+    if (this.tripped) return RULE_OK;
+    if (this.protectedPending) {
+      this.protectedPending = false;
+      this.tripped = true;
+      this.lastRule = -1;
+      this.outcome = RULE_RESTART;
+      this.line = PROTECTED_LINE;
+      this.protectedBreaks++;
+      return RULE_RESTART;
+    }
     const rules = this.def.rules;
     const s = this.stats;
     const m0 = rateSection(s[SCOPE_MISSION], this.ratingRules);
@@ -283,21 +304,14 @@ export class RuleTracker {
         const marks = sc === SCOPE_A ? m1 : sc === SCOPE_B ? m2 : m0;
         if ((marks & mk) === 0) hit = true;
       }
-      if (r.kind === 'window' && runner) {
-        const st = this.ruleStep[i]!;
-        const t0 = st >= 0 ? runner.openedAt(st) : -1;
-        if (t0 >= 0 && !runner.isDone(st) && now - t0 > (r.seconds ?? Infinity)) hit = true;
-      }
       if (!hit) continue;
-      const end = r.kind === 'oneChance' || this.endsOnRestart;
       this.broken[i]!++;
       this.breaks++;
       this.lastRule = i;
-      this.outcome = end ? RULE_END : RULE_RESTART;
-      this.line = breakLine(r, end);
+      this.outcome = RULE_RESTART;
+      this.line = breakLine(r);
       this.tripped = true;
-      if (end) this.ended = true;
-      return this.outcome;
+      return RULE_RESTART;
     }
     return RULE_OK;
   }
@@ -307,7 +321,8 @@ export class RuleTracker {
    * rule's event hits cleared (everyone went back). A team scope ('a' / 'b', its rule broke, M1): only that team's
    * stats and the hits of its rules; the mission's and the other team's keep counting (one player or the campaign:
    * everyone, as `MissionRunner.restore`). `hold` (default) starts a RULE_HOLD s hold from `now` on the scopes reset
-   * (false: a section begin). The mission's break count and line stay.
+   * (false: a section begin). The mission's break count and line stay; a protected restart waiting for `update` is
+   * dropped.
    */
   resetSection(now: number, hold = true, scope?: MissionRule['scope']): void {
     const teams = this.def.mode === 'sector' && this.players > 1;
@@ -319,6 +334,7 @@ export class RuleTracker {
     }
     for (let i = 0; i < this.hit.length; i++) if (only < 0 || this.scope[i] === only) this.hit[i] = 0;
     this.tripped = false;
+    this.protectedPending = false;
     this.now = now;
   }
 
@@ -368,8 +384,12 @@ export class RuleTracker {
     }
   }
 
-  /** Mark event rules of `kind` hit for the mission scope and the scopes of `teams` (`step` >= 0: that step's rules only). */
-  private hitRules(kind: RuleKind, teams: number, step: number): void {
+  /**
+   * Mark event rules of `kind` hit for the mission scope and the scopes of `teams` (`step` >= 0: that step's rules and
+   * the step-less ones). True when any rule was hit.
+   */
+  private hitRules(kind: RuleKind, teams: number, step: number): boolean {
+    let any = false;
     const rules = this.def.rules;
     for (let i = 0; i < rules.length; i++) {
       if (rules[i]!.kind !== kind) continue;
@@ -380,6 +400,8 @@ export class RuleTracker {
       const rs = this.ruleStep[i]!;
       if (step >= 0 && rs >= 0 && rs !== step) continue;
       this.hit[i] = 1;
+      any = true;
     }
+    return any;
   }
 }

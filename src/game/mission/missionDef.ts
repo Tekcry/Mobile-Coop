@@ -41,6 +41,11 @@ export interface MissionStep {
   target?: string;
   decoys?: string[];
   bolt?: [number, number, number];
+  /**
+   * (mission-rules R1, A18) The step's line once the target has bolted: what and where, G336 (an interrogate step with a
+   * `bolt` only). Shown while the step's spook fact (`spookFact`) is held.
+   */
+  boltText?: string;
   /** Carry / plant: the item id and the place it goes (plant-not-take). */
   item?: string;
   site?: string;
@@ -65,7 +70,11 @@ export interface MissionEvent {
   via?: string;
 }
 
-export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake' | 'oneChance' | 'window';
+/**
+ * (mission-rules R1) No rule ends a mission or times a step: every break restarts the section (G290), soft windows only
+ * (G334). The old `oneChance` and `window` kinds are gone (A4).
+ */
+export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake';
 export type RuleScope = 'mission' | 'a' | 'b';
 
 export interface MissionRule {
@@ -73,10 +82,8 @@ export interface MissionRule {
   scope: RuleScope;
   /** The signposted line (briefing and objective list). */
   text: string;
-  /** namedTarget: the interrogate step; window: the timed step; oneChance: the one-try step (none: any restart). */
+  /** namedTarget: the interrogate step. */
   step?: string;
-  /** window: seconds from the step opening to it being done. */
-  seconds?: number;
 }
 
 /**
@@ -125,7 +132,7 @@ export interface MissionGuardList {
 }
 
 export const STEP_KINDS: readonly StepKind[] = ['reach', 'interact', 'intel', 'exploit', 'interrogate', 'carry', 'plant', 'sync', 'extract'];
-export const RULE_KINDS: readonly RuleKind[] = ['ghost', 'noKills', 'noAlarms', 'noBodies', 'namedTarget', 'noGadgets', 'plantNotTake', 'oneChance', 'window'];
+export const RULE_KINDS: readonly RuleKind[] = ['ghost', 'noKills', 'noAlarms', 'noBodies', 'namedTarget', 'noGadgets', 'plantNotTake'];
 export const TEAM_IDS: readonly TeamId[] = ['a', 'b', 'all'];
 export const RULE_SCOPES: readonly RuleScope[] = ['mission', 'a', 'b'];
 export const REWARD_KINDS: readonly RewardKind[] = ['gadget', 'syringe', 'medkit'];
@@ -238,6 +245,10 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
       }
       if ((s.decoys?.length ?? 0) > 0 && !s.bolt) out.push(`${p}: decoys need a bolt point`);
     } else if (s.target !== undefined || s.decoys !== undefined || s.bolt !== undefined) out.push(`${p}: target / decoys / bolt on a ${s.kind} step`);
+    if (s.boltText !== undefined) {
+      if (s.kind !== 'interrogate' || !s.bolt) out.push(`${p}: boltText needs an interrogate step with a bolt`);
+      if (!s.boltText || s.boltText.length > MISSION.textMax) out.push(`${p}: boltText empty or over ${MISSION.textMax} characters`);
+    }
     if ((s.kind === 'carry' || s.kind === 'plant') && (!s.item || !s.site)) out.push(`${p}: ${s.kind} needs item and site`);
     if (s.kind === 'sync') {
       if (!(typeof s.window === 'number' && s.window > 0)) out.push(`${p}: sync needs window > 0`);
@@ -245,6 +256,8 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
     } else if (s.window !== undefined || s.soloWindow !== undefined) out.push(`${p}: window on a ${s.kind} step`);
     if (s.optional) {
       if (s.optional.reward !== undefined && !REWARD_KINDS.includes(s.optional.reward)) out.push(`${p}: optional reward ${String(s.optional.reward)}`);
+      // (mission-rules R1, Q19 "None (Recommended)", A6) the campaign pays nothing for an optional objective
+      if (campaign && s.optional.reward !== undefined) out.push(`${p}: campaign optional objectives give no reward (rating only)`);
       if (s.kind === 'extract') out.push(`${p}: the extraction cannot be optional`);
     }
     for (const ev of s.events ?? []) if (!ev.name || !ev.guardTag || !ev.postId) out.push(`${p}: an event needs name, guardTag and postId`);
@@ -255,6 +268,7 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
   if (last && d.sections.length > 0 && last.section !== d.sections[d.sections.length - 1]) out.push(`${tag}: the extraction is not in the last section`);
   if (n > MISSION.stepsWireMax) out.push(`${tag}: over ${MISSION.stepsWireMax} steps (wire bits)`);
   if (givers.size > MISSION.factsMax) out.push(`${tag}: over ${MISSION.factsMax} facts (wire bits)`);
+  else if (factsOf(d).length > MISSION.stepsWireMax) out.push(`${tag}: over ${MISSION.stepsWireMax} facts with the spook facts (wire bits)`);
 
   // edges: known, in section order, a required step never waits on an optional one
   for (let i = 0; i < n; i++) {
@@ -323,10 +337,6 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
     if (r.step !== undefined && si === undefined) out.push(`${p}: step ${r.step} is not a step`);
     const st = si !== undefined ? d.steps[si] : undefined;
     if (r.kind === 'namedTarget' && (!st || st.kind !== 'interrogate')) out.push(`${p}: needs an interrogate step`);
-    if (r.kind === 'window') {
-      if (!st) out.push(`${p}: needs a step`);
-      if (!(typeof r.seconds === 'number' && r.seconds > 0)) out.push(`${p}: needs seconds > 0`);
-    }
     if (r.kind === 'plantNotTake' && !d.steps.some((s) => s.kind === 'plant')) out.push(`${p}: no plant step`);
     for (let j = 0; j < i; j++) {
       const o = d.rules[j]!;
@@ -401,10 +411,23 @@ export function condFlags(c: MissionCond, out: string[] = []): string[] {
   return out;
 }
 
-/** The facts (distinct `gives`) in step order: the wire's fact bit k is `factsOf(d)[k]`. */
+/**
+ * (mission-rules R1, A18) An interrogate step's spook fact: held once its target has bolted (a decoy read, or his kill
+ * on a step a named-target rule covers). Kept on restore, so the step's `boltText` shows after the restart too.
+ */
+export function spookFact(s: MissionStep): string {
+  return `${s.id}-spooked`;
+}
+
+/**
+ * The facts in wire bit order: the distinct `gives` in step order, then (mission-rules R1) the spook fact of every
+ * interrogate step with a `bolt` (after all the `gives`, so the existing fact bits keep their order). The wire's fact
+ * bit k is `factsOf(d)[k]`.
+ */
 export function factsOf(d: MissionDef): string[] {
   const out: string[] = [];
   for (const s of d.steps) if (s.gives && !out.includes(s.gives)) out.push(s.gives);
+  for (const s of d.steps) if (s.kind === 'interrogate' && s.bolt && !out.includes(spookFact(s))) out.push(spookFact(s));
   return out;
 }
 

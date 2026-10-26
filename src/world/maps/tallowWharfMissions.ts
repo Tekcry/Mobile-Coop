@@ -54,7 +54,8 @@ export const THREE_GREY_COATS: MissionDef = {
       section: 'W1',
       team: 'all',
       kind: 'intel',
-      text: "Learn which grey coat is Pell's: the warden's tally book, the tea stall talk",
+      // (mission-rules R1, G336 / G351 "What and where") both halves of the answer name their place
+      text: "Which grey coat is Pell's? The warden's gallery office, the tea stall by the canal steps",
       hint: 'Tally book: the warden\'s desk, gallery level. Tea stall: by the canal steps.',
       after: ['tgc-1'],
       gives: 'tgc-courier',
@@ -73,6 +74,9 @@ export const THREE_GREY_COATS: MissionDef = {
       target: 'W2:6',
       decoys: ['W2:7', 'W2:8'],
       bolt: [65, 4.5, 76.75],
+      // (mission-rules R1, A18) after a decoy read or his kill before he talks he is in the clock-mender's back loft
+      // (Michael ~18:05, "He moves (Recommended)"); the line names the new place (G336 what and where)
+      boltText: "Take the grey coat with the black umbrella in the clock-mender's back loft",
     },
     {
       id: 'tgc-opt',

@@ -4,8 +4,8 @@ Owner: Night Shift | Campaign Build. Status: current.
 Job `mission-rules` (FOLDED-PLAN J7, origin/feature/menu `docs/orchestrator/FOLDED-PLAN.md` section 4). Lead: Night Shift
 | Campaign Build. Branches `feature/mission-rules` (PR D), `feature/mission-rules-net` (PR E),
 `feature/mission-rules-hud` (PR F), stacked on `feature/mission-engine` (PR C, on #372 `feature/mission-framework`);
-folder `C:/NightShift/Mobile-Coop-mission-rules`. Base: origin/feature/mission-engine 8f40303f (carries the FLG fix
-f8b06637, PASS from FLG checkers A and B). Plan: `docs/mission-rules/PLAN.md` (drafted as
+folder `C:/NightShift/Mobile-Coop-mission-rules`. Base: `origin/feature/mission-engine` e4eace3b, the R0 head (B0: #372 merged, a1696b14; the Q19
+reward commit), on top of 8f40303f's code (the FLG fix f8b06637, PASS from FLG checkers A and B). Plan: `docs/mission-rules/PLAN.md` (drafted as
 `docs/missions/slices/J7-PLAN.md` on feature/mission-engine). Written 2026-10-25 by the J7 Opus planner (plan check fix
 round); the lead commits it with the PLAN before builders start.
 
@@ -47,7 +47,12 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
 - Q19 campaign rewards (~16:50): "None (Recommended)"
 - Q23 Tallow throw gaps (~16:50): "Force co-op"
 - Three Grey Coats (~18:05): "He moves (Recommended)" (option 1 of the sign-off: "Approve as specced (after a broken
-  rule, W2 restarts with Teale moved to the clock-mender's loft)").
+  rule, W2 restarts with Teale moved to the clock-mender's loft)"). The page he signed says: "Questioning a decoy (Fenn or
+  Garrow), or killing Teale before he talks, breaks it. ... Teale is now unalerted in the clock-mender's back loft"
+  (SIGNOFF 4; #372 a1696b14 SIGNOFF.md:41-43, BEAT.md:17-19).
+- Three Grey Coats, a knock-out before Teale talks (~20:25, #372 `docs/missions/BRIEF.md` M6 at 67464e03, the second pick
+  in SIGNOFF.md): "Restart the section (Recommended)" (the section restarts from its checkpoint with Teale at his table;
+  not a rule break; a kill before he talks stays a rule break and he moves). Answers #372's A24 and mission-rules A2.
 - Two-Key Ledger (~18:05): "Hears and reacts (Recommended)" (the bell sends the porter: a Guard AI reaction).
 - Code Relay (~18:05): "Approve, code re-askable (Recommended)" (an expired code can be asked for again; no hard
   countdown).
@@ -66,16 +71,17 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
   Nobody else: decoys and every other guard may be knocked out (TGC BEAT: "Knock-outs are allowed on anyone else"), and
   killed under the mission's own rules. No `MissionDef.protects` list (no mission needs one now; J25 civilians bring
   their own). TKL protects nobody (no interrogate step). Undo: add a `protects` list when a mission names more people.
-- **A2** A protected target killed or knocked out before his step is done restarts the section from its checkpoint
-  (G353, Michael ~11:20 "Section restart"). It is not a rule break, even on a step a `namedTarget` rule covers, and it
-  does not spook him: TGC's Teale respawns at his table. Michael's signed TGC page (#372 ab90a071, BEAT.md:22-25,
-  SIGNOFF.md:42-43) lists the knock-out as a protected-character restart apart from the strict rule, and "He moves"
-  (SIGNOFF option 1) applies only "after a broken rule" (a decoy read; A18). A knock-out never clears an earlier decoy
-  read's move. Lead decision on the plan check's reading; matches the lead's earlier assumption in
-  `docs/missions/STATE.md`. Undo: add the move in the TGC BEAT (the knock-out then sets `spookStep` as a decoy read
-  does).
-- **A3** The protected restart is built in, not one of the 2 strict rules (CONFORMANCE MF6): it does not count in `rb`,
-  `kept()` or `brokenCount`; line "The man you need is down. Back to the section checkpoint."; banner SECTION RESTART
+- **A2** (answered: Michael picked it ~20:25, see "Michael picked", #372 M6) A protected target knocked out before his step is done restarts the section from its checkpoint
+  with him in place (G353, Michael ~11:20 "Section restart"); it is not a rule break and does not move him. On TGC
+  Michael picked this at ~20:25, "Restart the section (Recommended)": #372 `docs/missions/BRIEF.md` M6 (67464e03
+  BRIEF.md:51-53) and A24 (:101-103), SIGNOFF.md:43-45 and the pick :61-62, BEAT.md:22-25. The page Michael signed at
+  ~18:05 names only the kill, not the knock-out. A kill is not covered here when a `namedTarget` rule covers his step:
+  then it breaks that rule and he moves, as the signed page says (PLAN R1). A kill with no rule on his step is this same
+  protected restart. A knock-out never clears an earlier move. Undo (only if Michael changes his pick): the knock-out
+  takes the kill branch (a rule break, he moves): one condition in SectorMission's protected check.
+- **A3** The protected restart (a knock-out, or a kill with no rule on his step) is built
+  in, not one of the 2 strict rules (CONFORMANCE MF6): it does not count in `rb`, `kept()` or `brokenCount`; a Teale
+  kill before he talks is a rule break and counts. Its line is "The man you need is down. Back to the section checkpoint."; banner SECTION RESTART
   (not RULE BROKEN, since no rule broke); no spook. Undo: count it in `breaks`, or show RULE BROKEN.
 - **A4** `oneChance` and `window` go for every mission mode, not only the campaign (G290 and G334 are general; Code
   Relay's re-askable code fits, ~18:05). Logged for Michael's next look. Undo: restore both kinds for `mode: 'sector'`
@@ -104,7 +110,9 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
   runs, with the same place name as tgc-2 ("the warden's gallery office"). Undo: banner back to `s.objective.label`.
 - **A13** HG7 / HG8: the always-on mission list is deleted; the current objective goes on the objective line (J3b makes
   it the popup); the full list lives in the field menu (PLAN 7). CONFORMANCE 1d puts them in the engine job; the
-  orchestrator confirms the owner. Undo: restore `missionHud.ts` / `missionHudMount.ts` from git history.
+  orchestrator confirms the owner. Undo: restore `missionHud.ts` / `missionHudMount.ts` from git history. J7 owns `Hud.setObjectiveHint` and the rules-line / hint
+  rows of the Objectives screen (R6); the mission rows reach the field menu only through hud-guidance B4's hook
+  (`GameMode.objectiveLines` / `NetAttachment.objectiveLines`; PLAN 7); J3b owns the popup. Lead ruling, plan fix round 2.
 - **A14** D, E, F stack on the engine branch and merge into it (PLAN 4); PR C carries them to master. Undo: retarget D,
   E, F to master after PR C merges and let them ride trains (the orchestrator's call).
 - **A15** The mission validator's `oneChance` / `window` kinds (`scripts/mission-validate.mjs` :18, :229, :405 and
@@ -113,10 +121,10 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
 - **A16** Campaign results, save and stars stay J22's: `markCompleted` (sectorMode.ts:1033) still writes a Sector Ops
   stars record for Tallow until J22. Undo: none (J22 replaces it).
 - **A17** TGC / TKL `graph.json` and `BEAT.md` change with the data (mission data, no geometry;
-  `tests/tallowWharf/sectors.test.ts` compares them character for character). R1 starts each of the four files from
-  #372's copy (origin/feature/mission-framework ab90a071, which already dropped the Q19 rewards) and adds only its own
-  lines, so PR C's later merge of #372 stays clean. The SIGNOFF pages are J8's. Undo: revert the changed fields.
-- **A18** After the move (a decoy read only; a knock-out never moves him, A2) the step names his new place:
+  `tests/tallowWharf/sectors.test.ts` compares them character for character). B0 at R0 merges #372 (a1696b14) into the engine, so the four TGC / TKL
+  files are already #372's copy on the base; R1 adds only its own lines, and leaves #372's "Breaking it" (the kill)
+  and A24 (the knock-out) text as it is. The SIGNOFF pages are J8's. Undo: revert the changed fields.
+- **A18** After the move (a decoy read or a Teale kill before he talks; a knock-out never moves him, A2) the step names his new place:
   `MissionStep.boltText` (TGC tgc-3: "Take the grey coat with the black umbrella in the clock-mender's back loft", 74
   characters) shows while the step's spook fact
   (`<step id>-spooked`, kept on restore) is held. The client learns it from the wire's fact bits (`ms.f`, one more bit
@@ -124,3 +132,10 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
   reading room).
 - **A19** A blocked start (campaign block or over capacity) returns before the session leaves `lobby`, so the room can
   still start once the partner joins. Undo: none needed (a bug fix).
+- **A20** B0 (merge #372 into `feature/mission-engine`) runs at J7 R0, done by Campaign Build, with one commit
+  that drops the two Tallow optional rewards and makes `MissionStep.optional.reward` optional (Q19 "None"), so
+  `tests/tallowWharf/sectors.test.ts` stays green on the base. The J8-J9 plan uses the same order. Undo: B0 after PR D
+  (then R1 copies the four files from #372 itself).
+- **A21** The field-menu interface with hud-guidance PR B is B4's hook with the text in PLAN 7 item 3, in both
+  plans; B4 lands before R6, or R6 builds against B4's names on the hud-guidance-b branch. Undo: none needed (an
+  interface agreement).
