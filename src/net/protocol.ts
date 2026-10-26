@@ -18,7 +18,7 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 69;
+export const PROTOCOL_VERSION = 71;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -726,7 +726,7 @@ function courseRh(v: unknown): { rh?: number[] } {
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
 /** (J14 R1) A course retry's causes (`PackedCourse.rc`). */
-const RETRY_CAUSES: readonly RetryCause[] = ['seen', 'caught', 'timer', 'out', 'down'];
+const RETRY_CAUSES: readonly RetryCause[] = ['seen', 'caught', 'timer', 'out', 'down', 'other'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
   const out: number[] = [];
   if (!Array.isArray(v)) return out;

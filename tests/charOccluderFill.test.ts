@@ -8,12 +8,15 @@
  * - two machines filling from the same inputs hold the same bytes;
  * - `pictureInto`: players first, then the nearest the local player, at most `max`;
  * - nothing allocates per call (the fills every sim step, the picture every frame);
+ * - (S2c) `slotInto`, one player slot's inputs shared by the host's remotes and a client's partners, gives A2's inline
+ *   formula (gameState.ts `fillChars`) to the bit;
  * - the field: a guard from `fillVictims` between a lamp and a player's chest lowers his meter by the lamp's share x
  *   `capsuleTransmit`; his own capsule never shades him; a contract of players alone gives today's values to the bit.
  */
 import { describe, expect, it } from 'vitest';
-import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto, type VictimLike } from '../src/game/charOccluderFill';
-import { lightSampleHeight } from '../src/game/bodyHeight';
+import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto, slotInto, type MateLike, type VictimLike } from '../src/game/charOccluderFill';
+import { lightSampleHeight, STANDARD_BODY } from '../src/game/bodyHeight';
+import { posedHeadSample } from '../src/player/wallController';
 import { capsuleTransmit, CharOccluders, holds, OCC, OCC_KIND, occKey } from '../src/world/charOccluders';
 import { LightRegistry } from '../src/world/lights';
 import type { LightBake } from '../src/world/lightBake';
@@ -36,6 +39,15 @@ const rt = (x: number, y: number, z: number, h: number): number[] =>
 const capOf = (c: CharOccluders, i: number): number[] => {
   const o = i * OCC.stride;
   return [c.cap[o]!, c.cap[o + 1]!, c.cap[o + 2]!, c.cap[o + 6]!, c.cap[o + 3]!, c.cap[o + 4]!, c.cap[o + 5]!];
+};
+/** (S2c) A2's inline slot formula (gameState.ts `fillChars` before S2c), restated: one player slot's 6 doubles. */
+const a2Of = (r: MateLike): number[] => {
+  const rh = r.head;
+  if (rh) {
+    const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, { ox: 0, oz: 0, h: 0 });
+    return [r.feet.x, r.feet.y, r.feet.z, hs.h, hs.ox, hs.oz];
+  }
+  return [r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), r.peekX ?? 0, r.peekZ ?? 0];
 };
 const bytes = (c: CharOccluders): number[] => [...new Uint8Array(c.cap.buffer), ...new Uint8Array(c.owner.buffer), c.n];
 
@@ -190,7 +202,7 @@ describe('charOccluderFill: the capsules (step 1)', () => {
 });
 
 describe('charOccluderFill: no allocation per call (step 1)', () => {
-  it('fillPlayers(4) + fillVictims(32) and pictureInto(16) read under one HeapNumber per call; a vector per call reads 32 B+', async () => {
+  it('slotInto x3 + fillPlayers(4) + fillVictims(32) and pictureInto(16) read under one HeapNumber per call; a vector per call reads 32 B+', async () => {
     const rnd = rng(13);
     const vs: VictimLike[] = [];
     for (let i = 0; i < 32; i++) vs.push(victim(-20 + rnd() * 40, 0, -20 + rnd() * 40, 1.6 + rnd() * 0.3));
@@ -199,14 +211,24 @@ describe('charOccluderFill: no allocation per call (step 1)', () => {
     const c = new CharOccluders();
     const a = new Float32Array(16 * 4);
     const b = new Float32Array(16 * 4);
+    // (S2c) three player slots through `slotInto` each call, one ref shape (a client's `CharMates` entries): on a wall,
+    // crouched, peeking
+    const slots = new Float64Array(FILL.players * FILL_IN);
+    const m1: MateLike = { feet: { x: 5, y: 0, z: 5 }, crouched: false, height: 1.68, peekX: 0, peekZ: 0, head: { x: 5.1, y: 1.5, z: 4.8 } };
+    const m2: MateLike = { feet: { x: -9, y: 0, z: 4 }, crouched: true, height: 1.75, peekX: 0, peekZ: 0, head: null };
+    const m3: MateLike = { feet: { x: 3, y: 0, z: -8 }, crouched: false, height: 1.75, peekX: 0.2, peekZ: -0.1, head: null };
     const N = 2000;
     const per = (fn: (n: number) => void, goal: number): Promise<number> => bytesPerCall(fn, goal, { n: N, warm: 100000 });
     const fill = await per((n) => {
       for (let i = 0; i < n; i++) {
+        slotInto(slots, 1, m1);
+        slotInto(slots, 2, m2);
+        slotInto(slots, 3, m3);
         fillPlayers(c, pin, 4, keys);
         sink[0] = fillVictims(c, vs, pin, 4);
       }
     }, 0);
+    expect(Array.from(slots.subarray(FILL_IN, 4 * FILL_IN))).toEqual([...a2Of(m1), ...a2Of(m2), ...a2Of(m3)]);
     fillPlayers(c, pin, 4, keys);
     fillVictims(c, vs, pin, 4);
     const pic = await per((n) => {
@@ -220,7 +242,7 @@ describe('charOccluderFill: no allocation per call (step 1)', () => {
         ring[i & 63] = v;
       }
     }, -Infinity);
-    console.info(`bytes per call: fillPlayers(4) + fillVictims(32) ${fill.toFixed(1)}, pictureInto(16) ${pic.toFixed(1)}, control with a vector ${ctl.toFixed(1)}; ${c.n} capsules`);
+    console.info(`bytes per call: slotInto x3 + fillPlayers(4) + fillVictims(32) ${fill.toFixed(1)}, pictureInto(16) ${pic.toFixed(1)}, control with a vector ${ctl.toFixed(1)}; ${c.n} capsules`);
     expect(c.n).toBe(36);
     expect(fill).toBeLessThan(HEAP_NUMBER);
     expect(pic).toBeLessThan(HEAP_NUMBER);
@@ -344,5 +366,39 @@ describe('charOccluderFill: the field (step 2)', async () => {
     const own = new CharOccluders();
     fillPlayers(own, pinOf([slots[0]!]), 1, keys);
     expect(Object.is(f.bodyLevel(0, 0, 0, 1.75, undefined, 0, 0, own, keys[0]), f.bodyLevel(0, 0, 0, 1.75))).toBe(true);
+  });
+});
+
+// (S2c) Last in the file: its refs of many shapes leave `slotInto`'s property loads megamorphic (a double field read
+// there is boxed, 16 B), which the allocation case above must not inherit. A machine's slots see one shape (a client's
+// `CharMates` refs; the host's `RemotePlayer.ref`), as that case's three refs do.
+describe('slotInto (S2c)', () => {
+  it('200 random refs (half on a wall, height absent or present, crouched or not): the 6 doubles of A2, Object.is each', () => {
+    const rnd = rng(31);
+    const pin = new Float64Array(FILL.players * FILL_IN).fill(Number.NaN);
+    const seen = { head: 0, flat: 0, noHeight: 0, height: 0, crouched: 0, standing: 0 };
+    for (let k = 0; k < 200; k++) {
+      const feet = { x: -40 + rnd() * 80, y: -2 + rnd() * 8, z: -40 + rnd() * 80 };
+      const r: { -readonly [K in keyof MateLike]: MateLike[K] } = { feet, crouched: (k >> 1) % 2 === 0 };
+      if ((k >> 2) % 2 === 0) r.height = 1.1 + rnd() * 0.9;
+      if (k % 3 !== 0) {
+        r.peekX = -0.4 + rnd() * 0.8;
+        r.peekZ = -0.4 + rnd() * 0.8;
+      }
+      if (k % 2 === 0) r.head = { x: feet.x - 0.3 + rnd() * 0.6, y: feet.y + 0.2 + rnd() * 1.6, z: feet.z - 0.3 + rnd() * 0.6 };
+      else if (k % 4 === 1) r.head = null;
+      const s = k % FILL.players;
+      slotInto(pin, s, r);
+      const want = a2Of(r);
+      for (let i = 0; i < FILL_IN; i++) expect(Object.is(pin[s * FILL_IN + i], want[i]), `ref ${k} double ${i}: ${pin[s * FILL_IN + i]} vs ${want[i]}`).toBe(true);
+      seen[r.head ? 'head' : 'flat']++;
+      seen[r.height === undefined ? 'noHeight' : 'height']++;
+      seen[r.crouched ? 'crouched' : 'standing']++;
+    }
+    // (both branches, both height cases, both stances, with enough of each)
+    for (const v of Object.values(seen)) expect(v).toBeGreaterThanOrEqual(50);
+    // (on a wall the head wins over the peek; a very low head keeps the 0.3 sample floor)
+    slotInto(pin, 2, { feet: { x: 1, y: 2, z: 3 }, crouched: false, peekX: 9, peekZ: 9, head: { x: 1.25, y: 2.1, z: 2.5 } });
+    expect(Array.from(pin.subarray(2 * FILL_IN, 3 * FILL_IN))).toEqual([1, 2, 3, 0.3, 1.25 - 1, 2.5 - 3]);
   });
 });

@@ -33,6 +33,9 @@ merge); `docs/RULES.md` (who merges).
   workflow's trigger, master) is only the fallback when git fails. On `/preview/` every dark feature flag in
   `src/core/flags.ts` defaults on (`PREVIEW_ON`, `darkFlag`; Michael 2026-10-26 ~13:55, "All on in preview"); a URL
   `=0` turns one off; the live game and `/ct/` keep them off.
+- The campus prebake (`scripts/prebake.mjs`) runs with the same preview signal (`src/core/previewBuild.ts`), so
+  `/preview/` ships the lamps of its own campus layout (campusV2 every section); its CI cache key is
+  `prebake-preview-*`, the live game's `prebake-live-*` (prebake-preview).
 - Boot a preview straight into a map: `/<repo>/<slot>/?autostart=<mapId>&mode=<mode>`.
 
 ## One deploy per release (audit 2026-10-24 finding 9)

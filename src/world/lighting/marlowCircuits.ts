@@ -198,20 +198,29 @@ export const MARLOW_CIRCUITS: MarlowCircuit[] = [
  * (J14 Marlow re-plan, A20; BRIEF Q2 "Never": every light works, darkness only from cover, cut power and shot lamps) The circuit
  * table of the map `ctcourseReplan`: the built table with the lights left off tonight now live. Group 49 (A4 back aisle) and
  * 69 (A6 sump and west gallery) become switched read circuits; the A4 dispatch office (44), the A8 vestibule (85) and the A8
- * west bays (86) get fittings on their own switches; the A2 coat corner gets a lamp on the cabin's circuit (22). Switch spots
+ * west bays (86) get fittings on their own switches; the A2 coat corner gets a lamp on the cabin's circuit (22) and the A2 stores
+ * bay a seventh strip on the shed general (20, J14 G-A2 lead answer 4). Switch spots
  * are plan points (builders may move them up to 1 m, SPEC 9); each set slice places the lamps (`replan/<set>.ts`) and the
  * lamp counts here are the budget they build to. The built `MARLOW_CIRCUITS` is untouched.
  */
 export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
   ...MARLOW_CIRCUITS.flatMap((c): MarlowCircuit[] => {
+    if (c.group === 20) return [{ ...c, fitting: 'Strips on wires under the roof tie, one over the stores bay', lamps: 7 }];
+    // (J14 a2-rows) cabinet 2 moved off the east wall to the pit's near side on the road 2 east van (A2_CAB2_REPLAN); cabinet 1 as built
+    if (c.group === 21) return [{ ...c, switches: [c.switches[0]!, sw('a2-iso-2', 'isolator', 63.5, 11.6, 'cabinet 2, by the pit on the road 2 east van')] }];
+    // (J14 a2-rows) the staging is gone: its switch comes down to the floor on the north wall, its strips stay high where it stood
+    if (c.group === 23) return [{ ...c, fitting: 'Strips high on the north wall, where the staging stood', switches: [sw('a2-sw-staging', 'wall', 40.0, 19.7, 'on the north wall, west of the neck closures')] }];
     if (c.group === 22) return [{ ...c, name: "Shunter's cabin panel and coat corner lamp", fitting: 'Ceiling panel over the desk, a wall lamp over the coat hooks', lamps: 2 }];
+    // (J14 G-A5 fix 2) the apron switch moved onto the perimeter wall's inside face with the apron's two east bulkheads (the
+    // built row keeps the built yard's spot at the L4 door)
+    if (c.group === 50) return [{ ...c, switches: [sw('a5-sw-apron', 'wall', 67.8, 36.0, "on the perimeter wall's inside face, by the apron's east bulkheads")] }];
     if (c.group === 49) {
       return [
-        { ...c, name: 'Bulk-store row (back aisle)', kind: 'switch', role: 'read', fitting: 'Strips over the back aisle', switches: [sw('a4-sw-bulk', 'wall', 76.3, 25.8, "at the back aisle's west end")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true },
+        { ...c, name: 'Bulk-store row (back aisle)', kind: 'switch', role: 'read', fitting: 'Strips over the back aisle', switches: [sw('a4-sw-bulk', 'wall', 99.0, 24.3, "on the back aisle's south wall, west of the lift grille")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true },
         { group: 44, key: 'a4-dispatch', room: 'A4', name: 'Dispatch office', kind: 'switch', role: 'toy', fitting: 'Ceiling panel', tone: 'white', owner: 'Port operator (set)', switches: [sw('a4-sw-dispatch', 'wall', 79.4, 38.4, 'inside the office by its door')], cutBy: ['switch', 'jam', 'shot'], lamps: 1, electric: true, destructible: true },
       ];
     }
-    if (c.group === 69) return [{ ...c, name: 'Sump high-bay and west gallery fittings', kind: 'switch', role: 'read', fitting: 'High-bay, bulkheads', switches: [sw('a6-sw-sump', 'wall', 58.6, 54.4, 'beside the sump bay')], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true }];
+    if (c.group === 69) return [{ ...c, name: 'Sump high-bay and west gallery fittings', kind: 'switch', role: 'read', fitting: 'High-bay, bulkheads', switches: [sw('a6-sw-sump', 'wall', 51.0, 54.3, "on the sump bay's south wall, west of the L5 door")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true }];
     if (c.group === 84) {
       return [
         c,
