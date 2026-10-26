@@ -90,9 +90,12 @@ export async function runGuardPoseGolden(): Promise<GoldenFixture> {
   const random = Math.random;
   let seed = 1;
   Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  /** (guard-ai runner-armed, A7) The fixtures were captured with the runner unarmed (before G298): his key keeps
+   *  that def, so the fixture stays valid and still covers the unarmed rig; the armed lean rig is the sniper's key. */
+  const GOLDEN_RUNNER = { ...ENEMIES.runner, gun: null };
   try {
     for (const kind of ENEMY_KINDS) {
-      const def = ENEMIES[kind];
+      const def = kind === 'runner' ? GOLDEN_RUNNER : ENEMIES[kind];
       for (const sc of SCENARIOS) {
         seed = 12345;
         const { rig, gun } = buildEnemyRig(scene, world as never, def, `g-${kind}`);

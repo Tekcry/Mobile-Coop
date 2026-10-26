@@ -687,3 +687,18 @@ export function combatSeed(matchSeed: number, incidentId: number, guardKey: numb
   h ^= h >>> 16;
   return h >>> 0;
 }
+
+/** (guard-ai seed-random, hard rule 8) A replayable draw in [0, 1) for one-off jitters (radio delays, a drone's start
+ *  angle): `combatSeed` of the same three keys over 2^32. Pure, allocates nothing. */
+export function seeded01(matchSeed: number, stream: number, key: number): number {
+  return combatSeed(matchSeed, stream, key) / 4294967296;
+}
+
+// Stream salts (`combatSeed`'s incident slot): negative, so they never collide with a real engagement id (counts up
+// from 0).
+/** (guard-ai seed-random) A guard's perception stream (`Enemy.senseRng`: the think cadence). */
+export const SEED_SENSE = -1;
+/** (guard-ai seed-random) Radio delay jitter (`EnemyManager` callAlert / shout), xor'd with the engagement. */
+export const SEED_RADIO = -2;
+/** (guard-ai seed-random) A recon drone's orbit start angle (`ReconDrone`). */
+export const SEED_DRONE = -3;
