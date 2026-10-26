@@ -3,8 +3,8 @@
 ## Resume block
 - Folder `C:/NightShift/Mobile-Coop-test-runner-j20`, branch `feature/test-runner-j20` (upstream origin), base master
   2148ec969. Guard before every write: `git -C C:/NightShift/Mobile-Coop-test-runner-j20 branch --show-current`.
-- Job: FOLDED-PLAN J20 (Test Runner batch). Read `docs/test-runner-j20/BRIEF.md` (Michael's Q27 / Q30 / Q31, A1-A11)
-  and `docs/test-runner-j20/PLAN.md` (slices, builder briefs with file:line on 2148ec969, PR grouping).
+- Job: FOLDED-PLAN J20 (Test Runner batch). Read `docs/archive/test-runner-j20/BRIEF.md` (Michael's Q27 / Q30 / Q31, A1-A11)
+  and `docs/archive/test-runner-j20/PLAN.md` (slices, builder briefs with file:line on 2148ec969, PR grouping).
 - Plan: Opus plan checker PASS on 4341582a5 (`plan-checker` status posted 2026-10-25 ~18:40).
 - Worktrees `C:/NightShift/Mobile-Coop-test-runner-j20-<slice|prc|pra>`, branches `feature/test-runner-j20-<...>`,
   node_modules junctioned to this worktree's; typecheck with a per-slice buildinfo in
@@ -24,7 +24,7 @@
 - S7 way out: `config/train-parity.json` `{ "off": true, "why", "by" }` on the `laptop-queue` branch, or
   `LQ_TRAIN_PARITY=off` per worker.
 - Out of scope: Q31 load time (Sector Ops, J21), T14 allocations (Player / Sector Ops, J21).
-- Next: fresh checker on the PR-B head, then train-ready; on its merge the train archives `docs/test-runner-j20/`.
+- Next: fresh checker on the PR-B head, then train-ready; on its merge the train archives `docs/archive/test-runner-j20/`.
 
 ## Done
 - 2026-10-25: BRIEF, PLAN, STATE, fragment placeholder (Opus planner, master 2148ec969); head d395132e8.
