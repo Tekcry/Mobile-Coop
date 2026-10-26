@@ -71,6 +71,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
+import { touchesWire, wirePaths } from './e2e-affected.mjs';
 import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
 import { archiveInWorktree, archiveMoves, grepReaders, jobDoneJobs, readersNote, rewriteArchiveLinks } from './job-archive.mjs';
@@ -327,20 +328,7 @@ export function resumeCheck(subjects, idx, resume) {
   return { ok: true, after, message: `resume: ${after.length} commit(s) after the version commit: ${after.join(' | ')}` };
 }
 
-/** Paths of the wire: `src/net/` plus every `../x/y` import of protocol.ts as `src/x/y.ts` (a trailing "/" is a folder). */
-export function wirePaths(protocolTs) {
-  const out = ['src/net/'];
-  for (const m of protocolTs.matchAll(/\bfrom\s+'\.\.\/([^']+)'/g)) {
-    const p = `src/${m[1]}.ts`;
-    if (!out.includes(p)) out.push(p);
-  }
-  return out;
-}
-
-/** True when any changed file is a wire path. */
-export function touchesWire(files, paths) {
-  return files.some((f) => paths.some((p) => (p.endsWith('/') ? f.startsWith(p) : f === p)));
-}
+export { wirePaths, touchesWire };
 
 const PROTOCOL_LINE = /^export const PROTOCOL_VERSION = (\d+);/m;
 

@@ -12,6 +12,7 @@ import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lam
 import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
+import { LAMP_CAPSULE_GLSL } from './charOccluders';
 import { charShadowReach } from './charShadowSet';
 import type { TorchShadowLink } from './torchShadows';
 import { bounceColor, packFillRGBA, type BounceGrid } from './bounceGrid';
@@ -1309,27 +1310,7 @@ float nsGrid(highp sampler3D t, vec3 p, vec4 o, vec4 n) {
   return texture(t, q).r;
 }
 ${NS_GRID2_GLSL}
-// a character's capsule between the shaded point and the lamp: a soft shadow widening with the distance behind it
-float lampCapsule(vec3 p, vec3 l, vec3 a, vec3 b, float r) {
-  vec3 d2 = b - a;
-  float c2 = max(dot(d2, d2), 1e-6);
-  vec3 w0 = p - a;
-  // the character's own surface: no self shadow
-  if (length(w0 - d2 * clamp(dot(w0, d2) / c2, 0.0, 1.0)) < r * 1.6) return 1.0;
-  vec3 d1 = l - p;
-  float c1 = max(dot(d1, d1), 1e-6);
-  float c12 = dot(d1, d2);
-  float e1 = dot(d1, w0);
-  float e2 = dot(d2, w0);
-  float den = c1 * c2 - c12 * c12;
-  float s = den > 1e-6 ? clamp((c12 * e2 - c2 * e1) / den, 0.0, 1.0) : 0.0;
-  float t = clamp((c12 * s + e2) / c2, 0.0, 1.0);
-  s = clamp((c12 * t - e1) / c1, 0.0, 1.0);
-  float dist = length(p + d1 * s - a - d2 * t);
-  float behind = s * sqrt(c1);
-  float pen = r * 0.35 + behind * 0.12;
-  return mix(0.15, 1.0, smoothstep(r - pen, r + pen, dist));
-}`;
+${LAMP_CAPSULE_GLSL}`;
 
 /**
  * (LR16 fix, torch parity) Babylon's spot lights - the shadow-mapped flashlights and any flashlight in the light rig's
