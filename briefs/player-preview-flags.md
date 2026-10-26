@@ -8,6 +8,17 @@ preview"), his words: "why are you hiding all new features until switched on? i 
 Small: one source file, one test file, one doc line, one fragment. Sonnet-level builder: follow the steps exactly;
 anything the brief does not settle is `status: blocked`, not a guess.
 
+## AMENDMENT 2026-10-26 ~14:10 (orchestrator ruling; supersedes A1 and the mixamo line in Rule)
+ goes ON in /preview/ too (URL  off). Do this as one more commit:
+- Files: add  to the file list.
+-  :20 change  to
+   and :375  to
+  . Nothing else in that file.  itself stays   (null when the URL names none), so once PR #494's Animation source setting is on master the player's stored
+  setting wins over the preview default.
+- Test: the source guard also asserts  contains .
+- Table row:  |  off | Player Build | Mixamo traversal captures on Wren (hang, shimmy, climb-up,
+  ladder, vent crawl). Fragment: add "the Mixamo climbing moves" to the list.
+
 ## Rule
 - On the `/preview/` build (`__PREVIEW__` true and `__PREVIEW_ID__ === ''`) every dark FEATURE flag defaults ON; a URL
   `=0` still turns one off; `=1` still turns one on anywhere.
