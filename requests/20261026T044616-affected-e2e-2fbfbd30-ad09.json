@@ -1,0 +1,14 @@
+{
+  "id": "20261026T044616-affected-e2e-2fbfbd30-ad09",
+  "sha": "2fbfbd303af097b15835960650cc8a87c62ad1dd",
+  "branch": "feature/laptop-queue-8b",
+  "pr": 552,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move"
+  ],
+  "set": "affected"
+}
