@@ -83,6 +83,16 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (guard-rules S6, A10, A11) Pairs that walk together check on each other at once; posted pairs talk and check.
+   *  `?guardpairs=1`. DEFAULT OFF until walk item 5 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/
+   *  default on (preview-flags). */
+  guardPairs: boolean;
+  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=1`. DEFAULT OFF until
+   *  walk item 6 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  lookouts: boolean;
+  /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=1`. DEFAULT OFF
+   *  until walk item 7 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  dogRelease: boolean;
   /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
@@ -102,6 +112,16 @@ export interface Flags {
    *  co-op peer must open the same link (the layout is not on the wire).
    *  On /preview/ every section (preview-flags). */
   campusV2: readonly number[];
+  /** (mission-framework, owner Campaign Build) Missions on Sector Ops maps (`?mission=<id>` picks one) and the Hints
+   *  setting; `?missions=1` on. Switch-on: Michael's walk of Three Grey Coats / Two-Key Ledger, target 2026-10-27; then
+   *  the default flips to `!== '0'`. Tests set `flags.missions` (a plain object) in `beforeAll` and restore it. On
+   *  /preview/ default on (preview-flags). */
+  missions: boolean;
+  /** (mission-framework, owner Campaign Build) The co-op kit's new moves (pull-up, shutter, any later kit kind);
+   *  `?coopkit=1` on. Off keeps Marlow Yard as it is (M1). Switch-on: Michael's walk of the kit with Player Build's clips,
+   *  target 2026-10-28; then `!== '0'`. Tests set `flags.coopKit` in `beforeAll` and restore it. On /preview/
+   *  default on (preview-flags). */
+  coopKit: boolean;
 }
 
 /** (campus-greybox) The campus sections switched on to their v2 layouts by default: a section number joins this list
@@ -202,6 +222,13 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  // (mission-framework FLG) dark until Michael's walks: `?missions=1` / `?coopkit=1` on; on /preview/ on (preview-flags)
+  missions: darkFlag(params.get('missions'), PREVIEW_ON),
+  coopKit: darkFlag(params.get('coopkit'), PREVIEW_ON),
+  // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on, /preview/ too
+  guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
+  lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
+  dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),

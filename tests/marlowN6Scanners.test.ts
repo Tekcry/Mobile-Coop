@@ -253,4 +253,28 @@ describe('(N6) CtDevices: every scanner pair', () => {
     expect(h.flags.size).toBe(0);
     h.d.dispose();
   });
+
+  it('(marlow-play-2 C14) a station retry mid-hack resets the pair silently: no fail, no line, no damage; an open pair stays open', () => {
+    const layout = { scanners: [A7, A8], course: { devices: DEVICES } };
+    const refs = [ref('host', 86.5, 0, 63), ref('cli', 145, 1.2, 62)];
+    const h = make('host', layout, refs);
+    expect(h.d.scanPress('a7-t1', 0)).toBeNull();
+    step(h.d, 0.5);
+    expect(scans(h.d)[0]!.ph).toEqual(['hacking', 'idle']);
+    // a8 already open (set by hand)
+    h.d.scans[1]!.pair.open = true;
+    h.flags.add(A8.flag);
+    h.said.length = 0;
+    h.d.resetScans();
+    // the retry's teleport takes the host off the panel
+    refs[0]!.feet.set(0, 0, 0);
+    step(h.d, 0.5);
+    const s = scans(h.d);
+    expect(s[0]!.ph).toEqual(['idle', 'idle']);
+    expect(s[1]!.open).toBe(true);
+    expect(h.d.scanFails).toBe(0);
+    expect(refs[0]!.target.health.hp).toBe(100);
+    expect(h.said.some((t) => /hurt|broken off/.test(t))).toBe(false);
+    h.d.dispose();
+  });
 });

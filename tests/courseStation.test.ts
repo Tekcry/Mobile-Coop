@@ -317,6 +317,26 @@ describe('a station retry (seen)', () => {
   });
 });
 
+describe('(marlow-play-2 C11) the role claim through a station retry', () => {
+  it('a claim made while station 2 is live stays through its retry (marks by the claim); a bay restart clears it', () => {
+    const st = new CourseState(def({ roles: [{ role: 'b', press: ['sw2'] }] }));
+    st.setFlag('s1-done');
+    expect(st.station()).toBe(2);
+    // P1 presses the claim device: P1 has B, so P2 has A (the swap rule alone would give P1 A)
+    expect(st.press('sw2', 0)).toBeNull();
+    expect(st.roleClaimed()).toBe(true);
+    expect(st.roleOf(0)).toBe('b');
+    expect(st.retryStation('seen')).toBe(true);
+    expect(st.hasShared('key2')).toBe(false);
+    expect(st.roleClaimed()).toBe(true);
+    expect(st.roleOf(0)).toBe('b');
+    expect(st.lead).toBe(1);
+    st.restart();
+    expect(st.roleClaimed()).toBe(false);
+    expect(st.lead).toBe(0);
+  });
+});
+
 describe('SA1: a guard on several stations\' lists (fix 1)', () => {
   /** gd1 on both stations' lists (A4's officer on 9 and 8), gd2 on station 2's. */
   const both = (): CourseDef => def({}, [station(1, { guards: ['gd1'] }), station(2, { guards: ['gd1', 'gd2'] })]);
@@ -396,8 +416,9 @@ describe('the cause of a retry never repeats it (fix 4)', () => {
     r.guard('gd2').alerted = true;
     r.step();
     expect(r.mode.restarts).toBe(1);
-    // the sighting is out of the guards' memory: calls, incidents, the command call, the last known positions
-    expect(r.cleared).toEqual({ radio: 1, board: 1, alarm: 1, intruders: 1 });
+    // the sighting is out of the guards' memory: calls, incidents, the command call, the last known positions (C17: the
+    // set's start cleared them once already)
+    expect(r.cleared).toEqual({ radio: 2, board: 2, alarm: 2, intruders: 2 });
     expect(r.guard('gd1')).toBe(gd1);
     r.step(5);
     gd1.alerted = true;
@@ -430,6 +451,57 @@ describe('flags a retry drops (fix 5)', () => {
     r.step();
     expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
     expect(r.consoleCalls.at(-1)).toEqual(['sw2', true]);
+  });
+});
+
+describe('(marlow-play-2 C9) a lone player after a drop', () => {
+  it('a (re)joiner goes to the live station\'s marks by the roles; with no station live, the checkpoint\'s slots', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    r.step(30);
+    expect(r.st.station()).toBe(2);
+    expect(r.mode.joinSpawns()).toEqual([
+      { x: 20, y: 0, z: 5, yaw: 0 },
+      { x: 21, y: 0, z: 5, yaw: Math.PI },
+    ]);
+    // the respawn points stay the checkpoint's (a downed restart never lands on a mark)
+    expect(r.mode.checkpointSpawns()[0]).toMatchObject({ x: -5, z: 0 });
+    r.st.setFlag('s2-done');
+    expect(r.st.station()).toBe(0);
+    expect(r.mode.joinSpawns()).toEqual(r.mode.checkpointSpawns());
+    const n = rig(def({}, null));
+    expect(n.mode.joinSpawns()).toEqual(n.mode.checkpointSpawns());
+  });
+  it('the co-op host alone (partner held or not in) is partnerAway; back, solo or no net: not', () => {
+    const r = rig(def());
+    const g = (r.mode as unknown as { g: { net: unknown; remotePlayers: () => unknown[] } }).g;
+    expect(r.mode.partnerAway).toBe(false);
+    g.net = {};
+    const rem = g.remotePlayers();
+    g.remotePlayers = () => [];
+    r.step();
+    expect(r.mode.partnerAway).toBe(true);
+    r.st.solo = true;
+    r.step();
+    expect(r.mode.partnerAway).toBe(false);
+    r.st.solo = false;
+    g.remotePlayers = () => rem;
+    r.step();
+    expect(r.mode.partnerAway).toBe(false);
+  });
+});
+
+describe('(marlow-play-2 C17) a new set clears the guards\' shared memory', () => {
+  it('each bayStarted clears the calls, the incident board, the alarm and the last-known positions', () => {
+    const r = rig(def());
+    expect(r.cleared).toEqual({ radio: 1, board: 1, alarm: 1, intruders: 1 });
+    r.em.lkpValid = true;
+    r.em.sightT = 0;
+    r.st.startAt(1);
+    r.step();
+    expect(r.cleared).toEqual({ radio: 2, board: 2, alarm: 2, intruders: 2 });
+    expect(r.em.lkpValid).toBe(false);
+    expect(r.em.sightT).toBe(99);
   });
 });
 
@@ -487,6 +559,7 @@ describe('the station hooks\' window sources (fix round 2)', () => {
     takeChanged: () => false,
     repair: () => undefined,
     holdZones: () => undefined,
+    resetScans: () => undefined,
     wire: () => ({}),
     dispose: () => undefined,
   });
@@ -738,6 +811,19 @@ describe('stand-in gates (fix 7, lead decision b)', () => {
     r.step();
     expect(r.st.station()).toBe(1);
     expect(r.st.isGateOpen('g-walk')).toBe(false);
+  });
+  it('(marlow-play-2 C16) a retry leaves a kept stand-in\'s door as it is (A2 station 4: the roller door stays open)', () => {
+    const r = rig(plank(), { doors: ['D5'] });
+    const d5 = r.doors[0]!;
+    r.st.setFlag('s1-done');
+    r.step();
+    d5.target = 1; // the players open it
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    r.step(10);
+    expect(d5.target).toBe(1);
+    expect(d5.anchor.locked).toBe(false);
   });
   it('a first station with a stand-in opens it at the bay start; a station without one opens nothing', () => {
     const st = new CourseState(def({ gates }, [station(1, { kit: 'deadweight', standIn: 'g-walk' }), station(2)]));
@@ -994,5 +1080,97 @@ describe('the room map', () => {
     expect(resumeMap('ctcourse', true)).toBe('ctcourseReplan');
     expect(resumeMap('ctcourse', false)).toBe('ctcourse');
     expect(resumeMap('warehouseOps', false)).toBe('warehouseOps');
+  });
+});
+
+describe('cause other: a set\'s way out of a soft-lock (J14 A26)', () => {
+  it('retries a none station through stationRetry (seen does not), says its own line, both on its marks; the client reads it', () => {
+    const radio = [
+      { at: 'retry:s2', text: 'Seen at two. Back to the crates.' },
+      { at: 'retry:s2:other', text: 'Stuck at two. Back to the crates.' },
+    ];
+    const r = rig(def({ radio }, [station(1), station(2, { retry: 'none' })]));
+    r.st.setFlag('s1-done');
+    r.step();
+    expect(r.st.station()).toBe(2);
+    expect(r.mode.stationRetry(2, 'seen')).toBe(false);
+    expect(r.mode.stationRetry(2, 'timer')).toBe(false);
+    expect(r.mode.stationRetry(1, 'other')).toBe(false);
+    expect(r.mode.stationRetry(2, 'other')).toBe(true);
+    // one at a time: the hold blocks a second before this one's handle
+    expect(r.mode.stationRetry(2, 'other')).toBe(false);
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'other' });
+    expect(r.st.hasFlag('s1-done')).toBe(true);
+    expect(r.st.station()).toBe(2);
+    expect(r.said.at(-1)).toBe('LANTERN: Stuck at two. Back to the crates.');
+    expect(r.respawns.at(-1)).toEqual({ x: 20, y: 0, z: 5 });
+    expect(clientView(r.st).hook).toEqual({ restarts: 1, lastRetry: { st: 2, cause: 'other' } });
+    // a station with no other line retries silently (never its seen line)
+    expect(retryLine([{ at: 'retry:s2', text: 'Seen.' }], 's2', 'other')).toBeNull();
+    // retryOff turns it off like any station retry
+    r.step(30);
+    expect(r.mode.retryOff(2)).toBe(true);
+    expect(r.mode.stationRetry(2, 'other')).toBe(false);
+  });
+});
+
+describe('(marlow-play B5) no station retry while the exit holding room cycles or has sealed', () => {
+  it('both on the pad with station 2 still live: retry works before the cycle, is refused while it cycles and once sealed', () => {
+    const lock = { id: 'L1', box: [50, 0, 54, 4] as [number, number, number, number], floorY: 0, nearDoor: 'dn', farDoor: 'df' };
+    const st = new CourseState({ ...def({ exit: 'L1', drills: [] }), airlocks: [lock] });
+    st.setFlag('s1-done');
+    st.setPlayer(0, 20, 0, 5, false);
+    st.setPlayer(1, 21, 0, 5, false);
+    st.update(DT);
+    expect(st.station()).toBe(2);
+    expect(st.retryStation('seen')).toBe(true);
+    st.setPlayer(0, 52, 0, 2, false);
+    st.setPlayer(1, 52.5, 0, 2, false);
+    st.update(DT);
+    expect(st.airlockPhase('L1')).toBe('cycling');
+    expect(st.retryStation('seen')).toBe(false);
+    expect(st.retryStation('timer', 2)).toBe(false);
+    expect(st.retryStation('other')).toBe(false);
+    expect(st.restarts).toBe(1);
+    for (let i = 0; i < 50; i++) st.update(DT);
+    expect(st.airlockPhase('L1')).toBe('sealed');
+    expect(st.station()).toBe(2);
+    expect(st.retryStation('seen')).toBe(false);
+    expect(st.restarts).toBe(1);
+  });
+});
+
+describe('(marlow-play C5) a step\'s mark belongs to the station that owns its flag', () => {
+  const objectives = [
+    { id: 'st-one', bay: 'B1', text: 'One.', done: { flag: 's1-done' } },
+    { id: 'st-two', bay: 'B1', text: 'Two.', done: { flag: 'key2' } },
+    { id: 'st-end', bay: 'B1', text: 'Out.' },
+  ];
+  it('a done flag moves the live station on before its step latches: a retry of the next station keeps it; a step of the live one goes', () => {
+    const st = new CourseState({ ...def(), objectives });
+    st.setFlag('s1-done');
+    st.update(DT);
+    expect(st.station()).toBe(2);
+    expect(st.isStepDone('st-one')).toBe(true);
+    st.setFlag('key2');
+    st.update(DT);
+    expect(st.isStepDone('st-two')).toBe(true);
+    st.clearFlag('s1-done');
+    expect(st.retryStation('seen')).toBe(true);
+    expect(st.isStepDone('st-one')).toBe(true);
+    expect(st.isStepDone('st-two')).toBe(false);
+    st.update(DT);
+    expect(st.currentStep()?.id).toBe('st-two');
+  });
+  it('the built yard (no stations): steps latch and stay as before', () => {
+    const st = new CourseState({ ...def({}, null), objectives });
+    expect(st.hasStations).toBe(false);
+    st.setFlag('s1-done');
+    st.update(DT);
+    expect(st.isStepDone('st-one')).toBe(true);
+    expect(st.retryStation('seen')).toBe(false);
+    expect(st.currentStep()?.id).toBe('st-two');
   });
 });

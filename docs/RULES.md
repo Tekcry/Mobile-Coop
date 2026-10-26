@@ -166,23 +166,23 @@ plan; the orchestrator assigns it (G283).
   `laptop-queue`, scheduled task every minute) runs on 4189 (GPU and alone runs) and 4192, in this order (lib `pick`):
   trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns (`E2E_JOBS=1`,
   both slots when free); then an alone request waiting over 30 min (`ALONE_AGE_MIN`; ahead of PR work, both slots once
-  they drain); then PR requests (one slot, `E2E_JOBS=2`; full runs 3): front branches (`LQ_FRONT_BRANCHES`) first, then
-  green PRs smallest first, then arrival order; then other alone measures when both slots idle; spare work: after both
-  slots sit idle for `LQ_SPARE_IDLE_MIN` (5) min the service queues the next job of `docs/laptop-queue/spare-jobs.json`,
-  and a waiting real request or a train stops it. The two sessions keep its CPU under ~80%.
+  they drain; fixes included); then PR requests (one slot, `E2E_JOBS=2`; full runs 3): fixes first (PR label `fix` or
+  `request.mjs --fix`), then front branches (`LQ_FRONT_BRANCHES`), then green PRs smallest first, then arrival order; a
+  new head of a PR keeps its request's place and stops its running one; then other alone measures when both slots idle;
+  spare work: after both slots sit idle `LQ_SPARE_IDLE_MIN` (5) min the service queues the next job of
+  `docs/laptop-queue/spare-jobs.json`; a waiting real request or a train stops it. Both sessions keep CPU under ~80%.
 - Desktop (Orchestrator, Player, Marlow, Sector Ops, Campaign): CPU target under ~80% (G306); over 90% the orchestrator
   trims the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc
   and single vitest files, never a full `npm run check` (CI runs it).
 - The desktop runs e2e suites only as the queue's overflow worker (task `NightShift-desktop-queue`), never by hand; a
-  one-off GPU, perf or Blender job runs there only when the job lead says, under `heavy.lock`. The worker takes pr requests
-  on 4191 (`heavy.lock`) and 4192 (`heavy2.lock`) at `E2E_JOBS=1`, one new start per pass, each only while a request
-  waits (installed backlog gate 0; `LQ_DESKTOP_BACKLOG`), the slot's lock is free and the desktop CPU of Normal or higher
-  priority processes is under 80% (lib `gatedCpu`; `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`; below-Normal work such as a Blender bake does not
-  count). Trains only when the laptop has pushed nothing for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over
-  2 min old; nothing new while auto-train's build marker exists (written during `merge-train build`, deleted once the
-  version commit is pushed; a marker over 30 min old is ignored). A desktop failure posts pending and queues
-  a laptop rerun, whose verdict is final. `heavy.lock` / `heavy2.lock` also cover builds, Blender bakes and other heavy
-  one-offs.
+  one-off GPU, perf or Blender job runs there only when the job lead says, under `heavy.lock`. The worker takes pr
+  requests (fixes first, then smallest first, none estimated over 15 min: `LQ_DESKTOP_MAX_MIN`) on 4191 (`heavy.lock`)
+  and 4192 (`heavy2.lock`) at `E2E_JOBS=1`, one new start per pass, each only while a request waits (installed backlog
+  gate 0; `LQ_DESKTOP_BACKLOG`), the slot's lock is free and the desktop CPU of Normal or higher priority processes is
+  under 80% (lib `gatedCpu`; `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`; `LQ_DESKTOP_CPU_MODE=total` counts the whole machine).
+  Trains only when the laptop has pushed nothing for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min old;
+  nothing new while auto-train builds (testing-tools "Laptop queue"). A desktop failure posts pending and queues
+  a laptop rerun, whose verdict is final. `heavy.lock` / `heavy2.lock` also cover builds, Blender bakes and heavy jobs.
 - Requests: `node scripts/laptop-queue/request.mjs --sha <full sha> --pr <n> --suites "<suites>" --set <name>
   --requester "<title>"` (or `--alone --step "<cmd>"`); verdicts are `laptop-e2e/<set>` commit statuses. Withdraw a
   stale request; `docs/orchestrator/queue-audit.sh` flags them.

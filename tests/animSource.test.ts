@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, applyAnimSource, parseAnimSource, resolveAnimSource, setAnimSource } from '../src/anim/animSource';
 import { applyMocapSwitch, HAND_KEYED_SET, LOCO, MOCAP_SET } from '../src/anim/mocap';
 import { addMixamoResolver, MIXAMO, MIXAMO_LOCO, MIXAMO_ON, MIXAMO_TRAV, setMixamo, setMixamoStudio, WREN_TRAV } from '../src/anim/mixamo';
-import { defaultSettings, sanitizeSettings, SettingsStore } from '../src/core/settings';
+import { defaultSettings, sanitizeSettings, settingAnimSource, SettingsStore } from '../src/core/settings';
 import { STUDIO_ENTRIES, studioEntriesOf, studioEntrySet } from '../src/anim/studio';
 import { mocapSource } from '../src/anim/mocapSources';
 import { nowPlayingSourceText } from '../src/anim/nowPlaying';
@@ -183,5 +183,40 @@ describe('the Now playing line names the source', () => {
     expect(nowPlayingSourceText('Now playing: hand-made walk', 'hand')).toBe('Now playing: hand-made walk (animation source: Hand-made)');
     expect(nowPlayingSourceText('x', 'mixamo')).toBe('x (animation source: Mixamo)');
     expect(nowPlayingSourceText('x', '')).toBe('x');
+  });
+});
+
+describe('F45: /preview/ plays Mixamo until the player picks a source', () => {
+  it('not picked: Mixamo on /preview/, the default (CMU) on the live game', () => {
+    const g = defaultSettings().gameplay;
+    expect(g.animSourceSet).toBe(false);
+    expect(settingAnimSource(g, true)).toBe('mixamo');
+    expect(settingAnimSource(g, false)).toBe(ANIM_SOURCE_DEFAULT);
+  });
+
+  it('picked: the pick wins on both builds (CMU picked on /preview/ stays CMU)', () => {
+    for (const s of ANIM_SOURCES) {
+      const g = { animSource: s, animSourceSet: true };
+      expect(settingAnimSource(g, true), s).toBe(s);
+      expect(settingAnimSource(g, false), s).toBe(s);
+    }
+  });
+
+  it('a save from before the field reads as not picked; a picked save keeps the bit', () => {
+    const old = sanitizeSettings({ gameplay: { animSource: 'cmu' } });
+    expect(old.gameplay.animSourceSet).toBe(false);
+    expect(settingAnimSource(old.gameplay, true)).toBe('mixamo');
+    const picked = sanitizeSettings({ gameplay: { animSource: 'hand', animSourceSet: true } });
+    expect(settingAnimSource(picked.gameplay, true)).toBe('hand');
+    // an old save holding Hand-made or Mixamo was a pick (only CMU was the default)
+    for (const s of ['hand', 'mixamo'] as const) expect(sanitizeSettings({ gameplay: { animSource: s } }).gameplay.animSourceSet, s).toBe(true);
+  });
+
+  it('applied on /preview/ with no pick, the Mixamo switch is on', () => {
+    const r = applyAnimSource({ setting: settingAnimSource(defaultSettings().gameplay, true) });
+    expect(r.mixamo).toBe(true);
+    expect(MIXAMO.on).toBe(true);
+    setAnimSource(ANIM_SOURCE_DEFAULT);
+    expect(MIXAMO.on).toBe(false);
   });
 });

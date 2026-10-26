@@ -1198,15 +1198,16 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
   try {
     await startMode('sector', 'campusOps');
     await until(B, () => !!window.__app.current?.net && window.__app.current.world.level.lights.lights.length > 0, null, 15000, 'the client is in the match');
-    // the lane lamp (9, 6, -66) and a car-park lamp (-34, 6, -62): lit and shootable on both pages, the same ids
-    const [la, lb] = [await lampAt(A, 9, -66), await lampAt(B, 9, -66)];
-    const [pa, pb] = [await lampAt(A, -34, -62), await lampAt(B, -34, -62)];
+    // the lane lamp (9.8, 6, -66) and a car-park head (-32.2, 6, -62) (light-realism L1: light points at the arm ends): lit and shootable on both pages, the same ids
+    const [la, lb] = [await lampAt(A, 9.8, -66), await lampAt(B, 9.8, -66)];
+    const [pa, pb] = [await lampAt(A, -32.2, -62), await lampAt(B, -32.2, -62)];
     assert(!!la && !!lb && la.id === lb.id && la.on && lb.on && la.destructible && !!pa && !!pb && pa.id === pb.id && pa.on, `the street lamps are lit, shootable and the same on both pages (${JSON.stringify([la, lb, pa, pb])})`);
-    // the client: 3 m east of the lane lamp, its real round
+    // the client: 3 m east of the lane head (x 12.8; light-realism L1 moved the head 0.8 m east to 9.8: from x 12 the aim needs
+    // pitch 1.11 rad, past the camera's maxPitch 1.05 (config/camera.ts), and the per-frame clamp sends the round under the head)
     await until(A, () => [...window.__app.current.net.remotes.values()].length > 0, null, 8000, 'the host has the client');
     await GB(() => { window.__app.current.player.forceAds = true; });
     await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
-    const cs = await fireAt(B, [12, 0.02, -66], lb, false);
+    const cs = await fireAt(B, [12.8, 0.02, -66], lb, false);
     assert(cs.fired === 1, `the client fires one round at the lane lamp (${JSON.stringify(cs)})`);
     const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, la.id, 8000, 'host lamp out').then(() => true, () => false);
     assert(outA, `the client's round on the lane lamp's pole top shoots it out on the host (${JSON.stringify(cs)}, lamp ${JSON.stringify(la)})`);
@@ -1216,7 +1217,7 @@ console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host r
     assert(Math.abs(va - vb) < 1e-3, `the light under the lane lamp agrees on both pages (host ${va}, client ${vb})`);
     await GB(() => { window.__app.current.player.forceAds = false; });
     // the host: 3 m east of the car-park lamp, its own round
-    const hs = await fireAt(A, [-31, 0.02, -62], pa, true);
+    const hs = await fireAt(A, [-29.2, 0.02, -62], pa, true);
     const hOut = await GA((id) => window.__app.current.world.level.lights.lights[id].destroyed, pa.id);
     assert(hs.fired === 1 && hOut, `the host's round on the car-park lamp's pole top shoots it out (${JSON.stringify(hs)})`);
     await until(B, (id) => window.__app.current.world.level.lights.lights[id].destroyed, pb.id, 8000, 'the client sees the car-park lamp dark');
@@ -2153,8 +2154,9 @@ if (want(6)) {
     const route = await G(() => window.__app.current.world.map.sectors[0].routes[0].pts);
     await tp(G, route[1][0], 0, route[1][1], -Math.PI / 2);
     await sim(0.3);
-    // at the open window: 1.15 m from the PC
-    await tp(G, 20.6, 0, -76, -Math.PI / 2);
+    // at the open window, at its south end by the PC (F42: the PC sits on its desk at (19.3, -77.3), south of the window;
+    // the window spans z -76.6..-75.4): 1.5 m from the PC, inside the 1.8 m reach
+    await tp(G, 20.5, 0, -76.4, -Math.PI / 2);
     await sim(0.4);
     const near = await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 's1-obj'); return it ? Math.hypot(it.pos.x - g.player.position.x, it.pos.z - g.player.position.z) : -1; });
     assert(near > 0 && near < 1.8, `the PC is inside the interact reach from the open window (${near.toFixed(2)} m)`);
@@ -2319,12 +2321,12 @@ if (want(6)) {
       const k = sws.findIndex((s) => s.group === 40);
       return { k, group: sws[k]?.group ?? -1, n: g.world.level.lights.lights.filter((l) => l.group === 40).length, e: g.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length };
     });
-    assert(sw.k >= 0 && sw.n === 8 && sw.e === 6, `the feeder board has the west (8 columns) and east (6) breakers (${JSON.stringify(sw)})`);
+    assert(sw.k >= 0 && sw.n === 16 && sw.e === 10, `the feeder board has the west (16 heads) and east (10) breakers (${JSON.stringify(sw)})`);
     await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, sw.k);
     await sim(0.5);
     const dark = await meter();
     const st = await G(() => ({ w: window.__app.current.world.level.lights.lights.filter((l) => l.group === 40 && l.on).length, e: window.__app.current.world.level.lights.lights.filter((l) => l.group === 41 && l.on).length }));
-    assert(st.w === 0 && st.e === 6, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
+    assert(st.w === 0 && st.e === 10, `the west breaker cuts only s1-park-w (${JSON.stringify(st)})`);
     assert(dark < 0.28, `the light meter at the west row (${W}) reads under the shadow line 0.28 once the circuit is cut (${dark.toFixed(3)}, lit ${lit.toFixed(3)})`);
     assert(lit > dark + 0.08, `the same point reads brighter with the columns on (${lit.toFixed(3)} against ${dark.toFixed(3)})`);
   });
@@ -2916,6 +2918,26 @@ if (want(1)) {
   });
 }
 
+/** (guard-ai S10; guard-rules S6 shares it) Two clear lanes 9 m east, 1.2 m apart, nearest `o` (x, y, z) first, on its
+ *  storey: `{ at: [x, y, z] }` (the south lane's west end), or `{ at: null, cells }`. */
+const pairLanes = (G, o) =>
+  G((o) => {
+    const nav = window.__app.current.enemyMgr.nav;
+    const cells = [];
+    for (let c = 0; c < nav.walk.length; c++) {
+      if (!nav.walk[c]) continue;
+      const [x, z] = nav.center(c);
+      const y = nav.height[c];
+      if (Math.abs(y - o[1]) > 1.5) continue;
+      cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
+    }
+    cells.sort((a, b) => a[0] - b[0]);
+    for (const [, x, y, z] of cells) {
+      if (nav.lineClear([x, z], [x + 9, z], y, y) && nav.lineClear([x, z + 1.2], [x + 9, z + 1.2], y, y) && nav.lineClear([x + 5, z], [x + 5, z + 1.2], y, y)) return { at: [x, y, z] };
+    }
+    return { at: null, cells: cells.length };
+  }, o);
+
 // (guard-ai S10, GA2, the `pair` tag) Talking pairs, on guards built with the test hook (spawn + a timed loop + placeSlot
 // with a stand-in section list naming each other as `pair`; no map data edited). Two lanes 1.2 m apart (z and z + 1.2):
 // A walks the south lane from x + 3.2, B the north lane from x; both stop at x + 5 (their meet stops, 1.2 m apart) on a
@@ -2929,22 +2951,7 @@ if (want(1)) {
     await sim(0.5);
     const S = await sections(G);
     // two clear lanes 9 m east, 1.2 m apart, nearest section 1's objective first
-    const site = await G((o) => {
-      const nav = window.__app.current.enemyMgr.nav;
-      const cells = [];
-      for (let c = 0; c < nav.walk.length; c++) {
-        if (!nav.walk[c]) continue;
-        const [x, z] = nav.center(c);
-        const y = nav.height[c];
-        if (Math.abs(y - o[1]) > 1.5) continue;
-        cells.push([Math.hypot(x - o[0], z - o[2]), x, y, z]);
-      }
-      cells.sort((a, b) => a[0] - b[0]);
-      for (const [, x, y, z] of cells) {
-        if (nav.lineClear([x, z], [x + 9, z], y, y) && nav.lineClear([x, z + 1.2], [x + 9, z + 1.2], y, y) && nav.lineClear([x + 5, z], [x + 5, z + 1.2], y, y)) return { at: [x, y, z] };
-      }
-      return { at: null, cells: cells.length };
-    }, S[0].obj);
+    const site = await pairLanes(G, S[0].obj);
     assert(site.at !== null, `talking pairs: two open lanes on section 1's storey (${site.cells} cells)`);
     const r = await G(([cx, cy, cz]) => {
       const g = window.__app.current;
@@ -3048,6 +3055,173 @@ if (want(1)) {
     // (stack-tip fix) found by sight within the game's find range, not only inside BODY.close (see the sector tags block;
     // the laptop run found him at 4.44 m). `lines` 0 above is right: part (b) has no meeting (B is down before the window)
     assert(r.b.close < r.b.reach + 0.5 && r.b.found, `talking pairs: he searches at his partner's stop and finds him (${f2(r.b.close)} m, find range ${f2(r.b.reach)} m, found ${r.b.found})`);
+  });
+}
+
+// (guard-rules S6, A10, A11) Pair checks and posted pairs, behind `?guardpairs=1` (the talking pairs block above stays on
+// the flag-off page: the flag-off proof). The same stand-ins (spawn + placeSlot with a stand-in list, no map data edited),
+// one page per part (part (c)'s missing call turns the section cautious, and a cautious guard does not talk).
+// (c) The (a) / (b) pair, walking together (A 3.4 m from B): B knocked out at 0.5 s behind A's back -> A notices within
+// `notice` (3 s) + one 0.2 s pair step, long before the window's `grace`, on a `missing` incident, and finds him.
+// (d) A posted pair: two standing guards (no route) back to back, tagged as a pair -> built as a posted pair, they meet
+// at once and say two lines, one each; once both are back on their post yaw (>= 2 s after the talk), B knocked out ->
+// the request `notice` s later. The posts are 3.4 m apart, not 1.2 m: within `BODY.close` (2.5 m) a body is found
+// whatever the facing (the body path, no missing request); 3.4 m is still within `togetherR` (4 m).
+// The first pair step after a knock-out counts a whole 0.2 s step (as the window's grace), so the request lands
+// 2.8 .. 3.0 s after it, read up to 0.1 s later: the bounds are 2.75 .. 4.0 s.
+/** (guard-rules S6) One part's page: no player damage, cameras off, the lanes found (as the talking pairs block). */
+const pairStage = async (G, sim, label) => {
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
+  await sim(0.5);
+  const S = await sections(G);
+  const site = await pairLanes(G, S[0].obj);
+  assert(site.at !== null, `${label}: two open lanes on section 1's storey (${site.cells} cells)`);
+  return site.at;
+};
+if (want(1)) {
+  console.log('pair checks (guard-rules S6): a pair walking together notices a missing partner; a posted pair talks and checks');
+  const f2 = (v) => v.toFixed(2);
+  // (c) walking together
+  await run(PARAMS + '&guardpairs=1', async ({ G, sim }) => {
+    const at = await pairStage(G, sim, 'pair checks (c)');
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      em['radioT'] = 1e9;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const slots = [
+        { kind: 'grunt', x: cx + 3.2, z: cz, yaw: Math.PI / 2, pair: 1, route: [[cx + 3.2, cz], [cx + 5, cz], [cx + 8, cz]], loop: { period: 40, leave: [3, 18, 30], t0: 0 } },
+        { kind: 'grunt', x: cx, z: cz + 1.2, yaw: Math.PI / 2, pair: 0, route: [[cx, cz + 1.2], [cx + 5, cz + 1.2], [cx + 8.5, cz + 1.2]], loop: { period: 40, leave: [1, 18, 30], t0: 0 } },
+      ];
+      const sk0 = em.pairSkips.length;
+      const m0 = em.pairMisses;
+      const l0 = em.pairLines;
+      const [A, B] = slots.map((s, i) => {
+        const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+        e.setPatrol({ points: s.route, loop: s.loop });
+        em.placeSlot(e, s, 0, slots, i);
+        return e;
+      });
+      const p = em.pairs[0];
+      const out = { built: { n: em.pairs.length, skips: em.pairSkips.slice(sk0), watch: p ? p.pm.def.watch === true : false, open: p ? p.pm.def.open : -1 } };
+      step(0.5);
+      const gap = Math.hypot(A.pos.x - B.pos.x, A.pos.z - B.pos.z);
+      B.knockOut(hit(B));
+      const bx = B.pos.x;
+      const bz = B.pos.z;
+      let sentT = -1;
+      let kind = null;
+      let close = 99;
+      let found = false;
+      let light = 0;
+      for (let k = 0; k < 500 && !found; k++) {
+        step(0.1);
+        // seconds since the knock-out
+        const t = (k + 1) * 0.1;
+        if (sentT < 0 && em.pairMisses > m0) {
+          sentT = t;
+          kind = A.incident >= 0 ? em.board.kindOf(A.incident) : null;
+        }
+        if (sentT >= 0) close = Math.min(close, Math.hypot(A.pos.x - bx, A.pos.z - bz));
+        const b = em.bodies.find((q) => q.enemyId === B.id);
+        if (b) light = b.light;
+        found = !b || b.found;
+      }
+      out.c = { gap, sentT, kind, close, found, light, reach: em.bodyNoticeRange(light), misses: em.pairMisses - m0, lines: em.pairLines - l0, witnessed: em.lastWitnesses };
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, at);
+    console.log(`  (c) built ${JSON.stringify(r.built)}; A-B ${f2(r.c.gap)} m at the knock-out; sent ${f2(r.c.sentT)} s after it (${r.c.kind}), misses ${r.c.misses}, closest ${f2(r.c.close)} m (find range ${f2(r.c.reach)} m at light ${f2(r.c.light)}), found ${r.c.found}, lines ${r.c.lines}, witnessed ${r.c.witnessed}`);
+    assert(r.built.n === 1 && r.built.skips.length === 0 && r.built.watch, `pair checks (c): the pair is built with the walking-together check (${JSON.stringify(r.built)})`);
+    assert(r.c.gap < 4 && r.c.witnessed === 0, `pair checks (c): walking together (${f2(r.c.gap)} m), the knock-out unseen (${r.c.witnessed} witnesses)`);
+    assert(r.c.misses === 1 && r.c.sentT >= 2.75 && r.c.sentT <= 4, `pair checks (c): one missing request 3 s (+ a pair step) after the knock-out (${r.c.misses}, ${f2(r.c.sentT)} s)`);
+    assert(r.c.sentT + 0.5 < r.built.open + 6 - 1, `pair checks (c): well before the window's grace (sent ${f2(r.c.sentT + 0.5)} s, window opens ${f2(r.built.open)} s + 6 s)`);
+    assert(r.c.kind === 'missing', `pair checks (c): the other is sent on a missing incident (${r.c.kind})`);
+    assert(r.c.close < r.c.reach + 0.5 && r.c.found, `pair checks (c): he searches at his partner's spot and finds him (${f2(r.c.close)} m, find range ${f2(r.c.reach)} m, found ${r.c.found})`);
+  });
+  // (d) a posted pair
+  await run(PARAMS + '&guardpairs=1', async ({ G, sim }) => {
+    const at = await pairStage(G, sim, 'pair checks (d)');
+    const r = await G(([cx, cy, cz]) => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      for (const e of [...em.enemies]) em.despawn(e);
+      g['updateLight'] = () => (g.localRef.light = g.lightLevel = 0);
+      g.player.controller.teleport(new V(cx - 40, cy, cz - 40), 0);
+      em['radioT'] = 1e9;
+      const step = (s) => window.__app.loop.stepHeadless(s);
+      const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+      const hit = (e) => ({ amount: 9999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 });
+      const said = [];
+      const prevBark = em.onBark;
+      em.onBark = (e, line, radio) => {
+        prevBark?.(e, line, radio);
+        said.push({ id: e.id, line, radio });
+      };
+      // back to back on the south lane: A faces -X, B faces +X, 3.4 m apart
+      const slots = [
+        { kind: 'grunt', x: cx + 2.6, z: cz, yaw: -Math.PI / 2, pair: 1 },
+        { kind: 'grunt', x: cx + 6, z: cz, yaw: Math.PI / 2, pair: 0 },
+      ];
+      const sk0 = em.pairSkips.length;
+      const m0 = em.pairMisses;
+      const l0 = em.pairLines;
+      const [A, B] = slots.map((s, i) => {
+        const e = em.spawn(s.kind, new V(s.x, cy, s.z), false, s.yaw);
+        em.placeSlot(e, s, 0, slots, i);
+        return e;
+      });
+      const p = em.pairs[0];
+      const out = { built: { n: em.pairs.length, skips: em.pairSkips.slice(sk0), posted: p ? p.pm.def.posted === true : false, watch: p ? p.pm.def.watch === true : false, gap: Math.hypot(A.pos.x - B.pos.x, A.pos.z - B.pos.z) } };
+      let met = -1;
+      let doneT = -1;
+      let backT = -1;
+      for (let k = 0; k < 300 && backT < 0; k++) {
+        step(0.1);
+        const t = (k + 1) * 0.1;
+        const st = p ? p.pm.state : null;
+        if (met < 0 && st === 'meeting') met = t;
+        if (met >= 0 && doneT < 0 && st === 'done') doneT = t;
+        // back on his post yaw (a post glance turns him up to 0.6 rad)
+        if (doneT >= 0 && t >= doneT + 2 && Math.abs(wrap(A.yaw + Math.PI / 2)) < 0.7 && Math.abs(wrap(B.yaw - Math.PI / 2)) < 0.7) backT = t;
+      }
+      out.d = { met, doneT, backT, lines: em.pairLines - l0, said: said.filter((s) => s.id === A.id || s.id === B.id), levels: [A.level, B.level], yaws: [A.yaw, B.yaw] };
+      let sentT = -1;
+      let kind = null;
+      if (backT >= 0) {
+        B.knockOut(hit(B));
+        for (let k = 0; k < 80 && sentT < 0; k++) {
+          step(0.1);
+          if (em.pairMisses > m0) {
+            sentT = (k + 1) * 0.1;
+            kind = A.incident >= 0 ? em.board.kindOf(A.incident) : null;
+          }
+        }
+      }
+      out.d.sentT = sentT;
+      out.d.kind = kind;
+      out.d.misses = em.pairMisses - m0;
+      out.d.witnessed = em.lastWitnesses;
+      for (const e of [...em.enemies]) em.despawn(e);
+      em.onBark = prevBark;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      return out;
+    }, at);
+    console.log(`  (d) built ${JSON.stringify(r.built)}; met at ${f2(r.d.met)} s, lines ${r.d.lines} ${JSON.stringify(r.d.said.map((s) => s.line))}, done ${f2(r.d.doneT)} s, back on post yaw ${f2(r.d.backT)} s (${r.d.yaws.map(f2)}); sent ${f2(r.d.sentT)} s after the knock-out (${r.d.kind}), misses ${r.d.misses}, witnessed ${r.d.witnessed}`);
+    assert(r.built.n === 1 && r.built.skips.length === 0 && r.built.posted && r.built.watch, `pair checks (d): the posted pair is built (${JSON.stringify(r.built)})`);
+    assert(r.d.met > 0 && r.d.met < 12, `pair checks (d): they meet inside the first 12 s (${f2(r.d.met)} s)`);
+    assert(r.d.lines === 2 && r.d.said.length === 2 && r.d.said[0].id !== r.d.said[1].id && r.d.said.every((s) => !s.radio), `pair checks (d): two spoken lines, one each (${r.d.lines}, ${JSON.stringify(r.d.said)})`);
+    assert(r.d.levels.every((l) => l === 'unaware'), `pair checks (d): calm throughout the talk (${r.d.levels})`);
+    assert(r.d.backT >= 0, `pair checks (d): both turn back to their post yaw after the talk (done ${f2(r.d.doneT)} s, yaws ${r.d.yaws.map(f2)})`);
+    assert(r.d.witnessed === 0 && r.d.misses === 1 && r.d.sentT >= 2.75 && r.d.sentT <= 4, `pair checks (d): one missing request 3 s (+ a pair step) after the unseen knock-out (${r.d.misses}, ${f2(r.d.sentT)} s, ${r.d.witnessed} witnesses)`);
+    assert(r.d.kind === 'missing', `pair checks (d): the other is sent on a missing incident (${r.d.kind})`);
   });
 }
 

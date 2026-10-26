@@ -1,6 +1,6 @@
 /**
  * (locomotion step 10) The Chaos Theory palm strike (G42 / G155, prototype A4; the file keeps its old name): fire while the weapon is holstered. Pure and
- * unit-tested: the tuning, the result table, the 0.9 s timeline and the reach / cone test. The controller
+ * unit-tested: the tuning, the result table, the 1.48 s timeline (J19 R8) and the reach / cone test. The controller
  * (`strikeController.ts`) and the co-op host (`committedMoves.ts`) run on it.
  */
 import { hyp2 } from '../core/mathx';
@@ -12,8 +12,9 @@ export const STRIKE = {
   cone: (Math.PI * 140) / 180,
   /** Seconds from the press to contact (F1b: shorter wind-up, strike-2 "too slow"). */
   hitAt: 0.08,
-  /** Recovery after contact (s): free about 0.6 s after contact (F1b; the footage / loco M25 had 1.4). */
-  recover: 0.6,
+  /** (J19 R8, Michael Q34 2026-10-25 "About 1.4 s") Recovery after contact (s): free 1.4 s after contact, as the
+   *  footage / loco M25 (F1b had 0.6). The pose's follow-through and settle fill it (`strikeBody.ts` `strikeArcAt`). */
+  recover: 1.4,
   /** A whiff (the guard left the reach during the wind-up) frees the operator this long after the contact time (s). */
   whiffRecover: 0.3,
   /** Extra reach (m) at contact for the local player: a guard who stepped away during the wind-up is still hit. */
@@ -31,7 +32,7 @@ export const STRIKE = {
   lagSlack: 0.8,
 } as const;
 
-/** The whole move (s): contact at 0.08 s, free by about 0.7 s (a whiff ends sooner). */
+/** The whole move (s): contact at 0.08 s, free at 1.48 s (J19 R8); a whiff ends at 0.38 s. */
 export const STRIKE_DUR = STRIKE.hitAt + STRIKE.recover;
 /** A whiff's length (s). */
 export const STRIKE_WHIFF_DUR = STRIKE.hitAt + STRIKE.whiffRecover;

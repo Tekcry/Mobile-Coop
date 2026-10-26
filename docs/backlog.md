@@ -76,6 +76,14 @@ Format: `N. Item - destination - status`.
 the expiry, a failure in any other suite does. Remove the entry when the test is fixed. Rerun a suspect alone
 (`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
+- **e2e-ctcourse:5, e2e-ctcourse:7, e2e-ctcourse:8, the re-planned yard (quarantined to 2026-10-29 under the prototype rule; owner Marlow Build)** -
+  #574 (J14) red on train 125; one fix (6c180bd99: A1 trap zone, A7 retry zone hold, A4 / A5 walk checks) moved each
+  part further and part 6 passed, then train 127 failed the next steps, which had never run before: :5 "A1: the wicket
+  unlocks on the host" (`scripts/e2e-ctcourse/replan/a1Gate.mjs` ~:117, after the human ladder), :7 "A5: the host takes
+  the wall's access ladder at its head" (`a5Substation.mjs`), :8 "A8: the host reads the split line" (`a8Strongroom.mjs`
+  ~:144). Logs: train-127-d7cda0a0 on the laptop (PR #580 comment). Cause (walk or game) not yet known; triaged
+  with Michael's playthrough findings, before the re-plan is switched on in the live game.
+
 Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed
 by their own desktop job (the likely shared cause: wall-clock waits against a sim slower than real time on software
 GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/archive/coop-tests/`): the cause confirmed and fixed
@@ -151,11 +159,18 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   spin. Fixed on `feature/havok-stall` (sim-time waits, the idle menu page blanked: 312 s alone). The laptop passes it.
 - **e2e-darkness** (moved to the GPU list: it reads final pixels) - failed on an idle machine in the Epic look (the driver compiles the probe card's shaders for seconds after first draw). Fixed in the test: wait for `scene.isReady()` and filter the driver's "glGetProgramiv: Program object expected" warning. Kept in the list until it has run clean for a few full runs.
 - **e2e-netmove** (fixed 2026-10-19, `docs/archive/coop-tests/`: sim-clock waits, the walk-off un-crouch; off the list) - timing failures under load: "ladder after a climb: host mode ground" (fixed in the test), "timed out waiting for host braces" (host frames 307-418 ms with other suites running; passed serially), and once "Execution context was destroyed", suspected to be the app reloading when a service worker activates externally (`src/pwa`). Blocking service workers in the test contexts makes every suite's "no console errors" check fail; not fixed.
+  Two more fixed in the test (player-flake-fix 2026-10-26): "host sees the client climbing the hanging body" (the
+  ~0.8 s climb was polled from Node; now latched on every host step, with the host's copy modes logged on a
+  failure) and "client rolls" (the run was timed by the slowest page, so under load the client ran into a wall;
+  now timed on its own steps until it is at roll speed).
 - **e2e-weapons-carry** (off the list 2026-10-19: two clean full runs) - failed once (reason not captured), passed in every other run. Next step if it recurs: read `test-results/e2e/e2e-weapons-carry.log`.
-- **e2e-pad** (stays required, trimmed; still KNOWN FLAKY, parked) - (marlow-bays item 29, 2026-10-22) tuner v3 phase 1 raised the warehouse wait to 120 s; phase 2 adds the "no on-screen pause button in pad play" check and passed solo (2026-10-22); still KNOWN FLAKY until a clean full-run set - failed once, passed on rerun (cause not investigated). Laptop full run 2 of the co-op test fix (2026-10-19, 4.6.3): "ASSERT: A then B binds B (G22), warned on both rows ({"rows":"","cap":false,"screen":false})" in the remap section: the Controls screen was not open; full run 1 and the solo runs passed. Test speed (2026-10-20, `docs/archive/test-speed/`): the causes were load timing, fixed in
-  the test: a 3-frame hold let the menu's real-time nav repeat step twice (now one input poll), the remap B landed with
-  no capture listening, and fixed pauses before reading the connect toast and the locked row's toast (now condition
-  waits). Still on `KNOWN_FLAKY` until it has run clean in more full runs; see the test-speed STATE "Runs".
+- **e2e-pad** (fixed in the test, player-flake-fix 2026-10-26; out of quarantine) - from hud-guidance B5 (7ff3c4ce7,
+  train 112) every run failed "focus Report feedback": B5 added a Notes row to the field menu and the test walked
+  three downs to Report feedback; the quarantine printed it KNOWN FLAKY, so nothing after it ran. Now the pad walks
+  the whole menu by row keys (Resume, Objectives, Notes, Settings, Report feedback, Animation tuner, Quit). The old
+  remap failure (full run 2, 2026-10-19) was fixed by test-speed and load-latent-ui1 (`pressPair`) and has not
+  recurred. Open: one desktop run (68c15083, 2026-10-25) died "Execution context was destroyed" after the quit to
+  the main menu (a PWA update reload at the menu suspected, unproven); the suite now prints a main-page navigation.
 - **e2e-stealth-ai wall-peek block (watch, 2026-10-21)** - failed in laptop full runs (E2E_JOBS=1) on #65 (no assert
   printed) and #71 ("the guard there sees the peeking head only": los true, head false); passed solo on both. On #67
   (S2b) the edge peek fails solo too: real there. Suspect load timing in the peek sampling. Not on `KNOWN_FLAKY`; if it
