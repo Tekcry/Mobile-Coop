@@ -174,7 +174,7 @@ Files (Player Build; files of other owners get one-line hooks only):
   `scripts/mocap/data/mixamo-clips.json` (S2), `src/player/moveState.ts`, `src/game/localMoveState.ts`,
   `src/net/remoteAvatar.ts`, `src/net/enemyPuppet.ts`, `src/net/coopClient.ts`, `src/net/coopHost.ts`,
   `src/net/protocol.ts`, `src/weapons/weaponMesh.ts`,
-  `src/weapons/weaponModel.ts`, `scripts/weapons/py/build_weapon.py`, `src/weapons/assets/pistolSd.glb` (S4a),
+  `src/weapons/weaponModel.ts`, `scripts/weapons/py/build_weapon.py`, `scripts/weapons/py/wlib.py` (the slide split, S4a-BRIEF), `src/weapons/assets/pistolSd.glb`, `tests/pistolSlide.test.ts`, `tests/weaponMesh.test.ts` (S4a),
   `docs/systems/takedowns.md` ("Knife kills (piano scene)", S1).
 - Not touched: `src/core/flags.ts` (Campaign owns `pianoEscape`), `src/game/pianoScene.ts` (Campaign writes the two
   `setKnifeScene` calls), the map, camera, music and EMP files, guard AI.
