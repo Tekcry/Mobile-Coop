@@ -542,7 +542,8 @@ export class StealthSystems implements LocalCarry {
   private onAlarm(e: Enemy, p: AlarmPanel | null): void {
     const g = this.g;
     const em = this.em;
-    g.hud.banner('ALARM', 'Reinforcements inbound', 2200);
+    // (guard-rules S5) a repeat alarm at the stage cap sends no one: the plain alarm line
+    g.hud.banner('ALARM', g.mode?.alarmQuiet?.() === true ? '' : 'Reinforcements inbound', 2200);
     g.events.emit('alarm', {});
     g.style.record('alarm', true);
     if (p) for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');
@@ -589,9 +590,10 @@ export class StealthSystems implements LocalCarry {
     const base = ent ? new Vector3(ent.at[0], ent.y ?? Number.NaN, ent.at[1]) : at!;
     const yaw = ent?.yaw ?? 0;
     // (guard-ai S13, items 3 and 11, A38) a response team in place of grunt, grunt, heavy (no heavies in the co-op
-    // missions, G155): the shield guard first (helmeted), then armed guards (`RESPONSE.liveTeam`); the one alarm is
-    // stage 1 (no stage gear). It sweeps the section's guard routes and posts after its search.
-    const n = responseTeam(1, RESPONSE.liveTeam, this.teamKinds);
+    // missions, G155): armed guards (`RESPONSE.liveTeam`); the one alarm is stage 1 (no stage gear). It sweeps the
+    // section's guard routes and posts after its search. (guard-rules S1, A14, Marlow Build) no shield lead: Marlow
+    // Yard's team is armed guards only, as the campaign's (M2). Undo: drop the `false`.
+    const n = responseTeam(1, RESPONSE.liveTeam, this.teamKinds, false);
     em.sweepSource(e.section, this.teamRoutes, this.teamPosts);
     const team = em.newTeam(e.section, null, this.teamRoutes.slice(), this.teamPosts.slice());
     for (let i = 0; i < n; i++) {

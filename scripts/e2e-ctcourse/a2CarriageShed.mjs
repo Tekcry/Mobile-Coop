@@ -116,7 +116,7 @@ export async function walk(t, n) {
     }
     await until(B, (g) => window.__course.wire.lights.groups.some(([q, on]) => q === g && !on), NECK_GROUP, 15000, `${what}: the client's course message has group ${NECK_GROUP} off`);
     assert(await claimed(), `${what}: the press claims the A job`);
-    await sees(B, /Isolate the neck lights at cabinet one|Cross behind the shunter|Isolate at cabinet two/, `${what}: the client reads an A or B line`);
+    await sees(B, /Isolate the neck lights at cabinet one|Cross the neck behind the shunter|Isolate at cabinet two/, `${what}: the client reads an A or B line`);
     await darkOnBoth(CROSS[0], CROSS[1], `${what}: the crossing line reads dark and the same on both pages`, true);
     await darkOnBoth(MID[0], MID[1], `${what}: the neck's middle reads dark on both pages`, false);
     return d0;
@@ -219,7 +219,7 @@ export async function walk(t, n) {
   await assertNotSpotted('A2 host crossing', r0);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a2-neck"] td.done'), null, 15000, `A2: the ${tag} sees the neck step ticked`);
   // the way back: the A job crosses behind, the B job isolates at cabinet two
-  await sees(B, /Cross behind the shunter while your partner isolates/, 'A2: the client (A) reads the way-back line');
+  await sees(B, /Cross the neck behind the shunter while your partner isolates/, 'A2: the client (A) reads the way-back line');
   await sees(A, /Isolate at cabinet two so your partner can cross/, 'A2: the host (B) reads the way-back line');
   assert(!(await ticked(A, 'a2-back')), 'A2: the way back is not done yet');
 
@@ -269,7 +269,7 @@ export async function walk(t, n) {
   const [da, db] = [await level(A, CROSS[0], CROSS[1]), await level(B, CROSS[0], CROSS[1])];
   assert(da <= 0.24 && db <= 0.24, `A2: the crossing reads dark on both pages for the mirror (${da.toFixed(3)}, ${db.toFixed(3)})`);
   // the first claim stands: the client is still A (the crosser)
-  await sees(B, /Cross behind the shunter while your partner isolates/, 'A2: the claim stands (the client crosses)');
+  await sees(B, /Cross the neck behind the shunter while your partner isolates/, 'A2: the claim stands (the client crosses)');
 
   // ---- 5. the client crosses the dark neck: both east, the way back ticks, the closing line ----
   console.log('  A2: the mirror crossing, both east');

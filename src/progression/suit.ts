@@ -100,8 +100,8 @@ export function suitLook(base: AvatarLook, s: SuitLoadout): AvatarLook {
 
 // ------------------------------------------------------------------------------------------------ HQ upgrades
 
-export type HqId = 'radar' | 'restock' | 'revive';
-export const HQ_IDS: readonly HqId[] = ['radar', 'restock', 'revive'];
+export type HqId = 'restock' | 'revive';
+export const HQ_IDS: readonly HqId[] = ['restock', 'revive'];
 
 export interface HqDef {
   name: string;
@@ -112,7 +112,6 @@ export interface HqDef {
 }
 
 export const HQ: Record<HqId, HqDef> = {
-  radar: { name: 'Minimap radar', desc: 'Enemies within 15 m (level 2: 25 m) show on the minimap in stealth modes', prices: [1500, 3000], levels: [4, 9] },
   restock: { name: 'Supply drops', desc: 'Gadgets restock at checkpoints', prices: [1800], levels: [5] },
   revive: { name: 'Field medic training', desc: 'Co-op revives 30% faster per level', prices: [800, 1600], levels: [2, 6] },
 };
@@ -120,11 +119,10 @@ export const HQ: Record<HqId, HqDef> = {
 export type HqLevels = Record<HqId, number>;
 
 export function defaultHq(): HqLevels {
-  return { radar: 0, restock: 0, revive: 0 };
+  return { restock: 0, revive: 0 };
 }
 
 export interface HqStats {
-  radar: number;
   restock: boolean;
   reviveSpeed: number;
 }
@@ -132,7 +130,6 @@ export interface HqStats {
 export function hqStats(h: HqLevels): HqStats {
   const lv = (k: HqId): number => Math.max(0, Math.min(HQ[k].prices.length, Math.floor(h[k] ?? 0)));
   return {
-    radar: lv('radar') === 0 ? 0 : lv('radar') === 1 ? 15 : 25,
     restock: lv('restock') > 0,
     reviveSpeed: 1 + 0.3 * lv('revive'),
   };

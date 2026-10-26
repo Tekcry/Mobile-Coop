@@ -290,6 +290,15 @@ const unwrapArr = (a) => { for (let i = 1; i < a.length; i++) { while (a[i] - a[
 const pitchOf = (u) => Math.atan2(u[2], u[1]);
 const rollOf = (u) => Math.atan2(-u[0], Math.hypot(u[1], u[2]));
 const yawOf = (f) => Math.atan2(f[0], f[2]);
+/** Yaw (+ forward to +x) of a rotated right (+x) axis: the heading of a segment pitched near or past 90 deg (I2b). */
+const yawOfRight = (r) => Math.atan2(-r[2], r[0]);
+/**
+ * (I2b) A segment pitched past this (rad, 75 deg) at any frame of a take takes its yaw from its right axis for the whole
+ * take: its forward points near the vertical there, and as the pitch crosses 90 deg the forward's heading turns half a
+ * circle (the crawl's chest at 87-105 deg: spYaw keys -4.72 to -1.42, the shoulder line flipped). The right axis keeps the
+ * heading (off by about roll x sin pitch). Below it the forward's heading as before (those clips byte-identical).
+ */
+export const YAW_FROM_RIGHT = (75 * Math.PI) / 180;
 
 /**
  * A take (M2 `loadMixamoTake` shape) on the 1.75 m standard body, facing +z: per 120 fps frame the standard points
@@ -319,6 +328,7 @@ export function standardBody(take, facing = null) {
   // (`gripL/R`: the take's own palm points, scaled: they stay on a grip, where the rebuilt palms move with the body)
   const P = { pel: [], hipL: [], hipR: [], kneeL: [], kneeR: [], ankleL: [], ankleR: [], shL: [], shR: [], palmL: [], palmR: [], gripL: [], gripR: [], soleL: [], soleR: [] };
   const A = { pelPitch: [], pelRoll: [], pelYaw: [], chPitch: [], chRoll: [], chYaw: [], hdPitch: [], footL: [], footR: [] };
+  const rightYaw = { pel: [], ch: [] };
   const restFoot = (slot) => { const d = take.skel.bones.get(slot).dir; return Math.atan2(-d[1], d[2]); };
   const rest = { L: restFoot('lfoot'), R: restFoot('rfoot') };
   for (let i = 0; i < n; i++) {
@@ -354,9 +364,17 @@ export function standardBody(take, facing = null) {
     A.pelPitch.push(pitchOf(pu)); A.pelRoll.push(rollOf(pu)); A.pelYaw.push(yawOf(fw('root')));
     A.chPitch.push(pitchOf(cu)); A.chRoll.push(rollOf(cu)); A.chYaw.push(yawOf(fw('thorax')));
     A.hdPitch.push(pitchOf(hu));
+    rightYaw.pel.push(yawOfRight(turn(qrot(quat('root')[i], [1, 0, 0]))));
+    rightYaw.ch.push(yawOfRight(turn(qrot(quat('thorax')[i], [1, 0, 0]))));
   }
   for (const k of Object.keys(A)) unwrapArr(A[k]);
-  return { n, T: (n - 1) / TAKE_FPS, scale, yaw, P, A };
+  const yawFrom = {};
+  for (const seg of ['pel', 'ch']) {
+    const steep = A[`${seg}Pitch`].some((p) => Math.abs(p) > YAW_FROM_RIGHT);
+    yawFrom[seg] = steep ? 'right' : 'forward';
+    if (steep) A[`${seg}Yaw`] = unwrapArr(rightYaw[seg]);
+  }
+  return { n, T: (n - 1) / TAKE_FPS, scale, yaw, P, A, yawFrom };
 }
 
 /** A body's points / angles at fractional frame f (linear). */
@@ -699,7 +717,7 @@ export function facingOf(recipe, take) {
 export function buildClip(recipe, take) {
   const B = standardBody(take, facingOf(recipe, take));
   const res = recipe.emit === 'chanLoop' ? loopChannels(B, recipe) : pathChannels(B, recipe);
-  res.notes.unshift(`leg scale x${B.scale.toFixed(3)}; facing turned ${(B.yaw * 180 / Math.PI).toFixed(1)} deg`);
+  res.notes.unshift(`leg scale x${B.scale.toFixed(3)}; facing turned ${(B.yaw * 180 / Math.PI).toFixed(1)} deg${B.yawFrom.pel === 'right' || B.yawFrom.ch === 'right' ? `; yaw from the right axis (pitched past 75 deg): ${['pel', 'ch'].filter((s) => B.yawFrom[s] === 'right').map((s) => (s === 'pel' ? 'hips' : 'chest')).join(', ')}` : ''}`);
   const red = reduceAll(res);
   const file = take.report?.file ?? `${recipe.slug}.fbx`;
   return { source: moduleSource(recipe, file, res, red), row: sourceRow(recipe, file), doc: docSection(recipe, file, res, red), res, red, file };

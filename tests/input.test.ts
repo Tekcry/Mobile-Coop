@@ -66,6 +66,21 @@ describe('gamepad mapping', () => {
     expect(mapPad(snap({ [PAD.LB]: 1 }), tuning).buttons.gadgetWheel).toBe(true);
     expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBeUndefined();
   });
+  it('(G343) View raises the objective action and nothing else; the goggles stay on D-pad left; a held press is one edge (G24)', () => {
+    const b = mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons;
+    expect(b.objective).toBe(true);
+    expect(Object.keys(b).filter((k) => b[k as keyof typeof b] === true && k !== 'objective')).toEqual([]);
+    expect(GAME_BINDINGS.filter(([i]) => i === PAD.SELECT)).toEqual([[PAD.SELECT, 'objective']]);
+    expect(GAME_BINDINGS.filter(([, a]) => a === 'vision')).toEqual([[PAD.LEFT, 'vision']]);
+    expect(mapPad(snap({ [PAD.LEFT]: 1 }), tuning).buttons.objective).toBeUndefined();
+    const s = new InputState();
+    s.set('pad', 'objective', true);
+    expect(s.pressed('objective')).toBe(true);
+    s.consumeEdges();
+    s.tick(1);
+    expect(s.pressed('objective')).toBe(false);
+    expect(s.down('objective')).toBe(true);
+  });
   it('tap / hold: a release before the hold time is a tap, a hold fires once per press', () => {
     const t = new TapHold(0.15);
     expect(t.update(true, 0)).toBeNull();
@@ -224,6 +239,17 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
   };
   const KEY_LABEL = (code: string): string =>
     ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', AltLeft: 'Left Alt', CapsLock: 'Caps Lock', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab', Mouse1: 'Middle mouse' })[code] ?? code.replace(/^Key/, '');
+
+  it('(G343) the objective row: View (tap) and O, and no other binding row uses either', () => {
+    const row = rows.find((r) => ticks(r[1]!).includes('objective'));
+    expect(row, 'objective row').toBeDefined();
+    expect(row![2]).toMatch(/^View/);
+    expect(row![4]).toContain('`objective` (O)');
+    for (const r of rows) if (r !== row) {
+      expect(r[2]!.split(';').some((a) => a.trim().startsWith('View')), `${r[0]} pad cell`).toBe(false);
+      expect(r[4]!, `${r[0]} key cell`).not.toContain('(O)');
+    }
+  });
 
   it('has a row per verb', () => {
     expect(rows.length).toBeGreaterThanOrEqual(19);

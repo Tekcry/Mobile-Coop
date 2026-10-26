@@ -36,6 +36,11 @@ import { setMocapMixamo, type MixamoLocoSlot } from './mocap';
 // (mixamo-retarget I3) the stance changes
 import { MOCAP_STAND_TO_CROUCH } from './clips/mixamo/stand_to_crouch';
 import { MOCAP_CROUCH_TO_STAND } from './clips/mixamo/crouch_to_stand';
+// (mixamo-retarget I5) the body carry and the strike
+import { MOCAP_CARRY_BODY_WALKING } from './clips/mixamo/carry_body_walking';
+import { MOCAP_CARRY_BODY_IDLE } from './clips/mixamo/carry_body_idle';
+import { MOCAP_ELBOW_STRIKE } from './clips/mixamo/elbow_strike';
+import { MOCAP_CROSS_PUNCH } from './clips/mixamo/cross_punch';
 // (mixamo-retarget I6) the locomotion set
 import { MOCAP_WALKING } from './clips/mixamo/walking';
 import { MOCAP_JOGGING } from './clips/mixamo/jogging';
@@ -70,23 +75,27 @@ export const MIXAMO_TRAV: Readonly<Record<string, { clip: Clip; slot: MixamoTrav
 /**
  * Per capture: whether it plays in the game with the flag on (PLAN "Switch-on": a clip that passes A8 and the checker).
  * The Studio's pick plays its capture whatever this says. Measured headless on Wren's rig (tests/mixamoTraverse.test.ts,
- * docs/mixamo-retarget/I2-REPORT.md): a capture whose palms or soles miss their anchors more than the hand-made clip does
- * stays off (bible 5.12.2 #2) rather than take a hand-made fix.
+ * docs/mixamo-retarget/I2-REPORT.md, I2B-REPORT.md): Michael 2026-10-26, the capture wins where it covers the same move
+ * unless it is visibly broken in play (a spin, a pop, hands far off the grips); a worse number alone is tuned in the
+ * Anim Studio. Hands on the lip stay a hard requirement where the game relies on grips (tests/climbHands.test.ts).
  */
 export const MIXAMO_ON: Record<string, boolean> = {
   hanging_idle: true,
   braced_hang_shimmy_left: true,
   braced_hang_shimmy_right: true,
-  // off: its trunk near upright as the knee comes on takes the palms 29 cm off the lip (hand-made 0.35; climbHands harness)
-  braced_hang_to_crouch: false,
-  // off: its stand-up end (the take ~4x faster, M4) moves the trunk 20 cm in a frame and the wrists 9.9 cm (climbHands)
-  freehang_climb: false,
-  // off: the soles move 38 cm on their held plants (hand-made 32); keeping the hand-made foot lift puts the palms 5-6 cm off
-  climbing_ladder: false,
+  // on (I2b, under its hold `MIXAMO_HOLD`): palms 0.0 cm on the lip, shoulders 0.49 m (arm 0.54), wrists' velocity change
+  // 2.8 cm a frame at the release (cap 3.0; hand-made 2.8), trunk 8.6 / 2.8 cm (caps 9.6 / 3.1): tests/climbHands.test.ts
+  braced_hang_to_crouch: true,
+  // on (I2b, its stand-up `MIXAMO_STAND`: the hip turn kept at 0.15, the clock slowed mid-way): trunk 8.9 / 3.07 cm a frame
+  // (caps 9.6 / 3.1; was 15.7 / 5.1 as captured), arms 12.2 / 9.8 (caps 16.2 / 23.5): tests/climbHands.test.ts
+  freehang_climb: true,
+  // on (I2b): palms 0.00 cm (hand-made 0.00); soles 38 cm vs 32 (the rig's climb foot cap, not contact); into the top-out
+  // the first frame moves the right ankle 19.9 cm (hand-made 15.7; 23.5 before the capture-to-capture trigger, animGraph)
+  climbing_ladder: true,
   climbing_ladder_to_standing: true,
-  // off: its spYaw keys run -4.72 to -1.42 rad (the M4 yaw wraps round -pi): the shoulder line flips and the joints jump up
-  // to 13.8 cm a frame (hand-made 0.5; tests/mixamoTraverse.test.ts crawl check), and crawlOut starts 4.6 rad of spYaw away
-  crawling_hands_and_knees: false,
+  // on (I2b): the M4 chest yaw fixed (from the right axis past 75 deg pitch: spYaw -0.10 to 0.15, was -4.72 to -1.42); the
+  // joints step 3.4 cm a frame, 1.7 cm velocity change (hand-made 0.5 / 0.1; was 13.8 / 24.9 with the flip)
+  crawling_hands_and_knees: true,
   // (mixamo-retarget I1) measured headless on Wren's rig against the clip it would replace (tests/mixamoSwitch.test.ts (d),
   // docs/mixamo-retarget/I1-REPORT.md, I4-REPORT.md; the A8 readings are information: on unless visibly broken)
   // (I4, Michael 2026-10-26: Mixamo wins unless visibly broken) on: arms in 11 deg at emit (recipe `armIn`): the elbows
@@ -105,6 +114,21 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // (I4) on: trimmed to the rise (0.35-1.25 s), no head channel, edge fade 0.4: bone step 16.0 deg (was 24.3; hand-made
   // 14.3), velocity pop 13.8 cm a frame (was 11.3; hand-made 6.4), elbows 10.9 cm (hand-made 6.75), knees as hand-made
   crouch_to_stand: true,
+  // (mixamo-retarget I5) the body carry and the strike (tests/mixamoCarryStrike.test.ts (d), docs/mixamo-retarget/
+  // I5-REPORT.md; Michael 2026-10-26: the capture plays unless visibly broken in play)
+  carry_body_walking: true,
+  carry_body_idle: true,
+  // off: the take's 92 deg hip spin over the planted feet is out (the pelvis turn stays the hand-made strike's: knees
+  // 0.57-0.67 x hips, knee out 5.7 cm, hand-made 0.63-0.70 / 5.0), but its 18 frames to contact squeezed onto the arc's
+  // ~4 turn a forearm 36.5 deg in a frame (cap: hand-made 33.1 + 1); elbows 28 cm out (15)
+  elbow_strike: false,
+  // off: as the elbow strike: a forearm 54.8 deg in a frame (17 frames to contact squeezed onto ~4); hips as hand-made
+  // Before either goes on: the lethal takedown blow and its tail (`killWarp`, the victim at the hands, no bend) reach
+  // `strikeShot` on the same arc and would play the take at the kill's pace; no AnimInput tells them apart yet (I5-REPORT)
+  cross_punch: false,
+  // Studio only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
+  // and its clock is not in the pose input (J19 R11, the kneeling put down, is not built)
+  kneel_down: false,
   // (mixamo-retarget I6) the locomotion set (Michael 2026-10-26: a row plays unless visibly broken), measured headless on
   // Wren's rig against the CMU clip in the same move (tests/mixamoLoco.test.ts (d), docs/mixamo-retarget/I6-REPORT.md)
   walking: true,
@@ -131,6 +155,57 @@ export const SHIMMY_TRAVEL = 0.578;
 export const SHIMMY_SPEED = { on: 0.15, fade: 0.12, dirFade: 0.1, swing: 0.01 } as const;
 /** The climb-up's stand-up end fades in over this much k past the crouch (about 0.1 s of the 1.3 s exit). */
 export const STAND_FADE = 0.08;
+
+/**
+ * (I2b) Per lip climb-up capture: the hand-made climb-up (CLIMB_UP) plays under it while the hands hold the lip and the
+ * capture blends in once the grips have mostly let go (smoothstep over k `k0` .. `k0 + span`; the grips: the game's
+ * `CLIMB_UP_HANDS`, k 0.475 - 0.643, moveState.ts), its clock from the take's k `from` at `k0` to the crouch, then the
+ * hand-made stand-up fades in over `stand` of k. The braced take pulls up with its feet on the wall and its trunk upright:
+ * played from k 0 its shoulders went 0.85 m from the lip (arm 0.54) and the palms 58 cm off it before the right foot was
+ * on the top (k 0.59, the game needs it by the release, 0.475: tests/climbHands.test.ts). Blended in with the grips (k0
+ * 0.475) its lower shoulders put the lip grips out of the arms' reach over k 0.53 - 0.59 and the wrists snapped back as
+ * the grips let go (3.5 - 3.7 cm velocity change a frame, cap 3.0); from k 0.58 the grips are past that and the wrists are
+ * the hand-made climb-up's (2.8 cm). The capture's share peaks about 0.7 near k 0.75 (the stand-up fades in from 0.654).
+ */
+export const MIXAMO_HOLD: Readonly<Record<string, { k0: number; span: number; from: number; stand: number; ease: number }>> = {
+  braced_hang_to_crouch: { k0: 0.58, span: 0.2, from: 0.56, stand: 0.34, ease: 0 },
+};
+/** The resolved hold of the `climbUpCrouch` slot's capture, by the `HOLD_*` slots (`k0` -1: none, the capture from k 0;
+ *  `stand` its stand-up fade, k: `STAND_FADE` without a hold). The graph reads it: typed, so no double it reads is boxed
+ *  (an object's double fields boxed 16 B a frame on the hold's path: tests/mixamoTraverse.test.ts "no allocation"). */
+export const WREN_HOLD = new Float64Array(5);
+export const HOLD_K0 = 0;
+export const HOLD_SPAN = 1;
+export const HOLD_FROM = 2;
+export const HOLD_STAND = 3;
+export const HOLD_EASE = 4;
+/**
+ * (I2b) Under a hold the feet stay the hand-made climb-up's to the crouch (the stand-up's capture fades its own in): the
+ * braced take's right foot steps onto the top at k 0.53 - 0.6 (fRY up to 0.18 m over its crouch height), the game has it
+ * on the top by the release (k 0.475).
+ */
+export const HOLD_FEET_CH: readonly number[] = (['fLX', 'fLZ', 'fLY', 'fLPitch', 'fRX', 'fRZ', 'fRY', 'fRPitch'] as const).map((c) => CH[c]);
+
+/**
+ * (I2b) Per stand-up capture (the `climbUpStand` slot, past the crouch): its clock runs the same take from the crouch to
+ * its end but slowed through the middle and quicker at the ends (game x 0..1 over the crouch to the end, the take's
+ * x + slow sin(2 pi x) / 2 pi: speed 1 - slow mid-way, 1 + slow at the ends), and its yaw turn (`STAND_YAW_CH`) is kept at
+ * `yaw` of the take's over the hand-made climb-up's. The free-hang take (x2.85, M4) turns the hips 86 deg (pelYaw to 1.5
+ * rad, still 0.89 at its end) and pitches the chest back up 1.2 rad in 0.08 s as it stands: played as captured the trunk
+ * stepped 15.7 cm and changed velocity 5.1 cm in a frame (caps 9.6 / 3.1, tests/climbHands.test.ts). Swept (to the take's
+ * end; cut short at k 0.85 - 0.92 every reading was worse): yaw 0 slow 0.4 - 0.5 trunk 8.6 / 3.06; yaw 0.15 slow 0.45
+ * 8.9 / 3.07, the arms 12.2 / 9.8 (caps 16.2 / 23.5); yaw 0.3 the trunk 10.0.
+ */
+export const MIXAMO_STAND: Readonly<Record<string, { yaw: number; slow: number }>> = {
+  freehang_climb: { yaw: 0.15, slow: 0.45 },
+};
+/** The resolved stand-up of the `climbUpStand` slot's capture, by the `STAND_*` slots (typed: no double boxed; none:
+ *  yaw 1, slow 0, the take as captured). */
+export const WREN_STAND = new Float64Array(2);
+export const STAND_YAW = 0;
+export const STAND_SLOW = 1;
+/** The stand-up capture's yaw channels `STAND_YAW` scales toward the hand-made climb-up's. */
+export const STAND_YAW_CH: readonly number[] = (['pelYaw', 'spYaw'] as const).map((c) => CH[c]);
 
 /** A traversal move a capture plays in (the hang family, the ladder, the vent crawl, the lip climb-up, the top-out). */
 export type MixamoMove = 'hang' | 'climb' | 'crawl' | 'climbUp' | 'topOut';
@@ -169,6 +244,30 @@ export function resolveMixamo(): void {
     if (pick.slot === 'climbUpStand') T.climbUpCrouch = pick.clip;
   }
   T.any = SLOTS.some((s) => T[s] !== null);
+  WREN_HOLD[HOLD_K0] = -1;
+  WREN_HOLD[HOLD_SPAN] = 1;
+  WREN_HOLD[HOLD_STAND] = STAND_FADE;
+  WREN_HOLD[HOLD_EASE] = 0;
+  WREN_HOLD[HOLD_FROM] = 0;
+  for (const [slug, r] of Object.entries(MIXAMO_TRAV)) {
+    const h = MIXAMO_HOLD[slug];
+    if (h && T.climbUpCrouch === r.clip) {
+      WREN_HOLD[HOLD_K0] = h.k0;
+      WREN_HOLD[HOLD_SPAN] = h.span;
+      WREN_HOLD[HOLD_STAND] = h.stand;
+      WREN_HOLD[HOLD_EASE] = h.ease;
+      WREN_HOLD[HOLD_FROM] = h.from;
+    }
+  }
+  WREN_STAND[STAND_YAW] = 1;
+  WREN_STAND[STAND_SLOW] = 0;
+  for (const [slug, r] of Object.entries(MIXAMO_TRAV)) {
+    const s = MIXAMO_STAND[slug];
+    if (s && T.climbUpStand === r.clip) {
+      WREN_STAND[STAND_YAW] = s.yaw;
+      WREN_STAND[STAND_SLOW] = s.slow;
+    }
+  }
   for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {
     const out = KEEP_CH[m];
     out.length = 0;
@@ -176,6 +275,7 @@ export function resolveMixamo(): void {
   }
   resolveMixamoKeyed(); // (mixamo-retarget I1)
   resolveMixamoStance(); // (mixamo-retarget I3)
+  resolveMixamoCarryStrike(); // (mixamo-retarget I5)
 }
 
 /** The flag (`?mixamo=1`): the captures on Wren's traversal (those `MIXAMO_ON` lets play). */
@@ -289,6 +389,66 @@ function resolveMixamoStance(): void {
   const S = WREN_STANCE;
   S.down = MIXAMO.on && MIXAMO_ON.stand_to_crouch === true ? MOCAP_STAND_TO_CROUCH : null;
   S.up = MIXAMO.on && MIXAMO_ON.crouch_to_stand === true ? MOCAP_CROUCH_TO_STAND : null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (mixamo-retarget I5) Wren's body carry and strike (PLAN "Clip map" rows 12 and 14; A2: they follow only the `mixamo`
+// flag). Read by reference by the graph's keyed block (`animGraph.ts` `carryShot` / `strikeShot`, Wren rigs only:
+// `wrenReady`); with every field null the graph skips both (no sample, no write: byte-identical). The game's clocks drive
+// them, never the takes' own seconds: the carry walk on the gait phase (left strike 0), the carry idle on its own loop,
+// the strike on the arc phase (`melee`, the strike's and the kill blows' own timing) with the take's contact frame put on
+// the arc's contact (`STRIKE_ARC_CONTACT`). Rebuilt once per change by `resolveMixamo`. Above the load-time line below.
+
+/** The resolved carry and strike captures on Wren (the same object always: fields rewritten once per change). `any`: a
+ *  carry capture is filled; `contact`: the strike take's contact as a share of its frames (0 none). */
+export const WREN_CARRY: { any: boolean; walk: KeyedClip | null; idle: KeyedClip | null; idlePeriod: number } = { any: false, walk: null, idle: null, idlePeriod: 1 };
+export const WREN_STRIKE: { clip: KeyedClip | null; contact: number } = { clip: null, contact: 0 };
+
+/** The carry idle's take seconds a loop (its header: frames 0-300 at 30 fps, 0-10 s). */
+export const CARRY_IDLE_SECONDS = 10;
+
+/**
+ * The carry and strike fades: `strikeIn` / `strikeOut` (s) the strike capture's weight easing in at the arc's start and
+ * out after it ends (both takes start and end near the standing rest, so the ease is short). The carry capture follows
+ * the keyed weight (it eases in and out with the body's load on the shoulder: the hoist and the put down's hand-over).
+ */
+export const CARRY_STRIKE_SHOT = { strikeIn: 0.03, strikeOut: 0.12 } as const;
+
+/**
+ * A strike take's contact (0..1 of its frames): the striking hand at its furthest forward. The striking side is the wrist
+ * that travels further forward over the take (elbow strike: the left, cross punch: the right); the contact is the first
+ * frame it reaches 97% of that travel. Once per change (not per frame).
+ */
+export function strikeContact(c: KeyedClip): number {
+  const A = c.arm;
+  const N = c.frames;
+  let best = 0;
+  let side = 5;
+  for (const s of [5, 11]) {
+    let mx = -Infinity;
+    for (let f = 0; f < N; f++) mx = Math.max(mx, A[f * 12 + s]!);
+    if (mx - A[s]! > best) {
+      best = mx - A[s]!;
+      side = s;
+    }
+  }
+  const z0 = A[side]!;
+  for (let f = 0; f < N; f++) if (A[f * 12 + side]! >= z0 + 0.97 * best) return f / (N - 1);
+  return 0.5;
+}
+
+/** Rewrite `WREN_CARRY` / `WREN_STRIKE` from the flag and `MIXAMO_ON` (once per change). The elbow strike is the game's
+ *  move (the knockout's elbow arc); the cross punch plays in its place only with the elbow strike's row off. */
+function resolveMixamoCarryStrike(): void {
+  const C = WREN_CARRY;
+  const on = MIXAMO.on;
+  C.walk = on && MIXAMO_ON.carry_body_walking === true ? MOCAP_CARRY_BODY_WALKING : null;
+  C.idle = on && MIXAMO_ON.carry_body_idle === true ? MOCAP_CARRY_BODY_IDLE : null;
+  C.idlePeriod = CARRY_IDLE_SECONDS;
+  C.any = C.walk !== null || C.idle !== null;
+  const S = WREN_STRIKE;
+  S.clip = !on ? null : MIXAMO_ON.elbow_strike === true ? MOCAP_ELBOW_STRIKE : MIXAMO_ON.cross_punch === true ? MOCAP_CROSS_PUNCH : null;
+  S.contact = S.clip !== null ? strikeContact(S.clip) : 0;
 }
 
 setMixamo(flags.mixamo === true);

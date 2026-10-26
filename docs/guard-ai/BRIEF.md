@@ -681,3 +681,10 @@ only, no protocol or save change. T1 (the recon drone's sight verdict) is a test
 - **A194** (POLISH-CHECK-A 2) The in-cover known-spot exits (`blockCover`, too close) need a spot: a hunt position, a
   sighting or a stimulus; else today's feet rule. Hardening, not reachable today. Undo: `KNOWN_NEEDS_SPOT = false` in
   `src/ai/enemy.ts`.
+
+## G327 shadow in view (`feature/guard-ai-g327`, PR #438; replaces #360)
+- **A195** (G327, Q17 "Like on screen") An off-view guard counts as seen when a shadow of his can fall in a local view
+  (the render freeze's frustum test `guardFrustum`: moon capsule, lamp and torch shadow volumes, character-atlas slots;
+  frustum only, so a shadow behind a wall still counts); he then animates like a guard in view (every frame; every 2nd
+  past 22 m, as on screen). A guard with neither body nor shadow in view solves every 8th frame (was 4th). Undo:
+  `flags.animShadow` default false (`?animshadow=0` for one run) and `ANIM_TIER_OFFSCREEN` 4 in `src/ai/animTier.ts`.

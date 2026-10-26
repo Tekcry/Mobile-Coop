@@ -39,12 +39,12 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
 - Door crack (locomotion step 13, A25 / A52, `world/doors.ts`): `Doors.crack(d, on)` eases the drawn leaf
   (`DoorState.ajar`) to `DOOR.crack` 0.12 of the swing over `DOOR.crackTime` 0.6 s (closed in 0.4 s) and sets
   `DoorState.cracked`; the swing `open` stays 0, so the collision body, the light field and baked lamps (`DOOR_SHUT`
-  0.05) and guard sight see a closed door (nothing in `src/ai`, the light bake or the lamp bake reads `cracked`). A
+  0.15) and guard sight see a closed door (nothing in `src/ai`, the light bake or the lamp bake reads `cracked`). A
   full open (`open` / `setOpen`, anyone, guards walking through included) clears `cracked` and swings on from the
-  cracked angle. The door-peek core (pure, Babylon-free) is `world/doorPeek.ts` (see movement.md). Decided, not built
-  yet: the CT door menu replaces the crack peek (G97: open, stealth open, bash, optic cable; bash can knock out a guard
-  behind the door); doors pass light, sound and sight past about 15% open, one threshold (G41, loco M20 Q10; code:
-  `DOOR_SHUT` 0.05); guards close doors behind them on a calm patrol and notice a door open that should be shut (G41).
+  cracked angle. The door-peek core (pure, Babylon-free) is `world/doorPeek.ts` (see movement.md). Built (G97, G41):
+  the CT door menu (movement.md); one 15% door threshold, `DOOR.driveShut` 0.15 for a stick-driven door and
+  `DOOR_SHUT` 0.15 for light (sector-batch); guards close doors behind them on a calm patrol and notice a door open
+  that should be shut (docs/systems/ai.md).
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
 - Characters use `CharacterRig` (see "Characters" below) with a `PartFactory`; `PartLibrary` instances share unit meshes and one
@@ -196,12 +196,13 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
     droneOp and officer (clear) rarely wear any. Small kit: `radio`, `pouch_belt`, `holster_thigh`, `flashlight_mount`, some fixed per
     kind (grunt radio and torch mount, officer radio, droneOp belt), the rest picked from the seed.
   - Gear pieces and the gameplay bits (A5, A14): the gear shows only what stops a round. `Enemy.helmet` /
-    `Enemy.armour` (`GEAR_BY_STAGE`: armour at alarm stage 2, helmet too at 3; response teams) are the wire bits
+    `Enemy.armour` (`GEAR_BY_STAGE`: armour and helmet from alarm stage 2, guard-rules S1 A3; response teams;
+    helmets by difficulty: Realistic and Perfectionist from the start, Perfectionist's never shot off, G350) are the wire bits
     `AL_HELMET` / `AL_ARMOUR`. `applyGear(variant, helmet, armour, plated, kind, out)` turns them into the visible
     piece set: helmet bit -> `helmet_std` (heavy and enforcer: `helmet_heavy`), which hides the hair cap and the
     headwear except the balaclava and headset; armour bit -> `vest_soft`; `plate_heavy` always on heavy and enforcer
     (both `plated`); the enforcer's `shield_riot` is its own GLB skinned on the figure's skeleton (`ai/guardShield.ts`).
-    The seed never adds a helmet or armour the gameplay does not have. A knocked-off helmet (first head hit) hides
+    The seed never adds a helmet or armour the gameplay does not have. A knocked-off helmet (first head hit; never on Perfectionist) hides
     through the mask and drops as `helmet_std`'s own mesh in the guard's helmet colour (`ai/helmetDrops.ts`,
     `guardHelmet.ts`, A6); the cap or hair shows again. Carried and fresh bodies keep the guard's seed and gear
     (`ai/body.ts`).
