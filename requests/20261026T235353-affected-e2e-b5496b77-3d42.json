@@ -1,0 +1,15 @@
+{
+  "id": "20261026T235353-affected-e2e-b5496b77-3d42",
+  "sha": "b5496b77f340b4194a6055dc9a6e8d0d0346505d",
+  "branch": "feature/player-j16",
+  "pr": 697,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #697"
+}
