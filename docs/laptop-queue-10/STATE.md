@@ -73,3 +73,13 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   counts as keyless (48 h window), not at once. Tests: describe "quarantine keys (laptop-queue-10 S5)", 4 cases;
   laptop-queue 257 + autoTrain 71 + e2eQuarantine 5 = 333 pass; typecheck:fast clean. +122 / -3 (lib 25/0, service
   40/2, tests 57/1).
+- 2026-10-26: S6 (Opus builder, feature/laptop-queue-10b, 697104f97): a renamed request is a move (F15; live: PR #548's
+  affected-e2e posted "withdrawn by the requester (not run)" when fronted by rename at 04:13Z). lib movedRequests (match
+  = lib dupKey plus queueRequester, so also env / jobs / pr / rerun flags; one-to-one, earliest candidate first). service
+  LQ_MOVED, prevIds, movedTo, applyMoves after the parse loop (candidates = out + otherActive new since the last
+  listing, no extra git show), the missing / closeWithdrawn step moved after it; a running pair claims the new id
+  ('blocked' = withdrawn as before), drops it from the listing, heartbeats it (taken maps back to the run); a tracked
+  open pair posts no withdrawn status. runRequest finally: done for both ids (state.done[new].movedFrom); a give-back
+  marks the old id done 'moved' and releases the new one (alone steps / due / front place follow); keepFinished writes
+  the new file. Tests: describe "moved requests (laptop-queue-10 S6)", 4 cases; 337 pass (laptop-queue 261 + autoTrain
+  71 + e2eQuarantine 5); typecheck:fast clean. +136 / -22 (lib 20/0, service 78/21 incl. ~12 moved, tests 38/1).
