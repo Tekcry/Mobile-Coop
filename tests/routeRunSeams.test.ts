@@ -17,19 +17,25 @@ type Obj = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
 const metrics = JSON.parse(readFileSync(new URL('../docs/design/metrics.json', import.meta.url), 'utf8'));
 const pace = paceFor('sneak', metrics);
 
-const hook = vi.hoisted(() => ({ onPoll: null as any, onRestart: null as any, onRunEnd: null as any, check: null as any })); // eslint-disable-line @typescript-eslint/no-explicit-any
-vi.mock('../scripts/route-run/course.mjs', async (orig) => ({
-  ...(await orig<Obj>()),
-  onPoll: (...a: unknown[]) => hook.onPoll(...a),
-  onRestart: (...a: unknown[]) => hook.onRestart(...a),
-  onRunEnd: (...a: unknown[]) => hook.onRunEnd(...a),
-  checkCourseExpect: (...a: unknown[]) => hook.check(...a),
-}));
+const hook = vi.hoisted(() => ({ onPoll: null as any, onRestart: null as any, onRunEnd: null as any, check: null as any, onLockedDoor: null as any })); // eslint-disable-line @typescript-eslint/no-explicit-any
+vi.mock('../scripts/route-run/course.mjs', async (orig) => {
+  const real = await orig<Obj>();
+  return {
+    ...real,
+    onPoll: (...a: unknown[]) => hook.onPoll(...a),
+    onRestart: (...a: unknown[]) => hook.onRestart(...a),
+    onRunEnd: (...a: unknown[]) => hook.onRunEnd(...a),
+    checkCourseExpect: (...a: unknown[]) => hook.check(...a),
+    // (J13) the real hook (false on these pages: no course) unless a test sets one
+    onLockedDoor: (...a: unknown[]) => (hook.onLockedDoor ?? real.onLockedDoor)(...a),
+  };
+});
 beforeEach(() => {
   hook.onPoll = vi.fn(async () => {});
   hook.onRestart = vi.fn(async () => null);
   hook.onRunEnd = vi.fn(async () => {});
   hook.check = vi.fn(() => []);
+  hook.onLockedDoor = null;
 });
 
 class V {
@@ -223,6 +229,53 @@ describe('SR3: the course interrupt', () => {
     expect(hook.onRestart).toHaveBeenCalledTimes(1);
     expect(log.deadStops).toEqual([]);
     expect(A.pos.z).toBeCloseTo(8, 0);
+  });
+});
+
+/** (J13) A locked door at (0, 10) that the fake robot cannot walk through (held at z 9 until it opens); placements pass. */
+function lockedDoorAhead(A: ReturnType<typeof fakeGame>) {
+  const door = { open: 0, anchor: { locked: true, id: 'd9' } };
+  A.game.world.doors = { nearest: (x: number, z: number, r: number) => (Math.hypot(x, z - 10) <= r ? door : null) };
+  const c = A.game.player.controller;
+  const teleport = c.teleport.bind(c);
+  let tp = false;
+  let z = A.pos.z;
+  Object.defineProperty(A.pos, 'z', { get: () => z, set: (v: number) => { z = !tp && door.anchor.locked && z <= 9 ? Math.min(v, 9) : v; } });
+  c.teleport = (v: V) => { tp = true; teleport(v); tp = false; };
+  return door;
+}
+
+describe('J13: a walk stalled at the locked door of its door link', () => {
+  const steps = [
+    { type: 'walk', to: [0, 0, 10], space: 'a1-hold-l1', link: 9 },
+    { type: 'link', index: 9, kind: 'double_door', route: 'spine', from: 'a1-hold-l1', to: 'a2-west', reverse: false, at: [0, 0, 10], past: [0, 0, 11.2], action: 'door', limit_s: null },
+    walk([0, 0, 14]),
+  ];
+
+  it('a course lock: the door step takes it, course.onLockedDoor opens it, no stop, the run goes on', async () => {
+    const { A, ctx } = await oneCtx();
+    const door = lockedDoorAhead(A);
+    hook.onLockedDoor = vi.fn(async () => {
+      door.anchor.locked = false;
+      door.open = 1;
+      return true;
+    });
+    const log = await runOne(ctx, { id: 'r', section: null, steps });
+    expect(hook.onLockedDoor).toHaveBeenCalledTimes(1);
+    expect(hook.onLockedDoor.mock.calls[0][2]).toBe(steps[1]);
+    expect(log.deadStops).toEqual([]);
+    expect(log.links).toEqual([{ index: 9, kind: 'double_door', outcome: 'walked' }]);
+    expect(A.pos.z).toBeCloseTo(14, 0);
+  });
+
+  it('no course: the same locked stop on the link, the robot placed past it', async () => {
+    const { A, ctx } = await oneCtx();
+    lockedDoorAhead(A);
+    const log = await runOne(ctx, { id: 'r', section: null, steps });
+    expect(log.deadStops.map((d: Obj) => [d.class, d.link])).toEqual([['locked', 9]]);
+    expect(log.links).toEqual([{ index: 9, kind: 'double_door', outcome: 'locked' }]);
+    expect(log.deadStops[0].at[2]).toBeCloseTo(9, 0);
+    expect(A.pos.z).toBeCloseTo(14, 0);
   });
 });
 

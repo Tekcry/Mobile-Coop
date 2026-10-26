@@ -1181,8 +1181,11 @@ async function runSteps(ctx, log, steps, stop) {
       // a dead stop (A4): its class from a nav probe, then the recovery past the link (logged; the run goes on)
       res.since = await d.call('stallSince');
       const cls = res.ev === 'stall' ? await d.call('probe', to[0], to[1], to[2]) : 'step-timeout';
-      await stop(cls, step, res, ctx.robot);
       const next = steps[i + 1];
+      // (J13) stalled at the locked door of the next step's door link: that step takes it (`doorStart` 'locked', then
+      // `course.onLockedDoor` at a course lock; else its own `locked` stop, the same link, past it)
+      if (cls === 'locked' && next?.type === 'link' && next.index === step.link && next.action === 'door') continue;
+      await stop(cls, step, res, ctx.robot);
       if (step.link !== null && step.link !== undefined && next?.type === 'link' && next.index === step.link) {
         log.links.push({ index: next.index, kind: next.kind, outcome: cls, ...(ctx.robot ? { robot: ctx.robot } : {}) });
         skip.add(i + 1);
