@@ -49,7 +49,7 @@ describe('MapDef detail opt-out (ON0b)', () => {
     expect(dressingOn(warehouse)).toBe(true);
     // (sector-redesign slice 1) Saltmarsh Park is a greybox: no dressing either; (marlow-final 0e) Marlow Yard's kit
     // dresses every wall itself
-    expect(MAPS.filter((m) => !dressingOn(m)).map((m) => m.id)).toEqual(['campusOps', 'kestrel', 'ctcourse', 'ctcourseReplan']);
+    expect(MAPS.filter((m) => !dressingOn(m)).map((m) => m.id)).toEqual(['campusOps', 'kestrel', 'ctcourse', 'ctcourseReplan', 'tallowWharf']);
     const count = (map: typeof kestrel): { dressing: number; shapes: number; plain: number } => {
       const b = new LevelBuilder();
       map.build(b, 1);
