@@ -38,9 +38,9 @@ PC runs.
 4. 1096aefe `docs/systems/lighting.md`: :8-10 (built dark behind `charShadowLight`, owner, switch-on by Michael's walk
    yes); the old Parity bullet kept as the flag-off line and the model / formula / P1-L11 wording / parity table (with
    a flashlight row) added for the flag on; known limits (16 capsules, 4 per lamp, contract order, outline vs capsule,
-   holder rule A5 in the meter only, A6 moon at Shadows Off); one Shadow-cues line; Co-op bullet + A7; Tests line + the
-   three files. Doc lint clean. Deviation: the cue line cites "Michael's Q14" instead of G379 (doc lint: G379 is not in
-   this base's DECISIONS, highest G363). Lines :220-243 untouched.
+   holder rule A5 in the meter only, A6 moon at Shadows Off); Co-op bullet + A7; Tests line + the
+   three files. Doc lint clean. Lines :220-243 untouched. The shadow-cue line was taken out again in 030150bb1 (it is
+   S3's, PR B).
 5. This report.
 
 ## Tests
@@ -64,9 +64,17 @@ PC runs.
 ## Deviations
 1. `pictureInto`'s tie rule is "lower contract slot first" (strict `<` over the slot order), the brief's "ties by slot".
 2. Debug-only members `charMs` / `charMsRing` / `charMsAt` beside the brief's members (its debug item needs them).
-3. The lighting.md cue line cites Q14, not G379 (doc lint, above).
+3. (Dropped: the cue line left lighting.md in 030150bb1.)
 4. Brief deviations 1-4 (fill every sim step, fill before `updateLight`, `put` copies `add`, PR A2 = S2 alone) as
    written.
+
+## Open items (from the Opus check, csm-a2-check.md)
+- Co-op client gap, owned by slice S2c (PLAN section 3), must-fix before switch-on: a client's contract holds only its
+  own player (`playerRefsInto` remotes are host-only), so its meter and round shadows ignore its partners' shadows
+  while the host's sample of that client, which the guards read, counts them (up to 0.85 of a lamp's share; A7 allows
+  0.02). Logged in lighting.md's Co-op bullet.
+- The interim fill holds players and live guards (dogs as guards); dead guards and bodies are absent (`alive` filter)
+  until Guard AI's fill. Victim overflow drops guards in list order, not nearest first (harmless at `OCC.max` 64).
 
 ## Pending PC run
 - affected-e2e on the PR head (src/game: e2e-takedown, e2e-gadgets, e2e-tactics, e2e-park, e2e-ctcourse,

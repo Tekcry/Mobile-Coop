@@ -259,9 +259,9 @@ capsules.
   inside a silhouette, also from casters the capsules lack (partner, bodies, weapons, poses) and on a body's own limbs;
   the meter reads that lamp in full there (`lr14-build.md`, parity note).
 - Parity, with `charShadowLight` on (G352, replaces G315's render-only shadows and the bible's old L11; job
-  char-shadow-meter): one character contract (`world/charOccluders.ts` `CharOccluders`: one upright capsule per player,
-  guard, dog and body, filled from the sim every step, `game/charOccluderFill.ts` until Guard AI's and Player's fills
-  replace it) is read by the meter, guard perception and the picture's round shadows (`pictureInto` feeds
+  char-shadow-meter): one character contract (`world/charOccluders.ts` `CharOccluders`: one upright capsule per
+  character, filled from the sim every step; today's interim fill, `game/charOccluderFill.ts`, holds the players and
+  the live guards, dogs as guards; bodies and the real shapes come with Guard AI's and Player's fills) is read by the meter, guard perception and the picture's round shadows (`pictureInto` feeds
   `BakedLamps.capsules`). A source's share at a point is multiplied by the soft capsules between them:
   `level(p) = ambient + bounce + moon x T_moon + sum of lamps L_i x T_i + sum of flashlights D_j x T_j`, `T_s` the
   product of `capsuleTransmit(p, s, c)` over the capsules c between (the sampled character's own skipped, A4; a
@@ -284,7 +284,10 @@ capsules.
   in the meter while the picture still shades it; at Shadows Off the picture draws no moon character shadow while the
   meter counts it (A6).
 - Co-op: each machine uses its own setting and its own nearest lamps; no wire change. With the flag on a client's own
-  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7).
+  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7). Known
+  limit until slice S2c (must-fix before switch-on): a client's contract holds only its own player, so its meter and
+  round shadows ignore its partners' shadows, while the host's sample of that client, which the guards read, counts
+  them.
 - Tests: `tests/charShadowSet.test.ts`, `tests/charOccluders.test.ts`, `tests/charOccluderFill.test.ts`;
   `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).
