@@ -1,5 +1,104 @@
 # Changelog
 
+## 4.117.0 - Train 132: Marlow Yard re-plan: fixes for the first two-player walk; Guards get home; Laptop queue: quarantine and claim-time skips; +4 more (2026-10-26, PR #598; #591, #588, #587, #552, #522, #518)
+
+### Campus greybox S1-a (v2, dark): perimeter and gatehouse
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G1 perimeter: an anti-climb steel palisade (2.4 m, no handholds) closes the whole section, with the sliding gate leaf
+    shut and the anglers' cut panel re-hung; anti-climb screens on the gatehouse, plant room and pavilion roof edges; the
+    bin store's west wall is gone. Every section 1 lamp now comes from one provisional light table (today's values, to be
+    calibrated to real-world levels).
+  - G2 gatehouse: rebuilt 6.5 x 6.5 with a glazing band (open rear pane, two fixed panes, the reception window), the door
+    north at (17, -72.5), a roof whose only ledge is the east edge (a wall-jump corner by the A/C condenser), a glazed
+    smoke-vent hatch, a warm desk lamp beside the ceiling tube on the gate circuit, the CCTV desk as a security desk run
+    by the CCTV officer, and a third officer (the night supervisor).
+
+### Campus greybox S1-b (v2, dark): car park, service yard and plant room
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G3 car park: the rows 2 m south, ten lamp columns plus four downlights under a new solar carport (a roof route at 3.0
+    m, reached off the courier's van or the bike shelter), the bike shelter moved against the carport with cycle lockers
+    and its lamp now lit on its own switch, the car-park pair's loop moved with the rows and a new east-rows patrol.
+  - G4 service yard and plant room: the bin store opens into one 14 x 14 service yard with a low bin screen, a roll cage
+    beside the cage trolley and a new storeman; the plant room is deeper, its goods door is unlocked, and a fixed ladder
+    climbs to a roof hatch; the canopy breaker sits on the yard board beside the forecourt switch; a new co-op leg-up
+    (CR1-yard) at the plant roof's hoist bay.
+
+### Campus greybox S1-c (v2, dark): forecourt, lawn, pavilion, rooms, routes and graph
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G5 forecourt, lawn and pavilion: the forecourt gets grit bins and a walkway patrol plus a courier escort at the kerb;
+    the lawn gets two trees, a lit smoking shelter on its own switch, a second smoker and a north-east fence patrol; the
+    pavilion top is a closed roof walk whose east half carries a new co-op leg-up (CR1-east). Section 1 now has 15 guards.
+  - G6 rooms, routes and graph: fourteen room tags (the roof walks, the carport, the plant room and the lawn get their own,
+    the bin, bike and smoking shelter rooms go), three solo routes redrawn for the new layout (the verge and east side, the
+    south footway and yard board, the caged ladder and canopy hatch), the fence patrol's takedown spot moves to his
+    south stop, and the plan graph reads as built (the forecourt is tagged as the section's unavoidable guard).
+
+### Saltmarsh Park gatehouse window vault
+- Saltmarsh Park, section 1: you can now vault through the gatehouse's open rear window both ways. The PC desk stood
+  right under the window, so the jump in landed on the desk and the game refused it. The desk now stands against the
+  same wall just south of the window, the PC sits on its end nearest the window and can still be downloaded from the
+  verge, and the kettle counter moved a little west to make room.
+- A new test checks every vaultable window on the campus: the landing on the far side must be clear and close to the
+  floor height you jump from.
+
+### Guards get home
+- Guards find their way back to their posts after a search; the alarm runner gives up an unreachable panel.
+
+### Laptop queue: quarantine and claim-time skips
+- Laptop queue (F48): the desktop worker keeps no automatic quarantine list of its own (it drops an old one at start),
+  so it forgives only the committed `scripts/e2e-quarantine.json`; its failures go to a laptop rerun, where the
+  laptop's list applies. A desktop-only `e2e-sectorops:6` entry had forgiven #525's affected run.
+- Laptop queue (F46): just before a claim, both workers read the request's PR fresh and withdraw it (a done claim,
+  error statuses, a log line) when the PR is merged or closed, the sha is no longer the PR head, or CI `check` failed
+  on the head. A GitHub error still runs it.
+- Laptop queue: every `gh` call retries once on a TLS handshake timeout.
+
+### Laptop queue: fixes first, a new head keeps its place
+- Fixes (PR label `fix` or `request.mjs --fix`) are tested before new features, on the laptop and the desktop.
+- A new head of a PR keeps its request's place in the queue and stops the run on the old head.
+- The desktop takes the smallest request, skips any estimated over 15 minutes, and has a CPU mode knob
+  (`LQ_DESKTOP_CPU_MODE`).
+- A train preempt keeps the suites that already passed, so only the rest rerun.
+- A docs-only commit on a PR head carries the earlier affected-e2e verdict.
+- A train verdict or done claim lost in a GitHub outage is retried on later passes, so a green train no longer holds
+  every alone request; both workers heartbeat their claims, a silent claim frees after 20 minutes, and a run whose
+  claim was taken stops.
+
+### Saltmarsh Park car park lit to real levels
+- Light: the Section 1 car park in Saltmarsh Park is now lit like a staffed site at night (Australian car-park
+  levels: about 28 lux on average, no open spot under 3 lux). Each column carries an arm with twin heads, a new south
+  row covers the bays, and the lane floodlight is softer. Hiding there now means behind cars, under a cut circuit or
+  a shot lamp. Other sections and the warehouse are unchanged for now.
+- Tools: a lux measure for each space, light maps and before / after shots (`scripts/light-realism/`).
+- Light: the rebuilt Section 1 car park (the preview layout with the carport) gets the same lighting: twin-head arm
+  columns on its rows and the softer lane floodlight; the strips along the carport's front and back edges stay dark for now.
+
+### Marlow Yard re-plan: fixes for the first two-player walk
+- Marlow Yard (re-plan): jamming the substation floodlight no longer sends you back the moment the jam flickers
+  (station 13).
+- Marlow Yard (re-plan): the goods shed's wicket camera stays off once the lift grille is done, so the synced takedown
+  at the loaders is no longer seen every time the 60 s camera loop runs out (station 10).
+- Marlow Yard (re-plan): the gap from the carriage shed's pit walkway to the next door is wide enough to walk through.
+- Marlow Yard (re-plan): the roller door, dock run and synced takedown lines say what each player does next; the
+  rescue line step says to face the drop and press Co-op standing.
+- Marlow Yard (re-plan): the neck isolators no longer draw the shunter into the crossing lane.
+- Marlow Yard (re-plan): both players stuck in the pump house drive pit get a retry; a retry ends a rope climb or
+  hang-down; no retry fires while the exit holding room is cycling; the strongroom's objective list no longer steps
+  back after a retry.
+- The jammer picks a camera in its aim over a nearby ceiling lamp.
+- Co-op: "Resume hosting" restarts at the set you were in, not at the start of Marlow Yard.
+
+### Mission framework: mission rules, mission text and the Hints setting
+- Groundwork for campaign missions: the code that checks a mission's rules (for example no kills or no alarms), writes
+  the objective line and the Field Terminal's Objectives list (the rule first, then each step as done, current or to
+  do), and packs the mission's state for the co-op partner. Nothing uses it yet.
+- New setting Gameplay > Hints: a hint line under the current mission objective (off by default).
+- New flags: `missions` (`?missions=1`) and `coopKit` (`?coopkit=1`). Both are off in the live game and on in /preview/.
+- All of this ships dark behind the `missions` flag (`?missions=1`) in the live game; /preview/ has it on.
+
 ## 4.116.0 - Train 131: Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void; Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof; +15 more (2026-10-26, PR #593; #585, #547, #544, #535, #529)
 
 ### Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void
