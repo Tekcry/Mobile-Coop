@@ -34,3 +34,4 @@ Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there
 | F22 | Queue ranks master-based PRs ahead of stacked ones (base = a feature branch) | 7 stacked requests, ~51 suites ahead of trainable PRs (10-26 14:00) | Test Runner | 2026-10-26 14:10 | new |
 | F23 | auto-train re-reads candidates when the build starts | #521 missed train 119 by 27 s | Test Runner (with F16) | 2026-10-26 14:10 | new |
 | F24 | Desktop worker logs the CPU reading at each start (verify the 80% gate) | starts at 13:41 / 13:49 / 13:56 with CPU reported 100% | Test Runner | 2026-10-26 14:10 | new |
+| F25 | No Math.random in src/ai: replayable guard timing (hard rule 8) | J20 S6b | Guard AI Build (#537) | 2026-10-26 14:10 | PR open, checker PASS, laptop seed-random |
