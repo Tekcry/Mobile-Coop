@@ -698,7 +698,12 @@ export class SectorMode implements GameMode {
     // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
     const em = this.g.enemyMgr;
     // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
-    if (em && s) em.setSection(i);
+    if (em && s) {
+      em.setSection(i);
+      // (guard-rules S5, A7, bible 5.7 "Each raised alarm adds one level") after a response is in, a guard may raise the
+      // next alarm (up to `ALARM_REPEAT.max` a load); Marlow Yard (`courseMode`) keeps one guard alarm per load
+      em.alarmRepeat = true;
+    }
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
     // (guard-ai S13, A37) the stage's gear for every guard this load places (the stage carried in, or the section's
     // start stage on a restart: a restart drops what the dropped stage gave)
@@ -912,6 +917,11 @@ export class SectorMode implements GameMode {
   /** (stealth-pays S2, spare 9 part B) An interrogation's code flag: the team holds it for this section; keypad prompts refresh. */
   onIntelCode(flag: string): void {
     if (this.codes.grantCode(flag, this.run.index)) this.keypadLabels();
+  }
+
+  /** (guard-rules S5) At the stage cap (or a section with no `perStage`) the next alarm sends no one. */
+  alarmQuiet(): boolean {
+    return this.run.nextAlarmSends() < 1;
   }
 
   /** A guard's alarm: up one stage, and guards come in hunting (A3). The mode brings its own reinforcements. */
