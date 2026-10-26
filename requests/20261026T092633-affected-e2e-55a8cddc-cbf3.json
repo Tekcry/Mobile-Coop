@@ -1,0 +1,13 @@
+{
+  "id": "20261026T092633-affected-e2e-55a8cddc-cbf3",
+  "sha": "55a8cddcba3fc4094dd456a650b56dcf1bd2bacd",
+  "branch": "feature/guard-ai-home",
+  "pr": 588,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #588"
+}
