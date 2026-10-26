@@ -1,0 +1,13 @@
+{
+  "id": "20261026T204543-affected-e2e-b2eccda0-4371",
+  "sha": "b2eccda08ea652d6d41dadae62a3b9cc434fa5a8",
+  "branch": "feature/char-shadow-meter-s5",
+  "pr": 673,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #673"
+}
