@@ -1,5 +1,5 @@
 # context-prompts STATE
-Owner: Night Shift | Player Build. Status: P1 (S1 + S2) in progress (Opus builder), branch `feature/context-prompts-p1`.
+Owner: Night Shift | Player Build. Status: P1 (S1 + S2) built on `feature/context-prompts-p1`; waits for the lead (PR, checker).
 
 ## Resume
 - Job: replace the hold-A context box with world prompts, one button per action, tap / hold (BRIEF.md:6-11 Michael's
@@ -22,11 +22,14 @@ Owner: Night Shift | Player Build. Status: P1 (S1 + S2) in progress (Opus builde
   lead requests them on the PR head).
 - After P1: S3 (providers and wiring, P2) and S4 (prompt view, P3, in parallel from S1's types) per PLAN.md:322-323.
 - Report: `C:/NightShift/scratch/ctcore/cp-p1-REPORT.md`.
-- Next: S1 + S2 code and tests on this branch, then the lead opens P1 and starts a fresh checker.
+- Next: the lead opens P1 (no PR yet), requests `e2e-coop` + `e2e-netmove` on its head and starts a fresh checker; then
+  S3 (P2) and S4 (P3) briefs. S3 reads: `ContextPrompts` `begin` / `add` / row helpers / `step`, `run`, `ctxOwnsA` / `ctxOwnsY`,
+  `ctxJumpTaker` (give `y.pressed` only for a press it calls `second`; `yLive` = its answer each step).
 
 ## Done
 - 2026-10-27: BRIEF.md, PLAN.md (Opus planner; plan fix round 1 and recheck FIX A).
-- 2026-10-27: STATE.md (Opus builder, P1).
+- 2026-10-27: STATE.md; S2 flag; S1 `contextPrompts.ts` (32 tests); S2 `contextJump.ts` (16 tests), conflicts.ts
+  header (Opus builder, P1). Report: `C:/NightShift/scratch/ctcore/cp-p1-REPORT.md`.
 
 ## History
 - 2026-10-27: branch `feature/context-prompts-p1` cut from the plan commit 256372623.
