@@ -16,12 +16,12 @@ C:/NightShift/Mobile-Coop-f28-course-bunker, stacked on #553 (feature/ctcourse-f
 2. PR G1 c648c5d85: laptop tallow-prg1 ran on the desktop slot 4191 and timed out (exit 124, 0/7 suites, 60 min cap
    at E2E_JOBS=1); the queue posted failure and queued no laptop rerun (queue gap, told the orchestrator). Not rerun:
    G2 below contains G1 with the same suites, so a green tallow-prg2 lands G1 + G2 together.
-3. PR G2 feature/tallow-fixes-2 ab129b96c = 2de5701c0 (G1 + G2 36a207232 + G4 06c1bc4a6, each PASS) + E8 108c8673f
+3. PR G2 feature/tallow-fixes-2 e50cfe7fa = ab129b96c + D1 c8f33dcf3 (as is, Sonnet PASS tallow-d1-check.md; status posted). ab129b96c = 2de5701c0 (G1 + G2 36a207232 + G4 06c1bc4a6, each PASS) + E8 108c8673f
    (cloud, wharf e2e script only; Sonnet PASS tallow-e8-check.md; status posted on both). Old tallow-prg2 withdrawn;
    laptop split to fit the desktop 60 min cap: tallow-prg2-a 20261026T040859 (e2e-sectorops all, incl. wharf parts) +
    tallow-prg2-b 20261026T040907 (coop netmove ctcourse levels anchors lightbake). Both green -> merge into the engine,
    cut C3 (prc-split-refresh.md row C3). Pawn-throw overhang: D1 LEAD NOTE. E8 polish: tallow-e8-check.md.
-4. D1 BLOCKED feature/tallow-d1 c8f33dcf3 (TGC split: legs 62% apart, no solo floor-to-gallery reach; report scratch/campaign/d1-brief-blocked.md). Opus plan tallow-g5-plan.md + held brief cq/campaign-tallow-g5.md (release after the freeze).
+4. D1 merged as is; its TGC split ERRs (parity, reach) go to G5: caged stair for the gallery ladder + leg b re-cut (scratch/campaign/tallow-g5-plan.md, held brief cq/campaign-tallow-g5.md, base e50cfe7fa). Opus plan check running (tallow-g5-plan-check.md). Re-file the G2 laptop sets on e50cfe7fa after the freeze.
    Done -> one Sonnet checker -> merge into tallow-fixes-2. S3 (cq/) after G2 in the engine and the engine in
    tallow-shutters; S4 after S3 (E8 done).
 5. PR S tallow-shutters b2df51d9a (S-a; status posted). Laptop tallow-prs-a 20261026T024857. Green -> engine after G2.
