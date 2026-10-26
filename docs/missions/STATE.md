@@ -1,7 +1,30 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~13:50 (Night Shift | Campaign Build, after the 13:00 swap; read this block first)
+## RESUME 2026-10-26 ~14:15 SAVE (Night Shift | Campaign Build, read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
+report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
+CPU hold released 14:09 ("go: start builders"). Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the
+orchestrator). Bypass mode: the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mjs.
+1. Engine feature/mission-engine 5760c6deb (PR T merged; claims block 6be3da64b, Q9; BRIEF A25-A28: C4 big-pr only,
+   wharf as C9-C16, members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
+2. PR G1 feature/tallow-fixes c648c5d85 (checker PASS), laptop tallow-prg1 running. Green -> merge into the engine,
+   then cut C3 (prc-split-refresh.md row C3).
+3. PR C split: C1 #521 9419b8f29 (base master), C2 #522 29892a271 (base C1; missionText.test -> C12). Both checker
+   PASS + status. Laptop co-op gate only: prc-c1 20261026T025035 / prc-c2 20261026T025041. Preview flags (Michael
+   13:55): missions / coopKit read via darkFlag(.., PREVIEW_ON) if C2 lands after Player's player-preview-flags.
+4. G2 done (cloud) feature/tallow-fixes-g2 36a207232; G4 06c1bc4a6 checker PASS + status. Opus G2 checker running
+   (tallow-g2-check.md). PASS -> merge c648c5d85 + G2 + G4 into tallow-fixes-2, status, laptop set (plan :1078 = PR G1
+   set + e2e-coop e2e-netmove); FIX -> Opus fix round. Then E8 brief (cq/), D1 after G1-G4.
+5. tallow-shutters b2df51d9a (S-a: S1, S2, S1-late, s1-polish; status posted). Laptop tallow-prs-a 20261026T024857.
+   Green -> merge S into the engine after G1 (order T, G1, G2, S). S3 after G2 in the engine; S4 after S3 + E8.
+6. NET3 gate done (cloud) feature/mission-net3-gate f45f17e60: two Opus checkers net3-gate-check-a.md / -b.md. PASS x2
+   -> merge into the engine (before C7 is cut), status.
+7. look-video done (cloud) feature/look-video 8a67136d3 (base master): Sonnet checker look-video-check.md. PASS ->
+   open its own small tool PR to master; first PC run (4189, --alone) on a temp branch = engine + look-video.
+Next: checker reports -> statuses / merges; tallow-prg1 -> G1 into the engine -> cut C3.
+
+## OLD RESUME 2026-10-26 ~13:50 (Night Shift | Campaign Build, after the 13:00 swap)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Orchestrator 13:32: desktop CPU 100%, NO new local builders until it sends "go: start builders"; tsc / vitest builders
