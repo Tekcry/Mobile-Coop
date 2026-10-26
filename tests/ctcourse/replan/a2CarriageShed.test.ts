@@ -330,7 +330,7 @@ describe('A2 re-plan: stations 3-5, the marks, the flags, the lines', () => {
     expect(part.objectives[1]!.a).toMatch(/cabinet one/);
     expect(part.objectives[1]!.b).toMatch(/cabinet two/);
     expect(text[2]).toMatch(/pit/);
-    expect(text[2]).toMatch(/L2 door/);
+    expect(text[2]).toMatch(/l2 door/);
     expect(text[3]).toMatch(/holding room two/);
   });
 });
