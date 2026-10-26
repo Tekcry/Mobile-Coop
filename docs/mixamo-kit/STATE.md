@@ -5,7 +5,19 @@ Michael ~00:15: "add all mixamo animations in game, i will fine tune as needed. 
 "update - dont set mixamo moves as default in game, allow toggle between hand made, cmu, and mixamo".
 Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit.
 
-## Resume block (2026-10-26, plan stage)
+## Resume block (2026-10-26, step 8 done; plan-stage notes below it)
+- NOW: step 8 done. Head d7f1b9a8f on feature/mixamo-kit (PR #490, draft): 1e74a4902 merge of 68c15083d (#498 head, the
+  stub swap), 95ecc0434 crawling_prone on (lead call, below), d7f1b9a8f merge of Campaign's engine 5e72f83b0 (J7 PR D-F +
+  the wharf triage fix; clean). Kit / mixamo / animSource tests green on d7f1b9a8f (kitMixamo 17/17 on the rerun; the
+  first run's (g) read 32 B vs 0 + 16 on crawlUnder: load / JIT tier, gone on the rerun).
+- Gate: both wharf suites back in (PLAN 4's 8-suite list, set kitmix2, on the new head).
+- Size: pr-size --base e61e6d6eb reads 6205 on d7f1b9a8f (2864 after the #498 merge): inflated by #498's stack and the
+  engine's J7 D-F, neither on master yet; the slice's own lines are ~1,517 (lead count).
+- Held: Player's newer source-wire head 7f851b274 (I5 carry / strike, I6 loco) is NOT merged: it holds master 3f0ab7fec
+  (train 116, 1321 commits the engine lacks) and conflicts in 10 files (23 hunks: sectorMode.ts 6, sectors.ts 2,
+  coopClient / coopUi / hud 2 each, coopHost 1, animGraph 4, flags 2, mixamo 1, testing-tools.md 1): master vs the engine,
+  Campaign's files. Needs Campaign to take that master into feature/mission-engine first (then a kit merge of the engine
+  and 7f851b274 leaves Player-vs-kit hunks only), or a lead call.
 - Plan: docs/mixamo-kit/PLAN.md (the one source of truth; builder brief in its section 4). Check 1: FIX, 10 items,
   answered (PLAN-CHECK-1.md). Check 2: FIX, 6 small items, answered in PLAN.md (fix round 1, check 2 answered); item 2
   (coop.md residue) done by the lead in a9e7cbfa4. Not yet rechecked after check 2.
@@ -72,7 +84,7 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   anim-audit report only; wharf-tgc / wharf-tkl fail at setup on the mission-engine base, not the kit
   (C:/NightShift/scratch/marlow/mixamo-kit-wharf-triage.md: scripts/e2e-sectorops-wharf.mjs:194 reads sectors before
   startMode; fix on Campaign's feature/mission-engine-gb6fix2). Dropped from the gate until Campaign sends the engine sha
-  with a green wharf run. Fresh Opus checker PASS on f24afb25a (mixamo-kit-check.md; polish 1-2: test (f) asserts no
+  with a green wharf run (re-added at step 8 with engine 5e72f83b0). Fresh Opus checker PASS on f24afb25a (mixamo-kit-check.md; polish 1-2: test (f) asserts no
   entry / exit / phase pops, the shutter holder's velocity pop 19.36 vs 6.63 cm; (h) depends on (f) running first).
 - Step 8 merge 1e74a4902 (68c15083d = #498 head: mixamo-on + i3 + `AnimGraph.animSource`): 7 conflicts unioned, stub
   swap in the merge commit (real addMixamoResolver import; `kitSourceOf = rig.graph?.animSource === 'mixamo'`).
@@ -83,5 +95,6 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   13.07 (5.10), pop 15.98 (4.27): off. Player wanted it on; Michael ~00:15 "add all mixamo animations in game, i will
   fine tune as needed"; the Mixamo source is not the default. Undo: the row back to false and (f) pinned to hand-keyed
   (`applyAnimSource({ setting: 'mixamo', mocapUrl: false })`).
-Next: step 8 when Player sends a head holding i3 + mixamo-on (+ AnimGraph.animSource): merge it, swap the two stub lines
-(kitMixamo.ts:110, Q39) in that merge commit, rerun step 6; then merge the gb6fix2 engine head, re-add both wharf suites. Open: crawl row (Player wanted it on; the A8 rule turned it off), the lift palms in the low bar.
+Next: a fresh checker on d7f1b9a8f, then the laptop run (the lead files it: 8 suites, set kitmix2). Then 7f851b274 when
+Campaign's engine holds master 3f0ab7fec. Open: the crawl's knee bow (0.133 vs 0.040 m), the lift palms in the low bar
+(both Michael tuning items).

@@ -334,7 +334,7 @@ Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAva
 **Laptop e2e (check item 10).** Request on the PR head (no `--affected --list` step: on this branch it selects the whole
 engine and stack):
 `node scripts/laptop-queue/request.mjs --sha <head> --pr <n> --suites "e2e-coop e2e-netmove e2e-anim e2e-traverse e2e-studio anim-audit e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl" --set kitmix --requester "Night Shift | Marlow Build"`
-(e2e-coop + e2e-netmove required by Player's term 3; wharf-tgc / tkl are the kit's own co-op suite, `coopkit=1`, the
+(after step 8: `--set kitmix2` on the new head, both wharf suites back in.) (e2e-coop + e2e-netmove required by Player's term 3; wharf-tgc / tkl are the kit's own co-op suite, `coopkit=1`, the
 pull; shutters SKIP there). No suite runs the kit under the Mixamo source, so the look video (1-2 min) covers it: the pull
 and the shutter on BOTH screens under the Mixamo source; its path in the PR body.
 
