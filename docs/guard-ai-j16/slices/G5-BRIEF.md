@@ -24,7 +24,12 @@ fights or barks. Standing still, the player's shadow does nothing. With the flag
   at least 120 deg off the guard's facing (behind him: peripheral sight ends near 50 deg + blend).
 - No hearing: a standing walk with the stick at <= 0.5 (speed <= 1.2 m/s; silent up to `NOISE_QUIET.stand` 1.65 m/s on
   concrete). Assert `g.noise === 0` at every sample and that the wrapped `em.hear` / `em.noise` were called 0 times
-  during the run (fold-in 7). If the spot's floor is metal or grate, pick another spot.
+  during the run (fold-in 7). (A walk at this pace is silent on every floor: `noiseRadius` is 0 before the surface
+  factor.)
+- Settle after every teleport (PR2-CHECK FIX 1): the first cue fill after a `t.tp` reads the jump as footprint speed
+  (jump / 0.1 s, far above `moving` 0.3 m/s), so a guard thinking in that 0.1 s window cues on a standing player. Never
+  have a guard in the scene during the 0.3 s after a `t.tp`: teleport the player first, `t.step(0.3)` (three fills),
+  then spawn the guard.
 - The guard must be calm at the start: level `unaware`, `meter` 0, `cueT` Infinity (a fresh spawn), no other guards
   (`em.clear()` first).
 - No new `Math.random`; deterministic stepping only (`a.loop.manual = true`, `stepHeadless`).
@@ -36,7 +41,9 @@ fights or barks. Standing still, the player's shadow does nothing. With the flag
 - The cue page: `openPage(ctx, url, 'autostart=warehouse&mode=clear&charlight=1')`, `frames(p2, 10)`, then
   `p2.evaluate(installT)`. Check its own `errors` at the end with the same filter as the main page's.
 - The flag-off control: on the main page when its `window.__app.current.charOccluders === null` (the default build);
-  otherwise (a /preview/ URL turns the flag on by default) open one more page with `charlight=0` for it.
+  otherwise (a /preview/ URL turns the flag on by default) open one more page with `charlight=0` for it. If the
+  orchestrator's go-ahead says to add `&charlight=0` to the main launch params (PR2-CHECK, /preview/), do that instead:
+  the main page is then always the flag-off control.
 - Gate the whole block like `scen`: `if (!only || 'shadowCue'.includes(only))`; name the log line `shadowCue`.
 
 ## Debug hooks the block reads (all exist after G4b; read-only use)
@@ -68,9 +75,11 @@ fights or barks. Standing still, the player's shadow does nothing. With the flag
    If a check fails, try `0.4 n` / `0.8 n`, then the next candidate.
 
 ## The run (cue page)
-- Spawn the guard at G with that yaw; `t.step(1)`; re-set `e.yaw` to the pick's yaw; assert calm (rules above).
-- Walk: `t.tp(feet - 0.6 n, yaw of +n)`, stick `setMove('t', 0, 0.4)` so the player walks along +n across 1.2 m
-  (about 2-3 s), stepping `1 / 60` s; sample each step: `g.noise`, distance and angle to the guard, `e.cueT`, `e.level`,
+- Player to the walk start first: `t.tp(feet - 0.6 n, yaw of +n)`, `t.step(0.3)` (settle; the pick loop left him at
+  its last candidate, possibly in the guard's view). Then spawn the guard at G with that yaw; `t.step(1)`; re-set
+  `e.yaw` to the pick's yaw; assert calm (rules above).
+- Walk: no new teleport; stick `setMove('t', 0, 0.4)` so the player walks along +n until his feet have moved 1.2 m
+  along n (cap 4 s), stepping `1 / 60` s; sample each step: `g.noise`, distance and angle to the guard, `e.cueT`, `e.level`,
   `e.meter`, `e.cueLook`, `e.turning`, and when `e.cueT === 0` the cue point against the local slot's `pts` (the same
   step's fill). Then stop (`setMove('t', 0, 0)`) and step on for 20 s, sampling each 0.25 s.
 - Asserts:
@@ -84,10 +93,11 @@ fights or barks. Standing still, the player's shadow does nothing. With the flag
   5. Silence: no bark recorded for this guard; `em.hear` / `em.noise` call counts 0; `g.noise === 0` at every sample.
   6. Spacing held: min distance to G >= 2.3 m, min angle off his facing >= 120 deg (both from the samples).
   7. `g.updateLight` is the prototype's and `g.shadowCues.version` grew.
-- Control, standing still (cue page, `t.reset()`, the same pick): fresh guard, player at `feet`, no stick, 6 s:
-  `e.cueT === Infinity`, level `unaware`, meter 0.
-- Control, flag off (the flag-off page): wiring nulls asserted, then the same spawn, walk and 6 s: `e.cueT ===
-  Infinity`, level `unaware`. (The pick comes from the cue page: pass feet, G, yaw and n into the evaluate.)
+- Control, standing still (cue page, `t.reset()`, the same pick): `t.tp` the player to `feet`, `t.step(0.3)`, then
+  a fresh guard at G, no stick, 6 s: `e.cueT === Infinity`, level `unaware`, meter 0.
+- Control, flag off (the flag-off page): wiring nulls asserted, then the same order (tp, settle, spawn), walk and 6 s:
+  `e.cueT === Infinity`, level `unaware`. (The pick comes from the cue page: pass feet, G, yaw and n into the
+  evaluate.)
 - Every failing assert prints the pick and the sample that broke it (JSON), as the other scenarios do.
 
 ## Size and checks
