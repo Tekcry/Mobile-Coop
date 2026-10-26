@@ -16,6 +16,13 @@
  * (Turbofan: 32.0), so a starved compiler thread decided the result. Now the warm-up ends in optimized code on any
  * machine, and every run reads the same bytes.
  *
+ * (lightfield-heap-3) Those flags are set after V8 started, and a starved machine still varied which calls the loop's
+ * optimized code inlined: lightField's bodyLevel read 32.8 B on an idle machine but 61.6 B in 2 of 4 runs pinned to
+ * one CPU with a busy loop, and 138.8 B (all 80 rounds) on train 117's CI against its 88 B limit, all at Turbofan
+ * (0x51). So after the warm-up the loop is deoptimized and recompiled on the main thread from its full feedback
+ * (`%OptimizeFunctionOnNextCall`): its inlining no longer depends on when a background compile landed (pinned runs:
+ * 32.8 B every time). An allocation per call is still in every reading.
+ *
  * The measured loop must not allocate itself: inputs precomputed with `inputs()` (no double arithmetic in the loop),
  * results into a typed array such as `sink` (`acc += x` on a captured `let` boxes 16 B an iteration), no closures or
  * literals in the loop. `ALLOC_TRACE=1` logs every round's reading with the loop's optimization status (hex,
@@ -44,6 +51,9 @@ v8.setFlagsFromString('--no-concurrent-recompilation');
 v8.setFlagsFromString('--no-concurrent-osr');
 v8.setFlagsFromString('--allow-natives-syntax');
 const optStatus = new Function('f', 'return %GetOptimizationStatus(f)') as (f: unknown) => number;
+const deopt = new Function('f', '%DeoptimizeFunction(f)') as (f: unknown) => void;
+const prepare = new Function('f', '%PrepareFunctionForOptimization(f)') as (f: unknown) => void;
+const optimizeNext = new Function('f', '%OptimizeFunctionOnNextCall(f)') as (f: unknown) => void;
 const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
 
 export interface AllocOpts {
@@ -59,6 +69,12 @@ export async function bytesPerCall(fn: (n: number) => void, goal: number, opts: 
   const n = opts.n ?? 2000;
   const warm = opts.warm ?? 50 * n;
   for (let w = 0; w < warm; w += n) fn(n);
+  // a fresh synchronous Turbofan compile from the full feedback (see the header): the same inlining on any machine
+  deopt(fn);
+  prepare(fn);
+  fn(n);
+  optimizeNext(fn);
+  fn(n);
   const trace: string[] | null = process.env.ALLOC_TRACE ? [] : null;
   let best = Infinity;
   for (let k = 0; k < 40; k++) {

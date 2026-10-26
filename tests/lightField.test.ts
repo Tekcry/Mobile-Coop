@@ -399,7 +399,10 @@ describe('light field (3.6)', async () => {
     // meets its limit (a query that allocates an object never gets there). Still flaky under load (4.60.0): the rounds
     // read whatever tier a starved background compiler had reached (bodyLevel in Sparkplug 100-127 B against 128), so
     // the helper now tiers up synchronously and every run reads the optimized code (levelAt 32.0, bodyLevel 64.8,
-    // control 272.0). The method is shared: tests/helpers/allocPerCall.ts (heap-asserts).
+    // control 272.0). Still flaky on CI (train 117: bodyLevel 138.8 B against 88, levelAt 16.0): a starved machine
+    // varied which calls the optimized loop inlined (pinned to one busy CPU: 32.8 or 61.6 B), so the helper now
+    // recompiles the loop on the main thread after the warm-up (lightfield-heap-3: 32.8 B every run). The method is
+    // shared: tests/helpers/allocPerCall.ts (heap-asserts).
     const per = (fn: (n: number) => void, goal = -Infinity, n = 5000): Promise<number> => bytesPerCall(fn, goal, { n, warm: 500000 });
     // a control that makes one 3-vector per query: what a real allocation looks like (kept in a small ring so it
     // escapes: a fully optimized loop otherwise scalar-replaces part of it and the control read 63 B instead of 272)
