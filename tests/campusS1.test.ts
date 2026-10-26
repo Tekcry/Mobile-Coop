@@ -278,8 +278,8 @@ describe('S1 cameras, alarm, objective, routes', () => {
     expect(a.pos.z).toBeLessThan(-73);
   });
 
-  it('the objective: a download at the gatehouse PC (19.3, -76), reachable from the window; every route starts at the start, passes the objective and ends in C1', () => {
-    expect(S1.objective).toMatchObject({ kind: 'download', x: 19.3, z: -76 });
+  it('the objective: a download at the gatehouse PC (19.3, -77.3; F42), reachable from the window; every route starts at the start, passes the objective and ends in C1', () => {
+    expect(S1.objective).toMatchObject({ kind: 'download', x: 19.3, z: -77.3 });
     // (L2) a player at the open window (the wall face 20.15 + the 0.3 body) is inside the default interact reach 1.8
     expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeLessThan(1.8);
     expect(SECTOR.downloadTime).toBe(10);

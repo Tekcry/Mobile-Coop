@@ -87,8 +87,9 @@ export const S1_SECTOR: SectorDef = {
   // download (10 s, within 4 m) at the gatehouse PC, through the open rear window from the dark verge: opens C1 (the cloned courier badge).
   // (builder L2) The SPEC's (18.5, -76) is 1.95 m from where a player stands at the window (the wall face x 20.15 + the 0.3 body):
   // the default interact reach is 1.8 (`Interactables.nearest`), so the download could not be started from the verge. The PC sits
-  // on its desk at x 19.3 (0.8 m east, 1.15 m from the window).
-  objective: { kind: 'download', label: "Download tonight's visitor list and the courier badge template", x: 19.3, y: 0, z: -76, yaw: PI / 2 },
+  // on its desk at x 19.3 (0.8 m east, 1.15 m from the window). (F42) The desk moved south of the window, off the vault's
+  // landing: the PC sits on its north end at z -77.3 (the terminal z -77.65..-76.95), 1.74 m from the player at the window.
+  objective: { kind: 'download', label: "Download tonight's visitor list and the courier badge template", x: 19.3, y: 0, z: -77.3, yaw: PI / 2 },
   connector: {
     label: 'Into the staff entrance',
     box: [C1_BOX[0], C1_BOX[1], C1_BOX[2], C1_BOX[3]],
