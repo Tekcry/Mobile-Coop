@@ -1225,6 +1225,7 @@ export class GameState implements AppState {
     this.stealth?.dispose();
     this.security?.dispose();
     this.gadgets.dispose();
+    this.team.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
     for (const d of this.dummies) d.dispose();
