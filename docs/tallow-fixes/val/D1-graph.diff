@@ -1,0 +1,719 @@
+diff --git a/docs/missions/prototypes/campaign-map/graph.json b/docs/missions/prototypes/campaign-map/graph.json
+index a8fc81d8..f2c3b683 100644
+--- a/docs/missions/prototypes/campaign-map/graph.json
++++ b/docs/missions/prototypes/campaign-map/graph.json
+@@ -6,7 +6,7 @@
+     "players": [2],
+     "sections": ["W1", "W2", "W3", "W4"],
+     "bounds": [0, 0, 120, 80],
+-    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 with no TGC step there: down the roof fire escape into the east wing, then the strongroom passage and the coal chute (vent unlock) into the coal yard and out the cartway. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6. D0 (J8 tallow-fixes, 2026-10-26): the wave-0 graph from EGRESS section 1 (way-back bridges, the reading-room stair head, the jetty drop, the long throws, A29, A30, the tank room, the pawn stair, the TGC / TKL splits).",
++    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 with no TGC step there: down the roof fire escape into the east wing, then the strongroom passage and the coal chute (vent unlock) into the coal yard and out the cartway. Lighting (Q2 'Never', Q3, M1; docs/tallow-fixes/LIGHT.md): every fitting is on and working; closed rooms are lit only by the night fittings a real site leaves on; darkness comes from cover, the real gaps between fittings, cut circuits and shot lamps; bands are provisional (light-realism's draft table, A2) until Michael approves the band table. Every value is a declared target, pending V6. D0 (J8 tallow-fixes, 2026-10-26): the wave-0 graph from EGRESS section 1 (way-back bridges, the reading-room stair head, the jetty drop, the long throws, A29, A30, the tank room, the pawn stair, the TGC / TKL splits). D1 (J8 tallow-fixes, 2026-10-26): the graph matches the build: the spawned guard counts per space (A10), the W3 checkpoint on the roof (the bulkhead stair's head), D0's links re-measured from the build, the rooms as built, the vantages at their built pairs, LP's light text (docs/tallow-fixes/val/D1-note.md). Designed exit (G157 9): Three Grey Coats, shed three's candle chest (tgc-4) -> the launch (the W4 extraction box), 19.6 m, 15.1 s at 1.3 m/s: under 2 min. Designed exit (G157 9): Two-Key Ledger, the coal-yard overhear box (tkl-4) -> the launch (the W4 extraction box), forward through the cartway into W4, 45.5 m, 36.4 s at 1.3 m/s (the shutter's hold and crawl included): under 2 min.",
+     "section_info": {
+       "W1": {
+         "name": "Night market",
+@@ -22,7 +22,7 @@
+         "entry": "w2-arcade",
+         "exit": "w2-arcade-roof",
+         "choke": "w2-walkway",
+-        "forced_coop": ["coop_boost + team_rope / team_pull (arcade -> walkway: the first up by the boost at the west pier, the second by the rope there or the pull-up at the east lip)", "team_throw (south lofts -> north lofts over the lightwell)", "team_throw (arcade roof -> counting house roof, spine)"]
++        "forced_coop": ["coop_boost + team_rope / team_pull (arcade -> walkway: the first up by the boost at the west pier, the second by the rope there or the pull-up at the east lip)", "team_throw (pawn loft -> reading room: a 5.8 m site throw over a 4.9 m gap, forced, M2; pie loft -> clock loft: a standard 2.5 m throw, not yet forced, the plank bridge later, M2 / G403)", "team_throw (arcade roof -> counting house roof: a 5.8 m site throw over 4.9 m, forced, M2)"]
+       },
+       "W3": {
+         "name": "Counting house",
+@@ -54,7 +54,7 @@
+       "area": [[2, 6, 12, 14]],
+       "tension": 1,
+       "tags": ["start", "entry", "checkpoint"],
+-      "note": "custom: an 8 x 10 landing has no sheet class (yard min 14). Sees the lit fish hall clock 35 m north over the stall roofs (TGC step 1 seen_from). Light: one canal lamp at the water edge (photocell), the landing top in the stall shadow; dark by default at the top step (entry vantage, out of every market patrol)."
++      "note": "custom: an 8 x 10 landing has no sheet class (yard min 14). Sees the lit fish hall clock 35 m north over the stall roofs (TGC step 1 seen_from). Light (LP, LIGHT.md section 2): pathway, band 0.85-3.5 lx (provisional, A2); tonight the landing steps; fittings the canal lamp (65, photocell); dark at the top step under the stall rows' shadow (a real gap, 0.26: the entry vantage, out of every market patrol); shooting 65 darkens the landing."
+     },
+     {
+       "id": "w1-tea-stall",
+@@ -67,7 +67,10 @@
+       "area": [[12, 6, 20, 14.5]],
+       "tension": 2,
+       "tags": ["split:tgc-leads:b"],
+-      "note": "Open-air break pocket (break_room sizes, open sky). Light: paraffin lamp on the counter (lit by default, turned down by hand or shot); the dark nook between the urn crates and the canal rail is within 3 m of the bench (overheard trigger)."
++      "guards": {
++        "2": 2
++      },
++      "note": "Open-air break pocket (break_room sizes, open sky). Guards: the two tea-stall porters, a talking pair on their tea break (pair: 'Porter on his tea break by the canal steps: talks about everyone'; TGC's tgc-tea talkers); TGC only (Two-Key Ledger does not enter W1). The dark nook between the urn crates and the canal rail is within 3 m of the bench (overheard trigger). Light (LP, LIGHT.md section 2): public activity, band 7 lx, the counter brighter (provisional, A2); tonight trading; fittings the paraffin lamp over the counter (64, turned down at the lamp); dark at the nook between the urn crates and the canal rail (cover, 0.25); turning 64 down or shooting it darkens the stall."
+     },
+     {
+       "id": "w1-market",
+@@ -85,13 +88,13 @@
+       "vantage": {
+         "from": "w1-gallery",
+         "sees_pct": 0.75,
+-        "at": [4, 4.5, 30]
++        "at": [3, 4.5, 30.1]
+       },
+       "guards": {
+         "2": 4
+       },
+       "phase": "early",
+-      "note": "ESTIMATES (pending V6). Guards: 2 market wardens on loops, the lamp trimmer (back-and-forth), 1 warden posted under the clock (the three grey coats are NPCs, not guards). Light (LR1, lit by default): stall lamps on two strings, each switched at its row end, plus the clock face lamp (unswitchable, clockwork); dark aisles between stall backs (mixed zone). Made dark by: the row switches, shooting stall lamps; shadow 0.5 with both strings on. Vantage: the stall-roof gallery 4.5 m up on the west side, dark (no gallery lamps), concealed from every floor patrol (guards do not look up); 4.5 m stall cover hides the back row."
++      "note": "ESTIMATES (pending V6). Guards: 2 market wardens on opposed loops (patrol: 'Market warden on his rounds: the stall rows and the clock end'; 'the opposite round, covering the fish hall side'), the lamp trimmer (lamp, back and forth: 'Trims the stall lamps down the west side'), the warden posted under the clock (posted: 'Minds the clock and the three couriers waiting under it'); the three grey coats are NPCs, not guards; TGC only (Two-Key Ledger does not enter W1). Light (LP, LIGHT.md section 2): public activity, band 7 lx average and 2 lx minimum, the stall fronts brighter (provisional, A2); tonight trading; fittings the row S and row N stall strings (60, 61, row-end boxes), the fish hall facade brackets (62) and the clock dial (66, a gas jet); dark at the stall-back aisle (cover: both back walls shade every string lamp, 0.25) and the west strip by the gallery x 6-9 (a real gap, 0.26-0.27); cutting 61 at the row N box or shooting the x 30 row N lamp darkens the last 4 m from the aisle to the fish hall side door. Vantage: the gallery over the market (its two standing points (3.0, 4.5, 29.4 / 30.8)), dark (no gallery fitting), concealed from every floor patrol (guards do not look up); 4.5 m stall cover hides the back row."
+     },
+     {
+       "id": "w1-gallery",
+@@ -104,7 +107,7 @@
+       "area": [[2, 14, 6, 46]],
+       "tension": 2,
+       "tags": ["split:tgc-leads:a", "overwatch:tgc-leads"],
+-      "note": "corridor class for a 4 m walk (open sky, exterior). Dark: no lamps on the gallery; the trimmer's ladder is taken home at night (why the boost lip is co-op)."
++      "note": "corridor class for a 4 m walk (open sky, exterior). The market warden's caged ladder at its canal-steps end has its anti-climb door bolted on the cage side (EGRESS E5), so from the floor the boost lips are the only way up. Light (LP, LIGHT.md section 2): unfitted (an open deck), no band; tonight -; fittings none; dark at the whole deck (moon only, 0.24); nothing to cut or shoot."
+     },
+     {
+       "id": "w1-warden-office",
+@@ -117,7 +120,7 @@
+       "area": [[0, 46, 8, 54]],
+       "tension": 3,
+       "tags": ["split:tgc-leads:a"],
+-      "note": "Lit desk lamp (switch by the gallery door). Two ways out besides the gallery door: the warden's stair (bolted at its foot) and the inspection hatch over the fish hall, so it is no dead end."
++      "note": "Two ways out besides the gallery door: the warden's stair (bolted at its foot from the stair side) and the inspection hatch over the fish hall, so it is no dead end; the hatch is the fish hall's vantage. Light (LP, LIGHT.md section 2): closed (M1, LP pick 13: the warden is out on his rounds, his tally book on the desk), no band; tonight shut; fittings the desk lamp left on over the tally desk (63, a socket circuit switched by the gallery door); dark at the room beyond the desk pool (0.14): the inspection hatch and the north-west corner behind the ledger press (cover); cutting 63 at the door darkens the desk pool."
+     },
+     {
+       "id": "w1-fish-hall",
+@@ -133,15 +136,15 @@
+       "shadow_pct": 0.45,
+       "los_break_s": 3,
+       "vantage": {
+-        "from": "w1-gallery",
++        "from": "w1-warden-office",
+         "sees_pct": 0.7,
+-        "at": [4, 4.5, 45]
++        "at": [7.4, 4.5, 53.1]
+       },
+       "guards": {
+         "2": 3
+       },
+       "phase": "early",
+-      "note": "lobby class = a 14 x 28 hall with a 6 m roof (no market-hall class on the sheet). ESTIMATES (pending V6). Guards: 2 porters (talking pair at the scales), 1 hall watchman on a loop past the shutter. Light: pendant lamps on one circuit switched at the arch (lit by default), ice benches throw pools; dark west bay under the warden's office (mixed zone). Dark by: the arch switch, shooting pendants. Vantage: the gallery's north end through the hall's open side bay, dark, out of the patrols' view. Choke of W1: every route to the exit passes this hall and its back wall (shutter or barred door)."
++      "note": "lobby class = a 14 x 28 hall with a 6 m roof (no market-hall class on the sheet). ESTIMATES (pending V6). Guards: 2 porters at the scales (pair: 'gossips with his mate while the hall is quiet'), the hall watchman (patrol loop: 'checks the back door and the scales'); TGC only (Two-Key Ledger does not enter W1). Light (LP, LIGHT.md section 2): indoor market hall, band 150 lx (provisional, A2); tonight trading; fittings 8 pendants in two rows (62, switched by the arch); dark at the ice store and the fish-box stacks (cover) and behind the ice benches (crouched); cutting 62 by the arch darkens the hall and the clock end (a lure: the watchman comes to the switch), shooting the two back-row pendants at x 19 and 26 darkens the shutter bay. Vantage: the warden's inspection hatch, crouched (its two points (7.4, 4.5, 52.6 / 53.6) each see about 61% of the hall floor, LP fix round 1), dark (0.14), out of the patrols' view. Choke of W1: every route to the exit passes this hall and its back wall (shutter or barred door)."
+     },
+     {
+       "id": "w1-service-passage",
+@@ -154,7 +157,7 @@
+       "area": [[6, 58, 40, 62]],
+       "tension": 2,
+       "tags": ["exit"],
+-      "note": "Quiet connector (LD 3.8): one bulkhead lamp at the arcade end; glimpses the arcade's glazed roof."
++      "note": "Quiet connector (LD 3.8); glimpses the arcade's glazed roof. Light (LP, LIGHT.md section 2): corridor, band 40 lx while the hall trades (provisional, A2); tonight the barrow passage, an escape route; fittings 5 maintained bulkheads on the centre line and the vestibule bulkhead (67, AS/NZS 2293, LP pick 17); dark at the west dead end x 6-7 past the last fitting (0.39-0.57); shooting a bulkhead."
+     },
+     {
+       "id": "w2-arcade",
+@@ -172,13 +175,13 @@
+       "vantage": {
+         "from": "w2-arcade-roof",
+         "sees_pct": 0.8,
+-        "at": [60, 8.4, 62.5]
++        "at": [59.7, 8.4, 62.6]
+       },
+       "guards": {
+         "2": 3
+       },
+       "phase": "early",
+-      "note": "ESTIMATES (pending V6). Checkpoint at its west end (the arch from the W1 passage). Guards: the arcade beadle (loop), 2 of Pell's men (one posted at the stair foot, one walking). Light: gas-style pendants on one switch by the west arch (lit by default), shop windows dark except the pie shop; the north-west bay by the coal bunker stays dark (mixed zone). Dark by: the arch switch, shooting pendants. Vantage: the arcade roof skylight ridge (TGC BEAT: the W2 vantage), dark, above every patrol."
++      "note": "ESTIMATES (pending V6). Checkpoint at its west end (the arch from the W1 passage). Guards: the arcade beadle (patrol loop: 'end to end, then back along the shop fronts'), Pell's man at the stair foot (posted: 'keeps the reading-room stair'), Pell's man walking the arcade (patrol, back and forth between the two ends); both missions. Light (LP, LIGHT.md section 3): corridor (a covered public way at night, the shops shut), band 40 lx (provisional, A2); tonight a public way; fittings 7 pendants in two staggered rows (70, switched at the west arch); dark at the west end and the north-west bay by the arch and the pier (a real gap and the pier's cover, 0.14-0.19: the checkpoint and the C3 boost spot) and the north bay under the walkway slab (0.25 at the boost spot, 0.62 mid-bay); cutting 70 at the west arch (a lure for the beadle) or shooting pendants. Vantage: the arcade roof over the glazed roof (TGC BEAT: the W2 vantage; the pair at (58.8 / 60.6, 8.4, 62.6)), dark, above every patrol."
+     },
+     {
+       "id": "w2-pie-shop",
+@@ -191,7 +194,10 @@
+       "area": [[56, 62, 66, 70]],
+       "tension": 2,
+       "tags": [],
+-      "note": "storage sizes for a shop unit (no retail class). Lit shop window (switch behind the counter)."
++      "guards": {
++        "2": 1
++      },
++      "note": "storage sizes for a shop unit (no retail class). Guards: Garrow, the second decoy in the grey coat (decoy: 'waits in the pie shop for his fee'); TGC only. Light (LP, LIGHT.md section 3): closed (M1), no band; tonight shut; fittings the window night light (71, a time-switch box by the arcade door); dark at the shop behind the window light (0.14-0.17); shooting 71."
+     },
+     {
+       "id": "w2-walkway",
+@@ -204,7 +210,7 @@
+       "area": [[44, 59, 76, 62]],
+       "tension": 3,
+       "tags": [],
+-      "note": "No stair reaches it from the arcade (the tenants use their own back stairs): boost and rope at its west pier, pull-up at its east lip. Dark (no walkway lamps); within earshot of the pie loft window (TKL step 1). Choke of W2: every route to the roof passes it."
++      "note": "No stair reaches it from the arcade (the tenants use their own back stairs): boost and rope at its west pier, pull-up at its east lip; the west downpipe climbs from it to the roof (EGRESS E11). Within earshot of the pie loft window (TKL step 1). Choke of W2: every route to the roof passes it. Light (LP, LIGHT.md section 3): corridor (the loft tenants' balcony, in use), band 40 lx (provisional, A2); tonight in use; fittings 4 facade bracket lamps (79, switched by the pawn stair's walkway door); dark at the bays between the brackets (real gaps, 0.60); cutting 79 at its switch (where the boost lands) or shooting brackets: a lit choke with two ways to darken (5.2)."
+     },
+     {
+       "id": "w2-pie-loft",
+@@ -217,7 +223,10 @@
+       "area": [[56, 62, 66, 70]],
+       "tension": 2,
+       "tags": [],
+-      "note": "Lit window onto the walkway (switch by the stair head)."
++      "guards": {
++        "2": 1
++      },
++      "note": "Guards: the night clerk on his supper break (clerk: 'on the telephone with the founding year'; TKL's tkl-gate-code talker); TKL only. Light (LP, LIGHT.md section 3): office, band 320 lx at the clerk's table (provisional, A2); tonight worked (the night clerk's supper); fittings 2 pendants and the clerk's table lamp (72, switched by the back stair head); dark at the loft's east end by the party wall (0.57); cutting 72 at the stair head."
+     },
+     {
+       "id": "w2-pawn-loft",
+@@ -226,11 +235,14 @@
+       "room_class": "storage",
+       "function": "Pawnbroker's loft: pledge shelves and the desk with Pell's courier rota (TGC optional); decoy Fenn waits here",
+       "storey": 4.5,
+-      "size": [8, 10, 3],
+-      "area": [[44, 62, 54, 70]],
++      "size": [5.6, 10, 3],
++      "area": [[44, 62, 54, 67.6]],
+       "tension": 2,
+       "tags": [],
+-      "note": "Lit desk lamp; an open-fronted taking-in bay over the lightwell faces the reading room (the old hoist bay: no lintel, 3.6 m clear to the hoist hood, so the throw arc is free)."
++      "guards": {
++        "2": 1
++      },
++      "note": "Built z 62-67.6: cut back to the take-off edge (A28), its fire stair rebuilt along the south facade (EGRESS E7). An open-fronted taking-in bay over the lightwell faces the reading room (the old hoist bay: no lintel, 3.6 m clear to the hoist hood, so the throw arc is free). Guards: Fenn, the first decoy in the grey coat (decoy: 'Hired to walk in the same grey coat; knows nothing but his fee'); TGC only. Light (LP, LIGHT.md section 3): office, band 320 lx at the rota desk, the store floor 40 lx (provisional, A2); tonight worked (the rota desk lit, Fenn waits); fittings 2 pendants and the rota desk lamp (73, switched by the loft door); dark at no spot (fully lit; the throw spot reads lit but unseen: every reading-room guard faces a shut door or a wall); cutting 73 at the loft door."
+     },
+     {
+       "id": "w2-reading-room",
+@@ -248,13 +260,13 @@
+       "vantage": {
+         "from": "w2-arcade-roof",
+         "sees_pct": 0.7,
+-        "at": [52, 8.4, 69.5]
++        "at": [51.8, 8.4, 66.8]
+       },
+       "guards": {
+-        "2": 3
++        "2": 4
+       },
+       "phase": "early",
+-      "note": "storage class sizes (6.5 x 16, conditional encounter, short side >= 6). ESTIMATES (pending V6). Guards: Pell's minder at the stair head (post), the reading-room keeper (loop), a night reader (static). Light: table lamps (lit by default, each with its own switch), the stacks aisle dark (mixed zone). Dark by: lamp switches, the landing switch. Vantage: the arcade roof edge across the 3.5 m lightwell, dark."
++      "note": "storage class sizes (6.5 x 16, conditional encounter, short side >= 6). ESTIMATES (pending V6). Guards: Pell's minder at the stair head (posted: 'waits at the head of the stair for the courier'), the keeper (patrol loop: 'puts out the books and checks the shelves'), the night reader (posted at his desk), Teale, Pell's courier (courier: 'waits at the reading-room table for the hand-off'; TGC only). Light (LP, LIGHT.md section 3): office, band 320 lx at the tables, the room 160 lx (provisional, A2); tonight worked (the keeper, the reader, Teale, the minder); fittings 3 pendants (77, switched by the west bridge doorway) and Teale's and the reader's table lamps (74, 75, switched at the lamps); dark at the north-east corner behind the book stacks (cover, 0.45); cutting 77 leaves the two table lamps lighting their tables only (a standing body beside them reads 0.14-0.24, dark). Vantage: the arcade roof's lightwell edge over the pawn loft (the pair at (51.0 / 52.6, 8.4, 66.8)): it sees the pawn stage and the stage door only (LP pick 19, ruled a walk item for Michael); sees_pct as declared, GBM measures."
+     },
+     {
+       "id": "w2-clock-loft",
+@@ -267,7 +279,7 @@
+       "area": [[60, 73.5, 70, 80]],
+       "tension": 2,
+       "tags": [],
+-      "note": "Dark (the mender has gone home). A29: the clock-mender is out and has locked his door from both sides; the plank bridge slice PB restores this link, G403 (the graph's old door link w2-reading-room -> w2-clock-loft is deleted until then). The clock loft's way back is the east bridge (EGRESS E2) into the lane-window loft."
++      "note": "A29: the clock-mender is out and has locked his door from both sides; the plank bridge slice PB restores this link, G403 (the graph's old door link w2-reading-room -> w2-clock-loft is deleted until then). The clock loft's way back is the east bridge (EGRESS E2) into the lane-window loft. Light (LP, LIGHT.md section 3): closed (M1, the mender is out), no band; tonight shut; fittings the exit light over the east bridge doorway (78, maintained); dark at the whole loft beyond the sign (0.14); shooting the sign."
+     },
+     {
+       "id": "w2-lane-window",
+@@ -280,7 +292,7 @@
+       "area": [[68, 62, 76, 70]],
+       "tension": 2,
+       "tags": [],
+-      "note": "BEAT \"loft window\". Dark, unlet."
++      "note": "BEAT \"loft window\". Unlet; its tank room (x 70.4-74.0, z 64.4-67.6) walls in the roof hatch's fixed ladder (A7, EGRESS E6). Light (LP, LIGHT.md section 3): closed (M1, unlet), no band; tonight shut; fittings the exit light over its walkway door and the tank room's bulkhead (78, maintained); dark at the loft (0.14-0.18), the darkest real spot of W2; shooting."
+     },
+     {
+       "id": "w2-arcade-roof",
+@@ -293,7 +305,7 @@
+       "area": [[44, 62, 76, 70]],
+       "tension": 3,
+       "tags": ["exit"],
+-      "note": "custom: route surface (roof walk) with no sheet class. BEAT names: TGC \"arcade roof skylight\" (W2 vantage) and TKL \"loft roof\" are this one space. Dark by default; the lane edge has a 1.1 m parapet, broken out for 3 m where the old lane bridge landed (the throw point)."
++      "note": "custom: route surface (roof walk) with no sheet class. BEAT names: TGC \"arcade roof skylight\" (W2 vantage) and TKL \"loft roof\" are this one space. The lane edge has a 1.1 m parapet, broken out for 3 m where the old lane bridge landed, cut back to x 77.1 (the throw point, LP pick 6). Light (LP, LIGHT.md section 3): unfitted (a roof), no band; tonight -; fittings none; dark at the whole roof (moon, 0.24); nothing to cut or shoot."
+     },
+     {
+       "id": "w3-roof",
+@@ -305,8 +317,8 @@
+       "size": [28, 38, 12],
+       "area": [[82, 52, 120, 80]],
+       "tension": 2,
+-      "tags": ["entry", "overwatch:tkl-wings"],
+-      "note": "custom: roof walk, no sheet class. Sees the east yard, the east gate lamp and the porter's lodge lamp (TKL). Dark by default; the turret clock face is lit (landmark)."
++      "tags": ["entry", "checkpoint", "overwatch:tkl-wings"],
++      "note": "custom: roof walk, no sheet class. Sees the east yard, the east gate lamp and the porter's lodge lamp (TKL). W3 checkpoint: the head of the roof bulkhead stair, where the build restarts W3 (W3_START = BULKHEAD_HEAD, J8 D1). Light (LP, LIGHT.md section 4): unfitted (a roof), no band; tonight -; fittings the turret clock dial (90, a gas jet: the landmark); dark at the rest of the roof (moon, 0.24); nothing to cut or shoot."
+     },
+     {
+       "id": "w3-east-yard",
+@@ -318,19 +330,19 @@
+       "size": [14, 14, 12],
+       "area": [[100, 38, 114, 52]],
+       "tension": 4,
+-      "tags": ["checkpoint", "split:tkl-wings:b"],
++      "tags": ["split:tkl-wings:b"],
+       "shadow_pct": 0.5,
+       "los_break_s": 4,
+       "vantage": {
+-        "from": "w3-roof",
++        "from": "w3-east-yard",
+         "sees_pct": 0.8,
+-        "at": [107, 8.4, 52.5]
++        "at": [102.55, 4.2, 50.4]
+       },
+       "guards": {
+-        "2": 3
++        "2": 2
+       },
+       "phase": "early",
+-      "note": "W3 checkpoint (TKL). ESTIMATES (pending V6). Guards: the yard watchman (loop), a dog on a running line by the lodge, the porter (from the lodge on the twist). Light: the gate lamp over the keypad door (lit by default, switch inside the lodge), the lodge window; the north wall line under the fire escape is dark (mixed zone). Dark by: the lodge switch, shooting the gate lamp. Phase early: W3 is TKL's second of three sections (TGC only crosses its roof and coal yard); the linear spine puts it third on the map."
++      "note": "ESTIMATES (pending V6). Guards: the yard watchman (patrol loop: 'the east yard and the gate lodge') and his mate (patrol: 'walks the gate side, the lodge door and the fire escape foot', J7 R3); TKL only (Three Grey Coats crosses W3 with no guards); the lodge porter is counted in w3-lodge. Light (LP, LIGHT.md section 4): yard (a watched yard), band 20-50 lx (provisional, A2); tonight watched; fittings the yard flood under the lodge's eaves, the gate lamp and the fire escape head lamp (80, switched in the lodge); dark at the wall line z 50-52 west of the gate (the flood aims west-south-west, away from it, 0.25; the latched sash's last metre reads 0.40 in the gate lamp's pool), the yard's west corners beyond the flood's throw (0.37) and under the fire escape's half landing (cover); cutting 80 in the lodge (by the porter) darkens the yard and the fire escape, shooting the flood or the head lamp. Vantage: the fire escape's half landing, 4.2 m over the yard (the pair at (102.55, 4.2, 49.6 / 51.2)). Phase early: W3 is TKL's second of three sections (TGC only crosses its roof and coal yard); the linear spine puts it third on the map."
+     },
+     {
+       "id": "w3-lodge",
+@@ -343,7 +355,10 @@
+       "area": [[114, 44, 120, 52]],
+       "tension": 2,
+       "tags": [],
+-      "note": "Lit lodge lamp (comes on at the twist)."
++      "guards": {
++        "2": 1
++      },
++      "note": "Guards: the lodge porter (porter: 'sleeps in the gate lodge until the bell rings'; TKL's twist walker); TKL only. Light (LP, LIGHT.md section 4): security room, band 320 lx (provisional, A2); tonight the porter dozes in his chair (the lamp is on all night; the twist cue is the tell-tale bell, LIGHT.md section 7 O5); fittings the lodge lamp (81, switched by the yard door); dark at no spot; cutting 81."
+     },
+     {
+       "id": "w3-east-wing",
+@@ -359,15 +374,15 @@
+       "shadow_pct": 0.5,
+       "los_break_s": 3,
+       "vantage": {
+-        "from": "w3-east-yard",
++        "from": "w3-east-post",
+         "sees_pct": 0.7,
+-        "at": [108, 0, 51.5]
++        "at": [110.95, 0, 77.3]
+       },
+       "guards": {
+         "2": 4
+       },
+       "phase": "early",
+-      "note": "ESTIMATES (pending V6). Guards: 2 night clerks (static at desks), the porter on rounds (loop), a messenger (back-and-forth to the front hall). Light: green desk lamps (each switched) and one hall pendant at the front-hall door (lit by default); the press aisles are dark (mixed zone). Dark by: the hall switch, desk lamps, shooting the pendant. Vantage: the tall yard windows from the dark wall line of the east yard."
++      "note": "ESTIMATES (pending V6). Guards: 2 night clerks at their ledger desks (clerk, posted), the porter on rounds (patrol loop: 'the east wing and the key post'), the messenger (back and forth: 'Runs messages between the wings'); TKL only. Light (LP, LIGHT.md section 4): office, band 320 lx at the desks, the hall 160 lx (provisional, A2); tonight worked (two clerks, the porter's rounds); fittings 6 hall pendants (84, switched at the front-hall opening) and two desk lamps (82, 83, switched at the lamps); dark at the press recesses on the west wall (cover); cutting 84 at the front-hall opening leaves the two desk pools. Vantage: the east key post's alcove (the pair at (111.5, 0, 77.0) and (110.4, 0, 77.6))."
+     },
+     {
+       "id": "w3-partners-office",
+@@ -380,7 +395,7 @@
+       "area": [[113, 74, 120, 78]],
+       "tension": 2,
+       "tags": ["reward"],
+-      "note": "Dead end that pays off (the day book, 7 m deep). The `reward` type and tag are the validator's dead-end payoff kind; the campaign optional gives no item (Michael 2026-10-25, folded plan Q19: \"None (Recommended)\")."
++      "note": "Dead end that pays off (the day book, 7 m deep). The `reward` type and tag are the validator's dead-end payoff kind; the campaign optional gives no item (Michael 2026-10-25, folded plan Q19: \"None (Recommended)\"). Light (LP, LIGHT.md section 4): closed (M1), no band; tonight shut; fittings the partners' desk lamp left on (87, a lamp socket switched by the door); dark at the corners (0.14); cutting 87 at the door."
+     },
+     {
+       "id": "w3-east-post",
+@@ -393,7 +408,7 @@
+       "area": [[106, 74, 112, 78]],
+       "tension": 3,
+       "tags": ["objective"],
+-      "note": "Dead end (objective, 6 m). 21 m from the west post, no line of sight between them (the front hall walls); radio is the link."
++      "note": "Dead end (objective, 6 m). 21 m from the west post, no line of sight between them (the front hall walls); radio is the link. Light (LP, LIGHT.md section 4): an alcove lit from the east hall, no band of its own; tonight -; fittings none of its own; dark at the alcove beyond the hall's last pendant (a real gap); nothing of its own to cut or shoot."
+     },
+     {
+       "id": "w3-passage",
+@@ -406,7 +421,7 @@
+       "area": [[96, 52, 106, 55.5]],
+       "tension": 3,
+       "tags": [],
+-      "note": "One caged bulkhead lamp (emergency circuit, unswitchable: a vandal cage); the chute end is dark."
++      "note": "Light (LP, LIGHT.md section 4, LP pick 4): corridor at its night setting (the bank is shut), no band beyond its maintained fitting (provisional, A2); tonight shut (TKL: the porter's lantern after the bell); fittings the caged bulkhead (88, maintained, unswitched, hardened); dark at the chute end, 4 m past the bulkhead (a real gap, 0.24: the C7 boost spot); a hardened lit choke (G333): the way round it is the west door straight to the chute spot (1.1 m), never crossing the lit centre."
+     },
+     {
+       "id": "w3-strongroom",
+@@ -419,7 +434,7 @@
+       "area": [[98, 56, 104, 64]],
+       "tension": 4,
+       "tags": ["objective"],
+-      "note": "Dead end (objective, 8 m deep). Dark until the door opens."
++      "note": "Dead end (objective, 8 m deep). Light (LP, LIGHT.md section 4): closed (a vault), no band; tonight shut; fittings the vault night fitting (88, maintained); dark at the vault beyond it (0.29); shooting it."
+     },
+     {
+       "id": "w3-west-wing",
+@@ -435,15 +450,15 @@
+       "shadow_pct": 0.55,
+       "los_break_s": 3,
+       "vantage": {
+-        "from": "w3-roof",
++        "from": "w3-west-wing",
+         "sees_pct": 0.7,
+-        "at": [89, 8.4, 63]
++        "at": [87.3, 4.2, 60.6]
+       },
+       "guards": {
+         "2": 3
+       },
+       "phase": "early",
+-      "note": "ESTIMATES (pending V6). Guards: a night clerk (static), the stacks porter (loop), the front-hall watchman (back-and-forth into the wing). Light: copying-desk lamps (each switched) and the light-well lantern (moonlight); stacks dark (mixed zone). Dark by: desk lamps, the front-hall switch. Vantage: down the glazed light-well lantern from the roof rail, dark."
++      "note": "ESTIMATES (pending V6). Guards: the west-wing clerk at his desk (clerk, posted), the stacks porter (porter, a loop: 'carries the day books between the shelves'), the front-hall watchman (watchman, back and forth between the wings: his post is in the front hall, no graph space, and 7 m of his 9 m route lie in this wing, so he is counted here); TKL only. Light (LP, LIGHT.md section 4): office, band 320 lx at the desk, the hall 160 lx (provisional, A2); tonight worked (the clerk, the stacks porter); fittings 6 pendants on long drops and the copying-desk lamp (85, switched by the double doors) and the lantern's moonlight (86); dark at the light well under the gallery ring (0.54, moonlight only) and the aisles between the shelf ranges (cover); cutting 85 at the double doors. Vantage: the iron gallery's south strip (4.2), over the hall (the pair at (86.7 / 87.9, 4.2, 60.6))."
+     },
+     {
+       "id": "w3-west-post",
+@@ -456,7 +471,7 @@
+       "area": [[85, 74, 91, 78]],
+       "tension": 3,
+       "tags": ["objective"],
+-      "note": "Dead end (objective, 6 m)."
++      "note": "Dead end (objective, 6 m). Light (LP, LIGHT.md section 4): an alcove lit from the west hall, no band of its own; tonight -; fittings none of its own; dark at the alcove beyond the hall's last pendant (a real gap); nothing of its own to cut or shoot."
+     },
+     {
+       "id": "w3-chute",
+@@ -465,11 +480,11 @@
+       "room_class": "custom",
+       "function": "The coal chute: a 1.2 x 1.5 brick chute from the iron door 4.4 m up the passage wall, falling to the hatch 2.2 m up the coal yard wall over the coal heap; storey 4.4 is the iron door's sill, where the boost lands",
+       "storey": 4.4,
+-      "size": [1.2000000000000028, 6, 1.5],
+-      "area": [[96.5, 50, 97.7, 56]],
++      "size": [1.2, 2, 1.5],
++      "area": [[96.5, 50, 97.7, 52]],
+       "tension": 3,
+       "tags": [],
+-      "note": "custom: a duct as a space (crouch, scale sheet 1.2 x 1.5); player only. Vent unlock (PLAN 4a): leg-up into it, crawl, open the yard hatch, then unbar the coal yard door for the partner."
++      "note": "custom: a duct as a space (crouch, scale sheet 1.2 x 1.5); player only. Vent unlock (PLAN 4a): leg-up into it, crawl, open the yard hatch, then unbar the coal yard door for the partner. Built x 96.5-97.7, z 50.0-52.0 (the room as built; the duct floor runs on to the lip at z 52.3). Light (LP, LIGHT.md section 4): a duct, no band; no fitting; dark throughout."
+     },
+     {
+       "id": "w3-coal-yard",
+@@ -482,7 +497,7 @@
+       "area": [[82, 38, 98, 52]],
+       "tension": 3,
+       "tags": [],
+-      "note": "Choke of W3: every route to the exit passes it (the chute hatch, or the passage door barred on the yard side). One yard lamp on a photocell over the cart gate; coal bays dark."
++      "note": "Choke of W3: every route to the exit passes it (the chute hatch, or the passage door barred on the yard side). Light (LP, LIGHT.md section 4): service lane (not worked), band 1.75 lx (provisional, A2); tonight -; fittings the photocell lamp over the cart gate (89); dark at the coal bays and the yard away from the gate (0.25); shooting 89 (the wicket is on the gate's dark side)."
+     },
+     {
+       "id": "w3-cartway",
+@@ -491,11 +506,11 @@
+       "room_class": "corridor",
+       "function": "Covered cartway from the coal yard through the boundary building to the wharf back lane",
+       "storey": 0,
+-      "size": [4, 6, 3],
+-      "area": [[88, 34, 92, 40]],
++      "size": [4, 4, 3],
++      "area": [[88, 34, 92, 38]],
+       "tension": 2,
+       "tags": ["exit"],
+-      "note": "Quiet connector; one lamp at the lane mouth."
++      "note": "Quiet connector; built z 34-38 (the old box overlapped the coal yard at z 38-40). Light (LP, LIGHT.md section 4): service lane, band 1.75 lx (provisional, A2); tonight -; fittings the photocell lamp at the lane mouth (89); dark at no spot of note; shooting it."
+     },
+     {
+       "id": "w4-back-lane",
+@@ -508,7 +523,7 @@
+       "area": [[44, 30, 120, 34]],
+       "tension": 2,
+       "tags": ["entry", "checkpoint"],
+-      "note": "corridor class for a 4 m service lane (open sky). Dark by default; one lamp at the yard gate."
++      "note": "corridor class for a 4 m service lane (open sky). Light (LP, LIGHT.md section 5): service lane, band 1.75 lx, point minimum 0.3 (provisional, A2); tonight -; fittings 4 lane lamps (95, photocell); dark at the long gaps between them (real gaps): the cartway mouth and the checkpoint (0.24 on the lane, about 0.45 under the cartway lamp 89) and the clerestory boost spot (0.24); shooting."
+     },
+     {
+       "id": "w4-gantry",
+@@ -521,7 +536,7 @@
+       "area": [[48, 15, 84, 19]],
+       "tension": 3,
+       "tags": [],
+-      "note": "corridor class (4 m walkway, open sky). The crane's red lamp hangs off the jib over the jetty (landmark, unswitchable aviation lamp). Dark walkway."
++      "note": "corridor class (4 m walkway, open sky). The crane's red aviation lamp hangs off the jib head over the jetty, raised to 14 m so the W3 roof sees it (landmark, its own supply, O20). The north screen has a clear-glass look-out bay x 50-54 (LP pick 15): the yard vantage. Light (LP, LIGHT.md section 5): unfitted (a crane walkway), no band; tonight -; fittings none (the floods hang under its deck, aimed down); dark at the whole walkway (moon, 0.24); nothing to cut or shoot."
+     },
+     {
+       "id": "w4-shed-three",
+@@ -537,15 +552,15 @@
+       "shadow_pct": 0.5,
+       "los_break_s": 3,
+       "vantage": {
+-        "from": "w4-gantry",
++        "from": "w4-shed-two",
+         "sees_pct": 0.7,
+-        "at": [79, 10, 17]
++        "at": [87.6, 0, 19]
+       },
+       "guards": {
+         "2": 6
+       },
+       "phase": "late",
+-      "note": "storage class (14 x 18 bonded store, conditional encounter, short side >= 6). ESTIMATES (pending V6). Guards (late band, CMS 2026-10-24): a tea barge is being landed on the night tide for the morning sale, so the shed works through the night under bond: the bond tally clerk (static at his desk), the customs locker who holds the bond keys (post at the loading door), 2 dockers stacking (talking pair), a docker on the hand truck (back-and-forth stacks -> loading door), the shed foreman (loop through both aisles, the dark side aisle included). Light: the loading-door floodlight (lit by default, switch inside the door) and two pendant rows on one switch; the side aisle dark (mixed zone). Dark by: the pendant switch, shooting the floodlight. Vantage: down through the north-light roof glazing from the gantry, dark."
++      "note": "storage class (14 x 18 bonded store, conditional encounter, short side >= 6). ESTIMATES (pending V6). Guards (late band, CMS 2026-10-24): a tea barge is being landed on the night tide for the morning sale, so the shed works through the night under bond: the tally clerk (clerk, posted: 'counting the night shipment'), the guard at the customs locker by the loading door (posted: 'Guards the customs locker at the loading door'), 2 dockers on a smoke (pair: 'talks to his mate'), the hand-truck docker (back and forth: 'between the loading door and the tally desk'), the foreman (patrol loop: 'his round of the shed, the dark side aisle included'); both missions. Light (LP, LIGHT.md section 5): staffed store, band 100 lx on the working floor (provisional, A2); tonight it works through the night (the tea barge); fittings 4 pendants (91, switched by the fire door) and the loading-door flood (92) facing the jetty; dark at the stack alley x 84-86 between the tea-chest stacks and the party wall (cover, 0.47 estimate, darker in the bake) and the side bays behind the stacks; cutting 91 at its switch (a lure into the alley) or shooting pendants. Vantage: from shed two through the party wall's fire door (the pair at (87.6, 0, 18.2 / 19.8)), dark (shed two reads 0.14)."
+     },
+     {
+       "id": "w4-shed-two",
+@@ -558,7 +573,7 @@
+       "area": [[86, 10, 100, 28]],
+       "tension": 2,
+       "tags": [],
+-      "note": "No guards (quiet connector). Dark; one emergency lamp at the canal door."
++      "note": "No guards (quiet connector). Light (LP, LIGHT.md section 5): closed (M1, empty), no band; tonight shut; fittings the exit lamp at the canal door (96, maintained, a vandal cage); dark at the aisle (0.14), the darkest real spot of W4 and the map's (the goggle test, LP pick 6); nothing to shoot (the cage)."
+     },
+     {
+       "id": "w4-shed-yard",
+@@ -576,13 +591,13 @@
+       "vantage": {
+         "from": "w4-gantry",
+         "sees_pct": 0.85,
+-        "at": [58, 10, 17]
++        "at": [52, 10, 18.6]
+       },
+       "guards": {
+         "2": 6
+       },
+       "phase": "late",
+-      "note": "ESTIMATES (pending V6). Guards: yard watchman (loop), a dog handler with a dog (2), the crane watchman (post at the yard leg), and from the TGC twist Pell's 2 minders (walking pair between shed three and the quay edge). Light: one yard floodlight at the lane gate (lit by default, switch in the gate box) and quay lamps on a photocell; the cart lines and coal heaps are dark (mixed zone). Dark by: the gate box switch, shooting the floodlight. Vantage: the crane gantry, 10 m up, dark."
++      "note": "ESTIMATES (pending V6). Guards: the yard watchman (patrol loop: 'the wharf apron and the shed doors'), 2 yard patrols a pace apart (patrol, back and forth: 'walks the shed doors end to end', 'on the canal side of the yard', J7 R3), the crane watchman (posted: 'keeps the yard leg of the crane'), and Pell's 2 minders off the launch (pair, posted at the yard end until the TGC twist; TGC only). Light (LP, LIGHT.md section 5): yard (a watched yard), band 20-50 lx (provisional, A2); tonight watched; fittings the gate flood and the two crane work floods under the gantry (93, the gate-box switch) and the quay lamps (94, photocell); dark at the cart line's north side (cover) and the yard's west corners beyond the floods' throw (0.25-0.33); cutting 93 at the gate box (the yard watchman's loop passes it) or shooting floods. Vantage: the crane gantry's glass look-out bay, 10 m up, dark (the pair at (51.0 / 53.0, 10, 18.6)): declared 0.85 kept (lead ruling); the gantry's look-out bay sees the yard north of z ~21.7 only (LP pick 15): a walk item for Michael, GBM measures."
+     },
+     {
+       "id": "w4-canal-ledge",
+@@ -595,7 +610,7 @@
+       "area": [[44, 3, 72, 6]],
+       "tension": 2,
+       "tags": [],
+-      "note": "corridor class (3 m ledge, open sky). Dark (water level, under the quay lamps' cut-off)."
++      "note": "corridor class (3 m ledge, open sky). Light (LP, LIGHT.md section 5): unfitted (water level), no band; tonight -; fittings none; dark at the whole ledge (moon and spill, 0.28-0.34: TGC's darkest spot on its route); nothing to cut or shoot."
+     },
+     {
+       "id": "w4-jetty",
+@@ -608,7 +623,7 @@
+       "area": [[72, 6, 100, 10]],
+       "tension": 4,
+       "tags": [],
+-      "note": "corridor class (4 m staging, open sky). Choke of W4: every route to the boat passes it. The crane's red lamp is overhead; shed three's loading door floods its middle (dark by its inside switch)."
++      "note": "corridor class (4 m staging, open sky). Choke of W4: every route to the boat passes it. Light (LP, LIGHT.md section 5): yard / loading apron at the loading door, band 20-50 lx (provisional, A2); tonight the barge lands; fittings the loading-door flood (92, switched inside shed three's loading door), the gangway lamp (94, photocell) and the crane's red lamp overhead (97); dark at the jetty's ends beyond the flood (0.25); cutting 92 inside shed three or shooting it, or shooting the gangway lamp: a lit choke with two ways to darken (5.2)."
+     },
+     {
+       "id": "w4-boat",
+@@ -621,7 +636,7 @@
+       "area": [[84, 1, 96, 5]],
+       "tension": 2,
+       "tags": ["exit", "exfil"],
+-      "note": "custom: a boat deck. Dark, the engine idling."
++      "note": "custom: a boat deck, the engine idling. Light (LP, LIGHT.md section 5): the launch's own lamps, no band; tonight moored; fittings the masthead light (98, the launch's battery, O6); dark at the deck away from the mast; shooting it."
+     }
+   ],
+   "links": [
+@@ -870,11 +885,12 @@
+       "route": "loud",
+       "width": 2.4,
+       "level_change": 4.5,
+-      "length": 27,
+-      "time_s": 12,
++      "length": 12,
++      "time_s": 9.2,
+       "bolted": true,
+       "at": [55, 0, 65.875],
+-      "reason": "The arcade's public stair at its west end, up the walled stair hall between the loft rows to the reading room landing (lit; walled from the walkway); the landing door at the stair head (55, 4.5, 73.5) has a push bar on the reading-room side only (A25, EGRESS E3)"
++      "reason": "The arcade's public stair at its west end, up the walled stair hall between the loft rows to the reading room landing (lit; walled from the walkway); the landing door at the stair head (55, 4.5, 73.5) has a push bar on the reading-room side only (A25, EGRESS E3)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 12.0 m from the stair-hall door (55, 0, 62) up the flight and across the landing to the stair-head door, 9.2 s at 1.3 m/s; the built flight is 1.7 m wide (the hall's walls x 54.15-55.85), narrower than the declared 2.4: not written, a section fix (D1-note)"
+     },
+     {
+       "from": "w2-arcade",
+@@ -883,11 +899,12 @@
+       "route": "loud",
+       "width": 1.3,
+       "level_change": 4.5,
+-      "length": 14.5,
+-      "time_s": 8,
++      "length": 10.5,
++      "time_s": 7.9,
+       "bolted": true,
+       "at": [53, 0, 62],
+-      "reason": "The pawnbroker's enclosed fire stair, rebuilt along the loft's south facade; its foot door (53, 0, 62) carries the push bar on the stair side (LP pick 5; EGRESS E7)"
++      "reason": "The pawnbroker's enclosed fire stair, rebuilt along the loft's south facade; its foot door (53, 0, 62) carries the push bar on the stair side (LP pick 5; EGRESS E7)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 10.3 m from the foot door (53, 0, 62) up the flight to the loft door (45, 4.5, 63.65), 7.9 s at 1.3 m/s; the flight 1.3 m wide"
+     },
+     {
+       "from": "w2-pie-shop",
+@@ -920,9 +937,10 @@
+       "route": "shadow",
+       "width": 1.2,
+       "height": 2.1,
+-      "length": 6.5,
++      "length": 4.5,
+       "at": [45, 4.5, 62],
+-      "reason": "Pawn loft's walkway door; the walkway door moved from x 49 to x 45: it opens onto the pawn stair's top landing; the loft door (45, 4.5, 63.65) leads on into the loft (EGRESS E8)"
++      "reason": "Pawn loft's walkway door; the walkway door moved from x 49 to x 45: it opens onto the pawn stair's top landing; the loft door (45, 4.5, 63.65) leads on into the loft (EGRESS E8)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 4.56 m from C3's west landing (the rope holder's mark (46, 4.5, 59.35)) by the walkway door to the loft door"
+     },
+     {
+       "from": "w2-walkway",
+@@ -954,9 +972,10 @@
+       "width": 4.9,
+       "exception": "long_throw",
+       "length": 11,
+-      "time_s": 5,
++      "time_s": 2.8,
+       "at": [50.5, 4.5, 71.375],
+-      "reason": "Across the lightwell: from the pawn loft's open-fronted taking-in bay, cut back to z 67.6 (A28), to the reading room's iron landing stage, a 4.9 m gap: the site's 5.8 m long throw, not a standard throw (M2; tallow-fixes A24; J12 A27; named spot tallowWharf:w2-pawn-loft>w2-reading-room)"
++      "reason": "Across the lightwell: from the pawn loft's open-fronted taking-in bay, cut back to z 67.6 (A28), to the reading room's iron landing stage, a 4.9 m gap: the site's 5.8 m long throw, not a standard throw (M2; tallow-fixes A24; J12 A27; named spot tallowWharf:w2-pawn-loft>w2-reading-room)",
++      "note": "measured from the build (J8 D1, 2026-10-26): the take-off edge z 67.6 and the stage z 72.5-73.5, a 4.9 m gap; the 5.8 m site throw lands at (51.2, 73.0); 2.8 s (the 1.3 m run-in, the brace and the flight, 0.5 m to the stage door)"
+     },
+     {
+       "from": "w2-pie-loft",
+@@ -965,10 +984,10 @@
+       "route": "high",
+       "width": 2.5,
+       "length": 11.5,
+-      "time_s": 5,
++      "time_s": 2.9,
+       "at": [63, 4.5, 71.375],
+       "reason": "Across the lightwell: from the pie loft's open-fronted taking-in bay (no lintel, 3.6 m clear) to the clock-mender's iron landing stage, 2.5 m across",
+-      "note": "not yet forced: a standard throw until the plank bridge (M2, G403); its bypass into the reading room is closed by A29"
++      "note": "not yet forced: a standard throw until the plank bridge (M2, G403); its bypass into the reading room is closed by A29; measured from the build (J8 D1, 2026-10-26): the take-off edge z 70.0 and the stage z 72.5-73.5, a 2.5 m gap; the standard 3.2 m throw lands at (63, 72.8); 2.9 s"
+     },
+     {
+       "from": "w2-lane-window",
+@@ -977,10 +996,11 @@
+       "route": "high",
+       "width": 1.2,
+       "level_change": 3.9,
+-      "length": 16,
++      "length": 12,
+       "time_s": 5,
+       "at": [72, 4.5, 66.15],
+-      "reason": "The hatch's fixed ladder (hatch x 71.4-72.6 z 65.4-66.6) walled in as a tank room x 70.4-74.0 z 64.4-67.6, door (72, 4.5, 64.4): roof access through a plant space, level-design 16.2.1 / 16.2.3; A7 (EGRESS E6)"
++      "reason": "The hatch's fixed ladder (hatch x 71.4-72.6 z 65.4-66.6) walled in as a tank room x 70.4-74.0 z 64.4-67.6, door (72, 4.5, 64.4): roof access through a plant space, level-design 16.2.1 / 16.2.3; A7 (EGRESS E6)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 12.0 m from the walkway door (72, 4.5, 62) by the tank-room ladder (3.9 m) to the C5 thrower's mark; the hatch 1.2 wide; time_s 5 kept: the engine climbs the ladder in 8.9 s (15.1 s door to door at 1.3 m/s), worse than 5: not written, D1-note"
+     },
+     {
+       "from": "w2-arcade-roof",
+@@ -991,9 +1011,10 @@
+       "width": 4.9,
+       "exception": "long_throw",
+       "length": 41,
+-      "time_s": 5,
++      "time_s": 2.6,
+       "at": [80.5, 8.4, 66],
+-      "reason": "Across the arcade lane: from the arcade roof's lane edge, its parapet broken out where the old lane bridge landed, to the counting house's corner-bay roof, a 4.9 m gap: the site's 5.8 m long throw (M2; tallow-fixes A24; J12 A27; named spot tallowWharf:w2-arcade-roof>w3-roof). C5 widened on the W2 side: the arcade roof's lane edge and the old bridge landing cut back to x 77.1 (LP pick 6). TKL's W2 exit move"
++      "reason": "Across the arcade lane: from the arcade roof's lane edge, its parapet broken out where the old lane bridge landed, to the counting house's corner-bay roof, a 4.9 m gap: the site's 5.8 m long throw (M2; tallow-fixes A24; J12 A27; named spot tallowWharf:w2-arcade-roof>w3-roof). C5 widened on the W2 side: the arcade roof's lane edge and the old bridge landing cut back to x 77.1 (LP pick 6). TKL's W2 exit move",
++      "note": "measured from the build (J8 D1, 2026-10-26): the take-off edge x 77.1 and the corner bay's roof from x 82, a 4.9 m gap; the 5.8 m site throw lands at (82.5, 66); 2.6 s (the 1.6 m run-in, the brace and the flight)"
+     },
+     {
+       "from": "w2-arcade-roof",
+@@ -1014,10 +1035,11 @@
+       "route": "high",
+       "width": 1.3,
+       "level_change": 8.4,
+-      "length": 31,
+-      "time_s": 14,
++      "length": 17,
++      "time_s": 12.9,
+       "at": [108.65, 8.4, 52],
+-      "reason": "The external iron fire escape down the yard wall (the clerks' escape from the upper floor); moved 1.7 m east: head x 108.0-109.3, half landing x 101.9-103.2 at 4.2, foot (110.6, 0, 49.75) beside the east gate (G3; the ruled TKL default; EGRESS E9)"
++      "reason": "The external iron fire escape down the yard wall (the clerks' escape from the upper floor); moved 1.7 m east: head x 108.0-109.3, half landing x 101.9-103.2 at 4.2, foot (110.6, 0, 49.75) beside the east gate (G3; the ruled TKL default; EGRESS E9)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 16.8 m from the roof (108.65, 8.4, 52.6) down both flights to the foot (110.6, 0, 49.75) (W3_ROUTES route 2's points; the guards' nav does not walk the steep upper flight), 12.9 s at 1.3 m/s: split tkl-wings leg b"
+     },
+     {
+       "from": "w3-roof",
+@@ -1026,12 +1048,12 @@
+       "route": "high",
+       "width": 1.3,
+       "level_change": 8.4,
+-      "length": 21,
++      "length": 19,
+       "time_s": 14,
+       "bolted_in": ["twoKeyLedger"],
+       "at": [113, 8.4, 63],
+       "reason": "The roof bulkhead stair core down to the east wing's back hall",
+-      "note": "A30 (EGRESS E10): the foot leaf (112.5, 0, 68) is bolted from the east-wing side in Two-Key Ledger only: the porter's lock-up; TGC's signed crossing unchanged. Unbolted here (the map default and Three Grey Coats' state); D0's TKL-state run sets it bolted: true"
++      "note": "A30 (EGRESS E10): the foot leaf (112.5, 0, 68) is bolted from the east-wing side in Two-Key Ledger only: the porter's lock-up; TGC's signed crossing unchanged. Unbolted here (the map default and Three Grey Coats' state); D0's TKL-state run sets it bolted: true. Measured from the build (J8 D1, 2026-10-26): 19.2 m from the roof door to the foot door; 14.8 s at 1.3 m/s and the flights 1.2 m wide (both worse than the declared 14 s and 1.3 m: not written, D1-note)"
+     },
+     {
+       "from": "w3-roof",
+@@ -1039,11 +1061,11 @@
+       "kind": "drop",
+       "route": "high",
+       "level_change": 4.2,
+-      "length": 21,
++      "length": 17,
+       "time_s": 10,
+       "at": [89, 8.4, 63],
+       "reason": "Through the light-well lantern's opening sash, a 4.2 m drop onto the iron gallery, then its stair into the dark stacks (TKL step 2)",
+-      "note": "Split tkl-wings leg a (D0): time_s 10 = the lantern drop 3 + the gallery 2.3 + its stair 4.6, door to door from W3_ROUTES route 2's points (G3 brief step 2; LP's G2 brief step 12); D1 re-measures"
++      "note": "Split tkl-wings leg a (D0): time_s 10 = the lantern drop 3 + the gallery 2.3 + its stair 4.6, door to door from W3_ROUTES route 2's points (G3 brief step 2; LP's G2 brief step 12); D1 re-measures. Measured from the build (J8 D1, 2026-10-26): the drop 0.7 s, then 17.2 m from the sash over the gallery ring round the light-well hole and down its stair to the foot (85, 0, 58.4): 13.9 s at 1.3 m/s, worse than D0's 10 s: not written, a section fix (D1-note)"
+     },
+     {
+       "from": "w3-east-yard",
+@@ -1052,11 +1074,11 @@
+       "route": "loud",
+       "width": 1.2,
+       "height": 2.1,
+-      "length": 19,
++      "length": 2.5,
+       "time_s": 1.5,
+       "at": [110, 0, 52],
+       "reason": "The east gate: keypad door from the yard into the east wing, under the gate lamp (needs the founding year)",
+-      "note": "Split tkl-wings leg b (D0): time_s 1.5 = the fire escape's foot (110.6, 0, 49.75), moved beside the east gate by G3 (EGRESS E9), to the gate, ~2 m; D1 re-measures"
++      "note": "Split tkl-wings leg b (D0): time_s 1.5 = the fire escape's foot (110.6, 0, 49.75), moved beside the east gate by G3 (EGRESS E9), to the gate, ~2 m; D1 re-measures. Measured from the build (J8 D1, 2026-10-26): 2.65 m from the fire escape's foot to the gate, 2.0 s at 1.3 m/s, worse than D0's 1.5 s (EGRESS E9 planned about 2 m): time_s not written, a section fix (D1-note)"
+     },
+     {
+       "from": "w3-east-yard",
+@@ -1132,11 +1154,11 @@
+       "route": "shadow",
+       "width": 1.2,
+       "height": 2.1,
+-      "length": 15,
+-      "time_s": 5,
++      "length": 6,
++      "time_s": 4.7,
+       "at": [106, 0, 53.75],
+       "reason": "East door of the strongroom passage",
+-      "note": "Split tkl-wings leg b (D0): time_s 5 = the east gate to the passage's east door, ~6.5 m at 1.3 m/s, door to door; D1 re-measures"
++      "note": "Split tkl-wings leg b (D0): time_s 5 = the east gate to the passage's east door, ~6.5 m at 1.3 m/s, door to door; D1 re-measures. Measured from the build (J8 D1, 2026-10-26): 6.15 m from the gate through the back hall to the passage's east door (106, 0, 53.75), 4.7 s"
+     },
+     {
+       "from": "w3-east-wing",
+@@ -1168,11 +1190,11 @@
+       "route": "shadow",
+       "width": 1.2,
+       "height": 2.1,
+-      "length": 15,
+-      "time_s": 12.7,
++      "length": 12.5,
++      "time_s": 9.6,
+       "at": [96, 0, 53.75],
+       "reason": "West door of the strongroom passage",
+-      "note": "Split tkl-wings leg a (D0): time_s 12.7 = the stacks to the passage's west door, ~16.5 m at the 1.3 m/s split speed, door to door; D1 re-measures"
++      "note": "Split tkl-wings leg a (D0): time_s 12.7 = the stacks to the passage's west door, ~16.5 m at the 1.3 m/s split speed, door to door; D1 re-measures. Measured from the build (J8 D1, 2026-10-26): 12.5 m from the gallery stair's foot (85, 0, 58.4) through the stacks to the west door (96, 0, 52.95), 9.6 s"
+     },
+     {
+       "from": "w3-west-wing",
+@@ -1446,7 +1468,8 @@
+       "length": 12.4,
+       "bolted": true,
+       "at": [44.75, 4.5, 70.55],
+-      "reason": "West lightwell bridge, enclosed, gate in the pawn loft's north wall (44.75, 4.5, 67.6) bolted on the bridge side: the thrown partner opens it for the thrower; 12.4 m door to door (the bridge 5.9 m + 6.45 m in the reading room to its stage door), within A5 as amended (13 m or less, lead ruling on LP pick 16); A5 (EGRESS E1)"
++      "reason": "West lightwell bridge, enclosed, gate in the pawn loft's north wall (44.75, 4.5, 67.6) bolted on the bridge side: the thrown partner opens it for the thrower; 12.4 m door to door (the bridge 5.9 m + 6.45 m in the reading room to its stage door), within A5 as amended (13 m or less, lead ruling on LP pick 16); A5 (EGRESS E1)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 12.35 m door to door as EGRESS E1 measures it (the gate's north face z 67.6, the bridge 5.9 m, the reading room 6.45 m; 12.5 m from the wall's centre line), width 1.2: the same as D0's 12.4"
+     },
+     {
+       "from": "w2-lane-window",
+@@ -1458,7 +1481,8 @@
+       "length": 9.8,
+       "bolted": true,
+       "at": [69.25, 4.5, 71.75],
+-      "reason": "East lightwell bridge, enclosed, gate in the lane-window loft's north wall (69.25, 4.5, 70) bolted on the bridge side; 9.8 m door to door (bridge 3.5 m + 6.25 m in the clock loft); the pie throw's way back while it stays a standard throw (M2 / G403), on to the pie loft by the lane-window loft's inner door (link 27); A5 (EGRESS E2)"
++      "reason": "East lightwell bridge, enclosed, gate in the lane-window loft's north wall (69.25, 4.5, 70) bolted on the bridge side; 9.8 m door to door (bridge 3.5 m + 6.25 m in the clock loft); the pie throw's way back while it stays a standard throw (M2 / G403), on to the pie loft by the lane-window loft's inner door (link 27); A5 (EGRESS E2)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 9.75 m door to door (the bridge 3.5 m, the clock loft 6.25 m), width 1.2: the same as D0's 9.8"
+     },
+     {
+       "from": "w4-jetty",
+@@ -1466,10 +1490,11 @@
+       "kind": "drop",
+       "route": "shadow",
+       "level_change": 4.4,
+-      "length": 6,
++      "length": 3,
+       "time_s": 3,
+       "at": [74, 0, 6],
+-      "reason": "The jetty's open south edge x 72-76 (the C10 pull edge, the old staging ladder's gap; already open in the build: the rail runs x 76-86.75 and 89.25-100): a one-way 4.4 m drop onto the canal bed at (74, -4.4, 5.4), round the fence foot to the ledge; the 4.4 m lip stays in the co-op band (A6, EGRESS E4)"
++      "reason": "The jetty's open south edge x 72-76 (the C10 pull edge, the old staging ladder's gap; already open in the build: the rail runs x 76-86.75 and 89.25-100): a one-way 4.4 m drop onto the canal bed at (74, -4.4, 5.4), round the fence foot to the ledge; the 4.4 m lip stays in the co-op band (A6, EGRESS E4)",
++      "note": "measured from the build (J8 D1, 2026-10-26): the jetty top 0, the canal bed -4.4 (4.4 m); 3.05 m from the take-off (74, 0, 6.3) round the fence foot's south end to the ledge; 3.0 s at 1.3 m/s with the 0.7 s fall: the same as D0's 3"
+     },
+     {
+       "from": "w1-canal-steps",
+@@ -1481,7 +1506,8 @@
+       "time_s": 3,
+       "bolted": true,
+       "at": [6.6, 0, 14.4],
+-      "reason": "The market warden's caged ladder on the gallery's east face at its canal-steps end; an anti-climb door at its foot (foot enclosure x 6.0-7.75 z 14.4-15.6) bolted on the cage side (LP pick 1: a ladder top-out ignores door leaves; the bolt is built in PR G1, LP pick 14); the one boosted up climbs down inside the cage and opens it for the other (EGRESS E5; split tgc-leads, A11)"
++      "reason": "The market warden's caged ladder on the gallery's east face at its canal-steps end; an anti-climb door at its foot (foot enclosure x 6.0-7.75 z 14.4-15.6) bolted on the cage side (LP pick 1: a ladder top-out ignores door leaves; the bolt is built in PR G1, LP pick 14); the one boosted up climbs down inside the cage and opens it for the other (EGRESS E5; split tgc-leads, A11)",
++      "note": "measured from the build (J8 D1, 2026-10-26): the foot 0, the top 4.5 (4.5 m); 6.2 m from the cage door (6.6, 0, 14.4) by the step-off, the climb and the top-out (6.0 on the 0.5 m grid); time_s 3 kept: the engine climbs it in 10.0 s (worse than 3: not written) and slides down in 1.8 s (climbs down in 7.6 s), D1-note"
+     },
+     {
+       "from": "w2-walkway",
+@@ -1489,10 +1515,11 @@
+       "kind": "pipe",
+       "route": "high",
+       "level_change": 3.9,
+-      "length": 36,
++      "length": 35.5,
+       "time_s": 6,
+       "at": [47.5, 4.5, 61.6],
+-      "reason": "The west downpipe: the arcade roof's eaves gutter discharges at its west end into a cast-iron downpipe on the loft row's south facade, over the walkway's west pier (below the walkway floor it runs inside the pier's chase, so it is climbed from 4.5 only, behind C3); 3.9 m up and over the eaves onto the lead flat over the pawn loft. Length: C3's west landing to the foot 2.5, the climb 3.9, the roof to the C5 thrower's mark 29.5. W2's second way up to the roof (lead ruling 2026-10-26 ~10:10 on D0's ERR 1; EGRESS E11)"
++      "reason": "The west downpipe: the arcade roof's eaves gutter discharges at its west end into a cast-iron downpipe on the loft row's south facade, over the walkway's west pier (below the walkway floor it runs inside the pier's chase, so it is climbed from 4.5 only, behind C3); 3.9 m up and over the eaves onto the lead flat over the pawn loft. Length: C3's west landing to the foot 2.5, the climb 3.9, the roof to the C5 thrower's mark 29.5. W2's second way up to the roof (lead ruling 2026-10-26 ~10:10 on D0's ERR 1; EGRESS E11)",
++      "note": "measured from the build (J8 D1, 2026-10-26): 35.6 m (C3's west landing to the pipe foot 2.2, the climb 3.9, the top-out to the C5 thrower's mark 29.5); the climb 6.0 s (0.9 m/s and the pull-up): the same as D0's 6"
+     }
+   ]
+ }
