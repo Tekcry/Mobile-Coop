@@ -1,0 +1,15 @@
+{
+  "id": "20261026T043342-affected-e2e-a03e22e2-fd34",
+  "sha": "a03e22e27f339a549f5fda19008b6c5e57350feb",
+  "branch": "feature/sectorops-part6-fix",
+  "pr": 568,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #568"
+}
