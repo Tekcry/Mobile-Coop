@@ -220,6 +220,6 @@ zeroes `sweepClock`, `enemyManager.ts:4242`, `darkOn` kept) fine. A3 / B8 smoke 
 - `npm run typecheck:fast`: clean.
 - `npx vitest run` patrolSweep, pianoGuards, guardAiAllocManager, responseWiring, sceneSweep, pairs, pairsWiring,
   replayDeterminism, awarenessWiring: 9 files, 173 passed, 1 todo.
-- `npx vitest run` on every test file that imports `src/ai/patrol` or `src/ai/enemyManager` (66 files): 1536 passed,
+- `npx vitest run` on every test file that imports `src/ai/patrol` or `src/ai/enemyManager` (67 files): 1537 passed,
   1 todo, **1 failed** (lockedDoorPath, above). The same failure shows when that file runs alone.
 - The 3 named files against the pre-fix source (above): 5 failed, 49 passed.
