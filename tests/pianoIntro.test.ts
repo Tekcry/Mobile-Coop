@@ -18,6 +18,7 @@ import {
   SHOT_T,
   START_BAY,
   actorAt,
+  actorHeightAt,
   actorPath,
   actorPose,
   introCam,
@@ -217,7 +218,7 @@ describe('the actors and their shots (0.3x)', () => {
     for (let i = 0; i < 4; i++) {
       const p = actorPath(i);
       expect(p).toHaveLength(INTRO_ACTORS[i]!.pts.length * 2);
-      expect(ACTOR_START[i]! + ACTOR_LEN[i]! / ACTOR_SPEED).toBeCloseTo(PROMPT_AT - 1, 6);
+      expect(ACTOR_START[i]! + ACTOR_LEN[i]! / ACTOR_SPEED).toBeCloseTo(PROMPT_AT - 4.5, 6);
       expect(ACTOR_START[i]).toBeGreaterThan(0);
     }
     const a = actorPose();
@@ -284,5 +285,17 @@ describe('the hard rules', () => {
     const p = src('src/game/pianoIntro.ts');
     expect(p).not.toMatch(/from '\.\.\/core\/babylon'|@babylonjs/);
     expect(p).not.toMatch(/from '\.\.\/net|from '\.\/net/);
+  });
+});
+
+describe('(S7) the intro actors without a nav (the co-op client)', () => {
+  it('actorHeightAt follows each path: G1 + G2 down the stair from its top to the floor, G3 + G4 on the floor', () => {
+    expect(actorHeightAt(0, 8.6, 13.8)).toBeCloseTo(3.0, 5);
+    expect(actorHeightAt(0, 8.6, 12.2)).toBeCloseTo(1.5, 5);
+    expect(actorHeightAt(0, 8.6, 10.6)).toBeCloseTo(0, 5);
+    expect(actorHeightAt(0, 7.5, 8.7)).toBeCloseTo(0, 5);
+    expect(actorHeightAt(1, 9.0, 14.6)).toBeCloseTo(3.6, 5);
+    expect(actorHeightAt(2, 12, 2)).toBe(0);
+    expect(actorHeightAt(3, 14, 3.4)).toBe(0);
   });
 });

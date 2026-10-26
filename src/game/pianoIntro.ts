@@ -274,8 +274,8 @@ export const ACTOR_SPEED = ACTOR_WALK * ACTOR_RATE;
 export const AIM_X = 4.0;
 export const AIM_Y = 1.3;
 export const AIM_Z = 5.3;
-/** They arrive this long (s) before the prompt (GuardActor eases into its stop), then idle aimed. */
-const ARRIVE_EARLY = 1;
+/** They arrive this long (s) before the prompt, then idle aimed: GuardActor's start and stop eases cost ~3.4 s at 0.3x (S7 check). */
+const ARRIVE_EARLY = 4.5;
 
 /** Each actor's path length over the ground (m; GuardActor's paths are flat x, z: the stair's height is the nav's). */
 export const ACTOR_LEN: readonly number[] = INTRO_ACTORS.map((a) => {
@@ -460,4 +460,28 @@ export function revealCamera(i: number, u: number, out: IntroCam): IntroCam {
   out.tz = lz;
   out.fov = r.fov * DEG;
   return out;
+}
+
+/**
+ * (S7) Actor `i`'s ground height at (x, z) from his own path data (the stair's y on its points): the nearest leg,
+ * interpolated. The co-op client builds no nav, so its GuardActors walk this instead of `NavGrid.heightAt`. No allocation.
+ */
+export function actorHeightAt(i: number, x: number, z: number): number {
+  const pts = INTRO_ACTORS[i]!.pts;
+  let best = Number.POSITIVE_INFINITY;
+  let y = pts[0]![1];
+  for (let k = 1; k < pts.length; k++) {
+    const a = pts[k - 1]!;
+    const b = pts[k]!;
+    const dx = b[0] - a[0];
+    const dz = b[2] - a[2];
+    const l2 = dx * dx + dz * dz;
+    const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - a[0]) * dx + (z - a[2]) * dz) / l2)) : 0;
+    const d = hyp2(x - (a[0] + dx * t), z - (a[2] + dz * t));
+    if (d < best) {
+      best = d;
+      y = a[1] + (b[1] - a[1]) * t;
+    }
+  }
+  return y;
 }

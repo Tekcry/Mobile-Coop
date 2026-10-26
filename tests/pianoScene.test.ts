@@ -722,14 +722,15 @@ describe('S2: the view and the gameState render-override seam', () => {
     expect(fu).toBeGreaterThan(g.indexOf('this.player.frameUpdate(dt, alpha, look'));
   });
 
-  it("the intro actor API is Guard AI's GuardActor's (#611): the stand-in implements it; the swap is one line", () => {
+  it("the intro actor API is Guard AI's GuardActor's (#611): the stand-in implements it and makeActor builds the GuardActor", () => {
     const v = src('src/game/pianoIntroView.ts');
     const api = v.slice(v.indexOf('export interface IntroActor {'), v.indexOf('}', v.indexOf('export interface IntroActor {')));
     for (const k of ['setRate(r: number)', 'aimAt(x: number, y: number, z: number)', 'step(realDt: number)', 'fire(): boolean', 'muzzle(out: Vector3): Vector3', 'dispose(): void', 'done', 'pos', 'yaw', 'travelled', 'length', 'playRate', 'isDisposed']) {
       expect(api, k).toContain(k);
     }
     expect(v).toContain('class PosedStandIn implements IntroActor');
-    expect(v).toContain('TODO(#611): GuardActor');
+    expect(v).not.toContain('TODO(#611)');
+    expect(v).toContain('new GuardActor(g.scene, g.world, ENEMIES.grunt, actorPath(i)');
     // Babylon only through core/babylon; never src/net
     expect(v).not.toMatch(/@babylonjs/);
     expect(v).not.toMatch(/from '\.\.\/net|from '\.\/net/);
