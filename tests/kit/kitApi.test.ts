@@ -165,6 +165,8 @@ function host(c1: Who, c2: Who, devices: KitDevice[], puppet = false) {
     pairT0: new Map(),
     teamLast: new Map(),
     teamMv: emptyMoveState(),
+    // (coop4 A20, merge 15) the busy rule's active-move map
+    teamActive: new Map(),
     time: 20,
   });
   const H_ = h as unknown as {

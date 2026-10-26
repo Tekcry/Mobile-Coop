@@ -153,6 +153,9 @@ describe('mission NET: ms on the sector message', () => {
       avatars: new Map(),
       puppets: new Map(),
       heldPuppet: null,
+      // (coop4 merge 15) the partners' knife victims (one per partner)
+      knifePuppets: [],
+      knifeNow: [],
       targets: new Map(),
       blockers: [],
       puppetList: [],
