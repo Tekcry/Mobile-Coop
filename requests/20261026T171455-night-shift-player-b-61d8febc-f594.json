@@ -1,0 +1,13 @@
+{
+  "id": "20261026T171455-night-shift-player-b-61d8febc-f594",
+  "sha": "61d8febc0d5c60aaa7afeb07fe8bf2abeb7a4610",
+  "branch": "feature/piano-knife-s4b",
+  "pr": 652,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "pk-s4b-coop"
+}
