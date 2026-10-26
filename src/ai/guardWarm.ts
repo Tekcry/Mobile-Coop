@@ -161,9 +161,11 @@ function warmReady(m: Mesh): boolean {
   return ok;
 }
 
-/** Polls `meshes` until every one is compiled or `until` (`Date.now()` ms) passes, then stops waiting (the compile its
- *  first poll started goes on). */
-function untilWarm(scene: Scene, meshes: readonly Mesh[], until: number): Promise<void> {
+/** Polls `meshes` until every one is compiled or `WARM_GIVE_UP_MS` passes, then stops waiting (the compile its first
+ *  poll started goes on). (F59 check FIX 2) its own give-up, not the loading screen's cap: the cap only ends the
+ *  load's wait (`warmGuardModels`' race), so a slow cold compile past the cap is not a console warning. */
+function untilWarm(scene: Scene, meshes: readonly Mesh[]): Promise<void> {
+  const until = Date.now() + WARM_GIVE_UP_MS;
   return new Promise((resolve) => {
     const tick = (): void => {
       // (every mesh asked each tick: their programs compile in parallel)
@@ -182,13 +184,13 @@ function untilWarm(scene: Scene, meshes: readonly Mesh[], until: number): Promis
 }
 
 /** Builds `a`'s warm meshes now; resolves once they compiled or the cap passed (true), false when the build threw. */
-function warmAsset(scene: Scene, a: GuardLodAsset, done: Set<string>, until: number): Promise<boolean> {
+function warmAsset(scene: Scene, a: GuardLodAsset, done: Set<string>): Promise<boolean> {
   if (scene.isDisposed) return Promise.resolve(false);
   if (done.has(a.key)) return Promise.resolve(true);
   done.add(a.key);
   // (G7b check polish 1) a throw while building the warm meshes must not reject the level load
   try {
-    return untilWarm(scene, warmMeshes(scene, a), until).then(() => true);
+    return untilWarm(scene, warmMeshes(scene, a)).then(() => true);
   } catch (e: unknown) {
     console.warn(`[guards] ${a.key} shader warm failed (it compiles at the first draw)`, e);
     return Promise.resolve(false);
@@ -200,7 +202,7 @@ function warmAsset(scene: Scene, a: GuardLodAsset, done: Set<string>, until: num
  * the guard's own load does), each LOD's warm meshes built on arrival. Counted in `PENDING` until every load settled.
  * True when every game LOD warmed.
  */
-async function warmBase(scene: Scene, id: string, load: (lod: number) => Promise<GuardLodAsset>, done: Set<string>, until: number): Promise<boolean> {
+async function warmBase(scene: Scene, id: string, load: (lod: number) => Promise<GuardLodAsset>, done: Set<string>): Promise<boolean> {
   const lods = guardGameLods();
   const waits: Promise<boolean>[] = [];
   let ok = true;
@@ -220,7 +222,7 @@ async function warmBase(scene: Scene, id: string, load: (lod: number) => Promise
         ),
       );
       for (const a of got) {
-        if (a) waits.push(warmAsset(scene, a, done, until));
+        if (a) waits.push(warmAsset(scene, a, done));
         else ok = false;
       }
       if (!ok || scene.isDisposed) break;
@@ -255,13 +257,13 @@ export async function warmGuardModels(scene: Scene, mapId = '', kinds: readonly 
     const m = guardAsset(base).manifest;
     if (seen.has(m.id)) continue;
     seen.add(m.id);
-    runs.push(warmBase(scene, m.id, (lod) => lib.load(m, lod), done, until));
+    runs.push(warmBase(scene, m.id, (lod) => lib.load(m, lod), done));
   }
   let s1: Promise<void> | null = null;
   if (opts.parts && !done.has(S1_KEY)) {
     done.add(S1_KEY);
     try {
-      s1 = untilWarm(scene, smoothWarmMeshes(scene, opts.parts), until);
+      s1 = untilWarm(scene, smoothWarmMeshes(scene, opts.parts));
     } catch (e: unknown) {
       console.warn('[guards] the merged body shader warm failed (it compiles at the first draw)', e);
     }

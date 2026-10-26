@@ -1063,6 +1063,11 @@ export class GameState implements AppState {
     // waits for exactly what it did)
     // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
     // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
+    // (F59 check FIX 1; Michael's "settings before the warm-up", ROADMAP Decided ~18:50) the real graphics settings in
+    // before the compile: their first apply turns the sun / lamp / character shadows on, and a guard that receives
+    // shadows needs that shader, not the one compiled without them. `setState`'s later apply is then a no-op (World and
+    // the post stack return early on unchanged settings)
+    g.applyQuality(app.quality.level);
     const ready = g.scene.whenReadyAsync();
     const sb = world.lightBake?.sections;
     await Promise.all([

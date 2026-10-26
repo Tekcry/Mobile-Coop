@@ -331,8 +331,9 @@ describe('(F59) LOD0 / LOD1, the merged S1 body and the cap', () => {
     expect(ms).toBeGreaterThanOrEqual(190);
     expect(ms).toBeLessThan(2000);
     expect(n).toBe(0);
-    // (each poll stops at its next tick past the cap, with the existing line)
-    await vi.waitFor(() => expect(warn.mock.calls.some((c) => String(c[0]).includes('did not compile on the loading screen'))).toBe(true));
+    // (F59 check FIX 2) the cap ends the load's wait only: no warning at the cap (e2e counts warnings as errors); each
+    // poll keeps its own 20 s give-up and warns only then
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('did not compile on the loading screen'))).toBe(false);
     expect(W.guardWarmMeshes(scene).length).toBe(bases.length * 3 + 2);
     expect(W.guardWarmPending(scene)).toBe(0);
     scene.dispose();
