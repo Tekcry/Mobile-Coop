@@ -221,6 +221,7 @@ files:
   - src/audio/music/musicLab.ts
   - src/audio/sceneStorm.ts
   - scripts/music/piano.mjs
+  - scripts/music/pulse.mjs
   - src/assets/music/scene/*
   - src/pwa/precacheGlobs.ts
   - src/net/coopHost.ts
@@ -335,23 +336,30 @@ both pages; a restart keeps the lamps off. Both pages need the flag (a client wi
   #604 (SO5) on master.
 - Flag: `pianoEscape`.
 
-**S5 Music experiment (Sonnet; A15).** Starts from the orchestrator's three original sketches in
+**S5 Music experiment (Sonnet; A15).** Starts from the orchestrator's original sketches in
 `C:/NightShift/scratch/music/proto/` (made by `piano.mjs`, an offline Node synth: original notes, no samples, no
 downloads): "Held Breath" (D minor, 54 bpm, 83.8 s), "Thornbeck" (A minor, 48 bpm, 93.5 s), "Last Round" (C minor,
-60 bpm, 78.0 s). It bundles the three MP3s, adds `piano.mjs` as the in-repo source (`scripts/music/piano.mjs`), and
-keeps the dev A/B picker: `?pianomusic=pixabay|1|2|3` read in `sceneTracks.ts`, and a "Scene" list in the Music Lab
-(`?musiclab=1`, `musicLab.ts`) to play all four side by side. Touches audio files only, never S3's files (the one seam
-above). **Form check, flagged, not re-composed:** the lightning loops every 93 s with its doubles on the Pixabay
-track's swells (t 37 / 51 / 65 / 81). Sketch 2 (93.5 s) nearly matches the period; sketches 1 (83.8 s) and 3 (78.0 s)
-do not; none was written to those swells. With a sketch playing, the flashes keep the same timetable (they never
-follow the music), so the doubles will not land on its swells: a listening note for Michael's A/B.
-- Files: src/assets/music/scene/sketch-1-held-breath.mp3, sketch-2-thornbeck.mp3, sketch-3-last-round.mp3 (1.6-1.9 MB
-  each), scripts/music/piano.mjs, src/audio/music/sceneTracks.ts, src/audio/music/musicLab.ts (the Scene list),
-  tests/sceneTracks.test.ts, docs/audio-credits.md (one row: original, made in-repo). Est. ~250 lines plus the files.
-- Checks: typecheck; vitest sceneTracks (picker parse; each sketch's length as measured; the form note above as test
-  data); e2e: e2e-music.
-- Done looks like: in the scene `?pianomusic=2` plays "Thornbeck" with the lightning on its own clock; the Music Lab
-  plays all four for comparison.
+60 bpm, 78.0 s); plus "Pulse" (sketch 4, made by `pulse.mjs` in the same folder: dark electronic tension, not piano;
+96.4 s, 160 kb/s, 1.9 MB) and a second Pixabay track Michael supplied, "Suspense Thriller" by Alex Grohl (id 552495,
+Pixabay Content License, `C:/NightShift/scratch/music/alexgrohl-suspense-thriller-552495.mp3`, 162.0 s, 256 kb/s,
+5.2 MB). It bundles the four sketch MP3s and the Grohl track (all under `src/assets/music/scene/`, so out of the
+precache like the first track), adds `piano.mjs` and `pulse.mjs` as the in-repo sources (`scripts/music/`), and keeps
+the dev A/B picker: `?pianomusic=pixabay|grohl|1|2|3|4` read in `sceneTracks.ts`, and a "Scene" list in the Music Lab
+(`?musiclab=1`, `musicLab.ts`) to play all six side by side. Touches audio files only, never S3's files (the one seam
+above). **Form check, flagged, not re-composed:** the lightning loops every 93 s with its doubles on the Leberch
+track's swells (t 37 / 51 / 65 / 81). Sketch 2 (93.5 s) nearly matches the period; sketch 4 (96.4 s) is close;
+sketches 1 (83.8 s) and 3 (78.0 s) and the Grohl track (162.0 s) do not; none was written to those swells. With any
+of them playing, the flashes keep the same timetable (they never follow the music), so the doubles will not land on
+its swells: a listening note for Michael's A/B. Each one loops whole (from 0) unless its length allows the 41 s point.
+- Files: src/assets/music/scene/sketch-1-held-breath.mp3, sketch-2-thornbeck.mp3, sketch-3-last-round.mp3,
+  sketch-4-pulse.mp3 (1.6-1.9 MB each), alexgrohl-suspense-thriller-552495.mp3 (5.2 MB), scripts/music/piano.mjs,
+  scripts/music/pulse.mjs, src/audio/music/sceneTracks.ts, src/audio/music/musicLab.ts (the Scene list),
+  tests/sceneTracks.test.ts, docs/audio-credits.md (two rows: the original sketches made in-repo; the Grohl track
+  with its Pixabay page, licence and SHA-256). Est. ~300 lines plus 12.3 MB of audio.
+- Checks: typecheck; vitest sceneTracks (picker parse for all six; each track's length as measured; the form note above
+  as test data) and precacheGlobs (none of the six precached); e2e: e2e-music.
+- Done looks like: in the scene `?pianomusic=4` plays "Pulse" and `?pianomusic=grohl` the Grohl track, the lightning
+  on its own clock; the Music Lab plays all six for comparison.
 - Flag: `pianoEscape` (dev picker only).
 
 **S6 The storm: rain and thunder sound (Sonnet; after S1b, with #604 on master).** The lightning itself is SO5's: the
@@ -469,4 +477,4 @@ approval). G127 / G146 are already his pick for this scene; G367 holds (the EMP 
 - Co-op kills need exact timing; if the pairs are too hard to take at once, that is a walk note (prototype).
 - Solo cannot take pairs: testing only, pairs stay (Q3 recommended; if Michael picks "Split each pair", S1b staggers each pair by 3 s for one player).
 - A body left on the path is found by the next sweep: hide spots sit by every kill spot.
-- 4.29 MB MP3 plus up to three ~2 MB sketches: all out of the precache, fetched only in the scene.
+- Audio size: the 4.29 MB scene track plus 12.3 MB for the A/B set (four sketches, the Grohl track): all out of the precache, fetched only in the scene.
