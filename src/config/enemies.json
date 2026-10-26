@@ -56,7 +56,18 @@
     "engageMin": 0,
     "engageMax": 1.7,
     "usesCover": false,
-    "weapon": null,
+    "weapon": {
+      "damage": 7,
+      "rpm": 420,
+      "burstMin": 3,
+      "burstMax": 6,
+      "pauseMin": 0.9,
+      "pauseMax": 1.8,
+      "windup": 0,
+      "spreadDeg": 3.2,
+      "range": 34,
+      "tracer": "#ff9a6a"
+    },
     "melee": {
       "damage": 16,
       "range": 1.7,
