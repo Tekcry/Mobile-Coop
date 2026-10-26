@@ -108,6 +108,9 @@ export interface Flags {
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
   marlowReplan: boolean;
+  /** (piano-escape, owner Campaign Build, review 2026-11-02) `?piano=1`: the piano escape scene (map `thornbeckMill`, `scene:
+   *  'piano'`) joins `MAPS` and the main menu. Default off; on /preview/ default on (preview-flags). */
+  pianoEscape: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
    *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
    *  default on (preview-flags). */
@@ -144,8 +147,9 @@ export interface Flags {
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
- *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`). */
-export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter'];
+ *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`), (coop-kit K3)
+ *  Chimney Pair (`chimneyPair`). */
+export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter', 'chimneyPair'];
 
 /** (coop-kit A1) The kit ids on in the live game: an id joins this list when Michael accepts its walk (switch-on). */
 export const KIT_MOVES_ON: readonly string[] = [];
@@ -295,6 +299,7 @@ export const flags: Flags = {
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
+  pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),

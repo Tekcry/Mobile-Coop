@@ -31,8 +31,7 @@ import { Doors } from './doors';
 import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
 import { Ropes } from './ropes';
 import { addTorchSlots, torchShadowCount, torchSlotCount } from './torches';
-import { applyMapFlicker } from './lampFlicker';
-import { applyMapSway } from './lampSway';
+import { buildMapLights } from './mapLights';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { SurfaceAtlas } from './surfaceAtlas';
@@ -49,7 +48,7 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField, type FieldDoor } from './lightField';
 import { moonLight } from './lampMath';
 import { LEVEL_TO_RENDER } from './darkCurve';
-import { DEMO_LIGHTNING, Lightning } from './lightning';
+import { DEMO_LIGHTNING, FLASH_GAIN, Lightning } from './lightning';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
@@ -210,6 +209,9 @@ export class World {
     const f = this.lightField;
     f.setFlash(level);
     const v = f.flashLevel;
+    // (piano SO5b) the openings' flash lights: intensity x the flash (the field's level / FLASH_GAIN), the same value
+    // for the field and the baked lamps' texels (`flickering`); a map without openings returns at once
+    this.level.lights.setSkyFlash(v / FLASH_GAIN);
     if (this.lamps) this.lamps.skyFlash = v;
     this.sun.intensity = this.sunBase + v * this.sunPerLevel;
   }
@@ -224,12 +226,10 @@ export class World {
     scene.autoClearDepthAndStencil = true;
     await enablePhysics(scene);
     const b = new LevelBuilder();
-    const layout = map.build(b, opts.seed);
-    // (LR16-5) the map's flicker seed and its stutter tube (fires enrolled themselves)
-    applyMapFlicker(b.lights, map.id, opts.seed);
-    // (LR16-5b) Marlow Yard's swinging pendants: before the build, so the hangers they claim (now drawn by the light
-    // rig, with the swing) never mesh
-    applyMapSway(b, map.id);
+    // the map, its flicker, the lightning openings' flash lights and the sway pendants, in the one order the prebake
+    // shares (`mapLights.ts`: its lamp key is always this one); before the build, so the hangers the sway claims (drawn
+    // by the light rig, with the swing) never mesh
+    const layout = buildMapLights(b, map, opts.seed);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map) });

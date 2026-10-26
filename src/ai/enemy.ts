@@ -968,6 +968,7 @@ export class Enemy implements Damageable {
   /** Let go (an interrupted takedown): staggered (`stagger` s; a shove: longer), and very much aware now. */
   releaseTakedown(stagger = 0.6): void {
     if (!this.taken) return;
+    if (this.knifePinned || (this.killDrv && this.rig.graph.kill === this.killDrv)) this.knifeVictim(null, 0, 0); // (piano-knife S3) every release unpins
     this.taken = false;
     this.hitboxes.setSolid(true);
     this.rig.emote = null;

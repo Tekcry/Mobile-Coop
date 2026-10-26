@@ -14,10 +14,18 @@
  */
 import { PULL, pullVerdict } from '../game/kit/pullUp';
 import { SHUTTER } from '../game/kit/shutter';
+import { KIT_PAIR } from '../game/kit/kitApi';
 import type { KitKind } from '../game/teamMoves';
 
+/**
+ * (coop-kit K0) Any other kit kind (the part 2 moves) is generic: its pair lasts `KIT_PAIR[kind].pairS` and only its
+ * `doneBy` side may say 'pull' (the success end, relayed and told to the mode: `kitDone`); either side may 'drop'. A
+ * kind with no `KIT_PAIR` row keeps the shutter's (`SHUTTER_PAIR_S`, side `a`).
+ */
 export interface KitPair {
   kind: KitKind;
+  /** (coop-kit K0) The kit spot's id the request named ('' none: a free move). */
+  spot: string;
   /** The partner / crawler (the requester) and the holder. */
   a: string;
   b: string;
@@ -34,8 +42,20 @@ export const PULL_PAIR_S = PULL.landT + PULL.verdictWait + PULL.haul + PULL.scra
 /** (NET2) The shutter pair lasts the crawl and the push clear, and 3 s more (a holder's lift, wire jitter). */
 export const SHUTTER_PAIR_S = SHUTTER.crawlTime + SHUTTER.pushTime + 3;
 
-export function newKitPair(kind: KitKind, a: string, b: string, t0: number): KitPair {
-  return { kind, a, b, t0, verdict: '', until: t0 + (kind === 'pull' ? PULL_PAIR_S : SHUTTER_PAIR_S) };
+/** (coop-kit K0) A kind's pair time (s): the pull-up's and the shutter's own, else its move's `KIT_PAIR` row. */
+export function kitPairS(kind: KitKind): number {
+  if (kind === 'pull') return PULL_PAIR_S;
+  if (kind === 'shutter') return SHUTTER_PAIR_S;
+  return KIT_PAIR[kind]?.pairS ?? SHUTTER_PAIR_S;
+}
+
+/** (coop-kit K0) The side whose 'pull' is a non-pull-up kind's success end: the shutter's crawler `a`, else `doneBy`. */
+export function kitDoneBy(kind: KitKind): 'a' | 'b' {
+  return kind === 'shutter' ? 'a' : (KIT_PAIR[kind]?.doneBy ?? 'a');
+}
+
+export function newKitPair(kind: KitKind, a: string, b: string, t0: number, spot = ''): KitPair {
+  return { kind, spot, a, b, t0, verdict: '', until: t0 + kitPairS(kind) };
 }
 
 /** (NET2) An attempt's key on the wire: the start's host time modulo this (the hangEnd's `s` is bounded to +-500). */
@@ -73,8 +93,8 @@ export function kitEnd(p: KitPair, by: string, k: 'pull' | 'drop', now: number, 
     }
     return null;
   }
-  // the shutter
-  if (k === 'pull') return by === p.a ? 'pull' : null;
+  // the shutter (the crawler `a` says through) and (coop-kit K0) any other kind: its `doneBy` side
+  if (k === 'pull') return by === (kitDoneBy(p.kind) === 'a' ? p.a : p.b) ? 'pull' : null;
   return by === p.a || by === p.b ? 'drop' : null;
 }
 

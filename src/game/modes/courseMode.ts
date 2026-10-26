@@ -8,6 +8,7 @@ import type { DoorState } from '../../world/doors';
 import { CourseState, kitMoveOn, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
 import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, retryKey, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { StationDef } from '../course/stationDef';
+import type { KitKind } from '../teamMoves';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
@@ -745,6 +746,17 @@ export class CourseMode implements GameMode {
     this.dirty = true;
   }
 
+  /**
+   * (marlow-kit-wire, coop-kit K0) Kit move `kind` completed at kit spot `spot`: the live station's kit credit
+   * (`CourseState.kitDone`). Host only (CourseMode runs on the host; `kitDone` is a no-op on a client page). Spots that are
+   * not ours, '' (a free move), `pull` and `shutter` are ignored: no station's `kit` names them. No stats here
+   * (`onTeamMove` counted the team move at its start).
+   */
+  onKitDone(kind: KitKind, spot: string, _a: string | undefined, _b: string | undefined): void {
+    const st = this.state;
+    if (st && st.kitDone(kind, spot)) this.dirty = true;
+  }
+
   onRemoteMove(_id: string, mode: string): void {
     if (mode === this.remoteMode) return;
     this.remoteMode = mode;
@@ -1277,6 +1289,8 @@ export class CourseMode implements GameMode {
     const g = this.g;
     g.grenades.clear();
     g.gadgets.clearWorld();
+    // (marlow-kit-wire, A8) the kit move in flight ends and its devices go back (host; the client's: `mirrorApply`)
+    if (def.kit !== undefined && kitMoveOn(def.kit)) g.team?.resetKit();
     this.ct?.repair(-1);
     this.ct?.holdZones(2);
     // (marlow-play-2 C14) a hack running at the retry (station 17's `sc-a7`) resets silently, not "broken off... that one hurt"
@@ -1300,7 +1314,7 @@ export class CourseMode implements GameMode {
     const em = this.g.enemyMgr;
     if (!em) return;
     const g = this.g;
-    if (g.takedown.active) g.takedown.reset();
+    if (g.takedown.busy) g.takedown.reset();
     g.net?.releaseHolds?.();
     this.noteDowns();
     const redo: string[] = [];
@@ -1352,7 +1366,7 @@ export class CourseMode implements GameMode {
       if (!held) {
         held = true;
         const g = this.g;
-        if (g.takedown.active) g.takedown.reset();
+        if (g.takedown.busy) g.takedown.reset();
         g.net?.releaseHolds?.();
       }
       const k = this.slotOfGuard(e);
@@ -1528,7 +1542,7 @@ export class CourseMode implements GameMode {
     if (!em) return;
     const g = this.g;
     if (this.squad.length || full) {
-      if (g.takedown.active) g.takedown.reset();
+      if (g.takedown.busy) g.takedown.reset();
       g.net?.releaseHolds?.();
     }
     if (full) em.resetMemory();
@@ -1913,6 +1927,15 @@ function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | unde
   m.card.show(c, ids === 1 ? name : undefined);
 }
 
+/** (marlow-kit-wire, A8) Client: did the state just applied carry a new station retry on a station whose kit move is on
+ *  (`restarts` past `before`, the last retry's station has `kit` and `kitMoveOn`)? Then the client resets its kit. */
+export function mirrorKitRetry(st: Pick<CourseState, 'restarts' | 'lastRetry' | 'stationDef'>, before: number): boolean {
+  const lr = st.lastRetry;
+  if (!lr || st.restarts <= before) return false;
+  const def = st.stationDef(lr.st);
+  return def?.kit !== undefined && kitMoveOn(def.kit);
+}
+
 /** Client: mirror the packed state; a drill newly done shows the toast (both players' drills). */
 function mirrorApply(g: GameState, w: CourseWire): void {
   const m = mirrorOf(g);
@@ -1923,9 +1946,12 @@ function mirrorApply(g: GameState, w: CourseWire): void {
   m.radioN = rln;
   const st = m.st;
   const bayBefore = st.bay;
+  const restartsBefore = st.restarts;
   const first = m.startBay < 0;
   st.apply(w.s);
   if (first) m.startBay = w.s.bay;
+  // (marlow-kit-wire, A8) a station retry on a kit station: the client's own kit move ends and its devices go back too
+  if (!first && mirrorKitRetry(st, restartsBefore)) g.team?.resetKit();
   const drills = st.currentBay.drills;
   if (st.bay !== bayBefore || first) {
     m.open.length = 0;

@@ -300,6 +300,8 @@ export const DIRECT_COVERS = {
   'src/game/ctDevices': [...GAME, 'e2e-ctcourse'],
   'src/game/reviveClock': [...GAME, 'e2e-ctcourse'],
   'src/game/laserPanels': [...GAME, 'e2e-ctcourse'],
+  // (piano-escape S2) the scene's files (`pianoScene`, `pianoIntro`, `pianoIntroView`): its own suite
+  'src/game/piano': ['e2e-piano'],
   'src/game/': GAME,
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // (guard-ai carry fix) the smooth body and its effect recovery: e2e-guard-carry draws the guards' bodies
@@ -327,6 +329,8 @@ export const DIRECT_COVERS = {
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
   // the map files with their own suite
   'src/world/maps/kestrel': ['e2e-kestrel'],
+  // (piano-escape S2) the piano scene's map (the S1 stub; S1b's greybox): its suite and the levels suite
+  'src/world/maps/thornbeckMill.ts': ['e2e-piano', 'e2e-levels'],
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
@@ -427,7 +431,7 @@ export function withWireSuites(suites, files, protocolTs) {
 // ---- affected-cap: an automatic affected run names at most AFFECTED_MAX suites, the closest to the change ----
 
 /** The automatic cap (the service's affected requests and re-file, run-e2e / request.mjs `--affected`); 0 = no cap. */
-export const AFFECTED_MAX = 3;
+export const AFFECTED_MAX = 1; // G421: one closest suite per PR (prototype mode); the co-op group stays whole
 
 /** `--affected-max` / `E2E_AFFECTED_MAX`: a whole number >= 0 (0 = no cap); anything else (unset, '', 'x', -1, 2.5) is AFFECTED_MAX. */
 export function parseAffectedMax(v) {

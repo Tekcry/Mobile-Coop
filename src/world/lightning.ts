@@ -10,7 +10,14 @@
  * The clock is the shared sim clock (co-op: the host's, `net.simTime`) less `t0`, the sim time the scene's clock
  * reads 0 (Campaign sets it when the scene starts); host and client read the same data and clock, so nothing goes on
  * the wire.
+ *
+ * (piano SO5b) The sky ray alone gives an opening in a wall a thin slice of one direction (SO4 measured 0.13-0.23 lux in
+ * the mill at a peak). A strike lights the whole sky, so each of a map's `openings` also gets one baked flash light
+ * (`addOpeningLights`): its level is intensity x the flash, set with the field's once per sim step (`World.setFlash` ->
+ * `LightRegistry.setSkyFlash`).
  */
+import { hyp2 } from '../core/mathx';
+import { makeCone, type LightRegistry } from './lights';
 
 /** One strike: `t` s on the scene clock, `peak` 0..1 (its share of `FLASH_GAIN`), `len` s of decay after the rise. */
 export interface Flash {
@@ -19,10 +26,74 @@ export interface Flash {
   len: number;
 }
 
+/** (piano SO5b) An opening the flash comes through: its centre (on the wall's inner face), width, height (m) and the
+ *  inward unit normal on the floor plane. The shape agreed with Campaign (`ThornbeckOpening` assigns to it). */
+export interface LightningOpening {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  h: number;
+  nx: number;
+  nz: number;
+}
+
 /** A map's or scene's lightning: the strikes and, for a looping demo, the period they repeat on (0: once). */
 export interface LightningData {
   flashes: readonly Flash[];
   period?: number;
+  /** (piano SO5b) The windows and gaps the flash lights the inside through: one flash light each
+   *  (`addOpeningLights`). Absent: no extra light, today's cost. */
+  openings?: readonly LightningOpening[];
+  /** (piano SO5b) A full-size opening's light at a full strike (its light's intensity; smaller ones by area); default
+   *  `OPENING_LIGHT.gain`. */
+  openingGain?: number;
+}
+
+/**
+ * (piano SO5b) An opening's flash light: a point `inset` m inside the opening, `up` x its height above its centre (near
+ * the head), aimed inward and `tilt` rad down, a feathered spot cone of half-angle `cone` rad, authored radius `radius`
+ * (reach x `PHOTO.reach`: 8 m), intensity `gain` x the opening's area over `area` (a 2 x 2.4 m window; capped at 1: a
+ * smaller hole lets in less sky). One tuning pass (SO5b) against PLAN 2b's "5-20 lux within about 6 m": under the 20 lux
+ * cap one point light keeps 5 lux from 1 m to 3 m on a 2 x 2.4 m window's centre line (17.7 lux at 2 m) and falls to
+ * 1.5 lux at 4 m, 0.3 lux at 6 m (inverse square; `tests/lightningOpenings.test.ts`). The opening's own frame and
+ * everything inside cast its shadows (it is baked as any lamp).
+ */
+export const OPENING_LIGHT = { inset: 0.3, up: 0.4, tilt: 0.4, cone: 1.4, radius: 5, gain: 0.65, area: 4.8 } as const;
+/** (piano SO5b) The flash's colour on screen (rendering only): a cold blue-white. */
+export const OPENING_COLOR: readonly [number, number, number] = [0.82, 0.88, 1];
+
+/**
+ * (piano SO5b) Register one flash light per opening of `data` (map load, before the bake): kind `window`, not electric
+ * (`mainsOff` and the EMP never touch it), not destructible, `flash` (dark until `LightRegistry.setSkyFlash`). Baked
+ * with the map's own visibility like any lamp. Returns how many it added (0 without openings: nothing changes).
+ */
+export function addOpeningLights(reg: LightRegistry, data: LightningData | null | undefined): number {
+  const os = data?.openings;
+  if (!os?.length) return 0;
+  const P = OPENING_LIGHT;
+  const gain = data!.openingGain ?? P.gain;
+  const c = Math.cos(P.tilt);
+  const s = Math.sin(P.tilt);
+  for (const o of os) {
+    const n = hyp2(o.nx, o.nz) || 1;
+    const nx = o.nx / n;
+    const nz = o.nz / n;
+    reg.add({
+      kind: 'window',
+      flash: true,
+      electric: false,
+      destructible: false,
+      x: o.x + nx * P.inset,
+      y: o.y + o.h * P.up,
+      z: o.z + nz * P.inset,
+      radius: P.radius,
+      intensity: gain * Math.min(1, (o.w * o.h) / P.area),
+      color: [OPENING_COLOR[0], OPENING_COLOR[1], OPENING_COLOR[2]],
+      cone: makeCone(nx * c, -s, nz * c, P.cone),
+    });
+  }
+  return os.length;
 }
 
 /** Seconds from dark to a strike's peak (linear: a fast rise). */

@@ -11,6 +11,7 @@ import {
   boostB,
   curve,
   hangB,
+  kitMoveOfSub,
   newTeamBPose,
   newTeamPoseIn,
   ropeB,
@@ -23,7 +24,10 @@ import {
 } from '../src/anim/clips/team';
 import { PAIR_PARTS, newPairRole, pairPose, ropeHoldLine, type PairRole } from '../src/anim/studioPairs';
 import { PAIR_STATION } from '../src/anim/studioTraversal';
-import { boostPath } from '../src/game/teamMoves';
+import { boostPath, KIT_SUB } from '../src/game/teamMoves';
+import { KIT_POSERS, registerKitPoser } from '../src/anim/clips/kit/posers';
+import { emptyMovePose, emptyMoveState, poseFromMoveState } from '../src/player/moveState';
+import { teamRowOfWire } from '../src/anim/tuneMoveRows';
 
 const H = 1.75;
 const DT = 1 / 60;
@@ -408,5 +412,94 @@ describe('team pose: the state, the wire and the link', () => {
     const pt = { x: 0, y: 0, z: 0 };
     boostPath(0.35 * TEAM.boostTime, 0, 0, 1, 0, 0, 0, 0, 4.3, 0.3, 1.9, pt);
     expect(pt.y).toBeCloseTo(0.75, 5);
+  });
+});
+
+// (coop-kit K0) The kit's wire bit table: every kit move's sub bit names its move on both roles (`teamPoseOfWire`), the
+// remote body's placeholder (`poseFromMoveState`: role A's traverse, role B's brace), its tuner row (`teamRowOfWire`)
+// and role B's TeamPoser placeholder (a B body, or a traverse: the deadweight hanger hangs as from a ledge); a KA pose
+// file's registered body (`KIT_POSERS`) replaces the placeholder.
+describe('team pose: the kit wire bit table (coop-kit K0)', () => {
+  /** kind, bit, the remote role A traverse, role B's TeamPoser placeholder ('body' = a B body, else the traverse). */
+  const TABLE = [
+    ['pull', 8, 'hang', 'body'],
+    ['shutter', 16, 'none', 'body'],
+    ['deadweight', 64, 'none', 'hang'],
+    ['dropCatch', 128, 'drop', 'body'],
+    ['chimneyPair', 256, 'climb', 'climb'],
+    ['swingPass', 512, 'vault', 'body'],
+    ['plankBridge', 1024, 'none', 'body'],
+  ] as const;
+
+  it('each bit names its move on brace (role B) and boost (role A), and its tuner row', () => {
+    const i = newTeamPoseIn();
+    TEAM_LINK.partner = '';
+    for (const [kind, bit] of TABLE) {
+      expect(KIT_SUB[kind]).toBe(bit);
+      expect(kitMoveOfSub(bit)).toBe(kind);
+      expect(teamPoseOfWire('brace', bit, 0, 0, 'p9', i)).toMatchObject({ move: kind, role: 'b' });
+      expect(teamPoseOfWire('boost', bit, 0, 0.4, 'p9', i)).toMatchObject({ move: kind, role: 'a', k: 0.4 });
+      const row = kind === 'pull' || kind === 'shutter' ? ['', ''] : [`team.${kind}.b`, `team.${kind}.a`];
+      expect([teamRowOfWire('brace', bit), teamRowOfWire('boost', bit)]).toEqual(row);
+    }
+    // the built-ins are unchanged
+    expect(teamPoseOfWire('brace', 0, 0, 0, 'p9', i)).toMatchObject({ move: 'boost', role: 'b' });
+    expect(teamPoseOfWire('boost', 0, 0, 0.3, 'p9', i)).toMatchObject({ move: 'boost', role: 'a' });
+    expect(teamPoseOfWire('brace', 4, 0, 0, 'p9', i)).toMatchObject({ move: 'rope', role: 'b' });
+  });
+
+  it("a remote in any kit move draws its placeholder: role A's traverse at the wire's phase, role B braced", () => {
+    for (const [kind, bit, trav] of TABLE) {
+      const a = poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: bit, ph: 0 } as never, 0, emptyMovePose());
+      expect([kind, a.traverse]).toEqual([kind, trav]);
+      const b = poseFromMoveState({ ...emptyMoveState(), m: 'brace', sub: bit, ph: 0 } as never, 0, emptyMovePose());
+      expect([kind, b.traverse]).toEqual([kind, 'brace']);
+    }
+    // never the leg-up's climb-up
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: 256, ph: 0.6 } as never, 0, emptyMovePose()).traverseT).toBeCloseTo(0.6);
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: 0, ph: 0.5 } as never, 0, emptyMovePose()).traverse).toBe('climbUp');
+  });
+
+  it("role B's TeamPoser plays the move's placeholder: a B body with the hands on, or the deadweight hanger's hang", () => {
+    for (const [kind, , , ph] of TABLE) {
+      const tp = new TeamPoser();
+      const rig = fakeRig();
+      const p: TeamRigPose = { traverse: 'brace' };
+      const i = newTeamPoseIn();
+      i.move = kind;
+      i.role = 'b';
+      for (let n = 0; n < 15; n++) {
+        tp.begin(DT, i, p, rig);
+        tp.end(rig);
+      }
+      tp.begin(DT, i, p, rig);
+      if (ph === 'body') {
+        expect([kind, p.traverse]).toEqual([kind, 'brace']);
+        expect(rig.reachL.w + rig.reachR.w).toBeGreaterThan(0);
+      } else {
+        expect([kind, p.traverse]).toEqual([kind, ph]);
+        expect(rig.reachL.w + rig.reachR.w).toBe(0);
+      }
+      tp.end(rig);
+    }
+  });
+
+  it("a KA pose file's registered body replaces the placeholder (KIT_POSERS)", () => {
+    const seen: number[] = [];
+    registerKitPoser('deadweight', { b: (_i, t, o) => (seen.push(t), boostB(-1, t, o)) });
+    try {
+      const tp = new TeamPoser();
+      const rig = fakeRig();
+      const p: TeamRigPose = { traverse: 'brace' };
+      const i = newTeamPoseIn();
+      i.move = 'deadweight';
+      i.role = 'b';
+      tp.begin(DT, i, p, rig);
+      expect(seen).toHaveLength(1);
+      expect(p.traverse).toBe('brace');
+      tp.end(rig);
+    } finally {
+      KIT_POSERS.delete('deadweight');
+    }
   });
 });
