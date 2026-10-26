@@ -402,6 +402,8 @@ describe('the robot pair against two fake pages (PairDriver + runOne)', () => {
     expect(s).toMatchObject({ robot: 'follower', class: 'step-timeout', link: 99, limit_s: 5 });
     expect(s.step_t).toBeGreaterThanOrEqual(5);
     expect(s.step_t).toBeLessThanOrEqual(5.5);
+    // (F29) the step's phase names where it stopped (a drop: before the edge, at it, lowering, hanging or falling)
+    expect(['approach', 'off', 'lower', 'hang', 'fall']).toContain(s.phase);
     // where the follower stood: its near spot beside the link point, not the leader past the edge
     expect(dist(s.at, stubSpots(at, past).followerNear)).toBeLessThan(0.5);
     expect(s.at[1]).toBe(0);

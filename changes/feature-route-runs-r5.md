@@ -10,3 +10,5 @@ kind: patch
   near them, else read as a drop when they go down. Ledges, pipes, wall jumps and split jumps stay stubs, listed in the
   report, as do the co-op moves. `--dry-run --selftest <fixture>` prints the selftest's runs with each link's limit. New
   selftest fixture `tests/fixtures/route-run/selftest-steps.graph.json`.
+- (F29) A link step's dead stop names the step's phase (before the move, mounting, climbing, at the edge, through and
+  so on), so a stall says where it stopped.

@@ -1119,7 +1119,7 @@ export async function runOne(ctx, run) {
         file = null;
       }
     }
-    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t), ...(typeof res.step_t === 'number' ? { step_t: r2(res.step_t), limit_s: res.limit_s } : {}) });
+    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t), ...(typeof res.step_t === 'number' ? { step_t: r2(res.step_t), limit_s: res.limit_s } : {}), ...(typeof res.phase === 'string' ? { phase: res.phase } : {}) });
   };
   if (pair) pair.beginRun(log, stop);
   await runSteps(ctx, log, pair ? run.steps ?? [] : flatSteps(run.steps, ctx.notes), stop);
@@ -1275,7 +1275,7 @@ async function linkStep(ctx, log, step, stop) {
     // robots past the link (a follower's stop: the follower alone, the leader took the step)
     const who = r.robot === 'follower' ? 'follower' : ctx.robot;
     const p = both ? await ctx.pair.stopPos(who) : await d.call('tick', 0);
-    await stop(r.outcome, step, { ...p, step_t: r.t, limit_s: r.limit_s ?? null }, who);
+    await stop(r.outcome, step, { ...p, step_t: r.t, limit_s: r.limit_s ?? null, phase: r.phase ?? null }, who);
     if (both) await ctx.pair.recoverPast(step, who);
     else await d.place(step.past ?? step.at);
   }
