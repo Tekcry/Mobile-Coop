@@ -181,6 +181,12 @@ export interface AiContext {
   /** (guard-ai S27) The mode's alarm stage (the manager's `alarmStage`: Sector Ops' panel, camera or laser stage;
    *  absent = 0). Only the carry rule reads it (`carryCalm`). */
   alarmStage?(): number;
+  /** (guard-ai-mission-hooks S3, A9) His alarm stage: max(site, his area) with areas set, else the site stage (absent:
+   *  `alarmStage`). */
+  areaStage?(e: Enemy): number;
+  /** (guard-ai-mission-hooks S3, A9) An alarm raised for him: the site's, or his area's with areas set (absent:
+   *  `alarmRaised`). */
+  areaRaised?(e: Enemy): boolean;
   raiseAlarm(e: Enemy, p: AlarmPanel): void;
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
@@ -1104,6 +1110,8 @@ export class Enemy implements Damageable {
     this.zoneX = o.zoneX;
     this.zoneZ = o.zoneZ;
     this.zoneR = o.zoneR;
+    // (guard-ai-mission-hooks S3, A10) and his alarm area (where he was placed)
+    this.area = o.area;
     this.job = o.job;
     this.roleFlags = o.roleFlags;
     this.reason = o.reason;
@@ -1876,6 +1884,9 @@ export class Enemy implements Damageable {
   zoneX = 0;
   zoneZ = 0;
   zoneR = 0;
+  /** (guard-ai-mission-hooks S3, A9, A10) His alarm area (0 or 1: the area box holding the point he was placed at; -1:
+   *  site only). The manager sets it; a woken guard keeps it (`inherit`). */
+  area = -1;
   /** His `role` tag (`job`: the slot's role word; S8's numeric `role` is his combat role) and its class flags
    *  (`ROLE_DESK`, `ROLE_SUPERVISOR`, `ROLE_ROVER`, `ROLE_FIXED`). */
   job = '';
@@ -1915,7 +1926,9 @@ export class Enemy implements Damageable {
    *  response; stealth rules only (the parked modes keep low ready). (guard-ai S27, A164) Any alarm stage (Sector Ops:
    *  a panel, a camera or a laser) is an alarm too: no guard of the live section holsters after it. */
   private carryCalm(): boolean {
-    const alarm = this.ctx.alarmRaised() || (this.ctx.alarmStage?.() ?? 0) > 0;
+    // (guard-ai-mission-hooks S3, A9) a guard reads max(site, his area) for gear and calm rules: with areas set, an
+    // alarm or stage of the other area leaves him calm (test stubs without the area reads keep the site's)
+    const alarm = (this.ctx.areaRaised?.(this) ?? this.ctx.alarmRaised()) || (this.ctx.areaStage?.(this) ?? this.ctx.alarmStage?.() ?? 0) > 0;
     return this.ctx.stealth() && calmArea(this.aware.level, this.caution, this.incident >= 0 || this.camBody !== null, alarm, this.secure, this.responder || this.crew !== null);
   }
 

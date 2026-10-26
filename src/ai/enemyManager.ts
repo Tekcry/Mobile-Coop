@@ -17,6 +17,7 @@ import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
 import { beamReach, type BeamHit } from '../world/torches';
 import { ALARM_CALL, ALARM_REPEAT, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
+import { AREAS, areaOf, AreaStages, SITE, type AreaBox } from './areaAlarms';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
 import { ALERT } from './alertState';
@@ -254,14 +255,16 @@ export class EnemyManager {
    *  with `alarmRepeat`. */
   readonly alarms: AlarmPanel[] = [];
   /** A guard alarm was raised (since the load): sticky for its readers (the carry rule, the alarm's intruder). New
-   *  raises are gated by the repeat lock (`alarmOpen`), not by this. */
+   *  raises are gated by the repeat lock (`alarmOpen`), not by this. (guard-ai-mission-hooks S3, S3-d) With areas: a
+   *  site raise only (an area raise is `areaSt.raised`), so an area alarm never shuts the panels' lock. */
   alarmRaised = false;
   /**
    * (guard-rules S5, D5, A7) Repeat guard alarms (`ALARM_REPEAT`): false = one guard alarm per load (today's rule, Marlow
    * Yard's and the parked modes'); `SectorMode` sets it on each section load (Sector Ops and the campaign).
    */
   alarmRepeat = false;
-  /** (guard-rules S5) Guard alarms raised this load (panel or radio; tests / e2e read it). */
+  /** (guard-rules S5) Guard alarms raised this load (panel or radio; tests / e2e read it). (guard-ai-mission-hooks S3)
+   *  With areas: the site lock's count only; each area's is `areaSt.count` (all of them: `alarmsRaised`). */
   guardAlarms = 0;
   /** (guard-rules S5) The repeat lock opened since the last guard alarm: the next may be raised. */
   private rearmed = false;
@@ -276,6 +279,20 @@ export class EnemyManager {
   onAlarm: ((e: Enemy, p: AlarmPanel | null) => void) | null = null;
   /** (guard-ai S6) How the alarm was raised ('' not yet; tests / e2e / debug). */
   alarmBy: '' | 'panel' | 'radio' = '';
+  // (guard-ai-mission-hooks S3, D6, A9, A10; flag `areaAlarms`) per-area alarm stages
+  /** The mission's alarm areas (`setAreas`, Campaign Build C5); null: none (or the flag off), J15's site rule exactly. */
+  private areas: readonly AreaBox[] | null = null;
+  /** The site and area stages, and each area's repeat lock and count (tests read it). */
+  readonly areaSt = new AreaStages();
+  /** The area of the last guard alarm (0 / 1; -1 the site): set before `onAlarm` fires (C5 reads it there). */
+  alarmArea = -1;
+  /** (S3-a) Each area's command call and its net call id (0 none); made once. */
+  private readonly areaCmd: readonly CommandCall[] = [new CommandCall(), new CommandCall()];
+  private readonly areaCmdId = new Int32Array(AREAS.max);
+  /** The site command call's net id (read only with areas set: `radioStep`). */
+  private siteCmdId = 0;
+  /** Scratch: an area's stage gear (`giveStageGear`). */
+  private readonly gearS: GuardGear = { helmet: false, armour: false };
   /**
    * (guard-ai S6, design 7, M4) The section's command call: once a contact call gets through, the caller (or the officer
    * in his voice range) holds a `command` call (`RADIO.report` x reaction) whose completion raises the alarm; cut, the
@@ -470,7 +487,8 @@ export class EnemyManager {
         // (its caller had no intruder) sends its reinforcements after him from now on
         if (inc >= 0) {
           this.contactHunt = inc;
-          if (this.alarmRaised && this.alarmHunt < 0) this.alarmHunt = inc;
+          // (guard-ai-mission-hooks S3) an area alarm too
+          if ((this.alarmRaised || this.areaSt.any()) && this.alarmHunt < 0) this.alarmHunt = inc;
         }
         // (S6) the section knows: now command must be told (the alarm)
         this.contactThrough(caller);
@@ -763,6 +781,9 @@ export class EnemyManager {
       alarmOpen: () => this.alarmOpen(),
       // (guard-ai S27, A164) the mode's alarm stage: only the guards' carry rule reads it
       alarmStage: () => this.alarmStage,
+      // (guard-ai-mission-hooks S3, A9) his own: max(site, his area), and the site's or his area's alarm
+      areaStage: (e) => this.areaStageOf(e),
+      areaRaised: (e) => this.areaRaisedFor(e),
       raiseAlarm: (e, p) => this.raiseAlarm(e, p),
     };
     this.refreshFlow();
@@ -856,6 +877,12 @@ export class EnemyManager {
     this.alarmK = 0;
     this.contactHunt = -1;
     this.command.clear();
+    // (guard-ai-mission-hooks S3, S3-e) every area's lock, count and command call; the area stages stay (the mission's)
+    this.alarmArea = SITE;
+    this.areaSt.resetLocks();
+    for (let a = 0; a < AREAS.max; a++) this.areaCmd[a]!.clear();
+    this.areaCmdId.fill(0);
+    this.siteCmdId = 0;
   }
 
   /**
@@ -873,6 +900,14 @@ export class EnemyManager {
    * `alarmRaised` set from outside stays shut.
    */
   private repeatStep(dt: number): void {
+    // (guard-ai-mission-hooks S3, A9) with areas, each area's lock on the same rule (its own clock, count and teams)
+    if (this.areas) {
+      const st = this.areaSt;
+      for (let a = 0; a < AREAS.max; a++) {
+        if (!st.waiting(a, this.alarmRepeat)) continue;
+        if (st.tick(a, dt) || this.teamSearching(st.team0[a]!, st.teamN[a]!)) st.rearm(a);
+      }
+    }
     if (!this.alarmRaised || this.rearmed || !this.alarmRepeat || !ALARM_REPEAT.enabled) return;
     const n = this.guardAlarms;
     if (n < 1 || n >= ALARM_REPEAT.max) return;
@@ -901,7 +936,13 @@ export class EnemyManager {
 
   /** An alerted enemy worked a panel, or (guard-ai S6) a command call got through (`p` null): reinforcements (once per
    *  match; Sector Ops once per section load, (guard-rules S5) or up to `ALARM_REPEAT.max` with `alarmRepeat`). */
-  private raiseAlarm(e: Enemy, p: AlarmPanel | null): void {
+  private raiseAlarm(e: Enemy, p: AlarmPanel | null, area: number = SITE): void {
+    // (guard-ai-mission-hooks S3, A9) with areas, a radio alarm of an area raises that area only (its own lock and
+    // count); a panel and a caller with no area raise the site (J15's lock)
+    if (this.areas && !p && area >= 0 && area < AREAS.max) {
+      this.raiseArea(e, area);
+      return;
+    }
     if (!this.alarmOpen() || (p && p.disabled)) return;
     this.alarmRaised = true;
     // (guard-rules S5) the lock shuts again; the teams this alarm brings are made in `onAlarm` (index from here on)
@@ -914,15 +955,40 @@ export class EnemyManager {
     // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it; (S24 fix) he has none: the one the
     // last contact call that got through named (command heard it), else none until one does (`sink.completed`)
     // (S25b, S24 recheck A polish 1) the contact's intruder only while he is still known (not forgotten since)
-    const ch = this.contactHunt;
-    this.alarmHunt = e.hunt >= 0 ? e.hunt : ch >= 0 && ch < MAX_INTRUDERS && this.intruders.valid[ch] === 1 ? ch : -1;
+    this.alarmHunt = this.huntOf(e);
     // (coop4 AI4) its first reinforcement hunts the alarm's intruder
     this.alarmK = 0;
     this.alarmRunner = null;
     this.command.raised();
+    // (guard-ai-mission-hooks S3) a site alarm (C5 reads it in `onAlarm`)
+    this.alarmArea = SITE;
     this.onAlarm?.(e, p);
     // (guard-rules S5) the teams the mode made for it (`newTeam`, at once; their members spawn later)
     this.alarmTeamN = this.teams.length;
+  }
+
+  /** (guard-ai S24, S25b) The alarm's intruder: the raiser's, else the last contact's while still known, else none. */
+  private huntOf(e: Enemy): number {
+    const ch = this.contactHunt;
+    return e.hunt >= 0 ? e.hunt : ch >= 0 && ch < MAX_INTRUDERS && this.intruders.valid[ch] === 1 ? ch : -1;
+  }
+
+  /**
+   * (guard-ai-mission-hooks S3, A9, S3-c / S3-d) A radio alarm of area `a` (0..`AREAS.max - 1`, areas set): its own lock,
+   * count, teams and command call (J15's rule per area). The site's lock, count, runner and command call are left as
+   * they are, and `alarmRaised` is not set (the panels stay free).
+   */
+  private raiseArea(e: Enemy, a: number): void {
+    const st = this.areaSt;
+    if (!st.open(a)) return;
+    st.raise(a, this.teams.length);
+    this.alarmBy = 'radio';
+    this.alarmHunt = this.huntOf(e);
+    this.alarmK = 0;
+    this.areaCmd[a]!.raised();
+    this.alarmArea = a;
+    this.onAlarm?.(e, null);
+    st.teamN[a] = this.teams.length;
   }
 
   /**
@@ -932,21 +998,24 @@ export class EnemyManager {
    * second).
    */
   private contactThrough(caller: number): void {
-    if (!RADIO_ALARM || !this.stealth || !this.coordinated || !this.alarmOpen()) return;
-    if (!this.command.owe()) return;
+    // (guard-ai-mission-hooks S3, S3-a) with areas, a caller with an area owes his area's alarm: its own command call
     const c = this.byNum(caller);
+    const a = this.areas && c && c.area >= 0 && c.area < AREAS.max ? c.area : SITE;
+    const cmd = a >= 0 ? this.areaCmd[a]! : this.command;
+    if (!RADIO_ALARM || !this.stealth || !this.coordinated || !this.alarmOpenIn(a)) return;
+    if (!cmd.owe()) return;
     let who: Enemy | null = null;
     if (c) {
       const list = this.enemies;
       for (let i = 0; i < list.length && !who; i++) {
         const o = list[i]!;
-        if (o !== c && o.def.kind === 'officer' && this.canCall(o) && this.hearsShout(c, o) >= 0) who = o;
+        if (o !== c && o.def.kind === 'officer' && this.canCallIn(o) && this.hearsShout(c, o) >= 0) who = o;
       }
-      if (!who && this.canCall(c)) who = c;
+      if (!who && this.canCallIn(c)) who = c;
     }
-    if (!who) who = this.nextCaller();
-    if (who) this.startCommand(who);
-    else this.command.lapse();
+    if (!who) who = this.nextCaller(a);
+    if (who) this.startCommand(who, a);
+    else cmd.lapse();
   }
 
   /** (guard-ai S6) May he hold the command call (alive, free, not blinded, armed, not passive)? */
@@ -959,7 +1028,7 @@ export class EnemyManager {
    * it) who may call; out of the target's sight first ("hide and report"), then an officer, then the lower guard key
    * (no randomness, A7). Null when nobody is left.
    */
-  private nextCaller(): Enemy | null {
+  private nextCaller(area: number = SITE): Enemy | null {
     const list = this.enemies;
     let best: Enemy | null = null;
     let bs = Infinity;
@@ -967,7 +1036,10 @@ export class EnemyManager {
       const e = list[i]!;
       if (!this.canCall(e)) continue;
       if (!e.alerted && !(e.level === 'searching' && e.aware.fought)) continue;
-      const s = (e.targetInView ? 1000 : 0) + (e.def.kind === 'officer' ? 0 : 100) + (e.key >= 0 ? e.key : 99) + e.num * 1e-6;
+      // (guard-ai-mission-hooks S3) with areas: not a guard who holds another command call already (`canCallIn`), and
+      // an area's own guards before the others (after "out of sight", A7 fixed order)
+      if (this.areas && this.holdsCommand(e.num)) continue;
+      const s = (e.targetInView ? 1000 : 0) + (area >= 0 && e.area !== area ? 500 : 0) + (e.def.kind === 'officer' ? 0 : 100) + (e.key >= 0 ? e.key : 99) + e.num * 1e-6;
       if (s < bs) {
         bs = s;
         best = e;
@@ -977,14 +1049,31 @@ export class EnemyManager {
   }
 
   /** (guard-ai S6) `e` holds the command call ("Command, contact. Send backup."): the alarm when it gets through. */
-  private startCommand(e: Enemy): void {
+  private startCommand(e: Enemy, area: number = SITE): void {
+    // (guard-ai-mission-hooks S3, S3-a) an area's own command call (`area` 0..max-1), else the site's
+    const cmd = area >= 0 ? this.areaCmd[area]! : this.command;
     const id = this.radioNet.startCall(e.num, -1, 'command', callHold('command', this.reactionOf(e)));
     if (id < 0) {
-      this.command.refused();
+      cmd.refused();
       return;
     }
-    this.command.start(e.num);
+    cmd.start(e.num);
+    if (area >= 0) this.areaCmdId[area] = id;
+    else this.siteCmdId = id;
     e.bark('command');
+  }
+
+  /** (guard-ai-mission-hooks S3) May he hold a command call: `canCall`, and with areas not one who holds another
+   *  already (the net hands the same caller back his open call, so two areas would share one). */
+  private canCallIn(e: Enemy): boolean {
+    return this.canCall(e) && !(this.areas && this.holdsCommand(e.num));
+  }
+
+  /** (guard-ai-mission-hooks S3) Guard `num` holds the site's or an area's command call. */
+  private holdsCommand(num: number): boolean {
+    if (this.command.caller === num) return true;
+    for (let a = 0; a < AREAS.max; a++) if (this.areaCmd[a]!.caller === num) return true;
+    return false;
   }
 
   /** (guard-ai S6) Sector Ops: the live section's index (the radio net's section; the alarm and its entries). */
@@ -1001,6 +1090,8 @@ export class EnemyManager {
   spawnReinforcement(kind: EnemyKind, at: Vector3, yaw: number, section: number, route: readonly (readonly [number, number])[] | null = null): Enemy | null {
     const e = this.spawn(kind, at, !this.coordinated, yaw);
     if (!e) return null;
+    // (guard-ai-mission-hooks S3, A10) his alarm area: his entry point
+    e.area = this.areas ? areaOf(this.areas, at.x, at.z, at.y) : SITE;
     this.joinReinforcement(e, section, route);
     return e;
   }
@@ -1125,6 +1216,8 @@ export class EnemyManager {
    */
   setAlarmStage(stage: number, now = true): void {
     this.alarmStage = stage;
+    // (guard-ai-mission-hooks S3) the site stage under the area stages
+    this.areaSt.site = stage;
     stageGear(stage, this.alarmGear);
     if (!now) return;
     const list = this.enemies;
@@ -1139,6 +1232,61 @@ export class EnemyManager {
    */
   useDifficultyHelmets(on = true): void {
     this.helmetRule = on ? this.diff.helmets : 'stage';
+  }
+
+  // (guard-ai-mission-hooks S3, D6, A9, A10; Campaign Build C5) per-area alarm stages, behind `flags.areaAlarms`
+
+  /** Every guard alarm raised this load: the site's (`guardAlarms`) and each area's (`areaSt.count`). */
+  get alarmsRaised(): number {
+    return this.guardAlarms + this.areaSt.count[0]! + this.areaSt.count[1]!;
+  }
+
+  /**
+   * (C5, at the bind) The mission's alarm areas (at most `AREAS.max`; null / [] / the flag off: none, J15's rule). The
+   * stages start at the site's, every area lock opens, and every living guard's area is set again from the point he
+   * was placed at (`zoneX` / `zoneZ`). Kept through `clear()` and `resetAlarm()` (the mission's, as `setMissionMap`).
+   */
+  setAreas(areas: readonly AreaBox[] | null): void {
+    this.areas = flags.areaAlarms && areas && areas.length ? areas : null;
+    const st = this.areaSt;
+    st.clearStages();
+    st.site = this.alarmStage;
+    st.resetLocks();
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.alive) e.area = this.areas ? areaOf(this.areas, e.zoneX, e.zoneZ, e.pos.y) : SITE;
+    }
+  }
+
+  /** (C5, each area rise) Area `area`'s stage is now `stage`: its living guards get the stage's gear at once (helmet
+   *  rule `stage` only, S3-b), and later placements there read it. No areas or an area out of range: nothing. */
+  setAreaStage(area: number, stage: number): void {
+    if (!this.areas || area < 0 || area >= AREAS.max) return;
+    this.areaSt.stage[area] = stage;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.alive && e.area === area) this.giveStageGear(e);
+    }
+  }
+
+  /** His alarm stage: max(site, his area) with areas set, else the site stage. */
+  areaStageOf(e: Enemy): number {
+    return this.areas ? this.areaSt.stageFor(e.area) : this.alarmStage;
+  }
+
+  /** May a guard alarm of area `area` be raised now: with areas and an area, its own lock; else the site's
+   *  (`alarmOpen`). */
+  alarmOpenIn(area: number): boolean {
+    if (!this.areas || area < 0 || area >= AREAS.max) return this.alarmOpen();
+    return this.areaSt.open(area);
+  }
+
+  /** An alarm raised for him: the site's, or (areas set) his area's. */
+  private areaRaisedFor(e: Enemy): boolean {
+    if (!this.areas) return this.alarmRaised;
+    return this.alarmRaised || (e.area >= 0 && e.area < AREAS.max && this.areaSt.raised[e.area] === 1);
   }
 
   /** (guard-rules S1) The difficulty's helmet on a human guard: `always` / `locked` add one when `give` (a placement);
@@ -1156,7 +1304,9 @@ export class EnemyManager {
 
   /** (guard-ai S13) The stage's gear on top of his own (nothing to give: his gear is left as it is). */
   private giveStageGear(e: Enemy): void {
-    const g = this.alarmGear;
+    // (guard-ai-mission-hooks S3, PLAN 'Order with J15', S3-b) area gear changes only the `stage` tier: max(site, his
+    // area); `always` / `locked` keep the site stage's gear
+    const g = this.areas && this.helmetRule === 'stage' ? stageGear(this.areaSt.stageFor(e.area), this.gearS) : this.alarmGear;
     if (!g.helmet && !g.armour) return;
     e.setGear(mergeGear(e, g, this.gearB));
   }
@@ -2156,6 +2306,9 @@ export class EnemyManager {
     index = -1,
     sectionGear?: GearTag,
   ): void {
+    // (guard-ai-mission-hooks S3, A10) his alarm area: where he is placed (his spawn point; a Sector Ops reinforcement's
+    // entry point), before the stage gear reads it
+    e.area = this.areas ? areaOf(this.areas, e.pos.x, e.pos.z, e.pos.y) : SITE;
     e.section = section ?? sectionAt(this.world.layout.guardAi, e.pos.x, e.pos.z);
     e.profile = slot.profile ?? 'standard';
     e.setGear(mergeGear(gearFromTag(slot.gear, this.gearA), gearFromTag(sectionGear, this.gearB), this.gearA));
@@ -3055,10 +3208,21 @@ export class EnemyManager {
     for (let i = 0; i < v.n; i++) this.rxReaction[i] = this.reactionOf(list[i]!);
     this.radioNet.tick(dt, v, this.sink, this.rxReaction, null);
     // (guard-ai S6) the command call: cut -> the next guard in the fight after `ALARM_CALL.retry` s; nobody: no alarm
-    if (this.command.tick(dt, this.radioNet.commandOpen)) {
+    // (guard-ai-mission-hooks S3, S3-a) with areas the site's own call (by its id: an area's may be open too)
+    const areas = this.areas !== null;
+    if (this.command.tick(dt, areas ? this.radioNet.isOpen(this.siteCmdId) : this.radioNet.commandOpen)) {
       const c = this.alarmOpen() ? this.nextCaller() : null;
       if (c) this.startCommand(c);
       else this.command.lapse();
+    }
+    // (guard-ai-mission-hooks S3, S3-a) and each area's command call on the same rule, its next caller from its area first
+    if (!areas) return;
+    for (let a = 0; a < AREAS.max; a++) {
+      const cm = this.areaCmd[a]!;
+      if (!cm.tick(dt, this.radioNet.isOpen(this.areaCmdId[a]!))) continue;
+      const c = this.alarmOpenIn(a) ? this.nextCaller(a) : null;
+      if (c) this.startCommand(c, a);
+      else cm.lapse();
     }
   }
 
@@ -3092,13 +3256,16 @@ export class EnemyManager {
 
   /** (guard-ai S3, S6) A `command` call got through: the alarm (reinforcements, M4), no panel needed (`RADIO_ALARM`). */
   private radioAlarm(caller: number): void {
-    if (!RADIO_ALARM || !this.alarmOpen()) return;
+    // (guard-ai-mission-hooks S3, S3-a) with areas, the area whose command call this was (else the site's)
+    let a = SITE;
+    if (this.areas) for (let i = 0; i < AREAS.max && a < 0; i++) if (this.areaCmd[i]!.caller === caller) a = i;
+    if (!RADIO_ALARM || !this.alarmOpenIn(a)) return;
     const e = this.byNum(caller);
     if (!e) return;
-    const n = this.guardAlarms;
-    this.raiseAlarm(e, null);
-    // (guard-ai S14) the section's tally; (guard-rules S5) each radio alarm raised
-    if (this.guardAlarms > n) this.counts.radioAlarms++;
+    const n = this.alarmsRaised;
+    this.raiseAlarm(e, null, a);
+    // (guard-ai S14) the section's tally; (guard-rules S5) each radio alarm raised; (S3) the site's or an area's
+    if (this.alarmsRaised > n) this.counts.radioAlarms++;
   }
 
   /**
@@ -4370,6 +4537,10 @@ export class EnemyManager {
     this.radioNet.clear();
     // (S6) and the command call it may have owed
     this.command.clear();
+    // (guard-ai-mission-hooks S3, S3-e) and each area's; the areas and their stages stay (the mission's)
+    for (let a = 0; a < AREAS.max; a++) this.areaCmd[a]!.clear();
+    this.areaCmdId.fill(0);
+    this.siteCmdId = 0;
     // (S4) and every caution: the section starts calm
     this.awareness.clear();
     this.lastHold = -1;
