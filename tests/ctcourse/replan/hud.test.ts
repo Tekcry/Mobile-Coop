@@ -80,7 +80,8 @@ describe('J14 R2: ratings on the re-plan', () => {
   });
 
   it("a station retry is not a set restart: CourseMode's onStationRetry never touches the rating", () => {
-    const src = readFileSync('src/game/modes/courseMode.ts', 'utf8');
+    // CRLF checkouts (core.autocrlf on Windows) would miss the '\n  }\n' end marker
+    const src = readFileSync('src/game/modes/courseMode.ts', 'utf8').replace(/\r\n/g, '\n');
     const at = src.indexOf('  private onStationRetry(');
     expect(at).toBeGreaterThan(0);
     const body = src.slice(at, src.indexOf('\n  }\n', at));
