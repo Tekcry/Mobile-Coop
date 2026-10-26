@@ -18,6 +18,9 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 
 - 2026-10-26 ~19:40, chat (relayed by the orchestrator): "I want main focus to be on piano scene. Extra capacity can go
   towards the remaining tasks."
+- 2026-10-26 ~19:55, chat (relayed by the orchestrator): "Also, right before giving the player control, once the player
+  knows they are surrounded and getting shot at and they have no ammo, they should activate an EMP which knocks out all
+  the lights, forcing all the guards to use flashlights and the mission will play in pure darkness."
 
 ## Michael picked
 - 2026-10-26 ~19:28 Q: where the experiment lives -> picked: "Inside Night Shift (Recommended)" (a standalone co-op
@@ -29,7 +32,8 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 ## Goal
 From a menu entry, two players (or one, for testing) watch a black screen fade in on an operator's upper chest, an
 empty pistol in hand, breathing calmly to the piano; the camera pulls back slowly to show them back-to-wall under fire
-with guards closing in slow motion; then the scene cuts to play: a quiet, tense escape across a small dark map where
+with guards closing in slow motion; out of ammo, the operator sets off an EMP that kills every light, and the scene
+cuts to play in pure darkness, guards searching with flashlights: a quiet, tense escape across a small dark map where
 every guard must be taken down with a knife in the shadows before the exit opens.
 
 ## Limits
@@ -55,8 +59,14 @@ every guard must be taken down with a knife in the shadows before the exit opens
   solo look. Undo: `players: [2]` in the scene's mode entry.
 - A3: The pull-back with slow motion is a scripted intro (camera, guard and tracer timing slowed); play itself never
   runs in slow motion. The intro can be skipped (hold a button) and is skipped on a restart. Undo: no skip.
-- A4: "Empty pistol": the pistol is held but has no ammo for the whole scene; the knife is the only weapon. No gadgets.
-  Undo: give a gadget set in the scene data.
+- A4: "Empty pistol": the pistol is held but has no ammo for the whole scene; the knife is the only weapon. No gadgets
+  in play (the EMP is the intro's last beat, A10). Undo: give a gadget set in the scene data.
+- A10: The EMP (Michael ~19:55) is the intro's last beat: one on-screen button prompt, the player presses it (in co-op
+  either player), every light on the map dies for the whole escape, and play starts. Guards switch to flashlights and
+  search with them. Light parity holds: the flashlight cones are what guards are lit by and see by, and what the light
+  meter reads; there is no other light except what the plan names (moon or city glow through windows, at real levels).
+  This is a real cause of darkness, so G295 / G367 ("every light works") still hold. Undo: the EMP fires by itself at
+  the end of the intro (no prompt).
 - A5: The exit opens only when every guard is down (Michael: "requiring taking down all enemies with a knife"). A guard
   that spots a player raises the alarm as built; if both players are downed the escape restarts from its start (after
   the intro). Downed rules as campaign (G126). Undo: exit always open; alarm ends the run.
