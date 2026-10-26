@@ -7,7 +7,9 @@
 // and then a decoy read break `namedTarget` and he bolts; TKL: a guard killed, `noKills`), and the client's mirror of the host's
 // mission (`net.mission.runner.doneBits`; (mission-rules R8) the objective line and Field Terminal > Objectives on both pages,
 // R6's feed: the always-on panel is gone). (mission-rules R7) Both: the host alone cannot start the
-// campaign, the lobby on Realistic gives 2 revives, no dog spawns. Run with no `--mission` it plays both in sequence.
+// campaign, the lobby on Realistic gives 2 revives, no dog spawns. (tallow E8) The W2 pawn throw is a 5.8 m site throw read
+// from the layout's `throwSites` (tallow-fixes A24, TD-b: `team.lastThrowDist`); A30: Two-Key Ledger's W3 bolt 4 bolts the
+// roof bulkhead's foot door, Three Grey Coats has no such bolt and the door stands unlocked. Run with no `--mission` it plays both in sequence.
 // The guards are frozen and nobody can be hurt (the test reads the mission, not the stealth). Needs `E2E_GPU=1` (laptop queue only).
 import { tmpdir } from 'node:os';
 import { join as joinPath } from 'node:path';
@@ -23,6 +25,10 @@ const PI = Math.PI;
 const RB = BTN.RB;
 /** The loft storey of W2 (feet height of the lofts and the walkway); `+ 0.1` is the standing spot on it. */
 const LOFT = 4.5;
+/** (tallow-fixes G2 step 3) the reading room's stage past the widened pawn gap, [x0, z0, x1, z1] (`THROW_PAWN.stage`, not on the page). */
+const PAWN_STAGE = [50.2, 72.5, 52.2, 73.5];
+/** (A30) the W3 roof bulkhead stair's foot door (`w3-bulkhead-foot`, tallowWharfW3.ts): W3 bolt 4 in Two-Key Ledger only. */
+const BULKHEAD_FOOT = [112.5, 68];
 /** (mission-rules R4) `CAMPAIGN_TWO_PLAYERS` (src/game/mission/campaign.ts): the blocked Start button's text. */
 const TWO_PLAYERS = 'Campaign missions need exactly two players';
 /** (mission-rules R1) `PROTECTED_LINE` (src/game/mission/missionText.ts) and the named-target rule's `breakLine`. */
@@ -189,9 +195,15 @@ async function run(id) {
     const cl = await clientFeet();
     assert(Math.hypot(h[0] - cl[0], h[2] - cl[2]) < 1.5 && cl[1] > c.upY, `${c.id}: the client is up beside the host (host ${JSON.stringify(h)}, client ${JSON.stringify(cl)})`);
   };
-  /** The partner throw (teamMoves `throwLanding`): `c.thrower` (client, standing, facing the runner) and `c.runner` (host), `c.stage` the landing box. */
+  /**
+   * The partner throw (teamMoves `throwLanding`): `c.thrower` (client, standing, facing the runner) and `c.runner` (host), `c.stage` the landing box.
+   * `c.dist` (a site throw, tallow-fixes A24): the site needs the thrower within 1.0 m and the throw within about 25 degrees of
+   * its facing, so the host must see the client within 0.15 m of the spot; after the landing the host's `team.lastThrowDist`
+   * is the site's length and the landing lies `c.dist` +- 1 m from the thrower spot.
+   */
   const toss = async (c) => {
     await moveClient(c.thrower[0], c.thrower[2], PI, c.thrower[1]);
+    if (c.dist !== undefined) await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.15; }, [c.thrower[0], c.thrower[2]], 15000, `${c.id}: the host sees the client within 0.15 m of the thrower spot`);
     await moveHost(c.runner[0], c.runner[2], 0, c.runner[1]);
     await sim(500);
     await padReady(B);
@@ -203,12 +215,27 @@ async function run(id) {
     const n0 = await GA(() => window.__app.current.team.count.throws);
     await holdUntil(A, RB, (n) => window.__app.current.team.count.throws > n, `${c.id}: the host takes the throw`, n0);
     await until(A, ([x0, z0, x1, z1, y]) => { const k = window.__app.current.player.controller; const p = k.pos; return k.grounded && p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1 && Math.abs(p.y - y) < 0.3; }, [c.stage[0], c.stage[1], c.stage[2], c.stage[3], LOFT], 20000, `${c.id}: the host lands on the stage`);
-    assert(true, `${c.id}: the host landed on the stage ${JSON.stringify(await hostFeet())}`);
+    const hf = await hostFeet();
+    assert(true, `${c.id}: the host landed on the stage ${JSON.stringify(hf)}`);
+    if (c.dist !== undefined) {
+      const td = await GA(() => window.__app.current.team.lastThrowDist);
+      const ld = Math.hypot(hf[0] - c.thrower[0], hf[2] - c.thrower[2]);
+      assert(Math.abs(td - c.dist) < 0.01, `${c.id}: lastThrowDist ${+td.toFixed(3)} (the site's ${c.dist})`);
+      assert(Math.abs(ld - c.dist) <= 1, `${c.id}: the landing is ${ld.toFixed(2)} m from the thrower spot (${c.dist} +- 1)`);
+    }
   };
 
   // ---- readers (host page) ----
   const dbg = () => GA(() => window.__sector.debug());
   const stepDone = (sid) => GA((sid) => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === sid)) & 1; }, sid);
+  /** Wait (host page, polled from here) until step `sid` is done, as `stepDone` reads it. */
+  const stepDoneWithin = async (sid, ms, what) => {
+    const t0 = Date.now();
+    while ((await stepDone(sid)) !== 1) {
+      if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  };
   const fact = (f) => GA((f) => window.__mission.runner.hasFlag(f), f);
   const doneBits = () => GA(() => window.__mission.runner.doneBits);
   const slotAlive = (k) => GA((k) => !!window.__sector['slotEnemy'][k]?.alive, k);
@@ -242,6 +269,10 @@ async function run(id) {
     await until(A, ([s, i]) => { const q = window.__sector.boltInfo().find((x) => x.sec === s && x.k === i); return !!q && !q.shut && q.locked === false; }, [sec, k], 8000, `bolt ${sec}-${k} is drawn and its door unlocked`);
     return b;
   };
+  /** The host's `boltInfo()` entry of run section `sec` whose `at` is within 0.3 m of (x, z) (undefined: none). */
+  const boltAt = async (sec, x, z) => (await GA(() => window.__sector.boltInfo())).find((q) => q.sec === sec && Math.hypot(q.at[0] - x, q.at[1] - z) < 0.3);
+  /** (A30) The door index on page `P` whose centre is within 1.0 m of (x, z) with its hinge under 1 m (the foot leaf, not the roof's at 8.4). */
+  const footDoor = (P, x, z) => P.evaluate(([x, z]) => window.__app.current.world.doors.list.findIndex((d) => Math.hypot(d.cx - x, d.cz - z) < 1.0 && d.anchor.hinge.y < 1), [x, z]);
   /** Decoy / target interrogated: the `intel` event `revealIntel` raises, with the guard's id (gameEvents.ts). */
   const interrogate = async (k) => {
     const ok = await GA((k) => { const e = window.__sector['slotEnemy'][k]; if (!e) return false; window.__app.current.events.emit('intel', { lines: [], codes: [], eid: e.id }); return true; }, k);
@@ -322,6 +353,8 @@ async function run(id) {
     await until(P, () => !!document.querySelector('.pause-screen [data-key="resume"]') && !document.querySelector('.objectives-screen'), null, 8000, `the ${who} is back on the pause menu`);
     await P.evaluate(() => document.querySelector('.pause-screen [data-key="resume"]').click());
     await until(P, () => !document.querySelector('.pause-screen'), null, 8000, `the ${who}'s pause menu closes`);
+    // (R8 polish) and the game is no longer menu-paused (gameState.ts `menuPaused`) before the run goes on
+    await until(P, () => !window.__app.current.menuPaused, null, 8000, `the ${who}'s game is no longer menu-paused`);
     return rows;
   };
   /** The current step reads `text` on both objective lines, and both field menus list the rule first and that step current. */
@@ -451,7 +484,9 @@ async function run(id) {
       assert((await fact('tgc-1')) && (await stepDone('tgc-1')) === 1, 'tgc-1: the coats are found (fact and step)');
       // tgc-2: the tally book on the gallery, then the tea-stall talk
       await useItem('c-sintel-0-1', 3.6, 4.6, 50.6, -PI / 2);
-      await moveHost(18.75, 7.75, 0);
+      // (E8 spot audit) 0.75 m north of the old (18.75, 7.75), which stood inside the stall's urn crates (x 18-19.6, z 6.6-8,
+      // since GB1); still in the tea-stall overhear box (x 17.5-20, z 6.5-9)
+      await moveHost(18.75, 8.5, 0);
       await sim(5000);
       assert((await stepDone('tgc-2')) === 1 && (await fact('tgc-courier')), 'tgc-2: the courier is learned (step and fact)');
       await until(A, () => window.__sector.debug().phase === 'connector', null, 8000, 'W1: the exit opens');
@@ -461,14 +496,20 @@ async function run(id) {
       where = 'TGC W2 throw';
       const dw2 = await dbg();
       assert(dw2.index === 1 && dw2.mission.section === 1, `W2 is the mission's second section (${JSON.stringify([dw2.index, dw2.mission])})`);
-      // the pawn taking-in door (W2 bolt 3) is unbolted from the loft side and opened on both pages
-      const pb = await useBolt(1, 3);
+      // the pawn taking-in door is unbolted from the loft side and opened on both pages: W2 bolt 2 since A29 removed the
+      // clock-mender's slot (EGRESS section 2, "W2 2 (was 3)"), found by G2's door point (51.2, 67.45)
+      const pk2 = await boltAt(1, 51.2, 67.45);
+      assert(!!pk2 && pk2.k === 2, `the pawn taking-in door is W2 bolt 2 (${JSON.stringify(pk2)})`);
+      const pb = await useBolt(1, pk2.k);
       await GA((i) => { const w = window.__app.current.world; w.doors.open(w.doors.list[i], 'quiet'); }, pb.door);
       await until(B, (i) => !window.__app.current.world.doors.list[i].anchor.locked, pb.door, 8000, 'the pawn door is unlocked on the client');
       await GB((i) => { const w = window.__app.current.world; w.doors.open(w.doors.list[i], 'quiet'); }, pb.door);
       await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.9, pb.door, 8000, 'the pawn door is open on the host');
       await until(B, (i) => window.__app.current.world.doors.list[i].open > 0.9, pb.door, 8000, 'the pawn door is open on the client');
-      await toss({ id: 'w2-throw-pawn', thrower: [50.5, LOFT + 0.1, 69.6], runner: [50.5, LOFT + 0.1, 68.3], stage: [49, 72.5, 52, 73.5] });
+      // (tallow-fixes A24, TD-b) the pawn throw is a site throw: the spot and length are read from the built layout, no fallback
+      const ps = await GA(() => window.__app.current.world.layout.throwSites?.find((s) => Math.hypot(s.x - 51.2, s.z - 67.2) < 1.0) ?? null);
+      assert(!!ps && ps.dist === 5.8 && Math.abs(ps.dx) < 0.01 && Math.abs(ps.dz - 1) < 0.01, `the pawn throw site: dist 5.8, runner -> thrower +z (${JSON.stringify(ps)})`);
+      await toss({ id: 'w2-throw-pawn', thrower: [ps.x, LOFT + 0.1, ps.z], runner: [ps.x - ps.dx * 1.3, LOFT + 0.1, ps.z - ps.dz * 1.3], stage: PAWN_STAGE, dist: 5.8 });
 
       // (mission-rules R7, J7 PLAN section 3 R7) in this order: a decoy knocked out, Teale knocked out (the protected restart,
       // A2 / #372 M6), Teale killed (RULE BROKEN, he bolts), a decoy read (RULE BROKEN again); W2 guard indexes
@@ -493,12 +534,17 @@ async function run(id) {
       await until(B, (s) => window.__banners.filter((b) => b[0] === 'SECTION RESTART' && b[1] === s).length === 1, PROTECTED_LINE, 8000, 'Teale knocked out: the client gets one SECTION RESTART banner');
       assert(true, 'Teale knocked out: the SECTION RESTART banner on the client too');
       await restarted(1, cp2, 'W2 protected restart', 1);
+      // (R8 polish) the restart itself raises no second SECTION RESTART banner on the client
+      const cb1 = await GB((s) => window.__banners.filter((b) => b[0] === 'SECTION RESTART' && b[1] === s).length, PROTECTED_LINE);
+      assert(cb1 === 1, `after the protected restart the client still has exactly one SECTION RESTART banner (${cb1})`);
       const ak = await dbg();
       assert(ak.mission.breaks === 0 && ak.mission.spook === -1 && ak.mission.line === PROTECTED_LINE, `the protected restart: ruleRestarts 1, breaks 0, spook -1 (${JSON.stringify(ak.mission)})`);
       await until(A, (i) => window.__mission.runner.isOpen(i), T3, 8000, 'tgc-3 is open after the protected restart');
       await until(A, () => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko; }, null, 8000, 'Teale is back, alive and not knocked out');
       const tk = await guardAt(6);
       assert(Math.hypot(tk.p[0] - table[0], tk.p[2] - table[1]) < 1.5 && Math.hypot(tk.p[0] - bolt[0], tk.p[2] - bolt[2]) > 5, `Teale is back at his reading-room table ${JSON.stringify(table)}, more than 5 m from the bolt point ${JSON.stringify(bolt)} (${JSON.stringify(tk)})`);
+      // (R8 polish) the Objectives row check inside currentIs is what gives this line check its teeth: the objective line
+      // alone could still show the step from before the restart
       await currentIs(READING_LINE, 'after the protected restart');
 
       where = 'TGC W2 Teale killed';
@@ -514,6 +560,7 @@ async function run(id) {
       await until(A, (i) => window.__mission.runner.isOpen(i), T3, 8000, 'tgc-3 is open after the rule restart');
       await until(A, ([x, z]) => { const e = window.__sector['slotEnemy'][6]; return !!e && e.alive && !e.ko && Math.hypot(e.pos.x - x, e.pos.z - z) < 1; }, [bolt[0], bolt[2]], 8000, 'Teale (alive) at his bolt point after the kill');
       assert(true, `Teale (alive) stands within 1 m of the bolt point ${JSON.stringify(bolt)} (${JSON.stringify(await guardAt(6))})`);
+      // (R8 polish) as above: the Objectives rows must list the moved line as the one current step
       await currentIs(MOVED_LINE, 'after the kill');
 
       where = 'TGC W2 decoy read';
@@ -533,7 +580,7 @@ async function run(id) {
       where = 'TGC W2 Teale asked';
       await holdOver('the decoy read restart');
       await interrogate(6);
-      await until(A, (sid) => { const m = window.__mission; return ((m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === sid)) & 1) === 1; }, 'tgc-3', 8000, 'Teale asked: tgc-3 is done');
+      await stepDoneWithin('tgc-3', 8000, 'Teale asked: tgc-3 is done');
       assert((await stepDone('tgc-3')) === 1 && (await fact('tgc-chest')) && (await dbg()).mission.breaks === 2, 'Teale asked: tgc-3 done, the chest fact held, no new break');
       assert((await stepDone('tgc-opt')) === 0, 'tgc-opt is left undone');
       await until(A, () => window.__sector.debug().phase === 'connector', null, 8000, 'W2: the exit opens without the optional step');
@@ -546,6 +593,15 @@ async function run(id) {
       await until(A, () => window.__banners.some((b) => b[0].startsWith('SECTION 3')), null, 8000, 'the W3 section banner');
       const b3 = await GA(() => window.__banners.filter((b) => b[0].startsWith('SECTION 3')).pop());
       assert(!/ledger/i.test(`${b3[0]} ${b3[1]}`), `the W3 banner on TGC does not contain "ledger" (${JSON.stringify(b3)})`);
+      // (A30) Three Grey Coats fits no bulkhead foot bolt: no W3 bolt 4, none at the foot door, the door unlocked on both pages
+      const w3b = (await GA(() => window.__sector.boltInfo())).filter((q) => q.sec === 2);
+      assert(!w3b.some((q) => q.k === 4) && !w3b.some((q) => Math.hypot(q.at[0] - BULKHEAD_FOOT[0], q.at[1] - BULKHEAD_FOOT[1]) < 0.3), `A30 TGC: no W3 bolt 4 and none at the bulkhead foot (${JSON.stringify(w3b.map((q) => [q.k, q.at]))})`);
+      for (const [P, who] of [[A, 'host'], [B, 'client']]) {
+        const fd = await footDoor(P, BULKHEAD_FOOT[0], BULKHEAD_FOOT[1]);
+        const lk = await P.evaluate((i) => window.__app.current.world.doors.list[i]?.anchor.locked ?? null, fd);
+        assert(fd >= 0 && lk === false, `A30 TGC: the bulkhead foot door (${fd}) is unlocked on the ${who} (${lk})`);
+      }
+      assert(true, 'A30 TGC: no W3 bolt 4, the bulkhead foot door unlocked on host and client');
       await until(A, () => window.__sector.debug().phase === 'connector', null, 3000, 'W3: no TGC step, the exit is open');
       await cross(2, 'W3 connector');
       await mirror('W3');
@@ -597,6 +653,12 @@ async function run(id) {
       where = 'TKL W3 keypad and broken rule';
       const dw3 = await dbg();
       assert(dw3.index === 2 && dw3.mission.section === 1, `W3 is the mission's second section (${JSON.stringify([dw3.index, dw3.mission])})`);
+      // (A30) Two-Key Ledger fits the roof bulkhead's foot bolt (W3 bolt 4): shut, its door locked on host and client (both
+      // pages build the same map, so the door index is the same)
+      const fb = await boltAt(2, BULKHEAD_FOOT[0], BULKHEAD_FOOT[1]);
+      assert(!!fb && fb.k === 4 && fb.shut === true && fb.locked === true, `A30 TKL: the bulkhead foot is W3 bolt 4, shut and locked on the host (${JSON.stringify(fb)})`);
+      await until(B, (i) => window.__app.current.world.doors.list[i]?.anchor.locked === true, fb.door, 8000, 'A30 TKL: the bulkhead foot door is locked on the client');
+      assert(true, 'A30 TKL: W3 bolt 4 (the bulkhead foot) shut, its door locked on host and client');
       await useItem('c-skey-2-0', 112, 0.1, 51.1, 0);
       await until(A, () => window.__sector.debug().keypads[2][0] === true, null, 8000, 'the east gate keypad opens');
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tkl-2')) & 1; }, null, 8000, 'tkl-2 is done');
