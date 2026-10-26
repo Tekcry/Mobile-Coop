@@ -4,6 +4,12 @@ import { launch, openPage, press, pressPair, stick, frames, BTN, focusedText, fo
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
+// (player-flake-fix) a later navigation of the main page is printed when it happens (only src/pwa reloads a page: a
+// waiting update applied at the main menu). One desktop run (68c15083, 2026-10-25) died "Execution context was
+// destroyed" right after the quit to the main menu; the next one names itself
+page.on('framenavigated', (f) => {
+  if (f === page.mainFrame()) console.log(`  (main page navigated: ${f.url()})`);
+});
 const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const settings = () => page.evaluate(() => window.__app.settings.get());
 let failed = false;
@@ -486,12 +492,18 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  for (let i = 0; i < 3; i++) await press(page, BTN.DOWN); // Resume, Objectives, Settings, Report feedback (menu-notes A2: no Controls item)
-  assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
-  await press(page, BTN.DOWN);
-  assert(/Animation tuner/.test(await focusedText(page)), 'focus Animation tuner (dev)'); // (anim-tuner: before Quit)
-  await press(page, BTN.DOWN);
-  assert(/Quit/.test(await focusedText(page)), 'focus Quit');
+  assert(await q('.pause-screen'), 'Start opens pause again');
+  // (player-flake-fix) the pad walks the whole field menu in its order (pauseScreen.ts): Resume, Objectives, Notes
+  // (hud-guidance B5), Settings, Report feedback, Animation tuner (dev, before Quit), Quit to menu (menu-notes A2: no
+  // Controls item). Read by the rows' keys; the old fixed three downs to Report feedback broke when B5 added Notes
+  const pauseKey = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
+  const pauseWant = ['resume', 'objectives', 'notes', 'settings', 'report-feedback', 'anim-tuner', 'quit'];
+  const pauseSeen = [await pauseKey()];
+  for (let i = 1; i < pauseWant.length; i++) {
+    await press(page, BTN.DOWN);
+    pauseSeen.push(await pauseKey());
+  }
+  assert(JSON.stringify(pauseSeen) === JSON.stringify(pauseWant), `the pad walks the field menu in order, ending on Quit (${pauseSeen.join(', ')})`);
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');
   assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
