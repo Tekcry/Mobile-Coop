@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:24:56Z
+status: done feature/char-shadow-meter-s2c 7a2f82d0ea32854b874b73c64d17665f8ae0bb3b
 # char-shadow-meter s2c (cloud): a co-op client's partners in the character contract (J16, slice S2c)
 
 Lead: Night Shift | Sector Ops Build. Job char-shadow-meter (FOLDED-PLAN J16; G352). Source of truth on the base:
@@ -156,3 +156,41 @@ lightField.ts.
 - Side note for the lead, out of scope: `playerRefsInto` (gameState.ts:1083) uses `out.length = 0` + `push`.
 - A short report goes at the end of this brief, then `status: done feature/char-shadow-meter-s2c <sha>`.
 - A question this brief cannot settle: `status: blocked <reason>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-26)
+
+Commits on effa5958: f685e337, 17e6c76c (old builder, kept), e0dc03c3 (tests + relistMates fix + CharMates.refOf), 7a2f82d0 (lighting.md, fragment, build report). All pushed, path-limited adds.
+
+## What changed
+- charOccluderFill.ts: `MateLike`, `slotInto` (A2's loop body moved as is; module scratch).
+- gameState.ts: `NO_MATES`, `charMatesInto` hook, `fillChars` via `slotInto` + hook, `updateLight` guard `s < charRefs.length`. Flag-off branch untouched.
+- net/charMates.ts (new): `MateSource`, `CharMates` (`set`, `into`, test getters `size` / `refOf`).
+- net/coopClient.ts: `mates`, `mateOrder`, `relistMates` (avatar create, dropAvatar, lobby), hook set once inside `if (g.charOccluders)`, restored via offs.
+- net/remoteAvatar.ts: `get shown()`.
+- tests: charOccluderFill.test.ts (`slotInto (S2c)` 200-ref Object.is case; slotInto x3 in the alloc loop), charMates.test.ts new (a)-(e).
+- docs/systems/lighting.md sentence swap; changes/feature-char-shadow-meter-s2c.md; docs/char-shadow-meter/checks/s2c-build.md.
+
+## Old builder's commits
+Verified line by line against steps 1-5: all correct, kept. Fixed: `relistMates` used `length = 0` + `push` (not hot, but the brief's bolded rule) - now indexed write + truncate. Missing and done here: all tests, docs, fragment, build report.
+
+## Tests
+- typecheck:fast clean.
+- vitest (5 files, --maxWorkers=2): 49 passed - charOccluderFill 10, charMates 11, charOccluders 11, coopPerception 12, remoteKneelTense 5.
+- Bytes per call: slotInto x3 + fillPlayers(4) + fillVictims(32) 0.0, pictureInto(16) 0.0, control 96.0; CharMates.into (3 partners, 1 on a wall) 0.0, control 96.0; charOccluders transmitQ 0.0 / transmitInto 0.0 / capsuleTransmit 0.0, control 224.0.
+
+## Deviations
+- `CharMates.refOf` / `size` test getters.
+- Test order matters for alloc readings: a `slotInto` site that saw many ref shapes boxes double loads (measured 48 B mixed, 96 B megamorphic, 0 B one shape). Alloc case uses one ref shape (as on a machine); the 200-ref case runs last in its file; charMates (e) runs after (d). Documented in both files.
+- (e) runs without cover segments (host peek 0); compared at all 90 states, not just the last.
+
+## Limits
+- Dead partner on a wall: host keeps eased edge peek, client samples upright (peek 0).
+- Slot order after a rejoin: host re-appends (coopHost.ts:507), so orders can differ; affects only machine-local owner keys and the picture's tie-break, never a sample.
+
+## Side notes (out of scope)
+- `playerRefsInto` (gameState.ts:1083) uses `out.length = 0` + `push`.
+- `RemotePlayer.accept` adds `ref.cover` / `ref.coverT` in branch-dependent order, so host refs can hold two shapes at `slotInto` (pre-existing in A2's inline loop).
+
+## Pending PC runs
+- affected-e2e, e2e-coop, e2e-netmove on the branch head, flag off and with `?charlight=1`.
+- S4's e2e-coop partner probe (client meter = host's sample within 0.02) closes S2c.
