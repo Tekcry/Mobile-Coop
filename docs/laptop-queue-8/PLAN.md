@@ -205,38 +205,59 @@ an aged alone blocked every PR claim 1.5 h. Pointers: this branch at 6d63ea193 (
   (:1165) sets `result.posted` (every post true) and `result.desc` (:1172 loop), runTrain records them. Carries (:769,
   :908) record `state: 'success', desc, posted: true, doneSynced: true` (nothing claims a carried head).
 - runTrain `finally` (:1319): `state.trains[sha].doneSynced = writeClaims(...) === true; saveState()`.
-- lib `trainRepair(entry, gh, otherLive)` (new, after `trainHold` :996): `{ post: { state, desc } | null, done }`.
-  Final state = `entry.state`, else from a pre-G `result` (success / carried -> success, failure / build / incomplete ->
-  failure, nosha -> error); desc = `entry.desc ?? '<result> (re-posted)'`. post when the final state is known, `gh` is
-  '' or 'pending' (never 'unknown', never over another final verdict) and `!otherLive`; done = `entry.doneSynced !==
-  true`. Pure.
-- service `syncTrains(heads)` (new, before pendingTrains :783; called in it after `heads` :803-811, before `aloneHold`
-  :812), when `LQ_TRAIN_RETRY` on: each state.trains entry younger than LQ_TRAIN_MAX_AGE_H; `gh` = its open head's
-  `laptop` (no extra gh read; not an open head -> no post, done only); `otherLive` = the claim on the sha is another
-  worker's, open, and blocks (claimBlocks). A post that lands: `posted = true`, the head's `laptop` set in `heads` (so
-  the hold and lastTrainEndFrom read it this pass), bumpTrainEnd, log "train <n> <sha8>: laptop-e2e <state> re-posted
-  (lost post)". done: a done claim already on QREF -> mark; else all todo shas in one `writeClaims(.., 'done', 'done
-  <k> train(s)')`, marked on true. Not part of syncDone: a failed train push never stops request claims (pass :1910).
+- lib `trainFinal(entry)` (new): the final state, `entry.state`, else from a pre-G `result` (success / carried ->
+  success, failure / build / incomplete -> failure, nosha -> error), else ''.
+- lib `trainRepair(entry, gh, other = '', prefix = '')` (new, after `trainHold` :996): `{ post: { state, desc } | null,
+  done, superseded }`. `other` (a worker name, '' for none, see syncTrains) -> `{ post: null, done: false, superseded:
+  other }`: the done push never replaces another worker's claim. Else desc = `entry.desc` verbatim (a desktop verdict
+  keeps its `desktop: ` prefix and the `FAIL: a,b` list auto-train reads: desktopFailSuites, failSuites), legacy
+  `prefix + '<result> (re-posted)'` (prefix = `desktop: ` on the desktop, so desktopFailSuites still knows it; no list,
+  read as untrusted). post when trainFinal is known, `entry.posted !== true`, `gh` is '' or 'pending' (never 'unknown' or
+  null, never over another final verdict); done = `entry.doneSynced !== true`. Pure.
+- service `syncTrains(heads)` (new, before pendingTrains :783), when `LQ_TRAIN_RETRY` on: called from `pass()` on both
+  workers every pass, right after `listRequests` (QREF fresh), not inside pendingTrains (the desktop only reaches
+  pendingTrains behind gate(Infinity), so its lost verdicts were never retried). On the laptop pass() first reads the
+  open train heads (the head read split out of pendingTrains as `trainHeadsNow()`, passed on to pendingTrains: no extra
+  gh read), so `gh` = that head's `laptop`; a sha not among them gets no post (done only). When heads were not read this
+  pass (the desktop, or the PR list failed) `gh` = `laptopState(sha)` once, only for entries with `posted !== true`; a
+  gh error skips the entry this pass. Per entry younger than LQ_TRAIN_MAX_AGE_H: skipped without any read when
+  `posted` and `doneSynced` are both true. The claim on sha (QREF, one git read) is read first: `other` = it belongs to
+  another worker and is open-and-blocking (claimBlocks) OR done; while `other` holds the entry gets no post, no done
+  push and `superseded: <worker>` (a done one ends it: `doneSynced` true, nothing more to do). A final `gh` (success /
+  failure / error) marks `posted = true` (in sync, never read again). A post that lands: `posted = true`, the head's
+  `laptop` and `laptopAt` (now) set in `heads` (so the hold and lastTrainEndFrom read it this pass), bumpTrainEnd, log
+  "train <n> <sha8>: laptop-e2e <state> re-posted (lost post)". done: this worker's own done claim on QREF -> mark;
+  else one `writeClaims([sha], 'done', 'done train <n>')` per sha, marked on true, labelled so lib workerActivity
+  (`^(claim|done|release) train (\d+)`) closes the train; n from the entry, else from the open head in `heads`, else
+  `done train ? <sha8>` (a legacy entry on the desktop; never a sha as n). Not part of syncDone: a failed train push
+  never stops request claims (pass :1910).
 - lib `trainHold(heads, lost = () => false)` (:996): a head whose laptop is '' or 'pending' and `lost(sha)` does not
-  hold. pendingTrains: `lost` = state.trains has a final state for sha, or the claim on QREF is done (any worker). A
-  failed or errored head still holds (holdClears false, as today). A pending head with a dead claim holds only because
-  this pass runs it (pendingTrains returns it; trains go first in pick) (A18).
+  hold. pendingTrains: `lost(sha)` = state.trains has a final state for sha (trainFinal, legacy `result` included) or
+  the claim on QREF is done (any worker), and false while another worker's live (open, blocking) claim is on the sha;
+  `() => false` when `LQ_TRAIN_RETRY=0`. A failed or errored head still holds (holdClears false, as today). A pending
+  head with a dead claim holds only because this pass runs it (pendingTrains returns it; trains go first in pick)
+  (A18).
 - Heartbeat bound (A17): writeClaims claim blob (:357) adds `beat: HEARTBEAT_MS` when > 0. lib `claimBlocks(claim,
   worker, now, maxMs, beats = 0)` (:130): another worker's open claim with `beat > 0` and `beats > 0` blocks only while
   `now - at < min(maxMs, beats * beat)`; no `beat` field -> the `at` + maxMs rule. Service wrapper `blocks(c)` passes
   `CLAIM_BEATS` at :300, :350, :762, :837. heartbeat() (:1201-1207): drop the `DESKTOP ||` guard, so desktop claims beat
-  too; header :62-63 says both workers.
+  too; header :62-63 says both workers. writeClaims(ids, 'claim') checks every id, not only ids[0]: a blocked id is
+  dropped (logged) and the others are still refreshed; 'blocked' only when every id is blocked.
 - Hold log (pass :1919-1924): the "alone requests held" line repeats every 15 min while the key is unchanged and an
   aged alone stops pr claims (key + time).
 - service env (after :170): `TRAIN_RETRY = LQ_TRAIN_RETRY !== '0'`, `CLAIM_BEATS = Number(LQ_CLAIM_BEATS ?? 4)`. Header:
   one line after :106 (lost verdict retry, heartbeat-bound claims, hold drops finished heads).
-- Tests (lib import line :3 adds `trainRepair`):
+- Tests (lib import line :3 adds `trainRepair`, `trainFinal`):
   - describe "claimBlocks: heartbeat bound": desktop claim `beat` 300000 at 25 min, beats 4 -> false; at 15 min -> true;
     no `beat`, 2 h -> true; beats 0, 25 min -> true; done -> true; own claim -> false; 4 h without beat -> false.
   - describe "trainRepair": `{ state: 'success', desc: '41/43 ...', posted: false }` with gh 'pending' -> post
-    success + desc; '' -> post; 'success' / 'failure' / 'unknown' -> null; otherLive -> null; legacy `{ result:
-    'failure' }` -> failure, "failure (re-posted)"; legacy build -> failure, nosha -> error, carried -> success;
-    doneSynced true -> done false, missing -> true.
+    success + desc; '' -> post; 'success' / 'failure' / 'unknown' / null -> null; posted true -> null; other 'desktop'
+    -> post null, done false, superseded 'desktop' (another worker's done claim); the train 118 incident: legacy `{
+    result: 'success' }` with gh 'pending' -> posts success; legacy `{ result: 'failure' }` -> failure, "failure
+    (re-posted)", with prefix `desktop: ` -> "desktop: failure (re-posted)"; a desktop entry's desc "desktop: 37/39
+    pass, 512 s; FAIL: a,b" re-posts verbatim; legacy build -> failure, nosha -> error, carried -> success; doneSynced
+    true -> done false, missing -> true.
+  - workerActivity: "claim train 118 (laptop)" then "done train 118 (laptop)" -> openTrain ''.
   - extend describe "trainHold" (:1016): train 118 replay: `[{ n: '118', sha: A, laptop: 'pending' }]` with lost(A) ->
     null; lost but 'failure' -> holds; lost(A), B pending not lost -> B; the existing cases unchanged.
 - Dry run: `LQ_STATE=<scratch dir>` with a state.json whose `trains` holds the current open train head (pending or
@@ -284,6 +305,7 @@ first): PR 1 = A + B (fixes first, keep place, stop the old run), PR 2 = C + D +
 - Kept suites at `E2E_JOBS=1` only work for heads that carry the new run-e2e line (A10).
 - PR carry adds at most 20 gh status reads per new PR head with a docs-only tail, once per head per process.
 - G: a run whose heartbeat pushes fail for over 4 beats (20 min of GitHub down) may be taken over by the other worker
-  (a duplicate run, not a lost one); a lost done push past that lets the desktop rerun a finished train once.
+  (a duplicate run, not a lost one); a lost done push past that lets the desktop rerun a finished train once, and only
+  while desktopTrainGate is open (laptop silent, or on another train).
 - affected-cap's `refileOverCap` rewrites a request from the copy it listed, so a `place` or `kept` field another pass
   wrote in the same window may be dropped (cost: a lost place, or a rerun of the kept suites).
