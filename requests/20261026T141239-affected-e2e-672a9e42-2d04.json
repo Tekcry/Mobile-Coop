@@ -1,0 +1,14 @@
+{
+  "id": "20261026T141239-affected-e2e-672a9e42-2d04",
+  "sha": "672a9e42332b512d9f53844881b1382406cd6059",
+  "branch": "feature/piano-escape",
+  "pr": 606,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T115432-affected-e2e-672a9e42-9d73, rerun on the laptop"
+}
