@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 67 (2026-10-26 ~17:15, Orchestrator save at 81%; PROTOTYPE MODE, ROADMAP Decided e18f09d2f; wins over SAVE 66):**
+- Prototype mode: one batch train of fixes, freeze over, lighter testing; flaky suite = quarantine, no repeat proofs, no
+  new test-machinery work after #572.
+- Ownership: Marlow builds laptop-queue-9, Player builds laptop-queue-10 (10b); Test Runner only checks them. My unpushed
+  -9 / -10 local copies are dropped (worktrees -laptop-queue-9, -9-f20, -10 hold stale local commits: ignore).
+- #559 (F6) train-ready (checker PASS on 31b5d7c6, CI green). #552 re-filed affected run fronted by the Orchestrator
+  (20191231T044616-...-ad09); Orchestrator labels the batch (train-ready + no-affected-e2e).
+- #572 (laptop-queue-11, F35 + F36 + E2E_AFFECTED_MAX read by the service): checker FIX -> fix round 063d5b81 pushed,
+  same Opus checker re-checking. Post `checker` on PASS; it rides the batch train.
+- Affected cap 1: laptop task NightShift-laptop-queue now sets E2E_AFFECTED_MAX=1 (live once #572 is on master; the
+  service ignored the env before). Desktop worker task: Orchestrator sets the same env on the desktop.
+- F30 code half parked (not tiny): WIP on feature/laptop-queue-12.
+- Never re-file a fronted fix run: renamed requests (20191231T...) show as "withdrawn" (F15).
+- Next: #572 checker verdict -> `checker` status -> tell the Orchestrator; then check -9 / -10 PRs when their leads say.
+
 **Test Runner SAVE 66 (2026-10-26 ~15:20, new session [301bc7] after the swap; wins over SAVE 65):**
 - Service healthy (task running), train 121 sharded 4189+4192 at boot. Claude Docs connector off.
 - #552 (laptop-queue-8b, fix, head 2fbfbd30): check + checker green, affected-e2e queued behind train 121.
