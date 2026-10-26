@@ -53,8 +53,10 @@ await run('autostart=warehouse&mode=mission', async ({ page, G, sim }) => {
   for (const t of ['termA', 'termB']) {
     await go(t);
     await sim(0.3);
-    const prompt = await G(() => document.querySelector('.hud-interact')?.textContent ?? '');
-    assert(/Hack terminal/.test(prompt), `interact prompt near ${t} ("${prompt.trim()}")`);
+    // (runner-armed triage) since G5 (the hold-A action menu, d2bb25db9) the centre prompt is blank outside a team move
+    // (`GameState.updateInteract`): the item in reach is a row of the context menu (`contextMenuStep`)
+    const rows = await G(() => { const m = window.__app.current.ctxMenu; return m.opts.slice(0, m.count).map((o) => o.label).join(' / '); });
+    assert(/Hack terminal/.test(rows), `the action menu lists the hack near ${t} ("${rows}")`);
     await G(() => window.__pad.set(0, 1));
     await sim(3.4);
     await G(() => window.__pad.set(0, 0));

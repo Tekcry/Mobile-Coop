@@ -201,11 +201,21 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         const em = g.enemyMgr;
-        // the sniper's lane: 13 m down a clear floor
-        t.tp(8, 0, -4, 0);
+        // (runner-armed triage) a clear lane down the floor, as the enforcer's above: x 8 is not one (the conveyor,
+        // x -1..9 z 8.15..9.05, stands across it and (8, 9) is inside it, so the spawn snapped behind it and his straight
+        // press-in step ran into it)
+        const nav = em.nav;
+        let lx = 8;
+        for (let x = -2; x <= 22; x += 1) if (nav.lineClear([x, 7], [x, -4])) {
+          lx = x;
+          break;
+        }
+        t.tp(lx, 0, -4, 0);
         // (no alarm run: an alerted armed guard would otherwise go for a panel, as the sniper above)
         em.alarmRaised = true;
-        const e = t.spawn('runner', 8, 9, Math.PI, true);
+        const e = t.spawn('runner', lx, 7, Math.PI, true);
+        // the brain's trace (printed when he does not press in)
+        const trace = [];
         let strikes = 0;
         const prev = em.onEnemyMelee;
         em.onEnemyMelee = (x) => {
@@ -213,15 +223,19 @@ await run('autostart=warehouse&mode=clear', [
           prev?.(x);
         };
         try {
-          const feet = () => Math.hypot(e.pos.x - 8, e.pos.z + 4);
+          const feet = () => Math.hypot(e.pos.x - lx, e.pos.z + 4);
           const d0 = feet();
-          for (let k = 0; k < 16; k++) t.step(0.5);
+          for (let k = 0; k < 16; k++) {
+            t.step(0.5);
+            trace.push(`${e.state} los=${e.los ? 1 : 0} d=${e.dist.toFixed(1)} rf=${e.roundsFired} at=${e.pos.x.toFixed(1)},${e.pos.z.toFixed(1)}`);
+          }
           const d1 = feet();
-          return { fired: e.roundsFired, drawn: e.carry.drawn, gun: !!e['gun'], kindMelee: !!e.def.melee, strikes, d0, d1, state: e.state };
+          return { fired: e.roundsFired, drawn: e.carry.drawn, gun: !!e['gun'], kindMelee: !!e.def.melee, strikes, d0, d1, state: e.state, lx, trace };
         } finally {
           em.onEnemyMelee = prev;
         }
       });
+      if (!(r.d1 < r.d0 - 2)) console.log(`  runner (lane x ${r.lx}):\n    ${r.trace.join('\n    ')}`);
       assert(r.gun && !r.kindMelee, `the runner carries a gun model and no melee block (G298) (gun ${r.gun}, melee ${r.kindMelee})`);
       assert(r.drawn, `his gun is drawn in the fight (state ${r.state})`);
       assert(r.fired > 0, `the runner fires on the player (${r.fired} rounds)`);
