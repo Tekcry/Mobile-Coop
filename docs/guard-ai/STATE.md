@@ -1014,13 +1014,12 @@ docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape).
 Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
-Open (2026-10-26 ~22:40 SAVE; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
-   - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr label from the orchestrator). GA6a +
-     GA6b built (reports PIANO-GA6A-REPORT.md / PIANO-GA6B-REPORT.md). Master (train 138 = #603 + #588) merged in at
-     4bb733e14 from temp worktree -guard-ai-piano-sweep-m (walker.step(dt, x, z, bodyYaw, away); sweep walks goTo, off
-     it homeStep). Two Opus checkers running on 89f13ef1c -> PIANO-GA6-CHECK-A.md (+ merge section) / -B.md (not
-     committed yet: commit both on the branch, post checker, CI + affected-e2e then run). Campaign told 4bb733e14.
+   - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
+     4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
+     Fix round 1fe0bc3f6 (22:48): Opus re-check of A running -> "Re-check 1fe0bc3f6" in slices/PIANO-GA6-CHECK-A.md;
+     CI + affected-e2e (1 suite) queued on 1fe0bc3f6. PASS -> orchestrator posts checker, final head to Campaign.
    - GA5 DONE (PIANO-GA5-REVIEW.md); all six deltas on #617 (937603b46). Campaign's TODO: assert sweepPeriod(G4) ===
      sweepPeriod(G5) once GA6a is on master and re-tune the end waits (told: lap adds 0.8 s slack + turn time per leg).
 2. #588 play pass A: MERGED (train 138).
@@ -1032,6 +1031,6 @@ Open (2026-10-26 ~22:40 SAVE; target: Michael walks the mill Tue 27 Oct morning,
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
    autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: GA6b report -> final head to Campaign -> PR + two Opus checkers; tell the orchestrator as #603 / #611 / #588 /
-#317 go green.
+Next: re-check verdict on 1fe0bc3f6 -> PASS: orchestrator posts checker on #624, tell Campaign the final head; FIX:
+Opus fix round. #317: co-op group affected-e2e running -> green: tell the orchestrator train-ready.
 ```
