@@ -1014,6 +1014,8 @@ docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape).
 Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
+STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
+builders; #317 / #588 / #611 and the rest pause after their current runs until the orchestrator's resume (~03:52).
 Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
@@ -1033,6 +1035,6 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: #624 e910abee2 and #317 affected-e2e verdicts (background waits) -> green: tell the orchestrator train-ready;
-red: Opus triage.
+Next: #624 e910abee2 affected-e2e -> green: tell the orchestrator train-ready; red: Opus triage. #317: log its
+running verdict only; act after the orchestrator's resume.
 ```
