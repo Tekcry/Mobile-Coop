@@ -43,7 +43,8 @@ describe('AF5: mocap is the only player path (BRIEF A1)', () => {
     for (const c of calls) expect(c).not.toMatch(/mocapLoco/);
     expect(app).not.toMatch(/applyMocapSwitch\(/);
     // the boot and every settings change go through the same resolver: the source, then url, then the tuner box
-    expect(app).toMatch(/applyAnimSource\(\{ setting: this\.settings\.get\(\)\.gameplay\.animSource, url: flags\.anim, mocapUrl: flags\.mocap, mocapTuner, mixamoUrl: flags\.mixamo \}\)/);
+    // (F45) the setting, Mixamo on /preview/ until picked
+    expect(app).toMatch(/applyAnimSource\(\{ setting: settingAnimSource\(this\.settings\.get\(\)\.gameplay, PREVIEW_ON\), url: flags\.anim, mocapUrl: flags\.mocap, mocapTuner, mixamoUrl: flags\.mixamo \}\)/);
     expect(app).toMatch(/get: \(\) => ANIM_SOURCE\.mocap/);
     // the tuner box does not write the save
     expect(app).not.toMatch(/d\.gameplay\.mocapLoco\s*=/);
