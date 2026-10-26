@@ -7,7 +7,7 @@ Owner: Night Shift | Player Build. Status: current.
   the `pianoEscape` flag and the scene switch in `src/game/pianoScene.ts`.
 - Branch `feature/piano-knife` in `C:/NightShift/Mobile-Coop-piano-knife`, base master 1b58989ed.
 - Docs: `BRIEF.md` (Michael's words, picks, A1-A15), `PLAN.md` (today with file:line, design, claims, slices, PB map,
-  Campaign answered), `S1-BRIEF.md` (the next slice, full), `CLIP-LIST.md` (7 Mixamo downloads, blocked on sign-in),
+  Campaign answered), `S1-BRIEF.md` (the next slice, full), `CLIP-LIST.md` (6 Mixamo downloads; 2 in, 4 coming),
   this file.
 - Phase: plan fix round 1 applied (plan check FIX, 8 items + polish; Campaign answers; paired kill). No code.
 - Slices: S1 paired knife kill core on stand-ins (Opus ~1200, two Opus checkers) | S3 co-op (Opus
@@ -25,7 +25,7 @@ Owner: Night Shift | Player Build. Status: current.
   `src/player/moveState.ts:65-67`.
 
 ## For the orchestrator
-- Mixamo: the 7 CLIP-LIST clips need Michael's sign-in; nothing before S2 waits on them.
+- Mixamo: the 6 CLIP-LIST clips (Horizontal dropped): 2 in, the rest coming; nothing before S2 waits on them.
 - To Campaign: timings (BRIEF A15), the `setKnifeScene` call for `pianoScene.ts` (PLAN 2.1), the co-op split (PLAN 3).
 
 Next: the orchestrator passes the fix round to the plan checker (or signs off); then the lead starts S1 (from

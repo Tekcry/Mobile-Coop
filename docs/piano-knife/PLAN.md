@@ -137,8 +137,9 @@ attacker clip, victim clip, `seconds` 1.3, `contact` 0.45, `victimFrom` 0, `limp
 behindLow), `_from_right` (corner), `_the_front` (front). S2 pairs (Campaign answers): Stabbing + Falling Forward Death
 (behind), Standing Melee Attack Downward + Falling Back Death (corner), Stabbing + Dying (front and the crouched rise),
 or a CMU 18-23 two-person take if one fits. `pickKnifeKill(kind, crouched)`: behind -> 0 / 1, corner and overCover ->
-2, front and side -> 3, else -1. No slash row (A10, Michael ~20:05). With the switch on, `takedownController` refuses
-the RT close strike and every non-lethal takedown path (S1), so the only takedown is the paired knife kill.
+2, front and side -> 3, else -1. No slash row (A10, Michael ~20:05). Palm strike off (S1, outside the pure file):
+with the switch on, `gameState.ts:2191-2192` passes no strike start to `StrikeController` (RT tap / hold / altFire do
+nothing) and `takedownController` takes no non-lethal path, so the only takedown is the paired knife kill.
 
 2.6 Co-op (S3; G400). No new message. A client with its switch on sends `kind: 'knife'` on `td` `start` and `done` in
 every mode (today only `done`, only course). The host denies a knife `start` when its own switch is off, and uses
@@ -165,13 +166,14 @@ Files (Player Build; files of other owners get one-line hooks only):
   `src/anim/killDrive.ts`, `tests/knifeKill.test.ts`, `tests/killDrive.test.ts`, `tests/knifePair.test.ts`,
   `tests/knifeTakedown.test.ts` (S1), `tests/knifeWire.test.ts` (S3), `tests/introPose.test.ts` (S4b),
   `scripts/mocap/knifePairs.mjs` (S2), `src/anim/clips/mixamo/knife/*.ts` (S2, generated), `docs/piano-knife/*`.
-- Edited: `src/game/takedownController.ts`, `src/game/gameState.ts` (menu rows :1518-1525 only), `src/ai/enemy.ts`
+- Edited: `src/game/takedownController.ts`, `src/game/gameState.ts` (menu rows :1518-1525 and the strike start
+  :2191-2192, S1), `src/ai/enemy.ts`
   (`knifeVictim` beside `beginTakedown`; Guard AI told), `src/anim/animGraph.ts` (the `kill` field and one hook line),
   `src/weapons/knifeModel.ts` (`tipWorld`), `src/anim/studio.ts` + `src/game/studioStage.ts` (knife pair rows),
   `docs/art-credits.md` ("Used by" for the S1 stand-ins; S2 rows), `src/anim/mocapSources.ts`,
   `scripts/mocap/data/mixamo-clips.json` (S2), `src/player/moveState.ts`, `src/game/localMoveState.ts`,
   `src/net/remoteAvatar.ts`, `src/net/enemyPuppet.ts`, `src/net/coopClient.ts`, `src/net/coopHost.ts`,
-  `src/net/protocol.ts` (`cmove` lethal bit), `src/game/strikeController.ts` (S3), `src/weapons/weaponMesh.ts`,
+  `src/net/protocol.ts`, `src/weapons/weaponMesh.ts`,
   `src/weapons/weaponModel.ts`, `scripts/weapons/py/build_weapon.py`, `src/weapons/assets/pistolSd.glb` (S4a),
   `docs/systems/takedowns.md` ("Knife kills (piano scene)", S1).
 - Not touched: `src/core/flags.ts` (Campaign owns `pianoEscape`), `src/game/pianoScene.ts` (Campaign writes the two
@@ -180,10 +182,10 @@ Files (Player Build; files of other owners get one-line hooks only):
   S3 starts from master after #599 merges (or rebases onto it before its first commit). (2) Campaign S4 edits
   `coopHost.ts`, `coopClient.ts` for the scene's co-op. Split: Campaign S4 does the revive cap (`coopHost.ts:205`), the
   client's intro end on the host's EMP and the two-tab `e2e-piano`; Player S3 does the `td` knife kind, the host gate and
-  noise, the MoveState sub bits, the remote attacker and victim poses and the host's refusal of a client's RT strike. Campaign S4 waits for S3
+  noise, the MoveState sub bits, the remote attacker and victim poses and the host's refusal, while its switch is on, of a client's RT strike (`cmove` strike) and of any non-knife `td start`. Campaign S4 waits for S3
   (PB4); if they overlap in time, the second to merge rebases.
-- Wire: `td.kind` value `'knife'` on `start` and `done`; MoveState `takedown` `sub` bits 1-4 (S3); `cmove` strike
-  lethal bit (S3). No new message, no `PROTOCOL_VERSION` bump (the train does it). Save paths: none. Maps: none.
+- Wire: `td.kind` value `'knife'` on `start` and `done`; MoveState `takedown` `sub` bits 1-4 (S3).
+  No new message, no `PROTOCOL_VERSION` bump (the train does it). Save paths: none. Maps: none.
 
 ## 4. Slices
 Campaign's asks mapped (their PLAN "Player Build asks"): PB5 scene switch -> S1; PB1 behind standing -> S1 (paired, on
@@ -196,7 +198,8 @@ block Campaign S4, so S1 then S3 go first.
 - S3 Co-op (Opus, ~800; `src/net`, two independent Opus checkers): 2.6. Starts after S1 merges and
   after #599 merges. Reads `knifeKill.ts`, never edits it. Tests: `tests/knifeWire.test.ts` (sub bits round trip;
   host denies knife `start` with its switch off; host noise 1.2 only with it on; both bodies sampled from one phase
-  within 3 cm; two kills inside `DUAL_WINDOW` on guards 1-2 m apart end with bodies at least 0.5 m apart),
+  within 3 cm; two kills inside `DUAL_WINDOW` on guards 1-2 m apart end with bodies at least 0.5 m apart; switch on: the host
+  ignores a client's `cmove` strike and refuses a non-knife `td start`, so no client knockout; switch off: unchanged),
   `tests/moveState.test.ts`, `tests/protocolConst.test.ts`, `tests/elbowStrike.test.ts`. Laptop: exactly `e2e-coop` +
   `e2e-netmove` + `e2e-ctcourse`; the scene's two-page run is Campaign S4's `e2e-piano`. Must land before Michael walks
   the scene (A10).

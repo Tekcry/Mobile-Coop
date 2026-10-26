@@ -36,8 +36,10 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
      | front | mocap_cross_punch | mocap_rifle_death_from_the_front | 1.3 | 0.45 | 0.8 | 0.55 | 0 | pi | shoulder | chest |
      `victimFrom` 0 on every row.
    - Palm strike off (A10, Michael ~20:05 "Palm strike knockout disabled, only knife kills, and no slashing, only
-     animations with the guard"): while the switch is on, `takedownController` refuses the RT close strike and every
-     non-lethal takedown path (no prompt offered); switch off = today. Test in `tests/knifeTakedown.test.ts`.
+     animations with the guard"): while the switch is on, `gameState.ts:2191-2192` passes no strike start to `StrikeController` (RT tap,
+     RT hold and altFire do nothing) and `takedownController` takes no non-lethal path (no knockout, no grab row); every
+     takedown is the paired knife kill. Switch off = today. Tests in `tests/knifeTakedown.test.ts`: switch on, RT tap /
+     hold / altFire start no strike and knock nobody out; switch off, unchanged.
    - `pickKnifeKill(kind: TakedownKind, crouched: boolean): number`: `behind` -> crouched ? 1 : 0; `corner`,
      `overCover` -> 2; `front`, `side` -> 3; every other kind -> -1.
    - `loadKnifeClips(): Promise<void>` (dynamic `import()` of the six clip modules into a module table, once; a second
@@ -137,13 +139,13 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
   before contact aborts and releases; damage after contact finishes; knife hidden and both drives null at the end.
 - Existing, must stay green: `tests/takedown.test.ts`, `tests/takedownAlloc.test.ts` (add: a knife run allocates
   nothing per step), `tests/mocapGuards.test.ts`, `tests/grabMenu.test.ts` (add: switch on = no grab row),
-  `tests/mocapSources.test.ts`, `tests/dualTakedown.test.ts`.
+  `tests/mocapSources.test.ts`, `tests/dualTakedown.test.ts`, `tests/elbowStrike.test.ts`.
 
 ## Checks
 - `npm run typecheck:fast`
 - `npx vitest run tests/knifeKill.test.ts tests/killDrive.test.ts tests/knifePair.test.ts tests/knifeTakedown.test.ts
   tests/takedown.test.ts tests/takedownAlloc.test.ts tests/mocapGuards.test.ts tests/grabMenu.test.ts
-  tests/mocapSources.test.ts tests/dualTakedown.test.ts`
+  tests/mocapSources.test.ts tests/dualTakedown.test.ts tests/elbowStrike.test.ts`
 - Laptop: the PR head's `affected-e2e`; the lead requests `e2e-coop` + `e2e-netmove` (`request.mjs`; `src/game`,
   RULES test table) and the checkers pass only when they are green.
 - Two independent Opus checkers. Each confirms: switch off changes nothing; no `src/net` import or edit; nothing
