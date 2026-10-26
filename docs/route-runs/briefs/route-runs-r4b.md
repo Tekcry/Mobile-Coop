@@ -1,4 +1,4 @@
-status: open
+status: done feature/route-runs-r4b f8b0429c8 (PR #510)
 # J13 route-runs, slice R4b (Opus-grade brief): the robot pair on ?net=local
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 6fab6ef0f). R1-R3 are on master; R4a is the
@@ -160,3 +160,114 @@ page check pending PC run) but would likely need a full local fix round.
   (`src/game/gameState.ts:1348-1365`), so R4a's objective step ends stuck at `scripts/route-run/driver.mjs:921`. Hold A
   for an objective whose def says hold (read the hold time from the objective, not a constant); taps stay for the rest.
   Checker report: C:/NightShift/scratch/marlow/j13-r4a-check-2.md.
+
+## Builder report (appended by the lead)
+
+# J13 route-runs R4b report: the robot pair (plus the R4a recheck hack fix)
+
+Builder: Opus 5.5. Branch `feature/route-runs-r4b`, worktree C:/NightShift/Mobile-Coop-route-runs-r4b.
+Head: **f8b0429c8080012f35e9a44e405408a674537645**. Base ee27da535 (PR #499 not merged when I started). No PR opened yet.
+Commits: 903e858f1 (hack fix), 5dc6336e9 (WIP save: the pair), f8b0429c8 (bake wait, changelog, size trims).
+node_modules is a junction to C:/NightShift/Mobile-Coop-menu/node_modules (repointed after the cleanup note).
+
+## What changed (plain words)
+- Every map now runs with two robots by default. The leader walks on the host page; the follower walks on the client
+  page about 2 m behind, crouched, opening doors on its way. Both pages are stepped from Node in turns of 0.2 s of game
+  time (host first, then client, then a short pause so the two pages can talk). Time is the host's game seconds.
+- At a split the leader walks leg a and the follower leg b at the same time; whoever reaches the meeting space first
+  waits there, then the follower goes back to trailing.
+- At a co-op link (a boost) the follower walks to a spot 1 m beside the leader, both stand there for the link's time,
+  then both are placed on the far side (follower placed the e2e-ctcourse `moveClient` way, and the harness checks the
+  host sees it within 0.4 m). Logged once per link with its time and `robots: ['leader','follower']`.
+- If the trailing follower gets stuck (8 s with no progress along the leader's path) it is a dead stop with
+  `robot: 'follower'`, a picture from the client page, then it is placed beside the leader and the run goes on.
+- Each detection / notice names the robot the guard rose on (cause record slot if given, else the robot in his view
+  cone, else the nearer). One guard rise is one line.
+- Hack fix (R4a recheck item 1): a hold objective (S2's 3 s hack) is now held down. The driver presses A once, reads the
+  held context menu, moves the highlight onto the item row with the D-pad if a door or guard row is listed first, and
+  keeps A down until the phase changes. The "did the use start" check watches the item's progress (not
+  `run.downloading`). The limit comes from the item's own hold time + 5 s.
+- Found and fixed on the way: R4a passed the objective hold as a length to `stepLimit`, so every objective had a flat
+  5 s limit, which S1's 10 s download would hit. Now: hack = hold + 5, download = 30 + 5 (the page does not give its
+  length), tap = 5.
+
+## Files (all inside the brief's list; the hack fix needed only driver.mjs and the test)
+- `scripts/route-run/pair.mjs` (new): pure parts `bootPath`, `pairBoot` :54, `splitRoles`, `RejoinWait` :65,
+  `besideOf` / `stubSpots` :104, `attributeRobot` :114, `ClockWatch`, `lockTick` :158; `PairDriver` :174 (waits and one
+  pump stepping both pages, `placeFollower` :307, `trailStall` :370, stub `linkStep` :381, `split` :408,
+  `nameRobots`, `ready` :453, pair `advanceSector` :465); `openPair` :497 (the boot).
+- `scripts/route-run/driver.mjs`: hold objective `holdA` :193, `holdStep` :209, `objectivePoint` :798 (gives `hold`),
+  `objectiveStart` :809, limit :1221; follower role: `trailPoll` :393, TRAIL mode :454, `tick(maxS, lIdle)` :563
+  (follower events latched, `dt` / `walking` returned), `follow` :659, plus `pairStart`, `pairReady`, `allowTeleport`,
+  `remoteNear`, `sectorSkip`, `trailAt`, `pos`; damage off for remotes; rises carry both robots. `runOne` :1040 now runs
+  `runSteps` :1109 (shared by the run and each split leg); `PageDriver` takes `role` and has `advance(s)`.
+- `scripts/route-run.mjs`: default players :361, pair boot :390 (course bay > 1: reboot with the host's `courseBay`),
+  `stepsForPath` split items :163, selftest lines `split` / `stub` / `robots` :258, ctx `clock` / `advance` / `pads` /
+  `client`, pair section setup :500, `--dry-run` uses a graph's embedded points.
+- `tests/fixtures/route-run/selftest-pair.graph.json` (new): R1's S1 copy + `split:fx:a` on s1-lane, `split:fx:b` on
+  s1-lawn, `meta.note` saying it is fixture-only, R1's points, `expect.players: 2`, two runs (split + boost 17; second
+  boost 18).
+- `tests/routeRunPair.test.ts` (new), `changes/feature-route-runs-r4b.md` (new, kind patch).
+
+## Tests
+- `tests/routeRunPair.test.ts`: 13 / 13 (3 hold-objective, 2 boot, 2 roles / spots, 2 attribution, 1 lockstep,
+  3 two-page runs against vm fakes driving the real PairDriver + runOne: the fixture's split + stub passes
+  `checkSelftest`; a guard rise on the follower names the follower; a pinned trailing follower is a follower dead stop).
+- R1-R4a: routeRunCli 39, routeRunPlan + routeRunProgress + routeRunReport: 105 / 105 together with Cli; all five
+  files 118 / 118.
+- `npm run typecheck:fast`: clean. eslint on the test file: clean (scripts are eslint-ignored).
+- `node scripts/route-run.mjs --dry-run --graph tests/fixtures/route-run/selftest-pair.graph.json`: no browser; prints
+  split blocks (see deviation 2).
+
+## Size
+`node scripts/pr-size.mjs --base ee27da535 --head HEAD`: PASS, 1493 counted (pair.mjs ~530, driver ~480, test ~370,
+CLI ~110). Fixture and changelog not counted. Very little room for a fix round: a checker fix may need `big-pr`.
+
+## Deviations
+1. Default `--players 2` lives in `main` (route-run.mjs:361), not in `parseArgs`: R4a's tests/routeRunCli.test.ts
+   asserts `parseArgs` returns players 1 with no flag, and I may not edit it. A selftest takes its fixture's
+   `expect.players` (R4a's 1, mine 2). Lead option: flip `parseArgs`' default and R4a's two assertions together.
+2. The dry-run of the pair fixture prints the split blocks but R1's planner marks all three S1 runs UNPLANNABLE
+   (s1-lane also links to the gatehouse and s1-lawn to the forecourt, so the planner picks other rejoins). The selftest
+   walks fixed paths and does not use the planner, so it is unaffected. A clean planner split would need links 1, 2, 7
+   dropped from the fixture (no longer a faithful copy) or a planner change (R1's file). Lead's call.
+3. Robot names: `leader` / `follower` on the pair; a one-robot run still says `host` (R4a's test asserts it).
+   causes.mjs still names `host` / `client`; the pair renames each line after `readCauses` (driver poll side, as the
+   brief allows). A camera alarm has no guard position, so it names the leader.
+4. Additions not spelled out in the brief: after a leader placement (dead-stop recovery) the follower is placed 1 m
+   beside it so the trail restarts there; the trail also restarts by itself when the avatar jumps over 3 m between
+   polls. A trailing follower's dead stop is filed under the leader's current link.
+5. Lobby boot (campaign and other modes): e2e-net-lib `hostAndJoin` opens the client with `net=local` only, so caller
+   params like `?campusv2` reach the host page only (e2e-net-lib is not mine to change).
+6. Sector Ops sections after S1 in pair mode: both robots are placed at the connector checkpoint (follower 1 m beside)
+   to start the cycle. Untested on a page; only matters for `--section S2` and later.
+7. The host's lamp bake (campusOps) is waited for up to 120 s of wall time after both pages join, then noted if
+   unfinished (its boot returns at the lobby, before the bake).
+
+## Pending PC runs (laptop queue, E2E_GPU=1, alone; open the PR first and put its number in `--pr`)
+SHA=f8b0429c8080012f35e9a44e405408a674537645
+- Pair selftest (verdict `laptop-e2e/alone-route-run-selftest-pair`):
+  `node scripts/laptop-queue/request.mjs --sha $SHA --pr <n> --alone --step "serve scripts/route-run.mjs http://127.0.0.1:4189/ --selftest tests/fixtures/route-run/selftest-pair.graph.json --players 2" --set route-run-selftest-pair --requester "Night Shift | Marlow Build"`
+- R4a's one-page selftest still green:
+  `node scripts/laptop-queue/request.mjs --sha $SHA --pr <n> --alone --step "serve scripts/route-run.mjs http://127.0.0.1:4189/ --selftest --players 1" --set route-run-selftest --requester "Night Shift | Marlow Build"`
+- S1 pair code routes (twice, for same detections at the same times within 0.2 s):
+  `node scripts/laptop-queue/request.mjs --sha $SHA --pr <n> --alone --step "serve scripts/route-run.mjs http://127.0.0.1:4189/ --graph tests/fixtures/route-run/campusOps-S1.graph.json --routes code --section S1 --players 2" --set route-run-s1-pair --requester "Night Shift | Marlow Build"`
+  and the same with `--set route-run-s1-pair-2`. (`--graph` is required by the CLI; the S1 fixture gives the map.)
+- With Sector Ops' v2 build on the head: the same step with `http://127.0.0.1:4189/?campusv2=<n>` and
+  `--set route-run-s1-pair-v2`.
+- Hack fix live check (S2's 3 s hack held, no step-timeout on the objective):
+  `node scripts/laptop-queue/request.mjs --sha $SHA --pr <n> --alone --step "serve scripts/route-run.mjs http://127.0.0.1:4189/ --graph tests/fixtures/route-run/campusOps-S1.graph.json --routes code --section S2 --players 2" --set route-run-s2-pair --requester "Night Shift | Marlow Build"`
+
+## For the lead / other slices
+- The brief's "append the report to the brief, then `status: done`" lives in docs/route-runs/** (the lead's files):
+  please append and set `status: done feature/route-runs-r4b f8b0429c8`.
+- steps.mjs (R5) header: ctx now carries `clock()` (a function, the host's game seconds) and `advance(s)` (steps every
+  page in lockstep); `pads.host` / `pads.client` are filled at two players. R5 / R9 should use `ctx.advance`, never
+  step a page themselves.
+- causes.mjs (R7): if its cause record gives a target slot, put it on the line as `slot` (0 host, 1 client); the pair
+  then uses it before the cone / distance rule.
+- steps.mjs polish item 2 from the R4a recheck (stub hold cut short still logs full hold) is untouched.
+
+## Lead (2026-10-26 ~11:40)
+- Opus checker PASS (scratch/marlow/j13-r4b-check.md): no blocking fixes, deviations 1-7 accepted. PR #510; laptop alone runs filed (selftest-pair, selftest, s1-pair, s1-pair-2, s2-pair).
+- Deviation 2 (fixture dry-run not plannable): accepted for R4b; follow-up in a later slice: a fixture whose leg spaces touch only the fork and rejoin, or an R1 planner look.
