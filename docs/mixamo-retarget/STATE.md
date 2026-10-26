@@ -150,3 +150,37 @@ Pack driver (2026-10-26, feature/mixamo-i7; plan: [BATCH2-PLAN.md](BATCH2-PLAN.m
 At the save (05:30, 2026-10-26, branch feature/mixamo-i9 on I7 7b076225; I6 cccb7b45 report/MIXAMO_LOCO commits not in this base):
 - Done: read the brief (BATCH2-PLAN I9, PLAN, M3/I6 reports); no dump started, no Blender run, no lock taken; no code yet.
 - Left: copy raw dumps + manifest from Mobile-Coop-mixamo-retarget-m4 build/mocap/mixamo; dump the 123 new files under heavy(2).lock; I7 emitter options (pack, travel -z/auto, mirror, place) if missing; recipes, emit, Studio rows, CLIPS.md, art-credits rows, tests, I9-REPORT, changes/feature-mixamo-i9.md.
+
+At the save (2026-10-26 ~08:50, feature/mixamo-i9):
+- Merged origin/feature/mixamo-i6 (9f5847d04). Dump done: all 123 new files dumped (161 in build/mocap/mixamo/raw; heavy.lock taken and released in the same command; no Blender running). Take self-check 123/123 OK, leg scale 0.993 on every pack.
+- I7 parts done (uncommitted before this save): mixamoDup.mjs (0 duplicates under 1 cm; aa_walking 3.8, aa_run_to_stop 1.8, aa_crouched_sneaking_left 4.9 cm: kept, Studio only), emitter travel -z / auto, mirror, place, pack titles; mixamoTake mirrorTake / travelHeading; KeyedTravel '-z'; studio.ts glob for clips/mixamo/studio/.
+- I9: 108 keyed recipes, all emitted (24 game, 84 studio/), 108 Studio rows, 108 credits rows. 24 gaits fell back to loops (19 duty 0: toe-first / backward contacts, 5 no clean strikes; 4 of them game slots: I9-REPORT "Numbers").
+- Left: fix 2 test fails (pistol_strafe planted-foot errs 0; aa_left_turn row cycle 0.017 < 0.2), tsc rerun, CLIPS.md check, I9-REPORT, changes/feature-mixamo-i9.md, final STATE.
+
+I7 + I9 built (2026-10-26, feature/mixamo-i9): see [I9-REPORT.md](I9-REPORT.md).
+- Done: I6 merged; mixamoDup (0 of 18 pairs dropped), recipe options (pack, travel -z / auto, mirror, place), 123 dumped, 108 keyed
+  clips emitted (24 game slots, 84 Studio only in clips/mixamo/studio/), rows, credits, CLIPS.md, TESTING line, changelog.
+  tsc green; 20 vitest files pass (273 + 1 skip); eslint clean. 24 gaits fell back to loops (duty 0 / no strikes), 4 of them game slots.
+- Left: checker; laptop e2e-studio, anim-audit; I8 (lazy load, studio/ off the entry chunk); I10 / I13 wiring; I11 channel clips (15).
+
+At the save (2026-10-26, I9 fix round, feature/mixamo-i9 on 438830085):
+- Lazy glob: not done (no code changed). Found: the 24 new game-slot modules are named by no game code (mixamo.ts imports
+  batch 1 / I4 / I6 by path), so they and clips/mixamo/studio/ can go behind one non-eager glob; batch 1 / I4 / I6 stay eager.
+- Merge of origin/feature/mixamo-i6 (ba01d0f7): not started. Polish (stale "5 gaits" line, toe-first pin item in I10 / Left, ~1.9 MB): not done.
+- Left: all of the fix round (lazy CAPTURE_CLIPS fill on opening the capture group / Set filter Mixamo or All, test of 108 rows, build entry-chunk grep and size before / after), the i6 merge, polish.
+
+At the save (2026-10-26 ~10:35, I9 fix round, feature/mixamo-i9, head before this commit 7692c5804):
+- Done: merged origin/feature/mixamo-i6 ba01d0f7 (32ac667d3; conflicts kept both sides: I4 turn / armIn + I7 options,
+  rows for the I4 stance cycles; 7 vitest files 79 pass). Lazy load (d9abca110): `src/anim/studioCapturesLazy.ts` (the 24
+  game slots + studio/, one chunk), `studio.ts` eager glob minus those names, `loadStudioCaptures()` once from the
+  studio stage and the panel (Loop list refills); tests/studioCapturesLazy.test.ts (108 rows after the fill). tsc green,
+  eslint clean, 14 related vitest files 187 pass. Polish (7692c5804): 24 gaits line, toe-first pin window in I10, changelog.
+- Left: `npm run build` waiting on heavy.lock (laptop-queue holds it; take --wait 120 running), entry-chunk size before /
+  after and the studio/ name grep, I9-REPORT numbers, final STATE line.
+
+I9 fix round done (2026-10-26 ~10:45, feature/mixamo-i9):
+- Build (heavy.lock, released): entry `index-*.js` 4,064.17 kB (gzip 1,382.45) after; lazy `studioCapturesLazy-*.js`
+  1,422.51 kB (gzip 531.39), 108 clips; before ~5,487 kB (gzip ~1,914; entry + lazy, not built separately). Entry grep:
+  `name:"mocap_aa_idle"` / `rifle_jump_up` / `pistol_idle` 0, `mocap_walking` 1 (50 clip modules left in the entry).
+- I9-REPORT "Lazy load" section, tests, left list updated. Left: checker on the new head; laptop e2e-studio, anim-audit;
+  I8 `ensureMixamo` (batch 1 off the entry); I10 / I13 wiring (move a wired slot out of the lazy patterns); I11.

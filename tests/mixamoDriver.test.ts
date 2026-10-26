@@ -3,7 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
 // @ts-expect-error - plain ESM script without types
-import { blenderArgs, dumpAll, listClips, PACK_NAME, planDumps, slugOf } from '../scripts/mocap/mixamo.mjs';
+import { blenderArgs, clipTitle, dumpAll, listClips, PACK_NAME, planDumps, slugOf } from '../scripts/mocap/mixamo.mjs';
+// @ts-expect-error - plain ESM script without types
+import { dupPairs, markDups, poseDistance, slugTail } from '../scripts/mocap/mixamoDup.mjs';
 
 /** The 21 files as downloaded (2026-10-25 19:00-19:12) and their Clip map slugs. */
 const CLIP_MAP: [string, string][] = [
@@ -379,5 +381,83 @@ describe('mixamo dump driver: pack folders (I7)', () => {
     expect(third.ran.map((c: Clip) => c.slug)).toEqual(['rifle_walk_forward']);
     const only = await dumpAll({ dir: DIR, outDir: OUT, only: ['pistol_strafe_2'], force: true, deps: fs.deps });
     expect(only.ran.map((c: Clip) => c.slug)).toEqual(['pistol_strafe_2']);
+  });
+
+  it('(I9 polish) a linked pack-* folder warns and is skipped; another link is silent', () => {
+    const link = (name: string) => ({ name, isDirectory: () => false, isSymbolicLink: () => true });
+    const readdir = (dir: string) => (dir === DIR ? ['Walking.fbx', link('pack-rifle'), link('old')] : []);
+    const warned: string[] = [];
+    const warn = (m: string) => warned.push(m);
+    const clips: Clip[] = listClips(DIR, { readdir, warn });
+    expect(clips.map((c) => c.slug)).toEqual(['walking']);
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toMatch(/pack-rifle is a link/);
+  });
+
+  it("(I9 polish) --only fills the kept rows' pack and title from their file", async () => {
+    const fs = fakeFs(['Standing Idle.fbx', 'Walking.fbx', 'pack-rifle/idle.fbx']);
+    const mPath = path.join(OUT, 'manifest.json');
+    fs.dumps.set(mPath, {
+      clips: [
+        { file: 'Standing Idle.fbx', slug: 'standing_idle' },
+        { file: 'pack-rifle/idle.fbx', slug: 'rifle_idle' },
+        { file: 'Cross Punch.fbx', slug: 'cross_punch', pack: null, title: 'X' },
+      ],
+    } as never);
+    await dumpAll({ dir: DIR, outDir: OUT, only: ['walking'], deps: fs.deps });
+    const m = JSON.parse(fs.written.get(mPath)!);
+    expect(m.clips.map((c: { file: string; pack: string | null; title: string }) => [c.file, c.pack, c.title])).toEqual([
+      ['Cross Punch.fbx', null, 'X'],
+      ['Standing Idle.fbx', null, 'Standing Idle'],
+      ['Walking.fbx', null, 'Walking'],
+      ['pack-rifle/idle.fbx', 'pack-rifle', 'Pro Rifle Pack: idle'],
+    ]);
+  });
+
+  it('(I9 polish) clipTitle: the pack name and title in a pack folder, else the title', () => {
+    expect(clipTitle('pack-rifle/walk forward.fbx')).toBe('Pro Rifle Pack: walk forward');
+    expect(clipTitle('Standing Idle.fbx')).toBe('Standing Idle');
+  });
+});
+
+describe('mixamo duplicate check (I7, scripts/mocap/mixamoDup.mjs)', () => {
+  type Tk = { frames: number; pos: Map<string, number[][]> };
+  /** A synthetic take: two slots, the root walking +z at `speed` from `start`, a hand swinging by `swing` metres. */
+  const take = (frames: number, start: number[], speed = 1, swing = 0.1): Tk => ({
+    frames,
+    pos: new Map([
+      ['root', Array.from({ length: frames }, (_, i) => [start[0]!, 0.9, start[2]! + (speed * i) / 120])],
+      ['lhand', Array.from({ length: frames }, (_, i) => [start[0]! - 0.3, 1, start[2]! + (speed * i) / 120 + swing * Math.sin(i / 10)])],
+    ]),
+  });
+
+  it('pairs a pack clip with the root clip (else the first) of the same slug tail', () => {
+    expect(slugTail('aa_walking', 'pack-action-adventure')).toBe('walking');
+    expect(slugTail('pistol_idle', 'pack-pistol')).toBe('idle');
+    expect(slugTail('walking', null)).toBe('walking');
+    const clips = [
+      { slug: 'walking', pack: null }, { slug: 'aa_walking', pack: 'pack-action-adventure' }, { slug: 'shooter_walking', pack: 'pack-shooter' },
+      { slug: 'rifle_idle', pack: 'pack-rifle' }, { slug: 'aa_idle', pack: 'pack-action-adventure' }, { slug: 'standing_idle', pack: null },
+    ];
+    expect(dupPairs(clips)).toEqual([['walking', 'aa_walking'], ['walking', 'shooter_walking'], ['aa_idle', 'rifle_idle']]);
+  });
+
+  it('measures after aligning the start roots, and marks dupOf under 1 cm with the same length', () => {
+    expect(poseDistance(take(121, [0, 0, 0]), take(121, [3, 0, -2]))).toBeCloseTo(0, 9);
+    expect(poseDistance(take(121, [0, 0, 0]), take(121, [0, 0, 0], 1, 0.15))).toBeCloseTo(0.05, 3);
+    const takes: Record<string, Tk> = {
+      walking: take(121, [0, 0, 0]), aa_walking: take(121, [1, 0, 1], 1, 0.104), // 4 mm: the same motion
+      running: take(121, [0, 0, 0], 3), aa_running: take(121, [0, 0, 0], 3, 0.2), // 10 cm: another take
+      run_to_stop: take(121, [0, 0, 0]), aa_run_to_stop: take(141, [0, 0, 0]), // same pose path, 5 frames longer at 30 fps
+    };
+    const manifest = { clips: Object.keys(takes).map((slug) => ({ slug, pack: slug.startsWith('aa_') ? 'pack-action-adventure' : null, dupOf: 'stale' })) };
+    const { pairs } = markDups(manifest, { load: (s: string) => takes[s]! });
+    const row = (s: string) => manifest.clips.find((c) => c.slug === s) as { dupOf?: string; dupCm?: number };
+    expect(row('aa_walking')).toMatchObject({ dupOf: 'walking', dupCm: 0.4 });
+    expect(row('aa_running').dupOf).toBeUndefined();
+    expect(row('aa_running').dupCm).toBeCloseTo(10, 0);
+    expect(row('aa_run_to_stop').dupOf).toBeUndefined();
+    expect(row('walking').dupOf, 'a stale mark on a root clip is cleared').toBeUndefined();
+    expect(pairs.filter((p: { dup: boolean }) => p.dup)).toHaveLength(1);
   });
 });
