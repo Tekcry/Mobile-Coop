@@ -6,9 +6,9 @@ Process as below. Newest: scratch/campaign/lead-notes.md section "Session after 
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Orchestrator 13:32: desktop CPU 100%, NO new local builders until it sends "go: start builders"; tsc / vitest builders
 go to cloud-queue; local checks via scratch/ctcore/low.mjs.
-1. Engine feature/mission-engine 6be3da64b (claims block, Q9) on c213437e9 (= 377e4c608 + BRIEF A25-A28: C4 big-pr only, wharf as C9-C16, stacked
+1. Engine feature/mission-engine 5760c6deb (PR T merged; claims block 6be3da64b, Q9) on c213437e9 (= 377e4c608 + BRIEF A25-A28: C4 big-pr only, wharf as C9-C16, stacked
    members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
-2. PR T feature/tallow-throw 34e92c991 (checker PASS), laptop tallow-prt running. Green -> merge into the engine FIRST.
+2. DONE PR T laptop green, merged into the engine 5760c6deb.
 3. PR G1 feature/tallow-fixes c648c5d85 (checker PASS), laptop tallow-prg1 running. Green -> engine after T. Then C3.
 4. PR C split: C1 #521 feature/mission-c1-core 9419b8f29 (base master), C2 #522 feature/mission-c2-rules 29892a271
    (base C1; missionText.test moved to C12). Laptop co-op gate only: prc-c1 025035 / prc-c2 025041. Reports prc-c1-check.md /
