@@ -688,6 +688,20 @@ export function carryFrom(chain, filesBetween, live = () => false) {
 export const carryDesc = (sha) => `carried from ${String(sha).slice(0, 8)}, docs-only delta`;
 
 /**
+ * A PR head's carry chain (laptop-queue-8 A12): `git log --first-parent -n <depth> --format=%H <H>` lines (newest first)
+ * minus H itself, cut before the merge-base with origin/master (master's own commits never carry an affected-e2e
+ * verdict). The merge-base not within the lines: every line after H (the depth bounds the walk).
+ */
+export function prChain(lines, mergeBase) {
+  const out = [];
+  for (const sha of (lines ?? []).map((l) => String(l).trim()).filter(Boolean).slice(1)) {
+    if (mergeBase && sha === mergeBase) break;
+    out.push(sha);
+  }
+  return out;
+}
+
+/**
  * auto-train's build marker (auto-train-building.json, { train, version, pid, at }, written while `merge-train build`
  * runs): null when absent (text null), else { train, key, ageMs, stale }. Its age is from `at` (the file's mtime when
  * unreadable); stale = not younger than maxMs (a marker left by a killed auto-train never blocks for good).

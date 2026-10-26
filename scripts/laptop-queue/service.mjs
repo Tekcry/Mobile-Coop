@@ -100,6 +100,10 @@
 // (LQ_GREEN_FIRST; LQ_GREEN_MAX_WAIT_MIN bound), then arrival. A moved train head carries a docs-only verdict or runs
 // (carryMoved, LQ_TRAIN_CARRY). An aged alone gets the gap after the coming train (LQ_ALONE_GAP; lastTrainEnd, also
 // bumped by this worker's own final train verdict: bumpTrainEnd).
+// laptop-queue-8: fixes first (PR label `fix` or request.mjs --fix; LQ_FIX_FIRST) and a superseding request keeps the old
+// one's queue place (`place`); a run on an old head stops when a newer head of the same PR queues (LQ_STOP_SUPERSEDED) and
+// a train preempt keeps passed suites (`kept`, LQ_KEEP_FINISHED). Desktop: fixes, then the smallest request, none over
+// LQ_DESKTOP_MAX_MIN 15 at one job; LQ_DESKTOP_CPU_MODE normal|total. A docs-only PR commit carries affected-e2e (LQ_PR_CARRY).
 // Slot locks (2026-10-25): heavy-lock.mjs parseLock reads both lock formats, so a desktop slot lock left by a killed
 // service ("laptop-queue | ... pid <n> | <iso>", pid dead here) is broken at the gate like a dead heavy-lock line.
 import { execFileSync, spawn } from 'node:child_process';
@@ -108,7 +112,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -161,6 +165,7 @@ const STOP_SUPERSEDED = process.env.LQ_STOP_SUPERSEDED !== '0'; // laptop-queue-
 const KEEP_FINISHED = process.env.LQ_KEEP_FINISHED !== '0'; // laptop-queue-8 A10: 0 = a preempted run reruns all its suites
 const DESKTOP_MAX_S = Number(process.env.LQ_DESKTOP_MAX_MIN ?? 15) * 60; // laptop-queue-8 A9: longer runs are left to the laptop (0 = no limit)
 const CPU_MODE = process.env.LQ_DESKTOP_CPU_MODE === 'total' ? 'total' : 'normal'; // laptop-queue-8 A11: desktop gate load (lib gateCpu)
+const PR_CARRY = process.env.LQ_PR_CARRY !== '0'; // laptop-queue-8 A12: 0 = every PR head runs its affected-e2e (no docs-only carry)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -480,6 +485,7 @@ function affectedPass() {
         if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: head older than ${AFFECTED_MAX_AGE_MS / 3600_000} h, no auto request`); }
         continue;
       }
+      if (PR_CARRY && !(n.conflicting && SKIP_CONFLICTING) && prCarry(n, reqs)) continue; // laptop-queue-8 A12
       const got = affectedSuites((args) => git(args), n.sha);
       if (!got) {
         if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: no merge-base with origin/master here (fork or not fetched), skipped`); }
@@ -504,6 +510,53 @@ function affectedPass() {
       postStatus(n.sha, 'pending', AFFECTED_CTX, `queued: ${got.suites.length} suite(s), laptop-e2e/affected`);
     }
   } catch (e) { log(`affected pass failed: ${String(e.message).split('\n')[0]}`); }
+}
+
+/** PR heads whose carry check said "runs" (read once per head per process; a wait reads again). */
+const prCarryChecked = new Set();
+const prCarryWaitLogged = new Set();
+
+/**
+ * Docs-only verdict carry for a PR head H (laptop-queue-8 A12; laptop-queue-7's lib carryFrom / carryFiles / carryDesc):
+ * the chain is H's first-parent commits back to the merge-base with origin/master (at most LQ_TRAIN_CARRY_DEPTH, lib
+ * prChain), each with its affected-e2e state; live(P) = an open, claimed or running affected request on P. A success on
+ * the newest final verdict with a docs-only delta -> affected-e2e success "carried from <C8>, docs-only delta" (true);
+ * an older pending head with a live affected request and a docs-only delta -> H waits this pass (true); else false (H
+ * runs as before). A git or gh error -> false. Only affected-e2e: the leads' laptop-e2e/<set> and checker never carry.
+ */
+function prCarry(n, reqs) {
+  if (prCarryChecked.has(n.sha)) return false;
+  const mergeBase = git(['merge-base', 'origin/master', n.sha], { soft: true });
+  if (!mergeBase) return false;
+  const lines = git(['log', '--first-parent', '-n', String(TRAIN_CARRY_DEPTH), '--format=%H', n.sha], { soft: true }).split('\n');
+  const chain = prChain(lines, mergeBase);
+  if (chain.length === 0) { prCarryChecked.add(n.sha); return false; }
+  const rows = [];
+  try {
+    for (const c of chain) {
+      const st = gh(['api', `repos/${REPO}/commits/${c}/status`, '--jq', `[.statuses[] | select(.context == "${AFFECTED_CTX}") | .state][0] // ""`]).trim();
+      rows.push({ sha: c, laptop: st });
+      if (st === 'success' || st === 'failure' || st === 'error') break;
+    }
+  } catch (e) {
+    log(`affected: #${n.pr} ${n.sha.slice(0, 8)}: carry status read failed, runs as before: ${String(e.message).split('\n')[0]}`);
+    return false;
+  }
+  const live = (p) => reqs.some((r) => r?.sha === p && r.requester === AFFECTED_REQUESTER);
+  const got = carryFrom(rows, (c) => filesBetween(c, n.sha), live);
+  if (got?.from) {
+    if (!postStatus(n.sha, 'success', AFFECTED_CTX, carryDesc(got.from))) return false;
+    affectedSeen.add(n.sha);
+    log(`affected: #${n.pr} ${n.sha.slice(0, 8)}: carried from ${got.from.slice(0, 8)}, docs-only delta`);
+    return true;
+  }
+  if (got?.wait) {
+    const key = `${n.sha} ${got.wait}`;
+    if (!prCarryWaitLogged.has(key)) { prCarryWaitLogged.add(key); log(`affected: #${n.pr} ${n.sha.slice(0, 8)}: waits for ${got.wait.slice(0, 8)}, docs-only delta`); }
+    return true;
+  }
+  prCarryChecked.add(n.sha);
+  return false;
 }
 
 /** When both slots went idle with an empty queue (null: not idle), and the last spare wait reason logged. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -2085,5 +2085,34 @@ describe('train head moves (trains 111 / 112)', () => {
   it('carryDesc fits a status description', () => {
     expect(carryDesc('546a2286' + 'f'.repeat(32))).toBe('carried from 546a2286, docs-only delta');
     expect(carryDesc(sh('9')).length).toBeLessThan(140);
+  });
+});
+
+describe('docs-only carry for PR heads (laptop-queue-8 slice E)', () => {
+  const H = 'h'.repeat(40);
+  const P1 = '1'.repeat(40);
+  const P2 = '2'.repeat(40);
+  const MB = 'm'.repeat(40);
+  it('prChain drops the head and cuts before the merge-base', () => {
+    expect(prChain([H, P1, P2, MB, 'x'], MB)).toEqual([P1, P2]);
+    expect(prChain([` ${H} `, '', P1], MB)).toEqual([P1]); // merge-base past the depth: every line after H
+    expect(prChain([H], MB)).toEqual([]);
+    expect(prChain([H, MB], MB)).toEqual([]);
+    expect(prChain([], MB)).toEqual([]);
+  });
+  it('a docs-only commit after a green affected head carries; a .ts commit runs', () => {
+    const chain = prChain([H, P1, MB], MB).map((sha: string) => ({ sha, laptop: 'success' }));
+    expect(carryFrom(chain, () => ['docs/laptop-queue-8/STATE.md', 'changes/x.md'])).toEqual({ from: P1 });
+    expect(carryFrom(chain, () => ['docs/laptop-queue-8/STATE.md', 'src/game/x.ts'])).toBeNull();
+    expect(carryFrom(chain, () => ['docs/kestrel/map.json'])).toBeNull(); // a non-.md file under docs/ runs
+    expect(carryFrom(chain, () => null)).toBeNull(); // git error
+  });
+  it('an older pending head with a live affected request waits; no live request skips it', () => {
+    const chain = [{ sha: P1, laptop: 'pending' }, { sha: P2, laptop: 'failure' }];
+    const docs = () => ['README.md'];
+    expect(carryFrom(chain, docs, (p: string) => p === P1)).toEqual({ wait: P1 });
+    expect(carryFrom(chain, docs, () => false)).toBeNull(); // P2 failed: never skipped
+    expect(carryFrom([{ sha: P1, laptop: 'pending' }, { sha: P2, laptop: 'success' }], docs, () => false)).toEqual({ from: P2 });
+    expect(carryFrom([{ sha: P1, laptop: '' }], docs)).toBeNull(); // no verdict anywhere: H runs
   });
 });
