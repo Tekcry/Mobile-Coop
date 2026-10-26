@@ -2,29 +2,37 @@
 Owner: Night Shift | Player Build. Status: current.
 
 ## Resume
-- Job: knife kill animations + intro pose for the piano escape scene (ROADMAP Now row 20, main focus). Player's part
-  only; Campaign (`feature/piano-escape`) owns scene, map, intro camera, music, EMP and the `pianoEscape` flag.
+- Job: knife kill animations (paired, Michael ~19:45) + intro pose for the piano escape scene (ROADMAP Now row 20, main
+  focus). Player's part only; Campaign (`feature/piano-escape`) owns scene, map `pianoWorks`, intro camera, music, EMP,
+  the `pianoEscape` flag and the scene switch in `src/game/pianoScene.ts`.
 - Branch `feature/piano-knife` in `C:/NightShift/Mobile-Coop-piano-knife`, base master 1b58989ed.
-- Docs: `BRIEF.md` (Michael's words, picks, A1-A13), `PLAN.md` (today with file:line, design, claims, slices, S1 full
-  brief in section 5, Campaign needs in section 6), `CLIP-LIST.md` (7 Mixamo downloads), this file.
-- Phase: plan written; not yet passed by a fresh Opus plan checker. No code.
-- Slices: S1 knife kill core solo (Opus ~850) | S2 knife clips + contact measure (Opus ~450) | S3 co-op wire (Opus
-  ~750, two Opus checkers) | S4a empty-pistol slide (Sonnet ~200 + Blender GLB) | S4b intro pose (Opus ~400) | S5 more
-  approaches + RT knife slash (Opus ~700, two Opus checkers).
-- Can start now without downloads or Campaign answers: S1 (placeholder clips: Cross Punch + Pro Rifle Pack deaths,
-  `PIANO_MAP_ID` placeholder `'piano'`) and S4a.
-- Blocked: S2 on CLIP-LIST K1 / V1-V3; S4b on I1 and S4a; S5 on S2, S3 and Campaign's approach list (PLAN Q-C4).
-- Key pointers: `src/game/takedownController.ts:240-290` (start), `:670-760` (run), `:812-846` (finish); menu
-  `src/game/gameState.ts:1518-1525`; graph hook `src/anim/animGraph.ts:2119`; studio pair precedent
-  `src/game/studioStage.ts:515-540`; victim `src/ai/enemy.ts:835`; co-op `src/net/coopHost.ts:888-937, 1752`,
-  `src/net/coopClient.ts:1188-1200`, `src/player/moveState.ts:65-67`.
-- Open for Campaign (PLAN section 6): Q-C1 map id + start hook, Q-C2 flag name, Q-C3 guard count / types, Q-C4
-  approach types, Q-C5 intro operators / wall spot / length / close-up, Q-C6 knife shown all scene or only in kills,
-  Q-C7 "every guard down" rule and bodies.
-- Gate rule (BRIEF A1): knife kills only when `pianoEscape` is on AND the map is the piano map; host refuses `td`
-  kind `knife` otherwise; clips load only from `setKnifeScene(true)`.
+- Docs: `BRIEF.md` (Michael's words, picks, A1-A15), `PLAN.md` (today with file:line, design, claims, slices, PB map,
+  Campaign answered), `S1-BRIEF.md` (the next slice, full), `CLIP-LIST.md` (7 Mixamo downloads, blocked on sign-in),
+  this file.
+- Phase: plan fix round 1 applied (plan check FIX, 8 items + polish; Campaign answers; paired kill). No code.
+- Slices: S1 paired knife kill core on stand-ins (Opus ~1200, two Opus checkers) | S3 co-op + RT knife slash (Opus
+  ~900, two Opus checkers, after #599) | S2 real clips + CMU 18-23 check (Opus ~450, after the Mixamo sign-in) | S4a
+  empty-pistol slide (Sonnet ~200 + Blender GLB) | S4b intro pose (Opus ~400). Old S5 dropped (no ledges; slash to S3).
+- Campaign blockers: PB1 + PB5 (S1) and PB4 (S3) block Campaign S4, so S1 then S3 first.
+- Can start now: S1 and S4a (2 builders). Blocked: S3 on S1 and #599; S2 on Michael's Mixamo sign-in and S1; S4b on
+  S4a.
+- Every `src/game` / `src/player` slice: the lead requests `e2e-coop` + `e2e-netmove` as the checker gate.
+- Briefs one slice ahead only (ROADMAP Decided ~19:22): S3's full brief is written when S1 is in review.
+- Key pointers: `src/game/takedownController.ts:227` (start), `:670-723` (run), `:727` (frameUpdate), `:761-794`
+  (grab hands IK), `:812-846` (finish), `:57-82` (`TakedownVictim`); menu `src/game/gameState.ts:1518-1525`; graph hook
+  `src/anim/animGraph.ts:2119`; studio pair precedent `src/game/studioStage.ts:515-540`; victim `src/ai/enemy.ts:835`;
+  co-op `src/net/coopClient.ts:208-210, :508, :1188-1200`, `src/net/coopHost.ts:888-937` (noise :933), `:1752`,
+  `src/player/moveState.ts:65-67`.
 
-Next: a fresh Opus plan checker reads BRIEF + PLAN; on PASS the orchestrator asks Michael to download CLIP-LIST and the lead starts S1 and S4a in parallel.
+## For the orchestrator
+- Tell Michael (known gap, A10): until S3 lands, the RT close strike in the piano scene is the palm-strike knockout, not
+  a knife; S3 fixes it before he walks the scene.
+- Mixamo: the 7 CLIP-LIST clips need Michael's sign-in; nothing before S2 waits on them.
+- To Campaign: timings (BRIEF A15), the `setKnifeScene` call for `pianoScene.ts` (PLAN 2.1), the co-op split (PLAN 3).
+
+Next: the orchestrator passes the fix round to the plan checker (or signs off); then the lead starts S1 (from
+`S1-BRIEF.md`) and S4a in parallel.
 
 ## Done
 - 2026-10-26: BRIEF, PLAN, CLIP-LIST, STATE written (Opus planner).
+- 2026-10-26: plan fix round 1 (Opus fixer): check items 1-8 + polish, Campaign answers, paired kill, S1-BRIEF.
