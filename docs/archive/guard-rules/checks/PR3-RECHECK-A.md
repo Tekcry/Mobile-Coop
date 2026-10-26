@@ -70,7 +70,7 @@ None.
 1. `tests/barkCause.test.ts:328`: the `hearTurn` case uses a fresh guard, so it passes with or without the fix. Run it
    after `glimpseAndDrain(g, 'unaware')` to pin the exact S7 case (a lookout's drained glimpse must not make a footstep
    turn read `RISE_SIGHT` and radio `spotCall`).
-2. `docs/guard-rules/BRIEF.md:88-90` (A8) still names two appended events. Lead: log `saw` (39) and widen the undo to
+2. `docs/archive/guard-rules/BRIEF.md:88-90` (A8) still names two appended events. Lead: log `saw` (39) and widen the undo to
    "map `heard`, `saw` and `spotCall` back to `investigate` and restore its sight line".
 3. Carried from check A, still open and harmless: `stimX` / `stimZ` are the last stimulus, not necessarily the cause's
    spot (a glimpse plus a later noise: `RISE_SIGHT` at the noise point); dogs' smell counts as sight (`rate`). One
