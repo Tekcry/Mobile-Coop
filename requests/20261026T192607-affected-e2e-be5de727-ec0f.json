@@ -1,0 +1,13 @@
+{
+  "id": "20261026T192607-affected-e2e-be5de727-ec0f",
+  "sha": "be5de72741098d7b4d2d1b88ff5e8ffd50d7e06e",
+  "branch": "fix/f5-netmove-strike",
+  "pr": 663,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #663"
+}
