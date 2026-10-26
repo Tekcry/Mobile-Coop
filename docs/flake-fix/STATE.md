@@ -9,10 +9,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   checker PASS carried and posted. #552 (-8b): master conflict in service.mjs fixed (prCarry kept + master's cap), head
   bf5c060f, fresh Opus checker PASS posted. Orchestrator labels both once CI is green.
 - #570 (-10b): Player's; Orchestrator asked Player to fix its conflicts.
-- NEW F50 (auto-train hold to the PR's expected CI finish) + F51 (re-check request conflicts when master moves):
-  laptop-queue-15, worktree C:/NightShift/Mobile-Coop-laptop-queue-15 from master 1b58989e; Opus builder running; PR
-  promised ~22:00.
-- Next: builder result -> fresh Opus checker -> PR (label fix) -> `checker` status -> tell the Orchestrator.
+- F50 (auto-train hold to the PR's expected CI finish) + F51 (re-check request conflicts when master moves): PR #597
+  (laptop-queue-15, head d530e831, label fix), Opus checker PASS posted, Orchestrator told. Merges clean with #552 / #587.
+- Efficiency rule (Michael ~19:22): at most 2 builders, Sonnet builders where RULES allow, background waits.
+- Next: watch the train with #552 / #587 / #597; re-merge master on any that conflicts after a sibling ships.
 
 **Test Runner SAVE 69 (2026-10-26 ~18:45, session [627e4d]; wins over SAVE 68):**
 - Orchestrator 18:10 priority after failed trains 125 / 127: all three items built and checked.
