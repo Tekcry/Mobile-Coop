@@ -1,7 +1,28 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~12:35 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
+## RESUME 2026-10-26 ~13:50 (Night Shift | Campaign Build, after the 13:00 swap; read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
+report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
+Orchestrator 13:32: desktop CPU 100%, NO new local builders until it sends "go: start builders"; tsc / vitest builders
+go to cloud-queue; local checks via scratch/ctcore/low.mjs.
+1. Engine feature/mission-engine c213437e9 (= 377e4c608 + BRIEF A25-A28: C4 big-pr only, wharf as C9-C16, stacked
+   members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
+2. PR T feature/tallow-throw 34e92c991 (checker PASS), laptop tallow-prt running. Green -> merge into the engine FIRST.
+3. PR G1 feature/tallow-fixes c648c5d85 (checker PASS), laptop tallow-prg1 running. Green -> engine after T. Then C3.
+4. PR C split: C1 #521 feature/mission-c1-core 9419b8f29 (base master), C2 #522 feature/mission-c2-rules 29892a271
+   (base C1; missionText.test moved to C12). Laptop prc-c1 / prc-c2 requested. Checker reports prc-c1-check.md /
+   prc-c2-check.md -> post `checker` status. After C1 PASS: claims block in docs/missions/PLAN.md on C1 (Q9, docs-only).
+5. G4 done (cloud) feature/tallow-fixes-g4 06c1bc4a6: Sonnet checker tallow-g4-check.md. G2 reopened on cloud-queue
+   (branch head 3c4aaa4b4 = steps 1-10, 12; tests left). Both done + PASS -> merge c648c5d85 + G2 + G4 into
+   tallow-fixes-2 (G2 checker Opus; FIX -> Opus fix round).
+6. s1-polish done (cloud) feature/tallow-s1-polish b2df51d9a: two Opus checkers tallow-s1-polish-check-a.md / -b.md.
+   PASS x2 -> merge into tallow-shutters, then request the PR S (S-a) laptop set.
+7. Cloud open: campaign-net3-gate (Opus; done -> two Opus src/net checkers -> engine before C7), campaign-look-video
+   (Sonnet, base master; recorder for the W1-W4 videos, PC run on 4189 pending). Held in scratch cq/: E8, D1, S3, S4.
+Next: checker reports -> statuses / merges; laptop verdicts -> T then G1 into the engine; G2 / net3 / look-video pickups.
+
+## OLD RESUME 2026-10-26 ~12:35 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 11:25 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Desktop CPU ~90-99%: tsc / vitest builders go to cloud-queue (keep 1-2 open); local checks via scratch/ctcore/low.mjs.
