@@ -401,7 +401,7 @@ rule (a heavy landing retries the station).
   every takedown at the desk (the attackers stand 27-29 degrees off its axis, 4 m out), and station 10's retry never
   re-runs the loop, so the pair retried forever. Undo: back on `a4-loop` with station 10's retry re-pressing the loop.
 - **SA13 No-fail stations.** 1, 2, 11 and 12 have no guard, camera or drill, so they stay `retry: 'none'`. The cable
-  trench has step irons on its east face at both ends, so a fall is a walk back, never a soft-lock. A1 has one way out of
+  trench has step irons on its east face at both ends and between its two decks (marlow-play-2 C18), so a fall is a walk back, never a soft-lock. A1 has one way out of
   its own: a player who drops into the yard before the ladder is done (the wicket stays shut till both have been on the
   wall top) is retried after 5 s with nobody on or climbing the wall, cause `other`, both back at the live station's
   marks with its `:other` line (PLAN A26, Q5). Station 15: a hanger who lets go before the key drops into the pit and
