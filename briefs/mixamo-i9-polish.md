@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-26T02:31:23Z
 
 # Brief: mixamo I9 polish - Studio capture refill, retry, pack driver rows (Player Build)
 
