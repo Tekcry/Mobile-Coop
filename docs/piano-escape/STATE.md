@@ -6,14 +6,17 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
 1. Re-check 3 items L1a / L1b / L2 / L5 + polish applied to the PLAN (58a76a36d): period 91.03 = loopPeriod(); t0 to the
    client as one optional field of the `sector` message (claims: protocol.ts, S4); blackoutSearchSlots after fill(); S4
    pass line. SIGNOFF (sign-off 2) sent to the orchestrator ~20:58 for Michael's click (main Q + Q2 + Q3).
-2. On Michael's Approve: S1b greybox (Sonnet) from PLAN S1b; tell Sector Ops (SO2 / SO4) the branch + head.
-3. Building now (max 2): S2 intro + EMP (Opus) on feature/piano-escape-s2 (worktree -s2), brief
-   scratch/campaign/piano/S2-brief.md, report S2-report.md; on stubs (none of #602 / #603 / #604 on master: TODO lines).
-   S5 music A/B (Sonnet) on feature/piano-escape-s5 (worktree -s5), brief S5-brief.md, report S5-report.md.
-   Each done -> one checker (S2 Opus; S5 Sonnet) -> its own PR to master (or merge into feature/piano-escape if #606 still open).
+2. Michael APPROVED sign-off 2 ~20:55 (SIGNOFF + BRIEF Michael picked, 1d9e62f4b): Q2 only the two, Q3 pairs stay.
+   He reviews the next section after trialling this one.
+3. Building now (max 2): S1b greybox (Sonnet) on feature/piano-escape-s1b (worktree -s1b), brief
+   scratch/campaign/piano/S1b-brief.md, report S1b-report.md (lightning + rain as TODO consts until #604 / #603). On PASS:
+   tell Sector Ops the head (SO2 / SO4 build on it; told the branch ~21:05). S2 intro + EMP (Opus) on
+   feature/piano-escape-s2 (worktree -s2), brief S2-brief.md, report S2-report.md, on stubs (#602-#604 TODO lines).
+   S5 PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
+   Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
 4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
 5. Tallow: #522 merged; #578 train-ready (base master); then retarget #581 -> master, then #583.
-Next: wait for S2 / S5 and Michael's click; S1b on Approve; #578 train.
+Next: wait for S1b / S2; checker each; resume S5 when a slot frees; #578 train.
 
 ## OLD RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
 Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
