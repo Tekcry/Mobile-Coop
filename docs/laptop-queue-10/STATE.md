@@ -63,3 +63,13 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   order built when STACKED_LAST too, "order:" line adds "stacked <k> (last)". Tests: describe "pick: master-based before
   stacked (laptop-queue-10 S4)", 8 cases + the prBoard shape assert gains base / stacked; laptop-queue 253 + autoTrain
   71 = 324 pass; typecheck:fast clean. +113 / -17 (lib 18/7, service 12/7, tests 83/3).
+- 2026-10-26: S5 (Opus builder, feature/laptop-queue-10b, b2b49b62d): a quarantine forgives only its own failure (F26).
+  lib quarantineKeys (unique non-empty flake keys of the exact suite since the last start), quarantineForgives (keys:
+  only those; keyless or keys []: while now < keylessUntil; no entry: false). service LQ_QUARANTINE_KEYS,
+  LQ_KEYLESS_QUARANTINE_H (48), state.keylessSeen, updateBudget fills `keys` on auto entries (and clears that suite's
+  keylessSeen), checkQuarantine before rerunFlakes in runTrain and runRequest: a counted KNOWN FLAKY failure turns
+  flaky false, logs "<s>: quarantined for ..., this failure is "<key>": counts", gets the solo rerun and fails the
+  verdict. Deviation: a run-e2e KNOWN FLAKY with no live entry in the service's lists (the head's own quarantine file)
+  counts as keyless (48 h window), not at once. Tests: describe "quarantine keys (laptop-queue-10 S5)", 4 cases;
+  laptop-queue 257 + autoTrain 71 + e2eQuarantine 5 = 333 pass; typecheck:fast clean. +122 / -3 (lib 25/0, service
+  40/2, tests 57/1).
