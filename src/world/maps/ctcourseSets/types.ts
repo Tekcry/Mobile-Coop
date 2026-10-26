@@ -19,6 +19,7 @@
  */
 import type { CourseDevice, CourseObjective, DrillDef, GateDef, RadioLine, RoleClaim } from '../../../game/course/courseDef';
 import type { SecurityConsole } from '../../../game/course/securityRoom';
+import type { StationDef } from '../../../game/course/stationDef';
 import type { LaserDef } from '../../../game/jammer';
 import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { PassZone } from '../../../game/passZones';
@@ -275,7 +276,7 @@ export interface SetPart {
    *  pass (each circuit row with planned lamps has a lamp, a tuned light file per spot). Remove it in the set slice. */
   stub?: boolean;
   /** The bay: squad slots spawned when it starts, its gates, radio lines, drills and role claims (`BayDef`). */
-  bay: { squad: string[]; gates: GateDef[]; radio: RadioLine[]; drills: DrillDef[]; roles?: RoleClaim[] };
+  bay: { squad: string[]; gates: GateDef[]; radio: RadioLine[]; drills: DrillDef[]; roles?: RoleClaim[]; /** (J14) The bay's numbered stations (replan variant only). */ stations?: readonly StationDef[] };
   /** Objective steps in route order (`CourseObjective`, N1, bay = the set's bay id); the last without `done` is the line
    *  shown once the others are done ("Both of you into holding room two."). */
   objectives: CourseObjective[];
@@ -429,6 +430,23 @@ export function boxInSet(id: SetId, inner: Box, pad = 0): boolean {
   return false;
 }
 
+/** (J14) The highest station number: 18 badges, A8's badge is four retry steps (STATIONS.md), so 1-21. */
+export const STATION_MAX = 21;
+
+/** (J14) Station numbers unique across the parts of one course build; one line per problem. */
+export function checkStationNumbers(parts: readonly SetPart[]): string[] {
+  const bad: string[] = [];
+  const owner = new Map<number, string>();
+  for (const p of parts) {
+    for (const st of p.bay.stations ?? []) {
+      const was = owner.get(st.n);
+      if (was !== undefined) bad.push(`station number ${st.n} is in both ${was} and ${st.id}`);
+      else owner.set(st.n, st.id);
+    }
+  }
+  return bad;
+}
+
 /**
  * The contract's rules for one set part (the map test runs it on every part): ids by prefix, light groups in range,
  * every placed thing inside the set box, cameras within the budget, guards at most 3, objective steps in the set's bay
@@ -498,6 +516,18 @@ export function checkSetPart(p: SetPart): string[] {
     own(z.id, 'pass zone');
     own(z.flag, 'pass zone flag');
     if (!boxInSet(id, z.box, 0.01)) bad.push(at(`pass zone '${z.id}' is outside the set box`));
+  }
+  // (J14) the bay's stations (replan variant): numbers whole, 1-21 (A8's badge 18 is four steps) and unique; the array is
+  // play order and need not rise (A4 is 9, 8, 10); marks and the guards they reset the set's own. Unique across the course:
+  // `checkStationNumbers`.
+  const seenStation = new Set<number>();
+  for (const st of p.bay.stations ?? []) {
+    own(st.id, 'station');
+    if (!Number.isInteger(st.n) || st.n < 1 || st.n > STATION_MAX) bad.push(at(`station '${st.id}' number ${st.n} is not 1-${STATION_MAX}`));
+    else if (seenStation.has(st.n)) bad.push(at(`station '${st.id}' number ${st.n} is used twice in the bay`));
+    seenStation.add(st.n);
+    for (const m of st.marks) if (!inSet(id, m.x, m.z)) bad.push(at(`station '${st.id}' mark (${m.x}, ${m.z}) is outside the set box`));
+    for (const g of st.guards) if (!p.bay.squad.includes(g)) bad.push(at(`station '${st.id}' guard '${g}' is not in the bay's squad`));
   }
   for (const r of p.bay.roles ?? []) for (const d of r.press ?? []) if (!p.devices[d]) bad.push(at(`role claim device '${d}' is not the set's`));
   for (const c of p.camSpaces) if (!boxInSet(id, c.box, 0.01)) bad.push(at('a camera space is outside the set box'));

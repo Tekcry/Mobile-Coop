@@ -24,6 +24,7 @@ Owner: Sector Ops Build. Branch `feature/char-shadow-meter`, worktree `C:/NightS
 - Code anchors: meter gameState.ts:1659-1701; field lightField.ts:229-352, :413-432; picture capsules
   gameState.ts:907-914, bakedLamps.ts:692-724, GLSL :1312-1332; silhouette pick charShadowSet.ts:46-58, :197;
   perception enemy.ts:2447; bodies enemyManager.ts:3666-3675; settings settingsScreen.ts:339-340.
+- MUST-FIX BEFORE SWITCH-ON (2026-10-26, A2 check): S2c, a co-op client's partners in the contract (PLAN S2c row; cloud brief char-shadow-meter-s2c). Order S3b -> S2c -> S4.
 - Next: start a fresh Opus plan checker on BRIEF + PLAN at this branch head (PLAN-CHECK.md check 1 is the prior verdict).
 
 ## Done
