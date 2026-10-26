@@ -12,6 +12,8 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    scratch/campaign/piano/S1b-brief.md, report S1b-report.md (lightning + rain as TODO consts until #604 / #603). On PASS:
    tell Sector Ops the head (SO2 / SO4 build on it; told the branch ~21:05). S2 intro + EMP (Opus) on
    feature/piano-escape-s2 (worktree -s2), brief S2-brief.md, report S2-report.md, on stubs (#602-#604 TODO lines).
+   GA4 GuardActor = PR #611 (feature/guard-ai-piano-actor; API in its docs/guard-ai/slices/PIANO-GA4-REPORT.md): S2 told
+   to shape the stand-in seam to its API (TODO(#611)); swap in when #611 is on master (G1 + G2 need nav; start ~2 m back).
    S5 PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
    S5 also adds Michael's three Grohl-form prototypes (~21:15; grohl-a/b/c + grohl-form.mjs; brief addendum).
    Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
