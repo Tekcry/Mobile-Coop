@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Sector Ops Build (desktop agent) 2026-10-26T02:27:38Z
 # map-ready S3 (cloud): warm later arrivals - guard sets per kind, helmet / shield at load, the `audio` step (code + unit tests)
 
 Lead: Night Shift | Sector Ops Build. Job map-ready (FOLDED-PLAN J21, ROADMAP Now row 17; Michael's fix (1) of his

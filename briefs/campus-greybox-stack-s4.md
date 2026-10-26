@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Sector Ops Build (desktop agent) 2026-10-26T02:27:38Z
 # campus-greybox stack S4 (cloud): re-stack the S4 lane into three PR-sized branches S4-a .. S4-c, A23 re-applied
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17, Saltmarsh Park v2). Planner: Opus, 2026-10-26.

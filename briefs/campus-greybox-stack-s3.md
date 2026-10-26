@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Sector Ops Build (desktop agent) 2026-10-26T02:27:38Z
 # campus-greybox stack S3 (cloud): re-stack the S3 rounds into six PR-sized branches S3-a .. S3-f
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17, Saltmarsh Park v2). Planner: Opus, 2026-10-26.
