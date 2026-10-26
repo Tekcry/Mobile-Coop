@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.125.2 - Train 151: Storm scene guards: never stuck off their floor (2026-10-27, PR #647; #644)
+- (scene only, `?piano=1`) A guard who cannot get back up to his floor walks his sweep on the floor he is on and
+  tries the way up again every few seconds; a torch sweep cut short starts over when he is back.
+
 ## 4.125.1 - Train 150: Saltmarsh Park S2-S5 perimeter leaks (2026-10-27, PR #646; #637)
 - Sector Ops (v2 layout, sections 2-5): you can no longer get out of the campus. The HQ roof's low parapet could be
   climbed and dropped off on every side, and the sunshade under the window-cleaning rope could be walked off. In the
