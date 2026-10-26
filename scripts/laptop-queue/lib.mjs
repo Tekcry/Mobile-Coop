@@ -1518,10 +1518,25 @@ export function ghRetryable(e) {
 }
 
 /**
- * F46 + closed PRs: requests the claim gate reads the PR for: kind pr with a PR number, not a train rerun or spare work
- * (a laptop rerun of a desktop failure is checked too).
+ * F46 + closed PRs: requests the claim gate reads the PR for: kind pr with a PR number, not pinned (an A/B or baseline
+ * run on an older commit; request.mjs fills pr from the branch), not a train rerun or spare work (a laptop rerun of a
+ * desktop failure is checked too).
  */
-export const claimGated = (r) => r?.kind === 'pr' && Number.isInteger(Number(r.pr)) && Number(r.pr) > 0 && !r.trainRerun && r.requester !== SPARE_REQUESTER;
+export const claimGated = (r) => r?.kind === 'pr' && Number.isInteger(Number(r.pr)) && Number(r.pr) > 0 && !r.pin && !r.trainRerun && r.requester !== SPARE_REQUESTER;
+
+/** The workflow whose `check` job is the PR's CI (.github/workflows/deploy.yml `name`; preview.yml has a `check` job too). */
+export const CI_WORKFLOW = 'Build and deploy to GitHub Pages';
+
+/**
+ * F46: CI `check` failed in a statusCheckRollup: a `check` of CI_WORKFLOW concluded FAILURE; rows without a
+ * workflowName: some `check` FAILURE and none SUCCESS.
+ */
+export function ciCheckFailed(roll) {
+  const checks = (Array.isArray(roll) ? roll : []).filter((x) => x?.name === 'check');
+  const fail = (x) => String(x?.conclusion ?? '').toUpperCase() === 'FAILURE';
+  if (checks.some((x) => x.workflowName)) return checks.some((x) => x.workflowName === CI_WORKFLOW && fail(x));
+  return checks.some(fail) && !checks.some((x) => String(x?.conclusion ?? '').toUpperCase() === 'SUCCESS');
+}
 
 /**
  * F46 + closed PRs: why a gated request is withdrawn at claim time, '' to run it. pr = `gh pr view --json
@@ -1535,8 +1550,7 @@ export function claimSkip(r, pr) {
   if (state === 'CLOSED') return 'closed';
   const head = String(pr.headRefOid ?? '');
   if (head && head !== r.sha) return 'stale';
-  const check = (pr.statusCheckRollup ?? []).find((s) => s?.name === 'check');
-  if (head && String(check?.conclusion ?? '').toUpperCase() === 'FAILURE') return 'red';
+  if (head && ciCheckFailed(pr.statusCheckRollup)) return 'red';
   return '';
 }
 

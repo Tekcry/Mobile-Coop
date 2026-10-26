@@ -1789,9 +1789,16 @@ function skipAtClaim(r) {
   const why = claimSkip(r, pr);
   if (!why) return false;
   const statuses = claimSkipStatuses(r, why, pr?.headRefOid);
+  if (DRY) { log(`${r.id}: would be withdrawn at claim, ${statuses[0].description.replace(/^not run: /, '')}`); return true; }
+  // claim first (claimBlocks: another worker's live claim keeps it), then the done mark
+  const got = writeClaims([r.id], 'claim', `claim ${r.id} (to withdraw)`);
+  if (got === 'blocked') return true;
+  if (got !== true || writeClaims([r.id], 'done', `withdrawn ${r.id} (${why})`) !== true) {
+    if (got === true) writeClaims([r.id], 'release', `release ${r.id} (withdraw failed)`);
+    log(`${r.id}: withdraw push failed, retried next pass`);
+    return true;
+  }
   log(`${r.id}: withdrawn at claim, ${statuses[0].description.replace(/^not run: /, '')}`);
-  if (DRY) return true;
-  if (writeClaims([r.id], 'done', `withdrawn ${r.id} (${why})`) !== true) { log(`${r.id}: withdraw push failed, retried next pass`); return true; }
   state.done[r.id] = { result: `withdrawn-${why}`, date: new Date().toISOString(), key: dupKey(r) };
   doneSynced.add(r.id);
   saveState();

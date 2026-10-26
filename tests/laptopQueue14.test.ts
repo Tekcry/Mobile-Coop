@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { ownQuarantine, ghRetryable, claimGated, claimSkip, claimSkipStatuses, AFFECTED_CTX, AFFECTED_REQUESTER, SPARE_REQUESTER } from '../scripts/laptop-queue/lib.mjs';
+import { ownQuarantine, ghRetryable, claimGated, claimSkip, claimSkipStatuses, ciCheckFailed, CI_WORKFLOW, AFFECTED_CTX, AFFECTED_REQUESTER, SPARE_REQUESTER } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 26, 12, 0, 0);
 const SHA = 'a'.repeat(40);
@@ -64,6 +64,9 @@ describe('F46 claimSkip', () => {
     expect(claimGated(r())).toBe(true);
     expect(claimGated(r({ laptopRerun: true }))).toBe(true);
     expect(claimGated(r({ trainRerun: true }))).toBe(false);
+    // a pinned A/B or baseline run on an older commit (request.mjs fills pr from the branch) is never stale
+    expect(claimGated(r({ pin: true }))).toBe(false);
+    expect(claimSkip(r({ pin: true }), pr({ headRefOid: HEAD }))).toBe('');
     expect(claimGated(r({ requester: SPARE_REQUESTER }))).toBe(false);
     expect(claimGated(r({ pr: null }))).toBe(false);
     expect(claimGated(r({ kind: 'alone' }))).toBe(false);
@@ -85,5 +88,24 @@ describe('F46 claimSkipStatuses', () => {
   });
   it('nothing without a reason', () => {
     expect(claimSkipStatuses(r(), '')).toEqual([]);
+  });
+});
+
+describe('F46 ciCheckFailed: only the CI workflow check', () => {
+  const ci = (conclusion: string) => ({ name: 'check', workflowName: CI_WORKFLOW, conclusion });
+  const preview = (conclusion: string) => ({ name: 'check', workflowName: 'Preview check', conclusion });
+  it('a failed preview check is not CI', () => {
+    expect(ciCheckFailed([preview('FAILURE'), ci('SUCCESS')])).toBe(false);
+    expect(ciCheckFailed([preview('FAILURE')])).toBe(false);
+    expect(claimSkip(r(), pr({ statusCheckRollup: [ci('SUCCESS'), preview('FAILURE')] }))).toBe('');
+  });
+  it('a failed CI check is red whatever comes first', () => {
+    expect(ciCheckFailed([preview('SUCCESS'), ci('FAILURE')])).toBe(true);
+    expect(claimSkip(r(), pr({ statusCheckRollup: [preview('SUCCESS'), ci('FAILURE')] }))).toBe('red');
+  });
+  it('rows without a workflow name: a failure and no success', () => {
+    expect(ciCheckFailed([{ name: 'check', conclusion: 'FAILURE' }])).toBe(true);
+    expect(ciCheckFailed([{ name: 'check', conclusion: 'FAILURE' }, { name: 'check', conclusion: 'SUCCESS' }])).toBe(false);
+    expect(ciCheckFailed(null)).toBe(false);
   });
 });
