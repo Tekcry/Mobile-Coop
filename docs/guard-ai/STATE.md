@@ -1007,22 +1007,24 @@ quarantined; build toward playable pieces, not polish or tooling. Michael's play
 Michael 15:40: the orchestrator posts checker marks from the lead's reports (auto mode blocked self-posting).
 Michael 15:55: never held up - the first time you would wait on another session, message the orchestrator; never
 wait over 10 min.
-Open (2026-10-26 ~17:55 SAVE, new account; batch train 124 shipped 4.114.0, freeze over):
-1. #317 coop4 (ready): master 4.114.0 merged a98b041d9, merge check PASS (docs/coop4/checks/MERGE4*.md), head 709492af9.
-   coop4's named-only e2e-sectorops parts are now :10 / :11 / :12 (master's F33 took 6-9); alone runs name :10-:12.
-   Checker mark: reported to the orchestrator (auto mode blocks self-posting).
-2. #558 J15 PR3 (ready): master merged cd93bd3f0, merge check PASS (docs/guard-rules/checks/MERGE4-CHECK.md), head
-   c29ea923b. guardPairs / lookouts / dogRelease read darkFlag(.., PREVIEW_ON) (on in /preview/). Mark reported.
-   PR4 = feature/guard-rules-pr4 b111c9aa1 opens after #558 merges (merge master, merge check). J26 mission hooks after.
-3. PLAY PASS (orchestrator 16:07 goal): docs/guard-ai/PLAY-PASS.md on origin/feature/guard-ai-play (a53b6db21).
-   Slice A feature/guard-ai-home (worktree -guard-ai-home): guards get home after a search (P1-1 goTo fails -> walks
-   into walls), alarm runner gives up (P2-1), gallery guard keeps height (P2-2); test set e2e-stealth-ai.
-   Slice B feature/guard-ai-play (worktree -guard-ai-play): course alarmQuiet, spawnSquad / sector fill continue past
-   a failed spawn; tests/guardPlaySpawns.test.ts; test set e2e-section-rating. Both Opus builders RUNNING at the save.
-   Then: one Opus checker each (prototype mode), open PRs (patch), let affected-e2e (cap 1) run, report to orchestrator.
-4. Owner asks sent 17:50: Marlow #574 before the play (in train 127; else marlowReplan off on /preview/); Sector Ops
-   #525 (15-guard v2 S1), S1 v2 guard 14 needs a post (pair 5/14), land each campusV2 stack whole.
-5. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; coop4-pol list (MERGE3/4
-   checks: NetSession.roomCap unused); guardpairs=0 on the flag-off talking-pairs e2e; J16 perception half.
-Next: check slice A / B builder reports, checker each, open the two PRs; then PR4 after #558 merges.
+Open (2026-10-26 ~18:35 SAVE, orchestrator save before a likely swap; all worktrees pushed):
+1. #317 coop4 (ready): master 4.114.1 merged (PROTOCOL_VERSION = master's 70), merge 4 + 5 checks PASS
+   (docs/coop4/checks/MERGE4*/MERGE5-CHECK.md); checker status POSTED on cf86db768. Waits on its affected-e2e (src/net:
+   co-op group; the laptop service queues it). Green -> train-ready, tell the orchestrator. coop4's named-only
+   e2e-sectorops parts are now :10 / :11 / :12.
+2. #558 J15 PR3: checker POSTED on c29ea923b, CI + affected-e2e green -> train-ready (watchdog labels). After it
+   merges: PR4 = feature/guard-rules-pr4 b111c9aa1 (merge master, merge check, PR). J26 mission hooks after PR4.
+3. PLAY PASS (docs/guard-ai/PLAY-PASS.md on feature/guard-ai-play):
+   - #585 slice B (feature/guard-ai-play, worktree -guard-ai-play): check PASS, checker POSTED on 5485a2069;
+     affected-e2e pending. Polish: orphaned onEnemyJoined comment (courseMode.ts:1394-1407), PLAY-PASS slice B text.
+   - #588 slice A (feature/guard-ai-home, worktree -guard-ai-home): check B FIX (homeLongPlan 20000 A* = 4-8 ms per
+     call, no per-frame cap -> 100-180 ms hitch when a squad calms; docs/guard-ai/checks/PLAY-A-CHECK-B.md). Opus FIX
+     ROUND RUNNING at the save (one long plan per frame via the manager, smaller budget if tests pass, a two-guard
+     test; folds check A's items). Check A was running (writes PLAY-A-CHECK-A.md in that worktree, uncommitted).
+     After the fix: one Opus re-check of the fix head (both lists), post checker, report train-ready.
+4. Owners: Marlow #574 and Sector Ops #525 re-land (train 127 dropped them); the orchestrator told Michael to hold Marlow
+   Yard and S1 until they ship. Sector Ops did: S1 v2 smoker 14 post, campusV2 stacks whole (#529 #544 #547 #535).
+5. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; NetSession.roomCap unused;
+   guardpairs=0 on the flag-off talking-pairs e2e; autojoin 5th tab gets bye not "Room full"; J16 perception half.
+Next: read #588 fix round (git log origin/feature/guard-ai-home) and PLAY-A-CHECK-A.md; Opus re-check; post checker.
 ```
