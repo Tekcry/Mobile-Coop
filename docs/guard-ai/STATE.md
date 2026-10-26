@@ -1015,7 +1015,7 @@ Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
-builders; ~23:45 hold released, but pace: no new agent until the orchestrator's next pace message (a red #624 excepted).
+builders; 00:59 pace: up to 2 agents, piano first.
 Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
@@ -1035,6 +1035,8 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: #624 e910abee2 affected-e2e -> green: tell the orchestrator train-ready; red: Opus triage. #317 merges 10-11
-(MERGE10-CHECK.md PASS, checker posted on fca6b7b09): co-op group affected-e2e -> green: tell the orchestrator.
+Next: #624 TRAIN-READY (orchestrator, no-affected-e2e; the train's full run covers it). Piano asks GA1-GA7 all built.
+Opus builder on feature/guard-ai-piano-polish (worktree -guard-ai-piano-polish, stacked on #624): no-path-home give-up
++ pan restart -> report slices/PIANO-POLISH-REPORT.md -> checker -> PR after #624 lands. #317 fca6b7b09 (merges
+10-11, checker PASS): co-op group affected-e2e queued -> green: tell the orchestrator.
 ```
