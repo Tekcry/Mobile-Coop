@@ -62,7 +62,7 @@ try {
   assert(d.pressed && d.pressedBy === 'local', 'pad A sets off the EMP');
   assert(d.t0 >= 0, `the lightning t0 is the press time (${d.t0})`);
   assert(d.dark, 'the scene dark is on (sceneDark stand-in)');
-  assert(await G(() => window.__app.current.world.level.lights.countOn() === 0), `every lamp is dead (${d.lampsCut} cut)`);
+  assert(await G(() => window.__app.current.world.level.lights.lights.filter((l) => l.electric && l.on && !l.destroyed).length === 0), `every lamp is dead (${d.lampsCut} cut)`);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === true), 'input still held in the black-out beat');
   await sim(2.8);
   d = await dbg();
@@ -86,7 +86,7 @@ try {
   d = await dbg();
   assert(d.shot === 'play' && d.inPlay && !d.holdsSpawn, `the restart never replays the intro (${d.shot})`);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === false), 'input on after the restart');
-  assert(await G(() => window.__app.current.world.level.lights.countOn() === 0), 'the lamps stay dead after the restart');
+  assert(await G(() => window.__app.current.world.level.lights.lights.filter((l) => l.electric && l.on && !l.destroyed).length === 0), 'the lamps stay dead after the restart');
   assert(await G(() => window.__app.music.sceneActive === true), 'the scene music plays on through the restart');
 
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
