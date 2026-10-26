@@ -283,8 +283,7 @@ behind a VPN adapter).
 - `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
   restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
-- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course` (the second adds `&autojoin=1`: it
-  joins as a client with no 1.5 s probe, F7), Marlow Yard A1-A8 as four parts
+- `e2e-ctcourse` (marlow-final) two pages on `?net=local&autostart=ctcourse&mode=course` (client `&autojoin=1`, F7), Marlow Yard A1-A8 as four parts
   (`--part=N`, run as the jobs `:1` A1-A2, `:2` A3-A4, `:3` A5-A6, `:4` A7-A8; a part after the first starts at its first
   set through the host session's `courseBay`). `scripts/e2e-ctcourse.mjs` owns the helper object `t` (`t.A` host page,
   `t.B` client page, `until`, `assert`, `moveHost` / `moveClient`, `use`, the team-move and jammer helpers, `t.point(id)`)
