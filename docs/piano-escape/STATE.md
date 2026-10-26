@@ -1,7 +1,7 @@
 # piano-escape - STATE
 Owner: Night Shift | Campaign Build. Status: current.
 
-## RESUME 2026-10-26 ~22:20 SAVE (Night Shift | Campaign Build; read this block first; swap ~22:48)
+## RESUME 2026-10-26 ~22:30 SAVE (Night Shift | Campaign Build; read this block first; swap ~22:41)
 Main focus: the mill (Michael ~19:40). Worktrees C:/NightShift/Mobile-Coop-piano-escape[-s1b|-s2|-s4|-s5]; briefs, reports
 and checks in C:/NightShift/scratch/campaign/piano/. Prototype mode; the lead posts `checker`; docs pushes re-post it.
 PRs (all checker PASS, posted):
@@ -15,6 +15,8 @@ BUILDING: S4 (Opus) on feature/piano-escape-s4 = LOCAL INTEGRATION branch (orche
   sweep (feature/guard-ai-piano-sweep f622ae8b8, carries #603) + SO5 #604 (feature/piano-lights-so5); gameState.ts conflict
   kept both (sv seam + takedown.frameLate). Brief S4-brief.md (5 steps: swap S2 stubs, knife switch, co-op t0 field,
   co-op end, two-tab e2e), report S4-report.md (kept current). If cut off: resume from the report's next step.
+  At the save: step 1 DONE 02ea8de08 (real sceneDark / blackoutSearchSlots / lightning t0; MapDef.lightning + rain set);
+  steps 2-5 left (all worktrees pushed, nothing uncommitted). No extra laptop runs queued (automatic affected only).
   Done -> two Opus checkers (src/net) -> when the parts are on master, re-merge onto master and open its PR.
   Re-merge Guard AI's final sweep head when they send it (GA6b still finishing).
 Waiting on others: #603 / #604 (+ SO5b window lights) / #611 GuardActor (S2 TODO) / #614 + #620 knife / GA6-GA7 PR.
