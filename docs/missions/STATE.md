@@ -1,17 +1,19 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~14:30 (Night Shift | Campaign Build, read this block first)
-Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
+## RESUME 2026-10-26 ~15:00 (Night Shift | Campaign Build, after the 14:21 swap; read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
-CPU hold released 14:09. Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the orchestrator). Bypass mode:
-the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mjs.
+Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the orchestrator). Bypass mode: the lead posts `checker`
+statuses itself. Local checks via scratch/ctcore/low.mjs. Desktop CPU 82% at 14:55: no new local builders over ~80%.
 1. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate merged; claims block 6be3da64b; BRIEF A25-A28: C4 big-pr
    only, wharf as C9-C16, members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
-2. PR G1 feature/tallow-fixes c648c5d85 (PASS), laptop tallow-prg1 running. Green -> merge into the engine, cut C3
-   (prc-split-refresh.md row C3).
+2. PR G1 c648c5d85: laptop tallow-prg1 ran on the desktop slot 4191 and timed out (exit 124, 0/7 suites, 60 min cap
+   at E2E_JOBS=1); the queue posted failure and queued no laptop rerun (queue gap, told the orchestrator). Not rerun:
+   G2 below contains G1 with the same suites, so a green tallow-prg2 lands G1 + G2 together.
 3. PR G2 feature/tallow-fixes-2 2de5701c0 = G1 + G2 36a207232 + G4 06c1bc4a6 (each PASS; status posted; tsc + 413).
-   Laptop tallow-prg2 20261026T032051. Green (and G1 in) -> merge into the engine. Pawn-throw overhang: D1 LEAD NOTE.
+   Laptop tallow-prg2 20261026T032051. Green -> merge into the engine, cut C3 (prc-split-refresh.md row C3). If it
+   times out on the desktop too: re-request it split in two (e2e-sectorops alone; the other 6). Pawn-throw: D1 LEAD NOTE.
 4. Cloud open: E8 (base 2de5701c0; wharf e2e) and D1 (base 2de5701c0; graph + validator, J12 ref validator-port-c2).
    Done -> one Sonnet checker each -> merge into tallow-fixes-2; E8 needs a laptop
    run (G2 set). S3 (cq/) after G2 in the engine and the engine in tallow-shutters; S4 after S3 + E8.
@@ -22,7 +24,10 @@ the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mj
 7. PR #549 feature/look-video 8a67136d3 (tool to master; PASS + status). First run: alone 20261026T031806 on run branch
    feature/look-video-tallow dc7bb9342 (engine + 2 script files; webm on the laptop C:/NightShift/scratch/look-video/).
    The W1-W4 videos gate C9 / C10 bodies.
-Next: laptop verdicts -> G1, then G2, then S into the engine; cut C3; E8 / D1 pickups.
+Next: laptop verdicts -> G2 (carries G1), then S into the engine; cut C3; E8 / D1 pickups (both reopened at the swap).
+
+## OLD RESUME 2026-10-26 ~14:30 (Night Shift | Campaign Build)
+Superseded by the block above (G1 rerun dropped; G2 carries it).
 
 ## OLD RESUME 2026-10-26 ~14:15 SAVE (Night Shift | Campaign Build)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
