@@ -1,0 +1,1128 @@
+
+$ node scripts/run-e2e.mjs e2e-ctcourse
+[start] e2e-ctcourse:5
+[start] e2e-ctcourse:6
+
+=== e2e-ctcourse:5 (ok, 137s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 1
+  ok - host avatar drawn on the client ({"ok":true,"root":[2,0.020000000000000018,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[2,0.020000000000000018,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[2,0.020000000000000018,12],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":false,"size":0.043679283883869414}]})
+pause: restart at checkpoint (host only) brings both players back to the start
+  ok - the host's pause has live restart and lobby rows ([{"k":"restart-checkpoint","blocked":false,"sub":""},{"k":"return-lobby","blocked":false,"sub":""}])
+  ok - the client's pause shows them disabled, "Host only" ([{"k":"restart-checkpoint","blocked":true,"sub":"Host only"},{"k":"return-lobby","blocked":true,"sub":"Host only"}])
+  ok - the client's disabled row does nothing
+  ok - the restart confirm opens on Stay ({"top":true,"f":"Stay"})
+  ok - the restart keeps set 1 and closes the host pause
+set 1 (a1Gate)
+  (H8 set 1: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 1: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A1 (re-plan): the lounge, station 1, the checker
+  ok - A1: station 1 is live
+  ok - A1: the checker is passive at his desk ({"passive":true,"x":8.75,"z":16.75})
+  ok - A1: the wicket starts locked on both pages
+  A1 (re-plan): the wicket is a way back only
+  ok - A1: the host unbolts the wicket from the yard side
+  ok - A1: the unbolted wicket stays locked on the host (a1-top not set)
+  ok - A1: and on the client
+  A1 (re-plan): station 1, the boost
+  ok - A1 boost: the leg-up reaches the 4.4 m lip (4.4)
+  ok - A1: a1-top waits for both
+  ok - A1: the wicket is still locked on the client
+  A1 (re-plan): an early drop into the yard puts both back at station 2
+  ok - A1 early drop host: hangs on the yard-face lip ({"kind":"ledge","nx":1,"top":4.4,"id":63})
+  ok - A1: station 1 stays done, station 2 live
+  A1 (re-plan): station 2, the human ladder
+  ok - A1: the host hangs on the apron-face lip over the mark ({"kind":"ledge","nx":-1,"top":4.4,"id":62})
+  A1 (re-plan): the drop, the way back, to L1
+  ok - A1 host: hangs on the yard-face lip ({"kind":"ledge","nx":1,"top":4.4,"id":63})
+  ok - A1 client: hangs on the yard-face lip ({"kind":"ledge","nx":1,"top":4.4,"id":63})
+  ok - A1: both drops cost no health
+  ok - A1: the client unbolts the wicket from the yard side
+  ok - A1: the client opens the wicket
+  ok - A1: the L1 near door is open to the client
+  (ghost ledger A1 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A1 yard
+  (A1 yard: item 17.00,0.02,11.00, host 18.20,0.02,11.00, 1.20 m apart, reach 1.6, 29.85 s left)
+  ok - revive on the A1 yard: the revive item lies on the surface (y 0.02)
+  ok - revive on the A1 yard: the host on the same level is offered the revive (1.20 m, reach 1.6)
+  ok - revive on the A1 yard: inside the 30 s window (29.85 s left)
+  ok - revive on the A1 yard: one revive of the team budget used (0 -> 1)
+set 2 (a2CarriageShed)
+  (H8 set 2: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 2: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A2 (re-plan): the stores bay, station 3
+  ok - A2: the roller door is shut and locked on the host
+  ok - A2: the roller door is locked on the client
+  ok - A2: one guard on the re-plan (1)
+  ok - A2: the shunter is calm at his post ({"x":51.25,"z":10.25,"alerted":false,"passive":false})
+  A2 (re-plan): seen in the lit neck, a station 3 retry
+  ok - A2 station 3: the host's last retry is station 3 / seen ({"st":3,"cause":"seen"})
+  ok - A2 station 3: the host still has station 3 live
+  ok - A2 station 3: the client's last retry is station 3 / seen ({"st":3,"cause":"seen"})
+  ok - A2 station 3: the client still has station 3 live
+  ok - A2: the retry undid no earlier station ([true,true] -> [true,true])
+  ok - A2: the roller door is shut again after the retry
+  A2 (re-plan): the roller door
+  ok - A2: the host holds the roller door up at the stores face
+  ok - A2 shutter: opens the door A2-shutter
+  ok - A2: the client takes the hold from the lane side
+  ok - A2: the client alone keeps the roller door up (the host let go)
+  ok - A2: the roller door is unlocked on the host with nobody holding
+  A2 (re-plan): the neck, a station 4 timer retry
+  ok - A2 cabin: opens the door A2-cabin
+  ok - A2: the client presses cabinet one
+  ok - A2 station 4 timer: the host's last retry is station 4 / timer ({"st":4,"cause":"timer"})
+  ok - A2 station 4 timer: the host still has station 4 live
+  ok - A2 station 4 timer: the client's last retry is station 4 / timer ({"st":4,"cause":"timer"})
+  ok - A2 station 4 timer: the client still has station 4 live
+  ok - A2: the neck is lit and the isolator closed after the retry
+  ok - A2: the roller door stays latched through the station 4 retry
+  A2 (re-plan): the neck, two crossings
+  ok - A2: the client presses cabinet one again
+  ok - A2: the first crossing inside its window is no retry
+  ok - A2: the host presses cabinet two by the pit
+  ok - A2: the second crossing inside its window is no retry either
+  A2 (re-plan): the pit and the walkway
+  ok - A2 walkway: opens the door A2-walkway
+  ok - A2: the walkway stays open
+  ok - A2: the L2 near door is open to the client
+  A2 (re-plan): done (Both of you into holding room two.)
+  (ghost ledger A2 after the walk: {"detections":1,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 5 (sets 1-2) OK
+[start] e2e-ctcourse:7
+
+=== e2e-ctcourse:6 (ok, 214s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 3
+  ok - host avatar drawn on the client ({"ok":true,"root":[73,0.019999985098838824,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[73,0.019999985098838824,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[73,0.019999985098838824,8.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 3 (a3OfficeRange)
+  (H8 set 3: 0 guards, 0 not alive, 0 below -5 m)
+  ok - set 3: every guard is alive and none fell through the floor ({"n":0,"dead":0,"low":0})
+  A3 (re-plan): the start, station 6
+  ok - A3: the host has the corridor camera cam-a3-hall
+  ok - A3: the client has the corridor camera cam-a3-hall
+  ok - A3: no guard in the set (the cleaner is gone)
+  ok - A3: A3-office1 is locked on the host
+  ok - A3: A3-office1 is locked on the client
+  ok - A3: A3-comm1 is locked on the host
+  ok - A3: A3-comm1 is locked on the client
+  ok - A3: A3-comm2 is locked on the host
+  ok - A3: A3-comm2 is locked on the client
+  ok - A3: A3-recess is locked on the host
+  ok - A3: A3-recess is locked on the client
+  ok - A3: A3-office3 is locked on the host
+  ok - A3: A3-office3 is locked on the client
+  ok - A3: A3-fire is locked on the host
+  ok - A3: A3-fire is locked on the client
+  ok - A3: the camera is online with its 14 m range (online, 14)
+  ok - A3: the corridor reads lit and the same on both pages (host 0.788, client 0.788)
+  ok - A3: the west lobby at the fire door reads lit and the same on both pages (host 0.579, client 0.579)
+  A3 (re-plan): the vent unlock (the client crawls)
+  ok - A3 crawl: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 crawl: no station retry (0 of 0)
+  ok - A3: the crawler (the first into the corridor) is B, the partner A
+  ok - A3: the host tries the fire door's bolt from the lobby
+  ok - A3: the push bar refuses a press from the lobby side
+  ok - A3: the fire door stays locked on the client
+  ok - A3: the client presses the fire door's push bar from the corridor
+  ok - A3: the host opens the fire door
+  ok - A3: the vent unlock cost no retry
+  A3 (re-plan): a camera retry at station 7
+  ok - A3: the retry's cause is seen
+  ok - A3: station 6 is still done (a3-fire set)
+  ok - A3: station 7 is live again on both pages
+  ok - A3: the fire door stays unbolted (station 6's gate)
+  A3 (re-plan): the jam relay
+  ok - A3 relay jam 1: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 relay jam 1: no station retry (1 of 1)
+  ok - A3 relay recess: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 relay recess: no station retry (1 of 1)
+  A3 (re-plan): the swap
+  ok - A3 swap jam 1: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 swap jam 1: no station retry (1 of 1)
+  ok - A3 swap recess: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 swap recess: no station retry (1 of 1)
+  ok - A3: the relay and the swap cost no retry
+  ok - A3: no station left in the bay
+  A3 (re-plan): to the L3 door
+  ok - A3: the L3 near door is open to the client
+  ok - A3: the host still reads the closing line
+  (ghost ledger A3 after the walk: {"detections":0,"alarms":1,"knockouts":0,"kills":0,"bodies":0})
+set 4 (a4GoodsShed)
+  (H8 set 4: 3 guards, 0 not alive, 0 below -5 m)
+  ok - set 4: every guard is alive and none fell through the floor ({"n":3,"dead":0,"low":0})
+  A4 (re-plan): the start, station 9
+  ok - A4: the three cameras are online on the host (["online","online","online"])
+  ok - A4: the host has the three back aisle strips (49) and the office panel (44)
+  ok - A4: circuit 40 is lit on the host
+  ok - A4: circuit 41 is lit on the host
+  ok - A4: circuit 42 is lit on the host
+  ok - A4: circuit 43 is lit on the host
+  ok - A4: circuit 49 is lit on the host
+  ok - A4: circuit 44 is lit on the host
+  ok - A4: the three cameras are online on the client (["online","online","online"])
+  ok - A4: the client has the three back aisle strips (49) and the office panel (44)
+  ok - A4: circuit 40 is lit on the client
+  ok - A4: circuit 41 is lit on the client
+  ok - A4: circuit 42 is lit on the client
+  ok - A4: circuit 43 is lit on the client
+  ok - A4: circuit 49 is lit on the client
+  ok - A4: circuit 44 is lit on the client
+  ok - A4: the stand-in has the grille unlocked on both pages as station 9 goes live
+  ok - A4: the stand-in gate is open ({"g-a1-wicket":false,"g-a1-wicket-top":false,"g-a2-neck":false,"g-a2-shutter":false,"g-a2-shutter-open":false,"g-a2-walkway":false,"g-a3-fire":true,"g-a3-office1":false,"g-a3-comm1":false,"g-a3-comm2":false,"g-a3-recess":false,"g-a3-office3":false,"g-a4-wicket":false,"g-a4-console":false,"g-a4-grille-motor":true,"g-a4-grille":false,"g-a4-office":false,"g-a5-release":false,"g-a5-l5":false,"g-a5-back":false,"g-a5-wicket":false,"g-a5-footbridge":false,"g-a5-plates":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a6-pit-ladder":false,"g-a6-edge":true,"g-a7-cage-w":false,"g-a7-cage-e":false,"g-a7-east":false,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false})
+  ok - A4: the dispatch office is locked on both pages
+  ok - A4: L4's east door (the dock wicket) starts locked on the client
+  ok - A4: the back aisle reads lit and the same on both pages (host 0.585, client 0.585)
+  ok - A4: D2 is at the desk ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":31.75})
+  ok - A4: D2 stays at the desk, no kettle loop ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":31.75} -> {"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":31.75})
+  ok - A4: nobody has claimed a job yet
+  A4 (re-plan): the lift grille
+  ok - A4 passage: the host opens A4-passage
+  ok - A4 grille: the host opens A4-grille
+  ok - A4: one player under the grille is not enough
+  ok - A4: the grille cost no retry
+  ok - A4 back aisle: cam-a4-c1 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 back aisle: cam-a4-c2 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 back aisle: cam-a4-c3 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 back aisle: cam-a4-c1 holds nothing (meters [], stages [])
+  ok - A4 back aisle: cam-a4-c2 holds nothing (meters [], stages [])
+  ok - A4 back aisle: cam-a4-c3 holds nothing (meters [], stages [])
+  A4 (re-plan): the camera loop that runs out
+  ok - A4 loop 1: the officer is down
+  ok - A4 loop 1: the host presses the console
+  ok - A4: the host pressed first: host B, client A (["b","a"])
+  ok - A4: the retry cause is timer
+  ok - A4: station 9 is still done (a4-grille set)
+  ok - A4: the grille stays open through the retry
+  ok - A4: the host still sees station 9's step ticked
+  ok - A4: the client still sees station 9's step ticked
+  ok - A4: the loop flag is clear after the retry
+  ok - A4 loop retry: the officer is up at his post ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"officer","x":104.73466955997384,"z":17.748196418820456})
+  ok - A4 loop retry: D1 is up at his post ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":34.25})
+  ok - A4 loop retry: D2 is up at the desk ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":31.75})
+  A4 (re-plan): the loop, the crossing
+  ok - A4 loop 2: the officer is down
+  ok - A4 loop 2: the host presses the console
+  ok - A4 crossing: cam-a4-c1 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 crossing: cam-a4-c2 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 crossing: cam-a4-c3 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 crossing: cam-a4-c1 holds nothing (meters [], stages [])
+  ok - A4 crossing: cam-a4-c2 holds nothing (meters [], stages [])
+  ok - A4 crossing: cam-a4-c3 holds nothing (meters [], stages [])
+  ok - A4: one player west of x 84 is not enough
+  ok - A4: the crossing inside the loop cost no retry
+  ok - A4 dock: cam-a4-c1 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 dock: cam-a4-c2 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 dock: cam-a4-c3 holds nothing (meters [0,0], stages [0,0])
+  ok - A4 dock: cam-a4-c1 holds nothing (meters [], stages [])
+  ok - A4 dock: cam-a4-c2 holds nothing (meters [], stages [])
+  ok - A4 dock: cam-a4-c3 holds nothing (meters [], stages [])
+  A4 (re-plan): one loader taken alone
+  ok - A4: D1 is down alone
+  ok - A4: the retry cause is timer
+  ok - A4: stations 9 and 8 are still done
+  ok - A4: D1 is back at his post ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":34.25})
+  ok - A4: D2 is at the desk ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":31.75})
+  ok - A4: the wicket step is not done
+  A4 (re-plan): the synced takedown, the wicket
+  ok - A4: both loaders are down
+  ok - A4: two takedowns together count as a dual takedown
+  ok - A4: both loaders down inside the window is no retry
+  ok - A4: L4's east door is locked before the bar
+  ok - A4: the client pushes the bar
+  ok - A4: no station left in the bay
+  ok - A4: the host still reads the closing line
+  (ghost ledger A4 after the walk: {"detections":1,"alarms":0,"knockouts":5,"kills":0,"bodies":0})
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 6 (sets 3-4) OK
+[start] e2e-ctcourse:8
+
+=== e2e-ctcourse:7 (FAIL, 158s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 5
+  ok - host avatar drawn on the client ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[73,0.019999985098838824,31.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 5 (a5Substation)
+  (H8 set 5: 2 guards, 0 not alive, 0 below -5 m)
+  ok - set 5: every guard is alive and none fell through the floor ({"n":2,"dead":0,"low":0})
+  A5 (re-plan): the gap, station 11, the guards
+  ok - A5: the wicket stand-in is unlocked on both pages (the base opened it)
+  ok - A5: A5-footbridge is locked on the host
+  ok - A5: A5-footbridge is locked on the client
+  ok - A5: A5-plates is locked on the host
+  ok - A5: A5-plates is locked on the client
+  ok - A5: A5-back is locked on the host
+  ok - A5: A5-back is locked on the client
+  ok - A5: the L5 near door is locked until the release
+  ok - A5: two live armed guards in the set ([{"x":47.75,"z":33.25,"idx":0,"alerted":false,"passive":false},{"x":46.25,"z":31.25,"idx":-1,"alerted":false,"passive":false}])
+  ok - A5: the watcher stands at his post ([{"x":47.75,"z":33.25,"idx":0,"alerted":false,"passive":false},{"x":46.25,"z":31.25,"idx":-1,"alerted":false,"passive":false}])
+  ok - A5: the beams are on on both pages
+  ok - A5: the landing reads dark and the same on both pages (host 0.162, client 0.162)
+  A5 (re-plan): the wicket, the ladder
+  ok - A5: opens A5-wicket
+  ok - A5: the host stands at the ladder's foot (67.00033170479811,31)
+  ok - A5: stations 11 and 12 cost no retry
+  A5 (re-plan): the footbridge, station 12
+  ok - A5: the footbridge stand-in is unlocked on both pages as 12 went live
+  ok - A5: the trench plates stay bolted
+  ok - A5: opens A5-footbridge
+  A5 (re-plan): the throw
+  ok - A5: the client lands within 0.5 m of the landing ({"x":56.06999999999999,"y":0.019999985098838824,"z":36})
+  ok - A5: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5: the thrown client has claimed B (the host A)
+  ok - A5: the throw cost no retry
+  A5 (re-plan): the flood-timer retry
+  ok - A5: the flood is a jam target
+  ok - A5 timer: the retry's cause is timer
+  ok - A5 timer: one retry counted (1 of 0)
+  ok - A5 timer: stations 11 and 12 stay done
+  ok - A5 timer: station 13 is live again on both pages
+  ok - A5 timer: no release yet
+  ok - A5 timer: the stand-in doors stay unlocked
+  A5 (re-plan): the beam-trip retry
+  ok - A5 beam: the retry's cause is seen
+  ok - A5 beam: one retry counted (2 of 1)
+  ok - A5 beam: stations 11 and 12 stay done
+  ok - A5 beam: station 13 is live again on both pages
+  ok - A5 beam: no release yet
+  ok - A5 beam: the stand-in doors stay unlocked
+  A5 (re-plan): the jam and the release
+  ok - A5 release: the client keys the release at the kiosk
+  ok - A5: the flood coming back after the release is no retry
+  ok - A5: no station left in the bay
+  A5 (re-plan): to the L5 door
+  ok - A5: the L5 near door is open to the client
+  ok - A5: the host still reads the closing line
+  (ghost ledger A5 after the walk: {"detections":0,"alarms":1,"knockouts":0,"kills":0,"bodies":0})
+set 6 (a6PumpHouse)
+  (H8 set 6: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 6: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A6 (re-plan): the sump bay, station 14, the attendant, circuit 69
+  ok - A6: station 14 is live
+  ok - A6: the attendant is alive, armed and calm ({"x":61.75,"z":67.25,"alerted":false,"passive":false,"meter":0,"idx":0})
+  ok - A6: one guard in the set
+  ok - A6: A6-cage starts locked on the client
+  ok - A6: L6-near starts locked on the client
+  ok - A6: the stand-in ladder is a named anchor (44)
+  ok - A6: the stand-in ladder starts locked on both pages (host true, client true)
+  ok - A6: the loading edge lip is named in the layout
+  ok - A6: the loading edge lip starts open on both pages (host false, client false)
+  ok - A6: the sump bay reads lit (circuit 69) and the same on both pages (host 0.857, client 0.857)
+  A6 (re-plan): station 14, the leg-up and the rescue line
+  ok - A6: one player up does not set a6-gal
+  A6 (re-plan): station 15, the attendant sees the client: the station retry
+Error: timed out waiting for A6 retry: the attendant sees the client: station 15 retries (seen) [host: sim 30.00 s in 30.0 s wall (x1.00), 30 fps; page 2: sim 30.03 s in 30.0 s wall (x1.00), 60 fps]
+    at until (file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-net-lib.mjs:60:13)
+    at async Module.walk (file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-ctcourse/replan/a6PumpHouse.mjs:207:3)
+    at async file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-ctcourse.mjs:450:5
+host {"bay":5,"checkpoint":"L5","solo":false,"locks":["L1-near","L2-near","L3-near","L4-near","L5-near","L6-near","L6-far","L7-near","L7-far","A1-wicket","A2-shutter","A2-walkway","A3-fire","A3-office1","A3-comm1","A3-comm2","A3-recess","A3-office3","A4-grille","A4-office","A5-back","A5-plates","A6-cage","A7-cage-w","A7-cage-e","A8-grille","A8-stair-foot","A8-vault"],"anchors":["a6-pit-ladder","a6-gallery-lip","a7-fence-w1","a7-fence-w2","a7-fence-e1","a7-fence-e2","a7-fence-s","a7-fence-n"],"air":{"L1":"sealed","L2":"sealed","L3":"sealed","L4":"sealed","L5":"sealed","L6":"open","L7":"open"},"gates":{"g-a1-wicket":false,"g-a1-wicket-top":false,"g-a2-neck":false,"g-a2-shutter":false,"g-a2-shutter-open":false,"g-a2-walkway":false,"g-a3-fire":false,"g-a3-office1":false,"g-a3-comm1":false,"g-a3-comm2":false,"g-a3-recess":false,"g-a3-office3":false,"g-a4-wicket":false,"g-a4-console":false,"g-a4-grille-motor":false,"g-a4-grille":false,"g-a4-office":false,"g-a5-release":true,"g-a5-l5":true,"g-a5-back":false,"g-a5-wicket":true,"g-a5-footbridge":true,"g-a5-plates":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a6-pit-ladder":false,"g-a6-edge":false,"g-a7-cage-w":false,"g-a7-cage-e":false,"g-a7-east":false,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false},"log":[["dark","door","dark","ladder","door","dark","brace","teamMove","aim","aim","door","dark","stance","brace","teamMove","stance","boost","teamMove"],["dark","dark","teamMove","boost","stance","switch","dark","stance","teamMove","boost","ledge","stance","stance","brace","stance","teamMove","stance"]],"refusal":"","remote":"Ll1yrxowz","squad":1}
+client {"bay":5,"locks":[0,1,2,3,4,5,6,12,13,14,18,19,20,21,22,23,24,25,26,28,29,31,34,35,38,39,43,44,45],"anchors":[44,47,48,49,50,51,52,42],"lights":{"groups":[[90,true],[91,true],[92,true],[93,true],[94,true],[95,true],[96,true],[97,true],[98,true],[10,true],[11,true],[12,true],[13,true],[20,true],[21,true],[22,true],[23,true],[30,true],[31,true],[32,true],[33,true],[34,true],[40,true],[41,true],[42,true],[43,true],[49,true],[44,true],[50,true],[51,true],[52,true],[53,true],[60,true],[61,true],[62,true],[63,true],[69,true],[70,true],[71,true],[72,true],[73,true],[81,true],[82,true],[83,true],[84,true],[85,true],[86,true]],"dead":[]},"ticks":[],"refusal":"","rn":0,"air":[{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"open","t":0},{"phase":"open","t":0}]}
+FAILED
+[start] e2e-ctcourse:1
+
+=== e2e-ctcourse:8 (ok, 167s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 7
+  ok - host avatar drawn on the client ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[67,0.019999985098838824,60.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 7 (a7DataHall)
+  (H8 set 7: 2 guards, 0 not alive, 0 below -5 m)
+  ok - set 7: every guard is alive and none fell through the floor ({"n":2,"dead":0,"low":0})
+  A7 (re-plan): the lobby, station 17, two technicians
+  ok - A7: station 17 is live
+  ok - A7: both technicians alive and armed ({"tech":{"x":84.25,"z":60.75,"idx":0,"alerted":false,"passive":false,"combat":false},"tech2":{"x":98.75,"z":70.75,"idx":0,"alerted":false,"passive":false,"combat":false},"n":2})
+  ok - A7: a7-tech2 is on the north apron ({"x":98.75,"z":70.75,"idx":0,"alerted":false,"passive":false,"combat":false})
+  ok - A7: A7-cage-w starts locked on both pages
+  ok - A7: A7-cage-e starts locked on both pages
+  ok - A7: L7-near starts locked on both pages
+  ok - A7: the lobby reads lit and the same on both pages (host 0.597, client 0.597)
+  A7 (re-plan): the split
+  ok - A7 split: opens A7-plant
+  ok - A7 split: opens A7-pod-s
+  A7 (re-plan): a7-tech2 sees the pod leg: the station retry
+  ok - A7 retry: the host (A) at (74, 62), the client (B) at (72.5, 57)
+  ok - A7 retry: station 17 is still live
+  ok - A7 retry: the split is cleared
+  ok - A7 retry: A7-cage-w still locked
+  ok - A7 retry: A7-cage-e still locked
+  ok - A7 retry: L7-near still locked
+  A7 (re-plan): the split again, the terminals
+  ok - A7 hall door: opens A7-hall
+  A7 (re-plan): the synced hack, the cage, L7
+  ok - A7: the host starts the hack at terminal one
+  ok - A7: the client starts on the count
+  (A7: the host takes the client's hack start: on the host step at 83.367 s)
+  ok - A7: the client starts inside the window ({"at":0.5833333333333335})
+  ok - A7 cage: opens A7-cage-w
+  ok - A7 cage: opens A7-cage-e
+  ok - A7: the L7 near door (the pod's east door) is open to the client
+  (ghost ledger A7 after the walk: {"detections":1,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 8 (a8Strongroom)
+  (H8 set 8: 3 guards, 0 not alive, 0 below -5 m)
+  ok - set 8: every guard is alive and none fell through the floor ({"n":3,"dead":0,"low":0})
+  A8 (re-plan): the vestibule, station 18
+  ok - A8: the three cameras are online on the host
+  ok - A8: the vestibule and the night circuits are lit on the host
+  ok - A8: the three cameras are online on the client
+  ok - A8: the vestibule and the night circuits are lit on the client
+  ok - A8: a8-night1 is up and calm ({"alive":true,"alerted":false,"x":128.75,"z":71.75})
+  ok - A8: a8-night2 is up and calm ({"alive":true,"alerted":false,"x":126.25,"z":71.25})
+  ok - A8: a8-officer is up and calm ({"alive":true,"alerted":false,"x":142.75,"z":74.75})
+  ok - A8: three guards on the re-plan
+  ok - A8: the vestibule reads lit and the same on both pages (host 0.533, client 0.533)
+  A8 (re-plan): a sighting that breaks off
+  ok - A8: a sighting shorter than the 2 s hold is no retry (1 of 1)
+  A8 (re-plan): caught in the banking hall, a station 18 retry
+  ok - A8 station 18: the host's last retry is station 18 / caught ({"st":18,"cause":"caught"})
+  ok - A8 station 18: the client's last retry is station 18 / caught ({"st":18,"cause":"caught"})
+  ok - A8: the officer is up again after the retry (his knock-out was this step's)
+  A8 (re-plan): the jam on C2, the gallery run
+  ok - A8 office door: opens A8-office
+  ok - A8: no alarm stage after the hop under C2
+  A8 (re-plan): the console, the loop
+  ok - A8: the host presses the console
+  A8 (re-plan): the board, a station 20 timer retry
+  ok - A8: the client presses the lighting board
+  ok - A8 station 20: the host's last retry is station 20 / timer ({"st":20,"cause":"timer"})
+  ok - A8 station 20: the client's last retry is station 20 / timer ({"st":20,"cause":"timer"})
+  ok - A8: the isolator is closed and the hall lit again after the timer retry
+  ok - A8: the retry undid no earlier step (the office is still done, nobody is through the grille)
+  A8 (re-plan): through the grille, station 21 with the loop over
+  ok - A8: the client presses the board again
+  ok - A8 grille: opens A8-grille
+  ok - A8 station 21 (loop over): the host's last retry is station 21 / timer ({"st":21,"cause":"timer"})
+  ok - A8 station 21 (loop over): the client's last retry is station 21 / timer ({"st":21,"cause":"timer"})
+  ok - A8: a8-grille-in stays set through the station 21 retry
+  ok - A8: with the loop off a station 21 retry waits for the next press (4 of 4)
+  A8 (re-plan): the loop again, the paired hack
+  ok - A8: the host presses the console again
+  ok - A8: the host starts the hack at time lock one
+  ok - A8: the client starts about 0.5 s after the host
+  ok - A8: the whole station 21 run after its one retry counted no other
+  (ghost ledger A8 after the walk: {"detections":2,"alarms":0,"knockouts":7,"kills":0,"bodies":1})
+  revive on the A8 gallery
+  (A8 gallery: item 107.90,4.42,68.20, host 107.90,4.42,69.40, 1.20 m apart, reach 1.6, 29.87 s left, floor probe 0.00 m off and 4.42 m under)
+  ok - revive on the A8 gallery: the revive item lies on the surface (y 4.42)
+  ok - revive on the A8 gallery: the host on the same level is offered the revive (1.20 m, reach 1.6)
+  ok - revive on the A8 gallery: not offered from the floor below (0.00 m off, 4.42 m under)
+  ok - revive on the A8 gallery: inside the 30 s window (29.87 s left)
+  ok - revive on the A8 gallery: one revive of the team budget used (0 -> 1)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+finale: a revive in the cash dock, then both must be in the exit zone
+  ok - finale: the pause ran 2.5 s on the host's clock (2500 ms)
+  (finale: 2.53 s of host time from the downing to the read)
+  ok - finale: the 30 s window runs on the host (sim time) (27.5 s left)
+  ok - finale: one revive of two used (1 -> 2)
+  ok - one player in the exit zone does not end the course
+  ok - both players in the exit zone complete the course
+  ok - the end screen has the time, alarms and revives ({"time":150.2666666666607,"alarms":0,"revives":2}, 2 done)
+  ok - no console errors ()
+e2e-ctcourse part 8 (sets 7-8) OK
+[start] e2e-ctcourse:2
+
+=== e2e-ctcourse:1 (ok, 88s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 1
+  ok - host avatar drawn on the client ({"ok":true,"root":[2,0.020000000000000018,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[2,0.020000000000000018,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[2,0.020000000000000018,12],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":false,"size":0.043679283883869414}]})
+pause: restart at checkpoint (host only) brings both players back to the start
+  ok - the host's pause has live restart and lobby rows ([{"k":"restart-checkpoint","blocked":false,"sub":""},{"k":"return-lobby","blocked":false,"sub":""}])
+  ok - the client's pause shows them disabled, "Host only" ([{"k":"restart-checkpoint","blocked":true,"sub":"Host only"},{"k":"return-lobby","blocked":true,"sub":"Host only"}])
+  ok - the client's disabled row does nothing
+  ok - the restart confirm opens on Stay ({"top":true,"f":"Stay"})
+  ok - the restart keeps set 1 and closes the host pause
+set 1 (a1Gate)
+  (H8 set 1: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 1: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A1: the lounge, the step lines, the checker
+  ok - the lounge door is open to both
+  ok - the wicket starts locked on the client
+  ok - the gate checker is alive, passive, at his desk ({"passive":true,"x":8.75,"z":16.75})
+  A1: the client takes the mark (the claim)
+  A1: the leg-up
+  ok - A1: the leg-up reaches the 4.4 m lip (4.4)
+  ok - A1: the host hangs on the apron-face lip (a1-wall-near, normal -x) ({"kind":"ledge","nx":-1,"nz":0,"top":4.4,"id":48})
+  ok - A1: the host stands on the wall top (4.42)
+  A1: the hang-drop into the yard
+  ok - A1 host: hangs from the yard-face lip, normal +x, 4.4 m ({"kind":"ledge","nx":1,"nz":0,"top":4.4,"id":49})
+  ok - A1 host: feet on the yard floor past the wall (12.56,0.04,7.00)
+  ok - A1 host: the drop lands within 2 s of the let-go (0.57 s of game time)
+  ok - A1: the hang-drop cost no health (100 -> 100)
+  A1: the wicket bolt
+  ok - A1: the client tries the bolt from the apron side
+  ok - A1: the bolt refuses a press from the apron side
+  ok - A1: the wicket stays locked on the client
+  ok - A1: the step is not done yet
+  ok - A1: the host unbolts the wicket from the yard side
+  A1: through the wicket to L1
+  ok - A1: the host opens the unbolted wicket
+  ok - A1: the L1 near door is open to the client
+  A1: the relay variant
+  ok - A1: the host restarts at the checkpoint
+  ok - A1: the restart shuts the bolt and clears the step
+  ok - A1: the restart locks the wicket again
+  ok - A1 variant: the client hangs on the apron-face lip, normal -x, 4.4 m ({"kind":"ledge","nx":-1,"nz":0,"top":4.4,"id":48})
+  ok - A1 variant host: hangs from the yard-face lip, normal +x, 4.4 m ({"kind":"ledge","nx":1,"nz":0,"top":4.4,"id":49})
+  ok - A1 variant host: feet on the yard floor past the wall (12.56,0.04,7.00)
+  ok - A1 variant host: the drop lands within 2 s of the let-go (0.43 s of game time)
+  ok - A1 variant client: hangs from the yard-face lip, normal +x, 4.4 m ({"kind":"ledge","nx":1,"nz":0,"top":4.4,"id":49})
+  ok - A1 variant client: feet on the yard floor past the wall (12.56,0.04,9.00)
+  ok - A1 variant client: the drop lands within 2 s of the let-go (0.43 s of game time)
+  ok - A1 variant: both drops cost no health
+  ok - A1 variant: the wicket is still bolted
+  ok - A1 variant: the wicket is still locked on the client
+  A1: light
+  ok - A1: the wicket at (11.2, 11) reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A1: the wicket at (12.8, 11) reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A1: the yard reads lit and the same (host 0.610, client 0.610)
+  ok - A1: the first wall switch is the yard switch in the cabin ([7.7,15.1])
+  ok - A1: the client turns the yard switch off
+  ok - A1: the yard reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A1: the client turns the yard switch on again
+  ok - A1: the yard reads lit again (host 0.610, client 0.610)
+  ok - A1: the checker is back at his desk, passive ({"passive":true,"x":8.75,"z":16.75})
+  (ghost ledger A1 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A1 yard
+  (A1 yard: item 17.00,0.02,11.00, host 18.20,0.02,11.00, 1.20 m apart, reach 1.6, 29.90 s left)
+  ok - revive on the A1 yard: the revive item lies on the surface (y 0.02)
+  ok - revive on the A1 yard: the host on the same level is offered the revive (1.20 m, reach 1.6)
+  ok - revive on the A1 yard: inside the 30 s window (29.90 s left)
+  ok - revive on the A1 yard: one revive of the team budget used (0 -> 1)
+set 2 (a2CarriageShed)
+  (H8 set 2: 3 guards, 0 not alive, 0 below -5 m)
+  ok - set 2: every guard is alive and none fell through the floor ({"n":3,"dead":0,"low":0})
+  A2: the siding, the step lines, the cabinets
+  ok - A2: the L1 far door is open to the client
+  ok - A2: the host has the push station c-a2-iso-1
+  ok - A2: the host has the push station c-a2-iso-2
+  ok - A2: the client has the push station c-a2-iso-1
+  ok - A2: the client has the push station c-a2-iso-2
+  ok - A2: nobody has claimed a job yet
+  ok - A2: the shunter is alive and armed ({"x":51.25,"z":10.25,"alerted":false,"passive":false})
+  ok - A2: the crossing line reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A2: the neck's middle reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A2: the vantage reads lit and the same on both pages (host 0.491, client 0.491)
+  ok - A2: the rake gap reads lit and the same on both pages (host 0.697, client 0.697)
+  ok - A2: the neck lamps are on at the start on both pages
+  A2: the restart mid-cut
+  ok - A2: the host opens the cabin door
+  ok - A2 restart check: the client presses cabinet one
+  ok - A2 restart check: the press claims the A job
+  ok - A2: the host restarts at the checkpoint
+  ok - A2: the restart leaves the isolator closed and ready
+  ok - A2: the crossing reads lit again on both pages (host 1.000, client 1.000)
+  ok - A2: the restart clears the claim
+  ok - A2: the restart puts the doors back (1)
+  ok - A2 restart: three fresh calm armed guards and no body ({"bodies":0,"list":[{"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0},{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}]})
+  ok - A2 restart: the shunter first, back at his post ({"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0})
+  ok - A2 restart: a posted watcher on the staging deck at (48, 17.9) ({"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  ok - A2 restart: a posted watcher on the staging deck at (54, 17.9) ({"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  A2: spotted in the lit neck
+  ok - A2: exactly one set restart for the spot
+  ok - A2 after the spot: three fresh calm armed guards and no body ({"bodies":0,"list":[{"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0},{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}]})
+  ok - A2 after the spot: the shunter first, back at his post ({"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0})
+  ok - A2 after the spot: a posted watcher on the staging deck at (48, 17.9) ({"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  ok - A2 after the spot: a posted watcher on the staging deck at (54, 17.9) ({"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  ok - A2: the fresh guards did not spot anyone again
+  A2: cabinet one, the dark neck
+  ok - A2 route: the host opens the cabin door
+  ok - A2: the client presses cabinet one
+  ok - A2: the press claims the A job
+  ok - A2: the host tries cabinet two while the neck is dark
+  ok - A2: a press while dark does nothing (the window 14.8 -> 14.4 s)
+  ok - A2: the crossing was inside the window (13.7 s left)
+  ok - A2 host crossing: the dark crossing was not seen (restarts 4 -> 4, [{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}])
+  ok - A2: the way back is not done yet
+  A2: lights back, the re-arm, cabinet two
+  ok - A2: a press while the isolator re-arms is refused ({"left":2.9166666666666643,"refusal":"The isolator is re-arming","open":false})
+  ok - A2: a refusal was seen inside the re-arm
+  ok - A2: the refused press left the lights on
+  ok - A2: the crossing reads lit again on both pages (host 1.000, client 1.000)
+  ok - A2: the host's timer line is gone
+  ok - A2: the client's timer line is gone
+  ok - A2: the host presses cabinet two
+  ok - A2: the neck is dark on the host for the mirror cut
+  ok - A2: the crossing reads dark on both pages for the mirror (0.141, 0.141)
+  A2: the mirror crossing, both east
+  ok - A2: the second crossing was inside the window
+  ok - A2 client crossing: the dark crossing was not seen (restarts 4 -> 4, [{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}])
+  ok - A2: both pass flags are set
+  A2: to the L2 door
+  ok - A2: the L2 near door is open to the client
+  (ghost ledger A2 after the walk: {"detections":1,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A2 staging
+  (A2 staging: item 33.00,4.42,18.10, host 34.20,4.42,18.60, 1.30 m apart, reach 1.6, 29.87 s left, floor probe 1.20 m off and 4.42 m under)
+  ok - revive on the A2 staging: the revive item lies on the surface (y 4.42)
+  ok - revive on the A2 staging: the host on the same level is offered the revive (1.30 m, reach 1.6)
+  ok - revive on the A2 staging: not offered from the floor below (1.20 m off, 4.42 m under)
+  ok - revive on the A2 staging: inside the 30 s window (29.87 s left)
+  ok - revive on the A2 staging: one revive of the team budget used (1 -> 2)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 1 (sets 1-2) OK
+[start] e2e-ctcourse:3
+
+=== e2e-ctcourse:2 (ok, 238s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 3
+  ok - host avatar drawn on the client ({"ok":true,"root":[73,0.019999985098838824,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[73,0.019999985098838824,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[73,0.019999985098838824,8.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 3 (a3OfficeRange)
+  (H8 set 3: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 3: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A3: the lobby, the step lines, the camera, the cleaner
+  ok - A3: the L2 far door is open to the client
+  ok - A3: the L2 far door is unlocked on the host
+  ok - A3: the host has the corridor camera cam-a3-hall
+  ok - A3: the client has the corridor camera cam-a3-hall
+  ok - A3: nobody has claimed a job yet
+  ok - A3: the cleaner is alive, armed and in the offices ({"x":83.25,"z":3.25,"alerted":false,"passive":false})
+  ok - A3: the camera is online with its 14 m range (online, 14)
+  ok - A3: the corridor reads lit and the same on both pages (host 0.788, client 0.788)
+  ok - A3: office 1 reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A3: office 2 reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A3: the west lobby reads lit and the same on both pages (host 0.583, client 0.583)
+  A3: the armoured camera, the restart after a kill
+  ok - A3: the hall camera survives two shots (ricochets) ({"mode":"online","ric":2})
+  ok - A3: the client's own round off the hall camera sparks once on the client ({"ric0":0,"ric1":1,"ric2":1,"part0":0,"part1":8,"mode":"online"})
+  ok - A3: the client's ricochet sparks are drawn on the client page ({"ric0":0,"ric1":1,"ric2":1,"part0":0,"part1":8,"mode":"online"})
+  ok - A3: a ray 1.5 m under the housing does not spark on the client ({"ric0":0,"ric1":1,"ric2":1,"part0":0,"part1":8,"mode":"online"})
+  ok - A3: the client's round leaves the host's camera online and its ricochet count unchanged ({"mode":"online","ric":2,"before":2})
+  ok - A3: the host restarts at the checkpoint after the kill
+  ok - A3: the restart leaves one fresh cleaner and no body ({"live":1,"all":1,"bodies":0,"alerted":false,"caution":[0],"cam":"online"})
+  ok - A3: the new cleaner is calm, not cautious ({"live":1,"all":1,"bodies":0,"alerted":false,"caution":[0],"cam":"online"})
+  ok - A3: the restart repairs the camera (online)
+  A3: the camera sends an unjammed player back
+  ok - A3 send-back: the hall camera sends no device alert to the guards (0 of 0)
+  ok - A3 send-back: the hall camera raises no alarm stage (0 of 0)
+  ok - A3 send-back: the cleaner stays calm on his office loop (0 s: {"ok":true,"lvl":"unaware","al":false,"at":[87.82,2.88]})
+  ok - A3: walking into the corridor first claimed a job
+  ok - A3: the client is B (the first into the corridor), the host A
+  A3: the dark corridor does not hide a player from the camera
+  ok - A3: the corridor switch is a map switch item (switch-5)
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (0 s: {"ok":true,"lvl":"unaware","al":false,"at":[88.21,2.98]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (0.5 s: {"ok":true,"lvl":"unaware","al":false,"at":[88.21,2.98]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (1 s: {"ok":true,"lvl":"unaware","al":false,"at":[88.31,2.96]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (1.5 s: {"ok":true,"lvl":"unaware","al":false,"at":[88.77,2.87]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (2 s: {"ok":true,"lvl":"unaware","al":false,"at":[89.32,2.76]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (2.5 s: {"ok":true,"lvl":"unaware","al":false,"at":[89.82,2.67]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (3 s: {"ok":true,"lvl":"unaware","al":false,"at":[90.37,2.56]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (3.5 s: {"ok":true,"lvl":"unaware","al":false,"at":[90.91,2.46]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (4 s: {"ok":true,"lvl":"unaware","al":false,"at":[91.42,2.35]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (4.5 s: {"ok":true,"lvl":"unaware","al":false,"at":[91.95,2.24]})
+  ok - A3 calm before the cut: the cleaner stays calm on his office loop (5 s: {"ok":true,"lvl":"unaware","al":false,"at":[92.46,2.13]})
+  ok - A3: the host turns the corridor switch off
+  ok - A3: the corridor reads dark on the host page (0.141)
+  ok - A3: the corridor reads dark on the client page (0.141)
+  ok - A3 dark send-back: the hall camera sends no device alert to the guards (0 of 0)
+  ok - A3 dark send-back: the hall camera raises no alarm stage (0 of 0)
+  ok - A3: the client was sent back from a dark corridor (the camera sees in the dark)
+  ok - A3: the host turns the corridor switch on again
+  A3: a jam window that runs out
+  ok - A3: the host is unhurt before the jam posts
+  ok - A3: the jam blinds and freezes the camera (off, jam phase 1)
+  ok - A3 jammed: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 jammed: nobody was sent back (2 of 2)
+  ok - A3: the client page sees the blind camera too
+  ok - A3 window miss: the hall camera sends no device alert to the guards (0 of 0)
+  ok - A3 window miss: the hall camera raises no alarm stage (0 of 0)
+  A3: the relay
+  ok - A3 relay jam 1: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 relay jam 1: nobody was sent back (3 of 3)
+  ok - A3 relay recess: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 relay recess: nobody was sent back (3 of 3)
+  ok - A3: the camera is live while the client waits in the recess
+  ok - A3: the relay cost no send-back
+  ok - A3: the swap is not done yet
+  A3: the swap
+  ok - A3 swap jam 1: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 swap jam 1: nobody was sent back (3 of 3)
+  ok - A3 swap recess: the camera holds nothing on either player (meters [0,0], stages [0,0])
+  ok - A3 swap recess: nobody was sent back (3 of 3)
+  ok - A3: the swap cost no send-back
+  ok - A3: both pass flags are set
+  A3: the office switch lures the cleaner
+  ok - A3: office 1's switch is a map switch item (switch-6)
+  ok - A3: the host turns office 1's switch off
+  ok - A3: office 1 reads dark on the host page (0.187)
+  ok - A3: office 1 reads dark on the client page (0.187)
+  ok - A3: office 2 stays lit on both pages (1.00,1.00)
+  ok - A3: the host turns office 1's switch on again
+  A3: to the L3 door
+  ok - A3: the L3 near door is open to the client
+  ok - A3: the L3 near door is unlocked on the host
+  ok - A3: the host still reads the closing line
+  (ghost ledger A3 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":1,"bodies":0})
+set 4 (a4GoodsShed)
+  (H8 set 4: 3 guards, 0 not alive, 0 below -5 m)
+  ok - set 4: every guard is alive and none fell through the floor ({"n":3,"dead":0,"low":0})
+  A4: the goods shed, the step lines, the guards, the light
+  ok - A4: the host has the device c-a4-console
+  ok - A4: the host has the device c-a4-pushbar
+  ok - A4: the client has the device c-a4-console
+  ok - A4: the client has the device c-a4-pushbar
+  ok - A4: the L3 far door is open to the client
+  ok - A4: nobody has claimed a job yet
+  ok - A4: the officer is up at his post, armed ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"officer","x":104.75,"z":17.75})
+  ok - A4: D1 is at his post, armed ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":34.25})
+  ok - A4: D2 is up, armed ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"grunt","x":80.25,"z":31.75})
+  ok - A4: the room reads lit and the same on both pages (host 0.931, client 0.931)
+  ok - A4: the dock between the men reads lit and the same on both pages (host 0.705, client 0.705)
+  ok - A4: the main aisle reads lit and the same on both pages (host 0.836, client 0.836)
+  ok - A4: the back aisle reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A4: the back aisle's west end reads dark and the same on both pages (host 0.182, client 0.182)
+  ok - A4: the passage mouth reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A4: the three cameras are online on the host (["online","online","online"])
+  ok - A4: circuit 40 is lit on the host
+  ok - A4: circuit 41 is lit on the host
+  ok - A4: circuit 42 is lit on the host
+  ok - A4: circuit 43 is lit on the host
+  ok - A4: the three cameras are online on the client (["online","online","online"])
+  ok - A4: circuit 40 is lit on the client
+  ok - A4: circuit 41 is lit on the client
+  ok - A4: circuit 42 is lit on the client
+  ok - A4: circuit 43 is lit on the client
+  ok - A4: both gates start closed ({"g-a1-wicket":false,"g-a2-neck":false,"g-a4-wicket":false,"g-a4-console":false,"g-a5-release":false,"g-a5-l5":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a7-cage-w":false,"g-a7-cage-e":false,"g-a7-east":false,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false})
+  ok - A4: L4's east door (the dock wicket) starts locked on the client
+  A4: the floor switch lures D1; the restart
+  ok - A4: the floor switch is a map switch on the office pier
+  ok - A4: the host presses the floor switch (the players are in L3, out of every view)
+  ok - A4: the eight floor lamps are off on both pages
+  ok - A4: the main aisle reads dark and the same on both pages with the floor circuit cut (host 0.146, client 0.146)
+  ok - A4: the dock reads dark and the same on both pages with the floor circuit cut (host 0.141, client 0.141)
+  ok - A4: the host restarts at the checkpoint
+  ok - A4: the eight floor lamps are lit again on both pages
+  ok - A4: the main aisle reads lit again on both pages (host 0.836, client 0.836)
+  ok - A4: the restart leaves the claim clear
+  ok - A4: the officer is back at his post after the restart
+  A4: the console, the officer, the distraction, the loop
+  ok - A4: the host presses the console while the officer watches it
+  ok - A4: the host's refusal is the host's own (the client's refusal count does not move)
+  ok - A4: the refused press sets no flag and opens no gate
+  ok - A4: a refused press claims nothing (A4-C9)
+  ok - A4: the cameras stay online after the refusal
+  ok - A4: the cameras stay online after the refusal
+  ok - A4: the host presses the console while the officer investigates
+  ok - A4: the press claims the job
+  ok - A4: the host pressed first: host B, client A (["b","a"])
+  ok - A4: one notice, one reset ({"finds":0,"resets":0} -> {"finds":1,"resets":1})
+  ok - A4: his reset closes the gate and starts the re-arm (19.9 s left)
+  ok - A4: the officer stays calm, no alarm ({"alive":true,"ko":false,"passive":false,"alerted":false,"kind":"officer","x":105.37825120310704,"z":18.22294447843694}, alarm 0 -> 0)
+  ok - A4: the room step stays ticked after his reset
+  ok - A4 passage: the host opens A4-passage
+  ok - A4: the officer carries his two interrogation lines (2)
+  ok - A4: the officer is down
+  ok - A4: the host presses the console again
+  ok - A4: the claim stands: host B, client A (["b","a"])
+  ok - A4: the host sees the room step ticked
+  ok - A4: the client sees the room step ticked
+  ok - A4: the host presses the console while it loops
+  ok - A4: the client presses the console while it loops
+  ok - A4: a press while it loops does not reset the window (59.3 -> 59.1 s)
+  ok - A4: the looped cameras never see the client on the main aisle (seen false, back on false, alarm 0 -> 0)
+  A4: the pass zone, both west of x 84
+  ok - A4: one player west of x 84 is not enough
+  ok - A4: the floor step is not done with one west
+  A4: the dual takedown
+  ok - A4: both loaders are down
+  ok - A4: two takedowns together count as a dual takedown
+  A4: the push bar, the wicket
+  ok - A4: L4's east door is locked before the bar
+  ok - A4: the dock step is not done before the bar
+  ok - A4: the client pushes the bar
+  ok - A4: L4's far door is still locked
+  A4: the loop runs out, the re-arm
+  ok - A4: the host's timer line is gone
+  ok - A4: the client's timer line is gone
+  ok - A4: the three steps stay ticked after the cameras come back
+  ok - A4: the console is re-arming (19.9 s left)
+  ok - A4: the client presses the console inside the re-arm
+  ok - A4: the refused press loops nothing
+  ok - A4: the client presses the re-armed console
+  ok - A4: the client's press leaves the claim where it stood (["b","a"])
+  A4: L4
+  ok - A4: the wall medkit is in holding room four
+  (ghost ledger A4 after the walk: {"detections":0,"alarms":2,"knockouts":3,"kills":0,"bodies":0})
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 2 (sets 3-4) OK
+[start] e2e-ctcourse:4
+
+=== e2e-ctcourse:3 (ok, 278s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 5
+  ok - host avatar drawn on the client ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[73,0.019999985098838824,31.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 5 (a5Substation)
+  (H8 set 5: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 5: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A5: the apron, the step lines, the beams
+  ok - A5: the L4 far door is open to the client
+  ok - A5: the host has the kiosk release
+  ok - A5: the client has the kiosk release
+  ok - A5: nobody has claimed a job yet
+  ok - A5: the beams are on on both pages
+  ok - A5: the L5 near door is locked until the release (the flag gate)
+  ok - A5: the patrol is alive and armed ({"x":47.75,"z":33.25,"idx":0,"level":"unaware","alerted":false,"passive":false})
+  ok - A5: no alarm stage at the start (0)
+  ok - A5: the beams are invisible in normal vision
+  ok - A5: the floodlit strip reads lit and the same on both pages (host 0.753, client 0.753)
+  ok - A5: the kiosk's press spot reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A5: the apron reads lit and the same on both pages (host 0.545, client 0.545)
+  ok - A5: the landing reads dark and the same on both pages (host 0.160, client 0.160)
+  A5: the patrol leaves the gateway
+  A5: the partner throw
+  ok - A5: the prompt names the move (Co-op: get thrown over (partner throw))
+  ok - A5: the host still offers the throw at the press
+  (A5: the throw lands past the line: on the host step at 39.233 s)
+  ok - A5: the client lands within 0.5 m of the landing ({"x":56.06999999999999,"y":0.019999985098838824,"z":36,"crouched":true})
+  ok - A5: the client's arc clears the top beam at the line (1.73 over 8 steps)
+  ok - A5: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5: the thrown client has claimed B (the host A)
+  ok - A5: the beams are still on: the thrower is stranded
+  ok - A5: no alarm stage after the throw
+  A5: the flood jam
+  ok - A5: the flood is a jam target
+  ok - A5: the flood is on on both pages before the jam
+  ok - A5: the jammed strip reads dark and the same on both pages (host 0.176, client 0.176)
+  ok - A5: a jammed flood lures nobody ({"x":44.96722156082816,"z":31.769544083525577,"idx":1,"level":"unaware","alerted":false,"passive":false})
+  A5: the release
+  ok - A5: the client keys the release at the kiosk
+  A5: the thrower walks through
+  ok - A5: the host walks the released beam line without a touch (hits 0 -> 0)
+  A5: the panel jam variant
+  ok - A5: the host restarts at the checkpoint
+  ok - A5: the restart clears the release, the zone flag and the claim
+  ok - A5: the restart locks the L5 near door again
+  ok - A5: the beams' power panel is panel-a5, powered ({"id":"panel-a5","ph":0,"t":0,"led":1,"live":true,"lasers":["laser-a5"],"at":[43,3.2,35.71]})
+  ok - A5: the panel is the beams' jam target
+  ok - A5 variant: the client walks the beam line with no break (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5 variant: the client who walked through has claimed B
+  ok - A5 variant: the client keys the release
+  A5: to the L5 door
+  ok - A5: the L5 near door is open to the client
+  (ghost ledger A5 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 6 (a6PumpHouse)
+  (H8 set 6: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 6: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A6: the sump bay, the step lines, the drive panel
+  ok - A6: the host has the device c-sw-a6-panel
+  ok - A6: the host has the device c-sw-a6-exit
+  ok - A6: the client has the device c-sw-a6-panel
+  ok - A6: the client has the device c-sw-a6-exit
+  ok - A6: nobody has claimed a job yet
+  ok - A6: the outfall door (L6 near) starts locked on the client
+  ok - A6: the host's interlock lamp starts red ([{"id":"a6-interlock","on":false}])
+  ok - A6: the client's interlock lamp starts red ([{"id":"a6-interlock","on":false}])
+  ok - A6: the cage door starts locked on the client
+  ok - A6: the attendant is alive, armed and calm ({"x":61.75,"z":67.25,"alerted":false,"passive":false,"meter":0})
+  ok - A6: the leg-up mark reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A6: the rope spot on the gallery reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A6: the desk and stair foot read lit and the same on both pages (host 0.749, client 0.749)
+  A6: the leg-up and the rescue line
+  ok - A6: the client hangs on the gallery's open edge, normal -z, 4.4 m ({"kind":"ledge","nx":0,"nz":-1,"top":4.4})
+  ok - A6: the client stands on the gallery (y 4.42)
+  ok - A6: one player up does not set a6-gal
+  ok - A6: the climber's prompt names the rope (On the rope: stick up / down; Co-op or B lets go)
+  A6: the hang-down, the buzzer
+  ok - A6: the outfall door is still locked
+  ok - A6: the hanger hangs head-first under the bridge (root y 3.56, tumble 3.14)
+  ok - A6: the panel is out of reach at the starting depth
+  ok - A6: lowered 2.50 m under the edge
+  ok - A6: a one-second hold does not isolate the drive
+  A6: the isolate key with the attendant at his desk
+  ok - A6: the hanging client is still at the panel
+  ok - A6: the attendant, over 6 m off, stays calm ({"x":61.41903417368327,"z":67.09268100643385,"alerted":false,"passive":false,"meter":0})
+  A6: the gallery switch
+  ok - A6: the gallery switch is a map switch at the stair head (switch-17)
+  ok - A6: the holder's spot reads lit on both pages (host 0.488, client 0.488)
+  ok - A6: the client turns the gallery switch off
+  ok - A6: the holder's spot reads dark on both pages (host 0.141, client 0.141)
+  ok - A6: the client turns the gallery switch on again
+  ok - A6: the holder's spot reads lit again (host 0.488, client 0.488)
+  A6: out by the outfall door
+  ok - A6: the outfall door is open to the client
+  A6: the restart and the fallback (the host drops into the cage)
+  ok - A6: the host restarts at the checkpoint
+  ok - A6: the restart clears a6-drive and a6-gal
+  ok - A6: the cage door is locked again
+  ok - A6: the restart clears the claim and the steps
+  ok - A6: outside the cage at (49.05, 64.1) the client is offered neither device ()
+  ok - A6: outside the cage at (51.5, 61.65) the client is offered neither device ()
+  ok - A6: outside the cage at (51.5, 66.55) the client is offered neither device ()
+  ok - A6: outside the cage at (53.95, 64.1) the client is offered neither device ()
+  ok - A6: the client forces a press on c-sw-a6-panel from the west face
+  ok - A6: the client forces a press on c-sw-a6-exit from the west face
+  ok - A6: a press from outside the cage does not isolate the drive
+  ok - A6: a press from outside the cage does not free the cage door
+  ok - A6 pass 2: the hanger hangs head-first under the bridge (root y 3.56, tumble 3.14)
+  ok - A6 pass 2: the panel is out of reach at the starting depth
+  ok - A6 pass 2: lowered 2.43 m under the edge
+  ok - A6 pass 2: the host is inside the cage (51.50,0.04,64.75)
+  ok - A6 pass 2: the host opens the cage door
+  ok - A6: the outfall door is open to the client at the end
+  (ghost ledger A6 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A6 gallery
+  (A6 gallery: item 41.60,4.42,70.30, host 42.63,4.42,70.89, 1.19 m apart, reach 1.6, 29.87 s left, floor probe 1.10 m off and 4.42 m under)
+  ok - revive on the A6 gallery: the revive item lies on the surface (y 4.42)
+  ok - revive on the A6 gallery: the host on the same level is offered the revive (1.19 m, reach 1.6)
+  ok - revive on the A6 gallery: not offered from the floor below (1.10 m off, 4.42 m under)
+  ok - revive on the A6 gallery: inside the 30 s window (29.87 s left)
+  ok - revive on the A6 gallery: one revive of the team budget used (0 -> 1)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 3 (sets 5-6) OK
+
+=== e2e-ctcourse:4 (ok, 224s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 7
+  ok - host avatar drawn on the client ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - no minimap or compass (G339) on the host
+  ok - no minimap or compass (G339) on the client
+  ok - client avatar drawn on the host ({"ok":true,"root":[67,0.019999985098838824,60.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 7 (a7DataHall)
+  (H8 set 7: 1 guards, 0 not alive, 0 below -5 m)
+  ok - set 7: every guard is alive and none fell through the floor ({"n":1,"dead":0,"low":0})
+  A7: the lobby, the step lines, the terminals, the locks
+  ok - A7: the host has the terminal c-a7-t1
+  ok - A7: the host has the terminal c-a7-t2
+  ok - A7: the host has the scanner pair sc-a7, idle ({"id":"sc-a7","flag":"a7-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A7: the client has the terminal c-a7-t1
+  ok - A7: the client has the terminal c-a7-t2
+  ok - A7: the client has the scanner pair sc-a7, idle ({"id":"sc-a7","flag":"a7-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A7: nobody has claimed a path yet
+  ok - A7: the technician is alive, armed and on his loop ({"x":84.25,"z":60.75,"idx":0,"alerted":false,"passive":false})
+  ok - A7: both cameras are live (["cam-a3-hall","cam-a4-c1","cam-a4-c2","cam-a4-c3","a7-cam1","a7-cam2","a8-cam1","a8-cam2","a8-cam3"])
+  ok - A7: A7-cage-w starts locked on the host
+  ok - A7: A7-cage-w starts locked on the client
+  ok - A7: A7-cage-e starts locked on the host
+  ok - A7: A7-cage-e starts locked on the client
+  ok - A7: L7-near starts locked on the host
+  ok - A7: L7-near starts locked on the client
+  ok - A7: A7-hall is never locked
+  ok - A7: A7-plant is never locked
+  ok - A7: A7-pod-s is never locked
+  ok - A7: T1's spot reads lit and the same on both pages (host 0.696, client 0.696)
+  ok - A7: the corridor reads lit and the same on both pages (host 0.942, client 0.942)
+  ok - A7: the lobby reads lit and the same on both pages (host 0.599, client 0.599)
+  A7: the claim swap (the host takes the corridor), the restart
+  ok - A7 claim swap: opens A7-plant
+  ok - A7: the host restarts at the checkpoint
+  ok - A7: the restart clears the claim
+  ok - A7: A7-cage-w is still locked after the restart
+  ok - A7: A7-cage-e is still locked after the restart
+  ok - A7: L7-near is still locked after the restart
+  A7: the split (the client takes the corridor)
+  ok - A7: opens A7-plant
+  ok - A7: the host is A, the client B (a,b)
+  A7: the corridor in the blind windows, the pod
+  ok - A7 pod door: opens A7-pod-s
+  ok - A7: cam2 never saw the client cross ({"yaw":3.839724354387525,"clock":18.316666666666908,"frozen":false,"stage":0,"alarm":0})
+  ok - A7: the hack is not done yet
+  A7: the hall, the technician, terminal one
+  ok - A7 hall door: opens A7-hall
+  ok - A7: the host shuts the hall door again
+  ok - A7: the ready lamps light on both pages ([["0.15,0.2,0.15","0.15,0.2,0.15"],["0.15,0.2,0.15","0.15,0.2,0.15"]] -> [["0.3,1,0.4","0.3,1,0.4"],["0.3,1,0.4","0.3,1,0.4"]])
+  A7: a late hack fails, then the synced hack
+  ok - A7: the client has health to lose (100)
+  ok - A7: the host starts the hack at terminal one
+  ok - A7: the client starts late
+  ok - A7: out of sync, no flag (1:late)
+  ok - A7: the failed hack cost 10 HP (100 -> 90), never below 1
+  ok - A7: the failed sync leaves the cage locked
+  ok - A7: the host starts the synced hack at terminal one
+  ok - A7: the client starts on the count
+  (A7: the host takes the client's hack start: on the host step at 58.817 s)
+  ok - A7: the client starts 0.5 s after the host, inside the window ({"at":0.6000000000000002})
+  ok - A7: the synced hack cost nothing
+  A7: the cage opens, through the cage, to L7
+  ok - A7: A7-cage-w is unlocked on the host
+  ok - A7: A7-cage-e is unlocked on the host
+  ok - A7: L7-near is unlocked on the host
+  ok - A7 cage: opens A7-cage-w
+  ok - A7 cage: opens A7-cage-e
+  ok - A7: the L7 near door (the pod's east door) is open to the client
+  ok - A7: the host is past the hack line
+  (ghost ledger A7 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 8 (a8Strongroom)
+  (H8 set 8: 3 guards, 0 not alive, 0 below -5 m)
+  ok - set 8: every guard is alive and none fell through the floor ({"n":3,"dead":0,"low":0})
+  A8: the vestibule, the step lines, the guards, the cameras, the light
+  ok - A8: the map has A8-entry
+  ok - A8: the host has the device c-a8-board
+  ok - A8: the host has the device c-a8-console
+  ok - A8: the host has the device c-a8-stair-bar
+  ok - A8: the host has the device c-a8-t1
+  ok - A8: the host has the device c-a8-t2
+  ok - A8: the host has the scanner pair sc-a8, idle ({"id":"sc-a8","flag":"a8-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":1,"last":"1:late","anyReady":false})
+  ok - A8: the host has the beam curtain on, powered by panel-a8 ({"id":"laser-a8","on":true,"live":true,"panel":"panel-a8"})
+  ok - A8: the three cameras are online on the host (["online","online","online"])
+  ok - A8: the night circuit is lit on the host
+  ok - A8: the client has the device c-a8-board
+  ok - A8: the client has the device c-a8-console
+  ok - A8: the client has the device c-a8-stair-bar
+  ok - A8: the client has the device c-a8-t1
+  ok - A8: the client has the device c-a8-t2
+  ok - A8: the client has the scanner pair sc-a8, idle ({"id":"sc-a8","flag":"a8-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A8: the client has the beam curtain on, powered by panel-a8 ({"id":"laser-a8","on":true,"live":true,"panel":"panel-a8"})
+  ok - A8: the three cameras are online on the client (["online","online","online"])
+  ok - A8: the night circuit is lit on the client
+  ok - A8: nobody has claimed a job yet
+  ok - A8: a8-night1 is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":128.75,"z":71.75,"idx":0})
+  ok - A8: a8-night2 is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":126.25,"z":71.25,"idx":0})
+  ok - A8: a8-officer is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":142.75,"z":74.75,"idx":0})
+  ok - A8: A8-grille starts locked on the client
+  ok - A8: A8-grille starts locked on the host
+  ok - A8: A8-stair-foot starts locked on the client
+  ok - A8: A8-stair-foot starts locked on the host
+  ok - A8: A8-vault starts locked on the client
+  ok - A8: A8-vault starts locked on the host
+  ok - A8: A8-office is never locked
+  ok - A8: A8-stair-top is never locked
+  ok - A8: the board and the console start ready ({"g-a1-wicket":false,"g-a2-neck":false,"g-a4-wicket":false,"g-a4-console":false,"g-a5-release":false,"g-a5-l5":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a7-cage-w":true,"g-a7-cage-e":true,"g-a7-east":true,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false})
+  ok - A8: the front reads lit and the same on both pages (host 0.757, client 0.757)
+  ok - A8: the grille approach reads lit and the same on both pages (host 0.601, client 0.601)
+  ok - A8: the vestibule reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A8: the leg-up mark reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A8: the jam spot reads dark and the same on both pages (host 0.170, client 0.170)
+  A8: the leg-up split
+  ok - A8: the climber hangs on the gallery's open edge, normal +x, 4.4 m ({"top":4.4,"nx":1})
+  ok - A8: the climber stands on the gallery (y 4.42)
+  ok - A8: the first player onto the gallery (the host) has claimed A, the client B
+  A8: the cross-level jam on C2
+  ok - A8: blind C2 holds nothing on the host on the pier (meters [0,0])
+  ok - A8 office door: opens A8-office
+  ok - A8: no alarm stage after the hop under C2
+  A8: the console, the officer, the loop
+  ok - A8: the officer carries his two interrogation lines (2)
+  ok - A8: the host presses the console with the officer up
+  ok - A8: the refused press sets no flag and opens no gate
+  ok - A8: the officer is down
+  ok - A8: the host presses the console again
+  ok - A8: the loop runs (59.9 s left)
+  A8: the lighting board, the lure
+  ok - A8: the client presses the lighting board
+  ok - A8: the client presses the lighting board a second time
+  ok - A8: a second press does nothing (the window 25.0 s -> 24.4 s, it never rises)
+  ok - A8: the seven night lamps are off on both pages
+  ok - A8: the front reads dark and the same on both pages with the circuit cut (host 0.141, client 0.141)
+  ok - A8: the grille approach reads dark and the same on both pages with the circuit cut (host 0.149, client 0.149)
+  A8: through the grille, down the office stair
+  ok - A8 grille: opens A8-grille
+  ok - A8 grille: closes A8-grille
+  ok - A8 stair top door: opens A8-stair-top
+  ok - A8: the foot door is locked until the push bar
+  ok - A8: the host pushes the bar on the stair side
+  ok - A8 stair foot door: opens A8-stair-foot
+  ok - A8: the loop is still running
+  A8: the partner throw
+  ok - A8: the host still offers the throw at the press
+  (A8: the throw lands past the line: on the host step at 142.983 s)
+  ok - A8: the client lands within 0.5 m of the landing ({"x":141.93,"y":0.019999985098838824,"z":62})
+  ok - A8: the client's arc clears the top beam at the line (1.73 over 8 steps)
+  ok - A8: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A8: the beams are still on: the thrower is stranded
+  A8: the paired hack
+  ok - A8: the client has health to lose (100)
+  ok - A8: the host starts the hack at time lock one
+  ok - A8: the client starts late
+  ok - A8: out of sync: no flag, the client lost 10 HP (100 -> 90)
+  ok - A8: the failed sync is counted
+  ok - A8: the loop is still running at the second try
+  ok - A8: the host starts the synced hack at time lock one
+  ok - A8: the client starts about 0.5 s after the host, inside the window (ok, gap 0.60 s on the host)
+  ok - A8: the synced hack cost nothing
+  ok - A8: the vault door is unlocked on the host
+  ok - A8: the loop is still running after the sync
+  A8: the vault
+  ok - A8 vault door: opens A8-vault
+  A8: pass 2, the restart, the claim swap, the relock
+  ok - A8: the host restarts at the checkpoint
+  ok - A8: the restart clears the claim and the flags
+  ok - A8: A8-grille is locked again after the restart
+  ok - A8: A8-stair-foot is locked again after the restart
+  ok - A8: A8-vault is locked again after the restart
+  ok - A8: the restart puts the night circuit back on
+  ok - A8: the restart turns the beams back on
+  ok - A8 pass 2: the climber hangs on the gallery's open edge, normal +x, 4.4 m ({"top":4.4,"nx":1})
+  ok - A8 pass 2: the climber stands on the gallery (y 4.42)
+  ok - A8 pass 2: the client is A, the host B
+  ok - A8 pass 2: the host presses the board
+  ok - A8 pass 2 grille: opens A8-grille
+  ok - A8 pass 2: the relock never shuts the door: it stays open (ENGINE-ANSWERS Q9)
+  ok - A8 pass 2 grille: closes A8-grille
+  ok - A8 pass 2: shut and locked, the grille cannot be opened from inside by hand
+  ok - A8 pass 2: the request-to-exit is in the build
+  ok - A8 pass 2: the client presses the request-to-exit from the hall side
+  ok - A8 pass 2: a press from the hall side leaves the grille locked (out of reach)
+  ok - A8 pass 2: the host presses the request-to-exit from the lobby side
+  (ghost ledger A8 after the walk: {"detections":1,"alarms":2,"knockouts":1,"kills":0,"bodies":0})
+  revive on the A8 gallery
+  (A8 gallery: item 107.90,4.42,68.20, host 107.90,4.42,69.40, 1.20 m apart, reach 1.6, 29.88 s left, floor probe 0.00 m off and 4.42 m under)
+  ok - revive on the A8 gallery: the revive item lies on the surface (y 4.42)
+  ok - revive on the A8 gallery: the host on the same level is offered the revive (1.20 m, reach 1.6)
+  ok - revive on the A8 gallery: not offered from the floor below (0.00 m off, 4.42 m under)
+  ok - revive on the A8 gallery: inside the 30 s window (29.88 s left)
+  ok - revive on the A8 gallery: one revive of the team budget used (0 -> 1)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+finale: a revive in the cash dock, then both must be in the exit zone
+  ok - finale: the pause ran 2.5 s on the host's clock (2567 ms)
+  (finale: 2.68 s of host time from the downing to the read)
+  ok - finale: the 30 s window runs on the host (sim time) (27.3 s left)
+  ok - finale: one revive of two used (1 -> 2)
+  ok - one player in the exit zone does not end the course
+  ok - both players in the exit zone complete the course
+  ok - the end screen has the time, alarms and revives ({"time":209.36666666666986,"alarms":2,"revives":2}, 2 done)
+  ok - no console errors ()
+e2e-ctcourse part 4 (sets 7-8) OK
+
+times (GPU, 2 at a time):
+  e2e-ctcourse:3 ok 278s
+  e2e-ctcourse:2 ok 238s
+  e2e-ctcourse:4 ok 224s
+  e2e-ctcourse:6 ok 214s
+  e2e-ctcourse:8 ok 167s
+  e2e-ctcourse:7 FAIL (KNOWN FLAKY) 158s
+  e2e-ctcourse:5 ok 137s
+  e2e-ctcourse:1 ok 88s
+
+wall 844s, suites summed 1505s (x1.8)
+
+*** KNOWN FLAKY (quarantined), failed this run: e2e-ctcourse:7 (owner Night Shift | Marlow Build, until 2026-10-29T00:00:00Z) - rerun them alone before reading anything into it ***
+
+all e2e suites passed
