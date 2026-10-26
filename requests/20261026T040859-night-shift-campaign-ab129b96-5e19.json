@@ -1,0 +1,13 @@
+{
+  "id": "20261026T040859-night-shift-campaign-ab129b96-5e19",
+  "sha": "ab129b96c7b580396f4ca0b02dcdcdbc888782ae",
+  "branch": "feature/tallow-fixes-2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops"
+  ],
+  "set": "tallow-prg2-a",
+  "note": "PR G2 + E8 part a: e2e-sectorops all (wharf parts included); split from tallow-prg2 to fit the desktop 60 min cap"
+}
