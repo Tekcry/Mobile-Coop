@@ -15,7 +15,7 @@ export const T1 = 0.05;
 export const T2 = 0.08;
 export const T3 = 0.12;
 export type Kind = 'grunt' | 'runner' | 'heavy' | 'sniper' | 'officer' | 'enforcer' | 'droneOp';
-/** Free poses: rifle average, melee lean, rifle broad. */
+/** Free poses: rifle average, rifle lean (the runner, armed since G298), rifle broad. */
 export const FREE: readonly Kind[] = ['grunt', 'runner', 'heavy'];
 /** Armed free poses (aimed strafe / backpedal: a melee guard never aims). */
 export const ARMED: readonly Kind[] = ['grunt', 'heavy'];
