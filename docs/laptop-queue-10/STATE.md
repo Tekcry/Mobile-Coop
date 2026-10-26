@@ -83,3 +83,11 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   marks the old id done 'moved' and releases the new one (alone steps / due / front place follow); keepFinished writes
   the new file. Tests: describe "moved requests (laptop-queue-10 S6)", 4 cases; 337 pass (laptop-queue 261 + autoTrain
   71 + e2eQuarantine 5); typecheck:fast clean. +136 / -22 (lib 20/0, service 78/21 incl. ~12 moved, tests 38/1).
+- 2026-10-26: S6b (Opus builder, feature/laptop-queue-10b; tracker F39, added by the orchestrator 15:45 from the 15:33
+  time audit): fix and front before an aged alone. lib isFrontTier (pr / full: order.fix or isFront; never alone, spare,
+  train rerun), pick queue.frontBeforeAlone: an aged or preempted alone no longer holds a free slot from a fix / front
+  request (fixes first, then by place); the alone still waits for both slots; trains and train reruns stay first.
+  service LQ_FRONT_BEFORE_ALONE (1), queue.frontBeforeAlone, the laptop alone hold also keeps the fix / front tier
+  (built like queue.order) besides train reruns, its log line says so. Tests: describe "fix and front before an aged
+  alone (laptop-queue-10 S6b, F39)", 3 cases (the audit replay with the knob on / off); 340 pass (laptop-queue 264 +
+  autoTrain 71 + e2eQuarantine 5); typecheck:fast clean. +57 / -5 (lib 16/0, service 9/4, tests 32/1).

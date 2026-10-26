@@ -54,6 +54,7 @@ install-task.ps1, auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mj
 | `LQ_CPU_COUNT_E2E` | 1 | 0 = Idle e2e browsers are subtracted again | F24 (A9) |
 | `LQ_QUARANTINE_KEYS` | 1 | 0 = an entry forgives any failure, as today | F26 (A10) |
 | `LQ_KEYLESS_QUARANTINE_H` | 48 | 0 = a keyless entry forgives until its own expiry | F26 (A11) |
+| `LQ_FRONT_BEFORE_ALONE` | 1 | 0 = an aged alone request goes before the fix and front tiers, as before | F39 (S6b) |
 
 ## S1 (Opus) - hung runs are killed (F10) and each attempt keeps its logs (F27)
 Highest repeat cost first: #317 held 4192 for 65 min; train 118's first-run logs are gone.

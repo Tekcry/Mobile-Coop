@@ -121,13 +121,14 @@
 // master-based ones on both workers (LQ_STACKED_LAST). A quarantine entry forgives only the failures whose assert key is in
 // its `keys` (auto entries fill them from the flakes that tripped the budget; LQ_QUARANTINE_KEYS); a keyless entry forgives
 // any failure for LQ_KEYLESS_QUARANTINE_H (48) h after this worker first sees it, then its failures count.
+// F39: a fix or front request takes a free slot before an aged alone, also through the alone hold (LQ_FRONT_BEFORE_ALONE).
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote, quarantineKeys, quarantineForgives, movedRequests } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, isFrontTier, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote, quarantineKeys, quarantineForgives, movedRequests } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { AFFECTED_MAX } from '../e2e-affected.mjs';
@@ -204,6 +205,8 @@ const QUARANTINE_KEYS = process.env.LQ_QUARANTINE_KEYS !== '0';
 const KEYLESS_MS = Number(process.env.LQ_KEYLESS_QUARANTINE_H ?? 48) * 3600_000;
 // laptop-queue-10 A7 (F15): 0 = a renamed request (e.g. fronted to an early id) is a withdrawal, as before (lib movedRequests)
 const MOVED = process.env.LQ_MOVED !== '0';
+// laptop-queue-10 (F39): 0 = an aged alone request goes before the fix and front tiers, as before (lib pick queue.frontBeforeAlone)
+const FRONT_BEFORE_ALONE = process.env.LQ_FRONT_BEFORE_ALONE !== '0';
 /** lib claimBlocks for this worker now, with the heartbeat bound (A17). */
 const blocks = (c) => claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS, CLAIM_BEATS);
 const argv = process.argv.slice(2);
@@ -2403,7 +2406,7 @@ async function pass() {
   const dt = DESKTOP ? desktopTrains(headsOnce) : null;
   for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
   // realOpen: a real request on the full listing (before the hold filters below) keeps a spare from starting (lib pick)
-  const queue = { trains: DESKTOP ? dt.trains : pendingTrains(trainRead).filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone, realOpen: realOpenNow(requests) };
+  const queue = { trains: DESKTOP ? dt.trains : pendingTrains(trainRead).filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone, realOpen: realOpenNow(requests), frontBeforeAlone: FRONT_BEFORE_ALONE };
   pendingNow = queue.trains; // runs still before their suites / steps yield to these
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
@@ -2419,8 +2422,10 @@ async function pass() {
     const aged = holdClears(aloneHold) ? agedAlone(queue.requests, Date.now()) : null;
     const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop} ${aged?.id ?? ''}`;
     // laptop-queue-8 A19: repeated every 15 min while an aged alone stops pr claims, so a stuck hold shows in the log tail
-    if (key !== aloneHoldLogged || (aged && Date.now() - aloneHoldAt >= HOLD_LOG_MS)) { aloneHoldLogged = key; aloneHoldAt = Date.now(); log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over ${ALONE_AGE_MIN} min: no new pr claims` : ''}`); }
-    queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
+    if (key !== aloneHoldLogged || (aged && Date.now() - aloneHoldAt >= HOLD_LOG_MS)) { aloneHoldLogged = key; aloneHoldAt = Date.now(); log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over ${ALONE_AGE_MIN} min: no new pr claims${FRONT_BEFORE_ALONE ? ' but fix / front' : ''}` : ''}`); }
+    // F39: the fix and front tiers still start (lib isFrontTier, the tiers queue.order builds below)
+    const tier = { fix: new Set(FIX_FIRST ? queue.requests.filter((r) => isFix(r, board)).map((r) => r.id) : []), frontBranches: GREEN_FIRST ? FRONT_BRANCHES : [] };
+    queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun || (FRONT_BEFORE_ALONE && isFrontTier(r, tier)) : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
   // before any train PR exists: a green train-ready PR keeps new alone claims back (aged and preempted ones still start)
   // (the green train-ready heads come from readyNow, read by pendingTrains this pass)

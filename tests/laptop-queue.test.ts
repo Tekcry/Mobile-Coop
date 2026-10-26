@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote, quarantineKeys, quarantineForgives, movedRequests } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote, quarantineKeys, quarantineForgives, movedRequests, isFrontTier } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -2388,6 +2388,37 @@ describe('moved requests (laptop-queue-10 S6)', () => {
     expect(movedRequests([], [c1]).size).toBe(0);
     expect(movedRequests([g1], []).size).toBe(0);
     expect(movedRequests(undefined, undefined).size).toBe(0);
+  });
+});
+
+describe('fix and front before an aged alone (laptop-queue-10 S6b, F39)', () => {
+  const order = (fix: string[] = []) => ({ fix: new Set(fix), green: new Set(), wallS: {}, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000, stacked: new Set() });
+  const run = (requests: unknown[], o: unknown, on: boolean, s = slots(false, false)) => pick({ trains: [], requests, order: o, frontBeforeAlone: on }, NOW, s);
+  const alone = req(45, 'alone', 'route-run');
+  it('the 15:00 audit replay: a fronted fix pr request beats an alone request aged 45 min; knob 0 = the alone', () => {
+    const fronted = { id: '20191231T235959-night-shift-player-b-d7a3b887', kind: 'pr', requester: 'Night Shift | Player Build' };
+    expect(isFrontTier(fronted, order())).toBe(true);
+    expect(run([alone, fronted], order(), true)?.request).toBe(fronted);
+    expect(run([alone, fronted], order(), false)).toMatchObject({ kind: 'alone', request: alone });
+  });
+  it('a fix-labelled request and a front branch go first too (fix first), and take one free slot beside a busy one', () => {
+    const fix = req(5, 'pr', 'fix');
+    const mixamo = { ...req(10, 'pr', 'mx'), branch: 'feature/mixamo-x' };
+    expect(run([alone, mixamo, fix], order([fix.id]), true)?.request).toBe(fix);
+    expect(run([alone, mixamo], order(), true)?.request).toBe(mixamo);
+    expect(run([alone, fix], order([fix.id]), true, slots(true, false))).toMatchObject({ kind: 'request', request: fix, slot: '4192' });
+    expect(run([alone, fix], order([fix.id]), false, slots(true, false))).toBeNull();
+  });
+  it('a non-front pr request still waits behind the aged alone; trains and train reruns stay first', () => {
+    const plain = req(50, 'pr', 'plain');
+    expect(run([alone, plain], order(), true)).toMatchObject({ kind: 'alone', request: alone });
+    expect(run([alone, plain], order(), true, slots(true, false))).toBeNull();
+    const fronted = { id: '20191231T235959-x-d7a3b887', kind: 'pr', requester: 'x' };
+    expect(pick({ trains: [train], requests: [alone, fronted], order: order(), frontBeforeAlone: true }, NOW, slots(false, false))).toMatchObject({ kind: 'train' });
+    const rr = { ...req(3, 'pr', 'rr'), trainRerun: true };
+    expect(run([alone, fronted, rr], order(), true)?.request).toBe(rr);
+    expect(isFrontTier({ ...fronted, kind: 'alone' }, order())).toBe(false);
+    expect(isFrontTier(spareReq(40, 'pr'), order([spareReq(40, 'pr').id]))).toBe(false);
   });
 });
 

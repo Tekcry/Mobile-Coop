@@ -307,6 +307,16 @@ export function isFront(r, frontBranches = []) {
 }
 
 /**
+ * laptop-queue-10 (F39): a pr / full request of pick's front tiers, which go before an aged alone when
+ * queue.frontBeforeAlone: order.fix (tier 0) or isFront (order.frontBranches, early ids). Never an alone, spare or
+ * train rerun request. order absent = the early ids only.
+ */
+export function isFrontTier(r, order) {
+  if (!r || (r.kind !== 'pr' && r.kind !== 'full') || r.trainRerun || r.requester === SPARE_REQUESTER) return false;
+  return Boolean(order?.fix?.has(r.id)) || isFront(r, order?.frontBranches ?? []);
+}
+
+/**
  * Fix tier of lib pick (laptop-queue-8 A2): a pr / full request with `fix: true` (request.mjs --fix) or whose PR carries
  * the `fix` label on the board (lib prBoard, read live each pass). Never an alone, spare, train rerun or laptop rerun
  * request (those sit above or apart).
@@ -362,6 +372,8 @@ export function greenIds(requests, board) {
  * laptop-queue-10 A8 (F22): order.stacked (a Set of ids whose PR's base is not master, lib prBoard) runs after every
  * master-based request in the green / arrival tiers (the same rules among them, no wait bound) and after them in the
  * desktop's smallest order; the fix and front tiers ignore it.
+ * laptop-queue-10 (F39): queue.frontBeforeAlone (LQ_FRONT_BEFORE_ALONE) starts a fix / front request (lib isFrontTier)
+ * on a free slot before an aged or preempted alone request (the 15:00 audit: 0 fix minutes behind two aged alone sets).
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -391,6 +403,10 @@ function pickFrom(queue, now, slots) {
   const front = queue.front ?? new Set();
   const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
+  // laptop-queue-10 (F39, LQ_FRONT_BEFORE_ALONE): a front-tier request (lib isFrontTier: fixes first, then front, by
+  // place) takes a free slot before an aged or preempted alone; the alone still waits for both slots
+  const first = aged && queue.frontBeforeAlone && idle[0] ? reqs.filter((r) => isFrontTier(r, queue.order)).sort((a, b) => Number(Boolean(queue.order?.fix?.has(b.id))) - Number(Boolean(queue.order?.fix?.has(a.id))) || sortByPlace(a, b))[0] : null;
+  if (first) return { kind: 'request', request: first, slot: idle[0].port };
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone').sort(sortByPlace);
   const order = queue.order;
