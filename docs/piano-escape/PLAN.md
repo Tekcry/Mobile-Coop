@@ -237,7 +237,7 @@ score); keep the file out of the precache (`PRECACHE_IGNORES`) so nobody downloa
 
 **S4 Knife kills, co-op and the full run (Opus: src/net, animation wiring).** In the scene every takedown offer is the
 knife kill (one press, lethal, knife shown only during the kill): `pianoScene.ts` calls
-`takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.id))` after the EMP and `setKnifeScene(false)` on leave
+`takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` after the EMP and `setKnifeScene(false)` on leave
 (knife job S1, PB5); the co-op host keeps the campaign
 revive cap for a scene map (`coopHost.ts:205`); the client's intro ends on the host's EMP (interactable state and the
 `lamps` snapshot); either player's press works. Extend `e2e-piano` with a two-tab `?net=local` run: both pages see
@@ -265,7 +265,7 @@ Each ask below names the knife slice and hook that delivers it. Knife S5 (above 
 slash) is not needed by this map: it has no drops, ledges or windows to kill from.
 
 Answers to the knife plan's "Needs from Campaign" (section 6; the lead gave them, recorded here):
-- Q-C1 Map id `pianoWorks` (their `PIANO_MAP_ID`); `src/game/pianoScene.ts` calls `setKnifeScene` after the EMP.
+- Q-C1 Map id `pianoWorks` (knife gate `knifeSceneOn` in `src/game/knifeKill.ts`: true only for a map with `scene: 'piano'`); `src/game/pianoScene.ts` calls `setKnifeScene` after the EMP.
 - Q-C2 Flag `pianoEscape`, added by Campaign (S1 here).
 - Q-C3 8 standard armed human guards; no dogs, heavies, enforcers or shields.
 - Q-C4 Approaches as section 3: `behind`, `behindLow` (from crouch behind the frames and pianos), `corner` (wall ends
@@ -293,7 +293,7 @@ Each side keeps to its named lines; the train merges both.
 | PB2 | **Knife S1 + S2, row `behindLow`.** Knife kill from behind, attacker starting crouched (rises into it). Targets: contact about 0.8 s, attacker free by 2.2 s. | G1, G3, G8 takes from the frames and pianos | S | none (falls back to PB1) |
 | PB3 | **Knife S1 + S2, row `corner`.** Knife kill around a corner (`corner` kind: attacker at a wall end pulls the guard round and kills out of sight). Targets: contact about 0.9 s, the body left lying round the corner, free by 2.4 s. | G2 at the dock corner, G4 at the corridor door, G7 at the booth | S-M | none (falls back to PB1) |
 | PB4 | **Knife S3 (co-op wire, remote pose).** Co-op double: no dedicated dual move (G180). Two PB1 kills started inside `DUAL_WINDOW` 1.5 s on guards 1-2 m apart must read side by side (victims fall clear of each other), and the remote pose shows the knife kill (remotes pose from `MoveState`). | G5 + G6 | S (check and fix) | S4 |
-| PB5 | **Knife S1, `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.id))`.** A scene switch (set by `pianoScene.ts` after the EMP, S4): every takedown offer is the lethal knife kill on one press (no tap / hold), the knife shown in hand from the press to the free; off the scene nothing changes. | All takedowns in the scene | S (~100 lines in `takedownController.ts`) | S4 |
+| PB5 | **Knife S1, `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))`.** A scene switch (set by `pianoScene.ts` after the EMP, S4): every takedown offer is the lethal knife kill on one press (no tap / hold), the knife shown in hand from the press to the free; off the scene nothing changes. | All takedowns in the scene | S (~100 lines in `takedownController.ts`) | S4 |
 | PB6 | **Knife S4a (slide lock) + S4b (`introPose(on)`).** Intro pose: standing back flat to a wall, the empty pistol low-ready in both hands with the slide locked back (the weapon model's slide held back), slow calm breathing readable at chest close-up (about a 4 s cycle). The partner: the same pose, a mirror or a crouch, beside him. | Intro shots 3-38 s | S | none (S2 uses `wall_idle` + the pistol stance until it lands) |
 
 ## Guard AI Build asks (BRIEF A11: scene-only, gated on the scene's blackout; nothing changes off the scene)
