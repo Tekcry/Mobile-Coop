@@ -19,7 +19,7 @@ import { createTrysteroTransport } from './trysteroTransport';
 import { DIRECTORY_ROOM, DirectoryBrowser, DirectoryPoster, type ListedRoom, type RoomNotice } from './roomDirectory';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
-import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
+import { loadCourseRecord, lobbyStartBay, startableBays, type CourseRecord } from '../save/courseRecord';
 import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
 import { registeredBayCount } from '../game/course/courseDef';
@@ -598,7 +598,9 @@ class LobbyScreen extends MenuScreen {
     const entry = this.courseRec?.courses[s.map];
     // (marlow-final N8) the dev flag offers the course's own bays (its registered definition), not an assumed 9
     const bays = startableBays(entry, courseAllBaysFlag(), courseAllBaysFlag() ? registeredBayCount(s.map) : 0);
-    if (!bays.includes(s.courseBay)) s.courseBay = 1;
+    // (marlow-play B4) no clamp while the record loads ("Resume hosting" starts its match right after this); it is listed meanwhile
+    s.courseBay = lobbyStartBay(s.courseBay, bays, this.courseRec !== undefined);
+    if (!bays.includes(s.courseBay)) bays.push(s.courseBay);
     return choice('Start at', bays.map((n) => ({ value: String(n), label: n === 1 ? 'Bay 1' : `Bay ${n}${entry?.bays[n - 1] ? ` (${entry.bays[n - 1]})` : ''}` })), () => String(s.courseBay), (v) => {
       s.courseBay = Number(v) || 1;
     });
