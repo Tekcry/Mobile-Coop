@@ -150,21 +150,24 @@ const VIC: (KeyedClip | null)[] = [null, null, null, null];
 let loading: Promise<void> | null = null;
 let ready = false;
 
-/** The clip modules by clip name (each a separate chunk; the rifle deaths are the Studio's own captures). */
+/** The clip modules by clip name (each a separate chunk). The rifle deaths are the Studio's lazy captures: they come
+ *  through the lazy set's own chunk (`studioCapturesLazy.ts`; no game code names a lazy module, the
+ *  `studioCapturesLazy` test), picked by the clip's name. */
 function loadClip(name: string): Promise<KeyedClip | null> {
   switch (name) {
     case 'mocap_cross_punch':
       return import('../anim/clips/mixamo/cross_punch').then((m) => m.MOCAP_CROSS_PUNCH);
     case 'mocap_crouch_to_stand':
       return import('../anim/clips/mixamo/crouch_to_stand').then((m) => m.MOCAP_CROUCH_TO_STAND);
-    case 'mocap_rifle_death_from_the_back':
-      return import('../anim/clips/mixamo/studio/rifle_death_from_the_back').then((m) => m.MOCAP_RIFLE_DEATH_FROM_THE_BACK);
-    case 'mocap_rifle_death_from_right':
-      return import('../anim/clips/mixamo/studio/rifle_death_from_right').then((m) => m.MOCAP_RIFLE_DEATH_FROM_RIGHT);
-    case 'mocap_rifle_death_from_the_front':
-      return import('../anim/clips/mixamo/studio/rifle_death_from_the_front').then((m) => m.MOCAP_RIFLE_DEATH_FROM_THE_FRONT);
     default:
-      return Promise.resolve(null);
+      return import('../anim/studioCapturesLazy').then((m) => {
+        for (const mod of m.LAZY_CAPTURE_MODULES) {
+          for (const v of Object.values(mod)) {
+            if (v && typeof v === 'object' && (v as { name?: unknown }).name === name) return v as KeyedClip;
+          }
+        }
+        return null;
+      });
   }
 }
 
