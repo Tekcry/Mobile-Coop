@@ -1,0 +1,13 @@
+{
+  "id": "20261026T153332-affected-e2e-590e17a7-d44d",
+  "sha": "590e17a723ca4053b0a1ee07cb9df9f04beb8d4f",
+  "branch": "feature/guard-ai-piano-polish",
+  "pr": 644,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #644"
+}
