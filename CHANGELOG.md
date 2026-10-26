@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.123.0 - Train 142: Co-op kit: rope descent (2026-10-26, PR #630; #590)
+- Co-op two-person rope: the partner standing beside the player holding the rope can now rappel down it, not only climb
+  up from the bottom. Press Co-op beside the holder: you go over the edge onto the rope, push the stick down to go down,
+  and keep it held down at the bottom to step off (the holder is then free). The look is a stand-in for now; the proper
+  animation comes next.
+- One switch for the new co-op moves, `?kitmoves=` (for example `?kitmoves=descent`; `all` or `0`): every finished move
+  is on in /preview/ and off in the live game until you try it. `?coopkit=1` still turns on the pull-up and the shutter.
+  Nothing changes in the live game.
+
 ## 4.122.1 - Train 141: Guard AI: piano intro actors; Marlow Yard re-plan walks, part 2 (2026-10-26, PR #628; #611, #610)
 
 ### Guard AI: piano intro actors
