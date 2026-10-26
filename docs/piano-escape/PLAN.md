@@ -1,7 +1,7 @@
 # piano-escape: plan
 Owner: Night Shift | Campaign Build. Status: current.
 
-Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 1b58989ed. Brief: `docs/piano-escape/BRIEF.md` (A1-A16,
+Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 1b58989ed. Brief: `docs/piano-escape/BRIEF.md` (A1-A17,
 Michael ~19:20 / ~19:28 / ~19:40 / ~19:55 / ~20:05 / ~20:10 / ~20:15 / ~20:16). Prototype mode: small, no tuning, one
 test set.
 
@@ -87,17 +87,20 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
 | press + 2.5 s | Cut to play | The shoulder camera; input on; subtitle (radio, voiceable, G82): "Lights are dead. They'll come with torches." Then the objective line (G343): "Take down every guard. The hoist door, top floor, west end." |
 
 - **EMP beat, in order (S2, host):** `world.level.lights.mainsOff(opX, opY, opZ, 0.8)` at the pressing operator; set
-  `world.lightning.t0` to the press time on the shared sim clock (host and client both receive it); the piano seeks
+  `world.lightning.t0` to the press time on the shared sim clock (solo: set locally; co-op: the host sends its press
+  time to the client in the sector state, S4); the piano seeks
   to 41.0 s under the EMP burst (so the loop and the lightning start together on every page); `em.sceneDark = true`;
-  the section's guards spawn (the opening four on the actors' spots); the opening four spawn 4-6 m from the players through a scene exception to the 7 m spawn rule (S2); then
-  `em.blackoutSearchSlots([0, 1], 5.5, 5.25)` (guard-list slots 0 and 1 = G1 + G2): only the pair you take together
+  the section's guards spawn (the opening four on the actors' spots); the opening four spawn 4-6 m from the players through a scene exception to the 7 m spawn rule (S2); then,
+  once SectorMode's `fill()` has spawned the four (a slot's guard is null until then, sectorMode.ts:911-930, so the
+  call never goes in the spawn step itself), `em.blackoutSearchSlots([0, 1], 5.5, 5.25)` (guard-list slots 0 and 1 = G1 + G2): only the pair you take together
   searches round W1 (Q2's recommended answer; with "All four" it is `[0, 1, 2, 3]`); G3 and G4 walk straight to their
   sweeps; input on. `mainsOff` holds through a restart (#602), so no start-state retake is needed: a restart re-runs
   `sceneDark`, the spawn and the search (S2 checks the lamps stay off). When the scene ends: `em.sceneDark = false`.
 - Skip: hold Back / Esc for 1 s jumps to the 38 s beat (the music seeks to 38 s); the EMP still needs its press. A
   restart (everyone down) never replays the intro; the music plays on (the scene's mute survives `checkpointReset`'s
   calm, sectorMode.ts:1234) and the lightning keeps its t0.
-- After the track ends (134 s), it loops from 41.0 s with a 2 s cross-fade: one loop is 93 s, the lightning period.
+- After the track ends (134 s), it loops from 41.0 s with a 2 s cross-fade: one loop is `loopPeriod()` = 134.03 - 2 - 41
+  = 91.03 s (scenePiano.ts:66-68), the lightning period.
 - **End (A9):** the last guard down unlocks the hoist door (a heavy bolt sound; the objective line: "The hoist door is
   open."); both players on the hoist platform: 2 s fade to black, the piano fades out, back to the menu or the lobby.
   No score, rating, results screen, section rating banner or card ("SECTORS CLEAR", sectorMode.ts:1064, skipped).
@@ -110,12 +113,12 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
   cover from it, and deeper inside, it stays under the meter's 1 lux dark band (the flash shadows, drawn on the plan).
   The pre-EMP electric lamps stay in the map (SO5's window-pool path needs at least one fixed lamp). Look check:
   `?lightning=1`.
-- **Clock:** `t` = the shared sim clock minus `world.lightning.t0`, with t0 = the EMP press (S2 sets it; host and
-  client both receive it). The prompt waits with no timer, so the track clock cannot drive the flashes; instead the
+- **Clock:** `t` = the shared sim clock minus `world.lightning.t0`, with t0 = the EMP press (S2 sets it on the host
+  and in solo; S4 sends the host's press `simTime` to the client as one optional field of the existing sector state). The prompt waits with no timer, so the track clock cannot drive the flashes; instead the
   piano seeks to 41.0 s at the press, so `t` = track time minus 41.0 on every page and the doubles land on the swells.
   Thunder (S6) and any music cue are driven from SO5's `flashAt`, never from a machine's own music time. No flash in
   the intro (the lightning starts with the EMP).
-- **Timetable** (the map's `lightning` data, S1b; `period: 93` = one music loop; a single is `{ t, peak: 1, len: 0.6 }`,
+- **Timetable** (the map's `lightning` data, S1b; `period: 91.03` = one music loop, `loopPeriod()`; a single is `{ t, peak: 1, len: 0.6 }`,
   a double adds `{ t + 0.45, peak: 0.8, len: 0.5 }`):
 
 | t after the EMP (s) | 6 | 18 | 30 | 37 | 44 | 51 | 58 | 65 | 73 | 81 | 88 |
@@ -124,7 +127,7 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
 | Track time (s) | 47 | 59 | 71 | 78 | 85 | 92 | 99 | 106 | 114 | 122 | 129 |
 
   Read as: every 12 s in the quiet first third of the loop, then every 7-8 s, with a double flash on each of the four
-  swells you can hear coming; then it repeats every 93 s (the gap over the seam, 88 -> 99, is 11 s). Fixed and the
+  swells you can hear coming; then it repeats every 91.03 s (the gap over the seam, 88 -> 97.03, is about 9 s). Fixed and the
   same every run (VISION rule 8). Thunder 2.0 s after each flash (sound only).
 - **Rain masks sound through the existing model:** the mill's SectorDef has `noisy: [mapWideNoise('rain', 6)]`
   (`src/ai/hearing.ts`; SectorMode applies it, sectorMode.ts:737): 6 dB halves every guard's hearing reach. Needs
@@ -230,6 +233,7 @@ files:
   - src/pwa/precacheGlobs.ts
   - src/net/coopHost.ts
   - src/net/coopClient.ts
+  - src/net/protocol.ts
   - scripts/e2e-piano.mjs
   - scripts/run-e2e.mjs
   - scripts/e2e-affected.mjs
@@ -243,14 +247,15 @@ files:
   - docs/piano-escape/**
   - changes/feature-piano-escape*.md
 maps: thornbeckMill
-protocol: none
+protocol: one optional field in the existing `sector` message (S4: the host's EMP-press simTime, `SectorNetExtra` in
+  sectors.ts, parsed in `sectorExtra`, protocol.ts); no PROTOCOL_VERSION bump (the train does it)
 save: none
 ```
 Notes: `sectorMode.ts`, `sectors.ts`, `gameState.ts`, `coopHost.ts` and `main.ts` are shared files: each slice touches
-them at named seams only. Protocol is none: the EMP press is an interactable use (host-checked), the blackout reaches
-the client in the existing `lamps` snapshot, and the lightning runs from the scene clock on both pages; if S4 finds the
-client cannot align the flashes or the intro end from what it has, it adds one optional field to the existing sector
-state (Opus-built, no `PROTOCOL_VERSION` bump) and this block is updated first. Other teams' asks are claimed on their
+them at named seams only. Protocol: the EMP press is an interactable use (host-checked) and the blackout reaches the
+client in the existing `lamps` snapshot; the press time is known only to the host, so S4 adds one optional field to
+the existing `sector` message (the host's press `simTime`, Opus-built, no `PROTOCOL_VERSION` bump: the train bumps it)
+and the client sets `world.lightning.t0` and ends its intro from it. Other teams' asks are claimed on their
 branches.
 
 ## Slices
@@ -278,14 +283,14 @@ gallery deck and rail, the crane-bay drop bar and hoist chain across the open ra
 light still passes), the stair (its foot gate latched from the gallery side), the ladder and deck hatch, the bin rows
 and sack walls that fence the path, the cover, the windows and board gaps as real openings (SO5's light comes through
 them), the hoist door (locked; the scene opens it), the hoist platform exit zone; 16 lamps + the exit sign
-(`electric: true`, no group), ambient 0; the `lightning` data of section 2b (`period: 93`, 15 entries); the 12 guards
+(`electric: true`, no group), ambient 0; the `lightning` data of section 2b (`period: 91.03`, 15 entries); the 12 guards
 as `SectorGuard` data (starts, sweep routes as fixed patrol points, pairs, takedown spots), tagged extras G13-G16; the
 section's `noisy: [mapWideNoise('rain', 6)]` (needs #603); the camera spaces; `docs/piano-escape/ELEMENTS.md` (16.9
 element register). Sector Ops runs SO2 (bake), SO4 (lux check) and the `?lightning=1` look check on top of it; Guard
 AI plans GA6 on its data.
 - Files: maps/thornbeckMill.ts, tests/thornbeckMill.test.ts, docs/piano-escape/ELEMENTS.md. Est. ~800 lines.
 - Checks: vitest thornbeckMill (12 guards + 4 tagged, each with a takedown spot and a fixed route; every start and
-  route point 0.5 m clear of colliders; every lamp electric, no group; ambient 0 (a dark map: torch slots present);
+  route point 0.5 m clear of colliders; the lightning `period` equals S3's `loopPeriod()`; every lamp electric, no group; ambient 0 (a dark map: torch slots present);
   the rain source present and `validateGuardAi` clean; the
   `lightning` entries match section 2b; the path walkable start to hoist door in stretch order; no walkable cell, drop
   or ledge from the path into the machinery floor (the crane-bay bar holds); the stair gate one-way); e2e:
@@ -312,7 +317,8 @@ press kills every lamp and sets t0, the meter reads dark, input on, restart with
   (spawn-after-EMP and start-spawn exception seams), scripts/e2e-piano.mjs, run-e2e.mjs, e2e-affected.mjs (a DIRECT_COVERS row for
   `src/game/piano*` and `src/world/maps/thornbeckMill.ts`), tests/pianoIntro.test.ts. Est. ~1100 lines.
 - Checks: typecheck; vitest pianoIntro (timeline at 0 / 3 / 9 / 16 / 30 / 38 s; camera path continuous and inside the
-  start bay; skip; no timeScale writes); e2e: e2e-piano + `e2e-coop` + `e2e-netmove`; one GPU look video of the intro
+  start bay; skip; no timeScale writes); vitest pianoScene: `blackoutSearchSlots` called after the spawn returns 2
+  (4 with Q2 "All four"); e2e: e2e-piano + `e2e-coop` + `e2e-netmove`; one GPU look video of the intro
   (laptop queue): the 30-38 s reveal frames all four guards over the bins.
 - Done looks like: the shot list plays, the EMP blacks out the mill, torches come on, play begins.
 - Flag: `pianoEscape`.
@@ -331,13 +337,17 @@ lead passes this line to S3 now, else S5 adds it after S3 merges.
 **S4 Knife kills, co-op and the full run (Opus: src/net, animation wiring).** `pianoScene.ts` calls
 `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` after the EMP and `setKnifeScene(false)` on
 leave (knife job S1, PB5); the co-op host keeps the campaign revive cap for a scene map (`coopHost.ts:205`); the
-client's intro ends on the host's EMP and takes the same t0, so its flashes and thunder follow the shared sim clock;
+client's intro ends on the host's EMP and takes the same t0 from the new optional `sector` field (the host's press
+`simTime`), so its flashes and thunder follow the shared sim clock;
 its piano seeks to 41.0 s at the same moment (a small drift between a page's music and the flashes is a walk note).
 Extend `e2e-piano` with a two-tab `?net=local` run: the client presses the EMP, both pages go dark, a flash lights both
 pages at the same `t` (within 100 ms), a co-op kill on G1 + G2, a solo kill each, both on the hoist platform end it on
-both pages; a restart keeps the lamps off; and the start is survivable: at the cut G1 + G2 walk their search from W1 itself with lit torches 5-7 m away, and both players can move off the wall before either is seen. Both pages need the flag (a client without it falls back to
+both pages; a restart keeps the lamps off; and the start is survivable: at the cut G1 + G2 walk their search from W1 itself with lit torches 5-7 m away (the
+first point lies inside W1's footprint, so the nav snap picks the face); pass line: both players reach the low sacks
+within 4 s with no guard past suspicious. Both pages need the flag (a client without it falls back to
 `provingGrounds`, `getMap`). If SO3 is not in yet, S4 runs on the 8-guard set.
-- Files: pianoScene.ts, coopHost.ts, coopClient.ts (if needed), scripts/e2e-piano.mjs. Est. ~400 lines.
+- Files: pianoScene.ts, coopHost.ts, coopClient.ts, protocol.ts + sectors.ts (the one optional field),
+  scripts/e2e-piano.mjs. Est. ~450 lines.
 - Checks: typecheck; vitest pianoScene; e2e: exactly `e2e-coop` + `e2e-netmove` + `e2e-ctcourse` (src/net) +
   e2e-piano; two independent Opus checkers.
 - Waits for: knife job S1 (`setKnifeScene`, PB5, placeholder clips) and S3 (co-op wire, PB4); GA6, GA7; SO2-SO4 and
@@ -354,8 +364,8 @@ Pixabay Content License, `C:/NightShift/scratch/music/alexgrohl-suspense-thrille
 precache like the first track), adds `piano.mjs` and `pulse.mjs` as the in-repo sources (`scripts/music/`), and keeps
 the dev A/B picker: `?pianomusic=pixabay|grohl|1|2|3|4` read in `sceneTracks.ts`, and a "Scene" list in the Music Lab
 (`?musiclab=1`, `musicLab.ts`) to play all six side by side. Touches audio files only, never S3's files (the one seam
-above). **Form check, flagged, not re-composed:** the lightning loops every 93 s with its doubles on the Leberch
-track's swells (t 37 / 51 / 65 / 81). Sketch 2 (93.5 s) nearly matches the period; sketch 4 (96.4 s) is close;
+above). **Form check, flagged, not re-composed:** the lightning loops every 91.03 s with its doubles on the Leberch
+track's swells (t 37 / 51 / 65 / 81). Sketch 2 (93.5 s) is close to the period; sketch 4 (96.4 s) is further off;
 sketches 1 (83.8 s) and 3 (78.0 s) and the Grohl track (162.0 s) do not; none was written to those swells. With any
 of them playing, the flashes keep the same timetable (they never follow the music), so the doubles will not land on
 its swells: a listening note for Michael's A/B. Each one loops whole (from 0) unless its length allows the 41 s point.
@@ -415,13 +425,13 @@ Files both plans touch: `gameState.ts` (knife: menu rows :1518-1525; here: S2's 
 (knife S3: the wire; here: S4's revive cap line), `coopClient.ts` (knife S3; here S4 only if needed), `flags.ts` (here
 S1 adds `pianoEscape`; knife reads it), `takedownController.ts` (knife only), `pianoScene.ts` (here only).
 
-## Guard AI Build asks (BRIEF A11 / A14 / A16: scene-only, gated on `sceneDark`; nothing changes off the scene)
+## Guard AI Build asks (BRIEF A11 / A14 / A16 / A17: scene-only, gated on `sceneDark`; nothing changes off the scene)
 Guard sight stays pure light parity: a guard sees a player only where the meter would read him lit (torch cones, a
 lightning flash); no extra sight rule.
 | Ask | What | Where used | Size | Blocks |
 | --- | --- | --- | --- | --- |
 | GA1 | **Built (PR #603, open):** `em.sceneDark`: torches on in every state, no lights-out incident; the scene sets it back to `false` when it ends. | Whole escape | done | none |
-| GA3 | **Built (PR #603, checks passed):** `em.blackoutSearchSlots(slots, x, z)` / `em.blackoutSearch(enemies, x, z)`: the given guards search a 6 m ring round the point (first point: the point itself), the rest hold. S2 calls `blackoutSearchSlots([0, 1], 5.5, 5.25)` right after the spawn. | The EMP | done | none |
+| GA3 | **Built (PR #603, checks passed):** `em.blackoutSearchSlots(slots, x, z)` / `em.blackoutSearch(enemies, x, z)`: the given guards search a 6 m ring round the point (first point: the point itself), the rest hold. S2 calls `blackoutSearchSlots([0, 1], 5.5, 5.25)` once `fill()` has spawned the four (not in the spawn step). | The EMP | done | none |
 | GA4 | **GuardActor (Guard AI builds next):** a guard rig driven along a path at a set rate with the aimed walk and fire poses, no AI, not in the enemy lists; Guard AI sends the API. | Intro 30-38 s | S | none (S2 uses static posed stand-ins, then swaps) |
 | GA5 | Review the guards' routes, pairs and posts in `thornbeckMill.ts` (data; `validatePosts`; pairs as guard pairs, G335). | S1b data | XS | none |
 | GA6 | **The slow methodical sweep (scene-only; the scene's main guard behaviour).** While `sceneDark`, each guard walks his fixed patrol points from the map at a slow pace (about 0.7 m/s) and at each stop pans his torch left, centre, right over about 3 s, the same order every lap; pairs walk side by side and pan to opposite sides; after any search or investigation he rejoins his route at its nearest point. The routes stay map data; GA6 adds only the pace and the torch aim. Planned by Guard AI once S1b's data lands. | Every stretch | M (two Opus checkers) | S4 |
@@ -436,7 +446,7 @@ lightning light anything.
 | SO2 | The map's pre-built lamp bake (as #582); after the EMP the baked lamps read as off. On top of S1b. | Intro and escape | S | S2 look, S4 |
 | SO3 | Torch count: 12-16 torch slots and shadow tiles (`FLASHLIGHTS` 4, `TORCH_DRAW_SLOTS` 4 today) and the Low graphics check whose verdict sets the guard count (16, 12, or at least 8). Building on feature/piano-lights-so3. | Whole escape | S-M + the check | S4 |
 | SO4 | Ambient 0 and the light-meter check (#518 lux tools): black outside torch cones and flashes; flash bands lit and flash shadows dark at a flash's peak. On top of S1b. | S1b data | S | none |
-| SO5 | **Built (PR #604, open):** the map's `lightning: { flashes: [{ t, peak, len }], period? }` on the shared sim clock minus `world.lightning.t0` (S2 sets t0 at the EMP press; host and client both receive it); light only through the map's real openings (S1b builds them); the pre-EMP electric lamps stay (its window-pool path needs a fixed lamp); meter, guard sight and picture read the flashes at once (parity); look check `?lightning=1`. | Every stretch | done | S6, S4 (until #604 is on master) |
+| SO5 | **Built (PR #604, open):** the map's `lightning: { flashes: [{ t, peak, len }], period? }` on the shared sim clock minus `world.lightning.t0` (S2 sets t0 at the EMP press; S4 sends it to the client in the sector state); light only through the map's real openings (S1b builds them); the pre-EMP electric lamps stay (its window-pool path needs a fixed lamp); meter, guard sight and picture read the flashes at once (parity); look check `?lightning=1`. | Every stretch | done | S6, S4 (until #604 is on master) |
 
 ## Level-design rules for this scene
 The scene is not a campaign mission or a Sector Ops op; it borrows the SectorMode runtime. It follows: 2.1-2.6 real

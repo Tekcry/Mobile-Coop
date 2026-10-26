@@ -96,7 +96,8 @@ every guard must be taken down with a knife in the shadows before the exit opens
   kills on guards who sweep in pairs. Undo: the guard list in the map file.
 - A15: Music experiment: 2-3 original pieces in the track's mood (slow, emotional, cinematic solo piano; suspense,
   tension, dark, thriller, ominous), original notes (no copy of its melody), WebAudio synthesis or an in-repo offline
-  render, no new downloads without asking; a dev picker in the scene to A/B them against the Pixabay track. Undo: drop
+  render, no new downloads without asking; a dev picker in the scene to A/B them against the Pixabay track ("Pulse", the orchestrator's fourth sketch, is
+  electronic, not piano: an extra in the A/B only). Undo: drop
   the slice; the Pixabay track stays.
 - A17: Two more pieces of scene-only Guard AI work, gated on the scene: the slow, methodical torch sweep on the map's
   fixed patrol points (GA6; Michael ~20:10 "The guards must move slowly and methodically to find both players") and
