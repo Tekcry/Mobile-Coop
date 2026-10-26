@@ -111,3 +111,19 @@ At the save (00:44, 2026-10-26, branch feature/mixamo-i6):
 I6 built (2026-10-26, feature/mixamo-i6):
 - Done: 17 dumped (heavy2.lock), 17 emitted (turn kind, strafe band, faceTake, jog cycles), 17 Studio rows, CLIPS.md, 11 in `MIXAMO_LOCO`; rows on: walking, jogging, start / stop walking, right_turn, walking turns L / R, strafes L / R; off: running, fast_run (knees cross). Credits, I6-REPORT.md, changes/feature-mixamo-i6.md. mixamoLoco 16/16, related vitest 118 pass.
 - Left: laptop run (affected-e2e src/anim, e2e-anim, e2e-move, anim-audit, e2e-studio), checker.
+
+## I7
+Pack driver (2026-10-26, feature/mixamo-i7; plan: [BATCH2-PLAN.md](BATCH2-PLAN.md) "(2) Driver change"):
+- `scripts/mocap/mixamo.mjs` lists the root FBX files plus one level of `pack-*` folders (161 files: 55 root, 106 in
+  pack-pistol 20 / pack-rifle 49 / pack-shooter 15 / pack-action-adventure 22). `file` is the path relative to the
+  clip folder; dumps stay flat (`raw/<slug>.json`); skip-by-hash and `--only` unchanged.
+- Slugs: pack prefix (pistol / rifle / shooter / aa; unknown `pack-<x>` -> `<x>`) unless the slug already starts with
+  it; a digits-only note `(2)` -> `_2`; the Mirror rule kept; root slugs unchanged. All 161 unique and equal to the
+  plan's Clip table; a collision still stops the run, naming both files.
+- Manifest rows gain `pack` and `title` (the credits title cell: "Pro Rifle Pack: walk forward"; a root file its title).
+- Not done here (later in I7 per the plan, or I9): the Blender dump, `mixamoDup.mjs`, the emitter / take recipe options.
+
+## I9
+At the save (05:30, 2026-10-26, branch feature/mixamo-i9 on I7 7b076225; I6 cccb7b45 report/MIXAMO_LOCO commits not in this base):
+- Done: read the brief (BATCH2-PLAN I9, PLAN, M3/I6 reports); no dump started, no Blender run, no lock taken; no code yet.
+- Left: copy raw dumps + manifest from Mobile-Coop-mixamo-retarget-m4 build/mocap/mixamo; dump the 123 new files under heavy(2).lock; I7 emitter options (pack, travel -z/auto, mirror, place) if missing; recipes, emit, Studio rows, CLIPS.md, art-credits rows, tests, I9-REPORT, changes/feature-mixamo-i9.md.
