@@ -13,6 +13,13 @@ export const ALONE_AGE_MIN = 30;
 
 const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
+/**
+ * A request's queue place (laptop-queue-8 A4): its `place` (the id of the older request a supersede retired, lib
+ * placeFor) when that is a string below its own id, else its id. pick sorts pr / full work by it.
+ */
+export const placeKey = (r) => (typeof r?.place === 'string' && r.place < r.id ? r.place : r?.id);
+const sortByPlace = (a, b) => { const x = placeKey(a); const y = placeKey(b); return x < y ? -1 : x > y ? 1 : sortById(a, b); };
+
 /** "20261023T191500-guard-ai-d7a3b887" -> epoch ms of its UTC time; NaN when the id has no time prefix. */
 export function idTime(id) {
   const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(String(id));
@@ -118,36 +125,43 @@ export function parseClaim(text) {
 /**
  * True when a claim keeps `worker` off the request: a done claim (any worker), or another worker's claim younger than
  * maxMs (an older one is a dead worker's and may be taken over). The worker's own open claim never blocks (its process
- * restarted; the in-memory claim set guards the live one).
+ * restarted; the in-memory claim set guards the live one). laptop-queue-8 A17: a claim that carries `beat` (ms, its
+ * worker's heartbeat) blocks only while younger than min(maxMs, beats x beat) when beats > 0 (LQ_CLAIM_BEATS): a run
+ * whose heartbeat stopped is stale after a few beats, not hours.
  */
-export function claimBlocks(claim, worker, now, maxMs) {
+export function claimBlocks(claim, worker, now, maxMs, beats = 0) {
   if (!claim) return false;
   if (claim.done) return true;
   if (claim.worker === worker) return false;
-  return now - Date.parse(claim.at) < maxMs;
+  const beat = Number(claim.beat);
+  const limit = beats > 0 && beat > 0 ? Math.min(maxMs, beats * beat) : maxMs;
+  return now - Date.parse(claim.at) < limit;
 }
 
 /**
  * Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. cpu is the
  * gated load (gatedCpu: BelowNormal / Idle processes left out); total (optional, the whole machine) only goes into the
- * reason so the log explains a wait, e.g. "cpu 62% >= 50% (Normal+ priority; total 95%)".
+ * reason so the log explains a wait, e.g. "cpu 62% >= 50% (Normal+ priority; total 95%)". mode 'total'
+ * (LQ_DESKTOP_CPU_MODE=total, laptop-queue-8 A11: cpu is then the whole machine, lib gateCpu) says so in the reason.
  */
-export function desktopGate(backlog, cpu, minBacklog, maxCpu, total) {
+export function desktopGate(backlog, cpu, minBacklog, maxCpu, total, mode = 'normal') {
   if (!(backlog > minBacklog)) return `backlog ${backlog} <= ${minBacklog}`;
   if (!Number.isFinite(cpu)) return 'cpu unknown';
+  if (cpu >= maxCpu && mode === 'total') return `cpu ${cpu}% >= ${maxCpu}% (total mode: whole machine)`;
   if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%${Number.isFinite(total) ? ` (Normal+ priority; total ${total}%)` : ''}`;
   return '';
 }
 
 /**
  * Per-slot desktop gate: '' when the slot may start, else why it waits. s = { lockName, lockHeld, dirOk, backlog, cpu,
- * cpuTotal?, minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU; cpu the gated load, cpuTotal the
- * whole machine for the reason only); lock and dir are checked before desktopGate.
+ * cpuTotal?, minBacklog, maxCpu, cpuMode? } (the slot's own lock file, worktree dir and max CPU; cpu the load the gate
+ * reads (lib gateCpu), cpuTotal the whole machine for the reason only, cpuMode 'normal' | 'total'); lock and dir are
+ * checked before desktopGate.
  */
 export function desktopSlotGate(s) {
   if (s.lockHeld) return `${s.lockName} held`;
   if (!s.dirOk) return 'worktree missing';
-  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal);
+  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal, s.cpuMode);
 }
 
 /**
@@ -230,12 +244,39 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
   return Math.round(Math.min(100, Math.max(0, total - bg)));
 }
 
+/**
+ * The CPU % a desktop gate reads (laptop-queue-8 A11, LQ_DESKTOP_CPU_MODE): c = { gated, total } (service cpuGated);
+ * mode 'total' -> the whole machine, anything else ('normal', the default) -> the gated load (lib gatedCpu).
+ */
+export const gateCpu = (c, mode) => (mode === 'total' ? c?.total : c?.gated);
+
+/**
+ * The desktop leaves a request to the laptop when its expected wall at E2E_JOBS=1 is over maxS (laptop-queue-8 A9,
+ * LQ_DESKTOP_MAX_MIN 15): times = the seed merged with the desktop's times.json; unknown (NaN) is taken; maxS <= 0 = no
+ * limit.
+ */
+export function desktopTooLong(r, times, maxS) {
+  if (!(maxS > 0)) return false;
+  const w = expectedWallS(keptPlan(r, r?.sha, times).rest, times, 1); // only what still runs (A10 kept suites)
+  return Number.isFinite(w) && w > maxS;
+}
+
 /** Front tier of lib pick (laptop-queue-7): a branch naming a LQ_FRONT_BRANCHES entry (case-insensitive substring), or an early-id re-file (no id time, or before 2020). */
 export function isFront(r, frontBranches = []) {
   const t = idTime(r?.id);
   if (!Number.isFinite(t) || t < Date.UTC(2020, 0, 1)) return true;
   const b = String(r?.branch ?? '').toLowerCase();
   return Boolean(b) && (frontBranches ?? []).some((f) => f && b.includes(String(f).toLowerCase()));
+}
+
+/**
+ * Fix tier of lib pick (laptop-queue-8 A2): a pr / full request with `fix: true` (request.mjs --fix) or whose PR carries
+ * the `fix` label on the board (lib prBoard, read live each pass). Never an alone, spare, train rerun or laptop rerun
+ * request (those sit above or apart).
+ */
+export function isFix(r, board) {
+  if (!r || (r.kind !== 'pr' && r.kind !== 'full') || r.trainRerun || r.laptopRerun || r.requester === SPARE_REQUESTER) return false;
+  return r.fix === true || board?.get(r.pr)?.fix === true;
 }
 
 /**
@@ -276,6 +317,11 @@ export function greenIds(requests, board) {
  * (order.green, a Set of ids), smallest order.wallS first, unknown wall last, ties by id, skipped for this pick when the
  * oldest non-front request, green or not, has waited over order.maxWaitMs (the starvation bound); 3. the arrival rule over
  * the non-front requests. Trains, reruns and aged alone runs go before all of it; spare-only picks ignore it.
+ * laptop-queue-8: order.fix (a Set of ids, lib isFix) is tier 0, before the front tier: the smallest queue place first,
+ * no wait bound (A1, A3). pr / full work sorts by placeKey (a new head keeps its old request's place, A4) wherever it
+ * sorted by id: the front tier, the starvation check (the place's time), green ties and the arrival rule.
+ * order.smallest (the desktop, laptop-queue-8 A8) replaces the front / green / arrival tiers after the fix tier: the
+ * smallest order.wallS first (the service fills it for every request at E2E_JOBS=1), unknown wall last, ties by place.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -306,18 +352,25 @@ function pickFrom(queue, now, slots) {
   const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
-  const nonAlone = reqs.filter((r) => r.kind !== 'alone');
+  const nonAlone = reqs.filter((r) => r.kind !== 'alone').sort(sortByPlace);
   const order = queue.order;
   if (order && idle[0]) {
+    const fix = nonAlone.find((r) => order.fix?.has(r.id)); // laptop-queue-8 tier 0: fixes, smallest place first
+    if (fix) return { kind: 'request', request: fix, slot: idle[0].port };
+    if (order.smallest) { // laptop-queue-8 A8 (the desktop): smallest expected wall first, unknown last, ties by place
+      const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
+      const small = [...nonAlone].sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
+      return small ? { kind: 'request', request: small, slot: idle[0].port } : arrivalNext([], alone, idle, bothIdle);
+    }
     const early = nonAlone.find((r) => isFront(r, order.frontBranches));
     const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
     let chosen = early;
     if (!chosen) {
-      const oldest = rest.find((r) => Number.isFinite(idTime(r.id)));
-      const starved = order.maxWaitMs > 0 && oldest && now - idTime(oldest.id) > order.maxWaitMs;
+      const oldest = rest.find((r) => Number.isFinite(idTime(placeKey(r))));
+      const starved = order.maxWaitMs > 0 && oldest && now - idTime(placeKey(oldest)) > order.maxWaitMs;
       if (!starved) {
         const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
-        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortById(a, b))[0];
+        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
       }
     }
     if (chosen) return { kind: 'request', request: chosen, slot: idle[0].port };
@@ -326,7 +379,7 @@ function pickFrom(queue, now, slots) {
   return arrivalNext(nonAlone, alone, idle, bothIdle);
 }
 
-/** pickFrom's arrival rule over the non-alone requests (sorted by id): the longest-waiting requester, priority, oldest. */
+/** pickFrom's arrival rule over the non-alone requests (sorted by placeKey): the longest-waiting requester, priority, oldest. */
 function arrivalNext(nonAlone, alone, idle, bothIdle) {
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
   const prio = (r) => (Number.isInteger(r.priority) ? r.priority : 0);
@@ -438,6 +491,60 @@ export function superseded(requests, isAncestor) {
       if (ok) { out.set(r.id, n.id); return; }
     }
   });
+  return out;
+}
+
+/**
+ * The queue places supersedes pass on (laptop-queue-8 A4): Map survivorId -> place for each survivor in `requests` (the
+ * open ones) that a retired request (sup: lib superseded's Map olderId -> newerId) had waited longer than. place = the
+ * smallest placeKey over the survivor and every request it retires (a chain R1 -> R2 -> R3 gives R3 R1's place); a
+ * survivor whose own placeKey is already the smallest gets no entry. Pure.
+ */
+export function placeFor(sup, requests) {
+  const byId = new Map((requests ?? []).map((r) => [r.id, r]));
+  const out = new Map();
+  for (const [oldId, newId] of sup ?? []) {
+    const n = byId.get(newId);
+    if (!n) continue;
+    const o = byId.get(oldId);
+    const best = out.get(newId) ?? placeKey(n);
+    const cand = o ? placeKey(o) : oldId;
+    if (cand < best) out.set(newId, cand);
+  }
+  return out;
+}
+
+/**
+ * Running requests a newer head makes moot (laptop-queue-8 A6, BRIEF 3): Map runningId -> newer id. running = the pr
+ * requests claimed or running on this worker (lock wait and prepare included); candidates = the open requests plus the
+ * ones claimed or running on either worker (R itself is skipped). R pairs with the newest N exactly as lib superseded
+ * pairs two open requests (same queueRequester, same kind, no train rerun, compatible set: two different non-empty sets
+ * never pair; R not pinned, R's requester known; N not a laptop rerun; N newer by id), with three changes: the suite
+ * bases overlap (not cover), R.sha !== N.sha and isAncestor(R.sha, N.sha) always (affected requests too: a rebased
+ * head never stops a run), and R is under PREEMPT_MAX_PROGRESS of its expected wall (progressOf(id), NaN = unknown).
+ * Kind 'pr' only: a full run is never stopped. Pure.
+ */
+export function supersededRunning(running, candidates, isAncestor, progressOf = () => NaN) {
+  const out = new Map();
+  const cands = [...(candidates ?? [])].sort(sortById);
+  for (const r of running ?? []) {
+    if (r?.kind !== 'pr' || r.trainRerun || r.pin) continue;
+    if (!r.requester || r.requester === 'unknown') continue;
+    if (progressOf(r.id) >= PREEMPT_MAX_PROGRESS) continue;
+    const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
+    const rBases = new Set((r.suites ?? []).map(suiteBase));
+    for (let j = cands.length - 1; j >= 0; j--) {
+      const n = cands[j];
+      if (!n || n.id === r.id || !(n.id > r.id)) continue;
+      if (queueRequester(n) !== queueRequester(r) || n.kind !== 'pr' || n.trainRerun || n.laptopRerun) continue;
+      const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
+      if (rSet && nSet && rSet !== nSet) continue;
+      if (!(n.suites ?? []).some((s) => rBases.has(suiteBase(s)))) continue;
+      if (r.sha === n.sha || !isAncestor(r.sha, n.sha)) continue;
+      out.set(r.id, n.id);
+      break;
+    }
+  }
   return out;
 }
 
@@ -586,6 +693,20 @@ export function carryFrom(chain, filesBetween, live = () => false) {
 export const carryDesc = (sha) => `carried from ${String(sha).slice(0, 8)}, docs-only delta`;
 
 /**
+ * A PR head's carry chain (laptop-queue-8 A12): `git log --first-parent -n <depth> --format=%H <H>` lines (newest first)
+ * minus H itself, cut before the merge-base with origin/master (master's own commits never carry an affected-e2e
+ * verdict). The merge-base not within the lines: every line after H (the depth bounds the walk).
+ */
+export function prChain(lines, mergeBase) {
+  const out = [];
+  for (const sha of (lines ?? []).map((l) => String(l).trim()).filter(Boolean).slice(1)) {
+    if (mergeBase && sha === mergeBase) break;
+    out.push(sha);
+  }
+  return out;
+}
+
+/**
  * auto-train's build marker (auto-train-building.json, { train, version, pid, at }, written while `merge-train build`
  * runs): null when absent (text null), else { train, key, ageMs, stale }. Its age is from `at` (the file's mtime when
  * unreadable); stale = not younger than maxMs (a marker left by a killed auto-train never blocks for good).
@@ -692,14 +813,21 @@ export function yieldTo(r, started, trains) {
  * due (laptop-queue-7 A12: started in its gap after a train, aloneGapOpen). A pr run at
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
  * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
+ * 'superseded' (laptop-queue-8 A6) when `superseded` names the newer request lib supersededRunning paired with it, at any
+ * stage (lock wait, prepare, suites); 'withdrawn' wins over it. 'taken' (laptop-queue-8 G, checker FIX 1) first of
+ * all when `taken` names the worker that now holds the run's claim (a heartbeat push found it blocking, e.g. after a
+ * long push outage): the run stops and posts nothing, that worker's run owns the head.
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
+  if (taken) return 'taken';
   if (withdrawn) return 'withdrawn';
+  // laptop-queue-8 A6: a newer head of the same PR is queued (lib supersededRunning; the id): stop at any stage
+  if (superseded) return 'superseded';
   // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
   // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
@@ -756,6 +884,45 @@ export function parseRun(text) {
     failed: failed ? failed[2].split(', ').map((x) => x.trim()) : [],
     complete: /^all e2e suites passed$/m.test(String(text)) || Boolean(failed),
   };
+}
+
+/**
+ * The suites a run-e2e output finished (laptop-queue-8 A10), in log order: [{ s, ok, report, sec }] from its result
+ * lines "=== <s> (ok|FAIL|REPORT ONLY, exit n, <N>s) ===" (the parallel header; streamed runs print it after each suite
+ * since laptop-queue-8). A streamed start header ("=== s ===") and the times table are not results.
+ */
+export function finishedSuites(text) {
+  const out = [];
+  for (const l of String(text ?? '').replace(/\r\n/g, '\n').split('\n')) {
+    const m = /^=== (\S+) \((ok|FAIL|REPORT ONLY, exit -?\d+), (\d+)s\) ===\s*$/.exec(l);
+    if (m) out.push({ s: m[1], ok: m[2] === 'ok', report: m[2].startsWith('REPORT'), sec: +m[3] });
+  }
+  return out;
+}
+
+/**
+ * What a pr request still runs after a train preempt kept its passed suites (laptop-queue-8 A10): r.kept = { sha,
+ * suites: [{ s, sec }] } from the cut run. -> { kept: [{ s, sec }], rest: [suite] }. Only when r.kept.sha is `sha`
+ * (else nothing is kept). A suite of r.suites is kept when a kept row names it exactly; a base name with parts (lib
+ * suiteParts over times) only when every one of its parts is kept, else it reruns whole. Kept rows of suites no longer
+ * in r.suites (an affected-cap re-file dropped them) do not count.
+ */
+export function keptPlan(r, sha, times = {}) {
+  const suites = [...(r?.suites ?? [])];
+  const k = r?.kept;
+  if (!k || typeof k !== 'object' || k.sha !== sha || !Array.isArray(k.suites)) return { kept: [], rest: suites };
+  const rows = new Map(k.suites.filter((x) => x && typeof x.s === 'string' && x.s).map((x) => [x.s, { s: x.s, sec: Number(x.sec) || 0 }]));
+  const kept = [];
+  const rest = [];
+  const seen = new Set();
+  const keep = (x) => { if (!seen.has(x.s)) { seen.add(x.s); kept.push(x); } };
+  for (const s of suites) {
+    if (rows.has(s)) { keep(rows.get(s)); continue; }
+    const parts = suiteParts([s], times).filter((p) => p !== s);
+    if (parts.length && parts.every((p) => rows.has(p))) { for (const p of parts) keep(rows.get(p)); continue; }
+    rest.push(s);
+  }
+  return { kept, rest };
 }
 
 /**
@@ -843,8 +1010,36 @@ export function failureExcerpt(sectionText) {
  * or a release decision, and a head still building has no status yet: both hold (CLAUDE.md "measurements that need a
  * slot alone only while no train is queued"; train 46 waited 30 min behind the LR16-8 sheets, 2026-10-24).
  */
-export function trainHold(heads) {
-  return (heads ?? []).find((h) => h.laptop !== 'success') ?? null;
+export function trainHold(heads, lost = () => false) {
+  // laptop-queue-8 A18: a head this worker finished (or with a done claim) whose laptop-e2e post was lost holds nothing
+  return (heads ?? []).find((h) => h.laptop !== 'success' && !(['', 'pending'].includes(h.laptop ?? '') && lost(h.sha))) ?? null;
+}
+
+/** laptop-queue-8 A16: a state.trains entry's final laptop-e2e state: `state`, else from a pre-G `result`, else ''. */
+export function trainFinal(entry) {
+  if (!entry) return '';
+  if (['success', 'failure', 'error'].includes(entry.state)) return entry.state;
+  const r = entry.result;
+  if (r === 'success' || r === 'carried') return 'success';
+  if (r === 'failure' || r === 'build' || r === 'incomplete') return 'failure';
+  if (r === 'nosha') return 'error';
+  return '';
+}
+
+/**
+ * laptop-queue-8 A15, A16: what a lost train verdict needs. entry = state.trains[sha]; gh = the head's laptop-e2e state
+ * now ('' none, null / 'unknown' unread); other = the worker whose claim on the sha is live or done ('' none): then
+ * nothing (its run owns the verdict, a done push would replace its claim). post = { state, desc } when a final state is
+ * known, not posted yet and GitHub shows none or pending (never over another final verdict); desc verbatim (a desktop
+ * "desktop: ...; FAIL: a,b" stays readable by auto-train), legacy prefix + "<result> (re-posted)". done = the done claim
+ * is not known to have landed.
+ */
+export function trainRepair(entry, gh, other = '', prefix = '') {
+  if (other) return { post: null, done: false, superseded: other };
+  const st = trainFinal(entry);
+  const desc = entry?.desc ?? `${prefix}${entry?.result ?? st} (re-posted)`;
+  const post = st && entry?.posted !== true && (gh === '' || gh === 'pending') ? { state: st, desc } : null;
+  return { post, done: entry?.doneSynced !== true, superseded: '' };
 }
 
 /**
@@ -880,8 +1075,8 @@ export function readyHeads(prs, inTrain = () => false) {
 }
 
 /**
- * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup rows): Map pr number ->
- * { head, conflicting, green }. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
+ * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup, labels rows): Map pr number ->
+ * { head, conflicting, green, fix }; fix = the PR carries the `fix` label. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
  * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. A row without a number or head is skipped.
  */
 export function prBoard(rows) {
@@ -897,6 +1092,7 @@ export function prBoard(rows) {
       ...(p.isDraft === true ? { draft: true } : {}), // F34: a desktop failure on a draft files no laptop rerun (laptopRerunFor)
       conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
       green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
+      fix: (p.labels ?? []).some((l) => l?.name === 'fix'), // laptop-queue-8 A2: the fix tier (lib isFix)
     });
   }
   return out;
@@ -1253,6 +1449,55 @@ export function conflictStatuses(r) {
 }
 
 /**
+ * laptop-queue-15 F51 (#581 / #590 waited 36-50 min, then retired as conflicting 16 min after master moved): GitHub
+ * computes `mergeable` lazily after a push, so the board's list read can say UNKNOWN for many minutes. When origin/master
+ * moves, the open affected requests' PRs (the ones conflictRetire acts on) are read one by one (`gh pr view`, which
+ * starts the computation) until each head's state is known. `prev` = the last result's state ({ master, since, prs:
+ * { [pr]: { head, mergeable, at } } }, null at start: a first pass counts as a move). A PR is due when it has no read on
+ * its current head yet, or its last read was UNKNOWN at least `retryMs` ago, while the move is under `maxMs` old; at
+ * most `max` per pass, a PR the board already shows CONFLICTING on that head is not due. -> { state, due: [{ pr, head }] }.
+ */
+export function mergeRecheck(prev, { master, requests, board, now, retryMs = 60_000, maxMs = 10 * 60_000, max = 10 }) {
+  const moved = !prev || (master && prev.master !== master);
+  const state = moved ? { master: master ?? null, since: now, prs: {} } : prev;
+  const due = [];
+  if (!master || now - state.since > maxMs) return { state, due };
+  const seen = new Set();
+  for (const r of requests ?? []) {
+    if (r?.set !== 'affected' || r.pr == null || !r.sha) continue;
+    const pr = Number(r.pr);
+    if (seen.has(pr)) continue;
+    seen.add(pr);
+    const b = board?.get(pr);
+    if (b && (b.head !== r.sha || b.conflicting)) continue; // superseded's job, or already retired through the board
+    const e = state.prs[pr];
+    if (e && e.head === r.sha && (e.mergeable !== 'UNKNOWN' || now - e.at < retryMs)) continue;
+    if (due.length < max) due.push({ pr, head: r.sha });
+  }
+  return { state, due };
+}
+
+/** mergeRecheck's state with one `gh pr view` read (mergeable MERGEABLE | CONFLICTING | UNKNOWN, any case; missing = UNKNOWN). A read of another head than asked is kept under that head. */
+export function recordMergeable(state, pr, head, mergeable, now) {
+  const m = String(mergeable ?? '').toUpperCase();
+  const e = { head: head ?? '', mergeable: m === 'MERGEABLE' || m === 'CONFLICTING' ? m : 'UNKNOWN', at: now };
+  return { ...state, prs: { ...(state?.prs ?? {}), [Number(pr)]: e } };
+}
+
+/**
+ * The board with mergeRecheck's CONFLICTING reads laid on (conflicting: true) where the board's head is the read's head
+ * (a moved head or a PR missing from the board is left alone), so conflictRetire retires it on this pass. A new Map.
+ */
+export function withMergeable(board, state) {
+  const out = new Map(board ?? []);
+  for (const [k, e] of Object.entries(state?.prs ?? {})) {
+    const b = out.get(Number(k));
+    if (b && e.mergeable === 'CONFLICTING' && b.head === e.head && !b.conflicting) out.set(Number(k), { ...b, conflicting: true });
+  }
+  return out;
+}
+
+/**
  * The request the affected pass enqueues for a PR head: the shape request.mjs --affected writes (kind pr, set
  * 'affected', so its own context is laptop-e2e/affected), requester AFFECTED_REQUESTER, the PR number (the failure
  * comment goes there). suffix = 4 random hex (injected), as request.mjs adds.
@@ -1496,4 +1741,78 @@ export function slowSummary(list) {
   const rows = [...by.values()].sort((a, b) => b.worst.sec / b.worst.limit - a.worst.sec / a.worst.limit || (a.s < b.s ? -1 : 1));
   return ['Slow (passed past 75% of the kill limit, SLOW lines):', '| Suite | Times | Worst | Head |', '| --- | --- | --- | --- |',
     ...rows.map((r) => `| ${r.s} | ${r.n} | ${r.worst.sec}s of ${r.worst.limit}s | ${r.worst.sha} ${r.worst.ref} ${r.worst.date.slice(0, 16)} |`)].join('\n');
+}
+
+// ---------- laptop-queue-14 ----------
+
+/**
+ * F48: the automatic quarantine entries this worker keeps (its quarantine.json, read by run-e2e through
+ * E2E_QUARANTINE_FILE): the live ones on the laptop, none on the desktop. One automatic list (the laptop's): a desktop
+ * failure goes to a laptop rerun (laptopRerunRequest), where the laptop's list applies, so the desktop never forgives
+ * on a list the laptop does not have (#525: a desktop-only e2e-sectorops:6 entry forgave an affected run).
+ */
+export function ownQuarantine(list, now, desktop = false) {
+  if (desktop) return [];
+  return (Array.isArray(list) ? list : []).filter((q) => Date.parse(q?.expiry) > now);
+}
+
+/** gh: a failed call worth one retry (a TLS handshake timeout: nothing reached GitHub). e = the execFileSync error. */
+export function ghRetryable(e) {
+  const text = `${e?.stderr ?? ''}\n${e?.message ?? ''}`;
+  return /TLS handshake timeout|handshake (?:timed out|timeout)/i.test(text);
+}
+
+/**
+ * F46 + closed PRs: requests the claim gate reads the PR for: kind pr with a PR number, not pinned (an A/B or baseline
+ * run on an older commit; request.mjs fills pr from the branch), not a train rerun or spare work (a laptop rerun of a
+ * desktop failure is checked too).
+ */
+export const claimGated = (r) => r?.kind === 'pr' && Number.isInteger(Number(r.pr)) && Number(r.pr) > 0 && !r.pin && !r.trainRerun && r.requester !== SPARE_REQUESTER;
+
+/** The workflow whose `check` job is the PR's CI (.github/workflows/deploy.yml `name`; preview.yml has a `check` job too). */
+export const CI_WORKFLOW = 'Build and deploy to GitHub Pages';
+
+/**
+ * F46: CI `check` failed in a statusCheckRollup: a `check` of CI_WORKFLOW concluded FAILURE; rows without a
+ * workflowName: some `check` FAILURE and none SUCCESS.
+ */
+export function ciCheckFailed(roll) {
+  const checks = (Array.isArray(roll) ? roll : []).filter((x) => x?.name === 'check');
+  const fail = (x) => String(x?.conclusion ?? '').toUpperCase() === 'FAILURE';
+  if (checks.some((x) => x.workflowName)) return checks.some((x) => x.workflowName === CI_WORKFLOW && fail(x));
+  return checks.some(fail) && !checks.some((x) => String(x?.conclusion ?? '').toUpperCase() === 'SUCCESS');
+}
+
+/**
+ * F46 + closed PRs: why a gated request is withdrawn at claim time, '' to run it. pr = `gh pr view --json
+ * state,headRefOid,statusCheckRollup` (null or unreadable: run it, never act on a GitHub error). 'closed' / 'merged':
+ * the PR is no longer open; 'stale': the request's sha is no longer the PR head; 'red': CI `check` failed on the head.
+ */
+export function claimSkip(r, pr) {
+  if (!claimGated(r) || !pr || typeof pr !== 'object') return '';
+  const state = String(pr.state ?? '').toUpperCase();
+  if (state === 'MERGED') return 'merged';
+  if (state === 'CLOSED') return 'closed';
+  const head = String(pr.headRefOid ?? '');
+  if (head && head !== r.sha) return 'stale';
+  if (head && ciCheckFailed(pr.statusCheckRollup)) return 'red';
+  return '';
+}
+
+/**
+ * The statuses a request withdrawn by claimSkip posts (error: it never ran): its own context, plus affected-e2e for an
+ * auto affected request or one filed with set affected (conflictStatuses' contexts), with why in the description.
+ */
+export function claimSkipStatuses(r, why, head = '') {
+  if (!r || !why) return [];
+  const n = `PR #${r.pr}`;
+  const description = {
+    merged: `not run: ${n} is merged`,
+    closed: `not run: ${n} is closed`,
+    stale: `not run: ${String(r.sha).slice(0, 8)} is no longer ${n}'s head${head ? ` (${String(head).slice(0, 8)})` : ''}`,
+    red: `not run: ${n}'s CI check failed on this head (request again once it passes)`,
+  }[why] ?? `not run: ${why}`;
+  const out = [{ sha: r.sha, state: 'error', context: contextName(r.kind, r.set, r.suites ?? []), description }];
+  if (r.requester === AFFECTED_REQUESTER || r.set === 'affected') out.push({ sha: r.sha, state: 'error', context: AFFECTED_CTX, description });
+  return out;
 }

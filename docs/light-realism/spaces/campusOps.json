@@ -1,0 +1,46 @@
+{
+ "map": "campusOps",
+ "about": "light-realism spaces (PLAN L0): one row per space with its type, plane (A3) and band (A4, research/bands.md section 3; verify = a value still to verify). Rects are S1_ROOMS (src/world/maps/campusS1.ts:53-65). L1 / L2 refine the bands; Michael approves the table on SIGNOFF.md. 'shots': per section, the GPU tool's query, meter points and views (scripts/light-realism/shots.mjs).",
+ "spaces": [
+  { "id": "park", "section": 1, "name": "Staff Car Park", "type": "Outdoor car park, high night use", "category": "AS/NZS 1158.3.1 P11a (A5)", "rect": { "minX": -36, "maxX": 6, "minZ": -76, "maxZ": -52 }, "plane": 0.1, "band": { "avg": 14, "min": 3 } },
+  { "id": "lane", "section": 1, "name": "Barrier Lane", "type": "Campus road, ring road", "category": "AS/NZS 1158.3.1 P2", "rect": { "minX": 8, "maxX": 14, "minZ": -80, "maxZ": -60 }, "plane": 0.1, "band": { "avg": 3.5, "min": 0.7 }, "verify": true },
+  { "id": "gatehouse", "section": 1, "name": "Gatehouse", "type": "Security room, control room (screens)", "category": "AS/NZS 1680.2.2", "rect": { "minX": 14, "maxX": 20, "minZ": -79, "maxZ": -73 }, "plane": 0.8, "band": { "avg": 320 }, "verify": true },
+  { "id": "verge", "section": 1, "name": "Marsh Verge", "type": "Outside the lit site", "rect": { "minX": 20, "maxX": 26, "minZ": -80, "maxZ": -56 }, "plane": 0.1, "band": null, "why": "outside the work area: a real site has no fitting on the marsh verge (A9)" },
+  { "id": "bins", "section": 1, "name": "Bin Store", "type": "Service lane, bin lane", "category": "AS/NZS 1158.3.1 P3", "rect": { "minX": -40, "maxX": -30, "minZ": -52, "maxZ": -45 }, "plane": 0.1, "band": { "avg": 1.75, "min": 0.3 }, "verify": true },
+  { "id": "bikes", "section": 1, "name": "Bike Shelter", "type": "Pathway", "category": "AS/NZS 1158.3.1 pathway category", "rect": { "minX": -10, "maxX": 0, "minZ": -50, "maxZ": -46 }, "plane": 0.1, "band": { "avg": 3.5, "min": 0.7 }, "verify": true },
+  { "id": "smoke", "section": 1, "name": "Smoking Shelter", "type": "Pathway", "category": "AS/NZS 1158.3.1 pathway category", "rect": { "minX": 6, "maxX": 10, "minZ": -50, "maxZ": -47 }, "plane": 0.1, "band": { "avg": 3.5, "min": 0.7 }, "verify": true },
+  { "id": "dyard", "section": 1, "name": "Delivery Yard", "type": "Yard, loading apron (outdoor workplace)", "category": "AS/NZS 1680.5", "rect": { "minX": -40, "maxX": -26, "minZ": -45, "maxZ": -40 }, "plane": 0.1, "band": { "avg": 20 }, "verify": true },
+  { "id": "forecourt", "section": 1, "name": "Forecourt", "type": "Forecourt, building entry plaza", "category": "AS/NZS 1158.3.1 public activity area", "rect": { "minX": -26, "maxX": 6, "minZ": -46, "maxZ": -34 }, "plane": 0.1, "band": { "avg": 7, "min": 2 }, "verify": true },
+  { "id": "plantroof", "section": 1, "name": "Plant Roof", "type": "Roof, outside the work area", "rect": { "minX": -40, "maxX": -26, "minZ": -40, "maxZ": -34 }, "floor": 4.4, "plane": 0.1, "band": null, "why": "a roof is outside the work area at night (L2-S1 table)" },
+  { "id": "c1", "section": 1, "name": "Staff Entrance", "type": "Lobby, entrance hall", "category": "AS/NZS 1680.2.1", "rect": { "minX": -24, "maxX": -16, "minZ": -34, "maxZ": -30 }, "plane": 0.1, "band": { "avg": 100 }, "verify": true }
+ ],
+ "shots": {
+  "1": {
+   "query": "autostart=campusOps&mode=sector&sectorGuards=0",
+   "park": [-25, -80],
+   "points": [
+    ["under column", -28, -62],
+    ["between 2 columns", -25, -62],
+    ["between rows", -28, -57.5],
+    ["middle of 4", -25, -57.5],
+    ["circuit seam", -13, -57.5],
+    ["south aisle", -25, -68],
+    ["south edge", -25, -75],
+    ["north row column", -22, -53],
+    ["north edge", -25, -52],
+    ["far east", 5, -60],
+    ["forecourt", -20, -42],
+    ["barrier lane", 11, -70],
+    ["south row column", -24, -71.5],
+    ["south island", -19.2, -71.5]
+   ],
+   "views": [
+    ["wide-sw", [-35, 1.7, -75], [-10, 1.0, -58]],
+    ["overhead-s", [-15, 22, -86], [-15, 0, -63]],
+    ["row-z53", [-35.5, 1.7, -51.6], [0, 0.6, -54]],
+    ["aisle-e", [5, 1.7, -64.5], [-30, 0.6, -64]],
+    ["forecourt-w", [4, 1.7, -44], [-24, 1.0, -38]]
+   ]
+  }
+ }
+}

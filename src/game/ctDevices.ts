@@ -62,6 +62,7 @@ import {
   scanDamage,
   scanGlowAt,
   scanPairReady,
+  scanReset,
   scanStart,
   scanStep,
   scanWindowLeft,
@@ -533,6 +534,20 @@ export class CtDevices {
       }
     }
     return why;
+  }
+
+  /**
+   * (marlow-play-2 C14) Host, a station retry: every scanner pair not yet open back to idle, silently (no "broken off...
+   * that one hurt" line, no damage: the retry's teleport off the panels would otherwise abort a running hack). Not per tick.
+   */
+  resetScans(): void {
+    for (let i = 0; i < this.scans.length; i++) {
+      const sc = this.scans[i]!;
+      if (sc.pair.open) continue;
+      scanReset(sc.pair);
+      this.changed = true;
+      this.scanVisuals(sc);
+    }
   }
 
   /** (N6) Every scanner pair, each on its own. */

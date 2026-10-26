@@ -64,6 +64,7 @@ import {
   A5_CLOSERS,
   A5_DRUMS_RP,
   A5_FOOTBRIDGE,
+  A5_HOARD,
   A5_FOOTBRIDGE_DOOR,
   A5_FOOTBRIDGE_FLAG,
   A5_FOOTBRIDGE_GATE,
@@ -105,8 +106,8 @@ const range = built.ranges.a5Substation;
 const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
 const box = SET_BOX.a5Substation[0]!;
 /** The set's collision on the re-plan: the built set's 24 solids less the drum stack, plus the wall, the gap's walls and lids,
- *  the trench, the crossings, the gantry, the moved drums and the closers; nine lamps (two moved), five doors, three ladders. */
-const GREY = { solids: 52, checksum: 12798.099999999997, lights: 9, doors: 5, anchors: 3 };
+ *  the trench, the crossings, the gantry, the moved drums and the closers; nine lamps (two moved), five doors, four ladders (marlow-play-2 C18: the middle step iron). */
+const GREY = { solids: 52, checksum: 12798.099999999997, lights: 9, doors: 5, anchors: 4 };
 const solid = b.boxes.filter((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3);
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
 const bottom = (p: BoxPiece): number => p.c[1] - p.s[1] / 2;
@@ -310,7 +311,7 @@ describe('Marlow re-plan A5 the Substation (G-A5): the part', () => {
     for (const r of part.register) expect(/[–—]/.test(r.element), r.id).toBe(false);
   });
 
-  it('GREY: the re-plan collision (solids, checksum), nine lamps (two moved), five doors (wicket, footbridge, plates added), three ladders', () => {
+  it('GREY: the re-plan collision (solids, checksum), nine lamps (two moved), five doors (wicket, footbridge, plates added), four ladders', () => {
     const mineSolid = mine.filter((p) => p.collide);
     let sum = 0;
     for (const p of mineSolid) sum += p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw;
@@ -499,12 +500,12 @@ describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and th
     expect(walls.length).toBeGreaterThanOrEqual(5);
     for (const p of walls) expect(p.noLedge, `(${p.c.join(', ')})`).toBe(true);
     const lads = b.anchors.ladders.filter((l) => inBox(box, l.base.x, l.base.z) && l.base.y < -1);
-    expect(lads).toHaveLength(2);
+    expect(lads).toHaveLength(3);
     for (const l of lads) expect(l.base.x).toBeGreaterThan((T.x0 + T.x1) / 2);
     expect(part.lips).toEqual([]);
   });
 
-  it('step irons on the east face at both ends: ladders from the trench floor to the apron at z 25.0 and 47.0 (a fall is a walk back)', () => {
+  it('step irons on the east face at both ends and between the decks: ladders from the trench floor to the apron at z 25.0, 38.3 and 47.0 (a fall is a walk back)', () => {
     const lads = b.anchors.ladders.filter((l) => inBox(box, l.base.x, l.base.z) && l.base.y < -1).sort((p, q) => p.base.z - q.base.z);
     expect(lads.map((l) => [l.base.x, l.base.z])).toEqual(A5_IRONS.map((i) => [i.x, i.z]));
     for (const l of lads) {
@@ -516,7 +517,11 @@ describe('Marlow re-plan A5: the cable trench, the footbridge, the plates and th
       expect(blockedAt(l.top.x + 0.3, l.top.z)).toEqual([]);
     }
     expect(lads[0]!.base.z - T.z0).toBeLessThan(1);
-    expect(T.z1 - lads[1]!.base.z).toBeLessThan(1);
+    expect(T.z1 - lads[2]!.base.z).toBeLessThan(1);
+    // (marlow-play-2 C18) the middle iron stands in the open slot between the footbridge's deck and the plates' (no deck over it)
+    const mid = lads[1]!;
+    expect(mid.base.z - 0.2).toBeGreaterThan(A5_FOOTBRIDGE.z1 + A5_HOARD.t);
+    expect(mid.base.z + 0.2).toBeLessThan(A5_PLATES.z0 - A5_HOARD.t);
   });
 
   it('the footbridge is 1.2 m clear at z 36.4-37.6 (deck flush, 2.4 m hoarding, noLedge), its door A5-footbridge at the east end; the plates are 3 m (z 39.0-42.0) with a bolt door at the west end', () => {
@@ -993,7 +998,7 @@ describe('Marlow re-plan A5: flags, stations in play, lines', () => {
     expect(steps.map((o) => o.done)).toEqual([{ flag: A5_APRON_E_FLAG }, { flag: A5_APRON_W_FLAG }, { flag: A5_RELEASE_FLAG }, undefined]);
     expect(A5_OBJECTIVES.map((o) => o.id)).toEqual(steps.map((o) => o.id));
     expect(steps[0]!.text).toMatch(/wall/);
-    expect(steps[0]!.text).toMatch(/gap|holding room/);
+    expect(steps[0]!.text).toMatch(/wicket door/);
     expect(steps[1]!.text).toMatch(/trench/);
     expect(steps[1]!.text).toMatch(/footbridge|plates/);
     expect(steps[2]!.text).toMatch(/beams/);

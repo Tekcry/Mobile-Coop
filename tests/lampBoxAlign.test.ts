@@ -201,11 +201,12 @@ describe('the A3 corridor: no lamp shadows itself from its ceiling', () => {
 
 /**
  * Lamps with solid occupancy right under the light point (`map:id`), accepted (LR16-L A2): the light sits on top of its
- * own post, so the post shadows its own base and nothing else.
+ * own post, so the post shadows its own base and nothing else. (light-realism L1: the S1 car-park columns and the lane
+ * floodlight left this list: their light points hang 0.8 m out on arms, campusS1.ts column block; the 26 column heads
+ * moved the bike shelter and bollard ids up to 28 and 29-36.)
  */
 const ON_ITS_POST: Record<string, string> = {
-  ...Object.fromEntries(Array.from({ length: 15 }, (_, k) => [`campusOps:${k + 1}`, 'S1 lane / car park floodlight at the top of its 6.0 m pole (campusS1.ts:222, 233, 237)'])),
-  ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 17}`, 'S1 forecourt bollard: light point 0.05 m inside the top of its 0.9 m post (campusS1.ts:269)'])),
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [`campusOps:${k + 29}`, 'S1 forecourt bollard: light point 0.05 m inside the top of its 0.9 m post (campusS1.ts:295)'])),
   'warehouseOps:34': 'exit sign, a wall bulkhead 0.09 m off the wall face (warehouseS1.ts:83): wall-mounted, accepted (lead, LR16-W)',
   'warehouseOps:53': 'exit sign, a wall bulkhead 0.09 m off the wall face (warehouseS1.ts:92): wall-mounted, accepted (lead, LR16-W)',
 };
@@ -214,7 +215,7 @@ const ON_ITS_POST: Record<string, string> = {
  * Remove an entry when its lamp moves (or move it to ON_ITS_POST when the lead accepts it); the test then keeps it out.
  */
 const KNOWN_EMBEDDED: Record<string, string> = {
-  'campusOps:16': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:254); tagged out (radius 0, off): bakes nothing',
+  'campusOps:28': 'S1 bike shelter fitting (-5, 2.2, -48) flush with the roof underside at 2.2 (campusS1.ts:280); tagged out (radius 0, off): bakes nothing',
 };
 
 describe('every map: no lamp embedded in its own mount', () => {

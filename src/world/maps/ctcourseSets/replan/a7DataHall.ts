@@ -15,8 +15,8 @@
  *   technician through the mesh, the hall leg watches this one;
  * - station 17 (STATIONS section 3, verbatim): the split and the synced hack, `retry: 'station'` (seen); no `drillS` (SA6:
  *   a hack miss resets the terminals in place, the scanner's own rule), and LANTERN's retry line (section 6, verbatim).
- * The objective lines and the lamps are the built set's (no circuit change). Only type imports from `../` besides the set
- * file's constants (the facility imports nothing from here).
+ * The objective lines and the lamps are the built set's (no circuit change) but the sync step's A line (marlow-play-2 C14).
+ * Only type imports from `../` besides the set file's constants (the facility imports nothing from here).
  */
 import { retryKey } from '../../../../game/course/courseDef';
 import type { StationDef } from '../../../../game/course/stationDef';
@@ -54,6 +54,10 @@ export const A7_DATA_HALL_STATIONS: readonly StationDef[] = [
 /** LANTERN's line when station 17 retries (STATIONS section 6). */
 export const A7_RETRY_LINE = 'Seen in the data hall. Back to the entry lobby.';
 
+/** (marlow-play-2 C14) A's hack line on the re-plan: A counts the pair in (the built line had both on the other's count). B's
+ *  line and the built yard's (its walk reads them) stay as built. */
+export const A7_SYNC_A_LINE = 'Count your partner in, then hack terminal one together.';
+
 /** Add the re-plan's pieces to `b` and amend `part` (the merge reads it afterwards). */
 export function replanA7DataHall(b: LevelBuilder, kit: FacilityKit, part: SetPart): void {
   const S = A7_SCREEN;
@@ -70,5 +74,8 @@ export function replanA7DataHall(b: LevelBuilder, kit: FacilityKit, part: SetPar
   part.bay.squad.push(A7_TECH2);
   part.bay.stations = A7_DATA_HALL_STATIONS;
   part.bay.radio.push({ at: retryKey('a7-split'), text: A7_RETRY_LINE });
+  // (marlow-play-2 C14) the sync step's A line (a copy: the built set's objective is left alone)
+  const si = part.objectives.findIndex((o) => o.id === 'a7-sync');
+  if (si >= 0) part.objectives[si] = { ...part.objectives[si]!, a: A7_SYNC_A_LINE };
   part.debugPoints.push({ id: 'A7-tech2', label: 'Set 7 second technician (north apron, the pod panel)', pos: { x: A7_TECH2_ROUTE[0]![0], y: 0, z: A7_TECH2_ROUTE[0]![1] }, yaw: Math.PI });
 }

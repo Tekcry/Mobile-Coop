@@ -492,7 +492,7 @@ console.log('section rating: Marlow Yard re-plan (?marlowreplan=1): step badges,
     }
 
     // A2: step 3 of 18 and its rule; a kill recorded, then a station retry (the shunter sees the client in the lit neck)
-    await hudIs('A2 - objectives - step 3 of 18', SEEN_T, 'A2');
+    await hudIs('A2 - objectives - step 3 of 18', SEEN, 'A2');
     await moveHost(31.0, 11.5);
     await moveClient(31.0, 13.0);
     await GA(() => window.__course.state.record('kills', 1));
@@ -513,7 +513,7 @@ console.log('section rating: Marlow Yard re-plan (?marlowreplan=1): step badges,
     const s1 = await GA(() => ({ ...window.__sectionRating.stats }));
     assert(s1.kills === 1 && Object.keys(s0).every((k) => typeof s0[k] !== 'number' || s1[k] >= s0[k]), `A2: the retry left the set's rating stats (${JSON.stringify(s0)} -> ${JSON.stringify(s1)})`);
     assert(await GA(() => window.__sectionRating.last === null), 'A2: the retry rated nothing');
-    await hudIs('A2 - objectives - step 3 of 18', SEEN_T, 'A2 after the retry');
+    await hudIs('A2 - objectives - step 3 of 18', SEEN, 'A2 after the retry');
     // A2 rated once at L2, the kill counted (No kills a miss)
     await GA(() => { const g = window.__app.current; g.enemyMgr.update = () => {}; });
     assert((await seal()) === 2, 'A2 sealed: A3 is the set now');
@@ -540,7 +540,7 @@ console.log('section rating: Marlow Yard re-plan (?marlowreplan=1): step badges,
       const ids = await ratingIds(P);
       assert(ids.join() === 'A2', `A3: the ${tag}'s results lines are A2 only (${JSON.stringify(ids)})`);
     }
-    await hudIs('A4 - objectives - step 9 of 18', SEEN_T, 'A4');
+    await hudIs('A4 - objectives - step 8 of 18', SEEN, 'A4');
   } catch (e) {
     failed = true;
     console.error(String(e));
