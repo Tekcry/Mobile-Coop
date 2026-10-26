@@ -27,7 +27,9 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    Knife: Player's piano-knife S1 = PR #614 (knifeSceneOn(flagOn, map.scene, live) + setKnifeScene; stab timing
    stand-in, real 0.68-0.94 s after the press coming in its S2); S4 waits for it.
 4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
-5. Tallow: #522 merged; #578 train-ready (base master); then retarget #581 -> master, then #583.
+5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
+6. S5 DONE 73c2ecd0e (12 tracks, ?pianomusic=pixabay|grohl|1-4|a-f; S5-report.md); Sonnet checker -> S5-check.md; PASS -> PR
+   (base feature/piano-escape). S6 (storm sound) waits for #604 on master. S4 waits for knife #614, GA6 / GA7, SO2-SO5.
 Next: wait for S1b / S2; checker each; resume S5 when a slot frees; #578 train.
 
 ## OLD RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
