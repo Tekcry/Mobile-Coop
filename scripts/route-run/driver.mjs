@@ -1282,7 +1282,10 @@ async function linkStep(ctx, log, step, stop) {
     const how = await d.call('doorStart', at[0], at[2], limit);
     if (how === 'none' || how === 'open') return 'walked';
     if (how === 'locked') {
-      if (await course.onLockedDoor(ctx, log, step)) return 'walked';
+      const open = await course.onLockedDoor(ctx, log, step);
+      // (J13 hold restart) a restart during the drill hold or the lock poll: the restart, not the door outcome
+      if (d.takeCourse()) return 'course';
+      if (open) return 'walked';
       const p = await d.call('tick', 0);
       await stop('locked', step, p, ctx.robot);
       await d.place(step.past ?? at);

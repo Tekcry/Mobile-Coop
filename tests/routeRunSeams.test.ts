@@ -411,6 +411,28 @@ describe('J13: a walk stalled at the locked door of its door link', () => {
     expect(A.pos.z).toBeCloseTo(14, 0);
   });
 
+  it('a restart during course.onLockedDoor (its drill hold / lock poll): onRestart once, no locked stop, never placed past', async () => {
+    const { A, ctx } = await oneCtx();
+    const door = lockedDoorAhead(A);
+    hook.onLockedDoor = vi.fn(async (c: Obj) => {
+      await c.driver.call('interrupt');
+      await c.driver.advance(1);
+      return false;
+    });
+    hook.onRestart = vi.fn(async () => {
+      door.anchor.locked = false;
+      door.open = 1;
+      return { resume: 2, place: null };
+    });
+    const log = await runOne(ctx, { id: 'r', section: null, steps });
+    expect(hook.onLockedDoor).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart).toHaveBeenCalledTimes(1);
+    expect(hook.onRestart.mock.calls[0][3]).toBe(1);
+    expect([log.deadStops, log.links]).toEqual([[], []]);
+    expect((await ctx.driver.call('posN'))[3]).toBe(0);
+    expect(ctx.driver.courseHit).toBe(null);
+  });
+
   it('no course: the same locked stop on the link, the robot placed past it', async () => {
     const { A, ctx } = await oneCtx();
     lockedDoorAhead(A);
