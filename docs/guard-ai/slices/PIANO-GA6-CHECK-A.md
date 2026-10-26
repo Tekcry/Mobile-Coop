@@ -223,3 +223,8 @@ zeroes `sweepClock`, `enemyManager.ts:4242`, `darkOn` kept) fine. A3 / B8 smoke 
 - `npx vitest run` on every test file that imports `src/ai/patrol` or `src/ai/enemyManager` (67 files): 1537 passed,
   1 todo, **1 failed** (lockedDoorPath, above). The same failure shows when that file runs alone.
 - The 3 named files against the pre-fix source (above): 5 failed, 49 passed.
+
+## Lead: re-check FIX applied
+The re-check's one FIX applied as prescribed: `walker: { sweeping: false }` on the hand-built guard in
+`tests/lockedDoorPath.test.ts` (test-only). `npx vitest run tests/lockedDoorPath.test.ts` 12/12, `typecheck:fast` clean.
+With both original FIX items closed (re-check above), check A is PASS on this head.
