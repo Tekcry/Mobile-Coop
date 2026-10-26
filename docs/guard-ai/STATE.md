@@ -1007,20 +1007,22 @@ quarantined; build toward playable pieces, not polish or tooling. Michael's play
 Michael 15:40: the orchestrator posts checker marks from the lead's reports (auto mode blocked self-posting).
 Michael 15:55: never held up - the first time you would wait on another session, message the orchestrator; never
 wait over 10 min.
-Open (2026-10-26 ~16:15 SAVE; all worktrees clean + pushed; F27 checker agent may still be running):
-1. #531 runner-armed (F21) + #537 seed-random (F25): TRAIN-READY, ride the batch train (#531 no-affected-e2e).
-2. #317 coop4 (LIVE, draft under the freeze; back to ready after the batch train). Master 4.112.1 merged + checks A, B,
-   fix re-check PASS (docs/coop4/checks/MERGE3*.md). F27 (playerRefsInto fills by index, tests/playerRefsInto.test.ts)
-   on 74c54fce6; check docs/coop4/checks/F27-CHECK.md. Checker marks: orchestrator posts after the freeze.
-3. #558 J15 PR3 (draft under the freeze): merge check PASS, head ae3d37a74. PR4 = feature/guard-rules-pr4 b111c9aa1
-   opens after #558 merges (merge master, merge check).
-4. J26 mission hooks stack (on PR4): S1a-1..S4 built and checked; laptop mh-s4 parked by the orchestrator at the
-   freeze (re-file only if needed). PRs after PR4.
-5. NEXT GOAL (orchestrator 16:07): guards that play well in Marlow Yard and Saltmarsh Park S1 for Michael's
-   playthrough on /preview/. Plan: list what a player meets there (kinds, routes, alarms, runner now armed), play-risk
-   bugs first; small PRs, one test set each.
-6. Polish (only if it helps the playthrough): pressing guards never route round waist-high blocks (all aggressive
-   kinds); e2e-modes opts[0]; coop4-pol list (docs/coop4/checks/MERGE3*.md); J16 perception half after Sector Ops' J16.
-Next: after the batch train ships, undraft #317 / #558 (or let the orchestrator), post their checks via the
-orchestrator; start the Marlow Yard + Saltmarsh S1 guard play pass (item 5).
+Open (2026-10-26 ~17:55 SAVE, new account; batch train 124 shipped 4.114.0, freeze over):
+1. #317 coop4 (ready): master 4.114.0 merged a98b041d9, merge check PASS (docs/coop4/checks/MERGE4*.md), head 709492af9.
+   coop4's named-only e2e-sectorops parts are now :10 / :11 / :12 (master's F33 took 6-9); alone runs name :10-:12.
+   Checker mark: reported to the orchestrator (auto mode blocks self-posting).
+2. #558 J15 PR3 (ready): master merged cd93bd3f0, merge check PASS (docs/guard-rules/checks/MERGE4-CHECK.md), head
+   c29ea923b. guardPairs / lookouts / dogRelease read darkFlag(.., PREVIEW_ON) (on in /preview/). Mark reported.
+   PR4 = feature/guard-rules-pr4 b111c9aa1 opens after #558 merges (merge master, merge check). J26 mission hooks after.
+3. PLAY PASS (orchestrator 16:07 goal): docs/guard-ai/PLAY-PASS.md on origin/feature/guard-ai-play (a53b6db21).
+   Slice A feature/guard-ai-home (worktree -guard-ai-home): guards get home after a search (P1-1 goTo fails -> walks
+   into walls), alarm runner gives up (P2-1), gallery guard keeps height (P2-2); test set e2e-stealth-ai.
+   Slice B feature/guard-ai-play (worktree -guard-ai-play): course alarmQuiet, spawnSquad / sector fill continue past
+   a failed spawn; tests/guardPlaySpawns.test.ts; test set e2e-section-rating. Both Opus builders RUNNING at the save.
+   Then: one Opus checker each (prototype mode), open PRs (patch), let affected-e2e (cap 1) run, report to orchestrator.
+4. Owner asks sent 17:50: Marlow #574 before the play (in train 127; else marlowReplan off on /preview/); Sector Ops
+   #525 (15-guard v2 S1), S1 v2 guard 14 needs a post (pair 5/14), land each campusV2 stack whole.
+5. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; coop4-pol list (MERGE3/4
+   checks: NetSession.roomCap unused); guardpairs=0 on the flag-off talking-pairs e2e; J16 perception half.
+Next: check slice A / B builder reports, checker each, open the two PRs; then PR4 after #558 merges.
 ```
