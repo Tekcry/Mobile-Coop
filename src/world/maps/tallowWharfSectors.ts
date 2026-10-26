@@ -198,8 +198,8 @@ export const WHARF_GUARD_MISSIONS: Readonly<Record<'threeGreyCoats' | 'twoKeyLed
 const W1_BOLTS: SectorBolt[] = [
   { at: at2(W1.doors['w1-warden-stair']!), side: [0, 1] },
   { at: at2(W1.doors['w1-hall-back']!), side: [0, 1] },
-  // the gallery ladder's anti-climb door, bolted from the cage side (EGRESS E5; LP pick 14: bolted in PR G1, no solo bypass of C1)
-  { at: at2(W1.doors['w1-gallery-ladder']!), side: [0, 1] },
+  // the gallery stair's head gate, bolted on the gallery side (EGRESS E5, J8 G5): the boosted partner unbolts it on landing; no solo bypass of C1
+  { at: at2(W1.doors['w1-gallery-stair-gate']!), side: [-1, 0], w: 1.0 },
 ];
 const W2_BOLTS: SectorBolt[] = [
   { at: at2(W2.doors['w2-pawn-stair-foot']!), side: [0, 1] }, // the pawn fire stair: push bar on the stair side (rebuilt, EGRESS pick 5)

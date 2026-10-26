@@ -10,13 +10,15 @@ import { doorIn, duct, lamp, mass, T, wall, type WharfSection } from './tallowWh
  * Tallow Wharf section W1, the night market (mission-framework GB1; `docs/missions/slices/GB-briefs.md` "GB1"; graph
  * `docs/missions/prototypes/campaign-map/graph.json`; J8 G1: `docs/tallow-fixes/LIGHT.md` section 2, `EGRESS.md`). Frame: world
  * metres, x east, z north, y up; a `y` is a walking surface's feet height. Seven spaces: the canal steps (the start), the tea
- * stall, the market square, the gallery (a solid 4.5 m deck, two co-op boost lips and the trimmer's caged ladder at its canal-steps
- * end), the warden's office (up on the gallery), the fish hall and the service passage.
+ * stall, the market square, the gallery (a solid 4.5 m deck, two co-op boost lips and the market warden's caged stair at its
+ * canal-steps end (its head gate bolted on the gallery side, `W1_BOLTS` slot 2: the boosted partner unbolts it on landing)), the
+ * warden's office (up on the gallery), the fish hall and the service passage.
  *
  * Forced co-op in W1: the gallery and the office are reached only by a boost (C1), the bolted warden's stair (GB5 bolts its foot
- * door) or the caged ladder (its anti-climb door at the foot is bolted from the cage side, `W1_BOLTS`: no solo bypass), and the fish
+ * door) or the market warden's caged stair (its head gate is bolted on the gallery side, `W1_BOLTS`: from the floor the stair ends
+ * at a bolted gate, no solo bypass), and the fish
  * hall's north shutter (C2) is placed (`placeShutter`, J9 S3): the opening is shut on the guards' nav (A15) and the shutter stops
- * lamp light (A16); the crew gets through it only once it is opened. The ice-melt drain is the secret crouch duct. No W1 stair is added (EGRESS section 3, pick 2).
+ * lamp light (A16); the crew gets through it only once it is opened. The ice-melt drain is the secret crouch duct. No stair is added to the office block (EGRESS pick 2); the gallery stair serves the open deck (G5).
  *
  * Lights (LIGHT.md section 2): 28 lamps in groups 60-67, every one working (no "lit by default" lamps): the market strings, the
  * fish hall pendants and facade brackets, the passage bulkheads and the canal and tea-stall lamps are lit to their bands, with
@@ -53,8 +55,8 @@ const DOORS = {
   'w1-hall-side': [33, 0, 44],
   'w1-hall-back': [30, 0, 58],
   'w1-conn-near': [36, 0, 60],
-  /** The gallery ladder's anti-climb door at the foot of its cage (bolted on the cage side, `W1_BOLTS`; EGRESS E5). */
-  'w1-gallery-ladder': [6.6, 0, 14.4],
+  /** The gallery stair's head gate on the deck edge (bolted on the gallery side, `W1_BOLTS` slot 2; EGRESS E5, J8 G5). */
+  'w1-gallery-stair-gate': [6.0, 4.5, 15.1],
 } as const;
 
 /** The warden's tally desk [x0, z0, x1, z1, floorY] (LIGHT.md rule 7): a visual-only box, top floor + 0.75, under lamp 63. */
@@ -138,15 +140,25 @@ function build(b: LevelBuilder): void {
   // the two planned boost lips (C1): manual ledges on the noLedge deck faces
   for (const l of [LIP_STEPS, LIP_MARKET]) b.ledge(l.a.x, l.a.z, l.b.x, l.b.z, l.y);
 
-  // ---- the gallery ladder (D0's TGC default, EGRESS E5): on the deck's east face at its canal-steps end, behind an anti-climb cage ----
-  // the climber stands on the market side facing -x (the wall); the top-out lands on the deck at about (5.6, 4.5, 15.0)
-  b.ladder(6.45, 15.0, 0, 4.5, -Math.PI / 2);
-  // the foot enclosure x 6.0-7.75, z 14.4-15.6 (iron, 0.1 thick, 4.5 high): 1.75 m deep so the bottom step-off body, (7.15, 0, 15.0)
-  // with radius 0.3 (`attachController.ts:500-505`), clears the east side's inner face x 7.7 by 0.25 m
-  wall(b, true, 15.6, 6.0, 7.75, [], 0, 4.5, 0.1, IRON); // north side
-  wall(b, false, 7.75, 14.4, 15.6, [], 0, 4.5, 0.1, IRON); // east side (x 7.7-7.8)
-  wall(b, true, 14.4, 6.0, 7.75, [[6.1, 7.1]], 0, 4.5, 0.1, IRON, 2.1); // south side: the door gap x 6.1-7.1, the side runs on over it 2.1-4.5
-  doorIn(b, true, 14.4, 6.6, 0, { w: 1.0 }); // the anti-climb door: swing +1 opens its leaf toward -z (the canal steps), away from the ladder
+  // ---- the market warden's gallery stair (EGRESS E5, J8 G5): an enclosed iron core on the deck's east face at its canal-steps end ----
+  // outer x 6.0-7.5, z 14.4-24.4, walls to 6.9 (2.4 m over the deck), roofed; the open foot arch faces the market's west strip, the
+  // head gate on the deck edge is bolted on the gallery side (`W1_BOLTS` slot 2): from the floor the stair ends at a bolted gate
+  wall(b, false, 7.45, 14.4, 24.4, [], 0, 6.9, 0.1, IRON); // east wall
+  wall(b, true, 14.45, 6.0, 7.5, [], 0, 6.9, 0.1, IRON); // south wall
+  wall(b, true, 24.35, 6.0, 7.5, [[6.2, 7.2]], 0, 6.9, 0.1, IRON, 2.1); // north wall: the foot archway x 6.2-7.2, 2.1 high, no leaf
+  blk(b, 5.95, 14.4, 7.5, 24.4, 6.9, 7.0, IRON, true); // roof
+  // the screen on the deck edge (y 4.5-6.9) with the head gate's gap z 14.6-15.6
+  wall(b, false, 6.0, 14.4, 24.4, [[14.6, 15.6]], 4.5, 6.9, 0.1, IRON, 2.1);
+  // the head gate: hinged at the south jamb z 14.6; swing +1 lays the open leaf east along the landing's south edge, clear of the flight head
+  doorIn(b, false, 6.0, 15.1, 4.5, { w: 1.0 });
+  blk(b, 6.0, 14.5, 7.4, 15.8, 0, 4.5, FLOOR); // the head landing (top 4.5, flush with the deck)
+  {
+    // the flight x 6.05-7.35: foot z 23.5 (y 0), rising south (yaw PI, as W3's flight 1) to the landing at z 15.8; 0.8 m foot landing to the arch
+    const gs = stairSteps(4.5);
+    const i0 = b.boxes.length;
+    b.stairs(6.7, 15.8 + gs.len / 2, 1.3, gs.len, 4.5, gs.steps, IRON, Math.PI, 0);
+    b.mark(i0, { noLedge: true });
+  }
 
   // ---- the warden's office (x 0-8, z 46-54, floor 4.5, walls 4.5-7.5, ceiling 7.5-7.8) ----
   // the floor slab (top 4.5, 0.3 thick) with the stair hole x 6.2-7.8 z 46-52

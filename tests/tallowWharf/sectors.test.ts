@@ -458,7 +458,7 @@ describe('tallowWharf bolts', () => {
     // places that are no room: the stair cores and the W3 coal-yard vestibule; 'open' = no room or core (a lightwell, open air)
     const CORES: Record<string, [number, number, number, number]> = {
       'w1-warden-core': [6.2, 44, 7.8, 52],
-      'w1-ladder-cage': [6.0, 14.4, 7.75, 15.6],
+      'w1-gallery-stair': [6.0, 14.4, 7.5, 24.4],
       'w2-pawn-core': [44, 62, 53.85, 63.5],
       'w2-pie-core': [56.2, 62.2, 57.8, 69.9],
       'w2-west-bridge': [44, 67.6, 45.5, 73.5],
@@ -475,7 +475,7 @@ describe('tallowWharf bolts', () => {
     };
     // [draw side, other side] per bolt, in the brief's order
     const want: Record<string, [string, string][]> = {
-      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall'], ['w1-ladder-cage', 'w1-canal-steps']],
+      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall'], ['w1-gallery', 'w1-gallery-stair']],
       W2: [['w2-pawn-core', 'w2-arcade'], ['w2-pie-loft', 'w2-pie-core'], ['w2-pawn-loft', 'open'], ['w2-pie-loft', 'open'], ['w2-west-bridge', 'w2-pawn-loft'], ['w2-east-bridge', 'w2-lane-window'], ['w2-reading-room', 'w2-stair-landing']],
       W3: [['w3-chute', 'open'], ['w3-coalyard-vestibule', 'w3-passage'], ['w3-roof', 'open'], ['w3-cartway', 'w3-coal-yard'], ['w3-east-wing', 'w3-bulkhead-core']],
       W4: [['w4-shed-three', 'w4-shed-yard'], ['w4-jetty', 'w4-shed-yard']],

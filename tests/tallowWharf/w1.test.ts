@@ -12,7 +12,8 @@ import { contribution, type LightDef } from '../../src/world/lights';
 import type { CoopTop } from '../helpers/soloJumpReach';
 import { CHEST_Y, HEAD_Y } from '../../src/world/lighting/levels';
 import { lampReach } from '../../src/world/lampMath';
-import { MASS_TOP } from '../../src/world/maps/tallowWharfKit';
+import { MASS_TOP, SCREEN } from '../../src/world/maps/tallowWharfKit';
+import { stairSteps } from '../../src/world/maps/ctcourseGreybox';
 import { closeShutterNav, SHUTTER_PIECE } from '../../src/world/shutterDoor';
 import { shutterSpecsOf } from '../../src/game/kit/shutter';
 import {
@@ -150,7 +151,7 @@ describe('W1 has no solo bypass', () => {
   });
 
   it('names its bolted and unlocked doors, each with a door anchor', () => {
-    expect(Object.keys(W1.doors).sort()).toEqual(['w1-conn-near', 'w1-gallery-ladder', 'w1-hall-back', 'w1-hall-side', 'w1-warden-stair']);
+    expect(Object.keys(W1.doors).sort()).toEqual(['w1-conn-near', 'w1-gallery-stair-gate', 'w1-hall-back', 'w1-hall-side', 'w1-warden-stair']);
     for (const c of Object.values(W1.doors)) {
       // a door's hinge is at one jamb: the centre is half its width along the wall (yaw PI / 2: along x; yaw 0: along z)
       const near = b.anchors.doors.some((d) => Math.abs(d.hinge.x + (d.yaw === 0 ? 0 : d.width / 2) - c[0]) < 0.01 && Math.abs(d.hinge.z + (d.yaw === 0 ? d.width / 2 : 0) - c[2]) < 0.01 && Math.abs(d.hinge.y - c[1]) < 0.01);
@@ -551,83 +552,106 @@ describe('W1 hide spots, the medkit and the vantages (J8 G1)', () => {
   });
 });
 
-describe('W1 gallery ladder (D0 TGC default, EGRESS E5)', () => {
-  const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.x - 6.45) < 1e-6 && Math.abs(l.base.z - 15.0) < 1e-6);
+describe('W1 gallery stair (J8 G5, EGRESS E5)', () => {
+  /** A collide box whose centre and size match (to 1e-6), unturned unless `pitched`. */
+  const boxAt = (c: readonly number[], sz: readonly number[], pitched = false): boolean =>
+    b.boxes.some((p) => p.collide && (pitched ? Math.abs(p.pitch) > 1e-3 : Math.abs(p.pitch) < 1e-6) && [0, 1, 2].every((k) => Math.abs(p.c[k]! - c[k]!) < 1e-6 && (sz[k]! < 0 || Math.abs(p.s[k]! - sz[k]!) < 1e-6)));
+  const gs = stairSteps(4.5);
 
-  it('stands at (6.45, 15.0) from y 0 to 4.5 and tops out on the gallery deck', () => {
-    expect(ladder).toBeDefined();
-    expect(ladder!.base.y).toBe(0);
-    expect(ladder!.top.y).toBe(4.5);
-    const x = ladder!.top.x + Math.sin(ladder!.facing) * 0.4;
-    const z = ladder!.top.z + Math.cos(ladder!.facing) * 0.4;
-    expect(x).toBeCloseTo(5.6, 6);
-    expect(downHit(solid, x, 5.5, z, 3.5)).toBeCloseTo(4.5, 6);
+  it('the core (x 6.0-7.5, z 14.4-24.4, walls to 6.9, roofed), the head landing (top 4.5) and the 1.3 m flight stand where G5 puts them', () => {
+    expect(boxAt([7.45, 3.45, 19.4], [0.1, 6.9, 10])).toBe(true); // east wall
+    expect(boxAt([6.75, 3.45, 14.45], [1.5, 6.9, 0.1])).toBe(true); // south wall
+    // north wall: the foot archway x 6.2-7.2, 2.1 high, no leaf; its head 2.1-6.9
+    expect(boxAt([6.1, 3.45, 24.35], [0.2, 6.9, 0.1])).toBe(true);
+    expect(boxAt([7.35, 3.45, 24.35], [0.3, 6.9, 0.1])).toBe(true);
+    expect(boxAt([6.7, 4.5, 24.35], [1.0, 4.8, 0.1])).toBe(true);
+    expect(b.anchors.doors.some((d) => Math.abs(d.hinge.z - 24.35) < 0.2 && d.hinge.x > 6 && d.hinge.x < 7.5)).toBe(false);
+    expect(boxAt([6.725, 6.95, 19.4], [1.55, 0.1, 10])).toBe(true); // roof
+    expect(boxAt([6.7, 2.25, 15.15], [1.4, 4.5, 1.3])).toBe(true); // head landing, top 4.5
+    expect(downHit(solid, 6.7, 5.5, 15.1, 3.5)).toBeCloseTo(4.5, 6);
+    // the screen on the deck edge (x 5.95-6.05, y 4.5-6.9) with the gate's gap z 14.6-15.6
+    expect(boxAt([6.0, 5.7, 14.5], [0.1, 2.4, 0.2])).toBe(true);
+    expect(boxAt([6.0, 5.7, 20.0], [0.1, 2.4, 8.8])).toBe(true);
+    // the flight: 27 risers, 7.7 m, the ramp 1.3 wide from the foot z 23.5 (y 0) to the landing's edge z 15.8 (y 4.5)
+    expect(gs.steps).toBe(27);
+    expect(gs.len).toBeCloseTo(7.695, 6); // 27 x 0.285 (G5's "7.7 m")
+    const ramp = b.boxes.find((p) => p.collide && Math.abs(p.pitch) > 1e-3 && Math.abs(p.c[0] - 6.7) < 1e-6 && Math.abs(p.c[2] - (15.8 + gs.len / 2)) < 1e-6);
+    expect(ramp).toBeDefined();
+    expect(ramp!.s[0]).toBeCloseTo(1.3, 6);
+    expect(ramp!.s[2]).toBeCloseTo(Math.hypot(gs.len, 4.5), 6);
+    expect(15.8 + gs.len).toBeCloseTo(23.5, 1);
+    // a 0.8 m foot landing between the flight's foot and the archway (z 24.3)
+    expect(24.3 - (15.8 + gs.len)).toBeCloseTo(0.8, 1);
+    // every new collide piece in the core's plan is noLedge
+    const inCore = b.boxes.filter((p) => p.collide && p.c[0] >= 5.9 && p.c[0] <= 7.55 && p.c[2] >= 14.35 && p.c[2] <= 24.45);
+    expect(inCore.length).toBeGreaterThan(0);
+    expect(inCore.filter((p) => !p.noLedge).map((p) => p.c)).toEqual([]);
   });
 
-  it('the bottom step-off (base - facing x 0.7) is (7.15, 15.0), clear of the solid and inside the cage 0.5 m from each side\'s centre line', () => {
-    const l = ladder!;
-    const x = l.base.x - Math.sin(l.facing) * 0.7;
-    const z = l.base.z - Math.cos(l.facing) * 0.7;
-    expect(x).toBeCloseTo(7.15, 2);
-    expect(z).toBeCloseTo(15.0, 2);
-    expect(blockedAt(solid, 7.15, 15.0, 0.3, 0)).toEqual([]);
-    expect(x).toBeGreaterThan(6.0);
-    expect(x).toBeLessThan(7.75);
-    expect(z).toBeGreaterThan(14.4);
-    expect(z).toBeLessThan(15.6);
-    for (const d of [Math.abs(x - 7.75), Math.abs(z - 15.6), Math.abs(z - 14.4), Math.abs(x - 6.0)]) expect(d).toBeGreaterThanOrEqual(0.5);
-  });
-
-  it('the cage door is a 1.0 m door at (6.6, 14.4) whose leaf opens toward -z, the canal steps (swing +1)', () => {
-    const d = b.anchors.doors.find((q) => Math.abs(q.hinge.x - 6.1) < 1e-6 && Math.abs(q.hinge.z - 14.4) < 1e-6 && q.hinge.y === 0)!;
+  it('the head gate is a 1.0 m door at (6.0, 4.5, 15.1), hinged at the south jamb z 14.6, its open leaf east onto the landing, 0.6 m clear of the way through', () => {
+    expect(W1.doors['w1-gallery-stair-gate']).toEqual([6.0, 4.5, 15.1]);
+    const d = b.anchors.doors.find((q) => Math.abs(q.hinge.x - 6.0) < 1e-6 && Math.abs(q.hinge.z - 14.6) < 1e-6 && Math.abs(q.hinge.y - 4.5) < 1e-6)!;
     expect(d).toBeDefined();
     expect(d.width).toBeCloseTo(1.0, 9);
-    expect(d.height).toBeCloseTo(2.1, 9);
-    expect(W1.doors['w1-gallery-ladder']).toEqual([6.6, 0, 14.4]);
-    // the open leaf's direction: yaw + swing x openAngle (1.53 rad): (sin, cos) of it points -z
+    expect(d.yaw).toBe(0);
+    // the open leaf's direction: yaw + swing x openAngle (1.53 rad) points +x, onto the landing (away from the deck)
     const open = d.yaw + d.swing * 1.53;
-    expect(Math.cos(open)).toBeLessThan(-0.9);
+    expect(Math.sin(open)).toBeGreaterThan(0.9);
+    // the open leaf's far z (its 1.0 m along the open direction, plus 0.05 for half its thickness): the way from the flight
+    // head (6.7, 15.8) through the gap (z to 15.6) to the deck keeps at least 0.6 m clear of it
+    const leafZ = d.hinge.z + Math.max(0, Math.cos(open)) * d.width + 0.05;
+    expect(15.6 - leafZ).toBeGreaterThanOrEqual(0.6);
+    expect(15.8 - leafZ).toBeGreaterThanOrEqual(0.6);
+    expect(d.hinge.x + Math.sin(open) * d.width).toBeLessThan(7.4);
   });
 
-  const cage: ShutDoor = { at: [6.6, 14.4], y: 0, w: 1.0, alongX: true };
+  const gate: ShutDoor = { at: [6.0, 15.1], y: 4.5, w: 1.0, alongX: false };
   const stair: ShutDoor = { at: [W1.doors['w1-warden-stair']![0], W1.doors['w1-warden-stair']![2]], y: 0, w: 1.2, alongX: true };
+  const FLOOR_PTS: [number, number][] = [[7, 10], [16, 10], [22, 41]];
 
-  it('gate: with the cage door and the warden-stair foot door shut, the gallery is not reachable alone from either side of the market', () => {
-    const { nav, restore } = soloNav(b, 4, W1.navSeeds, [cage, stair]);
+  it('C1 gate: with the head gate and the warden-stair foot shut, the deck is not reachable alone from the canal steps, the tea stall or the clock; the stair itself is open', () => {
+    const { nav, restore } = soloNav(b, 4, W1.navSeeds, [gate, stair]);
     try {
-      expect(nav.findPath([7, 10], [4, 20], 1e6, 0, 4.5)).toBeNull();
-      expect(nav.findPath([16, 10], [4, 20], 1e6, 0, 4.5)).toBeNull();
+      for (const [x, z] of FLOOR_PTS) expect(nav.findPath([x, z], [4, 20], 1e6, 0, 4.5), `(${x}, 0, ${z})`).toBeNull();
+      // the stair up to its head landing is open floor (it ends at the bolted gate)
+      expect(nav.findPath([6.7, 25], [6.7, 15.1], 1e6, 0, 4.5)).not.toBeNull();
     } finally {
       restore();
     }
   });
 
-  it('control: with only the warden-stair door shut the ladder through the open cage door is the way up', () => {
+  it('control: with only the warden-stair foot shut, the stair through the open head gate is the way up from all three', () => {
     const { nav, restore } = soloNav(b, 4, W1.navSeeds, [stair]);
     try {
-      expect(nav.findPath([7, 10], [4, 20], 1e6, 0, 4.5)).not.toBeNull();
-      expect(nav.findPath([16, 10], [4, 20], 1e6, 0, 4.5)).not.toBeNull();
+      for (const [x, z] of FLOOR_PTS) expect(nav.findPath([x, z], [4, 20], 1e6, 0, 4.5), `(${x}, 0, ${z})`).not.toBeNull();
     } finally {
       restore();
     }
   });
 
-  it('C1 stays forced: no solo jump or level run reaches either lip or the deck edge from the ladder\'s top, cage pieces included', () => {
+  it("C1 stays forced: no solo jump or level run reaches either lip; the head landing reaches the deck only through the gate", () => {
     // skipped: the gallery deck's own blocks, and the solid building mass (top MASS_TOP, no way up: nobody stands on it, so no take-off)
     const deck = (p: { c: number[]; s: number[] }): boolean =>
       (p.c[0]! - p.s[0]! / 2 >= 2 - 1e-6 && p.c[0]! + p.s[0]! / 2 <= 6 + 1e-6 && p.c[2]! - p.s[2]! / 2 >= 14 - 1e-6 && p.c[2]! + p.s[2]! / 2 <= 46 + 1e-6 && p.c[1]! + p.s[1]! / 2 > 4.45) || p.c[1]! + p.s[1]! / 2 >= MASS_TOP - 1e-6;
+    // the head landing (x 6.0-7.4, z 14.5-15.8, top 4.5) is reached by the stair and is level with the deck: its only way onto
+    // the deck is the head gate's gap, a door the helper cannot see (it reads boxes only), so it is left out here and the
+    // soloNav gate test above is its proof
+    const landing = (p: { c: number[]; s: number[] }): boolean => Math.abs(p.c[0]! - 6.7) < 1e-6 && Math.abs(p.c[2]! - 15.15) < 1e-6 && Math.abs(p.c[1]! + p.s[1]! / 2 - 4.5) < 1e-6;
+    // the core's roof (top 7.0) has no way up: 2.5 m over the deck and the landing, past the drop guard's `SCREEN` (over the
+    // 1.8 m mantle), and every core piece is noLedge (the test above), so nobody stands on it to take off
+    const roof = (p: { c: number[]; s: number[] }): boolean => Math.abs(p.c[0]! - 6.725) < 1e-6 && Math.abs(p.c[2]! - 19.4) < 1e-6 && Math.abs(p.c[1]! + p.s[1]! / 2 - 7.0) < 1e-6;
+    expect(7.0 - 4.5).toBeGreaterThan(SCREEN);
+    const skip = (p: { c: number[]; s: number[] }): boolean => deck(p) || landing(p) || roof(p);
     const tops: Record<string, CoopTop> = {
       'w1-lip-steps': { x0: 2.25, x1: 5.75, z0: 14, z1: 15.5, top: 4.5 },
       'w1-lip-market': { x0: 4.5, x1: 6, z0: 26.5, z1: 31.5, top: 4.5 },
-      ladder: { x0: 3.6, x1: 6, z0: 14, z1: 16, top: 4.5 },
     };
     for (const lip of W1.lips) {
       expect(soloJumpThreats(solid, lip), lip.id).toEqual([]);
-      expect(soloLevelThreats(solid, tops[lip.id]!, deck, 0.2), lip.id).toEqual([]);
+      expect(soloLevelThreats(solid, tops[lip.id]!, skip, 0.2), lip.id).toEqual([]);
     }
-    expect(soloLevelThreats(solid, tops.ladder!, deck, 0.2)).toEqual([]);
-    // control: a solid, standable top over the cage (a block, not the thin iron) at the deck's height is reported
-    const block = { c: [6.875, 2.25, 15.0] as [number, number, number], s: [1.75, 4.5, 1.2] as [number, number, number], yaw: 0, pitch: 0, color: '#000', collide: true, visible: true, noLedge: true };
-    expect(soloLevelThreats([...solid, block], tops.ladder!, deck, 0.2).length).toBeGreaterThan(0);
+    // control: the core's roof (y 7.0) is no take-off, nobody reaches it: a standable block over the core at the deck's height is reported
+    const block = { c: [6.75, 2.25, 19.4] as [number, number, number], s: [1.5, 4.5, 10] as [number, number, number], yaw: 0, pitch: 0, color: '#000', collide: true, visible: true, noLedge: true };
+    expect(soloLevelThreats([...solid, block], tops['w1-lip-steps']!, skip, 0.2).length).toBeGreaterThan(0);
   });
 });
