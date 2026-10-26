@@ -1,7 +1,29 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~18:35 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
+## RESUME 2026-10-26 ~19:25 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
+Process as in the 18:35 block below (prototype mode; bypass: the lead posts `checker`; low.mjs; junctions only to
+Mobile-Coop-menu/node_modules). Notes: scratch/campaign/lead-notes.md "Session after the 19:05 swap".
+The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retargets to master once the one below lands (A27):
+1. (a) #522 feature/mission-c2-rules e9e01f319, base master: was left out of train 128 on a new master conflict (flags,
+   settings); fixed keep-both (missions / coopKit + guard-rules flags; hints + animSourceSet), tsc + settings tests green,
+   checker posted, PR comment. train-ready returns from the watchdog after CI + affected-e2e.
+2. (b) #578 feature/mission-b-sector b6c57d0ff (merged new (a)), checker posted. Retarget to master after #522 lands.
+3. (c) #581 feature/mission-c-net 395576d8e (merged new (b); coopClient.ts keep-both NET2 teamT0 + S2c mates; tsc + net
+   tests), checker posted. Retarget after #578.
+4. (d) #583 feature/mission-d-wharf 0adfd8dee (merged new (c) + S3 44575348a, Sonnet PASS scratch/campaign/tallow-s3-check.md;
+   tsc + 352 tests), checker posted. Retarget after #581. When it lands: Tallow W1 in /preview/; tell the orchestrator
+   (walk card as in the 18:35 block, plus the two shutters).
+5. A red check on any member: fix on the lowest member it touches and merge upward (b -> c -> d), re-post `checker`.
+6. S4 (wharf e2e walks both shutters; scripts/e2e-sectorops-wharf.mjs only) on cloud-queue 1f9726828, base (d) 0adfd8dee
+   (desktop CPU 97% at 19:15). Done -> Sonnet checker -> merge feature/tallow-s4 into (d), re-post checker.
+7. G5 (A30): blocked on Michael's G5-Q1 (scratch/campaign/tallow-g5-plan.md section 8; sent to the orchestrator ~19:20).
+   Answer 1 or 3: release cq/campaign-tallow-g5.md on base (d) (+ S4 if landed; G5 and S4 share no files), replace the
+   engine's pre-fix G5-plan / brief. Answer 2: re-plan G5 first.
+8. Polish lists and Michael's ~18:47 / ~18:52 picks: as in the 18:35 block (BRIEF "Michael picked" at the next edit).
+Next: watch #522 into a train; retarget #578 -> #581 -> #583 in order; pick up S4 from cloud-queue; G5 on Michael's answer.
+
+## OLD RESUME 2026-10-26 ~18:35 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
 Process: prototype mode (one closest set per change = the automatic affected run only, no extra sets; a red test gets one
 fix + one rerun, then note and ship). Bypass: the lead posts `checker` itself. Local checks via scratch/ctcore/low.mjs.
 Junctions ONLY to C:/NightShift/Mobile-Coop-menu/node_modules. Notes: scratch/campaign/lead-notes.md "Session after
