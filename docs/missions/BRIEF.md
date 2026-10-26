@@ -101,3 +101,13 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - A24 Three Grey Coats: killing Teale before he talks breaks the rule and he moves, as on the page Michael signed
   (~18:05, "He moves"). Knocking him out before he talks restarts the section with Teale still at his table: answered
   by Michael, M6.
+
+## Orchestrator calls (PR C split, 2026-10-26 ~12:55; plan `docs/missions/slices/PRC-split.md`, refresh at engine a2822ab7a)
+- A25 The engine reaches master as 16 stacked members C1-C16; only C4 (kit + shutter device, ~1.87k counted lines)
+  carries `big-pr`, because S1's late hunk ties `teamController.ts` to the shutter files. Undo: re-cut C4 smaller.
+- A26 Tallow Wharf ships as C9-C16, each under the 1.5k cap (map files by file, tests after the built map), not one
+  big-pr member. Undo: one wharf member with `big-pr`.
+- A27 Members are stacked for review only; each is retargeted to master just before it is labelled `train-ready`, so a
+  train never pulls unreviewed base commits. Undo: none needed (train rule).
+- A28 NET3 `firstPlace` (a joining client placed at the checkpoint in a Sector Ops co-op match) ships dark behind
+  `missions`; if Sector Ops wants it live as a fix, Sector Ops brings it to the orchestrator. Undo: drop the gate.
