@@ -373,6 +373,7 @@ re-targeting PR bases: the orchestrator posts them from the written reports (sen
    adds the v2 extras, PLAN section 4). Guard counts answer sent to the orchestrator (v1 live, v2 signed 15/18/20/25/26).
 5. J21 map-ready: S14 done on cloud (763fc7bf) - Opus checker running (report map-ready-s14-check.md). S3 cloud brief
    being written by an Opus agent (briefs/map-ready-S3.md). S15 needs laptop GPU per step; S5 after #317; S16 / A20.
+UPDATE 13:00 (usage cap): #518 CI fix head 8caddb44 (needs checker; Sonnet delta report light-l1-delta-check-2.md). Cloud briefs open: char-shadow-meter-s2c, map-ready-S3 (on S14), campus-greybox-stack-s3/-s4/-s5. S14 Opus PASS, gate + alone queued. L2 briefs done (HOLD). #503 merged: open s1-a..c / s2-a..d lane PRs (bodies owed).
 Next: on each agent result: publish / check / PR; S14 PASS -> request its PC runs (step 6); after a release merge
 master into labelled branches; when CPU < 80%: S10 PR prep, lane stacks verification.
 ```
