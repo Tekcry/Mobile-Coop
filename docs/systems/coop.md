@@ -5,10 +5,12 @@ wire.
 Design authority: docs/DECISIONS.md (G2, G48-G52, G180, G349), then docs/design-bible.md (Section 5.9).
 
 Player counts per mode: campaign missions and Marlow Yard (Course mode) take exactly 2 players (G2, G50, G292); Sector
-Ops takes 1 to 4 (G308, built by coop4 in PR #317; until it lands, `capacity('sector')` on master is still 2). No bot
+Ops takes 1 to 4 (G308, built by coop4 in PR #317, live when it ships with no off switch, G381; until it lands,
+`capacity('sector')` on master is still 2). No bot
 partner (G48), no player-versus-player mode (G8, G9; Wave, deathmatch and free-for-all are deleted). Co-op is tested
 with two browser tabs (four for Sector Ops once coop4 lands), the two-page e2e suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
-camera and rumble stay local; partners never pass through each other (loco D8, G52).
+camera and rumble stay local; partners never pass through each other (loco D8, G52). Small animation fields may go
+over the wire so a partner looks exact on every screen (G400); remotes still pose from `MoveState`.
 
 ## Entry and transport (`src/net`)
 - `main.ts` registers the Co-op menu entry and `?room=CODE` handling; both `import('./net/coopUi')`. `CoopApi`
@@ -71,7 +73,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   Clients accept authoritative messages (lobby / start / snap / ev / end) only from the host; the host accepts gameplay
   messages only from lobby members. No host migration.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
-  pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
+  pickups, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
   sending (`net/bgTicks.ts`; the hidden-page tick, input-and-loop.md).
 - (marlow-bays items 3-4) The host's pause menu restarts at the checkpoint (`GameMode.restartCheckpoint`; the host's
@@ -130,9 +132,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   over 1 m snaps with no speed spike): `holdAt`'s speed, the hostage's gait, holds steady below 60 fps.
 - (marlow-bays item 2) Course items: the host's own press passes `'local'` (`gameState.ts`); `courseUser` reads it as
   P1, a client's peer id as P2 (it read `'local'` as P2, so a host unbolting alone was tested on the client's feet).
-- Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
-  snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
-  without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+- Objective and net-status lines (coop-fix, hud-guidance B3 / HG9, `net/objectiveMirror.ts`): the client shows
+  "Connecting to host…" on the net-status line (`Hud.setNetStatus`) until the first snapshot, and "Waiting for host…"
+  there after 2 s without one, until the next; the objective line only ever holds the host's objective (a snapshot's
+  line clears the notice, an empty course-mode objective included). Every write goes through `CoopClient.showLine`.
+  The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+- (hud-guidance B5, A9) Field Terminal > Notes: the host fills `GameState.notes` from its `intel` event (its own and a
+  client's interrogations); a client adds every `feed` event's text (the same relay, plus Sector Ops keypad radio
+  lines): no wire change.
 - `CoopHost`: remote players (`RemotePlayer` = Damageable + split hit volumes from the sim body model, rig-pose-fix S1:
   `PlayerHitVolumes` on `playerBody(wireBodyIn(accepted state))`, the client's own model, headshots x1.3 and legs x0.75 as
   the local player's + PlayerRef), 15 Hz snapshots, event queue, enemy

@@ -56,8 +56,8 @@ const BTN_THRESHOLD = 0.5;
  * (F1a, G96, G181; anim-rework S1): A interact / context in every weapon state (Michael 14:55 "Interact always"), B
  * crouch, Y jump, X holster / draw (tap) and reload (held while drawn; `Player.stance`), L3 back-to-wall (and shoulder swap: the player
  * only swaps while aiming, the wall only enters while not), R3 zoom, RB co-op action (Black), LB selection wheel (hold) /
- * switch weapon (tap), D-pad left the selected vision mode on / off, right quick-use of the selected gadget, View mission
- * device (no action yet), Start pause. D-pad up / down are free in play (no speed gears: the stick sets the speed); they
+ * switch weapon (tap), D-pad left the selected vision mode on / off, right quick-use of the selected gadget, View show
+ * the current objective (tap, ~5 s; G343, held does nothing more, G24), Start pause. D-pad up / down are free in play (no speed gears: the stick sets the speed); they
  * step the held context menu's highlight (`CTX_BINDINGS`). LT = `ads` (the held aim), RT = `fire` (analog, below).
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
@@ -68,6 +68,7 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.RB, 'coop'],
   [PAD.LB, 'gadgetWheel'],
   [PAD.START, 'pause'],
+  [PAD.SELECT, 'objective'],
   [PAD.LS, 'cover'],
   [PAD.LS, 'shoulderSwap'],
   [PAD.RS, 'zoom'],

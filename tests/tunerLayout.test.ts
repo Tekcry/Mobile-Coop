@@ -29,6 +29,7 @@ import {
 } from '../src/ui/tunerLayout';
 import { FREE_CFG, FreeViewCore, freeSnap } from '../src/player/freeView';
 import { STUDIO, STUDIO_ENTRIES, studioEntry, studioInput, studioReset, studioSpot, spotShift, type StudioInputOut } from '../src/anim/studio';
+import { mocapSource } from '../src/anim/mocapSources';
 import { TunePadCtl } from '../src/ui/animTunePad';
 import { PAD } from '../src/input/gamepadMapping';
 
@@ -299,7 +300,8 @@ describe('tuner-ui: the loop sets the state', () => {
     for (const e of STUDIO_ENTRIES) {
       const g = loopGroups(e.id);
       for (const v of [g.body, g.team, g.trav, g.step, g.weight]) if (v) expect(isTuneGroup(v), `${e.id} -> ${v}`).toBe(true);
-      if (g.clip) expect(isTuneGroup(`key.${g.clip}.0`) || e.kind === 'pair', `${e.id} clip`).toBe(true);
+      // (mixamo-retarget M5) a motion capture has no Keys table (Keys edit the hand-made clips only; the panel skips a missing group)
+      if (g.clip) expect(isTuneGroup(`key.${g.clip}.0`) || e.kind === 'pair' || mocapSource(g.clip) !== null, `${e.id} clip`).toBe(true);
     }
   });
 });

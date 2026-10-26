@@ -276,6 +276,19 @@ try {
   await page.waitForTimeout(150);
   const v2 = await G(() => window.__app.current.vision.mode);
   assert(v0 === 'off' && v1 === 'electro' && v2 === 'off', `D-pad left toggles the vision picked on the wheel, on then off (${v0} -> ${v1} -> ${v2})`);
+  // (G343, hud-guidance B2) a View tap shows the current objective (~5 s, real time: the popup reads performance.now()),
+  // and leaves the goggles alone (View was the goggles' old key; D-pad left and N are the goggles)
+  {
+    if (!(await G(() => window.__app.current.hud.objectiveText))) await G(() => window.__app.current.hud.setObjective('Test objective'));
+    await page.waitForFunction(() => !document.querySelector('.hud-objective.show'), null, { timeout: 8000 }).catch(() => {});
+    const before = await G(() => ({ shown: !!document.querySelector('.hud-objective.show'), mode: window.__app.current.vision.mode }));
+    await page.evaluate(() => window.__pad.set(8, 1));
+    await page.waitForTimeout(150);
+    await page.evaluate(() => window.__pad.set(8, 0));
+    const popped = await page.waitForFunction(() => !!document.querySelector('.hud-objective.show'), null, { timeout: 1000 }).then(() => true, () => false);
+    const after = await G(() => window.__app.current.vision.mode);
+    assert(!before.shown && popped && after === before.mode, `View tap shows the objective, goggles untouched (G343) (was shown: ${before.shown}, shown after: ${popped}, vision ${before.mode} -> ${after})`);
+  }
   // vision switched between modes (the wheel with the goggles on): no flip, no off in between
   {
     await press(page, BTN.LEFT);
@@ -654,7 +667,7 @@ try {
         };
         // [button, any of these actions]: L3 swaps the shoulder while aiming; (anim-rework S1) A interacts, LT is
         // the held aim, D-pad up / down only the held context menu's highlight
-        const PADV = [[0, 'interact'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
+        const PADV = [[0, 'interact'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [8, 'objective'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
         const out = [];
         for (const [b, ...want] of PADV) {
           acts.clear();

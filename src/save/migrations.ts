@@ -162,6 +162,15 @@ export const MIGRATIONS: Record<number, Migration> = {
     const presets = Array.isArray(s.presets) ? s.presets.map(preset) : s.presets;
     return { ...rest, version: 9, unlocks, weapons, loadout: kit(s.loadout), presets };
   },
+  // v9 -> v10: the minimap is gone (G339): HQ loses the Minimap radar (spent credits are not refunded)
+  9: (s) => {
+    let hq = s.hq;
+    if (isObj(hq)) {
+      const { radar: _r, ...rest } = hq;
+      hq = rest;
+    }
+    return { ...s, version: 10, hq };
+  },
 };
 
 export class SaveVersionError extends Error {}

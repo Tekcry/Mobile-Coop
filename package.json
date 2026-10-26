@@ -1,13 +1,13 @@
 {
   "name": "mobile-coop",
   "private": true,
-  "version": "4.103.2",
+  "version": "4.110.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
     "editor": "vite --port 5199 --open /editor.html",
     "e2e:editor": "node scripts/e2e-editor.mjs",
-    "build": "npm run typecheck && vite build",
+    "build": "node scripts/prebake.mjs && npm run typecheck && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:fast": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc.tsbuildinfo -p tsconfig.json",
     "preview": "vite preview --host",
