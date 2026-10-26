@@ -135,3 +135,48 @@ take PR 1 as is (code 505 lines), or split it into PR 1a = G1 + G2 (pure modules
   untouched: they are G1 module changes and walk calls, outside G3.
 - G4a / G4b next: `enemyMgr.chars = this.charOccluders` after construction (now safe: the getters), the `fillChars`
   switch to `fillOccluders`, and `enemyMgr.cues = this.shadowCues` after S3b-2.
+
+## Fix round
+Builder: Opus 5.5, 2026-10-27, on bf23ec3f6 (check A: FIX). Commits 53695c4ee (src/ai), 38af513b1 (tests), a38756938
+(BRIEF A5 / A6, PLAN section 1). Flag off / cues null: still today's (every new line is inside `shadowLook` after its
+first-line return, plus one module constant).
+
+- **FIX 1, sight keeps its look** (`src/ai/enemy.ts:2908`): `if (this.sawMoment || this.lure.active) return;` in the
+  gate list. A guard whose calm moment rests on a real glimpse gets no cue, so nothing re-stamps `turnT` and the linger
+  rule (suspicious 3.2 s, then investigate) fires as with cues off; `sawMoment` clears when he calms or drains to 0,
+  and the cue comes back then. A6 records it. Test `tests/shadowNoticePerceive.test.ts:511` (replaces the conditional
+  "a cue right after a real glimpse"): the checker's three scenarios (B seen 0.75 s at light 0.6 and 1.0, 2 s at 0.4,
+  then behind a wall with A's moving shadow at (0, 4-6)) investigate with cues off and on, cause `RISE_SIGHT` both
+  times; a 33-case sweep (0.25-3 s x light 0.2-1.0, brighter glimpses past 1 s left out: they go alert, which the
+  stand-in has no combat for) asserts cues on investigates whenever cues off does, always by sight. It fails on
+  bf23ec3f6 (0.75 s @ 0.6: no investigation with cues on).
+  - Found on the way, allowed by Q14 and written into PLAN section 1: the other direction. A cue's suspicion raises
+    `aware.sensitivity`, so a sub-leak glimpse of B becomes a real one; 3 cases (1.5, 2, 3 s at light 0.3) investigate
+    only with cues on, each by sight (`RISE_SIGHT`). The cue adds, never removes.
+- **Polish 1 + 6, the bark hush** (`enemy.ts:2942`): `cueRise` only when `this.meter < PERCEPTION.suspicious` before the
+  cue, so a `hearTurn` earlier the same step that already lifted him barks 'suspicious'. A5 reworded (sight, `hear` and
+  an earlier `hearTurn` all bark). Test `:317` (`hearTurn(0, 4, 20)`, then the cue think: barks); fails on bf23ec3f6.
+- **Polish 2 + 3, wording**: PLAN section 1 restated as A6 (nobody seen above `leak` this think, not lured, `sawMoment`
+  false), plus a "Sight first" paragraph (PLAN.md:124). A6's redundant per-player clause removed.
+- **Polish 5, lured posts** (`enemy.ts:2908`, same line as FIX 1): a guard with `lure.active` is gated out, the
+  mission-order reason (he would go suspicious and keep walking his lure). A6 records it. Test: the gates case `:351`
+  (sawMoment and lure rows added).
+- **Polish 4, the grabbed guard's capsule**: left as is; for the walk (does the hostage's capsule darken the holder's
+  chest sample from lamps on the hostage's side?).
+- **Allocation on the cue's ray path** (new, found by the tests): with one stand-in map the whole-think case read 32 B
+  more with cues (80 vs 48 B, deterministic in file order). Two causes, each 16 B, both when `perceive`'s code calls out
+  of line: `SHADOW_NOTICE.slack` loaded from the object's double field and passed to `losTo` (now the module constant
+  `CUE_SLACK`, `enemy.ts:100`, `:2939`), and `cueV.set(x, y, z)` (now three component stores, `:2936`). After: 48 / 48
+  B (the 48 is today's `perceive`, outside the cue), and `shadowLook` alone 0 B on all four paths.
+  - Test harness (`:140`): `standIn` now caches one constructor per field list, so every stand-in shares one map as a
+    class's instances do. A new constructor per guard gave each its own map; after the sweep's ~70 guards the stores in
+    `shadowLook` went megamorphic and the per-path case read 48 B (the stand-in, not the code), and before this round
+    it hid the 32 B above (80 / 80).
+
+Commands:
+- `npm run typecheck:fast`: clean. `npx eslint src/ai/enemy.ts tests/shadowNoticePerceive.test.ts`: clean.
+- `npx vitest run` on 100 files (the 98 test files under tests/ importing src/ai/enemy, enemyManager, perception,
+  alertState or body, plus shadowNoticePerceive, shadowNotice, guardOccluders): 100 passed, 1727 tests passed, 1
+  skipped, 2 todo (45 s). `shadowNoticePerceive`: 22 passed; against bf23ec3f6's enemy.ts, 4 fail (fix 1, the gates,
+  the hush, the whole-think allocation), as they should.
+- Not run, as instructed: npm run dev, e2e, a full npm run check.
