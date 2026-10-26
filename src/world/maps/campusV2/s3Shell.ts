@@ -35,11 +35,25 @@ import {
   type Hole,
   type S3DoorId,
 } from './s3Kit';
+import { buildEdgeCaps, type EdgeCap } from './edgeCaps';
 
 /** The yard walls' height: the campus perimeter's 6 m (`campusOps.ts` `b.perimeter(..., 6, ...)`; D:55, G10). */
 const YARD_WALL_H = 6;
 /** The yard's east edge: the campus perimeter at x 70 (`CAMPUS_BOUNDS.maxX`; D:55 "x 64..70"). */
 const YARD_X1 = 70;
+/**
+ * (campus-fence-s2s5) The anti-climb caps (`buildEdgeCaps`): the roof has no parapet (its slab and the outer walls both
+ * top out at `ROOF_TOP` 9.2), so the ceiling void (7.5, crawl height under the slab's 9.0 underside) reads that top
+ * through the slab: a mantle at an outer wall puts the body on the wall head and over it, onto the ground outside the lab
+ * block (or the C2 / C3 roofs, or into the sealed east yard), and off the roof every edge is a walk-off. A sheet on each
+ * outer wall line up to 11.5 (over the roof's mantle, 9.2 + 1.8).
+ */
+export const S3_EDGE_CAPS: readonly EdgeCap[] = [
+  [10, -30, 10, 0, ROOF_TOP, 11.5],
+  [64, -30, 64, 0, ROOF_TOP, 11.5],
+  [10, 0, 64, 0, ROOF_TOP, 11.5],
+  [10, -30, 64, -30, ROOF_TOP, 11.5],
+];
 
 /** A door's hinge along its wall: the centre less half a single door (`doorAt`, brief 3.2). */
 const hingeX = (id: S3DoorId): number => S3_DOORS[id][0] - DOOR_W / 2;
@@ -149,6 +163,8 @@ export function buildS3Shell(b: LevelBuilder): void {
   // ---- 7. the east yard sealed (D:55, G10): two 6 m walls x 64..70 at z 0 and z -30, noLedge (`wall`), to the perimeter
   wall(b, true, 0, 64, YARD_X1, 0, YARD_WALL_H, [], WALL_DARK);
   wall(b, true, -30, 64, YARD_X1, 0, YARD_WALL_H, [], WALL_DARK);
+  // (campus-fence-s2s5) the anti-climb caps on the outer walls' heads (`S3_EDGE_CAPS`)
+  buildEdgeCaps(b, S3_EDGE_CAPS);
 
   // ---- 8. the chilled-water trench (D:54, P0:71): not built. P14: it needs the campus ground box (`campusOps.ts`, one
   // floor under all of S3) cut under x 10..64, z -30..0 (or under the trench), outside this lane; the lead has not split it

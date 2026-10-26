@@ -1,5 +1,41 @@
 # Changelog
 
+## 4.126.0 - Train 152: Saltmarsh Park S1: the courier's van (2026-10-27, PR #648; #634)
+- Sector Ops (v2 layout, section 1, flag `?campusv2=1`): the job moves to the middle of the car park. Clone the courier's
+  badge at his bright yellow-orange van, west end of the solar carport, about 55 m from the start (it was the gatehouse
+  PC, a few steps away).
+- The gatehouse rear window is fixed glass now; the gatehouse is an optional stop (the camera desk and the switch for
+  the new gate lamp).
+- A 2.4 m fence with a lit garden gate closes the east side. Two players open the gate (one holds it, one draws the
+  bolt); solo, you cross the lit lane or go round the dark south and west fences.
+- Two guards walk new beats: #15 along the inside of the new fence to the gate, #13 further east along the drop-off
+  walkway. All three routes are new.
+
+## 4.125.2 - Train 151: Storm scene guards: never stuck off their floor (2026-10-27, PR #647; #644)
+- (scene only, `?piano=1`) A guard who cannot get back up to his floor walks his sweep on the floor he is on and
+  tries the way up again every few seconds; a torch sweep cut short starts over when he is back.
+
+## 4.125.1 - Train 150: Saltmarsh Park S2-S5 perimeter leaks (2026-10-27, PR #646; #637)
+- Sector Ops (v2 layout, sections 2-5): you can no longer get out of the campus. The HQ roof's low parapet could be
+  climbed and dropped off on every side, and the sunshade under the window-cleaning rope could be walked off. In the
+  labs a climb in the crawl space under the roof came up through it onto the roof and over the edge. On the data hall,
+  the corners of the plant deck and the generator yard's tanks and generator led over the yard walls. At the Old House
+  the roof vents, the low roof's vents and its north-east corner led over the parapets and the estate wall. These edges
+  now have invisible anti-climb caps (no change to the look, lighting or cover), and the sunshade has an invisible catch
+  so letting go of the rope at the end of a swing still lands on it. A new test checks walking and climbing out of every
+  section (`tests/campusV2Perimeter.test.ts`).
+
+## 4.125.0 - Train 149: Piano scene knife kills: the real clips (piano-knife S2) (2026-10-27, PR #645; #620)
+- Piano scene (still dark until Campaign's scene switch): the knife kills play Michael's Mixamo downloads instead of
+  the stand-ins. The operator stabs (Stabbing; the overhand Downward strike at a corner) while the guard dies on his
+  own clip (Falling Forward Death from behind, Dying crouched and face to face, Falling Back Death at a corner). Each
+  kill is 1.5 s and plays the stab part of the clip at its natural speed. Hand contacts are measured; most still miss
+  the 3 cm rule by 5-10 cm (accepted until Michael plays) and the corner kill's grip misses by about 17 cm.
+- Piano scene: every kill is quiet (1.2 m), including the ones without a paired animation; the gun stays away and
+  climbing waits until the operator has finished the kill.
+- Anim Studio: six new Mixamo rows (the five knife clips and Breathing Idle for the piano intro), loaded with the lazy
+  capture set; the `pair: knife` rows play the real pairs.
+
 ## 4.124.0 - Train 148: Mantle through a low ceiling fixed; Knife kill allocation test fix; Laptop queue: desktop-red reruns go first; withdrawn affected runs keep the waiver; +6 more (2026-10-27, PR #643; #640, #639, #638, #632, #624, #623, #604, #566, #530)
 
 ### Storm scene guards: the slow methodical sweep

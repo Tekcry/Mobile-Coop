@@ -17,7 +17,9 @@ import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
 import { LIGHT, contribution } from '../src/world/lights';
 import { CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, SightWorld, distToGuard, isolatedInTime, longestIsolation, type CheckGuard } from '../src/game/sectorCheck';
-import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
+import { SECTOR, SectorPairGates, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
+import { doorFinder } from '../src/game/sectorStage';
+import { checkSoloRoutes, legCrossesDoor } from '../src/game/sectorSolo';
 import { inRoom } from '../src/world/rooms';
 import { runtimeNav } from './helpers/runtimeNav';
 import { readFileSync } from 'node:fs';
@@ -31,7 +33,7 @@ const { campusOps } = await import('../src/world/maps/campusOps');
 const { CAMPUS_PARTS, CAMPUS_V2_PARTS } = await import('../src/world/maps/campusSections');
 const { CAMPUS_SECTORS, CAMPUS_SECURITY } = await import('../src/world/maps/campusSectors');
 const { CAMPUS_COOP_LIPS } = await import('../src/world/maps/campusLips');
-const { S1_ROOMS, s1Lamps, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_LIP_SEGMENTS, PARK_COLUMNS_E, PARK_COLUMNS_W, BOLLARD_XS, CANOPY_LAMPS, C1_BOX } = await import('../src/world/maps/campusV2/s1');
+const { S1_FENCE_CAP_LINES, S1_ROOMS, s1Lamps, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_LIP_SEGMENTS, PARK_COLUMNS_E, PARK_COLUMNS_W, BOLLARD_XS, CANOPY_LAMPS, C1_BOX } = await import('../src/world/maps/campusV2/s1');
 const { S1_LIGHTS, S1_DESKS } = await import('../src/world/maps/campusV2/s1Data');
 const { S1_ART_TAGS } = await import('../src/world/maps/campusV2/s1Dress');
 
@@ -122,8 +124,8 @@ function analyticNav(rect: readonly [number, number, number, number], o: { cell?
 /** The lit lamps in S1's plan box (x -40..26, z -80..-30). */
 const litS1 = () => b.lights.lights.filter((l) => l.intensity > 0 && l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
 /** The lit S1 lamp count after the slices built so far (lead note (3)); (light-realism L1 v2 port) 32 -> 44: the car park's
- *  10 single columns became 11 twin-head columns (22 heads). */
-const S1_LIT_NOW = 44;
+ *  10 single columns became 11 twin-head columns (22 heads); (S1 v3) 45 with the garden gate's lamp. */
+const S1_LIT_NOW = 45;
 /** The ledges the level build makes (`LevelBuilder.build`: generated from the box tops, lips off the play area dropped, the
  *  map's `noLedge` points applied). */
 function builtLedges(): Ledge[] {
@@ -242,12 +244,17 @@ describe('G1 perimeter (S1-detail C1)', () => {
     [[26, 1.2, -57], [0.1, 2.4, 46]],
     [[-40, 1.2, -60], [0.1, 2.4, 40]],
     [[15, 1.2, -34], [22, 2.4, 0.1]],
+    // (S1 v3) the garden-gate fence on z -58 (x 6..22.4 and 23.6..26; the gate gap between)
+    [[14.2, 1.2, -58], [16.4, 2.4, 0.1]],
+    [[24.8, 1.2, -58], [2.4, 2.4, 0.1]],
   ];
   const SCREENS: readonly [readonly [number, number, number], readonly [number, number, number]][] = [
     [[16.75, 4.5, -79], [6.5, 2.4, 0.1]],
     [[-40, 5.6, -37], [0.1, 2.4, 6]],
     [[-40, 5.6, -32], [0.1, 2.4, 4]],
     [[3.7, 5.6, -32], [0.1, 2.4, 4]],
+    // (S1 v3) the garden gate's head over the gap (2.1..2.4)
+    [[23, 2.25, -58], [1.2, 0.3, 0.1]],
   ];
 
   it('G1 nav flood: no walkable cell outside S1 before C1 opens', () => {
@@ -285,7 +292,7 @@ describe('G1 perimeter (S1-detail C1)', () => {
     expect(b.anchors.fences.filter((f) => f.a.z < -30 || f.b.z < -30).length).toBe(0);
   });
 
-  it('G1 roof screens: four 2.4 noLedge screens; no plant-roof parapet at x -39.85', () => {
+  it('G1 roof screens: four 2.4 noLedge screens and the gate head; no plant-roof parapet at x -39.85', () => {
     for (const [c, s] of SCREENS) {
       const p = boxWith(c, s);
       expect(p, `screen ${c}`).toBeTruthy();
@@ -332,7 +339,7 @@ describe('G1 perimeter (S1-detail C1)', () => {
     }
     expect(bad).toEqual([]);
     // 29 as built (G1), 30 with the G2 desk lamp, 31 with G3's carport luminaires and bike-shelter lamp, 32 with G5's smoke lamp,
-    // 44 with light-realism L1's twin-head columns
+    // 44 with light-realism L1's twin-head columns, 45 with S1 v3's garden-gate lamp
     expect(lit.length).toBe(lamps.length);
     expect(lit.length).toBe(S1_LIT_NOW);
     // the as-built intensities (B:214-314): bollards 0.5, canopy 0.85, dock 0.8, gate tube 0.9; (light-realism L1, P11a) the
@@ -368,17 +375,13 @@ describe('G2 gatehouse (S1-detail C2)', () => {
     expect(20 - 17).toBeGreaterThanOrEqual(1.5);
   });
 
-  it('G2 glazing band: E2 open, two fixed panes closed and unbreakable, the reception window closed and breakable', () => {
+  it('G2 glazing band: E2 and the two other panes fixed (closed, unbreakable), the reception window closed and breakable', () => {
     const win = (x: number, z: number) => b.anchors.windows.find((w) => near(w.c.x, x) && near(w.c.z, z));
-    expect(win(20, -76)).toMatchObject({ open: true, breakable: true, sillHeight: 0.9 });
+    // (S1 v3) E2 is fixed glass now (Michael: no rear window)
+    expect(win(20, -76)).toMatchObject({ open: false, breakable: false, sillHeight: 0.9 });
     expect(win(20, -73.8)).toMatchObject({ open: false, breakable: false, sillHeight: 0.9 });
     expect(win(19.2, -72.5)).toMatchObject({ open: false, breakable: false, sillHeight: 0.9 });
     expect(win(13.5, -76)).toMatchObject({ open: false, breakable: true, sillHeight: 0.9 });
-    // (F42) the objective PC sits on the PC desk's north end (19.3, -77.3), off E2's vault landing: 1.74 m from a player at
-    // the open pane (the wall face 20.15 + the 0.3 body), inside the default interact reach 1.8 (was 1.15 at (19.3, -76))
-    expect(S1.objective).toMatchObject({ x: 19.3, z: -77.3 });
-    expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeCloseTo(Math.sqrt(1.15 * 1.15 + 1.3 * 1.3), 6);
-    expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeLessThan(1.8);
   });
 
   it('G2 roof: east lip only, hatch open', () => {
@@ -400,7 +403,8 @@ describe('G2 gatehouse (S1-detail C2)', () => {
 
   it('G2 light: the tube and the desk lamp on the gate circuit; cut, the PC desk reads under the shadow line', () => {
     const gate = b.lights.lights.filter((l) => l.group === S1_GROUPS.gate);
-    expect(gate.length).toBe(2);
+    // (S1 v3) the tube, the desk lamp and the garden gate's lamp
+    expect(gate.length).toBe(3);
     const tube = gate.find((l) => near(l.x, 17) && near(l.y, 2.9) && near(l.z, -76))!;
     const desk = gate.find((l) => near(l.x, 18.6) && near(l.y, 1.2) && near(l.z, -73.4))!;
     expect(tube.radius).toBeCloseTo(lampReach(5.5));
@@ -410,7 +414,7 @@ describe('G2 gatehouse (S1-detail C2)', () => {
       expect(l.intensity).toBeGreaterThan(0);
       expect(l.destructible && l.electric).toBe(true);
     }
-    // (F42) the PC desk point: the desk moved south of E2 to (19.35, -77.75), off the vault landing
+    // the PC desk point (19.35, -77.75)
     const lit = levelAt(19.35, 0.9, -77.75);
     for (const l of gate) l.on = false;
     const cut = levelAt(19.35, 0.9, -77.75);
@@ -520,11 +524,13 @@ describe('G3 car park and carport (S1-detail C3)', () => {
   });
 
   it('G3 van chain and shelter chain are solo climbs (each step under 3.8, none noLedge)', () => {
-    const bonnet = boxWith([-26.2, 0.55, -62.75], [2.0, 1.1, 1.0])!;
-    const body = boxWith([-26.2, 1.2, -60.25], [2.0, 2.4, 4.0])!;
+    // (S1 v3) the courier's van: bonnet 1.1, cab 2.0, box body 2.8
+    const bonnet = boxWith([-26.2, 0.55, -62.85], [2.0, 1.1, 0.8])!;
+    const cab = boxWith([-26.2, 1.0, -61.95], [2.0, 2.0, 1.0])!;
+    const body = boxWith([-26.2, 1.4, -59.85], [2.2, 2.8, 3.2])!;
     const lockers = boxWith([-9, 0.6, -49.5], [6, 1.2, 1])!;
     const roof = boxWith([-7, 2.3, -52], [10, 0.2, 4])!;
-    for (const chain of [[bonnet, body, slab], [lockers, roof, slab]]) {
+    for (const chain of [[bonnet, cab, body, slab], [lockers, roof, slab]]) {
       let floor = 0;
       for (const p of chain) {
         expect(p, 'piece').toBeTruthy();
@@ -533,7 +539,7 @@ describe('G3 car park and carport (S1-detail C3)', () => {
         floor = top(p);
       }
     }
-    expect([top(bonnet), top(body), top(lockers), top(roof), top(slab)].map((v) => +v.toFixed(2))).toEqual([1.1, 2.4, 1.2, 2.4, 3.0]);
+    expect([top(bonnet), top(cab), top(body), top(lockers), top(roof), top(slab)].map((v) => +v.toFixed(2))).toEqual([1.1, 2.0, 2.8, 1.2, 2.4, 3.0]);
   });
 
   it('G3 clearances (D:88-92): carport 14 m from the CR1 lip, bike shelter 10.2 m from the canopy lips; both clear of CR1-east', () => {
@@ -826,9 +832,9 @@ describe('G5 forecourt, lawn, pavilion (S1-detail C6, C7)', () => {
   });
 
   it('G5 #13, #14, #15, #16 on nav, cycles 25-45 s; #6 / #16 pair indices 14 / 5; the grit bins and trees', () => {
-    guardChecks(13, 40.3);
+    guardChecks(13, 44.4);
     guardChecks(14, null);
-    guardChecks(15, 42.3);
+    guardChecks(15, 40.8);
     guardChecks(16, 30.3);
     expect(guard(6).pair).toBe(14);
     expect(guard(16).pair).toBe(5);
@@ -874,7 +880,7 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
       expect(c, `#${n} cycle`).toBeLessThanOrEqual(45);
     }
     expect(posts).toEqual([1, 5, 6, 14]);
-    const want: [number, number][] = [[2, 41.7], [3, 42], [4, 42], [7, 44.4], [8, 28.0], [9, 30.8], [11, 42.2], [12, 25.4], [13, 40.3], [15, 42.3], [16, 30.3]];
+    const want: [number, number][] = [[2, 41.7], [3, 42], [4, 42], [7, 44.4], [8, 28.0], [9, 30.8], [11, 42.2], [12, 25.4], [13, 44.4], [15, 40.8], [16, 30.3]];
     for (const [n, c] of want) expect(out.get(n)!, `#${n}`).toBeCloseTo(c, 1);
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(`G6 cycles ${[...out.entries()].map(([n, c]) => `#${n} ${c.toFixed(1)}`).join(', ')}`);
@@ -894,7 +900,7 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(G[4]!.post).toEqual({ leash: 5, guards: 'c1-door' });
   });
 
-  it('G6 M8 isolation: #7 and the rest of the loners hold their 3 s; the dual-takedown pairs #1-#4, #6, #16 are exempt; the recorded design findings (F8) are exactly #5, #8, #9, #12, #13, #14', () => {
+  it('G6 M8 isolation: #7 and the rest of the loners hold their 3 s; the dual-takedown pairs #1-#4, #6, #16 are exempt; the recorded design findings (F8) are exactly #5, #8, #9, #12, #14', () => {
     const world = new SightWorld(b.boxes, b.cylinders);
     const timed: CheckGuard[] = S1.guards.map((g) => {
       const speed = ENEMIES[g.kind].walkSpeed * (g.loop ? 1 : CHECK_PATROL_PACE);
@@ -904,24 +910,27 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `#${r.n} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
     // D:214: the pairs are each other's overlap partner, their takedowns come by a lure; every other guard must have his
-    // isolation moment. Not so for #5, #8, #9, #12, #13, #14 (F8 in s1-build.md: 0 s, #9 0.5 s; no spot along their own routes
+    // isolation moment. Not so for #5, #8, #9, #12, #14 (F8 in s1-build.md: 0 s, #9 0.5 s; no spot along their own routes
     // is unseen): the section's 15 guards in the open see each other. Recorded here so a change turns the test red: when the
     // lead moves a route or a post and one of these gains 3 s, drop it from FINDING.
-    const FINDING = [5, 8, 9, 12, 13, 14];
+    // (S1 v3) #13's longer walk (x -22..-2) now has a 3.5 s unseen stretch: off the findings; #15's new gate-fence walk stays isolated (12.75 s)
+    const FINDING = [5, 8, 9, 12, 14];
     const must = rows.filter((r) => ![1, 2, 3, 4, 6, 16].includes(r.n));
     expect(must.filter((r) => !r.ok).map((r) => r.n)).toEqual(FINDING);
     for (const r of must) if (FINDING.includes(r.n)) expect(r.run, `#${r.n}`).toBeLessThan(CHECK_ISOLATION);
-    expect(must.filter((r) => r.ok).map((r) => r.n)).toEqual([7, 11, 15]);
+    expect(must.filter((r) => r.ok).map((r) => r.n)).toEqual([7, 11, 13, 15]);
     expect(CHECK_ISOLATION).toBe(3);
   });
 
-  it('G6 routes: three, each from the start through the objective (4 m) into C1; every point on nav; the climbs are the ladder and the hatch drop', () => {
+  it('G6 routes: three, each from the start through the objective (4 m) into C1; every point on nav; the climbs are the planned ones', () => {
     expect(S1.routes.length).toBe(3);
+    // (S1 v3) the lit lane (solo), the dark south and west fences with the plant roof (solo), the garden gate (two players)
     expect(S1.routes.map((r) => r.name)).toEqual([
-      'The verge, the rear window and the east side',
-      'The south footway, the west margin and the yard board',
-      'The caged ladder, the plant roof and the canopy hatch',
+      'The lane under the floodlight, the aisle and the carport',
+      'The south footway, the west fence and the plant roof',
+      'The garden gate, the bike shelter and the carport roof',
     ]);
+    expect(S1.routes.map((r) => r.obj)).toEqual([8, 6, 11]);
     const exit = exitZone(S1)!;
     for (const r of S1.routes) {
       const first = r.pts[0]!;
@@ -933,9 +942,7 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
       r.pts.forEach((p, i) => expect(onNav(p[0], p[1], p[2] ?? 0), `${r.name} point ${i} (${p})`).toBe(true));
     }
     expect(new Set(S1.routes.map((r) => JSON.stringify(r.pts))).size).toBe(3);
-    expect(S1.routes[2]!.climbs).toEqual([8, 11]);
-    expect(S1.routes[0]!.climbs).toBeUndefined();
-    expect(S1.routes[1]!.climbs).toBeUndefined();
+    expect(S1.routes.map((r) => r.climbs ?? [])).toEqual([[], [10, 13], [7, 8, 10, 11, 13]]);
     expect(S1.reinforce).toEqual([[11, -79], [-33, -41]]);
     for (const [x, z] of S1.reinforce) expect(onNav(x, z), `reinforce (${x}, ${z})`).toBe(true);
     // the ladder leg climbs the caged ladder at (-38, -40.4); the drop leg is the canopy hatch (A65)
@@ -1003,7 +1010,8 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     // the pieces of S1 stand in the room the plan names
     const roomOf = (x: number, z: number, y = 0): string[] => S1_ROOMS.filter((r) => inRoom(r, x, z, 0, y)).map((r) => r.id);
     expect(roomOf(S1.start.x, S1.start.z)).toEqual(['verge']);
-    expect(roomOf(S1.objective.x, S1.objective.z)).toEqual(['gatehouse']);
+    // (S1 v3) the objective is the courier's van, in the car park
+    expect(roomOf(S1.objective.x, S1.objective.z)).toEqual(['park']);
     expect(roomOf(17, -76, 3.3)).toEqual(['gateroof']);
     expect(roomOf(-20, -32)).toEqual(['c1']);
     expect(roomOf(-30, -64)).toEqual(['park']);
@@ -1015,8 +1023,9 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(roomOf(-20, -32, 4.4)).toEqual(['pavilion']);
   });
 
-  it('G6 rule 6: boxes 1.9-4.2 high standing on the ground in S1 are noLedge, except the planned van body', () => {
-    const van = (p: BoxPiece): boolean => near(p.c[0], -26.2) && near(p.c[1], 1.2) && near(p.c[2], -60.25) && near(p.s[1], 2.4);
+  it('G6 rule 6: boxes 1.9-4.2 high standing on the ground in S1 are noLedge, except the planned van cab and body', () => {
+    // (S1 v3) the cab (2.0) and the box body (2.8) are the solo van climb
+    const van = (p: BoxPiece): boolean => near(p.c[0], -26.2) && ((near(p.c[1], 1.0) && near(p.c[2], -61.95) && near(p.s[1], 2.0)) || (near(p.c[1], 1.4) && near(p.c[2], -59.85) && near(p.s[1], 2.8)));
     const bad: string[] = [];
     let n = 0;
     for (const p of solid) {
@@ -1029,7 +1038,7 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     }
     expect(n).toBeGreaterThan(10);
     expect(bad).toEqual([]);
-    expect(solid.some(van)).toBe(true);
+    expect(solid.filter(van).length).toBe(2);
   });
 
   it('G6 dark by reason: no lit lamp on the verge, in the bin corner, on any roof top or in the plant room', () => {
@@ -1037,6 +1046,9 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     const where: string[] = [];
     for (const l of lit) {
       const at = `lamp ${l.id} (${l.x}, ${l.y}, ${l.z})`;
+      // (S1 v3, A4) the garden gate's lamp is the verge's one lamp: lit by reason (a real site lights its pedestrian gate), cut
+      // at the gatehouse switch or shot; the rest of the verge and the start stay dark
+      if (near(l.x, 23) && near(l.z, -58.45)) continue;
       if (l.x >= 20 && l.x <= 26 && l.z >= -80 && l.z <= -54) where.push(`${at} on the verge`);
       if (l.x >= -40 && l.x <= -35 && l.z >= -54 && l.z <= -49) where.push(`${at} in the bin corner`);
       if (l.x >= 13.5 && l.x <= 20 && l.z >= -79 && l.z <= -72.5 && l.y >= 3.3) where.push(`${at} on the gatehouse roof`);
@@ -1047,7 +1059,7 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(where).toEqual([]);
   });
 
-  it('G6 lights: 44 lit lamps, all from S1_LIGHTS, destructible and electric, no fitting off or dead; none below its as-built intensity but the lane flood (L1); the block carries the PROVISIONAL / TODO(light-realism) header', () => {
+  it('G6 lights: 45 lit lamps, all from S1_LIGHTS, destructible and electric, no fitting off or dead; none below its as-built intensity but the lane flood (L1); the block carries the PROVISIONAL / TODO(light-realism) header', () => {
     const lit = litS1();
     const lamps = s1Lamps(S1_LIGHTS);
     expect(lit.length).toBe(S1_LIT_NOW);
@@ -1078,5 +1090,111 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(src).toContain('// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1), except the car-park columns and');
     expect(src).toContain('// TODO(light-realism): replace the other S1 lamps with calibrated values.');
     expect(src.indexOf('PROVISIONAL - light-realism')).toBeLessThan(src.indexOf('export const S1_LIGHTS'));
+  });
+});
+
+
+describe('S1 v3: the courier van, the garden gate and its lamp (campus v2)', () => {
+  const gate = (): ReturnType<typeof b.anchors.doors.find> => b.anchors.doors.find((d) => near(d.hinge.x, 22.4) && near(d.hinge.z, -58));
+
+  it('the objective is the courier van, at least 40 m from the start, label exact', () => {
+    expect(S1.objective).toMatchObject({ kind: 'download', label: "Clone the courier's badge at his van, west end of the solar carport", x: -26.2, y: 0, z: -57.8 });
+    expect(hyp2(S1.objective.x - S1.start.x, S1.objective.z - S1.start.z)).toBeGreaterThanOrEqual(40);
+    // the clone point is behind the van (the body's rear face z -58.25) and on nav
+    expect(onNav(S1.objective.x, S1.objective.z)).toBe(true);
+  });
+
+  it('solo routes: checkSoloRoutes passes; routes 0 and 1 cross no team door, route 2 crosses the garden gate', () => {
+    const doorAt = doorFinder(b.anchors.doors);
+    expect(checkSoloRoutes([S1], doorAt)).toEqual([]);
+    const d = doorAt(S1_DOORS.gardenGate[0], S1_DOORS.gardenGate[1])!;
+    expect(d).toBeTruthy();
+    const crosses = S1.routes.map((r) => r.pts.some((p, i) => i + 1 < r.pts.length && legCrossesDoor(p, r.pts[i + 1]!, d)));
+    expect(crosses).toEqual([false, false, true]);
+  });
+
+  it('the garden gate: a locked, unbreachable door at (23, -58) opened by two players on the verge side within 1 s', () => {
+    const d = gate()!;
+    expect(d).toBeTruthy();
+    expect(d.locked).toBe(true);
+    expect(d.breachable).toBe(false);
+    expect(d.width).toBe(1.2);
+    expect(S1_DOORS.gardenGate).toEqual([23, -58]);
+    const pg = S1.pairGates!;
+    expect(pg.length).toBe(1);
+    expect(pg[0]!.door).toEqual([23, -58]);
+    expect([pg[0]!.a.label, pg[0]!.b.label]).toEqual(['Hold the gate', 'Draw the bolt']);
+    // both keys on nav, on the verge side (south, z < -58) of the fence
+    for (const k of [pg[0]!.a, pg[0]!.b]) {
+      expect(onNav(k.at[0], k.at[1]), `key (${k.at})`).toBe(true);
+      expect(k.at[1]).toBeLessThan(-58);
+    }
+    // the window rule: one player cannot do both keys; a second player on the other key within 1 s opens it
+    const g = new SectorPairGates([S1]);
+    expect(g.press(0, 0, true, 0, 10)).toBe('wait');
+    expect(g.press(0, 0, false, 0, 10.3)).toBe('wait');
+    expect(g.isOpen(0, 0)).toBe(false);
+    expect(g.press(0, 0, false, 1, 10.6)).toBe('open');
+    expect(g.isOpen(0, 0)).toBe(true);
+    // a partner that is too late does not open it
+    const late = new SectorPairGates([S1]);
+    expect(late.press(0, 0, true, 0, 10)).toBe('wait');
+    expect(late.press(0, 0, false, 1, 12)).toBe('wait');
+  });
+
+  it('the garden-gate fence: the cap line is declared, no ledge within 1 m of the gate above y 2, the shut gate forces the long way round', () => {
+    expect(S1_FENCE_CAP_LINES).toContainEqual([6, -58, 26, -58, 2.4]);
+    const high = ledges.filter((l) => l.top > 2 && Math.min(hyp2(l.a.x - 23, l.a.z + 58), hyp2(l.b.x - 23, l.b.z + 58), hyp2((l.a.x + l.b.x) / 2 - 23, (l.a.z + l.b.z) / 2 + 58)) < 1);
+    expect(high.map((l) => [l.a, l.b, l.top])).toEqual([]);
+    // shut, the gate gap is closed to the ground: the verge reaches the lawn only round the fence's west end (x 6), through
+    // the car park; open (the gate in the nav), the way is the few metres through the gap
+    const shut: NavBlocker = { cx: 23, cz: -58, hx: 0.6, hz: 0.1, yaw: 0, bottom: 0, top: 2.1 };
+    const closed = analyticNav([-42, -82, 28, -28], { extra: [shut] });
+    const len = (path: ReturnType<NavGrid['findPath']>, a: [number, number]): number => {
+      let t = 0;
+      let q = a;
+      for (const w of path!) {
+        t += hyp2(w[0] - q[0], w[1] - q[1]);
+        q = [w[0], w[1]];
+      }
+      return t;
+    };
+    const way = closed.findPath([24, -62], [23, -55], 1e6, 0, 0);
+    expect(way).not.toBeNull();
+    expect(len(way, [24, -62])).toBeGreaterThan(30);
+    expect(len(nav.findPath([24, -62], [23, -55], 1e6, 0, 0), [24, -62])).toBeLessThan(12);
+  });
+
+  it('the van is a step onto the carport: a hangable 3.0 ledge on x -24 within the body length, its east face 1.1 m from it', () => {
+    const lip = ledges.filter((l) => l.canHang && near(l.top, 3.0, 1e-3) && near(l.a.x, -24, 1e-3) && near(l.b.x, -24, 1e-3) && Math.min(l.a.z, l.b.z) <= -58.25 && Math.max(l.a.z, l.b.z) >= -61.45);
+    expect(lip.length).toBeGreaterThan(0);
+    const body = boxWith([-26.2, 1.4, -59.85], [2.2, 2.8, 3.2])!;
+    expect(-24 - (body.c[0] + body.s[0] / 2)).toBeCloseTo(1.1);
+    expect(body.c[2] - body.s[2] / 2).toBeCloseTo(-61.45);
+    expect(body.c[2] + body.s[2] / 2).toBeCloseTo(-58.25);
+    // visual only: the livery, the windscreen, the load space and the open rear doors do not collide
+    const VAN_VISUAL = b.boxes.filter((p) => p.c[0] < -24.9 && p.c[0] > -27.5 && p.c[2] > -63 && p.c[2] < -57.5 && !p.collide);
+    expect(VAN_VISUAL.length).toBe(6);
+  });
+
+  it('the garden gate lamp: on the gatehouse circuit, last in s1Lamps, outside the cap; it lights the gate, and with the circuit off the gate is dark', () => {
+    const lamps = s1Lamps(S1_LIGHTS);
+    expect(lamps[lamps.length - 1]).toBe(S1_LIGHTS.gateLamp);
+    expect(S1_LIGHTS.gateLamp).toMatchObject({ x: 23, y: 2.8, z: -58.45, r: 4.5, i: 0.8, group: S1_GROUPS.gate });
+    const l = b.lights.lights.find((q) => near(q.x, 23) && near(q.y, 2.8) && near(q.z, -58.45))!;
+    expect(l).toBeTruthy();
+    expect(l.group).toBe(43);
+    expect(l.destructible && l.electric).toBe(true);
+    // 0.45 m south of the fence line (the cap sits on z -58 +- 0.05): shootable from the verge
+    expect(-58 - l.z).toBeGreaterThan(0.3);
+    const at = [23, 0.9, -59.5] as const;
+    const lit = levelAt(...at);
+    for (const q of b.lights.lights) if (q.group === 43) q.on = false;
+    const cut = levelAt(...at);
+    for (const q of b.lights.lights) if (q.group === 43) q.on = true;
+    // eslint-disable-next-line no-console
+    if (process.env.CAMPUS_PRINT) console.log(`gate lamp (23, 0.9, -59.5): lit ${lit.toFixed(3)}, gate circuit cut ${cut.toFixed(3)}, shadow ${LIGHT.shadow}`);
+    expect(lit).toBeGreaterThan(LIGHT.shadow);
+    expect(cut).toBeLessThan(LIGHT.shadow);
   });
 });

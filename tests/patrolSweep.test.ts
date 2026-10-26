@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hyp2 } from '../src/core/mathx';
 import { PATROL, PatrolWalker, type PatrolRoute } from '../src/ai/patrol';
-import { SCENE_SWEEP, rejoinStop, sweepPlan, wrapAng, type SweepPlan } from '../src/ai/sceneSweep';
+import { SCENE_SWEEP, panYaw, rejoinStop, sweepPlan, wrapAng, type SweepPlan } from '../src/ai/sceneSweep';
 import { SEPARATION, stepApart, steerFrom, type SepBody } from '../src/ai/separation';
 
 /**
@@ -471,5 +471,118 @@ describe('separation: steerFrom skip (GA6a)', () => {
     steerFrom(me, 1, 0, 1, list, a);
     steerFrom(me, 1, 0, 1, list, b, null);
     expect(a).toEqual(b);
+  });
+});
+
+describe('patrol sweep: piano polish', () => {
+  const plan = sweepPlan(ROUTE, 0, 0, 0);
+
+  it('polish 2: a pan cut by away starts over at its stop (not partway); the hold still ends at its leave', () => {
+    const w = new PatrolWalker(ROUTE, 0, 0, 0);
+    w.setSweep(plan, 1, plan.phase);
+    const k = w.idx;
+    const p = plan.pts[k]!;
+    const c = plan.centre[k]!;
+    const D = plan.wait[k]!;
+    expect(D).toBeGreaterThan(0);
+    // a quarter cycle in: at the left extreme
+    for (let s = 0; s < Math.round(D / 4 / DT); s++) {
+      w.tick(DT);
+      expect(w.step(DT, p[0], p[1])).toBeNull();
+    }
+    expect(wrapAng(w.lookYaw - c)).toBeLessThan(-SCENE_SWEEP.panYaw + 0.05);
+    // pulled off his storey a moment
+    for (let s = 0; s < 6; s++) {
+      w.tick(DT);
+      expect(w.step(DT, p[0], p[1], Number.NaN, true)).toBe(p);
+    }
+    const left = w.waiting;
+    // back at the stop: the pan from its start (the centre), then on from there
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1])).toBeNull();
+    expect(w.lookYaw).toBeCloseTo(panYaw(c, 1, D, 0), 9);
+    for (let s = 1; s <= 10; s++) {
+      w.tick(DT);
+      expect(w.step(DT, p[0], p[1])).toBeNull();
+      expect(w.lookYaw).toBeCloseTo(panYaw(c, 1, D, s * DT), 9);
+    }
+    expect(w.waiting).toBeCloseTo(left - 11 * DT, 9);
+    expect(w.idx).toBe(k);
+  });
+
+  it('polish 2: back on his storey but off the stop he walks to it first, then the pan starts over there', () => {
+    const w = new PatrolWalker(ROUTE, 0, 0, 0);
+    w.setSweep(plan, 1, plan.phase);
+    const k = w.idx;
+    const p = plan.pts[k]!;
+    const c = plan.centre[k]!;
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1])).toBeNull();
+    for (let s = 0; s < 30; s++) {
+      w.tick(DT);
+      w.step(DT, p[0], p[1]);
+    }
+    w.tick(DT);
+    expect(w.step(DT, p[0] + 3, p[1], Number.NaN, true)).toBe(p);
+    // up the stair, 3 m from the stop: the stop to walk to, no pan where he stands
+    w.tick(DT);
+    expect(w.step(DT, p[0] + 3, p[1])).toBe(p);
+    expect(Number.isNaN(w.lookYaw)).toBe(true);
+    w.tick(DT);
+    expect(w.step(DT, p[0] + 0.2, p[1])).toBeNull();
+    expect(w.lookYaw).toBeCloseTo(panYaw(c, 1, plan.wait[k]!, 0), 9);
+  });
+
+  it('polish 2: a cut hold that runs out while away still moves him on to the next stop', () => {
+    const w = new PatrolWalker(ROUTE, 0, 0, 0);
+    w.setSweep(plan, 1, plan.phase);
+    const k = w.idx;
+    const p = plan.pts[k]!;
+    w.tick(DT);
+    expect(w.step(DT, p[0], p[1])).toBeNull();
+    const steps = Math.ceil((w.waiting + 0.1) / DT);
+    for (let s = 0; s < steps; s++) {
+      w.tick(DT);
+      w.step(DT, p[0], p[1], Number.NaN, true);
+    }
+    expect(w.idx).toBe((k + 1) % plan.pts.length);
+  });
+
+  it('polish 1: sweepHere takes the stop he heads for as reached where he stands: a pan stop held and panned there, a corner passed', () => {
+    const w = new PatrolWalker(ROUTE, 0, 0, 0);
+    w.setSweep(plan, 1, plan.phase);
+    expect(plan.wait[0]).toBeGreaterThan(0);
+    expect(plan.wait[1]).toBe(0);
+    // 3 m off stop 0: walking to it
+    w.tick(DT);
+    expect(w.step(DT, 3, -3)).toBe(plan.pts[0]);
+    w.sweepHere();
+    w.tick(DT);
+    expect(w.step(DT, 3, -3)).toBeNull();
+    expect(w.waiting).toBeGreaterThan(0);
+    // once only: after the hold, stop 1 (a corner) is walked to as usual
+    const steps = Math.ceil((w.waiting + 0.05) / DT);
+    for (let s = 0; s < steps; s++) {
+      w.tick(DT);
+      w.step(DT, 3, -3);
+    }
+    expect(w.idx).toBe(1);
+    w.tick(DT);
+    expect(w.step(DT, 3, -3)).toBe(plan.pts[1]);
+    // a corner taken here: passed, on to stop 2
+    w.sweepHere();
+    w.tick(DT);
+    expect(w.step(DT, 3, -3)).toBe(plan.pts[2]);
+    expect(w.idx).toBe(2);
+    // away, sweepHere is dropped (never a hold off his storey)
+    w.sweepHere();
+    w.tick(DT);
+    expect(w.step(DT, 3, -3, Number.NaN, true)).toBe(plan.pts[2]);
+    w.tick(DT);
+    expect(w.step(DT, 3, -3)).toBe(plan.pts[2]);
+    // off the sweep it is a no-op
+    const plain = new PatrolWalker(ROUTE, 0, 0, 0);
+    plain.sweepHere();
+    expect(plain.step(DT, 3, -3)).toBe(ROUTE.points[0]);
   });
 });
