@@ -51,7 +51,7 @@ cuts to play in pure darkness, guards searching with flashlights: a quiet, tense
 every guard must be taken down with a knife in the shadows before the exit opens.
 
 ## Limits
-- Out of scope: campaign story, a rating or score, saves beyond settings, new guard AI behaviour outside A11 (the scene uses
+- Out of scope: campaign story, a rating or score, saves beyond settings, new guard AI behaviour outside A11 and A17 (the scene uses
   the guards as built), new lighting systems, polish (prototype mode: Michael 2026-10-26 ~16:20, no tuning before he plays),
   any change to Tallow Wharf, Marlow Yard or Sector Ops.
 - Rules that hold: every code hard rule in `CLAUDE.md` (one lighting system and light parity, no network assets, co-op
@@ -95,6 +95,11 @@ every guard must be taken down with a knife in the shadows before the exit opens
   tension, dark, thriller, ominous), original notes (no copy of its melody), WebAudio synthesis or an in-repo offline
   render, no new downloads without asking; a dev picker in the scene to A/B them against the Pixabay track. Undo: drop
   the slice; the Pixabay track stays.
+- A17: Two more pieces of scene-only Guard AI work, gated on the scene: the slow, methodical torch sweep on the map's
+  fixed patrol points (GA6; Michael ~20:10 "The guards must move slowly and methodically to find both players") and
+  how a guard reacts to a player seen in a lightning flash (GA7; A16: the flash is ordinary light, so sight stays pure
+  light parity, only the reaction is new). Nothing changes off the scene. Undo: guards keep their built patrol pace
+  and ordinary sighting reaction.
 - A10: The EMP (Michael ~19:55) is the intro's last beat: one on-screen button prompt, the player presses it (in co-op
   either player), every light on the map dies for the whole escape, and play starts. Guards switch to flashlights and
   search with them. Light parity holds: the flashlight cones are what guards are lit by and see by, and what the light
