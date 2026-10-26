@@ -1001,7 +1001,7 @@ into a branch. 2 Opus checkers on AI / src/net PRs; Opus triage on every laptop 
 C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name>
 --requester "Night Shift | Guard AI Build" --suites "a b" (or --alone --step "<cmd>" --env K=V); verdict = status
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
-worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
+worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Bypass mode since ~14:05 (orchestrator): the lead posts its own checker statuses and train-ready labels; tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
 Open (2026-10-26 ~13:45 boot (new account); all worktrees clean + pushed; full burn; order J4, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
@@ -1059,5 +1059,5 @@ Laptop queue STALLED since 01:01Z (0 trains / 0 requests every pass, ~40 open re
    Runner 13:32 (its area). #317 affected + mh-s4 wait on it.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); S4 checker status (Michael); J26 PRs open after J15 PR4 merges; runner-armed checks A + B -> post checker -> PR + orchestrator; seed-random report -> 2 checkers -> laptop -> PR.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); J26 PRs open after J15 PR4 merges; runner-armed checks A + B -> post checker -> PR + orchestrator; seed-random report -> 2 checkers -> laptop -> PR.
 ```
