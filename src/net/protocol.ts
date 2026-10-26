@@ -10,7 +10,7 @@ import { hyp3 } from '../core/mathx';
 import { OPTIC_POINT_MAX, packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
-import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
+import type { AirlockPhase, PackedCourse, RetryCause } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
@@ -18,7 +18,7 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 67;
+export const PROTOCOL_VERSION = 69;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -725,6 +725,8 @@ function courseRh(v: unknown): { rh?: number[] } {
 
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
+/** (J14 R1) A course retry's causes (`PackedCourse.rc`). */
+const RETRY_CAUSES: readonly RetryCause[] = ['seen', 'caught', 'timer', 'out', 'down'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
   const out: number[] = [];
   if (!Array.isArray(v)) return out;
@@ -781,6 +783,11 @@ function parseCourse(raw: Obj): Msg | null {
     pstats: [stat(ps[0]), stat(ps[1])],
     locks: strs(s.locks),
     anchors: strs(s.anchors),
+    // (J14 R1) the live station, the retry count and the last retry (plain fields; an older host sends none)
+    st: Math.round(n0(s.st, 0, 64)),
+    rs: Math.round(n0(s.rs, 0, 1e6)),
+    rt: Math.round(n0(s.rt, 0, 64)),
+    rc: oneOf(s.rc, RETRY_CAUSES) ?? '',
   };
   const groups: [number, boolean][] = [];
   for (const x of arr(lights.groups)) {

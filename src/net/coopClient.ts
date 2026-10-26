@@ -14,7 +14,7 @@ import { SWAY } from '../world/lampSway';
 import { lampReachProbe, lightOnRay, type LightDef } from '../world/lights';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
-import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
+import { Interactables, KIND_COLOR, drawsExitBeacon, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
 import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
@@ -254,7 +254,7 @@ export class CoopClient implements NetAttachment {
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
     if (g.opts.mode !== 'sandbox' || !own) {
-      this.ints = new Interactables(g.scene, g.world.parts);
+      this.ints = new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode));
       (g as { interactables: Interactables | null }).interactables = this.ints;
     } else this.ints = own;
     // (free roam mirrors only the host's wall medkits)

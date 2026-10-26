@@ -773,3 +773,27 @@ export function stageLightKeep<T extends object>(list: readonly T[], out: T[]): 
   }
   return dropped;
 }
+
+/**
+ * (mixamo-retarget Toggle, Michael 00:20: "an animation set toggle so i can sort through only those animations") The Loop
+ * list's animation-set filter: `all` (the whole list), `hand` (every loop that is not a capture), `cmu` / `mixamo`
+ * (the captures of that source: `mocapSources.ts`). Separate from the in-game Animation source (`animSource.ts`).
+ */
+export type StudioSet = 'all' | 'hand' | 'cmu' | 'mixamo';
+export const STUDIO_SETS: readonly StudioSet[] = ['all', 'hand', 'cmu', 'mixamo'];
+export const STUDIO_SET_LABEL: Readonly<Record<StudioSet, string>> = { all: 'All', hand: 'Hand-made', cmu: 'CMU', mixamo: 'Mixamo' };
+
+/** A loop's set: a keyed capture (`keyed:mocap_<x>`) or a traversal capture (`trav:<loop>/<slug>`) by its source row, else hand-made. */
+export function studioEntrySet(id: string): Exclude<StudioSet, 'all'> {
+  const m = /^keyed:(mocap_.+)$/.exec(id) ?? /^trav:[^/]+\/(.+)$/.exec(id);
+  if (!m) return 'hand';
+  const r = mocapSource(m[1]!.startsWith('mocap_') ? m[1]! : `mocap_${m[1]!}`);
+  return r ? r.source : 'hand';
+}
+
+/** The Loop list's ids in a set (list order). */
+export function studioEntriesOf(set: StudioSet): string[] {
+  const out: string[] = [];
+  for (const e of STUDIO_ENTRIES) if (set === 'all' || studioEntrySet(e.id) === set) out.push(e.id);
+  return out;
+}

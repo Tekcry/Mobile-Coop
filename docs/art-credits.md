@@ -45,8 +45,7 @@ each clip module is committed. A clip is `mocap_<slug>`: `src/anim/clips/mixamo/
 (`pack-pistol/`, 20 files), "Pro Rifle Pack" (`pack-rifle/`, 49), "Shooter Pack" (`pack-shooter/`, 15), "Action Adventure
 Pack" (`pack-action-adventure/`, 22); a pack clip's title cell starts with its pack's name.
 
-Licence sentence: to be copied from the Mixamo FAQ (A11) (https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html;
-the automated read was refused with 403, so copy it by hand and record the date read here).
+Licence sentence (Mixamo FAQ, read 2026-10-26 by the orchestrator): you can "use both characters and animations royalty free for personal, commercial, and non-profit" projects. Source: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html.
 
 | Files (repo path) | Mixamo title (file as downloaded) | Clip name | Source (URL) | Terms | Date added | Used by |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -9,6 +9,8 @@ const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'l
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 // @ts-expect-error plain .mjs module without types
 import { overCapAffected } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs module without types
+import { laptopRerunFor, DRAFT_NO_RERUN } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -1549,6 +1551,41 @@ describe('affected e2e on every PR head', () => {
     const y1 = a(30, 'y1', 'feature/y');
     expect(pick({ trains: [], requests: [y1, lead, x1] }, NOW, slots(false, false))?.request).toBe(x1);
     expect(pick({ trains: [], requests: [y1, lead] }, NOW, slots(false, false))?.request).toBe(lead);
+  });
+});
+
+describe('drafts never ride a train (F34, #487 rode train 122 as a draft)', () => {
+  const row = (n: number, isDraft?: boolean) => ({ number: n, headRefOid: 'a'.repeat(40), mergeable: 'MERGEABLE', statusCheckRollup: [], ...(isDraft === undefined ? {} : { isDraft }) });
+  const desk = { id: '20261026T150000-lead-aaaaaaaa', sha: 'a'.repeat(40), kind: 'pr', requester: 'lead', suites: ['e2e-menus'], set: '', pr: 487 };
+
+  it('a desktop failure on a draft PR files no laptop rerun', () => {
+    const board = prBoard([row(487, true), row(9, false), row(8)]);
+    expect(board.get(487).draft).toBe(true);
+    expect(board.get(9).draft).toBeUndefined();
+    expect(laptopRerunFor(desk, board)).toEqual({ rerun: false, why: DRAFT_NO_RERUN });
+    expect(DRAFT_NO_RERUN).toBe('draft PR, no laptop rerun');
+    // not a draft, not on the board, no PR, or an empty board (a GitHub error): the rerun goes to the laptop as before
+    for (const r of [{ ...desk, pr: 9 }, { ...desk, pr: 8 }, { ...desk, pr: 5 }, { ...desk, pr: null }]) expect(laptopRerunFor(r, board).rerun).toBe(true);
+    expect(laptopRerunFor(desk, new Map()).rerun).toBe(true);
+    // the failure's description keeps the suffix whole, with room for the desktop's "desktop: " prefix
+    const suites = Array.from({ length: 30 }, (_, i) => ({ s: `e2e-long-suite-name-${i}`, ok: false, flaky: false, report: false }));
+    const long = describeRun({ suites, wall: 1, flakes: [], note: DRAFT_NO_RERUN });
+    expect(long.endsWith('...; draft PR, no laptop rerun')).toBe(true);
+    expect(`desktop: ${long}`.length).toBeLessThanOrEqual(140);
+    expect(describeRun({ suites: [{ s: 'e2e-menus', ok: false, flaky: false, report: false }], wall: 60, flakes: [], note: DRAFT_NO_RERUN }))
+      .toBe('0/1 pass, 60 s; FAIL: e2e-menus; draft PR, no laptop rerun');
+  });
+
+  it('the service: the PR board reads isDraft, the desktop block asks laptopRerunFor before it files a rerun', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync('scripts/laptop-queue/service.mjs', 'utf8').replace(/\r\n/g, '\n');
+    const pb = src.slice(src.indexOf('function prBoardNow('), src.indexOf('function prBoardNow(') + 400);
+    expect(pb).toMatch(/'--json', '[^']*\bisDraft\b[^']*'/);
+    const blk = src.slice(src.indexOf('// desktop: failed suites go to the laptop'), src.indexOf('const ok = finish(job, verdictCtx'));
+    expect(blk).toContain('laptopRerunFor(r, board)');
+    expect(blk).toContain('result.note = lr.why');
+    expect(blk.indexOf('laptopRerunFor(')).toBeLessThan(blk.indexOf('laptopRerunRequest('));
+    expect(blk).toMatch(/if \(lr\?\.rerun\) \{\n\s+const rr = laptopRerunRequest\(/);
   });
 });
 

@@ -7,6 +7,7 @@ import type { Vfx } from '../vfx/vfx';
 import type { PartLibrary } from '../world/partLibrary';
 import { ARCHETYPE } from './archetypes';
 import type { Enemy, PlayerRef } from './enemy';
+import { SEED_DRONE, seeded01 } from './squadRoles';
 
 let nextId = 1;
 
@@ -31,7 +32,8 @@ export class ReconDrone implements Damageable {
   private led: InstancedMesh;
   private body: PhysicsBody;
   private shape: PhysicsShapeSphere;
-  private angle = Math.random() * Math.PI * 2;
+  /** Orbit angle; its start is set first thing in the constructor (seeded by the operator, guard-ai seed-random). */
+  private angle = 0;
   private thinkT = 0;
   private spin = 0;
   private falling = false;
@@ -49,6 +51,8 @@ export class ReconDrone implements Damageable {
     private vfx: Vfx,
     readonly operator: Enemy,
   ) {
+    // (guard-ai seed-random) replayable start angle, one per operator (hard rule 8); `0x5eed`: the match seed default
+    this.angle = seeded01(0x5eed, SEED_DRONE, operator.num) * Math.PI * 2;
     this.node = new TransformNode('recon-drone', scene);
     const add = (shape: Parameters<PartLibrary['instance']>[0], hex: string, sx: number, sy: number, sz: number, x = 0, y = 0, z = 0): InstancedMesh => {
       const m = lib.instance(shape, hex, 'recon-part');

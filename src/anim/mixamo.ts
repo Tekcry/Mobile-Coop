@@ -17,7 +17,7 @@
  * - `crawl`: the vent crawl on the hand cadence.
  */
 import type { Clip } from './clip';
-import { flags } from '../core/flags';
+import { flags, PREVIEW_ON } from '../core/flags';
 import { CH, type Channel } from './pose';
 import { MOCAP_HANGING_IDLE, MOCAP_HANGING_IDLE_SECONDS } from './clips/mixamo/trav_hanging_idle';
 import { MOCAP_BRACED_HANG_SHIMMY_LEFT } from './clips/mixamo/trav_braced_hang_shimmy_left';
@@ -276,6 +276,20 @@ export function resolveMixamo(): void {
   resolveMixamoKeyed(); // (mixamo-retarget I1)
   resolveMixamoStance(); // (mixamo-retarget I3)
   resolveMixamoCarryStrike(); // (mixamo-retarget I5)
+  for (const fn of RESOLVERS) fn();
+}
+
+/** (mixamo-retarget Toggle) Other owners' tables rebuilt on every switch change (see `addMixamoResolver`). */
+const RESOLVERS: (() => void)[] = [];
+
+/**
+ * (Toggle) Register a resolver called at the end of every `resolveMixamo` (the flag, the Animation source, the Studio's
+ * pick: once per change, never per frame), so another owner's Mixamo table (the kit clips) follows the switch without
+ * editing `resolveMixamo`. It reads `MIXAMO` / `MIXAMO_ON`; it runs once now, so it starts in step.
+ */
+export function addMixamoResolver(fn: () => void): void {
+  RESOLVERS.push(fn);
+  fn();
 }
 
 /** The flag (`?mixamo=1`): the captures on Wren's traversal (those `MIXAMO_ON` lets play). */
@@ -451,4 +465,4 @@ function resolveMixamoCarryStrike(): void {
   S.contact = S.clip !== null ? strikeContact(S.clip) : 0;
 }
 
-setMixamo(flags.mixamo === true);
+setMixamo(flags.mixamo ?? PREVIEW_ON);

@@ -31,3 +31,12 @@ export function reportSet(env) {
 
 /** True when `s` is in the report set, by itself or by its whole suite (`e2e-wall:flanker` matches `e2e-wall`). */
 export const isReport = (s, set) => set.has(s) || set.has(s.split(':')[0]);
+
+/** (F33-c) A passing suite is SLOW once it uses more than 75% of the suite timeout (it is drifting toward the kill). */
+export const SLOW_FRACTION = 0.75;
+
+/** The `SLOW: <suite> <s>s of <limit>s` line for a suite that passed past 75% of `limitSec`, else null (a failed suite never prints it). */
+export function slowLine(r, limitSec) {
+  if (r.code !== 0 || !(r.sec > SLOW_FRACTION * limitSec)) return null;
+  return `SLOW: ${r.s} ${r.sec.toFixed(0)}s of ${limitSec}s`;
+}

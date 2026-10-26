@@ -90,7 +90,7 @@ const masterPick = (f: string): string[] => MASTER_QUICK.find(([p]) => f.startsW
 const OPTIC_CABLE = ['TESTING.md', 'changes/feature-optic-cable.md', 'docs/optic-cable/CHECK.md', 'docs/systems/ct-toolkit.md', 'docs/systems/testing-tools.md', 'scripts/e2e-stealth-ai.mjs', 'src/config/tools.ts', 'src/game/doorMenu.ts', 'src/game/gameState.ts', 'src/game/opticSystem.ts', 'src/player/opticCable.ts', 'src/world/anchors.ts', 'tests/opticCable.test.ts'];
 const GUARD_CARRY_FIX = ['changes/feature-guard-ai-carry-fix.md', 'docs/guard-ai/slices/CARRY-FIX-CHECK.md', 'docs/systems/testing-tools.md', 'docs/systems/world-and-characters.md', 'scripts/e2e-guard-carry.mjs', 'scripts/run-e2e.mjs', 'src/core/babylon.ts', 'src/player/bodyEffectRecovery.ts', 'src/player/smoothBody.ts', 'tests/bodyEffectRecovery.test.ts'];
 // jobs on the laptop: a suite in parts is one job per part (run-e2e.mjs PARTS)
-const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 4, 'e2e-sectorops': 6 };
+const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 8, 'e2e-sectorops': 9 };
 const jobs = (suites: string[]): number => suites.reduce((n, s) => n + (PARTS[s] ?? 1), 0);
 
 describe('--quick keeps master picks', () => {
@@ -253,13 +253,13 @@ describe('--affected --wide: the cross-area readers', () => {
       const w = select(files, wide);
       for (const s of select(files)) expect(w, s).toContain(s);
     }
-    expect(jobs(select(OPTIC_CABLE, wide))).toBe(30); // e2e-ctcourse is 4 parts since marlow-final 0d
+    expect(jobs(select(OPTIC_CABLE, wide))).toBe(37); // e2e-ctcourse is 8 parts (marlow-final 0d + the J14 re-plan parts 5-8), e2e-sectorops 9 since F33
     expect(jobs(select(GUARD_CARRY_FIX, wide))).toBe(15);
   });
 
   it('keeps the cross-area rules', () => {
     expect(select(['src/weapons/playerWeapons.ts'], wide)).toEqual(expect.arrayContaining(['e2e-stealth-ai', 'e2e-sectorops:1', 'e2e-gadgets', 'e2e-clip']));
-    expect(select(['src/ai/hearing.ts'], wide)).toEqual(expect.arrayContaining(['e2e-weapons-carry', 'e2e-takedown', 'e2e-coop', 'e2e-sectorops:6']));
+    expect(select(['src/ai/hearing.ts'], wide)).toEqual(expect.arrayContaining(['e2e-weapons-carry', 'e2e-takedown', 'e2e-coop', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']));
     expect(select(['src/world/lights.ts'], wide)).toEqual(expect.arrayContaining(['e2e-stealth-ai', 'e2e-security', 'e2e-darkness', 'e2e-levels']));
     expect(select(['src/save/schema.ts'], wide)).toEqual(expect.arrayContaining(['e2e-coop', 'e2e-park', 'e2e-offline']));
   });
@@ -332,9 +332,15 @@ describe('J20', () => {
   it('campus map files pull the campus suite', () => {
     for (const f of ['src/world/maps/campusS4.ts', 'src/world/maps/campusBake.ts']) {
       const got = select([f]);
-      for (const s of ['e2e-sectorops:6', 'e2e-levels', 'e2e-anchors']) expect(got, `${f} ${s}`).toContain(s);
+      for (const s of ['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-levels', 'e2e-anchors']) expect(got, `${f} ${s}`).toContain(s);
     }
     expect(forFile('src/world/maps/campusS4.ts', wide)).toContain('e2e-sectorops');
+  });
+  it('a campus map file maps to all four campus parts (F33: part 6 was split into 6-9; a dropped part fails here)', () => {
+    for (const f of ['src/world/maps/campusS2.ts', 'src/world/maps/campusOps.ts']) {
+      const got = select([f]);
+      expect(got.filter((s) => s.startsWith('e2e-sectorops:')).sort(), f).toEqual(['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']);
+    }
   });
   it('the gate drops audio, the report list keeps LEGACY and AUDIO only', () => {
     const gate = affectedGateSuites(['e2e-foley', 'e2e-coop']) as string[];
@@ -376,7 +382,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     [['src/ai/a.ts', 'src/ai/b.ts', 'src/game/team.ts'], ['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']],
     [['src/weapons/w.ts'], ['e2e-combat', 'e2e-stealth-ai', 'e2e-weapons-carry']],
     [['src/player/smoothBody.ts'], ['e2e-clip', 'e2e-guard-carry', 'e2e-stealth']],
-    [['src/world/maps/campusS4.ts'], ['e2e-anchors', 'e2e-levels', 'e2e-sectorops:6']],
+    [['src/world/maps/campusS4.ts'], ['e2e-anchors', 'e2e-levels', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']],
     [['src/world/lightBake.ts'], ['e2e-desktop', 'e2e-lightbake']],
     [['src/world/maps/bunker.ts'], ['e2e-course']],
     [['src/save/ratingRecord.ts'], ['e2e-section-rating']],
@@ -437,7 +443,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     expect(pick(['src/ai/archetypes.ts'])).toEqual(['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']);
   });
   it('two parts of one suite from two files take one slot, both kept', () => {
-    expect(pick(['src/world/maps/campusS4.ts', 'src/weapons/w.ts'])).toEqual(['e2e-combat', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-weapons-carry']);
+    expect(pick(['src/world/maps/campusS4.ts', 'src/weapons/w.ts'])).toEqual(['e2e-combat', 'e2e-sectorops:1', 'e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9', 'e2e-weapons-carry']);
   });
   it('rankAffected: hits beat depth, depth beats time, time beats name, a part counts for its base', () => {
     const map: Covers = { 'src/a/deep': ['s-deep', 's-x'], 'src/a/': ['s-x', 's-fast', 's-slow', 's-tie'], 'src/b/': ['s-x', 's-b'], 'src/c/': ['s-p:1'], 'src/d/': ['s-p:2', 's-q'] };

@@ -17,7 +17,7 @@
  */
 import { hyp2, hyp3 } from '../core/mathx';
 import { CANON_MIN_THICK } from '../voxel/lightShapes';
-import { FLICKER_STUTTER, findTube } from './lampFlicker';
+import { FLICKER_STUTTER, findTube, lampMapId } from './lampFlicker';
 import type { BoxPiece } from './levelBuilder';
 import type { LightDef, LightRegistry } from './lights';
 
@@ -477,7 +477,7 @@ export function claimHangers(boxes: BoxPiece[], light: LightDef): [number, numbe
  */
 export function applyMapSway(b: { boxes: BoxPiece[]; lights: LightRegistry }, mapId: string): SwaySet | null {
   const reg = b.lights;
-  const list = SWAY_PENDANTS[mapId];
+  const list = SWAY_PENDANTS[lampMapId(mapId)];
   reg.sway = null;
   if (!list) return null;
   const out: SwayPendant[] = [];
