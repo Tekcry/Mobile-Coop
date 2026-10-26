@@ -402,18 +402,9 @@ describe('watchdog: laptop queue', () => {
   });
 
   it('requestAddTimes keeps the newest add per id', () => {
-    expect(requestAddTimes('@1729760000
-requests/a.json
-
-@1729750000
-requests/a.json
-requests/b.json
-')).toEqual({ a: 1729760000000, b: 1729750000000 });
+    expect(requestAddTimes('@1729760000\nrequests/a.json\n\n@1729750000\nrequests/a.json\nrequests/b.json\n')).toEqual({ a: 1729760000000, b: 1729750000000 });
     expect(requestAddTimes('')).toEqual({});
-    expect(requestAddTimes('requests/a.json
-@x
-claims/c.json
-')).toEqual({});
+    expect(requestAddTimes('requests/a.json\n@x\nclaims/c.json\n')).toEqual({});
   });
 });
 
