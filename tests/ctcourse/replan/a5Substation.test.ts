@@ -8,7 +8,7 @@
  * and objective lines. The built A5 is `tests/ctcourse/a5Substation.test.ts` (unchanged); the tick is `a5Ticks.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ENEMIES } from '../../../src/ai/enemyDefs';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { seenAt, sightRate, EYE_STAND, PERCEPTION } from '../../../src/ai/perception';
@@ -93,7 +93,11 @@ import {
   A5_WICKET_FLAG,
   A5_WICKET_GATE,
   FLOOR_HOLES,
+  A5_CHIMNEY_KIT_TEXT,
+  A5_SWING_KIT_TEXT,
 } from '../../../src/world/maps/ctcourseSets/replan/a5Substation';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
 import { checkSetPart, HOLD_H, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
 import { GAL_FLOOR, GAL_TOP } from '../../../src/world/maps/ctcourseSets/facility';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
@@ -292,7 +296,7 @@ const plainPart = plain.parts[4]!;
 /** The sheet (STATIONS.md section 3, the A5 block), verbatim. */
 const SHEET: StationDef[] = [
   { n: 11, id: 'a5-chimney', lesson: 'chimney_pair', retry: 'none', doneFlag: 'a5-apron-e', kit: 'chimneyPair', standIn: 'g-a5-wicket',
-    marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 69.0, z: 32.3, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 33.7, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
     marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
@@ -687,6 +691,8 @@ describe('Marlow re-plan A5: the swing bar (station 12, marlow-kit-geo Q2)', () 
       expect(floorAt(x, S.z)).toBeCloseTo(0, 9);
     }
     for (const x of [S.x1 + r + 0.05, S.x1 + SWING.anchorReach, A5_PERIM.x0 - r - 0.05]) expect(blockedAt(x, S.z), `east strip x ${x.toFixed(2)}`).toEqual([]);
+    // (Player K4, PR #658) the anchor braces 0.6 m back and 0.55 m to either side of the line: a body stands at both
+    for (const dz of [-0.55, 0.55]) expect(blockedAt(S.x1 + 0.6, S.z + dz), `anchor brace z ${(S.z + dz).toFixed(2)}`).toEqual([]);
   });
 });
 
@@ -1131,5 +1137,55 @@ describe('Marlow re-plan A5: flags, stations in play, lines', () => {
     expect(part.navSeeds.some((s) => s.y < -1)).toBe(true);
     expect(part.navSeeds.some((s) => s.y > 5)).toBe(true);
     expect(part.camSpaces.map((c) => c.size)).toEqual(['open', 'tight', 'tight']);
+  });
+});
+
+describe('stations 11 and 12 kit spots (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+  const objText = (d: typeof def, id: string): string => d.objectives!.find((o) => o.id === id)!.text;
+
+  it('one chimneyPair spot, a5-chimney: the gap\'s floor centre, its width and the wall top (from the set constants)', () => {
+    expect(flags.kitMoves.has('chimneyPair')).toBe(false);
+    const spots = kitSpotsOf(b, 'chimneyPair');
+    expect(spots.length).toBe(1);
+    const gp = A5_GAP;
+    expect(spots[0]).toEqual({ id: 'a5-chimney', kind: 'chimneyPair', x: (gp.x0 + gp.x1) / 2, y: 0, z: (gp.z0 + gp.z1) / 2, yaw: -Math.PI / 2, w: gp.x1 - gp.x0, h: A5_WALLTOP.y, x2: (A5_WALLTOP.x0 + A5_WALLTOP.x1) / 2, z2: (gp.z0 + gp.z1) / 2 });
+    // the PLAN band: width 1.2-1.6, height 3-8, the top the wall top (the perimeter's height)
+    expect(spots[0]!.w!).toBeGreaterThanOrEqual(1.2);
+    expect(spots[0]!.w!).toBeLessThanOrEqual(1.6);
+    expect(spots[0]!.h!).toBeGreaterThanOrEqual(3);
+    expect(spots[0]!.h!).toBeLessThanOrEqual(8);
+    expect(spots[0]!.h).toBe(A5_PERIM.h);
+  });
+
+  it('one swingPass spot, a5-swing: the swing bar on the trench\'s near edge; the gap 2.0-3.5 m and the bar 2.2-2.8 m', () => {
+    expect(flags.kitMoves.has('swingPass')).toBe(false);
+    const spots = kitSpotsOf(b, 'swingPass');
+    expect(spots.length).toBe(1);
+    const tr = A5_CABLE_TRENCH;
+    expect(spots[0]).toEqual({ id: 'a5-swing', kind: 'swingPass', x: tr.x1, y: A5_GANTRY_PIPE_Y, z: A5_SWING_BAR.z, yaw: -Math.PI / 2, w: tr.x1 - tr.x0, y2: 0 });
+    expect(spots[0]!.w!).toBeGreaterThanOrEqual(2.0);
+    expect(spots[0]!.w!).toBeLessThanOrEqual(3.5);
+    expect(spots[0]!.y).toBeGreaterThanOrEqual(2.2);
+    expect(spots[0]!.y).toBeLessThanOrEqual(2.8);
+    expect(Math.abs(spots[0]!.y2! - 0)).toBeLessThanOrEqual(0.4);
+    const ids = def.bays[4]!.stations!.filter((s) => s.kit === 'chimneyPair' || s.kit === 'swingPass').map((s) => s.id);
+    expect(ids).toEqual(['a5-chimney', 'a5-swing']);
+  });
+
+
+  it('kit on: stations 11 and 12 name the moves; off: the stand-in lines', () => {
+    flags.kitMoves = new Set(['chimneyPair', 'swingPass']);
+    const on = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(on, 'a5-wall')).toBe(A5_CHIMNEY_KIT_TEXT);
+    expect(objText(on, 'a5-trench')).toBe(A5_SWING_KIT_TEXT);
+    for (const t of [A5_CHIMNEY_KIT_TEXT, A5_SWING_KIT_TEXT]) expect(t.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    flags.kitMoves = new Set();
+    const off = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(off, 'a5-wall')).toBe('Go through the wicket onto the apron');
+    expect(objText(off, 'a5-trench')).toBe('Cross the trench by footbridge or plates');
   });
 });

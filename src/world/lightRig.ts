@@ -7,6 +7,7 @@ import { mountLinks } from './lampMount';
 import { HANGER_STRIDE } from './lampSway';
 import { gameLightFalloff, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
 import { registryHasTorch } from './torchShadows';
+import { flags } from '../core/flags';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
 interface FittingDraw {
@@ -491,7 +492,8 @@ export class LightRig {
     if (this.casterSet.has(m)) return;
     this.casterSet.add(m);
     this.casters.push(m);
-    m.onEffectiveEnabledStateChangedObservable.add(this.markCasters);
+    // (gm-mc-polish L1) the G8 cull only with guard models on: flag off, a freeze toggle costs no refill (as before G8)
+    if (flags.guardModels) m.onEffectiveEnabledStateChangedObservable.add(this.markCasters);
     m.onDisposeObservable.addOnce(() => {
       this.casterSet.delete(m);
       const i = this.casters.indexOf(m);
@@ -737,9 +739,12 @@ export class LightRig {
     tmp.length = 0;
     const r = (l.reach ?? l.radius) + 1.5;
     const cs = this.casters;
+    // (gm-mc-polish L1) flag off: disabled meshes stay listed (the RTT skips them while disabled), as before G8, so a
+    // guard thawed between picks casts at once
+    const cull = flags.guardModels;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
-      if (!m.isEnabled()) continue;
+      if (cull && !m.isEnabled()) continue;
       // (small things - pickups, switches, mags - are not worth a draw per shadow map)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
       const b = m.getBoundingInfo().boundingBox;

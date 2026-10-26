@@ -17,11 +17,16 @@
 // (forced) Before that, as the stall rarely times out in this lighter scene (master passed it), the same stall with the
 // timeout forced: the body's first compile never completes and Babylon's poll gives up after 1 s (hooks in the setup);
 // without the recovery the guard is never drawn ("material ready for its mesh (Error: Operation timed out ...)").
+// (gm-flip, train 159) The page opens `guardmodels=0`: this suite tests the merged S1 body (`rig.voxel.meshes`, the
+// SMOOTHBODY effect and its recovery). With the guard figures on (default since gm-flip) that body is only the fallback
+// until his figure's first LOD is in, then disabled (`GuardBody.ready`), so "visible and enabled" / "among the active
+// meshes" could never hold for it (train 159: the recovery recompiled and the body was ready, but disabled). The merged
+// body still ships: `?guardmodels=0`, and every guard while his figure loads.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const spotArg = process.argv.find((a) => a.startsWith('--spot='))?.slice(7).split(',').map(Number) ?? [0, -2.5];
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high', viewport: { width: 960, height: 720 } });
+const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=infiltration&gfx=high&guardmodels=0', viewport: { width: 960, height: 720 } });
 const G = (f, a) => page.evaluate(f, a);
 const CALM_SEC = 16.5;
 /** Rendering time a body may take to be ready after the one-block stall (a compile that never finishes is recompiled after 90 s, bodyEffectRecovery STUCK_MS; the loop ends as soon as the body is ready). */

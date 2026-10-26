@@ -213,7 +213,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   revive show the same on both screens. A local spend is not undone while the flag is still set.
     - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
       distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
-      course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
+      course bay restart, helmet bit drop on both; the visible-piece asserts unless `E2E_GUARDMODELS=0`).
   - `bark` event: `{ id, b, n, u, r, t? }`. The host wraps `EnemyManager.onBark` / `onCameraLine`
     (`CoopHost.hookCombat`): a table line goes as `b` = its `BARK_EVENTS` index, `n` = `BarkVoice.lastLine`, `u` = the
     unit it names; a talking pair's line as `BARK_TEXT` 255 and the desk's camera line as `BARK_CAM` 254 with the text
