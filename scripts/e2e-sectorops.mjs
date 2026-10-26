@@ -2153,8 +2153,9 @@ if (want(6)) {
     const route = await G(() => window.__app.current.world.map.sectors[0].routes[0].pts);
     await tp(G, route[1][0], 0, route[1][1], -Math.PI / 2);
     await sim(0.3);
-    // at the open window: 1.15 m from the PC
-    await tp(G, 20.6, 0, -76, -Math.PI / 2);
+    // at the open window, at its south end by the PC (F42: the PC sits on its desk at (19.3, -77.3), south of the window;
+    // the window spans z -76.6..-75.4): 1.5 m from the PC, inside the 1.8 m reach
+    await tp(G, 20.5, 0, -76.4, -Math.PI / 2);
     await sim(0.4);
     const near = await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 's1-obj'); return it ? Math.hypot(it.pos.x - g.player.position.x, it.pos.z - g.player.position.z) : -1; });
     assert(near > 0 && near < 1.8, `the PC is inside the interact reach from the open window (${near.toFixed(2)} m)`);
