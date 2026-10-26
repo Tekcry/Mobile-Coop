@@ -238,6 +238,36 @@
       "regex": "12 (proposed )?(level[- ]standard |level-rule )?changes[^.]{0,80}(go to Michael|wait for Michael|before the first real mission map)",
       "why": "Michael adopted the 12 level-standard changes (G157, 2026-10-25 ~18:20); they are in docs/level-design.md",
       "replacement": "the G157 rules in docs/level-design.md (Michael confirms them on his Tallow Wharf walk)"
+    },
+    {
+      "id": "full-burn",
+      "regex": "\\bfull burn\\b",
+      "why": "full burn ended 2026-10-26 ~19:22 (G424); each 5-hour window is paced to reach ~100% close to its reset (G431)",
+      "replacement": "pacing: ~100% close to the reset, at most 2 builders per lead (docs/RULES.md \"A job\", G424, G431)"
+    },
+    {
+      "id": "briefs-2-3-ahead",
+      "regex": "(next )?2-3 slices ahead|briefs the next 2-3 slices",
+      "why": "briefs go at most one slice ahead (G424)",
+      "replacement": "briefs one slice ahead"
+    },
+    {
+      "id": "refining-allowed",
+      "regex": "[Rr]efining is allowed|Refining \\(feel tuning",
+      "why": "no fine-tuning pass before Michael has played (G421, G422)",
+      "replacement": "no fine-tuning before Michael has played (G422)"
+    },
+    {
+      "id": "mocap-no-switch",
+      "regex": "[Mm]ocap only[^.\\n]{0,40}no switch|only player locomotion, with no switch",
+      "why": "the animation set is a Hand-made / CMU / Mixamo toggle (G409, G410)",
+      "replacement": "one Hand-made / CMU / Mixamo toggle (G410)"
+    },
+    {
+      "id": "current-goal-three-maps",
+      "regex": "Current goal: Marlow Yard, Saltmarsh Park and Tallow Wharf in parallel",
+      "why": "prototype mode: Michael's playthrough decides what is built next (G421)",
+      "replacement": "a playable prototype; Michael's /preview/ playthrough decides what comes next (G421)"
     }
   ],
   "resumeScope": [

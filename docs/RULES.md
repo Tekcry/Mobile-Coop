@@ -14,11 +14,11 @@ Project knowledge lives in git, never only in Claude memory: Michael swaps accou
 follow-ups in the repo docs.
 
 ## Sessions
-**Titles** are message addresses. Each session sets its own title as its first step (set_session_title "self") and
-never renames mid-run. Boot lines: `docs/orchestrator/PROMPTS.md`; per-title start: `docs/orchestrator/BOOT.md` (both
-on origin/feature/menu). Effort is the lead's; its agents keep their own model and effort.
-
-Session layout (G364). "Started by" is who opens the session at each swap.
+**Titles** are message addresses. Each session sets its own title as its first step (set_session_title "self") and never
+renames mid-run. Boot lines: `docs/orchestrator/PROMPTS.md`; per-title start: `docs/orchestrator/BOOT.md` (both on
+origin/feature/menu). Effort is the lead's; its agents keep their own model and effort. Old names in older docs: CT Core
+Build = Player Build, Menu Notes Build = Marlow Build, Course Ready Build = Sector Ops Build, Character Build = Test
+Runner. Session layout (G364); "Started by" is who opens the session at each swap:
 
 | Title | Machine | Model, effort | Started by | Area |
 | --- | --- | --- | --- | --- |
@@ -31,17 +31,15 @@ Session layout (G364). "Started by" is who opens the session at each swap.
 | Night Shift \| Test Runner | laptop | Opus 5.5, medium | Michael pastes | the laptop queue, flakes, guard render |
 | Night Shift \| Cloud Builder | cloud | Opus 5.5, as the orchestrator starts it | orchestrator | one session: briefs on the orphan branch `cloud-queue` (its README); idle when no brief waits |
 
-Old names in older docs: CT Core Build = Player Build, Menu Notes Build = Marlow Build, Course Ready Build = Sector Ops
-Build, Character Build = Test Runner.
-
 **The orchestrator** runs the build. It alone edits `docs/ROADMAP.md` and `docs/orchestrator/` (on feature/menu),
 triages the Inbox every cron run, plans and starts jobs (no job starts unless it is on the roadmap), gives an idle lead
-its next feature, brings Michael decisions, writes the walk cards, keeps auto-train and the laptop queue moving
-(failed trains, conflicts, stale claims), and folds ROADMAP "Decided" into `docs/DECISIONS.md` daily (a docs PR).
-Master always holds every finished update: green trains merge without asking Michael; ask him when unsure. Its cron
-prompt is in `docs/orchestrator/STATE.md`. Every other session messages it only when a PR opens or is train-ready, when
-blocked, or when Michael is needed (G305); progress goes in the job's STATE. A session that hears a new idea from
-Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbox the same turn.
+its next feature, brings Michael decisions, writes the walk cards, keeps auto-train and the laptop queue moving (failed
+trains, conflicts, stale claims), and folds ROADMAP "Decided" into `docs/DECISIONS.md` daily (a docs PR). Master always
+holds every finished update: green trains merge without asking Michael; ask him when unsure. Its cron prompt is in
+`docs/orchestrator/STATE.md`. Every other session messages it only when a PR opens or is train-ready, when blocked, or
+when Michael is needed (G305); progress goes in the job's STATE. No session waits on another (G420): the first time it
+would, and never over 10 min, it messages the orchestrator, which unblocks it the same turn. A session that hears a new
+idea from Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbox the same turn.
 
 **Every session, at start.**
 1. These rules and `docs/VISION.md` (both from origin/master), then the session's resume block (BOOT.md says where).
@@ -72,8 +70,9 @@ that area is switched on until Michael walks some, while signed-off builds go on
 shipped features (rule fixes such as G339's compass / blip) are allowed (G355). Every release gets a 10-minute walk card
 from the orchestrator: risk-ranked, one acceptance line per item, look videos for animation and lighting (each such PR
 carries a 1-2 min video path in its body). A flagged feature is switched on when Michael accepts it, or when he says so
-(4-player Sector Ops, G381). A lead with no PLAN slice left starts the next roadmap feature in its area with an Opus
-plan; the orchestrator assigns it (G283).
+(4-player Sector Ops G381, Mixamo G408). The cap binds the live game only: on `/preview/` every dark feature flag
+defaults on, a URL `=0` turns one off (G416). A lead with no PLAN slice left starts the next roadmap feature in its area
+with an Opus plan; the orchestrator assigns it (G283).
 
 **A job.**
 - Branch `feature/<job>` from origin/master in `C:/NightShift/Mobile-Coop-<job>` (G94). The plain folder
@@ -81,8 +80,10 @@ plan; the orchestrator assigns it (G283).
   (`docs/systems/agent-preamble.md`) runs before every write.
 - `docs/<job>/`: `BRIEF.md`, `PLAN.md`, `STATE.md` (resume block on top, at most ~40 lines with exact file:line
   pointers; done list and history below it).
-- Refining (feel tuning, animation polish, perf tuning, detail art) is planned like any job, paced by the walk cap and
-  gated by the visual sign-off (G288).
+- Prototype, not polish (G421, G422): no fine-tuning (feel, animation, lux, perf) before Michael has played; build
+  playable pieces (a level that can be finished), not polish or new test machinery. Fixes first (G417, G418): open
+  `docs/orchestrator/FIXES.md` rows come before feature work; a fix PR without a repeat guard (unit test, e2e step,
+  alert or audit check) is not done; the cron watches a shipped fix for a day and reopens it if it returns.
 - The loop (`docs/systems/session-method.md`, G87): implementer, fresh checker, at most 1 fix round per slice unless the
   work is broken. Checkers block on broken, unplayable or off-intent work; cosmetic notes go on the job's polish list.
   Opus plans, writes strict slice briefs, checks, and writes AI, animation, engine and `src/net` code; Sonnet 5.5 builds
@@ -105,11 +106,11 @@ plan; the orchestrator assigns it (G283).
 - Unattended by default: assumed decisions are logged and the job carries on; ask Michael (native multiple choice) only
   before installing or downloading, when a hard rule blocks the goal, or as Intake step 2 says. Every question to
   Michael comes with its decision pack (prototype / screenshots / GPU sheets).
-- Full burn: every independent slice of the PLAN runs in parallel now, up to the desktop CPU target ("Machines"). Opus
-  briefs the next 2-3 slices ahead and plans the next ROADMAP jobs before they start (plans and briefs only, no
-  speculative code). tsc / vitest-heavy builder slices may go to cloud builders through `cloud-queue`
-  (`docs/systems/agent-preamble.md` "Cloud sessions"); a lead picks up a done brief within 1 hour or closes it, and the
-  orchestrator checks for done briefs older than that every cron run. A lead's small and spare jobs ride one batch PR.
+- Pacing (G424, G431): each 5-hour window reaches ~100% close to its reset, not before, on a straight line from its
+  start: ahead of the line, trim builders; behind it, leads with independent slices add builders (at most 2 per lead,
+  inside the desktop CPU target). Briefs one slice ahead, no speculative code. Builder slices needing only tsc / vitest
+  may go to cloud builders (`cloud-queue`, `docs/systems/agent-preamble.md` "Cloud sessions"); a lead takes a done
+  brief within 1 hour or closes it (the orchestrator checks every cron run); spare jobs ride one batch PR.
 - Finish: the PR to master with its changelog fragment; it becomes train-ready (below). At the merge the job's answers
   from Michael move into `docs/DECISIONS.md` with the next free G numbers (G89). The job's last PR has the line
   `Job-done: <job>` in its body, so the train archives `docs/<job>/` ("Docs" below).
@@ -122,15 +123,12 @@ plan; the orchestrator assigns it (G283).
   <head> --pr <n> --affected --set affected --requester affected-e2e`). The `no-affected-e2e` label waives the e2e part
   for one PR.
 - Who labels: the watchdog task (`--fix labels`) adds `train-ready` when all three hold and (`--fix prs`) removes it
-  when a check turns red or when commits land after the label that touch more than docs, `*.md`, `changes/`
-  fragments or CHANGELOG with no new `checker` success on the new head (G325). Until the
-  watchdog task runs, the orchestrator labels and unlabels by the same rule each cron run. When auto mode blocks a lead
-  from posting its checker's verdict, the orchestrator posts the `checker` status for it.
-- `affected-e2e` never sticks (4.101.1): the service requests a head again when its `affected-e2e` is pending with no
-  open, claimed or running affected request; a duplicate hands the status over to the surviving request; a request
-  withdrawn before it ran posts error "withdrawn by the requester (not run)". Fallback, if one still sits pending: the
-  orchestrator (or the lead) re-requests it: `node scripts/laptop-queue/request.mjs --sha <head> --pr <n> --affected
-  --set affected --requester affected-e2e` (only that requester's verdict is also posted on `affected-e2e`).
+  when a check turns red or when commits land after the label that touch more than docs, `*.md`, `changes/` fragments or
+  CHANGELOG with no new `checker` success on the new head (G325). Until the watchdog task runs, the orchestrator labels
+  and unlabels by the same rule each cron run. When auto mode blocks a lead from posting its checker's verdict, the
+  orchestrator posts the `checker` status for it.
+- `affected-e2e` never sticks (4.101.1; how: `docs/systems/testing-tools.md` "Laptop queue"). If one still sits pending,
+  the orchestrator or the lead re-requests it with the command above.
 - Auto-train (scheduled task every minute, G286; `docs/systems/auto-train.md`) builds `train/<n>` from train-ready PRs
   (labelled with a green check, or meeting the rule above), makes the version commit (fragments into `CHANGELOG.md`, the
   next version, the one `PROTOCOL_VERSION` bump when a member touches a wire path), and the queue runs one full e2e on
@@ -149,7 +147,7 @@ plan; the orchestrator assigns it (G283).
 | --- | --- | --- |
 | Docs only (`*.md`, `docs/**`) | CI `check` (`affected-e2e` passes at once) | - |
 | An agent sub-step | `npm run typecheck:fast` + `npx vitest run <files>` | the agent's machine |
-| A PR | CI `check` + `affected-e2e`: at most 3 suites, the closest to the folders the PR touches (`affectedPick` in `scripts/e2e-affected.mjs`: most changed files reached, then the most specific `DIRECT_COVERS` row, then the shorter time; `node scripts/run-e2e.mjs --affected origin/master --list` names them; `E2E_AFFECTED_MAX` / `--affected-max`, 0 = no cap). `src/net`, `src/save` and wire changes (a file `src/net/protocol.ts` imports) run exactly the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`. The train's full run catches the rest. A checker gate on top: for `src/player` or `src/game` the lead requests `e2e-coop` + `e2e-netmove` (`request.mjs`) and the checker passes only when they are green | laptop queue |
+| A PR | CI `check` + `affected-e2e`: one suite, the closest to the folders the PR touches (G421; `affectedPick` in `scripts/e2e-affected.mjs`: most changed files reached, then the most specific `DIRECT_COVERS` row, then the shorter time; `node scripts/run-e2e.mjs --affected origin/master --list` names them; `E2E_AFFECTED_MAX` / `--affected-max`, 0 = no cap). `src/net`, `src/save` and wire changes (a file `src/net/protocol.ts` imports) run exactly the co-op group `e2e-coop` + `e2e-netmove` + `e2e-ctcourse`. The train's full run catches the rest. A checker gate on top: for `src/player` or `src/game` the lead requests `e2e-coop` + `e2e-netmove` (`request.mjs`) and the checker passes only when they are green | laptop queue |
 | Tuner / Anim Studio / tests only | CI `check` + `affected-e2e` | laptop queue |
 | Queue, train and tool scripts (`scripts/laptop-queue/**`, `scripts/auto-train.mjs`, `scripts/perf.mjs`, `.github/**`) | CI `check` (unit tests; `affected-e2e` passes at once, its text says "docs / unit only"); a live run when the lead says | - / laptop queue |
 | A train | one full `npm run e2e` on the train head | laptop queue |
@@ -158,7 +156,8 @@ plan; the orchestrator assigns it (G283).
   bug. CI is `npm run check` only (software GL, no e2e). Cloud sessions run tsc and single vitest files only (no e2e,
   no GPU, no `npm run check`; the `cloud-queue` README); every e2e and GPU check of their work is "pending PC run" and
   runs on the laptop queue once a lead takes the branch.
-- A crash or timeout mid-suite is not a pass. Flaky suites, quarantine and what counts as a flake:
+- A crash or timeout mid-suite is not a pass. A red test gets one fix and one rerun at most, then it is quarantined or
+  noted and the work ships; no repeat proof runs (G422). Flaky suites, quarantine and what counts as a flake:
   `docs/systems/testing-tools.md` "Flakes and quarantine" (the only owner of that rule).
 
 **Machines.** Two heavy slots, both Michael's PCs.
@@ -166,11 +165,12 @@ plan; the orchestrator assigns it (G283).
   `laptop-queue`, scheduled task every minute) runs on 4189 (GPU and alone runs) and 4192, in this order (lib `pick`):
   trains first, sharded across 4189 + 4192 at `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`); then train reruns (`E2E_JOBS=1`,
   both slots when free); then an alone request waiting over 30 min (`ALONE_AGE_MIN`; ahead of PR work, both slots once
-  they drain; fixes included); then PR requests (one slot, `E2E_JOBS=2`; full runs 3): fixes first (PR label `fix` or
-  `request.mjs --fix`), then front branches (`LQ_FRONT_BRANCHES`), then green PRs smallest first, then arrival order; a
-  new head of a PR keeps its request's place and stops its running one; then other alone measures when both slots idle;
-  spare work: after both slots sit idle `LQ_SPARE_IDLE_MIN` (5) min the service queues the next job of
-  `docs/laptop-queue/spare-jobs.json`; a waiting real request or a train stops it. Both sessions keep CPU under ~80%.
+  they drain; fixes included); then PR requests (one slot, `E2E_JOBS=2`; full runs 3): fixes first (PR label `fix`,
+  `request.mjs --fix` or a laptop rerun of a desktop red, G412), then front branches (`LQ_FRONT_BRANCHES`), then green
+  PRs smallest first, then arrival order; a new head of a PR keeps its request's place and stops its running one; then
+  other alone measures when both slots idle; spare work: after both slots sit idle `LQ_SPARE_IDLE_MIN` (5) min the
+  service queues the next job of `docs/laptop-queue/spare-jobs.json`; a waiting real request or a train stops it. Both
+  sessions keep CPU under ~80%.
 - Desktop (Orchestrator, Player, Marlow, Sector Ops, Campaign): CPU target under ~80% (G306); over 90% the orchestrator
   trims the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc
   and single vitest files, never a full `npm run check` (CI runs it).

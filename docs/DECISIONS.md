@@ -1,7 +1,7 @@
 # Night Shift - decisions
 Owner: the orchestrator. Status: current.
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G407 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G434 (2026-10-27).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
 Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
@@ -703,8 +703,9 @@ window, at most twice per mission. Encounter checkpoints cap replay loss at abou
 the last checkpoint. Michael: "30-second revive, 2 per mission" (D-03 research session, 2026-10-18; replaces G1 where CT
 differs and the bible's "no bleed-out".)
 
-**G127. Violence is scored.** Lethal and non-lethal play are both allowed; non-lethal and ghost play are rewarded; no
-mission forces a kill. Michael: "Scored." (D-04 research session, 2026-10-18.)
+**G127. Violence is scored.** (Narrowed by G426, 2026-10-26: knife kills allowed in the piano escape scene only.) Lethal
+and non-lethal play are both allowed; non-lethal and ghost play are rewarded; no mission forces a kill. Michael:
+"Scored." (D-04 research session, 2026-10-18.)
 
 **G128. Lethal automated defences only at compounds.** Turrets and other lethal automated defences appear only at
 military or private compounds; elsewhere security responds realistically. Michael: "Only at military or private
@@ -1554,7 +1555,8 @@ accepted by Michael or by the orchestrator citing his words. Player Build builds
 refining.
 
 **G288. Process audit: four fix packages, refining allowed, walk pacing, one-click sign-off.** (Walk cap narrowed by
-G355, 2026-10-25: it limits switching features on, not building them.) Michael (2026-10-24
+G355, 2026-10-25: it limits switching features on, not building them.) (Refining paused by G422, 2026-10-26: no
+fine-tuning passes before Michael has played.) Michael (2026-10-24
 ~21:50, native multiple choice on `docs/orchestrator/PROCESS-AUDIT-2026-10-24.md`): (1) all four fix packages start
 (watchdog and release path, one rulebook and lean docs, cheap swaps, intake gates and small PRs); (2) the "no refining
 until Michael playtests the core loop" rule is lifted; (3) "Cap 3 + walk card": at most 3 unwalked features per area (a
@@ -1685,10 +1687,11 @@ Opus. (Replaces G88's "Opus builds", G245's all-Opus and G281's 100%; its 99% pa
 sure there are sections where at least one guard is unavoidable to reach the objective/exit. they must be distracted,
 knocked out, or killed. flexible to your suggestions with that also."
 
-**G304. Pacing: hit the cap as soon as possible, with the model split.** Michael (2026-10-23 ~09:00): "Aim to hit the
-cap ASAP, but be efficient with usage between opus, sonnet; and haiku. Use as many agents and laptop/desktop as you need
-to progress quickly". Full burn to 100% each window with G302's model split; agents limited only by desktop CPU (trim
-when over 90%); both machines test. (Replaces G302's 99% windows.)
+**G304. Pacing: hit the cap as soon as possible, with the model split.** (Full burn replaced by G424, 2026-10-26, and
+G431: each 5-hour window paced to ~100% at its reset; the trim over 90% CPU stands.) Michael (2026-10-23 ~09:00): "Aim
+to hit the cap ASAP, but be efficient with usage between opus, sonnet; and haiku. Use as many agents and laptop/desktop
+as you need to progress quickly". Full burn to 100% each window with G302's model split; agents limited only by desktop
+CPU (trim when over 90%); both machines test. (Replaces G302's 99% windows.)
 
 **G305. Token efficiency: fewer messages and checkers, more parallel slices.** Michael (2026-10-23 ~09:40): "i want it
 running full burn all day, i will change accounts at 99%", then "apply all. maximise token usage during full burn where
@@ -1808,7 +1811,8 @@ the most time?": the orchestrator's pick at Michael's ask, undoable: at most one
 the laptop queue is idle. (Replaces G306's train trigger and desktop lane, and G246's batching; one PR per train, G247,
 still holds.)
 
-**G319. Tokens for progress: cloud builders, two checkers on AI and net, plan ahead, high effort.** Michael (2026-10-23
+**G319. Tokens for progress: cloud builders, two checkers on AI and net, plan ahead, high effort.** (Plan-ahead (3)
+narrowed by G424, 2026-10-26: briefs at most one slice ahead.) Michael (2026-10-23
 ~19:25, native multiple choice): "i dont mind how fast we use tokens, only that its making significant progress"; all
 four applied: (1) tsc / vitest-heavy builder slices run in cloud sessions (e2e stays on the laptop; Michael creates the
 cloud environment); (2) two independent checkers on AI and `src/net` PRs, an Opus triage agent on every laptop failure
@@ -1841,7 +1845,8 @@ Sector Ops Build, Opus slices and a GPU perf check.
 
 ### Decided 2026-10-25 (ROADMAP "Decided" fold)
 
-**G324. Full burn until Michael says to slow down.** Michael (2026-10-25 ~08:25): "100% full burn until I say to slow
+**G324. Full burn until Michael says to slow down.** (Replaced by G424, 2026-10-26, and G431: each 5-hour window
+paced to ~100% at its reset.) Michael (2026-10-25 ~08:25): "100% full burn until I say to slow
 down. I want to hit the 5 hour cap as quick as possible as the weekly reset soon". Every session runs at full speed with
 parallel agents, up to the CPU caps; no session throttles itself until he says to slow down. (Restates G304.)
 
@@ -1859,11 +1864,12 @@ choice): "Yes, shadow in view = seen". A guard whose shadow falls in view animat
 in `animTierView.ts` (#360 T1) and measures the CPU saving left; the same `ANIM_TIER_OFFSCREEN` governs guard-cap C1.
 (Replaces G294's assumption.)
 
-**G328. Campus S1-S5 signed off.** Michael (2026-10-25 ~08:50, native multiple choice on the sign-off pages,
-feature/sector-redesign-signoff fe3ef35f, drawings shown): S1 "Go as drawn (15 guards)"; S2 "Go: void 14.5 m, 18
-guards" (3.9 m balcony strips); S3 "Re-plan as drawn, 20 guards"; S4 "One 6 m goods-in lobby" (the page's 25 guards, the
-dog included); S5 "26 guards, inside the 32 cap" (no cap raise, no protocol bump). Sector Ops greyboxes all five; the
-greybox exit needs the measured validator pass (G289). (Replaces G297's "up to 24" for the campus; settles G289 (1).)
+**G328. Campus S1-S5 signed off.** (S1 narrowed by G428, 2026-10-26: re-plan v3, the courier's van.) Michael (2026-10-25
+~08:50, native multiple choice on the sign-off pages, feature/sector-redesign-signoff fe3ef35f, drawings shown): S1 "Go
+as drawn (15 guards)"; S2 "Go: void 14.5 m, 18 guards" (3.9 m balcony strips); S3 "Re-plan as drawn, 20 guards"; S4 "One
+6 m goods-in lobby" (the page's 25 guards, the dog included); S5 "26 guards, inside the 32 cap" (no cap raise, no
+protocol bump). Sector Ops greyboxes all five; the greybox exit needs the measured validator pass (G289). (Replaces
+G297's "up to 24" for the campus; settles G289 (1).)
 
 **G329. Real-world light levels.** (Tightened by G367, 2026-10-25: no dark spots from lights left off; bands set by G368.) Michael (2026-10-25 ~09:05): "How do you know campus design gameplay flow is good,
 and that there is a realistic amount of light? On the current build the s1 car park is still very dark which is
@@ -2001,9 +2007,10 @@ G145's mission fail and the bible's "killing a civilian fails the mission".)
 **G354. Tallow Wharf's story is decided with the missions.** Michael (8): "Decide with missions". `docs/story.md` keeps
 its Mission 1 plan (Dead Line) as written, with a status line, until then. (With G120 and STORY-03 / STORY-04.)
 
-**G355. A conformance review before new game work; the walk cap limits switch-on only.** (Narrowed by G381, 2026-10-25:
-4-player Sector Ops goes live when it ships.) Michael (9), on the walk cap: "What do you recommend? All current
-maps/features should be revised once documentation work has been completed"; the recommendation adopted, "Yes
+**G355. A conformance review before new game work; the walk cap limits switch-on only.** (Narrowed by G416, 2026-10-26:
+every dark feature is on in `/preview/`; the cap holds in the live game; and by G408 for Mixamo.) (Narrowed by G381,
+2026-10-25: 4-player Sector Ops goes live when it ships.) Michael (9), on the walk cap: "What do you recommend? All
+current maps/features should be revised once documentation work has been completed"; the recommendation adopted, "Yes
 (Recommended)": once the doc PRs are on master, each lead runs a plan-only conformance review of every map / feature in
 its area against VISION, RULES and level-design (a gap list with fix sizes); the orchestrator folds them into the
 forward plan for Michael; then signed-off builds (campus greybox, Tallow Wharf) resume dark behind flags; the walk cap
@@ -2073,7 +2080,8 @@ switched-off light makes a dark pocket, in any mode, Marlow Yard included. Darkn
 between and behind things), cut power and shot lamps. (Replaces the "dark by design" pockets on every map; tightens
 G295 and G329; `docs/level-design.md` 5.1 and 5.5 change with this approval.)
 
-**G368. Light levels from the Australian standards, after one lux calibration.** Michael (Q3): "Australian standards
+**G368. Light levels from the Australian standards, after one lux calibration.** (Settled for S1 by G415,
+2026-10-26: the band table and the S1 light map approved for S1 only.) Michael (Q3): "Australian standards
 (Recommended)" (option: "Take the levels from the Australian lighting standards, after one test that matches the game's
 brightness to real light units; you approve the table and the car-park light map together"). The light-realism job
 calibrates engine light to lux once, fills the band table from AS/NZS 1158.3.1 and AS/NZS 1680 (EN 12464 where AS/NZS
@@ -2205,13 +2213,15 @@ out in an open space and in in a tight one; it no longer pushes in at a doorway.
 tap / hold buttons and aim excepted"). A plain hold action gets a hold or toggle setting; a button whose tap and hold do
 different things, and the aim (G214), get none. (Narrows loco D7's "hold or toggle for every hold action".)
 
-**G399. Mocap only for players; animation corrections decided at the walk.** Michael (Q38): "mocap only, i will fine
+**G399. Mocap only for players; animation corrections decided at the walk.** (Switch replaced by G410, 2026-10-26: a
+Hand-made / CMU / Mixamo toggle in the menus.) Michael (Q38): "mocap only, i will fine
 tune them in anim dev" (option: "Mocap only, developer rollback"): players get motion capture only, with no switch; the
 hand-keyed set stays as a developer rollback, and Michael fine-tunes the clips in the Anim Studio. Q37, on the
 corrections layered over the capture: "Decide at your walk (Recommended)": they are kept or dropped at his animation
 walk. (Replaces G298's "the hand-keyed set behind the switch".)
 
-**G400. Partner animation fields go over the network.** Michael (Q39): "yes players must look exact in everyones games"
+**G400. Partner animation fields go over the network.** (Extended by G411, 2026-10-26: each player's animation source
+travels too.) Michael (Q39): "yes players must look exact in everyones games"
 (option: "Allow small animation fields"). Small animation fields may be sent so a partner looks exact on every screen;
 remotes still pose from `MoveState`. (Replaces loco D8's body layer "with no extra bandwidth".)
 
@@ -2278,3 +2288,217 @@ so. Unchanged (IP, not licensing): no reference-game names, characters, assets, 
 characters, story, logos, UI art and the goggle stay original; the score stays composed for the game (licensed samples
 allowed, as G58). This is Michael's written approval of the change to the `CLAUDE.md` hard rule "No external art".
 (Replaces that hard rule's "CC0 ... CMU" exception list; extends G58 and G406.)
+
+### Decided 2026-10-26 and 2026-10-27 (ROADMAP "Decided" fold)
+
+G408-G434 are ROADMAP "Decided" from 2026-10-26 and the early hours of 2026-10-27, oldest first. Times are 2026-10-26
+unless marked.
+
+**G408. Every Mixamo clip goes in the game; Michael tunes afterwards.** (Default-on replaced by G410, ~00:25: a toggle,
+not the default.) Michael (~00:15): "add all mixamo animations in game, i will fine tune as needed. make this priority
+overnight". Every Mixamo clip with an in-game use (the 21 in the Anim Studio plus any Player Build asks for) goes into
+the game; Michael tunes afterwards in the Anim Studio instead of walking first, so the walk cap and the walk before
+switch-on do not hold Mixamo (his current instruction, G86 step 1). Mixamo PRs keep the normal gates (CI, checker,
+laptop e2e) and went first that night for laptop requests, desktop CPU and orchestrator attention. Assumed (undo by
+Michael's word): where a Mixamo clip and a hand-made clip cover the same move, Mixamo wins unless it is visibly broken
+(the I2 crawl chest spin keeps the hand-made crawl until fixed). The orchestrator records the licence sentence in
+`docs/art-credits.md` from the Mixamo FAQ; Michael gets a walk card with the menu path. (Narrows G355's walk before
+switch-on for Mixamo.)
+
+**G409. Three animation sets, switchable in game and in the Anim Studio.** Michael (~00:20): "does mixamo have versions
+to replace those that cmu covers? i approve downloading any additional mixamo animations and implemeting into the game,
+i want to be able to switch between all 3 animation sets in game and animation dev to test. in anim dev i would prefer
+an animation set toggle so i can sort through only those animations as needed instead of finding them in a big list."
+(1) Mixamo clips are downloaded for every move the CMU set covers (walk, jog, run, starts, stops, turns, crouched sneak,
+aimed strafes) and any other animated move with a Mixamo fit; Michael pre-approves every such download and its use (the
+orchestrator downloads them as Player Build lists them: FBX without skin, 30 fps, In Place off, mixamo-retarget A3 /
+A4). (2) One toggle covers all three sets, Hand-made / CMU / Mixamo, in game and in the Anim Studio (G410). (3) The Anim
+Studio gets an animation-set filter: pick a set and the Loop list shows only its animations. Assumed (undo: one mixed
+list with a sort): the filter also has "All" (today's list), and the Studio filter and the in-game toggle are separate
+settings. (Extends G406.)
+
+**G410. Mixamo is a toggle, not the default.** Michael (~00:25): "update - dont set mixamo moves as default in game,
+allow toggle between hand made, cmu, and mixamo". The game keeps today's moves by default; a menu toggle picks the
+animation source: Hand-made, CMU or Mixamo. The rest of G408 stands. Assumed (undo: per-move picks instead): one global
+choice, in the menus (Options, plus the same switch in the Anim Studio), saved with the settings; a move the chosen
+source has no clip for keeps today's clip, and the Now playing line names the source. The `mixamo` flag-default-on PR
+became the toggle PR. The kit moves (team pull, shutter, crawl under) follow the same toggle when they ship with the
+mission engine. (Replaces G399's "with no switch" and G408's switch-on.)
+
+**G411. In co-op each player is drawn with his own animation source.** Orchestrator call (~00:55, overnight; undo by
+Michael's word), applying G400 (Michael, Q39: "yes players must look exact in everyones games") and replacing Player
+Build's per-viewer assumption, which broke it. Each player's chosen animation source (Hand-made / CMU / Mixamo) travels
+with that player's networked animation state, so every screen draws that player with the owner's choice and both
+screens look the same. A wire change (`src/net`, two Opus checkers, the train bumps `PROTOCOL_VERSION`). Assumed (undo:
+the host's choice for everyone, or per viewer): per player, not the host's choice for all. Kit moves clock from shared
+data and follow each actor's own source the same way. (Extends G400.)
+
+**G412. Fixes go first in the test queue.** Michael (~10:12, native multiple choice) asked "if bugs/error are found in
+the process, are the fixes prioritied for implementation first, or do they wait at the back of the line?" and picked
+"Fixes go first (Recommended)" (option: "a fixed change keeps its old place, and fixes to failed or released work are
+tested before new features"). (1) A request for a new head of the same PR keeps the old request's queue place; (2) fix
+requests (a train failure fix, a red affected-e2e or checker fix round, a fix to a shipped feature or a backlog bug)
+rank ahead of new-feature PR requests, behind trains and train reruns. Built by Test Runner (laptop-queue-8). Assumed
+(undo: arrival order only): a request is a fix when its PR carries the `fix` label or `request.mjs` gets `--fix`; leads
+mark it, and the orchestrator checks the marks each cron run. A laptop rerun of a desktop red also counts as a fix
+(FIXES F52, PR #638), so reruns no longer starve behind trains. `docs/RULES.md` "Machines".
+
+**G413. A smaller automatic test per change.** (Cap narrowed to one suite by G421, ~16:05.) Michael (~10:35, with the
+queue at 24 requests / 166 suites, two thirds of it automatic affected-e2e runs of 8-18 suites) asked "hows the testing
+queue/progress?" and picked "Cut it down (Recommended)" (option: "each change runs only its 1-3 closest test sets;
+every release still runs the full set"). `affected-e2e` on a PR head runs at most 3 suites, the closest to the folders
+it touches (ranked in `scripts/e2e-affected.mjs`); the train's full `npm run e2e` is unchanged and catches the rest.
+Assumed (undo: restore the full direct tier): `src/net`, `src/save` and wire changes keep the co-op group (e2e-coop +
+e2e-netmove + e2e-ctcourse); the `src/player` / `src/game` co-op checker gate stays a separate lead request.
+
+**G414. Two shadow PRs re-pointed to master.** Michael (~11:45, native multiple choice): "Yes, re-point them
+(Recommended)". The orchestrator retargeted #481 and #489 from the shipped #459 branch to master. (A one-off.)
+
+**G415. The S1 car-park light is approved for S1 only.** Michael (~11:45, native multiple choice on Sector Ops J10 L1
+with the S1 light map and before / after heat maps; options "Approve (Recommended)" / "Changes first"): "Approve but
+only s1, let me walk it before doing any more". The band table (P11a: 14 lux average, 3 lux minimum; lit = 10 lux,
+edge of dark = 1 lux) and the S1 car-park light map are approved for S1 only. L1 ships S1; re-lighting S2-S5 and the
+warehouse waits until Michael has walked S1 (his walk card names the S1 car park). Assumed (undo: plan the S2-S5 PRs
+now): Sector Ops may write the S2-S5 plans and briefs but builds none of them before the walk. (Settles G368 for S1.)
+
+**G416. Every hidden feature is on in the preview.** Michael (~13:55, native multiple choice): "why are you hiding all
+new features until switched on? i trial them all in the preview server"; options "Preview menu (Recommended)" / "All on
+in preview" / "Keep as now"; he picked "All on in preview". On `/preview/` every dark feature flag defaults on (a URL
+`=0` still turns one off); the live game keeps flags off until switch-on (the walk cap, G288 / G355, unchanged there).
+Dev, test and lab flags (debug, legacy, labs, autostart, gfx and the like) stay as they are. Owner: Player Build
+(`src/core/flags.ts`). (Narrows G355 to the live game.)
+
+**G417. Fixes first.** Michael (~14:00): "can you prioritise getting the fixes done and out to prevent repeat issues.
+any spare capacity can go back into what you are currently doing." Every open row of `docs/orchestrator/FIXES.md` comes
+before feature work for its owner; fix builders may start under a CPU hold (feature builders wait); fix PRs go first in
+the test queue (G412) and into the next train; spare capacity goes back to the signed-off plan.
+
+**G418. Fixes stay the main priority, each with a repeat guard.** Michael (~15:05): "main priority is getting all the
+fixes out and staying on top of them constantly to ensure issues dont re-occur unncessarily". Every open FIXES.md row is
+the top priority for its owner and for the orchestrator; each fix PR names the guard that catches a repeat (a unit test,
+e2e step, alert or audit check); a shipped fix is watched for a day by the cron against its evidence signal and reopened
+if the problem returns (FIXES.md header). Assumed (undo: drop the guard requirement): a fix without a repeat guard is
+not done. (Tightens G417.)
+
+**G419. A fix freeze.** (Ended by G421, ~16:05: the freeze ended once the batch fix train shipped.) Michael (~15:20):
+"is it plausible to stop all other works until fixes are implemented if they are struggling to get built or actioned?
+i dont want to keep pushing hard if it means repeating the same issues. progress seems to be incredibly slow lately with
+this backlog and poor scheduling."; native multiple choice, he picked "Freeze until fixes ship (Recommended)". No
+feature building and no feature test requests until every open FIXES.md row had shipped with its repeat guard: the
+orchestrator drafted the 37 open non-fix PRs and parked 51 feature requests in `parked/` on the laptop-queue branch;
+desktop leads built Test Runner's queue fixes (laptop-queue-10 and -9); leads with no fix work planned, reviewed and
+wrote briefs only. Assumed (undo: end the freeze early): the preview flags (#560) waited with the rest; fix-labelled PRs
+(#457, #494) carried on.
+
+**G420. No session waits on another.** Michael (~15:55): "Sessions should never get held up. if they do, they need to
+talk to you the orchestrator to solve the issue." A session that cannot move because it needs another session (an
+answer, a log, a plan, a review, a status post, a queue slot) messages the orchestrator at once instead of waiting; the
+orchestrator unblocks it the same turn (does the step itself, reassigns it, or decides and logs the assumption).
+Assumed (undo: a longer wait): "at once" means the first time a session would otherwise wait, and after 10 min with no
+answer from another session it never keeps waiting. `docs/RULES.md` "Sessions".
+
+**G421. Prototype mode.** Michael (~16:05): "have these types of tests benefitted the games state at all? is it worth
+pushing out quicker as prototype? i still dont know if the gameplay is solid yet, and you are spending a long time
+testing things that may not be used. remember that this still hasnt had a proper walkthrough / gameplay session with
+people. what are your suggestions? we cant spend this long on updates when the game hasn't really had proper
+playthroughs yet"; native multiple choice, he picked "Prototype mode (Recommended)" (option: "Ship today's finished
+fixes in one batch, end the freeze, turn everything on in preview, lighter testing, then a play plan for you. Building
+follows your playthrough."). (1) The reviewed fix PRs rode one train with `no-affected-e2e` (#552 #568 #457 #494 #531
+#537 #559; #553 / #567 after their conflict fix, #548 after its recheck). (2) The fix freeze (G419) ended once that
+train shipped: drafted PRs went back to ready; parked requests stay cancelled and leads re-file only what a change
+needs. (3) The preview flags first (G416). (4) Lighter testing: each change runs ONE closest test set (affected cap 1),
+no repeat proof runs, a flaky suite is quarantined, not chased; the train's full run stays; no new test-machinery work
+unless it blocks a release. (5) The next priority is Michael's playthrough on `/preview/` (a play plan from the
+orchestrator: Marlow Yard training, Saltmarsh Park S1, co-op with a second player); his findings decide what is built
+next. (6) Leads build toward playable pieces (a level that can be finished), not polish or tooling. Assumed (undo:
+restore the cap of 3 and proof runs): the walk cap stays for switch-on in the live game; `/preview/` shows everything.
+(Narrows G413's cap; ends G419.)
+
+**G422. Prototype, not polish.** Michael (~16:20): "definitely keep in mind that this is all a prototype, and cannot get
+bogged down with fine tuning or re-running tests constantly." No fine-tuning passes (feel, animation, lux, perf tuning)
+before Michael has played; a red test gets one fix and one rerun at most, then it is quarantined or noted and the work
+ships; no repeat proof runs. Everyone aims at playable over perfect. (Narrows G288's refining: paused until Michael has
+played.)
+
+**G423. The co-op move sizes are not in the level rules yet.** Michael (~18:47, native multiple choice on coop-kit
+BRIEF A12: the Deadweight, Drop Catch, Chimney Pair, Swing Pass and Plank Bridge sizes): "Not yet". The five moves are
+built and used at Marlow Yard's five spots on Player Build's starting sizes (A17), but `docs/level-design.md` is not
+changed and no new map may plan on them. Then (~18:52, native multiple choice) "Keep it": Tallow Wharf C4's Plank Bridge
+(pie loft to clock loft, approved before) stands, the same move and sizes as Marlow Yard. (With G403.)
+
+**G424. Token efficiency, not full burn.** (Burn target replaced by G431, ~23:45: each 5-hour window reaches ~100%
+close to its reset.) Michael (~19:22): "Continue all other work, but make it more efficient with token usage, don't burn
+100%". Leads: at most 2 builders each at a time, Sonnet builders where RULES allow, no plans or briefs more than one
+slice ahead, short background waits instead of polling, one checker per batch. Orchestrator: routine cron checks are
+one line; the Opus waste audit runs only on a real trigger (a train fail, a wait over 20 min), not every half hour.
+(Replaces G304's and G324's full burn and "ignore usage limits"; narrows G319's plan-ahead.)
+
+**G425. Tallow Wharf: one market corner may take 16 s to reach.** Michael (~19:25, native multiple choice on Campaign
+G5-Q1): "Allow it for this corner (Recommended)". The fish hall side door corner to the gallery takes ~16 s against the
+15 s reach rule (`docs/level-design.md` 11.6); it is one named exception, written on the Tallow Wharf map
+(`docs/tallowWharf-map/SPEC.md`), and nothing is built; the helper still arrives with ~11 s of the 30 s revive left.
+The rule stays 15 s everywhere else.
+
+**G426. The piano escape experiment: a standalone co-op scene, knife kills allowed.** Michael (~19:28, native multiple
+choice): "Inside Night Shift (Recommended)" (a standalone co-op scene on a small test map reusing guards, shadows,
+co-op and takedowns, kept apart from the main plan) and "Kills, this scene only (Recommended)" (brutal knife kills
+allowed as a named exception for this one experiment). The no-forced-kill rule (G127) and the perfect rating (G146) stay
+everywhere else. (Narrows G127 for this one scene.)
+
+**G427. Walk 4.117-4.119 results.** Michael (~23:00, native multiple choice on the 4.119 walk card). (1) Marlow Yard
+with two players: PASS; Michael: "All worked, the objectives are a bit confusing. when is the redesign landing? was that
+the original? also the lights were blinding on epic setting". Marlow Build writes plainer step lines and gives the full
+re-plan date; Sector Ops (lighting) fixes Marlow Yard's over-bright Epic preset. (2) Saltmarsh S1 v2: FAIL, not
+accepted (S1 stays out of `CAMPUS_V2_ON`); Michael: "fail. seemed like nothing really changed that much. couldnt find
+the van near the carport, nothing floating or blocking though. not a big fan of the design, you can just sneak around
+the right hand side straight to the door and take out one guard. you can also walk straight out of the fence and out of
+the playable area." (3) The gatehouse window works; Michael: "rear window worked, but seems like a poor design.
+shouldnt have a rear window, and the objective is so close to the spawn. right hand path is too easy to follow straight
+to door." Sector Ops fixes the fence leak at once (a bug), checks that `/preview/` really shows v2 S1 and where the van
+is, then brings a one-page S1 re-plan for Michael's one click (G288): no gatehouse rear window, the objective further
+from the spawn, the right-hand path no longer a free run to the door. Assumed (undo by Michael's word): the window vault
+stays live until the re-plan replaces it (G428).
+
+**G428. Saltmarsh S1 re-plan v3: the courier's van.** Michael (~23:20, native multiple choice, the G288 one click on
+the S1-REPLAN-V3 page, feature/campus-greybox 4def5e79c): "Courier's van (Recommended)". The S1
+objective moves to cloning the courier's badge at his van mid car park (53 m from the start); the gatehouse rear window
+becomes fixed glass; a new anti-climb fence with a two-player garden gate, a lamp and a walking guard closes the free
+right-hand run; the van becomes a bright courier van. 15 guards. Sector Ops builds it (one Sonnet PR) after the
+fence-leak fix lands; the piano work stays first. (Narrows G328 for S1.)
+
+**G429. Storm mill only until the reset.** (Ended early by G431, ~23:45: all leads resumed.) Michael (~23:25, native
+multiple choice; usage ~0.7% of the 5-hour meter a minute after the swap): "Storm mill only (Recommended)". Campaign,
+Player and Guard AI kept only the piano work (lean, at most 2 builders); Marlow and Sector Ops finished what ran, then
+waited; other work was to resume at ~03:52. Michael (~23:30): no account swap that night.
+
+**G430. The piano escape's scene music.** Michael (~23:35, native multiple choice after hearing all six: the two
+originals and the four real-instrument pieces): intro "Investigation Piano", mission "Suspense Thriller" (the ~21:50
+picks stand; the real-instrument pieces are not used). (For the piano escape, G426.)
+
+**G431. Pace each 5-hour window to reach ~100% close to its reset.** Michael (~23:45): "Ensure these sessions hit the 5
+hour 100% limit, but don't rush to get there." Each window the meter should reach ~100% close to its reset, not
+before, on a straight line from the window start: ahead of the line, trim builders; behind it, leads with independent
+slices add builders (still at most 2 each, G424). The storm mill stays first. `docs/RULES.md` "A job". (Replaces G424's
+"don't burn 100%"; ends G429's hold early.)
+
+**G432. The new guards are on everywhere.** Michael (~23:55): "Are the new guards in the game yet? I haven't seen
+them"; native multiple choice, he picked "Just switch them on" (switch them on everywhere with the recommended looks;
+he reviews later). #375 gm-flip no longer waits on his look picks: Player Build takes the recommended option for each
+open look item, rebases, one Opus checker, its laptop set, then the train. (With G310, G320.)
+
+**G433. The storm mill opening, hero version.** Michael (2026-10-27 ~00:20) asked for a hero-style single-shot prompt,
+then pasted it back: "Update the cinematic. Prototype only at this stage. Must also return to the players view to start
+the mission once the emp had triggered. Should be a seamless transition." Campaign rebuilds the piano escape intro to
+the pasted shot (the piano escape job docs, on its branch): a close-up of chest and jaw, the empty pistol, the crane
+back and up to the partner, the wide reveal on the swell, then a fast drop to a low-angle hero shot of the operator at
+the EMP prompt; the press plays the unclip-and-press, the lamps die in a rolling wave, a beat of black, one lightning
+flash shows both operators rising with knives drawn, the guards' torches click on, then the camera glides into the
+shoulder view with no cut. Prototype: existing clips, effects and lights only, no tuning (G422). Assumed (undo by
+Michael's word): the EMP stays a player button press (no timer), with the hero shot held until pressed; the lightning
+flash in the black beat is render-only (the intro, before guard AI); "suddenly afraid" guards are guards whose torches
+sway as they search. (With G426.)
+
+**G434. The hero opening fixes, assumed overnight.** Orchestrator call (2026-10-27 ~01:05; Michael had not answered
+"fix tonight or walk as is"; undo by his word): Campaign fixes the four S8 issues from the ~00:44 recording (the hero
+shot not low, the flat blue pulse dome, the knife not visible, the dark glide) that night; S8 joins the walk build only
+if checked and safe by ~06:00.

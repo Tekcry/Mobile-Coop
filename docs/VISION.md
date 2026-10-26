@@ -12,8 +12,7 @@ decision wins.
 - Light and shadow is the core: "like a showcase no matter where you look" (G316).
 - Desktop PWA (G12), pad first, then keyboard and mouse (loco D1).
 - The campaign recreates the CT co-op levels with original maps and story (G3).
-- Current goal: Marlow Yard, Saltmarsh Park and Tallow Wharf in parallel on the signed-off plan (G347, G365); order:
-  ROADMAP "Now".
+- A prototype: no fine-tuning before Michael's `/preview/` playthrough; it decides what comes next (G421, G422).
 
 ## 2. Modes
 | | Campaign | Marlow Yard (training) | Sector Ops |
@@ -47,7 +46,7 @@ Normal: alarm stages only (G350).
 - Co-op traversal kit: boost, gap throw, human ladder / pull-up, shutter or door hold, rope brace / descent, vent unlock,
   Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge (G293, G403).
 - Objectives: short, plain, what and where; shown on update or a tap of View / O (G343, G351).
-- Mocap only (CMU, Mixamo), no switch (G264, G399, G406). Refining and full detail art allowed (G288, G309).
+- Animation sets Hand-made / CMU / Mixamo on one toggle, each player drawn with his own (G410, G411); detail art (G309).
 
 ## 4. Ten hard rules (the tie-breakers)
 1. Light parity: picture, meter and guard perception agree, character shadows included; a cast shadow is a faint cue
@@ -55,7 +54,7 @@ Normal: alarm stages only (G350).
 2. Real-site light, every light working; stealth comes only from real gaps and lights the players cut or shoot
    (G295, G329, G367).
 3. A perfect rating is always possible: no kills, no alarms, every primary objective (G146).
-4. No mission forces a kill (G127).
+4. No mission forces a kill (G127; piano escape excepted, G426).
 5. No maps, minimap, compass or objective blip in any mode; no markers in the campaign and Sector Ops (Marlow Yard keeps
    its guidance marks, G292). Objectives "must name what and where"; light language and landmarks guide (G290, G336,
    G339).
