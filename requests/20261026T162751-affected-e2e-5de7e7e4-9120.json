@@ -1,0 +1,14 @@
+{
+  "id": "20261026T162751-affected-e2e-5de7e7e4-9120",
+  "sha": "5de7e7e4c593729dc808d9539e16c89ee315cffe",
+  "branch": "feature/coop-kit-k0",
+  "pr": 599,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T144156-affected-e2e-5de7e7e4-48f4, rerun on the laptop"
+}
