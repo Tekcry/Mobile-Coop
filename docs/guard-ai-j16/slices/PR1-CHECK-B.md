@@ -133,3 +133,45 @@ suspicious, investigating), `knownSpot`; `AlertMachine.set` / `step`; `stepMeter
 - A throwaway `tests/zzProbeB.test.ts` (the builder's harness plus three cases: the cooldown episode, `hear()` then
   cues vs null, `hearTurn()` then a cue think; deleted, not committed) gave the FIX readings above.
 - Not run, as instructed: npm run dev, e2e, a full npm run check.
+
+## Re-check 54cc1b8f8
+PASS. Checker: Opus 5.5 (fresh), 2026-10-27. Scope: `git diff 175358ad4 54cc1b8f8` against the FIX list above and
+G3-REPORT "## Fix round 2".
+
+- FIX 1 (cue-only episode barks 'clear' on the way down): closed. `cueQuiet` is set only by the hushed rise
+  (`onLevel`, `cueHush`), cleared by every `onLevel` call (all six `aware.set` sites in enemy.ts pair with `onLevel`;
+  `AlertMachine` has no other level mutator), by `ack`, by `hearTurn` (the 'suspicious' line only when loud) and by a
+  sight or `heard` after `aware.step` (the skipped line). KO / death: no think, the instance is dropped; a revive is a
+  new `Enemy` (`inherit` copies neither flag). Leaving the flag on (cues null): never set, so `onLevel`'s 'clear'
+  condition, `hearTurn` and `ack` are today's.
+- FIX 2 (the cue takes a sound's look / walk): closed. Gate `heard || heardMoment || (turnT > 0 && !cueTurn)` sits
+  after the cues-null return. `turnT` is set > 0 only by `hearTurn`, `ack` (both clear `cueTurn`) and the cue (sets
+  it); every other write is 0, so a stale `cueTurn` after a look ends is harmless. Same-step order is safe both ways:
+  a `hearTurn` before the think gates the cue; one after it overwrites the stimulus / look and clears the flag, and
+  `cueRise` is already cleared at the end of `updateAwareness`.
+
+Confirmed: check A's `sawMoment` / `lure.active` gate unchanged; never investigate alone unchanged (the cue still
+re-stamps only its own look). Breaker walk gate (`brkGroup >= 0`) right: `onLevel` keeps the walk on a rise to
+suspicious and `calmDecide` runs `breakerStep` while `rate <= 0`. Body skip `chars === null || b.age > dt`: `Body.age`
+starts 0 and `b.update(dt)` runs first, so with a contract the first sample is the second step; cues / chars null is
+the old condition. No allocation added (two booleans, one local).
+
+New finding (polish, not blocking):
+1. A faint `hearTurn` (or an ack) in a cue-only episode on a cooldown guard clears `cueQuiet`, so the calm-down says
+   'clear' where cues off says nothing. Probe (throwaway copy of the harness, deleted): cooldown, 1 s of A's moving
+   footprint, `hearTurn(6, 2, 7)`: cues off barks `[]`, levels `cooldown`; cues on barks `['clear']`, levels
+   `suspicious > cooldown`. A faint `hear()` matches cues off (both `['suspicious', 'heard', 'clear']`). BRIEF A5
+   records this choice, and a sound did happen, so it stays; if the lead wants the cue strictly line-free, keep
+   `cueQuiet` on a non-loud `hearTurn` and on `ack` (flips the ack case at `tests/shadowNoticePerceive.test.ts:673`).
+
+Commands and results:
+- `git rev-parse --abbrev-ref HEAD`: feature/guard-ai-j16, head 54cc1b8f8.
+- `npm run typecheck:fast`: clean.
+- `npx vitest run` on the 77 test files under tests/ importing src/ai/enemy, enemyManager or alertState (with
+  shadowNoticePerceive and guardAiAllocManager) plus shadowNotice: first run 76 passed, 1 failed (a `beforeEach`
+  asset-load timeout in one of guardBody / guardFigureWarm / guardHelmetDrop / guardLampCasters under load); second
+  run no failures; those four plus shadowNoticePerceive and guardAiAllocManager alone: 6 files, 67 passed.
+- `src/ai/enemy.ts` and `src/ai/enemyManager.ts` at 175358ad4 in the working tree: `shadowNoticePerceive` 10 failed,
+  20 passed (the 8 new cases, the rewritten hearTurn case, the gates case); restored with `git checkout HEAD`, tree
+  clean.
+- Not run, as instructed: npm run dev, e2e, a full npm run check.
