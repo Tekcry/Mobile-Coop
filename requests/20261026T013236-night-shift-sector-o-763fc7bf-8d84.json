@@ -1,0 +1,17 @@
+{
+  "id": "20261026T013236-night-shift-sector-o-763fc7bf-8d84",
+  "sha": "763fc7bfba8d856aa576711cae9c4fd4b9cb4beb",
+  "branch": "feature/map-ready-s14",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "npm run build",
+    "node scripts/map-ready-measure.mjs --gated --runs cold --skip-a16 --out C:/NightShift/scratch/map-ready/s14-par.json",
+    "node scripts/map-ready-measure.mjs --gated --runs cold --skip-a16 --compile-order serial --out C:/NightShift/scratch/map-ready/s14-ser.json"
+  ],
+  "env": {
+    "E2E_GPU": "1"
+  },
+  "set": "map-ready-s14"
+}
