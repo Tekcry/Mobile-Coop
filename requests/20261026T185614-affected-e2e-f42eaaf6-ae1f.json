@@ -1,0 +1,13 @@
+{
+  "id": "20261026T185614-affected-e2e-f42eaaf6-ae1f",
+  "sha": "f42eaaf6b2a8facc214c79f633128270d35530a3",
+  "branch": "feature/piano-lights-so2",
+  "pr": 661,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #661"
+}
