@@ -1035,8 +1035,9 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: #624 TRAIN-READY (no-affected-e2e; after my request withdraw the watchdog unlabelled it on the "withdrawn"
-error: posted affected-e2e success "waived ..." and re-labelled, orchestrator told). Piano polish (stranded guard walks
-his floor lap, pan restart): checker PASS 590e17a72 (slices/PIANO-POLISH-CHECK.md) on feature/guard-ai-piano-polish ->
-once #624 merges: merge master in, PR (patch), post checker. #317 fca6b7b09: co-op group queued -> green: tell orch.
+Next: #624 dropped from train 146 (wharf-tgc / wharf-tkl): triage = #583 test bug (headshot on Realistic hits the
+helmet; slices/PIANO-TRAIN146-TRIAGE.md), fix sent to Campaign, orchestrator told. #624 head e075ac929 (doc only):
+checker + affected-e2e waiver carried; background job re-adds train-ready when CI check is green. Piano polish
+(checker PASS 590e17a72, feature/guard-ai-piano-polish): once #624 merges, merge master in, PR (patch), post checker.
+#317 fca6b7b09: co-op group queued -> green: tell orch.
 ```
