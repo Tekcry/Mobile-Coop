@@ -1,5 +1,5 @@
 {
-  "selftest": "route-run R4b pair selftest (docs/route-runs/PLAN.md R4b): R1's campusOps S1 graph copy plus one fixture-only split (s1-lane tagged split:fx:a, s1-lawn split:fx:b: fork s1-verge, rejoin s1-carpark) and its points. Run with --players 2 (expect.players): the leader walks leg a while the follower walks leg b, both co-op boosts (forecourt -> canopy, links 17 and 18) are stubs held for their time with both robots placed, every other link is walked by the pair. node scripts/route-run.mjs <url> --selftest tests/fixtures/route-run/selftest-pair.graph.json checks it.",
+  "selftest": "route-run R4b pair selftest (docs/route-runs/PLAN.md R4b): R1's campusOps S1 graph copy plus one fixture-only split (s1-lane tagged split:fx:a, s1-lawn split:fx:b: fork s1-verge, rejoin s1-carpark) and its points. Run with --players 2 (expect.players): the leader walks leg a while the follower walks leg b, both co-op boosts (forecourt -> canopy, links 17 and 18) are stubs held for their time with both robots placed (expect.coop \"stub\": A1's stub path; R9 walks them for real elsewhere, selftest-coop.graph.json), every other link is walked by the pair. node scripts/route-run.mjs <url> --selftest tests/fixtures/route-run/selftest-pair.graph.json checks it.",
   "meta": {
     "map": "campusOps",
     "name": "Saltmarsh Park - Sector Ops",
@@ -1385,6 +1385,7 @@
   },
   "expect": {
     "players": 2,
+    "coop": "stub",
     "runs": [
       {
         "id": "split-boost",
