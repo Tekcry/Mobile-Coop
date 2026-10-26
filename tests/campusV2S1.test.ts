@@ -121,8 +121,9 @@ function analyticNav(rect: readonly [number, number, number, number], o: { cell?
 
 /** The lit lamps in S1's plan box (x -40..26, z -80..-30). */
 const litS1 = () => b.lights.lights.filter((l) => l.intensity > 0 && l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
-/** The lit S1 lamp count after the slices built so far (lead note (3)). */
-const S1_LIT_NOW = 32;
+/** The lit S1 lamp count after the slices built so far (lead note (3)); (light-realism L1 v2 port) 32 -> 44: the car park's
+ *  10 single columns became 11 twin-head columns (22 heads). */
+const S1_LIT_NOW = 44;
 /** The ledges the level build makes (`LevelBuilder.build`: generated from the box tops, lips off the play area dropped, the
  *  map's `noLedge` points applied). */
 function builtLedges(): Ledge[] {
@@ -330,11 +331,13 @@ describe('G1 perimeter (S1-detail C1)', () => {
       if (!m) bad.push(`lamp ${l.id} (${l.x}, ${l.y}, ${l.z}) r ${l.radius} i ${l.intensity} g ${l.group}`);
     }
     expect(bad).toEqual([]);
-    // 29 as built (G1), 30 with the G2 desk lamp, 31 with G3's carport luminaires and bike-shelter lamp, 32 with G5's smoke lamp
+    // 29 as built (G1), 30 with the G2 desk lamp, 31 with G3's carport luminaires and bike-shelter lamp, 32 with G5's smoke lamp,
+    // 44 with light-realism L1's twin-head columns
     expect(lit.length).toBe(lamps.length);
     expect(lit.length).toBe(S1_LIT_NOW);
-    // the as-built intensities (B:214-314): columns 0.9, bollards 0.5, canopy 0.85, dock 0.8, lane 0.8, gate tube 0.9
-    expect([S1_LIGHTS.column.i, S1_LIGHTS.bollards.i, S1_LIGHTS.canopy.i, S1_LIGHTS.dock.i, S1_LIGHTS.laneFlood.i, S1_LIGHTS.gate.i]).toEqual([0.9, 0.5, 0.85, 0.8, 0.8, 0.9]);
+    // the as-built intensities (B:214-314): bollards 0.5, canopy 0.85, dock 0.8, gate tube 0.9; (light-realism L1, P11a) the
+    // columns 2.0 and the lane flood 0.5
+    expect([S1_LIGHTS.column.i, S1_LIGHTS.bollards.i, S1_LIGHTS.canopy.i, S1_LIGHTS.dock.i, S1_LIGHTS.laneFlood.i, S1_LIGHTS.gate.i]).toEqual([2.0, 0.5, 0.85, 0.8, 0.5, 0.9]);
   });
 });
 
@@ -451,16 +454,38 @@ describe('G3 car park and carport (S1-detail C3)', () => {
   const lit = (g: number) => b.lights.lights.filter((l) => l.group === g && l.on && l.intensity > 0);
   const slab = boxWith([-12, 2.8, -58.5], [24, 0.4, 9])!;
 
-  it('G3 rows and columns: 14 cars at the new row z, 6 + 4 columns at the D:79-80 points, parkW 8 and parkE 6 lamps', () => {
+  it('G3 rows and columns: 14 cars at the new row z; (light-realism L1 v2 port) 6 + 5 twin-head columns, parkW 14 and parkE 12 lamps', () => {
     const cars = solid.filter((p) => near(p.s[0], 1.8) && near(p.s[1], 1.5) && near(p.s[2], 4.2));
     expect(cars.length).toBe(14);
     expect([...new Set(cars.map((p) => p.c[2]))].sort((p, q) => p - q)).toEqual([-75.75, -71.25, -60.75, -56.25]);
-    expect(PARK_COLUMNS_W).toEqual([[-34, -64], [-28, -64], [-22, -64], [-16, -64], [-34, -55], [-28, -55]]);
-    expect(PARK_COLUMNS_E).toEqual([[-10, -64], [-4, -64], [2, -64], [2, -55]]);
-    for (const [x, z] of [...PARK_COLUMNS_W, ...PARK_COLUMNS_E]) expect(b.cylinders.some((c) => near(c.c[0], x) && near(c.c[2], z) && near(c.h, 6.0) && near(c.r, 0.15)), `column (${x}, ${z})`).toBe(true);
-    expect(b.cylinders.filter((c) => near(c.h, 6.0) && near(c.r, 0.15) && c.c[2] > -80 && c.c[2] < -50 && c.c[0] < 6).length).toBe(10);
-    expect(lit(S1_GROUPS.parkW).length).toBe(8);
-    expect(lit(S1_GROUPS.parkE).length).toBe(6);
+    // the poles (x, z) per circuit: north row z -55, aisle row z -64, south row z -73.5 (S1-carpark.md "v2 port")
+    const poles = (cols: typeof PARK_COLUMNS_W): number[][] => [...new Set(cols.map(([x, z]) => `${x},${z}`))].map((k) => k.split(',').map(Number));
+    expect(poles(PARK_COLUMNS_W)).toEqual([[-30.4, -55], [-33, -64], [-21, -64], [-36, -73.5], [-24.8, -73.5], [-13.6, -73.5]]);
+    expect(poles(PARK_COLUMNS_E)).toEqual([[3.2, -55], [-9, -64], [3, -64], [-2.4, -73.5], [6, -73.5]]);
+    for (const [x, z] of [...poles(PARK_COLUMNS_W), ...poles(PARK_COLUMNS_E)]) expect(b.cylinders.some((c) => near(c.c[0], x!) && near(c.c[2], z!) && near(c.h, 6.2) && near(c.r, 0.15)), `column (${x}, ${z})`).toBe(true);
+    expect(b.cylinders.filter((c) => near(c.h, 6.2) && near(c.r, 0.15) && c.c[2] > -80 && c.c[2] < -50 && c.c[0] < 7).length).toBe(11);
+    // every west pole west of every east pole (one breaker each half)
+    expect(Math.max(...PARK_COLUMNS_W.map((p) => p[0]))).toBeLessThan(Math.min(...PARK_COLUMNS_E.map((p) => p[0])));
+    // 22 heads plus the carport's two downlights per half
+    expect(lit(S1_GROUPS.parkW).length).toBe(14);
+    expect(lit(S1_GROUPS.parkE).length).toBe(12);
+  });
+
+  it('(light-realism L1 v2 port) the car-park columns are twin-head arm columns: a -x and a +x head per pole, each light point 0.8 m out at y 6.0 under its 0.6 m arm', () => {
+    for (const [cols, group] of [[PARK_COLUMNS_W, S1_GROUPS.parkW], [PARK_COLUMNS_E, S1_GROUPS.parkE]] as const) {
+      const byPole = new Map<string, number[]>();
+      for (const [x, z, ax, az] of cols) {
+        expect(az, `head (${x}, ${z}) arm along x`).toBe(0);
+        byPole.set(`${x},${z}`, [...(byPole.get(`${x},${z}`) ?? []), ax]);
+        // the light point hangs 0.8 m out along the arm, not on top of the pole
+        const l = b.lights.lights.find((q) => q.group === group && near(q.x, x + 0.8 * ax) && near(q.z, z) && near(q.y, 6.0));
+        expect(l, `light point (${x + 0.8 * ax}, ${z})`).toBeTruthy();
+        expect(b.lights.lights.some((q) => q.group === group && near(q.x, x) && near(q.z, z))).toBe(false);
+        // the arm: from the pole's axis to 0.6 m out at y 6.10-6.20
+        expect(boxWith([x + 0.3 * ax, 6.15, z], [0.6, 0.1, 0.1]), `arm (${x}, ${z}) ${ax}`).toBeTruthy();
+      }
+      for (const [k, arms] of byPole) expect(arms.sort(), `twin ${k}`).toEqual([-1, 1]);
+    }
   });
 
   it('G3 carport: top 3.0 / underside 2.6 over x -24..0, z -63..-54; 5 posts; four lit downlights under it, two per half', () => {
@@ -481,7 +506,8 @@ describe('G3 car park and carport (S1-detail C3)', () => {
 
   it('G3 no lamp lost: at least 29 lit S1 lamps; the kept as-built lamps at their as-built intensity', () => {
     expect(litS1().length).toBeGreaterThanOrEqual(29);
-    for (const l of [...lit(S1_GROUPS.parkW), ...lit(S1_GROUPS.parkE)]) expect(l.intensity, `lamp (${l.x}, ${l.z})`).toBe(near(l.y, 6.0) ? 0.9 : 0.85);
+    // (light-realism L1) the column heads at P11a's 2.0, the carport downlights as built
+    for (const l of [...lit(S1_GROUPS.parkW), ...lit(S1_GROUPS.parkE)]) expect(l.intensity, `lamp (${l.x}, ${l.z})`).toBe(near(l.y, 6.0) ? 2.0 : 0.85);
     for (const l of lit(S1_GROUPS.fore)) expect(l.intensity).toBe(near(l.y, 0.85) ? 0.5 : 0.8);
     for (const l of lit(S1_GROUPS.canopy)) expect(l.intensity).toBe(0.85);
     // the bike shelter fitting is lit now (Q2 "Never"): one lamp on its own circuit and a switch
@@ -1021,11 +1047,11 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(where).toEqual([]);
   });
 
-  it('G6 lights: 32 lit lamps, all from S1_LIGHTS, destructible and electric, no fitting off or dead; none below its as-built intensity; the block carries the PROVISIONAL / TODO(light-realism) header', () => {
+  it('G6 lights: 44 lit lamps, all from S1_LIGHTS, destructible and electric, no fitting off or dead; none below its as-built intensity but the lane flood (L1); the block carries the PROVISIONAL / TODO(light-realism) header', () => {
     const lit = litS1();
     const lamps = s1Lamps(S1_LIGHTS);
-    expect(lit.length).toBe(32);
-    expect(lamps.length).toBe(32);
+    expect(lit.length).toBe(S1_LIT_NOW);
+    expect(lamps.length).toBe(S1_LIT_NOW);
     for (const l of lit) {
       const m = lamps.find((q) => near(q.x, l.x) && near(q.y, l.y) && near(q.z, l.z) && near(q.i, l.intensity) && q.group === l.group);
       expect(m, `lamp ${l.id} (${l.x}, ${l.y}, ${l.z}) is not in S1_LIGHTS`).toBeTruthy();
@@ -1036,9 +1062,11 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     // no S1 fitting is built off: every S1 lamp of the registry (lit or not) is lit
     const all = b.lights.lights.filter((l) => l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
     expect(all.filter((l) => !(l.intensity > 0)).map((l) => l.id)).toEqual([]);
-    // the as-built intensities (B:214-314) are the floor: columns 0.9, bollards 0.5, canopy 0.85, dock 0.8, lane flood 0.8, gate tube 0.9
-    const floor: [number, number][] = [[S1_LIGHTS.column.i, 0.9], [S1_LIGHTS.bollards.i, 0.5], [S1_LIGHTS.canopy.i, 0.85], [S1_LIGHTS.dock.i, 0.8], [S1_LIGHTS.laneFlood.i, 0.8], [S1_LIGHTS.gate.i, 0.9]];
+    // the as-built intensities (B:214-314) are the floor: columns 0.9, bollards 0.5, canopy 0.85, dock 0.8, gate tube 0.9; the
+    // lane flood is light-realism L1's calibrated 0.5 (0.8 over-lit the lane past P2 with the east twin's spill)
+    const floor: [number, number][] = [[S1_LIGHTS.column.i, 0.9], [S1_LIGHTS.bollards.i, 0.5], [S1_LIGHTS.canopy.i, 0.85], [S1_LIGHTS.dock.i, 0.8], [S1_LIGHTS.gate.i, 0.9]];
     for (const [got, asBuilt] of floor) expect(got).toBeGreaterThanOrEqual(asBuilt);
+    expect(S1_LIGHTS.laneFlood.i).toBe(0.5);
     // the lane flood is a photocell lamp: electric, on its own circuit, no switch
     const lane = lit.find((l) => l.group === S1_GROUPS.lane)!;
     expect(lane).toBeTruthy();
@@ -1046,8 +1074,9 @@ describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239
     expect(lay.switches!.some((sw) => sw.group === S1_GROUPS.lane)).toBe(false);
     // the header
     const src = readFileSync(new URL('../src/world/maps/campusV2/s1Data.ts', import.meta.url), 'utf8');
-    expect(src).toContain('// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1).');
-    expect(src).toContain('// TODO(light-realism): replace with calibrated values.');
+    // (light-realism L1 v2 port) the car park and the lane are out of it (L1 calibrated them); the other S1 lamps stay in
+    expect(src).toContain('// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1), except the car-park columns and');
+    expect(src).toContain('// TODO(light-realism): replace the other S1 lamps with calibrated values.');
     expect(src.indexOf('PROVISIONAL - light-realism')).toBeLessThan(src.indexOf('export const S1_LIGHTS'));
   });
 });
