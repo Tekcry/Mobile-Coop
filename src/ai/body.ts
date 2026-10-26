@@ -9,6 +9,7 @@ import { Ragdoll } from './ragdoll';
 import { attachToShoulder, captureLying, hoistAt, layAt, slideAt } from './carryPose';
 import { GuardBody, guardBodyOf, guardModelsFor, type GuardBodyGear } from './guardBody';
 import { deathLie, dropLie, fallYaw, headReach, LIE, lieAt, newLie, settleMax, type BodyLie, type LieBody } from './bodyLie';
+import { bodyOccR, bodyOccReach } from './guardOccluders';
 
 let nextBody = 1;
 
@@ -72,7 +73,13 @@ export function deathLieOn(out: BodyLie, bal: Pick<Ballistics, 'hitDistance'> | 
  * is visual and eases onto the lie when it settles (`Ragdoll.snapTo`); without one the rig is laid straight on it.
  */
 export class Body {
-  readonly id = `b${nextBody++}`;
+  /** (guard-ai-j16 G3, A7) Stable body number: its character-occluder owner key (`occKey(OCC_KIND.body, num)`). */
+  readonly num = nextBody++;
+  readonly id = `b${this.num}`;
+  /** (guard-ai-j16 G3, A9) Its occluder capsule's radius (`lieLift`) and pelvis-to-head length (`headReach`), from the
+   *  rig's static proportions, set once (a carried rig is built from the same def). */
+  readonly occR: number;
+  readonly occReach: number;
   /** The pelvis on the floor (sim: the lie's pelvis; unchanged while carried). */
   readonly pos = new Vector3();
   /** (S5) How it lies (sim): the pelvis (= `pos`), the chest point, the way the head points. */
@@ -113,6 +120,8 @@ export class Body {
   ) {
     rig.heldWeapon = null;
     rig.emote = null;
+    this.occR = bodyOccR(rig.p);
+    this.occReach = bodyOccReach(rig.p);
     this.setLie(lie);
     if (ragdollOk) {
       this.ragdoll = new Ragdoll(scene, rig, impulse, true);

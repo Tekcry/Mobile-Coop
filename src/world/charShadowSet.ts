@@ -64,6 +64,12 @@ export function charShadowSpec(q: ShadowQuality, mode: CharShadowMode = 'auto'):
   return { lamps: p.lamps, tile: p.tile };
 }
 
+/** Settings help for Character shadows (`settingsScreen.ts`): `on` when `flags.charShadowLight` is on, else `off`. */
+export const CHAR_SHADOW_HELP = {
+  off: 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: the light meter and the guards are the same either way.',
+  on: 'The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: a shadow on you darkens the light meter and what guards see by the same amount at every setting.',
+} as const;
+
 export const CHAR_SHADOW = {
   /** Slots in the atlas (2 x 2 tiles). */
   maxSlots: 4,
