@@ -191,7 +191,7 @@ export const S4_DESKS: SecurityDesk[] = [
 /**
  * Section 4 in full: 25 armed Larchmont guards incl. one dog, three cameras and the desk, las-tray and its panel, kp-batt, kp-deck and
  * kp-riser (codes from the dock board), the cage's pair gate and the mantrap interlock (CR9), alarm-sec4 / alarm-mt / alarm-dk, the cage
- * download, C4. K3: #19. 25 + `alarmMax` 3 x `perStage` 2 = 31 <= `maxAlive` 32. No section `gear` (job BRIEF A27); `shieldTeams` waits for PR1.
+ * download, C4. K3: #19. 25 + `alarmMax` 3 x `perStage` 2 = 31 <= `maxAlive` 32. No section `gear` (job BRIEF A27); `shieldTeams` on (guard-rules A4, carried from P0, BRIEF A23).
  */
 export const S4_SECTOR: SectorDef = {
   id: 's4',

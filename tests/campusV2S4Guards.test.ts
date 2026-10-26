@@ -188,6 +188,7 @@ describe('G4.6 the 25 guards (brief table, D:103-114)', () => {
     expect(G.some((g) => (g as { minPlayers?: number }).minPlayers !== undefined)).toBe(false);
     // job BRIEF A27: no section gear, body armour as 'armour' on #6, #14, #15 (no 'helmet' / 'both')
     expect(S4.gear).toBeUndefined();
+    expect((S4 as { shieldTeams?: boolean }).shieldTeams).toBe(true);
     const gear = G.map((g) => (g as { gear?: string }).gear);
     expect(gear.map((v, i) => (v ? i + 1 : 0)).filter((n) => n > 0)).toEqual([6, 14, 15]);
     expect(gear.filter((v) => v !== undefined && v !== 'armour')).toEqual([]);
