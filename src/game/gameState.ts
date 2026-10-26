@@ -1,6 +1,6 @@
 import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
-import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
+import { type AbstractMesh, Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
@@ -36,6 +36,12 @@ import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import { warmGuardModels } from '../ai/guardWarm';
+import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
+import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
+import { MAP_READY_CAP_MS, runMapGate, type MapGateInput, type MapGateProbe, type MapGateResult } from './mapGate';
+import { MIN_LODS } from '../operators/runtime/playerFigure';
+import { LOD_0, LOD_1, LOD_2 } from '../operators/runtime/manifest';
+import { sectionBakeFor } from '../world/sectionBake';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
@@ -263,6 +269,10 @@ export interface NetAttachment {
   barkAt?(who: string, out: Vector3): boolean;
   /** (coop-carry) Client: the local player's body carry (the host has its own in `StealthSystems`). */
   readonly carry?: NetCarry;
+  /** (map-ready S2) Co-op: this peer's release waits for the others (host: every start player's `mr`; client: `go`). */
+  holdsStart?(): boolean;
+  /** (map-ready S2) This peer's own gate finished (S5 sends `mr` from it). */
+  onLocalReady?(info: { capHit: boolean; ms: number }): void;
   dispose(): void;
 }
 
@@ -919,6 +929,9 @@ export class GameState implements AppState {
     // (section-bake robust, check A P8) a load that throws after its lamp bake started (no GameState to dispose it): the
     // bake's workers stop here
     const bakers = sectionBakerMark();
+    // (map-ready S1) the load record's start: the clock and the programs compiled so far
+    const readyT0 = performance.now();
+    const readyP0 = GameState.readyPrograms(app);
     let world: World;
     try {
       world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
@@ -926,7 +939,17 @@ export class GameState implements AppState {
       disposeSectionBakersSince(bakers);
       throw e;
     }
+    const readyWorld = performance.now();
     const g = new GameState(app, world, opts, cb);
+    // (map-ready S1) the load record (counter reads only; `window.__mapReady`)
+    const rs = new MapReadyStats(opts.map.id, opts.mode, flags.mapReady, readyT0, readyP0);
+    g.readyStats = rs;
+    rs.step('world', readyWorld);
+    rs.setBake(bakeSourceOf(undefined, !!sectionBakeFor(opts.map.id), !!world.lightBake?.sections), world.lightBake?.ms ?? -1);
+    g.scene.onNewMaterialAddedObservable.add(() => {
+      g.readyMats++;
+    });
+    if (typeof window !== 'undefined') (window as unknown as { __mapReady: MapReadyRecord }).__mapReady = rs.record;
     if (opts.net) g.net = opts.net.attach(g);
     // (anim-studio) the studio stage: single player only (never offered in a co-op session)
     else if (opts.map.id === STUDIO_MAP_ID)
@@ -959,6 +982,18 @@ export class GameState implements AppState {
           if (i >= 0) g.weapons.switchTo(i);
         },
       });
+    if (flags.mapReady) {
+      // (map-ready S2) no warm-up race here: `app.setState` runs with the sim held (`holding`) and the load gate
+      // (`runGate`, `mapGate.ts`) waits for the live lamps, the real quality, the content, the bodies, every shader, the
+      // probe and every lamp behind the boot screen; `release` then marks the bake playing and reveals. The cap's zero
+      // point is here (the end of World.create, the S1 `world` step).
+      g.holding = true;
+      g.gateWorldAt = readyWorld;
+      // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest)
+      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id).catch(() => undefined);
+      rs.step('create', performance.now());
+      return g;
+    }
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
     // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
@@ -973,10 +1008,13 @@ export class GameState implements AppState {
     ]);
     // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
     sb?.markPlaying();
+    rs.step('create', performance.now());
     return g;
   }
 
   applyQuality(level: QualityLevel): void {
+    // (map-ready S2) the load gate's `quality` step: the real settings are in before its compile
+    this.gateQuality = true;
     const builds = this.stack.builds;
     this.world.applyQuality(level);
     this.stack.apply(level);
@@ -1151,7 +1189,8 @@ export class GameState implements AppState {
   }
 
   get simulating(): boolean {
-    return !this.paused;
+    // (map-ready S2) held behind the boot screen: the loop passes no fixed step and a 0 dt (`core/app.ts`, `core/loop.ts`)
+    return !this.paused && !this.holding;
   }
 
   /** (tuner-ui) The pause menu (or the results) is open: the animation tuner gives the pad to the menus meanwhile. */
@@ -1160,8 +1199,12 @@ export class GameState implements AppState {
   }
 
   enter(): void {
+    // (map-ready S2) held: the reveal is the gate's release (`release`)
+    if (!this.holding) this.readyReveal();
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
+    // (map-ready S2) the mode's banners wait for the release; its objective is recorded for it
+    if (this.holding) this.holdHud();
     this.mode?.start();
     // a controller dropping out mid-match opens the pause menu with the way back (MD12)
     this.padOff = this.app.input.events.on('padDisconnected', () => {
@@ -1192,6 +1235,9 @@ export class GameState implements AppState {
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
     }
+    // (map-ready S2) the gate's `content` step: guards and devices placed inside the hold; input stays off until the release
+    this.gateContent = true;
+    if (this.holding) this.app.input.setGameplayActive(false);
   }
 
   exit(): void {
@@ -1830,7 +1876,8 @@ export class GameState implements AppState {
   };
 
   fixedUpdate(dt: number): void {
-    if (this.exited) return;
+    // (map-ready S2) held: no step (suites calling `stepHeadless` directly), the clock stays at 0
+    if (this.exited || this.holding) return;
     const realIn = this.app.input.state;
     if (realIn.pressed('pause')) {
       this.gadgets.closeWheel(false);
@@ -2280,7 +2327,311 @@ export class GameState implements AppState {
     if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
     if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
     ctx.spikes = this.spikes.summary();
+    if (this.readyStats) ctx.mapReady = this.readyStats.summary();
+    // (map-ready S2, A3) the load gate's cap: hit or not, and the step it cut
+    const rr = this.readyStats?.record;
+    if (rr?.gated && rr.released) ctx.mapReadyCap = rr.capHit ? `hit at ${rr.capStep}` : 'no';
     return ctx;
+  }
+
+  /** (map-ready S1) The load record (`window.__mapReady`; null before `create` makes it). */
+  private readyStats: MapReadyStats | null = null;
+  /** (map-ready S1) Materials added to the scene (one observer, added in `create`). */
+  private readyMats = 0;
+  /** (map-ready S1) Body / weapon / guard mesh swaps seen (the load record's pop-ins). */
+  private readyPop = 0;
+  /** (map-ready S1) The last seen operator LOD (`player.figure.current`), each weapon slot's `meshPending` (1 / 0). */
+  private readyFigure = -1;
+  private readonly readyWeapons = new Uint8Array(16);
+  /** (map-ready S1) Guard bodies already shown (each counts once), and the scene's live list once it exists. */
+  private readonly readyGuards = new WeakSet<GuardBody>();
+  private readyGuardList: readonly GuardBody[] | null = null;
+  /** (map-ready S1) The one reusable frame sample. */
+  private readonly readySample: FrameSample = { programs: 0, landings: 0, tileUploads: 0, materials: 0, popIns: 0 };
+
+  /** (map-ready S1) Programs the engine has compiled so far (once per load, at its start). */
+  private static readyPrograms(app: App): number {
+    const c = (app.engine as unknown as { _compiledEffects?: Record<string, unknown> })._compiledEffects;
+    return c ? Object.keys(c).length : 0;
+  }
+
+  /** (map-ready S1) The reveal (with the flag off, today's `app.setState` -> `enter`): the window's zero point. */
+  private readyReveal(): void {
+    const rs = this.readyStats;
+    if (!rs || rs.record.released) return;
+    this.readyPoll();
+    // (once per match) the program count now; later frames reuse `spikeShaders`
+    this.readySample.programs = GameState.readyPrograms(this.app);
+    const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+    rs.reveal(performance.now(), this.readySample, mem ? mem.usedJSHeapSize / (1024 * 1024) : -1);
+  }
+
+  /** (map-ready S1) Fill the frame sample: counter reads and the pop-in watch. No allocation once the lists exist. */
+  private readyPoll(): void {
+    const s = this.readySample;
+    s.programs = this.spikeShaders;
+    const lamps = this.world.lamps;
+    s.landings = lamps ? lamps.landings : 0;
+    s.tileUploads = lamps ? lamps.tileUploads : 0;
+    s.materials = this.readyMats;
+    // the operator body: a LOD swap after the first one loaded
+    const fig = this.player.figure.current;
+    if (fig !== this.readyFigure) {
+      if (this.readyFigure >= 0) this.readyPop++;
+      this.readyFigure = fig;
+    }
+    // a weapon model's baked mesh arriving (pending -> not)
+    const slots = this.weapons.slots;
+    const ws = this.readyWeapons;
+    for (let i = 0; i < slots.length && i < ws.length; i++) {
+      const p = slots[i]!.model.meshPending ? 1 : 0;
+      if (ws[i] && !p) this.readyPop++;
+      ws[i] = p;
+    }
+    // a guard body shown (each once); guard bodies exist only with the guard models
+    if (flags.guardModels) {
+      let gl = this.readyGuardList;
+      if (!gl) {
+        const l = liveGuardBodies(this.scene);
+        if (l.length) gl = this.readyGuardList = l;
+      }
+      if (gl)
+        for (let i = 0; i < gl.length; i++) {
+          const b = gl[i]!;
+          if (b.shown && !this.readyGuards.has(b)) {
+            this.readyGuards.add(b);
+            this.readyPop++;
+          }
+        }
+    }
+    s.popIns = this.readyPop;
+  }
+
+  // ---- (map-ready S2) the load gate: the sim held behind the boot screen until the map is built and warmed ----
+
+  /** (map-ready S2) Held behind the boot screen (`flags.mapReady`): no fixed step, input off, clock 0, until `release`. */
+  private holding = false;
+  /** (map-ready S2) The end of World.create (ms): the cap's zero point. */
+  private gateWorldAt = 0;
+  /** (map-ready S2) Probe inputs set elsewhere: the first `applyQuality` ran (`app.setState`), `enter` ran. */
+  private gateQuality = false;
+  private gateContent = false;
+  /** (map-ready S2) The player's play LODs failed to load (the gate does not wait for them). */
+  private gateFigureFailed = false;
+  /** (map-ready S2) The `shaders` step's priority compile: 0 not started; 1-4 the group started (the player's body and
+   *  weapons, the level and its art, the guards nearest first, every other mesh); 5 done. */
+  private gateCompile = 0;
+  /** (map-ready S2) Banners queued during the hold, the last objective set, and the HUD's own two calls. */
+  private readonly gateBanners: [string, string | undefined, number | undefined][] = [];
+  private gateObjective: string | null = null;
+  private gateHud: { banner: Hud['banner']; setObjective: Hud['setObjective'] } | null = null;
+
+  /** (map-ready S2) Held behind the boot screen (tests, e2e). */
+  get held(): boolean {
+    return this.holding;
+  }
+
+  /**
+   * (map-ready S2) With `flags.mapReady`, right after `app.setState` (`main.ts`): the load gate (`mapGate.ts`) runs on
+   * this state's probe until the map is built and warmed or the cap (`capMs`, counted from the end of World.create)
+   * cuts it, then `release` starts play. `report` gets the progress (0..1) and the boot bar's text. Resolves once
+   * released (or the state went away); never rejects.
+   */
+  async runGate(report: (progress: number, text: string) => void, capMs = MAP_READY_CAP_MS): Promise<MapGateResult> {
+    if (!this.holding) return { status: 'ready', capStep: '', ms: 0 };
+    const fig = this.player.figure;
+    const lod2 = 1 << LOD_2;
+    const playMask = MIN_LODS || this.app.quality.level.minimal ? lod2 : (1 << LOD_0) | (1 << LOD_1) | lod2;
+    // (a play LOD that fails to load: the gate does not wait for it; these are the loads `loadPlayLods` started, shared
+    // by `OperatorLibrary.load`, in the same order)
+    void fig
+      .load(LOD_2)
+      .then(() => (playMask === lod2 ? undefined : Promise.all([fig.load(LOD_0), fig.load(LOD_1)])))
+      .catch(() => {
+        this.gateFigureFailed = true;
+      });
+    const probe: MapGateProbe = {
+      read: (g) => this.gateRead(g, playMask),
+      tick: () => this.gateTick(),
+      closed: () => this.exited,
+      describe: () => this.gateDescribe(),
+    };
+    const r = await runMapGate(probe, report, Math.max(0, capMs - (performance.now() - this.gateWorldAt)));
+    if (r.status !== 'closed') this.release(r, capMs);
+    return r;
+  }
+
+  /** (map-ready S2) The gate's probe: fills every field but `warmFrames`. Render side reads only; no allocation once the
+   *  guard body list exists. */
+  private gateRead(g: MapGateInput, playMask: number): void {
+    const w = this.world;
+    const sb = w.lightBake?.sections;
+    g.bakeLive = !sb || sb.disposed || sb.ready(sb.plan.live);
+    g.quality = this.gateQuality;
+    g.content = this.gateContent;
+    let bodies = (this.player.figure.loaded & playMask) === playMask || this.gateFigureFailed;
+    const slots = this.weapons.slots;
+    for (let i = 0; i < slots.length; i++) if (slots[i]!.model.meshPending) bodies = false;
+    if (flags.guardModels) {
+      const gb = liveGuardBodies(this.scene);
+      for (let i = 0; i < gb.length; i++) if (!gb[i]!.shown) bodies = false;
+    }
+    g.bodies = bodies;
+    // (the compile starts once the real settings are in, the content placed and the bodies loaded: Q1 priority order)
+    if (bodies && g.quality && g.content && this.gateCompile === 0) void this.gateCompileAll();
+    g.shaders = this.gateCompile >= 4 && this.gateDrawReady();
+    g.probe = w.probeCaptured;
+    g.bakeAll = (!sb || sb.done || sb.disposed) && (w.lamps?.tilesPending ?? 0) === 0;
+    // (S3 adds the audio step, S5 the peers step)
+    g.audio = true;
+    g.peers = true;
+    // (the S1 frame sample's count, never a second `shaderCount()`)
+    g.programs = this.spikeShaders;
+  }
+
+  /** (map-ready S2) Every mesh with sub-meshes ready (disabled ones too: frozen off-screen guards and far-culled art must
+   *  compile), every post process ready, nothing waiting (`menuScene.ts` `drawReady` without its enabled / visible skip).
+   *  Asking compiles what is missing. */
+  private gateDrawReady(): boolean {
+    const scene = this.scene;
+    let ok = scene.getWaitingItemsCount() === 0;
+    const ms = scene.meshes;
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i]!;
+      if (!m.subMeshes?.length) continue;
+      // (no early exit: every material starts compiling at once)
+      if (!m.isReady(true)) ok = false;
+    }
+    const pps = scene.postProcesses;
+    for (let i = 0; i < pps.length; i++) {
+      const pp = pps[i];
+      if (pp && !pp.isReady()) ok = false;
+    }
+    return ok;
+  }
+
+  /** (map-ready S2) The next rendered frame (true), or a tick of 100 ms when no frame comes (a hidden tab; false). */
+  private gateTick(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const obs = this.scene.onAfterRenderObservable;
+      const o = obs.addOnce(() => {
+        clearTimeout(id);
+        resolve(true);
+      });
+      const id = setTimeout(() => {
+        obs.remove(o);
+        resolve(false);
+      }, 100);
+    });
+  }
+
+  /** (map-ready S2, Q1) The `shaders` step's compile in priority order, each group's meshes together: the player's body
+   *  and weapons (S5 adds the partners'), the level and its art, the guards nearest the player first, then every other
+   *  mesh. A cap hit then leaves only far parts compiling after the reveal. Lists are built once per group start. */
+  private async gateCompileAll(): Promise<void> {
+    this.gateCompile = 1;
+    try {
+      const own = new Set<AbstractMesh>(this.player.rig.root.getChildMeshes(false));
+      for (const s of this.weapons.slots) for (const m of s.model.node.getChildMeshes(false)) own.add(m);
+      await GameState.gateCompileMeshes(own);
+      if (this.exited) return;
+      this.gateCompile = 2;
+      const w = this.world;
+      const lvl: AbstractMesh[] = [...w.level.meshes, ...(w.kit?.meshes ?? []), ...(w.facilityProps?.meshes ?? [])];
+      for (const m of this.scene.meshes) if (m.name.startsWith('campus-')) lvl.push(m);
+      await GameState.gateCompileMeshes(lvl);
+      if (this.exited) return;
+      this.gateCompile = 3;
+      const p = this.player.position;
+      const es = this.enemyMgr ? [...this.enemyMgr.enemies] : [];
+      es.sort((a, b) => hyp2(a.pos.x - p.x, a.pos.z - p.z) - hyp2(b.pos.x - p.x, b.pos.z - p.z));
+      for (const e of es) {
+        await GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false));
+        if (this.exited) return;
+      }
+      // (the full readiness sweep, `gateDrawReady`, starts with this group)
+      this.gateCompile = 4;
+      await GameState.gateCompileMeshes(this.scene.meshes.slice());
+    } catch (e) {
+      // (the sweep still compiles everything)
+      console.info('map-ready: the priority compile stopped early', e);
+    }
+    this.gateCompile = 5;
+  }
+
+  /** (map-ready S2) `forceCompilationAsync` for each mesh's material (with instances when it draws them); resolves when
+   *  all have settled (a shader error never holds the next group). */
+  private static gateCompileMeshes(ms: Iterable<AbstractMesh>): Promise<unknown> {
+    const out: Promise<void>[] = [];
+    for (const m of ms) {
+      const mat = m.material;
+      if (!mat || !m.subMeshes?.length || m instanceof InstancedMesh || m.isDisposed()) continue;
+      const inst = m.hasThinInstances || ((m as { instances?: readonly unknown[] }).instances?.length ?? 0) > 0;
+      out.push(mat.forceCompilationAsync(m, { useInstances: inst }).catch(() => undefined));
+    }
+    return Promise.all(out);
+  }
+
+  /** (map-ready S2) For the cap's log line. */
+  private gateDescribe(): string {
+    const w = this.world;
+    const sb = w.lightBake?.sections;
+    return `${w.map.id}: figure ${this.player.figure.loaded}, compile group ${this.gateCompile}, probe ${w.probeCaptured ? 'in' : 'waiting'}, sections ${sb ? (sb.done ? 'done' : 'baking') : 'none'}, tiles ${w.lamps?.tilesPending ?? 0}, programs ${this.spikeShaders}`;
+  }
+
+  /** (map-ready S2) During the hold the mode's banners wait for the release and its objective is recorded (no HUD or
+   *  mode edit: the two calls are wrapped on this HUD instance; `release` puts them back). */
+  private holdHud(): void {
+    const hud = this.hud;
+    const own = { banner: hud.banner, setObjective: hud.setObjective };
+    this.gateHud = own;
+    hud.banner = (title: string, sub?: string, ms?: number): void => {
+      if (this.holding) this.gateBanners.push([title, sub, ms]);
+      else own.banner.call(hud, title, sub, ms);
+    };
+    hud.setObjective = (text: string): void => {
+      this.gateObjective = text;
+      own.setObjective.call(hud, text);
+    };
+  }
+
+  /**
+   * (map-ready S2) The release (PLAN section 2): input live, the sim's first fixed step next frame, the bake playing
+   * (its cache write from here), the S1 record's cap fields and reveal, the net layer told (S5), the queued banners
+   * replayed in order and the objective re-applied (G343 / G351: hud-guidance B1's popup shows on that call). The 2.8 s
+   * letterbox needs nothing: its timer runs on the frame dt, 0 while held. A cap hit logs one line (A3).
+   */
+  private release(r: MapGateResult, capMs: number): void {
+    this.holding = false;
+    try {
+      if (!this.bench) this.app.input.setGameplayActive(true);
+      this.world.lightBake?.sections?.markPlaying();
+      const capHit = r.status === 'cap';
+      const rs = this.readyStats;
+      if (rs) {
+        rs.record.capHit = capHit;
+        rs.record.capStep = r.capStep;
+      }
+      this.readyReveal();
+      this.net?.onLocalReady?.({ capHit, ms: performance.now() - this.gateWorldAt });
+      const own = this.gateHud;
+      if (own) {
+        this.gateHud = null;
+        const hud = this.hud;
+        hud.banner = own.banner;
+        hud.setObjective = own.setObjective;
+        for (const [t, s, ms] of this.gateBanners) hud.banner(t, s, ms);
+        this.gateBanners.length = 0;
+        if (this.gateObjective !== null) hud.setObjective(this.gateObjective);
+      }
+      if (capHit) {
+        const line = `map-ready: the ${Math.round(capMs / 1000)} s load cap cut the gate at '${r.capStep}' (${this.gateDescribe()}); play starts with what is ready`;
+        if (navigator.webdriver) console.info(line);
+        else console.warn(line);
+      } else if (r.status === 'error') console.warn(`map-ready: the load gate failed (${this.gateDescribe()}); play starts with what is ready`);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   /** 3.3: long frames this match (or this benchmark run) and what was happening around each. */
@@ -2528,6 +2879,12 @@ export class GameState implements AppState {
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
     this.trackSpikes();
+    // (map-ready S1) the load record's after-reveal window (no polling once it closes)
+    const rs = this.readyStats;
+    if (rs && rs.record.released && !rs.record.after.done) {
+      this.readyPoll();
+      rs.frame(performance.now(), this.readySample);
+    }
     if (this.photo) {
       // frozen: only the lights follow the free camera
       // (tuner-camera fix) the photo camera is the game view meanwhile (gameplay reads gamePos)
@@ -2604,7 +2961,7 @@ export class GameState implements AppState {
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();
-    if (this.bench) this.benchFrame();
+    if (this.bench && !this.holding) this.benchFrame(); // map-ready S2: no bench frames while held behind the loading screen
   }
 
   /** Contact shadows: the player, enemies, dummies, the net layer's characters. */
