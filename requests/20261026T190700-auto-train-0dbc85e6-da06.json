@@ -1,0 +1,14 @@
+{
+  "id": "20261026T190700-auto-train-0dbc85e6-da06",
+  "sha": "0dbc85e6fbbdc09af272c1c3435314ac3d96496f",
+  "branch": "",
+  "pr": 660,
+  "kind": "pr",
+  "requester": "auto-train",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "trainRerun": true,
+  "set": "train157-rerun",
+  "note": "confirm rerun"
+}
