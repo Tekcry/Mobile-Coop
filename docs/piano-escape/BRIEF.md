@@ -23,6 +23,12 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
   the lights, forcing all the guards to use flashlights and the mission will play in pure darkness."
 - 2026-10-26 ~20:05, chat (relayed by the orchestrator): "Not a piano factory, it's an underground bunker storage room
   with timber boxes providing cover. The piano is the music theme only."
+- 2026-10-26 ~20:10, chat (relayed by the orchestrator): "One exit, must clear out the guards to reach it. Allow more
+  guards to make it more suspenseful. No weapons or gadgets available besides knife and night vision. Must be one large
+  storage room with timber boxes scattered and stacked randomly, providing cover but unable to take any particular path
+  without forcing a guard take down. The guards must move slowly and methodically to find both players."
+- 2026-10-26 ~20:10, chat (relayed by the orchestrator): "I want to experiment with the music also, if you can create
+  similar samples based off the provided file and tags."
 
 ## Michael picked
 - 2026-10-26 ~19:28 Q: where the experiment lives -> picked: "Inside Night Shift (Recommended)" (a standalone co-op
@@ -70,6 +76,19 @@ every guard must be taken down with a knife in the shadows before the exit opens
   start search, then return to their fixed rounds). Guard sight in the dark stays what light parity gives (only light
   the meter reads, torch cones included); no rule that lets a guard see more than the meter shows. Nothing changes off
   the scene. Undo: drop the blackout gate; guards keep today's torch rule.
+- A12 (orchestrator, assumed and logged ~20:10): "randomly" means an irregular, hand-placed crate layout that is the
+  same every playthrough; the guards' sweep is a fixed, readable search pattern (VISION rule 8 holds). Undo: a seeded
+  layout per run (would need Michael: it loosens rule 8).
+- A13: Loadout in play: knife and night vision only (no pistol use after the intro, no gadgets, no other vision mode).
+  The intro still shows the empty pistol and the EMP is the intro's last beat, not a gadget in play. Night vision is a
+  player view only; guards and the meter never read it (light parity). Undo: the scene's loadout data.
+- A14: One large storage room (plus the exit), one exit locked until every guard is down; 12 guards planned, up to 16 if
+  Sector Ops' torch check allows, every guard with a lit torch after the EMP; the co-op moment is side-by-side paired
+  kills on guards who sweep in pairs. Undo: the guard list in the map file.
+- A15: Music experiment: 2-3 original pieces in the track's mood (slow, emotional, cinematic solo piano; suspense,
+  tension, dark, thriller, ominous), original notes (no copy of its melody), WebAudio synthesis or an in-repo offline
+  render, no new downloads without asking; a dev picker in the scene to A/B them against the Pixabay track. Undo: drop
+  the slice; the Pixabay track stays.
 - A10: The EMP (Michael ~19:55) is the intro's last beat: one on-screen button prompt, the player presses it (in co-op
   either player), every light on the map dies for the whole escape, and play starts. Guards switch to flashlights and
   search with them. Light parity holds: the flashlight cones are what guards are lit by and see by, and what the light
