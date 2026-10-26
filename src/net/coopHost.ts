@@ -2079,7 +2079,7 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
       // (piano-knife S3) a client's knife kill on a guard it holds here: his root, clip and hands off the client as drawn
-      // (the enemies posed earlier this frame: his clip and hands one frame behind, BRIEF S3 Doubt 1)
+      // (the enemies drew earlier this frame: his clip and hands one frame behind, BRIEF S3 Doubt 1)
       const kn = r.avatar.knife;
       if (kn.posesVictim) {
         const e = this.aliveEnemy(kn.tid);
