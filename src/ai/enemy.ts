@@ -3347,8 +3347,11 @@ export class Enemy implements Damageable {
           return this.goal(this.chasePoint(dt, tp, false), this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, null);
         }
         this.closingIn = closer;
-        // (guard-ai runner-armed) the runner weaves on his run in (ARCHETYPE.runner.weave)
-        return this.goal(this.chasePoint(dt, tp, def.kind === 'runner' && ARCHETYPE.runner.weave), this.los ? def.walkSpeed : def.runSpeed, null);
+        // (guard-ai runner-armed) the runner weaves on his run in (ARCHETYPE.runner.weave); (A15) as his melee charge did,
+        // his straight line must end on the storey of the spot he runs to (`known.y`), so across storeys he takes the
+        // ladder, not a line to the floor under it
+        const runner = def.kind === 'runner';
+        return this.goal(this.chasePoint(dt, tp, runner && ARCHETYPE.runner.weave, runner ? known.y : Number.NaN), this.los ? def.walkSpeed : def.runSpeed, null);
       }
       case 'attack': {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
