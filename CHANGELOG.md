@@ -1,5 +1,156 @@
 # Changelog
 
+## 4.116.0 - Train 131: Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void; Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof; +15 more (2026-10-26, PR #593; #585, #547, #544, #535, #529)
+
+### Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- Section 2 v2 greybox, G floor (S2-G1): the reception and the atrium hall are one lobby; the feature stair is two flights
+  of 13 risers with a 2.0 m mid landing and rails on both sides; the plant room gets a locked, breachable north door to the
+  NE lobby; back-of-house doors join the mail room, the lift lobby and the store; the old mail lift is a shaft with a
+  service ladder up to L1 behind the cages; two post cages and a body hide spot in the post room.
+- S2-G2: the atrium void narrows to 14.5 m so the L1 and L2 balcony strips are 3.9 m wide; the CR2 slab nose re-cut on the
+  new edge (planter gone); the roof light rim follows the void; eight balcony downlights per floor; every S2 lamp in one
+  provisional block for the light-realism retune.
+
+### Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G3: the L1 rooms re-cut: a wider kitchen, the project room (print room and meeting room 4 merged), meeting room doors,
+  the east wing rebuilt (facilities office with a glazed west wall and two doors, comms room, bridge landing), the
+  sunshade ledge and the facilities window, 1.3 m fire-stair landings, doors swinging into their rooms.
+- S2-G4: L2 and roof: office A's second door, office B's side door into the east wing, a larger board room with two doors,
+  the roof plant room rebuilt (4.0 m walls) with a floor hatch and a cat ladder down to L2, and a window-cleaning davit whose
+  rope ends on the sunshade by the facilities window.
+
+### Campus greybox S2-c (dark, behind ?campusv2=2): guards, Split Shift devices and room lights
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G6a: 18 guards (was 12): new cafe, atrium-stair, west-plan, north-plan torch, relief and L2 north-strip rounds; the
+  bridge officer moves to face the comms door; the mailroom and L2 lift guards are awake.
+- S2-G5a: the Split Shift devices as data: the comms room CCTV patch panel, the plant room breaker for the east wing
+  lights, keypads on both facilities office doors (the code is overheard at the kitchen), the plant log in the mail room,
+  and two-player key doors at the bridge landing and the executive suite; wing, landing and goods-door downlights.
+- S2-G5c: every enclosed room is its own room (meeting rooms, the L2 executive suite, offices, board room and roof plant room
+  tagged on the HUD) and every room that had no light gets ceiling fittings on its own switched circuit with a wall switch by
+  its door; the fire stairs get landing lights on a riser circuit each. Nothing changes in the live section 2.
+
+### Campus greybox S2-d (dark, behind ?campusv2=2): routes and map graph
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G6b: the three ways in redrawn on the new doors (the post room and north open plan, the roof between the two
+  bulkheads, the turnstiles and the east wing), the section's map data as built (guards per player count, the section's
+  tagged unavoidable guard, the two-player door notes), wider fire-stair landings so guards path through them,
+  and route and map-data tests.
+
+### Campus greybox S3-a (v2, dark): frame
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's frame (its shared
+  plan boxes, doors and light circuits), behind `?campusv2=3`.
+
+### Campus greybox S3-b (v2, dark): shell, ground floor and upper floor
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's shell and ground
+  floor, behind `?campusv2=3`.
+- Sector Ops build work on the signed S3 re-plan: the new lab block's upper floor (the bridge landing, the viewing
+  corridor and east lobby, the north rooms, the security room, the escape gallery, the crane walkway and the ceiling
+  void), behind `?campusv2=3`.
+
+### Campus greybox S3-c (v2, dark): three fire stairs
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's three fire stairs
+  (west, north and east cores: walls, doors, two flights of 27 risers, landings, rails), behind `?campusv2=3`.
+
+### Campus greybox S3-d (v2, dark): lamps, devices and sync
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan: the new lab block's lamps (every room lit on a switchable circuit),
+  switches, the timed lighting isolator, the laser beams and their panels, the cameras, the security desk, the keypads,
+  the sign-out board and the alarm panels, behind `?campusv2=3`.
+
+### Campus greybox S3-e (v2, dark): 20 guards and routes (J1-J4, J8)
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan: the new lab block's 20 guards (posts, patrols, the posted dock officer
+  at the goods door), its four routes, its sector (keypads, code board, isolator board, cameras, desk and alarms wired
+  in), behind `?campusv2=3`.
+
+### Campus greybox S3-f (v2, dark): lips, co-op, graph and dressing
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan, behind `?campusv2=3`: the two co-op climbs of the new lab block (the
+  test chamber's roof and the goods landing over the loading pad, each a 4.4 m boost), checks that a player alone cannot
+  get up either one, that every room is reachable from the start and that each fire stair links the floors on its own,
+  the section's map data as built (guards per room for 1-4 players), and the lab block's dressing redone for the new
+  rooms.
+
+### Campus greybox S4-a (dark, behind ?campusv2=4): south band and return-air plenum
+- No player-visible change: the live Saltmarsh Park section 4 plays exactly as before; the new layout is built only with
+  `?campusv2=4` (test builds).
+- Section 4 v2 greybox, south band (S4-G4.1): the service corridor and the hall lobby are one 6 m goods-in lobby; the
+  mantrap moves 1 m west with an open trolley alcove beside it; the mantrap desk moves west; three 1.2 m parcel cages give
+  low cover along the goods lane; the dock and battery room doors sit 1.5 m off the corners; two new lobby lamps, a
+  mantrap lamp and a dock board lamp (every as-built lamp kept, all of them in one `S4_LIGHTS` block); the hall panel and
+  lobby switches move; a body hide spot in the alcove.
+- S4-G4.2: a return-air plenum over the lobby ceiling as a crawl route: grilles from the ends of cable baskets B1 and B2
+  (which now run on to the hall wall), from the dock and from the battery room (co-op leg-ups CR8 and CR8-west onto their
+  4.4 m sills, which can be climbed over as well as hung from), and a ceiling hatch down into the lobby; the battery racks
+  are 2.0 m high with no climbable top.
+
+### Campus greybox S4-b (dark, behind ?campusv2=4): G4.3 + G4.4 + G4.5
+- S4-G4.3: the west strip: the colonnade corridor widens to 3.3 m under a ceiling slab with its two doors 3 m apart and the
+  hall door into it walled up; a staff door joins the UPS room to the security room; an essential-lighting board by the
+  battery room (cuts the NOC and security room lamps for 25 s) and a battery room lamp with its own switch; the colonnade
+  sentry (#19) stands deeper in the corridor.
+- S4-G4.4: the NOC block: a dog-leg fire stair (two 1.3 m flights and a mid landing) replaces the one steep flight; the NOC
+  gets a roof hatch with a ladder to the plant deck, an escape door onto a platform and a caged ladder down to the north
+  corridor (the side door moves north to clear it), and a rooflight onto the NOC seats; a warm console lamp in the
+  security room and three lamps with their own switch in the north corridor.
+- S4-G4.5: the riser partition moves 0.1 m west and its keypad door shows a keypad on the riser side; a new keypad door
+  (the cable-pull door) joins the generator compound to the riser; the plant ladder now starts on top of a locked
+  anti-climb cage (a co-op leg-up onto the cage reaches the rungs); four floodlight poles light the plant deck; the riser
+  has a lamp with its own switch.
+
+### Campus greybox S4-c (dark, behind ?campusv2=4): G4.6 + fix 1
+- S4-G4.6: 25 guards (five new: the goods-in officer, the second keyholder, the tank watch, the chiller watch, the night runner;
+  the battery checker's round now runs through the new colonnade), three renamed routes, the mantrap interlock as a
+  two-player pair gate, the Code Relay lead items (a duty roster, a deck radio, a console and a seat placard on the NOC
+  window ledge), and tests for the guards, sync nodes, screen count, graph and lights. The section no longer carries a
+  helmet tag (guard rules PR1 first).
+- S4 fix 1: the co-op leg-ups CR8 and CR8-west onto their 4.4 m sills can be climbed over as well as hung from.
+
+### Campus greybox S5-a (dark, behind ?campusv2=5): shell re-cut
+- No player-visible change: the live Saltmarsh Park section 5 plays exactly as before; the new layout is built only with
+  `?campusv2=5` (test builds).
+- Section 5 v2 greybox, shell re-cut (S5-P1): the stair hall takes the back corridor's south half as a dark screens
+  passage behind a 2.2 m timber screen with two settles; the old west passage is the hall's open alcove; a back hall with
+  the anteroom's side door and a kitchen door; the anteroom grows to 8.8 x 6.3 with an audit table and a 3 m glazed screen
+  onto the light well; the strongroom's day gate stands open; the shaft moves north beside it; the kitchen is 1 m wider;
+  the lobby doors are off each other's line; the hall stair is 2.4 m wide in two flights with a landing; new doors from the
+  control room to the garden and between the boardroom and the CEO suite; the archive gets one free-standing row, wall
+  shelving, a plan chest and a rooflight with a hatch and ladder; the cage moves over the shaft; a cleaning ladder in the
+  light well; a flue ladder and hatch from the plant room and a smoke hatch to the low roof; a gutter kerb and a roof
+  coping for co-op boosts; a west rappel over the garden; 1.2 m hedges and balustrade; every lamp in one `S5_LIGHTS` block.
+
+### Campus greybox S5-b (dark, behind ?campusv2=5): devices, light and guards
+- S5-P2 devices and light: the hoist door onto the light well is a two-player pair gate (two key switches in the archive),
+  the way down a hang-drop; the cage pair gate, the shaft beams and their panel move with the shaft; a house lighting board
+  on the back landing (cuts the anteroom and the hall wall lamps for 45 s) and the garden board moves with the kitchen wall
+  (30 s); the archive keypad moves to the landing side; the hall camera moves to the south wall; lamps added: a warm
+  audit desk lamp, archive reading lamp and jetty lantern, a lane lamp, the van's work light, roof walk and bulkhead lamps,
+  and fittings with their own switches in the drawing room, back hall, plant room, lobby, archive, back landing and
+  service stair (every as-built lamp kept; the strongroom lamp moves 1 m with its room and turns warm).
+- S5-P3 guards and routes: 26 guards (the 24 kept, ten of them moved: the hall walk, the keyholders flanking the open day
+  gate, the audit escort, the door officer, the archive round, the lobby officer and the clocking round down the screens
+  passage; new: an audit officer at the table and a jetty sentry), inside the 32 live cap with the six reinforcements;
+  the three ways in rewritten (the screens passage and the side door; the hall front and the anteroom's hall door; the
+  service stair, the archive, the roof and the light well) with the exit west through the open alcove.
+
+### Campus greybox S5-c (dark, behind ?campusv2=5): co-op lips and checks
+- S5-P4 co-op and checks: three co-op boost lips (the low roof's gutter kerb from the lawn, the roof's coping from the low
+  roof, the smoke hatch's kerb from the kitchen), each out of reach of a solo jump and climbable once reached (not only hung from); unit tests for the lips, the
+  two-player hoist door, the keyholders' choke, the map graph (guards counted on every player key) and the screen count.
+
+### Guard AI play pass: spawns and the course alarm banner
+- Marlow Yard no longer promises reinforcements that never come; one bad guard spawn no longer stops the rest.
+
 ## 4.115.0 - Train 130: Character shadows count in the light (co-op client partners, dark); Guard barks and pairs; Laptop queue: suite parts per head, SLOW warnings; Auto-drop finds train members past 100 commits (F44); +18 more (2026-10-26, PR #592; #586, #582, #579, #574, #572, #562, #561, #558, #557, #550, #532, #516, #514)
 
 ### Character shadows count in the light (co-op client partners, dark)
