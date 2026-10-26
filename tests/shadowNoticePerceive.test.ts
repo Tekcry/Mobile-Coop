@@ -109,6 +109,10 @@ type Priv = {
   lastKnown: Vector3;
   sawOnce: boolean;
   heard: boolean;
+  heardMoment: boolean;
+  brkGroup: number;
+  cueQuiet: boolean;
+  cueTurn: boolean;
   raysThink: number;
   riseCause: number;
   riseN: number;
@@ -252,6 +256,9 @@ function guard(pls: Pl[], o: GuardOpts = {}) {
     cueBest: new Float64Array(7),
     cueV: new Vector3(),
     cueRise: false,
+    // (fix 2) the cue-only episode and the cue's own look
+    cueQuiet: false,
+    cueTurn: false,
   }) as Enemy;
   return { e, p: e as unknown as Priv, ctx, floor, totalAt };
 }
@@ -314,12 +321,15 @@ describe('G3: the cue in perceive', () => {
     expect((p as unknown as { cueRise: boolean }).cueRise).toBe(false);
   });
 
-  it('a hearTurn earlier the same step that already lifted him past suspicious still barks (polish 1)', () => {
+  it('a hearTurn earlier the same step: the sound keeps his look (fix 2) and its rise barks (polish 1)', () => {
     const { p, e } = scene();
-    e.hearTurn(0, 4, 20);
+    e.hearTurn(6, 2, 20);
     expect(p.meter).toBeGreaterThanOrEqual(PERCEPTION.suspicious);
     p.perceive();
-    expect(p.cueT).toBe(0);
+    // (fix 2) a hearing look in progress is not the cue's: no cue, the sound's spot and look stay
+    expect(p.cueT).toBe(Infinity);
+    expect(p.stimulus).toEqual([6, 2]);
+    expect(p.turnT).toBe(ALERT.hearLook);
     p.updateAwareness(DT);
     expect(p.aware.level).toBe('suspicious');
     expect(p.riseCause).toBe(RISE_NONE);
@@ -359,14 +369,33 @@ describe('G3: the cue in perceive', () => {
       // (fix 1) a calm moment resting on a glimpse keeps sight's look; (polish 5) a lured post keeps to his lure
       (p) => ((p as unknown as { sawMoment: boolean }).sawMoment = true),
       (p) => ((p as unknown as { lure: { active: boolean } }).lure.active = true),
+      // (fix 2, check B polish 2) the breaker walk, as a lure
+      (p) => (p.brkGroup = 0),
+      // (fix 2, check B FIX 2) a sound's moment (a `hear` this step, or after it) and a hearing / ack look running
+      (p) => (p.heard = true),
+      (p) => (p.heardMoment = true),
+      (p) => (p.turnT = 1),
     ];
     for (const set of cases) {
       const { p, floor } = scene();
       set(p);
+      const turn = p.turnT;
       p.perceive();
-      expect(p.turnT).toBe(0);
+      expect(p.turnT).toBe(turn);
       expect(p.cueT).toBe(Infinity);
       expect(floor.rays).toBe(0);
+    }
+    // the cue's own look running does not gate the next cue (repeated cues keep him looking)
+    {
+      const { p, floor } = scene();
+      p.perceive();
+      expect(p.cueTurn).toBe(true);
+      p.turnT = 1;
+      p.cueT = 0.5;
+      p.perceive();
+      expect(p.cueT).toBe(0);
+      expect(p.turnT).toBe(ALERT.hearLook);
+      expect(floor.rays).toBe(2);
     }
     // cooldown and suspicious do react
     for (const lvl of ['cooldown', 'suspicious'] as const) {
@@ -518,11 +547,13 @@ describe('G3: the cue never escalates (PLAN section 1, alertState stepped)', () 
       if (cues) footprint(cues, 0, 0, 4);
       const { p } = guard([A, B], { cues });
       const think = { t: 0 };
-      const r = { inv: false, cause: -1, cued: false };
+      const r = { inv: false, cause: -1, cued: false, sx: NaN, sz: NaN };
       const look = (l: string) => {
         if (l === 'investigating' && !r.inv) {
           r.inv = true;
           r.cause = p.riseCause;
+          r.sx = p.stimulus[0];
+          r.sz = p.stimulus[1];
         }
       };
       run(p, seen, look, think);
@@ -558,6 +589,9 @@ describe('G3: the cue never escalates (PLAN section 1, alertState stepped)', () 
         const at = `${seen} s @ ${light}`;
         if (off.inv) expect(on.inv, at).toBe(true);
         if (on.inv) expect(on.cause, at).toBe(RISE_SIGHT);
+        // (fix 2) where he goes is sight's: B's feet, never the shadow's point, with cues on as with them off
+        if (off.inv) expect([off.sx, off.sz], at).toEqual([2, 9]);
+        if (on.inv) expect([on.sx, on.sz], at).toEqual([2, 9]);
         if (off.inv) offInv++;
         if (on.inv && !off.inv) more++;
         if (on.cued) cued++;
@@ -568,6 +602,163 @@ describe('G3: the cue never escalates (PLAN section 1, alertState stepped)', () 
     expect(offInv).toBeLessThan(33);
     expect(cued).toBeGreaterThan(0);
     expect(more).toBeLessThan(33 - offInv);
+  });
+});
+
+describe('fix 2: a cue-only episode is silent both ways (check B FIX 1, A5)', () => {
+  it('a cooldown guard, the cue alone: up to suspicious and back to cooldown, never a line', () => {
+    const { p, cues } = scene();
+    p.aware.set('cooldown');
+    const levels = new Set<string>();
+    const think = { t: 0 };
+    run(p, 3, (l) => levels.add(l), think);
+    cues!.speed[0] = 0;
+    run(p, 15, (l) => levels.add(l), think);
+    expect(levels.has('suspicious')).toBe(true);
+    expect(levels.has('investigating')).toBe(false);
+    expect(p.aware.level).toBe('cooldown');
+    expect(p.cueQuiet).toBe(false);
+    expect(p.bark).not.toHaveBeenCalled();
+  });
+
+  it('a noise mid-episode makes it a sound\'s: the lines are today\'s (the skipped suspicious, heard, clear; polish 1)', () => {
+    // cooldown guard; at 1 s a noise he hears (`hear`), then A stands still. Cues off: the noise alone
+    const lines = (on: boolean) => {
+      const { p, e, cues } = scene(on ? {} : { cues: null });
+      p.aware.set('cooldown');
+      const think = { t: 0 };
+      run(p, 1, () => {}, think);
+      expect(p.aware.level).toBe(on ? 'suspicious' : 'cooldown');
+      e.hear(6, 2, 10);
+      if (cues) cues.speed[0] = 0;
+      const levels: string[] = [];
+      run(
+        p,
+        40,
+        (l) => {
+          if (levels[levels.length - 1] !== l) levels.push(l);
+        },
+        think,
+      );
+      return { barks: p.bark.mock.calls.map((c) => c[0] as string), levels, stim: [p.stimulus[0], p.stimulus[1]] };
+    };
+    const off = lines(false);
+    const on = lines(true);
+    expect(off.barks).toEqual(['suspicious', 'heard', 'clear']);
+    expect(on.barks).toEqual(off.barks);
+    expect(on.levels).toEqual(off.levels);
+    expect(on.stim).toEqual([6, 2]);
+  });
+
+  it('a sight mid-episode makes it sight\'s: he says the skipped line', () => {
+    // B steps into view in light for one think, then out of it again
+    const A = player('a', 0, -5, { light: 0.3 });
+    const B = player('b', 2, 9, { light: 1, hidden: true });
+    const cues = cuesFor(['a', 'b']);
+    footprint(cues, 0, 0, 4);
+    const { p } = guard([A, B], { cues });
+    p.aware.set('cooldown');
+    const think = { t: 0 };
+    run(p, 1, () => {}, think);
+    expect(p.aware.level).toBe('suspicious');
+    expect(p.cueQuiet).toBe(true);
+    expect(p.bark).not.toHaveBeenCalled();
+    B.hidden.chest = B.hidden.head = B.hidden.hips = false;
+    run(p, THINK, () => {}, think);
+    B.hidden.chest = B.hidden.head = B.hidden.hips = true;
+    expect(p.cueQuiet).toBe(false);
+    expect(p.bark.mock.calls[0]).toEqual(['suspicious']);
+  });
+
+  it('an ack in the episode makes it the ack\'s: no suspicious line, the calm-down barks', () => {
+    const { p, e, cues } = scene();
+    p.aware.set('cooldown');
+    const think = { t: 0 };
+    run(p, 1, () => {}, think);
+    expect(p.cueQuiet).toBe(true);
+    e.ack(6, 2, false);
+    expect(p.cueQuiet).toBe(false);
+    expect(p.bark).not.toHaveBeenCalled();
+    cues!.speed[0] = 0;
+    run(p, 15, () => {}, think);
+    expect(p.aware.level).toBe('cooldown');
+    expect(p.bark.mock.calls.map((c) => c[0])).toEqual(['clear']);
+  });
+});
+
+describe('fix 2: the cue never takes a sound\'s place (check B FIX 2, A6)', () => {
+  /** Per step: his level and stimulus. */
+  const trace = (p: Priv, s: number, think: { t: number }) => {
+    const out: string[] = [];
+    run(p, s, (l) => out.push(`${l} ${p.stimulus[0]},${p.stimulus[1]}`), think);
+    return out;
+  };
+
+  it('after hear() he walks to the noise with cues on exactly as with them off', () => {
+    const go = (on: boolean) => {
+      const { p, e } = scene(on ? {} : { cues: null });
+      e.hear(6, 2, 10);
+      return trace(p, 26, { t: 0 });
+    };
+    const off = go(false);
+    const on = go(true);
+    // the episode: suspicious (sound), investigating the noise, back to cooldown; the same step by step
+    expect(off.includes('investigating 6,2')).toBe(true);
+    const end = off.indexOf('cooldown 6,2');
+    expect(end).toBeGreaterThan(0);
+    expect(on.slice(0, end + 1)).toEqual(off.slice(0, end + 1));
+  });
+
+  it('after hearTurn() (a thrown noisemaker\'s unsent hearers) or an ack he faces the sound, not the shadow', () => {
+    for (const how of ['hearTurn', 'ack'] as const) {
+      const go = (on: boolean) => {
+        const { p, e } = scene(on ? {} : { cues: null });
+        if (how === 'hearTurn') e.hearTurn(6, 2, 20);
+        else e.ack(6, 2, false);
+        const look = p.turnT;
+        return { t: trace(p, look - DT / 2, { t: 0 }), cueT: p.cueT };
+      };
+      const off = go(false);
+      const on = go(true);
+      expect(on.t, how).toEqual(off.t);
+      for (const x of on.t) expect(x.endsWith(' 6,2'), how).toBe(true);
+      expect(on.cueT, how).toBe(Infinity);
+    }
+  });
+
+  it('the sweep: noises near and far, heard or turned to, never a different spot or look with cues on', () => {
+    let reacted = 0;
+    const spots: [number, number][] = [
+      [6, 2],
+      [-3, 5],
+      [0, 7],
+      [2, -4],
+      [-8, -1],
+    ];
+    for (const [x, z] of spots) {
+      for (const radius of [6, 10, 16]) {
+        for (const how of ['hear', 'hearTurn'] as const) {
+          const go = (on: boolean) => {
+            const { p, e } = scene(on ? {} : { cues: null });
+            if (how === 'hear') e.hear(x, z, radius);
+            else e.hearTurn(x, z, radius);
+            const heard = p.heard;
+            // hear: up to his calm-down (the cue may come back after it); hearTurn: the look
+            const t = trace(p, how === 'hear' ? 26 : ALERT.hearLook - DT / 2, { t: 0 });
+            return { t, heard };
+          };
+          const off = go(false);
+          if (how === 'hear' && !off.heard) continue;
+          reacted++;
+          const on = go(true);
+          const at = `${how} (${x}, ${z}) r ${radius}`;
+          const end = how === 'hear' ? off.t.findIndex((s) => s.startsWith('cooldown')) : off.t.length - 1;
+          expect(end, at).toBeGreaterThan(0);
+          expect(on.t.slice(0, end + 1), at).toEqual(off.t.slice(0, end + 1));
+        }
+      }
+    }
+    expect(reacted).toBeGreaterThan(15);
   });
 });
 
@@ -610,7 +801,20 @@ function ch(num: number, x: number, z: number, o: { dog?: boolean; alive?: boole
 }
 /** A body as `fillOccluders` reads it (the `Body` fields). */
 function bd(num: number, x: number, z: number, present = true) {
-  return { num, present, lie: { x, y: 0.13, z, headYaw: 0 }, occR: 0.13, occReach: 0.8, pos: new Vector3(x, 0.13, z), lightT: 0, light: 0, update() {} };
+  return {
+    num,
+    present,
+    lie: { x, y: 0.13, z, headYaw: 0 },
+    occR: 0.13,
+    occReach: 0.8,
+    pos: new Vector3(x, 0.13, z),
+    lightT: 0,
+    light: 0,
+    age: 0,
+    update(dt: number) {
+      this.age += dt;
+    },
+  };
 }
 
 describe('G3: EnemyManager.fillOccluders', () => {
@@ -709,6 +913,24 @@ describe('G3: the manager wiring', () => {
       [occ, occKey(OCC_KIND.guard, 33)],
       [occ, occKey(OCC_KIND.dog, 34)],
     ]);
+  });
+
+  it('a new body\'s first light sample waits a step with the contract (check B polish 4); without one, today\'s', () => {
+    // with the contract: the step he died in still holds his standing capsule (the guard's key), so no sample then
+    const on = manager();
+    on.em.chars = new CharOccluders();
+    const pOn = on.em as unknown as { stepBodies(dt: number): void; bodies: ReturnType<typeof bd>[] };
+    pOn.bodies.push(bd(13, 1, 2));
+    pOn.stepBodies(0.05);
+    expect(on.totalAt).not.toHaveBeenCalled();
+    pOn.stepBodies(0.05);
+    expect(on.totalAt).toHaveBeenCalledTimes(1);
+    // no contract: sampled on its first step, as today
+    const off = manager();
+    const pOff = off.em as unknown as { stepBodies(dt: number): void; bodies: ReturnType<typeof bd>[] };
+    pOff.bodies.push(bd(14, 1, 2));
+    pOff.stepBodies(0.05);
+    expect(off.totalAt).toHaveBeenCalledTimes(1);
   });
 });
 
