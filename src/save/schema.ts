@@ -8,7 +8,7 @@ import { GADGET_IDS } from '../game/gadgets';
 import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;

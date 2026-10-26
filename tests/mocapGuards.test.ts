@@ -146,3 +146,111 @@ describe('mt2-guardgate: guards keep the hand-keyed set with the mocap switch on
     expect(diff(off.vals, on.vals).max).toBeGreaterThan(0.05);
   }, 900_000);
 });
+
+/**
+ * (mixamo-retarget I2) The Mixamo traversal captures are Wren's (`mixamo.ts`, `wrenReady`): guards share the hand-made
+ * `TRAVERSE_CLIP` table (`enemy.ts` climbs) and keep it with the `mixamo` flag on. A guard's lip hang (still and moving
+ * both ways), the ledge climb-up (grips held), a ladder, its top-out and a vent crawl, flag ON against OFF bit for bit; the
+ * control: Wren's rig through the same frames moves with the flag on.
+ */
+type TravFrame = { trav: 'hang' | 'climbUp' | 'climb' | 'crawl' | 'none'; t: number; speed: number };
+function travFrames(): TravFrame[] {
+  const f: TravFrame[] = [];
+  for (let n = 0; n < 40; n++) f.push({ trav: 'hang', t: 0.02 * Math.sin(n * 0.1) + 0.001, speed: 0 });
+  for (let n = 0; n < 40; n++) f.push({ trav: 'hang', t: -0.12, speed: 0.5 });
+  for (let n = 0; n < 40; n++) f.push({ trav: 'hang', t: 0.12, speed: 0.5 });
+  for (let n = 0; n <= 60; n++) f.push({ trav: 'climbUp', t: n / 60, speed: 0 });
+  for (let n = 0; n < 20; n++) f.push({ trav: 'none', t: 0, speed: 0 });
+  for (let n = 0; n < 40; n++) f.push({ trav: 'climb', t: (n * 0.03) % 1, speed: 0 });
+  for (let n = 0; n <= 40; n++) f.push({ trav: 'climbUp', t: (n / 40) * 0.65, speed: 0 });
+  for (let n = 0; n < 40; n++) f.push({ trav: 'crawl', t: (n * 0.02) % 1, speed: 0 });
+  return f;
+}
+
+async function driveClimb(who: 'grunt' | 'heavy' | 'officer' | 'wren', mixamoOn: boolean): Promise<{ vals: number[]; capture: boolean }> {
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const { Scene } = await import('../src/core/babylon');
+  const { PartLibrary } = await import('../src/world/partLibrary');
+  const { setMixamo, WREN_TRAV } = await import('../src/anim/mixamo');
+  const scene = new Scene(new NullEngine());
+  const parts = new PartLibrary(scene);
+  const random = Math.random;
+  let seed = 12345;
+  Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const vals: number[] = [];
+  let capture = false;
+  try {
+    setMixamo(mixamoOn);
+    let rig: CharacterRig;
+    let done: () => void;
+    if (who === 'wren') {
+      const { defaultLook } = await import('../src/cosmetics/avatarLook');
+      const { operatorRig } = await import('../src/operators/runtime/playerFigure');
+      const op = operatorRig(scene, (s, h, sl) => parts.instance(s, h, sl), defaultLook(), 'mixamo-guard-control');
+      rig = op.rig;
+      done = () => {
+        op.figure.dispose();
+        op.rig.dispose();
+      };
+    } else {
+      const { ENEMIES } = await import('../src/ai/enemyDefs');
+      const { buildEnemyRig } = await import('../src/ai/enemyRig');
+      const world = { parts, map: { theme: { faction: 'urban' } }, addShadowCaster: () => {} };
+      const b = buildEnemyRig(scene, world as never, ENEMIES[who], `g-${who}`);
+      rig = b.rig;
+      done = () => {
+        b.gun?.dispose();
+        b.rig.dispose();
+      };
+    }
+    const nodes = J.map((j) => (rig as unknown as Record<string, CharacterRig['hips']>)[j]!);
+    const p: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: false, crouch: 0, aimPitch: 0, aim: 0, kick: 0, traverse: 'none', traverseT: 0 };
+    for (const fr of travFrames()) {
+      // the hands on a lip in front (as AttachGrips holds them), so the climb-up is a ledge climb-up
+      const hold = fr.trav === 'hang' || fr.trav === 'climbUp';
+      for (const [r, x] of [[rig.reachL, -0.25], [rig.reachR, 0.25]] as const) {
+        r.x = rig.root.position.x + x;
+        r.y = rig.root.position.y + 2.2;
+        r.z = rig.root.position.z + 0.3;
+        r.w = hold ? 1 : 0;
+      }
+      p.traverse = fr.trav;
+      p.traverseT = fr.t;
+      p.speed = fr.speed;
+      p.grounded = fr.trav === 'none';
+      rig.animate(DT, p);
+      if (rig.graph.playing.trav && Object.values(WREN_TRAV).includes(rig.graph.playing.trav)) capture = true;
+      for (const n of nodes) {
+        const m = n.computeWorldMatrix(true).m;
+        for (let i = 0; i < 16; i++) vals.push(m[i]!);
+      }
+    }
+    done();
+  } finally {
+    Math.random = random;
+    scene.dispose();
+    setMixamo(false);
+  }
+  return { vals, capture };
+}
+
+describe('mixamo I2: guards keep the hand-made traversal clips with the mixamo flag on', () => {
+  it('a guard climb (hang, shimmy, ledge climb-up, ladder, top-out, vent crawl) ON is bit-identical to OFF', async () => {
+    for (const kind of ['grunt', 'heavy', 'officer'] as const) {
+      const off = await driveClimb(kind, false);
+      const on = await driveClimb(kind, true);
+      const d = diff(off.vals, on.vals);
+      expect(on.vals.length, kind).toBe(off.vals.length);
+      expect(d.n, `${kind}: max ${d.max}`).toBe(0);
+      expect(on.capture, kind).toBe(false);
+    }
+  }, 900_000);
+
+  it('the control: Wren through the same frames plays the captures with the flag on', async () => {
+    const off = await driveClimb('wren', false);
+    const on = await driveClimb('wren', true);
+    expect(off.capture).toBe(false);
+    expect(on.capture).toBe(true);
+    expect(diff(off.vals, on.vals).max).toBeGreaterThan(0.01);
+  }, 900_000);
+});

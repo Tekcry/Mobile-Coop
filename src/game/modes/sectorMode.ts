@@ -6,7 +6,6 @@ import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import { ITEM_SCOPE_OFF } from '../itemScope';
-import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
@@ -37,6 +36,7 @@ import {
   exitZone,
   intelItemId,
   keypadItemId,
+  resultBadge,
   inDoorway,
   inZone,
   sectorInfoHtml,
@@ -103,6 +103,9 @@ export function setOnRated(fn: typeof onRated): void {
 }
 import { crateItemId } from '../crateLedger';
 import type { SlotPoint } from '../spawnSlots';
+import { applySectorStart, practiceLine, sectorStartIndex } from '../sectorStart';
+import { sectorObjectiveLines } from '../sectorObjectives';
+import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import {
   DESK_HOLD,
   DESK_ITEM_Y,
@@ -189,6 +192,9 @@ export class SectorMode implements GameMode {
   reinforced = 0;
   /** Section restarts (tests). */
   restarts = 0;
+  /** (campus-greybox A28) The section number a `?sectorStart=N` run began at (practice: no star, no best rating, no
+   *  progression); 0: a normal run (tests, e2e). */
+  practiceFrom = 0;
   /** (G22) Lights and doors the last restart put back (tests). */
   lastReset = { lights: 0, doors: 0 };
   private its: Interactable[] = [];
@@ -360,14 +366,40 @@ export class SectorMode implements GameMode {
     this.findDesks();
     this.findCrates();
     this.findStageDoors();
+    // (campus-greybox A28) `?sectorStart=N`: the run begins at section N as its connectors leave it (practice)
+    this.startAt(sectorStartIndex(this.run.defs, flags.sectorStart));
     const s = this.run.current;
     if (s) {
-      g.player.controller.teleport(new Vector3(s.start.x, s.start.y, s.start.z), s.start.yaw);
-      g.player.cam.yaw = s.start.yaw;
+      const cp = this.run.checkpoint;
+      g.player.controller.teleport(new Vector3(cp.x, cp.y, cp.z), cp.yaw);
+      g.player.cam.yaw = cp.yaw;
     }
     g.letterbox(2.8);
     this.loadSection(this.run.index);
     this.beginSection();
+  }
+
+  /**
+   * (campus-greybox A28) A start at run index `i` (0: none, nothing happens): the run moves there
+   * (`applySectorStart`), every connector before it is left as its cycle leaves it (near door locked, far door and side
+   * doors unlocked, the far door open, silently), the earlier sections' objective codes are held (no line), and the run
+   * is practice. The earlier sections are never loaded or rated.
+   */
+  private startAt(i: number): void {
+    if (!applySectorStart(this.run, i)) return;
+    const g = this.g;
+    for (let k = 0; k < i; k++) {
+      const d = this.doors[k];
+      if (d?.far) {
+        this.lockDoor(d.far, false);
+        g.world.doors.setOpen(d.far, true);
+      }
+      if (d) for (const x of d.seal) this.lockDoor(x, false);
+      this.codes.objectiveDone(k, this.granted);
+    }
+    this.keypadLabels();
+    this.practiceFrom = i + 1;
+    g.stats.practice = true;
   }
 
   /** The connectors' doors, by position; every door into a later section starts locked. */
@@ -1020,18 +1052,19 @@ export class SectorMode implements GameMode {
     const ct = this.ct;
     if (ct && g.net?.sector) g.net.sector(ct.wire(), this.netExtra(ct));
     g.events.emit('operationComplete', {});
-    // M7: the op's star for this difficulty (and the best time), solo or the co-op host
-    void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
-    g.hud.banner('SECTORS CLEAR', this.result().ghost ? 'GHOST' : '', 2600);
+    // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28)
+    if (!this.practiceFrom) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
+    g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
     this.endT = 2.6;
   }
 
-  /** Lethal kills (knock-outs are not kills, A4) and times spotted (guard detections plus camera alarms). */
+  /** Lethal kills (knock-outs are not kills, A4), times spotted (guard detections plus camera alarms) and the
+   *  alarms raised (Perfect, G146). */
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
-    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, marks: this.run.marks });
+    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, alarms: this.run.alarmsRaised, marks: this.run.marks });
   }
 
   /**
@@ -1075,7 +1108,8 @@ export class SectorMode implements GameMode {
     w.alarmStep = grant ? r.alarmStep : 0;
     this.secT = 0;
     const mapId = g.world.map.id;
-    void updateRatingRecord(mapId, s.id, marks, synced);
+    // (campus-greybox A28) a practice run records no best rating
+    if (!this.practiceFrom) void updateRatingRecord(mapId, s.id, marks, synced);
     this.rateGrant = grant;
     onRated?.(mapId, s.id, marks, synced);
     this.freshCounters();
@@ -1251,7 +1285,7 @@ export class SectorMode implements GameMode {
       if (this.endT <= 0) {
         this.endT = 0;
         if (this.result().ghost) g.stats.score += 2000;
-        g.endSession(true, this.result().line);
+        g.endSession(true, this.practiceFrom ? practiceLine(this.result().line, this.practiceFrom) : this.result().line);
       }
       return;
     }
@@ -1367,12 +1401,6 @@ export class SectorMode implements GameMode {
     this.ct?.onRemoteJam(tgt, eye);
   }
 
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const it of this.its) if (it.enabled && !it.done) out.push({ x: it.pos.x, z: it.pos.z, kind: 'objective' });
-    return out;
-  }
-
   /** Test view (`window.__sector.debug()`). */
   debug(): Record<string, unknown> {
     const s = this.run.current;
@@ -1410,6 +1438,12 @@ export class SectorMode implements GameMode {
       crates: this.g.crates?.debug() ?? [],
       ...this.result(),
     };
+  }
+
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives: every section's objective and exit, done / current / to
+   *  do (solo and the co-op host; a client mirrors them, `SectorListMirror`). */
+  objectiveLines(): ObjectiveLine[] | null {
+    return this.run.defs.length ? sectorObjectiveLines(this.run.defs, this.run.index, this.run.phase) : null;
   }
 
   dispose(): void {

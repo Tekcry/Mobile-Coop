@@ -1,0 +1,41 @@
+{
+  "geom": "y3jl5g-atld8s",
+  "spaces": [
+    {"id":"s1-verge","section":"S1","storey":0,"floorY":0,"boxes":[[20,-80,26,-56]],"centre":[23,0,-68],"cells":576},
+    {"id":"s1-gatehouse","section":"S1","storey":0,"floorY":0,"boxes":[[14,-79,20,-73]],"centre":[17,0,-76],"cells":144},
+    {"id":"s1-lane","section":"S1","storey":0,"floorY":0,"boxes":[[8,-80,14,-60]],"centre":[11,0,-70],"cells":480},
+    {"id":"s1-lawn","section":"S1","storey":0,"floorY":0,"boxes":[[6,-56,26,-34]],"centre":[16,0,-45],"cells":1760},
+    {"id":"s1-carpark","section":"S1","storey":0,"floorY":0,"boxes":[[-36,-76,6,-52]],"centre":[-15,0,-64],"cells":4032},
+    {"id":"s1-bins","section":"S1","storey":0,"floorY":0,"boxes":[[-40,-52,-30,-45]],"centre":[-35,0,-48.5],"cells":280},
+    {"id":"s1-dyard","section":"S1","storey":0,"floorY":0,"boxes":[[-40,-45,-26,-40]],"centre":[-33,0,-42.5],"cells":280},
+    {"id":"s1-plantroof","section":"S1","storey":4.4,"floorY":4.4,"boxes":[[-40,-40,-26,-34]],"centre":[-33,4.4,-37],"cells":336},
+    {"id":"s1-pavilion","section":"S1","storey":4.4,"floorY":4.4,"boxes":[[-44,-34,4,-30]],"centre":[-20,4.4,-32],"cells":768},
+    {"id":"s1-canopy","section":"S1","storey":4.4,"floorY":4.4,"boxes":[[-26,-40,-14,-34]],"centre":[-20,4.4,-37],"cells":288},
+    {"id":"s1-forecourt","section":"S1","storey":0,"floorY":0,"boxes":[[-26,-46,6,-34]],"centre":[-10,0,-40],"cells":1536},
+    {"id":"s1-plantroom","section":"S1","storey":0,"floorY":0,"boxes":[[-40,-40,-26,-34]],"centre":[-33,0,-37],"cells":336}
+  ],
+  "links": [
+    {"from":"s1-verge","to":"s1-gatehouse","kind":"window","route":"shadow","at":[20,0,-76],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"window is not on the nav grid (walks, ladders and drops only)"}},
+    {"from":"s1-lane","to":"s1-gatehouse","kind":"door","route":"loud","at":[17,0,-73],"atFrom":"declared","gaps":null,"measured":{"time_s":8.28,"path_m":10.76}},
+    {"from":"s1-lane","to":"s1-gatehouse","kind":"window","route":"loud","at":[14,0,-76],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"window is not on the nav grid (walks, ladders and drops only)"}},
+    {"from":"s1-verge","to":"s1-lane","kind":"opening","route":"loud","at":[17,0,-79.5],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"no walkable cell on the shared edge of s1-verge and s1-lane (set at)"}},
+    {"from":"s1-verge","to":"s1-lawn","kind":"opening","route":"shadow","at":[23,0,-56],"atFrom":"edge","gaps":1,"measured":{"time_s":18.24,"path_m":23.71}},
+    {"from":"s1-lane","to":"s1-carpark","kind":"opening","route":"loud","at":[7,0,-62],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"no walkable cell on the shared edge of s1-lane and s1-carpark (set at)"}},
+    {"from":"s1-lawn","to":"s1-carpark","kind":"opening","route":"loud","at":[6,0,-54],"atFrom":"edge","gaps":1,"measured":{"time_s":29.97,"path_m":38.96}},
+    {"from":"s1-lawn","to":"s1-forecourt","kind":"opening","route":"shadow","at":[6,0,-40],"atFrom":"edge","gaps":1,"measured":{"time_s":19.99,"path_m":25.99}},
+    {"from":"s1-carpark","to":"s1-forecourt","kind":"opening","route":"loud","at":[-5,0,-49],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"no walkable cell on the shared edge of s1-carpark and s1-forecourt (set at)"}},
+    {"from":"s1-carpark","to":"s1-bins","kind":"opening","route":"shadow","at":[-33,0,-52],"atFrom":"edge","gaps":1,"measured":{"time_s":19.19,"path_m":24.95}},
+    {"from":"s1-carpark","to":"s1-dyard","kind":"opening","route":"shadow","at":[-28,0,-48],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"no walkable cell on the shared edge of s1-carpark and s1-dyard (set at)"}},
+    {"from":"s1-dyard","to":"s1-forecourt","kind":"opening","route":"shadow","at":[-26,0,-42.5],"atFrom":"edge","gaps":1,"measured":{"time_s":17.76,"path_m":23.09}},
+    {"from":"s1-dyard","to":"s1-plantroof","kind":"ladder","route":"high","at":[-33,0,-40],"atFrom":"edge","gaps":1,"measured":{"time_s":14.77,"path_m":19.2}},
+    {"from":"s1-dyard","to":"s1-plantroom","kind":"door","route":"secret","at":[-33,0,-40],"atFrom":"edge","gaps":1,"measured":{"time_s":3.88,"path_m":5.04}},
+    {"from":"s1-plantroof","to":"s1-canopy","kind":"opening","route":"high","at":[-26,4.4,-37],"atFrom":"edge","gaps":1,"measured":{"time_s":10.01,"path_m":13.02}},
+    {"from":"s1-plantroof","to":"s1-pavilion","kind":"opening","route":"high","at":[-33,4.4,-34],"atFrom":"edge","gaps":1,"measured":{"time_s":10.22,"path_m":13.29}},
+    {"from":"s1-canopy","to":"s1-pavilion","kind":"opening","route":"high","at":[-20,4.4,-34],"atFrom":"edge","gaps":1,"measured":{"time_s":4.09,"path_m":5.32}},
+    {"from":"s1-forecourt","to":"s1-canopy","kind":"coop_boost","route":"high","at":[-20,0,-40.5],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"coop_boost is not on the nav grid (walks, ladders and drops only)"}},
+    {"from":"s1-forecourt","to":"s1-canopy","kind":"coop_boost","route":"high","at":[-15,0,-40.5],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"coop_boost is not on the nav grid (walks, ladders and drops only)"}},
+    {"from":"s1-canopy","to":"s1-forecourt","kind":"drop","route":"high","at":[-20,4.4,-35.85],"atFrom":"declared","gaps":null,"measured":{"time_s":null,"why":"drop not on the guard nav (1.0-2.2 m only)"}},
+    {"from":"s1-pavilion","to":"s1-forecourt","kind":"drop","route":"high","at":[-11,4.4,-34],"atFrom":"edge","gaps":1,"measured":{"time_s":null,"why":"drop not on the guard nav (1.0-2.2 m only)"}},
+    {"from":"s1-forecourt","to":"s2-foyer","kind":"door","route":"spine","at":null,"atFrom":"none","gaps":0,"measured":null}
+  ]
+}

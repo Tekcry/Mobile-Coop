@@ -46,7 +46,7 @@ Spec: `docs/ct-prototype/audit/AUDIT-ACTIONMENU.md`.
 - Art is our own (IP rule): steel-blue borders instead of CT's pale green, corner ticks instead of CT's "[" "]" ends,
   a corner-tick outer frame instead of CT's full bracket, a fill line for hold rows.
 - The box sits under our minimap where the two would overlap (top = max(10.7 % H, minimap bottom + 10 px); at 1080p
-  that is about 12.6 % H). CT has no minimap there.
+  that is about 12.6 % H). CT has no minimap there. (History: the minimap is removed in every mode, G339.)
 - KNOCK OUT / KILL rows for the non-grab takedowns: CT does these on the triggers (LT / RT). Our A takedowns had tap =
   knock out, hold = kill; hold is the menu now, so the choice moved into the list (a tap still knocks out). The
   holstered RT / LT palm strikes are unchanged.

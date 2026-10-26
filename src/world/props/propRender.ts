@@ -16,6 +16,8 @@
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexData, type Material, type Observer, type Scene } from '../../core/babylon';
 import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
+import { loadKeptModel } from '../../operators/runtime/figure';
+import { kept } from '../../core/keptParts';
 import { markLampLevel } from '../bakedLamps';
 import { bakedMesh } from '../kit/kitRender';
 import { markDrawFirst, useSkinsFirst, type BakePart } from '../kit/staticMerge';
@@ -86,6 +88,8 @@ export class PropRender {
   static async create(scene: Scene, placements: readonly PropPlacement[], doors: readonly DoorState[] = [], reg: LightRegistry | null = null): Promise<PropRender> {
     const url = propsUrl();
     if (!url) throw new Error('facility props GLB missing (npm run props:build)');
+    // (map-ready S9) flag on: parsed once per page (the kept parts); off: fetched and parsed per load as before
+    if (kept.enabled) return PropRender.fromModel(scene, await loadKeptModel(scene, url), placements, doors, reg);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`facility props GLB: HTTP ${res.status}`);
     return PropRender.fromModel(scene, parseGlb(await res.arrayBuffer()), placements, doors, reg);

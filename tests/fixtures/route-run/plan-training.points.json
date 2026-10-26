@@ -1,0 +1,30 @@
+{
+  "geom": "fixture-plan-training",
+  "spaces": [
+    {"id":"a1-gate","section":"A1","storey":0,"floorY":0,"boxes":[[0,0,10,10]],"centre":[5,0,5],"cells":400},
+    {"id":"a1-yard","section":"A1","storey":0,"floorY":0,"boxes":[[0,10,10,20]],"centre":[5,0,15],"cells":400},
+    {"id":"a1-hold","section":"A1","storey":4.4,"floorY":4.4,"boxes":[[0,20,10,26]],"centre":[5,4.4,23],"cells":240},
+    {"id":"a2-shed","section":"A2","storey":0,"floorY":0,"boxes":[[0,30,10,40]],"centre":[5,0,35],"cells":400},
+    {"id":"a2-pit","section":"A2","storey":0,"floorY":0,"boxes":[[10,30,24,40]],"centre":[17,0,35],"cells":560},
+    {"id":"a2-hold","section":"A2","storey":0,"floorY":0,"boxes":[[24,30,30,40]],"centre":[27,0,35],"cells":240},
+    {"id":"a3-hall","section":"A3","storey":0,"floorY":0,"boxes":[[30,22,40,44]],"centre":[35,0,33],"cells":880},
+    {"id":"a3-service","section":"A3","storey":0,"floorY":0,"boxes":[[40,22,54,30]],"centre":[47,0,26],"cells":448},
+    {"id":"a3-strong","section":"A3","storey":0,"floorY":0,"boxes":[[40,30,54,44]],"centre":[47,0,37],"cells":784},
+    {"id":"a3-gallery","section":"A3","storey":4,"floorY":4,"boxes":[[40,44,54,48]],"centre":[47,4,46],"cells":224},
+    {"id":"a3-hold","section":"A3","storey":0,"floorY":0,"boxes":[[54,30,60,48]],"centre":[57,0,39],"cells":432}
+  ],
+  "links": [
+    {"from":"a1-gate","to":"a1-yard","kind":"door","route":"shadow","at":[5,0,10],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a1-yard","to":"a1-hold","kind":"coop_boost","route":"high","at":[5,0,20],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a1-hold","to":"a2-shed","kind":"corridor","route":"spine","at":[5,4.4,28],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"a2-shed","to":"a2-pit","kind":"opening","route":"loud","at":[10,0,35],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a2-pit","to":"a2-hold","kind":"door","route":"shadow","at":[24,0,35],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a2-hold","to":"a3-hall","kind":"door","route":"spine","at":[30,0,35],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a3-hall","to":"a3-service","kind":"door","route":"shadow","at":[40,0,26],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a3-service","to":"a3-strong","kind":"duct","route":"shadow","at":[47,0,30],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a3-hall","to":"a3-strong","kind":"double_door","route":"loud","at":[40,0,37],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a3-hall","to":"a3-gallery","kind":"open_stair","route":"high","at":[40,0,44],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"a3-gallery","to":"a3-hold","kind":"door","route":"high","at":[54,4,46],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"a3-strong","to":"a3-hold","kind":"door","route":"loud","at":[54,0,37],"atFrom":"edge","gaps":1,"measured":null}
+  ]
+}

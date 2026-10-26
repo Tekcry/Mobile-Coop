@@ -3,17 +3,23 @@
  * shares, the move, the studio clip) with the switch on and off across the gaits, the sneak, the drawn walk, the aimed
  * strafe, a turn on the spot, a ladder and a studio drive; `NOW_PLAYING` written only through `tuneEnd`; no allocation
  * per frame; the line's text and key in 10 % steps.
+ * (mixamo-retarget M5) The capture's source in the line ("motion-capture (CMU) walk", "motion-capture (Mixamo) hang", from
+ * `mocapSources.ts`), the traversal clip field (`playing.trav`, the graph's `TRAVERSE_CLIP`), both in the key, no
+ * allocation with a traversal playing.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setMocapLocomotion } from '../src/anim/mocap';
 import { AnimGraph, defaultInput, type AnimInput, type RigTargets, type TraverseKind } from '../src/anim/animGraph';
 import { newStudioDrive } from '../src/anim/studioDrive';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEYED_CROUCH_WALK } from '../src/anim/clips/keyed/crouch_walk';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
-import { copyPlaying, MOVE_IDS, newGraphPlaying, NOW_PLAYING, nowPlayingGuardText, nowPlayingKey, nowPlayingText, type GraphPlaying } from '../src/anim/nowPlaying';
+import { CLIMB, HANG } from '../src/anim/clips/traverse';
+import type { Clip } from '../src/anim/clip';
+import { copyPlaying, moveSourceTag, MOVE_IDS, newGraphPlaying, NOW_PLAYING, nowPlayingGuardText, nowPlayingKey, nowPlayingText, type GraphPlaying } from '../src/anim/nowPlaying';
+import { MOCAP_SOURCE_NAMES, mocapSource, mocapSourceTag, mocapSourceTagWord } from '../src/anim/mocapSources';
 import { BODY_GROUPS, tuneEnd, type BodyGroup, type TuneRigIn } from '../src/anim/tune';
 import { proportions } from '../src/player/proportions';
 import { bytesPerCall, inputs, sink } from './helpers/allocPerCall';
@@ -158,6 +164,24 @@ describe('now playing: the graph shares and move', () => {
     }
   });
 
+  it('(M5) the traversal clip the graph plays is in `trav`; none on foot or under a studio clip', () => {
+    // the hand-made clips today (I2 swaps Mixamo captures into the same table: the field follows)
+    expect(run({ speed: 0.5, traverse: 'climb' }, true).playing.trav).toBe(CLIMB);
+    expect(run({ speed: 0, traverse: 'hang' }, true).playing.trav).toBe(HANG);
+    const g = run({ speed: 0, traverse: 'climbUp' }, true);
+    expect(g.playing.trav?.name, 'a team climb-up (no ledge grips) plays its own clip').toMatch(/climb/);
+    expect(run({ speed: 1.4 }, true).playing.trav).toBeNull();
+    // the field goes back to null when the traversal ends
+    const h = run({ speed: 0.5, traverse: 'climb' }, true);
+    const back = run({ speed: 1.4 }, true, h).playing;
+    expect(back.trav).toBeNull();
+    // a studio drive with a clip: its clip, no traversal
+    const d = newStudioDrive();
+    d.clip = KEYED_WALK;
+    h.drive = d;
+    expect(run({ speed: 0.5, traverse: 'climb' }, true, h).playing.trav).toBeNull();
+  });
+
   it('a studio drive plays its clip: no capture, the clip named, with the switch on', () => {
     const g = new AnimGraph(proportions('average', 1.68));
     const d = newStudioDrive();
@@ -269,29 +293,65 @@ describe('now playing: no allocation', () => {
     for (let k = 0; k < 600; k++) g.update(DT, s);
     expect(g.playing.move, `${fmt(g.playing)} ks ${g.out.keyStrafe} kw ${g.out.keyW}`).toBe(MOVE_IDS.strafe);
     const strafe = await bytesPerCall(noteOnly, 0);
-    console.info(`now playing bytes per frame: live ${live.toFixed(1)}, drive ${drive.toFixed(1)}, strafe ${strafe.toFixed(1)}`);
+    // (M5) a ladder: the traversal clip in the note, the copy and the key (its name hashed, its source looked up)
+    const c = input({ speed: 0.5, traverse: 'climb' });
+    c.speed = 0.5;
+    for (let k = 0; k < 120; k++) g.update(DT, c);
+    expect(g.playing.trav).toBe(CLIMB);
+    const climb = await bytesPerCall(noteOnly, 0);
+    console.info(`now playing bytes per frame: live ${live.toFixed(1)}, drive ${drive.toFixed(1)}, strafe ${strafe.toFixed(1)}, climb ${climb.toFixed(1)}`);
     expect(live).toBe(0);
     expect(drive).toBe(0);
     expect(strafe).toBe(0);
+    expect(climb).toBe(0);
   }, 120_000);
 });
 
 describe('now playing: the line and its key', () => {
-  const np = (mocap: number, move: number, clip: GraphPlaying['clip'] = null): GraphPlaying => ({ mocap, keyed: 1 - mocap, code: 0, move, clip });
+  const np = (mocap: number, move: number, clip: GraphPlaying['clip'] = null, trav: Clip | null = null): GraphPlaying => ({ mocap, keyed: 1 - mocap, code: 0, move, clip, trav });
   const IX = (b: BodyGroup): number => BODY_GROUPS.indexOf(b);
+  // the switch on: the mocap set's sources noted (the line names a capture only with the switch on)
+  beforeEach(() => setMocapLocomotion(true));
+  /** A traversal capture as I2 will play one: a channel clip whose name has a source row (a CMU row's name stands in for
+   *  the Mixamo rows M4 adds; the real Mixamo rows are checked below once they exist). */
+  const capTrav = { ...HANG, name: 'mocap_walk' } as Clip;
 
   it('names the source and the move in plain words', () => {
-    expect(nowPlayingText(np(1, MOVE_IDS.walk), 'walk', true)).toBe('Now playing: motion-capture walk');
-    expect(nowPlayingText(np(1, MOVE_IDS.sneak), 'sneak', true)).toBe('Now playing: motion-capture sneak');
-    expect(nowPlayingText(np(1, MOVE_IDS.strafe), 'aim', true)).toBe('Now playing: motion-capture aimed strafe');
+    expect(nowPlayingText(np(1, MOVE_IDS.walk), 'walk', true)).toBe('Now playing: motion-capture (CMU) walk');
+    expect(nowPlayingText(np(1, MOVE_IDS.sneak), 'sneak', true)).toBe('Now playing: motion-capture (CMU) sneak');
+    expect(nowPlayingText(np(1, MOVE_IDS.strafe), 'aim', true)).toBe('Now playing: motion-capture (CMU) aimed strafe');
     expect(nowPlayingText(np(0, MOVE_IDS.walk), 'crouchWalk', true)).toBe('Now playing: hand-made crouch walk');
-    expect(nowPlayingText(np(0.7, MOVE_IDS.walk), 'walk', true)).toBe('Now playing: mix, 70% motion-capture walk, 30% hand-made');
+    expect(nowPlayingText(np(0.7, MOVE_IDS.walk), 'walk', true)).toBe('Now playing: mix, 70% motion-capture (CMU) walk, 30% hand-made');
     expect(nowPlayingText(np(0, MOVE_IDS.walk), 'walk', false)).toBe('Now playing: hand-made walk (motion capture off)');
     expect(nowPlayingText(np(0, MOVE_IDS.clip, KEYED_WALK), 'walk', true)).toBe('Now playing: hand-made walk clip');
     expect(nowPlayingText(np(0, MOVE_IDS.clip, KEYED_CROUCH_WALK), 'walk', false)).toBe('Now playing: hand-made crouch walk clip');
-    expect(nowPlayingText(np(0, MOVE_IDS.clip, MOCAP_WALK), 'walk', true)).toBe('Now playing: motion-capture walk clip');
+    expect(nowPlayingText(np(0, MOVE_IDS.clip, MOCAP_WALK), 'walk', true)).toBe('Now playing: motion-capture (CMU) walk clip');
     expect(nowPlayingText(np(0, MOVE_IDS.run), '', true)).toBe('Now playing: hand-made run');
     expect(nowPlayingGuardText('walk')).toBe('Now playing (guard): hand-made walk');
+  });
+
+  it('(M5) every captured move names its source; a traversal capture its source and the state', () => {
+    for (const m of [MOVE_IDS.walk, MOVE_IDS.jog, MOVE_IDS.run, MOVE_IDS.sprint, MOVE_IDS.start, MOVE_IDS.stop, MOVE_IDS.turnSpot, MOVE_IDS.turnMove, MOVE_IDS.sneak, MOVE_IDS.strafe]) {
+      expect(moveSourceTag(m), `move ${m}`).toBe(1);
+      expect(nowPlayingText(np(1, m), 'walk', true), `move ${m}`).toMatch(/^Now playing: motion-capture \(CMU\) [a-z ]+$/);
+    }
+    expect(moveSourceTag(MOVE_IDS.clip)).toBe(0);
+    // a hand-made traversal clip: the hand-made line as before
+    expect(nowPlayingText(np(0, MOVE_IDS.walk, null, HANG), 'ledge', true)).toBe('Now playing: hand-made ledge hang');
+    expect(nowPlayingText(np(0, MOVE_IDS.walk, null, CLIMB), 'ladder', false)).toBe('Now playing: hand-made ladder climb (motion capture off)');
+    // a traversal capture: its source, the state's word (else the clip's)
+    expect(nowPlayingText(np(0, MOVE_IDS.walk, null, capTrav), 'hang', true)).toBe('Now playing: motion-capture (CMU) hang');
+    expect(nowPlayingText(np(0, MOVE_IDS.walk, null, capTrav), '', true)).toBe('Now playing: motion-capture (CMU) walk');
+    // the source words
+    expect([mocapSourceTagWord(0), mocapSourceTagWord(1), mocapSourceTagWord(2)]).toEqual(['', 'CMU', 'Mixamo']);
+    // every Mixamo row (none until M3 / M4 land) reads "(Mixamo)" as a traversal or a studio clip
+    for (const name of MOCAP_SOURCE_NAMES) {
+      const r = mocapSource(name)!;
+      const w = r.source === 'mixamo' ? 'Mixamo' : 'CMU';
+      expect(mocapSourceTag(name), name).toBe(r.source === 'mixamo' ? 2 : 1);
+      const fake = { ...HANG, name } as Clip;
+      expect(nowPlayingText(np(0, MOVE_IDS.walk, null, fake), 'ledge', true), name).toBe(`Now playing: motion-capture (${w}) ledge hang`);
+    }
   });
 
   it('every body state has a word (no raw ids in the line)', () => {
@@ -302,10 +362,10 @@ describe('now playing: the line and its key', () => {
   });
 
   it('rounds the capture share to 10 % steps in the text and the key', () => {
-    expect(nowPlayingText(np(0.96, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: motion-capture jog');
-    expect(nowPlayingText(np(0.94, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: mix, 90% motion-capture jog, 10% hand-made');
+    expect(nowPlayingText(np(0.96, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: motion-capture (CMU) jog');
+    expect(nowPlayingText(np(0.94, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: mix, 90% motion-capture (CMU) jog, 10% hand-made');
     expect(nowPlayingText(np(0.04, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: hand-made jog');
-    expect(nowPlayingText(np(0.06, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: mix, 10% motion-capture jog, 90% hand-made');
+    expect(nowPlayingText(np(0.06, MOVE_IDS.jog), 'jog', true)).toBe('Now playing: mix, 10% motion-capture (CMU) jog, 90% hand-made');
     const w = IX('walk');
     expect(nowPlayingKey(np(0.71, 0), w, true)).toBe(nowPlayingKey(np(0.69, 0), w, true));
     expect(nowPlayingKey(np(0.64, 0), w, true)).not.toBe(nowPlayingKey(np(0.66, 0), w, true));
@@ -314,20 +374,25 @@ describe('now playing: the line and its key', () => {
   it('one key, one text: the key changes whenever the text would, across shares, moves, states, the switch and clips', () => {
     const texts = new Map<number, string>();
     const clips = [null, KEYED_WALK, KEYED_CROUCH_WALK, MOCAP_WALK];
+    // (M5) the traversal clip: none, hand-made ones, a capture
+    const travs: (Clip | null)[] = [null, HANG, CLIMB, capTrav];
     let n = 0;
     for (let s = 0; s <= 20; s++) {
       for (const move of Object.values(MOVE_IDS)) {
         for (const b of ['', ...BODY_GROUPS] as const) {
           for (const on of [true, false]) {
             for (const c of clips) {
-              const p = np(s / 20, move, c);
-              const key = nowPlayingKey(p, b === '' ? -1 : IX(b), on);
-              expect(Number.isInteger(key) && key >= 0).toBe(true);
-              const t = nowPlayingText(p, b, on);
-              const seen = texts.get(key);
-              if (seen !== undefined) expect(t, `key ${key}`).toBe(seen);
-              else texts.set(key, t);
-              n++;
+              for (const tr of travs) {
+                if (tr !== null && (c !== null || s % 5 !== 0)) continue; // (the traversal on a sample: the count stays small)
+                const p = np(s / 20, move, c, tr);
+                const key = nowPlayingKey(p, b === '' ? -1 : IX(b), on);
+                expect(Number.isInteger(key) && key >= 0 && key < 2 ** 28, `key ${key} a small integer`).toBe(true);
+                const t = nowPlayingText(p, b, on);
+                const seen = texts.get(key);
+                if (seen !== undefined) expect(t, `key ${key}`).toBe(seen);
+                else texts.set(key, t);
+                n++;
+              }
             }
           }
         }
@@ -338,5 +403,8 @@ describe('now playing: the line and its key', () => {
     expect(nowPlayingKey(np(0, 0), IX('walk'), true)).not.toBe(nowPlayingKey(np(0, 0), IX('walk'), false));
     expect(nowPlayingKey(np(0, MOVE_IDS.clip, KEYED_WALK), 0, true)).not.toBe(nowPlayingKey(np(0, MOVE_IDS.clip, KEYED_CROUCH_WALK), 0, true));
     expect(nowPlayingKey(np(1, MOVE_IDS.walk), 1, true)).not.toBe(nowPlayingKey(np(1, MOVE_IDS.jog), 1, true));
+    // (M5) the traversal clip and its source: a capture's key differs from the hand-made clip's
+    expect(nowPlayingKey(np(0, MOVE_IDS.walk, null, HANG), IX('hang'), true)).not.toBe(nowPlayingKey(np(0, MOVE_IDS.walk, null, capTrav), IX('hang'), true));
+    expect(nowPlayingKey(np(0, MOVE_IDS.walk, null, HANG), IX('hang'), true)).not.toBe(nowPlayingKey(np(0, MOVE_IDS.walk), IX('hang'), true));
   });
 });

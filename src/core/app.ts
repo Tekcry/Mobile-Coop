@@ -29,6 +29,7 @@ import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
 import { flags } from './flags';
 import { applyMocapSwitch, mocapWanted } from '../anim/mocap';
+import { kept as keptParts, type KeptParts } from './keptParts';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -67,6 +68,8 @@ export class App {
   /** Weapon sounds from CC0 recordings (shots, suppressed shots, reloads, brass). */
   readonly weaponAudio = new WeaponAudio(this.audio);
   readonly quality: QualityManager;
+  /** (map-ready S9) The kept parts: textures and parsed model files held between matches (`mapReady` on). */
+  readonly kept: KeptParts = keptParts;
   /** Playtest feedback notes (Settings > Feedback, pause menu). */
   readonly feedback = new FeedbackStore();
   private state: AppState | null = null;
@@ -102,6 +105,17 @@ export class App {
     kbm.lockLostHook = () => tune.mouseLockLost();
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
+    // (map-ready S9) the kept parts: on with the flag; a GPU context loss or a Textures setting change releases them
+    keptParts.enabled = flags.mapReady;
+    if (keptParts.enabled) {
+      this.engine.onContextLostObservable.add(() => keptParts.dropTextures());
+      let textures = this.quality.level.features.textures;
+      this.quality.onChange = (l) => {
+        if (l.features.textures === textures) return;
+        textures = l.features.textures;
+        keptParts.dropTextures();
+      };
+    }
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
     // (anim-metrics-2) the anti-crab readout measures the local player of a match (none in the menus)
@@ -369,7 +383,11 @@ export class App {
     this.loop.detach();
     this.quality.setTarget(null);
     this.debug.setScene(null);
-    if (!prev.scene.isDisposed) prev.scene.dispose();
+    if (!prev.scene.isDisposed) {
+      // (map-ready S9) hold the textures this match used before its dispose frees them (flag off: no-op)
+      keptParts.handOver(prev.scene);
+      prev.scene.dispose();
+    }
     // (3.1.7: the engine's compiled-shader cache kept every old match alive - a plugin material's shader holds its
     // material, so its scene and the whole GameState; the keys never repeat (plugin ids count up), so nothing is lost:
     // with no scene alive, every cached shader is the last one's)

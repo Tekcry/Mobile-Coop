@@ -132,8 +132,10 @@ describe('guard-ai S16: the gate in Enemy (src/ai/enemy.ts)', () => {
     expect(g).toContain('t.shield ? MASK.ENEMY_SHOT | G.ENEMY_HITBOX : MASK.ENEMY_SHOT');
     expect(g).not.toMatch(/new Vector3|clone\(|=>/);
     const s = body('shoot');
-    expect(s).toContain('this.muzzle(new Vector3(), mode)');
-    expect(s).toContain('this.aimAt(t, mode, new Vector3())');
+    // (guard-ai-alloc D1) shoot's own scratch, not the gate's (and no fresh vectors per round)
+    expect(s).toContain('this.muzzle(SHOT_FROM, mode)');
+    expect(s).toContain('this.aimAt(t, mode, SHOT_AIM)');
+    expect(s).not.toMatch(/new Vector3|clone\(/);
   });
 
   it('sight stays on MASK.SIGHT (losClear), the timers step, combat over resets the gate', () => {

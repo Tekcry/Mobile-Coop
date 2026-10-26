@@ -55,6 +55,57 @@ function hermite(p0: number, m0: number, p1: number, m1: number, h: number, s: n
   return (2 * s3 - 3 * s2 + 1) * p0 + (s3 - 2 * s2 + s) * h * m0 + (-2 * s3 + 3 * s2) * p1 + (s3 - s2) * h * m1;
 }
 
+/**
+ * (mixamo-retarget I2 fix) `evalCurve` with its time read from `io[at]` and its value written to `io[at + 1]`, the same
+ * arithmetic: no double crosses the call. A call V8 does not inline boxes a double argument and a double result (16 B
+ * each); a caller that inlines many helpers (AnimGraph.mixamoTrav) runs out of inlining budget for evalCurve, so it
+ * allocated on every kept channel. The Hermite step is written out here for the same reason.
+ */
+export function evalCurveIO(c: Curve, io: Float64Array, at: number): void {
+  const { t, v, m } = c;
+  const n = t.length;
+  if (n === 0) {
+    io[at + 1] = 0;
+    return;
+  }
+  if (n === 1) {
+    io[at + 1] = v[0]!;
+    return;
+  }
+  let x = io[at]!;
+  let lo = 0;
+  let hi = n - 1;
+  let h: number;
+  let s: number;
+  if (c.loop) x = ((x % c.period) + c.period) % c.period;
+  if (c.loop && (x < t[0]! || x >= t[n - 1]!)) {
+    // between the last key and the first key of the next period
+    lo = n - 1;
+    hi = 0;
+    h = t[0]! + c.period - t[n - 1]!;
+    s = (x < t[0]! ? x + c.period - t[n - 1]! : x - t[n - 1]!) / h;
+  } else {
+    if (!c.loop && x <= t[0]!) {
+      io[at + 1] = v[0]!;
+      return;
+    }
+    if (!c.loop && x >= t[n - 1]!) {
+      io[at + 1] = v[n - 1]!;
+      return;
+    }
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (t[mid]! <= x) lo = mid;
+      else hi = mid;
+    }
+    h = t[hi]! - t[lo]!;
+    s = (x - t[lo]!) / h;
+  }
+  const s2 = s * s;
+  const s3 = s2 * s;
+  io[at + 1] = (2 * s3 - 3 * s2 + 1) * v[lo]! + (s3 - 2 * s2 + s) * h * m[lo]! + (-2 * s3 + 3 * s2) * v[hi]! + (s3 - s2) * h * m[hi]!;
+}
+
 /** Evaluate at time `x` (clamped, or wrapped for loops). */
 export function evalCurve(c: Curve, x: number): number {
   const { t, v, m } = c;

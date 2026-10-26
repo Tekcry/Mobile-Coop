@@ -131,6 +131,16 @@ export function versionFromSubjects(subjects, n) {
   return null;
 }
 
+/**
+ * `subjects` (gh's first 100 commits plus the head's subject) with the head's newest commit subjects appended, oldest
+ * first, when train n's version commit is not among them; `recent()` returns those subjects one per line (or null).
+ */
+export function withRecentSubjects(subjects, n, recent) {
+  if (versionFromSubjects(subjects, n)) return subjects;
+  const more = String(recent() ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+  return more.length ? [...subjects, ...more] : subjects;
+}
+
 /** A train PR title "<version>: Train <n>: <title>" -> { version, n, title } or null. */
 export function parseTrainTitle(t) {
   const m = /^(\d+\.\d+\.\d+): Train (\d+): (.+)$/.exec(String(t ?? '').trim());
@@ -942,6 +952,11 @@ function openTrain() {
   // read the head's own subject too.
   const headSubject = api(`repos/{owner}/{repo}/commits/${p.headRefOid}`, '.commit.message | split("\\n")[0]');
   if (headSubject) subjects.push(headSubject.trim());
+  // A fix commit on top of a big train pushes its version commit past that cap as well (train 112, 2026-10-26: "no
+  // version commit: rebuild" after a doc-lint fix): read the head's newest 100 commits only when it is still missing.
+  const all = withRecentSubjects(subjects, n, () => api(`repos/{owner}/{repo}/commits?sha=${p.headRefOid}&per_page=100`,
+    '[.[].commit.message | split("\\n")[0]] | reverse | .[]'));
+  subjects.splice(0, subjects.length, ...all);
   const vc = versionFromSubjects(subjects, n);
   const fromTitle = parseTrainTitle(p.title);
   let version = vc?.version ?? null;
@@ -1049,7 +1064,9 @@ function nextN() {
 export function leftOutPlan({ pr, branch, head, n, why, labels = [], bodies = [] }) {
   return memberLabelPlan({ pr, labels, bodies, marker: `<!-- auto-train:left-out:${head} -->`, paragraphs: [
     `Auto-train: \`${branch}\` (${short(head)}) was left out of train ${n}: ${why}.`,
-    `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`] });
+    why.startsWith('doc-lint')
+      ? `Please fix the doc on this branch so it passes doc-lint together with master and the train's other members (each may pass alone, e.g. a shared doc budget). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once it is fixed and \`check\` is green.`
+      : `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`] });
 }
 
 /** A PR's labels and comment bodies (for leftOutPlan / dropPlan). */
@@ -1168,7 +1185,7 @@ async function build(n, cands, { rebuildOf } = {}) {
     }
     return { ...base, head, state: 'built', reason: `train ${n} built; waiting for CI and ${LAPTOP_CONTEXT}`, leftOut };
   }
-  if (r.code === 3) return { ...base, head, state: 'failed', reason: `train ${n}: every member left out on conflicts (merge-train exit 3)`, leftOut };
+  if (r.code === 3) return { ...base, head, state: 'failed', reason: `train ${n}: every member left out on conflicts or doc-lint (merge-train exit 3)`, leftOut };
   return { ...base, head, state: 'error', reason: `merge-train build exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}`, leftOut };
 }
 

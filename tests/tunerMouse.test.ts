@@ -174,7 +174,8 @@ describe('a state picked in a tab plays its loop (item 13)', () => {
     expect(loopForGroup('trav', 'trav.vault', 'state:idle')).toBe('trav:vault');
     expect(loopForGroup('team_boost', 'team.boost.b', 'state:idle')).toBe('pair:boost');
     expect(loopForGroup('team_boost', 'team.boost.a', 'pair:boost')).toBe('');
-    expect(loopForGroup('body', 'carry', 'state:idle')).toBe('');
+    // (mixamo-retarget M3) the carry state plays the Mixamo carry idle (its Studio row pins body 'carry')
+    expect(loopForGroup('body', 'carry', 'state:idle')).toBe('keyed:mocap_carry_body_idle');
   });
 
   it('every body state of every section maps to a real loop entry or none', () => {
