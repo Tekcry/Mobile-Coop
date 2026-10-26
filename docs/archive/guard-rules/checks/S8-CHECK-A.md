@@ -4,7 +4,7 @@ VERDICT: PASS
 
 Checker A (Opus 5.5, fresh: AI behaviour, intent, the flag-off guarantee), branch `feature/guard-rules-s8`, head
 a5d18b277, diff `48394def2..a5d18b277` (6 owned files; no src/net, src/core or wire change), against
-`docs/guard-rules/slices/S8-BRIEF.md`, PLAN S8 / Flags / PR4, BRIEF A12 and G348.
+`docs/archive/guard-rules/slices/S8-BRIEF.md`, PLAN S8 / Flags / PR4, BRIEF A12 and G348.
 
 ## Checks run
 - `npm run typecheck:fast`: clean.

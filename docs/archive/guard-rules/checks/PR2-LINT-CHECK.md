@@ -10,7 +10,7 @@ Checker: fresh Opus 5.5. Scope: the lint fix on top of b78c1eab3, which passed c
 ## What was checked
 - `git diff b78c1eab3 23fa870eb`: two files. tests/helmetRule.test.ts adds `import type * as EnemyModule from
   '../src/ai/enemy'` and changes `importOriginal<typeof import('../src/ai/enemy')>()` to
-  `importOriginal<typeof EnemyModule>()` (+2 / -1). docs/guard-rules/checks/PR2-MERGE-CHECK.md is new (the merge check
+  `importOriginal<typeof EnemyModule>()` (+2 / -1). docs/archive/guard-rules/checks/PR2-MERGE-CHECK.md is new (the merge check
   record). No source change, no behaviour change.
 - The vi.mock still mocks the real module: `import type` is erased at compile, so it cannot load `src/ai/enemy` before
   the hoisted mock. The revive tests (`revived()`, lines 117-122, used at 243 and 251) only pass when `new Enemy` goes

@@ -4,7 +4,7 @@ Owner: Guard AI Build. Status: current.
 Re-anchor on the wave 3 merge head before building: S4 changed enemy.ts, S6 changed enemyManager.ts and e2e-sectorops.mjs.
 
 Builder: Opus 5.5 (AI code). Ships DARK behind `flags.dogRelease` (F0). Rows: B6. Assumption: A12
-(`docs/guard-rules/BRIEF.md`). Source: `docs/guard-rules/PLAN.md` "PR4" S8. Every anchor below is quoted by content
+(`docs/archive/guard-rules/BRIEF.md`). Source: `docs/archive/guard-rules/PLAN.md` "PR4" S8. Every anchor below is quoted by content
 and checked on 452e23035 (PR2 + F0); line numbers are "~N on 452e23035" only. S4 adds ~20 lines to `enemy.ts` above
 the anchors here (fields ~475-486, `onLevel`), so re-find each by its quote.
 

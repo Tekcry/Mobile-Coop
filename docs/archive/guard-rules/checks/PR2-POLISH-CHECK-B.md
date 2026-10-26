@@ -2,7 +2,7 @@ Verdict: PASS
 
 # J15 guard-rules PR2 polish delta: checker B (Opus, fresh)
 
-Checked: `git diff a09495007 69257d7b1 -- . ':!docs/guard-rules/slices'` (7 commits, 026f52c5e..69257d7b1, 16 files)
+Checked: `git diff a09495007 69257d7b1 -- . ':!docs/archive/guard-rules/slices'` (7 commits, 026f52c5e..69257d7b1, 16 files)
 against the Polish lists of PR1-CHECK-A/B and S5-CHECK-A/B and BRIEF A7. Head 69257d7b1.
 
 Reran: `npm run typecheck:fast` clean (CPU 21%). The five touched test files only (`helmetRule`, `alarmRepeat`,

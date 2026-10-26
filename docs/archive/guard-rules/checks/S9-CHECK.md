@@ -3,7 +3,7 @@ Owner: Guard AI Build. Status: current.
 VERDICT: PASS
 
 Checker (Sonnet 5.5, fresh: data slice), branch `feature/guard-rules-s9`, head 2900160cb, diff `d8caa5c2d..2900160cb`,
-against `docs/guard-rules/slices/S9-BRIEF.md`.
+against `docs/archive/guard-rules/slices/S9-BRIEF.md`.
 
 ## Checks run
 - Two files changed: `src/world/maps/campusS5Data.ts`, `tests/campusPosts.test.ts`.

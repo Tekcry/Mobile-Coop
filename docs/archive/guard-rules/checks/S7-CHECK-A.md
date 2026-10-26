@@ -3,7 +3,7 @@ Owner: Guard AI Build. Status: current.
 VERDICT: PASS
 
 Checker A (Opus 5.5, fresh: AI behaviour, intent, the flag-off guarantee), branch `feature/guard-rules-s7`, head
-e75a1f050, diff `48394def2..e75a1f050`, against `docs/guard-rules/slices/S7-BRIEF.md`, PLAN S7 / Flags / PR4, BRIEF
+e75a1f050, diff `48394def2..e75a1f050`, against `docs/archive/guard-rules/slices/S7-BRIEF.md`, PLAN S7 / Flags / PR4, BRIEF
 A9, G335 (static lookouts on high routes, G44 unchanged), Q13 / M3 ("Overlooking it") and VISION rule 8.
 
 ## Checks run

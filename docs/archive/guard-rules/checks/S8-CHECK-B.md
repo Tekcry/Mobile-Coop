@@ -3,7 +3,7 @@ Owner: Guard AI Build. Status: current.
 VERDICT: PASS
 
 Checker B (Opus 5.5, fresh: code, hard rules, hot paths, tests, e2e), branch `feature/guard-rules-s8`, head a5d18b277,
-diff `48394def2..a5d18b277` (6 files, +473 / -19, 4 commits), against `docs/guard-rules/slices/S8-BRIEF.md`.
+diff `48394def2..a5d18b277` (6 files, +473 / -19, 4 commits), against `docs/archive/guard-rules/slices/S8-BRIEF.md`.
 
 ## Checks run
 - `npm run typecheck:fast`: clean.
