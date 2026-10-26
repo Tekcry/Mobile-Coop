@@ -15,7 +15,8 @@ Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Ses
    (wharf blips(), testing-tools 720 budget, lamp note), status posted. 47 Tallow lamps in lampBoxAlign KNOWN_EMBEDDED
    (light-pass item; lamp 92 buried in the clock block). All 4 members are PRs; orchestrator told.
 6. G5 after (d) (A30); #549 look-video merged (master).
-Next: (d) checker verdict -> PR (merge (c) 3a114fbb0 in + fix e2e-sectorops-wharf.mjs:396 blips() first); #578 / #522 verdicts; Tallow W1 in /preview/ when (d) lands.
+Next: watch #522 -> #578 -> #581 -> #583 (CI, affected); retarget each to master in order once the one below lands
+(A27); Tallow W1 in /preview/ when #583 lands; then G5 (A30).
 
 ## OLD RESUME 2026-10-26 ~16:15 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
