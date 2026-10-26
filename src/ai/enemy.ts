@@ -21,6 +21,8 @@ import { spreadDir } from '../weapons/ballistics';
 import { sampleSpread } from '../weapons/weaponStats';
 import { wrapAngle } from '../player/playerController';
 import { emptyMotionInput, MotionDriver } from '../anim/motion';
+import { newKillDrive, type KillDriveState } from '../anim/killDrive'; // (piano-knife S1)
+import type { KeyedClip } from '../anim/keyed';
 import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
@@ -873,6 +875,36 @@ export class Enemy implements Damageable {
   /** (3.2.0) Held as a hostage: not solid to the operator's body (bullets still hit). */
   setSolid(on: boolean): void {
     this.hitboxes.setSolid(on);
+  }
+
+  /** (piano-knife S1) The paired knife kill's drive on his graph (allocated on first use) and whether the takedown
+   *  places his drawn root itself (`frame` then leaves it: the attacker's rendered frame, `knifePair.victimRoot`). */
+  private killDrv: KillDriveState | null = null;
+  private knifePinned = false;
+
+  /**
+   * (piano-knife S1) His side of a paired knife kill (`TakedownController`, solo / host): `clip` played at `ph` (0..1) on
+   * his graph through the kill drive (full weight; it plays on a guard rig, `keyedOk` is not read), `buckle` the fold
+   * of his spine and chest (rad, + forward); his struggle pose off while it plays, his drawn root the takedown's. A null
+   * `clip` clears it (an abort). `die` clears it once the ragdoll has taken the pose. No allocation after the first.
+   */
+  knifeVictim(clip: KeyedClip | null, ph: number, buckle: number): void {
+    const g = this.rig.graph;
+    if (!clip) {
+      if (this.killDrv && g.kill === this.killDrv) g.kill = null;
+      this.knifePinned = false;
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      return;
+    }
+    const d = this.killDrv ?? (this.killDrv = newKillDrive());
+    d.clip = clip;
+    d.phase = ph;
+    d.w = 1;
+    d.buckle = 1;
+    d.bucklePitch = buckle;
+    g.kill = d;
+    this.knifePinned = true;
+    if (this.rig.emote === this.cqEmote) this.rig.emote = null;
   }
 
   /** Place the seized body (fixed step, 60 Hz). (G7) His velocity follows (eased), so a hostage walks with the hero
@@ -2368,6 +2400,8 @@ export class Enemy implements Damageable {
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
     this.ctx.addBody(this, this.rig, imp, lethal);
+    // (piano-knife S1) the ragdoll has his last pose: the knife kill's drive and hands off
+    if (this.knifePinned || (this.killDrv && this.rig.graph.kill === this.killDrv)) this.knifeVictim(null, 0, 0);
     this.ctx.onKilled(this, h);
   }
 
@@ -4211,8 +4245,11 @@ export class Enemy implements Damageable {
       return;
     }
     const r = this.rig.root;
-    Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
-    r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
+    // (piano-knife S1) in a knife kill the takedown placed his drawn root from the attacker's (`knifePair.victimRoot`)
+    if (!this.knifePinned) {
+      Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
+      r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
+    }
     const sp = hyp2(this.vel.x, this.vel.z);
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
@@ -4253,7 +4290,7 @@ export class Enemy implements Damageable {
     rp.velZ = this.vel.z;
     rp.goalYaw = this.taken ? this.yaw : m.goalYaw;
     // (A1.2) not aiming and walking forward: the stride runs along the facing (no strafe / back clip on a patrol turn)
-    rp.stride = !rp.wall && aiming < 0.5 && rp.localZ > 0.5 ? 'facing' : 'velocity';
+    rp.stride = this.knifePinned || (!rp.wall && aiming < 0.5 && rp.localZ > 0.5) ? 'facing' : 'velocity';
     rp.traverse = this.climbing ? 'climb' : 'none';
     rp.traverseT = this.climbT;
     if (this.climbing) rp.aim = 0;
