@@ -14,9 +14,8 @@ import { tenseNear } from './tenseSneak';
 import { EasedVelocity, paceSpeed, targetSpeed, landingKind, LANDING, crouchWanted, type LandingKind, type Stance } from './movement';
 import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
-import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
+import { emptyMotionInput, MotionDriver } from '../anim/motion';
 import { LOCO } from '../anim/mocap';
-import { hyp2 } from '../core/mathx';
 import { tuneSim } from '../anim/tune';
 import { cqSim } from '../anim/cqGait';
 import { speedMoveMul } from './speedTune';
@@ -98,7 +97,7 @@ const RIM_SAG = MOVEMENT.radius - Math.sqrt(MOVEMENT.radius * MOVEMENT.radius * 
 /** (S-e2e-fix) `floorNear`: the highest a floor top may be over the feet (m): a kinematic move or a teleport puts the feet
  *  0.02 over the floor it ends on, a step-up a little more; a ray that starts inside a solid reads far higher. */
 const STALE_TOP = 0.1;
-/** The floor rays' filter (`floorUnder`): one shared bag, no allocation per ray. */
+/** The floor rays' filter (`floorHit`): one shared bag, no allocation per ray. */
 const FLOOR_QUERY = { membership: G.PLAYER, collideWith: MASK.PLAYER_COLLIDE };
 
 /**
@@ -220,6 +219,9 @@ export class PlayerController {
   private readonly halfUp = new Vector3();
   private readonly kinPos = new Vector3();
   private readonly kinUp = new Vector3();
+  /** (player-hygiene S1b) `kinUp` as numbers (x and z stay 0): it is set with `Vector3.FromArrayToRef`, not `set`, which
+   *  boxes its arguments wherever V8 does not inline it. */
+  private readonly kinUpA: number[] = [0, 0, 0];
   private readonly zero = new Vector3();
   /** (player-hygiene S1) `hasHeadroom`'s ray: the head, the ray's end, their offsets, the result and the filter. */
   private readonly headTop = new Vector3();
@@ -438,8 +440,8 @@ export class PlayerController {
     if (!eng) return 0;
     const c = this.cc.getPosition();
     const feet = c.y - this.height / 2;
-    const hit = this.floorUnder(eng, c.x, c.y, c.z, feet);
-    if (hit === null) return 0;
+    if (!this.floorHit(eng, c.x, c.y, c.z, feet)) return 0;
+    const hit = this.floorY;
     const ny = this.settleRay.hitNormalWorld.y;
     if (ny < this.cc.maxSlopeCosine) return 0;
     // the sphere's lowest point stands off a slope by r (1 / cos - 1) over the point under its centre
@@ -449,9 +451,8 @@ export class PlayerController {
     for (let k = 0; k < 4; k++) {
       const ox = k === 0 ? d : k === 1 ? -d : 0;
       const oz = k === 2 ? d : k === 3 ? -d : 0;
-      const h = this.floorUnder(eng, c.x + ox, c.y, c.z + oz, feet);
       // the sphere's surface over a rim ray is `RIM_SAG` higher than its lowest point
-      if (h !== null) gap = Math.min(gap, feet + RIM_SAG - h - SETTLE.rest);
+      if (this.floorHit(eng, c.x + ox, c.y, c.z + oz, feet)) gap = Math.min(gap, feet + RIM_SAG - this.floorY - SETTLE.rest);
     }
     return gap > SETTLE.tol ? gap : 0;
   }
@@ -471,18 +472,23 @@ export class PlayerController {
     for (let k = 0; k < 5; k++) {
       const ox = k === 1 ? d : k === 2 ? -d : 0;
       const oz = k === 3 ? d : k === 4 ? -d : 0;
-      const h = this.floorUnder(eng, c.x + ox, c.y, c.z + oz, feet);
-      if (h !== null && h <= feet + STALE_TOP) return true;
+      if (this.floorHit(eng, c.x + ox, c.y, c.z + oz, feet) && this.floorY <= feet + STALE_TOP) return true;
     }
     return false;
   }
 
-  /** Height of the floor under (x, z) within `SETTLE.reach` of the feet, else null. */
-  private floorUnder(eng: PhysicsEngine, x: number, y: number, z: number, feet: number): number | null {
+  /** (player-hygiene S1b) The last `floorHit`'s floor height: a number field, never null. */
+  private floorY = 0;
+
+  /** A floor under (x, z) within `SETTLE.reach` of the feet: true on a hit, its height in `floorY`. (player-hygiene S1b) A
+   *  boolean and a number field, not `number | null`: a double returned from a call V8 does not inline boxes. */
+  private floorHit(eng: PhysicsEngine, x: number, y: number, z: number, feet: number): boolean {
     this.settleFrom.set(x, y, z);
     this.settleTo.set(x, feet - SETTLE.reach, z);
     eng.raycastToRef(this.settleFrom, this.settleTo, this.settleRay, FLOOR_QUERY);
-    return this.settleRay.hasHit ? this.settleRay.hitPointWorld.y : null;
+    if (!this.settleRay.hasHit) return false;
+    this.floorY = this.settleRay.hitPointWorld.y;
+    return true;
   }
 
   private hasHeadroom(): boolean {
@@ -508,19 +514,27 @@ export class PlayerController {
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
       // (anim-rework S1) the stick's speed still reads while a committed move drives (a fence climb's rattle, the wire)
-      this.analog.update(this.maxGear, this.crouched, this.frozen ? 0 : Math.min(1, hyp2(input.moveX, input.moveY)));
+      // (player-hygiene S1b) `analog.step` reads the magnitude from `analog.mag`, and `hyp2` is written out: a double
+      // passed to a call V8 does not inline boxes
+      const ix = input.moveX;
+      const iy = input.moveY;
+      this.analog.mag = this.frozen ? 0 : Math.min(1, Math.sqrt(ix * ix + iy * iy));
+      this.analog.step(this.maxGear, this.crouched);
       this.wantSpeed = this.analog.v;
       this.stopHold = false;
       this.stopEaseT = -1;
       this.crouchPend = false;
-      this.cc.setPosition(ov.kinematic.addToRef(this.kinUp.set(0, this.height / 2 + 0.02, 0), this.kinPos));
+      this.kinUpA[1] = this.height / 2 + 0.02;
+      this.cc.setPosition(ov.kinematic.addToRef(Vector3.FromArrayToRef(this.kinUpA, 0, this.kinUp), this.kinPos));
       this.cc.setVelocity(this.zero);
       this.staleSupport = true;
       this.syncFeet();
-      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, (ov.turnRate ?? T.turnMoving * 1.5) * dt);
+      if (ov.yaw !== undefined) this.turnToOverride(ov, dt);
       this.speed = Vector3.Distance(this.pos, this.prevPos) / Math.max(dt, 1e-4);
       this.vel.reset();
-      this.motion.reset(this.yaw);
+      // (player-hygiene S1b) the facing through the driver's field, then `reset()` keeps it: no double argument
+      this.motion.yaw = this.yaw;
+      this.motion.reset();
       this.grounded = true;
       if (ov.crouch !== undefined) this.applyCrouch(ov.crouch);
       this.updateStance(dt);
@@ -534,11 +548,15 @@ export class PlayerController {
     let my = this.frozen ? 0 : input.moveY;
     // free movement: a stick springing back is a release from where it was, not a slow-down on the way
     if (!ov) {
-      this.release.update(mx, my, dt);
+      // (player-hygiene S1b) the stick through `release`'s fields (a double passed to a call V8 does not inline boxes)
+      this.release.inX = mx;
+      this.release.inY = my;
+      this.release.step(dt);
       mx = this.release.x;
       my = this.release.y;
     } else this.release.reset();
-    const mag = Math.min(1, hyp2(mx, my));
+    // (player-hygiene S1b) `hyp2` written out (a call with doubles boxes them)
+    const mag = Math.min(1, Math.sqrt(mx * mx + my * my));
     if (mag < 0.05) mx = my = 0;
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
     if (this.wish.lengthSquared() > 1) this.wish.normalize();
@@ -579,7 +597,9 @@ export class PlayerController {
     const stance: Stance = aiming ? (this.crouched ? 'adsCrouch' : 'ads') : this.crouched ? 'crouch' : 'stand';
     // (anim-rework S1) free movement: the stick's deflection sets the speed continuously (`AnalogGear.v`, the
     // STICK_SPEED curve; the keyboard's walk / run / creep magnitudes land on its points); overrides set their own velocity
-    const snapped = this.analog.update(this.maxGear, this.crouched, mag);
+    // (player-hygiene S1b) the magnitude through `analog.mag`
+    this.analog.mag = mag;
+    const snapped = this.analog.step(this.maxGear, this.crouched);
     this.wantSpeed = this.analog.v;
     let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : paceSpeed(this.analog.v, stance, lx, lz, T) * speedMoveMul(this.analog.v, stance, lx, lz)) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
@@ -604,7 +624,10 @@ export class PlayerController {
     mi.slowest = snapped === 1;
     // (G1, audit row 26) the tense sneak near an unaware guard: long deliberate steps on the gait clock
     this.tense = this.crouched && this.grounded && !ov && (this.tenseForce || tenseNear(this.pos.x, this.pos.z));
-    mi.tense = this.tense && this.motion.speed <= TENSE.maxSpeed;
+    // (player-hygiene S1b) the driver's `speed` getter (`hyp2(vx, vz)`) written out here and below: a double returned
+    // from a call V8 does not inline boxes
+    const md = this.motion;
+    mi.tense = this.tense && Math.sqrt(md.vx * md.vx + md.vz * md.vz) <= TENSE.maxSpeed;
     // (G8, A4) the stance for the standing walk's shorter steps (the same eased blend the rig poses)
     mi.crouch = this.crouchBlend;
     // not aiming and free: face the travel direction (the camera orbits freely); else face the
@@ -617,10 +640,10 @@ export class PlayerController {
     // the step; the 2.x moves are jerk-limited well inside the usual cap anyway)
     this.cc.maxAcceleration = this.ct ? CT_MAX_ACCEL : 80;
     const wasMoving = this.motion.state === 'move';
-    const spBefore = this.motion.speed;
+    const spBefore = Math.sqrt(md.vx * md.vx + md.vz * md.vz);
     tuneSim(true); // (anim-tuner) the step-length slider on the local player's gait clock (identity by default)
     cqSim(); // (anim-n4) holding / carrying: the walk's step length (a slower carry cadence)
-    weightSim(this.crouched, this.weightDrawn, Math.max(this.analog.v, this.motion.speed)); // (anim-weight) momentum (identity by default)
+    weightSim(this.crouched, this.weightDrawn, Math.max(this.analog.v, Math.sqrt(md.vx * md.vx + md.vz * md.vz))); // (anim-weight) momentum (identity by default)
     try {
       if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
     } finally {
@@ -637,7 +660,8 @@ export class PlayerController {
       this.holdT = 0;
       this.stopEaseT = -1;
     }
-    const moving = hyp2(tx, tz) > 0.05;
+    // (player-hygiene S1b) `hyp2` written out
+    const moving = Math.sqrt(tx * tx + tz * tz) > 0.05;
     if (this.stopHold && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.holdCrouch)) this.stopHold = false;
     if (this.stopHold) {
       this.holdT += dt;
@@ -724,9 +748,12 @@ export class PlayerController {
 
     // facing: the driver's (weapon-led, stance-limited, stepped on the spot); overrides may turn faster
     const v = this.cc.getVelocity();
-    this.speed = hyp2(v.x, v.z);
+    // (player-hygiene S1b) `hyp2` written out
+    const vx = v.x;
+    const vz = v.z;
+    this.speed = Math.sqrt(vx * vx + vz * vz);
     if (ov?.yaw !== undefined && ov.turnRate !== undefined) {
-      this.yaw = turnTowards(this.yaw, ov.yaw, ov.turnRate * dt);
+      this.turnToOverride(ov, dt);
       this.motion.yaw = this.yaw;
     } else this.yaw = this.motion.yaw;
     // local move for animation
@@ -768,13 +795,37 @@ export class PlayerController {
     this.crouchPend = false;
   }
 
+  /**
+   * `yaw = turnTowards(yaw, ov.yaw, (ov.turnRate ?? turnMoving * 1.5) * dt)` (an override that sets a turn rate turns at
+   * it). (player-hygiene S1b) `turnTowards` and `wrapAngle` written out with their exact expressions: a double passed to
+   * or returned from a call V8 does not inline boxes.
+   */
+  private turnToOverride(ov: MoveOverride, dt: number): void {
+    const step = (ov.turnRate ?? MOVEMENT.turnMoving * 1.5) * dt;
+    const cur = this.yaw;
+    const target = ov.yaw!;
+    let d = target - cur;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    if (Math.abs(d) <= step) {
+      this.yaw = target;
+      return;
+    }
+    let a = cur + Math.sign(d) * step;
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    this.yaw = a;
+  }
+
   /** Eased stance transition: crouching takes `crouchTime`, standing up `standTime`. */
   private updateStance(dt: number): void {
     const T = MOVEMENT;
     const target = this.crouched ? 1 : 0;
     const rate = target > this.crouchK ? 1 / T.crouchTime : 1 / T.standTime;
     this.crouchK = target > this.crouchK ? Math.min(target, this.crouchK + rate * dt) : Math.max(target, this.crouchK - rate * dt);
-    this.crouchBlend = easeInOut(this.crouchK);
+    // (player-hygiene S1b) `easeInOut` written out with its exact expression (a call with a double boxes it)
+    const x = this.crouchK <= 0 ? 0 : this.crouchK >= 1 ? 1 : this.crouchK;
+    this.crouchBlend = x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   }
 
   private applyCrouch(want: boolean): void {

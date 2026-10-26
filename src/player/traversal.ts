@@ -129,8 +129,8 @@ export class TraversalController {
       anchors,
       this.kin,
       (x, y, z) => this.roomAt(x, y, z),
-      (x, z, y) => this.floor(x, z, y, 3),
-      (ax, ay, az, bx, by, bz) => this.ray(this.a.set(ax, ay, az), this.b.set(bx, by, bz)) === null,
+      (x, z, y) => (this.floorHit(x, z, y, 3) ? this.hitY : null),
+      (ax, ay, az, bx, by, bz) => !this.rayHit(this.a.set(ax, ay, az), this.b.set(bx, by, bz)),
     );
     // (3.2.0) off a rope through a window beside it: the window vault from there (the glass breaks)
     this.attachCtl.onKickThrough = (w, fx, fy, fz, tx, ty, tz) => {
@@ -153,7 +153,7 @@ export class TraversalController {
 
   /** A standing body's worth of free space above (x, y, z) (and nothing solid at the feet). */
   private roomAt(x: number, y: number, z: number): boolean {
-    return this.ray(this.a.set(x, y + 0.05, z), this.b.set(x, y + MOVEMENT.standHeight, z)) === null;
+    return !this.rayHit(this.a.set(x, y + 0.05, z), this.b.set(x, y + MOVEMENT.standHeight, z));
   }
 
   get attach(): AttachMachine {
@@ -199,20 +199,58 @@ export class TraversalController {
     this.attachCtl.frameUpdate(dt, alpha);
   }
 
-  /** (player-hygiene S1) `rr.reset(from, to)`, not `reset()`: Babylon's no-argument reset builds two zero vectors. */
-  private ray(from: Vector3, to: Vector3): number | null {
+  /**
+   * (player-hygiene S1b) A cast's ends (from x, y, z, to x, y, z): the probe writes them here and `segHit` builds the ray
+   * from them with `Vector3.FromArrayToRef`, so no double crosses a call. A double passed to or returned from a call V8
+   * does not inline boxes (16 B), and the probe has more `Vector3.set` calls than V8's inlining budget covers. (A number
+   * array, Babylon's `FloatArray`: it holds doubles unboxed.)
+   */
+  private readonly seg: number[] = [0, 0, 0, 0, 0, 0];
+  /** (player-hygiene S1b) The last hit point (`segHit`), and its distance and height: never null. */
+  private readonly hitP: number[] = [0, 0, 0];
+  private hitD = 0;
+  private hitY = 0;
+
+  /**
+   * The ray from `seg[0..2]` to `seg[3..5]`: true on a hit, its distance in `hitD` and height in `hitY`. (player-hygiene
+   * S1b) A boolean and number fields, not `number | null`; the distance is Babylon's `Vector3.Distance` written out in its
+   * order. (S1) `rr.reset(from, to)`, not `reset()`: Babylon's no-argument reset builds two zero vectors.
+   */
+  private segHit(): boolean {
+    const s = this.seg;
+    const from = Vector3.FromArrayToRef(s, 0, this.a);
+    const to = Vector3.FromArrayToRef(s, 3, this.b);
     this.rr.reset(from, to);
     this.eng.raycastToRef(from, to, this.rr, Q);
-    return this.rr.hasHit ? Vector3.Distance(from, this.rr.hitPoint) : null;
+    if (!this.rr.hasHit) return false;
+    const p = this.hitP;
+    this.rr.hitPoint.toArray(p, 0);
+    const x = s[0]! - p[0]!;
+    const y = s[1]! - p[1]!;
+    const z = s[2]! - p[2]!;
+    this.hitD = Math.sqrt(x * x + y * y + z * z);
+    this.hitY = p[1]!;
+    return true;
   }
 
-  /** Floor height under (x, z) between yFrom and yFrom - depth, or null. */
-  private floor(x: number, z: number, yFrom: number, depth: number): number | null {
-    this.a.set(x, yFrom, z);
-    this.b.set(x, yFrom - depth, z);
-    this.rr.reset(this.a, this.b);
-    this.eng.raycastToRef(this.a, this.b, this.rr, Q);
-    return this.rr.hasHit ? this.rr.hitPoint.y : null;
+  /** A ray from `from` to `to` (`segHit`): true on a hit, its distance in `hitD` (player-hygiene S1b). */
+  private rayHit(from: Vector3, to: Vector3): boolean {
+    from.toArray(this.seg, 0);
+    to.toArray(this.seg, 3);
+    return this.segHit();
+  }
+
+  /** A floor under (x, z) between yFrom and yFrom - depth (`segHit`): true on a hit, its height in `hitY`
+   *  (player-hygiene S1b). */
+  private floorHit(x: number, z: number, yFrom: number, depth: number): boolean {
+    const s = this.seg;
+    s[0] = x;
+    s[1] = yFrom;
+    s[2] = z;
+    s[3] = x;
+    s[4] = yFrom - depth;
+    s[5] = z;
+    return this.segHit();
   }
 
   /** (player-hygiene S1) The window's breakable glass key (`glass:<id>`), built once per window. */
@@ -225,78 +263,157 @@ export class TraversalController {
     return k;
   }
 
-  /** (player-hygiene S1) The probe's result (the shared member) set to these values. */
-  private probeResult(kind: TraverseProbe['kind'], front: number, height: number, depth: number, ex: number, ey: number, ez: number): TraverseProbe {
-    const o = this.probeOut;
-    o.kind = kind;
-    o.front = front;
-    o.height = height;
-    o.depth = depth;
-    o.end.set(ex, ey, ez);
-    return o;
-  }
-
-  /** Look along `dir` from the feet and classify the obstacle (or ledge). */
+  /**
+   * Look along `dir` from the feet and classify the obstacle (or ledge). (player-hygiene S1b) Every cast's ends go into
+   * `seg` and the result's end into `probeOut.end` through it (`segHit`): no double crosses a call here.
+   */
   probe(feet: Vector3, dx: number, dz: number): TraverseProbe | null {
     this.hintWindow = null;
     const wp = this.windowProbe(feet, dx, dz);
     if (wp) return wp;
+    const o = this.probeOut;
+    const s = this.seg;
+    const px = feet.x;
+    const py = feet.y;
+    const pz = feet.z;
     const reach = 1.3;
     let front = Infinity;
     for (let i = 0; i < PROBE_HEIGHTS.length; i++) {
       const h = PROBE_HEIGHTS[i]!;
-      const d = this.ray(this.a.set(feet.x, feet.y + h, feet.z), this.b.set(feet.x + dx * reach, feet.y + h, feet.z + dz * reach));
-      if (d !== null) front = Math.min(front, d);
+      s[0] = px;
+      s[1] = py + h;
+      s[2] = pz;
+      s[3] = px + dx * reach;
+      s[4] = py + h;
+      s[5] = pz + dz * reach;
+      if (this.segHit()) front = Math.min(front, this.hitD);
     }
     if (front === Infinity) {
       // nothing in front: a ledge?
-      const ax = feet.x + dx * 0.75;
-      const az = feet.z + dz * 0.75;
-      const f = this.floor(ax, az, feet.y + 0.3, 4);
-      if ((f === null || feet.y - f > 0.6) && this.player.controller.speed > 3.5) {
+      const ax = px + dx * 0.75;
+      const az = pz + dz * 0.75;
+      // (the floor casts: `floorHit`'s ends)
+      s[0] = ax;
+      s[1] = py + 0.3;
+      s[2] = az;
+      s[3] = ax;
+      s[4] = py + 0.3 - 4;
+      s[5] = az;
+      const fHit = this.segHit();
+      const f = this.hitY;
+      if ((!fHit || py - f > 0.6) && this.player.controller.speed > 3.5) {
         // running at a gap: a quick hop if there is floor at about the same height beyond it
         for (let d = 1.4; d <= 3.2; d += 0.3) {
-          const g = this.floor(feet.x + dx * d, feet.z + dz * d, feet.y + 0.5, 1.0);
-          if (g !== null && Math.abs(g - feet.y) < 0.35) {
+          s[0] = px + dx * d;
+          s[1] = py + 0.5;
+          s[2] = pz + dz * d;
+          s[3] = px + dx * d;
+          s[4] = py + 0.5 - 1.0;
+          s[5] = pz + dz * d;
+          const gHit = this.segHit();
+          const g = this.hitY;
+          if (gHit && Math.abs(g - py) < 0.35) {
             const out = d + 0.5;
-            const clear = this.ray(this.a.set(feet.x, feet.y + 0.9, feet.z), this.b.set(feet.x + dx * out, feet.y + 0.9, feet.z + dz * out)) === null;
-            if (clear) return this.probeResult('hop', d, 0, d, feet.x + dx * out, g, feet.z + dz * out);
+            s[0] = px;
+            s[1] = py + 0.9;
+            s[2] = pz;
+            s[3] = px + dx * out;
+            s[4] = py + 0.9;
+            s[5] = pz + dz * out;
+            if (!this.segHit()) {
+              o.kind = 'hop';
+              o.front = d;
+              o.height = 0;
+              o.depth = d;
+              s[0] = px + dx * out;
+              s[1] = g;
+              s[2] = pz + dz * out;
+              Vector3.FromArrayToRef(s, 0, o.end);
+              return o;
+            }
           }
         }
       }
-      if (f === null || feet.y - f > 0.6) {
-        const land = f ?? feet.y - 4;
+      if (!fHit || py - f > 0.6) {
+        const land = fHit ? f : py - 4;
         // step out far enough that the capsule clears the edge
         const out = 0.75 + MOVEMENT.radius + 0.2;
-        return this.probeResult('drop', 0.75, land - feet.y, 0, feet.x + dx * out, land, feet.z + dz * out);
+        o.kind = 'drop';
+        o.front = 0.75;
+        o.height = land - py;
+        o.depth = 0;
+        s[0] = px + dx * out;
+        s[1] = land;
+        s[2] = pz + dz * out;
+        Vector3.FromArrayToRef(s, 0, o.end);
+        return o;
       }
       return null;
     }
     if (front < MOVEMENT.radius - 0.05) return null;
     // top of the obstacle just past its face
-    const fx = feet.x + dx * (front + 0.12);
-    const fz = feet.z + dz * (front + 0.12);
-    const topY = this.floor(fx, fz, feet.y + 2.0, 2.0);
-    if (topY === null) return null;
-    const height = topY - feet.y;
+    const fx = px + dx * (front + 0.12);
+    const fz = pz + dz * (front + 0.12);
+    s[0] = fx;
+    s[1] = py + 2.0;
+    s[2] = fz;
+    s[3] = fx;
+    s[4] = py + 2.0 - 2.0;
+    s[5] = fz;
+    if (!this.segHit()) return null;
+    const topY = this.hitY;
+    const height = topY - py;
     // depth: walk across the top until it ends
     let depth = 0.12;
     while (depth < 1.6) {
-      const y = this.floor(feet.x + dx * (front + depth + 0.1), feet.z + dz * (front + depth + 0.1), topY + 0.3, 0.45);
-      if (y === null || Math.abs(y - topY) > 0.12) break;
+      s[0] = px + dx * (front + depth + 0.1);
+      s[1] = topY + 0.3;
+      s[2] = pz + dz * (front + depth + 0.1);
+      s[3] = s[0]!;
+      s[4] = topY + 0.3 - 0.45;
+      s[5] = s[2]!;
+      if (!this.segHit() || Math.abs(this.hitY - topY) > 0.12) break;
       depth += 0.1;
     }
     // landing beyond (vault): floor near the feet height, and the arc over the top is clear
-    const lx = feet.x + dx * (front + depth + 0.55);
-    const lz = feet.z + dz * (front + depth + 0.55);
-    const landY = this.floor(lx, lz, topY + 0.3, height + 1.2);
+    const lx = px + dx * (front + depth + 0.55);
+    const lz = pz + dz * (front + depth + 0.55);
+    s[0] = lx;
+    s[1] = topY + 0.3;
+    s[2] = lz;
+    s[3] = lx;
+    s[4] = topY + 0.3 - (height + 1.2);
+    s[5] = lz;
+    const landHit = this.segHit();
+    const landY = this.hitY;
     const arcY = topY + 0.45;
-    const arcClear = this.ray(this.a.set(feet.x, arcY, feet.z), this.b.set(lx, arcY, lz)) === null;
-    const landingClear = landY !== null && Math.abs(landY - feet.y) < 0.6 && arcClear;
+    s[0] = px;
+    s[1] = arcY;
+    s[2] = pz;
+    s[3] = lx;
+    s[4] = arcY;
+    s[5] = lz;
+    const arcClear = !this.segHit();
+    const landingClear = landHit && Math.abs(landY - py) < 0.6 && arcClear;
     // standing room on top (mantle)
-    const mx = feet.x + dx * (front + 0.4);
-    const mz = feet.z + dz * (front + 0.4);
-    const topClear = this.ray(this.a.set(mx, topY + 0.05, mz), this.b.set(mx, topY + MOVEMENT.standHeight, mz)) === null && this.ray(this.a.set(feet.x, topY + 0.5, feet.z), this.b.set(mx, topY + 0.5, mz)) === null;
+    const mx = px + dx * (front + 0.4);
+    const mz = pz + dz * (front + 0.4);
+    s[0] = mx;
+    s[1] = topY + 0.05;
+    s[2] = mz;
+    s[3] = mx;
+    s[4] = topY + MOVEMENT.standHeight;
+    s[5] = mz;
+    let topClear = !this.segHit();
+    if (topClear) {
+      s[0] = px;
+      s[1] = topY + 0.5;
+      s[2] = pz;
+      s[3] = mx;
+      s[4] = topY + 0.5;
+      s[5] = mz;
+      topClear = !this.segHit();
+    }
     const pi = this.pickIn;
     pi.height = height;
     pi.depth = depth;
@@ -304,7 +421,15 @@ export class TraversalController {
     pi.topClear = topClear;
     const kind = pickTraversal(pi);
     if (kind === 'none') return null;
-    return kind === 'vault' ? this.probeResult(kind, front, height, depth, lx, landY ?? feet.y, lz) : this.probeResult(kind, front, height, depth, mx, topY, mz);
+    o.kind = kind;
+    o.front = front;
+    o.height = height;
+    o.depth = depth;
+    s[0] = kind === 'vault' ? lx : mx;
+    s[1] = kind === 'vault' ? (landHit ? landY : py) : topY;
+    s[2] = kind === 'vault' ? lz : mz;
+    Vector3.FromArrayToRef(s, 0, o.end);
+    return o;
   }
 
   /** Through a window (open, or glazed and breakable): a vault over the sill to the floor on the far side. */
@@ -323,10 +448,17 @@ export class TraversalController {
     const cz = w.c.z - nx * lat;
     const ex = cx + nx * through * 0.9;
     const ez = cz + nz * through * 0.9;
-    const land = this.floor(ex, ez, w.sillHeight + 0.2, 2.5);
-    if (land === null || Math.abs(land - feet.y) > 0.6) return null;
+    if (!this.floorHit(ex, ez, w.sillHeight + 0.2, 2.5)) return null;
+    const land = this.hitY;
+    if (Math.abs(land - feet.y) > 0.6) return null;
     this.hintWindow = w;
-    return this.probeResult('vault', r.dist, w.sillHeight - feet.y, 0.3, ex, land, ez);
+    const o = this.probeOut;
+    o.kind = 'vault';
+    o.front = r.dist;
+    o.height = w.sillHeight - feet.y;
+    o.depth = 0.3;
+    o.end.set(ex, land, ez);
+    return o;
   }
 
   /** Movement direction to probe along: the stick if pushed, else where the body faces. */
@@ -557,8 +689,8 @@ export class TraversalController {
       dz /= sp;
     }
     const full = forward ? CT.rollLength : ROLL_LENGTH;
-    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (full + ROLL_CLEAR), c.pos.y + 0.45, c.pos.z + dz * (full + ROLL_CLEAR)));
-    const len = hit === null ? full : Math.min(full, hit - ROLL_CLEAR);
+    const hit = this.rayHit(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (full + ROLL_CLEAR), c.pos.y + 0.45, c.pos.z + dz * (full + ROLL_CLEAR)));
+    const len = !hit ? full : Math.min(full, this.hitD - ROLL_CLEAR);
     if (len < ROLL_MIN) return false;
     this.kind = 'roll';
     this.throughWindow = false;

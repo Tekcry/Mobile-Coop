@@ -6,7 +6,6 @@
  * tools; 5 = none), kept through stance changes and reset at spawn and respawn.
  */
 import { CT, GEARS, STICK_SPEED } from '../config/movement';
-import { hyp2 } from '../core/mathx';
 
 /** Gear 1..5 (an integer). */
 export type Gear = 1 | 2 | 3 | 4 | 5;
@@ -86,6 +85,10 @@ export function stickMagFor(v: number, crouched: boolean): number {
 export class StickRelease {
   x = 0;
   y = 0;
+  /** (player-hygiene S1b) The stick `step` reads (the controller writes it: a double passed to a call V8 does not inline
+   *  boxes). */
+  inX = 0;
+  inY = 0;
   private px = 0;
   private py = 0;
   private pm = 0;
@@ -98,7 +101,16 @@ export class StickRelease {
   }
 
   update(x: number, y: number, dt: number): void {
-    const m = Math.min(1, hyp2(x, y));
+    this.inX = x;
+    this.inY = y;
+    this.step(dt);
+  }
+
+  /** `update` with the stick in `inX`, `inY` (player-hygiene S1b; `hyp2` written out: a call with doubles boxes them). */
+  step(dt: number): void {
+    const x = this.inX;
+    const y = this.inY;
+    const m = Math.min(1, Math.sqrt(x * x + y * y));
     const dropping = dt > 0 && (this.pm - m) / dt > CT.releaseRate;
     if (this.latchT < 0 && dropping && this.pm >= CT.releaseFrom && m > GEARS.deadZone) {
       this.latchT = 0;
@@ -201,10 +213,25 @@ export class AnalogGear {
   v = 0;
   /** The slowest gear whose speed covers `v` (1 at rest). */
   band: Gear = 1;
+  /** (player-hygiene S1b) The stick magnitude `step` reads (the controller writes it: a double passed to a call V8 does
+   *  not inline boxes). */
+  mag = 0;
 
   /** Returns the nearest named speed (0 inside the dead zone). */
   update(maxGear: number, crouched: boolean, mag: number): number {
-    const u = stickCurve(mag);
+    this.mag = mag;
+    return this.step(maxGear, crouched);
+  }
+
+  /**
+   * `update` with the magnitude in `mag`. (player-hygiene S1b) `stickCurve`, `stickSpeed` and `gearCap` written out with
+   * their exact expressions: a double passed to or returned from a call V8 does not inline boxes.
+   */
+  step(maxGear: number, crouched: boolean): number {
+    // stickCurve(mag)
+    const dead = GEARS.deadZone;
+    const m = Math.max(0, Math.min(1, this.mag));
+    const u = m <= dead ? 0 : (m - dead) / (1 - dead);
     if (u <= 0) {
       this.moving = false;
       this.gear = 1;
@@ -214,7 +241,28 @@ export class AnalogGear {
     }
     this.moving = true;
     const max = Math.min(MAX_ROCKER_GEAR, clampGear(maxGear));
-    const v = Math.min(gearCap(max, crouched), stickSpeed(u, crouched));
+    const caps = crouched ? GEARS.crouch : GEARS.stand;
+    // stickSpeed(u, crouched)
+    let sv = 0;
+    if (u > 0) {
+      const at = STICK_SPEED.at;
+      let a = 0;
+      let va: number = crouched ? STICK_SPEED.minCrouch : STICK_SPEED.minStand;
+      let i = 1;
+      for (; i < at.length; i++) {
+        const b = at[i]!;
+        const vb = caps[i - 1]!;
+        if (u <= b) {
+          sv = va + (vb - va) * ((u - a) / (b - a));
+          break;
+        }
+        a = b;
+        va = vb;
+      }
+      if (i === at.length) sv = va;
+    }
+    // gearCap(max, crouched)
+    const v = Math.min(caps[clampGear(max) - 1]!, sv);
     this.v = v;
     const up = crouched ? GEAR_UP.crouch : GEAR_UP.stand;
     const down = crouched ? GEAR_DOWN.crouch : GEAR_DOWN.stand;
@@ -223,7 +271,8 @@ export class AnalogGear {
     while (g > 1 && v < down[g - 2]!) g--;
     this.gear = g as Gear;
     let b = 1;
-    while (b < max && gearCap(b, crouched) < v - 1e-6) b++;
+    // gearCap(b, crouched)
+    while (b < max && caps[clampGear(b) - 1]! < v - 1e-6) b++;
     this.band = b as Gear;
     return g;
   }
