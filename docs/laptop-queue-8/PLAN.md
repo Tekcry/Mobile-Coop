@@ -192,10 +192,63 @@ Not touched: auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mjs, li
 - docs/laptop-queue/STATE.md one dated entry; docs/laptop-queue-8/STATE.md per slice. PR body `Job-done:
   laptop-queue-8`.
 
+## Slice G (Opus) - recover from a lost train verdict (Orchestrator 2026-10-26 ~13:45)
+BRIEF 7-9, A15-A19. Incident: train 118 (7605094d) green on the laptop 00:57Z, swap outage to 01:00Z, the laptop-e2e
+post and the `done train 118` push both lost; state.trains skipped the head, GitHub kept pending, the alone hold plus
+an aged alone blocked every PR claim 1.5 h. Pointers: this branch at 6d63ea193 (find by name if shifted).
+- State: every `state.trains[sha]` write records `{ result, ..., n, state, desc, posted, doneSynced }` (`state` = the
+  laptop-e2e state posted: success / failure / error; `posted` = postStatus returned true; `doneSynced` = the done claim
+  landed). Entries written before G have none of the new fields (A16).
+- service `trainVerdict(train, st, desc, extra)` (new, before runTrain :1213): `posted = postStatus(train.sha, st,
+  'laptop-e2e', desc)`, then `state.trains[sha] = { ...extra, n, state: st, desc, posted, doneSynced: false, date }`.
+  Used at the build / nosha end (:1273-1274) and the incomplete end (:1294-1297). The verdict end (:1308-1310): `finish`
+  (:1165) sets `result.posted` (every post true) and `result.desc` (:1172 loop), runTrain records them. Carries (:769,
+  :908) record `state: 'success', desc, posted: true, doneSynced: true` (nothing claims a carried head).
+- runTrain `finally` (:1319): `state.trains[sha].doneSynced = writeClaims(...) === true; saveState()`.
+- lib `trainRepair(entry, gh, otherLive)` (new, after `trainHold` :996): `{ post: { state, desc } | null, done }`.
+  Final state = `entry.state`, else from a pre-G `result` (success / carried -> success, failure / build / incomplete ->
+  failure, nosha -> error); desc = `entry.desc ?? '<result> (re-posted)'`. post when the final state is known, `gh` is
+  '' or 'pending' (never 'unknown', never over another final verdict) and `!otherLive`; done = `entry.doneSynced !==
+  true`. Pure.
+- service `syncTrains(heads)` (new, before pendingTrains :783; called in it after `heads` :803-811, before `aloneHold`
+  :812), when `LQ_TRAIN_RETRY` on: each state.trains entry younger than LQ_TRAIN_MAX_AGE_H; `gh` = its open head's
+  `laptop` (no extra gh read; not an open head -> no post, done only); `otherLive` = the claim on the sha is another
+  worker's, open, and blocks (claimBlocks). A post that lands: `posted = true`, the head's `laptop` set in `heads` (so
+  the hold and lastTrainEndFrom read it this pass), bumpTrainEnd, log "train <n> <sha8>: laptop-e2e <state> re-posted
+  (lost post)". done: a done claim already on QREF -> mark; else all todo shas in one `writeClaims(.., 'done', 'done
+  <k> train(s)')`, marked on true. Not part of syncDone: a failed train push never stops request claims (pass :1910).
+- lib `trainHold(heads, lost = () => false)` (:996): a head whose laptop is '' or 'pending' and `lost(sha)` does not
+  hold. pendingTrains: `lost` = state.trains has a final state for sha, or the claim on QREF is done (any worker). A
+  failed or errored head still holds (holdClears false, as today). A pending head with a dead claim holds only because
+  this pass runs it (pendingTrains returns it; trains go first in pick) (A18).
+- Heartbeat bound (A17): writeClaims claim blob (:357) adds `beat: HEARTBEAT_MS` when > 0. lib `claimBlocks(claim,
+  worker, now, maxMs, beats = 0)` (:130): another worker's open claim with `beat > 0` and `beats > 0` blocks only while
+  `now - at < min(maxMs, beats * beat)`; no `beat` field -> the `at` + maxMs rule. Service wrapper `blocks(c)` passes
+  `CLAIM_BEATS` at :300, :350, :762, :837. heartbeat() (:1201-1207): drop the `DESKTOP ||` guard, so desktop claims beat
+  too; header :62-63 says both workers.
+- Hold log (pass :1919-1924): the "alone requests held" line repeats every 15 min while the key is unchanged and an
+  aged alone stops pr claims (key + time).
+- service env (after :170): `TRAIN_RETRY = LQ_TRAIN_RETRY !== '0'`, `CLAIM_BEATS = Number(LQ_CLAIM_BEATS ?? 4)`. Header:
+  one line after :106 (lost verdict retry, heartbeat-bound claims, hold drops finished heads).
+- Tests (lib import line :3 adds `trainRepair`):
+  - describe "claimBlocks: heartbeat bound": desktop claim `beat` 300000 at 25 min, beats 4 -> false; at 15 min -> true;
+    no `beat`, 2 h -> true; beats 0, 25 min -> true; done -> true; own claim -> false; 4 h without beat -> false.
+  - describe "trainRepair": `{ state: 'success', desc: '41/43 ...', posted: false }` with gh 'pending' -> post
+    success + desc; '' -> post; 'success' / 'failure' / 'unknown' -> null; otherLive -> null; legacy `{ result:
+    'failure' }` -> failure, "failure (re-posted)"; legacy build -> failure, nosha -> error, carried -> success;
+    doneSynced true -> done false, missing -> true.
+  - extend describe "trainHold" (:1016): train 118 replay: `[{ n: '118', sha: A, laptop: 'pending' }]` with lost(A) ->
+    null; lost but 'failure' -> holds; lost(A), B pending not lost -> B; the existing cases unchanged.
+- Dry run: `LQ_STATE=<scratch dir>` with a state.json whose `trains` holds the current open train head (pending or
+  none on GitHub) as `{ result: 'success' }`: `--once --dry-run` prints the `dry-run: gh api .../statuses` re-post and
+  "would push done" lines, and no "alone requests held" for that head. A clean state prints neither.
+- Size ~35 lib, ~70 service, ~80 tests.
+
 ## Order and builders
-A -> B -> C -> D -> E in order on the branch (all share lib.mjs, service.mjs and the test file, so never in parallel);
-F in its own worktree (feature/laptop-queue-8-docs) alongside E, merged by the lead. Opus builds A, B, C, E; Sonnet
-builds D and F. One Opus checker for the PR (queue code), started on the head when E and F are in.
+A -> B -> C -> D -> E -> G in order on the branch (all share lib.mjs, service.mjs and the test file, so never in
+parallel); F in its own worktree (feature/laptop-queue-8-docs) alongside E, merged by the lead; G's docs (testing-tools
+Laptop queue: retry, heartbeat bound, hold) go into F's files after F lands. Opus builds A, B, C, E, G; Sonnet builds D
+and F. One Opus checker for the PR (queue code), started on the head when E, F and G are in.
 
 ## Env knobs (service env block)
 | Knob | Default | Off / undo |
@@ -206,6 +259,8 @@ builds D and F. One Opus checker for the PR (queue code), started on the head wh
 | `LQ_DESKTOP_MAX_MIN` | 15 | 0 = no limit (A9) |
 | `LQ_DESKTOP_CPU_MODE` | normal | total = whole machine (A11) |
 | `LQ_PR_CARRY` | 1 | 0 = every PR head runs (A12) |
+| `LQ_TRAIN_RETRY` | 1 | 0 = no re-post / done retry, the hold reads GitHub only (A15, A18) |
+| `LQ_CLAIM_BEATS` | 4 | 0 = a claim blocks LQ_CLAIM_MAX_H (3 h) from `at` (A17) |
 
 ## Tests and verify (per slice)
 - `npm run typecheck:fast`; `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts` (Babylon-free);
@@ -218,9 +273,9 @@ builds D and F. One Opus checker for the PR (queue code), started on the head wh
   K finished suite(s)".
 
 ## Size and PRs
-~150 lib, ~175 service, ~3 request, ~3 run-e2e, ~4 ps1, ~330 tests, ~40 docs = ~705 changed lines, plus ~250 lines of
-job docs: about 950, one PR. If the build passes ~1.5k, split at the slice line (Michael's choice goes first): PR 1 =
-A + B (fixes first, keep place, stop the old run), PR 2 = C + D + E.
+~185 lib, ~245 service, ~3 request, ~3 run-e2e, ~4 ps1, ~410 tests, ~45 docs = ~895 changed lines (G ~185), plus
+~300 lines of job docs: about 1.2k, one PR. If the build passes ~1.5k, split at the slice line (Michael's choice goes
+first): PR 1 = A + B (fixes first, keep place, stop the old run), PR 2 = C + D + E + G.
 
 ## Risks
 - The fix tier has no wait bound: a flood of `fix` PRs could hold features back; leads label only real fixes (A13).
@@ -228,5 +283,7 @@ A + B (fixes first, keep place, stop the old run), PR 2 = C + D + E.
 - Stopping a run on an old head loses its result; the new head reruns the overlapping suites anyway.
 - Kept suites at `E2E_JOBS=1` only work for heads that carry the new run-e2e line (A10).
 - PR carry adds at most 20 gh status reads per new PR head with a docs-only tail, once per head per process.
+- G: a run whose heartbeat pushes fail for over 4 beats (20 min of GitHub down) may be taken over by the other worker
+  (a duplicate run, not a lost one); a lost done push past that lets the desktop rerun a finished train once.
 - affected-cap's `refileOverCap` rewrites a request from the copy it listed, so a `place` or `kept` field another pass
   wrote in the same window may be dropped (cost: a lost place, or a rerun of the kept suites).

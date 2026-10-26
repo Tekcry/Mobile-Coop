@@ -15,6 +15,8 @@ C:/NightShift/Mobile-Coop-laptop-queue-8, cut from origin/master 34b96b9c. Build
 ## Orchestrator calls (not Michael)
 - 09:48 audit: a new head keeps its place; the desktop worker takes the smallest request, skips long runs, keeps
   finished suites when a train preempts. ~10:00: the CPU mode knob, default normal (the Blender case wins). ~10:20: A1.
+- ~13:45 (top priority, train 118 stall): retry a lost train verdict post and done push; a claim whose heartbeat
+  stopped is stale; the alone hold needs a live claim or a train that can still run (scope 7-9, A15-A19).
 
 ## Scope
 1. Fixes first (Michael ~10:12): a request is a fix when its PR carries the `fix` label or request.mjs gets a new
@@ -31,6 +33,11 @@ C:/NightShift/Mobile-Coop-laptop-queue-8, cut from origin/master 34b96b9c. Build
 5. Docs-only verdict carry for PR heads (laptop-queue-7 carries train heads only): a new PR head whose delta from a
    green head is *.md / changes/ / CHANGELOG only (no non-.md file under docs/) carries the verdict.
 6. Knob `LQ_DESKTOP_CPU_MODE=total|normal`, default normal (Orchestrator ~10:00: the Blender case wins).
+7. A train verdict post or train done claim push that fails is retried on later passes until both land (Orchestrator
+   ~13:45; train 118, 2026-10-26: both lost in the 00:57-01:00Z swap outage, the laptop ran nothing for 1.5 h).
+8. A claim whose heartbeat stopped is stale after a few heartbeat intervals, not 3 h from `at` (Orchestrator ~13:45).
+9. The alone hold needs a live train claim or a train that can still run: a head this worker finished, or one with a
+   done claim, never holds because its laptop-e2e status was lost (Orchestrator ~13:45).
 
 ## Assumptions (each with its undo)
 - A1: PR work order is fixes, then the laptop-queue-7 front tier (`LQ_FRONT_BRANCHES`, Mixamo), then green
@@ -93,3 +100,22 @@ C:/NightShift/Mobile-Coop-laptop-queue-8, cut from origin/master 34b96b9c. Build
   mark fix PRs and the orchestrator checks the marks each cron run (ROADMAP). No watchdog change: the label is not part
   of the train-ready rule.
 - A14: Build base: laptop-queue-7 first (see PLAN "Start"). Undo: none needed.
+- A15: Retry (item 7): each state.trains entry records the posted state, desc and `posted` / `doneSynced` flags. Each
+  pass (both workers), for an open train head whose laptop-e2e reads '' or pending while state holds a final verdict
+  and no other worker's live claim is on it, the verdict is posted again; a missing done claim is pushed again (one
+  commit, apart from syncDone so a failed train push never stops request claims). No extra gh read: pendingTrains
+  already reads each open head's status. Never posted over another final verdict (a train rerun's success stands).
+  `LQ_TRAIN_RETRY` (1). Undo: 0.
+- A16: Entries written before the change (no `state`) are repaired from `result`: success / carried -> success,
+  failure / build / incomplete -> failure, nosha -> error; desc "<result> (re-posted)". Undo: skip entries without
+  `state`.
+- A17: Heartbeat bound (item 8): a claim written by a worker that heartbeats carries `beat` (ms); another worker's open
+  claim blocks while younger than min(LQ_CLAIM_MAX_H, `LQ_CLAIM_BEATS` (4) x beat) = 20 min at the 5 min beat. The
+  desktop heartbeats too (it did not), so its claims carry `beat`. A claim without `beat` keeps the 3 h rule. Undo:
+  `LQ_CLAIM_BEATS=0` (and `LQ_HEARTBEAT_MIN=0` on the desktop).
+- A18: Hold (item 9): an open train head whose laptop-e2e is '' or pending does not hold alone requests when this
+  worker's state holds a final verdict for it or its claim is done (any worker): the verdict was lost, the retry posts
+  it. A failed or errored head still holds as today (the train-46 rule). A pending head with a dead claim is run by this
+  pass (stale pending rule, trains first in pick), so it holds only while it runs. Undo: `LQ_TRAIN_RETRY=0`.
+- A19: The "alone requests held" log line repeats every 15 min while an aged alone stops pr claims (STATE carry-in),
+  so a stuck hold shows in the log tail. Undo: log once per key.
