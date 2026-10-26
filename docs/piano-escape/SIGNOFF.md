@@ -1,233 +1,295 @@
-# piano-escape: sign-off 1 - Aldgrave Piano Works (the piano escape scene)
+# piano-escape: sign-off 2 - Thornbeck Mill (the storm mill escape)
 Owner: Night Shift | Campaign Build. Status: current.
 
-## Picture
-- Plan: `docs/piano-escape/map-plan.svg` (scale 1 m = 20 px; north up; drawn inline below)
-- Before (changes only): none, a new test map.
+**The setting is now the storm mill (Michael ~20:15, "Storm grain mill"; ~20:16 "very cinematic ... not meant to be
+open world"). The earlier piano-works approval (~20:15) stands for the opening, the EMP and the knife-kill rules; this
+page asks only about the mill.**
 
-![Aldgrave Piano Works map plan](map-plan.svg)
+## Picture
+- Plan: `docs/piano-escape/map-plan.svg` (scale 1 m = 24 px; north up; the upper gallery drawn as the blue band;
+  drawn inline below)
+- Before: the piano works plan (sign-off 1, approved ~20:15), replaced by this.
+
+![Thornbeck Mill map plan](map-plan.svg)
 
 <details><summary>Inline copy of the plan (SVG)</summary>
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-family="Arial, Helvetica, sans-serif" font-size="11">
-  <title>Aldgrave Piano Works - piano escape map plan (1 m = 20 px)</title>
-  <rect x="0" y="0" width="960" height="560" fill="#ffffff"/>
-  <text x="40" y="24" font-size="15" font-weight="bold" fill="#222">Aldgrave Piano Works - one storey, 40 x 19 m, north up, 1 m = 20 px</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 660" width="960" height="660" font-family="Arial, Helvetica, sans-serif" font-size="11">
+  <title>Thornbeck Mill - storm mill escape map plan (1 m = 24 px)</title>
+  <rect x="0" y="0" width="960" height="660" fill="#ffffff"/>
+  <text x="40" y="24" font-size="15" font-weight="bold" fill="#222">Thornbeck Mill - grain mill in a storm, 32 x 18 m, ground + gallery (+4.2 m), north up, 1 m = 24 px</text>
 
-  <!-- rooms -->
-  <g fill="#f3efe6" stroke="#333" stroke-width="3">
-    <rect x="40" y="92" width="240" height="328"/>
-    <rect x="280" y="140" width="360" height="280"/>
-    <rect x="280" y="92" width="360" height="48"/>
-    <rect x="400" y="40" width="80" height="52"/>
-    <rect x="640" y="280" width="200" height="140"/>
-    <rect x="640" y="40" width="200" height="240"/>
+  <!-- hall: the off-path machinery floor is the grey base -->
+  <rect x="100" y="88" width="768" height="432" fill="#d4d4d4" stroke="#333" stroke-width="3"/>
+  <text x="372" y="300" fill="#777" font-size="10">machinery floor</text>
+  <text x="372" y="312" fill="#777" font-size="10">(off the path)</text>
+  <!-- path spaces -->
+  <g fill="#f3eee2">
+    <rect x="100" y="270.4" width="225.6" height="249.6"/>
+    <rect x="325.6" y="424" width="254.4" height="96"/>
+    <rect x="580" y="328" width="144" height="192"/>
+    <rect x="484" y="208" width="240" height="120"/>
+    <rect x="724" y="208" width="144" height="168"/>
+    <rect x="724" y="88" width="144" height="120"/>
   </g>
-  <rect x="40" y="92" width="80" height="88" fill="#e9e3d6" stroke="#333" stroke-width="2"/>
-  <rect x="840" y="40" width="50" height="50" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" stroke-dasharray="5 3"/>
+  <rect x="724" y="376" width="144" height="144" fill="#8a6a45"/>
+  <text x="740" y="452" fill="#f3eee2" font-size="10">sealed bin bank</text>
+  <!-- off-path machines -->
+  <g fill="#b0b0b0" stroke="#777">
+    <rect x="364" y="289.6" width="72" height="86.4"/>
+    <rect x="124" y="184" width="144" height="60"/>
+  </g>
+  <rect x="364" y="174.4" width="81.6" height="86.4" fill="none" stroke="#777" stroke-dasharray="4 3"/>
+  <text x="368" y="190" fill="#666" font-size="9">crane well</text>
 
-  <!-- moon / city glow (faint, under the meter's dark band) -->
-  <g fill="#c9dcff" opacity="0.55">
-    <ellipse cx="340" cy="196" rx="32" ry="16"/>
-    <ellipse cx="430" cy="196" rx="32" ry="16"/>
-    <ellipse cx="520" cy="196" rx="32" ry="16"/>
-    <ellipse cx="822" cy="180" rx="16" ry="44"/>
-    <ellipse cx="826" cy="345" rx="10" ry="16"/>
+  <!-- flash bands (lit at a flash's peak) -->
+  <g fill="#9cc9ff" opacity="0.35">
+    <rect x="112" y="400" width="120" height="120"/>
+    <rect x="100" y="352" width="96" height="120"/>
+    <rect x="328" y="424" width="120" height="96"/>
+    <rect x="568" y="424" width="120" height="96"/>
+    <rect x="748" y="256" width="120" height="84"/>
+    <rect x="172" y="88" width="96" height="72"/>
+    <rect x="388" y="88" width="192" height="72"/>
+    <rect x="676" y="88" width="96" height="72"/>
   </g>
 
-  <!-- windows -->
+  <!-- fences: bin rows and sack walls (2.4-2.8 m) -->
+  <g fill="#6d4c2a">
+    <rect x="100" y="270.4" width="196.8" height="28.8"/>
+    <rect x="325.6" y="270.4" width="28.8" height="124.8"/>
+    <rect x="354.4" y="395.2" width="225.6" height="28.8"/>
+    <rect x="551.2" y="328" width="28.8" height="67.2"/>
+    <rect x="484" y="313.6" width="67.2" height="28.8"/>
+    <rect x="455.2" y="179.2" width="28.8" height="216"/>
+    <rect x="455.2" y="179.2" width="268.8" height="28.8"/>
+  </g>
+  <!-- office and lobby walls -->
+  <g stroke="#333" stroke-width="3">
+    <line x1="724" y1="376" x2="868" y2="376"/>
+    <line x1="724" y1="376" x2="724" y2="241.6"/>
+    <line x1="724" y1="212.8" x2="724" y2="88"/>
+    <line x1="724" y1="208" x2="796" y2="208"/>
+    <line x1="824.8" y1="208" x2="868" y2="208"/>
+  </g>
+
+  <!-- stair (gate at the foot) -->
+  <rect x="296.8" y="160" width="28.8" height="110.4" fill="#e0d4bb" stroke="#6d4c2a"/>
+  <g stroke="#6d4c2a"><line x1="296.8" y1="180" x2="325.6" y2="180"/><line x1="296.8" y1="200" x2="325.6" y2="200"/><line x1="296.8" y1="220" x2="325.6" y2="220"/><line x1="296.8" y1="240" x2="325.6" y2="240"/><line x1="296.8" y1="260" x2="325.6" y2="260"/></g>
+  <line x1="296.8" y1="270.4" x2="325.6" y2="270.4" stroke="#e65100" stroke-width="5"/>
+  <text x="262" y="262" fill="#e65100" font-size="9">gate</text>
+
+  <!-- cover on the path -->
+  <rect x="208" y="340" width="48" height="108" fill="#5a3a1c"/>
+  <g stroke="#a0805a"><line x1="208" y1="412" x2="256" y2="412"/><line x1="208" y1="376" x2="256" y2="376"/></g>
+  <text x="212" y="336" fill="#5a3a1c" font-weight="bold">W1 bins</text>
+  <g fill="#ddc29f" stroke="#6d4c2a">
+    <rect x="136" y="467.2" width="57.6" height="28.8"/>
+    <rect x="412" y="491.2" width="28.8" height="24"/>
+    <rect x="496" y="428.8" width="28.8" height="28.8"/>
+    <rect x="520" y="222.4" width="57.6" height="28.8"/>
+    <rect x="522.4" y="289.6" width="28.8" height="19.2"/>
+    <rect x="666.4" y="294.4" width="28.8" height="19.2"/>
+    <rect x="772" y="246.4" width="57.6" height="19.2"/>
+  </g>
+  <rect x="616" y="376" width="60" height="60" fill="#9a9a9a" stroke="#555"/>
+  <text x="626" y="410" fill="#222" font-size="10">mill M1</text>
+
+  <!-- upper gallery (+4.2 m) -->
+  <rect x="100" y="88" width="768" height="72" fill="#7d93ad" fill-opacity="0.35" stroke="#1f3a5f" stroke-width="2" stroke-dasharray="8 4"/>
+  <line x1="100" y1="160" x2="388" y2="160" stroke="#1f3a5f" stroke-width="2"/>
+  <line x1="580" y1="160" x2="868" y2="160" stroke="#1f3a5f" stroke-width="2"/>
+  <text x="430" y="156" fill="#1f3a5f" font-size="9">crane bay: open rail</text>
+  <g fill="#c9a77a" stroke="#6d4c2a">
+    <rect x="172" y="88" width="57.6" height="9.6"/>
+    <rect x="580" y="88" width="57.6" height="21.6"/>
+    <rect x="724" y="88" width="57.6" height="21.6"/>
+  </g>
+  <rect x="842" y="136" width="14" height="20" fill="none" stroke="#1f3a5f" stroke-width="2"/>
+  <text x="808" y="172" fill="#1f3a5f" font-size="9">ladder + hatch</text>
+  <!-- hoist door and exit platform -->
+  <line x1="100" y1="102.4" x2="100" y2="140.8" stroke="#2e7d32" stroke-width="7"/>
+  <rect x="42" y="95" width="58" height="53" fill="#2e7d32" fill-opacity="0.12" stroke="#2e7d32" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="46" y="88" fill="#2e7d32" font-weight="bold">EXIT</text>
+  <text x="44" y="162" fill="#2e7d32" font-size="9">hoist platform</text>
+  <text x="44" y="172" fill="#2e7d32" font-size="9">(locked till all down)</text>
+
+  <!-- windows (lightning) -->
   <g stroke="#1e63d6" stroke-width="5">
-    <line x1="310" y1="140" x2="370" y2="140"/>
-    <line x1="400" y1="140" x2="460" y2="140"/>
-    <line x1="490" y1="140" x2="550" y2="140"/>
-    <line x1="840" y1="124" x2="840" y2="172"/>
-    <line x1="840" y1="192" x2="840" y2="240"/>
-    <line x1="840" y1="330" x2="840" y2="360"/>
+    <line x1="148" y1="520" x2="196" y2="520"/><line x1="364" y1="520" x2="412" y2="520"/><line x1="604" y1="520" x2="652" y2="520"/>
+    <line x1="100" y1="400" x2="100" y2="448"/>
+    <line x1="868" y1="280" x2="868" y2="316"/>
+    <line x1="196" y1="88" x2="244" y2="88"/><line x1="412" y1="88" x2="460" y2="88"/><line x1="508" y1="88" x2="556" y2="88"/><line x1="700" y1="88" x2="748" y2="88"/>
   </g>
-
-  <!-- doors (gaps) -->
-  <g stroke="#f3efe6" stroke-width="5">
-    <line x1="280" y1="300" x2="280" y2="340"/>
-    <line x1="280" y1="104" x2="280" y2="128"/>
-    <line x1="120" y1="140" x2="120" y2="160"/>
-    <line x1="560" y1="140" x2="584" y2="140"/>
-    <line x1="428" y1="92" x2="452" y2="92"/>
-    <line x1="640" y1="104" x2="640" y2="128"/>
-    <line x1="640" y1="356" x2="640" y2="380"/>
-    <line x1="780" y1="280" x2="804" y2="280"/>
-  </g>
-  <line x1="840" y1="52" x2="840" y2="76" stroke="#2e7d32" stroke-width="6"/>
-  <line x1="120" y1="420" x2="200" y2="420" stroke="#888" stroke-width="6" stroke-dasharray="4 3"/>
-  <text x="122" y="436" fill="#666">roller shutter (chained)</text>
-
-  <!-- cover -->
-  <g fill="#b9a27c" stroke="#6d5a3a" stroke-width="1">
-    <rect x="80" y="268" width="44" height="32"/>
-    <rect x="160" y="218" width="44" height="32"/>
-    <rect x="60" y="200" width="44" height="30"/>
-    <rect x="200" y="336" width="40" height="24" fill="#d8c8a6"/>
-    <rect x="400" y="392" width="160" height="20"/>
-    <rect x="600" y="200" width="28" height="160" fill="#d8c8a6"/>
-    <rect x="740" y="320" width="80" height="80" fill="#cfcfcf" stroke="#777"/>
-    <rect x="660" y="290" width="28" height="40" fill="#d8c8a6"/>
-    <rect x="790" y="240" width="40" height="20" fill="#d8c8a6"/>
-  </g>
-  <g fill="#8c8c8c" stroke="#555" stroke-width="1">
-    <rect x="320" y="346" width="32" height="28"/><rect x="390" y="346" width="32" height="28"/><rect x="460" y="346" width="32" height="28"/><rect x="530" y="346" width="32" height="28"/>
-    <rect x="320" y="276" width="32" height="28"/><rect x="390" y="276" width="32" height="28"/><rect x="460" y="276" width="32" height="28"/><rect x="530" y="276" width="32" height="28"/>
-    <rect x="320" y="206" width="32" height="28"/><rect x="390" y="206" width="32" height="28"/><rect x="460" y="206" width="32" height="28"/><rect x="530" y="206" width="32" height="28"/>
-  </g>
-  <g fill="#3b3b3b">
-    <rect x="673" y="205" width="54" height="30" rx="8"/>
-    <rect x="743" y="145" width="54" height="30" rx="8"/>
-    <rect x="673" y="85" width="54" height="30" rx="8"/>
-  </g>
-
-  <!-- intro wall W1 -->
-  <rect x="157" y="280" width="6" height="80" fill="#7a2e12"/>
-  <text x="52" y="311" fill="#7a2e12" font-weight="bold">W1 intro wall (3 m)</text>
+  <line x1="868" y1="448" x2="868" y2="472" stroke="#1e63d6" stroke-width="3" stroke-dasharray="3 2"/>
 
   <!-- lamps: all electric, all die at the EMP -->
-  <g fill="#ffd54a" stroke="#a07800" stroke-width="1">
-    <circle cx="100" cy="360" r="5"/><circle cx="220" cy="360" r="5"/><circle cx="100" cy="260" r="5"/><circle cx="220" cy="260" r="5"/><circle cx="180" cy="150" r="5"/><circle cx="250" cy="150" r="5"/>
-    <circle cx="340" cy="350" r="5"/><circle cx="460" cy="350" r="5"/><circle cx="580" cy="350" r="5"/><circle cx="340" cy="220" r="5"/><circle cx="460" cy="220" r="5"/><circle cx="580" cy="220" r="5"/>
-    <circle cx="340" cy="116" r="4"/><circle cx="460" cy="116" r="4"/><circle cx="580" cy="116" r="4"/><circle cx="440" cy="66" r="4"/>
-    <circle cx="700" cy="350" r="4"/><circle cx="780" cy="300" r="4"/>
-    <circle cx="690" cy="200" r="4"/><circle cx="790" cy="200" r="4"/><circle cx="690" cy="100" r="4"/><circle cx="790" cy="100" r="4"/>
-    <rect x="828" y="60" width="8" height="6"/>
+  <g fill="#ffd54a" stroke="#a07800">
+    <circle cx="160" cy="400" r="4"/><circle cx="280" cy="484" r="4"/><circle cx="388" cy="472" r="4"/><circle cx="520" cy="472" r="4"/><circle cx="652" cy="472" r="4"/>
+    <circle cx="556" cy="268" r="4"/><circle cx="676" cy="268" r="4"/><circle cx="796" cy="328" r="4"/><circle cx="784" cy="180" r="4"/><circle cx="364" cy="220" r="4"/>
+    <circle cx="196" cy="93" r="4"/><circle cx="364" cy="93" r="4"/><circle cx="508" cy="93" r="4"/><circle cx="676" cy="93" r="4"/><circle cx="820" cy="93" r="4"/><circle cx="107" cy="98" r="4"/>
+    <rect x="103" y="143" width="8" height="6"/>
   </g>
 
-  <!-- guard patrols -->
+  <!-- the directed path -->
+  <polyline points="196,393 244,320 316,460 568,460 647,352 700,292 709,227 777,282 810,212 849,146 820,131 647,131 647,102 407,134 311,114 138,124 70,121" fill="none" stroke="#2e7d32" stroke-width="3" stroke-opacity="0.55" stroke-linejoin="round"/>
+
+  <!-- guard routes: ground (red) and gallery (navy) -->
   <g fill="none" stroke="#c62828" stroke-width="1.6" stroke-dasharray="6 4">
-    <line x1="80" y1="384" x2="240" y2="384"/>
-    <polygon points="150,260 220,260 220,200 150,200"/>
-    <polygon points="304,382 444,382 444,252 304,252"/>
-    <line x1="580" y1="380" x2="580" y2="170"/>
-    <line x1="300" y1="110" x2="620" y2="110"/>
-    <line x1="300" y1="122" x2="620" y2="122"/>
-    <polygon points="664,256 760,256 810,190 810,104 740,56 664,56"/>
+    <line x1="184" y1="311.2" x2="306.4" y2="311.2"/><line x1="184" y1="328" x2="306.4" y2="328"/>
+    <polyline points="328,472 592,472 592,352 647.2,352"/>
+    <polyline points="508,275.2 704.8,275.2 704.8,227.2"/>
+    <polyline points="599.2,313.6 599.2,227.2 690.4,227.2"/>
   </g>
-  <g stroke="#c62828" stroke-width="1" opacity="0.7">
-    <line x1="720" y1="300" x2="645" y2="368"/>
-    <line x1="720" y1="300" x2="792" y2="284"/>
+  <g fill="none" stroke="#1f3a5f" stroke-width="1.6" stroke-dasharray="6 4">
+    <line x1="820" y1="131.2" x2="642.4" y2="131.2"/>
+    <line x1="400" y1="143.2" x2="613.6" y2="143.2"/><line x1="400" y1="124" x2="613.6" y2="124"/>
+    <line x1="136" y1="133.6" x2="256" y2="133.6"/><line x1="136" y1="114.4" x2="256" y2="114.4"/>
   </g>
-  <!-- guard posts (start at the EMP) -->
+  <!-- intro: guards close in from two sides -->
+  <g stroke="#e65100" stroke-width="2" stroke-dasharray="2 3" fill="none">
+    <polyline points="311,270 280,311"/><polyline points="311,270 299,328"/>
+    <polyline points="430,472 316,472"/><polyline points="430,472 340,438"/>
+  </g>
+  <!-- guard starts: ground circles, gallery squares -->
   <g fill="#c62828">
-    <circle cx="220" cy="372" r="6"/><circle cx="230" cy="170" r="6"/><circle cx="260" cy="320" r="6"/><circle cx="260" cy="140" r="6"/>
-    <circle cx="300" cy="110" r="6"/><circle cx="300" cy="122" r="6"/><circle cx="720" cy="300" r="6"/><circle cx="664" cy="256" r="6"/>
+    <circle cx="280" cy="311.2" r="6"/><circle cx="299.2" cy="328" r="6"/><circle cx="316" cy="472" r="6"/><circle cx="340" cy="438.4" r="6"/>
+    <circle cx="599.2" cy="304" r="6"/><circle cx="796" cy="282.4" r="6"/>
   </g>
-  <g fill="#c62828" font-weight="bold">
-    <text x="204" y="366">G1</text><text x="212" y="166">G2</text><text x="240" y="314">G3</text><text x="242" y="136">G4</text>
-    <text x="304" y="104">G5+G6 pair</text><text x="706" y="318">G7 post</text><text x="668" y="250">G8</text>
+  <g fill="#c62828" stroke="#1f3a5f" stroke-width="1.5">
+    <rect x="814" y="125" width="12" height="12"/><rect x="394" y="137" width="12" height="12"/><rect x="394" y="118" width="12" height="12"/>
+    <rect x="305" y="125" width="12" height="12"/><rect x="130" y="128" width="12" height="12"/><rect x="130" y="108" width="12" height="12"/>
+  </g>
+  <g fill="#c62828" font-weight="bold" font-size="10">
+    <text x="262" y="306">G1</text><text x="304" y="342">G2</text><text x="300" y="488">G3</text><text x="346" y="436">G4</text>
+    <text x="604" y="300">G5</text><text x="800" y="300">G6</text>
+  </g>
+  <g fill="#1f3a5f" font-weight="bold" font-size="10">
+    <text x="826" y="124">G7</text><text x="446" y="119">G8+G9</text><text x="300" y="122">G10</text><text x="142" y="105">G11+G12</text>
   </g>
 
-  <!-- intro: guards close in from two sides (hall door, corridor door), slow motion -->
-  <g stroke="#e65100" stroke-width="2" stroke-dasharray="2 3" fill="none">
-    <polyline points="330,316 284,318 262,320"/>
-    <polyline points="330,330 284,330 222,370"/>
-    <polyline points="330,116 284,116 262,138"/>
-    <polyline points="330,116 284,118 232,168"/>
+  <!-- stretch numbers -->
+  <g font-weight="bold" font-size="11" text-anchor="middle">
+    <g fill="#ffffff" stroke="#e65100" stroke-width="2">
+      <circle cx="244" cy="296" r="9"/><circle cx="660" cy="340" r="9"/><circle cx="700" cy="304" r="9"/><circle cx="776.8" cy="300" r="9"/><circle cx="709.6" cy="244" r="9"/>
+      <circle cx="660" cy="150" r="9"/><circle cx="660" cy="104" r="9"/><circle cx="420" cy="104" r="9"/><circle cx="330" cy="104" r="9"/><circle cx="160" cy="148" r="9"/>
+    </g>
+    <g fill="#e65100">
+      <text x="244" y="300">1</text><text x="660" y="344">2</text><text x="700" y="308">3</text><text x="776.8" y="304">4</text><text x="709.6" y="248">5</text>
+      <text x="660" y="154">6</text><text x="660" y="108">7</text><text x="420" y="108">8</text><text x="330" y="108">9</text><text x="160" y="152">10</text>
+    </g>
   </g>
-  <text x="126" y="186" fill="#e65100" font-size="10">intro: guards close in</text>
-  <text x="126" y="197" fill="#e65100" font-size="10">from two doors</text>
 
   <!-- players and intro camera -->
-  <g fill="#2e7d32"><circle cx="152" cy="336" r="6"/><circle cx="152" cy="308" r="6"/></g>
-  <text x="44" y="404" fill="#2e7d32" font-weight="bold">START: both players, backs to W1</text>
-  <line x1="140" y1="322" x2="66" y2="322" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="3 3"/>
-  <polygon points="60,322 70,317 70,327" fill="#6a1b9a"/>
-  <text x="44" y="344" fill="#6a1b9a">intro pull-back</text>
-  <text x="846" y="104" fill="#2e7d32" font-weight="bold">EXIT</text>
-  <text x="846" y="116" fill="#2e7d32">porch</text>
+  <g fill="#2e7d32"><circle cx="196" cy="409.6" r="6"/><circle cx="196" cy="376" r="6"/></g>
+  <text x="104" y="510" fill="#2e7d32" font-weight="bold" font-size="10">START: backs to W1</text>
+  <line x1="186" y1="393" x2="126" y2="393" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="3 3"/>
+  <polygon points="120,393 130,388 130,398" fill="#6a1b9a"/>
+  <text x="112" y="384" fill="#6a1b9a" font-size="9">intro camera</text>
 
-  <!-- room labels -->
-  <g fill="#333" font-weight="bold" font-size="12">
-    <text x="128" y="112">LOADING DOCK (6 m)</text>
-    <text x="46" y="110" font-size="10">dock office</text>
-    <text x="400" y="164">ASSEMBLY HALL (7 m)</text>
-    <text x="300" y="136" font-size="10">CORRIDOR (3 m)</text>
-    <text x="406" y="56" font-size="10">tea room</text>
-    <text x="648" y="412">VARNISH ROOM (4 m)</text>
-    <text x="700" y="272">SHOWROOM (4.5 m)</text>
-  </g>
-  <g fill="#555" font-size="10">
-    <text x="88" y="288">C1</text><text x="168" y="238">C2</text><text x="68" y="219">C3</text><text x="400" y="406">timber rack</text><text x="562" y="372">bench</text>
-    <text x="744" y="364">spray booth</text><text x="330" y="200">frames (1.0 m) x 12</text><text x="676" y="138">grand pianos</text>
-    <text x="300" y="154" fill="#1e63d6">clerestory windows (high, moonlight)</text>
+  <!-- labels -->
+  <g fill="#333" font-weight="bold" font-size="10">
+    <text x="108" y="288" fill="#f3eee2">START BAY</text>
+    <text x="440" y="440">SOUTH AISLE</text>
+    <text x="588" y="344">MILL BAY</text>
+    <text x="500" y="222">SACK BAY</text>
+    <text x="760" y="226">OFFICE</text>
+    <text x="736" y="200">LADDER LOBBY</text>
+    <text x="230" y="84" fill="#1f3a5f">UPPER GALLERY (+4.2 m)</text>
   </g>
 
   <!-- scale bar and north -->
   <g stroke="#222" stroke-width="2">
-    <line x1="40" y1="470" x2="240" y2="470"/>
-    <line x1="40" y1="464" x2="40" y2="476"/><line x1="80" y1="466" x2="80" y2="474"/><line x1="120" y1="466" x2="120" y2="474"/><line x1="160" y1="466" x2="160" y2="474"/><line x1="200" y1="466" x2="200" y2="474"/><line x1="240" y1="464" x2="240" y2="476"/>
+    <line x1="100" y1="556" x2="340" y2="556"/>
+    <line x1="100" y1="550" x2="100" y2="562"/><line x1="148" y1="552" x2="148" y2="560"/><line x1="196" y1="552" x2="196" y2="560"/><line x1="244" y1="552" x2="244" y2="560"/><line x1="292" y1="552" x2="292" y2="560"/><line x1="340" y1="550" x2="340" y2="562"/>
   </g>
-  <text x="36" y="490">0</text><text x="112" y="490">4 m</text><text x="232" y="490">10 m</text>
-  <g transform="translate(920,90)">
+  <text x="96" y="576">0</text><text x="188" y="576">4 m</text><text x="330" y="576">10 m</text>
+  <g transform="translate(920,64)">
     <polygon points="0,-30 9,0 0,-6 -9,0" fill="#222"/>
     <text x="-5" y="16" font-weight="bold">N</text>
   </g>
 
   <!-- legend -->
-  <g font-size="11">
-    <circle cx="290" cy="468" r="5" fill="#ffd54a" stroke="#a07800"/><text x="300" y="472">lamp (electric: all die at the EMP), 22 + exit sign</text>
-    <line x1="284" y1="490" x2="300" y2="490" stroke="#1e63d6" stroke-width="5"/><text x="306" y="494">window (pale blue: faint glow, night vision only)</text>
-    <circle cx="290" cy="512" r="6" fill="#c62828"/><text x="300" y="516">guard start at the EMP (8)</text>
-    <line x1="460" y1="512" x2="490" y2="512" stroke="#c62828" stroke-width="1.6" stroke-dasharray="6 4"/><text x="496" y="516">fixed patrol</text>
-    <rect x="284" y="526" width="14" height="10" fill="#b9a27c" stroke="#6d5a3a"/><text x="304" y="535">tall cover (1.8-2.5 m)</text>
-    <rect x="440" y="526" width="14" height="10" fill="#d8c8a6" stroke="#6d5a3a"/><text x="460" y="535">low cover (1.0-1.2 m)</text>
-    <circle cx="620" cy="468" r="6" fill="#2e7d32"/><text x="630" y="472">players' start / checkpoint</text>
-    <line x1="612" y1="490" x2="632" y2="490" stroke="#2e7d32" stroke-width="6"/><text x="638" y="494">exit door (opens from inside)</text>
-    <line x1="612" y1="512" x2="632" y2="512" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="3 3"/><text x="638" y="516">intro camera path</text>
-    <text x="612" y="535" fill="#555">If 8 torches fail the graphics test: G1, G4, G5, G6 only.</text>
+  <g font-size="10">
+    <line x1="380" y1="550" x2="410" y2="550" stroke="#2e7d32" stroke-width="3" stroke-opacity="0.55"/><text x="416" y="554">the path, stretches 1-10 in order</text>
+    <circle cx="395" cy="568" r="5" fill="#c62828"/><text x="416" y="572">guard, ground floor</text>
+    <rect x="389" y="580" width="11" height="11" fill="#c62828" stroke="#1f3a5f"/><text x="416" y="590">guard, gallery (+4.2 m)</text>
+    <line x1="380" y1="604" x2="410" y2="604" stroke="#c62828" stroke-dasharray="6 4"/><text x="416" y="608">fixed slow sweep (pairs: two lines)</text>
+    <circle cx="395" cy="622" r="4" fill="#ffd54a" stroke="#a07800"/><text x="416" y="626">lamp (16 + exit sign), all die at the EMP</text>
+    <line x1="630" y1="550" x2="660" y2="550" stroke="#1e63d6" stroke-width="5"/><text x="666" y="554">window: lightning comes in here</text>
+    <rect x="630" y="562" width="30" height="12" fill="#9cc9ff" opacity="0.5"/><text x="666" y="572">lit at a flash (outside these: flash shadow)</text>
+    <rect x="630" y="580" width="30" height="12" fill="#6d4c2a"/><text x="666" y="590">bin rows / sack walls fencing the path</text>
+    <rect x="630" y="598" width="30" height="12" fill="#ddc29f" stroke="#6d4c2a"/><text x="666" y="608">low sacks (cover)</text>
+    <circle cx="645" cy="622" r="8" fill="#fff" stroke="#e65100" stroke-width="2"/><text x="666" y="626">stretch number (where it happens)</text>
+    <text x="100" y="600" fill="#555">Grey: machinery floor, seen but never walked.</text>
+    <text x="100" y="614" fill="#555">Orange dots: the four guards closing in during the intro.</text>
+    <text x="100" y="628" fill="#555">12 guards shown; 16 or at least 8 after the graphics test.</text>
   </g>
 </svg>
 
 </details>
 
-**What the plan shows.** A small 1920s piano works on one floor, 40 by 19 metres: loading dock, assembly hall,
-corridor with a tea room, varnish room, showroom with the front door. The two operators start with their backs to the
-dock's brick wall (W1). 8 guards (red) on fixed rounds; the corridor pair is the one to take together. 22 lamps
-(yellow) all die at the EMP; after that the only light is the guards' torches and a very faint moon and city glow
-through the windows (blue), seen only through night vision. Two ways to the front door: the corridor, or the hall and
-varnish room.
+**What the plan shows.** A tall timber grain mill on a stormy night, 32 by 18 metres, a ground floor and an upper
+gallery 4.2 metres up. You do not explore it: bin rows and sack walls fence one path through it (the green line), and
+the middle of the mill (grey) is seen but never walked. 12 guards (red; squares are upstairs), every one with a torch,
+sweeping slowly on fixed rounds. 16 lamps die at the EMP; after that only the torches and the lightning through the
+windows (blue) light anything.
 
-**The opening (against the 2 min 14 s piano track).** 0-3 s black. 3-9 s fade in on the chest, empty pistol, calm
-breathing; a dry click of the empty gun. 16-30 s the camera slowly pulls back: the wall, the partner, bullets flying
-past from two sides in slow motion. 30-38 s on the music's first swell: surrounded, four guards closing in slow motion
-from two doors. 38 s: one button press sets off the EMP, every light dies, torches click on, and you have control.
-Hold Back to skip to the EMP; no replay after a restart.
+**The path, in order (the numbers on the plan):**
+1. The bins: two guards searching round your wall. Take them together, one each, at the same moment.
+2. The south aisle: follow one guard in the dark to the mill machine and knife him there.
+3. The sack bay: two guards' torches cross the bay. Slip past them to the office door. No kill yet.
+4. The office: one guard at the desk. Knife him from behind.
+5. The office door: the two sack-bay guards come to check the door together. Take them together.
+6. Up the ladder to the gallery: follow one guard along it and knife him by the sacks.
+7. The crane bay: a guard pair sweeps towards you. Hide behind the sacks as they turn, a metre away.
+8. Follow that pair back along the gallery and take them together at their turn.
+9. The stair head: one guard watching the hall below. Knife him from behind.
+10. The hoist door: the last two pace by the way out. Take them together; the door unlocks and you leave.
 
-**If 8 torches are too heavy for the graphics card** (one test decides): the same map with 4 guards (G1, G4 and the
-corridor pair), never a guard without a torch.
+**The opening (against the 2 min 14 s piano track, as approved).** 0-3 s black, rain. 3-9 s fade in on the chest, empty
+pistol, calm breathing, a dry click. 16-30 s the camera pulls back from the grain bins: bullets from two sides in slow
+motion. 30-38 s on the first swell: surrounded, four guards closing in from the stair and the aisle. 38 s: one button
+sets off the EMP, every lamp dies, torches click on, and you have control.
+
+**The storm.** Lightning lights everyone, you and the guards, for about half a second: a flash every 12 s at first,
+then every 7-8 s, and a double flash on each swell of the music, the same every time, so you learn to move between
+them. Rain on the roof halves how far guards can hear you.
+
+**If 12 torches are too heavy for the graphics card** (one test decides): fewer guards, never fewer than 8, and never
+a guard without a torch. If it allows, up to 16.
 
 ## Rules this scene skips (your click approves these, for this scene only)
-- No layout checker or test-bot runs: your walk replaces them.
-- Two ways to the exit, not three plus a secret.
-- Guard numbers per room are not graded.
-- No pacing chart, teach-then-test beats or extra things to play with in each room.
+- No layout checker or test-bot runs: your walk replaces them; this plan is the map's only spec.
+- One set path, no side routes, loops or secret ways (as you asked: not open world).
+- One checkpoint, at the start.
+- Nearly every guard runs the same slow sweep instead of a mix of posts and patrols; guard numbers are not graded.
+- No lures, switches, lamps or gadgets to play with after the EMP: knife and night vision only.
 - No security devices (cameras, lasers, keypads) and no security sheet.
-- One player may play it (the standard says exactly two).
-- The corridor pair is the only must-do teamwork moment; no forced climbing or boosting together.
-- No designed split-up points, hidden rewards, lit choke points or extra test checklist; this plan is the map's only spec
-  (no separate map sheet).
+- Knife kills only: no sneaking past to the end or knocking out (as you picked for this scene).
+- One player may play it for testing (the standard says exactly two).
+- The co-op moments are the four paired kills; no forced climbing or boosting together, no split-up points.
+- The way out stays locked until every guard is down (the standard says escape doors open from inside).
+- No lit choke points, hidden rewards or extra test checklist.
 
 ## Intent check (5 lines)
-1. Michael said: "a black screen, slowly fading in to the characters upper chest ... holding an empty pistol ...
-   very tense and quiet, with them brutally taking down guards in the shadows" (2026-10-26 ~19:20), and "they should
-   activate an EMP which knocks out all the lights ... the mission will play in pure darkness" (~19:55).
-2. What this is: a one-off co-op scene in a small dark piano works, with its own piano music and opening shot.
-3. What changes for the player: watch the slow opening, press the EMP, then knife every guard in the dark and walk out
-   the front door together.
-4. What it does not do: no score, no saves, no change to the campaign, Sector Ops or Marlow Yard; knife kills are
-   allowed only here.
-5. What it costs: 4 build pieces (about 2 days of builders) plus work from 3 other teams (knife moves, guard torches,
-   the blackout lighting); it stays hidden behind its own switch and shows in the preview.
+1. Michael said: "Must be very cinematic, Not meant to be open world or explored. Must force stealth, stalking,
+   kills, coop kills. I want it to showcase a tense, coop gameplay" (2026-10-26 ~20:16), on the storm grain mill he
+   picked (~20:15).
+2. What this is: a one-off co-op scene in a dark grain mill in a thunderstorm: one set path of ten moments, with its
+   own piano music and opening shot.
+3. What changes for the player: after the EMP, sneak, stalk and knife twelve guards in order, four times as a pair
+   at the same moment, timing your moves to the lightning, then leave by the hoist door together.
+4. What it does not do: no exploring, no score, no saves, no change to the campaign, Sector Ops or Marlow Yard; knife
+   kills only here.
+5. What it costs: 7 build pieces (about 3 days of builders, two already building) plus work from 3 other teams (knife
+   moves, guard sweeps, the storm lighting); it stays hidden behind its own switch and shows in the preview.
 
 ## The decision
-Q: Build the piano escape to this plan, with the rule skips above (this scene only)?
+Q: Build the storm mill escape to this plan, with the rule skips above (this scene only)?
 - "Approve, build it (Recommended)"
 - "Change it first"
 
 ## Michael's pick
-2026-10-26 ~20:15, native multiple choice (via the orchestrator): "Approve, build it (Recommended)". The rule skips
-above are approved for this scene only.
+Sign-off 1 (the piano works): approved 2026-10-26 ~20:15, "Approve, build it (Recommended)"; it stands for the opening,
+the EMP and the knife-kill rules. Sign-off 2 (this page): <!-- filled by the orchestrator -->
