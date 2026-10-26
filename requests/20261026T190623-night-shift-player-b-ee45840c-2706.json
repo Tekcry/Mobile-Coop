@@ -1,0 +1,14 @@
+{
+  "id": "20261026T190623-night-shift-player-b-ee45840c-2706",
+  "sha": "ee45840cc831a484023af1e967d37f47f7b0d299",
+  "branch": "feature/gm-flip",
+  "pr": 375,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "gm-flip",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T183219-night-shift-player-b-ee45840c-1c7e, rerun on the laptop"
+}
