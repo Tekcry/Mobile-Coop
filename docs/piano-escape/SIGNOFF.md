@@ -306,4 +306,7 @@ The plan follows the recommended answers until you pick.
 
 ## Michael's pick
 Sign-off 1 (the piano works): approved 2026-10-26 ~20:15, "Approve, build it (Recommended)"; it stands for the opening,
-the EMP and the knife-kill rules. Sign-off 2 (this page): <!-- filled by the orchestrator -->
+the EMP and the knife-kill rules. Sign-off 2 (this page): approved 2026-10-26 ~20:55 (native multiple choice, via the orchestrator). Main Q, typed in
+Other: "Approve and build it, we will review the next section once this is trialled" (read as approve and build; he
+reviews the next section after he trials this one). Q2: "Only the two (Recommended)". Q3: "Testing only, pairs stay
+(Recommended)".

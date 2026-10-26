@@ -45,6 +45,9 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 
 - 2026-10-26 ~20:15 Q: a new setting (the bunker was too close to a CT mission) -> picked: "Storm grain mill" (a tall
   timber grain mill during a thunderstorm at night).
+- 2026-10-26 ~20:55 Q: build the storm mill escape to sign-off 2 (rule skips for this scene only)? -> typed in Other:
+  "Approve and build it, we will review the next section once this is trialled". Q2 (searchers at the start) -> picked:
+  "Only the two (Recommended)". Q3 (one player and the pairs) -> picked: "Testing only, pairs stay (Recommended)".
 
 ## Goal
 From a menu entry, two players (or one, for testing) watch a black screen fade in on an operator's upper chest, an
