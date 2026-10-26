@@ -1,7 +1,30 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~14:15 SAVE (Night Shift | Campaign Build, read this block first)
+## RESUME 2026-10-26 ~14:30 (Night Shift | Campaign Build, read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
+report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
+CPU hold released 14:09. Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the orchestrator). Bypass mode:
+the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mjs.
+1. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate merged; claims block 6be3da64b; BRIEF A25-A28: C4 big-pr
+   only, wharf as C9-C16, members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
+2. PR G1 feature/tallow-fixes c648c5d85 (PASS), laptop tallow-prg1 running. Green -> merge into the engine, cut C3
+   (prc-split-refresh.md row C3).
+3. PR G2 feature/tallow-fixes-2 2de5701c0 = G1 + G2 36a207232 + G4 06c1bc4a6 (each PASS; status posted; tsc + 413).
+   Laptop tallow-prg2 20261026T032051. Green (and G1 in) -> merge into the engine. Pawn-throw overhang: D1 LEAD NOTE.
+4. Cloud open: E8 (base 2de5701c0; wharf e2e) and D1 (base 2de5701c0; graph + validator, J12 ref validator-port-c2).
+   Done -> one Sonnet checker each -> merge into tallow-fixes-2; E8 needs a laptop
+   run (G2 set). S3 (cq/) after G2 in the engine and the engine in tallow-shutters; S4 after S3 + E8.
+5. PR S tallow-shutters b2df51d9a (S-a; status posted). Laptop tallow-prs-a 20261026T024857. Green -> engine after G2.
+6. PR C split: C1 #521 9419b8f29, C2 #522 29892a271 (both PASS + status). Laptop co-op gate prc-c1 20261026T025035 /
+   prc-c2 20261026T025041. Preview flags (Michael 13:55): missions / coopKit via darkFlag(.., PREVIEW_ON) if C2 lands
+   after Player's player-preview-flags.
+7. PR #549 feature/look-video 8a67136d3 (tool to master; PASS + status). First run: alone 20261026T031806 on run branch
+   feature/look-video-tallow dc7bb9342 (engine + 2 script files; webm on the laptop C:/NightShift/scratch/look-video/).
+   The W1-W4 videos gate C9 / C10 bodies.
+Next: laptop verdicts -> G1, then G2, then S into the engine; cut C3; E8 / D1 pickups.
+
+## OLD RESUME 2026-10-26 ~14:15 SAVE (Night Shift | Campaign Build)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 13:00 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 CPU hold released 14:09 ("go: start builders"). Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the
