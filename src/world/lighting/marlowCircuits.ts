@@ -207,7 +207,7 @@ export const MARLOW_CIRCUITS_REPLAN: MarlowCircuit[] = [
     if (c.group === 22) return [{ ...c, name: "Shunter's cabin panel and coat corner lamp", fitting: 'Ceiling panel over the desk, a wall lamp over the coat hooks', lamps: 2 }];
     if (c.group === 49) {
       return [
-        { ...c, name: 'Bulk-store row (back aisle)', kind: 'switch', role: 'read', fitting: 'Strips over the back aisle', switches: [sw('a4-sw-bulk', 'wall', 76.3, 25.8, "at the back aisle's west end")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true },
+        { ...c, name: 'Bulk-store row (back aisle)', kind: 'switch', role: 'read', fitting: 'Strips over the back aisle', switches: [sw('a4-sw-bulk', 'wall', 99.0, 24.3, "on the back aisle's south wall, west of the lift grille")], noSwitch: undefined, cutBy: ['switch', 'jam', 'shot'], lamps: 3, electric: true, destructible: true },
         { group: 44, key: 'a4-dispatch', room: 'A4', name: 'Dispatch office', kind: 'switch', role: 'toy', fitting: 'Ceiling panel', tone: 'white', owner: 'Port operator (set)', switches: [sw('a4-sw-dispatch', 'wall', 79.4, 38.4, 'inside the office by its door')], cutBy: ['switch', 'jam', 'shot'], lamps: 1, electric: true, destructible: true },
       ];
     }
