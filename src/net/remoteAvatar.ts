@@ -107,6 +107,8 @@ export class RemoteAvatar {
   private models = new Map<WeaponId, WeaponModel>();
   private pouches: GrenadePouches;
   private weapon: WeaponId | null = null;
+  /** (piano-knife S4b) The partner's pistol slide is locked back (his intro pose, WALL_SUB.intro). */
+  private introSlide = false;
   /** (coop-walk-fixes P7) The partner's rounds from its `sc` counter (one shot each, at most at the fire rate). */
   private readonly shots = new RemoteShots();
   private kick = 0;
@@ -559,6 +561,11 @@ export class RemoteAvatar {
     const pk = wseg && mv!.sub & WALL_SUB.peek ? 1 : 0;
     this.peekK = wseg ? (pk ? Math.min(1, this.peekK + dt / WALL.peekBlend) : Math.max(0, this.peekK - dt / WALL.peekBlend)) : 0;
     const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp, this.peekK) : emptyMovePose();
+    // (piano-knife S4b) the partner's intro pose: his empty pistol's slide locked back while WALL_SUB.intro is on, as his own
+    if (mp.intro !== this.introSlide) {
+      this.introSlide = mp.intro;
+      if (this.weapon) this.models.get(this.weapon)?.slideLock(mp.intro);
+    }
     // (step 11) on a wall: the rig's back onto the face and the off hand on it (as the player's rig)
     this.wallK = Math.max(0, Math.min(1, this.wallK + (wseg ? dt : -dt) / 0.2));
     if (wseg) {
@@ -789,6 +796,7 @@ export class RemoteAvatar {
       weight: this.weapon ? (WEAPONS[this.weapon].weight ?? classWeight(WEAPONS[this.weapon].class)) : 1,
       kick: this.kick,
       wall: mp.wall,
+      intro: mp.intro, // (piano-knife S4b)
       // (doorPeek parity) the door peek's feet on the stance spots when still, as the owner's
       settleFeet: mp.settle,
       // (A1.2) as the owner: free movement strides along the facing (no faceGoal: the planner caps its turn guess)
