@@ -1,0 +1,15 @@
+{
+  "id": "20261026T051055-affected-e2e-293c12e3-5693",
+  "sha": "293c12e3bb33460376c6f68bea237d4ada11105d",
+  "branch": "feature/f28-course-bunker",
+  "pr": 567,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #567"
+}
