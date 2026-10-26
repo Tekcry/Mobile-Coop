@@ -6,7 +6,7 @@ Process as below. Newest: scratch/campaign/lead-notes.md section "Session after 
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 CPU hold released 14:09 ("go: start builders"). Fixes first (Michael ~14:00, docs/orchestrator/FIXES.md via the
 orchestrator). Bypass mode: the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mjs.
-1. Engine feature/mission-engine 5760c6deb (PR T merged; claims block 6be3da64b, Q9; BRIEF A25-A28: C4 big-pr only,
+1. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate merged; claims block 6be3da64b, Q9; BRIEF A25-A28: C4 big-pr only,
    wharf as C9-C16, members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
 2. PR G1 feature/tallow-fixes c648c5d85 (checker PASS), laptop tallow-prg1 running. Green -> merge into the engine,
    then cut C3 (prc-split-refresh.md row C3).
@@ -18,8 +18,8 @@ orchestrator). Bypass mode: the lead posts `checker` statuses itself. Local chec
    set + e2e-coop e2e-netmove); FIX -> Opus fix round. Then E8 brief (cq/), D1 after G1-G4.
 5. tallow-shutters b2df51d9a (S-a: S1, S2, S1-late, s1-polish; status posted). Laptop tallow-prs-a 20261026T024857.
    Green -> merge S into the engine after G1 (order T, G1, G2, S). S3 after G2 in the engine; S4 after S3 + E8.
-6. NET3 gate done (cloud) feature/mission-net3-gate f45f17e60: two Opus checkers net3-gate-check-a.md / -b.md. PASS x2
-   -> merge into the engine (before C7 is cut), status.
+6. DONE NET3 gate f45f17e60 PASS x2 + status, merged into the engine 321e4eed2.
+   (co-op e2e rides the C7 / C16 sets).
 7. look-video done (cloud) feature/look-video 8a67136d3 (base master): Sonnet checker look-video-check.md. PASS ->
    open its own small tool PR to master; first PC run (4189, --alone) on a temp branch = engine + look-video.
 Next: checker reports -> statuses / merges; tallow-prg1 -> G1 into the engine -> cut C3.
@@ -29,7 +29,7 @@ Process as below. Newest: scratch/campaign/lead-notes.md section "Session after 
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Orchestrator 13:32: desktop CPU 100%, NO new local builders until it sends "go: start builders"; tsc / vitest builders
 go to cloud-queue; local checks via scratch/ctcore/low.mjs.
-1. Engine feature/mission-engine 5760c6deb (PR T merged; claims block 6be3da64b, Q9) on c213437e9 (= 377e4c608 + BRIEF A25-A28: C4 big-pr only, wharf as C9-C16, stacked
+1. Engine feature/mission-engine 321e4eed2 (PR T + NET3 gate merged; claims block 6be3da64b, Q9) on c213437e9 (= 377e4c608 + BRIEF A25-A28: C4 big-pr only, wharf as C9-C16, stacked
    members retargeted to master just before train-ready, NET3 firstPlace behind `missions`).
 2. DONE PR T laptop green, merged into the engine 5760c6deb.
 3. PR G1 feature/tallow-fixes c648c5d85 (checker PASS), laptop tallow-prg1 running. Green -> engine after T. Then C3.
