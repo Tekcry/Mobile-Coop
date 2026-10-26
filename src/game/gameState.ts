@@ -4,6 +4,7 @@ import { type AbstractMesh, Color3, type FreeCamera, InstancedMesh, PhysicsRayca
 import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
+import { CharOccluders } from '../world/charOccluders';
 import { cqSimSet } from '../anim/cqGait';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
@@ -124,6 +125,7 @@ import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, se
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
+import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto } from './charOccluderFill';
 import { GadgetSystem } from './gadgetSystem';
 import { OpticSystem } from './opticSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -369,6 +371,24 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
+   *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
+  readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
+  /** (char-shadow-meter S2) Per player slot (`FILL_IN`): feet, the meter's sample height, the head offset. */
+  private readonly lightIn = new Float64Array(FILL.players * FILL_IN);
+  /** (char-shadow-meter S2) Each slot's owner key in the contract (S3b-2 passes these to `ShadowCues.fill`). */
+  private readonly charKeys = new Int32Array(FILL.players);
+  /** (char-shadow-meter S2) `playerRefsInto` order (slot 0 local); S3b-2 reuses it. */
+  private readonly charRefs: PlayerRef[] = [];
+  private charN = 0;
+  private charFull = 0;
+  /** (char-shadow-meter S2, debug only) The meter tick's ms with the contract: the last and a ring of 100. */
+  private charMs = 0;
+  private readonly charMsRing = new Float32Array(100);
+  private charMsAt = 0;
+  /** (char-shadow-meter S2) The picture's round shadows from the contract (`BakedLamps.capsules`). */
+  private readonly charCapsules = (a: Float32Array, b: Float32Array, max: number): number =>
+    pictureInto(this.charOccluders!, a, b, max, this.lightIn);
   /** (G3) The feet last step (the camera's door passage reads the move across a doorway). */
   private camPrevX = Number.NaN;
   private camPrevZ = Number.NaN;
@@ -625,7 +645,7 @@ export class GameState implements AppState {
       lampBeams: mapLampBeams(world.map.theme),
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
-    if (world.lamps) world.lamps.capsules = this.rtCapsules;
+    if (world.lamps) world.lamps.capsules = this.charOccluders ? this.charCapsules : this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
     // (no rain under roofs: the canonical shapes' tops; render only)
     this.weather.occluder = (x, z) => world.roofAt(x, z);
@@ -876,6 +896,14 @@ export class GameState implements AppState {
       );
     }
     app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
+    // (char-shadow-meter S2) the contract's count, its overflow and the meter tick (last, p95 of the last 100)
+    if (flags.debug && this.charOccluders) {
+      app.debug.extra.set('charlight', () => {
+        const occ = this.charOccluders!;
+        const ms = Array.from(this.charMsRing).sort((x, y) => x - y);
+        return `contract ${occ.n} (full ${this.charFull}) meter ${this.charMs.toFixed(3)} ms p95 ${(ms[94] ?? 0).toFixed(3)} ms`;
+      });
+    }
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
       const stance = c.kneeling ? ' kneel' : c.crouched ? ' crouch' : '';
@@ -1715,6 +1743,46 @@ export class GameState implements AppState {
     this.lightT = 1 / LIGHT.playerHz;
     if (reg.sway && !this.puppet) this.swayBumps(reg.sway);
     const f = this.world.lightField;
+    // (char-shadow-meter S2) with the contract: every slot's sample from `lightIn` (this step's `fillChars`), the
+    // characters' capsules counted, each player's own skipped
+    const occ = this.charOccluders;
+    if (occ) {
+      const t0 = flags.debug ? performance.now() : 0;
+      const L = this.lightIn;
+      for (let s = 0; s < this.charN; s++) {
+        const o = s * FILL_IN;
+        const v = f.bodyLevel(L[o]!, L[o + 1]!, L[o + 2]!, L[o + 3]!, this.lightOccluder, L[o + 4]!, L[o + 5]!, occ, this.charKeys[s]);
+        if (s === 0) {
+          this.lightLevel = v;
+          this.localRef.light = v;
+        } else this.charRefs[s]!.light = v;
+      }
+      if (flags.debug) {
+        this.charMs = performance.now() - t0;
+        this.charMsRing[this.charMsAt] = this.charMs;
+        this.charMsAt = (this.charMsAt + 1) % this.charMsRing.length;
+      }
+      return;
+    }
+    this.localSampleInto(0);
+    const L = this.lightIn;
+    this.lightLevel = f.bodyLevel(L[0]!, L[1]!, L[2]!, L[3]!, this.lightOccluder, L[4]!, L[5]!);
+    this.localRef.light = this.lightLevel;
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i]!;
+      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
+      const rh = r.head;
+      if (rh) {
+        const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
+        r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
+      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+    }
+  }
+
+  /** The local player's meter sample into `lightIn[o..o+5]`: feet, sample height, head offset (the flag-off meter and
+   *  the contract's slot 0 read the same doubles). */
+  private localSampleInto(o: number): void {
     const p = this.player.position;
     // (operators 11e r1, G166) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
     const h = lightSampleHeight(this.player.rig.height, this.player.controller.crouchBlend);
@@ -1734,18 +1802,49 @@ export class GameState implements AppState {
       oz = hs.oz;
       hh = hs.h;
     }
-    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, hh, this.lightOccluder, ox, oz);
-    this.localRef.light = this.lightLevel;
-    const rs = this.remotePlayers();
-    for (let i = 0; i < rs.length; i++) {
-      const r = rs[i]!;
-      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
+    const L = this.lightIn;
+    L[o] = p.x;
+    L[o + 1] = p.y;
+    L[o + 2] = p.z;
+    L[o + 3] = hh;
+    L[o + 4] = ox;
+    L[o + 5] = oz;
+  }
+
+  /**
+   * (char-shadow-meter S2) The character contract from the sim, every step before `updateLight` (not inside it: the
+   * stealth-AI e2e pins the meter by replacing `updateLight`, and the picture keeps its capsules): the players in
+   * `playerRefsInto` order (slot 0 local: the meter's own sample), then the living guards near them (a client's
+   * puppets through the same `takedownVictims`). Nothing with the flag off.
+   */
+  private fillChars(): void {
+    const occ = this.charOccluders;
+    if (!occ) return;
+    const refs = this.playerRefsInto(this.charRefs);
+    const n = refs.length < FILL.players ? refs.length : FILL.players;
+    this.charN = n;
+    this.localSampleInto(0);
+    const L = this.lightIn;
+    for (let s = 1; s < n; s++) {
+      const r = refs[s]!;
+      const o = s * FILL_IN;
+      L[o] = r.feet.x;
+      L[o + 1] = r.feet.y;
+      L[o + 2] = r.feet.z;
       const rh = r.head;
       if (rh) {
         const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
-        r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
-      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+        L[o + 3] = hs.h;
+        L[o + 4] = hs.ox;
+        L[o + 5] = hs.oz;
+      } else {
+        L[o + 3] = lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0);
+        L[o + 4] = r.peekX ?? 0;
+        L[o + 5] = r.peekZ ?? 0;
+      }
     }
+    fillPlayers(occ, L, n, this.charKeys);
+    this.charFull = fillVictims(occ, this.takedownVictims(), L, n);
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
 
@@ -2134,6 +2233,7 @@ export class GameState implements AppState {
       if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle, 'noise', null, this.localRef.id);
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
+    this.fillChars();
     this.updateLight(dt);
     this.updateVision(dt);
     this.landingNoise();
