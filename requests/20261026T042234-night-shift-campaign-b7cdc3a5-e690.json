@@ -1,0 +1,14 @@
+{
+  "id": "20261026T042234-night-shift-campaign-b7cdc3a5-e690",
+  "sha": "b7cdc3a5a64c4d449fa6867212171de3e3f4cbf3",
+  "branch": "feature/f28-course-bunker",
+  "pr": 567,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-bunker",
+    "e2e-course"
+  ],
+  "set": "f28",
+  "note": "F28 fix: both changed suites (e2e-bunker is LEGACY, not in affected)"
+}
