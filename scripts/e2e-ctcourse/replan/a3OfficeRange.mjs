@@ -127,7 +127,7 @@ export async function walk(t, n) {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) { r.damageMul = 0; r.protectT = 0; } });
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 6, `A3: station 6 is live on the ${tag} page`);
-    await sees(P, /Riser cupboard, west lobby/, `A3: the ${tag} reads station 6's step line`);
+    await sees(P, /Crawl the riser to the fire door/, `A3: the ${tag} reads station 6's step line`);
     assert(!!(await cam(P)), `A3: the ${tag} has the corridor camera ${CAM_ID}`);
   }
   assert((await GA(() => window.__app.current.enemyMgr.enemies.filter((e) => e.alive).length)) === 0, 'A3: no guard in the set (the cleaner is gone)');
@@ -197,7 +197,7 @@ export async function walk(t, n) {
   await moveClient(SEEN[0], SEEN[1], 0.1, Math.PI / 2);
   await until(A, (r) => window.__course.state.restarts > r && window.__course.state.lastRetry?.st === 7, r0, 90000, 'A3: the camera has the client: station 7 retries');
   assert((await GA(() => window.__course.state.lastRetry.cause)) === 'seen', 'A3: the retry\'s cause is seen');
-  await until(B, () => /Back to the corridor's west end; jam it again/.test(window.__course.wire.rl ?? ''), null, 30000, "A3: LANTERN's station 7 retry line reaches the client");
+  await until(B, () => /Back to the corridor's west end/.test(window.__course.wire.rl ?? ''), null, 30000, "A3: LANTERN's station 7 retry line reaches the client");
   const roleA = (await roleOf(0)) === 'a' ? 0 : 1;
   const want = roleA === 0 ? [ST7[0], ST7[1]] : [ST7[1], ST7[0]];
   await until(A, (w) => { const f = window.__course.state.feet; return Math.hypot(f[0] - w[0][0], f[2] - w[0][1]) < 0.6 && Math.hypot(f[3] - w[1][0], f[5] - w[1][1]) < 0.6; }, want, 20000, 'A3: the host sees both players on station 7\'s marks').catch(async (e) => {

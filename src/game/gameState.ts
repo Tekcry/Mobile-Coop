@@ -75,7 +75,8 @@ import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
-import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
+import { GRAB, type TakedownKind } from './takedown';
+import { takedownRow } from './knifeKill'; // (piano-knife S1)
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
 import type { TeamMoveKind } from './teamMoves';
@@ -145,6 +146,9 @@ import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
+import { IntroPose } from './introPose'; // (piano-knife S4b) the piano intro pose
+import type { IntroVariant } from '../anim/introBreath';
+import { setCloseCamera } from '../operators/runtime/figure';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
 import { TEAM_POSE_LOCAL, teamLinkFrame, teamPoseOfState } from '../anim/clips/team'; // (anim-n4b, track A)
 import { clearGripAxis } from '../player/attachGrips';
@@ -301,6 +305,17 @@ export interface SessionCallbacks {
   briefing?(missionId: string): void;
 }
 
+/**
+ * (piano-escape S2) A scene's render-only view override (`game/pianoIntroView.ts`): `frame` places the rendered camera
+ * after the game view each frame (gameplay keeps reading `cam.gamePos`). While `holdsInput` the operator takes no move
+ * or button input (the scene reads its own button); while `ownsPause` the pause button is the scene's (its skip hold).
+ */
+export interface SceneView {
+  readonly holdsInput: boolean;
+  readonly ownsPause: boolean;
+  frame(dt: number): void;
+}
+
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
@@ -377,6 +392,8 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (piano SO5) The lightning level set last step (`updateLight`). */
+  private flashWas = 0;
   /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
    *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
   readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
@@ -423,6 +440,8 @@ export class GameState implements AppState {
   private postKey = '';
   private beatT = 0;
   private letterboxT = 0;
+  /** (piano-escape S2) The scene's render-only view override (`SceneView`); null on every other map. */
+  sceneView: SceneView | null = null;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -1002,6 +1021,8 @@ export class GameState implements AppState {
         crouchToggle: () => app.settings.get().gameplay.crouchToggle,
         // (anim-studio-2) the traversal loops and the pairs' viewing spot
         teleport: (x, y, z, yaw) => g.studioTeleport(x, y, z, yaw),
+        // (piano-knife S4b) the intro rows
+        introPose: (on, v) => g.introPose(on, v),
         doorOpen: () => {
           const d = world.doors.list[0];
           if (d && d.target === 0) g.startDoorOpen(0, () => world.doors.open(d, 'quiet'));
@@ -1428,7 +1449,7 @@ export class GameState implements AppState {
     const inputS = this.app.input.state;
     const pressI = inputS.pressed('interact') && !this.ctxOwnsA;
     // a takedown on offer / running takes the button; (G7) so does a body being lifted or put down
-    if (this.takedown.offer || this.takedown.active || this.carrier?.busy) {
+    if (this.takedown.offer || this.takedown.busy || this.carrier?.busy) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
       this.hud.setInteract(null);
@@ -1524,8 +1545,9 @@ export class GameState implements AppState {
           // (joint-interrogation, G148) the partner's hostage with joint information: BLUFF lists above TEAM TAKEDOWN
           // (`assist` is only on offer in co-op: `net.partnerHolds`)
           if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
-          if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
-          else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
+          // (piano-knife S1, A2) the knife switch: no grab, the takedown row is the knife kill (`start` forces it)
+          if (takedownRow(o.plan.kind, o.e.def.quadruped, td.knife) === 'grab') m.add(TD_KIND, 'grab', -1, 'Grab character');
+          else m.add(TD_KIND, 'ko', -1, td.knife ? 'Takedown' : TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
@@ -1753,6 +1775,15 @@ export class GameState implements AppState {
     reg.tickFlicker(this.net?.simTime?.() ?? this.time);
     // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
     reg.tickSway(this.net?.simTime?.() ?? this.time);
+    // (piano SO5) lightning: this step's flash on the same shared clock, set once before the meter, the guards and the
+    // picture read it; the meter samples every step while a flash is lit (and the step after) so a short strike shows
+    const lt = this.world.lightning;
+    if (lt) {
+      const fl = lt.levelAt(this.net?.simTime?.() ?? this.time);
+      this.world.setFlash(fl);
+      if (fl > 0 || this.flashWas > 0) this.lightT = 0;
+      this.flashWas = fl;
+    }
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
@@ -1978,7 +2009,9 @@ export class GameState implements AppState {
     // (map-ready S2) held: no step (suites calling `stepHeadless` directly), the clock stays at 0
     if (this.exited || this.holding) return;
     const realIn = this.app.input.state;
-    if (realIn.pressed('pause')) {
+    // (piano-escape S2) a scene view held: the pause button is its skip (hold), its own button its press
+    const sv = this.sceneView;
+    if (realIn.pressed('pause') && !sv?.ownsPause) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
@@ -1990,7 +2023,7 @@ export class GameState implements AppState {
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
     // (tuner-ui) the pause menu open (co-op: the shared sim runs on): no synthesised input at all, the body stands
-    const real = this.paused || this.menuOpen ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
+    const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -2037,7 +2070,7 @@ export class GameState implements AppState {
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.carrier?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
-    const busy0 = this.takedown.active !== null || this.strike.active;
+    const busy0 = this.takedown.busy || this.strike.active; // (piano-knife S2) busy: a knife kill's tail too
     // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
     this.doorPeekStep(dt, inp, busy0 || carrying);
     this.doorOpenStep(dt);
@@ -2120,7 +2153,7 @@ export class GameState implements AppState {
     const draw = (sidearm || grabHold) && (pl.ads || pl.adsWanted);
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
     const teamHands = this.team.active;
-    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
+    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.busy || teamHands, draw);
     // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
     // remotes never see)
     this.weapons.handsBusy = this.strike.active;
@@ -2193,7 +2226,8 @@ export class GameState implements AppState {
     // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
-      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown, rt === 'hold');
+      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on
+      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
@@ -2201,7 +2235,7 @@ export class GameState implements AppState {
       const pl = this.player;
       pl.weaponLocked = this.takedown.hostage !== null;
       // (any attach, the one-handed sidearm aim too: its LT is the attach's own aim, never the free low ready)
-      pl.weaponSuspend = this.traversal.attached || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.active !== null && !pl.weaponLocked) || this.strike.active;
+      pl.weaponSuspend = this.traversal.attached || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.busy && !pl.weaponLocked) || this.strike.active;
     }
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
@@ -3161,6 +3195,8 @@ export class GameState implements AppState {
       else this.gadgets.look(look.x, look.y);
       look.x = look.y = 0;
     }
+    // (piano-escape S8 check) a scene view holding the input owns the camera: no look turns it (play starts as it set it)
+    if (this.sceneView?.holdsInput) look.x = look.y = 0;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
     // scoped (marksman optics): a slow breathing sway, steadier crouched and still
@@ -3181,7 +3217,13 @@ export class GameState implements AppState {
     this.stealth?.frameUpdate();
     this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    const sv = this.sceneView;
+    // (piano-escape) the scene's camera films the operator: the tight-space body fade stays off while it holds the view
+    this.player.cam.sceneOwned = !!sv?.holdsInput;
+    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
+    // (piano-escape S2) the scene's view places the rendered camera after the game view (render only)
+    sv?.frame(dt);
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
     this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
@@ -3411,7 +3453,7 @@ export class GameState implements AppState {
    */
   private wallStep(dt: number, inp: InputState, busy: boolean): void {
     const segs = this.world.level.coverSegments;
-    const w = (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
+    const w = this.wallCoreOf();
     const pl = this.player;
     const c = pl.controller;
     const tr = this.traversal;
@@ -3459,6 +3501,7 @@ export class GameState implements AppState {
     }
     const pose = pl.pose;
     pose.wall = w.active;
+    pose.intro = w.active && w.intro; // (piano-knife S4b)
     // (F4) at an edge the side is the edge's open side (the end at b is the body's left), never the slide or the camera
     pose.wallSide = w.active ? wallFacing(w.edge, w.dir) : 0;
     // (step 12, A3) the head-first peek past the edge (the hit volumes follow the rig: guards see the real body, never
@@ -3597,6 +3640,31 @@ export class GameState implements AppState {
     cam.doorYaw = fr.yaw;
   }
 
+  /** The back-to-wall core (made on first use). */
+  private wallCoreOf(): WallCore {
+    const segs = this.world.level.coverSegments;
+    return (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
+  }
+
+  private introCtl: IntroPose | null = null;
+  /**
+   * (piano-knife S4b) The piano intro pose (Campaign's pianoScene: on at the intro's start, off at the cut; the Anim
+   * Studio's intro rows): back to the nearest high face, the pistol at low ready with its slide locked back, the
+   * captured breath, the hero LOD. False: no high face within reach (nothing changed) or already off.
+   */
+  introPose(on: boolean, variant: IntroVariant = 'stand'): boolean {
+    const c = (this.introCtl ??= new IntroPose({
+      wall: () => this.wallCoreOf(),
+      player: this.player,
+      pistol: () => {
+        const i = this.weapons.sidearmIndex;
+        return i >= 0 ? this.weapons.slots[i]!.model : null;
+      },
+      closeUp: (o) => setCloseCamera(this.player.cam.camera, o),
+    }));
+    return c.set(on, variant);
+  }
+
   /** (anim-studio-2) The studio's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed
    *  move first (as the respawn does), the camera behind her. */
   private studioTeleport(x: number, y: number, z: number, yaw: number): void {
@@ -3701,7 +3769,7 @@ export class GameState implements AppState {
     const hp = this.target.health.hp;
     const hurt = hp < this.openHp;
     this.openHp = hp;
-    const end = !d || !pl.alive || hurt || this.takedown.active !== null || this.traversal.attached || !!this.traversal.committed || (!!c.override && c.override !== this.openOv);
+    const end = !d || !pl.alive || hurt || this.takedown.busy || this.traversal.attached || !!this.traversal.committed || (!!c.override && c.override !== this.openOv);
     const ang = d ? leafFraction(d) * DOOR.openAngle : 0;
     const act = o.update(dt, ang, !!d && d.target === 1, end);
     if (act === OPEN_ACT.open) this.openUse?.();
@@ -4051,7 +4119,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : this.takedown.knife ? 'Takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.menuReady) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills

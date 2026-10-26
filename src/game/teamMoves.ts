@@ -4,6 +4,7 @@
  * rules a request must pass (checked by the host on both players' movement states) and the timing both sides play
  * from the host's start time. (G151: anywhere with room; G180: CT had it; G52's brace is gone.)
  */
+import { flags } from '../core/flags';
 import { hyp2 } from '../core/mathx';
 import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
@@ -17,24 +18,80 @@ export type BuiltinTeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
  * 'shutter' = hold a shutter while the partner crawls under (KIT-SHUT, `kit/shutter.ts`). Each lives in its own file
  * under `game/kit/` and plugs in through `kit/registry.ts`. (mission NET) They are wire kinds: `TeamKind` takes them.
  */
-export type KitKind = 'pull' | 'shutter';
-export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter'];
+/**
+ * (coop-kit K0) + the part 2 kit kinds (BRIEF M1): 'deadweight' (hang on a chain so a grate lifts, K1), 'dropCatch'
+ * (drop into the partner's arms, K2), 'chimneyPair' (back to back up a shaft, K3), 'swingPass' (swung across a gap
+ * from a pipe, K4), 'plankBridge' (carry and lay a board over a gap, K5a / K5b). One string per move: the `kitMoves`
+ * flag id = `KitKind` = the wire kind = Marlow's `StationDef.kit`.
+ */
+export type Part2KitKind = 'deadweight' | 'dropCatch' | 'chimneyPair' | 'swingPass' | 'plankBridge';
+export type KitKind = 'pull' | 'shutter' | Part2KitKind;
+export const PART2_KIT_KINDS: readonly Part2KitKind[] = ['deadweight', 'dropCatch', 'chimneyPair', 'swingPass', 'plankBridge'];
+export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter', ...PART2_KIT_KINDS];
 /** (mission NET) Every team move kind `tmove` / `tstart` carry (protocol.ts): the built-ins and the kit's. */
 export type TeamKind = BuiltinTeamKind | KitKind;
-export const TEAM_KINDS: readonly TeamKind[] = ['boost', 'ladder', 'throw', 'hang', 'rope', 'pull', 'shutter'];
+export const TEAM_KINDS: readonly TeamKind[] = ['boost', 'ladder', 'throw', 'hang', 'rope', ...KIT_KINDS];
 /** Every team move (the same as `TeamKind` since NET folded the kit into the wire). */
 export type TeamMoveKind = TeamKind;
 
+/** (coop-kit K0) The kit kinds by name (a lookup, no allocation). */
+const KIT_KIND_SET: ReadonlySet<string> = new Set<string>(KIT_KINDS);
+const PART2_KIT_SET: ReadonlySet<string> = new Set<string>(PART2_KIT_KINDS);
+
 export function isKitKind(k: string): k is KitKind {
-  return k === 'pull' || k === 'shutter';
+  return KIT_KIND_SET.has(k);
+}
+
+/** (coop-kit K0) One of the five part 2 kit kinds (not Campaign's pull-up or shutter). */
+export function isPart2Kit(k: string): k is Part2KitKind {
+  return PART2_KIT_SET.has(k);
+}
+
+/** (coop-kit K0) A kit move is switched on on this page: a part 2 move by its own `kitMoves` id, the pull-up and the
+ *  shutter by `flags.coopKit` (as before). No allocation. */
+export function kitIdOn(kind: KitKind): boolean {
+  return isPart2Kit(kind) ? flags.kitMoves.has(kind) : flags.coopKit;
+}
+
+/** (coop-kit K0) Any part 2 kit id on (the kit offers run for it without `flags.coopKit`). No allocation. */
+export function anyPart2KitOn(): boolean {
+  for (let i = 0; i < PART2_KIT_KINDS.length; i++) if (flags.kitMoves.has(PART2_KIT_KINDS[i]!)) return true;
+  return false;
 }
 
 /** (mission KIT0) The kit moves' sub bits on the `brace` / `boost` wire modes (after THROW 1, HANG 2, ROPE 4). */
 export const PULL_SUB = 8;
 export const SHUTTER_SUB = 16;
-export const KIT_SUB: Readonly<Record<KitKind, number>> = { pull: PULL_SUB, shutter: SHUTTER_SUB };
+/** (coop-kit K0) The part 2 kit moves' sub bits (32 is B1's shoulder stand `STAND_SUB`). */
+export const DEADWEIGHT_SUB = 64;
+export const DROPCATCH_SUB = 128;
+export const CHIMNEY_SUB = 256;
+export const SWING_SUB = 512;
+export const PLANK_SUB = 1024;
+export const KIT_SUB: Readonly<Record<KitKind, number>> = {
+  pull: PULL_SUB,
+  shutter: SHUTTER_SUB,
+  deadweight: DEADWEIGHT_SUB,
+  dropCatch: DROPCATCH_SUB,
+  chimneyPair: CHIMNEY_SUB,
+  swingPass: SWING_SUB,
+  plankBridge: PLANK_SUB,
+};
 /** Any kit sub bit: a `brace` mate with one offers a kit move, never a leg-up / throw / hang / rope. */
-export const KIT_SUB_MASK = PULL_SUB | SHUTTER_SUB;
+export const KIT_SUB_MASK = PULL_SUB | SHUTTER_SUB | DEADWEIGHT_SUB | DROPCATCH_SUB | CHIMNEY_SUB | SWING_SUB | PLANK_SUB;
+
+/**
+ * (coop-kit K0) A kit spot as the host's rule sees it: the level's kit device the request's spot index names
+ * (`TeamRequest.spot`). Structural (a `KitDevice` fits; no registry import here).
+ */
+export interface KitSpotRef {
+  readonly id: string;
+  readonly kind: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly yaw: number;
+}
 
 /** (mission KIT0) The host's rule per kit kind, filled by `kit/registry.ts` `registerKitMove` (none = not offering). */
 export const KIT_CHECKS: Partial<Record<KitKind, (r: TeamRequest) => TeamDenial | null>> = {};
@@ -77,6 +134,9 @@ export interface TeamRequest {
   sinceLast: number;
   /** (B4) A throw's landing (feet), claimed by the runner after its own room check; the host bounds it. */
   land?: { x: number; y: number; z: number };
+  /** (coop-kit K0) A part 2 kit request's spot: the host's kit device at the request's spot index (`target`) when it
+   *  is one of this kind's; undefined = none (a free move, or an index that names no such device). */
+  spot?: KitSpotRef;
 }
 
 export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'notOffering' | 'far' | 'busy' | 'noTarget' | 'tooHigh';
@@ -88,7 +148,8 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   if (r.a.id === r.b.id) return 'notMates';
   if (isKitKind(r.kind)) {
     // (mission KIT0) a kit move's own rule (its file, via the registry), before the ground check: the pull-up's
-    // partner asks in the air
+    // partner asks in the air. (coop-kit K0) A part 2 move whose id the host has off is not offered (the per-id gate).
+    if (isPart2Kit(r.kind) && !flags.kitMoves.has(r.kind)) return 'notOffering';
     const check = KIT_CHECKS[r.kind];
     return check ? check(r) : 'notOffering';
   }
@@ -102,10 +163,14 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   }
   const ropeOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & ROPE_SUB) !== 0;
   if (r.kind === 'rope') {
-    // (B7) the two-person rope: the partner holds a rope at an edge above; the climber stands at its foot below
+    // (B7) the two-person rope: the partner holds a rope at an edge above; the climber stands at its foot below.
+    // (coop-kit A1, R34) or beside the holder on the same floor to rappel down it: only with the host's `descent` kit id
     if (!ropeOffer) return 'notOffering';
     const up = r.b.y - r.a.y;
-    if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.ropeReach || up < TEAM.ropeMin - 0.4 || up > TEAM.ropeMax + 0.4) return 'far';
+    const across = hyp2(r.a.x - r.b.x, r.a.z - r.b.z);
+    if (across > TEAM.ropeReach) return 'far';
+    const fromTop = ropeFromTop(r.b.y, r.a.y);
+    if (fromTop ? !flags.kitMoves.has('descent') : up < TEAM.ropeMin - 0.4 || up > TEAM.ropeMax + 0.4) return 'far';
     const l = r.land;
     if (!l || !hangPointOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z)) return 'noTarget';
     return null;
@@ -396,6 +461,31 @@ export function ropeRoom(edgeY: number, floorY: number): RopeRoom {
   if (d > TEAM.ropeMax) return 'deep';
   return 'ok';
 }
+
+/** (coop-kit A1, R34) A rope taker on the holder's floor (+-0.4 m: beside them at the top) rappels down; else it climbs
+ *  from the foot. The holder's and the taker's feet heights (m). */
+export function ropeFromTop(holderY: number, takerY: number): boolean {
+  return Math.abs(holderY - takerY) <= 0.4;
+}
+
+/**
+ * (coop-kit A1) The descent's over-the-edge path at `k` (0..1 over `TEAM.ropeOver`): the top-out's (`ropeTopPath`, from
+ * still) run backwards, so the body leaves the spot beside the holder (k 0: rise 1, across 1) for the rope's top pulled in
+ * to the face (k 1: rise 0, across 0): out over the edge first, then down. No allocation.
+ */
+export function ropeOverPath(k: number, out: { rise: number; across: number }): { rise: number; across: number } {
+  return ropeTopPath(1 - Math.max(0, Math.min(1, k)), 0, out);
+}
+
+/** (coop-kit A1) The rappel's step off at the floor: the feet on it (within 1 cm) and the stick held down (starting value
+ *  -0.5, G10: a firm push, not a drift). */
+export function ropeStepOff(y: number, floorY: number, stickY: number): boolean {
+  return y <= floorY + 0.01 && stickY <= -0.5;
+}
+
+/** (coop-kit A1) How far under the rope's top (m) a rappeller must have gone before the top counts as a top-out again
+ *  (starting value: the stick pushed up just after going over does not climb straight back out). */
+export const ROPE_DESCENT_ARM = 0.3;
 
 /** The climber's feet when the hands reach the edge (the top-out starts there). */
 export function ropeTopY(edgeY: number): number {

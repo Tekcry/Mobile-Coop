@@ -31,6 +31,17 @@ describe('train-ready: one rule for watchdog and auto-train (F16)', () => {
     expect(trainReady(pr({ statuses: { checker: st('success'), 'affected-e2e': st('failure') }, labels: [NO_AFFECTED_LABEL] })).why).toBe('affected-e2e failure');
   });
 
+  it('F55: no-affected-e2e also waives an affected-e2e that never ran (error: withdrawn, conflict); never a real failure or pending', () => {
+    const never = { checker: st('success'), 'affected-e2e': { ...st('failure', 'withdrawn by the requester (not run)'), error: true } };
+    expect(trainReady(pr({ statuses: never, labels: [NO_AFFECTED_LABEL] }))).toEqual({ ready: true, why: 'check green, checker success, affected-e2e waived (no-affected-e2e)' });
+    expect(trainReady(pr({ statuses: never })).why).toBe('affected-e2e failure'); // no label: still red
+    expect(trainReady(pr({ statuses: { checker: st('success'), 'affected-e2e': st('pending') }, labels: [NO_AFFECTED_LABEL] })).why).toBe('affected-e2e pending');
+    // the rollup path: an ERROR status carries error: true, a FAILURE does not
+    const s = statusesFromRollup([ctx('affected-e2e', 'ERROR', '2026-10-24T10:00:00Z'), ctx('checker', 'FAILURE', '2026-10-24T10:00:00Z')]);
+    expect(s['affected-e2e']).toMatchObject({ state: 'failure', error: true });
+    expect(s.checker.error).toBeUndefined();
+  });
+
   it('a checker failure or pending, a red or running check, a draft, a conflict or a train PR is not ready', () => {
     expect(trainReady(pr({ statuses: { checker: st('failure'), 'affected-e2e': st('success') } })).why).toBe('checker failure');
     expect(trainReady(pr({ statuses: { checker: st('pending'), 'affected-e2e': st('success') } })).why).toBe('checker pending');

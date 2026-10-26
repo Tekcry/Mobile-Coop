@@ -59,7 +59,7 @@ export async function walk(t, n) {
   console.log('  A1 (re-plan): the lounge, station 1, the checker');
   await moveHost(2, 10, 0.1, Math.PI / 2);
   await moveClient(2, 12, 0.1, Math.PI / 2);
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Boost at the striped mark/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A1: the ${tag} sees the boost step`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Boost onto the yard wall/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A1: the ${tag} sees the boost step`);
   assert((await station()) === 1, 'A1: station 1 is live');
   const checker = await GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return e ? { passive: !!e.passive, x: e.pos.x, z: e.pos.z } : null; });
   assert(!!checker && checker.passive && Math.hypot(checker.x - 9.0, checker.z - 16.5) < 0.6, `A1: the checker is passive at his desk (${JSON.stringify(checker)})`);
@@ -78,7 +78,7 @@ export async function walk(t, n) {
   // ---- 3. station 1: the boost ----
   console.log('  A1 (re-plan): station 1, the boost');
   await moveClient(MARK[0], MARK[1]);
-  await sees(B, /Crouch on the striped mark/, 'A1: the client on the mark reads the booster line');
+  await sees(B, /Crouch at the striped mark/, 'A1: the client on the mark reads the booster line');
   await legUp(MARK[0], MARK[1], 'A1 boost');
   await pullUp(A, 'A1 boost host');
   await until(A, () => window.__course.state.hasFlag('a1-top1'), null, 10000, 'A1: one player on the wall top sets a1-top1');
@@ -131,7 +131,9 @@ export async function walk(t, n) {
   await until(A, (id) => !!window.__course.debug().gates[id], WICKET_GATE, 8000, 'A1: the bolt gate opens again');
   await until(A, (cid) => !window.__course.state.locked(cid), WICKET_DOOR, 8000, 'A1: the wicket unlocks on the host');
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(WICKET_DOOR), 15000, 'A1: the client sees the wicket unlocked');
-  const aid =await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
+  const aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
+  // the lock list comes in the course message; the client's door item mirrors the next snapshot, so wait for that too
+  await until(B, (id) => !!window.__app.current.interactables?.items.find((i) => i.id === id)?.enabled, `door-${aid}`, 15000, 'A1: the client is offered the wicket');
   assert((await use(B, `door-${aid}`)) === 'ok', 'A1: the client opens the wicket');
   const wi = await doorIndex(WICKET_DOOR);
   await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.5, wi, 8000, 'A1: the wicket opens (host)');

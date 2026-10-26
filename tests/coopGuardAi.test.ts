@@ -166,7 +166,7 @@ describe('guard-ai S9: the bark event', () => {
 function host() {
   const h = Object.create(CoopHost.prototype) as CoopHost;
   const em = { onBark: vi.fn(), onCameraLine: vi.fn(), onKilled: null, onEnemyShot: null, enemies: [] as unknown[] };
-  const g = { enemyMgr: em, explosions: { onExplode: null }, gadgets: { onLocal: null }, events: { on: () => () => undefined } };
+  const g = { enemyMgr: em, takedown: { knife: false }, explosions: { onExplode: null }, gadgets: { onLocal: null }, events: { on: () => () => undefined } };
   Object.assign(h, { g, queue: [], offs: [], tracerBudget: 0, time: 0, history: new Map(), rw: newRewound(), s: { selfId: 'H' } });
   return { h, em, queue: (h as unknown as { queue: NetEvent[] }).queue };
 }

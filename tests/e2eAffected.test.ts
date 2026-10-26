@@ -349,7 +349,7 @@ describe('J20', () => {
   });
 });
 
-describe('affected-cap: at most 3 closest suites', () => {
+describe('affected-cap: the closest suites, at most the cap (the cases below use a cap of 3; the default is 1, G421)', () => {
   type Pick = (files: string[], o?: { max?: number; wide?: boolean; protocolTs?: string; times?: Record<string, number> }) => string[];
   type Cap = (files: string[], suites: string[], o?: { max?: number; map?: Covers; times?: Record<string, number>; wire?: boolean }) => string[];
   const pickAll = pickUntyped as Pick;
@@ -369,7 +369,8 @@ describe('affected-cap: at most 3 closest suites', () => {
     'e2e-sectorops:3': 24, 'e2e-sectorops:4': 40, 'e2e-sectorops:5': 36, 'e2e-stealth': 17, 'e2e-stealth-ai': 29, 'e2e-studio': 35,
     'e2e-tactics': 12, 'e2e-takedown': 10, 'e2e-traverse': 34, 'e2e-tuner-phone': 16, 'e2e-wall': 13, 'e2e-weapons-carry': 14, smoke: 8,
   });
-  const pick = (files: string[], o: { max?: number; wide?: boolean; protocolTs?: string } = {}) => pickAll(files, { ...o, times: T });
+  // a cap of 3 keeps the ranking visible in the picks below (the default, AFFECTED_MAX 1, takes the first of each)
+  const pick = (files: string[], o: { max?: number; wide?: boolean; protocolTs?: string } = {}) => pickAll(files, { max: o.wide ? undefined : 3, ...o, times: T });
   const bases = (s: string[]) => new Set(s.map((x) => x.split(':')[0]));
   const protocol = readFileSync(new URL('../src/net/protocol.ts', import.meta.url), 'utf8');
 
@@ -393,8 +394,20 @@ describe('affected-cap: at most 3 closest suites', () => {
     [['scripts/run-e2e.mjs', 'scripts/e2e-verdict.mjs'], ['e2e-anim', 'e2e-combat', 'e2e-move']],
     [['docs/RULES.md', 'changes/x.md'], []],
   ];
+  it('the default cap is one suite (G421): the closest of the 3-cap pick; the co-op group and parts of one suite stay whole', () => {
+    expect(AFFECTED_MAX).toBe(1);
+    const one = (files: string[]) => pickAll(files, { times: T });
+    expect(one(['src/player/traversal.ts'])).toEqual(['e2e-traverse']);
+    expect(one(['src/net/remoteAvatar.ts'])).toEqual(group);
+    expect(one(['src/world/maps/campusS4.ts'])).toEqual(['e2e-sectorops:6', 'e2e-sectorops:7', 'e2e-sectorops:8', 'e2e-sectorops:9']);
+    expect(one(['docs/RULES.md'])).toEqual([]);
+    for (const [files, want] of EXPECTED) {
+      const got = one(files);
+      expect(new Set(got.map((s) => s.split(':')[0])).size, files.join(',')).toBeLessThanOrEqual(want === group ? 3 : 1);
+      for (const s of got) expect(want, files.join(',')).toContain(s);
+    }
+  });
   it('picks the closest suites for each change (PLAN expected picks)', () => {
-    expect(AFFECTED_MAX).toBe(3);
     for (const [files, want] of EXPECTED) expect(pick(files), files.join(',')).toEqual(want);
   });
   it('file order never changes the pick', () => {
@@ -422,7 +435,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     expect(five).not.toContain('smoke');
   });
   it('parseAffectedMax: a whole number >= 0, else the default', () => {
-    const cases: [unknown, number][] = [[undefined, 3], ['', 3], ['0', 0], ['5', 5], ['x', 3], ['-1', 3], ['2.5', 3], [0, 0]];
+    const cases: [unknown, number][] = [[undefined, 1], ['', 1], ['0', 0], ['5', 5], ['x', 1], ['-1', 1], ['2.5', 1], [0, 0]];
     for (const [v, want] of cases) expect(parseMax(v), String(v)).toBe(want);
   });
   it('a src/net file beats any number of hits elsewhere: the co-op group', () => {
@@ -466,7 +479,7 @@ describe('affected-cap: at most 3 closest suites', () => {
     expect(bases(pick(files, { wide: true })).size).toBeGreaterThan(3);
     expect(bases(pick(files, { wide: true, max: 3 })).size).toBe(3);
     // a row naming the whole group under another map does not force the group (the DIRECT row of src/ui does not name it)
-    expect(cap(['src/ui/y.ts'], ['e2e-coop', 'e2e-ctcourse', 'e2e-netmove', 'e2e-pad'], { map: { 'src/ui/': [...group, 'e2e-pad'] }, times: T })).toEqual(['e2e-coop', 'e2e-netmove', 'e2e-pad']);
+    expect(cap(['src/ui/y.ts'], ['e2e-coop', 'e2e-ctcourse', 'e2e-netmove', 'e2e-pad'], { max: 3, map: { 'src/ui/': [...group, 'e2e-pad'] }, times: T })).toEqual(['e2e-coop', 'e2e-netmove', 'e2e-pad']);
   });
   it('auto-drop still sees every suite a change reaches (suiteSetFor uncapped)', () => {
     const got = [...(suiteSetFor(['src/player/traversal.ts', 'src/weapons/w.ts']) as Set<string>)].sort();

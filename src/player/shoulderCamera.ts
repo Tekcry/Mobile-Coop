@@ -465,6 +465,12 @@ export class ShoulderCamera {
     }
   }
 
+  /**
+   * (piano-escape) A scene view places the rendered camera (the intro, a framed reveal): the whole body shows, as in the
+   * free view. Without it an operator backed onto a wall hides (the boom is blocked) while the scene films him.
+   */
+  sceneOwned = false;
+
   /** (tuner-camera) The free view is placing the rendered camera. */
   get freeOn(): boolean {
     return !!this.free && this.free.mode !== 'off';
@@ -487,8 +493,8 @@ export class ShoulderCamera {
   applyBodyFade(rig: CharacterRig): void {
     rig.headNode.computeWorldMatrix(true);
     const dHead = Vector3.Distance(this.camera.position, rig.headNode.getAbsolutePosition());
-    // (tuner-camera) the free view shows the whole body
-    const fv = this.freeOn;
+    // (tuner-camera) the free view shows the whole body; (piano-escape) so does a scene view's camera
+    const fv = this.freeOn || this.sceneOwned;
     const hideHead = !fv && dHead < CAMERA.hideHead;
     const hideAll = !fv && this.boomActual < CAMERA.hideAll;
     if (hideAll !== this.allHidden) {

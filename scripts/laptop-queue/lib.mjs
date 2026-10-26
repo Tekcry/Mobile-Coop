@@ -271,12 +271,13 @@ export function isFront(r, frontBranches = []) {
 
 /**
  * Fix tier of lib pick (laptop-queue-8 A2): a pr / full request with `fix: true` (request.mjs --fix) or whose PR carries
- * the `fix` label on the board (lib prBoard, read live each pass). Never an alone, spare, train rerun or laptop rerun
+ * the `fix` label on the board (lib prBoard, read live each pass), and every laptop rerun of a desktop failure
+ * (`laptopRerun`, F52: its verdict is final on a PR that reads red until then). Never an alone, spare or train rerun
  * request (those sit above or apart).
  */
 export function isFix(r, board) {
-  if (!r || (r.kind !== 'pr' && r.kind !== 'full') || r.trainRerun || r.laptopRerun || r.requester === SPARE_REQUESTER) return false;
-  return r.fix === true || board?.get(r.pr)?.fix === true;
+  if (!r || (r.kind !== 'pr' && r.kind !== 'full') || r.trainRerun || r.requester === SPARE_REQUESTER) return false;
+  return r.laptopRerun === true || r.fix === true || board?.get(r.pr)?.fix === true;
 }
 
 /**

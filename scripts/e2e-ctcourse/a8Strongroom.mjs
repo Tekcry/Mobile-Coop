@@ -206,7 +206,7 @@ export async function walk(t, n) {
   await moveClient(entry[0] + 0.1, entry[2] + 1.2, 0.1, entry[3]);
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
-    await until(P, () => /Split up: one onto the gallery/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A8: the ${tag} sees the shared step line`);
+    await until(P, () => /Split up: gallery and floor/.test(document.querySelector('.course-hud')?.textContent ?? ''), null, 15000, `A8: the ${tag} sees the shared step line`);
     for (const id of [BOARD, CONSOLE, BAR, T1, T2]) assert(await P.evaluate((id) => !!window.__app.current.interactables?.items.find((i) => i.id === id), id), `A8: the ${tag} has the device ${id}`);
     const sc = await P.evaluate((id) => window.__ctdev?.debug().scans.find((s) => s.id === id) ?? null, SCAN);
     assert(!!sc && sc.flag === 'a8-sync' && sc.ph.every((p) => p === 'idle'), `A8: the ${tag} has the scanner pair sc-a8, idle (${JSON.stringify(sc)})`);
@@ -415,8 +415,8 @@ export async function walk(t, n) {
   console.log('  A8: the vault');
   await moveHost(145.0, 62.0, 0.1, EAST);
   await openDoor(A, DOORS.vault, 'A8 vault door');
-  await sees(A, /The vault is open/, 'A8: the host reads the closing line');
-  await sees(B, /The vault is open/, 'A8: the client reads the closing line');
+  await sees(A, /Both out to the cash dock/, 'A8: the host reads the closing line');
+  await sees(B, /Both out to the cash dock/, 'A8: the client reads the closing line');
   await moveHost(147.5, 61.6, 0.1, EAST);
   await moveClient(148.5, 62.4, 0.1, EAST);
   for (const P of [A, B]) await until(P, () => !window.__app.current.traversal.attached, null, 10000, 'A8: nobody is hanging');

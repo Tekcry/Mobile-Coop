@@ -7,6 +7,7 @@ import type { BoardDef } from '../../../game/isolators';
 import { makeCone } from '../../lights';
 import { C1_GAP, type CoopLip } from '../campusS1';
 import { hyp2 } from '../../../core/mathx';
+import { buildEdgeCaps, type EdgeCap } from './edgeCaps';
 
 /**
  * Saltmarsh Park (`campusOps`) section 2 - the HQ atrium and offices (`docs/sector-redesign/SPEC.md` "S2", slice 2). A
@@ -54,6 +55,26 @@ export const ROOF_HATCH = { x0: -18.5, x1: -17.5, z0: 2.5, z1: 3.5, ladder: [-18
 export const DAVIT = { x: -4, z: 5.8, length: 7.9 } as const;
 /** The building's footprint. */
 export const S2_FOOT = { x0: -44, x1: 4, z0: -30, z1: 6 } as const;
+/**
+ * (campus-fence-s2s5) The anti-climb caps (`buildEdgeCaps`): the roof's 1.1 parapet (top 13.4) was a mantle over the
+ * edge and a 12 m drop out of the campus on every side, and the sunshade (4.4, reached by the davit's rope or through the
+ * facilities window) was a walk-off onto the ground north of the HQ. A sheet on each parapet up to 15.5 (over the roof's
+ * mantle, 12.3 + 1.8); the sunshade gets a catch out to z 8.0 (a rope kicked out 1.2 m and let go over it lands on it)
+ * and a sheet round both up to 8.0. The davit's rope (kinematic) and the window are untouched.
+ */
+export const S2_EDGE_CAPS: readonly EdgeCap[] = [
+  [-44, -29.9, 4, -29.9, 13.4, 15.5],
+  [-43.9, -30, -43.9, 6, 13.4, 15.5],
+  [3.9, -30, 3.9, 6, 13.4, 15.5],
+  // the north parapet either side of the roof plant room (its 4.0 north wall stands on the line)
+  [-44, 5.9, ROOF_PLANT.x0, 5.9, 13.4, 15.5],
+  [ROOF_PLANT.x1, 5.9, 4, 5.9, 13.4, 15.5],
+  // the sunshade (x -7..-1, z 6..7.2): the catch (flush, 4.2..4.4) and the sheet round it
+  [-7, 7.2, -1, 8.0, 4.2, 4.4],
+  [-7.05, 8.05, -0.95, 8.05, 4.4, 8.0],
+  [-7.05, 6.15, -7.05, 8.05, 4.4, 8.0],
+  [-0.95, 6.15, -0.95, 8.05, 4.4, 8.0],
+];
 
 /** The lamp circuits (switch groups) of section 2 (the SPEC's `s2-atrium` ... are ids; the registry's groups are numbers). */
 /** (S2-G5a, BA5) `landing` 53: the K2 landing downlight's own switched circuit. */
@@ -877,6 +898,8 @@ export function buildCampusS2(b: LevelBuilder): void {
     // (S2-G4, C12) the window-cleaning davit on the north parapet: a rappel 7.9 m down to the sunshade ledge (4.4), beside
     // the facilities window (the `traversal.ts:122` rope-to-window case)
     b.rappel(DAVIT.x, FR, DAVIT.z, 0, DAVIT.length);
+    // (campus-fence-s2s5) the anti-climb caps on the parapet and round the sunshade (`S2_EDGE_CAPS`)
+    buildEdgeCaps(b, S2_EDGE_CAPS);
   }
 
   // ---- the C2 bridge (L1, x 4..10, z -16..-12): walls 3.0, a roof, the floor slab; a card door in the east wall (the gap above)

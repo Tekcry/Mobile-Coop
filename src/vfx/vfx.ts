@@ -43,6 +43,8 @@ interface Tracer {
 }
 
 const UP = new Vector3(0, 1, 0);
+/** The muzzle flash colour (one shared value: the instance buffer copies it at render, so no allocation per shot). */
+const FLASH_COLOR = new Color4(1, 0.85, 0.45, 1);
 
 /**
  * Pooled, instanced, unlit effects: tracers, muzzle flashes, sparks, smoke, decals,
@@ -183,15 +185,17 @@ export class Vfx {
     t.m.isVisible = true;
   }
 
-  muzzleFlash(pos: Vector3, size = 0.22): void {
+  /** A muzzle flash at `pos`. (guard-ai piano GA4) `life` (s, default 0.05): a slow-motion actor (`GuardActor`) passes
+   *  0.05 / its rate so the flash plays at its rate. */
+  muzzleFlash(pos: Vector3, size = 0.22, life = 0.05): void {
     const f = this.flashes[(this.fIdx = (this.fIdx + 1) % this.flashes.length)]!;
     f.active = true;
     f.life = 0;
-    f.max = 0.05;
+    f.max = life;
     f.width = size;
     f.m.position.copyFrom(pos);
     f.m.scaling.setAll(size * (0.8 + Math.random() * 0.4));
-    f.m.instancedBuffers.color = new Color4(1, 0.85, 0.45, 1);
+    f.m.instancedBuffers.color = FLASH_COLOR;
     f.m.isVisible = true;
   }
 

@@ -159,7 +159,7 @@ function affectedSuites() {
   } catch (e) {
     console.error(`affected: no src/net/protocol.ts at HEAD (${String(e.stderr || e.message).trim()}): the wire rule is skipped`);
   }
-  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else 3; --wide with neither is uncapped
+  // (affected-cap) the pick the laptop queue requests: --affected-max=N, else E2E_AFFECTED_MAX, else AFFECTED_MAX (1, G421); --wide with neither is uncapped
   const given = opt('affected-max') ?? process.env.E2E_AFFECTED_MAX;
   const max = wide && given === undefined ? undefined : parseAffectedMax(given);
   const suites = affectedPick(files, { wide, max, protocolTs });

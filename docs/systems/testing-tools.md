@@ -90,8 +90,8 @@ This page lists the suites and how they are picked.
   laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
   (what the laptop queue service and leads use to know what a PR must pass). The list is `affectedPick`: the map, the wire rule
   (a change on the wire, `src/net/` or a file `src/net/protocol.ts` imports, read at HEAD, also adds the co-op group:
-  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: at most 3 suites, the closest
-  (RULES "Test tiers"; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
+  `withWireSuites`, after the map), the gate (GPU, LEGACY and AUDIO left out), then the cap: `AFFECTED_MAX` suites, the closest
+  (1, G421, RULES "Test tiers"; the co-op group stays whole; ranking in `rankAffected`'s comment; `--affected-max=N` / `E2E_AFFECTED_MAX`, 0 = no cap; `--wide`
   uncapped unless given). Without `--list` it runs them like `--quick`: `smoke` first, suites outside REQUIRED REPORT ONLY.
 - DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
   tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
@@ -497,22 +497,24 @@ behind a VPN adapter).
   - Serves `dist/` itself when no url is given and nothing is up on 4173. `--shots` is PC only (`E2E_GPU=1`). In
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
-- `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics docs/design/metrics.json]` (level-validator)
-  the level-graph validator (pure Node, no Babylon, no `src/` import; CI runs its Vitest, `tests/levelValidate.test.ts`).
+- `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics docs/design/metrics.json] [--require-measured]`
+  (level-validator) the level-graph validator (pure Node, no Babylon, no `src/` import; Vitest `tests/levelValidate.test.ts`).
   Reads one map graph (several files, one per section, are merged: `meta` from the first, `spaces` and `links`
   concatenated) and checks it against OUR numbers: structure, dimensions (room classes, openings, 0.5 m grid, ceilings,
   level changes in the step band over 0.40 up to 0.45 m, corridor widths), 2-player reach with no softlock, the linear
   spine between sections, encounter approaches (3+ links that can enter the space, of 2+ kinds, shadow + high + loud,
   routes cross; dead ends counted by ways out), 2+ edge-disjoint routes per section (entry to exit), co-op coverage,
-  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops) and splits (legs <= 90 s, parity within 20% by link traversal time, an
-  overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m) and beat pacing. Declared `shadow_pct`,
-  `sees_pct`, `los_break_s` and partner reach are targets (missing or outside = ERROR); the greybox measurement step
-  (V6, later) will write `measured` values beside them. It holds no size or time constant: every number comes from
-  `docs/design/metrics.json` (`--metrics <path>` overrides it). Output: `ERROR: ...` / `WARN:  ...` / `INFO:  ...` lines,
-  then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late WARN; no upper limit, Michael 2026-10-24). Exit codes: 0 no errors (WARNs allowed, justify them in the map's design doc), 1 any ERROR, 2 bad
-  usage. When it runs: for every map, before Phase 3 (greybox), as the gate at the end of Phase 2 (`docs/level-design.md`
-  sections 11, 14 and 15; `docs/templates/map-spec.md`). Schema and an example graph: `docs/level-validator/graph-schema.md`,
-  `docs/level-validator/example.graph.json`. First run: campus Sector Ops, all five sections (S1-S5).
+  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops, INFO on training) and splits (legs <= 90 s,
+  parity within 20% by link traversal time, an overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m)
+  and beat pacing. Declared `shadow_pct`, `sees_pct`, `los_break_s` and partner reach are targets (missing or outside =
+  ERROR); `level-measure` (below) writes `measured` beside them; `--require-measured` makes a missing one an ERROR (the
+  greybox exit gate). Checks: `scripts/level-checks/`; numbers: `docs/design/metrics.json` (`--metrics <path>` overrides).
+  Output: `ERROR` / `WARN` / `INFO` lines, then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late
+  WARN; no upper limit, Michael 2026-10-24). Exit 0 no errors (justify WARNs in the map's design doc), 1 any ERROR, 2
+  bad usage. Runs for every map as the Phase 2 gate before greybox (`docs/level-design.md` 11, 14, 15). Schema and
+  example: `docs/level-validator/graph-schema.md`, `example.graph.json`. First run: campus Sector Ops S1-S5.
+- `npm run validate:levels` (`scripts/level-graphs.mjs`) runs every set in `docs/level-validator/graph-sets.json`, exit 1
+  when a count differs from it (`--write` rewrites runs and counts); `tests/levelGraphs.test.ts` pins the same counts.
 - `node scripts/metrics-gen.mjs` (level-validator) parses `docs/design/scale-sheet.md` (sections 1 and 3, the section 7
   room table "Room sizes by type" and section 8 "Validator numbers": speeds, split / reach times, shared width, shadow,
   vantage and LOS targets, step band, grid) and writes `docs/design/metrics.json`, the one source of sizes and times
@@ -524,10 +526,8 @@ behind a VPN adapter).
 ## Measure CLI (`scripts/level-measure.mjs`)
 `node scripts/level-measure.mjs <graph.json> [more.json ...] [options]` (level-validator, validator-port S2) measures on
 the built greybox what a map graph only declares, and writes the numbers back beside the targets as `measured`. Headless Node
-(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session. It is not in
-`package.json` yet (validator-port S5 owns that): run it as `node scripts/level-measure.mjs`. The rules it holds a graph
-to, and the order of the validator-port work, are in the validator-port PLAN (section 8 for `--points`, section 7 for
-`--flags`); this section only says how to run it.
+(Vite's SSR loader runs the TypeScript, no browser, no GPU), so it also runs in a cloud session (or `npm run
+level-measure -- <graph.json> ...`). Its rules: the validator-port PLAN (section 8 `--points`, section 7 `--flags`).
 - What it measures, per space with an `area`: floor shadow %, vantage visibility %, LOS-break time; per split: leg times
   and partner reach; per link with an area at both ends: traversal time and path length. A campaign graph
   (`meta.mode` `campaign`) also gets `meta.measured.ways_back`: for every co-op link, the time back from the `to` floor to
@@ -567,7 +567,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   An `--alone` step may start with `serve ` (`serve.mjs`); a `scripts/perf.mjs` step gets `--budget` unless it says `--no-budget` (`perfStep`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
   `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): fixes
-  (PR label `fix` or `request.mjs --fix`; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
+  (PR label `fix`, `request.mjs --fix` or a laptop rerun of a desktop red, F52; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
   no wait bound, by design: Michael's Mixamo priority), green PRs smallest first (`LQ_GREEN_FIRST`; the oldest non-front
   request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a request that supersedes another keeps its place;
   a head conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`)

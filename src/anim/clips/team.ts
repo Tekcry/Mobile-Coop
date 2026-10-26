@@ -23,12 +23,17 @@
  */
 import { TEAM } from '../../config/movement';
 import { hyp2 } from '../../core/mathx';
-import { HANG_HEAD } from '../../game/teamMoves';
+import { HANG_HEAD, KIT_SUB, type KitKind } from '../../game/teamMoves';
 import type { TraverseKind } from '../animGraph';
+import { KIT_POSERS } from './kit/posers';
 
-/** (mission KIT0) + the co-op kit's 'pull' (pull-up, KIT-PULL) and 'shutter' (hold shutter / crawl under, KIT-SHUT). */
-export type TeamPoseMove = 'boost' | 'throw' | 'hang' | 'rope' | 'pull' | 'shutter';
+/** (mission KIT0) + the co-op kit's moves: 'pull' (pull-up, KIT-PULL), 'shutter' (hold shutter / crawl under, KIT-SHUT)
+ *  and (coop-kit K0) the five part 2 moves (`KIT_POSE_IDS`). */
+export type TeamPoseMove = 'boost' | 'throw' | 'hang' | 'rope' | KitPoseMove;
 export type TeamPoseRole = 'a' | 'b';
+
+// (coop-kit K0) the KA slices' pose files (`clips/kit/<move>.ts`) register their role bodies at load (`KIT_POSERS`)
+import.meta.glob('./kit/*.ts', { eager: true });
 
 /**
  * (mission KIT0, ids agreed with Player Build) The kit moves' pose ids by move and role: b = the top / holder, a = the
@@ -42,7 +47,13 @@ export type TeamPoseRole = 'a' | 'b';
 export const KIT_POSE_IDS = {
   pull: { b: ['pullOffer', 'pullCatch', 'pullHaul'], a: ['pullJump', 'pullHang', 'pullScramble'] },
   shutter: { b: ['shutterOffer', 'shutterLift', 'shutterHold', 'shutterDrop'], a: ['crawlUnder'] },
-} as const;
+  // (coop-kit K0) the part 2 moves (PLAN "Part 2 (detailed)"): b the hanger / catcher / offerer / anchor / first end
+  deadweight: { b: ['chainGrab', 'chainHang', 'chainDrop'], a: ['grateUnder'] },
+  dropCatch: { b: ['catchOffer', 'catchTake'], a: ['dropInto'] },
+  chimneyPair: { b: ['chimneyOffer', 'chimneyBrace', 'chimneyClimb', 'chimneyTop'], a: ['chimneyJoin', 'chimneyPush', 'chimneyRise', 'chimneyOut'] },
+  swingPass: { b: ['swingOffer', 'swingHold'], a: ['swingRide', 'swingRelease'] },
+  plankBridge: { b: ['plankOffer', 'plankLift', 'plankCarry', 'plankDrop', 'plankLay'], a: ['plankJoin', 'plankLiftA', 'plankCarryA', 'plankDropA', 'plankLayA'] },
+} as const satisfies Record<KitKind, { readonly b: readonly string[]; readonly a: readonly string[] }>;
 export type KitPoseMove = keyof typeof KIT_POSE_IDS;
 export type KitPoseId = (typeof KIT_POSE_IDS)[KitPoseMove][TeamPoseRole][number];
 
@@ -59,7 +70,65 @@ export const KIT_POSE_PLACEHOLDER: Readonly<Record<KitPoseId, string>> = {
   shutterHold: 'brace',
   shutterDrop: 'brace',
   crawlUnder: 'crouchWalk',
+  // (coop-kit K0) the part 2 placeholders (PLAN Design per move; 'ladderClimb' is the traverse 'climb')
+  chainGrab: 'jump',
+  chainHang: 'hang',
+  chainDrop: 'drop',
+  grateUnder: 'crouchWalk',
+  catchOffer: 'brace',
+  catchTake: 'brace',
+  dropInto: 'drop',
+  chimneyOffer: 'brace',
+  chimneyBrace: 'brace',
+  chimneyClimb: 'climb',
+  chimneyTop: 'climbUp',
+  chimneyJoin: 'brace',
+  chimneyPush: 'brace',
+  chimneyRise: 'climb',
+  chimneyOut: 'climbUp',
+  swingOffer: 'hangOffer',
+  swingHold: 'hangOffer',
+  swingRide: 'vault',
+  swingRelease: 'vault',
+  plankOffer: 'brace',
+  plankLift: 'brace',
+  plankCarry: 'walk',
+  plankDrop: 'brace',
+  plankLay: 'brace',
+  plankJoin: 'brace',
+  plankLiftA: 'brace',
+  plankCarryA: 'walk',
+  plankDropA: 'brace',
+  plankLayA: 'brace',
 };
+
+/**
+ * (coop-kit K0) Role B's placeholder body per part 2 move until its KA pose file registers one (`KIT_POSERS`): 'brace'
+ * = the leg-up's crouched offer (`boostB`), 'hangOffer' = the hang-down holder's reach over the edge (`hangB`), or a
+ * traverse kind the body plays instead (no B body: the deadweight hanger hangs as from a ledge). Per move and role, not
+ * per state: the wire carries only the move's sub bit and the role (the mode). Starting choices (prototype).
+ */
+export const KIT_B_PLACEHOLDER: Readonly<Record<Exclude<KitPoseMove, 'pull' | 'shutter'>, 'brace' | 'hangOffer' | TraverseKind>> = {
+  deadweight: 'hang',
+  dropCatch: 'brace',
+  // (coop-kit K3, lead) the ladder climb, not the crouched offer all the way up the shaft (KA3's real pose replaces it)
+  chimneyPair: 'climb',
+  swingPass: 'hangOffer',
+  plankBridge: 'brace',
+};
+
+/** (coop-kit K0) A move's role B placeholder ('' = not a part 2 kit move). No allocation. */
+export function kitBPlaceholder(move: string): 'brace' | 'hangOffer' | TraverseKind | '' {
+  return (KIT_B_PLACEHOLDER as Readonly<Record<string, 'brace' | 'hangOffer' | TraverseKind | undefined>>)[move] ?? '';
+}
+
+/** (coop-kit K0) The traverse a part 2 move's role B body plays instead of a B body (null = a B body: 'brace' /
+ *  'hangOffer', a registered poser, or not a part 2 move). */
+export function kitBTraverse(move: string): TraverseKind | null {
+  const ph = kitBPlaceholder(move);
+  if (ph === '' || ph === 'brace' || ph === 'hangOffer') return null;
+  return KIT_POSERS.has(move as KitPoseMove) ? null : ph;
+}
 
 /** (KIT0) A kit pose id -> its move and role. */
 export const KIT_POSE_OF: ReadonlyMap<string, { readonly move: KitPoseMove; readonly role: TeamPoseRole; readonly id: KitPoseId }> = (() => {
@@ -478,12 +547,27 @@ export function teamLinkFrame(dt: number, partner: string, i: TeamPoseIn, x: num
 }
 
 /** The ROPE / HANG / THROW sub bits of the `brace` and `boost` wire modes (game/teamMoves: THROW_SUB 1, HANG_SUB 2, ROPE_SUB 4;
- *  KIT0 PULL_SUB 8, SHUTTER_SUB 16). */
+ *  the kit's bits, KIT0 PULL_SUB 8, SHUTTER_SUB 16 and the part 2 moves', come from `KIT_SUB` through `KIT_SUB_MOVES`). */
 const SUB_THROW = 1;
 const SUB_HANG = 2;
 const SUB_ROPE = 4;
-const SUB_PULL = 8;
-const SUB_SHUTTER = 16;
+
+/**
+ * (coop-kit K0) The wire bit table: each kit move's sub bit (`KIT_SUB`), highest bit first (so the shutter, 16, wins
+ * over the pull-up, 8, as before). `kitMoveOfSub` reads it; both roles use it.
+ */
+export const KIT_SUB_MOVES: readonly { readonly bit: number; readonly move: KitPoseMove }[] = (Object.keys(KIT_POSE_IDS) as KitPoseMove[])
+  .map((move) => ({ bit: KIT_SUB[move], move }))
+  .sort((p, q) => q.bit - p.bit);
+/** Every kit move's sub bit (OR). */
+const SUB_KIT = KIT_SUB_MOVES.reduce((m, p) => m | p.bit, 0);
+
+/** (coop-kit K0) The kit move a wire sub names ('' none): the highest kit bit set. No allocation. */
+export function kitMoveOfSub(sub: number): KitPoseMove | '' {
+  if ((sub & SUB_KIT) === 0) return '';
+  for (let i = 0; i < KIT_SUB_MOVES.length; i++) if (sub & KIT_SUB_MOVES[i]!.bit) return KIT_SUB_MOVES[i]!.move;
+  return '';
+}
 
 /**
  * The partner's avatar (a remote player, posed from its `MoveState`): its team pose from its wire mode / sub / `s`
@@ -495,7 +579,9 @@ export function teamPoseOfWire(mode: string, sub: number, s: number, ph: number,
   const linked = L.partner === id && L.move !== '';
   if (mode === 'brace') {
     out.role = 'b';
-    out.move = sub & SUB_SHUTTER ? 'shutter' : sub & SUB_PULL ? 'pull' : sub & SUB_ROPE ? 'rope' : sub & SUB_HANG ? 'hang' : sub & SUB_THROW ? 'throw' : 'boost';
+    // (coop-kit K0) any kit bit names its move by the bit table (the shutter and pull-up as before)
+    const kit = kitMoveOfSub(sub);
+    out.move = kit !== '' ? kit : sub & SUB_ROPE ? 'rope' : sub & SUB_HANG ? 'hang' : sub & SUB_THROW ? 'throw' : 'boost';
     if (out.move === 'hang') out.depth = s > 0 ? s : TEAM.hangStart;
     else if (out.move === 'shutter') out.gap = s > 0 ? s : NaN;
     if (linked && L.move === out.move && L.role === 'a') {
@@ -510,11 +596,12 @@ export function teamPoseOfWire(mode: string, sub: number, s: number, ph: number,
     }
     return out;
   }
-  if (mode === 'boost' && sub & (SUB_PULL | SUB_SHUTTER)) {
+  if (mode === 'boost' && sub & SUB_KIT) {
     // (mission NET) a kit move's partner (pull-up: jumping / hauled / scrambling; shutter: crawling): role A of its own
-    // move, never the leg-up's (its body is the controller's traverse pose; the holder's side links from TEAM_LINK)
+    // move, never the leg-up's (its body is the controller's traverse pose; the holder's side links from TEAM_LINK).
+    // (coop-kit K0) any kit bit, by the bit table
     out.role = 'a';
-    out.move = sub & SUB_SHUTTER ? 'shutter' : 'pull';
+    out.move = kitMoveOfSub(sub) as KitPoseMove;
     out.k = ph;
     if (linked && L.move === out.move && L.role === 'b') {
       if (L.k >= 0) out.k = L.k;
@@ -641,6 +728,13 @@ export class TeamPoser {
     const root = rig.root;
     const hk = rig.height / 1.75;
     if (this.role === 'b') {
+      // (coop-kit K0) a part 2 kit move whose placeholder is a traverse (the deadweight hanger hangs as from a ledge):
+      // the body plays it, no B body
+      const trav = kitBTraverse(this.move);
+      if (trav !== null) {
+        if (on) p.traverse = trav;
+        return;
+      }
       // (off: the last pose eases out, its turn with it)
       if (on) this.poseB(dt, i, root.position.x, root.position.y, root.position.z, root.rotation.y, hk);
       this.applyB(p, rig, hk);
@@ -655,17 +749,23 @@ export class TeamPoser {
     const o = this.b;
     const known = Number.isFinite(i.px) && Number.isFinite(i.pz);
     let face = 0;
-    if (i.move === 'boost' || i.move === 'throw') {
+    // (coop-kit K0) a kit move's own body when its pose file registered one (`KIT_POSERS`), else its placeholder below
+    const kp = KIT_POSERS.size > 0 ? KIT_POSERS.get(i.move as KitPoseMove) : undefined;
+    if (kp) {
+      kp.b(i, this.t, o);
+    } else if (i.move === 'boost' || i.move === 'throw') {
       if (i.move === 'boost') boostB(i.k, this.t, o);
       else throwB(i.k, this.t, o);
       // turned to the partner early in the move (they come in from any side); held, then back as it settles
       if (known && i.k >= 0 && i.k < FACE_K && hyp2(i.px - x, i.pz - z) > 0.35) face = wrapPi(Math.atan2(i.px - x, i.pz - z) - yaw);
       else face = i.k >= 0 && i.k < 0.85 ? this.yawOff : 0;
-    } else if (i.move === 'shutter') {
+    } else if (i.move === 'shutter' || kitBPlaceholder(i.move) === 'brace') {
       // (KIT0 placeholder, PLAN 4a "brace") the leg-up's crouched offer until Player Build's shutter poses land
+      // ((coop-kit K0) and a part 2 move's 'brace' placeholder)
       boostB(-1, this.t, o);
-    } else if (i.move === 'hang' || i.move === 'pull') {
+    } else if (i.move === 'hang' || i.move === 'pull' || kitBPlaceholder(i.move) === 'hangOffer') {
       // (KIT0 placeholder, PLAN 4a "hangOffer") the pull-up's holder reaches over the edge as the hang-down's offer
+      // ((coop-kit K0) and a part 2 move's 'hangOffer' placeholder: never `holding`, which is the hang-down's)
       const holding = i.move === 'hang' && i.k >= 0;
       let f = 0.85;
       let s = 0;

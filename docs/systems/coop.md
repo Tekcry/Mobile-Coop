@@ -370,6 +370,45 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   hold it as lip ("hook") grips while the body rises past and lift off as the arms run out (`liftOff`, the rig's
   `liftOffTarget`). The partner's avatar does the same with no wire change: its own lip search from the shown feet,
   the top-out from the feet past the rope's top and the wire phase (`ropeSeenStep`).
+- (coop-kit A1, R34) The rope descent: with the `descent` id in `flags.kitMoves` (`?kitmoves=descent`; every built id on
+  /preview/, none live) a partner standing beside the holder (its floor within 0.4 m, `TEAM.ropeReach` 2.0 m across)
+  is offered "Co-op: rappel down the rope" and asks for the same `tmove` `rope` at the same rope point; the host tells
+  the two apart by height (`ropeFromTop`) and accepts the top only when its own `kitMoves` has `descent`. Same `tstart`,
+  same pair, same ends. The climber goes over the edge (`ropeOver`, `TEAM.ropeOver` 1.3 s: the top-out's path backwards,
+  `ropeOverPath`; placeholder pose `climbUp` with `traverseT` 1 -> 0, A2 animates it), then `ropeClimb` down to the
+  floor found by a ray under the rope point; at the floor the stick held down steps off (`ropeStepOff`, end `drop`:
+  the holder is freed by the `tend`). Back up the rope once `ROPE_DESCENT_ARM` 0.3 m down tops out to where it stood;
+  either letting go slides to the floor as before. Its MoveState is `boost` + `ROPE_SUB` with `s` 1 while it came
+  from the top (`wireS`): no wire shape change. Off, the climb from the foot is unchanged. `flags.coopKit` (Campaign's
+  pull-up and shutter gate) stays a writable field; it loads true when `kitMoves` holds `pull` or `shutter`
+  (`?coopkit=1` / `0` add / remove both).
+- (coop-kit K0, wire change; PROTOCOL_VERSION untouched, the train bumps) The kit made generic for the five part 2
+  moves (coop-kit PLAN "Part 2", on feature/coop-kit). One string per move: the `kitMoves` id = `KitKind` = the `tmove` / `tstart`
+  kind = `StationDef.kit`. A part 2 request's `target` is a spot index into the host's `TeamController.devices.list`
+  (bounded: out of range or another kind's device = -1, none) and reaches the move's rule as `TeamRequest.spot`; its `s`
+  is the request's phase (Plank Bridge's lay 2); the claimed point (`lx`, `gy`, `lz`) parses for any kit kind. The start
+  carries that index and `s`. The host's kit pair (`net/kitNet.ts`) lasts `KIT_PAIR[kind].pairS` and only the move's
+  `doneBy` side may say 'pull' (the success end; either side 'drop'); pull-up and shutter keep their rules. On the
+  relayed success end the host calls `kitDone` (`game/kit/kitApi.ts`) -> `GameMode.onKitDone(kind, spot id, a, b)`
+  (undefined = the host's player; a no-op on a client page); Deadweight and Plank Bridge call it from their own host
+  tick. Spots come from the map sets: `addKitSpot(b.anchors, KitSpot)` (`{ id, kind, x, y, z, yaw, w?, h?, x2?, y2?,
+  z2?, door? }`), read with `kitSpotsOf(level, kind)`. Per-id gate: the host refuses a part 2 kind whose id is off;
+  each page's kit offers run with `flags.coopKit` (pull-up, shutter) or any part 2 id on, each move only with its own
+  id (`kitIdOn`). A remote poses from the bit table (`kitMoveOfSub`): role B (`brace`) the TeamPoser placeholder (or a
+  KA pose file's body, `KIT_POSERS`), role A (`boost`) its placeholder traverse (`KIT_A_TRAVERSE`); tuner rows
+  `team.<move>.a` / `.b` (`KIT_TUNE_MOVES`, not studio pairs yet). Every id stays out of `KIT_BUILT` until its slice.
+
+  | Move (slice) | Id / wire kind | Sub bit | Role b (`brace`) states | Role a (`boost`) states | Remote placeholder b / a | Done by | Marlow station |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | Deadweight (K1) | `deadweight` | 64 | chainGrab, chainHang, chainDrop | grateUnder | ledge hang / crouched walk | host tick (pass under the grate) | 9 `a4-deadweight` |
+  | Drop Catch (K2) | `dropCatch` | 128 | catchOffer, catchTake | dropInto | brace / drop | b (catcher) | 16 `a6-dropcatch` |
+  | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | ladder climb / climb | a (when both are out) | 11 `a5-chimney` |
+  | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
+  | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
+
+  Chimney Pair (K3): marked spots only (no free shaft until the walk); wire `s` is -width while offering, the height
+  over the start floor while climbing (each page caps its own climb 0.15 m either side of the partner's), `h` while
+  topping out. With the id on, a spot's shaft is no solo split jump (`splitJump.ts` `setNoSplit`).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the

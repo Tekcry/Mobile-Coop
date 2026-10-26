@@ -17,7 +17,7 @@ import { warehouse } from '../src/world/maps/warehouse';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
-import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach } from '../src/voxel/lampBake';
+import { bakeLamps, LAMP_GRID, LAMP_GRID_MAX_LIGHTS, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampGrid, lampGridBase, lampPlanReach } from '../src/voxel/lampBake';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField } from '../src/world/lightField';
@@ -27,7 +27,7 @@ function radiusGrid(L: Float32Array, lo: readonly number[], hi: readonly number[
   const g = LAMP_GRID;
   const cols = Math.max(1, Math.ceil((hi[0]! - lo[0]!) / g));
   const rows = Math.max(1, Math.ceil((hi[2]! - lo[2]!) / g));
-  const n = Math.min(255, L.length / LAMP_STRIDE);
+  const n = Math.min(LAMP_GRID_MAX_LIGHTS, L.length / LAMP_STRIDE);
   const lists: number[][] = [];
   for (let r = 0; r < rows; r++) {
     for (let q = 0; q < cols; q++) {
