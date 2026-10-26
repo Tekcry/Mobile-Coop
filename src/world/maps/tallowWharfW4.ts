@@ -3,12 +3,13 @@ import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import { makeCone } from '../lights';
 import type { ShutterSpec } from '../../game/kit/shutter';
+import { placeShutter } from '../shutterDoor';
 import { stairSteps, type CoopLip } from './ctcourseGreybox';
-import { doorIn, duct, lamp, mass, MASS_TOP, OUTER, screen, standIn, T, wall, Y, type DropGuard, type WharfPull, type WharfSection } from './tallowWharfKit';
+import { doorIn, duct, lamp, mass, MASS_TOP, OUTER, screen, T, wall, Y, type DropGuard, type WharfPull, type WharfSection } from './tallowWharfKit';
 
 /**
  * Tallow Wharf section W4, the wharf sheds (mission-framework GB4; `docs/missions/slices/GB-briefs.md` GB4): the back lane and
- * the apron, shed three (the clerestory boost, C9), shed two (the reserved shutter, C8), the open shed yard, the crane gantry
+ * the apron, shed three (the clerestory boost, C9), shed two (the placed shutter, C8), the open shed yard, the crane gantry
  * and its north arm (caged by drop guards), the walkable canal bed, the jetty (the pull-up edge, C10) and the boat. Greybox:
  * every box is `noLedge` but the one planned lip (a manual ledge on a `noLedge` wall). Frame: x east, z north, y up; yaw 0
  * faces +z (the canal is the south edge, z 0-6).
@@ -55,7 +56,7 @@ const LIP_X = [78.65, 79.35] as const;
 /** Shed north walls: 0.6 thick, centred on z 28 (face at z 28.3). */
 const NORTH = { at: 28, face: 28.3 } as const;
 
-/** C8: shed two's shutter, reserved as data (no `placeShutter` until the kit's wiring lands; the opening is a closed stand-in). */
+/** C8: shed two's shutter, placed by `placeShutter` in `build` (J9 S3; shut on the guards' nav, A15, and it stops lamp light, A16). */
 export const W4_SHUTTER: ShutterSpec = { id: 'w4-shutter', x: 92, y: 0, z: 28, yaw: 0, width: 3, height: 3 };
 
 /** C10: the jetty pull-up. The holder braces at the open jetty edge, the partner jumps from the canal bed. */
@@ -212,9 +213,11 @@ function build(b: LevelBuilder): void {
   // the planned lip: a manual ledge on the noLedge wall face, x 78.65-79.35, top 4.4, normal +z (the lane)
   b.ledge(LIP_X[1], NORTH.face, LIP_X[0], NORTH.face, 4.4, { drop: 4.4, canHang: true, canClimbUp: true });
 
-  // ---- shed two (x 86-100): the reserved shutter in the north wall, the canal door in the south wall ----
+  // ---- shed two (x 86-100): the placed shutter in the north wall, the canal door in the south wall ----
   wall(b, true, NORTH.at, 86, 100, [[90.5, 93.5]], 0, SHED_TOP, OUTER, C.wall, 3.0);
-  standIn(b, W4_SHUTTER);
+  const iShutter = b.boxes.length;
+  placeShutter(b, W4_SHUTTER);
+  b.mark(iShutter, { noLedge: true }); // the head box and guides: never a lip (only planned lips, A28)
   wall(b, true, 10, 86, 100, [[92.4, 93.6]], 0, SHED_TOP, T, C.wall);
   doorIn(b, true, 10, 93, 0);
   bx(b, 85.85, 100, SHED_TOP, SHED_ROOF, 9.85, NORTH.face, C.roof);
