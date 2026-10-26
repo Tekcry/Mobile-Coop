@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SQUAD_BASE,
+  NOISY_LIMITS,
   SECTION_SQUAD_BASE,
   defaultSquads,
   sectionAt,
   squadId,
   validateGuardAi,
+  validateNoisy,
   validatePosts,
   type GuardAiLayout,
   type GuardSlot,
@@ -93,16 +95,17 @@ describe('validateGuardAi', () => {
     expect(has(validatePosts([slot(0, 0, { profile: 'berserk' as never })]), /unknown profile/)).toBe(true);
   });
 
-  it('noisy: db 0..30, radius 1..20, unique ids, inside bounds, known section', () => {
+  it('noisy: db and radius inside NOISY_LIMITS, unique ids, inside bounds, known section', () => {
+    const L = NOISY_LIMITS;
     const n = (o: Partial<NoisySource>): GuardAiLayout => ({ noisy: [{ id: 'n', x: 5, z: 5, radius: 5, db: 6, ...o }] });
-    expect(has(validateGuardAi(n({ db: 31 }), []), /db 31 outside 0..30/)).toBe(true);
+    expect(has(validateGuardAi(n({ db: L.dbMax + 1 }), []), new RegExp(`db ${L.dbMax + 1} outside ${L.dbMin}..${L.dbMax}`))).toBe(true);
     expect(has(validateGuardAi(n({ db: -1 }), []), /db -1 outside/)).toBe(true);
-    expect(has(validateGuardAi(n({ radius: 0.5 }), []), /radius 0.5 outside 1..20/)).toBe(true);
-    expect(has(validateGuardAi(n({ radius: 25 }), []), /radius 25 outside/)).toBe(true);
+    expect(has(validateGuardAi(n({ radius: 0.5 }), []), new RegExp(`radius 0.5 outside ${L.radiusMin}..${L.radiusMax}`))).toBe(true);
+    expect(has(validateGuardAi(n({ radius: L.radiusMax + 5 }), []), new RegExp(`radius ${L.radiusMax + 5} outside`))).toBe(true);
     expect(has(validateGuardAi(n({ x: 500 }), [], { bounds }), /noisy n: outside the map bounds/)).toBe(true);
     expect(has(validateGuardAi(n({ section: 3 }), []), /noisy n: section 3 does not exist/)).toBe(true);
-    expect(validateGuardAi(n({ db: 0, radius: 1 }), [])).toEqual([]);
-    expect(validateGuardAi(n({ db: 30, radius: 20 }), [])).toEqual([]);
+    expect(validateGuardAi(n({ db: L.dbMin, radius: L.radiusMin }), [])).toEqual([]);
+    expect(validateGuardAi(n({ db: L.dbMax, radius: L.radiusMax }), [])).toEqual([]);
     const dup: GuardAiLayout = { noisy: [{ id: 'g', x: 1, z: 1, radius: 2, db: 3 }, { id: 'g', x: 2, z: 2, radius: 2, db: 3 }] };
     expect(has(validateGuardAi(dup, []), /noisy g: duplicate id/)).toBe(true);
   });
@@ -179,5 +182,44 @@ describe('validateGuardAi: gear tags and shield guards (S11)', () => {
   it('both rules report together', () => {
     const errs = validateGuardAi({}, [g({ kind: 'enforcer', gear: 'x' as unknown as GearTag })]);
     expect(errs).toHaveLength(2);
+  });
+});
+
+describe('validateNoisy (guard-ai-mission-hooks S2)', () => {
+  const src = (o: Partial<NoisySource> = {}): NoisySource => ({ id: 'n', x: 5, z: 5, radius: 5, db: 6, ...o });
+  const one = (o: Partial<NoisySource>): string[] => validateNoisy([src(o)]);
+
+  it('a good list passes: a standby source on circuit 55, one with no circuit, an explicit on', () => {
+    expect(validateNoisy([])).toEqual([]);
+    expect(validateNoisy([src({ id: 'standby', group: 55, on: 'off' }), src({ id: 'vent' }), src({ id: 'mains', group: 0, on: 'on', y: 2 })])).toEqual([]);
+    // a console group (consoleFault.ts CONSOLE_GROUP and up) is a valid group (S2-e)
+    expect(one({ group: 1000 })).toEqual([]);
+  });
+  it('db and radius outside NOISY_LIMITS are rejected', () => {
+    expect(one({ radius: 0 })).toEqual([`noisy n: radius 0 outside ${NOISY_LIMITS.radiusMin}..${NOISY_LIMITS.radiusMax}`]);
+    expect(one({ db: NOISY_LIMITS.dbMax + 1 })).toEqual([`noisy n: db ${NOISY_LIMITS.dbMax + 1} outside ${NOISY_LIMITS.dbMin}..${NOISY_LIMITS.dbMax}`]);
+    expect(one({ db: Number.NaN })).toHaveLength(1);
+    expect(one({ db: NOISY_LIMITS.dbMax, radius: NOISY_LIMITS.radiusMax })).toEqual([]);
+  });
+  it('a group must be an integer >= 0', () => {
+    expect(one({ group: 55.5 })).toEqual(['noisy n: group 55.5 must be an integer >= 0']);
+    expect(one({ group: -1 })).toEqual(['noisy n: group -1 must be an integer >= 0']);
+    expect(one({ group: Number.NaN })).toHaveLength(1);
+  });
+  it("on must be 'on' or 'off', and only with a group", () => {
+    expect(one({ group: 55, on: 'maybe' as never })).toEqual(["noisy n: on 'maybe' must be 'on' or 'off'"]);
+    expect(one({ on: 'off' })).toEqual(['noisy n: on without a group']);
+  });
+  it('a non-finite position (or height) and a duplicate id are rejected', () => {
+    expect(one({ x: Number.NaN })).toEqual(['noisy n: position is not finite']);
+    expect(one({ y: Number.POSITIVE_INFINITY })).toEqual(['noisy n: position is not finite']);
+    expect(validateNoisy([src({ id: 'g' }), src({ id: 'g', x: 7 })])).toEqual(['noisy g: duplicate id']);
+  });
+  it('validateGuardAi reports a bad group through validateNoisy (one error, the same text)', () => {
+    const errs = validateGuardAi({ noisy: [src({ group: 55.5 })] }, []);
+    expect(errs).toEqual(validateNoisy([src({ group: 55.5 })]));
+    expect(errs).toHaveLength(1);
+    // a non-finite position: one error, no bounds error on top
+    expect(validateGuardAi({ noisy: [src({ x: Number.NaN })] }, [], { bounds })).toEqual(['noisy n: position is not finite']);
   });
 });

@@ -112,7 +112,7 @@ export const MAX_GUARD_KEYS = 32;
 export const SQUAD_CLUSTER_M = 12;
 /** Posts more than this far apart in height are on different storeys: never one default squad. */
 export const SQUAD_STOREY_M = 2.5;
-/** Ranges `validateGuardAi` enforces on noisy sources. */
+/** Ranges `validateNoisy` enforces on noisy sources. */
 export const NOISY_LIMITS = { dbMin: 0, dbMax: 30, radiusMin: 1, radiusMax: 20 } as const;
 
 /** Global squad id of squad `squad` in section `section`. */
@@ -235,6 +235,31 @@ export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): stri
   return errs;
 }
 
+/**
+ * (guard-ai-mission-hooks S2, A11) Check a list of noisy sources (`MapLayout.guardAi.noisy`, `SectorDef.noisy`): a
+ * unique id, a finite position (and `y` when set), `db` and `radius` inside `NOISY_LIMITS`, a `group` that is an
+ * integer >= 0, `on` only 'on' / 'off' and only with a `group`. The messages name the source id, as
+ * `validateGuardAi` always did. Returns the errors (empty when fine).
+ */
+export function validateNoisy(list: readonly NoisySource[]): string[] {
+  const errs: string[] = [];
+  const ids = new Set<string>();
+  const L = NOISY_LIMITS;
+  for (let i = 0; i < list.length; i++) {
+    const n = list[i]!;
+    if (ids.has(n.id)) errs.push(`noisy ${n.id}: duplicate id`);
+    ids.add(n.id);
+    if (!(n.db >= L.dbMin && n.db <= L.dbMax)) errs.push(`noisy ${n.id}: db ${n.db} outside ${L.dbMin}..${L.dbMax}`);
+    if (!(n.radius >= L.radiusMin && n.radius <= L.radiusMax)) errs.push(`noisy ${n.id}: radius ${n.radius} outside ${L.radiusMin}..${L.radiusMax}`);
+    if (!finite(n.x) || !finite(n.z) || (n.y !== undefined && !finite(n.y))) errs.push(`noisy ${n.id}: position is not finite`);
+    // a console group (consoleFault.ts CONSOLE_GROUP and up) is a valid group: S4 reads it as `breakerOff` does (S2-e)
+    if (n.group !== undefined && (!isInt(n.group) || n.group < 0)) errs.push(`noisy ${n.id}: group ${n.group} must be an integer >= 0`);
+    if (n.on !== undefined && n.on !== 'on' && n.on !== 'off') errs.push(`noisy ${n.id}: on '${String(n.on)}' must be 'on' or 'off'`);
+    if (n.on !== undefined && n.group === undefined) errs.push(`noisy ${n.id}: on without a group`);
+  }
+  return errs;
+}
+
 /** (guard-ai S5) The load-time check's output (dev and tests only; the callers gate on `import.meta.env.DEV`): one
  *  console warning per error, prefixed with `where`. Warnings, never a throw: a bad post must not stop a map loading. */
 export function reportGuardAi(where: string, errs: readonly string[]): void {
@@ -252,8 +277,8 @@ export interface ValidateGuardAiOpts {
 }
 
 /**
- * Check a layout and its slots: zones (unique ids, sections >= 0, rects with min < max), noisy sources (`db` 0..30,
- * `radius` 1..20, unique ids, inside bounds, known section), entries (known section, inside bounds with their routes),
+ * Check a layout and its slots: zones (unique ids, sections >= 0, rects with min < max), noisy sources (`validateNoisy`:
+ * ids, position, `db` / `radius` inside `NOISY_LIMITS`, `group` / `on`; here: inside bounds, known section), entries (known section, inside bounds with their routes),
  * squads (unique id per section, known section), guard keys (`slot.key` or the index in its section: integers
  * 0..31, unique per section), hand-set squads (integers 0..`DEFAULT_SQUAD_BASE - 1`), gear tags (helmet / armour / both),
  * no `enforcer` kind (shield guards only come in response teams, S11) and `validatePosts`.
@@ -282,14 +307,11 @@ export function validateGuardAi(layout: GuardAiLayout, slots: readonly GuardSlot
     for (const r of zn.rects) if (!(r.minX < r.maxX && r.minZ < r.maxZ)) errs.push(`zone ${zn.id}: rect ${r.id} has min >= max`);
   }
 
-  const noisyIds = new Set<string>();
-  for (const n of layout.noisy ?? []) {
-    if (noisyIds.has(n.id)) errs.push(`noisy ${n.id}: duplicate id`);
-    noisyIds.add(n.id);
-    if (!(n.db >= NOISY_LIMITS.dbMin && n.db <= NOISY_LIMITS.dbMax)) errs.push(`noisy ${n.id}: db ${n.db} outside ${NOISY_LIMITS.dbMin}..${NOISY_LIMITS.dbMax}`);
-    if (!(n.radius >= NOISY_LIMITS.radiusMin && n.radius <= NOISY_LIMITS.radiusMax)) errs.push(`noisy ${n.id}: radius ${n.radius} outside ${NOISY_LIMITS.radiusMin}..${NOISY_LIMITS.radiusMax}`);
-    if (!finite(n.x) || !finite(n.z)) errs.push(`noisy ${n.id}: position is not finite`);
-    else if (bounds && !inRect(bounds, n.x, n.z)) errs.push(`noisy ${n.id}: outside the map bounds`);
+  // (guard-ai-mission-hooks S2) the per-source checks are validateNoisy's; bounds and section need this call's options
+  const noisy = layout.noisy ?? [];
+  errs.push(...validateNoisy(noisy));
+  for (const n of noisy) {
+    if (bounds && finite(n.x) && finite(n.z) && !inRect(bounds, n.x, n.z)) errs.push(`noisy ${n.id}: outside the map bounds`);
     if (n.section !== undefined && !sectionOk(n.section)) errs.push(`noisy ${n.id}: section ${n.section} does not exist`);
   }
 

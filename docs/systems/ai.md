@@ -66,7 +66,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Hearing (guard-ai S1, `ai/hearing.ts`, pure): a noise's reach becomes an effective reach per listener,
   `reach x 10^(-(walls x 6.9 + ambientDb) / 20)`: one wall (head-height ray, cast only where it could change the tier;
   low cover does not muffle) keeps 0.45 of it (the old `MUFFLE`), and a noisy thing near the guard (`NoisySource`,
-  `EnemyManager.setNoisy`; no map sets any yet) masks it (6 dB halves, 12 dB quarters). Tiers (`HEARING`): inside the
+  `EnemyManager.setNoisy`; no map sets any yet) masks it (6 dB halves, 12 dB quarters). A noisy source may be
+  power-linked (guard-ai-mission-hooks S2, D8, A11: `group`, a `BreakerHost` group; `on` 'on' by default, 'off' = live
+  while its circuit is off): it masks only while live (`sourceLive`, `ambientDb`'s optional `live` mask, wired by S4
+  behind `noiseZones`); `validateNoisy` checks the data against `NOISY_LIMITS`. Tiers (`HEARING`): inside the
   effective reach he turns to look (`Enemy.hearTurn`: stands facing it `hearLook`, meter floor `noiseSuspicion` capped
   at 0.45, no `heard`); inside half of it he may be sent; loud gunfire (`EnemyManager.noise`) is combat only inside a
   quarter of it. Coordinated managers (default): every hearer turns, the tier-2 hearers are reported to the incident

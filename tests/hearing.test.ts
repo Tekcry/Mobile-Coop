@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { HEARING, WALL_FACTOR, ambientDb, dbFactor, effectiveReach, hearTier, wallMatters, type NoisySource } from '../src/ai/hearing';
+import { HEARING, WALL_FACTOR, ambientDb, dbFactor, effectiveReach, hearTier, sourceLive, wallMatters, type NoisySource } from '../src/ai/hearing';
 import { MUFFLE } from '../src/config/noise';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
@@ -87,6 +87,72 @@ describe('hearing maths', () => {
     expect(wallMatters(25, 20, false)).toBe(false);
     expect(wallMatters(1, 28, true)).toBe(false);
     expect(wallMatters(5, 28, true)).toBe(true);
+  });
+});
+
+describe('noise zones data (guard-ai-mission-hooks S2)', () => {
+  const gen: NoisySource = { id: 'gen', x: 0, z: 0, radius: 8, db: 12 };
+  const vent: NoisySource = { id: 'vent', x: 10, z: 0, radius: 4, db: 6 };
+  it('no mask = today: the ambientDb numbers are the same with no live mask and with an all-live one', () => {
+    const all = new Uint8Array([1, 1]);
+    for (const live of [undefined, all]) {
+      expect(ambientDb([gen], 0, 0, undefined, live)).toBe(12);
+      expect(ambientDb([gen], 4, 0, undefined, live)).toBeCloseTo(6, 6);
+      expect(ambientDb([gen], 8, 0, undefined, live)).toBe(0);
+      expect(ambientDb([gen, vent], 9, 0, undefined, live)).toBeCloseTo(4.5, 6);
+      expect(ambientDb([gen, vent], 2, 0, undefined, live)).toBeCloseTo(9, 6);
+      const high: NoisySource = { ...gen, y: 6 };
+      expect(ambientDb([high], 0, 0, undefined, live)).toBe(12);
+      expect(ambientDb([high], 0, 0, 0, live)).toBeCloseTo(12 * (1 - 6 / 8), 6);
+    }
+    // and exactly the four-argument numbers
+    expect(ambientDb([gen, vent], 2, 0, undefined, all)).toBe(ambientDb([gen, vent], 2, 0));
+    expect(ambientDb([gen, vent], 9, 0, undefined, all)).toBe(ambientDb([gen, vent], 9, 0));
+  });
+  it('a source off by its circuit masks nothing; the others still do', () => {
+    const g55: NoisySource = { ...gen, group: 55 };
+    expect(ambientDb([g55], 0, 0, undefined, new Uint8Array([0]))).toBe(0);
+    expect(ambientDb([g55], 0, 0, undefined, new Uint8Array([1]))).toBe(12);
+    const mask = new Uint8Array([0, 1]);
+    expect(ambientDb([g55, vent], 9, 0, undefined, mask)).toBeCloseTo(4.5, 6);
+    expect(ambientDb([g55, vent], 2, 0, undefined, mask)).toBe(0);
+    // any non-zero reads live; a plain number array works too
+    expect(ambientDb([g55], 0, 0, undefined, [2])).toBe(12);
+    expect(ambientDb([g55], 0, 0, undefined, [0])).toBe(0);
+  });
+  it('a mask shorter than the list reads the rest live (S2-c)', () => {
+    expect(ambientDb([gen, vent], 9, 0, undefined, new Uint8Array([0]))).toBeCloseTo(4.5, 6);
+    expect(ambientDb([gen, vent], 2, 0, undefined, new Uint8Array([1]))).toBeCloseTo(9, 6);
+    expect(ambientDb([gen, vent], 2, 0, undefined, new Uint8Array(0))).toBeCloseTo(9, 6);
+  });
+  it("sourceLive: no group is always live; 'on' (default) live while the circuit is on; 'off' inverts", () => {
+    expect(sourceLive(gen, false)).toBe(true);
+    expect(sourceLive(gen, true)).toBe(true);
+    // `on` without a group is a data error (validateNoisy); the helper still reads it as always live
+    expect(sourceLive({ ...gen, on: 'off' }, false)).toBe(true);
+    const mains: NoisySource = { ...gen, group: 55 };
+    expect(sourceLive(mains, false)).toBe(true);
+    expect(sourceLive(mains, true)).toBe(false);
+    expect(sourceLive({ ...mains, on: 'on' }, false)).toBe(true);
+    expect(sourceLive({ ...mains, on: 'on' }, true)).toBe(false);
+    const standby: NoisySource = { ...gen, group: 55, on: 'off' };
+    expect(sourceLive(standby, false)).toBe(false);
+    expect(sourceLive(standby, true)).toBe(true);
+  });
+  it('end to end: a footstep 3 m from a 12 dB generator on circuit 55 is not heard while it runs, heard once it is cut', () => {
+    const g55: NoisySource = { ...gen, group: 55 };
+    const mask = new Uint8Array(1);
+    // circuit on: the generator runs
+    mask[0] = sourceLive(g55, false) ? 1 : 0;
+    expect(hearTier(3, effectiveReach(4, 0, ambientDb([g55], 0, 0, undefined, mask)), false)).toBe(0);
+    // circuit cut: the generator is silent, the 4 m step is heard at 3 m
+    mask[0] = sourceLive(g55, true) ? 1 : 0;
+    expect(ambientDb([g55], 0, 0, undefined, mask)).toBe(0);
+    expect(hearTier(3, effectiveReach(4, 0, ambientDb([g55], 0, 0, undefined, mask)), false)).toBeGreaterThan(0);
+    // a standby generator on the same circuit: the other way round
+    const standby: NoisySource = { ...g55, on: 'off' };
+    mask[0] = sourceLive(standby, true) ? 1 : 0;
+    expect(hearTier(3, effectiveReach(4, 0, ambientDb([standby], 0, 0, undefined, mask)), false)).toBe(0);
   });
 });
 

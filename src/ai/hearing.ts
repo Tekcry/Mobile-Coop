@@ -13,6 +13,9 @@
  * (`combatDb` 12) is straight combat (tier 3). Who of the tier-2 hearers actually walks over is the incident board's
  * call (`incidents.ts`, guard-ai S2); the rest only turn.
  *
+ * (guard-ai-mission-hooks S2) A noisy source may be power-linked (`group`, `on`): it masks only while live
+ * (`sourceLive`, the `live` mask of `ambientDb`), wired by S4 behind `noiseZones`.
+ *
  * Allocation-free: every function reads numbers and typed arrays and returns a number.
  */
 import { hyp2, hyp3 } from '../core/mathx';
@@ -49,6 +52,12 @@ export interface NoisySource {
   section?: number;
   /** 'generator' | 'vent' | 'press' ... for barks / debug. */
   label?: string;
+  /** (guard-ai-mission-hooks S2, A11) Its power circuit (a `BreakerHost` group, an integer >= 0): the source masks only
+   *  while it is live (`sourceLive`). None = always live. Read from the switch state once per AI tick (S4). */
+  group?: number;
+  /** (S2, A11) 'on' (default): live while its circuit is on. 'off': live while its circuit is OFF (a standby generator,
+   *  a pump that starts when the power goes). Only with `group` (`validateNoisy`). */
+  on?: 'on' | 'off';
 }
 
 /** Reach factor for a loss of `db` dB: 10^(-db/20). */
@@ -64,12 +73,21 @@ const K_COMBAT = dbFactor(HEARING.combatDb);
 /** Reach factor of one wall (0.45). */
 export const WALL_FACTOR = K_WALL;
 
+/** (guard-ai-mission-hooks S2, A11) Is source `s` live when its circuit's switch reads `off`? No `group`: always.
+ *  The caller (S4) fills a live mask with it once per tick. No allocation. */
+export function sourceLive(s: NoisySource, off: boolean): boolean {
+  if (s.group === undefined) return true;
+  return s.on === 'off' ? off : !off;
+}
+
 /** Ambient masking (dB) at a listener at (x, z) (and height y): the loudest source there, each fading linearly from
- *  its `db` at the centre to 0 at its radius. 0 with no sources. */
-export function ambientDb(src: readonly NoisySource[], x: number, z: number, y?: number): number {
+ *  its `db` at the centre to 0 at its radius. 0 with no sources. `live` (S2, A11): per source, 0 = off (skipped);
+ *  absent = every source live (today); a mask shorter than the list reads the rest live. */
+export function ambientDb(src: readonly NoisySource[], x: number, z: number, y?: number, live?: ArrayLike<number>): number {
   let best = 0;
   for (let i = 0; i < src.length; i++) {
     const s = src[i]!;
+    if (live !== undefined && live[i] === 0) continue;
     if (s.radius <= 0 || s.db <= 0) continue;
     const d = y !== undefined && s.y !== undefined ? hyp3(s.x - x, s.y - y, s.z - z) : hyp2(s.x - x, s.z - z);
     if (d >= s.radius) continue;
