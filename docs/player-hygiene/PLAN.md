@@ -139,6 +139,8 @@ files:
   - tests/mocapRunFeet.test.ts
   - tests/mocapCrouch.test.ts
   - tests/mocapPlayer.test.ts
+  - tests/coopWalkFixes.test.ts
+  - tests/hangDownTakedown.test.ts
 maps: none
 protocol: none
 save: none
