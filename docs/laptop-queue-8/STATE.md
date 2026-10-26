@@ -3,8 +3,8 @@ Owner: Test Runner. Status: current.
 
 ## Resume (2026-10-26, builder)
 Branch feature/laptop-queue-8 holds origin/feature/laptop-queue-7 (merge 624cb7278; #507 still open). The `fix` label
-already existed (red, "Bug fix: tested ahead of new features"). Slices A, B, C built (Opus builder); D, E, F not built.
-Pointers are this branch after slice C.
+already existed (red, "Bug fix: tested ahead of new features"). Slices A-E built (A-C Opus builder; D, E builder 1bf8e909c, f1790d34d); F not built.
+A-C pointers are this branch after slice C (shifted by D, E: find by name); D, E pointers after E.
 - Slice A (fixes first, keep place): lib `placeKey` :20, `isFix` :253, pickFrom fix tier :332 (nonAlone sorted by
   place), `placeFor` :472, prBoard `fix` :1008; service `FIX_FIRST` :159, `pushFile` mustExist :370, prBoardNow labels
   :613, `keepPlaces` :1726 (called from applySupersedes and stopSuperseded), order block "order: fix" :1954;
@@ -19,9 +19,16 @@ Pointers are this branch after slice C.
   branch :1413; re-reads the request file before the kept push), runRequest plan / keptRows :1504, :1531; tests
   describe "kept suites after a train preempt" :1298.
 - PLAN Risks gained the affected-cap refileOverCap line (checker polish).
+- Slice D (desktop: fixes, then smallest wall at one job; 15 min skip; CPU mode): lib `desktopGate` mode :143, `gateCpu`
+  :247, `desktopTooLong` :254, pickFrom `order.smallest` :356; service `DESKTOP_MAX_S` / `CPU_MODE` :166-167,
+  `tooLongLogged` :657, desktop skip filter :1948, gate calls :1959, :1975, order block `smallest: DESKTOP` :2013;
+  install-task.ps1 `-DesktopCpuMode` :14; tests :736 and describe "desktop order and long-run skip" :748.
+- Slice E (docs-only affected-e2e carry for PR heads): lib `prChain` :695; service header :103-106, `PR_CARRY` :168,
+  affectedPass call :488 (skipped for a conflicting head under LQ_SKIP_CONFLICTING), `prCarry` :527; tests describe
+  "docs-only carry for PR heads" :2091.
 Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
-Next: slice D (Sonnet, PLAN "Slice D"), then E (Opus); F (Sonnet, own worktree) alongside E. Dry run
-(`node scripts/laptop-queue/service.mjs --once --dry-run`) not yet run.
+Next: slice F (Sonnet, own worktree), then the Opus checker on the head. Dry runs
+(`node scripts/laptop-queue/service.mjs --once --dry-run`, also with `LQ_WORKER=desktop`) not yet run.
 
 ## Planning (2026-10-26)
 Branch feature/laptop-queue-8, worktree C:/NightShift/Mobile-Coop-laptop-queue-8, cut from origin/master 34b96b9c.
