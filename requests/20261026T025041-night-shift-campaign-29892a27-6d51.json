@@ -1,0 +1,14 @@
+{
+  "id": "20261026T025041-night-shift-campaign-29892a27-6d51",
+  "sha": "29892a27160b2e6f9abcc7422664213c581596de",
+  "branch": "feature/mission-c2-rules",
+  "pr": 522,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-coop-gpu"
+  ],
+  "set": "prc-c2"
+}
