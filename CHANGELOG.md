@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.112.2 - Train 121: Look-video recorder (2026-10-26, PR #555; #549)
+- A tool that records map walk videos for review (`scripts/look-video.mjs`; Tallow Wharf's four sections planned).
+
 ## 4.112.1 - Train 120: Mission framework: mission core (2026-10-26, PR #554; #521)
 - Groundwork for campaign missions: the code that describes a mission (its sections, steps, rule and checkpoints) and
   runs it step by step, with its tests. Nothing uses it yet, so the game does not change.

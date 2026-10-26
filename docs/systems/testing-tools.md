@@ -456,12 +456,12 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
+- `E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/look-video.mjs <dir> <plan.json> [sections]` (campaign look-video): a 1280 x 720 walk video per section of a plan (`scripts/look-video/tallowWharf.json`: Tallow Wharf W1-W4, ~75 s each), the photo camera flying the plan's path over the frozen world: `<dir>/<section>.webm` and `<section>.json` (`start`: the flight's offset after the boot). The look video a lighting or animation PR links; never committed. Pure parts: `tests/lookVideo.test.ts`.
 - `scripts/guard-cap.mjs` (T1-SHADOW) also reports the anim tier in its counted render sample: `anim_ms_mean` / `_p95`
   (EnemyManager.frameUpdate per real frame), `anim_solves_per_frame`, `anim_offscreen_per_frame` (not camera-drawn),
   `anim_shadow_seen_per_frame` and `eval_mean_ms` (the shadow test runs in the evaluation); `--query=animoff=4&animshadow=0`
   is master's rule, `--query=animshadow=0` tier 8 camera only.
-- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
-  quality, heap growth (leak check)
+- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
   (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
   writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
