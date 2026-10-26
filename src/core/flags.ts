@@ -38,6 +38,9 @@ export interface Flags {
   legacy: boolean;
   /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
   fullbright: boolean;
+  /** (piano SO5) Dev / hand checks (`?lightning=1`): any map plays the fixed demo lightning loop (`DEMO_LIGHTNING`)
+   *  through its baked sky visibility. A map's own `lightning` data wins. Nothing changes without it. */
+  lightning: boolean;
   /** Dev only (the level editor's walk test, `?editorDraft=1`): build the Kestrel map from the editor's unsaved campus. Always false in production. */
   devDraft: boolean;
   /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
@@ -115,6 +118,16 @@ export interface Flags {
    *  co-op peer must open the same link (the layout is not on the wire).
    *  On /preview/ every section (preview-flags). */
   campusV2: readonly number[];
+  /** (mission-framework, owner Campaign Build) Missions on Sector Ops maps (`?mission=<id>` picks one) and the Hints
+   *  setting; `?missions=1` on. Switch-on: Michael's walk of Three Grey Coats / Two-Key Ledger, target 2026-10-27; then
+   *  the default flips to `!== '0'`. Tests set `flags.missions` (a plain object) in `beforeAll` and restore it. On
+   *  /preview/ default on (preview-flags). */
+  missions: boolean;
+  /** (mission-framework, owner Campaign Build) The co-op kit's new moves (pull-up, shutter, any later kit kind);
+   *  `?coopkit=1` on. Off keeps Marlow Yard as it is (M1). Switch-on: Michael's walk of the kit with Player Build's clips,
+   *  target 2026-10-28; then `!== '0'`. Tests set `flags.coopKit` in `beforeAll` and restore it. On /preview/
+   *  default on (preview-flags). */
+  coopKit: boolean;
 }
 
 /** (campus-greybox) The campus sections switched on to their v2 layouts by default: a section number joins this list
@@ -196,6 +209,7 @@ export const flags: Flags = {
   gear: /^[1-5]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
+  lightning: params.get('lightning') === '1',
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
@@ -215,6 +229,9 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  // (mission-framework FLG) dark until Michael's walks: `?missions=1` / `?coopkit=1` on; on /preview/ on (preview-flags)
+  missions: darkFlag(params.get('missions'), PREVIEW_ON),
+  coopKit: darkFlag(params.get('coopkit'), PREVIEW_ON),
   // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on, /preview/ too
   guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),

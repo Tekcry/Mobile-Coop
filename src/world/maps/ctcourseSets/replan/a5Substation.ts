@@ -54,9 +54,11 @@ export const A5_WICKET_FLAG = 'a5-wicket';
 export const A5_WICKET = { z0: 32.4, z1: 33.6, h: 2.1 } as const;
 /** The fixed access ladder on the wall's inside face (the climbing line 0.15 m off it), the apron to the wall top. */
 export const A5_LADDER = { x: 67.7, z: 31.0, y0: 0, y1: 6 } as const;
-/** The step irons on the trench's east face at both ends (ladders, the climber facing east). */
+/** The step irons on the trench's east face at both ends (ladders, the climber facing east); (marlow-play-2 C18) a third in
+ *  the open slot between the footbridge's deck and the plates' (z 37.7-38.9), so a fall there needs no crawl under a deck. */
 export const A5_IRONS: readonly { x: number; z: number }[] = [
   { x: 65.7, z: 25.0 },
+  { x: 65.7, z: 38.3 },
   { x: 65.7, z: 47.0 },
 ];
 /** Station 12's stand-in: the hoarded footbridge (1.2 m clear at z 36.4-37.6), its door at the east end. */
@@ -135,7 +137,7 @@ export const A5_RETRY_TIMER = 'The floodlight came back. Back behind the transfo
 
 /** The bay's objective lines on the re-plan: one per station (what and where), then the holding-room line. */
 export const A5_OBJECTIVES: readonly CourseObjective[] = [
-  { id: 'a5-wall', bay: 'A5', text: 'Get over the 6 m wall from the gap outside holding room four.', done: { flag: A5_APRON_E_FLAG } },
+  { id: 'a5-wall', bay: 'A5', text: 'Through the wicket door in the wall onto the apron.', done: { flag: A5_APRON_E_FLAG } },
   { id: 'a5-trench', bay: 'A5', text: "Cross the cable trench to the apron's west side: footbridge or plates.", done: { flag: A5_APRON_W_FLAG } },
   {
     id: 'a5-throw',
@@ -194,7 +196,7 @@ export function replanA5Substation(b: LevelBuilder, _kit: FacilityKit, part: Set
   });
 
   // ---- A5-R3: the cable trench (station 12): floor, walls, step irons on the east face at both ends ----
-  tally(b, p.register, 'A5-R3', 'Open cable trench x 62.35-65.85, z 24.25-47.75 (the slab cut by FLOOR_HOLES), floor -1.6, walls under the slab on all four sides (noLedge: no lip on either face, no co-op lip); step irons on the east face at both ends (z 25.0 and 47.0): a fall is a walk back', () => {
+  tally(b, p.register, 'A5-R3', 'Open cable trench x 62.35-65.85, z 24.25-47.75 (the slab cut by FLOOR_HOLES), floor -1.6, walls under the slab on all four sides (noLedge: no lip on either face, no co-op lip); step irons on the east face at both ends (z 25.0 and 47.0) and between the two decks (z 38.3): a fall is a walk back', () => {
     solid(T.x0, T.x1, T.z0, T.z1, T.floor - 0.4, T.floor, GREY);
     solid(T.x0 - T.wall, T.x0, T.z0 - 0.25, T.z1 + 0.25, T.floor - 0.4, -0.4, GREY);
     solid(T.x1, T.x1 + T.wall, T.z0 - 0.25, T.z1 + 0.25, T.floor - 0.4, -0.4, GREY);
