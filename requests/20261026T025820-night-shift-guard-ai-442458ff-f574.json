@@ -1,0 +1,14 @@
+{
+  "id": "20261026T025820-night-shift-guard-ai-442458ff-f574",
+  "sha": "442458ff71cee3eeb5abd8853381d204efb822b5",
+  "branch": "feature/guard-ai-runner-armed",
+  "pr": 531,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-modes",
+    "e2e-levels"
+  ],
+  "set": "runner-armed"
+}
