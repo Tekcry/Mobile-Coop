@@ -22,7 +22,8 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    And grohl-d/e/f + grohl-epic.mjs (Michael ~21:35; addendum 2): 12 tracks; no reference-game name outside BRIEF.
    Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
 3b. S1b DONE d8b9ef0c3 + lead test fix 5e1bfeaff (pianoScene test: 12 guards, exit zone floorY); 47 piano tests green;
-   Sonnet checker running -> S1b-check.md. PASS -> tell Sector Ops the head (SO2 / SO4). Flag-ON-only test lines
+   Sonnet PASS (S1b-check.md) -> PR #617 (base feature/piano-escape; head 9b2c71b8c, checker posted); Sector Ops told
+   the head for SO2 / SO4 ~22:35. Polish: thin rails may allow an angled mantle (walk note). Flag-ON-only test lines
    (campusS1 registered list, detailPass map count, rooms default map) wait for the switch-on. Ladder L1 = BRIEF A18 (logged).
    Knife: Player's piano-knife S1 = PR #614 (knifeSceneOn(flagOn, map.scene, live) + setKnifeScene; stab timing
    stand-in, real 0.68-0.94 s after the press coming in its S2); S4 waits for it.
@@ -30,7 +31,7 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
 5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
 6. S5 DONE 73c2ecd0e (12 tracks, ?pianomusic=pixabay|grohl|1-4|a-f; S5-report.md); Sonnet checker -> S5-check.md; PASS -> PR
    (base feature/piano-escape). S6 (storm sound) waits for #604 on master. S4 waits for knife #614, GA6 / GA7, SO2-SO5.
-Next: wait for S1b / S2; checker each; resume S5 when a slot frees; #578 train.
+Next: S5 checker -> PR; #606 lands -> retarget #616 / #617 to master; #581 lands -> retarget #583; S6 when #604 is on master.
 
 ## OLD RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
 Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
