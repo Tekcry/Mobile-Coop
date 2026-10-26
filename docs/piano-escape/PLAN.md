@@ -88,8 +88,9 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
 
 - **EMP beat, in order (S2, host):** `world.level.lights.mainsOff(opX, opY, opZ, 0.8)` at the pressing operator; set
   `world.lightning.t0` to the press time on the shared sim clock (solo: set locally; co-op: the host sends its press
-  time to the client in the sector state, S4); the piano seeks
-  to 41.0 s under the EMP burst (so the loop and the lightning start together on every page); `em.sceneDark = true`;
+  time to the client in the sector state, S4); the music
+  cross-fades (about 2 s) from the intro's "Investigation Piano" into the mission track "Suspense Thriller" from 0
+  (Michael ~21:50; so the track and the lightning start together on every page; S2's `seek(41)` lands on S5b's switch); `em.sceneDark = true`;
   the section's guards spawn (the opening four on the actors' spots); the opening four spawn 4-6 m from the players through a scene exception to the 7 m spawn rule (S2); then,
   once SectorMode's `fill()` has spawned the four (a slot's guard is null until then, sectorMode.ts:911-930, so the
   call never goes in the spawn step itself), `em.blackoutSearchSlots([0, 1], 5.5, 5.25)` (guard-list slots 0 and 1 = G1 + G2): only the pair you take together
@@ -99,8 +100,8 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
 - Skip: hold Back / Esc for 1 s jumps to the 38 s beat (the music seeks to 38 s); the EMP still needs its press. A
   restart (everyone down) never replays the intro; the music plays on (the scene's mute survives `checkpointReset`'s
   calm, sectorMode.ts:1234) and the lightning keeps its t0.
-- After the track ends (134 s), it loops from 41.0 s with a 2 s cross-fade: one loop is `loopPeriod()` = 134.03 - 2 - 41
-  = 91.03 s (scenePiano.ts:66-68), the lightning period.
+- The mission track (162.04 s) loops whole, from 0, with a 2 s cross-fade end into start: one loop is
+  `missionLoopPeriod()` = 162.04 - 2 = 160.04 s (S5b), the lightning period. A restart keeps the mission track playing.
 - **End (A9):** the last guard down unlocks the hoist door (a heavy bolt sound; the objective line: "The hoist door is
   open."); both players on the hoist platform: 2 s fade to black, the piano fades out, back to the menu or the lobby.
   No score, rating, results screen, section rating banner or card ("SECTORS CLEAR", sectorMode.ts:1064, skipped).
@@ -115,20 +116,21 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
   `?lightning=1`.
 - **Clock:** `t` = the shared sim clock minus `world.lightning.t0`, with t0 = the EMP press (S2 sets it on the host
   and in solo; S4 sends the host's press `simTime` to the client as one optional field of the existing sector state). The prompt waits with no timer, so the track clock cannot drive the flashes; instead the
-  piano seeks to 41.0 s at the press, so `t` = track time minus 41.0 on every page and the doubles land on the swells.
+  mission track starts at 0 at the press, so `t` = mission track time on every page and the doubles land on its section
+  changes.
   Thunder (S6) and any music cue are driven from SO5's `flashAt`, never from a machine's own music time. No flash in
   the intro (the lightning starts with the EMP).
-- **Timetable** (the map's `lightning` data, S1b; `period: 91.03` = one music loop, `loopPeriod()`; a single is `{ t, peak: 1, len: 0.6 }`,
-  a double adds `{ t + 0.45, peak: 0.8, len: 0.5 }`):
+- **Timetable** (the map's `lightning` data, S1b; `period: 160.04` = one mission-track loop, `missionLoopPeriod()`;
+  a single is `{ t, peak: 1, len: 0.6 }`, a double adds `{ t + 0.45, peak: 0.8, len: 0.5 }`; 18 times, 24 entries;
+  re-timed to Michael's ~21:50 music pick, assumed and logged in ROADMAP Decided, undo by his word):
 
-| t after the EMP (s) | 6 | 18 | 30 | 37 | 44 | 51 | 58 | 65 | 73 | 81 | 88 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Flash | single | single | single | **double** (swell) | single | **double** (swell) | single | **double** (swell) | single | **double** (swell) | single |
-| Track time (s) | 47 | 59 | 71 | 78 | 85 | 92 | 99 | 106 | 114 | 122 | 129 |
+| t after the EMP = mission track time (s) | 6 | 18 | 28 | 36.68 | 43 | 49.48 | 58 | 64 | 71.88 | 80 | 89 | 97.48 | 104 | 110.28 | 116 | 123.08 | 131 | 148 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Flash | single | single | single | **double** | single | **double** | single | single | **double** | single | single | **double** | single | **double** | single | **double** | single | single |
 
-  Read as: every 12 s in the quiet first third of the loop, then every 7-8 s, with a double flash on each of the four
-  swells you can hear coming; then it repeats every 91.03 s (the gap over the seam, 88 -> 97.03, is about 9 s). Fixed and the
-  same every run (VISION rule 8). Thunder 2.0 s after each flash (sound only).
+  Read as: singles every 6-15 s, a double flash on each of the track's six section changes (36.68 / 49.48 / 71.88 /
+  97.48 / 110.28 / 123.08 s; outro from 139.08 s); then it repeats every 160.04 s (the gap over the seam, 148 -> 166.04,
+  is 18 s, the outro's calm). Fixed and the same every run (VISION rule 8). Thunder 2.0 s after each flash (sound only).
 - **Rain masks sound through the existing model:** the mill's SectorDef has `noisy: [mapWideNoise('rain', 6)]`
   (`src/ai/hearing.ts`; SectorMode applies it, sectorMode.ts:737): 6 dB halves every guard's hearing reach. Needs
   #603 on master. No other noise work.
@@ -283,14 +285,14 @@ gallery deck and rail, the crane-bay drop bar and hoist chain across the open ra
 light still passes), the stair (its foot gate latched from the gallery side), the ladder and deck hatch, the bin rows
 and sack walls that fence the path, the cover, the windows and board gaps as real openings (SO5's light comes through
 them), the hoist door (locked; the scene opens it), the hoist platform exit zone; 16 lamps + the exit sign
-(`electric: true`, no group), ambient 0; the `lightning` data of section 2b (`period: 91.03`, 15 entries); the 12 guards
+(`electric: true`, no group), ambient 0; the `lightning` data of section 2b (`period: 160.04`, 24 entries); the 12 guards
 as `SectorGuard` data (starts, sweep routes as fixed patrol points, pairs, takedown spots), tagged extras G13-G16; the
 section's `noisy: [mapWideNoise('rain', 6)]` (needs #603); the camera spaces; `docs/piano-escape/ELEMENTS.md` (16.9
 element register). Sector Ops runs SO2 (bake), SO4 (lux check) and the `?lightning=1` look check on top of it; Guard
 AI plans GA6 on its data.
 - Files: maps/thornbeckMill.ts, tests/thornbeckMill.test.ts, docs/piano-escape/ELEMENTS.md. Est. ~800 lines.
 - Checks: vitest thornbeckMill (12 guards + 4 tagged, each with a takedown spot and a fixed route; every start and
-  route point 0.5 m clear of colliders; the lightning `period` equals S3's `loopPeriod()`; every lamp electric, no group; ambient 0 (a dark map: torch slots present);
+  route point 0.5 m clear of colliders; the lightning `period` is 160.04 (the mission track's loop); every lamp electric, no group; ambient 0 (a dark map: torch slots present);
   the rain source present and `validateGuardAi` clean; the
   `lightning` entries match section 2b; the path walkable start to hoist door in stretch order; no walkable cell, drop
   or ledge from the path into the machinery floor (the crane-bay bar holds); the stair gate one-way); e2e:
@@ -303,7 +305,7 @@ camera path rising to about 7.5 m, fades, skip, prompt state; no allocation per 
 (Babylon via `src/core/babylon.ts`: the render-only camera override, the fade, the letterbox, the four intro actors,
 tracers and grain-dust sparks at 0.3x with reused scratch vectors, the EMP burst, the two framed reveals in play); the
 EMP as an interactable on each operator (host-checked, either player); the EMP beat exactly as section 2 (`mainsOff`,
-`world.lightning.t0`, the piano seek to 41.0 s, `sceneDark`, spawn, `em.blackoutSearchSlots([0, 1], 5.5, 5.25)`,
+`world.lightning.t0`, the switch to the mission track (`seek(41)`), `sceneDark`, spawn, `em.blackoutSearchSlots([0, 1], 5.5, 5.25)`,
 input on); `introPose(true/false)` (knife job S4b). **The 7 m spawn rule (sectorMode.ts:921):** a scene seam lets the
 scene's start spawns place the opening four on their stop spots 4-6 m from the players (only in a `scene` map, only at
 the EMP spawn; every other spawn keeps the rule); vitest pianoScene: the four spawn on their spots with players 4 m
@@ -323,7 +325,7 @@ press kills every lamp and sets t0, the meter reads dark, input on, restart with
 - Done looks like: the shot list plays, the EMP blacks out the mill, torches come on, play begins.
 - Flag: `pianoEscape`.
 
-**S3 Piano music (Sonnet; building now).** The MP3 at `src/assets/music/scene/piano-escape.mp3`;
+**S3 Piano music (Sonnet; built, PR #606; its 41 s loop is now only the `?pianomusic=pixabay` A/B, S5b).** The MP3 at `src/assets/music/scene/piano-escape.mp3`;
 `src/audio/music/scenePiano.ts` (decoded on scene start only; plays from 0, `seek(38)` for the skip, `seek(41)` at the
 EMP press, loop 41.0 s - end with a 2 s cross-fade, fade out, stop on leave); `Music.scene(on)` mutes the director; out
 of the precache (`PRECACHE_IGNORES` covers `src/assets/music/scene/*`); `docs/audio-credits.md` row. The one seam S5
@@ -339,7 +341,7 @@ lead passes this line to S3 now, else S5 adds it after S3 merges.
 leave (knife job S1, PB5); the co-op host keeps the campaign revive cap for a scene map (`coopHost.ts:205`); the
 client's intro ends on the host's EMP and takes the same t0 from the new optional `sector` field (the host's press
 `simTime`), so its flashes and thunder follow the shared sim clock;
-its piano seeks to 41.0 s at the same moment (a small drift between a page's music and the flashes is a walk note).
+its music switches to the mission track at the same moment (a small drift between a page's music and the flashes is a walk note).
 Extend `e2e-piano` with a two-tab `?net=local` run: the client presses the EMP, both pages go dark, a flash lights both
 pages at the same `t` (within 100 ms), a co-op kill on G1 + G2, a solo kill each, both on the hoist platform end it on
 both pages; a restart keeps the lamps off; and the start is survivable: at the cut G1 + G2 walk their search from W1 itself with lit torches 5-7 m away (the
@@ -354,7 +356,7 @@ within 4 s with no guard past suspicious. Both pages need the flag (a client wit
   #604 (SO5) on master.
 - Flag: `pianoEscape`.
 
-**S5 Music experiment (Sonnet; A15).** Starts from the orchestrator's original sketches in
+**S5 Music experiment (Sonnet; A15; built, PR #618; its picker and form note superseded by S5b).** Starts from the orchestrator's original sketches in
 `C:/NightShift/scratch/music/proto/` (made by `piano.mjs`, an offline Node synth: original notes, no samples, no
 downloads): "Held Breath" (D minor, 54 bpm, 83.8 s), "Thornbeck" (A minor, 48 bpm, 93.5 s), "Last Round" (C minor,
 60 bpm, 78.0 s); plus "Pulse" (sketch 4, made by `pulse.mjs` in the same folder: dark electronic tension, not piano;
@@ -379,6 +381,15 @@ its swells: a listening note for Michael's A/B. Each one loops whole (from 0) un
 - Done looks like: in the scene `?pianomusic=4` plays "Pulse" and `?pianomusic=grohl` the Grohl track, the lightning
   on its own clock; the Music Lab plays all six for comparison.
 - Flag: `pianoEscape` (dev picker only).
+
+**S5b Michael's music pick (Opus; Michael ~21:50, BRIEF "Michael said"; on PR #618).** The intro always plays
+"Investigation Piano" from 0 (skip: `seek(38)`); the EMP press (`seek(s)`, s >= 41, S2's `EMP_SEEK`) cross-fades about 2 s
+into the mission track "Suspense Thriller" from 0, looping whole (`missionLoopPeriod` = length - 2 s). Dev picker trimmed
+to `?pianomusic=grohl|1|pixabay` (default grohl; `1` = Held Breath as the mission track, the one alternative Michael
+liked; `pixabay` = the old Leberch loop from 41 s, for A/B). Sketches 2-4 and the six Grohl-form prototypes leave the
+bundle, scripts and credits (Michael: A-C "none. they all dont sound realistic, like they are part of a 2 bit game or
+something"; D-F "none"); they stay in C:/NightShift/scratch. Files: scenePiano.ts, sceneTracks.ts, musicLab.ts,
+audio-credits.md, their tests, the deletions. Brief scratch/campaign/piano/S5b-brief.md.
 
 **S6 The storm: rain and thunder sound (Sonnet; after S1b, with #604 on master).** The lightning itself is SO5's: the
 map's `lightning` data (S1b) on `world.lightning.t0` (S2). S6 adds `src/audio/sceneStorm.ts` (WebAudio synthesis: a

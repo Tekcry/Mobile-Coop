@@ -29,6 +29,10 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    stand-in, real 0.68-0.94 s after the press coming in its S2); S4 waits for it.
 4. PR #606 (S1 + S3): was CONFLICTING (CI never ran); master merged in ~22:45 at 6f89eec17 (keep both: main.ts imports,
    sectorOps unlisted + scene), tsc + 47 tests, checker re-posted; CI + affected follow. Docs pushes re-post checker.
+4b. MUSIC PICK (Michael ~21:50): intro = Investigation Piano, mission = Suspense Thriller from the EMP press, loop whole;
+   Held Breath the one dev alternative; A-F dropped. S5b (Opus) building on feature/piano-escape-s5 (#618), brief S5b-brief.md.
+   Lightning re-timed (period 160.04, doubles on the Grohl section changes; PLAN 2b) + Guard AI GA5's six data deltas:
+   S1b-2 (Sonnet) building on feature/piano-escape-s1b (#617), brief S1b2-brief.md. Sector Ops (SO5) and Guard AI told.
 5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
 6. S5 DONE 73c2ecd0e (12 tracks, ?pianomusic=pixabay|grohl|1-4|a-f; S5-report.md); Sonnet PASS (S5-check.md) -> PR #618
    (base feature/piano-escape; head 4f9971281, checker posted). S6 (storm sound) waits for #604 on master. S4 waits for knife #614, GA6 / GA7, SO2-SO5.

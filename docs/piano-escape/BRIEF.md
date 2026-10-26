@@ -39,6 +39,10 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 - 2026-10-26 ~21:35 (via the orchestrator): "use call of duty 4 as inspiration for the music prototypes, i dont know
   what instruments or effects they use, hard to explain. sounds very epic" (grohl-d / e / f; style only, original notes;
   the reference name stays only in this quote, G6 / G114).
+- 2026-10-26 ~21:50 (native multiple choice, via the orchestrator; ROADMAP Decided feature/menu 2a78554bb): "investigation
+  piano for the intro, suspense thriller once in the mission."; he liked "1 Held Breath"; prototypes A-C: "none. they
+  all dont sound realistic, like they are part of a 2 bit game or something"; D-F: "none". (S5b; the lightning re-times
+  to the mission track: assumed, logged in Decided, undo by his word.)
 - 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked
