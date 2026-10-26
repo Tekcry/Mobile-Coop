@@ -39,10 +39,11 @@ export type AirlockPhase = 'open' | 'waiting' | 'ready' | 'cycling' | 'sealed';
 /**
  * (J14 R1) Why the players went back: `seen` (A1-A7 guard combat or a camera's full detection), `caught` (A8, combat held
  * CAUGHT_HOLD s), `timer` (a station's `drillS` window ran out), `out` (a downed bay restart with one player still up:
- * the partner is out), `down` (both down). Route-runs (J13 R4c) read seen / caught as seen, timer as timer, out / down as
- * other.
+ * the partner is out), `down` (both down), `other` (J14 A26: a set's own way out of a soft-lock, e.g. A1's early drop
+ * into the yard; the only cause that also retries a `retry: 'none'` station). Route-runs (J13 R4c) read seen / caught as
+ * seen, timer as timer, out / down / other as other.
  */
-export type RetryCause = 'seen' | 'caught' | 'timer' | 'out' | 'down';
+export type RetryCause = 'seen' | 'caught' | 'timer' | 'out' | 'down' | 'other';
 /** (J14 R1) The causes of a station retry (the downed ones restart the bay instead). */
 export type StationCause = Exclude<RetryCause, 'out' | 'down'>;
 /** (J14 R1) The last counted retry: `st` the station live when it fired (0 on a bay without stations). Host and client. */
@@ -714,11 +715,12 @@ export class CourseState {
    * it was live (objective steps and a role claim among them); earlier stations stay done, drills stay ticked. Counts in
    * `restarts` / `lastRetry` and emits `stationRetry` (the mode resets its guards, devices and lamps and puts the players
    * on its marks). `n` (a set's drill window or beam, `CourseMode.stationRetry`): only while station `n` is live. False
-   * (nothing changes): no live station (or not `n`), its retry is 'none' or switched off, or the course is over.
+   * (nothing changes): no live station (or not `n`), its retry is 'none' (unless the cause is `other`: a set's way out
+   * of a soft-lock, J14 A26; nothing fails there, the pair is only put back) or switched off, or the course is over.
    */
   retryStation(cause: StationCause, n?: number): boolean {
     const s = this.liveRt();
-    if (!s || this.over || s.def.retry === 'none' || this.retryOffSet.has(s.def.n)) return false;
+    if (!s || this.over || (s.def.retry === 'none' && cause !== 'other') || this.retryOffSet.has(s.def.n)) return false;
     if (n !== undefined && n !== s.def.n) return false;
     const sn = s.def.n;
     // (fix 7) a stand-in standing open stays open (and its flag set) through the retry
@@ -935,7 +937,8 @@ export class CourseState {
     return other ? otherShut : egress;
   }
 
-  /** Is the anchor locked (an anchorLock gate whose flag is not set)? */
+  /** Is the anchor locked (an anchorLock gate whose flag is not set; a `lockOn` one whose flag is set)? Host and client
+   *  both read it from the course flags (the client's mirror takes them from the wire). No allocation. */
   anchorLocked(anchorId: string): boolean {
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
@@ -1377,7 +1380,11 @@ export class CourseState {
 
   private gateOpen(g: GateRt): boolean {
     const d = g.def;
-    if (d.kind === 'flag' || d.kind === 'anchorLock') return this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
+    if (d.kind === 'flag' || d.kind === 'anchorLock') {
+      const set = this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
+      // (J14 R1) a lockOn anchorLock is open until its flag is set
+      return d.kind === 'anchorLock' && d.lockOn === true ? !set : set;
+    }
     return g.open;
   }
 

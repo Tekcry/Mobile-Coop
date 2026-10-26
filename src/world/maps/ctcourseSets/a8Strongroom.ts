@@ -177,6 +177,11 @@ export const A8_PUBLIC_STAIR = { x0: 130.5, x1: 131.7, foot: 67.3 } as const;
  *  where the balustrade's ends stand at x 130.5 / 131.7); each segment's collision box starts at the floor line at its low (south) end and stands `h` m over the line
  *  at its high end. Twelve whole `seg` segments and a 0.25 m last one to `to`: thirteen a side (P4-1; P2-3 started at 67.85, the third tread). */
 export const A8_STAIR_RAIL = { x: [A8_PUBLIC_STAIR.x0 - 0.05, A8_PUBLIC_STAIR.x1 + 0.05] as readonly number[], from: 68.15, to: 75, seg: 0.55, h: 1.1 } as const;
+/** (J14 re-plan, graph `open_stair` 2.4 m: a real banking hall's width) The re-plan widens the public flight east to x 132.9 (west edge stays 130.5);
+ *  `replan/a8Strongroom.ts` builds it. The fourth north column (x 133) stood in the widened flight's way and is not built there (the east wall
+ *  carries the slab's last bay). The built 1.2 m flight above stays as `ctcourse` builds it. */
+export const A8_REPLAN_STAIR_X1 = 132.9;
+export const A8_REPLAN_COLUMN_OUT = 133;
 export const A8_OFFICE_STAIR = { z0: 70.0, z1: 71.2, foot: 134.5 } as const;
 /** The closed block south of the flight starts here (x): the foot landing is x 134.15-135.2, so a body there is 2.18 m from T1 (A8-D13). */
 export const A8_STAIR_BLOCK_X0 = 135.2;
@@ -311,7 +316,7 @@ const LOOK = {
   carpet: '#3a4650',
 } as const;
 
-export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
+export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): A8Part {
   const p = emptyPart('a8Strongroom');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean; visible?: boolean } = {}): void => {
@@ -358,12 +363,12 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   tally(b, p.register, 'A8-2', 'Public gallery: a hand slab 4.0-4.4 (overhead, noLedge) on the north run x 106.25-133.85, z 75-77.75 and the west return x 106.25-109, z 56-75; 0.4 m columns (noLedge) at x 115 / 121 / 127 / 133 on z 75 and at z 56.2 / 62 / 65.6 / 71 on x 109; the 1.2 m solid balustrade (noLedge) on every front edge but the public stair head and the open loading edge z 66-70.5; the one manual ledge (the co-op lip, 4.4)', () => {
     slab(n.x0, n.x1, n.z0, n.z1, A8_H.slab, A8_H.gallery, OAK, { overhead: true });
     slab(r.x0, r.x1, r.z0, r.z1, A8_H.slab, A8_H.gallery, OAK, { overhead: true });
-    for (const x of A8_COLUMNS_N) slab(x - 0.2, x + 0.2, 74.8, 75.2, 0, A8_H.slab, STONE);
+    for (const x of A8_COLUMNS_N) if (!opts.replan || x !== A8_REPLAN_COLUMN_OUT) slab(x - 0.2, x + 0.2, 74.8, 75.2, 0, A8_H.slab, STONE);
     for (const z of A8_COLUMNS_W) slab(108.8, 109.2, z - 0.2, z + 0.2, 0, A8_H.slab, STONE);
     const top = A8_H.gallery + bal;
     // the north front (z 75.0-75.2), x 108.8 round the corner to the stair head x 130.5, then 131.7 to the east wall
     slab(108.8, 130.5, 75.0, 75.2, A8_H.gallery, top, STONE);
-    slab(131.7, n.x1, 75.0, 75.2, A8_H.gallery, top, STONE);
+    if (!opts.replan) slab(131.7, n.x1, 75.0, 75.2, A8_H.gallery, top, STONE);
     // the return's front (x 108.8-109.0): z 56.2 to the open edge, and from it to the corner; and the return's south end
     slab(108.8, 109.0, 56.2, A8_OPEN_EDGE[0], A8_H.gallery, top, STONE);
     slab(108.8, 109.0, A8_OPEN_EDGE[1], 75.0, A8_H.gallery, top, STONE);
@@ -376,7 +381,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   // ---- A8-3: the public stair (27 risers, rising north) with its underside filled ----
   const ps = A8_PUBLIC_STAIR;
   const st = stairSteps(A8_H.gallery);
-  tally(b, p.register, 'A8-3', 'Public stair x 130.5-131.7, z 67.3-75 (27 risers of 0.163, run 0.285, rising north to the gallery): step boxes and the ramp collider, noLedge fillers under the flight (invisible, 0.5 m slices)', () => {
+  if (!opts.replan) tally(b, p.register, 'A8-3', 'Public stair x 130.5-131.7, z 67.3-75 (27 risers of 0.163, run 0.285, rising north to the gallery): step boxes and the ramp collider, noLedge fillers under the flight (invisible, 0.5 m slices)', () => {
     b.stairs((ps.x0 + ps.x1) / 2, ps.foot + st.len / 2, ps.x1 - ps.x0, st.len, A8_H.gallery, st.steps, OAK, 0, 0);
     fillFlight('z', 1, ps.foot, st.len, A8_H.gallery, ps.x0, ps.x1);
   });
@@ -396,7 +401,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   tally(b, p.register, 'A8-5', 'Security office x 134-144, z 71.4-78: floor a solid block to 4.4 (noLedge, closed rooms below), walls to the hall roof with the door A8-office on the west wall (z 76.0-77.2, 1.2 x 2.1) and the stair-top door A8-stair-top on the south wall (x 142.6-143.8), roof 7.4-7.5; carpet; the console desk on the east wall', () => {
     slab(heW, ofE - T, 71.25, S.north, 0, floorY, KIT_BOX_COLOR);
     // west wall (above the floor block), door gap and lintel
-    slab(heW, heE, 71.4, officeDoor.z0, floorY, A8_H.hall, KIT_BOX_COLOR);
+    if (!opts.replan) slab(heW, heE, 71.4, officeDoor.z0, floorY, A8_H.hall, KIT_BOX_COLOR);
     slab(heW, heE, officeDoor.z1, S.north, floorY, A8_H.hall, KIT_BOX_COLOR);
     slab(heW, heE, officeDoor.z0, officeDoor.z1, floorY + DOOR_H, A8_H.hall, KIT_BOX_COLOR);
     // east wall
@@ -834,13 +839,15 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     // the deck level (the office door bare to 6.6)
     const c2: Hole = [72.6, 73.4, 6.9, 7.9];
     const bays: Hole[] = A8_BAYS.map((q) => [q.fill[0], q.fill[1], 0, 3.05]);
-    panelled('w', heW, WSo, 75.0, 0, DADO_FLOOR, A8_CORNICE, A8_EAST_P, [[grille.z0, grille.z1]], [c2, ...bays]);
+    // (J14) the re-plan's glazed screen in the office's west wall (z 71.4-76.0, 4.4-7.4) is left bare
+    const glassHole: Hole[] = opts.replan ? [[71.4, officeDoor.z0, floorY, 7.4]] : [];
+    panelled('w', heW, WSo, 75.0, 0, DADO_FLOOR, A8_CORNICE, A8_EAST_P, [[grille.z0, grille.z1]], [c2, ...bays, ...glassHole]);
     faceH('w', heW, grille.z0, grille.z1, grille.h, A8_CORNICE, LOOK.plaster, 0);
     cornice('w', heW, WSo, 75.0);
     for (const c of A8_EAST_P) pilaster('w', heW, c, 0, A8_CORNICE);
     panelled('w', heW, 75.0, WN, 0, DADO_LOW, 3.85, A8_EAST_P);
     faceH('w', heW, 75.0, WN, 3.85, 3.97, LOOK.plasterShade, 1);
-    panelled('w', heW, 75.0, WN, A8_H.gallery, A8_H.gallery + DADO_DECK, A8_CORNICE, [], [[officeDoor.z0, officeDoor.z1]]);
+    panelled('w', heW, 75.0, WN, A8_H.gallery, A8_H.gallery + DADO_DECK, A8_CORNICE, [], [[officeDoor.z0, officeDoor.z1]], glassHole);
     faceH('w', heW, officeDoor.z0, officeDoor.z1, A8_H.gallery + DOOR_H + 0.1, A8_CORNICE, LOOK.plaster, 0);
     cornice('w', heW, 75.0, WN);
   });
@@ -889,6 +896,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       { hall: ['e', 109.0], deck: ['w', 108.8], a0: A8_OPEN_EDGE[1], a1: 75.0, o0: 0, o1: 0.04 },
     ];
     for (const run of BAL) {
+      if (opts.replan && run.a0 === 131.7) continue; // the re-plan's east piece starts at the widened stair head (`replan/a8Strongroom.ts`)
       const alongX = run.hall[0] === 's';
       // the coping over the whole thickness
       if (alongX) skin(run.a0 - run.o0, run.a1 + run.o1, top, top + SKIN, 74.96, 75.24, LOOK.stone);
@@ -913,6 +921,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     }
     // the slab's front: a frieze with a brass line (not across the stair head or the open edge)
     for (const [a, e] of [[108.8, 130.5], [131.7, n.x1]] as const) {
+      if (opts.replan && a === 131.7) continue;
       face('s', 75.0, a, e, 4.05, 4.35, LOOK.stoneDark, 1);
       face('s', 75.0, a, e, 4.18, 4.22, LOOK.brass, 2);
     }
@@ -921,7 +930,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       face('e', 109.0, a, e, 4.18, 4.22, LOOK.brass, 2);
     }
     // columns: a base block, and a capital of two blocks, on all four faces
-    const cols: [number, number][] = [...A8_COLUMNS_N.map((x) => [x, 75] as [number, number]), ...A8_COLUMNS_W.map((z) => [109, z] as [number, number])];
+    const cols: [number, number][] = [...A8_COLUMNS_N.filter((x) => !opts.replan || x !== A8_REPLAN_COLUMN_OUT).map((x) => [x, 75] as [number, number]), ...A8_COLUMNS_W.map((z) => [109, z] as [number, number])];
     for (const [cx, cz] of cols) {
       face('s', cz - 0.2, cx - 0.2, cx + 0.2, 0, 0.35, LOOK.stoneDark, 1);
       face('n', cz + 0.2, cx - 0.2, cx + 0.2, 0, 0.35, LOOK.stoneDark, 1);
@@ -934,6 +943,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     }
     // newels on the two balustrade ends of the stair head's gap (the gallery switch stands at the east one's west face)
     for (const [x0, x1] of [[130.3, 130.5], [131.7, 131.9]] as const) {
+      if (opts.replan && x0 === 131.7) continue;
       skin(x0, x0 + SKIN, top, top + 0.35, 75.0, 75.2, LOOK.stone);
       skin(x1 - SKIN, x1, top, top + 0.35, 75.0, 75.2, LOOK.stone);
       skin(x0, x1, top, top + 0.35, 75.0, 75.0 + SKIN, LOOK.stone);
@@ -962,7 +972,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   const lineAt = (z: number): number => (A8_H.gallery * (z - ps.foot)) / st.len;
   const stairPitch = -Math.atan2(A8_H.gallery, st.len);
   const stairLen = hyp2(st.len, A8_H.gallery);
-  tally(b, p.register, 'A8-19', "Public stair rails (visual skins, and the open sides' 1.1 m collision rail: kit.handrail, invisible noLedge, thirteen stepped segments of 0.55 m a side 0.05 m outside the flight, from the fourth tread to the gallery where they meet the balustrade's ends; the foot stays open to step on; accent on the gallery strip 82): on both sides a post every 1.5 m with balusters every 0.4 m under a brass top rail 1.0 m over the nosing line and a mid rail at 0.5 m (pitched like the flight), a stringer board along the nosings, a cross-plate newel 1.1 m at each foot", () => {
+  if (!opts.replan) tally(b, p.register, 'A8-19', "Public stair rails (visual skins, and the open sides' 1.1 m collision rail: kit.handrail, invisible noLedge, thirteen stepped segments of 0.55 m a side 0.05 m outside the flight, from the fourth tread to the gallery where they meet the balustrade's ends; the foot stays open to step on; accent on the gallery strip 82): on both sides a post every 1.5 m with balusters every 0.4 m under a brass top rail 1.0 m over the nosing line and a mid rail at 0.5 m (pitched like the flight), a stringer board along the nosings, a cross-plate newel 1.1 m at each foot", () => {
     for (const x of [ps.x0 - 0.03, ps.x1 + 0.03]) {
       const mid = ps.foot + st.len / 2;
       slope(x, A8_H.gallery / 2 + A8_RAIL_LIFT.top, mid, 0.05, 0.04, stairLen, 0, stairPitch, LOOK.brass);
@@ -1079,10 +1089,12 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     const top = 7.25;
     const dado = A8_H.gallery + 1.2;
     // west wall (x 134.15): the door z 76.0-77.2 with its architrave; the office switch's plate at z 75.6
-    plainWall('e', heE, 71.55, WN, A8_H.gallery, dado, top, officePal, [[officeDoor.z0 - 0.1, officeDoor.z1 + 0.1]], [[75.45, 75.75, 5.45, 5.75]]);
+    // (J14) the re-plan: the glazed screen (z 71.4-76.0) leaves the finish out, the office switch's plate moves to the jamb strip north of the door (z 77.5)
+    plainWall('e', heE, 71.55, WN, A8_H.gallery, dado, top, officePal, [[opts.replan ? 71.4 : officeDoor.z0 - 0.1, officeDoor.z1 + 0.1]], [opts.replan ? [77.35, 77.65, 5.45, 5.75] : [75.45, 75.75, 5.45, 5.75]]);
     faceH('e', heE, officeDoor.z0 - 0.1, officeDoor.z1 + 0.1, A8_H.gallery + DOOR_H + 0.1, top, officePal[1], 0);
     architrave('e', heE, officeDoor.z0, officeDoor.z1, A8_H.gallery, DOOR_H, 1, 0.1, LOOK.steelDark);
-    face('e', heE, 75.5, 75.7, 5.5, 5.7, LOOK.steel, 0);
+    if (opts.replan) face('e', heE, 77.4, 77.6, 5.5, 5.7, LOOK.steel, 0);
+    else face('e', heE, 75.5, 75.7, 5.5, 5.7, LOOK.steel, 0);
     // south wall (z 71.55): the stair-top door x 142.6-143.8
     plainWall('n', 71.55, heE, 143.85, A8_H.gallery, dado, top, officePal, [[topDoor.x0 - 0.1, topDoor.x1 + 0.1]]);
     faceH('n', 71.55, topDoor.x0 - 0.1, topDoor.x1 + 0.1, A8_H.gallery + DOOR_H + 0.1, top, officePal[1], 0);
