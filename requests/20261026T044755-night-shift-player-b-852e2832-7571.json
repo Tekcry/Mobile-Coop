@@ -1,0 +1,12 @@
+{
+  "id": "20261026T044755-night-shift-player-b-852e2832-7571",
+  "sha": "852e28327dd8ef85f8a467bd5640cd932e12b141",
+  "branch": "feature/player-flake-fix",
+  "pr": 548,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-pad"
+  ],
+  "set": "flake-fix-r2-1"
+}
