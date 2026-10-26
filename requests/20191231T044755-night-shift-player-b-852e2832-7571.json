@@ -1,5 +1,5 @@
 {
-  "id": "20261026T044817-night-shift-player-b-852e2832-19dd",
+  "id": "20191231T044755-night-shift-player-b-852e2832-7571",
   "sha": "852e28327dd8ef85f8a467bd5640cd932e12b141",
   "branch": "feature/player-flake-fix",
   "pr": 548,
@@ -8,5 +8,6 @@
   "suites": [
     "e2e-pad"
   ],
-  "set": "flake-fix-r2-3"
+  "set": "flake-fix-r2-1",
+  "note": "fronted by the orchestrator: fix PR #548 (freeze)"
 }
