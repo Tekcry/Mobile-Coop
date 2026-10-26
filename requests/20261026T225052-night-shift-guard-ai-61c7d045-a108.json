@@ -1,0 +1,13 @@
+{
+  "id": "20261026T225052-night-shift-guard-ai-61c7d045-a108",
+  "sha": "61c7d045bd48cb0e6d5570162d61ee23f5f493f1",
+  "branch": "feature/guard-ai-j16-2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "j16-g5c",
+  "note": "J16 G5 triage: instrumented pick (expect fail with numbers)"
+}
