@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T02:31:38Z
 # J14 Marlow re-plan, small data fix (Sonnet): re-plan circuit rows 21 and 23 for A2
 
 Lead: Night Shift | Marlow Build. Brief: Opus. Builder: Sonnet 5.5 (cloud). Est. 60 counted lines. Same kind of fix as
