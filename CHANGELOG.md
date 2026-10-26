@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.127.0 - Train 153: Piano escape (2026-10-27, PR #651; #606)
+- The piano escape scene (Thornbeck Mill, knife and night vision only, a stealth escape in the dark), dark behind `?piano=1`.
+
 ## 4.126.0 - Train 152: Saltmarsh Park S1: the courier's van (2026-10-27, PR #648; #634)
 - Sector Ops (v2 layout, section 1, flag `?campusv2=1`): the job moves to the middle of the car park. Clone the courier's
   badge at his bright yellow-orange van, west end of the solar carport, about 55 m from the start (it was the gatehouse
