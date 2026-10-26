@@ -1,0 +1,13 @@
+{
+  "id": "20261026T113213-affected-e2e-2c2b972b-6b7b",
+  "sha": "2c2b972bc2e49860fb6fbe6d362de2e27e43f77b",
+  "branch": "feature/marlow-walkfix-2",
+  "pr": 610,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-ctcourse"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #610"
+}
