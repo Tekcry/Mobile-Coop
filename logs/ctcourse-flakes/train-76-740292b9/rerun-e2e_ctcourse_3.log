@@ -1,0 +1,131 @@
+
+$ node scripts/run-e2e.mjs e2e-ctcourse:3
+
+=== e2e-ctcourse:3 ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 5
+  ok - host avatar drawn on the client ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - client avatar drawn on the host ({"ok":true,"root":[73,0.019999985098838824,31.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 5 (a5Substation)
+  A5: the apron, the step lines, the beams
+  ok - A5: the L4 far door is open to the client
+  ok - A5: the host has the kiosk release
+  ok - A5: the client has the kiosk release
+  ok - A5: nobody has claimed a job yet
+  ok - A5: the beams are on on both pages
+  ok - A5: the L5 near door is locked until the release (the flag gate)
+  ok - A5: the patrol is alive and armed ({"x":47.75,"z":33.25,"idx":0,"level":"unaware","alerted":false,"passive":false})
+  ok - A5: no alarm stage at the start (0)
+  ok - A5: the beams are invisible in normal vision
+  ok - A5: the floodlit strip reads lit and the same on both pages (host 0.753, client 0.753)
+  ok - A5: the kiosk's press spot reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A5: the apron reads lit and the same on both pages (host 0.545, client 0.545)
+  ok - A5: the landing reads dark and the same on both pages (host 0.160, client 0.160)
+  A5: the patrol leaves the gateway
+  A5: the partner throw
+  ok - A5: the prompt names the move (Co-op: get thrown over (partner throw))
+  ok - A5: the host still offers the throw at the press
+  ok - A5: the client lands within 0.5 m of the landing ({"x":56.06999999999999,"y":0.019999985098838824,"z":36,"crouched":true})
+  ok - A5: the client's arc clears the top beam at the line (1.72 over 2 samples)
+  ok - A5: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5: the thrown client has claimed B (the host A)
+  ok - A5: the beams are still on: the thrower is stranded
+  ok - A5: no alarm stage after the throw
+  A5: the flood jam
+  ok - A5: the flood is a jam target
+  ok - A5: the flood is on on both pages before the jam
+  ok - A5: the jammed strip reads dark and the same on both pages (host 0.176, client 0.176)
+  ok - A5: a jammed flood lures nobody ({"x":45.080765114927736,"z":31.793370520720533,"idx":1,"level":"unaware","alerted":false,"passive":false})
+  A5: the release
+  ok - A5: the client keys the release at the kiosk
+  A5: the thrower walks through
+  ok - A5: the host walks the released beam line without a touch (hits 0 -> 0)
+  A5: the panel jam variant
+  ok - A5: the host restarts at the checkpoint
+  ok - A5: the restart clears the release, the zone flag and the claim
+  ok - A5: the restart locks the L5 near door again
+  ok - A5: the beams' power panel is panel-a5, powered ({"id":"panel-a5","ph":0,"t":0,"led":1,"live":true,"lasers":["laser-a5"],"at":[43,3.2,35.71]})
+  ok - A5: the panel is the beams' jam target
+  ok - A5 variant: the client walks the beam line with no break (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5 variant: the client who walked through has claimed B
+  ok - A5 variant: the client keys the release
+  A5: to the L5 door
+  ok - A5: the L5 near door is open to the client
+  (ghost ledger A5 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 6 (a6PumpHouse)
+  A6: the sump bay, the step lines, the drive panel
+  ok - A6: the host has the device c-sw-a6-panel
+  ok - A6: the host has the device c-sw-a6-exit
+  ok - A6: the client has the device c-sw-a6-panel
+  ok - A6: the client has the device c-sw-a6-exit
+  ok - A6: nobody has claimed a job yet
+  ok - A6: the outfall door (L6 near) starts locked on the client
+  ok - A6: the host's interlock lamp starts red ([{"id":"a6-interlock","on":false}])
+  ok - A6: the client's interlock lamp starts red ([{"id":"a6-interlock","on":false}])
+  ok - A6: the cage door starts locked on the client
+  ok - A6: the attendant is alive, armed and calm ({"x":61.75,"z":67.25,"alerted":false,"passive":false,"meter":0})
+  ok - A6: the leg-up mark reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A6: the rope spot on the gallery reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A6: the desk and stair foot read lit and the same on both pages (host 0.749, client 0.749)
+  A6: the leg-up and the rescue line
+  ok - A6: the client hangs on the gallery's open edge, normal -z, 4.4 m ({"kind":"ledge","nx":0,"nz":-1,"top":4.4})
+  ok - A6: the client stands on the gallery (y 4.42)
+  ok - A6: one player up does not set a6-gal
+  ok - A6: the climber's prompt names the rope (On the rope: stick up / down; Co-op or B lets go)
+  A6: the hang-down, the buzzer
+  ok - A6: the outfall door is still locked
+  ok - A6: the hanger hangs head-first under the bridge (root y 3.56, tumble 3.14)
+  ok - A6: the panel is out of reach at the starting depth
+  ok - A6: lowered 2.50 m under the edge
+  ok - A6: a one-second hold does not isolate the drive
+  A6: the isolate key with the attendant at his desk
+  ok - A6: the hanging client is still at the panel
+  ok - A6: the attendant, over 6 m off, stays calm ({"x":61.41903417368327,"z":67.09268100643385,"alerted":false,"passive":false,"meter":0})
+  A6: the gallery switch
+  ok - A6: the gallery switch is a map switch at the stair head (switch-17)
+  ok - A6: the holder's spot reads lit on both pages (host 0.488, client 0.488)
+  ok - A6: the client turns the gallery switch off
+  ok - A6: the holder's spot reads dark on both pages (host 0.141, client 0.141)
+  ok - A6: the client turns the gallery switch on again
+  ok - A6: the holder's spot reads lit again (host 0.488, client 0.488)
+  A6: out by the outfall door
+  ok - A6: the outfall door is open to the client
+  A6: the restart and the fallback (the host drops into the cage)
+  ok - A6: the host restarts at the checkpoint
+  ok - A6: the restart clears a6-drive and a6-gal
+  ok - A6: the cage door is locked again
+  ok - A6: the restart clears the claim and the steps
+  ok - A6: outside the cage at (49.05, 64.1) the client is offered neither device ()
+  ok - A6: outside the cage at (51.5, 61.65) the client is offered neither device ()
+  ok - A6: outside the cage at (51.5, 66.55) the client is offered neither device ()
+  ok - A6: outside the cage at (53.95, 64.1) the client is offered neither device ()
+  ok - A6: the client forces a press on c-sw-a6-panel from the west face
+  ok - A6: the client forces a press on c-sw-a6-exit from the west face
+  ok - A6: a press from outside the cage does not isolate the drive
+  ok - A6: a press from outside the cage does not free the cage door
+  ok - A6 pass 2: the hanger hangs head-first under the bridge (root y 3.56, tumble 3.14)
+  ok - A6 pass 2: the panel is out of reach at the starting depth
+  ok - A6 pass 2: lowered 2.49 m under the edge
+  ok - A6 pass 2: the host is inside the cage (51.50,0.02,64.75)
+  ok - A6 pass 2: the host opens the cage door
+  ok - A6: the outfall door is open to the client at the end
+  (ghost ledger A6 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A6 gallery
+  (A6 gallery: item 41.60,4.42,70.30, host 42.63,4.42,70.89, 1.19 m apart, reach 1.6, 29.88 s left, floor probe 1.10 m off and 4.42 m under)
+  ok - revive on the A6 gallery: the revive item lies on the surface (y 4.42)
+  ok - revive on the A6 gallery: the host on the same level is offered the revive (1.19 m, reach 1.6)
+  ok - revive on the A6 gallery: not offered from the floor below (1.10 m off, 4.42 m under)
+  ok - revive on the A6 gallery: inside the 30 s window (29.88 s left)
+  ok - revive on the A6 gallery: one revive of the team budget used (0 -> 1)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 3 (sets 5-6) OK
+
+times (GPU, 1 at a time):
+  e2e-ctcourse:3 ok 386s
+
+wall 386s, suites summed 386s
+
+all e2e suites passed

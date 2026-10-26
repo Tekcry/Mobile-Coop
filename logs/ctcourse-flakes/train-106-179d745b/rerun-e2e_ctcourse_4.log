@@ -1,0 +1,207 @@
+
+$ node scripts/run-e2e.mjs e2e-ctcourse:4
+
+=== e2e-ctcourse:4 ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 7
+  ok - host avatar drawn on the client ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - client avatar drawn on the host ({"ok":true,"root":[67,0.019999985098838824,60.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 7 (a7DataHall)
+  A7: the lobby, the step lines, the terminals, the locks
+  ok - A7: the host has the terminal c-a7-t1
+  ok - A7: the host has the terminal c-a7-t2
+  ok - A7: the host has the scanner pair sc-a7, idle ({"id":"sc-a7","flag":"a7-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A7: the client has the terminal c-a7-t1
+  ok - A7: the client has the terminal c-a7-t2
+  ok - A7: the client has the scanner pair sc-a7, idle ({"id":"sc-a7","flag":"a7-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A7: nobody has claimed a path yet
+  ok - A7: the technician is alive, armed and on his loop ({"x":84.25,"z":60.75,"idx":0,"alerted":false,"passive":false})
+  ok - A7: both cameras are live (["cam-a3-hall","cam-a4-c1","cam-a4-c2","cam-a4-c3","a7-cam1","a7-cam2","a8-cam1","a8-cam2","a8-cam3"])
+  ok - A7: A7-cage-w starts locked on the host
+  ok - A7: A7-cage-w starts locked on the client
+  ok - A7: A7-cage-e starts locked on the host
+  ok - A7: A7-cage-e starts locked on the client
+  ok - A7: L7-near starts locked on the host
+  ok - A7: L7-near starts locked on the client
+  ok - A7: A7-hall is never locked
+  ok - A7: A7-plant is never locked
+  ok - A7: A7-pod-s is never locked
+  ok - A7: T1's spot reads lit and the same on both pages (host 0.696, client 0.696)
+  ok - A7: the corridor reads lit and the same on both pages (host 0.942, client 0.942)
+  ok - A7: the lobby reads lit and the same on both pages (host 0.599, client 0.599)
+  A7: the claim swap (the host takes the corridor), the restart
+  ok - A7 claim swap: opens A7-plant
+  ok - A7: the host restarts at the checkpoint
+  ok - A7: the restart clears the claim
+  ok - A7: A7-cage-w is still locked after the restart
+  ok - A7: A7-cage-e is still locked after the restart
+  ok - A7: L7-near is still locked after the restart
+  A7: the split (the client takes the corridor)
+  ok - A7: opens A7-plant
+  ok - A7: the host is A, the client B (a,b)
+  A7: the corridor in the blind windows, the pod
+  ok - A7 pod door: opens A7-pod-s
+  ok - A7: cam2 never saw the client cross ({"yaw":3.839724354387525,"clock":18.316666666666908,"frozen":false,"stage":0,"alarm":0})
+  ok - A7: the hack is not done yet
+  A7: the hall, the technician, terminal one
+  ok - A7 hall door: opens A7-hall
+  ok - A7: the host shuts the hall door again
+  ok - A7: the ready lamps light on both pages ([["0.15,0.2,0.15","0.15,0.2,0.15"],["0.15,0.2,0.15","0.15,0.2,0.15"]] -> [["0.3,1,0.4","0.3,1,0.4"],["0.3,1,0.4","0.3,1,0.4"]])
+  A7: a late hack fails, then the synced hack
+  ok - A7: the client has health to lose (100)
+  ok - A7: the host starts the hack at terminal one
+  ok - A7: the client starts late
+  ok - A7: out of sync, no flag (1:late)
+  ok - A7: the failed hack cost 10 HP (100 -> 90), never below 1
+  ok - A7: the failed sync leaves the cage locked
+  ok - A7: the host starts the synced hack at terminal one
+  ok - A7: the client starts on the count
+  (A7: the host takes the client's hack start: on the host step at 58.967 s)
+  ok - A7: the client starts 0.5 s after the host, inside the window ({"at":0.5833333333333335})
+  ok - A7: the synced hack cost nothing
+  A7: the cage opens, through the cage, to L7
+  ok - A7: A7-cage-w is unlocked on the host
+  ok - A7: A7-cage-e is unlocked on the host
+  ok - A7: L7-near is unlocked on the host
+  ok - A7 cage: opens A7-cage-w
+  ok - A7 cage: opens A7-cage-e
+  ok - A7: the L7 near door (the pod's east door) is open to the client
+  ok - A7: the host is past the hack line
+  (ghost ledger A7 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 8 (a8Strongroom)
+  A8: the vestibule, the step lines, the guards, the cameras, the light
+  ok - A8: the map has A8-entry
+  ok - A8: the host has the device c-a8-board
+  ok - A8: the host has the device c-a8-console
+  ok - A8: the host has the device c-a8-stair-bar
+  ok - A8: the host has the device c-a8-t1
+  ok - A8: the host has the device c-a8-t2
+  ok - A8: the host has the scanner pair sc-a8, idle ({"id":"sc-a8","flag":"a8-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":1,"last":"1:late","anyReady":false})
+  ok - A8: the host has the beam curtain on, powered by panel-a8 ({"id":"laser-a8","on":true,"live":true,"panel":"panel-a8"})
+  ok - A8: the three cameras are online on the host (["online","online","online"])
+  ok - A8: the night circuit is lit on the host
+  ok - A8: the client has the device c-a8-board
+  ok - A8: the client has the device c-a8-console
+  ok - A8: the client has the device c-a8-stair-bar
+  ok - A8: the client has the device c-a8-t1
+  ok - A8: the client has the device c-a8-t2
+  ok - A8: the client has the scanner pair sc-a8, idle ({"id":"sc-a8","flag":"a8-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A8: the client has the beam curtain on, powered by panel-a8 ({"id":"laser-a8","on":true,"live":true,"panel":"panel-a8"})
+  ok - A8: the three cameras are online on the client (["online","online","online"])
+  ok - A8: the night circuit is lit on the client
+  ok - A8: nobody has claimed a job yet
+  ok - A8: a8-night1 is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":128.75,"z":71.75,"idx":0})
+  ok - A8: a8-night2 is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":126.25,"z":71.25,"idx":0})
+  ok - A8: a8-officer is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":142.75,"z":74.75,"idx":0})
+  ok - A8: A8-grille starts locked on the client
+  ok - A8: A8-grille starts locked on the host
+  ok - A8: A8-stair-foot starts locked on the client
+  ok - A8: A8-stair-foot starts locked on the host
+  ok - A8: A8-vault starts locked on the client
+  ok - A8: A8-vault starts locked on the host
+  ok - A8: A8-office is never locked
+  ok - A8: A8-stair-top is never locked
+  ok - A8: the board and the console start ready ({"g-a1-wicket":false,"g-a2-neck":false,"g-a4-wicket":false,"g-a4-console":false,"g-a5-release":false,"g-a5-l5":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a7-cage-w":true,"g-a7-cage-e":true,"g-a7-east":true,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false})
+  ok - A8: the front reads lit and the same on both pages (host 0.757, client 0.757)
+  ok - A8: the grille approach reads lit and the same on both pages (host 0.601, client 0.601)
+  ok - A8: the vestibule reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A8: the leg-up mark reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A8: the jam spot reads dark and the same on both pages (host 0.170, client 0.170)
+  A8: the leg-up split
+  ok - A8: the climber hangs on the gallery's open edge, normal +x, 4.4 m ({"top":4.4,"nx":1})
+  ok - A8: the climber stands on the gallery (y 4.42)
+  ok - A8: the first player onto the gallery (the host) has claimed A, the client B
+  A8: the cross-level jam on C2
+  ok - A8: blind C2 holds nothing on the host on the pier (meters [0,0])
+  ok - A8 office door: opens A8-office
+  ok - A8: no alarm stage after the hop under C2
+  A8: the console, the officer, the loop
+  ok - A8: the officer carries his two interrogation lines (2)
+  ok - A8: the host presses the console with the officer up
+  ok - A8: the refused press sets no flag and opens no gate
+  ok - A8: the officer is down
+  ok - A8: the host presses the console again
+  ok - A8: the loop runs (59.9 s left)
+  A8: the lighting board, the lure
+  ok - A8: the client presses the lighting board
+  ok - A8: the client presses the lighting board a second time
+  ok - A8: a second press does nothing (the window 25.0 s -> 24.4 s, it never rises)
+  ok - A8: the seven night lamps are off on both pages
+  ok - A8: the front reads dark and the same on both pages with the circuit cut (host 0.141, client 0.141)
+  ok - A8: the grille approach reads dark and the same on both pages with the circuit cut (host 0.149, client 0.149)
+  A8: through the grille, down the office stair
+  ok - A8 grille: opens A8-grille
+  ok - A8 grille: closes A8-grille
+  ok - A8 stair top door: opens A8-stair-top
+  ok - A8: the foot door is locked until the push bar
+  ok - A8: the host pushes the bar on the stair side
+  ok - A8 stair foot door: opens A8-stair-foot
+  ok - A8: the loop is still running
+  A8: the partner throw
+  ok - A8: the host still offers the throw at the press
+  ok - A8: the client lands within 0.5 m of the landing ({"x":141.93,"y":0.019999985098838824,"z":62})
+  ok - A8: the client's arc clears the top beam at the line (1.72)
+  ok - A8: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A8: the beams are still on: the thrower is stranded
+  A8: the paired hack
+  ok - A8: the client has health to lose (100)
+  ok - A8: the host starts the hack at time lock one
+  ok - A8: the client starts late
+  ok - A8: out of sync: no flag, the client lost 10 HP (100 -> 90)
+  ok - A8: the failed sync is counted
+  ok - A8: the loop is still running at the second try
+  ok - A8: the host starts the synced hack at time lock one
+  ok - A8: the client starts about 0.5 s after the host, inside the window (ok, gap 0.53 s on the host)
+  ok - A8: the synced hack cost nothing
+  ok - A8: the vault door is unlocked on the host
+  ok - A8: the loop is still running after the sync
+  A8: the vault
+  ok - A8 vault door: opens A8-vault
+  A8: pass 2, the restart, the claim swap, the relock
+  ok - A8: the host restarts at the checkpoint
+  ok - A8: the restart clears the claim and the flags
+  ok - A8: A8-grille is locked again after the restart
+  ok - A8: A8-stair-foot is locked again after the restart
+  ok - A8: A8-vault is locked again after the restart
+  ok - A8: the restart puts the night circuit back on
+  ok - A8: the restart turns the beams back on
+  ok - A8 pass 2: the climber hangs on the gallery's open edge, normal +x, 4.4 m ({"top":4.4,"nx":1})
+  ok - A8 pass 2: the climber stands on the gallery (y 4.42)
+  ok - A8 pass 2: the client is A, the host B
+  ok - A8 pass 2: the host presses the board
+  ok - A8 pass 2 grille: opens A8-grille
+  ok - A8 pass 2: the relock never shuts the door: it stays open (ENGINE-ANSWERS Q9)
+  ok - A8 pass 2 grille: closes A8-grille
+  ok - A8 pass 2: shut and locked, the grille cannot be opened from inside by hand
+  ok - A8 pass 2: the request-to-exit is in the build
+  ok - A8 pass 2: the client presses the request-to-exit from the hall side
+  ok - A8 pass 2: a press from the hall side leaves the grille locked (out of reach)
+  ok - A8 pass 2: the host presses the request-to-exit from the lobby side
+  (ghost ledger A8 after the walk: {"detections":1,"alarms":2,"knockouts":1,"kills":0,"bodies":0})
+  revive on the A8 gallery
+  (A8 gallery: item 107.90,4.42,68.20, host 107.90,4.42,69.40, 1.20 m apart, reach 1.6, 29.87 s left, floor probe 0.00 m off and 4.42 m under)
+  ok - revive on the A8 gallery: the revive item lies on the surface (y 4.42)
+  ok - revive on the A8 gallery: the host on the same level is offered the revive (1.20 m, reach 1.6)
+  ok - revive on the A8 gallery: not offered from the floor below (0.00 m off, 4.42 m under)
+  ok - revive on the A8 gallery: inside the 30 s window (29.87 s left)
+  ok - revive on the A8 gallery: one revive of the team budget used (0 -> 1)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+finale: a revive in the cash dock, then both must be in the exit zone
+  ok - finale: the pause ran 2.5 s on the host's clock (2500 ms)
+  (finale: 2.60 s of host time from the downing to the read)
+  ok - finale: the 30 s window runs on the host (sim time) (27.4 s left)
+  ok - finale: one revive of two used (1 -> 2)
+  ok - one player in the exit zone does not end the course
+  ok - both players in the exit zone complete the course
+  ok - the end screen has the time, alarms and revives ({"time":169.09999999999297,"alarms":2,"revives":2}, 2 done)
+  ok - no console errors ()
+e2e-ctcourse part 4 (sets 7-8) OK
+
+times (GPU, 1 at a time):
+  e2e-ctcourse:4 ok 186s
+
+wall 186s, suites summed 186s
+
+all e2e suites passed

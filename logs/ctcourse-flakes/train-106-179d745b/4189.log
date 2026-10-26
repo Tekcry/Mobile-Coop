@@ -1,0 +1,1884 @@
+
+$ npm run build
+
+> mobile-coop@4.104.1 build
+> npm run typecheck && vite build
+
+
+> mobile-coop@4.104.1 typecheck
+> tsc --noEmit -p tsconfig.json
+
+[36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 1737 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32massets/bgTickWorker-8i737WHi.js             [39m[1m[2m     0.08 kB[22m[1m[22m
+[2mdist/[22m[32mmanifest.webmanifest                        [39m[1m[2m     0.55 kB[22m[1m[22m
+[2mdist/[22m[32mindex.html                                  [39m[1m[2m     2.17 kB[22m[1m[22m[2m │ gzip:     0.94 kB[22m
+[2mdist/[22m[32massets/uastc_astc-Ui3m2rmu.wasm             [39m[1m[2m    12.21 kB[22m[1m[22m[2m │ gzip:     4.65 kB[22m
+[2mdist/[22m[32massets/uastc_r8_unorm-ZyOIHdK3.wasm         [39m[1m[2m    14.14 kB[22m[1m[22m[2m │ gzip:     3.25 kB[22m
+[2mdist/[22m[32massets/uastc_bc7-ElMQfAST.wasm              [39m[1m[2m    14.65 kB[22m[1m[22m[2m │ gzip:     5.51 kB[22m
+[2mdist/[22m[32massets/uastc_rg8_unorm-DnIryjGO.wasm        [39m[1m[2m    17.61 kB[22m[1m[22m[2m │ gzip:     3.83 kB[22m
+[2mdist/[22m[32massets/voxelWorker-DnwGvQ58.js              [39m[1m[2m    23.35 kB[22m[1m[22m
+[2mdist/[22m[32massets/uastc_rgba8_srgb_v2-wNni7TJ8.wasm    [39m[1m[2m    24.16 kB[22m[1m[22m[2m │ gzip:     5.53 kB[22m
+[2mdist/[22m[32massets/zstddec-DwK2H16O.wasm                [39m[1m[2m    29.23 kB[22m[1m[22m[2m │ gzip:    12.59 kB[22m
+[2mdist/[22m[32massets/uastc_rgba8_unorm_v2-CfHr2sCN.wasm   [39m[1m[2m    30.12 kB[22m[1m[22m[2m │ gzip:     6.08 kB[22m
+[2mdist/[22m[32massets/guard-shield_riot-lod2-DK3p--kj.glb  [39m[1m[2m    31.76 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-shield_riot-lod1-DDovo7Bk.glb  [39m[1m[2m    52.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/msc_basis_transcoder-CnfwLfkh.js     [39m[1m[2m    63.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-shield_riot-lod0-DpE-57HF.glb  [39m[1m[2m    83.64 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-spotted-gbfZE86D.mp3           [39m[1m[2m    86.45 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s5-Bp976hnE.glb                 [39m[1m[2m    98.10 kB[22m[1m[22m
+[2mdist/[22m[32massets/barlow-condensed-500-kxnlQoDx.ttf    [39m[1m[2m   103.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/barlow-condensed-600-B7YG4rBL.ttf    [39m[1m[2m   109.43 kB[22m[1m[22m
+[2mdist/[22m[32massets/barlow-condensed-700-v1X23fbx.ttf    [39m[1m[2m   109.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-alert-head-DvSojeSU.mp3        [39m[1m[2m   125.62 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-evade-head-Cf0_oDE0.mp3        [39m[1m[2m   125.62 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s1-DvsZ-Ila.glb                 [39m[1m[2m   137.82 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s4-DWlaVPjA.glb                 [39m[1m[2m   150.97 kB[22m[1m[22m
+[2mdist/[22m[32massets/facility-kit-_3bA1KYH.glb            [39m[1m[2m   154.86 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s2-BATmBzBE.glb                 [39m[1m[2m   157.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-menu-head-7K5EpNLI.mp3         [39m[1m[2m   179.76 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-caution-head-CoUI9rXR.mp3      [39m[1m[2m   183.60 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s3-Cgfc0wvA.glb                 [39m[1m[2m   226.43 kB[22m[1m[22m
+[2mdist/[22m[32massets/foley-AtI9N7nA.mp3                   [39m[1m[2m   238.61 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-broad-lod2-b_P8cZ1_.glb        [39m[1m[2m   318.90 kB[22m[1m[22m
+[2mdist/[22m[32massets/msc_basis_transcoder-WXuUGwVU.wasm   [39m[1m[2m   455.58 kB[22m[1m[22m[2m │ gzip:   226.76 kB[22m
+[2mdist/[22m[32massets/campus-kit-CG3KJXjF.glb              [39m[1m[2m   506.92 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-lean-lod2-DvpBhEeL.glb         [39m[1m[2m   551.49 kB[22m[1m[22m
+[2mdist/[22m[32massets/knife-CcfpKKSh.glb                   [39m[1m[2m   578.80 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-average-lod2-BBPMjqZz.glb      [39m[1m[2m   604.20 kB[22m[1m[22m
+[2mdist/[22m[32massets/facility-props-DRzFJNGO.glb          [39m[1m[2m   778.62 kB[22m[1m[22m
+[2mdist/[22m[32massets/A-caution-DVI1w8OD.mp3               [39m[1m[2m   975.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/A-calm-3223WhHN.mp3                  [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/B-alert-bEuHWerD.mp3                 [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/A-alert-xOqfPIev.mp3                 [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/C-alert-ByyQc3xr.mp3                 [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/B-caution-DizQJ1-7.mp3               [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/C-calm-DjxBc8Uc.mp3                  [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/B-calm-D5A7RD0g.mp3                  [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/C-caution-BlsljHMt.mp3               [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/weapons-OZD5BEfF.mp3                 [39m[1m[2m 1,082.45 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-evade-vFUZSj0g.mp3             [39m[1m[2m 1,180.85 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-alert-CThgz3SC.mp3             [39m[1m[2m 1,180.85 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-caution-DKdeZcxj.mp3           [39m[1m[2m 1,413.55 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-broad-lod1-BxWKnUOU.glb        [39m[1m[2m 1,665.19 kB[22m[1m[22m
+[2mdist/[22m[32massets/HavokPhysics-BqNY-4N9.wasm           [39m[1m[2m 2,094.56 kB[22m[1m[22m[2m │ gzip:   664.19 kB[22m
+[2mdist/[22m[32massets/wren-lod2-BeORTuBw.glb               [39m[1m[2m 2,487.94 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-menu-pbBswRad.mp3              [39m[1m[2m 2,747.95 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-lean-lod1-B91VXUDV.glb         [39m[1m[2m 2,769.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/pistolSd-D28XYEXK.glb                [39m[1m[2m 2,917.53 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-average-lod1-BKUPCvuC.glb      [39m[1m[2m 2,992.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-broad-lod0-DeukNTYD.glb        [39m[1m[2m 4,425.63 kB[22m[1m[22m
+[2mdist/[22m[32massets/wren-lod1-w05bMFIh.glb               [39m[1m[2m 5,121.00 kB[22m[1m[22m
+[2mdist/[22m[32massets/rifle-CVae0az-.glb                   [39m[1m[2m 7,112.54 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-lean-lod0-fZomrf7T.glb         [39m[1m[2m 7,555.68 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-average-lod0-BqTQ24uD.glb      [39m[1m[2m 8,298.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/wren-lod0-a3f3kF0b.glb               [39m[1m[2m18,568.37 kB[22m[1m[22m
+[2mdist/[22m[32massets/wren-hero-Clw0Dc5O.glb               [39m[1m[2m57,320.70 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-DSqgxs_M.css                   [39m[1m[2m    81.37 kB[22m[1m[22m[2m │ gzip:    16.88 kB[22m
+[2mdist/[22m[36massets/glide_back-1i13vbzZ.js               [39m[1m[2m     2.60 kB[22m[1m[22m[2m │ gzip:     1.02 kB[22m
+[2mdist/[22m[36massets/glide_fwd-Cp9TvoeY.js                [39m[1m[2m     2.63 kB[22m[1m[22m[2m │ gzip:     1.04 kB[22m
+[2mdist/[22m[36massets/walk-CoFZxYu4.js                     [39m[1m[2m     2.98 kB[22m[1m[22m[2m │ gzip:     1.25 kB[22m
+[2mdist/[22m[36massets/sneak-BJy0yrWa.js                    [39m[1m[2m     3.06 kB[22m[1m[22m[2m │ gzip:     1.30 kB[22m
+[2mdist/[22m[36massets/crouch_run-BE-oZnA_.js               [39m[1m[2m     3.06 kB[22m[1m[22m[2m │ gzip:     1.29 kB[22m
+[2mdist/[22m[36massets/run-BOEZ3pmz.js                      [39m[1m[2m     3.06 kB[22m[1m[22m[2m │ gzip:     1.31 kB[22m
+[2mdist/[22m[36massets/jog-CPteO8P_.js                      [39m[1m[2m     3.08 kB[22m[1m[22m[2m │ gzip:     1.31 kB[22m
+[2mdist/[22m[36massets/crouch_walk-BazNx8Mq.js              [39m[1m[2m     3.11 kB[22m[1m[22m[2m │ gzip:     1.31 kB[22m
+[2mdist/[22m[36massets/foleyLab-CnPcnU67.js                 [39m[1m[2m     3.12 kB[22m[1m[22m[2m │ gzip:     1.39 kB[22m
+[2mdist/[22m[36massets/guard_held_hands-Ca6P8Krn.js         [39m[1m[2m     3.46 kB[22m[1m[22m[2m │ gzip:     1.47 kB[22m
+[2mdist/[22m[36massets/guard_held_stumble-DUS8AyDI.js       [39m[1m[2m     3.57 kB[22m[1m[22m[2m │ gzip:     1.52 kB[22m
+[2mdist/[22m[36massets/ready_stance-BcrNwPs9.js             [39m[1m[2m     3.88 kB[22m[1m[22m[2m │ gzip:     1.05 kB[22m
+[2mdist/[22m[36massets/glide_strafe-BJC_5xwL.js             [39m[1m[2m     3.98 kB[22m[1m[22m[2m │ gzip:     1.14 kB[22m
+[2mdist/[22m[36massets/wall_idle-DQu1Dqik.js                [39m[1m[2m     4.05 kB[22m[1m[22m[2m │ gzip:     1.07 kB[22m
+[2mdist/[22m[36massets/wall_slide-Cjk4U2pG.js               [39m[1m[2m     4.11 kB[22m[1m[22m[2m │ gzip:     1.17 kB[22m
+[2mdist/[22m[36massets/wall_peek-Dxy0ImEN.js                [39m[1m[2m     4.15 kB[22m[1m[22m[2m │ gzip:     1.11 kB[22m
+[2mdist/[22m[36massets/wall_crouch_slide-BNo6Q9sT.js        [39m[1m[2m     4.46 kB[22m[1m[22m[2m │ gzip:     1.28 kB[22m
+[2mdist/[22m[36massets/wall_crouch_peek-Cgj8I-Z9.js         [39m[1m[2m     4.52 kB[22m[1m[22m[2m │ gzip:     1.18 kB[22m
+[2mdist/[22m[36massets/hold_side-C-D6Gm6l.js                [39m[1m[2m     4.61 kB[22m[1m[22m[2m │ gzip:     1.36 kB[22m
+[2mdist/[22m[36massets/hold_fwd-CYG1EWbC.js                 [39m[1m[2m     4.63 kB[22m[1m[22m[2m │ gzip:     1.38 kB[22m
+[2mdist/[22m[36massets/weaponLab-6nWzkdPa.js                [39m[1m[2m     4.71 kB[22m[1m[22m[2m │ gzip:     1.91 kB[22m
+[2mdist/[22m[36massets/hold_back-ybIVpeXh.js                [39m[1m[2m     4.78 kB[22m[1m[22m[2m │ gzip:     1.47 kB[22m
+[2mdist/[22m[36massets/hold_idle-DO6YMGqF.js                [39m[1m[2m     4.89 kB[22m[1m[22m[2m │ gzip:     1.40 kB[22m
+[2mdist/[22m[36massets/workbox-window.prod.es5-BBnX5xw4.js  [39m[1m[2m     5.75 kB[22m[1m[22m[2m │ gzip:     2.36 kB[22m
+[2mdist/[22m[36massets/idle--XBFdghD.js                     [39m[1m[2m     5.83 kB[22m[1m[22m[2m │ gzip:     1.44 kB[22m
+[2mdist/[22m[36massets/hold_knife-FHMTEdOB.js               [39m[1m[2m     5.90 kB[22m[1m[22m[2m │ gzip:     1.43 kB[22m
+[2mdist/[22m[36massets/wall_crouch_idle-D6_kTrGE.js         [39m[1m[2m     6.10 kB[22m[1m[22m[2m │ gzip:     1.35 kB[22m
+[2mdist/[22m[36massets/hold_choke-Ci4he0UH.js               [39m[1m[2m     6.36 kB[22m[1m[22m[2m │ gzip:     1.95 kB[22m
+[2mdist/[22m[36massets/guard_choke_sag-CiFpdtRQ.js          [39m[1m[2m     6.60 kB[22m[1m[22m[2m │ gzip:     1.96 kB[22m
+[2mdist/[22m[36massets/crouch_idle-DBXS79z0.js              [39m[1m[2m     6.75 kB[22m[1m[22m[2m │ gzip:     1.54 kB[22m
+[2mdist/[22m[36massets/guard_knife_collapse-DYnaaWjZ.js     [39m[1m[2m     6.90 kB[22m[1m[22m[2m │ gzip:     1.96 kB[22m
+[2mdist/[22m[36massets/musicLab-Dx5Lkn4E.js                 [39m[1m[2m     9.17 kB[22m[1m[22m[2m │ gzip:     3.80 kB[22m
+[2mdist/[22m[36massets/skeleton_test-COylAa54.js            [39m[1m[2m    16.87 kB[22m[1m[22m[2m │ gzip:     1.86 kB[22m
+[2mdist/[22m[36massets/havok-V-2dkDzw.js                    [39m[1m[2m    33.66 kB[22m[1m[22m[2m │ gzip:     9.94 kB[22m
+[2mdist/[22m[36massets/net-ivdypL7U.js                      [39m[1m[2m    75.95 kB[22m[1m[22m[2m │ gzip:    27.55 kB[22m
+[2mdist/[22m[36massets/coopUi-CZNnpU9t.js                   [39m[1m[2m   170.97 kB[22m[1m[22m[2m │ gzip:    60.15 kB[22m
+[2mdist/[22m[36massets/babylon-BDGJzW31.js                  [39m[1m[2m 3,013.66 kB[22m[1m[22m[2m │ gzip:   684.99 kB[22m
+[2mdist/[22m[36massets/index-BpSMQLGB.js                    [39m[1m[2m 3,391.02 kB[22m[1m[22m[2m │ gzip: 1,138.47 kB[22m
+[32m✓ built in 33.24s[39m
+
+PWA v2.0.0
+mode      generateSW
+precache  77 entries (18217.25 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-835c8c05.js
+
+$ node scripts/run-e2e.mjs e2e-ctcourse:3 e2e-sectorops:6 e2e-ctcourse:4 e2e-lightbake e2e-ctcourse:1 e2e-sectorops:5 e2e-course e2e-desktop:2 e2e-desktop:1 e2e-sectorops:4 e2e-traverse e2e-anim e2e-ct e2e-offline e2e-wall e2e-move e2e-weapons-carry e2e-gadgets e2e-feedback e2e-levels e2e-park
+[start] e2e-course
+[start] e2e-ctcourse:3
+[start] e2e-ctcourse:4
+
+=== e2e-course (ok, 65s) ===
+host opens a room, client joins, Course on courselab
+objective list and automatic airlock (R5, R6)
+  ok - the far airlock door starts locked on the client
+  ok - the objective list shows on both pages at spawn (three drills and the airlock row)
+  ok - no airlock Cycle button on either page (false,false)
+  ok - one player on the pad waits; both pages show "Waiting for partner" (waiting)
+  ok - the client alone on the pad waits too
+drills (T1c): refusal, both tick columns, client tick, markers
+  ok - both on the pad with drills open: no cycle; the HUD names the open objectives (host "Waiting: P1 - pace; P2 - pace; P1 or P2 - vault, panel", client "Waiting: P1 - pace; P2 - pace; P1 or P2 - vault, panel")
+  ok - both tick columns show on both pages
+  ok - markers hide with the Course markers setting
+  ok - the client's gear change reaches the host as a tick
+  ok - the client vaults the low wall and the host ticks it
+  ok - the host presses the panel (switch drill)
+  ok - cycles by itself with both on the pad (checkpoint A1)
+  ok - the rear door is shut and locked on both pages (host {"target":0,"open":0,"body":true,"locked":true}, client {"target":0,"open":0,"body":true,"locked":true})
+  ok - the front door opens by itself when the cycle ends ({"target":1,"open":1,"body":false,"locked":false})
+  ok - control: the client walks 4.83 m freely in the same time
+  ok - the locked rear door blocks the client: he walks up to it and stays on the airlock side (x 11.0 -> 8.37; door at x 8.0)
+forced both-down restart
+  ok - both respawn in the airlock (host 11.0,4.0, client 11.0,2.8)
+  ok - the restart resets the bay's gates ({"g-l1":true,"g-lever":false,"g-bolt":false,"g-hold":false,"g-timed":false,"g-pair":false,"g-egress":false,"g-mains":false,"g-key":false,"g-flag":false,"g-ladder":false})
+  ok - the restart restores the mains and its switch (host {"on":true,"label":"Lights off","lamps":true}, client lamps on true)
+gates: the client acts
+  ok - client: lever pressed
+  ok - client: lever opens its door; the client sees the lock change in 83 ms (limit 1500)
+  ok - client: bolt refuses the far side, opens from the bolt side
+  ok - client: hold opens while braced and shuts on release
+  ok - client: timed hold stays open after release
+  (client: the host sees the client's pair half and presses its own: on the host step at 16.1 s)
+  ok - client: both pair halves pressed (client ok, host ok)
+  ok - client: pair gate opens with both halves
+  ok - client: egress opens
+  ok - client: one press opens the mains; the client's lamp group goes off in 167 ms (limit 1500)
+  ok - client: the ladder starts locked on the client
+  ok - client: the key opens the flag door and the ladder
+  ok - client: the client's own ladder anchor is unlocked
+friendly fire
+  ok - a host shot downs the client ({"down":true,"last":{"hit":true,"target":"Locmcbl24","at":[37.23,-0.03,4.01],"feet":[37.2,0.02,4]}})
+  ok - the host revives the client (co-op rules: no restart, no frag)
+  ok - a client grenade downs the host
+  ok - the thrower is not hurt by its own grenade
+  ok - the client revives the host (no restart)
+course end (T1c): host-side client verbs, LANTERN on the client, finish, results, Start at bay 2
+  ok - the client opens the ladder cell door
+  ok - the client's door ticks P2 on the host, not P1
+  ok - the end device is live in the last bay
+  ok - the end refuses while the ladder drill is open ("Waiting: P1 or P2 - ladder")
+  ok - the client takes the key again
+  ok - the client climbs the ladder and the host ticks it
+  ok - LANTERN's radio is said on the client ("LANTERN: Moth: ladder - done")
+  ok - the host presses Finish
+  ok - results show the course panel on both pages (client: "No penalty in the drill bays.L2: Ghost (1000, 0:15)L1 0:07L2 0:15TeamP1P2Time0:2")
+  ok - a second lobby offers "Start at bay 2" ("Bay 2 (L2)")
+  ok - the bay-2 start puts both players at bay 2's entry airlock (client at 11.0, 2.8)
+  ok - no console errors ()
+  ok - Fallow: the URL boots Course mode on the bunker, single player ({"mode":"course","map":"bunker","net":false,"bay":0})
+  ok - Fallow: the course starts in bay B1 (bay index 0)
+  ok - Fallow: the player spawns on the y 16 floor in B1 (2.0, 16.02, 71.4)
+  ok - Fallow: nav paths A5 -> S6 and B5 floor -> A5 exist ({"a5s6":true,"b5a5":true,"hasNav":true,"locked":27})
+  ok - Fallow: no console errors ()
+  ok - two walk-URL tabs share one course session ({"h":{"code":"PAKJB","id":"Lhvjnak6i","n":2},"c":{"code":"PAKJB","host":"Lhvjnak6i","role":"client"}})
+  ok - walk URL: no console errors ()
+e2e-course OK
+[start] e2e-ctcourse:1
+
+=== e2e-ctcourse:1 (ok, 94s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 1
+  ok - host avatar drawn on the client ({"ok":true,"root":[2,0.020000000000000018,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[2,0.020000000000000018,10],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - client avatar drawn on the host ({"ok":true,"root":[2,0.020000000000000018,12],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.042292247009374},{"en":true,"vis":true,"active":true,"inFrustum":false,"size":0.043679283883869414}]})
+pause: restart at checkpoint (host only) brings both players back to the start
+  ok - the host's pause has live restart and lobby rows ([{"k":"restart-checkpoint","blocked":false,"sub":""},{"k":"return-lobby","blocked":false,"sub":""}])
+  ok - the client's pause shows them disabled, "Host only" ([{"k":"restart-checkpoint","blocked":true,"sub":"Host only"},{"k":"return-lobby","blocked":true,"sub":"Host only"}])
+  ok - the client's disabled row does nothing
+  ok - the restart confirm opens on Stay ({"top":true,"f":"Stay"})
+  ok - the restart keeps set 1 and closes the host pause
+set 1 (a1Gate)
+  A1: the lounge, the step lines, the checker
+  ok - the lounge door is open to both
+  ok - the wicket starts locked on the client
+  ok - the gate checker is alive, passive, at his desk ({"passive":true,"x":8.75,"z":16.75})
+  A1: the client takes the mark (the claim)
+  A1: the leg-up
+  ok - A1: the leg-up reaches the 4.4 m lip (4.4)
+  ok - A1: the host hangs on the apron-face lip (a1-wall-near, normal -x) ({"kind":"ledge","nx":-1,"nz":0,"top":4.4,"id":48})
+  ok - A1: the host stands on the wall top (4.42)
+  A1: the hang-drop into the yard
+  ok - A1 host: hangs from the yard-face lip, normal +x, 4.4 m ({"kind":"ledge","nx":1,"nz":0,"top":4.4,"id":49})
+  ok - A1 host: feet on the yard floor past the wall (12.56,0.04,7.00)
+  ok - A1 host: the drop lands within 2 s of the let-go (0.47 s of game time)
+  ok - A1: the hang-drop cost no health (100 -> 100)
+  A1: the wicket bolt
+  ok - A1: the client tries the bolt from the apron side
+  ok - A1: the bolt refuses a press from the apron side
+  ok - A1: the wicket stays locked on the client
+  ok - A1: the step is not done yet
+  ok - A1: the host unbolts the wicket from the yard side
+  A1: through the wicket to L1
+  ok - A1: the host opens the unbolted wicket
+  ok - A1: the L1 near door is open to the client
+  A1: the relay variant
+  ok - A1: the host restarts at the checkpoint
+  ok - A1: the restart shuts the bolt and clears the step
+  ok - A1: the restart locks the wicket again
+  ok - A1 variant: the client hangs on the apron-face lip, normal -x, 4.4 m ({"kind":"ledge","nx":-1,"nz":0,"top":4.4,"id":48})
+  ok - A1 variant host: hangs from the yard-face lip, normal +x, 4.4 m ({"kind":"ledge","nx":1,"nz":0,"top":4.4,"id":49})
+  ok - A1 variant host: feet on the yard floor past the wall (12.56,0.04,7.00)
+  ok - A1 variant host: the drop lands within 2 s of the let-go (0.47 s of game time)
+  ok - A1 variant client: hangs from the yard-face lip, normal +x, 4.4 m ({"kind":"ledge","nx":1,"nz":0,"top":4.4,"id":49})
+  ok - A1 variant client: feet on the yard floor past the wall (12.56,0.04,9.00)
+  ok - A1 variant client: the drop lands within 2 s of the let-go (0.45 s of game time)
+  ok - A1 variant: both drops cost no health
+  ok - A1 variant: the wicket is still bolted
+  ok - A1 variant: the wicket is still locked on the client
+  A1: light
+  ok - A1: the wicket at (11.2, 11) reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A1: the wicket at (12.8, 11) reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A1: the yard reads lit and the same (host 0.610, client 0.610)
+  ok - A1: the first wall switch is the yard switch in the cabin ([7.7,15.1])
+  ok - A1: the client turns the yard switch off
+  ok - A1: the yard reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A1: the client turns the yard switch on again
+  ok - A1: the yard reads lit again (host 0.610, client 0.610)
+  ok - A1: the checker is back at his desk, passive ({"passive":true,"x":8.75,"z":16.75})
+  (ghost ledger A1 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A1 yard
+  (A1 yard: item 17.00,0.02,11.00, host 18.20,0.02,11.00, 1.20 m apart, reach 1.6, 29.88 s left)
+  ok - revive on the A1 yard: the revive item lies on the surface (y 0.02)
+  ok - revive on the A1 yard: the host on the same level is offered the revive (1.20 m, reach 1.6)
+  ok - revive on the A1 yard: inside the 30 s window (29.88 s left)
+  ok - revive on the A1 yard: one revive of the team budget used (0 -> 1)
+set 2 (a2CarriageShed)
+  A2: the siding, the step lines, the cabinets
+  ok - A2: the L1 far door is open to the client
+  ok - A2: the host has the push station c-a2-iso-1
+  ok - A2: the host has the push station c-a2-iso-2
+  ok - A2: the client has the push station c-a2-iso-1
+  ok - A2: the client has the push station c-a2-iso-2
+  ok - A2: nobody has claimed a job yet
+  ok - A2: the shunter is alive and armed ({"x":51.25,"z":10.25,"alerted":false,"passive":false})
+  ok - A2: the crossing line reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A2: the neck's middle reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A2: the vantage reads lit and the same on both pages (host 0.491, client 0.491)
+  ok - A2: the rake gap reads lit and the same on both pages (host 0.697, client 0.697)
+  ok - A2: the neck lamps are on at the start on both pages
+  A2: the restart mid-cut
+  ok - A2: the host opens the cabin door
+  ok - A2 restart check: the client presses cabinet one
+  ok - A2 restart check: the press claims the A job
+  ok - A2: the host restarts at the checkpoint
+  ok - A2: the restart leaves the isolator closed and ready
+  ok - A2: the crossing reads lit again on both pages (host 1.000, client 1.000)
+  ok - A2: the restart clears the claim
+  ok - A2: the restart puts the doors back (1)
+  ok - A2 restart: three fresh calm armed guards and no body ({"bodies":0,"list":[{"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0},{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}]})
+  ok - A2 restart: the shunter first, back at his post ({"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0})
+  ok - A2 restart: a posted watcher on the staging deck at (48, 17.9) ({"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  ok - A2 restart: a posted watcher on the staging deck at (54, 17.9) ({"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  A2: spotted in the lit neck
+  ok - A2: exactly one set restart for the spot
+  ok - A2 after the spot: three fresh calm armed guards and no body ({"bodies":0,"list":[{"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0},{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}]})
+  ok - A2 after the spot: the shunter first, back at his post ({"x":51.25,"y":-1.9371509552001953e-7,"z":10.25,"alerted":false,"passive":false,"secure":false,"caution":0})
+  ok - A2 after the spot: a posted watcher on the staging deck at (48, 17.9) ({"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  ok - A2 after the spot: a posted watcher on the staging deck at (54, 17.9) ({"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0})
+  ok - A2: the fresh guards did not spot anyone again
+  A2: cabinet one, the dark neck
+  ok - A2 route: the host opens the cabin door
+  ok - A2: the client presses cabinet one
+  ok - A2: the press claims the A job
+  ok - A2: the host tries cabinet two while the neck is dark
+  ok - A2: a press while dark does nothing (the window 14.8 -> 14.4 s)
+  ok - A2: the crossing was inside the window (13.6 s left)
+  ok - A2 host crossing: the dark crossing was not seen (restarts 4 -> 4, [{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}])
+  ok - A2: the way back is not done yet
+  A2: lights back, the re-arm, cabinet two
+  ok - A2: a press while the isolator re-arms is refused ({"left":2.9499999999999957,"refusal":"The isolator is re-arming","open":false})
+  ok - A2: a refusal was seen inside the re-arm
+  ok - A2: the refused press left the lights on
+  ok - A2: the crossing reads lit again on both pages (host 1.000, client 1.000)
+  ok - A2: the host's timer line is gone
+  ok - A2: the client's timer line is gone
+  ok - A2: the host presses cabinet two
+  ok - A2: the neck is dark on the host for the mirror cut
+  ok - A2: the crossing reads dark on both pages for the mirror (0.141, 0.141)
+  A2: the mirror crossing, both east
+  ok - A2: the second crossing was inside the window
+  ok - A2 client crossing: the dark crossing was not seen (restarts 4 -> 4, [{"x":48.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0},{"x":54.25,"y":4.399999618530273,"z":18.25,"alerted":false,"passive":false,"secure":true,"caution":0}])
+  ok - A2: both pass flags are set
+  A2: to the L2 door
+  ok - A2: the L2 near door is open to the client
+  (ghost ledger A2 after the walk: {"detections":1,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A2 staging
+  (A2 staging: item 33.00,4.42,18.10, host 34.20,4.42,18.60, 1.30 m apart, reach 1.6, 29.87 s left, floor probe 1.20 m off and 4.42 m under)
+  ok - revive on the A2 staging: the revive item lies on the surface (y 4.42)
+  ok - revive on the A2 staging: the host on the same level is offered the revive (1.30 m, reach 1.6)
+  ok - revive on the A2 staging: not offered from the floor below (1.20 m off, 4.42 m under)
+  ok - revive on the A2 staging: inside the 30 s window (29.87 s left)
+  ok - revive on the A2 staging: one revive of the team budget used (1 -> 2)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 1 (sets 1-2) OK
+[start] e2e-desktop:1
+
+=== e2e-desktop:1 (ok, 56s) ===
+  ok - menus scale to 1080p (x1.5)
+  ok - menu rows are big enough to read at 1080p (51 px)
+  ok - Controls first (controls,gameplay,video,audio,access,feedback,data)
+  ok - Remap opens on Keyboard and mouse
+  ok - clicking a key waits for the new one
+  ok - reload rebound to U (U)
+  ok - a key in use is shared with a conflict warning (Ready to play offlineG is also Quick-use selected gadget (hold to aim): conflict; rows gadget,reload)
+  ok - Backspace clears a slot
+  ok - Auto by default (Auto (this device), {"auto":true,"p":"epic"})
+  ok - a preset sets every feature, the rows follow (ultra, shadows Ultra)
+  ok - Ultra renders at 90% with TAAU ({"s":0.9,"u":"taau"})
+  ok - picking a preset turns Auto off
+  ok - changing a feature makes it Custom
+  ok - the frame-rate cap reaches the loop
+  ok - Resolution lists the monitor's resolutions (1920 x 1080 (native) | 1600 x 900 | 1366 x 768 | 1280 x 720)
+  ok - a pick applies at once and asks to keep it ({"s":0.8333333333333334,"r":"1600x900","dyn":false,"msg":"Reverting to 1728 x 972 (90%) in 10 s."})
+  ok - Keep keeps it, the row shows it (Resolution: 1600 x 900)
+  ok - the second pick applies
+  ok - no answer for 15 s puts the last resolution back (1600x900)
+  ok - the rebound key reloads in a match
+  ok - the benchmark reports (Warehouse, custom, current settings, 1280x720 (window 1920x1080))
+  ok - the result is saved as a performance note without a tap
+  ok - the report scrolls and offers Copy text ({"scroll":"auto","copy":true})
+  ok - every preset runs in turn (Warehouse, low, Low, 1280x720 (window 1920x1080) | Warehouse, medium, Medium, 1280x720 (window 1920x1080) | Warehouse, high, High, 1280x720 (window 1920x1080) | Warehouse, ultra, Ultra, 1280x720 (window 1920x1080) | Warehouse, epic, Epic, 1280x720 (window 1920x1080))
+  ok - one match per run, the rebuild runs in the last ({"matches":3,"lines":["Warehouse, custom, current settings, 1280x720 (window 1920x1080)","Warehouse, custom, without bloom, 1280x720 (window 1920x1080)","Warehouse, custom, post rebuilt, 1280x720 (window 1920x1080)","Warehouse, custom, shadows rebuilt, 1280x720 (window 1920x1080)"],"builds":2,"ov":false,"tags":["Run 1/4 · current settings","Run 2/4 · without bloom","Run 3/4 · post rebuilt","Run 4/4 · shadows rebuilt"],"partial":"Benchmark (1 of 4 runs so far)","tagLeft":false})
+  ok - the benchmark leaves no override behind
+  ok - no match is kept in memory after it ends (0 left)
+  ok - the run tag names each run, gone at the end (Run 1/4 · current settings | Run 2/4 · without bloom | Run 3/4 · post rebuilt | Run 4/4 · shadows rebuilt)
+  ok - the note is saved after every run (Benchmark (1 of 4 runs so far))
+  ok - no console errors
+  ok - the page crashed (Page.crash)
+  ok - a crash leaves a report naming what was running (Crash report - the last session stopped while the game was open (crashed, out of memory or killed by the browser) at 2026-10-25T11:55:50.687Z, 35 s after it sta)
+  ok - a reload is not reported as a crash
+desktop e2e passed
+[start] e2e-sectorops:4
+
+=== e2e-ctcourse:4 (FAIL, 240s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 7
+  ok - host avatar drawn on the client ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[67,0.019999985098838824,62],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - client avatar drawn on the host ({"ok":true,"root":[67,0.019999985090168808,60.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 7 (a7DataHall)
+  A7: the lobby, the step lines, the terminals, the locks
+  ok - A7: the host has the terminal c-a7-t1
+  ok - A7: the host has the terminal c-a7-t2
+  ok - A7: the host has the scanner pair sc-a7, idle ({"id":"sc-a7","flag":"a7-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A7: the client has the terminal c-a7-t1
+  ok - A7: the client has the terminal c-a7-t2
+  ok - A7: the client has the scanner pair sc-a7, idle ({"id":"sc-a7","flag":"a7-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A7: nobody has claimed a path yet
+  ok - A7: the technician is alive, armed and on his loop ({"x":84.25,"z":60.75,"idx":0,"alerted":false,"passive":false})
+  ok - A7: both cameras are live (["cam-a3-hall","cam-a4-c1","cam-a4-c2","cam-a4-c3","a7-cam1","a7-cam2","a8-cam1","a8-cam2","a8-cam3"])
+  ok - A7: A7-cage-w starts locked on the host
+  ok - A7: A7-cage-w starts locked on the client
+  ok - A7: A7-cage-e starts locked on the host
+  ok - A7: A7-cage-e starts locked on the client
+  ok - A7: L7-near starts locked on the host
+  ok - A7: L7-near starts locked on the client
+  ok - A7: A7-hall is never locked
+  ok - A7: A7-plant is never locked
+  ok - A7: A7-pod-s is never locked
+  ok - A7: T1's spot reads lit and the same on both pages (host 0.691, client 0.688)
+  ok - A7: the corridor reads lit and the same on both pages (host 0.942, client 0.942)
+  ok - A7: the lobby reads lit and the same on both pages (host 0.599, client 0.599)
+  A7: the claim swap (the host takes the corridor), the restart
+  ok - A7 claim swap: opens A7-plant
+  ok - A7: the host restarts at the checkpoint
+  ok - A7: the restart clears the claim
+  ok - A7: A7-cage-w is still locked after the restart
+  ok - A7: A7-cage-e is still locked after the restart
+  ok - A7: L7-near is still locked after the restart
+  A7: the split (the client takes the corridor)
+  ok - A7: opens A7-plant
+  ok - A7: the host is A, the client B (a,b)
+  A7: the corridor in the blind windows, the pod
+  ok - A7 pod door: opens A7-pod-s
+  ok - A7: cam2 never saw the client cross ({"yaw":3.839724354387525,"clock":18.316666666666908,"frozen":false,"stage":0,"alarm":0})
+  ok - A7: the hack is not done yet
+  A7: the hall, the technician, terminal one
+  ok - A7 hall door: opens A7-hall
+  ok - A7: the host shuts the hall door again
+  ok - A7: the ready lamps light on both pages ([["0.15,0.2,0.15","0.15,0.2,0.15"],["0.15,0.2,0.15","0.15,0.2,0.15"]] -> [["0.3,1,0.4","0.3,1,0.4"],["0.3,1,0.4","0.3,1,0.4"]])
+  A7: a late hack fails, then the synced hack
+  ok - A7: the client has health to lose (100)
+  ok - A7: the host starts the hack at terminal one
+  ok - A7: the client starts late
+  ok - A7: out of sync, no flag (1:late)
+  ok - A7: the failed hack cost 10 HP (100 -> 90), never below 1
+  ok - A7: the failed sync leaves the cage locked
+  ok - A7: the host starts the synced hack at terminal one
+  ok - A7: the client starts on the count
+  (A7: the host takes the client's hack start: on the host step at 59.083 s)
+  ok - A7: the client starts 0.5 s after the host, inside the window ({"at":0.5833333333333335})
+  ok - A7: the synced hack cost nothing
+  A7: the cage opens, through the cage, to L7
+  ok - A7: A7-cage-w is unlocked on the host
+  ok - A7: A7-cage-e is unlocked on the host
+  ok - A7: L7-near is unlocked on the host
+  ok - A7 cage: opens A7-cage-w
+  ok - A7 cage: opens A7-cage-e
+  ok - A7: the L7 near door (the pod's east door) is open to the client
+  ok - A7: the host is past the hack line
+  (ghost ledger A7 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 8 (a8Strongroom)
+  A8: the vestibule, the step lines, the guards, the cameras, the light
+  ok - A8: the map has A8-entry
+  ok - A8: the host has the device c-a8-board
+  ok - A8: the host has the device c-a8-console
+  ok - A8: the host has the device c-a8-stair-bar
+  ok - A8: the host has the device c-a8-t1
+  ok - A8: the host has the device c-a8-t2
+  ok - A8: the host has the scanner pair sc-a8, idle ({"id":"sc-a8","flag":"a8-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":1,"last":"1:late","anyReady":false})
+  ok - A8: the host has the beam curtain on, powered by panel-a8 ({"id":"laser-a8","on":true,"live":true,"panel":"panel-a8"})
+  ok - A8: the three cameras are online on the host (["online","online","online"])
+  ok - A8: the night circuit is lit on the host
+  ok - A8: the client has the device c-a8-board
+  ok - A8: the client has the device c-a8-console
+  ok - A8: the client has the device c-a8-stair-bar
+  ok - A8: the client has the device c-a8-t1
+  ok - A8: the client has the device c-a8-t2
+  ok - A8: the client has the scanner pair sc-a8, idle ({"id":"sc-a8","flag":"a8-sync","ph":["idle","idle"],"t":[0,0],"who":[-1,-1],"occ":0,"ready":false,"open":false,"left":0,"fails":0,"last":"","anyReady":false})
+  ok - A8: the client has the beam curtain on, powered by panel-a8 ({"id":"laser-a8","on":true,"live":true,"panel":"panel-a8"})
+  ok - A8: the three cameras are online on the client (["online","online","online"])
+  ok - A8: the night circuit is lit on the client
+  ok - A8: nobody has claimed a job yet
+  ok - A8: a8-night1 is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":128.75,"z":71.75,"idx":0})
+  ok - A8: a8-night2 is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":126.25,"z":71.25,"idx":0})
+  ok - A8: a8-officer is up and armed ({"alive":true,"passive":false,"alerted":false,"kind":"grunt","x":142.75,"z":74.75,"idx":0})
+  ok - A8: A8-grille starts locked on the client
+  ok - A8: A8-grille starts locked on the host
+  ok - A8: A8-stair-foot starts locked on the client
+  ok - A8: A8-stair-foot starts locked on the host
+  ok - A8: A8-vault starts locked on the client
+  ok - A8: A8-vault starts locked on the host
+  ok - A8: A8-office is never locked
+  ok - A8: A8-stair-top is never locked
+  ok - A8: the board and the console start ready ({"g-a1-wicket":false,"g-a2-neck":false,"g-a4-wicket":false,"g-a4-console":false,"g-a5-release":false,"g-a5-l5":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a7-cage-w":true,"g-a7-cage-e":true,"g-a7-east":true,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false})
+  ok - A8: the front reads lit and the same on both pages (host 0.757, client 0.757)
+  ok - A8: the grille approach reads lit and the same on both pages (host 0.601, client 0.601)
+  ok - A8: the vestibule reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A8: the leg-up mark reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A8: the jam spot reads dark and the same on both pages (host 0.170, client 0.170)
+  A8: the leg-up split
+  ok - A8: the climber hangs on the gallery's open edge, normal +x, 4.4 m ({"top":4.4,"nx":1})
+  ok - A8: the climber stands on the gallery (y 4.42)
+  ok - A8: the first player onto the gallery (the host) has claimed A, the client B
+  A8: the cross-level jam on C2
+  ok - A8: blind C2 holds nothing on the host on the pier (meters [0,0])
+  ok - A8 office door: opens A8-office
+  ok - A8: no alarm stage after the hop under C2
+  A8: the console, the officer, the loop
+  ok - A8: the officer carries his two interrogation lines (2)
+  ok - A8: the host presses the console with the officer up
+  ok - A8: the refused press sets no flag and opens no gate
+  ok - A8: the officer is down
+  ok - A8: the host presses the console again
+  ok - A8: the loop runs (59.9 s left)
+  A8: the lighting board, the lure
+  ok - A8: the client presses the lighting board
+  ok - A8: the client presses the lighting board a second time
+  ok - A8: a second press does nothing (the window 25.0 s -> 24.4 s, it never rises)
+  ok - A8: the seven night lamps are off on both pages
+  ok - A8: the front reads dark and the same on both pages with the circuit cut (host 0.141, client 0.141)
+  ok - A8: the grille approach reads dark and the same on both pages with the circuit cut (host 0.149, client 0.149)
+  A8: through the grille, down the office stair
+  ok - A8 grille: opens A8-grille
+  ok - A8 grille: closes A8-grille
+  ok - A8 stair top door: opens A8-stair-top
+  ok - A8: the foot door is locked until the push bar
+  ok - A8: the host pushes the bar on the stair side
+  ok - A8 stair foot door: opens A8-stair-foot
+  ok - A8: the loop is still running
+  A8: the partner throw
+  ok - A8: the host still offers the throw at the press
+  ok - A8: the client lands within 0.5 m of the landing ({"x":141.93,"y":0.019999985098838824,"z":62})
+  ok - A8: the client's arc clears the top beam at the line (1.73)
+  ok - A8: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A8: the beams are still on: the thrower is stranded
+  A8: the paired hack
+  ok - A8: the client has health to lose (100)
+  ok - A8: the host starts the hack at time lock one
+  ok - A8: the client starts late
+  ok - A8: out of sync: no flag, the client lost 10 HP (100 -> 90)
+  ok - A8: the failed sync is counted
+  ok - A8: the loop is still running at the second try
+  ok - A8: the host starts the synced hack at time lock one
+  ok - A8: the client starts about 0.5 s after the host, inside the window (ok, gap 0.57 s on the host)
+  ok - A8: the synced hack cost nothing
+  ok - A8: the vault door is unlocked on the host
+  ok - A8: the loop is still running after the sync
+  A8: the vault
+  ok - A8 vault door: opens A8-vault
+  A8: pass 2, the restart, the claim swap, the relock
+  ok - A8: the host restarts at the checkpoint
+  ok - A8: the restart clears the claim and the flags
+  ok - A8: A8-grille is locked again after the restart
+  ok - A8: A8-stair-foot is locked again after the restart
+  ok - A8: A8-vault is locked again after the restart
+  ok - A8: the restart puts the night circuit back on
+  ok - A8: the restart turns the beams back on
+  ok - A8 pass 2: the climber hangs on the gallery's open edge, normal +x, 4.4 m ({"top":4.4,"nx":1})
+  ok - A8 pass 2: the climber stands on the gallery (y 4.42)
+  ok - A8 pass 2: the client is A, the host B
+  ok - A8 pass 2: the host presses the board
+  ok - A8 pass 2 grille: opens A8-grille
+  ok - A8 pass 2: the relock never shuts the door: it stays open (ENGINE-ANSWERS Q9)
+Error: ASSERT: A8 pass 2 grille: closes A8-grille
+    at assert (file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-lib.mjs:410:20)
+    at closeDoor (file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-ctcourse/a8Strongroom.mjs:113:5)
+    at async Module.walk (file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-ctcourse/a8Strongroom.mjs:463:3)
+    at async file:///C:/NightShift/Mobile-Coop-testrun-4189/scripts/e2e-ctcourse.mjs:365:5
+host {"bay":7,"checkpoint":"L7","solo":false,"locks":["L1-near","L2-near","L3-near","L4-near","L5-near","L6-near","L7-near","A1-wicket","A6-cage","A8-grille","A8-stair-foot","A8-vault"],"anchors":["a7-fence-w1","a7-fence-w2","a7-fence-e1","a7-fence-e2","a7-fence-s","a7-fence-n"],"air":{"L1":"sealed","L2":"sealed","L3":"sealed","L4":"sealed","L5":"sealed","L6":"sealed","L7":"sealed"},"gates":{"g-a1-wicket":false,"g-a2-neck":false,"g-a4-wicket":false,"g-a4-console":false,"g-a5-release":false,"g-a5-l5":false,"g-a6-panel":false,"g-a6-exit":false,"g-a6-outfall":false,"g-a7-cage-w":true,"g-a7-cage-e":true,"g-a7-east":true,"g-a7-fence-w1-lock":false,"g-a7-fence-w2-lock":false,"g-a7-fence-e1-lock":false,"g-a7-fence-e2-lock":false,"g-a7-fence-s-lock":false,"g-a7-fence-n-lock":false,"g-a8-rte":false,"g-a8-night":false,"g-a8-grille":false,"g-a8-stair":false,"g-a8-vault":false,"g-a8-console":false},"log":[["dark","door","door","door","switch","switch","door","dark","door","door","dark","boost","teamMove","ledge","stance","door","switch","door","door","dark","switch","door","stance","brace","teamMove","switch","switch","door","dark","dark","stance","brace","teamMove","switch","door","door"],["dark","door","dark","dark","door","switch","switch","dark","stance","brace","teamMove","stance","aim","switch","switch","door","door","teamMove","boost","stance","switch","switch","dark","dark","stance","teamMove","boost","ledge","stance"]],"refusal":"The guard is watching the monitors. Take him out first.","remote":"L87l7k06z","squad":3}
+client {"bay":7,"locks":[0,1,2,3,4,5,6,14,28,36,37,38],"anchors":[33,34,35,36,37,38],"lights":{"groups":[[90,true],[91,true],[92,true],[93,true],[94,true],[95,true],[96,true],[97,true],[98,true],[10,true],[11,true],[12,true],[13,true],[20,true],[21,true],[22,true],[23,true],[30,true],[31,true],[32,true],[33,true],[34,true],[40,true],[41,true],[42,true],[43,true],[50,true],[51,true],[52,true],[53,true],[60,true],[61,true],[62,true],[63,true],[70,true],[71,true],[72,true],[73,true],[81,true],[82,true],[83,true],[84,true]],"dead":[]},"ticks":[],"refusal":"","rn":0,"air":[{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0},{"phase":"sealed","t":0}]}
+FAILED
+[start] e2e-desktop:2
+
+=== e2e-sectorops:4 (ok, 49s) ===
+sector ops (R): co-op section 2 - R3S by the rope and by the relay, the landing (C2) by the relay, the VNA gate
+  ok - S2 C1b high bay R3S from the gangway: the client's leg-up puts the host on the 4.4 m lip (4.4, host [-7.98,2.52,2.2])
+  ok - S2 C1b high bay R3S from the gangway: both players on the 4.4 m top (host [-8.5,4.42,2.2], client [-8.52,4.42,1.4], client crouched false)
+  ok - S2 C1b high bay R3S from the gangway: the client's leg-up puts the host on the 4.4 m lip (4.4, host [-7.98,2.52,2.2])
+  ok - S2 C1b high bay R3S from the gangway: the relay: the client climbed the hanging host onto the lip
+  ok - S2 C1b high bay R3S from the gangway: both players on the 4.4 m top (host [-8.65,4.42,2.2], client [-8.65,4.42,1.4], client crouched true)
+  ok - S2 C2 dispatch landing: the client's leg-up puts the host on the 4.4 m lip (4.4, host [-6.62,2.52,2.65])
+  ok - S2 C2 dispatch landing: the relay: the client climbed the hanging host onto the lip
+  ok - S2 C2 dispatch landing: both players on the 4.4 m top (host [-5.94,4.42,2.62], client [-5.95,4.42,2.95], client crouched true)
+  ok - co-op: section 2 is live and has a team door
+  ok - co-op section 2 team door 0: bolted at the start ({"id":"c-sbolt-1-0","sec":1,"k":0,"door":17,"at":[-17.75,0.6],"side":[1,0],"pair":false,"shut":true,"locked":true,"nav":1})
+  ok - co-op section 2 team door 0: the client mirrors the Unbolt but is not offered it on the near side, no Unbolt row ({"mirrored":true,"on":true,"nearest":null,"rows":[]})
+  ok - co-op section 2 team door 0: the client's use from the near side is refused, locked on both pages ({"id":"c-sbolt-1-0","sec":1,"k":0,"door":17,"at":[-17.75,0.6],"side":[1,0],"pair":false,"shut":true,"locked":true,"nav":1}, client true)
+  ok - co-op section 2 team door 0: the client on the far side is offered "Unbolt" ({"nearest":"c-sbolt-1-0","label":"Unbolt","rows":["Unbolt"]})
+  ok - co-op section 2 team door 0: the client's Unbolt from the far side opens it on both pages
+  ok - co-op section 2 team door 0: the host's checkpoint restart runs
+  ok - co-op section 2 team door 0: the restart re-bolts it on both pages
+no console errors
+[start] e2e-anim
+
+=== e2e-desktop:2 (ok, 64s) ===
+  ok - 16:10: menus a centred layout (1280 x 800 in 1280 x 800)
+  ok - 16:10: the menu sits inside it (x 96)
+  ok - 16:10: Hor+ (94.0 deg), HUD full width
+  ok - 16:10: no console errors
+  ok - 21:9: menus a centred layout (1920 x 1080 in 2520 x 1080)
+  ok - 21:9: the menu sits inside it (x 444)
+  ok - 21:9: Hor+ (114.8 deg), HUD full width
+  ok - 21:9: no console errors
+  ok - 32:9: menus a centred layout (1280 x 720 in 2560 x 720)
+  ok - 32:9: the menu sits inside it (x 736)
+  ok - 32:9: Hor+ stops at the widest FOV (120.0 deg)
+  ok - 32:9: HUD panels in a centred 16:9 (inset 640, vitals x 654, minimap right 1910)
+  ok - 32:9: no console errors
+  ok - Auto: a software renderer starts on Low by its name ({"key":"ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720","tier":"low","source":"gpu"}, low)
+  ok - Auto: an unknown GPU is measured on the menu stage (custom first, then epic)
+  ok - the result is shown (Ready to play offline | Graphics: Epic for this device (Settings > Graphics))
+  ok - the detection is saved
+  ok - the same device is not measured again ({"det":false,"device":{"key":"ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|960x540","tier":"epic","source":"calibrated"},"preset":"epic"})
+desktop e2e passed
+[start] e2e-sectorops:5
+
+=== e2e-ctcourse:3 (ok, 304s) ===
+walk URL: host and client on Marlow Yard
+  ok - the course starts at set 5
+  ok - host avatar drawn on the client ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - host avatar in the client camera's view ({"ok":true,"root":[73,0.019999985098838824,33],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+  ok - connecting label gone once in game ()
+  ok - client avatar drawn on the host ({"ok":true,"root":[73,0.019999985098838824,31.8],"lod":3,"n":2,"info":[{"en":true,"vis":true,"active":true,"inFrustum":true,"size":1.0422922470093738},{"en":true,"vis":true,"active":true,"inFrustum":true,"size":0.043679283883869414}]})
+set 5 (a5Substation)
+  A5: the apron, the step lines, the beams
+  ok - A5: the L4 far door is open to the client
+  ok - A5: the host has the kiosk release
+  ok - A5: the client has the kiosk release
+  ok - A5: nobody has claimed a job yet
+  ok - A5: the beams are on on both pages
+  ok - A5: the L5 near door is locked until the release (the flag gate)
+  ok - A5: the patrol is alive and armed ({"x":47.75,"z":33.25,"idx":0,"level":"unaware","alerted":false,"passive":false})
+  ok - A5: no alarm stage at the start (0)
+  ok - A5: the beams are invisible in normal vision
+  ok - A5: the floodlit strip reads lit and the same on both pages (host 0.753, client 0.753)
+  ok - A5: the kiosk's press spot reads lit and the same on both pages (host 1.000, client 1.000)
+  ok - A5: the apron reads lit and the same on both pages (host 0.545, client 0.545)
+  ok - A5: the landing reads dark and the same on both pages (host 0.160, client 0.160)
+  A5: the patrol leaves the gateway
+  A5: the partner throw
+  ok - A5: the prompt names the move (Co-op: get thrown over (partner throw))
+  ok - A5: the host still offers the throw at the press
+  ok - A5: the client lands within 0.5 m of the landing ({"x":56.06999999999999,"y":0.019999985098838824,"z":36,"crouched":true})
+  ok - A5: the client's arc clears the top beam at the line (1.73 over 2 samples)
+  ok - A5: the thrown client touched no beam (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5: the thrown client has claimed B (the host A)
+  ok - A5: the beams are still on: the thrower is stranded
+  ok - A5: no alarm stage after the throw
+  A5: the flood jam
+  ok - A5: the flood is a jam target
+  ok - A5: the flood is on on both pages before the jam
+  ok - A5: the jammed strip reads dark and the same on both pages (host 0.176, client 0.176)
+  ok - A5: a jammed flood lures nobody ({"x":45.04914243010641,"z":31.786734687908005,"idx":1,"level":"unaware","alerted":false,"passive":false})
+  A5: the release
+  ok - A5: the client keys the release at the kiosk
+  A5: the thrower walks through
+  ok - A5: the host walks the released beam line without a touch (hits 0 -> 0)
+  A5: the panel jam variant
+  ok - A5: the host restarts at the checkpoint
+  ok - A5: the restart clears the release, the zone flag and the claim
+  ok - A5: the restart locks the L5 near door again
+  ok - A5: the beams' power panel is panel-a5, powered ({"id":"panel-a5","ph":0,"t":0,"led":1,"live":true,"lasers":["laser-a5"],"at":[43,3.2,35.71]})
+  ok - A5: the panel is the beams' jam target
+  ok - A5 variant: the client walks the beam line with no break (hits 0 -> 0, alarm 0 -> 0)
+  ok - A5 variant: the client who walked through has claimed B
+  ok - A5 variant: the client keys the release
+  A5: to the L5 door
+  ok - A5: the L5 near door is open to the client
+  (ghost ledger A5 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+set 6 (a6PumpHouse)
+  A6: the sump bay, the step lines, the drive panel
+  ok - A6: the host has the device c-sw-a6-panel
+  ok - A6: the host has the device c-sw-a6-exit
+  ok - A6: the client has the device c-sw-a6-panel
+  ok - A6: the client has the device c-sw-a6-exit
+  ok - A6: nobody has claimed a job yet
+  ok - A6: the outfall door (L6 near) starts locked on the client
+  ok - A6: the host's interlock lamp starts red ([{"id":"a6-interlock","on":false}])
+  ok - A6: the client's interlock lamp starts red ([{"id":"a6-interlock","on":false}])
+  ok - A6: the cage door starts locked on the client
+  ok - A6: the attendant is alive, armed and calm ({"x":61.75,"z":67.25,"alerted":false,"passive":false,"meter":0})
+  ok - A6: the leg-up mark reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A6: the rope spot on the gallery reads dark and the same on both pages (host 0.141, client 0.141)
+  ok - A6: the desk and stair foot read lit and the same on both pages (host 0.749, client 0.749)
+  A6: the leg-up and the rescue line
+  ok - A6: the client hangs on the gallery's open edge, normal -z, 4.4 m ({"kind":"ledge","nx":0,"nz":-1,"top":4.4})
+  ok - A6: the client stands on the gallery (y 4.42)
+  ok - A6: one player up does not set a6-gal
+  ok - A6: the climber's prompt names the rope (On the rope: stick up / down; Co-op or B lets go)
+  A6: the hang-down, the buzzer
+  ok - A6: the outfall door is still locked
+  ok - A6: the hanger hangs head-first under the bridge (root y 3.56, tumble 3.14)
+  ok - A6: the panel is out of reach at the starting depth
+  ok - A6: lowered 2.50 m under the edge
+  ok - A6: a one-second hold does not isolate the drive
+  A6: the isolate key with the attendant at his desk
+  ok - A6: the hanging client is still at the panel
+  ok - A6: the attendant, over 6 m off, stays calm ({"x":61.41903417368327,"z":67.09268100643385,"alerted":false,"passive":false,"meter":0})
+  A6: the gallery switch
+  ok - A6: the gallery switch is a map switch at the stair head (switch-17)
+  ok - A6: the holder's spot reads lit on both pages (host 0.488, client 0.488)
+  ok - A6: the client turns the gallery switch off
+  ok - A6: the holder's spot reads dark on both pages (host 0.141, client 0.141)
+  ok - A6: the client turns the gallery switch on again
+  ok - A6: the holder's spot reads lit again (host 0.488, client 0.488)
+  A6: out by the outfall door
+  ok - A6: the outfall door is open to the client
+  A6: the restart and the fallback (the host drops into the cage)
+  ok - A6: the host restarts at the checkpoint
+  ok - A6: the restart clears a6-drive and a6-gal
+  ok - A6: the cage door is locked again
+  ok - A6: the restart clears the claim and the steps
+  ok - A6: outside the cage at (49.05, 64.1) the client is offered neither device ()
+  ok - A6: outside the cage at (51.5, 61.65) the client is offered neither device ()
+  ok - A6: outside the cage at (51.5, 66.55) the client is offered neither device ()
+  ok - A6: outside the cage at (53.95, 64.1) the client is offered neither device ()
+  ok - A6: the client forces a press on c-sw-a6-panel from the west face
+  ok - A6: the client forces a press on c-sw-a6-exit from the west face
+  ok - A6: a press from outside the cage does not isolate the drive
+  ok - A6: a press from outside the cage does not free the cage door
+  ok - A6 pass 2: the hanger hangs head-first under the bridge (root y 3.56, tumble 3.14)
+  ok - A6 pass 2: the panel is out of reach at the starting depth
+  ok - A6 pass 2: lowered 2.42 m under the edge
+  ok - A6 pass 2: the host is inside the cage (51.50,0.02,64.75)
+  ok - A6 pass 2: the host opens the cage door
+  ok - A6: the outfall door is open to the client at the end
+  (ghost ledger A6 after the walk: {"detections":0,"alarms":0,"knockouts":0,"kills":0,"bodies":0})
+  revive on the A6 gallery
+  (A6 gallery: item 41.60,4.42,70.30, host 42.61,4.42,70.89, 1.17 m apart, reach 1.6, 29.82 s left, floor probe 1.10 m off and 4.42 m under)
+  ok - revive on the A6 gallery: the revive item lies on the surface (y 4.42)
+  ok - revive on the A6 gallery: the host on the same level is offered the revive (1.17 m, reach 1.6)
+  ok - revive on the A6 gallery: not offered from the floor below (1.10 m off, 4.42 m under)
+  ok - revive on the A6 gallery: inside the 30 s window (29.82 s left)
+  ok - revive on the A6 gallery: one revive of the team budget used (0 -> 1)
+  ok - stealth-pays: an interrogation code sets the course flag ({"before":false,"after":true})
+  ok - no console errors ()
+e2e-ctcourse part 3 (sets 5-6) OK
+[start] e2e-traverse
+
+=== e2e-anim (ok, 62s) ===
+mocap locomotion ON: the old shape / style limits are notes (M1 as captured)
+responsiveness
+  ok - visible on the first frame after input (pose 0.0307), root moving on the first step (0.040 m/s)
+  ok - speed 3: 95% speed in 0.43 s (0.3-0.48)
+  ok - speed 4: 95% speed in 0.43 s (0.3-0.48)
+  ok - run: 95% speed in 0.43 s (0.3-0.48)
+  ok - stop from a jog eases to rest in 0.18 s (0.08-0.22)
+  ok - the stop freezes the stride in at most 2 plants (2)
+  ok - reversing at a jog: one continuous turn, no pivot (0.00 s), off the other way (2.95 m/s)
+  ok - 90 deg direction change at a jog (CT M1: one smooth turn, the pace dips): turns at up to ~505 deg/s (450 deg/s, speed stays above 2.46 m/s)
+  ok - leans into turns, <= 8 deg (jog 6.54 deg in, max 6.54; sprint max 6.55)
+  ok - sprinting turns no faster than 720 deg/s (450)
+  ok - aiming: the body follows the aim at <= 360 deg/s (360)
+stance and aim
+  ok - stance change: crouch 0.22 s, stand 0.22 s (0.2-0.3)
+  ok - crouching while moving does not stop you (min 2.03 m/s)
+  ok - aim draws first: drawn in 1.50 s (1.3-1.6; N3: 1.5 rifle / 1.2 pistol)
+  ok - aim raise 0.22 s (CT: ~0.2 s onto the line after muzzle up; G2)
+  ok - aim lower 0.30 s (CT: instant holster; G2 0.3 s)
+weapon clips
+  ok - tactical reload 2.62 s (2.6 s)
+  ok - empty reload 3.10 s (3.1 s)
+  ok - weapon swap 0.90 s (0.8-1.0 s)
+  ok - grenade throw 1.18 s (1.2 s)
+  ok - a reload base row (elbowL 35 deg) shows while reloading (105 frames on the row, 35.00 deg)
+  ok - and not 1.5 s after (0.00 deg, rows '')
+foot locking
+  ok - walk (1.47 m/s): planted feet locked (0.01 cm, 5 plants, 5 read at the contact)
+  ok - jog (3.05 m/s): planted feet locked (0.01 cm, 5 plants, 5 read at the contact)
+  ok - sneak (1.12 m/s): planted feet locked (0.01 cm, 5 plants, 5 read at the contact)
+  ok - crouch run (2.15 m/s): planted feet locked (0.01 cm, 6 plants, 6 read at the contact)
+  ok - aim strafe (0.72 m/s): planted feet locked (0.00 cm, 5 plants, 0 read at the contact)
+  ok - aim back (1.05 m/s): planted feet locked (0.00 cm, 8 plants, 0 read at the contact)
+turn feet (anim-natural N1)
+  jog 90 (2.93 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 4 plants (< 1), twist at lift max 14.3 deg (<= 30), least gap 8.0 cm (>= 5); plant while turning 0.08 s (<= 0.25; target 0.12), first swing frames 1.93 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - jog 90: the planted contact stays put (0.0 cm, 4 plants)
+  ok - jog 90: no wind-up, a planted foot lifts within 30 deg of the body (14.3 deg)
+  ok - jog 90: the feet never cross (8.0 cm)
+  ok - jog 90: a plant while turning lasts no longer than master's (0.08 s <= 0.25)
+  ok - jog 90: no snap at lift, the first swing frames under 5 m/s (1.93 m/s)
+  jog 180 (2.93 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 5 plants (< 1), twist at lift max 14.3 deg (<= 30), least gap 8.0 cm (>= 5); plant while turning 0.18 s (<= 0.25; target 0.12), first swing frames 2.45 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - jog 180: the planted contact stays put (0.0 cm, 5 plants)
+  ok - jog 180: no wind-up, a planted foot lifts within 30 deg of the body (14.3 deg)
+  ok - jog 180: the feet never cross (8.0 cm)
+  ok - jog 180: a plant while turning lasts no longer than master's (0.18 s <= 0.25)
+  ok - jog 180: no snap at lift, the first swing frames under 5 m/s (2.45 m/s)
+  run 90 (3.95 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 5 plants (< 1), twist at lift max 14.3 deg (<= 30), least gap 10.6 cm (>= 5); plant while turning 0.08 s (<= 0.25; target 0.12), first swing frames 2.19 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - run 90: the planted contact stays put (0.0 cm, 5 plants)
+  ok - run 90: no wind-up, a planted foot lifts within 30 deg of the body (14.3 deg)
+  ok - run 90: the feet never cross (10.6 cm)
+  ok - run 90: a plant while turning lasts no longer than master's (0.08 s <= 0.25)
+  ok - run 90: no snap at lift, the first swing frames under 5 m/s (2.19 m/s)
+  run 180 (3.95 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 5 plants (< 1), twist at lift max 14.3 deg (<= 30), least gap 10.6 cm (>= 5); plant while turning 0.10 s (<= 0.25; target 0.12), first swing frames 3.18 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - run 180: the planted contact stays put (0.0 cm, 5 plants)
+  ok - run 180: no wind-up, a planted foot lifts within 30 deg of the body (14.3 deg)
+  ok - run 180: the feet never cross (10.6 cm)
+  ok - run 180: a plant while turning lasts no longer than master's (0.10 s <= 0.25)
+  ok - run 180: no snap at lift, the first swing frames under 5 m/s (3.18 m/s)
+  jog sweep (3 rad/s) (2.93 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 5 plants (< 1), twist at lift max 14.3 deg (<= 30), least gap 11.5 cm (>= 5); plant while turning 0.15 s (<= 0.25; target 0.12), first swing frames 1.98 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - jog sweep (3 rad/s): the planted contact stays put (0.0 cm, 5 plants)
+  ok - jog sweep (3 rad/s): no wind-up, a planted foot lifts within 30 deg of the body (14.3 deg)
+  ok - jog sweep (3 rad/s): the feet never cross (11.5 cm)
+  ok - jog sweep (3 rad/s): a plant while turning lasts no longer than master's (0.15 s <= 0.25)
+  ok - jog sweep (3 rad/s): no snap at lift, the first swing frames under 5 m/s (1.98 m/s)
+  crouch 90 (2.17 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 5 plants (< 1), twist at lift max 14.3 deg (<= 30), least gap 8.0 cm (>= 5); plant while turning 0.17 s, first swing frames 3.93 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - crouch 90: the planted contact stays put (0.0 cm, 5 plants)
+  ok - crouch 90: no wind-up, a planted foot lifts within 30 deg of the body (14.3 deg)
+  ok - crouch 90: the feet never cross (8.0 cm)
+  ok - crouch 90: no snap at lift, the first swing frames under 5 m/s (3.93 m/s)
+  turn round (standstill) (0.00 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 2 plants (< 1), twist at lift max 0.0 deg (<= 30), least gap 6.0 cm (>= 5); plant while turning 0.00 s, first swing frames 1.20 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - turn round (standstill): the planted contact stays put (0.0 cm, 2 plants)
+  ok - turn round (standstill): no wind-up, a planted foot lifts within 30 deg of the body (0.0 deg)
+  ok - turn round (standstill): the feet never cross (6.0 cm)
+  ok - turn round (standstill): no snap at lift, the first swing frames under 5 m/s (1.20 m/s)
+  aimed turn on the spot (90) (0.00 m/s): contact slide max 0.0 cm (heel 0.0, ball 0.0) in 4 plants (< 1), twist at lift max 21.2 deg (<= 30), least gap 6.1 cm (>= 5); plant while turning 0.35 s, first swing frames 0.40 m/s (<= 5; straight 2.03, target <= 2x)
+  ok - aimed turn on the spot (90): the planted contact stays put (0.0 cm, 4 plants)
+  ok - aimed turn on the spot (90): no wind-up, a planted foot lifts within 30 deg of the body (21.2 deg)
+  ok - aimed turn on the spot (90): the feet never cross (6.1 cm)
+  ok - aimed turn on the spot (90): no snap at lift, the first swing frames under 5 m/s (0.40 m/s)
+anti-crab metrics (report-only until CRAB_GATES turns a gait on)
+  walk (1.45 m/s): knees 0.69 x the hips (0.58-0.81; 0.5-1.1), planted track 3 cm from the line (1 to 6.3; <= 7.0), knee outside the ankle max 3.8 cm (<= 3.5), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 6.3 cm (<= 8.3)  OUT: knee-out
+  note - walk: knee separation within 0.5-1.1 x the hips (0.58 / 0.69 / 0.81) [M1 as captured]
+  note - walk: planted feet within 7.0 cm of the line under the hips (1 / 3 / 6.3 cm) [M1 as captured]
+  note - walk: knees over the toes (outside by 3.8 cm) [M1 as captured: past the old limit]
+  ok - walk: planted feet locked (0 cm, 6 plants)
+  note - walk: elbows in (6.3 cm outside the shoulder) [M1 as captured]
+  jog (3.00 m/s): knees 0.8 x the hips (0.68-0.98; 0.5-1.1), planted track 4.8 cm from the line (3.2 to 6.1; <= 7.0), knee outside the ankle max 1.5 cm (<= 3.4), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 5.8 cm (<= 8.0)
+  note - jog: knee separation within 0.5-1.1 x the hips (0.68 / 0.8 / 0.98) [M1 as captured]
+  note - jog: planted feet within 7.0 cm of the line under the hips (3.2 / 4.8 / 6.1 cm) [M1 as captured]
+  note - jog: knees over the toes (outside by 1.5 cm) [M1 as captured]
+  ok - jog: planted feet locked (0 cm, 6 plants)
+  note - jog: elbows in (5.8 cm outside the shoulder) [M1 as captured]
+  run (4.00 m/s): knees 1.05 x the hips (0.81-1.24; 0.44-2.15), planted track 5.5 cm from the line (4.3 to 6.6; <= 18.0), knee outside the ankle max 2.1 cm (<= 10.7), planted slide max 0 cm in 7 plants (< 1.0), elbow outside the shoulder max 5 cm (<= 11.0)
+  note - run: knee separation within 0.44-2.15 x the hips (0.81 / 1.05 / 1.24) [M1 as captured]
+  note - run: planted feet within 18.0 cm of the line under the hips (4.3 / 5.5 / 6.6 cm) [M1 as captured]
+  note - run: knees over the toes (outside by 2.1 cm) [M1 as captured]
+  ok - run: planted feet locked (0 cm, 7 plants)
+  note - run: elbows in (5 cm outside the shoulder) [M1 as captured]
+  crouch (2.15 m/s): knees 0.75 x the hips (0.72-0.78; 0.5-1.25), planted track 4.6 cm from the line (3.8 to 6.2; <= 8.0), knee outside the ankle max 2.2 cm (<= 3.0), planted slide max 0 cm in 8 plants (< 1.0), elbow outside the shoulder max 2.4 cm (<= 6.0)
+  note - crouch: knee separation within 0.5-1.25 x the hips (0.72 / 0.75 / 0.78) [M1 as captured]
+  note - crouch: planted feet within 8.0 cm of the line under the hips (3.8 / 4.6 / 6.2 cm) [M1 as captured]
+  note - crouch: knees over the toes (outside by 2.2 cm) [M1 as captured]
+  ok - crouch: planted feet locked (0 cm, 8 plants)
+  note - crouch: elbows in (2.4 cm outside the shoulder) [M1 as captured]
+  sneak (1.10 m/s): knees 0.72 x the hips (0.67-0.77; 0.5-1.25), planted track 4.5 cm from the line (3.1 to 7.3; <= 8.0), knee outside the ankle max 2.1 cm (<= 3.0), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 5.3 cm (<= 6.0)
+  note - sneak: knee separation within 0.5-1.25 x the hips (0.67 / 0.72 / 0.77) [M1 as captured]
+  note - sneak: planted feet within 8.0 cm of the line under the hips (3.1 / 4.5 / 7.3 cm) [M1 as captured]
+  note - sneak: knees over the toes (outside by 2.1 cm) [M1 as captured]
+  ok - sneak: planted feet locked (0 cm, 6 plants)
+  note - sneak: elbows in (5.3 cm outside the shoulder) [M1 as captured]
+anti-crab: standing holstered sub-states at speeds 1-3 (CRAB_STATE_GATES)
+  speed 1 idle (0.00 m/s): knees 0.69 x the hips (0.69-0.69; 0.5-1.1), planted track 3 cm from the line (2.8 to 3.2; <= 10.5), knee outside the ankle max 3 cm (<= 9.3), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 7 cm (<= 8.0)
+  note - speed 1 idle: knee separation within 0.5-1.1 x the hips (0.69 / 0.69 / 0.69) [M1 as captured]
+  note - speed 1 idle: feet within 10.5 cm of the line under the hips (2.8 / 3 / 3.2 cm) [M1 as captured]
+  note - speed 1 idle: knees over the toes (outside by 3 cm) [M1 as captured]
+  ok - speed 1 idle: planted feet locked (0 cm)
+  note - speed 1 idle: elbows in (7 cm outside the shoulder) [M1 as captured]
+  speed 1 start (0.58 m/s): knees 0.68 x the hips (0.57-0.76; 0.43-1.1), planted track 3.2 cm from the line (1.5 to 4.5; <= 10.5), knee outside the ankle max 3.7 cm (<= 8.9), planted slide max 0 cm in 3 plants (< 2.0), elbow outside the shoulder max 7.2 cm (<= 8.3)
+  note - speed 1 start: knee separation within 0.43-1.1 x the hips (0.57 / 0.68 / 0.76) [M1 as captured]
+  note - speed 1 start: feet within 10.5 cm of the line under the hips (1.5 / 3.2 / 4.5 cm) [M1 as captured]
+  note - speed 1 start: knees over the toes (outside by 3.7 cm) [M1 as captured]
+  ok - speed 1 start: planted feet locked (0 cm)
+  note - speed 1 start: elbows in (7.2 cm outside the shoulder) [M1 as captured]
+  speed 1 straight (0.75 m/s): knees 0.68 x the hips (0.61-0.76; 0.5-1.1), planted track 3.3 cm from the line (1.8 to 5.6; <= 7.0), knee outside the ankle max 3.1 cm (<= 3.7), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max 5.8 cm (<= 8.3)
+  note - speed 1 straight: knee separation within 0.5-1.1 x the hips (0.61 / 0.68 / 0.76) [M1 as captured]
+  note - speed 1 straight: feet within 7.0 cm of the line under the hips (1.8 / 3.3 / 5.6 cm) [M1 as captured]
+  note - speed 1 straight: knees over the toes (outside by 3.1 cm) [M1 as captured]
+  ok - speed 1 straight: planted feet locked (0 cm)
+  note - speed 1 straight: elbows in (5.8 cm outside the shoulder) [M1 as captured]
+  speed 1 stop (0.04 m/s): knees 0.72 x the hips (0.58-0.82; 0.5-1.1), planted track 4 cm from the line (1.1 to 6.9; <= 10.5), knee outside the ankle max 3.7 cm (<= 3.8), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 5.8 cm (<= 8.3)
+  note - speed 1 stop: knee separation within 0.5-1.1 x the hips (0.58 / 0.72 / 0.82) [M1 as captured]
+  note - speed 1 stop: feet within 10.5 cm of the line under the hips (1.1 / 4 / 6.9 cm) [M1 as captured]
+  note - speed 1 stop: knees over the toes (outside by 3.7 cm) [M1 as captured]
+  ok - speed 1 stop: planted feet locked (0 cm)
+  note - speed 1 stop: elbows in (5.8 cm outside the shoulder) [M1 as captured]
+  speed 1 turn round (standstill) (0.39 m/s): knees 0.68 x the hips (0.62-0.74; 0.5-1.1), planted track 3.9 cm from the line (2.6 to 7.2; <= 7.0), knee outside the ankle max 3.6 cm (<= 9.4), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 7 cm (<= 8.0)  OUT: track
+  note - speed 1 turn round (standstill): knee separation within 0.5-1.1 x the hips (0.62 / 0.68 / 0.74) [M1 as captured]
+  note - speed 1 turn round (standstill): knees over the toes (outside by 3.6 cm) [M1 as captured]
+  ok - speed 1 turn round (standstill): planted feet locked (0 cm)
+  note - speed 1 turn round (standstill): elbows in (7 cm outside the shoulder) [M1 as captured]
+  speed 2 idle (0.00 m/s): knees 0.69 x the hips (0.69-0.69; 0.5-1.1), planted track 3 cm from the line (2.1 to 3.9; <= 10.5), knee outside the ankle max 3.4 cm (<= 9.3), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 7.2 cm (<= 8.0)
+  note - speed 2 idle: knee separation within 0.5-1.1 x the hips (0.69 / 0.69 / 0.69) [M1 as captured]
+  note - speed 2 idle: feet within 10.5 cm of the line under the hips (2.1 / 3 / 3.9 cm) [M1 as captured]
+  note - speed 2 idle: knees over the toes (outside by 3.4 cm) [M1 as captured]
+  ok - speed 2 idle: planted feet locked (0 cm)
+  note - speed 2 idle: elbows in (7.2 cm outside the shoulder) [M1 as captured]
+  speed 2 start (1.09 m/s): knees 0.71 x the hips (0.64-0.81; 0.43-1.1), planted track 2.5 cm from the line (1.5 to 4.1; <= 10.5), knee outside the ankle max 3.5 cm (<= 8.9), planted slide max 0 cm in 3 plants (< 2.0), elbow outside the shoulder max 6.9 cm (<= 8.3)
+  note - speed 2 start: knee separation within 0.43-1.1 x the hips (0.64 / 0.71 / 0.81) [M1 as captured]
+  note - speed 2 start: feet within 10.5 cm of the line under the hips (1.5 / 2.5 / 4.1 cm) [M1 as captured]
+  note - speed 2 start: knees over the toes (outside by 3.5 cm) [M1 as captured]
+  ok - speed 2 start: planted feet locked (0 cm)
+  note - speed 2 start: elbows in (6.9 cm outside the shoulder) [M1 as captured]
+  speed 2 straight (1.40 m/s): knees 0.69 x the hips (0.56-0.81; 0.5-1.1), planted track 2.8 cm from the line (1.1 to 6; <= 7.0), knee outside the ankle max 3.8 cm (<= 3.7), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 6.4 cm (<= 8.3)  OUT: knee-out
+  note - speed 2 straight: knee separation within 0.5-1.1 x the hips (0.56 / 0.69 / 0.81) [M1 as captured]
+  note - speed 2 straight: feet within 7.0 cm of the line under the hips (1.1 / 2.8 / 6 cm) [M1 as captured]
+  note - speed 2 straight: knees over the toes (outside by 3.8 cm) [M1 as captured: past the old limit]
+  ok - speed 2 straight: planted feet locked (0 cm)
+  note - speed 2 straight: elbows in (6.4 cm outside the shoulder) [M1 as captured]
+  speed 2 stop (0.08 m/s): knees 0.73 x the hips (0.64-0.83; 0.5-1.1), planted track 3.6 cm from the line (-0.1 to 7.4; <= 10.5), knee outside the ankle max 4.6 cm (<= 3.8), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 6.1 cm (<= 8.3)  OUT: knee-out
+  note - speed 2 stop: knee separation within 0.5-1.1 x the hips (0.64 / 0.73 / 0.83) [M1 as captured]
+  note - speed 2 stop: feet within 10.5 cm of the line under the hips (-0.1 / 3.6 / 7.4 cm) [M1 as captured]
+  note - speed 2 stop: knees over the toes (outside by 4.6 cm) [M1 as captured: past the old limit]
+  ok - speed 2 stop: planted feet locked (0 cm)
+  note - speed 2 stop: elbows in (6.1 cm outside the shoulder) [M1 as captured]
+  speed 2 turn round (standstill) (0.39 m/s): knees 0.68 x the hips (0.62-0.74; 0.5-1.1), planted track 3.9 cm from the line (2.3 to 7.2; <= 7.0), knee outside the ankle max 3.6 cm (<= 9.4), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 7.1 cm (<= 8.0)  OUT: track
+  note - speed 2 turn round (standstill): knee separation within 0.5-1.1 x the hips (0.62 / 0.68 / 0.74) [M1 as captured]
+  note - speed 2 turn round (standstill): knees over the toes (outside by 3.6 cm) [M1 as captured]
+  ok - speed 2 turn round (standstill): planted feet locked (0 cm)
+  note - speed 2 turn round (standstill): elbows in (7.1 cm outside the shoulder) [M1 as captured]
+  speed 3 idle (0.00 m/s): knees 0.69 x the hips (0.69-0.69; 0.5-1.1), planted track 3 cm from the line (2.2 to 3.8; <= 10.5), knee outside the ankle max 3.4 cm (<= 9.3), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 7.1 cm (<= 8.0)
+  note - speed 3 idle: knee separation within 0.5-1.1 x the hips (0.69 / 0.69 / 0.69) [M1 as captured]
+  note - speed 3 idle: feet within 10.5 cm of the line under the hips (2.2 / 3 / 3.8 cm) [M1 as captured]
+  note - speed 3 idle: knees over the toes (outside by 3.4 cm) [M1 as captured]
+  ok - speed 3 idle: planted feet locked (0 cm)
+  note - speed 3 idle: elbows in (7.1 cm outside the shoulder) [M1 as captured]
+  speed 3 start (1.62 m/s): knees 0.72 x the hips (0.63-0.91; 0.43-1.1), planted track 2.8 cm from the line (1.5 to 6.5; <= 10.5), knee outside the ankle max 3.6 cm (<= 8.9), planted slide max 0 cm in 4 plants (< 2.0), elbow outside the shoulder max 7.1 cm (<= 8.3)
+  note - speed 3 start: knee separation within 0.43-1.1 x the hips (0.63 / 0.72 / 0.91) [M1 as captured]
+  note - speed 3 start: feet within 10.5 cm of the line under the hips (1.5 / 2.8 / 6.5 cm) [M1 as captured]
+  note - speed 3 start: knees over the toes (outside by 3.6 cm) [M1 as captured]
+  ok - speed 3 start: planted feet locked (0 cm)
+  note - speed 3 start: elbows in (7.1 cm outside the shoulder) [M1 as captured]
+  speed 3 straight (2.10 m/s): knees 0.7 x the hips (0.51-0.87; 0.5-1.1), planted track 3 cm from the line (0.8 to 5.8; <= 7.0), knee outside the ankle max 3.8 cm (<= 3.7), planted slide max 0 cm in 7 plants (< 1.0), elbow outside the shoulder max 6.6 cm (<= 8.3)  OUT: knee-out
+  note - speed 3 straight: knee separation within 0.5-1.1 x the hips (0.51 / 0.7 / 0.87) [M1 as captured]
+  note - speed 3 straight: feet within 7.0 cm of the line under the hips (0.8 / 3 / 5.8 cm) [M1 as captured]
+  note - speed 3 straight: knees over the toes (outside by 3.8 cm) [M1 as captured: past the old limit]
+  ok - speed 3 straight: planted feet locked (0 cm)
+  note - speed 3 straight: elbows in (6.6 cm outside the shoulder) [M1 as captured]
+  speed 3 stop (0.12 m/s): knees 0.7 x the hips (0.63-0.75; 0.5-1.1), planted track 3.8 cm from the line (0 to 8; <= 10.5), knee outside the ankle max 4.3 cm (<= 3.8), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 5.8 cm (<= 8.3)  OUT: knee-out
+  note - speed 3 stop: knee separation within 0.5-1.1 x the hips (0.63 / 0.7 / 0.75) [M1 as captured]
+  note - speed 3 stop: feet within 10.5 cm of the line under the hips (0 / 3.8 / 8 cm) [M1 as captured]
+  note - speed 3 stop: knees over the toes (outside by 4.3 cm) [M1 as captured: past the old limit]
+  ok - speed 3 stop: planted feet locked (0 cm)
+  note - speed 3 stop: elbows in (5.8 cm outside the shoulder) [M1 as captured]
+  speed 3 turn round (standstill) (0.39 m/s): knees 0.68 x the hips (0.62-0.74; 0.5-1.1), planted track 3.8 cm from the line (2.2 to 7.2; <= 7.0), knee outside the ankle max 3.6 cm (<= 9.4), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 7.1 cm (<= 8.0)  OUT: track
+  note - speed 3 turn round (standstill): knee separation within 0.5-1.1 x the hips (0.62 / 0.68 / 0.74) [M1 as captured]
+  note - speed 3 turn round (standstill): knees over the toes (outside by 3.6 cm) [M1 as captured]
+  ok - speed 3 turn round (standstill): planted feet locked (0 cm)
+  note - speed 3 turn round (standstill): elbows in (7.1 cm outside the shoulder) [M1 as captured]
+anti-crab: back to a wall, holstered (S5)
+  ok - wall recording standing
+  wall idle (0.00 m/s): knees 1 x the hips (1-1; 0.5-1.1), planted track 8.7 cm from the line (8.2 to 9.2; <= 10.5), knee outside the ankle max 0.2 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 1.5 cm (<= 6.0) keyed 1.00
+  ok - wall idle: still on the wall
+  ok - wall idle: the wall keys play (keyed weight 1.00)
+  ok - wall idle: knee separation within 0.5-1.1 x the hips (1 / 1 / 1)
+  ok - wall idle: knees over the toes (outside by 0.2 cm)
+  ok - wall idle: the feet never cross (8.2 cm)
+  ok - wall idle: feet within 10.5 cm of the line under the hips (8.2 / 8.7 / 9.2 cm)
+  wall slide right (0.39 m/s): knees 1.32 x the hips (0.76-2.01; 0.5-1.5), planted track 16.5 cm from the line (-7.1 to 39.1; <= 20.0), knee outside the ankle max 7.6 cm (<= 3.0), planted slide max 0.7 cm in 3 plants (< 1.0), elbow outside the shoulder max 1.5 cm (<= 6.0)  OUT: knees, track, knee-out keyed 1.00  REPORT-ONLY (open, CT Core)
+  wall slide left (0.39 m/s): knees 1.47 x the hips (0.74-2.21; 0.5-1.5), planted track 21.5 cm from the line (-13 to 52.9; <= 20.0), knee outside the ankle max 10.8 cm (<= 3.0), planted slide max 0.7 cm in 3 plants (< 1.0), elbow outside the shoulder max 1.5 cm (<= 6.0)  OUT: knees, track, knee-out keyed 1.00  REPORT-ONLY (open, CT Core)
+  wall peek right (0.00 m/s): knees 1.31 x the hips (1.31-1.31; 0.5-1.1), planted track 11.1 cm from the line (-6.7 to 29; <= 16.0), knee outside the ankle max 9.6 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 4.9 cm (<= 6.0)  OUT: knees, track, knee-out keyed 0.00 edge 1  REPORT-ONLY (open, CT Core)
+  wall peek left (0.00 m/s): knees 1.27 x the hips (1.27-1.27; 0.5-1.1), planted track 11.1 cm from the line (-7.3 to 29.5; <= 16.0), knee outside the ankle max 9.6 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 4.9 cm (<= 6.0)  OUT: knees, track, knee-out keyed 0.00 edge -1  REPORT-ONLY (open, CT Core)
+  ok - wall recording crouched
+  wall crouched idle (0.00 m/s): knees 1.07 x the hips (1.05-1.09; 0.5-1.25), planted track 9.4 cm from the line (8.4 to 10.5; <= 10.5), knee outside the ankle max 0.3 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 11.3 cm (<= 6.0)  OUT: elbows keyed 1.00  REPORT-ONLY (open, CT Core)
+  wall crouched slide right (0.55 m/s): knees 0.75 x the hips (0.59-0.98; 0.5-1.5), planted track 8.6 cm from the line (4.2 to 15.4; <= 20.0), knee outside the ankle max 0.3 cm (<= 3.0), planted slide max 0 cm in 3 plants (< 1.0), elbow outside the shoulder max 3.3 cm (<= 6.0) keyed 1.00  REPORT-ONLY (open, CT Core)
+  wall crouched slide left (0.55 m/s): knees 0.92 x the hips (0.59-1.25; 0.5-1.5), planted track 10.7 cm from the line (4.3 to 21.8; <= 20.0), knee outside the ankle max 1.4 cm (<= 3.0), planted slide max 0 cm in 3 plants (< 1.0), elbow outside the shoulder max 2 cm (<= 6.0)  OUT: track keyed 1.00  REPORT-ONLY (open, CT Core)
+  wall crouched peek right (0.00 m/s): knees 1.57 x the hips (1.56-1.63; 0.5-1.25), planted track 9.8 cm from the line (9 to 10.6; <= 16.0), knee outside the ankle max 3.9 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 8.3 cm (<= 6.0)  OUT: knees, knee-out, elbows keyed 0.00 edge 1  REPORT-ONLY (open, CT Core)
+  wall crouched peek left (0.00 m/s): knees 1.56 x the hips (1.48-1.58; 0.5-1.25), planted track 9.8 cm from the line (9.2 to 10.6; <= 16.0), knee outside the ankle max 4.6 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 10.8 cm (<= 6.0)  OUT: knees, knee-out, elbows keyed 0.00 edge -1  REPORT-ONLY (open, CT Core)
+  ok - wall rows in range
+anti-crab: drawn states, rifle and pistol (CRAB_DRAWN_GATES)
+  rifle aimed idle (0.00 m/s): knees 0.94 x the hips (0.94-0.94; 0.5-1.1), planted track 7.6 cm from the line (7.6 to 7.6; <= 10.5), knee outside the ankle max 0.6 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 3.7 cm (<= 6.0)
+  ok - rifle aimed idle: knee separation within 0.5-1.1 x the hips (0.94 / 0.94 / 0.94)
+  ok - rifle aimed idle: feet within 10.5 cm of the line under the hips (7.6 / 7.6 / 7.6 cm)
+  ok - rifle aimed idle: knees over the toes (outside by 0.6 cm)
+  ok - rifle aimed idle: planted feet locked (0 cm)
+  ok - rifle aimed idle: elbows in (3.7 cm outside the shoulder)
+  rifle aimed strafe right speed 1 (0.36 m/s): knees 1.17 x the hips (0.63-1.94; 0.5-2.4), planted track 13.9 cm from the line (3.7 to 31.1; <= 40.0), knee outside the ankle max 2 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max 4.1 cm (<= 6.0)
+  ok - rifle aimed strafe right speed 1: knee separation within 0.5-2.4 x the hips (0.63 / 1.17 / 1.94)
+  ok - rifle aimed strafe right speed 1: feet within 40.0 cm of the line under the hips (3.7 / 13.9 / 31.1 cm)
+  ok - rifle aimed strafe right speed 1: knees over the toes (outside by 2 cm)
+  ok - rifle aimed strafe right speed 1: planted feet locked (0 cm)
+  ok - rifle aimed strafe right speed 1: elbows in (4.1 cm outside the shoulder)
+  ok - rifle aimed strafe right speed 1: the feet never cross (3.7 cm)
+  rifle aimed strafe right speed 2 (0.68 m/s): knees 1.32 x the hips (0.63-2.22; 0.5-2.4), planted track 16.2 cm from the line (3.1 to 36.7; <= 40.0), knee outside the ankle max 2.8 cm (<= 3.0), planted slide max 0 cm in 5 plants (< 1.0), elbow outside the shoulder max 4.1 cm (<= 6.0)
+  ok - rifle aimed strafe right speed 2: knee separation within 0.5-2.4 x the hips (0.63 / 1.32 / 2.22)
+  ok - rifle aimed strafe right speed 2: feet within 40.0 cm of the line under the hips (3.1 / 16.2 / 36.7 cm)
+  ok - rifle aimed strafe right speed 2: knees over the toes (outside by 2.8 cm)
+  ok - rifle aimed strafe right speed 2: planted feet locked (0 cm)
+  ok - rifle aimed strafe right speed 2: elbows in (4.1 cm outside the shoulder)
+  ok - rifle aimed strafe right speed 2: the feet never cross (3.1 cm)
+  rifle aimed strafe left speed 1 (0.36 m/s): knees 1.4 x the hips (0.64-2.21; 0.5-2.4), planted track 17.7 cm from the line (3.9 to 34.7; <= 40.0), knee outside the ankle max 1.5 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max 4.1 cm (<= 6.0)
+  ok - rifle aimed strafe left speed 1: knee separation within 0.5-2.4 x the hips (0.64 / 1.4 / 2.21)
+  ok - rifle aimed strafe left speed 1: feet within 40.0 cm of the line under the hips (3.9 / 17.7 / 34.7 cm)
+  ok - rifle aimed strafe left speed 1: knees over the toes (outside by 1.5 cm)
+  ok - rifle aimed strafe left speed 1: planted feet locked (0 cm)
+  ok - rifle aimed strafe left speed 1: elbows in (4.1 cm outside the shoulder)
+  ok - rifle aimed strafe left speed 1: the feet never cross (3.9 cm)
+  rifle aimed strafe left speed 2 (0.68 m/s): knees 1.41 x the hips (0.64-2.18; 0.5-2.4), planted track 17 cm from the line (2.9 to 36.8; <= 40.0), knee outside the ankle max 2.7 cm (<= 3.0), planted slide max 0 cm in 5 plants (< 1.0), elbow outside the shoulder max 4.1 cm (<= 6.0)
+  ok - rifle aimed strafe left speed 2: knee separation within 0.5-2.4 x the hips (0.64 / 1.41 / 2.18)
+  ok - rifle aimed strafe left speed 2: feet within 40.0 cm of the line under the hips (2.9 / 17 / 36.8 cm)
+  ok - rifle aimed strafe left speed 2: knees over the toes (outside by 2.7 cm)
+  ok - rifle aimed strafe left speed 2: planted feet locked (0 cm)
+  ok - rifle aimed strafe left speed 2: elbows in (4.1 cm outside the shoulder)
+  ok - rifle aimed strafe left speed 2: the feet never cross (2.9 cm)
+  rifle aimed backwards speed 1 (0.55 m/s): knees 0.69 x the hips (0.67-0.71; 0.5-1.1), planted track 4.5 cm from the line (3.5 to 5.5; <= 7.0), knee outside the ankle max 1.9 cm (<= 3.0), planted slide max 0 cm in 5 plants (< 1.0), elbow outside the shoulder max 4.1 cm (<= 6.0)
+  ok - rifle aimed backwards speed 1: knee separation within 0.5-1.1 x the hips (0.67 / 0.69 / 0.71)
+  ok - rifle aimed backwards speed 1: feet within 7.0 cm of the line under the hips (3.5 / 4.5 / 5.5 cm)
+  ok - rifle aimed backwards speed 1: knees over the toes (outside by 1.9 cm)
+  ok - rifle aimed backwards speed 1: planted feet locked (0 cm)
+  ok - rifle aimed backwards speed 1: elbows in (4.1 cm outside the shoulder)
+  rifle aimed backwards speed 2 (1.02 m/s): knees 0.69 x the hips (0.67-0.71; 0.5-1.1), planted track 4.4 cm from the line (3.1 to 5.9; <= 7.0), knee outside the ankle max 2.1 cm (<= 3.0), planted slide max 0 cm in 7 plants (< 1.0), elbow outside the shoulder max 4.1 cm (<= 6.0)
+  ok - rifle aimed backwards speed 2: knee separation within 0.5-1.1 x the hips (0.67 / 0.69 / 0.71)
+  ok - rifle aimed backwards speed 2: feet within 7.0 cm of the line under the hips (3.1 / 4.4 / 5.9 cm)
+  ok - rifle aimed backwards speed 2: knees over the toes (outside by 2.1 cm)
+  ok - rifle aimed backwards speed 2: planted feet locked (0 cm)
+  ok - rifle aimed backwards speed 2: elbows in (4.1 cm outside the shoulder)
+  rifle aimed forward speed 1 (0.73 m/s): knees 0.7 x the hips (0.68-0.72; 0.5-1.1), planted track 4.6 cm from the line (3.7 to 5.4; <= 7.0), knee outside the ankle max 2.2 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max 4 cm (<= 6.0)
+  ok - rifle aimed forward speed 1: knee separation within 0.5-1.1 x the hips (0.68 / 0.7 / 0.72)
+  ok - rifle aimed forward speed 1: knees over the toes (outside by 2.2 cm)
+  ok - rifle aimed forward speed 1: planted feet locked (0 cm)
+  ok - rifle aimed forward speed 1: elbows in (4 cm outside the shoulder)
+  rifle aimed forward speed 2 (1.36 m/s): knees 0.71 x the hips (0.69-0.73; 0.5-1.1), planted track 4.5 cm from the line (3.3 to 5.7; <= 7.0), knee outside the ankle max 2.6 cm (<= 3.0), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 4.2 cm (<= 6.0)
+  ok - rifle aimed forward speed 2: knee separation within 0.5-1.1 x the hips (0.69 / 0.71 / 0.73)
+  ok - rifle aimed forward speed 2: knees over the toes (outside by 2.6 cm)
+  ok - rifle aimed forward speed 2: planted feet locked (0 cm)
+  ok - rifle aimed forward speed 2: elbows in (4.2 cm outside the shoulder)
+  rifle low ready idle (0.00 m/s): knees 1 x the hips (1-1; 0.5-1.1), planted track 7.6 cm from the line (7 to 8.3; <= 10.5), knee outside the ankle max 0.9 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 9.1 cm (<= 10.1)
+  ok - rifle low ready idle: knee separation within 0.5-1.1 x the hips (1 / 1 / 1)
+  ok - rifle low ready idle: feet within 10.5 cm of the line under the hips (7 / 7.6 / 8.3 cm)
+  ok - rifle low ready idle: knees over the toes (outside by 0.9 cm)
+  ok - rifle low ready idle: planted feet locked (0 cm)
+  ok - rifle low ready idle: elbows in (9.1 cm outside the shoulder)
+  rifle low ready walk speed 4 (1.40 m/s): knees 0.71 x the hips (0.67-0.75; 0.5-1.1), planted track 2.3 cm from the line (1.5 to 4.1; <= 7.0), knee outside the ankle max 3.2 cm (<= 3.5), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 4.9 cm (<= 6.0)
+  ok - rifle low ready walk speed 4: knee separation within 0.5-1.1 x the hips (0.67 / 0.71 / 0.75)
+  ok - rifle low ready walk speed 4: feet within 7.0 cm of the line under the hips (1.5 / 2.3 / 4.1 cm)
+  ok - rifle low ready walk speed 4: knees over the toes (outside by 3.2 cm)
+  ok - rifle low ready walk speed 4: planted feet locked (0 cm)
+  ok - rifle low ready walk speed 4: elbows in (4.9 cm outside the shoulder)
+  rifle low ready jog speed 4 (2.91 m/s): knees 0.78 x the hips (0.57-0.96; 0.5-1.1), planted track 2 cm from the line (1.6 to 2.9; <= 7.0), knee outside the ankle max 3.1 cm (<= 3.4), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 5.7 cm (<= 6.0)
+  ok - rifle low ready jog speed 4: knee separation within 0.5-1.1 x the hips (0.57 / 0.78 / 0.96)
+  ok - rifle low ready jog speed 4: feet within 7.0 cm of the line under the hips (1.6 / 2 / 2.9 cm)
+  ok - rifle low ready jog speed 4: knees over the toes (outside by 3.1 cm)
+  ok - rifle low ready jog speed 4: planted feet locked (0 cm)
+  ok - rifle low ready jog speed 4: elbows in (5.7 cm outside the shoulder)
+  pistol aimed idle (0.00 m/s): knees 0.94 x the hips (0.94-0.94; 0.5-1.1), planted track 7.6 cm from the line (7.6 to 7.6; <= 10.5), knee outside the ankle max 0.6 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max -4.5 cm (<= 6.0)
+  ok - pistol aimed idle: knee separation within 0.5-1.1 x the hips (0.94 / 0.94 / 0.94)
+  ok - pistol aimed idle: feet within 10.5 cm of the line under the hips (7.6 / 7.6 / 7.6 cm)
+  ok - pistol aimed idle: knees over the toes (outside by 0.6 cm)
+  ok - pistol aimed idle: planted feet locked (0 cm)
+  ok - pistol aimed idle: elbows in (-4.5 cm outside the shoulder)
+  pistol aimed strafe right speed 1 (0.37 m/s): knees 1.16 x the hips (0.63-1.94; 0.5-2.4), planted track 13.3 cm from the line (3.3 to 31.2; <= 40.0), knee outside the ankle max 2.1 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max -3.8 cm (<= 6.0)
+  ok - pistol aimed strafe right speed 1: knee separation within 0.5-2.4 x the hips (0.63 / 1.16 / 1.94)
+  ok - pistol aimed strafe right speed 1: feet within 40.0 cm of the line under the hips (3.3 / 13.3 / 31.2 cm)
+  ok - pistol aimed strafe right speed 1: knees over the toes (outside by 2.1 cm)
+  ok - pistol aimed strafe right speed 1: planted feet locked (0 cm)
+  ok - pistol aimed strafe right speed 1: elbows in (-3.8 cm outside the shoulder)
+  ok - pistol aimed strafe right speed 1: the feet never cross (3.3 cm)
+  pistol aimed strafe right speed 2 (0.70 m/s): knees 1.36 x the hips (0.64-2.21; 0.5-2.4), planted track 16.4 cm from the line (2.7 to 37.1; <= 40.0), knee outside the ankle max 2.9 cm (<= 3.0), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max -3.9 cm (<= 6.0)
+  ok - pistol aimed strafe right speed 2: knee separation within 0.5-2.4 x the hips (0.64 / 1.36 / 2.21)
+  ok - pistol aimed strafe right speed 2: feet within 40.0 cm of the line under the hips (2.7 / 16.4 / 37.1 cm)
+  ok - pistol aimed strafe right speed 2: knees over the toes (outside by 2.9 cm)
+  ok - pistol aimed strafe right speed 2: planted feet locked (0 cm)
+  ok - pistol aimed strafe right speed 2: elbows in (-3.9 cm outside the shoulder)
+  ok - pistol aimed strafe right speed 2: the feet never cross (2.7 cm)
+  pistol aimed strafe left speed 1 (0.37 m/s): knees 1.4 x the hips (0.64-2.22; 0.5-2.4), planted track 18 cm from the line (3.9 to 34.6; <= 40.0), knee outside the ankle max 1.4 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max -3.8 cm (<= 6.0)
+  ok - pistol aimed strafe left speed 1: knee separation within 0.5-2.4 x the hips (0.64 / 1.4 / 2.22)
+  ok - pistol aimed strafe left speed 1: feet within 40.0 cm of the line under the hips (3.9 / 18 / 34.6 cm)
+  ok - pistol aimed strafe left speed 1: knees over the toes (outside by 1.4 cm)
+  ok - pistol aimed strafe left speed 1: planted feet locked (0 cm)
+  ok - pistol aimed strafe left speed 1: elbows in (-3.8 cm outside the shoulder)
+  ok - pistol aimed strafe left speed 1: the feet never cross (3.9 cm)
+  pistol aimed strafe left speed 2 (0.70 m/s): knees 1.4 x the hips (0.64-2.19; 0.5-2.4), planted track 17.2 cm from the line (2.8 to 36.9; <= 40.0), knee outside the ankle max 2.8 cm (<= 3.0), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max -3.9 cm (<= 6.0)
+  ok - pistol aimed strafe left speed 2: knee separation within 0.5-2.4 x the hips (0.64 / 1.4 / 2.19)
+  ok - pistol aimed strafe left speed 2: feet within 40.0 cm of the line under the hips (2.8 / 17.2 / 36.9 cm)
+  ok - pistol aimed strafe left speed 2: knees over the toes (outside by 2.8 cm)
+  ok - pistol aimed strafe left speed 2: planted feet locked (0 cm)
+  ok - pistol aimed strafe left speed 2: elbows in (-3.9 cm outside the shoulder)
+  ok - pistol aimed strafe left speed 2: the feet never cross (2.8 cm)
+  pistol aimed backwards speed 1 (0.56 m/s): knees 0.69 x the hips (0.67-0.71; 0.5-1.1), planted track 4.5 cm from the line (3.5 to 5.5; <= 7.0), knee outside the ankle max 1.9 cm (<= 3.0), planted slide max 0 cm in 5 plants (< 1.0), elbow outside the shoulder max -4 cm (<= 6.0)
+  ok - pistol aimed backwards speed 1: knee separation within 0.5-1.1 x the hips (0.67 / 0.69 / 0.71)
+  ok - pistol aimed backwards speed 1: feet within 7.0 cm of the line under the hips (3.5 / 4.5 / 5.5 cm)
+  ok - pistol aimed backwards speed 1: knees over the toes (outside by 1.9 cm)
+  ok - pistol aimed backwards speed 1: planted feet locked (0 cm)
+  ok - pistol aimed backwards speed 1: elbows in (-4 cm outside the shoulder)
+  pistol aimed backwards speed 2 (1.05 m/s): knees 0.69 x the hips (0.67-0.71; 0.5-1.1), planted track 4.3 cm from the line (3.1 to 5.9; <= 7.0), knee outside the ankle max 2.1 cm (<= 3.0), planted slide max 0 cm in 7 plants (< 1.0), elbow outside the shoulder max -4 cm (<= 6.0)
+  ok - pistol aimed backwards speed 2: knee separation within 0.5-1.1 x the hips (0.67 / 0.69 / 0.71)
+  ok - pistol aimed backwards speed 2: feet within 7.0 cm of the line under the hips (3.1 / 4.3 / 5.9 cm)
+  ok - pistol aimed backwards speed 2: knees over the toes (outside by 2.1 cm)
+  ok - pistol aimed backwards speed 2: planted feet locked (0 cm)
+  ok - pistol aimed backwards speed 2: elbows in (-4 cm outside the shoulder)
+  pistol aimed forward speed 1 (0.75 m/s): knees 0.7 x the hips (0.68-0.72; 0.5-1.1), planted track 4.6 cm from the line (3.6 to 5.4; <= 7.0), knee outside the ankle max 2.2 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max -3.7 cm (<= 6.0)
+  ok - pistol aimed forward speed 1: knee separation within 0.5-1.1 x the hips (0.68 / 0.7 / 0.72)
+  ok - pistol aimed forward speed 1: knees over the toes (outside by 2.2 cm)
+  ok - pistol aimed forward speed 1: planted feet locked (0 cm)
+  ok - pistol aimed forward speed 1: elbows in (-3.7 cm outside the shoulder)
+  pistol aimed forward speed 2 (1.40 m/s): knees 0.71 x the hips (0.69-0.73; 0.5-1.1), planted track 4.5 cm from the line (3.3 to 5.7; <= 7.0), knee outside the ankle max 2.6 cm (<= 3.0), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max -3.4 cm (<= 6.0)
+  ok - pistol aimed forward speed 2: knee separation within 0.5-1.1 x the hips (0.69 / 0.71 / 0.73)
+  ok - pistol aimed forward speed 2: knees over the toes (outside by 2.6 cm)
+  ok - pistol aimed forward speed 2: planted feet locked (0 cm)
+  ok - pistol aimed forward speed 2: elbows in (-3.4 cm outside the shoulder)
+  pistol low ready idle (0.00 m/s): knees 1 x the hips (1-1; 0.5-1.1), planted track 7.6 cm from the line (7 to 8.2; <= 10.5), knee outside the ankle max 0.9 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 2.3 cm (<= 6.0)
+  ok - pistol low ready idle: knee separation within 0.5-1.1 x the hips (1 / 1 / 1)
+  ok - pistol low ready idle: feet within 10.5 cm of the line under the hips (7 / 7.6 / 8.2 cm)
+  ok - pistol low ready idle: knees over the toes (outside by 0.9 cm)
+  ok - pistol low ready idle: planted feet locked (0 cm)
+  ok - pistol low ready idle: elbows in (2.3 cm outside the shoulder)
+  pistol low ready walk speed 4 (1.45 m/s): knees 0.71 x the hips (0.67-0.75; 0.5-1.1), planted track 2.3 cm from the line (1.5 to 4.1; <= 7.0), knee outside the ankle max 3.2 cm (<= 3.5), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 2.4 cm (<= 6.0)
+  ok - pistol low ready walk speed 4: knee separation within 0.5-1.1 x the hips (0.67 / 0.71 / 0.75)
+  ok - pistol low ready walk speed 4: feet within 7.0 cm of the line under the hips (1.5 / 2.3 / 4.1 cm)
+  ok - pistol low ready walk speed 4: knees over the toes (outside by 3.2 cm)
+  ok - pistol low ready walk speed 4: planted feet locked (0 cm)
+  ok - pistol low ready walk speed 4: elbows in (2.4 cm outside the shoulder)
+  pistol low ready jog speed 4 (3.00 m/s): knees 0.78 x the hips (0.58-0.96; 0.5-1.1), planted track 2 cm from the line (1.6 to 2.9; <= 7.0), knee outside the ankle max 3.1 cm (<= 3.4), planted slide max 0 cm in 6 plants (< 1.0), elbow outside the shoulder max 2.8 cm (<= 6.0)
+  ok - pistol low ready jog speed 4: knee separation within 0.5-1.1 x the hips (0.58 / 0.78 / 0.96)
+  ok - pistol low ready jog speed 4: feet within 7.0 cm of the line under the hips (1.6 / 2 / 2.9 cm)
+  ok - pistol low ready jog speed 4: knees over the toes (outside by 3.1 cm)
+  ok - pistol low ready jog speed 4: planted feet locked (0 cm)
+  ok - pistol low ready jog speed 4: elbows in (2.8 cm outside the shoulder)
+  rifle low ready: muzzle 42.97 deg down, -36.10 deg off the facing; aiming: head tilt 6.02 deg, muzzle 0.00 deg down
+  ok - rifle low ready: muzzle 28-47 deg down (42.97)
+  ok - rifle low ready: muzzle within 40 deg of the facing (-36.10)
+  ok - rifle aiming: head within 14 deg of upright, the gun to the eye (6.02)
+  pistol low ready: muzzle 66.46 deg down, -2.86 deg off the facing; aiming: head tilt 3.12 deg, muzzle 0.00 deg down
+  ok - pistol low ready: muzzle 20-73 deg down (66.46)
+  ok - pistol low ready: muzzle within 25 deg of the facing (-2.86)
+  ok - pistol aiming: head within 14 deg of upright, the gun to the eye (3.12)
+anti-crab: crouched sub-states (CRAB_CROUCH_GATES)
+  crouched idle (0.00 m/s): knees 0.86 x the hips (0.86-0.86; 0.5-1.25), planted track 9.2 cm from the line (8.4 to 10; <= 11.8), knee outside the ankle max -1.2 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max -3.3 cm (<= 6.0)
+  ok - crouched idle: knee separation within 0.5-1.25 x the hips (0.86 / 0.86 / 0.86)
+  ok - crouched idle: feet within 11.8 cm of the line under the hips (8.4 / 9.2 / 10 cm)
+  ok - crouched idle: knees over the toes (outside by -1.2 cm)
+  ok - crouched idle: planted feet locked (0 cm)
+  ok - crouched idle: elbows in (-3.3 cm outside the shoulder)
+  crouched start speed 1 (0.66 m/s): knees 0.88 x the hips (0.75-0.95; 0.5-1.25), planted track 8.1 cm from the line (3.7 to 11.1; <= 12.9), knee outside the ankle max 1.7 cm (<= 3.0), planted slide max 0 cm in 3 plants (< 1.0), elbow outside the shoulder max 4.7 cm (<= 6.0)
+  ok - crouched start speed 1: knee separation within 0.5-1.25 x the hips (0.75 / 0.88 / 0.95)
+  ok - crouched start speed 1: feet within 12.9 cm of the line under the hips (3.7 / 8.1 / 11.1 cm)
+  ok - crouched start speed 1: knees over the toes (outside by 1.7 cm)
+  ok - crouched start speed 1: planted feet locked (0 cm)
+  ok - crouched start speed 1: elbows in (4.7 cm outside the shoulder)
+  crouched start speed 3 (1.32 m/s): knees 0.82 x the hips (0.75-0.9; 0.5-1.25), planted track 6.7 cm from the line (3.7 to 9.7; <= 12.9), knee outside the ankle max 2.3 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max 3.3 cm (<= 6.0)
+  ok - crouched start speed 3: knee separation within 0.5-1.25 x the hips (0.75 / 0.82 / 0.9)
+  ok - crouched start speed 3: feet within 12.9 cm of the line under the hips (3.7 / 6.7 / 9.7 cm)
+  ok - crouched start speed 3: knees over the toes (outside by 2.3 cm)
+  ok - crouched start speed 3: planted feet locked (0 cm)
+  ok - crouched start speed 3: elbows in (3.3 cm outside the shoulder)
+  crouched stop speed 1 (0.05 m/s): knees 0.74 x the hips (0.73-0.75; 0.5-1.25), planted track 5.4 cm from the line (3.8 to 7.3; <= 10.5), knee outside the ankle max 2 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 5.4 cm (<= 6.0)
+  ok - crouched stop speed 1: knee separation within 0.5-1.25 x the hips (0.73 / 0.74 / 0.75)
+  ok - crouched stop speed 1: feet within 10.5 cm of the line under the hips (3.8 / 5.4 / 7.3 cm)
+  ok - crouched stop speed 1: knees over the toes (outside by 2 cm)
+  ok - crouched stop speed 1: planted feet locked (0 cm)
+  ok - crouched stop speed 1: elbows in (5.4 cm outside the shoulder)
+  crouched stop speed 3 (0.10 m/s): knees 0.74 x the hips (0.71-0.77; 0.5-1.25), planted track 5.3 cm from the line (4.1 to 7.3; <= 10.5), knee outside the ankle max 2.3 cm (<= 3.0), planted slide max 0 cm in 4 plants (< 1.0), elbow outside the shoulder max 2.2 cm (<= 6.0)
+  ok - crouched stop speed 3: knee separation within 0.5-1.25 x the hips (0.71 / 0.74 / 0.77)
+  ok - crouched stop speed 3: feet within 10.5 cm of the line under the hips (4.1 / 5.3 / 7.3 cm)
+  ok - crouched stop speed 3: knees over the toes (outside by 2.3 cm)
+  ok - crouched stop speed 3: planted feet locked (0 cm)
+  ok - crouched stop speed 3: elbows in (2.2 cm outside the shoulder)
+  crouch run speed 5 (2.60 m/s): knees 0.76 x the hips (0.69-0.86; 0.5-1.25), planted track 4.7 cm from the line (4.1 to 5.7; <= 8.0), knee outside the ankle max 1.8 cm (<= 3.0), planted slide max 0 cm in 7 plants (< 1.0), elbow outside the shoulder max 2.3 cm (<= 6.0)
+  ok - crouch run speed 5: knee separation within 0.5-1.25 x the hips (0.69 / 0.76 / 0.86)
+  ok - crouch run speed 5: feet within 8.0 cm of the line under the hips (4.1 / 4.7 / 5.7 cm)
+  ok - crouch run speed 5: knees over the toes (outside by 1.8 cm)
+  ok - crouch run speed 5: planted feet locked (0 cm)
+  ok - crouch run speed 5: elbows in (2.3 cm outside the shoulder)
+  crouched low ready walk speed 3 (1.65 m/s): knees 0.73 x the hips (0.7-0.75; 0.5-1.25), planted track 4.6 cm from the line (3.6 to 6.4; <= 8.0), knee outside the ankle max 2.1 cm (<= 3.0), planted slide max 0 cm in 8 plants (< 1.0), elbow outside the shoulder max 5.9 cm (<= 6.0)
+  ok - crouched low ready walk speed 3: knee separation within 0.5-1.25 x the hips (0.7 / 0.73 / 0.75)
+  ok - crouched low ready walk speed 3: feet within 8.0 cm of the line under the hips (3.6 / 4.6 / 6.4 cm)
+  ok - crouched low ready walk speed 3: knees over the toes (outside by 2.1 cm)
+  ok - crouched low ready walk speed 3: planted feet locked (0 cm)
+  ok - crouched low ready walk speed 3: elbows in (5.9 cm outside the shoulder)
+  crouched aimed idle (0.00 m/s): knees 0.7 x the hips (0.65-0.72; 0.5-1.25), planted track 4.8 cm from the line (1.4 to 9.2; <= 10.5), knee outside the ankle max 1.7 cm (<= 3.0), planted slide max 0 cm in 2 plants (< 1.0), elbow outside the shoulder max 3.7 cm (<= 6.0)
+  ok - crouched aimed idle: knee separation within 0.5-1.25 x the hips (0.65 / 0.7 / 0.72)
+  ok - crouched aimed idle: feet within 10.5 cm of the line under the hips (1.4 / 4.8 / 9.2 cm)
+  ok - crouched aimed idle: knees over the toes (outside by 1.7 cm)
+  ok - crouched aimed idle: planted feet locked (0 cm)
+  ok - crouched aimed idle: elbows in (3.7 cm outside the shoulder)
+  crouched aimed strafe speed 1 (0.41 m/s): knees 0.9 x the hips (0.68-1.1; 0.5-1.5), planted track 9.4 cm from the line (2.5 to 17.4; <= 20.0), knee outside the ankle max 2.8 cm (<= 3.0), planted slide max 0 cm in 8 plants (< 1.0), elbow outside the shoulder max 4.3 cm (<= 6.0)
+  ok - crouched aimed strafe speed 1: knee separation within 0.5-1.5 x the hips (0.68 / 0.9 / 1.1)
+  ok - crouched aimed strafe speed 1: feet within 20.0 cm of the line under the hips (2.5 / 9.4 / 17.4 cm)
+  ok - crouched aimed strafe speed 1: knees over the toes (outside by 2.8 cm)
+  ok - crouched aimed strafe speed 1: planted feet locked (0 cm)
+  ok - crouched aimed strafe speed 1: elbows in (4.3 cm outside the shoulder)
+  ok - crouched aimed strafe speed 1: the feet never cross (2.5 cm)
+  crouched aimed strafe speed 2 (0.48 m/s): knees 0.88 x the hips (0.68-1.11; 0.5-1.5), planted track 8.7 cm from the line (2.7 to 17.8; <= 20.0), knee outside the ankle max 2.9 cm (<= 3.0), planted slide max 0 cm in 8 plants (< 1.0), elbow outside the shoulder max 4.2 cm (<= 6.0)
+  ok - crouched aimed strafe speed 2: knee separation within 0.5-1.5 x the hips (0.68 / 0.88 / 1.11)
+  ok - crouched aimed strafe speed 2: feet within 20.0 cm of the line under the hips (2.7 / 8.7 / 17.8 cm)
+  ok - crouched aimed strafe speed 2: knees over the toes (outside by 2.9 cm)
+  ok - crouched aimed strafe speed 2: planted feet locked (0 cm)
+  ok - crouched aimed strafe speed 2: elbows in (4.2 cm outside the shoulder)
+  ok - crouched aimed strafe speed 2: the feet never cross (2.7 cm)
+  crouched idle knee hand: palm to the knee top max 3.1 cm (<= 7.0), palm down min 0.92 (>= 0.6), fingers forward min 0.96 (>= 0.3), mean offset out -0.4 up -0.4 fwd 3.0 cm
+  ok - crouched idle: each palm on top of its knee (3.1 cm)
+  ok - crouched idle: palms down (0.92)
+  ok - crouched idle: fingers forward (0.96)
+stand <-> crouch on the rig (posed joints)
+  holstered still: stand -> crouch -> stand: worst velocity change 6.4 cm per 60 Hz frame (wristR; <= 7.5)
+  ok - holstered still: stand -> crouch -> stand: no pop on the rig (6.4 cm per frame, wristR)
+  holstered walking: crouch -> stand: worst velocity change 6.2 cm per 60 Hz frame (kneeR; <= 7.5)
+  ok - holstered walking: crouch -> stand: no pop on the rig (6.2 cm per frame, kneeR)
+  holstered running: crouch -> stand: worst velocity change 4.8 cm per 60 Hz frame (wristL; <= 7.5)
+  ok - holstered running: crouch -> stand: no pop on the rig (4.8 cm per frame, wristL)
+  crouched: walk -> stop -> squat -> start: worst velocity change 2.5 cm per 60 Hz frame (wristL; <= 7.5)
+  ok - crouched: walk -> stop -> squat -> start: no pop on the rig (2.5 cm per frame, wristL)
+  crouched sneak -> stand still: worst velocity change 4.5 cm per 60 Hz frame (hips; <= 7.5)
+  ok - crouched sneak -> stand still: no pop on the rig (4.5 cm per frame, hips)
+  low ready still: crouch -> stand: worst velocity change 5.5 cm per 60 Hz frame (wristL; <= 11.5)
+  ok - low ready still: crouch -> stand: no pop on the rig (5.5 cm per frame, wristL)
+  low ready walking: crouch -> stand: worst velocity change 5.1 cm per 60 Hz frame (wristL; <= 7.5)
+  ok - low ready walking: crouch -> stand: no pop on the rig (5.1 cm per frame, wristL)
+  aiming still: crouch -> stand: worst velocity change 4.8 cm per 60 Hz frame (wristR; <= 7.5)
+  ok - aiming still: crouch -> stand: no pop on the rig (4.8 cm per frame, wristR)
+  aiming strafe: crouch -> stand: worst velocity change 5.7 cm per 60 Hz frame (headNode; <= 7.5)
+  ok - aiming strafe: crouch -> stand: no pop on the rig (5.7 cm per frame, headNode)
+body motion
+  walk (1.40 m/s): pelvis 6.18 / shoulders 8.95 deg p2p, corr -0.88, lateral 4.2 cm, head yaw 8.76 / pitch 1.85 deg
+  jog (3.00 m/s): pelvis 15.55 / shoulders 28.72 deg p2p, corr 0.99, lateral 2.5 cm, head yaw 18.74 / pitch 4.82 deg
+  run (4.00 m/s): pelvis 20.34 / shoulders 31.20 deg p2p, corr 0.90, lateral 1.8 cm, head yaw 11.36 / pitch 2.96 deg
+  sneak (0.85 m/s): pelvis 5.86 / shoulders 4.35 deg p2p, corr 0.75, lateral 4.2 cm, head yaw 2.61 / pitch 2.86 deg
+  crouch walk (1.70 m/s): pelvis 7.98 / shoulders 8.74 deg p2p, corr -0.99, lateral 3.3 cm, head yaw 3.23 / pitch 1.20 deg
+  aim glide fwd (1.40 m/s): pelvis 3.99 / shoulders 5.71 deg p2p, corr -0.99, lateral 2.3 cm, head yaw 0.00 / pitch 0.00 deg
+  aim glide side (0.70 m/s): pelvis 3.25 / shoulders 5.00 deg p2p, corr -0.98, lateral 10.1 cm, head yaw 0.00 / pitch 0.00 deg
+  note - walk: pelvis / shoulders counter-rotate ~8 / 8 deg p2p (6.18 / 8.95; 7-9) [M1 as captured: past the old limit]
+  note - walk: pelvis lateral sway 2.5-3.5 cm (4.2) [M1 as captured: past the old limit]
+  note - jog: pelvis / shoulders ~12 / 16 deg p2p (15.55 / 28.72; 11-13 / 14.5-17) [M1 as captured: past the old limit]
+  note - sneak: pelvis / shoulders ~5 / 5 deg p2p (5.86 / 4.35; 4.5-5.5 / 4.5-6) [M1 as captured: past the old limit]
+  note - crouch walk: pelvis / shoulders ~8 / 8 deg p2p (7.98 / 8.74; 7-9 / 7-9.5) [M1 as captured]
+  note - run: pelvis lateral sway 2-3 cm (1.8; its yaw 20.34 deg report-only) [M1 as captured: past the old limit]
+  note - run: the head follows the chest a little (11.36 deg p2p; 2-6) [M1 as captured: past the old limit]
+  note - walk: pelvis and shoulders counter-rotate (corr -0.88 < -0.9) [M1 as captured: past the old limit]
+  note - walk: the head follows the chest a little (8.76 deg p2p; 2-6) [M1 as captured: past the old limit]
+  note - jog: pelvis and shoulders counter-rotate (corr 0.99 < -0.9) [M1 as captured: past the old limit]
+  note - jog: the head follows the chest a little (18.74 deg p2p; 2-6) [M1 as captured: past the old limit]
+  note - sneak: pelvis and shoulders counter-rotate (corr 0.75 < -0.9) [M1 as captured: past the old limit]
+  note - sneak: the head follows the chest a little (2.61 deg p2p; 2-6) [M1 as captured]
+  note - crouch walk: pelvis and shoulders counter-rotate (corr -0.99 < -0.9) [M1 as captured]
+  note - crouch walk: the head follows the chest a little (3.23 deg p2p; 2-6) [M1 as captured]
+  ok - aim glide fwd: pelvis 3-4 deg p2p (3.99)
+  ok - aim glide fwd: the pelvis counters the shoulders (corr -0.99 < -0.8)
+  ok - aim glide fwd: the head stays on the aim (0.00 deg p2p)
+  ok - aim glide side: the pelvis counters the shoulders (corr -0.98 < -0.8)
+  ok - aim glide side: the head stays on the aim (0.00 deg p2p)
+  note - walk: head pitch p2p <= 2 deg (1.85) [M1 as captured]
+  note - jog: head pitch p2p <= 2 deg (4.82) [M1 as captured: past the old limit]
+  note - run: head pitch p2p <= 2 deg (2.96) [M1 as captured: past the old limit]
+  note - sneak: head pitch p2p <= 2 deg (2.86) [M1 as captured: past the old limit]
+  note - crouch walk: head pitch p2p <= 2 deg (1.20) [M1 as captured]
+  ok - aim glide fwd: head pitch p2p <= 2 deg (0.00)
+  ok - aim glide side: head pitch p2p <= 2 deg (0.00)
+transitions
+  ok - pose channels continuous through every transition (max 0.084 per 60 Hz frame, normalised, worst channel 1 at step 295 (aim crouch), pistolSd -> rifle)
+  ok - draw / holster to the back mount continuous (aim and sprint steps: max 0.098 per frame, 0 joint-rate hits)
+  ok - joint-rate safety net rarely needed (0 hits)
+  ok - hit flinch recovers in 0.55 s (0.3-0.6 s)
+camera
+  ok - handheld drift <= 0.15 deg (0.000 deg)
+  ok - camera follow is rigid: lag 0.00 s (<= 20 ms; A2.1)
+  ok - footstep bob <= 1 cm amplitude (0.00 cm)
+  ok - shoulder swap 0.30 s to the mirror side (spring ~0.4 s settle) on an arc (+0.10 m boom)
+  ok - aim framing blend 0.25 s (~0.3 s, F1a)
+  ok - stick look: angular velocity / acceleration bounded (5.04 rad/s, 146.68 rad/s^2)
+refresh-rate parity
+  ok - 120 Hz: root motion matches 60 Hz (0.00 cm, 0.00 deg)
+  ok - 120 Hz: feet land in the same places (0.0 / 0.0 cm)
+  ok - 120 Hz: camera matches (0.0 cm)
+  ok - 144 Hz: root motion matches 60 Hz (0.00 cm, 0.00 deg)
+  ok - 144 Hz: feet land in the same places (0.0 / 0.0 cm)
+  ok - 144 Hz: camera matches (0.0 cm)
+  ok - 165 Hz: root motion matches 60 Hz (0.00 cm, 0.00 deg)
+  ok - 165 Hz: feet land in the same places (0.0 / 0.0 cm)
+  ok - 165 Hz: camera matches (0.0 cm)
+  ok - 240 Hz: root motion matches 60 Hz (0.00 cm, 0.00 deg)
+  ok - 240 Hz: feet land in the same places (0.0 / 0.0 cm)
+  ok - 240 Hz: camera matches (0.0 cm)
+no console errors
+[start] e2e-sectorops:6
+
+=== e2e-traverse (ok, 41s) ===
+  ok - ladder offered from the bottom (ladder:bottom, prompt "Climb")
+  ok - Y attaches to the ladder
+  ok - weapon stowed, ladder framing, climb pose
+  ok - climbs at ~1.7 rungs/s (1.68)
+  ok - ladder: planted hands locked (drift 0.00 cm < 1 cm)
+  ok - ladder: hands reach their grips (0.0 cm, R frame 3 phase on, 4 frames after the plant)
+  ok - ladder: planted feet locked on the rungs (0.00 cm)
+  ok - L3 held does not speed the climb, G31 (1.73 rungs/s)
+  ok - ladder sprint: planted hands locked (drift 0.00 cm < 1 cm)
+  ok - ladder sprint: hands reach their grips (0.0 cm, R frame 7 phase on, 8 frames after the plant)
+  ok - steps off at the top onto the tower (y 3.62)
+  ok - the ladder top-out ends crouched
+  ok - weapon holstered after the ladder (drawn only while aiming)
+  ok - aim draws the weapon back into the hands after the ladder
+  ok - ladder offered from the top (ladder:top)
+  ok - stepped on from the top, turned to face the ladder
+  ok - stepped off at the bottom (y 0.02)
+  ok - drop slides down the ladder fast (from 1.64 to 0.02 in 0.5 s)
+  ok - slid to the bottom and stepped off
+  ok - low on the ladder the drop control lets go ("Drop", feet 0.49 m up)
+  ok - let go of the ladder near its foot, landed
+  ok - drainpipe offered (pipeV:side)
+  ok - climbs the pipe at ~0.9 m/s (0.85)
+  ok - drainpipe: planted hands locked (drift 0.00 cm < 1 cm)
+  ok - drainpipe: hands reach their grips (2.3 cm, R frame 35 phase on, 36 frames after the plant)
+  ok - at the top the pipe stops and waits (pipeV)
+  ok - climb up offered at the top of the pipe ("Climb up")
+  ok - climbed straight up off the pipe onto the tower (y 3.62)
+  ok - sideways at the top steps onto the lip (ledge, x 28.55)
+  ok - shimmying past the pipe climbs onto it and back off beyond (pipe true, x 26.41)
+  ok - ledge offered from below (ledge:below, "Grab")
+  ok - grabbed the lip: hang pose and framing
+  ok - drop offered while hanging
+  ok - shimmies at ~0.50 m/s (0.49)
+  ok - shimmy: planted hands locked (drift 0.00 cm < 1 cm)
+  ok - shimmy: hands reach their grips (0.0 cm, L frame 19 phase on, 20 frames after the plant)
+  ok - jump target marked under the stick ("Jump")
+  ok - jumped across to the next block (z 19.70)
+  ok - wrapped round the outside corner (normal 0.00, 1.00)
+  ok - climbed up on top (y 2.32)
+  ok - the climb-up ends crouched (stick released)
+  ok - at the edge: holding drop hangs (ledge:above, "Hang")
+  ok - holding drop lowered into a hang (y 0.42)
+  ok - drop lets go to the ground
+  ok - pipe offered from below (pipeH:below)
+  ok - hand over hand along the pipe (0.95 m/s)
+  ok - pipe: planted hands locked (drift 0.00 cm < 1 cm)
+  ok - pipe: hands reach their grips (0.0 cm, L frame 11 phase on, 12 frames after the plant)
+  ok - dropped off the pipe
+  ok - a 1.6 m fall is a soft landing (soft)
+  ok - a 3.4 m fall rolls out of it, moving on (roll, z 5.74)
+  ok - a 5.5 m fall is a heavy, loud landing (heavy, noise 11)
+  ok - heavy landing recovery (0.65 s left)
+  ok - falling past a lip, Y grabs it
+  ok - zipline offered on the tower (zipline:side, "Zipline")
+  ok - zipline speed builds to 5.88 m/s (<= 6)
+  ok - off the end of the cable and landed (z 0.79)
+  ok - open window offers a vault ("Vault")
+  ok - vaulted in through the window (z -7.10)
+  ok - the glazed window shatters, loud (noise 15)
+  ok - broke through and out (z -1.10)
+  ok - vent offered at the duct mouth (duct:side, "Kick vent")
+  ok - holding A (after the Y start) unscrews the grate (0.60 at 1 s)
+  ok - crawled in quietly (noise 0)
+  ok - duct: tight framing, crawl pose, weapon stowed
+  ok - duct: the camera never leaves the tunnel (0 of 4 views outside)
+  ok - duct: the guns on the back stay under the roof (top 3.95 < 4.28)
+  ok - crawls at ~0.9 m/s (0.85)
+  ok - dropped through the ceiling vent into the shed (27.36, 0.02, -5.00)
+  ok - the 3.2 m drop rolls (roll)
+  ok - keyboard Space (jump / traverse) climbs onto the ladder
+  ok - keyboard: Space grabs the ledge (move pushed at it)
+  ok - keyboard: hanging from the ledge
+  ok - keyboard: C (crouch) lets go
+  ok - keyboard: crouch lets go
+  ok - keyboard: the vent prompt is on screen
+  ok - keyboard: Space then E held unscrews the grate (progress 0.25)
+  ok - keyboard: letting E go early stops the unscrew, no kick (vent false, attached false)
+  ok - the grate is closed before the kick
+  ok - a tap kicks the grate in: quick, loud (0.07 s, noise 10)
+  ok - no console errors ()
+[start] e2e-ct
+
+=== e2e-sectorops:5 (ok, 61s) ===
+sector ops (R): co-op section 3 - the valve platform by the relay, the drive platform by the rope, the lobby door
+  ok - S3 C1 valve platform: the client's leg-up puts the host on the 4.4 m lip (4.4, host [18,2.52,5.72])
+  ok - S3 C1 valve platform: the relay: the client climbed the hanging host onto the lip
+  ok - S3 C1 valve platform: both players on the 4.4 m top (host [17.98,4.42,5.04], client [18.32,4.42,5.05], client crouched true)
+  ok - S3 C2 crane drive platform: the client's leg-up puts the host on the 4.4 m lip (4.4, host [11.8,2.52,6.22])
+  ok - S3 C2 crane drive platform: both players on the 4.4 m top (host [11.8,4.42,5.92], client [11.8,4.44,5.2], client crouched false)
+  ok - co-op: section 3 is live and has a team door
+  ok - co-op section 3 team door 0: bolted at the start ({"id":"c-sbolt-2-0","sec":2,"k":0,"door":25,"at":[23.200000000000003,-5.6],"side":[0,-1],"pair":false,"shut":true,"locked":true,"nav":2})
+  ok - co-op section 3 team door 0: the client mirrors the Unbolt but is not offered it on the near side, no Unbolt row ({"mirrored":true,"on":true,"nearest":null,"rows":[]})
+  ok - co-op section 3 team door 0: the client's use from the near side is refused, locked on both pages ({"id":"c-sbolt-2-0","sec":2,"k":0,"door":25,"at":[23.200000000000003,-5.6],"side":[0,-1],"pair":false,"shut":true,"locked":true,"nav":2}, client true)
+  ok - co-op section 3 team door 0: the client on the far side is offered "Unbolt" ({"nearest":"c-sbolt-2-0","label":"Unbolt","rows":["Unbolt"]})
+  ok - co-op section 3 team door 0: the client's Unbolt from the far side opens it on both pages
+  ok - co-op section 3 team door 0: the host's checkpoint restart runs
+  ok - co-op section 3 team door 0: the restart re-bolts it on both pages
+no console errors
+[start] e2e-lightbake
+
+=== e2e-ct (ok, 28s) ===
+split jump
+  ok - split shown facing along the corridor ("Split jump (double jump)")
+  ok - not offered facing a wall
+  ok - one Y: a jump (leaps 1, grounded false)
+  ok - a second Y in the air jumps into the split (split enter)
+  ok - braced facing along the way it jumped (split, yaw 1.57)
+  ok - feet planted on the two walls 2.5 m up (10.04,2.50,25.90,1.00 / 9.96,2.50,24.20,1.00)
+  ok - legs almost horizontal (hip-ankle 0.20 deg, hips 2.57 m)
+  ok - a lip in reach above the split (ledge)
+  ok - weapon stowed while braced
+  ok - no travel along the split (0.00 m)
+  ok - LT draws and raises the sidearm (pistol, raise 1.00)
+  ok - aim held within the band (yaw 100.00 deg, pitch 30.00 deg)
+  ok - RT fires from the split (mag 15 -> 14)
+  ok - letting go of aim stows it again, still braced
+  ok - B drops out to the floor (y 0.02, landing soft 2.03 m)
+  ok - jumped facing west: braced facing west (yaw -1.57)
+  ok - Y jumps up from the split to a lip (ledge, top 4.30)
+  ok - a 0.75 m fall (crouched) rests on the floor (y 0.04)
+  ok - a 1 m fall (crouched) rests on the floor (y 0.04)
+  ok - a 1.6 m fall (crouched) rests on the floor (y 0.04)
+  ok - a 2.13 m fall (crouched) rests on the floor (y 0.04)
+  ok - a 2.5 m fall (crouched) rests on the floor (y 0.04)
+  ok - a 0.75 m fall (standing) rests on the floor (y 0.04)
+  ok - a 1 m fall (standing) rests on the floor (y 0.04)
+  ok - a 1.6 m fall (standing) rests on the floor (y 0.04)
+  ok - a 2.13 m fall (standing) rests on the floor (y 0.04)
+  ok - a 2.5 m fall (standing) rests on the floor (y 0.04)
+manual jump (3.2.0; the jump action when nothing else is offered)
+  ok - Jump: up 0.84 m and down again
+  ok - Jump under a pipe grabs it (pipeH)
+  ok - Jump at a lip grabs it (ledge, top 2.30)
+  ok - Jump at a drainpipe grabs it (pipeV)
+wall jump
+  ok - wall jump offered under the 3.3 m lip (ledge:wall, "Wall jump")
+  ok - the kick (ledge wall wallKick)
+  ok - hanging from the lip after the wall jump (y 1.42)
+  ok - too far from the wall: no wall jump (null)
+  ok - inside corner kick offered (ledge:wall)
+  ok - kicked off the corner onto the block's south lip (top 3.30, nz -1.00)
+pipe legs up / inverted
+  ok - pipe offered (pipeH:below)
+  ok - hanging by the hands, Y offers legs up ("Legs up")
+  ok - hanging facing along the pipe (yaw 1.57)
+  ok - held back along the pipe: turned round (face 1 -> -1)
+  ok - legs up is a committed change
+  ok - legs up over the pipe (pipeLegs, tumble -1.57)
+  ok - feet up over the pipe (feet 2.57 m vs 0.62 m hanging)
+  ok - legs-up shimmy at ~0.5 m/s (0.49 m in 1 s)
+  ok - prompts: Y invert, B hands ("Invert" / "Hands")
+  ok - inverted by the knees (pipeInv, tumble 3.14)
+  ok - the camera stays upright (roll 0.00)
+  ok - no travel inverted
+  ok - LT aims the sidearm inverted (raise 1.00)
+  ok - RT fires inverted (mag 14 -> 13)
+  ok - inverted spread x1.3 (1.3)
+  ok - Y curls back up (legsUp)
+  ok - B back to the hands (hands)
+  ok - damage mid-change: back to the hands (hands)
+  ok - inverted again
+  ok - B flips over (tumble 5.81)
+  ok - lands on the feet (landing soft, 1.88 m)
+rappel
+  ok - rappel offered at the roof edge (rappel:above, "Rappel")
+  ok - hooked on and over the edge (y 4.72)
+  ok - facing the wall (yaw -0.00)
+  ok - descends ~0.6 m/s (1.50 m in 2.5 s)
+  ok - climbs ~1.0 m/s (0.96 m in 1 s)
+  ok - Y offers a kick out ("Kick out")
+  ok - swung out from the wall (1.20 m)
+  ok - back on the wall, moved sideways (0.75 m)
+  ok - LT aims the sidearm out from the rope (yaw 3.14)
+  ok - RT fires from the rope (13 -> 12)
+  ok - a window beside the rope ("Kick through", feet 1.16)
+  ok - kicked through the window into the room (z 27.50, glass broken true)
+  ok - no unhook high up ("")
+  ok - Unhook offered near the floor (feet 1.42)
+  ok - B unhooks to the floor
+fence
+  ok - fence offered (fence:side, "Climb")
+  ok - bullets and sight pass through it ({"shot":false,"sight":false})
+  ok - the fence stops the body (z 25.66)
+  ok - Y grabs the fence
+  rattle latch: gear 4 climb max 4.00 m over 2 samples
+  ok - climbing at gear 4 rattles (4.00 m, 2 samples), ~0.9 m/s (0.45 m in 0.5 s)
+  rattle latch: gear 3 climb max 0.00 m over 2 samples
+  ok - gear 3: quiet (0.00 m, 2 samples, still on it true)
+  ok - shimmies ~0.6 m/s (0.58 m)
+  ok - at the top: flip over ("Flip over", feet 0.87)
+  ok - flipped over to the far side (z 26.70)
+  ok - no console errors ()
+e2e-ct OK
+[start] e2e-move
+
+=== e2e-move (ok, 34s) ===
+  ok - spawned on ground (y=0.02)
+  ok - spawns with no speed cap (5)
+  ok - D-pad down no longer steps a speed (5)
+  ok - stick 0.19 standing: 0.73 m/s (named speed 1, 0.75)
+  ok - stick 0.47 standing: 1.36 m/s (named speed 2, 1.4)
+  ok - stick 0.79 standing: 2.03 m/s (named speed 3, 2.1)
+  ok - stick 0.89 standing: 2.90 m/s (named speed 4, 3)
+  ok - stick 0.97 standing: 3.89 m/s (named speed 5, 4)
+  ok - stick 0.19 crouched: 0.82 m/s (named speed 1, 0.85)
+  ok - stick 0.47 crouched: 1.25 m/s (named speed 2, 1.3)
+  ok - stick 0.79 crouched: 1.65 m/s (named speed 3, 1.7)
+  ok - stick 0.89 crouched: 2.09 m/s (named speed 4, 2.15)
+  ok - stick 0.97 crouched: 2.53 m/s (named speed 5, 2.6)
+  ok - half stick: ~1.45 m/s, between the sneak and the walk (1.40 m/s)
+  ok - crouching and standing keep the internal cap
+  ok - pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (2.88 m/s: 0.91 m over 0.32 s game time after a 0.5 s warm-up; speed 2.87, crouched false, move 1.00,0.00)
+  ok - the body faces the travel direction (0.00 rad off)
+  ok - aiming: strafe 50% of 1.4 (0.67 m/s)
+  ok - aiming: backstep 75% of 1.4 (1.00 m/s)
+  ok - weighted stop: 2.94 m/s eases to rest in 0.183 s (2.67 m/s after the release step)
+  ok - stopping: planted feet stay planted at the contact (0.00 cm, ankle 0.00 cm, 2 plants)
+  ok - after the stop the feet stay frozen while the hold lasts, then square up (hold false, moved 8.76 cm)
+  ok - a crouched stop comes to rest crouched ({"speed":0,"kneel":true,"crouched":true})
+  ok - a stop comes to rest from a crouched creep (true) and out of a run within 0.5 s (0.00 m/s)
+  ok - a stick springing back holds the full stride (3.86 -> held at 0.00 m/s, never slowed under 3.79)
+  ok - held crouch at speed 5: a forward roll (0.75 s, 2.30 m)
+  ok - the roll comes up crouched, keeps the gear, noise 2.0 m
+  ok - crouch at gear 3: crouches, no roll
+  ok - the top speed reaches ~4.0 m/s (3.97 peak)
+  ok - releasing the stick stops within 0.6 s, feet frozen in the stride (speed 0.00)
+  ok - no free jump in the open (peak 0.02 m)
+  ok - B crouches (toggle)
+  ok - crouched and still: kneels
+  ok - B again stands
+  ok - jump at low cover vaults over it (hint vault, at -5.77,0.04,-6.00)
+  ok - jump at a 0.9 m block climbs onto it (hint mantle, at -21.20,0.92,-1.20)
+  ok - jump at a 0.6 m block steps up (hint step, at -21.20,0.62,-4.40)
+  ok - jump at a ledge drops down (hint drop, at 0.00,0.02,19.64)
+  ok - step 0.15 m: climbed (peak y=0.13)
+  ok - step 0.3 m: climbed (peak y=0.51)
+  ok - step 0.42 m: climbed (peak y=0.63)
+  ok - step 0.6 m: blocked (peak y=0.02)
+  ok - 20° slope: walkable (peak y=3.56)
+  ok - 35° slope: walkable (peak y=3.56)
+  ok - 55° slope: too steep (peak y=0.04)
+  ok - stairs reach platform (peak y=2.65)
+  ok - crouch-walks into tunnel (z=-22.19)
+  ok - stays crouched under the roof
+  ok - player pushes props (6.39 m)
+no console errors
+[start] e2e-offline
+
+=== e2e-offline (ok, 44s) ===
+service worker precache
+  ok - all 73 precache entries cached (missing: none)
+  ok - page is controlled by the service worker
+  ok - Wren's LOD2 is in the offline cache after one online start (1 entry)
+offline boot
+  ok - boots offline (Ready)
+  ok - main menu offline
+  ok - a match runs offline (12 enemies)
+  ok - the offline player is Wren, drawn from the cache (loaded 1000, LOD2 bit set)
+  ok - an Infiltration mission runs offline ("Hack the manager's terminal", 9 guards)
+  ok - the Infiltration player is Wren, drawn from the cache (LOD2)
+backgrounding
+  ok - switching away pauses the match
+co-op offline state
+  ok - co-op shows offline and does not block
+old save migration on boot
+  ok - migrated to v9
+  ok - xp and credits kept
+  ok - upgrades and unlocks kept, the deleted gun dropped
+  ok - new fields defaulted
+  ok - pre-migration backup kept (1)
+  ok - migrated save persists across reloads
+no console errors
+[start] e2e-weapons-carry
+
+=== e2e-weapons-carry (ok, 17s) ===
+slots
+  ok - Free Roam: 2 weapons, 2 distinct slots (backC, thigh)
+  ok - every weapon visible: holstered (not aiming), all carried in their slots (rifle:backC:player-chest pistolSd:thigh:player-hipR)
+  ok - grenade pouches on the belt (2)
+back carry: on the slot axis (side slots vertical muzzle up, the centre diagonal muzzle down-left), within 10 deg
+  ok - idle: back guns within 0.03 deg of their slot axis, kept upright (0.99 > 0.7)
+  ok - idle: nothing clips (none)
+  ok - walk: back guns within 0.03 deg of their slot axis, kept upright (0.93 > 0.7)
+  ok - walk: nothing clips (none)
+  ok - jog: back guns within 0.03 deg of their slot axis, kept upright (0.89 > 0.7)
+  ok - jog: nothing clips (none)
+  ok - sprint: back guns within 0.03 deg of their slot axis, kept upright (0.89 > 0.7)
+  ok - sprint: nothing clips (none)
+  ok - crouch walk: back guns within 0.03 deg of their slot axis, kept upright (0.80 > 0.35)
+  ok - crouch walk: nothing clips (none)
+  ok - aim strafe: back guns within 0.00 deg of their slot axis, kept upright (1.00 > 0.7)
+  ok - aim strafe: nothing clips (none)
+hands on the grip points
+  ok - rifle: hands within 2 cm of the grip (0.0 cm) and support point (0.0 cm)
+  ok - pistolSd: hands within 2 cm of the grip (0.0 cm) and support point (0.0 cm)
+swap reaches each slot
+  ok - swap thigh -> backC: 0.92 s (0.8-1.0 s)
+  ok - swap thigh -> backC: the hand reaches both slots (4 / 7 cm)
+  ok - swap backC -> thigh: 0.92 s (0.8-1.0 s)
+  ok - swap backC -> thigh: the hand reaches both slots (5 / 4 cm)
+loadout pistolSd,rifle
+slots
+  ok - pistolSd,rifle: 2 weapons, 2 distinct slots (thigh, backC)
+  ok - every weapon visible: holstered (not aiming), all carried in their slots (pistolSd:thigh:player-hipR rifle:backC:player-chest)
+  ok - grenade pouches on the belt (2)
+back carry: on the slot axis (side slots vertical muzzle up, the centre diagonal muzzle down-left), within 10 deg
+  ok - idle: back guns within 0.03 deg of their slot axis, kept upright (1.00 > 0.7)
+  ok - idle: nothing clips (none)
+  ok - walk: back guns within 0.03 deg of their slot axis, kept upright (0.93 > 0.7)
+  ok - walk: nothing clips (none)
+  ok - jog: back guns within 0.03 deg of their slot axis, kept upright (0.89 > 0.7)
+  ok - jog: nothing clips (none)
+  ok - sprint: back guns within 0.03 deg of their slot axis, kept upright (0.89 > 0.7)
+  ok - sprint: nothing clips (none)
+  ok - crouch walk: back guns within 0.03 deg of their slot axis, kept upright (0.80 > 0.35)
+  ok - crouch walk: nothing clips (none)
+  ok - aim strafe: back guns within 0.03 deg of their slot axis, kept upright (0.83 > 0.7)
+  ok - aim strafe: nothing clips (none)
+hands on the grip points
+  ok - pistolSd: hands within 2 cm of the grip (0.0 cm) and support point (0.0 cm)
+  ok - rifle: hands within 2 cm of the grip (0.0 cm) and support point (0.0 cm)
+swap reaches each slot
+  ok - swap backC -> thigh: 0.92 s (0.8-1.0 s)
+  ok - swap backC -> thigh: the hand reaches both slots (5 / 4 cm)
+  ok - swap thigh -> backC: 0.92 s (0.8-1.0 s)
+  ok - swap thigh -> backC: the hand reaches both slots (4 / 5 cm)
+backpack + detailed style
+  ok - the detailed style and the backpack are saved before the reload
+  ok - detailed avatar with a backpack (back gear 0.21 m)
+  ok - detailed + backpack, jog: back guns on their slot axis (0.03 deg), nothing clips (none)
+  ok - detailed avatar with a backpack (back gear 0.21 m)
+  ok - detailed + backpack, crouch walk: back guns on their slot axis (0.03 deg), nothing clips (none)
+no console errors
+[start] e2e-wall
+
+=== e2e-lightbake (ok, 146s) ===
+  gfx=low: shapes gdv5dj hash 1k9492x lamps 18 (9.6 MB) moon 232960 cells, bake 5844 ms, baked lamps drawn true
+  ok - gfx=low: no console errors
+  gfx=epic: shapes gdv5dj hash 1k9492x lamps 18 (9.6 MB) moon 232960 cells, bake 6664 ms, baked lamps drawn true
+  ok - gfx=epic: no console errors
+  gfx=min: shapes gdv5dj hash 1k9492x lamps 18 (9.6 MB) moon 232960 cells, bake 5854 ms, baked lamps drawn false
+  ok - gfx=min: no console errors
+  ok - every config booted the Warehouse
+  ok - the bake is not empty (18 lamps, 9551517 bytes, 232960 moon cells)
+  ok - gfx=min: the canonical shapes are the same (gdv5dj)
+  ok - gfx=min: the lamp and moon bake keys are the same
+  ok - gfx=min: the visibility data hash is the same (1k9492x)
+  ok - gfx=low: the canonical shapes are the same (gdv5dj)
+  ok - gfx=low: the lamp and moon bake keys are the same
+  ok - gfx=low: the visibility data hash is the same (1k9492x)
+  ok - gfx=epic: the canonical shapes are the same (gdv5dj)
+  ok - gfx=epic: the lamp and moon bake keys are the same
+  ok - gfx=epic: the visibility data hash is the same (1k9492x)
+  ok - gfx=epic: draws the bake (the baked lamps)
+  ok - gfx=epic: the lamp plugin is on every PBR material (22 / 22)
+  ok - smooth Epic: the level material takes the fill and probe light by sky visibility (LAMP_SKY, {"level":true,"sky":true,"others":0})
+  ok - smooth Epic: only the level material compiles LAMP_LEVEL ({"level":true,"sky":true,"others":0})
+  ok - smooth Epic at Ray traced falls back to screen space reflections (TAA,TAAPass,SSAOOriginalSceneColor,ssao,BlurH,BlurV,ssaoCombine,ssr,SSRblurX,SSRblurY,SSRblurCombiner,volumetric,circleOfConfusion,vertical blur,horizontal blur,dofMerge,highlights,horizontal blur,vertical blur,bloomMerge,imageProcessing,sharpen,ChromaticAberration,cinematic)
+  LR14 character shadows: {"on":true,"slots":4,"copies":483,"max":14,"who":"wren-lod0-wren-lod0-cloth","stats":[{"lamp":1,"ready":1,"casters":15,"every":2},{"lamp":15,"ready":15,"casters":18,"every":2},{"lamp":16,"ready":16,"casters":12,"every":2},{"lamp":-1,"ready":-1,"casters":0,"every":0}]}
+  ok - smooth Epic: character shadow maps on, 4 lamp slots, LAMP_CSHADOW compiled ({"on":true,"slots":4,"define":true})
+  ok - smooth Epic: a slot with characters in reach copies its map into the atlas (483 copies)
+  ok - smooth Epic with character shadows, guards alerted: every shader within 16 textures (14, wren-lod0-wren-lod0-cloth, 0 pending after 4648 ms)
+[start] e2e-feedback
+
+=== e2e-wall (ok, 43s) ===
+back-to-wall on Proving
+  ok - a free high wall on Proving (59)
+  ok - no entry from 0.7 m (playtest 2: entry within 0.5 m)
+  ok - no entry from 1.3 m (off)
+  ok - the context press enters (entering)
+  ok - on the wall: body line 0.344 m (standoff 0.350), pose + camera preset (wall)
+  ok - localRef.cover set while on the wall (coverT 0.50)
+  ok - slides at the CT shuffle (core 0.35 m/s, body 0.35 m/s at 1.58 s, 1.25 m from the end)
+  ok - analog below full stick: 0.5 stick slides at 0.117 m/s (0.117)
+  ok - crouched on a high wall, still on it: 0.5 m/s crouch-walk (core 0.49, body 0.49 m/s, sub 3)
+  ok - stands again on the wall (on, crouched false)
+  ok - pushed 2 s past the end: stays on the wall at the end (s 3.78 of 4.00, edge 1, sub 20, body at 3.780, 0.35 out)
+  ok - pushing on at the end peeks (peek true)
+  ok - camera on the wall: max step 5.1 cm per frame at 403 (<= 6), 0 frames behind geometry
+  ok - a brief pull (0.15 s) stays on the wall (on)
+  ok - (A3, loco M25) pulling away never leaves the wall (on, )
+  ok - the button again leaves (off, context)
+  ok - the slide is quieter than walking (crouch band: 0.00 m < 2.24 m)
+  ok - the stick into a high face does not enter (off)
+  ok - the context press enters (on)
+  ok - the context press again leaves (context)
+  ok - no console errors ()
+edge verb on Proving: peek at once, strict camera, aiming leaves (A3)
+  ok - the Proving doorway has a free wall end ({"i":69,"end":1,"len":6.450000000000003})
+  ok - at the doorway edge (edge 1, sub 20)
+  ok - peek at once (step 0, no hold): head out 0.350 m, rig lean -0.20, camera swing 1
+  ok - the peek camera pivot sits 0.750 m past the body (F1b: 0.6-0.8)
+  ok - the peek eases back when the stick is released (sub 4)
+  ok - pushing round the corner stays on the wall at the edge and peeks (on, edge 1, peek true)
+  ok - aiming leaves the wall (off, action), no lean-out state
+  ok - no console errors ()
+corner takedown from the wall (Warehouse, step 12)
+  ok - a guard round the edge offers the corner takedown and it runs ({"i":25,"kind":"corner","active":true,"wallAfter":"off"})
+e2e-wall OK
+[start] e2e-gadgets
+
+=== e2e-feedback (ok, 22s) ===
+  ok - the pause menu opens a feedback note
+  ok - the note carries the game context (map: provingmode: free roamposition: 0.0, 0.0, -2.0facing: 0 degdifficulty: norm)
+  ok - photo mode hides the HUD and menus, prompts only ({"on":true,"hud":"none","form":"none","take":true})
+  ok - the free camera flies (2.60 m)
+  ok - the game stays frozen (the operator never moved)
+  ok - taking a photo shows it with keep / retake / cancel
+  ok - retake goes back to the live camera
+  ok - keep returns to the note with the photo (1)
+  ok - the camera goes back where it was
+  ok - cancel leaves photo mode without a photo
+  ok - more than one photo per note (2)
+  ok - saved to the device with its photos ([{"text":"Ladder clips the wall\nat the top","photos":2,"type":"image/jpeg","map":"proving"}])
+  ok - listed after a reload (Bug: Ladder clips the wall10/25/2026, 11:00:56 PM - proving - 2 photos)
+  ok - the report has the note and both photos
+  ok - photo mode works on the menu stage too
+  ok - and gives the menu camera back
+  ok - no console errors
+feedback e2e passed
+[start] e2e-levels
+
+=== e2e-gadgets (ok, 24s) ===
+wheel
+  ok - holding the wheel button opens the selection wheel over the live game, no time slow (x1)
+  ok - the wheel fits the viewport under the top HUD, clear of the hint, one segment per item ({"d":360,"top":93,"segs":9,"tiles":9,"fits":true,"hintClear":true})
+  ok - (sector-fixes W) the wheel opens on the vision slot (0); the stick let go keeps the slot one frame (5 of 5), then returns to vision (0 Night vision)
+  ok - (sector-fixes W) mouse: opens on vision (0), out to a slot (2), back in the centre = vision (0)
+  ok - the cursor picks a segment (2 Flashbang); the left stick still walks (1.65 m)
+  ok - releasing (stick and button let go together) selects it (flash) and closes (x1)
+  ok - a quick tap does not open the wheel: it switches weapon
+  ok - mouse: the wheel opens on the selected mode (night / night), the centre lights the vision slot (segment 0), E is the wheel's (context menu none)
+  ok - E steps the carousel night -> thermal, release selects it (thermal)
+arc
+  ok - holding the gadget button shows the predicted arc (20 dots, landing ring true)
+  ok - releasing throws (frags 2 -> 1) and hides the arc
+gas
+  ok - sleeping gas knocks a guard out (non-lethal, 1)
+  ok - a guard outside the cloud is untouched
+flash
+  ok - a flashbang blinds a guard facing it (3.25 s)
+  ok - once his eyes clear he is alert ({"calm":true,"blind":3.2514831122585113,"white":0.8939550290084702,"alerted":true,"level":"alert","bt":0,"alive":true,"blinded":1})
+  ok - the operator looking at it is whited out (0.89)
+emp
+  ok - an EMP puts the lights round it out (18 -> 17)
+  ok - they come back after its duration
+noise
+  ok - a noisemaker sticks and pulses (2)
+  ok - a guard in earshot comes to check it (suspicious), not to a fight
+  ok - a guard behind the wall hears it muffled, out of reach (unaware)
+sticky cam
+  ok - a sticky cam sticks and its feed opens (camera 0.06 m from it)
+  ok - the operator stays put while watching (0.00 m)
+  ok - fire pings a lure (1), Y releases its gas
+  ok - B returns to the operator
+mine
+  ok - a mine is placed at the feet
+  ok - once armed a guard stepping near sets it off
+  ok - no console errors ()
+[start] e2e-park
+
+=== e2e-park (ok, 10s) ===
+legacy off (the default)
+  ok - the page is titled Night Shift
+  ok - the main menu title is MAIN MENU, no old name (MainMenu)
+  ok - no profile badge, level or credits ({"any":false,"level":false,"credits":false})
+  ok - the flat main menu: Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (sectorops,coop,loadout,settings,feedback,anim-studio)
+  ok - Sector Ops opens its briefing with the sectors
+  ok - the issued kit: primary, sidearm, gadget (Primary,Sidearm,Gadget)
+  ok - the CT kit guns, G76 (Heron Carbine,Hush 9 SD,Sleeping gas)
+  ok - the kit is not selectable: a click changes nothing
+  ok - a new room starts on the campaign, Marlow Yard (course, ctcourse)
+  ok - the lobby lists Campaign and Sector Ops (Campaign,Sector Ops)
+  ok - Sector Ops runs on the Warehouse sectors ({"Campaign":"ctcourse","Sector Ops":"warehouseOps"})
+  ok - the save export keeps its internal magic
+  ok - importing an exported file restores it ({"name":"Imported","atts":0})
+legacy on (?legacy=1)
+  ok - the profile badge shows level and credits
+  ok - the legacy main menu keeps Missions, Training and Free roam (sectorops,missions,coop,training,freeroam,loadout,legacy,settings,feedback,anim-studio)
+  ok - Missions lists the campaign cards ({"n":4,"total":4})
+  ok - Free roam lists the sandbox maps
+  ok - Mission and Hunter are back (Hunter,Infiltration,Free Roam,Mission)
+  ok - the default mode is Hunter
+  ok - the Loadout economy is back (Loadout,Primary,Secondary,Gadget,Suit,Appearance,Tag,HQ upgrades,Challenges)
+  ok - locked / buyable attachments show again (12)
+  ok - no console errors
+
+=== e2e-levels (ok, 13s) ===
+layered grid
+  ok - the grid holds three storeys per column (3)
+  ok - every Warehouse ladder joins two storeys both ways (8 links)
+up a ladder
+  ok - a runner climbs the rack ladder to the player (0.0 -> 2.80 m in 17.25 sim s of 48 s budget (ideal 4.3 s), 2 s wall)
+down a ladder
+  ok - a runner on the rack climbs down to the player (2.8 -> 0.01 m in 3.75 sim s of 45 s budget (ideal 3.7 s), 0 s wall)
+  ok - no console errors
+
+=== e2e-sectorops:6 (ok, 238s) ===
+campus ops (S1, S2): boots with eight guards; a nav walk verge -> rear window -> download -> C1 -> S2 (12 guards), the stealth walk to the BMS hack, the reception panel
+  ok - campusOps section 1 has 8 guards in (8)
+  ok - five sections, section 1 a download with 8 guards, section 2 a hack with 12, section 3 built with 16, section 4 built with 20, section 5 built with 24 ([["s1",8],["s2",12],["s3",16],["s4",20],["s5",24]])
+  ok - the run starts on section 1's objective, C1 locked ([0,"objective",true,true,0])
+  ok - S1's weapons crate is live at the start, no other ([{"id":"s1-crate","live":true,"spent":false,"used":[]},{"id":"s2-crate","live":false,"spent":false,"used":[]},{"id":"s3-crate","live":false,"spent":false,"used":[]},{"id":"s4-crate","live":false,"spent":false,"used":[]},{"id":"s5-crate","live":false,"spent":false,"used":[]}])
+  ok - 13 cameras on the map (S1 2, S2 3, S3 2, S4 3, S5 3), cam-gate and cam-walk live in section 1 ([["cam-gate",true],["cam-walk",true],["cam-turnstile",false],["cam-lift",false],["cam-bridge",false],["cam-view",false],["cam-dock",false],["cam-mantrap",false],["cam-cage",false],["cam-dock4",false],["cam-hall",false],["cam-gallery",false],["cam-terrace",false]])
+  40 route legs checked
+  ok - every walked route leg has a nav path ()
+  ok - the PC is inside the interact reach from the open window (1.30 m)
+  ok - the 10 s download from the verge opens C1 (["connector",false,true])
+  ok - C1 cycles: the near door locks, section 1 unloads (["cycling",true,0,-1])
+  ok - section 2 loads behind the far door ([1,"s2","objective",1])
+  ok - C1's far door and the dock door unlocked ({"near":true,"far":false,"seal":[false]})
+  ok - section 2 loads with its objective and its 12 guards ([true,12])
+  ok - C1 is the checkpoint
+  ok - after C1 only S2's weapons crate is live ([{"id":"s1-crate","live":false,"spent":false,"used":[]},{"id":"s2-crate","live":true,"spent":false,"used":[]},{"id":"s3-crate","live":false,"spent":false,"used":[]},{"id":"s4-crate","live":false,"spent":false,"used":[]},{"id":"s5-crate","live":false,"spent":false,"used":[]}])
+  ok - S2's crate tops the guns up to the loadout once and the prompt goes ({"offered":"s2-crate","eq":true,"gad":true,"gone":true})
+  ok - section 2 has 3 guards on G, 6 on L1 and 3 on L2 ([3,6,3])
+  ok - the three S2 cameras are live, the S1 pair is not (["cam-turnstile","cam-lift","cam-bridge"])
+  ok - C2's doors start locked ([true,true])
+  71 S2 route legs checked
+  ok - every S2 route leg has a nav path ()
+  ok - S2 #7 (the facilities officer) stands at the BMS desk on load
+  ok - the BMS terminal is inside the interact reach from the desk's south side (1.37 m)
+  ok - the hack is row 1 of the context menu, no takedown on offer ({"offer":false,"rows":["Hack"]})
+  ok - the 3 s hack opens C2's card door (["connector",false,true])
+  ok - the reception panel is an untimed breaker board on s2-atrium, no switch on it (3 pendants and the reception downlight lit), #1 stands 12.0 m off it ({"k":2,"idx":0,"d0":11.953451384432865,"onGroup":0,"on":4})
+  ok - the panel cut s2-atrium (lamps on 0) and sends #1 to reset it (breaker task, circuit 50)
+  ok - #1 walked to the board and switched s2-atrium back on (board cut 0, 12.0 m -> 0.8 m, relit at 15.5 s, lamps on 4)
+campus ops (S1): the feeder pillar board cuts s1-park-w; the west half goes dark
+  ok - the feeder board has the west (8 columns) and east (6) breakers ({"k":0,"group":40,"n":8,"e":6})
+  ok - the west breaker cuts only s1-park-w ({"w":0,"e":6})
+  ok - the light meter at the west row (-28,-58.75) reads under the shadow line 0.28 once the circuit is cut (0.246, lit 0.349)
+  ok - the same point reads brighter with the columns on (0.349 against 0.246)
+campus ops (S1, CR1; S2, CR2): solo probes at the canopy lip, the plant room and the cafe nose never stand on the canopy or the L1 slab
+  ok - CR1 east lip from the kerb: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.02, ends y 0.02)
+  ok - CR1 south lip from the forecourt: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.02, ends y 0.02)
+  ok - plant room south wall (parapet) from the yard: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.04, ends y 0.02)
+  ok - bin store north wall corner towards the plant roof: alone, never holds a 4.25+ grip nor stands that high (held 3, stood 1.26, ends y 1.22)
+  ok - CR2 nose from the cafe floor: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.04, ends y 0.02)
+  ok - CR2 nose from a cafe table: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.79, ends y 0.02)
+  ok - CR2 nose from the feature stair: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 2.85, ends y 0.02)
+  ok - CR2 nose, wall jump off the hall east wall: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.04, ends y 0.02)
+campus ops (S3): the lab block - the switch-bank lure, the jammed store beams, the stealth grab, C3
+  ok - the run reaches section 3 ([2,"s3","objective"])
+  ok - section 3 has 16 guards in (16)
+  ok - cam-view and cam-dock are the live cameras (["cam-dock","cam-view"])
+  ok - a round on bulletproof cam-view ricochets and leaves it live ({"down":null,"mode":"online","live":true})
+  ok - las-gown and las-store are live, each with its panel ([{"id":"las-gown","on":true,"live":true,"panel":"panel-gown"},{"id":"las-store","on":true,"live":true,"panel":"panel-store"}])
+  S3: 99 route legs checked
+  ok - every walked S3 route leg has a nav path ()
+  ok - the switch bank's row-1 breaker cuts s3-hb-1 only ({"k":11,"d0":3.87072344659238,"sw":[21.85,-16.9],"on":0,"other":3})
+  ok - the cut draws #16 towards the switch bank (3.9 m -> 0.8 m)
+  ok - jamming the store panel from the near side cuts las-store
+  ok - a crouch through the jammed beams sets off nothing ([{"hits":0,"stage":0},{"hits":0,"stage":0,"crouched":true}])
+  ok - the prototype shelf is inside the interact reach (0.72 m)
+  ok - the grab opens C3 (["connector",false,true])
+  ok - after the jam and its reboot las-store is back
+  ok - standing in the live beams trips las-store (0 -> 1)
+  ok - C3 cycles: the dock door locks, section 3 unloads (["cycling",true,0])
+  ok - the S4 stub loads behind C3 ([3,"s4","objective"])
+campus ops (S4): the data hall - the dock board codes, the desk, the pair gate, the hall panel lure, the cage download, C4
+  ok - the run reaches section 4 ([3,"s4","objective"])
+  ok - section 4 has 20 guards in (20)
+  ok - the three S4 cameras are the live ones (["cam-cage","cam-dock4","cam-mantrap"])
+  ok - las-tray is live with its panel ([{"id":"las-tray","on":true,"live":true,"panel":"panel-tray"}])
+  ok - the mirrored (live) interactables stay under the cap (63 of 201, scope 3)
+  ok - S2: an interrogation code readies kp-batt ({"before":{"has":false,"label":"Keypad - code needed"},"after":{"has":true,"label":"Enter code"}})
+  ok - the dock board opens kp-batt and kp-deck ({"board":true,"a":true,"b":true})
+  S4: 77 route legs checked
+  ok - every walked S4 route leg has a nav path ()
+  ok - the desk is refused while the operator stands (-1)
+  ok - the console loops the cameras once #5 is down ({"r":1,"mode":1})
+  ok - one player alone cannot open pg-cage ({"a":"wait","c":"wait","open":false})
+  ok - the download opens C4's near door (["connector",false])
+  ok - the cut s4-cold-1 draws a guard >= 4 m closer to the hall panel within 15 s ({"best":11.736765881407797,"on":0})
+  ok - C4 cycles: the colonnade door locks, section 4 unloads (["cycling",true,0])
+  ok - section 5 loads behind C4 ([4,"s5"])
+campus ops (S4, CR4): solo probes at the cable basket B1 never hold or stand on a basket
+  ok - CR4 east face from the floor at (5.6, 34): alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.02, ends y 0.02)
+  ok - CR4-west face from the floor at (1.6, 34): alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.02, ends y 0.02)
+  ok - CR4 wall jump off the pod P2 west face: alone, never holds a 4.25+ grip nor stands that high (held 0, stood 0.04, ends y 0.02)
+campus ops (S4, guard-ai S16): guards hold fire at armour (the NOC pair, arm-noc)
+  ok - the run reaches section 4 ([3,"s4"])
+  ok - the NOC pair stand in the NOC (["e50","e51"])
+  ok - a NOC guard at the window has a sight line to the player on the hall floor (Enemy.perceive; [[-2.5,30],-2.5,0.02,30])
+  ok - a NOC guard sees the player on the hall floor through the armoured window (sight passes clear armour; from -2.5,30)
+  ok - the fire gate cast the line and held on the pane ([["e50",14,77],["e51",39,515]])
+  ok - no round into the armoured window from the NOC in 10 s (0)
+  ok - the pair stay in combat: sight and the alert level unchanged ([["e50",true,"alert","t 10.1","unseen 4.62"],["e51",true,"alert","t 10.1","unseen 0.85"]])
+  guard-ai S16: from (-2.5,30) e50: moved 4.8 m (attack, rounds 0); e51: moved 3.4 m (chase, rounds 0)
+campus ops (S5): the Old House - the rota board, the garden board, the stealth grab, the jetty
+  ok - the run reaches section 5 ([4,"s5","objective"])
+  ok - section 5 has 24 guards in (24)
+  ok - the three S5 cameras are the live ones (["cam-gallery","cam-hall","cam-terrace"])
+  ok - las-shaft is live with its panel ([{"id":"las-shaft","on":true,"live":true,"panel":"panel-shaft"}])
+  ok - the mirrored (live) interactable list stays under the cap (59 of 201, scope 4)
+  ok - the two keyholders stand at (-44, 34) and (-42, 34) (0.35,0.35)
+  ok - the rota board gives the code and kp-arch opens ({"found":true,"open":true})
+  S5: 100 route legs checked
+  ok - every walked S5 route leg has a nav path ()
+  ok - one player cannot open the pair gate (wait, wait)
+  ok - the garden board cuts the ten lamps of group 84 (10 -> 0)
+  ok - the garden circuit comes back after the window
+  ok - the token grab opens the extraction (["extract"])
+  ok - alarm stage 2 locks the garden door ([2,1])
+  ok - standing on the jetty ends the run (done)
+no console errors
+
+times (GPU, 3 at a time):
+  e2e-ctcourse:3 ok 304s
+  e2e-ctcourse:4 FAIL 240s
+  e2e-sectorops:6 ok 238s
+  e2e-lightbake ok 146s
+  e2e-ctcourse:1 ok 94s
+  e2e-course ok 65s
+  e2e-desktop:2 ok 64s
+  e2e-anim ok 62s
+  e2e-sectorops:5 ok 61s
+  e2e-desktop:1 ok 56s
+  e2e-sectorops:4 ok 49s
+  e2e-offline ok 44s
+  e2e-wall ok 43s
+  e2e-traverse ok 41s
+  e2e-move ok 34s
+  e2e-ct ok 28s
+  e2e-gadgets ok 24s
+  e2e-feedback ok 22s
+  e2e-weapons-carry ok 17s
+  e2e-levels ok 13s
+  e2e-park ok 10s
+
+wall 564s, suites summed 1652s (x2.9)
+
+1 suite(s) failed: e2e-ctcourse:4
