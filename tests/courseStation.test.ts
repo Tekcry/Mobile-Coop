@@ -1055,3 +1055,36 @@ describe('(marlow-play B5) no station retry while the exit holding room cycles o
     expect(st.restarts).toBe(1);
   });
 });
+
+describe('(marlow-play C5) a step\'s mark belongs to the station that owns its flag', () => {
+  const objectives = [
+    { id: 'st-one', bay: 'B1', text: 'One.', done: { flag: 's1-done' } },
+    { id: 'st-two', bay: 'B1', text: 'Two.', done: { flag: 'key2' } },
+    { id: 'st-end', bay: 'B1', text: 'Out.' },
+  ];
+  it('a done flag moves the live station on before its step latches: a retry of the next station keeps it; a step of the live one goes', () => {
+    const st = new CourseState({ ...def(), objectives });
+    st.setFlag('s1-done');
+    st.update(DT);
+    expect(st.station()).toBe(2);
+    expect(st.isStepDone('st-one')).toBe(true);
+    st.setFlag('key2');
+    st.update(DT);
+    expect(st.isStepDone('st-two')).toBe(true);
+    st.clearFlag('s1-done');
+    expect(st.retryStation('seen')).toBe(true);
+    expect(st.isStepDone('st-one')).toBe(true);
+    expect(st.isStepDone('st-two')).toBe(false);
+    st.update(DT);
+    expect(st.currentStep()?.id).toBe('st-two');
+  });
+  it('the built yard (no stations): steps latch and stay as before', () => {
+    const st = new CourseState({ ...def({}, null), objectives });
+    expect(st.hasStations).toBe(false);
+    st.setFlag('s1-done');
+    st.update(DT);
+    expect(st.isStepDone('st-one')).toBe(true);
+    expect(st.retryStation('seen')).toBe(false);
+    expect(st.currentStep()?.id).toBe('st-two');
+  });
+});

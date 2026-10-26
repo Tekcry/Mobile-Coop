@@ -305,6 +305,11 @@ export function replanA8Strongroom(b: LevelBuilder, kit: FacilityKit, part: SetP
   line('a8-office', (o) => {
     o.b = 'Jam the gallery camera from behind the counters for your partner.';
   });
+  // (marlow-play C5) the grille step is done on station 20's own flag (one through the grille), not A's lobby zone: that
+  // ticked while 21 was live, so a 21 retry took the step back
+  line('a8-grille', (o) => {
+    o.done = { flag: A8_GRILLE_IN_FLAG };
+  });
   for (const [at, text] of Object.entries(A8_RETRY_LINES)) part.bay.radio.push({ at, text });
 
   // ---- the re-plan's light spots: the vestibule and the jam spot are lit now, and each new switch cuts its circuit ----

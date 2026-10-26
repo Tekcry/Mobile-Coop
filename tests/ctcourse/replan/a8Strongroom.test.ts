@@ -308,6 +308,38 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
     for (const id of ['a8-split', 'a8-office', 'a8-grille', 'a8-beams', 'a8-sync']) expect(def.objectives!.some((o) => o.id === id), id).toBe(true);
   });
 
+  it('(marlow-play C5) a 20 or 21 retry never takes a step back: the office step is 19\'s, the grille step is done on a8-grille-in and is 20\'s; the built yard keeps a8-lobby', () => {
+    expect(def.objectives!.find((o) => o.id === 'a8-grille')!.done).toEqual({ flag: A8_GRILLE_IN_FLAG });
+    const plain = buildCtcourse(new LevelBuilder());
+    expect(plain.parts[7]!.objectives.find((o) => o.id === 'a8-grille')!.done).toEqual({ flag: 'a8-lobby' });
+    const s = runAt([107.5, 64.0], [107.5, 65.5]);
+    s.setFlag('a8-gal1');
+    s.setFlag(A8_OFFICE_IN_FLAG);
+    s.update(1 / 60);
+    s.setFlag('a8-loop');
+    s.update(1 / 60);
+    expect(s.station()).toBe(20);
+    expect(s.isStepDone('a8-office')).toBe(true);
+    // the loop runs out, then a caught 20: the office step stays ticked (it latched while 20 was live)
+    s.clearFlag('a8-loop');
+    expect(s.retryStation('caught')).toBe(true);
+    s.update(1 / 60);
+    expect(s.isStepDone('a8-office')).toBe(true);
+    expect(s.currentStep()?.id).toBe('a8-grille');
+    // B through the grille: the grille step ticks on 20's flag; A reaching the lobby during 21 then a 21 retry keeps it
+    s.setFlag(A8_GRILLE_IN_FLAG);
+    s.update(1 / 60);
+    expect(s.station()).toBe(21);
+    expect(s.isStepDone('a8-grille')).toBe(true);
+    s.setFlag('a8-lobby');
+    s.update(1 / 60);
+    expect(s.retryStation('caught')).toBe(true);
+    s.update(1 / 60);
+    expect(s.isStepDone('a8-office')).toBe(true);
+    expect(s.isStepDone('a8-grille')).toBe(true);
+    expect(s.currentStep()?.id).toBe('a8-beams');
+  });
+
   it('the pass zones: a8-office-in [134.25, 75.5, 136, 77.75] at floor 4.4 and a8-grille-in [134.3, 60.5, 136, 63.5] at floor 0, any one player, flags external; the zones sit inside the office door and just through the grille', () => {
     const o = part.passZones.find((z) => z.flag === A8_OFFICE_IN_FLAG)!;
     const g = part.passZones.find((z) => z.flag === A8_GRILLE_IN_FLAG)!;
