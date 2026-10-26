@@ -31,6 +31,10 @@ const FABRIC_NEUTRAL = 0.4;
 
 interface Entry {
   src: HelmetMeshSource | null;
+  /** (map-ready S3) The load started by the first call: true once `src` is built, false with none or on a failure. */
+  ready: Promise<boolean>;
+  /** (map-ready S3) `helmetDropReady`'s one disabled instance (kept for the scene's life). */
+  warm: InstancedMesh | null;
 }
 const BY_SCENE = new WeakMap<Scene, Entry>();
 
@@ -47,21 +51,49 @@ export function helmetManifest(): GuardManifest | null {
 export function helmetDropSource(scene: Scene): HelmetMeshSource | null {
   let e = BY_SCENE.get(scene);
   if (!e) {
-    e = { src: null };
+    const entry: Entry = { src: null, ready: Promise.resolve(false), warm: null };
+    e = entry;
     BY_SCENE.set(scene, e);
     const m = helmetManifest();
     const url = m?.urls[LOD_1];
     if (m && url) {
-      const entry = e;
-      Promise.all([guardLibrary(scene).load(m, LOD_1), loadModel(url)])
+      entry.ready = Promise.all([guardLibrary(scene).load(m, LOD_1), loadModel(url)])
         .then(([asset, model]) => {
           if (!scene.isDisposed) entry.src = buildHelmetDropMesh(scene, model, m, asset.materials[0] ?? null);
+          return entry.src !== null;
         })
-        .catch((err: unknown) => console.warn('[guards] helmet drop mesh not built (the box stays)', err));
+        .catch((err: unknown) => {
+          console.warn('[guards] helmet drop mesh not built (the box stays)', err);
+          return false;
+        });
     }
   }
   if (e.src?.mesh.isDisposed()) e.src = null;
   return e.src;
+}
+
+/** (map-ready S3) Starts the helmet_std drop mesh's load now (as the first drop would) and resolves true once it is built
+ *  with one disabled warm instance (the drop's instanced variant compiles in the gate), false when the build has no
+ *  helmet_std file or the load failed. Never rejects. */
+export function helmetDropReady(scene: Scene): Promise<boolean> {
+  // (the same entry and load as `helmetDropSource`: one load per scene, a later first drop takes its mesh)
+  helmetDropSource(scene);
+  const e = BY_SCENE.get(scene)!;
+  return e.ready.then(
+    (ok) => {
+      const src = e.src;
+      if (!ok || !src || src.mesh.isDisposed() || scene.isDisposed) return false;
+      if (!e.warm) {
+        // never drawn, never picked; with it the source draws through instances, so the gate's sweep compiles that variant
+        const w = helmetDropInstance(src, '#808080', 'helmet-drop-warm');
+        w.setEnabled(false);
+        w.isPickable = false;
+        e.warm = w;
+      }
+      return true;
+    },
+    () => false,
+  );
 }
 
 function nibble(c: number): number {

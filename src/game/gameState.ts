@@ -35,7 +35,9 @@ import { buildNavGrid } from '../ai/navBuild';
 import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
-import { warmGuardModels } from '../ai/guardWarm';
+import { guardKindsFor, warmGuardModels, warmGuardSets } from '../ai/guardWarm';
+import { helmetDropReady } from '../ai/guardHelmet';
+import { preloadShield } from '../ai/guardShield';
 import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
 import { CompileLog, type CompileLogRecord } from '../core/compileLog';
 import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
@@ -67,7 +69,7 @@ import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import type { RatingView } from '../ui/hud/ratingCard';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
-import { attachGameAudio } from '../audio/gameAudio';
+import { attachGameAudio, gameAudioReady } from '../audio/gameAudio';
 import { type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
@@ -998,7 +1000,8 @@ export class GameState implements AppState {
       g.holding = true;
       g.gateWorldAt = readyWorld;
       // (the guard warm meshes still start here, not awaited: the gate's `shaders` step compiles them with the rest)
-      if (flags.guardModels) void warmGuardModels(g.scene, opts.map.id).catch(() => undefined);
+      // (S3) the promise is kept: the guards group's warm (`gateWarmGuards`) waits for it with `?guardmodels=1`
+      if (flags.guardModels) g.gateFigureWarm = warmGuardModels(g.scene, opts.map.id).catch(() => undefined);
       rs.step('create', performance.now());
       return g;
     }
@@ -2528,6 +2531,14 @@ export class GameState implements AppState {
   private gateSettled = 0;
   private gateOrder: 'parallel' | 'serial' = 'parallel';
   private readonly gateDue: CompileDueInput = { quality: false, content: false, bodies: false, started: 0, settled: 0 };
+  /** (map-ready S3) The guard warm sets in the guards group (`gateWarmGuards`): 0 not started, 1 compiling, 2 settled. */
+  private gateWarm = 0;
+  /** (map-ready S3) The helmet drop and the shield file (`?guardmodels=1`): true when not needed or settled. */
+  private gateGear = true;
+  /** (map-ready S3) The `audio` step (`gameAudioReady`) settled. */
+  private gateAudio = false;
+  /** (map-ready S3) `create`'s `warmGuardModels` promise (`?guardmodels=1`, else null), not awaited there. */
+  private gateFigureWarm: Promise<unknown> | null = null;
   /** (map-ready S2) Banners queued during the hold, the last objective set, and the HUD's own two calls. */
   private readonly gateBanners: [string, string | undefined, number | undefined][] = [];
   private gateObjective: string | null = null;
@@ -2557,6 +2568,24 @@ export class GameState implements AppState {
       .catch(() => {
         this.gateFigureFailed = true;
       });
+    // (S3) the sound step (A9 / A24) and, with the guard figures, the helmet drop and the shield file when the run's
+    // guards can carry them, started now; the gate reads their flags (`audio`, `bodies`)
+    void gameAudioReady(this.app).then(() => {
+      this.gateAudio = true;
+    });
+    if (flags.guardModels) {
+      const kinds = guardKindsFor(this.world.map.id, this.opts.mode);
+      const gear: Promise<boolean>[] = [];
+      if (kinds.length) gear.push(helmetDropReady(this.scene));
+      if (kinds.includes('enforcer')) gear.push(preloadShield());
+      if (gear.length) {
+        this.gateGear = false;
+        const done = (): void => {
+          this.gateGear = true;
+        };
+        void Promise.all(gear).then(done, done);
+      }
+    }
     const probe: MapGateProbe = {
       read: (g) => this.gateRead(g, playMask),
       tick: () => this.gateTick(),
@@ -2583,6 +2612,8 @@ export class GameState implements AppState {
       const gb = liveGuardBodies(this.scene);
       for (let i = 0; i < gb.length; i++) if (!gb[i]!.shown) bodies = false;
     }
+    // (S3) the helmet drop and the shield file in (`?guardmodels=1`; before the copy below: the own group waits too)
+    if (!this.gateGear) bodies = false;
     g.bodies = bodies;
     // (S14 cut A) each compile group starts as its inputs come in, in priority order, none waiting on another (parallel);
     // `?compileorder=serial` keeps S2's order, each group after the one before settled
@@ -2594,11 +2625,13 @@ export class GameState implements AppState {
     d.settled = this.gateSettled;
     const due = compileGroupsDue(d, this.gateOrder);
     if (due) this.gateCompileAll(due);
-    g.shaders = this.gateStarted === GROUP_ALL && this.gateDrawReady();
+    // (S3) the sweep asks every mesh each read; the step also waits for the guard warm sets (and the figure warm)
+    const drawn = this.gateStarted === GROUP_ALL && this.gateDrawReady();
+    g.shaders = drawn && this.gateWarm === 2;
     g.probe = w.probeCaptured;
     g.bakeAll = (!sb || sb.done || sb.disposed) && (w.lamps?.tilesPending ?? 0) === 0;
-    // (S3 adds the audio step, S5 the peers step)
-    g.audio = true;
+    // (S3) the weapon sprite and the first music cue (`gameAudioReady`); S5 adds the peers step
+    g.audio = this.gateAudio;
     g.peers = true;
     // (the S1 frame sample's count, never a second `shaderCount()`)
     g.programs = this.spikeShaders;
@@ -2688,19 +2721,35 @@ export class GameState implements AppState {
       const p = this.player.position;
       const es = this.enemyMgr ? [...this.enemyMgr.enemies] : [];
       es.sort((a, b) => hyp2(a.pos.x - p.x, a.pos.z - p.z) - hyp2(b.pos.x - p.x, b.pos.z - p.z));
+      // (S3) the guard warm sets are part of this group in both orders: it settles only once they have
       if (this.gateOrder === 'serial') {
         return (async () => {
           for (const e of es) {
             await GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false));
             if (this.exited) return;
           }
+          await this.gateWarmGuards();
         })();
       }
       const all: Promise<unknown>[] = [];
       for (const e of es) all.push(GameState.gateCompileMeshes(e.bodyRig.root.getChildMeshes(false)));
+      all.push(this.gateWarmGuards());
       return Promise.all(all);
     }
     return GameState.gateCompileMeshes(this.scene.meshes.slice());
+  }
+
+  /** (map-ready S3) The guards group's warm: one hidden set per guard kind the run can spawn, built and compiled
+   *  (`warmGuardSets`), and with `?guardmodels=1` the figure warm `create` started; `gateWarm` is 2 once both settled.
+   *  Never rejects. */
+  private gateWarmGuards(): Promise<unknown> {
+    this.gateWarm = 1;
+    const sets = warmGuardSets(this.scene, this.world, guardKindsFor(this.world.map.id, this.opts.mode));
+    const figure = flags.guardModels ? this.gateFigureWarm : null;
+    const settle = (): void => {
+      this.gateWarm = 2;
+    };
+    return Promise.all([sets, figure]).then(settle, settle);
   }
 
   /** (map-ready S2) `forceCompilationAsync` for each mesh's material (with instances when it draws them); resolves when
@@ -2720,7 +2769,7 @@ export class GameState implements AppState {
   private gateDescribe(): string {
     const w = this.world;
     const sb = w.lightBake?.sections;
-    return `${w.map.id}: figure ${this.player.figure.loaded}, compile ${this.gateOrder} started ${this.gateStarted} settled ${this.gateSettled} of ${GROUP_ALL}, probe ${w.probeCaptured ? 'in' : 'waiting'}, sections ${sb ? (sb.done ? 'done' : 'baking') : 'none'}, tiles ${w.lamps?.tilesPending ?? 0}, programs ${this.spikeShaders}`;
+    return `${w.map.id}: figure ${this.player.figure.loaded}, compile ${this.gateOrder} started ${this.gateStarted} settled ${this.gateSettled} of ${GROUP_ALL}, probe ${w.probeCaptured ? 'in' : 'waiting'}, sections ${sb ? (sb.done ? 'done' : 'baking') : 'none'}, tiles ${w.lamps?.tilesPending ?? 0}, programs ${this.spikeShaders}, guard warm ${this.gateWarm === 2 ? 'settled' : this.gateWarm === 1 ? 'compiling' : 'not started'}, gear ${this.gateGear ? 'in' : 'loading'}, audio ${this.gateAudio ? 'in' : 'loading'}`;
   }
 
   /** (map-ready S2) During the hold the mode's banners wait for the release and its objective is recorded (no HUD or

@@ -125,6 +125,11 @@ export class GameMusic {
     });
   }
 
+  /** (map-ready S3, A24) The first cue a mission plays ('caution') decoded now (shared with `mission()`'s load). */
+  firstCue(): Promise<boolean> {
+    return this.load('caution').then((d) => d !== null);
+  }
+
   /** Every frame in a mission, with the game's awareness (from `awareness()`). Cheap: the director runs at 10 Hz. */
   update(dt: number, game: GameAwareness): void {
     if (this.mode !== 'mission') return;

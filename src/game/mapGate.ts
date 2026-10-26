@@ -9,8 +9,9 @@
 
 export type MapStep = 'bake-live' | 'quality' | 'content' | 'bodies' | 'shaders' | 'probe' | 'bake-all' | 'audio' | 'warm' | 'peers' | 'ready';
 
-/** S2's steps in order; S3 inserts 'audio' before 'warm', S5 appends 'peers'. Undo for one step (A1): drop it here. */
-export const STEPS: readonly MapStep[] = ['bake-live', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bake-all', 'warm'];
+/** S2's steps in order, with 'audio' before 'warm' (S3 inserted it: the weapon sprite and the first music cue, A9 / A24);
+ *  S5 appends 'peers'. Undo for one step (A1): drop it here. */
+export const STEPS: readonly MapStep[] = ['bake-live', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bake-all', 'audio', 'warm'];
 
 /** Never cut by the cap (A3): the live section's lamps (gameplay light). */
 export const ALWAYS: readonly MapStep[] = ['bake-live'];
