@@ -7,11 +7,9 @@ FIRST: piano-escape (Michael ~19:40: main focus): resume from docs/piano-escape/
 Tallow, changes since the 19:35 block (which still holds for the rest):
 1. #522 (a) MERGED to master. #578 (b) retargeted to master ~20:27 (MERGEABLE); train-ready from the watchdog after
    CI + affected-e2e on its head. Then #581 -> master after #578 lands, then #583.
-2. S4 done (cloud) origin/feature/tallow-s4 f9b97621e; G5 done (cloud) origin/feature/tallow-g5 481f40239 (G5-Q1 answer 1).
-   ONE Sonnet checker for both running -> C:/NightShift/scratch/campaign/tallow-s4-g5-check.md (missing at resume ->
-   rerun it). PASS -> merge both into feature/mission-d-wharf (#583), tsc + tests/tallowWharf, push, re-post checker;
-   replace the engine-copy docs/tallow-fixes/G5-plan.md + briefs/G5.md with the cloud-queue fixed copies in that merge.
-Next: piano first; then #578 train, S4 + G5 into (d).
+2. S4 + G5 merged into (d) #583 at a84e2ca78 (one Sonnet PASS, tallow-s4-g5-check.md; tsc + 315 tests; fixed G5
+   plan + brief replace the pre-fix copies); checker posted, PR comment. Polish: walk card "about 17 s" far corner.
+Next: piano first; then #578 train; retarget #581 -> #583 as each lands.
 
 ## OLD RESUME 2026-10-26 ~19:35 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
 Process as in the 18:35 block below (prototype mode; bypass: the lead posts `checker`; low.mjs; junctions only to
