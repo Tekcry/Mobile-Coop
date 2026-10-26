@@ -1,7 +1,12 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~20:28 SAVE (Night Shift | Campaign Build)
+## RESUME 2026-10-26 ~22:20 SAVE (Night Shift | Campaign Build)
+FIRST: piano-escape (main focus): the newest block of docs/piano-escape/STATE.md on origin/feature/piano-escape.
+Tallow: #522 + #578 merged; #581 retargeted to master ~22:00 (MERGEABLE, checker posted, waiting on affected-e2e);
+when it lands retarget #583 -> master and re-post checker. Rest as below.
+
+## OLD RESUME 2026-10-26 ~20:28 SAVE (Night Shift | Campaign Build)
 FIRST: piano-escape (Michael ~19:40: main focus): resume from docs/piano-escape/STATE.md on origin/feature/piano-escape
 (worktree C:/NightShift/Mobile-Coop-piano-escape). Tallow below uses spare capacity only (max 2 builders in all).
 Tallow, changes since the 19:35 block (which still holds for the rest):
