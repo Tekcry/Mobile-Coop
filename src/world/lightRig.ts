@@ -5,7 +5,7 @@ import { nearestLights, type FittingModel, type LightDef, type LightRegistry } f
 import { fittingMesh, type MeshArrays } from './fixtureModels';
 import { mountLinks } from './lampMount';
 import { HANGER_STRIDE } from './lampSway';
-import { gameLightFalloff, TORCH_DRAW_SLOTS, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
+import { gameLightFalloff, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE, torchShadowPass, writeTorchDraw } from './shadowAccuracy';
 import { registryHasTorch } from './torchShadows';
 
 /** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
@@ -122,17 +122,34 @@ export class LightRig {
   /** (LR15) The baked lamps' torch uniforms (`BakedLamps.torchDraw`): the flashlights that get no shadow map
    *  are drawn there with the light field's formula x their beam's cut, not as the pool's Babylon lights. */
   private torchBuf: Float32Array | null = null;
-  /** Registry ids in the drawn torch slots (-1: empty). */
-  private readonly torchIds = new Int32Array(TORCH_DRAW_SLOTS).fill(-1);
-  private readonly torchKeep = new Uint8Array(TORCH_DRAW_SLOTS);
+  /** Registry ids in the drawn torch slots (-1: empty). (piano SO3) As many as the buffer holds (`setTorchDraw`). */
+  private torchIds = new Int32Array(TORCH_DRAW_SLOTS).fill(-1);
+  private torchKeep = new Uint8Array(TORCH_DRAW_SLOTS);
+  /** (piano SO3) With `beamCut` torches in the registry: registry id -> its fixed draw slot (the k-th flashlight in slot
+   *  k), so the shadowed flashlights (first in the registry) hold the slots with a shadow tile and the `beamCut` ones the
+   *  rest; null (every map without them): today's pick, nearest first into any free slot. */
+  private torchFixed: Int32Array | null = null;
   setTorchDraw(buf: Float32Array | null): void {
     this.torchBuf = buf;
     this.pickT = 0;
+    const n = buf ? buf.length / TORCH_DRAW_STRIDE : TORCH_DRAW_SLOTS;
+    if (n !== this.torchIds.length) {
+      this.torchIds = new Int32Array(n).fill(-1);
+      this.torchKeep = new Uint8Array(n);
+    }
+    const ls = this.reg.lights;
+    this.torchFixed = null;
+    if (ls.some((l) => l.kind === 'flashlight' && l.beamCut)) {
+      const f = new Int32Array(ls.length).fill(-1);
+      let k = 0;
+      for (const l of ls) if (l.kind === 'flashlight' && k < n) f[l.id] = k++;
+      this.torchFixed = f;
+    }
   }
   /** Flashlights drawn by the baked lamps now (tests / debug). */
   get drawnTorches(): number {
     let n = 0;
-    for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (this.torchIds[k]! >= 0) n++;
+    for (let k = 0; k < this.torchIds.length; k++) if (this.torchIds[k]! >= 0) n++;
     return n;
   }
   /** (LR16t) Registry id per drawn torch slot (-1: empty); `TorchShadows` gives slot k atlas tile k. Read only. */
@@ -598,12 +615,14 @@ export class LightRig {
       // (LR16t) a torch still drawn keeps its slot (its shadow atlas tile stays valid); the rest fill the free slots,
       // nearest first. Allocation-free: `torchKeep` marks the kept slots.
       const keep = this.torchKeep;
+      const nT = this.torchIds.length;
+      const fixed = this.torchFixed;
       keep.fill(0);
       for (let i = 0; i < use; i++) {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
         if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
-        for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+        for (let k = 0; k < nT; k++) {
           if (this.torchIds[k] !== l.id) continue;
           keep[k] = 1;
           taken[i] = 1;
@@ -611,20 +630,30 @@ export class LightRig {
           break;
         }
       }
-      for (let k = 0; k < TORCH_DRAW_SLOTS; k++) if (!keep[k]) this.torchIds[k] = -1;
+      for (let k = 0; k < nT; k++) if (!keep[k]) this.torchIds[k] = -1;
       let tk = 0;
       for (let i = 0; i < use; i++) {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
         if (l.kind !== 'flashlight' || this.baked?.has(l.id)) continue;
-        while (tk < TORCH_DRAW_SLOTS && keep[tk]) tk++;
-        if (tk >= TORCH_DRAW_SLOTS) break;
+        if (fixed) {
+          // (piano SO3) its own slot (a shadow tile or none, as the registry says)
+          const fk = fixed[l.id]!;
+          if (fk < 0 || keep[fk]) continue;
+          this.torchIds[fk] = l.id;
+          keep[fk] = 1;
+          writeTorchDraw(tb, fk, l);
+          taken[i] = 1;
+          continue;
+        }
+        while (tk < nT && keep[tk]) tk++;
+        if (tk >= nT) break;
         this.torchIds[tk] = l.id;
         keep[tk] = 1;
         writeTorchDraw(tb, tk++, l);
         taken[i] = 1;
       }
-      for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+      for (let k = 0; k < nT; k++) {
         if (keep[k]) continue;
         writeTorchDraw(tb, k, null);
       }
@@ -655,7 +684,7 @@ export class LightRig {
   private followTorches(): void {
     const tb = this.torchBuf;
     if (!tb) return;
-    for (let k = 0; k < TORCH_DRAW_SLOTS; k++) {
+    for (let k = 0; k < this.torchIds.length; k++) {
       const id = this.torchIds[k]!;
       if (id >= 0) writeTorchDraw(tb, k, this.reg.lights[id]!);
     }

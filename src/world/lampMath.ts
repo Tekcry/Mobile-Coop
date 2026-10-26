@@ -114,6 +114,17 @@ export function lampTerm(vx: number, vy: number, vz: number, r: number, dx: numb
   return f * lampCone((vx * dx + vy * dy + vz * dz) / d, cosCut, exp);
 }
 
+/** A torch beam's cut ramps to 0 over this much (m) before its reach: past the wall the beam lands on (`beamReach`
+ *  adds 0.4 m). (piano SO3: here, not in `shadowAccuracy`, so the light field reads it too; re-exported there.) */
+export const TORCH_CUT_SOFT = 0.2;
+
+/** The beam's cut at distance `d` (1 inside the reach, 0 past it, a short ramp before it). */
+export function torchCut(d: number, cut: number): number {
+  if (d >= cut) return 0;
+  const t = (cut - d) / TORCH_CUT_SOFT;
+  return t >= 1 ? 1 : t;
+}
+
 /** The cone of a light as the formula reads it: cone lights by their cone, others the lamp hemisphere. */
 export function coneParams(cone: { dx: number; dy: number; dz: number; cosOuter: number } | null, out: Float64Array | number[]): void {
   if (cone) {

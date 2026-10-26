@@ -30,7 +30,7 @@ import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
 import { Ropes } from './ropes';
-import { addTorchSlots } from './torches';
+import { addTorchSlots, torchShadowCount, torchSlotCount } from './torches';
 import { applyMapFlicker } from './lampFlicker';
 import { applyMapSway } from './lampSway';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
@@ -84,6 +84,10 @@ export class World {
   charShadows: CharShadows | null = null;
   /** (LR16t) Guard torch shadow maps, one atlas (null without baked lamps or drawn torches). Rendering only. */
   torchShadows: TorchShadows | null = null;
+  /** (piano SO3) The map's guard torch slots (`MapDef.torchSlots`, `?torchSlots=N`: 4 / 8 / 12 / 16) and how many of
+   *  them get a shadow map (`MapDef.torchShadows`, `?torchShadows=N`; the rest `beamCut`). Map data: both pages. */
+  readonly torchSlots: number;
+  readonly torchShadowed: number;
   /** (LR14) The character casters (players, guards, bodies, weapons and gear: `addShadowCaster` without props). */
   readonly charCasters: AbstractMesh[] = [];
   private readonly charSet = new Set<AbstractMesh>();
@@ -152,7 +156,9 @@ export class World {
     level.lights.ambient = th.lightLevel ?? 0.75;
     // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used); the co-op
     // client builds the same slots and mirrors them (`torches.ts`, coop-torches)
-    addTorchSlots(level.lights);
+    this.torchSlots = torchSlotCount(flags.torchSlots ?? map.torchSlots);
+    this.torchShadowed = torchShadowCount(flags.torchShadows ?? map.torchShadows, this.torchSlots);
+    addTorchSlots(level.lights, this.torchSlots, this.torchShadowed);
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.addStatic(m);
@@ -270,7 +276,7 @@ export class World {
       const k = w.hemi.intensity * Math.PI;
       const sk = w.hemi.diffuse;
       const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.lightDoors, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.lightDoors, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl, torchSlots: w.torchSlots, torchCut: w.torchShadowed < w.torchSlots });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
