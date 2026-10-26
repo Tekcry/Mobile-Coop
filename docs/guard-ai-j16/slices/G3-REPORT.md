@@ -175,8 +175,8 @@ first-line return, plus one module constant).
 
 Commands:
 - `npm run typecheck:fast`: clean. `npx eslint src/ai/enemy.ts tests/shadowNoticePerceive.test.ts`: clean.
-- `npx vitest run` on 100 files (the 98 test files under tests/ importing src/ai/enemy, enemyManager, perception,
-  alertState or body, plus shadowNoticePerceive, shadowNotice, guardOccluders): 100 passed, 1727 tests passed, 1
+- `npx vitest run` on 100 files (the 99 test files under tests/ importing src/ai/enemy, enemyManager, perception,
+  alertState or body, shadowNoticePerceive and shadowNotice among them, plus guardOccluders): 100 passed, 1727 tests passed, 1
   skipped, 2 todo (45 s). `shadowNoticePerceive`: 22 passed; against bf23ec3f6's enemy.ts, 4 fail (fix 1, the gates,
   the hush, the whole-think allocation), as they should.
 - Not run, as instructed: npm run dev, e2e, a full npm run check.
