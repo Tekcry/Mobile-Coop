@@ -321,7 +321,8 @@ async function run(id) {
       const g = window.__app.current;
       const e = g.enemyMgr.enemies.find((q) => q.id === id);
       if (!e || !e.alive) return false;
-      e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1, nonLethal: ko });
+      // a kill on Realistic: the lethal takedown's hit (a head bullet only knocks the helmet off; a body bullet stops on the vest)
+      e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: ko ? 'head' : 'body', kind: ko ? 'bullet' : 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1, nonLethal: ko });
       return true;
     }, [id, ko]);
     assert(hit, `${who} (${id}) is ${ko ? 'knocked out' : 'killed'} by the host`);
@@ -938,7 +939,8 @@ async function run(id) {
       await GA(() => {
         const g = window.__app.current;
         const e = window.__sector['slotEnemy'][0];
-        e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+        // Realistic: every guard wears a helmet (a head bullet only knocks it off) and a vest: the kill is the lethal takedown's hit
+        e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
       });
       await sim(500);
       const br = await dbg();
