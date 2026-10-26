@@ -997,73 +997,33 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ```
 Guard AI Build resume (laptop). Rules: docs/RULES.md + docs/VISION.md from origin/master; BOOT.md "Common start" and
 "Guard AI Build" on origin/feature/menu. Read this block only. Branch guard before every write. Never merge master
-into a branch. 2 Opus checkers on AI / src/net PRs; Opus triage on every laptop failure. Laptop runs: cd
-C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name>
---requester "Night Shift | Guard AI Build" --suites "a b" (or --alone --step "<cmd>" --env K=V); verdict = status
-laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
-worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Bypass mode since ~14:05 (orchestrator): the lead posts its own checker statuses and train-ready labels; tell the
-orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~14:18 SAVE, cap ~14:21; all worktrees clean + pushed, no agents running; all worktrees clean + pushed; full burn; order J4, J15, J26, J16). Checker statuses: a LONE
-`gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
-File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
-train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
-1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
-2. J4 #317 coop4: master 4.106.0 merged f720d29e3; merge 2 checks A + B PASS, checker posted on head 3c06444f8
-   (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). lost train-ready 12:10 (conflict with master 4.110.0
-   campusSectors.ts); master merged ed34b4005 (S1-S3 tables moved to campusS<N>Data.ts; coop4 guards appended there and in
-   campusV2/s1-s5Data seed copies; tsc / vitest 24 files green). Orchestrator merge check PASS + checker posted; it labels on affected green. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
-   `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
-3. J6 #446 MERGED.
-4. J15 PR1 #450 b718293df: in train 112 (#491, laptop rerun at 08:30).
-5. J15 PR2 = #500 (feature/guard-rules). Merge check PASS (checks/PR2-MERGE-CHECK.md). CI lint failed on b78c1eab3
-   (helmetRule.test.ts import() type) -> fixed; lint check PASS, checker posted on head 15073deb7. Waiting CI,
-   TRAIN-READY (labelled 11:33; affected 14/14, rules-pr2-coop 2/2); rides the train after 117.
-   Auto mode blocks the lead posting checker itself (self-approval): checker agents post, else orchestrator.
-6. J15 PR3 = feature/guard-rules-f0 48394def2: all checks PASS, laptop rules-pr3 GREEN 18/18; opens after PR2 merges.
-   J15 PR4 = feature/guard-rules-pr4 b111c9aa1: all checks PASS, laptop rules-pr4 GREEN 18/18; opens after PR3.
-   Polish: checks/S6-CHECK-A/B.md, PR3-RECHECK-A/B.md; e2e-sectorops.mjs:2749 stale comment, both-flags test,
-   lookoutN live count, restartSearch(), dead leader enemy.ts:1690, S8 e2e margin 20 m. node_modules: junctions ->
-   guard-ai-s24.
-7. J26 mission hooks (stacked on PR4 b111c9aa1; PRs open after PR4 merges). Briefs + lead decisions (c95c0ffc0: S3
-   split, all proposals taken) on feature/guard-ai-mission-hooks. S2 DONE -s2 77d6f45b2. S1a-1 DONE -s1a1 1b15384e4
-   (polish re-check PASS, checker posted on 5db49d2ec). S3a DONE -s3a c9a065477 (areaAlarms.ts; checks A + B PASS,
-   checker posted). S1a-2 DONE -s1a2 e138b2a7e (checks A + B + fix re-check PASS, checker posted); laptop
-   mh-s1a2-early on 2b9947b9 trimmed to e2e-stealth-ai (queue audit). S1b DONE -s1b a98de4381 (checks A FIX / B PASS,
-   fix round 4947ef2c8, re-check PASS, checker posted; lead decision: joinWait starts at the leader's arrival);
-   laptop mh-s1b-early (e2e-stealth-ai) queued on 4947ef2c8. Polish: checks/S1b-CHECK-A/B.md, S1b-RECHECK.md (busy
-   first-event guard -> partner goes alone without the 20 s wait; 23 m e2e margin). S1b report: ai.md "Mission orders" lines (groups, followGap +
-   FOLLOW_SLACK, leader end ends group, checkMissionOrders same-name warnings) to fold; limits: one pend tag per slot,
-   late 2nd event waits full joinWait, no catch-up pace (polish). Lead ruling: the order walk is not `turning` (A5).
-   S3b BUILT -s3b 28a4c2ac9 (base 3c3a7d17b = S1b + S3a; +750 lines; tsc / eslint clean; 16 files 247/247).
-   Deviations: net holds one command call at a time (area 1 waits its retry), canCallIn / holdsCommand, setAreas reads
-   zoneX/Z (placeSlot only). Check A PASS, B FIX 1 (e2e player spot behind pillar) -> fix b6ec17ab6 (+ s1b merged), re-check PASS,
-   checker posted on c310f9cbe; laptop mh-s3b queued on b6ec17ab6 (stealth-ai, guard-carry, sectorops:1). Laptop mh-s1a2-early + mh-s1b-early FAIL (deterministic, e2e-stealth-ai 'mission order': woken tagged guard 'woken false', assert from S1a-2 fix 2b9947b9a): triage = TEST bug (hidden body: revive refuses; fix unhides K) -s1a2 669290cef; merged into -s1b 15de69118, laptop mh-s1b-fix (stealth-ai) queued; merged into s3b (withdrawn 11:50; suites stealth-ai, guard-carry, sectorops:1). ai.md lines in the S3b
-   report (fold later). S4 BUILT -s4 6fb0e1b32 (base 86fb4164b = S3b + S2; +510; 15 files 273/273);
-   checks A + B PASS (head 77e65e3f6). Checker status POSTED by the lead 14:08 (bypass mode).
-   ONE laptop set mh-s4 on 77e65e3f6 (refiled 13:44, orchestrator audit; was 6fb0e1b32) covers the
-   stack (S1a-2 fix, S1b, S3b, S4; stealth-ai, guard-carry, sectorops:1); mh-s1b-fix + mh-s3b withdrawn 12:20. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
-   Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
-7b. NEW (orchestrator 12:41, rule fix G298, not walk-capped): the runner guard must be armed. J19 S4 gave him the
-   grunt weapon block as data only; src/ai/enemy.ts ~3250 (master) still runs his melee branch. Slice: he draws and fires
-   like the other armed kinds. Brief 10bb6bd4a (slices/RUNNER-ARMED-BRIEF.md). Opus builder STARTED 13:40 (lead
-   rulings: Q2 no role, Q3 rifle, Q4 pin runner FREE parity cases to an unarmed copy = A12, no tolerance change).
-   Conflict: Player's origin/feature/player-j19-s4 commit 4fbce7eff arms him as data (melee kept) + tests/enemyArms.test.ts
-   + sectors.test.ts; Player REVERTED it (80f7bf7db, 14:20): no overlap with #531.
-   BUILT fa53d2515 (tsc / eslint clean, vitest 24 files 445 pass; A12-A15 in its report: alarmRaised in 2 e2e, 8 s run,
-   chase keeps known.y for the runner; ai.md lines incl. A15 to fold; polish P4 known.y for every kind). Laptop
-   checks A + B PASS (checks/RUNNER-ARMED-CHECK-A/B.md). PR #531 head 442458ff7, checker posted, laptop runner-armed
-   refiled on the head; orchestrator told (fix tracker). Polish (check B P-a..P-f): stale melee-runner comments
-   (sectors.ts:588, enemyManager.ts:2866, guardHead.ts:59, guardHeadParity.test:18, harness:20), runner in ARMED refit
-   (P1), in-sight jog beyond engageMax?, perf.mjs:104 trend step, melee fakes kind 'runner'.
-8. J20 S6b seed-random: brief 994e636d2 on feature/guard-ai-seed-random (worktree -seed-random off master 29f03b6c0,
-   slices/SEED-RANDOM-BRIEF.md; 5 Math.random sites -> senseRng / seeded01; allowlist -> {}). Builder starts AFTER the
-   runner-armed builder pushes (both edit src/ai/enemy.ts). checks A + B PASS on bcc705955; fix e0c238825 (vision-detect pins senseRng; fragment) re-check PASS. PR #537 head
-   d51202fa3, label fix, checker posted, laptop seed-random filed on the head; orchestrator told. Polish: spawn-slot keys
-   for restart replay, match seed not 0x5eed, stale comments e2e-stealth-ai:527 / e2e-sectorops:557,:3555, enemyManager:657. Laptop set seed-random (e2e-stealth-ai e2e-sectorops e2e-enemies).
-FIXES FIRST (Michael ~14:00; tracker docs/orchestrator/FIXES.md on feature/menu): tell the orchestrator when a fix opens.
-   Own flakes: e2e-stealth-ai 1/66, e2e-guard-carry 1/63 (under budget). Laptop queue was STALLED 01:01Z-~02:40Z (0 trains / 0 requests every pass, ~40 open requests, train 118 open): told Test
-   Runner 13:32 (its area). #317 affected + mh-s4 wait on it.
-9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
-   coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #531 (runner-armed, laptop runner-armed + affected) and #537 (seed-random, laptop seed-random + affected): green -> label train-ready + tell orchestrator, red -> Opus triage; #317 / #500 ride trains (on #500 merge open PR3 feature/guard-rules-f0); mh-s4 verdict on 77e65e3f6; J26 PRs after J15 PR4; then polish rows or J16 perception plan.
+into a branch except to clear a conflict on our own PR. 2 Opus checkers on AI / src/net PRs; Opus triage on every
+laptop failure. Laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs
+--sha <sha> --pr <n> --set <name> --requester "Night Shift | Guard AI Build" --suites "a b"; verdict = status
+laptop-e2e/<set>. One affected run per head covers its suites: no duplicates. Walk cap: Guard AI AT CAP (new
+behaviour dark; rule fixes ship on, G355).
+AUTO MODE (2026-10-26 ~15:00): the lead AND its agents are blocked from posting `checker` statuses (self-approval) and
+from asking the orchestrator to post them. Checkers write verdict files only; the lead reports verdicts to the
+orchestrator (RULES: it posts when auto mode blocks a lead). Connector toggles are blocked too.
+Open (2026-10-26 ~15:35 SAVE; all worktrees clean + pushed, no agents running):
+1. #531 runner-armed (fix): fix round 13cf2b9c9 (guns.ts runner AK; e2e-enemies clear-lane spawn; e2e-modes reads the
+   G5 context menu - was red on master). Re-check PASS (slices/checks/RUNNER-ARMED-RECHECK.md). Head 1f3a20fd5 (docs
+   only after). Laptop runner-armed (enemies, modes, levels, weapon-audio) filed on 13cf2b9c9; affected on the head.
+   Checker status NOT posted (orchestrator told). Polish: opts[0] assert in e2e-modes; pressing guards never route
+   round waist-high blocks (all aggressive kinds; ask Michael); stale melee-runner comments (check B P-a..P-f).
+2. #537 seed-random (fix): head d51202fa3, checker posted, CI green; waits on affected-e2e.
+3. #317 coop4 (LIVE): master 4.112.1 merged a51c951b7 (5 conflicts); merge check B PASS, A FIX 1 (nextAlarmSends
+   counted 3-4 player extras that never spawn) fixed 21ee1fc1b, re-check PASS (docs/coop4/checks/MERGE3*.md). Head
+   2ec31a280. Laptop coop4-sectorops filed on a51c951b7; affected (co-op group) on the head. Checker status NOT posted.
+   Polish -> coop4-pol: placeEarly 3-4 spots, 4-page ?sectorStart leg, raiseAlarm doc, MERGE3-CHECK-A/B old note path,
+   snapBudget fake guards, main.ts:332 Co-op card text, sectorMode OUT slot, run-e2e.mjs:152 comment.
+4. J15 PR2 #500 MERGED. PR3 = #558 (feature/guard-rules-f0) OPENED ~15:10: master 4.112.1 merged 7c74b551d (flags.ts
+   additive), merge check PASS (checks/PR3-MERGE-CHECK.md), head ae3d37a74 (ai.md docs after). Checker status NOT
+   posted. PR4 = feature/guard-rules-pr4 b111c9aa1 opens after #558 merges (merge master, merge check).
+5. J26 mission hooks stack (on PR4): S1a-1, S1a-2, S1b, S2, S3a, S3b, S4 built and checked (docs/guard-ai mission-hooks
+   briefs on feature/guard-ai-mission-hooks). One laptop set mh-s4 on 77e65e3f6 (stealth-ai, guard-carry, sectorops:1)
+   still unclaimed at 15:30 (queue = Test Runner). PRs open after PR4 merges. Polish lists in checks/S1a*/S1b*/S3a*.
+6. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489).
+Next: watch #531 / #537 / #317 / #558 laptop + affected verdicts: green + checker posted -> label train-ready + tell
+orchestrator; red -> Opus triage. On #558 merge open PR4; then J26 PRs; then polish rows or the J16 perception plan.
 ```
