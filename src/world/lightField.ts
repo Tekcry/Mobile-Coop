@@ -140,7 +140,7 @@ export class LightField {
   private readonly isBaked: Uint8Array;
   /** (char-shadow-meter) Registry id -> bake index (-1 not baked), for `sourceAt`. */
   private readonly bakeIdx: Int32Array;
-  private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
+  private readonly grid: { data: Uint16Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */

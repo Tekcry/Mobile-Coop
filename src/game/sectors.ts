@@ -18,7 +18,16 @@ import type { MissionWire } from './mission/missionWire';
  * so a ghost run (no kills, never spotted) is always possible (M3). No lives (M7): co-op revives with syringes; both
  * down, or solo, restarts the section at its checkpoint. Pure: the mode (`modes/sectorMode.ts`) puts it in the world.
  */
-export type SectorObjectiveKind = 'hack' | 'grab' | 'download';
+export type SectorObjectiveKind = 'hack' | 'grab' | 'download' | 'clear';
+
+/**
+ * (piano-escape) The `clear` objective: done when every guard of the section is down (dead or knocked out) and none is
+ * still pending. It has no interactable and no site (`x`, `y`, `z` are unused). `pending`: guards waiting to spawn;
+ * `living`: guards up and about (a woken one counts again). Pure; the mode feeds it.
+ */
+export function clearDone(pending: number, living: number): boolean {
+  return pending === 0 && living === 0;
+}
 
 export interface SectorObjective {
   kind: SectorObjectiveKind;
@@ -1065,6 +1074,9 @@ export interface SectorNetExtra {
   ot?: number;
   /** (mission-framework EN2) The running mission (`packMission`); none without one. NET puts it on the wire. */
   ms?: MissionWire;
+  /** (piano-escape S4) The piano scene's EMP press on the host's sim clock (s): the client ends its intro on it, and it is
+   *  the lightning's t0 and the music's switch there. Absent before the press and off the scene. */
+  ep?: number;
 }
 
 /**

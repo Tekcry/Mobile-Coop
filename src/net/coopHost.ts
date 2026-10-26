@@ -33,15 +33,18 @@ import { hyp2 } from '../core/mathx';
 import { barkIndex } from '../ai/barks';
 import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
-import { emptyMoveState, moveChanged } from '../player/moveState';
+import { emptyMoveState, knifeRowOfSub, moveChanged, type MoveState } from '../player/moveState';
+import { KNIFE } from '../game/knifeKill'; // (piano-knife S3)
+import type { CharacterRig } from '../player/characterRig';
 import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../player/playerVolumes';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
-import { checkTeamRequest, inOpenMove, isKitKind, OPEN_MOVE_GRACE, type TeamKind, type TeamMoveKind, type TeamSide } from '../game/teamMoves';
+import { checkTeamRequest, inOpenMove, isKitKind, OPEN_MOVE_GRACE, type KitKind, type TeamKind, type TeamMoveKind, type TeamSide } from '../game/teamMoves';
 import { kitMove } from '../game/kit/registry';
-import { kitEnd, kitPairOver, newKitPair, PULL_PAIR_S, pullLag, sameAttempt, SHUTTER_PAIR_S, type KitPair } from './kitNet';
+import { kitDone } from '../game/kit/kitApi';
+import { kitEnd, kitPairOver, kitPairS, newKitPair, pullLag, sameAttempt, type KitPair } from './kitNet';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
@@ -49,7 +52,8 @@ import { DualClock } from '../game/dualTakedown';
 import { assistHolder } from './assistTakedown';
 import type { TakedownVictim } from '../game/takedownController';
 import { stationHeal } from '../game/medkit';
-import { ReviveClock } from '../game/reviveClock';
+import { REVIVES_PER_MISSION, ReviveClock } from '../game/reviveClock';
+import { isPianoScene } from '../game/pianoScene';
 import { campaignReviveCap, isCampaignMission } from '../game/mission/campaign';
 import type { MissionDef } from '../game/mission/missionDef';
 import { pickMission } from '../game/mission/sectorMission';
@@ -271,6 +275,8 @@ export class CoopHost implements NetAttachment {
     // G126) a campaign mission: 2 at every difficulty. `g.world.map` is set: the world is built before `attach`.
     // (coop4 A4) the team pool scales with the players at the op start (late joiners do not change it)
     this.campaign = matchRevives(this.reviveClock, mode, g.opts.difficulty, g.world.map.missions, s.sectorMission, s.players.size);
+    // (piano-escape S4) a scene map on the Sector Ops runtime keeps the campaign cap (`REVIVES_PER_MISSION`, PLAN "Downed")
+    if (mode === 'sector' && isPianoScene(g.world.map)) this.reviveClock.cap = REVIVES_PER_MISSION;
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.lampShots = hostLampShots(mode);
     this.soloRemotes = g.remotePlayers;
@@ -451,6 +457,7 @@ export class CoopHost implements NetAttachment {
   private addRemote(p: PlayerInfo): void {
     const g = this.g;
     const avatar = new RemoteAvatar(g.world, g.vfx, g.ballistics, p);
+    avatar.victimRigOf = this.knifeRigOf;
     avatar.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
     const slot = this.slotOf(p.id);
     const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, this.spawnPoint(slot));
@@ -1047,6 +1054,13 @@ export class CoopHost implements NetAttachment {
       if (m.ph === 'start') deny();
       return;
     }
+    // (piano-knife S3, PLAN-CHECK-3 item 4) the host's knife switch decides: a knife start only while it is on; with it on
+    // no other takedown start (assist included; a bluff is speech, never a seize)
+    const kOn = this.g.takedown.knife;
+    if (m.ph === 'start' && (m.kind === 'knife' ? !kOn : kOn && m.kind !== 'bluff')) {
+      deny();
+      return;
+    }
     // (coop-walk-fixes P6) the team takedown on a partner's hostage (the guard stays in the holder's hands until done)
     if (m.kind === 'assist') {
       this.onAssist(r, m, e, deny);
@@ -1066,7 +1080,8 @@ export class CoopHost implements NetAttachment {
         return;
       }
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
-      e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
+      // (piano-knife S3) with the knife switch on: the lethal struggle (a knife kill is never a choke)
+      e.beginTakedown(kOn ? false : !m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
       // (joint-flake-3 check) a td 'start' resets interPh: a read aborted mid-way (the td 'abort' ends the seize before
       // a seized step sees the hold go) never counts as ended on this new hold's first step (`interrogationEnded`)
@@ -1084,9 +1099,11 @@ export class CoopHost implements NetAttachment {
     e.bodyRig.emote = null;
     const dir = new Vector3(e.pos.x - r.feet.x, 0, e.pos.z - r.feet.z).normalize();
     const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: r.id, sourcePos: r.feet.clone(), impulse: 1 };
-    if (m.lethal) e.applyDamage(hit);
+    // (piano-knife S3) no knockout while the knife switch is on; every piano kill quiet (A5: the knife's radius)
+    const lethal = m.lethal || kOn;
+    if (lethal) e.applyDamage(hit);
     else e.knockOut(hit);
-    this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
+    this.g.enemyMgr?.hear(r.feet, kOn ? KNIFE.noise : m.lethal ? 3 : 1.2, 'noise', null, r.ref.id);
     this.takedownDone(r.id);
     this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
@@ -1266,8 +1283,9 @@ export class CoopHost implements NetAttachment {
 
   /** (coop4 A20) `a` (the climber / runner) and `b` start a team move of `kind` (both busy until it ends). */
   private teamMark(kind: TeamKind, a: string, b: string): void {
-    // (coop4 merge 10) a kit move (paired: the pull-up, the shutter) keeps both busy for its pair's life (`newKitPair`)
-    const len = kind === 'boost' ? TEAM.boostTime : kind === 'ladder' ? TEAM.relayClimb : kind === 'throw' ? TEAM.throwTime : kind === 'pull' ? PULL_PAIR_S : kind === 'shutter' ? SHUTTER_PAIR_S : Infinity;
+    // (coop4 merge 10) a kit move (paired: the pull-up, the shutter) keeps both busy for its pair's life (`newKitPair`);
+    // (merge 15) that life is now coop-kit K0's `kitPairS` (the pull-up's and the shutter's as before, a part 2 row's own)
+    const len = kind === 'boost' ? TEAM.boostTime : kind === 'ladder' ? TEAM.relayClimb : kind === 'throw' ? TEAM.throwTime : isKitKind(kind) && kitMove(kind)?.paired ? kitPairS(kind) : Infinity;
     const until = this.time + len + TEAM_BUSY_SLACK;
     this.teamActive.set(a, { mate: b, until, climber: a, t0: this.time });
     this.teamActive.set(b, { mate: a, until, climber: a, t0: this.time });
@@ -1293,6 +1311,8 @@ export class CoopHost implements NetAttachment {
 
   /** (throw-ko) The thrown player `by` (feet at `at`) came down on `e`: knocked out through the game's own path. */
   private throwKnockOut(by: string, e: Enemy, at: { readonly x: number; readonly y: number; readonly z: number }): void {
+    // (piano-knife S3, A10: "only knife kills") no throw knockout while the knife switch is on
+    if (this.g.takedown.knife) return;
     const src = new Vector3(at.x, at.y, at.z);
     const dir = new Vector3(e.pos.x - at.x, 0, e.pos.z - at.z);
     if (dir.lengthSquared() > 1e-6) dir.normalize();
@@ -1355,9 +1375,14 @@ export class CoopHost implements NetAttachment {
       // when the move is paired, started at once (not the boost / relay path)
       const m = kitMove(kind);
       const land = m?.claimsPoint && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
+      // (coop-kit K0) the request's `target` is a spot index into the host's kit devices (-1 none; an index out of range
+      // or naming another kind's device is none): the rule gets the device as `spot`, the start carries the index and
+      // the request's `s` (its phase, e.g. a plank lay 2)
+      const at = this.kitSpotAt(kind, target);
+      const spot = at >= 0 ? this.g.team.devices.list[at] : undefined;
       // (coop4 A20, merge 10) a partner in another player's move is `taken`, as for the other moves (else the
       // `unpairOf(partner)` below would end that pair silently)
-      const why = checkTeamRequest({ kind, a, b, target: -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land, bBusy: this.teamBusy(partner, by) });
+      const why = checkTeamRequest({ kind, a, b, target: at, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land, spot, bBusy: this.teamBusy(partner, by) });
       this.teamLast.set(by, now);
       if (why) return deny(why);
       // (NET2) a new move ends both players' earlier pairs (a pull-up's kept pair, a lingering shutter)
@@ -1366,12 +1391,12 @@ export class CoopHost implements NetAttachment {
       if (m?.paired) {
         this.teamPairs.set(by, partner);
         this.teamPairs.set(partner, by);
-        const kp = newKitPair(kind, by, partner, now);
+        const kp = newKitPair(kind, by, partner, now, spot?.id ?? '');
         this.kitPairs.set(by, kp);
         this.kitPairs.set(partner, kp);
       }
       this.teamMark(kind, by, partner);
-      const start = land ? { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] } : { kind, a: by, b: partner, target: -1, s: 0, t0: now };
+      const start = land ? { kind, a: by, b: partner, target: at, s: ss, t0: now, l: [land.x, land.y, land.z] as [number, number, number] } : { kind, a: by, b: partner, target: at, s: ss, t0: now };
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);
       this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -1422,6 +1447,16 @@ export class CoopHost implements NetAttachment {
     if (kitPairOver(p, v)) this.unpair(p.a, p.b);
     this.s.send({ t: 'tend', a: p.a, b: p.b, k: v });
     if (p.a === self || p.b === self) this.g.team.ended(v);
+    // (coop-kit K0) the move's success end (its `doneBy` side's 'pull', the pull-up's catch): the mode is told once
+    if (v === 'pull') kitDone(this.g, p.kind, p.spot, p.a === self ? undefined : p.a, p.b === self ? undefined : p.b);
+  }
+
+  /** (coop-kit K0) A kit request's spot index `target` checked against the host's kit devices: the index when it names a
+   *  device of `kind`, else -1 (none). */
+  private kitSpotAt(kind: KitKind, target: number): number {
+    if (target < 0) return -1;
+    const list = this.g.team.devices.list;
+    return target < list.length && list[target]!.kind === kind ? target : -1;
   }
 
   /** (mission NET) A kit pair past its time (a pull-up's haul is over): gone without a word. */
@@ -1512,6 +1547,14 @@ export class CoopHost implements NetAttachment {
     const alive = self ? this.g.player.alive : r!.alive;
     const mode = self ? 'ground' : (r!.state?.mv?.m ?? 'ground');
     const active = !self && this.strikes.has(by);
+    // (piano-knife S3, PLAN-CHECK-3 item 3) no RT strike while the knife switch is on (Michael: "Palm strike knockout
+    // disabled, only knife kills"): refused as busy (an existing reason), no `strikes` entry, so it never knocks out
+    if (kind === 'strike' && this.g.takedown.knife) {
+      this.commitLast.set(by, now);
+      this.s.send({ t: 'cdeny', a: by, id, kind, reason: 'busy' });
+      if (self) this.g.strike.denied(id, 'busy');
+      return;
+    }
     const why = checkCommitted({
       kind,
       alive,
@@ -2127,6 +2170,7 @@ export class CoopHost implements NetAttachment {
           continue;
         }
       }
+      if (by && by.alive) this.knifeHold(eid, by, mv);
       s.hfOn = false;
       // (joint-flake-3) no grab on him this step: a grab that ended mid-read leaves a stale ph, which
       // `interrogationEnded` (any progress counts) would count as a finished read on a re-grab within TD_MAX
@@ -2202,11 +2246,47 @@ export class CoopHost implements NetAttachment {
   private readonly partnerOut = emptyPlayerBodyOut();
   private readonly partnerHead = new Vector3();
   private readonly partnerHips = new Vector3();
+  /** (piano-knife S3) A client's knife kill on seized guard `eid`: his sim feet on the drawn pair (`RemoteKnife.root`),
+   *  so his body lies where he fell and the snapshots carry that place; then on as today (`TD_MAX` is far over the
+   *  move). Only while the drawn pair is on this guard (checker A FIX 1): the drawn avatar runs ~0.13 s behind the
+   *  client's state, so a second kill chained right after the first must not take the first guard's spot. */
+  private knifeHold(eid: string, by: RemotePlayer, mv: MoveState | undefined): void {
+    if (mv?.m !== 'takedown' || mv.tid !== eid || knifeRowOfSub(mv.sub) < 0) return;
+    const k = by.avatar.knife;
+    if (!k.rootOn || k.tid !== eid) return;
+    const e = this.aliveEnemy(eid);
+    if (e) e.holdAt(k.root.x, k.root.y, k.root.z, k.root.yaw);
+  }
+
+  /** (piano-knife S3) The alive enemy with id `id` (an index loop, no closure per call); null: none. */
+  private aliveEnemy(id: string): Enemy | null {
+    const es = this.g.enemyMgr?.enemies;
+    if (!es) return null;
+    for (let k = 0; k < es.length; k++) {
+      const e = es[k]!;
+      if (e.id === id && e.alive) return e;
+    }
+    return null;
+  }
+
+  /** (piano-knife S3) A client's knife victim's drawn rig (`RemoteAvatar.victimRigOf`): the alive enemy's body rig. */
+  private readonly knifeRigOf = (tid: string): CharacterRig | null => {
+    const e = this.aliveEnemy(tid);
+    return e ? e.bodyRig : null;
+  };
+
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
     this.holdClock.frame(now, this.time);
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
+      // (piano-knife S3) a client's knife kill on a guard it holds here: his root, clip and hands off the client as drawn
+      // (the enemies drew earlier this frame: his clip and hands one frame behind, BRIEF S3 Doubt 1)
+      const kn = r.avatar.knife;
+      if (kn.posesVictim) {
+        const e = this.aliveEnemy(kn.tid);
+        if (e && this.seized.get(e.id)?.by === r.id) kn.victim(r.avatar.rig, e.bodyRig, e);
+      }
       // (rig-pose-fix S1, G3 / G4) the client's hit volumes, perception points and wall head come from its sim body at
       // the accepted state (`RemotePlayer.accept`), no longer from this drawn copy's rig
       r.blocker?.sync(r.avatar.pos, r.crouched, r.alive && !partnerPassable(r.avatar.mode));

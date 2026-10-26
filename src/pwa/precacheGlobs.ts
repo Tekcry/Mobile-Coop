@@ -18,8 +18,12 @@ export const PRECACHE_GLOBS: readonly string[] = [
 ];
 
 /** Never precached (workbox's default `**\/node_modules/**\/*` kept): the guard figures' files; (map-ready S4) the
- *  shipped campus lamps (`bakes/*`, tens of MB: fetched on a campus load, then kept by the `bakes` runtime rules). */
-export const PRECACHE_IGNORES: readonly string[] = ['**/node_modules/**/*', '**/guard-*.glb', '**/guard-*.ktx2', '**/bakes/**'];
+ *  shipped campus lamps (`bakes/*`, tens of MB: fetched on a campus load, then kept by the `bakes` runtime rules);
+ *  (piano-escape S3) the Piano Escape scene music (`assets/piano-escape-<hash>.mp3`, 4.3 MB: `scenePiano.ts` fetches it
+ *  only when the scene starts; no pattern above takes it, the ignore keeps it out should one ever do); (piano-escape S5) the
+ *  other scene A/B files of `src/assets/music/scene/` (`assets/sketch-*`, `alexgrohl-*`, `grohl-*`, 1.6-5.2 MB each, only
+ *  the one `?pianomusic=` picks is ever fetched): every file of that folder is ignored. */
+export const PRECACHE_IGNORES: readonly string[] = ['**/node_modules/**/*', '**/guard-*.glb', '**/guard-*.ktx2', '**/bakes/**', '**/piano-escape-*.mp3', '**/sketch-*.mp3', '**/alexgrohl-*.mp3', '**/grohl-*.mp3'];
 
 /**
  * A guard figure file (`/assets/guard-<name>-<hash>.glb`). The `guards` runtime rule writes this regex out as a literal

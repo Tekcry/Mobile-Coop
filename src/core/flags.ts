@@ -111,6 +111,9 @@ export interface Flags {
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
   marlowReplan: boolean;
+  /** (piano-escape, owner Campaign Build, review 2026-11-02) `?piano=1`: the piano escape scene (map `thornbeckMill`, `scene:
+   *  'piano'`) joins `MAPS` and the main menu. Default off; on /preview/ default on (preview-flags). */
+  pianoEscape: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
    *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
    *  default on (preview-flags). */
@@ -299,6 +302,7 @@ export const flags: Flags = {
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
+  pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),

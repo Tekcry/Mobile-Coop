@@ -1,6 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
+import type { CharacterRig } from '../player/characterRig';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Body, deathLieOn } from '../ai/body';
 import { newLie } from '../ai/bodyLie';
@@ -70,6 +71,8 @@ import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import { practiceFromRh } from '../game/sectorStart';
 import type { SlotPoint } from '../game/spawnSlots';
 import { SectorListMirror } from '../game/sectorObjectives';
+import { PianoScene, isPianoScene, nearestEmpItem, pianoClientWorld } from '../game/pianoScene';
+import { PianoIntroView } from '../game/pianoIntroView';
 import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 
 const SEND_HZ = 20;
@@ -94,6 +97,16 @@ function followSetAvatar(this: ClientFollowScan, a: RemoteAvatar, id: string): v
 }
 
 /**
+ * (piano-knife S3) Our takedown's message for the host: `kind` `'knife'` on every phase while our knife switch is on
+ * (the host seizes a guard in the piano scene only for a knife start), else the course kind on `done` only (today's);
+ * no `kind` field when it is empty (the switch off: byte-for-byte today's messages).
+ */
+export function tdOut(target: string, ph: 'start' | 'done' | 'abort', lethal: boolean, knife: boolean, courseKind: string): Extract<Msg, { t: 'td' }> {
+  const kind = knife ? 'knife' : ph === 'done' ? courseKind : '';
+  return kind ? { t: 'td', target, ph, lethal, kind } : { t: 'td', target, ph, lethal };
+}
+
+/**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
  * and health come from host snapshots. Own hits are resolved against local puppets (course: the partner's hit volumes)
  * for instant feedback and sent to the host for the real outcome; objectives, doors and revives are used through
@@ -109,6 +122,16 @@ export class CoopClient implements NetAttachment {
   private readonly mateOrder: RemoteAvatar[] = [];
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
   private heldPuppet: EnemyPuppet | null = null;
+  /** (piano-knife S3) The puppets the partners' knife kills hold (posed from their MoveStates, `RemoteKnife`); (coop4
+   *  merge 15) one per partner (up to 3), not only the first's. Two reused lists (this frame's, the last), swapped. */
+  private knifePuppets: EnemyPuppet[] = [];
+  private knifeNow: EnemyPuppet[] = [];
+  /** (piano-knife S3) A partner's knife victim's drawn rig: the puppet, alive and not in our own takedown (one bound
+   *  method, no closure per call). */
+  private readonly knifeRigOf = (tid: string): CharacterRig | null => {
+    const p = this.puppets.get(tid);
+    return p && p.alive && !p.taken ? p.bodyRig : null;
+  };
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PartnerTarget>();
@@ -152,6 +175,8 @@ export class CoopClient implements NetAttachment {
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
+  /** (piano-escape S4) The piano scene on this page (a scene map in Sector Ops): its own intro, ended by the host's EMP. */
+  private piano: PianoScene | null = null;
   /** (hud-guidance B4, HG8) Sector Ops: the field menu's full list, from the host's live section and objective line. */
   private list: SectorListMirror | null = null;
   /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
@@ -263,6 +288,24 @@ export class CoopClient implements NetAttachment {
       this.sec = ct;
       g.ctDev = ct;
       this.list = new SectorListMirror(g.world.map.sectors ?? []);
+      // (piano-escape S4) a scene map: this page's own intro and empty kit (before the checkpoint records the loadout);
+      // our EMP press goes to the host as a `use` of the nearest EMP item; the host's press (`ep`) ends our intro
+      if (isPianoScene(g.world.map)) {
+        const sc = new PianoScene(
+          g,
+          undefined,
+          pianoClientWorld(g, {
+            view: (intro, onSkip) => new PianoIntroView(g, intro, onSkip),
+            askEmp: () => this.s.toHost({ t: 'use', id: nearestEmpItem(g.world.map, g.player.position.x, g.player.position.z) }),
+          }),
+        );
+        this.piano = sc;
+        sc.start();
+        this.offs.push(() => {
+          sc.dispose();
+          this.piano = null;
+        });
+      }
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
       // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
@@ -459,6 +502,7 @@ export class CoopClient implements NetAttachment {
       if (!info) return null;
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
+      a.victimRigOf = this.knifeRigOf;
       a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
       glowBySlot(a.figure, this.s.slotOf(st.id));
@@ -576,7 +620,8 @@ export class CoopClient implements NetAttachment {
         // he still has intel is the host's `in` flag (stealth-pays client intel, below)
         np.spawnInfo = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
-        np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
+        // (piano-knife S3) with our knife switch on every phase says `knife` (the host's gate in the piano scene)
+        np.onTakedown = (ph, lethal) => this.s.toHost(tdOut(np.id, ph, lethal, g.takedown.knife, this.tdKind));
         this.puppets.set(e.id, np);
         p = np;
       }
@@ -1148,6 +1193,8 @@ export class CoopClient implements NetAttachment {
       if (msg.dn) ct.applyDestroyed(msg.dn);
       if (msg.sec) ct.apply(msg.sec);
     }
+    // (piano-escape S4) the host's EMP press: our intro ends, the lightning's t0 and the music switch (once)
+    if (msg.ep !== undefined) this.piano?.hostEmp(msg.ep);
     if (msg.lk) {
       const doors = this.g.world.doors;
       for (const d of doors.list) {
@@ -1208,6 +1255,12 @@ export class CoopClient implements NetAttachment {
 
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
+    // (piano-escape S4) a scene: no results screen; our page fades with the host's (2 s, the piano with it), then the
+    // host takes both pages back to the room's lobby (the session's `lobby`)
+    if (this.piano) {
+      this.piano.finish();
+      return;
+    }
     const end = clampEnd(raw, this.time);
     // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
     if (this.g.opts.mode === 'sector' && end.won && !this.practice) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
@@ -1251,6 +1304,8 @@ export class CoopClient implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.followStep();
+    // (piano-escape S4) the scene's prompt (our press to the host) and the cut on our own clock
+    this.piano?.step(dt, true);
     this.sendT -= dt;
     // (coop-fix) snapshots stopped (a stalled or gone host): say so on the net-status line until the next one
     this.sinceSnap += dt;
@@ -1338,6 +1393,25 @@ export class CoopClient implements NetAttachment {
     }
     if (this.heldPuppet && this.heldPuppet !== held) this.heldPuppet.remoteHeld(-1, 0);
     this.heldPuppet = held;
+    // (piano-knife S3) a partner's knife kill: its guard's root, clip and hands off that partner as drawn here; (coop4
+    // merge 15) every partner's (up to 3 at once), not only the first's; a puppet no knife kill holds now is let go
+    const kn = this.knifeNow;
+    kn.length = 0;
+    for (const a of this.avatars.values()) {
+      if (!a.knife.posesVictim) continue;
+      const p = this.puppets.get(a.knife.tid);
+      if (!p || !p.alive || p.taken || kn.includes(p)) continue;
+      a.knife.victim(a.rig, p.bodyRig, p);
+      kn.push(p);
+    }
+    const kl = this.knifePuppets;
+    for (let i = 0; i < kl.length; i++) {
+      const p = kl[i]!;
+      if (!kn.includes(p) && p.alive && !p.taken) p.knifeVictim(null, 0, 0);
+    }
+    kl.length = 0;
+    this.knifePuppets = kn;
+    this.knifeNow = kl;
     for (const tg of this.targets.values()) tg.sync();
     for (let i = 0; i < this.blockers.length; i++) {
       const e = this.blockers[i]!;
@@ -1558,6 +1632,8 @@ export class CoopClient implements NetAttachment {
     this.torches.clear();
     this.helmetDrops?.clear();
     this.puppets.clear();
+    this.knifePuppets.length = 0;
+    this.knifeNow.length = 0;
     this.puppetList = [];
     this.dying.length = 0;
     this.kept.clear();

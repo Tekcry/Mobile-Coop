@@ -6,6 +6,7 @@ import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 import type { SlotPoint } from '../spawnSlots';
 import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
+import type { KitKind } from '../teamMoves';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops. */
 export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector';
@@ -92,6 +93,9 @@ export interface GameMode {
   onRemoteMove?(id: string, mode: string): void;
   /** Co-op host: a team move started between `a` and `b` (player ids; undefined = the host). */
   onTeamMove?(a: string | undefined, b: string | undefined): void;
+  /** (coop-kit K0) Co-op host: kit move `kind` completed at kit spot `spot` ('' = a free move away from any spot) by `a`
+   *  and `b` (player ids; undefined = the host), once per completed move (`kitDone`, game/kit/kitApi.ts). */
+  onKitDone?(kind: KitKind, spot: string, a: string | undefined, b: string | undefined): void;
   /** Co-op host: a client's `use` of an item is running (`active` true before its `onUse`, false after). */
   onRemoteUse?(id: string, active: boolean): void;
   /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */

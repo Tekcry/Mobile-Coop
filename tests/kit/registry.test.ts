@@ -97,10 +97,11 @@ afterEach(() => {
 
 describe('kit ids (KIT0)', () => {
   it('pull and shutter are kit kinds with their own wire sub bits, clear of the built-in ones', () => {
-    expect(KIT_KINDS).toEqual(['pull', 'shutter']);
+    // (coop-kit K0) + the five part 2 kinds and bits (tests/kit/kitApi.test.ts pins them)
+    expect(KIT_KINDS.slice(0, 2)).toEqual(['pull', 'shutter']);
     expect(isKitKind('pull') && isKitKind('shutter')).toBe(true);
     for (const k of ['boost', 'ladder', 'throw', 'hang', 'rope', 'end', 'hangEnd']) expect(isKitKind(k)).toBe(false);
-    expect(KIT_SUB).toEqual({ pull: PULL_SUB, shutter: SHUTTER_SUB });
+    expect(KIT_SUB).toMatchObject({ pull: PULL_SUB, shutter: SHUTTER_SUB });
     expect(KIT_SUB_MASK & (THROW_SUB | HANG_SUB | ROPE_SUB)).toBe(0);
     expect(PULL_SUB & SHUTTER_SUB).toBe(0);
   });
@@ -110,7 +111,8 @@ describe('kit ids (KIT0)', () => {
     expect(KIT_POSE_IDS.pull.a).toEqual(['pullJump', 'pullHang', 'pullScramble']);
     expect(KIT_POSE_IDS.shutter.b).toEqual(['shutterOffer', 'shutterLift', 'shutterHold', 'shutterDrop']);
     expect(KIT_POSE_IDS.shutter.a).toEqual(['crawlUnder']);
-    expect([...KIT_POSE_OF.keys()].sort()).toEqual([...ALL_IDS].sort());
+    // (coop-kit K0) the part 2 moves' ids are pinned in tests/kit/kitApi.test.ts
+    expect([...KIT_POSE_OF.keys()].filter((id) => ['pull', 'shutter'].includes(KIT_POSE_OF.get(id)!.move)).sort()).toEqual([...ALL_IDS].sort());
     for (const id of ALL_IDS) {
       expect(KIT_POSE_PLACEHOLDER[id]).toBeTruthy();
       expect(isKitState(id)).toBe(true);
