@@ -1421,6 +1421,12 @@ describe('laptop-queue-11: parts per head (F36) and SLOW lines (F35)', () => {
     expect(describeRun({ ...ok, slow: [{ s: 'e2e-sectorops:6', sec: 684, limit: 900 }] })).toBe('1/1 pass, 700 s; slow: e2e-sectorops:6 684/900s');
     const slow = Array.from({ length: 12 }, (_, i) => ({ s: `e2e-sectorops:${i}`, sec: 700, limit: 900 }));
     expect(describeRun({ ...ok, slow }).length).toBe(140);
+    // a long slow list never cuts the FAIL names off: the slow part takes only the room left
+    const two = { suites: [{ s: 'e2e-a', ok: true, report: false }, { s: 'e2e-b', ok: false, flaky: false, report: false }], wall: 700, flakes: ['e2e-x', 'e2e-y'] };
+    const d = describeRun({ ...two, slow: slow.slice(0, 5) });
+    expect(d.length).toBeLessThanOrEqual(140);
+    expect(d.endsWith('; FAIL: e2e-b')).toBe(true);
+    expect(d).toContain('; slow: e2e-sectorops:0 700/900s');
   });
   it('slowRecord keeps the window; slowSummary lists the worst per suite', () => {
     const now = NOW;

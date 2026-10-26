@@ -111,7 +111,9 @@ import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
-import { AFFECTED_MAX } from '../e2e-affected.mjs';
+import { parseAffectedMax } from '../e2e-affected.mjs';
+// the automatic affected cap: E2E_AFFECTED_MAX on the task (prototype mode 2026-10-26: 1), else e2e-affected's AFFECTED_MAX
+const AFFECTED_MAX = parseAffectedMax(process.env.E2E_AFFECTED_MAX);
 import { partsTable, slowLines, slowRecord, slowSummary } from './lib.mjs'; // laptop-queue-11 (F35, F36)
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -215,7 +217,7 @@ const git = (args, opts) => cmd('git', args, opts);
 const gh = (args, opts) => cmd('gh', args, opts);
 
 // laptop-queue-11 F36: a suite's parts come from the run's head (run-e2e PARTS differs by branch), never the times keys
-const partsMemo11 = new Map(); // sha -> the head's PARTS table (only heads git could read are kept)
+const partsMemo11 = new Map(); // sha -> the head's PARTS table, or the fallback when git could not read it
 /**
  * Planning, before a slot is checked out: the PARTS table of `sha`'s run-e2e.mjs (git show here; the service fetches
  * origin every pass), else this checkout's own run-e2e.mjs, else {} (no expansion: a whole suite, never a part the head
@@ -224,14 +226,15 @@ const partsMemo11 = new Map(); // sha -> the head's PARTS table (only heads git 
 function planParts(sha) {
   if (partsMemo11.has(sha)) return partsMemo11.get(sha);
   const head = sha ? partsTable(git(['show', `${sha}:scripts/run-e2e.mjs`], { soft: true })) : null;
-  if (head) {
-    if (partsMemo11.size > 200) partsMemo11.clear();
-    partsMemo11.set(sha, head);
-    return head;
+  let got = head;
+  if (!got) {
+    try { got = partsTable(fs.readFileSync(path.join(HERE, 'scripts/run-e2e.mjs'), 'utf8')); } catch { /* none */ }
   }
-  let own = null;
-  try { own = partsTable(fs.readFileSync(path.join(HERE, 'scripts/run-e2e.mjs'), 'utf8')); } catch { /* none */ }
-  return own ?? {};
+  got ??= {};
+  // the fallback is kept per sha too (an unreadable head would otherwise cost a git show every pass)
+  if (partsMemo11.size > 200) partsMemo11.clear();
+  partsMemo11.set(sha, got);
+  return got;
 }
 /** Run time, the slot checked out at the head: what its own run-e2e lists for `list` (`--list`), else planParts. */
 function runParts(list, port, sha) {
@@ -424,7 +427,7 @@ function refileOverCap() {
   try {
     for (const r of overCapAffected(openListed.filter((o) => !claimed.has(o.id) && !activeReqs.has(o.id)), AFFECTED_MAX)) {
       const was = new Set(r.suites.map((s) => String(s).split(':')[0])).size;
-      const got = affectedSuites((args) => git(args), r.sha);
+      const got = affectedSuites((args) => git(args), r.sha, { max: AFFECTED_MAX });
       if (!got || !got.suites.length) {
         if (!refileLogged.has(r.id)) { refileLogged.add(r.id); log(`${r.id}: no capped pick here (${got ? 'no browser suite' : 'no merge-base'}), not re-filed`); }
         continue;
@@ -528,7 +531,7 @@ function affectedPass() {
         if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: head older than ${AFFECTED_MAX_AGE_MS / 3600_000} h, no auto request`); }
         continue;
       }
-      const got = affectedSuites((args) => git(args), n.sha);
+      const got = affectedSuites((args) => git(args), n.sha, { max: AFFECTED_MAX });
       if (!got) {
         if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: no merge-base with origin/master here (fork or not fetched), skipped`); }
         continue;

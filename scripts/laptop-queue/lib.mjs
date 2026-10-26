@@ -791,9 +791,14 @@ export function describe(result) {
   if (result.flakes?.length) d += `; flake: ${result.flakes.join(',')}`;
   const kf = real.filter((x) => !x.ok && x.flaky);
   if (kf.length) d += `; known flaky: ${names(kf)}`;
-  d += slowNote(result.slow); // laptop-queue-11 F35
   const bad = real.filter((x) => !x.ok && !x.flaky);
-  if (bad.length) d += `; FAIL: ${names(bad)}`;
+  const fail = bad.length ? `; FAIL: ${names(bad)}` : '';
+  // laptop-queue-11 F35: the slow part only takes the room FAIL leaves (never cuts the FAIL names off)
+  const slow = slowNote(result.slow);
+  const room = 140 - d.length - fail.length;
+  if (slow.length <= room) d += slow;
+  else if (room >= 12) d += `${slow.slice(0, room - 3)}...`;
+  d += fail;
   return d.length > 140 ? `${d.slice(0, 137)}...` : d;
 }
 
