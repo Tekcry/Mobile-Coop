@@ -1,7 +1,12 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~22:20 SAVE (Night Shift | Campaign Build)
+## RESUME 2026-10-27 ~01:50 SAVE (Night Shift | Campaign Build)
+FIRST: the storm mill: the newest block of docs/piano-escape/STATE.md on origin/feature/piano-escape-s4 (PR #631, the walk
+build; NOT feature/piano-escape). Tallow #583 152c85c18 (wharf e2e kills fixed, set wharf filed); Tallow paused until
+the orchestrator resumes it.
+
+## OLD RESUME 2026-10-26 ~22:20 SAVE (Night Shift | Campaign Build)
 FIRST: piano-escape (main focus): the newest block of docs/piano-escape/STATE.md on origin/feature/piano-escape.
 Tallow: #522 + #578 merged; #581 retargeted to master ~22:00 (MERGEABLE, checker posted, waiting on affected-e2e);
 when it lands retarget #583 -> master and re-post checker. Rest as below.
