@@ -15,7 +15,7 @@ import {
   mergeRetryable, retryMerge, mergedTree, treeOf,
   trainNo, bumpVersion, impliedKind, joinTitles, deriveRelease, bumpPackageJson, bumpPackageLock, versionTreeCommit,
   DEPLOY_MARKER, tailPlan, parsePreviewVersion, pagesRoot, mergeOfHead, deployDispatchCmd, deployWaitMin,
-  lintKey, newLintErrors, lintWhy, parseCatFileBatch, docLintAt, sameLintRules,
+  lintKey, newLintErrors, lintWhy, parseCatFileBatch, docLintAt, sameLintRules, buildStopCode,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 // @ts-expect-error plain .mjs process script without types
@@ -347,6 +347,16 @@ describe('merge-train build ends at the version-commit push (audit 2026-10-24)',
       expect(fs.existsSync(file)).toBe(false);
       expect(() => clearBuildMarker({ AUTO_TRAIN_BUILD_MARKER: file })).not.toThrow();
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe('merge-train build: nothing new exits 6 (F12)', () => {
+  it('exits 6 for "nothing new to release", 1 for any other version-commit stop', () => {
+    expect(buildStopCode('nothing new to release: every fragment entry is already in CHANGELOG.md')).toBe(6);
+    expect(buildStopCode('nothing to assemble: no changes/*.md fragment and no "## Unreleased - ..." block (empty train?)')).toBe(1);
+    expect(buildStopCode(undefined)).toBe(1);
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8');
+    expect(src).toMatch(/return buildStopCode\(e\.message\);/);
   });
 });
 

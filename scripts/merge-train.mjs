@@ -64,7 +64,8 @@
 // --on base), 2 CI failed on release / single (nothing merged), 3 conflict stop (build with no member merged; release
 // when master moved since build, or a stacked train whose base or merge tree no longer matches: rebuild), 4 base train
 // not merged (foreign version commit, or a stacked train's base / its tag not on origin yet: wait), 5 merged, but the
-// merge commit's tree differs from the tested head (stacked release; tagged, dev moved: check master by hand).
+// merge commit's tree differs from the tested head (stacked release; tagged, dev moved: check master by hand), 6 build:
+// nothing new to release (every member fragment is already in CHANGELOG.md; nothing pushed).
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -546,6 +547,9 @@ const USAGE = [
   '  node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]',
   '  node scripts/merge-train.mjs repair [--dry-run]',
 ].join('\n');
+
+/** build's exit code when the version commit does not validate: 6 for "nothing new to release" (auto-train: idle), else 1. */
+export const buildStopCode = (message) => (/nothing new to release/.test(String(message ?? '')) ? 6 : 1);
 
 /** -1 / 0 / 1 comparing two "X.Y.Z" versions numerically. */
 export function cmpVersion(a, b) {
@@ -1268,7 +1272,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
   try { v = make(predicted); } catch (e) {
     console.error(`STOP: the version commit does not validate, nothing pushed, no PR opened: ${e.message}`);
     for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
-    return 1;
+    return buildStopCode(e.message);
   }
   const rel = deriveRelease({ version, title, baseVersion, planned: branches, merged, assembled: v.assembled });
   for (const note of rel.notes) console.log(note);
