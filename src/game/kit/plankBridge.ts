@@ -413,16 +413,18 @@ export function planLay(ray: PlankRay, px: number, py: number, pz: number, ux: n
   const st = PLANK.probeStep;
   out.why = 'noEdge';
   const below = PLANK.level + 0.05;
-  // the near floor from the feet until it ends: the near edge `e` (m ahead of the feet)
-  let e = -1;
+  // the near floor from a body radius behind the feet (a body may stand out over the edge) until it ends: the near edge
+  // `e` (m ahead of the feet)
+  let e = NaN;
   const nNear = Math.round((PLANK.edgeReach + st) / st);
-  for (let i = 0; i <= nNear; i++) {
+  const i0 = -Math.round(0.35 / st);
+  for (let i = i0; i <= nNear; i++) {
     if (!Number.isNaN(floorAt(ray, px + ux * i * st, pz + uz * i * st, py, below))) continue;
-    if (i === 0) return out;
+    if (i === i0) return out;
     e = (i - 0.5) * st;
     break;
   }
-  if (e < 0 || e > PLANK.edgeReach) return out;
+  if (Number.isNaN(e) || e > PLANK.edgeReach) return out;
   // past it, the first floor not lower than `level` under the near floor: the far edge (`g` m past the near edge)
   let g = -1;
   let fy = NaN;

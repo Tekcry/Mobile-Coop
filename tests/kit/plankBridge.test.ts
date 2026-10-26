@@ -587,6 +587,9 @@ describe('the lay search (K5b)', () => {
     expect(plan.nx).toBeCloseTo(-0.45, 1);
     expect(plan.fx).toBeCloseTo(3.45, 1);
     expect([plan.ny, plan.fy, plan.nz, plan.fz]).toEqual([0, 0, 0, 0]);
+    // the front carrier's body out over the edge (feet 0.2 m past it): the same board
+    expect(at(gapWorld(3), 0.2).why).toBe('');
+    expect(plan.nx).toBeCloseTo(-0.45, 1);
     expect(at(gapWorld(3), -1.5).why).toBe('noEdge');
     expect(planLay(boxRay([]), 0, 0, 0, 1, 0, LEN, plan).why).toBe('noEdge');
   });
