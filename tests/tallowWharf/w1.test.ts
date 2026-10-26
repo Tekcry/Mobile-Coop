@@ -167,13 +167,13 @@ describe('W1 shutter (C2, J9 S3)', () => {
 
   it('places the one shutter spec the section declares', () => {
     expect(W1.shutters).toEqual([{ id: 'w1-shutter', x: 22, y: 0, z: 58, yaw: 0, width: 3, height: 3 }]);
-    expect(shutterSpecsOf({ anchors: b.anchors })).toEqual(expect.arrayContaining(W1.shutters));
+    expect(shutterSpecsOf({ anchors: b.anchors })).toEqual(expect.arrayContaining([...W1.shutters]));
   });
 
   it('calls placeShutter and no stand-in', () => {
     const src = readFileSync(new URL('../../src/world/maps/tallowWharfW1.ts', import.meta.url), 'utf8');
     expect(src.includes('placeShutter(b, SHUTTER)')).toBe(true);
-    expect(src.includes('standIn(')).toBe(false);
+    expect(src.includes('stand' + 'In(')).toBe(false);
   });
 
   it('leaves the opening clear: no collide box in x 20.5-23.5, z 57.85-58.15, y 0.05-2.95', () => {

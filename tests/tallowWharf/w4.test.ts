@@ -229,10 +229,10 @@ describe('W4: no solo bypass', () => {
     expect(W4.doors['w4-shed3-yard']).toEqual([72, 0, 19]);
     expect(W4.shutters).toEqual([{ id: 'w4-shutter', x: 92, y: 0, z: 28, yaw: 0, width: 3, height: 3 }]);
     expect(W4.shutters[0]).toEqual(W4_SHUTTER);
-    expect(shutterSpecsOf({ anchors: b.anchors })).toEqual(expect.arrayContaining(W4.shutters));
+    expect(shutterSpecsOf({ anchors: b.anchors })).toEqual(expect.arrayContaining([...W4.shutters]));
     const src = readFileSync(new URL('../../src/world/maps/tallowWharfW4.ts', import.meta.url), 'utf8');
     expect(src).toContain('placeShutter(b, W4_SHUTTER)');
-    expect(src).not.toContain('standIn(');
+    expect(src).not.toContain('stand' + 'In(');
     // the opening (x 90.5-93.5 in the 0.6 thick wall at z 28) is clear: the stand-in filled exactly this
     const stray = b.boxes.filter((p) => p.collide && top(p) > 0.05 && bottom(p) < 2.95 && inRect(p, 90.5, 93.5, 27.7, 28.3, 0));
     expect(stray.map((p) => `${p.c.join(',')} ${p.s.join(',')}`)).toEqual([]);
