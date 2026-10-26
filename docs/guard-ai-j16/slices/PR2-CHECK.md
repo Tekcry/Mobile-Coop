@@ -97,3 +97,61 @@ not affected, and the main page becomes the flag-off control on any URL. The orc
   1048 / 1049 tests. `npx vitest run tests/consoleNoticeA4.test.ts` alone: 2 / 2 passed.
 - `node scripts/doc-lint.mjs`: 0 errors, 82 warnings, none on ai.md or `docs/guard-ai-j16/`.
 - Not run, as instructed: npm run dev, e2e, a full npm run check.
+
+## G5 check
+Verdict: **PASS** (after the checker's fix commit 5b109dd1d to `scripts/e2e-stealth-ai.mjs`; FIX 1-2 below are applied,
+nothing is left for the builder). Checked `git diff a19fa1c41 13c844815 -- scripts/e2e-stealth-ai.mjs` against
+G5-BRIEF.md, FIX 1 above and PR2-REPORT "## G5"; read the hooks in src.
+
+### FIX items (applied in 5b109dd1d)
+1. `scripts/e2e-stealth-ai.mjs:1516, :1536, :1541` (pre-fix lines): the pick's floor checks were no-ops.
+   `NavGrid.cellOf` (`src/ai/navGrid.ts:398-401`, `pick` `:404`) returns any in-grid column, walkable or not, so
+   `cellOf(...) >= 0` passed for feet, walk ends and the guard spot inside racks and walls (the brief's wording; the
+   builder copied it). A guard spot in a rack makes `em.spawn` (`enemyManager.ts:2264`, `nearestWalkable(.., 8)`) stand
+   him up to 4 m away: the geometry breaks and the run fails (no cue, or sight). Now `floor(x, z) =
+   isWalkable(cellOf(x, z, 0))` (`:1509`), the pattern the file already uses (`:743`, `:1119`).
+2. Same place: `em.spawn` stands the guard at his cell's centre (0.5 m cells, up to 0.35 m off G), but the spacing,
+   facing and cone checks used the unsnapped G. At `off` 0.6 the walk's end is 2.4 m from G nominally, so a snap could
+   take it under the 2.3 m that assert 6 checks: a fixed failure for that pick, on every run. Now G is the snapped
+   centre (`nav.center`), and the pick checks the walk's nearest point to him (feet - 0.6 n to feet + 0.9 n, the stop's
+   slide included) >= 2.3 m and both ends >= 120 deg off his facing (a straight walk's bearing is monotonic, so the
+   ends bound it). The F cone and 1-10 m checks also use the snapped spot.
+   Same commit: `await p2.close()` after its error check (`:1698`). The brief asked for it to be closed; left open, its
+   rAF render ran beside every later scenario on the main page.
+
+### Confirmed
+- Asserts are the right ones and fail with the cue broken: no cue gives no `cueT < 1` (1); an escalating or barking cue
+  fails 2 / 5; a cue on a stale or invented point fails the 1e-3 match (`noticeInto` copies `pts` exactly,
+  `shadowNotice.ts:121-123`; the fill runs in `updateLight` before `enemyMgr.update`, `gameState.ts:2306-2313`, and
+  `cueT += dt` runs before `shadowLook`, `enemy.ts:2712`, `:2920`, so a `cueT === 0` sample after a one-step
+  `t.step(1 / 60)` reads that step's fill). The standing control catches a cue on a still shadow; the flag-off control
+  asserts the null wiring first (trivially no cue after that, as the brief intends).
+- FIX 1 order (tp, `t.step(0.3)`, then spawn) holds in all three modes: they share `shadowRun`. The pick runs with no
+  guard (`t.reset()` clears them). Never pinned: no `t.light(v)` on the cue page (`t.light(null)` only in `off`, on the
+  main page); `updateLight` own and `version` grew are asserted.
+- `charlight=0` sits on the main launch line (every `scen` gets it); the cue page opens with `charlight=1`;
+  `flags.ts:303` `darkFlag` reads `0` as off even on /preview/. The cue page's errors use the main page's filter.
+- Hooks exist with these names: `Enemy.cueT / cueX / cueZ / cueSlot` (`enemy.ts:573-576`), `cueLook` (`:1485`),
+  `turning` (`:1479`); `ShadowCues.count / pts / speed / source / version / slotOf` (`shadowCues.ts:94-136`); light `id`
+  is the registry index (`lights.ts:222`); `em.cues / chars / onBark / hear / noise` (`enemyManager.ts:184-188, 341,
+  3241, 3307`).
+- Seeds: no `Math.random` added; `senseRng` is seeded per guard (`enemy.ts:434`) and every assert is independent of
+  the think phase (`shadowLook` runs each step). Waits are `t.step` only.
+- Departures: (a) the arc logged, not asserted: acceptable (the brief marks it optional), but the report's reason is
+  wrong, see Polish 1. (b) walk ends walkable: good; it only took effect with FIX 1.
+
+### Polish (not blocking)
+1. PR2-REPORT G5 says the arc cannot show because the guard neither sees the player nor is near. `ARC_NEAR` is 2.5 m
+   (`gameState.ts:355`) and the walk passes 2.4-2.5 m from him, so `arcMax > 0` is likely in the walk's second half.
+   Logged is fine; the laptop run's `arcs shown max` line says which.
+2. The pick tries every lamp x 8 x 4 spots at 15 fixed steps each in one `evaluate`: a few thousand steps. Fine at
+   today's lamp count; if the laptop run shows it slow, stop at the first few candidates with `q >= 0.5`.
+3. The spacing assert (6) also covers the 20 s rest; a calm grunt with no post stays put today, so it holds, but it
+   will read a future idle look-around as a failure.
+
+### Commands
+- `git rev-parse --abbrev-ref HEAD`: feature/guard-ai-j16-2.
+- `node --check scripts/e2e-stealth-ai.mjs`: ok (before and after the fix).
+- `npm run typecheck:fast`: clean.
+- Not run, as instructed: npm run dev, e2e (the laptop run is queued separately: `--suites "e2e-stealth-ai"`, plus
+  `--only=shadowCue`), a full npm run check.
