@@ -152,8 +152,8 @@ export function dressS1(d: CampusDresser): void {
   for (const [x, z] of [[22.5, -66], [24.5, -60]] as const) d.skinCyl('K:treeSkin', cy(x, z), { why: 'a verge tree over its trunk pillar' });
   d.skin('H1:cageTrolley', bx(-30.5, 0.6, -44), 0, { why: 'the delivery yard cage trolley (cover)' });
   lit(d.skin('H1:gateDesk', bx(18.8, 0.375, -73.8), PI, { why: 'the CCTV desk, operator side south, facing the north wall' }), S1_GROUPS.gate);
-  d.skin('H1:pcDesk', bx(19.35, 0.375, -76), -PI / 2, { why: 'the PC desk by the rear window, operator side west' });
-  d.skin('H1:teaPoint', bx(18.4, 0.45, -78.55), 0, { why: 'the gatehouse kettle counter, front north' });
+  d.skin('H1:pcDesk', bx(19.35, 0.375, -77.75), -PI / 2, { why: 'the PC desk south of the rear window (F42: clear of the vault landing), operator side west' });
+  d.skin('H1:teaPoint', bx(18.05, 0.45, -78.55), 0, { why: 'the gatehouse kettle counter, front north' });
   d.skin('H1:trafficIsland', bx(11, 0.5, -77), 0, { why: 'the barrier island' });
   lit(d.skin('H1:barrierArm', bx(12.75, 1.0, -77), 0, { why: 'the barrier arm (visual box), pivot at x 11.5' }), S1_GROUPS.lane);
   for (const x of BOLLARD_XS) lit(d.skinCyl('H1:lightBollard', cy(x, -45.5), { why: 'a forecourt light bollard post (the lamp stays the rig\'s)' }), S1_GROUPS.fore);

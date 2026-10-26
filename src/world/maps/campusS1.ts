@@ -206,10 +206,14 @@ export function buildCampusS1(b: LevelBuilder): void {
   b.windowAt(14, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: true });
   // E2: the rear window is open for the kettle steam
   b.windowAt(20, 1.5, -76, 1.2, 1.2, PI / 2, { sill: 0.9, open: true, breakable: true });
-  // the CCTV desk, the PC desk by the rear window, the kettle counter
+  // the CCTV desk, the PC desk by the rear window, the kettle counter. (F42) The PC desk stands on the east wall south of
+  // the rear window (z -78.55..-76.95), not under it: a vault through the open window lands 0.9 m inside it (x 19.1, z
+  // -76 +- 0.4, the 0.3 body round it), and a 0.75 desk there is 0.75 over the verge floor, past the vault's 0.6 landing
+  // step (`Traversal.windowProbe`), so the declared vault could not be made either way. The kettle counter moved 0.35 m
+  // west to make room (x 17.25..18.85); the CCTV officer's kettle stop (18.4, -77.65) still faces it.
   b.block(18.8, -73.8, 1.6, 0.75, 0.7, DESK);
-  b.block(19.35, -76, 0.9, 0.75, 1.6, DESK);
-  b.block(18.4, -78.55, 1.6, 0.9, 0.6, STEEL);
+  b.block(19.35, -77.75, 0.9, 0.75, 1.6, DESK);
+  b.block(18.05, -78.55, 1.6, 0.9, 0.6, STEEL);
   // the gatehouse lamp (switch by its door: lure #1) and an off-circuit fitting nowhere: the interior is one circuit
   lamp(b, 17, 2.9, -76, { r: 5.5, i: 0.9, group: S1_GROUPS.gate, colour: WHITE, w: 0.6 });
 
