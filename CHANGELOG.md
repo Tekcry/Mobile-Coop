@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.128.0 - Train 158: Co-op kit: Deadweight (2026-10-27, PR #662; #653)
+- Co-op (on in /preview/, not yet in the live game): Deadweight is playable. One player jumps up and hangs on a chain;
+  the counterweighted grate lifts for the partner, who ducks under. Letting go drops the grate, never onto anyone. One
+  chain each side, so whoever is through hangs for the other. At Marlow Yard this is station 9's way under the grille.
+
 ## 4.127.0 - Train 156: Piano escape: knife kills, co-op, the storm and the full run (2026-10-27, PR #659; #631)
 
 ### Co-op kit: groundwork for five new moves
