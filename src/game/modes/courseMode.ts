@@ -234,6 +234,8 @@ export class CourseMode implements GameMode {
   private squadWoken: (Enemy | null)[] = [];
   /** (sector-fixes S) Squad slots already warned about (a failed spawn is logged once per slot). */
   private readonly squadWarned = new Set<string>();
+  /** (gm-look-seeds) each squad slot's look seed from its set's `pointLooks` (a respawned slot keeps its look). */
+  private readonly slotLook = new Map<string, number>();
   private radioQ: string[] = [];
   private radioT = 0;
   private sendT = 0;
@@ -1548,8 +1550,21 @@ export class CourseMode implements GameMode {
     const em = this.g.enemyMgr;
     if (!em) return;
     this.dropSquad(false);
+    // (gm-look-seeds) the set's look seeds up front, in the set's order (its slots that exist): distinct within the set,
+    // the same on every restart of it
+    const slots = [];
+    for (const id of ids) {
+      const s = this.layout!.squads[id];
+      if (s) slots.push(s);
+    }
+    const seeds = em.pointLooks(slots);
+    let j = 0;
     for (const id of ids) {
       if (!this.layout!.squads[id]) continue;
+      // (gm-flip merge) the slot keeps its seed, so a respawn (`respawnSlot`) wears the same look
+      const look = seeds[j++];
+      if (look === undefined) this.slotLook.delete(id);
+      else this.slotLook.set(id, look);
       // (guard-ai play pass P3-2) a failed slot (said once by `spawnSlot`) skips only that guard, not the rest of the squad
       const e = this.spawnSlot(id);
       if (!e) continue;
@@ -1562,7 +1577,7 @@ export class CourseMode implements GameMode {
     const em = this.g.enemyMgr;
     const s = this.layout!.squads[id];
     if (!em || !s) return null;
-    const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
+    const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw, this.slotLook.get(id));
     if (!e) {
       // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
       if (!this.squadWarned.has(id)) {

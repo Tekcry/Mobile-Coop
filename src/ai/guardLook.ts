@@ -48,3 +48,36 @@ export function teamLook(mapId: string, section: number, team: number, member: n
 export function posLook(mapId: string, x: number, z: number): number {
   return lookSeed(`${mapId}|@${Math.round(x * 10)},${Math.round(z * 10)}`, 0);
 }
+
+/**
+ * (gm-look-seeds) The first seed free in `use` (a count per seed, 0 = free) from `preferred` on: `preferred`, then
+ * `preferred + 1`, ... (mod 128). All 128 taken: `preferred` (a repeat only past 128 guards). No allocation.
+ */
+export function freeLook(preferred: number, use: ArrayLike<number>): number {
+  for (let k = 0; k <= LOOK_MAX; k++) {
+    const s = (preferred + k) & LOOK_MAX;
+    if (use[s] === 0) return s;
+  }
+  return preferred & LOOK_MAX;
+}
+
+/**
+ * (gm-look-seeds) In place, in list order: each seed becomes `freeLook` of itself against the seeds already given in
+ * this list, so the first claimer of a seed keeps it and no two share one up to 128. Past 128 the mask starts again
+ * (repeats spread evenly). Load time only (one local mask). Returns `seeds`.
+ */
+export function distinctLooks(seeds: number[]): number[] {
+  const use = new Uint8Array(LOOK_MAX + 1);
+  let given = 0;
+  for (let i = 0; i < seeds.length; i++) {
+    if (given > LOOK_MAX) {
+      use.fill(0);
+      given = 0;
+    }
+    const s = freeLook(seeds[i]!, use);
+    use[s] = 1;
+    given++;
+    seeds[i] = s;
+  }
+  return seeds;
+}

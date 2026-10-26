@@ -41,7 +41,8 @@ describe('readCampusV2 with the preview default', () => {
 describe('live defaults under tests (no preview constants)', () => {
   it('PREVIEW_ON is false and the five feature flags keep their off defaults', () => {
     expect(PREVIEW_ON).toBe(false);
-    expect(flags.guardModels).toBe(false);
+    // (gm-flip, Michael 2026-10-26 ~23:55 "Just switch them on") the guard models are on everywhere, not a dark flag
+    expect(flags.guardModels).toBe(true);
     expect(flags.charShadowLight).toBe(false);
     expect(flags.mapReady).toBe(false);
     expect(flags.marlowReplan).toBe(false);
@@ -119,7 +120,7 @@ describe('source guard', () => {
   const body = src.slice(src.indexOf('export const flags'));
 
   it('the five feature flags read through the preview default', () => {
-    expect(body).toMatch(/guardModels: darkFlag\(params\.get\('guardmodels'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/guardModels: params\.get\('guardmodels'\) !== '0'/);
     expect(body).toMatch(/charShadowLight: darkFlag\(params\.get\('charlight'\), PREVIEW_ON\)/);
     expect(body).toMatch(/mapReady: darkFlag\(params\.get\('mapready'\), PREVIEW_ON\)/);
     expect(body).toMatch(/marlowReplan: darkFlag\(params\.get\('marlowreplan'\), PREVIEW_ON\)/);

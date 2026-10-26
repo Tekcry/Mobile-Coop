@@ -67,7 +67,7 @@ import { LockedDoorNav } from './lockedDoors';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 // (guard-models G6n) each guard's look seed from his spawn slot
-import { LOOK_MAX, posLook, slotLook, teamLook } from './guardLook';
+import { distinctLooks, freeLook, LOOK_MAX, posLook, slotLook, teamLook } from './guardLook';
 // (guard-ai S24, G139) one last known position per intruder
 import { ALARM_HUNT, alarmHunts, COOP4, FIGHTS4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
@@ -148,6 +148,9 @@ export class EnemyManager {
   readonly enemies: Enemy[] = [];
   /** The live guard cap (M6: per mode). `MAX_ALIVE` everywhere but Sector Ops, which sets `SECTOR.maxAlive`. */
   maxAlive = MAX_ALIVE;
+  /** (gm-look-seeds) Guards given each look seed this section (`beginLooks`, `spawn`, `joinTeam`; zeroed by `clear`).
+   *  Never decreased on a death or despawn: a body still shows its look and a woken guard keeps it. */
+  private readonly lookUse = new Uint16Array(LOOK_MAX + 1);
   private flowField: Float32Array;
   private flowT = 0;
   /** The nav grid's `version` the flow field was built under. */
@@ -1221,8 +1224,11 @@ export class EnemyManager {
     e.crew = t;
     // (guard-models G6n) his look is his team slot's (section, the team's order in it: its alarm, his place in the
     // team; distinct within the team), set in the step he spawns (every caller joins him straight after `spawn`),
-    // before he is drawn or sent
-    e.look = teamLook(this.lookMap, t.section, t.index, t.members.indexOf(e));
+    // before he is drawn or sent. (gm-look-seeds) The seed `spawn` gave him is given back, and the team seed moves on
+    // to the next free one when another guard of the section has it.
+    if (this.lookUse[e.look]! > 0) this.lookUse[e.look]!--;
+    e.look = freeLook(teamLook(this.lookMap, t.section, t.index, t.members.indexOf(e)), this.lookUse);
+    this.lookUse[e.look]!++;
     // (coop4 AI5, A174 / A176) one intruder per team: the first member's alarm draw is the team's; a later member is
     // told the team's in place of his own draw, which goes back to the round robin (the next team takes it). 1-2
     // players: every draw is `alarmHunt` already (today, untouched).
@@ -2176,6 +2182,25 @@ export class EnemyManager {
     return slotLook(this.lookMap, section, slot);
   }
 
+  /** (gm-look-seeds) A section's authored seeds (its slot guards', before any of them spawns): the seeds in use start
+   *  again from these, so a runtime spawn (a response team, a reinforcement) never takes an authored guard's seed,
+   *  whatever the spawn order. Replaces what was counted. */
+  beginLooks(seeds: ArrayLike<number>): void {
+    this.lookUse.fill(0);
+    for (let i = 0; i < seeds.length; i++) this.lookUse[seeds[i]! & LOOK_MAX]!++;
+  }
+
+  /** (gm-look-seeds) The seeds of a set of authored points (Course squads, Infiltration rooms), in data order:
+   *  `posLook` each, made distinct (`distinctLooks`: the first point keeps a shared seed), then `beginLooks` with them.
+   *  The same points give the same seeds on every load and restart. Load time only. */
+  pointLooks(pts: readonly { x: number; z: number }[]): number[] {
+    const seeds: number[] = [];
+    for (const p of pts) seeds.push(posLook(this.lookMap, p.x, p.z));
+    distinctLooks(seeds);
+    this.beginLooks(seeds);
+    return seeds;
+  }
+
   /**
    * (coop4 AI4, A174) The intruder slot the next reinforcement hunts (-1 none). From 3 live players (A170) and
    * `ALARM_HUNT.split`: round robin (`alarmK`, reset by `resetAlarm` and on the alarm) over `alarmHunts`: the alarm's
@@ -2209,15 +2234,17 @@ export class EnemyManager {
     return responseShape(stage, perStage, this.players().length, this.maxAlive - this.alive, out, this.shapeOver);
   }
 
-  /** (guard-models G6n) `look`: his look seed from the caller's slot key (`guardLook.ts`, 0-127); omitted (-1): from
-   *  the authored point `pos` (`posLook`), the same on every load of the map. */
+  /** (guard-models G6n) `look`: his look seed from the caller's slot key (`guardLook.ts`, 0-127), kept as it is;
+   *  omitted (-1): from the authored point `pos` (`posLook`), moved on to the next seed no guard of the section has
+   *  (gm-look-seeds, `freeLook`). Either way counted in the section's seeds in use. */
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0, look = -1): Enemy | null {
     if (this.alive >= this.maxAlive) return null;
     const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
     if (c < 0) return null;
     const [x, z] = this.nav.center(c);
     const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, this.nav.height[c]!, z), yaw);
-    e.look = look >= 0 ? look & LOOK_MAX : posLook(this.lookMap, pos.x, pos.z);
+    e.look = look >= 0 ? look & LOOK_MAX : freeLook(posLook(this.lookMap, pos.x, pos.z), this.lookUse);
+    this.lookUse[e.look]!++;
     // (guard-ai S4) his stable key: a clean slate in the awareness roster
     e.key = this.freeKey();
     if (e.key >= 0) this.awareness.resetKey(e.key);
@@ -4264,6 +4291,8 @@ export class EnemyManager {
   }
 
   clear(): void {
+    // (gm-look-seeds) a section load or restart: no look seed in use
+    this.lookUse.fill(0);
     for (const e of this.enemies) e.dispose();
     this.enemies.length = 0;
     for (const e of this.dogCorpses) e.dispose();

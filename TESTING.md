@@ -256,7 +256,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
-- [ ] Guard models (guard-models; add `?guardmodels=1` to the URL until G8 makes it the default; `?guardmodels=0` is the old body):
+- [ ] Guard models (guard-models; on by default; `?guardmodels=0` is the old body):
   - Variety: on a map with several guards (Sector Ops, Marlow Yard, the Warehouse) the guards are not clones: three
     builds (grunt, droneOp and officer average; runner and sniper lean; heavy and enforcer broad), different faces, skin
     tones, hair and hair colours, caps, beanies, a boonie on a sniper, a headset on the drone operator, a peaked cap on
@@ -274,8 +274,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   - Co-op, both screens: host and joiner see the same man in each place (face, hair, cap, outfit, vest, helmet), the
     helmet falls on both screens, and a restart keeps the looks on both.
   - First frame: at level start every guard shows as a figure on his first frame, no hitch the first time one comes
-    into view. The bake's guard files are bundled (`src/operators/assets/guards/`) but load only with `?guardmodels=1`;
-    without it nothing changes (the old body, no guard file fetched).
+    into view. The bake's guard files are bundled (`src/operators/assets/guards/`) and load on demand;
+    with `?guardmodels=0` nothing changes from before (the old body, no guard file fetched).
+  - G10a look fixes: the uniforms read as the faction colour (not near black), the lightest skin tone is not chalky, the
+    hair-cap hairline is smooth (no saw teeth), the heavy and enforcer show only their eyes through the balaclava (no
+    skin at the mouth or chin), no green dots on the faces.
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.

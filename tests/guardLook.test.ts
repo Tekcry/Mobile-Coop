@@ -16,7 +16,7 @@ import {
   PROTOCOL_VERSION,
   type EnemyState,
 } from '../src/net/protocol';
-import { LOOK_MAX, lookSeed, posLook, slotLook, teamLook } from '../src/ai/guardLook';
+import { freeLook, LOOK_MAX, lookSeed, posLook, slotLook, teamLook } from '../src/ai/guardLook';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import type { EnemyDef } from '../src/ai/enemyDefs';
@@ -222,6 +222,25 @@ describe('G6n: Enemy.look at spawn (EnemyManager), stable across a section resta
     return { slot, point, team, nums: em.enemies.map((e) => e.id) };
   }
 
+  /** (gm-look-seeds) The manager's rule, mirrored with `freeLook` over a local mask in spawn order: an explicit (slot)
+   *  seed is kept; a point seed is its `posLook`, or the next free one; a team member gives back the seed `spawn` gave
+   *  him and takes his `teamLook`, or the next free one. Every seed is counted. */
+  function mirror() {
+    const use = new Uint16Array(LOOK_MAX + 1);
+    const take = (s: number): number => {
+      use[s]!++;
+      return s;
+    };
+    const member = (x: number, team: number, m: number): number => {
+      use[take(freeLook(posLook('ctcourse', x, 0), use))]!--;
+      return take(freeLook(teamLook('ctcourse', 1, team, m), use));
+    };
+    const slot = slots.map((_, k) => take(slotLook('ctcourse', 's1', k)));
+    const point = slots.map((p) => take(freeLook(posLook('ctcourse', p.x, p.z), use)));
+    const team = [0, 1, 2, 3].map((m) => member(60 + m * 1.3, 0, m));
+    return { slot, point, team, member };
+  }
+
   it('the same slot gets the same seed after despawnAll (a restart) and on a new manager (a reload), whatever the ids', () => {
     const em = manager();
     em.maxAlive = 64;
@@ -236,10 +255,13 @@ describe('G6n: Enemy.look at spawn (EnemyManager), stable across a section resta
     em2.maxAlive = 64;
     const c = load(em2);
     expect([c.slot, c.point, c.team]).toEqual([a.slot, a.point, a.team]);
-    // and the seeds are the slot keys' (not the spawn order's)
+    // and the seeds are the slot keys' (not the spawn order's): slot seeds exactly `slotLook`; point and team seeds their
+    // key's seed when it was free at their turn, else the next free one (gm-look-seeds); all of one load distinct
     expect(a.slot).toEqual(slots.map((_, k) => slotLook('ctcourse', 's1', k)));
-    expect(a.point).toEqual(slots.map((p) => posLook('ctcourse', p.x, p.z)));
-    expect(a.team).toEqual([0, 1, 2, 3].map((m) => teamLook('ctcourse', 1, 0, m)));
+    const m = mirror();
+    expect(a.point).toEqual(m.point);
+    expect(a.team).toEqual(m.team);
+    expect(new Set([...a.slot, ...a.point, ...a.team]).size).toBe(12);
   });
 
   it('the spawn order does not move a slot seed', () => {
@@ -266,7 +288,10 @@ describe('G6n: Enemy.look at spawn (EnemyManager), stable across a section resta
       second.push(e.look);
     }
     expect(new Set(second).size).toBe(4);
-    expect(second).toEqual([0, 1, 2, 3].map((m) => teamLook('ctcourse', 1, 1, m)));
+    // (gm-look-seeds) its own key, moved on past every seed already in the section
+    const m = mirror();
+    expect(second).toEqual([0, 1, 2, 3].map((k) => m.member(60, 1, k)));
+    expect(new Set([...m.slot, ...m.point, ...a, ...second]).size).toBe(16);
   });
 
   it('an explicit look keeps its 7 bits; a stub world without a map still spawns', () => {
