@@ -5,6 +5,7 @@
  * slots; a `beamCut` torch is cut at its beam's reach in the field exactly as the picture's torch loop cuts it.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry } from '../src/world/lights';
 import { addTorchSlots, FLASHLIGHTS, FLASHLIGHTS_MAX, placeTorch, TORCH, torchShadowCount, torchSlotCount } from '../src/world/torches';
@@ -72,7 +73,12 @@ describe('piano SO3: torch slot counts', () => {
   });
 
   it('the default torch loop is the 4-slot, all-shadowed one; a bigger map gets its own count and the cut branch', () => {
-    expect(torchDrawGlsl(4)).toBe(TORCH_DRAW_GLSL);
+    // (fix round) master's own text, stored before SO3 (tests/fixtures/torchDrawGlsl.master.glsl, origin/master
+    // 1b58989ed's TORCH_DRAW_GLSL): a map that sets nothing draws byte for byte what it did
+    const master = readFileSync('tests/fixtures/torchDrawGlsl.master.glsl', 'utf8').split('\r\n').join('\n');
+    expect(master.length).toBe(3770);
+    expect(torchDrawGlsl(4)).toBe(master);
+    expect(TORCH_DRAW_GLSL).toBe(master);
     expect(TORCH_DRAW_GLSL).not.toContain('lampTsP[c].w > 2.5');
     const g = torchDrawGlsl(16, true);
     expect(g).toContain('c < 16');

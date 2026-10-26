@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AL_MAX, AL_SEIZED, AL_TORCH, packAlert, parseMessage, type EnemyState } from '../src/net/protocol';
 import { TorchMirror, type TorchHolder } from '../src/net/torchMirror';
-import { LightRegistry } from '../src/world/lights';
+import { LightRegistry, type LightDef } from '../src/world/lights';
 import { LightField } from '../src/world/lightField';
 import { addTorchSlots, beamReach, FLASHLIGHTS, placeTorch, TORCH, type BeamHit } from '../src/world/torches';
 import { EnemyManager } from '../src/ai/enemyManager';
@@ -313,5 +313,73 @@ describe('coop-torches: the puppet reads the bit', () => {
     expect(p.torch).toBe(false);
     (p as unknown as { st: number }).st = 1;
     expect(p.torchCrouch).toBe(false);
+  });
+});
+
+describe('piano SO3 fix: a capped map shadows the same guards on host and client', () => {
+  /** A 16-slot dark registry, the first 4 shadowed (the rest beamCut). */
+  function capped(): LightRegistry {
+    const reg = new LightRegistry();
+    reg.ambient = 0.2;
+    addTorchSlots(reg, 16, 4);
+    return reg;
+  }
+  /** Host guards with real ids (`e<num>`), all wanting a torch. */
+  async function guards(nums: readonly number[]): Promise<Enemy[]> {
+    const out: Enemy[] = [];
+    for (const n of nums) out.push(Object.assign(await hostGuard('grunt', n, 0, 0, 0, 0), { id: `e${n}` }));
+    return out;
+  }
+  /** Per guard id: is his torch beam-cut on this page (null: no torch). */
+  function hostCut(em: EnemyManager, ids: readonly string[]): (boolean | null)[] {
+    const h = em as unknown as { torches: LightDef[]; torchOwner: (Enemy | null)[] };
+    return ids.map((id) => {
+      const k = h.torchOwner.findIndex((o) => o?.id === id);
+      return k < 0 ? null : !!h.torches[k]!.beamCut;
+    });
+  }
+  function clientCut(m: TorchMirror, ids: readonly string[]): (boolean | null)[] {
+    return ids.map((id) => {
+      const l = m.slotOf(id);
+      return l ? !!l.beamCut : null;
+    });
+  }
+
+  it('host in guard order, client in another order and as a late join: the same 4 lowest-key guards shadowed', async () => {
+    const nums = [7, 3, 12, 1, 9, 5, 10, 2];
+    const ids = nums.map((n) => `e${n}`);
+    const hostReg = capped();
+    const em = hostManager(hostReg);
+    // the host lights them in two waves (the high keys first): its slots fill out of key order
+    const gs = await guards(nums);
+    em.enemies.push(...gs.filter((g) => Number(g.id.slice(1)) > 4));
+    (em as unknown as { updateTorches(): void }).updateTorches();
+    em.enemies.push(...gs.filter((g) => Number(g.id.slice(1)) <= 4));
+    (em as unknown as { updateTorches(): void }).updateTorches();
+    expect(em.torchesOn).toBe(8);
+    const want = ids.map((id) => !['e1', 'e2', 'e3', 'e5'].includes(id));
+    expect(hostCut(em, ids)).toEqual(want);
+    // client A: every frame from the start, the snapshot list in reverse order, the waves as the host lit them
+    const a = new TorchMirror(capped(), hitXYZ);
+    const states = gs.map((g) => holder(wire(em, g)));
+    const late = states.filter((s) => Number(s.id.slice(1)) <= 4);
+    const early = states.filter((s) => Number(s.id.slice(1)) > 4);
+    a.update([...early].reverse());
+    a.update([...early, ...late].reverse());
+    expect(clientCut(a, ids)).toEqual(want);
+    // client B: a late join (all eight lit at once), snapshot order shuffled
+    const b = new TorchMirror(capped(), hitXYZ);
+    b.update([states[5]!, states[0]!, states[7]!, states[2]!, states[4]!, states[1]!, states[6]!, states[3]!]);
+    expect(clientCut(b, ids)).toEqual(want);
+    // a shadowed guard goes dark on both: the next lowest key takes his shadowed slot on both pages
+    gs[3]!.aware.level = 'calm' as never;
+    (em as unknown as { updateTorches(): void }).updateTorches();
+    const after = gs.map((g) => holder(wire(em, g)));
+    a.update(after);
+    b.update([...after].reverse());
+    const want2 = ids.map((id) => (id === 'e1' ? null : !['e2', 'e3', 'e5', 'e7'].includes(id)));
+    expect(hostCut(em, ids)).toEqual(want2);
+    expect(clientCut(a, ids)).toEqual(want2);
+    expect(clientCut(b, ids)).toEqual(want2);
   });
 });

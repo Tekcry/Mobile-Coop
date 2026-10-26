@@ -47,6 +47,58 @@ export const TORCH = {
   eyeCrouch: 1.0,
 } as const;
 
+/** (piano SO3 fix) A guard's stable torch key from his id (`e<num>` on the host, the same string in the co-op
+ *  snapshot): its trailing digits as a number (Infinity without any). Shared data only, no wire change.
+ *  Allocation-free. */
+export function torchKey(id: string): number {
+  let v = 0;
+  let mul = 1;
+  let any = false;
+  for (let i = id.length - 1; i >= 0; i--) {
+    const c = id.charCodeAt(i) - 48;
+    if (c < 0 || c > 9) break;
+    v += c * mul;
+    mul *= 10;
+    any = true;
+  }
+  return any ? v : Infinity;
+}
+
+/**
+ * (piano SO3 fix) One swap towards the rule both pages keep when a map caps the shadowed slots (`beamCut` slots
+ * from `s` on): the shadowed slots hold the lit guards with the lowest `torchKey`s, so a guard's torch is shadowed or
+ * cut alike on the host (`EnemyManager.updateTorches`, guard order) and the co-op client (`TorchMirror`, snapshot
+ * order), whatever order each lit them in. `keys[k]`: slot k's holder key, -1 free. Returns `i * 64 + j` (swap
+ * shadowed slot i with cut slot j: j's holder has a lower key than i's, or i is free) or -1 when the rule holds.
+ * Callers swap and call again (at most `n` times). Pure, allocation-free.
+ */
+export function nextTorchSwap(keys: Float64Array, n: number, s: number): number {
+  if (s >= n) return -1;
+  // the cut slot holding the lowest key
+  let j = -1;
+  let jk = Infinity;
+  for (let k = s; k < n; k++) {
+    const v = keys[k]!;
+    if (v >= 0 && (j < 0 || v < jk)) {
+      j = k;
+      jk = v;
+    }
+  }
+  if (j < 0) return -1;
+  // the shadowed slot that should give way: a free one first, else the highest key
+  let i = -1;
+  let ik = -Infinity;
+  for (let k = 0; k < s; k++) {
+    const v = keys[k]!;
+    const w = v < 0 ? Infinity : v;
+    if (i < 0 || w > ik) {
+      i = k;
+      ik = w;
+    }
+  }
+  return i >= 0 && jk < ik ? i * 64 + j : -1;
+}
+
 /** A dark map (ambient or any zone below 0.5): the flashlight slots, off and parked under the floor until used.
  *  (piano SO3) `n` slots (`torchSlotCount`); the slots from `shadowed` on carry `beamCut` (no shadow map). */
 export function addTorchSlots(reg: LightRegistry, n = FLASHLIGHTS, shadowed = n): void {
