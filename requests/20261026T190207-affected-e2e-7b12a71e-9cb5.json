@@ -1,0 +1,15 @@
+{
+  "id": "20261026T190207-affected-e2e-7b12a71e-9cb5",
+  "sha": "7b12a71ea0d0eb59605acfbb0f6fe1e0d9fa53a6",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #317"
+}
