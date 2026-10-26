@@ -618,16 +618,16 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   (2; 0 = off) min): each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request
   gets the suites `request.mjs --affected` picks (merge-base with `origin/master`, `git diff --name-only --no-renames`,
   the DIRECT tier, the co-op group for a wire file by `src/net/protocol.ts` at that head; lib `affectedSuites`). Only
-  gate suites gate (`affectedGateSuites` in `scripts/e2e-affected.mjs`: no GPU, LEGACY or AUDIO); the LEGACY / AUDIO
-  ones go in the request's `report` list and run after them with `E2E_REPORT`, REPORT ONLY (J20 T4). No gate suite: the
-  head gets `affected-e2e` success "no browser suites (docs / unit only)". Otherwise the service enqueues a pr request
+  gate suites gate, also in a desktop failure's laptop rerun (`affectedGateSuites`, `scripts/e2e-affected.mjs`: no
+  GPU, LEGACY or AUDIO); the LEGACY / AUDIO ones go in the `report` list and run after them with `E2E_REPORT`, REPORT
+  ONLY (J20 T4). None: `affected-e2e` success "no browser suites (docs / unit only)". Otherwise the service enqueues a pr request
   itself (requester `affected-e2e`, set `affected`, the PR number and branch) and posts `affected-e2e` pending; the run
   posts its verdict on `laptop-e2e/affected` and on `affected-e2e` (failures comment on the PR as usual). A newer head
   on the same branch supersedes the older open request (its `affected-e2e` gets error "superseded"); other PRs' requests
   never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
   per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). A desktop failure's laptop rerun keeps only gate suites (J20).
+  affected request is requested again (4.101.1). A lead's own `request.mjs --affected` still works as before.
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
