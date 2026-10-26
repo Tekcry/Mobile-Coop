@@ -581,6 +581,13 @@ export class Enemy implements Damageable {
   private readonly cueV = new Vector3();
   /** (G3, A5) The cue lifts him from calm this step: that rise says nothing (`onLevel`). Cleared each step. */
   private cueRise = false;
+  /** (guard-ai-j16 fix 2, check B FIX 1; A5) This suspicious episode rests on the cue alone: set by the hushed rise
+   *  (`onLevel`), cleared by any other level change and by a real sight, sound (`hear`, `hearTurn`) or ack. While set,
+   *  the calm-down says nothing ('clear'); a sight or sound that clears it says the 'suspicious' line the rise skipped. */
+  private cueQuiet = false;
+  /** (guard-ai-j16 fix 2, check B FIX 2; A6) The running `turnT` is the cue's own look (a `hearTurn` / `ack` look is
+   *  not: the cue never takes it over). Set by `shadowLook`, cleared by `hearTurn` and `ack`. */
+  private cueTurn = false;
   /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
    *  (calm), in combat, or on another search. */
   incident = -1;
@@ -1401,17 +1408,26 @@ export class Enemy implements Damageable {
    */
   hearTurn(x: number, z: number, radius = 0): void {
     if (this.alerted || !this.alive || this.passive) return;
+    let loud = false;
     if (radius > 0) {
       const s = Math.min(noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius), HEARING.turnMax);
       if (s > this.meter) this.meter = s;
+      loud = s >= PERCEPTION.suspicious;
     }
     const lvl = this.aware.level;
+    // (guard-ai-j16 fix 2, A5) a sound in a cue-only episode: it is no longer the cue's; a sound that would have lifted
+    // him says the line the hushed rise skipped
+    if (this.cueQuiet) {
+      this.cueQuiet = false;
+      if (loud && lvl === 'suspicious') this.bark('suspicious');
+    }
     // (guard-ai S2) sent somewhere by the board: the board owns his target (a later noise does not re-aim him)
     if (lvl === 'investigating' || lvl === 'searching' || this.incident >= 0) return;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = ALERT.hearLook;
+    this.cueTurn = false;
   }
 
   /**
@@ -1704,6 +1720,10 @@ export class Enemy implements Damageable {
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.turnT = Math.max(this.turnT, INCIDENT.ackLook);
+    // (guard-ai-j16 fix 2) the look is the ack's now (the cue does not take it over), and so is the episode (silently:
+    // an ack never says the 'suspicious' line; its own is "Copy.")
+    this.cueTurn = false;
+    this.cueQuiet = false;
   }
 
   /** Gunfire close by: straight to combat, towards it. */
@@ -2374,9 +2394,14 @@ export class Enemy implements Damageable {
     // (GA6b, N6) a partner's glimpse follow: the send's `checking` was his line, the rise says nothing more
     const hush = this.quietRise;
     if (to !== 'suspicious') this.quietRise = false;
+    // (guard-ai-j16 fix 2, check B FIX 1) a cue-only episode ends with this change: its calm-down is silent too
+    const cueOnly = this.cueQuiet;
+    this.cueQuiet = false;
     if (to === 'suspicious') {
       // (guard-ai-j16 G3, A5) a rise from his shadow cue alone (no sight, no sound) is silent: the white arc only
-      if (!hush && !(this.cueRise && this.riseCause === RISE_NONE)) this.bark('suspicious');
+      const cueHush = this.cueRise && this.riseCause === RISE_NONE;
+      if (!hush && !cueHush) this.bark('suspicious');
+      this.cueQuiet = cueHush;
     }
     // (S4 fix) the line follows the cause: sight lines only for sight, neutral ones for none
     else if (to === 'investigating') {
@@ -2386,7 +2411,8 @@ export class Enemy implements Damageable {
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
     // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
-    else if (to === 'cooldown' && from !== 'unaware' && !quiet) this.bark(task >= 0 ? 'standDown' : 'clear');
+    // (guard-ai-j16 fix 2, A5) back from a rise the shadow cue alone caused: nothing to say either way
+    else if (to === 'cooldown' && from !== 'unaware' && !quiet && !cueOnly) this.bark(task >= 0 ? 'standDown' : 'clear');
     else if (to === 'unaware' && task >= 0 && !quiet) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
     if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
@@ -2890,13 +2916,16 @@ export class Enemy implements Damageable {
   /**
    * (guard-ai-j16 G3, G379 "A faint cue"; BRIEF A4-A6, A11, PLAN section 1) A player's moving cast shadow in his focused
    * cone: he grows suspicious and looks at it, never more. Who (A6): not alerted, passive or a dog, at unaware /
-   * cooldown / suspicious with no incident task, not lured, and seeing nobody this think (every player's rate <=
-   * `leak`) nor resting on an earlier glimpse (`sawMoment`): sight keeps his look and its linger rule. Over every live
+   * cooldown / suspicious with no incident task, not lured or on the breaker walk, and seeing nobody this think (every
+   * player's rate <= `leak`) nor resting on an earlier glimpse (`sawMoment`): sight keeps his look and its linger rule;
+   * nor on a sound (`heard`, `heardMoment`) or a hearing / ack look in progress (`turnT` not `cueTurn`): a sound keeps
+   * its spot and its look (fix 2). Over every live
    * player in the cues (`slotOf`), the nearest qualifying point (`noticeInto`), one line-of-sight ray from his eye to
    * it (A4; at 3+ players only inside `PERCEIVE.maxRays`, counted there). Clear: the hearing turn's reaction
    * (`hearTurn`, A5), written here so no double crosses a call: meter at least `SHADOW_NOTICE.meter`, the point as his
    * stimulus, `turnT` = `ALERT.hearLook`; no `heard`, report, `lastKnown`, `sawOnce` or target change; a rise from calm
-   * that the cue lifts says nothing (`cueRise`). Records `cueT` / `cueX` / `cueZ` / `cueSlot`.
+   * that the cue lifts says nothing (`cueRise`), and so does its calm-down (`cueQuiet`). Records `cueT` / `cueX` /
+   * `cueZ` / `cueSlot`.
    * No cues (null or absent): nothing, today's perception. No allocation.
    */
   private shadowLook(eye: Vector3, capped: boolean): void {
@@ -2905,7 +2934,12 @@ export class Enemy implements Damageable {
     if (this.alerted || this.passive || this.dog !== null || this.incident >= 0) return;
     // (G3 fix 1, A6) a calm moment that rests on sight keeps its own look and linger rule (a shadow adds, never
     // removes); (G3 polish 5) a lured post keeps to his lure walk, as on a mission order
-    if (this.sawMoment || this.lure.active) return;
+    // (fix 2, check B polish 2) the breaker walk keeps walking on a rise (`breakerStep` while `rate <= 0`): as a lure
+    if (this.sawMoment || this.lure.active || this.brkGroup >= 0) return;
+    // (fix 2, check B FIX 2, A6) sound first: a calm moment that rests on a sound (`heard`: a `hear` / send earlier this
+    // step; `heardMoment` after) keeps the noise's spot, and a hearing or ack look in progress (`turnT` not the cue's
+    // own) keeps its direction. The cue never takes a sound's place
+    if (this.heard || this.heardMoment || (this.turnT > 0 && !this.cueTurn)) return;
     const lvl = this.aware.level;
     if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return;
     // (A4, plan check 1 item 6) 3+ players: the cue's ray only while the think stays within the budget
@@ -2945,6 +2979,7 @@ export class Enemy implements Damageable {
     this.stimulus[1] = v.z;
     this.hasStimulus = true;
     this.turnT = ALERT.hearLook;
+    this.cueTurn = true;
     this.cueT = 0;
     this.cueX = v.x;
     this.cueZ = v.z;
@@ -3033,6 +3068,13 @@ export class Enemy implements Damageable {
     }
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
+    // (guard-ai-j16 fix 2, check B FIX 1 / polish 1) a real sight or sound in a cue-only episode that left him
+    // suspicious: the episode is theirs now (its calm-down barks), and he says the line the hushed rise skipped. A level
+    // change this step already ended the episode in `onLevel` with its own line
+    if (this.cueQuiet && (seen || this.heard)) {
+      this.cueQuiet = false;
+      if (this.aware.level === 'suspicious') this.bark('suspicious');
+    }
     // in combat without sight: arriving at the last known position with nothing there starts the search
     if (this.aware.level === 'alert' && !this.los && this.ctx.stealth() && this.state === 'chase' && this.sinceSeen > 1.5) {
       const k = this.huntPos();

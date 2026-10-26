@@ -4166,7 +4166,9 @@ export class EnemyManager {
       const b = bodies[i]!;
       b.update(dt);
       b.lightT -= dt;
-      if (b.lightT <= 0 && b.present) {
+      // (guard-ai-j16 fix 2, check B polish 4) with the contract, not on its first step: a guard who died inside this
+      // `update` is still in this step's fill as a standing guard (his key, not the body's), and would shade his body
+      if (b.lightT <= 0 && b.present && (chars === null || b.age > dt)) {
         b.lightT = 1;
         b.light =
           chars === null
