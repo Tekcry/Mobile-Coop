@@ -218,8 +218,7 @@ behind a VPN adapter).
   slot; a 2-player control (today's rules). The 3-4 browser asserts: `docs/coop4/briefs/AI6-E2E-SPEC.md`
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
-  compile error (its error line printed); then, figures on, a forced guard-figure compile timeout: the merged body
-  stands in and the figure's effect is recompiled. Run with `E2E_GPU=1`
+  compile error; then figures on, a forced figure compile timeout: the merged body stands in. Run with `E2E_GPU=1`
 - `e2e-takedown` takedown kinds (ground rules, over low cover, above, below, window; the grab - walk, sidearm, human
   shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold, 5 cm
   alignment, damage interrupt; no takedown on a guard in combat who saw you
