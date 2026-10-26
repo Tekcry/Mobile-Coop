@@ -1,0 +1,14 @@
+{
+  "id": "20261026T013141-night-shift-marlow-b-2df02c9c-c74b",
+  "sha": "2df02c9c1c4e4fca110c620a915aff1a3f969c69",
+  "branch": "feature/marlow-replan-a1-retry",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:5"
+  ],
+  "set": "j14-a1-retry",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T232146-night-shift-marlow-b-2df02c9c-16b1, rerun on the laptop"
+}
