@@ -35,7 +35,9 @@ import { greyboxHash } from './helpers/campusHash';
  *  `campusOps.build` hashes to this value, so `buildCampus(b, { dress: false })` is that greybox byte for byte. */
 // (LR16-W T) re-pinned: the S4 cage basket post moved (18, 37) -> (17.55, 38.5) off the cage downlight (checks/lr16w-t-build.md);
 // with the post at (18, 37) the greybox still hashes to acb8cfbb (verified on f85ef736).
-const CUT_GREYBOX = '1303/114/d9289634';
+// (light-realism L1) re-pinned: the S1 car-park columns and the lane floodlight carry arm boxes (twin heads, P11a);
+// before L1 the greybox hashed to '1303/114/d9289634'.
+const CUT_GREYBOX = '1330/113/8237c2e9';
 const SECTIONS = 5;
 const BUDGET = 200000;
 /** (11) A greybox ledge's ends must survive within this (m). */
