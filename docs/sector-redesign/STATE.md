@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:30, PROTOTYPE MODE).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:40 SAVE at ~85%, PROTOTYPE MODE).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
 "PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
 one fix + one rerun at most, no tuning passes before Michael plays.
@@ -366,11 +366,13 @@ them when train-ready; orchestrator told ~18:05):
    @ 17def8cc. Checker PASS on all three (part6-window-fix-check.md); the auto affected runs are the one rerun.
 3. #529 S2 @ bc06fe5b, #544 S3 @ 79559a3f, #547 S4 @ c77442d6, #535 S5 @ 2d0686af: stacks collapsed ~18:00 (lower PRs
    closed), master merged in. All five + #518 merged together: no conflicts, tsc clean, 66 campus files 905 pass
-   (scratch campus-v2-all.log; test branch test/campus-v2-all, local only, worktree -campus-v2-int).
-4. #582 prebake-preview @ 308ae524 (Opus PASS): the preview build pre-bakes its own campus layout; deploy.yml caches per
+   (scratch campus-v2-all.log; test branch test/campus-v2-all, local only, worktree -campus-v2-int). ~18:40 their
+   pr-size was red only because big-pr came after the run: failed jobs rerun; if still red, check the job log.
+4. #582 prebake-preview @ 308ae524 (Opus PASS; TRAIN-READY ~18:40): the preview build pre-bakes its own campus layout; deploy.yml caches per
    variant. Should land with or before the first v2 section, else preview bakes on the PC at load.
 On a red: one Opus triage, one fix, one rerun, then quarantine / note and ship. On a conflict between them: merge
 master into that branch, resolve, one checker.
 5. J10 light: L2 (S2-S5 re-light) HOLD until Michael's S1 walk. Known: v2 S1 carport edges dark (real gap).
-Next: watch the seven land; then ask the orchestrator for the next playable piece (e.g. a bot route-run of v2 S1-S5).
+Next: check S2-S5 CI after the rerun; watch #573 / #525 / #518 affected reruns (sectorops:6, no longer
+quarantined on the desktop, FIXES F48); on green the watchdog labels; watch all land; then ask the orchestrator for the next playable piece (e.g. a bot route-run of v2 S1-S5).
 ```
