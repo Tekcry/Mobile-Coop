@@ -13,7 +13,7 @@ import type { NavGrid } from '../src/ai/navGrid';
 import type { LevelBuilder } from '../src/world/levelBuilder';
 import { hyp2 } from '../src/core/mathx';
 import { runtimeNav } from './helpers/runtimeNav';
-import { STAGE_NAV_ACROSS, STAGE_NAV_ALONG } from '../src/game/sectorStage';
+import { closeDoors, solidAt } from './helpers/guardSlotChecks';
 
 const RUN = process.env.GUARD_PROBE === '1';
 const BUDGET = 60000;
@@ -31,37 +31,6 @@ interface Slot {
   passive?: boolean;
   post?: unknown;
   loop?: unknown;
-}
-
-/** The first collide box (not glass, not overhead) that holds the point 0.9 m over the floor at (x, z); its index or -1. */
-function solidAt(b: LevelBuilder, x: number, z: number, floorY: number): number {
-  const y = floorY + 0.9;
-  for (let i = 0; i < b.boxes.length; i++) {
-    const p = b.boxes[i]!;
-    if (!p.collide || p.glass || p.overhead || Math.abs(p.pitch) > 1e-3) continue;
-    const c = Math.cos(-p.yaw);
-    const s = Math.sin(-p.yaw);
-    const dx = x - p.c[0];
-    const dz = z - p.c[2];
-    const lx = c * dx + s * dz;
-    const lz = -s * dx + c * dz;
-    if (Math.abs(lx) <= p.s[0] / 2 && Math.abs(lz) <= p.s[2] / 2 && Math.abs(y - p.c[1]) <= p.s[1] / 2) return i;
-  }
-  return -1;
-}
-
-/** Shut every door in `ids` (anchor ids into `b.anchors.all`) on `nav` as `LockedDoorNav` does; the count shut. */
-function closeDoors(b: LevelBuilder, nav: NavGrid, ids: Iterable<number>): number {
-  let n = 0;
-  for (const id of ids) {
-    const a = b.anchors.all[id];
-    if (!a || a.kind !== 'door') continue;
-    const cx = a.hinge.x + Math.sin(a.yaw) * a.width * 0.5;
-    const cz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5;
-    nav.setClosed(nav.addClosure(cx, cz, STAGE_NAV_ACROSS, (a.width + STAGE_NAV_ALONG) / 2, a.yaw, a.hinge.y), true);
-    n++;
-  }
-  return n;
 }
 
 /** One slot's lines (empty = clean). */
