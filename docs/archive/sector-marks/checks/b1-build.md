@@ -26,7 +26,7 @@ Builder: Night Shift | Cloud Builder 1 (cloud-queue brief `briefs/sector-marks-B
   sectorItemScope 5, sectors 27, torchShadowSet 12, vision 7).
 - `node --check scripts/e2e-sectorops.mjs`: pass.
 - `git diff origin/master...HEAD --stat` (from the merge-base; master's tip has moved past the base, so a two-dot diff
-  also lists master's own later changes): only the brief's files plus `docs/sector-marks/*`.
+  also lists master's own later changes): only the brief's files plus `docs/archive/sector-marks/*`.
 
 ## S4LOG comparison (step 5)
 Byte-identical: one `S4LOG` line of 1252 bytes before and after `hyp2`; `diff` printed nothing. The temporary

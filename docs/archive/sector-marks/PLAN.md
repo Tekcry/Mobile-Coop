@@ -2,7 +2,7 @@
 
 Owner: Night Shift | Sector Ops Build. Status: current.
 
-Opus plan for `docs/sector-marks/BRIEF.md`. One PR, one slice (B1, Sonnet builder from `briefs/B1.md`). Every
+Opus plan for `docs/archive/sector-marks/BRIEF.md`. One PR, one slice (B1, Sonnet builder from `briefs/B1.md`). Every
 file:line below was re-found on origin/master 2148ec96.
 
 ## Claims
@@ -21,7 +21,7 @@ files:
   - scripts/e2e-sectorops.mjs
   - TESTING.md
   - docs/systems/modes-and-progression.md
-  - docs/sector-marks/**
+  - docs/archive/sector-marks/**
 maps: campusOps
 protocol: none
 save: none
@@ -94,7 +94,7 @@ shipped feature, G355).
   (lead adds it with the J17 revision). `campusV2.test.ts:89` fails until the copies match, so it cannot be missed for
   the labels; `s4Dress.ts` has no such test, so the A-line names it.
   B1 edits master's files as they are on master.
-- Other overlaps (`node scripts/claims-check.mjs --plan docs/sector-marks/PLAN.md`, 2026-10-25 ~19:30; file level,
+- Other overlaps (`node scripts/claims-check.mjs --plan docs/archive/sector-marks/PLAN.md`, 2026-10-25 ~19:30; file level,
   each a few lines in a big file, no shared lines found; the train merges or the later branch rebases):
   feature/coop-kit and feature/player-batch-j19 (`gameState.ts`, `coopClient.ts`), feature/player-hygiene
   (`coopClient.ts`), feature/hud-guidance (+ -a1, -a3: `gameState.ts`, `coopClient.ts`, `e2e-sectorops.mjs`,

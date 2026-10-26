@@ -1,7 +1,7 @@
 # laptop-queue-9: plan
 Owner: Test Runner. Status: current.
 
-Lead: Night Shift | Test Runner. Planner: Opus 5.5, master 99fbd37fd. Brief: `docs/laptop-queue-9/BRIEF.md`.
+Lead: Night Shift | Test Runner. Planner: Opus 5.5, master 99fbd37fd. Brief: `docs/archive/laptop-queue-9/BRIEF.md`.
 All file:line pointers are origin/master 99fbd37fd. #507 has since reached master (b80d00d8d, train 121): its hunks
 (watchdog :226-227 and :600 in place, auto-train.md +4 after :176, autoTrain.test +10 at the end, RULES "Machines")
 shift none of the code pointers below. S1 starts with `git merge origin/master`. Docs are pointed at by section name.
@@ -23,7 +23,7 @@ files:
   - docs/systems/auto-train.md
   - docs/systems/watchdog.md
   - docs/RULES.md
-  - docs/laptop-queue-9/*
+  - docs/archive/laptop-queue-9/*
   - changes/feature-laptop-queue-9.md
 maps: none
 protocol: none

@@ -7,7 +7,7 @@ Verdict: FIX
 1. Claims block: fixed (PLAN:10-28), claims-check runs (see Claims). One file missing, fix 2 below.
 2. campus-greybox overlap named with a ruling (PLAN:89-93). Workable for the labels, not complete (fix 1 below).
 3. BRIEF clean: fixed, ends after A8 (BRIEF:68).
-4. B1 diff check: fixed (B1:233 "plus `docs/sector-marks/*`").
+4. B1 diff check: fixed (B1:233 "plus `docs/archive/sector-marks/*`").
 5. "Michael said" / "picked": fixed. Said holds only G336 ~09:45 (ROADMAP:96) and G343 ~10:45, verbatim; G290, G351, Q26
    ~16:50 (ROADMAP:88) moved to "picked"; duplicate G351 gone; sector-batch line updated (PLAN:101).
 

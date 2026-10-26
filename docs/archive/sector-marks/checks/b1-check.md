@@ -3,7 +3,7 @@
 Owner: Night Shift | Sector Ops Build. Status: current.
 
 Checker: fresh Opus. Checked head `402ccf6457a0114dad4876075e26124bf4f7ed27` (origin/feature/sector-marks-b1), diff
-`583f4c436..402ccf645` against `docs/sector-marks/BRIEF.md`, `PLAN.md` and `briefs/B1.md`.
+`583f4c436..402ccf645` against `docs/archive/sector-marks/BRIEF.md`, `PLAN.md` and `briefs/B1.md`.
 
 ## Verdict: PASS
 
