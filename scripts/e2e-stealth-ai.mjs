@@ -1497,9 +1497,15 @@ try {
   // jump reads it as a fast footprint), then the guard spawns.
   if (!only || 'shadowCue'.includes(only)) {
     console.log('shadowCue');
-    // in the page: the lamp footprint to walk beside (a lamp, 8 directions, 3-6 m: contrast >= 0.5, length >= 4 m, the
-    // largest contrast then length) and the guard's place from it
+    // in the page: the lamp footprint to walk beside and the guard's place from it. (G5 triage, G5-TRIAGE.md) Matched to
+    // the rule (`noticeInto` reads any of a footprint's 3 points, `SHADOW_NOTICE.contrast` 0.40): a candidate is one
+    // footprint point P with contrast >= `PICK_Q` 0.45 (the rule's 0.40 plus 0.05 for the drift as the walk moves the
+    // footprint 1.2 m); no length gate: the guard checks below need P >= about 2.55 m from the feet (>= 2.3 m to the
+    // player, P >= 1 m away inside the 27.5 deg cone, the player >= 120 deg off his facing). The brief's far point
+    // >= 0.5 and L >= 4 m could not occur under the warehouse's 5.05 m lamps (L = 0.5 x the lamp distance). `diag`
+    // records what the field gave, for the failure message.
     const shadowPick = () => {
+      const PICK_Q = 0.45;
       const t = window.__t;
       const g = window.__app.current;
       const em = g.enemyMgr;
@@ -1508,55 +1514,73 @@ try {
       // (G5 check) `cellOf` is any grid column, walkable or not: walkable is `isWalkable(cellOf(...))`
       const floor = (x, z) => em.nav.isWalkable(em.nav.cellOf(x, z, 0));
       t.reset();
+      const r2 = (v) => +v.toFixed(2);
+      const diag = { lamps: 0, spots: 0, fills: cues ? cues.version : -1, withFootprint: 0, maxQ: 0, far40: null, far45: null };
       const cands = [];
       for (const lamp of g.world.level.lights.lights) {
         if (lamp.kind !== 'lamp' || !lamp.on || lamp.destroyed || lamp.y >= 6) continue;
+        diag.lamps++;
         for (let dir = 0; dir < 8; dir++) {
-          for (const m of [3, 4, 5, 6]) {
+          for (const m of [1.5, 2, 2.5, 3, 4, 5, 6]) {
             const x = lamp.x + m * Math.cos((dir * Math.PI) / 4);
             const z = lamp.z + m * Math.sin((dir * Math.PI) / 4);
             if (!floor(x, z)) continue;
+            diag.spots++;
             t.tp(x, z, 0);
             t.step(0.25);
             const s = cues.slotOf('local');
             for (let k = 0; s >= 0 && k < cues.count[s]; k++) {
               if (cues.source[s * 3 + k] !== lamp.id) continue;
-              const i = ((s * 3 + k) * 3 + 2) * 4;
-              const q = cues.pts[i + 3];
-              const L = Math.hypot(cues.pts[i] - x, cues.pts[i + 2] - z);
-              if (q >= 0.5 && L >= 4) cands.push({ lamp: lamp.id, fx: x, fz: z, Fx: cues.pts[i], Fz: cues.pts[i + 2], q, L });
+              diag.withFootprint++;
+              const iF = ((s * 3 + k) * 3 + 2) * 4;
+              const L = Math.hypot(cues.pts[iF] - x, cues.pts[iF + 2] - z);
+              for (let j = 0; j < 3; j++) {
+                const i = ((s * 3 + k) * 3 + j) * 4;
+                const q = cues.pts[i + 3];
+                const dp = Math.hypot(cues.pts[i] - x, cues.pts[i + 2] - z);
+                if (q > diag.maxQ) diag.maxQ = r2(q);
+                const rec = { lamp: lamp.id, m, dir, j, d: r2(dp), q: r2(q) };
+                if (q >= 0.4 && (!diag.far40 || dp > diag.far40.d)) diag.far40 = rec;
+                if (q >= PICK_Q && (!diag.far45 || dp > diag.far45.d)) diag.far45 = rec;
+                if (q >= PICK_Q && dp > 1e-3) cands.push({ lamp: lamp.id, fx: x, fz: z, Fx: cues.pts[i], Fz: cues.pts[i + 2], j, q, dp, L });
+              }
             }
           }
         }
       }
-      cands.sort((p, q) => (Math.abs(p.q - q.q) > 1e-6 ? q.q - p.q : q.L - p.L));
+      diag.fills = cues ? cues.version - diag.fills : -1;
+      // the farthest point first (room for the spacing), ties by contrast
+      cands.sort((p, q) => (Math.abs(p.dp - q.dp) > 1e-6 ? q.dp - p.dp : q.q - p.q));
       for (const c of cands) {
-        const d = { x: (c.Fx - c.fx) / c.L, z: (c.Fz - c.fz) / c.L };
+        const d = { x: (c.Fx - c.fx) / c.dp, z: (c.Fz - c.fz) / c.dp };
         const nrm = { x: -d.z, z: d.x };
         const yaw = Math.atan2(d.x, d.z);
         // the walk's two ends are floor too
         if (!floor(c.fx - 0.6 * nrm.x, c.fz - 0.6 * nrm.z) || !floor(c.fx + 0.6 * nrm.x, c.fz + 0.6 * nrm.z)) continue;
-        for (const off of [0.6, 0.4, 0.8]) {
-          const gx = c.fx + 2.4 * d.x + off * nrm.x;
-          const gz = c.fz + 2.4 * d.z + off * nrm.z;
-          if (!floor(gx, gz)) continue;
-          // (G5 check) `em.spawn` stands him at his cell's centre (up to 0.35 m off): check the spot he really takes
-          const [cx, cz] = em.nav.center(em.nav.cellOf(gx, gz, 0));
-          const G = { x: cx, z: cz };
-          const toF = Math.hypot(c.Fx - G.x, c.Fz - G.z);
-          // the walk's nearest point to him (from feet - 0.6 n to feet + 0.9 n: 1.2 m and the stop's slide) and its ends
-          const along = Math.min(0.9, Math.max(-0.6, (G.x - c.fx) * nrm.x + (G.z - c.fz) * nrm.z));
-          const offAt = (s) => Math.abs(wrap(Math.atan2(c.fx + s * nrm.x - G.x, c.fz + s * nrm.z - G.z) - yaw));
-          const ok =
-            Math.hypot(c.fx + along * nrm.x - G.x, c.fz + along * nrm.z - G.z) >= 2.3 &&
-            Math.min(offAt(-0.6), offAt(0.9)) >= (120 * Math.PI) / 180 &&
-            Math.abs(wrap(Math.atan2(c.Fx - G.x, c.Fz - G.z) - yaw)) <= (27.5 * Math.PI) / 180 &&
-            toF >= 1 &&
-            toF <= 10;
-          if (ok) return { n: cands.length, lamp: c.lamp, feet: { x: c.fx, z: c.fz }, F: { x: c.Fx, z: c.Fz }, q: c.q, L: c.L, d, nrm, G, off, yaw };
+        // on the shadow's line between the feet and P, facing along it: from 2.4 m out to 1 m short of P
+        for (let a = 2.4; a <= c.dp - 1 + 1e-6; a += 0.4) {
+          for (const off of [0.6, 0.4, 0.8]) {
+            const gx = c.fx + a * d.x + off * nrm.x;
+            const gz = c.fz + a * d.z + off * nrm.z;
+            if (!floor(gx, gz)) continue;
+            // (G5 check) `em.spawn` stands him at his cell's centre (up to 0.35 m off): check the spot he really takes
+            const [cx, cz] = em.nav.center(em.nav.cellOf(gx, gz, 0));
+            const G = { x: cx, z: cz };
+            const toF = Math.hypot(c.Fx - G.x, c.Fz - G.z);
+            // the walk's nearest point to him (from feet - 0.6 n to feet + 0.9 n: 1.2 m and the stop's slide) and its ends
+            const along = Math.min(0.9, Math.max(-0.6, (G.x - c.fx) * nrm.x + (G.z - c.fz) * nrm.z));
+            const offAt = (s) => Math.abs(wrap(Math.atan2(c.fx + s * nrm.x - G.x, c.fz + s * nrm.z - G.z) - yaw));
+            const ok =
+              Math.hypot(c.fx + along * nrm.x - G.x, c.fz + along * nrm.z - G.z) >= 2.3 &&
+              Math.min(offAt(-0.6), offAt(0.9)) >= (120 * Math.PI) / 180 &&
+              Math.abs(wrap(Math.atan2(c.Fx - G.x, c.Fz - G.z) - yaw)) <= (27.5 * Math.PI) / 180 &&
+              toF >= 1 &&
+              toF <= 10;
+            if (ok) return { n: cands.length, diag, lamp: c.lamp, feet: { x: c.fx, z: c.fz }, F: { x: c.Fx, z: c.Fz }, j: c.j, q: c.q, dp: c.dp, L: c.L, d, nrm, G, a, off, yaw };
+          }
         }
       }
-      return { n: cands.length, none: true };
+      return { n: cands.length, diag, none: true };
     };
     // in the page: one run (tp to the walk start, or to `feet` when standing; settle; spawn; walk; rest) and what it saw.
     // mode 'run' (cue page, walk, 20 s), 'still' (cue page, no stick, 6 s), 'off' (flag-off page, walk, 6 s)
@@ -1666,7 +1690,9 @@ try {
     await frames(p2, 10);
     await p2.evaluate(installT);
     const pick = await p2.evaluate(shadowPick);
-    assert(!pick.none, `shadowCue: a lamp footprint (contrast >= 0.5, length >= 4 m) with a guard place beside it (${pick.n} candidates)`);
+    // (G5 triage) the field's own numbers on a miss: lamps, floor spots, cue fills during the pick, footprints from the
+    // spot's lamp, the best contrast and the farthest point at >= 0.40 / >= 0.45 from the feet (the spacing needs ~2.55 m)
+    assert(!pick.none, `shadowCue: a lamp footprint point (contrast >= 0.45) with a guard place on its line, the player unseen behind him (${pick.n} candidates; ${JSON.stringify(pick.diag)})`);
     console.log(`  pick ${JSON.stringify(pick)}`);
     const run = await p2.evaluate(shadowRun, { pick, mode: 'run' });
     const S = run.samples;
