@@ -45,6 +45,7 @@ import {
 import {
   A2_ACROSS_FLAG,
   A2_ACROSS_ZONE,
+  A2_BOARD_SLOT,
   A2_CAB2_REPLAN,
   A2_COAT_LAMP,
   A2_BUILT_NECK_LINES,
@@ -81,7 +82,8 @@ import { flags } from '../../../src/core/flags';
 import { REPLAN_FLOOR_HOLES } from '../../../src/world/maps/ctcourseSets/replan';
 import { checkSetPart, HALL_H, inBox, pieceCount, registerSum, SET_BOX, SET_GUARDS_MAX } from '../../../src/world/maps/ctcourseSets/types';
 import { runtimeNav } from '../../helpers/runtimeNav';
-import { lastTimeAtOrOver, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
+import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
+import { pickTraversal } from '../../../src/player/movement';
 
 const b = new LevelBuilder();
 const built = buildCtcourse(b, { replan: true });
@@ -702,6 +704,8 @@ describe('A2 re-plan: the pit (SA9: x 66.0-69.0, depth 1.6 m)', () => {
       const reach = Math.max(...heights, -Infinity);
       const underWalkway = z > w.z0 - w.board && z < w.z1 + w.board;
       if (underWalkway) continue;
+      // (marlow-kit-geo Q1) the board slot's raised panel: its own case in 'the board slot'
+      if (z >= A2_BOARD_SLOT.z0 - 1e-6 && z <= A2_BOARD_SLOT.z1 + 1e-6) continue;
       expect(reach - floorY, `far face over the floor at z ${z.toFixed(2)}`).toBeGreaterThan(MANTLE);
     }
     // under the walkway deck the floor is a closed box: boards from the floor to 2.2 m on both sides, the deck over, the liners at the ends
@@ -709,13 +713,14 @@ describe('A2 re-plan: the pit (SA9: x 66.0-69.0, depth 1.6 m)', () => {
     expect(boards).toHaveLength(2);
     const deck = own.filter((p) => p.collide && Math.abs(top(p)) < 1e-6 && Math.abs(p.s[0] - (x1 - x0)) < 1e-6 && Math.abs(p.s[2] - (w.z1 - w.z0)) < 1e-6);
     expect(deck).toHaveLength(1);
-    // the barrier is wall to wall but for the walkway's width plus its two boards
+    // the barrier is wall to wall but for the walkway's width plus its two boards, and the board slot's raised panel (marlow-kit-geo Q1)
     const bar = own.filter((p) => p.collide && Math.abs(p.c[0] - (A2_PIT_BARRIER.x0 + A2_PIT_BARRIER.x1) / 2) < 1e-6 && Math.abs(top(p) - A2_PIT_BARRIER.h) < 1e-6);
     expect(bar).toHaveLength(2);
     const sorted = [...bar].sort((p, q) => p.c[2] - q.c[2]);
     expect(sorted[0]!.c[2] - sorted[0]!.s[2] / 2).toBeCloseTo(A2_PIT.z0, 9);
     expect(sorted[0]!.c[2] + sorted[0]!.s[2] / 2).toBeCloseTo(w.z0 - w.board, 9);
-    expect(sorted[1]!.c[2] - sorted[1]!.s[2] / 2).toBeCloseTo(w.z1 + w.board, 9);
+    expect(A2_BOARD_SLOT.z0).toBeCloseTo(w.z1 + w.board, 9);
+    expect(sorted[1]!.c[2] - sorted[1]!.s[2] / 2).toBeCloseTo(A2_BOARD_SLOT.z1, 9);
     expect(sorted[1]!.c[2] + sorted[1]!.s[2] / 2).toBeCloseTo(A2_PIT.z1, 9);
   });
 
@@ -728,6 +733,109 @@ describe('A2 re-plan: the pit (SA9: x 66.0-69.0, depth 1.6 m)', () => {
     // feet height when the centre touches the barrier: the apex line (up to the last time at or over the barrier top it is over it)
     const tTop = lastTimeAtOrOver(0, A2_PIT_BARRIER.h);
     expect(tTop === null || tTop < tFace).toBe(true);
+  });
+});
+
+/**
+ * (marlow-kit-geo Q1) The board slot: where a laid Plank Bridge board bears on the far landing. Engine numbers, read from the
+ * code (`src/player/traversal.ts`, `probe`): the running hop needs speed over 3.5 m/s (:218), looks for a floor 1.4-3.2 m out
+ * (:220) within 0.35 m of the feet's height (:222) and a clear line 0.9 m over the feet (:224); the climb probe samples the
+ * top 0.12 m past the face (:239) and a mantle needs a clear line 0.5 m over the top (:261); `pickTraversal`
+ * (`src/player/movement.ts:136-139`) vaults to 1.25 m and mantles to 1.8 m. A body stays supported past an edge while the
+ * contact is under 50 deg (`src/player/playerController.ts:232`): up to radius x sin 50 deg. Plank Bridge's band (coop-kit
+ * PLAN "Plank Bridge", K5b not built yet): a 3.9 m board, gap 1.0-3.3 m, 0.3 m bearing each end, edges level within 0.3 m,
+ * the laid board a 0.225 x 0.04 m collider.
+ */
+describe('A2 re-plan: the board slot (marlow-kit-geo Q1)', () => {
+  const HOP = { reach: 3.2, level: 0.35, line: 0.9 } as const;
+  const MANTLE_TOP_LINE = 0.5;
+  const TOP_SAMPLE = 0.12;
+  const OVERHANG = MOVEMENT.radius * Math.sin((50 * Math.PI) / 180);
+  const PLANK = { len: 3.9, gapMin: 1.0, gapMax: 3.3, bearing: 0.3, level: 0.3, w: 0.225, t: 0.04 } as const;
+  const s = A2_BOARD_SLOT;
+  const gap = A2_PIT.x1 - A2_PIT.x0;
+  const panel = own.filter((p) => p.collide && Math.abs(bottom(p) - s.y0) < 1e-6 && Math.abs(top(p) - s.h) < 1e-6);
+  /** The floor top under (x, z): the highest collider top at or under y 0.05 there. */
+  const floorAt = (x: number, z: number): number =>
+    Math.max(...solid.filter((p) => top(p) <= 0.05 && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2).map(top), -Infinity);
+
+  it('an open slot cannot work: no gap beats the hop (3.2 m from the feet plus the body past the edge) and fits the board, and a raised landing inside the level band is still hopped', () => {
+    const hopFromEdge = HOP.reach + OVERHANG;
+    expect(hopFromEdge).toBeGreaterThan(PLANK.gapMax);
+    expect(PLANK.level).toBeLessThan(HOP.level);
+  });
+
+  it('a 1.0 m slot opposite the lane strip, between the walkway\'s north board and the road 3 van; the panel is one noLedge collider 0.25-1.1 m over the landing, its back on the barrier\'s line', () => {
+    expect(s.z1 - s.z0).toBeCloseTo(1.0, 9);
+    expect(s.z0).toBeCloseTo(A2_WALKWAY.z1 + A2_WALKWAY.board, 9);
+    expect(s.z1).toBeCloseTo(A2_LANE_ZONE[3], 9);
+    // the road 3 van's south face is the strip's north side, out to the pit's edge
+    const van = solid.find((p) => Math.abs(p.c[2] - p.s[2] / 2 - s.z1) < 1e-6 && Math.abs(p.c[0] + p.s[0] / 2 - A2_PIT.x0) < 1e-6 && top(p) > 3);
+    expect(van).toBeDefined();
+    expect(panel).toHaveLength(1);
+    const q = panel[0]!;
+    expect(q.noLedge).toBe(true);
+    expect([q.c[0] - q.s[0] / 2, q.c[0] + q.s[0] / 2]).toEqual([expect.closeTo(s.x0, 9), expect.closeTo(s.x1, 9)]);
+    expect([q.c[2] - q.s[2] / 2, q.c[2] + q.s[2] / 2]).toEqual([expect.closeTo(s.z0, 9), expect.closeTo(s.z1, 9)]);
+    expect(s.x1).toBe(A2_PIT_BARRIER.x1);
+    expect(s.h).toBe(A2_PIT_BARRIER.h);
+  });
+
+  it('a laid board spans the 3.0 m pit with 0.45 m bearing each end (band 1.0-3.3 m and 0.3 m bearing, 0.3 m margin both ways), the edges level, and slides under the panel with nothing in its way', () => {
+    expect(gap).toBeGreaterThanOrEqual(PLANK.gapMin + 0.3);
+    expect(gap).toBeLessThanOrEqual(PLANK.gapMax - 0.3 + 1e-9);
+    const bearing = (PLANK.len - gap) / 2;
+    expect(bearing).toBeGreaterThanOrEqual(PLANK.bearing + 0.15 - 1e-9);
+    // the far end bears on the landing behind the panel, short of the L2 wall
+    expect(A2_PIT.x1 + bearing).toBeLessThan(A2_L2_FACE_X);
+    for (let z = s.z0 + PLANK.w / 2 + 0.01; z <= s.z1 - PLANK.w / 2 - 0.01; z += 0.05) {
+      const near = floorAt(A2_PIT.x0 - bearing / 2, z);
+      const far = floorAt(A2_PIT.x1 + bearing / 2, z);
+      expect(Math.abs(near - far), `edges at z ${z.toFixed(2)} (band ${PLANK.level} m)`).toBeCloseTo(0, 9);
+      expect(near).toBeCloseTo(0, 9);
+      // nothing solid in the board's volume (with 0.15 m over it) from end to end
+      const x0 = A2_PIT.x0 - bearing;
+      const x1 = A2_PIT.x1 + bearing;
+      const hit = solid.filter((p) => bottom(p) < PLANK.t + 0.15 && top(p) > 0.005 && p.c[0] - p.s[0] / 2 < x1 && p.c[0] + p.s[0] / 2 > x0 && Math.abs(z - p.c[2]) < p.s[2] / 2 + PLANK.w / 2);
+      expect(hit.map((p) => `(${p.c.join(', ')}) size (${p.s.join(', ')})`), `board at z ${z.toFixed(2)}`).toEqual([]);
+    }
+    expect(s.y0 - PLANK.t).toBeGreaterThanOrEqual(0.15);
+  });
+
+  it('a body walks the laid board from the near edge to the panel (nothing in its band at the strip\'s middle)', () => {
+    const z = (s.z0 + s.z1) / 2;
+    for (let x = A2_PIT.x0; x <= s.x0 - MOVEMENT.radius - 0.04 + 1e-9; x += 0.1) expect(blockedAt(x, z, PLANK.t), `x ${x.toFixed(2)}`).toEqual([]);
+  });
+
+  it('a player alone cannot pass it: the panel covers the hop\'s clear line and the mantle\'s top-clear line with 0.2 m to spare, no body fits the slot under it, and the far edge is covered at every z but the walkway', () => {
+    expect(s.y0 + 0.2).toBeLessThanOrEqual(MANTLE_TOP_LINE);
+    expect(s.y0 + 0.2).toBeLessThanOrEqual(HOP.line);
+    expect(s.h - 0.2).toBeGreaterThanOrEqual(HOP.line);
+    expect(s.y0).toBeLessThan(MOVEMENT.crouchHeight);
+    // the mantle out of the pit at the slot: the far face is the landing (1.6 m, under the 1.8 m mantle), so the top-clear line decides
+    expect(A2_PIT.depth).toBeLessThan(MANTLE);
+    expect(pickTraversal({ height: A2_PIT.depth, depth: 0.75, landingClear: false, topClear: false })).toBe('none');
+    // every z of the far edge but the walkway's opening: a collider holds both lines on the edge's line (x 69.0-69.04)
+    const w = A2_WALKWAY;
+    for (let z = A2_PIT.z0 + 0.05; z < A2_PIT.z1; z += 0.05) {
+      if (z > w.z0 - w.board && z < w.z1 + w.board) continue;
+      for (const y of [MANTLE_TOP_LINE, HOP.line]) {
+        const held = solid.some((p) => p.c[0] - p.s[0] / 2 <= A2_PIT_BARRIER.x0 + 1e-9 && p.c[0] + p.s[0] / 2 >= A2_PIT_BARRIER.x1 - 1e-9 && Math.abs(z - p.c[2]) <= p.s[2] / 2 + 1e-9 && bottom(p) < y && top(p) > y);
+        expect(held, `far edge at z ${z.toFixed(2)}, y ${y}`).toBe(true);
+      }
+    }
+    // the manual running jump: its apex stays under the panel's top, and it falls short of the panel's face
+    expect(LEAP_APEX).toBeLessThan(s.h);
+    const t0 = lastTimeAtOrOver(0, 0)!;
+    expect(SOLO_TOP_SPEED * t0 + MOVEMENT.radius).toBeLessThan(s.x0 - A2_PIT.x0);
+  });
+
+  it('the crosser climbs it off the board\'s end: a vault over the board\'s top, the probe\'s top sample lands on the 0.19 m panel, and a body fits on the strip behind it', () => {
+    expect(pickTraversal({ height: s.h - PLANK.t, depth: s.x1 - s.x0, landingClear: true, topClear: true })).toBe('vault');
+    expect(s.x1 - s.x0).toBeGreaterThanOrEqual(TOP_SAMPLE + 0.05);
+    expect(A2_L2_FACE_X - s.x1).toBeGreaterThanOrEqual(2 * (MOVEMENT.radius + 0.04));
+    // the strip behind the panel is clear for a standing body
+    expect(blockedAt(s.x1 + MOVEMENT.radius + 0.04, (s.z0 + s.z1) / 2)).toEqual([]);
   });
 });
 
@@ -938,5 +1046,4 @@ describe('station 5 kit spot (marlow-kit-wire)', () => {
     expect(objText(off, 'a2-plank')).toBe('Cross the pit by the east vans on the hoarded walkway to the L2 door.');
   });
 
-  it.todo('Q1: a laid board has nowhere to bear on the far landing (the barrier runs wall to wall but for the walkway)');
 });
