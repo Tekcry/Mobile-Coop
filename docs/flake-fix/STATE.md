@@ -8,9 +8,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - #615 (F8, J20 PR-B) MERGED. Connectors already off.
 - Sector Ops SO3 torch GPU results (dddbfdcd, 6 rows) sent to Sector Ops by message: 16 lit at Low holds (p95 6.0 ms).
 - ~23:28 (Orchestrator, piano walk Tue ~09:00): laptop task NightShift-laptop-queue now sets
-  LQ_FRONT_BRANCHES='mixamo,feature/piano-' (service restarted after train 140). Undo after the walk: drop
-  `feature/piano-` from the task's Arguments, restart the service between trains. Campaign withdrew its walk-build
-  request (c5f8b694) to re-file at the S4 PR; the re-file is fronted by branch. Trains 139-141 green.
+  LQ_FRONT_BRANCHES='mixamo,feature/piano-,feature/guard-ai-piano' (restarted after trains 140 and 142). Undo after the walk: back to 'mixamo' (drop both piano entries) in
+  the task's Arguments, restart the service between trains. Campaign withdrew its walk-build
+  request (c5f8b694) to re-file at the S4 PR; the re-file is fronted by branch. Trains 139-142 green.
 - walkfix3 logs (PR #610) pushed to origin/laptop-queue logs/marlow-walkfix3/ for Marlow's triage.
 - Next: watch trains; triage any train failure (Opus) and tell the Orchestrator; undo the piano front after the walk.
 
