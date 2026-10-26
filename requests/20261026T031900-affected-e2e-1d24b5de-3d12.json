@@ -1,0 +1,15 @@
+{
+  "id": "20261026T031900-affected-e2e-1d24b5de-3d12",
+  "sha": "1d24b5de7d46428d656d99327ac8b1ed945dc2ae",
+  "branch": "feature/player-flake-fix",
+  "pr": 548,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove",
+    "e2e-pad",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #548"
+}
