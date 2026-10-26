@@ -124,12 +124,31 @@ describe('patrol sweep: the schedule', () => {
     for (const i of a.heldAt) expect(plan.wait[i]).toBeGreaterThan(0);
   });
 
-  it('pans left, then right, at every pan stop every lap (side +1); mirrored for side -1', () => {
+  it('pans left, then right, at every pan stop every lap (side +1); mirrored for side -1; an early arrival looks at the centre, then one full cycle ends at leave (GA6b)', () => {
     for (const side of [1, -1]) {
       const a = swept(plan, side);
       a.run(plan.period * 5);
       expect(a.holds.length).toBeGreaterThanOrEqual(9);
-      for (const h of a.holds) {
+      let early = 0;
+      for (let k = 0; k < a.deps.length; k++) {
+        // every finished hold: the last look is the far extreme (the cycle was not cut part way into a second one)
+        const h = a.holds[k]!;
+        const c = plan.centre[h.idx]!;
+        const D = plan.wait[h.idx]!;
+        const ys = h.yaws;
+        expect(wrapAng(ys[ys.length - 1]! - c)).toBeCloseTo(side * S.panYaw, 6);
+        const cyc = Math.round(D / DT);
+        if (ys.length > cyc + 2) {
+          early++;
+          // longer than D (he came early: no turn on the stand-in): the centre until leave - D
+          for (let j = 0; j < ys.length - cyc - 3; j++) expect(ys[j]).toBeCloseTo(c, 9);
+          // then the whole cycle: out to the first side at D/4 from its start
+          expect(wrapAng(ys[ys.length - cyc - 1 + Math.round(cyc / 4)]! - c)).toBeCloseTo(-side * S.panYaw, 1);
+        }
+      }
+      expect(early).toBeGreaterThan(0);
+      // (the run may end inside a hold still looking at the centre: finished holds only)
+      for (const h of a.holds.slice(0, a.deps.length)) {
         const c = plan.centre[h.idx]!;
         let iMin = 0;
         let iMax = 0;
@@ -279,6 +298,28 @@ describe('patrol sweep: rejoin (N3)', () => {
     a.run(plan.period + 30);
     expect(a.deps.length).toBeGreaterThan(0);
     for (const h of a.holds) expect(h.yaws.length * DT).toBeLessThanOrEqual(plan.period + 2 * DT);
+  });
+
+  it('a rejoin hold longer than 2 D pans whole cycles while he waits, the last one ending at leave (GA6b)', () => {
+    const a = swept(plan);
+    a.run(2);
+    a.w.rejoin(0.2, 3.5);
+    a.held = false;
+    const k0 = a.holds.length;
+    a.run(plan.period + 30);
+    const h = a.holds[k0]!;
+    const D = plan.wait[h.idx]!;
+    const c = plan.centre[h.idx]!;
+    expect(h.yaws.length * DT).toBeGreaterThan(2 * D);
+    // the far extreme (side +1: right) reached more than once, and the hold ends on it
+    let rights = 0;
+    for (let k = 1; k < h.yaws.length; k++) {
+      const o = wrapAng(h.yaws[k]! - c);
+      const p = wrapAng(h.yaws[k - 1]! - c);
+      if (o >= S.panYaw - 1e-6 && p < S.panYaw - 1e-6) rights++;
+    }
+    expect(rights).toBeGreaterThan(1);
+    expect(wrapAng(h.yaws[h.yaws.length - 1]! - c)).toBeCloseTo(S.panYaw, 6);
   });
 
   it('two walkers on one schedule are abreast again after rejoining at different stops', () => {

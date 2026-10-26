@@ -71,13 +71,16 @@ export class PatrolWalker {
   private swClock0 = 0;
   /** Sweep time (unwrapped) the current hold ends, NaN = walking. */
   private swHoldEnd = Number.NaN;
-  /** Seconds into the current pan cycle, -1 = not started (turning onto it: N2). */
-  private swPanE = -1;
+  /** Seconds into the current pan cycle, NaN = not started (turning onto it: N2); below 0: looking at its start yaw
+   *  until whole cycles end at `leave` (GA6b). */
+  private swPanE = Number.NaN;
   /** A rejoin's target stop (-1: none) and the sweep time (unwrapped) he is back in step there. */
   private swRejoinIdx = -1;
   private swRejoinUntil = 0;
   /** `idx` when the sweep was set (restored by `clearSweep`). */
   private swIdx0 = 0;
+  /** (GA6b) The current hold is a rejoin's catch-up hold (it pans whole cycles), not a schedule stop. */
+  private swHoldRejoin = false;
 
   constructor(
     readonly route: PatrolRoute | null,
@@ -117,7 +120,7 @@ export class PatrolWalker {
     this.swClock0 = this.clock;
     this.idx = plan.startIdx;
     this.swHoldEnd = Number.NaN;
-    this.swPanE = -1;
+    this.swPanE = Number.NaN;
     this.swRejoinIdx = -1;
     this.waitT = 0;
     this.lookYaw = Number.NaN;
@@ -129,7 +132,7 @@ export class PatrolWalker {
     this.sw = null;
     this.idx = this.swIdx0;
     this.swHoldEnd = Number.NaN;
-    this.swPanE = -1;
+    this.swPanE = Number.NaN;
     this.swRejoinIdx = -1;
     this.waitT = 0;
     this.lookYaw = Number.NaN;
@@ -230,7 +233,7 @@ export class PatrolWalker {
         return null;
       }
       this.swHoldEnd = Number.NaN;
-      this.swPanE = -1;
+      this.swPanE = Number.NaN;
       this.idx = (this.idx + 1) % n;
     }
     // at most one pass round the stops (corners and one-spot legs are passed in the same step)
@@ -245,17 +248,19 @@ export class PatrolWalker {
       if (this.swRejoinIdx === this.idx) {
         rem = this.swRejoinUntil - now;
         this.swRejoinIdx = -1;
+        this.swHoldRejoin = true;
       } else if (w > 0) {
         // how late against the planned arrival (leave - wait), within half a lap either way
         let late = wrapTime(now - (pl.leave[this.idx]! - w), pl.period);
         if (late >= pl.period / 2) late -= pl.period;
         rem = w - late;
+        this.swHoldRejoin = false;
       } else {
         this.idx = (this.idx + 1) % n;
         continue;
       }
       this.swHoldEnd = now + (rem > 1e-3 ? rem : 1e-3);
-      this.swPanE = -1;
+      this.swPanE = Number.NaN;
       this.swPan(0, bodyYaw);
       return null;
     }
@@ -263,20 +268,30 @@ export class PatrolWalker {
     return pl.pts[this.idx]!;
   }
 
-  /** The look while holding a sweep stop: onto the pan's start yaw, then (once the body is there) the pan. */
+  /**
+   * The look while holding a sweep stop: onto the pan's start yaw, then (once the body is there) the pan. (GA6b) A hold
+   * longer than the cycle D looks at the start yaw first: an early arrival at a schedule stop until `leave - D`, then
+   * one full cycle (left, centre, right) ending at `leave`; a rejoin's catch-up hold only until whole cycles end at
+   * `leave` (he pans while he waits for his schedule). A shorter hold is cut at `leave`.
+   */
   private swPan(dt: number, bodyYaw: number): void {
     const pl = this.sw!;
     const i = this.idx;
     const fr = pl.from[i]!;
     const face = fr === fr;
     const c = pl.centre[i]!;
-    if (this.swPanE < 0) {
-      const s = face ? fr : c;
+    const s = face ? fr : c;
+    const D = pl.wait[i]!;
+    if (!(this.swPanE === this.swPanE)) {
       this.lookYaw = s;
       if (bodyYaw === bodyYaw && Math.abs(wrapAng(bodyYaw - s)) > SCENE_SWEEP.panGate) return;
-      this.swPanE = 0;
+      const rem = this.swHoldEnd - this.swNow();
+      this.swPanE = rem > D ? -(this.swHoldRejoin ? wrapTime(rem - D, face ? 2 * D : D) : rem - D) : 0;
     } else this.swPanE += dt;
-    const D = pl.wait[i]!;
+    if (this.swPanE < 0) {
+      this.lookYaw = s;
+      return;
+    }
     this.lookYaw = face ? facePanYaw(fr, c, D, this.swPanE) : panYaw(c, this.swSide, D, this.swPanE);
   }
 
@@ -360,7 +375,7 @@ export class PatrolWalker {
     this.idx = k;
     this.waitT = 0;
     this.swHoldEnd = Number.NaN;
-    this.swPanE = -1;
+    this.swPanE = Number.NaN;
     this.lookYaw = Number.NaN;
     this.swRejoinIdx = -1;
     if (pl.wait[k]! > 0) {
