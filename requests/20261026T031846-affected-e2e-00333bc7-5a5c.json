@@ -1,0 +1,23 @@
+{
+  "id": "20261026T031846-affected-e2e-00333bc7-5a5c",
+  "sha": "00333bc7ca3f69ca1f8ac49e048b9b3aa46fb76e",
+  "branch": "feature/map-ready-s3",
+  "pr": 551,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-move",
+    "e2e-park",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #551"
+}
