@@ -1,0 +1,15 @@
+{
+  "id": "20261026T094033-affected-e2e-1605c60f-46cb",
+  "sha": "1605c60fad4d6d6f09f430f80c3f15eb5651ca8b",
+  "branch": "feature/piano-escape",
+  "pr": 606,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #606"
+}
