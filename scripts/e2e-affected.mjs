@@ -10,6 +10,9 @@
 //
 // A suite name may carry a part (`e2e-sectorops:1`): one job of a suite that runs in parts. A whole suite in the result
 // absorbs its parts. Names outside the runner's lists (GPU suites, a suite whose script is gone) are filtered by the runner.
+// (affected-cap) An affected pick runs at most AFFECTED_MAX suites, the closest to the change: `affectedPick` (map, wire, gate, cap).
+
+import TIMES from './e2e-times.json' with { type: 'json' };
 
 // The runner's lists (scripts/run-e2e.mjs imports them): LEGACY = parked content, run by `npm run e2e:legacy` and
 // REPORT ONLY in a quick / affected run; GPU = visual read-backs, `--gpu` only (no visual result from SwiftShader).
@@ -18,17 +21,42 @@ export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bun
 // e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
 export const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
+// REPORT ONLY too: the audio suites (moved here from scripts/run-e2e.mjs; S2 switches its import).
+export const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
+
 /**
- * The suites an affected request runs (laptop-queue lib affectedSuites: the service's affected pass and request.mjs
- * --affected): `suites` without the GPU-only and LEGACY suites, whole or as a part (docs/systems/testing-tools.md: GPU
- * suites never, legacy REPORT ONLY). A request's suites run by name, where nothing is REPORT ONLY, so left in they ran
- * and gated affected-e2e (audit 2026-10-25: PR #400's request named e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A
- * part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part token; the whole suite stays (its named run
- * expands to the non-GPU parts).
+ * The suites an affected request runs as a gate (laptop-queue lib affectedSuites: the service's affected pass and
+ * request.mjs --affected): `suites` without the GPU-only, LEGACY and AUDIO suites, whole or as a part
+ * (docs/systems/testing-tools.md: GPU suites never, legacy and audio REPORT ONLY). A request's suites run by name, where
+ * nothing is REPORT ONLY, so left in they ran and gated affected-e2e (audit 2026-10-25: PR #400's request named
+ * e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part
+ * token; the whole suite stays (its named run expands to the non-GPU parts). `affectedReportSuites` is the other half.
  */
 export function affectedGateSuites(suites) {
-  const off = new Set([...LEGACY, ...GPU]);
+  const off = new Set([...LEGACY, ...GPU, ...AUDIO]);
   return (suites ?? []).filter((s) => !off.has(s) && !(s.includes(':') && off.has(s.split(':')[0])));
+}
+
+/** The entries of `suites` that are LEGACY or AUDIO (whole or part token, the gate's rule): they run REPORT ONLY. GPU never (BRIEF A1). */
+export function affectedReportSuites(suites) {
+  const rep = new Set([...LEGACY, ...AUDIO]);
+  const gpu = new Set(GPU);
+  return (suites ?? []).filter((s) => !gpu.has(s) && !(s.includes(':') && gpu.has(s.split(':')[0])) && (rep.has(s) || (s.includes(':') && rep.has(s.split(':')[0]))));
+}
+
+/** Paths of the wire: `src/net/` plus every `../x/y` import of protocol.ts as `src/x/y.ts` (a trailing "/" is a folder). */
+export function wirePaths(protocolTs) {
+  const out = ['src/net/'];
+  for (const m of protocolTs.matchAll(/\bfrom\s+'\.\.\/([^']+)'/g)) {
+    const p = `src/${m[1]}.ts`;
+    if (!out.includes(p)) out.push(p);
+  }
+  return out;
+}
+
+/** True when any changed file is a wire path. */
+export function touchesWire(files, paths) {
+  return files.some((f) => paths.some((p) => (p.endsWith('/') ? f.startsWith(p) : f === p)));
 }
 
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
@@ -190,6 +218,7 @@ export const WIDE_COVERS = {
   'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
+  'src/world/maps/campus': ['e2e-sectorops', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse', 'e2e-section-rating'],
   // (marlow-final 0d) the Marlow Yard set parts, facility and greybox helpers: e2e-ctcourse, and e2e-section-rating (rates A2-A8)
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse', 'e2e-section-rating'],
@@ -226,7 +255,7 @@ export const WIDE_COVERS = {
 // A path under `src/` not listed here runs smoke + CORE. The first matching prefix wins.
 const GAME = ['e2e-gadgets', 'e2e-tactics', 'e2e-takedown', 'e2e-park'];
 const LIGHT = ['e2e-lightbake', 'e2e-desktop', 'e2e-darkness'];
-const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
+export const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
 export const DIRECT_COVERS = {
   // the studio and tuner files: their own suites (the tuner / Anim Studio test tier), not their folder's
   'src/anim/studio': ['e2e-studio', 'e2e-anim'],
@@ -306,6 +335,8 @@ export const DIRECT_COVERS = {
   // the Warehouse map itself: its routes suite (legacy) and the usual world suites
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
+  // (J20 T5) Saltmarsh Park: its suite is e2e-sectorops part 6
+  'src/world/maps/campus': ['e2e-sectorops:6', 'e2e-levels', 'e2e-anchors'],
   // the lamp files: the bake suite, the desktop renderer and the GPU darkness read-back (dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,
@@ -336,12 +367,12 @@ export const DIRECT_COVERS = {
 
 // --affected, outside src/: a suite script or its helper reruns that suite; the helper and the runner rerun CORE; docs and tests
 // need no browser (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
-export const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!affected\.mjs$|(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
+export const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!affected\.mjs$|verdict\.mjs$|(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 export const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
 // (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it; master's --quick rule too
 export const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
 const inDir = (f) => Object.entries(SUITE_DIRS).find(([d]) => f.startsWith(d))?.[1];
-const CORE_FILES = /^(scripts\/(e2e-lib|e2e-affected|run-e2e)\.mjs|package(-lock)?\.json|index\.html|vite\.config\.\w+|public\/)/;
+const CORE_FILES = /^(scripts\/(e2e-lib|e2e-affected|e2e-verdict|run-e2e)\.mjs|package(-lock)?\.json|index\.html|vite\.config\.\w+|public\/)/;
 // no browser run: docs, markdown, changelog fragments (docs/**, *.md, changes/**), unit tests, the e2e timings file
 const NO_BROWSER = /^(docs\/|changes\/|tests\/|scripts\/e2e-times\.json$)|\.md$/i;
 
@@ -381,6 +412,98 @@ export function selectSuites(files, map = DIRECT_COVERS) {
     for (const s of hit) picked.add(s);
   }
   return [...picked].filter((s) => !s.includes(':') || !picked.has(s.split(':')[0])).sort();
+}
+
+/** `suites` plus the co-op group when a changed file is on the wire (protocol.ts text `protocolTs`, non-empty); sorted unique, a whole suite absorbs its parts. Pure. */
+export function withWireSuites(suites, files, protocolTs) {
+  if (typeof protocolTs !== 'string' || !protocolTs || !touchesWire(files, wirePaths(protocolTs))) return suites;
+  const all = new Set([...suites, ...COOP]);
+  return [...all].filter((s) => !s.includes(':') || !all.has(s.split(':')[0])).sort();
+}
+
+// ---- affected-cap: an automatic affected run names at most AFFECTED_MAX suites, the closest to the change ----
+
+/** The automatic cap (the service's affected requests and re-file, run-e2e / request.mjs `--affected`); 0 = no cap. */
+export const AFFECTED_MAX = 3;
+
+/** `--affected-max` / `E2E_AFFECTED_MAX`: a whole number >= 0 (0 = no cap); anything else (unset, '', 'x', -1, 2.5) is AFFECTED_MAX. */
+export function parseAffectedMax(v) {
+  if (v === undefined || v === null || String(v).trim() === '') return AFFECTED_MAX;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 ? n : AFFECTED_MAX;
+}
+
+const base = (s) => String(s).split(':')[0];
+const coopRow = (row) => COOP.every((s) => row.includes(s));
+
+/** Expected seconds of a suite: a part token its own key; a whole suite the sum of its part keys when any exist, else its key; 60 s unknown. */
+export function suiteTime(s, times = TIMES) {
+  if (s.includes(':')) return times[s] ?? 60;
+  const parts = Object.keys(times).filter((k) => k.startsWith(`${s}:`));
+  return parts.length ? parts.reduce((t, k) => t + times[k], 0) : (times[s] ?? 60);
+}
+
+/**
+ * `suites` sorted closest first (BRIEF A1), every comparison on the suite base (`e2e-sectorops:1` counts as `e2e-sectorops`):
+ * (1) hits: how many changed files reach it (their row names the base), more first; (2) depth: over those files, under `src/`
+ * the shortest key of `map` the file matches whose row names the base (a specific row's own suite outranks its folder's;
+ * none: 0, the CORE fallback), outside `src/` the path length for a suite script, step module or helper, 0 for the runner
+ * and build files; deeper first; (3) shorter `suiteTime`; (4) name. File order never matters.
+ */
+export function rankAffected(files, suites, { map = DIRECT_COVERS, times = TIMES } = {}) {
+  const hits = new Map();
+  const depth = new Map();
+  for (const file of files ?? []) {
+    const f = norm(String(file));
+    const row = suitesForFile(f, map);
+    if (!row) continue;
+    for (const b of new Set(row.map(base))) {
+      hits.set(b, (hits.get(b) ?? 0) + 1);
+      let d = 0;
+      if (f.startsWith('src/')) {
+        for (const [k, list] of Object.entries(map)) if (f.startsWith(k) && list.some((s) => base(s) === b) && (!d || k.length < d)) d = k.length;
+      } else if (!CORE_FILES.test(f)) d = f.length;
+      depth.set(b, Math.max(depth.get(b) ?? 0, d));
+    }
+  }
+  return [...suites].sort((x, y) => {
+    const a = base(x);
+    const b = base(y);
+    return (hits.get(b) ?? 0) - (hits.get(a) ?? 0) || (depth.get(b) ?? 0) - (depth.get(a) ?? 0) || suiteTime(x, times) - suiteTime(y, times) || (x < y ? -1 : x > y ? 1 : 0);
+  });
+}
+
+/**
+ * The cap on an affected list (`suites`, already gated): at most `max` suite bases in rank order (parts of a taken base
+ * ride along), sorted; `max` 0 returns `suites` unchanged. The co-op group alone when a file is on the wire (`wire`) or
+ * its DIRECT row names the whole group (`src/net`, `src/save`, `src/security/data`; BRIEF A3). `smoke` takes no slot
+ * unless a changed file reaches it, and stays when the cap leaves nothing else (an audio-only change, A4).
+ */
+export function capAffected(files, suites, { max = AFFECTED_MAX, map = DIRECT_COVERS, times = TIMES, wire = false } = {}) {
+  if (!max) return suites;
+  if (wire || (files ?? []).some((f) => coopRow(suitesForFile(String(f), DIRECT_COVERS) ?? []))) return [...COOP].sort();
+  const smoke = (files ?? []).some((f) => (suitesForFile(String(f), map) ?? []).includes('smoke'));
+  const taken = new Set();
+  const out = [];
+  for (const s of rankAffected(files, suites.filter((s) => smoke || s !== 'smoke'), { map, times })) {
+    if (!taken.has(base(s)) && taken.size >= max) continue;
+    taken.add(base(s));
+    out.push(s);
+  }
+  if (!out.length && suites.includes('smoke')) return ['smoke'];
+  return out.sort();
+}
+
+/**
+ * The one affected pick (run-e2e `--affected`, request.mjs `--affected`, the service through lib affectedSuites): the DIRECT
+ * (or WIDE) map, the wire rule (protocol.ts text `protocolTs`), the GPU / LEGACY / AUDIO gate, then the cap. `max`
+ * unset: AFFECTED_MAX, but `wide` stays uncapped unless a max is given (A5); 0 = no cap.
+ */
+export function affectedPick(files, { max, wide = false, protocolTs = '', times = TIMES } = {}) {
+  const map = wide ? WIDE_COVERS : DIRECT_COVERS;
+  const all = affectedGateSuites(withWireSuites(selectSuites(files, map), files, protocolTs));
+  const wire = typeof protocolTs === 'string' && protocolTs !== '' && touchesWire(files.map(norm), wirePaths(protocolTs));
+  return capAffected(files, all, { max: max ?? (wide ? 0 : AFFECTED_MAX), map, times, wire });
 }
 
 // ---- auto-train's auto-drop (scripts/auto-train.mjs pickDrops): which suites a train member reaches ----

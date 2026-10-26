@@ -78,6 +78,7 @@ character faces -Y after import; M2 measures the facing, never assumes it):
   frames, fps }] }`.
 
 ## Slices
+Batch 2 B + C (slices I7-I14, the pistol / rifle / shooter / action-adventure packs and 17 singles): [BATCH2-PLAN.md](BATCH2-PLAN.md).
 Model per RULES: Opus for anim / engine code and the pipeline maths; Sonnet only from strict Opus briefs (data,
 tests, credits). Sizes are changed lines. Every slice: branch guard, path-limited commits, `npm run typecheck:fast` +
 `npx vitest run <its files>`, fresh checker. Blender runs (M1 run step only) wait for the orchestrator to lift the
@@ -214,7 +215,7 @@ with the clips on. Tests: `tests/mixamoTraverse.test.ts` (off identity, reach an
 Parallel with I1, I3 (different blocks of animGraph; if both touch the same block the lead serialises them).
 
 **I3 Stance changes (Opus, ~400).** Crouch-to-stand / stand-to-crouch as timed one-shots over the stance blend, timed
-by the game's stance clock (never faster than 0.25 / 0.3 s), on the mocap share; drawn stance stays as today. Tests:
+by the game's stance clock (the player's `MOVEMENT.crouchTime` / `standTime`, 0.22 s each), on the mocap share; drawn stance stays as today. Tests:
 `tests/mixamoStance.test.ts`. Laptop: `affected-e2e` (`src/anim`), `e2e-anim`, `e2e-move`, `e2e-stealth`; look video.
 Depends: M3, M5. Serialised after I1 if both edit the same graph block.
 

@@ -371,8 +371,11 @@ describe('G2 gatehouse (S1-detail C2)', () => {
     expect(win(20, -73.8)).toMatchObject({ open: false, breakable: false, sillHeight: 0.9 });
     expect(win(19.2, -72.5)).toMatchObject({ open: false, breakable: false, sillHeight: 0.9 });
     expect(win(13.5, -76)).toMatchObject({ open: false, breakable: true, sillHeight: 0.9 });
-    // the objective PC is still 1.15 m from the open pane (SEC:315)
-    expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeCloseTo(1.15);
+    // (F42) the objective PC sits on the PC desk's north end (19.3, -77.3), off E2's vault landing: 1.74 m from a player at
+    // the open pane (the wall face 20.15 + the 0.3 body), inside the default interact reach 1.8 (was 1.15 at (19.3, -76))
+    expect(S1.objective).toMatchObject({ x: 19.3, z: -77.3 });
+    expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeCloseTo(Math.sqrt(1.15 * 1.15 + 1.3 * 1.3), 6);
+    expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeLessThan(1.8);
   });
 
   it('G2 roof: east lip only, hatch open', () => {
@@ -404,12 +407,13 @@ describe('G2 gatehouse (S1-detail C2)', () => {
       expect(l.intensity).toBeGreaterThan(0);
       expect(l.destructible && l.electric).toBe(true);
     }
-    const lit = levelAt(19.35, 0.9, -76);
+    // (F42) the PC desk point: the desk moved south of E2 to (19.35, -77.75), off the vault landing
+    const lit = levelAt(19.35, 0.9, -77.75);
     for (const l of gate) l.on = false;
-    const cut = levelAt(19.35, 0.9, -76);
+    const cut = levelAt(19.35, 0.9, -77.75);
     for (const l of gate) l.on = true;
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`G2 PC desk (19.35, 0.9, -76): lit ${lit.toFixed(3)}, gate cut ${cut.toFixed(3)}`);
+    if (process.env.CAMPUS_PRINT) console.log(`G2 PC desk (19.35, 0.9, -77.75): lit ${lit.toFixed(3)}, gate cut ${cut.toFixed(3)}`);
     expect(cut).toBeLessThan(LIGHT.shadow);
   });
 

@@ -40,6 +40,9 @@ export interface Flags {
   devDraft: boolean;
   /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
   spawn: { x: number; z: number; level: string; yaw: number } | null;
+  /** (campus-greybox A28) Sector Ops, dev and walk links (`?sectorStart=N`, N 1-9): every run on the page starts at section
+   *  N as its connectors leave it, a practice run (nothing saved); null when absent. The co-op host's link wins. */
+  sectorStart: number | null;
   /** Music project: `?musiclab=1` opens the music lab (a debug screen) after boot. */
   musicLab: boolean;
   /** `?foleylab=1` opens the foley lab (movement sounds, a debug screen) after boot. */
@@ -73,6 +76,12 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
+   *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged. */
+  marlowReplan: boolean;
+  /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
+   *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). */
+  charShadowLight: boolean;
   /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
    *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
    *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off. */
@@ -150,6 +159,7 @@ export const flags: Flags = {
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
+  sectorStart: /^[1-9]$/.test(params.get('sectorStart') ?? '') ? Number(params.get('sectorStart')) : null,
   musicLab: params.get('musiclab') === '1',
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
@@ -164,6 +174,8 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  marlowReplan: params.get('marlowreplan') === '1',
+  charShadowLight: params.get('charlight') === '1',
   mapReady: params.get('mapready') === '1',
   campusV2: readCampusV2(params.get('campusv2')),
 };

@@ -347,10 +347,15 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   // the fixed rear pane and the fixed north pane (A2: closed, not breakable)
   b.windowAt(20, 1.5, -73.8, 1.2, 1.2, PI / 2, { sill: 0.9, open: false, breakable: false });
   b.windowAt(19.2, 1.5, -72.5, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: false });
-  // the CCTV desk flush to the north wall (A5), the PC desk by the rear window, the kettle counter
+  // the CCTV desk flush to the north wall (A5), the PC desk by the rear window, the kettle counter. (F42) The PC desk stands
+  // on the east wall south of the open rear pane E2 (z -78.55..-76.95), not under it: a vault through E2 lands 0.9 m inside
+  // (x 19.1, z -76 +- 0.4, the 0.3 body round it), and a 0.75 desk there is 0.75 over the verge floor, past the vault's 0.6
+  // landing step (`Traversal.windowProbe`), so the declared vault could not be made either way. The kettle counter moved
+  // 0.35 m west to make room (x 17.25..18.85); the CCTV officer's kettle stop (18.4, -77.65) still faces it and his route
+  // line x 18.3-18.4 keeps its 0.5 m gap to the desk's west face (x 18.9). The CCTV desk and the fixed pane E are untouched.
   b.block(18.8, -73.0, 1.6, 0.75, 0.7, DESK);
-  b.block(19.35, -76, 0.9, 0.75, 1.6, DESK);
-  b.block(18.4, -78.55, 1.6, 0.9, 0.6, STEEL);
+  b.block(19.35, -77.75, 0.9, 0.75, 1.6, DESK);
+  b.block(18.05, -78.55, 1.6, 0.9, 0.6, STEEL);
   // the ceiling tube and the warm desk lamp on the CCTV desk, both on the gate circuit (switch by the door: lure #1)
   lamp(b, L.gate);
   lamp(b, L.deskLamp);

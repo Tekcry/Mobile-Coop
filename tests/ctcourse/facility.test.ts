@@ -69,6 +69,22 @@ describe('facility dressing: the shell is as 0d built it', () => {
     expect(b.anchors.all.length).toBe(SHELL.anchors);
     expect(b.lights.lights.length).toBe(SHELL.lights);
   });
+  it('(J14) the re-plan shell with an empty hole table is the built shell: the same 188 boxes and checksum; one slab hole adds cut pieces, no box over it', () => {
+    const sumOf = (list: readonly { c: readonly number[]; s: readonly number[]; yaw: number; collide?: boolean; visible?: boolean; overhead?: boolean }[]): number => {
+      let s = 0;
+      for (const p of list) s += (p.c[0]! + 2 * p.c[1]! + 3 * p.c[2]! + 5 * p.s[0]! + 7 * p.s[1]! + 11 * p.s[2]! + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
+      return s;
+    };
+    const rb = new LevelBuilder();
+    buildFacility(rb, new FacilityKit(rb), []);
+    expect(sumOf(rb.boxes.slice(0, SHELL.boxes))).toBeCloseTo(SHELL.checksum, 3);
+    expect(rb.boxes.length).toBe(b.boxes.length);
+    const hb = new LevelBuilder();
+    buildFacility(hb, new FacilityKit(hb), [[50, 10, 53, 13]]);
+    const slab = hb.boxes.filter((p) => p.c[1] === -0.2 && p.s[1] === 0.4 && p.c[0] - p.s[0] / 2 >= -0.001 && p.c[0] + p.s[0] / 2 <= 160.001 && p.s[0] <= 160);
+    expect(slab.length).toBeGreaterThan(1);
+    for (const p of slab) expect(p.c[0] > 50 && p.c[0] < 53 && p.c[2] > 10 && p.c[2] < 13, `slab piece at ${p.c.join(',')}`).toBe(false);
+  });
   it('the gallery props write no box (out of bounds: drawn only), and none of the new boxes is a ledge', () => {
     const wrote = new Set(walkIn);
     for (const p of part.props) if (!wrote.has(p)) expect(propAreaOf(p)).toBe('gallery');
