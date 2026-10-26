@@ -14,7 +14,9 @@ Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Ses
    (d) PR #583 feature/mission-d-wharf fe062fc02 (base (c), big-pr; restacked on (c) 3a114fbb0): Opus FIX -> fix round
    (wharf blips(), testing-tools 720 budget, lamp note), status posted. 47 Tallow lamps in lampBoxAlign KNOWN_EMBEDDED
    (light-pass item; lamp 92 buried in the clock block). All 4 members are PRs; orchestrator told.
-6. G5 after (d) (A30); #549 look-video merged (master).
+6. CI fix round (orchestrator ~18:10: master guard tests sectorObjectives hook + coopFix showLine count): heads
+   #578 a8bac697b, #581 752e106be, #583 cf9fa7e4f; checker statuses re-posted; #578 affected 20261026T071851.
+7. G5 after (d) (A30); #549 look-video merged (master).
 Next: watch #522 -> #578 -> #581 -> #583 (CI, affected); retarget each to master in order once the one below lands
 (A27); Tallow W1 in /preview/ when #583 lands; then G5 (A30).
 
