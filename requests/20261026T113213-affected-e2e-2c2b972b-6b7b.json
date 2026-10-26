@@ -9,5 +9,6 @@
     "e2e-ctcourse"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #610"
+  "note": "auto affected-e2e, PR #610",
+  "place": "20261026T100547-affected-e2e-2359a51c-399e"
 }
