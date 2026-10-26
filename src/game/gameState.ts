@@ -1927,6 +1927,9 @@ export class GameState implements AppState {
   private lightFrom = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
+  /** (F57) `lightOccluder`'s ray filter, made once (a literal there was one object a ray; Babylon's Havok raycast
+   *  still allocates ~1.8-2.9 KB a ray inside itself, outside our code). */
+  private readonly lightQuery = { membership: G.PROJECTILE, collideWith: G.STATIC };
   private readonly floorFrom = new Vector3();
   private readonly floorTo = new Vector3();
   /** Free height over the floor point (x, y, z) up to `max`: one ray up against the static level. */
@@ -2001,7 +2004,7 @@ export class GameState implements AppState {
     if (d < 0.3) return false;
     this.lightTo.subtractInPlace(this.lightFrom).scaleInPlace((d - 0.25) / d).addInPlace(this.lightFrom);
     this.lightRay.reset();
-    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.lightFrom, this.lightTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.lightFrom, this.lightTo, this.lightRay, this.lightQuery);
     return this.lightRay.hasHit;
   };
 

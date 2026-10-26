@@ -60,7 +60,7 @@ if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 /** --affected: { suites, report } for the committed diff from the merge-base with origin/master to sha. */
 function prSuites() {
   // lib affectedSuites: the same selection the service's affected pass makes for every PR head
-  // the cap: --affected-max, else E2E_AFFECTED_MAX, else 3; --wide with neither stays uncapped (BRIEF A5)
+  // the cap: --affected-max, else E2E_AFFECTED_MAX, else AFFECTED_MAX (1, G421); --wide with neither stays uncapped (BRIEF A5)
   const given = opts['affected-max'] ?? process.env.E2E_AFFECTED_MAX;
   const max = opts.wide && given === undefined ? undefined : parseAffectedMax(given);
   const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide), max });

@@ -56,7 +56,8 @@ export const RUNTIME_CACHING: RuntimeCaching = [
   },
   // (guard-models G7) the guard figures (three bases x LOD0-2 + the shield's three, `guard-*.glb`) in a cache of their
   // own, so they never push Wren's LODs out of hers (24 entries = two builds of twelve files); warmed like hers
-  // (`warmPlayLods`, guardBody.ts: LOD2 first). Only ever filled with ?guardmodels=1 (flag off: no guard file is
+  // (`warmPlayLods`, guardBody.ts: LOD2 first; every play file at the menu, `warmGuardFiles`). Never filled with
+  // ?guardmodels=0 (flag off: no guard file is
   // fetched, none precached). The regex is `GUARD_ASSET_URL` (src/pwa/precacheGlobs.ts) written out: the test pins them
   // equal.
   {

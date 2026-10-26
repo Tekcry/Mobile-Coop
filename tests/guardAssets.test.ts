@@ -14,6 +14,7 @@ import raw from '../scripts/operators/data/guards.json';
 import { GUARD_BASES, GUARD_LIMITS, shownTris, type GuardKit } from '../src/operators/guards/guardKit';
 import { validateGuardManifest, type GuardBase, type GuardManifest } from '../src/operators/guards/gearMask';
 import { RIG_JOINTS } from '../src/operators/runtime/pose';
+import { clothCrossings, skinThrough } from './helpers/guardClothCheck';
 import { guardGlb } from './helpers/guardGlb';
 
 const KIT = raw as unknown as GuardKit;
@@ -374,6 +375,111 @@ describe.skipIf(present.length === 0)('bundled guard files (PLAN section 5)', ()
       }
     });
   }
+
+  // G10a D6: a face-covered head (every kind wearing it has `faceCovered`, the balaclava never comes off) loses the
+  // triangles the balaclava covers in the bake (bake_guard.py), so no skin shows in front of the membrane below the eye
+  // slot. Measured like the D6 diagnosis (G10A-REPORT.md): front = +z, a front-facing head triangle below the slot whose
+  // centroid's +z ray meets no balaclava triangle shows skin. Before the fix (the 2026-10-24 bake): 520 / 120 / 53; the
+  // G10a bake: 46 / 26 / 18 (the kept margin ring and the jaw line).
+  const coveredHeads = KIT.heads.filter((h) => {
+    const kinds = KIT.kinds.filter((k) => k.base === h.base);
+    return kinds.length > 0 && kinds.every((k) => k.faceCovered) && (present as readonly string[]).includes(h.base);
+  });
+  it.skipIf(coveredHeads.length === 0)('face-covered heads: no lower-face skin in front of the balaclava (G10a D6)', () => {
+    const EYE_SLOT_BOTTOM = 1.677; // headwear.py's eye slot on the broad head, y 1.677-1.720 (G10A-REPORT D6 step 1)
+    const MAX_SHOWN = [80, 40, 30];
+    for (const h of coveredHeads) {
+      const data = JSON.parse(readFileSync(`${DIR}guard-${h.base}.json`, 'utf8')) as { pieces: string[] };
+      const hp = data.pieces.indexOf(h.id);
+      const bp = data.pieces.indexOf('balaclava');
+      expect(hp, `${h.id} in the piece list`).toBeGreaterThanOrEqual(0);
+      expect(bp, 'balaclava in the piece list').toBeGreaterThanOrEqual(0);
+      for (const lod of [0, 1, 2] as const) {
+        const g = parseGlbChunks(new Uint8Array(readFileSync(`${DIR}guard-${h.base}-lod${lod}.glb`)).buffer as ArrayBuffer, DIR);
+        const p = g.gltf.meshes![0]!.primitives[0]!;
+        const idx = readAccessor(g, p.indices!);
+        const pos = readAccessor(g, p.attributes.POSITION!);
+        const piece = readAccessor(g, p.attributes._PIECE!);
+        const head: number[] = [];
+        const bal: number[] = [];
+        for (let t = 0; t < idx.length; t += 3) {
+          const k = piece[idx[t]!]!;
+          if (k === hp) head.push(t);
+          else if (k === bp) bal.push(t);
+        }
+        const x = (t: number, c: number): number => pos[3 * idx[t + c]!]!;
+        const y = (t: number, c: number): number => pos[3 * idx[t + c]! + 1]!;
+        const z = (t: number, c: number): number => pos[3 * idx[t + c]! + 2]!;
+        let cz = 0;
+        for (const t of head) cz += (z(t, 0) + z(t, 1) + z(t, 2)) / 3;
+        cz /= head.length;
+        const covered = (ox: number, oy: number, oz: number): boolean => {
+          for (const t of bal) {
+            const ax = x(t, 0), ay = y(t, 0), bx = x(t, 1) - ax, by = y(t, 1) - ay, cx = x(t, 2) - ax, cy = y(t, 2) - ay;
+            const d = bx * cy - cx * by;
+            if (Math.abs(d) < 1e-12) continue;
+            const u = ((ox - ax) * cy - cx * (oy - ay)) / d;
+            const v = (bx * (oy - ay) - (ox - ax) * by) / d;
+            if (u < 0 || v < 0 || u + v > 1) continue;
+            if (z(t, 0) + u * (z(t, 1) - z(t, 0)) + v * (z(t, 2) - z(t, 0)) > oz) return true;
+          }
+          return false;
+        };
+        let shown = 0;
+        for (const t of head) {
+          const oy = (y(t, 0) + y(t, 1) + y(t, 2)) / 3;
+          const oz = (z(t, 0) + z(t, 1) + z(t, 2)) / 3;
+          if (oy >= EYE_SLOT_BOTTOM || oz <= cz) continue;
+          const nz = (x(t, 1) - x(t, 0)) * (y(t, 2) - y(t, 0)) - (y(t, 1) - y(t, 0)) * (x(t, 2) - x(t, 0));
+          if (nz <= 0) continue;
+          if (!covered((x(t, 0) + x(t, 1) + x(t, 2)) / 3, oy, oz)) shown++;
+        }
+        expect(shown, `${h.id} LOD${lod}: head triangles showing in front of the balaclava below the eye slot`).toBeLessThanOrEqual(MAX_SHOWN[lod]!);
+      }
+    }
+  });
+
+  // gm-look: every outfit on its base, per LOD, in the bind pose (tests/helpers/guardClothCheck.ts). Skin through the
+  // cloth = body triangles (above the soles, which never show) with the outfit right behind them and none in front: the
+  // G10a sheet's runner elbows. Cloth through cloth = outfit triangles cutting through another outfit triangle: the
+  // G10a hem shards (the LODs were decimated from the two-sided hero, then clustered). Worst outfit per LOD on the
+  // G10a bake (bf8fdfeb): skin 141 / 20 / 7 (lean work, 119 at the elbows), crossings 1853 / 1326 / 496 (average
+  // uniform_jacket). The gm-look bake (bake/guard-models 4071580d): skin 14 / 1 / 0 (lean uniform_rolled), crossings
+  // 565 / 280 / 195; most of what is left is the boots and gloves (decimated from the hero and clustered at 10-13 mm,
+  // ~100 and ~60 self-crossings each at LOD0), the sewn shirt / trousers / jacket are down to 18-44 each.
+  const LOOK_LIMITS = { skin: [16, 3, 2], crossings: [600, 300, 210] } as const;
+  const SOLE_Y = 0.1; // body triangles below this are the soles inside the boots
+  const outfitIds = new Set(KIT.pieces.filter((p) => p.kind === 'outfit').map((p) => p.id));
+  it('outfits: no skin through the cloth, no cloth cutting through cloth (gm-look)', () => {
+    const fails: string[] = [];
+    for (const base of present) {
+      const data = JSON.parse(readFileSync(`${DIR}guard-${base}.json`, 'utf8')) as { pieces: string[] };
+      const bi = data.pieces.indexOf(base);
+      for (const lod of [0, 1, 2] as const) {
+        const g = parseGlbChunks(new Uint8Array(readFileSync(`${DIR}guard-${base}-lod${lod}.glb`)).buffer as ArrayBuffer, DIR);
+        const p = g.gltf.meshes![0]!.primitives[0]!;
+        const m = { idx: readAccessor(g, p.indices!), pos: readAccessor(g, p.attributes.POSITION!), nrm: readAccessor(g, p.attributes.NORMAL!) };
+        const piece = readAccessor(g, p.attributes._PIECE!);
+        const of = new Map<number, number[]>();
+        for (let t = 0; t < m.idx.length; t += 3) {
+          const k = piece[m.idx[t]!]!;
+          if (!of.has(k)) of.set(k, []);
+          of.get(k)!.push(t);
+        }
+        const y = (t: number): number => (m.pos[3 * m.idx[t]! + 1]! + m.pos[3 * m.idx[t + 1]! + 1]! + m.pos[3 * m.idx[t + 2]! + 1]!) / 3;
+        const body = (of.get(bi) ?? []).filter((t) => y(t) > SOLE_Y);
+        data.pieces.forEach((id, oi) => {
+          if (!outfitIds.has(id)) return;
+          const cloth = of.get(oi) ?? [];
+          const skin = skinThrough(m, body, cloth).count;
+          const cross = clothCrossings(m, cloth).count;
+          if (skin > LOOK_LIMITS.skin[lod]) fails.push(`${base} LOD${lod} ${id}: ${skin} body triangles through the cloth (limit ${LOOK_LIMITS.skin[lod]})`);
+          if (cross > LOOK_LIMITS.crossings[lod]) fails.push(`${base} LOD${lod} ${id}: ${cross} cloth triangles cutting through cloth (limit ${LOOK_LIMITS.crossings[lod]})`);
+        });
+      }
+    }
+    expect(fails).toEqual([]);
+  });
 
   it('the riot shield (its own GLB, when present): inside the shield piece budget and KTX2 only', () => {
     for (const lod of [0, 1, 2]) {

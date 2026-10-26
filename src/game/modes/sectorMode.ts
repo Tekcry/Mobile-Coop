@@ -791,7 +791,16 @@ export class SectorMode implements GameMode {
     if (!s) return;
     this.slotEnemy.length = 0;
     const n = flags.sectorGuards ?? s.guards.length;
-    for (let k = 0; k < s.guards.length && k < n; k++) if (!this.mission || this.mission.spawns(i, k)) this.pending.push({ k, slot: s.guards[k]!, alerted: false, look: em?.lookOfSlot(s.id, k) });
+    // (gm-look-seeds) the slot seeds are the section's before any guard spawns: a reinforcement or a team member spawned
+    // ahead of a staggered slot guard never takes his seed
+    const looks: number[] = [];
+    for (let k = 0; k < s.guards.length && k < n; k++) {
+      if (this.mission && !this.mission.spawns(i, k)) continue;
+      const look = em?.lookOfSlot(s.id, k);
+      if (look !== undefined) looks.push(look);
+      this.pending.push({ k, slot: s.guards[k]!, alerted: false, look });
+    }
+    em?.beginLooks(looks);
     this.fill();
   }
 

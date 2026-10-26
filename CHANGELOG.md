@@ -1,5 +1,99 @@
 # Changelog
 
+## 4.129.0 - Train 161: Light field: no allocation in the meter, guard and shadow-cue queries (F57); Realistic guard models on by default; Guard models offline warm; Guards and character shadows, part 1 (dark); +2 more (2026-10-27, PR #672; #671, #669, #667, #612, #375)
+
+### Light field: no allocation in the meter, guard and shadow-cue queries (F57)
+- The light field's bounce read passed each query point as three numbers to `BounceGrid.sampleInto`, which the engine
+  boxed: 1296 B per 3-player shadow-cue fill and 128 B per 3-player meter tick. The point now goes through the grid's
+  `q` slots (`sampleQ`), and `totalInto` / `levelInto` / `dynamicInto` read it from the field's `pt`: 0 B for both.
+  Every level is unchanged to the bit (372k old-vs-new comparisons; `tests/lightFieldAlloc.test.ts` pins a pre-fix table).
+- The meter's light-ray filter object is made once instead of per ray. The Havok ray itself still allocates
+  ~1.8-2.9 KB per call inside Babylon.
+
+### Realistic guard models on by default
+- Guards are now drawn with the baked realistic models by default (three builds, faces, outfits, gear, helmet knock-off:
+  see the Guard models entry). `?guardmodels=0` turns them off and returns the merged body. The model files (about
+  29 MB) load on demand, never precached, and stay in the service worker's own `guards` cache for offline play.
+- Guard look fixes (G10a, a fresh bake of every guard file): uniforms baked at the tint's neutral (the faction colour,
+  no longer near-black), the lightest skin tones keep their hue instead of washing out, no face showing through the
+  heavy's and enforcer's balaclava (only the eye slot), smooth hair-cap hairlines (no saw teeth, a clean receding
+  temple); the variety sheet draws guards with the game's rig (no goggle glow), and a colour change in
+  the kit now costs a sheet run, not a full bake.
+- Guard bake check: a garment's seam gap before the weld only warns (the weld closes it); a seam the weld has to move
+  more than 60 mm fails.
+- Guard render cost cut so the models fit the frame budget (render only; gameplay reads none of it):
+  - Frozen guard materials: the operator material and the enforcer shield's materials skip the per-mesh define
+    preparation and rebind every frame.
+  - Lazy pose: a guard's figure is posed only when the camera or a shadow, lamp or torch pass actually draws it.
+  - Merged meshes: guard armour (4 parts) and the enforcer shield and visor are one mesh each, like the merged gun.
+- Measured on a laptop RTX 4090 (1080p epic, 24 guards, frame p95): sectorops patrol 6.5 ms (6.5 with the models off),
+  away 4.6 (4.7), alert 7.2 (7.4); campusops patrol 9.0 (9.7), away 4.5 (4.8), alert 9.2 (10.0); at 12 guards campusops
+  is +0.4 to +0.6 ms. The gate was within +0.5 ms of the models-off path: passed.
+- No two guards in a section share a look seed (up to 128): Marlow Yard squad sets, Infiltration rooms, Sector Ops
+  slots, response teams and reinforcements (several lone reinforcements at one entry point no longer all look alike).
+- An authored guard keeps his look after a section restart and on every load, whatever the spawn order; runtime spawns
+  move on to the next free seed. Host-side only: no wire change.
+- Enforcers anywhere on a map, at any facing, now share one merged shield (the merge key comes from the parts' local
+  places, not their world matrices, whose float error far from the origin built a new shield source per enforcer).
+- The merged shield and the merged armour receive shadows like the guard's body, instead of copying the part base's
+  setting at build time.
+- Light rig: the G8 shadow-caster cull (disabled meshes left out of the lamp / torch shadow lists, a refill on every
+  caster enable change) now runs only with guard models on; with the flag off a render-freeze
+  toggle costs no refill and a thawed guard casts his torch-pool shadow at once, as before G8.
+- Guard figures: a guard thawed from the render freeze, or killed while frozen, shows his current pose on the first
+  frame (the figure poses at once instead of at the skeleton's next compute, which could be a frame late; the death
+  frame showed the pose at the freeze).
+- Guard cloth fixes (gm-look, a fresh LOD bake): no skin showing through the lean guards' work-jacket elbows and no
+  jagged hem shards at the jacket hem and hips; garment LODs come from the sewn cloth shell and sit clear of the body.
+  Known and left for Michael's look: dark patches at the chest / thigh pockets on the new bake (fix in the bake script,
+  rebake later).
+- Guard models are on everywhere, including the live game (Michael 2026-10-26 "Just switch them on").
+
+### Guard models offline warm
+- Offline: the main menu now puts every guard model file play uses (three builds, LOD0-2, and the riot shield) into the
+  offline cache after Wren's, so the first offline match on a map whose guard builds were never loaded online draws the
+  guard models instead of the old merged body. With `?guardmodels=0` nothing is fetched.
+
+### Guards and character shadows, part 1 (dark)
+- (behind `charShadowLight`, not wired yet) The shapes guards, dogs and lying bodies cast into the shared character
+  shadow list, and the rule for when a calm guard notices a moving player's shadow as a faint cue (J16).
+
+### Marlow Yard: kit stations wired to the new co-op moves
+- Marlow Yard: the five stations that teach the new two-player moves (plank bridge, deadweight, chimney pair, swing
+  pass, drop catch) now switch to the real move as soon as that move is turned on, and stay exactly as they are (with
+  their stand-in walkway, button, wicket, footbridge and ladder) while it is off. None of the moves is on yet, live or
+  in /preview/, so nothing changes in play today.
+- With a move on, its station's stand-in stays shut (its button says "No power here. This one takes the co-op move."),
+  the station needs both the move done and both players through, and a station retry puts the move back. The goods
+  shed's counterweight chains now hang where the deadweight grips are.
+
+### Knife wire allocation test steadied (F58)
+- Test only: the co-op knife kill allocation check compares two memory measures that vary a little from run to run; each is now the lowest of three, so it no longer fails releases at random.
+
+## 4.128.0 - Train 160: Affected e2e: one closest suite by default; Co-op kit: Chimney Pair; Thornbeck Mill pre-built lamp bake (piano SO2); e2e-netmove strike check fixed (F5) (2026-10-27, PR #668; #664, #663, #661, #656)
+
+### Affected e2e: one closest suite by default
+- `affected-e2e` now runs one suite per PR by default (`AFFECTED_MAX` 1, G421, prototype mode), the closest to the
+  change, matching RULES "Test tiers"; `src/net`, `src/save` and wire changes still run the whole co-op group. The
+  laptop already ran with `E2E_AFFECTED_MAX=1`; this makes the code default, `request.mjs --affected` and
+  `run-e2e --affected` agree.
+
+### Co-op kit: Chimney Pair
+- Co-op (on in /preview/, not yet in the live game): Chimney Pair is playable. In a narrow shaft one player braces with
+  the Co-op button and the partner joins; back to back, you climb together on your own sticks, never more than a hand's
+  width apart, and climb out at the top. Let go and you both slide down safely. At Marlow Yard this is station 11's way
+  up the gap. A marked shaft can no longer be split-jumped alone.
+
+### Thornbeck Mill pre-built lamp bake (piano SO2)
+- Lighting: the build's lamp prebake takes a list of maps (`SHIPPED_BAKE_MAPS`: Saltmarsh Park and Thornbeck Mill), one
+  cache folder and manifest per map, the same caps and prune; the game reads `bakes/<map>.json` for each (the mill ships
+  one file, it has no section split). The campus bake is unchanged (same key, same files).
+- Tests: Thornbeck Mill after the EMP: every baked lamp reads off in the picture, the light meter / guard sight and the
+  co-op client, under 1 lux at meter height everywhere.
+
+### e2e-netmove strike check fixed (F5)
+- Test only: the two-player movement test froze a missed strike after it had already ended (the strike recovery became longer in J19 S2), so it failed on every co-op change; it now freezes inside the miss, at the same moment as before.
+
 ## 4.127.0 - Train 156: Piano escape: knife kills, co-op, the storm and the full run (2026-10-27, PR #659; #631)
 
 ### Co-op kit: groundwork for five new moves
