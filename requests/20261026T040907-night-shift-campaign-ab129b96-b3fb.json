@@ -1,0 +1,18 @@
+{
+  "id": "20261026T040907-night-shift-campaign-ab129b96-b3fb",
+  "sha": "ab129b96c7b580396f4ca0b02dcdcdbc888782ae",
+  "branch": "feature/tallow-fixes-2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-levels",
+    "e2e-anchors",
+    "e2e-lightbake"
+  ],
+  "set": "tallow-prg2-b",
+  "note": "PR G2 + E8 part b; split from tallow-prg2"
+}
