@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-26T03:56Z
+status: blocked tgc-leads: no built solo way from the floor into leg a (S11 reach ERR) and built legs 26-62% apart; needs a G1 geometry or J12/J7 ruling; rest of D1 pushed at feature/tallow-d1 c8f33dcf3
 
 # campaign J8 D1: Tallow Wharf's graph matches the build (Sonnet 5.5)
 
@@ -173,3 +173,81 @@ Done adds: 0 ERR on the S11 validator apart from the two named throw-gap ERRs (A
 mark lands the partner on the stage edge with the body 0.29 m over it (brief: land 0.3 m inside or refuse). Nothing
 lands outside the stage. If D1 touches the pawn site, tighten the landing to 0.3 m inside or refuse; otherwise leave it
 on the polish list for Michael's walk.
+
+## Report (Night Shift | Cloud Builder 4, 2026-10-26)
+Branch feature/tallow-d1, head c8f33dcf33d1dc9787d8658633a2d5eb17f3df5a (base 2de5701c0). Commits: 57d83631 the graph; ac07b9b7 step 3 code; c8f33dcf3 validator outputs, `D1-graph.diff`, `D1-note.md`. Files: only the brief's list. Full numbers, the measuring test's source and output: `docs/tallow-fixes/val/D1-note.md` (the temporary test was deleted, never committed).
+
+**Why blocked, not done:** everything in steps 2-10 is pushed, but the Done bar is not met: split `tgc-leads` keeps 2 ERR on S11 and 1 ERR on master. The LEAD NOTE's blocked case does not apply as written: the built link it asks for exists (leg-a player from the gallery to the tea stall by the caged ladder) and is already in the graph. The ERR fails for another reason: on the real bolts, the leg-b player on the floor has no solo way up to a partner downed on the gallery / in the office. Clearing it needs a G1 geometry change or a J12 / J7 ruling (options under section fix 7).
+
+Gate (step 1): all pass. `D0-note.md` present; `tallow G1-G4` commits 3 / 1 / 4 / 6; `dogs: 0` in all four sections; `tests/tallowWharf/` on the base 7 files, 298 passed.
+
+ERR / WARN per run (`docs/tallow-fixes/val/`; identical across each validator's runs):
+- `D1-master-map.txt`, `-map-tgc`, `-map-tkl`, `-tklstate`, `-tklstate-tkl` (master 78c241933): 3 ERR, 10 WARN. ERR: the two A22 throw-gap lines (`w2-pawn-loft -> w2-reading-room`, `w2-arcade-roof -> w3-roof`); `split tgc-leads leg a: no solo link leads into w1-gallery` (S11 not on master).
+- `D1-mission-validator-map.txt`: 2 ERR (the two throw-gap lines, the known J12 item), 10 WARN.
+- `D1-s11-map.txt`, `-map-tgc`, `-map-tkl`, `-tklstate-tkl` (J12 ref = validator-port-c2 8078660d6): 2 ERR, 10 WARN. The two throws read as long-throw INFO; leg a's co-op entry INFO. ERR: `split tgc-leads: legs 28.4 s vs 21.9 s differ by 23% (max 20%)`; `split tgc-leads: a downed partner at w1-tea-stall cannot be reached from the other leg`.
+- `D1-validator-port-train-map*.txt` (D0's ref, for comparison): 3 ERR, 11 WARN (+ `metrics: sizes.throw_long is missing`).
+- Pie throw: no exception, no ERR. `checkCoop` clean for `tkl-wings` everywhere; not clean for `tgc-leads`.
+- WARNs: `room_class custom` x5 (`w1-canal-steps`, `w2-arcade-roof`, `w3-roof`, `w3-chute`, `w4-boat`: no sheet class); `w3-chute` size 1.2 off grid (the 1.2 x 1.5 crouch duct); E1 12.4 and E2 9.8 off grid (D0's A5 values kept, measured 12.35 / 9.75); new: `w2-pawn-loft size 5.6 off the 0.5 m grid` (the A28 cut-back); new: `w3-east-yard: 2 guards below the early band 3-6` (A10 puts the lodge porter in `w3-lodge`).
+
+D0 -> D1 (written only where same or better):
+
+| Link (index) | Change |
+| --- | --- |
+| `w2-arcade>w2-reading-room` (21) | length 27 -> 12, time_s 12 -> 9.2 |
+| `w4-jetty>w4-canal-ledge` (72) | length 6 -> 3 |
+| `w2-lane-window>w2-arcade-roof` (30) | length 16 -> 12 |
+| `w2-arcade>w2-pawn-loft` (22) | length 14.5 -> 10.5, time_s 8 -> 7.9 |
+| `w2-walkway>w2-pawn-loft` (25) | length 6.5 -> 4.5 |
+| `w3-roof>w3-east-yard` (33) | length 31 -> 17, time_s 14 -> 12.9 |
+| `w3-roof>w3-east-wing` (34) | length 21 -> 19; still unbolted, `bolted_in: ["twoKeyLedger"]` |
+| `w2-walkway>w2-arcade-roof` (74) | length 36 -> 35.5 |
+| `w2-pawn-loft>w2-reading-room` throw (28) | time_s 5 -> 2.8 (gap 4.9 confirmed) |
+| `w2-pie-loft>w2-clock-loft` throw (29) | time_s 5 -> 2.9 (gap 2.5 confirmed) |
+| `w2-arcade-roof>w3-roof` throw (31) | time_s 5 -> 2.6 (gap 4.9 confirmed) |
+| `w3-roof>w3-west-wing` (35) | length 21 -> 17 |
+| `w3-west-wing>w3-passage` (46) | length 15 -> 12.5, time_s 12.7 -> 9.6 |
+| `w3-east-yard>w3-east-wing` (36) | length 19 -> 2.5 |
+| `w3-east-wing>w3-passage` (43) | length 15 -> 6, time_s 5 -> 4.7 |
+
+- Confirmed same: E1 12.4, E2 9.8, E4's 4.4 m drop and 3 s, E5 6.0 / 4.5, E11 6 s.
+- Final link numbers: the C5 throw is 31, the bulkhead 34 (EGRESS's; the plan's 32 / 35 are stale).
+- Rooms as built: `w2-pawn-loft` [44, 62, 54, 67.6] size [5.6, 10, 3]; `w3-chute` [96.5, 50, 97.7, 52] size [1.2, 2, 1.5]; `w3-cartway` [88, 34, 92, 38] size [4, 4, 3].
+- W3 checkpoint: `w3-east-yard` -> `w3-roof` (`W3_START` = the bulkhead head). W1, W2, W4 already match their starts.
+- Vantages at the built pairs' midpoints: `w1-fish-hall` from `w1-warden-office`; `w3-east-yard` from itself (fire escape half landing); `w3-east-wing` from `w3-east-post`; `w3-west-wing` from itself (iron gallery); `w4-shed-three` from `w4-shed-two`; W1 market, both W2 pairs, W4 yard: `at` moved, `from` unchanged. `sees_pct` unchanged; `w4-shed-yard` keeps 0.85 with the ruling text.
+- Lighting: all 37 notes carry the LIGHT.md sentence; `meta.note` has the brief's line; `grep -niE "lit by default|dark by default|LR1|G279"` 0, `grep -ni dog` 0. `W2.forced_coop` names the forced throws.
+- Exit lines (G157 9): TGC 19.6 m, 15.1 s at 1.3 m/s (6.5 s at 3.0), under 2 min. TKL 45.5 m, 36.4 s at 1.3 m/s (17.6 s at 3.0), under 2 min; forward through the cartway, 74% new ground.
+
+Section fixes found (measured worse than D0; not written):
+1. G3: `w3-roof>w3-west-wing` 13.9 s (D0 10 s).
+2. G3: `w3-east-yard>w3-east-wing` 2.0 s (D0 1.5 s); the fire escape's foot is 2.65 m from the gate.
+3. G3 / G2: `w3-roof>w3-east-wing` 14.8 s (declared 14); flights 1.2 m wide (declared 1.3).
+4. G2: `w2-arcade>w2-reading-room` (public stair) built 1.7 m wide (declared 2.4).
+5. Engine fact: ladder climbs take 10.0 s on `w1-canal-steps>w1-gallery` and 8.9 s on `w2-lane-window>w2-arcade-roof` (time_s 3 and 5). Lead ruling needed: should time_s carry the climb?
+6. G1 / J7: TGC legs too far apart. Graph (unchanged) 28.4 vs 21.9 s; measured door to door 42.0 vs 16.0 s (62%; 31.4 m of gallery walk alone is 24.2 s); with a meeting point under the clock 57.2 vs 42.5 s (26%). G3's ~22.7 / ~21.0 not reproduced.
+7. G1: TGC reach from the warden's desk 16.1 s by the ladder, 16.5 s by the stair (limit 15). From the floor, no solo way up on the real bolts (checked with `soloNav`). S11 walks reach from the named space, so its message names the wrong end (a scratch run walked the other way reports `a downed partner at w1-gallery cannot be reached`). Options: (a) J12: walk reach toward the downed partner and fix the message; (b) J7 / J12: model the cage door A opens on arrival; (c) geometry 1 (G1): leave the warden's stair foot (7, 0, 44) unbolted (fits LP pick 13, the warden out on rounds): graph reach 14.5 s, measured ~16.5 s, and C1 stops being the only way up; (d) geometry 2 (G1): make the cage door at (6.6, 0, 14.4) plain: a solo twin of the boost, an ERR unless C1 is dropped.
+
+TKL: legs measured 23.5 vs 19.7 s (16%, within 20%); graph sums 19.6 / 19.1 s; worst reach 13.3 s (limit 15).
+
+Counts: W1 9, W2 10, W3 10, W4 12. W1: market 4, fish hall 3, tea stall 2. W2: arcade 3, reading room 4, pawn loft 1, pie shop 1, pie loft 1. W3: east yard 2, lodge 1, east wing 4, west wing 3 (the front-hall watchman counted here). W4: shed yard 6, shed three 6.
+
+Step 3 code lines:
+```ts
+/** The guards the graph does not count, and why: none since J8 D1: the graph counts every spawned guard, A10. */
+export const WHARF_GUARD_EXTRAS: readonly { id: string; why: string }[] = [];
+```
+Test title: `it('counts: W1 9, W2 10, W3 10, W4 12; the graph\'s sums', () => {`.
+
+Tests: `npx vitest run tests/tallowWharf/ --maxWorkers=2` 7 files, 298 passed (same as base); `npm run typecheck:fast` exit 0; `npx eslint src/world/maps/tallowWharfSectors.ts tests/tallowWharf/sectors.test.ts` exit 0. No e2e, no GPU (pending PC run if the lead wants one).
+
+Deviations: lengths on the 0.5 m grid (E1, E2 keep 12.4 / 9.8); throw lengths not re-measured (no door-to-door ends), only gap and time_s; the fire escape (E9) uses the route-point polyline (the guards' nav does not walk its steep upper flight and detours 55 m); the tea stall room not written (built 8 x 8 gives `ERROR: w1-tea-stall: 8 x 8 m below break_room minimum 7 x 8.5`); no TGC leg link written (legs over 20% apart); extra runs: TKL-state + TKL on S11, D0's train ref for comparison.
+
+Walk items for Michael: the W4 yard vantage (gantry look-out bay sees the yard north of z ~21.7 only; `sees_pct` 0.85 kept by the lead ruling, GBM measures); the W2 reading pair sees the pawn stage and stage door only (LP pick 19).
+
+Open items for the lead:
+1. Room class: the built tea stall is 8 x 8, below break_room's 8.5 m: G1 deepens it 0.5 m, or its class becomes `custom` (a WARN).
+2. The TGC split (section fixes 6 and 7): the blocking question.
+3. TKL measured from the C5 landing: roof walk 8.9 m to the sash, 29.7 m to the fire escape head, legs 30.4 vs 42.6 s (29%); the validator cannot see it because the roof is the fork.
+4. Redundant deviations: the W2 / W3 deviation entries for pawn loft, chute and cartway, and the tests' `OVERRIDE` maps, now match the graph (G2 / G3 cleanup).
+5. Story conflict: EGRESS W1 slot 0 says the warden "bolts it behind him"; LP pick 13 has him out on his rounds.
+6. Nav coverage for J13 / GBM: the canal bed and the fire escape's steep upper flight are not in the guards' nav.
+7. Out of D1's scope: the LEAD NOTE ~14:25 pawn landing item stays on the polish list (D1 did not touch the pawn site).
