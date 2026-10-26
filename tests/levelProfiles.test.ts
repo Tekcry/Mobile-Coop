@@ -323,3 +323,153 @@ describe('validator-port S0: lib seams, merge, flag, link times, modules', () =>
       .toEqual({ unreached: [], stranded: ['vault'] });
   });
 });
+
+// validator-port S7b (docs/validator-port/PLAN.md; BRIEF A12, A27): the nav-floor WARN, ropes both ways, no ladder-grab
+// read, and the long-throw exception. The metrics FIXTURE adds the two sheet rows S7a writes (`rules.nav_floor_depth_m`,
+// `sizes.throw_long`) to the base metrics, so these cases hold before and after S7a's branch merges.
+const S7 = (): Obj => {
+  const m = structuredClone(METRICS) as Obj & { rules: Obj; sizes: Obj };
+  m.rules.nav_floor_depth_m = 1.5;
+  m.sizes.throw_long = {
+    max: 4.9, spots: ['tallowWharf:w2-pawn-loft>w2-reading-room', 'tallowWharf:w2-arcade-roof>w3-roof'],
+  };
+  return m;
+};
+const engine = (g: Graph, m: Obj | null = S7()): Report => checkEngine(g, m, {}) as Report;
+const NAV = 'nav floor';
+
+describe('validator-port S7b: engine facts (A12)', () => {
+  it('nav floor: an encounter space at storey -2 WARNs; a guarded space at -1.6 WARNs; a plain one at -2 does not', () => {
+    const g = mini();
+    (g.spaces[1] as Obj).storey = -2;
+    expect(engine(g).warns).toEqual([
+      "court: an encounter space at storey -2 m, deeper than the 1.5 m nav floor (off the guards' nav grid, level-design 12.1)",
+    ]);
+    const h = mini();
+    Object.assign(h.spaces[3] as Obj, { storey: -1.6, guards: { 2: 1 } });
+    expect(engine(h).warns).toEqual([
+      "hut: a space with guards at storey -1.6 m, deeper than the 1.5 m nav floor (off the guards' nav grid, level-design 12.1)",
+    ]);
+    const p = mini();
+    (p.spaces[3] as Obj).storey = -2;
+    expect(engine(p).warns).toEqual([]);
+    const zero = mini();
+    Object.assign(zero.spaces[3] as Obj, { storey: -2, guards: { 2: 0 } });
+    expect(engine(zero).warns).toEqual([]);
+    const edge = mini();
+    (edge.spaces[1] as Obj).storey = -1.5;
+    expect(engine(edge).warns).toEqual([]);
+  });
+
+  it('nav floor: a missing key is one WARN and the check is skipped; nothing underground asks for no key', () => {
+    const m = S7() as Obj & { rules: Obj };
+    delete m.rules.nav_floor_depth_m;
+    const g = mini();
+    (g.spaces[1] as Obj).storey = -2;
+    Object.assign(g.spaces[3] as Obj, { storey: -3, guards: { 2: 1 } });
+    expect(engine(g, m).warns).toEqual(['metrics: rules.nav_floor_depth_m is missing from the metrics; the nav floor check skipped']);
+    expect(engine(mini(), m)).toEqual({ errors: [], warns: [], infos: [] });
+    expect(engine(g, null)).toEqual({ errors: [], warns: [], infos: [] });
+    expect(has(check(g).warns, NAV)).toBe(has(engine(g, METRICS).warns, NAV));
+  });
+
+  it('a team_rope from an upper storey down to storey 0 inside the rope_span band gives no ERR (ropes go both ways)', () => {
+    const g = mini();
+    g.spaces.push(sp('loft', 'connector', 'corridor', [3.5, 14, 3], 2, [], { storey: 4.5 }));
+    g.links.push(ln('court', 'loft', 'ladder', 'high', { level_change: 4.5, length: 10, time_s: 12 }));
+    g.links.push(ln('loft', 'court', 'team_rope', 'high', { level_change: 4.5, length: 6, time_s: 8 }));
+    const r = validate(g, { metrics: S7() }) as Report;
+    expect(r.errors.filter((e) => e.includes('team_rope'))).toEqual([]);
+    expect(engine(g)).toEqual({ errors: [], warns: [], infos: [] });
+  });
+
+  it('no validator module or test reads TEAM.ladderGrab (A12, the coop-kit seam)', () => {
+    const files = ['scripts/level-checks/engine.mjs', 'scripts/level-validate.mjs', 'scripts/level-graph-lib.mjs'];
+    for (const f of files) expect(fs.readFileSync(path.join(ROOT, f), 'utf8'), f).not.toMatch(/ladderGrab/);
+    for (const t of ['tests/levelProfiles.test.ts', 'tests/levelValidate.test.ts']) {
+      expect(fs.readFileSync(path.join(ROOT, t), 'utf8'), t).not.toMatch(/from '\.\.\/src\/config\/movement/);
+    }
+  });
+});
+
+describe('validator-port S7b: the long-throw exception (A27)', () => {
+  /** One throw link on a map: two lofts in one section, the throw between them. */
+  const throwGraph = (map: string, from: string, to: string, width: number, extra: Obj = {}): Graph => ({
+    meta: { map, name: 'Throw probe', mode: 'campaign', players: [2], sections: ['S1'] },
+    spaces: [
+      sp(from, 'connector', 'corridor', [3.5, 14, 3], 2, ['start']),
+      sp(to, 'connector', 'corridor', [3.5, 14, 3], 2, ['exfil']),
+    ],
+    links: [ln(from, to, 'team_throw', 'high', { width, length: 6, time_s: 4, ...extra })],
+  });
+  const dims = (g: Graph, m: Obj = S7()): Report => checkDimensions(g, m) as Report;
+  const LONG = { exception: 'long_throw' };
+  const throwErrs = (r: Report): string[] => r.errors.filter((e) => e.includes('(team_throw)'));
+
+  it('the pawn loft to the reading room at 4.9 m with the field passes, with an INFO naming the approval', () => {
+    const r = dims(throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG));
+    expect(throwErrs(r)).toEqual([]);
+    expect(r.infos).toContainEqual(
+      "link w2-pawn-loft -> w2-reading-room (team_throw): long throw at an approved spot (tallowWharf:w2-pawn-loft>w2-reading-room, the scale sheet's Long throw row, Michael's approval), gap up to 4.9 m",
+    );
+    expect(throwErrs(dims(throwGraph('tallowWharf', 'w2-arcade-roof', 'w3-roof', 4.9, LONG)))).toEqual([]);
+  });
+
+  it('the plank spot (pie loft to clock loft) at 4.9 m with the field ERRs: not listed', () => {
+    const r = dims(throwGraph('tallowWharf', 'w2-pie-loft', 'w2-clock-loft', 4.9, LONG));
+    expect(throwErrs(r)).toEqual([
+      "link w2-pie-loft -> w2-clock-loft (team_throw): not an approved long-throw spot (tallowWharf:w2-pie-loft>w2-clock-loft is not in the scale sheet's Long throw row)",
+    ]);
+  });
+
+  it('the listed spot at 4.9 m without the field ERRs on the 2.7 m throw gap row', () => {
+    const r = dims(throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 4.9));
+    expect(throwErrs(r)).toEqual(['link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw']);
+  });
+
+  it('the listed spot at 5.0 m with the field ERRs: over the 4.9 m long throw', () => {
+    const r = dims(throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 5, LONG));
+    expect(throwErrs(r)).toEqual(['link w2-pawn-loft -> w2-reading-room (team_throw): gap 5 m above the 4.9 m long throw']);
+  });
+
+  it('the same ids on another meta.map ERR: not listed', () => {
+    const r = dims(throwGraph('campusOps', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG));
+    expect(throwErrs(r)).toEqual([
+      "link w2-pawn-loft -> w2-reading-room (team_throw): not an approved long-throw spot (campusOps:w2-pawn-loft>w2-reading-room is not in the scale sheet's Long throw row)",
+    ]);
+  });
+
+  it('another exception value ERRs; the field on another kind ERRs', () => {
+    const r = dims(throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 2, { exception: 'long_jump' }));
+    expect(throwErrs(r)).toEqual([
+      "link w2-pawn-loft -> w2-reading-room (team_throw): exception 'long_jump' unknown (a team_throw takes only \"long_throw\")",
+    ]);
+    const g = throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 2);
+    g.links.push(ln('w2-pawn-loft', 'w2-reading-room', 'door', 'shadow', { ...DOOR, length: 6, exception: 'long_throw' }));
+    expect(engine(g).errors).toEqual([
+      "link w2-pawn-loft -> w2-reading-room (door): exception 'long_throw' on a door (only a team_throw takes an exception, A27)",
+    ]);
+    expect(has((validate(g, { metrics: S7() }) as Report).errors, 'only a team_throw takes an exception')).toBe(true);
+    expect(engine(throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG)).errors).toEqual([]);
+  });
+
+  it('a missing sizes.throw_long is one WARN and the link falls back to the 2.7 m row', () => {
+    const m = S7() as Obj & { sizes: Obj };
+    delete m.sizes.throw_long;
+    const g = throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG);
+    g.links.push(ln('w2-reading-room', 'w2-pawn-loft', 'team_throw', 'high', { width: 4.9, length: 6, time_s: 4, ...LONG }));
+    const r = dims(g, m);
+    expect(r.warns.filter((w) => w.includes('throw_long'))).toEqual([
+      'metrics: sizes.throw_long is missing from the metrics; the long-throw check (falls back to the throw gap row) skipped',
+    ]);
+    expect(throwErrs(r)).toEqual([
+      'link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw',
+      'link w2-reading-room -> w2-pawn-loft (team_throw): gap 4.9 m above the 2.7 m throw',
+    ]);
+    const bad = S7() as Obj & { sizes: Obj };
+    bad.sizes.throw_long = { max: '4.9', spots: [] };
+    const b = dims(throwGraph('tallowWharf', 'w2-pawn-loft', 'w2-reading-room', 4.9, LONG), bad);
+    expect(has(b.warns, 'sizes.throw_long is not { max, spots }')).toBe(true);
+    expect(throwErrs(b)).toEqual(['link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw']);
+  });
+});
