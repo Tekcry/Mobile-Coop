@@ -1044,9 +1044,11 @@ G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
 2.4 s look, never escalates alone (A1-A11 in BRIEF). Plan check 1 PASS ef5889a44 (PLAN-CHECK.md: 7 fold-ins; items 1, 2, 3, 6 go into the G3 brief, 7 into G5; 4 in
 G2; 5 = carried-body shadow hand-off to Player, sent to the orchestrator). G1 + G2 built af4146d7c, check PASS a6f54fa04
-(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). G3 built 0883c34d0; check A bf23ec3f6 FIX 1; fix round 9edc30365 (sawMoment + lure gate,
-property test, hush only from below 0.3, cue ray alloc fixed). Check B 175358ad4 FIX 2 (cue-only calm-down barks 'clear'; cue steals
-a sound's look / walk): Opus fix round 2 RUNNING -> "Fix round 2" in G3-REPORT.md; then a short re-check; then split PR 1a G1 + G2, PR 1b G3 (stacked), post checker on each.
+(slices/G1-G2-CHECK.md; polish 1-6, item 4 = 16-bit owner keys into the G3 brief). PR 1 checked (G3 check A FIX -> fix round; check B FIX 2 -> fix round 2 54cc1b8f8 -> re-check PASS
+d808f062b). Split: #669 = part 1 G1 + G2 (feature/guard-ai-j16-a, worktree -guard-ai-j16-a, 999 lines, checker
+posted) -> green: tell orch train-ready; #670 = part 2 G3 (feature/guard-ai-j16 bb3aa2e5a, master merged, checker
+posted) DRAFT until #669 merges -> then `gh pr ready 670` + tell orch. Then PR 2: G4a (set chars + switch fill in one
+commit) / G4b (em.cues = game.shadowCues) / G5 e2e (Sonnet, Opus brief) / G6 docs, after #665 merges.
 S3b-2 = Sector Ops PR #665 (GameState.shadowCues,
 null on a client / flag off): G4a / G4b build on it once #665 merges.
 Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
