@@ -52,6 +52,7 @@ Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-trai
 ## Inbox
 Michael's new ideas, verbatim, with the time; the orchestrator triages each cron run onto Now, Waiting or Decided.
 - TRIAGED 15:30 to Now row 0c (Player). 2026-10-25 ~15:15, Michael (animation tuner, Keys tab): "I can clean up the animation but I can't twist the ankle, only roll and pitch which don't fix it. How do I make it twist?" Also: one key in the walk has a knee flying out sideways. Michael 15:17: "Ankle/shin can't be changed in the key full body tab. Also why is it in the full body tab?" Triage: Player Build, Keys tab: per-key ankle and shin twist rows and a separate Legs part instead of the full body group, and a label on each tab saying whether it changes the motion-captured walk (Michael ~15:25 asked whether the tuner changes mocap) (tool change, after the row 6 sign-off).
+- TRIAGED 12:41 to Guard AI Build as a rule fix (G298 every guard armed; fixes to shipped features pass the walk cap, G355). 2026-10-26 ~12:40, Player Build (J19 S4 brief): the runner guard gets the grunt's weapon block as data only; `src/ai/enemy.ts:3250` still runs his melee branch, so in play he fights hand-to-hand and shows no gun. Guard AI makes the runner draw and fire like the other armed kinds (its own slice, two Opus checkers). Player's S4 also assumes the default helmet becomes the headset (price / level 0); logged in its brief.
 
 ## Waiting on Michael
 | Item | Since | Blocks |
