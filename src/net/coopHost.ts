@@ -45,6 +45,7 @@ import { assistHolder } from './assistTakedown';
 import type { TakedownVictim } from '../game/takedownController';
 import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
+import { isPianoScene } from '../game/pianoScene';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
 import { hasInfo, takeInfo } from '../ai/guardInfo';
@@ -201,8 +202,9 @@ export class CoopHost implements NetAttachment {
     this.ff = mode === 'course';
     if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
-    // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
-    if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty);
+    // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty; (piano-escape S4) a
+    // scene map on the Sector Ops runtime keeps the campaign cap (`REVIVES_PER_MISSION`, PLAN "Downed")
+    if (mode === 'sector' && !isPianoScene(g.world.map)) this.reviveClock.cap = syringesFor(g.opts.difficulty);
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.lampShots = hostLampShots(mode);
     this.soloRemotes = g.remotePlayers;

@@ -23,6 +23,7 @@ import {
   isPianoScene,
   LIGHTNING_OFF_T0,
   empHooks,
+  knifeSwitch,
   setPianoLeave,
   stubMainsOff,
   type FadeLayer,
@@ -315,6 +316,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
         onSkip = s;
         return null;
       },
+      knifeScene: (on) => void log.push(`knife ${on}`),
       ...over,
     };
     return {
@@ -375,7 +377,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     s.sc.step(1 / 60, true);
     expect(s.sc.pressed).toBe(true);
     expect(s.sc.pressedBy).toBe('local');
-    expect(s.log).toEqual(['items false', `mainsOff 4 ${BELT_Y} 4.6 ${EMP_OUT_S}`, 'retake', 't0 123.5', `seek ${EMP_SEEK}`, 'dark true', 'spawn']);
+    expect(s.log).toEqual(['items false', `mainsOff 4 ${BELT_Y} 4.6 ${EMP_OUT_S}`, 'retake', 't0 123.5', `seek ${EMP_SEEK}`, 'dark true', 'spawn', 'knife true']);
     expect(s.sc.t0).toBe(123.5);
     expect(s.sc.lampsCut).toBe(16);
     expect(s.sc.holdsSpawn).toBe(false);
@@ -460,9 +462,47 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     s.sc.press('local');
     s.log.length = 0;
     s.sc.finish();
-    expect(s.log).toEqual([`fadeOut ${PIANO_FADE_S}`]);
+    // (S4) the knife scene ends with the scene, once
+    expect(s.log).toEqual(['knife false', `fadeOut ${PIANO_FADE_S}`]);
     s.sc.dispose();
-    expect(s.log.slice(1)).toEqual(['items false', 'dark false', 'music false']);
+    expect(s.log.slice(2)).toEqual(['items false', 'dark false', 'music false']);
+  });
+
+  it('(S4) the knife scene: on at the EMP (not before, a restart keeps it), off once when the scene goes any way', () => {
+    const s = started();
+    toPrompt(s);
+    expect(s.log.filter((l) => l.startsWith('knife'))).toEqual([]);
+    s.sc.press('local');
+    s.sc.restarted();
+    s.sc.step(1, true);
+    expect(s.log.filter((l) => l.startsWith('knife'))).toEqual(['knife true']);
+    // leaving without the end (the pause menu's quit): dispose turns it off
+    s.sc.dispose();
+    s.sc.dispose();
+    expect(s.log.filter((l) => l.startsWith('knife'))).toEqual(['knife true', 'knife false']);
+  });
+
+  it('(S4) the co-op host keeps the campaign revive cap for a scene map (no Sector Ops syringes)', () => {
+    const h = src('src/net/coopHost.ts');
+    expect(h).toContain("if (mode === 'sector' && !isPianoScene(g.world.map)) this.reviveClock.cap = syringesFor(g.opts.difficulty);");
+    expect(isPianoScene(thornbeckMill)).toBe(true);
+  });
+
+  it('(S4) knifeSwitch: setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, on))', () => {
+    const was = flags.pianoEscape;
+    const set: boolean[] = [];
+    const g = (scene?: 'piano') => ({ takedown: { setKnifeScene: (on: boolean) => void set.push(on) }, world: { map: { scene } } });
+    try {
+      flags.pianoEscape = true;
+      knifeSwitch(g('piano'), true);
+      knifeSwitch(g('piano'), false);
+      knifeSwitch(g(undefined), true);
+      flags.pianoEscape = false;
+      knifeSwitch(g('piano'), true);
+    } finally {
+      flags.pianoEscape = was;
+    }
+    expect(set).toEqual([true, false, false, false]);
   });
 
   it('the framed reveals: the hoist door as the objective closes, once; a guard within 10 m stops it; none in the intro', () => {

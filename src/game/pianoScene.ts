@@ -6,6 +6,8 @@ import type { Interactable } from './interactables';
 import { EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
 import { exitZone, inZone, type SectorDef } from './sectors';
 import { hyp2 } from '../core/mathx';
+import { flags } from '../core/flags';
+import { knifeSceneOn } from './knifeKill';
 
 /**
  * The piano escape scene's own logic (piano-escape S1, S2), on the Sector Ops runtime. `SectorMode` calls it at named
@@ -222,6 +224,13 @@ export interface PianoWorld {
   sectionGuards(): number;
   /** The intro view (null: none). */
   view(intro: PianoIntro, onSkip: () => void): PianoView | null;
+  /** (S4, knife PB5) The knife scene on this page's takedowns: every offer a lethal knife kill on one press (off: today's). */
+  knifeScene(on: boolean): void;
+}
+
+/** (S4, knife PB5) The knife switch on a match: the gate is the flag, the map's `scene` and the scene's live state. */
+export function knifeSwitch(g: { readonly takedown: { setKnifeScene(on: boolean): void }; readonly world: { readonly map: { readonly scene?: 'piano' } } }, on: boolean): void {
+  g.takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, g.world.map.scene, on));
 }
 
 /** (S2) SectorMode's side of the scene: its spawn with the exception, its slots, its start state, its spots. */
@@ -296,6 +305,7 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
       return false;
     },
     view: (intro, onSkip) => m.view(intro, onSkip),
+    knifeScene: (on) => knifeSwitch(g, on),
   };
 }
 
@@ -328,6 +338,8 @@ export class PianoScene {
   /** The scene's dark is on (`sceneDark`). */
   dark = false;
   private itemsOn = false;
+  /** (S4) The knife scene is on (`onKnifeScene`). */
+  private knifeOn = false;
   private searchPending = false;
   private restartT = -1;
   private wasOpen = true;
@@ -378,11 +390,13 @@ export class PianoScene {
   }
 
   /**
-   * Hook for S4 (the knife scene): the place `takedown.setKnifeScene(...)` is called after the EMP and cleared on leave.
-   * No logic in S1.
+   * (S4, knife PB5) The knife scene: `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` after
+   * the EMP (a restart keeps it), `false` when the scene ends (the fade, or leaving it any other way). Once each way.
    */
-  protected onKnifeScene(_on: boolean): void {
-    // S4: setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, on))
+  protected onKnifeScene(on: boolean): void {
+    if (on === this.knifeOn) return;
+    this.knifeOn = on;
+    this.world?.knifeScene(on);
   }
 
   /**
@@ -450,6 +464,8 @@ export class PianoScene {
     w.music?.piano.seek(EMP_SEEK);
     // 4-6. the dark, the spawn (the opening four on the actors' spots), then (next steps) the pair's search
     this.spawnBeat();
+    // 7. (S4) the knife scene: every takedown from the cut on is the knife kill (the clips start loading now)
+    this.onKnifeScene(true);
     return true;
   }
 
@@ -463,14 +479,13 @@ export class PianoScene {
     this.searchPending = true;
   }
 
-  /** (S2) The cut to play: input on (the view lets go), the HUD, the radio line, the objective line, the knife scene. */
+  /** (S2) The cut to play: input on (the view lets go), the HUD, the radio line, the objective line. */
   private cut(): void {
     const w = this.world!;
     this.inPlay = true;
     this.view?.cut();
     w.hud(true);
     w.cutLines(RADIO_LINE, OBJECTIVE_LINE);
-    this.onKnifeScene(true);
   }
 
   /**
@@ -579,6 +594,7 @@ export class PianoScene {
     this.fade = null;
     this.view?.dispose();
     this.view = null;
+    this.onKnifeScene(false);
     const w = this.world;
     if (w) {
       w.empItems(false, null);
