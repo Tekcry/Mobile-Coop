@@ -6,18 +6,15 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
 Setting history: piano works (plan approved ~20:15 as drawn) -> bunker (~20:05) -> one room / more guards (~20:10) ->
 STORM GRAIN MILL (Michael picked ~20:15; map id `thornbeckMill`, BRIEF A8, A12-A16) -> linear cinematic path, forced
 stealth / stalking / solo kills / paired co-op kills (~20:16). The approved opening, EMP and knife rules stand.
-1. Redraw of PLAN section 3 + SIGNOFF + map-plan.svg as the storm mill: Opus planner (the original PLAN agent) was
-   working at the save. Missing or bunker-shaped at resume -> restart an Opus redraw from BRIEF A8, A12-A16 and the ~20:16
-   quote (orchestrator notes: lightning on a fixed timetable tied to the music, light parity; rain masks sound; 12-16
-   guards with torches, slow fixed sweep, sweeping pairs; knife + NV only; one exit locked until all down; S5 music
-   experiment with a dev A/B picker). Then a quick Opus re-check of the redraw against the BRIEF, then SIGNOFF to the
-   orchestrator for Michael's click ("Build the storm mill escape to this plan, with the rule skips above (this scene
-   only)?").
+1. Storm mill redraw DONE (PLAN 7e38ef3ca, SVG 0d9ad4f41, SIGNOFF b294900d2: 32 x 18 m, ground + north gallery, 10
+   stretches, 12 guards G1-G12 (+G13-16), flash timetable, S5 music, S6 storm). Opus re-check 2 running ->
+   piano-plan-check.md "Re-check 2". PASS -> SIGNOFF to the orchestrator for Michael ("Build the storm mill escape ...").
 2. S1 shell (Sonnet) on feature/piano-escape-s1: flag, `clear` objective, pianoScene (knife + NV only, empty pistol,
    end fade, no record), menu entry, STUB map `thornbeckMill` (no geometry; greybox S1b after Michael's click). Report
    scratch/campaign/piano/S1-report.md; missing -> rerun from S1-brief.md + the lead changes (stub map, thornbeckMill).
-3. S3 music DONE feature/piano-escape-s3 876c5e8b8 (20 tests; scratch/campaign/piano/S3-report.md). Waits for S1: one
-   Sonnet checker for S1 + S3, merge both into feature/piano-escape, PR (dark).
+3. Wave 1 = PR #606 (feature/piano-escape -> master, 8b8ca2757): S1 shell + S3 music merged in, Sonnet batch PASS
+   (scratch/campaign/piano/S1-S3-check.md), checker posted; automatic affected run only. Flag-on test fixes
+   (rooms / campusS1 / detailPass) go with S1b. Further slices: new branches off feature/piano-escape, new PRs.
 4. Others: Player knife feature/piano-knife (S1 building; told map id thornbeckMill, scene 'piano' gate unchanged).
    Sector Ops SO1 feature/piano-lights-so1, SO3 feature/piano-lights-so3 building; SO2 / SO4 wait for the greybox
    (tell them branch + head). Guard AI told by the orchestrator.
