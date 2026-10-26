@@ -224,9 +224,9 @@ export const docsOnlyFiles = lq.docsOnlyFiles;
 const statusOf = (pr, ctx) => pr.statuses?.[ctx]?.state ?? 'missing';
 export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
 
-/** The required checks that are red (failure) on the PR's current head: CI `check`, `checker`, `affected-e2e`. */
+/** The required checks that are red (failure) on the PR's current head: CI `check`, `checker`, `affected-e2e` (not when waived, F55). */
 export const redChecks = (pr) => [pr.check === 'failure' ? 'check' : null,
-  ...[CHECKER_CONTEXT, AFFECTED_CONTEXT].map((c) => (statusOf(pr, c) === 'failure' ? c : null))].filter(Boolean);
+  ...[CHECKER_CONTEXT, AFFECTED_CONTEXT].map((c) => (statusOf(pr, c) === 'failure' && !(c === AFFECTED_CONTEXT && tr.affectedWaived(pr)) ? c : null))].filter(Boolean);
 
 /** Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md) -> { ready, why, affectedMissing }: the shared rule. */
 export const labelReady = tr.trainReady;

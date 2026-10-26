@@ -133,10 +133,56 @@ export interface Flags {
    *  /preview/ default on (preview-flags). */
   missions: boolean;
   /** (mission-framework, owner Campaign Build) The co-op kit's new moves (pull-up, shutter, any later kit kind);
-   *  `?coopkit=1` on. Off keeps Marlow Yard as it is (M1). Switch-on: Michael's walk of the kit with Player Build's clips,
-   *  target 2026-10-28; then `!== '0'`. Tests set `flags.coopKit` in `beforeAll` and restore it. On /preview/
-   *  default on (preview-flags). */
+   *  `?coopkit=1` on, `?coopkit=0` off. Off keeps Marlow Yard as it is (M1). Switch-on: Michael's walk of the kit with
+   *  Player Build's clips, target 2026-10-28. Tests set `flags.coopKit` in `beforeAll` and restore it. (coop-kit A1,
+   *  BRIEF A8) Still the gate its readers use and a plain writable field; only its load value folds into `kitMoves`:
+   *  on when `kitMoves` holds `pull` or `shutter` (so /preview/ turns it on through `KIT_BUILT`; `readCoopKit`).
+   *  Campaign moves its readers onto the ids and removes this field in its own PR. */
   coopKit: boolean;
+  /** (coop-kit A1, BRIEF A8; owner Player Build) The co-op kit moves switched on, by id (`KIT_BUILT`):
+   *  `?kitmoves=descent,pull` exactly those, `all` every built id, `0` / `none` none; an id not built is dropped.
+   *  Default: `KIT_MOVES_ON` (none) in the live game, every built id on /preview/ (preview-flags). `?coopkit=1` / `0`
+   *  adds / removes `pull` and `shutter`. The host's rules and each page's offers read it (`has()` allocates nothing).
+   *  Tests set `flags.kitMoves` in `beforeAll` and restore it. */
+  kitMoves: ReadonlySet<string>;
+}
+
+/** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
+ *  move playable): A1's rope descent, Campaign's pull-up and shutter (PR #578, folded in from `coopKit`). */
+export const KIT_BUILT: readonly string[] = ['descent', 'pull', 'shutter'];
+
+/** (coop-kit A1) The kit ids on in the live game: an id joins this list when Michael accepts its walk (switch-on). */
+export const KIT_MOVES_ON: readonly string[] = [];
+
+/** (coop-kit A1) The ids `?coopkit=1` / `0` add / remove (Campaign's kit before the fold). */
+const COOPKIT_IDS: readonly string[] = ['pull', 'shutter'];
+
+/**
+ * (coop-kit A1, BRIEF A8) `?kitmoves=` as the set of kit move ids on: a comma list (each matched to `KIT_BUILT` ignoring
+ * case; an id not built is dropped), `all` every built id, `0` / `none` none. Absent or unreadable: every `KIT_BUILT` id
+ * on /preview/ (`preview`), else `KIT_MOVES_ON`. `coopkit` (`?coopkit=`): `1` adds `pull` and `shutter`, `0` removes
+ * them. Load time only (allocates).
+ */
+export function readKitMoves(v: string | null, preview = false, coopkit: string | null = null): ReadonlySet<string> {
+  let ids: readonly string[];
+  const low = v?.toLowerCase() ?? '';
+  if (v === null || !/^[a-z0-9]+(,[a-z0-9]+)*$/.test(low)) ids = preview ? KIT_BUILT : KIT_MOVES_ON;
+  else if (low === '0' || low === 'none') ids = [];
+  else if (low === 'all') ids = KIT_BUILT;
+  else {
+    const want = low.split(',');
+    ids = KIT_BUILT.filter((id) => want.includes(id.toLowerCase()));
+  }
+  const out = new Set(ids.filter((id) => KIT_BUILT.includes(id)));
+  if (coopkit === '1') for (const id of COOPKIT_IDS) out.add(id);
+  else if (coopkit === '0') for (const id of COOPKIT_IDS) out.delete(id);
+  return out;
+}
+
+/** (coop-kit A1) `flags.coopKit`'s load value: `?coopkit=1` on, `0` off, else on when the kit set holds `pull` or
+ *  `shutter`. */
+export function readCoopKit(v: string | null, kit: ReadonlySet<string>): boolean {
+  return v === '1' || (v !== '0' && (kit.has('pull') || kit.has('shutter')));
 }
 
 /** (campus-greybox) The campus sections switched on to their v2 layouts by default: a section number joins this list
@@ -178,6 +224,8 @@ function readParams(): URLSearchParams {
 }
 
 const params = readParams();
+/** (coop-kit A1) The kit set, read once (`flags.kitMoves`; `flags.coopKit` loads from it). */
+const kitMovesAtLoad = readKitMoves(params.get('kitmoves'), PREVIEW_ON, params.get('coopkit'));
 
 /** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: the Low preset at native
  * resolution, a 1.0 render scale and a 60 fps cap (phone-min: basic lamp light and shadows, kept cool). */
@@ -243,7 +291,9 @@ export const flags: Flags = {
   guardFreeze: params.get('guardfreeze') !== '0',
   // (mission-framework FLG) dark until Michael's walks: `?missions=1` / `?coopkit=1` on; on /preview/ on (preview-flags)
   missions: darkFlag(params.get('missions'), PREVIEW_ON),
-  coopKit: darkFlag(params.get('coopkit'), PREVIEW_ON),
+  // (coop-kit A1) the kit's list flag; `coopKit` stays Campaign's gate, its load value read from the list
+  coopKit: readCoopKit(params.get('coopkit'), kitMovesAtLoad),
+  kitMoves: kitMovesAtLoad,
   // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on, /preview/ too
   guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),

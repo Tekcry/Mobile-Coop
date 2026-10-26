@@ -1,5 +1,154 @@
 # Changelog
 
+## 4.124.0 - Train 148: Mantle through a low ceiling fixed; Knife kill allocation test fix; Laptop queue: desktop-red reruns go first; withdrawn affected runs keep the waiver; +6 more (2026-10-27, PR #643; #640, #639, #638, #632, #624, #623, #604, #566, #530)
+
+### Storm scene guards: the slow methodical sweep
+- (scene only, `?piano=1`) In the blackout the guards walk fixed timed laps at 0.7 m/s, sweeping their torches left
+  then right at each stop; partners walk abreast, pan opposite ways, notice a missing partner, and one who glimpses a
+  player in a flash takes his partner along to look.
+
+### Knife kill allocation test fix
+- Test only: the knife kill allocation test allows the clip sampler's own small cost per step (as the kill drive test does), so it no longer fails releases at random.
+
+### Laptop queue: desktop-red reruns go first; withdrawn affected runs keep the waiver
+- Laptop queue: a laptop rerun of a desktop failure now sits in the fix tier (F52), so the final verdict on a PR that
+  reads red runs ahead of front and green work (piano reruns waited ~2 h); trains still go first.
+- Watchdog and auto-train: the `no-affected-e2e` label also waives an affected-e2e that never ran (an `error` status:
+  withdrawn, conflict), so a withdrawn run no longer drops `train-ready` (F55, #623 / #624); a red run still does.
+
+### Mantle through a low ceiling fixed
+- A crouched player in a crawl space under a slab can no longer climb up through the slab onto the floor or roof above (seen on Saltmarsh Park S3, where it left the player stuck on the roof). A climb now needs open air above the chest to rise through; normal climbs with room to stand are unchanged.
+
+### Marlow re-plan walks: A6 and A8 test-side fixes
+- Marlow re-plan walks (e2e-ctcourse parts 7 and 8): the A6 seen retry waits for the attendant to walk in to his desk, and the A8 loop check knocks the guards out first.
+
+### Empty pistol slide
+- (piano-knife S4a) The pistol's slide (with its sights and extractor) is a mesh of its own in `pistolSd.glb`, and
+  `WeaponModel.slideLock(on)` locks it back 2 cm for an empty gun. Nothing calls it yet (the piano intro, S4b); with the
+  slide forward the pistol looks as before.
+
+### Lightning as a light source (dark)
+- (piano SO5) Lightning flashes join the one lighting system as sky light: a fixed strike timeline
+  (`src/world/lightning.ts`, map data `MapDef.lightning`) adds `sky visibility x flash` to the moon term, so the meter,
+  guard sight and the picture (the baked lamps' moon term and the sun / moon light) agree; a window lets a strike in, a
+  shut room stays dark, a character between shadows it. No map has lightning yet; `?lightning=1` plays a demo loop on
+  any map. Nothing changes without either.
+
+### Route-run course mode: drill gates and restarts
+- Route-runs (J13 R4c, test tooling only): on Marlow Yard the robots now get through a locked course door the way the
+  course expects. At a door held by open drills they wait at the door for the drill hold, then the harness completes
+  each open drill for either player through the course's own hooks and lists it as a drill stub (never as walked); at a
+  holding room's far door both robots stand on the pad and the airlock cycles. A door still locked after that is a
+  `locked` stop as before. The robots also notice when the course sends them back (a set restart or a retry), name why
+  (seen by a guard or a camera, a timer that ran out, or neither) and log it: a seen restart is a detection, the second
+  from the same place turns that set's spotted rule off and pushes the pair past, the second timer restart on one step
+  completes its drills as stubs, and only a second unexplained restart from one place is a `restart-loop` stop. The
+  course selftest fixture covers sets A1 and A2. Wiring into the driver follows in the lead's seam slice.
+
+### Route-run link steps (ladders, drops, windows, ducts, rappels)
+- Route-runs (J13 R5, test tooling only): the robots now take the solo off-nav links with the pad instead of stubbing
+  them: ladders (up from the foot, down from the top), drops (walked off the edge, or a hang and let go where the edge
+  stops the walk), windows (the vault; a glazed one shatters), hatches, ducts (the grate unscrewed quietly, crawled
+  through) and rappels. With two robots the leader takes each link first, then the follower on its own page, both pages
+  stepped together on the host's clock; inside a split each robot takes its own leg's links. Each has its time limit (a
+  link whose move never shows is a step-timeout dead stop, logged for the robot that failed with the step's time and
+  limit, then that robot is placed past the link). Code-route climbs are matched to the ladder, window, duct or rappel
+  near them, else read as a drop when they go down. Ledges, pipes, wall jumps and split jumps stay stubs, listed in the
+  report, as do the co-op moves. `--dry-run --selftest <fixture>` prints the selftest's runs with each link's limit. New
+  selftest fixture `tests/fixtures/route-run/selftest-steps.graph.json`.
+- (F29) A link step's dead stop names the step's phase (before the move, mounting, climbing, at the edge, through and
+  so on), so a stall says where it stopped.
+- (F29) The steps selftest's walk points: the ladder's in the delivery yard in front of its foot (not the locked dock
+  door), the canopy drop's beside the hatch (not over it), the pavilion drop's and both windows' off their space edges.
+  The open rear window of the gatehouse is now expected to time out: the PC desk under its landing stops the game
+  offering the vault (a map item for Sector Ops). A new unit test keeps every selftest walk point inside its starting
+  space, off its edges, doors and openings, on a walkable floor.
+
+### Route-run course and points seams
+- Route-runs (J13, test tooling only): the hooks the course runs and the checked points table plug into. In course mode
+  the harness no longer calms a guard that saw a robot (the game's own restart or retry is the forgive there). The
+  course hook can interrupt a walk when the game restarts or retries a set: the robots stop, are placed where the hook
+  says and go on from the step it names (inside a split both legs end first). The hook also gets the graphs, the
+  selftest's expectations, the end of each run (after its detection lines) and its own selftest checks. `--points` is
+  read through the points loader (checked against the graphs; `--points auto` makes the table).
+
+### Level validator: training, perfect-run and engine checks, graph sets
+- Level validator, training maps (`scripts/level-checks/training.mjs`): a new `meta.taught_by` names the section where
+  the last co-op kit move is taught on its own (an error when missing or not one of `meta.sections` on a training map,
+  and on any other mode). Up to and including that section each section is one guided route: an error for a side route
+  (2+ routes), for a `split:` tag, for no teach element, and for a teach element some entry-to-exit path avoids.
+- Teach elements: a link field `teach: "<move>"` or a space tag `teach:<move>` (free text from the map's teach list, so
+  moves with no link kind, such as the jam relay or the console loop, count).
+- Routes are counted on the section's own spaces and links (no spine link), entry to exit, never entering a space
+  twice; links between the same two spaces in the same direction are one step, and a split's legs are one route. So a
+  drop back beside a boost, or an objective loop that returns to its space, is still one route. Exported as
+  `sectionRoutes(graph, section)` -> `{ count, paths }` (count stops at 10; a merged split is `split:<id>` in `paths`)
+  for the route-run harness.
+- After `taught_by`, a section with 2+ routes needs a guarded encounter space (a side route only when training against
+  enemies), and then the campaign route rules run on it: three approaches of two kinds with shadow, high and loud, and
+  routes that cross. A section whose only second way is a split needs neither.
+- `npm run validate:levels` (`scripts/level-graphs.mjs`) runs the level validator over every committed graph set in
+  `docs/level-validator/graph-sets.json` (the example, campus S1-S5 and Marlow Yard) and exits 1 when a set's error or
+  warning count differs from the manifest; `--write` rewrites each saved run and the counts. `tests/levelGraphs.test.ts`
+  pins the same counts and checks each saved run says them. Pinned today: campus 139 errors and 200 warnings, Marlow
+  Yard (with `--require-measured`) 37 errors and 83 warnings. Adds the `level-measure` script line.
+- Level validator (tooling, no game change): every map graph is checked for a perfect run. Each objective and the
+  run's end (exfil on a campaign map, the last section's exit on Sector Ops and Marlow Yard) must be reachable without
+  a link marked `requires_kill` (an error on every mode) and without a loud link (an error on campaign and Sector Ops,
+  information on Marlow Yard). `requires_kill` must be true or false, and a `mark` on a space or link is an error on
+  campaign and Sector Ops and an information count on Marlow Yard.
+- New test: no mission forces a kill. Every Sector Ops objective is a hack, grab or download, and every Marlow Yard
+  objective step is completed by a player action (a zone, a scanner pair, a switch or a door), never by a guard's death.
+- Validator output on the worked example and the campus graphs is unchanged.
+- Level validator, engine facts (`scripts/level-checks/engine.mjs`): a space more than `rules.nav_floor_depth_m`
+  (scale sheet section 8, 1.5 m) below storey 0 that is an encounter space or has guards prints a WARN: the guards'
+  nav grid does not reach that deep (level-design 12.1). The row is read only when such a space exists below storey 0;
+  a missing row prints one WARN and the check is skipped. Ropes still go both ways (a `team_rope` down from an upper
+  storey inside the `rope_span` band is fine) and the validator has no human-ladder row of its own: a `human_ladder`
+  lip is judged by the co-op lip band (`sizes.coop_lip`) as before.
+- Level validator, throw gaps (`scripts/level-validate.mjs`, the `team_throw` check): a throw marked as an approved
+  long throw is judged against the scale sheet's "Long throw (named spots only)" row (`sizes.throw_long`, gap at most
+  4.9 m at the listed spots) instead of the 2.7 m throw gap row. Every other throw keeps the 2.7 m row.
+- New optional link field `exception` (only `"long_throw"`, only on a `team_throw`; an error on any other value or
+  kind): documented in `docs/level-validator/graph-schema.md`.
+- Docs: `docs/level-validator/graph-schema.md` gains `meta.taught_by`, `teach`, `requires_kill`, `mark` and
+  `exception`, the training, perfect-run and engine checks, the graph sets, and corrects the coverage, solo-twin and
+  measured-value lines; `docs/level-design.md` names `taught_by`, the live measured exit gate and the new rule-index
+  rows; `docs/systems/testing-tools.md` documents `--require-measured`, `npm run validate:levels` and
+  `npm run level-measure`.
+- The Marlow Yard level graph (`docs/marlow-final/graph/ctcourse.json`, as built at 4.103) is on the training profile,
+  with `taught_by` A7 and eight teach elements from the course spec. It is measured with `level-measure --write`; its
+  validator run with `--require-measured` is saved beside it as `run.txt`, with a `REPORT.md` that maps each error to
+  the re-plan slice that fixes it.
+- The five campus graphs carry their measured positions and the values `level-measure` stored from the built campus. A
+  new test, `tests/levelMeasureCampus.test.ts`, re-measures the campus in CI and fails when a stored value has moved or
+  the stored geometry hash is stale; the saved validator run and report are in `docs/level-validator/campus-run/`.
+- Splits: a split leg may start with a co-op link from the fork (both partners stand at the fork for the boost, then
+  go on alone). At most one leg; the other still needs a solo entry from the same fork; the co-op link's time counts
+  for its leg and an INFO line names it. Two co-op entries, or a bolted link walked the wrong way, keep the error.
+
+## 4.123.2 - Train 144: Route-runs: the points table check (2026-10-27, PR #635; #564)
+- Route-runs (tooling): a points table is checked against the map graph it plans before a run; a table made on
+  another build of the map, with a different link count or with links in another order is refused with a plain
+  message, and runs that will be unplannable are noted up front. The table can also be made on the spot with
+  level-measure (`scripts/route-run/points.mjs`, unit tests).
+
+## 4.123.1 - Train 143: Saltmarsh Park S1 fence leak (2026-10-27, PR #633; #629)
+- Sector Ops (v2 layout, section 1): you can no longer get over the perimeter fence and out of the play area. The fence
+  could be cleared by jumping off the gatehouse roof corners or the condenser, by climbing from the yard bins, the bin
+  screen or the plant-roof parapet, or from roof kit by the roof screens. The fence now has an invisible anti-climb cap
+  up to 8 m along every perimeter line (no change to the look, lighting or cover). A new test checks walking and
+  climbing out (`tests/campusV2S1Fence.test.ts`).
+
+## 4.123.0 - Train 142: Co-op kit: rope descent (2026-10-26, PR #630; #590)
+- Co-op two-person rope: the partner standing beside the player holding the rope can now rappel down it, not only climb
+  up from the bottom. Press Co-op beside the holder: you go over the edge onto the rope, push the stick down to go down,
+  and keep it held down at the bottom to step off (the holder is then free). The look is a stand-in for now; the proper
+  animation comes next.
+- One switch for the new co-op moves, `?kitmoves=` (for example `?kitmoves=descent`; `all` or `0`): every finished move
+  is on in /preview/ and off in the live game until you try it. `?coopkit=1` still turns on the pull-up and the shutter.
+  Nothing changes in the live game.
+
 ## 4.122.1 - Train 141: Guard AI: piano intro actors; Marlow Yard re-plan walks, part 2 (2026-10-26, PR #628; #611, #610)
 
 ### Guard AI: piano intro actors
