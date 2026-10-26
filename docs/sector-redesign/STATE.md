@@ -350,35 +350,29 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~12:00, after the 11:33 swap; items below as at ~10:20 unless
-updated here).
-NEW 12:00: #459 MERGED (train 116). PRs opened to master: #511 map-ready S1, #512 S9 (b51ca6fd = fragment only, checker
-PASS on a89726ef, carried status not posted: auto mode blocked it), #513 S2 (includes S1). S10 waits for #511 / #512.
-#481: Opus checker IN FLIGHT (report scratch/sector-ops-checks/csm-a2-check.md); e2e-coop + e2e-netmove requested on
-40cac98c. #481 / #489 base retarget to master blocked by auto mode (sent to Michael). L1 e2e rerun GREEN: sign-off sent
-to the orchestrator for Michael; L1 PR (2026 counted, needs big-pr) after his pick. Lane stacks: s1-a..c, s2-a..d
-pushed; S3-S5 stacks not started (agent lost at the swap); restart when the desktop is under ~80% (100% at 11:45).
-git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. CPU / disk tight:
-no new builders until the orchestrator says the desktop is under ~80%; tsc / vitest at BelowNormal. New node_modules
-junctions point only at C:/NightShift/Mobile-Coop-menu/node_modules. Checker reports: C:/NightShift/scratch/sector-ops-checks/.
-Merge master into each labelled branch as soon as a train releases (orchestrator 10:00). Fix PRs get the `fix` label.
-1. #457 (fix label), #459, #488: master 4.106.1 merged in (a4bdcd94 / 31be36fb / 297004da), Sonnet merge-resolution
-   PASS posted (merge-resolutions-1026-check.md). #481 (40cac98c) / #489 (a0147ac4) merged the new #459 head (stale
-   CLAUDE.md G-cite lint); typecheck clean; check CI went green, then checker re-post if the watchdog asks.
-2. J17 campus: P0 PR #503 (big-pr, head f466c4a5, Sonnet merge PASS; pr-size rerun after the label). Lane stacks on
-   feature/campus-greybox-p0 by an Opus agent (worktree -campus-greybox-lanes): branches feature/campus-greybox-
-   s1-a..c, s2-a..d, s3-a..f, s4-a..c, s5-a..c; table lane-stacks.md; S4/S5 re-apply A23 (no section helmet, both->
-   armour, shieldTeams). s1-a pushed at the save. Next: finish the stacks, Sonnet re-check of S4/S5 resolutions,
-   open PRs base feature/campus-greybox-p0 (bodies lane-*-pr-body.md), retarget to master once #503 lands.
-3. A28 #488: fix1 done (two Opus delta PASS); affected on the new head.
-4. J10 L1: triage 2 (docs/light-realism/checks/l1-e2e-triage-2.md): client moved to x 12.8 (pitch limit 1.05);
-   fix 5dceab9b, laptop rerun e2e-sectorops:1 requested (set light-realism-l1-e2e). Green -> SIGNOFF.md + shots
-   (shots/light-realism-s1) to the orchestrator for Michael; then the L1 PR (check pr-size).
-5. J21 map-ready: S1 + S9 PASS + gates green. S2 PASS (a85f3db9), gate e2e-coop + e2e-netmove queued. S10 Opus PASS
-   (110c0454; report 7b478dd5), gate e2e-coop + e2e-netmove queued (trimmed from 4: queue audit). S8 planned
-   (eae83afc: SHORTEN.md, briefs S14 / S15 / S16; V12's held slice = S15); cloud brief map-ready-S14 open
-   (295f69c9, base map-ready-s2). Next when CPU allows: S3 builder (after S2, Opus, two Opus checkers), S15 (Opus,
-   laptop GPU each step), S5 waits on #317. A20 (S16 lobby compile) needs Michael's click only if S16 triggers.
-6. J16: #481 / #489 retarget to master after #459 lands. S3b-2 (GameState wiring) after #481.
-Next: on each agent / laptop result: checker or PR; lane PRs open; after a release merge master into labelled branches.
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~12:40 SAVE, orchestrator cap ~12:42).
+git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Desktop CPU ~100%
+(e2e overflow): no local builders until the orchestrator's under-80% word; builder slices go to cloud-queue briefs.
+tsc / vitest at BelowNormal. node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules. Checker
+reports: C:/NightShift/scratch/sector-ops-checks/. Auto mode blocks this session from posting `checker` statuses and
+re-targeting PR bases: the orchestrator posts them from the written reports (send it the report path).
+1. PRs: #503 campus P0 train-ready. #488 A28 and #457 (head e55d0e51, master 4.110.0 merged, v2 labels mirrored,
+   checker posted) wait on affected-e2e. #481 (head effa5958, base master, checker posted after Opus FIX -> fix ->
+   Opus PASS) waits on affected + e2e-coop/netmove (requested on 40cac98c; docs-only since). #489 base master.
+   #511 map-ready S1, #512 S9 (checker carried by the orchestrator), #513 S2 (includes S1). S10 (1977 counted incl.
+   S1 + S9) opens after #511 / #512 land. #518 light L0+L1 (big-pr): Opus PASS light-l1-check.md + Sonnet delta PASS
+   light-l1-delta-check.md; orchestrator posting checker.
+2. Michael 11:45 on L1: "Approve but only s1, let me walk it before doing any more". L2-S1/S2/S3 briefs (HOLD until
+   his S1 walk) by an Opus agent on feature/light-realism-l2 (worktree -light-realism-l2). No L2 builds.
+3. J16 char-shadow-meter: S2c (client partners, must-fix before switch-on) cloud brief open
+   (cloud-queue briefs/char-shadow-meter-s2c.md, base a2 effa5958). Order S3b -> S2c -> S4 (PLAN). Side finding for
+   Guard AI / coop4 (not ours): playerRefsInto (gameState.ts:1083) `out.length = 0` + push allocates ~150 B per call
+   every sim step; tell the orchestrator.
+4. J17 lane stacks: s1-a..c, s2-a..d pushed; s4-a WIP 44847fb7 (staged at the swap, unverified). Cloud briefs
+   campus-greybox-stack-s3/-s4/-s5 being written by an Opus agent (lanes delete carried coop4 minPlayers rows; TAG-<N>
+   adds the v2 extras, PLAN section 4). Guard counts answer sent to the orchestrator (v1 live, v2 signed 15/18/20/25/26).
+5. J21 map-ready: S14 done on cloud (763fc7bf) - Opus checker running (report map-ready-s14-check.md). S3 cloud brief
+   being written by an Opus agent (briefs/map-ready-S3.md). S15 needs laptop GPU per step; S5 after #317; S16 / A20.
+Next: on each agent result: publish / check / PR; S14 PASS -> request its PC runs (step 6); after a release merge
+master into labelled branches; when CPU < 80%: S10 PR prep, lane stacks verification.
 ```
