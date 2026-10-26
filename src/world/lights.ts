@@ -46,8 +46,12 @@ export interface LightDef {
   /** The visible fixture (a lamp strip, a flood housing): its box is what a shot hits and what goes dark when
    *  the light is out; null = a small bulb at the light. */
   fixture: LightFixture | null;
-  /** Rendering only: how far the beam reaches before geometry stops it (a flashlight on a wall); unset = radius. */
+  /** How far the beam reaches before static geometry stops it (a flashlight on a wall; `torches.beamReach`, the same
+   *  on host and client); unset = radius. The picture's cut; the light field reads it only for a `beamCut` torch. */
   reach?: number;
+  /** (piano SO3) A guard torch slot with no shadow map (`addTorchSlots`, map data): the picture cuts its beam at `reach`
+   *  and the light field does the same instead of its ray test, so the meter and guard sight match the picture. */
+  beamCut?: boolean;
   /** (LR16-5) The live flicker multiplier (a fire's flicker, a failing tube's stutter; `lampFlicker.ts`): 1 steady. The
    *  light field, the baked lamps' data texture and the fixture glow all scale the lamp by it (light parity). Written by
    *  `LightRegistry.tickFlicker` only; never bumps `version` (the bounce and the caches must not re-sum every frame). */

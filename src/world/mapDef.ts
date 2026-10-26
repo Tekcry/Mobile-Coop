@@ -139,8 +139,11 @@ export interface MapDef {
    * purpose. Default true.
    */
   detail?: boolean;
-  /** (piano SO3) Guard torch slots on a dark map (`torches.torchSlotCount`): 4 (default) or 8 (more than 4 asks for 8).
+  /** (piano SO3) Guard torch slots on a dark map (`torches.torchSlotCount`): 4 (default), 8, 12 or 16 (rounded up).
    *  The registry's flashlights, the baked lamps' torch loop and uniforms and the torch shadow atlas follow it; a map
    *  that does not set it costs what it did. */
   torchSlots?: number;
+  /** (piano SO3) Of those, how many get a shadow map (default all); the rest light with the beam's reach cut, the
+   *  light field matching (`LightDef.beamCut`). */
+  torchShadows?: number;
 }

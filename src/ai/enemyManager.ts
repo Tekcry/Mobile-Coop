@@ -2104,6 +2104,8 @@ export class EnemyManager {
     e.key = this.freeKey();
     if (e.key >= 0) this.awareness.resetKey(e.key);
     if (alerted) this.sendIn(e);
+    // (piano SO3) dev / the GPU check (`?torches=all`): every carrier's torch on (a dog's stays off: `torchWanted`)
+    if (flags.torchesAll) e.torchOverride = true;
     this.enemies.push(e);
     if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
     return e;

@@ -11,8 +11,24 @@
 import { hyp2, hyp3 } from '../core/mathx';
 import { makeCone, type LightDef, type LightRegistry } from './lights';
 
-/** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
+/** Flashlight slots on dark maps (enemies searching / investigating in the dark): the default. */
 export const FLASHLIGHTS = 4;
+/** (piano SO3) The most a map may ask for (`MapDef.torchSlots`). */
+export const FLASHLIGHTS_MAX = 16;
+
+/** (piano SO3) A map's torch slots: unset 4; else rounded up to 4, 8, 12 or 16 (each count is its own shader variant,
+ *  `LampPlugin`'s defines). Pure. */
+export function torchSlotCount(asked: number | null | undefined): number {
+  if (asked === null || asked === undefined || !(asked > FLASHLIGHTS)) return FLASHLIGHTS;
+  return Math.min(FLASHLIGHTS_MAX, Math.ceil(asked / 4) * 4);
+}
+
+/** (piano SO3) How many of `n` slots get a shadow map (the torch atlas): unset all; else 1..n. The rest light with the
+ *  beam's reach cut (`LightDef.beamCut`), in the picture and the light field alike. Pure. */
+export function torchShadowCount(asked: number | null | undefined, n: number): number {
+  if (asked === null || asked === undefined || !(asked < n)) return n;
+  return Math.max(1, Math.floor(asked));
+}
 
 /** The torch itself: range (m), peak level, colour (rendering), cone half-angles (rad), and how it is held. */
 export const TORCH = {
@@ -31,11 +47,13 @@ export const TORCH = {
   eyeCrouch: 1.0,
 } as const;
 
-/** A dark map (ambient or any zone below 0.5): the flashlight slots, off and parked under the floor until used. */
-export function addTorchSlots(reg: LightRegistry): void {
+/** A dark map (ambient or any zone below 0.5): the flashlight slots, off and parked under the floor until used.
+ *  (piano SO3) `n` slots (`torchSlotCount`); the slots from `shadowed` on carry `beamCut` (no shadow map). */
+export function addTorchSlots(reg: LightRegistry, n = FLASHLIGHTS, shadowed = n): void {
   if (!(reg.ambient < 0.5 || reg.zones.some((z) => z.ambient < 0.5))) return;
-  for (let i = 0; i < FLASHLIGHTS; i++) {
-    reg.add({ kind: 'flashlight', x: 0, y: -50, z: 0, radius: TORCH.radius, intensity: TORCH.intensity, color: [...TORCH.color], cone: makeCone(0, 0, 1, TORCH.outer, TORCH.inner), on: false, destructible: false, electric: false });
+  for (let i = 0; i < n; i++) {
+    const l = reg.add({ kind: 'flashlight', x: 0, y: -50, z: 0, radius: TORCH.radius, intensity: TORCH.intensity, color: [...TORCH.color], cone: makeCone(0, 0, 1, TORCH.outer, TORCH.inner), on: false, destructible: false, electric: false });
+    if (i >= shadowed) l.beamCut = true;
   }
 }
 
