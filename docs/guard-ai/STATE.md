@@ -1018,8 +1018,8 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
-     Fix round 1fe0bc3f6 (22:48): Opus re-check of A running -> "Re-check 1fe0bc3f6" in slices/PIANO-GA6-CHECK-A.md;
-     CI + affected-e2e (1 suite) queued on 1fe0bc3f6. PASS -> orchestrator posts checker, final head to Campaign.
+     Fix round 1fe0bc3f6; re-check closed both + one test stub FIX (lockedDoorPath walker), applied e910abee2: checker
+     PASS posted, Campaign told. CI + affected-e2e running on e910abee2 -> green: tell the orchestrator train-ready.
    - GA5 DONE (PIANO-GA5-REVIEW.md); all six deltas on #617 (937603b46). Campaign's TODO: assert sweepPeriod(G4) ===
      sweepPeriod(G5) once GA6a is on master and re-tune the end waits (told: lap adds 0.8 s slack + turn time per leg).
 2. #588 play pass A: MERGED (train 138).
@@ -1030,7 +1030,9 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
    every lamp of the circuit is mainsCut (a guard walks to a dead switch); #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
-   autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: re-check verdict on 1fe0bc3f6 -> PASS: orchestrator posts checker on #624, tell Campaign the final head; FIX:
-Opus fix round. #317: co-op group affected-e2e running -> green: tell the orchestrator train-ready.
+   autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
+   with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
+   pull resumes short.
+Next: #624 e910abee2 and #317 affected-e2e verdicts (background waits) -> green: tell the orchestrator train-ready;
+red: Opus triage.
 ```
