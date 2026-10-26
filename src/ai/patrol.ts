@@ -104,10 +104,11 @@ export class PatrolWalker {
     return !!r && (r.pingPong ?? r.points.length < 3);
   }
 
-  /** Next point to walk to, or null while waiting / standing post. */
-  step(dt: number, x: number, z: number): Pt | null {
+  /** Next point to walk to, or null while waiting / standing post. (guard-ai play A, P2-2) `away`: he is off his post's
+   *  storey (a gallery post, him on the floor below), so standing under it is not being on it. */
+  step(dt: number, x: number, z: number, away = false): Pt | null {
     const r = this.route;
-    if (!r || r.points.length === 0) return this.post(dt, x, z);
+    if (!r || r.points.length === 0) return this.post(dt, x, z, away);
     if (this.waitT > 0) {
       this.waitT -= dt;
       if (this.waitT > 0) return null;
@@ -150,6 +151,19 @@ export class PatrolWalker {
     return (this.idx + 1) % n;
   }
 
+  /** (guard-ai play A, P1-1) He cannot get to the point he heads for (no progress): a route walker moves on to the next
+   *  point; a post guard takes (x, z) as his post until the next `rejoin` (this calm spell). */
+  giveUp(x: number, z: number): void {
+    const r = this.route;
+    if (r && r.points.length > 0) {
+      this.waitT = 0;
+      this.advance();
+      return;
+    }
+    this.postPt[0] = x;
+    this.postPt[1] = z;
+  }
+
   private advance(): void {
     const n = this.route!.points.length;
     if (n < 2) return;
@@ -160,8 +174,9 @@ export class PatrolWalker {
   }
 
   /** Standing post: back to it, then face its direction with an occasional glance either side. */
-  private post(dt: number, x: number, z: number): Pt | null {
-    if (hyp2(this.postX - x, this.postZ - z) > PATROL.arrive * 1.5) {
+  private post(dt: number, x: number, z: number, away: boolean): Pt | null {
+    const pp = this.postPt;
+    if (away || hyp2(pp[0] - x, pp[1] - z) > PATROL.arrive * 1.5) {
       this.lookYaw = NaN;
       return this.postPt;
     }
@@ -176,6 +191,9 @@ export class PatrolWalker {
   rejoin(x: number, z: number): void {
     const r = this.route;
     this.waitT = 0;
+    // (guard-ai play A) a post given up last calm spell (`giveUp`) is his own post again
+    this.postPt[0] = this.postX;
+    this.postPt[1] = this.postZ;
     if (!r || r.points.length === 0) return;
     if (r.loop) {
       // the point the schedule says the guard is at or heading for: the next planned departure

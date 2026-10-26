@@ -182,6 +182,8 @@ export class EnemyManager {
   /** (coop4 AI2) Sight rays every guard's think cast for players during the last `update` (summed from
    *  `Enemy.raysStep`; tests and the Test Runner measure read it). Each guard's own think: `Enemy.raysThink`. */
   raysThisStep = 0;
+  /** (guard-ai play A, check B) This frame's long plan (`AiContext.longPlan`) is not taken yet. */
+  private longPlanFree = true;
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
@@ -623,6 +625,11 @@ export class EnemyManager {
       lkpOf: (slot) => this.lkpOf(slot),
       intruderId: (slot) => this.intruders.idOf(slot),
       enemies: () => this.enemies,
+      longPlan: () => {
+        if (!this.longPlanFree) return false;
+        this.longPlanFree = false;
+        return true;
+      },
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
       rooms: world.layout.rooms ?? [],
@@ -1694,7 +1701,8 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
-      if (!e.alive || !e.alerted || e.def.melee) continue;
+      // (guard-ai play A, P2-1) not a guard who gave a run up this fight (no way to the panel)
+      if (!e.alive || !e.alerted || e.def.melee || e.alarmBarred) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
       // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
@@ -3823,6 +3831,10 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.raysThisStep = 0;
+    // (guard-ai play A, check B) one long plan (`GIVE_UP.homeExpand` A*) per frame across the guards
+    this.longPlanFree = true;
+    // (check FIX 1) the sliced long plan's idle count is in frames
+    this.nav.sliceTick();
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
