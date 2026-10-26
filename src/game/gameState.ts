@@ -415,7 +415,8 @@ export class GameState implements AppState {
   /** (piano SO5) The lightning level set last step (`updateLight`). */
   private flashWas = 0;
   /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
-   *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
+   *  `fillOccluders` fills the guard side on solo / host (guard-ai-j16 G4a); Player's `fillOperator` replaces the
+   *  interim operator fill later (PLAN section 6). */
   readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
   /** (char-shadow-meter S2) Per player slot (`FILL_IN`): feet, the meter's sample height, the head offset. */
   private readonly lightIn = new Float64Array(FILL.players * FILL_IN);
@@ -787,6 +788,9 @@ export class GameState implements AppState {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers, world.layout.navSeeds);
       w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefsInto(this.aiRefs));
+      // (guard-ai-j16 G4a) the guard-side light reads take the contract (null with the flag off: today's), set together
+      // with `fillChars`' switch to `fillOccluders`: both key guards and bodies by number, so neither shades itself
+      w.enemyMgr.chars = this.charOccluders;
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
         if (h.attackerId === 'local' || h.attackerId === '') {
@@ -1889,7 +1893,9 @@ export class GameState implements AppState {
    * (char-shadow-meter S2) The character contract from the sim, every step before `updateLight` (not inside it: the
    * stealth-AI e2e pins the meter by replacing `updateLight`, and the picture keeps its capsules): the players in
    * `playerRefsInto` order (slot 0 local: the meter's own sample; S2c: then a co-op client's partners, `charMatesInto`),
-   * then the living guards near them (a client's puppets through the same `takedownVictims`). Nothing with the flag off.
+   * then the characters near them: solo / host the manager's guards, dogs and lying bodies keyed by number
+   * (`EnemyManager.fillOccluders`, guard-ai-j16 G4a); a co-op client (no manager) its puppets through `takedownVictims`
+   * (`fillVictims`, BRIEF A10). Nothing with the flag off.
    */
   private fillChars(): void {
     const occ = this.charOccluders;
@@ -1902,7 +1908,8 @@ export class GameState implements AppState {
     const n = nr + this.charMatesInto(L, nr, FILL.players);
     this.charN = n;
     fillPlayers(occ, L, n, this.charKeys);
-    this.charFull = fillVictims(occ, this.takedownVictims(), L, n);
+    const em = this.enemyMgr;
+    this.charFull = em ? em.fillOccluders(occ, L, n) : fillVictims(occ, this.takedownVictims(), L, n);
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
 
