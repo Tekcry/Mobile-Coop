@@ -82,3 +82,15 @@ Counted lines excluding docs (`git diff --shortstat 24273a00c..HEAD -- . ':!docs
 - **Branch base.** The branch merges S3b-2 locally. PR 2 should land after #665 is on master. Otherwise the diff
   carries S3b-2's lines.
 - **cueLook is the only src/ai change.** It is a getter: no field, no per-step cost.
+
+## G5
+`scripts/e2e-stealth-ai.mjs` only (+208 / -4). Not run: e2e runs on the laptop queue (`--suites "e2e-stealth-ai"`, plus `--only=shadowCue`).
+- **Launch line** `:13-16`: `const { browser, ctx, page, errors } = await launch(...)` with `&charlight=0` (the main page is always the flag-off control; decided YES, orchestrator 2026-10-27). `openPage` imported `:8`.
+- **`installT`** `:21` (the old init body, unchanged, now a named function), called `:144`; again on the cue page.
+- **`shadowCue` block** `:1492-1689`, gated like `scen` (`:1498`), log line `shadowCue`:
+  - `shadowPick` (in page): lamps, 8 directions, 3-6 m, `t.tp` + `t.step(0.25)`, `q >= 0.5`, `L >= 4`, best q then L, guard at `feet + 2.4 d + off n` (0.6 / 0.4 / 0.8) with the brief's geometry checks. Extra: the two walk ends (`feet -/+ 0.6 n`) must be walkable cells.
+  - `shadowRun` (in page): modes `run` (walk, 20 s), `still` (control, 6 s), `off` (flag-off page, walk, 6 s). Order tp, `t.step(0.3)`, spawn, `t.step(1)`, re-set yaw (PR2-CHECK FIX 1). Wraps `em.onBark / hear / noise` after the settle, restored in `finally`. No `t.light` on the cue page.
+  - Asserts, brief numbering: 1 notice (`cueT < 1` in the walk, `cueSlot`, first cue point within 1e-3 of the slot's pts); 2 suspicious, never above, back to cooldown / unaware; 3 faces the point within 1.5 s (<= 0.35 rad), every `turning` has `cueLook`; 4 meter <= 0.36 and < 0.6; 5 no bark, `em.hear` / `em.noise` 0 calls, `g.noise === 0` per sample; 6 min dist >= 2.3 m, min angle >= 120 deg; 7 `updateLight` is the prototype's, `shadowCues.version` grew. Wiring asserted first (cue page non-null and equal; flag-off page null). Controls: still (cueT Infinity, unaware, meter 0), flag off (cueT Infinity, unaware). Cue-page console errors checked with the main page's filter.
+  - Failing asserts print the pick and the breaking sample as JSON.
+- **Judgement calls:** the white arc (`g.hud.arcs.shown`) is logged, not asserted: `updateStealthHud` adds an arc only when the guard sees the player or is near, and this guard does neither. The assertion would fail by design.
+- **Checks run:** `node --check` ok; `npm run typecheck:fast` clean; eslint ignores `scripts/` (warning only, 0 errors); `tests/e2eAffected.test.ts` 45 / 45 (no test greps the script's content).
