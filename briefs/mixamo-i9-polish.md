@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-26T02:31:23Z
+status: done feature/mixamo-i9-polish e12e5bcf3dac54da2003324e9ae9cf25ed282a35
 
 # Brief: mixamo I9 polish - Studio capture refill, retry, pack driver rows (Player Build)
 
@@ -198,10 +198,31 @@ says the captures load when the Studio opens), and (f)-(g) are an offline script
   push, move on. The lead answers by editing this brief.
 
 ## Report (fill in)
-- Branch, both commit shas.
-- Per item (a)-(g): what changed with file:line, or "no change" with the evidence ((e)).
-- Tests: names and pass counts per file; tsc / eslint results.
-- Deviations from this brief, each with the reason.
+(template above kept; filled in below by Night Shift | Cloud Builder 2, 2026-10-26)
+
+## Report
+- Branch `feature/mixamo-i9-polish` from 761075de. Commit 1 (a-d) `e8eb616914e0eeef23a4c963c4b2f31150beeb64`; commit 2
+  (f, g) `e12e5bcf3dac54da2003324e9ae9cf25ed282a35`. `git diff --stat 761075de` lists only the six brief files
+  (131 +, 14 -).
+- (a) `src/ui/studioPanel.ts:289-296` `sync()`: guard is `!this.capWait` only; refill through `whenStudioCaptures`,
+  failure clears `capWait`. Field comment `:73` updated; import `:2` gains `whenStudioCaptures`. The grep for
+  `studioCapturesLoaded() && !this.capWait` finds nothing.
+- (b) `src/anim/studio.ts:337-341`: rejection handler sets `lazyCaptures = null` and warns once; doc comment `:317-323`
+  as the brief.
+- (c) `src/ui/studioPanel.ts:213-217`: the `loadCaptures` hook refreshes the options when the captures are in.
+- (d) `src/anim/studio.ts:346-352` new export `whenStudioCaptures(refill, failed)`.
+- (e) No change, as the brief says (`mixamoEmit.mjs:109` uses `titleOf`); `tests/mixamoEmit.test.ts` 13/13 pass.
+- (f) `scripts/mocap/mixamo.mjs:216-219`: kept rows get `pack ?? packOf(file)`, `title ?? clipTitle(file)`; new export
+  `clipTitle` `:52-55`, used by `listClips` `:114`.
+- (g) `scripts/mocap/mixamo.mjs:89-99`: `listClips(dir, { readdir, warn })` warns on a `pack-*` link and skips it; other
+  links skip silently; `dumpAll` `:195` passes `deps.warn` when given.
+- Tests (vitest 5.0.3): studioCapturesLazy 4/4 (new: "(I9 polish) a refill asked for after the captures landed still
+  runs, once"), studioCapturesRetry 1/1 (new file), animStudio 19/19, mocapSources 5/5, mixamoDriver 16/16 (3 new, in the
+  I7 describe), mixamoEmit 13/13, changesFragments 1/1. `npm run typecheck:fast` clean; eslint clean on all six
+  (`scripts/mocap/mixamo.mjs` is outside eslint's scope: "File ignored because of a matching ignore pattern", as before).
+- Deviations: none. The `vi.doMock` path worked (Vitest re-ran the factory after it threw), so no `setCaptureImport`
+  seam. The retry test also checks `whenStudioCaptures` refills once after the good load. No changelog change (no
+  player-visible change beyond #514's fragment).
 - Pending PC run: `e2e-studio` (open the Anim Studio, pick a lazy row such as `keyed:mocap_aa_idle` from the Loop list
   after open; also with the tuner already open before the Studio map loads) and the affected suites for `src/anim` /
-  `src/ui` from `scripts/e2e-affected.mjs`; no Blender run needed (the driver changes are covered by the mocked tests).
+  `src/ui` (`scripts/e2e-affected.mjs`). No Blender run needed.
