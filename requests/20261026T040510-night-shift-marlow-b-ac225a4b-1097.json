@@ -1,0 +1,16 @@
+{
+  "id": "20261026T040510-night-shift-marlow-b-ac225a4b-1097",
+  "sha": "ac225a4b16bc04bc16d77d88368fbcc115a4bcb2",
+  "branch": "feature/ctcourse-flake-fix",
+  "pr": 553,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-ctcourse:1",
+    "e2e-ctcourse:2",
+    "e2e-ctcourse:3",
+    "e2e-ctcourse:4"
+  ],
+  "set": "f7-soak-1",
+  "pin": true
+}
