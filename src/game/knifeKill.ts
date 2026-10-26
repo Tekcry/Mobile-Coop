@@ -35,7 +35,9 @@ export function knifeSceneOn(flagOn: boolean, scene: string | undefined, live: b
  * takes ~6 frames to arrive, so they are on him when the grab ends); `stabIn` the knife hand's drive from the wind-up to
  * the target, ending `lead` s before contact (the arm settles on it by then); `victimHandsIn` his hands to the forearm,
  * on `lead` s before contact; `release` the hands off after `limp`;
- * the buckle (`buckleAt`): `bucklePitch` the fold, in over `buckleRise`, out over `buckleDecay`; `contactTol` the rule.
+ * the buckle (`buckleAt`): `bucklePitch` the fold (0.18, half the plan's 0.35: the full fold took his mouth 9 cm out of
+ * the grip from behind), in over `buckleRise`, out over `buckleDecay`; `contactTol` the rule (3 cm; S1's stand-ins miss it
+ * on some rows: `tests/knifePair.test.ts` S1_REACHED, S2 closes it).
  */
 export const KNIFE = {
   noise: 1.2,
@@ -47,7 +49,7 @@ export const KNIFE = {
   stabIn: 0.12,
   victimHandsIn: 0.1,
   release: 0.15,
-  bucklePitch: 0.35,
+  bucklePitch: 0.18,
   buckleRise: 0.06,
   buckleDecay: 0.4,
   contactTol: 0.03,
@@ -85,13 +87,14 @@ export interface KnifeKillRow {
  * crouched: he rises into the kill), victim the Pro Rifle Pack deaths.
  * Deviations from the S1 brief's table (contact rule, bible 5.12.2, measured by `tests/knifePair.test.ts`): the stand-in
  * deaths drop the pelvis 0.3-0.7 m from 45% of the clip on, so his clip runs only to `victimTo` 0.4 while the attacker
- * holds him (the collapse is the ragdoll's after `limp`); `standoff` 0.4 (0.55 put his mouth past her arm's reach).
+ * holds him (the collapse is the ragdoll's after `limp`); `standoff` 0.3 with `side` -0.1 from behind and at a corner (0.55 put
+ * his mouth past her arm's reach), 0.5 face to face (his arms fold on her forearm).
  */
 export const KNIFE_KILLS: readonly KnifeKillRow[] = [
   { id: 'behind', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'mouth', target: 'kidney' },
   { id: 'behindLow', attacker: 'mocap_crouch_to_stand', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'mouth', target: 'kidney' },
   { id: 'corner', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_right', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'shoulder', target: 'neck' },
-  { id: 'front', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_front', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.4, side: 0, yawOff: Math.PI, grip: 'shoulder', target: 'chest' },
+  { id: 'front', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_front', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.5, side: 0, yawOff: Math.PI, grip: 'shoulder', target: 'chest' },
 ];
 
 /** The row for a takedown kind (`crouched`: the attacker crouched; from behind he rises into the kill), -1 none: the

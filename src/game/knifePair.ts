@@ -81,7 +81,7 @@ export function resetPairTrack(t: PairTrack): void {
 }
 
 /** The trim's gain per frame and its largest size (m). */
-export const PAIR_TRACK = { gain: 0.7, predict: 1 };
+export const PAIR_TRACK = { gain: 0.3, predict: 1 };
 const TRIM_MAX = 0.1;
 const TRIM_SETTLED = 0.06;
 
