@@ -7,8 +7,14 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape (fr
 2. PLAN + map-plan.svg + SIGNOFF: Opus plan check PASS after fix round 1 + one SIGNOFF line (c3fbee933;
    C:/NightShift/scratch/campaign/piano-plan-check.md, polish notes at its end). Knife gate call per Player Build:
    `setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` (src/game/knifeKill.ts on feature/piano-knife).
-3. SIGNOFF sent to the orchestrator ~21:00 for Michael's one click (G288). No build before it.
-4. On "Approve": S1 (Sonnet, shell + greybox, PLAN S1) and S3 (Sonnet, music) together (2-builder limit); then S2
-   (Opus, intro + EMP on stubs); S4 (Opus) waits for knife S1 + S3, GA1 / GA3, SO1-SO3. Briefs one slice ahead only.
-5. Player Build: feature/piano-knife (plan 2b690b417), S1 building on feature/piano-knife-s1 (PB1 + PB5); PB4 in its S3.
-Next: Michael's pick from the orchestrator; on Approve write S1 + S3 briefs from PLAN and start both builders.
+3. Michael approved the SIGNOFF ~20:15 ("Approve, build it"; BRIEF M2). Orchestrator lines up GA1 / GA3 / GA4 / GA5 and
+   SO1-SO4.
+4. Wave 1 building (desktop, Sonnet, CPU 62% at start): S1 shell + greybox on feature/piano-escape-s1
+   (C:/NightShift/Mobile-Coop-piano-escape-s1, brief scratch/campaign/piano/S1-brief.md -> S1-report.md) and S3 music on
+   feature/piano-escape-s3 (-s3, S3-brief.md -> S3-report.md). Both from feature/piano-escape 158163476; disjoint files.
+   Rerun a builder whose report is missing. Then ONE Sonnet checker for the batch (S1 + S3; game files: request
+   e2e-coop + e2e-netmove for the PR), merge both into feature/piano-escape, PR to master (dark, `pianoEscape`).
+5. Then S2 (Opus, intro + EMP on stubs: brief from PLAN S2 when wave 1 is in checking); S4 (Opus) waits for knife S1 +
+   S3, GA1 / GA3, SO1-SO3.
+6. Player Build: feature/piano-knife (plan 2b690b417), S1 building on feature/piano-knife-s1 (PB1 + PB5); PB4 in its S3.
+Next: S1 + S3 reports -> batch checker -> merge -> PR; write the S2 brief.
