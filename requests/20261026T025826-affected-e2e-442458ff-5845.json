@@ -1,0 +1,20 @@
+{
+  "id": "20261026T025826-affected-e2e-442458ff-5845",
+  "sha": "442458ff71cee3eeb5abd8853381d204efb822b5",
+  "branch": "feature/guard-ai-runner-armed",
+  "pr": 531,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-guard-carry",
+    "e2e-levels",
+    "e2e-move",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #531"
+}
