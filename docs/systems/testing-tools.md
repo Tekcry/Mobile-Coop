@@ -566,11 +566,12 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): front
-  branches (`LQ_FRONT_BRANCHES`; no wait bound, by design: Michael's Mixamo priority), green PRs smallest first
-  (`LQ_GREEN_FIRST`; the oldest non-front request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a head
-  conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`) ahead
-  of pr work). A train head that moves: `docs/systems/auto-train.md` "What the laptop queue service provides".
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): fixes
+  (PR label `fix` or `request.mjs --fix`; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
+  no wait bound, by design: Michael's Mixamo priority), green PRs smallest first (`LQ_GREEN_FIRST`; the oldest non-front
+  request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a request that supersedes another keeps its place;
+  a head conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`)
+  ahead of pr work, fixes too). A moved train head: `docs/systems/auto-train.md` "What the laptop queue service provides".
 - Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
   `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
   the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
@@ -583,18 +584,18 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   in order, env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" (one push, no status) while
   that one is open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN`
   (60) min with result success. A failure, error, build, nosha or incomplete result never retires a new request (a
-  rerun of a failure runs, e.g. the laptop's rerun of a desktop failure, or a `--jobs 1` solo rerun). Supersede still
-  retires one requester's older pr / full requests; a supersede on the same sha hands over instead of posting error.
-  Affected requests (4.101.1): a duplicate hands `affected-e2e` over to the surviving affected request (pending "handed
-  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
-  an affected request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not run)".
-  state.json keeps done entries 7 days (pruned on each save once their done claim is on the branch).
+  rerun of a failure runs: a laptop rerun of a desktop failure, a `--jobs 1` solo rerun). Supersede still retires one
+  requester's older pr / full requests; on the same sha it hands over instead of posting error. Affected requests
+  (4.101.1): a duplicate hands `affected-e2e` over to the surviving affected request (pending "handed over to <id>") or
+  posts success when it repeats a recent pass, and is never retired against another requester's run; an affected
+  request or laptop rerun withdrawn before it ran posts error "withdrawn by the requester (not run)". state.json keeps done entries 7 days.
 - Yield (2026-10-24): while a train head is pending, a pr / full / alone run that has not started its suites or steps
   (waiting for its lock, fetch, npm ci, build) gives its slot back: locks released, claim dropped, log "<id>: yields to
-  train <n>"; the request stays queued. Once its suites or steps start it runs on, except where lib `cutShort` cuts it:
-  a withdrawn request stops; for a pending train a plain pr run under 80% of its expected wall is killed when every
-  other run on the worker is a plain pr too, and an alone run younger than 10 min is killed and queued again first. A
-  train rerun never yields.
+  train <n>"; the request stays queued. Once started it runs on, except where lib `cutShort` cuts it: a withdrawn
+  request stops; a plain pr run under 80% of its expected wall is killed for a pending train when every other run on the
+  worker is a plain pr too; an alone run younger than 10 min is killed and queued again first; a pr run on an old PR head
+  stops when a newer head queues (`LQ_STOP_SUPERSEDED` 0 = off). A train preempt keeps the suites that passed
+  (`LQ_KEEP_FINISHED` 0 = off). A train rerun never yields.
 - Train soon (laptop-queue-6, lib `nextTrain`): the laptop predicts the next train head (ETA) and, while no train is
   pending, holds new claims until ETA + `LQ_TRAIN_LATE_MIN` (5) min. Candidates: train-ready PRs whose head is in no
   open train and not in `origin/master`; green = `check` passed (its first-seen-green time is kept in state.json),
@@ -624,25 +625,25 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   "superseded"); other PRs never supersede each other and take turns in arrival order beside the leads' requests. Opt
   out: label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A head whose `affected-e2e` is pending with no open, claimed or running
-  affected request is requested again (4.101.1). A lead's own `request.mjs --affected` still works as before.
+  affected request is requested again (4.101.1). A head with only docs-only commits since the last final verdict carries
+  it, or waits for a live older request (`LQ_PR_CARRY` 0 = off).
 - Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
-- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
-  `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
-  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock` (and 4192 in `...-testrun-4192` under
-  `heavy2.lock`), `E2E_GPU=1 E2E_JOBS=1`. Its start gates (backlog, CPU, lock, laptop silent for trains) are in
-  `docs/RULES.md` "Machines"; the env names are `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1` default 0),
-  `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`) and `LQ_LAPTOP_SILENT_MIN` (10). Full and
-  alone runs stay on the laptop. Its statuses read "desktop: ..."; logs
-  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
-  While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json` ({ train, version,
-  pid, at }; deleted as soon as the version commit is pushed, and again when the build ends); while that file exists and
-  is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop starts no new request or train (log "train <n>
-  building: no new claims", once per marker; an older one is ignored as stale, logged once; runs already going
-  continue). `LQ_BUILD_MARKER` overrides the path (tests).
-- Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
-  a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
+- Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` takes pr requests only
+  (fixes first, then smallest first, none over `LQ_DESKTOP_MAX_MIN` (15) min), on 4191 in
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `heavy.lock` (4192: `...-testrun-4192`, `heavy2.lock`), `E2E_GPU=1
+  E2E_JOBS=1`. Start gates: `docs/RULES.md` "Machines"; env `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1`
+  0), `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`;
+  `LQ_DESKTOP_CPU_MODE=total` = whole machine), `LQ_LAPTOP_SILENT_MIN` (10). Statuses read "desktop: ..."; logs
+  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/`. While auto-train's build marker
+  (`docs/systems/auto-train.md`; `LQ_BUILD_MARKER` overrides its path for tests) is under `LQ_BUILD_MARKER_MAX_MIN` (30)
+  min old the desktop starts no new request or train (logged once per marker; an older one is ignored).
+- Claims: before a run each worker pushes `claims/<id>.json` (a train: `claims/<sha>.json`) to `laptop-queue`, marked
+  done after. Both workers heartbeat their running claims (`LQ_HEARTBEAT_MIN` 5; a failed push retries each loop); an
+  open claim unbeaten for `LQ_CLAIM_BEATS` (4) beats, 20 min, is taken over (no beat field: `LQ_CLAIM_MAX_H`, 3 h) and
+  the run that lost it stops, posting nothing. A lost train verdict or done claim retries each pass (`LQ_TRAIN_RETRY` 0
+  = off); the alone hold drops a head whose verdict this worker holds or that has a done claim.
 - Spare work (laptop-queue-5; laptop only): once both slots sit idle with no open request and no pending train for
   `LQ_SPARE_IDLE_MIN` (5; 0 = off) min, the service queues the next job of `docs/laptop-queue/spare-jobs.json`
   (round-robin, never a set already queued on that sha) on the `origin/master` head as an ordinary request (requester
@@ -650,15 +651,14 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   `pick` starts no spare while a real request is listed. `request.mjs` refuses unknown suite names at request time.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
-- Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
-  2026-10-23 23:59 and held the slot locks for hours): hand-made chains are retired; e2e runs go through the queue
-  (`request.mjs`). The permanent tasks are the task guard's allowlist in code (`TASK_ALLOW` in
-  `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
-  (`install-task.ps1 -Worker desktop`), `NightShift auto-train` (`scripts/auto-train-task.ps1`) and `NightShift
-  watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`; 4.101.1). The only way to
-  schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/one-shot-task.ps1
-  -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>] [-ExpireMinutes 240] [-WhatIf]`: one hidden
-  run whose trigger expires at At + ExpireMinutes (also its run time limit), after which Windows deletes the task.
+- Scheduled tasks (Michael 2026-10-24; old `NightShift-chain-*` one-shots held the slot locks): hand-made chains are
+  retired; e2e runs go through the queue (`request.mjs`). The permanent tasks are the task guard's allowlist in code
+  (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`): `NightShift-laptop-queue` (`install-task.ps1`),
+  `NightShift-desktop-queue` (`install-task.ps1 -Worker desktop`), `NightShift auto-train`
+  (`scripts/auto-train-task.ps1`) and `NightShift watchdog` (`scripts/watchdog-task.ps1`, `docs/systems/watchdog.md`).
+  The only way to schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File
+  scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>]
+  [-ExpireMinutes 240] [-WhatIf]`: one hidden run that expires at At + ExpireMinutes, then Windows deletes the task.
 - Task guard: at start and every `LQ_TASK_GUARD_MIN` (10; 0 = off) min on both workers, disable (Disable-ScheduledTask
   only; never stop, kill or delete; a running instance keeps running) every enabled task not on the allowlist (above,
   plus `LQ_TASK_ALLOW`, a comma list) and not a `NightShift-run-*` with an expiry, when it is named `NightShift-*` or
