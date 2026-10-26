@@ -129,7 +129,7 @@ import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, se
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
-import { FILL, FILL_IN, fillPlayers, fillVictims, pictureInto, slotInto } from './charOccluderFill';
+import { FILL, FILL_IN, fillOperator, fillPlayers, fillVictims, LOAD_IN, pictureInto, slotInto } from './charOccluderFill';
 import { GadgetSystem } from './gadgetSystem';
 import { OpticSystem } from './opticSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -514,6 +514,11 @@ export class GameState implements AppState {
   /** (char-shadow-meter S2c) Co-op client: writes its partners' slot inputs (`slotInto`) into `pin` slots from..max-1
    *  and returns how many. Set by `CoopClient` with the flag on. Solo and host: none. Read only by `fillChars`. */
   charMatesInto: (pin: Float64Array, from: number, max: number) => number = NO_MATES;
+  /** (player-j16) Per player slot (`LOAD_IN`): the carried body's side and the carrier's yaw (0: none). */
+  private readonly loadIn = new Float64Array(FILL.players * LOAD_IN);
+  /** (player-j16) Co-op: writes the partners' loads into `lin` (host: slots 1..nr-1 from `refs`; client: its partner
+   *  slots nr..n-1). Set by `CoopHost` / `CoopClient` with the flag on; null solo. Read only by `fillLoads`. */
+  charLoadsInto: ((lin: Float64Array, refs: readonly PlayerRef[], nr: number, n: number) => void) | null = null;
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
@@ -1875,6 +1880,27 @@ export class GameState implements AppState {
   }
 
   /**
+   * (player-j16) The carried bodies on the players' shoulders into the contract, after `fillChars` and before
+   * `updateLight`: slot 0 from the local carry while the body weighs on the shoulder (`loadShare`, the fixed-step lift /
+   * put-down timeline), co-op partners through `charLoadsInto`, then `fillOperator` (appended after every upright, owned
+   * by the carrier's key). Nothing with the flag off.
+   */
+  private fillLoads(): void {
+    const occ = this.charOccluders;
+    if (!occ) return;
+    const lin = this.loadIn;
+    lin.fill(0);
+    const c = this.carrier;
+    if (c && c.loadShare > 0) {
+      lin[0] = c.loadSide;
+      lin[1] = this.player.controller.yaw;
+    }
+    const nr = this.charRefs.length < FILL.players ? this.charRefs.length : FILL.players;
+    this.charLoadsInto?.(lin, this.charRefs, nr, this.charN);
+    this.charFull += fillOperator(occ, this.lightIn, lin, this.charN, this.charKeys);
+  }
+
+  /**
    * (char-shadow-meter S2) The character contract from the sim, every step before `updateLight` (not inside it: the
    * stealth-AI e2e pins the meter by replacing `updateLight`, and the picture keeps its capsules): the players in
    * `playerRefsInto` order (slot 0 local: the meter's own sample; S2c: then a co-op client's partners, `charMatesInto`),
@@ -2299,6 +2325,7 @@ export class GameState implements AppState {
       this.noise = Math.max(steps, rattle, this.evNoise);
     }
     this.fillChars();
+    this.fillLoads();
     this.updateLight(dt);
     this.updateVision(dt);
     this.landingNoise();
