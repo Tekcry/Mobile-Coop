@@ -28,6 +28,7 @@ import { LightRig } from './lightRig';
 import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
+import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
 import { Ropes } from './ropes';
 import { addTorchSlots } from './torches';
 import { applyMapFlicker } from './lampFlicker';
@@ -45,7 +46,7 @@ import { CharShadows } from './charShadows';
 import { TorchShadows } from './torchShadows';
 import { torchShadowSpec } from './torchShadowSet';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
-import { LightField } from './lightField';
+import { LightField, type FieldDoor } from './lightField';
 import { moonLight } from './lampMath';
 import { LEVEL_TO_RENDER } from './darkCurve';
 import { DEMO_LIGHTNING, Lightning } from './lightning';
@@ -98,6 +99,14 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  /** (J9 S1) The roller shutters' curtains (`shutterDoor.ts`; null: the map places none). Armed with the doors
+   *  (`armDoors`); the team controller moves them after the kit ticks. */
+  readonly shutters: ShutterDoors | null;
+  /**
+   * (J9 S1, A16) The doors light tests (the gameplay field, the baked lamps on screen, the torch shadows): the door
+   * leaves, then each shutter as an always-shut leaf. The same array as `doors.list` on a map without shutters.
+   */
+  readonly lightDoors: readonly FieldDoor[];
   /** (sector-redesign ART-KIT) The campus art (render only; null: no art, `?gfx=min`, or a failed load: the greybox shows). */
   campusArt: CampusArtRender | null = null;
   /** (marlow-final M5) The facility kit's meshes over the level (null: the map places none, `?gfx=min`, or the GLB
@@ -169,8 +178,14 @@ export class World {
     this.doors = new Doors(scene, level.anchors);
     // (3.6: flashlights draw their whole radius and their shadow maps stop them - at closed doors too)
     if (this.doors.leafMesh) this.lightRig.addCaster(this.doors.leafMesh);
+    // (J9 S1) the shutters' curtains (only where the map places one), shadow casters for the flashlights as the leaves
+    const shutterLeaves = shutterLightLeaves(level);
+    this.shutters = shutterLeaves.length ? new ShutterDoors(scene, level) : null;
+    if (this.shutters?.curtainMesh) this.lightRig.addCaster(this.shutters.curtainMesh);
+    // (A16) a shut curtain stops lamp light as a closed door: one list for the field and the screen
+    this.lightDoors = shutterLeaves.length ? [...this.doors.list, ...shutterLeaves] : this.doors.list;
     // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
-    this.lightField = new LightField(lightBake, level.lights, this.doors.list);
+    this.lightField = new LightField(lightBake, level.lights, this.lightDoors);
     // (piano SO5) lightning: the map's strikes, or the dev demo loop; the sun / moon light carries its share on screen
     // at the map's own intensity per gameplay level (no moon: the curve's level-to-render gain)
     const lt = map.lightning ?? (flags.lightning ? DEMO_LIGHTNING : null);
@@ -250,7 +265,7 @@ export class World {
       const k = w.hemi.intensity * Math.PI;
       const sk = w.hemi.diffuse;
       const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.lightDoors, fill, bounce: w.lightField.bounce, moonLight: bake.moonLight, level: lvl });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
@@ -259,7 +274,7 @@ export class World {
       // (LR16t) every drawn torch shadowed from one atlas, its shut doors tested exactly (configured in `applyQuality`)
       if (w.lamps.torchDraw) {
         const charSet = w.charSet;
-        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.doors.list, (m) => charSet.has(m));
+        w.torchShadows = new TorchShadows(scene, level.lights, w.lightRig, w.lamps.torchDraw, w.lightDoors, (m) => charSet.has(m));
         w.lamps.torchShadows = w.torchShadows;
       }
       w.charShadows = new CharShadows(scene, w.lamps, w.charCasters);
@@ -277,6 +292,15 @@ export class World {
       }
     }
     return w;
+  }
+
+  /**
+   * Collision on for the doors and (J9 S1) the shutters, once the guards' nav grid is built (it walks every doorway):
+   * the shutters' openings are shut on that grid for good (A15; `nav` null on a co-op client or without guards).
+   */
+  armDoors(nav: ShutterNav | null = null): void {
+    this.doors.arm();
+    this.shutters?.arm(nav);
   }
 
   /**
@@ -636,6 +660,7 @@ export class World {
     this.breakables.dispose();
     this.campusArt?.dispose();
     this.doors.dispose();
+    this.shutters?.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();

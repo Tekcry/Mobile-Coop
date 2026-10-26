@@ -141,7 +141,7 @@ export async function walk(t, n) {
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 18, `A8: the ${tag} has station 18 live`);
-    await sees(P, /Split up: one onto the gallery/, `A8: the ${tag} reads the split line`);
+    await sees(P, /Take the boost to the gallery|Boost your partner up/, `A8: the ${tag} reads its split job line`);
     assert((await camModes(P)).every((m) => m === 'online'), `A8: the three cameras are online on the ${tag}`);
     assert(await lampsOn(P, VESTIBULE_GROUP, true) && await lampsOn(P, NIGHT_GROUP, true), `A8: the vestibule and the night circuits are lit on the ${tag}`);
   }

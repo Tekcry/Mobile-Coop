@@ -449,6 +449,14 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
         out.tumble = Math.PI;
         return out;
       }
+      // (mission NET) the kit's partner, never the leg-up's climb-up: sub 16 (SHUTTER_SUB) crawls under (crouched by its
+      // flags, no traverse); sub 8 (PULL_SUB) reaches up for the hands, then scrambles over (the wire's ph: its climb-up)
+      if (mv.sub & 16) return out;
+      if (mv.sub & 8) {
+        out.traverse = mv.ph > 0 ? 'climbUp' : 'hang';
+        out.traverseT = mv.ph;
+        return out;
+      }
       // (B4) sub bit 1 = thrown over the partner: the vault pose along the arc
       out.traverse = mv.sub & 4 ? 'climb' : mv.sub & 1 ? 'vault' : 'climbUp'; // (B7) sub 4: on the partner's rope
       out.traverseT = mv.ph;

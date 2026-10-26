@@ -66,7 +66,7 @@ export class PlayScreen extends Screen {
   }
 
   private mapsForMode(): typeof MAPS {
-    return MAPS.filter((m) => m.modes.includes(this.mode));
+    return MAPS.filter((m) => !m.unlisted && m.modes.includes(this.mode));
   }
 
   private build(): void {

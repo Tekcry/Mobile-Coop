@@ -78,7 +78,7 @@ import { PIPE, SPLIT } from '../player/splitJump';
 import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
-import type { TeamKind } from './teamMoves';
+import type { TeamMoveKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
 import type { SwaySet } from '../world/lampSway';
@@ -211,7 +211,7 @@ export interface NetAttachment {
    *  it and its snapshots' `trp` open it on every page. The host's own player opens directly (no hook). */
   panelOpen?(g: number): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
-  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
+  teamRequest?(kind: TeamMoveKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
   /** (CT prototype B5) End the hang-down (either player): pull the partner up or (the holder) drop them. */
@@ -830,8 +830,9 @@ export class GameState implements AppState {
       };
     }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
-    // host's door states (snapshots)
-    world.doors.arm();
+    // host's door states (snapshots); (J9 S1) the shutters too, their openings shut on the guards' grid (nav null on a
+    // client or in a sandbox)
+    world.armDoors(this.nav);
     if (world.layout.security && !this.puppet) {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
@@ -1167,6 +1168,8 @@ export class GameState implements AppState {
     this.weapons.restoreCheckpoint();
     this.grenades.clear();
     this.gadgets.clearWorld();
+    // (J9 S1, A27) the kit back: our shutter move ends, every shutter shut at once (the client too, on the banner)
+    this.team.resetKit();
     this.stealth?.resetForRestart();
     this.suppression.reset();
     this.evNoise = 0;
@@ -1319,6 +1322,7 @@ export class GameState implements AppState {
     this.stealth?.dispose();
     this.security?.dispose();
     this.gadgets.dispose();
+    this.team.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
     for (const d of this.dummies) d.dispose();
