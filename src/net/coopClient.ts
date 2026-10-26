@@ -22,6 +22,7 @@ import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
+import { CharMates } from './charMates';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
 import { infoAtSpawn } from '../ai/guardInfo';
@@ -74,6 +75,10 @@ const INTERP_DELAY = CLIENT_INTERP_DELAY;
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
+  /** (char-shadow-meter S2c) Our partners in the character contract (`GameState.charMatesInto`, flag on), in the host's
+   *  player order, self skipped; `mateOrder` is the kept list `relistMates` refills. */
+  private readonly mates = new CharMates();
+  private readonly mateOrder: RemoteAvatar[] = [];
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
   private heldPuppet: EnemyPuppet | null = null;
   private puppets = new Map<string, EnemyPuppet>();
@@ -178,7 +183,18 @@ export class CoopClient implements NetAttachment {
     this.carry = new ClientCarry(g, () => this.ints, (id) => this.s.toHost({ t: 'use', id }), () => this.canRagdoll());
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
-    this.offs.push(s.events.on('lobby', () => this.recolour()));
+    this.offs.push(
+      s.events.on('lobby', () => {
+        this.recolour();
+        this.relistMates();
+      }),
+    );
+    // (char-shadow-meter S2c) with the contract on, our partners fill the player slots after ours (one closure, made once)
+    if (g.charOccluders) {
+      const prev = g.charMatesInto;
+      g.charMatesInto = (p, f, m) => this.mates.into(p, f, m);
+      this.offs.push(() => (g.charMatesInto = prev));
+    }
     // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
     // host's), before our first `pstate` (the host takes a first state anywhere): a course bay-N start's entry airlock
     // (D20), Sector Ops' first section, else the map's spawns. A late join or rejoin is then placed by the host.
@@ -392,8 +408,23 @@ export class CoopClient implements NetAttachment {
         t.setSolid(false);
       }
       this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
+      this.relistMates();
     }
     return a;
+  }
+
+  /** (char-shadow-meter S2c) The contract's partner list: the other players in the host's lobby order (`s.players`),
+   *  self skipped, those with an avatar. Not hot (a join, a drop, a lobby change). Nothing with the flag off. */
+  private relistMates(): void {
+    if (!this.g.charOccluders) return;
+    const o = this.mateOrder;
+    o.length = 0;
+    for (const p of this.s.players.values()) {
+      if (p.id === this.s.selfId) continue;
+      const a = this.avatars.get(p.id);
+      if (a) o.push(a);
+    }
+    this.mates.set(o);
   }
 
   /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
@@ -443,6 +474,7 @@ export class CoopClient implements NetAttachment {
       this.blockers[i]!.b.dispose();
       this.blockers.splice(i, 1);
     }
+    this.relistMates();
   }
 
   private onSnap(m: Extract<Msg, { t: 'snap' }>): void {
