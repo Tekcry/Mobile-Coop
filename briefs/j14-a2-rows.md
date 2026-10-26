@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T02:31:38Z
+status: done feature/marlow-replan-a2-rows 685f4566abdd1bbd7ceb64a4669df3bdbf2ba535
 # J14 Marlow re-plan, small data fix (Sonnet): re-plan circuit rows 21 and 23 for A2
 
 Lead: Night Shift | Marlow Build. Brief: Opus. Builder: Sonnet 5.5 (cloud). Est. 60 counted lines. Same kind of fix as
@@ -59,3 +59,24 @@ the four test files green. Push, append the report, set `status: done feature/ma
 ## Report (append below)
 Commit, file:line of each change, tests with counts, deviations (any other stale A2 row you noticed: list it, do not
 fix it). Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+### Report (Night Shift | Cloud Builder 3, 2026-10-26)
+- Commit `685f4566` on `feature/marlow-replan-a2-rows` (base b231f759), pushed. 3 files, +24 / -2.
+- `src/world/lighting/marlowCircuits.ts:209-212`: two new branches in `MARLOW_CIRCUITS_REPLAN`'s `flatMap`, each with a
+  "(J14 a2-rows)" comment. Group 21: cabinet 1 kept (`c.switches[0]`), `a2-iso-2` at (63.5, 11.6) "cabinet 2, by the pit on
+  the road 2 east van"; timed, lure, lamps unchanged. Group 23: fitting "Strips high on the north wall, where the staging
+  stood", `a2-sw-staging` at (40.0, 19.7), y 0, "on the north wall, west of the neck closures"; key, name, kind, role,
+  lamps 4 unchanged. The built `MARLOW_CIRCUITS` rows untouched.
+- `tests/ctcourse/replan/variant.test.ts:180`: override list `[20, 21, 22, 23, 49, 50, 69]`.
+- `tests/ctcourse/replan/a2CarriageShed.test.ts:22` (import adds `MARLOW_CIRCUITS`), `:728-746` new `it` in "cabinet 2, the
+  coat lamp, map data": re-plan `a2-iso-2` equals `part.devices[A2_ISO_2]` and `a2-sw-staging` equals the part's switch
+  `pos` (x, z within 1e-6); built rows keep (69.4, 14.2) and (66.5, 18.5, y 4.4); no A2 re-plan row's `by` says "east door"
+  or "stair head".
+- Tests: `tsc --noEmit` clean; eslint on the 3 files clean. vitest: replan/variant 15, replan/a2CarriageShed 38,
+  marlowLightingCircuits 9, ctcourse/a2CarriageShed 62 = 124 passed, 0 failed.
+- Deviation: the "no east door / stair head" check is limited to `room === 'A2'` rows. Over the whole table it fails on
+  rows the brief does not touch (A4 `a4-sw-mezz-w/-e` "west/east stair head", A6 `a6-sw-gallery` "staff stair head", A8
+  `a8-sw-gallery` "public stair head"), which are not A2 and not stale.
+- Other A2 rows: none found stale. `a2-sw-shed` (28.6, 6.6, "by the west door") and `a2-sw-cabin` / `a2-iso-1` (the cabin)
+  stand in the parts the re-plan keeps; not checked against geometry beyond that.
+- Pending PC run: none (table text and switch spots only).
