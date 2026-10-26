@@ -1,7 +1,27 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~12:45 (Night Shift | Campaign Build, after the 11:25 swap; read this block first)
+## RESUME 2026-10-26 ~12:35 SAVE (Night Shift | Campaign Build, swap at 100%; read this block first)
+Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 11:25 swap". Rerun any agent whose
+report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
+Desktop CPU ~90-99%: tsc / vitest builders go to cloud-queue (keep 1-2 open); local checks via scratch/ctcore/low.mjs.
+1. Engine feature/mission-engine a2822ab7a = J7 PR D + E + F (laptop green) + FE / FF docs. J7 built; ships with PR C.
+2. PR T feature/tallow-throw 34e92c991 (checker status). Laptop 20261026T003610 set tallow-prt (coop netmove ctcourse
+   wharf-tgc wharf-tkl). Green -> merge T into the engine FIRST (order T, G1, G2, S).
+3. PR G1 feature/tallow-fixes c648c5d85 (checker status). Laptop 20261026T004059 set tallow-prg1 (sectorops all, coop,
+   netmove, ctcourse, levels, anchors, lightbake). Green -> merge into the engine after T.
+4. PR S feature/tallow-shutters ec1434867 = S1 complete (late hunks PASS x2) + S2 + fix1 + PR T.
+5. Cloud (cloud-queue): G2 claimed (elegant-rubin, base tallow-fixes-2 24964a624); G4 open (Sonnet, base tallow-fixes
+   c648c5d85, parallel with G2: owns W4 + w4.test only); s1-polish open (Opus, base tallow-shutters ec1434867: restart
+   hold-off window + resetKit scope test). G2 / G4 done -> merge tallow-fixes c648c5d85 + G2 + G4 into tallow-fixes-2,
+   checkers (G2 Opus; G4 Sonnet greybox). s1-polish done -> two Opus checkers -> merge into tallow-shutters.
+6. Held briefs in scratch/campaign/cq/: E8 (after G2 + G4), D1 (after G1-G4; LEAD NOTE: clear the S11 validator's
+   parity 23% and w1-tea-stall reach ERRs), S3 (after G4 and PR G2 -> engine -> S), S4 (after S3 + E8; rulings in it).
+7. PR C split refresh: Opus planner -> scratch/campaign/prc-split-refresh.md (rerun if missing). Gate carry: Tallow
+   "Resume hosting" PC check, claims-check per member, W1-W4 look videos (no recorder exists yet).
+Next: laptop verdicts -> T then G1 into the engine; G2 / G4 / s1-polish pickups; read prc-split-refresh.md.
+
+## OLD RESUME 2026-10-26 ~12:45 (Night Shift | Campaign Build, after the 11:25 swap; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 11:25 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Desktop CPU ~90%: tsc / vitest builders go to cloud-queue; local checks via scratch/ctcore/low.mjs.
