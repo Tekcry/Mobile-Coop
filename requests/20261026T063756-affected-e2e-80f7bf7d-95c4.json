@@ -1,0 +1,14 @@
+{
+  "id": "20261026T063756-affected-e2e-80f7bf7d-95c4",
+  "sha": "80f7bf7dbeaab765654e69bd3d4bd3271635d301",
+  "branch": "feature/player-j19-s4",
+  "pr": 532,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected"
+}
