@@ -7,7 +7,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Service healthy (task running), train 139 (7131cdd8) running on 4189 + 4192, 21 requests queued. No heavy.lock.
 - #615 (F8, J20 PR-B) MERGED. Connectors already off.
 - Sector Ops SO3 torch GPU results (dddbfdcd, 6 rows) sent to Sector Ops by message: 16 lit at Low holds (p95 6.0 ms).
-- Next: watch train 139; triage any train failure (Opus) and tell the Orchestrator.
+- ~23:28 (Orchestrator, piano walk Tue ~09:00): laptop task NightShift-laptop-queue now sets
+  LQ_FRONT_BRANCHES='mixamo,feature/piano-' (service restarted after train 140). Undo after the walk: drop
+  `feature/piano-` from the task's Arguments, restart the service between trains. Campaign withdrew its walk-build
+  request (c5f8b694) to re-file at the S4 PR; the re-file is fronted by branch. Trains 139-141 green.
+- walkfix3 logs (PR #610) pushed to origin/laptop-queue logs/marlow-walkfix3/ for Marlow's triage.
+- Next: watch trains; triage any train failure (Opus) and tell the Orchestrator; undo the piano front after the walk.
 
 **Test Runner SAVE 71 (2026-10-26 ~21:45, new session [d96552] at boot; wins over SAVE 70):**
 - Service healthy; trains 134 and 135 (4.119.0) released. #552, #587, #597 MERGED (F50 / F51 shipped, Orchestrator watching).
