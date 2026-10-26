@@ -1037,7 +1037,8 @@ Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Mi
    pull resumes short.
 Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 15 7b12a71ea (#631 piano S4, knife S3, kit K0; MERGE15-CHECK.md PASS after
 its FIX 1: a scene map's room holds 2, b5fbf0322, lead-reviewed; checker posted): orchestrator labels no-affected-e2e +
-train-ready. Then watch its train.
+train-ready AFTER Michael's ~09:00 co-op mill walk (~11:00; it rewrites the room / slot code the walk runs on).
+Keep 7b12a71ea; a merge 16 is fine if master moves; the orchestrator labels that head.
 J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
 G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
