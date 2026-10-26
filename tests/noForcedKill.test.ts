@@ -140,10 +140,12 @@ describe('T H4: no Marlow objective is done only by a guard death', () => {
     expect(killed, 'CourseMode.onEnemyKilled').not.toBeNull();
     expect(killed![1]).not.toMatch(/flag|Flag|gate|Gate/);
     // Every `.setFlag(` call under src/: the devices' hook (pass zones, scanners) and an interrogation's code.
+    // src/game/mission/ is skipped: the campaign mission runner keeps its own flags, never CourseState's.
     const calls: string[] = [];
     const walk = (dir: string): void => {
       for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
         const rel = `${dir}/${e.name}`;
+        if (rel === 'src/game/mission') continue;
         if (e.isDirectory()) walk(rel);
         else if (rel.endsWith('.ts')) for (const line of src(rel).split('\n')) if (/\.setFlag\(/.test(line)) calls.push(`${rel}: ${line.trim()}`);
       }
