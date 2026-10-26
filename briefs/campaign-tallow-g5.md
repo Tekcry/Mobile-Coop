@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 6 2026-10-26T08:29Z
+status: done feature/tallow-g5 481f4023983b9268336fd03bf5b11e55acb59da1
 
 # campaign J8 G5: the TGC split meets the standard (W1 gallery stair, merge at the fish hall) (Sonnet 5.5)
 
@@ -183,3 +183,100 @@ the lead (the J7 BEAT line "A unbolts the stair's head gate as he lands", leg a 
 S11 changes; G6 on the J8 gate list; the market vantage pair re-check for LP / GBM; P1's walk-card line and PLAN.svg
 note, which give the stair's real size and place: an enclosed iron box 1.5 x 10 m, 6.9 m tall (2.4 m above the deck),
 x 6.0-7.5, z 14.4-24.4, plan section 3; anything within 1 s of a limit).
+
+## Report (Night Shift | Cloud Builder 6, 2026-10-26)
+**Branch:** feature/tallow-g5, head 481f4023983b9268336fd03bf5b11e55acb59da1, base 0adfd8dee. The full record, with tables
+and the measuring-test appendix, is `docs/tallow-fixes/val/G5-note.md`.
+
+**Commits:**
+- 74ba6662: the stair, door, bolt and tests.
+- ac64f016: the void fill under the flight.
+- f85103f9: the graph.
+- 481f4023: EGRESS, the validator runs, `G5-graph.diff` and the note.
+
+**Gate:** all four items pass (D1 note present and `WHARF_GUARD_EXTRAS` `[]`; G1-G4 and E8 in; S3 merged with no
+`standIn(`; G5-Q1 answer 1). Base tests: w1 49 and sectors 43, green.
+
+### Measured (1.3 m/s legs, 3.0 m/s reach), against the plan
+- **P** = (11.83, 0, 14.5), where B's path from the listening spot to the clock crosses z 14.5. The path runs round the
+  counter's west end and up x 11.25.
+- **Door to door:** leg a **36.47 s** (plan ~37.3), leg b **41.18 s** (~40.9): **11.4%** (plan 9%).
+- **F to the shutter:** leg a 50.80 s, leg b 55.18 s: **7.9%**. Every leg is under 90 s.
+- **Engine times:** the unbolt is 0 s (the bolt item's hold time is 0; the plan estimated ~1 s). The hatch is 1.63 s (crouch
+  0.22 + fall 0.71 + landing recovery 0.70).
+- **Links:** 1 = 5.0; 2 = 16.64 (16.5); 3 = 6.1 s; 6 = 31.4 (31.5); 8 = 9.2 s; **9 = 36.9 (37)**; **10 = 44.47 (44.5), at
+  [33, 0, 44]**; stair 73 = 10.96 (**11**; the brief said about 10.5).
+- **S11 sums link 9 (the arch).** Link 10 is longer than link 9, so there is nothing to flag. The graph sums, read from an
+  instrumented scratch copy of S11: a 39.53 s, b 45.00 s, **12.2%** (plan ~11%). TKL `tkl-wings` is 23.5 vs 19.6 s (16.6%).
+- **Reach on B's route, gate open:** listening spot -> deck 11.47 s; the clock 12.24 s; **the arch 12.77 s (worst; plan
+  ~12.3)**; P 8.21 s.
+- **Reach on A's side:** desk -> market by the deck-edge drop 3.25 s, by the warden's stair 5.23 s; hatch 3.70 s; gallery
+  head -> market down the stair 4.44 s.
+- **Far corner (G5-Q1, report only):** NE end (35.7, 0, 43.7) **16.90 s** (plan ~16.3); the side door's market side
+  **15.97 s** (~15.5).
+- **Limits:** none is within 1 s, and there was no stop.
+- **C1:** soloNav proves it (gate and foot shut: no path from (7, 0, 10), (16, 0, 10) or (22, 0, 41) to the deck; the arch
+  reaches the head landing). It is also a w1 test.
+
+### Validator (`docs/tallow-fixes/val/G5-*.txt`)
+- **Master** (map / map+TGC / map+TKL / TKL-state / TKL-state+TKL): 3 ERR, 12 WARN on every run. The ERRs are the same 3
+  as D1: the two A22 throws and `split tgc-leads leg a: no solo link leads into w1-gallery`.
+- **`<J12 ref>`** (validator-port-c2 bdef649b3) on map / map+TGC / map+TKL: 1 ERR, 12 WARN.
+  - The parity line is gone.
+  - One named ERR is left: `split tgc-leads: a downed partner at w1-tea-stall cannot be reached from the other leg`. That
+    is the reach through the bolted stair, which Marlow's assist rule clears.
+  - The two throws are INFO.
+- **TGC-state** (the stair `bolted: false`, scratch): no tgc-leads line. The only other line is the expected solo twin
+  `w1-market -> w1-gallery (coop_boost) has a solo twin ... (fire_stair)`.
+- **WARN:** D1's 10, plus `w1-tea-stall: room_class custom` and `link w2-arcade -> w2-reading-room (open_stair): width 1.7
+  m below 2.4 m`, each with its reason in the note. No new ERR.
+
+### Graph lines changed
+- **W1 links:**
+  - 73 `w1-canal-steps>w1-gallery` (`ladder`) is now `w1-market>w1-gallery` (`fire_stair`): high, assist tgc-leads, 1.3
+    wide, 4.5 rise, length 11, bolted, at [6.7, 0, 24.4].
+  - 4 `w1-market>w1-gallery` (`coop_boost`): assist removed.
+  - 1 (`opening`), 2 (`opening`), 3 (`coop_boost`), 6 (`door`), 8 (`drop`), 9 (`opening`, the arch) and 10 (`door`, the
+    side door, length and `at`) are measured, with notes.
+  - 7 (`fire_stair`): reason updated (LP pick 13).
+- **W1 spaces:** `w1-market` gets the `split:tgc-leads:b` tag and the G5-Q1 note line ("about 17 s", Michael 2026-10-26,
+  G5-Q1). `w1-tea-stall` is custom [12, 6, 20, 14], size [8, 8, 12]. The `w1-gallery` note names the stair.
+- **Lead rulings:** `w3-roof>w3-west-wing` 13.9; `w3-east-yard>w3-east-wing` (`door`) 2.0; `w3-roof>w3-east-wing` 14.8
+  (width stays 1.3); `w2-arcade>w2-reading-room` width 1.7; `w2-lane-window>w2-arcade-roof` 15.1. Each note says "lead
+  ruling (G5 plan)".
+
+### Tests
+- w1 48, sectors 43, shell 20, w2 79, w3 54, w4 52 and levelGap 6: all passed.
+- `npm run typecheck:fast`: clean.
+- eslint on the four named files: clean.
+- `node scripts/doc-lint.mjs`: 0 errors, and no warning on G5's files.
+- The temporary measuring test was deleted and never committed. Its source and output are in the note's appendix.
+
+### Deviations
+1. **Void fill.** The nav grid had floor cells at y 0 under the flight's upper half (heightAt(6.7, 16.5 / 18, 0) = 0). As
+   the brief says, three stepped `mass` boxes fill it: z 15.8-17.8 to 2.9, z 17.8-19.8 to 1.75, z 19.8-21.3 to 0.9, each
+   under the ramp's underside. Afterwards heightAt returns the ramp surface, and no number changed. No coordinate in step 2
+   moved.
+2. **Flight run.** It is 7.695 m (27 x 0.285, the brief's "7.7"), so the foot is at z 23.495 and the foot landing 0.805 m.
+   The tests assert those values.
+3. **soloLevelThreats exclusions.** The head landing is left out (its one way onto the deck is the gate, which soloNav
+   proves; the brief allowed this). The core's roof is left out too: the helper reported "top 7.00 at (6.725, 19.4)", but
+   it has no way up (2.5 m over the deck, more than `SCREEN`, noLedge). A control block over the core is still reported.
+4. **EGRESS office-block row.** "The gallery stair (E5)" would otherwise be followed by "is exterior climbing, not a counted
+   stair", which is wrong for a stair. It now reads: "serves the open deck, not the office (its head gate opens onto the
+   gallery), so it is not one of the office's counted stairs".
+5. **Stair link length.** It is 11, not "about 10.5" (measured 10.96).
+
+### Open items for the lead
+- **J7 BEAT line:** "A unbolts the stair's head gate as he lands"; leg a leaves by the inspection hatch.
+- **Marlow's two S11 changes:** the reach message's end, and the assist link counting as open in that split's reach only.
+  Until then, one named tgc-leads ERR stays.
+- **G6:** the W3 bulkhead width (1.2 built against 1.3) stays on the J8 gate list.
+- **LP / GBM:** re-check the market vantage pair (3, 4.5, 29.4 / 30.8). The core hides the strip x 6-12, z 14-23.
+- **P1:** the walk-card line and the PLAN.svg note. The stair is an enclosed iron box 1.5 x 10 m, 6.9 m tall (2.4 m over the
+  deck), x 6.0-7.5, z 14.4-24.4, with the arch at z 24.4 and the gate at (6.0, 4.5, 15.1). The corner line should say
+  "about 17 s": it measures 16.9 s, against "about 16" in the G5-Q1 question.
+- **Stale deviation:** `tallowWharfW1.ts` `deviations` still has the tea-stall line ("z max 14, not 14.5"). The graph is now
+  z 14, so it no longer differs, but no test needs it gone, so it is left as is.
+- The engine's pre-fix `docs/tallow-fixes/G5-plan.md` and `briefs/G5.md` are untouched.
+- **Pending PC run:** `e2e-sectorops:wharf-tgc` and the affected set. No e2e or GPU check ran here.
