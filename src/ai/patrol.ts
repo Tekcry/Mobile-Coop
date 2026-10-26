@@ -7,6 +7,7 @@
  * bearing so a squad spreads out.
  */
 import { hyp2 } from '../core/mathx';
+import { SCENE_SWEEP, facePanYaw, panYaw, rejoinStop, wrapAng, wrapTime, type SweepPlan } from './sceneSweep';
 
 export type Pt = [number, number];
 
@@ -61,6 +62,22 @@ export class PatrolWalker {
   /** (guard-ai S4) Pauses x this (`CAUTION.waitMul` while cautious: shorter waits, more frequent glances). Timed
    *  loops ignore it (their schedule is the map's). */
   waitMul = 1;
+  /** (guard-ai piano GA6) The scene sweep he walks instead of his route rules (`setSweep`), null = none. */
+  private sw: SweepPlan | null = null;
+  /** Pan side: +1 pans left first, -1 right first (a pair pans opposite). */
+  private swSide = 1;
+  /** Sweep loop time (unwrapped) at `clock` = `swClock0`. */
+  private swT0 = 0;
+  private swClock0 = 0;
+  /** Sweep time (unwrapped) the current hold ends, NaN = walking. */
+  private swHoldEnd = Number.NaN;
+  /** Seconds into the current pan cycle, -1 = not started (turning onto it: N2). */
+  private swPanE = -1;
+  /** A rejoin's target stop (-1: none) and the sweep time (unwrapped) he is back in step there. */
+  private swRejoinIdx = -1;
+  private swRejoinUntil = 0;
+  /** `idx` when the sweep was set (restored by `clearSweep`). */
+  private swIdx0 = 0;
 
   constructor(
     readonly route: PatrolRoute | null,
@@ -80,7 +97,62 @@ export class PatrolWalker {
 
   /** Seconds left in the current pause (tests / debug). */
   get waiting(): number {
+    if (this.sw) {
+      const e = this.swHoldEnd - this.swNow();
+      return e > 0 ? e : 0;
+    }
     return this.waitT;
+  }
+
+  /**
+   * (guard-ai piano GA6) Walk `plan` instead of the route rules: `side` +1 pans left first, -1 right first; `t0` = the
+   * sweep's loop time now (the guard's `plan.phase` + the scene's sweep clock). He heads for `plan.startIdx` and holds
+   * there until its `leave`; a guard not at it should `rejoin` next.
+   */
+  setSweep(plan: SweepPlan, side: number, t0: number): void {
+    if (!this.sw) this.swIdx0 = this.idx;
+    this.sw = plan;
+    this.swSide = side < 0 ? -1 : 1;
+    this.swT0 = t0;
+    this.swClock0 = this.clock;
+    this.idx = plan.startIdx;
+    this.swHoldEnd = Number.NaN;
+    this.swPanE = -1;
+    this.swRejoinIdx = -1;
+    this.waitT = 0;
+    this.lookYaw = Number.NaN;
+  }
+
+  /** (N4) Off the sweep: back to his authored route rules (the caller `rejoin`s as built). */
+  clearSweep(): void {
+    if (!this.sw) return;
+    this.sw = null;
+    this.idx = this.swIdx0;
+    this.swHoldEnd = Number.NaN;
+    this.swPanE = -1;
+    this.swRejoinIdx = -1;
+    this.waitT = 0;
+    this.lookYaw = Number.NaN;
+  }
+
+  /** On a scene sweep (`setSweep`). */
+  get sweeping(): boolean {
+    return this.sw !== null;
+  }
+
+  /** The sweep plan he walks (null: none). */
+  get sweepPlan(): SweepPlan | null {
+    return this.sw;
+  }
+
+  /** Sweep loop time now (s, 0 .. period), NaN off the sweep. */
+  sweepTime(): number {
+    return this.sw ? wrapTime(this.swNow(), this.sw.period) : Number.NaN;
+  }
+
+  /** Sweep time now, unwrapped. */
+  private swNow(): number {
+    return this.swT0 + (this.clock - this.swClock0);
   }
 
   /** Advance the master clock (every tick, whatever the guard is doing). */
@@ -104,8 +176,12 @@ export class PatrolWalker {
     return !!r && (r.pingPong ?? r.points.length < 3);
   }
 
-  /** Next point to walk to, or null while waiting / standing post. */
-  step(dt: number, x: number, z: number): Pt | null {
+  /**
+   * Next point to walk to, or null while waiting / standing post. `bodyYaw` (the guard's body yaw, optional): on a sweep
+   * the pan cycle starts once the body is within `SCENE_SWEEP.panGate` of it (NaN: at once).
+   */
+  step(dt: number, x: number, z: number, bodyYaw = Number.NaN): Pt | null {
+    if (this.sw) return this.sweepStep(dt, x, z, bodyYaw);
     const r = this.route;
     if (!r || r.points.length === 0) return this.post(dt, x, z);
     if (this.waitT > 0) {
@@ -138,6 +214,70 @@ export class PatrolWalker {
     }
     this.lookYaw = NaN;
     return p;
+  }
+
+  /**
+   * (GA6) A step on the sweep: walk to the stop, pass a corner, hold a pan stop until its `leave` (early or late within
+   * half a lap of its planned arrival), panning every step; a rejoin's stop until he is back in step.
+   */
+  private sweepStep(dt: number, x: number, z: number, bodyYaw: number): Pt | null {
+    const pl = this.sw!;
+    const n = pl.pts.length;
+    const now = this.swNow();
+    if (this.swHoldEnd === this.swHoldEnd) {
+      if (now < this.swHoldEnd) {
+        this.swPan(dt, bodyYaw);
+        return null;
+      }
+      this.swHoldEnd = Number.NaN;
+      this.swPanE = -1;
+      this.idx = (this.idx + 1) % n;
+    }
+    // at most one pass round the stops (corners and one-spot legs are passed in the same step)
+    for (let k = 0; k <= n; k++) {
+      const p = pl.pts[this.idx]!;
+      if (hyp2(p[0] - x, p[1] - z) >= PATROL.arrive) {
+        this.lookYaw = Number.NaN;
+        return p;
+      }
+      const w = pl.wait[this.idx]!;
+      let rem: number;
+      if (this.swRejoinIdx === this.idx) {
+        rem = this.swRejoinUntil - now;
+        this.swRejoinIdx = -1;
+      } else if (w > 0) {
+        // how late against the planned arrival (leave - wait), within half a lap either way
+        let late = wrapTime(now - (pl.leave[this.idx]! - w), pl.period);
+        if (late >= pl.period / 2) late -= pl.period;
+        rem = w - late;
+      } else {
+        this.idx = (this.idx + 1) % n;
+        continue;
+      }
+      this.swHoldEnd = now + (rem > 1e-3 ? rem : 1e-3);
+      this.swPanE = -1;
+      this.swPan(0, bodyYaw);
+      return null;
+    }
+    this.lookYaw = Number.NaN;
+    return pl.pts[this.idx]!;
+  }
+
+  /** The look while holding a sweep stop: onto the pan's start yaw, then (once the body is there) the pan. */
+  private swPan(dt: number, bodyYaw: number): void {
+    const pl = this.sw!;
+    const i = this.idx;
+    const fr = pl.from[i]!;
+    const face = fr === fr;
+    const c = pl.centre[i]!;
+    if (this.swPanE < 0) {
+      const s = face ? fr : c;
+      this.lookYaw = s;
+      if (bodyYaw === bodyYaw && Math.abs(wrapAng(bodyYaw - s)) > SCENE_SWEEP.panGate) return;
+      this.swPanE = 0;
+    } else this.swPanE += dt;
+    const D = pl.wait[i]!;
+    this.lookYaw = face ? facePanYaw(fr, c, D, this.swPanE) : panYaw(c, this.swSide, D, this.swPanE);
   }
 
   private peekNext(): number {
@@ -174,6 +314,10 @@ export class PatrolWalker {
 
   /** Back on the route at the nearest point (after an investigation). */
   rejoin(x: number, z: number): void {
+    if (this.sw) {
+      this.sweepRejoin(x, z);
+      return;
+    }
     const r = this.route;
     this.waitT = 0;
     if (!r || r.points.length === 0) return;
@@ -203,6 +347,28 @@ export class PatrolWalker {
       }
     }
     this.idx = best;
+  }
+
+  /**
+   * (GA6, N3) Back on the sweep: to the pan stop he can be back in step at soonest (`rejoinStop`), then hold there,
+   * panning, until its next `leave` after he can reach it (at most a lap), then on with the schedule.
+   */
+  private sweepRejoin(x: number, z: number): void {
+    const pl = this.sw!;
+    const now = this.swNow();
+    const k = rejoinStop(pl, x, z, now);
+    this.idx = k;
+    this.waitT = 0;
+    this.swHoldEnd = Number.NaN;
+    this.swPanE = -1;
+    this.lookYaw = Number.NaN;
+    this.swRejoinIdx = -1;
+    if (pl.wait[k]! > 0) {
+      const p = pl.pts[k]!;
+      const tr = hyp2(p[0] - x, p[1] - z) / SCENE_SWEEP.pace;
+      this.swRejoinUntil = now + tr + wrapTime(pl.leave[k]! - now - tr, pl.period);
+      this.swRejoinIdx = k;
+    }
   }
 }
 
