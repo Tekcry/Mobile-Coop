@@ -3,6 +3,18 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 66 (2026-10-26 ~15:20, new session [301bc7] after the swap; wins over SAVE 65):**
+- Service healthy (task running), train 121 sharded 4189+4192 at boot. Claude Docs connector off.
+- #552 (laptop-queue-8b, fix, head 2fbfbd30): check + checker green, affected-e2e queued behind train 121.
+- F6: builder's uncommitted fix finished, rebased on master, PR #559 (feature/lightfield-heap-3, head dc17e670, fix,
+  Job-done). 40 alloc-helper files green x2; one shadowCues S3b over limit under full load (green alone x5). Fresh
+  Opus code checker running; post `checker` on its PASS.
+- laptop-queue-9: plan-check BRIEF edits left at the swap committed (f5b2db8b); fresh Opus plan checker running.
+- laptop-queue-10: fresh Opus plan checker running (refs must move to #552's 2fbfbd30).
+- F8: prb3 re-port waits for #552 to release (FIXES F8).
+- Next: #559 checker -> `checker` status; lq9 / lq10 plan verdicts -> builders (lq9 S1 + S3; lq10 S1); #552 release
+  -> J20 PR-B re-port on prb3.
+
 **Test Runner SAVE 65 (2026-10-26 ~14:15, Orchestrator save; session [e881f8]; wins over SAVE 64):**
 - Rule now (Michael ~14:00): fixes first, tracker docs/orchestrator/FIXES.md on origin/feature/menu (Orchestrator owns it;
   send it updates). Order: F1-F3, F6, F8, then the rest. Session is in bypass mode: post checker / laptop statuses and
