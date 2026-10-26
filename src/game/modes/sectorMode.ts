@@ -1462,7 +1462,11 @@ export class SectorMode implements GameMode {
       return;
     }
     // (piano-escape S2) the scene's step: the EMP prompt and press, the cut, a restart's spawn, the search, the reveals
-    if (this.scene) this.scene.step(dt, this.run.phase === 'objective');
+    if (this.scene) {
+      this.scene.step(dt, this.run.phase === 'objective');
+      // (piano-escape S4) the EMP press goes to the client on the next step's `sector` message (its `ep`), not 0.5 s on
+      if (this.scene.takeEmpNews()) this.secT = 0;
+    }
     this.fillT -= dt;
     if (this.fillT <= 0) {
       this.fillT = 0.5;
@@ -1570,7 +1574,7 @@ export class SectorMode implements GameMode {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
     const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}) };
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}), ...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {}) };
   }
 
   /** (mission-framework EN2) Co-op host: a client's gadget took effect (a mission's no-gadgets rule, by its slot). */

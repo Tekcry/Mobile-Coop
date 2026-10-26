@@ -679,7 +679,10 @@ describe('S2: the spawn seam and the 7 m rule (SectorMode on a stub game)', () =
 
   it('SectorMode wires the seams: the scene steps, gates the objective, restarts before the reload, holds fill', () => {
     const mode = src('src/game/modes/sectorMode.ts');
-    expect(mode).toContain("if (this.scene) this.scene.step(dt, this.run.phase === 'objective');");
+    expect(mode).toContain("this.scene.step(dt, this.run.phase === 'objective');");
+    // (S4) the press goes to the client at once, and every sector message carries it (`ep`)
+    expect(mode).toContain('if (this.scene.takeEmpNews()) this.secT = 0;');
+    expect(mode).toContain('...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {})');
     expect(mode).toContain("s.objective.kind === 'clear' && (!this.scene || this.scene.inPlay)) this.clearStep(s);");
     const r = mode.indexOf('this.scene?.restarted();');
     expect(r).toBeGreaterThan(0);

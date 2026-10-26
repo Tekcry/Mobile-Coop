@@ -993,6 +993,9 @@ export interface SectorNetExtra {
   rh?: number[];
   /** (mission-framework EN2) The running mission (`packMission`); none without one. NET puts it on the wire. */
   ms?: MissionWire;
+  /** (piano-escape S4) The piano scene's EMP press on the host's sim clock (s): the client ends its intro on it, and it is
+   *  the lightning's t0 and the music's switch there. Absent before the press and off the scene. */
+  ep?: number;
 }
 
 /**

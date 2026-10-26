@@ -699,8 +699,14 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (mission NET) the running mission (`missionWire.ts`; malformed: dropped)
   const ms = parseMissionWire(raw.ms);
   if (ms) out.ms = ms;
+  // (piano-escape S4, inside the train's protocol) the scene's EMP press on the host's sim clock; malformed: dropped
+  const ep = num(raw.ep, 0, EP_MAX);
+  if (ep !== null) out.ep = ep;
   return out;
 }
+
+/** (piano-escape S4) The `sector` message's `ep` (the EMP press, host sim seconds): 0..this (about 115 days). */
+export const EP_MAX = 1e7;
 
 /** (34) Rating counts on the wire: whole numbers 0..RT_COUNT (synced takedowns, grant parts). */
 export const RT_COUNT = 99;

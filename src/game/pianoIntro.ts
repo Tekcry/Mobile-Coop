@@ -228,6 +228,17 @@ export class PianoIntro {
     return true;
   }
 
+  /**
+   * (S4) Co-op client: the host's EMP press ends this page's intro now, wherever it is (also before its own prompt or
+   * while it waits for the music): the beat and the cut follow on this clock. False once pressed.
+   */
+  hostPress(): boolean {
+    if (this.pressT >= 0) return false;
+    this.musicIn = true;
+    this.pressT = this.t;
+    return true;
+  }
+
   /** The black layer's alpha now (the blackout beat is the lamps' own dark, not a black layer). */
   fade(): number {
     return this.pressT >= 0 ? 0 : introFade(this.t);

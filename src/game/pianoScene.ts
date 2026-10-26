@@ -226,6 +226,71 @@ export interface PianoWorld {
   view(intro: PianoIntro, onSkip: () => void): PianoView | null;
   /** (S4, knife PB5) The knife scene on this page's takedowns: every offer a lethal knife kill on one press (off: today's). */
   knifeScene(on: boolean): void;
+  /**
+   * (S4) Co-op client only (absent on the host and solo): send this page's EMP press to the host, which checks it like
+   * any item use. The client's spawn, search, mains cut and reveals are the host's; its intro ends on `hostEmp`.
+   */
+  askEmp?(): void;
+}
+
+/** (S2, S4) The EMP items' ids: `piano-emp-<k>`, k the operator spot (0 the section's start, 1 its start2). */
+export const EMP_ITEM = 'piano-emp-';
+
+/** (S4) The EMP item nearest (x, z) on the map's first section (a client's `use` names it; the host checks the reach). */
+export function nearestEmpItem(map: { readonly sectors?: readonly SectorDef[] }, x: number, z: number): string {
+  const s = map.sectors?.[0];
+  if (!s) return `${EMP_ITEM}0`;
+  const b = s.start2;
+  return b && hyp2(b.x - x, b.z - z) < hyp2(s.start.x - x, s.start.z - z) ? `${EMP_ITEM}1` : `${EMP_ITEM}0`;
+}
+
+/** (S4) What the co-op client hands the scene: the intro view (Babylon, built by the client) and its press to the host. */
+export interface PianoClientSeam {
+  view(intro: PianoIntro, onSkip: () => void): PianoView | null;
+  askEmp(): void;
+}
+
+/**
+ * (S4) The scene's world on a co-op client page: its own intro, music, HUD and knife switch; the lightning's t0 from the
+ * host's press (`hostEmp`); no mains cut (the host's `lamps` snapshot carries the dark), no guards of its own, no items
+ * (the press goes to the host as a `use`). The radio line at the cut comes from the host as a feed line. Built once.
+ */
+export function pianoClientWorld(g: GameState, c: PianoClientSeam): PianoWorld {
+  const sec = g.world.map.sectors?.[0];
+  return {
+    hooks: {
+      mainsOff: () => 0,
+      lightningT0(simTime) {
+        const lt = g.world.lightning;
+        if (lt) lt.t0 = simTime;
+      },
+      sceneDark: () => undefined,
+      blackoutSearchSlots: () => 0,
+    },
+    music: g.app.music,
+    spawn: () => undefined,
+    spawned: () => false,
+    retakeStart: () => undefined,
+    sectionGuards: () => sec?.guards.length ?? 0,
+    simTime: () => g.net?.simTime?.() ?? (g as unknown as { time: number }).time,
+    localPress: () => g.player.alive && g.app.input.state.pressed('interact'),
+    empItems: () => undefined,
+    operatorAt(_by, out) {
+      const p = g.player.position;
+      out.x = p.x;
+      out.y = p.y;
+      out.z = p.z;
+    },
+    hud: (on) => g.hud.setVisible(on),
+    cutLines(_radio, objective) {
+      g.hud.setObjective(objective);
+      g.hud.showObjective();
+    },
+    guardWithin: () => true,
+    view: (intro, onSkip) => c.view(intro, onSkip),
+    knifeScene: (on) => knifeSwitch(g, on),
+    askEmp: () => c.askEmp(),
+  };
 }
 
 /** (S4, knife PB5) The knife switch on a match: the gate is the flag, the map's `scene` and the scene's live state. */
@@ -272,7 +337,7 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
       for (let i = 0; i < spots.length; i++) {
         const s = spots[i]!;
         // no visuals ('vip' draws nothing); the label is the prompt
-        const it = ints.add(`piano-emp-${i}`, 'vip', new Vector3(s.x, s.y, s.z), EMP_LABEL, 0);
+        const it = ints.add(`${EMP_ITEM}${i}`, 'vip', new Vector3(s.x, s.y, s.z), EMP_LABEL, 0);
         it.onUse = (_it, by) => use(by ?? 'local');
         ints.setEnabled(it, true);
         items.push(it);
@@ -338,6 +403,8 @@ export class PianoScene {
   /** The scene's dark is on (`sceneDark`). */
   dark = false;
   private itemsOn = false;
+  /** (S4) The press is news for the co-op client (`takeEmpNews`). */
+  private empNews = false;
   /** (S4) The knife scene is on (`onKnifeScene`). */
   private knifeOn = false;
   private searchPending = false;
@@ -374,7 +441,8 @@ export class PianoScene {
   protected onIntro(): void {
     const w = this.world;
     if (!w || this.intro) return;
-    const intro = (this.intro = new PianoIntro(0));
+    // (S4) a co-op client frames its own operator, the partner (slot 1)
+    const intro = (this.intro = new PianoIntro(w.askEmp ? 1 : 0));
     this.holdsSpawn = true;
     this.inPlay = false;
     // (S4) no flash in the intro: the lightning starts with the EMP
@@ -410,6 +478,11 @@ export class PianoScene {
     if (!w || !intro) return;
     if (!this.pressed) {
       if (!intro.promptOn) return;
+      // (S4) a co-op client sends its press to the host (once per button press); its beat comes with `hostEmp`
+      if (w.askEmp) {
+        if (w.localPress()) w.askEmp();
+        return;
+      }
       if (!this.itemsOn) {
         this.itemsOn = true;
         w.empItems(true, this.useItem);
@@ -418,6 +491,8 @@ export class PianoScene {
       return;
     }
     if (!this.inPlay && intro.done) this.cut();
+    // (S4) a co-op client: the spawn, the search and the reveals are the host's
+    if (w.askEmp) return;
     if (this.restartT >= 0) {
       this.restartT -= dt;
       if (this.restartT < 0) this.spawnBeat();
@@ -460,6 +535,7 @@ export class PianoScene {
     // 2. the lightning clock from the press (solo: here; co-op: the host's t0 goes to the client in the sector state, S4)
     this.t0 = w.simTime();
     w.hooks.lightningT0(this.t0);
+    this.empNews = true;
     // 3. the piano under the burst: the loop and the lightning start together on every page
     w.music?.piano.seek(EMP_SEEK);
     // 4-6. the dark, the spawn (the opening four on the actors' spots), then (next steps) the pair's search
@@ -467,6 +543,35 @@ export class PianoScene {
     // 7. (S4) the knife scene: every takedown from the cut on is the knife kill (the clips start loading now)
     this.onKnifeScene(true);
     return true;
+  }
+
+  /**
+   * (S4) Co-op client: the host's EMP press (`ep` in its `sector` message, its sim time) ends this page's intro now: the
+   * burst at our operator, the lightning's t0 = the host's press (so the flashes match on the shared clock), the music's
+   * switch to the mission track at the same moment, the knife scene; the cut follows `EMP_CUT_S` later. The dark is the
+   * host's lamps snapshot. Once (every later message repeats it). True when it took.
+   */
+  hostEmp(t0: number): boolean {
+    const w = this.world;
+    const intro = this.intro;
+    if (!w || !intro || this.pressed || !intro.hostPress()) return false;
+    this.pressed = true;
+    this.pressedBy = 'host';
+    w.operatorAt('local', this.at);
+    this.view?.burst(this.at.x, this.at.y + BELT_Y, this.at.z);
+    this.t0 = t0;
+    w.hooks.lightningT0(t0);
+    w.music?.piano.seek(EMP_SEEK);
+    this.holdsSpawn = false;
+    this.onKnifeScene(true);
+    return true;
+  }
+
+  /** (S4) Host: the press happened since the last call (SectorMode then sends its `sector` message at once). */
+  takeEmpNews(): boolean {
+    const n = this.empNews;
+    this.empNews = false;
+    return n;
   }
 
   /** The dark, the spawn with the exception, the search waiting for the pair. A restart runs it again. */
