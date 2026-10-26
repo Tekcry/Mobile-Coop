@@ -29,9 +29,9 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    stand-in, real 0.68-0.94 s after the press coming in its S2); S4 waits for it.
 4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
 5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
-6. S5 DONE 73c2ecd0e (12 tracks, ?pianomusic=pixabay|grohl|1-4|a-f; S5-report.md); Sonnet checker -> S5-check.md; PASS -> PR
-   (base feature/piano-escape). S6 (storm sound) waits for #604 on master. S4 waits for knife #614, GA6 / GA7, SO2-SO5.
-Next: S5 checker -> PR; #606 lands -> retarget #616 / #617 to master; #581 lands -> retarget #583; S6 when #604 is on master.
+6. S5 DONE 73c2ecd0e (12 tracks, ?pianomusic=pixabay|grohl|1-4|a-f; S5-report.md); Sonnet PASS (S5-check.md) -> PR #618
+   (base feature/piano-escape; head 4f9971281, checker posted). S6 (storm sound) waits for #604 on master. S4 waits for knife #614, GA6 / GA7, SO2-SO5.
+Next: #606 lands -> retarget #616 / #617 / #618 to master (one at a time; the 2nd and 3rd after the 1st lands if they conflict); #581 lands -> retarget #583; S6 when #604 is on master.
 
 ## OLD RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
 Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
