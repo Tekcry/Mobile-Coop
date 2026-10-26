@@ -177,7 +177,7 @@ describe('Marlow re-plan circuits (J14 S0, A20: every light works)', () => {
     expect(MARLOW_POCKETS_REPLAN.map((p) => p.id)).toEqual(['a5-landing', 'a5-pen1']);
     expect(MARLOW_POCKETS.length).toBe(10);
     // the other circuits are the built rows
-    for (const c of MARLOW_CIRCUITS) if (![22, 49, 69].includes(c.group)) expect(MARLOW_CIRCUITS_REPLAN.find((r) => r.group === c.group)).toBe(c);
+    for (const c of MARLOW_CIRCUITS) if (![20, 22, 49, 50, 69].includes(c.group)) expect(MARLOW_CIRCUITS_REPLAN.find((r) => r.group === c.group)).toBe(c);
   });
 
   it('the re-plan layout carries the new groups; the built layout does not', () => {

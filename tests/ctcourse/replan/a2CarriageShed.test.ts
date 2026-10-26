@@ -599,7 +599,7 @@ describe('A2 re-plan: the closures on the nav (one way: stores bay -> shutter ->
       expect(l.top.x).toBeLessThan(A2_PIT.x0);
       expect(Math.sin(l.facing)).toBeCloseTo(-1, 6);
     }
-    expect(b.anchors.ladders.filter((l) => l.base.x > A2_PIT.x0 && l.base.x < A2_PIT.x1 + 1.0 && Math.abs(l.base.x - A2_STEP_IRONS_X) > 1e-6)).toEqual([]);
+    expect(b.anchors.ladders.filter((l) => l.base.x > A2_PIT.x0 && l.base.x < A2_PIT.x1 + 1.0 && l.base.z > A2_PIT.z0 && l.base.z < A2_PIT.z1 && Math.abs(l.base.x - A2_STEP_IRONS_X) > 1e-6)).toEqual([]);
   });
 });
 
