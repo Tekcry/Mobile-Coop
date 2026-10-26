@@ -990,7 +990,14 @@ export class SectorMode implements GameMode {
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
       // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw, p.look);
-      if (!e) break;
+      if (!e) {
+        // the live cap: the rest wait for room. (guard-ai play pass P3-3) Else no walkable cell near the slot: drop it
+        // (said once, as it leaves the list) so it never stalls the guards and reinforcements behind it.
+        if (em.alive >= em.maxAlive) break;
+        console.warn(`sector: guard slot ${p.k} (${p.slot.kind} at ${p.slot.x}, ${p.slot.z}) failed to spawn (dropped)`);
+        this.pending.splice(i, 1);
+        continue;
+      }
       if (p.slot.info) e.info = p.slot.info; // (stealth-pays S2) what INTERROGATE gets out of him
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       if (p.k >= 0) this.slotEnemy[p.k] = e;
