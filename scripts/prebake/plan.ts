@@ -1,6 +1,7 @@
 // (map-ready S4) The prebake's shared part: each shipped map (`SHIPPED_BAKE_MAPS`: campusOps, and from piano SO2
-// thornbeckMill) built in Node the way `World.create` builds its light set (`world/world.ts`: the builder, the flicker
-// and sway passes, `prepare`: the light set ignores `detail`), its fixed lights and the game's own lamp key
+// thornbeckMill) built in Node the way `World.create` builds its light set (the shared `buildMapLights` in
+// `world/mapLights.ts`: the builder, the flicker pass, the lightning openings' flash lights, the sway pass; then
+// `prepare`: the light set ignores `detail`), its fixed lights and the game's own lamp key
 // (`lampKeyOf`, never a copy), the cache folder (one `<h>` folder per map), the shard bake. Run through vitest
 // (`vitest.prebake.config.ts`: TS in Node, no new package) by `scripts/prebake.mjs`; see its header.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -10,8 +11,7 @@ import { LevelBuilder } from '../../src/world/levelBuilder';
 import type { MapDef } from '../../src/world/mapDef';
 import { campusOps } from '../../src/world/maps/campusOps';
 import { thornbeckMill } from '../../src/world/maps/thornbeckMill';
-import { applyMapFlicker } from '../../src/world/lampFlicker';
-import { applyMapSway } from '../../src/world/lampSway';
+import { buildMapLights } from '../../src/world/mapLights';
 import { dressingOn } from '../../src/world/detailPass';
 import { bakedLights, lampKeyOf } from '../../src/world/lightBake';
 import { fnv } from '../../src/voxel/lightShapes';
@@ -84,9 +84,7 @@ function defOf(id: string): MapDef {
 export function buildMap(def: MapDef): BuiltMap {
   const id = def.id;
   const b = new LevelBuilder();
-  def.build(b, PREBAKE_SEED);
-  applyMapFlicker(b.lights, id, PREBAKE_SEED);
-  applyMapSway(b, id);
+  buildMapLights(b, def, PREBAKE_SEED);
   const { light } = b.prepare(id, { dressing: dressingOn(def) });
   const { lights } = bakedLights(b.lights);
   const key = lampKeyOf(id, light.hash, lights);

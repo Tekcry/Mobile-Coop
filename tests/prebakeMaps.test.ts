@@ -8,7 +8,7 @@
  *   makes; a map not on the list never asks for one.
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -23,9 +23,10 @@ import { sectionBakeFor } from '../src/world/sectionBake';
 import { packLamps, SHIPPED_BAKE_MAPS, shipsBake, type ShippedManifest } from '../src/world/shippedBake';
 import { bakedLights, bakeLevelLight, lampKeyOf } from '../src/world/lightBake';
 import { campusOps } from '../src/world/maps/campusOps';
-import { thornbeckMill } from '../src/world/maps/thornbeckMill';
-import { applyMapFlicker } from '../src/world/lampFlicker';
-import { applyMapSway } from '../src/world/lampSway';
+import { THORNBECK_LIGHTNING, THORNBECK_OPENINGS, thornbeckMill } from '../src/world/maps/thornbeckMill';
+import type { MapDef } from '../src/world/mapDef';
+import type { LightningData } from '../src/world/lightning';
+import { buildMapLights } from '../src/world/mapLights';
 import { dressingOn } from '../src/world/detailPass';
 import { buildCampus, buildMap, PREBAKE_MAPS } from '../scripts/prebake/plan';
 import { currentMaps, shippedBakes } from '../scripts/prebake/emit';
@@ -33,15 +34,40 @@ import { currentMaps, shippedBakes } from '../scripts/prebake/emit';
 // (the cache write is spied; everything else in lampJobs is the real module)
 vi.mock('../src/voxel/lampJobs', async (orig) => ({ ...(await orig<typeof LampJobs>()), saveLamps: vi.fn(async () => undefined) }));
 
-/** A map's lamp key as `World.create` builds it (seed 3: the key never reads the seed). */
-function gameKey(def: typeof campusOps): string {
+/** A map's lamp key as `World.create` builds it (`buildMapLights`, the game's own call; seed 3: the key never reads
+ *  the seed). */
+function gameKey(def: MapDef): string {
   const b = new LevelBuilder();
-  def.build(b, 3);
-  applyMapFlicker(b.lights, def.id, 3);
-  applyMapSway(b, def.id);
+  buildMapLights(b, def, 3);
   const { light } = b.prepare(def.id, { dressing: dressingOn(def) });
   return lampKeyOf(def.id, light.hash, bakedLights(b.lights).lights);
 }
+
+/** The mill with its lightning on it (the map sets `lightning` from #604; until then the test supplies it). */
+const MILL_LIT: MapDef = { ...thornbeckMill, lightning: thornbeckMill.lightning ?? (THORNBECK_LIGHTNING as LightningData) };
+
+const src = (p: string): string => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+
+describe('prebake and game build one light set (piano SO2 + SO5b merge)', () => {
+  it('World.create and the prebake both call buildMapLights, and neither runs a light pass of its own', () => {
+    for (const p of ['src/world/world.ts', 'scripts/prebake/plan.ts']) {
+      const s = src(p);
+      expect(s, p).toMatch(/buildMapLights\(b, \w+, [\w.]+\)/);
+      for (const pass of ['applyMapFlicker(', 'addOpeningLights(', 'applyMapSway(', '.build(b,']) expect(s.includes(pass), `${p}: ${pass}`).toBe(false);
+    }
+  });
+
+  it("the mill with its lightning: the prebake's key is the game's, and the openings' flash lights are in it", () => {
+    const lit = buildMap(MILL_LIT);
+    expect(lit.key).toBe(gameKey(MILL_LIT));
+    // the 17 fixed lights and one flash light per opening, all baked
+    expect(lit.lights.length / LAMP_STRIDE).toBe(17 + THORNBECK_OPENINGS.length);
+    const dark = buildMap({ ...thornbeckMill, lightning: undefined });
+    expect(dark.lights.length / LAMP_STRIDE).toBe(17);
+    expect(lit.key).not.toBe(dark.key);
+    // campusOps (no lightning) keeps master's key
+    expect(buildCampus().key).toBe('lamps:campusOps:v7:c1:2kzmx6:1itu5fu');  }, 120_000);
+});
 
 describe('prebake: the shipped maps', () => {
   it('bakes exactly SHIPPED_BAKE_MAPS (campusOps, thornbeckMill), each under the game key', () => {
@@ -55,8 +81,9 @@ describe('prebake: the shipped maps', () => {
     expect(campus.key).toBe(gameKey(campusOps));
     const mill = buildMap(thornbeckMill);
     expect(mill.key).toBe(gameKey(thornbeckMill));
-    // the 16 lamps and the exit sign, one cache folder of its own
-    expect(mill.lights.length / LAMP_STRIDE).toBe(17);
+    // the 16 lamps and the exit sign (and a flash light per opening once the map sets `lightning`), one cache folder of
+    // its own
+    expect(mill.lights.length / LAMP_STRIDE).toBe(17 + (thornbeckMill.lightning?.openings?.length ?? 0));
     expect(mill.h).not.toBe(campus.h);
     // no section split: the join ships every lamp in one file (s0)
     expect(sectionBakeFor('thornbeckMill')).toBeNull();
