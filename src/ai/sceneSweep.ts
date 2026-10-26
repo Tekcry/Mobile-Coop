@@ -29,6 +29,15 @@ export const SCENE_SWEEP = {
   panGate: 0.15,
   /** A leg shorter than this (m) is not walked: both stops are one spot (a post's face pan). */
   still: 0.01,
+  /**
+   * (piano polish 1) Off his storey with no path home this long (s): stranded, he walks the lap on the storey he is on.
+   * `goTo` replans a missed goal once a second, so 4 s is four misses in a row, not a plan caught mid door swing; and a
+   * stand of 4 s reads as one more pan hold (3 s), not a frozen guard.
+   */
+  strandT: 4,
+  /** (piano polish 1) Stranded, the way home is tried again this often (s): about one 6 m leg at `pace` (8.6 s), so a
+   *  gate opened again is noticed within a leg; one A* (`goTo`'s 3000 cells) per stranded guard per 8 s. */
+  strandRetry: 8,
 } as const;
 
 /** A guard's sweep, built once (`sweepPlan`). Index i = the route's point i. */

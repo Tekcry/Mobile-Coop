@@ -631,6 +631,11 @@ export class Enemy implements Damageable {
   private homeT = 0;
   /** The long plan (`GIVE_UP.homeExpand`) was tried for this point. */
   private homeLong = false;
+  /** (piano polish 1) On the scene sweep, off his storey: seconds in a row with no path home (`goTo` found none). At
+   *  `SCENE_SWEEP.strandT` he is stranded: the lap on the storey he is on (`sweepStranded`, `sweepWalk`). */
+  private swNoPath = 0;
+  /** (piano polish 1) Stranded: seconds to the next try of the way home (`SCENE_SWEEP.strandRetry`). */
+  private swRetryT = 0;
   /** (train 132 fix) His sliced long plan to `homeG` is running (`NavGrid.sliceStep`, one slice per long-plan frame). */
   private homeSlicing = false;
   /** (guard-ai play A, P2-1) He gave a run to the alarm panel up this fight (not sent again). */
@@ -2992,6 +2997,61 @@ export class Enemy implements Damageable {
   private rejoinHome(): void {
     this.walker.rejoin(this.pos.x, this.pos.z);
     this.homeG = null;
+    // (piano polish 1) a fresh try at the way home (a gate may be open again)
+    this.swNoPath = 0;
+  }
+
+  /** (piano polish 1) The route plan forgets its last goal and miss: the next `goTo` plans at once (the goal's height
+   *  changes between the way home and this storey, which `routeGoal` does not tell apart). */
+  private routeFresh(): void {
+    this.routePath.length = 0;
+    this.routeMiss = false;
+    this.routeT = 0;
+  }
+
+  /**
+   * (piano polish 1) On the scene sweep, off his storey: stranded (`swNoPath` at `SCENE_SWEEP.strandT`), so his walker
+   * steps as if on his storey and he walks the lap here. Every `SCENE_SWEEP.strandRetry` s the way home to the stop he
+   * heads for is tried: found, he is no longer stranded and walks it (the plan is made).
+   */
+  private sweepStranded(dt: number): boolean {
+    if (this.swNoPath < SCENE_SWEEP.strandT) return false;
+    this.swRetryT -= dt;
+    if (this.swRetryT > 0) return true;
+    this.swRetryT = SCENE_SWEEP.strandRetry;
+    const p = this.walker.sweepPlan!.pts[this.walker.idx]!;
+    this.routeFresh();
+    if (this.goTo(p, dt, 0.05, this.homeY) !== null) {
+      this.swNoPath = 0;
+      return false;
+    }
+    this.routeFresh();
+    return true;
+  }
+
+  /**
+   * (GA6 fix round, check A FIX 2) The sweep's walk to the walker's point `g`: on his storey (`homeY`), straight at it
+   * when there is no path. (piano polish 1) Away with no path counts towards stranding; stranded (`strand`), the walk is
+   * on the storey he is on, and a stop with no path there either is taken where he stands (`PatrolWalker.sweepHere`).
+   */
+  private sweepWalk(g: P2, dt: number, away: boolean, strand: boolean): Waypoint | null {
+    if (strand) {
+      const wp = this.goTo(g, dt, 0.05);
+      if (wp === null) this.walker.sweepHere();
+      return wp;
+    }
+    const wp = this.goTo(g, dt, 0.05, this.homeY);
+    if (away) {
+      if (wp !== null) this.swNoPath = 0;
+      else {
+        this.swNoPath += dt;
+        if (this.swNoPath >= SCENE_SWEEP.strandT) {
+          this.swRetryT = SCENE_SWEEP.strandRetry;
+          this.routeFresh();
+        }
+      }
+    }
+    return wp ?? g;
   }
 
   /** (guard-ai play A, check A) Start the progress window of a walk (the alarm run, the walk to a body) here. */
@@ -3084,8 +3144,12 @@ export class Enemy implements Damageable {
         // P2-2) off his home storey he is not at his post, even straight under it ((GA6 fix round, check A FIX 2) on the
         // sweep too: a deck guard sent to the floor walks back up to his stop)
         const away = Math.abs(this.pos.y - this.homeY) >= 1.2;
-        const g = this.walker.sweeping
-          ? this.walker.step(dt, this.pos.x, this.pos.z, this.motion.yaw, away)
+        // (piano polish 1) no path home for `SCENE_SWEEP.strandT` s: stranded, his lap on this storey (never frozen)
+        const sweeping = this.walker.sweeping;
+        if (!away || !sweeping) this.swNoPath = 0;
+        const strand = sweeping && away && this.sweepStranded(dt);
+        const g = sweeping
+          ? this.walker.step(dt, this.pos.x, this.pos.z, this.motion.yaw, away && !strand)
           : this.walker.step(dt, this.pos.x, this.pos.z, Number.NaN, away);
         // (guard-ai S10) his talking pair is meeting: on to his meet point, then stand there facing his partner. The
         // walker still steps (its clock and schedule run on): he walks on late after the talk and the timed loop's
@@ -3112,7 +3176,7 @@ export class Enemy implements Damageable {
         // (GA6 x play A, merge) on the scene sweep the plain walk (its legs are clear straight lines, GA5; the home walk's
         // give-up would drop him off his schedule), on his home storey (GA6 fix round, check A FIX 2); off it the home walk
         // (play A: sliced long plan, give-up)
-        const wp = g ? (this.walker.sweeping ? (this.goTo(g, dt, 0.05, this.homeY) ?? g) : this.homeStep(g, dt)) : null;
+        const wp = g ? (sweeping ? this.sweepWalk(g, dt, away, strand) : this.homeStep(g, dt)) : null;
         // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace); (GA6b) the scene
         // sweep at its own slow pace, capped at his walk
         const sp = this.walker.sweeping

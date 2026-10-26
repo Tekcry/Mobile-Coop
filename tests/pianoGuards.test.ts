@@ -795,3 +795,126 @@ describe('GA6 fix round', () => {
     }
   });
 });
+
+describe('piano polish: a swept guard off his storey with no path home', () => {
+  /** A deck guard (home storey y 3) on the floor (y 0) at (x, z); `nav.home` / `nav.floor`: a path home / on the floor. */
+  const stranded = (x: number, z: number) => {
+    const nav = { home: false, floor: true };
+    const ys: number[] = [];
+    const g = sweepGuard([], x, z, -Math.PI / 2, LANE, {
+      homeY: 3,
+      // the nav stand-in as `goTo`: the other storey only when `nav.home`; this one straight there when `nav.floor`
+      // (null within `near`)
+      goTo(this: { pos: { x: number; y: number; z: number } }, p: [number, number], _dt: number, near = 0.6, y = Number.NaN): [number, number] | null {
+        ys.push(y);
+        if (y === y && Math.abs(y - this.pos.y) >= 1.2) return nav.home ? p : null;
+        if (hyp2(p[0] - this.pos.x, p[1] - this.pos.z) < near) return null;
+        return nav.floor ? p : null;
+      },
+    });
+    g.startSweep(0, 1);
+    return { g, nav, ys };
+  };
+  const swNoPath = (g: SweepGuard): number => (g as unknown as { swNoPath: number }).swNoPath;
+
+  it('under his stop: after SCENE_SWEEP.strandT s he walks the lap on the floor, never still longer than the give-up and a hold', () => {
+    expect(SCENE_SWEEP.strandT).toBe(4);
+    const { g } = stranded(0, 0);
+    const stop = g.walker.sweepPlan!.pts[g.walker.idx]!;
+    expect(hyp2(stop[0] - g.pos.x, stop[1] - g.pos.z)).toBeLessThan(0.01);
+    // the give-up: he stands under the stop, never holding there
+    for (let k = 0; k < Math.round((SCENE_SWEEP.strandT - 0.1) / DT); k++) {
+      expect(calmStep(g, DT).point).toBe(stop);
+      expect(g.walker.waiting).toBe(0);
+    }
+    let ax = g.pos.x;
+    let az = g.pos.z;
+    let still = 0;
+    let maxStill = 0;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (let k = 0; k < Math.round(60 / DT); k++) {
+      calmStep(g, DT);
+      still += DT;
+      if (hyp2(g.pos.x - ax, g.pos.z - az) > 0.3) {
+        ax = g.pos.x;
+        az = g.pos.z;
+        still = 0;
+      }
+      if (still > maxStill) maxStill = still;
+      if (g.pos.x < minX) minX = g.pos.x;
+      if (g.pos.x > maxX) maxX = g.pos.x;
+      expect(g.pos.y).toBe(0);
+    }
+    // the lap on the floor: out to the far stop and back, holding pan stops (3 s) on the way
+    expect(maxX).toBeGreaterThan(5.4);
+    expect(minX).toBeLessThan(0.6);
+    expect(maxStill).toBeLessThan(SCENE_SWEEP.strandT + 3 + 1.5);
+  });
+
+  it('stranded, the way home is tried every SCENE_SWEEP.strandRetry s; found, he walks it (on his storey, no floor holds)', () => {
+    const { g, nav, ys } = stranded(0, 0);
+    for (let k = 0; k < Math.round((SCENE_SWEEP.strandT + 2) / DT); k++) calmStep(g, DT);
+    expect(swNoPath(g)).toBeGreaterThanOrEqual(SCENE_SWEEP.strandT);
+    // the tries while blocked: one per strandRetry s (each a single goTo on his home storey)
+    ys.length = 0;
+    for (let k = 0; k < Math.round((2 * SCENE_SWEEP.strandRetry + 0.5) / DT); k++) calmStep(g, DT);
+    expect(ys.filter((y) => y === 3).length).toBe(2);
+    expect(swNoPath(g)).toBeGreaterThanOrEqual(SCENE_SWEEP.strandT);
+    // the gate opens: within one retry he is walking home
+    nav.home = true;
+    let back = -1;
+    for (let k = 0; k < Math.round((SCENE_SWEEP.strandRetry + 0.5) / DT); k++) {
+      ys.length = 0;
+      calmStep(g, DT);
+      if (back < 0 && swNoPath(g) === 0) back = k;
+    }
+    expect(back).toBeGreaterThanOrEqual(0);
+    expect(back * DT).toBeLessThanOrEqual(SCENE_SWEEP.strandRetry + 1e-9);
+    for (let k = 0; k < 60; k++) {
+      ys.length = 0;
+      const goal = calmStep(g, DT);
+      expect(goal.point).not.toBeNull();
+      expect(Number.isNaN(g.walker.lookYaw)).toBe(true);
+      expect(ys.length).toBeGreaterThan(0);
+      expect(ys.every((y) => y === 3)).toBe(true);
+    }
+  });
+
+  it('no path on the floor either: he takes each stop where he stands, holding and panning there, round the lap (never frozen)', () => {
+    const { g, nav } = stranded(3, 2);
+    nav.floor = false;
+    const plan = g.walker.sweepPlan!;
+    for (let k = 0; k < Math.round((SCENE_SWEEP.strandT + 0.5) / DT); k++) calmStep(g, DT);
+    const seen = new Set<number>();
+    let lo = Infinity;
+    let hi = -Infinity;
+    let held = 0;
+    for (let k = 0; k < Math.round((plan.period + 1) / DT); k++) {
+      const goal = calmStep(g, DT);
+      seen.add(g.walker.idx);
+      if (goal.point === null) {
+        held++;
+        if (goal.face !== null) {
+          const off = wrapAng(goal.face - plan.centre[g.walker.idx]!);
+          if (off < lo) lo = off;
+          if (off > hi) hi = off;
+        }
+      }
+    }
+    expect(seen.has(0)).toBe(true);
+    expect(seen.has(1)).toBe(true);
+    expect(held * DT).toBeGreaterThan(2 * 3 - 0.5);
+    expect(lo).toBeLessThan(-SCENE_SWEEP.panYaw + 0.05);
+    expect(hi).toBeGreaterThan(SCENE_SWEEP.panYaw - 0.05);
+    expect(g.pos.y).toBe(0);
+  });
+
+  it('a rejoin (back from an incident) starts the give-up over: a fresh try at the way home', () => {
+    const { g } = stranded(0, 0);
+    for (let k = 0; k < Math.round((SCENE_SWEEP.strandT + 1) / DT); k++) calmStep(g, DT);
+    expect(swNoPath(g)).toBeGreaterThanOrEqual(SCENE_SWEEP.strandT);
+    (g as unknown as { rejoinHome(): void }).rejoinHome();
+    expect(swNoPath(g)).toBe(0);
+  });
+});
