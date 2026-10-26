@@ -3,7 +3,7 @@
  * service worker's precache: it is fetched only when the scene starts. The precache lists are globbed the way workbox
  * does (`glob`'s `globSync`, with `PRECACHE_IGNORES`), as in tests/guardAssetsOffline.test.ts, on a dist-shaped folder.
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,5 +48,32 @@ describe('piano escape music: not precached', () => {
     expect(precache(['**/*.mp3'], []).some((f) => f.includes('piano-escape'))).toBe(true);
     expect(precache(['**/*.mp3'], PRECACHE_IGNORES).some((f) => f.includes('piano-escape'))).toBe(false);
     expect(PRECACHE_IGNORES).toContain('**/piano-escape-*.mp3');
+  });
+});
+
+describe('scene music A/B (piano-escape S5): no file of the scene folder is precached', () => {
+  const dir = fileURLToPath(new URL('../src/assets/music/scene/', import.meta.url));
+  const built = readdirSync(dir)
+    .filter((f) => f.endsWith('.mp3'))
+    .map((f) => `assets/${f.replace(/.mp3$/, '')}-Zz99Yy88.mp3`);
+  for (const f of built) {
+    mkdirSync(join(DIST, f, '..'), { recursive: true });
+    writeFileSync(join(DIST, f), 'x');
+  }
+
+  it('the folder holds the three tracks', () => {
+    expect(built.length).toBe(3);
+  });
+
+  it('the shell glob takes none, and the ignore drops each even if a pattern took every mp3', () => {
+    const shell = precache(PRECACHE_GLOBS, PRECACHE_IGNORES);
+    const every = precache(['**/*.mp3'], []);
+    const kept = precache(['**/*.mp3'], PRECACHE_IGNORES);
+    for (const f of built) {
+      expect(shell, f).not.toContain(f);
+      expect(every, f).toContain(f);
+      expect(kept, f).not.toContain(f);
+    }
+    expect(kept).toContain('assets/music-alert-Aa11Bb22.mp3');
   });
 });
