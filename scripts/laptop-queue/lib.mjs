@@ -125,13 +125,17 @@ export function parseClaim(text) {
 /**
  * True when a claim keeps `worker` off the request: a done claim (any worker), or another worker's claim younger than
  * maxMs (an older one is a dead worker's and may be taken over). The worker's own open claim never blocks (its process
- * restarted; the in-memory claim set guards the live one).
+ * restarted; the in-memory claim set guards the live one). laptop-queue-8 A17: a claim that carries `beat` (ms, its
+ * worker's heartbeat) blocks only while younger than min(maxMs, beats x beat) when beats > 0 (LQ_CLAIM_BEATS): a run
+ * whose heartbeat stopped is stale after a few beats, not hours.
  */
-export function claimBlocks(claim, worker, now, maxMs) {
+export function claimBlocks(claim, worker, now, maxMs, beats = 0) {
   if (!claim) return false;
   if (claim.done) return true;
   if (claim.worker === worker) return false;
-  return now - Date.parse(claim.at) < maxMs;
+  const beat = Number(claim.beat);
+  const limit = beats > 0 && beat > 0 ? Math.min(maxMs, beats * beat) : maxMs;
+  return now - Date.parse(claim.at) < limit;
 }
 
 /**
@@ -993,8 +997,36 @@ export function failureExcerpt(sectionText) {
  * or a release decision, and a head still building has no status yet: both hold (CLAUDE.md "measurements that need a
  * slot alone only while no train is queued"; train 46 waited 30 min behind the LR16-8 sheets, 2026-10-24).
  */
-export function trainHold(heads) {
-  return (heads ?? []).find((h) => h.laptop !== 'success') ?? null;
+export function trainHold(heads, lost = () => false) {
+  // laptop-queue-8 A18: a head this worker finished (or with a done claim) whose laptop-e2e post was lost holds nothing
+  return (heads ?? []).find((h) => h.laptop !== 'success' && !(['', 'pending'].includes(h.laptop ?? '') && lost(h.sha))) ?? null;
+}
+
+/** laptop-queue-8 A16: a state.trains entry's final laptop-e2e state: `state`, else from a pre-G `result`, else ''. */
+export function trainFinal(entry) {
+  if (!entry) return '';
+  if (['success', 'failure', 'error'].includes(entry.state)) return entry.state;
+  const r = entry.result;
+  if (r === 'success' || r === 'carried') return 'success';
+  if (r === 'failure' || r === 'build' || r === 'incomplete') return 'failure';
+  if (r === 'nosha') return 'error';
+  return '';
+}
+
+/**
+ * laptop-queue-8 A15, A16: what a lost train verdict needs. entry = state.trains[sha]; gh = the head's laptop-e2e state
+ * now ('' none, null / 'unknown' unread); other = the worker whose claim on the sha is live or done ('' none): then
+ * nothing (its run owns the verdict, a done push would replace its claim). post = { state, desc } when a final state is
+ * known, not posted yet and GitHub shows none or pending (never over another final verdict); desc verbatim (a desktop
+ * "desktop: ...; FAIL: a,b" stays readable by auto-train), legacy prefix + "<result> (re-posted)". done = the done claim
+ * is not known to have landed.
+ */
+export function trainRepair(entry, gh, other = '', prefix = '') {
+  if (other) return { post: null, done: false, superseded: other };
+  const st = trainFinal(entry);
+  const desc = entry?.desc ?? `${prefix}${entry?.result ?? st} (re-posted)`;
+  const post = st && entry?.posted !== true && (gh === '' || gh === 'pending') ? { state: st, desc } : null;
+  return { post, done: entry?.doneSynced !== true, superseded: '' };
 }
 
 /**

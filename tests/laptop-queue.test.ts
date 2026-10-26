@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -657,6 +657,17 @@ describe('claims and the desktop lane', () => {
     expect(claimBlocks({ worker: 'laptop', at: at(5), done: false }, 'laptop', NOW, 3 * H)).toBe(false);
     expect(claimBlocks({ worker: 'laptop', at: at(200), done: false }, 'desktop', NOW, 3 * H)).toBe(false);
   });
+  it('claimBlocks: heartbeat bound (laptop-queue-8 A17)', () => {
+    const beat = 300_000;
+    expect(claimBlocks({ worker: 'desktop', at: at(25), done: false, beat }, 'laptop', NOW, 3 * H, 4)).toBe(false);
+    expect(claimBlocks({ worker: 'desktop', at: at(15), done: false, beat }, 'laptop', NOW, 3 * H, 4)).toBe(true);
+    expect(claimBlocks({ worker: 'desktop', at: at(120), done: false }, 'laptop', NOW, 3 * H, 4)).toBe(true); // no beat: 3 h rule
+    expect(claimBlocks({ worker: 'desktop', at: at(25), done: false, beat }, 'laptop', NOW, 3 * H, 0)).toBe(true); // beats 0: off
+    expect(claimBlocks({ worker: 'desktop', at: at(25), done: true, beat }, 'laptop', NOW, 3 * H, 4)).toBe(true);
+    expect(claimBlocks({ worker: 'laptop', at: at(1), done: false, beat }, 'laptop', NOW, 3 * H, 4)).toBe(false); // own claim
+    expect(claimBlocks({ worker: 'desktop', at: at(240), done: false }, 'laptop', NOW, 3 * H, 4)).toBe(false);
+    expect(claimBlocks({ worker: 'desktop', at: at(25), done: false, beat: 3600_000 }, 'laptop', NOW, 20 * 60_000, 4)).toBe(false); // maxMs caps it
+  });
   it('the desktop gate needs backlog over the minimum and cpu under the cap', () => {
     expect(desktopGate(4, 40, 3, 60)).toBe('');
     expect(desktopGate(3, 40, 3, 60)).toMatch(/backlog/);
@@ -846,6 +857,11 @@ ${t(40)} claim train 63 (laptop)`, 'laptop').openTrain).toBe('');
     expect(workerActivity(`${t(1)} claim train 66 (laptop)
 ${t(2)} done train 65 (laptop)
 ${t(40)} claim train 63 (laptop)`, 'laptop').openTrain).toBe('66');
+    // laptop-queue-8 G: the done push syncTrains retries ("done train <n>") closes the train for the desktop gate
+    expect(workerActivity(`${t(0)} done train 118 (laptop)
+${t(90)} claim train 118 (laptop)`, 'laptop').openTrain).toBe('');
+    expect(workerActivity(`${t(0)} done train ? 7605094d (laptop)
+${t(90)} claim train 118 (laptop)`, 'laptop').openTrain).toBe('118'); // a legacy label without n never reads as a train number
   });
   it('beside the laptop own train a different train passes the gate at once, the same train does not', () => {
     const base = { laptop: workerActivity(running, 'laptop'), now: NOW, silentMs: 10 * MIN, trainAgeMs: 5 * MIN, graceMs: 2 * MIN };
@@ -1020,6 +1036,46 @@ describe('trainHold', () => {
     expect(trainHold([{ n: '46', sha: 'a', laptop: 'success' }, { n: '47', sha: 'b', laptop: '' }])).toEqual({ n: '47', sha: 'b', laptop: '' });
     expect(trainHold([{ n: '46', sha: 'a', laptop: 'failure' }])?.n).toBe('46'); // failed, still open: rerun or release pending
     expect(trainHold([{ n: '46', sha: 'a', laptop: 'pending' }])?.n).toBe('46');
+  });
+  it('laptop-queue-8 A18: a head whose verdict was lost (finished here, or a done claim) holds nothing', () => {
+    const lost = (sha: string) => sha === 'A';
+    expect(trainHold([{ n: '118', sha: 'A', laptop: 'pending' }], lost)).toBe(null); // the train 118 replay
+    expect(trainHold([{ n: '118', sha: 'A', laptop: '' }], lost)).toBe(null);
+    expect(trainHold([{ n: '118', sha: 'A', laptop: 'failure' }], lost)?.n).toBe('118'); // a failed head still holds
+    expect(trainHold([{ n: '118', sha: 'A', laptop: 'pending' }, { n: '119', sha: 'B', laptop: 'pending' }], lost)?.n).toBe('119');
+    expect(trainHold([{ n: '118', sha: 'A', laptop: 'pending' }])?.n).toBe('118'); // no lost(): as before
+  });
+});
+
+describe('trainRepair (laptop-queue-8 A15, A16)', () => {
+  const entry = { result: 'success', n: '118', state: 'success', desc: '41/43 pass, 900 s; known flaky: x', posted: false, doneSynced: false };
+  it('posts a final verdict GitHub lost, never over another final one', () => {
+    expect(trainRepair(entry, 'pending')).toEqual({ post: { state: 'success', desc: entry.desc }, done: true, superseded: '' });
+    expect(trainRepair(entry, '').post).toEqual({ state: 'success', desc: entry.desc });
+    for (const gh of ['success', 'failure', 'error', 'unknown', null]) expect(trainRepair(entry, gh).post).toBe(null);
+    expect(trainRepair({ ...entry, posted: true }, 'pending').post).toBe(null);
+  });
+  it('the train 118 incident: a legacy success entry with GitHub pending posts success', () => {
+    expect(trainRepair({ result: 'success', wall: 900, date: '2026-10-26T00:57:00Z' }, 'pending')).toEqual({ post: { state: 'success', desc: 'success (re-posted)' }, done: true, superseded: '' });
+  });
+  it('another worker claim (live or done) gets no post and no done push', () => {
+    expect(trainRepair(entry, 'pending', 'desktop')).toEqual({ post: null, done: false, superseded: 'desktop' });
+  });
+  it('legacy results map to a state; a desktop verdict keeps its prefix and FAIL list', () => {
+    expect(trainRepair({ result: 'failure' }, 'pending').post).toEqual({ state: 'failure', desc: 'failure (re-posted)' });
+    expect(trainRepair({ result: 'failure' }, 'pending', '', 'desktop: ').post).toEqual({ state: 'failure', desc: 'desktop: failure (re-posted)' });
+    const d = 'desktop: 37/39 pass, 512 s; FAIL: e2e-a,e2e-b';
+    expect(trainRepair({ result: 'failure', state: 'failure', desc: d }, '', '', 'desktop: ').post?.desc).toBe(d);
+    expect(trainRepair({ result: 'build' }, '').post?.state).toBe('failure');
+    expect(trainRepair({ result: 'incomplete' }, '').post?.state).toBe('failure');
+    expect(trainRepair({ result: 'nosha' }, '').post?.state).toBe('error');
+    expect(trainRepair({ result: 'carried' }, '').post?.state).toBe('success');
+    expect(trainRepair({ result: 'odd' }, '').post).toBe(null);
+    expect(trainFinal(undefined)).toBe('');
+  });
+  it('done until the done claim is known to have landed', () => {
+    expect(trainRepair({ ...entry, doneSynced: true }, 'success').done).toBe(false);
+    expect(trainRepair({ result: 'success' }, 'success').done).toBe(true);
   });
 });
 
