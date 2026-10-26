@@ -1,0 +1,15 @@
+{
+  "id": "20261026T040212-affected-e2e-e45be943-e86c",
+  "sha": "e45be94351fa43fbdf58de1b63ad2952ef58d280",
+  "branch": "feature/sector-marks",
+  "pr": 457,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #457"
+}
