@@ -1035,12 +1035,13 @@ Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Mi
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: piano guard work all on master (#624, #644); walk-card lines sent to the orchestrator 04:00. #317 merge 12
-771a3dde2: co-op group running -> green: tell orch (missions switch on today; new master conflict = the same
-PROTOCOL_VERSION line). J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
+Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 13 be9b56d80 (merge 12's
+run lost to a new conflict; this one: campusOps-S1.json = master's v3 note + coop4's TAG-1 counts carpark 3p/4p 4,
+forecourt 4p 4; checker carried): co-op group queued -> green: tell orch (missions switch on today).
+J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
 G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
-2.4 s look, never escalates alone (A1-A11 in BRIEF). Next: fresh Opus plan checker (prompt in the planner's report:
+2.4 s look, never escalates alone (A1-A11 in BRIEF). Next: fresh Opus plan checker RUNNING (04:30) -> docs/guard-ai-j16/PLAN-CHECK.md (prompt as the planner's report:
 docs/guard-ai-j16/PLAN.md + templates/plan-check.md, claims-check in background) on the orchestrator's next pace go.
 Orchestrator 04:15: G3 after the piano escape lands; S3b-2 sequenced by it after Sector Ops' lamp-id fix; G4b not
 held (prototype mode: on in /preview/, the walk cap limits live switch-on only).
