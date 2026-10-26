@@ -1,0 +1,16 @@
+{
+  "id": "20261026T023848-affected-e2e-ca23fcd3-8a3d",
+  "sha": "ca23fcd3d243f9688dce8edd60e511138648c98c",
+  "branch": "feature/campus-greybox-s2-a",
+  "pr": 526,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-levels",
+    "e2e-sectorops:6",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #526"
+}
