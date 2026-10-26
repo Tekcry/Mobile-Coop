@@ -397,3 +397,4 @@ change.
   frame; benchmark lines end with the run's summary, `feedbackContext().spikes`.
 - Tests: `tests/darkCurve.test.ts`, `tests/lampBake.test.ts`, `tests/nightVision.test.ts`, `tests/benchmark.test.ts`;
   `scripts/e2e-darkness.mjs` (GPU list: `npm run e2e:gpu` on Michael's PC), `scripts/e2e-lightbake.mjs`.
+- (guard-models) Guard materials are frozen (`guardFigure.ts:136`, like the S1 skin material): a frozen material binds its lights once per material per pass, so every guard must share one light set. A per-mesh light list (`includedOnlyMeshes`, `requireLightSorting`) would silently mis-light every guard but the first drawn.

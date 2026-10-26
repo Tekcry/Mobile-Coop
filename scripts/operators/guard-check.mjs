@@ -24,6 +24,65 @@ import { baseReport, fileDataFile, guardFileData, lodFile, pieceReport, reportDr
 const { checkGuardReport } = await import('../../src/operators/guards/guardBudget.ts');
 const { validateGuardManifest } = await import('../../src/operators/guards/gearMask.ts');
 
+/** (G10a D3) SPEC 8: fabric-tinted garment albedo averages the fabric neutral (linear); trousers at 0.78 of it. */
+export const FABRIC_SLOTS = ['uniform', 'kit', 'headwear'];
+export const LEGS_SHARE = 0.78;
+export const LEG_PARTS = ['trousers', 'work_trousers'];
+export const ALBEDO_TOL = 0.15;
+
+/**
+ * Problems of a base's garment albedo means (the bake JSON's `albedoMean`: { 'lod<n>.garment:<part>': [r, g, b] },
+ * linear over the covered texels): every fabric-tinted part at every LOD within +-15 % of its neutral per channel; a
+ * missing field or region is a problem. `none`-slot parts (boots, gloves) keep their own colour and are not checked.
+ */
+export function checkAlbedoMeans(kit, layout, albedoMean) {
+  if (!layout.base) return [];
+  const id = layout.base;
+  if (!albedoMean || typeof albedoMean !== 'object') return [`${id}: no albedoMean in the bake (lods/guard-${id}.bake.json): the garment fabric neutral (SPEC 8) is unchecked`];
+  const fabric = kit.tintNeutral?.fabric ?? 0.4;
+  const out = [];
+  for (const g of layout.garments ?? []) {
+    if (!FABRIC_SLOTS.includes(g.partTint)) continue;
+    const want = fabric * (LEG_PARTS.includes(g.part) ? LEGS_SHARE : 1);
+    for (const lod of [0, 1, 2]) {
+      const key = `lod${lod}.garment:${g.part}`;
+      const m = albedoMean[key];
+      if (!Array.isArray(m) || m.length < 3) { out.push(`${id} ${key}: no albedo mean`); continue; }
+      const off = m.slice(0, 3).filter((v) => !(Math.abs(v - want) <= want * ALBEDO_TOL));
+      if (off.length) out.push(`${id} ${key}: albedo mean ${m.slice(0, 3).map((v) => v.toFixed(3)).join(', ')} not within 15 % of the fabric neutral ${want.toFixed(3)} (SPEC 8)`);
+    }
+  }
+  return out;
+}
+
+/** The base's heads whose kinds all wear the balaclava for good (`faceCovered`, SPEC A14: heavy, enforcer). */
+export function faceCoveredHeads(kit, layout) {
+  return (layout.heads ?? []).map((h) => h.id).filter((id) => {
+    const kinds = (kit.kinds ?? []).filter((k) => (k.heads ?? []).includes(id));
+    return kinds.length > 0 && kinds.every((k) => k.faceCovered === true);
+  });
+}
+
+/**
+ * (G10a D6) A face-covered head keeps only what the balaclava's eye slot shows: bake_guard.py drops the head triangles
+ * the balaclava covers and writes `coveredHeadTris` ({ 'lod<n>': { <head>: { dropped, kept } } }) into the bake JSON.
+ * Every face-covered head at every LOD must have dropped some; a missing field is a problem.
+ */
+export function checkCoveredHeads(kit, layout, covered) {
+  const heads = layout.base ? faceCoveredHeads(kit, layout) : [];
+  if (!heads.length) return [];
+  if (!covered || typeof covered !== 'object') return [`${layout.base}: no coveredHeadTris in the bake (face-covered heads ${heads.join(', ')} not trimmed under the balaclava)`];
+  const out = [];
+  for (const h of heads) {
+    for (const lod of [0, 1, 2]) {
+      const c = covered[`lod${lod}`]?.[h];
+      if (!c || typeof c.dropped !== 'number') out.push(`${layout.base} LOD${lod}: head ${h} has no coveredHeadTris entry`);
+      else if (!(c.dropped > 0)) out.push(`${layout.base} LOD${lod}: head ${h} dropped no triangles under the balaclava (the face shows through)`);
+    }
+  }
+  return out;
+}
+
 /** Seam ring size (G1: 42 hm08 vertices) when the body report is not at hand. */
 const SEAM_VERTS = 42;
 
@@ -60,7 +119,7 @@ export function checkFileData(layout, data, written) {
 }
 
 /** Every problem of one id's LOD files (pure: the parsed inputs in; `fileData`: the parsed guard-<b>.json or null). */
-export function checkGuardFiles({ kit, layout, stats, written, fileData = null, seamVerts = SEAM_VERTS }) {
+export function checkGuardFiles({ kit, layout, stats, written, fileData = null, seamVerts = SEAM_VERTS, bake = null }) {
   const measured = layout.base ? baseReport(kit, layout, stats) : pieceReport(layout, stats);
   const problems = [...checkGuardReport(measured, kit)];
   if (written) problems.push(...reportDrift(written, measured).map((p) => `report drift: ${p}`));
@@ -91,6 +150,8 @@ export function checkGuardFiles({ kit, layout, stats, written, fileData = null, 
       });
     }
     problems.push(...checkFileData(layout, fileData, written));
+    problems.push(...checkAlbedoMeans(kit, layout, bake?.albedoMean ?? written?.bake?.albedoMean ?? null));
+    problems.push(...checkCoveredHeads(kit, layout, bake?.coveredHeadTris ?? written?.bake?.coveredHeadTris ?? null));
     for (const n of written?.notes ?? []) problems.push(`bake note: ${n}`);
     return { problems, measured, summary: { bufferTris: measured.lods.map((l) => l.bufferTris), shownTris: measured.lods.map((l) => l.shownTris), bodyTris: t0.bodyTris } };
   }
@@ -116,7 +177,11 @@ export function main(argv) {
     if (bodyJson && existsSync(bodyJson)) seamVerts = JSON.parse(readFileSync(bodyJson, 'utf8')).neckSeam?.bodyVerts?.length ?? SEAM_VERTS;
     const dataPath = o.base ? path.join(out, fileDataFile(o.base)) : null;
     const fileData = dataPath && existsSync(dataPath) ? JSON.parse(readFileSync(dataPath, 'utf8')) : null;
-    result = checkGuardFiles({ kit, layout, stats, written, fileData, seamVerts });
+    // (G10a D3 / D6) the garment albedo means and the trimmed face-covered heads: bake_guard.py writes them into the
+    // bake JSON beside bakeCoverage
+    const bakePath = o.base ? path.join(out, 'lods', `guard-${o.base}.bake.json`) : null;
+    const bake = bakePath && existsSync(bakePath) ? JSON.parse(readFileSync(bakePath, 'utf8')) : null;
+    result = checkGuardFiles({ kit, layout, stats, written, fileData, seamVerts, bake });
   }
   const dir = path.join(out, 'check');
   mkdirSync(dir, { recursive: true });

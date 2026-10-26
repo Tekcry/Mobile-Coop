@@ -117,6 +117,10 @@ describe('guard play pass: Course mode (P3-1, P3-2)', () => {
         return { kind, alive: true, setPatrol: () => undefined };
       },
       despawn: () => undefined,
+      // (gm-look-seeds) a set's look seeds (`spawnSquad`): none here, `spawn` picks
+
+      pointLooks: () => [],
+
       placeSlot: () => undefined,
     };
     const g = {
@@ -174,6 +178,10 @@ describe('guard play pass: Sector Ops fill (P3-3)', () => {
         em.enemies.push(e);
         return e;
       },
+      // (gm-look-seeds) a set's look seeds (`spawnSquad`): none here, `spawn` picks
+
+      pointLooks: () => [],
+
       placeSlot: () => undefined,
     };
     const g = {

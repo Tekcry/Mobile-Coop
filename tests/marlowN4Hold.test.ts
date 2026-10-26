@@ -54,6 +54,8 @@ function rig(): { mode: CourseMode; items: FakeItem[]; despawned: unknown[]; spa
   const em = {
     stealth: false,
     enemies: [] as unknown[],
+    // (gm-look-seeds) a set's look seeds (`spawnSquad`): none here, `spawn` picks
+    pointLooks: () => [],
     spawn: (kind: string) => {
       const e = { kind, alive: true, setPatrol: () => undefined };
       spawned.push(e);
