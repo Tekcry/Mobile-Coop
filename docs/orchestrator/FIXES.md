@@ -16,6 +16,17 @@ out and staying on top of them constantly to ensure issues dont re-occur unncess
   PRs (rename the request to a `20191231T...` id on the laptop-queue branch: lib `isFront` early-id tier), so fixes never
   wait behind feature requests (15:10 audit: fix PRs sat unclaimed 47-65 min behind ~46 requests);
 - Done rows move to `archive/FIXES-done.md` with the PR, version and guard once shipped and quiet for a day.
+## Fix freeze (Michael 2026-10-26 ~15:20, ROADMAP Decided; on until it ends below)
+- Drafted by the orchestrator at 15:25 (mark ready again at the end; leave other drafts alone): 317 487 498 514 516 518 522 523 524 525 526 527 528 529 530 532 533 534 535 539 540 541 542 543 544 545 546 547 550 551 556 557 558 560 561 562 563.
+- Parked: 51 feature requests moved from `requests/` to `parked/` on the laptop-queue branch (b0a996b0e); move each back
+  at the end unless its head moved (then the lead re-files). Fix PR requests stay in `requests/`, fronted.
+- Builders: Player Build builds laptop-queue-10 S1-S6 in order (one PR, Test Runner checks and owns it); Marlow
+  Build builds laptop-queue-9 S1-S3; Test Runner ships #552 and #559, takes F8, F30 and checks both lanes; Campaign
+  and Sector Ops F28 (their suites); Guard AI F21, F25, F27; Player F4 / F5 (#548). No feature builders, no feature
+  queue requests; planning, reviews and briefs are fine.
+- Each cron run: fronts fix requests, checks every open row for a builder, and ends the freeze when no open row is
+  left without a shipped version (rows on watch do not hold it).
+
 Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there).
 
 | # | Fix | Evidence | Owner | Opened | Status |
