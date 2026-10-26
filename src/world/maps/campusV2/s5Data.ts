@@ -65,8 +65,8 @@ export const S5_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: -51.6, y: Y1, z: 32.0, yaw: PI, takedownSpot: [-51.6, 32.4], role: 'post', zone: 'ceo', squad: 3, reason: "The CEO's safe and laptop" },
   // #18 the archive round (P3, D:136, P8): up the x -42.4 aisle to the dark north-west corner of the shelving and back
   { kind: 'grunt', x: -42.4, y: Y1, z: 34.0, yaw: 0, route: [[-42.4, 34.0], [-42.4, 42.3], [-45.2, 42.3], [-42.4, 42.3]], waits: [4, 0, 4, 0], takedownSpot: [-45.2, 42.3], role: 'patrol', zone: 'archive', squad: 3, reason: 'Archive round; alone in the dark stacks' },
-  // #19 the roof marksman (guard-rules PR4 not on master: SW-5 carries his lookout post)
-  { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
+  // #19 the roof marksman: a lookout post (guard-rules S9, as the live S5 data)
+  { kind: 'grunt', x: -40, y: YR, z: 43.0, yaw: 0, route: [[-40, 43.0], [-39, 43.0]], waits: [12, 12], faces: [-0.6, 0.6], takedownSpot: [-40.4, 42.6], post: { leash: 1, lookout: true }, role: 'marksman', zone: 'roof', squad: 4, reason: 'Overwatch of the lake approach' },
   // #20 the terrace gate
   { kind: 'grunt', x: -44, z: 50.7, yaw: 0, route: [[-44, 50.7], [-47.8, 57.6], [-48.1, 62.2], [-47.5, 57.6]], waits: [6, 0, 6, 0], takedownSpot: [-48.1, 62.6], role: 'gate', zone: 'terrace', squad: 1, reason: 'The terrace gate, lake side' },
   // #21 the service round

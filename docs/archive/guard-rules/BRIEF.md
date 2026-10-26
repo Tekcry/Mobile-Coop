@@ -2,7 +2,7 @@
 Owner: Guard AI Build. Status: current.
 
 Lead: Night Shift | Guard AI Build. Started: 2026-10-25. Base: master 2148ec969. Planner: Opus 5.5.
-Job: FOLDED-PLAN J15 (`docs/orchestrator/FOLDED-PLAN.md` section 4 on origin/feature/menu). Plan: `docs/guard-rules/PLAN.md`.
+Job: FOLDED-PLAN J15 (`docs/orchestrator/FOLDED-PLAN.md` section 4 on origin/feature/menu). Plan: `docs/archive/guard-rules/PLAN.md`.
 
 ## Michael said
 - 2026-10-25 ~10:20, chat (helmets, asked again after the docs audit): "Base it off difficulty, harder difficulties

@@ -1,7 +1,7 @@
 # guard-rules: plan
 Owner: Guard AI Build. Status: current.
 
-Lead: Night Shift | Guard AI Build. Planner: Opus 5.5, master 2148ec969. Brief: `docs/guard-rules/BRIEF.md`.
+Lead: Night Shift | Guard AI Build. Planner: Opus 5.5, master 2148ec969. Brief: `docs/archive/guard-rules/BRIEF.md`.
 Every file:line below is checked against master 2148ec969, and the fix round's against b81c4945b (no `src` change and
 only `tests/docLint.test.ts` since). Guard AI's J1 docs PR (`feature/guard-ai-docs-j1`, not yet on master) adds one
 comment line at `src/game/sectors.ts:84`: after it lands, `sectors.ts` lines past 84 move down by 1.
@@ -303,7 +303,7 @@ Unit files per slice are listed in each slice.
   enemy) are claims overlaps: the orchestrator orders them against J15's waves. J13 (cause log) can reuse S4's cause
   bit; J26 (per-area alarms) builds on S5's lock.
 
-- `node scripts/claims-check.mjs --plan docs/guard-rules/PLAN.md --name feature/guard-rules --since-days 3` (2026-10-25,
+- `node scripts/claims-check.mjs --plan docs/archive/guard-rules/PLAN.md --name feature/guard-rules --since-days 3` (2026-10-25,
   exit 1): overlaps with coop-kit (`flags.ts`, `coopHost.ts`, wire), hud-guidance (`sectorMode.ts`, `coopHost.ts`,
   `e2e-sectorops.mjs`), map-ready (`flags.ts`, `coopHost.ts`, `e2e-sectorops.mjs`, campusOps, wire), player-batch-j19
   (`takedownController.ts`, `coopHost.ts`, `flags.ts`, `e2e-takedown.mjs`, wire), player-hygiene

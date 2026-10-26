@@ -198,8 +198,9 @@ const finite = (v: number): boolean => Number.isFinite(v);
 /**
  * Per-slot post checks (map teams call it on a map's or a section's slots): a leash is finite, either exactly 0 (stays
  * on the spot) or at least `POST.minLeash`; a posted guard's route stays inside his leash; a high-security post must be
- * stood (not `free`, no route point outside the leash); `profile` is 'standard' or 'aggressive'. `label` prefixes each
- * error (e.g. the section id). Returns the errors (empty when fine).
+ * stood (not `free`, no route point outside the leash); a lookout (guard-rules S7, A9) has a leash of at most
+ * `POST.lookoutLeash` and is never `free` (he holds his perch); `profile` is 'standard' or 'aggressive'. `label` prefixes
+ * each error (e.g. the section id). Returns the errors (empty when fine).
  */
 export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): string[] {
   const errs: string[] = [];
@@ -215,6 +216,8 @@ export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): stri
     }
     if (p.leash !== 0 && p.leash < POST.minLeash) errs.push(`${who}: leash ${p.leash} must be 0 or >= ${POST.minLeash}`);
     if (p.highSecurity && s.free) errs.push(`${who}: a high-security post cannot be free (it must stand its post)`);
+    if (p.lookout && p.leash > POST.lookoutLeash) errs.push(`${who}: a lookout's leash ${p.leash} must be at most ${POST.lookoutLeash} m`);
+    if (p.lookout && s.free) errs.push(`${who}: a lookout cannot be free (he holds his perch)`);
     const route = s.route;
     if (route) {
       const r = p.leash + POST.arrive;
@@ -223,7 +226,7 @@ export function validatePosts(slots: readonly GuardSlot[], label = 'slot'): stri
         const dx = px - s.x;
         const dz = pz - s.z;
         if (dx * dx + dz * dz > r * r) {
-          errs.push(`${who}: route point ${k} is outside the leash (${p.leash} m)${p.highSecurity ? ' of a high-security post' : ''}`);
+          errs.push(`${who}: route point ${k} is outside the leash (${p.leash} m)${p.highSecurity ? ' of a high-security post' : ''}${p.lookout ? ' of a lookout' : ''}`);
           break;
         }
       }

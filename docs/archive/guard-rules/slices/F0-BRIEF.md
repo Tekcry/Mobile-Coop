@@ -1,7 +1,7 @@
 # guard-rules F0: the wave 3-4 flags (slice brief)
 Owner: Guard AI Build. Status: current.
 
-Builder: the job lead (Night Shift | Guard AI Build) itself, no subagent. Source: `docs/guard-rules/PLAN.md` "PR3"
+Builder: the job lead (Night Shift | Guard AI Build) itself, no subagent. Source: `docs/archive/guard-rules/PLAN.md` "PR3"
 (F0), "Flags", "Parallel groups" wave 3. Checked against `feature/guard-rules-s5` at a09495007 (PR1 + S5 = the PR2
 base).
 

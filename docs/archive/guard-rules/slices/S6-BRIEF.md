@@ -2,7 +2,7 @@
 Owner: Guard AI Build. Status: current.
 
 Builder: Opus 5.5 (AI code). Ships DARK behind `flags.guardPairs` (F0). Rows: A4, A5. Assumptions: A10, A11
-(`docs/guard-rules/BRIEF.md`; G335 "paired patrols that check on each other"). Source: `docs/guard-rules/PLAN.md`
+(`docs/archive/guard-rules/BRIEF.md`; G335 "paired patrols that check on each other"). Source: `docs/archive/guard-rules/PLAN.md`
 "PR3" S6. Every anchor below is checked against `feature/guard-rules-s5` at a09495007 (PR1 + S5); S5 moved
 `enemyManager.ts` lines, so use these, not PLAN's (drift list at the end).
 
@@ -13,7 +13,7 @@ to today.
 
 ## Location
 - Worktree `C:/NightShift/Mobile-Coop-guard-rules-s6`, branch `feature/guard-rules-s6`, cut from the F0 commit
-  (`docs/guard-rules/slices/F0-BRIEF.md`; it adds `flags.guardPairs`). Start from `docs/systems/agent-preamble.md`
+  (`docs/archive/guard-rules/slices/F0-BRIEF.md`; it adds `flags.guardPairs`). Start from `docs/systems/agent-preamble.md`
   (origin/master); branch guard before every write; commit and push each finished sub-step, `git add <your files>`
   only.
 

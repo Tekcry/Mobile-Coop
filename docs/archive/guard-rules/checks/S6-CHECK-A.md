@@ -3,7 +3,7 @@ Owner: Guard AI Build. Status: current.
 VERDICT: PASS
 
 Checker A (Opus 5.5, fresh: AI behaviour, intent, the flag-off guarantee), branch `feature/guard-rules-s6`, head
-69664ef8e, diff `452e23035..69664ef8e` (5 files, +627 / -26), against `docs/guard-rules/slices/S6-BRIEF.md`, PLAN
+69664ef8e, diff `452e23035..69664ef8e` (5 files, +627 / -26), against `docs/archive/guard-rules/slices/S6-BRIEF.md`, PLAN
 "PR3" S6 and "Flags", BRIEF A10 / A11 and G335 ("paired patrols that check on each other").
 
 ## Checks run

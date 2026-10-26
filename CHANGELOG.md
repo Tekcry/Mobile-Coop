@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.119.0 - Train 135: Lookouts and dog release (2026-10-26, PR #609; #595)
+- (dark, `?lookouts=1`) Lookouts: a guard on a lookout post (first: the Saltmarsh Park S5 roof marksman) never leaves
+  his perch. A noise only turns him within a metre of it; when he glimpses you he radios it in and the best-placed calm
+  guard nearby walks to where you stood. One call at most every 20 seconds.
+- (dark, `?dogrelease=1`) Dog release: when the Sector Ops alarm reaches the stage that lets the dogs go (Saltmarsh
+  Park S4 stage 2, S5 stage 1), each free dog of the section hurries to where you were last seen (or round its handler
+  when nobody knows), searches, then returns to heel.
+
+## 4.118.0 - Train 134: Marlow Yard re-plan walks: fix the three quarantined steps (test only); Missions: Sector Ops missions and the co-op kit (2026-10-26, PR #607; #596, #578)
+
+### Marlow Yard re-plan walks: fix the three quarantined steps (test only)
+- Marlow Yard re-plan walks: fix the three quarantined steps (test only) (#596)
+
+### Missions: Sector Ops missions and the co-op kit
+- Sector Ops can run a mission on top of a map's sections: a briefing, steps (copy intel, hack, get out), a rule such
+  as "no kills" (breaking it restarts the section) and the objective line and Field Terminal list that follow it. The
+  Saltmarsh Park test mission runs this way in /preview/ (`?autostart=campusOps&mode=sector&mission=campusMissionTest`).
+- New co-op moves for later maps: the pull-up (one player crouches at a ledge, the other jumps and is hauled up) and the
+  roller shutter (one player holds it open while the other crawls under). Guards notice an open shutter. They need the
+  co-op part and the Tallow Wharf map, which come in the next missions updates.
+- All of this is behind the `missions` and `coopKit` flags: off in the live game, on in /preview/. Nothing changes in
+  the live game.
+
 ## 4.117.0 - Train 133: Queue fixes: CI-length train hold, early conflict retire; Marlow Yard re-plan: clearer steps for the first two-player walk; Marlow Yard re-plan: fixes for the first two-player walk; +6 more (2026-10-26, PR #600; #597, #594, #587, #552, #548, #522, #518)
 
 ### Campus greybox S1-a (v2, dark): perimeter and gatehouse

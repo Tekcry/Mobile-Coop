@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { checkTeamRequest, HANG_SUB, inOpenMove, ROPE_SUB, THROW_SUB, type TeamDenial, type TeamKind, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { checkTeamRequest, HANG_SUB, inOpenMove, ROPE_SUB, THROW_SUB, type BuiltinTeamKind, type TeamDenial, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { ATTACH_SUB } from '../src/player/moveState';
 
 const side = (o: Partial<TeamSide> = {}): TeamSide => ({ id: 'a', x: 0, y: 0, z: 0, mode: 'ground', alive: true, ...o });
 const base = { target: -1, targetUp: 0, sinceLast: 5 };
 
-/** One valid (allowed) request per team-move kind, built from the same shapes as `tests/teamMoves.test.ts`. */
-const valid: Record<TeamKind, TeamRequest> = {
+/** One valid (allowed) request per built-in team-move kind (the kit kinds pull / shutter check through their own registered rules), built from the same shapes as `tests/teamMoves.test.ts`. */
+const valid: Record<BuiltinTeamKind, TeamRequest> = {
   boost: { ...base, kind: 'boost', a: side({ id: 'a', z: 0.9 }), b: side({ id: 'b', mode: 'brace' }), target: 4, targetUp: 4.2 },
   ladder: { ...base, kind: 'ladder', a: side({ id: 'a', z: 0.5 }), b: side({ id: 'b', y: 2.5, mode: 'ledge', anchor: 7, s: 3, sub: ATTACH_SUB.relay | 1 }), target: 7 },
   throw: { ...base, kind: 'throw', a: side({ id: 'a', x: -1.2 }), b: side({ id: 'b', mode: 'brace', sub: THROW_SUB }), land: { x: TEAM.throwDist, y: 0, z: 0 } },
@@ -16,8 +16,8 @@ const valid: Record<TeamKind, TeamRequest> = {
 };
 
 /** Every existing denial reached by tweaking a valid request (kind, tweak, expected result without `bBusy`). */
-const cases: Array<[string, TeamKind, (r: TeamRequest) => TeamRequest, TeamDenial | null]> = [];
-for (const kind of Object.keys(valid) as TeamKind[]) {
+const cases: Array<[string, BuiltinTeamKind, (r: TeamRequest) => TeamRequest, TeamDenial | null]> = [];
+for (const kind of Object.keys(valid) as BuiltinTeamKind[]) {
   cases.push([`${kind} allowed`, kind, (r) => r, null]);
   cases.push([`${kind} rate`, kind, (r) => ({ ...r, sinceLast: 0.1 }), 'rate']);
   cases.push([`${kind} dead partner`, kind, (r) => ({ ...r, b: { ...r.b, alive: false } }), 'dead']);

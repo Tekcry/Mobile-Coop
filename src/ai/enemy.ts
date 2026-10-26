@@ -1720,6 +1720,43 @@ export class Enemy implements Damageable {
     this.hasStimulus = true;
   }
 
+  /**
+   * (guard-rules S8, A12) The alarm stage lets a dog off its handler's heel: it hurries (`rush`) to the shared last known
+   * position (none: its handler, else where it stands) and searches there the plain way; once the search ends and it
+   * calms, the heel rule (`calmDecide`, `findLeader`) brings it back to a living handler (a downed one: it stays by him,
+   * as today). A dog that is down, held, passive or already alerted is left alone; one already searching starts over
+   * round the new spot (as `bodySearch`). Returns whether it went. Event time.
+   */
+  releaseHeel(): boolean {
+    if (!this.dog || !this.alive || this.alerted || this.passive || this.taken) return false;
+    if (this.aware.level === 'searching') {
+      this.aware.t = 0;
+      this.searchK = 0;
+      this.lkpWait = false;
+      this.lkpLate = false;
+      this.planN = 0;
+      this.planPoint = false;
+      this.spotSet = false;
+      this.combatSearch = false;
+    }
+    const c = this.ctx;
+    let x = this.pos.x;
+    let z = this.pos.z;
+    if (c.lkpValid()) {
+      x = c.lkp.x;
+      z = c.lkp.z;
+    } else {
+      const h = this.handler ?? this.leader;
+      if (h) {
+        x = h.pos.x;
+        z = h.pos.z;
+      }
+    }
+    this.searchAt(x, z, null);
+    this.rush = true;
+    return true;
+  }
+
   // ----- (guard-ai S5) posts: the leash, high security and the lure (design 6, goal 7, M1, A10, A12) -----
 
   /** His post (`EnemyManager.placeSlot`): a leash circle of `postDef.leash` m round his spawn point (`post`), facing

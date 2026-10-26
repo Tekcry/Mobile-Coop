@@ -11,6 +11,7 @@ import type { ScannerDef } from '../game/scanners';
 import type { CampusArtLayout } from './maps/campusDress';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
+import type { MissionDef } from '../game/mission/missionDef';
 import type { BoardDef } from '../game/isolators';
 import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
@@ -54,6 +55,10 @@ export interface PropPlacement {
   pos: Vector3;
   yaw?: number;
 }
+
+/** (tallow-fixes A24, Q23, M2) A throw site: a throw offered within `THROW_SITE_REACH` of (x, z) and launched along
+ *  the unit facing (dx, dz) (within `THROW_SITE_COS`) lands `dist` m past the thrower instead of `TEAM.throwDist`. */
+export interface ThrowSite { x: number; z: number; dx: number; dz: number; dist: number }
 
 /** Output of a map's procedural build: everything gameplay needs besides geometry. */
 export interface MapLayout {
@@ -117,6 +122,9 @@ export interface MapLayout {
    *  only, drawn by `PropRender`; the map builder wrote their gameplay boxes with `props.write(b)`. (`props` above is
    *  the dynamic prop system's.) */
   facilityProps?: FacilityPropPlacement[];
+  /** (Q23, tallow-fixes A24) Throw sites with their own throw length (`game/teamMoves.ts` `throwDistAt`): named spots
+   *  only; no sites = the standard throw everywhere. */
+  throwSites?: readonly ThrowSite[];
 }
 
 export interface MapDef {
@@ -128,6 +136,8 @@ export interface MapDef {
   modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector')[];
   /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
   sectors?: readonly SectorDef[];
+  /** (mission-framework EN2, A7) Missions over the sectors, picked by `?mission=<id>`; none picked: Sector Ops as before. */
+  missions?: readonly MissionDef[];
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
@@ -139,4 +149,9 @@ export interface MapDef {
    * purpose. Default true.
    */
   detail?: boolean;
+  /** (mission-framework GB5) True: registered in `MAPS` (so `?autostart=<id>` and `getMap` find it) but off every menu and co-op lobby list. */
+  unlisted?: boolean;
+  /** (FLG) True: a mission map; `?autostart=<id>` boots it only with `flags.missions` on (`mapBootAllowed`). A co-op
+   *  client still loads it from the host's `start`. */
+  needsMissions?: boolean;
 }

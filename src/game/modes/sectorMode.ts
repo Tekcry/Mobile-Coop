@@ -81,6 +81,9 @@ import {
 } from '../rating/sectionRating';
 import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
+import { applyMissionStart, bindSectorMission, type SectorMission } from '../mission/sectorMission';
+import { CAMPAIGN, campaignGrant, campaignResponseKinds, isCampaignMission, missionSectionLine } from '../mission/campaign';
+import { MissionFeed, missionDoneLine, missionObjectiveLines, missionStepReads } from '../mission/missionFeed';
 
 /**
  * (coop4 AI5) Guard AI's response hooks on the enemy manager (feature/guard-ai-coop4, `docs/coop4/briefs/AI5-BUILT.md`),
@@ -328,6 +331,15 @@ export class SectorMode implements GameMode {
   /** (sector-redesign E5, EW9) The sections' alarm-stage extras (lights to full, lockdown doors, dog release stub). */
   stageRun: SectorStageRun<DoorState> | null = null;
 
+  /** (mission-framework EN2) The `?mission=<id>` mission (host / solo); null: none, Sector Ops as before. */
+  readonly mission: SectorMission | null;
+  /** (mission-rules R6, HG7) The mission's current step on this machine's objective line (host / solo; the client has its own). */
+  private readonly feed = new MissionFeed();
+  /** (mission-rules R6 polish) The live section's `<section>-obj` flag (`setup`) and the download percent last written
+   *  (-1: none since `setup`): the percent goes on the line only when it changes. */
+  private dlFlag = '';
+  private dlPct = -1;
+
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
   /** (sector-redesign perf) Guards whose body and shadows cannot reach the screen skip the render (`?guardfreeze=0`: off). */
@@ -356,6 +368,8 @@ export class SectorMode implements GameMode {
         this.secT = 0;
       },
     });
+    this.mission = bindSectorMission(g, this, this.slotEnemy, (s) => this.objectiveDone(s), () => this.complete());
+    if (this.mission) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
   }
 
   /** (sector-fixes-r RT) The bolts' state (tests, e2e). */
@@ -375,15 +389,19 @@ export class SectorMode implements GameMode {
     // (guard-rules S1, A1, G350) helmets by difficulty: Realistic / Perfectionist every guard helmeted, Perfectionist's
     // never shot off; Rookie / Normal from the alarm stage only
     em.useDifficultyHelmets();
-    // M6: the per-mode live cap (a section's guards plus its reinforcements)
+    // M6: the per-mode live cap (a section's guards plus its reinforcements); (mission-rules R2, G359) a campaign
+    // mission's own cap, "32 alive"
     this.prevMaxAlive = em.maxAlive;
-    em.maxAlive = SECTOR.maxAlive;
+    em.maxAlive = isCampaignMission(this.mission?.def) ? CAMPAIGN.maxAlive : SECTOR.maxAlive;
     this.ct = new CtDevices(g, 'host', {
       say: (t) => g.hud.barks.say('lantern', t, true),
       record: () => this.cameraAlarm(),
       dirty: () => undefined,
       // (guard-ai S17, G1) a laser broken / a camera's alarm: the guards search the device's spot, never the player's
-      alertAt: (x, y, z, key) => g.enemyMgr?.deviceAlert(x, y, z, key),
+      alertAt: (x, y, z, key) => {
+        this.mission?.deviceAt(x, y, z);
+        g.enemyMgr?.deviceAlert(x, y, z, key);
+      },
     });
     g.ctDev = this.ct;
     // (the occlusion rays: static geometry only, so glass and fences never hide a guard; fix round: the static bodies the
@@ -414,7 +432,7 @@ export class SectorMode implements GameMode {
     this.card = new RatingCard(g.hud.el);
     setOnRated(this.rated);
     this.findDoors();
-    this.team.build();
+    this.team.build(this.mission?.def.id);
     this.findKeypads();
     this.findDesks();
     this.findCrates();
@@ -633,11 +651,29 @@ export class SectorMode implements GameMode {
     for (const m of this.stageRun.missing) console.warn(`[sector] ${m}`);
   }
 
-  /** (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions. */
-  private stageActions(from: number, to: number): void {
+  /**
+   * (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions.
+   * `live` false: a section start replaying a carried stage (no dog release, guard-rules S8-a).
+   */
+  private stageActions(from: number, to: number, live = true): void {
     const r = this.stageRun?.raise(this.run.index, from, to);
     if (r?.lights) this.g.stealth?.syncSwitches();
     if (r?.doors) this.secT = 0;
+    // (guard-rules S8, A12) dark: the stage lets the live section's dogs off the heel
+    if (live && r?.dogs && flags.dogRelease) this.releaseDogs();
+  }
+
+  /** (guard-rules S8, A12) Every living, free dog of the live section runs to the last known position and searches
+   *  it (`Enemy.releaseHeel` decides who is free). Host / solo; event time only. */
+  private releaseDogs(): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const list = em.enemies;
+    const sec = this.run.index;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.dog && e.section === sec) e.releaseHeel();
+    }
   }
 
   /**
@@ -801,9 +837,12 @@ export class SectorMode implements GameMode {
     // out (their index stays theirs: desks and overhear read `slotEnemy[k]`), and the alarms send its extras
     this.run.teamSize = teamSizeOf(this.g, this.refs);
     const n = flags.sectorGuards ?? s.guards.length;
+    // (mission-framework) a mission's spawn list may hold a slot back too
     for (let k = 0; k < s.guards.length && k < n; k++) {
       const slot = s.guards[k]!;
-      if (guardForTeam(slot, this.run.teamSize)) this.pending.push({ k, slot, alerted: false, look: em?.lookOfSlot(s.id, k) });
+      if (guardForTeam(slot, this.run.teamSize) && (!this.mission || this.mission.spawns(i, k))) {
+        this.pending.push({ k, slot, alerted: false, look: em?.lookOfSlot(s.id, k) });
+      }
     }
     this.fill();
   }
@@ -840,8 +879,9 @@ export class SectorMode implements GameMode {
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
-    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state
-    this.stageActions(0, this.run.alarm);
+    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state;
+    // (guard-rules S8-a) its doors and lights, not the dog release: its guards are still in the fill queue
+    this.stageActions(0, this.run.alarm, false);
     if (kit) {
       this.g.weapons.markCheckpoint();
       // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
@@ -855,7 +895,11 @@ export class SectorMode implements GameMode {
         }
       }
     }
-    this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
+    this.mission?.begin(this.run.index);
+    // (mission-rules R2, G336 / A12) in a mission the banner names the mission's step here (none: the title only), never
+    // the sector label of another mission's objective
+    const sub = this.mission ? missionSectionLine(this.mission.runner, this.mission.viewer()) : s.objective.label;
+    this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, sub, 2600);
     this.setup(s);
     // (E9-crate, A100) only this section's crate is live
     this.g.crates?.setLive(s.crate ? crateItemId(s.id) : null);
@@ -894,11 +938,24 @@ export class SectorMode implements GameMode {
     };
     ints.setEnabled(it, true);
     this.its.push(it);
-    g.hud.setObjective(o.label);
+    // (mission-rules R6, HG7) in a mission section the objective line is the mission's step (`frameUpdate`'s feed).
+    // (R6 polish) A restart mid-download (a broken rule, a protected target knocked out, everyone down) keeps the same
+    // step, so the feed would not rewrite and the "<step> NN%" line would stay: the feed starts again and the next
+    // `frameUpdate` writes the step's line.
+    this.dlFlag = `${s.id}-obj`;
+    this.dlPct = -1;
+    if (!this.missionLive()) g.hud.setObjective(o.label);
+    else this.feed.reset();
   }
 
   private objectiveDone(s: SectorDef): void {
     const g = this.g;
+    // (mission-framework EN2) a mission holds the exit until its section's steps are done; the objective's codes come now
+    // (a step may read one; once each, so the later pass grants nothing again)
+    if (this.mission?.gate()) {
+      for (const k of this.codes.objectiveDone(this.run.index, this.granted)) this.learned(this.run.index, k);
+      return;
+    }
     if (this.run.phase === 'objective' && !this.run.objectiveDone()) return;
     // (EW5) an objective that gives codes (the S2 BMS hack): each once
     for (const k of this.codes.objectiveDone(this.run.index, this.granted)) this.learned(this.run.index, k);
@@ -906,7 +963,10 @@ export class SectorMode implements GameMode {
     g.stats.score += 500;
     g.style.record('objective', g.detected);
     g.events.emit('objective', { id: `${s.id}-obj` });
-    g.hud.feedItem(`${s.objective.label} - done`, 'xp');
+    // (mission-rules R6, lead ruling 2) in a mission section the line names the mission's step, never the Sector Ops label
+    const m = this.missionLive();
+    const done = m ? missionDoneLine(m.runner) : s.objective.label;
+    if (done) g.hud.feedItem(`${done} - done`, 'xp');
     this.setup(s);
   }
 
@@ -1042,6 +1102,7 @@ export class SectorMode implements GameMode {
     const send = ct && ct.alarm > up ? this.run.raiseAlarm() : 0;
     // (section-rating fix, A10) a stage raised by a camera / laser breaks No alarms too (the card agrees with the HUD)
     if (this.run.alarm > up) this.secStats.alarms++;
+    this.mission?.cameraAlarm(this.run.alarm > up);
     this.raised(up, send, false);
   }
 
@@ -1083,11 +1144,15 @@ export class SectorMode implements GameMode {
     const ht = em as unknown as ResponseHooks | null;
     // (guard-rules S1, A4, M2) the shield lead only where the section asks (`shieldTeams`: campus S4 / S5)
     const shield = s.shieldTeams === true;
+    const campaign = isCampaignMission(this.mission?.def);
     let n = 0;
     let i = 0;
     for (let k = 0; k < teams; k++) {
       const size = sh ? responseTeamSize(k, send, teams) : send;
       const nt = responseTeam(stage, size, this.teamKinds, shield);
+      // (mission-rules R2, Q12 "No, armed only", G155) a campaign mission's team has no riot-shield lead: all armed guards
+      // (J15's `shieldFrom` stays upstream in `responseTeam`; this overrides it for the campaign only)
+      if (campaign) campaignResponseKinds(this.teamKinds, nt);
       let team: SweepTeam<Enemy> | null = null;
       let j = 0;
       for (; j < size; j++, i++) {
@@ -1140,6 +1205,7 @@ export class SectorMode implements GameMode {
   /** The extraction: the stinger, then the result line. */
   private complete(): void {
     if (this.endT >= 0) return;
+    this.mission?.extracted();
     const g = this.g;
     // (coop4 OUT) the extraction brings the OUT operators back too (the op ends with everyone up)
     this.returnOut();
@@ -1164,7 +1230,7 @@ export class SectorMode implements GameMode {
    *  alarms raised (Perfect, G146). */
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
-    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, alarms: this.run.alarmsRaised, marks: this.run.marks });
+    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, alarms: this.run.alarmsRaised, marks: this.run.marks, skipped: this.mission?.startIndex ?? 0 });
   }
 
   /**
@@ -1194,6 +1260,8 @@ export class SectorMode implements GameMode {
     // A9 (for the lead): until guard-ai's alarm stage API is on master, Bodies hidden's alarm step is +1 gadget charge
     r.gadget = Math.min(gadgetsAtStart, r.gadget + r.alarmStep);
     r.alarmStep = 0;
+    // (mission-rules R2, Q19 "None", A6) a campaign section's rating grants nothing; the card still shows the marks
+    if (isCampaignMission(this.mission?.def)) campaignGrant(r);
     if (grant) this.owed = r;
     const view: SectionRatingView = { sectionId: s.id, title: s.name, marks, synced, grant: r };
     this.hook.last = view;
@@ -1305,8 +1373,11 @@ export class SectorMode implements GameMode {
    * Everyone down (M7, no lives): the current section starts again from its checkpoint. Its objective, connector and
    * alarm stage go back to the section's start (`SectorRun.restartSection`), every guard goes and the section's set
    * comes back on its routes, its devices come back on, and every player respawns at the checkpoint. The tallies stay.
+   * (mission-framework EN2) `team`: a mission's team rule broke; the world restarts whole, the mission state of that team only.
    */
-  restartSection(): void {
+  restartSection(team?: 'a' | 'b'): void {
+    // (EN2 fix) an everyone-down countdown still running is covered by this restart (no second one after it)
+    this.restartT = -1;
     const g = this.g;
     // (coop4 OUT) a restart clears OUT: everyone respawns at the checkpoint below
     this.clearOut();
@@ -1351,6 +1422,7 @@ export class SectorMode implements GameMode {
     } else this.lastReset = this.startState.apply(g.world.level.lights, g.world.doors);
     g.stealth?.syncSwitches();
     if (this.ct) this.ct.alarm = this.run.alarm;
+    this.mission?.restarted(team);
     this.beginSection(false);
     const cp = this.run.checkpoint;
     g.player.cam.yaw = cp.yaw;
@@ -1402,6 +1474,7 @@ export class SectorMode implements GameMode {
     if (det > this.detSeen) this.secStats.detections += det - this.detSeen;
     this.detSeen = det;
     this.team.now = this.t;
+    this.mission?.tick(dt);
     const ct = this.ct;
     if (ct) {
       ct.fixedUpdate(dt);
@@ -1443,13 +1516,34 @@ export class SectorMode implements GameMode {
         if (r.target.alive && hyp2(r.feet.x - o.x, r.feet.z - o.z) < SECTOR.downloadRange && Math.abs(r.feet.y - o.y) < 2) near = true;
       }
       if (near && this.run.download(dt)) this.objectiveDone(s);
-      else if (near) g.hud.setObjective(`${o.label} ${Math.floor((this.run.progress / SECTOR.downloadTime) * 100)}%`);
-    } else if (this.run.phase === 'connector' || this.run.phase === 'extract') this.exitStep(dt, s, g.playerRefsInto(this.refs));
+      else if (near) {
+        // (mission-rules R6) in a mission section the percent follows the mission's step, never the sector label; (R6
+        // polish) only on the step the download completes (`missionStepReads`): another current step keeps its own
+        // line. Written when the percent changes (no string per tick).
+        const pct = Math.floor((this.run.progress / SECTOR.downloadTime) * 100);
+        if (pct !== this.dlPct) {
+          this.dlPct = pct;
+          const m = this.missionLive();
+          const step = m && this.feed.step >= 0 ? m.runner.def.steps[this.feed.step] : undefined;
+          if (!m || !this.feed.text) g.hud.setObjective(`${o.label} ${pct}%`);
+          else if (step && missionStepReads(step, this.dlFlag)) g.hud.setObjective(`${this.feed.text} ${pct}%`);
+        }
+      }
+    } else if ((this.run.phase === 'connector' || this.run.phase === 'extract') && !this.mission?.holding) this.exitStep(dt, s, g.playerRefsInto(this.refs));
   }
 
   frameUpdate(dt: number): void {
     // (integration) the rating card's countdown (no DOM work until its fade)
     this.card?.update(dt);
+    // (mission-rules R6, HG7) the local player's current step (slot 0, A9) on the objective line, written only when it
+    // changes; none (the section's work done, the exit open): the exit's line `setup` wrote stays
+    if (this.mission) {
+      const m = this.missionLive();
+      if (this.feed.update(m ? m.runner : null, this.mission.viewer(), this.g.app.settings.get().gameplay.hints)) {
+        if (this.feed.text) this.g.hud.setObjective(this.feed.text);
+        this.g.hud.setObjectiveHint(this.feed.hint);
+      }
+    }
     const n = this.run.defs.length;
     const i = Math.min(n, this.run.index + 1);
     const a = this.run.alarm;
@@ -1465,6 +1559,7 @@ export class SectorMode implements GameMode {
   onEnemyKilled(e: Enemy, h: HitInfo): void {
     // (guard-rules S1, A5) a killed dog costs score; a gassed one (`e.ko`) scores as before
     this.g.stats.score += killScore(e.def.kind, h.part === 'head', 2, !e.ko);
+    this.mission?.kill(e.ko, h.attackerId);
     // (section-rating S2) a knock-out is not a kill (A2); two by two players within SYNC_WINDOW are synced (A6)
     const st = this.secStats;
     st.bodiesMade++;
@@ -1545,7 +1640,15 @@ export class SectorMode implements GameMode {
     const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
     // (coop4 OUT) the OUT slots, only while someone is out
     const ot = this.outs.size ? outMask(this.outs.values()) : 0;
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(ot ? { ot } : {}) };
+    return {
+      ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt },
+      ...(rh ? { rh } : {}), ...(ot ? { ot } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}),
+    };
+  }
+
+  /** (mission-framework EN2) Co-op host: a client's gadget took effect (a mission's no-gadgets rule, by its slot). */
+  onRemoteGadget(id: string, _kind: string): void {
+    this.mission?.remoteGadget(id);
   }
 
   /** Co-op host: a client's held jammer target, on the sender's slot (coop4 D1; one no longer listed reads as 1). */
@@ -1590,17 +1693,30 @@ export class SectorMode implements GameMode {
       lockdown: this.stageRun?.lockedCount() ?? 0,
       desks: Array.from(this.desks.mode),
       crates: this.g.crates?.debug() ?? [],
+      mission: this.mission?.debug() ?? null,
       ...this.result(),
     };
   }
 
-  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives: every section's objective and exit, done / current / to
-   *  do (solo and the co-op host; a client mirrors them, `SectorListMirror`). */
+  /** (mission-rules R6) The bound mission while it runs in the live section (not over); null otherwise. No allocation. */
+  private missionLive(): SectorMission | null {
+    const m = this.mission;
+    return m && !m.over && m.runner.section >= 0 ? m : null;
+  }
+
+  /**
+   * (mission-rules R6, HG8) Field Terminal > Objectives while a mission is bound: its rules line and steps
+   * (`missionObjectiveLines`), never the sector rows. (hud-guidance B4, G343) Otherwise every section's objective and
+   * exit, done / current / to do (solo and the co-op host; a client mirrors them, `SectorListMirror`).
+   */
   objectiveLines(): ObjectiveLine[] | null {
+    const m = this.mission;
+    if (m) return missionObjectiveLines(m.runner, m.viewer(), this.g.app.settings.get().gameplay.hints);
     return this.run.defs.length ? sectorObjectiveLines(this.run.defs, this.run.index, this.run.phase) : null;
   }
 
   dispose(): void {
+    this.mission?.dispose();
     this.freeze?.dispose();
     this.freeze = null;
     this.ct?.dispose();

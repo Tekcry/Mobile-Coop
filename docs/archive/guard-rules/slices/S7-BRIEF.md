@@ -4,9 +4,9 @@ Owner: Guard AI Build. Status: current.
 Re-anchor on the wave 3 merge head before building: S4 changed enemy.ts, S6 changed enemyManager.ts and e2e-sectorops.mjs.
 
 Builder: Opus 5.5 (AI code). Ships DARK behind `flags.lookouts` (F0). Rows: A3 (G335 "static lookouts on some high
-routes"). Assumptions: A9, M3 (`docs/guard-rules/BRIEF.md`). Source: `docs/guard-rules/PLAN.md` "PR4" S7. Every anchor
+routes"). Assumptions: A9, M3 (`docs/archive/guard-rules/BRIEF.md`). Source: `docs/archive/guard-rules/PLAN.md` "PR4" S7. Every anchor
 below is quoted by content and checked on 452e23035 (PR2 + F0); line numbers are "~N on 452e23035" only. S4's rise
-cause is cited from `docs/guard-rules/slices/S4-BRIEF.md` step 2 (checked on `feature/guard-rules-s4` 84a6c82c4: same
+cause is cited from `docs/archive/guard-rules/slices/S4-BRIEF.md` step 2 (checked on `feature/guard-rules-s4` 84a6c82c4: same
 names).
 
 ## Goal
@@ -218,6 +218,8 @@ used, files, commits, tests changed, results, ai.md lines written, what Michael 
   down onto the ground. A sighting on an upper storey sends the guard to the ground below it.
 - S7-d: `spotCall` joins `URGENT` (barks.ts) so the radio line is heard after his own "Huh?".
 - S7-e: the radio is gated on `coordinated` (the board's rules); the parked modes get the perch but no radio.
+- S7-f: a dog is never a lookout (`slotPost(p, dog)`, the `e.dog !== null` gate in `lookoutStep`): a dog on a lookout
+  post gets no post, as flag off. Undo: drop the `dog` argument and the gate.
 
 ## PLAN pointer drift (PLAN says -> now, 452e23035)
 - `enemyManager.ts` `placeSlot` 2018-2019 -> 2129-2130, and PLAN misses the third `slot.post` read (`zoneRadius`,

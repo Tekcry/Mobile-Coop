@@ -1,6 +1,6 @@
 Verdict: PASS
 
-Checker A (fresh Opus), PR2 polish delta `a09495007..69257d7b1` (7 commits, 16 files, docs/guard-rules/slices excluded),
+Checker A (fresh Opus), PR2 polish delta `a09495007..69257d7b1` (7 commits, 16 files, docs/archive/guard-rules/slices excluded),
 head `69257d7b1`. Read only; tests: `npx vitest run tests/alarmRepeat.test.ts tests/killScore.test.ts
 tests/responseTeam.test.ts tests/gear.test.ts tests/helmetRule.test.ts` -> 5 files, 62 tests passed (CPU 26% before
 the run). No tsc, no e2e.

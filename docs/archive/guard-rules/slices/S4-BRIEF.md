@@ -2,7 +2,7 @@
 Owner: Guard AI Build. Status: current.
 
 Builder: Opus 5.5 (AI code). Ships ON (a fix, bible P5; PLAN "Flags": no flag). Rows: C4. Assumption: A8
-(`docs/guard-rules/BRIEF.md`). Source: `docs/guard-rules/PLAN.md` "PR3" S4. Every anchor below is checked against
+(`docs/archive/guard-rules/BRIEF.md`). Source: `docs/archive/guard-rules/PLAN.md` "PR3" S4. Every anchor below is checked against
 `feature/guard-rules-s5` at a09495007 (PR1 + S5); S5 moved `enemy.ts` lines, so use these, not PLAN's (drift list at the
 end).
 
@@ -13,7 +13,7 @@ lookout radio and J13's cause log.
 
 ## Location
 - Worktree `C:/NightShift/Mobile-Coop-guard-rules-s4`, branch `feature/guard-rules-s4`, cut from the F0 commit
-  (`docs/guard-rules/slices/F0-BRIEF.md`). Start from `docs/systems/agent-preamble.md` (origin/master); branch guard
+  (`docs/archive/guard-rules/slices/F0-BRIEF.md`). Start from `docs/systems/agent-preamble.md` (origin/master); branch guard
   before every write; commit and push each finished sub-step, `git add <your files>` only.
 
 ## Files owned (wave 3, file-disjoint from S6)

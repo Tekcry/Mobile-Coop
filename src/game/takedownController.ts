@@ -510,7 +510,7 @@ export class TakedownController {
           gr.talkI = 0;
           gr.talkT = 0;
         } else if (!g.puppet) g.hud.feedItem('Interrogated: nothing new'); // a client: the host's feed answers
-        if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
+        if (!g.puppet) revealIntel(g, e.pos, info, e.id); // (spare 9) the client's intel comes from the host; (EN2) `eid` for a mission's named target
         // (joint-interrogation, G148) the host's own read with a partner's live bluff: the joint lines too. Host / solo
         // holder only (a client holder's read is the host's `seized` path; solo has no `net`, so no bluff)
         if (!g.puppet && lines && g.net?.jointLive?.(e, jointOf(info))) revealJoint(g, e.pos, jointOf(info));

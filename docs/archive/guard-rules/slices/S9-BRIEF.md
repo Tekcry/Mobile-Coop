@@ -5,7 +5,7 @@ Re-anchor on the wave 3 merge head before building: S4 changed enemy.ts, S6 chan
 
 Builder: Sonnet (Sector Ops data). Ships inert: the data is read only with `flags.lookouts` on (S7), so it ships with
 the flag off and needs no flag of its own. Rows: A3 (map part). Assumptions: A9 (the S5 roof marksman becomes the first
-lookout), M3 (`docs/guard-rules/BRIEF.md`). Source: `docs/guard-rules/PLAN.md` "PR4" S9, "Coordination" (J17 order).
+lookout), M3 (`docs/archive/guard-rules/BRIEF.md`). Source: `docs/archive/guard-rules/PLAN.md` "PR4" S9, "Coordination" (J17 order).
 Anchors are quoted by content and checked on 452e23035 and origin/master 2e16b825a (the marksman line is the same on
 both, and on `feature/sector-batch*` as of 2026-10-25).
 

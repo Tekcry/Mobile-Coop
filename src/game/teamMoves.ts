@@ -7,9 +7,37 @@
 import { hyp2 } from '../core/mathx';
 import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
+import type { ThrowSite } from '../world/mapDef';
 
 /** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19); 'hang' = the hang-down (B5, protocol 20). */
-export type TeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
+export type BuiltinTeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
+
+/**
+ * (mission KIT0) The co-op traversal kit's team kinds (PLAN 4a, M5): 'pull' = the pull-up (KIT-PULL, `kit/pullUp.ts`),
+ * 'shutter' = hold a shutter while the partner crawls under (KIT-SHUT, `kit/shutter.ts`). Each lives in its own file
+ * under `game/kit/` and plugs in through `kit/registry.ts`. (mission NET) They are wire kinds: `TeamKind` takes them.
+ */
+export type KitKind = 'pull' | 'shutter';
+export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter'];
+/** (mission NET) Every team move kind `tmove` / `tstart` carry (protocol.ts): the built-ins and the kit's. */
+export type TeamKind = BuiltinTeamKind | KitKind;
+export const TEAM_KINDS: readonly TeamKind[] = ['boost', 'ladder', 'throw', 'hang', 'rope', 'pull', 'shutter'];
+/** Every team move (the same as `TeamKind` since NET folded the kit into the wire). */
+export type TeamMoveKind = TeamKind;
+
+export function isKitKind(k: string): k is KitKind {
+  return k === 'pull' || k === 'shutter';
+}
+
+/** (mission KIT0) The kit moves' sub bits on the `brace` / `boost` wire modes (after THROW 1, HANG 2, ROPE 4). */
+export const PULL_SUB = 8;
+export const SHUTTER_SUB = 16;
+export const KIT_SUB: Readonly<Record<KitKind, number>> = { pull: PULL_SUB, shutter: SHUTTER_SUB };
+/** Any kit sub bit: a `brace` mate with one offers a kit move, never a leg-up / throw / hang / rope. */
+export const KIT_SUB_MASK = PULL_SUB | SHUTTER_SUB;
+
+/** (mission KIT0) The host's rule per kit kind, filled by `kit/registry.ts` `registerKitMove` (none = not offering). */
+export const KIT_CHECKS: Partial<Record<KitKind, (r: TeamRequest) => TeamDenial | null>> = {};
 
 /** (B7) The `brace` (holder at the top) and `boost` (climber) sub bit for the two-person rope (protocol 22). */
 export const ROPE_SUB = 4;
@@ -33,10 +61,12 @@ export interface TeamSide {
   anchor?: number;
   s?: number;
   sub?: number;
+  /** (mission KIT-SHUT) Crouched (the host's PF.crouch): the shutter's crawl needs it (`kit/shutter.ts`). */
+  crouch?: boolean;
 }
 
 export interface TeamRequest {
-  kind: TeamKind;
+  kind: TeamMoveKind;
   /** The one asking (the climber) and the braced partner. */
   a: TeamSide;
   b: TeamSide;
@@ -70,6 +100,12 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   if (r.sinceLast < 1 / TEAM.rate) return 'rate';
   if (!r.a.alive || !r.b.alive) return 'dead';
   if (r.a.id === r.b.id) return 'notMates';
+  if (isKitKind(r.kind)) {
+    // (mission KIT0) a kit move's own rule (its file, via the registry), before the ground check: the pull-up's
+    // partner asks in the air
+    const check = KIT_CHECKS[r.kind];
+    return check ? check(r) : 'notOffering';
+  }
   if (r.a.mode !== 'ground') return 'busy';
   if (r.kind === 'ladder') {
     // the relay: the partner hangs on a ledge and offered it; the climber stands under them
@@ -99,13 +135,17 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
     return null;
   }
   if (hangOffer) return 'notBraced';
+  if (r.b.mode === 'brace' && ((r.b.sub ?? 0) & KIT_SUB_MASK) !== 0) return 'notBraced'; // (KIT0) offering a kit move
   const throwOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & THROW_SUB) !== 0;
   if (r.kind === 'throw') {
     // the throw: the partner stands offering it; the runner is in reach; the landing lies the throw's length past them
     if (!throwOffer) return 'notOffering';
     if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.throwReach || Math.abs(r.a.y - r.b.y) > 0.4) return 'far';
     const l = r.land;
-    if (!l || !throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z)) return 'noTarget';
+    if (!l) return 'noTarget';
+    const dist = throwDistAt(r.b.x, r.b.z, l.x - r.b.x, l.z - r.b.z); // (tallow-fixes A24) a throw site's length, else the standard
+    // (TD-b) at a site the host also takes the standard band: its view of the thrower lags the runner's (reach / facing edge)
+    if (!throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z, dist) && (dist === TEAM.throwDist || !throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z))) return 'noTarget';
     return null;
   }
   if (r.b.mode !== 'brace' || throwOffer) return 'notBraced';
@@ -180,12 +220,56 @@ export function boostPath(t: number, ax: number, ay: number, az: number, bx: num
 
 // ---- (CT prototype B4) the partner throw (CT 1.3) ----
 
+/** (tallow-fixes A24) How near the thrower must stand to a throw site's spot (m) for its length to apply. */
+export const THROW_SITE_REACH = 1.0;
+/** (tallow-fixes A24) The least cosine between a site's facing and the throw direction (about 25 degrees off). */
+export const THROW_SITE_COS = 0.9;
+
+/** (Q23, tallow-fixes A24) The current map's throw sites (null = none: the standard throw everywhere). */
+let throwSites: readonly ThrowSite[] | null = null;
+
+/** (tallow-fixes A24) Sets the map's throw sites (setup time only; null or an empty list = none). */
+export function setThrowSites(list: readonly ThrowSite[] | null): void {
+  throwSites = list && list.length > 0 ? list : null;
+}
+
+/** (tallow-fixes TD-b) Clears the throw sites only when `list` is the one set (identity): a new controller may start
+ *  before the old one is disposed (a bench hand-off), and the old dispose must not clear the new map's sites. */
+export function clearThrowSites(list: readonly ThrowSite[]): void {
+  if (throwSites === list) throwSites = null;
+}
+
+/**
+ * (Q23, tallow-fixes A24) The throw length (m) for a thrower at (`bx`, `bz`) throwing along (`dx`, `dz`) (any length): the
+ * nearest throw site within `THROW_SITE_REACH` whose facing is within `THROW_SITE_COS` of the direction gives its `dist`;
+ * none (no sites, or a direction under 1e-6) gives `TEAM.throwDist`. Pure and allocation-free.
+ */
+export function throwDistAt(bx: number, bz: number, dx: number, dz: number): number {
+  const list = throwSites;
+  if (list === null) return TEAM.throwDist;
+  const len = hyp2(dx, dz);
+  if (len < 1e-6) return TEAM.throwDist;
+  let best: number = TEAM.throwDist;
+  let bestD = Infinity;
+  for (let i = 0; i < list.length; i++) {
+    const s = list[i]!;
+    const d = hyp2(bx - s.x, bz - s.z);
+    if (d > THROW_SITE_REACH || d >= bestD) continue;
+    const sl = hyp2(s.dx, s.dz);
+    if (sl < 1e-6 || (s.dx * dx + s.dz * dz) / (sl * len) < THROW_SITE_COS) continue;
+    best = s.dist;
+    bestD = d;
+  }
+  return best;
+}
+
 /**
  * Where a throw lands (feet x / z) and its direction: the runner at (`ax`, `az`) runs into the standing thrower at (`bx`,
- * `bz`) and is thrown on over them, `TEAM.throwDist` m past the thrower along runner -> thrower. A runner right on top of
- * the thrower (closer than 5 cm) is thrown the way the thrower faces (`yaw`).
+ * `bz`) and is thrown on over them, `dist` m (default `TEAM.throwDist`; a throw site's length via `throwDistAt`) past the
+ * thrower along runner -> thrower. A runner right on top of the thrower (closer than 5 cm) is thrown the way the thrower
+ * faces (`yaw`).
  */
-export function throwLanding(ax: number, az: number, bx: number, bz: number, yaw: number, out: { x: number; z: number; dx: number; dz: number }): { x: number; z: number; dx: number; dz: number } {
+export function throwLanding(ax: number, az: number, bx: number, bz: number, yaw: number, out: { x: number; z: number; dx: number; dz: number }, dist: number = TEAM.throwDist): { x: number; z: number; dx: number; dz: number } {
   let dx = bx - ax;
   let dz = bz - az;
   const d = hyp2(dx, dz);
@@ -198,15 +282,16 @@ export function throwLanding(ax: number, az: number, bx: number, bz: number, yaw
   }
   out.dx = dx;
   out.dz = dz;
-  out.x = bx + dx * TEAM.throwDist;
-  out.z = bz + dz * TEAM.throwDist;
+  out.x = bx + dx * dist;
+  out.z = bz + dz * dist;
   return out;
 }
 
-/** The host's bound on a claimed landing: about the throw's length from the thrower (+-1 m) and within `TEAM.throwDrop` of their floor. */
-export function throwLandingOk(bx: number, by: number, bz: number, lx: number, ly: number, lz: number): boolean {
+/** The host's bound on a claimed landing: about the throw's length `dist` (default `TEAM.throwDist`; a throw site's
+ *  length via `throwDistAt`) from the thrower (+-1 m) and within `TEAM.throwDrop` of their floor. */
+export function throwLandingOk(bx: number, by: number, bz: number, lx: number, ly: number, lz: number, dist: number = TEAM.throwDist): boolean {
   const d = hyp2(lx - bx, lz - bz);
-  return d >= TEAM.throwDist - 1 && d <= TEAM.throwDist + 1 && Math.abs(ly - by) <= TEAM.throwDrop;
+  return d >= dist - 1 && d <= dist + 1 && Math.abs(ly - by) <= TEAM.throwDrop;
 }
 
 /**
