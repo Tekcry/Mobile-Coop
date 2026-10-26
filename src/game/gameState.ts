@@ -1158,18 +1158,20 @@ export class GameState implements AppState {
   playerRefsInto(out: PlayerRef[]): PlayerRef[] {
     this.localRef.speed = this.player.controller.speed;
     this.localRef.crouched = this.player.controller.crouched;
-    out.length = 0;
+    // (F27) written by index, then trimmed: `length = 0` + push let V8 drop and regrow the backing store every step
     // (coop4 OUT) an operator out waiting for the next connector (Sector Ops host, 3-4 players) is left out: not a
     // target, not in the connector or extraction count
     const ot = this.outIds;
-    if (!isOutRef(ot, this.localRef.id, this.localRef.target.alive)) out.push(this.localRef);
+    let n = 0;
+    if (!isOutRef(ot, this.localRef.id, this.localRef.target.alive)) out[n++] = this.localRef;
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i]!;
-      if (!isOutRef(ot, r.id, r.target.alive)) out.push(r);
+      if (!isOutRef(ot, r.id, r.target.alive)) out[n++] = r;
     }
+    if (out.length !== n) out.length = n;
     // insertion sort by slot over <= 4 refs (no allocation)
-    for (let i = 1; i < out.length; i++) {
+    for (let i = 1; i < n; i++) {
       const p = out[i]!;
       const ps = refSlot(p, i);
       let j = i - 1;
