@@ -75,6 +75,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   paired with a question dialog.
 - He tests through the menus, never direct links: give menu paths and the version label to expect.
 - Merge green, checked work without asking; ask in chat when auto mode blocks a step only he can approve.
+- Bypass permissions (Michael 2026-10-26 ~14:00: "i just want you to proceed unintererrupted unless you desperately need me", then "i approve it"): at boot switch this session and every desktop lead to bypassPermissions (set_session_permission_mode; sessions started from a bypass session inherit it); leads post their own checker statuses. The laptop sessions are switched on the laptop (mode picker by the message box). Ask Michael only for downloads, purchases, account settings and his own sign-offs.
 - Start new sessions only from his own words in the desktop app; when the app refuses a start, propose a card
   (own_initiative) and tell him to click it.
 - Recording passes (Michael 2026-10-25 ~18:15, native multiple choice: "Yes, keep doing it (Recommended)"; replaces ~14:10 docs-only): when auto mode blocks a lead from posting `checker` and an independent checker passed the head (read its report: VERDICT PASS on that sha), the orchestrator posts the status, docs or code PRs alike, without asking.
