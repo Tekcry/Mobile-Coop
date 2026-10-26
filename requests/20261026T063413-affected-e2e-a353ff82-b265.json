@@ -1,0 +1,15 @@
+{
+  "id": "20261026T063413-affected-e2e-a353ff82-b265",
+  "sha": "a353ff820f06309f00fb54dce00fa17dc91e5a83",
+  "branch": "feature/light-realism-l1",
+  "pr": 518,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-levels",
+    "e2e-sectorops"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #518"
+}
