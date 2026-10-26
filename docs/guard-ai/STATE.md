@@ -1018,7 +1018,7 @@ STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano
 builders; 00:59 pace: up to 2 agents, piano first.
 TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
 fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
-fresh Opus checker RUNNING -> slices/AIM-FIX-CHECK.md -> post checker, head to the orchestrator. (B) mill guards: top alert, never calm,
+checker PASS posted on 9bacde675 (AIM-FIX-CHECK.md); CI + affected-e2e pending -> train-ready. (B) mill guards: top alert, never calm,
 slow tactical room-by-room close-in on a fixed readable order (Michael ~10:05 "fixed readble path is good"), corners
 cleared, groups <= 2: BRIEF + PLAN 597df8bce on feature/guard-ai-mill-hunt (worktree -guard-ai-mill-hunt;
 flag millHunt; H1 map data Sonnet + H2 pure rules Opus start now in parallel; H3 wiring after #694; PR 1 = H1-H3,
