@@ -24,7 +24,7 @@ import { STAGE_NAV_ACROSS, STAGE_NAV_ALONG } from '../../../src/game/sectorStage
 import { FacilityKit } from '../../../src/world/kit/facilityKit';
 import { generateLedges } from '../../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../../src/world/levelBuilder';
-import { MARLOW_CIRCUITS_REPLAN, MARLOW_POCKETS_REPLAN, marlowCourseGroups } from '../../../src/world/lighting/marlowCircuits';
+import { MARLOW_CIRCUITS, MARLOW_CIRCUITS_REPLAN, MARLOW_POCKETS_REPLAN, marlowCourseGroups } from '../../../src/world/lighting/marlowCircuits';
 import { buildCtcourse, ctcourseReplan } from '../../../src/world/maps/ctcourse';
 import {
   A2_BACK_DOOR,
@@ -723,6 +723,24 @@ describe('A2 re-plan: cabinet 2, the coat lamp, map data', () => {
     expect(A2_CAB2_REPLAN).toEqual({ x: 63.5, z: 11.6 });
     // the lure: the circuit table keeps the shunter's post; cabinet 2 reaches every point of his round
     for (const [x, z] of A2_SHUNTER_ROUTE_REPLAN) expect(hyp2(x - d.x, z - d.z)).toBeLessThan(25);
+  });
+
+  it("(J14 a2-rows) the re-plan table's cabinet 2 and staging switch are where the part builds them; the built rows keep the built yard's spots", () => {
+    const iso2 = MARLOW_CIRCUITS_REPLAN.find((c) => c.group === 21)!.switches.find((s) => s.id === A2_ISO_2)!;
+    const dev = part.devices[A2_ISO_2]!;
+    expect(Math.abs(iso2.x - dev.x)).toBeLessThan(1e-6);
+    expect(Math.abs(iso2.z - dev.z)).toBeLessThan(1e-6);
+    const staging = MARLOW_CIRCUITS_REPLAN.find((c) => c.group === 23)!.switches.find((s) => s.id === 'a2-sw-staging')!;
+    const swDef = part.switches.find((s) => s.id === 'a2-sw-staging')!;
+    expect(Math.abs(staging.x - swDef.pos.x)).toBeLessThan(1e-6);
+    expect(Math.abs(staging.z - swDef.pos.z)).toBeLessThan(1e-6);
+    // the built table is the built yard's
+    const builtIso2 = MARLOW_CIRCUITS.find((c) => c.group === 21)!.switches.find((s) => s.id === A2_ISO_2)!;
+    expect([builtIso2.x, builtIso2.z]).toEqual([69.4, 14.2]);
+    const builtStaging = MARLOW_CIRCUITS.find((c) => c.group === 23)!.switches.find((s) => s.id === 'a2-sw-staging')!;
+    expect([builtStaging.x, builtStaging.z, builtStaging.y]).toEqual([66.5, 18.5, 4.4]);
+    // no A2 re-plan row points at the built east door or the removed stair head (A4, A6 and A8 have stair heads of their own)
+    for (const c of MARLOW_CIRCUITS_REPLAN.filter((r) => r.room === 'A2')) for (const s of c.switches) expect(s.by, s.id).not.toMatch(/east door|stair head/);
   });
 
   it('the coat-corner lamp is live on circuit 22: two lamps on 22 in the set (the cabin panel and this one), on and not shot out, at the coat hooks, in the re-plan table; the coat pocket is gone', () => {
