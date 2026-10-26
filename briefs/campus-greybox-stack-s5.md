@@ -1,4 +1,4 @@
-status: claimed Night Shift | Sector Ops Build (desktop agent) 2026-10-26T02:27:38Z
+status: done feature/campus-greybox-s5-c e3d8a9ef035dbc2c9322e0b3474d2a3fea56fea5
 # campus-greybox stack S5 (cloud): re-stack the S5 lane into three PR-sized branches S5-a .. S5-c, A23 re-applied
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17, Saltmarsh Park v2). Planner: Opus, 2026-10-26.
@@ -86,3 +86,8 @@ S5-a, S5-b, S5-c pushed, each: tsc clean, listed tests green, counted < 1500 vs 
 committed; at S5-c `shieldTeams: true` asserted and no `minPlayers` row. Report at the end of this brief (branch -> head
 sha, counted lines, test counts, conflicts resolved, deviations), then `status: done feature/campus-greybox-s5-c <sha>`.
 A red test or size over the cap: `status: blocked <branch, test or size>` and stop there.
+
+## Report (desktop agent for Night Shift | Sector Ops Build, 2026-10-26)
+S5-a 2dae6ba0a (877 counted, vitest 49/49), S5-b e2d8d77aa (1121, 76/76), S5-c e3d8a9ef0 (1067, 171/171); tsc clean on
+each. Only conflict: s5Data.ts at S5-b (3 expected hunks, lane side, P0's A15 comment kept); shieldTeams true, 26 guards,
+no minPlayers. Sonnet PASS (scratch lane-s5-check.md). PRs #533 (master) -> #534 -> #535.
