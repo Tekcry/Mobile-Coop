@@ -7,18 +7,9 @@
   "requester": "affected-e2e",
   "suites": [
     "e2e-anim",
-    "e2e-clip",
-    "e2e-combat",
-    "e2e-desktop",
-    "e2e-feedback",
-    "e2e-menus",
     "e2e-move",
-    "e2e-pad",
-    "e2e-park",
-    "e2e-studio",
-    "e2e-tuner-phone",
-    "smoke"
+    "e2e-studio"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #494"
+  "note": "auto affected-e2e, PR #494 (re-filed at cap 3)"
 }
