@@ -1,0 +1,13 @@
+{
+  "id": "20261026T142009-affected-e2e-fe08e9b8-774f",
+  "sha": "fe08e9b8abef117100a4e51d08dbf1641a5aaec2",
+  "branch": "feature/mantle-rise-fix",
+  "pr": 640,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-traverse"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #640"
+}
