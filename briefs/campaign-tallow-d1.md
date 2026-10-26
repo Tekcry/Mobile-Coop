@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 4 2026-10-26T03:56Z
 
 # campaign J8 D1: Tallow Wharf's graph matches the build (Sonnet 5.5)
 
