@@ -1,0 +1,13 @@
+{
+  "id": "20261026T081311-affected-e2e-e9e01f31-8f60",
+  "sha": "e9e01f3199c1569c0aab867704428f0630a5dc43",
+  "branch": "feature/mission-c2-rules",
+  "pr": 522,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-park"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #522"
+}
