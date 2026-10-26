@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 6 2026-10-26T08:29Z
 
 # campaign J8 G5: the TGC split meets the standard (W1 gallery stair, merge at the fish hall) (Sonnet 5.5)
 
