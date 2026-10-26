@@ -1014,27 +1014,28 @@ docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape).
 Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
-Open (2026-10-26 ~21:05, new account boot):
+Open (2026-10-26 ~21:40):
 1. Piano asks (Campaign's PLAN numbering: GA7 there = the flash-sighting reaction; our mapWideNoise is "rain"):
-   - #603 feature/guard-ai-piano (worktree -guard-ai-piano) = GA1 sceneDark + GA3 blackoutSearch / blackoutSearchSlots +
-     rain mapWideNoise: checks A + B PASS, checker POSTED on e772cb25d, CI green; affected-e2e queued. Green -> tell
-     the orchestrator train-ready. Campaign has the API (PLAN folded it, 9b237f61c).
-   - GA4 GuardActor: brief docs/guard-ai/slices/PIANO-GA4.md on feature/guard-ai-piano-actor (worktree
-     -guard-ai-piano-actor, off master 1396ebd4c), Opus builder running -> PIANO-GA4-REPORT.md. Then PR (patch
-     fragment), TWO Opus checkers, send Campaign the API (S2 swaps its posed stand-ins).
-   - GA5 route review + GA6 slow torch sweep (+ PLAN GA7 flash glimpse at sweep pace, folds into GA6): wait for
-     Campaign's thornbeckMill greybox S1b (stub map today; after Michael's click). Plan GA6 then, not before.
-2. #588 play pass A (feature/guard-ai-home): re-check PASS, checker POSTED on 9d265be2b, CI green; affected-e2e queued.
-   Ships after #518; green -> tell the orchestrator.
-3. #317 coop4: merge 8 check PASS (docs/coop4/checks/MERGE8-CHECK.md, d150ed1d5); orchestrator asked ~21:00 to post
-   checker on d150ed1d5; co-op group affected-e2e queued. Green -> train-ready. Another master conflict -> merge 9.
-4. #595 J15 PR4: checker POSTED on 258be2999, CI green, affected-e2e running. Green -> train-ready. Job-done:
-   guard-rules. J26 mission hooks after it, spare capacity only.
+   - #603 feature/guard-ai-piano = GA1 sceneDark + GA3 blackoutSearch(Slots) + rain mapWideNoise: checker POSTED on
+     e772cb25d, CI green; affected-e2e queued. Green -> tell the orchestrator train-ready.
+   - #611 GA4 GuardActor (feature/guard-ai-piano-actor): checks A + B PASS, checker POSTED on 0d1fe4401; affected-e2e
+     next. Campaign sent the API + notes (nav for the stair pair, ~2 m start offset). Polish: NaN rate guard
+     (guardActor.ts:101), zero vx/vz once clamped, pose-clock-at-rate test, FLASH_COLOR "never mutate" comment.
+   - GA6 slow torch sweep (+ PLAN GA7 flash glimpse at sweep pace): branch feature/guard-ai-piano-sweep (worktree
+     -guard-ai-piano-sweep off #603, node_modules junction to -guard-ai-home); Opus planner writing
+     docs/guard-ai/slices/PIANO-GA6-PLAN.md -> fresh Opus plan check -> Opus build -> two Opus checkers.
+   - GA5 route review: waits for Campaign's thornbeckMill S1b data (stub on origin ~21:20).
+2. #588 play pass A (feature/guard-ai-home): checker POSTED on 9d265be2b, CI green; affected-e2e queued. After #518.
+3. #317 coop4: train 135 conflicted -> merge 9 90b73d267 (PROTOCOL_VERSION 73; `ms` + `ot` both on the sector wire;
+   mission spawns AND guardForTeam; campaign armed-only per response team; teamMovesTaken on BuiltinTeamKind; S5
+   base hash after the #19 lookout). typecheck + 67 vitest files green. Opus merge check running ->
+   docs/coop4/checks/MERGE9-CHECK.md; PASS -> commit it, post checker, co-op group e2e, train-ready.
+4. #595 J15 PR4: MERGED (train 135). Job-done: guard-rules. J26 mission hooks: spare capacity only.
 5. Polish (only if it helps the playthrough): after Sector Ops #602 lands, stealthSystems.ts isOff (:381) false when
    every lamp of the circuit is mainsCut (a guard walks to a dead switch); #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
    autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: GA4 report -> PR + two Opus checkers -> API to Campaign; tell the orchestrator as #603 / #588 / #317 / #595 go
-green; GA5 / GA6 when the thornbeckMill greybox lands.
+Next: merge 9 check -> post; GA6 plan -> plan check -> build; tell the orchestrator as #603 / #611 / #588 / #317 go
+green; GA5 when the thornbeckMill greybox lands.
 ```
