@@ -2,7 +2,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
-import { PageDriver, pageScript, pageOptions, runOne } from '../scripts/route-run/driver.mjs';
+import { PageDriver, runOne } from '../scripts/route-run/driver.mjs';
 // @ts-expect-error plain .mjs tool script without types
 import { PairDriver } from '../scripts/route-run/pair.mjs';
 // @ts-expect-error plain .mjs tool script without types
@@ -55,12 +55,9 @@ function fakeGame(x: number, z: number) {
   };
   const step = (dt: number) => {
     const c = game.player.controller;
-    if (buttons[1]) { c.crouchIntent = !c.crouchIntent; c.crouched = c.crouchIntent; buttons[1] = 0; }
+    if (buttons[1]) [c.crouchIntent, c.crouched, buttons[1]] = [!c.crouchIntent, !c.crouchIntent, 0];
     const m = Math.hypot(axes[0]!, axes[1]!);
-    if (m > 0.1) {
-      pos.x += (axes[0]! / m) * pace.speed * dt;
-      pos.z += (-axes[1]! / m) * pace.speed * dt;
-    }
+    if (m > 0.1) [pos.x, pos.z] = [pos.x + (axes[0]! / m) * pace.speed * dt, pos.z - (axes[1]! / m) * pace.speed * dt];
     game.time += dt;
   };
   const window: Obj = { __app: { current: game, loop: { manual: false, stepHeadless: step } }, __pad: { connect() {}, set(i: number, v: number) { buttons[i] = v; }, axis(i: number, v: number) { axes[i] = v; } } };
@@ -90,15 +87,12 @@ async function pairCtx() {
   A.game.net = { remotes: new Map([['c', { feet: B.pos, ref: { crouched: false, speed: 0 }, state: {}, damageMul: 1, allowTeleport() {} }]]) };
   B.game.net = { avatars: new Map([['h', { pos: A.pos }]]) };
   A.game.restartCheckpoint = () => { A.pos.x = 0; A.pos.z = 0; B.pos.x = 0; B.pos.z = -2; return true; };
-  const host = new PageDriver(A.page, { pace, forgive: true, points: null, role: 'leader' });
-  const client = new PageDriver(B.page, { pace, forgive: true, points: null, role: 'follower' });
+  const [host, client] = [new PageDriver(A.page, { pace, forgive: true, points: null }), new PageDriver(B.page, { pace, forgive: true, points: null, role: 'follower' })];
   await host.install();
   await client.install();
-  const notes: string[] = [];
-  const pair = new PairDriver(host, client, { points: null, notes });
-  const ctx: Obj = { host: A.page, client: B.page, driver: pair, pair, shots: null, players: 2, notes };
-  Object.assign(ctx, { advance: (s: number) => pair.advance(s), stick: pace.stick });
-  return { A, B, pair, ctx };
+  const pair = new PairDriver(host, client, { points: null, notes: [] });
+  const ctx: Obj = { host: A.page, client: B.page, driver: pair, pair, shots: null, players: 2, notes: pair.notes, advance: (s: number) => pair.advance(s), stick: pace.stick };
+  return { A, B, ctx };
 }
 
 /** The course hook interrupts once, at the first poll past `t` game s (from `onPoll`, inside the pair's tick lock). */
@@ -254,12 +248,9 @@ describe('SR5: checkCourseExpect in checkSelftest', () => {
     expect(hook.check).toHaveBeenCalledWith(course, log);
   });
 
-  it('no course block: not called', () => {
+  it('no course block: not called; the defaults (until R4c): no restart action, no course problems', async () => {
     expect(checkSelftest({ runs: [{ id: 'a2-seen-once', lines: [] }] }, [log])).toEqual([]);
     expect(hook.check).not.toHaveBeenCalled();
-  });
-
-  it('the defaults (until R4c): no restart action, no course problems', async () => {
     const real = await vi.importActual<Obj>('../scripts/route-run/course.mjs');
     expect(await real.onRestart({}, {}, [], 0)).toBe(null);
     expect(real.checkCourseExpect({ restarts: [] }, log)).toEqual([]);
@@ -283,9 +274,7 @@ describe('R6: --points through the points loader', () => {
   });
 
   it("a stale table is refused (the loader throws); auto is passed on; a selftest's table is never checked", async () => {
-    const stale = () => {
-      throw new Error('the points table was made on another build of the map');
-    };
+    const stale = () => { throw new Error('the points table was made on another build of the map'); };
     await expect(readPoints({ points: 'p.json', graphs: ['a.json'] }, graphs, null, stale)).rejects.toThrow(/another build/);
     const load = vi.fn(() => ({ spaces: [], links: [] }));
     await readPoints({ points: 'auto', graphs: ['a.json'] }, graphs, null, load);
