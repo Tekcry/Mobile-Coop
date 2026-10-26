@@ -350,23 +350,25 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (2026-10-26 ~17:35, PROTOTYPE MODE; booted ~17:05 after the swap).
+Night Shift | Sector Ops Build: RESUME (2026-10-26 ~18:10, PROTOTYPE MODE).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu; ROADMAP Decided
 "PROTOTYPE MODE" (~16:05) and "Prototype, not polish" (~16:20): playable over perfect, ONE closest test set per change,
 one fix + one rerun at most, no tuning passes before Michael plays.
 This session posts its own `checker` statuses (lone gh api command) from an independent written report on that exact
-head. Reports: C:/NightShift/scratch/sector-ops-checks/ (briefs/ for builder briefs). tsc / vitest at BelowNormal,
---maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
-1. Train 124 (4.114.0) shipped #568 F33, #457 J5, #560 preview flags (campusV2 on in /preview/). Freeze over.
-2. #573 F42 (feature/campus-s1-vault-fix @ 10b9433d): master conflict fixed (J5 label + F42 PC z -77.3), checker PASS
-   (merge-conflict-fix-check.md), fix + no-affected-e2e: auto-train takes it on green CI.
-3. #525 v2 S1 rebuild (feature/campus-greybox-s1-c @ 5b2c40bf, big-pr, ready): same conflict fixed, checker PASS;
-   waits on its one affected-e2e set. #523 / #524 closed (inside #525).
-4. GOAL: S1 playable end to end in /preview/. #518 READY (feature/light-realism-l1 @ a353ff82, big-pr, checker PASS
-   l1-v2s1-check.md): L1 car-park lighting ported onto v2 S1, #525 merged in; open ground 31.5 / 3.5 lux, carport edges
-   dark (real gap). Lands after #525 or with it. Known gap: v2 lamps miss the shipped bake (PC bakes at load in preview).
-5. Other drafted feature PRs (S2-S5 lanes, map-ready #550 #551 #556, J16 #557) were un-drafted by the orchestrator;
-   re-file ONE test set per change only when asked. #551 needs Guard AI's re-review of guardWarm.ts before train-ready.
-6. J10 light: L2 (S2-S5) HOLD until Michael's S1 walk.
-Next: watch #573 / #525 land; then the next S1 playthrough blocker from the orchestrator.
+head. Reports: C:/NightShift/scratch/sector-ops-checks/ (briefs/ for builder briefs, pr-bodies/). tsc / vitest at
+BelowNormal, --maxWorkers=2; node_modules junctions only to C:/NightShift/Mobile-Coop-menu/node_modules.
+GOAL (orchestrator ~17:45, prototype step 6): Saltmarsh Park finishable end to end on /preview/ (campusV2 = all sections
+there). Seven PRs carry it, every one checker PASS on its head, waiting on CI + one affected-e2e set (auto-train takes
+them when train-ready; orchestrator told ~18:05):
+1. #573 F42 window vault fix (fix + no-affected-e2e) @ 10b9433d.
+2. #525 v2 S1 (big-pr) @ 5b2c40bf. #518 S1 L1 lighting on v2 (contains #525; big-pr) @ a353ff82.
+3. #529 S2 @ bc06fe5b, #544 S3 @ 79559a3f, #547 S4 @ c77442d6, #535 S5 @ 2d0686af: stacks collapsed ~18:00 (lower PRs
+   closed), master merged in. All five + #518 merged together: no conflicts, tsc clean, 66 campus files 905 pass
+   (scratch campus-v2-all.log; test branch test/campus-v2-all, local only, worktree -campus-v2-int).
+4. #582 prebake-preview @ 308ae524 (Opus PASS): the preview build pre-bakes its own campus layout; deploy.yml caches per
+   variant. Should land with or before the first v2 section, else preview bakes on the PC at load.
+On a red: one Opus triage, one fix, one rerun, then quarantine / note and ship. On a conflict between them: merge
+master into that branch, resolve, one checker.
+5. J10 light: L2 (S2-S5 re-light) HOLD until Michael's S1 walk. Known: v2 S1 carport edges dark (real gap).
+Next: watch the seven land; then ask the orchestrator for the next playable piece (e.g. a bot route-run of v2 S1-S5).
 ```
