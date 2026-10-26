@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.111.0 - Train 118: Guard rules (repeat alarms); Route-run robot pair (2026-10-26, PR #515; #510, #500)
+
+### Guard rules (repeat alarms)
+- In Sector Ops and the campaign, a guard who sees you again after the response team is in, or a minute later, can
+  raise the next alarm, up to three in a section; Marlow Yard still raises one.
+
+### Route-run robot pair
+- Route-runs (J13 R4b, test tooling only): `scripts/route-run.mjs` now walks every map with two robots by default
+  (`--players 2`): the leader on the host page and the follower on the client page over `?net=local`, both stepped on the
+  host's game clock. The follower trails the leader about 2 m behind, crouched, opens doors on its way and has its own
+  dead-stop watch; at a split the two walk both legs at once and wait for each other at the rejoin; at a co-op link both
+  stand at it for its time and are then placed past it. Detections and dead stops name which robot. Sector Ops hack
+  objectives (S2) are now held for their full time instead of tapped. `--players 1` keeps the one-robot run.
+
 ## 4.110.0 - Train 117: Campus greybox: per-section v2 switch; Mixamo body carry on Wren (behind ?mixamo=1) (2026-10-26, PR #509; #503, #493)
 
 ### Campus greybox: per-section v2 switch
