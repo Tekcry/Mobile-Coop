@@ -17,6 +17,8 @@ export interface Flags {
   room: string | null;
   /** Coop transport: 'local' = BroadcastChannel between tabs (tests), default WebRTC. */
   net: 'local' | 'webrtc';
+  /** Tests (`?net=local` only, `&autojoin=1`): the `autoLocalCourse` tab joins the room as a client and never hosts. */
+  autojoin: boolean;
   /** Graphics override for this page (tests; not saved): 'min' = everything off at DPR 1, or a preset. A phone gets
    *  'min' unless the page names one (G182). */
   gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
@@ -81,6 +83,16 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (guard-rules S6, A10, A11) Pairs that walk together check on each other at once; posted pairs talk and check.
+   *  `?guardpairs=1`. DEFAULT OFF until walk item 5 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/
+   *  default on (preview-flags). */
+  guardPairs: boolean;
+  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=1`. DEFAULT OFF until
+   *  walk item 6 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  lookouts: boolean;
+  /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=1`. DEFAULT OFF
+   *  until walk item 7 (owner Guard AI Build, switch-on target 2026-10-29). On /preview/ default on (preview-flags). */
+  dogRelease: boolean;
   /** (J14 Marlow re-plan, owner Marlow Build, switch-on 2026-10-29) `?marlowreplan=1`: a host's room opens on the re-planned
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
@@ -181,6 +193,7 @@ export const flags: Flags = {
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
+  autojoin: params.get('net') === 'local' && params.get('autojoin') === '1',
   phone: readPhone(),
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'low' : null),
   baked: params.get('baked') !== '0',
@@ -212,6 +225,10 @@ export const flags: Flags = {
   // (mission-framework FLG) dark until Michael's walks: `?missions=1` / `?coopkit=1` on; on /preview/ on (preview-flags)
   missions: darkFlag(params.get('missions'), PREVIEW_ON),
   coopKit: darkFlag(params.get('coopkit'), PREVIEW_ON),
+  // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on, /preview/ too
+  guardPairs: darkFlag(params.get('guardpairs'), PREVIEW_ON),
+  lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
+  dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),

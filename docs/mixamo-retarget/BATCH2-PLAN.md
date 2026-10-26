@@ -273,7 +273,10 @@ strafes stay the fallback when a pack pair is off; `this.wallKeys.sample(..., th
 capture field), `src/anim/wallKeyed.ts` (the `sample` parameter, the hand-made trio by default), `src/anim/nowPlaying.ts`,
 `tests/mixamoDrawn.test.ts` (two rigs, `cmu` and `mixamo`, in one process; the swap step; the strafe fallback),
 `tests/tunerReachMixamoDrawn.test.ts`. Laptop: affected-e2e (src/anim), e2e-anim, e2e-weapons-carry, e2e-studio,
-anim-audit; look video. Depends: I9, source wire. Parallel with I11.
+anim-audit; look video. Before wiring (I9 fix round): a toe-first / backward pin window in `scripts/mocap/emit.mjs` (the
+heel is past `PIN_PITCH` at contact, so duty 0) for the 4 game-slot gaits that fell back to loops in I9
+(`pistol_walk_backward`, `pistol_strafe`, `rifle_walk_backward`, `rifle_walk_left`), re-emitted; a row that still has no
+clip feet stays on the planner's steps (off with its reason). Depends: I9, source wire. Parallel with I11.
 
 **I11 Channel emitter for moves and actions (~1,000).** `scripts/mocap/mixamoChannels.mjs` (`chanPath` on the
 traversal paths read from `src/player/traversePath.ts` / `traversal.ts`, read only: vault, mantle, roll; `chanShot` by

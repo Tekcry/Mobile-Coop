@@ -204,7 +204,8 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,
-    { timeout: 60000 },
+    // (F7) the same 120 s as the navigation guard: six pages booting at once ran a client page's boot past 60 s
+    { timeout: 120000 },
   );
   });
   if (PROFILE) {

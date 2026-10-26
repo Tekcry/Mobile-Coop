@@ -53,7 +53,8 @@ const PLANNER_LIFT = { walk: 0.075, jog: 0.17, run: 0.22, strafe: 0.05 };
  * (a few degrees) as its own yaw. The aimed strafe's planner values (the hand-keyed glide strafe's liftH / kneeOut): the
  * runtime places the strafe's steps with the planner (BRIEF A10).
  */
-const TRAVEL_AXIS = { z: [0, 1], '+x': [1, 0], '-x': [-1, 0] };
+// (mixamo-retarget I7) '-z': a backward cycle (faced as a sideways one, the take's own track), travelling along -z
+const TRAVEL_AXIS = { z: [0, 1], '+x': [1, 0], '-x': [-1, 0], '-z': [0, -1] };
 const KNEE_OUT_SIDE = 0;
 /** (integration) The foot pitch (rad, heel up) past which a planted foot's ankle leaves its pin (the stance window's end). */
 const PIN_PITCH = 0.15;
@@ -298,7 +299,7 @@ export function emitCycle(d0, rig, spec) {
   const scales = band.map((v) => (spec.gameStride ?? gameStride)(v) / S);
   return {
     def: {
-      name: `mocap_${spec.name}`, frames: N, duty, liftH: PLANNER_LIFT[spec.gait], kneeOut: lateral ? KNEE_OUT_SIDE : KNEE_OUT_CYCLE[spec.gait], half,
+      name: `mocap_${spec.name}`, frames: N, duty, liftH: PLANNER_LIFT[spec.gait], kneeOut: travel === '+x' || travel === '-x' ? KNEE_OUT_SIDE : KNEE_OUT_CYCLE[spec.gait], half,
       pel: frames.flatMap((f) => f.pel), q: frames.flatMap((f) => [...f.q.pelvis, ...f.q.spine, ...f.q.chest, ...f.q.neck]),
       arm: frames.flatMap((f) => f.arm), head: levelHead(frames), feet, stride: S / K, ...(lateral ? { travel } : {}),
     },

@@ -236,7 +236,8 @@ const LOOK = {
   vent: '#b9bdc0',
 } as const;
 
-export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
+/** (J14) `opts.replan`: the re-planned yard, whose lobby east wall is the glazed screen (`replan/a7DataHall.ts`). */
+export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): SetPart {
   const p = emptyPart('a7DataHall');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean } = {}): void => {
@@ -275,13 +276,16 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
   tally(b, p.register, 'A7-5', 'Entry lobby x 70.25-75.85, z 55.95-65.85: east wall to the slab, 3.0 m ceiling, hall door A7-hall and plant door A7-plant (1.2 x 2.1) with kit.glass sidelights (glass stops guard and camera sight), fire plan board on the north wall', () => {
     const x0 = LOBBY_E - T / 2;
     const x1 = LOBBY_E + T / 2;
-    slab(x0, x1, CORR_N.z1, HALL_DOOR.z0, 0, A7_H.slab, KIT_BOX_COLOR);
-    slab(x0, x1, HALL_DOOR.z1, HALL_LIGHT.z0, 0, A7_H.slab, KIT_BOX_COLOR);
-    slab(x0, x1, HALL_LIGHT.z1, RISER_Z, 0, A7_H.slab, KIT_BOX_COLOR);
-    slab(x0, x1, HALL_DOOR.z0, HALL_LIGHT.z1, DOOR_H, A7_H.slab, KIT_BOX_COLOR);
+    // (J14) on the re-plan the glazed screen replaces the east wall's solid runs, its head and its sidelight
+    if (!opts.replan) {
+      slab(x0, x1, CORR_N.z1, HALL_DOOR.z0, 0, A7_H.slab, KIT_BOX_COLOR);
+      slab(x0, x1, HALL_DOOR.z1, HALL_LIGHT.z0, 0, A7_H.slab, KIT_BOX_COLOR);
+      slab(x0, x1, HALL_LIGHT.z1, RISER_Z, 0, A7_H.slab, KIT_BOX_COLOR);
+      slab(x0, x1, HALL_DOOR.z0, HALL_LIGHT.z1, DOOR_H, A7_H.slab, KIT_BOX_COLOR);
+    }
     slab(PLANT_DOOR.x0, PLANT_LIGHT.x1, CORR_N.z0, CORR_N.z1, DOOR_H, A7_H.slab, KIT_BOX_COLOR);
     slab(SHELL.west, x0, CORR_N.z1, RISER_Z, A7_H.lobby, A7_H.lobby + 0.1, KIT_BOX_COLOR, { overhead: true });
-    kit.glass(LOBBY_E, HALL_LIGHT.z0, LOBBY_E, HALL_LIGHT.z1, DOOR_H);
+    if (!opts.replan) kit.glass(LOBBY_E, HALL_LIGHT.z0, LOBBY_E, HALL_LIGHT.z1, DOOR_H);
     kit.glass(PLANT_LIGHT.x0, (CORR_N.z0 + CORR_N.z1) / 2, PLANT_LIGHT.x1, (CORR_N.z0 + CORR_N.z1) / 2, DOOR_H);
     // the doors: the hall door's hinge at its south jamb (the leaf along +z), the plant door's at its west jamb (along +x)
     p.doors[A7_HALL_DOOR] = b.door(LOBBY_E, 0, HALL_DOOR.z0, HALL_DOOR.z1 - HALL_DOOR.z0, 0, { height: DOOR_H }).id;
@@ -501,9 +505,10 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
     const lobby = A7_H.lobby;
     const hallTop = A7_H.slab;
     finish('e', SHELL.west, CORR_N.z1, RISER_Z, lobby, [[60.8, 63.2], [63.8, 64.6]]);
-    finish('w', LOBBY_E - T / 2, CORR_N.z1, RISER_Z, lobby, [[HALL_DOOR.z0 - 0.1, HALL_LIGHT.z1 + 0.1]]);
+    // (J14) not on the re-plan's glazed screen: the paint would hide the glass
+    if (!opts.replan) finish('w', LOBBY_E - T / 2, CORR_N.z1, RISER_Z, lobby, [[HALL_DOOR.z0 - 0.1, HALL_LIGHT.z1 + 0.1]]);
     finish('n', CORR_N.z1, SHELL.west, LOBBY_E - T / 2, lobby, [[PLANT_DOOR.x0 - 0.1, PLANT_LIGHT.x1 + 0.1]]);
-    finish('e', LOBBY_E + T / 2, CORR_N.z1, RISER_Z, hallTop, [[HALL_DOOR.z0 - 0.1, HALL_LIGHT.z1 + 0.1]]);
+    if (!opts.replan) finish('e', LOBBY_E + T / 2, CORR_N.z1, RISER_Z, hallTop, [[HALL_DOOR.z0 - 0.1, HALL_LIGHT.z1 + 0.1]]);
     finish('n', CORR_N.z1, LOBBY_E + T / 2, POD.x0 - T / 2, hallTop);
     finish('s', SHELL.north, LOBBY_E + T / 2, SHELL.east, hallTop);
     finish('w', SHELL.east, POD.z1 + T / 2, SHELL.north, hallTop);
@@ -517,18 +522,21 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
     face('w', LOBBY_E - T / 2, 60.3, 60.5, 1.1, 1.3, LOOK.rail, 2);
     face('n', CORR_N.z1, 76.5, 76.7, 1.1, 1.3, LOOK.rail, 2);
     face('s', CORR_N.z0, 71.5, 71.7, 1.1, 1.3, LOOK.rail, 2);
-    // the PDU on the west cross aisle's wall (the technician's R1 stop faces it): a 1.2 m cabinet with two doors, breaker rows, a danger plate and phase lamps
+    // the PDU on the west cross aisle's wall (the technician's R1 stop faces it): a 1.2 m cabinet with two doors, breaker rows, a danger plate and phase lamps;
+    // (J14) not on the re-plan, where that wall is the glazed screen
     const pz = [56.7, 57.9] as const;
     const px = LOBBY_E + T / 2;
-    face('e', px, pz[0], pz[1], 0, 1.95, LOOK.door, 2);
-    face('e', px, pz[0], pz[0] + 0.03, 0, 1.95, LOOK.steelDark, 3);
-    face('e', px, pz[1] - 0.03, pz[1], 0, 1.95, LOOK.steelDark, 3);
-    face('e', px, 57.29, 57.31, 0.1, 1.85, LOOK.steelDark, 3);
-    for (const y of [0.9, 1.2, 1.5]) for (const z of [56.85, 57.03, 57.45, 57.63]) face('e', px, z, z + 0.12, y, y + 0.1, LOOK.black, 3);
-    face('e', px, 56.78, 57.2, 1.72, 1.88, LOOK.yellow, 3);
-    for (const [z, c] of [[57.45, LOOK.red], [57.58, LOOK.yellow], [57.71, LOOK.blue]] as const) face('e', px, z, z + 0.06, 1.76, 1.82, c, 3);
-    face('e', px, 56.78, 57.2, 0.4, 0.8, LOOK.vent, 3);
-    for (let y = 0.44; y < 0.78; y += 0.08) face('e', px, 56.8, 57.18, y, y + 0.03, LOOK.steelDark, 4);
+    if (!opts.replan) {
+      face('e', px, pz[0], pz[1], 0, 1.95, LOOK.door, 2);
+      face('e', px, pz[0], pz[0] + 0.03, 0, 1.95, LOOK.steelDark, 3);
+      face('e', px, pz[1] - 0.03, pz[1], 0, 1.95, LOOK.steelDark, 3);
+      face('e', px, 57.29, 57.31, 0.1, 1.85, LOOK.steelDark, 3);
+      for (const y of [0.9, 1.2, 1.5]) for (const z of [56.85, 57.03, 57.45, 57.63]) face('e', px, z, z + 0.12, y, y + 0.1, LOOK.black, 3);
+      face('e', px, 56.78, 57.2, 1.72, 1.88, LOOK.yellow, 3);
+      for (const [z, c] of [[57.45, LOOK.red], [57.58, LOOK.yellow], [57.71, LOOK.blue]] as const) face('e', px, z, z + 0.06, 1.76, 1.82, c, 3);
+      face('e', px, 56.78, 57.2, 0.4, 0.8, LOOK.vent, 3);
+      for (let y = 0.44; y < 0.78; y += 0.08) face('e', px, 56.8, 57.18, y, y + 0.03, LOOK.steelDark, 4);
+    }
   });
 
   // ---- A7-13: the raised access floor (0.6 m tile seams, perforated tiles in the cold aisle), the corridor's concrete ----
