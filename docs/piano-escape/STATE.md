@@ -26,6 +26,9 @@ Lightning period 160.04 (Grohl loop); Sector Ops OK'd it. Openings on #617 for S
 SO5b (window lights per opening, feature/piano-lights-so5b 345c55ac8, checker running) + SO2 prebake: re-merge into -s4 at
   their passed head. Accepted as walk-card items (no tuning): 5-20 lux reaches ~3 m not 6; start-bay corner (2.5, 3.5)
   bright where two pools overlap; board gap own light < 1 lux.
+SO3 GPU (Sector Ops ~22:35): 16 lit + shadowed torches = 4.9 ms avg / 6.7 p99 on laptop Low 1080p. When #605 is on master
+  (or merged into -s4): thornbeckMill torchSlots: 16, torchShadows unset. The first walk keeps 12 guards; G13-G16 are
+  allowed by torches (PLAN 3 "Up to 16") - a walk-card question, not a build now.
 Re-tune after GA6a lands: G4 / G5 end waits with sweepPeriod(route) (src/ai/sceneSweep.ts), assert equal laps.
 Next slices: S6 storm sound (Sonnet, ~250 lines) when #604 is on master. Then the walk card (ETA sent ~22:10: full
   co-op walk Tue 27 ~09:00-11:00; solo first look after #606 / #616 / #617 land).
