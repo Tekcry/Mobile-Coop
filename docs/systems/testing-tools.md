@@ -39,7 +39,7 @@ This page lists the suites and how they are picked.
   `scripts/e2e-times.json` holds 150 s per part as an estimate; it changes only when someone commits a rewrite.
   `e2e-sectorops` runs as `e2e-sectorops:1` to `:9` (sector-fixes-r RE: the suite before slice R, the solo route checks,
   the co-op routes of sections 1-3, and parts 6-9 the solo campusOps (Saltmarsh Park) checks: 6 S1/S2 + feeder + CR1/CR2 probes, 7 S3 + H8, 8 S4 + CR4 + S16, 9 S5 (split from one part 6 in F33: it ran near the 900 s kill); `PARTS` in `scripts/run-e2e.mjs`);
-  named alone its six parts run as parallel jobs.
+  named alone its nine parts run as parallel jobs.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
   `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails, quarantined or not: a quarantine forgives an assert (exit 1)
