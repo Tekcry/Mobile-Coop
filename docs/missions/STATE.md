@@ -16,13 +16,15 @@ The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retarget
    (walk card as in the 18:35 block, plus the two shutters).
 5. A red check on any member: fix on the lowest member it touches and merge upward (b -> c -> d), re-post `checker`.
 6. S4 (wharf e2e walks both shutters; scripts/e2e-sectorops-wharf.mjs only) on cloud-queue, base (d) 0adfd8dee, claimed
-   by Cloud Builder 6 08:17Z. Done -> Sonnet checker -> merge feature/tallow-s4 into (d), re-post checker.
+   by Cloud Builder 6 08:17Z. Done -> merge into (d) with G5 (one Sonnet checker for the S4 + G5 batch), re-post checker.
 7. G5 (A30): Michael ~19:25 G5-Q1 answer 1 "Allow this corner" (BRIEF M8). Released on cloud-queue d90ecfaee
    (briefs/campaign-tallow-g5.md + its plan campaign-tallow-g5-plan.md), base (d) 0adfd8dee, branch feature/tallow-g5.
-   Done -> Opus checker -> merge into (d) (or a follow-up PR once (d) lands). Engine's pre-fix docs/tallow-fixes/G5-plan.md
+   Done -> the S4 + G5 Sonnet checker -> merge into (d) (or a follow-up PR once (d) lands). Engine's pre-fix docs/tallow-fixes/G5-plan.md
    + briefs/G5.md: replace with the fixed copies in the same merge.
 8. Polish lists: as in the 18:35 block. Michael's ~18:47 / ~18:52 / ~19:25 picks are BRIEF M7-M8. Desktop CPU 95-100%
    (orchestrator ~19:25): no new local builders until under 80%; cloud-queue is fine.
+   PACE (Michael ~19:22, full burn ended): at most 2 builders at once (S4 + G5 now), Sonnet builders (Opus for engine /
+   net / fix rounds), briefs at most one slice ahead, one checker per batch, background waits, no polling.
 Next: watch #522 into a train; retarget #578 -> #581 -> #583 in order; pick up S4 and G5 from cloud-queue (checker each, merge into (d)).
 
 ## OLD RESUME 2026-10-26 ~18:35 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
