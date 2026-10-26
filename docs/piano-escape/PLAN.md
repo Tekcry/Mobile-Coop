@@ -52,10 +52,14 @@ kills, the music experiment). The scene key stays `scene: 'piano'`; map id `thor
   `lightning: { flashes: [{ t, peak, len }], period? }` (a double strike is two entries; `period` loops the list), on
   the shared sim clock minus `world.lightning.t0`; light enters only through the map's real openings (windows, board
   gaps); the look check is `?lightning=1`.
-- **Guards in the blackout (Guard AI, PR #603, open; not on master yet):** `em.sceneDark = true` keeps every guard's
+- **Guards in the blackout (Guard AI, PR #603: both Opus checks passed; not on master yet):** `em.sceneDark = true` keeps every guard's
   torch on in every state and sends nobody on a lights-out incident (GA1; set it back to `false` when the scene ends);
-  `em.blackoutSearch(guards: readonly Enemy[], x, z)` (enemyManager.ts:1251 on feature/guard-ai-piano) sends the given
-  guards into the existing search in a 6 m ring round a point, then back to their rounds, while the rest hold (GA3).
+  `em.blackoutSearchSlots(slots, x, z)` takes the live section's guard-list indices (there are no `mill:*` ids in code)
+  and `em.blackoutSearch(enemies, x, z)` takes Enemy objects; either sends those guards into the existing search in a
+  6 m ring round a point (its first point is the point itself), then back to their rounds, while the rest hold (GA3).
+  Torch slots exist only on a dark map (map ambient below 0.5); `mainsOff` does not change that, so the mill's ambient
+  must be dark in the map data. SectorMode will not spawn a non-alerted guard within 7 m of a player
+  (sectorMode.ts:921).
   Rain masking: `mapWideNoise('rain', 6)` (`src/ai/hearing.ts`, same PR; that branch's comment calls it "GA7", which
   here is the flash reaction): 6 dB halves every guard's hearing reach. The guard freeze (`src/game/sectorGuardFreeze.ts`) only hides off-screen guards from rendering, so slow-motion
   intro actors need Guard AI's coming `GuardActor` (GA4).
@@ -85,10 +89,10 @@ partner beside him, revealed by the pull-back). Rain on the roof from the first 
 - **EMP beat, in order (S2, host):** `world.level.lights.mainsOff(opX, opY, opZ, 0.8)` at the pressing operator; set
   `world.lightning.t0` to the press time on the shared sim clock (host and client both receive it); the piano seeks
   to 41.0 s under the EMP burst (so the loop and the lightning start together on every page); `em.sceneDark = true`;
-  the section's guards spawn (the opening four on the actors' spots); S2 looks up the spawned guards `mill:0` and
-  `mill:1` (G1 + G2) into a reused array and calls `em.blackoutSearch(those, 5.5, 5.25)`: only the pair you take
-  together searches round W1 (Q2's recommended answer; with "All four" it would add `mill:2`, `mill:3`); G3 and G4
-  walk straight to their sweeps; input on. `mainsOff` holds through a restart (#602), so no start-state retake is needed: a restart re-runs
+  the section's guards spawn (the opening four on the actors' spots); the opening four spawn 4-6 m from the players through a scene exception to the 7 m spawn rule (S2); then
+  `em.blackoutSearchSlots([0, 1], 5.5, 5.25)` (guard-list slots 0 and 1 = G1 + G2): only the pair you take together
+  searches round W1 (Q2's recommended answer; with "All four" it is `[0, 1, 2, 3]`); G3 and G4 walk straight to their
+  sweeps; input on. `mainsOff` holds through a restart (#602), so no start-state retake is needed: a restart re-runs
   `sceneDark`, the spawn and the search (S2 checks the lamps stay off). When the scene ends: `em.sceneDark = false`.
 - Skip: hold Back / Esc for 1 s jumps to the 38 s beat (the music seeks to 38 s); the EMP still needs its press. A
   restart (everyone down) never replays the intro; the music plays on (the scene's mute survives `checkpointReset`'s
@@ -164,7 +168,7 @@ until every guard is down.
 | Upper gallery | 0-32, 15-18 | +4.2 m | Timber deck with a rail; sack stacks GS1 (3-5.4, 17.6-18), GS2 (20-22.4, 17.1-18), GS3 (26-28.4, 17.1-18); the crane bay (x 12-20: the rail open over the crane well, closed to players by a drop bar and hoist chain they cannot cross); the main stair head (x 8.2-9.4); the hoist door (west gable, z 15.8-17.4) | 5 + hoist lamp + exit sign |
 | Machinery floor (off the path) | rest of the ground floor | ground | Roller mills, sifter, crane well; seen, not walked | 1 |
 
-  16 lamps plus the exit sign. Map ambient 0. Windows (lightning only): south wall x 2-4, 11-13, 21-23; west gable z
+  16 lamps plus the exit sign. Map ambient 0: a dark map (below 0.5), so the torch slots exist. Windows (lightning only): south wall x 2-4, 11-13, 21-23; west gable z
   3-5; office east z 8.5-10; north wall at gallery level x 4-6, 13-15, 17-19, 25-27; board gaps east z 2-3.
 - **Floors:** timber boards upstairs (they creak: loud), boards and spilt grain below (grain is quiet), the sack bay's
   sacking quiet (level-design 5.3).
@@ -184,9 +188,9 @@ start and route point is at least 0.5 m clear of a collider.
 
 | Guard | Start (at the EMP) | Fixed sweep (patrol points) | Stretch / kill spot |
 | --- | --- | --- | --- |
-| G1 + G2 (pair; `mill:0`, `mill:1`) | (7.5, 8.7), (8.3, 8.0): came down the stair; the only ones searching round W1 (Q2) | After the search: side by side north of W1, lanes z 8.0 and 8.7, x 3.5 - 8.6 and back | 1, K1 |
-| G3 (`mill:2`) | (9.0, 2.0): came along the aisle; straight to his sweep | (9.5, 2.0) - (20.5, 2.0) - (20.5, 7.0) - (22.8, 7.0), 6 s pan stop, back | 2, K2 |
-| G4 (`mill:3`) | (10.0, 3.4): came along the aisle; straight back to the sack bay | (17, 10.2) - (25.2, 10.2) - (25.2, 12.2), 4 s door check, back | 3 and 5, K5 |
+| G1 + G2 (pair; guard-list slots 0, 1) | (7.5, 8.7), (8.3, 8.0): came down the stair; the only ones searching round W1 (Q2) | After the search: side by side north of W1, lanes z 8.0 and 8.7, x 3.5 - 8.6 and back | 1, K1 |
+| G3 (slot 2) | (9.0, 2.0): came along the aisle; straight to his sweep | (9.5, 2.0) - (20.5, 2.0) - (20.5, 7.0) - (22.8, 7.0), 6 s pan stop, back | 2, K2 |
+| G4 (slot 3) | (10.0, 3.4): came along the aisle; straight back to the sack bay | (17, 10.2) - (25.2, 10.2) - (25.2, 12.2), 4 s door check, back | 3 and 5, K5 |
 | G5 | (20.8, 9.0) | (20.8, 8.6) - (20.8, 12.2) - (24.0, 12.2), 4 s door check, back; a 40 s lap like G4, so they stand 1.2 m apart at the door every 40 s | 3 and 5, K5 |
 | G6 | (29.0, 9.9) | Post at the desk, torch panning the east window and the west door, 8 s each way | 4, K4 |
 | G7 | (28.8, 16.2), gallery | (28.8, 16.2) - (22.6, 16.2), 6 s pan stop, back (his east end 2.5 m from the hatch) | 6, K6 |
@@ -194,7 +198,7 @@ start and route point is at least 0.5 m clear of a collider.
 | G10 | (8.8, 16.2), gallery | Post at the stair head, facing south, torch panning the hall below | 9, K9 |
 | G11 + G12 (pair) | (1.5, 16.1), (1.5, 16.9), gallery | Side by side on the landing, (1.5, 16.5) - (5.5, 16.5), 5 s at each end (east turn 3.3 m from K9) | 10, K10 |
 
-- **The opening four (G1-G4, `mill:0`-`mill:3`)** are the intro's actors: two down the stair (G1, G2), two along the
+- **The opening four (G1-G4, guard-list slots 0-3)** are the intro's actors: two down the stair (G1, G2), two along the
   aisle (G3, G4). Only G1 + G2 search W1 (Q2 recommended); G3 and G4 walk to their sweeps.
 - **Up to 16 (if SO3's check allows):** G13 a second office post (stretch 4 becomes two solo kills), G14 a second
   stalked guard behind G7 (stretch 6), G15 + G16 a pair at the stair head (stretch 9 becomes a co-op kill).
@@ -281,7 +285,8 @@ element register). Sector Ops runs SO2 (bake), SO4 (lux check) and the `?lightni
 AI plans GA6 on its data.
 - Files: maps/thornbeckMill.ts, tests/thornbeckMill.test.ts, docs/piano-escape/ELEMENTS.md. Est. ~800 lines.
 - Checks: vitest thornbeckMill (12 guards + 4 tagged, each with a takedown spot and a fixed route; every start and
-  route point 0.5 m clear of colliders; every lamp electric, no group; ambient 0; the rain source present; the
+  route point 0.5 m clear of colliders; every lamp electric, no group; ambient 0 (a dark map: torch slots present);
+  the rain source present and `validateGuardAi` clean; the
   `lightning` entries match section 2b; the path walkable start to hoist door in stretch order; no walkable cell, drop
   or ledge from the path into the machinery floor (the crane-bay bar holds); the stair gate one-way); e2e:
   `affected-e2e` (e2e-levels).
@@ -293,15 +298,18 @@ camera path rising to about 7.5 m, fades, skip, prompt state; no allocation per 
 (Babylon via `src/core/babylon.ts`: the render-only camera override, the fade, the letterbox, the four intro actors,
 tracers and grain-dust sparks at 0.3x with reused scratch vectors, the EMP burst, the two framed reveals in play); the
 EMP as an interactable on each operator (host-checked, either player); the EMP beat exactly as section 2 (`mainsOff`,
-`world.lightning.t0`, the piano seek to 41.0 s, `sceneDark`, spawn, the spawned `mill:0` and `mill:1` resolved into a
-reused array, `em.blackoutSearch(those, 5.5, 5.25)`, input on); `introPose(true/false)` (knife job S4b).
+`world.lightning.t0`, the piano seek to 41.0 s, `sceneDark`, spawn, `em.blackoutSearchSlots([0, 1], 5.5, 5.25)`,
+input on); `introPose(true/false)` (knife job S4b). **The 7 m spawn rule (sectorMode.ts:921):** a scene seam lets the
+scene's start spawns place the opening four on their stop spots 4-6 m from the players (only in a `scene` map, only at
+the EMP spawn; every other spawn keeps the rule); vitest pianoScene: the four spawn on their spots with players 4 m
+away in the scene map, and the 7 m rule still holds for a normal Sector Ops spawn.
 `pianoScene.ts` never imports `src/net`. New suite `scripts/e2e-piano.mjs` (solo): intro, skip to the prompt, the
 press kills every lamp and sets t0, the meter reads dark, input on, restart without intro and with the lamps still off.
 - Stubs until the others land: static posed guard stand-ins for the intro actors until Guard AI's `GuardActor` (GA4;
   then swapped in); `wall_idle` with the pistol stance until `introPose`; `mainsOff`, `sceneDark` and the lightning
   once #602, #603 and #604 are on master (until then a whole-map `disrupt`, today's torch rule, no flashes).
 - Files: pianoIntro.ts, pianoIntroView.ts, pianoScene.ts, gameState.ts (one render-override seam), sectorMode.ts
-  (spawn-after-EMP seam), scripts/e2e-piano.mjs, run-e2e.mjs, e2e-affected.mjs (a DIRECT_COVERS row for
+  (spawn-after-EMP and start-spawn exception seams), scripts/e2e-piano.mjs, run-e2e.mjs, e2e-affected.mjs (a DIRECT_COVERS row for
   `src/game/piano*` and `src/world/maps/thornbeckMill.ts`), tests/pianoIntro.test.ts. Est. ~1100 lines.
 - Checks: typecheck; vitest pianoIntro (timeline at 0 / 3 / 9 / 16 / 30 / 38 s; camera path continuous and inside the
   start bay; skip; no timeScale writes); e2e: e2e-piano + `e2e-coop` + `e2e-netmove`; one GPU look video of the intro
@@ -327,7 +335,7 @@ client's intro ends on the host's EMP and takes the same t0, so its flashes and 
 its piano seeks to 41.0 s at the same moment (a small drift between a page's music and the flashes is a walk note).
 Extend `e2e-piano` with a two-tab `?net=local` run: the client presses the EMP, both pages go dark, a flash lights both
 pages at the same `t` (within 100 ms), a co-op kill on G1 + G2, a solo kill each, both on the hoist platform end it on
-both pages; a restart keeps the lamps off. Both pages need the flag (a client without it falls back to
+both pages; a restart keeps the lamps off; and the start is survivable: at the cut G1 + G2 walk their search from W1 itself with lit torches 5-7 m away, and both players can move off the wall before either is seen. Both pages need the flag (a client without it falls back to
 `provingGrounds`, `getMap`). If SO3 is not in yet, S4 runs on the 8-guard set.
 - Files: pianoScene.ts, coopHost.ts, coopClient.ts (if needed), scripts/e2e-piano.mjs. Est. ~400 lines.
 - Checks: typecheck; vitest pianoScene; e2e: exactly `e2e-coop` + `e2e-netmove` + `e2e-ctcourse` (src/net) +
@@ -413,7 +421,7 @@ lightning flash); no extra sight rule.
 | Ask | What | Where used | Size | Blocks |
 | --- | --- | --- | --- | --- |
 | GA1 | **Built (PR #603, open):** `em.sceneDark`: torches on in every state, no lights-out incident; the scene sets it back to `false` when it ends. | Whole escape | done | none |
-| GA3 | **Built (PR #603, open):** `em.blackoutSearch(guards, x, z)`: the given guards search a 6 m ring round the point, the rest hold. S2 resolves `mill:0`, `mill:1` to their spawned guards and calls it right after the spawn. | The EMP | done | none |
+| GA3 | **Built (PR #603, checks passed):** `em.blackoutSearchSlots(slots, x, z)` / `em.blackoutSearch(enemies, x, z)`: the given guards search a 6 m ring round the point (first point: the point itself), the rest hold. S2 calls `blackoutSearchSlots([0, 1], 5.5, 5.25)` right after the spawn. | The EMP | done | none |
 | GA4 | **GuardActor (Guard AI builds next):** a guard rig driven along a path at a set rate with the aimed walk and fire poses, no AI, not in the enemy lists; Guard AI sends the API. | Intro 30-38 s | S | none (S2 uses static posed stand-ins, then swaps) |
 | GA5 | Review the guards' routes, pairs and posts in `thornbeckMill.ts` (data; `validatePosts`; pairs as guard pairs, G335). | S1b data | XS | none |
 | GA6 | **The slow methodical sweep (scene-only; the scene's main guard behaviour).** While `sceneDark`, each guard walks his fixed patrol points from the map at a slow pace (about 0.7 m/s) and at each stop pans his torch left, centre, right over about 3 s, the same order every lap; pairs walk side by side and pan to opposite sides; after any search or investigation he rejoins his route at its nearest point. The routes stay map data; GA6 adds only the pace and the torch aim. Planned by Guard AI once S1b's data lands. | Every stretch | M (two Opus checkers) | S4 |
@@ -464,6 +472,7 @@ approval). G127 / G146 are already his pick for this scene; G367 holds (the EMP 
 ## Walk items
 - Main menu > Piano Escape (`?piano=1`, or /preview/): the intro, the pull-back on the swell, the EMP - accept when it
   feels like the scene Michael described.
+- The cut to play: G1 + G2's lit torches walk straight at the wall from 5-7 m (their search starts at W1 itself) - accept when both players can slip off the wall unseen; if not, a walk note.
 - Same, co-op (both players with the flag; Co-op > host > Sector Ops > Thornbeck Mill): the ten stretches in order,
   the lightning on the music, the four paired kills - accept when it is tense, cinematic and never feels like
   exploring.
