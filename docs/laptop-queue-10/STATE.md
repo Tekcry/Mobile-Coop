@@ -56,3 +56,10 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   CPU reading (laptop-queue-10 S3)", 5 cases + 2 backgroundCpuMs asserts updated for the new fields; laptop-queue 245 +
   autoTrain 71 = 316 pass; typecheck:fast clean; BG_CPU_PS run once by hand (parses). +139 / -34 (lib 34/9, service
   60/22, tests 45/3).
+- 2026-10-26: S4 (Opus builder, feature/laptop-queue-10b, 82e57981e): stacked PRs last (F22). lib prBoard `base` /
+  `stacked` (base not master; missing = master-based); pick order.stacked: the green, starvation and arrival tiers run
+  over the master-based requests while any is open, else the stacked (no wait bound for stacked); desktop smallest sorts
+  stacked last; fix and front tiers unchanged. service LQ_STACKED_LAST, prBoardNow reads baseRefName (same gh call),
+  order built when STACKED_LAST too, "order:" line adds "stacked <k> (last)". Tests: describe "pick: master-based before
+  stacked (laptop-queue-10 S4)", 8 cases + the prBoard shape assert gains base / stacked; laptop-queue 253 + autoTrain
+  71 = 324 pass; typecheck:fast clean. +113 / -17 (lib 18/7, service 12/7, tests 83/3).
