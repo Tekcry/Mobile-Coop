@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 6 2026-10-26T08:59Z
+status: done feature/marlow-kit-wire d3e2e747b9eacc44e8c0a8a3ea8f0800f66a46ae
 
 # Brief marlow-kit-wire: Marlow Yard kit stations on Player Build's kit API
 
@@ -302,3 +302,67 @@ each:
 - Two players everywhere: no solo path is added; a lone player at a kit-on station waits for the partner, as today.
 
 ## Report (builder appends below)
+
+### Report (Night Shift | Cloud Builder 6, 2026-10-26)
+**Branch:** feature/marlow-kit-wire, head d3e2e747b9eacc44e8c0a8a3ea8f0800f66a46ae, base db7ef88fd (feature/marlow-kit-base).
+14 files, +617 / -48, only the brief's files.
+
+**Commits:**
+- 2a530c18: the code.
+- 637fac91: the tests.
+- d3e2e747: STATIONS.md and the changelog fragment.
+
+**What changed**
+- **`kitMoveOn`** lives in `stationDef.ts` and returns `flags.kitMoves.has(kit)`. `courseState.ts` re-exports it, and the
+  stale KS1-KS5 comment is rewritten.
+- **`CourseState`:**
+  - `StRt.kk` holds `kit:<id>`.
+  - `advanceStations` needs the place flag, plus the kit credit while the kit is on.
+  - New `kitDone(kind, spot)`.
+  - `startStation` sets the credit of each kit-on station it passes.
+  - `GateRt.kit` covers the stand-in and the station's gates on the stand-in's doors.
+  - `press` skips a held gate and returns `REFUSE_KIT_HELD` when the press was its switch (a new `switchedBy` helper:
+    lever / egress / pickup switch, bolt door, pair plate, isolator).
+- **`CourseMode`:** `onKitDone` (sets `dirty` on a credit); `onStationRetry` calls `g.team?.resetKit()` when the station's
+  kit is on.
+- **Spots,** all placed unconditionally:
+  - `a2-plank` (from the new `A2_BOARD_STACK`, which the dressing loop now uses).
+  - `a4-deadweight` (from the new `A4_DEADWEIGHT` { x 101.75, off 1.5 } and `A4_GRILLE`; the chain skins move to both grips).
+  - `a5-chimney` and `a5-swing` (from `A5_GAP`, `A5_WALLTOP`, `A5_CABLE_TRENCH`, `A5_GANTRY`, `A5_GANTRY_PIPE_Y`).
+  - `a6-dropcatch` (the new `A6_DROP_CATCH` { 52.5, 65.4 }, at `A6_HANG.deck`).
+- **Kit-on texts** are exported constants (`A2_PLANK_KIT_TEXT`, `A5_CHIMNEY_KIT_TEXT`, `A5_SWING_KIT_TEXT`,
+  `A6_DROP_KIT_OBJECTIVE`, `A6_DROPCATCH_KIT_RETRY`). They are picked in the builders, while the set builds, and the existing
+  constants keep the kit-off text. Every line is at most 90 characters.
+- **STATIONS.md:** the section 2 rows have their spots; the section 6 row 16 has its kit-off line; section 8 has the credit
+  sentence; SA11 is updated; SA16 is new.
+- **Changelog:** `changes/feature-marlow-kit-wire.md` (`kind: minor`; it parses, `tests/changesFragments.test.ts` green).
+
+**Tests**
+- `npm run typecheck:fast`: clean. eslint on all 12 changed ts files: clean.
+- `npx vitest run` on the 8 named files: **240 passed, 2 todo**:
+  - courseStation: 60 (8 new).
+  - The A2 / A4 / A5 / A6 set tests: 3 + 4 + 3 + 3 new, plus Q1 and Q2 as `it.todo`.
+  - courseConsole, marlowN4Hold, kitApi: unchanged and green.
+- With every kit id off, every existing test passed unchanged; no existing assertion was edited.
+- `node scripts/doc-lint.mjs`: 1 error, `docs/systems/coop.md:386` links `docs/coop-kit/PLAN.md`, which does not exist on
+  this base. It is on the base too (checked with my changes stashed), and it is not a G-file of this brief; for the lead.
+
+**Deviations**
+1. **`door` is a string of the anchor id.** `KitSpot.door` is a `string`, but `p.doors[...]` holds the door anchor's
+   numeric id. The spot carries `String(p.doors[A4_GRILLE_DOOR])` (A5: "the door anchor's id"), and K1 must compare
+   `String(anchor.id)`. Lead: confirm with Player, as A5 says.
+2. **Fake team in the rig.** The courseStation rig's fake game gets `team` in the new tests only, set on the mode's `g` by a
+   local helper, so the shared `rig` stays as it was.
+3. **A6 retry-line source.** The kit-on retry line is chosen in the builder's radio loop, not by editing
+   `A6_RETRY_LINES`, so that constant keeps its kit-off text (A6).
+4. **The bolt test.** The held-gates test places the presser on the bolt's side after the rig's step, because the rig
+   resets the host's feet each step.
+
+**Pending PC run:** the replan e2e modules `a2CarriageShed`, `a4GoodsShed`, `a5Substation`, `a6PumpHouse`, with every
+kit id off (the stand-in path must be unchanged). No kit-on e2e until a K slice ships its move.
+
+**Open for the lead:**
+- Q1-Q3 as written (the A2 board landing, the A5 swing landing, the A5 chimney's east wall). Each is unchanged and must be
+  settled before its K slice adds the id, or /preview/ soft-locks there.
+- The A5 door-id form (deviation 1).
+- The `coop.md` link error.
