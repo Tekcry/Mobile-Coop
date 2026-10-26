@@ -1039,8 +1039,8 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    zoneX/Z (placeSlot only). Check A PASS, B FIX 1 (e2e player spot behind pillar) -> fix b6ec17ab6 (+ s1b merged), re-check PASS,
    checker posted on c310f9cbe; laptop mh-s3b queued on b6ec17ab6 (stealth-ai, guard-carry, sectorops:1). Laptop mh-s1a2-early + mh-s1b-early FAIL (deterministic, e2e-stealth-ai 'mission order': woken tagged guard 'woken false', assert from S1a-2 fix 2b9947b9a): triage = TEST bug (hidden body: revive refuses; fix unhides K) -s1a2 669290cef; merged into -s1b 15de69118, laptop mh-s1b-fix (stealth-ai) queued; merged into s3b (withdrawn 11:50; suites stealth-ai, guard-carry, sectorops:1). ai.md lines in the S3b
    report (fold later). S4 BUILT -s4 6fb0e1b32 (base 86fb4164b = S3b + S2; +510; 15 files 273/273);
-   checks A + B PASS (head 77e65e3f6). Checker status NOT posted: the agent post and a relay to the
-   orchestrator were both blocked by auto mode (12:35); Michael posts it or allows it (not routed via peers). ONE laptop set mh-s4 on 77e65e3f6 (refiled 13:44, orchestrator audit; was 6fb0e1b32) covers the
+   checks A + B PASS (head 77e65e3f6). Checker status POSTED by the lead 14:08 (bypass mode).
+   ONE laptop set mh-s4 on 77e65e3f6 (refiled 13:44, orchestrator audit; was 6fb0e1b32) covers the
    stack (S1a-2 fix, S1b, S3b, S4; stealth-ai, guard-carry, sectorops:1); mh-s1b-fix + mh-s3b withdrawn 12:20. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
    Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
 7b. NEW (orchestrator 12:41, rule fix G298, not walk-capped): the runner guard must be armed. J19 S4 gave him the
