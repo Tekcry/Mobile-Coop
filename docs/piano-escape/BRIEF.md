@@ -21,6 +21,8 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 - 2026-10-26 ~19:55, chat (relayed by the orchestrator): "Also, right before giving the player control, once the player
   knows they are surrounded and getting shot at and they have no ammo, they should activate an EMP which knocks out all
   the lights, forcing all the guards to use flashlights and the mission will play in pure darkness."
+- 2026-10-26 ~20:05, chat (relayed by the orchestrator): "Not a piano factory, it's an underground bunker storage room
+  with timber boxes providing cover. The piano is the music theme only."
 
 ## Michael picked
 - 2026-10-26 ~19:28 Q: where the experiment lives -> picked: "Inside Night Shift (Recommended)" (a standalone co-op
@@ -83,8 +85,9 @@ every guard must be taken down with a knife in the shadows before the exit opens
 - A7: The music plays from a bundled copy of the MP3 inside the scene's lazy-loaded chunk (no network), only while the
   scene runs; credited in `docs/audio-credits.md` (Pixabay Content License: commercial use allowed, no attribution
   required, credit given anyway). Undo: remove the asset; the scene runs silent.
-- A8: Original setting and names (G5, G6): a night in Hollowmere, two NIGHT SHIFT operators, a small building of the
-  plan's choice. No radio story beyond one or two subtitle lines, written so they can be voiced later (G82).
+- A8: Original setting and names (G5, G6): a night in Hollowmere, two NIGHT SHIFT operators, an underground bunker
+  storage room with timber crates as cover (Michael ~20:05), map id `underhollow` ("Underhollow Store"); no windows,
+  so after the EMP only guard torches give light. The scene key stays `piano` (the music theme). No radio story beyond one or two subtitle lines, written so they can be voiced later (G82).
 - A9: No rating, no score screen: the scene ends on a short fade out after both players reach the exit.
 
 ## Questions for Michael (one click each, asked by day)
