@@ -10,6 +10,7 @@ import { MOVEMENT } from '../../src/config/movement';
 import { getMap } from '../../src/world/maps';
 import { isListedMap } from '../../src/world/maps/listed';
 import { buildShell, tallowWharf } from '../../src/world/maps/tallowWharf';
+import { campusOps } from '../../src/world/maps/campusOps';
 import { W1 } from '../../src/world/maps/tallowWharfW1';
 import { W2 } from '../../src/world/maps/tallowWharfW2';
 import { W3 } from '../../src/world/maps/tallowWharfW3';
@@ -32,6 +33,18 @@ describe('tallowWharf: the map', () => {
     expect(tallowWharf.theme.fogEnd).toBe(120);
     expect(tallowWharf.navLayers).toBe(4);
     expect(tallowWharf.detail).toBe(false);
+  });
+
+  it('(A24, M2) throwSites lists exactly two, the pawn and lane throws (5.8 m along runner -> thrower); each build returns a new array', () => {
+    const sites = builtWharf().layout.throwSites;
+    expect(sites).toEqual([
+      { x: 51.2, z: 67.2, dx: 0, dz: 1, dist: 5.8 },
+      { x: 76.7, z: 66, dx: 1, dz: 0, dist: 5.8 },
+    ]);
+    const a = tallowWharf.build(new LevelBuilder(), 0).throwSites;
+    const b = tallowWharf.build(new LevelBuilder(), 0).throwSites;
+    expect(a).toEqual(b);
+    expect(a).not.toBe(b);
   });
 
   it('WHARF_BOUNDS, SECTION_BOX and SECTION_IDS are the graph\'s', () => {
@@ -100,6 +113,28 @@ describe('tallowWharf: the map', () => {
       for (const s of spacesIn(id))
         for (const [x0, z0, x1, z1] of s.area) expect(x0 >= bx0 && z0 >= bz0 && x1 <= bx1 && z1 <= bz1, `${s.id} in ${id}`).toBe(true);
     }
+  });
+});
+
+describe('tallowWharf: the night floor and the medkits (J8 G0)', () => {
+  it('the theme\'s sun, ambient and light level are the campus\'s (the night floor sits in the ambient zone, not the theme)', () => {
+    expect(tallowWharf.theme.sunIntensity).toBe(campusOps.theme.sunIntensity);
+    expect(tallowWharf.theme.ambient).toBe(campusOps.theme.ambient);
+    expect(tallowWharf.theme.lightLevel).toBe(campusOps.theme.lightLevel);
+  });
+
+  it('the map-wide standby fill reads 0.14 at every section box\'s centre and on the canal steps (a cut circuit reads dark)', () => {
+    const { b, layout } = builtWharf();
+    for (const id of SECTION_IDS) {
+      const [x0, z0, x1, z1] = SECTION_BOX[id];
+      expect(b.lights.zoneAt((x0 + x1) / 2, 1, (z0 + z1) / 2), id).toBe(0.14);
+    }
+    const sp = layout.playerSpawns[0]!.pos;
+    expect(b.lights.zoneAt(sp.x, 1, sp.z)).toBe(0.14);
+  });
+
+  it('the layout\'s medkit walls are the sections\' medkits in section order', () => {
+    expect(builtWharf().layout.medkitWalls).toEqual([W1, W2, W3, W4].flatMap((s) => s.medkits ?? []));
   });
 });
 

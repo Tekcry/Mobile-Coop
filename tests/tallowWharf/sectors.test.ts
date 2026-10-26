@@ -23,7 +23,7 @@ import { W3, W3_KEY_POSTS } from '../../src/world/maps/tallowWharfW3';
 import { W4 } from '../../src/world/maps/tallowWharfW4';
 import { SECTION_BOX, type WharfSection } from '../../src/world/maps/tallowWharfKit';
 import { downCast, runtimeNav } from '../helpers/runtimeNav';
-import { builtWharf, GRAPH, solidOf } from './helpers';
+import { builtWharf, GRAPH, soloNav, solidOf, type ShutDoor } from './helpers';
 
 const SECTIONS: readonly WharfSection[] = [W1, W2, W3, W4];
 const guards = sectorGuardIds(WHARF_SECTORS);
@@ -206,7 +206,7 @@ describe('tallowWharf missions: against the graph files', () => {
 });
 
 describe('tallowWharf guards', () => {
-  it('counts: W1 9, W2 10, W3 10, W4 12; the graph\'s sums plus the listed extras', () => {
+  it('counts: W1 9, W2 10, W3 10, W4 12; the graph\'s sums', () => {
     expect(WHARF_SECTORS.map((s) => s.guards.length)).toEqual([9, 10, 10, 12]);
     const sums: Record<string, number> = { W1: 0, W2: 0, W3: 0, W4: 0 };
     for (const sp of GRAPH.spaces) {
@@ -458,9 +458,14 @@ describe('tallowWharf bolts', () => {
     // places that are no room: the stair cores and the W3 coal-yard vestibule; 'open' = no room or core (a lightwell, open air)
     const CORES: Record<string, [number, number, number, number]> = {
       'w1-warden-core': [6.2, 44, 7.8, 52],
-      'w2-pawn-core': [52.2, 62.2, 53.8, 69.9],
+      'w1-ladder-cage': [6.0, 14.4, 7.75, 15.6],
+      'w2-pawn-core': [44, 62, 53.85, 63.5],
       'w2-pie-core': [56.2, 62.2, 57.8, 69.9],
+      'w2-west-bridge': [44, 67.6, 45.5, 73.5],
+      'w2-east-bridge': [68.5, 70, 70, 73.5],
+      'w2-stair-landing': [54, 70, 56, 73.5],
       'w3-coalyard-vestibule': [98, 50, 99.85, 51.7],
+      'w3-bulkhead-core': [112.4, 58.6, 115.2, 69.4],
     };
     const rooms = SECTIONS.flatMap((q) => q.rooms);
     const place = (x: number, y: number, z: number): string => {
@@ -470,9 +475,9 @@ describe('tallowWharf bolts', () => {
     };
     // [draw side, other side] per bolt, in the brief's order
     const want: Record<string, [string, string][]> = {
-      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall']],
-      W2: [['w2-pawn-loft', 'w2-pawn-core'], ['w2-pie-loft', 'w2-pie-core'], ['w2-clock-loft', 'w2-reading-room'], ['w2-pawn-loft', 'open'], ['w2-pie-loft', 'open']],
-      W3: [['w3-chute', 'open'], ['w3-coalyard-vestibule', 'w3-passage'], ['w3-roof', 'open'], ['w3-cartway', 'w3-coal-yard']],
+      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall'], ['w1-ladder-cage', 'w1-canal-steps']],
+      W2: [['w2-pawn-core', 'w2-arcade'], ['w2-pie-loft', 'w2-pie-core'], ['w2-pawn-loft', 'open'], ['w2-pie-loft', 'open'], ['w2-west-bridge', 'w2-pawn-loft'], ['w2-east-bridge', 'w2-lane-window'], ['w2-reading-room', 'w2-stair-landing']],
+      W3: [['w3-chute', 'open'], ['w3-coalyard-vestibule', 'w3-passage'], ['w3-roof', 'open'], ['w3-cartway', 'w3-coal-yard'], ['w3-east-wing', 'w3-bulkhead-core']],
       W4: [['w4-shed-three', 'w4-shed-yard'], ['w4-jetty', 'w4-shed-yard']],
     };
     WHARF_SECTORS.forEach((s, i) => {
@@ -488,9 +493,36 @@ describe('tallowWharf bolts', () => {
   });
 
   it('the bolt counts and indexes are the brief\'s (the flags W<n>-bolt<k> fix them)', () => {
-    expect(WHARF_SECTORS.map((s) => s.bolts?.length)).toEqual([2, 5, 4, 2]);
-    expect(WHARF_SECTORS[1]!.bolts![3]!.w).toBe(2.0);
-    expect(WHARF_SECTORS[1]!.bolts![4]!.w).toBe(2.0);
+    // (J8 G2) W2: the clock-mender's bolt is gone (A29), the two bridge gates and the stair head are added (A5, A25); W3: the
+    // bulkhead foot (A30)
+    expect(WHARF_SECTORS.map((s) => s.bolts?.length)).toEqual([3, 7, 5, 2]);
+    const w2 = WHARF_SECTORS[1]!.bolts!;
+    expect(w2.map((bl) => bl.w ?? null)).toEqual([null, null, 2.0, 2.0, null, null, null]);
+  });
+
+  it('(A30) W3 bolt 4 is the bulkhead foot leaf (hinge y 0), fitted in Two-Key Ledger only; no other bolt sets missions', () => {
+    const w3 = WHARF_SECTORS[2]!.bolts!;
+    const k = w3.findIndex((bl) => bl.missions !== undefined);
+    expect(k).toBe(4);
+    expect(w3[k]!.missions).toEqual(['twoKeyLedger']);
+    expect(WHARF_MISSIONS.some((m) => m.id === 'twoKeyLedger')).toBe(true);
+    for (const s of WHARF_SECTORS) s.bolts?.forEach((bl, i) => expect(bl.missions === undefined || (s.id === 'W3' && i === k), `${s.id} bolt ${i}`).toBe(true));
+    const foot = W3.doors['w3-bulkhead-foot']!;
+    expect([w3[k]!.at[0], w3[k]!.at[1]]).toEqual([foot[0], foot[2]]);
+    expect(foot[1]).toBe(0);
+    // the door anchor under it is the foot leaf: hinge y 0 (the top leaf shares its x / z at 8.4)
+    const leaves = builtWharf().b.anchors.doors.filter((d) => Math.abs(d.hinge.x + (Math.sin(d.yaw) * d.width) / 2 - foot[0]) < 1e-6 && Math.abs(d.hinge.z + (Math.cos(d.yaw) * d.width) / 2 - foot[2]) < 1e-6);
+    expect(leaves.length).toBeGreaterThanOrEqual(1);
+    expect(leaves.map((d) => d.hinge.y).sort((a, c) => a - c)[0]).toBe(0);
+  });
+
+  it('(A30) no Three Grey Coats step reads the unfitted bulkhead bolt', () => {
+    // a bolt not fitted in a run (`SectorBolts.unfit`, `sectorTeamDoors.ts` build) is a plain door, so the mission's bolt poll
+    // (`<sec>-bolt<k>`, `sectorMission.ts`) would read it as already drawn. A run with no mission bound (`build(undefined)`) also
+    // leaves the bulkhead unfitted, so it stands open; only Two-Key Ledger fits it
+    const k = WHARF_SECTORS[2]!.bolts!.findIndex((bl) => bl.missions !== undefined);
+    expect(k).toBeGreaterThanOrEqual(0);
+    expect(new MissionRunner(THREE_GREY_COATS, 2).flags).not.toContain(`W3-bolt${k}`);
   });
 
   it('W3 bolts both leaves of the cart gate: the wicket by the connector, the roller leaf by a bolt on the same line', () => {
@@ -519,6 +551,63 @@ describe('tallowWharf routes on the runtime nav grid', () => {
       }
     }
     expect(fails).toEqual([]);
+  });
+
+  it('(J8 G2) W2 has three routes: the lane throw point moved to the new thrower (76.7, 66, 8.4); the third walks the west downpipe (E11)', () => {
+    const w2 = WHARF_SECTORS[1]!.routes;
+    expect(w2).toHaveLength(3);
+    for (const r of w2) {
+      expect(r.pts.some((p) => p[0] === 76.7 && p[1] === 66 && p[2] === 8.4), r.name).toBe(true);
+      expect(r.pts.some((p) => p[0] === 78.9), r.name).toBe(false);
+    }
+    const pipe = w2[2]!;
+    expect(pipe.name).toBe('West pier and the downpipe');
+    expect(pipe.climbs).toContain(9);
+    expect([pipe.pts[9]!, pipe.pts[10]!]).toEqual([[47.5, 61.0, 4.5], [47.5, 62.6, 8.4]]);
+  });
+
+  it('(A30, TGC state) with the east gate shut and the bulkhead foot open, every walked leg of both W3 routes still has a path', () => {
+    const { b, layout } = builtWharf();
+    const gate = W3.doors['w3-east-gate']!;
+    const shut: ShutDoor[] = [{ at: [gate[0], gate[2]], y: 0, w: 1.2, alongX: true }];
+    const { nav, restore } = soloNav(b, tallowWharf.navLayers ?? 3, [layout.playerSpawns[0]!.pos, ...(layout.navSeeds ?? [])], shut);
+    const fails: string[] = [];
+    try {
+      for (const r of WHARF_SECTORS[2]!.routes) {
+        for (let i = 0; i + 1 < r.pts.length; i++) {
+          if ((r.climbs ?? []).includes(i)) continue;
+          const a = r.pts[i]!;
+          const c = r.pts[i + 1]!;
+          if (!nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`"${r.name}" leg ${i} ${JSON.stringify([a, c])}`);
+        }
+      }
+      // control: the shut gate bites (no straight way through it from the yard side to the wing side at the gate)
+      expect(nav.walk[nav.cellOf(gate[0], gate[2], 0)]).toBe(0);
+    } finally {
+      restore();
+    }
+    expect(fails).toEqual([]);
+  });
+
+  it('(J8 G2) W3 guard 1, the watchman\'s mate: his round lies inside w3-east-yard and every route point is on the nav grid', () => {
+    const { b, layout } = builtWharf();
+    const g = WHARF_SECTORS[2]!.guards[1]!;
+    expect(g.route).toEqual([[111.0, 48.6], [112.0, 50.9], [113.4, 49.5], [113.4, 45.0], [109.0, 45.0]]);
+    const yard = W3.rooms.find((r) => r.id === 'w3-east-yard')!;
+    const nav = runtimeNav(b, layout.playerSpawns[0]!.pos, tallowWharf.navLayers ?? 3, layout.navSeeds ?? []);
+    for (const p of g.route!) {
+      expect(inRoom(yard, p[0], p[1], 0), `(${p[0]}, ${p[1]}) in the east yard`).toBe(true);
+      const i = nav.cellOf(p[0], p[1], 0);
+      expect(nav.isWalkable(i) && Math.abs(nav.cellHeight(i)) < 0.1, `(${p[0]}, ${p[1]}) on the nav grid`).toBe(true);
+    }
+    // the closed loop's legs are walked too
+    const n = g.route!.length;
+    for (let i = 0; i < n; i++) {
+      const a = g.route![i]!;
+      const c = g.route![(i + 1) % n]!;
+      expect(nav.findPath(a, c, 200000, 0, 0), `leg ${i}`).not.toBeNull();
+    }
+    console.info(`W3 guard 1 takedown spot: (${g.takedownSpot[0].toFixed(2)}, ${g.takedownSpot[1].toFixed(2)})`);
   });
 });
 

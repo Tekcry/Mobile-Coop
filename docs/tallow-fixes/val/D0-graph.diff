@@ -1,0 +1,353 @@
+diff --git a/docs/missions/prototypes/campaign-map/graph.json b/docs/missions/prototypes/campaign-map/graph.json
+index ad016b49e..a8fc81d8a 100644
+--- a/docs/missions/prototypes/campaign-map/graph.json
++++ b/docs/missions/prototypes/campaign-map/graph.json
+@@ -6,7 +6,7 @@
+     "players": [2],
+     "sections": ["W1", "W2", "W3", "W4"],
+     "bounds": [0, 0, 120, 80],
+-    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 with no TGC step there: down the roof fire escape into the east wing, then the strongroom passage and the coal chute (vent unlock) into the coal yard and out the cartway. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6.",
++    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 with no TGC step there: down the roof fire escape into the east wing, then the strongroom passage and the coal chute (vent unlock) into the coal yard and out the cartway. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6. D0 (J8 tallow-fixes, 2026-10-26): the wave-0 graph from EGRESS section 1 (way-back bridges, the reading-room stair head, the jetty drop, the long throws, A29, A30, the tank room, the pawn stair, the TGC / TKL splits).",
+     "section_info": {
+       "W1": {
+         "name": "Night market",
+@@ -66,7 +66,7 @@
+       "size": [8, 8.5, 12],
+       "area": [[12, 6, 20, 14.5]],
+       "tension": 2,
+-      "tags": [],
++      "tags": ["split:tgc-leads:b"],
+       "note": "Open-air break pocket (break_room sizes, open sky). Light: paraffin lamp on the counter (lit by default, turned down by hand or shot); the dark nook between the urn crates and the canal rail is within 3 m of the bench (overheard trigger)."
+     },
+     {
+@@ -103,7 +103,7 @@
+       "size": [4, 32, 12],
+       "area": [[2, 14, 6, 46]],
+       "tension": 2,
+-      "tags": [],
++      "tags": ["split:tgc-leads:a", "overwatch:tgc-leads"],
+       "note": "corridor class for a 4 m walk (open sky, exterior). Dark: no lamps on the gallery; the trimmer's ladder is taken home at night (why the boost lip is co-op)."
+     },
+     {
+@@ -116,7 +116,7 @@
+       "size": [8, 8, 3],
+       "area": [[0, 46, 8, 54]],
+       "tension": 3,
+-      "tags": [],
++      "tags": ["split:tgc-leads:a"],
+       "note": "Lit desk lamp (switch by the gallery door). Two ways out besides the gallery door: the warden's stair (bolted at its foot) and the inspection hatch over the fish hall, so it is no dead end."
+     },
+     {
+@@ -267,7 +267,7 @@
+       "area": [[60, 73.5, 70, 80]],
+       "tension": 2,
+       "tags": [],
+-      "note": "Dark (the mender has gone home); his door to the landing is bolted on his side."
++      "note": "Dark (the mender has gone home). A29: the clock-mender is out and has locked his door from both sides; the plank bridge slice PB restores this link, G403 (the graph's old door link w2-reading-room -> w2-clock-loft is deleted until then). The clock loft's way back is the east bridge (EGRESS E2) into the lane-window loft."
+     },
+     {
+       "id": "w2-lane-window",
+@@ -305,7 +305,7 @@
+       "size": [28, 38, 12],
+       "area": [[82, 52, 120, 80]],
+       "tension": 2,
+-      "tags": ["entry"],
++      "tags": ["entry", "overwatch:tkl-wings"],
+       "note": "custom: roof walk, no sheet class. Sees the east yard, the east gate lamp and the porter's lodge lamp (TKL). Dark by default; the turret clock face is lit (landmark)."
+     },
+     {
+@@ -318,7 +318,7 @@
+       "size": [14, 14, 12],
+       "area": [[100, 38, 114, 52]],
+       "tension": 4,
+-      "tags": ["checkpoint"],
++      "tags": ["checkpoint", "split:tkl-wings:b"],
+       "shadow_pct": 0.5,
+       "los_break_s": 4,
+       "vantage": {
+@@ -355,7 +355,7 @@
+       "size": [14, 22, 3.3],
+       "area": [[106, 52, 120, 74]],
+       "tension": 4,
+-      "tags": [],
++      "tags": ["split:tkl-wings:b"],
+       "shadow_pct": 0.5,
+       "los_break_s": 3,
+       "vantage": {
+@@ -431,7 +431,7 @@
+       "size": [14, 22, 3.3],
+       "area": [[82, 52, 96, 74]],
+       "tension": 4,
+-      "tags": [],
++      "tags": ["split:tkl-wings:a"],
+       "shadow_pct": 0.55,
+       "los_break_s": 3,
+       "vantage": {
+@@ -674,6 +674,7 @@
+       "to": "w1-gallery",
+       "kind": "coop_boost",
+       "route": "high",
++      "assist": "tgc-leads",
+       "level_change": 4.4,
+       "length": 21.5,
+       "time_s": 5,
+@@ -871,8 +872,9 @@
+       "level_change": 4.5,
+       "length": 27,
+       "time_s": 12,
++      "bolted": true,
+       "at": [55, 0, 65.875],
+-      "reason": "The arcade's public stair at its west end, up the walled stair hall between the loft rows to the reading room landing (lit; walled from the walkway)"
++      "reason": "The arcade's public stair at its west end, up the walled stair hall between the loft rows to the reading room landing (lit; walled from the walkway); the landing door at the stair head (55, 4.5, 73.5) has a push bar on the reading-room side only (A25, EGRESS E3)"
+     },
+     {
+       "from": "w2-arcade",
+@@ -881,11 +883,11 @@
+       "route": "loud",
+       "width": 1.3,
+       "level_change": 4.5,
+-      "length": 18.5,
++      "length": 14.5,
+       "time_s": 8,
+       "bolted": true,
+-      "at": [49, 0, 62],
+-      "reason": "The pawnbroker's fire stair; its loft door has a push bar on the loft side only"
++      "at": [53, 0, 62],
++      "reason": "The pawnbroker's enclosed fire stair, rebuilt along the loft's south facade; its foot door (53, 0, 62) carries the push bar on the stair side (LP pick 5; EGRESS E7)"
+     },
+     {
+       "from": "w2-pie-shop",
+@@ -918,9 +920,9 @@
+       "route": "shadow",
+       "width": 1.2,
+       "height": 2.1,
+-      "length": 12.5,
+-      "at": [49, 4.5, 62],
+-      "reason": "Pawn loft's walkway door"
++      "length": 6.5,
++      "at": [45, 4.5, 62],
++      "reason": "Pawn loft's walkway door; the walkway door moved from x 49 to x 45: it opens onto the pawn stair's top landing; the loft door (45, 4.5, 63.65) leads on into the loft (EGRESS E8)"
+     },
+     {
+       "from": "w2-walkway",
+@@ -949,11 +951,12 @@
+       "to": "w2-reading-room",
+       "kind": "team_throw",
+       "route": "high",
+-      "width": 2.5,
++      "width": 4.9,
++      "exception": "long_throw",
+       "length": 11,
+       "time_s": 5,
+       "at": [50.5, 4.5, 71.375],
+-      "reason": "Across the lightwell: from the pawn loft's open-fronted taking-in bay (no lintel, 3.6 m clear: the throw needs free air 3.2 m over the thrower's floor along the arc) to the reading room's iron landing stage, 2.5 m across (B4 throw: lands TEAM.throwDist 3.2 m past the thrower)"
++      "reason": "Across the lightwell: from the pawn loft's open-fronted taking-in bay, cut back to z 67.6 (A28), to the reading room's iron landing stage, a 4.9 m gap: the site's 5.8 m long throw, not a standard throw (M2; tallow-fixes A24; J12 A27; named spot tallowWharf:w2-pawn-loft>w2-reading-room)"
+     },
+     {
+       "from": "w2-pie-loft",
+@@ -964,56 +967,33 @@
+       "length": 11.5,
+       "time_s": 5,
+       "at": [63, 4.5, 71.375],
+-      "reason": "Across the lightwell: from the pie loft's open-fronted taking-in bay (no lintel, 3.6 m clear) to the clock-mender's iron landing stage, 2.5 m across"
+-    },
+-    {
+-      "from": "w2-reading-room",
+-      "to": "w2-clock-loft",
+-      "kind": "door",
+-      "route": "shadow",
+-      "width": 1.2,
+-      "height": 2.1,
+-      "length": 13,
+-      "bolted": true,
+-      "at": [60, 4.5, 76.75],
+-      "reason": "The clock-mender's door off the reading room landing, bolted on his side"
++      "reason": "Across the lightwell: from the pie loft's open-fronted taking-in bay (no lintel, 3.6 m clear) to the clock-mender's iron landing stage, 2.5 m across",
++      "note": "not yet forced: a standard throw until the plank bridge (M2, G403); its bypass into the reading room is closed by A29"
+     },
+     {
+       "from": "w2-lane-window",
+       "to": "w2-arcade-roof",
+-      "kind": "hatch",
+-      "route": "high",
+-      "width": 1.2,
+-      "height": 1.2,
+-      "level_change": 3.9,
+-      "length": 16,
+-      "time_s": 5,
+-      "at": [72, 4.5, 66],
+-      "reason": "Roof hatch in the corner loft with its fixed loft ladder, up to the leads"
+-    },
+-    {
+-      "from": "w2-lane-window",
+-      "to": "w2-arcade-roof",
+-      "kind": "window",
++      "kind": "ladder",
+       "route": "high",
+       "width": 1.2,
+-      "height": 1.2,
+       "level_change": 3.9,
+       "length": 16,
+       "time_s": 5,
+-      "at": [72, 4.5, 66],
+-      "reason": "The corner loft's dormer sash onto the lead valley, from the window seat"
++      "at": [72, 4.5, 66.15],
++      "reason": "The hatch's fixed ladder (hatch x 71.4-72.6 z 65.4-66.6) walled in as a tank room x 70.4-74.0 z 64.4-67.6, door (72, 4.5, 64.4): roof access through a plant space, level-design 16.2.1 / 16.2.3; A7 (EGRESS E6)"
+     },
+     {
+       "from": "w2-arcade-roof",
+       "to": "w3-roof",
+       "kind": "team_throw",
+       "route": "spine",
+-      "width": 2.5,
++      "assist": "tkl-wings",
++      "width": 4.9,
++      "exception": "long_throw",
+       "length": 41,
+       "time_s": 5,
+       "at": [80.5, 8.4, 66],
+-      "reason": "Across the arcade lane where it pinches to 2.5 m: from the arcade roof's lane edge, its parapet broken out where the old lane bridge landed, to the counting house's corner-bay roof, open (TKL's W2 exit move)"
++      "reason": "Across the arcade lane: from the arcade roof's lane edge, its parapet broken out where the old lane bridge landed, to the counting house's corner-bay roof, a 4.9 m gap: the site's 5.8 m long throw (M2; tallow-fixes A24; J12 A27; named spot tallowWharf:w2-arcade-roof>w3-roof). C5 widened on the W2 side: the arcade roof's lane edge and the old bridge landing cut back to x 77.1 (LP pick 6). TKL's W2 exit move"
+     },
+     {
+       "from": "w2-arcade-roof",
+@@ -1034,10 +1014,10 @@
+       "route": "high",
+       "width": 1.3,
+       "level_change": 8.4,
+-      "length": 30,
++      "length": 31,
+       "time_s": 14,
+-      "at": [107, 8.4, 52],
+-      "reason": "The external iron fire escape down the yard wall (the clerks' escape from the upper floor)"
++      "at": [108.65, 8.4, 52],
++      "reason": "The external iron fire escape down the yard wall (the clerks' escape from the upper floor); moved 1.7 m east: head x 108.0-109.3, half landing x 101.9-103.2 at 4.2, foot (110.6, 0, 49.75) beside the east gate (G3; the ruled TKL default; EGRESS E9)"
+     },
+     {
+       "from": "w3-roof",
+@@ -1048,8 +1028,10 @@
+       "level_change": 8.4,
+       "length": 21,
+       "time_s": 14,
++      "bolted_in": ["twoKeyLedger"],
+       "at": [113, 8.4, 63],
+-      "reason": "The roof bulkhead stair core down to the east wing's back hall"
++      "reason": "The roof bulkhead stair core down to the east wing's back hall",
++      "note": "A30 (EGRESS E10): the foot leaf (112.5, 0, 68) is bolted from the east-wing side in Two-Key Ledger only: the porter's lock-up; TGC's signed crossing unchanged. Unbolted here (the map default and Three Grey Coats' state); D0's TKL-state run sets it bolted: true"
+     },
+     {
+       "from": "w3-roof",
+@@ -1058,9 +1040,10 @@
+       "route": "high",
+       "level_change": 4.2,
+       "length": 21,
+-      "time_s": 3,
++      "time_s": 10,
+       "at": [89, 8.4, 63],
+-      "reason": "Through the light-well lantern's opening sash, a 4.2 m drop onto the iron gallery, then its stair into the dark stacks (TKL step 2)"
++      "reason": "Through the light-well lantern's opening sash, a 4.2 m drop onto the iron gallery, then its stair into the dark stacks (TKL step 2)",
++      "note": "Split tkl-wings leg a (D0): time_s 10 = the lantern drop 3 + the gallery 2.3 + its stair 4.6, door to door from W3_ROUTES route 2's points (G3 brief step 2; LP's G2 brief step 12); D1 re-measures"
+     },
+     {
+       "from": "w3-east-yard",
+@@ -1070,8 +1053,10 @@
+       "width": 1.2,
+       "height": 2.1,
+       "length": 19,
++      "time_s": 1.5,
+       "at": [110, 0, 52],
+-      "reason": "The east gate: keypad door from the yard into the east wing, under the gate lamp (needs the founding year)"
++      "reason": "The east gate: keypad door from the yard into the east wing, under the gate lamp (needs the founding year)",
++      "note": "Split tkl-wings leg b (D0): time_s 1.5 = the fire escape's foot (110.6, 0, 49.75), moved beside the east gate by G3 (EGRESS E9), to the gate, ~2 m; D1 re-measures"
+     },
+     {
+       "from": "w3-east-yard",
+@@ -1148,8 +1133,10 @@
+       "width": 1.2,
+       "height": 2.1,
+       "length": 15,
++      "time_s": 5,
+       "at": [106, 0, 53.75],
+-      "reason": "East door of the strongroom passage"
++      "reason": "East door of the strongroom passage",
++      "note": "Split tkl-wings leg b (D0): time_s 5 = the east gate to the passage's east door, ~6.5 m at 1.3 m/s, door to door; D1 re-measures"
+     },
+     {
+       "from": "w3-east-wing",
+@@ -1182,8 +1169,10 @@
+       "width": 1.2,
+       "height": 2.1,
+       "length": 15,
++      "time_s": 12.7,
+       "at": [96, 0, 53.75],
+-      "reason": "West door of the strongroom passage"
++      "reason": "West door of the strongroom passage",
++      "note": "Split tkl-wings leg a (D0): time_s 12.7 = the stacks to the passage's west door, ~16.5 m at the 1.3 m/s split speed, door to door; D1 re-measures"
+     },
+     {
+       "from": "w3-west-wing",
+@@ -1446,6 +1435,64 @@
+       "time_s": 3,
+       "at": [88, 0, 5.5],
+       "reason": "The jetty landing steps down to the boat's stern"
++    },
++    {
++      "from": "w2-pawn-loft",
++      "to": "w2-reading-room",
++      "kind": "door",
++      "route": "shadow",
++      "width": 1.2,
++      "height": 2.1,
++      "length": 12.4,
++      "bolted": true,
++      "at": [44.75, 4.5, 70.55],
++      "reason": "West lightwell bridge, enclosed, gate in the pawn loft's north wall (44.75, 4.5, 67.6) bolted on the bridge side: the thrown partner opens it for the thrower; 12.4 m door to door (the bridge 5.9 m + 6.45 m in the reading room to its stage door), within A5 as amended (13 m or less, lead ruling on LP pick 16); A5 (EGRESS E1)"
++    },
++    {
++      "from": "w2-lane-window",
++      "to": "w2-clock-loft",
++      "kind": "door",
++      "route": "shadow",
++      "width": 1.2,
++      "height": 2.1,
++      "length": 9.8,
++      "bolted": true,
++      "at": [69.25, 4.5, 71.75],
++      "reason": "East lightwell bridge, enclosed, gate in the lane-window loft's north wall (69.25, 4.5, 70) bolted on the bridge side; 9.8 m door to door (bridge 3.5 m + 6.25 m in the clock loft); the pie throw's way back while it stays a standard throw (M2 / G403), on to the pie loft by the lane-window loft's inner door (link 27); A5 (EGRESS E2)"
++    },
++    {
++      "from": "w4-jetty",
++      "to": "w4-canal-ledge",
++      "kind": "drop",
++      "route": "shadow",
++      "level_change": 4.4,
++      "length": 6,
++      "time_s": 3,
++      "at": [74, 0, 6],
++      "reason": "The jetty's open south edge x 72-76 (the C10 pull edge, the old staging ladder's gap; already open in the build: the rail runs x 76-86.75 and 89.25-100): a one-way 4.4 m drop onto the canal bed at (74, -4.4, 5.4), round the fence foot to the ledge; the 4.4 m lip stays in the co-op band (A6, EGRESS E4)"
++    },
++    {
++      "from": "w1-canal-steps",
++      "to": "w1-gallery",
++      "kind": "ladder",
++      "route": "high",
++      "level_change": 4.5,
++      "length": 6,
++      "time_s": 3,
++      "bolted": true,
++      "at": [6.6, 0, 14.4],
++      "reason": "The market warden's caged ladder on the gallery's east face at its canal-steps end; an anti-climb door at its foot (foot enclosure x 6.0-7.75 z 14.4-15.6) bolted on the cage side (LP pick 1: a ladder top-out ignores door leaves; the bolt is built in PR G1, LP pick 14); the one boosted up climbs down inside the cage and opens it for the other (EGRESS E5; split tgc-leads, A11)"
++    },
++    {
++      "from": "w2-walkway",
++      "to": "w2-arcade-roof",
++      "kind": "pipe",
++      "route": "high",
++      "level_change": 3.9,
++      "length": 36,
++      "time_s": 6,
++      "at": [47.5, 4.5, 61.6],
++      "reason": "The west downpipe: the arcade roof's eaves gutter discharges at its west end into a cast-iron downpipe on the loft row's south facade, over the walkway's west pier (below the walkway floor it runs inside the pier's chase, so it is climbed from 4.5 only, behind C3); 3.9 m up and over the eaves onto the lead flat over the pawn loft. Length: C3's west landing to the foot 2.5, the climb 3.9, the roof to the C5 thrower's mark 29.5. W2's second way up to the roof (lead ruling 2026-10-26 ~10:10 on D0's ERR 1; EGRESS E11)"
+     }
+   ]
+ }

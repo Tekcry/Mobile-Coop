@@ -72,6 +72,8 @@ export interface WharfThrow {
   thrower: P3;
   runner: P3;
   stage: [number, number, number, number];
+  /** The throw length at this named spot, m (A24); unset = TEAM.throwDist. */
+  dist?: number;
 }
 /** A pull-up: the holder braces at an edge (facing `yaw`), the partner jumps from `partner` on the floor below. */
 export interface WharfPull {
@@ -120,6 +122,9 @@ export interface WharfSection {
   debugPoints: { id: string; label: string; pos: Vector3; yaw: number }[];
   /** Spaces whose built size differs from the graph's area, with the reason (the size test reads it). */
   deviations: readonly { space: string; why: string }[];
+  /** G98 wall stations, each with a real reason; hold 0.6 s, +40, single use, level-design 12.1; `yaw` faces the room;
+   *  J8 A8: one per section. */
+  medkits?: { pos: Vector3; yaw: number }[];
   entry: readonly [number, number, number];
   exit: readonly [number, number, number];
 }
@@ -143,6 +148,7 @@ export function emptySection(id: SectionId, entry: readonly [number, number, num
     doors: {},
     debugPoints: [],
     deviations: [],
+    medkits: [],
     entry,
     exit,
   };

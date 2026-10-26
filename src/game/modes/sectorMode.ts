@@ -371,7 +371,7 @@ export class SectorMode implements GameMode {
     this.card = new RatingCard(g.hud.el);
     setOnRated(this.rated);
     this.findDoors();
-    this.team.build();
+    this.team.build(this.mission?.def.id);
     this.findKeypads();
     this.findDesks();
     this.findCrates();

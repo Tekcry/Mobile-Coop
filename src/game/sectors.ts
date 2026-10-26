@@ -247,6 +247,13 @@ export interface SectorBolt {
    * redesign (A21, EG11).
    */
   readonly pair?: boolean;
+  /**
+   * (J8 A30) The `MissionDef.id`s this bolt is fitted in; absent = fitted in every run (the behaviour before A30). In a
+   * run it is not fitted in (another mission, or no mission bound) its door is a plain door: unlocked from the start, no
+   * "Unbolt" item, no nav closure, and a section restart leaves it so (`SectorBolts.unfit`, `SectorTeamDoors.build`).
+   * Used by the Tallow roof bulkhead's foot door, bolted in Two-Key Ledger only.
+   */
+  readonly missions?: readonly string[];
 }
 
 /** Reach (m) of a team door's "Unbolt" item (the course bolt's). */
@@ -339,13 +346,33 @@ export function boltById(defs: readonly SectorDef[] | undefined, id: string): { 
 export class SectorBolts {
   /** `shut[sec][k]`: the bolt is shut (its door locked). */
   readonly shut: boolean[][];
+  /** (J8 A30) `fitted[sec][k]`: the bolt is fitted in this run (false: `unfit`, its door a plain door). */
+  readonly fitted: boolean[][];
 
   constructor(readonly defs: readonly SectorDef[]) {
     this.shut = defs.map((d) => (d.bolts ?? []).map(() => true));
+    this.fitted = defs.map((d) => (d.bolts ?? []).map(() => true));
   }
 
   isShut(sec: number, k: number): boolean {
     return this.shut[sec]?.[k] === true;
+  }
+
+  /** (J8 A30) Is bolt `k` of section `sec` fitted in this run? False for a bad index. */
+  isFitted(sec: number, k: number): boolean {
+    return this.fitted[sec]?.[k] === true;
+  }
+
+  /**
+   * (J8 A30) At build time: bolt `k` of section `sec` is not fitted in this run (`SectorBolt.missions`). It is not shut
+   * (`use` / `press` refuse it as a drawn bolt) and `rebolt` leaves it alone. A bad index is ignored.
+   */
+  unfit(sec: number, k: number): void {
+    const row = this.shut[sec];
+    const fit = this.fitted[sec];
+    if (!row || !fit || k < 0 || k >= row.length) return;
+    row[k] = false;
+    fit[k] = false;
   }
 
   /**
@@ -380,12 +407,17 @@ export class SectorBolts {
     return 'ok';
   }
 
-  /** Shut every bolt of section `sec` again; returns the indices that were open (their doors lock again). */
+  /**
+   * Shut every fitted bolt of section `sec` again; returns the indices that were open (their doors lock again). An
+   * unfitted bolt (J8 A30) stays as it is: not shut, not returned.
+   */
   rebolt(sec: number): number[] {
     const out: number[] = [];
     const row = this.shut[sec];
-    if (!row) return out;
+    const fit = this.fitted[sec];
+    if (!row || !fit) return out;
     for (let k = 0; k < row.length; k++) {
+      if (!fit[k]) continue;
       if (!row[k]) out.push(k);
       row[k] = true;
     }

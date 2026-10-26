@@ -145,8 +145,9 @@ const W2_GUARDS: SectorGuard[] = [
 const W3_GUARDS: SectorGuard[] = [
   // 0 the yard watchman, 1 his mate at the lodge end
   walker([[102, 40], [112, 40], [112, 47], [102, 47]], { zone: 'yard', role: 'patrol', reason: 'Yard watchman: the east yard and the gate lodge' }),
-  // the running line stays in the yard (the lodge's west wall is x 114); he waits at its lodge end facing the lodge, so his spot is west of him
-  walker([[112.5, 46], [109.5, 46]], { zone: 'yard', role: 'patrol', reason: "Yard watchman's mate: walks the lodge end of the yard", yaw: PI / 2 }),
+  // (J8 G2, J7 R3 hand-off) a real round inside the yard, clear of the moved fire escape (foot (110.6, 0, 49.75), flight B x
+  // 103.2-110.3, z 49.1-50.4), the lodge wall (x 114) and the gate (z 52); his spot is back along the last leg, about (110.27, 47.29)
+  walker([[111.0, 48.6], [112.0, 50.9], [113.4, 49.5], [113.4, 45.0], [109.0, 45.0]], { zone: 'yard', role: 'patrol', reason: "Yard watchman's mate: walks the gate side, the lodge door and the fire escape foot" }),
   // 2 the lodge porter (the Two-Key Ledger twist walker)
   posted(117, 48, { zone: 'w3-lodge-porter', role: 'porter', reason: 'Lodge porter: sleeps in the gate lodge until the bell rings', yaw: PI }),
   // 3, 4 the night clerks in the east wing offices
@@ -181,18 +182,8 @@ const W4_GUARDS: SectorGuard[] = [
   walker([[74, 12], [85, 12], [85, 26], [74, 26]], { zone: 'shed-three', role: 'foreman', reason: 'Foreman on his round of the shed, the dark side aisle included' }),
 ];
 
-/**
- * The guards the graph does not count (its per-section sums are W1 7, W2 6, W3 10, W4 12) and why: the brief adds them as
- * the talkers and decoys the missions need.
- */
-export const WHARF_GUARD_EXTRAS: readonly { id: string; why: string }[] = [
-  { id: 'W1:7', why: "tea-stall porter: Three Grey Coats' tgc-tea talker (overheard with his mate)" },
-  { id: 'W1:8', why: "tea-stall porter: Three Grey Coats' tgc-tea talker (overheard with his mate)" },
-  { id: 'W2:6', why: "Teale, Pell's courier: the interrogation target of tgc-3" },
-  { id: 'W2:7', why: 'Fenn, the first decoy of tgc-3' },
-  { id: 'W2:8', why: 'Garrow, the second decoy of tgc-3' },
-  { id: 'W2:9', why: "the night clerk: Two-Key Ledger's tkl-gate-code talker" },
-];
+/** The guards the graph does not count, and why: none since J8 D1: the graph counts every spawned guard, A10. */
+export const WHARF_GUARD_EXTRAS: readonly { id: string; why: string }[] = [];
 
 /**
  * Which guards each mission spawns (`MissionDef.guards` reads this): `'all'` = every guard of the section, a list = those
@@ -207,13 +198,18 @@ export const WHARF_GUARD_MISSIONS: Readonly<Record<'threeGreyCoats' | 'twoKeyLed
 const W1_BOLTS: SectorBolt[] = [
   { at: at2(W1.doors['w1-warden-stair']!), side: [0, 1] },
   { at: at2(W1.doors['w1-hall-back']!), side: [0, 1] },
+  // the gallery ladder's anti-climb door, bolted from the cage side (EGRESS E5; LP pick 14: bolted in PR G1, no solo bypass of C1)
+  { at: at2(W1.doors['w1-gallery-ladder']!), side: [0, 1] },
 ];
 const W2_BOLTS: SectorBolt[] = [
-  { at: at2(W2.doors['w2-pawn-stair-top']!), side: [-1, 0] },
+  { at: at2(W2.doors['w2-pawn-stair-foot']!), side: [0, 1] }, // the pawn fire stair: push bar on the stair side (rebuilt, EGRESS pick 5)
   { at: at2(W2.doors['w2-pie-stair-top']!), side: [1, 0] },
-  { at: at2(W2.doors['w2-clock-door']!), side: [1, 0] },
+  // (A29, G403) slot 2 was the clock-mender's door: locked both ways until the plank bridge; PB puts its bolt back
   { at: at2(W2.doors['w2-pawn-taking-in']!), side: [0, -1], w: 2.0 },
   { at: at2(W2.doors['w2-pie-taking-in']!), side: [0, -1], w: 2.0 },
+  { at: at2(W2.doors['w2-bridge-west']!), side: [0, 1] }, // A5: opens from the bridge (escape) side
+  { at: at2(W2.doors['w2-bridge-east']!), side: [0, 1] },
+  { at: at2(W2.doors['w2-stair-head']!), side: [0, 1] }, // A25: push bar on the reading-room side
 ];
 const W3_BOLTS: SectorBolt[] = [
   { at: at2(W3.doors['w3-chute-hatch']!), side: [0, 1] },
@@ -222,6 +218,9 @@ const W3_BOLTS: SectorBolt[] = [
   // the cart gate's roller leaf beside the wicket (the connector's near door): bolted from the cartway side, so the yard side can
   // never draw it and it cannot bypass the wicket
   { at: at2(W3.doors['w3-conn-roller']!), side: [0, -1] },
+  // (A30) the roof bulkhead stair's foot leaf, bolted from the east-wing side in Two-Key Ledger only (the porter shoots it at
+  // lock-up). A run with no mission bound (`build(undefined)`) also leaves it unfitted, so it stands open; only Two-Key Ledger fits it
+  { at: at2(W3.doors['w3-bulkhead-foot']!), side: [-1, 0], missions: ['twoKeyLedger'] },
 ];
 const W4_BOLTS: SectorBolt[] = [
   { at: at2(W4.doors['w4-shed3-yard']!), side: [1, 0] },
@@ -261,27 +260,36 @@ const W1_ROUTES: SectorRoute[] = [
 const W2_ROUTES: SectorRoute[] = [
   {
     name: 'West pier and the lofts',
-    pts: [xz(W2.entry), xz(W2.legUps[0]!), [46, 60.5, 4.5], [61, 60.5, 4.5], [61, 63, 4.5], [59, 66.5, 4.5], [58.6, 67.8, 4.5], [61, 63, 4.5], [72, 60.5, 4.5], [72, 63, 4.5], [72, 65, 4.5], [72, 66, 8.4], [78.9, 66, 8.4], [83, 66, 8.4]],
+    pts: [xz(W2.entry), xz(W2.legUps[0]!), [46, 60.5, 4.5], [61, 60.5, 4.5], [61, 63, 4.5], [59, 66.5, 4.5], [58.6, 67.8, 4.5], [61, 63, 4.5], [72, 60.5, 4.5], [72, 63, 4.5], [72, 65, 4.5], [72, 66, 8.4], [76.7, 66, 8.4], [83, 66, 8.4]],
     obj: 6,
     climbs: [1, 10, 12],
   },
   {
     name: 'East lip and the corner loft',
-    pts: [xz(W2.entry), xz(W2.pulls[0]!.partner), [73.5, 60.5, 4.5], [72, 63, 4.5], [69, 66, 4.5], [64, 66, 4.5], [58.6, 67.8, 4.5], [64, 66, 4.5], [72, 65, 4.5], [72, 66, 8.4], [78.9, 66, 8.4], [83, 66, 8.4]],
+    pts: [xz(W2.entry), xz(W2.pulls[0]!.partner), [73.5, 60.5, 4.5], [72, 63, 4.5], [69, 66, 4.5], [64, 66, 4.5], [58.6, 67.8, 4.5], [64, 66, 4.5], [72, 65, 4.5], [72, 66, 8.4], [76.7, 66, 8.4], [83, 66, 8.4]],
     obj: 6,
     climbs: [1, 8, 10],
+  },
+  {
+    // (E11) the sweep team walks the routes (`src/ai/sweepTeam.ts:148`), so the downpipe's walkway end and the roof are swept too
+    name: 'West pier and the downpipe',
+    pts: [xz(W2.entry), xz(W2.legUps[0]!), [46, 60.5, 4.5], [61, 60.5, 4.5], [61, 63, 4.5], [59, 66.5, 4.5], [58.6, 67.8, 4.5], [61, 63, 4.5], [61, 60.5, 4.5], [47.5, 61.0, 4.5], [47.5, 62.6, 8.4], [60, 64, 8.4], [76.7, 66, 8.4], [83, 66, 8.4]],
+    obj: 6,
+    climbs: [1, 9, 12], // the boost; the downpipe (foot -> top-out); the lane throw
   },
 ];
 const W3_ROUTES: SectorRoute[] = [
   {
-    name: 'Bulkhead, passage and the chute',
-    pts: [xzy(BULKHEAD_HEAD), [113.8, 66, 8.4], [113.8, 60, 0], [111.4, 60], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], xz(W3.legUps[0]!), [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], xz(dbg(W3, 'w3-coal-yard')), [90, 38.6], xz(dbg(W3, 'w3-cartway'))],
-    obj: 8,
-    climbs: [1, 10, 11],
+    // (A30) TKL leg a's walk: the bulkhead foot is bolted in Two-Key Ledger, so the route drops through the lantern sash onto the
+    // west-wing gallery ring (`tallowWharfW3.ts:246-257`) and comes down the gallery stair
+    name: 'Lantern, west wing and the chute',
+    pts: [xzy(BULKHEAD_HEAD), [100, 60.2, 8.4], [89, 60.4, 8.4], [89, 61.2, 4.2], [86.5, 65.5, 4.2], [85, 65.6, 4.2], [85, 58.4], [93, 53.6], [96.8, 52.95], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], xz(W3.legUps[0]!), [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], xz(dbg(W3, 'w3-coal-yard')), [90, 38.6], xz(dbg(W3, 'w3-cartway'))],
+    obj: 11,
+    climbs: [2, 13, 14], // the lantern sash drop onto the gallery; the chute leg-up; the hatch drop
   },
   {
     name: 'Fire escape and the east gate',
-    pts: [xzy(BULKHEAD_HEAD), [107, 52.6, 8.4], [101, 50, 4.2], [108.4, 50], [112, 51.2], [112, 53], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], xz(W3.legUps[0]!), [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], xz(dbg(W3, 'w3-coal-yard')), xz(dbg(W3, 'w3-cartway'))],
+    pts: [xzy(BULKHEAD_HEAD), [108.65, 52.6, 8.4], [102.55, 50.4, 4.2], [110.8, 49.75], [112, 51.2], [112, 53], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], xz(W3.legUps[0]!), [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], xz(dbg(W3, 'w3-coal-yard')), xz(dbg(W3, 'w3-cartway'))],
     obj: 10,
     climbs: [12, 13],
   },
