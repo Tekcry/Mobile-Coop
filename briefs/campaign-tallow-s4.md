@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 6 2026-10-26T08:17Z
 
 # campaign J9 S4: the wharf e2e walks both shutters (Sonnet 5.5)
 
