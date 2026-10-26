@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 6 2026-10-26T08:17Z
+status: done feature/tallow-s4 f9b97621e02e7ba91eb9c019f6e3ef1ea9f6e28a
 
 # campaign J9 S4: the wharf e2e walks both shutters (Sonnet 5.5)
 
@@ -188,3 +188,102 @@ suite list.
    current section at its checkpoint (two-key-ledger BEAT.md:13-18). Keep it as the A27 held-shutter restart.
 3. Frozen guards are enough for the J9 gate ("the notice check prints"): assert the hear point is on the guard's own
    side. Whether he walks there is Guard AI's behaviour and its own suites.
+
+## Report (Night Shift | Cloud Builder 6, 2026-10-26)
+**Commit:** f9b97621e02e7ba91eb9c019f6e3ef1ea9f6e28a on feature/tallow-s4 (base 0adfd8de, one commit, `tallow S4:`). The diff
+touches only `scripts/e2e-sectorops-wharf.mjs`: +308 / -5. The 5 deleted lines are the 3 `SKIP: shutter` lines and 2 header
+lines. Every E8 line is kept (site throw, `boltAt`, A30, R8 polish).
+
+**Gate checks (step 1), all pass:** `SKIP: shutter` x3; `boltAt` present; `placeShutter(b, SHUTTER)` W1:201;
+`placeShutter(b, W4_SHUTTER)` W4:219; `resetKit` teamController.ts:1278; `world.armDoors(this.nav)` gameState.ts:833;
+`coopKit` flags.ts:124/227 (URLs keep `coopkit=1`).
+
+**coopPressed:** an edge. gameState.ts:2067 passes `inp.pressed('coop')` (`buttons[a].pressed`, cleared each step by
+`consumeEdges`, inputState.ts:136/148). The script presses RB with `holdUntil(P, RB, cond)`: the button is held until the
+state changes, then released. Only the first frame's edge counts, so holding RB does not cancel the grip (shutter.ts:541-550
+ends `shutterOffer` on a second press).
+
+### Dry read (assert, field, source)
+| Assert (script line) | Field read | From |
+| --- | --- | --- |
+| wiring (697) | `world.shutters.slots[].spec.id`, `navClosures.length`, `world.lightDoors.length`, `world.doors.list.length`, `team.devices.list` kind | shutterDoor.ts:161, :231; world.ts:96, :101; teamController.ts:129 |
+| loneWalk (486) | `player.controller.pos`, `.grounded`; across = (x-d.x) sin yaw + (z-d.z) cos yaw | shutter.ts:185-193 |
+| grip / hold (514) | `team.state` `shutterOffer` -> `shutterHold` | shutter.ts:668, :562 |
+| atGap (504) | device `open >= 0.85`, slot `bottom >= 0.75` | shutter.ts:260-262 (host), :277 (follower); shutterDoor.ts:48-51, :272-274 |
+| crawl (514) | `team.state` `crawlUnder` -> `none`; across of `controller.pos` / remote `feet` <= -0.5 x near | shutter.ts:787, :625-634 (ends `crawlOut` 0.7 past) |
+| let go / shut (514) | device `phase 'closed'`, `open 0`, slot `open 0` / `bottom 0` | shutter.ts:265-268, :582-586; shutterDoor.ts:260-275 |
+| shuttersBack (568) | device phase / open / user / visible / noticed; slot open / bottom; `team.state`; enemy `alive`, `heard`, `stimulus[0..1]` | shutter.ts:328-337 (`resetShutter`, via teamController.ts:1283); enemy.ts:509-511 |
+| noticeCheck (600) | `__sector.slotEnemy[k]`, `e.alive`, `e.alerted`, `e.passive`, `e.def.melee`, `e.pos`, `e.yaw`; sets `heard` / `hasStimulus` / `meter` | sectorMode.ts:206; enemy.ts:404-405, :1031, :1122, :501, :510-511 |
+| shutQuiet (632) | device `opens`, `noticed`, `visible` | shutter.ts:282-287, :121 |
+| noticeDuring (642) | device `noticed === opens`; enemy `heard`, `stimulus`, `meter`, `pos` | stealthSystems.ts:673-688 (look point `SHUTTER_LOOK_OFF` 0.6, :34); enemy.ts:1261-1274 (`hear`) |
+| W1 bar (733 on) | `boltInfo()` `{sec,k,at,door,shut,locked}`; `doors.list[i].anchor.locked` / `.open` | sectorMode.ts:713; the E8 pawn-door pattern |
+| W1 / W4 feet asserts | host `controller.pos`, the host's remote `feet` | script `hostFeet` / `clientFeet` |
+| restart (997 on) | `debug().restarts`, `.index`, `.phase`, `mission.ruleRestarts`; `holding` / `tracker.held` | the existing `restarted` / `holdOver` |
+
+No `place(`, `moveHost(` or `moveClient(` puts a player on the far side of a shutter before that player has crawled under it
+or come through the W1 door:
+- TGC W1: placed on the hall side. The host goes to the bar spot (30, 58.8) only after crawling, then `cross(0)`.
+- TGC W4: the host is placed in shed two and the client on the apron, each on their own near side. `extract` runs only after
+  the crawl.
+- TKL W4: both start on the apron. The host is placed on the jetty only after crawling into shed two. The client's canal-bed
+  spot is not across a shutter (brief).
+
+### Spot audit (step 9; temporary `tests/tallowWharf/_s4spots.test.ts`, run then deleted, never committed)
+Method: `builtWharf` / `solidOf`; body radius 0.3, feet +0.1 to +1.7 (crawl end +0.8); floor within 0.3 m below; legs
+sampled every 0.1 m; sight lines every 0.05 m, stopping 0.3 m short.
+| point | at | result | floor / samples |
+| --- | --- | --- | --- |
+| W1 lone start | (22, 56.8) | clear | floor 0.00 |
+| W1 holder | (21.2, 57.4) | clear | floor 0.00 |
+| W1 crawler | (22.8, 57.3) | clear | floor 0.00 |
+| W1 crawl end | (22.8, 58.7) | clear | floor 0.00 |
+| W1 guard | (22, 53) | clear | floor 0.00 |
+| sight W1 guard | (22, 1.6, 53) -> (22, 0.45, 58) | clear | - |
+| W1 bar spot | (30, 58.8) | clear | floor 0.00 |
+| leg W1 holder -> door | (21.2, 57.55) -> (30, 56.8) | clear | 90 samples |
+| leg W1 door | (30, 56.8) -> (30, 59.3) | clear | 26 samples |
+| W4 lone start | (92, 29.4) | clear | floor 0.00 |
+| W4 lane holder | (91.2, 28.7) | clear | floor 0.00 |
+| W4 lane crawler | (92.8, 28.8) | clear | floor 0.00 |
+| W4 lane crawl end | (92.8, 27.3) | clear | floor 0.00 |
+| W4 shed holder | (91.2, 27.4) | clear | floor 0.00 |
+| W4 apron crawler | (92.8, 28.7) | clear | floor 0.00 |
+| W4 apron crawl end | (92.8, 27.3) | clear | floor 0.00 |
+| W4 guard | (92, 23) | clear | floor 0.00 |
+| sight W4 guard | (92, 1.6, 23) -> (92, 0.45, 28) | clear | - |
+Nothing moved. Sanity rows confirm the audit sees the walls: (19.8, 58) hits the W1 wall (14.25, 3, 58) s(12.5, 6, 0.3);
+(26, 58) hits (27.2, 3, 58) s(4.4, 6, 0.3); (94.2, 28) hits the W4 wall (96.75, 3.35, 28) s(6.5, 6.7, 0.6).
+
+**Enemy fields used for the notice:** position `e.pos` (x / z set, y kept); facing `e.yaw` (atan2(dx, dz), which
+`shutterNoticedBy` reads); `heard`, `hasStimulus`, `meter`, `stimulus[0..1]` (private TS fields, read and set at runtime);
+`alive`, `alerted`, `passive`, `def.melee`.
+
+### Checks
+- `node --check scripts/e2e-sectorops-wharf.mjs`: OK.
+- `npx eslint scripts/e2e-sectorops-wharf.mjs`: the repo's eslint config ignores `scripts/` ("File ignored because of a
+  matching ignore pattern"), so no lint ran.
+- `grep -c "SKIP: shutter"`: 0.
+- `npm run typecheck:fast`: exit 0 (no `src/` change).
+- Spot audit: 1/1 passed (table above), then deleted.
+- `npx vitest run tests/tallowWharf/ tests/shutterWiring.test.ts tests/shutterNotice.test.ts --maxWorkers=2`: 9 files,
+  332 tests passed (base green).
+
+### Deviations
+1. `noticeCheck` also skips melee and passive guards when picking the slot. `hear()` returns early for a passive guard, and
+   a melee guard at s >= 0.6 is alerted rather than given `heard` (enemy.ts:1262-1267).
+2. The "turned away" list covers every live guard in `enemyMgr.enemies` within 12 m, not only the live section's slots.
+   `noticeOpenShutters` loops over every enemy. The log line also prints the section's not-yet-spawned guard count
+   (`__sector.pending`) for triage.
+3. `shutterCross` takes each player's near side separately. In TGC W4 the holder (shed two) and the crawler (apron) start on
+   opposite sides, so "still on the near side" is checked against the holder's own start side, and "far side" against the
+   crawler's.
+4. `walkTo` eases the stick under 1.5 m (|axis| >= 0.5) so it does not overshoot the 0.35 m stop. The host then sees the
+   player within 0.5 m (`moveClient` uses 0.4) to allow for stopping drift.
+5. The TGC W4 log line adds " (TGC: a device check, off the route, SPEC :334)" (lead ruling 1).
+6. The diff is +308 lines, against the brief's estimate of about 240 (helper doc comments and the step-by-step assert text).
+7. The commit trailer names the model that ran it (Opus 5.5), not Sonnet 5.5.
+
+### Pending PC run
+Laptop: `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission e2e-coop e2e-netmove e2e-ctcourse`, plus the
+affected set (plan section 8, PR S). Done when both wharf suites are green with no SKIP, and these lines print: both notice
+lines (`W1 notice:` / `W4 notice:`), the A27 line, and the `shuttersBack` lines. No e2e or GPU check has run here.
