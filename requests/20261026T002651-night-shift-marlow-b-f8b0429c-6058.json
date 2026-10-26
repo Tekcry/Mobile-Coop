@@ -1,0 +1,13 @@
+{
+  "id": "20261026T002651-night-shift-marlow-b-f8b0429c-6058",
+  "sha": "f8b0429c8080012f35e9a44e405408a674537645",
+  "branch": "feature/route-runs-r4b",
+  "pr": 510,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/ --graph tests/fixtures/route-run/campusOps-S1.graph.json --routes code --section S2 --players 2"
+  ],
+  "env": {},
+  "set": "route-run-s2-pair"
+}
