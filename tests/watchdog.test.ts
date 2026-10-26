@@ -3,7 +3,7 @@ import {
   parseArgs, parseList, scratchFiles, alert, applySince, actionText, parseLockText, lockAlerts, findOrphans, orphanAlerts,
   normalizePr, labelReady, prAlerts, ownerMap, versionCommit, releaseAlerts, indexScript, previewLabel, pagesAlerts,
   autoTrainAlerts, nonTestFiles, laptopAlerts, parseLooseIso, parseBrief, cloudAlerts, reopenText, labelComment,
-  unlabelComment, redChecks, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS,
+  unlabelComment, redChecks, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS, requestAddTimes,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/watchdog.mjs';
 
@@ -387,6 +387,24 @@ describe('watchdog: laptop queue', () => {
     // a `beat` field in a claim counts as its heartbeat
     const beat = laptopAlerts({ ...q, claims: { '20261024T090000-a': { worker: 'laptop', at: iso(NOW - 20 * MIN), beat: iso(NOW - MIN), done: false } }, stale: {} });
     expect(beat.filter((x: { kind: string }) => x.kind.startsWith('lq-claim'))).toEqual([]);
+  });
+
+  it('ages a re-filed request by the commit that added it, not its id (F20)', () => {
+    // T000011 re-filed 10 min ago: the id reads as midnight, the add commit says 10 min
+    const id = '20261024T000011-x';
+    const q = { now: NOW, requests: [req(id)], claims: {}, trainHeads: new Set(), activity: {}, desktopBeat: 0, stale: {} };
+    expect(laptopAlerts({ ...q, addedAt: { [id]: NOW - 10 * MIN } })).toEqual([]);
+    expect(laptopAlerts(q).map((x: { id: string }) => x.id)).toEqual([`lq-request-old:${id}`]);
+    // still alerts when the add commit itself is old
+    expect(laptopAlerts({ ...q, addedAt: { [id]: NOW - 90 * MIN } }).map((x: { id: string }) => x.id)).toEqual([`lq-request-old:${id}`]);
+    // an id missing from addedAt falls back to the id time
+    expect(laptopAlerts({ ...q, addedAt: { other: NOW } }).map((x: { id: string }) => x.id)).toEqual([`lq-request-old:${id}`]);
+  });
+
+  it('requestAddTimes keeps the newest add per id', () => {
+    expect(requestAddTimes('@1729760000\nrequests/a.json\n\n@1729750000\nrequests/a.json\nrequests/b.json\n')).toEqual({ a: 1729760000000, b: 1729750000000 });
+    expect(requestAddTimes('')).toEqual({});
+    expect(requestAddTimes('requests/a.json\n@x\nclaims/c.json\n')).toEqual({});
   });
 });
 
