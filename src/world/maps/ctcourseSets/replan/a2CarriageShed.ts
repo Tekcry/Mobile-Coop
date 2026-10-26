@@ -109,7 +109,7 @@ export const A2_WALKWAY = { z0: 11.4, z1: 12.6, board: 0.1, h: 2.2, deck: 0.2 } 
  *  0.04 m boards in two 0.22 m columns against the road 3 van's south face, four layers to `top`. */
 export const A2_BOARD_STACK = { x0: 60.9, x1: 64.8, z0: 13.23, z1: 13.68, top: 0.16 } as const;
 /** (marlow-kit-wire) Station 5's objective while `plankBridge` is on (the built text is the walkway's). */
-export const A2_PLANK_KIT_TEXT = 'Lay a board from the stack over the pit by the east vans, then cross to the L2 door.';
+export const A2_PLANK_KIT_TEXT = 'Lay a board over the pit to the L2 door';
 export const A2_WALKWAY_DOOR = 'A2-walkway';
 export const A2_WALKWAY_GATE = 'g-a2-walkway';
 export const A2_WALKWAY_FLAG = 'a2-walkway';
@@ -148,9 +148,9 @@ export const A2_STATIONS: readonly StationDef[] = a2CarriageShedStations;
 /** LANTERN's retry lines (STATIONS section 6, verbatim). */
 export const A2_RETRY_LINES: readonly { at: string; text: string }[] = [
   { at: 'retry:a2-shutter', text: 'Seen at the roller door. Back to the stores bay.' },
-  { at: 'retry:a2-lights', text: 'The shunter saw you in the neck. Back to the cabin and the lane.' },
-  { at: 'retry:a2-lights:timer', text: 'Lights came back with you in the neck. Back to the cabin and the lane.' },
-  { at: 'retry:a2-plank', text: 'The shunter saw the board. Back to the board stack at the east end.' },
+  { at: 'retry:a2-lights', text: 'Seen in the neck. Back to the cabin and the lane.' },
+  { at: 'retry:a2-lights:timer', text: 'Lights came back on you. Back to the cabin and the lane.' },
+  { at: 'retry:a2-plank', text: 'Seen on the board. Back to the east end board stack.' },
 ];
 /** The built entry line the re-plan drops (no spotters, no staging); nothing replaces it (the stations' own lines carry the retries). */
 export const A2_BUILT_STAGING_LINE = 'Two spotters on the staging. Seen in the neck lights and we start again.';
@@ -325,25 +325,25 @@ export function replanA2CarriageShed(b: LevelBuilder, _kit: FacilityKit, part: S
     {
       id: 'a2-shutter',
       bay: 'A2',
-      text: 'Roller door off the stores bay: one holds it up, the other goes under.',
+      text: 'Both through the roller door',
       // (marlow-play C6) holding only unlocks the roller door: someone still opens it, so the lines say who
-      a: 'Hold the roller door up at the south jamb; your partner opens it and goes under. Follow.',
-      b: 'Open the roller door, crouch under into the lane, then hold it up for your partner.',
+      a: 'Hold the roller door up at the south jamb, then follow.',
+      b: 'Open the roller door, crouch under, then hold it for your partner.',
       done: { flag: A2_LANE_FLAG },
     },
     {
       id: 'a2-lights',
       bay: 'A2',
-      text: 'Cut the neck lights at a cabinet, then cross the dark neck from the lane.',
-      a: 'Isolate at cabinet one in the cabin, then cross when cabinet two goes dark.',
-      b: 'Cross the dark neck from the lane, then isolate at cabinet two by the pit.',
+      text: 'Cut the neck lights, then cross',
+      a: 'Cut cabinet one in the cabin, then cross when two is dark.',
+      b: 'Cross the dark neck, then cut cabinet two by the pit.',
       done: { flag: 'a2-east' },
       timer: 'g-a2-neck',
     },
     {
       id: 'a2-plank',
       bay: 'A2',
-      text: kitMoveOn('plankBridge') ? A2_PLANK_KIT_TEXT : 'Cross the pit by the east vans on the hoarded walkway to the L2 door.',
+      text: kitMoveOn('plankBridge') ? A2_PLANK_KIT_TEXT : 'Cross the pit to the L2 door',
       done: { flag: A2_ACROSS_FLAG },
     },
     { id: 'a2-lock', bay: 'A2', text: 'Both of you into holding room two.' },

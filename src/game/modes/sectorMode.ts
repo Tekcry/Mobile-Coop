@@ -9,6 +9,8 @@ import { ITEM_SCOPE_OFF } from '../itemScope';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
+import { PianoScene, SCENE_SPAWN_MIN, isPianoScene, pianoWorld, type PianoModeSeam } from '../pianoScene';
+import { PianoIntroView } from '../pianoIntroView';
 import { reportGuardAi, validatePosts } from '../../ai/guardAiData';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
@@ -30,6 +32,7 @@ import {
   SECTOR,
   SECTOR_REINFORCE_KIND,
   SECTOR_RESTART_TITLE,
+  clearDone,
   type SectorBolts,
   type SectorPairGates,
   SectorRun,
@@ -129,7 +132,8 @@ import {
   type SecurityDesk,
 } from '../sectorDesks';
 
-/** Squads never pop in this close to a player (Hunter's rule). */
+/** Squads never pop in this close to a player (Hunter's rule). (piano-escape S2) One exception: a scene map's EMP
+ *  spawn (`sceneSpawn`, `SCENE_SPAWN_MIN`). */
 const SPAWN_MIN_DIST = 7;
 /** Everyone down (M7, no lives): the section restarts at its checkpoint after this beat (s). */
 const RESTART_DELAY = 2.5;
@@ -206,6 +210,10 @@ export class SectorMode implements GameMode {
   private readonly slotEnemy: (Enemy | null)[] = [];
   private fillT = 0;
   private endT = -1;
+  /** (piano-escape) The scene's logic when the map is the piano scene (`MapDef.scene`); null on every other map. */
+  private scene: PianoScene | null = null;
+  /** (piano-escape S2) The fill running now is the scene's EMP spawn (the start-spawn exception to the 7 m rule). */
+  private sceneNear = false;
   private restartT = -1;
   private reinforceK = 0;
   private readonly connIn: ConnectorInput = { allInside: false, doorwayClear: true };
@@ -391,6 +399,11 @@ export class SectorMode implements GameMode {
       const cp = this.run.checkpoint;
       g.player.controller.teleport(new Vector3(cp.x, cp.y, cp.z), cp.yaw);
       g.player.cam.yaw = cp.yaw;
+    }
+    // (piano-escape seam 1) the scene's empty kit, before the section's checkpoint records the loadout
+    if (isPianoScene(g.world.map)) {
+      this.scene = new PianoScene(g, undefined, pianoWorld(g, this.pianoSeam()));
+      this.scene.start();
     }
     g.letterbox(2.8);
     this.loadSection(this.run.index);
@@ -597,11 +610,29 @@ export class SectorMode implements GameMode {
     for (const m of this.stageRun.missing) console.warn(`[sector] ${m}`);
   }
 
-  /** (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions. */
-  private stageActions(from: number, to: number): void {
+  /**
+   * (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions.
+   * `live` false: a section start replaying a carried stage (no dog release, guard-rules S8-a).
+   */
+  private stageActions(from: number, to: number, live = true): void {
     const r = this.stageRun?.raise(this.run.index, from, to);
     if (r?.lights) this.g.stealth?.syncSwitches();
     if (r?.doors) this.secT = 0;
+    // (guard-rules S8, A12) dark: the stage lets the live section's dogs off the heel
+    if (live && r?.dogs && flags.dogRelease) this.releaseDogs();
+  }
+
+  /** (guard-rules S8, A12) Every living, free dog of the live section runs to the last known position and searches
+   *  it (`Enemy.releaseHeel` decides who is free). Host / solo; event time only. */
+  private releaseDogs(): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const list = em.enemies;
+    const sec = this.run.index;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.dog && e.section === sec) e.releaseHeel();
+    }
   }
 
   /**
@@ -767,7 +798,7 @@ export class SectorMode implements GameMode {
   /** The current section unloads: a held guard is let go, then every guard and body goes, and its devices go off. */
   private unloadSection(): void {
     const g = this.g;
-    if (g.takedown.active) g.takedown.reset();
+    if (g.takedown.busy) g.takedown.reset();
     // co-op: guards a client holds (grab, hostage) are let go and the client told, before they despawn
     g.net?.releaseHolds?.();
     this.pending.length = 0;
@@ -796,8 +827,9 @@ export class SectorMode implements GameMode {
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
-    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state
-    this.stageActions(0, this.run.alarm);
+    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state;
+    // (guard-rules S8-a) its doors and lights, not the dog release: its guards are still in the fill queue
+    this.stageActions(0, this.run.alarm, false);
     if (kit) {
       this.g.weapons.markCheckpoint();
       // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
@@ -838,6 +870,11 @@ export class SectorMode implements GameMode {
       return;
     }
     const o = s.objective;
+    // (piano-escape) a `clear` objective has no site and no item: the guards going down is the objective (`clearStep`)
+    if (o.kind === 'clear') {
+      g.hud.setObjective(o.label);
+      return;
+    }
     const site = new Vector3(o.x, o.y, o.z);
     const kind = o.kind === 'grab' ? 'intel' : 'terminal';
     const label = o.kind === 'grab' ? 'Take it' : o.kind === 'hack' ? 'Hack' : 'Start the download';
@@ -884,6 +921,16 @@ export class SectorMode implements GameMode {
     const done = m ? missionDoneLine(m.runner) : s.objective.label;
     if (done) g.hud.feedItem(`${done} - done`, 'xp');
     this.setup(s);
+  }
+
+  /**
+   * (piano-escape) A `clear` objective is done once every guard is down and none is pending (`clearDone`). A section
+   * with no guards is done at once.
+   */
+  private clearStep(s: SectorDef): void {
+    const em = this.g.enemyMgr;
+    if (!em || !clearDone(this.pending.length, em.alive)) return;
+    this.objectiveDone(s);
   }
 
   /** Every living player in the connector cycles it (the next section), or in the extraction ends the run. */
@@ -945,10 +992,43 @@ export class SectorMode implements GameMode {
     }
   }
 
+  /**
+   * (piano-escape S2) The scene's seams into the mode: its EMP spawn, the live section's slots, the
+   * operators' spots. Built once at the scene's start.
+   */
+  private pianoSeam(): PianoModeSeam {
+    const g = this.g;
+    return {
+      spawn: () => this.sceneSpawn(),
+      spawned: (k) => this.slotEnemy[k]?.alive === true,
+      sectionGuards: () => this.run.current?.guards.length ?? 0,
+      spots: () => {
+        const b = this.run.checkpoint2;
+        return b ? [this.run.checkpoint, b] : [this.run.checkpoint];
+      },
+      view: (intro, onSkip) => new PianoIntroView(g, intro, onSkip),
+    };
+  }
+
+  /**
+   * (piano-escape S2) A scene map's EMP spawn (and its restart's): the pending guards spawn now, the opening four on their
+   * stop spots 4-6 m from the players: the scene's start-spawn exception to the 7 m rule (`SCENE_SPAWN_MIN`). Only
+   * here; every other spawn keeps the rule.
+   */
+  private sceneSpawn(): void {
+    if (!this.scene) return;
+    this.sceneNear = true;
+    this.fill();
+    this.sceneNear = false;
+  }
+
   /** Spawn pending guards under the live cap, out of every player's face. */
   private fill(): void {
     const em = this.g.enemyMgr;
     if (!em) return;
+    // (piano-escape S2) a scene holds its guards until the EMP (the intro) and through a restart's wait
+    if (this.scene?.holdsSpawn) return;
+    const minD = this.sceneNear ? SCENE_SPAWN_MIN : SPAWN_MIN_DIST;
     const refs = this.g.playerRefsInto(this.refs);
     for (let i = 0; i < this.pending.length; ) {
       const p = this.pending[i]!;
@@ -957,14 +1037,21 @@ export class SectorMode implements GameMode {
         const r = refs[k]!;
         d = Math.min(d, hyp2(r.feet.x - p.slot.x, r.feet.z - p.slot.z));
       }
-      if (d < SPAWN_MIN_DIST && !p.alerted) {
+      if (d < minD && !p.alerted) {
         i++;
         continue;
       }
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
       // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw, p.look);
-      if (!e) break;
+      if (!e) {
+        // the live cap: the rest wait for room. (guard-ai play pass P3-3) Else no walkable cell near the slot: drop it
+        // (said once, as it leaves the list) so it never stalls the guards and reinforcements behind it.
+        if (em.alive >= em.maxAlive) break;
+        console.warn(`sector: guard slot ${p.k} (${p.slot.kind} at ${p.slot.x}, ${p.slot.z}) failed to spawn (dropped)`);
+        this.pending.splice(i, 1);
+        continue;
+      }
       if (p.slot.info) e.info = p.slot.info; // (stealth-pays S2) what INTERROGATE gets out of him
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       if (p.k >= 0) this.slotEnemy[p.k] = e;
@@ -1089,6 +1176,11 @@ export class SectorMode implements GameMode {
     for (const it of this.its) g.interactables?.remove(it);
     this.its.length = 0;
     g.hud.setObjective('');
+    // (piano-escape seam 3) a scene writes no star, record or rating and shows no banner or results: a fade, then the menu
+    if (this.scene) {
+      this.endT = this.scene.finish();
+      return;
+    }
     // (section-rating S2) the last section is rated at the extraction (nothing follows it to grant)
     this.rate(this.run.index, false);
     // co-op: the last rating goes now (the sector sends stop once the op ends), ahead of the end message
@@ -1283,6 +1375,8 @@ export class SectorMode implements GameMode {
     }
     // (E9-crate, A105) every crate usable again by everyone
     g.crates?.resetAll();
+    // (piano-escape S2) a scene never replays its intro: after the EMP its spawn waits for the respawn, then runs again
+    this.scene?.restarted();
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
@@ -1333,6 +1427,10 @@ export class SectorMode implements GameMode {
       this.endT -= dt;
       if (this.endT <= 0) {
         this.endT = 0;
+        if (this.scene) {
+          this.scene.leave();
+          return;
+        }
         if (this.result().ghost) g.stats.score += 2000;
         g.endSession(true, this.practiceFrom ? practiceLine(this.result().line, this.practiceFrom) : this.result().line);
       }
@@ -1362,6 +1460,12 @@ export class SectorMode implements GameMode {
       if (this.restartT < 0) this.restartSection();
       return;
     }
+    // (piano-escape S2) the scene's step: the EMP prompt and press, the cut, a restart's spawn, the search, the reveals
+    if (this.scene) {
+      this.scene.step(dt, this.run.phase === 'objective');
+      // (piano-escape S4) the EMP press goes to the client on the next step's `sector` message (its `ep`), not 0.5 s on
+      if (this.scene.takeEmpNews()) this.secT = 0;
+    }
     this.fillT -= dt;
     if (this.fillT <= 0) {
       this.fillT = 0.5;
@@ -1378,6 +1482,10 @@ export class SectorMode implements GameMode {
     const s = this.run.current;
     if (!s) return;
     this.overhearStep(dt, this.run.index, s);
+    // (piano-escape S2) a scene's objective counts from the cut to play (no guard is up before the EMP)
+    if (this.run.phase === 'objective' && s.objective.kind === 'clear' && (!this.scene || this.scene.inPlay)) this.clearStep(s);
+    // (piano-escape seam 2) a player on the porch with a guard still up
+    if (this.scene && this.run.phase === 'objective') this.scene.porchStep(s, g.playerRefsInto(this.refs));
     if (this.run.phase === 'objective' && this.run.downloading) {
       const o = s.objective;
       const refs = g.playerRefsInto(this.refs);
@@ -1465,7 +1573,7 @@ export class SectorMode implements GameMode {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
     const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}) };
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(this.mission ? { ms: this.mission.wire() } : {}), ...(this.scene && this.scene.t0 >= 0 ? { ep: this.scene.t0 } : {}) };
   }
 
   /** (mission-framework EN2) Co-op host: a client's gadget took effect (a mission's no-gadgets rule, by its slot). */
@@ -1539,6 +1647,8 @@ export class SectorMode implements GameMode {
     this.mission?.dispose();
     this.freeze?.dispose();
     this.freeze = null;
+    this.scene?.dispose();
+    this.scene = null;
     this.ct?.dispose();
     this.ct = null;
     this.g.ctDev = null;

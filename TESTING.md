@@ -217,6 +217,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   before his first radio line: no alarm, nobody comes.
 - [ ] Barks by cause (guard-rules S4): let a guard glimpse you at the edge of a light: he says a seeing line ("Thought
   I saw something."); throw a bottle near another: he says a hearing line; neither ever says the other kind.
+- [ ] Lookouts (guard-rules S7 / S9, Sector Ops S5, `?lookouts=1`): throw a bottle near the roof marksman: he only
+  turns and edges within 1 m of his spot and someone else comes. Let him glimpse you lit: a startled line (e.g.
+  "Huh?"), then a radio line, and a calm guard nearby walks to where you stood while he stays put. A second glimpse
+  within 20 s: no second call.
+- [ ] Dog release (guard-rules S8, Sector Ops S4 / S5, `?dogrelease=1`): raise S4 to alarm stage 2: each free dog runs
+  to where you were last seen, searches, then goes back to its handler. A camera or laser alarm (no guard has seen
+  you): the dogs search round their handlers instead.
 - [ ] Squads and dogs (guard-ai S5b, Sector Ops): knock a guard out unseen and wait up to ~40 s: his squad's radio
   check misses him and two squad mates walk to where he went down and wake him. A dog stays with its handler; drop the
   handler and the dog stays by him and barks.

@@ -1312,7 +1312,7 @@ export class CourseMode implements GameMode {
     const em = this.g.enemyMgr;
     if (!em) return;
     const g = this.g;
-    if (g.takedown.active) g.takedown.reset();
+    if (g.takedown.busy) g.takedown.reset();
     g.net?.releaseHolds?.();
     this.noteDowns();
     const redo: string[] = [];
@@ -1364,7 +1364,7 @@ export class CourseMode implements GameMode {
       if (!held) {
         held = true;
         const g = this.g;
-        if (g.takedown.active) g.takedown.reset();
+        if (g.takedown.busy) g.takedown.reset();
         g.net?.releaseHolds?.();
       }
       const k = this.slotOfGuard(e);
@@ -1447,6 +1447,15 @@ export class CourseMode implements GameMode {
    * is a new `Enemy` (`EnemyManager.revive`, the same guard key: `Enemy.inherit`); he takes his slot's woken place, so a
    * retry that respawns the slot removes him too. The built yard is unchanged (no stations: nothing).
    */
+  /**
+   * (guard-ai play pass P3-1) The alarm banner says no reinforcements are inbound when none can come: a course map with
+   * no reinforce points and no guard-AI entries (Marlow Yard) gets none from `StealthSystems.onAlarm`.
+   */
+  alarmQuiet(): boolean {
+    const lay = this.g.world.layout;
+    return !lay.reinforce?.length && !lay.guardAi?.entries?.length;
+  }
+
   onEnemyJoined(e: Enemy): void {
     if (!this.state?.hasStations || e.key < 0) return;
     for (let k = 0; k < this.squad.length; k++) {
@@ -1531,7 +1540,7 @@ export class CourseMode implements GameMode {
     if (!em) return;
     const g = this.g;
     if (this.squad.length || full) {
-      if (g.takedown.active) g.takedown.reset();
+      if (g.takedown.busy) g.takedown.reset();
       g.net?.releaseHolds?.();
     }
     if (full) em.resetMemory();
@@ -1555,8 +1564,9 @@ export class CourseMode implements GameMode {
     this.dropSquad(false);
     for (const id of ids) {
       if (!this.layout!.squads[id]) continue;
+      // (guard-ai play pass P3-2) a failed slot (said once by `spawnSlot`) skips only that guard, not the rest of the squad
       const e = this.spawnSlot(id);
-      if (!e) break;
+      if (!e) continue;
       this.addSquad(id, e);
     }
   }
@@ -1571,7 +1581,7 @@ export class CourseMode implements GameMode {
       // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
       if (!this.squadWarned.has(id)) {
         this.squadWarned.add(id);
-        console.warn(`course: squad slot '${id}' failed to spawn (the rest of this bay's squad is skipped)`);
+        console.warn(`course: squad slot '${id}' failed to spawn (skipped; the rest of the squad spawns)`);
       }
       return null;
     }

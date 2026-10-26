@@ -659,24 +659,20 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
     expect(steps[1]!.done).toEqual({ flag: A4_WEST_FLAG });
     expect(steps[2]!.done).toEqual({ flag: A4_WICKET_FLAG });
     expect(steps[3]!.done).toBeUndefined();
-    expect(steps[0]!.text).toMatch(/lift grille/);
-    expect(steps[0]!.text).toMatch(/back aisle/);
-    expect(steps[1]!.text).toMatch(/console/);
+    expect(steps[0]!.text).toMatch(/grille/);
+    expect(steps[1]!.b).toMatch(/console/);
     expect(steps[1]!.text).toMatch(/dock/);
-    expect(steps[1]!.text).toMatch(/60 s/);
     expect(steps[1]!.timer).toBe(A4_GATE);
     expect(steps[2]!.text).toMatch(/loaders/);
-    expect(steps[2]!.text).toMatch(/pallet stacks/);
     expect(steps[2]!.a).toBeDefined();
     expect(steps[2]!.b).toBeDefined();
-    // (marlow-play C7) the job lines are all the HUD shows: 8's name the run to the dock and its 60 s, 10's the man by
-    // position (A's mark north, B's south) and the push bar the step ends at
-    for (const t of [steps[1]!.a!, steps[1]!.b!]) expect(t).toMatch(/then run.*dock - 60 s/);
-    expect(steps[1]!.a).toMatch(/back aisle, cross aisle, main aisle west/);
-    expect(steps[2]!.a).toMatch(/north man/);
-    expect(steps[2]!.b).toMatch(/south man/);
+    // (marlow-play C7) the job lines are all the HUD shows: 8's name the run to the dock (the HUD adds the 60 s), 10's the loader by
+    // position (A's mark north, B's south)
+    for (const t of [steps[1]!.a!, steps[1]!.b!]) expect(t).toMatch(/then run to the dock/);
+    expect(steps[2]!.a).toMatch(/north loader/);
+    expect(steps[2]!.b).toMatch(/south loader/);
     expect(SHEET[2]!.marks[0]!.z).toBeGreaterThan(SHEET[2]!.marks[1]!.z);
-    for (const t of [steps[2]!.a!, steps[2]!.b!]) expect(t).toMatch(/count down and go together, then both to the push bar by the L4 door/);
+    for (const t of [steps[2]!.a!, steps[2]!.b!]) expect(t).toMatch(/^Count down with your partner and take the (north|south) loader.$/);
     expect(steps[3]!.text).toMatch(/holding room four/);
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {
@@ -692,10 +688,10 @@ describe('Marlow re-plan A4: the steps and the lines', () => {
   it("LANTERN's retry lines exist (STATIONS section 6, verbatim, keyed `retry:<id>` and `retry:<id>:timer`) and fit; none says failed or names the kettle", () => {
     const at = (k: string) => part.bay.radio.filter((r) => r.at === k).map((r) => r.text);
     expect(at(retryKey('a4-deadweight'))).toEqual(['The duty officer saw you. Back to the security room door.']);
-    expect(at(retryKey('a4-camloop'))).toEqual(['Seen on the shop floor. Back to the security room; loop it again.']);
-    expect(at(retryKey('a4-camloop', true))).toEqual(['The cameras came back. Back to the security room; loop it again.']);
+    expect(at(retryKey('a4-camloop'))).toEqual(['Seen on the shop floor. Back to the security room.']);
+    expect(at(retryKey('a4-camloop', true))).toEqual(['The cameras came back. Back to the security room.']);
     expect(at(retryKey('a4-takedown'))).toEqual(['The loaders saw you. Back behind the pallet stacks at the dock.']);
-    expect(at(retryKey('a4-takedown', true))).toEqual(['Both loaders at once, or the other one sees. Back behind the stacks.']);
+    expect(at(retryKey('a4-takedown', true))).toEqual(['Not together, so the other loader saw. Back behind the stacks.']);
     expect(at(retryKey('a4-deadweight', true))).toEqual([]);
     expect(A4_RETRY_LINES.map((r) => r.at)).toEqual(['retry:a4-deadweight', 'retry:a4-camloop', 'retry:a4-camloop:timer', 'retry:a4-takedown', 'retry:a4-takedown:timer']);
     for (const r of part.bay.radio) {

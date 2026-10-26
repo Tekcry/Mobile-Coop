@@ -150,22 +150,22 @@ export const A5_RETRY_SEEN = 'Seen in the floodlight. Back behind the transforme
 export const A5_RETRY_TIMER = 'The floodlight came back. Back behind the transformer.';
 
 /** (marlow-kit-wire) Stations 11 and 12's objectives while `chimneyPair` / `swingPass` is on (the built texts are the stand-ins'). */
-export const A5_CHIMNEY_KIT_TEXT = 'Back to back up the gap to the wall top, then down its ladder onto the apron.';
-export const A5_SWING_KIT_TEXT = 'Swing one of you over the trench from the pipe; the swung one unbolts the plates.';
+export const A5_CHIMNEY_KIT_TEXT = 'Climb the gap back to back';
+export const A5_SWING_KIT_TEXT = 'Swing over the trench from the bar';
 
 /** The bay's objective lines on the re-plan: one per station (what and where), then the holding-room line. */
 export const A5_OBJECTIVES: readonly CourseObjective[] = [
-  { id: 'a5-wall', bay: 'A5', text: 'Through the wicket door in the wall onto the apron.', done: { flag: A5_APRON_E_FLAG } },
-  { id: 'a5-trench', bay: 'A5', text: "Cross the cable trench to the apron's west side: footbridge or plates.", done: { flag: A5_APRON_W_FLAG } },
+  { id: 'a5-wall', bay: 'A5', text: 'Go through the wicket onto the apron', done: { flag: A5_APRON_E_FLAG } },
+  { id: 'a5-trench', bay: 'A5', text: 'Cross the trench by footbridge or plates', done: { flag: A5_APRON_W_FLAG } },
   {
     id: 'a5-throw',
     bay: 'A5',
-    text: 'Throw one of you over the beams, jam the kiosk floodlight, key the release.',
-    a: 'Throw your partner from the mark, then jam the floodlight through the gateway.',
-    b: 'Land behind the transformer, cross under the jam and key the release at the kiosk.',
+    text: 'Get over the beams, jam the floodlight',
+    a: 'Throw your partner over the beams, then jam the kiosk floodlight.',
+    b: 'Cross under the jam and key the release at the kiosk.',
     done: { flag: A5_RELEASE_FLAG },
   },
-  { id: 'a5-lock', bay: 'A5', text: 'Beams are off. Both of you into holding room five.' },
+  { id: 'a5-lock', bay: 'A5', text: 'Beams are off, into holding room five' },
 ];
 
 const GREY = '#6a6f74';

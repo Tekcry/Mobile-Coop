@@ -137,24 +137,24 @@ export const A6_PUMP_HOUSE_STATIONS: readonly StationDef[] = [
 /** LANTERN's lines when a station retries (STATIONS section 6). */
 export const A6_RETRY_LINES: readonly { id: string; text: string }[] = [
   { id: 'a6-rope', text: 'The attendant saw you. Back to the sump bay, behind the kerb.' },
-  { id: 'a6-hangdown', text: "The attendant saw you on the bridge. Back to the bridge's north end." },
+  { id: 'a6-hangdown', text: "Seen on the bridge. Back to the bridge's north end." },
   // (fix 1) until `dropCatch` ships the way down is the stand-in ladder, so the line names it, not the catch (STATIONS section 6
-  // has "Back to the bridge; catch your partner."; it goes back to that when the move ships)
-  { id: 'a6-dropcatch', text: 'The attendant heard the landing. Back to the bridge; take the cage ladder down.' },
+  // has "Back to the bridge to catch again."; it goes back to that when the move ships)
+  { id: 'a6-dropcatch', text: 'The attendant heard the landing. Back to the bridge.' },
 ];
 /** (marlow-kit-wire) Station 16's lines while `dropCatch` is on (STATIONS section 6, verbatim; the built ones are the ladder's). */
-export const A6_DROPCATCH_KIT_RETRY = 'The attendant heard the landing. Back to the bridge; catch your partner.';
+export const A6_DROPCATCH_KIT_RETRY = 'The attendant heard the landing. Back to the bridge to catch again.';
 export const A6_DROP_KIT_OBJECTIVE = {
-  text: 'One of you drops through the bridge opening into the drive pit; the other catches.',
+  text: 'Drop into the drive pit, partner catches',
   a: 'Step off the bridge through the opening over the pit.',
   b: 'Stand under the opening in the drive pit and catch your partner.',
 } as const;
 /** (fix 2, A26 for A6) LANTERN's lines at `retry:<id>:other` when the tick (`replan/a6Ticks.ts`) frees a pair stuck on the pump
  *  floor (the lip locked, nobody up to hold the rope): without one the retry is silent. */
 export const A6_TRAP_LINES = {
-  'a6-rope': 'No one on the gallery to hold the line. Back to the sump bay, behind the kerb.',
-  'a6-hangdown': "No way back up from the pump floor. Back to the bridge's north end.",
-  'a6-dropcatch': 'No way back up from the pump floor. Back to the bridge and the drive pit.',
+  'a6-rope': 'No one held the line. Back to the sump bay.',
+  'a6-hangdown': "No way back up. Back to the bridge's north end.",
+  'a6-dropcatch': 'No way back up. Back to the bridge and the drive pit.',
 } as const;
 
 /** The bay's objective lines on the re-plan: one per station (what and where), then the outfall line. */
@@ -162,18 +162,18 @@ export const A6_OBJECTIVES: readonly CourseObjective[] = [
   {
     id: 'a6-up',
     bay: 'A6',
-    text: 'Both of you onto the motor gallery at the west end: a leg-up, then the rescue line.',
-    a: 'Boost your partner up at the loading edge, then climb the rescue line.',
+    text: 'Both of you onto the motor gallery',
+    a: 'Boost your partner up, then climb the rescue line.',
     // (marlow-play C8) the rope is offered standing at the open loading edge (crouched it is a hang-down offer)
-    b: 'Take the leg-up, then at the open edge face the drop and press Co-op standing.',
+    b: 'Take the leg-up, then press Co-op standing at the open edge.',
     done: { flag: A6_GAL_FLAG },
   },
   {
     id: 'a6-hang',
     bay: 'A6',
-    text: 'Lower one of you through the gland plate on the bridge to the drive panel.',
-    a: 'Hold your partner over the drive cabinet. Watch the attendant.',
-    b: 'Hold the isolate key on the drive panel while he is away.',
+    text: 'Lower one through the gland plate',
+    a: 'Hold your partner over the drive cabinet, watching the attendant.',
+    b: 'Hold the key on the drive panel while the attendant is away.',
     done: { flag: A6_DRIVE_FLAG },
   },
   // (fix 1) station 16's stand-in: while `dropCatch` is off, the way down is the cage ladder (`g-a6-pit-ladder`) and there is
@@ -181,12 +181,12 @@ export const A6_OBJECTIVES: readonly CourseObjective[] = [
   {
     id: 'a6-drop',
     bay: 'A6',
-    text: 'Both of you down the cage ladder through the bridge opening into the drive pit.',
-    a: 'Climb down the cage ladder through the bridge opening into the drive pit.',
-    b: 'Down the cage ladder through the bridge opening; wait at its foot in the drive pit.',
+    text: 'Both of you down the cage ladder',
+    a: 'Climb down the cage ladder into the drive pit.',
+    b: 'Climb down the cage ladder and wait at its foot.',
     done: { flag: A6_PIT_FLAG },
   },
-  { id: 'a6-lock', bay: 'A6', text: 'The interlock is green. Out through the outfall culvert from the pit to holding room six.' },
+  { id: 'a6-lock', bay: 'A6', text: 'Through the culvert to holding room six' },
 ];
 
 const STEEL = '#8d949b';

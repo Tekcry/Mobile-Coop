@@ -387,7 +387,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts', 'src/weapons/drawTune.ts', 'src/anim/strikeBody.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (anim-natural N3) drawTune; (item 24, track A) the guard sections; (anim-natural N4c) strikeBody
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts', 'src/weapons/drawTune.ts', 'src/anim/strikeBody.ts', 'src/anim/introBreath.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (anim-natural N3) drawTune; (item 24, track A) the guard sections; (anim-natural N4c) strikeBody; (piano-knife S4b) introBreath (the generic table)
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file

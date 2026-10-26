@@ -57,6 +57,9 @@ describe('mayLeave', () => {
     const vault: PostDef = { leash: 3, highSecurity: true, guards: 'token' };
     for (const k of KIND) expect(mayLeave(vault, k)).toBe(false);
   });
+  it('(guard-rules S7, A9) a lookout never leaves, whatever the incident', () => {
+    for (const k of KIND) expect(mayLeave({ leash: 1, lookout: true }, k)).toBe(false);
+  });
 });
 
 /** Drive a PostLure with a guard walking at `speed` m/s; returns the trace. */

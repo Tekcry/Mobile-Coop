@@ -324,24 +324,22 @@ describe('Marlow re-plan A6: the guard and the stations (STATIONS sections 3, 6,
     }
     // (marlow-play C8) station 14's B line: the leg-up first, then the rope offered standing at the open edge (never "brace":
     // crouched it is a hang-down offer)
-    expect(part.objectives[0]!.b).toBe('Take the leg-up, then at the open edge face the drop and press Co-op standing.');
+    expect(part.objectives[0]!.b).toBe('Take the leg-up, then press Co-op standing at the open edge.');
     expect(part.objectives[0]!.b!.toLowerCase()).not.toMatch(/brace|crouch/);
-    expect(part.objectives[3]!.text).toMatch(/outfall culvert/);
+    expect(part.objectives[3]!.text).toMatch(/culvert/);
     expect(part.objectives[3]!.text).toMatch(/holding room six/);
-    // (fix 1) until `dropCatch` ships station 16's way down is the stand-in ladder: the drop step's lines name it through the
-    // bridge opening into the drive pit (both go down it), never a catch; the retry line sends them to it too
+    // (fix 1) until `dropCatch` ships station 16's way down is the stand-in ladder: the drop step's lines name it into the
+    // drive pit (both go down it), never a catch
     const drop = part.objectives[2]!;
     expect(drop.id).toBe('a6-drop');
     for (const t of [drop.text, drop.a!, drop.b!]) {
       expect(t, t).toMatch(/cage ladder/);
-      expect(t, t).toMatch(/bridge opening/);
-      expect(t, t).toMatch(/drive pit/);
       expect(t.toLowerCase(), t).not.toMatch(/catch|drop/);
       expect(/[–—]/.test(t), t).toBe(false);
     }
     expect(drop.text).toMatch(/^Both of you/);
     const dropRetry = A6_RETRY_LINES.find((r) => r.id === 'a6-dropcatch')!.text;
-    expect(dropRetry).toMatch(/cage ladder/);
+    expect(drop.a).toMatch(/drive pit/);
     expect(dropRetry.toLowerCase()).not.toContain('catch');
   });
 });
@@ -688,7 +686,7 @@ describe('station 16 kit spot (marlow-kit-wire)', () => {
     for (const t of [A6_DROPCATCH_KIT_RETRY, ...Object.values(A6_DROP_KIT_OBJECTIVE)]) expect(t.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
     flags.kitMoves = new Set();
     const off = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
-    expect(off.objectives!.find((q) => q.id === 'a6-drop')!.text).toBe('Both of you down the cage ladder through the bridge opening into the drive pit.');
-    expect(off.bays[5]!.radio.find((r) => r.at === retryKey('a6-dropcatch'))!.text).toBe('The attendant heard the landing. Back to the bridge; take the cage ladder down.');
+    expect(off.objectives!.find((q) => q.id === 'a6-drop')!.text).toBe('Both of you down the cage ladder');
+    expect(off.bays[5]!.radio.find((r) => r.at === retryKey('a6-dropcatch'))!.text).toBe('The attendant heard the landing. Back to the bridge.');
   });
 });

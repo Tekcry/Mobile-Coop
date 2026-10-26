@@ -150,8 +150,9 @@ export function wallPeekView(toward: number, look: number): number {
 }
 
 /** MoveState `sub` bits for `wall` (u8): edge flags and peek; `leftHand` is the weapon hand at a left edge. (A3: the
- *  lean bit 32 is gone with the lean-out; `low` stays, it feeds the crouch and the takedown attacker state.) */
-export const WALL_SUB = { crouch: 1, faceRight: 2, edgeL: 4, edgeR: 8, peek: 16, low: 64, leftHand: 128 } as const;
+ *  lean bit 32 is gone with the lean-out; piano-knife S4b uses 32 for the intro pose.) `low` stays, it feeds the crouch
+ *  and the takedown attacker state. */
+export const WALL_SUB = { crouch: 1, faceRight: 2, edgeL: 4, edgeR: 8, peek: 16, intro: 32, low: 64, leftHand: 128 } as const;
 
 /**
  * (step 12, light parity) The head's horizontal offset past the edge while peeking, from the wall MoveState alone
@@ -307,6 +308,10 @@ export class WallCore {
   dir = 1;
   crouch = false;
   low = false;
+  /** (piano-knife S4b) The piano intro pose holds this wall (IntroPose): WALL_SUB.intro; introLeft: the mirror variant,
+   *  the weapon in the left hand. */
+  intro = false;
+  introLeft = false;
   /** At an outside end: -1 at a, +1 at b, 0 mid-wall. */
   edge = 0;
   /** Time in the current phase, stick-into and pull-away timers (s). */
@@ -476,6 +481,7 @@ export class WallCore {
     this.onT = 0;
     this.intoT = 0;
     this.edge = 0;
+    this.intro = this.introLeft = false; // (piano-knife S4b checkers) a reset mid-intro must not pin the next wall
     this.clearEdge();
   }
 
@@ -516,21 +522,25 @@ export class WallCore {
       return;
     }
     const g = this.segs[this.seg]!;
-    // leaving: another action or aiming, the context press again (toggle) or released (hold)
-    if (i.leave) return this.leave('action');
-    if (i.toggle && i.context && this.t > 0) return this.leave('context');
-    if (!i.toggle) {
-      // hold mode (D7): a context entry stays while the button is held; a stick entry while the stick is held (holding
-      // the button later hands it to the button)
-      if (this.stickEntry && i.contextHeld) this.stickEntry = false;
-      if (this.stickEntry ? mag < 0.3 && this.t > 0.05 : !i.contextHeld && this.t > 0.05) return this.leave(this.stickEntry ? 'stick' : 'context');
-    }
-    // (A3, loco M25) only the button (or aiming, or another action) leaves the wall: no pull-away
-    // (21w, M14) crouch on any wall: a press toggles the stance on a high face (hold mode: the held button decides);
-    // a low face is always crouched. The controller eases the stance; the body stays on the wall.
-    if (!g.low) {
-      if (i.crouchHold) this.crouch = !!i.crouchHeld;
-      else if (i.crouchPressed) this.crouch = !this.crouch;
+    // (piano-knife S4b) the intro pose holds the wall: no button, aim, crouch or hold-mode release leaves it
+    // (`IntroPose.set(false)` does)
+    if (!this.intro) {
+      // leaving: another action or aiming, the context press again (toggle) or released (hold)
+      if (i.leave) return this.leave('action');
+      if (i.toggle && i.context && this.t > 0) return this.leave('context');
+      if (!i.toggle) {
+        // hold mode (D7): a context entry stays while the button is held; a stick entry while the stick is held (holding
+        // the button later hands it to the button)
+        if (this.stickEntry && i.contextHeld) this.stickEntry = false;
+        if (this.stickEntry ? mag < 0.3 && this.t > 0.05 : !i.contextHeld && this.t > 0.05) return this.leave(this.stickEntry ? 'stick' : 'context');
+      }
+      // (A3, loco M25) only the button (or aiming, or another action) leaves the wall: no pull-away
+      // (21w, M14) crouch on any wall: a press toggles the stance on a high face (hold mode: the held button decides);
+      // a low face is always crouched. The controller eases the stance; the body stays on the wall.
+      if (!g.low) {
+        if (i.crouchHold) this.crouch = !!i.crouchHeld;
+        else if (i.crouchPressed) this.crouch = !this.crouch;
+      }
     }
     this.t += dt;
     this.onT += dt;
@@ -650,7 +660,7 @@ export class WallCore {
 
   /** The weapon in the left hand: peeking at a left edge (WALL_SUB.leftHand). */
   get leftHand(): boolean {
-    return this.phase === 'on' && wallLeftHand(this.sub());
+    return (this.intro && this.introLeft && this.active) || (this.phase === 'on' && wallLeftHand(this.sub()));
   }
 
   /** The rig's lean (-1 left .. 1 right; the edge at b is the body's left) from the peek. */
@@ -699,6 +709,7 @@ export class WallCore {
       (this.edge === 1 ? WALL_SUB.edgeL : 0) |
       (this.edge === -1 ? WALL_SUB.edgeR : 0) |
       (this.peek > 0 ? WALL_SUB.peek : 0) |
+      (this.intro ? WALL_SUB.intro : 0) |
       (this.low ? WALL_SUB.low : 0)
     );
   }

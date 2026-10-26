@@ -1,5 +1,611 @@
 # Changelog
 
+## 4.127.0 - Train 156: Piano escape: knife kills, co-op, the storm and the full run (2026-10-27, PR #659; #631)
+
+### Co-op kit: groundwork for five new moves
+- Co-op: groundwork for five new two-player moves (deadweight, drop catch, chimney pair, swing pass, plank bridge):
+  their names, their place on the network and a stand-in look for each while a partner does one. None of them can be
+  used yet, in the live game or in /preview/; each arrives in its own update. The pull-up, the shutter and the rope
+  descent are unchanged.
+- For map builders: a map can now mark where each of these moves is done (a "kit spot"), and the host tells the game
+  mode when a move is finished at a spot, so a course station can count it.
+
+### Piano escape: Thornbeck Mill greybox
+- Thornbeck Mill, the storm grain mill for the piano escape: the greybox, 12 guards on fixed sweeps, 16 lamps; dark behind `?piano=1`.
+
+### Piano escape: intro and EMP
+- The piano escape opening: a cinematic intro (skip by holding Start / Back), then the EMP blacks out the mill and play begins; dark behind `?piano=1`.
+
+### Piano escape: knife kills, co-op, the storm and the full run
+- The piano escape plays start to end: the real blackout and lightning, knife kills after the EMP, the intro pose, rain on the roof and thunder after each flash, and the co-op run (the partner's intro ends on the host's EMP; both pages fade to the lobby at the end); dark behind `?piano=1`.
+
+### Piano escape: the intro piano, then the mission track
+- Piano escape music: the intro plays the investigation piano; the EMP press cross-fades into the mission track ("Suspense Thriller"), which loops; "Held Breath" as a dev alternative (`?pianomusic=1`); dark behind `?piano=1`.
+
+### Piano escape
+- The piano escape scene (Thornbeck Mill, knife and night vision only, a stealth escape in the dark), dark behind `?piano=1`.
+
+### Piano scene: co-op knife kills
+- Co-op (piano scene, still hidden): both players' knife kills look the same on both screens; the host checks every
+  takedown in the scene is a knife kill.
+
+### Piano intro pose
+- (piano-knife S4b) The piano scene's intro pose: the operator's back to the wall, the empty pistol low in both hands
+  with its slide locked back, one calm captured breath every 4 s (mirror and crouch variants for the partner). Dark
+  until Campaign's piano scene calls it; Anim Studio rows `piano intro (stand / mirror / crouch)`.
+
+### Piano escape: Thornbeck Mill light-meter check
+- A test of the mill's light field (dark after the EMP, flash bands and shadows, meter and guard-sight parity) and the lux-grid tool can now read the mill; no game change.
+
+### Piano escape: lightning lights the room through its windows
+- Each window and gap a map lists for its lightning now throws a short flash of light into the room, with shadows from what stands in the way; it never touches the mains cut and is dark between strikes. Maps without lightning openings are unchanged.
+
+## 4.126.2 - Train 155: Lamp ids past 255; Route-runs: a course restart during a link step; Marlow yard step lines (2026-10-27, PR #657; #655, #649, #627)
+
+### Lamp ids past 255
+- (F56) The lamp grid (which lamps reach each 2 m column) holds lamp ids in 16 bits: up to 65535 lamps a map, was 255.
+  Saltmarsh Park with every section on the v2 layout (/preview/) has 260 lamps; the last 5 (the S5 service stair) were
+  dark in the picture and the light meter. Every lamp is now lit in both, and the guards see it. A map past 65535
+  lamps warns at load. The lamp bakes are unchanged (no rebake, no prebake key change); no wire or save change.
+
+### Marlow yard step lines
+- Marlow Yard re-plan: shorter, plainer step lines (what to do and where).
+- Marlow Yard: the set lamps no longer draw long light beams, which made the lights blinding on the Epic setting.
+- Marlow Yard re-plan walks: e2e-ctcourse parts 5, 7 and 8 are out of quarantine (all green on the laptop after the test fixes in #610 and #632).
+
+### Route-runs: a course restart during a link step
+- Route-run harness: a course restart or retry that lands while a robot is mid-ladder, mid-drop or holding at a
+  stubbed link is no longer lost. The step ends there and the run follows the course's rejoin or push-past, instead
+  of a false step-timeout or a placement past the stub.
+
+## 4.126.1 - Train 154: Docs: the 2026-10-26 / 27 decisions folded (G408-G434); Guard torch slots per map (piano SO3) (2026-10-27, PR #654; #650, #605)
+
+### Docs: the 2026-10-26 / 27 decisions folded (G408-G434)
+- Docs: ROADMAP "Decided" of 2026-10-26 and early 2026-10-27 folded into `docs/DECISIONS.md` as G408-G434 (Mixamo and
+  the Hand-made / CMU / Mixamo toggle, fixes first, preview flags, prototype mode, pacing to the 5-hour reset, the piano
+  escape experiment, Saltmarsh S1 v3, the S1 light approval, the new guards on). The bible, VISION, RULES, CLAUDE.md
+  and the Tallow Wharf map spec are rewritten in place; replaced wording joins `docs/stale-terms.json`.
+- RULES "Machines": a laptop rerun of a desktop red ranks with fixes in the laptop queue (F52, #638).
+
+### Guard torch slots per map (piano SO3)
+- Lighting: a map can ask for 8, 12 or 16 guard torch slots (`MapDef.torchSlots`, default 4) and cap how many cast
+  shadows (`MapDef.torchShadows`); unshadowed torches stop at their beam's reach in the picture, the meter and guard
+  sight alike. Dark: no map sets it yet; other maps are unchanged.
+
+## 4.126.0 - Train 152: Saltmarsh Park S1: the courier's van (2026-10-27, PR #648; #634)
+- Sector Ops (v2 layout, section 1, flag `?campusv2=1`): the job moves to the middle of the car park. Clone the courier's
+  badge at his bright yellow-orange van, west end of the solar carport, about 55 m from the start (it was the gatehouse
+  PC, a few steps away).
+- The gatehouse rear window is fixed glass now; the gatehouse is an optional stop (the camera desk and the switch for
+  the new gate lamp).
+- A 2.4 m fence with a lit garden gate closes the east side. Two players open the gate (one holds it, one draws the
+  bolt); solo, you cross the lit lane or go round the dark south and west fences.
+- Two guards walk new beats: #15 along the inside of the new fence to the gate, #13 further east along the drop-off
+  walkway. All three routes are new.
+
+## 4.125.2 - Train 151: Storm scene guards: never stuck off their floor (2026-10-27, PR #647; #644)
+- (scene only, `?piano=1`) A guard who cannot get back up to his floor walks his sweep on the floor he is on and
+  tries the way up again every few seconds; a torch sweep cut short starts over when he is back.
+
+## 4.125.1 - Train 150: Saltmarsh Park S2-S5 perimeter leaks (2026-10-27, PR #646; #637)
+- Sector Ops (v2 layout, sections 2-5): you can no longer get out of the campus. The HQ roof's low parapet could be
+  climbed and dropped off on every side, and the sunshade under the window-cleaning rope could be walked off. In the
+  labs a climb in the crawl space under the roof came up through it onto the roof and over the edge. On the data hall,
+  the corners of the plant deck and the generator yard's tanks and generator led over the yard walls. At the Old House
+  the roof vents, the low roof's vents and its north-east corner led over the parapets and the estate wall. These edges
+  now have invisible anti-climb caps (no change to the look, lighting or cover), and the sunshade has an invisible catch
+  so letting go of the rope at the end of a swing still lands on it. A new test checks walking and climbing out of every
+  section (`tests/campusV2Perimeter.test.ts`).
+
+## 4.125.0 - Train 149: Piano scene knife kills: the real clips (piano-knife S2) (2026-10-27, PR #645; #620)
+- Piano scene (still dark until Campaign's scene switch): the knife kills play Michael's Mixamo downloads instead of
+  the stand-ins. The operator stabs (Stabbing; the overhand Downward strike at a corner) while the guard dies on his
+  own clip (Falling Forward Death from behind, Dying crouched and face to face, Falling Back Death at a corner). Each
+  kill is 1.5 s and plays the stab part of the clip at its natural speed. Hand contacts are measured; most still miss
+  the 3 cm rule by 5-10 cm (accepted until Michael plays) and the corner kill's grip misses by about 17 cm.
+- Piano scene: every kill is quiet (1.2 m), including the ones without a paired animation; the gun stays away and
+  climbing waits until the operator has finished the kill.
+- Anim Studio: six new Mixamo rows (the five knife clips and Breathing Idle for the piano intro), loaded with the lazy
+  capture set; the `pair: knife` rows play the real pairs.
+
+## 4.124.0 - Train 148: Mantle through a low ceiling fixed; Knife kill allocation test fix; Laptop queue: desktop-red reruns go first; withdrawn affected runs keep the waiver; +6 more (2026-10-27, PR #643; #640, #639, #638, #632, #624, #623, #604, #566, #530)
+
+### Storm scene guards: the slow methodical sweep
+- (scene only, `?piano=1`) In the blackout the guards walk fixed timed laps at 0.7 m/s, sweeping their torches left
+  then right at each stop; partners walk abreast, pan opposite ways, notice a missing partner, and one who glimpses a
+  player in a flash takes his partner along to look.
+
+### Knife kill allocation test fix
+- Test only: the knife kill allocation test allows the clip sampler's own small cost per step (as the kill drive test does), so it no longer fails releases at random.
+
+### Laptop queue: desktop-red reruns go first; withdrawn affected runs keep the waiver
+- Laptop queue: a laptop rerun of a desktop failure now sits in the fix tier (F52), so the final verdict on a PR that
+  reads red runs ahead of front and green work (piano reruns waited ~2 h); trains still go first.
+- Watchdog and auto-train: the `no-affected-e2e` label also waives an affected-e2e that never ran (an `error` status:
+  withdrawn, conflict), so a withdrawn run no longer drops `train-ready` (F55, #623 / #624); a red run still does.
+
+### Mantle through a low ceiling fixed
+- A crouched player in a crawl space under a slab can no longer climb up through the slab onto the floor or roof above (seen on Saltmarsh Park S3, where it left the player stuck on the roof). A climb now needs open air above the chest to rise through; normal climbs with room to stand are unchanged.
+
+### Marlow re-plan walks: A6 and A8 test-side fixes
+- Marlow re-plan walks (e2e-ctcourse parts 7 and 8): the A6 seen retry waits for the attendant to walk in to his desk, and the A8 loop check knocks the guards out first.
+
+### Empty pistol slide
+- (piano-knife S4a) The pistol's slide (with its sights and extractor) is a mesh of its own in `pistolSd.glb`, and
+  `WeaponModel.slideLock(on)` locks it back 2 cm for an empty gun. Nothing calls it yet (the piano intro, S4b); with the
+  slide forward the pistol looks as before.
+
+### Lightning as a light source (dark)
+- (piano SO5) Lightning flashes join the one lighting system as sky light: a fixed strike timeline
+  (`src/world/lightning.ts`, map data `MapDef.lightning`) adds `sky visibility x flash` to the moon term, so the meter,
+  guard sight and the picture (the baked lamps' moon term and the sun / moon light) agree; a window lets a strike in, a
+  shut room stays dark, a character between shadows it. No map has lightning yet; `?lightning=1` plays a demo loop on
+  any map. Nothing changes without either.
+
+### Route-run course mode: drill gates and restarts
+- Route-runs (J13 R4c, test tooling only): on Marlow Yard the robots now get through a locked course door the way the
+  course expects. At a door held by open drills they wait at the door for the drill hold, then the harness completes
+  each open drill for either player through the course's own hooks and lists it as a drill stub (never as walked); at a
+  holding room's far door both robots stand on the pad and the airlock cycles. A door still locked after that is a
+  `locked` stop as before. The robots also notice when the course sends them back (a set restart or a retry), name why
+  (seen by a guard or a camera, a timer that ran out, or neither) and log it: a seen restart is a detection, the second
+  from the same place turns that set's spotted rule off and pushes the pair past, the second timer restart on one step
+  completes its drills as stubs, and only a second unexplained restart from one place is a `restart-loop` stop. The
+  course selftest fixture covers sets A1 and A2. Wiring into the driver follows in the lead's seam slice.
+
+### Route-run link steps (ladders, drops, windows, ducts, rappels)
+- Route-runs (J13 R5, test tooling only): the robots now take the solo off-nav links with the pad instead of stubbing
+  them: ladders (up from the foot, down from the top), drops (walked off the edge, or a hang and let go where the edge
+  stops the walk), windows (the vault; a glazed one shatters), hatches, ducts (the grate unscrewed quietly, crawled
+  through) and rappels. With two robots the leader takes each link first, then the follower on its own page, both pages
+  stepped together on the host's clock; inside a split each robot takes its own leg's links. Each has its time limit (a
+  link whose move never shows is a step-timeout dead stop, logged for the robot that failed with the step's time and
+  limit, then that robot is placed past the link). Code-route climbs are matched to the ladder, window, duct or rappel
+  near them, else read as a drop when they go down. Ledges, pipes, wall jumps and split jumps stay stubs, listed in the
+  report, as do the co-op moves. `--dry-run --selftest <fixture>` prints the selftest's runs with each link's limit. New
+  selftest fixture `tests/fixtures/route-run/selftest-steps.graph.json`.
+- (F29) A link step's dead stop names the step's phase (before the move, mounting, climbing, at the edge, through and
+  so on), so a stall says where it stopped.
+- (F29) The steps selftest's walk points: the ladder's in the delivery yard in front of its foot (not the locked dock
+  door), the canopy drop's beside the hatch (not over it), the pavilion drop's and both windows' off their space edges.
+  The open rear window of the gatehouse is now expected to time out: the PC desk under its landing stops the game
+  offering the vault (a map item for Sector Ops). A new unit test keeps every selftest walk point inside its starting
+  space, off its edges, doors and openings, on a walkable floor.
+
+### Route-run course and points seams
+- Route-runs (J13, test tooling only): the hooks the course runs and the checked points table plug into. In course mode
+  the harness no longer calms a guard that saw a robot (the game's own restart or retry is the forgive there). The
+  course hook can interrupt a walk when the game restarts or retries a set: the robots stop, are placed where the hook
+  says and go on from the step it names (inside a split both legs end first). The hook also gets the graphs, the
+  selftest's expectations, the end of each run (after its detection lines) and its own selftest checks. `--points` is
+  read through the points loader (checked against the graphs; `--points auto` makes the table).
+
+### Level validator: training, perfect-run and engine checks, graph sets
+- Level validator, training maps (`scripts/level-checks/training.mjs`): a new `meta.taught_by` names the section where
+  the last co-op kit move is taught on its own (an error when missing or not one of `meta.sections` on a training map,
+  and on any other mode). Up to and including that section each section is one guided route: an error for a side route
+  (2+ routes), for a `split:` tag, for no teach element, and for a teach element some entry-to-exit path avoids.
+- Teach elements: a link field `teach: "<move>"` or a space tag `teach:<move>` (free text from the map's teach list, so
+  moves with no link kind, such as the jam relay or the console loop, count).
+- Routes are counted on the section's own spaces and links (no spine link), entry to exit, never entering a space
+  twice; links between the same two spaces in the same direction are one step, and a split's legs are one route. So a
+  drop back beside a boost, or an objective loop that returns to its space, is still one route. Exported as
+  `sectionRoutes(graph, section)` -> `{ count, paths }` (count stops at 10; a merged split is `split:<id>` in `paths`)
+  for the route-run harness.
+- After `taught_by`, a section with 2+ routes needs a guarded encounter space (a side route only when training against
+  enemies), and then the campaign route rules run on it: three approaches of two kinds with shadow, high and loud, and
+  routes that cross. A section whose only second way is a split needs neither.
+- `npm run validate:levels` (`scripts/level-graphs.mjs`) runs the level validator over every committed graph set in
+  `docs/level-validator/graph-sets.json` (the example, campus S1-S5 and Marlow Yard) and exits 1 when a set's error or
+  warning count differs from the manifest; `--write` rewrites each saved run and the counts. `tests/levelGraphs.test.ts`
+  pins the same counts and checks each saved run says them. Pinned today: campus 139 errors and 200 warnings, Marlow
+  Yard (with `--require-measured`) 37 errors and 83 warnings. Adds the `level-measure` script line.
+- Level validator (tooling, no game change): every map graph is checked for a perfect run. Each objective and the
+  run's end (exfil on a campaign map, the last section's exit on Sector Ops and Marlow Yard) must be reachable without
+  a link marked `requires_kill` (an error on every mode) and without a loud link (an error on campaign and Sector Ops,
+  information on Marlow Yard). `requires_kill` must be true or false, and a `mark` on a space or link is an error on
+  campaign and Sector Ops and an information count on Marlow Yard.
+- New test: no mission forces a kill. Every Sector Ops objective is a hack, grab or download, and every Marlow Yard
+  objective step is completed by a player action (a zone, a scanner pair, a switch or a door), never by a guard's death.
+- Validator output on the worked example and the campus graphs is unchanged.
+- Level validator, engine facts (`scripts/level-checks/engine.mjs`): a space more than `rules.nav_floor_depth_m`
+  (scale sheet section 8, 1.5 m) below storey 0 that is an encounter space or has guards prints a WARN: the guards'
+  nav grid does not reach that deep (level-design 12.1). The row is read only when such a space exists below storey 0;
+  a missing row prints one WARN and the check is skipped. Ropes still go both ways (a `team_rope` down from an upper
+  storey inside the `rope_span` band is fine) and the validator has no human-ladder row of its own: a `human_ladder`
+  lip is judged by the co-op lip band (`sizes.coop_lip`) as before.
+- Level validator, throw gaps (`scripts/level-validate.mjs`, the `team_throw` check): a throw marked as an approved
+  long throw is judged against the scale sheet's "Long throw (named spots only)" row (`sizes.throw_long`, gap at most
+  4.9 m at the listed spots) instead of the 2.7 m throw gap row. Every other throw keeps the 2.7 m row.
+- New optional link field `exception` (only `"long_throw"`, only on a `team_throw`; an error on any other value or
+  kind): documented in `docs/level-validator/graph-schema.md`.
+- Docs: `docs/level-validator/graph-schema.md` gains `meta.taught_by`, `teach`, `requires_kill`, `mark` and
+  `exception`, the training, perfect-run and engine checks, the graph sets, and corrects the coverage, solo-twin and
+  measured-value lines; `docs/level-design.md` names `taught_by`, the live measured exit gate and the new rule-index
+  rows; `docs/systems/testing-tools.md` documents `--require-measured`, `npm run validate:levels` and
+  `npm run level-measure`.
+- The Marlow Yard level graph (`docs/marlow-final/graph/ctcourse.json`, as built at 4.103) is on the training profile,
+  with `taught_by` A7 and eight teach elements from the course spec. It is measured with `level-measure --write`; its
+  validator run with `--require-measured` is saved beside it as `run.txt`, with a `REPORT.md` that maps each error to
+  the re-plan slice that fixes it.
+- The five campus graphs carry their measured positions and the values `level-measure` stored from the built campus. A
+  new test, `tests/levelMeasureCampus.test.ts`, re-measures the campus in CI and fails when a stored value has moved or
+  the stored geometry hash is stale; the saved validator run and report are in `docs/level-validator/campus-run/`.
+- Splits: a split leg may start with a co-op link from the fork (both partners stand at the fork for the boost, then
+  go on alone). At most one leg; the other still needs a solo entry from the same fork; the co-op link's time counts
+  for its leg and an INFO line names it. Two co-op entries, or a bolted link walked the wrong way, keep the error.
+
+## 4.123.2 - Train 144: Route-runs: the points table check (2026-10-27, PR #635; #564)
+- Route-runs (tooling): a points table is checked against the map graph it plans before a run; a table made on
+  another build of the map, with a different link count or with links in another order is refused with a plain
+  message, and runs that will be unplannable are noted up front. The table can also be made on the spot with
+  level-measure (`scripts/route-run/points.mjs`, unit tests).
+
+## 4.123.1 - Train 143: Saltmarsh Park S1 fence leak (2026-10-27, PR #633; #629)
+- Sector Ops (v2 layout, section 1): you can no longer get over the perimeter fence and out of the play area. The fence
+  could be cleared by jumping off the gatehouse roof corners or the condenser, by climbing from the yard bins, the bin
+  screen or the plant-roof parapet, or from roof kit by the roof screens. The fence now has an invisible anti-climb cap
+  up to 8 m along every perimeter line (no change to the look, lighting or cover). A new test checks walking and
+  climbing out (`tests/campusV2S1Fence.test.ts`).
+
+## 4.123.0 - Train 142: Co-op kit: rope descent (2026-10-26, PR #630; #590)
+- Co-op two-person rope: the partner standing beside the player holding the rope can now rappel down it, not only climb
+  up from the bottom. Press Co-op beside the holder: you go over the edge onto the rope, push the stick down to go down,
+  and keep it held down at the bottom to step off (the holder is then free). The look is a stand-in for now; the proper
+  animation comes next.
+- One switch for the new co-op moves, `?kitmoves=` (for example `?kitmoves=descent`; `all` or `0`): every finished move
+  is on in /preview/ and off in the live game until you try it. `?coopkit=1` still turns on the pull-up and the shutter.
+  Nothing changes in the live game.
+
+## 4.122.1 - Train 141: Guard AI: piano intro actors; Marlow Yard re-plan walks, part 2 (2026-10-26, PR #628; #611, #610)
+
+### Guard AI: piano intro actors
+- (guard-ai piano GA4) `GuardActor` (`src/ai/guardActor.ts`, path in `guardActorPath.ts`): a guard rig with no brain that walks a path at its own playback rate with the aimed walk, fire kick and muzzle flash, for the piano intro (not used yet); `Vfx.muzzleFlash` takes an optional life.
+
+### Marlow Yard re-plan walks, part 2
+- Marlow Yard re-plan walks: seven test-side fixes so the quarantined walks run to the end.
+
+## 4.122.0 - Train 140: Piano scene knife kills (piano-knife S1) (2026-10-26, PR #626; #614)
+- Piano scene (dark until Campaign's scene switch): every takedown on a guard is a one-press paired knife kill. The
+  operator grips the guard (mouth from behind, shoulder at a corner or face to face), the guard is held to her for the
+  whole move, the knife goes in, he buckles with his hands on her forearm and falls as an ordinary body. 1.2 m of
+  noise, no grab, no knockout, no RT palm strike in the scene. Stand-in Mixamo clips until the real knife clips (S2).
+- Anim Studio: `pair: knife behind / behindLow / corner / front` rows play the kill on Wren and a guard.
+
+## 4.121.0 - Train 139: Missions and the co-op kit in co-op (2026-10-26, PR #625; #581)
+- Co-op: the host's mission reaches the partner. The partner sees their own team's step on the objective line, the
+  Field Terminal's mission list and the radio line when a rule is broken.
+- Co-op: the pull-up and the roller shutter work between two players, with the host judging the catch.
+- Campaign missions start only with exactly two players; with one the lobby says why. "Resume hosting" a campaign match
+  waits for the partner, then starts on its own when they rejoin. Campaign missions give 2 revives at every difficulty.
+
+## 4.120.0 - Train 138: Storm scene guards: torches, the blackout search, rain masking; Guards get home (2026-10-26, PR #621; #603, #588)
+
+### Guards get home
+- Guards find their way back to their posts after a search; the alarm runner gives up an unreachable panel.
+
+### Storm scene guards: torches, the blackout search, rain masking
+- (scene only, `?piano=1`) During the scene's blackout every guard keeps his flashlight on in every state, calm
+  included, while he is up; dogs carry none. The scene's one reaction to the blackout: the guards it names search
+  round the intro wall (about 6 m), then go back to their rounds; a light going out sends nobody else.
+- (scene only) Rain on the roof masks sound for every guard across the map (`mapWideNoise`): at 6 dB a footstep is
+  heard at half the distance.
+
+## 4.119.2 - Train 137: Test Runner batch (J20), PR-B: laptop queue; Mains-off blackout (piano SO1) (2026-10-26, PR #619; #615, #602)
+
+### Mains-off blackout (piano SO1)
+- Lighting: `LightRegistry.mainsOff(x, y, z, over = 0.8)` cuts every electric light for good, nearest first over 0.8 s;
+  torches and window lights stay; no switch, jam end, outage end or section restart turns one back on, and guards never
+  walk to reset it. Dark: nothing calls it until the piano scene does.
+
+### Test Runner batch (J20), PR-B: laptop queue
+- Every train run also runs `e2e-darkness`: a light meter that disagrees with the picture holds the release. Off
+  without a release: `config/train-parity.json` `{ "off": true, "why", "by" }` on the `laptop-queue` branch, or
+  `LQ_TRAIN_PARITY=off` on a worker.
+- Affected runs gate only on their gate suites; the legacy and audio suites they reach run after them, REPORT ONLY, in
+  the slots the affected cap leaves. A desktop failure's laptop rerun keeps gate suites only.
+- A perf step in an alone request enforces its budgets unless it says `--no-budget`.
+- `flake-budget.md` lists known-flaky failures and quarantined suites, escapes owners with `|`, and warns while fewer
+  than 7 days of runs are counted.
+- A suite over its flake budget again within 14 days of its last quarantine is BLOCKING: no new quarantine, a
+  `alerts/<ts>-<worker>-fixjob-<suite>.json` alert on the `laptop-queue` branch and a line in the PR comment.
+
+## 4.119.1 - Train 136: Marlow Yard re-plan: geometry for the plank and swing kit moves (2026-10-26, PR #613; #608)
+- Marlow Yard re-plan: geometry for the plank and swing kit moves (#608)
+
+## 4.119.0 - Train 135: Lookouts and dog release (2026-10-26, PR #609; #595)
+- (dark, `?lookouts=1`) Lookouts: a guard on a lookout post (first: the Saltmarsh Park S5 roof marksman) never leaves
+  his perch. A noise only turns him within a metre of it; when he glimpses you he radios it in and the best-placed calm
+  guard nearby walks to where you stood. One call at most every 20 seconds.
+- (dark, `?dogrelease=1`) Dog release: when the Sector Ops alarm reaches the stage that lets the dogs go (Saltmarsh
+  Park S4 stage 2, S5 stage 1), each free dog of the section hurries to where you were last seen (or round its handler
+  when nobody knows), searches, then returns to heel.
+
+## 4.118.0 - Train 134: Marlow Yard re-plan walks: fix the three quarantined steps (test only); Missions: Sector Ops missions and the co-op kit (2026-10-26, PR #607; #596, #578)
+
+### Marlow Yard re-plan walks: fix the three quarantined steps (test only)
+- Marlow Yard re-plan walks: fix the three quarantined steps (test only) (#596)
+
+### Missions: Sector Ops missions and the co-op kit
+- Sector Ops can run a mission on top of a map's sections: a briefing, steps (copy intel, hack, get out), a rule such
+  as "no kills" (breaking it restarts the section) and the objective line and Field Terminal list that follow it. The
+  Saltmarsh Park test mission runs this way in /preview/ (`?autostart=campusOps&mode=sector&mission=campusMissionTest`).
+- New co-op moves for later maps: the pull-up (one player crouches at a ledge, the other jumps and is hauled up) and the
+  roller shutter (one player holds it open while the other crawls under). Guards notice an open shutter. They need the
+  co-op part and the Tallow Wharf map, which come in the next missions updates.
+- All of this is behind the `missions` and `coopKit` flags: off in the live game, on in /preview/. Nothing changes in
+  the live game.
+
+## 4.117.0 - Train 133: Queue fixes: CI-length train hold, early conflict retire; Marlow Yard re-plan: clearer steps for the first two-player walk; Marlow Yard re-plan: fixes for the first two-player walk; +6 more (2026-10-26, PR #600; #597, #594, #587, #552, #548, #522, #518)
+
+### Campus greybox S1-a (v2, dark): perimeter and gatehouse
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G1 perimeter: an anti-climb steel palisade (2.4 m, no handholds) closes the whole section, with the sliding gate leaf
+    shut and the anglers' cut panel re-hung; anti-climb screens on the gatehouse, plant room and pavilion roof edges; the
+    bin store's west wall is gone. Every section 1 lamp now comes from one provisional light table (today's values, to be
+    calibrated to real-world levels).
+  - G2 gatehouse: rebuilt 6.5 x 6.5 with a glazing band (open rear pane, two fixed panes, the reception window), the door
+    north at (17, -72.5), a roof whose only ledge is the east edge (a wall-jump corner by the A/C condenser), a glazed
+    smoke-vent hatch, a warm desk lamp beside the ceiling tube on the gate circuit, the CCTV desk as a security desk run
+    by the CCTV officer, and a third officer (the night supervisor).
+
+### Campus greybox S1-b (v2, dark): car park, service yard and plant room
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G3 car park: the rows 2 m south, ten lamp columns plus four downlights under a new solar carport (a roof route at 3.0
+    m, reached off the courier's van or the bike shelter), the bike shelter moved against the carport with cycle lockers
+    and its lamp now lit on its own switch, the car-park pair's loop moved with the rows and a new east-rows patrol.
+  - G4 service yard and plant room: the bin store opens into one 14 x 14 service yard with a low bin screen, a roll cage
+    beside the cage trolley and a new storeman; the plant room is deeper, its goods door is unlocked, and a fixed ladder
+    climbs to a roof hatch; the canopy breaker sits on the yard board beside the forecourt switch; a new co-op leg-up
+    (CR1-yard) at the plant roof's hoist bay.
+
+### Campus greybox S1-c (v2, dark): forecourt, lawn, pavilion, rooms, routes and graph
+- No player-visible change: Saltmarsh Park section 1 plays as before unless the test switch `?campusv2=1` is on.
+- Behind `?campusv2=1`, section 1 (gatehouse, car park, forecourt) is rebuilt to the signed-off plan, slice by slice:
+  - G5 forecourt, lawn and pavilion: the forecourt gets grit bins and a walkway patrol plus a courier escort at the kerb;
+    the lawn gets two trees, a lit smoking shelter on its own switch, a second smoker and a north-east fence patrol; the
+    pavilion top is a closed roof walk whose east half carries a new co-op leg-up (CR1-east). Section 1 now has 15 guards.
+  - G6 rooms, routes and graph: fourteen room tags (the roof walks, the carport, the plant room and the lawn get their own,
+    the bin, bike and smoking shelter rooms go), three solo routes redrawn for the new layout (the verge and east side, the
+    south footway and yard board, the caged ladder and canopy hatch), the fence patrol's takedown spot moves to his
+    south stop, and the plan graph reads as built (the forecourt is tagged as the section's unavoidable guard).
+
+### Saltmarsh Park gatehouse window vault
+- Saltmarsh Park, section 1: you can now vault through the gatehouse's open rear window both ways. The PC desk stood
+  right under the window, so the jump in landed on the desk and the game refused it. The desk now stands against the
+  same wall just south of the window, the PC sits on its end nearest the window and can still be downloaded from the
+  verge, and the kettle counter moved a little west to make room.
+- A new test checks every vaultable window on the campus: the landing on the far side must be clear and close to the
+  floor height you jump from.
+
+### Laptop queue: quarantine and claim-time skips
+- Laptop queue (F48): the desktop worker keeps no automatic quarantine list of its own (it drops an old one at start),
+  so it forgives only the committed `scripts/e2e-quarantine.json`; its failures go to a laptop rerun, where the
+  laptop's list applies. A desktop-only `e2e-sectorops:6` entry had forgiven #525's affected run.
+- Laptop queue (F46): just before a claim, both workers read the request's PR fresh and withdraw it (a done claim,
+  error statuses, a log line) when the PR is merged or closed, the sha is no longer the PR head, or CI `check` failed
+  on the head. A GitHub error still runs it.
+- Laptop queue: every `gh` call retries once on a TLS handshake timeout.
+
+### Queue fixes: CI-length train hold, early conflict retire
+- Auto-train holds the build for a train-ready PR whose CI is still running until its expected CI finish (its CI run's
+  start + the median CI time of the open PRs' green checks + 2 min, capped at 20 min, `AUTO_TRAIN_CHECK_WAIT_CAP_MIN`),
+  not a flat 3 min (F50: train 131 gave up on #591 71 s before its CI finished). Unknown start or median: the old 3 min.
+- The laptop queue re-reads each open affected request's PR mergeable state after origin/master moves (every
+  `LQ_MERGE_RECHECK_S` 60 s while UNKNOWN, for `LQ_MERGE_RECHECK_MIN` 10 min) and retires a conflicting one at once with
+  its error statuses, instead of finding the conflict at pick time (F51: #581 / #590 waited 36-50 min).
+
+### Laptop queue: fixes first, a new head keeps its place
+- Fixes (PR label `fix` or `request.mjs --fix`) are tested before new features, on the laptop and the desktop.
+- A new head of a PR keeps its request's place in the queue and stops the run on the old head.
+- The desktop takes the smallest request, skips any estimated over 15 minutes, and has a CPU mode knob
+  (`LQ_DESKTOP_CPU_MODE`).
+- A train preempt keeps the suites that already passed, so only the rest rerun.
+- A docs-only commit on a PR head carries the earlier affected-e2e verdict.
+- A train verdict or done claim lost in a GitHub outage is retried on later passes, so a green train no longer holds
+  every alone request; both workers heartbeat their claims, a silent claim frees after 20 minutes, and a run whose
+  claim was taken stops.
+
+### Saltmarsh Park car park lit to real levels
+- Light: the Section 1 car park in Saltmarsh Park is now lit like a staffed site at night (Australian car-park
+  levels: about 28 lux on average, no open spot under 3 lux). Each column carries an arm with twin heads, a new south
+  row covers the bays, and the lane floodlight is softer. Hiding there now means behind cars, under a cut circuit or
+  a shot lamp. Other sections and the warehouse are unchanged for now.
+- Tools: a lux measure for each space, light maps and before / after shots (`scripts/light-realism/`).
+- Light: the rebuilt Section 1 car park (the preview layout with the carport) gets the same lighting: twin-head arm
+  columns on its rows and the softer lane floodlight; the strips along the carport's front and back edges stay dark for now.
+
+### Marlow Yard re-plan: clearer steps for the first two-player walk
+- Marlow Yard (re-plan): a player who drops and rejoins lands on the live step's mark; a lone host's step line says it
+  waits for the partner.
+- Marlow Yard (re-plan): the HUD's retry rule and step number follow the live step (A4 now counts 8, 9, 10 in play
+  order).
+- Marlow Yard (re-plan): a step retry keeps who took which job, leaves a kept roller door open and resets a running
+  scanner hack without damage.
+- Marlow Yard (re-plan): a new set clears the guards' shared memory from the last one.
+- Marlow Yard (re-plan): the substation wall line names the wicket door; a third step iron between the trench decks;
+  the strongroom's A mark sits by the office door, off the officer's back; the data hall's A line counts the partner in.
+
+### Marlow Yard re-plan: fixes for the first two-player walk
+- Marlow Yard (re-plan): jamming the substation floodlight no longer sends you back the moment the jam flickers
+  (station 13).
+- Marlow Yard (re-plan): the goods shed's wicket camera stays off once the lift grille is done, so the synced takedown
+  at the loaders is no longer seen every time the 60 s camera loop runs out (station 10).
+- Marlow Yard (re-plan): the gap from the carriage shed's pit walkway to the next door is wide enough to walk through.
+- Marlow Yard (re-plan): the roller door, dock run and synced takedown lines say what each player does next; the
+  rescue line step says to face the drop and press Co-op standing.
+- Marlow Yard (re-plan): the neck isolators no longer draw the shunter into the crossing lane.
+- Marlow Yard (re-plan): both players stuck in the pump house drive pit get a retry; a retry ends a rope climb or
+  hang-down; no retry fires while the exit holding room is cycling; the strongroom's objective list no longer steps
+  back after a retry.
+- The jammer picks a camera in its aim over a nearby ceiling lamp.
+- Co-op: "Resume hosting" restarts at the set you were in, not at the start of Marlow Yard.
+
+### Mission framework: mission rules, mission text and the Hints setting
+- Groundwork for campaign missions: the code that checks a mission's rules (for example no kills or no alarms), writes
+  the objective line and the Field Terminal's Objectives list (the rule first, then each step as done, current or to
+  do), and packs the mission's state for the co-op partner. Nothing uses it yet.
+- New setting Gameplay > Hints: a hint line under the current mission objective (off by default).
+- New flags: `missions` (`?missions=1`) and `coopKit` (`?coopkit=1`). Both are off in the live game and on in /preview/.
+- All of this ships dark behind the `missions` flag (`?missions=1`) in the live game; /preview/ has it on.
+
+### Test fixes: pad and co-op movement
+- The controller test walks the whole pause menu, Notes row included, and runs again in full (it was set aside as
+  unreliable); two co-op movement checks (the climb up a hanging partner, the roll) no longer fail on a busy PC.
+
+## 4.116.0 - Train 131: Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void; Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof; +15 more (2026-10-26, PR #593; #585, #547, #544, #535, #529)
+
+### Campus greybox S2-a (dark, behind ?campusv2=2): G floor and the atrium void
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- Section 2 v2 greybox, G floor (S2-G1): the reception and the atrium hall are one lobby; the feature stair is two flights
+  of 13 risers with a 2.0 m mid landing and rails on both sides; the plant room gets a locked, breachable north door to the
+  NE lobby; back-of-house doors join the mail room, the lift lobby and the store; the old mail lift is a shaft with a
+  service ladder up to L1 behind the cages; two post cages and a body hide spot in the post room.
+- S2-G2: the atrium void narrows to 14.5 m so the L1 and L2 balcony strips are 3.9 m wide; the CR2 slab nose re-cut on the
+  new edge (planter gone); the roof light rim follows the void; eight balcony downlights per floor; every S2 lamp in one
+  provisional block for the light-realism retune.
+
+### Campus greybox S2-b (dark, behind ?campusv2=2): L1 rooms, L2 and roof
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G3: the L1 rooms re-cut: a wider kitchen, the project room (print room and meeting room 4 merged), meeting room doors,
+  the east wing rebuilt (facilities office with a glazed west wall and two doors, comms room, bridge landing), the
+  sunshade ledge and the facilities window, 1.3 m fire-stair landings, doors swinging into their rooms.
+- S2-G4: L2 and roof: office A's second door, office B's side door into the east wing, a larger board room with two doors,
+  the roof plant room rebuilt (4.0 m walls) with a floor hatch and a cat ladder down to L2, and a window-cleaning davit whose
+  rope ends on the sunshade by the facilities window.
+
+### Campus greybox S2-c (dark, behind ?campusv2=2): guards, Split Shift devices and room lights
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G6a: 18 guards (was 12): new cafe, atrium-stair, west-plan, north-plan torch, relief and L2 north-strip rounds; the
+  bridge officer moves to face the comms door; the mailroom and L2 lift guards are awake.
+- S2-G5a: the Split Shift devices as data: the comms room CCTV patch panel, the plant room breaker for the east wing
+  lights, keypads on both facilities office doors (the code is overheard at the kitchen), the plant log in the mail room,
+  and two-player key doors at the bridge landing and the executive suite; wing, landing and goods-door downlights.
+- S2-G5c: every enclosed room is its own room (meeting rooms, the L2 executive suite, offices, board room and roof plant room
+  tagged on the HUD) and every room that had no light gets ceiling fittings on its own switched circuit with a wall switch by
+  its door; the fire stairs get landing lights on a riser circuit each. Nothing changes in the live section 2.
+
+### Campus greybox S2-d (dark, behind ?campusv2=2): routes and map graph
+- No player-visible change: the live Saltmarsh Park section 2 plays exactly as before; the new layout is built only with
+  `?campusv2=2` (test builds).
+- S2-G6b: the three ways in redrawn on the new doors (the post room and north open plan, the roof between the two
+  bulkheads, the turnstiles and the east wing), the section's map data as built (guards per player count, the section's
+  tagged unavoidable guard, the two-player door notes), wider fire-stair landings so guards path through them,
+  and route and map-data tests.
+
+### Campus greybox S3-a (v2, dark): frame
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's frame (its shared
+  plan boxes, doors and light circuits), behind `?campusv2=3`.
+
+### Campus greybox S3-b (v2, dark): shell, ground floor and upper floor
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's shell and ground
+  floor, behind `?campusv2=3`.
+- Sector Ops build work on the signed S3 re-plan: the new lab block's upper floor (the bridge landing, the viewing
+  corridor and east lobby, the north rooms, the security room, the escape gallery, the crane walkway and the ceiling
+  void), behind `?campusv2=3`.
+
+### Campus greybox S3-c (v2, dark): three fire stairs
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan ("Re-plan as drawn, 20 guards"): the new lab block's three fire stairs
+  (west, north and east cores: walls, doors, two flights of 27 risers, landings, rails), behind `?campusv2=3`.
+
+### Campus greybox S3-d (v2, dark): lamps, devices and sync
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan: the new lab block's lamps (every room lit on a switchable circuit),
+  switches, the timed lighting isolator, the laser beams and their panels, the cameras, the security desk, the keypads,
+  the sign-out board and the alarm panels, behind `?campusv2=3`.
+
+### Campus greybox S3-e (v2, dark): 20 guards and routes (J1-J4, J8)
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan: the new lab block's 20 guards (posts, patrols, the posted dock officer
+  at the goods door), its four routes, its sector (keypads, code board, isolator board, cameras, desk and alarms wired
+  in), behind `?campusv2=3`.
+
+### Campus greybox S3-f (v2, dark): lips, co-op, graph and dressing
+- No player-visible change: the lab block plays exactly as before (the new layout is off by default).
+- Sector Ops build work on the signed S3 re-plan, behind `?campusv2=3`: the two co-op climbs of the new lab block (the
+  test chamber's roof and the goods landing over the loading pad, each a 4.4 m boost), checks that a player alone cannot
+  get up either one, that every room is reachable from the start and that each fire stair links the floors on its own,
+  the section's map data as built (guards per room for 1-4 players), and the lab block's dressing redone for the new
+  rooms.
+
+### Campus greybox S4-a (dark, behind ?campusv2=4): south band and return-air plenum
+- No player-visible change: the live Saltmarsh Park section 4 plays exactly as before; the new layout is built only with
+  `?campusv2=4` (test builds).
+- Section 4 v2 greybox, south band (S4-G4.1): the service corridor and the hall lobby are one 6 m goods-in lobby; the
+  mantrap moves 1 m west with an open trolley alcove beside it; the mantrap desk moves west; three 1.2 m parcel cages give
+  low cover along the goods lane; the dock and battery room doors sit 1.5 m off the corners; two new lobby lamps, a
+  mantrap lamp and a dock board lamp (every as-built lamp kept, all of them in one `S4_LIGHTS` block); the hall panel and
+  lobby switches move; a body hide spot in the alcove.
+- S4-G4.2: a return-air plenum over the lobby ceiling as a crawl route: grilles from the ends of cable baskets B1 and B2
+  (which now run on to the hall wall), from the dock and from the battery room (co-op leg-ups CR8 and CR8-west onto their
+  4.4 m sills, which can be climbed over as well as hung from), and a ceiling hatch down into the lobby; the battery racks
+  are 2.0 m high with no climbable top.
+
+### Campus greybox S4-b (dark, behind ?campusv2=4): G4.3 + G4.4 + G4.5
+- S4-G4.3: the west strip: the colonnade corridor widens to 3.3 m under a ceiling slab with its two doors 3 m apart and the
+  hall door into it walled up; a staff door joins the UPS room to the security room; an essential-lighting board by the
+  battery room (cuts the NOC and security room lamps for 25 s) and a battery room lamp with its own switch; the colonnade
+  sentry (#19) stands deeper in the corridor.
+- S4-G4.4: the NOC block: a dog-leg fire stair (two 1.3 m flights and a mid landing) replaces the one steep flight; the NOC
+  gets a roof hatch with a ladder to the plant deck, an escape door onto a platform and a caged ladder down to the north
+  corridor (the side door moves north to clear it), and a rooflight onto the NOC seats; a warm console lamp in the
+  security room and three lamps with their own switch in the north corridor.
+- S4-G4.5: the riser partition moves 0.1 m west and its keypad door shows a keypad on the riser side; a new keypad door
+  (the cable-pull door) joins the generator compound to the riser; the plant ladder now starts on top of a locked
+  anti-climb cage (a co-op leg-up onto the cage reaches the rungs); four floodlight poles light the plant deck; the riser
+  has a lamp with its own switch.
+
+### Campus greybox S4-c (dark, behind ?campusv2=4): G4.6 + fix 1
+- S4-G4.6: 25 guards (five new: the goods-in officer, the second keyholder, the tank watch, the chiller watch, the night runner;
+  the battery checker's round now runs through the new colonnade), three renamed routes, the mantrap interlock as a
+  two-player pair gate, the Code Relay lead items (a duty roster, a deck radio, a console and a seat placard on the NOC
+  window ledge), and tests for the guards, sync nodes, screen count, graph and lights. The section no longer carries a
+  helmet tag (guard rules PR1 first).
+- S4 fix 1: the co-op leg-ups CR8 and CR8-west onto their 4.4 m sills can be climbed over as well as hung from.
+
+### Campus greybox S5-a (dark, behind ?campusv2=5): shell re-cut
+- No player-visible change: the live Saltmarsh Park section 5 plays exactly as before; the new layout is built only with
+  `?campusv2=5` (test builds).
+- Section 5 v2 greybox, shell re-cut (S5-P1): the stair hall takes the back corridor's south half as a dark screens
+  passage behind a 2.2 m timber screen with two settles; the old west passage is the hall's open alcove; a back hall with
+  the anteroom's side door and a kitchen door; the anteroom grows to 8.8 x 6.3 with an audit table and a 3 m glazed screen
+  onto the light well; the strongroom's day gate stands open; the shaft moves north beside it; the kitchen is 1 m wider;
+  the lobby doors are off each other's line; the hall stair is 2.4 m wide in two flights with a landing; new doors from the
+  control room to the garden and between the boardroom and the CEO suite; the archive gets one free-standing row, wall
+  shelving, a plan chest and a rooflight with a hatch and ladder; the cage moves over the shaft; a cleaning ladder in the
+  light well; a flue ladder and hatch from the plant room and a smoke hatch to the low roof; a gutter kerb and a roof
+  coping for co-op boosts; a west rappel over the garden; 1.2 m hedges and balustrade; every lamp in one `S5_LIGHTS` block.
+
+### Campus greybox S5-b (dark, behind ?campusv2=5): devices, light and guards
+- S5-P2 devices and light: the hoist door onto the light well is a two-player pair gate (two key switches in the archive),
+  the way down a hang-drop; the cage pair gate, the shaft beams and their panel move with the shaft; a house lighting board
+  on the back landing (cuts the anteroom and the hall wall lamps for 45 s) and the garden board moves with the kitchen wall
+  (30 s); the archive keypad moves to the landing side; the hall camera moves to the south wall; lamps added: a warm
+  audit desk lamp, archive reading lamp and jetty lantern, a lane lamp, the van's work light, roof walk and bulkhead lamps,
+  and fittings with their own switches in the drawing room, back hall, plant room, lobby, archive, back landing and
+  service stair (every as-built lamp kept; the strongroom lamp moves 1 m with its room and turns warm).
+- S5-P3 guards and routes: 26 guards (the 24 kept, ten of them moved: the hall walk, the keyholders flanking the open day
+  gate, the audit escort, the door officer, the archive round, the lobby officer and the clocking round down the screens
+  passage; new: an audit officer at the table and a jetty sentry), inside the 32 live cap with the six reinforcements;
+  the three ways in rewritten (the screens passage and the side door; the hall front and the anteroom's hall door; the
+  service stair, the archive, the roof and the light well) with the exit west through the open alcove.
+
+### Campus greybox S5-c (dark, behind ?campusv2=5): co-op lips and checks
+- S5-P4 co-op and checks: three co-op boost lips (the low roof's gutter kerb from the lawn, the roof's coping from the low
+  roof, the smoke hatch's kerb from the kitchen), each out of reach of a solo jump and climbable once reached (not only hung from); unit tests for the lips, the
+  two-player hoist door, the keyholders' choke, the map graph (guards counted on every player key) and the screen count.
+
+### Guard AI play pass: spawns and the course alarm banner
+- Marlow Yard no longer promises reinforcements that never come; one bad guard spawn no longer stops the rest.
+
 ## 4.115.0 - Train 130: Character shadows count in the light (co-op client partners, dark); Guard barks and pairs; Laptop queue: suite parts per head, SLOW warnings; Auto-drop finds train members past 100 commits (F44); +18 more (2026-10-26, PR #592; #586, #582, #579, #574, #572, #562, #561, #558, #557, #550, #532, #516, #514)
 
 ### Character shadows count in the light (co-op client partners, dark)

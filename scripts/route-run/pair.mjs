@@ -183,6 +183,9 @@ export class PairDriver {
     this.epoch = { leader: 0, follower: 0 };
     this.waiters = { leader: null, follower: null };
     this.pending = { leader: null, follower: null };
+    // (J13 hold restart) a split leg's follower course event a hold or a placement's settle took (the leader's lives on
+    // the host driver: `PageDriver.courseHit`)
+    this.fcourse = null;
     this.free = [];
     this.pumping = false;
     this.lock = Promise.resolve();
@@ -198,6 +201,7 @@ export class PairDriver {
   async call(name, ...a) {
     if (name !== 'restart' && name !== 'begin') return this.lcall(name, ...a);
     this.epoch.follower++;
+    this.fcourse = null;
     const r = await this.lcall(name, ...a);
     await this.client.call(name, ...a);
     if (name === 'begin') this.clock.arm();
@@ -236,6 +240,17 @@ export class PairDriver {
   post(robot, r, epoch) {
     r.epoch = epoch;
     const w = this.waiters[robot];
+    // (J13 hold restart) the leader's course event is no start call's: any leader waiter takes it; with none (a clock
+    // advance under a steps.mjs machine, a placement of the follower) it stays pending on the host driver, whose tick
+    // recorded it, for the next wait or a step's `takeCourse`
+    if (robot === 'leader' && r.ev === 'course') {
+      if (w) {
+        this.waiters.leader = null;
+        this.host.takeCourse?.();
+        w.resolve(r);
+      }
+      return;
+    }
     if (w && w.epoch === epoch) {
       this.waiters[robot] = null;
       w.resolve(r);
@@ -243,8 +258,10 @@ export class PairDriver {
     else this.pending[robot] = r;
   }
 
-  /** The robot's next event since its last start call (or 'cap' after `capS` game s). */
+  /** The robot's next event since its last start call (or 'cap' after `capS` game s); a pending course event at once. */
   wait(robot, capS = RUN_CAP_S) {
+    const c = this.takeCourse(robot);
+    if (c) return Promise.resolve(c);
     const p = this.pending[robot];
     this.pending[robot] = null;
     if (p && p.epoch === this.epoch[robot]) return Promise.resolve(p);
@@ -284,12 +301,44 @@ export class PairDriver {
     return this.wait('leader', capS);
   }
 
-  /** Both robots stand still for `s` game seconds (a stub's hold; no stuck clock). */
+  /** (J13 hold restart) The robot's pending course event (cleared), or null: the leader's on the host driver; a split
+   *  leg's follower's from its latest start (its interrupt echo, SR3) or kept by a settle. */
+  takeCourse(robot = 'leader') {
+    if (robot !== 'follower') return this.host.takeCourse?.() ?? null;
+    const p = this.pending.follower;
+    if (p && p.ev === 'course' && p.epoch === this.epoch.follower) {
+      this.pending.follower = null;
+      return p;
+    }
+    const f = this.fcourse;
+    this.fcourse = null;
+    return f;
+  }
+
+  coursePending(robot) {
+    if (robot !== 'follower') return !!this.host.courseHit;
+    const p = this.pending.follower;
+    return !!this.fcourse || (!!p && p.ev === 'course' && p.epoch === this.epoch.follower);
+  }
+
+  /** A wait inside a hold or a placement's settle: a course event (pending before or arriving in it) stays pending. */
+  async settle(robot, capS) {
+    const kept = this.takeCourse(robot);
+    const r = await this.wait(robot, capS);
+    const c = r.ev === 'course' ? r : kept;
+    if (c) {
+      if (robot === 'follower') this.fcourse = c;
+      else this.host.courseHit = c;
+    }
+    return r;
+  }
+
+  /** Both robots stand still for `s` game seconds (a stub's hold; no stuck clock); a course event ends it, pending. */
   async hold(s) {
-    if (!(s > 0)) return;
+    if (!(s > 0) || this.coursePending('leader')) return;
     await this.lcall('holdStart', s);
     await this.fcall('holdStart', s);
-    await this.wait('leader', s + 1);
+    await this.settle('leader', s + 1);
   }
 
   /** The leader placed at `pt` (as R4a), the follower beside it (the stub's far spot when one is set). */
@@ -298,7 +347,7 @@ export class PairDriver {
     const before = await this.host.call('pos');
     const at = await this.lcall('place', pt[0], pt[1], pt[2], null);
     await this.placeFollower(this.farSpot ?? besideOf(before, [at.x, at.y, at.z]));
-    await this.wait('leader', 1);
+    await this.settle('leader', 1);
     return at;
   }
 
@@ -341,17 +390,18 @@ export class PairDriver {
       call,
       until: (cap) => this.wait(robot, cap),
       hold: async (s) => {
-        if (!(s > 0)) return;
+        if (!(s > 0) || this.coursePending(robot)) return;
         await call('holdStart', s);
-        await this.wait(robot, s + 1);
+        await this.settle(robot, s + 1);
       },
       place: async (pt) => {
         if (!pt) return null;
         if (!lead) return this.placeFollower(pt);
         const at = await this.lcall('place', pt[0], pt[1], pt[2], null);
-        await this.wait('leader', 1);
+        await this.settle('leader', 1);
         return at;
       },
+      takeCourse: () => this.takeCourse(robot),
       rises: (since) => this.rises(since),
       advance: (s) => this.advance(s),
     };
@@ -402,11 +452,35 @@ export class PairDriver {
     return res;
   }
 
+  /** (driver linkStep) Where a link step's stopped robot stands (`tick` 0 on its own page). */
+  stopPos(robot) {
+    return robot === 'follower' ? this.fcall('tick', 0) : this.lcall('tick', 0);
+  }
+
+  /** (driver linkStep) The recovery past a link after a step's dead stop: the follower at the stub's far spot beside
+   *  `past`, and the leader placed on `past` too unless only the follower stopped (the leader took the step). */
+  async recoverPast(step, robot) {
+    const past = step.past ?? step.at;
+    if (!past) return;
+    const far = step.at && step.past ? stubSpots(step.at, step.past).followerFar : null;
+    if (robot === 'follower' && far) {
+      await this.placeFollower(far);
+      return;
+    }
+    this.farSpot = far;
+    try {
+      await this.place(past);
+    } finally {
+      this.farSpot = null;
+    }
+  }
+
   /** A split: leg a the leader's, leg b the follower's, at once (`runLeg(ctx, steps)` is driver.mjs `runSteps`); each leg
    *  ends at the rejoin (the leader on its centre, the follower beside); the first there waits idle. Logged in
    *  `log.splits`. Returns 'exit' when the leader's leg ended in the section's exit. */
   async split(ctx, log, step, runLeg) {
     await this.fcall('follow', false);
+    this.fcourse = null;
     const t0 = await this.host.call('time');
     const rec = { id: step.id, fork: step.fork, rejoin: step.rejoin, start_s: r2(t0), legs: [], waited: null };
     const wait = new RejoinWait();
@@ -429,6 +503,7 @@ export class PairDriver {
     rec.legs.sort((x, y) => (x.side < y.side ? -1 : 1));
     rec.waited = wait.waited();
     log.splits.push(rec);
+    this.fcourse = null;
     await this.fcall('follow', true);
     return exit ? 'exit' : '';
   }
