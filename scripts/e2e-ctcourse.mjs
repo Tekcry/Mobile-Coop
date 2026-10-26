@@ -1,6 +1,6 @@
 // Marlow Yard (`ctcourse`, marlow-final): the co-op training course on two pages over
-// `?net=local&autostart=ctcourse&mode=course` (the first tab hosts, the second joins with `&autojoin=1`). The runner (slice 0d) owns the
-// shared helpers and the part dispatch; each set's steps live in `scripts/e2e-ctcourse/<set>.mjs` (owned by its set
+// `?net=local&autostart=ctcourse&mode=course` (the first tab hosts, the second joins with `&autojoin=1`). The runner
+// (slice 0d) owns the shared helpers and the part dispatch; each set's steps live in `scripts/e2e-ctcourse/<set>.mjs` (owned by its set
 // slice), called in route order. Between sets both players stand on the holding room's pad: the near door locks behind
 // them, the far door unlocks on both pages and the course moves to the next set. Every part checks the join (both
 // avatars drawn, the objective line); part 1 also the host-only pause restart at A1; part 4 ends with a revive in the
