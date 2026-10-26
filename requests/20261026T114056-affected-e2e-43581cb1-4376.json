@@ -1,0 +1,14 @@
+{
+  "id": "20261026T114056-affected-e2e-43581cb1-4376",
+  "sha": "43581cb159ced72216e4d3236a9f1b8c52898142",
+  "branch": "feature/piano-lights-so3",
+  "pr": 605,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T095830-affected-e2e-43581cb1-5675, rerun on the laptop"
+}
