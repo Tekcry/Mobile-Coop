@@ -91,7 +91,7 @@
     "lines": {
       "docs/RULES.md": 318,
       "CLAUDE.md": 60,
-      "docs/systems/testing-tools.md": 780
+      "docs/systems/testing-tools.md": 720
     },
     "stateResume": {
       "glob": "docs/*/STATE.md",

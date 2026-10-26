@@ -57,6 +57,7 @@ the old `warehouseOps` stays selectable, frozen, G390), Fallow (`bunker`, parked
 | `docs/systems/auto-train.md` | Auto-train (rolling merge trains) | Trains |
 | `docs/systems/watchdog.md` | The watchdog: alerts, fixes, the train-ready label convention | Labels, stuck pipeline |
 | `docs/systems/swaps.md` | Swap save and boot commands, worktree clean-up | Swaps |
+| `docs/systems/route-runs.md` | Route-runs: the robot pair, its command, outputs and dead stops | Greybox exit, route-runs |
 | `docs/laptop-queue/` | The laptop queue job (BRIEF, STATE, visual gate); its first build plan is archived | Queue changes |
 | `docs/systems/deploy.md` | Branches and the Pages slots | Releases, preview builds |
 | `docs/systems/session-method.md`, `docs/systems/agent-preamble.md` | The job lead's loop (intake detail, implementer, checker, fix round); the shared subagent preamble | Running a job or writing its prompts |
