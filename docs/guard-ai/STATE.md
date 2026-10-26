@@ -1014,33 +1014,29 @@ docs/piano-escape/PLAN.md "Guard AI Build asks" on origin/feature/piano-escape).
 Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm, 12-16 guards, one exit, all must go
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
-Open (2026-10-26 ~21:40):
-1. Piano asks (Campaign's PLAN numbering: GA7 there = the flash-sighting reaction; our mapWideNoise is "rain"):
-   - #603 feature/guard-ai-piano = GA1 sceneDark + GA3 blackoutSearch(Slots) + rain mapWideNoise: checker POSTED on
-     e772cb25d, CI green; affected-e2e queued. Green -> tell the orchestrator train-ready.
-   - #611 GA4 GuardActor (feature/guard-ai-piano-actor): checks A + B PASS, checker POSTED on 0d1fe4401; affected-e2e
-     next. Campaign sent the API + notes (nav for the stair pair, ~2 m start offset). Polish: NaN rate guard
-     (guardActor.ts:101), zero vx/vz once clamped, pose-clock-at-rate test, FLASH_COLOR "never mutate" comment.
-   - GA6 sweep (+ PLAN GA7 flash glimpse): feature/guard-ai-piano-sweep (worktree -guard-ai-piano-sweep off #603,
-     node_modules junction to -guard-ai-home). PLAN docs/guard-ai/slices/PIANO-GA6-PLAN.md: plan check FIX ->
-     lead folded section 8 (4e9e542ae: pair watch kept, sceneSweep names, turn time, rejoin, set false). GA6a (pure
-     sceneSweep.ts + walker + separation skip) Opus builder running -> PIANO-GA6A-REPORT.md; then GA6b (enemy /
-     enemyManager wiring + GA7 + pair watch), one PR, two Opus checkers.
-   - GA5 DONE: docs/guard-ai/slices/PIANO-GA5-REVIEW.md (6 deltas). Campaign applying all on #617 (~22:30): G4 / G5
-     laps 40 s by formula (TODO assert sweepPeriod after GA6a on master); G1 / G2 lanes 1.0 m (z 7.9 / 8.9, clearance
-     relaxed on W1); lightning loops every 160.04 s (new track), t0 = EMP press.
-2. #588 play pass A (feature/guard-ai-home): checker POSTED on 9d265be2b, CI green; affected-e2e queued. After #518.
-3. #317 coop4: train 135 conflicted -> merge 9 90b73d267, check FIX + re-check FIX folded (mission reads fixed slots;
-   local = localSlot), checker POSTED on 36ca016c7; co-op group e2e next -> train-ready. Was: merge 9 90b73d267 (PROTOCOL_VERSION 73; `ms` + `ot` both on the sector wire;
-   mission spawns AND guardForTeam; campaign armed-only per response team; teamMovesTaken on BuiltinTeamKind; S5
-   base hash after the #19 lookout). typecheck + 67 vitest files green. Opus merge check running ->
-   docs/coop4/checks/MERGE9-CHECK.md; PASS -> commit it, post checker, co-op group e2e, train-ready.
-4. #595 J15 PR4: MERGED (train 135). Job-done: guard-rules. J26 mission hooks: spare capacity only.
+Open (2026-10-26 ~22:40 SAVE; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
+   - GA6 sweep + GA7 + pair watch: feature/guard-ai-piano-sweep (worktree -guard-ai-piano-sweep, off #603, node_modules
+     junction to -guard-ai-home). PLAN docs/guard-ai/slices/PIANO-GA6-PLAN.md (section 8 overrides 2-5). GA6a DONE
+     (src/ai/sceneSweep.ts, patrol.ts sweep mode, separation.ts skip; report PIANO-GA6A-REPORT.md). GA6b Opus builder
+     running: f622ae8b8 wiring (enemy.ts / enemyManager.ts), 61ae16dd7 pan lead; tests + ai.md + fragment
+     (changes/feature-guard-ai-piano-sweep.md, minor) + PIANO-GA6B-REPORT.md in flight (WIP pushed at the save).
+     Campaign merged f622ae8b8 into feature/piano-escape-s4 (S4 builds on it): send them the final head, then open
+     the PR to master (it carries #603 until #603 merges) + TWO Opus checkers (A intent / correctness, B perf /
+     alloc / tests).
+   - #603 GA1 + GA3 + rain: checker POSTED e772cb25d; affected-e2e queued (yielded to train 137).
+   - #611 GA4 GuardActor: checker POSTED 0d1fe4401; affected-e2e requested ~22:55 (3 suites). Campaign has the API.
+   - GA5 DONE (PIANO-GA5-REVIEW.md); all six deltas on #617 (937603b46). Campaign's TODO: assert sweepPeriod(G4) ===
+     sweepPeriod(G5) once GA6a is on master and re-tune the end waits (told: lap adds 0.8 s slack + turn time per leg).
+2. #588 play pass A (feature/guard-ai-home): checker POSTED 9d265be2b; affected-e2e queued. After #518.
+3. #317 coop4: merge 9 + both fix rounds, checker POSTED 36ca016c7 (docs/coop4/checks/MERGE9-CHECK.md: watch list for
+   the missions switch-on); co-op group affected-e2e queued -> train-ready. Another master conflict -> merge 10.
+4. #595 J15 PR4 MERGED (train 135). J26 mission hooks: spare capacity only.
 5. Polish (only if it helps the playthrough): after Sector Ops #602 lands, stealthSystems.ts isOff (:381) false when
    every lamp of the circuit is mainsCut (a guard walks to a dead switch); #588 hard backstop on wake-body / alarm walks, "can't get through" bark,
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
    autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: GA6a report -> GA6b build -> PR + two Opus checkers; tell the orchestrator as #603 / #611 / #588 / #317 go
-green.
+Next: GA6b report -> final head to Campaign -> PR + two Opus checkers; tell the orchestrator as #603 / #611 / #588 /
+#317 go green.
 ```
