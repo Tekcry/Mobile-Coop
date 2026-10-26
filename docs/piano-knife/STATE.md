@@ -10,9 +10,9 @@ Owner: Night Shift | Player Build. Status: current.
   Campaign answered), `S1-BRIEF.md` (the next slice, full), `CLIP-LIST.md` (7 Mixamo downloads, blocked on sign-in),
   this file.
 - Phase: plan fix round 1 applied (plan check FIX, 8 items + polish; Campaign answers; paired kill). No code.
-- Slices: S1 paired knife kill core on stand-ins (Opus ~1200, two Opus checkers) | S3 co-op + RT knife slash (Opus
-  ~900, two Opus checkers, after #599) | S2 real clips + CMU 18-23 check (Opus ~450, after the Mixamo sign-in) | S4a
-  empty-pistol slide (Sonnet ~200 + Blender GLB) | S4b intro pose (Opus ~400). Old S5 dropped (no ledges; slash to S3).
+- Slices: S1 paired knife kill core on stand-ins (Opus ~1200, two Opus checkers) | S3 co-op (Opus
+  ~800, two Opus checkers, after #599) | S2 real clips + CMU 18-23 check (Opus ~450, after the Mixamo sign-in) | S4a
+  empty-pistol slide (Sonnet ~200 + Blender GLB) | S4b intro pose (Opus ~400). Old S5 dropped (no ledges); no slash (Michael ~20:05); palm strike off in the scene from S1.
 - Campaign blockers: PB1 + PB5 (S1) and PB4 (S3) block Campaign S4, so S1 then S3 first.
 - Can start now: S1 and S4a (2 builders). Blocked: S3 on S1 and #599; S2 on Michael's Mixamo sign-in and S1; S4b on
   S4a.
@@ -25,8 +25,6 @@ Owner: Night Shift | Player Build. Status: current.
   `src/player/moveState.ts:65-67`.
 
 ## For the orchestrator
-- Tell Michael (known gap, A10): until S3 lands, the RT close strike in the piano scene is the palm-strike knockout, not
-  a knife; S3 fixes it before he walks the scene.
 - Mixamo: the 7 CLIP-LIST clips need Michael's sign-in; nothing before S2 waits on them.
 - To Campaign: timings (BRIEF A15), the `setKnifeScene` call for `pianoScene.ts` (PLAN 2.1), the co-op split (PLAN 3).
 

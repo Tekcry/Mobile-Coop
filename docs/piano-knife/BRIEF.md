@@ -19,6 +19,8 @@ Sector Ops the scene lighting.
 - 2026-10-26 ~19:40, chat: "I want main focus to be on piano scene. Extra capacity can go towards the remaining tasks."
 - 2026-10-26 ~19:45, via the orchestrator: "Killing a guard should be a physical alteration between them both, 2
   character animation if possible."
+- 2026-10-26 ~20:05, via the orchestrator: "Palm strike knockout disabled, only knife kills, and no slashing, only
+  animations with the guard".
 - 2026-10-26 ~19:55, chat (Campaign's part, shapes the intro): "Also, right before giving the player control, once the
   player knows they are surrounded and getting shot at and they have no ammo, they should activate an EMP which knocks
   out all the lights, forcing all the guards to use flashlights and the mission will play in pure darkness."
@@ -69,9 +71,9 @@ Campaign's scene flag and scene switch.
   CLIP-LIST clips once downloaded. Undo: n/a.
 - A9 "Brutally" is the weight of the motion (a held grip, a close stab, a buckle and a collapse), with blood limited to
   what the game already draws (piano-escape A6). Undo: n/a.
-- A10 The RT close strike in the scene becomes a lethal knife slash (solo, host and client) in S3, which lands before
-  Michael walks the scene (Campaign S4 waits on it). Until S3 lands the RT strike in the scene is today's palm-strike
-  knockout: a known gap, logged to Michael by the orchestrator (STATE). Undo: leave the slash out of S3.
+- A10 (Michael ~20:05, no longer assumed) With the knife switch on, the palm-strike knockout (RT close strike and the
+  non-lethal takedown) is off from S1: every takedown in the scene is the paired knife kill; there is no knife slash
+  at all. Switch off: everything as today.
 - A11 The intro pose (Campaign PB6): standing back flat to the wall, the empty pistol low ready in both hands, slide
   locked back, slow calm breathing readable at chest close-up (about a 4 s cycle), the hero mesh for the close-up; the
   partner the same pose, mirrored or crouched, beside him. Offered as `introPose(on, variant)` that Campaign's intro

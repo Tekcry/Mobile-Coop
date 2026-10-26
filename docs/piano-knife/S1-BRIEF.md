@@ -13,8 +13,8 @@ takedown is exactly today's. Runs fully on clips already in the repo (Mixamo dow
 in). Campaign PB5 and PB1 (plus the PB2 and PB3 rows); they block Campaign S4.
 
 ## Out of scope (do not build)
-Co-op: no `src/net` edit, no `EnemyPuppet` edit, no MoveState bits, no `td` kind (S3). No RT slash behaviour (S3; S1
-only writes its data row). No real knife clips or CMU check (S2). No intro pose or slide (S4). No `flags.ts` edit and
+Co-op: no `src/net` edit, no `EnemyPuppet` edit, no MoveState bits, no `td` kind (S3). No knife slash anywhere
+(Michael ~20:05). No real knife clips or CMU check (S2). No intro pose or slide (S4). No `flags.ts` edit and
 no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scoring change.
 
 ## Files and exact behaviour
@@ -35,8 +35,9 @@ no `pianoScene.ts` edit (Campaign writes the two `setKnifeScene` calls). No scor
      | corner | mocap_cross_punch | mocap_rifle_death_from_right | 1.3 | 0.45 | 0.8 | 0.55 | 0 | 0 | shoulder | neck |
      | front | mocap_cross_punch | mocap_rifle_death_from_the_front | 1.3 | 0.45 | 0.8 | 0.55 | 0 | pi | shoulder | chest |
      `victimFrom` 0 on every row.
-   - `KNIFE_SLASH = { attacker: 'mocap_elbow_strike', noise: 1.2 }` (data only; S3 uses it, so S3 never edits this
-     file).
+   - Palm strike off (A10, Michael ~20:05 "Palm strike knockout disabled, only knife kills, and no slashing, only
+     animations with the guard"): while the switch is on, `takedownController` refuses the RT close strike and every
+     non-lethal takedown path (no prompt offered); switch off = today. Test in `tests/knifeTakedown.test.ts`.
    - `pickKnifeKill(kind: TakedownKind, crouched: boolean): number`: `behind` -> crouched ? 1 : 0; `corner`,
      `overCover` -> 2; `front`, `side` -> 3; every other kind -> -1.
    - `loadKnifeClips(): Promise<void>` (dynamic `import()` of the six clip modules into a module table, once; a second

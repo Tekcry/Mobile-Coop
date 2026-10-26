@@ -137,8 +137,8 @@ attacker clip, victim clip, `seconds` 1.3, `contact` 0.45, `victimFrom` 0, `limp
 behindLow), `_from_right` (corner), `_the_front` (front). S2 pairs (Campaign answers): Stabbing + Falling Forward Death
 (behind), Standing Melee Attack Downward + Falling Back Death (corner), Stabbing + Dying (front and the crouched rise),
 or a CMU 18-23 two-person take if one fits. `pickKnifeKill(kind, crouched)`: behind -> 0 / 1, corner and overCover ->
-2, front and side -> 3, else -1. `KNIFE_SLASH` (data for S3's RT slash: stand-in `mocap_elbow_strike`, noise 1.2) is
-written in S1 so S3 never edits the file.
+2, front and side -> 3, else -1. No slash row (A10, Michael ~20:05). With the switch on, `takedownController` refuses
+the RT close strike and every non-lethal takedown path (S1), so the only takedown is the paired knife kill.
 
 2.6 Co-op (S3; G400). No new message. A client with its switch on sends `kind: 'knife'` on `td` `start` and `done` in
 every mode (today only `done`, only course). The host denies a knife `start` when its own switch is off, and uses
@@ -149,8 +149,7 @@ victim: on a client the held-puppet loop (`coopClient.ts:1188-1200`) also takes 
 `knifeVictim`), on the host the seized-guard step (`coopHost.ts:1752`) poses a client's victim; both use `knifePair`
 from the remote attacker's rendered frame. The held-puppet loop poses one guard (`break`): enough for 2 players.
 Double (A4): two kills inside `DUAL_WINDOW` raise `dualTakedown` as today; S3 checks the two victims fall clear. RT in
-the scene (A10): the strike becomes a lethal knife slash (`KNIFE_SLASH`), and a `cmove` lethal bit lets a client's
-slash kill on the host.
+the scene (A10): the host also refuses a client's RT close strike while its switch is on (no slash, no palm strike).
 
 2.7 Intro pose (S4; A11, A12; Campaign PB6). `introPose(on, variant: 'stand' | 'mirror' | 'crouch')` on the player:
 `WallCore.enter` on the given wall spot (Campaign: W1, players at (5.6, 4.2) and (5.6, 5.6), backs flat to it), the
@@ -181,7 +180,7 @@ Files (Player Build; files of other owners get one-line hooks only):
   S3 starts from master after #599 merges (or rebases onto it before its first commit). (2) Campaign S4 edits
   `coopHost.ts`, `coopClient.ts` for the scene's co-op. Split: Campaign S4 does the revive cap (`coopHost.ts:205`), the
   client's intro end on the host's EMP and the two-tab `e2e-piano`; Player S3 does the `td` knife kind, the host gate and
-  noise, the MoveState sub bits, the remote attacker and victim poses and the RT slash bit. Campaign S4 waits for S3
+  noise, the MoveState sub bits, the remote attacker and victim poses and the host's refusal of a client's RT strike. Campaign S4 waits for S3
   (PB4); if they overlap in time, the second to merge rebases.
 - Wire: `td.kind` value `'knife'` on `start` and `done`; MoveState `takedown` `sub` bits 1-4 (S3); `cmove` strike
   lethal bit (S3). No new message, no `PROTOCOL_VERSION` bump (the train does it). Save paths: none. Maps: none.
@@ -194,7 +193,7 @@ block Campaign S4, so S1 then S3 go first.
 
 - S1 Paired knife kill core, solo / host, on stand-ins (Opus, ~1200 lines with tests; `src/ai/enemy.ts` is an AI file,
   so two independent Opus checkers). PB5 + PB1 (+ PB2, PB3 rows). Full brief: `S1-BRIEF.md`. Depends: nothing.
-- S3 Co-op + RT knife slash (Opus, ~900; `src/net`, two independent Opus checkers): 2.6. Starts after S1 merges and
+- S3 Co-op (Opus, ~800; `src/net`, two independent Opus checkers): 2.6. Starts after S1 merges and
   after #599 merges. Reads `knifeKill.ts`, never edits it. Tests: `tests/knifeWire.test.ts` (sub bits round trip;
   host denies knife `start` with its switch off; host noise 1.2 only with it on; both bodies sampled from one phase
   within 3 cm; two kills inside `DUAL_WINDOW` on guards 1-2 m apart end with bodies at least 0.5 m apart),
@@ -215,7 +214,7 @@ block Campaign S4, so S1 then S3 go first.
 - S4b Intro pose (Opus, ~400): 2.7 `introPose(on, variant)` for Campaign. Tests: `tests/introPose.test.ts` (pose set
   and cleared, both variants, 4 s breath, no allocation); look video from a Studio row, then in the scene. Laptop:
   `affected-e2e` + `e2e-coop` + `e2e-netmove` (src/player). Depends: S4a (I1 optional, swapped in when downloaded).
-- Dropped: the old S5. Ledge, drop, hang-down and window rows are gone (the map has none); the RT slash moved to S3.
+- Dropped: the old S5. Ledge, drop, hang-down and window rows are gone (the map has none); the RT slash is dropped (Michael ~20:05: "no slashing").
 
 Order: S1 and S4a now (2 builders). Then S3 (after #599) and S2 (when the clips land) in parallel: S2 alone edits
 `knifeKill.ts`. Then S4b. The walk cap counts the scene as one feature with Campaign's.
