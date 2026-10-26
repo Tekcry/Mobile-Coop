@@ -12,7 +12,9 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 let failed = false;
 // (guard-ai-mission-hooks S1a-e) flags are URL-only and the suite is one page: `missionorders=1` is on for the whole
 // suite (only the 'mission order' scenario places an order; with no order on the board every hook is a no-op)
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear&missionorders=1' });
+// (guard-ai-mission-hooks S3-f) and `areaalarms=1`: with no `setAreas` call the manager is J15's exactly (only the
+// 'area alarm' scenario sets areas, and clears them after)
+const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear&missionorders=1&areaalarms=1' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -3843,6 +3845,133 @@ try {
       assert(b.aAt > 0 && Math.abs(b.wait - T.joinWait) <= 1 && b.gatherOk && b.aFarWhileWait <= T.atVia + 0.5, `mission group: A waits joinWait at the via, gathering (${f2(b.wait)} s, ${f2(b.aFarWhileWait)} m from it)`);
       assert(b.membersAtWalk === 1 && b.atPost < 1, `mission group: then A walks alone to the post (${b.membersAtWalk} member, ${f2(b.atPost)} m)`);
       assert(s(b.seen) === s(['gathering', 'walking', 'arrived', 'done']), `mission group: busy phases gathering -> walking -> arrived -> done (${s(b.seen)})`);
+    }
+  });
+
+  await scen('area alarm (guard-ai-mission-hooks S3)', async () => {
+    // (guard-ai-mission-hooks S3, D6, A9, A10; `?areaalarms=1`) Per-area alarm stages, set by hand as Campaign Build will
+    // (C5): area 0 round the 'alarm call' spotter (0, 5), area 1 round its mate's spot (10, 9). The panels off (the radio
+    // path only). (a) The area-0 spotter's contact, then his command call raise area 0 only (`alarmArea` 0 as `onAlarm`
+    // fires): area 0 shut, area 1 and the site (the panels) free. (b) A spotter placed in area 1 sees the player: area 1
+    // raises its own (Clear mode keeps `alarmRepeat` off: one per area). (c) `setAreaStage(0, 2)` gears only area 0's
+    // guard. (d) No areas: J15 exactly (site alarm, `alarmArea` -1; a second sighting raises nothing within 15 s).
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const nav = em.nav;
+      const seen = [];
+      const prev = em.onAlarm;
+      em.onAlarm = (e, p) => {
+        seen.push(em.alarmArea);
+        prev?.(e, p);
+      };
+      const out = { seen };
+      try {
+        const off = () => {
+          for (const p of em.alarms) p.disabled = true;
+        };
+        const floor = (x, z) => {
+          const c = nav.cellOf(x, z, 0);
+          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        };
+        const until = (f, max) => {
+          let s = 0;
+          while (!f() && s < max) {
+            t.step(0.05);
+            s += 0.05;
+          }
+          return s;
+        };
+        // a guard placed by the manager (his area from where he stands), facing -z
+        const place = (x, z) => {
+          const e = t.spawn('grunt', x, z, Math.PI);
+          em.placeSlot(e, { yaw: Math.PI }, 0);
+          return e;
+        };
+        // ... and the player in front of him, lit, until he is alerted (5 s at most)
+        const spot = (x, z, px, pz) => {
+          const e = place(x, z);
+          t.tp(px, pz, 0);
+          let k = 0;
+          while (!e.alerted && k++ < 300) t.step(1 / 60);
+          return e;
+        };
+        // the player's spot in front of the area-1 spotter: open floor 4-5 m in front of him
+        const s1 = [10, 9];
+        let p1 = null;
+        for (const c of [[9.5, 4], [10, 4.5], [10.5, 4], [9.5, 5]]) if (!p1 && floor(c[0], c[1])) p1 = c;
+        out.pick = floor(0, 5) && floor(s1[0], s1[1]) && p1 !== null;
+        out.p1 = p1;
+        if (!out.pick) return out;
+        em.setAreas([{ boxes: [[-4, 1, 4, 9]] }, { boxes: [[6, 5, 14, 13]] }]);
+        em.resetAlarm();
+        // ----- (a) area 0 -----
+        t.light(1);
+        off();
+        const a = spot(0, 5, -0.5, 0);
+        out.aArea = a.area;
+        out.aAlerted = a.alerted;
+        out.aT = until(() => seen.length >= 1, 15);
+        g.mode.pending.length = 0;
+        out.a = { seen: seen.slice(), in0: em.alarmOpenIn(0), in1: em.alarmOpenIn(1), site: em.alarmOpen(), raised: em.alarmRaised, guard: em.guardAlarms, n0: em.areaSt.count[0], by: em.alarmBy };
+        // ----- (b) area 1 (the board starts afresh: the area-0 lock stays shut through the clear) -----
+        t.reset();
+        t.light(1);
+        off();
+        const b = spot(s1[0], s1[1], p1[0], p1[1]);
+        out.bArea = b.area;
+        out.bAlerted = b.alerted;
+        out.bT = until(() => seen.length >= 2, 15);
+        g.mode.pending.length = 0;
+        out.b = { seen: seen.slice(), in0: em.alarmOpenIn(0), in1: em.alarmOpenIn(1), site: em.alarmOpen(), raised: em.alarmRaised, all: em.alarmsRaised, guard: em.guardAlarms };
+        // ----- (c) gear: a calm guard in each area, the player far off in the dark -----
+        t.reset();
+        t.light(0);
+        t.tp(-22, -24, 0);
+        const c0 = place(0, 5);
+        const c1 = place(s1[0], s1[1]);
+        const before = [c0.helmet, c0.armour, c1.helmet, c1.armour];
+        em.setAreaStage(0, 2);
+        out.c = { areas: [c0.area, c1.area], before, after: [c0.helmet, c0.armour, c1.helmet, c1.armour], rule: em.helmetRule, stage: em.areaStageOf(c0) };
+        // ----- (d) no areas: J15's one guard alarm per load -----
+        em.setAreas(null);
+        em.resetAlarm();
+        t.reset();
+        t.light(1);
+        off();
+        const n = seen.length;
+        const d = spot(0, 5, -0.5, 0);
+        out.dArea = d.area;
+        out.dT = until(() => seen.length > n, 15);
+        g.mode.pending.length = 0;
+        out.d1 = { seen: seen.slice(n), guard: em.guardAlarms, raised: em.alarmRaised, site: em.alarmOpen() };
+        const d2 = spot(s1[0], s1[1], p1[0], p1[1]);
+        out.d2Alerted = d2.alerted;
+        t.step(15);
+        g.mode.pending.length = 0;
+        out.d2 = { seen: seen.slice(n), guard: em.guardAlarms, all: em.alarmsRaised };
+        return out;
+      } finally {
+        em.onAlarm = prev;
+        em.setAreas(null);
+        em.resetAlarm();
+        g.mode.pending.length = 0;
+        t.light(null);
+      }
+    });
+    const s = (v) => JSON.stringify(v);
+    const f2 = (v) => v.toFixed(2);
+    assert(r.pick, `area alarm: open floor at both spotters and in front of the area-1 spotter (${s(r.p1)})`);
+    if (r.pick) {
+      console.log(`  area alarm: area 0 raised after ${f2(r.aT)} s, area 1 after ${f2(r.bT)} s, site after ${f2(r.dT)} s; seen ${s(r.seen)}`);
+      assert(r.aArea === 0 && r.aAlerted && s(r.a.seen) === s([0]) && r.a.by === 'radio', `area alarm (a): the area-0 spotter's command call raises area 0 (area ${r.aArea}, seen ${s(r.a.seen)}, '${r.a.by}')`);
+      assert(!r.a.in0 && r.a.in1 && r.a.site && !r.a.raised && r.a.guard === 0 && r.a.n0 === 1, `area alarm (a): area 0 shut, area 1 and the panels free, the site lock untouched (${s(r.a)})`);
+      assert(r.bArea === 1 && r.bAlerted && s(r.b.seen) === s([0, 1]), `area alarm (b): a spotter in area 1 raises area 1 (area ${r.bArea}, seen ${s(r.b.seen)})`);
+      assert(!r.b.in0 && !r.b.in1 && r.b.site && !r.b.raised && r.b.all === 2 && r.b.guard === 0, `area alarm (b): both areas shut now, the panels still free (${s(r.b)})`);
+      assert(s(r.c.areas) === s([0, 1]) && s(r.c.before) === s([false, false, false, false]) && s(r.c.after) === s([true, true, false, false]) && r.c.stage === 2, `area alarm (c): setAreaStage(0, 2) gears only area 0's guard (${s(r.c)})`);
+      assert(r.dArea === -1 && s(r.d1.seen) === s([-1]) && r.d1.guard === 1 && r.d1.raised && !r.d1.site, `area alarm (d): no areas, the alarm is the site's (J15) (${s(r.d1)}, area ${r.dArea})`);
+      assert(r.d2Alerted && s(r.d2.seen) === s([-1]) && r.d2.guard === 1 && r.d2.all === 1, `area alarm (d): a second sighting raises nothing within 15 s (${s(r.d2)})`);
     }
   });
 
