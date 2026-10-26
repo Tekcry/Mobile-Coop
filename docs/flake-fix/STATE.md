@@ -8,7 +8,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   master sha) fills idle slots through the reset.
 - e2e-netmove quarantine LIFTED (~08:00; Player F5 #663 in 4.128.0); a netmove fail now: tell the Orchestrator (reopens F5).
 - UNDO the piano front
-  (LQ_FRONT_BRANCHES back to 'mixamo', restart between trains) after Michael's ~09:00 walk.
+  (LQ_FRONT_BRANCHES back to 'mixamo', restart between trains) after Michael's walk (moved to ~11:00; Orchestrator 08:50).
 - Next: undo the piano front after the walk; triage any train failure (Opus) and tell the Orchestrator.
 
 **Test Runner SAVE 74 (2026-10-27 ~05:00, after the 03:50 reset; session [058b5c]; wins over SAVE 73):**
