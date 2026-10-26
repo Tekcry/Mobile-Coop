@@ -7,8 +7,8 @@
     "sections": ["S1", "S2", "S3", "S4", "S5"],
     "measured": {
       "tool": "level-measure 1",
-      "date": "2026-10-25",
-      "geom": "y3jl5g-atld8s",
+      "date": "2026-10-26",
+      "geom": "2kzmx6-19g5gyp",
       "splits": {}
     }
   },
@@ -35,7 +35,7 @@
         "2": 2
       },
       "note": "Measured: x 14..34, z 16..22 (S4_BOX.dock), clear 7.0 to the roof slab (S4_ROOF). Estimated, pending V6: shadow_pct 0 (two floods y 6.0, radius 9 by the 1.5 x height rule, cover the whole 20 x 6 floor); sees_pct 0.9 from the C3 door line (only 1.0 m crates, no elevated point: the roof is solid); los_break_s 2 (5 m from the C3 door or the dock west door along the south wall). Guards #17-18 (dock pair).",
-      "measured": { "shadow_pct": 0.01, "sees_pct": 0.84, "vantage_at": [24, 0, 16], "los_break_s": 3.89, "cells": 362, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.01, "sees_pct": 0.84, "vantage_at": [24, 0, 16], "los_break_s": 3.89, "cells": 362, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-svc",
@@ -49,7 +49,7 @@
       "tension": 2,
       "tags": [],
       "note": "Measured: x -4..14, z 16..18 (S4_ROOMS s4-sc); clear width about 1.75 between wall faces (shell 0.3 at z 16, partition 0.2 at z 18); ceiling slab 3.2 top, underside 3.0 (campusS4.ts:374). Tension is a judgement from the SPEC beat (estimate).",
-      "measured": { "shadow_pct": 0.97, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 74, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.97, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 74, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-lobby",
@@ -72,7 +72,7 @@
         "2": 1
       },
       "note": "Measured: main volume x -4..9, z 18..22 (s4-lobby); leftover pockets s4-lobby-b (x 9..12, z 18..19: a 0.8 m slot between partition and mantrap wall) and s4-lobby-c (x 12..14, z 18..22, dead pocket) are not modelled as spaces. Estimated, pending V6: shadow_pct 0.39 (one lamp y 2.8, radius 4.2 at (5,20)); sees_pct 0.85 (desk 0.75 m only); los_break_s 1 (doors within 3 m). Guard #4 (mantrap officer, post (6,20.2)).",
-      "measured": { "shadow_pct": 0.59, "sees_pct": 1, "vantage_at": [1.25, 0, 20.25], "los_break_s": 0.9, "cells": 136, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.59, "sees_pct": 1, "vantage_at": [1.25, 0, 20.25], "los_break_s": 0.9, "cells": 136, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-mantrap",
@@ -86,7 +86,7 @@
       "tension": 4,
       "tags": [],
       "note": "Measured: x 9..12, z 19..22 (s4-mantrap); walls 3.0 and a lid 3.0..3.1. No section 7 class for an interlock, so custom (WARN, justified by SPEC S4 \"Mantrap at the main entrance\"). Tension is a judgement from the SPEC beat (estimate).",
-      "measured": { "shadow_pct": 1, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 20, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 1, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 20, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-batt",
@@ -109,7 +109,7 @@
         "2": 1
       },
       "note": "Measured: x -10..-4, z 16..27.8 (s4-batt), no ceiling slab so clear 7.0 to the roof. Estimated, pending V6: shadow_pct 1.0 (no lamp in the room by design, campusS4.ts:489-491); sees_pct 0.8 (two rack strips 1.2 m high); los_break_s 0.5 (whole room dark). Guard #12 (battery checker, loop z 37 to 20; counted here as zone batt, he also crosses s4-cc and s4-ups).",
-      "measured": { "shadow_pct": 0.92, "sees_pct": 0.95, "vantage_at": [-7.75, 0, 19.25], "los_break_s": 0.33, "cells": 130, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.92, "sees_pct": 0.95, "vantage_at": [-7.75, 0, 19.25], "los_break_s": 0.33, "cells": 130, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-yard",
@@ -132,7 +132,7 @@
         "2": 3
       },
       "note": "Measured: x 34..40, z 16..48 (S4_BOX.yard), walls 2.8, open sky (12.0 by schema convention). Estimated, pending V6: shadow_pct 0 (two floods y 6.0, radius 9, at (35.35,24) and (35.35,40) cover the strip; the generator and tanks shade about 1 m behind them); sees_pct 0.8 (generator 2.6 and tanks 2.0 high hide the east side); los_break_s 2 (door 2 m, tanks 5 m). Guards #1 handler, #2 dog, #3 gate officer. The 2.0 m yard gate (36.5..38.5, z 16) is locked and unbreachable, so it is not a link.",
-      "measured": { "shadow_pct": 0.18, "sees_pct": 0.7, "vantage_at": [35.25, 0, 25.25], "los_break_s": 2.82, "cells": 434, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.18, "sees_pct": 0.7, "vantage_at": [35.25, 0, 25.25], "los_break_s": 2.82, "cells": 434, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-deck",
@@ -155,7 +155,7 @@
         "2": 1
       },
       "note": "Measured: x -10..34, z 16..48 at y 7.3 (S4_DECK), open sky (12.0 by convention), four chillers 4 x 2 x 2.0 (S4_BOX.chillers), 2.0 screens on the N, S, W edges, 1.1 parapet east. Estimated, pending V6: shadow_pct 0.95 (four task lights 1.5 m over the deck, radius 2.25, at (6|14|22|28, 34.2); no moon-fill term); sees_pct 0.85 (chillers hide about a tenth); los_break_s 3 (east edge x 32.6, z 36..44 is 7 m from the nearest chiller). Guard #13 (deck patrol, line z 36, x 12..30).",
-      "measured": { "shadow_pct": 0.92, "sees_pct": 0.68, "vantage_at": [-0.75, 7.3, 31.25], "los_break_s": 1.33, "cells": 5078, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.92, "sees_pct": 0.68, "vantage_at": [-0.75, 7.3, 31.25], "los_break_s": 1.33, "cells": 5078, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-riser",
@@ -169,7 +169,7 @@
       "tension": 2,
       "tags": [],
       "note": "Measured: x 30.6..34, z 42..48 (S4_BOX.riser), clear 7.0 to the roof slab. Ladders R1 (32.2,45.05) and R2 (32.2,43.35). Tension is a judgement from the SPEC beat (estimate).",
-      "measured": { "shadow_pct": 1, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 52, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 1, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 52, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-baskets",
@@ -183,7 +183,7 @@
       "tension": 4,
       "tags": [],
       "note": "Measured: B-N x 3.1..32.6, z 40.8..41.8 (S4_BOX.bN); branches B1, B2, B3 (1.0 x 16.8 each, z 24..40.8), B-cage (1.0 x 6.4, z 34.4..40.8) and the landing (3.15 x 2.45) are folded into this one space. Headroom 2.6 = roof underside 7.0 less basket top 4.4. No section 7 class for a basket run, so custom (WARN). Tension is a judgement from the SPEC beat (estimate).",
-      "measured": { "shadow_pct": 1, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 307, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 1, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 307, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-hall",
@@ -206,7 +206,7 @@
         "2": 6
       },
       "note": "Measured: x -4..34, z 22..42 (S4_BOX.hall); pods P1-P5 each 3.6 x 8 (S4_PODS) with 1.2 m hot aisles; cage x 14..22, z 34..40 inside it. Estimated, pending V6: shadow_pct 0.46 (13 lamps y 3.6, radius 5.4 by the 1.5 x height rule; the 144 m2 of pod interior is roofed and unlit; no other occlusion); sees_pct 0.45 from the basket run (an eye at about 6.0 clears the 3.0 pod roofs but not their far sides; the NOC pane view is lower, the B-N basket sits under its sill); los_break_s 2 (the stealth route sits inside pods and along 2.2 m rack faces). Guards #7, #8 cold-aisle patrols, #9 keyholder, #10-11 hot-aisle checkers (dormant flag has no reader, A99), #20 supervisor.",
-      "measured": { "shadow_pct": 0.58, "sees_pct": 0.58, "vantage_at": [18.25, 4.4, 35.25], "los_break_s": 1.8, "cells": 1838, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.58, "sees_pct": 0.58, "vantage_at": [18.25, 4.4, 35.25], "los_break_s": 1.8, "cells": 1838, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-nc",
@@ -220,7 +220,7 @@
       "tension": 3,
       "tags": [],
       "note": "V5f-3 (one encounter rule): retyped encounter -> connector: a corridor is not a play space (sheet 7 corridor Encounter? no) and no built route (S4_ROUTES) walks it; guard #16 (1) is counted here in the note, not in `guards`; former declared targets shadow_pct 1, los_break_s 4, vantage s4-nc 0.95. Measured: x 8..30.6, z 42..48 (S4_BOX.nc), no ceiling slab so clear 7.0. Estimated, pending V6: shadow_pct 1.0 (no lamp, dark by design); sees_pct 0.95 (empty 6 m strip); los_break_s 4 (about 12 m to a door end). Guard #16 (north corridor tour, line z 45.8, x 11..28; dormant flag has no reader).",
-      "measured": { "shadow_pct": 0.99, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 436, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.99, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 436, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-sec",
@@ -234,7 +234,7 @@
       "tension": 3,
       "tags": [],
       "note": "V5f-3 (one encounter rule): retyped encounter -> utility: a side room no built route (S4_ROUTES) enters; guards #5-6 (2) are counted here in the note, not in `guards`; former declared targets shadow_pct 0.01, los_break_s 1, vantage s4-sec 0.9. Measured: x -4..8, z 42..48 (S4_BOX.sec); NOC slab underside 3.4 (campusS4.ts:437). Estimated, pending V6: shadow_pct 0.01 (two lamps y 3.1, radius 4.65, cover the room); sees_pct 0.9 (desk 0.75, stair rail 1.1); los_break_s 1 (doors within 6 m). Guards #5 operator, #6 supervisor.",
-      "measured": { "shadow_pct": 0.03, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 186, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.03, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 186, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-noc",
@@ -248,7 +248,7 @@
       "tension": 4,
       "tags": [],
       "note": "V5f-3 (one encounter rule): retyped encounter -> utility: a dead-end side room no built route (S4_ROUTES) enters; guards #14-15 (2) are counted here in the note, not in `guards`; former declared targets shadow_pct 0.02, los_break_s 2, vantage s4-noc 0.9. Measured: x -4..8, z 42..48 at y 3.6 (S4_NOC), 3.4 clear to the roof; the pane x -3.5..7.5, y 4.6..6.6 is armoured glass (campusS4.ts:405). Estimated, pending V6: shadow_pct 0.02 (two lamps 2.8 m over the mezzanine floor, radius 4.2); sees_pct 0.9 (open mezzanine); los_break_s 2 (stair head to the window about 6 m, no full-height cover). Guards #14-15.",
-      "measured": { "shadow_pct": 0, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 139, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 139, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-cage",
@@ -262,7 +262,7 @@
       "tension": 5,
       "tags": ["objective"],
       "note": "Measured: x 14..22, z 34..40 (S4_BOX.cage), 3.0 solid walls 0.1 thick, open top under the 7.0 roof; the B-cage basket (underside 4.0) crosses it at x 17.5..18.5. SPEC says 8 x 8 (z 32..40); built 8 x 6 (z 34..40). Not an encounter: the keyholder stands outside the front gate (counted in s4-hall). Tension is a judgement from the SPEC beat (estimate).",
-      "measured": { "shadow_pct": 0.4, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 136, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.4, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 136, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-ups",
@@ -276,7 +276,7 @@
       "tension": 2,
       "tags": [],
       "note": "Measured: x -10..-4, z 30.2..48 (s4-ups), cabinets x -9.6..-8.6, z 32..46 (2.0 high), clear 7.0 to the roof. Tension is a judgement from the SPEC beat (estimate).",
-      "measured": { "shadow_pct": 0.32, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 284, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0.32, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 284, "geom": "2kzmx6-19g5gyp" }
     },
     {
       "id": "s4-cc",
@@ -290,7 +290,7 @@
       "tension": 3,
       "tags": ["exit"],
       "note": "V5f-3 (one encounter rule): retyped encounter -> connector: a corridor is not a play space (sheet 7 corridor Encounter? no) and its only guard is the K3 choke at the C4 door (schema campus convention: the choke sits beside the spine link); guard #19 (1) is counted here in the note, not in `guards`; former declared targets shadow_pct 0, los_break_s 1, vantage s4-cc 1. Measured: x -10..-4, z 27.8..30.2 (s4-cc), no ceiling slab so clear 7.0; clear width about 2.2 between wall faces. Estimated, pending V6: shadow_pct 0 (lamp y 2.8 at (-7,29) covers the 6 x 2.4 room); sees_pct 1.0 (empty); los_break_s 1 (three doors). Guard #19 (K3 colonnade sentry at (-8.5,29), post leash 5, guards c4-gate). The 2.4 m width cannot host an encounter by class; kept as an encounter space because the K3 choke is counted in its space (campus conventions).",
-      "measured": { "shadow_pct": 0, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 44, "geom": "y3jl5g-atld8s" }
+      "measured": { "shadow_pct": 0, "sees_pct": null, "vantage_at": null, "los_break_s": null, "cells": 44, "geom": "2kzmx6-19g5gyp" }
     }
   ],
   "links": [
