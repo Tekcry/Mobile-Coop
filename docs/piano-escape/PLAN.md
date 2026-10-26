@@ -17,7 +17,7 @@ Michael ~19:20 / ~19:28 / ~19:40 / ~19:55). Prototype mode: small, no tuning, on
   not the results screen (A9). The scene's own logic sits in new files (`src/game/piano*.ts`), called from SectorMode
   at those three seams only.
 - **Flag:** `pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON)` in `src/core/flags.ts` (A1; `darkFlag` :140).
-  The map joins `MAPS` only when it is on (`src/world/maps/index.ts`, like `ctcourseReplan`), so map-wide checks and
+  The map joins `MAPS` only when it is on (`src/world/maps/index.ts`, like `bunker` behind `flags.legacy`), so map-wide checks and
   menus never see it otherwise. Reached by: a main-menu entry "Piano Escape" (`MainMenuScreen.entries`, `src/main.ts`
   :253, solo start), the co-op lobby (Sector Ops, map "Aldgrave Piano Works"), and
   `?piano=1&autostart=pianoWorks&mode=sector` (dev, e2e). `sectorOps()` (`src/ui/screens/missionsScreen.ts:51`) skips
@@ -36,12 +36,12 @@ Michael ~19:20 / ~19:28 / ~19:40 / ~19:55). Prototype mode: small, no tuning, on
   `src/audio/foley/foley.ts`); the in-match director (`Music.mission/update/calm`, `src/audio/music/music.ts`).
   Precache lists: `src/pwa/precacheGlobs.ts`.
 - **Lights (Sector Ops Build's facts, ~20:05, pointers checked):** one registry (`LightRegistry`,
-  `src/world/lights.ts:149`; `setGroup` :361, `destroy` :378, `disrupt` :436 is the EMP gadget's timed cut, called at
+  `src/world/lights.ts:149`; `setGroup` :361, `destroy` :378, `disrupt` :437 is the EMP gadget's timed cut, called at
   `src/game/gadgetSystem.ts:402`). `LightField` (`src/world/lightField.ts`) gives the meter and guard sight from the bake
   plus the registry's live state plus torches as dynamic lights, so a lamp that goes off leaves the picture, the meter
   and guard sight together. Guard torches are `electric: false` (`src/world/torches.ts:38`): an EMP never kills them.
   `FLASHLIGHTS = 4` slots on a dark map (torches.ts:15) and a 4-tile torch shadow atlas (`TORCH_DRAW_SLOTS`,
-  `src/world/shadowAccuracy.ts:82`): **at most 4 lit torches at once today.** Torches are lit only while investigating
+  `src/world/shadowAccuracy.ts:83`): **at most 4 lit torches at once today.** Torches are lit only while investigating
   / searching / alert without sight in the dark (`torchRule`, `src/ai/archetypes.ts:164`). Guards know per circuit
   when a light is cut (`src/ai/breaker.ts`). Co-op: torches mirror to the client (`src/net/torchMirror.ts`); lamp on /
   off rides the `lamps` snapshot (`src/net/lampSync.ts`), wired for Sector Ops: **the scene runs on the Sector Ops
@@ -63,21 +63,25 @@ at intro 0 s and plays on into play without a cut.
 | --- | --- | --- |
 | 0.0-3.0 s | Black | Piano alone. |
 | 3.0-9.0 s | Fade in (6 s) | Upper chest, close (about 22 deg vertical field, 0.6 m off the chest, chest height). Pistol held low-ready, slide locked back (empty). Slow breathing. |
-| 9.0-16.0 s | Hold | Breathing; off-screen muzzle flashes flicker on the wall and face; wall impacts heard, dull. |
-| 16.0-30.0 s | Pull back (14 s) | Dolly back and up, 0.6 m to about 5 m, widening; back to the brick wall; the partner beside; tracers crossing past both ends of the wall at 0.3x, dust and sparks on the brick. |
-| 30.0-38.0 s | Wide reveal, on the first swell | Camera rises over the wall top: four guards advancing in slow motion (0.3x) from the hall door, rifles up, the lamps on. They stop on their stop line 3-6 m from the wall. |
-| 38.0 s on | EMP prompt | One button prompt (the interact button: pad X / keyboard E, "Set off the EMP"); either player in co-op. The shot holds and the actors idle at the stop line until pressed (no timer). |
+| 9.0-16.0 s | Hold | Breathing; off-screen muzzle flashes flicker on the wall and face from two directions; wall impacts heard, dull. About 14 s: one dry trigger click (no ammo). |
+| 16.0-30.0 s | Pull back (14 s) | Dolly back and up, 0.6 m to about 5 m, widening; back to the brick wall; the partner beside; tracers at 0.3x from two sides (from the east, past the wall's south end; from the north-east, past its north end), dust and sparks on the brick. |
+| 30.0-38.0 s | Wide reveal, on the first swell | Camera rises over the wall top (about 4.5 m up, under the 6 m dock roof): surrounded, four guards closing in slow motion (0.3x) from two sides, rifles up and firing, the lamps on: two through the hall door (east, x 12, z 4-6), two through the corridor door (north-east, x 12, z 14.6-15.8). They stop on their stop spots (the G1-G4 EMP starts below), 4-9 m from the players. |
+| 38.0 s on | EMP prompt | One button prompt (the interact button: pad A / keyboard E, "Set off the EMP"); either player in co-op. The shot holds and the actors idle at the stop line until pressed (no timer). |
 | press + 0-0.8 s | EMP | Blue spark burst at the operator's belt, the existing EMP sound; every lamp dies in a ripple outward from him (all dead by 0.8 s). |
 | press + 0.8-2.5 s | Black-out beat | Near black; the moon pools fade up through the high windows; the first torches click on. |
 | press + 2.5 s | Cut to play | The shoulder camera; input on; subtitle (radio, voiceable, G82): "Lights are dead. They'll come with torches." Then the objective line (G343): "Take down every guard. Then out the showroom front door." |
 
 - Skip: hold the pause-menu Back / Esc for 1 s jumps to the 38 s beat (the music seeks to 38 s); the EMP still needs
-  its press. A restart (everyone down) never replays the intro: the lights stay dead and the music plays on.
+  its press. A restart (everyone down) never replays the intro: the lights stay dead (S2 retakes the section start
+  state after the blackout) and the music plays on (the scene's music mute survives `checkpointReset`'s calm,
+  sectorMode.ts:1234).
 - After the track ends (134 s), it loops from 41.0 s to the end with a 2 s cross-fade, until the scene ends.
 - At the press, the intro actors are swapped (hidden by the flash) for the four real guards on the same spots (G1-G4
-  below), spawned in the searching state with torches on (Guard AI asks GA1, GA3). The other four spawn on their posts.
+  below), spawned in the existing search state round the intro wall with torches on (GA1, GA3); they return to their
+  fixed rounds as built. The other four (G5-G8) spawn on their posts with torches on and hold their rounds.
 - **End (A9):** both players on the front porch with every guard down: 2 s fade to black, the piano fades out, back to
-  the menu (solo) or the lobby (co-op). No score, no rating, no results screen. The porch with guards still up shows
+  the menu (solo) or the lobby (co-op). No score, no rating, no results screen, no section rating banner or card (the
+  "SECTORS CLEAR" banner, sectorMode.ts:1064, and the section rating view are skipped in a scene map). The porch with guards still up shows
   once: "Not yet. Nobody walks away from this." (no lock: the door opens from inside, level-design 16.3.6).
 
 ## 3. The map: Aldgrave Piano Works, Hollowmere (map id `pianoWorks`)
@@ -114,11 +118,11 @@ Fixed patrols, starting values, no tuning (prototype).
 
 | Guard | Start (at the EMP) | Job and patrol | Isolation moment / takedown spot |
 | --- | --- | --- | --- |
-| G1 | (9, 4), searching | Dock watch: back-and-forth along the shutter, (2, 1.8) - (10, 1.8), 6 s stop each end | West end stop, beside crate C1's shadow (2.5, 2.6) |
-| G2 | (9.5, 6.5), searching | Dock rounds: loop round crate C2, (5.5, 8) - (9, 8) - (9, 11) - (5.5, 11) | North-west corner (5.5, 11), out of G1's sight |
-| G3 | (11, 3), searching | Hall rounds: loop round the west frames, (13.2, 1.9) - (20.2, 1.9) - (20.2, 8.4) - (13.2, 8.4) | (13.2, 8.4) by the frame row, facing away from G4 |
-| G4 | (11, 7), searching | Hall aisle: back-and-forth on the east aisle, x 27, z 2 - 12.5 | North end turn (27, 12.5) by the corridor door |
-| G5 + G6 | corridor west end | Paired patrol, side by side: (13, 15.2) - (29, 15.2) (guard pairs, G335) | Taken together by a co-op double (two takedowns inside 1.5 s, G180) at the west turn (13.5, 15.2); solo: split them with a noise first |
+| G1 | (9, 2.4), searching (came in by the hall door) | Dock watch: back-and-forth along the shutter, (2, 1.8) - (10, 1.8), 6 s stop each end | The dark shutter corner at the west end stop (2.5, 2.4) |
+| G2 | (9.5, 12.5), searching (came in by the corridor door) | Dock rounds: loop round crate C2, (5.5, 8) - (9, 8) - (9, 11) - (5.5, 11) | North-west corner (5.5, 11), out of G1's sight |
+| G3 | (11, 5), searching (hall door) | Hall rounds: loop round the west frames, (13.2, 1.9) - (20.2, 1.9) - (20.2, 8.4) - (13.2, 8.4) | (13.2, 8.4) by the frame row, facing away from G4 |
+| G4 | (11, 14), searching (corridor door) | Hall aisle: back-and-forth on the east aisle, x 27, z 2 - 12.5 | North end turn (27, 12.5) by the corridor door |
+| G5 + G6 | corridor west end | Paired patrol, side by side: (13, 15.2) - (29, 15.2) (guard pairs, G335) | Taken together by a co-op double (two takedowns inside 1.5 s, G180) at the west turn (13.5, 15.2); solo: how one player parts them (no gadgets, empty pistol) is a walk note |
 | G7 | (34, 6) | Varnish post: static, sweeps between the hall door and the showroom door every 8 s | Behind the spray booth (36, 5.6) while he faces the hall door |
 | G8 | (31.2, 8.2) | Showroom rounds: loop (31.2, 8.2) - (36, 8.2) - (38.5, 11.5) - (38.5, 15.8) - (35, 18.2) - (31.2, 18.2) | Behind the north grand piano (34, 17) |
 
@@ -170,6 +174,8 @@ Other teams' asks (below) are built on their own branches and claimed there.
 
 ## Slices
 At most 2 builders at a time: wave 1 S1 + S3, wave 2 S2, wave 3 S4. Nothing starts before Michael's G288 click (Q1).
+S1 and S3 need nothing from other teams. S2 builds on named stubs (below) and swaps each for the real piece when it
+lands. S4 waits for the knife job's S1 and S3 and for GA1, GA3, SO1-SO3.
 
 **S1 Scene shell and greybox map (Sonnet).** The flag; `pianoWorks.ts` (MapDef with `scene: 'piano'`, `modes:
 ['sector']`, one SectorDef with the `clear` objective, start / start2 at W1, extract = the porch, the 8 guards as
@@ -178,11 +184,12 @@ At most 2 builders at a time: wave 1 S1 + S3, wave 2 S2, wave 3 S4. Nothing star
 the `clear` objective in `sectors.ts` / SectorMode; `src/game/pianoScene.ts` (empty pistol: mag and reserve 0 at start,
 no gadgets, the objective line, the porch line, the end fade, no save / rating); the menu entry; `sectorOps()` skip.
 Until S2 lands the scene starts in play with lamps on (dev only).
-- Files: flags.ts, mapDef.ts, maps/index.ts, maps/pianoWorks.ts, sectors.ts, sectorMode.ts (seams), pianoScene.ts,
+- Files: flags.ts, mapDef.ts, maps/index.ts, maps/pianoWorks.ts, sectors.ts, sectorMode.ts (seams), pianoScene.ts, docs/piano-escape/ELEMENTS.md,
   missionsScreen.ts, main.ts, tests/pianoWorks.test.ts, tests/pianoScene.test.ts. Est. lines: ~900.
 - Checks: `npm run typecheck:fast`; vitest pianoWorks / pianoScene (map builds; 8 guards each with a takedown spot and
   a fixed route; every lamp `electric`; window light levels under the bands above; flag default off; `clear` objective
-  done only when every guard is down; scene end writes no record); e2e: `affected-e2e` (expect e2e-modes / e2e-levels)
+  done only when every guard is down; scene end writes no record; no guard start or route point inside a collider;
+  the main-menu entry shows only with the flag on); e2e: `affected-e2e` (expect e2e-modes / e2e-levels)
   + `e2e-coop` + `e2e-netmove` (game files).
 - Done looks like: `?piano=1&autostart=pianoWorks&mode=sector` loads the works, 8 guards on their rounds, the pistol
   empty, the porch ends the run only with every guard down, back to the menu.
@@ -192,16 +199,27 @@ Until S2 lands the scene starts in play with lamps on (dev only).
 path and fade curves, skip to 38 s, prompt state; no allocation per frame); `src/game/pianoIntroView.ts` (Babylon:
 drives the render-only camera override, the black fade (post or a DOM layer), the letterbox, the four intro actors
 (GA4), tracers and wall sparks at 0.3x, the EMP burst); the EMP as an interactable on each operator (host-checked use,
-either player); the blackout: every electric registry light cut in distance order over 0.8 s (SO1), then the
-section's guards spawn (G1-G4 on the actors' spots, searching) and input comes on; restart skips the intro. Input lock
-during the intro uses the existing pause / cutscene input path (no new binding). New suite `scripts/e2e-piano.mjs`
-(solo): intro runs, skip lands on the prompt, the press kills every lamp, the meter reads dark at the start, play
-input works, restart has no intro.
+either player); the blackout: every electric registry light cut in distance order over 0.8 s (SO1), then **retake the
+section start state after the blackout** (`startState.take(lights, doors)`, the same call as sectorMode.ts:786), so a
+restart (`restartSection` applies it, :1252) keeps the works dark; then the section's guards spawn (G1-G4 on the
+actors' spots, searching, GA3) and input comes on; restart skips the intro. Both operators get `introPose(true)` for
+the intro and `introPose(false)` at the cut (knife job S4b). Input lock during the intro uses the existing pause /
+cutscene input path (no new binding). Babylon only through `src/core/babylon.ts`; tracers through `Vfx.tracer` with
+reused scratch vectors (no per-frame allocation); `pianoScene.ts` never imports `src/net`. New suite
+`scripts/e2e-piano.mjs` (solo): intro runs, skip lands on the prompt, the press kills every lamp, the meter reads dark
+at the start, play input works, restart has no intro and every electric lamp stays off.
+- Stubs until the other teams land (each swapped in place when it does): the blackout through the registry's existing
+  `setGroup(group, false)` on one mains group with no switch (lights.ts:361) until SO1; the intro actors through the
+  guard freeze (`src/game/sectorGuardFreeze.ts`) plus an animation rate until GA4; the operators in `wall_idle` with the
+  pistol stance until `introPose` (PB6, knife S4b); G1-G4's search start through the existing search entry until GA3.
 - Files: pianoIntro.ts, pianoIntroView.ts, pianoScene.ts, gameState.ts (one render-override seam), sectorMode.ts
-  (spawn-after-EMP seam), scripts/e2e-piano.mjs, run-e2e.mjs, e2e-affected.mjs (a DIRECT_COVERS row for
-  `src/game/piano*` and `src/world/maps/pianoWorks.ts`), tests/pianoIntro.test.ts. Est. lines: ~1100.
+  (spawn-after-EMP and start-state retake seams), scripts/e2e-piano.mjs, run-e2e.mjs, e2e-affected.mjs (a
+  DIRECT_COVERS row for `src/game/piano*` and `src/world/maps/pianoWorks.ts`), tests/pianoIntro.test.ts,
+  tests/pianoScene.test.ts. Est. lines: ~1100.
 - Checks: typecheck; vitest pianoIntro (timeline at 0 / 3 / 9 / 16 / 30 / 38 s; camera path continuous; skip; no
-  timeScale writes); e2e: e2e-piano + `e2e-coop` + `e2e-netmove`; one GPU look video of the intro (laptop queue).
+  timeScale writes) and pianoScene (a restart after the blackout keeps every electric lamp off); e2e: e2e-piano +
+  `e2e-coop` + `e2e-netmove`; one GPU look video of the intro (laptop queue; check the camera rise shows the guards
+  over W1).
 - Done looks like: the shot list above plays, the EMP press blacks out the works, torches come on, play begins.
 - Flag: `pianoEscape`.
 
@@ -218,48 +236,83 @@ score); keep the file out of the precache (`PRECACHE_IGNORES`) so nobody downloa
 - Flag: `pianoEscape` (only the scene starts it).
 
 **S4 Knife kills, co-op and the full run (Opus: src/net, animation wiring).** In the scene every takedown offer is the
-knife kill (one press, lethal, knife shown), through Player Build's switch (PB5); the co-op host keeps the campaign
+knife kill (one press, lethal, knife shown only during the kill): `pianoScene.ts` calls
+`takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.id))` after the EMP and `setKnifeScene(false)` on leave
+(knife job S1, PB5); the co-op host keeps the campaign
 revive cap for a scene map (`coopHost.ts:205`); the client's intro ends on the host's EMP (interactable state and the
 `lamps` snapshot); either player's press works. Extend `e2e-piano` with a two-tab `?net=local` run: both pages see
 the blackout, the client presses the EMP once, a knife kill by each player, the co-op double on G5 / G6, both on the
-porch ends the scene on both pages.
+porch ends the scene on both pages; a restart keeps the client's lamps off. Both pages run with the flag (/preview/
+or `?piano=1`): a client without it falls back to `provingGrounds` (`getMap`, maps/index.ts:30). If SO3 is not in
+yet, S4 runs on the 4-guard set (G1, G4, G5 + G6) and the other four join when SO3 passes.
 - Files: pianoScene.ts, coopHost.ts, coopClient.ts (if needed), scripts/e2e-piano.mjs. Est. lines: ~400.
 - Checks: typecheck; vitest pianoScene; e2e: exactly `e2e-coop` + `e2e-netmove` + `e2e-ctcourse` (src/net) +
   e2e-piano; two independent Opus checkers (src/net).
 - Done looks like: two players play the scene start to end with knife kills in the dark.
 - Flag: `pianoEscape`.
-- Waits for: PB1, PB5 (Player Build), GA1-GA3 (Guard AI), SO1-SO3 (Sector Ops). S1-S3 do not wait.
+- Waits for: knife job S1 (`setKnifeScene`, PB1 placeholder clips, PB5) and S3 (co-op knife wire, PB4) on
+  feature/piano-knife; GA1 and GA3 (Guard AI); SO1-SO3 (Sector Ops). Knife S2 (mocap clips) and S4b (`introPose`)
+  improve the look but do not block S4.
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
 | --- | --- | --- | --- | --- |
-| `?piano=1` (`flags.pianoEscape`; on in /preview/) | off | Night Shift \| Campaign Build | none set: an experiment; live only if Michael asks after his walk | S1-S4 passed + Michael's walk accepted + his word to ship it |
+| `?piano=1` (`flags.pianoEscape`; on in /preview/) | off | Night Shift \| Campaign Build | on Michael's word after his walk; review 2026-11-02 | S1-S4 passed + Michael's walk accepted + his word to ship it |
 
 ## Player Build asks (knife kills and the intro pose; mocap only, retargeted, G406)
-| Ask | What | Where used | Size | Blocks |
-| --- | --- | --- | --- | --- |
-| PB1 | Knife kill from behind, standing: attacker (knife in the right hand, the `KnifeModel`) and victim, one pair. Targets: approach 0.22 s (as `TAKEDOWN.approach`), contact about 0.7 s, guard on the floor by 1.6 s, attacker free by 2.0 s. Weighty, visible; blood only what the game already draws. | Every guard; the default for any kind without its own clip | M (~1 day: source take, retarget, wire into the lethal takedown on the `behind` kind) | S4 |
-| PB2 | Knife kill from behind, attacker starting crouched (rises into it). Targets: contact about 0.8 s, attacker free by 2.2 s. | G1, G3, G8 takes from the frames and pianos | S | none (falls back to PB1) |
-| PB3 | Knife kill around a corner (`corner` kind: attacker at a wall end pulls the guard round and kills out of sight). Targets: contact about 0.9 s, the body left lying round the corner, free by 2.4 s. | G2 at the dock corner, G4 at the corridor door, G7 at the booth | S-M | none (falls back to PB1) |
-| PB4 | Co-op double: no dedicated dual move (G180). Two PB1 kills started inside `DUAL_WINDOW` 1.5 s on guards 1-2 m apart must read side by side (victims fall clear of each other), and the remote pose shows the knife kill (remotes pose from `MoveState`). | G5 + G6 | S (check and fix) | S4 |
-| PB5 | A scene switch (set by `pianoScene.ts`): every takedown offer is the lethal knife kill on one press (no tap / hold), the knife shown in hand from the press to the free; off the scene nothing changes. | All takedowns in the scene | S (~100 lines in `takedownController.ts`) | S4 |
-| PB6 | Intro pose: standing back flat to a wall, the empty pistol low-ready in both hands with the slide locked back (the weapon model's slide held back), slow calm breathing readable at chest close-up (about a 4 s cycle). The partner: the same pose, a mirror or a crouch, beside him. | Intro shots 3-38 s | S | none (S2 uses `wall_idle` + the pistol stance until it lands) |
+**Built by the knife job: origin/feature/piano-knife, `docs/piano-knife/PLAN.md` (head 494779256), slices S1-S5.**
+Each ask below names the knife slice and hook that delivers it. Knife S5 (above / drop / hang-down / window kills, RT
+slash) is not needed by this map: it has no drops, ledges or windows to kill from.
 
-## Guard AI Build asks (no new patrol AI: these are the blackout and the intro, scene-only switches)
-Already on master: guards carry torches, dogs do not, on only while investigating / searching in the dark (`torchRule`,
-`src/ai/archetypes.ts:164`); guards know per circuit when lights are cut (`src/ai/breaker.ts`).
+Answers to the knife plan's "Needs from Campaign" (section 6; the lead gave them, recorded here):
+- Q-C1 Map id `pianoWorks` (their `PIANO_MAP_ID`); `src/game/pianoScene.ts` calls `setKnifeScene` after the EMP.
+- Q-C2 Flag `pianoEscape`, added by Campaign (S1 here).
+- Q-C3 8 standard armed human guards; no dogs, heavies, enforcers or shields.
+- Q-C4 Approaches as section 3: `behind`, `behindLow` (from crouch behind the frames and pianos), `corner` (wall ends
+  and door frames), and `front` as their S1 builds it; no drops, ledges, hang-down lips or windows.
+- Q-C5 Both operators appear in the intro, at W1 (5.6, 4.2) and (5.6, 5.6); intro 38 s then the prompt (open-ended);
+  the close-up runs 3-16 s (hero LOD); S2 calls `introPose(true)` at the intro start and `introPose(false)` at the cut.
+- Q-C6 Pistol holstered in play; the knife shows only during a kill.
+- Q-C7 The exit counts every guard down (the `clear` objective plus the exit zone); bodies are carried and hidden as
+  built.
+
+Files both plans touch, and who owns each change:
+| File | Knife job (Player Build) | This job (Campaign Build) |
+| --- | --- | --- |
+| `src/game/gameState.ts` | menu rows :1518-1525 only | S2: one render-override seam |
+| `src/net/coopHost.ts` | S3: the knife wire | S4: the scene's revive cap (one line at :205) |
+| `src/net/coopClient.ts` | S3: the knife wire | S4: intro end on the host's EMP, only if needed |
+| `src/core/flags.ts` | reads `pianoEscape` only | S1: adds `pianoEscape` |
+| `src/game/takedownController.ts` | S1: `setKnifeScene`, the knife kill | not touched (calls `setKnifeScene` from `pianoScene.ts`) |
+| `src/game/pianoScene.ts` | not touched | S1 / S2 / S4: owner |
+Each side keeps to its named lines; the train merges both.
+
 | Ask | What | Where used | Size | Blocks |
 | --- | --- | --- | --- | --- |
-| GA1 | Torch on in every state (calm included) during a scene blackout, for every human guard, while he is up. | The whole escape | S (~60 lines + tests) | S4 |
-| GA2 | Sight limited to the beam cone in a blackout: a guard sees a player only where that player is lit (his own or another guard's torch cone, a moon pool), plus a short touch range; hearing as built. Every detection stays explainable (P5). | The whole escape | M (~150 lines + tests) | S4 |
-| GA3 | One blackout reaction for all circuits at once: at the EMP, one shared event puts every guard into the existing search state round the last known point (the intro wall, about 6 m search), then they settle back to their fixed patrols as built; no per-fixture breaker resets or witness reactions for lamps the EMP destroyed. | The EMP moment, G1-G4 | S-M (~80 lines + tests) | S2 handover (S2 calls it; a stub until it lands), S4 |
-| GA4 | Intro actors: a guard figure (mesh, rifle) the intro can place and drive along a path at a set playback rate (0.3x) with the existing aimed walk and fire poses, no AI, no perception, not in the enemy lists; or confirm the guard freeze (`sectorGuardFreeze.ts`) plus an anim rate does it. | Intro 30-38 s | S | S2 |
+| PB1 | **Knife S1 (placeholder) + S2 (clips), row `behind`.** Knife kill from behind, standing: attacker (knife in the right hand, the `KnifeModel`) and victim, one pair. Targets: approach 0.22 s (as `TAKEDOWN.approach`), contact about 0.7 s, guard on the floor by 1.6 s, attacker free by 2.0 s. Weighty, visible; blood only what the game already draws. | Every guard; the default for any kind without its own clip | M (~1 day: source take, retarget, wire into the lethal takedown on the `behind` kind) | S4 |
+| PB2 | **Knife S1 + S2, row `behindLow`.** Knife kill from behind, attacker starting crouched (rises into it). Targets: contact about 0.8 s, attacker free by 2.2 s. | G1, G3, G8 takes from the frames and pianos | S | none (falls back to PB1) |
+| PB3 | **Knife S1 + S2, row `corner`.** Knife kill around a corner (`corner` kind: attacker at a wall end pulls the guard round and kills out of sight). Targets: contact about 0.9 s, the body left lying round the corner, free by 2.4 s. | G2 at the dock corner, G4 at the corridor door, G7 at the booth | S-M | none (falls back to PB1) |
+| PB4 | **Knife S3 (co-op wire, remote pose).** Co-op double: no dedicated dual move (G180). Two PB1 kills started inside `DUAL_WINDOW` 1.5 s on guards 1-2 m apart must read side by side (victims fall clear of each other), and the remote pose shows the knife kill (remotes pose from `MoveState`). | G5 + G6 | S (check and fix) | S4 |
+| PB5 | **Knife S1, `takedown.setKnifeScene(knifeSceneOn(flags.pianoEscape, map.id))`.** A scene switch (set by `pianoScene.ts` after the EMP, S4): every takedown offer is the lethal knife kill on one press (no tap / hold), the knife shown in hand from the press to the free; off the scene nothing changes. | All takedowns in the scene | S (~100 lines in `takedownController.ts`) | S4 |
+| PB6 | **Knife S4a (slide lock) + S4b (`introPose(on)`).** Intro pose: standing back flat to a wall, the empty pistol low-ready in both hands with the slide locked back (the weapon model's slide held back), slow calm breathing readable at chest close-up (about a 4 s cycle). The partner: the same pose, a mirror or a crouch, beside him. | Intro shots 3-38 s | S | none (S2 uses `wall_idle` + the pistol stance until it lands) |
+
+## Guard AI Build asks (BRIEF A11: scene-only, gated on the scene's blackout; nothing changes off the scene)
+Already on master: guards carry torches, dogs do not, on only while investigating / searching in the dark (`torchRule`,
+`src/ai/archetypes.ts:164`); guards know per circuit when lights are cut (`src/ai/breaker.ts`), and a cut with no
+switch reads as `DARK_NONE` (breaker.ts:46-51: no breaker walk, no late discovery). **Guard sight stays pure light
+parity** (sight scales with the light on the body, `src/ai/perception.ts:115` `lightFactor`): only light the meter
+reads, torch cones included, can show a player; no extra sight rule (the first plan's GA2 is dropped).
+| Ask | What | Where used | Size | Blocks |
+| --- | --- | --- | --- | --- |
+| GA1 | Torch on in every state (calm included) during the scene blackout, for every human guard, while he is up. | The whole escape | S (~60 lines + tests; two Opus checkers, an AI rule) | S4 |
+| GA3 | One blackout reaction: at the EMP, G1-G4 (the four PLAN section 2 brings in during the intro) start in the existing search state round the intro wall (about 6 m), then return to their fixed rounds as built; G5-G8 hold their posts and rounds. | The EMP moment | S (~50 lines + tests) | S4 (S2 uses the existing search entry as a stub) |
+| GA4 | Intro actors: a guard figure (mesh, rifle) the intro can place and drive along a path at a set playback rate (0.3x) with the existing aimed walk and fire poses, no AI, no perception, not in the enemy lists; or confirm the guard freeze (`sectorGuardFreeze.ts`) plus an anim rate does it. | Intro 30-38 s | S | none (S2 stub: the guard freeze plus an anim rate) |
 | GA5 | Review the 8 guards' posts and patrols in `pianoWorks.ts` (data only; `validatePosts`), the G5 / G6 pair as a guard pair (G335). | S1 data | XS (review) | none |
 
 ## Sector Ops Build asks (lighting: one system, parity)
 | Ask | What | Where used | Size | Blocks |
 | --- | --- | --- | --- | --- |
-| SO1 | The blackout trigger in the one lighting system: a "mains off" cut of every electric light that never times out (Sector Ops' pick over a whole-map `disrupt`), with no reachable switch so no guard walks to reset it, in a given order over 0.8 s; host-side, reaching the client in the existing `lamps` snapshot; meter, guard sight and picture agree at once. | The EMP | S (data + one call) | S2 |
+| SO1 | The blackout trigger in the one lighting system: a "mains off" cut of every electric light that never times out (Sector Ops' pick over a whole-map `disrupt`), with no reachable switch so no guard walks to reset it, in a given order over 0.8 s; host-side, reaching the client in the existing `lamps` snapshot; meter, guard sight and picture agree at once. | The EMP | S (data + one call) | S4 (S2 stub: `setGroup(group, false)` on a no-switch mains group) |
 | SO2 | The map's pre-built lamp bake (as #582, so it loads warm); after the EMP the baked lamps read as off. | The intro and the escape | S | S2 look, S4 |
 | SO3 | Torch count: 8 torch slots and shadow tiles for this map (`FLASHLIGHTS` 4, `TORCH_DRAW_SLOTS` 4 today: a shader loop and shadow atlas cost), one laptop GPU check at Low; if it fails, the 4-guard fallback above. | The whole escape | S-M + GPU check | S4 |
 | SO4 | Near-zero map ambient, the window values (moon up to ~0.1 lux, city glow ~0.02-0.05 lux, all under the 1 lux dark band), and a light-meter check (#518 lux tools): dark everywhere except inside torch cones. | S1 data | S (data + check) | none |
@@ -271,34 +324,41 @@ The scene is not a campaign mission or a Sector Ops op; it borrows the SectorMod
   clockwork, 4.4 isolation moment per guard, 4.5 overlap, 4.7 bodies and hide spots, 4.8 survivable searches, 4.10
   archetypes (armed guards only), 5.1 and 5.5 every light has a source and the darkness has a real cause (the EMP),
   real night levels, 5.3 floors from real materials, 6.4 guide without markers (the objective names what and where),
-  9.1-9.2 failure, 9.4 downed (campaign rule), 16.3.6 the exit door opens from inside.
-It skips, with reasons:
-- 14 phases: the level-validator graph and its gate, measured validator pass at greybox exit, bot route-runs (G289,
-  G330): a one-off five-room scene; the walk replaces them.
+  9.1-9.2 failure, 9.4 downed (campaign rule), 16.3.6 the exit door opens from inside, 16.9 element register (S1
+  writes it as one table, `docs/piano-escape/ELEMENTS.md`: every wall, cover piece, lamp, window and door with its
+  real reason).
+It skips, with reasons (each is the plain line on the SIGNOFF page):
+- 14 phases and RULES "Intake" step 5: the level-validator graph and its gate before greybox, the measured validator
+  pass at greybox exit, bot route-runs (G289, G330); with no validator, its checks 11.2 (two routes per section),
+  11.7 (room for two), 11.8 (co-op reach) and 11.9 (co-op kit coverage) are not run either: a one-off five-room scene;
+  the walk replaces them. The `docs/templates/map-spec.md` spec is not written: this PLAN is the spec.
 - 3.2 three routes plus a secret per guarded space: two routes to the exit and one loop (small map).
 - 4.9 guard count bands per space and 4.2 patrol mix across adjacent spaces: 8 guards in 5 spaces, mixed but not
   graded.
+- 4.11 security devices and the security register: the scene has none (no cameras, lasers, keypads or alarm panels).
 - 5.2 lit chokepoints: none exist after the EMP.
 - 6.1 / 6.2 teach-test-twist, pacing in minutes, beat chart; 7.2 two toys per space (no switches or lamps left after
   the EMP); 10 exploration and reward.
-- 11.1 exactly two players (one player allowed, A2), 11.10 forced co-op gate, 11.11 teamwork minimums (the co-op double
-  is the scene's one co-op beat); 11.3-11.6 splits.
+- 11.1 exactly two players (one player allowed, A2); 11.3 short even splits, 11.4 an assist per split, 11.5 an
+  overwatch spot per split, 11.6 a downed partner reachable across a split (the scene has no designed splits); 11.10
+  forced co-op gate; 11.11 teamwork minimums (the corridor pair's double is the scene's one must-do co-op beat).
 - 13 deliverables (space sheets, guard sheets, security register) beyond this plan; 15 acceptance tests beyond the walk.
 **Question for Michael (rides on Q1):** `CLAUDE.md` says a new map follows `docs/level-design.md` and may never loosen
-it without his written approval. These skips loosen it for this scene only, so his Q1 click ("Approve, build it")
-approves the skip list above in writing; "Change it first" holds the build. A2 (one player may run it) is in the same
+it without his written approval. These skips loosen it for this scene only, so the SIGNOFF page lists them in plain
+words and his Q1 click ("Approve, build it") approves them in writing, for this scene only; "Change it first" holds
+the build. A2 (one player may run it) is in the same
 list; no other Michael rule is loosened (G127 / G146 are already his pick for this scene; G367 holds because the EMP is
 a real cause, A10).
 
 ## Walk items
 - Main menu > Piano Escape (`?piano=1`, or /preview/): the intro plays to the piano, the camera pulls back on the
   swell, the EMP press kills the lights - accept when it feels like the scene Michael described.
-- Same, co-op (Co-op > host > Sector Ops > Aldgrave Piano Works): the escape in the dark with torches and knife kills,
+- Same, co-op (both players on /preview/ or `?piano=1`; Co-op > host > Sector Ops > Aldgrave Piano Works): the escape in the dark with torches and knife kills,
   the double on the corridor pair - accept when it is tense and quiet and every guard can be taken in the shadows.
 - The end: both on the porch, fade out, no score - accept when it ends cleanly.
 
 ## Risks and open questions
-- Three teams' asks gate S4: S1-S3 build first; S4 starts when PB1 / PB5, GA1-GA3 and SO1-SO3 are on master (the
+- Three teams' asks gate S4: S1-S3 build first; S4 starts when knife S1 + S3, GA1, GA3 and SO1-SO3 are on master (the
   lead tracks them on the ROADMAP row).
 - Pure darkness and readability: the players see by their night vision; if the picture is unreadable at Low, that is a
   walk note, not tuning now (prototype).
@@ -308,3 +368,5 @@ a real cause, A10).
   (a later choice, not now).
 - G180 says no dedicated dual move, so the brief's "co-op double" is two knife kills timed together (PB4), not a new
   paired clip.
+- Start pressure: G1-G4 search round W1 with lit torches from the first second of play (4.8 survivable searches): the
+  dock office and the dark west side are the escapes; a walk note, not tuning now.
