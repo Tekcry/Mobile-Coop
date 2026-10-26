@@ -210,6 +210,8 @@ export class NavGrid {
   private endP: P2 = [0, 0];
   /** (guard-ai play A, train 132 fix) The sliced search (`sliceStart`), null until first used. */
   private slice: SliceState | null = null;
+  /** `octile`'s cell centre (scratch). */
+  private readonly octP: P2 = [0, 0];
   /**
    * Bumped whenever a closure opens or shuts: an agent holding a path (or a cached flow field) compares it with the
    * value it planned under and replans when it changed.
@@ -850,9 +852,10 @@ export class NavGrid {
   }
 
   private octile(i: number, gx: number, gz: number): number {
-    const [x, z] = this.center(i);
-    const dx = Math.abs(x - gx) / this.cell;
-    const dz = Math.abs(z - gz) / this.cell;
+    // (re-check P2) the cell centre into a kept scratch: no array per heap push
+    const c = this.centerInto(i, this.octP);
+    const dx = Math.abs(c[0] - gx) / this.cell;
+    const dz = Math.abs(c[1] - gz) / this.cell;
     return Math.max(dx, dz) + (SQRT2 - 1) * Math.min(dx, dz);
   }
 

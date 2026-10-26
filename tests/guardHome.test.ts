@@ -399,21 +399,24 @@ describe('one long plan per frame across the guards (check B: AiContext.longPlan
     const step = nav.sliceStep.bind(nav);
     let perFrame = 0;
     let most = 0;
-    const ends = new Map<object, string>();
+    const ends: string[] = [];
     vi.spyOn(nav, 'sliceStep').mockImplementation((o, _budget, cap) => {
       perFrame++;
       const r = step(o, 40, cap);
-      if (r !== undefined) ends.set(o, r ? 'path' : nav.sliceLost ? 'lost' : 'none');
+      if (r !== undefined) ends.push(`${o === a ? 'a' : 'b'}:${r ? 'path' : nav.sliceLost ? 'lost' : 'none'}`);
       return r;
     });
     const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] }, addShadowCaster: vi.fn() };
     const em = new EnemyManager({} as Scene, world as unknown as World, nav, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
     const longPlan = (em as unknown as { ctx: { longPlan(): boolean } }).ctx.longPlan;
-    // a is first in the list every frame, b second: b must not lose a running plan to a's asks
+    // the starvation order (re-check P1): b starts his plan alone in frame 0, then a thinks before b every frame; b must
+    // not lose his running plan to a's asks, and a gets his after
     const a = await calmGuard(nav, [-3, 2, 0], [3, 2], 0, null, { longPlan });
     const b = await calmGuard(nav, [-3, -2, 0], [3, -2], 0, null, { longPlan });
     const dt = 1 / 30;
-    for (let f = 0; f < 600 && ends.size < 2; f++) {
+    em.update(dt);
+    b.calmDecide(dt);
+    for (let f = 0; f < 600 && ends.length < 2; f++) {
       perFrame = 0;
       em.update(dt);
       a.calmDecide(dt);
@@ -421,7 +424,7 @@ describe('one long plan per frame across the guards (check B: AiContext.longPlan
       most = Math.max(most, perFrame);
     }
     expect(most).toBe(1);
-    expect([...ends.values()]).toEqual(['path', 'path']);
+    expect(ends).toEqual(['b:path', 'a:path']);
   });
 });
 
