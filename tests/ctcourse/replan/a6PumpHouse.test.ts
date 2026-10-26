@@ -315,6 +315,10 @@ describe('Marlow re-plan A6: the guard and the stations (STATIONS sections 3, 6,
         expect(t.toLowerCase()).not.toContain('fail');
       }
     }
+    // (marlow-play C8) station 14's B line: the leg-up first, then the rope offered standing at the open edge (never "brace":
+    // crouched it is a hang-down offer)
+    expect(part.objectives[0]!.b).toBe('Take the leg-up, then at the open edge face the drop and press Co-op standing.');
+    expect(part.objectives[0]!.b!.toLowerCase()).not.toMatch(/brace|crouch/);
     expect(part.objectives[3]!.text).toMatch(/outfall culvert/);
     expect(part.objectives[3]!.text).toMatch(/holding room six/);
     // (fix 1) until `dropCatch` ships station 16's way down is the stand-in ladder: the drop step's lines name it through the

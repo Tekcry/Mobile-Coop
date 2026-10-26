@@ -172,6 +172,15 @@ export class LightRegistry {
   sway: SwaySet | null = null;
   /** (LR16-5b) Bumped when a pendant's offset moves (renderers re-write those lights only); never `version`. */
   swayVersion = 0;
+  /** (piano SO1) Mains off: per id 1 once the cut reached the light (dark for good: no switch, jam end, outage end,
+   *  restore or `resetTo` turns it back on). */
+  private mains = new Uint8Array(0);
+  /** (piano SO1) The running ripple: ids nearest first, each one's cut time (s after the call), and the clock. */
+  private rippleIds = new Int32Array(0);
+  private rippleAt = new Float64Array(0);
+  private rippleN = 0;
+  private rippleK = 0;
+  private rippleT = 0;
 
   add(init: LightInit): LightDef {
     const l: LightDef = {
@@ -237,7 +246,7 @@ export class LightRegistry {
 
   setOn(id: number, on: boolean): void {
     const l = this.lights[id];
-    if (!l || l.on === on) return;
+    if (!l || l.on === on || (on && this.mains[id])) return;
     l.on = on;
     this.version++;
   }
@@ -349,6 +358,7 @@ export class LightRegistry {
   private jamBase(l: LightDef, on: boolean): boolean {
     const b = this.jamBits.get(l.id);
     if (b === undefined) return false;
+    if (this.mains[l.id]) on = false;
     const nb = (b & JAM_LIT) | (on ? JAM_BASE : 0);
     if (nb !== b) this.jamBits.set(l.id, nb);
     const lit = nb === (JAM_BASE | JAM_LIT);
@@ -361,7 +371,7 @@ export class LightRegistry {
   setGroup(group: number, on: boolean): number {
     let n = 0;
     for (const l of this.lights) {
-      if (l.group !== group || l.destroyed) continue;
+      if (l.group !== group || l.destroyed || (on && this.mains[l.id])) continue;
       if (this.jamBits.has(l.id)) {
         if (this.jamBase(l, on)) n++;
         continue;
@@ -389,12 +399,14 @@ export class LightRegistry {
     const l = this.lights[id];
     if (!l || !l.destroyed) return;
     l.destroyed = false;
-    l.on = true;
+    // (piano SO1) a lamp the mains cut reached comes back dark
+    const live = !this.mains[id];
+    l.on = live;
     // a jammed lamp comes back with its group and keeps the jam's flicker
     const b = this.jamBits.get(id);
     if (b !== undefined) {
-      this.jamBits.set(id, b | JAM_BASE);
-      l.on = (b & JAM_LIT) !== 0;
+      this.jamBits.set(id, live ? b | JAM_BASE : b & JAM_LIT);
+      l.on = live && (b & JAM_LIT) !== 0;
     }
     this.version++;
   }
@@ -408,6 +420,8 @@ export class LightRegistry {
     const l = this.lights[id];
     if (!l) return;
     this.outFor.delete(id);
+    // (piano SO1) a restart never brings a mains-off lamp back
+    if (this.mains[id]) on = false;
     if (destroyed) {
       if (!l.destroyed) {
         l.destroyed = true;
@@ -448,8 +462,79 @@ export class LightRegistry {
     return n;
   }
 
-  /** Advance timed outages (EMP). */
+  /**
+   * (piano SO1) Mains off, for good: every electric light (not shot out) goes dark in order of distance from (x, y, z),
+   * the farthest at `over` s (the per-step `update` runs the ripple). Never times out; no switch, breaker, jam end,
+   * outage end or section restart (`resetTo`) turns one back on, and the guards never read it as a cut circuit
+   * (`breaker.ts` `darkState`). Torches and the map's `window` lights (`electric: false`) are untouched. A call while a
+   * ripple runs finishes that one first. Host and solo; the client gets it in the `lamps` snapshot. Allocates here only.
+   * Returns how many lights it will cut.
+   */
+  mainsOff(x: number, y: number, z: number, over = 0.8): number {
+    this.finishRipple();
+    const ls = this.lights;
+    if (this.mains.length < ls.length) {
+      const m = new Uint8Array(ls.length);
+      m.set(this.mains);
+      this.mains = m;
+    }
+    const order: number[] = [];
+    const dist = new Float64Array(ls.length);
+    let far = 0;
+    for (const l of ls) {
+      if (!l.electric || l.destroyed || this.mains[l.id]) continue;
+      const d = hyp3(l.x - x, l.y - y, l.z - z);
+      dist[l.id] = d;
+      if (d > far) far = d;
+      order.push(l.id);
+    }
+    order.sort((a, b) => dist[a]! - dist[b]! || a - b);
+    const n = order.length;
+    this.rippleIds = new Int32Array(order);
+    this.rippleAt = new Float64Array(n);
+    for (let k = 0; k < n; k++) this.rippleAt[k] = far > 0 && over > 0 ? (over * dist[order[k]!]!) / far : 0;
+    this.rippleN = n;
+    this.rippleK = 0;
+    this.rippleT = 0;
+    // a lamp at the burst (or `over` 0) goes now
+    this.stepRipple(0);
+    return n;
+  }
+
+  /** (piano SO1) The mains cut has reached light `id` (dark for good). */
+  mainsCut(id: number): boolean {
+    return !!this.mains[id];
+  }
+
+  /** (piano SO1) The ripple `dt` s on: the lights it has reached go dark. No allocation. */
+  private stepRipple(dt: number): void {
+    this.rippleT += dt;
+    const at = this.rippleAt;
+    const ids = this.rippleIds;
+    let k = this.rippleK;
+    const n = this.rippleN;
+    let cut = false;
+    while (k < n && at[k]! <= this.rippleT + 1e-9) {
+      const id = ids[k++]!;
+      const l = this.lights[id]!;
+      this.mains[id] = 1;
+      this.outFor.delete(id);
+      if (l.destroyed) continue;
+      if (this.jamBits.has(id)) this.jamBase(l, false);
+      else l.on = false;
+      cut = true;
+    }
+    this.rippleK = k;
+    if (cut) this.version++;
+  }
+
+  private finishRipple(): void {
+    if (this.rippleK < this.rippleN) this.stepRipple(Infinity);
+  }
+
+  /** Advance timed outages (EMP) and the mains ripple. */
   update(dt: number): void {
+    if (this.rippleK < this.rippleN) this.stepRipple(dt);
     if (this.outFor.size === 0) return;
     for (const [id, t] of this.outFor) {
       const left = t - dt;
@@ -459,7 +544,7 @@ export class LightRegistry {
       }
       this.outFor.delete(id);
       const l = this.lights[id];
-      if (l && !l.destroyed) {
+      if (l && !l.destroyed && !this.mains[id]) {
         // a jammed lamp: the EMP gives its base back, the jam keeps it dark
         if (this.jamBits.has(id)) this.jamBase(l, true);
         else l.on = true;

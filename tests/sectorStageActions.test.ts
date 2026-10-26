@@ -242,15 +242,15 @@ describe('a lockdown door never shuts on a player (E5 fix)', () => {
 describe('stage actions in the run', () => {
   it('lights to full: the stage forces its groups on, earlier stages do not', () => {
     const { reg, run } = rig([section([{ stage: 2, lightsFull: [4] }])]);
-    expect(run.raise(0, 0, 1)).toEqual({ lights: 0, doors: 0 });
+    expect(run.raise(0, 0, 1)).toEqual({ lights: 0, doors: 0, dogs: false });
     expect(on(reg, 0)).toBe(false);
     const v = reg.version;
-    expect(run.raise(0, 1, 2)).toEqual({ lights: 2, doors: 0 });
+    expect(run.raise(0, 1, 2)).toEqual({ lights: 2, doors: 0, dogs: false });
     expect(on(reg, 0) && on(reg, 1)).toBe(true);
     // the registry moved: slice L's lamp sync sends it (no wire change)
     expect(reg.version).toBeGreaterThan(v);
     // stage 3: nothing more
-    expect(run.raise(0, 2, 3)).toEqual({ lights: 0, doors: 0 });
+    expect(run.raise(0, 2, 3)).toEqual({ lights: 0, doors: 0, dogs: false });
   });
 
   it('a lockdown door shuts, locks and closes its doorway on the guards\' nav grid at its stage', () => {
@@ -278,11 +278,14 @@ describe('stage actions in the run', () => {
     expect(run.raise(0, 0, 3).doors).toBe(0);
   });
 
-  it('releaseDogs is a stub flag (guard-ai owns the release)', () => {
+  it('a releaseDogs stage is an edge (guard-rules S8: the mode releases the dogs on it)', () => {
     const { run } = rig([section([{ stage: 2, releaseDogs: true }])]);
-    run.raise(0, 0, 1);
+    expect(run.raise(0, 0, 1).dogs).toBe(false);
     expect(run.dogsReleased).toBe(false);
-    run.raise(0, 1, 2);
+    expect(run.raise(0, 1, 2).dogs).toBe(true);
+    expect(run.dogsReleased).toBe(true);
+    // a later raise that reaches no new releaseDogs stage: no edge (the record stays)
+    expect(run.raise(0, 2, 3).dogs).toBe(false);
     expect(run.dogsReleased).toBe(true);
     run.release();
     expect(run.dogsReleased).toBe(false);
@@ -347,7 +350,7 @@ describe('Warehouse Ops (no stage actions) is unchanged', () => {
     expect(WAREHOUSE_SECTORS.every((s) => !s.stageActions)).toBe(true);
     expect(checkStageActions(WAREHOUSE_SECTORS)).toEqual([]);
     const { run } = rig(WAREHOUSE_SECTORS as SectorDef[]);
-    for (let i = 0; i < WAREHOUSE_SECTORS.length; i++) expect(run.raise(i, 0, 3)).toEqual({ lights: 0, doors: 0 });
+    for (let i = 0; i < WAREHOUSE_SECTORS.length; i++) expect(run.raise(i, 0, 3)).toEqual({ lights: 0, doors: 0, dogs: false });
     expect(run.lockedCount()).toBe(0);
     expect(run.release()).toBe(0);
     WAREHOUSE_SECTORS.forEach((s) => {
