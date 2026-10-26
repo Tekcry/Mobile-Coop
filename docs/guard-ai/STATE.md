@@ -1017,8 +1017,8 @@ fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
 builders; 00:59 pace: up to 2 agents, piano first.
 TOP PRIORITY (Michael's mill walk ~10:00, via the orchestrator; J16 HELD): (A) guards fire while facing away:
-fix everywhere, own PR: Opus builder RUNNING on feature/guard-ai-aim-fix (worktree -guard-ai-aim-fix) ->
-slices/AIM-FIX-REPORT.md -> fresh checker -> PR -> head to the orchestrator. (B) mill guards: top alert, never calm,
+fix everywhere = PR #694 (label fix; 58bbbdab2, FIRE_CONE 15 deg, faceFor 110 deg/s; AIM-FIX-REPORT.md):
+fresh Opus checker RUNNING -> slices/AIM-FIX-CHECK.md -> post checker, head to the orchestrator. (B) mill guards: top alert, never calm,
 slow tactical room-by-room close-in on a fixed readable order (Michael ~10:05 "fixed readble path is good"), corners
 cleared, groups <= 2: Opus planner RUNNING on feature/guard-ai-mill-hunt (worktree -guard-ai-mill-hunt) ->
 docs/guard-ai/mill-hunt/BRIEF + PLAN; build stacked on (A) once it is pushed (both touch enemy.ts).
