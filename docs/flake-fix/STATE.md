@@ -3,6 +3,14 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 71 (2026-10-26 ~21:45, new session [d96552] at boot; wins over SAVE 70):**
+- Service healthy; trains 134 and 135 (4.119.0) released. #552, #587, #597 MERGED (F50 / F51 shipped, Orchestrator watching).
+- F8: J20 PR-B re-ported onto master as PR #615 (feature/test-runner-j20-prb3, head 6420a2bc, label fix,
+  Job-done: test-runner-j20); fresh Opus checker PASS posted; #538 closed. Orchestrator labels train-ready on green CI.
+  Train parity (e2e-darkness on every train) stays on (Orchestrator). Polish left: refileOverCap keeps the old report list.
+- #570 (-10b): Player's, still CONFLICTING.
+- Next: watch #615 ride a train; triage any train failure (Opus) and tell the Orchestrator.
+
 **Test Runner SAVE 70 (2026-10-26 ~19:25, new session [f9895b] at boot; wins over SAVE 69):**
 - Service healthy (task running), train 131 (#593) released at boot. #572 and #586 MERGED.
 - #587 (-14): CI lint red (testing-tools.md 723 > 720) -> trimmed + master merged, head 60bcb266; code diff identical,
