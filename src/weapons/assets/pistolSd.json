@@ -422,20 +422,59 @@
    ]
   ]
  },
+ "split": {
+  "mag": [
+   "mag-plate",
+   "mag"
+  ],
+  "slide": [
+   "slide",
+   "extractor",
+   "rear-sight",
+   "front-sight"
+  ]
+ },
  "glb": {
   "vertices": 11050,
   "triangles": 9776,
+  "meshTriangles": {
+   "pistolSd": 5288,
+   "pistolSd-mag": 304,
+   "pistolSd-slide": 4184
+  },
   "meshes": [
    "pistolSd",
-   "pistolSd-mag"
+   "pistolSd-mag",
+   "pistolSd-slide"
   ],
-  "bytes": 3092808
+  "bytes": 3094332
  },
  "textures": {
   "albedo": "pistolSd-albedo.png",
   "orm": "pistolSd-orm.png",
   "normal": "pistolSd-normal.png"
  },
+ "ktx2": {
+  "files": [
+   {
+    "kind": "albedo",
+    "bytes": 733550,
+    "pngBytes": 710380
+   },
+   {
+    "kind": "orm",
+    "bytes": 932513,
+    "pngBytes": 938380
+   },
+   {
+    "kind": "normal",
+    "bytes": 600762,
+    "pngBytes": 793956
+   }
+  ],
+  "glbBytes": 2918648
+ },
+ "builtSeconds": 33,
  "holster": {
   "pose": "regions: the old generic game slot; holsterFrame: the leg kit frame the game uses (A12, the renders)",
   "extents": [
@@ -708,25 +747,5 @@
   "holsterFrameMaxPenetrationMm": 16.6,
   "holsterFrameRegion": "frameTriggerGuard"
  },
- "ktx2": {
-  "files": [
-   {
-    "kind": "albedo",
-    "bytes": 733435,
-    "pngBytes": 709910
-   },
-   {
-    "kind": "orm",
-    "bytes": 932474,
-    "pngBytes": 938295
-   },
-   {
-    "kind": "normal",
-    "bytes": 600780,
-    "pngBytes": 793961
-   }
-  ],
-  "glbBytes": 2917532
- },
- "builtSeconds": 18
+ "holsterFrom": "origin/master build before piano-knife S4a (same geometry; not rerun)"
 }
