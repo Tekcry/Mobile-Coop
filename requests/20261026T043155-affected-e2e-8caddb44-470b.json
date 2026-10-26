@@ -1,0 +1,14 @@
+{
+  "id": "20261026T043155-affected-e2e-8caddb44-470b",
+  "sha": "8caddb442e045ea0006a672da19eda5face27417",
+  "branch": "feature/light-realism-l1",
+  "pr": 518,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-sectorops:1"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T014456-affected-e2e-8caddb44-013d, rerun on the laptop"
+}
