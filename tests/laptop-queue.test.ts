@@ -4,7 +4,7 @@ import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnS
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 // @ts-expect-error plain .mjs process script without types
-import { REPEAT_DAYS } from '../scripts/laptop-queue/lib.mjs';
+import { REPEAT_DAYS, markReport, perfStep, affectedReport } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -609,7 +609,7 @@ describe('contextName and ids', () => {
     expect(splitSuites('e2e-coop,e2e-ctcourse:4  smoke, ')).toEqual(['e2e-coop', 'e2e-ctcourse:4', 'smoke']);
     expect(splitSuites(undefined)).toEqual([]);
     const known = knownSuites(['scripts/e2e-coop.mjs', 'scripts/e2e-ctcourse.mjs', 'scripts/smoke.mjs', 'scripts/anim-audit.mjs', 'scripts/e2e-lib.mjs',
-      'scripts/e2e-net-lib.mjs', 'scripts/e2e-affected.mjs', 'scripts/perf.mjs', 'scripts/e2e-times.json', 'scripts/laptop-queue']);
+      'scripts/e2e-net-lib.mjs', 'scripts/e2e-affected.mjs', 'scripts/e2e-verdict.mjs', 'scripts/perf.mjs', 'scripts/e2e-times.json', 'scripts/laptop-queue']);
     expect([...known].sort()).toEqual(['anim-audit', 'e2e-coop', 'e2e-ctcourse', 'smoke']);
     expect(unknownSuites(['e2e-ctcourse:4', 'e2e-coop,e2e-ctcourse', 'e2e-lib'], known)).toEqual(['e2e-coop,e2e-ctcourse', 'e2e-lib']);
     const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop', 'e2e-ctcourse:4'] };
@@ -2361,5 +2361,72 @@ describe('docs-only carry for PR heads (laptop-queue-8 slice E)', () => {
     expect(carryFrom(chain, docs, () => false)).toBeNull(); // P2 failed: never skipped
     expect(carryFrom([{ sha: P1, laptop: 'pending' }, { sha: P2, laptop: 'success' }], docs, () => false)).toEqual({ from: P2 });
     expect(carryFrom([{ sha: P1, laptop: '' }], docs)).toBeNull(); // no verdict anywhere: H runs
+  });
+});
+
+describe('J20 affected report (on master: affectedPick, the cap)', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const run = (files: string, protocol: string | (() => string)) => (args: string[]) => {
+    if (args[0] === 'merge-base') return 'b'.repeat(40);
+    if (args[0] === 'diff') return files;
+    return typeof protocol === 'function' ? protocol() : protocol;
+  };
+  it('affectedSuites: LEGACY / AUDIO go to report in the slots the cap leaves; a failed show keeps master (no wire rule)', async () => {
+    const fs = await import('node:fs');
+    const protocol = fs.readFileSync('src/net/protocol.ts', 'utf8');
+    const wire = affectedSuites(run('src/player/moveState.ts', protocol), SHA('1'));
+    for (const s of ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse']) expect(wire.suites).toContain(s);
+    expect(wire.report).toEqual([]);
+    const prog = affectedSuites(run('src/progression/x.ts', protocol), SHA('1'));
+    expect(prog.suites).toEqual(['e2e-park']);
+    expect(prog.report).toEqual(['e2e-progression']);
+    // the cap wins: no slot left, no report suite; no cap: every one
+    expect(affectedSuites(run('src/progression/x.ts', protocol), SHA('1'), { max: 1 }).report).toEqual([]);
+    expect(affectedSuites(run('src/progression/x.ts', protocol), SHA('1'), { max: 0 }).report).toEqual(['e2e-progression']);
+    const noShow = affectedSuites(run('src/progression/x.ts', () => { throw new Error('no protocol.ts'); }), SHA('1'));
+    expect(noShow.suites).toEqual(['e2e-park']);
+    expect(affectedReport(['docs/x.md'], [])).toEqual([]);
+  });
+  it('affectedRequest writes report only when non-empty; dupKey counts it only when present', () => {
+    const base = { now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-park'], suffix: 'beef' };
+    const plain = affectedRequest(base);
+    expect('report' in plain).toBe(false);
+    expect('report' in affectedRequest({ ...base, report: [] })).toBe(false);
+    const rep = affectedRequest({ ...base, report: ['e2e-progression'] });
+    expect(rep.report).toEqual(['e2e-progression']);
+    expect(requestProblem(rep)).toBe('');
+    expect(dupKey(rep)).not.toBe(dupKey(plain));
+    // a request without report keeps the key it had before J20 (state.done stays comparable)
+    expect(dupKey(plain)).toBe(JSON.stringify([SHA('a'), 'pr', false, ['e2e-park', 'smoke'], [], 'affected', '', '12']));
+    expect(dupKey({ ...rep, report: ['b', 'a'] })).toBe(dupKey({ ...rep, report: ['a', 'b'] }));
+  });
+  it('markReport: an old affected request gets LEGACY / GPU / AUDIO rows as report; its report list counts; a lead is left alone', () => {
+    const rows = [{ s: 'smoke', ok: true, flaky: false, report: false, sec: 5 }, { s: 'e2e-security', ok: false, flaky: false, report: false, sec: 40 }, { s: 'e2e-foley', ok: false, flaky: false, report: false, sec: 9 }];
+    const old = { requester: AFFECTED_REQUESTER, suites: ['smoke', 'e2e-security'] };
+    const got = markReport(old, rows);
+    expect(got.map((x: { s: string; ok: boolean; report: boolean }) => [x.s, x.ok, x.report])).toEqual([['smoke', true, false], ['e2e-security', true, true], ['e2e-foley', true, true]]);
+    expect(rows[1]?.ok).toBe(false); // pure
+    const lead = { requester: 'Night Shift | Player Build', suites: ['e2e-security'] };
+    expect(markReport(lead, rows)).toEqual(rows);
+    // a request's own report list marks its rows (a part counts by its whole suite)
+    expect(markReport({ requester: 'lead', report: ['e2e-wall'] }, [{ s: 'e2e-wall:2', ok: false, flaky: false, report: false, sec: 3 }])[0]).toMatchObject({ ok: true, report: true });
+    // a failed gate row of an affected request stays failed
+    expect(markReport(old, [{ s: 'e2e-coop', ok: false, flaky: false, report: false, sec: 3 }])[0]).toMatchObject({ ok: false, report: false });
+  });
+  it('laptopRerunRequest: an affected rerun drops LEGACY / GPU / AUDIO, null when none is left; a lead keeps its suites', () => {
+    const aff = { id: idAt(5, 'a'), requester: AFFECTED_REQUESTER, sha: SHA('c'), branch: 'feature/x', pr: 3, set: 'affected', suites: ['smoke'] };
+    expect(laptopRerunRequest(aff, ['e2e-camera-bounds', 'e2e-coop'], { now: NOW, suffix: 'beef' }).suites).toEqual(['e2e-coop']);
+    expect(laptopRerunRequest(aff, ['e2e-darkness'], { now: NOW, suffix: 'beef' })).toBeNull();
+    expect(laptopRerunRequest(aff, ['e2e-foley'], { now: NOW, suffix: 'beef' })).toBeNull();
+    const lead = { ...aff, requester: 'Night Shift | Marlow Build', set: 'j1' };
+    expect(laptopRerunRequest(lead, ['e2e-kestrel'], { now: NOW, suffix: 'beef' }).suites).toEqual(['e2e-kestrel']);
+  });
+  it('perfStep: adds --budget once, keeps --budget and --no-budget, ignores other steps', () => {
+    expect(perfStep('node scripts/perf.mjs --json')).toBe('node scripts/perf.mjs --json --budget');
+    expect(perfStep(perfStep('node scripts/perf.mjs'))).toBe('node scripts/perf.mjs --budget');
+    expect(perfStep('MAP=campusOps node scripts/perf.mjs --budget --preset=epic')).toBe('MAP=campusOps node scripts/perf.mjs --budget --preset=epic');
+    expect(perfStep('node scripts/perf.mjs --no-budget')).toBe('node scripts/perf.mjs --no-budget');
+    expect(perfStep('node scripts/run-e2e.mjs e2e-move')).toBe('node scripts/run-e2e.mjs e2e-move');
+    expect(perfStep('node scripts/perf-report.mjs')).toBe('node scripts/perf-report.mjs');
   });
 });
