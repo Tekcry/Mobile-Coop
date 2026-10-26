@@ -11,6 +11,8 @@ import type { BoxPiece, LevelBuilder } from '../src/world/levelBuilder';
 import type { NavBlocker, NavGrid, NavSample } from '../src/ai/navGrid';
 import type { RoomDef } from '../src/world/rooms';
 import { hyp2 } from '../src/core/mathx';
+import { HANG } from '../src/world/anchors';
+import { MOVEMENT } from '../src/config/movement';
 import type * as KitM from '../src/world/maps/campusV2/s3Kit';
 import type * as L1M from '../src/world/maps/campusV2/s3L1';
 import type * as S3M from '../src/world/maps/campusV2/s3';
@@ -148,8 +150,8 @@ describe('campus v2 S3 L1 (R2a)', () => {
     }
     // the holes: the north and east core wells (inside their walls), the hoist hatch to the x 21 wall face (P9), the sec hatch
     expect(l1.S3_L1_HOLES.map((h) => [...h])).toEqual([
-      [30.15, -6.85, 33.35, -0.65],
-      [58.15, -6.85, 61.35, -0.65],
+      [30.15, -6.85, 33.35, -0.3],
+      [58.15, -6.85, 61.35, -0.3],
       [18, -6, 20.85, -3],
       [53.5, -17.5, 54.5, -16.5],
     ]);
@@ -286,7 +288,8 @@ describe('campus v2 S3 L1 (R2a)', () => {
       }
     }
     for (const x of [30, 33.5, 58]) {
-      expect(pieceAt(lSolid, x, 5.0, -0.25, false), `strip ${x}`).toBeDefined();
+      // (s3 join J4) the slot behind the core's north wall is R3's wall now (it runs to the shell), not a strip of ours
+      expect(pieceAt(lSolid, x, 5.0, -0.25, false), `strip ${x}`).toBeUndefined();
       expect(pieceAt(lSolid, x, 5.0, -3, false), `core wall ${x} is R3's`).toBeUndefined();
     }
     const doorXs = [kit.S3_DOORS.hoist[0], kit.S3_DOORS.gown[0], kit.S3_DOORS.storeHatch[0]];
@@ -417,6 +420,23 @@ describe('campus v2 S3 L1 (R2b)', () => {
     expect(bL.anchors.ladders.some((q) => q.base.x > 17.5 && q.base.x < 21 && q.base.z > -6.5 && q.base.z < -2.5)).toBe(false);
   });
 
+  it('(s3 join J8) CR3b has a ledge: x 18, z -6..-3, top 4.5, normal +x (the hatch side), hang and climb up, the climb room clear', () => {
+    // the slab is noLedge, so only a manual ledge can serve (`b.ledge`, in `bL.anchors`; not in `generateLedges(b.boxes)`)
+    const e = bL.anchors.ledges.find((q) => Math.abs(q.a.x - 18) < 1e-6 && Math.abs(q.b.x - 18) < 1e-6 && Math.abs(q.top - 4.5) < 1e-6);
+    expect(e, 'CR3b ledge').toBeDefined();
+    expect([Math.min(e!.a.z, e!.b.z), Math.max(e!.a.z, e!.b.z)]).toEqual([-6, -3]);
+    expect([e!.nx, e!.nz]).toEqual([1, -0]);
+    expect(e!.canHang && e!.canClimbUp).toBe(true);
+    // climbRoom (attachController): the stand point HANG.out + 0.45 in from the lip, one body radius round it, clear from
+    // the slab top to 1.8 over it (the 7.5 ceiling is 3 m up)
+    const cx = 18 - (HANG.out + 0.45);
+    for (let z = -5.9; z <= -3.1; z += 0.2) {
+      for (const dx of [-MOVEMENT.radius, 0, MOVEMENT.radius]) {
+        for (const y of [4.55, 5.3, 6.3]) expect(pieceAt(lSolid, cx + dx, y, z), `climb room at ${cx + dx}, ${y}, ${z}`).toBeUndefined();
+      }
+    }
+  });
+
   it('the ceilings (top 7.5, 0.1): over every L1 room and corridor; the crane bay open to the roof', () => {
     const at: readonly (readonly [string, number, number])[] = [
       ['s3-c2', 12, -20], ['s3-view', 30, -9], ['s3-view', 12, -9], ['s3-east', 58, -9], ['s3-hoist', 15, -3.5], ['s3-writeup', 25.5, -2],
@@ -453,8 +473,15 @@ describe('campus v2 S3 L1 (R2b)', () => {
     expect(bL.boxes.some((p) => !p.collide && Math.abs(p.c[0] - 50.7) < 1e-6 && Math.abs(p.c[2] + 3) < 1e-6)).toBe(true);
     // the plenum wall z -7, 7.5 to 9.0, seals the corridor plenum (the cores' walls are R3's)
     for (let x = 10.2; x < 63.9; x += 0.3) {
-      if ((x > 29.9 && x < 33.6) || (x > 57.9 && x < 61.6)) continue;
+      // (s3 join J2) over the north core too (no gap: an opening there led to the sealed chase); the east core's walls are R3's
+      if (x > 57.9 && x < 61.6) continue;
       for (const y of [7.6, 8.9]) expect(pieceAt(lSolid, x, y, -7, false), `plenum wall at ${x}, ${y}`).toBeDefined();
+    }
+    // (s3 join J2) the softlock: the void reached the corridor ceiling deck over the north core, then the east lobby and
+    // the sealed chase (x 52..53, z -18..-11) with no way out. The guards' nav has no cell at the void's height (below),
+    // so the seal is the wall: z -7 from 7.5 to 9.0 with no gap over the north core
+    for (let x = kit.S3_BOX.nCore[0] + 0.05; x < kit.S3_BOX.nCore[2]; x += 0.25) {
+      for (const y of [7.55, 8.25, 8.95]) expect(pieceAt(lSolid, x, y, -7, false), `plenum wall over the north core at ${x}, ${y}`).toBeDefined();
     }
     // guards' nav: no walkable cell at the void's height anywhere (headroom 1.5 < 1.7)
     let voidCells = 0;
@@ -489,6 +516,8 @@ describe('campus v2 S3 L1 (R2b)', () => {
       for (let k = i + 1; k < rooms.length; k++) {
         const a = rooms[i]!;
         const c = rooms[k]!;
+        // (s3 join J1) the stair cores overlap the rooms they rise through (smallest room wins in `roomAt`)
+        if (['s3-wstair', 's3-nstair', 's3-estair'].includes(a.id) || ['s3-wstair', 's3-nstair', 's3-estair'].includes(c.id)) continue;
         const ox = Math.min(a.maxX, c.maxX) - Math.max(a.minX, c.minX);
         const oz = Math.min(a.maxZ, c.maxZ) - Math.max(a.minZ, c.minZ);
         const oy = Math.min(a.maxY ?? 99, c.maxY ?? 99) - Math.max(a.minY ?? -99, c.minY ?? -99);

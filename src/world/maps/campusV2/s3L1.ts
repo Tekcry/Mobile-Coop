@@ -91,8 +91,10 @@ export const S3_SEC_HATCH: S3Box = [53.5, -17.5, 54.5, -16.5];
  * the x 21 wall face (P9) and the sec room's ladder hatch.
  */
 export const S3_L1_HOLES: readonly S3Box[] = [
-  [S3_BOX.nCore[0] + T / 2, S3_BOX.nCore[1] + T / 2, S3_BOX.nCore[2] - T / 2, S3_BOX.nCore[3] - T / 2],
-  [S3_BOX.eCore[0] + T / 2, S3_BOX.eCore[1] + T / 2, S3_BOX.eCore[2] - T / 2, S3_BOX.eCore[3] - T / 2],
+  // (s3 join J3, r3 F3) the north and east wells run north to -T, inside R3's moved core walls (the old `core[3] - T / 2`,
+  // -0.65, left slab inside the core)
+  [S3_BOX.nCore[0] + T / 2, S3_BOX.nCore[1] + T / 2, S3_BOX.nCore[2] - T / 2, -T],
+  [S3_BOX.eCore[0] + T / 2, S3_BOX.eCore[1] + T / 2, S3_BOX.eCore[2] - T / 2, -T],
   [S3_BOX.hoistHatch[0], S3_BOX.hoistHatch[1], S3_BOX.hoistHatch[2] - T / 2, S3_BOX.hoistHatch[3]],
   S3_SEC_HATCH,
 ];
@@ -229,14 +231,13 @@ export function buildS3L1(b: LevelBuilder): void {
   for (const x of S3_SAMPLE_CASES) bx(b, x - CASE_LEN / 2, x + CASE_LEN / 2, L1, L1 + CASE_H, -7 - T / 2 - CASE_DEEP, -7 - T / 2, STEEL, { noLedge: true });
 
   // ---- 4. the north rooms (D:66-70): partitions 4.5..7.5 at x 21, 37.5 (passThrough), 47 (airlock); at x 30, 33.5 and 58
-  // the cores' walls are R3's, so only the strips from their north walls (z -0.5) to the shell close the slots behind them;
+  // the cores' walls are R3's and run to the shell (s3 join J4: no strips of ours behind them, r3 F2);
   // the store's shelving partition at x 53 (2.4, the aisle gap z -4..-2.8), the board shelf against x 58, the write-up desk
   wall(b, false, 21, -7, 0, L1, C, []);
   wall(b, false, 37.5, -7, 0, L1, C, [doorHole(hingeZ('passThrough'), L1)]);
   doorAt(b, false, 37.5, hingeZ('passThrough'), L1, swingOf('passThrough'));
   wall(b, false, 47, -7, 0, L1, C, [doorHole(hingeZ('airlock'), L1)]);
   doorAt(b, false, 47, hingeZ('airlock'), L1, swingOf('airlock'));
-  for (const [x, z0] of [[S3_BOX.nCore[0], S3_BOX.nCore[3]], [S3_BOX.nCore[2], S3_BOX.nCore[3]], [S3_BOX.eCore[0], S3_BOX.eCore[3]]] as const) wall(b, false, x, z0, 0, L1, C, []);
   bx(b, 53 - T / 2, 53 + T / 2, L1, L1 + 2.4, -7 + T / 2, -4, STEEL, { noLedge: true });
   bx(b, 53 - T / 2, 53 + T / 2, L1, L1 + 2.4, -2.8, -T / 2, STEEL, { noLedge: true });
   bx(b, 57.35 - 0.15, 58 - 0.15, L1, L1 + 1.8, -5.0, -2.6, STEEL, { noLedge: true });
@@ -294,6 +295,9 @@ export function buildS3L1(b: LevelBuilder): void {
   rail(b, hhhx0, hhhx1, hhhz0 - 0.1, hhhz0, L1);
   rail(b, hhhx0, hhhx1, hhhz1, hhhz1 + 0.1, L1);
   b.box(hhhx0, L1 + 1.1, hhhz0 - 0.05, 0.08, 2.2, 0.08, STEEL, 0, 0, false);
+  // (s3 join J8) the CR3b lip (S3.md R6: x 18, z -6..-3, y 4.5, n (1, 0)): the landing slab is noLedge (`slab`), so its
+  // west hatch edge gets a manual ledge (hang and climb up), its normal toward the hatch where the boosted player hangs
+  b.ledge(hhhx0, hhhz0, hhhx0, hhhz1, L1);
   const [rkx0, rkz0, rkx1, rkz1] = S3_RACKING;
   bx(b, rkx0, rkx1, L1, L1 + 2.4, rkz0, rkz1, STEEL, { noLedge: true });
   const [mh] = S3_VOID_HOLES;
@@ -311,7 +315,8 @@ export function buildS3L1(b: LevelBuilder): void {
   slabCut(b, [S3_BOX.nCore[2], vz0, vx1, vz1], C, S3_VOID_HOLES, ceilingDeck);
   const [, tz0, tx1, tz1] = S3_VOID_HOLES[1]!;
   b.box(tx1 + 0.6, C + 0.01, (tz0 + tz1) / 2, 1.2, 0.02, 1.2, PANEL_WHITE, 0, 0, false);
-  wall(b, true, -7, 10, S3_BOX.nCore[0], C, R, []);
-  wall(b, true, -7, S3_BOX.nCore[2], S3_BOX.eCore[0], C, R, []);
+  // (s3 join J2) one run over the north core too: left open there, the void led onto the corridor ceiling deck, the east
+  // lobby and the sealed chase (x 52..53, z -18..-11) with no way out
+  wall(b, true, -7, 10, S3_BOX.eCore[0], C, R, []);
   wall(b, true, -7, S3_BOX.eCore[2], 64, C, R, []);
 }

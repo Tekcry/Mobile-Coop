@@ -7,7 +7,7 @@ import type { RoomDef } from '../../rooms';
 import type { MapLayout } from '../../mapDef';
 import { buildS3Shell, S3_HIDESPOTS_G, S3_NAV_SEEDS_G, S3_ROOMS_G } from './s3Shell';
 import { buildS3L1, S3_HIDESPOTS_L1, S3_NAV_SEEDS_L1, S3_ROOMS_L1 } from './s3L1';
-import { buildS3Stairs } from './s3Stairs';
+import { buildS3Stairs, S3_ROOMS_STAIRS } from './s3Stairs';
 import { buildS3Lights } from './s3Lights';
 
 /**
@@ -27,8 +27,9 @@ export { S3_BOARDS, S3_LASERS, S3_PANEL_NEAR, S3_PANELS, S3_SWITCHES } from './s
 export { S3_DESKS } from './s3Devices';
 export { S3_COOP_LIPS } from './s3Lips';
 
-/** Section 3's rooms (HUD tags; no squads): G then L1. Stacked rooms carry their storey; none overlap. */
-export const S3_ROOMS: RoomDef[] = [...S3_ROOMS_G, ...S3_ROOMS_L1];
+/** Section 3's rooms (HUD tags; no squads): G, L1, then the stair cores. Stacked rooms carry their storey; none overlap but the
+ *  stair cores (smallest room wins in `roomAt`). */
+export const S3_ROOMS: RoomDef[] = [...S3_ROOMS_G, ...S3_ROOMS_L1, ...S3_ROOMS_STAIRS];
 
 /** Nav seeds: G then L1. */
 export const S3_NAV_SEEDS: Vector3[] = [...S3_NAV_SEEDS_G, ...S3_NAV_SEEDS_L1];
