@@ -55,7 +55,7 @@ jobs:
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm run lint
@@ -73,7 +73,7 @@ jobs:
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm test
@@ -91,7 +91,7 @@ jobs:
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       # (map-ready S4) the campus prebake's folder (scripts/prebake.mjs): read only under the exact lamp key, so the
@@ -179,7 +179,7 @@ jobs:
         id: nm
         with:
           path: live/node_modules
-          key: nm-deploy-${{ runner.os }}-node22-${{ hashFiles('live/package-lock.json') }}
+          key: nm-deploy-${{ runner.os }}-node24-${{ hashFiles('live/package-lock.json') }}
       - name: Install live
         if: steps.nm.outputs.cache-hit != 'true'
         working-directory: live

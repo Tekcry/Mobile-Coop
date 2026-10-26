@@ -30,7 +30,7 @@ jobs:
         id: nm
         with:
           path: node_modules
-          key: nm-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: nm-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
       - if: steps.nm.outputs.cache-hit != 'true'
         run: npm ci
       - run: npm run lint
