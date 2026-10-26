@@ -45,19 +45,21 @@ export interface LightningData {
   /** (piano SO5b) The windows and gaps the flash lights the inside through: one flash light each
    *  (`addOpeningLights`). Absent: no extra light, today's cost. */
   openings?: readonly LightningOpening[];
-  /** (piano SO5b) The openings' light at a full strike (the lights' intensity); default `OPENING_LIGHT.gain`. */
+  /** (piano SO5b) A full-size opening's light at a full strike (its light's intensity; smaller ones by area); default
+   *  `OPENING_LIGHT.gain`. */
   openingGain?: number;
 }
 
 /**
  * (piano SO5b) An opening's flash light: a point `inset` m inside the opening, `up` x its height above its centre (near
  * the head), aimed inward and `tilt` rad down, a feathered spot cone of half-angle `cone` rad, authored radius `radius`
- * (reach x `PHOTO.reach`: 8 m), intensity `gain`. One tuning pass (SO5b) against PLAN 2b's "5-20 lux within about 6 m":
- * under the 20 lux cap one point light keeps 5 lux from 1 m to 3 m on a 2.4 m window's centre line (17.7 lux at 2 m)
- * and falls to 1.5 lux at 4 m, 0.3 lux at 6 m (inverse square; `tests/lightningOpenings.test.ts`). The opening's own
- * frame and everything inside cast its shadows (it is baked as any lamp).
+ * (reach x `PHOTO.reach`: 8 m), intensity `gain` x the opening's area over `area` (a 2 x 2.4 m window; capped at 1: a
+ * smaller hole lets in less sky). One tuning pass (SO5b) against PLAN 2b's "5-20 lux within about 6 m": under the 20 lux
+ * cap one point light keeps 5 lux from 1 m to 3 m on a 2 x 2.4 m window's centre line (17.7 lux at 2 m) and falls to
+ * 1.5 lux at 4 m, 0.3 lux at 6 m (inverse square; `tests/lightningOpenings.test.ts`). The opening's own frame and
+ * everything inside cast its shadows (it is baked as any lamp).
  */
-export const OPENING_LIGHT = { inset: 0.3, up: 0.4, tilt: 0.4, cone: 1.4, radius: 5, gain: 0.65 } as const;
+export const OPENING_LIGHT = { inset: 0.3, up: 0.4, tilt: 0.4, cone: 1.4, radius: 5, gain: 0.65, area: 4.8 } as const;
 /** (piano SO5b) The flash's colour on screen (rendering only): a cold blue-white. */
 export const OPENING_COLOR: readonly [number, number, number] = [0.82, 0.88, 1];
 
@@ -86,7 +88,7 @@ export function addOpeningLights(reg: LightRegistry, data: LightningData | null 
       y: o.y + o.h * P.up,
       z: o.z + nz * P.inset,
       radius: P.radius,
-      intensity: gain,
+      intensity: gain * Math.min(1, (o.w * o.h) / P.area),
       color: [OPENING_COLOR[0], OPENING_COLOR[1], OPENING_COLOR[2]],
       cone: makeCone(nx * c, -s, nz * c, P.cone),
     });

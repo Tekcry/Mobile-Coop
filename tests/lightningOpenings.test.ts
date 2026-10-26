@@ -1,4 +1,4 @@
-﻿/**
+/**
  * (piano SO5b) Lightning through an opening as a baked flash light: a synthetic dark room with one window, one flash
  * light from `addOpeningLights`, baked with the room's own visibility (the pure bakers inline, as
  * `tests/thornbeckMillLight.test.ts`), driven the way `World.setFlash` drives it (the field's level, then
@@ -223,6 +223,20 @@ describe('lightning openings: one baked flash light per opening (piano SO5b)', (
     console.info(`bytes per setSkyFlash ${sk.toFixed(1)}, per step + levelAt ${st.toFixed(1)}`);
     expect(sk).toBeLessThanOrEqual(2 * HEAP_NUMBER);
     expect(st).toBeLessThanOrEqual(6 * HEAP_NUMBER);
+  });
+});
+
+describe('opening size (piano SO5b)', () => {
+  it('a smaller hole lets in its share of the sky: intensity x its area over a full window (capped at 1)', () => {
+    const r = new LightRegistry();
+    const o = { x: 0, y: 1.8, z: 0, w: 1.5, h: 1.6, nx: -1, nz: 0 };
+    expect(addOpeningLights(r, { flashes: [], openings: [o, { ...o, w: 1, h: 0.4 }, { ...o, w: 4, h: 3 }], openingGain: 0.5 })).toBe(3);
+    expect(r.lights[0]!.intensity).toBeCloseTo((0.5 * 1.5 * 1.6) / OPENING_LIGHT.area, 12);
+    expect(r.lights[1]!.intensity).toBeCloseTo((0.5 * 0.4) / OPENING_LIGHT.area, 12);
+    expect(r.lights[2]!.intensity).toBe(0.5);
+    // the inward normal: into the room (-x here), 0.3 m in
+    expect(r.lights[0]!.x).toBeCloseTo(-OPENING_LIGHT.inset, 12);
+    expect(r.lights[0]!.cone!.dx).toBeLessThan(-0.8);
   });
 });
 
