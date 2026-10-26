@@ -35,7 +35,7 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    intro-1/2, mission-1/2 from the orchestrator (feature/music-real, scratch/music/real/); add them when it says they landed. S5b DONE: #618 head 1241dfb8c, Sonnet PASS (S5b-check.md), checker
    posted, PR comment. Slots: ?pianointro= / ?pianomusic=grohl|1|pixabay. Polish: piano.mjs still renders sketch 2/3.
    Lightning re-timed (period 160.04, doubles on the Grohl section changes; PLAN 2b) + Guard AI GA5's six data deltas:
-   S1b-2 DONE: #617 head 937603b46, Sonnet PASS (S1b2-check.md), checker posted, PR comment; Guard AI + Sector Ops told
+   S1b-2 DONE: #617 head 937603b46 (+ f3a95f277: lightning openings for SO5b, 10 entries, no hoist doorway; lead data add), Sonnet PASS (S1b2-check.md), checker posted, PR comment; Guard AI + Sector Ops told
    (Guard AI ~22:20: starts stay; GA6's lap clock runs from the EMP. When GA6a lands: re-tune G4 / G5 end waits with the real
    sweepPeriod(route) from src/ai/sceneSweep.ts (adds 0.8 s slack per leg into a stop + turn time) and assert sweepPeriod(G4) === sweepPeriod(G5) === 40.) Sector Ops (SO5) and Guard AI told.
 5. Tallow: #522 + #578 merged; #581 retargeted to master ~22:30 (MERGEABLE, checker posted, affected pending); then #583.
