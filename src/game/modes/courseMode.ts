@@ -5,7 +5,7 @@ import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
-import { CourseState, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
+import { CourseState, kitMoveOn, type CourseEvent, type LastRetry, type PackedCourse, type RetryCause, type StationCause } from '../course/courseState';
 import { airlockPad, courseUser, deviceHoldTime, isPanelId, layoutKnownIds, registerCourse, retryKey, validateCourse, warnKey, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { StationDef } from '../course/stationDef';
 import type { CourseWire } from '../course/courseWire';
@@ -37,6 +37,14 @@ import { REPLAN_TICKS, type StationHooks, type StationTick, type TickZone } from
 
 /** (J14 R1 fix 6) The re-planned yard's course id (`ctcourse.ts`): only it runs the sets' station ticks. */
 const REPLAN_COURSE = 'ctcourseReplan';
+/** (marlow-play C2) The re-plan's A2 neck isolator (`ctcourseSets/a2CarriageShed.ts` `A2_GATE`): no lights-out lure there, or the
+ *  shunter walks down the crossers' lane to the cabinet. */
+const REPLAN_NO_LURE_GATE = 'g-a2-neck';
+
+/** (marlow-play C2) Does an isolator gate going dark lure the nearest calm guard to its cabinet? All but the re-plan's A2 neck. */
+export function isolatorLures(courseId: string, gateId: string): boolean {
+  return !(courseId === REPLAN_COURSE && gateId === REPLAN_NO_LURE_GATE);
+}
 
 /**
  * (fix round 2) The source of the station ticks' `epoch()`: one more on every course start, station retry and bay
@@ -243,6 +251,8 @@ export class CourseMode implements GameMode {
   private detSeen = 0;
   private startBay = 0;
   private remoteId = '';
+  /** (marlow-play-2 C9) Co-op host: no partner in the course's player list (dropped and held, or not yet in). */
+  partnerAway = false;
   private remoteMode = '';
   private offs: (() => void)[] = [];
   private refusal = '';
@@ -757,6 +767,9 @@ export class CourseMode implements GameMode {
       this.remoteId = r.id;
       st.setPlayer(1, r.feet.x, r.feet.y, r.feet.z, !r.target.alive);
     }
+    // (marlow-play-2 C9) a co-op host alone (the partner dropped and held, or not yet in): the step line says why the
+    // two-player step waits (never solo: no net, or the dev solo flag)
+    this.partnerAway = !r && g.net != null && !st.solo && !st.over;
     // the host's own verbs (drillDetect, the single place verbs are derived; A18)
     if (this.feed) {
       const out = this.feed.step();
@@ -927,7 +940,11 @@ export class CourseMode implements GameMode {
     const st = this.state!;
     const doors = this.g.world.doors;
     let n = 0;
+    // (marlow-play-2 C16) a kept stand-in (it stays open through the retry, `CourseState.retryStation`) keeps its doors as
+    // they are: A2 station 4's retry no longer shuts the roller door again
+    const keep = def.standIn !== undefined && (def.kit === undefined || !kitMoveOn(def.kit)) ? def.standIn : undefined;
     for (const id of def.gates) {
+      if (id === keep) continue;
       for (const cid of st.gateDoorIds(id)) {
         const d = this.doorOf.get(cid);
         if (!d || d.index >= this.doorStart.length) continue;
@@ -949,6 +966,10 @@ export class CourseMode implements GameMode {
     const bay = st.currentBay;
     switch (e.t) {
       case 'bayStarted':
+        // (marlow-play-2 C17) the last set's sightings, incidents (its downed guards' bodies logged), alarm and last-known
+        // positions do not follow the players into the new set (the bay restart's `resetMemory` already clears them).
+        // Course mode only: Sector Ops and the campaign never run this
+        this.forgetSighting();
         this.spawnSquad(e.squad);
         this.radio('enter');
         // (section-rating S6) the set's rating counts from here
@@ -1256,6 +1277,8 @@ export class CourseMode implements GameMode {
     g.gadgets.clearWorld();
     this.ct?.repair(-1);
     this.ct?.holdZones(2);
+    // (marlow-play-2 C14) a hack running at the retry (station 17's `sc-a7`) resets silently, not "broken off... that one hurt"
+    this.ct?.resetScans();
     this.resetStationLights(def);
     // (fix 3) its gates' doors as the set began, once this step's locks are back on (`handle`)
     this.retryDoorSt = def;
@@ -1410,6 +1433,15 @@ export class CourseMode implements GameMode {
    * is a new `Enemy` (`EnemyManager.revive`, the same guard key: `Enemy.inherit`); he takes his slot's woken place, so a
    * retry that respawns the slot removes him too. The built yard is unchanged (no stations: nothing).
    */
+  /**
+   * (guard-ai play pass P3-1) The alarm banner says no reinforcements are inbound when none can come: a course map with
+   * no reinforce points and no guard-AI entries (Marlow Yard) gets none from `StealthSystems.onAlarm`.
+   */
+  alarmQuiet(): boolean {
+    const lay = this.g.world.layout;
+    return !lay.reinforce?.length && !lay.guardAi?.entries?.length;
+  }
+
   onEnemyJoined(e: Enemy): void {
     if (!this.state?.hasStations || e.key < 0) return;
     for (let k = 0; k < this.squad.length; k++) {
@@ -1462,6 +1494,17 @@ export class CourseMode implements GameMode {
     return st ? courseSlotPoints(this.g, st.checkpoint) : [];
   }
 
+  /**
+   * (marlow-play-2 C9) Co-op host: where a client that joins or reconnects mid-run goes (`CoopHost.joinSpot`): the live
+   * station's marks by the bay's roles (slot 1 on its own role's mark, by the partner who waited), so a rejoiner never
+   * lands in a holding room past the set's guards (A8: L7); with no station live, `checkpointSpawns`. Not per tick.
+   */
+  joinSpawns(): SlotPoint[] {
+    const st = this.state;
+    const s = this.placing() ?? st?.liveStation() ?? null;
+    return st && s ? stationSlots(s, st.roleA(st.bay)) : this.checkpointSpawns();
+  }
+
   /** (J14 R1) The station whose marks are the respawn points now, or null. */
   private placing(): StationDef | null {
     return this.placeT > 0 ? this.placeSt : null;
@@ -1507,8 +1550,9 @@ export class CourseMode implements GameMode {
     this.dropSquad(false);
     for (const id of ids) {
       if (!this.layout!.squads[id]) continue;
+      // (guard-ai play pass P3-2) a failed slot (said once by `spawnSlot`) skips only that guard, not the rest of the squad
       const e = this.spawnSlot(id);
-      if (!e) break;
+      if (!e) continue;
       this.addSquad(id, e);
     }
   }
@@ -1523,7 +1567,7 @@ export class CourseMode implements GameMode {
       // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
       if (!this.squadWarned.has(id)) {
         this.squadWarned.add(id);
-        console.warn(`course: squad slot '${id}' failed to spawn (the rest of this bay's squad is skipped)`);
+        console.warn(`course: squad slot '${id}' failed to spawn (skipped; the rest of the squad spawns)`);
       }
       return null;
     }
@@ -1578,10 +1622,16 @@ export class CourseMode implements GameMode {
     const x = dv ? dv.x : 0;
     const z = dv ? dv.z : 0;
     const s = this.g.stealth;
-    if (s) s.isolate(gid, on, x, z);
-    else {
+    // (marlow-play C2) no lure: the circuit and its switches follow as `isolate` does, but no guard comes to the cabinet
+    const lure = isolatorLures(this.state ? this.state.def.id : '', gateId);
+    if (s && lure) s.isolate(gid, on, x, z);
+    else if (s) {
       this.g.world.level.lights.setGroup(gid, on);
-      if (!on) this.g.enemyMgr?.lightsOut(x, z);
+      s.syncGroup(gid, on);
+      this.g.events.emit('lightSwitch', { on });
+    } else {
+      this.g.world.level.lights.setGroup(gid, on);
+      if (!on && lure) this.g.enemyMgr?.lightsOut(x, z);
     }
     this.dirty = true;
   }
@@ -1692,6 +1742,7 @@ export class CourseMode implements GameMode {
     this.card?.update(dt);
     const st = this.state;
     if (!st || !this.hud) return;
+    this.hud.setAway(this.partnerAway);
     this.hud.update(st, 0);
     this.hud.setStatus(st.airlockStatus());
     drawMarker(this.g, st, this.layout!, 0);

@@ -114,8 +114,7 @@ export async function walk(t, n) {
   await until(A, () => window.__course.state.hasFlag('a1-top'), null, 10000, 'A1: both on the wall top set a1-top');
   await until(A, () => window.__course.station() === 0, null, 8000, 'A1: no station live after the ladder');
   for (const P of [A, B]) await ticked(P, 'a1-ladder');
-  await until(A, (cid) => !window.__course.state.locked(cid), WICKET_DOOR, 8000, 'A1: the wicket unlocks on the host');
-  await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(WICKET_DOOR), 15000, 'A1: the client sees the wicket unlocked');
+  // the early-drop retry (3b) shut the wicket bolt again: the wicket unlocks only after the re-unbolt below
 
   // ---- 5. both into the yard, the wicket as the way back, on to L1 ----
   console.log('  A1 (re-plan): the drop, the way back, to L1');
@@ -130,6 +129,8 @@ export async function walk(t, n) {
   // the station 2 retry (3b) shut the bolt again
   assert((await use(B, `c-${WICKET_GATE}`)) === 'ok', 'A1: the client unbolts the wicket from the yard side');
   await until(A, (id) => !!window.__course.debug().gates[id], WICKET_GATE, 8000, 'A1: the bolt gate opens again');
+  await until(A, (cid) => !window.__course.state.locked(cid), WICKET_DOOR, 8000, 'A1: the wicket unlocks on the host');
+  await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(WICKET_DOOR), 15000, 'A1: the client sees the wicket unlocked');
   const aid =await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
   assert((await use(B, `door-${aid}`)) === 'ok', 'A1: the client opens the wicket');
   const wi = await doorIndex(WICKET_DOOR);

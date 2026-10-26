@@ -2263,6 +2263,8 @@ export class GameState implements AppState {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
+        // (marlow-play C4) a retry ends a rope climb / hang-down / hold, or runRope / runHang put the body back next frame
+        this.team.end(true);
         this.player.controller.override = null;
         this.traversal.reset();
         this.wallCore?.reset();

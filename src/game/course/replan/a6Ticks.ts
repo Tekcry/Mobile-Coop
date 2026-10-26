@@ -11,7 +11,8 @@
  * the drop opening; the pit's stand-in ladder), for `A6_TRAP_GRACE` s, the live station retries with cause `other`: both
  * back on its marks (14 also reopens the lip: its retry drops `a6-gal1` with the edge gate's flag; 15 and 16 keep it).
  * The pump floor is the shell's floor (feet about y 0) less the drive pit, the culvert under its housing and anything
- * standing proud of it (the sump bay's guard kerb, the pump plinths: both 1.2 m up).
+ * standing proud of it (the sump bay's guard kerb, the pump plinths: both 1.2 m up). (marlow-play C3) While 14 or 15 is live
+ * the drive pit and the culvert count as floor too (both dropped into the pit, the ladder still locked: no way up either).
  * Host only (`CourseMode` runs the ticks); `retryOff(n)` turns it off like any station retry. Allocation-free: no
  * closures, arrays or vectors per call; the state is two module-level numbers, the zones constants.
  */
@@ -57,6 +58,16 @@ export const A6_TRAP_FACE: TickZone = [40.25, 68.6, 56.0, 69.6, 1.0, 6.5];
  *  cabinet's plinth to z 64.4, the steps and the landing), a hang through either or the stand-in ladder `a6-pit-ladder` at
  *  (52.5, 65.85) from the pit floor (-1.6; a hop's apex -0.8 is off it) to the deck. */
 export const A6_TRAP_PIT_CLIMB: TickZone = [50.9, 64.45, 53.1, 66.2, -0.7, 3.4];
+/**
+ * (marlow-play C3) Floor too while station 14 or 15 is live (the pit ladder stays locked until 16): the whole drive pit (`A6_PIT`,
+ * the pit floor -1.6 with a hop, the steps, the landing and the plinth top at 0) and the outfall culvert (`A6_CULVERT_1` the
+ * ramp from -1.6, `A6_CULVERT_2` the flat to the L6 door, shut until `a6-drive`). From 16 the pit is mark B: never floor.
+ */
+export const A6_TRAP_PIT: TickZone = [49.4, 62.0, 53.6, 66.2, -2.1, FY1];
+export const A6_TRAP_CULVERT_1: TickZone = [53.6, 62.5, 61.5, 63.7, -2.1, FY1];
+export const A6_TRAP_CULVERT_2: TickZone = [61.5, 61.1, 64.0, 63.7, FY0, FY1];
+/** (marlow-play C3) The last station the pit and the culvert count as floor on. */
+export const A6_TRAP_PIT_LAST = 15;
 
 let ep = 0;
 let trapT = 0;
@@ -77,7 +88,10 @@ export const a6Tick: StationTick = (h, dt) => {
       h.playersIn(A6_TRAP_FLOOR_PS) === 0 &&
       h.playersIn(A6_TRAP_FLOOR_HS) === 0 &&
       h.playersIn(A6_TRAP_FLOOR_E) === 0 &&
-      h.playersIn(A6_TRAP_FLOOR_N) === 0) ||
+      h.playersIn(A6_TRAP_FLOOR_N) === 0 &&
+      // (marlow-play C3) on 14 / 15 the pit and the culvert are floor too
+      (n > A6_TRAP_PIT_LAST ||
+        (h.playersIn(A6_TRAP_PIT) === 0 && h.playersIn(A6_TRAP_CULVERT_1) === 0 && h.playersIn(A6_TRAP_CULVERT_2) === 0))) ||
     h.playersIn(A6_TRAP_GALLERY) > 0 ||
     h.playersIn(A6_TRAP_BRIDGE) > 0 ||
     h.playersIn(A6_TRAP_FACE) > 0 ||
