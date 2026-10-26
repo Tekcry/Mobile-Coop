@@ -69,6 +69,38 @@ export const W4_GUARD_GAPS: Readonly<Record<string, readonly (readonly [number, 
   'w4-dg-gantry-n': [[84, 85.2]],
 };
 
+type P3 = readonly [number, number, number];
+/** The switches' wall points (switch x / z, floor + 1.2): 91 by the fire door, 93 the gate box. */
+const S91: P3 = [85.4, 1.2, 20.4];
+const S93: P3 = [63.4, 1.2, 27.6];
+/** The 93 run along the yard's north wall top, the crane's feed cable across to its west leg (48.5, 18.8), up the leg, then under the gantry deck's north edge to a crane flood at x. */
+const run93Crane = (x: number): P3[] => [S93, [63.4, 6.2, 27.6], [48.5, 6.2, 27.6], [48.5, 6.2, 19.05], [48.5, 9.5, 19.05], [x, 9.5, 19.05], [x, 9.5, 17.25]];
+
+/**
+ * LIGHT.md rule 6: one conduit run per fitting of the switched groups 91, 92 and 93, from the switch's wall point up to the run
+ * height (`yRun` 6.4 / 4.2 / 6.2), along x, along z, to the fitting (visual only, 0.05 m, #4f5459).
+ */
+export const W4_CONDUITS: readonly { group: number; pts: readonly P3[] }[] = [
+  // 91 the shed three pendants: up the party wall by the fire door, west under the roof at z 20.4, then along z to each pendant
+  ...([[75, 13.5], [75, 21.5], [80.5, 13.5], [80.5, 21.5]] as const).map(([x, z]) => ({ group: 91, pts: [S91, [85.4, 6.4, 20.4], [x, 6.4, 20.4], [x, 6.4, z], [x, 5.6, z]] as P3[] })),
+  // 92 the loading-door flood: up the south wall inside the door, west to its head, out over the door's head
+  { group: 92, pts: [[81.2, 1.2, 10.6], [81.2, 4.2, 10.6], [79, 4.2, 10.6], [79, 4.2, 9.7]] },
+  // 93 the gate flood: up the gate box's wall, east along the mass over the gate to the flood
+  { group: 93, pts: [S93, [63.4, 6.2, 27.6], [66, 6.2, 27.6], [66, 6.2, 27.2]] },
+  // 93 the crane work floods
+  { group: 93, pts: run93Crane(53) },
+  { group: 93, pts: run93Crane(65) },
+];
+
+/** A conduit run: one visual-only 0.05 m box per leg. */
+function conduit(b: LevelBuilder, pts: readonly P3[]): void {
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i]!;
+    const e = pts[i + 1]!;
+    b.box((a[0] + e[0]) / 2, (a[1] + e[1]) / 2, (a[2] + e[2]) / 2, Math.abs(e[0] - a[0]) + 0.05, Math.abs(e[1] - a[1]) + 0.05, Math.abs(e[2] - a[2]) + 0.05, '#4f5459', 0, 0, false);
+  }
+}
+
 /** A box over ranges (x0-x1, y0-y1, z0-z1), `noLedge`; `collide` false for visual-only pieces. */
 function bx(b: LevelBuilder, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, color: string, collide = true): void {
   const i0 = b.boxes.length;
@@ -189,6 +221,7 @@ function build(b: LevelBuilder): void {
   lamp(b, 88, 14, 5, { r: 6, i: 0.6, group: 97, colour: [1, 0.1, 0.1], destructible: false, electric: false });
   // 98 the launch's masthead light (the launch's own battery, no shore switch)
   lamp(b, 90, 3.0, 3, { r: 3, i: 0.15, group: 98 });
+  for (const c of W4_CONDUITS) conduit(b, c.pts);
 }
 
 const ROOMS: RoomDef[] = [
