@@ -1,0 +1,13 @@
+{
+  "id": "20261026T091950-affected-e2e-cdd11c54-c223",
+  "sha": "cdd11c5401b3cb22d0da8ae1e44d1a57f27f9102",
+  "branch": "feature/guard-ai-piano",
+  "pr": 603,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #603"
+}
