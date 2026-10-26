@@ -39,6 +39,8 @@ const GROUND_COVER = '#5d6b4a';
 const TREE = '#4a5d3a';
 const VAN = '#8a8f93';
 const WHITE: [number, number, number] = [1, 0.95, 0.88];
+/** The warm lamp colour (S1's, `campusS1.ts:25`): social / objective light. */
+const WARM: [number, number, number] = [1, 0.72, 0.38];
 const DOOR_H = 2.1;
 
 /** Storey heights: the L1 floor's top, the roof's top; the partitions' tops under the slabs. */
@@ -51,8 +53,28 @@ export const S5_BULKHEAD_TOP = 11.0;
 /** The service stair's floors: G, L1, the roof. */
 export const S5_FLOORS = [0, S5_L1, S5_ROOF] as const;
 
-/** The lamp circuits of section 5 (brief "Lighting"). */
-export const S5_GROUPS = { chand: 80, gal: 81, board: 82, ante: 83, garden: 84, ctl: 85, kitchen: 86, roof: 87, hall: 88, ceo: 89 } as const;
+/** The lamp circuits of section 5 (brief "Lighting"); (P2, job PLAN section 2) the new circuits in S5's band 150-159. */
+export const S5_GROUPS = {
+  chand: 80,
+  gal: 81,
+  board: 82,
+  ante: 83,
+  garden: 84,
+  ctl: 85,
+  kitchen: 86,
+  roof: 87,
+  hall: 88,
+  ceo: 89,
+  draw: 150,
+  back: 151,
+  plant: 152,
+  lobby: 153,
+  arch: 154,
+  landing: 155,
+  stair: 156,
+  /** The van's work light: its own battery, no switch (shot only). */
+  van: 157,
+} as const;
 
 /** The doors the sector data and the tests find by centre (`Doors.nearest`): [x, z]. */
 export const S5_DOORS = {
@@ -236,23 +258,32 @@ export const S5_ROOMS: RoomDef[] = [
 
 /**
  * The shaft landing beams (R5: an alarm stage, never damage; drawn in night vision): three beams across the shaft door's
- * opening on the anteroom side (the lift is out of use tonight, so the shaft is armed).
+ * opening on the anteroom side (the lift is out of use tonight, so the shaft is armed). (P2, D:24) across the moved door.
  */
-export const S5_LASERS: LaserDef[] = [{ id: 'las-shaft', x1: -40.35, z1: 35.4, x2: -40.35, z2: 36.6, ys: [0.4, 0.9, 1.4], floorY: 0, label: 'Shaft landing beams', section: 4 }];
+export const S5_LASERS: LaserDef[] = [{ id: 'las-shaft', x1: -40.1, z1: 38.35, x2: -38.9, z2: 38.35, ys: [0.4, 0.9, 1.4], floorY: 0, label: 'Shaft landing beams', section: 4 }];
 
 /**
  * The beams' power panel (one): on the cage's west face in the archive (L1), 1.4 over the floor: the far side for a solo,
  * the near side for CR6 (the partner jams it from the archive while the climber crosses the beams).
  */
-export const S5_PANELS: LaserPanelDef[] = [{ id: 'panel-shaft', lasers: ['las-shaft'], x: -41.15, y: 5.6, z: 36.0, yaw: -PI / 2, section: 4, label: 'Shaft landing beams power' }];
+export const S5_PANELS: LaserPanelDef[] = [{ id: 'panel-shaft', lasers: ['las-shaft'], x: -41.65, y: 5.6, z: 39.0, yaw: -PI / 2, section: 4, label: 'Shaft landing beams power' }];
 
-/** The near-side points (feet) the panel is seen from (the unit test traces eye lines from them). */
+/** The near-side points (feet) the panel is seen from (the unit test traces eye lines from them); (P2) derived: the archive
+ *  floor 1.0-3.4 m off the moved panel. */
 export const S5_PANEL_NEAR: Record<string, readonly (readonly [number, number, number])[]> = {
-  'panel-shaft': [[-43.0, S5_L1, 36.0], [-42.2, S5_L1, 33.0], [-42.2, S5_L1, 40.0]],
+  'panel-shaft': [[-43.0, S5_L1, 39.0], [-42.5, S5_L1, 37.5], [-42.6, S5_L1, 42.2]],
 };
 
-/** The garden-lights board (a timed isolator, window 20) in the kitchen, on the west wall. */
-export const S5_BOARDS: BoardDef[] = [{ pos: new Vector3(-31.85, 0, 40.0), yaw: PI / 2, groups: [S5_GROUPS.garden], window: 20 }];
+/**
+ * The timed boards (E4 isolators): the garden board in the kitchen on its west wall (moved with the wall, window 30) and
+ * (P2, L7) the house board on the back landing's east wall (the anteroom and the hall wall lamps, window 45).
+ */
+export const S5_BOARDS: BoardDef[] = [
+  // sync-s5-gardenboard (SY:53): circuit 84, the garden uplights, the bollards, the jetty lantern and the lane lamp
+  { pos: new Vector3(-32.85, 0, 40.0), yaw: PI / 2, groups: [S5_GROUPS.garden], window: 30 },
+  // sync-s5-houseboard (SY:52): circuits 83 (the anteroom, the strongroom, the audit lamp) and 88 (the hall wall lamps)
+  { pos: new Vector3(-32.15, S5_L1, 35), yaw: -PI / 2, groups: [S5_GROUPS.ante, S5_GROUPS.hall], window: 45 },
+];
 
 /** Nav seeds: the hall, the strongroom, the gallery, the archive, the CEO suite, the boardroom, the garden, the terrace, the lawn, the jetty, the roof, the low roof. */
 export const S5_NAV_SEEDS: Vector3[] = [
@@ -288,7 +319,10 @@ export const S5_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
 /**
  * Light switches (Y is the floor the switch stands on): the chandelier's by the front door (in #12's view, the lure for
  * the gallery pair); the gallery's two; the boardroom's; the anteroom's in the hall by its door (the K4 lure, cut from
- * outside); the control room's; the kitchen's; the hall's wall lights; the CEO suite's. The garden circuit is the board.
+ * outside); the control room's; the kitchen's (P2: by its moved lobby door); the hall's wall lights (P2, G3: in the back
+ * hall, the s5-k4 assist); the CEO suite's; (P2) the new circuits' by their rooms' doors: the drawing room, the back hall,
+ * the plant room, the lobby, the archive, the back landing, the service stair and the roof (at the bulkhead door). The
+ * garden circuit is the garden board; the van's light has no switch.
  */
 export const S5_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-42.5, 0, 18.15), yaw: 0, group: S5_GROUPS.chand },
@@ -297,9 +331,17 @@ export const S5_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-50.15, S5_L1, 25.8), yaw: -PI / 2, group: S5_GROUPS.board },
   { pos: new Vector3(-44.2, 0, 31.85), yaw: PI, group: S5_GROUPS.ante },
   { pos: new Vector3(-50.15, 0, 28.2), yaw: -PI / 2, group: S5_GROUPS.ctl },
-  { pos: new Vector3(-29.8, 0, 32.15), yaw: 0, group: S5_GROUPS.kitchen },
-  { pos: new Vector3(-38.15, 0, 23.2), yaw: -PI / 2, group: S5_GROUPS.hall },
+  { pos: new Vector3(-28.6, 0, 32.15), yaw: 0, group: S5_GROUPS.kitchen },
+  { pos: new Vector3(-33.25, 0, 33.2), yaw: -PI / 2, group: S5_GROUPS.hall },
   { pos: new Vector3(-50.15, S5_L1, 32.3), yaw: -PI / 2, group: S5_GROUPS.ceo },
+  { pos: new Vector3(-50.25, 0, 34.2), yaw: -PI / 2, group: S5_GROUPS.draw },
+  { pos: new Vector3(-33.25, 0, 33.6), yaw: -PI / 2, group: S5_GROUPS.back },
+  { pos: new Vector3(-29.5, 0, 26.25), yaw: PI, group: S5_GROUPS.plant },
+  { pos: new Vector3(-26.3, 0, 30.2), yaw: -PI / 2, group: S5_GROUPS.lobby },
+  { pos: new Vector3(-39.5, S5_L1, 32.25), yaw: 0, group: S5_GROUPS.arch },
+  { pos: new Vector3(-34.0, S5_L1, 37.85), yaw: PI, group: S5_GROUPS.landing },
+  { pos: new Vector3(-34.0, 0, 38.35), yaw: 0, group: S5_GROUPS.stair },
+  { pos: new Vector3(-34.0, S5_ROOF, 38.35), yaw: 0, group: S5_GROUPS.roof },
 ];
 
 /** One lamp of `S5_LIGHTS`: position, radius, intensity, circuit, an optional cone, fitting width and colour (default `WHITE`). */
@@ -316,6 +358,8 @@ export interface S5Lamp {
 }
 
 const DOWN = makeCone(0, -1, 0, 1.15);
+/** (P2, section 0.5 rule 4) The cone of a room's new fitting (the J17 rule of S2 G5c / S3 B8). */
+const ROOM_CONE = makeCone(0, -1, 0, 1.2);
 
 // PROVISIONAL - light-realism (J10) retunes these values. TODO(light-realism): replace with calibrated values.
 /**
@@ -329,7 +373,8 @@ export const S5_LIGHTS = {
   gal: [[-48.7, 21], [-48.7, 27], [-46, 30.7], [-42, 30.7], [-39.2, 21], [-39.2, 27]].map(([x, z]) => ({ x: x!, y: 6.6, z: z!, r: 5, i: 0.8, group: S5_GROUPS.gal, w: 0.3 })),
   board: [21, 27].map((z) => ({ x: -53, y: 7.4, z, r: 6, i: 0.8, group: S5_GROUPS.board, cone: DOWN })),
   ante: [{ x: -43, y: 3.4, z: 34.5, r: 6, i: 0.8, group: S5_GROUPS.ante, cone: DOWN }],
-  strong: [{ x: -43, y: 3.4, z: 40.5, r: 6, i: 0.8, group: S5_GROUPS.ante, cone: DOWN }],
+  // (P2, G5, D:23) the one move kept: the strongroom moved north, so its lamp moves 1 m with it, warm (the objective)
+  strong: [{ x: -43, y: 3.4, z: 41.5, r: 6, i: 0.8, group: S5_GROUPS.ante, cone: DOWN, color: WARM }],
   garden: [[-67, 25], [-59, 25], [-67, 37.2], [-59, 37.2]].map(([x, z]) => ({ x: x!, y: 0.3, z: z!, r: 6, i: 0.8, group: S5_GROUPS.garden, w: 0.3 })),
   bollards: [-64, -56, -48, -40, -34, -28].map((x) => ({ x, y: 0.8, z: 48.7, r: 4, i: 0.8, group: S5_GROUPS.garden, w: 0.3 })),
   ctl: [21, 27].map((z) => ({ x: -53, y: 3.4, z, r: 6, i: 0.8, group: S5_GROUPS.ctl, cone: DOWN })),
@@ -337,6 +382,24 @@ export const S5_LIGHTS = {
   roof: [{ x: -40, y: 9.6, z: 42.6, r: 4, i: 0.8, group: S5_GROUPS.roof, w: 0.3 }],
   hallWall: [[-48.7, 22], [-48.7, 28], [-39.3, 26], [-39.3, 30]].map(([x, z]) => ({ x: x!, y: 2.6, z: z!, r: 5, i: 0.8, group: S5_GROUPS.hall, w: 0.3 })),
   ceo: [34, 40].map((z) => ({ x: -53, y: 7.4, z, r: 6, i: 0.8, group: S5_GROUPS.ceo, cone: DOWN })),
+  // ---- added (P2, G14 / L3 / R4: the plan's lamps with a job of their own). Warm = social / objective (D:104-107)
+  audit: [{ x: -42.5, y: 1.3, z: 34.5, r: 3, i: 0.8, group: S5_GROUPS.ante, color: WARM, w: 0.2 }],
+  reading: [{ x: -42.2, y: 6.6, z: 39.5, r: 4, i: 0.8, group: S5_GROUPS.arch, color: WARM, w: 0.3 }],
+  lantern: [{ x: -45, y: 2.5, z: 62, r: 6, i: 0.8, group: S5_GROUPS.garden, color: WARM, w: 0.3 }],
+  lane: [{ x: -36, y: 4.0, z: 56, r: 6, i: 0.8, group: S5_GROUPS.garden, cone: DOWN, w: 0.5 }],
+  van: [{ x: -29, y: 2.7, z: 52, r: 6, i: 0.8, group: S5_GROUPS.van, w: 0.3 }],
+  roofWalk: [-50, -40].map((x) => ({ x, y: 10.4, z: 42, r: 6, i: 0.8, group: S5_GROUPS.roof, w: 0.3 })),
+  bulkhead: [{ x: -35, y: 10.6, z: 37.6, r: 6, i: 0.8, group: S5_GROUPS.roof, w: 0.3 }],
+  // ---- added (P2, section 0.5 rule 4): rooms with no fitting get fittings (r 5, i 0.8, cone 1.2, w 0.4 at floor + 3.5;
+  // derived: ceil(L / 8) fittings evenly on each room's long centre line); the service stair one per landing (r 4, i 0.7,
+  // w 0.3, landing + 2.4; the roof one under the bulkhead lid)
+  draw: [33.5, 40.5].map((z) => ({ x: -53, y: 3.5, z, r: 5, i: 0.8, group: S5_GROUPS.draw, cone: ROOM_CONE, w: 0.4 })),
+  back: [{ x: -35, y: 3.5, z: 35, r: 5, i: 0.8, group: S5_GROUPS.back, cone: ROOM_CONE, w: 0.4 }],
+  plant: [20.1, 24.4].map((z) => ({ x: -29, y: 3.5, z, r: 5, i: 0.8, group: S5_GROUPS.plant, cone: ROOM_CONE, w: 0.4 })),
+  lobby: [{ x: -29, y: 3.5, z: 29.25, r: 5, i: 0.8, group: S5_GROUPS.lobby, cone: ROOM_CONE, w: 0.4 }],
+  arch: [35, 41].map((z) => ({ x: -42, y: 7.7, z, r: 5, i: 0.8, group: S5_GROUPS.arch, cone: ROOM_CONE, w: 0.4 })),
+  landing: [{ x: -35, y: 7.7, z: 35, r: 5, i: 0.8, group: S5_GROUPS.landing, cone: ROOM_CONE, w: 0.4 }],
+  stair: [[2.4, 38.8], [4.5, 43.4], [6.6, 38.8], [8.7, 43.4], [10.6, 38.8]].map(([y, z]) => ({ x: -35, y: y!, z: z!, r: 4, i: 0.7, group: S5_GROUPS.stair, w: 0.3 })),
 } satisfies Record<string, readonly S5Lamp[]>;
 
 /** A visible lamp fitting (the glowing box), a real registry light, from an `S5_LIGHTS` entry. */

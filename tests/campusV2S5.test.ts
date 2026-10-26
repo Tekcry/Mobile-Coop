@@ -7,7 +7,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
+import { readFileSync } from 'node:fs';
 import { hyp2 } from '../src/core/mathx';
+import { ropeRoom } from '../src/game/teamMoves';
 
 const PI = Math.PI;
 
@@ -27,7 +29,7 @@ async function loadCampus(v2: readonly number[]) {
 }
 
 const m = await loadCampus([5]);
-const { S5_BOX, S5_DOORS, S5_FLIGHTS, S5_HALL_FLIGHTS, S5_HALL_LANDING, S5_HALL_RAIL_X, S5_L1, S5_ROOF, S5_ROOMS, S5_BULKHEAD_LIGHTS } = m.s5;
+const { S5_BOX, S5_DOORS, S5_FLIGHTS, S5_HALL_FLIGHTS, S5_HALL_LANDING, S5_HALL_RAIL_X, S5_L1, S5_ROOF, S5_ROOMS, S5_BULKHEAD_LIGHTS, S5_ROPE_EDGE } = m.s5;
 const b: LB = new m.LevelBuilder();
 const lay = m.buildCampus(b, { dress: false });
 const S5 = m.sectors.CAMPUS_SECTORS[4]!;
@@ -153,6 +155,11 @@ const pathLen = (a: readonly number[], c: readonly number[]): number | null => {
     q = [w[0], w[1]];
   }
   return len;
+};
+/** A walkable nav cell on floor y within r of (x, z): a switch or key stands on a wall, its user beside it. */
+const nearNav = (x: number, z: number, y: number, r = 1.1): boolean => {
+  for (let dx = -r; dx <= r; dx += 0.25) for (let dz = -r; dz <= r; dz += 0.25) if (hyp2(dx, dz) <= r && onNav(x + dx, z + dz, y)) return true;
+  return false;
 };
 const doorCentre = (d: (typeof b.anchors.doors)[number]): [number, number] => [d.hinge.x + Math.sin(d.yaw) * d.width * 0.5, d.hinge.z + Math.cos(d.yaw) * d.width * 0.5];
 /** The door anchors whose opening centre is within r of (x, z) on floor y. */
@@ -450,5 +457,45 @@ describe('S5 v2 P1 sealed and rooms', () => {
     expect([room('s5-ante').minX, room('s5-ante').maxX, room('s5-ante').minZ, room('s5-ante').maxZ]).toEqual([-46, -37, 32, 38.5]);
     expect(room('s5-back').name).toBe('Back Hall');
     expect(room('s5-pass').name).toBe('Stair Hall');
+  });
+});
+
+describe('S5 v2 P2 CR7 device (job BRIEF A24, A25)', () => {
+  it('CR7 device: pg-hoist\'s door is the hoist door on L1; its keys 6-7 m apart on the archive floor and on nav; no rappel anchor near the hoist door; the hang-drop 4.2 <= the safe drop; ropeRoom(4.2, 0) ok; pg-arch keys 7.5-10 m apart', () => {
+    const gates = S5.pairGates!;
+    expect(gates.length).toBe(2);
+    const [arch, hoist] = gates as [(typeof gates)[number], (typeof gates)[number]];
+    // pg-hoist: the door the finder picks at its point (plan, as `Doors.nearest`) is the hoist door anchor on L1
+    expect(hoist.door).toEqual([...S5_DOORS.hoist]);
+    const d = m.sectorStage.doorFinder(b.anchors.doors)(hoist.door[0], hoist.door[1])!;
+    expect(d).toBeTruthy();
+    expect(d.y).toBe(S5_L1);
+    expect(hyp2(d.cx - -46, d.cz - 36)).toBeLessThan(0.05);
+    const keyGap = hyp2(hoist.a.at[0] - hoist.b.at[0], hoist.a.at[1] - hoist.b.at[1]);
+    expect(keyGap).toBeGreaterThanOrEqual(6);
+    expect(keyGap).toBeLessThanOrEqual(7);
+    expect(hoist.window).toBe(1.0);
+    for (const k of [hoist.a, hoist.b, arch.a, arch.b]) {
+      expect(k.y).toBe(S5_L1);
+      expect(k.at[0] >= -46 && k.at[0] <= -38 && k.at[1] >= 32 && k.at[1] <= 44, `key ${k.at} in the archive`).toBe(true);
+      expect(nearNav(k.at[0], k.at[1], S5_L1), `key ${k.at} on nav`).toBe(true);
+    }
+    // no rappel anchor at the hoist door (the rappel reach has no door test, A25)
+    expect(b.anchors.rappels.filter((r) => Math.abs(r.top.y - S5_L1) < 0.1 && hyp2(r.top.x + 46, r.top.z - 36) < 2.0)).toEqual([]);
+    // the way down is the hang-drop off the sill (4.2 <= the safe drop, scale sheet `safe_drop_m`); the way up the rope
+    const metrics = JSON.parse(readFileSync(new URL('../docs/design/metrics.json', import.meta.url), 'utf8')) as { sizes?: Record<string, unknown> } & Record<string, unknown>;
+    const safe = JSON.stringify(metrics).match(/"safe_drop_m":\s*([0-9.]+)/);
+    expect(safe).toBeTruthy();
+    expect(S5_ROPE_EDGE.y - S5_ROPE_EDGE.floor).toBeLessThanOrEqual(Number(safe![1]));
+    expect(ropeRoom(S5_ROPE_EDGE.y, S5_ROPE_EDGE.floor)).toBe('ok');
+    expect(onNav(-48, 36, 0)).toBe(true);
+    // pg-arch: the cage's west face over the moved shaft
+    expect(arch.door).toEqual([...S5_DOORS.pgArch]);
+    const archGap = hyp2(arch.a.at[0] - arch.b.at[0], arch.a.at[1] - arch.b.at[1]);
+    expect(archGap).toBeGreaterThanOrEqual(7.5);
+    expect(archGap).toBeLessThanOrEqual(10);
+    const da = m.sectorStage.doorFinder(b.anchors.doors)(arch.door[0], arch.door[1])!;
+    expect(da.y).toBe(S5_L1);
+    expect(hyp2(da.cx - arch.door[0], da.cz - arch.door[1])).toBeLessThan(0.1);
   });
 });
