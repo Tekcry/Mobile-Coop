@@ -1,9 +1,10 @@
 /**
  * (J9 S1) The shutter's world wiring, pure parts (no scene): the curtain slots from the level's specs, the guards' nav
  * closure over each opening (A15), and the always-shut light leaf the field and the screen test (A16). A level with no
- * shutter specs gets none of it. And (late hunk A) the team controller's per-step curtain update and `resetKit` (A27).
+ * shutter specs gets none of it. And (late hunk A) the team controller's per-step curtain update and `resetKit` (A27);
+ * (J9 S1 polish) the restart's hold-off against a mate's stale hold, and `resetKit` ending only a shutter move.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { flags } from '../src/core/flags';
 import { TeamController } from '../src/game/teamController';
@@ -11,7 +12,8 @@ import { registerKitMove, type KitDevice } from '../src/game/kit/registry';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry, makeCone } from '../src/world/lights';
-import { SHUTTER, SHUTTER_MOVE, addShutterSpec, shutterSpecsOf, type ShutterDevice, type ShutterSpec } from '../src/game/kit/shutter';
+import { SHUTTER, SHUTTER_MOVE, SHUTTER_RESET_HOLDOFF_S, addShutterSpec, shutterSpecsOf, type ShutterDevice, type ShutterSpec } from '../src/game/kit/shutter';
+import { SHUTTER_SUB } from '../src/game/teamMoves';
 import { SHUTTER_NAV, closeShutterNav, placeShutter, shutterLightLeaf, shutterLightLeaves, shutterNavRect, shutterSlotsOf, type ShutterNavRect } from '../src/world/shutterDoor';
 import { runtimeNav } from './helpers/runtimeNav';
 import type { NavGrid } from '../src/ai/navGrid';
@@ -203,7 +205,7 @@ describe('team controller: the curtain update and the section restart (late hunk
       ballistics: { ray: () => ({ hit: false, distance: 0, point: new Vector3() }) },
       world: { level: { anchors }, shutters: { update: (l: readonly KitDevice[]) => updates.push(l) } },
     };
-    return { tm: new TeamController(g as never), updates };
+    return { tm: new TeamController(g as never), updates, mates };
   }
 
   it('every fixed step hands the kit devices to the world curtains; resetKit ends the hold and shuts every shutter', () => {
@@ -234,5 +236,42 @@ describe('team controller: the curtain update and the section restart (late hunk
     steps(30);
     expect(tm.state).toBe('none');
     for (const d of [held, other]) expect([d.phase, d.open]).toEqual(['closed', 0]);
+  });
+
+  it("(J9 S1 polish) a mate's MoveState still holding right after the restart: shut through the hold-off, lifted only by a hold seen after it", () => {
+    const { tm, mates } = fakeGame();
+    tm.fixedUpdate(DT, false, false);
+    const d = tm.devices.get('sh1') as ShutterDevice;
+    // the mate holds sh1 from the far side (braced with the shutter bit, the gap held): followed
+    Object.assign(mates[0]!, { pos: new Vector3(1, 0, -SHUTTER.holdSpot), mode: 'brace', sub: SHUTTER_SUB, s: SHUTTER.holdGap });
+    tm.fixedUpdate(DT, false, false);
+    expect([d.open, d.phase, d.user]).toEqual([SHUTTER.holdGap, 'held', 'm']);
+    d.noticed = d.opens;
+    tm.resetKit();
+    expect(d.holdOff).toBe(SHUTTER_RESET_HOLDOFF_S);
+    // the restart banner has not reached the mate: their MoveState says holding all through the window
+    const inside = Math.floor(SHUTTER_RESET_HOLDOFF_S / DT) - 1;
+    for (let i = 0; i < inside; i++) {
+      tm.fixedUpdate(DT, false, false);
+      expect([i, d.open, d.phase, d.noticed, d.user, d.visible]).toEqual([i, 0, 'closed', -1, '', false]);
+    }
+    // a hold seen after the window (the mate grips it again) lifts it as before
+    for (let i = 0; i < 3; i++) tm.fixedUpdate(DT, false, false);
+    expect(d.holdOff).toBe(0);
+    expect([d.open, d.phase, d.user, d.visible]).toEqual([SHUTTER.holdGap, 'held', 'm', true]);
+  });
+
+  it('(J9 S1 polish) resetKit with another kit move under way (a pull) leaves it alone; the shutters still reset', () => {
+    const { tm } = fakeGame();
+    tm.fixedUpdate(DT, false, false);
+    const d = tm.devices.get('sh1') as ShutterDevice;
+    Object.assign(d, { phase: 'held', open: SHUTTER.holdGap, user: 'm', visible: true, openFor: 1, opens: 2, noticed: 2 });
+    tm.state = 'pullHang';
+    const end = vi.spyOn(tm, 'end');
+    tm.resetKit();
+    expect(end).not.toHaveBeenCalled();
+    expect(tm.state).toBe('pullHang');
+    expect([d.phase, d.open, d.user, d.noticed, d.visible, d.holdOff]).toEqual(['closed', 0, '', -1, false, SHUTTER_RESET_HOLDOFF_S]);
+    end.mockRestore();
   });
 });
