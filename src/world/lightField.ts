@@ -21,17 +21,16 @@ import { AMBIENT_CELL } from './ambientGrid';
 import { BounceGrid } from './bounceGrid';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER, torchCut } from './lampMath';
 import { hyp3 } from '../core/mathx';
-import type { LightDef } from './lights';
+import type { LightBake } from './lightBake';
+import { lightTerm, type LightDef, type LightRegistry, type Occluder } from './lights';
+import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
+import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
 /** (piano SO3) A `beamCut` torch's cut at a point: `torchCut` at its reach (capped at the radius), as the picture's
  *  `writeTorchDraw` / torch loop cut it. Allocation-free. */
 function beamCutAt(l: LightDef, x: number, y: number, z: number): number {
   return torchCut(hyp3(x - l.x, y - l.y, z - l.z), Math.min(l.reach ?? l.radius, l.radius));
 }
-import type { LightBake } from './lightBake';
-import { lightTerm, type LightRegistry, type Occluder } from './lights';
-import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
-import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): shut for light when `open` is `DOOR_SHUT` or less. */
 export interface FieldDoor {
