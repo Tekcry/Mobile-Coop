@@ -24,11 +24,12 @@ import { S4_BASKET, S4_BOX, S4_DECK, S4_GROUPS, S4_NOC, S4_PODS } from './s4';
 /** Every room of `S4_ROOMS` -> its tag (brief section 1). */
 export const S4_ART_TAGS: Record<string, ArtTag> = {
   's4-dock': 'dock',
-  's4-sc': 'corridor',
   's4-lobby': 'lobby',
-  's4-lobby-b': 'lobby',
-  's4-lobby-c': 'lobby',
+  's4-lobby-e': 'lobby',
+  's4-lobby-a': 'lobby',
   's4-mantrap': 'mantrap',
+  // (G4.1) the return-air plenum: 'riser', the nearest existing tag for a service void (report B2)
+  's4-plenum': 'riser',
   's4-batt': 'battery',
   's4-cc': 'corridor',
   's4-ups': 'ups',
@@ -246,10 +247,12 @@ export function dressS4(d: CampusDresser): void {
   const [cx0, cz0, cx1, cz1] = S4_BOX.crac;
   d.skinRow('H4:cracUnit', boxAt(bx, (cx0 + cx1) / 2, 1.0, (cz0 + cz1) / 2), true, -1, { why: 'CRAC units, fronts to the cage side; the status displays are on the cold-aisle circuit', group: S4_GROUPS.cold1 });
 
-  // ---- the battery room racks and the UPS cabinets
-  const batt = S4_BOX.batteryRacks;
-  d.skinRow('K:batteryRack', boxAt(bx, (batt[0][0] + batt[0][2]) / 2, 0.6, (batt[0][1] + batt[0][3]) / 2), false, 1, { why: 'battery rack string, west row' });
-  d.skinRow('K:batteryRack', boxAt(bx, (batt[1][0] + batt[1][2]) / 2, 0.6, (batt[1][1] + batt[1][3]) / 2), false, -1, { why: 'battery rack string, east row' });
+  // ---- the battery room racks and the UPS cabinets. (G4.2 C11) The racks are 2.0 high now: `K:batteryRack` is a 1.2 m piece
+  // that fits to 1.3 only (`campusKit.ts` fitRange), so the two rows are left unskinned (logged; an art decision for the lead)
+  for (const [n, row] of [['west', S4_BOX.batteryRacks[0]], ['east', S4_BOX.batteryRacks[1]]] as const) {
+    boxAt(bx, (row[0] + row[2]) / 2, 1.0, (row[1] + row[3]) / 2);
+    S4_HERO_LOG.push(`battery rack string, ${n} row (2.0 high, C11): not skinned, K:batteryRack (1.2) fits to 1.3 only`);
+  }
   const [ux0, uz0, ux1, uz1] = S4_BOX.upsCabinets;
   d.skinRow('H4:upsCabinet', boxAt(bx, (ux0 + ux1) / 2, 1.0, (uz0 + uz1) / 2), false, 1, { why: 'UPS cabinet line-up, fronts the room; the mimic LEDs are on the UPS circuit', group: S4_GROUPS.ups });
 

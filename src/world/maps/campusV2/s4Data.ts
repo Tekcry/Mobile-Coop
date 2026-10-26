@@ -42,8 +42,8 @@ export const S4_GUARDS: GearGuard[] = [
   { kind: 'dog', x: 34.8, z: 27, yaw: 0, route: [[34.8, 27], [34.8, 44]], faces: [0, PI], loop: YARD_LOOP, handler: 0, takedownSpot: [34.8, 44.0], role: 'dog', zone: 'yard', squad: 0, reason: 'At heel (A87)' },
   // 3 the yard gate officer: at the gate, facing it, the compound at his back
   { kind: 'officer', x: 37, z: 17.6, yaw: PI, takedownSpot: [37, 18.0], role: 'gate', zone: 'yard', squad: 0, reason: 'Lets the 03:00 courier van in at the yard gate' },
-  // 4 the mantrap officer: at the mantrap desk, facing the mantrap door
-  { kind: 'officer', x: 6.0, z: 20.2, yaw: PI / 2, takedownSpot: [5.5, 20.2], role: 'mantrap', zone: 'lobby', squad: 1, reason: 'Admits one at a time; answers the hall panel' },
+  // 4 the mantrap officer: at the mantrap desk, facing the interlock (G4.1, D:106; the spot 0.5 m behind him, S1 A7)
+  { kind: 'officer', x: 1.3, z: 20.1, yaw: PI / 2, takedownSpot: [0.8, 20.1], role: 'mantrap', zone: 'lobby', squad: 1, reason: 'Admits one at a time; answers the hall panel' },
   // gear (stealth over shooting): the two NOC officers and the security room supervisor wear body armour (torso shots only stagger); helmets come from the difficulty and the alarm stage (guard-rules A15)
   // 5-6 the security room pair: the operator at the console, the supervisor beside him
   { kind: 'officer', x: -2.5, z: 44.6, yaw: -PI / 2, takedownSpot: [-2.1, 44.6], role: 'operator', zone: 'sec', squad: 2, reason: 'Watches the hall cameras (desk operator)' },
@@ -105,7 +105,7 @@ export const S4_ROUTES: SectorDef['routes'] = [
  * cam-dock4 over the dock (the C3 door is outside its view).
  */
 export const S4_CAMERAS: SecurityData['devices'] = [
-  { id: 'cam-mantrap', kind: 'camera', level: 'ground', at: [11.8, 21.8], y: 2.6, facing: 225, aim: 3, range: 8, reason: 'S4: the mantrap (an admission record of the entrance interlock)', section: 3, bulletproof: true },
+  { id: 'cam-mantrap', kind: 'camera', level: 'ground', at: [10.8, 21.8], y: 2.6, facing: 225, aim: 3, range: 8, reason: 'S4: the mantrap (an admission record of the entrance interlock)', section: 3, bulletproof: true },
   { id: 'cam-cage', kind: 'camera', level: 'ground', at: [22.15, 33.85], y: 2.8, facing: 235, aim: 5, range: 9, reason: 'S4: the cage front gate and the centre aisle (the high-value servers)', section: 3, bulletproof: true },
   { id: 'cam-dock4', kind: 'camera', level: 'ground', at: [25.5, 21.8], y: 3.2, facing: 150, aim: 6, range: 10, reason: 'S4: the goods-in roller door and the van bay', section: 3, bulletproof: true },
 ];
@@ -144,7 +144,7 @@ const S4_HIGH = 'The compound, the plant deck and the cable baskets';
 export const S4_ARMOURED: ArmourPiece[] = [
   // the loud way in is the mantrap by force: its inner door is bulletproof (no shooting #4 through it); the quiet way is
   // the battery room's keypad door off the service corridor (the code is on the dock board)
-  { id: 'arm-mantrap', kind: 'door', at: [10.5, 22], loud: S4_LOUD, bypass: { kind: 'keypad', name: 'kp-batt, the battery room keypad door (code on the dock board)', at: [S4_DOORS.kpBatt[0], S4_DOORS.kpBatt[1]], route: S4_STEALTH } },
+  { id: 'arm-mantrap', kind: 'door', at: [S4_DOORS.mantrapInner[0], S4_DOORS.mantrapInner[1]], loud: S4_LOUD, bypass: { kind: 'keypad', name: 'kp-batt, the battery room keypad door (code on the dock board)', at: [S4_DOORS.kpBatt[0], S4_DOORS.kpBatt[1]], route: S4_STEALTH } },
   // the NOC pair watch the hall through bulletproof glass (nobody shoots them from the floor, they cannot shoot down
   // through it); the quiet way keeps off the hall floor: over the cable baskets and the hang-down into the cage
   { id: 'arm-noc', kind: 'glass', at: [2, 42], y: 4.6, loud: S4_LOUD, bypass: { kind: 'hang', name: 'the hang-down from the cable basket into the cage', at: [18.0, 36.6], y: 4.4, route: S4_HIGH } },
@@ -237,4 +237,4 @@ export const S4_PARTS: CampusSectionParts = {
 
 /** (campus-greybox) True while this v2 section is still an exact copy of the live one (`tests/campusV2.test.ts`
  *  checks it equals v1); the lane sets it false with its first layout change. */
-export const S4_V2_COPY = true;
+export const S4_V2_COPY = false;

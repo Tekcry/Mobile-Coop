@@ -6,7 +6,7 @@ import type { MapLayout } from '../../mapDef';
 import type { LaserDef } from '../../../game/jammer';
 import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { BoardDef } from '../../../game/isolators';
-import { makeCone } from '../../lights';
+import { makeCone, type LightCone } from '../../lights';
 import type { CoopLip } from '../campusS1';
 
 /**
@@ -16,8 +16,8 @@ import type { CoopLip } from '../campusS1';
  * (ground, the NOC mezzanine 3.6, the plant deck 7.3); the generator compound x 34..40 is inside the section (walled, never
  * fenced: A84). Every piece is an axis-aligned box (yaw 0).
  *
- * Plan: the dock (S, the C3 side) x 14..34, z 16..22; the service corridor and the hall lobby (with the mantrap) x -4..14
- * along the south; the battery room, the colonnade corridor (C4's near door) and the UPS room down the west side; the data
+ * Plan: the dock (S, the C3 side) x 14..34, z 16..22; the one goods-in lobby (with the mantrap and the return-air plenum
+ * over its slab; J17 G4.1-G4.2) x -4..14 along the south; the battery room, the colonnade corridor (C4's near door) and the UPS room down the west side; the data
  * hall x -4..34, z 22..42 (five hot-aisle pods, the cage, the cable baskets at 4.4 over the cold aisles); the security room
  * and the NOC mezzanine (the one stair) x -4..8, z 42..48; the north corridor and the riser (the caged ladder to the basket
  * landing and the deck) x 8..34, z 42..48; the generator compound east; the plant deck on the roof.
@@ -56,19 +56,18 @@ export const S4_DOORS = {
   c3Far: [24, 16] as [number, number],
   /** C4's near door (the colonnade corridor's west wall; the S1 test asserts it). */
   c4Near: [-10, 29] as [number, number],
-  kpBatt: [-4, 17] as [number, number],
+  kpBatt: [-4, 18.5] as [number, number],
   kpDeck: [30.6, 45] as [number, number],
   pgCage: [18, 40] as [number, number],
   cageFront: [18, 34] as [number, number],
-  dockWest: [14, 17] as [number, number],
+  dockWest: [14, 17.5] as [number, number],
   dockEast: [34, 19] as [number, number],
   hallBatt: [-4, 25] as [number, number],
   hallCC: [-4, 29] as [number, number],
   hallUps: [-4, 38] as [number, number],
   hallEast: [34, 30] as [number, number],
-  mantrapOuter: [9, 20.5] as [number, number],
-  mantrapInner: [10.5, 22] as [number, number],
-  scLobby: [4, 18] as [number, number],
+  mantrapOuter: [8, 20.5] as [number, number],
+  mantrapInner: [9.5, 22] as [number, number],
   battCC: [-7, 27.8] as [number, number],
   ccUps: [-7, 30.2] as [number, number],
   secDoor: [2, 42] as [number, number],
@@ -99,8 +98,9 @@ export const S4_BOX = {
   racksTop: 2.2,
   podTop: 3.0,
   /** The cable baskets (tops 4.4): [x0, z0, x1, z1]. */
-  b1: [3.1, 24, 4.1, 40.8] as const,
-  b2: [8.7, 24, 9.7, 40.8] as const,
+  /** (G4.2 C10) B1 and B2 run on south to the hall wall (z 22.15) and end at the plenum grilles. */
+  b1: [3.1, 22.15, 4.1, 40.8] as const,
+  b2: [8.7, 22.15, 9.7, 40.8] as const,
   b3: [26.3, 24, 27.3, 40.8] as const,
   bN: [3.1, 40.8, 32.6, 41.8] as const,
   bCage: [17.5, 34.4, 18.5, 40.8] as const,
@@ -112,7 +112,8 @@ export const S4_BOX = {
   spareRack: [-1.0, 37.0, 4.0, 38.2] as const,
   crac: [24, 37, 32, 38.2] as const,
   buildOut: [-4, 33, 13.8, 42] as const,
-  batteryRacks: [[-9.4, 18.0, -8.4, 26.5], [-5.6, 18.0, -4.6, 23.5]] as const,
+  /** (G4.2 C11) 2.0 high, noLedge; the east row cut to z 21.0..23.5 (P1). */
+  batteryRacks: [[-9.4, 18.0, -8.4, 26.5], [-5.6, 21.0, -4.6, 23.5]] as const,
   upsCabinets: [-9.6, 32, -8.6, 46] as const,
   chillers: [[4, 31, 8, 33], [12, 31, 16, 33], [20, 31, 24, 33], [26, 31, 30, 33]] as const,
   generator: [36, 34, 39, 40] as const,
@@ -143,6 +144,24 @@ export const S4_COOP_LIPS: readonly CoopLip[] = [
     top: { x0: 3.1, x1: 4.1, z0: 32.4, z1: 35.6, top: 4.4 },
     boost: { floor: 0, x: 2.4, z: 34.0 },
     solo: 'as CR4',
+  },
+  // (G4.2, CR8, D:24) the return-air grilles' sills in the dock's west wall and the battery room's east wall (x = the wall
+  // face on the boost side: the dock wall P 0.2 at x 14, the hall wall T 0.3 at x -4), into the plenum over the lobby slab
+  {
+    id: 'CR8',
+    section: 3,
+    lip: { x: 14.1, z0: 19.5, z1: 21.0, y: 4.4, n: { x: 1, z: 0 } },
+    top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 },
+    boost: { floor: 0, x: 14.6, z: 20.2 },
+    solo: 'the plenum from baskets B1 / B2 (the riser ladder to the basket landing)',
+  },
+  {
+    id: 'CR8-west',
+    section: 3,
+    lip: { x: -4.15, z0: 19.5, z1: 21.0, y: 4.4, n: { x: -1, z: 0 } },
+    top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 },
+    boost: { floor: 0, x: -4.8, z: 20.2 },
+    solo: 'as CR8',
   },
 ];
 
@@ -179,6 +198,8 @@ export const S4_NAV_SEEDS: Vector3[] = [
   new Vector3(18, S4_BASKET, 41.3),
   new Vector3(32.2, S4_BASKET, 43.4),
   new Vector3(20, S4_DECK, 36),
+  // (G4.2) the return-air plenum (a player space: the 1.5 m grilles keep guards out, under the 1.7 headroom)
+  new Vector3(5, 3.2, 19),
 ];
 
 /** Where a carried body can be hidden: the battery room's SW corner, the UPS room's north end, the north corridor's east end, the compound's NE corner, the hall's NW corner. */
@@ -188,6 +209,8 @@ export const S4_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(29.6, 0, 47.2) },
   { pos: new Vector3(39.2, 0, 47.2) },
   { pos: new Vector3(-3.2, 0, 41.2) },
+  // (G4.1, D:90) the lobby alcove east of the mantrap
+  { pos: new Vector3(12.6, 0, 21.3) },
 ];
 
 /**
@@ -196,10 +219,11 @@ export const S4_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
  * (the K3 "colonnade lights" lure). The yard floods are on the dock's board (`S4_BOARDS`); the deck task lights have none.
  */
 export const S4_SWITCHES: NonNullable<MapLayout['switches']> = [
-  { pos: new Vector3(-1.4, 0, 17.85), yaw: PI, group: S4_GROUPS.cold1 },
-  { pos: new Vector3(-1.0, 0, 17.85), yaw: PI, group: S4_GROUPS.cold2 },
-  { pos: new Vector3(-0.6, 0, 17.85), yaw: PI, group: S4_GROUPS.cold3 },
-  { pos: new Vector3(4.8, 0, 18.15), yaw: 0, group: S4_GROUPS.lobby },
+  // (G4.1, D:20) the hall panel on the shell south wall's inner face, the lobby switch by the dock door
+  { pos: new Vector3(-1.4, 0, 16.15), yaw: 0, group: S4_GROUPS.cold1 },
+  { pos: new Vector3(-1.0, 0, 16.15), yaw: 0, group: S4_GROUPS.cold2 },
+  { pos: new Vector3(-0.6, 0, 16.15), yaw: 0, group: S4_GROUPS.cold3 },
+  { pos: new Vector3(13.85, 0, 18.6), yaw: -PI / 2, group: S4_GROUPS.lobby },
   { pos: new Vector3(14.15, 0, 18.8), yaw: PI / 2, group: S4_GROUPS.dock },
   { pos: new Vector3(6.0, S4_NOC, 47.85), yaw: PI, group: S4_GROUPS.noc },
   { pos: new Vector3(2.8, 0, 42.15), yaw: 0, group: S4_GROUPS.sec },
@@ -209,11 +233,12 @@ export const S4_SWITCHES: NonNullable<MapLayout['switches']> = [
 /** Section 4's rooms (HUD tags; no squads). Stacked rooms carry their storey (`minY` / `maxY`); none overlap (the lobby and hall are cut round the mantrap and the cage). */
 export const S4_ROOMS: RoomDef[] = [
   { id: 's4-dock', name: 'Loading Dock', minX: 14, maxX: 34, minZ: 16, maxZ: 22, maxY: 7.2 },
-  { id: 's4-sc', name: 'Service Corridor', minX: -4, maxX: 14, minZ: 16, maxZ: 18, maxY: 7.2 },
-  { id: 's4-lobby', name: 'Hall Lobby', minX: -4, maxX: 9, minZ: 18, maxZ: 22, maxY: 7.2 },
-  { id: 's4-lobby-b', name: 'Hall Lobby', minX: 9, maxX: 12, minZ: 18, maxZ: 19, maxY: 7.2 },
-  { id: 's4-lobby-c', name: 'Hall Lobby', minX: 12, maxX: 14, minZ: 18, maxZ: 22, maxY: 7.2 },
-  { id: 's4-mantrap', name: 'Mantrap', minX: 9, maxX: 12, minZ: 19, maxZ: 22, maxY: 7.2 },
+  // (G4.1, C1 / C2) the one goods-in lobby (cut round the mantrap), the mantrap, the return-air plenum over the lobby slab
+  { id: 's4-lobby', name: 'Goods-in Lobby', minX: -4, maxX: 8, minZ: 16, maxZ: 22, maxY: 3.1 },
+  { id: 's4-lobby-e', name: 'Goods-in Lobby', minX: 8, maxX: 14, minZ: 16, maxZ: 19, maxY: 3.1 },
+  { id: 's4-lobby-a', name: 'Goods-in Lobby', minX: 11, maxX: 14, minZ: 19, maxZ: 22, maxY: 3.1 },
+  { id: 's4-mantrap', name: 'Mantrap', minX: 8, maxX: 11, minZ: 19, maxZ: 22, maxY: 3.1 },
+  { id: 's4-plenum', name: 'Return-air Plenum', minX: -4, maxX: 14, minZ: 16, maxZ: 22, minY: 3.1, maxY: 7.2 },
   { id: 's4-batt', name: 'Battery Room', minX: -10, maxX: -4, minZ: 16, maxZ: 27.8, maxY: 7.2 },
   { id: 's4-cc', name: 'Colonnade Corridor', minX: -10, maxX: -4, minZ: 27.8, maxZ: 30.2, maxY: 7.2 },
   { id: 's4-ups', name: 'UPS Room', minX: -10, maxX: -4, minZ: 30.2, maxZ: 48, maxY: 7.2 },
@@ -230,19 +255,63 @@ export const S4_ROOMS: RoomDef[] = [
   { id: 's4-deck', name: 'Plant Deck', minX: -10, maxX: 34, minZ: 16, maxZ: 48, minY: 7.2 },
 ].map((r) => ({ ...r, squad: [] }));
 
-/** A visible lamp fitting (the glowing box), a real registry light. */
-function lamp(b: LevelBuilder, x: number, y: number, z: number, o: { r: number; i: number; group: number; cone?: ReturnType<typeof makeCone> | null; w?: number }): void {
-  const w = o.w ?? 0.5;
+/** One S4 lamp fitting (`S4_LIGHTS`): position, pool radius, intensity, circuit, an optional downward cone, the fixture width and colour. */
+export interface S4Lamp {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  i: number;
+  group: number;
+  cone?: LightCone | null;
+  w?: number;
+  /** Default `WHITE`. */
+  color?: readonly [number, number, number];
+}
+
+const DOWN = makeCone(0, -1, 0, 1.15);
+
+// PROVISIONAL - light-realism (J10) retunes these values (AS/NZS 1680 / 1158 bands). TODO(light-realism): replace with calibrated values.
+/**
+ * (campus-greybox G4.1, job BRIEF A19) Every lamp of section 4, in named lists; `buildCampusS4` draws every lamp from this
+ * block and from nowhere else. The as-built lamps (the first twelve lists, `campusS4.ts` as built) keep their position,
+ * radius, intensity and group; the plan's removals and dims are not built (Q2 "Never"); the plan's lamps with a job of
+ * their own are added after them.
+ */
+export const S4_LIGHTS = {
+  // ---- as built (B:494-505)
+  cold1: [[3.6, 25], [3.6, 29], [9.2, 25], [9.2, 29], [-2.5, 26], [-2.5, 34]].map(([x, z]) => ({ x: x!, y: 3.6, z: z!, r: 4.5, i: 0.8, group: S4_GROUPS.cold1, cone: DOWN })),
+  cold2: [25, 29.5, 33.0].map((z) => ({ x: 18, y: 3.6, z, r: 5, i: 0.8, group: S4_GROUPS.cold2, cone: DOWN })),
+  cage: [{ x: 18, y: 2.8, z: 37, r: 5, i: 0.8, group: S4_GROUPS.cold2, cone: DOWN }],
+  cold3: [[26.8, 25], [26.8, 29], [32.7, 26], [32.7, 34]].map(([x, z]) => ({ x: x!, y: 3.6, z: z!, r: 4.5, i: 0.8, group: S4_GROUPS.cold3, cone: DOWN })),
+  lobby: [{ x: 5, y: 2.8, z: 20, r: 5, i: 0.8, group: S4_GROUPS.lobby, cone: DOWN }],
+  dockFloods: [20, 29].map((x) => ({ x, y: 6.0, z: 19, r: 8, i: 0.9, group: S4_GROUPS.dock, w: 0.6 })),
+  yardFloods: [24, 40].map((z) => ({ x: 35.35, y: 6.0, z, r: 9, i: 0.9, group: S4_GROUPS.yard, w: 0.6 })),
+  noc: [0, 5].map((x) => ({ x, y: 6.4, z: 45, r: 6, i: 0.8, group: S4_GROUPS.noc, w: 0.5 })),
+  sec: [0, 5].map((x) => ({ x, y: 3.1, z: 44.5, r: 5, i: 0.8, group: S4_GROUPS.sec, w: 0.5 })),
+  ups: [34, 41].map((z) => ({ x: -7, y: 3.4, z, r: 5, i: 0.7, group: S4_GROUPS.ups, cone: DOWN })),
+  cc: [{ x: -7, y: 2.8, z: 29, r: 5, i: 0.7, group: S4_GROUPS.ups, cone: DOWN }],
+  deckTask: [6, 14, 22, 28].map((x) => ({ x, y: 8.8, z: 34.2, r: 3.5, i: 0.7, group: S4_GROUPS.deck, w: 0.5 })),
+  // ---- added (G4.1): the two lobby lamps (C5, D:20; r = 1.5 x 2.8), the mantrap fitting (0.5 rule 4, derived: the centre of
+  // the 3 x 3 under its 3.0 lid), the dock board lamp (D:22, the board reads lit, BT:99)
+  lobbyN: [2.0, 6.5].map((x) => ({ x, y: 2.8, z: 21.2, r: 4.2, i: 0.8, group: S4_GROUPS.lobby, cone: makeCone(0, -1, 0, 1.15), w: 0.4 })),
+  mantrap: [{ x: 9.5, y: 2.9, z: 20.5, r: 3, i: 0.8, group: S4_GROUPS.lobby, cone: DOWN, w: 0.3 }],
+  dockBoard: [{ x: 16, y: 2.4, z: 21.5, r: 3.6, i: 0.8, group: S4_GROUPS.dock, cone: DOWN, w: 0.3 }],
+} satisfies Record<string, readonly S4Lamp[]>;
+
+/** A visible lamp fitting (the glowing box), a real registry light, from an `S4_LIGHTS` entry. */
+function lamp(b: LevelBuilder, l: S4Lamp): void {
+  const w = l.w ?? 0.5;
   b.light({
-    kind: o.cone ? 'spot' : 'lamp',
-    x,
-    y,
-    z,
-    radius: o.r,
-    intensity: o.i,
-    color: WHITE,
-    cone: o.cone ?? null,
-    group: o.group,
+    kind: l.cone ? 'spot' : 'lamp',
+    x: l.x,
+    y: l.y,
+    z: l.z,
+    radius: l.r,
+    intensity: l.i,
+    color: [...(l.color ?? WHITE)] as [number, number, number],
+    cone: l.cone ?? null,
+    group: l.group,
     on: true,
     destructible: true,
     electric: true,
@@ -359,32 +428,41 @@ export function buildCampusS4(b: LevelBuilder): void {
   bx(b, hx1, 34, R, D, hz0, hz1, ROOF, { overhead: true, noLedge: true });
   bx(b, -10, 34, R, D, hz1, 48, ROOF, { overhead: true, noLedge: true });
 
-  // ---- the dock (x 14..34, z 16..22): west wall with the service corridor door, two crate stacks, the roller door's dressing
-  wall(b, false, 14, 16, 22, 0, R, [doorHole(17, 0)], P);
+  // ---- the dock (x 14..34, z 16..22): west wall with the goods door into the lobby, two crate stacks, the roller door's dressing
+  // (G4.2 C9, D:24) the return-air grille 1.5 x 1.5 at y 4.4..5.9 into the plenum (z 19.5..21.0)
+  wall(b, false, 14, 16, 22, 0, R, [doorHole(17.5, 0), [19.5, 21.0, 4.4, 5.9]], P);
   bx(b, 17.4, 18.6, 0, 1.0, 20.4, 21.2, CRATE);
   bx(b, 19.9, 21.1, 0, 1.0, 20.4, 21.2, CRATE);
   b.box(30, 1.4, 16.2, 4, 2.8, 0.1, WALL_DARK, 0, 0, false);
-  doorAt(b, false, 14, 17, 0, 1);
+  doorAt(b, false, 14, 17.5, 0, 1); // (G4.1, C6) dockWest 1.5 m off the corner
 
-  // ---- the hall's south wall (z 22, x -4..34): the mantrap's inner door; the service corridor / lobby partition z 18
-  wall(b, true, 22, -4, 34.15, 0, R, [doorHole(10.5, 0)]);
-  doorAt(b, true, 22, 10.5, 0, 1, { breachable: false, armoured: true }); // (E10) arm-mantrap: bulletproof, no round through it
-  wall(b, true, 18, -4, 14, 0, R, [doorHole(4, 0)], P);
-  doorAt(b, true, 18, 4, 0, 1);
-  // the service corridor and lobby ceilings (3.0-3.2, overhead): 3.8 m of dead air over each
-  slab(b, -4, 14, 16, 18, 3.2);
-  slab(b, -4, 14, 18, 22, 3.2);
-  // the mantrap (x 9..12, z 19..22): walls 3.0, a lid, the outer door west, the inner door north (breachable false: armoured)
-  wall(b, true, 19, 9, 12, 0, 3.0, [], P);
-  wall(b, false, 12, 19, 22, 0, 3.0, [], P);
-  wall(b, false, 9, 19, 22, 0, 3.0, [doorHole(20.5, 0)], P);
-  doorAt(b, false, 9, 20.5, 0, -1, { breachable: false });
-  bx(b, 9, 12, 3.0, 3.1, 19, 22, SLAB, { overhead: true, noLedge: true });
-  bx(b, 5.2, 6.8, 0, 0.75, 20.6, 21.4, DESK);
+  // ---- the hall's south wall (z 22, x -4..34): the mantrap's inner door (G4.1 C2: 1 m west, x 9.5)
+  // (G4.2 C9, D:24) the hall grilles 1.2 x 1.5 at y 4.4..5.9 where baskets B1 / B2 end (noLedge: a walk-through from the baskets)
+  wall(b, true, 22, -4, 34.15, 0, R, [doorHole(9.5, 0), [3.0, 4.2, 4.4, 5.9], [8.6, 9.8, 4.4, 5.9]]);
+  doorAt(b, true, 22, 9.5, 0, 1, { breachable: false, armoured: true }); // (E10) arm-mantrap: bulletproof, no round through it
+  // (G4.1 C1, D:16) one goods-in lobby x -4..14, z 16..22 (the z 18 partition and the scLobby door gone); one ceiling slab
+  // (3.0-3.2, overhead) with the return-air plenum over it; (G4.2 C9, D:24) cut round the 1.2 x 1.2 ceiling hatch at
+  // (-2.0, 17.0), x -2.6..-1.4, z 16.4..17.6 (an open hole; its cover is dress, as S1 A3)
+  slab(b, -4, 14, 16, 16.4, 3.2);
+  slab(b, -4, 14, 17.6, 22, 3.2);
+  slab(b, -4, -2.6, 16.4, 17.6, 3.2);
+  slab(b, -1.4, 14, 16.4, 17.6, 3.2);
+  // (G4.1 C2, D:17) the mantrap x 8..11, z 19..22: walls 3.0, a lid, the outer door west (into the lobby), the inner door
+  // north (breachable false: armoured); the east 3 x 3 (x 11..14, z 19..22) is an open trolley alcove
+  wall(b, true, 19, 8, 11, 0, 3.0, [], P);
+  wall(b, false, 11, 19, 22, 0, 3.0, [], P);
+  wall(b, false, 8, 19, 22, 0, 3.0, [doorHole(20.5, 0)], P);
+  doorAt(b, false, 8, 20.5, 0, -1, { breachable: false });
+  bx(b, 8, 11, 3.0, 3.1, 19, 22, SLAB, { overhead: true, noLedge: true });
+  // (G4.1 C3, D:18) the mantrap desk
+  bx(b, 0.5, 2.1, 0, 0.75, 20.6, 21.4, DESK);
+  // (G4.1 C4, D:19) three 1.2 m parcel cages: low cover along the goods lane (not noLedge)
+  for (const [x0, x1] of [[2.0, 3.2], [7.0, 8.2], [11.5, 12.7]] as const) bx(b, x0, x1, 0, 1.2, 18.0, 18.8, CRATE);
 
   // ---- the west side: the hall's west wall (x -4, doors to the service corridor, the battery room, the colonnade, the UPS room)
-  wall(b, false, -4, 15.85, 48.15, 0, R, [doorHole(17, 0), doorHole(25, 0), doorHole(29, 0), doorHole(38, 0)]);
-  doorAt(b, false, -4, 17, 0, 1);
+  // (G4.2 C9, D:24) the return-air grille 1.5 x 1.5 at y 4.4..5.9 (z 19.5..21.0) from the battery room into the plenum
+  wall(b, false, -4, 15.85, 48.15, 0, R, [doorHole(18.5, 0), [19.5, 21.0, 4.4, 5.9], doorHole(25, 0), doorHole(29, 0), doorHole(38, 0)]);
+  doorAt(b, false, -4, 18.5, 0, 1); // (G4.1, C6) kpBatt 1.5 m off the corner
   doorAt(b, false, -4, 25, 0, -1);
   doorAt(b, false, -4, 29, 0, -1);
   doorAt(b, false, -4, 38, 0, -1);
@@ -393,7 +471,14 @@ export function buildCampusS4(b: LevelBuilder): void {
   wall(b, true, 30.2, -10, -4, 0, R, [doorHole(-7, 0)], P);
   doorAt(b, true, 27.8, -7, 0, 1);
   doorAt(b, true, 30.2, -7, 0, 1);
-  for (const [x0, z0, x1, z1] of S4_BOX.batteryRacks) bx(b, x0, x1, 0, 1.2, z0, z1, RACK);
+  // (G4.2 C11, D:26) the battery racks 2.0 high, noLedge (CR8-west rules 2-3)
+  for (const [x0, z0, x1, z1] of S4_BOX.batteryRacks) bx(b, x0, x1, 0, 2.0, z0, z1, RACK, { noLedge: true });
+  // (G4.2 CR8, D:24) the sill strips under the two side grilles (y 0..4.4, z 19.5..21.0) lose noLedge: a lip at 4.4 on both faces
+  for (const x of [14, -4]) {
+    const sill = b.boxes.find((q) => Math.abs(q.c[0] - x) < 1e-6 && Math.abs(q.c[2] - 20.25) < 1e-6 && Math.abs(q.s[2] - 1.5) < 1e-6 && Math.abs(q.c[1] - 2.2) < 1e-6 && Math.abs(q.s[1] - 4.4) < 1e-6);
+    if (!sill) throw new Error(`campus S4: the CR8 sill strip at x ${x} is not found`);
+    delete sill.noLedge;
+  }
   const [ux0, uz0, ux1, uz1] = S4_BOX.upsCabinets;
   bx(b, ux0, ux1, 0, 2.0, uz0, uz1, RACK, { noLedge: true });
 
@@ -487,22 +572,9 @@ export function buildCampusS4(b: LevelBuilder): void {
     for (const [x, z] of [[l.x1, l.z1], [l.x2, l.z2]] as const) b.box(x, l.floorY! + top / 2, z, 0.12, top, 0.12, '#3a3d40', 0, 0, false);
   }
 
-  // ---- lamps. Lit: the cold aisles (under the baskets), the cage, the lobby, the dock floods, the yard floods, the NOC, the
-  // security room, the UPS / colonnade lamps, the deck task lights. Dark by reason: the battery room, the service corridor, the
-  // north corridor, the riser, the hot aisles, the build-out area, the baskets (above the cones), the compound's north end.
-  const down = makeCone(0, -1, 0, 1.15);
-  for (const [x, z] of [[3.6, 25], [3.6, 29], [9.2, 25], [9.2, 29], [-2.5, 26], [-2.5, 34]] as const) lamp(b, x, 3.6, z, { r: 4.5, i: 0.8, group: S4_GROUPS.cold1, cone: down });
-  for (const z of [25, 29.5, 33.0]) lamp(b, 18, 3.6, z, { r: 5, i: 0.8, group: S4_GROUPS.cold2, cone: down });
-  lamp(b, 18, 2.8, 37, { r: 5, i: 0.8, group: S4_GROUPS.cold2, cone: down });
-  for (const [x, z] of [[26.8, 25], [26.8, 29], [32.7, 26], [32.7, 34]] as const) lamp(b, x, 3.6, z, { r: 4.5, i: 0.8, group: S4_GROUPS.cold3, cone: down });
-  lamp(b, 5, 2.8, 20, { r: 5, i: 0.8, group: S4_GROUPS.lobby, cone: down });
-  for (const x of [20, 29]) lamp(b, x, 6.0, 19, { r: 8, i: 0.9, group: S4_GROUPS.dock, w: 0.6 });
-  for (const z of [24, 40]) lamp(b, 35.35, 6.0, z, { r: 9, i: 0.9, group: S4_GROUPS.yard, w: 0.6 });
-  for (const x of [0, 5]) lamp(b, x, 6.4, 45, { r: 6, i: 0.8, group: S4_GROUPS.noc, w: 0.5 });
-  for (const x of [0, 5]) lamp(b, x, 3.1, 44.5, { r: 5, i: 0.8, group: S4_GROUPS.sec, w: 0.5 });
-  for (const z of [34, 41]) lamp(b, -7, 3.4, z, { r: 5, i: 0.7, group: S4_GROUPS.ups, cone: down });
-  lamp(b, -7, 2.8, 29, { r: 5, i: 0.7, group: S4_GROUPS.ups, cone: down });
-  for (const x of [6, 14, 22, 28]) lamp(b, x, 8.8, 34.2, { r: 3.5, i: 0.7, group: S4_GROUPS.deck, w: 0.5 });
+  // ---- lamps: every one from `S4_LIGHTS` (job BRIEF A19). Dark by reason (no fitting): the plenum, the baskets and the
+  // space above the pods; the hot aisles are behind the pod roofs.
+  for (const list of Object.values(S4_LIGHTS)) for (const l of list) lamp(b, l);
 
   // ---- ambient: the section at the standby fill 0.14 (true dark with a circuit cut); C3 and C4 keep their 0.30
   b.ambientZone(-10, 40, 16, 48, 0.14, -1, 9.5);
