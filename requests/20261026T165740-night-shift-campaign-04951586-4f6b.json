@@ -1,0 +1,15 @@
+{
+  "id": "20261026T165740-night-shift-campaign-04951586-4f6b",
+  "sha": "0495158669dbb3ff0813d4b7630109c2dd8fa9a3",
+  "branch": "",
+  "pr": 631,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-piano",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "piano-s4",
+  "fix": true
+}
