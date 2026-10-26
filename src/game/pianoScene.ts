@@ -692,6 +692,10 @@ export class PianoScene {
       searches: this.searches,
       searched: this.searched,
       revealing: this.view?.revealing ?? false,
+      // (S4) the co-op client's scene, the knife switch, the end's fade
+      client: !!this.world?.askEmp,
+      knife: this.knifeOn,
+      finished: this.finished,
     };
   }
 
