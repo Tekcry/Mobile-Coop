@@ -10,7 +10,7 @@ import { validateCourse, type BayDef, type CourseDef, type CourseKnownIds, type 
 import { CourseState, kitMoveOn as kitMoveOnState, REFUSE_KIT_HELD } from '../src/game/course/courseState';
 import { kitMoveOn, type StationDef } from '../src/game/course/stationDef';
 import { flags } from '../src/core/flags';
-import { CourseMode, courseStationParam, inTickZone, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
+import { CourseMode, courseStationParam, inTickZone, mirrorKitRetry, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
 import { REPLAN_TICKS, type StationHooks, type StationTick } from '../src/game/course/replan/ticks';
 import { RESTART_DELAY } from '../src/config/course';
 import { parseMessage } from '../src/net/protocol';
@@ -865,6 +865,22 @@ describe('kit stations (marlow-kit-wire)', () => {
     }
     on();
     for (const o of KINDS) expect(kitMoveOn(o)).toBe(false);
+  });
+
+  it('the client resets its kit on a new retry of a kit station whose move is on (mirrorKitRetry), and only then', () => {
+    const defs: Record<number, Partial<StationDef>> = { 2: { kit: 'plankBridge' }, 3: {} };
+    const st = (restarts: number, n: number | null) => ({
+      restarts,
+      lastRetry: n === null ? null : { st: n, cause: 'seen' as const },
+      stationDef: (k: number) => (defs[k] as StationDef | undefined) ?? null,
+    });
+    on('plankBridge');
+    expect(mirrorKitRetry(st(1, 2), 0)).toBe(true);
+    expect(mirrorKitRetry(st(1, 2), 1)).toBe(false); // the same retry again: no new one
+    expect(mirrorKitRetry(st(2, 3), 1)).toBe(false); // a station with no kit
+    expect(mirrorKitRetry(st(1, null), 0)).toBe(false); // a bay restart: no last retry
+    on();
+    expect(mirrorKitRetry(st(1, 2), 0)).toBe(false); // the move off: the stand-in station, nothing to reset
   });
 
   it('kit on: the stand-in stays shut as its station goes live and through a retry; kit off: it opens and is kept', () => {

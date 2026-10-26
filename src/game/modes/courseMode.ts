@@ -1287,7 +1287,7 @@ export class CourseMode implements GameMode {
     const g = this.g;
     g.grenades.clear();
     g.gadgets.clearWorld();
-    // (marlow-kit-wire, A8) the kit move in flight ends and its devices go back (host; the client's own reset is Player's)
+    // (marlow-kit-wire, A8) the kit move in flight ends and its devices go back (host; the client's: `mirrorApply`)
     if (def.kit !== undefined && kitMoveOn(def.kit)) g.team?.resetKit();
     this.ct?.repair(-1);
     this.ct?.holdZones(2);
@@ -1902,6 +1902,15 @@ function mirrorRating(g: GameState, m: ClientCourse, rt: SectorRatingWire | unde
   m.card.show(c, ids === 1 ? name : undefined);
 }
 
+/** (marlow-kit-wire, A8) Client: did the state just applied carry a new station retry on a station whose kit move is on
+ *  (`restarts` past `before`, the last retry's station has `kit` and `kitMoveOn`)? Then the client resets its kit. */
+export function mirrorKitRetry(st: Pick<CourseState, 'restarts' | 'lastRetry' | 'stationDef'>, before: number): boolean {
+  const lr = st.lastRetry;
+  if (!lr || st.restarts <= before) return false;
+  const def = st.stationDef(lr.st);
+  return def?.kit !== undefined && kitMoveOn(def.kit);
+}
+
 /** Client: mirror the packed state; a drill newly done shows the toast (both players' drills). */
 function mirrorApply(g: GameState, w: CourseWire): void {
   const m = mirrorOf(g);
@@ -1912,9 +1921,12 @@ function mirrorApply(g: GameState, w: CourseWire): void {
   m.radioN = rln;
   const st = m.st;
   const bayBefore = st.bay;
+  const restartsBefore = st.restarts;
   const first = m.startBay < 0;
   st.apply(w.s);
   if (first) m.startBay = w.s.bay;
+  // (marlow-kit-wire, A8) a station retry on a kit station: the client's own kit move ends and its devices go back too
+  if (!first && mirrorKitRetry(st, restartsBefore)) g.team?.resetKit();
   const drills = st.currentBay.drills;
   if (st.bay !== bayBefore || first) {
     m.open.length = 0;
