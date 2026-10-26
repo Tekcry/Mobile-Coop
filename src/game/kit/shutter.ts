@@ -21,8 +21,8 @@
  * under it (`stepShutter` floor) and the crawler is pushed clear to the nearer side (`pushTarget`).
  *
  * Guards: `ShutterDevice.visible` (open past `SHUTTER.visibleFrac` of its hold gap, the doors' `DOOR.driveShut` rule),
- * `opens` / `openFor` and `shutterNoticePoint` are what the open-door notice reads (`stealthSystems.noticeOpenDoors`);
- * the Guard AI hook is listed in the KIT-SHUT report (not wired here).
+ * `opens` / `noticed` and `shutterNoticePoint` are what the held-shutter notice reads (`shutterNoticedBy`, called from
+ * `stealthSystems.noticeOpenShutters`, J9 S2); the opening is shut on the guards' nav grid (`shutterDoor.ts`, J9 S1).
  *
  * Numbers are Night Shift's own starting values (the move is not in CT; PLAN 4a gives the 0.9 m gap).
  */
@@ -83,6 +83,9 @@ export const SHUTTER = {
 /** (Guard AI hook) The open-door notice's numbers, as `stealthSystems.ts` DOOR_NOTICE_RANGE / DOOR_NOTICE_COS. */
 export const SHUTTER_NOTICE = { range: 9, cos: 0.2 } as const;
 
+/** (J9 S1 polish) After a section restart a mate's hold is ignored this long (s): their MoveState says holding until the banner reaches them. */
+export const SHUTTER_RESET_HOLDOFF_S = 0.5;
+
 export type ShutterPhase = 'closed' | 'lifting' | 'held' | 'dropping';
 
 /** A shutter in the level (map data, `shutterDoor.ts` `placeShutter`). */
@@ -115,6 +118,10 @@ export interface ShutterDevice extends KitDevice {
   openFor: number;
   /** Bumped each time it becomes visibly open (a perception key: a new opening to notice). */
   opens: number;
+  /** The `opens` count a guard last noticed; -1 none (J9 S2, A18). */
+  noticed: number;
+  /** (J9 S1 polish) Seconds a section restart still keeps it shut against a mate's hold (`SHUTTER_RESET_HOLDOFF_S`; 0 none). */
+  holdOff: number;
 }
 
 /** `ShutterDevice.user` for the local player (a mate's is their id). */
@@ -158,6 +165,8 @@ export function newShutterDevice(s: ShutterSpec): ShutterDevice {
     visible: false,
     openFor: 0,
     opens: 0,
+    noticed: -1,
+    holdOff: 0,
   };
 }
 
@@ -290,6 +299,43 @@ export function shutterNoticePoint(d: ShutterDevice, out: { x: number; y: number
   return out;
 }
 
+/** (J9 S2) Scratch for `shutterNoticedBy` (no allocation per call). */
+const NOTICE_AT = { x: 0, y: 0, z: 0 };
+
+/**
+ * (J9 S2, A18, G41) A guard at (`ex`, `ey`, `ez`) facing `yaw` notices this shutter held open: it is visibly open, he is
+ * within `SHUTTER_NOTICE.range` (plan) of its notice point, on the same storey (within 1.5 m of its floor, as the door
+ * notice) and facing it (the door notice's facing rule, `stealthSystems.noticeOpenDoors`). The sight line is the
+ * caller's. Pure; no allocation.
+ */
+export function shutterNoticedBy(d: ShutterDevice, ex: number, ey: number, ez: number, yaw: number): boolean {
+  if (!d.visible) return false;
+  const p = shutterNoticePoint(d, NOTICE_AT);
+  const dx = p.x - ex;
+  const dz = p.z - ez;
+  const dist = hyp2(dx, dz);
+  if (dist > SHUTTER_NOTICE.range || Math.abs(d.y - ey) > 1.5) return false;
+  return dist <= 0.5 || (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / dist >= SHUTTER_NOTICE.cos;
+}
+
+/**
+ * A section restart puts the shutter back (J8-J9 A27); S1's `TeamController.resetKit` calls it and ends the team move's
+ * own run. Drops shut at once (no drop run), nobody at the bar, not visible, and the guards' notice mark cleared; `opens`
+ * is kept (the next opening is still a new one). (J9 S1 polish) For `SHUTTER_RESET_HOLDOFF_S` after it `syncShutters`
+ * ignores a mate's hold: their MoveState still says holding until the restart banner reaches them, which lifted the
+ * shutter again for a network trip and dropped it over `dropTime` in front of the fresh guards.
+ */
+export function resetShutter(d: ShutterDevice): void {
+  d.open = 0;
+  d.phase = 'closed';
+  d.rate = 0;
+  d.user = '';
+  d.visible = false;
+  d.openFor = 0;
+  d.noticed = -1;
+  d.holdOff = SHUTTER_RESET_HOLDOFF_S;
+}
+
 /** The holder's choice on a release: 'hold' (none asked), 'wait' (asked, someone is under or crawling: the drop
  *  waits), 'drop' (asked and clear, or forced: the partner is pushed clear). */
 export function holderRelease(asked: boolean, forced: boolean, partnerUnder: boolean): 'hold' | 'wait' | 'drop' {
@@ -414,7 +460,8 @@ function dropFloor(h: KitHost, d: ShutterDevice, loc: ShutterLocal): number {
 /**
  * Every shutter on this page, each fixed step (`SHUTTER_MOVE.tick`: whatever the state, alive or not; no holder
  * MoveState, e.g. a holder who disconnected mid-hold, = it drops): ours (the local holder's) is stepped by `step`; a
- * mate holding one is followed from their `s`; one nobody holds any more drops (no crush). Allocation-free.
+ * mate holding one is followed from their `s`, except inside a restart's hold-off (`holdOff`, counted down here on the
+ * fixed step); one nobody holds any more drops (no crush). Allocation-free.
  */
 export function syncShutters(h: KitHost, run: ShutterRun, dt: number): void {
   const list = h.devices.list;
@@ -423,9 +470,12 @@ export function syncShutters(h: KitHost, run: ShutterRun, dt: number): void {
     const d0 = list[i]!;
     if (!isShutterDevice(d0)) continue;
     const d = d0;
+    // (J9 S1 polish) the restart's hold-off counts down on every shutter (ours too: a local re-grab does not stall it)
+    if (d.holdOff > 0) d.holdOff = Math.max(0, d.holdOff - dt);
     if (d === run.dev && isHolder(h.state)) continue;
     let holder: TeamMate | null = null;
-    for (let j = 0; j < ms.length; j++) {
+    // (inside the hold-off a mate's hold is the stale one from before the restart: ignored, the shutter stays shut)
+    for (let j = 0; j < ms.length && d.holdOff <= 0; j++) {
       const m = ms[j]!;
       if (holdingShutter(m) && Math.abs(m.pos.y - d.y) < 1 && hyp2(m.pos.x - d.x, m.pos.z - d.z) <= d.reach) {
         holder = m;

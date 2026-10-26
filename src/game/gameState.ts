@@ -791,8 +791,9 @@ export class GameState implements AppState {
       };
     }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
-    // host's door states (snapshots)
-    world.doors.arm();
+    // host's door states (snapshots); (J9 S1) the shutters too, their openings shut on the guards' grid (nav null on a
+    // client or in a sandbox)
+    world.armDoors(this.nav);
     if (world.layout.security && !this.puppet) {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
@@ -1081,6 +1082,8 @@ export class GameState implements AppState {
     this.weapons.restoreCheckpoint();
     this.grenades.clear();
     this.gadgets.clearWorld();
+    // (J9 S1, A27) the kit back: our shutter move ends, every shutter shut at once (the client too, on the banner)
+    this.team.resetKit();
     this.stealth?.resetForRestart();
     this.suppression.reset();
     this.evNoise = 0;
