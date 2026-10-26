@@ -120,6 +120,7 @@ import { parseAffectedMax } from '../e2e-affected.mjs';
 const AFFECTED_MAX = parseAffectedMax(process.env.E2E_AFFECTED_MAX);
 import { partsTable, slowLines, slowRecord, slowSummary } from './lib.mjs'; // laptop-queue-11 (F35, F36)
 import { laptopRerunFor } from './lib.mjs';
+import { ownQuarantine, ghRetryable, claimGated, claimSkip, claimSkipStatuses } from './lib.mjs'; // laptop-queue-14 (F46, F48, gh retry)
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -208,6 +209,14 @@ state.aloneDue ??= {}; // { id: ms } aged / preempted alone requests a hold kept
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
 let times = { ...seed, ...readJson('times.json', {}) };
+// laptop-queue-14 F48: the desktop forgives only the committed list; its old automatic entries go (lib ownQuarantine)
+if (DESKTOP) {
+  const left = readJson('quarantine.json', []);
+  if (Array.isArray(left) && left.length) {
+    writeJson('quarantine.json', []);
+    log(`quarantine: desktop automatic list dropped (${left.map((q) => q?.suite).join(', ')}): a desktop failure goes to the laptop rerun, the laptop's list applies`);
+  }
+}
 
 // ---------- git, gh ----------
 
@@ -221,7 +230,17 @@ function cmd(exe, args, { cwd = HERE, soft = false, input, env } = {}) {
   }
 }
 const git = (args, opts) => cmd('git', args, opts);
-const gh = (args, opts) => cmd('gh', args, opts);
+/** gh, retried once on a TLS handshake timeout (lib ghRetryable; nothing reached GitHub), soft as cmd. */
+function gh(args, opts = {}) {
+  try { return cmd('gh', args, { ...opts, soft: false }); } catch (e) {
+    if (ghRetryable(e)) {
+      log(`gh ${args.slice(0, 2).join(' ')}: TLS handshake timeout, retrying once`);
+      try { return cmd('gh', args, { ...opts, soft: false }); } catch (e2) { if (opts.soft) return ''; throw e2; }
+    }
+    if (opts.soft) return '';
+    throw e;
+  }
+}
 
 // laptop-queue-11 F36: a suite's parts come from the run's head (run-e2e PARTS differs by branch), never the times keys
 const partsMemo11 = new Map(); // sha -> the head's PARTS table, or the fallback when git could not read it
@@ -1167,9 +1186,9 @@ function updateBudget(result) {
     repo = { owners: j?.owners && typeof j.owners === 'object' ? j.owners : {}, quarantine: Array.isArray(j?.quarantine) ? j.quarantine : [] };
   } catch { /* no file or unreadable: nothing committed */ }
   const read = readJson('quarantine.json', []);
-  const own = (Array.isArray(read) ? read : []).filter((q) => Date.parse(q?.expiry) > now);
+  const own = ownQuarantine(read, now, DESKTOP); // F48: the desktop keeps no automatic list (lib ownQuarantine)
   const rows = flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts);
-  const added = autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
+  const added = DESKTOP ? [] : autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
   for (const q of added) state.quarantineStarts[q.suite] = new Date(now).toISOString();
   for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
   const quarantine = [...repo.quarantine, ...own, ...added];
@@ -1784,6 +1803,36 @@ function applyDuplicates(requests) {
  * push like applyDuplicates, and posts their error statuses (lib conflictStatuses). LQ_SKIP_CONFLICTING=0: none.
  * A lost push is retried next pass.
  */
+/**
+ * laptop-queue-14 F46 (two desktop slots burned 53 min on red-CI heads) + closed PRs: reads the request's PR fresh
+ * (gh pr view) just before the claim; a merged / closed PR, a sha no longer the PR head, or a failed CI `check` on it
+ * (lib claimSkip) withdraws it: a done claim, error statuses (lib claimSkipStatuses), a log line. true = withdrawn (or
+ * the done push failed: not claimed this pass). A GitHub error runs it.
+ */
+function skipAtClaim(r) {
+  if (!claimGated(r)) return false;
+  let pr = null;
+  try { pr = JSON.parse(gh(['pr', 'view', String(r.pr), '-R', REPO, '--json', 'state,headRefOid,statusCheckRollup']) || 'null'); } catch (e) { log(`${r.id}: PR #${r.pr} read failed (${String(e.message).split('\n')[0]}), runs`); return false; }
+  const why = claimSkip(r, pr);
+  if (!why) return false;
+  const statuses = claimSkipStatuses(r, why, pr?.headRefOid);
+  if (DRY) { log(`${r.id}: would be withdrawn at claim, ${statuses[0].description.replace(/^not run: /, '')}`); return true; }
+  // claim first (claimBlocks: another worker's live claim keeps it), then the done mark
+  const got = writeClaims([r.id], 'claim', `claim ${r.id} (to withdraw)`);
+  if (got === 'blocked') return true;
+  if (got !== true || writeClaims([r.id], 'done', `withdrawn ${r.id} (${why})`) !== true) {
+    if (got === true) writeClaims([r.id], 'release', `release ${r.id} (withdraw failed)`);
+    log(`${r.id}: withdraw push failed, retried next pass`);
+    return true;
+  }
+  log(`${r.id}: withdrawn at claim, ${statuses[0].description.replace(/^not run: /, '')}`);
+  state.done[r.id] = { result: `withdrawn-${why}`, date: new Date().toISOString(), key: dupKey(r) };
+  doneSynced.add(r.id);
+  saveState();
+  for (const s of statuses) postStatus(s.sha, s.state, s.context, s.description);
+  return true;
+}
+
 function applyConflicts(requests) {
   if (!SKIP_CONFLICTING) return requests;
   const ids = conflictRetire(requests, board);
@@ -1977,6 +2026,7 @@ async function pass() {
       if (writeClaims([p.train.sha], 'claim', `claim train ${p.train.n}`) !== true) continue;
     } else {
       queue.requests = queue.requests.filter((r) => r !== p.request);
+      if (skipAtClaim(p.request)) continue; // laptop-queue-14 F46: red CI, stale sha or closed PR, withdrawn
       // the other worker may have taken it since the list was read: skip it this pass
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
       preemptedAlone.delete(p.request.id);
