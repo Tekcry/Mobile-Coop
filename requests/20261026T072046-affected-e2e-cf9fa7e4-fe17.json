@@ -1,0 +1,15 @@
+{
+  "id": "20261026T072046-affected-e2e-cf9fa7e4-fe17",
+  "sha": "cf9fa7e4f25ca84eeca139d998daa842c30e43b4",
+  "branch": "feature/mission-d-wharf",
+  "pr": 583,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #583"
+}
