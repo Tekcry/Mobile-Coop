@@ -1,10 +1,19 @@
 # mission-framework - STATE
 
 
-## FIRST: piano-escape (Michael ~19:40: main focus; Tallow below uses spare capacity only)
-Resume it from docs/piano-escape/STATE.md on origin/feature/piano-escape (worktree C:/NightShift/Mobile-Coop-piano-escape).
+## RESUME 2026-10-26 ~20:28 SAVE (Night Shift | Campaign Build)
+FIRST: piano-escape (Michael ~19:40: main focus): resume from docs/piano-escape/STATE.md on origin/feature/piano-escape
+(worktree C:/NightShift/Mobile-Coop-piano-escape). Tallow below uses spare capacity only (max 2 builders in all).
+Tallow, changes since the 19:35 block (which still holds for the rest):
+1. #522 (a) MERGED to master. #578 (b) retargeted to master ~20:27 (MERGEABLE); train-ready from the watchdog after
+   CI + affected-e2e on its head. Then #581 -> master after #578 lands, then #583.
+2. S4 done (cloud) origin/feature/tallow-s4 f9b97621e; G5 done (cloud) origin/feature/tallow-g5 481f40239 (G5-Q1 answer 1).
+   ONE Sonnet checker for both running -> C:/NightShift/scratch/campaign/tallow-s4-g5-check.md (missing at resume ->
+   rerun it). PASS -> merge both into feature/mission-d-wharf (#583), tsc + tests/tallowWharf, push, re-post checker;
+   replace the engine-copy docs/tallow-fixes/G5-plan.md + briefs/G5.md with the cloud-queue fixed copies in that merge.
+Next: piano first; then #578 train, S4 + G5 into (d).
 
-## RESUME 2026-10-26 ~19:35 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
+## OLD RESUME 2026-10-26 ~19:35 (Night Shift | Campaign Build, after the ~19:05 swap; read this block first)
 Process as in the 18:35 block below (prototype mode; bypass: the lead posts `checker`; low.mjs; junctions only to
 Mobile-Coop-menu/node_modules). Notes: scratch/campaign/lead-notes.md "Session after the 19:05 swap".
 The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retargets to master once the one below lands (A27):
