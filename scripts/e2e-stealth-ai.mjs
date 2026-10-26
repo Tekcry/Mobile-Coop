@@ -14,7 +14,9 @@ let failed = false;
 // suite (only the 'mission order' scenario places an order; with no order on the board every hook is a no-op)
 // (guard-ai-mission-hooks S3-f) and `areaalarms=1`: with no `setAreas` call the manager is J15's exactly (only the
 // 'area alarm' scenario sets areas, and clears them after)
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear&missionorders=1&areaalarms=1' });
+// (guard-ai-mission-hooks S4-d) and `noisezones=1`: the warehouse has no noisy data, so only the 'noise zone' scenario
+// (which sets a source and puts the map's back after) has any masking
+const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear&missionorders=1&areaalarms=1&noisezones=1' });
 const G = (f, a) => page.evaluate(f, a);
 try {
   await frames(page, 10);
@@ -3979,6 +3981,149 @@ try {
       assert(s(r.c.areas) === s([0, 1]) && s(r.c.before) === s([false, false, false, false]) && s(r.c.after) === s([true, true, false, false]) && r.c.stage === 2, `area alarm (c): setAreaStage(0, 2) gears only area 0's guard (${s(r.c)})`);
       assert(r.dArea === -1 && s(r.d1.seen) === s([-1]) && r.d1.guard === 1 && r.d1.raised && !r.d1.site, `area alarm (d): no areas, the alarm is the site's (J15) (${s(r.d1)}, area ${r.dArea})`);
       assert(r.d2Alerted && s(r.d2.seen) === s([-1]) && r.d2.guard === 1 && r.d2.all === 1, `area alarm (d): a second sighting raises nothing within 15 s (${s(r.d2)})`);
+    }
+  });
+
+  await scen('noise zone (guard-ai-mission-hooks S4)', async () => {
+    // (guard-ai-mission-hooks S4, D8, D9, A11; `?noisezones=1`) A power-linked noisy source on switch-4's circuit (the
+    // 'breaker' scenario's): it masks hearing while the circuit is on and stops on the next AI tick after the cut;
+    // `ambientAt` (the HUD meter's read) gives the guards' own masking and refreshes itself with no tick. (a) Live: 12 dB
+    // at the source, 0 at a control point C; a calm guard G 3 m from the source does not turn to a footstep 3 m off, H by
+    // C does. (b) Cut: the second of two reads with no step is 0; one tick and it is 0; a fresh G2 where G stood turns to
+    // the same footstep. (c) Restored: one tick and it reads 12 again. Sim-time steps only; Math.random seeded.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const nav = em.nav;
+      const reg = g.world.level.lights;
+      const rnd = Math.random;
+      let seed = 5454;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const sw = g.interactables.items.find((i) => i.id === 'switch-4');
+      const grp = g.world.layout.switches[4].group;
+      const out = {};
+      try {
+        t.light(0);
+        // the player far off, dark and crouched
+        const hide = [-22, -24];
+        t.tp(hide[0], hide[1], 0);
+        t.crouch(true);
+        // the 'dog release' floor check
+        const floor = (x, z) => {
+          const c = nav.cellOf(x, z, 0);
+          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        };
+        const lamps = reg.lights.filter((l) => l.group === grp && l.kind !== 'flashlight');
+        const farLamps = (x, z) => lamps.every((l) => Math.hypot(l.x - x, l.z - z) >= 12);
+        let cx = 0;
+        let cz = 0;
+        for (const l of lamps) {
+          cx += l.x / lamps.length;
+          cz += l.z / lamps.length;
+        }
+        // a listener 3 m from p on open floor with a straight line to it (no wall muffles the footstep at p)
+        const beside = (p, ok) => {
+          for (let a = 0; a < 8; a++) {
+            const x = p[0] + Math.sin((a / 8) * Math.PI * 2) * 3;
+            const z = p[1] + Math.cos((a / 8) * Math.PI * 2) * 3;
+            if (floor(x, z) && ok(x, z) && nav.lineClear(p, [x, z], 0, 0)) return [x, z];
+          }
+          return null;
+        };
+        // S on open floor 12+ m from the circuit's lamps (G too, so the dark fixtures are far off); C 15 m from S, its
+        // guard H 12+ m from S and G
+        let S = null;
+        let Gp = null;
+        let C = null;
+        let Hp = null;
+        for (let x = -40; x <= 40 && !C; x += 2) {
+          for (let z = -40; z <= 40 && !C; z += 2) {
+            if (!floor(x, z) || !farLamps(x, z) || Math.hypot(x - hide[0], z - hide[1]) < 12) continue;
+            const gp = beside([x, z], (gx, gz) => farLamps(gx, gz) && Math.hypot(gx - hide[0], gz - hide[1]) >= 12);
+            if (!gp) continue;
+            for (let a = 0; a < 16 && !C; a++) {
+              const qx = x + Math.sin((a / 16) * Math.PI * 2) * 15;
+              const qz = z + Math.cos((a / 16) * Math.PI * 2) * 15;
+              if (!floor(qx, qz) || Math.hypot(qx - hide[0], qz - hide[1]) < 12) continue;
+              const hp = beside([qx, qz], (hx, hz) => Math.hypot(hx - x, hz - z) >= 12 && Math.hypot(hx - gp[0], hz - gp[1]) >= 12 && Math.hypot(hx - hide[0], hz - hide[1]) >= 12);
+              if (!hp) continue;
+              S = [x, z];
+              Gp = gp;
+              C = [qx, qz];
+              Hp = hp;
+            }
+          }
+        }
+        out.pick = !!C;
+        if (!C) return out;
+        out.S = S;
+        out.C = C;
+        // facing away from the circuit's lamps
+        const away = (p) => Math.atan2(p[0] - cx, p[1] - cz);
+        em.setNoisy([{ id: 'e2e-gen', x: S[0], z: S[1], radius: 8, db: 12, group: grp }]);
+        t.step(0.1);
+        // ----- (a) live -----
+        out.aS = em.ambientAt(S[0], 0, S[1]);
+        out.aC = em.ambientAt(C[0], 0, C[1]);
+        const Gg = t.spawn('grunt', Gp[0], Gp[1], away(Gp));
+        const H = t.spawn('grunt', Hp[0], Hp[1], away(Hp));
+        t.step(0.5);
+        out.calm0 = [Gg, H].every((e) => !e.turning && e.level === 'unaware');
+        em.hear(new t.V(S[0], 0, S[1]), 4);
+        em.hear(new t.V(C[0], 0, C[1]), 4);
+        let gTurn = false;
+        let hTurn = false;
+        for (let k = 0; k < 3; k++) {
+          t.step(0.1);
+          if (Gg.turning || Gg.level !== 'unaware') gTurn = true;
+          if (H.turning || H.level !== 'unaware') hTurn = true;
+        }
+        Object.assign(out, { gTurn, hTurn });
+        // ----- (b) the circuit cut -----
+        em.despawn(Gg);
+        sw.onUse(sw, 'local');
+        out.off = !g.stealth.switchOn(grp) && em.breakers !== null && em.breakers.isOff(grp);
+        out.b1 = em.ambientAt(S[0], 0, S[1]);
+        out.b2 = em.ambientAt(S[0], 0, S[1]);
+        t.step(0.1);
+        out.b3 = em.ambientAt(S[0], 0, S[1]);
+        const G2 = t.spawn('grunt', Gp[0], Gp[1], away(Gp));
+        t.step(0.1);
+        out.g2Calm = !G2.turning && G2.level === 'unaware' && G2.incident === -1;
+        em.hear(new t.V(S[0], 0, S[1]), 4);
+        let g2Turn = false;
+        for (let k = 0; k < 3; k++) {
+          t.step(0.1);
+          if (G2.turning || G2.level !== 'unaware') g2Turn = true;
+        }
+        out.g2Turn = g2Turn;
+        // ----- (c) restored -----
+        sw.onUse(sw, 'local');
+        out.on = g.stealth.switchOn(grp);
+        t.step(0.1);
+        out.c1 = em.ambientAt(S[0], 0, S[1]);
+        return out;
+      } finally {
+        em.setNoisy(em.mapNoisy);
+        if (!g.stealth.switchOn(grp)) sw.onUse(sw, 'local');
+        t.light(null);
+        Math.random = rnd;
+      }
+    });
+    const s = (v) => JSON.stringify(v);
+    const f2 = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
+    assert(r.pick, 'noise zone: open floor for the source 12+ m from the circuit lamps, a control point 15 m off, a guard 3 m from each');
+    if (r.pick) {
+      console.log(`  noise zone: source ${s(r.S.map((v) => +v.toFixed(1)))}, control ${s(r.C.map((v) => +v.toFixed(1)))}`);
+      assert(Math.abs(r.aS - 12) <= 0.01 && r.aC === 0, `noise zone (a): ambientAt 12 dB at the live source, 0 at the control point (${f2(r.aS)}, ${f2(r.aC)})`);
+      assert(r.calm0, 'noise zone (a): both guards calm before the footsteps');
+      assert(r.hTurn && !r.gTurn, `noise zone (a): the guard by the control point turns to a footstep 3 m off, the one by the live source does not (H ${r.hTurn}, G ${r.gTurn})`);
+      assert(r.off, 'noise zone (b): switch-4 cuts the circuit');
+      assert(r.b2 === 0, `noise zone (b): with no AI tick the HUD read refreshes itself: the second read is 0 (${f2(r.b1)}, ${f2(r.b2)})`);
+      assert(r.b3 === 0, `noise zone (b): one tick after the cut the source is silent (${f2(r.b3)})`);
+      assert(r.g2Calm && r.g2Turn, `noise zone (b): a fresh guard where G stood turns to the same footstep (calm before ${r.g2Calm}, turned ${r.g2Turn})`);
+      assert(r.on && Math.abs(r.c1 - 12) <= 0.01, `noise zone (c): the circuit on again, one tick and it masks 12 dB again (on ${r.on}, ${f2(r.c1)})`);
     }
   });
 
