@@ -1,0 +1,14 @@
+{
+  "id": "20261026T094057-affected-e2e-395576d8-ed54",
+  "sha": "395576d8eb999caa99e4f8f6185681551840ec23",
+  "branch": "feature/mission-c-net",
+  "pr": 581,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T081515-affected-e2e-395576d8-265d, rerun on the laptop"
+}
