@@ -1,0 +1,16 @@
+{
+  "id": "20261026T004131-affected-e2e-539560f4-2845",
+  "sha": "539560f40312957d41d53212f822ba6baf89541e",
+  "branch": "feature/mixamo-i2b",
+  "pr": 506,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-clip",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #506"
+}
