@@ -9,6 +9,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - e2e-netmove quarantine LIFTED (~08:00; Player F5 #663 in 4.128.0); a netmove fail now: tell the Orchestrator (reopens F5).
 - UNDO the piano front
   (LQ_FRONT_BRANCHES back to 'mixamo', restart between trains) after Michael's walk (moved to ~11:00; Orchestrator 08:50).
+- F60: PR #696 (fix/ci-node24: CI node-version 22 -> 24 + cache keys) CI green, Opus checker PASS; Orchestrator labels.
+- #676 (gm-watchdog) wd-guard green on the laptop (desktop red at 83% CPU, F52 rerun). lamp-id-shot results pushed
+  (results/lamp-id-shot/; no PROBE lines in that run).
 - Next: undo the piano front after the walk; triage any train failure (Opus) and tell the Orchestrator.
 
 **Test Runner SAVE 74 (2026-10-27 ~05:00, after the 03:50 reset; session [058b5c]; wins over SAVE 73):**
