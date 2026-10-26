@@ -2,7 +2,7 @@
 // (absent / '' = none), the client's session keeps the host's (never its own `?mission=`), its start placement picks the
 // host mission's start section, and the host puts a remote whose first state is outside the current section at the
 // checkpoint (belt and braces). No mission: the start message and the placement as before.
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { NetSession, startMsg, type StartInfo } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
@@ -192,6 +192,14 @@ describe('NET3: the client starts in the host mission\'s start section', () => {
 
 describe('NET3: the host places a remote whose first state is outside the current section', () => {
   const cps = [pose(100), pose(102)];
+  // (NET3 gate) the placement ships dark behind flags.missions
+  const savedMissions = flags.missions;
+  beforeAll(() => {
+    flags.missions = true;
+  });
+  afterAll(() => {
+    flags.missions = savedMissions;
+  });
   it('offSection: near the checkpoint, or a walk to it with no locked door, is in the section', () => {
     const { g } = page();
     expect(offSection(g, cps, 102, 0, 1)).toBe(false);
@@ -231,6 +239,18 @@ describe('NET3: the host places a remote whose first state is outside the curren
     course.place(2);
     expect(course.joins.restoring('c1')).toBe(false);
     expect(course.r.allowTeleport).not.toHaveBeenCalled();
+  });
+
+  it('(NET3 gate) flags.missions off: a first state off the section is not moved', () => {
+    flags.missions = false;
+    try {
+      const t = host('sector');
+      t.place(2);
+      expect(t.joins.restoring('c1')).toBe(false);
+      expect(t.r.allowTeleport).not.toHaveBeenCalled();
+    } finally {
+      flags.missions = true;
+    }
   });
 });
 
