@@ -1,0 +1,13 @@
+{
+  "id": "20261026T214623-affected-e2e-b182f8a9-6d08",
+  "sha": "b182f8a986e52c8f83ce0c638b08ff31fd4f3a74",
+  "branch": "feature/gm-watchdog",
+  "pr": 676,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-guard-carry"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #676"
+}
