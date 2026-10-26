@@ -1,5 +1,66 @@
 # Changelog
 
+## 4.130.1 - Train 166: CI on Node 24; Guards face you before they shoot; Guard shaders ready before play; Shadow cues ignore teleports; Knife wire allocation check matches CI (F58b); +2 more (2026-10-27, PR #698; #696, #694, #687, #686, #683, #675)
+
+### Brightness slider has a much bigger range
+- Settings > Display > Brightness now makes a clear difference: the lowest setting is much darker and the highest much brighter (about four times the old range), while the middle setting looks exactly as before. White stays white at the top, so lit rooms do not wash out, and a lit room still shows at the bottom. Night vision, thermal and electro see the same scene at any setting; only the picture on screen changes. Your saved slider position is kept. Guards, the light meter and the light level are not affected.
+
+### Shadow cues ignore teleports
+- Shadow cues (behind the character shadow flag): a respawn, checkpoint restart or section start no longer makes your
+  shadow read as a fast-moving one for a moment. A jump of more than 2 m between two checks (four times a sprint)
+  counts as a fresh start, and so does a player joining or leaving; normal movement, sprinting included, reads as
+  before.
+
+### Guard shaders ready before play
+- The loading screen now gets every guard model detail level and the simpler stand-in body ready to draw, with the real graphics settings applied first, so guards no longer pause to get ready the first time you see them up close.
+
+### Guards never vanish while their new model loads
+- A guard whose new model is still getting ready to draw (its shader compiling, the first time you get close to each guard type) now shows his simpler body meanwhile instead of disappearing; a stuck or failed compile is retried as the simpler body already does.
+
+### Guards face you before they shoot
+- Guards turn to face you before they shoot.
+
+### Storm mill: the roof reads as a roof
+- Thornbeck Mill: a lighter timber ceiling with tie beams and a ridge purlin, and each lamp hangs on a chain from it.
+
+### Night vision has its own infrared lamp
+- Night vision: the goggles now carry a built-in infrared lamp, as real ones do. A soft beam from your head lights what you look at (about 10-15 m, brightest in the middle, a dim fill to the edges of the screen), so walls, floors, stairs and crates show in green even in total darkness, such as the storm mill after the blackout. Only you see it, and guards, the light meter and the light level are not affected. Lit areas look the same as before.
+
+### Piano escape: the intro skip is shown
+- The storm mill intro shows "Hold Back / Esc  Skip" with a bar that fills while held; from the second time on a page, a tap skips.
+
+### Route-runs R9: real co-op moves
+- Route-runs (J13 R9): the robot pair now does the real leg-up at a co-op boost (the follower crouches and offers, the
+  leader takes it, hangs on the lip and pulls up; the follower is then placed beside it) and the leg-up plus the ledge
+  relay at a human ladder (both robots climb), pressed on both pads (`scripts/route-run/coop.mjs`). The report counts
+  them as walked links; a leg-up with no lip in reach is a `step-timeout` stop naming its phase; a course restart during
+  the move is handed to the course hook. Every other co-op kind stays a stub, as at one robot, inside a split leg, or
+  with `expect.coop: "stub"` (the pair selftest keeps its stubs). New selftest `selftest-coop.graph.json` (one boost on
+  Saltmarsh Park S1).
+
+### Thermal and electro vision show the room
+- Thermal vision: walls, floors, stairs, crates and edges now show in graded cool blues, even in total darkness (the storm mill after the blackout). Floors read cooler than walls, corners and outlines are picked out, and people stay the brightest thing on screen.
+- Electro vision: the same readable room in its own navy tones, with live electronics still glowing white on top.
+
+### CI on Node 24
+- CI (`deploy.yml`, `preview.yml`) runs Node 24, the version the desktop and laptop run (F60): Node 22 boxed more numbers,
+  so the allocation unit tests (guardAiAlloc D1, knifeWire) failed on CI only and stopped trains 165 and earlier.
+
+### Knife wire allocation check matches CI (F58b)
+- Test only: the co-op knife kill allocation check allows the few numbers the CI machine's older Node version boxes when passing them between functions, so it stops failing every release.
+
+### Attack button does the knife kill in the storm mill
+- In the storm mill knife scene, the attack button with the weapon put away now does the same knife kill as the takedown button when a guard is in reach; with no guard in reach it shows a short "Knife ready" cue (still no free slash).
+
+### Knife kill works when spotted (storm mill)
+- In the storm mill knife scene the knife kill now works on a guard who has seen you or is alerted, as long as you are in reach (before, only unaware guards could be taken).
+
+### Storm mill rain quieter again
+- Storm mill: the rain on the roof is cut again, to about a quarter of the last level.
+
+### Storm mill rain much quieter
+- Storm mill: the rain on the roof is much quieter (about a fifth of its old level), so the guards, footsteps and music can be heard.
+
 ## 4.130.0 - Train 162: Route-runs docs; Character shadows settings help; Guards and character shadows, part 2 (dark); Tallow Wharf: the first campaign map (greybox) (2026-10-27, PR #677; #674, #673, #670, #583)
 
 ### Character shadows settings help
