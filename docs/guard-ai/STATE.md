@@ -1037,7 +1037,7 @@ Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Mi
    pull resumes short.
 Next: piano guard work all on master (#624, #644); walk-card lines sent 04:00. #317 merge 14 e3fa3909f (4th run lost to a conflict; flags.ts both kept; coop4's
 protocol note moved onto the MAX_PLAYERS line so version bumps stop conflicting; checker carried): asked the orchestrator
-for no-affected-e2e + train-ready or a front; background wait on affected-e2e.
+for no-affected-e2e: YES after #631 (storm mill walk build) releases; the orchestrator labels it then. Keep #317 still till then.
 J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
 G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
 S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
