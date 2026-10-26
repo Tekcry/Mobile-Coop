@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.123.1 - Train 143: Saltmarsh Park S1 fence leak (2026-10-27, PR #633; #629)
+- Sector Ops (v2 layout, section 1): you can no longer get over the perimeter fence and out of the play area. The fence
+  could be cleared by jumping off the gatehouse roof corners or the condenser, by climbing from the yard bins, the bin
+  screen or the plant-roof parapet, or from roof kit by the roof screens. The fence now has an invisible anti-climb cap
+  up to 8 m along every perimeter line (no change to the look, lighting or cover). A new test checks walking and
+  climbing out (`tests/campusV2S1Fence.test.ts`).
+
 ## 4.123.0 - Train 142: Co-op kit: rope descent (2026-10-26, PR #630; #590)
 - Co-op two-person rope: the partner standing beside the player holding the rope can now rappel down it, not only climb
   up from the bottom. Press Co-op beside the holder: you go over the edge onto the rope, push the stick down to go down,
