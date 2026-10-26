@@ -9,5 +9,18 @@
     "e2e-ctcourse"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #610"
+  "note": "auto affected-e2e, PR #610",
+  "kept": {
+    "sha": "2359a51ca0f57b06cd5afa6d65ee21f023d4113e",
+    "suites": [
+      {
+        "s": "e2e-ctcourse:6",
+        "sec": 207
+      },
+      {
+        "s": "e2e-ctcourse:1",
+        "sec": 87
+      }
+    ]
+  }
 }
