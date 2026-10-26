@@ -284,10 +284,8 @@ capsules.
   in the meter while the picture still shades it; at Shadows Off the picture draws no moon character shadow while the
   meter counts it (A6).
 - Co-op: each machine uses its own setting and its own nearest lamps; no wire change. With the flag on a client's own
-  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7). Known
-  limit until slice S2c (must-fix before switch-on): a client's contract holds only its own player, so its meter and
-  round shadows ignore its partners' shadows, while the host's sample of that client, which the guards read, counts
-  them.
+  meter reads snapshot guard positions, so a shadow edge can lead or trail the host's by up to ~0.3 s (A7). A client
+  fills its partners from its own sim view of them (`net/charMates.ts`), in the host's player order.
 - Tests: `tests/charShadowSet.test.ts`, `tests/charOccluders.test.ts`, `tests/charOccluderFill.test.ts`;
   `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).

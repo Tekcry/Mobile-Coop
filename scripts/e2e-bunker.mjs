@@ -1,5 +1,5 @@
 // T5b: Fallow (the training bunker) in co-op. Two pages on the walk URL (`?net=local&autostart=bunker&mode=course`: the
-// first hosts the map's fixed local room, the second joins) start the course at B1. One section per bay; later steps
+// first hosts the map's fixed local room, the second joins with `&autojoin=1`, F28) start the course at B1. One section per bay; later steps
 // (T8a / T8b) add their bays' sections here.
 // B1: the objective list is on screen on both pages at spawn; every course prompt the host has (switches, levers,
 // pickups, the whole bunker: more than the old 48-item cap, the client-prompt root cause) shows on the client; one player
@@ -115,10 +115,19 @@ const courseItems = (P) => P.evaluate(() => window.__app.current.interactables.i
 try {
   console.log('walk URL: host and client on Fallow');
   await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
-  const opened = await openPage(ctx, url, Q);
+  // (F28, as e2e-ctcourse F7) the second tab joins as a client with no probe deadline (`&autojoin=1`): a busy host page
+  // that answered the 1.5 s probe late made it host too, and the two hosts never started (the boot deadlock)
+  const opened = await openPage(ctx, url, `${Q}&autojoin=1`);
   B = opened.page;
   eB = opened.errors;
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'bunker', null, 60000, `${tag} in the Fallow course`);
+  try {
+    for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'bunker', null, 60000, `${tag} in the Fallow course`);
+  } catch (e) {
+    // both tabs' sessions: two hosts is the deadlock; a client with no hostId never heard the host
+    const s = (P) => P.evaluate(() => { const x = window.__coop?.session; return x ? { isHost: x.isHost, phase: x.phase, players: x.players.size, hostId: x.hostId } : null; }).catch((err) => String(err));
+    console.log(`  (boot timeout: host tab ${JSON.stringify(await s(A))}, client tab ${JSON.stringify(await s(B))})`);
+    throw e;
+  }
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');

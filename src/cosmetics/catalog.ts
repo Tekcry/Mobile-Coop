@@ -61,8 +61,7 @@ export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
     { value: 'combat', name: 'Combat helmet' },
     { value: 'beret', name: 'Beret', req: { level: 5 } },
     { value: 'visor', name: 'Visor helmet', req: { level: 8 } },
-    { value: 'headset', name: 'Comms headset', req: { level: 6, price: 1200 } },
-    { value: 'trilens', name: 'Tri-lens goggles' },
+    { value: 'headset', name: 'Comms headset' },
     { value: 'hood', name: 'Sniper hood', req: { level: 7 } },
   ],
   pattern: [

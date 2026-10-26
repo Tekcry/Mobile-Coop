@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PAIRS, PAIR_LINES, PairMeet, pairWindow, stopWindow, type LoopWindow, type PairDef } from '../src/ai/pairs';
+import { PAIRS, PAIR_LINES, PairMeet, pairWindow, postedDef, stopWindow, type LoopWindow, type PairDef } from '../src/ai/pairs';
 import { PatrolWalker, type PatrolRoute, type Pt } from '../src/ai/patrol';
 import { hyp2 } from '../src/core/mathx';
 
@@ -277,5 +277,186 @@ describe('PairMeet', () => {
     // starts outside the window (loop time 5); 40 s = two openings (real 13 s and 33 s), one exchange each
     expect(pm.meetings).toBe(2);
     expect(lines).toBe(4);
+  });
+});
+
+// ----- (guard-rules S6, A10, A11) the walking-together check and posted pairs -----
+
+/** A window far from the start (30 .. 45 s of a 60 s loop): a check before 30 s is outside it. */
+const watchDef = (watch: boolean): PairDef => ({ id: 2, period: PERIOD, t0: 0, open: 30, close: 45, aPt: [-1, 0], bPt: [1, 0], watch });
+
+interface WatchRun {
+  /** Time of the first missing request (s; -1 none) and how many fired. */
+  reqAt: number;
+  reqs: number;
+}
+
+/**
+ * Steps `pm` at the board rate for `seconds`: A walks +X along z = 0 at 1 m/s from x = -20 (route point (5, 0)), B beside
+ * him at z = `gap` (route point (5, gap)). `bDown(t)` takes B out, `aCalm(t)` sets A's calm; `each(t)` before each step.
+ */
+function watchRun(
+  pm: PairMeet,
+  seconds: number,
+  o: { gap?: number; bDown?: (t: number) => boolean; aCalm?: (t: number) => boolean; each?: (t: number) => void } = {},
+): WatchRun {
+  const dt = PAIRS.tick;
+  const gap = o.gap ?? 1;
+  const r: WatchRun = { reqAt: -1, reqs: 0 };
+  for (let i = 1; i <= Math.round(seconds / dt); i++) {
+    const t = i * dt;
+    const x = -20 + t;
+    pm.a.present = true;
+    pm.a.calm = o.aCalm?.(t) ?? true;
+    pm.a.x = x;
+    pm.a.z = 0;
+    pm.a.routeX = 5;
+    pm.a.routeZ = 0;
+    pm.b.present = !(o.bDown?.(t) ?? false);
+    pm.b.calm = true;
+    pm.b.x = x;
+    pm.b.z = gap;
+    pm.b.routeX = 5;
+    pm.b.routeZ = gap;
+    o.each?.(t);
+    pm.step(dt);
+    if (pm.requested) {
+      r.reqs++;
+      if (r.reqAt < 0) r.reqAt = t;
+    }
+  }
+  return r;
+}
+
+/** Feeds a posted pair standing at their posts (route point = the post); `bDown(t)` takes B out. */
+function postedRun(pm: PairMeet, seconds: number, bDown?: (t: number) => boolean): { said: Said[]; reqAt: number } {
+  const dt = PAIRS.tick;
+  const said: Said[] = [];
+  let reqAt = -1;
+  const { aPt, bPt } = pm.def;
+  for (let i = 1; i <= Math.round(seconds / dt); i++) {
+    const t = i * dt;
+    pm.a.present = true;
+    pm.a.calm = true;
+    pm.a.x = pm.a.routeX = aPt[0];
+    pm.a.z = pm.a.routeZ = aPt[1];
+    pm.b.present = !(bDown?.(t) ?? false);
+    pm.b.calm = true;
+    pm.b.x = pm.b.routeX = bPt[0];
+    pm.b.z = pm.b.routeZ = bPt[1];
+    pm.step(dt);
+    if (pm.sayLine) said.push({ t, who: pm.sayWho, line: pm.sayLine });
+    if (pm.requested && reqAt < 0) reqAt = t;
+  }
+  return { said, reqAt };
+}
+
+describe('(guard-rules S6) watch and posted pairs', () => {
+  const take = 5;
+  const down = (t: number): boolean => t > take;
+
+  it("watch on, walking together, B down outside the window: a request `notice` s later at B's route point", () => {
+    const pm = new PairMeet(watchDef(true));
+    const r = watchRun(pm, 20, { bDown: down });
+    expect(r.reqs).toBe(1);
+    expect(r.reqAt).toBeGreaterThanOrEqual(take + PAIRS.notice - 0.01);
+    expect(r.reqAt).toBeLessThanOrEqual(take + PAIRS.notice + PAIRS.tick + 0.01);
+    expect(pm.state).toBe('missing');
+    expect(pm.lookFor).toBe(0);
+    expect([pm.lookX, pm.lookZ]).toEqual([5, 1]);
+  });
+
+  it("watch off (today's def), same run: no request before the window opens + grace", () => {
+    const pm = new PairMeet(watchDef(false));
+    const r = watchRun(pm, 50, { bDown: down });
+    expect(r.reqs).toBe(1);
+    expect(r.reqAt).toBeGreaterThan(30 + PAIRS.grace - 0.3);
+    expect(r.reqAt).toBeLessThan(30 + PAIRS.grace + 0.3);
+  });
+
+  it('watch on, B down while over `togetherR` from A: no early request (the window grace path only)', () => {
+    const pm = new PairMeet(watchDef(true));
+    const r = watchRun(pm, 50, { gap: PAIRS.togetherR + 1, bDown: down });
+    expect(r.reqs).toBe(1);
+    expect(r.reqAt).toBeGreaterThan(30 + PAIRS.grace - 0.3);
+    expect(r.reqAt).toBeLessThan(30 + PAIRS.grace + 0.3);
+  });
+
+  it('watch on, A not calm while B is gone: no request while busy; calm again, a request `notice` s later', () => {
+    const pm = new PairMeet(watchDef(true));
+    const calmAt = 10;
+    const r = watchRun(pm, 20, { bDown: down, aCalm: (t) => t <= take || t > calmAt });
+    expect(r.reqs).toBe(1);
+    expect(r.reqAt).toBeGreaterThanOrEqual(calmAt + PAIRS.notice - 0.01);
+    expect(r.reqAt).toBeLessThanOrEqual(calmAt + PAIRS.notice + PAIRS.tick + 0.01);
+  });
+
+  it('watch on, B back before `notice`: no request; reset() clears together / goneT', () => {
+    const pm = new PairMeet(watchDef(true));
+    const r = watchRun(pm, 25, { bDown: (t) => t > take && t < take + PAIRS.notice - 1 });
+    expect(r.reqs).toBe(0);
+    expect(pm.state).toBe('idle');
+    // B down again; `reset` mid-count: no longer together, the timer cleared, so no request after it
+    const pm2 = new PairMeet(watchDef(true));
+    const priv = pm2 as unknown as { together: boolean; goneT: number };
+    let seen = false;
+    const r2 = watchRun(pm2, 25, {
+      bDown: down,
+      each: (t) => {
+        if (!seen && t > take + 1.5) {
+          expect(priv.together).toBe(true);
+          expect(priv.goneT).toBeGreaterThan(1);
+          pm2.reset();
+          expect(priv.together).toBe(false);
+          expect(priv.goneT).toBe(0);
+          seen = true;
+        }
+      },
+    });
+    expect(seen).toBe(true);
+    expect(r2.reqs).toBe(0);
+  });
+
+  it('postedDef: opens on the first step, both at their points meet at once, two lines, done; the next at `postedPeriod`', () => {
+    const def = postedDef(104, [0, 0], [1.2, 0]);
+    expect(def).toEqual({ id: 104, period: PAIRS.postedPeriod, t0: 0, open: 0, close: PAIRS.postedOpen, aPt: [0, 0], bPt: [1.2, 0], watch: true, posted: true });
+    const pm = new PairMeet(def);
+    const states: string[] = [];
+    let firstMeet = -1;
+    for (let i = 1; i <= 50; i++) {
+      pm.a.x = 0;
+      pm.b.x = 1.2;
+      pm.a.z = pm.b.z = 0;
+      pm.step(PAIRS.tick);
+      states.push(pm.state);
+      if (firstMeet < 0 && pm.state === 'meeting') firstMeet = i;
+    }
+    expect(firstMeet).toBe(1);
+    expect(states[states.length - 1]).toBe('done');
+    const run1 = postedRun(new PairMeet(postedDef(104, [0, 0], [1.2, 0])), PAIRS.postedPeriod * 2 + 10);
+    expect(run1.said.length).toBe(6);
+    const ex = PAIR_LINES[104 % PAIR_LINES.length]!;
+    expect(run1.said[0]!.line).toBe(ex[0]);
+    expect(run1.said[1]!.line).toBe(ex[1]);
+    expect(run1.said[0]!.who).toBe(0);
+    expect(run1.said[1]!.who).toBe(1);
+    expect(run1.said[1]!.t).toBeLessThan(PAIRS.postedOpen);
+    expect(Math.abs(run1.said[2]!.t - run1.said[0]!.t - PAIRS.postedPeriod)).toBeLessThan(PAIRS.tick + 0.01);
+    expect(Math.abs(run1.said[4]!.t - run1.said[0]!.t - 2 * PAIRS.postedPeriod)).toBeLessThan(PAIRS.tick + 0.01);
+    expect(run1.reqAt).toBe(-1);
+    // same inputs, same lines
+    const run2 = postedRun(new PairMeet(postedDef(104, [0, 0], [1.2, 0])), PAIRS.postedPeriod * 2 + 10);
+    expect(run2.said).toEqual(run1.said);
+  });
+
+  it('posted: one down after the talk -> a request `notice` s later, at his post', () => {
+    const pm = new PairMeet(postedDef(7, [-0.6, 0], [0.6, 0]));
+    const at = 10;
+    const r = postedRun(pm, 20, (t) => t > at);
+    expect(r.said.length).toBe(2);
+    expect(r.reqAt).toBeGreaterThanOrEqual(at + PAIRS.notice - 0.01);
+    expect(r.reqAt).toBeLessThanOrEqual(at + PAIRS.notice + PAIRS.tick + 0.01);
+    expect(pm.lookFor).toBe(0);
+    expect([pm.lookX, pm.lookZ]).toEqual([0.6, 0]);
   });
 });

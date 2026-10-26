@@ -11,6 +11,7 @@ import { h } from '../dom';
 import { keyLabels, promptHtml, type PromptButton } from '../prompts';
 import type { CourseState } from '../../game/course/courseState';
 import { bayObjective, timerLabel, type GateDef, type PlayerIdx } from '../../game/course/courseDef';
+import type { StationDef } from '../../game/course/stationDef';
 
 const BUTTONS: readonly string[] = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'LS', 'START'];
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;'));
@@ -49,22 +50,28 @@ export class CourseHud {
   private bayEl: HTMLElement;
   private table: HTMLElement;
   private stepEl: HTMLElement;
+  /** (J14 R2) The bay's retry rule under the header (hidden where nothing can fail: the built yard, A1). */
+  private ruleEl: HTMLElement;
   private airEl: HTMLElement;
   private airText: string | null = null;
   private seenGen = -1;
   private seenBay = -1;
   private seenOver = false;
   private seenMe = -1;
+  /** (J14 R2) The live station's number last written (0: none). */
+  private seenSt = -1;
   /** The step timer's whole seconds last written (0: none). */
   private seenSecs = 0;
 
   constructor(parent: HTMLElement) {
     this.bayEl = h('div', { class: 'ch-bay' });
+    this.ruleEl = h('div', { class: 'ch-rule' });
+    this.ruleEl.hidden = true;
     this.table = h('table');
     this.stepEl = h('div', { class: 'ch-step' });
     this.airEl = h('div', { class: 'ch-air' });
     this.airEl.hidden = true;
-    this.el = h('div', { class: 'course-hud' }, this.bayEl, this.table, this.airEl, this.stepEl);
+    this.el = h('div', { class: 'course-hud' }, this.bayEl, this.ruleEl, this.table, this.airEl, this.stepEl);
     parent.appendChild(this.el);
   }
 
@@ -76,7 +83,8 @@ export class CourseHud {
   update(st: CourseState, me: PlayerIdx): void {
     const step = st.over || st.nextDrill(me) ? null : st.currentStep();
     const secs = step ? Math.ceil(st.stepTimer(step) - 1e-6) : 0;
-    if (st.gen === this.seenGen && st.bay === this.seenBay && st.over === this.seenOver && me === this.seenMe) {
+    const stN = st.station();
+    if (st.gen === this.seenGen && st.bay === this.seenBay && st.over === this.seenOver && me === this.seenMe && stN === this.seenSt) {
       if (secs !== this.seenSecs) this.writeStep(st, me);
       return;
     }
@@ -84,8 +92,13 @@ export class CourseHud {
     this.seenBay = st.bay;
     this.seenOver = st.over;
     this.seenMe = me;
+    this.seenSt = stN;
     const bay = st.currentBay;
-    this.bayEl.textContent = `${bay.id} - objectives`;
+    // (J14 R2) the live step's badge in the header and the bay's retry rule under it (re-plan only: the built yard has no stations)
+    this.bayEl.textContent = bayHeader(bay.id, stN);
+    const rule = retryRule(bay.stations ?? NO_STATIONS);
+    this.ruleEl.textContent = rule ?? '';
+    this.ruleEl.hidden = rule === null;
     const next = st.nextDrill(me);
     const rows: HTMLElement[] = [h('tr', {}, h('td', { class: 'ch-n', text: '' }), h('td', { class: 'ch-t', text: 'P1' }), h('td', { class: 'ch-t', text: 'P2' }))];
     for (const d of bay.drills) {
@@ -155,4 +168,42 @@ export class CourseHud {
   dispose(): void {
     this.el.remove();
   }
+}
+
+// ------------------------------------------------------------------------------------------ (J14 R2) signposting
+
+const NO_STATIONS: readonly StationDef[] = [];
+const BADGE_18 = ['a', 'b', 'c', 'd'] as const;
+
+/** The badges the player sees: 1-17 and 18 (A8's 18 is four steps, 18a-18d). */
+export const STATION_BADGES = 18;
+
+/** A station's badge on the plan: `n` 1-17 as is; 18-21 are A8's four steps "18a"-"18d" (STATIONS.md SA4). */
+export function stationBadge(n: number): string {
+  const k = n - STATION_BADGES;
+  return k >= 0 && k < BADGE_18.length ? `${STATION_BADGES}${BADGE_18[k]!}` : String(n);
+}
+
+/** The objective list's header: "<bay> - objectives", with "- step <badge> of 18" while a station is live (`n` > 0). */
+export function bayHeader(bayId: string, n: number): string {
+  return n > 0 ? `${bayId} - objectives - step ${stationBadge(n)} of ${STATION_BADGES}` : `${bayId} - objectives`;
+}
+
+/**
+ * The bay's retry rule from its stations (level-design 9, [Training]: every failure is a retry, never "fail"): A8's
+ * `caught`, else the `station` rule ("Seen"), each with "or out of time" when a station of the bay has a drill window;
+ * null when nothing in the bay can fail (only `none` stations, or none at all).
+ */
+export function retryRule(stations: readonly StationDef[]): string | null {
+  let caught = false;
+  let seen = false;
+  let timed = false;
+  for (let i = 0; i < stations.length; i++) {
+    const s = stations[i]!;
+    if (s.retry === 'caught') caught = true;
+    else if (s.retry === 'station') seen = true;
+    if (s.drillS !== undefined) timed = true;
+  }
+  if (!caught && !seen) return null;
+  return `${caught ? 'Caught' : 'Seen'}${timed ? ' or out of time' : ''}: you go back to the start of this step.`;
 }

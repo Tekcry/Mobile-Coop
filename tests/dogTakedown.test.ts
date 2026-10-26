@@ -66,7 +66,7 @@ function stage(state: AttackerState, v: TakedownVictim, partnerHolds = false): T
     world: { level: { coverSegments: [{ nx: 0, nz: 1, ax: -5, az: 0, bx: 5, bz: 0, tx: 1, tz: 0 }] } },
     spottedLocal: false,
     net: partnerHolds ? { partnerHolds: () => true, assistTakedown() {} } : undefined,
-    ballistics: { ray: () => ({ hit: false, distance: 0 }) },
+    ballistics: { ray: () => ({ hit: false, distance: 0 }), hitDistance: () => Infinity },
     hud: { feedItem() {}, barks: { say() {} } },
     takedownVictims: () => [v],
   } as unknown as GameState;
