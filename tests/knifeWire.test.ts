@@ -637,8 +637,11 @@ describe('piano-knife S3: the remote pair looks as the owner\'s (G400)', () => {
       // (S3 fix round, for the lead) what RemoteKnife adds over the helpers is boxed numbers passed into them (measured
       // 2 for the attacker, 7-9 for the victim across runs, by what the JIT inlines: no object, closure or vector); pinned
       // at the largest seen so a real allocation still fails
+      // (F58b) the victim passes ~a dozen numbers to non-inlined helpers (`victimRoot` alone takes nine) and how many
+      // get boxed depends on the V8 version's inlining: CI's Node 22 boxes 11 every run (272 - 96 = 176 B, train 163),
+      // a desktop Node 24 boxes 7-9. Pinned at CI's 11 + 1 of headroom; the attacker's 2 is the same on both
       expect(perA - perAH).toBeLessThanOrEqual(2 * HEAP_NUMBER);
-      expect(perV - perVH).toBeLessThanOrEqual(9 * HEAP_NUMBER);
+      expect(perV - perVH).toBeLessThanOrEqual(12 * HEAP_NUMBER);
     } finally {
       dispose();
     }
