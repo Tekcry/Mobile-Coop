@@ -52,6 +52,8 @@ every guard must be taken down with a knife in the shadows before the exit opens
 
 ## Answers (M) and assumptions (A)
 - M1 2026-10-26 ~19:28: "Inside Night Shift" and "Kills, this scene only" (above).
+- M2 2026-10-26 ~20:15: SIGNOFF "Build the piano escape to this plan, with the rule skips above (this scene only)?"
+  -> "Approve, build it (Recommended)" (G288; the skips are approved for this scene only).
 - A1: One flag `pianoEscape` in `src/core/flags.ts`, read like the others via `darkFlag(.., PREVIEW_ON)`: off in the
   live game, `?piano=1` turns it on, on in /preview/ so Michael can play it there. Undo: plain `darkFlag` without
   PREVIEW_ON.

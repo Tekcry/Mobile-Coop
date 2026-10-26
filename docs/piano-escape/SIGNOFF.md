@@ -229,4 +229,5 @@ Q: Build the piano escape to this plan, with the rule skips above (this scene on
 - "Change it first"
 
 ## Michael's pick
-<!-- filled by the orchestrator -->
+2026-10-26 ~20:15, native multiple choice (via the orchestrator): "Approve, build it (Recommended)". The rule skips
+above are approved for this scene only.
