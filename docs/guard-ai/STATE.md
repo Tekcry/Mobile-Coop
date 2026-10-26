@@ -1003,7 +1003,7 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Bypass mode since ~14:05 (orchestrator): the lead posts its own checker statuses and train-ready labels; tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~13:45 boot (new account); all worktrees clean + pushed; full burn; order J4, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~14:18 SAVE, cap ~14:21; all worktrees clean + pushed, no agents running; all worktrees clean + pushed; full burn; order J4, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
@@ -1065,5 +1065,5 @@ FIXES FIRST (Michael ~14:00; tracker docs/orchestrator/FIXES.md on feature/menu)
    Runner 13:32 (its area). #317 affected + mh-s4 wait on it.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); J26 PRs open after J15 PR4 merges; #531 / #537 laptop + affected green -> label train-ready + tell orchestrator (red: Opus triage at once).
+Next: #531 (runner-armed, laptop runner-armed + affected) and #537 (seed-random, laptop seed-random + affected): green -> label train-ready + tell orchestrator, red -> Opus triage; #317 / #500 ride trains (on #500 merge open PR3 feature/guard-rules-f0); mh-s4 verdict on 77e65e3f6; J26 PRs after J15 PR4; then polish rows or J16 perception plan.
 ```
