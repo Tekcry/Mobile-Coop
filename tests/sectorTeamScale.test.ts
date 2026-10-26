@@ -57,6 +57,19 @@ describe('team scale: the pure rules', () => {
     expect(r.raiseAlarm()).toBe(0);
   });
 
+  it('nextAlarmSends ignores the coop4 extras: a perStage 0 section stays quiet at 4 players', () => {
+    const quiet = new SectorRun([sec('a', 0, true, { perStage: 0 })]);
+    quiet.teamSize = 4;
+    expect(quiet.nextAlarmSends()).toBe(0);
+    const r = new SectorRun([sec('a', 0, true, { perStage: 2 })]);
+    r.teamSize = 4;
+    for (let i = 0; i < SECTOR.alarmMax; i++) {
+      expect(r.nextAlarmSends()).toBe(2);
+      r.raiseAlarm();
+    }
+    expect(r.nextAlarmSends()).toBe(0);
+  });
+
   it('capReinforce: the base always goes, the extras only within the headroom', () => {
     expect(capReinforce(4, 2, 10)).toBe(4);
     expect(capReinforce(4, 2, 3)).toBe(3);

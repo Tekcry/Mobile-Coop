@@ -871,9 +871,11 @@ export class SectorRun {
     return true;
   }
 
-  /** (guard-rules S5) How many guards the next alarm would send in (`raiseAlarm`'s count, coop4 A9 extras included; 0 once capped). */
+  /** (guard-rules S5) How many guards the next alarm would send in (0 once capped). The 2-player count on purpose: the
+   *  live team is `responseShape` (`src/ai/gear.ts`), which sends nobody when `perStage` is 0 and adds the coop4 A9
+   *  extras only on top of a base, so this is 0 exactly when the alarm sends no one. */
   nextAlarmSends(): number {
-    return alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage, this.teamSize).send;
+    return alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage).send;
   }
 
   /** An alarm (A3): up one stage (capped); returns how many guards it sends in (0 once capped; coop4 A9: + the extras for `teamSize`). */
