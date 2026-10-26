@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:36:36Z
 # J13 route-runs, slice SEAMS (Opus-grade, small): R4c's seam requests SR1-SR5 and R6's points loader, in the driver
 
 Lead: Night Shift | Marlow Build. R4c (Course mode) and R6 (points) each need a few lines in files that R4b / R5 own
