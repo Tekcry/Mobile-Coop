@@ -380,15 +380,14 @@ report on that exact head, and retargets its stacked PRs to master itself, Orche
 - OPEN lane PRs (J17, dark): S1 #523 (master) -> #524 -> #525; S2 #526 (master) -> #527 -> #528 -> #529 (check
   lane-s1-s2-check.md, lane checks s1-check.md / s2-check.md). `gh pr edit <n> --base master` as each parent lands.
 - S5 stack DONE: PRs #533 (master) -> #534 -> #535, checker posted (lane-s5-check.md), brief done on cloud-queue.
-- S3 stack BUILT (all pushed): s3-a a077ff1a, -b 217d3a1c, -c 32085177, -d c7487b40, -e 191a0971, -f 644c0ae7 (tsc
-  clean, vitest green each, 659-1354 counted). Sonnet check running at the 14:17 SAVE (report lane-s3-check.md); on PASS:
-  open 6 stacked PRs (bodies docs/campus-greybox/lane-campus-greybox-s3-<x>-pr-body.md on each branch), post checker,
-  mark brief campus-greybox-stack-s3 done on cloud-queue. If the report is missing: rerun the check (prompt = S5's).
-- S4 stack: s4-a a14f3592, -b 6af62e8e, -c 991400db pushed; builder (worktree -campus-greybox-lanes) still running at
-  the SAVE. Next: check its PR bodies / tests on the branches, Sonnet check like S5, PRs, brief done.
+- S3 stack DONE: PRs #539 (master) -> #540 -> #541 -> #542 -> #543 -> #544, checker posted (lane-s3-check.md; r1
+  re-checked s3-r1-check.md). S4 stack DONE: #545 (master) -> #546 -> #547 (lane-s4-check.md). Briefs done on cloud-queue.
+  All five sections are PRs; retarget each stacked PR to master as its parent lands.
+- Polish carried (not blocking): S1/S2 fragments `kind: minor`; s4-a fragment says CR8 sills climbable (fix 1 is in
+  s4-c); S3 r1 polish list in s3-r1-check.md (facing doors, plant room cap, gas-cage hide, dressing throws until S3-f).
 - map-ready S3 (Opus builder, worktree -map-ready-s3, branch feature/map-ready-s3 on S14): steps 1-4 pushed (0c8589ea);
   still running at the SAVE. Finish from the brief (cloud-queue briefs/map-ready-S3.md, claimed by this session), then
   two Opus checkers + Guard AI review of src/ai, PC runs from its report.
 - S14 763fc7bf: gate + alone requests open on the laptop queue (no PR yet; stacks on #513).
-Next: S3 check -> PRs; S4 check -> PRs; map-ready S3 finish + checkers; S14 PR after its runs; S10 PR after #511 / #512.
+Next: retarget stacked lane PRs as parents land; map-ready S3 finish + two Opus checkers; S14 PR after its runs; S10 PR after #511 / #512.
 ```
