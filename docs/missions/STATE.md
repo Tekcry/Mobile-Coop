@@ -17,8 +17,8 @@ Desktop CPU ~90-99%: tsc / vitest builders go to cloud-queue (keep 1-2 open); lo
    checkers (G2 Opus; G4 Sonnet greybox). s1-polish done -> two Opus checkers -> merge into tallow-shutters.
 6. Held briefs in scratch/campaign/cq/: E8 (after G2 + G4), D1 (after G1-G4; LEAD NOTE: clear the S11 validator's
    parity 23% and w1-tea-stall reach ERRs), S3 (after G4 and PR G2 -> engine -> S), S4 (after S3 + E8; rulings in it).
-7. PR C split refresh: Opus planner -> scratch/campaign/prc-split-refresh.md (rerun if missing). Gate carry: Tallow
-   "Resume hosting" PC check, claims-check per member, W1-W4 look videos (no recorder exists yet).
+7. PR C split: plan DONE scratch/campaign/prc-split-refresh.md (16 members; lead rulings in lead-notes). Asked the orchestrator
+   big-pr C4 / wharf split / stacked bases / NET3 firstPlace live. Engine 377e4c608 has dbe5e854b. C1 + C2 open on its answer.
 Next: laptop verdicts -> T then G1 into the engine; G2 / G4 / s1-polish pickups; read prc-split-refresh.md.
 
 ## OLD RESUME 2026-10-26 ~12:45 (Night Shift | Campaign Build, after the 11:25 swap; read this block first)
