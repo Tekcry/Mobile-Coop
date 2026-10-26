@@ -75,7 +75,8 @@ import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
-import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
+import { GRAB, type TakedownKind } from './takedown';
+import { takedownRow } from './knifeKill'; // (piano-knife S1)
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
 import type { TeamKind } from './teamMoves';
@@ -1521,7 +1522,7 @@ export class GameState implements AppState {
           // (`assist` is only on offer in co-op: `net.partnerHolds`)
           if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
           // (piano-knife S1, A2) the knife switch: no grab, the takedown row is the knife kill (`start` forces it)
-          if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !td.knife) m.add(TD_KIND, 'grab', -1, 'Grab character');
+          if (takedownRow(o.plan.kind, o.e.def.quadruped, td.knife) === 'grab') m.add(TD_KIND, 'grab', -1, 'Grab character');
           else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();

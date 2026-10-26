@@ -17,7 +17,7 @@
  * no knife slash row (the plan's `KNIFE_SLASH` is dropped); the RT strike is off while the switch is on (`gameState`).
  */
 import type { KeyedClip } from '../anim/keyed';
-import type { TakedownKind } from './takedown';
+import { GRAB_KINDS, type TakedownKind } from './takedown';
 
 /** The piano scene's `MapDef.scene` and Campaign's map id (tests, docs). */
 export const PIANO_SCENE = 'piano';
@@ -112,6 +112,12 @@ export function pickKnifeKill(kind: TakedownKind, crouched: boolean): number {
     default:
       return -1;
   }
+}
+
+/** (A2) The menu's takedown row for an offer: the grab (`'grab'`) on a guard on two legs from behind, else the
+ *  takedown (`'ko'`, `TD_LABEL`); with the knife switch on never the grab (`start` forces the knife kill). */
+export function takedownRow(kind: TakedownKind, quadruped: boolean, knife: boolean): 'grab' | 'ko' {
+  return !knife && GRAB_KINDS.includes(kind) && !quadruped ? 'grab' : 'ko';
 }
 
 /** The grab's share (eased 0..1) `t` s into an approach of `approach` s: the grip hand reaches in, and the guard is

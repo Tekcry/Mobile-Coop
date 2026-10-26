@@ -21,7 +21,7 @@ import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMo
 import { GRAB_KILL_BLOW, KILL_TAIL_END, killWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 import type { KeyedClip } from '../anim/keyed';
 import { newKillDrive } from '../anim/killDrive';
-import { bucklePitchOf, buckleAt, grabAt, handsAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, pickKnifeKill, victimPhase } from './knifeKill';
+import { grabAt, handsAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, pickKnifeKill, victimPhase } from './knifeKill';
 import { attackerHands, newPairTrack, pairHandsOff, resetPairTrack, victimHands, victimRoot, type RootOut } from './knifePair';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
@@ -854,7 +854,25 @@ export class TakedownController {
     d.phase = ph;
     d.w = Math.min(1, this.kt / KNIFE.blendIn);
     g.player.rig.graph.kill = d;
-    e.knifeVictim?.(vClip, victimPhase(R, ph), buckleAt(this.kt - contactT) * bucklePitchOf(R));
+    // his clip's phase (`victimPhase`) and buckle (`buckleAt` x `bucklePitchOf`), written out here: those helpers,
+    // called from this step, were not inlined and boxed their numbers (32 B a step, `tests/takedownAlloc.test.ts`);
+    // `tests/knifeTakedown.test.ts` holds these to them
+    const sc = this.kt - contactT;
+    let bk = 0;
+    if (sc >= 0) {
+      if (sc < KNIFE.buckleRise) {
+        const u = sc / KNIFE.buckleRise;
+        bk = u * u * (3 - 2 * u);
+      } else {
+        const q = (sc - KNIFE.buckleRise) / KNIFE.buckleDecay;
+        if (q < 1) {
+          const u = 1 - q;
+          bk = u * u * (3 - 2 * u);
+        }
+      }
+    }
+    const vph = R.victimFrom + (ph < 1 ? ph : 1) * (R.victimTo - R.victimFrom);
+    e.knifeVictim?.(vClip, vph, bk * (R.yawOff === 0 ? -KNIFE.bucklePitch : KNIFE.bucklePitch));
     if (ph >= R.limp) this.finish();
   }
 
