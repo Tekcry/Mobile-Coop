@@ -21,6 +21,9 @@
   "e2e-netmove": "Night Shift | Player Build"
  },
  "quarantine": [
-  { "suite": "e2e-pad", "owner": "Night Shift | Player Build", "expiry": "2026-11-07T00:00:00Z", "reason": "parked, not fixed: failed full run 2 in its remap section (docs/backlog.md 'Flaky e2e suites'); was KNOWN_FLAKY in run-e2e.mjs" }
+  { "suite": "e2e-pad", "owner": "Night Shift | Player Build", "expiry": "2026-11-07T00:00:00Z", "reason": "parked, not fixed: failed full run 2 in its remap section (docs/backlog.md 'Flaky e2e suites'); was KNOWN_FLAKY in run-e2e.mjs" },
+  { "suite": "e2e-ctcourse:5", "owner": "Night Shift | Marlow Build", "expiry": "2026-10-29T00:00:00Z", "reason": "prototype rule (Michael 2026-10-26 ~16:20): the re-plan yard walk (J14, #574) red after its one fix and rerun, train 127; these walk steps had never run; cause (walk or game) not yet known (docs/backlog.md 'Flaky e2e suites')" },
+  { "suite": "e2e-ctcourse:7", "owner": "Night Shift | Marlow Build", "expiry": "2026-10-29T00:00:00Z", "reason": "prototype rule (Michael 2026-10-26 ~16:20): the re-plan yard walk (J14, #574) red after its one fix and rerun, train 127; these walk steps had never run; cause (walk or game) not yet known (docs/backlog.md 'Flaky e2e suites')" },
+  { "suite": "e2e-ctcourse:8", "owner": "Night Shift | Marlow Build", "expiry": "2026-10-29T00:00:00Z", "reason": "prototype rule (Michael 2026-10-26 ~16:20): the re-plan yard walk (J14, #574) red after its one fix and rerun, train 127; these walk steps had never run; cause (walk or game) not yet known (docs/backlog.md 'Flaky e2e suites')" }
  ]
 }
