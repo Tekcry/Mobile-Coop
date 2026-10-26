@@ -1,0 +1,13 @@
+{
+  "id": "20261026T082226-affected-e2e-eaf6a1dd-4ee0",
+  "sha": "eaf6a1dd1fccdead7cdccf42b28572f52adc66e0",
+  "branch": "feature/guard-rules-pr4",
+  "pr": 595,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-sectorops"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #595"
+}
