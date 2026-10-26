@@ -30,8 +30,8 @@ export const STUB_KINDS = [...COOP_KINDS].filter((k) => !REAL_KINDS.includes(k))
 
 /** The climber stands this far (m) behind the booster (e2e-ctcourse `legUp`: the host 0.8 m behind). */
 export const CLIMBER_BACK_M = 0.8;
-/** A robot is on its spot within this (m, plan), steered there at this stick. */
-export const SPOT_M = 0.2;
+/** A robot is on its spot within this (m, plan; a pair tick moves a robot about 0.2 m), steered there at this stick. */
+export const SPOT_M = 0.3;
 export const SPOT_STICK = 0.4;
 /** The booster's last push toward the move (so it faces it: the boost target is looked for that way first). */
 export const FACE_S = 0.3;
