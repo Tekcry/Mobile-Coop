@@ -11,5 +11,6 @@
     "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #317"
+  "note": "auto affected-e2e, PR #317",
+  "place": "20261026T102038-affected-e2e-90b73d26-ddda"
 }
