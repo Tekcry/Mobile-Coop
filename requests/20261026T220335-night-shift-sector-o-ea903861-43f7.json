@@ -1,0 +1,13 @@
+{
+  "id": "20261026T220335-night-shift-sector-o-ea903861-43f7",
+  "sha": "ea903861f00fcd41457bbba84d07684a8aefd6c5",
+  "branch": "feature/light-parity-suite",
+  "pr": 681,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-parity",
+    "e2e-darkness"
+  ],
+  "set": "parity-proof"
+}
