@@ -108,3 +108,9 @@ keeps master's callers and tests unchanged.
   102 files, 2063 passed, 1 todo.
 - Mutations on `tests/kitNet.test.ts`, as in item 5: each fails the new case only.
 - Not run (brief): dev server, e2e, full `npm run check`.
+
+## Merge 11 (lead, after this check)
+Train 142 (4.123.0) landed while the check ran: one conflict, `PROTOCOL_VERSION` (master's 75 kept, coop4's
+`MAX_PLAYERS` comment kept), the same pattern as merges 9-10. Auto-merged: coop-kit A1 rope descent in
+src/game/teamMoves.ts / teamController.ts; it is a `rope` team move (not a kit kind, `isKitKind` coopHost.ts:1353), so it
+goes through the existing team-move busy check. tsc clean; 73 net / playerSlots test files 1272 passed.
