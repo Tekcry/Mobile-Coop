@@ -712,6 +712,14 @@ describe('S2: the spawn seam and the 7 m rule (SectorMode on a stub game)', () =
 });
 
 describe('S2: the view and the gameState render-override seam', () => {
+  it('(look fix) the operator shows while the scene films him: the tight-space body fade is off while the view holds', () => {
+    const g = src('src/game/gameState.ts');
+    const fu = g.indexOf('this.player.cam.sceneOwned = !!sv?.holdsInput;');
+    expect(fu).toBeGreaterThan(0);
+    expect(fu).toBeLessThan(g.indexOf('this.player.frameUpdate(dt, alpha, look'));
+    expect(src('src/player/shoulderCamera.ts')).toContain('const fv = this.freeOn || this.sceneOwned;');
+  });
+
   it('one SceneView seam in gameState: the field, the held input and pause, the frame after the game view', () => {
     const g = src('src/game/gameState.ts');
     expect(g).toContain('export interface SceneView {');

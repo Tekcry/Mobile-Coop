@@ -3216,6 +3216,8 @@ export class GameState implements AppState {
     this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
     const sv = this.sceneView;
+    // (piano-escape) the scene's camera films the operator: the tight-space body fade stays off while it holds the view
+    this.player.cam.sceneOwned = !!sv?.holdsInput;
     this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
     this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
     // (piano-escape S2) the scene's view places the rendered camera after the game view (render only)
