@@ -102,6 +102,8 @@ import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
+import { overCapAffected } from './lib.mjs';
+import { AFFECTED_MAX } from '../e2e-affected.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -363,6 +365,37 @@ function pushFile(rel, text, label) {
     log(`${label}: ${String(e.message).split('\n')[0]}`);
     return false;
   } finally { fs.rmSync(tmpIndex, { force: true }); }
+}
+
+/**
+ * (affected-cap A7) Re-files every open, unclaimed automatic affected request naming more suites than AFFECTED_MAX (lib
+ * overCapAffected): its suites recomputed with lib affectedSuites (the default cap) and its file rewritten under the same
+ * id, so it keeps its queue place, its claim key and its withdrawal tracking; affected-e2e is re-posted pending with the
+ * new count. A request withdrawn meanwhile (its file gone from the queue branch) is never recreated. At or under the cap:
+ * left alone (idempotent). Laptop only (the affected turn); never throws.
+ */
+const refileLogged = new Set();
+function refileOverCap() {
+  try {
+    for (const r of overCapAffected(openListed.filter((o) => !claimed.has(o.id) && !activeReqs.has(o.id)), AFFECTED_MAX)) {
+      const was = new Set(r.suites.map((s) => String(s).split(':')[0])).size;
+      const got = affectedSuites((args) => git(args), r.sha);
+      if (!got || !got.suites.length) {
+        if (!refileLogged.has(r.id)) { refileLogged.add(r.id); log(`${r.id}: no capped pick here (${got ? 'no browser suite' : 'no merge-base'}), not re-filed`); }
+        continue;
+      }
+      if (got.suites.join(' ') === r.suites.join(' ')) continue;
+      if (DRY) { log(`dry-run: ${r.id}: would re-file at cap ${AFFECTED_MAX}: ${was} -> ${got.suites.join(' ')}`); continue; }
+      git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
+      try { git(['cat-file', '-e', `${QREF}:requests/${r.id}.json`]); } catch { log(`${r.id}: gone from the queue (withdrawn), not re-filed`); continue; }
+      const note = `${r.note ?? ''} (re-filed at cap ${AFFECTED_MAX})`.trim();
+      if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify({ ...r, suites: got.suites, note }, null, 2)}\n`, `re-file ${r.id}`)) continue;
+      r.suites = got.suites;
+      r.note = note;
+      log(`${r.id}: re-filed at cap ${AFFECTED_MAX}: ${was} -> ${got.suites.join(' ')}`);
+      postStatus(r.sha, 'pending', AFFECTED_CTX, `queued: ${got.suites.length} suite(s), laptop-e2e/affected (re-filed at the cap)`);
+    }
+  } catch (e) { log(`re-file failed: ${String(e.message).split('\n')[0]}`); }
 }
 
 // ---------- task guard ----------
@@ -1584,7 +1617,7 @@ function selfUpdate() {
   const target = git(['rev-parse', follow], { soft: true });
   if (!head || !target || head === target) return;
   try { git(['merge-base', '--is-ancestor', head, target]); } catch { return; }
-  const changed = git(['diff', '--name-only', head, target, '--', 'scripts/laptop-queue', 'scripts/run-e2e.mjs']) !== '';
+  const changed = git(['diff', '--name-only', head, target, '--', 'scripts/laptop-queue', 'scripts/run-e2e.mjs', 'scripts/e2e-affected.mjs']) !== '';
   git(['checkout', '-q', '--detach', target]);
   log(`fast-forwarded to ${target.slice(0, 8)}${changed ? ', restarting' : ''}`);
   if (changed) process.exit(0);
@@ -1597,7 +1630,7 @@ async function main() {
   const affectedDue = () => !DESKTOP && AFFECTED_POLL_MS > 0 && Date.now() - lastAffected >= AFFECTED_POLL_MS;
   if (ONCE || DRY) {
     await pass();
-    if (affectedDue()) affectedPass(); // after pass: its listing is the one affectedNeeds reads
+    if (affectedDue()) { refileOverCap(); affectedPass(); } // after pass: its listing is the one affectedNeeds reads
     await Promise.all(Object.values(busy).filter(Boolean));
     return;
   }
@@ -1608,7 +1641,7 @@ async function main() {
       if (!Object.values(busy).some(Boolean)) selfUpdate();
       heartbeat();
       await pass();
-      if (affectedDue()) affectedPass();
+      if (affectedDue()) { refileOverCap(); affectedPass(); }
       if (!DESKTOP && SPARE_IDLE_MIN > 0) sparePass();
       if (!Object.values(busy).some(Boolean)) selfUpdate();
     } catch (e) { log(`pass failed: ${e.message}`); }

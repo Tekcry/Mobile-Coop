@@ -1,7 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
-import { selectSuites, affectedGateSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { affectedPick } from '../e2e-affected.mjs';
 // parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
 import { parseLock } from '../heavy-lock.mjs';
 
@@ -968,12 +968,14 @@ export function queueRequester(r) {
 
 /**
  * The suites a committed change must pass, shared by request.mjs --affected and the service's affected pass: the files
- * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected selectSuites
- * (DIRECT_COVERS; wide: WIDE_COVERS). run(args) runs git and returns its stdout (injected: this file stays pure); it must
- * throw on failure (a failed diff read as "no files" would pass the head). Returns { base: merge-base, files, suites },
- * or null when there is no merge-base or git failed; suites [] = no browser suite reached (docs / unit only).
+ * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected affectedPick
+ * (DIRECT_COVERS, wide: WIDE_COVERS; the wire rule from sha's src/net/protocol.ts, skipped when it cannot be read; the
+ * gate; the cap: max unset = AFFECTED_MAX, but wide unset = no cap; 0 = no cap). run(args) runs git and returns its
+ * stdout (injected: this file stays pure); it must throw on failure (a failed diff read as "no files" would pass the
+ * head). Returns { base: merge-base, files, suites }, or null when there is no merge-base or git failed; suites [] = no
+ * browser suite reached (docs / unit only).
  */
-export function affectedSuites(run, sha, { base = 'origin/master', wide = false } = {}) {
+export function affectedSuites(run, sha, { base = 'origin/master', wide = false, max } = {}) {
   let mb;
   let out;
   try {
@@ -982,7 +984,9 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false 
     out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
   } catch { return null; }
   const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
-  return { base: mb, files, suites: affectedGateSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS)) };
+  let protocolTs = '';
+  try { protocolTs = String(run(['show', `${sha}:src/net/protocol.ts`]) ?? ''); } catch { /* no protocol.ts: no wire rule */ }
+  return { base: mb, files, suites: affectedPick(files, { wide, max, protocolTs }) };
 }
 
 /**
@@ -1018,6 +1022,17 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
  */
 export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
   return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+}
+
+/**
+ * (affected-cap A7) The open automatic affected requests to re-file at the cap: kind pr, requester AFFECTED_REQUESTER
+ * (only: set 'affected' alone is a lead's hand-filed request, never narrowed), not pinned, not a train or laptop rerun,
+ * naming more distinct suites than max (two parts of one suite count once). max 0 = no cap: none. Pure.
+ */
+export function overCapAffected(requests, max) {
+  if (!(max > 0)) return [];
+  return (requests ?? []).filter((r) => r?.kind === 'pr' && r.requester === AFFECTED_REQUESTER && !r.pin && !r.trainRerun && !r.laptopRerun
+    && new Set((r.suites ?? []).map((s) => String(s).split(':')[0])).size > max);
 }
 
 // ---------- desktop failures rechecked on the laptop (Orchestrator waste audit 2026-10-24, laptop-queue-3) ----------
