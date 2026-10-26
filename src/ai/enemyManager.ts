@@ -22,7 +22,7 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
-import { COMBAT_HEAR, HEARING, ambientDb, combatHearAct, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
+import { COMBAT_HEAR, HEARING, ambientDb, combatHearAct, effectiveReach, hearTier, sourceLive, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
 import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
@@ -91,6 +91,8 @@ export const MAX_ALIVE = 12;
 /** (sector-redesign) Uncoordinated lights-out: the guard sent stands on the light's floor - his feet not above the
  *  fixture height `y` (a lamp, or a wall switch + 2.5) and at most this many m below it. */
 export const LIGHTS_OUT_BELOW = 7;
+/** (guard-ai-mission-hooks S4, A14) The active noisy list with noise zones off: none. */
+const NO_NOISE: readonly NoisySource[] = [];
 
 /** (guard-ai S3, S6) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
  *  On since S6: a contact call that gets through starts one (`contactThrough`). Undo: false (panels only). */
@@ -351,6 +353,15 @@ export class EnemyManager {
   /** (guard-ai S5) The map's own noisy things (`MapLayout.guardAi.noisy`); Sector Ops swaps in a section's
    *  `SectorDef.noisy` on load and falls back to these. */
   readonly mapNoisy: readonly NoisySource[];
+  /** (guard-ai-mission-hooks S4, A11) The live mask of `noisy`: 1 live / 0 off per source. Sized at `setNoisy`,
+   *  refreshed once per AI tick from the switch state (`refreshNoise`). */
+  private noiseLive = new Uint8Array(0);
+  /** (S4) Any source of `noisy` names a circuit `group` (else the per-tick refresh is skipped). */
+  private noisePower = false;
+  /** (S4) AI ticks run (`noiseStep`). */
+  private aiTicks = 0;
+  /** (S4) The AI tick count at `ambientAt`'s last read (it refreshes the mask itself when no tick ran since). */
+  private hudTick = 0;
   /** The hearing table (tests / e2e read the numbers from here). */
   readonly hearingTable = HEARING;
   /** Hearing scratch (no allocation per noise): the perceivers' ids (tier-2 hearers, guards who saw a light go) and
@@ -621,7 +632,8 @@ export class EnemyManager {
     // (guard-ai S5) the map's guard-ai data: its noisy things mask hearing; dev / tests check it (warnings only)
     const gai = world.layout.guardAi;
     this.mapNoisy = gai?.noisy ?? [];
-    this.noisy = this.mapNoisy;
+    // (guard-ai-mission-hooks S4, S4-a) the active list through the flag gate (field initialisers ran already)
+    this.setNoisy(this.mapNoisy);
     if (gai && import.meta.env.DEV) {
       const slots: SquadSlot[] = [];
       for (const r of world.layout.rooms ?? []) for (const s of r.squad ?? []) slots.push(s);
@@ -2709,9 +2721,52 @@ export class EnemyManager {
     return n;
   }
 
-  /** (guard-ai S1) Set the map's noisy things (masking for guards near them); none by default. */
+  /** (guard-ai S1) Set the map's noisy things (masking for guards near them); none by default.
+   *  (guard-ai-mission-hooks S4, A14) Behind `flags.noiseZones`: off, the list is ignored (no masking at all). On, the
+   *  live mask is a `Uint8Array` sized to the list (S2 check B: reading past a typed array's end is V8's slow path),
+   *  made here only (section load), all live, then read from the switches. */
   setNoisy(list: readonly NoisySource[]): void {
-    this.noisy = list;
+    // (S4, A14) noise zones off: map and section data are ignored (no masking)
+    const l = flags.noiseZones ? list : NO_NOISE;
+    this.noisy = l;
+    if (this.noiseLive.length !== l.length) this.noiseLive = new Uint8Array(l.length);
+    this.noiseLive.fill(1);
+    let power = false;
+    for (let i = 0; i < l.length; i++) if (l[i]!.group !== undefined) power = true;
+    this.noisePower = power;
+    this.refreshNoise();
+  }
+
+  /** (guard-ai-mission-hooks S4, D9) The masking (dB) a guard standing at (x, y, z) would have: the same sum the guards
+   *  use, for the HUD meter marker (the HUD owner reads it at the player). Refreshes the mask itself when no AI tick
+   *  ran since its last read (a paused game). No allocation. */
+  ambientAt(x: number, y: number, z: number): number {
+    if (this.hudTick === this.aiTicks) this.refreshNoise();
+    this.hudTick = this.aiTicks;
+    return this.noisy.length ? ambientDb(this.noisy, x, z, y, this.noiseLive) : 0;
+  }
+
+  /** (S4, A11, S4-e) Circuit `group` reads off: a console group through the console faults, a circuit through the
+   *  breaker host. No breaker host: on (A11), unlike `ctx.breakerOff`, which reads 'off' then (the reset walk's). An
+   *  unknown console (`ofGroup` -1) reads on. */
+  private powerOff(group: number): boolean {
+    return isConsoleGroup(group) ? this.consoles.isOff(this.consoles.ofGroup(group)) : this.breakers !== null && this.breakers.isOff(group);
+  }
+
+  /** (S4, A11) Fill the live mask from the switch state (`sourceLive`: the `on` inversion). Skipped when no source has
+   *  a group. Index loop, no allocation. */
+  private refreshNoise(): void {
+    if (!this.noisePower) return;
+    for (let i = 0; i < this.noisy.length; i++) {
+      const s = this.noisy[i]!;
+      this.noiseLive[i] = s.group === undefined || sourceLive(s, this.powerOff(s.group)) ? 1 : 0;
+    }
+  }
+
+  /** (S4) One AI tick of the noise model: count it and refresh the mask. */
+  private noiseStep(): void {
+    this.aiTicks++;
+    this.refreshNoise();
   }
 
   // ----- (guard-ai-mission-hooks S1a, D7, A1-A8) mission orders (flag `missionOrders`) -----
@@ -3163,7 +3218,7 @@ export class EnemyManager {
   private hearsShout(e: Enemy, o: Enemy): number {
     const d = hyp3(o.pos.x - e.pos.x, o.pos.y - e.pos.y, o.pos.z - e.pos.z);
     if (d >= RADIO.voice) return -1;
-    const amb = this.noisy.length ? ambientDb(this.noisy, o.pos.x, o.pos.z, o.pos.y) : 0;
+    const amb = this.noisy.length ? ambientDb(this.noisy, o.pos.x, o.pos.z, o.pos.y, this.noiseLive) : 0;
     if (!hearsVoice(d, 0, amb)) return -1;
     if (!hearsVoice(d, 1, amb)) {
       // a wall between them would stop it: one ray, head to head
@@ -3439,7 +3494,7 @@ export class EnemyManager {
    * Writes the effective reach into `hearR[i]`.
    */
   private tierOf(e: Enemy, i: number, pos: Vector3, reach: number, d: number, loud: boolean): HearTier {
-    const amb = this.noisy.length ? ambientDb(this.noisy, e.pos.x, e.pos.z, e.pos.y) : 0;
+    const amb = this.noisy.length ? ambientDb(this.noisy, e.pos.x, e.pos.z, e.pos.y, this.noiseLive) : 0;
     let r = effectiveReach(reach, 0, amb);
     if (!this.coordinated) {
       // (S1 check fix 4) the parked modes' exact old rule: the ray beyond `MUFFLE` of the reach, muffled to `MUFFLE`
@@ -4253,6 +4308,9 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.raysThisStep = 0;
+    // (guard-ai-mission-hooks S4, A11) the noise mask, once per AI tick (the switch state: a gameplay state, never per
+    // listener)
+    this.noiseStep();
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)

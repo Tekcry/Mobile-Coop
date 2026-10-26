@@ -10,6 +10,7 @@ import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
+import { flags } from '../src/core/flags';
 
 // (guard-ai S1) hearing by range with walls and masking (design section 2): the pure maths, then EnemyManager's routing
 // (one guard sent, the rest turn) on stand-in guards.
@@ -277,16 +278,23 @@ describe('EnemyManager.hear (coordinated)', () => {
     expect(clear).toHaveBeenCalledTimes(2);
   });
   it('a guard by a 12 dB generator does not hear a footstep 3 m off; one away from it does', () => {
-    const { em } = manager();
-    em.setNoisy([{ id: 'gen', x: 20, z: 0, radius: 8, db: 12 }]);
-    const deaf = guard(20, 3);
-    const quiet = guard(0, 3);
-    cast(em, [deaf, quiet]);
-    em.hear(new Vector3(20, 0, 0), 4);
-    em.hear(new Vector3(0, 0, 0), 4);
-    expect(deaf.sendTo).not.toHaveBeenCalled();
-    expect(deaf.hearTurn).not.toHaveBeenCalled();
-    expect(quiet.hearTurn).toHaveBeenCalledTimes(1);
+    // (guard-ai-mission-hooks S4) masking is behind `noiseZones`
+    const was = flags.noiseZones;
+    flags.noiseZones = true;
+    try {
+      const { em } = manager();
+      em.setNoisy([{ id: 'gen', x: 20, z: 0, radius: 8, db: 12 }]);
+      const deaf = guard(20, 3);
+      const quiet = guard(0, 3);
+      cast(em, [deaf, quiet]);
+      em.hear(new Vector3(20, 0, 0), 4);
+      em.hear(new Vector3(0, 0, 0), 4);
+      expect(deaf.sendTo).not.toHaveBeenCalled();
+      expect(deaf.hearTurn).not.toHaveBeenCalled();
+      expect(quiet.hearTurn).toHaveBeenCalledTimes(1);
+    } finally {
+      flags.noiseZones = was;
+    }
   });
   it('alerted, dead and passive guards are skipped; melee guards keep their own rule (they hear in reach)', () => {
     const { em } = manager();

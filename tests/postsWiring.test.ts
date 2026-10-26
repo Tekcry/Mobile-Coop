@@ -269,7 +269,10 @@ describe('placeSlot and the map data', () => {
   it("the map's noisy things load as the masking (and a sector falls back to them); bad data warns, never throws", () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const noisy = [{ id: 'gen', x: 0, z: 0, radius: 8, db: 12 }];
+    const nz = flags.noiseZones;
+    flags.noiseZones = true; // (guard-ai-mission-hooks S4) masking is behind `noiseZones`
     const em = manager([], { guardAi: { noisy } });
+    flags.noiseZones = nz;
     expect(em.mapNoisy).toBe(noisy);
     expect((em as unknown as { noisy: unknown }).noisy).toBe(noisy);
     expect(warn).not.toHaveBeenCalled();
@@ -280,7 +283,10 @@ describe('placeSlot and the map data', () => {
 
   it('masking from the map data: a guard by a 12 dB machine does not get the investigate tier of a close bottle', () => {
     const g = guard(2, 0);
+    const nz = flags.noiseZones;
+    flags.noiseZones = true; // (guard-ai-mission-hooks S4) masking is behind `noiseZones`
     const em = manager([g], { guardAi: { noisy: [{ id: 'gen', x: 2, z: 0, radius: 6, db: 12 }] } });
+    flags.noiseZones = nz;
     em.hear(new Vector3(0, 0, 0), 6);
     // 6 m reach x 10^(-12/20) = 1.5 m effective: 2 m away he hears nothing at all
     expect(g.sendTo).not.toHaveBeenCalled();

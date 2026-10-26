@@ -343,7 +343,14 @@ describe('EnemyManager.missionOrder: the bell (A4)', () => {
     const { em } = manager();
     const g = guard(8, 0, { zone: 'porter' });
     cast(em, [g]);
-    em.setNoisy([{ id: 'gen', x: 8, z: 0, radius: 6, db: 12 }]);
+    // (guard-ai-mission-hooks S4) masking is behind `noiseZones`
+    const nz = flags.noiseZones;
+    flags.noiseZones = true;
+    try {
+      em.setNoisy([{ id: 'gen', x: 8, z: 0, radius: 6, db: 12 }]);
+    } finally {
+      flags.noiseZones = nz;
+    }
     em.setMissionMap(['s1'], [BELL]);
     em.missionOrder('porter', 'walk', 'bell', undefined, 'ring');
     expect(g.takeOrder).not.toHaveBeenCalled();
