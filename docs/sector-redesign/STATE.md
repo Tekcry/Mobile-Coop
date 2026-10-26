@@ -375,5 +375,6 @@ fix) train-ready, all green; rides the next train. #588 (Guard AI walk-home) was
 gatehouse post (14.6, -76) (stuck at (14.8, -80.7), A* 3000 vs 60000); Guard AI fixes its fallback. Route-run v2: no
 map blocker (docs/campus-greybox/checks/routerun-v2-triage.md on feature/campus-greybox; polish list in its STATE;
 tool gaps sent to Marlow). J10 L2 (S2-S5 re-light) HOLD until Michael's S1 walk.
-Next: on each builder's report: checker, PR, message Campaign; start SO5 when a builder frees; SO2 / SO4 on the mill map.
+UPDATE ~21:10: SO1 = PR #602 (checker PASS x2 posted, CI green, affected-e2e pending). SO5 = PR #604 (checker PASS posted). SO3 = PR #605 (checker FIX: co-op slot order, scratch so3-check.md; fix round in progress on feature/piano-lights-so3; then a fresh delta checker). SO3 GPU request 20261026T092007-...-b843 (laptop-e2e/so3-gpu on dddbfdcd5; 6 rows) -> tell Campaign + orchestrator the highest torch count. Rain = GA7 mapWideNoise(rain, 6) (Guard AI #603), sent to Campaign.
+Next: finish SO3 fix + delta check; read so3-gpu; SO2 / SO4 when Campaign sends the mill map.
 ```
