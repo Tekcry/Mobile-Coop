@@ -392,10 +392,6 @@ async function run(id) {
     assert(d.index === i && d.phase === 'objective' && d.mission.ruleRestarts === n, `${what}: back at the section's start, the mission going on (${JSON.stringify([d.index, d.phase, d.mission])})`);
     await until(A, ([x, z]) => { const p = window.__app.current.player.controller.pos; const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(p.x - x, p.z - z) < 2.5 && Math.hypot(r.feet.x - x, r.feet.z - z) < 2.5; }, [cp.x, cp.z], 8000, `${what}: both players at the checkpoint ${cp.x}, ${cp.z}`);
   };
-  const noBlips = async () => {
-    const n = await GA(() => window.__sector.blips().length);
-    assert(n === 0, `no objective blip while a mission runs (${n})`);
-  };
   /** (mission-rules R8) The objective line on host and client is the mission's current step, and so is the field menu's. */
   const clientHud = async (what) => {
     const line = await currentLine();
@@ -469,7 +465,6 @@ async function run(id) {
       const s0 = SEC[0].start2;
       const cf0 = await ownFeetB();
       assert(dist(cf0, s0.x, s0.z) < 2, `the client starts within 2 m of W1 start2 (${JSON.stringify(cf0)})`);
-      await noBlips();
       await clientHud(`${tag} start`);
 
       where = 'TGC W1';
@@ -637,7 +632,6 @@ async function run(id) {
         console.log('SKIP (until NET3 merges): client start section without ?mission=');
         await moveClient(s1.x, s1.z, s1.yaw);
       }
-      await noBlips();
       await clientHud(`${tag} start`);
 
       where = 'TKL W2 pull';

@@ -246,26 +246,20 @@ behind a VPN adapter).
   syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
   brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL). (sector-fixes-r RE) It runs as nine jobs, `e2e-sectorops:1` to `:9` (`--part=N`; named alone its parts
-  still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
-  co-op routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one
-  player alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the
-  air; R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
-  deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups under the 1.63 m roof, the
-  valve platform's west lip to the hall main and back, the drive platform's east lip to the branch and the main), every
-  way down alone, and each section's team door (the near side gets no Unbolt and stays locked, the far side's Unbolt
-  opens it and the partner walks through, a checkpoint restart bolts it again); parts 3, 4 and 5 are two pages (host
-  and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
-  host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
-  and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
-  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5
-  every spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`).
-  (mission-framework GB6) Two more parts run Tallow Wharf in co-op
-  (`scripts/e2e-sectorops-wharf.mjs --mission=<id>`, host + client over `?net=local`, `E2E_GPU=1`, laptop only; run with no
-  `--mission` it runs both): `e2e-sectorops:wharf-tgc` plays Three Grey Coats W1 to W4 to VICTORY with one forced co-op move per
-  section (leg-up, partner throw, leg-up) and a decoy interrogation that restarts W2 to its checkpoint; `e2e-sectorops:wharf-tkl`
-  plays Two-Key Ledger W2 to W4 to VICTORY (pull-up, chute leg-up and hatch, jetty pull-up, the two keys together) and a kill that
-  restarts W3 to its checkpoint; the shutters print SKIP until their wiring slice, and the client-start check is gated on NET3.
+  (software GL). (sector-fixes-r RE) Its parts (`--part=N`, the jobs above): part 1 is everything above; part 2 (solo, the
+  loop stepped at 120 Hz) checks slice R's co-op routes: the game's boost search finds each planned 4.4 m lip from its
+  spot and none at R3N's east face, one player alone never holds a co-op lip (under it: grab / wall jump / jump; a running
+  jump pressed at the face and in the air; R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to
+  the bay main and along it onto the deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups
+  under the 1.63 m roof, the valve platform's west lip to the hall main and back, the drive platform's east lip to the
+  branch and the main), every way down alone, and each section's team door (the near side gets no Unbolt and stays locked,
+  the far side's Unbolt opens it and the partner walks through, a checkpoint restart bolts it again); parts 3, 4 and 5 are
+  two pages (host and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up,
+  then the host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let
+  go) and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
+  re-bolted on both pages by the host's checkpoint restart. Part 7's H8 block (hard rule 9): in campus sections 2-5 every
+  spawned guard is alive at section start (TS-private `loadSection` / `unloadSection`; prints `H8 block: <n> s`). Parts
+  `mission`, `wharf-tgc`, `wharf-tkl` (Tallow in co-op): their script headers.
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
