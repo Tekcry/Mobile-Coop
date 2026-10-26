@@ -1,0 +1,13 @@
+{
+  "id": "20261026T224700-affected-e2e-ca9b9961-06f2",
+  "sha": "ca9b996198202223f2bb6d872b51b9ac9832d986",
+  "branch": "feature/brightness-range",
+  "pr": 692,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-desktop"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #692"
+}
