@@ -14,6 +14,8 @@
  */
 import { hyp2 } from '../core/mathx';
 import { OCC, OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
+import { posedHeadSample } from '../player/wallController';
+import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 
 /** The interim fill (BRIEF A10): today's `rtCapsule` numbers (gameState.ts `rtCapsule`: radius, the foot lift, the top
  *  below the head, the shortest top), the guard cull (m, horizontal, from any player), player slots (MAX_PLAYERS 4,
@@ -27,6 +29,49 @@ export interface VictimLike {
   readonly alive: boolean;
   readonly pos: { readonly x: number; readonly y: number; readonly z: number };
   readonly def: { readonly height: number };
+}
+
+/** A read-only point. */
+type V3 = { readonly x: number; readonly y: number; readonly z: number };
+
+/**
+ * (char-shadow-meter S2c) A player slot's sim inputs: the host's `PlayerRef` (`RemotePlayer.ref`) fits it structurally,
+ * and so does a co-op client's partner entry (`net/charMates.ts`). Feet, crouched, the body's standing height (absent:
+ * `STANDARD_BODY`), the peek offset, and on a wall the sim body's head (null or absent: the upright sample).
+ */
+export interface MateLike {
+  readonly feet: V3;
+  readonly crouched: boolean;
+  readonly height?: number;
+  readonly peekX?: number;
+  readonly peekZ?: number;
+  readonly head?: V3 | null;
+}
+
+/** `slotInto`'s `posedHeadSample` scratch. */
+const HEAD = { ox: 0, oz: 0, h: 0 };
+
+/**
+ * (char-shadow-meter S2c) One player slot's `pin` inputs (`FILL_IN` doubles at `s * FILL_IN`): feet; on a wall the sim
+ * body's head (`posedHeadSample`: height and offset), else the meter's sample height for the body and stance with the
+ * peek offset. The host's remote slots and a client's partner slots share it. No allocation.
+ */
+export function slotInto(pin: Float64Array, s: number, r: MateLike): void {
+  const o = s * FILL_IN;
+  pin[o] = r.feet.x;
+  pin[o + 1] = r.feet.y;
+  pin[o + 2] = r.feet.z;
+  const rh = r.head;
+  if (rh) {
+    const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, HEAD);
+    pin[o + 3] = hs.h;
+    pin[o + 4] = hs.ox;
+    pin[o + 5] = hs.oz;
+  } else {
+    pin[o + 3] = lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0);
+    pin[o + 4] = r.peekX ?? 0;
+    pin[o + 5] = r.peekZ ?? 0;
+  }
 }
 
 /** One capsule's input for `put`: ax ay az bx by bz r. */
