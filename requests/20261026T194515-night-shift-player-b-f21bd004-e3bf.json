@@ -1,0 +1,14 @@
+{
+  "id": "20261026T194515-night-shift-player-b-f21bd004-e3bf",
+  "sha": "f21bd004c08ddd62e23bc4996812363f12ab0444",
+  "branch": "feature/coop-kit-k4",
+  "pr": 658,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-netmove"
+  ],
+  "set": "k4-coop",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261026T185124-night-shift-player-b-f21bd004-64a3, rerun on the laptop"
+}
