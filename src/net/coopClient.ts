@@ -418,12 +418,13 @@ export class CoopClient implements NetAttachment {
   private relistMates(): void {
     if (!this.g.charOccluders) return;
     const o = this.mateOrder;
-    o.length = 0;
+    let k = 0;
     for (const p of this.s.players.values()) {
       if (p.id === this.s.selfId) continue;
       const a = this.avatars.get(p.id);
-      if (a) o.push(a);
+      if (a) o[k++] = a;
     }
+    o.length = k;
     this.mates.set(o);
   }
 

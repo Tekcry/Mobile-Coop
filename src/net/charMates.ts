@@ -74,6 +74,11 @@ export class CharMates {
     return this.entries.length;
   }
 
+  /** Entry `i`'s slot inputs as `into` last refreshed them, or null (tests). */
+  refOf(i: number): MateLike | null {
+    return this.entries[i]?.ref ?? null;
+  }
+
   /**
    * Every shown partner's slot inputs into `pin` slots from..max-1 (`slotInto`), in list order; returns how many. Each
    * ref is refreshed first: feet, crouch flag, the rig's standing height, and on a wall (alive) the sim body's head.
