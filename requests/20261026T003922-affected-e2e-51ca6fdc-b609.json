@@ -1,0 +1,18 @@
+{
+  "id": "20261026T003922-affected-e2e-51ca6fdc-b609",
+  "sha": "51ca6fdc1a413b5ef3f3566672a206a4a9edd6b4",
+  "branch": "feature/map-ready-s9",
+  "pr": 512,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-levels",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #512"
+}
