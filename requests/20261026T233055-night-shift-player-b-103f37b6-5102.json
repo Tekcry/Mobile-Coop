@@ -1,0 +1,14 @@
+{
+  "id": "20261026T233055-night-shift-player-b-103f37b6-5102",
+  "sha": "103f37b67cc6ac08cd773f396e059d6fd5e18f6a",
+  "branch": "feature/gm-warm",
+  "pr": 687,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-guard-carry",
+    "e2e-desktop"
+  ],
+  "set": "f59",
+  "fix": true
+}
