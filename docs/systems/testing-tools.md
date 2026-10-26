@@ -567,7 +567,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   An `--alone` step may start with `serve ` (`serve.mjs`); a `scripts/perf.mjs` step gets `--budget` unless it says `--no-budget` (`perfStep`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
   `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): fixes
-  (PR label `fix` or `request.mjs --fix`; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
+  (PR label `fix`, `request.mjs --fix` or a laptop rerun of a desktop red, F52; `LQ_FIX_FIRST` 0 = off; no wait bound), front branches (`LQ_FRONT_BRANCHES`;
   no wait bound, by design: Michael's Mixamo priority), green PRs smallest first (`LQ_GREEN_FIRST`; the oldest non-front
   request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a request that supersedes another keeps its place;
   a head conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`)
