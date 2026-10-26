@@ -21,6 +21,9 @@ Waiting on others: #603 / #604 (+ SO5b window lights) / #611 GuardActor (S2 TODO
 Music: Michael ~21:50 picked intro Investigation Piano, mission Suspense Thriller (S5b); ~21:55 "music isnt settled":
   the orchestrator's 4 realistic tracks (intro-1/2, mission-1/2, feature/music-real) go in as picker rows when it says.
 Lightning period 160.04 (Grohl loop); Sector Ops OK'd it. Openings on #617 for SO5b.
+SO5b (window lights per opening, feature/piano-lights-so5b 345c55ac8, checker running) + SO2 prebake: re-merge into -s4 at
+  their passed head. Accepted as walk-card items (no tuning): 5-20 lux reaches ~3 m not 6; start-bay corner (2.5, 3.5)
+  bright where two pools overlap; board gap own light < 1 lux.
 Re-tune after GA6a lands: G4 / G5 end waits with sweepPeriod(route) (src/ai/sceneSweep.ts), assert equal laps.
 Next slices: S6 storm sound (Sonnet, ~250 lines) when #604 is on master. Then the walk card (ETA sent ~22:10: full
   co-op walk Tue 27 ~09:00-11:00; solo first look after #606 / #616 / #617 land).
