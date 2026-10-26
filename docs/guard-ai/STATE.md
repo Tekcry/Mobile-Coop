@@ -1005,11 +1005,14 @@ behaviour dark; rule fixes ship on, G355).
 AUTO MODE (2026-10-26 ~15:00): the lead AND its agents are blocked from posting `checker` statuses (self-approval) and
 from asking the orchestrator to post them. Checkers write verdict files only; the lead reports verdicts to the
 orchestrator (RULES: it posts when auto mode blocks a lead). Connector toggles are blocked too.
+Michael 15:40: the orchestrator posts checker marks from the lead's reports. Michael 15:55: "Sessions should never get
+held up": the first time you would wait on another session, message the orchestrator at once; never wait over 10 min.
+FIX FREEZE (orchestrator ~15:55): #317 and #558 are drafts; their checker marks are posted when the freeze ends.
 Open (2026-10-26 ~15:35 SAVE; all worktrees clean + pushed, no agents running):
 1. #531 runner-armed (fix): fix round 13cf2b9c9 (guns.ts runner AK; e2e-enemies clear-lane spawn; e2e-modes reads the
    G5 context menu - was red on master). Re-check PASS (slices/checks/RUNNER-ARMED-RECHECK.md). Head 1f3a20fd5 (docs
    only after). Laptop runner-armed (enemies, modes, levels, weapon-audio) filed on 13cf2b9c9; affected on the head.
-   Checker status NOT posted (orchestrator told). Polish: opts[0] assert in e2e-modes; pressing guards never route
+   Checker POSTED by the orchestrator on 1f3a20fd. Laptop runner-armed re-filed on 1f3a20fd (modes, enemies). Polish: opts[0] assert in e2e-modes; pressing guards never route
    round waist-high blocks (all aggressive kinds; ask Michael); stale melee-runner comments (check B P-a..P-f).
 2. #537 seed-random (fix): head d51202fa3, checker posted, CI green; waits on affected-e2e.
 3. #317 coop4 (LIVE): master 4.112.1 merged a51c951b7 (5 conflicts); merge check B PASS, A FIX 1 (nextAlarmSends
