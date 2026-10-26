@@ -21,6 +21,7 @@ import {
   captureClip,
   loadStudioCaptures,
   studioBodyPin,
+  studioWeaponFor,
 } from '../src/anim/studio';
 import { MOCAP_SOURCE_NAMES, mocapSource } from '../src/anim/mocapSources';
 import { MOCAP_LAYERS } from '../src/anim/mocap';
@@ -495,5 +496,23 @@ describe('anim studio: free view aids', () => {
     expect(freeTimeScale(1.8)).toBe(1);
     expect(freeTimeScale(1.8, 2)).toBe(1.8);
     expect(freeTimeScale(5, 2)).toBe(2);
+  });
+});
+
+describe('(piano-knife S4b) the piano intro rows', () => {
+  it('stand, mirror and crouch rows, drawn, always the pistol; the crouch row asks crouch', () => {
+    const o: StudioInputOut = { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false };
+    for (const [id, v] of [['state:intro', 'stand'], ['state:introMirror', 'mirror'], ['state:introCrouch', 'crouch']] as const) {
+      const e = STUDIO_ENTRIES.find((x) => x.id === id);
+      expect(e, id).toBeDefined();
+      expect(e!.drawn, id).toBe(true);
+      expect(e!.intro, id).toBe(v);
+      expect(studioWeaponFor(e!, 'rifle'), id).toBe('pistol');
+      expect(studioWeaponFor(e!, 'pistol'), id).toBe('pistol');
+    }
+    studioInput(studioEntry('state:introCrouch'), false, o);
+    expect(o.crouch).toBe(true);
+    studioInput(studioEntry('state:intro'), false, o);
+    expect(o.crouch).toBe(false);
   });
 });

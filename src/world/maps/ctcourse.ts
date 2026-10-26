@@ -204,6 +204,9 @@ export const ctcourse: MapDef = {
     lightLevel: 0.3,
     floor: 'concrete',
     grade: { tint: [1.0, 0.98, 0.96], saturation: 0.8, contrast: 1.08 },
+    // (Michael's 4.119 walk, "the lights were blinding on epic") the sets' cone fittings scatter a short haze under
+    // their shade like a lamp, not a torch's 14 m beam (as campusOps; the re-plan yard spreads this theme)
+    lampBeams: false,
   },
   modes: ['course'],
   // (marlow-final 0e) the kit and props dress every wall on purpose: no generated skirting, conduits or clutter

@@ -1090,12 +1090,12 @@ describe('Marlow re-plan A5: flags, stations in play, lines', () => {
     expect(steps.map((o) => o.id)).toEqual(['a5-wall', 'a5-trench', 'a5-throw', 'a5-lock']);
     expect(steps.map((o) => o.done)).toEqual([{ flag: A5_APRON_E_FLAG }, { flag: A5_APRON_W_FLAG }, { flag: A5_RELEASE_FLAG }, undefined]);
     expect(A5_OBJECTIVES.map((o) => o.id)).toEqual(steps.map((o) => o.id));
-    expect(steps[0]!.text).toMatch(/wall/);
-    expect(steps[0]!.text).toMatch(/wicket door/);
+    expect(steps[0]!.text).toMatch(/apron/);
+    expect(steps[0]!.text).toMatch(/wicket/);
     expect(steps[1]!.text).toMatch(/trench/);
     expect(steps[1]!.text).toMatch(/footbridge|plates/);
     expect(steps[2]!.text).toMatch(/beams/);
-    expect(steps[2]!.text).toMatch(/kiosk/);
+    expect(steps[2]!.a).toMatch(/kiosk/);
     expect(steps[3]!.text).toMatch(/holding room five/);
     for (const o of steps) {
       for (const t of [o.text, o.a, o.b]) {

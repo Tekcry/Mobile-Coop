@@ -19,7 +19,7 @@ Map files: graph `docs/missions/prototypes/campaign-map/graph.json` (37 spaces, 
 SIGNOFF.md). Co-op kit: `docs/missions/prototypes/coop-kit/SIGNOFF.md`.
 
 ## Michael's words that bind the map
-ROADMAP "Decided" on origin/feature/menu (2026-10-25), then DECISIONS:
+ROADMAP "Decided" on origin/feature/menu (2026-10-25 and 2026-10-26), then DECISIONS:
 - Players: campaign, exactly two, no bot (G2, G48). Tallow Wharf is campaign Mission 1 (G340); "Tallow stays Mission 1"
   with Marlow Yard as the training prologue (Q6).
 - Q2 dark spots: "Never" (every light works; darkness only from cover, cut power and shot lamps). Q3 light levels:
@@ -37,6 +37,10 @@ ROADMAP "Decided" on origin/feature/menu (2026-10-25), then DECISIONS:
   spot); closed rooms "Yes, night lights only (Recommended)".
 - G157 (~18:20, "Adopt all as recommended"): the 12 changes, now in level-design 3.1, 3.10, 4.11, 5.6, 6.1, 6.2, 6.4,
   8.4, 11.11, 13, 15, 16.2.7, 16.3.6, 16.6.5. Michael confirms them on his Tallow walk.
+- Market reach exception (2026-10-26 ~19:25, G425): "Allow it for this corner (Recommended)". The fish hall side door
+  corner to the gallery takes ~16 s against the 15 s reach rule (level-design 11.6); this one corner is a named
+  exception, nothing is built, and the helper still arrives with ~11 s of the 30 s revive left. 15 s holds everywhere
+  else on the map.
 
 ## Context (fill)
 Night Shift (repo Tekcry/Mobile-Coop). Base branch: `master`. The map's folder is `docs/tallowWharf-map/` (this spec;

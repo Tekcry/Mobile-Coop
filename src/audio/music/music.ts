@@ -7,16 +7,41 @@
 import type { AudioEngine } from '../audioEngine';
 import { GameMusic } from '../score/game/gameMusic';
 import type { GameAwareness } from '../score/director';
+import { ScenePiano } from './scenePiano';
 
 export class Music {
   private readonly score: GameMusic;
+  /** (piano-escape S3) The Piano Escape scene's track; it only loads and plays when the scene calls `piano.start()`. */
+  readonly piano: ScenePiano;
+  /** (piano-escape S3) A scene is on: the director's calm / caution / alert stay silent, the piano is the only score. */
+  private sceneOn = false;
 
   constructor(readonly audio: AudioEngine) {
     this.score = new GameMusic(audio);
+    this.piano = new ScenePiano(audio);
+  }
+
+  /**
+   * (piano-escape S3) A scene owns the score: while `on` the director's Calm / Caution / Alert tracks are muted (whatever
+   * plays fades out, and the guards' awareness no longer starts any), so the scene's piano (`piano.start()`) is the only
+   * music. The mute survives a checkpoint restart (`calm()` only resets the director). `scene(false)` hands the score
+   * back and stops the piano unless it is already fading out.
+   */
+  scene(on: boolean): void {
+    this.sceneOn = on;
+    if (on) this.score.calm();
+    else if (!this.piano.fadingOut) this.piano.stop();
+  }
+
+  /** A scene is on (tests, debug). */
+  get sceneActive(): boolean {
+    return this.sceneOn;
   }
 
   /** The main menu is showing. */
   menu(): void {
+    this.sceneOn = false;
+    this.piano.stop();
     this.score.menu();
   }
 
@@ -32,7 +57,8 @@ export class Music {
 
   /** Every frame in a match, with the guards' awareness. */
   update(dt: number, game: GameAwareness): void {
-    this.score.update(dt, game);
+    // a scene on: the director sees no awareness, so it never leaves Calm (silence) and starts nothing
+    this.score.update(dt, this.sceneOn ? 'calm' : game);
   }
 
   /** (sector-restart) A checkpoint restart: the alert / caution music fades out and the match is back in Calm. */
@@ -41,6 +67,8 @@ export class Music {
   }
 
   stop(): void {
+    this.sceneOn = false;
+    this.piano.stop();
     this.score.stop();
   }
 

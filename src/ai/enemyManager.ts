@@ -18,7 +18,7 @@ import { rayOccluder } from '../world/shadowAccuracy';
 import { OCC_KIND, occKey, type CharOccluders } from '../world/charOccluders';
 import type { ShadowCues } from '../world/shadowCues';
 import { putBody, putDog, putGuard } from './guardOccluders';
-import { beamReach, type BeamHit } from '../world/torches';
+import { beamReach, nextTorchSwap, torchKey, type BeamHit } from '../world/torches';
 import { ALARM_CALL, ALARM_REPEAT, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
@@ -637,7 +637,10 @@ export class EnemyManager {
       if (l.kind !== 'flashlight') continue;
       this.torches.push(l);
       this.torchOwner.push(null);
+      // (piano SO3 fix) the shadowed slots come first (`addTorchSlots`): their count
+      if (!l.beamCut) this.torchShadowed++;
     }
+    this.torchKeys = new Float64Array(this.torches.length);
     this.flowField = new Float32Array(nav.walk.length);
     // (guard-ai S8) the cover as typed arrays and its grid (indices match `reserveCover`)
     this.coverSet = coverSetFrom(world.level.cover);
@@ -1808,6 +1811,8 @@ export class EnemyManager {
       this.torchOwner[k] = e;
       reg.setOn(ts[k]!.id, true);
     }
+    // (piano SO3 fix) a map with beamCut slots: the shadowed ones go to the lowest guard keys (the co-op client's rule)
+    if (this.torchShadowed < ts.length) this.balanceTorches();
     // follow; the beam stops at the first wall (rays along the centre and the cone's edges, round robin at 15 Hz
     // per torch), so it never lights the room behind
     this.torchTick = (this.torchTick + 1) % ts.length;
@@ -1821,6 +1826,40 @@ export class EnemyManager {
   }
 
   private torchTick = 0;
+  /** (piano SO3 fix) Flashlight slots without `beamCut` (the first ones) and a scratch of each slot's holder key. */
+  private torchShadowed = 0;
+  private torchKeys = new Float64Array(0);
+
+  /** (piano SO3 fix) `nextTorchSwap` until it holds: the lit guards with the lowest `torchKey` hold the shadowed slots,
+   *  as `TorchMirror` keeps them on the co-op client, so a guard's torch is shadowed or beam-cut alike on both pages.
+   *  A moved torch takes its beam's reach again (the follow step). Allocation-free. */
+  private balanceTorches(): void {
+    const ts = this.torches;
+    const own = this.torchOwner;
+    const keys = this.torchKeys;
+    const n = ts.length;
+    const reg = this.world.level.lights;
+    for (let k = 0; k < n; k++) {
+      const o = own[k];
+      keys[k] = o ? torchKey(o.id) : -1;
+    }
+    for (let it = 0; it < n; it++) {
+      const p = nextTorchSwap(keys, n, this.torchShadowed);
+      if (p < 0) break;
+      const i = p >> 6;
+      const j = p & 63;
+      const oi = own[i] ?? null;
+      own[i] = own[j] ?? null;
+      own[j] = oi;
+      const ki = keys[i]!;
+      keys[i] = keys[j]!;
+      keys[j] = ki;
+      reg.setOn(ts[i]!.id, !!own[i]);
+      reg.setOn(ts[j]!.id, !!own[j]);
+      ts[i]!.reach = undefined;
+      ts[j]!.reach = undefined;
+    }
+  }
 
   /** (shadow audit, `shadowAccuracy.ts`) A body's light for the guards: flashlights tested against static
    *  geometry, as the player's light is (`GameState.lightOccluder`), so a torch behind a wall does not light a body. */
@@ -2231,6 +2270,8 @@ export class EnemyManager {
     e.key = this.freeKey();
     if (e.key >= 0) this.awareness.resetKey(e.key);
     if (alerted) this.sendIn(e);
+    // (piano SO3) dev / the GPU check (`?torches=all`): every carrier's torch on (a dog's stays off: `torchWanted`)
+    if (flags.torchesAll) e.torchOverride = true;
     this.enemies.push(e);
     if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
     return e;

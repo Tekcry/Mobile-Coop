@@ -108,10 +108,10 @@ export const A4_STATIONS: StationDef[] = [
 /** LANTERN's retry lines (STATIONS section 6, verbatim; keys `retryKey`). */
 export const A4_RETRY_LINES: readonly { at: string; text: string }[] = [
   { at: 'retry:a4-deadweight', text: 'The duty officer saw you. Back to the security room door.' },
-  { at: 'retry:a4-camloop', text: 'Seen on the shop floor. Back to the security room; loop it again.' },
-  { at: 'retry:a4-camloop:timer', text: 'The cameras came back. Back to the security room; loop it again.' },
+  { at: 'retry:a4-camloop', text: 'Seen on the shop floor. Back to the security room.' },
+  { at: 'retry:a4-camloop:timer', text: 'The cameras came back. Back to the security room.' },
   { at: 'retry:a4-takedown', text: 'The loaders saw you. Back behind the pallet stacks at the dock.' },
-  { at: 'retry:a4-takedown:timer', text: 'Both loaders at once, or the other one sees. Back behind the stacks.' },
+  { at: 'retry:a4-takedown:timer', text: 'Not together, so the other loader saw. Back behind the stacks.' },
 ];
 
 const FRAME = '#6a5a44';
@@ -230,27 +230,27 @@ export function replanA4GoodsShed(b: LevelBuilder, _kit: FacilityKit, part: SetP
   p.externalFlags.push(A4_GRILLE_FLAG, A4_WICKET_FLAG, A4_OFFICE_KEY);
   p.bay.radio.push(...A4_RETRY_LINES);
   p.objectives = [
-    { id: 'a4-s9', bay: 'A4', text: 'Past the duty officer, down the staff passage and under the lift grille to the back aisle.', done: { flag: A4_GRILLE_FLAG } },
+    { id: 'a4-s9', bay: 'A4', text: 'Sneak past the officer, under the grille', done: { flag: A4_GRILLE_FLAG } },
     {
       id: 'a4-s8',
       bay: 'A4',
-      text: 'Loop the cameras at the security console, then cross the main aisle to the dock in 60 s.',
-      // (marlow-play C7) the job line is all the HUD shows: each one names the run to the dock and its 60 s
-      a: 'Down the officer, then run: back aisle, cross aisle, main aisle west to the dock - 60 s',
-      b: 'Use the console once the officer is down, then run west to the dock - 60 s',
+      text: 'Loop the cameras, run to the dock',
+      // (marlow-play C7) the job line is all the HUD shows (it adds the timer itself)
+      a: 'Take down the officer, then run to the dock.',
+      b: 'Loop the cameras at the console, then run to the dock.',
       done: { flag: A4_WEST_FLAG },
       timer: A4_GATE,
     },
     {
       id: 'a4-s10',
       bay: 'A4',
-      text: 'Two loaders at the dock desk: take both at once from behind the pallet stacks.',
+      text: 'Take both loaders together at the dock',
       // (marlow-play C7) A's mark is the north crouch spot (D1), B's the south (D2); the step ends at the push bar (`a4-wicket`)
-      a: 'Take the north man: count down and go together, then both to the push bar by the L4 door.',
-      b: 'Take the south man: count down and go together, then both to the push bar by the L4 door.',
+      a: 'Count down with your partner and take the north loader.',
+      b: 'Count down with your partner and take the south loader.',
       done: { flag: A4_WICKET_FLAG },
     },
-    { id: 'a4-lock', bay: 'A4', text: 'Push the bar at the dock wicket, then both into holding room four. Medkit inside.' },
+    { id: 'a4-lock', bay: 'A4', text: 'Push the bar, then holding room four' },
   ];
 
   // ---- light spots: the back aisle and the office are lit now (Q2); the kettle's dark spots go with the kettle ----

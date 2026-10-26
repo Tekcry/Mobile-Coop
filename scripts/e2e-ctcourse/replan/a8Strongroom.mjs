@@ -141,7 +141,7 @@ export async function walk(t, n) {
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 18, `A8: the ${tag} has station 18 live`);
-    await sees(P, /Take the boost to the gallery|Boost your partner up/, `A8: the ${tag} reads its split job line`);
+    await sees(P, /Take the boost up to the gallery|Boost your partner up/, `A8: the ${tag} reads its split job line`);
     assert((await camModes(P)).every((m) => m === 'online'), `A8: the three cameras are online on the ${tag}`);
     assert(await lampsOn(P, VESTIBULE_GROUP, true) && await lampsOn(P, NIGHT_GROUP, true), `A8: the vestibule and the night circuits are lit on the ${tag}`);
   }
@@ -249,7 +249,7 @@ export async function walk(t, n) {
   await until(B, () => window.__course.wire?.s?.st === 0, null, 15000, 'A8: no station is live after the sync (client)');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await seesTicked(P, 'a8-sync', `A8: the ${tag} sees the sync step ticked`);
-    await sees(P, /The vault is open/, `A8: the ${tag} reads the closing line`);
+    await sees(P, /Both out to the cash dock/, `A8: the ${tag} reads the closing line`);
   }
   assert((await restarts(A)) === r2 + 1, 'A8: the whole station 21 run after its one retry counted no other');
 }

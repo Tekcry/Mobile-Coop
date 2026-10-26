@@ -110,7 +110,7 @@ export const A3_OFFICE_RANGE_STATIONS: readonly StationDef[] = [
 /** LANTERN's lines when stations 6 and 7 retry (STATIONS section 6). */
 export const A3_RETRY_LINES: Readonly<Record<'a3-vent' | 'a3-jam', string>> = {
   'a3-vent': 'The camera had you. Back to the west lobby.',
-  'a3-jam': "The camera had you. Back to the corridor's west end; jam it again.",
+  'a3-jam': "The camera had you. Back to the corridor's west end.",
 };
 
 /** The built radio lines the re-plan drops: the send-back's and the cleaner's (and any keyed to a built step that is gone). */
@@ -306,15 +306,15 @@ export function replanA3OfficeRange(b: LevelBuilder, kit: FacilityKit, part: Set
     {
       id: 'a3-vent',
       bay: 'A3',
-      text: 'Riser cupboard, west lobby: one crawls to the corridor and opens the fire door.',
+      text: 'Crawl the riser to the fire door',
       done: { flag: A3_FIRE_FLAG },
     },
     {
       id: 'a3-jam',
       bay: 'A3',
-      text: 'Jam the corridor camera for each other: the recess, then the east lift lobby.',
+      text: 'Take turns jamming the corridor camera',
       a: 'Jam the camera while your partner moves, then move on their jam.',
-      b: 'Move on the jam to the recess and the east lobby, then jam for your partner.',
+      b: 'Move on the jam to the east lobby, then jam for them.',
       done: { flag: A3_FAR_FLAG },
     },
     { id: 'a3-lock', bay: 'A3', text: 'Both of you into holding room three.' },
@@ -325,7 +325,7 @@ export function replanA3OfficeRange(b: LevelBuilder, kit: FacilityKit, part: Set
   part.bay.radio.push(
     { at: 'enter', text: 'The fire door is locked tonight. Crawl through from the riser cupboard and open it.' },
     ...kept,
-    { at: 'a3-vent', text: 'Good. That is a vent unlock. Now jam that camera for each other.' },
+    { at: 'a3-vent', text: 'Good, that is a vent unlock. Now jam that camera for each other.' },
     { at: retryKey('a3-vent'), text: A3_RETRY_LINES['a3-vent'] },
     { at: retryKey('a3-jam'), text: A3_RETRY_LINES['a3-jam'] },
   );
