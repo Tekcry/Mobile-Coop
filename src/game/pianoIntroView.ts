@@ -15,8 +15,15 @@ import {
   DRY_CLICK_AT,
   EMP_LABEL,
   INTRO_ACTORS,
+  OPERATOR_SPOTS,
   PROMPT_AT,
   type PianoIntro,
+  camFromRotation,
+  empFlash,
+  glideCamera,
+  pressHand,
+  pressHandAt,
+  PRESS_S,
   REVEAL_S,
   SKIP_HOLD_S,
   TRACER_SPEED,
@@ -38,6 +45,9 @@ import { ENEMIES } from '../ai/enemyDefs';
  * `SceneView` seam: placed after the game view, gameplay keeps reading `cam.gamePos`), the black fade and the muzzle
  * flicker (two DOM layers), the letterbox, the four intro actors (`IntroActor`: posed stand-ins until Guard AI's
  * GuardActor, #611), their tracers and grain dust at 0.3x, the EMP prompt and burst, and the two framed reveals in play.
+ * (S8) One unbroken shot: the rounds punch splinters and dust out of W1 behind the operator, the press pose on the
+ * presser's own page, the black beat, one view-side lightning flash (an unlit sheet on W1's face behind the operators
+ * and a cold screen lift: no light, so gameplay and the meter never see it), and the glide into the shoulder camera.
  * Built once at the scene's start; every per-frame write goes into kept nodes and the scratch objects below (no
  * allocation per frame).
  */
@@ -183,6 +193,15 @@ const DUST_FALL = 9.8 * ACTOR_RATE * ACTOR_RATE;
 const BURST_R = 1.4;
 const BURST_UP = 0.15;
 const BURST_S = 0.6;
+/** (S8) Rounds punch through W1: splinters and grain dust out of its west face (x) behind the operators, drifting slow. */
+const W1_WEST_X = 4.5;
+/** (S8) The flash's backlight: a sheet on W1's west face (x, y 0-2.8, z 3-7.5), so the operators stand black against it. */
+const FLASH_X = 4.47;
+const FLASH_H = 2.8;
+const FLASH_Z0 = 3;
+const FLASH_Z1 = 7.5;
+/** (S8) The cold flash over the whole picture (screen blend) at its peak. */
+const FLASH_SCREEN = 0.3;
 /** Opacity strings 0..1 by hundredths (style writes allocate nothing). */
 const OPACITY: readonly string[] = Array.from({ length: 101 }, (_, i) => String(i / 100));
 
@@ -190,6 +209,9 @@ const op = (x: number): string => OPACITY[Math.max(0, Math.min(100, Math.round(x
 
 export class PianoIntroView implements SceneView, PianoView {
   private readonly cam: IntroCam = introCam();
+  /** (S8) The shoulder camera's own pose this frame (the glide's end). */
+  private readonly shoulder: IntroCam = introCam();
+  private readonly hand = pressHand();
   private readonly shot = shotLine();
   private readonly actors: IntroActor[] = [];
   /** Per actor: the shot number last fired (-1 none), whether it fired, and its muzzle at the shot (x, y, z). */
@@ -200,14 +222,23 @@ export class PianoIntroView implements SceneView, PianoView {
   private readonly tracerBase: Mesh;
   private readonly dustBase: Mesh;
   private readonly burstMesh: Mesh;
+  private readonly flashMesh: Mesh;
+  private readonly flashMat: StandardMaterial;
   private readonly tracers: InstancedMesh[] = [];
   private readonly dust: InstancedMesh[] = [];
+  /** (S8) Per actor `DUST_N` bits out of W1's west face (the first a splinter). */
+  private readonly exit: InstancedMesh[] = [];
   private readonly mats: StandardMaterial[] = [];
   private readonly black: HTMLDivElement | null;
   private readonly flash: HTMLDivElement | null;
+  private readonly cold: HTMLDivElement | null;
   private readonly prompt: HTMLDivElement | null;
   private lastBlack = '';
   private lastFlash = '';
+  private lastCold = '';
+  /** (S8) This page pressed: the press pose plays on our operator; it holds the left hand's reach while on. */
+  private pressMine = false;
+  private handOn = false;
   private promptShown = false;
   private boxed = false;
   private clicked = false;
@@ -246,6 +277,11 @@ export class PianoIntroView implements SceneView, PianoView {
     this.tracerBase = base(CreateBox('piano-tracer', { size: 1 }, scene), unlit('piano-tracer', 1, 0.82, 0.45));
     this.dustBase = base(CreateBox('piano-dust', { size: 1 }, scene), unlit('piano-dust', 0.62, 0.55, 0.42));
     this.burstMesh = base(CreateSphere('piano-emp', { diameter: 1, segments: 8 }, scene), unlit('piano-emp', 0.35, 0.62, 1, 0.75));
+    // (S8) the flash's backlight sheet (unlit, render only: no light, so gameplay and the meter never see it)
+    this.flashMat = unlit('piano-flash', 0.78, 0.86, 1, 0);
+    this.flashMesh = base(CreateBox('piano-flash', { size: 1 }, scene), this.flashMat);
+    this.flashMesh.scaling.set(0.01, FLASH_H, FLASH_Z1 - FLASH_Z0);
+    this.flashMesh.position.set(FLASH_X, FLASH_H / 2, (FLASH_Z0 + FLASH_Z1) / 2);
     for (let i = 0; i < INTRO_ACTORS.length; i++) {
       const t = this.tracerBase.createInstance(`piano-tracer-${i}`);
       t.isVisible = false;
@@ -255,6 +291,11 @@ export class PianoIntroView implements SceneView, PianoView {
         d.isVisible = false;
         d.scaling.setAll(0.07);
         this.dust.push(d);
+        const x = this.dustBase.createInstance(`piano-exit-${i}-${j}`);
+        x.isVisible = false;
+        if (j === 0) x.scaling.set(0.018, 0.018, 0.14);
+        else x.scaling.setAll(0.06);
+        this.exit.push(x);
       }
       const a = this.makeActor(i);
       a.setRate(0);
@@ -273,6 +314,7 @@ export class PianoIntroView implements SceneView, PianoView {
       return el;
     };
     this.flash = layer('background:#ffb45a;mix-blend-mode:screen;opacity:0;z-index:8998');
+    this.cold = layer('background:#a9c8ff;mix-blend-mode:screen;opacity:0;z-index:8998');
     this.black = layer('background:#000;opacity:1;z-index:8999');
     this.prompt = layer(
       "inset:auto 0 18% 0;text-align:center;font:600 22px/1.4 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:#e8edf2;text-shadow:0 1px 3px #000;opacity:0;transition:opacity .4s;z-index:9001",
@@ -329,9 +371,25 @@ export class PianoIntroView implements SceneView, PianoView {
       this.boxed = true;
       g.letterbox(LETTERBOX_HOLD);
     }
-    this.place(intro.camera(this.cam));
+    intro.camera(this.cam);
+    // (S8) the glide: from the hero shot into the shoulder camera's own pose this frame (the game view placed it just
+    // before this; `cam.gamePos` and the aim are untouched)
+    const gl = intro.glide;
+    if (gl > 0) {
+      const gc = g.player.cam.camera;
+      camFromRotation(gc.position.x, gc.position.y, gc.position.z, gc.rotation.x, gc.rotation.y, gc.fov, this.shoulder);
+      glideCamera(this.cam, this.shoulder, gl, this.cam);
+    }
+    this.place(this.cam);
     const t = intro.t;
     const pressed = intro.pressT >= 0;
+    // (S8) the flash: the sheet behind the operators and a cold lift over the picture
+    const fl = pressed ? empFlash(intro.sinceEmp) : 0;
+    this.flashMesh.isVisible = fl > 0.01;
+    this.flashMat.alpha = fl;
+    const cf = op(fl * FLASH_SCREEN);
+    if (cf !== this.lastCold && this.cold) this.cold.style.opacity = this.lastCold = cf;
+    if (this.pressMine) this.pressPose(intro.sinceEmp);
     // the layers: the fade, the flicker on the bins and the face, the prompt
     const b = op(intro.fade());
     if (b !== this.lastBlack && this.black) this.black.style.opacity = this.lastBlack = b;
@@ -361,6 +419,32 @@ export class PianoIntroView implements SceneView, PianoView {
     }
   }
 
+  /**
+   * (S8) The press pose (a placeholder, no clip): this page's operator's left hand to the device at his belt, up as he
+   * presses it, then back (the rig's world reach; render only). Ends by `PRESS_S`.
+   */
+  private pressPose(e: number): void {
+    const h = pressHandAt(e, this.hand);
+    const pl = this.g.player;
+    const r = pl.rig.reachL;
+    if (e >= PRESS_S) {
+      if (this.handOn) r.w = 0;
+      this.handOn = false;
+      this.pressMine = false;
+      return;
+    }
+    const yaw = pl.controller.renderYaw;
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+    // the left of a +z-facing body is -x: left = (-cos, +sin)
+    const p = pl.position;
+    r.x = p.x + fx * h.f - fz * h.s;
+    r.y = p.y + h.u;
+    r.z = p.z + fz * h.f + fx * h.s;
+    r.w = h.w;
+    this.handOn = true;
+  }
+
   /** The actors walk from their start times at 0.3x, fire on the timetable (tracers from their muzzles), idle aimed. */
   private actorsFrame(t: number, adt: number): void {
     for (let i = 0; i < this.actors.length; i++) {
@@ -368,7 +452,7 @@ export class PianoIntroView implements SceneView, PianoView {
       a.setRate(t >= ACTOR_START[i]! ? ACTOR_RATE : 0);
       a.step(adt);
       this.tracers[i]!.isVisible = false;
-      for (let j = 0; j < DUST_N; j++) this.dust[i * DUST_N + j]!.isVisible = false;
+      for (let j = 0; j < DUST_N; j++) this.dust[i * DUST_N + j]!.isVisible = this.exit[i * DUST_N + j]!.isVisible = false;
       if (t >= PROMPT_AT || !shotAt(i, t, this.shot)) continue;
       const s = this.shot;
       if (s.n !== this.firedN[i]) {
@@ -403,6 +487,7 @@ export class PianoIntroView implements SceneView, PianoView {
     for (const a of this.actors) a.dispose();
     for (const t of this.tracers) t.isVisible = false;
     for (const d of this.dust) d.isVisible = false;
+    for (const d of this.exit) d.isVisible = false;
   }
 
   /** Actor `i`'s round in flight (a streak) or its impact's grain dust. */
@@ -427,6 +512,19 @@ export class PianoIntroView implements SceneView, PianoView {
     }
     const h = s.age - flight;
     if (h >= DUST_S) return;
+    // (S8) the round punches through W1: splinters and grain dust out of its west face beside this page's operator
+    const opz = (OPERATOR_SPOTS[this.intro.slot] ?? OPERATOR_SPOTS[0]!)[1];
+    const sgn = (s.n + i) % 2 === 0 ? 1 : -1;
+    const ez = opz + sgn * (0.25 + ((s.n * 1.3 + i * 0.7) % 0.3));
+    const ey = 1.2 + ((s.n * 0.9 + i * 0.37) % 0.6);
+    for (let j = 0; j < DUST_N; j++) {
+      const d = this.exit[i * DUST_N + j]!;
+      const sp = ((s.n * 5 + j * 3) % 5) / 5 - 0.4;
+      const v = 0.25 + j * 0.1;
+      d.position.set(W1_WEST_X - v * h, ey + 0.2 * v * h - 0.5 * DUST_FALL * h * h, ez + sp * 0.3 * h);
+      if (j === 0) d.rotation.set(h * 2.1, 0.6 + h * 1.3, 0);
+      d.isVisible = true;
+    }
     // the dust bursts back off the bins' face (north face for the stair pair, east face for the aisle pair)
     const nx = i < 2 ? 0 : 1;
     const nz = i < 2 ? 1 : 0;
@@ -450,12 +548,16 @@ export class PianoIntroView implements SceneView, PianoView {
     cam.fov = c.fov;
   }
 
-  /** (`PianoView`) The EMP burst at the pressing operator's belt, and the existing EMP sound. */
-  burst(x: number, y: number, z: number): void {
+  /**
+   * (`PianoView`) The EMP burst at the pressing operator's belt, and the existing EMP sound. `mine`: this page pressed,
+   * so the press pose plays on our operator (the partner's figure does not show it: that needs a wire field).
+   */
+  burst(x: number, y: number, z: number, mine: boolean): void {
     this.bx = x;
     this.by = y;
     this.bz = z;
     this.burstT = 0;
+    this.pressMine = mine;
     this.g.events.emit('gadget', { kind: 'emp', phase: 'detonate' });
   }
 
@@ -492,13 +594,19 @@ export class PianoIntroView implements SceneView, PianoView {
     this.tracers.length = 0;
     for (const d of this.dust) d.dispose();
     this.dust.length = 0;
+    for (const d of this.exit) d.dispose();
+    this.exit.length = 0;
     this.tracerBase.dispose();
     this.dustBase.dispose();
     this.burstMesh.dispose();
+    this.flashMesh.dispose();
     for (const m of this.mats) m.dispose();
     this.mats.length = 0;
+    if (this.handOn) this.g.player.rig.reachL.w = 0;
+    this.handOn = this.pressMine = false;
     this.black?.remove();
     this.flash?.remove();
+    this.cold?.remove();
     this.prompt?.remove();
   }
 

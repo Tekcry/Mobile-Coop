@@ -8,8 +8,18 @@ import {
   ACTOR_SPEED,
   ACTOR_START,
   EMP_CUT_S,
+  EMP_FLASH_AT,
+  EMP_GLIDE_S,
   EMP_OUT_S,
   INTRO_ACTORS,
+  PLAY_YAW,
+  PRESS_S,
+  camFromRotation,
+  empBlack,
+  empFlash,
+  glideCamera,
+  pressHand,
+  pressHandAt,
   MUSIC_WAIT_S,
   OPERATOR_SPOTS,
   PROMPT_AT,
@@ -42,16 +52,19 @@ function at(t: number): PianoIntro {
 }
 
 describe('the shot list on the intro clock', () => {
-  it('0 / 3 / 9 / 16 / 30 / 38 s: black, fade in, hold, pull back, reveal, prompt', () => {
+  it('0 / 3 / 9 / 16 / 30 / 35 / 38 s: black, fade in, hold, pull back, reveal, hero, prompt (S8)', () => {
     expect(at(0.01).shot).toBe('black');
     expect(at(2.99).shot).toBe('black');
     expect(at(3).shot).toBe('fadeIn');
     expect(at(9).shot).toBe('hold');
     expect(at(16).shot).toBe('pullBack');
     expect(at(30).shot).toBe('reveal');
+    expect(at(35).shot).toBe('hero');
     expect(at(38).shot).toBe('prompt');
     expect(at(120).shot).toBe('prompt');
-    expect(SHOT_T).toEqual({ black: 3, fadeIn: 9, hold: 16, pullBack: 30, reveal: 38 });
+    expect(SHOT_T).toEqual({ black: 3, fadeIn: 9, hold: 16, pullBack: 30, reveal: 35, hero: 38 });
+    // the prompt stays at 38 s (the music, the skip's seek and the actors' start times hang on it)
+    expect(PROMPT_AT).toBe(38);
   });
 
   it('the fade: black to 3 s, a 6 s fade in, clear from 9 s', () => {
@@ -93,19 +106,61 @@ describe('the prompt and the EMP beat', () => {
     expect(i.shot).toBe('prompt');
   });
 
-  it('press: the EMP 0-0.8 s, the black-out beat to 2.5 s, then play (done); once', () => {
+  it('press: the EMP 0-0.8 s, the black-out beat (black, then the flash), the 1.2 s glide, then play at 3.5 s (done); once', () => {
+    expect(EMP_CUT_S).toBe(3.5);
+    expect(EMP_GLIDE_S).toBe(1.2);
+    expect(EMP_OUT_S).toBeLessThan(EMP_FLASH_AT);
+    expect(EMP_FLASH_AT + 0.5).toBeLessThan(EMP_CUT_S - EMP_GLIDE_S);
     const i = at(40);
     expect(i.press()).toBe(true);
     expect(i.press()).toBe(false);
     expect(i.promptOn).toBe(false);
     expect(i.shot).toBe('emp');
+    expect(i.glide).toBe(0);
     i.step(EMP_OUT_S + 1e-6);
     expect(i.shot).toBe('blackout');
     expect(i.done).toBe(false);
-    i.step(EMP_CUT_S - EMP_OUT_S + 1e-6);
+    i.step(EMP_FLASH_AT - EMP_OUT_S - 0.1);
+    // the black beat before the flash
+    expect(i.fade()).toBe(1);
+    i.step(0.2);
+    expect(i.fade()).toBe(0);
+    i.step(EMP_CUT_S - EMP_GLIDE_S - EMP_FLASH_AT - 0.1 + 0.5);
+    expect(i.shot).toBe('glide');
+    expect(i.glide).toBeCloseTo(0.5 / EMP_GLIDE_S, 4);
+    expect(i.done).toBe(false);
+    i.step(EMP_GLIDE_S);
     expect(i.shot).toBe('play');
     expect(i.done).toBe(true);
+    expect(i.glide).toBe(1);
     expect(i.fade()).toBe(0);
+  });
+
+  it('the black layer and the view-side flash after the press', () => {
+    expect(empBlack(0)).toBe(0);
+    expect(empBlack(EMP_OUT_S - 0.01)).toBe(0);
+    expect(empBlack(EMP_FLASH_AT - 0.01)).toBe(1);
+    expect(empBlack(EMP_FLASH_AT)).toBe(0);
+    expect(empFlash(EMP_FLASH_AT - 0.01)).toBe(0);
+    expect(empFlash(EMP_FLASH_AT + 0.06)).toBe(1);
+    expect(empFlash(EMP_FLASH_AT + 0.3)).toBeGreaterThan(0);
+    expect(empFlash(EMP_FLASH_AT + 0.6)).toBe(0);
+    // one flash only
+    for (let e = EMP_FLASH_AT + 0.6; e < 20; e += 0.05) expect(empFlash(e)).toBe(0);
+  });
+
+  it('the press pose: the hand to the belt, up to press, back by PRESS_S (before the flash)', () => {
+    const h = pressHand();
+    expect(pressHandAt(0, h).w).toBe(0);
+    pressHandAt(0.15, h);
+    expect(h.w).toBe(1);
+    expect(h.u).toBeCloseTo(0.98, 6);
+    pressHandAt(0.5, h);
+    expect(h.w).toBe(1);
+    expect(h.u).toBeCloseTo(1.18, 6);
+    expect(h.f).toBeGreaterThan(0.3);
+    expect(pressHandAt(PRESS_S, h).w).toBe(0);
+    expect(PRESS_S).toBeLessThan(EMP_FLASH_AT);
   });
 });
 
@@ -149,48 +204,138 @@ describe('the camera path', () => {
         maxFov = Math.max(maxFov, Math.abs(b.fov - a.fov));
         Object.assign(a, b);
       }
-      // 10 ms steps: no jump anywhere (the fastest move is well under 1 m/s)
-      expect(maxStep).toBeLessThan(0.01);
-      expect(maxLook).toBeLessThan(0.02);
+      // 10 ms steps: no jump anywhere (the crane is slow; the hero drop is the fastest move, under 8 m/s)
+      expect(maxStep).toBeLessThan(0.08);
+      expect(maxLook).toBeLessThan(0.08);
       expect(maxFov).toBeLessThan(0.002);
+    });
+
+    it(`slot ${slot}: continuous at each beat boundary (16, 30, 35, 38 s)`, () => {
+      const a = introCam();
+      const b = introCam();
+      for (const t of [SHOT_T.hold, SHOT_T.pullBack, SHOT_T.reveal, SHOT_T.hero]) {
+        introCamera(t - 1e-7, slot, a);
+        introCamera(t + 1e-7, slot, b);
+        expect(hyp3(b.x - a.x, b.y - a.y, b.z - a.z), `t ${t}`).toBeLessThan(1e-4);
+        expect(hyp3(b.tx - a.tx, b.ty - a.ty, b.tz - a.tz), `t ${t}`).toBeLessThan(1e-4);
+        expect(Math.abs(b.fov - a.fov), `t ${t}`).toBeLessThan(1e-5);
+      }
+    });
+
+    it(`slot ${slot}: the hero shot from OPERATOR_SPOTS: low, in front of the operator, looking up at him`, () => {
+      const c = introCam();
+      introCamera(SHOT_T.hero, slot, c);
+      const [ox, oz] = OPERATOR_SPOTS[slot]!;
+      expect(c.y).toBeLessThan(0.5);
+      expect(c.x).toBeCloseTo(ox - 1.6, 6);
+      // towards the partner (slot 0 north, slot 1 south)
+      expect(Math.sign(c.z - oz)).toBe(slot === 0 ? 1 : -1);
+      expect(c.tx).toBeCloseTo(ox, 6);
+      expect(c.tz).toBeCloseTo(oz, 6);
+      // looking up at his chest and head
+      expect(c.ty).toBeGreaterThan(c.y + 1);
+      // it drops fast: on the floor before it pushes all the way in
+      const m = introCam();
+      introCamera(SHOT_T.reveal + 0.6 * (SHOT_T.hero - SHOT_T.reveal), slot, m);
+      expect(m.y).toBeCloseTo(c.y, 6);
+      expect(hyp2(m.x - c.x, m.z - c.z)).toBeGreaterThan(0.1);
     });
   }
 
-  it('the close-up: 0.6 m off the chest, about 22 deg; 30 s about 5 m up at (0.8, 1.2); 38 s at 7.5 m looking north-east', () => {
+  it('the close-up: 0.6 m off the chest and jaw, about 30 deg; 30 s about 5 m up at (0.8, 1.2); 35 s at 7.5 m looking north-east', () => {
     const c = introCam();
     introCamera(10, 0, c);
     const [ox, oz] = OPERATOR_SPOTS[0]!;
     expect(hyp2(c.x - ox, c.z - oz)).toBeCloseTo(0.6, 6);
-    expect(c.y).toBeCloseTo(1.4, 6);
-    expect((c.fov * 180) / Math.PI).toBeCloseTo(22, 6);
+    expect(c.y).toBeCloseTo(1.48, 6);
+    expect((c.fov * 180) / Math.PI).toBeCloseTo(30, 6);
+    // the frame's top edge at the chest reaches the jaw (about 1.55 m on a 1.75 m operator)
+    expect(c.ty + Math.tan(c.fov / 2) * 0.6).toBeGreaterThan(1.58);
     introCamera(30, 0, c);
     expect(c.x).toBeCloseTo(0.8, 6);
     expect(c.z).toBeCloseTo(1.2, 6);
     expect(c.y).toBeCloseTo(5, 6);
-    introCamera(38, 0, c);
+    introCamera(35, 0, c);
     expect(c.y).toBeCloseTo(7.5, 6);
     // north-east and down, over the bins
     expect(c.tx).toBeGreaterThan(c.x);
     expect(c.tz).toBeGreaterThan(c.z);
     expect(c.ty).toBeLessThan(c.y);
-    // it holds after 38 s and after the press
+    // it holds on the hero shot after 38 s and after the press (until the glide)
+    const hero = introCam();
+    introCamera(38, 0, hero);
     const h = introCam();
     introCamera(80, 0, h);
-    expect(h).toEqual(c);
+    expect(h).toEqual(hero);
     const i = at(60);
     i.press();
     i.step(1);
-    expect(i.camera(introCam())).toEqual(c);
+    expect(i.camera(introCam())).toEqual(hero);
   });
 
   it('the rise never stops between the pull-back and the reveal (height rises through 30 s)', () => {
     const c = introCam();
     let prev = -1;
-    for (let t = 16.5; t <= 37.5; t += 0.5) {
+    for (let t = 16.5; t <= 34.5; t += 0.5) {
       introCamera(t, 0, c);
       expect(c.y, `t ${t}`).toBeGreaterThan(prev);
       prev = c.y;
     }
+  });
+});
+
+describe('the glide into the shoulder camera (S8)', () => {
+  /** The view's `place`: the rotation a camera at (x, y, z) takes to look at (tx, ty, tz). */
+  const rot = (c: { x: number; y: number; z: number; tx: number; ty: number; tz: number }): [number, number] => {
+    const dx = c.tx - c.x;
+    const dy = c.ty - c.y;
+    const dz = c.tz - c.z;
+    return [-Math.atan2(dy, hyp2(dx, dz)), Math.atan2(dx, dz)];
+  };
+
+  it('a rendered camera as an IntroCam keeps its place, view and field', () => {
+    const c = camFromRotation(4.1, 1.7, 2.6, 0.12, 0.3, 0.9, introCam());
+    expect([c.x, c.y, c.z, c.fov]).toEqual([4.1, 1.7, 2.6, 0.9]);
+    const [rx, ry] = rot(c);
+    expect(rx).toBeCloseTo(0.12, 9);
+    expect(ry).toBeCloseTo(0.3, 9);
+  });
+
+  for (const slot of [0, 1]) {
+    it(`slot ${slot}: starts on the hero shot, ends exactly on the shoulder pose, no jump between`, () => {
+      const hero = introCamera(PROMPT_AT, slot, introCam());
+      const [ox, oz] = OPERATOR_SPOTS[slot]!;
+      // the shoulder camera behind the operator along the wall (PLAY_YAW), 2 m boom
+      const yaw = PLAY_YAW[slot]!;
+      const sh = camFromRotation(ox + 0.15 - Math.sin(yaw) * 2, 1.75, oz - Math.cos(yaw) * 2, 0.05, yaw, 0.95, introCam());
+      const out = introCam();
+      expect(glideCamera(hero, sh, 0, out)).toEqual(hero);
+      glideCamera(hero, sh, 1, out);
+      for (const k of ['x', 'y', 'z', 'tx', 'ty', 'tz', 'fov'] as const) expect(out[k]).toBeCloseTo(sh[k], 9);
+      const [rx, ry] = rot(out);
+      expect(rx).toBeCloseTo(0.05, 9);
+      expect(ry).toBeCloseTo(yaw, 9);
+      // continuous through the glide (the intro's own clock: 10 ms steps over 1.2 s)
+      const i = at(PROMPT_AT);
+      i.press();
+      const a = introCam();
+      const b = introCam();
+      glideCamera(i.camera(introCam()), sh, i.glide, a);
+      let maxStep = 0;
+      for (let e = 0; e < EMP_CUT_S + 0.2; e += 0.01) {
+        i.step(0.01);
+        glideCamera(i.camera(b), sh, i.glide, b);
+        maxStep = Math.max(maxStep, hyp3(b.x - a.x, b.y - a.y, b.z - a.z));
+        Object.assign(a, b);
+      }
+      expect(maxStep).toBeLessThan(0.08);
+      expect(i.done).toBe(true);
+      for (const k of ['x', 'y', 'z', 'tx', 'ty', 'tz', 'fov'] as const) expect(a[k]).toBeCloseTo(sh[k], 9);
+    });
+  }
+
+  it('the play look: along the wall towards the partner (slot 0 north, slot 1 south)', () => {
+    expect(PLAY_YAW).toEqual([0, Math.PI]);
   });
 });
 

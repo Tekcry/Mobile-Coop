@@ -11,16 +11,26 @@ import { hyp2, hyp3 } from '../core/mathx';
  * which has no geometry yet. The intro never writes `loop.timeScale`: slow motion is the actors' and tracers' own rate.
  */
 
-/** Shot boundaries on the intro clock (s; the intro clock is the track time until the EMP). */
-export const SHOT_T = { black: 3, fadeIn: 9, hold: 16, pullBack: 30, reveal: 38 } as const;
-/** The EMP prompt from here; the shot holds and the actors idle until it is pressed (no timer). */
-export const PROMPT_AT = SHOT_T.reveal;
+/**
+ * Shot boundaries on the intro clock (s; the intro clock is the track time until the EMP). One unbroken camera (S8): the
+ * close-up, the crane back and up, the wide reveal (30-35 s), then the fast drop to the hero shot at floor level (35-38 s).
+ */
+export const SHOT_T = { black: 3, fadeIn: 9, hold: 16, pullBack: 30, reveal: 35, hero: 38 } as const;
+/** The EMP prompt from here, when the hero shot settles; it holds and the actors idle until it is pressed (no timer). */
+export const PROMPT_AT = SHOT_T.hero;
 /** Hold Back / Esc this long (s) to skip to the prompt. */
 export const SKIP_HOLD_S = 1;
 /** Press + this (s): every lamp is out (the mains cut's ripple, `mainsOff(.., 0.8)`). */
 export const EMP_OUT_S = 0.8;
-/** Press + this (s): the cut to play (input on, the radio line, the objective). */
-export const EMP_CUT_S = 2.5;
+/** (S8) Press + this (s): the one render-only lightning flash (a view-side flash, never the lightning timetable). */
+export const EMP_FLASH_AT = 1.5;
+/** (S8) The glide from the hero shot into the shoulder camera (s); it ends at the cut. */
+export const EMP_GLIDE_S = 1.2;
+/**
+ * Press + this (s): the glide has settled on the shoulder camera and play begins (input on, the radio line, the
+ * objective). (S8: was 2.5; the black beat and the flash come first, the glide runs over the last `EMP_GLIDE_S`.)
+ */
+export const EMP_CUT_S = 3.5;
 /** The music's place at a skip and at the press (S3's `seek`; at the press the loop and the lightning start together). */
 export const SKIP_SEEK = 38;
 export const EMP_SEEK = 41;
@@ -44,11 +54,11 @@ export const OPERATOR_SPOTS: readonly (readonly [number, number])[] = [
   [4.0, 4.6],
   [4.0, 6.0],
 ];
-/** The close-up: this far west of the chest (m), at this height, about 22 deg vertical field. */
+/** The close-up: this far west of the chest (m), at this height, about 30 deg vertical field: chest and jaw (S8). */
 const CLOSE_OFF = 0.6;
-const CLOSE_Y = 1.4;
-const CHEST_Y = 1.35;
-const CLOSE_FOV = 22;
+const CLOSE_Y = 1.48;
+const CHEST_Y = 1.46;
+const CLOSE_FOV = 30;
 /** The pull-back ends here (x, z) about 5 m up at 30 s; the reveal keeps rising to 7.5 m by 38 s. */
 const PULL_X = 0.8;
 const PULL_Z = 1.2;
@@ -60,11 +70,21 @@ const REVEAL_FOV = 55;
 const REVEAL_LOOK_X = 8.0;
 const REVEAL_LOOK_Y = 1.0;
 const REVEAL_LOOK_Z = 5.6;
+/** (S8) The hero shot: this far west of the operator (m), this far towards the partner, at floor level, looking up. */
+const HERO_BACK = 1.6;
+const HERO_SIDE = 0.45;
+const HERO_Y = 0.3;
+const HERO_LOOK_Y = 1.5;
+const HERO_FOV = 40;
+/** (S8) The drop reaches the floor this far (0..1) through the hero move; the push in runs the whole move. */
+const DROP_U = 0.55;
+/** (S8) The shoulder camera's look point for the glide: this far along its view (m). */
+const GLIDE_LOOK = 4;
 /** The height's speed through 30 s (m/s): the rise never stops between the pull-back and the reveal. */
 const RISE_V = (REVEAL_Y - CLOSE_Y) / (SHOT_T.reveal - SHOT_T.hold);
 const DEG = Math.PI / 180;
 
-export type IntroShot = 'black' | 'fadeIn' | 'hold' | 'pullBack' | 'reveal' | 'prompt' | 'emp' | 'blackout' | 'play';
+export type IntroShot = 'black' | 'fadeIn' | 'hold' | 'pullBack' | 'reveal' | 'hero' | 'prompt' | 'emp' | 'blackout' | 'glide' | 'play';
 
 /** A camera: where it is, what it looks at, the vertical field (rad). */
 export interface IntroCam {
@@ -98,8 +118,9 @@ function hermite(p0: number, v0: number, p1: number, v1: number, d: number, u: n
 
 /**
  * The intro camera at intro time `t` framing operator `slot` (each page frames its own; the partner is revealed by the
- * pull-back). 0-16 s: the close-up on the chest; 16-30 s: the diagonal pull-back to the south-west and up; 30-38 s: the
- * wide reveal rising to 7.5 m; then it holds. Continuous in position, target and field. No allocation.
+ * pull-back). 0-16 s: the close-up on the chest and jaw; 16-30 s: the diagonal pull-back to the south-west and up; 30-35 s:
+ * the wide reveal rising to 7.5 m; 35-38 s: the fast drop and the push in at floor level to the hero shot (low, looking
+ * up at this page's operator); then it holds. Continuous in position, target and field. No allocation.
  */
 export function introCamera(t: number, slot: number, out: IntroCam): IntroCam {
   const op = OPERATOR_SPOTS[slot] ?? OPERATOR_SPOTS[0]!;
@@ -130,17 +151,127 @@ export function introCamera(t: number, slot: number, out: IntroCam): IntroCam {
     out.fov = lerp(CLOSE_FOV, PULL_FOV, s) * DEG;
     return out;
   }
-  const d = SHOT_T.reveal - SHOT_T.pullBack;
-  const u = Math.min(1, (t - SHOT_T.pullBack) / d);
-  out.x = PULL_X;
-  out.z = PULL_Z;
-  out.y = hermite(PULL_Y, RISE_V, REVEAL_Y, 0, d, u);
-  out.tx = REVEAL_LOOK_X;
-  out.ty = REVEAL_LOOK_Y;
-  out.tz = REVEAL_LOOK_Z;
-  out.fov = lerp(PULL_FOV, REVEAL_FOV, smooth(u)) * DEG;
+  if (t <= SHOT_T.reveal) {
+    const d = SHOT_T.reveal - SHOT_T.pullBack;
+    const u = (t - SHOT_T.pullBack) / d;
+    out.x = PULL_X;
+    out.z = PULL_Z;
+    out.y = hermite(PULL_Y, RISE_V, REVEAL_Y, 0, d, u);
+    out.tx = REVEAL_LOOK_X;
+    out.ty = REVEAL_LOOK_Y;
+    out.tz = REVEAL_LOOK_Z;
+    out.fov = lerp(PULL_FOV, REVEAL_FOV, smooth(u)) * DEG;
+    return out;
+  }
+  // (S8) the hero shot: down fast to the floor, pushing in low in front of the operator, looking up at him
+  const u = (t - SHOT_T.reveal) / (SHOT_T.hero - SHOT_T.reveal);
+  const s = smooth(u);
+  const side = slot === 1 ? -HERO_SIDE : HERO_SIDE;
+  out.x = lerp(PULL_X, ax - HERO_BACK, s);
+  out.z = lerp(PULL_Z, az + side, s);
+  out.y = lerp(REVEAL_Y, HERO_Y, smooth(u / DROP_U));
+  out.tx = lerp(REVEAL_LOOK_X, ax, s);
+  out.ty = lerp(REVEAL_LOOK_Y, HERO_LOOK_Y, s);
+  out.tz = lerp(REVEAL_LOOK_Z, az, s);
+  out.fov = lerp(REVEAL_FOV, HERO_FOV, s) * DEG;
   return out;
 }
+
+/**
+ * (S8) A rendered camera as an `IntroCam`: its place, its Babylon rotation (x pitch down, y yaw) and vertical field; the
+ * look point `GLIDE_LOOK` m along the view. No allocation.
+ */
+export function camFromRotation(x: number, y: number, z: number, rx: number, ry: number, fov: number, out: IntroCam): IntroCam {
+  const c = Math.cos(rx) * GLIDE_LOOK;
+  out.x = x;
+  out.y = y;
+  out.z = z;
+  out.tx = x + Math.sin(ry) * c;
+  out.ty = y - Math.sin(rx) * GLIDE_LOOK;
+  out.tz = z + Math.cos(ry) * c;
+  out.fov = fov;
+  return out;
+}
+
+/**
+ * (S8) The glide `u` (0..1, eased here) from camera `a` to camera `b` (the shoulder camera's own pose this frame): place,
+ * look point and field blended. `out` may be `a`. Ends exactly on `b`. No allocation.
+ */
+export function glideCamera(a: IntroCam, b: IntroCam, u: number, out: IntroCam): IntroCam {
+  const k = smooth(u);
+  out.x = lerp(a.x, b.x, k);
+  out.y = lerp(a.y, b.y, k);
+  out.z = lerp(a.z, b.z, k);
+  out.tx = lerp(a.tx, b.tx, k);
+  out.ty = lerp(a.ty, b.ty, k);
+  out.tz = lerp(a.tz, b.tz, k);
+  out.fov = lerp(a.fov, b.fov, k);
+  return out;
+}
+
+/** (S8) The black beat's layer after the press: clear while the lamps die, black just after, gone at the flash. */
+const EMP_BLACK_IN = 0.25;
+
+export function empBlack(e: number): number {
+  if (e < EMP_OUT_S || e >= EMP_FLASH_AT) return 0;
+  return clamp01((e - EMP_OUT_S) / EMP_BLACK_IN);
+}
+
+/** (S8) The view-side lightning flash 0..1 at `e` s after the press: a fast strike, a short hold, a 0.4 s fall. */
+const FLASH_UP = 0.04;
+const FLASH_HOLD = 0.06;
+const FLASH_FALL = 0.4;
+
+export function empFlash(e: number): number {
+  const d = e - EMP_FLASH_AT;
+  if (d < 0) return 0;
+  if (d < FLASH_UP) return d / FLASH_UP;
+  if (d < FLASH_UP + FLASH_HOLD) return 1;
+  const f = 1 - (d - FLASH_UP - FLASH_HOLD) / FLASH_FALL;
+  return f > 0 ? f * f : 0;
+}
+
+/**
+ * (S8) The presser's left hand (a placeholder pose, no clip): to the device at the belt, up and forward as he presses it,
+ * then back. Offsets from the feet in the body frame (m: `f` forward, `u` up, `s` to the left) and the reach weight `w`.
+ */
+export interface PressHand {
+  f: number;
+  u: number;
+  s: number;
+  w: number;
+}
+
+export function pressHand(): PressHand {
+  return { f: 0, u: 0, s: 0, w: 0 };
+}
+
+const BELT_F = 0.1;
+const BELT_U = 0.98;
+const BELT_S = 0.17;
+const PUSH_F = 0.32;
+const PUSH_U = 1.18;
+const PUSH_S = 0.08;
+/** The hand on the device at the belt by this (s), the device up by `PRESS_UP`, held to `PRESS_HOLD`, let go by `PRESS_S`. */
+const PRESS_GRAB = 0.15;
+const PRESS_UP = 0.4;
+const PRESS_HOLD = 0.7;
+export const PRESS_S = 1.0;
+
+export function pressHandAt(e: number, out: PressHand): PressHand {
+  const k = smooth((e - PRESS_GRAB) / (PRESS_UP - PRESS_GRAB));
+  out.f = lerp(BELT_F, PUSH_F, k);
+  out.u = lerp(BELT_U, PUSH_U, k);
+  out.s = lerp(BELT_S, PUSH_S, k);
+  out.w = e < 0 || e >= PRESS_S ? 0 : e < PRESS_GRAB ? smooth(e / PRESS_GRAB) : e < PRESS_HOLD ? 1 : 1 - smooth((e - PRESS_HOLD) / (PRESS_S - PRESS_HOLD));
+  return out;
+}
+
+/**
+ * (S8) The game camera's look (yaw, rad) set at the press, so the glide lands on an open boom: along the wall towards
+ * the partner (slot 0 north, slot 1 south). Facing west with the back on the bins the boom is blocked (the body fades).
+ */
+export const PLAY_YAW: readonly number[] = [0, Math.PI];
 
 /** The black layer's alpha at intro time `t` (before the EMP): black to 3 s, the 6 s fade in, then clear. */
 export function introFade(t: number): number {
@@ -193,7 +324,7 @@ export class PianoIntro {
     return this.pressT < 0 ? -1 : this.t - this.pressT;
   }
 
-  /** The cut to play has come (press + 2.5 s). */
+  /** The cut to play has come (press + `EMP_CUT_S`: the glide has settled). */
   get done(): boolean {
     return this.pressT >= 0 && this.t - this.pressT >= EMP_CUT_S;
   }
@@ -202,13 +333,14 @@ export class PianoIntro {
     const t = this.t;
     if (this.pressT >= 0) {
       const e = t - this.pressT;
-      return e < EMP_OUT_S ? 'emp' : e < EMP_CUT_S ? 'blackout' : 'play';
+      return e < EMP_OUT_S ? 'emp' : e < EMP_CUT_S - EMP_GLIDE_S ? 'blackout' : e < EMP_CUT_S ? 'glide' : 'play';
     }
     if (t < SHOT_T.black) return 'black';
     if (t < SHOT_T.fadeIn) return 'fadeIn';
     if (t < SHOT_T.hold) return 'hold';
     if (t < SHOT_T.pullBack) return 'pullBack';
     if (t < SHOT_T.reveal) return 'reveal';
+    if (t < SHOT_T.hero) return 'hero';
     return 'prompt';
   }
 
@@ -239,12 +371,17 @@ export class PianoIntro {
     return true;
   }
 
-  /** The black layer's alpha now (the blackout beat is the lamps' own dark, not a black layer). */
+  /** The black layer's alpha now (after the press: the black beat between the lamps' death and the flash, S8). */
   fade(): number {
-    return this.pressT >= 0 ? 0 : introFade(this.t);
+    return this.pressT >= 0 ? empBlack(this.t - this.pressT) : introFade(this.t);
   }
 
-  /** The intro camera now (holds at the reveal's end from 38 s on). */
+  /** (S8) The glide into the shoulder camera 0..1 (linear; `glideCamera` eases it): 0 until press + cut - glide. */
+  get glide(): number {
+    return this.pressT < 0 ? 0 : clamp01((this.t - this.pressT - (EMP_CUT_S - EMP_GLIDE_S)) / EMP_GLIDE_S);
+  }
+
+  /** The intro camera now (holds on the hero shot from 38 s on; the view glides it to the shoulder camera). */
   camera(out: IntroCam): IntroCam {
     return introCamera(this.pressT >= 0 ? Math.min(this.t, PROMPT_AT) : this.t, this.slot, out);
   }
