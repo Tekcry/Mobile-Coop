@@ -38,3 +38,25 @@ Pixabay Content License (commercial use allowed, no attribution required; credit
 | Track | Artist | Page | Pixabay id | File SHA-256 |
 | --- | --- | --- | --- | --- |
 | "Investigation Piano" | leberch | https://pixabay.com/music/search/investigation%20piano/ (search URL: no other Pixabay row exists to copy the track page form from, and the page slug was not confirmed) | 611639 | `f4926dfd5294f26335de986f4c10298a15c1a93c3fd992cd41e418d75c81918d` |
+
+### Scene music A/B (piano-escape S5; dev picker `?pianomusic=` and the Music Lab "Scene" list)
+Five more files in `src/assets/music/scene/`, played only when picked (default stays "Investigation Piano" above). Same
+handling as the row above: loaded only when the scene starts, out of the offline cache.
+
+Four original sketches, made in this repo by `scripts/music/piano.mjs` (sketches 1-3, a Node synth) and
+`scripts/music/pulse.mjs` (sketch 4): original notes, synthesised, no samples and no downloads. Rendered to WAV by the
+scripts, encoded to MP3 (160 kb/s, 44.1 kHz stereo) with `scripts/music/encode-mp3.ps1`. No third-party licence applies.
+
+| Sketch | Source | Length | File | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| 1 "Held Breath" (D minor, 54 bpm) | original, `scripts/music/piano.mjs` | 83.78 s | `src/assets/music/scene/sketch-1-held-breath.mp3` | `d732f1b64f91cdacb9e5ecf31e420d81253f7502c3e73f935ab9678afa761179` |
+| 2 "Thornbeck" (A minor, 48 bpm) | original, `scripts/music/piano.mjs` | 93.50 s | `src/assets/music/scene/sketch-2-thornbeck.mp3` | `d973a37efe3dcd93e33221c230fdc027151e942766878dcb462f9d83530324b4` |
+| 3 "Last Round" (C minor, 60 bpm) | original, `scripts/music/piano.mjs` | 78.00 s | `src/assets/music/scene/sketch-3-last-round.mp3` | `c019de5ebabf0c53848c9d480da391c57cfaa50155fa024e03ed4aa10271ae91` |
+| 4 "Pulse" (dark electronic, 84 bpm) | original, `scripts/music/pulse.mjs` | 96.43 s | `src/assets/music/scene/sketch-4-pulse.mp3` | `9189f07decca3e53963d3872c299febb385f2e958063d7bb05c47945475040a5` |
+
+One more Pixabay track, the download as is (162.04 s, 44.1 kHz stereo, 256 kb/s, 5.19 MB). Licence: Pixabay Content
+License (commercial use allowed, no attribution required; credited anyway).
+
+| Track | Artist | Page | Pixabay id | File | File SHA-256 |
+| --- | --- | --- | --- | --- | --- |
+| "Suspense Thriller" | Alex Grohl | https://pixabay.com/music/search/suspense%20thriller/ (search URL: the page slug was not confirmed) | 552495 | `src/assets/music/scene/alexgrohl-suspense-thriller-552495.mp3` | `b7b1df7d44176d6b9ab794d65a9fa574f1fa57ac3a6433cfce702826953fafe2` |
