@@ -55,6 +55,114 @@ export const THERMAL = {
   doorMinHeat: 0.5,
 } as const;
 
+/**
+ * (thermal-read) Thermal's cold scene, readable in the dark. Michael (2026-10-27, the storm mill after the EMP): "thermal
+ * vision is poor. i cant see any surfaces and cant tell where i am. can you make it easier to see where im going? these
+ * would be expensive thermal goggles so it should be good quality". The cold scene no longer comes from the lit picture
+ * (black in a blackout): each pixel's surface is rebuilt from the scene depth the post stack already has (no extra pass
+ * or target) and given a temperature like a high-end imager shows it: floors cooler than walls, ceilings and high
+ * surfaces warmer (heat rises), grazing faces darker (emissivity falls off at a low angle), slow world-space mottling,
+ * creases and silhouettes picked out (the imager's edge enhancement), lit surfaces a little warmer, far surfaces fading
+ * to a flat cool. That temperature runs through a cool palette (indigo to pale steel) kept well under the hot ramp, so
+ * people (the emissive flag through `heatOf`) stay clearly brightest. Rendering only: perception, the light meter, the
+ * light field and noise never read it. Every number is a starting value. GLSL mirror: `THERMAL_SURFACE_GLSL`.
+ */
+export const THERMAL_SURFACE = {
+  /** The cool palette: temperature 0..1 then RGB (display). Its top stays far under a body's ramp colour. */
+  stops: [
+    [0.0, 0.03, 0.018, 0.085],
+    [0.3, 0.085, 0.05, 0.25],
+    [0.55, 0.16, 0.13, 0.43],
+    [0.8, 0.25, 0.27, 0.56],
+    [1.0, 0.38, 0.42, 0.66],
+  ] as readonly (readonly [number, number, number, number])[],
+  /** Base temperature by the surface's facing (world normal y): floor (up), wall, ceiling (down). */
+  floor: 0.36,
+  wall: 0.5,
+  ceiling: 0.62,
+  /** Warmer per metre above the camera (heat rises), over this range of metres (below, above). */
+  heightK: 0.025,
+  heightMin: -4,
+  heightMax: 8,
+  /** Temperature kept on a face seen edge-on (1 = face-on). */
+  grazing: 0.68,
+  /** World-space mottling: peak-to-peak temperature of a large (m) and a fine pattern. */
+  big: 0.12,
+  bigSize: 2.4,
+  fine: 0.05,
+  fineSize: 0.45,
+  /** Lit surfaces run warmer: this much at a graded scene luma of `THERMAL.coldTo` (none in a blackout). */
+  lit: 0.2,
+  /** Far surfaces fade to `farT` between these distances (m): the room in front reads, the distance stays quiet. */
+  farT: 0.24,
+  farFrom: 9,
+  farTo: 48,
+  /** Creases and silhouettes: the inverse-depth Laplacian (relative) from `edgeLo` (none) to `edgeHi` (full) adds `edge`;
+   *  half of it is left on the far fade. Sampled `px` output pixels either side. */
+  edge: 0.36,
+  edgeLo: 0.0025,
+  edgeHi: 0.012,
+  px: 1.5,
+  /** Nothing drawn (the sky through a window or an opening): the palette's bottom. */
+  sky: 0.06,
+  /** The hot ramp takes over from the cool surface between these heats (`heatOf`): bodies, the door silhouette. */
+  blendLo: 0.02,
+  blendHi: 0.12,
+} as const;
+
+/** The surface's temperature 0..1 (GLSL `surfaceTemp`): world normal y, facing to the camera 0..1, height above the
+ *  camera (m), distance (m), edge 0..1, graded scene luma, mottling (centred on 0). */
+export function surfaceTemp(ny: number, facing: number, dh: number, dist: number, edge: number, lit: number, mottle: number): number {
+  const s = THERMAL_SURFACE;
+  const base = ny >= 0 ? s.wall + (s.floor - s.wall) * smooth(0.5, 0.9, ny) : s.wall + (s.ceiling - s.wall) * smooth(0.5, 0.9, -ny);
+  let t = base + s.heightK * Math.min(s.heightMax, Math.max(s.heightMin, dh)) + mottle + s.lit * smooth(0.04, THERMAL.coldTo, lit);
+  t *= s.grazing + (1 - s.grazing) * Math.min(1, Math.max(0, facing));
+  const far = smooth(s.farFrom, s.farTo, dist);
+  t += (s.farT - t) * far;
+  t += s.edge * edge * (1 - 0.5 * far);
+  return Math.min(1, Math.max(0, t));
+}
+
+/** The cool palette's colour for a surface temperature 0..1 (GLSL `surfaceColor`). */
+export function thermalSurfaceColor(t: number, out: [number, number, number] = [0, 0, 0]): [number, number, number] {
+  return rampColor(THERMAL_SURFACE.stops, t, out);
+}
+
+/** The hot ramp's share over the cool surface for a heat 0..1 (GLSL: the same smoothstep in the cinematic pass). */
+export function thermalHotShare(h: number): number {
+  return smooth(THERMAL_SURFACE.blendLo, THERMAL_SURFACE.blendHi, h);
+}
+
+/**
+ * (thermal-read) Electro's scene, readable the same way. Michael (2026-10-27): "electronic vision is also poor, needs
+ * more clarity light the thermal vision". The surface field is thermal's (`THERMAL_SURFACE`: depth, facing, height,
+ * mottling, edges), coloured in electro's own navy to a pale steel-cyan, kept well under the white of a live device.
+ */
+export const ELECTRO_SURFACE = {
+  stops: [
+    [0.0, 0.02, 0.045, 0.085],
+    [0.35, 0.05, 0.12, 0.2],
+    [0.65, 0.12, 0.24, 0.36],
+    [1.0, 0.28, 0.44, 0.56],
+  ] as readonly (readonly [number, number, number, number])[],
+} as const;
+
+/** Electro's surface colour for a surface temperature 0..1 (GLSL `electroSurfaceColor`). */
+export function electroSurfaceColor(t: number, out: [number, number, number] = [0, 0, 0]): [number, number, number] {
+  return rampColor(ELECTRO_SURFACE.stops, t, out);
+}
+
+function rampColor(st: readonly (readonly [number, number, number, number])[], t: number, out: [number, number, number]): [number, number, number] {
+  const x = Math.min(1, Math.max(0, t));
+  let k = 1;
+  while (k < st.length - 1 && x > st[k]![0]) k++;
+  const a = st[k - 1]!;
+  const b = st[k]!;
+  const u = Math.min(1, Math.max(0, (x - a[0]) / (b[0] - a[0])));
+  for (let i = 0; i < 3; i++) out[i] = a[i + 1]! + (b[i + 1]! - a[i + 1]!) * u;
+  return out;
+}
+
 /** Electro (CT): a flat dark navy, no grain; live devices (bright) glow white; people stay dim. */
 export const ELECTRO = {
   /** The scene's luma scaled down by this: only emissive things reach the glow band. */
@@ -189,6 +297,89 @@ float sensorNoise(highp vec2 uv, highp float aspect, highp float time) {
 }
 float sensorAmp(float amp, float lit, float l) {
   return amp * (1.0 - (1.0 - lit) * clamp(l, 0.0, 1.0));
+}`;
+
+const TS = THERMAL_SURFACE;
+
+/**
+ * (thermal-read) GLSL mirror of `surfaceTemp` / `thermalSurfaceColor`, and the surface rebuilt from the scene depth.
+ * Reads the cinematic pass's uniforms `depthSampler`, `depthRaw` (the `DepthSource` mode: 0 the depth renderer's,
+ * 1 the G-buffer's raw view z, 2 hardware depth), `minZ`, `maxZ`, `tanY`, `aspect`, `invView`, `camPos` and `texel`
+ * (one output pixel). Five depth taps (the pixel and a cross round it), all highp: hyperbolic depth near 1 needs it.
+ */
+export const THERMAL_SURFACE_GLSL = `
+highp float tsViewZ(highp float d) {
+  if (depthRaw > 1.5) {
+    if (d >= 0.99999) return maxZ;
+    highp float ndc = d * 2.0 - 1.0;
+    return min(2.0 * minZ * maxZ / ((maxZ + minZ) - ndc * (maxZ - minZ)), maxZ);
+  }
+  return depthRaw > 0.5 ? (d <= 0.0 ? maxZ : min(d, maxZ)) : (d >= 0.9999 ? maxZ : d * (minZ + maxZ) - minZ);
+}
+highp vec3 tsPos(highp vec2 uv) {
+  highp float z = max(tsViewZ(texture2D(depthSampler, uv).r), 1e-3);
+  highp vec2 ndc = uv * 2.0 - 1.0;
+  return vec3(ndc.x * tanY * aspect, ndc.y * tanY, 1.0) * z;
+}
+highp float tsHash(highp vec2 p) {
+  highp vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+// value noise 0..1 (smooth cells; world space, so it stays on the surface as the camera moves)
+highp float tsNoise(highp vec2 p) {
+  highp vec2 i = floor(p);
+  highp vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(tsHash(i), tsHash(i + vec2(1.0, 0.0)), f.x), mix(tsHash(i + vec2(0.0, 1.0)), tsHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float surfaceTemp(float ny, float facing, float dh, float dist, float edge, float lit, float mottle) {
+  float base = ny >= 0.0 ? mix(${f(TS.wall)}, ${f(TS.floor)}, smoothstep(0.5, 0.9, ny)) : mix(${f(TS.wall)}, ${f(TS.ceiling)}, smoothstep(0.5, 0.9, -ny));
+  float t = base + ${f(TS.heightK)} * clamp(dh, ${f(TS.heightMin)}, ${f(TS.heightMax)}) + mottle + ${f(TS.lit)} * smoothstep(0.04, ${f(THERMAL.coldTo)}, lit);
+  t *= mix(${f(TS.grazing)}, 1.0, clamp(facing, 0.0, 1.0));
+  float far = smoothstep(${f(TS.farFrom)}, ${f(TS.farTo)}, dist);
+  t = mix(t, ${f(TS.farT)}, far);
+  t += ${f(TS.edge)} * edge * (1.0 - 0.5 * far);
+  return clamp(t, 0.0, 1.0);
+}
+vec3 surfaceColor(float t) {
+  vec3 c = ${v3(TS.stops[0]!.slice(1))};
+${TS.stops.slice(1).map((st, i) => `  c = mix(c, ${v3(st.slice(1))}, clamp((t - ${f(TS.stops[i]![0])}) / ${f(st[0] - TS.stops[i]![0])}, 0.0, 1.0));`).join('\n')}
+  return c;
+}
+vec3 electroSurfaceColor(float t) {
+  vec3 c = ${v3(ELECTRO_SURFACE.stops[0]!.slice(1))};
+${ELECTRO_SURFACE.stops.slice(1).map((st, i) => `  c = mix(c, ${v3(st.slice(1))}, clamp((t - ${f(ELECTRO_SURFACE.stops[i]![0])}) / ${f(st[0] - ELECTRO_SURFACE.stops[i]![0])}, 0.0, 1.0));`).join('\n')}
+  return c;
+}
+// the surface's temperature 0..1 at uv from the depth alone (lit: the graded scene luma, 0 in a blackout); thermal and
+// electro colour it with their own palettes
+float surfaceField(vec2 uv, float lit) {
+  highp vec3 pc = tsPos(uv);
+  if (pc.z >= maxZ * 0.98) return ${f(TS.sky)};
+  highp vec2 o = texel * ${f(TS.px)};
+  highp vec3 pl = tsPos(uv - vec2(o.x, 0.0));
+  highp vec3 pr = tsPos(uv + vec2(o.x, 0.0));
+  highp vec3 pd = tsPos(uv - vec2(0.0, o.y));
+  highp vec3 pu = tsPos(uv + vec2(0.0, o.y));
+  // creases and silhouettes: inverse depth is linear across a plane on screen, so its Laplacian is 0 on a flat face
+  highp float wc = 1.0 / pc.z;
+  highp float lap = (abs(1.0 / pl.z + 1.0 / pr.z - 2.0 * wc) + abs(1.0 / pd.z + 1.0 / pu.z - 2.0 * wc)) / wc;
+  float edge = smoothstep(${f(TS.edgeLo)}, ${f(TS.edgeHi)}, lap);
+  // the normal from the flatter side of each axis (no smear across a silhouette)
+  highp vec3 dx = abs(pr.z - pc.z) < abs(pc.z - pl.z) ? pr - pc : pc - pl;
+  highp vec3 dy = abs(pu.z - pc.z) < abs(pc.z - pd.z) ? pu - pc : pc - pd;
+  highp vec3 n = cross(dx, dy);
+  n = n / max(length(n), 1e-8);
+  if (dot(n, pc) > 0.0) n = -n;
+  highp float dist = length(pc);
+  float facing = clamp(dot(n, -pc / dist), 0.0, 1.0);
+  highp vec3 wn = (invView * vec4(n, 0.0)).xyz;
+  highp vec3 wp = (invView * vec4(pc, 1.0)).xyz;
+  // mottling on the surface's own plane (the dominant axis), a large and a fine pattern
+  highp vec2 q = abs(wn.y) > 0.7 ? wp.xz : (abs(wn.x) > abs(wn.z) ? wp.zy : wp.xy);
+  float mottle = (tsNoise(q * ${f(1 / TS.bigSize)}) - 0.5) * ${f(TS.big)} + (tsNoise(q * ${f(1 / TS.fineSize)} + 17.0) - 0.5) * ${f(TS.fine)};
+  return surfaceTemp(wn.y, facing, wp.y - camPos.y, dist, edge, lit, mottle);
 }`;
 
 /**
