@@ -29,6 +29,13 @@ A-C pointers are this branch after slice C (shifted by D, E: find by name); D, E
 Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
 Next: slice F (Sonnet, own worktree), then the Opus checker on the head. Dry runs
 (`node scripts/laptop-queue/service.mjs --once --dry-run`, also with `LQ_WORKER=desktop`) not yet run.
+Carry-ins (2026-10-26 ~13:45, after #517 merges):
+- #517 checker polish: refileOverCap passes `mustExist` to pushFile (withdrawal race); a null / [] recompute goes in a
+  skip set; capAffected's coop / smoke checks use `norm()`; testing-tools.md:38 drop the restated "at most 3" and wrap;
+  selfUpdate watches e2e-times.json; request.mjs usage says `--requester affected-e2e` is narrowed.
+- Train 118 stall (00:57-01:00Z swap outage): a failed train status post and a failed done claim were dropped, so the
+  head sat on laptop-e2e pending and the alone hold blocked every PR claim for 1.5 h. Retry both on later passes
+  (state.trains entry without a posted status), and log the hold once per 15 min while it blocks.
 
 ## Planning (2026-10-26)
 Branch feature/laptop-queue-8, worktree C:/NightShift/Mobile-Coop-laptop-queue-8, cut from origin/master 34b96b9c.
