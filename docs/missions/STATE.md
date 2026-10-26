@@ -1,7 +1,21 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-26 ~16:15 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
+## RESUME 2026-10-26 ~17:20 (Night Shift | Campaign Build, after the ~17:05 swap; read this block first)
+Process as in the 16:15 block below (prototype mode, bypass: the lead posts `checker`, low.mjs, junctions to
+Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Session after the 17:05 swap".
+1. #567 (F28, contains #553) rode train 125, which failed on e2e-ctcourse shards 5-8; the orchestrator triages it.
+2. D1 cloud brief closed done (cloud-queue df606035f): merged as is, the TGC split ruled to G5.
+3. (a) #522 feature/mission-c2-rules 17e8738ba: master merged in (settings: Hints + Animation source kept; tsc +
+   settings tests green); checker status posted; train-ready returns via the watchdog after CI + affected-e2e.
+4. (b) feature/mission-b-sector 8d4feb8ec (= (a) merged in, tsc 0). Opus checker running -> scratch/campaign/member-b-check.md.
+   PASS -> PR (base feature/mission-c2-rules, big-pr), one laptop set (cut report "Closest single test set").
+5. (c) net + (d) Tallow cut by Opus -> scratch/campaign/member-cd-cut-report.md (feature/mission-c-net on (b),
+   feature/mission-d-wharf on (c)). Then a checker each ((c): two Opus src/net checkers), PRs, one set each.
+6. G5 after (d) (A30); #549 look-video merged (master).
+Next: member-b-check verdict -> (b) PR; (c)/(d) cut report -> checkers; Tallow W1 in /preview/ when (d) lands.
+
+## OLD RESUME 2026-10-26 ~16:15 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
 report file is missing. New junctions point ONLY at C:/NightShift/Mobile-Coop-menu/node_modules. `fix` label on fix PRs.
 Bypass mode: the lead posts `checker` statuses itself. Local checks via scratch/ctcore/low.mjs.
