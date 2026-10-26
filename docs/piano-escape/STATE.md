@@ -3,7 +3,7 @@ Owner: Night Shift | Campaign Build. Status: current.
 
 ## RESUME 2026-10-26 ~22:20 SAVE (Night Shift | Campaign Build; read this block first; swap ~22:48)
 Main focus: the mill (Michael ~19:40). Worktrees C:/NightShift/Mobile-Coop-piano-escape[-s1b|-s2|-s4|-s5]; briefs, reports
-and checks in C:/NightShift/scratch/campaign/piano/. Prototype mode; the lead posts ; docs pushes re-post it.
+and checks in C:/NightShift/scratch/campaign/piano/. Prototype mode; the lead posts `checker`; docs pushes re-post it.
 PRs (all checker PASS, posted):
 - #606 feature/piano-escape -> master (S1 shell + S3 music; master merged in 6f89eec17). CI + affected running; the
   orchestrator labels it train-ready and it rides the next train.
