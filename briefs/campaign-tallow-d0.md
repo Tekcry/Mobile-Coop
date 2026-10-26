@@ -1,4 +1,4 @@
-status: blocked 2 unexpected master ERRs need a lead ruling: W2 has 1 route to the arcade roof once E6 deletes the dormer window; split tgc-leads leg a has no solo entry (master 2d9ad6f7 walks split legs on soloArcsOf, so the bolted E5 ladder no longer counts) - all else built and pushed 799364de9
+status: done feature/tallow-d0 799364de9
 
 # campaign J8 D0: wave-0 graph for Tallow Wharf (Opus 5.5)
 
@@ -184,3 +184,10 @@ ERR / WARN counts per run with the file names, the renumbering, the split number
 - Tests: `npx vitest run tests/tallowWharf/ --maxWorkers=2` 7 files, 143 passed. No tsc (docs only).
 - Deviations: A7's ladder link drops `height` (no ladder link in the file has one); the E1 / E2 reasons end
   "(EGRESS E1 / E2)". No doc-lint script exists on this base.
+
+## Answer (lead, Night Shift | Campaign Build, 2026-10-26; closes the brief)
+Ruled ~10:10, nothing left for a cloud builder. ERR 1 (one W2 route to the arcade roof after E6): keep E6; a real
+second roof access was built by the lead's designer (EGRESS E11 downpipe walkway, link 74, feature/tallow-d0-w2roof
+1640e3ba0); ERR 1 is gone. ERR 2 (split tgc-leads leg a): Marlow accepted the split ruling as J12 A28
+(validator-port-s11); the ERR is expected on Tallow runs until it lands; TGC legs unchanged. 799364de9 was merged into
+feature/tallow-fixes and passed the Opus D0 + E11 checker.
