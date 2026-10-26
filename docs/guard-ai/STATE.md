@@ -1016,7 +1016,7 @@ down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); light
 fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
 builders; 00:59 pace: up to 2 agents, piano first.
-Open (2026-10-27 ~02:45 SAVE, 5-hour reset 03:50, same account; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
+Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
      4bb733e14 committed ad3c1afd9 (A FIX 2: watch deaf in cooldown / caution, deck sweep leaves his storey; B PASS).
@@ -1035,9 +1035,8 @@ Open (2026-10-27 ~02:45 SAVE, 5-hour reset 03:50, same account; target: Michael 
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: #624 MERGED (piano GA6 / GA7 on master; all piano asks GA1-GA7 built). Piano polish PR #644 TRAIN-READY
-(feature/guard-ai-piano-polish, patch; check, checker, affected-e2e green; orchestrator told 03:00): merges with
-the next train. #317: merge 12 771a3dde2 (version line only; checker carried from MERGE10-CHECK.md): co-op group
-affected-e2e -> green: tell orch; a new master conflict = the same PROTOCOL_VERSION line (keep master's number +
-coop4's comment). Train 146 triage (#583 test bug) sent to Campaign. All worktrees clean and pushed.
+Next: piano guard work all on master (#624, #644); walk-card lines sent to the orchestrator 04:00. #317 merge 12
+771a3dde2: co-op group running -> green: tell orch (missions switch on today; new master conflict = the same
+PROTOCOL_VERSION line). Next slice J16 Guard AI half (row 13): Opus planner -> docs/guard-ai-j16/BRIEF + PLAN on
+feature/guard-ai-j16 (worktree -guard-ai-j16) -> fresh Opus plan checker -> slices (cue waits on Sector Ops wiring).
 ```
