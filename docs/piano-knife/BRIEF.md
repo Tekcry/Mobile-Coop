@@ -99,7 +99,9 @@ Campaign's scene flag and scene switch.
 - A16 Hand contacts (lead 2026-10-26 ~21:05, prototype mode, Michael ~16:05 "Prototype mode"): a paired-kill contact
   that misses the bible's 3 cm (5.12.2) after S2's one measuring run is accepted as a recorded `KNOWN_MISS` (ceiling
   at most 10 cm) until Michael plays; no IK fix slice before then. Undo: an Opus IK fix on `knifePair.ts` (S2b) and
-  an empty `KNOWN_MISS`.
+  an empty `KNOWN_MISS`. One exception (lead ~22:50, after S2's measure): the `corner` row misses 16.7 cm on the
+  grab's first frames and the guard's left hand jitters up to 16.4 cm; it stays pinned in `OVER_CEILING` (17 cm) until
+  Michael plays, first on the polish list (a different victim clip or the S2b hand IK). Undo: the same.
 
 ## Questions for Michael
 None for Player Build. The Mixamo sign-in (CLIP-LIST) is the orchestrator's ask; the map plan (G288) is Campaign's.
