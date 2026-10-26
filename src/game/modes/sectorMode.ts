@@ -1,7 +1,7 @@
 import { Vector3 } from '../../core/babylon';
 import type { Enemy } from '../../ai/enemy';
 import type { PlayerRef } from '../../ai/enemy';
-import type { TeamFields } from '../playerSlots';
+import { refSlot, slotOfId, teamSizeOf } from '../playerSlots';
 import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
@@ -203,26 +203,8 @@ const BOARD_LABEL = 'Read';
 /** Co-op: the devices' state goes to the client at least this often (s), and at once on a change. */
 const SEC_SEND = 0.5;
 
-/**
- * (coop4 SM, until N1) The team size: `GameState.teamSize()` (connected + held, N1) when it exists, else the players
- * listed now. TODO(coop4 N1): replace with `g.teamSize()` once gameState.ts has it.
- */
-export function teamSizeOf(g: GameState, refs: PlayerRef[]): number {
-  return (g as { teamSize?(): number }).teamSize?.() ?? g.playerRefsInto(refs).length;
-}
-
-/** (coop4 SM, until N1) A listed player's slot: `TeamRef.slot` (N1) when set, else its list index. */
-export function refSlot(r: PlayerRef, index: number): number {
-  return (r as Partial<TeamFields>).slot ?? index;
-}
-
-/** (coop4 SM) The slot of player `id` ('local' or '' = this machine's player), or `none` when it is not listed. No allocation. */
-export function slotOfId(g: GameState, refs: PlayerRef[], id: string, none: number): number {
-  const want = id === '' ? 'local' : id;
-  const rs = g.playerRefsInto(refs);
-  for (let i = 0; i < rs.length; i++) if (rs[i]!.id === want) return refSlot(rs[i]!, i);
-  return none;
-}
+/** (coop4 SM) The team size and slot helpers live in `game/playerSlots.ts` (the mission reads them too); re-exported. */
+export { refSlot, slotOfId, teamSizeOf };
 
 /**
  * Sector Ops (feature/sector-ops A12, M7): the map's sections in order. A section's guards spawn when it loads

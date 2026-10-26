@@ -7,6 +7,7 @@
  * `mv` for what the player is doing). `SlotTable` holds the rules; `NetSession` owns one (N1).
  */
 import type { PlayerRef } from '../ai/enemy';
+import type { GameState } from './gameState';
 import type { MoveState } from '../player/moveState';
 
 /** Players a match can have (= MAX_PLAYERS in net/protocol.ts = MAX_INTRUDERS in ai/targetPick.ts; a test keeps them equal). */
@@ -183,4 +184,25 @@ export class SlotTable {
     this.ids[s] = null;
     this.held[s] = false;
   }
+}
+
+/**
+ * (coop4 SM, until N1) The team size: `GameState.teamSize()` (connected + held, N1) when it exists, else the players
+ * listed now. TODO(coop4 N1): replace with `g.teamSize()` once gameState.ts has it.
+ */
+export function teamSizeOf(g: GameState, refs: PlayerRef[]): number {
+  return (g as { teamSize?(): number }).teamSize?.() ?? g.playerRefsInto(refs).length;
+}
+
+/** (coop4 SM, until N1) A listed player's slot: `TeamRef.slot` (N1) when set, else its list index. */
+export function refSlot(r: PlayerRef, index: number): number {
+  return (r as Partial<TeamFields>).slot ?? index;
+}
+
+/** (coop4 SM) The slot of player `id` ('local' or '' = this machine's player), or `none` when it is not listed. No allocation. */
+export function slotOfId(g: GameState, refs: PlayerRef[], id: string, none: number): number {
+  const want = id === '' ? 'local' : id;
+  const rs = g.playerRefsInto(refs);
+  for (let i = 0; i < rs.length; i++) if (rs[i]!.id === want) return refSlot(rs[i]!, i);
+  return none;
 }

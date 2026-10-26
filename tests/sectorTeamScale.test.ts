@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { teamForSlot } from '../src/game/mission/missionDef';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { ENEMIES, type EnemyKind } from '../src/ai/enemyDefs';
 import { DIFFICULTIES, DIFFICULTY } from '../src/ai/archetypes';
@@ -231,6 +234,25 @@ describe('team size (A10) and the helpers', () => {
     expect(slotOfId(gs, [], 'b', -1)).toBe(2);
     expect(slotOfId(gs, [], 'c', -1)).toBe(1);
     expect(slotOfId(gs, [], 'gone', 1)).toBe(1);
+  });
+});
+
+describe('the mission reads fixed slots, not list places (coop4 merge 9, check FIX 1)', () => {
+  it('slot 1 OUT or held: the player on slot 2 stays team A, and the team size still counts three', () => {
+    // the list leaves slot 1 out (OUT or held); teamSize() still counts him (N1: connected + held)
+    const { g } = sector([sec('s', 0, true)], [player('local', 0), player('c', 2)], () => 3);
+    const gs = g as unknown as GameState;
+    const slot = slotOfId(gs, [], 'c', 1);
+    expect(slot).toBe(2);
+    expect(teamForSlot(slot, teamSizeOf(gs, []), 'sector')).toBe('a');
+    // the old list-index read would put him on B (index 1)
+    expect(teamForSlot(1, 3, 'sector')).toBe('b');
+  });
+
+  it('sectorMission binds players / slotOf through teamSizeOf / slotOfId (no list-index read)', () => {
+    const src = readFileSync(resolve(__dirname, '../src/game/mission/sectorMission.ts'), 'utf8');
+    expect(src).toMatch(/players: \(\) => teamSizeOf\(g, refs\)/);
+    expect(src).toMatch(/slotOf: \(id\) => slotOfId\(g, refs, id, 1\)/);
   });
 });
 
