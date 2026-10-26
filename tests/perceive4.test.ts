@@ -327,7 +327,8 @@ describe('coop4 AI2: EnemyManager.raysThisStep', () => {
   it('sums every guard\'s rays over one update and zeroes them; the next update starts at 0', async () => {
     const { EnemyManager } = await import('../src/ai/enemyManager');
     const world = { level: { lights: { lights: [] }, cover: [], coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
-    const nav = { version: 0, walk: new Uint8Array(4), cols: 2, rows: 2 };
+    // (guard-ai play A, train 132 fix round) the update ticks the sliced long plan once per frame
+    const nav = { version: 0, walk: new Uint8Array(4), cols: 2, rows: 2, sliceTick: () => {} };
     const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear: () => true } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
     // a down guard stand-in: only what the update's loops read
     const fake = (rays: number) => ({

@@ -184,6 +184,8 @@ export class EnemyManager {
   /** (coop4 AI2) Sight rays every guard's think cast for players during the last `update` (summed from
    *  `Enemy.raysStep`; tests and the Test Runner measure read it). Each guard's own think: `Enemy.raysThink`. */
   raysThisStep = 0;
+  /** (guard-ai play A, check B) This frame's long plan (`AiContext.longPlan`) is not taken yet. */
+  private longPlanFree = true;
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
@@ -643,6 +645,11 @@ export class EnemyManager {
       lkpOf: (slot) => this.lkpOf(slot),
       intruderId: (slot) => this.intruders.idOf(slot),
       enemies: () => this.enemies,
+      longPlan: () => {
+        if (!this.longPlanFree) return false;
+        this.longPlanFree = false;
+        return true;
+      },
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
       rooms: world.layout.rooms ?? [],
@@ -1714,7 +1721,8 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
-      if (!e.alive || !e.alerted || e.def.melee) continue;
+      // (guard-ai play A, P2-1) not a guard who gave a run up this fight (no way to the panel)
+      if (!e.alive || !e.alerted || e.def.melee || e.alarmBarred) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
       // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
@@ -2499,15 +2507,16 @@ export class EnemyManager {
     return '';
   }
 
-  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
-  private fillPair(g: PairGuard, e: Enemy | null): void {
+  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). (GA6 fix round, check A FIX 1) A sweep pair's
+   *  watch (`sweep`): calm = walking his sweep (`Enemy.sweepCalm`; cooldown and caution count). No allocation. */
+  private fillPair(g: PairGuard, e: Enemy | null, sweep: boolean): void {
     if (!e || !e.alive || e.taken) {
       g.present = false;
       g.calm = false;
       return;
     }
     g.present = true;
-    g.calm = e.pairCalm;
+    g.calm = sweep ? e.sweepCalm : e.pairCalm;
     g.x = e.pos.x;
     g.z = e.pos.z;
     const p = e.routePoint(this.pairTmp);
@@ -2529,8 +2538,9 @@ export class EnemyManager {
       const pm = p.pm;
       const A = this.guardAtSlot(p.sa);
       const B = this.guardAtSlot(p.sb);
-      this.fillPair(pm.a, A);
-      this.fillPair(pm.b, B);
+      const sw = p.watchOnly === true;
+      this.fillPair(pm.a, A, sw);
+      this.fillPair(pm.b, B, sw);
       if ((pm.state === 'waiting' || pm.state === 'meeting') && ((pm.a.present && A!.disturbed) || (pm.b.present && B!.disturbed))) pm.interrupt();
       pm.step(dt);
       const meet = pm.state === 'meeting';
@@ -3955,6 +3965,10 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.raysThisStep = 0;
+    // (guard-ai play A, check B) one long plan (`GIVE_UP.homeExpand` A*) per frame across the guards
+    this.longPlanFree = true;
+    // (check FIX 1) the sliced long plan's idle count is in frames
+    this.nav.sliceTick();
     if (this.darkOn) this.sweepClock += dt;
     this.sightT += dt;
     this.intruders.step(dt);
@@ -4224,6 +4238,8 @@ export class EnemyManager {
     this.pairs.length = 0;
     this.pairSkips.length = 0;
     this.pairT = 0;
+    // (GA6 fix round, check B Polish 2) the sweep clock from 0 (`darkOn` kept: the scene's own setter turns it off)
+    this.sweepClock = 0;
     // (guard-rules S7) and the lookouts
     this.lookoutN = 0;
     this.lookRise.fill(0);

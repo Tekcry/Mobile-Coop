@@ -1,5 +1,39 @@
 # Changelog
 
+## 4.120.0 - Train 138: Storm scene guards: torches, the blackout search, rain masking; Guards get home (2026-10-26, PR #621; #603, #588)
+
+### Guards get home
+- Guards find their way back to their posts after a search; the alarm runner gives up an unreachable panel.
+
+### Storm scene guards: torches, the blackout search, rain masking
+- (scene only, `?piano=1`) During the scene's blackout every guard keeps his flashlight on in every state, calm
+  included, while he is up; dogs carry none. The scene's one reaction to the blackout: the guards it names search
+  round the intro wall (about 6 m), then go back to their rounds; a light going out sends nobody else.
+- (scene only) Rain on the roof masks sound for every guard across the map (`mapWideNoise`): at 6 dB a footstep is
+  heard at half the distance.
+
+## 4.119.2 - Train 137: Test Runner batch (J20), PR-B: laptop queue; Mains-off blackout (piano SO1) (2026-10-26, PR #619; #615, #602)
+
+### Mains-off blackout (piano SO1)
+- Lighting: `LightRegistry.mainsOff(x, y, z, over = 0.8)` cuts every electric light for good, nearest first over 0.8 s;
+  torches and window lights stay; no switch, jam end, outage end or section restart turns one back on, and guards never
+  walk to reset it. Dark: nothing calls it until the piano scene does.
+
+### Test Runner batch (J20), PR-B: laptop queue
+- Every train run also runs `e2e-darkness`: a light meter that disagrees with the picture holds the release. Off
+  without a release: `config/train-parity.json` `{ "off": true, "why", "by" }` on the `laptop-queue` branch, or
+  `LQ_TRAIN_PARITY=off` on a worker.
+- Affected runs gate only on their gate suites; the legacy and audio suites they reach run after them, REPORT ONLY, in
+  the slots the affected cap leaves. A desktop failure's laptop rerun keeps gate suites only.
+- A perf step in an alone request enforces its budgets unless it says `--no-budget`.
+- `flake-budget.md` lists known-flaky failures and quarantined suites, escapes owners with `|`, and warns while fewer
+  than 7 days of runs are counted.
+- A suite over its flake budget again within 14 days of its last quarantine is BLOCKING: no new quarantine, a
+  `alerts/<ts>-<worker>-fixjob-<suite>.json` alert on the `laptop-queue` branch and a line in the PR comment.
+
+## 4.119.1 - Train 136: Marlow Yard re-plan: geometry for the plank and swing kit moves (2026-10-26, PR #613; #608)
+- Marlow Yard re-plan: geometry for the plank and swing kit moves (#608)
+
 ## 4.119.0 - Train 135: Lookouts and dog release (2026-10-26, PR #609; #595)
 - (dark, `?lookouts=1`) Lookouts: a guard on a lookout post (first: the Saltmarsh Park S5 roof marksman) never leaves
   his perch. A noise only turns him within a metre of it; when he glimpses you he radios it in and the best-placed calm

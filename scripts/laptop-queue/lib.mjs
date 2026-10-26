@@ -1,7 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
-import { affectedPick } from '../e2e-affected.mjs';
+import { affectedPick, affectedGateSuites, affectedReportSuites, rankAffected, selectSuites, withWireSuites, AFFECTED_MAX, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
 // parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
 import { parseLock } from '../heavy-lock.mjs';
 
@@ -78,7 +78,7 @@ export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIs
 export const splitSuites = (text) => String(text ?? '').split(/[\s,]+/).filter(Boolean);
 
 /** scripts/e2e-<x>.mjs files that are modules, not suites (run-e2e NOT_SUITES plus the shared e2e libraries). */
-export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib'];
+export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib', 'e2e-verdict'];
 
 /**
  * The suite names run-e2e can run at a sha, from its `git ls-tree --name-only <sha> scripts/` paths: `smoke`,
@@ -731,7 +731,9 @@ export function dupKey(r) {
   const opt = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
   // a laptop rerun of a desktop failure never matches the desktop run it rechecks (that run is still active when it is
   // pushed); the extra element only on reruns, so older keys in state.done stay comparable
-  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr), ...(r.laptopRerun ? ['laptopRerun'] : [])]);
+  // (J20 T4) the sorted report suites only when present, for the same reason
+  const report = Array.isArray(r.report) && r.report.length ? [['report', ...[...r.report].sort()]] : [];
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr), ...(r.laptopRerun ? ['laptopRerun'] : []), ...report]);
 }
 
 /**
@@ -1219,49 +1221,84 @@ export function countRuns(days, suites, now, keepDays = FLAKE_BUDGET_DAYS) {
   return out;
 }
 
+/** Days after a suite's last automatic quarantine in which a new budget breach makes it blocking (Q30, J20 BRIEF M1 / A4). */
+export const REPEAT_DAYS = 14;
+
 /**
- * Per-suite budget rows for the suites that flaked in the window: { suite, runs, flakes, rate, over } (over = flakes past
- * budget), worst first. flakes = state.flakes ({ suite, date }), days = countRuns' map. starts = { suite: ISO } of each
- * suite's last automatic quarantine: only flakes after it count, so an expired quarantine never renews itself on the
- * same flakes (checker FIX 2026-10-24: it re-armed every 48 h for the whole 7-day window).
+ * Per-suite budget rows for every suite that flaked, failed KNOWN FLAKY, is quarantined or is blocking in the window:
+ * { suite, runs, flakes, known, rate, over } (over = flakes past budget; known = KNOWN FLAKY failures, never over), worst
+ * first. flakes = state.flakes ({ suite, date }), days = countRuns' map. starts = { suite: ISO } of each suite's last
+ * automatic quarantine: only flakes after it count, so an expired quarantine never renews itself on the same flakes
+ * (checker FIX 2026-10-24: it re-armed every 48 h for the whole 7-day window). extra: known = state.knownFlaky
+ * ({ suite, date }), quarantine = the live quarantine entries, blocking = blocking suite names (T10).
  */
-export function flakeBudget(flakes, days, now, windowDays = FLAKE_BUDGET_DAYS, budget = FLAKE_BUDGET, starts = {}) {
+export function flakeBudget(flakes, days, now, windowDays = FLAKE_BUDGET_DAYS, budget = FLAKE_BUDGET, starts = {}, { known = [], quarantine = [], blocking = [] } = {}) {
   const since = now - windowDays * 86400_000;
   const oldest = new Date(since).toISOString().slice(0, 10);
   const count = new Map();
+  const knownCount = new Map();
   for (const f of flakes ?? []) {
     const t = Date.parse(f.date);
     if (t >= since && !(t <= Date.parse(starts?.[f.suite] ?? ''))) count.set(f.suite, (count.get(f.suite) ?? 0) + 1);
   }
-  const rows = [...count].map(([suite, n]) => {
+  for (const k of known ?? []) if (Date.parse(k.date) >= since) knownCount.set(k.suite, (knownCount.get(k.suite) ?? 0) + 1);
+  const names = new Set([...count.keys(), ...knownCount.keys(), ...blocking]);
+  for (const q of quarantine ?? []) if (q?.suite && Date.parse(q.expiry) > now) names.add(q.suite);
+  const rows = [...names].map((suite) => {
+    const n = count.get(suite) ?? 0;
     let runs = 0;
     for (const [d, m] of Object.entries(days ?? {})) if (d >= oldest) runs += m[suite] ?? 0;
     runs = Math.max(runs, n);
-    return { suite, runs, flakes: n, rate: n / runs, over: n > budget };
+    return { suite, runs, flakes: n, known: knownCount.get(suite) ?? 0, rate: runs ? n / runs : 0, over: n > budget };
   });
-  return rows.sort((a, b) => b.flakes - a.flakes || b.rate - a.rate || a.suite.localeCompare(b.suite));
+  return rows.sort((a, b) => b.flakes - a.flakes || b.rate - a.rate || b.known - a.known || a.suite.localeCompare(b.suite));
 }
 
 /**
- * New quarantine entries for the over-budget rows that no list already quarantines: { suite, owner, expiry, reason, auto }.
- * lists = the arrays to check (the committed file's and the service's own).
+ * The over-budget rows that no list already quarantines: { added, blocking }. A row whose suite had an automatic
+ * quarantine start (starts = { suite: ISO }) within REPEAT_DAYS gets no new entry but a blocking one { suite, owner,
+ * last, reason } (Q30: back under the normal rule, an owner fix job flagged); the rest get a quarantine entry
+ * { suite, owner, expiry, reason, auto }. lists = the arrays to check (the committed file's and the service's own).
  */
-export function autoQuarantine(rows, lists, owners, now, ttlMs = QUARANTINE_TTL_MS) {
-  const out = [];
+export function autoQuarantine(rows, lists, owners, now, ttlMs = QUARANTINE_TTL_MS, starts = {}) {
+  const added = [];
+  const blocking = [];
   for (const r of rows ?? []) {
     if (!r.over || lists.some((l) => quarantined(l, r.suite, now))) continue;
-    out.push({ suite: r.suite, owner: suiteOwner(owners, r.suite), expiry: new Date(now + ttlMs).toISOString(), reason: `flake budget: ${r.flakes} flakes in ${r.runs} runs over ${FLAKE_BUDGET_DAYS} d (budget ${FLAKE_BUDGET})`, auto: true });
+    const owner = suiteOwner(owners, r.suite);
+    const budget = `${r.flakes} flakes in ${r.runs} runs over ${FLAKE_BUDGET_DAYS} d (budget ${FLAKE_BUDGET})`;
+    const last = starts?.[r.suite];
+    const t = Date.parse(last ?? '');
+    if (Number.isFinite(t) && now - t < REPEAT_DAYS * 86400_000) {
+      blocking.push({ suite: r.suite, owner, last, reason: `flake budget again within ${REPEAT_DAYS} d of the last auto quarantine (${last}): ${budget}` });
+      continue;
+    }
+    added.push({ suite: r.suite, owner, expiry: new Date(now + ttlMs).toISOString(), reason: `flake budget: ${budget}`, auto: true });
   }
-  return out;
+  return { added, blocking };
 }
 
-/** Markdown: the budget rows (flaked suites only) with each one's quarantine, or '' when nothing flaked. */
-export function flakeSummary(rows, quarantine, owners, now) {
+/** A markdown table cell: '|' escaped (owner "Night Shift | Marlow Build" split rows), newlines as spaces. */
+const mdCell = (v) => String(v ?? '').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
+
+/**
+ * Markdown: the budget rows with each one's known-flaky count, quarantine and blocking state, or '' for no rows.
+ * blocking = state.blocking ({ suite: { since, owner, last } }; live for REPEAT_DAYS from since). suiteRuns = countRuns'
+ * map: when its oldest day is inside the window the first line says rates read high until a full window is counted (T11).
+ */
+export function flakeSummary(rows, quarantine, owners, now, { blocking = {}, suiteRuns = null } = {}) {
   if (!rows?.length) return '';
-  const lines = [`Flake budget (${FLAKE_BUDGET_DAYS} d, ${FLAKE_BUDGET} flakes allowed; over it a suite is quarantined: it runs, its failure prints KNOWN FLAKY):`, '', '| Suite | Flakes / runs | Owner | Quarantine |', '| --- | --- | --- | --- |'];
+  const lines = [];
+  const windowStart = new Date(now - FLAKE_BUDGET_DAYS * 86400_000).toISOString().slice(0, 10);
+  const first = Object.keys(suiteRuns ?? {}).sort()[0];
+  if (first && first > windowStart) lines.push(`Runs counted since ${first}: rates read high until ${new Date(Date.parse(first) + FLAKE_BUDGET_DAYS * 86400_000).toISOString().slice(0, 10)}.`, '');
+  lines.push(`Flake budget (${FLAKE_BUDGET_DAYS} d, ${FLAKE_BUDGET} flakes allowed; over it a suite is quarantined: it runs, its failure prints KNOWN FLAKY; over it again within ${REPEAT_DAYS} d of that quarantine it is BLOCKING with a fix job for its owner):`, '', '| Suite | Flakes / runs | Known flaky | Owner | Quarantine | Blocking |', '| --- | --- | --- | --- | --- | --- |');
   for (const r of rows) {
     const q = quarantined(quarantine, r.suite, now);
-    lines.push(`| ${r.suite} | ${r.flakes} / ${r.runs} (${Math.round(r.rate * 100)}%) | ${q?.owner ?? suiteOwner(owners, r.suite)} | ${q ? `until ${q.expiry.slice(0, 16).replace('T', ' ')} UTC` : r.over ? 'over budget' : '-'} |`);
+    const b = blocking?.[r.suite];
+    const live = b && now - Date.parse(b.since) < REPEAT_DAYS * 86400_000;
+    const cells = [r.suite, `${r.flakes} / ${r.runs} (${Math.round(r.rate * 100)}%)`, r.known ?? 0, q?.owner ?? suiteOwner(owners, r.suite), q ? `until ${q.expiry.slice(0, 16).replace('T', ' ')} UTC` : r.over ? 'over budget' : '-', live ? `BLOCKING since ${b.since.slice(0, 10)}` : '-'];
+    lines.push(`| ${cells.map(mdCell).join(' | ')} |`);
   }
   return lines.join('\n');
 }
@@ -1378,8 +1415,8 @@ export function queueRequester(r) {
  * (DIRECT_COVERS, wide: WIDE_COVERS; the wire rule from sha's src/net/protocol.ts, skipped when it cannot be read; the
  * gate; the cap: max unset = AFFECTED_MAX, but wide unset = no cap; 0 = no cap). run(args) runs git and returns its
  * stdout (injected: this file stays pure); it must throw on failure (a failed diff read as "no files" would pass the
- * head). Returns { base: merge-base, files, suites }, or null when there is no merge-base or git failed; suites [] = no
- * browser suite reached (docs / unit only).
+ * head). Returns { base: merge-base, files, suites, report }, or null when there is no merge-base or git failed; suites
+ * [] = no browser suite reached (docs / unit only); report = affectedReport (J20 T4).
  */
 export function affectedSuites(run, sha, { base = 'origin/master', wide = false, max } = {}) {
   let mb;
@@ -1392,7 +1429,28 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false,
   const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
   let protocolTs = '';
   try { protocolTs = String(run(['show', `${sha}:src/net/protocol.ts`]) ?? ''); } catch { /* no protocol.ts: no wire rule */ }
-  return { base: mb, files, suites: affectedPick(files, { wide, max, protocolTs }) };
+  const suites = affectedPick(files, { wide, max, protocolTs });
+  return { base: mb, files, suites, report: affectedReport(files, suites, { wide, max, protocolTs }) };
+}
+
+/**
+ * (J20 T4, BRIEF A1) The LEGACY / AUDIO suites the selection reaches (affectedPick's map and wire rule), run after the
+ * gate `suites` REPORT ONLY (the request's `report` list). The cap wins: they take only the slots the gate list leaves
+ * (max unset: AFFECTED_MAX, wide unset: no cap; 0 = no cap), closest first (rankAffected), sorted.
+ */
+export function affectedReport(files, suites, { max, wide = false, protocolTs = '' } = {}) {
+  const map = wide ? WIDE_COVERS : DIRECT_COVERS;
+  const cap = max ?? (wide ? 0 : AFFECTED_MAX);
+  const base = (s) => String(s).split(':')[0];
+  const room = cap ? cap - new Set(suites.map(base)).size : Infinity;
+  const taken = new Set();
+  const out = [];
+  for (const s of rankAffected(files, affectedReportSuites(withWireSuites(selectSuites(files, map), files, protocolTs)), { map })) {
+    if (!taken.has(base(s)) && taken.size >= room) continue;
+    taken.add(base(s));
+    out.push(s);
+  }
+  return out.sort();
 }
 
 /**
@@ -1500,10 +1558,25 @@ export function withMergeable(board, state) {
 /**
  * The request the affected pass enqueues for a PR head: the shape request.mjs --affected writes (kind pr, set
  * 'affected', so its own context is laptop-e2e/affected), requester AFFECTED_REQUESTER, the PR number (the failure
- * comment goes there). suffix = 4 random hex (injected), as request.mjs adds.
+ * comment goes there). suffix = 4 random hex (injected), as request.mjs adds. report (optional, J20 T4): the LEGACY /
+ * AUDIO suites that run after the gate ones, REPORT ONLY; written only when non-empty.
  */
-export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
-  return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+export function affectedRequest({ now, pr, sha, branch, suites, suffix, report = [] }) {
+  return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], ...(report?.length ? { report: [...report] } : {}), set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+}
+
+/** True when `suite` (whole, or a `name:N` part of a listed whole suite) is in `list`. */
+const inList = (list, suite) => Array.isArray(list) && (list.includes(suite) || (String(suite).includes(':') && list.includes(String(suite).split(':')[0])));
+
+/**
+ * The result rows of request r with its report suites marked { report: true, ok: true } (J20 T4, BRIEF A1 / A2): a row
+ * whose suite (or its whole suite) is in r.report, and, for an affected request (AFFECTED_REQUESTER), every row
+ * affectedGateSuites drops (LEGACY / GPU / AUDIO: an affected request queued by master code from before J20 has no
+ * report list). A lead's request without a report list is left alone. Pure: returns new rows.
+ */
+export function markReport(r, suites) {
+  const aff = r?.requester === AFFECTED_REQUESTER;
+  return (suites ?? []).map((x) => (inList(r?.report, x.s) || (aff && affectedGateSuites([x.s]).length === 0) ? { ...x, report: true, ok: true } : { ...x }));
 }
 
 /**
@@ -1549,10 +1622,24 @@ export function desktopFailDesc(suites, cpu) {
  * The laptop-only request for a desktop run's failed suites: same sha, set, pr, requester and branch, suites = the
  * failed ones, "laptopRerun": true (the desktop never claims it). With no set, the set is the original suites joined
  * by "+", so the rerun posts its verdict on the very context the desktop left pending (lib contextName). suffix = 4
- * random hex (injected), as request.mjs adds.
+ * random hex (injected), as request.mjs adds. An affected request's rerun never gates on LEGACY / GPU / AUDIO (J20
+ * item a, BRIEF A2: affectedGateSuites; a lead's named request keeps every suite it listed); null when no suite is left.
  */
 export function laptopRerunRequest(r, suites, { now, suffix }) {
+  if (r.requester === AFFECTED_REQUESTER) suites = affectedGateSuites(suites);
+  if (!suites?.length) return null;
   return { id: `${requestId(now, r.requester, r.sha)}-${suffix}`, sha: r.sha, branch: r.branch ?? '', pr: r.pr ?? null, kind: 'pr', requester: r.requester, suites: [...suites], set: r.set || (r.suites ?? []).join('+'), laptopRerun: true, note: `desktop failure of ${r.id}, rerun on the laptop` };
+}
+
+/**
+ * An alone step with perf budgets enforced (J20 T14 S, BRIEF A8): a step that runs `scripts/perf.mjs` without
+ * `--budget` and without `--no-budget` (an explicit measure-only run) gets ` --budget` appended; other steps unchanged.
+ */
+export function perfStep(step) {
+  const s = String(step ?? '');
+  if (!/(^|[\s/\\])scripts[/\\]perf\.mjs(\s|$)/.test(s)) return s;
+  if (/(^|\s)--(no-)?budget(\s|=|$)/.test(s)) return s;
+  return `${s} --budget`;
 }
 
 /** F34: the description suffix of a desktop failure that files no laptop rerun (laptopRerunFor). */
@@ -1816,3 +1903,38 @@ export function claimSkipStatuses(r, why, head = '') {
   if (r.requester === AFFECTED_REQUESTER || r.set === 'affected') out.push({ sha: r.sha, state: 'error', context: AFFECTED_CTX, description });
   return out;
 }
+
+/**
+ * Light parity on every train (J20 S7, Q27, BRIEF A7): the suites appended to the train's full list on both workers
+ * (E2E_GPU=1). e2e-darkness until Sector Ops Build's per-map parity cards (J11) replace it; `[]` turns it off for good.
+ */
+export const TRAIN_PARITY = ['e2e-darkness'];
+
+/**
+ * The train's parity suites, pure. env = LQ_TRAIN_PARITY (`off` -> none, wins over the file); text = the run-time
+ * switch `config/train-parity.json` on the laptop-queue branch: missing, empty or bad JSON -> base; `{ "off": true,
+ * "why", "by" }` -> none; `{ "suites": [...] }` -> that list (a non-array -> base). Returns { suites, off, why }.
+ */
+export function trainParity(text, env = '', base = TRAIN_PARITY) {
+  if (String(env ?? '').trim().toLowerCase() === 'off') return { suites: [], off: true, why: 'LQ_TRAIN_PARITY=off' };
+  let j = null;
+  try { j = text && String(text).trim() ? JSON.parse(String(text)) : null; } catch { j = null; }
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return { suites: [...base], off: false, why: '' };
+  if (j.off === true) return { suites: [], off: true, why: [j.why, j.by && `by ${j.by}`].filter(Boolean).join(', ') || 'config/train-parity.json' };
+  if (!('suites' in j) || !Array.isArray(j.suites)) return { suites: [...base], off: false, why: '' };
+  const suites = [...new Set(j.suites.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()))];
+  return suites.length ? { suites, off: false, why: '' } : { suites: [], off: true, why: 'config/train-parity.json suites []' };
+}
+
+/** The train list: `list` plus those of `suites` not already in it (order kept, no duplicates). */
+export function trainList(list, suites) {
+  const out = [...list];
+  for (const s of suites ?? []) if (!out.includes(s)) out.push(s);
+  return out;
+}
+
+/** The parity log line ("train parity: <suites> | off (<why>)"); the service logs it only when it changes. */
+export const parityLine = (p) => (p.off ? `train parity: off (${p.why})` : `train parity: ${p.suites.join(' ')}`);
+
+/** The train's shard bins with its parity suites (service runTrain and the dry-run plan). */
+export const trainBins = (list, parity, times, bins) => shard(trainList(list, parity.suites), times, bins);

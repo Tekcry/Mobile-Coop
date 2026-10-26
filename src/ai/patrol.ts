@@ -181,12 +181,14 @@ export class PatrolWalker {
 
   /**
    * Next point to walk to, or null while waiting / standing post. `bodyYaw` (the guard's body yaw, optional): on a sweep
-   * the pan cycle starts once the body is within `SCENE_SWEEP.panGate` of it (NaN: at once).
+   * the pan cycle starts once the body is within `SCENE_SWEEP.panGate` of it (NaN: at once). (guard-ai play A, P2-2)
+   * `away`: he is off his post's storey (a gallery post, him on the floor below), so standing under it is not being on it.
+   * (GA6 fix round) On the sweep too: away, no stop is reached.
    */
-  step(dt: number, x: number, z: number, bodyYaw = Number.NaN): Pt | null {
-    if (this.sw) return this.sweepStep(dt, x, z, bodyYaw);
+  step(dt: number, x: number, z: number, bodyYaw = Number.NaN, away = false): Pt | null {
+    if (this.sw) return this.sweepStep(dt, x, z, bodyYaw, away);
     const r = this.route;
-    if (!r || r.points.length === 0) return this.post(dt, x, z);
+    if (!r || r.points.length === 0) return this.post(dt, x, z, away);
     if (this.waitT > 0) {
       this.waitT -= dt;
       if (this.waitT > 0) return null;
@@ -221,20 +223,28 @@ export class PatrolWalker {
 
   /**
    * (GA6) A step on the sweep: walk to the stop, pass a corner, hold a pan stop until its `leave` (early or late within
-   * half a lap of its planned arrival), panning every step; a rejoin's stop until he is back in step.
+   * half a lap of its planned arrival), panning every step; a rejoin's stop until he is back in step. (GA6 fix round,
+   * check A FIX 2) `away` (off his storey, under a gallery stop): not arrived, the stop to walk to; never a hold or a pan.
    */
-  private sweepStep(dt: number, x: number, z: number, bodyYaw: number): Pt | null {
+  private sweepStep(dt: number, x: number, z: number, bodyYaw: number, away: boolean): Pt | null {
     const pl = this.sw!;
     const n = pl.pts.length;
     const now = this.swNow();
     if (this.swHoldEnd === this.swHoldEnd) {
       if (now < this.swHoldEnd) {
-        this.swPan(dt, bodyYaw);
-        return null;
+        if (!away) {
+          this.swPan(dt, bodyYaw);
+          return null;
+        }
+      } else {
+        this.swHoldEnd = Number.NaN;
+        this.swPanE = Number.NaN;
+        this.idx = (this.idx + 1) % n;
       }
-      this.swHoldEnd = Number.NaN;
-      this.swPanE = Number.NaN;
-      this.idx = (this.idx + 1) % n;
+    }
+    if (away) {
+      this.lookYaw = Number.NaN;
+      return pl.pts[this.idx]!;
     }
     // at most one pass round the stops (corners and one-spot legs are passed in the same step)
     for (let k = 0; k <= n; k++) {
@@ -305,6 +315,19 @@ export class PatrolWalker {
     return (this.idx + 1) % n;
   }
 
+  /** (guard-ai play A, P1-1) He cannot get to the point he heads for (no progress): a route walker moves on to the next
+   *  point; a post guard takes (x, z) as his post until the next `rejoin` (this calm spell). */
+  giveUp(x: number, z: number): void {
+    const r = this.route;
+    if (r && r.points.length > 0) {
+      this.waitT = 0;
+      this.advance();
+      return;
+    }
+    this.postPt[0] = x;
+    this.postPt[1] = z;
+  }
+
   private advance(): void {
     const n = this.route!.points.length;
     if (n < 2) return;
@@ -315,8 +338,9 @@ export class PatrolWalker {
   }
 
   /** Standing post: back to it, then face its direction with an occasional glance either side. */
-  private post(dt: number, x: number, z: number): Pt | null {
-    if (hyp2(this.postX - x, this.postZ - z) > PATROL.arrive * 1.5) {
+  private post(dt: number, x: number, z: number, away: boolean): Pt | null {
+    const pp = this.postPt;
+    if (away || hyp2(pp[0] - x, pp[1] - z) > PATROL.arrive * 1.5) {
       this.lookYaw = NaN;
       return this.postPt;
     }
@@ -335,6 +359,9 @@ export class PatrolWalker {
     }
     const r = this.route;
     this.waitT = 0;
+    // (guard-ai play A) a post given up last calm spell (`giveUp`) is his own post again
+    this.postPt[0] = this.postX;
+    this.postPt[1] = this.postZ;
     if (!r || r.points.length === 0) return;
     if (r.loop) {
       // the point the schedule says the guard is at or heading for: the next planned departure

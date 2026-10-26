@@ -1,6 +1,6 @@
 # test-runner-j20: plan
 
-Lead: Night Shift | Test Runner. Planner: Opus 5.5, master 2148ec969. Brief: `docs/test-runner-j20/BRIEF.md`.
+Lead: Night Shift | Test Runner. Planner: Opus 5.5, master 2148ec969. Brief: `docs/archive/test-runner-j20/BRIEF.md`.
 Every file:line below is on 2148ec969. Slice branches: `feature/test-runner-j20-<slice>` (own worktree each), merged
 by the lead into `feature/test-runner-j20-pr<A|B|C>` for the PRs.
 
@@ -27,7 +27,7 @@ files:
   - tests/replayDeterminism.test.ts
   - docs/systems/testing-tools.md
   - docs/backlog.md
-  - docs/test-runner-j20/**
+  - docs/archive/test-runner-j20/**
 maps: none
 protocol: none
 save: none
@@ -60,7 +60,7 @@ file).
 - **PR-C "quarantine and hard-rule checks"**: S4 + S6a + S6b + S6c + D-C (~660). affected-e2e: e2e-sectorops (all
   parts) and e2e-ctcourse (scripts named), plus smoke.
 - PR-C can open first (all group A). Order of release: PR-C, PR-A, PR-B. **PR-B is the last to release and carries
-  `Job-done: test-runner-j20`** in its body (the train archives `docs/test-runner-j20/` then).
+  `Job-done: test-runner-j20`** in its body (the train archives `docs/archive/test-runner-j20/` then).
 - One changelog fragment per PR branch (`changes/README.md`: named after the branch): PR branches
   `feature/test-runner-j20-prc`, `-pra`, `-prb` with `changes/feature-test-runner-j20-prc.md`, `-pra.md`, `-prb.md`
   (kind: patch). The job branch's placeholder is `changes/feature-test-runner-j20-prc.md` (PR-C is cut first); D-A and
