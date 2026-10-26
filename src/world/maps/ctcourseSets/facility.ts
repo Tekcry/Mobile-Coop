@@ -27,6 +27,7 @@ import type { AirlockDef } from '../../../game/course/courseDef';
 import type { CamSpace } from '../../camSpaces';
 import { FacilityKit, KIT_PANEL_DEPTH, type KitBuilder } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
+import { slabWithHoles, type FloorHole } from '../ctcourseGreybox';
 import { FacilityProps, propToWorld, type PropPlacement } from '../../props/facilityProps';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { marlowCourseGroups } from '../../lighting/marlowCircuits';
@@ -648,15 +649,20 @@ function dressGallery(kit: FacilityKit, visual: FacilityKit, gal: FacilityProps)
   kit.ledSlot(85, GAL_TOP, 50, 40, 0, { tone: 'warm', light: false, group: g });
 }
 
-/** Build the facility into `b` (with the kit's sliding doors and glass). Call once, before the sets. */
-export function buildFacility(b: LevelBuilder, kit: FacilityKit): FacilityPart {
+/**
+ * Build the facility into `b` (with the kit's sliding doors and glass). Call once, before the sets.
+ * (J14) `floorHoles`: the re-plan variant's holes in the site slab (each set's `replan/<set>.ts` `FLOOR_HOLES`, passed in
+ * by `ctcourse.ts` so the shell never imports a set file); undefined on the built yard, which keeps its single slab.
+ */
+export function buildFacility(b: LevelBuilder, kit: FacilityKit, floorHoles?: readonly FloorHole[]): FacilityPart {
   const from = b.boxes.length;
   const rows: RegisterRow[] = [];
   const doors: Record<string, number> = {};
   b.bounds = { minX: -1, maxX: 161, minZ: -1, maxZ: 79 };
 
   tally(b, rows, 'F0', 'Facility shell: site floor, outer and set-boundary walls, hall roofs', () => {
-    b.floor(80, 39, 160, 78, FLOOR_C);
+    if (floorHoles) slabWithHoles(b, 0, 0, 160, 78, 0, floorHoles, FLOOR_C);
+    else b.floor(80, 39, 160, 78, FLOOR_C);
     for (const w of wallSpecs()) if (!w.doors?.length && !w.slots?.length) buildWall(b, kit, w, doors);
     for (const id of SET_IDS) for (const bx of SET_BOX[id]) if (!(id === 'a4GoodsShed' && bx[1] === 19.6)) slab(b, bx, HALL_H, 0.4);
   });
