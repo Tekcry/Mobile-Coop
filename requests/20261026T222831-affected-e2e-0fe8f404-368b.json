@@ -1,0 +1,13 @@
+{
+  "id": "20261026T222831-affected-e2e-0fe8f404-368b",
+  "sha": "0fe8f4049d231577d1497956ccdaa155e1d1ee95",
+  "branch": "feature/cue-teleport-fix",
+  "pr": 686,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #686"
+}
