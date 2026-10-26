@@ -1,7 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
-import { selectSuites, affectedGateSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { affectedPick } from '../e2e-affected.mjs';
 // parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
 import { parseLock } from '../heavy-lock.mjs';
 
@@ -230,10 +230,32 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
   return Math.round(Math.min(100, Math.max(0, total - bg)));
 }
 
+/** Front tier of lib pick (laptop-queue-7): a branch naming a LQ_FRONT_BRANCHES entry (case-insensitive substring), or an early-id re-file (no id time, or before 2020). */
+export function isFront(r, frontBranches = []) {
+  const t = idTime(r?.id);
+  if (!Number.isFinite(t) || t < Date.UTC(2020, 0, 1)) return true;
+  const b = String(r?.branch ?? '').toLowerCase();
+  return Boolean(b) && (frontBranches ?? []).some((f) => f && b.includes(String(f).toLowerCase()));
+}
+
+/**
+ * Ids of the requests that are green PR work: kind pr (not a train or laptop rerun, not spare) whose PR is on the board
+ * at the request's own sha with a green check + checker (a stale sha is not green). board = lib prBoard Map; empty = none.
+ */
+export function greenIds(requests, board) {
+  const out = new Set();
+  for (const r of requests ?? []) {
+    if (r.kind !== 'pr' || r.trainRerun || r.laptopRerun || r.requester === SPARE_REQUESTER) continue;
+    const b = board?.get(r.pr);
+    if (b && b.green && b.head === r.sha) out.add(r.id);
+  }
+  return out;
+}
+
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
- * request, slot } (one free slot), or null. The lowest pending train wins and, while a slot is busy, blocks all new work
+ * request, slot } (one free slot; a sharded train rerun adds `ports`, both slots), or null. The lowest pending train wins and, while a slot is busy, blocks all new work
  * so the slots drain (preemption); only a rerun of a LOWER train (rerunTrain) goes before it, on one free slot (overlap
  * plan section 3: train N's rerun never waits behind N+1's full run). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
  * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
@@ -249,6 +271,11 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
  * Spare work (SPARE_REQUESTER) is picked only when no other request is open: never aged, never at the front. The
  * service also sets queue.realOpen (lib realWaiting on the full listing, before its alone hold filters) so a real
  * request it holds back still keeps a spare from starting.
+ * queue.order (laptop-queue-7, the service passes it; absent = the arrival rule above) changes only which pr / full request
+ * runs next: 1. the front tier (isFront: a LQ_FRONT_BRANCHES branch or an early-id re-file), oldest first; 2. green PR heads
+ * (order.green, a Set of ids), smallest order.wallS first, unknown wall last, ties by id, skipped for this pick when the
+ * oldest non-front request, green or not, has waited over order.maxWaitMs (the starvation bound); 3. the arrival rule over
+ * the non-front requests. Trains, reruns and aged alone runs go before all of it; spare-only picks ignore it.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -268,12 +295,39 @@ function pickFrom(queue, now, slots) {
     return bothIdle ? { kind: 'train', train: front } : null;
   }
   const rerun = reqs.find((r) => r.trainRerun);
-  if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
+  if (rerun && !idle[0]) return null;
+  // laptop-queue-7 A10: the only open train rerun shards across both slots when both are idle and the service marked it
+  // (queue.shardRerun: LQ_RERUN_SHARD on, its suites expand to 2+ parts); else one free slot at once, as before
+  if (rerun && bothIdle && idle.length > 1 && queue.shardRerun?.has(rerun.id) && reqs.filter((r) => r.trainRerun).length === 1) {
+    return { kind: 'request', request: rerun, slot: idle[0].port, ports: idle.map((s) => s.port) };
+  }
+  if (rerun) return { kind: 'request', request: rerun, slot: idle[0].port };
   const front = queue.front ?? new Set();
   const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
+  const order = queue.order;
+  if (order && idle[0]) {
+    const early = nonAlone.find((r) => isFront(r, order.frontBranches));
+    const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
+    let chosen = early;
+    if (!chosen) {
+      const oldest = rest.find((r) => Number.isFinite(idTime(r.id)));
+      const starved = order.maxWaitMs > 0 && oldest && now - idTime(oldest.id) > order.maxWaitMs;
+      if (!starved) {
+        const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
+        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortById(a, b))[0];
+      }
+    }
+    if (chosen) return { kind: 'request', request: chosen, slot: idle[0].port };
+    return arrivalNext(rest, alone, idle, bothIdle);
+  }
+  return arrivalNext(nonAlone, alone, idle, bothIdle);
+}
+
+/** pickFrom's arrival rule over the non-alone requests (sorted by id): the longest-waiting requester, priority, oldest. */
+function arrivalNext(nonAlone, alone, idle, bothIdle) {
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
   const prio = (r) => (Number.isInteger(r.priority) ? r.priority : 0);
   let next;
@@ -290,11 +344,62 @@ function pickFrom(queue, now, slots) {
  * slots drain for it; trains and train reruns still go first.
  */
 export function agedAlone(requests, now) {
-  return [...(requests ?? [])].sort(sortById).find((r) => {
-    if (r.kind !== 'alone' || r.requester === SPARE_REQUESTER) return false;
-    const t = idTime(r.id);
-    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
-  }) ?? null;
+  return [...(requests ?? [])].sort(sortById).find((r) => isAgedAlone(r, now)) ?? null;
+}
+const isAgedAlone = (r, now) => {
+  if (r?.kind !== 'alone' || r.requester === SPARE_REQUESTER) return false;
+  const t = idTime(r.id);
+  return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
+};
+
+// ---------- laptop-queue-7 A12: an aged alone gets the gap after the coming train ----------
+
+/**
+ * The due marks of alone requests (id -> ms first held), a new plain object (state.json `aloneDue`). prev = the last
+ * marks; requests = the open requests (the full listing, running ones included); front = the preempted alone ids (lib
+ * pick queue.front); held = the ids a hold (aloneHold, aloneSoon, train soon) dropped this pass. An open alone request
+ * that is aged (agedAlone rule) or in front and held gets stamped at now; an old stamp stays while its id is open.
+ * Spare work and young alone requests are never stamped.
+ */
+export function aloneDue(prev, { requests = [], front = new Set(), now, held = new Set() } = {}) {
+  const open = new Map((requests ?? []).filter((r) => r?.kind === 'alone' && r.requester !== SPARE_REQUESTER).map((r) => [r.id, r]));
+  const out = {};
+  for (const [id, t] of Object.entries(prev ?? {})) if (open.has(id) && Number.isFinite(t)) out[id] = t;
+  for (const [id, r] of open) {
+    if (id in out || !held.has(id)) continue;
+    if (front.has(id) || isAgedAlone(r, now)) out[id] = now;
+  }
+  return out;
+}
+
+/** true when alone request id is due (aloneDue) and a train's laptop-e2e ended after its mark (lastTrainEndMs). */
+export function aloneGapOpen(due, id, lastTrainEndMs) {
+  const t = due?.[id];
+  return Number.isFinite(t) && Number.isFinite(lastTrainEndMs) && lastTrainEndMs > t;
+}
+
+/**
+ * The newest final laptop-e2e time (success or failure; pending and error are not an end) on the open train heads
+ * ([{ laptop, laptopAt }], pendingTrains' status reads), never below prev: whoever posted it (this worker, the desktop,
+ * a carry or a train-rerun pass). ms, or prev (NaN when none ever).
+ */
+export function lastTrainEndFrom(heads, prev) {
+  let best = Number.isFinite(prev) ? prev : NaN;
+  for (const h of heads ?? []) {
+    if (!['success', 'failure'].includes(h?.laptop)) continue;
+    const t = Date.parse(h?.laptopAt ?? '');
+    if (Number.isFinite(t) && !(t <= best)) best = t;
+  }
+  return best;
+}
+
+/**
+ * The train-soon filter (lib nextTrain): true when request r still starts while the next train is due. Without a hold
+ * (next null) everything; else a train rerun, a run that fits before the train (fits, lib fitsBeforeTrain) and an alone
+ * request whose gap after a train is open (aloneGapOpen on due; due null = LQ_ALONE_GAP off).
+ */
+export function holdKeeps(r, { next = null, due = null, lastTrainEnd = NaN, fits = false } = {}) {
+  return !next || Boolean(r?.trainRerun) || Boolean(fits) || aloneGapOpen(due, r?.id, lastTrainEnd);
 }
 
 const suiteBase = (s) => String(s).replace(/:.*$/, '');
@@ -346,20 +451,28 @@ export function runProgress(suites, times, jobs, elapsedMs) {
 }
 
 /**
+ * The parts a suite list runs as: a named suite with parts in times.json (e2e-desktop -> e2e-desktop:1..4, the keys
+ * times.json holds) expands to them; any other name (a part, a suite without parts, an unknown one) stays as given.
+ * expectedWallS and the train rerun shard (laptop-queue-7 A10) read it.
+ */
+export function suiteParts(suites, times) {
+  const keys = Object.keys(times ?? {});
+  return (suites ?? []).flatMap((s) => {
+    const own = keys.filter((k) => k.startsWith(`${s}:`));
+    return own.length ? own : [s];
+  });
+}
+
+/**
  * A run's expected wall in s: the heaviest of `jobs` bins of its suites by times.json weight (runProgress's
  * denominator; a train posts it per shard as "expect ~N s" for auto-train's late poll). NaN when unknown.
  */
 export function expectedWallS(suites, times, jobs) {
   if (!(suites ?? []).length || !Object.keys(times ?? {}).length) return NaN;
-  // a named suite runs as its parts (e2e-desktop -> e2e-desktop:1..4, the keys times.json holds); a suite with no time
-  // at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
-  const parts = [];
-  for (const s of suites) {
-    const own = Object.keys(times).filter((k) => k.startsWith(`${s}:`));
-    if (own.length) parts.push(...own);
-    else if (Number.isFinite(times[s])) parts.push(s);
-    else return NaN;
-  }
+  // a suite with no time at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
+  const keys = Object.keys(times);
+  if (suites.some((s) => !Number.isFinite(times[s]) && !keys.some((k) => k.startsWith(`${s}:`)))) return NaN;
+  const parts = suiteParts(suites, times);
   const bins = shard(parts, times, Math.max(1, Number(jobs) || 1));
   const wallS = Math.max(...bins.map((b) => b.weight));
   return wallS > 0 ? wallS : NaN;
@@ -409,6 +522,67 @@ export function voidMisses(prev, sha, heads) {
   if (!heads) return prev;
   return heads.has(sha) ? 0 : prev + 1;
 }
+
+// ---------- a train head that moves (laptop-queue-7 slice C, BRIEF A7-A9) ----------
+
+/**
+ * The G325 docs-only set (`docs/`, `changes/`, `CHANGELOG*`, `*.md`); an empty list is not docs-only. scripts/watchdog.mjs
+ * re-exports this one definition (it imports lib, so lib cannot import it back; BRIEF F4).
+ */
+export const docsOnlyFiles = (files) => files.length > 0 && files.every((f) => /^(docs\/|changes\/|CHANGELOG)|\.md$/.test(f));
+
+/** True when a commit subject is train n's version commit "<v>: version at merge, train <n> (G183)". */
+export function isVersionHead(subject, n) {
+  const m = /^\d+\.\d+\.\d+: version at merge, train (\d+) \(G183\)$/.exec(String(subject ?? '').trim());
+  return !!m && m[1] === String(n);
+}
+
+/**
+ * Train n's newest version commit in `git log --first-parent -n <depth> --format=%H%x09%s <head>` lines (newest
+ * first): { versionSha, index } (index 0 = the head itself), or null when it is not within depth lines or another
+ * train's version commit comes first (the walk never passes another train).
+ */
+export function versionAt(lines, n, depth = Infinity) {
+  const rows = (lines ?? []).map((l) => String(l).trim()).filter(Boolean).slice(0, depth);
+  for (let i = 0; i < rows.length; i++) {
+    const tab = rows[i].indexOf('\t');
+    const sha = tab < 0 ? rows[i] : rows[i].slice(0, tab);
+    const subject = tab < 0 ? '' : rows[i].slice(tab + 1);
+    if (isVersionHead(subject, n)) return { versionSha: sha, index: i };
+    if (/: version at merge, train \d+ \(G183\)$/.test(subject.trim())) return null;
+  }
+  return null;
+}
+
+/**
+ * A delta a train verdict may carry over: docs-only (G325) and no non-`.md` file under `docs/` (BRIEF F6: docs/kestrel
+ * JSON is read by the game and by suites). Not a list (a git error) is false.
+ */
+export function carryFiles(files) {
+  return Array.isArray(files) && docsOnlyFiles(files) && !files.some((f) => f.startsWith('docs/') && !f.endsWith('.md'));
+}
+
+const FINAL = new Set(['success', 'failure', 'error']);
+/**
+ * The carry decision for a moved train head H (BRIEF A7). chain = [{ sha, laptop }] from H's parent back to the version
+ * commit, newest first (laptop = that commit's laptop-e2e state, '' when none). filesBetween(sha) = the changed files
+ * from sha to H. live(sha) = its run is going (a claim held here, or an open claim under LQ_CLAIM_MAX_H).
+ * C = the newest commit with a final verdict (success, failure or error): { from: C } when that verdict is success and
+ * the C..H delta carries (carryFiles); a newer failure is never skipped. A pending commit newer than C whose run is live:
+ * { wait: P } when the P..H delta carries, else null. A pending commit with no live run counts as no verdict (skipped).
+ * null = H runs as a normal train.
+ */
+export function carryFrom(chain, filesBetween, live = () => false) {
+  for (const c of chain ?? []) {
+    const st = c?.laptop ?? '';
+    if (FINAL.has(st)) return st === 'success' && carryFiles(filesBetween(c.sha)) ? { from: c.sha } : null;
+    if (st === 'pending' && live(c.sha)) return carryFiles(filesBetween(c.sha)) ? { wait: c.sha } : null;
+  }
+  return null;
+}
+
+/** The carried laptop-e2e success description (GitHub caps it at 140 chars). */
+export const carryDesc = (sha) => `carried from ${String(sha).slice(0, 8)}, docs-only delta`;
 
 /**
  * auto-train's build marker (auto-train-building.json, { train, version, pid, at }, written while `merge-train build`
@@ -513,7 +687,8 @@ export function yieldTo(r, started, trains) {
  * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
  * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way), except an alone run whose steps
  * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
- * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue. A pr run at
+ * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue, unless it is
+ * due (laptop-queue-7 A12: started in its gap after a train, aloneGapOpen). A pr run at
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
  * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
  */
@@ -522,13 +697,15 @@ export const ALONE_PREEMPT_MIN = 10;
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false } = {}) {
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false } = {}) {
   if (withdrawn) return 'withdrawn';
   // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
   // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
   if (r?.requester === SPARE_REQUESTER && realOpen) return 'real';
-  const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
+  // a due alone (aloneGapOpen, laptop-queue-7 A12) started in its gap after a train: no young-alone cut (it still
+  // yields between steps)
+  const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || (!due && youngAlone(r, startedAt, now));
   if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
 }
@@ -688,6 +865,28 @@ export function readyHeads(prs, inTrain = () => false) {
     if (!c || !p.head || inTrain(p.head)) continue;
     if (String(c.conclusion ?? '').toUpperCase() === 'SUCCESS') out.green.push(p.head);
     else if (Boolean(c.status) && String(c.status).toUpperCase() !== 'COMPLETED') out.running.push(p.head);
+  }
+  return out;
+}
+
+/**
+ * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup rows): Map pr number ->
+ * { head, conflicting, green }. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
+ * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. A row without a number or head is skipped.
+ */
+export function prBoard(rows) {
+  const out = new Map();
+  for (const p of Array.isArray(rows) ? rows : []) {
+    const head = String(p?.headRefOid ?? '');
+    if (!Number.isInteger(Number(p?.number)) || !head) continue;
+    const roll = p.statusCheckRollup ?? [];
+    const check = roll.find((s) => s?.name === 'check');
+    const checker = roll.find((s) => s?.context === 'checker');
+    out.set(Number(p.number), {
+      head,
+      conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
+      green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
+    });
   }
   return out;
 }
@@ -968,12 +1167,14 @@ export function queueRequester(r) {
 
 /**
  * The suites a committed change must pass, shared by request.mjs --affected and the service's affected pass: the files
- * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected selectSuites
- * (DIRECT_COVERS; wide: WIDE_COVERS). run(args) runs git and returns its stdout (injected: this file stays pure); it must
- * throw on failure (a failed diff read as "no files" would pass the head). Returns { base: merge-base, files, suites },
- * or null when there is no merge-base or git failed; suites [] = no browser suite reached (docs / unit only).
+ * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected affectedPick
+ * (DIRECT_COVERS, wide: WIDE_COVERS; the wire rule from sha's src/net/protocol.ts, skipped when it cannot be read; the
+ * gate; the cap: max unset = AFFECTED_MAX, but wide unset = no cap; 0 = no cap). run(args) runs git and returns its
+ * stdout (injected: this file stays pure); it must throw on failure (a failed diff read as "no files" would pass the
+ * head). Returns { base: merge-base, files, suites }, or null when there is no merge-base or git failed; suites [] = no
+ * browser suite reached (docs / unit only).
  */
-export function affectedSuites(run, sha, { base = 'origin/master', wide = false } = {}) {
+export function affectedSuites(run, sha, { base = 'origin/master', wide = false, max } = {}) {
   let mb;
   let out;
   try {
@@ -982,17 +1183,20 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false 
     out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
   } catch { return null; }
   const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
-  return { base: mb, files, suites: affectedGateSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS)) };
+  let protocolTs = '';
+  try { protocolTs = String(run(['show', `${sha}:src/net/protocol.ts`]) ?? ''); } catch { /* no protocol.ts: no wire rule */ }
+  return { base: mb, files, suites: affectedPick(files, { wide, max, protocolTs }) };
 }
 
 /**
  * The open PR heads the affected pass must handle now: [{ pr, sha, branch }], PR order kept. prs = `gh pr list --json
- * number,headRefName,headRefOid,isDraft,labels,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
+ * number,headRefName,headRefOid,isDraft,labels,mergeable,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
  * AFFECTED_SKIP_LABEL label, a head with a final affected-e2e status already (its StatusContext in the rollup: success,
  * failure or error), a head an affected request already names (`requests`: the open, claimed or running ones), and
  * one this process enqueued (`seen`, a Set of shas: the push the next listing has not caught up with). A head whose
  * affected-e2e is pending with no such request is stuck (its request was retired or withdrawn without a final status,
- * Orchestrator audit 2026-10-25) and is requested again: { pr, sha, branch, stuck: true }.
+ * Orchestrator audit 2026-10-25) and is requested again: { pr, sha, branch, stuck: true }. A head with mergeable
+ * CONFLICTING is listed with conflicting: true (the service posts the error once instead of running it).
  */
 export function affectedNeeds(prs, requests = [], seen = new Set()) {
   const have = new Set((requests ?? []).filter((r) => r?.requester === AFFECTED_REQUESTER).map((r) => r.sha));
@@ -1006,8 +1210,34 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
     const pending = Boolean(st) && String(st.state ?? '').toUpperCase() === 'PENDING';
     if (st && !pending) continue;
     if (have.has(sha) || seen.has(sha)) continue;
-    out.push({ pr: Number(p.number), sha, branch, ...(pending ? { stuck: true } : {}) });
+    out.push({ pr: Number(p.number), sha, branch, ...(pending ? { stuck: true } : {}), ...(String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING' ? { conflicting: true } : {}) });
   }
+  return out;
+}
+
+/**
+ * Ids of the open affected requests (set 'affected', automatic or filed) to retire unrun: their PR is on the board,
+ * CONFLICTING, and the board head is the request's sha (an older sha is superseded's job). A named-suite request (any
+ * other set) still runs. An empty board (a GitHub error) retires nothing.
+ */
+export function conflictRetire(requests, board) {
+  const out = [];
+  for (const r of requests ?? []) {
+    const b = r?.set === 'affected' && r.pr != null ? board?.get(Number(r.pr)) : null;
+    if (b?.conflicting && b.head === r.sha) out.push(r.id);
+  }
+  return out;
+}
+
+/**
+ * The statuses for an affected request retired as conflicting: its own laptop-e2e/affected error, and affected-e2e for
+ * an auto request or one filed with set affected (the context the pass and the PR's required check read).
+ */
+export function conflictStatuses(r) {
+  if (!r) return [];
+  const description = `not run: PR #${r.pr} conflicts with master (a new head runs again)`;
+  const out = [{ sha: r.sha, state: 'error', context: contextName(r.kind, r.set, r.suites ?? []), description }];
+  if (r.requester === AFFECTED_REQUESTER || r.set === 'affected') out.push({ sha: r.sha, state: 'error', context: AFFECTED_CTX, description });
   return out;
 }
 
@@ -1018,6 +1248,17 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
  */
 export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
   return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+}
+
+/**
+ * (affected-cap A7) The open automatic affected requests to re-file at the cap: kind pr, requester AFFECTED_REQUESTER
+ * (only: set 'affected' alone is a lead's hand-filed request, never narrowed), not pinned, not a train or laptop rerun,
+ * naming more distinct suites than max (two parts of one suite count once). max 0 = no cap: none. Pure.
+ */
+export function overCapAffected(requests, max) {
+  if (!(max > 0)) return [];
+  return (requests ?? []).filter((r) => r?.kind === 'pr' && r.requester === AFFECTED_REQUESTER && !r.pin && !r.trainRerun && !r.laptopRerun
+    && new Set((r.suites ?? []).map((s) => String(s).split(':')[0])).size > max);
 }
 
 // ---------- desktop failures rechecked on the laptop (Orchestrator waste audit 2026-10-24, laptop-queue-3) ----------

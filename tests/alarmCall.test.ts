@@ -318,6 +318,23 @@ describe('the alarm by radio (wired)', () => {
     expect(m4.em.alarmRaised).toBe(false);
   });
 
+  it('(guard-rules S5, A7) one radio alarm per load unless alarmRepeat; with it, the command call runs again once the lock opens', () => {
+    for (const repeat of [false, true]) {
+      const a = fighter(0, 0);
+      const { em, ctx, run } = manager([a, guard(20, 0)]);
+      em.alarmRepeat = repeat;
+      contact(ctx, a);
+      run(RADIO.callIn + RADIO.report + 0.5);
+      expect([em.guardAlarms, em.command.started]).toEqual([1, 1]);
+      // the lock: shut until the response is in (here: `rearm` s, no team in this harness)
+      (em as unknown as { repeatStep(dt: number): void }).repeatStep(em.alarmRepeatTable.rearm);
+      expect(em.alarmOpen()).toBe(repeat);
+      contact(ctx, a);
+      run(RADIO.callIn + RADIO.report + 0.5);
+      expect([em.guardAlarms, em.command.started, em.radioNet.alarms]).toEqual(repeat ? [2, 2, 2] : [1, 1, 1]);
+    }
+  });
+
   it('setSection: the net serves the Sector index (the alarm reaches the sink with it)', () => {
     const s = fighter(0, 0);
     const { em } = manager([s]);

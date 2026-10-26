@@ -78,6 +78,7 @@ character faces -Y after import; M2 measures the facing, never assumes it):
   frames, fps }] }`.
 
 ## Slices
+Batch 2 B + C (slices I7-I14, the pistol / rifle / shooter / action-adventure packs and 17 singles): [BATCH2-PLAN.md](BATCH2-PLAN.md).
 Model per RULES: Opus for anim / engine code and the pipeline maths; Sonnet only from strict Opus briefs (data,
 tests, credits). Sizes are changed lines. Every slice: branch guard, path-limited commits, `npm run typecheck:fast` +
 `npx vitest run <its files>`, fresh checker. Blender runs (M1 run step only) wait for the orchestrator to lift the

@@ -4,7 +4,7 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until, hostAndJoin, waitSim, teamLog } from './e2e-net-lib.mjs';
+import { until, hostAndJoin, waitSim, teamLog, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
@@ -225,10 +225,120 @@ await run(PARAMS, async ({ page, G, sim }) => {
   assert(r.n === 4 && !r.ids.some((id) => startIds.includes(id)), `the section's guards are reset to its set (${r.n})`);
 });
 
+// (campus-greybox A28) the start-at-section link: `?sectorStart=3` starts the run at section 3 as its connectors leave
+// it (C2's checkpoint, the earlier far doors open, section 3's guards in); a down restarts it there; the extraction ends
+// a practice run: PRACTICE on the line, no badge, no star and no best rating saved.
+console.log('sector ops: a start-at-section link (practice)');
+await run(`${PARAMS}&sectorStart=3`, async ({ page, G, sim }) => {
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+  await sim(0.5);
+  const S = await sections(G);
+  const kv = (key) => G((k) => new Promise((ok) => {
+    const r = indexedDB.open('shoulder-strike');
+    r.onsuccess = () => {
+      try {
+        const q = r.result.transaction('kv').objectStore('kv').get(k);
+        q.onsuccess = () => ok(JSON.stringify(q.result ?? null));
+        q.onerror = () => ok('error');
+      } catch {
+        ok('none');
+      }
+    };
+    r.onerror = () => ok('error');
+  }), key);
+  const rec0 = [await kv('sector:ops'), await kv('rating:sections')];
+  const d = await G(() => { const g = window.__app.current; return { d: window.__sector.debug(), from: window.__sector.practiceFrom, n: g.enemyMgr.alive, at: [g.player.position.x, g.player.position.z] }; });
+  assert(d.from === 3 && d.d.index === 2 && d.d.phase === 'objective' && d.d.live === 2 && d.d.stage === 0, `the run starts on section 3's objective, its devices live (${JSON.stringify(d.d)})`);
+  assert(Math.abs(d.d.checkpoint.x - S[1].cp.x) < 0.01 && Math.abs(d.d.checkpoint.z - S[1].cp.z) < 0.01 && Math.hypot(d.at[0] - S[1].cp.x, d.at[1] - S[1].cp.z) < 1.5, `the player starts at C2's checkpoint (${d.at})`);
+  assert(d.d.doors[0].near === true && d.d.doors[0].far === false && d.d.doors[1].near === true && d.d.doors[1].far === false && d.d.doors[1].seal.every((x) => x === false), `the connectors are as their cycles leave them (${JSON.stringify(d.d.doors)})`);
+  assert(d.n === 4, `section 3's guards are in (${d.n})`);
+  await G(() => { const g = window.__app.current; g.target.damageMul = 1; g.target.applyDamage({ amount: 99999, point: g.player.position.clone(), dir: new g.player.position.constructor(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'test', sourcePos: g.player.position.clone(), impulse: 1 }); });
+  await sim(4);
+  const r = await G(() => { const g = window.__app.current; return { d: window.__sector.debug(), alive: g.target.alive, at: [g.player.position.x, g.player.position.z] }; });
+  assert(r.alive && r.d.restarts === 1 && r.d.index === 2 && Math.hypot(r.at[0] - S[1].cp.x, r.at[1] - S[1].cp.z) < 1.5, `a down restarts section 3 at C2's checkpoint (${JSON.stringify(r.d)}, ${r.at})`);
+  await G(() => { window.__app.current.target.damageMul = 0; const m = window.__sector; m.objectiveDone(m.run.current); });
+  await sim(0.3);
+  const s = S[2];
+  await tp(G, (s.exit[0] + s.exit[2]) / 2, 0, (s.exit[1] + s.exit[3]) / 2);
+  await sim(1);
+  assert((await G(() => window.__sector.debug().phase)) === 'done', 'the extraction ends the practice run');
+  await sim(6);
+  await page.waitForSelector('.results-screen', { timeout: 15000 });
+  const res = await G(() => ({ t: document.querySelector('.results-title')?.textContent, s: document.querySelector('.results-sub')?.textContent ?? '', p: window.__app.current.stats.practice }));
+  assert(res.t === 'VICTORY' && /PRACTICE from section 3/.test(res.s) && !/GHOST|PERFECT/.test(res.s) && res.p === true, `the result says practice, no badge (${JSON.stringify(res)})`);
+  await new Promise((ok) => setTimeout(ok, 1500));
+  const rec1 = [await kv('sector:ops'), await kv('rating:sections')];
+  assert(rec1[0] === rec0[0] && rec1[1] === rec0[1], `a practice run saves no star and no best rating (${JSON.stringify([rec0, rec1])})`);
+});
+
+// (campus-greybox A28) co-op: only the host opened the link; the client starts where the menu puts it (section 1) and
+// the host puts it at its checkpoint (`firstPlace`, the `restore` event); it mirrors section 2. No wire change.
+// (A28 fix 1) the client enters first: the host's loaded match is held out of `enter` until the client's states have
+// reached it, so they are judged before `start()` moves the run (`CoopHost.placeEarly` on the host's first step).
+console.log('sector ops: a start-at-section link in co-op (the host\'s wins)');
+{
+  const { browser, A, B, errors: [eA, eB] } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4&sectorStart=2' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const f = () => { window.__raf++; requestAnimationFrame(f); };
+          requestAnimationFrame(f);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  try {
+    // the host's `app.setState` (main.ts, after `GameState.create`) holds the loaded Sector Ops match until released
+    await A.evaluate(() => {
+      const app = window.__app;
+      const enter = app.setState.bind(app);
+      app.setState = (st) => {
+        if (st.opts?.mode !== 'sector') return enter(st);
+        window.__held = st;
+        window.__release = () => enter(st);
+      };
+    });
+    await A.evaluate(() => window.__coop.session.setSettings('sector', 'warehouseOps', 'normal', ''));
+    await B.evaluate(() => window.__coop.session.setReady(true));
+    await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
+    await A.evaluate(() => window.__coop.session.startMatch());
+    await until(B, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net, null, LOAD_MS, 'the client is in its match');
+    await until(A, () => !!window.__held?.net && [...window.__held.net.remotes.values()].every((r) => r.state), null, LOAD_MS, 'the client\'s states reach the held host');
+    assert(await A.evaluate(() => window.__app.current !== window.__held), 'the host has not entered its match before the client\'s states');
+    await A.evaluate(() => window.__release());
+    await until(A, () => window.__app.current === window.__held && !!window.__sector, null, 15000, 'the host enters its match');
+    await A.evaluate(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const h = await A.evaluate(() => ({ d: window.__sector.debug(), from: window.__sector.practiceFrom, cps: window.__sector.checkpointSpawns() }));
+    assert(h.from === 2 && h.d.index === 1, `the host starts at section 2 (${JSON.stringify(h.d)})`);
+    await until(B, (cps) => { const p = window.__app.current.player.position; return cps.some((c) => Math.hypot(p.x - c.x, p.z - c.z) < 5); }, h.cps, 15000, 'the client is put at the host\'s checkpoint');
+    await until(B, () => window.__ctdev?.debug().live === 1, null, 15000, 'the client mirrors section 2');
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
+}
+
 // (fix round, checker item 1) the AI on in section 2: a guard forced alerted runs to the live section's alarm panel (the
 // only one working) and the stage rises through the panel (not a direct onAlarm call); after a restart the panel and
-// the alarm are armed again and a second panel alarm works.
-console.log('sector ops: a guard raises the live section\'s alarm panel, again after a restart');
+// the alarm are armed again and a second panel alarm works. (guard-rules S5, A7) Before the restart, a second guard
+// alarm once the first one's response is in brings the next stage (Sector Ops repeats guard alarms).
+console.log('sector ops: a guard raises the live section\'s alarm panel, a second guard alarm adds a stage, again after a restart');
 await run(PARAMS, async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
   await sim(0.5);
@@ -242,10 +352,12 @@ await run(PARAMS, async ({ page, G, sim }) => {
   const panels = () => G(() => window.__app.current.enemyMgr.alarms.map((p) => ({ id: p.id, s: p.section, off: p.disabled })));
   const p1 = await panels();
   assert(p1.length === 3 && p1.every((p) => (p.s === 1 ? !p.off : p.off)), `only section 2's panel works (${JSON.stringify(p1)})`);
-  const panelAlarm = async (tag) => {
+  // (guard-rules S5, A7) `again`: a repeat guard alarm (one is raised this load, `alarmRaised` stays set; the repeat lock
+  // is open); the count of guard alarms (`guardAlarms`) tells the raise
+  const panelAlarm = async (tag, again = false) => {
     const st0 = await G(() => window.__sector.debug().stage);
-    const raised0 = await G(() => window.__app.current.enemyMgr.alarmRaised);
-    assert(raised0 === false, `${tag}: the panel alarm is armed`);
+    const a0 = await G(() => { const em = window.__app.current.enemyMgr; return { raised: em.alarmRaised, open: em.alarmOpen(), n: em.guardAlarms }; });
+    assert(a0.open && a0.raised === again, `${tag}: the panel alarm is armed (${JSON.stringify(a0)})`);
     // the guard nearest the live panel is forced alerted (the e2e-stealth-ai way)
     await G(() => {
       const em = window.__app.current.enemyMgr;
@@ -294,7 +406,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
     for (let k = 0; k < 80 && !raised; k++) {
       await sim(0.5);
       await hush();
-      raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
+      raised = (await G(() => window.__app.current.enemyMgr.guardAlarms)) > a0.n;
     }
     const d = await G(() => window.__sector.debug());
     // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
@@ -302,8 +414,24 @@ await run(PARAMS, async ({ page, G, sim }) => {
     const by = await G(() => window.__app.current.enemyMgr.alarmBy);
     assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised}; calls cut ${JSON.stringify(cutBy)})`);
     assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}'; calls cut ${JSON.stringify(cutBy)})`);
+    return d.stage;
   };
-  await panelAlarm('section 2');
+  const st1 = await panelAlarm('section 2');
+  // (guard-rules S5, A7, bible 5.7 "Each raised alarm adds one level") Sector Ops repeats guard alarms: right after the
+  // first the lock is shut (its response is not in); once it opens (here by its `rearm` time, standing in for the team
+  // searching; both are unit-tested in tests/alarmRepeat.test.ts) a second guard alarm brings the next stage, and at
+  // stage 2 every living human guard wears armour and a helmet (guard-rules S1, A3)
+  const lk = await G(() => { const em = window.__app.current.enemyMgr; return { repeat: em.alarmRepeat, open: em.alarmOpen(), n: em.guardAlarms, max: em.alarmRepeatTable.max }; });
+  assert(lk.repeat && !lk.open && lk.n === 1 && lk.max === 3, `section 2: repeats on, the lock shut after the first guard alarm (${JSON.stringify(lk)})`);
+  await G(() => { const em = window.__app.current.enemyMgr; em.repeatStep(em.alarmRepeatTable.rearm); });
+  const st2 = await panelAlarm('section 2, the second guard alarm', true);
+  const s2 = await G(() => {
+    const em = window.__app.current.enemyMgr;
+    const gs = em.enemies.filter((e) => e.alive && !e.def.quadruped);
+    return { raised: em.alarmRaised, n: em.guardAlarms, open: em.alarmOpen(), all: gs.length, bare: gs.filter((e) => !e.helmet || !e.armour).map((e) => e.id) };
+  });
+  assert(st2 === st1 + 1 && s2.raised && s2.n === 2 && !s2.open, `section 2: the second guard alarm adds a stage (${st1} -> ${st2}; ${JSON.stringify(s2)})`);
+  assert(st2 < 2 || (s2.all > 0 && s2.bare.length === 0), `section 2: at stage ${st2} every living human guard wears armour and a helmet (${JSON.stringify(s2)})`);
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
   await G(() => window.__app.current.pause());
   await frames(page, 3);
