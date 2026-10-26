@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.114.1 - Train 126: Training course and bunker test fixes; Marlow Yard test fixes (2026-10-26, PR #577; #567)
+
+### Marlow Yard test fixes
+- The Marlow Yard co-op test no longer stalls at the start when the computer is busy: its second window now always
+  joins the first as a partner instead of sometimes opening a second room of its own.
+- The test measures the partner throw over the laser beams on every game step, so a busy computer can no longer make a
+  good throw look too low; a slow page load also gets two minutes instead of one.
+
+### Training course and bunker test fixes
+- The training course and bunker co-op tests no longer risk stalling at the start when the computer is busy: their
+  second window now always joins the first as a partner instead of sometimes opening a second room of its own. If a
+  start ever stalls again, the test prints what both windows saw.
+
 ## 4.114.0 - Train 124: Guard AI: the runner is armed; Auto-train: fewer missed and wasted trains; Light allocation check; Animation source: hand-made, CMU or Mixamo; Preview: every feature on; +2 more (2026-10-26, PR #575; #571, #568, #560, #559, #531, #494, #457)
 
 ### Guard AI: the runner is armed

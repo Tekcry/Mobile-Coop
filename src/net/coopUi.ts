@@ -872,6 +872,22 @@ export function autoRoomCode(map: string): string {
  */
 export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode: 'course' | 'sector' = 'course'): Promise<void> {
   const code = autoRoomCode(map);
+  // (`&autojoin=1`, tests) join as a client with no probe deadline: a busy host page that answered after the 1.5 s probe
+  // made this tab host too, and two hosts never start (each ignores the other's lobby). Ready goes out once the host is
+  // known (`toHost` drops it before), and again while the host's lobby lists us unready (a ready that beat our hello);
+  // only until the first match starts, as the probe path (a later lobby is readied by hand)
+  if (flags.autojoin) {
+    const s = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile(), rejoinToken(code));
+    adopt(app, api, s);
+    const offLobby = s.events.on('lobby', () => {
+      if (s.hostId && s.phase === 'lobby' && s.players.get(s.selfId)?.ready === false) s.setReady(true);
+    });
+    const offStart = s.events.on('start', () => {
+      offLobby();
+      offStart();
+    });
+    return;
+  }
   // a client session hears an open room's lobby (the host answers its hello) within the probe window
   const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile(), rejoinToken(code));
   let full = false;
