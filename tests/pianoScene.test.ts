@@ -70,7 +70,7 @@ function host(over: Partial<PianoHost> = {}): { h: PianoHost; fed: string[]; end
   return { h, fed, ends, switched, slots, counts };
 }
 
-const ref = (x: number, z: number): PlayerRef => ({ feet: { x, y: 0, z } }) as unknown as PlayerRef;
+const ref = (x: number, z: number, y = 0): PlayerRef => ({ feet: { x, y, z } }) as unknown as PlayerRef;
 
 afterEach(() => setPianoLeave(null));
 
@@ -106,7 +106,7 @@ describe('the flag and the map entry', () => {
     expect(src('src/ui/screens/missionsScreen.ts')).toMatch(/\.filter\(\(m\) => m\.modes\.includes\('sector'\)[^\n]*&& !m\.scene\)/);
   });
 
-  it('the stub map: the piano scene on the sector runtime, one clear section, no guards yet', () => {
+  it('the map: the piano scene on the sector runtime, one clear section, the 12 guards (S1b)', () => {
     expect(thornbeckMill.id).toBe('thornbeckMill');
     expect(thornbeckMill.name).toBe('Thornbeck Mill');
     expect(thornbeckMill.scene).toBe('piano');
@@ -114,7 +114,7 @@ describe('the flag and the map entry', () => {
     expect(thornbeckMill.sectors).toBe(THORNBECK_SECTORS);
     expect(THORNBECK_SECTORS).toHaveLength(1);
     expect(THORNBECK_SECTORS[0]!.objective.kind).toBe('clear');
-    expect(THORNBECK_SECTORS[0]!.guards).toHaveLength(0);
+    expect(THORNBECK_SECTORS[0]!.guards).toHaveLength(12);
     expect(checkSectors(THORNBECK_SECTORS)).toEqual([]);
     expect(isPianoScene(thornbeckMill)).toBe(true);
     expect(isPianoScene(getMap('warehouseOps'))).toBe(false);
@@ -189,12 +189,14 @@ describe('the porch line', () => {
     const { h, fed } = host();
     const sc = new PianoScene(h, () => null);
     const s = THORNBECK_SECTORS[0]!;
-    const [x0, z0, x1, z1] = exitZone(s)!.box;
+    const zone = exitZone(s)!;
+    const [x0, z0, x1, z1] = zone.box;
+    const y = zone.floorY ?? 0;
     sc.porchStep(s, [ref(0, 0)]);
     expect(fed).toEqual([]);
-    sc.porchStep(s, [ref(0, 0), ref((x0 + x1) / 2, (z0 + z1) / 2)]);
+    sc.porchStep(s, [ref(0, 0), ref((x0 + x1) / 2, (z0 + z1) / 2, y)]);
     expect(fed).toEqual([PORCH_LINE]);
-    sc.porchStep(s, [ref((x0 + x1) / 2, (z0 + z1) / 2)]);
+    sc.porchStep(s, [ref((x0 + x1) / 2, (z0 + z1) / 2, y)]);
     expect(fed).toHaveLength(1);
     expect(PORCH_LINE).toBe('Not yet. Nobody walks away from this.');
   });
