@@ -45,7 +45,7 @@ import { HelmetDrops } from './helmetDrops';
 import { MODE_BREAKER } from './incidents';
 import { BREAKER, LATE } from './gear';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
-import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SEED_RADIO, seeded01, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
 import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
 // (guard-ai S14) section alert: missed check-ins and loud shots
@@ -653,7 +653,8 @@ export class EnemyManager {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
+          // (guard-ai seed-random) replayable jitter per listener per engagement (hard rule 8)
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3) *this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
         }
       },
       shout: (e) => {
@@ -666,7 +667,8 @@ export class EnemyManager {
         for (let i = 0; i < list.length; i++) {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
-          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3, e.hunt);
+          // (guard-ai seed-random) replayable jitter (hard rule 8)
+          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3, e.hunt);
         }
       },
       radioCall: (e, inc, kind) => {
