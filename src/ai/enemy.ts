@@ -264,8 +264,9 @@ const ENTRY_MAX = 30;
  *  `homeT` s he plans once with an A* budget of `homeExpand` (`goTo`'s is 3000; once per point, one per frame across the
  *  guards: `AiContext.longPlan`; 10000 is ~2.4 ms p50, 3.2 ms max on S1 campus, 20000 was ~4 / 6 ms); no
  *  progress again and a route walker moves on to his next point, a post guard stands where he is (this calm spell). The run
- *  to an alarm panel and the walk to a body to wake end after `runMax` s (the run also at once with no path). */
-export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000, runMax: 15 } as const;
+ *  to an alarm panel and the walk to a body to wake end when he cannot get there: no path, or under `homeMove` m moved in
+ *  `homeT` s (`walkStalled`; check A: not on time, a long way round is still walked). */
+export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000 } as const;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
 
@@ -600,12 +601,15 @@ export class Enemy implements Damageable {
   private homeT = 0;
   /** The long plan (`GIVE_UP.homeExpand`) was tried for this point. */
   private homeLong = false;
-  /** (guard-ai play A, P2-1) Time on the run to the alarm panel; he gave a run up this fight (not sent again). */
-  private alarmRunT = 0;
+  /** (guard-ai play A, P2-1) He gave a run to the alarm panel up this fight (not sent again). */
   private alarmQuit = false;
-  /** (guard-ai play A, P3-5) Time on the walk to the body he wakes; the body he gave up (not sent to it again). */
-  private reviveT = 0;
+  /** (guard-ai play A, P3-5) The body he gave up waking (not sent to it again). */
   private reviveQuit: Body | null = null;
+  /** (guard-ai play A, check A) The progress window of the run to the alarm panel or the walk to a body to wake
+   *  (`walkStalled`; one at a time): where he stood when it began and its time. */
+  private walkX = 0;
+  private walkZ = 0;
+  private walkT = 0;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -1177,7 +1181,7 @@ export class Enemy implements Damageable {
     this.handler = o.handler;
     this.walker = o.walker;
     this.walker.tick(downFor);
-    this.walker.rejoin(this.pos.x, this.pos.z);
+    this.rejoinHome();
     this.setCaution(0);
     // (guard-ai S12) his gear as it was when he went down (a helmet shot off stays off); (guard-rules S1, A2) a locked
     // helmet stays locked and keeps its soak
@@ -1543,7 +1547,7 @@ export class Enemy implements Damageable {
     this.brkGroup = -1;
     if (this.incMode === MODE_BREAKER) this.incident = -1;
     this.routePath.length = 0;
-    this.walker.rejoin(this.pos.x, this.pos.z);
+    this.rejoinHome();
   }
 
   /** (guard-ai S15) One step of the reset walk: to the switch at patrol pace, work it, the circuit back on. */
@@ -1717,7 +1721,7 @@ export class Enemy implements Damageable {
     // (guard-ai S5) a high-security post wakes no one outside his leash (he searches from its edge)
     if (revive && revive !== this.reviveQuit && this.inLeash(revive.pos.x, revive.pos.z, 1)) {
       this.reviving = revive;
-      this.reviveT = 0;
+      this.walkFrom();
     }
   }
 
@@ -2078,7 +2082,7 @@ export class Enemy implements Damageable {
     const at = hyp2(o.x - this.pos.x, o.z - this.pos.z) < POST.arrive + 0.05;
     const was = lu.phase;
     const ph = lu.step(dt, at, o);
-    if (ph === LURE.done && was !== LURE.done) this.walker.rejoin(this.pos.x, this.pos.z);
+    if (ph === LURE.done && was !== LURE.done) this.rejoinHome();
     const g = this.lureGoal;
     if (o.moving) {
       this.lureP[0] = o.x;
@@ -2106,7 +2110,7 @@ export class Enemy implements Damageable {
     this.bark('alarm');
     this.alarm = p;
     this.alarmT = 0;
-    this.alarmRunT = 0;
+    this.walkFrom();
     alarmStandPoint(p, this.alarmPt);
   }
 
@@ -2258,7 +2262,7 @@ export class Enemy implements Damageable {
     if (to === 'investigating') this.spotSet = false;
     if (to === 'unaware' || to === 'cooldown') {
       this.hasStimulus = false;
-      this.walker.rejoin(this.pos.x, this.pos.z);
+      this.rejoinHome();
       this.homeG = null;
     }
     // (polish A1) a device's responder pulled off his search (a light, a body, a missing man) and calm again: back to
@@ -2815,6 +2819,30 @@ export class Enemy implements Damageable {
     return null;
   }
 
+  /** Back to his post / route from where he stands (`PatrolWalker.rejoin`); (check A) the walk home's stuck window
+   *  starts over. */
+  private rejoinHome(): void {
+    this.walker.rejoin(this.pos.x, this.pos.z);
+    this.homeG = null;
+  }
+
+  /** (guard-ai play A, check A) Start the progress window of a walk (the alarm run, the walk to a body) here. */
+  private walkFrom(): void {
+    this.walkX = this.pos.x;
+    this.walkZ = this.pos.z;
+    this.walkT = 0;
+  }
+
+  /** (guard-ai play A, check A) The walk's window just closed with under `GIVE_UP.homeMove` m moved in `GIVE_UP.homeT` s
+   *  (each window starts where the last ended). */
+  private walkStalled(dt: number): boolean {
+    this.walkT += dt;
+    if (this.walkT < GIVE_UP.homeT) return false;
+    const moved = hyp2(this.pos.x - this.walkX, this.pos.z - this.walkZ);
+    this.walkFrom();
+    return moved < GIVE_UP.homeMove;
+  }
+
   /** (guard-ai play A, check B) The frame's long plan is his (taken now: call `homeLongPlan` straight after). */
   private longPlanFree(): boolean {
     return this.ctx.longPlan?.() ?? true;
@@ -2875,6 +2903,8 @@ export class Enemy implements Damageable {
         // walker still steps (its clock and schedule run on): he walks on late after the talk and the timed loop's
         // next stop takes the delay back
         const pf = this.pairFace;
+        // (check A) the walk home's stuck window starts over after a talk, a wait or a stop (not stale)
+        if (!g || pf === pf) this.homeG = null;
         if (pf === pf) {
           const pg = this.pairGoal;
           const pp = this.pairPt;
@@ -2924,8 +2954,10 @@ export class Enemy implements Damageable {
               return this.goal(null, 0, Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z));
             }
             // (guard-ai play A, P3-5) a body he cannot get to: he gives it up and searches
-            this.reviveT += dt;
-            if (this.reviveT < GIVE_UP.runMax) return this.goal(this.goTo(this.spot, dt, 0.9), def.walkSpeed * PACE.revive, null);
+            // (check A) walked while he gets nearer (a partial path past goTo's budget too); no nearer cell, or no progress
+            // in `GIVE_UP.homeT` s, and he gives up
+            const wp = this.goTo(this.spot, dt, 0.9, Number.NaN, true);
+            if (wp !== null && !this.walkStalled(dt)) return this.goal(wp, def.walkSpeed * PACE.revive, null);
             this.reviving = null;
             this.reviveQuit = rv;
           }
@@ -3341,11 +3373,10 @@ export class Enemy implements Damageable {
       return this.goal(null, 0, ap.yaw + Math.PI);
     }
     this.alarmT = 0;
-    // (guard-ai play A, P2-1) no path to the panel, or `GIVE_UP.runMax` s on the run: he gives it up and fights /
-    // searches (not sent again this fight: `alarmBarred`)
-    this.alarmRunT += dt;
+    // (guard-ai play A, P2-1) no path to the panel, or no progress (`walkStalled`): he gives it up and fights / searches
+    // (not sent again this fight: `alarmBarred`)
     const wp = this.goTo(this.alarmPt, dt, 0.5);
-    if ((wp !== null || !this.routeMiss) && this.alarmRunT < GIVE_UP.runMax) return this.goal(wp, this.def.runSpeed, null);
+    if ((wp !== null || !this.routeMiss) && !this.walkStalled(dt)) return this.goal(wp, this.def.runSpeed, null);
     this.alarm = null;
     this.alarmQuit = true;
     return null;

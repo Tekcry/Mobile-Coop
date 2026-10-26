@@ -19,7 +19,8 @@ import { runtimeNav } from './helpers/runtimeNav';
 // post / route point takes a partial path when the full one is past `goTo`'s A* budget (never straight into a wall), and
 // gives the point up when he stops making progress; it keeps his spawn height (a gallery post is upstairs). An alarm
 // runner with no way to the panel drops the run (and is not sent again this fight); a run, or a walk to a body to wake,
-// ends after `GIVE_UP.runMax` s; the lure's walk back is capped.
+// or a walk to a body to wake, ends when he stops getting nearer (no path, or under `GIVE_UP.homeMove` m in
+// `GIVE_UP.homeT` s: check A, not on time); the lure's walk back is capped.
 
 type Goal = { point: P2 | null; speed: number; face: number | null };
 /** The private parts the tests drive. */
@@ -32,6 +33,9 @@ type Priv = {
   walker: PatrolWalker;
   pos: Vector3;
   alarm: AlarmPanel | null;
+  aware: AlertMachine;
+  reviving: unknown;
+  reviveQuit: unknown;
   alarmBarred: boolean;
   runAlarm(p: AlarmPanel): void;
 };
@@ -104,8 +108,30 @@ async function calmGuard(nav: NavGrid, at: [number, number, number], post: [numb
     // the alarm run
     alarm: null,
     alarmT: 0,
-    alarmRunT: 0,
     alarmQuit: false,
+    walkX: 0,
+    walkZ: 0,
+    walkT: 0,
+    // the search (the walk to a body to wake)
+    reviving: null,
+    reviveQuit: null,
+    spot: [0, 0],
+    spotSet: true,
+    spotLookT: 0,
+    lookBase: 0,
+    entry: null,
+    crew: null,
+    hold: null,
+    searchRoom: null,
+    postDef: null,
+    rush: false,
+    planPoint: false,
+    heardSpot: false,
+    lkpLate: false,
+    searchK: 1,
+    searchKind: 0,
+    wantCrouch: false,
+    combatSearch: false,
     alarmPt: [0, 0],
     bark() {},
   });
@@ -336,10 +362,71 @@ describe('one long plan per frame across the guards (check B: AiContext.longPlan
   });
 });
 
+/** A 12 x 20 m floor cut by a wall along x = 0 with a gap at its north end (z 6..10): a way round. */
+function walled(): NavGrid {
+  const wall: NavBlocker = { cx: 0, cz: -2, hx: 0.1, hz: 8, yaw: 0, bottom: 0, top: 3 };
+  return new NavGrid({
+    minX: -6, maxX: 6, minZ: -10, maxZ: 10, cell: 0.25,
+    sample: () => ({ h: 0, ok: true }),
+    blockers: [wall],
+    agentRadius: 0.32, stepHeight: 0.45, seed: [-5, -5],
+  });
+}
+
+describe('the walk to a body to wake gives up only when he cannot get there (check A, P3-5)', () => {
+  /** A searching guard at `at` sent to wake a body at `b`; stepped until he wakes it or gives it up. */
+  async function wake(nav: NavGrid, at: [number, number], b: [number, number]) {
+    const revive = vi.fn();
+    const e = await calmGuard(nav, [at[0], at[1], 0], at, 0, null, { revive });
+    e.aware.set('searching');
+    const body = { present: true, pos: new Vector3(b[0], 0, b[1]), reviveT: 0 };
+    e.reviving = body;
+    const dt = 1 / 30;
+    let t = 0;
+    while (e.reviving && t < 90) {
+      if (e.link) e.runLink(dt);
+      else {
+        const g = e.calmDecide(dt);
+        e.move(dt, g.point, g.speed, g.face);
+      }
+      t += dt;
+    }
+    return { e, body, revive, t };
+  }
+
+  it('a reachable body with a path over 16 m (the old 15 s cap gave it up) is woken', async () => {
+    const nav = walled();
+    const full = nav.findPath([-3, -6], [3, -6], 60000)!;
+    let len = 0;
+    let px = -3;
+    let pz = -6;
+    for (const w of full) {
+      len += hyp2(w[0] - px, w[1] - pz);
+      px = w[0];
+      pz = w[1];
+    }
+    expect(len).toBeGreaterThan(16);
+    const r = await wake(nav, [-3, -6], [3, -6]);
+    console.info(`wake round the wall (${len.toFixed(1)} m path): woken after ${r.t.toFixed(1)} s`);
+    expect(r.revive).toHaveBeenCalledTimes(1);
+    expect(r.e.reviveQuit).toBeNull();
+    expect(r.t).toBeGreaterThan(15);
+  });
+
+  it('a body across a solid wall (no path) is given up, and not his again', async () => {
+    const { GIVE_UP } = await import('../src/ai/enemy');
+    const r = await wake(cut(), [-3, 2], [3, 2]);
+    expect(r.revive).not.toHaveBeenCalled();
+    expect(r.e.reviveQuit).toBe(r.body);
+    expect(r.t).toBeLessThan(GIVE_UP.homeT + 5);
+    expect(r.e.pos.x).toBeLessThan(-0.3);
+  });
+});
+
 describe('the alarm runner with no way to the panel drops the run (P2-1)', () => {
   const panel = (x: number, z: number): AlarmPanel => ({ id: 'p1', x, y: 0, z, yaw: 0, disabled: false });
 
-  it('no path: he drops it within GIVE_UP.runMax s (at once), and is barred from the next pick this fight', async () => {
+  it('no path: he drops it at once, and is barred from the next pick this fight', async () => {
     const { GIVE_UP } = await import('../src/ai/enemy');
     const e = await calmGuard(cut(), [-3, 2, 0], [-3, 2], 0, null, { alarmOpen: () => true, diff: DIFFICULTY.normal, raiseAlarm: vi.fn() });
     e.runAlarm(panel(3, 2));
@@ -352,11 +439,11 @@ describe('the alarm runner with no way to the panel drops the run (P2-1)', () =>
       t += dt;
     }
     expect(e.alarm).toBeNull();
-    expect(t).toBeLessThan(GIVE_UP.runMax);
+    expect(t).toBeLessThan(GIVE_UP.homeT);
     expect(e.alarmBarred).toBe(true);
   });
 
-  it(`a path he cannot finish: he drops it after GIVE_UP.runMax s`, async () => {
+  it(`a path he makes no progress on: he drops it after GIVE_UP.homeT s`, async () => {
     const { GIVE_UP } = await import('../src/ai/enemy');
     const e = await calmGuard(cut(), [-3, 2, 0], [-3, 2], 0, null, { alarmOpen: () => true, diff: DIFFICULTY.normal, raiseAlarm: vi.fn() });
     e.runAlarm(panel(-3, -8));
@@ -370,8 +457,8 @@ describe('the alarm runner with no way to the panel drops the run (P2-1)', () =>
     }
     // running each step but the last (the give-up)
     expect(goals).toBe(Math.round(t / dt) - 1);
-    expect(t).toBeGreaterThan(GIVE_UP.runMax - 0.1);
-    expect(t).toBeLessThan(GIVE_UP.runMax + 0.1);
+    expect(t).toBeGreaterThan(GIVE_UP.homeT - 0.1);
+    expect(t).toBeLessThan(GIVE_UP.homeT + 0.1);
   });
 
   it('the manager does not send a guard who gave a run up (assignAlarm)', async () => {
