@@ -1752,6 +1752,26 @@ export function withdrawnStatuses(old) {
 }
 
 /**
+ * laptop-queue-10 A7 (F15): a request file renamed on the branch (e.g. fronted to an early id) is a move, not a
+ * withdrawal. gone = requests whose file left the branch (running here, or open and tracked), candidates = request
+ * files new since the last listing (any claim state). A gone request pairs with a candidate under another id that runs
+ * the same thing (lib dupKey: sha, kind, sorted suites, set, ...) for the same queue requester (lib queueRequester: an
+ * affected request per branch); one-to-one, candidates by id, the earliest first. -> Map(gone id -> candidate id). Pure.
+ */
+export function movedRequests(gone, candidates) {
+  const key = (r) => JSON.stringify([dupKey(r), queueRequester(r) ?? '']);
+  const cands = [...(candidates ?? [])].filter((c) => c?.id).sort(sortById);
+  const used = new Set();
+  const out = new Map();
+  for (const g of [...(gone ?? [])].filter((x) => x?.id).sort(sortById)) {
+    const k = key(g);
+    const c = cands.find((x) => !used.has(x.id) && x.id !== g.id && key(x) === k);
+    if (c) { used.add(c.id); out.set(g.id, c.id); }
+  }
+  return out;
+}
+
+/**
  * Open requests whose file left the branch (withdrawn), two listings in a row as for a running request (one bad
  * listing never counts). tracked = Map(id -> request) of open requests seen before, listed = the ids on the branch now
  * (the caller skips an empty listing), misses = Map(id -> listings missed so far). -> { gone: [request], misses: the new

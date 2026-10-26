@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote, quarantineKeys, quarantineForgives } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeKey, gateCpu, desktopTooLong, placeFor, supersededRunning, finishedSuites, keptPlan, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc, prChain, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, unfinishedParts, hungTrainDesc, attemptDir, desktopWallS, failFast, cpuNote, quarantineKeys, quarantineForgives, movedRequests } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -2351,6 +2351,43 @@ describe('affected-e2e never stuck pending (Orchestrator audit 2026-10-25)', () 
     const two = vanishedRequests(tracked, new Set([b.id]), one.misses);
     expect(two.gone).toEqual([a]);
     expect(two.misses.size).toBe(0);
+  });
+});
+
+describe('moved requests (laptop-queue-10 S6)', () => {
+  const S = 'e'.repeat(40);
+  const lead = 'Night Shift | Player Build';
+  const pr = (id: string, o: Record<string, unknown> = {}) => ({ id, requester: lead, kind: 'pr', sha: S, branch: 'feature/mixamo-x', pr: 548, set: 'mixamo', suites: ['e2e-anim', 'smoke', 'e2e-move'], ...o });
+  it('the Mixamo replay: a running request re-filed under an early id, suites in another order, is a move', () => {
+    const run = pr(idAt(30, 'mixamo'));
+    const front = pr('20191231T235959-mixamo-d7a3b887', { suites: ['smoke', 'e2e-move', 'e2e-anim'] });
+    expect(isFront(front)).toBe(true);
+    expect([...movedRequests([run], [front])]).toEqual([[run.id, front.id]]);
+  });
+  it('another sha, requester, suite list, set or kind is no move', () => {
+    const run = pr(idAt(30, 'a'));
+    for (const o of [{ sha: 'f'.repeat(40) }, { requester: 'Night Shift | Guard AI Build' }, { suites: ['smoke', 'e2e-anim'] }, { set: 'other' }, { set: undefined }, { kind: 'full' }]) {
+      expect(movedRequests([run], [pr(idAt(1, 'b'), o)]).size).toBe(0);
+    }
+  });
+  it('affected requests pair per branch (the PR #548 rename: no "withdrawn" for the fronted copy)', () => {
+    const aff = (id: string, branch: string) => ({ id, requester: AFFECTED_REQUESTER, kind: 'pr', sha: S, branch, pr: 548, set: 'affected', suites: ['smoke', 'e2e-coop'] });
+    const old = aff(idAt(30, 'affected-e2e'), 'feature/x');
+    expect([...movedRequests([old], [aff('20191231T235959-affected-e2e-eeeeeeee', 'feature/x')])]).toEqual([[old.id, '20191231T235959-affected-e2e-eeeeeeee']]);
+    expect(movedRequests([old], [aff(idAt(1, 'affected-e2e'), 'feature/y')]).size).toBe(0);
+  });
+  it('one-to-one: the earliest candidate first, one candidate for one gone, never the same id; empty inputs', () => {
+    const g1 = pr(idAt(30, 'g1'));
+    const g2 = pr(idAt(20, 'g2'));
+    const c1 = pr(idAt(2, 'c1'));
+    const c2 = pr(idAt(1, 'c2'));
+    expect([...movedRequests([g1], [c2, c1])]).toEqual([[g1.id, c1.id]]);
+    expect([...movedRequests([g2, g1], [c1])]).toEqual([[g1.id, c1.id]]);
+    expect([...movedRequests([g2, g1], [c2, c1])]).toEqual([[g1.id, c1.id], [g2.id, c2.id]]);
+    expect(movedRequests([g1], [{ ...g1 }]).size).toBe(0);
+    expect(movedRequests([], [c1]).size).toBe(0);
+    expect(movedRequests([g1], []).size).toBe(0);
+    expect(movedRequests(undefined, undefined).size).toBe(0);
   });
 });
 
