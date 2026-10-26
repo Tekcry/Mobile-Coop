@@ -27,6 +27,7 @@ files:
   - tests/guardOccluders.test.ts
   - tests/shadowNotice.test.ts
   - tests/shadowNoticePerceive.test.ts
+  - tests/guardShadowGame.test.ts (new, G4a / G4b)
   - scripts/e2e-stealth-ai.mjs
   - docs/systems/ai.md
   - docs/guard-ai-j16/**
