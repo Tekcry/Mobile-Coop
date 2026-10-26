@@ -8,6 +8,7 @@ import { exitZone, inZone, type SectorDef } from './sectors';
 import { hyp2 } from '../core/mathx';
 import { flags } from '../core/flags';
 import { knifeSceneOn } from './knifeKill';
+import type { IntroVariant } from '../anim/introBreath';
 import { createSceneStorm, type PianoStorm } from '../audio/sceneStorm';
 
 /**
@@ -221,6 +222,11 @@ export interface PianoWorld {
   /** (S4, knife PB5) The knife scene on this page's takedowns: every offer a lethal knife kill on one press (off: today's). */
   knifeScene(on: boolean): void;
   /**
+   * (piano-knife S4b) The intro pose on this page's operator (`GameState.introPose`): back to the bins, the pistol (the
+   * selected weapon: `start` selects it first) at low ready, slide locked. Absent: no pose (tests).
+   */
+  introPose?(on: boolean, variant: IntroVariant): void;
+  /**
    * (S4) Co-op client only (absent on the host and solo): send this page's EMP press to the host, which checks it like
    * any item use. The client's spawn, search, mains cut and reveals are the host's; its intro ends on `hostEmp`.
    */
@@ -287,6 +293,7 @@ export function pianoClientWorld(g: GameState, c: PianoClientSeam): PianoWorld {
     guardWithin: () => true,
     view: (intro, onSkip) => c.view(intro, onSkip),
     knifeScene: (on) => knifeSwitch(g, on),
+    introPose: (on, v) => void g.introPose(on, v),
     askEmp: () => c.askEmp(),
   };
 }
@@ -368,6 +375,7 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
     },
     view: (intro, onSkip) => m.view(intro, onSkip),
     knifeScene: (on) => knifeSwitch(g, on),
+    introPose: (on, v) => void g.introPose(on, v),
     endNet: () => g.net?.onEnd?.(true, ''),
     toLobby() {
       // the session's callbacks (`GameState.cb`, private: the pause menu's own lobby hook reads the same)
@@ -414,6 +422,9 @@ export class PianoScene {
   private knifeOn = false;
   private searchPending = false;
   private restartT = -1;
+  /** (S4b) The intro pose is on; a restart before the EMP takes it off and puts it back after the respawn. */
+  private posed = false;
+  private rePoseT = -1;
   private wasOpen = true;
   private readonly revealed = [false, false];
   private readonly at = { x: 0, y: 0, z: 0 };
@@ -441,7 +452,7 @@ export class PianoScene {
 
   /**
    * (S2) The intro begins, once: guards held, the HUD hidden, the piano from 0 s (the intro clock waits for it), the view
-   * (camera, fade, letterbox, actors, prompt; `introPose` is the knife job's S4b: until then the pistol stance stands).
+   * (camera, fade, letterbox, actors, prompt) and the intro pose (knife S4b).
    */
   protected onIntro(): void {
     const w = this.world;
@@ -460,8 +471,16 @@ export class PianoScene {
       m.scene(true);
       void m.piano.start().then(() => intro.musicStarted());
     }
-    // TODO(knife S4b): introPose(true) here (the slide locked back, low-ready, back to the bins); introPose(false) at the cut
+    // (knife S4b) the pose: the host / solo 'stand', the client (start2) 'mirror'; off at the cut (on the wall, pistol away)
+    this.pose(true);
     this.view = w.view(intro, this.skipped);
+  }
+
+  /** (S4b) The intro pose on / off, once each way. */
+  private pose(on: boolean): void {
+    if (on === this.posed) return;
+    this.posed = on;
+    this.world?.introPose?.(on, this.world.askEmp ? 'mirror' : 'stand');
   }
 
   /**
@@ -487,6 +506,11 @@ export class PianoScene {
     if (w.storm) {
       w.operatorAt('local', this.at);
       w.storm.step(w.simTime(), this.t0 >= 0 ? this.t0 : LIGHTNING_OFF_T0, this.at.y);
+    }
+    // (S4b) a restart in the intro: the pose back once the operator has respawned
+    if (this.rePoseT >= 0) {
+      this.rePoseT -= dt;
+      if (this.rePoseT < 0 && !this.inPlay) this.pose(true);
     }
     if (!this.pressed) {
       if (!intro.promptOn) return;
@@ -598,6 +622,8 @@ export class PianoScene {
   private cut(): void {
     const w = this.world!;
     this.inPlay = true;
+    this.rePoseT = -1;
+    this.pose(false);
     this.view?.cut();
     w.hud(true);
     w.cutLines(RADIO_LINE, OBJECTIVE_LINE);
@@ -609,7 +635,14 @@ export class PianoScene {
    * respawn, then the dark, the spawn and the search run again (`mainsOff` holds, so the lamps stay dead).
    */
   restarted(): void {
-    if (!this.pressed) return;
+    if (!this.pressed) {
+      // (S4b) the respawn moves the operator: the pose off now, back on after it
+      if (this.posed) {
+        this.pose(false);
+        this.rePoseT = RESTART_SPAWN_S;
+      }
+      return;
+    }
     this.holdsSpawn = true;
     this.searchPending = false;
     this.restartT = RESTART_SPAWN_S;
@@ -665,6 +698,7 @@ export class PianoScene {
   finish(): number {
     if (this.finished) return PIANO_FADE_S;
     this.finished = true;
+    this.pose(false);
     this.onKnifeScene(false);
     this.world?.music?.piano.fadeOut(PIANO_FADE_S);
     this.world?.storm?.fadeOut(PIANO_FADE_S);
@@ -717,6 +751,7 @@ export class PianoScene {
     this.fade = null;
     this.view?.dispose();
     this.view = null;
+    this.pose(false);
     this.onKnifeScene(false);
     const w = this.world;
     if (w) {

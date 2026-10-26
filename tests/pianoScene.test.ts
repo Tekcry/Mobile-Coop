@@ -408,6 +408,31 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     expect(s.log).toContain(`mainsOff 4 ${BELT_Y} 6 ${EMP_OUT_S}`);
   });
 
+  it('(knife S4b) the intro pose: on at the intro (stand; mirror on a client), off for a restart in the intro and back after the respawn, off at the cut, once each way', () => {
+    const poses: string[] = [];
+    const s = started({ introPose: (on, v) => void poses.push(`${on} ${v}`) });
+    expect(poses).toEqual(['true stand']);
+    toPrompt(s);
+    s.sc.restarted();
+    expect(poses).toEqual(['true stand', 'false stand']);
+    s.sc.step(0.3, true);
+    expect(poses).toHaveLength(2);
+    s.sc.step(0.2, true);
+    expect(poses).toEqual(['true stand', 'false stand', 'true stand']);
+    s.sc.press('local');
+    s.intro.step(EMP_CUT_S + 0.1);
+    s.sc.step(1 / 60, true);
+    expect(s.sc.inPlay).toBe(true);
+    expect(poses).toEqual(['true stand', 'false stand', 'true stand', 'false stand']);
+    s.sc.finish();
+    s.sc.dispose();
+    expect(poses).toHaveLength(4);
+    const c: string[] = [];
+    const k = started({ introPose: (on, v) => void c.push(`${on} ${v}`), askEmp: () => undefined });
+    k.sc.dispose();
+    expect(c).toEqual(['true mirror', 'false mirror']);
+  });
+
   it('press + 2.5 s: the cut (input on, the HUD, the radio line, the objective line)', () => {
     const s = started();
     toPrompt(s);
