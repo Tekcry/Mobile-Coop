@@ -1015,7 +1015,7 @@ Mill (map id thornbeckMill), a tall timber grain mill at night in a thunderstorm
 down; flag pianoEscape. Guard sight stays pure light parity (GA2 dropped); lightning = one flash value per sim step from
 fixed timeline data (Sector Ops SO5), guards just read the light.
 STORM MILL ONLY (Michael ~23:25 via the orchestrator, token cut): only the piano guard work (#624) moves, at most 2
-builders; #317 / #588 / #611 and the rest pause after their current runs until the orchestrator's resume (~03:52).
+builders; ~23:45 hold released, but pace: no new agent until the orchestrator's next pace message (a red #624 excepted).
 Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct morning, Campaign S4 is the critical path):
 1. Piano (Campaign's PLAN numbering; their GA7 = the flash glimpse, our mapWideNoise = "rain"):
    - GA6 sweep + GA7 + pair watch = PR #624 (feature/guard-ai-piano-sweep, big-pr). Checks on 89f13ef1c + merge
@@ -1035,6 +1035,6 @@ Open (2026-10-26 ~23:00, new account; target: Michael walks the mill Tue 27 Oct 
    autojoin 5th tab gets bye not "Room full"; J16 perception half. #624 re-check polish: a deck guard off his storey
    with no path home stands under his stop forever (give up after a few s, walk the floor lap); a pan cut by a storey
    pull resumes short.
-Next: #624 e910abee2 affected-e2e -> green: tell the orchestrator train-ready; red: Opus triage. #317: affected-e2e not run (conflicts with master
-again, ~23:30): after the ~03:52 resume, merge 10 in a temp worktree, then requeue the co-op group.
+Next: #624 e910abee2 affected-e2e -> green: tell the orchestrator train-ready; red: Opus triage. #317 merges 10-11
+(MERGE10-CHECK.md PASS, checker posted on fca6b7b09): co-op group affected-e2e -> green: tell the orchestrator.
 ```
