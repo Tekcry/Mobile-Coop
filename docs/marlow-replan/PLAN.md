@@ -205,7 +205,7 @@ and `rc` (its cause), all R1;
   supplies the re-planned graph (`docs/marlow-replan/graph.json`).
 - **J13 feature/route-runs-2 (ours):** `scripts/route-run*`, `docs/route-runs/**`, `docs/level-design.md`. No overlap;
   J13 reads our graph, the station hook and R1's `window.__course.restarts` / `lastRetry` / `retryOff(n)` (R4c). The
-  J13 lead is told R1's names and the cause mapping (`seen` / `caught` -> seen, `timer` -> timer, `out` / `down` ->
+  J13 lead is told R1's names and the cause mapping (`seen` / `caught` -> seen, `timer` -> timer, `out` / `down` / `other` ->
   other; R1 "Retry-off switch") when this PLAN passes its checker.
 - **feature/coop-kit (Player):** `teamMoves.ts`, `teamController.ts`, `src/world/plankBridge.ts`,
   `src/world/counterweightGrate.ts`, `src/game/kit/*`, `flags.ts` (`kitMoves`). No overlap except `flags.ts`; KS1-KS5
@@ -311,13 +311,14 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   reads a rise of `window.__course.restarts` on every poll and names the cause (seen / timer / other). R1 gives it:
   `CourseState.restarts` (a count, 0 at match start) and `CourseState.lastRetry`, one shape on host and client:
   `type LastRetry = { st: number; cause: RetryCause } | null` with `type RetryCause = 'seen' | 'caught' | 'timer' |
-  'out' | 'down'` (both in `courseState.ts`), `null` before the first retry; `st` is the station live when the retry
+  'out' | 'down' | 'other'` (both in `courseState.ts`), `null` before the first retry; `st` is the station live when the retry
   fired (the one retried; for `out` / `down` the station the bay restart interrupted; 0 on a bay without stations), so
   it can differ from the live `st` after a bay restart. Packed as `PackedCourse.rs` (count), `rt` (`lastRetry.st`) and
   `rc` (`lastRetry.cause`) beside `st`. Every station retry increments `restarts` and records its cause: `seen` (A1-A7
   guard combat or a camera's full detection), `caught` (A8 `CAUGHT_HOLD`), `timer` (a `drillS` window or A8 timed step
   ending); a downed bay restart (two bullets down) also increments it, with `out` (one player out) or `down` (both
-  down). Host:
+  down); `other` is a set's own way out of a soft-lock (A26: A1's early drop into the yard), the only cause that also
+  retries a `retry: 'none'` station. Host:
   `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
   the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: w.s.rc ? { st:
   w.s.rt, cause: w.s.rc } : null` (the same `LastRetry`, not the live station), so the harness reads the same hook on
@@ -331,7 +332,7 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   `n` not in the live bay (on the built `ctcourse` there are no stations: R4c keeps master's `spotFail` path there).
   Host only: retries are the host's call, the harness drives the host page (`verb()`, `setFlag()`), and the client
   mirror has no `retryOff`. Cause mapping R4c uses for its seen / timer / other: `seen` and `caught` -> seen, `timer` ->
-  timer, `out` and `down` -> other. So an A8 caught retry whose alert rose more than 2 s earlier still reads as seen,
+  timer, `out`, `down` and `other` -> other. So an A8 caught retry whose alert rose more than 2 s earlier still reads as seen,
   never as a second `other` (R4c's only `restart-loop` dead stop).
 - **One out and both down (level-design 9.4 [Training], unchanged; plan check 2 fix 1).** On `ctcourseReplan` a player
   out with no revives left takes the path both down takes, as on the built yard: `coopHost.goOut` (:568-581, not edited)
@@ -501,6 +502,8 @@ start with one player once F1 is live, on either yard).
   choices - accept when no set can be crossed without its lesson.
 - A2 or A4: get seen by the shunter / a camera - accept when both land back at that step's start, earlier steps stay
   done, nothing says "failed".
+- A3: get seen by the corridor camera at station 6 - accept when the swapped jobs (the crawler goes to the door,
+  the other to the cupboard) read as fine, or say so (A29).
 - A8: let a guard see you, then break away - accept when the guard searches like on a mission and only being caught
   sends you back a step.
 - A5 and A6 new spaces (wall gap, trench, drive pit): accept when they read as real places and the stand-in crossings
@@ -554,8 +557,22 @@ start with one player once F1 is live, on either yard).
   (wicket shut, `a1-top` not set), a player on the yard floor with nobody on or climbing the wall for 5 s
   (`A1_TRAP_GRACE`, `src/game/course/replan/a1Ticks.ts`) retries the live station with the new cause `other` (the only
   cause a `retry: 'none'` station takes; R4c and the route-runs read it as other), both back at its marks with LANTERN's
-  `retry:<id>:other` line. Stations 1-2 stay `retry: 'none'`. Branch feature/marlow-replan-a1-retry. Undo: empty
+  `retry:<id>:other` line. Stations 1-2 stay `retry: 'none'`. The clock waits while anyone is on the wall top or hanging
+  on either face, and does not run while a player stands off the yard floor (on a bollard, in the L1 airlock); it is
+  off for a station R4c's `retryOff(n)` has switched off. Branch feature/marlow-replan-a1-retry. Undo: empty
   `a1Tick` and drop the two radio rows.
+- **A27** (lead call, G-A4) The A4 circuit table's `a4-sw-bulk` moves to (99.0, 24.3), on the back aisle's south wall west
+  of the lift grille, where it is on the route and 19.4 m from camera C2. Undo: the built spot.
+- **A28** (lead call, G-A4 / G-A8) A4's camera C3 is fixed at facing 90 down the wicket line (the built camera swept
+  70-110 degrees and both station 10 marks sat in its frame at the sweep's ends; STATIONS SA12). A8 keeps the Q24 side
+  routes, so station 20 can be skipped by the stair-foot door or the request-to-exit without the board's 25 s dark
+  (STATIONS SA15); accepted, the timed light cut is optional there. Undo: sweep C3 again with new marks; tie 20's done
+  flag to the dark.
+- **A29** (lead call, G-A3, confirm at Michael's walk) Station 6 keeps the built role claim, so the crawler is B and a
+  retry swaps the two jobs; both players may crawl (STATIONS SA14). Undo: swap station 6's marks, or add a one-user
+  rule on the duct (engine work).
+- **A30** (polish, G-A8) The office stair is built 1.2 m wide; `graph.json` says "widened to 1.3 m" and no brief asks
+  for the change. Left at 1.2 m: settle it at G1 (fix the graph note) when the validator reruns.
 
 **Assume and log (RULES Intake step 2), for the orchestrator to put to Michael:** BRIEF A3 (new-move stations open as
 moves ship, Q29), A5 (pull-up counted with the human ladder, Q29), A7 (A8 keeps 3 guards under campaign-area route

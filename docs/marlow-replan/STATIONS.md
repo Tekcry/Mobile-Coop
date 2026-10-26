@@ -16,7 +16,9 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
 - **Marks.** `marks[0]` is role A's, `marks[1]` role B's: the bay's role claim (`BayDef.roles`), P1 / P2 when no claim
   (assumption SA3). A split station puts the two marks on the two legs.
 - **Ids.** `*` marks an id this sheet adds; the set slice creates it in `replan/<set>.ts`. The rest exist on master.
-- **Retry kinds** (`StationDef.retry`). `none`: no guard, camera or drill reaches the station, nothing can fail.
+- **Retry kinds** (`StationDef.retry`). `none`: no guard, camera or drill reaches the station, nothing can fail. One
+  exception: a set's own way out of a soft-lock may retry a `none` station with the cause `other` (A1's early drop into
+  the yard, PLAN A26); nothing else does.
   `station` (A1-A7): a guard in combat on a player, a camera's full detection of a player, or the drill window failing
   (section 5) puts both players on the station's marks after `SPOT_HOLD` (`courseMode.ts:102`, 1.5 s). `caught` (A8):
   suspicion and search play out as on a mission; a guard holding combat on a player for `CAUGHT_HOLD` 2 s, or the drill
@@ -31,7 +33,7 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
 | 1 | 1 | A1 | `a1-boost` | `boost` | `a1-walltop` | none | - | `a1-top1`* | - |
 | 2 | 2 | A1 | `a1-ladder` | `human_ladder` | `a1-walltop` | none | - | `a1-top`* | - |
 | 3 | 3 | A2 | `a2-shutter` | `shutter_hold` | `a2-lane` | station | - | `a2-lane`* | - |
-| 4 | 4 | A2 | `a2-lights` | `timed_light_cut` | `a2-neck` | station | 15 | `a2-east` | - |
+| 4 | 4 | A2 | `a2-lights` | `timed_light_cut` | `a2-neck` | station | 15 | `a2-east` | no kit / `g-a2-shutter-open`* (the roller door's latch) |
 | 5 | 5 | A2 | `a2-plank` | `plank_bridge` | `a2-pitside` | station | - | `a2-across`* | `plankBridge` / `g-a2-walkway`* |
 | 6 | 6 | A3 | `a3-vent` | `vent_unlock` | `a3-corridor` | station | - | `a3-fire`* | - |
 | 7 | 7 | A3 | `a3-jam` | `jam_relay` | `a3-corridor` | station | - | `a3-far` | - |
@@ -68,18 +70,22 @@ const a1GateStations: StationDef[] = [
     guards: [], gates: ['g-a1-wicket'] },
 ];
 // A2: replan/a2CarriageShed.ts
+// Station 4's standIn is the roller door's latch (no kit): the host opens it as 4 goes live, so the presser walks from
+// the cabin to the lane, and it stays open through 4's retries.
 const a2CarriageShedStations: StationDef[] = [
   { n: 3, id: 'a2-shutter', lesson: 'shutter_hold', retry: 'station', doneFlag: 'a2-lane',
     marks: [{ x: 31.0, z: 11.5, y: 0, yaw: Math.PI / 2 }, { x: 31.0, z: 13.0, y: 0, yaw: Math.PI / 2 }],
     guards: ['a2-shunter'], gates: ['g-a2-shutter'] },
   { n: 4, id: 'a2-lights', lesson: 'timed_light_cut', retry: 'station', doneFlag: 'a2-east', drillS: 15,
     marks: [{ x: 30.5, z: 2.5, y: 0, yaw: Math.PI }, { x: 45.5, z: 12.5, y: 0, yaw: Math.PI / 2 }],
-    guards: ['a2-shunter'], gates: ['g-a2-neck'] },
+    guards: ['a2-shunter'], gates: ['g-a2-neck', 'g-a2-shutter-open'], standIn: 'g-a2-shutter-open' },
   { n: 5, id: 'a2-plank', lesson: 'plank_bridge', retry: 'station', doneFlag: 'a2-across', kit: 'plankBridge', standIn: 'g-a2-walkway',
     marks: [{ x: 65.5, z: 12.0, y: 0, yaw: Math.PI / 2 }, { x: 65.5, z: 13.0, y: 0, yaw: Math.PI / 2 }],
     guards: ['a2-shunter'], gates: ['g-a2-walkway'] },
 ];
 // A3: replan/a3OfficeRange.ts
+// Station 6: the bay keeps the built role claim (B = first into the corridor), so the crawler is B and a retry swaps the
+// jobs (SA14).
 const a3OfficeRangeStations: StationDef[] = [
   { n: 6, id: 'a3-vent', lesson: 'vent_unlock', retry: 'station', doneFlag: 'a3-fire',
     marks: [{ x: 77.5, z: 2.0, y: 0, yaw: Math.PI }, { x: 78.5, z: 10.5, y: 0, yaw: Math.PI / 2 }],
@@ -179,32 +185,33 @@ const a8StrongroomStations: StationDef[] = [
 
 ## 6. LANTERN's retry lines
 Plain, short, what and where (G343, G351); at most 90 characters (`COURSE_TEXT_MAX`). A `seen` / `caught` line plays for
-a guard or camera, a `timer` line for a drill window. Keyed in the set's `bay.radio` as `at: 'retry:<station id>'`
-and `at: 'retry:<station id>:timer'` (assumption SA2). No line says "failed".
+a guard or camera, a `timer` line for a drill window, an `other` line for A1's early drop (PLAN A26). Keyed in the set's `bay.radio` as `at: 'retry:<station id>'`,
+`at: 'retry:<station id>:timer'` and, for A1 only, `at: 'retry:<station id>:other'` (assumption SA2). No line says
+"failed".
 
-| n | id | Seen / caught | Timer |
-| --- | --- | --- | --- |
-| 1 | `a1-boost` | (none: nothing can fail) | - |
-| 2 | `a1-ladder` | (none: nothing can fail) | - |
-| 3 | `a2-shutter` | Seen at the roller door. Back to the stores bay. | - |
-| 4 | `a2-lights` | The shunter saw you in the neck. Back to the cabin and the lane. | Lights came back with you in the neck. Back to the cabin and the lane. |
-| 5 | `a2-plank` | The shunter saw the board. Back to the board stack at the east end. | - |
-| 6 | `a3-vent` | The camera had you. Back to the west lobby. | - |
-| 7 | `a3-jam` | The camera had you. Back to the corridor's west end; jam it again. | - |
-| 9 | `a4-deadweight` | The duty officer saw you. Back to the security room door. | - |
-| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room; loop it again. | The cameras came back. Back to the security room; loop it again. |
-| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Both loaders at once, or the other one sees. Back behind the stacks. |
-| 11 | `a5-chimney` | (none: nothing can fail) | - |
-| 12 | `a5-swing` | (none: nothing can fail) | - |
-| 13 | `a5-throw` | Seen in the floodlight. Back behind the transformer. | The floodlight came back. Back behind the transformer. |
-| 14 | `a6-rope` | The attendant saw you. Back to the sump bay, behind the kerb. | - |
-| 15 | `a6-hangdown` | The attendant saw you on the bridge. Back to the bridge's north end. | - |
-| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge; catch your partner. | - |
-| 17 | `a7-split` | Seen in the data hall. Back to the entry lobby. | - |
-| 18a | `a8-c2run` | Caught in the banking hall. Back to the vestibule. | - |
-| 18b | `a8-loopset` | Caught at the security office. Back to the office door and the board. | - |
-| 18c | `a8-isolate` | Caught at the lighting board. Back to the board. | The hall lights came back. Back to the lighting board. |
-| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console and the lobby. | The cameras came back. Loop them again from the office console. |
+| n | id | Seen / caught | Timer | Other |
+| --- | --- | --- | --- | --- |
+| 1 | `a1-boost` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the mark. |
+| 2 | `a1-ladder` | (none: nothing can be seen) | - | Into the yard too soon. The wicket stays shut till you are both up. Back to the wall. |
+| 3 | `a2-shutter` | Seen at the roller door. Back to the stores bay. | - | - |
+| 4 | `a2-lights` | The shunter saw you in the neck. Back to the cabin and the lane. | Lights came back with you in the neck. Back to the cabin and the lane. | - |
+| 5 | `a2-plank` | The shunter saw the board. Back to the board stack at the east end. | - | - |
+| 6 | `a3-vent` | The camera had you. Back to the west lobby. | - | - |
+| 7 | `a3-jam` | The camera had you. Back to the corridor's west end; jam it again. | - | - |
+| 9 | `a4-deadweight` | The duty officer saw you. Back to the security room door. | - | - |
+| 8 | `a4-camloop` | Seen on the shop floor. Back to the security room; loop it again. | The cameras came back. Back to the security room; loop it again. | - |
+| 10 | `a4-takedown` | The loaders saw you. Back behind the pallet stacks at the dock. | Both loaders at once, or the other one sees. Back behind the stacks. | - |
+| 11 | `a5-chimney` | (none: nothing can fail) | - | - |
+| 12 | `a5-swing` | (none: nothing can fail) | - | - |
+| 13 | `a5-throw` | Seen in the floodlight. Back behind the transformer. | The floodlight came back. Back behind the transformer. | - |
+| 14 | `a6-rope` | The attendant saw you. Back to the sump bay, behind the kerb. | - | - |
+| 15 | `a6-hangdown` | The attendant saw you on the bridge. Back to the bridge's north end. | - | - |
+| 16 | `a6-dropcatch` | The attendant heard the landing. Back to the bridge; catch your partner. | - | - |
+| 17 | `a7-split` | Seen in the data hall. Back to the entry lobby. | - | - |
+| 18a | `a8-c2run` | Caught in the banking hall. Back to the vestibule. | - | - |
+| 18b | `a8-loopset` | Caught at the security office. Back to the office door and the board. | - | - |
+| 18c | `a8-isolate` | Caught at the lighting board. Back to the board. | The hall lights came back. Back to the lighting board. | - |
+| 18d | `a8-locks` | Caught in the vault lobby. Back to the office console and the lobby. | The cameras came back. Loop them again from the office console. | - |
 
 ## 7. Start marks and their space boxes
 Each mark is checked against its graph space's `area` box (G0, 7bc609ba2; rechecked at the D1 check, J14 wave 2). All 42
@@ -379,7 +386,8 @@ rule (a heavy landing retries the station).
   trench moves 1.15 m west to x 62.35-65.85 (lead, J14 wave 2): east strip x 65.85-67.85 (2 m), west strip x
   58.15-62.35; station 12's marks at x 67.0, 0.85 m off the wall face (graph `area` follows at G1). Undo: 1 m gap (A19's
   undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall.
-- **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-walkway` (stand-in, door `A2-walkway`);
+- **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-shutter-open` (egress latch on the roller door, station 4's stand-in: open for good once station 3 passes);
+  `g-a2-walkway` (stand-in, door `A2-walkway`);
   `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
   and `g-a4-grille-motor` (stand-in: the motor button); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
   `A5-wicket`, `A5-footbridge`); `g-a5-plates` (the trench plates, laid from the west side); `g-a6-edge` (the gallery's
@@ -387,11 +395,24 @@ rule (a heavy landing retries the station).
   `a5-watcher`, `a7-tech2` (fallback `a6-listener`). Undo: rename in the set slice and here together.
 - **SA12 Station 10 and C3.** C3 watches the loaders' desk, so the takedown lands inside the loop. The marks are the
   crouch spots behind the two pallet stacks (`A4_SPOT_N` / `A4_SPOT_S` on the grid), about 40-48 degrees off C3's axis;
-  G-A4 checks they sit outside its sweep with the loop off, else narrows C3's sweep to the wicket line. Undo: marks
+  C3 is fixed at facing 90 down the wicket line, so both marks sit outside its frame (lead call, PLAN A28). Undo: marks
   at the main aisle's west end (85.5, 37.0 / 38.0).
-- **SA13 No-fail stations.** 1, 2, 11 and 12 have no guard, camera or drill. G-A5 gives the cable trench a way out (step
-  irons at its ends), so a fall is a walk back, never a soft-lock. Station 15: a hanger who lets go before the key drops
-  into the pit and walks out by the cage's push-bar door (graph `a6-pit` -> `a6-floor`); no retry needed.
+- **SA13 No-fail stations.** 1, 2, 11 and 12 have no guard, camera or drill, so they stay `retry: 'none'`. The cable
+  trench has step irons on its east face at both ends, so a fall is a walk back, never a soft-lock. A1 has one way out of
+  its own: a player who drops into the yard before the ladder is done (the wicket stays shut till both have been on the
+  wall top) is retried after 5 s with nobody on or climbing the wall, cause `other`, both back at the live station's
+  marks with its `:other` line (PLAN A26, Q5). Station 15: a hanger who lets go before the key drops into the pit and
+  walks out by the cage's push-bar door (graph `a6-pit` -> `a6-floor`); no retry needed.
+- **SA14 Station 6 roles and the crawl.** The bay keeps the built role claim: B is the first one into the corridor box,
+  so the crawler out of the grille becomes B, while mark A is the cupboard. A station 6 retry therefore swaps the jobs:
+  the crawler goes to the door mark (B) and the one who waited at the door to the cupboard (A). Nothing stops both
+  players crawling, which skips "open the door for your partner" without breaking anything (a one-user rule on the duct
+  is engine work). Lead call, to be confirmed at Michael's walk (PLAN A29). Undo: swap station 6's marks, or add the
+  one-user rule.
+- **SA15 Station 20 can be skipped.** A8 keeps its side routes (Q24): the office stair's foot door opens from the stair
+  side, so A can walk down into the lobby and either stand in `a8-grille-in` or press the request-to-exit to let B in.
+  Station 20 is then done without the board's 25 s dark. Accepted as the Q24 side route working (PLAN A28 / A30). Undo:
+  tie 20's done flag to the dark.
 
 **Open questions for the lead** (assumed as above meanwhile; none blocks a set slice). Lead answers (J14 wave 2, sent to
 S0 / R1): OQ1 the listed guards plus any guard alerted in the bay (SA1); OQ2 `StationDef` keeps its shape, each set file
