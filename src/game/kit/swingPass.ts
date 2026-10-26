@@ -61,6 +61,10 @@ export const SWING = {
   anchorHost: 1.2,
   /** The rider offer: within this of the anchor (m, horizontal). */
   riderReach: 1.5,
+  /** The rider offer: the feet also within this of the step-off point (m, horizontal; host adds `hostSlack`): the
+   *  0.3 s step onto the bar is a straight line that ignores walls, so it starts close (Marlow Build ~06:45: from the
+   *  plates crossing's east end it passed through the hoarding). */
+  riderStart: 0.8,
   /** The same floor (m). */
   up: 0.4,
   /** Host: its lagging view's reach over the page's (m). */
@@ -372,6 +376,7 @@ function riderIdle(h: KitHost, run: SwingRun, coopPressed: boolean, free: boolea
     if (!isSwingDevice(d0) || !d0.ok) continue;
     const d = d0;
     if (hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z) > S.riderReach || Math.abs(m.pos.y - c.pos.y) > S.up) continue;
+    if (hyp2(c.pos.x - (d.x - d.fx * S.stepBack), c.pos.z - (d.z - d.fz * S.stepBack)) > S.riderStart) continue;
     if (!free) return null;
     if (run.asked >= 0) {
       prompt(h, "Taking your partner's wrist...", c.pos.x, c.pos.y + 1.8, c.pos.z);
@@ -449,6 +454,7 @@ export function checkSwing(r: TeamRequest): TeamDenial | null {
   if (b.mode !== 'brace' || ((b.sub ?? 0) & SWING_SUB) === 0 || Math.round(b.s ?? 0) !== r.target + 1) return 'notOffering';
   if (a.mode !== 'ground') return 'busy';
   if (Math.abs(a.y - b.y) > S.up || hyp2(a.x - b.x, a.z - b.z) > S.riderReach + S.hostSlack || hyp2(b.x - d.x, b.z - d.z) > S.anchorHost) return 'far';
+  if (hyp2(a.x - (d.x - d.fx * S.stepBack), a.z - (d.z - d.fz * S.stepBack)) > S.riderStart + S.hostSlack) return 'far';
   const bar = d.barY - b.y;
   if (bar < S.barLo || bar > S.barHi) return 'noTarget';
   if (!(d.gap >= S.gapMin && d.gap <= S.gapMax)) return 'noTarget';

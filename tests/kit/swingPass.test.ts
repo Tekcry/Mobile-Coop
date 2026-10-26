@@ -431,6 +431,14 @@ describe('(coop-kit K4) Swing Pass: the swing on two pages', () => {
     expect(W.C.tm.prompt).toBe('Co-op: get swung across (swing pass)');
   });
 
+  it('a rider in reach of the anchor but over riderStart from the step-off point gets no offer (Marlow ~06:45: the step-in ignores walls)', () => {
+    const far = { x: 67.5, z: 43.0 }; // 1.3 m behind the step-off point (66.2, 43.0), ~1.2 m from the braced anchor
+    const W = world(AT, far);
+    brace(W, W.H);
+    step(W, { cc: true });
+    expect([W.C.tm.state, W.C.asked]).toEqual(['none', []]);
+  });
+
   it('refused on the press with a line (no request): too wide, not level; a 2.0 m gap runs and lands', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     for (const [spot, text] of [
