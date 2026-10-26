@@ -21,8 +21,12 @@ Owner: Test Runner. Status: current.
   PR-B2 (feature/test-runner-j20-prb2) shares the import lines, state defaults and one updateBudget line (PLAN
   "Overlap").
 - Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
-Next: plan checker (fresh Opus, docs/templates/plan-check.md, `node scripts/claims-check.mjs --plan
-docs/laptop-queue-10/PLAN.md --name feature/laptop-queue-10`), then brief the S1 Opus builder from PLAN "S1".
+Next: (1) `git fetch -q origin && git rebase --onto origin/feature/laptop-queue-8b e714c6e38`, force-push (PLAN
+"Start"; line refs re-based to 2fbfbd303 in the PLAN header); (2) ask the Orchestrator for the tracker number of the
+attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1".
 
 ## Done
 - 2026-10-26: worktree and branch made and pushed; BRIEF, PLAN, STATE written (planner, Opus).
+- 2026-10-26: plan check 1 (Opus): FIX, fixed in place: base re-based to laptop-queue-8b 2fbfbd303 (rebase --onto,
+  line refs), S2 keeps keptPlan in desktopTooLong, S2 adds the desktop incomplete hand-off (F11 widened), F27 tracker
+  id clash noted, RULES / testing-tools overlaps recorded. Size ~790.

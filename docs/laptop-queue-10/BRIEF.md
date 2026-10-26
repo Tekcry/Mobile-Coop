@@ -2,7 +2,8 @@
 Owner: Test Runner. Status: current.
 
 Lead: Night Shift | Test Runner. Started: 2026-10-26 ~14:30. Base: origin/feature/laptop-queue-8 e714c6e38 (slices A-G,
-in check; it merges after #507), master 99fbd37fd. Branch feature/laptop-queue-10, worktree
+in check; it merges after #507), master 99fbd37fd. Re-based at plan check 1: laptop-queue-8 is now PR #552,
+feature/laptop-queue-8b 2fbfbd303 (squash of A-G plus a fix round); this branch moves onto it before S1 (PLAN "Start"). Branch feature/laptop-queue-10, worktree
 C:/NightShift/Mobile-Coop-laptop-queue-10. Plan: `PLAN.md`.
 
 ## Michael said
@@ -17,7 +18,9 @@ Rows of the tracker `docs/orchestrator/FIXES.md` (origin/feature/menu), handed t
 - F9 (train 101 waited 17 min): the "no new claims" hold works on the laptop since 4.105.1; the desktop still waits
   for auto-train's build marker only.
 - F10 (#317 hung 4192 for 65 min): kill a queue run when no suite finishes in ~15 min (`LQ_SUITE_IDLE_MIN`).
-- F11 (#445 held 4191 for 45 min): a desktop failure queues the laptop rerun at once.
+- F11 (#445 held 4191 for 45 min): a desktop failure queues the laptop rerun at once. Row widened ~15:00: incomplete
+  runs too (tallow-prg1 c648c5d8 timed out on 4191 at 60 min, 0/7 suites, final red, no laptop rerun): a desktop
+  timeout or no result reruns every suite on the laptop.
 - F14 (reopened 14:10; #447 held 4191 64 min; Campaign tallow-prg1 "7 suites" = ~17 parts, ~60 min on 4191 from
   13:22): the desktop overflow caps runs by expected time from times.json (~15 min at one job), not suite count.
 - F15 (Mixamo lost its place): renaming a request to an earlier id is a move, not a withdrawal.
@@ -27,7 +30,11 @@ Rows of the tracker `docs/orchestrator/FIXES.md` (origin/feature/menu), handed t
 - F26 (coordinator, ~14:40): a quarantine entry forgives ANY failure in its suite; e2e-pad was really broken from train
   112 and rode 6 trains hidden. Entries carry the failing key; another key fails the run as normal.
 - F27 (coordinator, ~14:40): a train rerun writes into the same runs/train-<n>-<sha8>/ folder; train 118's first-run
-  logs (the netmove flake) were lost. Each attempt gets its own folder.
+  logs (the netmove flake) were lost. Each attempt gets its own folder. Tracker note (plan check 1): FIXES.md row F27
+  is now a different item (playerRefsInto allocation, Guard AI Build); this "F27" has no tracker row yet: the lead asks
+  the Orchestrator for its number and uses it in the fragment and PR body, never closing tracker F27.
+- F26 also (tracker, Marlow 15:20): the ctcourse :3 / :4 auto quarantine forgives the deadlock and boot timeouts; those
+  worker entries are keyless today and fall under A11.
 
 ## Goal
 The queue stops repeating these incidents: no run hangs a slot, no desktop failure holds a slot, no long run lands on
@@ -65,7 +72,8 @@ run, a quarantine hides only its own flake, and every run attempt keeps its logs
   posts `desktopFailDesc(failed, median cpu)` pending on its contexts (affected-e2e too), result `laptop-rerun`, no PR
   comment. Unfinished = the run's parts (A6 expansion) without a result line. Passed suites are not rerun (as today's
   hand-off). Needs the streamed result line (heads since laptop-queue-8 C); older heads hand off at the end as today.
-  A failed push: the run goes on as today. `LQ_DESKTOP_FAIL_FAST` (1). Undo: 0.
+  A failed push: the run goes on as today. A desktop run that ends incomplete (timeout, no summary) hands off every
+  suite of the request the same way instead of posting a final failure. `LQ_DESKTOP_FAIL_FAST` (1). Undo: 0.
 - A6 (F14): the desktop expands a request into the parts run-e2e runs (`node scripts/run-e2e.mjs --list <suites>` in
   the service checkout: run-e2e's PARTS is the one home; memo per sorted suite list; a call error falls back to lib
   `suiteParts` over times). New lib `desktopWallS(parts, times, jobs)`: a part or suite with no time weighs the median
@@ -103,7 +111,7 @@ run, a quarantine hides only its own flake, and every run attempt keeps its logs
   truncates a shard log; but sectionOf and the kept / idle readers read whole files, so the first section found may be
   an older attempt's. The slice C builder checks train 118's folder on the laptop and logs what it holds. Undo: none.
 - A13: one PR, all Opus builders in order (shared files). Drafted on top of laptop-queue-8; after laptop-queue-8
-  merges, `git rebase origin/master` and force-push once (pr-size then counts only this job). Undo: none.
+  merges, `git rebase --onto origin/master <the laptop-queue-8b head it sits on>` and force-push once (pr-size then counts only this job). Undo: none.
 
 ## Questions for Michael
 - none.
