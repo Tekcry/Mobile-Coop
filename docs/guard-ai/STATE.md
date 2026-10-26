@@ -1009,8 +1009,9 @@ File every gate request WITH the head push; post the checker the moment it passe
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
 2. J4 #317 coop4: master 4.106.0 merged f720d29e3; merge 2 checks A + B PASS, checker posted on head 3c06444f8
-   (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). affected 25/25 GREEN 11:34; orchestrator
-   told train-ready. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
+   (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). lost train-ready 12:10 (conflict with master 4.110.0
+   campusSectors.ts); master merged ed34b4005 (S1-S3 tables moved to campusS<N>Data.ts; coop4 guards appended there and in
+   campusV2/s1-s5Data seed copies; tsc / vitest 24 files green). Orchestrator carries checker + label on affected green. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
    `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
 4. J15 PR1 #450 b718293df: in train 112 (#491, laptop rerun at 08:30).
@@ -1035,13 +1036,13 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    late 2nd event waits full joinWait, no catch-up pace (polish). Lead ruling: the order walk is not `turning` (A5).
    S3b BUILT -s3b 28a4c2ac9 (base 3c3a7d17b = S1b + S3a; +750 lines; tsc / eslint clean; 16 files 247/247).
    Deviations: net holds one command call at a time (area 1 waits its retry), canCallIn / holdsCommand, setAreas reads
-   zoneX/Z (placeSlot only). Opus checks A + B RUNNING -> checks/S3b-CHECK-A/B.md (no status posts; post the combined
-   checker after both PASS). Laptop mh-s1a2-early + mh-s1b-early FAIL (deterministic, e2e-stealth-ai 'mission order': woken tagged guard 'woken false', assert from S1a-2 fix 2b9947b9a): triage = TEST bug (hidden body: revive refuses; fix unhides K) -s1a2 669290cef; merged into -s1b 15de69118, laptop mh-s1b-fix (stealth-ai) queued; after checks A/B merge s1b into s3b and requeue mh-s3b (withdrawn 11:50; suites stealth-ai, guard-carry, sectorops:1). ai.md lines in the S3b
+   zoneX/Z (placeSlot only). Check A PASS, B FIX 1 (e2e player spot behind pillar) -> fix b6ec17ab6 (+ s1b merged), re-check PASS,
+   checker posted on c310f9cbe; laptop mh-s3b queued on b6ec17ab6 (stealth-ai, guard-carry, sectorops:1). Laptop mh-s1a2-early + mh-s1b-early FAIL (deterministic, e2e-stealth-ai 'mission order': woken tagged guard 'woken false', assert from S1a-2 fix 2b9947b9a): triage = TEST bug (hidden body: revive refuses; fix unhides K) -s1a2 669290cef; merged into -s1b 15de69118, laptop mh-s1b-fix (stealth-ai) queued; merged into s3b (withdrawn 11:50; suites stealth-ai, guard-carry, sectorops:1). ai.md lines in the S3b
    report (fold later). Then S4. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
    Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s1b-fix verdict (asserts after K never ran: triage any new red) -> merge into s3b -> requeue mh-s3b; S3b checks A / B + mh-s3b -> post checker; then S4 brief.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s1b-fix + mh-s3b verdicts (asserts after K never ran: triage any new red); #317 affected on ed34b4005; then S4 builder (S4-BRIEF).
 ```
