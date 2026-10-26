@@ -13,7 +13,7 @@ import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '.
 import type { AirlockPhase, PackedCourse, RetryCause } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
-import { TEAM_KINDS, type TeamKind } from '../game/teamMoves';
+import { isKitKind, TEAM_KINDS, type TeamKind } from '../game/teamMoves';
 import { parseMissionWire } from '../game/mission/missionWire';
 import type { GadgetId } from '../game/gadgets';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
@@ -913,8 +913,9 @@ export function parseMessage(raw: unknown): Msg | null {
         if (lx === null || lz === null) return null;
         out.lx = lx;
         out.lz = lz;
-      } else if (kind === 'pull' || kind === 'shutter') {
-        // (mission NET) a kit request's claimed point is optional here (the move's host rule needs it or not)
+      } else if (isKitKind(kind)) {
+        // (mission NET) a kit request's claimed point is optional here (the move's host rule needs it or not); (coop-kit
+        // K0) any kit kind (`isKitKind`): a part 2 request's `target` is its spot index (-1 none), `s` its phase
         const lx = num(raw.lx, -WORLD, WORLD);
         const lz = num(raw.lz, -WORLD, WORLD);
         if (lx !== null && lz !== null) {
@@ -937,8 +938,9 @@ export function parseMessage(raw: unknown): Msg | null {
         const lz = la ? num(la[2], -WORLD, WORLD) : null;
         if (lx === null || ly === null || lz === null) return null;
         out.l = [lx, ly, lz];
-      } else if ((kind === 'pull' || kind === 'shutter') && raw.l !== undefined) {
-        // (mission NET) a kit start carries `l` when its request claimed a point (the pull-up's catch point)
+      } else if (isKitKind(kind) && raw.l !== undefined) {
+        // (mission NET) a kit start carries `l` when its request claimed a point (the pull-up's catch point); (coop-kit K0)
+        // any kit kind, its `target` the spot index and `s` the request's phase
         const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
         const lx = la ? num(la[0], -WORLD, WORLD) : null;
         const ly = la ? num(la[1], -50, 100) : null;

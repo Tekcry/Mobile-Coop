@@ -18,24 +18,68 @@ export type BuiltinTeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
  * 'shutter' = hold a shutter while the partner crawls under (KIT-SHUT, `kit/shutter.ts`). Each lives in its own file
  * under `game/kit/` and plugs in through `kit/registry.ts`. (mission NET) They are wire kinds: `TeamKind` takes them.
  */
-export type KitKind = 'pull' | 'shutter';
-export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter'];
+/**
+ * (coop-kit K0) + the part 2 kit kinds (BRIEF M1): 'deadweight' (hang on a chain so a grate lifts, K1), 'dropCatch'
+ * (drop into the partner's arms, K2), 'chimneyPair' (back to back up a shaft, K3), 'swingPass' (swung across a gap
+ * from a pipe, K4), 'plankBridge' (carry and lay a board over a gap, K5a / K5b). One string per move: the `kitMoves`
+ * flag id = `KitKind` = the wire kind = Marlow's `StationDef.kit`.
+ */
+export type Part2KitKind = 'deadweight' | 'dropCatch' | 'chimneyPair' | 'swingPass' | 'plankBridge';
+export type KitKind = 'pull' | 'shutter' | Part2KitKind;
+export const PART2_KIT_KINDS: readonly Part2KitKind[] = ['deadweight', 'dropCatch', 'chimneyPair', 'swingPass', 'plankBridge'];
+export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter', ...PART2_KIT_KINDS];
 /** (mission NET) Every team move kind `tmove` / `tstart` carry (protocol.ts): the built-ins and the kit's. */
 export type TeamKind = BuiltinTeamKind | KitKind;
-export const TEAM_KINDS: readonly TeamKind[] = ['boost', 'ladder', 'throw', 'hang', 'rope', 'pull', 'shutter'];
+export const TEAM_KINDS: readonly TeamKind[] = ['boost', 'ladder', 'throw', 'hang', 'rope', ...KIT_KINDS];
 /** Every team move (the same as `TeamKind` since NET folded the kit into the wire). */
 export type TeamMoveKind = TeamKind;
 
+/** (coop-kit K0) The kit kinds by name (a lookup, no allocation). */
+const KIT_KIND_SET: ReadonlySet<string> = new Set<string>(KIT_KINDS);
+const PART2_KIT_SET: ReadonlySet<string> = new Set<string>(PART2_KIT_KINDS);
+
 export function isKitKind(k: string): k is KitKind {
-  return k === 'pull' || k === 'shutter';
+  return KIT_KIND_SET.has(k);
+}
+
+/** (coop-kit K0) One of the five part 2 kit kinds (not Campaign's pull-up or shutter). */
+export function isPart2Kit(k: string): k is Part2KitKind {
+  return PART2_KIT_SET.has(k);
 }
 
 /** (mission KIT0) The kit moves' sub bits on the `brace` / `boost` wire modes (after THROW 1, HANG 2, ROPE 4). */
 export const PULL_SUB = 8;
 export const SHUTTER_SUB = 16;
-export const KIT_SUB: Readonly<Record<KitKind, number>> = { pull: PULL_SUB, shutter: SHUTTER_SUB };
+/** (coop-kit K0) The part 2 kit moves' sub bits (32 is B1's shoulder stand `STAND_SUB`). */
+export const DEADWEIGHT_SUB = 64;
+export const DROPCATCH_SUB = 128;
+export const CHIMNEY_SUB = 256;
+export const SWING_SUB = 512;
+export const PLANK_SUB = 1024;
+export const KIT_SUB: Readonly<Record<KitKind, number>> = {
+  pull: PULL_SUB,
+  shutter: SHUTTER_SUB,
+  deadweight: DEADWEIGHT_SUB,
+  dropCatch: DROPCATCH_SUB,
+  chimneyPair: CHIMNEY_SUB,
+  swingPass: SWING_SUB,
+  plankBridge: PLANK_SUB,
+};
 /** Any kit sub bit: a `brace` mate with one offers a kit move, never a leg-up / throw / hang / rope. */
-export const KIT_SUB_MASK = PULL_SUB | SHUTTER_SUB;
+export const KIT_SUB_MASK = PULL_SUB | SHUTTER_SUB | DEADWEIGHT_SUB | DROPCATCH_SUB | CHIMNEY_SUB | SWING_SUB | PLANK_SUB;
+
+/**
+ * (coop-kit K0) A kit spot as the host's rule sees it: the level's kit device the request's spot index names
+ * (`TeamRequest.spot`). Structural (a `KitDevice` fits; no registry import here).
+ */
+export interface KitSpotRef {
+  readonly id: string;
+  readonly kind: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly yaw: number;
+}
 
 /** (mission KIT0) The host's rule per kit kind, filled by `kit/registry.ts` `registerKitMove` (none = not offering). */
 export const KIT_CHECKS: Partial<Record<KitKind, (r: TeamRequest) => TeamDenial | null>> = {};
@@ -78,6 +122,9 @@ export interface TeamRequest {
   sinceLast: number;
   /** (B4) A throw's landing (feet), claimed by the runner after its own room check; the host bounds it. */
   land?: { x: number; y: number; z: number };
+  /** (coop-kit K0) A part 2 kit request's spot: the host's kit device at the request's spot index (`target`) when it
+   *  is one of this kind's; undefined = none (a free move, or an index that names no such device). */
+  spot?: KitSpotRef;
 }
 
 export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'notOffering' | 'far' | 'busy' | 'noTarget' | 'tooHigh';
