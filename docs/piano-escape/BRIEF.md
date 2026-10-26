@@ -29,6 +29,7 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
   without forcing a guard take down. The guards must move slowly and methodically to find both players."
 - 2026-10-26 ~20:10, chat (relayed by the orchestrator): "I want to experiment with the music also, if you can create
   similar samples based off the provided file and tags."
+- 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked
 - 2026-10-26 ~19:28 Q: where the experiment lives -> picked: "Inside Night Shift (Recommended)" (a standalone co-op
@@ -36,6 +37,9 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 - 2026-10-26 ~19:28 Q: knife kills against the no-forced-kill rule -> picked: "Kills, this scene only (Recommended)"
   (brutal knife kills allowed as a named exception for this one experiment; G127 and the perfect rating stay everywhere
   else).
+
+- 2026-10-26 ~20:15 Q: a new setting (the bunker was too close to a CT mission) -> picked: "Storm grain mill" (a tall
+  timber grain mill during a thunderstorm at night).
 
 ## Goal
 From a menu entry, two players (or one, for testing) watch a black screen fade in on an operator's upper chest, an
@@ -104,9 +108,13 @@ every guard must be taken down with a knife in the shadows before the exit opens
 - A7: The music plays from a bundled copy of the MP3 inside the scene's lazy-loaded chunk (no network), only while the
   scene runs; credited in `docs/audio-credits.md` (Pixabay Content License: commercial use allowed, no attribution
   required, credit given anyway). Undo: remove the asset; the scene runs silent.
-- A8: Original setting and names (G5, G6): a night in Hollowmere, two NIGHT SHIFT operators, an underground bunker
-  storage room with timber crates as cover (Michael ~20:05), map id `underhollow` ("Underhollow Store"); no windows,
-  so after the EMP only guard torches give light. The scene key stays `piano` (the music theme). No radio story beyond one or two subtitle lines, written so they can be voiced later (G82).
+- A8: Original setting and names (G5, G6): a night in Hollowmere, two NIGHT SHIFT operators, Thornbeck Mill, a tall
+  timber grain mill in a thunderstorm (Michael picked ~20:15; replaces the ~20:05 bunker), map id `thornbeckMill`;
+  one connected hall, levels (floors, gantries, ladders) allowed; grain sacks, bins and crates as cover. After the EMP
+  the only light is guard torches and lightning through the windows and gaps. The scene key stays `piano`.
+- A16 (Michael ~20:15, via the orchestrator): lightning flashes light everyone for a moment, players and guards alike
+  (light parity: the meter and guard sight read the flash); rain on the roof masks sound; the flashes follow a fixed,
+  readable timing tied to the music (VISION rule 8). Undo: a steady storm with no flashes. No radio story beyond one or two subtitle lines, written so they can be voiced later (G82).
 - A9: No rating, no score screen: the scene ends on a short fade out after both players reach the exit.
 
 ## Questions for Michael (one click each, asked by day)
