@@ -4,7 +4,7 @@ Owner: Night Shift | Campaign Build. Status: current.
 ## RESUME 2026-10-26 ~21:00 (Night Shift | Campaign Build, after the ~20:45 swap; read this block first)
 Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
 1. Re-check 3 items L1a / L1b / L2 / L5 + polish applied to the PLAN (58a76a36d): period 91.03 = loopPeriod(); t0 to the
-   client as one optional field of the  message (claims: protocol.ts, S4); blackoutSearchSlots after fill(); S4
+   client as one optional field of the `sector` message (claims: protocol.ts, S4); blackoutSearchSlots after fill(); S4
    pass line. SIGNOFF (sign-off 2) sent to the orchestrator ~20:58 for Michael's click (main Q + Q2 + Q3).
 2. On Michael's Approve: S1b greybox (Sonnet) from PLAN S1b; tell Sector Ops (SO2 / SO4) the branch + head.
 3. Building now (max 2): S2 intro + EMP (Opus) on feature/piano-escape-s2 (worktree -s2), brief
