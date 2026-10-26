@@ -1,10 +1,15 @@
-# Resume - Night Shift | Player Build (2026-10-26 ~11:50, after the 11:25 swap; older log: history at the end)
-At resume: agents die at a swap. Restart each from its branch head + the line below.
-- 11:50 running: (a) Opus builder merging origin/feature/mixamo-on 9a326d4e into feature/mixamo-source-wire (#498, worktree -mixamo-retarget-m3): per-source tables for I6 loco (LOCO.set is global) and I5 carry / strike, or a documented gap (scratch/ctcore/wire-merge-NOTES.md) -> then TWO independent Opus checkers -> co-op group laptop -> orchestrator posts checker. (b) Opus checker J6 S3+S4 on feature/player-hygiene 5f4dbf22 (verdict scratch/ctcore/j6-s3s4-CHECK.md) -> PR "J6 S3+S4" -> laptop. (c) Opus checker J6 S2 on feature/player-hygiene-s2 d2b3ef89 (cloud done; verdict scratch/ctcore/j6-s2-CHECK.md; worktree -player-hygiene-s2) -> PR -> laptop co-op group.
-- PRs: #514 I9 OPEN (feature/mixamo-i9 761075de, base feature/mixamo-i7-pack; recheck PASS, asked orchestrator for checker; polish studioPanel.ts:286 race, studio.ts:325 no retry). #494 toggle merged master + I5 -> 9a326d4e, orchestrator posted carried checker; waits CI + affected-e2e. #506 I2b merged master -> 539560f4, co-op gate 20261026T004126-...-539560f4-383e (set mixamo-i2b); orchestrator posts checker when green. #505 J6 S1 bb4590ab: co-op gate 20261025T232337-...-bb4590ab-f1cd + affected queued. #501 I7 green (needs checker? check). #493 I5 rides train 117 (4.110.0; GitHub CONFLICTING flag stale, no push).
-- Cloud: player-hygiene-s1b claimed by Cloud Builder 3 (S1b commit 3 edits motion.ts = wire path: lean drop at review).
-- Desktop CPU 100% at 11:50: no new local agents beyond the three above; tsc / vitest through low.mjs.
-- Next: wire checkers; J6 PRs; I8 lazy in-game sets after the wire; I10-I14 per BATCH2-PLAN.md; gm-look rebake when the orchestrator allows Blender; J19 / J24 builds after Mixamo.
+# Resume - Night Shift | Player Build (2026-10-26 ~12:35 SAVE at the orchestrator's call; older log: history at the end)
+At resume: agents die at a swap. Restart each from its branch head + the line below. All worktrees clean and pushed.
+- Running at the save: Opus brief writer -> cloud-queue briefs player-j19-s4, player-j19-s8a, mixamo-i9-polish (if missing on origin/cloud-queue, rewrite them: J19 PLAN S4 / S8a on origin/feature/player-batch-j19; polish lists in scratch/ctcore/i9-fix-CHECK.md + i7-pack-CHECK.md). Take done cloud branches within 1 h -> Opus checker -> PR -> laptop.
+- PRs waiting only on laptop + orchestrator's checker post (message it when green; watcher script scratch/ctcore/watch-lq.sh sha:context ...):
+  #498 wire df214492 (code = 7f851b27; two Opus checkers PASS wire-CHECK-A2/B2.md; laptop-e2e/mixamo-wire on 7f851b27 + affected; base feature/mixamo-on until #494 ships).
+  #506 I2b 539560f4 (merge-only since PASS on 382bc321; laptop-e2e/mixamo-i2b + affected).
+  #516 J6 S3+S4 2d3ab5a8 (PASS j6-s3s4-CHECK.md; laptop-e2e/hygiene-s3s4-coop + affected).
+  #519 J6 S2 64409124 (recheck PASS j6-s2-fix-CHECK.md; affected only; CI on Node 22 confirms the fixture fix).
+  #505 J6 S1 bb4590ab (affected green; laptop-e2e/hygiene-s1-coop pending).
+  #494 toggle 9a326d4e (carried checker posted; CI + affected). #501 I7 9f5847d0 (PASS i7-pack-CHECK.md; asked for checker post).
+  #514 I9 761075de (checker posted; base feature/mixamo-i7-pack -> retarget to master when #501 ships). #493 I5 in train 117.
+- Next: when #498 lands: I8 lazy in-game sets (BATCH2-PLAN I8, on the wire + I9), then I10-I14; J19 S2 / S5 (Opus, W1, ungated) when desktop CPU < 80% or as cloud briefs; J19 S1 after J6 S3 (#516) is on master; gm-look rebake when the orchestrator allows Blender.
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
