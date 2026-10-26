@@ -10,5 +10,8 @@
     "e2e-coop"
   ],
   "set": "piano-s4",
-  "fix": true
+  "fix": true,
+  "laptopRerun": true,
+  "place": "20261026T074000-orchestrator-front-897da934",
+  "note": "laptop only by hand (Orchestrator: last walk proof; the desktop failed e2e-piano under CPU load on 95373ffe)"
 }
