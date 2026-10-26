@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:40Z (resumed after the swap)
+status: done feature/player-hygiene-s1b 54ad762c2b83ba88d03ebc2547340ac24c7ee8c7
 
 # Brief: player-hygiene S1b - Player step and probe box no numbers (the S1 residual), behaviour bit-identical (Player Build)
 
@@ -201,3 +201,100 @@ commit 2, and on the final head three times in a row.
 - Pending PC run: e2e-move, e2e-anim, e2e-stealth, e2e-clip, e2e-traverse, plus e2e-coop and e2e-netmove (RULES
   checker gate for `src/player`); with commit 3 also e2e-ctcourse and the affected set for `src/anim`
   (`node scripts/run-e2e.mjs --affected origin/master --list`).
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26)
+Branch `feature/player-hygiene-s1b` from `bb4590ab`: commit 1 `f7cbfff5` (test + `tests/fixtures/player-hygiene-s1b.json`
+recorded on the unchanged base), commit 2 `11e71e0c` (`playerController.ts`, `traversal.ts`, `speedGears.ts`, fragment),
+commit 3 `54ad762c` (`src/anim/motion.ts` only). `git diff f7cbfff5 HEAD -- tests/` and `git diff bb4590ab HEAD --
+tests/fixtures/player-hygiene-s1.json` are empty; `git diff --stat bb4590ab` lists only claimed files (7 files, +2374 / -125,
+of which 1558 lines are the fixture JSON).
+
+**Why the 16 B, and the method.** Evidence from `--trace-turbo` graphs (every `ChangeFloat64ToTagged` node, its use and
+source position), `--trace-turbo-inlining` and the sampled profile leaves. Besides `number | null` returns, the main cause
+is V8's inlining budget: `--max-inlined-bytecode-size-cumulative` is 920 B of bytecode per function, so in a big function
+(`probe`, `fixedUpdate`) the small calls past the budget (`Vector3.set`, getters, our helpers) stay real calls and every
+double argument boxes in OUR frame. Raising the budget in a scratch run (`--max-inlined-bytecode-size-cumulative=100000`)
+took probe vault / nothing to 0 B with no code change. Also: a field declared without an initialiser (or a TS parameter
+property) starts `undefined` under `useDefineForClassFields`, so it is a tagged field and every double stored into it boxes.
+
+**Where each 16 B came from on the base, and what removed it.**
+- probe (all lanes; vault 240-288, mantle 720-736, drop 288, hop 192-240, nothing 32 B): 10-17 `Vector3.set` calls left
+  un-inlined in `probe` (30-51 boxed arguments in the graph), `floor` / `ray` returning `number | null` (the mantle depth
+  loop: `floor` leaf up to 225 B), `probeResult`'s six double arguments. Removed: every cast goes through `segHit`
+  (`traversal.ts:203-254`): the ends in a member number array, the vectors built with `Vector3.FromArrayToRef`, the hit point
+  read with `toArray`, results in `hitD` / `hitY`; `probe` (`:267-433`) writes its casts and `probeOut` directly
+  (`probeResult` gone). No double crosses a call whatever V8 inlines. A first attempt keeping `a.set` / `b.set` at the call
+  sites read worse (drop 400 B): the budget ran out sooner.
+- fixedUpdate: `floorUnder` (`number | null`) -> `floorHit` + `floorY` (`playerController.ts:480-494`); `hyp2` x4 written out
+  (`:521`, `:559`, `:664`, `:754`); `analog.update(..., mag)` -> `analog.mag` + `AnalogGear.step` (`:521-522`, `:601-602`);
+  `release.update(mx, my, dt)` -> `inX` / `inY` + `StickRelease.step` (`:552-554`); `turnTowards` (3 args + return) ->
+  `turnToOverride` written out (`:803-818`); `easeInOut` in the inlined `updateStance` written out (`:827-828`); `kinUp.set`
+  -> `FromArrayToRef` (`:527-528`); the driver's `speed` getter written out (`:629-646`); `motion.reset(this.yaw)` -> the
+  field then `reset()` (`:536-537`).
+- MotionDriver (commit 3): `finish` -> `updateYaw(dt, i, sp, M)` boxed `sp` (now read inside); `gaitRate` inlined into
+  `finish` called `stepLength` with 4 boxed doubles (now `finish` fills `STEP_LEN_IN` and calls `stepLengthIn`;
+  `stepLength` is a wrapper on it); `MotionDriver.yaw` was `yaw: number;` (tagged: `updateYaw` / `turnToward` / `reset`
+  stores boxed; now `yaw = 0`); `reset(yaw = this.yaw)`'s default boxed (now `reset(yaw?)`, same behaviour); `stepCt`'s
+  `omega` was a tagged phi feeding `springStep` and `paceSpring.step` (now worked out per branch).
+- committed step (32-48 B): `traversePath`'s double arguments (outside, A3), below.
+
+**Readings, `bytesPerCall` B per call (sampled B/call in the two files / elsewhere): base -> commit 2 (3 runs) -> commit 3
+(3 final runs).** walk 272-336 (84-112 / 130-164) -> 208-224 (70 / 101) -> 160-176 (56-70 / 59-74); run 160 (14 / 127) ->
+128-144 (14-28 / 98) -> 80-96 (14-28 / 56); ramp 384-400 (141 / 197-210) -> 272-288 (98-112 / 140-154) -> 208-224 (84 /
+98-112); air 240-272 (155-169 / 56-70) -> 128-144 (98-113 / 14) -> 144 (112 / 14); crouch under ceiling 32-64 (28 / 0-9) ->
+16-32 (14-28 / 0) -> 32 (28 / 0); kinematic 80 (70 / 0) -> 16 (14 / 0) -> 0; probe vault / mantle / drop / hop / nothing (above)
+-> 0 -> 0; probeDir facing / stick 0 -> 0 -> 0; committed step 32-48 (28 / 0-14) -> 48 (28 / 14) -> 48 (28 / 14); window probe
+(logged) 120 -> 104 -> 104 (`reach` 72 B object, A3).
+Tiers asserted [S1B, S1B + S1B_MOTION]: probes, probeDir T0 / T0; kinematic T1 / T0; walk, run, ramp, air, crouch under
+ceiling, committed step T3 / T3 (T3 = the S1 assertion alone, see deviations). Final head: `playerStepAlloc` 21 / 21 three
+runs in a row; commit 2 alone: 21 / 21 three runs in a row.
+
+**Residuals with evidence** (graph `ChangeFloat64ToTagged` nodes feeding these calls / stores):
+- A3, double arguments boxed at our call: `paceSpeed` / `targetSpeed` (`src/player/movement.ts:61` / `:25`, at
+  `playerController.ts:604`), `speedMoveMul` (`src/player/speedTune.ts:186`, at `:604`), `weightSim`
+  (`src/player/weightTune.ts:36`, at `:646`), `tenseNear` (`src/player/tenseSneak.ts:40`, at `:626`, crouched), `EasedVelocity.reset`
+  (`src/player/movement.ts:105`, at `:737`, air), `traversePath` (`src/player/traversePath.ts:37`, `top` / `speed0` / `k` at
+  `traversal.ts:716`, the committed step's 28 B plus its own 14 B). These keep the free-movement states and the committed
+  step off T2: inside the claim no form removes them.
+- A3, `Spring` (`src/anim/rigMath.ts:177`): `constructor(public x = 0, public v = 0)` parameter properties start
+  `undefined` under `useDefineForClassFields`, so `x` / `v` are tagged and every `step` / `reset` store boxes: the ~56 B left
+  in `MotionDriver.stepCt` (`motion.ts:530`, `:552`), and every rig spring in the game. Suggested follow-up (one line, J21):
+  declare `x = 0; v = 0;` as fields.
+- A3: `nearestInReach` (`src/world/anchors.ts`): the window probe's `reach` object (72 B), unchanged.
+- A2, Babylon method arguments where V8 does not inline: `Vector3.set` (`wish` `:561`, `tmp` `:678`, `move` `:736`),
+  `normalizeFromLength` / `scaleInPlace` on the slope (`:701`, `:705`), `scaleToRef(PlayerController.stickForce)` (`:709`);
+  Babylon's own `subtractToRef` internals. Not worked around (they would need the array form at every call).
+
+**Commit 3** exists and is a wire change (`src/anim/motion.ts` is imported by `src/net/protocol.ts:18`): the train bumps
+`PROTOCOL_VERSION` and the PR joins the co-op e2e group. Dropping it leaves the test green (kinematic asserts T1, the rest
+unchanged); the S1b sweep proves `MotionDriver`, `gaitRate`, `stepLength` bit-identical with it (4 tunings incl. guards'
+`ENEMY_MOTION`, with and without strafe captures).
+
+**Tests.** `npm run typecheck:fast` and eslint (5 files) clean. Commit 1 on the base: `PH_S1B_WRITE=1` record, re-record
+byte-identical, then plain runs 21 / 21. Commit 2 alone: list 1, 111 / 111. Final head: list 1, 111 / 111
+(`playerStepAlloc` 21, `marlowStaleSupport` 4, `crouchStrafe` 16, `playerTargetTeleport` 3, `mocapSimParity` 1, `player` 5,
+`wallController` 36, `analogGear` 10, `speedGears` 9, `freeView` 5, `changesFragments` 1); list 2, 158 / 158 (`motion` 31,
+`g1Locomotion` 13, `animWeight` 11, `tuneStep` 7, `mocapStrafe` 12, `turnFollow` 48, `guardSpacing` 20, `guardDoors` 8,
+`keyedCrouch` 8). `playerStepAlloc` 3 runs in a row on the final head and on commit 2 alone.
+
+**Deviations.**
+1. The cast form: not `floorHit` / `rayHit` with `a.set` / `b.set` at each call (those boxed: the budget), but `segHit` on a
+   member number array (Method 3's member-array form) with Babylon's public `Vector3.FromArrayToRef` / `toArray` (no `_x`).
+   `rayHit` / `floorHit` stay as thin wrappers for the cold callers (attach callbacks, `roomAt`, `startRoll`, `windowProbe`);
+   `probeResult` removed. Number arrays, not `Float64Array`: Babylon's `toArray` takes `FloatArray` (`number[] |
+   Float32Array`).
+2. Tier T3 added (the S1 no-object assertion, bytes logged) for states whose remaining boxes are A2 / A3 calls made in our
+   frame: T2 (none sampled in the two files) cannot hold for them inside the claim.
+3. kinematic is gated on S1B_MOTION too ([T1, T0]): its last box was `MotionDriver`'s (the tagged `yaw`), so with S1B alone
+   it asserts T1 and the test holds with or without commit 3.
+4. Commit 3 extras: `reset(yaw?)` instead of `reset(yaw = this.yaw)` (same results); new exports `STEP_LEN_IN` and
+   `stepLengthIn` (the test's S1B_MOTION flag).
+5. (d) covers more than listed: `StickRelease`, a stubbed controller (free moves, release latch, crouch, aim, reload, frozen,
+   cover / glide / yaw / run overrides with turn rates, kinematic with and without a turn, air and landing) and the traversal's
+   attach callbacks and landing / forward rolls: the commit-2 paths (a) does not reach.
+6. `hyp2` in `probeDir` and the committed step not written out: the profile shows them inlined (0 B from them).
+7. PR size: +2374 lines, 1558 of them the fixture JSON.
+
+**Pending PC run:** e2e-move, e2e-anim, e2e-stealth, e2e-clip, e2e-traverse, plus e2e-coop and e2e-netmove (RULES checker
+gate for `src/player`); with commit 3 also e2e-ctcourse and the affected set for `src/anim`
+(`node scripts/run-e2e.mjs --affected origin/master --list`).
