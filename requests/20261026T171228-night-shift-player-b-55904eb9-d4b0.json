@@ -1,0 +1,14 @@
+{
+  "id": "20261026T171228-night-shift-player-b-55904eb9-d4b0",
+  "sha": "55904eb90946d4aa6492449e179ff4c40b1a0c04",
+  "branch": "feature/coop-kit-k0",
+  "pr": 599,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "k0-coop"
+}
