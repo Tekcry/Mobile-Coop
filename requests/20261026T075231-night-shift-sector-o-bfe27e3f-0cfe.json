@@ -1,0 +1,20 @@
+{
+  "id": "20261026T075231-night-shift-sector-o-bfe27e3f-0cfe",
+  "sha": "bfe27e3f87245c65e279c2a00accf06ba65f6343",
+  "branch": "test/campus-v2-all",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/?campusv2=1,2,3,4,5 --graph docs/sector-redesign/graph/v2/campusOps-S1.json docs/sector-redesign/graph/v2/campusOps-S2.json docs/sector-redesign/graph/v2/campusOps-S3.json docs/sector-redesign/graph/v2/campusOps-S4.json docs/sector-redesign/graph/v2/campusOps-S5.json --section S1 --routes code --players 1 --publish",
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/?campusv2=1,2,3,4,5 --graph docs/sector-redesign/graph/v2/campusOps-S1.json docs/sector-redesign/graph/v2/campusOps-S2.json docs/sector-redesign/graph/v2/campusOps-S3.json docs/sector-redesign/graph/v2/campusOps-S4.json docs/sector-redesign/graph/v2/campusOps-S5.json --section S2 --routes code --players 1 --publish",
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/?campusv2=1,2,3,4,5 --graph docs/sector-redesign/graph/v2/campusOps-S1.json docs/sector-redesign/graph/v2/campusOps-S2.json docs/sector-redesign/graph/v2/campusOps-S3.json docs/sector-redesign/graph/v2/campusOps-S4.json docs/sector-redesign/graph/v2/campusOps-S5.json --section S3 --routes code --players 1 --publish",
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/?campusv2=1,2,3,4,5 --graph docs/sector-redesign/graph/v2/campusOps-S1.json docs/sector-redesign/graph/v2/campusOps-S2.json docs/sector-redesign/graph/v2/campusOps-S3.json docs/sector-redesign/graph/v2/campusOps-S4.json docs/sector-redesign/graph/v2/campusOps-S5.json --section S4 --routes code --players 1 --publish",
+    "serve scripts/route-run.mjs http://127.0.0.1:4189/?campusv2=1,2,3,4,5 --graph docs/sector-redesign/graph/v2/campusOps-S1.json docs/sector-redesign/graph/v2/campusOps-S2.json docs/sector-redesign/graph/v2/campusOps-S3.json docs/sector-redesign/graph/v2/campusOps-S4.json docs/sector-redesign/graph/v2/campusOps-S5.json --section S5 --routes code --players 1 --publish"
+  ],
+  "env": {
+    "E2E_GPU": "1"
+  },
+  "set": "routerun-campus-v2",
+  "note": "Saltmarsh Park v2 S1-S5 (all seven PRs merged) bot route-run, code routes, 1 player: playthrough readiness before Michael's walk"
+}
