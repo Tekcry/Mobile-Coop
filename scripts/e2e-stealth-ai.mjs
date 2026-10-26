@@ -1505,6 +1505,8 @@ try {
       const em = g.enemyMgr;
       const cues = g.shadowCues;
       const wrap = (v) => Math.atan2(Math.sin(v), Math.cos(v));
+      // (G5 check) `cellOf` is any grid column, walkable or not: walkable is `isWalkable(cellOf(...))`
+      const floor = (x, z) => em.nav.isWalkable(em.nav.cellOf(x, z, 0));
       t.reset();
       const cands = [];
       for (const lamp of g.world.level.lights.lights) {
@@ -1513,7 +1515,7 @@ try {
           for (const m of [3, 4, 5, 6]) {
             const x = lamp.x + m * Math.cos((dir * Math.PI) / 4);
             const z = lamp.z + m * Math.sin((dir * Math.PI) / 4);
-            if (em.nav.cellOf(x, z, 0) < 0) continue;
+            if (!floor(x, z)) continue;
             t.tp(x, z, 0);
             t.step(0.25);
             const s = cues.slotOf('local');
@@ -1533,14 +1535,21 @@ try {
         const nrm = { x: -d.z, z: d.x };
         const yaw = Math.atan2(d.x, d.z);
         // the walk's two ends are floor too
-        if (em.nav.cellOf(c.fx - 0.6 * nrm.x, c.fz - 0.6 * nrm.z, 0) < 0 || em.nav.cellOf(c.fx + 0.6 * nrm.x, c.fz + 0.6 * nrm.z, 0) < 0) continue;
+        if (!floor(c.fx - 0.6 * nrm.x, c.fz - 0.6 * nrm.z) || !floor(c.fx + 0.6 * nrm.x, c.fz + 0.6 * nrm.z)) continue;
         for (const off of [0.6, 0.4, 0.8]) {
-          const G = { x: c.fx + 2.4 * d.x + off * nrm.x, z: c.fz + 2.4 * d.z + off * nrm.z };
+          const gx = c.fx + 2.4 * d.x + off * nrm.x;
+          const gz = c.fz + 2.4 * d.z + off * nrm.z;
+          if (!floor(gx, gz)) continue;
+          // (G5 check) `em.spawn` stands him at his cell's centre (up to 0.35 m off): check the spot he really takes
+          const [cx, cz] = em.nav.center(em.nav.cellOf(gx, gz, 0));
+          const G = { x: cx, z: cz };
           const toF = Math.hypot(c.Fx - G.x, c.Fz - G.z);
+          // the walk's nearest point to him (from feet - 0.6 n to feet + 0.9 n: 1.2 m and the stop's slide) and its ends
+          const along = Math.min(0.9, Math.max(-0.6, (G.x - c.fx) * nrm.x + (G.z - c.fz) * nrm.z));
+          const offAt = (s) => Math.abs(wrap(Math.atan2(c.fx + s * nrm.x - G.x, c.fz + s * nrm.z - G.z) - yaw));
           const ok =
-            em.nav.cellOf(G.x, G.z, 0) >= 0 &&
-            Math.hypot(G.x - c.fx, G.z - c.fz) >= 2.3 &&
-            Math.abs(wrap(Math.atan2(c.fx - G.x, c.fz - G.z) - yaw)) >= (120 * Math.PI) / 180 &&
+            Math.hypot(c.fx + along * nrm.x - G.x, c.fz + along * nrm.z - G.z) >= 2.3 &&
+            Math.min(offAt(-0.6), offAt(0.9)) >= (120 * Math.PI) / 180 &&
             Math.abs(wrap(Math.atan2(c.Fx - G.x, c.Fz - G.z) - yaw)) <= (27.5 * Math.PI) / 180 &&
             toF >= 1 &&
             toF <= 10;
@@ -1685,6 +1694,8 @@ try {
     assert(off.wired, 'shadowCue: flag off: em.cues / em.chars and the game\'s shadowCues / charOccluders are null');
     assert(off.moved >= 1.2 && off.samples.every((s) => s.cueT === Infinity && s.level === 'unaware'), `shadowCue: flag off, the same walk: no cue, unaware (${off.moved} m; ${why(off, (s) => s.cueT !== Infinity || s.level !== 'unaware')})`);
     const real2 = errors2.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
+    // (G5 check) closed: the scenarios after this block run on the main page alone
+    await p2.close();
     assert(real2.length === 0, `shadowCue: no console errors on the cue page (${real2.join(' | ')})`);
   }
 
