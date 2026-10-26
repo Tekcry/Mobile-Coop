@@ -19,6 +19,11 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    S5 RESUMED ~21:55 (steps 2-3 + addendum). Was: PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
    S5 also adds Michael's three Grohl-form prototypes (~21:15; grohl-a/b/c + grohl-form.mjs; brief addendum).
    Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
+3b. S1b DONE d8b9ef0c3 + lead test fix 5e1bfeaff (pianoScene test: 12 guards, exit zone floorY); 47 piano tests green;
+   Sonnet checker running -> S1b-check.md. PASS -> tell Sector Ops the head (SO2 / SO4). Flag-ON-only test lines
+   (campusS1 registered list, detailPass map count, rooms default map) wait for the switch-on. Ladder L1 = BRIEF A18 (logged).
+   Knife: Player's piano-knife S1 = PR #614 (knifeSceneOn(flagOn, map.scene, live) + setKnifeScene; stab timing
+   stand-in, real 0.68-0.94 s after the press coming in its S2); S4 waits for it.
 4. PR #606 (S1 + S3): head 58a76a36d, checker re-posted; CI + automatic affected run pending.
 5. Tallow: #522 merged; #578 train-ready (base master); then retarget #581 -> master, then #583.
 Next: wait for S1b / S2; checker each; resume S5 when a slot frees; #578 train.

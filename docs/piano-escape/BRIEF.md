@@ -130,6 +130,10 @@ every guard must be taken down with a knife in the shadows before the exit opens
   (light parity: the meter and guard sight read the flash); rain on the roof masks sound; the flashes follow a fixed,
   readable timing tied to the music (VISION rule 8). Undo: a steady storm with no flashes. No radio story beyond one or two subtitle lines, written so they can be voiced later (G82).
 - A9: No rating, no score screen: the scene ends on a short fade out after both players reach the exit.
+- A18 (lead, ~22:05, assume and log): ladder L1 (the lobby ladder up through the deck hatch, stretch 6) is drawn on the
+  plan Michael approved (~20:55) but the sign-off's rule-skip list did not name the level-design rules it bends (16.2.1
+  not in a plant space, 16.2.3 a second way up beside the stair, 16.2.7 two staircases). Read as approved with the
+  plan, for this scene only; logged for Michael's next look. Undo: replace L1 with a second flight of the main stair.
 
 ## Questions for Michael (one click each, asked by day)
 - Q1 (G288): the one-page to-scale map plan and the 5-line intent check (from the PLAN, after the plan checker) -
