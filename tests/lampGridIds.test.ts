@@ -97,6 +97,18 @@ describe('(F56) more than 255 lamps', () => {
     scene.dispose();
     engine.dispose();
   });
+
+  it('the prebake file (shipped bake) keeps lamp ids past 255: its format and key need no change', async () => {
+    const { packLamps, unpackLamps } = await import('../src/world/shippedBake');
+    const one = (k: number): ReturnType<typeof bakeLamps> => {
+      const [x, y, z] = at(k);
+      const L = new Float32Array([x, y, z, 1.5, 0, 0, 0, -2, 0, 0]);
+      return bakeLamps({ kind: 'lamps', id: 0, shapes: packShapes([]), lights: L, lo, hi });
+    };
+    const ids = [255, 256, N - 1];
+    const back = unpackLamps(packLamps(ids, ids.map(one)));
+    expect(back && [...back.ids]).toEqual(ids);
+  });
 });
 
 describe('(F56) Saltmarsh Park, every section v2 (the /preview/ build)', () => {
