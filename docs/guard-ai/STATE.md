@@ -1021,12 +1021,17 @@ Open (2026-10-26 ~21:40):
    - #611 GA4 GuardActor (feature/guard-ai-piano-actor): checks A + B PASS, checker POSTED on 0d1fe4401; affected-e2e
      next. Campaign sent the API + notes (nav for the stair pair, ~2 m start offset). Polish: NaN rate guard
      (guardActor.ts:101), zero vx/vz once clamped, pose-clock-at-rate test, FLASH_COLOR "never mutate" comment.
-   - GA6 slow torch sweep (+ PLAN GA7 flash glimpse at sweep pace): branch feature/guard-ai-piano-sweep (worktree
-     -guard-ai-piano-sweep off #603, node_modules junction to -guard-ai-home); Opus planner writing
-     docs/guard-ai/slices/PIANO-GA6-PLAN.md -> fresh Opus plan check -> Opus build -> two Opus checkers.
-   - GA5 route review: waits for Campaign's thornbeckMill S1b data (stub on origin ~21:20).
+   - GA6 sweep (+ PLAN GA7 flash glimpse): feature/guard-ai-piano-sweep (worktree -guard-ai-piano-sweep off #603,
+     node_modules junction to -guard-ai-home). PLAN docs/guard-ai/slices/PIANO-GA6-PLAN.md: plan check FIX ->
+     lead folded section 8 (4e9e542ae: pair watch kept, sceneSweep names, turn time, rejoin, set false). GA6a (pure
+     sceneSweep.ts + walker + separation skip) Opus builder running -> PIANO-GA6A-REPORT.md; then GA6b (enemy /
+     enemyManager wiring + GA7 + pair watch), one PR, two Opus checkers.
+   - GA5 DONE: docs/guard-ai/slices/PIANO-GA5-REVIEW.md (6 deltas). Campaign applying all on #617 (~22:30): G4 / G5
+     laps 40 s by formula (TODO assert sweepPeriod after GA6a on master); G1 / G2 lanes 1.0 m (z 7.9 / 8.9, clearance
+     relaxed on W1); lightning loops every 160.04 s (new track), t0 = EMP press.
 2. #588 play pass A (feature/guard-ai-home): checker POSTED on 9d265be2b, CI green; affected-e2e queued. After #518.
-3. #317 coop4: train 135 conflicted -> merge 9 90b73d267 (PROTOCOL_VERSION 73; `ms` + `ot` both on the sector wire;
+3. #317 coop4: train 135 conflicted -> merge 9 90b73d267, check FIX + re-check FIX folded (mission reads fixed slots;
+   local = localSlot), checker POSTED on 36ca016c7; co-op group e2e next -> train-ready. Was: merge 9 90b73d267 (PROTOCOL_VERSION 73; `ms` + `ot` both on the sector wire;
    mission spawns AND guardForTeam; campaign armed-only per response team; teamMovesTaken on BuiltinTeamKind; S5
    base hash after the #19 lookout). typecheck + 67 vitest files green. Opus merge check running ->
    docs/coop4/checks/MERGE9-CHECK.md; PASS -> commit it, post checker, co-op group e2e, train-ready.
@@ -1036,6 +1041,6 @@ Open (2026-10-26 ~21:40):
    post guard off his storey re-plans every 5 s; #585 orphaned onEnemyJoined comment (courseMode.ts:1394-1407);
    pressing guards round waist-high blocks; NetSession.roomCap unused; guardpairs=0 on the flag-off talking-pairs e2e;
    autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: merge 9 check -> post; GA6 plan -> plan check -> build; tell the orchestrator as #603 / #611 / #588 / #317 go
-green; GA5 when the thornbeckMill greybox lands.
+Next: GA6a report -> GA6b build -> PR + two Opus checkers; tell the orchestrator as #603 / #611 / #588 / #317 go
+green.
 ```
