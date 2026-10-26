@@ -19,6 +19,9 @@ The engine reaches master as 4 stacked big-pr members (BRIEF A29); each retarget
 6. Then G5 (A30): docs/tallow-fixes/G5-plan.md + briefs/G5.md on the engine (held; plan check scratch/campaign/tallow-g5-plan-check.md).
 7. Polish lists: scratch/campaign/member-{b,c-check-1,c-check-2,d}-check*.md; Player Build's coop-kit A1 adds a kitMoves
    flag (flags.coopKit stays; moving my readers to kitMoves ids is mine, any time).
+8. Michael (via orchestrator) ~18:47 "Not yet": the five new co-op move sizes stay out of the level rules (no new map
+   plans on them); ~18:52 "Keep it": Tallow C4 Plank Bridge (pie loft to clock loft) stays, Player's Plank Bridge move,
+   Marlow a2-plank sizes. No re-plan; no other new co-op-move uses on Tallow for now. (BRIEF "Michael picked" at the next edit.)
 Next: watch #522 into a train; retarget #578 -> #581 -> #583 in order as each lands; then G5.
 
 ## OLD RESUME 2026-10-26 ~17:20 (Night Shift | Campaign Build, after the ~17:05 swap; read this block first)
