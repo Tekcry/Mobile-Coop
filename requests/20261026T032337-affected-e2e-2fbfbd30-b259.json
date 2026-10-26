@@ -8,9 +8,8 @@
   "suites": [
     "e2e-anim",
     "e2e-combat",
-    "e2e-move",
-    "smoke"
+    "e2e-move"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #552"
+  "note": "auto affected-e2e, PR #552 (re-filed at cap 3)"
 }
