@@ -1,0 +1,15 @@
+{
+  "id": "20261026T010529-night-shift-guard-ai-b6ec17ab-dd86",
+  "sha": "b6ec17ab6acdd636d4fa21a91c998baaf1b73e46",
+  "branch": "feature/guard-ai-mission-hooks-s3b",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-guard-carry",
+    "e2e-sectorops:1"
+  ],
+  "set": "mh-s3b",
+  "note": "J26 S3b area alarms + check B fix (pillar) + S1a-2 triage fix; deciding scenario 'area alarm'"
+}
