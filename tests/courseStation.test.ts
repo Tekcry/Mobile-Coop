@@ -317,6 +317,26 @@ describe('a station retry (seen)', () => {
   });
 });
 
+describe('(marlow-play-2 C11) the role claim through a station retry', () => {
+  it('a claim made while station 2 is live stays through its retry (marks by the claim); a bay restart clears it', () => {
+    const st = new CourseState(def({ roles: [{ role: 'b', press: ['sw2'] }] }));
+    st.setFlag('s1-done');
+    expect(st.station()).toBe(2);
+    // P1 presses the claim device: P1 has B, so P2 has A (the swap rule alone would give P1 A)
+    expect(st.press('sw2', 0)).toBeNull();
+    expect(st.roleClaimed()).toBe(true);
+    expect(st.roleOf(0)).toBe('b');
+    expect(st.retryStation('seen')).toBe(true);
+    expect(st.hasShared('key2')).toBe(false);
+    expect(st.roleClaimed()).toBe(true);
+    expect(st.roleOf(0)).toBe('b');
+    expect(st.lead).toBe(1);
+    st.restart();
+    expect(st.roleClaimed()).toBe(false);
+    expect(st.lead).toBe(0);
+  });
+});
+
 describe('SA1: a guard on several stations\' lists (fix 1)', () => {
   /** gd1 on both stations' lists (A4's officer on 9 and 8), gd2 on station 2's. */
   const both = (): CourseDef => def({}, [station(1, { guards: ['gd1'] }), station(2, { guards: ['gd1', 'gd2'] })]);
@@ -738,6 +758,19 @@ describe('stand-in gates (fix 7, lead decision b)', () => {
     r.step();
     expect(r.st.station()).toBe(1);
     expect(r.st.isGateOpen('g-walk')).toBe(false);
+  });
+  it('(marlow-play-2 C16) a retry leaves a kept stand-in\'s door as it is (A2 station 4: the roller door stays open)', () => {
+    const r = rig(plank(), { doors: ['D5'] });
+    const d5 = r.doors[0]!;
+    r.st.setFlag('s1-done');
+    r.step();
+    d5.target = 1; // the players open it
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    r.step(10);
+    expect(d5.target).toBe(1);
+    expect(d5.anchor.locked).toBe(false);
   });
   it('a first station with a stand-in opens it at the bay start; a station without one opens nothing', () => {
     const st = new CourseState(def({ gates }, [station(1, { kit: 'deadweight', standIn: 'g-walk' }), station(2)]));

@@ -713,7 +713,8 @@ export class CourseState {
 
   /**
    * (J14 R1; BRIEF A1, A2; PLAN A17, A23) Retry the live station: only its gates (and their flags) and the flags set while
-   * it was live (objective steps and a role claim among them); earlier stations stay done, drills stay ticked. Counts in
+   * it was live (objective steps among them); earlier stations stay done, drills stay ticked; (marlow-play-2 C11) the bay's
+   * role claim stays (a bay restart clears it), so the marks keep each player's job. Counts in
    * `restarts` / `lastRetry` and emits `stationRetry` (the mode resets its guards, devices and lamps and puts the players
    * on its marks). `n` (a set's drill window or beam, `CourseMode.stationRetry`): only while station `n` is live. False
    * (nothing changes): no live station (or not `n`), its retry is 'none' (unless the cause is `other`: a set's way out
@@ -1394,7 +1395,9 @@ export class CourseState {
 
   private claim(p: PlayerIdx, c: RoleClaim): void {
     const a: PlayerIdx = c.role === 'a' ? p : p === 0 ? 1 : 0;
-    this.addFlag(this.roleKeys[this.bay]![a], this.bay);
+    // (marlow-play-2 C11) owned by no station: a station retry keeps the claim (the jobs never swap on a retry), a bay
+    // restart still clears it with the bay's flags
+    this.addFlag(this.roleKeys[this.bay]![a], this.bay, 0);
     this.events.push({ t: 'roleClaimed', bay: this.currentBay.id, a });
   }
 
