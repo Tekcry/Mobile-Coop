@@ -93,6 +93,8 @@ export const A6_OUTFALL_DOOR = setExitDoor('a6PumpHouse')!;
 /** Both players on the motor gallery or the bridge (the `a6-up` step) and the zone that sets it (floor 4.4). */
 export const A6_GAL_FLAG = 'a6-gal';
 export const A6_GAL_ZONE: [number, number, number, number] = [40.3, 61.6, 63.7, 71.775];
+/** (J14) The loading edge's lip anchor by name (`part.anchors`): the re-plan's self-closing edge gate `g-a6-edge` locks it. */
+export const A6_GALLERY_LIP = 'a6-gallery-lip';
 
 /** The motor gallery (`coopDeck` at its front edge's centre), the open loading edge along x, the leg-up mark, the rope spot. */
 export const A6_DECK = { x: 48.15, z: 69.6, span: 15.7, depth: 2.175, lip: 4.4, open: [-7.35, -2.85] as [number, number], rope: -5.0 } as const;
@@ -194,7 +196,10 @@ const LOOK = {
 /** The 7-segment strokes of the numbers 1-3 stencilled on the pumps' plinths. */
 const DIGITS = { 1: 'bc', 2: 'abged', 3: 'abgcd' } as const;
 
-export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
+/** (J14) `opts.replan`: the re-planned yard, which closes the staff stair, sinks the drive pit, moves the gauge board and opens the
+ *  bridge deck over the pit (`replan/a6PumpHouse.ts` builds them); its guards leave out the pieces it removes or rebuilds. */
+export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): SetPart {
+  const replan = opts.replan === true;
   const p = emptyPart('a6PumpHouse');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean; visible?: boolean } = {}): void => {
@@ -216,10 +221,13 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     slab(x0, x1, z - t / 2, z + t / 2, 0, h, CONCRETE);
     b.surface('metal', A6_SUMP[0], A6_SUMP[2], A6_SUMP[1], A6_SUMP[3], 0);
   });
-  tally(b, p.register, 'A6-12', "Gauge board between pumps 1 and 2 (the duty pumps' common panel, the attendant's G stop): 1.2 x 0.2 x 1.5 on its stand, noLedge", () => {
-    const { x, z, w, t, h } = A6_GAUGE;
-    slab(x - w / 2, x + w / 2, z - t / 2, z + t / 2, 0, h, STEEL);
-  });
+  // (J14) on the re-plan the board moves to the outfall housing's north face (the housing covers its stand)
+  if (!replan) {
+    tally(b, p.register, 'A6-12', "Gauge board between pumps 1 and 2 (the duty pumps' common panel, the attendant's G stop): 1.2 x 0.2 x 1.5 on its stand, noLedge", () => {
+      const { x, z, w, t, h } = A6_GAUGE;
+      slab(x - w / 2, x + w / 2, z - t / 2, z + t / 2, 0, h, STEEL);
+    });
+  }
   tally(b, p.register, 'A6-14', "Attendant's desk x 60.6-62.4, z 65.6-66.4, 0.75 m (the log and the desk lamp); his post D north of it", () => {
     slab(A6_DESK[0], A6_DESK[2], A6_DESK[1], A6_DESK[3], 0, 0.75, DESK);
   });
@@ -234,7 +242,9 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     for (const [a, e] of A6_SCREENS) if (a >= x0 - 1e-6 && e <= x1 + 1e-6) screens.push({ ...s, c: [(a + e) / 2, s.c[1], s.c[2]], s: [e - a, s.s[1], s.s[2]] });
   }
   tally(b, p.register, 'A6-2', 'Motor gallery: a 4.4 m solid deck x 40.3-56.0, z 69.6-71.775 (noLedge, depth to the north wall, A6-D8), the open loading edge x 40.8-45.3 its one co-op lip (leg-up mark at 43.05, 69.1), 1.2 m edge screens on x 40.3-40.8, 45.3-49.0 and 54.0-56.0 (split for the bridge, A6-D4), chequer plate (metal, loud)', () => {
-    applyGreybox(b, { ...deck, boxes: [...deck.boxes.filter((x) => x.tag === 'deck' || x.tag === 'mark legUp'), ...screens], stairs: [], doors: [] });
+    applyGreybox(b, { ...deck, boxes: [...deck.boxes.filter((x) => x.tag === 'deck' || x.tag === 'mark legUp'), ...screens], stairs: [], ledges: [], doors: [] });
+    // the loading edge's lip (the greybox's one manual ledge, built where applyGreybox would), named for the re-plan's edge gate
+    for (const l of deck.ledges) p.anchors[A6_GALLERY_LIP] = b.ledge(l.ax, l.az, l.bx, l.bz, l.top).id;
     b.surface('metal', 40.3, 56.0, A6_DECK.z, A6_SHELL.north, A6_DECK.lip);
   });
   tally(b, p.register, 'A6-3', "Davit box and rescue line: the box (0.6 m, noLedge) on the gallery's back wall at x 43.15, the rope's anchor plate and the holder's striped spot (43.15, 4.4, 70.2) on the open span (two-person rope, once, untimed)", () => {
@@ -248,15 +258,18 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
   const zStairS = flight.z - flight.w / 2;
   /** The nosing line's height over x: the staff stair's ramp collider's top. */
   const lineAt = (x: number): number => (flight.rise * (xFoot - x)) / flight.len;
-  tally(b, p.register, 'A6-9', "Staff stair: 27 risers of 0.163 m, x 56.0-63.7 along the north wall, rising west (foot by the desk, head at the gallery's east end); its underside closed by invisible noLedge fillers (0.5 m slices to just under the ramp's top: no walk-in space under the flight, S2-check should-fix 2)", () => {
-    applyGreybox(b, { ...deck, boxes: [], ledges: [], doors: [] });
-    for (let xa = xHead; xa < xFoot - 1e-9; xa += A6_STAIR_FILL.step) {
-      const xb = Math.min(xa + A6_STAIR_FILL.step, xFoot);
-      const hgt = lineAt(xb) - A6_STAIR_FILL.gap;
-      if (hgt < 0.05) break;
-      slab(xa, xb, zStairS, A6_SHELL.north, 0, hgt, STEEL, { visible: false });
-    }
-  });
+  // (J14, Q24) the re-plan closes the staff stair: no flight, no fillers (the gallery's east end gets a screen there)
+  if (!replan) {
+    tally(b, p.register, 'A6-9', "Staff stair: 27 risers of 0.163 m, x 56.0-63.7 along the north wall, rising west (foot by the desk, head at the gallery's east end); its underside closed by invisible noLedge fillers (0.5 m slices to just under the ramp's top: no walk-in space under the flight, S2-check should-fix 2)", () => {
+      applyGreybox(b, { ...deck, boxes: [], ledges: [], doors: [] });
+      for (let xa = xHead; xa < xFoot - 1e-9; xa += A6_STAIR_FILL.step) {
+        const xb = Math.min(xa + A6_STAIR_FILL.step, xFoot);
+        const hgt = lineAt(xb) - A6_STAIR_FILL.gap;
+        if (hgt < 0.05) break;
+        slab(xa, xb, zStairS, A6_SHELL.north, 0, hgt, STEEL, { visible: false });
+      }
+    });
+  }
   p.lips.push(...deck.lips);
 
   // ---- A6-4 / A6-5 / A6-6 / A6-7 / A6-13: the bridge, the gland plate, the drive cage, the drive cabinet, the handrails ----
@@ -265,15 +278,19 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
   for (const d of hang.doors) if (d.id === 'a6-cage') d.id = A6_CAGE_DOOR;
   const tagged = (...tags: string[]): GreyBox[] => hang.boxes.filter((x) => tags.includes(x.tag));
   tally(b, p.register, 'A6-4', "Bridge over the drive bay x 49-54, z 61.6-69.6, deck 4.4 (slab 4.0-4.4): the hangPlate slab round the plate (overhang 0.4, A6-D1) and a hand slab north of it to the gallery, noLedge and overhead (headroom 4.0 under it); chequer plate (metal, loud)", () => {
-    applyGreybox(b, { ...hang, boxes: tagged('bridge slab'), stairs: [], ledges: [], doors: [] });
+    // (J14) the re-plan cuts the drop opening into the slab round the plate (`replan/a6PumpHouse.ts` builds it)
+    if (!replan) applyGreybox(b, { ...hang, boxes: tagged('bridge slab'), stairs: [], ledges: [], doors: [] });
     slab(A6_BRIDGE[0], A6_BRIDGE[2], A6_HANG.z + A6_HANG.cage[0] / 2 + A6_HANG.overhang, A6_BRIDGE[3], A6_HANG.deck - A6_HANG.slab, A6_HANG.deck, STEEL, { overhead: true });
     b.surface('metal', A6_BRIDGE[0], A6_BRIDGE[2], A6_BRIDGE[1], A6_BRIDGE[3], A6_HANG.deck);
   });
   tally(b, p.register, 'A6-5', "Cable gland plate 0.55 m at (51.5, 64.9) (under a body's width: nobody drops through), its striped frame, the lifted cover and the holder's striped spot (51.5, 4.4, 65.6) (paint, no collision)", () => {
-    applyGreybox(b, { ...hang, boxes: tagged('plate frame', 'plate cover', 'mark hold'), stairs: [], ledges: [], doors: [] });
+    // (J14) the lifted cover lies over the re-plan's drop opening: the re-plan lays it west of the plate
+    applyGreybox(b, { ...hang, boxes: replan ? tagged('plate frame', 'mark hold') : tagged('plate frame', 'plate cover', 'mark hold'), stairs: [], ledges: [], doors: [] });
   });
   tally(b, p.register, 'A6-6', "Drive cage 4.2 x 4.2 (x 49.4-53.6, z 62-66.2): solid walls to the slab's underside (louvred sheet-steel panels, A6-C2), noLedge; the locked 1.2 x 2.1 door A6-cage on its south face (egress: the exit release inside only)", () => {
-    const doors = applyGreybox(b, { ...hang, boxes: tagged('cage wall', 'cage door head'), stairs: [], ledges: [] });
+    // (J14) the re-plan rebuilds the east wall round the outfall culvert's mouth
+    const walls = tagged('cage wall', 'cage door head').filter((x) => !replan || Math.abs(x.c[0] - (A6_CAGE[2] - 0.05)) > 1e-6);
+    const doors = applyGreybox(b, { ...hang, boxes: walls, stairs: [], ledges: [] });
     p.doors[A6_CAGE_DOOR] = doors[A6_CAGE_DOOR]!;
   });
   tally(b, p.register, 'A6-7', "Drive cabinet x 51.1-51.9, z 63.8-64.4, 1.6 m (noLedge): the drive panel sw-a6-panel facing the plate (hold 3 s, buzzer to 6 m, A6-D6) and the exit release sw-a6-exit on its back (A6-D2)", () => {
@@ -534,8 +551,9 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     face('s', z - t / 2, 52.2, 53.8, 0.4, 0.8, LOOK.white, 1);
     face('s', z - t / 2, 52.3, 53.7, 0.68, 0.76, LOOK.red, 2);
     face('s', z - t / 2, 52.35, 53.65, 0.48, 0.56, LOOK.black, 2);
-    // the tagged-out fittings: a housing, a hanging rod or a wall arm, a red tag on a wire
-    for (const f of A6_DEAD_FITTINGS) {
+    // the tagged-out fittings: a housing, a hanging rod or a wall arm, a red tag on a wire ((J14) on the re-plan they are circuit 69's
+    // live lamps, whose fixtures, rods and arms `replan/a6PumpHouse.ts` draws)
+    for (const f of replan ? [] : A6_DEAD_FITTINGS) {
       housing(f.x, f.y, f.z, f.sx, f.sy, f.sz, LOOK.steelDark);
       if (f.z > 60) skin(f.x - 0.02, f.x + 0.02, f.y - 0.02, f.y + 0.02, f.z + f.sz / 2, north - PANEL_OUT, LOOK.steelDark);
       else skin(f.x - 0.02, f.x + 0.02, f.y + f.sy / 2, HALL_H, f.z - 0.02, f.z + 0.02, LOOK.steel);
@@ -552,17 +570,20 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
   tally(b, p.register, 'A6-17', "Gauge board and desk dressing (visual skins, no collision): the board's panel, three gauges with needles, a lamp row, title and lock-off tag, rear cover and cap; the desk's timber top, logbook, phone, lamp stand, drawers and kick board; the switches' boxes (floor, gallery riser, desk)", () => {
     const { x: gx, z: gz, w, t, h } = A6_GAUGE;
     const gn = gz + t / 2;
-    face('n', gn, gx - w / 2, gx + w / 2, 0, 0.1, LOOK.black);
-    face('n', gn, gx - w / 2 + 0.05, gx + w / 2 - 0.05, 0.55, 1.45, LOOK.steelDark);
-    for (const x of [gx - 0.28, gx, gx + 0.28]) {
-      face('n', gn, x - 0.11, x + 0.11, 1.0, 1.22, LOOK.white, 1);
-      face('n', gn, x - 0.01, x + 0.01, 1.04, 1.18, LOOK.black, 2);
+    // (J14) on the re-plan the board is on the outfall housing (`replan/a6PumpHouse.ts` dresses it there)
+    if (!replan) {
+      face('n', gn, gx - w / 2, gx + w / 2, 0, 0.1, LOOK.black);
+      face('n', gn, gx - w / 2 + 0.05, gx + w / 2 - 0.05, 0.55, 1.45, LOOK.steelDark);
+      for (const x of [gx - 0.28, gx, gx + 0.28]) {
+        face('n', gn, x - 0.11, x + 0.11, 1.0, 1.22, LOOK.white, 1);
+        face('n', gn, x - 0.01, x + 0.01, 1.04, 1.18, LOOK.black, 2);
+      }
+      face('n', gn, gx - 0.4, gx + 0.4, 1.3, 1.4, LOOK.white, 1);
+      for (const [x, color] of [[gx - 0.28, LOOK.lampGreen], [gx, LOOK.lampGreen], [gx + 0.28, LOOK.red]] as const) face('n', gn, x - 0.03, x + 0.03, 0.7, 0.76, color, 1);
+      face('n', gn, gx + 0.45, gx + 0.55, 0.78, 0.92, LOOK.tag, 1);
+      face('s', gz - t / 2, gx - w / 2 + 0.05, gx + w / 2 - 0.05, 0.3, 1.2, LOOK.steelDark);
+      skin(gx - w / 2, gx + w / 2, h, h + SKIN, gz - t / 2, gn, LOOK.steel);
     }
-    face('n', gn, gx - 0.4, gx + 0.4, 1.3, 1.4, LOOK.white, 1);
-    for (const [x, color] of [[gx - 0.28, LOOK.lampGreen], [gx, LOOK.lampGreen], [gx + 0.28, LOOK.red]] as const) face('n', gn, x - 0.03, x + 0.03, 0.7, 0.76, color, 1);
-    face('n', gn, gx + 0.45, gx + 0.55, 0.78, 0.92, LOOK.tag, 1);
-    face('s', gz - t / 2, gx - w / 2 + 0.05, gx + w / 2 - 0.05, 0.3, 1.2, LOOK.steelDark);
-    skin(gx - w / 2, gx + w / 2, h, h + SKIN, gz - t / 2, gn, LOOK.steel);
     const [dx0, dz0, dx1, dz1] = A6_DESK;
     skin(dx0, dx1, 0.75, 0.78, dz0, dz1, LOOK.wood);
     skin(61.85, 62.25, 0.78, 0.8, 65.7, 66.05, LOOK.white);
@@ -624,48 +645,54 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
   });
 
   // ---- A6-19: the staff stair (nosings, wall rail, the open side's collision rail: S567-check polish 2) ----
-  tally(b, p.register, 'A6-19', "Staff stair dressing: yellow nosings on the 27 treads, a wall rail with brackets and a skirting board along the slope (visual skins), the wall above it, and the open side's 1.1 m rail (kit.handrail, invisible noLedge collision in twelve stepped segments 0.05 m outside the flight, from the third tread to the head; the foot stays open to step on; accent on the gallery strip 61)", () => {
-    const sd = flight.len / flight.steps;
-    const sh = flight.rise / flight.steps;
-    for (let i = 0; i < flight.steps; i++) {
-      const x1 = xFoot - sd * i;
-      skin(x1 - 0.06, x1, sh * (i + 1), sh * (i + 1) + 0.012, zStairS, north, LOOK.yellow);
-    }
-    // the wall above the flight (below the hall panels): block, a dado and a plate rail, stepped with the slope in 0.5 m runs
-    for (let x = 63.5; x > A6_STAIR_RAIL.to + 1e-6; x -= 0.5) {
-      const xa = Math.max(x - 0.5, 56.9);
-      if (x - xa < 0.1) break;
-      face('s', north, xa, x, lineAt(xa) + 0.2, lip, LOOK.wall);
-    }
-    for (const x of [63.4, 61.9, 60.4, 58.9, 57.4]) face('s', north, x - 0.02, x + 0.02, lineAt(x) + 0.82, lineAt(x) + 0.9, LOOK.steelDark, 1);
-    slopeBoard(north - 0.06, north - SKIN, 0.9, LOOK.steel);
-    slopeBoard(zStairS + 0.0, zStairS + 0.04, 0.0, LOOK.steelDark);
-    // the open side: the kit's balustrade and its collision box per segment, `h` over the walking line at the high end
-    const { z, from, to, seg, h } = A6_STAIR_RAIL;
-    const n = Math.round((from - to) / seg);
-    for (let k = 0; k < n; k++) {
-      const xa = from - k * seg;
-      const xb = xa - seg;
-      kit.handrail(xa, z, xb, z, { y: lineAt(xa), h: h + (lineAt(xb) - lineAt(xa)), group: A6_G_GALLERY });
-    }
-  });
+  // (J14, Q24) no staff stair on the re-plan: no nosings, slope rails or the open side's rail
+  if (!replan) {
+    tally(b, p.register, 'A6-19', "Staff stair dressing: yellow nosings on the 27 treads, a wall rail with brackets and a skirting board along the slope (visual skins), the wall above it, and the open side's 1.1 m rail (kit.handrail, invisible noLedge collision in twelve stepped segments 0.05 m outside the flight, from the third tread to the head; the foot stays open to step on; accent on the gallery strip 61)", () => {
+      const sd = flight.len / flight.steps;
+      const sh = flight.rise / flight.steps;
+      for (let i = 0; i < flight.steps; i++) {
+        const x1 = xFoot - sd * i;
+        skin(x1 - 0.06, x1, sh * (i + 1), sh * (i + 1) + 0.012, zStairS, north, LOOK.yellow);
+      }
+      // the wall above the flight (below the hall panels): block, a dado and a plate rail, stepped with the slope in 0.5 m runs
+      for (let x = 63.5; x > A6_STAIR_RAIL.to + 1e-6; x -= 0.5) {
+        const xa = Math.max(x - 0.5, 56.9);
+        if (x - xa < 0.1) break;
+        face('s', north, xa, x, lineAt(xa) + 0.2, lip, LOOK.wall);
+      }
+      for (const x of [63.4, 61.9, 60.4, 58.9, 57.4]) face('s', north, x - 0.02, x + 0.02, lineAt(x) + 0.82, lineAt(x) + 0.9, LOOK.steelDark, 1);
+      slopeBoard(north - 0.06, north - SKIN, 0.9, LOOK.steel);
+      slopeBoard(zStairS + 0.0, zStairS + 0.04, 0.0, LOOK.steelDark);
+      // the open side: the kit's balustrade and its collision box per segment, `h` over the walking line at the high end
+      const { z, from, to, seg, h } = A6_STAIR_RAIL;
+      const n = Math.round((from - to) / seg);
+      for (let k = 0; k < n; k++) {
+        const xa = from - k * seg;
+        const xb = xa - seg;
+        kit.handrail(xa, z, xb, z, { y: lineAt(xa), h: h + (lineAt(xb) - lineAt(xa)), group: A6_G_GALLERY });
+      }
+    });
+  }
 
   // ---- A6-20: the bridge and the drive cage (plate, soffit ribs, the lifting-point sign; louvred panels, kick band, posts, the door's surround) ----
   tally(b, p.register, 'A6-20', "Bridge and cage dressing (visual skins, no collision): chequer-plate sheet round the gland plate, soffit ribs under the hand slab, the yellow lifting-point sign with its hook on the south fascia; the cage's louvred sheet-steel panels (A6-C2) with a 1.2 m kick band, posts and top rail outside, kick band and rails inside, the door's posts and authorised-only sign, the work light's conduit", () => {
     const [bx0, bz0, bx1, bz1] = A6_BRIDGE;
     const frame = { x0: 51.125, x1: 51.875, z0: 64.525, z1: 65.275 };
-    skin(bx0, bx1, A6_HANG.deck, A6_HANG.deck + 0.005, bz0, frame.z0, LOOK.plate);
-    skin(bx0, bx1, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z1, bz1, LOOK.plate);
-    skin(bx0, frame.x0, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, frame.z1, LOOK.plate);
-    // east of the plate's frame: round the lifted cover (the greybox's, x 51.975-52.525, z 64.625-65.175, on the deck)
-    skin(frame.x1, 51.975, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, frame.z1, LOOK.plate);
-    skin(51.975, 52.525, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, 64.625, LOOK.plate);
-    skin(51.975, 52.525, A6_HANG.deck, A6_HANG.deck + 0.005, 65.175, frame.z1, LOOK.plate);
-    skin(52.525, bx1, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, frame.z1, LOOK.plate);
-    // (a seam that would cross the holder's striped spot, x 51-52, z 65.1-66.1, starts beyond it)
-    for (let x = bx0 + 1.0; x < bx1 - 0.1; x += 1.0) {
-      skin(x - 0.01, x + 0.01, A6_HANG.deck + 0.005, A6_HANG.deck + 0.009, bz0, frame.z0, LOOK.seam);
-      skin(x - 0.01, x + 0.01, A6_HANG.deck + 0.005, A6_HANG.deck + 0.009, x + 0.01 > A6_HOLDER.x - 0.5 && x - 0.01 < A6_HOLDER.x + 0.5 ? A6_HOLDER.z + 0.5 : frame.z1, bz1, LOOK.seam);
+    // (J14) the re-plan's plate and seams leave its drop opening clear (`replan/a6PumpHouse.ts` lays them)
+    if (!replan) {
+      skin(bx0, bx1, A6_HANG.deck, A6_HANG.deck + 0.005, bz0, frame.z0, LOOK.plate);
+      skin(bx0, bx1, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z1, bz1, LOOK.plate);
+      skin(bx0, frame.x0, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, frame.z1, LOOK.plate);
+      // east of the plate's frame: round the lifted cover (the greybox's, x 51.975-52.525, z 64.625-65.175, on the deck)
+      skin(frame.x1, 51.975, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, frame.z1, LOOK.plate);
+      skin(51.975, 52.525, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, 64.625, LOOK.plate);
+      skin(51.975, 52.525, A6_HANG.deck, A6_HANG.deck + 0.005, 65.175, frame.z1, LOOK.plate);
+      skin(52.525, bx1, A6_HANG.deck, A6_HANG.deck + 0.005, frame.z0, frame.z1, LOOK.plate);
+      // (a seam that would cross the holder's striped spot, x 51-52, z 65.1-66.1, starts beyond it)
+      for (let x = bx0 + 1.0; x < bx1 - 0.1; x += 1.0) {
+        skin(x - 0.01, x + 0.01, A6_HANG.deck + 0.005, A6_HANG.deck + 0.009, bz0, frame.z0, LOOK.seam);
+        skin(x - 0.01, x + 0.01, A6_HANG.deck + 0.005, A6_HANG.deck + 0.009, x + 0.01 > A6_HOLDER.x - 0.5 && x - 0.01 < A6_HOLDER.x + 0.5 ? A6_HOLDER.z + 0.5 : frame.z1, bz1, LOOK.seam);
+      }
     }
     for (const z of [66.9, 67.5, 68.1, 68.7, 69.3]) skin(bx0, bx1, A6_HANG.deck - A6_HANG.slab - 0.04, A6_HANG.deck - A6_HANG.slab, z - 0.05, z + 0.05, LOOK.frame);
     // the lifting-point sign on the south fascia (the slab's face, z 61.6): a yellow plate with a black hook ring and stem
@@ -688,6 +715,8 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
       }
     };
     for (const [side, at, a, e] of outer) {
+      // (J14) the re-plan dresses the east face round the outfall culvert's mouth
+      if (replan && side === 'e') continue;
       panels(side, at, [[a, e]], 0);
       for (let q = a + 1.4; q < e - 0.2; q += 1.4) face(side, at, q - 0.05, q + 0.05, 0, under, LOOK.frame, 2);
     }
@@ -701,12 +730,15 @@ export function buildA6PumpHouse(b: LevelBuilder, kit: FacilityKit): SetPart {
     face('s', cz0, 50.95, 52.05, 2.2, 2.62, LOOK.white, 1);
     face('s', cz0, 51.0, 52.0, 2.5, 2.57, LOOK.red, 2);
     face('s', cz0, 51.0, 52.0, 2.3, 2.38, LOOK.black, 2);
-    for (const [side, at, a, e] of [['e', cx0 + 0.1, cz0 + 0.1, cz1 - 0.1], ['w', cx1 - 0.1, cz0 + 0.1, cz1 - 0.1], ['s', cz1 - 0.1, cx0 + 0.1, cx1 - 0.1]] as const) {
-      face(side, at, a, e, 0, 1.2, LOOK.steelDark);
-      for (const y of [1.2, 2.4, 3.6]) face(side, at, a, e, y, y + 0.06, LOOK.frame, 1);
+    // (J14) inside: on the re-plan the floor is the pit's (-1.6), whose kick band and rails `replan/a6PumpHouse.ts` draws
+    if (!replan) {
+      for (const [side, at, a, e] of [['e', cx0 + 0.1, cz0 + 0.1, cz1 - 0.1], ['w', cx1 - 0.1, cz0 + 0.1, cz1 - 0.1], ['s', cz1 - 0.1, cx0 + 0.1, cx1 - 0.1]] as const) {
+        face(side, at, a, e, 0, 1.2, LOOK.steelDark);
+        for (const y of [1.2, 2.4, 3.6]) face(side, at, a, e, y, y + 0.06, LOOK.frame, 1);
+      }
+      face('n', cz0 + 0.1, cx0 + 0.1, door[0], 0, 1.2, LOOK.steelDark);
+      face('n', cz0 + 0.1, door[1], cx1 - 0.1, 0, 1.2, LOOK.steelDark);
     }
-    face('n', cz0 + 0.1, cx0 + 0.1, door[0], 0, 1.2, LOOK.steelDark);
-    face('n', cz0 + 0.1, door[1], cx1 - 0.1, 0, 1.2, LOOK.steelDark);
     // the work light's conduit from the slab (the lamp is the greybox's, 51.5, 3.4, 62.9)
     skin(51.48, 51.52, 3.5, under, 62.88, 62.92, LOOK.conduit);
   });

@@ -66,8 +66,12 @@ export interface EgressGate { kind: 'egress'; id: string; switchId: string; door
 export interface MainsGate { kind: 'mains'; id: string; group: string; doorId: string }
 /** Unlocked once the course flag is set (a key, a card, a code). */
 export interface FlagGate { kind: 'flag'; id: string; flag: string; doorId: string }
-/** The anchor is unusable until the flag is set (the B3 fan guard). */
-export interface AnchorLockGate { kind: 'anchorLock'; id: string; anchorId: string; flag: string }
+/**
+ * The anchor is unusable until the flag is set (the B3 fan guard). (J14 R1) `lockOn: true` turns it round: the anchor is
+ * usable (the gate open) until the flag is set, then locked (the gate shut); a retry of a station that lists the gate
+ * drops the flag, so the anchor opens again (A6's loading edge `g-a6-edge`). A lockOn gate is never a station's stand-in.
+ */
+export interface AnchorLockGate { kind: 'anchorLock'; id: string; anchorId: string; flag: string; lockOn?: boolean }
 /** A switch that sets a flag (per player when `perPlayer`). A security console's pickup gets a timer from its
  *  `SecurityConsole.seconds` / `rearm` (N3): the flag then clears after `seconds` and the console re-arms after `rearm`. */
 export interface PickupGate { kind: 'pickup'; id: string; switchId: string; flag: string; perPlayer: boolean }
@@ -105,10 +109,11 @@ export function warnKey(gateId: string): string {
 
 /**
  * (J14 R1, STATIONS.md SA2) The `bay.radio` key of LANTERN's line when station `id` retries (what and where, G343): `seen`
- * / `caught` at `retry:<id>`, a drill window (`timer`) at `retry:<id>:timer`. No line: the retry is silent.
+ * / `caught` at `retry:<id>`, a drill window (`timer`, or `true`) at `retry:<id>:timer`, a set's soft-lock way out
+ * (`other`, J14 A26) at `retry:<id>:other`. No line: the retry is silent.
  */
-export function retryKey(stationId: string, timer = false): string {
-  return timer ? `retry:${stationId}:timer` : `retry:${stationId}`;
+export function retryKey(stationId: string, kind: boolean | 'timer' | 'other' = false): string {
+  return kind === 'other' ? `retry:${stationId}:other` : kind ? `retry:${stationId}:timer` : `retry:${stationId}`;
 }
 
 const STATION_RETRY: readonly string[] = ['none', 'station', 'caught'];
@@ -464,6 +469,7 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
       for (const m of s.marks) if (![m.x, m.y, m.z, m.yaw].every(Number.isFinite)) fail(s.id, 'a station mark is not a finite point');
       for (const q of s.guards) if (!b.squad.includes(q)) fail(s.id, `station guard '${q}' is not in ${b.id}'s squad`);
       if (s.standIn !== undefined && !bayGates.has(s.standIn)) fail(s.id, `stand-in gate '${s.standIn}' is not a gate of ${b.id}`);
+      if (s.standIn !== undefined && b.gates.some((g) => g.id === s.standIn && g.kind === 'anchorLock' && g.lockOn === true)) fail(s.id, `stand-in gate '${s.standIn}' is a lockOn anchorLock (it only shuts)`);
       if (!s.doneFlag) fail(s.id, 'a station names its done flag');
       doneFlags.push([s.id, s.doneFlag]);
     }

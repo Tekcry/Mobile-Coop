@@ -8,7 +8,7 @@
 // the last drill is open, LANTERN's radio reaches the client, results show the course panel on both pages, and a second
 // lobby starts at bay 2 with both players in its entry airlock.
 // T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
-// course session with no clicks (the walk URLs).
+// course session with no clicks (the walk URLs; the second tab adds `&autojoin=1`, F28).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
 import { until, setSimPages, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
@@ -526,8 +526,17 @@ if (!failed) {
     const q = 'net=local&autostart=courselab&mode=course';
     const { page: H, errors: eH } = await openPage(ctx, url, q);
     await until(H, () => window.__coop?.session?.isHost === true, null, 20000, 'first walk tab hosts');
-    const { page: C, errors: eC } = await openPage(ctx, url, q);
-    for (const [P, tag] of [[H, 'host'], [C, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'courselab', null, LOAD_MS, `${tag} walk tab in the course`);
+    // (F28, as e2e-ctcourse F7) the second tab joins as a client with no probe deadline (`&autojoin=1`): a busy host
+    // page that answered the 1.5 s probe late made it host too, and the two hosts never started (the boot deadlock)
+    const { page: C, errors: eC } = await openPage(ctx, url, `${q}&autojoin=1`);
+    try {
+      for (const [P, tag] of [[H, 'host'], [C, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'courselab', null, LOAD_MS, `${tag} walk tab in the course`);
+    } catch (e) {
+      // both tabs' sessions: two hosts is the deadlock; a client with no hostId never heard the host
+      const s = (P) => P.evaluate(() => { const x = window.__coop?.session; return x ? { isHost: x.isHost, phase: x.phase, players: x.players.size, hostId: x.hostId } : null; }).catch((err) => String(err));
+      console.log(`  (boot timeout: host tab ${JSON.stringify(await s(H))}, client tab ${JSON.stringify(await s(C))})`);
+      throw e;
+    }
     const h = await H.evaluate(() => ({ code: window.__coop.session.code, id: window.__coop.session.selfId, n: window.__coop.session.players.size }));
     const c = await C.evaluate(() => ({ code: window.__coop.session.code, host: window.__coop.session.hostId, role: window.__coop.session.role }));
     assert(h.code === c.code && c.host === h.id && c.role === 'client' && h.n === 2, `two walk-URL tabs share one course session (${JSON.stringify({ h, c })})`);
