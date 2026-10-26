@@ -22,6 +22,7 @@ import { clearGripAxis } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import { holdHandTargets } from './closeQuarters';
 import { KNIFE, type KnifeKillRow } from './knifeKill';
+import { WREN_HANDS } from '../operators/handFrame';
 
 /** What a pair reads of the knife: its tip in world space (`KnifeModel.tipWorld`). */
 export interface KnifeTip {
@@ -80,8 +81,9 @@ export function resetPairTrack(t: PairTrack): void {
 }
 
 /** The trim's gain per frame and its largest size (m). */
-const TRIM_GAIN = 0.7;
-const TRIM_MAX = 0.15;
+export const PAIR_TRACK = { gain: 0.7, predict: 1 };
+const TRIM_MAX = 0.1;
+const TRIM_SETTLED = 0.06;
 
 /** The pose of the guard's root (feet) and facing. */
 export interface RootOut {
@@ -126,8 +128,8 @@ function abs(n: { computeWorldMatrix(force: boolean): unknown; getAbsolutePositi
   return n.getAbsolutePosition();
 }
 
-/** The grip hand's mark on the guard (`vr`): his mouth (the jaw hold) or the top of his right shoulder
- *  (`holdHandTargets`). */
+/** The grip hand's mark on the guard (`vr`): his mouth (the jaw hold) or the top of his shoulder on her left-hand side
+ *  (`holdHandTargets`' shoulder point: his left from behind, his right face to face). */
 export function gripMark(row: KnifeKillRow, vr: CharacterRig, out: Vector3): Vector3 {
   const yaw = vr.root.rotation.y;
   if (row.grip === 'mouth') {
@@ -139,7 +141,7 @@ export function gripMark(row: KnifeKillRow, vr: CharacterRig, out: Vector3): Vec
   const nx = n.x;
   const ny = n.y;
   const nz = n.z;
-  const s = abs(vr.shoulderR);
+  const s = abs(row.yawOff === 0 ? vr.shoulderL : vr.shoulderR);
   holdHandTargets(nx, ny, nz, s.x, s.y, s.z, yaw, hl, hr);
   return out.set(hr.x, hr.y, hr.z);
 }
@@ -183,57 +185,97 @@ export function forearmMark(ar: CharacterRig, vr: CharacterRig, share: number, s
   return out;
 }
 
-/** A hand's palm point (world): `hand.len x 0.45` down the wrist's own frame (the rig's palm, as `weaponSocket`). */
+/** A hand's palm point (world): `hand.len x 0.45` down the wrist's own frame (a rig without hands of its own, as its
+ *  `weaponSocket`: the guards). */
 export function palmWorld(rig: CharacterRig, side: 1 | -1, out: Vector3): Vector3 {
   const m = (side > 0 ? rig.wristR : rig.wristL).computeWorldMatrix(true);
   return Vector3.TransformCoordinatesFromFloatsToRef(0, -rig.p.hand.len * 0.45, 0, m, out);
 }
 
+/** An operator's palm centre (world): her hands' rest frame (`WREN_HANDS`, every operator body: `playerFigure`). */
+export function operatorPalm(rig: CharacterRig, side: 1 | -1, out: Vector3): Vector3 {
+  const m = (side > 0 ? rig.wristR : rig.wristL).computeWorldMatrix(true);
+  const h = (side > 0 ? WREN_HANDS.R : WREN_HANDS.L).palm;
+  return Vector3.TransformCoordinatesFromFloatsToRef(h[0], h[1], h[2], m, out);
+}
+
+const cmd = { x: 0, y: 0, z: 0 };
+
 /**
- * Put hand point `hx, hy, hz` (palm or knife tip, as last drawn) on `mark` with weight `w`: the wrist moves by the
- * hand point's miss, the reach target is that wrist plus the rig's `back` along the shoulder line (`solveArm`). No
- * allocation.
+ * Where to send a hand point (palm or knife tip, `h*` as last drawn) so it lands on `mark` this frame, into `cmd`: the
+ * mark one frame on (its last step again: the contacts are set before the rigs pose) plus the trim (`tr`: the settled
+ * miss left on the last drawn frame, integrated). No allocation.
  */
-function reachOnto(rig: CharacterRig, side: 1 | -1, t: WorldTarget, mark: Vector3, hx: number, hy: number, hz: number, w: number, tr: HandTrack | null): void {
-  clearGripAxis(t);
-  t.w = w;
+function track(mark: Vector3, hx: number, hy: number, hz: number, w: number, tr: HandTrack | null): void {
+  cmd.x = mark.x;
+  cmd.y = mark.y;
+  cmd.z = mark.z;
+  if (!tr) return;
   if (w <= 0) {
-    if (tr) tr.on = false;
+    tr.on = false;
     return;
   }
-  // the mark one frame on (its last step again) plus the trim (the miss left on the last drawn frame, integrated)
-  let px = mark.x;
-  let py = mark.y;
-  let pz = mark.z;
-  if (tr) {
-    if (tr.on) {
-      if (w >= 0.99) {
-        tr.ix += (mark.x - hx) * TRIM_GAIN;
-        tr.iy += (mark.y - hy) * TRIM_GAIN;
-        tr.iz += (mark.z - hz) * TRIM_GAIN;
-        const L = Math.sqrt(tr.ix * tr.ix + tr.iy * tr.iy + tr.iz * tr.iz);
-        if (L > TRIM_MAX) {
-          tr.ix *= TRIM_MAX / L;
-          tr.iy *= TRIM_MAX / L;
-          tr.iz *= TRIM_MAX / L;
-        }
+  if (tr.on) {
+    const ex = mark.x - hx;
+    const ey = mark.y - hy;
+    const ez = mark.z - hz;
+    // only a settled hand's miss (the rig's later layers), never the arm still on its way
+    if (w >= 0.99 && ex * ex + ey * ey + ez * ez < TRIM_SETTLED * TRIM_SETTLED) {
+      tr.ix += ex * PAIR_TRACK.gain;
+      tr.iy += ey * PAIR_TRACK.gain;
+      tr.iz += ez * PAIR_TRACK.gain;
+      const L = Math.sqrt(tr.ix * tr.ix + tr.iy * tr.iy + tr.iz * tr.iz);
+      if (L > TRIM_MAX) {
+        tr.ix *= TRIM_MAX / L;
+        tr.iy *= TRIM_MAX / L;
+        tr.iz *= TRIM_MAX / L;
       }
-      px += mark.x - tr.mx + tr.ix;
-      py += mark.y - tr.my + tr.iy;
-      pz += mark.z - tr.mz + tr.iz;
-    } else {
-      tr.ix = tr.iy = tr.iz = 0;
-      tr.on = true;
     }
-    tr.mx = mark.x;
-    tr.my = mark.y;
-    tr.mz = mark.z;
+    cmd.x += (mark.x - tr.mx) * PAIR_TRACK.predict + tr.ix;
+    cmd.y += (mark.y - tr.my) * PAIR_TRACK.predict + tr.iy;
+    cmd.z += (mark.z - tr.mz) * PAIR_TRACK.predict + tr.iz;
+  } else {
+    tr.ix = tr.iy = tr.iz = 0;
+    tr.on = true;
   }
+  tr.mx = mark.x;
+  tr.my = mark.y;
+  tr.mz = mark.z;
+}
+
+/** The rig's palm depth under a world grip (`characterRig` PALM_DEPTH): a grip radius of minus it puts the palm centre
+ *  on the grip point. */
+const PALM_DEPTH = 0.014;
+
+/**
+ * An operator's hand on a world grip (`solveWorldGrip`: her hands' own frame, the palm centre on the point) along the
+ * horizontal axis (`ax`, `az`, unit): across her body, so the hand's frame is the overhand bar grip (palm forward,
+ * knuckles up), fixed to her facing whatever the arm does. No allocation.
+ */
+function palmGrip(t: WorldTarget, x: number, y: number, z: number, ax: number, az: number, w: number): void {
+  t.w = w;
+  t.x = t.cx = x;
+  t.y = t.cy = y;
+  t.z = t.cz = z;
+  t.ax = ax;
+  t.ay = 0;
+  t.az = az;
+  t.rad = -PALM_DEPTH;
+  t.hook = 0;
+}
+
+/**
+ * A guard's hand (no hands of its own): the wrist moves by the hand point's miss of `cmd`, the reach target is that
+ * wrist plus the rig's `back` along the shoulder line (`solveArm`). No allocation.
+ */
+function wristReach(rig: CharacterRig, side: 1 | -1, t: WorldTarget, hx: number, hy: number, hz: number, w: number): void {
+  clearGripAxis(t);
+  t.w = w;
+  if (w <= 0) return;
   const wr = abs(side > 0 ? rig.wristR : rig.wristL);
-  // the wrist where the hand point lands there (its offset from the wrist kept)
-  const wx = px - (hx - wr.x);
-  const wy = py - (hy - wr.y);
-  const wz = pz - (hz - wr.z);
+  const wx = cmd.x - (hx - wr.x);
+  const wy = cmd.y - (hy - wr.y);
+  const wz = cmd.z - (hz - wr.z);
   const S = abs(side > 0 ? rig.shoulderR : rig.shoulderL);
   const dx = wx - S.x;
   const dy = wy - S.y;
@@ -247,32 +289,40 @@ function reachOnto(rig: CharacterRig, side: 1 | -1, t: WorldTarget, mark: Vector
 
 /**
  * The attacker's hands (render frame, before the rigs pose). `ph` the move's phase, `sinceContact` s from the stab
- * (negative before it), `wGrip` the hands' weight (in over the grab, held to `limp`, out over `release`): the left
- * hand's palm on the grip mark; the right from the wind-up point (`windUp` back along his facing from the target) to the
- * target over the last `stabIn` before contact, the knife tip on it from contact (no knife: the palm). No allocation.
+ * (negative before it), `wGrip` the hands' weight (in from the press, held to `limp`, out over `release`): the left
+ * palm on the grip mark; the right from the wind-up point (`windUp` back along her facing from the target) to the
+ * target over `stabIn` (ending `lead` s before contact), the knife tip on it (no knife: the palm). Both on world grips
+ * across her body (`palmGrip`), so the knife's offset from the palm turns only with her facing. `tr` the pair's
+ * tracking (null: none). No allocation.
  */
 export function attackerHands(row: KnifeKillRow, ph: number, sinceContact: number, ar: CharacterRig, vr: CharacterRig, knife: KnifeTip | null, wGrip: number, tr: PairTrack | null = null): void {
   void ph;
+  const ay = ar.root.rotation.y;
+  const rx = Math.cos(ay);
+  const rz = -Math.sin(ay);
   gripMark(row, vr, mA);
-  palmWorld(ar, -1, mB);
-  reachOnto(ar, -1, ar.reachL, mA, mB.x, mB.y, mB.z, wGrip, tr ? tr.aL : null);
+  operatorPalm(ar, -1, mB);
+  track(mA, mB.x, mB.y, mB.z, wGrip, tr ? tr.aL : null);
+  palmGrip(ar.reachL, cmd.x, cmd.y, cmd.z, rx, rz, wGrip);
   knifeMark(row, vr, mA);
-  const k = ease((sinceContact + KNIFE.stabIn) / KNIFE.stabIn);
+  const k = ease((sinceContact + KNIFE.stabIn + KNIFE.lead) / KNIFE.stabIn);
   if (k < 1) {
-    const ay = ar.root.rotation.y;
     const W = KNIFE_MARKS.windUp * (1 - k);
     mA.x -= Math.sin(ay) * W;
     mA.z -= Math.cos(ay) * W;
   }
-  if (knife) knife.tipWorld(mB);
-  else palmWorld(ar, 1, mB);
-  reachOnto(ar, 1, ar.reachR, mA, mB.x, mB.y, mB.z, wGrip, tr ? tr.aR : null);
+  operatorPalm(ar, 1, mB);
+  if (knife) knife.tipWorld(mC);
+  else mC.copyFrom(mB);
+  track(mA, mC.x, mC.y, mC.z, wGrip, tr ? tr.aR : null);
+  // the palm where the tip lands there (the knife's offset from the palm as last drawn)
+  palmGrip(ar.reachR, cmd.x - (mC.x - mB.x), cmd.y - (mC.y - mB.y), cmd.z - (mC.z - mB.z), rx, rz, wGrip);
 }
 
 /** The guard's hands' weight `sinceContact` s from the stab: in over `victimHandsIn` before it, held to `limp`, out over
  *  `release`. */
 export function victimHandsW(row: KnifeKillRow, sinceContact: number): number {
-  const inW = ease((sinceContact + KNIFE.victimHandsIn) / KNIFE.victimHandsIn);
+  const inW = ease((sinceContact + KNIFE.victimHandsIn + KNIFE.lead) / KNIFE.victimHandsIn);
   const toLimp = (row.limp - row.contact) * row.seconds;
   return inW * (1 - ease((sinceContact - toLimp) / KNIFE.release));
 }
@@ -282,10 +332,12 @@ export function victimHands(row: KnifeKillRow, sinceContact: number, ar: Charact
   const w = victimHandsW(row, sinceContact);
   forearmMark(ar, vr, KNIFE_MARKS.foreR, 1, mA);
   palmWorld(vr, 1, mB);
-  reachOnto(vr, 1, vr.reachR, mA, mB.x, mB.y, mB.z, w, tr ? tr.vR : null);
+  track(mA, mB.x, mB.y, mB.z, w, tr ? tr.vR : null);
+  wristReach(vr, 1, vr.reachR, mB.x, mB.y, mB.z, w);
   forearmMark(ar, vr, KNIFE_MARKS.foreL, -1, mA);
   palmWorld(vr, -1, mB);
-  reachOnto(vr, -1, vr.reachL, mA, mB.x, mB.y, mB.z, w, tr ? tr.vL : null);
+  track(mA, mB.x, mB.y, mB.z, w, tr ? tr.vL : null);
+  wristReach(vr, -1, vr.reachL, mB.x, mB.y, mB.z, w);
 }
 
 /** Every hand of the pair off (an abort, the end). */
@@ -312,9 +364,9 @@ const dist = (a: Vector3, b: Vector3): number => {
 
 /** The contacts' misses now (after both rigs posed). For tests and S2's measure script. No allocation. */
 export function contactErrors(row: KnifeKillRow, ar: CharacterRig, vr: CharacterRig, knife: KnifeTip | null, out: ContactErrors): ContactErrors {
-  out.grip = dist(palmWorld(ar, -1, mB), gripMark(row, vr, mA));
+  out.grip = dist(operatorPalm(ar, -1, mB), gripMark(row, vr, mA));
   knifeMark(row, vr, mA);
-  out.tip = dist(knife ? knife.tipWorld(mB) : palmWorld(ar, 1, mB), mA);
+  out.tip = dist(knife ? knife.tipWorld(mB) : operatorPalm(ar, 1, mB), mA);
   forearmMark(ar, vr, KNIFE_MARKS.foreR, 1, mC);
   out.handR = dist(palmWorld(vr, 1, mD), mC);
   forearmMark(ar, vr, KNIFE_MARKS.foreL, -1, mC);

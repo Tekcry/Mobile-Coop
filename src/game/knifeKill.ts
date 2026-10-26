@@ -30,9 +30,11 @@ export function knifeSceneOn(flagOn: boolean, scene: string | undefined, live: b
 
 /**
  * Timings (s), angles (rad), distances (m). `noise` the kill's radius (A5: the choke's, not the lethal strike's 3 m);
- * `blendIn` / `blendOut` the attacker's drive weight; `gripIn` the grab: the last share of the approach the grip hand
- * reaches in over (and the guard is pulled to the row's spot); `stabIn` the knife hand's drive from the wind-up to the
- * target before contact; `victimHandsIn` his hands to the forearm before contact; `release` the hands off after `limp`;
+ * `blendIn` / `blendOut` the attacker's drive weight; `gripIn` the grab: the last share of the approach the guard is
+ * pulled to the row's spot over; `handsIn` the attacker's hands reach in over this first share of the approach (an arm
+ * takes ~6 frames to arrive, so they are on him when the grab ends); `stabIn` the knife hand's drive from the wind-up to
+ * the target, ending `lead` s before contact (the arm settles on it by then); `victimHandsIn` his hands to the forearm,
+ * on `lead` s before contact; `release` the hands off after `limp`;
  * the buckle (`buckleAt`): `bucklePitch` the fold, in over `buckleRise`, out over `buckleDecay`; `contactTol` the rule.
  */
 export const KNIFE = {
@@ -40,6 +42,8 @@ export const KNIFE = {
   blendIn: 0.12,
   blendOut: 0.15,
   gripIn: 0.45,
+  handsIn: 0.5,
+  lead: 0.06,
   stabIn: 0.12,
   victimHandsIn: 0.1,
   release: 0.15,
@@ -84,9 +88,9 @@ export interface KnifeKillRow {
  * holds him (the collapse is the ragdoll's after `limp`); `standoff` 0.4 (0.55 put his mouth past her arm's reach).
  */
 export const KNIFE_KILLS: readonly KnifeKillRow[] = [
-  { id: 'behind', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.4, side: 0, yawOff: 0, grip: 'mouth', target: 'kidney' },
-  { id: 'behindLow', attacker: 'mocap_crouch_to_stand', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.4, side: 0, yawOff: 0, grip: 'mouth', target: 'kidney' },
-  { id: 'corner', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_right', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.4, side: 0, yawOff: 0, grip: 'shoulder', target: 'neck' },
+  { id: 'behind', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'mouth', target: 'kidney' },
+  { id: 'behindLow', attacker: 'mocap_crouch_to_stand', victim: 'mocap_rifle_death_from_the_back', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'mouth', target: 'kidney' },
+  { id: 'corner', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_right', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.3, side: -0.1, yawOff: 0, grip: 'shoulder', target: 'neck' },
   { id: 'front', attacker: 'mocap_cross_punch', victim: 'mocap_rifle_death_from_the_front', seconds: 1.3, contact: 0.45, victimFrom: 0, victimTo: 0.4, limp: 0.8, standoff: 0.4, side: 0, yawOff: Math.PI, grip: 'shoulder', target: 'chest' },
 ];
 
@@ -105,6 +109,29 @@ export function pickKnifeKill(kind: TakedownKind, crouched: boolean): number {
     default:
       return -1;
   }
+}
+
+/** The grab's share (eased 0..1) `t` s into an approach of `approach` s: the grip hand reaches in, and the guard is
+ *  pulled to the row's spot, over its last `KNIFE.gripIn` share. */
+export function grabAt(t: number, approach: number): number {
+  if (approach <= 0) return 1;
+  const u = (t / approach - (1 - KNIFE.gripIn)) / KNIFE.gripIn;
+  const e = u <= 0 ? 0 : u >= 1 ? 1 : u;
+  return e * e * (3 - 2 * e);
+}
+
+/** The attacker's hands' weight `t` s into an approach of `approach` s (in over its first `KNIFE.handsIn` share). */
+export function handsAt(t: number, approach: number): number {
+  if (approach <= 0) return 1;
+  const u = t / (approach * KNIFE.handsIn);
+  const e = u <= 0 ? 0 : u >= 1 ? 1 : u;
+  return e * e * (3 - 2 * e);
+}
+
+/** The row's buckle (rad, + forward): towards the attacker, so the grip stays in reach: from behind he arches back into
+ *  the hand over his mouth, from the front he folds over the blade. */
+export function bucklePitchOf(row: KnifeKillRow): number {
+  return row.yawOff === 0 ? -KNIFE.bucklePitch : KNIFE.bucklePitch;
 }
 
 /** The victim clip's phase at the move's phase `ph` (0..1). */

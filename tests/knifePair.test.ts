@@ -16,8 +16,8 @@ import type { RigPose } from '../src/player/characterRig';
 vi.mock('../src/weapons/weaponMesh', () => ({ loadWeaponMesh: () => false }));
 
 const DT = 1 / 60;
-const WALK = 0.3;
-const TURN = 0.5;
+const WALK = process.env.KP_STATIC ? 0 : 0.3;
+const TURN = process.env.KP_STATIC ? 0 : 0.5;
 
 interface RowResult {
   grip: number;
@@ -44,6 +44,8 @@ async function runRow(row: number): Promise<RowResult> {
   const { TAKEDOWN } = await import('../src/game/takedown');
   const K = await import('../src/game/knifeKill');
   const P = await import('../src/game/knifePair');
+  if (process.env.KP_GAIN) P.PAIR_TRACK.gain = +process.env.KP_GAIN;
+  if (process.env.KP_PRED) P.PAIR_TRACK.predict = +process.env.KP_PRED;
   await K.loadKnifeClips();
   expect(K.knifeClipsReady()).toBe(true);
   const R = K.KNIFE_KILLS[row]!;
@@ -52,12 +54,12 @@ async function runRow(row: number): Promise<RowResult> {
   const world = { parts, map: { theme: { faction: 'urban' } }, addShadowCaster: () => {} };
   const op = operatorRig(scene, (s, h, sl) => parts.instance(s, h, sl), defaultLook(), `knife-${R.id}`);
   const ar = op.rig;
-  ar.tuneRows = true;
+  ar.tuneRows = !process.env.KP_NOTUNE;
   const { rig: vr, gun } = buildEnemyRig(scene, world as never, ENEMIES.grunt, `knife-guard-${R.id}`);
   gun?.setVisible(false);
   const knife = new KnifeModel(scene, ar, WREN_HANDS.R);
   knife.show(true);
-  const aPose: RigPose = { speed: WALK, localX: 0, localZ: 1, grounded: true, crouch: R.id === 'behindLow' ? 1 : 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
+  const aPose: RigPose = { speed: WALK, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
   const vPose: RigPose = { speed: 0, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
   const track = P.newPairTrack();
   const aD = newKillDrive();
@@ -65,7 +67,7 @@ async function runRow(row: number): Promise<RowResult> {
   aD.clip = K.knifeClip(row, false);
   vD.clip = K.knifeClip(row, true);
   vD.w = 1;
-  vD.bucklePitch = K.KNIFE.bucklePitch;
+  vD.bucklePitch = K.bucklePitchOf(R) * (process.env.KP_BK ? +process.env.KP_BK : 1);
   // where the guard stood: the takedown's standoff ahead (from behind, corner: his back to her; front: facing her);
   // a corner guard stands off to her right, round the corner
   const fromX = R.id === 'corner' ? 0.45 : 0;
@@ -99,8 +101,7 @@ async function runRow(row: number): Promise<RowResult> {
       ar.root.position.set(ax, 0, az);
       ar.root.rotation.y = ayaw;
       // the grab: the last `gripIn` share of the approach; then the move's clock
-      const kGrab = Math.min(1, Math.max(0, (t / approach - (1 - K.KNIFE.gripIn)) / K.KNIFE.gripIn));
-      const k = kGrab * kGrab * (3 - 2 * kGrab);
+      const k = K.grabAt(t, approach);
       const kt = t - approach;
       const ph = kt > 0 ? kt / R.seconds : 0;
       const since = kt - R.contact * R.seconds;
@@ -108,10 +109,10 @@ async function runRow(row: number): Promise<RowResult> {
       vr.root.position.set(vr0.x, vr0.y, vr0.z);
       vr.root.rotation.y = vr0.yaw;
       aD.phase = ph;
-      aD.w = kt > 0 ? Math.min(1, kt / K.KNIFE.blendIn) : 0;
+      aD.w = (kt > 0 ? Math.min(1, kt / K.KNIFE.blendIn) : 0) * (process.env.KP_AW ? +process.env.KP_AW : 1);
       vD.phase = K.victimPhase(R, ph);
       vD.buckle = K.buckleAt(since);
-      const wGrip = ph >= R.limp ? 0 : k;
+      const wGrip = ph >= R.limp ? 0 : K.handsAt(t, approach);
       P.attackerHands(R, ph, since, ar, vr, knife, wGrip, track);
       if (ph < R.limp) P.victimHands(R, since, ar, vr, track);
       ar.animate(DT, aPose);
