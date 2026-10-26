@@ -26,8 +26,8 @@ import type { CrashLog } from '../feedback/crashLog';
 import { classifyGpu, hudInset, runningOnWindows, uiScale, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
-import { controlsMigrationNotes, setAuto } from './settings';
-import { flags } from './flags';
+import { controlsMigrationNotes, setAuto, settingAnimSource } from './settings';
+import { flags, PREVIEW_ON } from './flags';
 import { ANIM_SOURCE, applyAnimSource } from '../anim/animSource'; // (mixamo-retarget Toggle)
 import { kept as keptParts, type KeptParts } from './keptParts';
 
@@ -154,7 +154,7 @@ export class App {
     // (mixamo-retarget Toggle) the mocap half is now one part of the Animation source (Options > Gameplay; default CMU,
     // today's game): `?anim=`, `?mocap=0/1`, the tuner box and `?mixamo=0/1` override it for this page
     const mocapApply = (): boolean =>
-      applyAnimSource({ setting: this.settings.get().gameplay.animSource, url: flags.anim, mocapUrl: flags.mocap, mocapTuner, mixamoUrl: flags.mixamo }).mocap;
+      applyAnimSource({ setting: settingAnimSource(this.settings.get().gameplay, PREVIEW_ON), url: flags.anim, mocapUrl: flags.mocap, mocapTuner, mixamoUrl: flags.mixamo }).mocap;
     mocapApply();
     tune.mocapHost = {
       get: () => ANIM_SOURCE.mocap,
@@ -165,9 +165,13 @@ export class App {
     };
     // (mixamo-retarget Toggle) the Anim Studio's Animation source switch: the same saved setting as Options > Gameplay
     tune.animSourceHost = {
-      get: () => this.settings.get().gameplay.animSource,
+      get: () => settingAnimSource(this.settings.get().gameplay, PREVIEW_ON),
       set: (v) => {
-        if (v === 'hand' || v === 'cmu' || v === 'mixamo') this.settings.update((d) => void (d.gameplay.animSource = v));
+        if (v === 'hand' || v === 'cmu' || v === 'mixamo')
+          this.settings.update((d) => {
+            d.gameplay.animSource = v;
+            d.gameplay.animSourceSet = true; // (F45) picked
+          });
       },
     };
     this.settings.subscribe((s) => {

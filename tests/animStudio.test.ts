@@ -19,6 +19,7 @@ import {
   type StudioInputOut,
   CLIP_BODY,
   captureClip,
+  loadStudioCaptures,
   studioBodyPin,
 } from '../src/anim/studio';
 import { MOCAP_SOURCE_NAMES, mocapSource } from '../src/anim/mocapSources';
@@ -74,7 +75,9 @@ describe('anim studio: the loop list', () => {
     expect(keyed.filter((e) => e.guard).map((e) => e.clip!.name).every((n) => n.startsWith('guard_'))).toBe(true);
   });
 
-  it('(mixamo-retarget M5) a "motion capture" group: every capture with its source in the label, picked up from its row', () => {
+  it('(mixamo-retarget M5) a "motion capture" group: every capture with its source in the label, picked up from its row', async () => {
+    // (I9 fix round) batch 2's captures load lazily, as the Studio opens
+    await loadStudioCaptures();
     const ids = STUDIO_ENTRIES.map((e) => e.id);
     const capIdx: number[] = [];
     let keyedCaps = 0;

@@ -246,7 +246,9 @@ const LOOK = {
   louvre: '#41464a',
 } as const;
 
-export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
+/** (J14) `opts.replan`: the re-planned yard, whose new and moved pieces (the drums, the beam panel, the apron bulkheads and switch)
+ *  are `replan/a5Substation.ts`'s; the guards below leave out what it removes or moves. */
+export function buildA5Substation(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): SetPart {
   const p = emptyPart('a5Substation');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean } = {}): void => {
@@ -267,13 +269,18 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
   for (const [k, d] of Object.entries(g.devices)) p.devices[k] = { ...d, label: 'Key the beam release' } satisfies CourseDevice;
   p.bay.gates.push(...g.gates);
   p.bay.gates.push({ kind: 'flag', id: A5_L5_GATE, flag: A5_RELEASE_FLAG, doorId: holdDoorId('L5', 'near') } satisfies FlagGate);
-  p.laserPanels.push({ ...A5_PANEL });
-  p.register.push({ id: 'A5-3', element: 'Beam power panel panel-a5 high on the switchroom\'s south face (43.0, 3.2, 35.85), facing the gateway: jammable, shown in electro (a laser panel, no builder piece)' });
+  // (J14) on the re-plan the panel moves into the switchroom, out of jam reach from the apron
+  if (!opts.replan) {
+    p.laserPanels.push({ ...A5_PANEL });
+    p.register.push({ id: 'A5-3', element: 'Beam power panel panel-a5 high on the switchroom\'s south face (43.0, 3.2, 35.85), facing the gateway: jammable, shown in electro (a laser panel, no builder piece)' });
+  }
 
-  // ---- A5-10: the cable drums on the apron ----
-  tally(b, p.register, 'A5-10', 'Cable-drum stack 1.8 m, x 62.1-64.3, z 29.4-33.0 (one collide box, a solo-standable top 4.1 m off the beam line: BEAM_KEEP_CLEAR 4.0, A5-D1)', () => {
-    slab(A5_DRUMS.x0, A5_DRUMS.x1, A5_DRUMS.z0, A5_DRUMS.z1, 0, A5_DRUMS.h, DRUM, { noLedge: false });
-  });
+  // ---- A5-10: the cable drums on the apron ((J14) on the re-plan they stand on the west strip: the trench is here) ----
+  if (!opts.replan) {
+    tally(b, p.register, 'A5-10', 'Cable-drum stack 1.8 m, x 62.1-64.3, z 29.4-33.0 (one collide box, a solo-standable top 4.1 m off the beam line: BEAM_KEEP_CLEAR 4.0, A5-D1)', () => {
+      slab(A5_DRUMS.x0, A5_DRUMS.x1, A5_DRUMS.z0, A5_DRUMS.z1, 0, A5_DRUMS.h, DRUM, { noLedge: false });
+    });
+  }
 
   // ---- A5-4: the transformer pens (1.2 m bunds, low cover; 3.5 m units, noLedge; gravel inside the bunds) ----
   tally(b, p.register, 'A5-4', 'Transformer pens 1 (x 42-48, z 24.3-29.3, against the south wall: A5-D4) and 2 (x 50-56, z 40.5-45.5: A5-D5): 0.25 m bund walls 1.2 m (low cover), 3.5 m units (noLedge), gravel inside the bunds (loud)', () => {
@@ -329,8 +336,11 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
     b.light({ kind: 'spot', x: f.x, y: f.y, z: f.z, radius: f.radius, intensity: f.intensity, color: SODIUM, cone: makeCone(f.aim[0] - f.x, f.aim[1] - f.y, f.aim[2] - f.z, f.outer), group: 52, electric: true, destructible: true, fixture: { sx: 0.4, sy: 0.16, sz: 0.3, oy: 0.06 } });
   });
   tally(b, p.register, 'A5-9', 'Apron 50 (three bulkheads on the east and north walls, switch by the L4 door), inner zone 51 (bulkheads on the inner wall, the south wall and the switchroom\'s east face, the switchroom panel; switch inside the front door), kiosk panel light 53 (its emergency supply)', () => {
-    bulkhead(69.55, 29.5, 50, false, 9, 1.2);
-    bulkhead(69.55, 38.5, 50, false, 9, 1.2);
+    // (J14) on the re-plan these two hang in the gap and its dead space: they move to the new wall's inside face
+    if (!opts.replan) {
+      bulkhead(69.55, 29.5, 50, false, 9, 1.2);
+      bulkhead(69.55, 38.5, 50, false, 9, 1.2);
+    }
     bulkhead(64.0, 47.55, 50, true, 9, 1.0);
     bulkhead(57.65, 27.0, 51, false, 9, 1.0);
     bulkhead(51.0, 24.45, 51, true, 9, 1.2);
@@ -341,7 +351,8 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
   });
   for (const [k, gr] of Object.entries(marlowCourseGroups())) if (k.startsWith('a5-')) p.groups[k] = gr;
   // wall switches: the apron's on the L4 wall north of the door's glass slot, the inner zone's inside the front door (the lure)
-  p.switches.push({ id: 'a5-sw-apron', group: 50, pos: { x: 69.7, y: 1.2, z: 36.0 }, yaw: -Math.PI / 2 });
+  // (J14) on the re-plan the apron switch moves to the new wall's inside face
+  if (!opts.replan) p.switches.push({ id: 'a5-sw-apron', group: 50, pos: { x: 69.7, y: 1.2, z: 36.0 }, yaw: -Math.PI / 2 });
   p.switches.push({ id: 'a5-sw-inner', group: 51, pos: { x: rx1 - h - 0.05, y: 1.2, z: 40.7 }, yaw: -Math.PI / 2 });
   // the set at its standby fill, open to the hall roof
   p.ambientZones.push({ id: 'A5', box: [40, 24, 70, 48], ambient: MARLOW_LEVEL.standby, minY: -1, maxY: HALL_H - 0.1 });
@@ -493,13 +504,15 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
     sheet('w', S.east, [SLOT], [], 2.3, WALL_TOP);
     // each bulkhead hangs 0.1 m off its wall: a back plate, two arms to the fixture, a conduit stub below
     for (const { side, at, c } of A5_BULKHEADS) {
+      // (J14) the two east-wall bulkheads move on the re-plan (their brackets go with them)
+      if (opts.replan && side === 'w' && at === S.east) continue;
       rect(side, at, c - 0.16, c + 0.16, 3.36, 3.68, 0.03, 0.06, LOOK.steelDark);
       rect(side, at, c - 0.1, c + 0.1, 3.5, 3.54, 0.06, 0.1, LOOK.steel);
       rect(side, at, c - 0.1, c + 0.1, 3.58, 3.62, 0.06, 0.1, LOOK.steel);
       rect(side, at, c - 0.02, c + 0.02, 3.0, 3.36, 0.03, 0.06, LOOK.pipe);
     }
     // the apron's wall switch (69.7, 1.2, 36.0) and the inner zone's inside the front door (45.8, 1.2, 40.7): a back box each, 1 cm behind the plate
-    rect('w', S.east, 35.85, 36.15, 1.05, 1.35, 0.02, 0.04, LOOK.steelDark);
+    if (!opts.replan) rect('w', S.east, 35.85, 36.15, 1.05, 1.35, 0.02, 0.04, LOOK.steelDark);
     rect('w', rx1 - h, 40.55, 40.85, 1.05, 1.35, 0.02, 0.04, LOOK.steelDark);
     // warning boards, and the fire point on the east wall
     sign('n', S.south, 50.2, 1.8, 0.7, 0.5);
@@ -550,7 +563,8 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
   });
 
   // ---- A5-15: the cable-drum stack: four timber drums on their sides (flange discs on the end faces, lagging on the sides), the cable laid in ----
-  tally(b, p.register, 'A5-15', 'Cable-drum stack dressing (visual skins, no collision): four drums with octagonal timber flanges, wound black cable, hubs and tags on the two end faces, flange edges, wound cable and cable lines on the sides, strapping over the top, the laydown outline in yellow, and the cable laid in through the gateway to the landing', () => {
+  // ((J14) the re-plan dresses its moved stack itself)
+  if (!opts.replan) tally(b, p.register, 'A5-15', 'Cable-drum stack dressing (visual skins, no collision): four drums with octagonal timber flanges, wound black cable, hubs and tags on the two end faces, flange edges, wound cable and cable lines on the sides, strapping over the top, the laydown outline in yellow, and the cable laid in through the gateway to the landing', () => {
     const { x0, x1, z0, z1, h: dh } = A5_DRUMS;
     for (const zc of A5_DRUM_ROWS) {
       for (const [side, at, dir] of [['e', x1, 1], ['w', x0, -1]] as const) {
@@ -679,9 +693,11 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
       for (let k = 0; k < 6; k++) face('s', rz0 - h, vx0 + 0.04, vx1 - 0.04, 3.05 + 0.085 * k, 3.075 + 0.085 * k, LOOK.steelDark, 2);
     }
     // the beam panel (43.0, 3.2, 35.85, 0.42 x 0.56 x 0.12): a label under it, a conduit from its top to the roof edge
-    face('s', rz0 - h, 42.85, 43.15, 2.55, 2.85, LOOK.yellow, 1);
-    face('s', rz0 - h, 42.9, 43.1, 2.65, 2.7, LOOK.black, 2);
-    face('s', rz0 - h, 42.98, 43.02, 3.48, rh, LOOK.pipe, 1);
+    if (!opts.replan) {
+      face('s', rz0 - h, 42.85, 43.15, 2.55, 2.85, LOOK.yellow, 1);
+      face('s', rz0 - h, 42.9, 43.1, 2.65, 2.7, LOOK.black, 2);
+      face('s', rz0 - h, 42.98, 43.02, 3.48, rh, LOOK.pipe, 1);
+    }
     // the flood's outrigger (the fixture box is x 44.3-44.7, y 4.18-4.34, z 35.45-35.75): two uprights on the roof edge, two arms under it
     for (const x of [44.32, 44.64]) {
       skin(x, x + 0.04, roofTop, 4.14, 35.88, 35.92, LOOK.steel);
@@ -824,8 +840,10 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
       for (let r = 1; r <= 5; r++) skin(lx0 + 0.15 + 0.14 * r - 0.01, lx0 + 0.15 + 0.14 * r + 0.01, 0.01, 0.016, tz0 + 0.12, tz1 - 0.12, LOOK.steel);
       for (const z of [tz0 + 0.3, tz1 - 0.36]) skin(lx0 + lw / 2 - 0.04, lx0 + lw / 2 + 0.04, 0.01, 0.014, z, z + 0.06, LOOK.seam);
     }
-    for (const [x0, z0, x1, z1] of JOINTS) paint(x0 - (x0 === x1 ? 0.01 : 0), x1 + (x0 === x1 ? 0.01 : 0), z0 - (z0 === z1 ? 0.01 : 0), z1 + (z0 === z1 ? 0.01 : 0), LOOK.seam, 0.005);
-    for (const [x0, x1, z0, z1] of [[66.2, 67.4, 28.4, 29.1], [60.4, 61.3, 38.4, 39.0], [49.3, 50.4, 31.0, 31.7], [53.2, 54.0, 28.1, 28.7], [47.0, 47.9, 38.0, 38.8], [65.0, 66.0, 44.0, 44.7], [44.2, 45.2, 30.6, 31.2], [54.9, 55.6, 45.9, 46.4]] as const) paint(x0, x1, z0, z1, LOOK.stain, 0.006);
+    // (J14) on the re-plan no seam or stain floats over the cable trench (x 62.35-65.85)
+    const overTrench = (x0: number, x1: number): boolean => opts.replan === true && x1 > 62.35 && x0 < 65.85;
+    for (const [x0, z0, x1, z1] of JOINTS) if (!overTrench(x0, x1)) paint(x0 - (x0 === x1 ? 0.01 : 0), x1 + (x0 === x1 ? 0.01 : 0), z0 - (z0 === z1 ? 0.01 : 0), z1 + (z0 === z1 ? 0.01 : 0), LOOK.seam, 0.005);
+    for (const [x0, x1, z0, z1] of [[66.2, 67.4, 28.4, 29.1], [60.4, 61.3, 38.4, 39.0], [49.3, 50.4, 31.0, 31.7], [53.2, 54.0, 28.1, 28.7], [47.0, 47.9, 38.0, 38.8], [65.0, 66.0, 44.0, 44.7], [44.2, 45.2, 30.6, 31.2], [54.9, 55.6, 45.9, 46.4]] as const) if (!overTrench(x0, x1)) paint(x0, x1, z0, z1, LOOK.stain, 0.006);
   });
 
   // ---- A5-20: the hall above the set (kit panels with accent coves, each on its circuit; no lamp) ----
