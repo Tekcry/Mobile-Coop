@@ -1,0 +1,15 @@
+{
+  "id": "20261026T071904-affected-e2e-a8bac697-0266",
+  "sha": "a8bac697bcd01ad9ef2ddf20509f83cf2c72751d",
+  "branch": "feature/mission-b-sector",
+  "pr": 578,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #578"
+}
