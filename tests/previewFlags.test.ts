@@ -59,7 +59,9 @@ describe('source guard', () => {
     expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
   });
 
-  it('mixamo stays on its own switch (A1)', () => {
+  it('mixamo: the URL stays its own switch; /preview/ turns the captures on when the URL names none', () => {
     expect(body).toMatch(/mixamo: onOffFlag\(params\.get\('mixamo'\)\)/);
+    const mixamo = readFileSync(resolve(__dirname, '../src/anim/mixamo.ts'), 'utf8');
+    expect(mixamo).toContain('setMixamo(flags.mixamo ?? PREVIEW_ON)');
   });
 });

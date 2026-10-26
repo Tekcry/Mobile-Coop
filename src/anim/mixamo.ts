@@ -17,7 +17,7 @@
  * - `crawl`: the vent crawl on the hand cadence.
  */
 import type { Clip } from './clip';
-import { flags } from '../core/flags';
+import { flags, PREVIEW_ON } from '../core/flags';
 import { CH, type Channel } from './pose';
 import { MOCAP_HANGING_IDLE, MOCAP_HANGING_IDLE_SECONDS } from './clips/mixamo/trav_hanging_idle';
 import { MOCAP_BRACED_HANG_SHIMMY_LEFT } from './clips/mixamo/trav_braced_hang_shimmy_left';
@@ -451,4 +451,4 @@ function resolveMixamoCarryStrike(): void {
   S.contact = S.clip !== null ? strikeContact(S.clip) : 0;
 }
 
-setMixamo(flags.mixamo === true);
+setMixamo(flags.mixamo ?? PREVIEW_ON);
