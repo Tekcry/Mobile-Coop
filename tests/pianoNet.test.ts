@@ -37,7 +37,7 @@ describe('the sector message carries the host EMP press (ep)', () => {
 });
 
 describe('the client page: its own intro, ended by the host EMP', () => {
-  function client() {
+  function client(over: Partial<PianoWorld> = {}) {
     const log: string[] = [];
     let local = false;
     const hooks: PianoEmpHooks = {
@@ -69,6 +69,7 @@ describe('the client page: its own intro, ended by the host EMP', () => {
       view: () => null,
       knifeScene: (on) => void log.push(`knife ${on}`),
       askEmp: () => void log.push('ask'),
+      ...over,
     };
     const h: PianoHost = {
       weapons: { slots: [], gadgets: { counts: {} }, index: 0, switchTo: () => undefined },
@@ -115,6 +116,24 @@ describe('the client page: its own intro, ended by the host EMP', () => {
     expect(c.log.slice(3)).toEqual(['hud true', `objective ${OBJECTIVE_LINE}`]);
     for (let i = 0; i < 30; i++) c.sc.step(0.1, true);
     expect(c.log.some((l) => /spawn|search|mainsOff|dark|items/.test(l))).toBe(false);
+  });
+
+  it('(S8) the press pose plays on the client page only when it asked; its play look is slot 1 (south)', () => {
+    for (const asked of [true, false]) {
+      const mine: boolean[] = [];
+      const looks: number[] = [];
+      const view = { burst: (_x: number, _y: number, _z: number, m: boolean) => void mine.push(m), cut: () => undefined, reveal: () => undefined, revealing: false, dispose: () => undefined };
+      const c = client({ view: () => view, playLook: (y) => void looks.push(y) });
+      c.intro.musicStarted();
+      c.intro.step(PROMPT_AT);
+      if (asked) {
+        c.press(true);
+        c.sc.step(1 / 60, true);
+      }
+      c.sc.hostEmp(60);
+      expect(mine).toEqual([asked]);
+      expect(looks).toEqual([Math.PI]);
+    }
   });
 
   it('PianoIntro.hostPress: once, from anywhere (also while waiting for the music)', () => {

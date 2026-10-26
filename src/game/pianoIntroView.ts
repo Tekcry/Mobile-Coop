@@ -1,4 +1,4 @@
-import { Color3, CreateBox, CreateSphere, StandardMaterial, TransformNode, Vector3, type InstancedMesh, type Mesh } from '../core/babylon';
+import { Color3, CreateBox, StandardMaterial, TransformNode, Vector3, type InstancedMesh, type Mesh } from '../core/babylon';
 import { hyp2, hyp3 } from '../core/mathx';
 import type { GameState, SceneView } from './gameState';
 import type { PartLibrary } from '../world/partLibrary';
@@ -15,8 +15,16 @@ import {
   DRY_CLICK_AT,
   EMP_LABEL,
   INTRO_ACTORS,
+  OPERATOR_SPOTS,
   PROMPT_AT,
   type PianoIntro,
+  camFromRotation,
+  empFlash,
+  glideCamera,
+  pressHand,
+  pressHandAt,
+  knifeHandAt,
+  PRESS_S,
   REVEAL_S,
   SKIP_HOLD_S,
   TRACER_SPEED,
@@ -38,6 +46,11 @@ import { ENEMIES } from '../ai/enemyDefs';
  * `SceneView` seam: placed after the game view, gameplay keeps reading `cam.gamePos`), the black fade and the muzzle
  * flicker (two DOM layers), the letterbox, the four intro actors (`IntroActor`: posed stand-ins until Guard AI's
  * GuardActor, #611), their tracers and grain dust at 0.3x, the EMP prompt and burst, and the two framed reveals in play.
+ * (S8) One unbroken shot: the rounds punch splinters and dust out of W1 behind the operator, the press pose on the
+ * presser's own page, a small spark at the belt (the existing muzzle flash and sparks), the black beat, the knife hand,
+ * the view-side lightning (an unlit sheet on W1's face behind the operators and a cold screen lift: a strike, an
+ * afterglow and a softer second strike through the glide; no light, so gameplay and the meter never see it), and the
+ * glide into the shoulder camera.
  * Built once at the scene's start; every per-frame write goes into kept nodes and the scratch objects below (no
  * allocation per frame).
  */
@@ -179,10 +192,22 @@ const STREAK = 1.2;
 const DUST_N = 3;
 const DUST_S = 1.2;
 const DUST_FALL = 9.8 * ACTOR_RATE * ACTOR_RATE;
-/** The EMP burst: grows to `BURST_R` m by `BURST_UP` s, gone by `BURST_S` s. */
-const BURST_R = 1.4;
-const BURST_UP = 0.15;
-const BURST_S = 0.6;
+/** (S8 fix) The EMP's spark at the belt: the existing muzzle flash (size m, life s) and a few cold sparks. */
+const SPARK_FLASH = 0.1;
+const SPARK_FLASH_S = 0.05;
+const SPARK_N = 6;
+const SPARK_HEX = '#9cc8ff';
+/** (S8 fix) The flash sheet's alpha stays under 1 so it never leaves the alpha-blend pass (no new shader at the flash). */
+const FLASH_ALPHA_MAX = 0.99;
+/** (S8) Rounds punch through W1: splinters and grain dust out of its west face (x) behind the operators, drifting slow. */
+const W1_WEST_X = 4.5;
+/** (S8) The flash's backlight: a sheet on W1's west face (x, y 0-2.8, z 3-7.5), so the operators stand black against it. */
+const FLASH_X = 4.47;
+const FLASH_H = 2.8;
+const FLASH_Z0 = 3;
+const FLASH_Z1 = 7.5;
+/** (S8) The cold flash over the whole picture (screen blend) at its peak. */
+const FLASH_SCREEN = 0.3;
 /** Opacity strings 0..1 by hundredths (style writes allocate nothing). */
 const OPACITY: readonly string[] = Array.from({ length: 101 }, (_, i) => String(i / 100));
 
@@ -190,6 +215,13 @@ const op = (x: number): string => OPACITY[Math.max(0, Math.min(100, Math.round(x
 
 export class PianoIntroView implements SceneView, PianoView {
   private readonly cam: IntroCam = introCam();
+  /** (S8) The shoulder camera's own pose this frame (the glide's end). */
+  private readonly shoulder: IntroCam = introCam();
+  private readonly hand = pressHand();
+  private readonly knifeHand = pressHand();
+  /** (S8 fix) The spark's place and direction (kept: the burst writes into them). */
+  private readonly sparkP = new Vector3();
+  private readonly sparkN = new Vector3();
   private readonly shot = shotLine();
   private readonly actors: IntroActor[] = [];
   /** Per actor: the shot number last fired (-1 none), whether it fired, and its muzzle at the shot (x, y, z). */
@@ -199,24 +231,30 @@ export class PianoIntroView implements SceneView, PianoView {
   private readonly mz = new Vector3();
   private readonly tracerBase: Mesh;
   private readonly dustBase: Mesh;
-  private readonly burstMesh: Mesh;
+  private readonly flashMesh: Mesh;
+  private readonly flashMat: StandardMaterial;
   private readonly tracers: InstancedMesh[] = [];
   private readonly dust: InstancedMesh[] = [];
+  /** (S8) Per actor `DUST_N` bits out of W1's west face (the first a splinter). */
+  private readonly exit: InstancedMesh[] = [];
   private readonly mats: StandardMaterial[] = [];
   private readonly black: HTMLDivElement | null;
   private readonly flash: HTMLDivElement | null;
+  private readonly cold: HTMLDivElement | null;
   private readonly prompt: HTMLDivElement | null;
   private lastBlack = '';
   private lastFlash = '';
+  private lastCold = '';
+  /** (S8) This page pressed: the press pose plays on our operator; it holds the left hand's reach while on. */
+  private pressMine = false;
+  private handOn = false;
+  /** (S8 fix) The knife hand's reach is held (released at the cut). */
+  private knifeOn = false;
   private promptShown = false;
   private boxed = false;
   private clicked = false;
   private actorsGone = false;
   private isCut = false;
-  private bx = 0;
-  private by = 0;
-  private bz = 0;
-  private burstT = -1;
   private revealI = -1;
   private revealT = -1;
   private disposed = false;
@@ -245,7 +283,13 @@ export class PianoIntroView implements SceneView, PianoView {
     };
     this.tracerBase = base(CreateBox('piano-tracer', { size: 1 }, scene), unlit('piano-tracer', 1, 0.82, 0.45));
     this.dustBase = base(CreateBox('piano-dust', { size: 1 }, scene), unlit('piano-dust', 0.62, 0.55, 0.42));
-    this.burstMesh = base(CreateSphere('piano-emp', { diameter: 1, segments: 8 }, scene), unlit('piano-emp', 0.35, 0.62, 1, 0.75));
+    // (S8) the flash's backlight sheet (unlit, render only: no light, so gameplay and the meter never see it)
+    this.flashMat = unlit('piano-flash', 0.78, 0.86, 1, 0);
+    this.flashMesh = base(CreateBox('piano-flash', { size: 1 }, scene), this.flashMat);
+    this.flashMesh.scaling.set(0.01, FLASH_H, FLASH_Z1 - FLASH_Z0);
+    this.flashMesh.position.set(FLASH_X, FLASH_H / 2, (FLASH_Z0 + FLASH_Z1) / 2);
+    // compiled now (in the intro's black), not on the flash's first frame
+    this.flashMat.forceCompilation(this.flashMesh);
     for (let i = 0; i < INTRO_ACTORS.length; i++) {
       const t = this.tracerBase.createInstance(`piano-tracer-${i}`);
       t.isVisible = false;
@@ -255,6 +299,11 @@ export class PianoIntroView implements SceneView, PianoView {
         d.isVisible = false;
         d.scaling.setAll(0.07);
         this.dust.push(d);
+        const x = this.dustBase.createInstance(`piano-exit-${i}-${j}`);
+        x.isVisible = false;
+        if (j === 0) x.scaling.set(0.018, 0.018, 0.14);
+        else x.scaling.setAll(0.06);
+        this.exit.push(x);
       }
       const a = this.makeActor(i);
       a.setRate(0);
@@ -273,6 +322,7 @@ export class PianoIntroView implements SceneView, PianoView {
       return el;
     };
     this.flash = layer('background:#ffb45a;mix-blend-mode:screen;opacity:0;z-index:8998');
+    this.cold = layer('background:#a9c8ff;mix-blend-mode:screen;opacity:0;z-index:8998');
     this.black = layer('background:#000;opacity:1;z-index:8999');
     this.prompt = layer(
       "inset:auto 0 18% 0;text-align:center;font:600 22px/1.4 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:#e8edf2;text-shadow:0 1px 3px #000;opacity:0;transition:opacity .4s;z-index:9001",
@@ -329,9 +379,26 @@ export class PianoIntroView implements SceneView, PianoView {
       this.boxed = true;
       g.letterbox(LETTERBOX_HOLD);
     }
-    this.place(intro.camera(this.cam));
+    intro.camera(this.cam);
+    // (S8) the glide: from the hero shot into the shoulder camera's own pose this frame (the game view placed it just
+    // before this; `cam.gamePos` and the aim are untouched)
+    const gl = intro.glide;
+    if (gl > 0) {
+      const gc = g.player.cam.camera;
+      camFromRotation(gc.position.x, gc.position.y, gc.position.z, gc.rotation.x, gc.rotation.y, gc.fov, this.shoulder);
+      glideCamera(this.cam, this.shoulder, gl, this.cam);
+    }
+    this.place(this.cam);
     const t = intro.t;
     const pressed = intro.pressT >= 0;
+    // (S8) the flash: the sheet behind the operators and a cold lift over the picture
+    const fl = pressed ? empFlash(intro.sinceEmp) : 0;
+    this.flashMesh.isVisible = fl > 0.01;
+    this.flashMat.alpha = Math.min(FLASH_ALPHA_MAX, fl);
+    const cf = op(fl * FLASH_SCREEN);
+    if (cf !== this.lastCold && this.cold) this.cold.style.opacity = this.lastCold = cf;
+    if (this.pressMine) this.pressPose(intro.sinceEmp);
+    if (pressed) this.knifePose(intro.sinceEmp);
     // the layers: the fade, the flicker on the bins and the face, the prompt
     const b = op(intro.fade());
     if (b !== this.lastBlack && this.black) this.black.style.opacity = this.lastBlack = b;
@@ -350,15 +417,56 @@ export class PianoIntroView implements SceneView, PianoView {
     // the actors and their rounds; at the press they go (the guards spawn on their spots)
     if (pressed) this.actorsOff();
     else this.actorsFrame(t, Math.min(rdt, ACTOR_DT_MAX));
-    // the EMP burst at the belt
-    if (this.burstT >= 0) {
-      this.burstT += rdt;
-      const e = this.burstT;
-      const r = e < BURST_UP ? (e / BURST_UP) * BURST_R : BURST_R * Math.max(0, 1 - (e - BURST_UP) / (BURST_S - BURST_UP));
-      this.burstMesh.isVisible = e < BURST_S && r > 0.01;
-      this.burstMesh.position.set(this.bx, this.by, this.bz);
-      this.burstMesh.scaling.setAll(Math.max(0.01, r));
+  }
+
+  /**
+   * (S8) The press pose (a placeholder, no clip): this page's operator's left hand to the device at his belt, up as he
+   * presses it, then back (the rig's world reach; render only). Ends by `PRESS_S`.
+   */
+  private pressPose(e: number): void {
+    const h = pressHandAt(e, this.hand);
+    const pl = this.g.player;
+    const r = pl.rig.reachL;
+    if (e >= PRESS_S) {
+      if (this.handOn) r.w = 0;
+      this.handOn = false;
+      this.pressMine = false;
+      return;
     }
+    this.reachAt(r, h);
+    this.handOn = true;
+  }
+
+  /**
+   * (S8 fix) The knife hand (a placeholder, no clip): this page's operator's right fist, the knife in it, out in front
+   * and to his right (outside his outline against the lit bin face), from the black through the flash, eased off over
+   * the glide's end (the rig's world reach; render only).
+   */
+  private knifePose(e: number): void {
+    const h = knifeHandAt(e, this.knifeHand);
+    const pl = this.g.player;
+    const r = pl.rig.reachR;
+    if (h.w <= 0) {
+      if (this.knifeOn) r.w = 0;
+      this.knifeOn = false;
+      return;
+    }
+    this.reachAt(r, h);
+    this.knifeOn = true;
+  }
+
+  /** A body-frame hand offset (forward, up, left) from the operator's feet into world reach `r`. */
+  private reachAt(r: { x: number; y: number; z: number; w: number }, h: { f: number; u: number; s: number; w: number }): void {
+    const pl = this.g.player;
+    const yaw = pl.controller.renderYaw;
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+    // the left of a +z-facing body is -x: left = (-cos, +sin)
+    const p = pl.position;
+    r.x = p.x + fx * h.f - fz * h.s;
+    r.y = p.y + h.u;
+    r.z = p.z + fz * h.f + fx * h.s;
+    r.w = h.w;
   }
 
   /** The actors walk from their start times at 0.3x, fire on the timetable (tracers from their muzzles), idle aimed. */
@@ -368,7 +476,7 @@ export class PianoIntroView implements SceneView, PianoView {
       a.setRate(t >= ACTOR_START[i]! ? ACTOR_RATE : 0);
       a.step(adt);
       this.tracers[i]!.isVisible = false;
-      for (let j = 0; j < DUST_N; j++) this.dust[i * DUST_N + j]!.isVisible = false;
+      for (let j = 0; j < DUST_N; j++) this.dust[i * DUST_N + j]!.isVisible = this.exit[i * DUST_N + j]!.isVisible = false;
       if (t >= PROMPT_AT || !shotAt(i, t, this.shot)) continue;
       const s = this.shot;
       if (s.n !== this.firedN[i]) {
@@ -403,6 +511,7 @@ export class PianoIntroView implements SceneView, PianoView {
     for (const a of this.actors) a.dispose();
     for (const t of this.tracers) t.isVisible = false;
     for (const d of this.dust) d.isVisible = false;
+    for (const d of this.exit) d.isVisible = false;
   }
 
   /** Actor `i`'s round in flight (a streak) or its impact's grain dust. */
@@ -427,6 +536,19 @@ export class PianoIntroView implements SceneView, PianoView {
     }
     const h = s.age - flight;
     if (h >= DUST_S) return;
+    // (S8) the round punches through W1: splinters and grain dust out of its west face beside this page's operator
+    const opz = (OPERATOR_SPOTS[this.intro.slot] ?? OPERATOR_SPOTS[0]!)[1];
+    const sgn = (s.n + i) % 2 === 0 ? 1 : -1;
+    const ez = opz + sgn * (0.25 + ((s.n * 1.3 + i * 0.7) % 0.3));
+    const ey = 1.2 + ((s.n * 0.9 + i * 0.37) % 0.6);
+    for (let j = 0; j < DUST_N; j++) {
+      const d = this.exit[i * DUST_N + j]!;
+      const sp = ((s.n * 5 + j * 3) % 5) / 5 - 0.4;
+      const v = 0.25 + j * 0.1;
+      d.position.set(W1_WEST_X - v * h, ey + 0.2 * v * h - 0.5 * DUST_FALL * h * h, ez + sp * 0.3 * h);
+      if (j === 0) d.rotation.set(h * 2.1, 0.6 + h * 1.3, 0);
+      d.isVisible = true;
+    }
     // the dust bursts back off the bins' face (north face for the stair pair, east face for the aisle pair)
     const nx = i < 2 ? 0 : 1;
     const nz = i < 2 ? 1 : 0;
@@ -450,12 +572,24 @@ export class PianoIntroView implements SceneView, PianoView {
     cam.fov = c.fov;
   }
 
-  /** (`PianoView`) The EMP burst at the pressing operator's belt, and the existing EMP sound. */
-  burst(x: number, y: number, z: number): void {
-    this.bx = x;
-    this.by = y;
-    this.bz = z;
-    this.burstT = 0;
+  /**
+   * (`PianoView`) The EMP burst at the pressing operator's belt, and the existing EMP sound. `mine`: this page pressed,
+   * so the press pose plays on our operator (the partner's figure does not show it: that needs a wire field).
+   */
+  burst(x: number, y: number, z: number, mine: boolean): void {
+    this.pressMine = mine;
+    // (S8 fix) the prompt goes the moment of the press (no fade)
+    if (this.prompt) {
+      this.prompt.style.transition = 'none';
+      this.prompt.style.opacity = '0';
+    }
+    this.promptShown = false;
+    // (S8 fix) a small, short spark at the belt (the existing muzzle flash and sparks), out in front of him
+    const yaw = this.g.player.controller.renderYaw;
+    this.sparkN.set(Math.sin(yaw), 0.3, Math.cos(yaw));
+    this.sparkP.set(x + this.sparkN.x * 0.15, y, z + this.sparkN.z * 0.15);
+    this.g.vfx.muzzleFlash(this.sparkP, SPARK_FLASH, SPARK_FLASH_S);
+    this.g.vfx.sparks(this.sparkP, this.sparkN, SPARK_N, SPARK_HEX);
     this.g.events.emit('gadget', { kind: 'emp', phase: 'detonate' });
   }
 
@@ -492,13 +626,19 @@ export class PianoIntroView implements SceneView, PianoView {
     this.tracers.length = 0;
     for (const d of this.dust) d.dispose();
     this.dust.length = 0;
+    for (const d of this.exit) d.dispose();
+    this.exit.length = 0;
     this.tracerBase.dispose();
     this.dustBase.dispose();
-    this.burstMesh.dispose();
+    this.flashMesh.dispose();
     for (const m of this.mats) m.dispose();
     this.mats.length = 0;
+    if (this.handOn) this.g.player.rig.reachL.w = 0;
+    if (this.knifeOn) this.g.player.rig.reachR.w = 0;
+    this.handOn = this.pressMine = this.knifeOn = false;
     this.black?.remove();
     this.flash?.remove();
+    this.cold?.remove();
     this.prompt?.remove();
   }
 

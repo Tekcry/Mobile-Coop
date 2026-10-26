@@ -3195,6 +3195,8 @@ export class GameState implements AppState {
       else this.gadgets.look(look.x, look.y);
       look.x = look.y = 0;
     }
+    // (piano-escape S8 check) a scene view holding the input owns the camera: no look turns it (play starts as it set it)
+    if (this.sceneView?.holdsInput) look.x = look.y = 0;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
     // scoped (marksman optics): a slow breathing sway, steadier crouched and still

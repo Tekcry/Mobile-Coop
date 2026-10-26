@@ -31,7 +31,7 @@ import {
   type PianoMusic,
   type PianoWorld,
 } from '../src/game/pianoScene';
-import { EMP_CUT_S, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PROMPT_AT, RADIO_LINE, SKIP_SEEK } from '../src/game/pianoIntro';
+import { EMP_CUT_S, EMP_KNIFE_AT, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PROMPT_AT, RADIO_LINE, SKIP_SEEK } from '../src/game/pianoIntro';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import type { GameState } from '../src/game/gameState';
 import { hyp2 } from '../src/core/mathx';
@@ -433,7 +433,36 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     expect(c).toEqual(['true mirror', 'false mirror']);
   });
 
-  it('press + 2.5 s: the cut (input on, the HUD, the radio line, the objective line)', () => {
+  it('(S8) the press pose on the presser only, the play look at the press, the knife drawn in the black (before the flash) and away at the cut', () => {
+    const log: string[] = [];
+    const bursts: boolean[] = [];
+    const view = { burst: (_x: number, _y: number, _z: number, mine: boolean) => void bursts.push(mine), cut: () => void log.push('cut'), reveal: () => undefined, revealing: false, dispose: () => undefined };
+    const s = started({ view: () => view, knifeReady: (on) => void log.push(`knife ready ${on}`), playLook: (y) => void log.push(`look ${y}`) });
+    toPrompt(s);
+    s.sc.press('local');
+    expect(bursts).toEqual([true]);
+    expect(log).toEqual([`look ${PLAY_YAW[0]}`]);
+    s.intro.step(EMP_KNIFE_AT - 0.05);
+    s.sc.step(1 / 60, true);
+    expect(log).toHaveLength(1);
+    s.intro.step(0.1);
+    s.sc.step(1 / 60, true);
+    s.sc.step(1 / 60, true);
+    expect(log).toEqual([`look ${PLAY_YAW[0]}`, 'knife ready true']);
+    s.intro.step(EMP_CUT_S);
+    s.sc.step(1 / 60, true);
+    expect(log).toEqual([`look ${PLAY_YAW[0]}`, 'knife ready true', 'knife ready false', 'cut']);
+    s.sc.dispose();
+    expect(log).toHaveLength(4);
+    // a partner's press (a client's item use on the host): the burst is not ours
+    const b: boolean[] = [];
+    const p = started({ view: () => ({ ...view, burst: (_x: number, _y: number, _z: number, mine: boolean) => void b.push(mine) }) });
+    toPrompt(p);
+    p.sc.press('peer-1');
+    expect(b).toEqual([false]);
+  });
+
+  it(`press + ${EMP_CUT_S} s: the glide has settled, the cut (input on, the HUD, the radio line, the objective line)`, () => {
     const s = started();
     toPrompt(s);
     s.sc.press('local');

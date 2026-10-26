@@ -74,9 +74,14 @@ try {
   await sim(0.8);
   assert(await G(() => window.__app.current.world.level.lights.lights.filter((l) => l.electric && l.on && !l.destroyed).length === 0), `every lamp is dead (${d.lampsCut} cut)`);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === true), 'input still held in the black-out beat');
-  await sim(2.0);
+  // (S8) the glide from the hero shot into the shoulder camera runs press + 2.3-3.5 s; input comes on as it settles
+  await sim(1.7); // press + 0.1 + 0.8 (the ripple) + 1.7 = press + 2.6 s
   d = await dbg();
-  assert(d.inPlay && d.shot === 'play', `the cut to play at press + 2.5 s (${d.shot})`);
+  assert(d.shot === 'glide' && !d.inPlay, `the glide into the shoulder camera at press + 2.6 s (${d.shot})`);
+  assert(await G(() => window.__app.current.sceneView?.holdsInput === true), 'input still held in the glide');
+  await sim(1.3);
+  d = await dbg();
+  assert(d.inPlay && d.shot === 'play', `the cut to play at press + 3.5 s, the glide settled (${d.shot})`);
   assert(await G(() => window.__app.current.sceneView?.holdsInput === false), 'input on at the cut');
   await sim(0.5);
   const lv = await G(() => window.__app.current.lightLevel);

@@ -3,7 +3,7 @@ import type { PlayerRef } from '../ai/enemy';
 import type { AmmoSlot } from '../weapons/loadoutSnapshot';
 import type { GameState, SessionCallbacks } from './gameState';
 import type { Interactable } from './interactables';
-import { EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
+import { EMP_KNIFE_AT, EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
 import { exitZone, inZone, type SectorDef } from './sectors';
 import { hyp2 } from '../core/mathx';
 import { flags } from '../core/flags';
@@ -180,8 +180,8 @@ export interface PianoMusic {
 
 /** (S2) The render-only intro view (`pianoIntroView.ts`); none in tests. */
 export interface PianoView {
-  /** The EMP burst at the pressing operator's belt (and the EMP sound). */
-  burst(x: number, y: number, z: number): void;
+  /** The EMP burst at the pressing operator's belt (and the EMP sound). `mine`: this page pressed (S8: the press pose). */
+  burst(x: number, y: number, z: number, mine: boolean): void;
   /** The cut to play: the intro camera, actors, layers and letterbox go. */
   cut(): void;
   /** Framed reveal `i` (`REVEALS`) starts. */
@@ -226,6 +226,14 @@ export interface PianoWorld {
    * selected weapon: `start` selects it first) at low ready, slide locked. Absent: no pose (tests).
    */
   introPose?(on: boolean, variant: IntroVariant): void;
+  /**
+   * (S8) The knife drawn in the black before the flash (`EMP_KNIFE_AT`; placeholder: the pistol holstered, the knife
+   * model in the right fist of this page's operator, the view holds the hand out in front; no clip; the remote figure
+   * does not show it: that needs a wire field) and put away at the cut.
+   */
+  knifeReady?(on: boolean): void;
+  /** (S8) The game camera's look (yaw) for play, set at the press so the glide lands on an open boom. */
+  playLook?(yaw: number): void;
   /**
    * (S4) Co-op client only (absent on the host and solo): send this page's EMP press to the host, which checks it like
    * any item use. The client's spawn, search, mains cut and reveals are the host's; its intro ends on `hostEmp`.
@@ -294,8 +302,22 @@ export function pianoClientWorld(g: GameState, c: PianoClientSeam): PianoWorld {
     view: (intro, onSkip) => c.view(intro, onSkip),
     knifeScene: (on) => knifeSwitch(g, on),
     introPose: (on, v) => void g.introPose(on, v),
+    knifeReady: (on) => knifeReady(g, on),
+    playLook: (yaw) => playLook(g, yaw),
     askEmp: () => c.askEmp(),
   };
+}
+
+/** (S8) The knife drawn for the flash (the pistol holstered first) or put away: the knife model and the stance's holster. */
+export function knifeReady(g: { readonly player: { readonly stance: { holster(): void } }; readonly weapons: { readonly knife: { show(on: boolean): void } } }, on: boolean): void {
+  if (on) g.player.stance.holster();
+  g.weapons.knife.show(on);
+}
+
+/** (S8) The game camera's look for play: this yaw, level. */
+export function playLook(g: { readonly player: { readonly cam: { yaw: number; pitch: number } } }, yaw: number): void {
+  g.player.cam.yaw = yaw;
+  g.player.cam.pitch = 0;
 }
 
 /** (S4, knife PB5) The knife switch on a match: the gate is the flag, the map's `scene` and the scene's live state. */
@@ -376,6 +398,8 @@ export function pianoWorld(g: GameState, m: PianoModeSeam): PianoWorld {
     view: (intro, onSkip) => m.view(intro, onSkip),
     knifeScene: (on) => knifeSwitch(g, on),
     introPose: (on, v) => void g.introPose(on, v),
+    knifeReady: (on) => knifeReady(g, on),
+    playLook: (yaw) => playLook(g, yaw),
     endNet: () => g.net?.onEnd?.(true, ''),
     toLobby() {
       // the session's callbacks (`GameState.cb`, private: the pause menu's own lobby hook reads the same)
@@ -425,6 +449,9 @@ export class PianoScene {
   /** (S4b) The intro pose is on; a restart before the EMP takes it off and puts it back after the respawn. */
   private posed = false;
   private rePoseT = -1;
+  /** (S8) This page asked the host for the EMP (co-op client: the press pose is ours); the knife is drawn (the flash). */
+  private asked = false;
+  private drawn = false;
   private wasOpen = true;
   private readonly revealed = [false, false];
   private readonly at = { x: 0, y: 0, z: 0 };
@@ -516,7 +543,10 @@ export class PianoScene {
       if (!intro.promptOn) return;
       // (S4) a co-op client sends its press to the host (once per button press); its beat comes with `hostEmp`
       if (w.askEmp) {
-        if (w.localPress()) w.askEmp();
+        if (w.localPress()) {
+          this.asked = true;
+          w.askEmp();
+        }
         return;
       }
       if (!this.itemsOn) {
@@ -525,6 +555,11 @@ export class PianoScene {
       }
       if (w.localPress()) this.press('local');
       return;
+    }
+    // (S8) the knife out in the black, in hand for the flash (this page's operator; a placeholder pose)
+    if (!this.inPlay && !this.drawn && intro.sinceEmp >= EMP_KNIFE_AT) {
+      this.drawn = true;
+      w.knifeReady?.(true);
     }
     if (!this.inPlay && intro.done) this.cut();
     // (S4) a co-op client: the spawn, the search and the reveals are the host's
@@ -563,7 +598,9 @@ export class PianoScene {
     const x = this.at.x;
     const y = this.at.y + BELT_Y;
     const z = this.at.z;
-    this.view?.burst(x, y, z);
+    this.view?.burst(x, y, z, by === 'local');
+    // (S8) the game camera's look for play, so the glide from the hero shot lands on an open boom
+    w.playLook?.(PLAY_YAW[intro.slot] ?? 0);
     // 1. the mains cut at the pressing operator, nearest first, all dead by 0.8 s
     this.lampsCut = w.hooks.mainsOff(x, y, z, EMP_OUT_S);
     // 2. the lightning clock from the press (solo: here; co-op: the host's t0 goes to the client in the sector state, S4)
@@ -592,7 +629,8 @@ export class PianoScene {
     this.pressed = true;
     this.pressedBy = 'host';
     w.operatorAt('local', this.at);
-    this.view?.burst(this.at.x, this.at.y + BELT_Y, this.at.z);
+    this.view?.burst(this.at.x, this.at.y + BELT_Y, this.at.z, this.asked);
+    w.playLook?.(PLAY_YAW[intro.slot] ?? 0);
     this.t0 = t0;
     w.hooks.lightningT0(t0);
     w.music?.piano.seek(EMP_SEEK);
@@ -623,10 +661,18 @@ export class PianoScene {
     const w = this.world!;
     this.inPlay = true;
     this.rePoseT = -1;
+    this.knifeAway();
     this.pose(false);
     this.view?.cut();
     w.hud(true);
     w.cutLines(RADIO_LINE, OBJECTIVE_LINE);
+  }
+
+  /** (S8) The flash's knife goes away (at the cut, or the scene ends first). Once. */
+  private knifeAway(): void {
+    if (!this.drawn) return;
+    this.drawn = false;
+    this.world?.knifeReady?.(false);
   }
 
   /**
@@ -751,6 +797,7 @@ export class PianoScene {
     this.fade = null;
     this.view?.dispose();
     this.view = null;
+    this.knifeAway();
     this.pose(false);
     this.onKnifeScene(false);
     const w = this.world;
