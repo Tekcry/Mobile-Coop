@@ -383,7 +383,7 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   pull-up and shutter gate) stays a writable field; it loads true when `kitMoves` holds `pull` or `shutter`
   (`?coopkit=1` / `0` add / remove both).
 - (coop-kit K0, wire change; PROTOCOL_VERSION untouched, the train bumps) The kit made generic for the five part 2
-  moves (`docs/coop-kit/PLAN.md` "Part 2"). One string per move: the `kitMoves` id = `KitKind` = the `tmove` / `tstart`
+  moves (coop-kit PLAN "Part 2", on feature/coop-kit). One string per move: the `kitMoves` id = `KitKind` = the `tmove` / `tstart`
   kind = `StationDef.kit`. A part 2 request's `target` is a spot index into the host's `TeamController.devices.list`
   (bounded: out of range or another kind's device = -1, none) and reaches the move's rule as `TeamRequest.spot`; its `s`
   is the request's phase (Plank Bridge's lay 2); the claimed point (`lx`, `gy`, `lz`) parses for any kit kind. The start
