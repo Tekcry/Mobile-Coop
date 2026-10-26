@@ -40,6 +40,9 @@ export interface Flags {
   devDraft: boolean;
   /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
   spawn: { x: number; z: number; level: string; yaw: number } | null;
+  /** (campus-greybox A28) Sector Ops, dev and walk links (`?sectorStart=N`, N 1-9): every run on the page starts at section
+   *  N as its connectors leave it, a practice run (nothing saved); null when absent. The co-op host's link wins. */
+  sectorStart: number | null;
   /** Music project: `?musiclab=1` opens the music lab (a debug screen) after boot. */
   musicLab: boolean;
   /** `?foleylab=1` opens the foley lab (movement sounds, a debug screen) after boot. */
@@ -156,6 +159,7 @@ export const flags: Flags = {
   // (the DEV test first: the production build drops the parameter name and the whole read)
   devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
   spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
+  sectorStart: /^[1-9]$/.test(params.get('sectorStart') ?? '') ? Number(params.get('sectorStart')) : null,
   musicLab: params.get('musiclab') === '1',
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',

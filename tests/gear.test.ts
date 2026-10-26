@@ -99,9 +99,11 @@ describe('gearHit', () => {
 });
 
 describe('responseTeam shield (guard-rules S1, A4, A14)', () => {
-  it('a shield lead by default (RESPONSE.shieldLead) and when asked; armed guards only with shield false', () => {
+  it('a shield lead only when asked; armed guards only by default (PR2 polish) and with shield false', () => {
     const k: EnemyKind[] = [];
     expect(responseTeam(1, 3, k)).toBe(3);
+    expect(k).toEqual(['grunt', 'grunt', 'grunt']);
+    expect(responseTeam(1, 3, k, true)).toBe(3);
     expect(k).toEqual(['enforcer', 'grunt', 'grunt']);
     expect(responseTeam(2, 2, k, true)).toBe(2);
     expect(k).toEqual(['enforcer', 'grunt']);
@@ -175,7 +177,7 @@ describe('coop4 AI5: responseShape', () => {
     expect(responseTeamSize(0, 3, 1)).toBe(3);
     expect(responseTeamSize(0, 0, 0)).toBe(0);
     const kinds: EnemyKind[] = [];
-    expect(responseTeam(2, responseTeamSize(1, 4, 2), kinds)).toBe(2);
+    expect(responseTeam(2, responseTeamSize(1, 4, 2), kinds, true)).toBe(2);
     expect(kinds).toEqual(['enforcer', 'grunt']);
     expect(shape(1, 3, 3, 32)).toEqual([4, 2]);
     expect(shape(0, 2, 4, 32)).toEqual([4, 0]);
