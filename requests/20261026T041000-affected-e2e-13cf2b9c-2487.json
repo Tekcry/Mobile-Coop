@@ -1,0 +1,15 @@
+{
+  "id": "20261026T041000-affected-e2e-13cf2b9c-2487",
+  "sha": "13cf2b9c91636cb3baf39f932fa08a27fb97e854",
+  "branch": "feature/guard-ai-runner-armed",
+  "pr": 531,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #531"
+}
