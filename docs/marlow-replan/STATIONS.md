@@ -390,7 +390,12 @@ rule (a heavy landing retries the station).
   67.85-68.35 (east face 68.35). The 1.4 m gap left the apron's east strip only 0.85 m (G0, 82ea0134d), so the 3.5 m
   trench moves 1.15 m west to x 62.35-65.85 (lead, J14 wave 2): east strip x 65.85-67.85 (2 m), west strip x
   58.15-62.35; station 12's marks at x 67.0, 0.85 m off the wall face (graph `area` follows at G1). Undo: 1 m gap (A19's
-  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall.
+  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall. (marlow-kit-geo Q2) Swing
+  Pass's anchor is the swing bar on the trench's east edge (`A5_SWING_BAR`, register A5-R10: posts at z 42.4 and 43.6
+  on x 65.85-66.0, the bar at 2.6 m), its line z 43.0 clear to the west strip's wall (4.2 m of landing); on the
+  gantry's line (z 44.6) its posts stood on both edges and the drums left 0.55 m of landing (band 0.75 m), so the gantry
+  is dressing. The trench's 3.5 m is the band's top. Undo: drop A5-R10 (and the swing spot goes back to the gantry once
+  its posts and the drums move).
 - **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-shutter-open` (egress latch on the roller door, station 4's stand-in: open for good once station 3 passes);
   `g-a2-walkway` (stand-in, door `A2-walkway`);
   `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
