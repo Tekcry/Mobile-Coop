@@ -1,7 +1,20 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-27 ~01:50 SAVE (Night Shift | Campaign Build)
+## RESUME 2026-10-27 ~07:50 SAVE (Night Shift | Campaign Build; 5-hour reset 08:50)
+Notes: C:/NightShift/scratch/campaign/lead-notes.md (newest at the end). All worktrees clean and pushed at this save.
+1. Storm mill SHIPPED in 4.127.0 (PR #631; #606 / #616 / #617 / #618 closed). Michael walks ~09:00 (walk lines sent; draft
+   scratch/campaign/piano/walk-items.md). HOLD all mill tuning for his walk notes. Ready to brief after them: the knife as
+   a closed fist in the lightning frame, the hero shot framed larger, light kept through the glide (S8, worktree -s8;
+   S8-report.md / S8-check-2.md). Also the storm sound question (computer-made vs a recording: a download needs his OK).
+2. Tallow Mission 1 SHIPPED (#583). Polish waits for Michael to play it (no tuning before).
+3. J22 campaign-mode (ROADMAP Now 18): Opus PLAN on feature/campaign-mode e8fc17194 (worktree Mobile-Coop-campaign-mode;
+   docs/campaign-mode/BRIEF.md + PLAN.md: CM1-CM7 in 4 PRs). Opus plan checker running -> scratch/campaign/
+   campaign-mode-plan-check.md (rerun if missing). Note: #583 is on master (the PLAN's Tallow blocker is gone). PASS ->
+   build CM1 (Sonnet) + CM2 (Opus) after the walk. Q1 for Michael by day: the lobby listing of Tallow's two missions.
+Next: plan-check verdict -> fix the PLAN or start CM1 / CM2; Michael's walk notes -> the mill fixes.
+
+## OLD RESUME 2026-10-27 ~01:50 SAVE (Night Shift | Campaign Build)
 FIRST: the storm mill: the newest block of docs/piano-escape/STATE.md on origin/feature/piano-escape-s4 (PR #631, the walk
 build; NOT feature/piano-escape). Tallow #583 152c85c18 (wharf e2e kills fixed, set wharf filed); Tallow paused until
 the orchestrator resumes it.
