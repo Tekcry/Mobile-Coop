@@ -19,6 +19,10 @@ import { revealIntel, revealJoint } from './intelReveal';
 import { jointOf } from './jointInterrogation';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
 import { GRAB_KILL_BLOW, KILL_TAIL_END, killWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
+import type { KeyedClip } from '../anim/keyed';
+import { newKillDrive } from '../anim/killDrive';
+import { bucklePitchOf, buckleAt, grabAt, handsAt, KNIFE, KNIFE_KILLS, knifeClip, knifeClipsReady, loadKnifeClips, pickKnifeKill, victimPhase } from './knifeKill';
+import { attackerHands, newPairTrack, pairHandsOff, resetPairTrack, victimHands, victimRoot, type RootOut } from './knifePair';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -78,6 +82,18 @@ export interface TakedownVictim {
   holdPose?(mode: GuardCqMode, k: number, lower?: number): void;
   applyDamage(h: HitInfo): DamageResult;
   knockOut(h: HitInfo): void;
+  /** (piano-knife S1) His side of a paired knife kill: `clip` at `ph` on his graph, `buckle` his spine / chest fold
+   *  (rad, + forward), his drawn root the takedown's; null `clip` clears it. Absent (a co-op puppet until S3): the
+   *  knife kill plays the -1 path (today's move, lethal, knife shown). */
+  knifeVictim?(clip: KeyedClip | null, ph: number, buckle: number): void;
+}
+
+/** (piano-knife S1) A takedown event with the knife mark (the event type's fields plus `knife`; one object reused). */
+interface KnifeEvent {
+  phase: 'start' | 'done' | 'abort';
+  lethal: boolean;
+  kind: string;
+  knife: boolean;
 }
 
 /**
@@ -139,7 +155,48 @@ export class TakedownController {
   /** (G7) The attacker is stepping in under the override this step (the legs take steps from his speed). */
   stepping = false;
 
+  /**
+   * (piano-knife S1, BRIEF A1 / A2) The piano scene's knife switch (`setKnifeScene`, Campaign's `pianoScene.ts` only):
+   * on, every takedown on a guard on two legs is a lethal knife kill on one press (no grab, no tap / hold), the knife
+   * shown from the press until the attacker is free. Off (default): every takedown is exactly today's.
+   */
+  knife = false;
+  /** (piano-knife S1) The running knife kill's row (`KNIFE_KILLS` index; -1: none, or the switch-on move without a row:
+   *  today's move, lethal, knife shown) and seconds since its clip started. */
+  kr = -1;
+  kt = 0;
+  /** (piano-knife S1) The hands' release clock after `limp` (-1: holding) and the switch-on move under way (from the
+   *  press until the attacker is free: the knife shown). */
+  private kRel = -1;
+  private kOn = false;
+  /** (piano-knife S1) The guard's facing at the grab, the attacker's held facing (the tail), the guard's rig (his body
+   *  after `limp`), the attacker's drive, the pair's hand tracking, the root scratch and the event: allocated once. */
+  private kFromYaw = 0;
+  private kYaw = 0;
+  private kVr: CharacterRig | null = null;
+  private readonly kDrive = newKillDrive();
+  private readonly kTrack = newPairTrack();
+  private readonly kRoot: RootOut = { x: 0, y: 0, z: 0, yaw: 0 };
+  private readonly kEv: KnifeEvent = { phase: 'start', lethal: true, kind: '', knife: true };
+
   constructor(private g: GameState) {}
+
+  /** (piano-knife S1) The scene switch (Campaign: `setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` at
+   *  play start, `setKnifeScene(false)` at its end). On starts loading the clips (not awaited: until they resolve every
+   *  knife kill plays the -1 path). */
+  setKnifeScene(on: boolean): void {
+    this.knife = on;
+    if (on) void loadKnifeClips();
+  }
+
+  /** (piano-knife S1) The switch-on move's (knife row or -1 path) event, `knife: true` (the reused object). */
+  private knifeEvent(phase: KnifeEvent['phase'], kind: string): void {
+    const ev = this.kEv;
+    ev.phase = phase;
+    ev.lethal = true;
+    ev.kind = kind;
+    this.g.events.emit('takedown', ev);
+  }
 
   /** (G7) The grab menu may show: holding, no finisher or interrogation under way. */
   get menuReady(): boolean {
@@ -211,6 +268,14 @@ export class TakedownController {
       this.run(dt);
       return true;
     }
+    // (piano-knife S1) the knife kill's clip plays to its end before the attacker is free (no offer until then)
+    if (this.kOn) {
+      this.knifeTail(dt);
+      if (this.kOn) {
+        this.offer = null;
+        return true;
+      }
+    }
     this.offer = g.player.alive && !g.carrier?.carrying ? this.find() : null;
     // starts on the press; whether it is lethal is decided as it goes (held through `lethalHold` = lethal)
     if (this.offer && pressed) {
@@ -252,6 +317,9 @@ export class TakedownController {
     if (plan.kind !== 'below' && plan.kind !== 'window' && plan.kind !== 'inverted' && !hangDown) {
       if (g.traversal.attached) g.traversal.reset();
     }
+    // (piano-knife S1, A2) the knife switch: a guard on two legs is a lethal kill on one press (no grab, no tap / hold)
+    const knife = this.knife && !o.e.def.quadruped && plan.kind !== 'assist';
+    if (knife) lethal = true;
     // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
     const grab = GRAB_KINDS.includes(plan.kind) && !o.e.def.quadruped && !o.lethalOnly && lethal === undefined;
     // (G7, AUDIT-WALLS row 5) the grab steps in over 0.42 s (CT 110936: 1.5 m in 0.35-0.45 s), rising out of a crouch
@@ -279,7 +347,26 @@ export class TakedownController {
     };
     if (grab) this.grabs.held++;
     this.offer = null;
+    if (knife) {
+      this.knifeStart(o.e, plan, c.crouched);
+      this.knifeEvent('start', plan.kind);
+      return;
+    }
     g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: plan.kind });
+  }
+
+  /** (piano-knife S1) A knife kill starts: its row (-1: a kind without one, a victim without `knifeVictim`, the clips not
+   *  in yet), the knife in hand. */
+  private knifeStart(e: TakedownVictim, plan: TakedownPlan, crouched: boolean): void {
+    this.kOn = true;
+    this.kr = e.knifeVictim && knifeClipsReady() ? pickKnifeKill(plan.kind, crouched) : -1;
+    this.kt = 0;
+    this.kRel = -1;
+    this.kYaw = plan.faceYaw;
+    this.kFromYaw = plan.kind === 'front' ? plan.faceYaw + Math.PI : plan.faceYaw;
+    this.kVr = e.bodyRig;
+    resetPairTrack(this.kTrack);
+    this.g.weapons.knife.show(true);
   }
 
   /** The nearest candidates (up to `TRY`), nearest first. */
@@ -664,6 +751,10 @@ export class TakedownController {
   private run(dt: number): void {
     const g = this.g;
     const a = this.active!;
+    if (this.kr >= 0) {
+      this.runKnife(dt);
+      return;
+    }
     if (a.grab) {
       this.runGrab(dt, a.grab);
       return;
@@ -723,8 +814,131 @@ export class TakedownController {
     if (a.t >= total && (a.decided || a.t >= TAKEDOWN.lethalHold)) this.finish();
   }
 
+  /**
+   * (piano-knife S1, A14) A knife row's step: the approach as today; from the grab (the approach's last `gripIn` share)
+   * the guard held at the row's spot off the attacker's current root and facing (`victimRoot`), eased from where he
+   * stood; after the approach both clips on one clock (`kt`), the attacker's on his graph (`kill`, in over
+   * `blendIn`), the guard's with the buckle from the stab; at `limp` the kill. Damage to the attacker before the stab
+   * aborts, after it finishes at once. `pose.melee` is never set. No allocation.
+   */
+  private runKnife(dt: number): void {
+    const g = this.g;
+    const a = this.active!;
+    const { e, plan } = a;
+    const R = KNIFE_KILLS[this.kr]!;
+    a.t += dt / this.handsMul;
+    const contactT = R.contact * R.seconds;
+    if (g.target.health.hp < a.hp - 0.5 || !g.player.alive || !e.alive) {
+      if (this.kt >= contactT && g.player.alive && e.alive) this.finish();
+      else this.abort();
+      return;
+    }
+    const kAp = plan.approach > 0 ? Math.min(1, a.t / plan.approach) : 1;
+    approachPoint(a.from.x, a.from.y, a.from.z, plan, kAp, this.pt);
+    this.override(this.pt.x, this.pt.y, this.pt.z, plan.faceYaw, false);
+    this.stepping = kAp < 1;
+    const k = grabAt(a.t, plan.approach);
+    if (k > 0) {
+      const r = victimRoot(R, this.pt.x, this.pt.y, this.pt.z, plan.faceYaw, k, a.vFrom.x, a.vFrom.z, this.kFromYaw, this.kRoot);
+      e.holdAt(r.x, r.y, r.z, r.yaw);
+    } else e.holdAt(a.vFrom.x, a.vFrom.y, a.vFrom.z, this.kFromYaw);
+    const vClip = knifeClip(this.kr, true);
+    if (kAp < 1) {
+      if (k > 0) e.knifeVictim?.(vClip, victimPhase(R, 0), 0);
+      return;
+    }
+    this.kt += dt;
+    const ph = this.kt / R.seconds;
+    const d = this.kDrive;
+    d.clip = knifeClip(this.kr, false);
+    d.phase = ph;
+    d.w = Math.min(1, this.kt / KNIFE.blendIn);
+    g.player.rig.graph.kill = d;
+    e.knifeVictim?.(vClip, victimPhase(R, ph), buckleAt(this.kt - contactT) * bucklePitchOf(R));
+    if (ph >= R.limp) this.finish();
+  }
+
+  /** (piano-knife S1) After a knife row's `limp`: the attacker held on his spot while his clip plays to its end, then
+   *  blends out over `blendOut`; the hands release over `release` (`knifeFrame`); then the knife away and he is free.
+   *  No allocation. */
+  private knifeTail(dt: number): void {
+    const g = this.g;
+    if (this.kr < 0 || !g.player.alive) {
+      this.knifeEnd();
+      return;
+    }
+    const R = KNIFE_KILLS[this.kr]!;
+    this.kt += dt;
+    if (this.kRel >= 0) this.kRel += dt;
+    const ph = this.kt / R.seconds;
+    const d = this.kDrive;
+    d.phase = ph;
+    d.w = ph <= 1 ? 1 : Math.max(0, 1 - (this.kt - R.seconds) / KNIFE.blendOut);
+    if (d.w <= 0) {
+      this.knifeEnd();
+      return;
+    }
+    this.override(this.pt.x, this.pt.y, this.pt.z, this.kYaw, false);
+  }
+
+  /** (piano-knife S1) The switch-on move is over: the attacker's drive and hands off, the knife away, the attacker free. */
+  private knifeEnd(): void {
+    const g = this.g;
+    if (g.player.controller.override === this.ov) g.player.controller.override = null;
+    const rig = g.player.rig;
+    if (rig.graph && rig.graph.kill === this.kDrive) rig.graph.kill = null;
+    this.kDrive.clip = null;
+    pairHandsOff(rig, null);
+    g.weapons.knife.show(false);
+    this.kOn = false;
+    this.kr = -1;
+    this.kRel = -1;
+    this.kVr = null;
+  }
+
+  /** (piano-knife S1) Render frame, before the attacker poses: her grip and knife hands on the guard (`attackerHands`),
+   *  in from the press, released over `release` after `limp`. No allocation. */
+  private knifeFrame(): void {
+    const g = this.g;
+    const a = this.active;
+    const R = KNIFE_KILLS[this.kr]!;
+    const vr = this.kVr;
+    const rig = g.player.rig;
+    const w = a ? handsAt(a.t, a.plan.approach) : this.kRel >= 0 ? 1 - ease(this.kRel / KNIFE.release) : 0;
+    if (!vr || w <= 0) {
+      pairHandsOff(rig, null);
+      return;
+    }
+    attackerHands(R, this.kt / R.seconds, this.kt - R.contact * R.seconds, rig, vr, g.weapons.knife, w, this.kTrack);
+  }
+
+  /**
+   * (piano-knife S1) Render frame, after the attacker has posed and before the enemies do (`GameState.frameUpdate`): the
+   * guard's drawn root re-placed off the attacker's drawn root (`victimRoot`: render interpolation cannot pull them
+   * apart) and his hands on her forearm (`victimHands`). From the grab to `limp`. No allocation.
+   */
+  frameLate(): void {
+    const a = this.active;
+    if (this.kr < 0 || !a || !a.e.alive) return;
+    const R = KNIFE_KILLS[this.kr]!;
+    const k = grabAt(a.t, a.plan.approach);
+    if (k <= 0) return;
+    const ar = this.g.player.rig;
+    const vr = a.e.bodyRig;
+    const p = ar.root.position;
+    const r = victimRoot(R, p.x, p.y, p.z, ar.root.rotation.y, k, a.vFrom.x, a.vFrom.z, this.kFromYaw, this.kRoot);
+    vr.root.position.set(r.x, r.y, r.z);
+    vr.root.rotation.y = r.yaw;
+    victimHands(R, this.kt - R.contact * R.seconds, ar, vr, this.kTrack);
+  }
+
   /** Render frame: the attacker's hands on the victim (neck / shoulders) for a choke. */
   frameUpdate(): void {
+    // (piano-knife S1) a knife row: its own hands, through the tail after `limp`
+    if (this.kr >= 0 && this.kOn) {
+      this.knifeFrame();
+      return;
+    }
     const a = this.active;
     const rig = this.g.player.rig;
     // (course-restart-hold) a victim gone since the last tick (disposed, killed): no hands on him; the tick aborts
@@ -816,7 +1030,12 @@ export class TakedownController {
     this.release();
     // (anim-n4d, M1) the blow's contact landed on the kill: its follow-through plays on (pose only)
     const hangDown = a.plan.kind === 'hangDown';
-    if (a.lethal && !hangDown) {
+    const knifeRow = this.kOn && this.kr >= 0;
+    // (piano-knife S1) a knife row: no `killWarp` tail (the clip plays on, `knifeTail`); the hands release from here
+    if (knifeRow) {
+      this.kRel = 0;
+      this.override(this.pt.x, this.pt.y, this.pt.z, this.kYaw, false);
+    } else if (a.lethal && !hangDown) {
       this.tailB = a.grab ? GRAB_KILL_BLOW : TAKEDOWN_BLOW;
       this.tailU = 1;
       g.player.pose.melee = killWarp(1, this.tailB);
@@ -837,11 +1056,19 @@ export class TakedownController {
     if (a.lethal) e.applyDamage(hit);
     else e.knockOut(hit);
     this.done[a.lethal ? 'lethal' : 'nonLethal']++;
-    const kind = a.grab ? (hangDown ? 'hangGrab' : 'grab') : a.plan.kind;
+    // (piano-knife S1) a knife row counts as `knife`
+    const kind = knifeRow ? 'knife' : a.grab ? (hangDown ? 'hangGrab' : 'grab') : a.plan.kind;
     this.done.byKind[kind] = (this.done.byKind[kind] ?? 0) + 1;
-    const r = a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
+    // (piano-knife S1, A5) a knife row is near silent (the choke's radius)
+    const r = knifeRow ? KNIFE.noise : a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
     // (guard-ai S26) his own noise: it locates him
     g.enemyMgr?.hear(g.player.position, r, 'noise', null, g.localId);
+    if (this.kOn) {
+      this.knifeEvent('done', a.plan.kind);
+      // the -1 path: the move is over, the knife away (its `killWarp` tail is pose only)
+      if (!knifeRow) this.knifeEnd();
+      return;
+    }
     g.events.emit('takedown', { phase: 'done', lethal: a.lethal, kind });
   }
 
@@ -852,8 +1079,18 @@ export class TakedownController {
     this.release();
     // (P6) the partner's hostage was never seized here: the partner keeps him
     if (a.plan.kind === 'assist') this.g.net?.assistTakedown?.(a.e, 'abort', a.lethal);
-    else if (a.e.alive) a.e.releaseTakedown();
+    else if (a.e.alive) {
+      // (piano-knife S1) his drive, hands and drawn root back to him first
+      if (this.kOn) a.e.knifeVictim?.(null, 0, 0);
+      a.e.releaseTakedown();
+    }
     this.done.aborted++;
+    if (this.kOn) {
+      // (piano-knife S1) both drives, all four hands off, the knife away
+      this.knifeEnd();
+      this.knifeEvent('abort', a.plan.kind);
+      return;
+    }
     this.g.events.emit('takedown', { phase: 'abort', lethal: a.lethal, kind: a.plan.kind });
   }
 
@@ -867,6 +1104,7 @@ export class TakedownController {
 
   reset(): void {
     this.abort();
+    if (this.kOn) this.knifeEnd();
     this.endTail();
     this.offer = null;
     this.holding = false;

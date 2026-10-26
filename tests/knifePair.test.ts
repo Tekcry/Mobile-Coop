@@ -2,7 +2,7 @@
  * (piano-knife S1, BRIEF A14) The paired knife kill on headless rigs (Wren's operator rig and a real guard rig, as
  * `tests/mixamoTraverse.test.ts` / `tests/helpers/guardPoseGolden.ts` build them): each row sampled at 1/60 s with the
  * attacker walking 0.3 m/s and turning 0.5 rad/s through the whole move (attached, not placed once), in the game's
- * order (the contacts from the last drawn poses, then the attacker, then the guard pose):
+ * render order (her hands, she poses, his root and hands off her drawn pose, he poses):
  * - the grip palm within 3 cm of its mark from the end of the grab to `limp`;
  * - the knife tip within 3 cm of the row's target from contact to `limp`;
  * - each guard palm within 3 cm of its forearm mark from contact to `limp`;
@@ -112,17 +112,19 @@ async function runRow(row: number): Promise<RowResult> {
       const kt = t - approach;
       const ph = kt > 0 ? kt / R.seconds : 0;
       const since = kt - R.contact * R.seconds;
-      P.victimRoot(R, ax, 0, az, ayaw, k, fromX, fromZ - 0.6, fromYaw, vr0);
-      vr.root.position.set(vr0.x, vr0.y, vr0.z);
-      vr.root.rotation.y = vr0.yaw;
       aD.phase = ph;
       aD.w = (kt > 0 ? Math.min(1, kt / K.KNIFE.blendIn) : 0) * (process.env.KP_AW ? +process.env.KP_AW : 1);
       vD.phase = K.victimPhase(R, ph);
       vD.buckle = K.buckleAt(since);
       const wGrip = ph >= R.limp ? 0 : K.handsAt(t, approach);
+      // the game's render order (`TakedownController.frameUpdate`, the player's frame, `frameLate`, the enemies'): her
+      // hands off his last drawn pose, she poses, his root off her drawn root and his hands on her drawn forearm, he poses
       P.attackerHands(R, ph, since, ar, vr, knife, wGrip, track);
-      if (ph < R.limp) P.victimHands(R, since, ar, vr, track);
       ar.animate(DT, aPose);
+      P.victimRoot(R, ax, 0, az, ayaw, k, fromX, fromZ - 0.6, fromYaw, vr0);
+      vr.root.position.set(vr0.x, vr0.y, vr0.z);
+      vr.root.rotation.y = vr0.yaw;
+      if (ph < R.limp) P.victimHands(R, since, ar, vr, track);
       vr.animate(DT, vPose);
       if (n < 0 || ph >= R.limp) continue;
       P.contactErrors(R, ar, vr, knife, err);
@@ -178,10 +180,10 @@ async function runRow(row: number): Promise<RowResult> {
 /** (S1 known gap) each row's ceilings (m): what the stand-in clips reach (measured 2026-10-26, deterministic seed) plus
  *  ~1 cm; the rule (`KNIFE.contactTol` 0.03) where a row already meets it. S2 sets every one to the rule. */
 const S1_REACHED: readonly { grip: number; tip: number; hands: number }[] = [
-  { grip: 0.055, tip: 0.03, hands: 0.09 }, // behind: measured grip 4.5, tip 0.3, hands R 5.5 L 7.8 cm
-  { grip: 0.235, tip: 0.28, hands: 0.05 }, // behindLow: grip 22.5, tip 26.8, hands 3.8 / 3.8
-  { grip: 0.125, tip: 0.03, hands: 0.035 }, // corner: grip 11.3, tip 2.0, hands 1.8 / 2.6
-  { grip: 0.03, tip: 0.03, hands: 0.14 }, // front: grip 1.7, tip 0.6, hands 12.7 / 3.5
+  { grip: 0.065, tip: 0.03, hands: 0.08 }, // behind: measured grip 5.2, tip 0.8, hands R 6.7 L 6.9 cm
+  { grip: 0.195, tip: 0.24, hands: 0.065 }, // behindLow: grip 18.6, tip 22.8, hands 5.4 / 4.9 (the crouched rise)
+  { grip: 0.19, tip: 0.035, hands: 0.04 }, // corner: grip 17.7 (the grab's first frame; ~11 later: out of reach), tip 2.4, hands 2.3 / 3.2
+  { grip: 0.03, tip: 0.03, hands: 0.16 }, // front: grip 2.0, tip 1.1, hands R 15.0 (folded tight) L 5.7
 ];
 
 describe('piano-knife S1: the paired knife kill on headless rigs', () => {
