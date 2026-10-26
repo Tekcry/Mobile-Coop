@@ -1253,6 +1253,55 @@ export function conflictStatuses(r) {
 }
 
 /**
+ * laptop-queue-15 F51 (#581 / #590 waited 36-50 min, then retired as conflicting 16 min after master moved): GitHub
+ * computes `mergeable` lazily after a push, so the board's list read can say UNKNOWN for many minutes. When origin/master
+ * moves, the open affected requests' PRs (the ones conflictRetire acts on) are read one by one (`gh pr view`, which
+ * starts the computation) until each head's state is known. `prev` = the last result's state ({ master, since, prs:
+ * { [pr]: { head, mergeable, at } } }, null at start: a first pass counts as a move). A PR is due when it has no read on
+ * its current head yet, or its last read was UNKNOWN at least `retryMs` ago, while the move is under `maxMs` old; at
+ * most `max` per pass, a PR the board already shows CONFLICTING on that head is not due. -> { state, due: [{ pr, head }] }.
+ */
+export function mergeRecheck(prev, { master, requests, board, now, retryMs = 60_000, maxMs = 10 * 60_000, max = 10 }) {
+  const moved = !prev || (master && prev.master !== master);
+  const state = moved ? { master: master ?? null, since: now, prs: {} } : prev;
+  const due = [];
+  if (!master || now - state.since > maxMs) return { state, due };
+  const seen = new Set();
+  for (const r of requests ?? []) {
+    if (r?.set !== 'affected' || r.pr == null || !r.sha) continue;
+    const pr = Number(r.pr);
+    if (seen.has(pr)) continue;
+    seen.add(pr);
+    const b = board?.get(pr);
+    if (b && (b.head !== r.sha || b.conflicting)) continue; // superseded's job, or already retired through the board
+    const e = state.prs[pr];
+    if (e && e.head === r.sha && (e.mergeable !== 'UNKNOWN' || now - e.at < retryMs)) continue;
+    if (due.length < max) due.push({ pr, head: r.sha });
+  }
+  return { state, due };
+}
+
+/** mergeRecheck's state with one `gh pr view` read (mergeable MERGEABLE | CONFLICTING | UNKNOWN, any case; missing = UNKNOWN). A read of another head than asked is kept under that head. */
+export function recordMergeable(state, pr, head, mergeable, now) {
+  const m = String(mergeable ?? '').toUpperCase();
+  const e = { head: head ?? '', mergeable: m === 'MERGEABLE' || m === 'CONFLICTING' ? m : 'UNKNOWN', at: now };
+  return { ...state, prs: { ...(state?.prs ?? {}), [Number(pr)]: e } };
+}
+
+/**
+ * The board with mergeRecheck's CONFLICTING reads laid on (conflicting: true) where the board's head is the read's head
+ * (a moved head or a PR missing from the board is left alone), so conflictRetire retires it on this pass. A new Map.
+ */
+export function withMergeable(board, state) {
+  const out = new Map(board ?? []);
+  for (const [k, e] of Object.entries(state?.prs ?? {})) {
+    const b = out.get(Number(k));
+    if (b && e.mergeable === 'CONFLICTING' && b.head === e.head && !b.conflicting) out.set(Number(k), { ...b, conflicting: true });
+  }
+  return out;
+}
+
+/**
  * The request the affected pass enqueues for a PR head: the shape request.mjs --affected writes (kind pr, set
  * 'affected', so its own context is laptop-e2e/affected), requester AFFECTED_REQUESTER, the PR number (the failure
  * comment goes there). suffix = 4 random hex (injected), as request.mjs adds.
