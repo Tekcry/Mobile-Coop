@@ -44,7 +44,7 @@ import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_BODY, MODE_BREAKER, MODE_COVER, MODE_DEVICE, MODE_HELP, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import { BREAKER_WALK } from './breaker';
 import { isConsoleGroup } from './consoleFault';
-import { closeFromCover, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
+import { closeFromCover, combatSeed, P_AGGRESSIVE, P_STANDARD, profileOf, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, R_REPORTER, R_SEARCH, ROLES, Rng, SEED_SENSE, SQUAD, type BehaviourProfile as TacticsProfile, type Role } from './squadRoles';
 import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
@@ -172,7 +172,11 @@ export interface AiContext {
   bodyFound(e: Enemy, b: Body): void;
   /** Wake the knocked-out guard of body `b`; `by` woke him (guard-ai S4: both turn cautious, timed). */
   revive(b: Body, by: Enemy): void;
+  /** A guard alarm was raised since the load (sticky: the carry rule reads it). */
   alarmRaised(): boolean;
+  /** (guard-rules S5, A7) A new guard alarm may be raised now (none yet, or the repeat lock opened): a panel run goes on
+   *  only while it is. */
+  alarmOpen(): boolean;
   /** (guard-ai S27) The mode's alarm stage (the manager's `alarmStage`: Sector Ops' panel, camera or laser stage;
    *  absent = 0). Only the carry rule reads it (`carryCalm`). */
   alarmStage?(): number;
@@ -377,9 +381,13 @@ export class Enemy implements Damageable {
   readonly num = nextId++;
   /** (guard-ai S8, A7) Seeded combat dice (bursts, strafes, cover-first, spread, grenade timing; mulberry32): seeded
    *  by `num` at spawn, reseeded per guard per engagement when he goes to combat (`AiContext.combatSeed`). Declared
-   *  first: the field initialisers below draw from it. The think cadence (`thinkT`) stays on `Math.random`: it is
-   *  perception, not combat. */
+   *  first: the field initialisers below draw from it. The think cadence draws from `senseRng`: perception, not
+   *  combat. */
   readonly rng = new Rng(Math.imul(this.num, 2654435761));
+  /** (guard-ai seed-random) Perception dice (the think cadence only), apart from the combat `rng` so a think never
+   *  shifts a combat sequence; seeded by `num` at spawn, as `rng` is. Hard rule 8: the same spawn order gives the same
+   *  cadence. Declared before `thinkT`, which draws from it. `0x5eed`: `EnemyManager.matchSeed`'s default. */
+  private readonly senseRng = new Rng(combatSeed(0x5eed, SEED_SENSE, this.num));
   readonly id = `e${this.num}`;
   /** (guard-models G6n, M3) His 7-bit look seed (0-127, `guardLook.ts`): set once by `EnemyManager` at spawn from his
    *  spawn slot (never from `num`), so a section restart gives the slot the same look; a woken guard keeps it
@@ -421,7 +429,7 @@ export class Enemy implements Damageable {
   raysThink = 0;
   /** (coop4 AI2) Sight rays cast since the manager last read it (`EnemyManager.raysThisStep` sums and zeroes it). */
   raysStep = 0;
-  private thinkT = Math.random() * 0.25;
+  private thinkT = this.senseRng.next() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
   private path: Waypoint[] = [];
@@ -1793,6 +1801,12 @@ export class Enemy implements Damageable {
     return this.entry !== null;
   }
 
+  /** (guard-rules S5) Standing at his investigation or search spot this step, looking round (a device responder has
+   *  arrived: `EnemyManager.teamSearching`). */
+  get atSearchSpot(): boolean {
+    return this.spotArrived;
+  }
+
   /**
    * (guard-ai S6, design 7, M1 "any reinforcements must be aggressive") He came in on the alarm: profile aggressive, told
    * by command (the next step he is in combat on the shared last known position, `radio(0)`: he answers, he does not call
@@ -2399,7 +2413,7 @@ export class Enemy implements Damageable {
     this.strafeT -= dt;
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
-      this.thinkT = 0.22 + Math.random() * 0.08;
+      this.thinkT = 0.22 + this.senseRng.next() * 0.08;
       this.perceive();
     }
     if (this.los) this.losT += dt;
@@ -3208,10 +3222,11 @@ export class Enemy implements Damageable {
     if (!t) return this.goal(null, 0, null);
     if (this.stagger > 0) return this.goal(null, 0, this.faceTarget());
     const toTarget = this.faceTarget();
-    // raising the alarm: run to the panel and work it (unless it is disabled or already raised)
+    // raising the alarm: run to the panel and work it (unless it is disabled, or (guard-rules S5) no new guard alarm may
+    // be raised now: one is raised and the repeat lock is shut)
     const ap = this.alarm;
     if (ap) {
-      if (ap.disabled || this.ctx.alarmRaised()) this.alarm = null;
+      if (ap.disabled || !this.ctx.alarmOpen()) this.alarm = null;
       else {
         const d = hyp2(this.alarmPt[0] - this.pos.x, this.alarmPt[1] - this.pos.z);
         if (d < 0.8) {
@@ -3246,7 +3261,7 @@ export class Enemy implements Damageable {
     // (his intruder's last known position to go to: none, and today's rules hold)
     const closer = !this.los && !outside && this.coordinated && this.ctx.stealth() && this.huntPos() !== null;
 
-    // ---- melee (runner) ----
+    // ---- melee (the dog; every human kind is armed, G298) ----
     if (def.melee) {
       if (this.dist <= def.melee.range && this.meleeCd === 0) {
         this.meleeCd = def.melee.cooldown;
@@ -3347,7 +3362,11 @@ export class Enemy implements Damageable {
           return this.goal(this.chasePoint(dt, tp, false), this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, null);
         }
         this.closingIn = closer;
-        return this.goal(this.chasePoint(dt, tp, false), this.los ? def.walkSpeed : def.runSpeed, null);
+        // (guard-ai runner-armed) the runner weaves on his run in (ARCHETYPE.runner.weave); (A15) as his melee charge did,
+        // his straight line must end on the storey of the spot he runs to (`known.y`), so across storeys he takes the
+        // ladder, not a line to the floor under it
+        const runner = def.kind === 'runner';
+        return this.goal(this.chasePoint(dt, tp, runner && ARCHETYPE.runner.weave, runner ? known.y : Number.NaN), this.los ? def.walkSpeed : def.runSpeed, null);
       }
       case 'attack': {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
@@ -3368,7 +3387,9 @@ export class Enemy implements Damageable {
           this.strafeT = this.rng.range(2, 4);
           this.strafe = this.rng.next() < 0.5 ? 1 : -1;
         }
-        const away = this.dist < def.engageMin ? -1 : this.tacticsProfile === P_AGGRESSIVE && this.dist > def.engageMin + 3 ? 1 : 0;
+        // (guard-ai runner-armed) the runner presses in like an aggressive guard (ARCHETYPE.runner.pressIn)
+        const press = this.tacticsProfile === P_AGGRESSIVE || (def.kind === 'runner' && ARCHETYPE.runner.pressIn);
+        const away = this.dist < def.engageMin ? -1 : press && this.dist > def.engageMin + 3 ? 1 : 0;
         const dx = t.feet.x - this.pos.x;
         const dz = t.feet.z - this.pos.z;
         const len = hyp2(dx, dz) || 1;
@@ -3552,7 +3573,8 @@ export class Enemy implements Damageable {
     return Math.atan2(t.feet.x - this.pos.x, t.feet.z - this.pos.z);
   }
 
-  /** Direct line if clear, else follow the shared flow field. Runners zigzag. (polish A3, A165) In stealth with no
+  /** Direct line if clear, else follow the shared flow field. `zig`: a lateral weave beyond 5 m (the dog's charge; the
+   *  runner's run in, `ARCHETYPE.runner.weave`). (polish A3, A165) In stealth with no
    *  intruder: an A* walk to `tp` (his own known spot), never along the freshest intruder's field (G139). */
   private chasePoint(dt: number, tp: P2, zig: boolean, ty = Number.NaN): Waypoint | null {
     const nav = this.ctx.nav;

@@ -4,7 +4,7 @@ import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { GameState } from './gameState';
 import { SightWorld } from './sectorCheck';
-import { slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
+import { JOIN_START_M, slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
 import { courseSlotPoints, courseStartCheckpoint } from './modes/courseMode';
 
 /**
@@ -88,6 +88,18 @@ export function canWalk(g: GameState, from: SlotPoint, to: { x: number; y: numbe
   const path = nav.findPath([from.x, from.z], [to.x, to.z], REACH_EXPAND, from.y, to.y);
   if (!path) return false;
   return !walkCrossesLocked(from.x, from.z, path, lockedLeaves(g, []));
+}
+
+/**
+ * (mission-framework NET3) A player at (x, y, z) is outside the current section: farther than `JOIN_START_M` from every
+ * point of the `checkpoint` slot points and unable to walk to the first (`canWalk`: a locked connector door between, or
+ * no path). The host's check on a remote's first state in Sector Ops (a client that started in another section).
+ */
+export function offSection(g: GameState, checkpoint: readonly SlotPoint[], x: number, y: number, z: number): boolean {
+  const cp = checkpoint[0];
+  if (!cp) return false;
+  for (const p of checkpoint) if (hyp2(p.x - x, p.z - z) < JOIN_START_M) return false;
+  return !canWalk(g, { x, y, z, yaw: 0 }, cp);
 }
 
 /**

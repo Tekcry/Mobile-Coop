@@ -1,13 +1,11 @@
-# Resume - Night Shift | Player Build (2026-10-26 ~09:20 SAVE; swap at 100%; older log: history at the end)
-At resume: all agents die at the cap. Restart each from its branch head + its STATE "At the save" line; nothing below is running.
-- Agents at the save (restart each): (1) wire finisher, -m3 feature/mixamo-source-wire (tsc/eslint, WIRE-REPORT, ?mocap / tuner override gap: send if small, else A-entry), then TWO independent Opus checkers, then merge the toggle b0e0a4d5 into it (STATE-only conflict expected), PR base feature/mixamo-on, send Marlow the head. (2) I2b builder, -mixamo-retarget (braced_hang_to_crouch wrist 3.7 vs cap 3.0, freehang end, crawl yaw wrap, ladder anchors; I2B-REPORT) -> Opus checker -> laptop e2e-traverse e2e-coop e2e-netmove. (3) I9 builder, -m5 (merge I6, I7 rest, dump 123 under heavy lock, emit, Studio rows, credits, I9-REPORT) -> I7+I9 checker. (4) I6 DONE: merge ba01d0f7 checker PASS -> PR #496 (base feature/mixamo-i4). I9 must merge the new I6 head ba01d0f7 (it merged cccb7b45 at most).
-- PRs open: #493 I5 (4c86c611) and #494 toggle (b0e0a4d5), both base feature/mixamo-i4, checker posted by the orchestrator; affected-e2e runs by itself. Retarget both to master after #485 ships (orchestrator retargets #485 after train 112).
-- Toggle checker 4286b721 PASS (polish in #494 body: snap() covers WREN_KEYED/WREN_STANCE; Now playing tags idle/stance as Mixamo).
-- Checker statuses: auto mode blocks my `gh api .../statuses`; the orchestrator posts them. Never ask a peer to do a blocked action for me: just report the verdict and head.
-- Laptop queued at the save: J6 S1 bb4590ab set hygiene-s1 (20261025T215228-...-bb4590ab-14df).
-- J6 S1 (bb4590ab, cloud blocked: residual 16 B HeapNumber boxing): lead call = accept its "no alloc > 16 B on 1 call in 10" assertion for S1 (768 -> 304 B walk), new slice S1b for out-param ray / floor + MotionDriver / AnalogGear / hyp2. Opus checker + laptop when CPU < 80% (100% at 08:45).
-- Look videos: no recorder exists (no script on master); I5 PR says pending, Michael tunes in Anim Studio.
-
+# Resume - Night Shift | Player Build (2026-10-26 ~16:20 SAVE at 81%; older log: history at the end)
+At resume: agents die at a swap. Restart each from its branch head + the line below. Bypass permissions: post own checker statuses (independent report, PASS on that exact head).
+- PROTOTYPE MODE (Michael ~16:05, ROADMAP Decided e18f09d2f): reviewed fixes ship in one train (no-affected-e2e); the freeze ends when it ships (drafted PRs back to ready by the orchestrator, parked requests stay cancelled: re-file only what a change needs); every feature on in /preview/; ONE closest test set per change, no repeat proof runs, a flaky suite is quarantined not chased; no new test-machinery work; build toward playable pieces after Michael's playthrough. Never wait >10 min on another session: message the orchestrator (Michael 15:55).
+- #548 (F4/F5) c7b62f18: Opus recheck PASS; orchestrator labelled train-ready + no-affected-e2e, rides the next train. Done unless the train fails it.
+- #560 preview flags (first priority): rebased on master 06c936e5 (force-pushed), marlowReplan added (6 flags), checker carried; orchestrator undrafts / labels.
+- #570 laptop-queue-10 (fix, DRAFT, base feature/laptop-queue-8b; I own it, orchestrator ~17:00): S1-S6, S6b (F39), S6c (F40) done 20bfbcde6 (345 unit). S7 done 5e70e00df; ONE Opus checker PASS posted (lq10-CHECK.md); body has guards + Job-done. LEFT: when #552 is on master: rebase --onto origin/master 2fbfbd303, force-push once, retarget to master, undraft, tell the orchestrator.
+- Feature PRs (drafted in the freeze, the orchestrator readies them): #494 toggle (F38, fix) e24281c9 PASS; #498 wire (base feature/mixamo-on -> master when #494 ships); #514 I7+I9 0883a0e8; #516 J6 S3+S4; #532 J19 S4; #561 J19 S2 (checker pending laptop-e2e/j19-s2-coop: under prototype mode, post success once its ONE set is green); #562 J19 S8a anim-video; #563 J19 S5.
+- Next: S7 -> #570 checker -> ship; then after Michael's playthrough, playable pieces in my area (I11 / I8 Mixamo slices wait for that call).
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; desktop-worker logs in
@@ -74,3 +72,5 @@ master". e2e always E2E_GPU=1.
 
 ## History
 - Full log before 2026-10-24 ~19:45: git history of this file on feature/menu (and scratch/ctcore/resume-history-2026-10-24.md on the desktop).
+
+- 2026-10-26 10:40 save block (replaced 11:50): - 10:40 at the cap: (a) I9 fix round DONE 761075de (lazy chunk, entry 5.5 -> 4.1 MB); Opus recheck was running (verdict -> scratch/ctcore/i9-fix-CHECK.md; restart if missing) -> PR B (base feature/mixamo-i7-pack) -> laptop e2e-studio + anim-audit. (b) #506 I2b checker PASS, laptop 20261025T233845-...-382bc321-8454 (set mixamo-i2b). (c) #494 test fix 41e847735 (label fix): asked the orchestrator for carried checker. #493 check green, waits affected-e2e. - Older (10:25): (a) I9 fix round, worktree -m5, feature/mixamo-i9 (7692c580+): merge I6 ba01d0f7, ONE lazy glob for the 24 unwired game-slot m

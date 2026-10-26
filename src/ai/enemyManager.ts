@@ -16,7 +16,7 @@ import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
 import { beamReach, type BeamHit } from '../world/torches';
-import { ALARM_CALL, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
+import { ALARM_CALL, ALARM_REPEAT, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
 import { ALERT } from './alertState';
@@ -45,7 +45,7 @@ import { HelmetDrops } from './helmetDrops';
 import { MODE_BREAKER } from './incidents';
 import { BREAKER, LATE } from './gear';
 import { BREAKER_WALK, CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
-import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SEED_RADIO, seeded01, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
 import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
 // (guard-ai S14) section alert: missed check-ins and loud shots
@@ -244,9 +244,28 @@ export class EnemyManager {
   /** A knocked-out enemy was revived (modes count it back in). */
   onRevived: ((e: Enemy, b: Body) => void) | null = null;
   bodiesFound = 0;
-  /** Alarm panels on the map; raised once per match (reinforcements). */
+  /** Alarm panels on the map (reinforcements): raised once per load, or (guard-rules S5) up to `ALARM_REPEAT.max`
+   *  with `alarmRepeat`. */
   readonly alarms: AlarmPanel[] = [];
+  /** A guard alarm was raised (since the load): sticky for its readers (the carry rule, the alarm's intruder). New
+   *  raises are gated by the repeat lock (`alarmOpen`), not by this. */
   alarmRaised = false;
+  /**
+   * (guard-rules S5, D5, A7) Repeat guard alarms (`ALARM_REPEAT`): false = one guard alarm per load (today's rule, Marlow
+   * Yard's and the parked modes'); `SectorMode` sets it on each section load (Sector Ops and the campaign).
+   */
+  alarmRepeat = false;
+  /** (guard-rules S5) Guard alarms raised this load (panel or radio; tests / e2e read it). */
+  guardAlarms = 0;
+  /** (guard-rules S5) The repeat lock opened since the last guard alarm: the next may be raised. */
+  private rearmed = false;
+  /** (guard-rules S5) Seconds since the last guard alarm, and the response teams it brought (`teams` indices
+   *  `alarmTeam0` up to, not including, `alarmTeamN`: a later camera or laser stage's team is not one of them). */
+  private alarmAgo = 0;
+  private alarmTeam0 = 0;
+  private alarmTeamN = 0;
+  /** (guard-rules S5) The repeat table (tests / e2e read the numbers from here). */
+  readonly alarmRepeatTable = ALARM_REPEAT;
   /** The alarm went off: `e` raised it, at panel `p` (null: (guard-ai S6) by radio, a command call that got through). */
   onAlarm: ((e: Enemy, p: AlarmPanel | null) => void) | null = null;
   /** (guard-ai S6) How the alarm was raised ('' not yet; tests / e2e / debug). */
@@ -653,7 +672,8 @@ export class EnemyManager {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
+          // (guard-ai seed-random) replayable jitter per listener per engagement (hard rule 8)
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3) *this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1), e.hunt);
         }
       },
       shout: (e) => {
@@ -666,7 +686,8 @@ export class EnemyManager {
         for (let i = 0; i < list.length; i++) {
           const o = list[i]!;
           if (o === e || !o.alive || o.alerted) continue;
-          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3, e.hunt);
+          // (guard-ai seed-random) replayable jitter (hard rule 8)
+          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + seeded01(this.matchSeed, SEED_RADIO ^ Math.imul(this.engagement, 2654435761), o.num) * 0.3, e.hunt);
         }
       },
       radioCall: (e, inc, kind) => {
@@ -726,6 +747,8 @@ export class EnemyManager {
       bodyFound: (e, b) => this.bodyFound(e, b),
       revive: (b, by) => this.revive(b, by),
       alarmRaised: () => this.alarmRaised,
+      // (guard-rules S5, A7) a panel run goes on while a new guard alarm may be raised
+      alarmOpen: () => this.alarmOpen(),
       // (guard-ai S27, A164) the mode's alarm stage: only the guards' carry rule reads it
       alarmStage: () => this.alarmStage,
       raiseAlarm: (e, p) => this.raiseAlarm(e, p),
@@ -812,6 +835,12 @@ export class EnemyManager {
    *  S6) Nor the command call: no alarm is owed. */
   resetAlarm(): void {
     this.alarmRaised = false;
+    // (guard-rules S5) the repeat lock and count: the load's first guard alarm may be raised again
+    this.rearmed = false;
+    this.guardAlarms = 0;
+    this.alarmAgo = 0;
+    this.alarmTeam0 = 0;
+    this.alarmTeamN = 0;
     this.alarmRunner = null;
     this.alarmBy = '';
     this.alarmHunt = -1;
@@ -820,11 +849,58 @@ export class EnemyManager {
     this.command.clear();
   }
 
+  /**
+   * (guard-rules S5, A7) May a guard alarm be raised now: none raised since the load, or the repeat lock opened since the
+   * last (`alarmRepeat`, `ALARM_REPEAT`; `repeatStep`). Gates every new raise (panel run, contact, command, radio).
+   */
+  alarmOpen(): boolean {
+    return !this.alarmRaised || this.rearmed;
+  }
+
+  /**
+   * (guard-rules S5, A7) Per step: after a guard alarm, with repeats on and fewer than `ALARM_REPEAT.max` raised this load,
+   * the lock opens once a member of a response team the alarm brought is searching where he was sent (its response is
+   * in: `teamSearching`), or `rearm` s after it. Only a raise this manager made counts (`guardAlarms`): an
+   * `alarmRaised` set from outside stays shut.
+   */
+  private repeatStep(dt: number): void {
+    if (!this.alarmRaised || this.rearmed || !this.alarmRepeat || !ALARM_REPEAT.enabled) return;
+    const n = this.guardAlarms;
+    if (n < 1 || n >= ALARM_REPEAT.max) return;
+    this.alarmAgo += dt;
+    if (this.alarmAgo >= ALARM_REPEAT.rearm || this.teamSearching(this.alarmTeam0, this.alarmTeamN)) this.rearmed = true;
+  }
+
+  /**
+   * (guard-rules S5, A7) A living, free member of a response team `teams[from]` up to `teams[to]` (not included) is
+   * searching and has arrived: not still running his entry route in, and a device responder (`joinAsResponder`,
+   * searching from the moment he spawns) only once he stands at a search spot. No allocation.
+   */
+  private teamSearching(from: number, to: number): boolean {
+    const ts = this.teams;
+    const end = to < ts.length ? to : ts.length;
+    for (let i = from; i < end; i++) {
+      const ms = ts[i]!.members;
+      for (let j = 0; j < ms.length; j++) {
+        const m = ms[j]!;
+        if (!m.alive || m.taken || m.level !== 'searching' || m.entering) continue;
+        if (!m.responder || m.atSearchSpot) return true;
+      }
+    }
+    return false;
+  }
+
   /** An alerted enemy worked a panel, or (guard-ai S6) a command call got through (`p` null): reinforcements (once per
-   *  match; Sector Ops once per section load). */
+   *  match; Sector Ops once per section load, (guard-rules S5) or up to `ALARM_REPEAT.max` with `alarmRepeat`). */
   private raiseAlarm(e: Enemy, p: AlarmPanel | null): void {
-    if (this.alarmRaised || (p && p.disabled)) return;
+    if (!this.alarmOpen() || (p && p.disabled)) return;
     this.alarmRaised = true;
+    // (guard-rules S5) the lock shuts again; the teams this alarm brings are made in `onAlarm` (index from here on)
+    this.rearmed = false;
+    this.alarmAgo = 0;
+    this.alarmTeam0 = this.teams.length;
+    this.alarmTeamN = this.alarmTeam0;
+    this.guardAlarms++;
     this.alarmBy = p ? 'panel' : 'radio';
     // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it; (S24 fix) he has none: the one the
     // last contact call that got through named (command heard it), else none until one does (`sink.completed`)
@@ -836,15 +912,18 @@ export class EnemyManager {
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
+    // (guard-rules S5) the teams the mode made for it (`newTeam`, at once; their members spawn later)
+    this.alarmTeamN = this.teams.length;
   }
 
   /**
    * (guard-ai S6, design 7, M4) A contact call from `caller` got through: the alarm is owed. Stealth modes with the radio
-   * alarm on, no alarm yet: the officer in the caller's voice range (alive, free) holds the command call, else the caller,
-   * else the next guard in the fight. One command call at a time (the net refuses a second).
+   * alarm on, while a new alarm may be raised (`alarmOpen`): the officer in the caller's voice range (alive, free) holds
+   * the command call, else the caller, else the next guard in the fight. One command call at a time (the net refuses a
+   * second).
    */
   private contactThrough(caller: number): void {
-    if (!RADIO_ALARM || !this.stealth || !this.coordinated || this.alarmRaised) return;
+    if (!RADIO_ALARM || !this.stealth || !this.coordinated || !this.alarmOpen()) return;
     if (!this.command.owe()) return;
     const c = this.byNum(caller);
     let who: Enemy | null = null;
@@ -1561,7 +1640,7 @@ export class EnemyManager {
 
   /** Assign the alarm runner: an alerted enemy near a working panel (stealth rules only). */
   private assignAlarm(): void {
-    if (!this.stealth || this.alarmRaised || !this.alarms.length) return;
+    if (!this.stealth || !this.alarmOpen() || !this.alarms.length) return;
     const r = this.alarmRunner;
     if (r && r.alive && r.alerted && r.runningAlarm) return;
     this.alarmRunner = null;
@@ -2559,7 +2638,7 @@ export class EnemyManager {
     this.radioNet.tick(dt, v, this.sink, this.rxReaction, null);
     // (guard-ai S6) the command call: cut -> the next guard in the fight after `ALARM_CALL.retry` s; nobody: no alarm
     if (this.command.tick(dt, this.radioNet.commandOpen)) {
-      const c = this.alarmRaised ? null : this.nextCaller();
+      const c = this.alarmOpen() ? this.nextCaller() : null;
       if (c) this.startCommand(c);
       else this.command.lapse();
     }
@@ -2595,12 +2674,13 @@ export class EnemyManager {
 
   /** (guard-ai S3, S6) A `command` call got through: the alarm (reinforcements, M4), no panel needed (`RADIO_ALARM`). */
   private radioAlarm(caller: number): void {
-    if (!RADIO_ALARM || this.alarmRaised) return;
+    if (!RADIO_ALARM || !this.alarmOpen()) return;
     const e = this.byNum(caller);
     if (!e) return;
+    const n = this.guardAlarms;
     this.raiseAlarm(e, null);
-    // (guard-ai S14) the section's tally
-    if (this.alarmRaised) this.counts.radioAlarms++;
+    // (guard-ai S14) the section's tally; (guard-rules S5) each radio alarm raised
+    if (this.guardAlarms > n) this.counts.radioAlarms++;
   }
 
   /**
@@ -3648,6 +3728,8 @@ export class EnemyManager {
       if (this.coordinated && this.rolesActive) this.flanker = null;
       else this.assignFlanker();
     }
+    // (guard-rules S5) the repeat lock, before the panel runner is picked
+    this.repeatStep(dt);
     this.alarmT -= dt;
     if (this.alarmT <= 0) {
       this.alarmT = 0.5;
