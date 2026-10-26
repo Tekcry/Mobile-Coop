@@ -1,0 +1,13 @@
+{
+  "id": "20261026T205729-affected-e2e-f67c9da5-3158",
+  "sha": "f67c9da585998fe668a2619f430604ffc583e037",
+  "branch": "feature/mission-d-wharf",
+  "pr": 583,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #583"
+}
