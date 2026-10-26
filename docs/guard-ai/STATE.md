@@ -1038,12 +1038,13 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    Deviations: net holds one command call at a time (area 1 waits its retry), canCallIn / holdsCommand, setAreas reads
    zoneX/Z (placeSlot only). Check A PASS, B FIX 1 (e2e player spot behind pillar) -> fix b6ec17ab6 (+ s1b merged), re-check PASS,
    checker posted on c310f9cbe; laptop mh-s3b queued on b6ec17ab6 (stealth-ai, guard-carry, sectorops:1). Laptop mh-s1a2-early + mh-s1b-early FAIL (deterministic, e2e-stealth-ai 'mission order': woken tagged guard 'woken false', assert from S1a-2 fix 2b9947b9a): triage = TEST bug (hidden body: revive refuses; fix unhides K) -s1a2 669290cef; merged into -s1b 15de69118, laptop mh-s1b-fix (stealth-ai) queued; merged into s3b (withdrawn 11:50; suites stealth-ai, guard-carry, sectorops:1). ai.md lines in the S3b
-   report (fold later). S4 Opus builder RUNNING (12:20) in worktree -s4, branch feature/guard-ai-mission-hooks-s4
-   (base 86fb4164b = S3b c310f9cbe + S2 merged). Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
+   report (fold later). S4 BUILT -s4 6fb0e1b32 (base 86fb4164b = S3b + S2; +510; 15 files 273/273);
+   Opus checks A + B RUNNING -> checks/S4-CHECK-A/B.md (no status posts). ONE laptop set mh-s4 on 6fb0e1b32 covers the
+   stack (S1a-2 fix, S1b, S3b, S4; stealth-ai, guard-carry, sectorops:1); mh-s1b-fix + mh-s3b withdrawn 12:20. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
    Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s1b-fix + mh-s3b verdicts (asserts after K never ran: triage any new red); #317 affected on ed34b4005; S4 report -> 2 Opus checkers + laptop set.
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s4 verdict (asserts after K never ran: triage any new red); #317 affected on ed34b4005 (orchestrator re-checks the merge); S4 checks -> post checker.
 ```
