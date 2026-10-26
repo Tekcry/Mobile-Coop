@@ -8,7 +8,7 @@
 //   3. one seen retry: the client is put in the pod at T2's spot while a7-tech2 waits at his look stop over the cage's
 //      north-east corner (route index 1): he sees the client through the mesh; LANTERN's retry line, `lastRetry` 17 / seen,
 //      both players land on station 17's marks in the lobby (A the host at (74, 62), B the client at (72.5, 57)), the
-//      claim and the split cleared, both technicians reset;
+//      split cleared (the claim stays: marlow-play-2 C11), both technicians reset;
 //   4. the split again: the client to the pod through the corridor in cam2's blind windows while a7-tech2 reads the pod panel
 //      (route index 0, facing the pod's solid north wall); the host into the hall while a7-tech stands at R0 facing the rack
 //      screen, then to T1 once he walks west behind row 1; both at their terminals light the ready lamps;

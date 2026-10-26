@@ -12,6 +12,7 @@
 // --priority N: "priority": N (integer, default 0): among the same requester's open requests a higher one runs first
 // (else oldest first), e.g. a request a train-ready PR waits on; it never moves the request ahead of other requesters.
 // --pin: "pin": true, never superseded (A/B and baseline runs kept on purpose; queue-audit skips them too).
+// --fix: "fix": true, tested before new-feature requests (the PR's `fix` label does the same; laptop-queue-8).
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -27,7 +28,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith('--')) { console.error(`unexpected argument ${a}`); process.exit(1); }
   const k = a.slice(2);
-  if (['full', 'alone', 'dry-run', 'train-rerun', 'pin', 'affected', 'wide'].includes(k)) opts[k] = true;
+  if (['full', 'alone', 'dry-run', 'train-rerun', 'pin', 'affected', 'wide', 'fix'].includes(k)) opts[k] = true;
   else if (k === 'step' || k === 'env') opts[k].push(argv[++i]);
   else opts[k] = argv[++i];
 }
@@ -100,6 +101,7 @@ if (opts.jobs) req.jobs = Number(opts.jobs);
 if (opts.set) req.set = opts.set;
 if (opts.note) req.note = opts.note;
 if (opts.pin) req.pin = true;
+if (opts.fix) req.fix = true;
 if (opts.priority !== undefined) req.priority = Number(opts.priority);
 // suite names checked against the sha's own scripts/ (lib knownSuites; --full-tree: also from a subdirectory); an
 // unreadable listing refuses a pr request rather than skip the check

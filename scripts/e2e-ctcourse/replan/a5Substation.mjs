@@ -182,7 +182,7 @@ export async function walk(t, n) {
   await noDamage();
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await stationLive(P, 11, `A5: station 11 is live on the ${tag} page`);
-    await sees(P, /6 m wall/, `A5: the ${tag} reads station 11's step line`);
+    await sees(P, /wicket door in the wall/, `A5: the ${tag} reads station 11's step line`);
   }
   assert(!(await lockedOnHost(WICKET_DOOR)) && !(await lockedOnClient(WICKET_DOOR)), 'A5: the wicket stand-in is unlocked on both pages (the base opened it)');
   for (const id of [FOOTBRIDGE_DOOR, PLATES_DOOR, BACK_DOOR]) {

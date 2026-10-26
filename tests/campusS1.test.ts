@@ -10,7 +10,7 @@ import { MAPS, getMap } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
 import { campusOps, CAMPUS_BOUNDS } from '../src/world/maps/campusOps';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
-import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
+import { C1_BOX, S1_DOORS, S1_GROUPS, S1_ROOMS, BOLLARD_XS, CANOPY_LAMPS, PARK_COLUMN_HEAD, PARK_COLUMNS_E, PARK_COLUMNS_W } from '../src/world/maps/campusS1';
 import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
@@ -22,6 +22,7 @@ import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { HANG, LEDGE } from '../src/world/anchors';
 import { hyp2 } from '../src/core/mathx';
 import { LIGHT, contribution } from '../src/world/lights';
+import { lampReach } from '../src/world/lampMath';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
 import { SightWorld, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
@@ -280,8 +281,8 @@ describe('S1 cameras, alarm, objective, routes', () => {
     expect(a.pos.z).toBeLessThan(-73);
   });
 
-  it('the objective: a download at the gatehouse PC (19.3, -76), reachable from the window; every route starts at the start, passes the objective and ends in C1', () => {
-    expect(S1.objective).toMatchObject({ kind: 'download', x: 19.3, z: -76 });
+  it('the objective: a download at the gatehouse PC (19.3, -77.3; F42), reachable from the window; every route starts at the start, passes the objective and ends in C1', () => {
+    expect(S1.objective).toMatchObject({ kind: 'download', x: 19.3, z: -77.3 });
     // (L2) a player at the open window (the wall face 20.15 + the 0.3 body) is inside the default interact reach 1.8
     expect(hyp2(S1.objective.x - 20.45, S1.objective.z + 76)).toBeLessThan(1.8);
     expect(SECTOR.downloadTime).toBe(10);
@@ -423,11 +424,11 @@ describe('S1 lighting (SPEC "Lighting")', () => {
   const lights = b.lights.lights;
   const group = (g: number) => lights.filter((l) => l.group === g);
 
-  it('the circuits: s1-park-w 8 columns, s1-park-e 6, the bollards, the gatehouse, 4 canopy downlights, a lane floodlight with no switch', () => {
-    expect(PARK_COLUMNS_W.length).toBe(8);
-    expect(PARK_COLUMNS_E.length).toBe(6);
-    expect(group(S1_GROUPS.parkW).length).toBe(8);
-    expect(group(S1_GROUPS.parkE).length).toBe(6);
+  it('the circuits: s1-park-w 16 column heads, s1-park-e 10, the bollards, the gatehouse, 4 canopy downlights, a lane floodlight with no switch', () => {
+    expect(PARK_COLUMNS_W.length).toBe(16);
+    expect(PARK_COLUMNS_E.length).toBe(10);
+    expect(group(S1_GROUPS.parkW).length).toBe(PARK_COLUMNS_W.length);
+    expect(group(S1_GROUPS.parkE).length).toBe(PARK_COLUMNS_E.length);
     expect(group(S1_GROUPS.parkW).every((l) => l.y === 6.0)).toBe(true);
     expect(group(S1_GROUPS.fore).filter((l) => l.y < 1).length).toBe(BOLLARD_XS.length);
     expect(group(S1_GROUPS.gate).length).toBe(1);
@@ -437,6 +438,46 @@ describe('S1 lighting (SPEC "Lighting")', () => {
     // every lit lamp is shootable and electric (cut, shot or jammed)
     for (const l of lights.filter((q) => q.intensity > 0)) {
       expect(l.destructible && l.electric, `lamp ${l.id}`).toBe(true);
+    }
+  });
+
+  it('(light-realism L1) every column and the lane floodlight: light point off its pole on an arm; poles clear the cars', () => {
+    const posts: { x: number; z: number; ax: number; az: number; group: number }[] = [
+      ...PARK_COLUMNS_W.map(([x, z, ax, az]) => ({ x, z, ax, az, group: S1_GROUPS.parkW })),
+      ...PARK_COLUMNS_E.map(([x, z, ax, az]) => ({ x, z, ax, az, group: S1_GROUPS.parkE })),
+      { x: 9, z: -66, ax: 1, az: 0, group: S1_GROUPS.lane },
+    ];
+    const cars = b.boxes.filter((p) => Math.abs(p.s[1] - 1.5) < 0.01 && Math.abs(p.s[0] - 1.8) < 0.01 && Math.abs(p.s[2] - 4.2) < 0.01);
+    expect(cars.length).toBe(14);
+    for (const q of posts) {
+      expect(Math.abs(q.ax) + Math.abs(q.az), `arm (${q.x}, ${q.z}) along x or z`).toBe(1);
+      const pole = b.cylinders.find((c) => hyp2(c.c[0] - q.x, c.c[2] - q.z) < 0.01 && c.c[1] + c.h / 2 > 6)!;
+      expect(pole, `pole (${q.x}, ${q.z})`).toBeDefined();
+      const l = lights.find((m) => m.group === q.group && hyp2(m.x - q.x - 0.8 * q.ax, m.z - q.z - 0.8 * q.az) < 0.01)!;
+      expect(l, `light point of (${q.x}, ${q.z})`).toBeDefined();
+      // the light point at least 0.5 m in plan from its pole's axis; the pole circle does not hold its plan point
+      expect(hyp2(l.x - pole.c[0], l.z - pole.c[2])).toBeGreaterThanOrEqual(0.5);
+      expect(hyp2(l.x - pole.c[0], l.z - pole.c[2])).toBeGreaterThan(pole.r);
+      // its arm: from the pole to 0.6 m out, bottom above the light point (nothing of its own under the light)
+      const arm = b.boxes.find((p) => Math.abs(p.c[1] - 6.15) < 0.01 && hyp2(p.c[0] - q.x - 0.3 * q.ax, p.c[2] - q.z - 0.3 * q.az) < 0.01)!;
+      expect(arm, `arm of (${q.x}, ${q.z})`).toBeDefined();
+      expect(arm.c[1] - arm.s[1] / 2).toBeGreaterThan(l.y);
+      const inArm = Math.abs(l.x - arm.c[0]) <= arm.s[0] / 2 && Math.abs(l.z - arm.c[2]) <= arm.s[2] / 2;
+      expect(inArm, `light point of (${q.x}, ${q.z}) is past its arm's end`).toBe(false);
+      // every pole clears every car box by 0.3 m in plan
+      for (const c of cars) {
+        const dx = Math.max(0, Math.abs(q.x - c.c[0]) - c.s[0] / 2);
+        const dz = Math.max(0, Math.abs(q.z - c.c[2]) - c.s[2] / 2);
+        expect(hyp2(dx, dz) - pole.r, `pole (${q.x}, ${q.z}) vs car (${c.c[0]}, ${c.c[2]})`).toBeGreaterThanOrEqual(0.3);
+      }
+    }
+    // no bay row unlit by layout (G329): every 3 m grid point of the car park is within reach of two column light points
+    const heads = lights.filter((m) => m.group === S1_GROUPS.parkW || m.group === S1_GROUPS.parkE);
+    const reach = lampReach(PARK_COLUMN_HEAD.r);
+    for (let x = -36; x <= 6; x += 3) {
+      for (let z = -76; z <= -52; z += 3) {
+        expect(heads.filter((m) => hyp2(m.x - x, m.z - z) < reach).length, `car park (${x}, ${z})`).toBeGreaterThanOrEqual(2);
+      }
     }
   });
 
