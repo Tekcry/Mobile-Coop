@@ -148,6 +148,11 @@ function build(b: LevelBuilder): void {
   // the climber stands in the canal facing the quay face (+z); the line is 0.45 off the face, the top at the edge (the S3 convention)
   b.ladder(58, 5.55, Y.canalBed, 0, 0);
 
+  // ---- the shed yard's cover: the cart line (two drays north of the patrol line) and the crane's rope bin under the gantry ----
+  bx(b, 52.0, 55.0, 0, 1.6, 22.0, 23.4, C.hull); // the west dray
+  bx(b, 59.0, 62.0, 0, 1.6, 22.0, 23.4, C.hull); // the east dray
+  bx(b, 63.0, 64.0, 0, 0.9, 14.6, 15.4, C.dark); // the crane's rope bin, 3 m east of the yard ladder
+
   // ---- the jetty (a solid block, -4.4 to 0), its fence and gate, its south rail (open x 72-76 for the pull, and at the gangway) ----
   bx(b, 72, 100, Y.canalBed, 0, 6, 10, C.dark);
   wall(b, false, 72, 5, 10, [], Y.canalBed, 0, T, C.rail); // the fence's foot, 1.0 m out over the canal
@@ -182,6 +187,11 @@ function build(b: LevelBuilder): void {
   bx(b, 71.85, 86.15, SHED_TOP, SHED_ROOF, 9.85, NORTH.face, C.roof);
   bx(b, 74, 84, SHED_ROOF, SHED_ROOF + 0.6, 24, 26, C.glaze, false); // north-light glazing (visual)
   bx(b, 77.5, 80.5, 0, 2.0, 25.5, 27.7, C.crate); // the tea-chest stack under the sash: the way down
+  // the stack alley (cover): two tea-chest stacks west of the foreman's x 85 leg (the alley x 84.0-85.85), their gap z 17.6-20.4 facing the fire door
+  bx(b, 82.4, 84.0, 0, 2.4, 13.0, 17.6, C.crate); // the south stack
+  bx(b, 82.4, 84.0, 0, 2.4, 20.4, 25.0, C.crate); // the north stack
+  bx(b, 81.6, 82.4, 0, 0.8, 14.6, 15.4, C.crate); // an open empty chest at the south stack's west foot
+  bx(b, 72.15, 73.0, 0, 0.9, 15.0, 16.0, C.crate); // a sack hamper on the west wall, south of the yard door
   // the planned lip: a manual ledge on the noLedge wall face, x 78.65-79.35, top 4.4, normal +z (the lane)
   b.ledge(LIP_X[1], NORTH.face, LIP_X[0], NORTH.face, 4.4, { drop: 4.4, canHang: true, canClimbUp: true });
 
