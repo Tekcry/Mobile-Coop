@@ -20,7 +20,8 @@
  * Plus two pure clip measures (no rig): `stabPhase` (the stab's full reach) and `standsUntil` (the victim still on his
  * feet).
  */
-import type { RigPose } from '../../src/player/characterRig';
+import type { CharacterRig, RigPose } from '../../src/player/characterRig';
+import type { KnifeModel } from '../../src/weapons/knifeModel';
 import type { KeyedClip } from '../../src/anim/keyed';
 import type { KnifeKillRow } from '../../src/game/knifeKill';
 
@@ -256,7 +257,7 @@ export async function runRow(row: number, override: RowOverride | null = null, v
 
 /** (S3) Wren's rig with the knife in hand and a guard rig (as `runRow` builds them), for the remote pair's allocation
  *  check; `dispose` frees them. The caller mocks `weaponMesh` and loads the knife clips. */
-export async function knifeRigs(): Promise<{ ar: import('../../src/player/characterRig').CharacterRig; vr: import('../../src/player/characterRig').CharacterRig; knife: import('../../src/weapons/knifeModel').KnifeModel; dispose: () => void }> {
+export async function knifeRigs(): Promise<{ ar: CharacterRig; vr: CharacterRig; knife: KnifeModel; dispose: () => void }> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
