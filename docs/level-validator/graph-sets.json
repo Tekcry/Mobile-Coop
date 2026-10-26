@@ -19,8 +19,20 @@
       "docs/sector-redesign/graph/campusOps-S5.json"
     ],
     "flags": [],
-    "errors": 127,
-    "warns": 174,
+    "errors": 139,
+    "warns": 200,
     "run": "docs/level-validator/campus-run/run.txt"
+  },
+  {
+    "name": "marlow",
+    "files": [
+      "docs/marlow-final/graph/ctcourse.json"
+    ],
+    "flags": [
+      "--require-measured"
+    ],
+    "errors": 37,
+    "warns": 83,
+    "run": "docs/marlow-final/graph/run.txt"
   }
 ]
