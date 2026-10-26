@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MissionDef } from '../../src/game/mission/missionDef';
+import { spookFact, type MissionDef } from '../../src/game/mission/missionDef';
 import { INTERROGATE_DECOY, INTERROGATE_NONE, INTERROGATE_TARGET, MissionRunner, STEP_DONE, STEP_LOCKED, STEP_OPEN } from '../../src/game/mission/missionRunner';
 
 // (mission-framework EN1) step states from the DAG and the flags; snapshot / restore per section (PLAN section 3)
@@ -233,5 +233,30 @@ describe('MissionRunner', () => {
     r.update(2);
     expect(r.version).toBeGreaterThan(v);
     expect(r.lastDone).toBe(0);
+  });
+
+  it('(mission-rules R1, A18) a fact no condition reads (the spook fact) has a flag: facts, factBits, applyWire, keepOnRestore', () => {
+    const d = op();
+    const sf = spookFact(d.steps[4]!);
+    const host = new MissionRunner(d, 2);
+    // the gives first in step order (their bits unchanged), then the spook fact
+    expect(host.facts).toEqual(['code-cage', 'route', sf]);
+    expect(host.flags).toContain(sf);
+    host.snapshot('S1', 0);
+    host.setFlag('code-cage');
+    expect(host.factBits).toBe(1);
+    expect(host.keepOnRestore(sf)).toBe(true);
+    expect(host.setFlag(sf)).toBe(true);
+    expect(host.factBits).toBe(1 | (1 << 2));
+    host.restore('S1', 5);
+    // the section's own fact goes back, the kept spook fact stays
+    expect(host.hasFlag('code-cage')).toBe(false);
+    expect(host.hasFlag(sf)).toBe(true);
+    expect(host.factBits).toBe(1 << 2);
+    const client = new MissionRunner(d, 2);
+    client.snapshot('S1', 0);
+    expect(client.applyWire(host.doneBits, host.factBits)).toBe(true);
+    expect(client.hasFlag(sf)).toBe(true);
+    expect(client.hasFlag('code-cage')).toBe(false);
   });
 });

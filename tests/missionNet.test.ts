@@ -116,6 +116,43 @@ describe('mission NET: ms on the sector message', () => {
     expect(feed).toEqual([w.rl]);
     expect(c.mission.runner?.isDone(0)).toBe(true);
   });
+
+  it("(wharf e2e fix) the mirror enters the host's live section, so its steps open and the objective list has rows", () => {
+    const start = { id: 'testOp', st: [0, 0, 0], f: 0, rb: 0, rl: '', rk: [0, 0, 0] };
+    // no section: the runner stays at -1 and nothing opens (the old client: an empty objective list)
+    const none = new MissionMirror();
+    none.take([op()], start);
+    expect(none.runner!.section).toBe(-1);
+    expect(none.runner!.isOpen(0)).toBe(false);
+    // the live section S1: roof and board open, meet waits for both
+    const mm = new MissionMirror();
+    mm.take([op()], start, 'S1');
+    const r = mm.runner!;
+    expect(r.section).toBe(0);
+    expect([r.isOpen(0), r.isOpen(1), r.isOpen(2), r.isOpen(3)]).toEqual([true, true, false, false]);
+    // the host's done bits: meet opens; then the host moves on to S2
+    mm.take([op()], hostWire(), 'S1');
+    expect(r.isOpen(2)).toBe(true);
+    mm.take([op()], { ...hostWire(), st: [1, 2, 4] }, 'S2');
+    expect(r.section).toBe(1);
+    expect(r.isOpen(3)).toBe(true);
+  });
+
+  it('(wharf e2e fix) CoopClient.onSector passes the map sector of ls to the mirror', () => {
+    const c = Object.create(CoopClient.prototype) as CoopClient;
+    Object.assign(c, {
+      g: { world: { map: { missions: [op()], sectors: [{ id: 'S1' }, { id: 'S2' }] } }, hud: { feedItem: () => {} } },
+      mission: new MissionMirror(),
+      sawSector: false,
+      sec: null,
+    });
+    const on = (m: Extract<Msg, { t: 'sector' }>): void => (c as unknown as { onSector(m: unknown): void }).onSector(m);
+    on(received({ ms: { ...hostWire(), rb: 0, rl: '' } }));
+    expect(c.mission.runner?.section).toBe(0);
+    expect(c.mission.runner?.isOpen(2)).toBe(true);
+    on(received({ ls: 1, ms: { ...hostWire(), rb: 0, rl: '', st: [1, 2, 4] } }));
+    expect(c.mission.runner?.section).toBe(1);
+  });
 });
 
 describe('mission NET: a client interrogation reaches the adapter with the guard id and the client id', () => {
