@@ -180,3 +180,57 @@ Commands:
   skipped, 2 todo (45 s). `shadowNoticePerceive`: 22 passed; against bf23ec3f6's enemy.ts, 4 fail (fix 1, the gates,
   the hush, the whole-think allocation), as they should.
 - Not run, as instructed: npm run dev, e2e, a full npm run check.
+
+## Fix round 2
+Builder: Opus 5.5, 2026-10-27, on 175358ad4 (PR 1 check B: FIX). Commits b59f05718 (src/ai), 21d1d1d76 (tests),
+44f2a92a0 (BRIEF A5 / A6, PLAN section 1 and the G4a row). Flag off / cues null: still today's. `cueQuiet` is set only
+by the cue's hushed rise and `cueTurn` only by a cue, so with no cues `onLevel`'s 'clear' condition, `hearTurn` and
+`ack` behave as before; the new gates sit after `shadowLook`'s first-line return; the body skip is
+`chars === null || ...`.
+
+- **FIX 1, a cue-only episode is silent on the way down too.** `Enemy.cueQuiet` (`src/ai/enemy.ts:587`): set by the
+  hushed rise (`onLevel`, `:2404`). Every other level change clears it (`:2398-2399`), and the calm-down
+  suspicious -> cooldown skips 'clear' while it was set (`cueOnly`, the cooldown branch below `:2404`). A real sight or
+  `hear` that leaves him suspicious clears it in `updateAwareness` and says the 'suspicious' line the rise skipped
+  (`:3074`, check B polish 1). A `hearTurn` loud enough to lift him does the same (`:1420`), and an ack clears it
+  silently (`:1726`). A mixed episode then barks as today.
+  - Tests: `tests/shadowNoticePerceive.test.ts:609` (a cooldown guard, cue only, 3 s moving then 15 s still:
+    suspicious and back to cooldown, no bark). `:624` (a noise at 1 s into the episode: barks
+    `['suspicious', 'heard', 'clear']` and the level sequence are the same as with cues off; the stimulus is the
+    noise). `:653` (a sight in the episode: the skipped line). `:673` (an ack: no 'suspicious', the calm-down barks
+    'clear').
+- **FIX 2, the cue never takes a sound's place.** Gate `:2942`: `heard || heardMoment || (turnT > 0 && !cueTurn)`.
+  `Enemy.cueTurn` (`:590`) is set with the cue's own look (`:2982`) and cleared by `hearTurn` (`:1430`) and `ack`
+  (`:1725`), so repeated cues still re-stamp their own look but never a hearing or ack look. A6 records it, with the
+  noisemaker path: `EnemyManager.hear` gives the unsent hearers `hearTurn` and the sent one `sendTo` (`heard`).
+  - Tests: `:697` (after `hear(6, 2, 10)` the per-step level and stimulus with cues on equal cues off up to his
+    calm-down; he investigates (6, 2)). `:712` (after `hearTurn` and after `ack`: the same per-step trace over the look,
+    stimulus (6, 2) throughout, no cue). `:729` (the sweep: 5 noise spots x 3 radii x `hear` / `hearTurn`, every case
+    that reacted (> 15) traces the same with cues on). The existing glimpse sweep (`:540`) now also asserts that the
+    investigation goes to B's feet (2, 9) with cues on as with them off, never to the shadow. `:324` (rewritten: a
+    `hearTurn` the same step keeps the sound's stimulus and look, no cue, and still barks). The gates case (`:361`)
+    gains the `heard`, `heardMoment` and running-look rows, plus a positive row: the cue's own look does not gate the
+    next cue.
+- **Polish 2, the breaker walk** (`:2938`): `brkGroup >= 0` gated as `lure.active`. A6 records the reason
+  (`calmDecide` runs `breakerStep` while `rate <= 0`: suspicious and still walking). Test: the gates case (`:361`).
+- **Polish 3 / 6, difficulty and the 45 s restart**: left as they are, recorded in A5. The cue is a fixed rule (an
+  easy guard notices a shadow as a hard one does, tuned at the walk). The cooldown restart is `hearTurn`'s too: a cue
+  adding a little time on edge is adding suspicion, never removing it.
+- **Polish 4, the new body's first sample**: fixed, one condition (`src/ai/enemyManager.ts:4171`,
+  `chars === null || b.age > dt`). With the contract, a body's first light sample waits one step, so the standing
+  capsule of the guard who died inside this `update` (still in this step's fill under the guard's key) never shades
+  it. Without a contract, sampled on its first step as today. Test `:918`; the test body stand-in now ages in `update`.
+- **Polish 5, G4a**: the PLAN's G4a row now says to set `enemyMgr.chars` and switch the fill to `fillOccluders` in one
+  commit, with the reason.
+
+Commands:
+- `git rev-parse --abbrev-ref HEAD`: feature/guard-ai-j16.
+- `npm run typecheck:fast`: clean. `npx eslint src/ai/enemy.ts src/ai/enemyManager.ts tests/shadowNoticePerceive.test.ts`:
+  clean.
+- `npx vitest run tests/shadowNoticePerceive.test.ts`: 30 passed. Against 175358ad4's enemy.ts and enemyManager.ts, 10
+  fail (the 8 new cases, the rewritten hearTurn case and the gates case), as they should.
+- `npx vitest run` on 100 files (every test file under tests/ importing src/ai/enemy, enemyManager, perception,
+  alertState or body, plus shadowNotice, shadowNoticePerceive and guardOccluders): 100 passed, 1735 passed, 1 skipped,
+  2 todo (66 s). The allocation cases (shadowLook 0 B per path, the whole think no more than without cues, fillOccluders
+  0 B) stay green.
+- Not run, as instructed: npm run dev, e2e, a full npm run check.
