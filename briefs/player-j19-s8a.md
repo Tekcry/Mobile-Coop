@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:24:56Z
+status: done feature/player-j19-s8a 60b541514a26524f21234e1c3c58ebe0dde1bf9c
 
 # Brief: player-batch-j19 S8a - Look-video recorder (Player Build)
 
@@ -177,7 +177,7 @@ PC run. Cases:
 - A question you cannot settle from this brief: line 1 `status: blocked <one-line reason>`, evidence under `## Report`,
   push, move on. The lead answers by editing this brief.
 
-## Report (fill in)
+## Report spec (from the lead)
 - Branch, commit shas.
 - What the script does, with file:line for: argument parsing, list parsing, `pageParams`, `padEvents`, the server
   start, the camera wrap, the driver, the save.
@@ -188,3 +188,65 @@ PC run. Cases:
   `E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a`;
   accept when `smoke.webm` plays about 18 s with Wren standing, walking past a side camera and the view turning, the
   caption on each scene, and no window opened. The `.webm` path goes in the PR body. CI `check` runs on the PR.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-26)
+- Branch `feature/player-j19-s8a` (base 29f03b6c). Commits: de617e3c (script + test), 60b54151 (fragment). Pushed; head 60b541514a26524f21234e1c3c58ebe0dde1bf9c.
+- `git diff --stat 29f03b6c` lists only `scripts/look-video.mjs` (466), `tests/lookVideo.test.ts` (167), `changes/feature-player-j19-s8a.md` (4).
+
+### What the script does (scripts/look-video.mjs)
+- Header comment `:1-20`: what it does, the usage line, never headed / output outside git / needs `npm run build` unless `--url`, the laptop command, the scene-list format, and the note that each boot is in the video.
+- Argument parsing: `parseArgs` `:67-121`. `outsideRepo` `:61-64`. `--help` text `USAGE` `:34-44`.
+- List parsing: `parseSceneList` `:138-210` (helper `paramsProblem` `:129-135`). `BUILTIN_LISTS.smoke` `:48-58`. Loading a file or built-in: `loadList` `:236-246`.
+- `pageParams` `:214-219`. `padEvents` `:223-233`.
+- Server start: `startServer` `:401-431`.
+- HUD style and caption: `dress` `:251-261`. Camera wrap: `wrapCamera` `:264-287`. Match and Wren wait: `ready` `:290-296`.
+- Driver: `playScene` `:299-352`, with the in-page rAF driver at `:319`, the 250 ms Node poll and the wall-clock cap after it.
+- Save: `recordList` `:355-398` (`page.video()`, `page.close()`, `saveAs` at `:381`, `delete`, browser close, temp dir removed, summary line, filtered errors).
+- `main` `:434-463`. Main guard `:466`. `e2e-lib.mjs` is only loaded by a dynamic `import()` inside `main`.
+
+### Lines copied (each marked with a source comment)
+- `BTN` from `scripts/e2e-lib.mjs:243`.
+- Style tag from `scripts/anim-sheet.mjs:171`, with `:not(#look-caption)` added.
+- Follow camera from `scripts/anim-sheet.mjs:215-252`, without the `cam` footage view, `fixCam` and the SHEET_* overrides. Uses D = 3 and heights 1.05 / 0.85.
+- Teleport from `scripts/anim-sheet.mjs:177,211-213`.
+- Error filter from `scripts/anim-sheet.mjs:370-371`.
+- Server spawn, readiness loop, own-server exit check and `dist/index.html` identity check from `scripts/shots-ctcourse.mjs:31-45`.
+- Main-guard pattern from `scripts/changelog-assemble.mjs:166`.
+- The brief's anim-sheet line numbers are one or two lines off on master. The real ones are listed above.
+
+### Tests
+- `npx vitest run tests/lookVideo.test.ts tests/changesFragments.test.ts`: 2 files, 18/18 passed (lookVideo 17, changesFragments 1).
+  - The lookVideo cases are parseArgs x5, outsideRepo x1, parseSceneList x5 (the field table holds 18 error cases plus the three-problem list), pageParams x1 and padEvents x5.
+- `npm run typecheck:fast`: clean.
+- `npx eslint scripts/look-video.mjs tests/lookVideo.test.ts`: 0 errors, 1 warning. The warning is "File ignored": `eslint.config.js` ignores `scripts/**/*.mjs`. With `--no-ignore` the script is also 0 errors / 0 warnings.
+- `node scripts/look-video.mjs --help`: exit 0.
+- `node scripts/look-video.mjs --scenes smoke --out build/look`: exit 2 ("--out must be outside the repository").
+- `node scripts/look-video.mjs --out /tmp/x`: exit 2 ("--scenes is required").
+- Other exit-2 paths, all without a browser: a bad list file, a missing list file, `E2E_HEADED=1`, `--url ftp://a`.
+
+### Deviations and choices the brief left open
+- `--url` must parse as an http(s) URL, otherwise it is a usage error naming `--url`. The brief gave no rule for it.
+- Scene and step indices in error messages count from 0, matching the JSON arrays ("scene 0 step 1").
+- `outsideRepo` treats a path as outside when it is `..` or starts with `../`, not when it merely starts with `..`. So a folder named `..x` inside the repo still counts as inside.
+- Several list problems are joined into one line with "; ".
+- The "shorter than a 1-2 min look video" note is printed by the run, after all lists are checked and before recording. `parseSceneList` prints nothing.
+- `parseSceneList` also accepts the JSON text. A file is read and passed as text, and a JSON syntax error is a list error (exit 2).
+- `params` must match `(^|&)autostart=`, the same regex `e2e-lib` uses to decide whether to wait for the match.
+- In `--help` mode the required-flag checks are skipped. Unknown flags and `E2E_HEADED=1` are still errors.
+- The vite preview runs with `cwd` = the repo root.
+- The readiness loop sleeps 250 ms after a non-OK answer too, not only after a fetch error.
+- A server or `dist` failure exits 1, as the brief says ("run failure"), where `shots-ctcourse` exits 2.
+- The result and error lines use `console.info` instead of `console.log`, because the repo's `no-console` rule only allows warn / error / info. The output is the same.
+- Expect the video to run longer than the scene total. Playwright records from page creation, so it includes the first boot and the wait for Wren before scene 0. The smoke video will be about 18 s of scenes plus that boot.
+
+### Pending PC run
+- Who: the lead, on the laptop GPU tier 4189 or the desktop under `heavy.lock`.
+- Command: `npm run build`, then `E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a`.
+- Accept when `smoke.webm` shows the boot, then about 18 s of scenes:
+  - Wren standing.
+  - Walking past a side camera.
+  - The view turning.
+  - A caption on each scene.
+  - No window opened.
+- The `.webm` path goes in the PR body. CI `check` runs on the PR.
+- Not run here: no GPU or browser in the cloud session.
