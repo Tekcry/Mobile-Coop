@@ -773,3 +773,14 @@ describe('S2: the view and the gameState render-override seam', () => {
     expect(v).not.toMatch(/from '\.\.\/net|from '\.\/net/);
   });
 });
+
+describe('(walk ~09:42) the intro skip is shown', () => {
+  it('a hint with a hold bar while the skip is live; a tap skips once the intro has played before on this page', () => {
+    const v = src('src/game/pianoIntroView.ts');
+    expect(v).toContain("'HOLD BACK / ESC   SKIP'");
+    expect(v).toContain('this.tapSkip = introsSeen > 1;');
+    expect(v).toContain("const tap = this.tapSkip && (inp.pressed('pause') || inp.pressed('objective'));");
+    expect(v).toContain('if ((held >= SKIP_HOLD_S || tap) && intro.skip()) {');
+    expect(v).toContain('this.hint?.remove();');
+  });
+});
