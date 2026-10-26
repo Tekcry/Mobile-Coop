@@ -189,6 +189,11 @@ function wrap(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a));
 }
 
+/** A fresh plan for the allocating wrappers (`pickTakedown`, `assistPlan`). */
+function newPlan(): TakedownPlan {
+  return { kind: 'behind', alignX: 0, alignY: 0, alignZ: 0, faceYaw: 0, approach: 0, arc: 0, strike: 0, victimTo: null };
+}
+
 /**
  * (coop-walk-fixes P6) The co-op team takedown on a guard the partner holds as a hostage (Michael 4.72: "should trigger
  * coop takedown"): from the ground within `TAKEDOWN.reach` across and `TAKEDOWN.dy` up / down, with line of sight, from
@@ -196,15 +201,69 @@ function wrap(a: number): number {
  * keeps moving him), then the strike (tap = knockout, held = kill). Null when out of reach.
  */
 export function assistPlan(ax: number, ay: number, az: number, vx: number, vy: number, vz: number, los: boolean): TakedownPlan | null {
+  const out = newPlan();
+  return assistPlanInto(ax, ay, az, vx, vy, vz, los, out) ? out : null;
+}
+
+/** (player-hygiene S3) `assistPlan` into `out` (all nine fields written in place: no literal, no call with the doubles);
+ *  false (and `out` untouched) when out of reach. */
+export function assistPlanInto(ax: number, ay: number, az: number, vx: number, vy: number, vz: number, los: boolean, out: TakedownPlan): boolean {
   const dx = vx - ax;
   const dz = vz - az;
-  if (!los || Math.abs(vy - ay) > TAKEDOWN.dy || hyp2(dx, dz) > TAKEDOWN.reach) return null;
-  return { kind: 'assist', alignX: ax, alignY: ay, alignZ: az, faceYaw: Math.atan2(dx, dz), approach: 0, arc: 0, strike: TAKEDOWN.strike, victimTo: null };
+  if (!los || Math.abs(vy - ay) > TAKEDOWN.dy || hyp2(dx, dz) > TAKEDOWN.reach) return false;
+  out.kind = 'assist';
+  out.alignX = ax;
+  out.alignY = ay;
+  out.alignZ = az;
+  out.faceYaw = Math.atan2(dx, dz);
+  out.approach = 0;
+  out.arc = 0;
+  out.strike = TAKEDOWN.strike;
+  out.victimTo = null;
+  return true;
 }
 
 /** The takedown the geometry allows, or null. */
 export function pickTakedown(i: TakedownInput): TakedownPlan | null {
-  if (!i.los) return null;
+  const out = newPlan();
+  const to = { x: 0, y: 0, z: 0 };
+  return pickTakedownInto(i, out, to) ? out : null;
+}
+
+/** (player-hygiene S3) `pickTakedownInto`'s per-call geometry for its helpers (`groundInto`, `dropInto`, `aboveInto`): the
+ *  doubles go through these slots, not as arguments (V8 boxes each double argument of a call it does not inline, 16 B).
+ *  [dx, dz, dy, face, ux, uz]. */
+const GEO = new Float64Array(6);
+const G_DX = 0;
+const G_DZ = 1;
+const G_DY = 2;
+const G_FACE = 3;
+const G_UX = 4;
+const G_UZ = 5;
+
+/** (player-hygiene S3) A ground takedown of `kind` (the old `ground` closure) into `out` (`GEO`: ux, uz, face). */
+function groundInto(out: TakedownPlan, kind: TakedownKind, i: TakedownInput): void {
+  const T = TAKEDOWN;
+  const ux = GEO[G_UX]!;
+  const uz = GEO[G_UZ]!;
+  const face = GEO[G_FACE]!;
+  out.kind = kind;
+  out.alignX = i.vx - ux * T.standoff;
+  out.alignY = i.vy;
+  out.alignZ = i.vz - uz * T.standoff;
+  out.faceYaw = face;
+  out.approach = T.approach;
+  out.arc = 0;
+  out.strike = T.strike;
+  out.victimTo = null;
+}
+
+/**
+ * (player-hygiene S3) `pickTakedown` into `out` (every field written; `victimTo` is `to`, filled, or null): true when the
+ * geometry allows a takedown, false (`out` untouched) when not. `out` and `to` are the caller's scratch.
+ */
+export function pickTakedownInto(i: TakedownInput, out: TakedownPlan, to: { x: number; y: number; z: number }): boolean {
+  if (!i.los) return false;
   const T = TAKEDOWN;
   const dx = i.vx - i.ax;
   const dz = i.vz - i.az;
@@ -217,162 +276,194 @@ export function pickTakedown(i: TakedownInput): TakedownPlan | null {
   const front = rel < T.frontCone;
   const ux = d > 1e-3 ? dx / d : 0;
   const uz = d > 1e-3 ? dz / d : 1;
-  const ground = (kind: TakedownKind): TakedownPlan => ({
-    kind,
-    alignX: i.vx - ux * T.standoff,
-    alignY: i.vy,
-    alignZ: i.vz - uz * T.standoff,
-    faceYaw: face,
-    approach: T.approach,
-    arc: 0,
-    strike: T.strike,
-    victimTo: null,
-  });
+  GEO[G_DX] = dx;
+  GEO[G_DZ] = dz;
+  GEO[G_DY] = dy;
+  GEO[G_FACE] = face;
+  GEO[G_UX] = ux;
+  GEO[G_UZ] = uz;
   switch (i.state) {
     case 'ground':
     case 'wall': {
       if (Math.abs(dy) <= T.dy && d <= T.reach) {
         const kind: TakedownKind | null = behind ? 'behind' : front ? 'front' : i.vCalm ? 'side' : null;
-        if (!kind) return null;
+        if (!kind) return false;
         if (i.state === 'wall') {
           // (step 12) back to a wall: a guard round the edge (past the outside end) is the corner takedown; one in
           // front of the face is an ordinary one; one behind the wall is out of reach
-          if (i.edgeTx !== undefined && (i.vx - (i.edgeX ?? 0)) * i.edgeTx + (i.vz - (i.edgeZ ?? 0)) * (i.edgeTz ?? 0) > 0) return ground('corner');
-          if (dx * (i.coverNx ?? 0) + dz * (i.coverNz ?? 0) < -0.2) return null;
+          if (i.edgeTx !== undefined && (i.vx - (i.edgeX ?? 0)) * i.edgeTx + (i.vz - (i.edgeZ ?? 0)) * (i.edgeTz ?? 0) > 0) {
+            groundInto(out, 'corner', i);
+            return true;
+          }
+          if (dx * (i.coverNx ?? 0) + dz * (i.coverNz ?? 0) < -0.2) return false;
         }
-        return ground(kind);
+        groundInto(out, kind, i);
+        return true;
       }
       // a drop onto someone below
-      if (i.state === 'ground' && -dy >= T.aboveMin && -dy <= T.aboveMax && d <= T.aboveReach) return above(i, face, ux, uz);
-      return null;
+      if (i.state === 'ground' && -dy >= T.aboveMin && -dy <= T.aboveMax && d <= T.aboveReach) {
+        aboveInto(out, i);
+        return true;
+      }
+      return false;
     }
     case 'wallLow': {
-      if (Math.abs(dy) > T.dy || d > T.coverReach) return null;
+      if (Math.abs(dy) > T.dy || d > T.coverReach) return false;
       // the victim is across the cover (on the far side of the face)
       const nx = i.coverNx ?? 0;
       const nz = i.coverNz ?? 0;
       if (dx * nx + dz * nz > -0.2) {
-        if (d <= T.reach) return ground(behind ? 'behind' : front ? 'front' : 'side');
-        return null;
+        if (d <= T.reach) {
+          groundInto(out, behind ? 'behind' : front ? 'front' : 'side', i);
+          return true;
+        }
+        return false;
       }
-      const p = ground('overCover');
-      p.approach = T.approach + 0.2;
-      p.arc = 0.6;
-      return p;
+      groundInto(out, 'overCover', i);
+      out.approach = T.approach + 0.2;
+      out.arc = 0.6;
+      return true;
     }
     case 'split':
     case 'pipe':
     case 'rappel':
-      return drop(i, dx, dz, dy, face, ux, uz);
+      return dropInto(out, i);
     case 'inverted': {
       // a guard right beneath the hanging head: choke them up (neck snap held)
-      if (d > T.invertedReach || -dy < T.invertedMin || -dy > T.invertedMax) return null;
-      return {
-        kind: 'inverted',
-        alignX: i.ax,
-        alignY: i.ay,
-        alignZ: i.az,
-        faceYaw: face,
-        approach: 0,
-        arc: 0,
-        strike: T.strike + 0.2,
-        victimTo: { x: i.ax, y: i.vy + 0.12, z: i.az },
-      };
+      if (d > T.invertedReach || -dy < T.invertedMin || -dy > T.invertedMax) return false;
+      to.x = i.ax;
+      to.y = i.vy + 0.12;
+      to.z = i.az;
+      out.kind = 'inverted';
+      out.alignX = i.ax;
+      out.alignY = i.ay;
+      out.alignZ = i.az;
+      out.faceYaw = face;
+      out.approach = 0;
+      out.arc = 0;
+      out.strike = T.strike + 0.2;
+      out.victimTo = to;
+      return true;
     }
     case 'hangDown': {
       // (hang-down) head-first under the partner's hands (`ay`: the hanging HEAD's height, the caller's root less
       // `HANG_HEAD`): a guard by the head is grabbed (lifted) or neck-snapped where the hanger hangs; he comes up to
       // the hands
       const headY = i.ay;
-      if (!hangInReach(i.ax, i.az, headY, i.vx, i.vy, i.vz)) return null;
+      if (!hangInReach(i.ax, i.az, headY, i.vx, i.vy, i.vz)) return false;
       const yaw = d > 1e-3 ? face : i.vyaw + Math.PI;
-      const to = { x: 0, y: 0, z: 0 };
       hangHoldPoint(i.ax, i.az, headY, yaw, i.vy, to);
-      return { kind: 'hangDown', alignX: i.ax, alignY: i.ay, alignZ: i.az, faceYaw: yaw, approach: 0, arc: 0, strike: HANG_GRAB.strike, victimTo: to };
+      out.kind = 'hangDown';
+      out.alignX = i.ax;
+      out.alignY = i.ay;
+      out.alignZ = i.az;
+      out.faceYaw = yaw;
+      out.approach = 0;
+      out.arc = 0;
+      out.strike = HANG_GRAB.strike;
+      out.victimTo = to;
+      return true;
     }
     case 'hang': {
       // (3.2.0) a guard below: drop on them
-      if (dy < 0) return drop(i, dx, dz, dy, face, ux, uz);
+      if (dy < 0) return dropInto(out, i);
       // a guard standing at the lip above the hands: pull them over and down
-      if (dy < 0.8 || dy > 2.6 || d > T.belowReach) return null;
-      return {
-        kind: 'below',
-        alignX: i.ax,
-        alignY: i.ay,
-        alignZ: i.az,
-        faceYaw: face,
-        approach: 0,
-        arc: 0,
-        strike: T.pullTime + 0.35,
-        victimTo: { x: i.ax + ux * 0.3, y: i.ay - 0.2, z: i.az + uz * 0.3 },
-      };
+      if (dy < 0.8 || dy > 2.6 || d > T.belowReach) return false;
+      to.x = i.ax + ux * 0.3;
+      to.y = i.ay - 0.2;
+      to.z = i.az + uz * 0.3;
+      out.kind = 'below';
+      out.alignX = i.ax;
+      out.alignY = i.ay;
+      out.alignZ = i.az;
+      out.faceYaw = face;
+      out.approach = 0;
+      out.arc = 0;
+      out.strike = T.pullTime + 0.35;
+      out.victimTo = to;
+      return true;
     }
     case 'zipline': {
-      const p = drop(i, dx, dz, dy, face, ux, uz);
-      if (p) return p;
-      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach * 1.3) return above(i, face, ux, uz);
-      return null;
+      if (dropInto(out, i)) return true;
+      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach * 1.3) {
+        aboveInto(out, i);
+        return true;
+      }
+      return false;
     }
     case 'climb':
     case 'duct':
-      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach) return above(i, face, ux, uz);
-      return null;
+      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach) {
+        aboveInto(out, i);
+        return true;
+      }
+      return false;
     case 'window': {
-      if (Math.abs(dy) > 0.6 || d > T.windowReach) return null;
+      if (Math.abs(dy) > 0.6 || d > T.windowReach) return false;
       const nx = i.winNx ?? 0;
       const nz = i.winNz ?? 0;
       // across the window plane only
       const sa = (i.ax * nx + i.az * nz) - (i.vx * nx + i.vz * nz);
-      if (Math.abs(sa) < 0.15) return null;
-      return {
-        kind: 'window',
-        alignX: i.ax,
-        alignY: i.ay,
-        alignZ: i.az,
-        faceYaw: face,
-        approach: 0,
-        arc: 0,
-        strike: T.pullTime + 0.4,
-        victimTo: { x: i.ax + ux * 0.6, y: i.ay, z: i.az + uz * 0.6 },
-      };
+      if (Math.abs(sa) < 0.15) return false;
+      to.x = i.ax + ux * 0.6;
+      to.y = i.ay;
+      to.z = i.az + uz * 0.6;
+      out.kind = 'window';
+      out.alignX = i.ax;
+      out.alignY = i.ay;
+      out.alignZ = i.az;
+      out.faceYaw = face;
+      out.approach = 0;
+      out.arc = 0;
+      out.strike = T.pullTime + 0.4;
+      out.victimTo = to;
+      return true;
     }
   }
-  return null;
+  return false;
 }
 
 /**
  * (3.2.0) Drop attack from an anchor: a guard 1.2-5 m below, within a metre of where the feet would land (straight
- * down from the attacker). The attacker falls onto them (accelerating, timed by the height).
+ * down from the attacker). The attacker falls onto them (accelerating, timed by the height). (player-hygiene S3) Into
+ * `out` (`GEO`: dx, dz, dy, face, ux, uz); false (`out` untouched) when out of reach.
  */
-function drop(i: TakedownInput, dx: number, dz: number, dy: number, face: number, ux: number, uz: number): TakedownPlan | null {
+function dropInto(out: TakedownPlan, i: TakedownInput): boolean {
   const T = TAKEDOWN;
-  if (-dy < T.dropMin || -dy > T.dropMax || hyp2(dx, dz) > T.dropReach) return null;
-  return {
-    kind: 'drop',
-    alignX: i.vx - ux * T.standoff * 0.6,
-    alignY: i.vy,
-    alignZ: i.vz - uz * T.standoff * 0.6,
-    faceYaw: face,
-    approach: Math.max(0.3, Math.sqrt((2 * -dy) / 9.81)),
-    arc: 0,
-    strike: T.strike * 0.8,
-    victimTo: null,
-  };
+  const dx = GEO[G_DX]!;
+  const dz = GEO[G_DZ]!;
+  const dy = GEO[G_DY]!;
+  const face = GEO[G_FACE]!;
+  const ux = GEO[G_UX]!;
+  const uz = GEO[G_UZ]!;
+  if (-dy < T.dropMin || -dy > T.dropMax || hyp2(dx, dz) > T.dropReach) return false;
+  out.kind = 'drop';
+  out.alignX = i.vx - ux * T.standoff * 0.6;
+  out.alignY = i.vy;
+  out.alignZ = i.vz - uz * T.standoff * 0.6;
+  out.faceYaw = face;
+  out.approach = Math.max(0.3, Math.sqrt((2 * -dy) / 9.81));
+  out.arc = 0;
+  out.strike = T.strike * 0.8;
+  out.victimTo = null;
+  return true;
 }
 
-function above(i: TakedownInput, face: number, ux: number, uz: number): TakedownPlan {
+/** (player-hygiene S3) The drop onto a guard below, into `out` (`GEO`: face, ux, uz). */
+function aboveInto(out: TakedownPlan, i: TakedownInput): void {
   const T = TAKEDOWN;
-  return {
-    kind: 'above',
-    alignX: i.vx - ux * T.standoff * 0.8,
-    alignY: i.vy,
-    alignZ: i.vz - uz * T.standoff * 0.8,
-    faceYaw: face,
-    approach: T.dropTime,
-    arc: 0.25,
-    strike: T.strike * 0.8,
-    victimTo: null,
-  };
+  const face = GEO[G_FACE]!;
+  const ux = GEO[G_UX]!;
+  const uz = GEO[G_UZ]!;
+  out.kind = 'above';
+  out.alignX = i.vx - ux * T.standoff * 0.8;
+  out.alignY = i.vy;
+  out.alignZ = i.vz - uz * T.standoff * 0.8;
+  out.faceYaw = face;
+  out.approach = T.dropTime;
+  out.arc = 0.25;
+  out.strike = T.strike * 0.8;
+  out.victimTo = null;
 }
 
 /** Attacker feet along the approach at progress k (0..1): eased, with an arc lift (vault / drop). */

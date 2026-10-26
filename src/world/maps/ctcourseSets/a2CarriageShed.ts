@@ -188,7 +188,9 @@ const VAN_LOOK = [
 /** The 7-segment strokes of the road numbers 1-3 stencilled on the vans' neck ends. */
 const DIGITS = { 1: 'bc', 2: 'abged', 3: 'abgcd' } as const;
 
-export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart {
+/** (J14) `opts.replan`: the re-planned yard (`replan/a2CarriageShed.ts`): the staging deck, its stair and dressing, the permit gate, the
+ *  east wheel stops and track panels the wheel-drop pit cuts and cabinet 2's east-wall body are left out; nothing else changes. */
+export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit, opts: { replan?: boolean } = {}): SetPart {
   const p = emptyPart('a2CarriageShed');
   /** A box from x0 to x1, z0 to z1, y0 to y1; `noLedge` unless told otherwise. */
   const slab = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string, opts: { overhead?: boolean; noLedge?: boolean } = {}): void => {
@@ -204,12 +206,14 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   tally(b, p.register, 'A2-2', 'Rails and ballast: three roads with a 2 m gravel strip each (loud x1.3), drawn flat (no collision)', () => {
     for (const c of A2_ROADS) {
       b.surface('gravel', SHELL.west, SHELL.east, c - 1, c + 1, 0);
-      b.box((SHELL.west + SHELL.east) / 2, 0.006, c, SHELL.east - SHELL.west, 0.012, 2, BALLAST, 0, 0, false);
+      // (J14) the re-plan draws its own, short of the pit
+      if (!opts.replan) b.box((SHELL.west + SHELL.east) / 2, 0.006, c, SHELL.east - SHELL.west, 0.012, 2, BALLAST, 0, 0, false);
     }
   });
   tally(b, p.register, 'A2-10', 'Wheel stops 0.3 m at the road ends (x 32.6-33.4 and 68.6-69.4, 1.6 m wide), five: none at road 2\'s east end, which would stand in the L2 door\'s approach (walk482 X3): low, so no solo jump top (A2-D2)', () => {
     for (const c of A2_ROADS) {
-      for (const [side, x0, x1] of [['w', 32.6, 33.4], ['e', 68.6, 69.4]] as const) if (!NO_STOP(side, c)) slab(x0, x1, c - 0.8, c + 0.8, 0, 0.3, STEEL);
+      // (J14) the re-plan's pit takes the east ends
+      for (const [side, x0, x1] of [['w', 32.6, 33.4], ['e', 68.6, 69.4]] as const) if (!NO_STOP(side, c) && !(opts.replan && side === 'e')) slab(x0, x1, c - 0.8, c + 0.8, 0, 0.3, STEEL);
     }
   });
   p.register.push({ id: 'A2-11', element: 'North walkway z 16.3-17.5 behind road 3\'s vans and along the staging face, west of x 45.5 and east of x 56.5 (open floor, no pieces; the neck ends are closed, A2-21)' });
@@ -245,7 +249,8 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   // ---- A2-4: the two isolator cabinets (bodies; the push stations are course devices) ----
   tally(b, p.register, 'A2-4', 'Isolator cabinets 1 (on the cabin plant wall, faces +z) and 2 (on the east wall, faces -x): 1.6 m bodies (noLedge) and the two course push stations', () => {
     slab(30.15, 31.05, PLANT_FACE, 1.55, 0, 1.6, STEEL);
-    slab(69.45, SHELL.east, A2_CAB2.z - 0.45, A2_CAB2.z + 0.45, 0, 1.6, STEEL);
+    // (J14) the re-plan moves cabinet 2 to the pit's near side
+    if (!opts.replan) slab(69.45, SHELL.east, A2_CAB2.z - 0.45, A2_CAB2.z + 0.45, 0, 1.6, STEEL);
   });
   const timed = circuitOf(21)!.timed!;
   const device = (x: number, z: number, yaw: number, label: string): CourseDevice => ({ x, y: 0, z, yaw, label });
@@ -255,17 +260,20 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
 
   // ---- A2-6 / A2-7 / A2-8: the cleaning staging (co-op lip), its screens and the east stair ----
   const deck = coopDeck({ id: 'a2-stage', at: { x: A2_DECK.x, z: A2_DECK.z }, facing: '+z', span: A2_DECK.span, depth: A2_DECK.depth, lip: A2_DECK.lip, open: A2_DECK.open, screen: 1.2, stair: 'end', stairW: 1.2 });
-  tally(b, p.register, 'A2-6', 'Cleaning staging: a 4.4 m solid deck x 30-62 (noLedge), the open loading edge x 31-35 as its one co-op lip (leg-up mark at 33, 17.0), chequer plate (metal, loud x1.6)', () => {
-    applyGreybox(b, { ...deck, boxes: deck.boxes.filter((x) => x.tag === 'deck' || x.tag.startsWith('mark')), stairs: [], doors: [] });
-    b.surface('metal', 30, 62, A2_DECK.z, 20, A2_DECK.lip);
-  });
-  tally(b, p.register, 'A2-7', 'Staging screens 1.2 m, solid, on the rest of the front edge (x 30-31 and 35-62; noLedge)', () => {
-    applyGreybox(b, { ...deck, boxes: deck.boxes.filter((x) => x.tag === 'edge screen'), stairs: [], ledges: [], doors: [] });
-  });
-  tally(b, p.register, 'A2-8', 'East stair down from the staging, 27 risers of 0.163 m, x 62-69.7 along the back wall (the west stair is removed for repair: A2-D3)', () => {
-    applyGreybox(b, { ...deck, boxes: [], ledges: [], doors: [] });
-  });
-  p.lips.push(...deck.lips);
+  // (J14) the re-plan takes the staging, its screens, its stair and its lip out (Q24: no side route over the neck)
+  if (!opts.replan) {
+    tally(b, p.register, 'A2-6', 'Cleaning staging: a 4.4 m solid deck x 30-62 (noLedge), the open loading edge x 31-35 as its one co-op lip (leg-up mark at 33, 17.0), chequer plate (metal, loud x1.6)', () => {
+      applyGreybox(b, { ...deck, boxes: deck.boxes.filter((x) => x.tag === 'deck' || x.tag.startsWith('mark')), stairs: [], doors: [] });
+      b.surface('metal', 30, 62, A2_DECK.z, 20, A2_DECK.lip);
+    });
+    tally(b, p.register, 'A2-7', 'Staging screens 1.2 m, solid, on the rest of the front edge (x 30-31 and 35-62; noLedge)', () => {
+      applyGreybox(b, { ...deck, boxes: deck.boxes.filter((x) => x.tag === 'edge screen'), stairs: [], ledges: [], doors: [] });
+    });
+    tally(b, p.register, 'A2-8', 'East stair down from the staging, 27 risers of 0.163 m, x 62-69.7 along the back wall (the west stair is removed for repair: A2-D3)', () => {
+      applyGreybox(b, { ...deck, boxes: [], ledges: [], doors: [] });
+    });
+    p.lips.push(...deck.lips);
+  }
 
   // ---- A2-3 / A2-9: the lights (LIGHTING-PLAN 3, A2; the circuits are `MARLOW_CIRCUITS` 20-23) ----
   const strip = (x: number, y: number, z: number, group: number, radius: number, intensity: number): void => {
@@ -427,7 +435,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   };
 
   // ---- S2-check should-fix 2: the east stair's underside is solid (A2-17) ----
-  tally(b, p.register, 'A2-17', 'East stair: noLedge collision fillers under the flight (invisible, 0.5 m slices to just under the ramp slab top: nothing can stand in the steps), its handrails (visual skins) and the open side\'s 1.1 m collision rail (kit.handrail, invisible noLedge, twelve stepped segments of 0.55 m 0.05 m outside the flight from x 68.6 to the head; the bottom treads stay open from the side; accent on the staging strip 23), and one more 1.1 m kit.handrail on the deck\'s east end beside the head (x 61.95 on the deck, z 17.6 from the edge screen\'s back to the rail\'s line: no walk-off the staging there; the stair mouth stays open; drawn as two posts, a top rail and a mid rail, visual skins)', () => {
+  if (!opts.replan) tally(b, p.register, 'A2-17', 'East stair: noLedge collision fillers under the flight (invisible, 0.5 m slices to just under the ramp slab top: nothing can stand in the steps), its handrails (visual skins) and the open side\'s 1.1 m collision rail (kit.handrail, invisible noLedge, twelve stepped segments of 0.55 m 0.05 m outside the flight from x 68.6 to the head; the bottom treads stay open from the side; accent on the staging strip 23), and one more 1.1 m kit.handrail on the deck\'s east end beside the head (x 61.95 on the deck, z 17.6 from the edge screen\'s back to the rail\'s line: no walk-off the staging there; the stair mouth stays open; drawn as two posts, a top rail and a mid rail, visual skins)', () => {
     for (let xa = xHead; xa < xFoot - 1e-9; xa += STAIR_FILL.step) {
       const xb = Math.min(xa + STAIR_FILL.step, xFoot);
       const hgt = lineAt(xb) - STAIR_FILL.gap;
@@ -466,7 +474,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   tally(b, p.register, 'A2-12', 'Wheel stops dressed as buffer stops (visual skins, no collision): red headstock face, white band, two buffer plates and a red cap on each of the five; the rails are track panels (A2-20)', () => {
     for (const c of A2_ROADS) {
       for (const { side, at, x0, x1 } of STOPS) {
-        if (NO_STOP(side, c)) continue;
+        if (NO_STOP(side, c) || (opts.replan && side === 'e')) continue;
         face(side, at, c - 0.8, c + 0.8, 0.04, 0.3, LOOK.red);
         face(side, at, c - 0.8, c + 0.8, 0.16, 0.2, LOOK.white, 1);
         for (const dz of [-0.45, 0.45]) face(side, at, c + dz - 0.12, c + dz + 0.12, 0.08, 0.24, LOOK.buffer, 1);
@@ -618,7 +626,8 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
     skin(30.15, 31.05, 1.6, 1.63, 1.1, 1.55, LOOK.roof);
     face('n', 1.1, 30.35, 30.85, 1.7, 1.95, LOOK.white);
     digit(1, 'n', 1.1, 30.6, 1.77, -1, LOOK.black, 1);
-    // cabinet 2: x 69.45-69.75, z 12.95-13.85, on the east wall, front on -x
+    // cabinet 2: x 69.45-69.75, z 12.95-13.85, on the east wall, front on -x ((J14) not on the re-plan: it moves west of the pit)
+    if (opts.replan) return;
     face('w', 69.45, 12.95, 13.85, 0, 0.1, LOOK.under);
     for (const y of [0.17, 0.25, 0.33, 0.41]) face('w', 69.45, 13.05, 13.75, y, y + 0.04, LOOK.under);
     for (const z of [13.08, 13.72]) face('w', 69.45, z - 0.005, z + 0.005, 0.1, 1.6, LOOK.black);
@@ -630,7 +639,7 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
   });
 
   // ---- A2-16: the cleaning staging: chequer plate, the deck face, screens, the drop chain, the closed west stair's scar, the switch post ----
-  tally(b, p.register, 'A2-16', 'Staging dressing (visual skins, no collision): chequer-plate sheet with seams and a yellow edge band, concrete plinth, pilasters, rails, water main and three signs on the deck face, screen caps and bands, the drop chain (P13) across the open edge, the permit board and stair scar on the west face, the staging switch post', () => {
+  if (!opts.replan) tally(b, p.register, 'A2-16', 'Staging dressing (visual skins, no collision): chequer-plate sheet with seams and a yellow edge band, concrete plinth, pilasters, rails, water main and three signs on the deck face, screen caps and bands, the drop chain (P13) across the open edge, the permit board and stair scar on the west face, the staging switch post', () => {
     const lip = A2_DECK.lip;
     const zf = A2_DECK.z;
     // the deck's top: plate sheet, 1.2 m seams, two cross seams, the yellow edge band along the open loading edge
@@ -736,10 +745,11 @@ export function buildA2CarriageShed(b: LevelBuilder, kit: FacilityKit): SetPart 
 
   // ---- A2-20: the props kit (PROPS.md 3 A2): twelve track panels (rails flush), two push stations, the permit gate. Collision is the props' own box via `write` ----
   const props = new FacilityProps();
-  for (const c of A2_ROADS) for (const x of A2_TRACK_X) props.add('trackPanel', x, c, 0);
+  // (J14) on the re-plan the pit cuts the east panels, cabinet 2's station moves with it and the permit gate goes with the staging
+  for (const c of A2_ROADS) for (const x of A2_TRACK_X) if (!(opts.replan && x === A2_TRACK_X[3])) props.add('trackPanel', x, c, 0);
   props.add('pushStation', A2_CAB1.x, 1.55, 0, { y: 0.6 });
-  props.add('pushStation', 69.45, A2_CAB2.z, -Math.PI / 2, { y: 0.6 });
-  props.add('permitGate', A2_GATE_AT.x, A2_GATE_AT.z, Math.PI);
+  if (!opts.replan) props.add('pushStation', 69.45, A2_CAB2.z, -Math.PI / 2, { y: 0.6 });
+  if (!opts.replan) props.add('permitGate', A2_GATE_AT.x, A2_GATE_AT.z, Math.PI);
   tally(b, p.register, 'A2-20', 'Props kit: twelve track panels (rails and sleepers flush, no collision), the two push stations on the cabinets (device-owned, no collision) and the padlocked permit gate that closes the removed west stair pocket (its one see-through box via FacilityProps.write, noLedge)', () => {
     const from = b.boxes.length;
     props.write(b);

@@ -69,8 +69,9 @@ export interface KeyedClipDef {
   travel?: KeyedTravel;
 }
 
-/** (mocap-trial-2, strafe) A cycle's travel in the root frame: forward along +z, or sideways (+x right, -x left). */
-export type KeyedTravel = 'z' | '+x' | '-x';
+/** (mocap-trial-2, strafe) A cycle's travel in the root frame: forward along +z, or sideways (+x right, -x left); (mixamo-retarget
+ *  I7) '-z' backward (the Mixamo backward cycles). Read by nothing at runtime but the clip's own data. */
+export type KeyedTravel = 'z' | '+x' | '-x' | '-z';
 
 export interface KeyedClip {
   readonly name: string;

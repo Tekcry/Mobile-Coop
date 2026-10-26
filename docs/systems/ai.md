@@ -50,11 +50,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
   above) stays the base rule; a lookout is the deliberate exception on its route; a vent lookout stands where he
   overlooks the vent run or its exit, not in the vent (G378). Built: talking pairs on a timed loop that meet, and search
-  when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Not
-  built yet (job guard-rules, FOLDED-PLAN J15): lookouts, a partner check while the pair walks between meetings, and
-  posted (static) pairs (`pairWhyNot` skips them).
+  when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the squad radio checks. Built
+  dark behind `guardPairs` (guard-rules S6, J15): a partner check while the pair walks between meetings, and posted
+  (static) pairs that talk and check. Lookouts: guard-rules S7 (PR4, `lookouts`).
 - Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
-  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
+  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Built (J4, #438; `animShadow`).
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
   shows them (light parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a
   faint cue, a small rise in suspicion, never a sighting on its own (G379; planned in FOLDED-PLAN J16). Today guards
@@ -130,6 +130,14 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   radioed after `ALERT.callIn` (`Enemy.radioT`, bark `callIn`) to everyone within `RADIO` 22 m (0.4 + 0.03 d + random
   0.3 s); gunfire / a hit / a flashbang (`loudAlert`) calls in at once. `PlayerRef.spotted`: set when a guard in combat
   sees that player, cleared when nobody is in combat.
+- Rise cause (guard-rules S4, A8): every rise into suspicious / investigating (`onLevel`) stores why on the guard:
+  `Enemy.riseCause` (`RISE_NONE` 0: a board task, a light, a body, a search call, or a turn sound: `hearTurn` sets no
+  `heard`, so a footstep he only turned to rises him to suspicious as none; `RISE_SIGHT` 1: a sight above the leak,
+  `seenAt`, since he was last calm with nothing on his meter; `RISE_SOUND` 2: a heard noise and no sight). Sight wins: a
+  sight in the same moment as a noise makes it `RISE_SIGHT`. It bumps `Enemy.riseN`; both are kept after calm. The
+  moment (the private `sawMoment` / `heardMoment`) ends on a calm transition and on every step he is calm (unaware /
+  cooldown) with the meter at 0, so a glimpse that drained never colours a later rise. `Enemy.stimX` / `stimZ` read his
+  last stimulus (no copy). Readers: S7's lookout radio (compares `riseN` with its last copy), J13's cause log.
 - Awareness and caution (guard-ai S4, design 4, M1 / M3; `ai/awareness.ts` pure, `EnemyManager.awareness`, coordinated
   modes; A3, A4, A14-A16):
   - Guard keys: `Enemy.key` (0-31, u32 masks), the lowest free key at `spawn` (not held by a guard on the list or a
@@ -214,6 +222,19 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   nearest free cover; the missing guard joins `silent`, so a radio check does not miss him again); parked modes: he
   searches. A missing pair whose guards are both up again (a woken partner takes his slot) starts over. Host only, no
   wire change. Tests: `tests/pairs.test.ts`, `tests/pairsWiring.test.ts`; e2e: e2e-sectorops part 1 "talking pairs".
+  (guard-rules S6, A10, A11; `flags.guardPairs`, read only in `buildPair`, default off) Walking-together check and
+  posted pairs. A timed-loop pair gets `PairDef.watch`: while both are up they count as together within
+  `PAIRS.togetherR` 4 m; one then down or absent while the other stays calm for `PAIRS.notice` 3 s -> missing at once
+  (`PairMeet.watch`, before the window logic; the same `lookFor` / `lookX` / `lookZ` outputs and `pairMissing` path as the
+  window's `grace`; the timer counts only while the one left is calm, S6-c; the look point is the partner's last route
+  point, S6-d). Two guards that stand (no route, or a post with an untimed route, S6-a) and fail `pairWhyNot` become a
+  posted pair when their posts (`Enemy.postPoint`) are within `PAIRS.meetMax` (`postedWhyNot`; else the skip text adds
+  `(posted pair: ...)`): `postedDef` puts the meet points at the posts on a fixed `PAIRS.postedPeriod` 40 s clock whose
+  window is its first `PAIRS.postedOpen` 12 s, opening on the first step (no randomness, G143), `watch` on. A downed
+  posted partner under 2.5 m away is found as a body (`BODY.close`); 2.5-4 m by the 3 s pair check; 4-6 m by the
+  window's grace only (S6-b). The hold is the same `pairFace` / `pairPt`; after the talk the walker turns him back to
+  his post yaw. Flag off: every pair `watch: false`, no posted pair (today's skip). Host only, no wire change. e2e:
+  e2e-sectorops part 1 "pair checks" (`?guardpairs=1`).
 - Tactics: from sight into cover first (85%; the profile's `coverFirst` by `profileOf(tacticsProfile)`, S6, a seeded roll, S8), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`ADVANCE_HOLD`; a point or an aggressive guard: `profileOf(tacticsProfile).advanceHold`, 0.8 s aggressive), then the next; the last
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
@@ -448,7 +469,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
 - Co-op (guard-ai S9, protocol 37 (32 before the 4.75.0 merge), A90-A96): the brain stays host-only; the client sees what the host shows. Barks:
   `Enemy.bark` hands `onBark` the event, `BarkVoice.lastLine` and the unit; the host sends a `bark` event (index into
   `BARK_EVENTS`, append only) and the client rebuilds the text with `barkLine` (pair talk and the desk's camera line go
-  as text). Caution and gear ride the snapshot `al` (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
+  as text). (guard-rules S4, A8) `BARK_EVENTS` appended `heard` (37), `spotCall` (38) and `saw` (39); an older
+  client drops an index it does not know, so no protocol bump is needed. Caution and gear ride the snapshot `al`
+  (`AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64). The weapon
   carry is `ai/guardStance.ts` on both sides (`guardAim` host, `wireGuardAim` client): cautious and calm = low ready
   (`GUARD_AIM.caution` 0.4). The gear parts and the enforcer shield are `ai/gearParts.ts`, built by `Enemy` and by the
   client's `EnemyPuppet` alike.
@@ -741,7 +764,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   tuned base table (`anim/animBaseGuard.ts`) plus the tuner's guard rows (`anim/tuneGuard.ts`; `rig.guardRows`), never
   Wren's; the brain reads only the posed rig (the head is the eye), as before. Untuned: bit-identical.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView`; `bark` event ->
-  `sfx.radio()` for radio lines.
+  `sfx.radio()` for radio lines. (guard-rules S4, A8) `heard` ("I heard something.": a rise by sound, and `hearSearch`),
+  `saw` (sight lines) and `spotCall` (S7's lookout radio line, in `RADIO_BARKS`). The investigating bark follows
+  `Enemy.riseCause` (see Rise cause): `heard` for `RISE_SOUND`, `saw` for `RISE_SIGHT`, `investigate` (neutral lines
+  only) for `RISE_NONE`.
 
 ## Difficulty (G106)
 - `DIFFICULTY` (`ai/archetypes.ts`): `rookie | normal | realistic | perfectionist` (`DifficultyPreset`; `Difficulty` is
