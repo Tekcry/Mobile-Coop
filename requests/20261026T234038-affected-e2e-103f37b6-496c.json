@@ -1,0 +1,13 @@
+{
+  "id": "20261026T234038-affected-e2e-103f37b6-496c",
+  "sha": "103f37b67cc6ac08cd773f396e059d6fd5e18f6a",
+  "branch": "feature/gm-warm",
+  "pr": 687,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-guard-carry"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #687"
+}
