@@ -198,7 +198,7 @@ six hide spots; the medkit (95.0, 0, 33.85) yaw PI; the bay x 50-54 in `w4-dg-ga
 - Vantages (all W4 lamps): yard-a 0.244, yard-b 0.244, shed-a 0.250, shed-b 0.244. No guard post or route point within 6 m on the
   floor band.
 - Crane line from the W3 roof eye (90, 10.0, 66) to (88, 14, 5): no collide piece; 0.318 m over the W3 coal-yard drop guard (10.6).
-- The drop: off (74, 0, 6.0) a body lands on the bed at -4.4 (6.0 m on plan to the jetty face, a 4.4 m drop); the bed is clear and
+- The drop: off the edge at (74, 0, 6.0) a body lands on the bed at -4.4 (a 4.4 m drop, `downHit` from (74, 0.5, 5.8)); the bed is clear and
   continuous (74, 5.6) -> (74, 4.5) -> (71.5, 4.5) -> (68, 4.5); the open edge x 72.2-75.9 has no collide piece to 1.1 m;
   `soloJumpThreats` [] for the whole edge; no ledge of any height within 0.5 m of the edge or the rail's west end.
 - Takedown spot -> nearest hide spot: 1.50, 6.28, 4.81, 3.57, 3.50, 1.70, 2.06, 4.75, 1.21, 2.69, 2.06, 2.09 m (the brief's).
