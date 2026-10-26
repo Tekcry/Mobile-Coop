@@ -1,0 +1,14 @@
+{
+  "id": "20261026T092007-night-shift-sector-o-dddbfdcd-b843",
+  "sha": "dddbfdcd5eae2d3ec430c766bea830e77681daf6",
+  "branch": "feature/piano-lights-so3",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=16 --cells=patrol --gfx=low --secs=10 \"--query=torchSlots=4&torches=all\" --out=C:/NightShift/scratch/sector-ops-checks/so3-gpu/dddbfdcd/t4 & node scripts/guard-cap.mjs --maps=sectorops --counts=16 --cells=patrol --gfx=low --secs=10 \"--query=torchSlots=8&torches=all\" --out=C:/NightShift/scratch/sector-ops-checks/so3-gpu/dddbfdcd/t8 & node scripts/guard-cap.mjs --maps=sectorops --counts=16 --cells=patrol --gfx=low --secs=10 \"--query=torchSlots=12&torches=all\" --out=C:/NightShift/scratch/sector-ops-checks/so3-gpu/dddbfdcd/t12 & node scripts/guard-cap.mjs --maps=sectorops --counts=16 --cells=patrol --gfx=low --secs=10 \"--query=torchSlots=16&torches=all\" --out=C:/NightShift/scratch/sector-ops-checks/so3-gpu/dddbfdcd/t16 & node scripts/guard-cap.mjs --maps=sectorops --counts=16 --cells=patrol --gfx=low --secs=10 \"--query=torchSlots=16&torchShadows=8&torches=all\" --out=C:/NightShift/scratch/sector-ops-checks/so3-gpu/dddbfdcd/t16s8 & node scripts/guard-cap.mjs --maps=sectorops --counts=16 --cells=patrol --gfx=low --secs=10 \"--query=torchSlots=16&torchShadows=4&torches=all\" --out=C:/NightShift/scratch/sector-ops-checks/so3-gpu/dddbfdcd/t16s4"
+  ],
+  "env": {},
+  "set": "so3-gpu",
+  "note": "SO3 torch count GPU check: 16 guards in view (guard-cap sectorops), Low, 4/8/12/16 lit + 16 lit with 8 / 4 shadowed"
+}
