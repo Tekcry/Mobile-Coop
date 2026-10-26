@@ -29,7 +29,7 @@ const FOOTBRIDGE_DOOR = 'A5-footbridge';
 const PLATES_DOOR = 'A5-plates';
 const BACK_DOOR = 'A5-back';
 /** Station marks (STATIONS section 3): 11 in the gap, 12 on the east strip, 13 on the west strip (A) and in the lee (B). */
-const ST11 = [[69.0, 32.0], [69.0, 34.0]];
+const ST11 = [[69.0, 32.3], [69.0, 33.7]];
 const ST12 = [[67.0, 33.0], [67.0, 34.5]];
 const ST13 = [[59.0, 36.0], [56.0, 36.0]];
 /** The ladder's foot and the wall top (the ladder head), the footbridge's two ends, the west strip. */
