@@ -86,8 +86,9 @@ pairs, plus the rule gaps the review found (repeat alarms, barks by cause, dog r
   load (Q11: only the guards a drill needs; no Marlow change in this job); its per-set reset is J26's per-area alarms.
   Undo: `ALARM_REPEAT.enabled` false (one alarm per load everywhere).
 - A8 (C4): a rise to investigating says a sight line ("Thought I saw something.") or a sound line ("I heard
-  something.") by what drove it; two bark events are appended to `BARK_EVENTS` (`heard`, and `spotCall` for the
-  lookout's radio line): a wire change the train's protocol bump covers. Undo: map both back to `investigate`.
+  something.") by what drove it; three bark events are appended to `BARK_EVENTS` (`heard` 37, `spotCall` 38 for the
+  lookout's radio line, and `saw` 39, added in the S4 fix round so every sight rise says a sight line and
+  `investigate` stays neutral); an older client drops an unknown index. Undo: map all three back to `investigate`.
 - A9 (A3 lookout): a lookout is a post with `lookout: true`, leash at most 1 m, read as a high-security post (never sent,
   never leaves his perch for a search, an alarm panel or combat; a lure turns him in place). When he grows suspicious by
   sight he radios once (`spotCall`, at most every 20 s) and the incident board sends the nearest calm guard within
