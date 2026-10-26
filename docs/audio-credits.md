@@ -29,3 +29,12 @@ in code (no recording).
 
 Size: about 1.06 MB (90 s mono MP3, 96 kbps). Audio in all: score 5.9 MB, foley 0.23 MB, weapons 1.06 MB (about 7.2 MB;
 no audio size limit, G59).
+
+## Piano Escape scene music (`src/assets/music/scene/piano-escape.mp3`)
+The scene's only score (docs/piano-escape/PLAN.md S3). The file is the download as is (134.03 s, 44.1 kHz stereo, 256 kb/s,
+4.29 MB). It is loaded only when the scene starts and is kept out of the offline cache (`PRECACHE_IGNORES`). Licence:
+Pixabay Content License (commercial use allowed, no attribution required; credited anyway).
+
+| Track | Artist | Page | Pixabay id | File SHA-256 |
+| --- | --- | --- | --- | --- |
+| "Investigation Piano" | leberch | https://pixabay.com/music/search/investigation%20piano/ (search URL: no other Pixabay row exists to copy the track page form from, and the page slug was not confirmed) | 611639 | `f4926dfd5294f26335de986f4c10298a15c1a93c3fd992cd41e418d75c81918d` |
