@@ -29,6 +29,8 @@ import { CampusArtRender } from './campusArt/campusArtRender';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { ShutterDoors, shutterLightLeaves, type ShutterNav } from './shutterDoor';
+import { PlankBoards } from './plankBridge';
+import { kitSpotsOf } from '../game/kit/kitApi';
 import { Ropes } from './ropes';
 import { addTorchSlots, torchShadowCount, torchSlotCount } from './torches';
 import { applyMapFlicker } from './lampFlicker';
@@ -106,6 +108,9 @@ export class World {
   /** (J9 S1) The roller shutters' curtains (`shutterDoor.ts`; null: the map places none). Armed with the doors
    *  (`armDoors`); the team controller moves them after the kit ticks. */
   readonly shutters: ShutterDoors | null;
+  /** (coop-kit K5a) The Plank Bridge boards (`plankBridge.ts`; null: the map places no plank spot). Render only; the
+   *  plank move's tick moves them from its kit devices. */
+  readonly planks: PlankBoards | null;
   /**
    * (J9 S1, A16) The doors light tests (the gameplay field, the baked lamps on screen, the torch shadows): the door
    * leaves, then each shutter as an always-shut leaf. The same array as `doors.list` on a map without shutters.
@@ -188,6 +193,8 @@ export class World {
     const shutterLeaves = shutterLightLeaves(level);
     this.shutters = shutterLeaves.length ? new ShutterDoors(scene, level) : null;
     if (this.shutters?.curtainMesh) this.lightRig.addCaster(this.shutters.curtainMesh);
+    // (coop-kit K5a) the plank spots' live boards (every spot, whatever the flags: inert on its stack while the id is off)
+    this.planks = kitSpotsOf(level, 'plankBridge').length ? new PlankBoards(scene, level) : null;
     // (A16) a shut curtain stops lamp light as a closed door: one list for the field and the screen
     this.lightDoors = shutterLeaves.length ? [...this.doors.list, ...shutterLeaves] : this.doors.list;
     // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
@@ -672,6 +679,7 @@ export class World {
     this.campusArt?.dispose();
     this.doors.dispose();
     this.shutters?.dispose();
+    this.planks?.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();
