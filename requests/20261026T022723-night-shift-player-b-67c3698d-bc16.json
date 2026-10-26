@@ -1,0 +1,13 @@
+{
+  "id": "20261026T022723-night-shift-player-b-67c3698d-bc16",
+  "sha": "67c3698dd0d91c0f6e15c3a2eada7bb31b02ac54",
+  "branch": "feature/player-hygiene",
+  "pr": 516,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "hygiene-s3s4-coop"
+}
