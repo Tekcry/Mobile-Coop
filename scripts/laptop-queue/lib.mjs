@@ -1024,6 +1024,17 @@ export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
   return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
 }
 
+/**
+ * (affected-cap A7) The open automatic affected requests to re-file at the cap: kind pr, requester AFFECTED_REQUESTER
+ * (only: set 'affected' alone is a lead's hand-filed request, never narrowed), not pinned, not a train or laptop rerun,
+ * naming more distinct suites than max (two parts of one suite count once). max 0 = no cap: none. Pure.
+ */
+export function overCapAffected(requests, max) {
+  if (!(max > 0)) return [];
+  return (requests ?? []).filter((r) => r?.kind === 'pr' && r.requester === AFFECTED_REQUESTER && !r.pin && !r.trainRerun && !r.laptopRerun
+    && new Set((r.suites ?? []).map((s) => String(s).split(':')[0])).size > max);
+}
+
 // ---------- desktop failures rechecked on the laptop (Orchestrator waste audit 2026-10-24, laptop-queue-3) ----------
 
 /** Median of the finite numbers in xs, NaN when none. */

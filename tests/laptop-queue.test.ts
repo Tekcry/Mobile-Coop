@@ -5,6 +5,8 @@ import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnS
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
+// @ts-expect-error plain .mjs module without types
+import { overCapAffected } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -1161,6 +1163,20 @@ describe('affected e2e on every PR head', () => {
     expect(affectedSuites(run('src/player/moveState.ts', null), SHA('1')).suites).toEqual(['e2e-clip', 'e2e-move', 'e2e-stealth']);
     const all = affectedSuites(run('src/game/sectors/a.ts\nsrc/world/lightBake.ts', ''), SHA('1'), { max: 0 }).suites;
     expect(all).toEqual(['e2e-desktop', 'e2e-gadgets', 'e2e-lightbake', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown', 'smoke']);
+  });
+  it('overCapAffected: only open automatic affected requests over the cap are re-filed', () => {
+    const four = ['e2e-anim', 'e2e-clip', 'e2e-move', 'e2e-stealth'];
+    const auto = (o: Record<string, unknown> = {}) => ({ id: `a${Object.keys(o).length}`, sha: SHA('1'), kind: 'pr', requester: AFFECTED_REQUESTER, set: 'affected', suites: four, ...o });
+    const over = (rs: unknown[], max = 3) => (overCapAffected(rs, max) as { id: string }[]);
+    expect(over([auto()])).toHaveLength(1);
+    // a lead's hand-filed request (set affected, own requester) is never narrowed
+    expect(over([auto({ requester: 'Night Shift | Lead x' })])).toEqual([]);
+    for (const o of [{ pin: true }, { trainRerun: true }, { laptopRerun: true }, { kind: 'alone' }]) expect(over([auto(o)]), JSON.stringify(o)).toEqual([]);
+    expect(over([auto({ suites: ['e2e-anim', 'e2e-clip', 'e2e-move'] })])).toEqual([]);
+    // two parts of one suite count once
+    expect(over([auto({ suites: ['e2e-anim', 'e2e-clip', 'e2e-sectorops:1', 'e2e-sectorops:6'] })])).toEqual([]);
+    expect(over([auto()], 0)).toEqual([]);
+    expect(over([auto()], 5)).toEqual([]);
   });
   it('affectedNeeds: skips trains, drafts, the skip label, heads with a status, open requests and enqueued shas', () => {
     const prs = [
