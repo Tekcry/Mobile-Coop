@@ -19,7 +19,7 @@ Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there
 | F5 | e2e-netmove flake | flaked in train 118 | Player Build | 2026-10-26 13:58 | PR #548 with F4 |
 | F6 | lightField "allocation-free under a loop" unit flake | train 117 CI red once; #457 CI red once (10-26) | Test Runner (feature/lightfield-heap-3) | 2026-10-26 11:40 | building (fix PR next) |
 | F7 | e2e-ctcourse parts 3 + 4 flake (+3-4 min per train) | auto-quarantined to 10-27 23:31Z, 3 / 66 runs | Marlow Build | 2026-10-25 23:05 | assigned 14:00 |
-| F8 | Repeat-flake fix jobs (alerts/*-fixjob-*.json) live | not shipped | Test Runner (J20 PR-B) | 2026-10-25 | PR #538 open (fix), Opus checker running; ports onto master after #507 releases; the RULES train-row line in its body goes into the next docs fold; once released the cron reads alerts/*-fixjob-*.json on laptop-queue |
+| F8 | Repeat-flake fix jobs (alerts/*-fixjob-*.json) live | not shipped | Test Runner (J20 PR-B) | 2026-10-25 | PR #538 checker PASS 2ec80f9c; ports after #507 (train 119) if left out; once live, read alerts/*-fixjob-*.json on laptop-queue every cron run, deduped by suite (laptop and desktop may both alert) |
 | F9 | Train-building no-new-claims gate set as soon as a candidate exists | train 101 waited 17 min | Test Runner | 2026-10-25 20:58 | partly: laptop done 4.105.1; desktop in laptop-queue-8 slice H |
 | F10 | Kill a queue run when no suite finishes in ~15 min | #317 hung 4192 65 min | Test Runner | 2026-10-25 20:58 | laptop-queue-8 slice H (LQ_SUITE_IDLE_MIN) |
 | F11 | A desktop failure queues the laptop rerun at once | #445 held 4191 45 min | Test Runner | 2026-10-25 21:28 | laptop-queue-8 slice H |
@@ -28,7 +28,7 @@ Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there
 | F15 | Renaming a request to an earlier id is a move, not a withdrawal | Mixamo lost its place | Test Runner | 2026-10-25 22:40 | laptop-queue-8 slice H |
 | F16 | auto-train reads check + checker + affected-e2e itself (no label wait) | #460 missed train 103 | Test Runner | 2026-10-25 21:57 | laptop-queue-9 |
 | F18 | merge-train release leaves the deploy watch to later ticks | ~6 min per train | Test Runner | 2026-10-25 13:35 | laptop-queue-9 |
-| F19 | Pacing counts only laptop claims; then restore --min-interval | pacing OFF since 10-25 15:35 | Test Runner | 2026-10-25 15:35 | laptop-queue-9 |
+| F19 | Pacing counts only laptop claims; then restore --min-interval | pacing OFF since 10-25 15:35 | Test Runner | 2026-10-25 15:35 | laptop-queue-9 plan 7ed99264, plan checker running; after it releases the ORCHESTRATOR re-registers auto-train with -TickArgs "--min-interval 60" (S5) |
 | F20 | Watchdog reads re-filed T000001 ids correctly | misread as old | Test Runner | 2026-10-25 20:58 | laptop-queue-9 |
 | F21 | Runner guard armed (G298), not melee | Inbox 2026-10-26 12:40 (Player J19 S4 brief) | Guard AI Build (#531) | 2026-10-26 12:41 | PR open, checker PASS, laptop runner-armed |
 | F22 | Queue ranks master-based PRs ahead of stacked ones (base = a feature branch) | 7 stacked requests, ~51 suites ahead of trainable PRs (10-26 14:00) | Test Runner | 2026-10-26 14:10 | new |
