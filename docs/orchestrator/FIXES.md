@@ -12,6 +12,9 @@ out and staying on top of them constantly to ensure issues dont re-occur unncess
   Status; a fix with no guard is not done;
 - a shipped fix stays in the table as "shipped <version>, watching" for a day; the cron checks its Evidence signal
   (queue log, auto-train log, CI) every run and reopens it with the new evidence if the problem shows up again;
+- until the fix-first queue tier ships (#552), every cron run fronts the open laptop-queue requests of `fix`-labelled
+  PRs (rename the request to a `20191231T...` id on the laptop-queue branch: lib `isFront` early-id tier), so fixes never
+  wait behind feature requests (15:10 audit: fix PRs sat unclaimed 47-65 min behind ~46 requests);
 - Done rows move to `archive/FIXES-done.md` with the PR, version and guard once shipped and quiet for a day.
 Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there).
 
