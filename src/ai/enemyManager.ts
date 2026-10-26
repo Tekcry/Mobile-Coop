@@ -80,6 +80,8 @@ export interface TalkPair {
   readonly pm: PairMeet;
   readonly sa: number;
   readonly sb: number;
+  /** (guard-ai piano GA6b, F1) A scene sweep pair's missing-partner watch only (no meetings, no lines). */
+  readonly watchOnly?: boolean;
 }
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
@@ -329,9 +331,27 @@ export class EnemyManager {
    * gunfire sends everyone in reach to combat (the old rule).
    */
   coordinated = true;
-  /** (piano escape GA1) The scene's blackout (set by the scene after its EMP, `flags.pianoEscape` only): every guard
-   *  who carries a torch has it on in every state (`Enemy.torchWanted`). Off: the torch rule as built. */
-  sceneDark = false;
+  /**
+   * (piano escape GA1) The scene's blackout (set by the scene after its EMP, `flags.pianoEscape` only): every guard
+   * who carries a torch has it on in every state (`Enemy.torchWanted`). Off: the torch rule as built.
+   * (guard-ai piano GA6b) And the slow methodical sweep (`sceneSweep.ts`). Every set to true (the EMP, each restart)
+   * restarts the sweep clock at 0, clears the talking pairs and puts every placed guard on his sweep (`sweepify`); while
+   * true a guard placed is swept instead of paired (a sweep pair gets the missing-partner watch only, F1) and a partner
+   * follows a glimpse (`glimpseFollow`). Set false (N4): every guard off his sweep, the watch-only pairs gone.
+   */
+  get sceneDark(): boolean {
+    return this.darkOn;
+  }
+  set sceneDark(on: boolean) {
+    if (on) this.sceneDarkOn();
+    else if (this.darkOn) this.sceneDarkOff();
+    this.darkOn = on;
+  }
+  private darkOn = false;
+  /** (GA6b) The scene's sweep clock (s since the last `sceneDark = true`; ticks in `update` while dark). */
+  sweepClock = 0;
+  /** (GA6b, GA7) Per slot, the last `riseN` the glimpse follow saw (sized at section load, `placeSlot`). */
+  private followSeen = new Int32Array(32);
   /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
   private noisy: readonly NoisySource[] = [];
   /** (guard-ai S5) The map's own noisy things (`MapLayout.guardAi.noisy`); Sector Ops swaps in a section's
@@ -1834,6 +1854,9 @@ export class EnemyManager {
   private swapSlot(old: Enemy, e: Enemy): void {
     const k = e.slotIdx;
     if (k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === old) this.slotGuard[k] = e;
+    // (GA6b) his sweep partner's skip follows him; the glimpse follow starts from his own rise count
+    if (old.sweepMate && old.sweepMate.sweepMate === old) old.sweepMate.sweepMate = e;
+    if (this.darkOn && k >= 0 && k < this.followSeen.length) this.followSeen[k] = e.riseN;
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const d = list[i]!;
@@ -2223,6 +2246,8 @@ export class EnemyManager {
     if (inList) {
       if (slots !== this.tagSlots) {
         if (this.tagSquad.length < slots.length) this.tagSquad = new Int32Array(slots.length);
+        // (GA6b, GA7) the glimpse follow's buffer, at section load
+        if (this.followSeen.length < slots.length) this.followSeen = new Int32Array(slots.length);
         slotSquads(slots, e.section, this.tagSquad);
         this.tagSlots = slots;
         // (guard-ai S10) a new section's list: its own pairs (nobody left standing in an old pair's hold)
@@ -2254,8 +2279,115 @@ export class EnemyManager {
         if (d.dog && d.handlerSlot === index && d.handler === null) this.bindDog(d, e);
       }
     }
-    // (guard-ai S10) the second of a talking pair placed: the pair is built
-    if (inList) this.buildPair(e, index);
+    // (guard-ai S10) the second of a talking pair placed: the pair is built; (GA6b) in the scene's dark: his sweep, a
+    // sweep pair's watch only (no meetings, no lines)
+    if (this.darkOn) this.sweepify(e, inList ? index : -1);
+    else if (inList) this.buildPair(e, index);
+  }
+
+  /** (GA6b) `sceneDark = true` (every set: the EMP, each restart): the clock from 0, no talking pairs, everyone swept. */
+  private sceneDarkOn(): void {
+    this.darkOn = true;
+    this.sweepClock = 0;
+    for (let k = 0; k < this.pairs.length; k++) {
+      const p = this.pairs[k]!;
+      const a = this.guardAtSlot(p.sa);
+      const b = this.guardAtSlot(p.sb);
+      if (a) a.pairFace = Number.NaN;
+      if (b) b.pairFace = Number.NaN;
+    }
+    this.pairs.length = 0;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      const k = e.slotIdx;
+      this.sweepify(e, k >= 0 && k < this.slotGuard.length && this.slotGuard[k] === e ? k : -1);
+    }
+  }
+
+  /** (GA6b, N4) `sceneDark = false`: every guard off his sweep (his route rules, rejoined as built), the watch-only pairs
+   *  and the follow buffer cleared. */
+  private sceneDarkOff(): void {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) list[i]!.stopSweep();
+    for (let k = this.pairs.length - 1; k >= 0; k--) if (this.pairs[k]!.watchOnly) this.pairs.splice(k, 1);
+    this.followSeen.fill(0);
+  }
+
+  /** (GA6b) His sweep partner: the slot his `pair` tag names, or a placed guard whose tag names him (as `buildPair`). */
+  private sweepPartner(e: Enemy, index: number): Enemy | null {
+    const sg = this.slotGuard;
+    let j = e.pairSlot !== index ? e.pairSlot : -1;
+    if (j < 0 || j >= sg.length || !sg[j])
+      for (let k = 0; k < sg.length; k++) {
+        const o = sg[k];
+        if (k !== index && o && o.pairSlot === index) {
+          j = k;
+          break;
+        }
+      }
+    const o = j >= 0 && j < sg.length ? (sg[j] ?? null) : null;
+    return o && o !== e && !o.dog ? o : null;
+  }
+
+  /**
+   * (GA6b) Put `e` (slot `index`, -1 none) on his scene sweep at the sweep clock: the lower slot of a sweep pair pans left
+   * first (+1), his partner right first (-1); both get the partner and the side (N5: the second may be placed late);
+   * the pair gets the missing-partner watch (F1: a `PairMeet` whose window never opens, `watch` on; GA6-A10: on the
+   * scene whatever `flags.guardPairs` says). A dog heels his handler: not swept. Load time / the EMP only.
+   */
+  private sweepify(e: Enemy, index: number): void {
+    if (e.dog) return;
+    const m = index >= 0 ? this.sweepPartner(e, index) : null;
+    const j = m ? m.slotIdx : -1;
+    const side = m && j < index ? -1 : 1;
+    e.sweepMate = m;
+    e.startSweep(this.sweepClock, side);
+    if (index >= 0 && index < this.followSeen.length) this.followSeen[index] = e.riseN;
+    if (!m) return;
+    m.sweepMate = e;
+    if (m.sweepSide !== -side || !m.sweeping) m.startSweep(this.sweepClock, -side);
+    const lo = Math.min(index, j);
+    const hi = Math.max(index, j);
+    for (let k = 0; k < this.pairs.length; k++) {
+      const p = this.pairs[k]!;
+      if (p.sa === lo && p.sb === hi) {
+        this.pairs.splice(k, 1);
+        break;
+      }
+    }
+    const A = index === lo ? e : m;
+    const B = index === lo ? m : e;
+    const pa = A.postPoint;
+    const pb = B.postPoint;
+    const pm = new PairMeet({ id: e.section * 100 + lo, period: 1, t0: 0, open: 0, close: 0, aPt: [pa[0], pa[1]], bPt: [pb[0], pb[1]], watch: true });
+    this.pairs.push({ pm, sa: lo, sb: hi, watchOnly: true });
+  }
+
+  /**
+   * (GA6b, GA7: a player seen in a flash) At the board tick while dark: a guard whose rise (`riseN`) moved on sight
+   * (`RISE_SIGHT`) and who is suspicious or investigating sends his sweep partner, if the partner is calm, up and within
+   * `PAIRS.togetherR` (walking with him), to the same spot (`Enemy.followGlimpse`). No allocation.
+   */
+  private glimpseFollow(): void {
+    const sg = this.slotGuard;
+    const seen = this.followSeen;
+    const n = sg.length < seen.length ? sg.length : seen.length;
+    for (let k = 0; k < n; k++) {
+      const e = sg[k];
+      if (!e) continue;
+      const r = e.riseN;
+      if (r === seen[k]) continue;
+      seen[k] = r;
+      const m = e.sweepMate;
+      if (!m || e.riseCause !== RISE_SIGHT || !e.alive || e.taken) continue;
+      const lv = e.level;
+      if (lv !== 'suspicious' && lv !== 'investigating') continue;
+      const ml = m.level;
+      if (!m.alive || m.taken || (ml !== 'unaware' && ml !== 'cooldown')) continue;
+      if (hyp2(m.pos.x - e.pos.x, m.pos.z - e.pos.z) > PAIRS.togetherR) continue;
+      m.followGlimpse(e.stimX, e.stimZ);
+    }
   }
 
   /** (guard-rules S7, A9) The post a slot gives: a lookout's (flag on) is a high-security copy, so `Enemy.secure`, the
@@ -2375,15 +2507,16 @@ export class EnemyManager {
     return '';
   }
 
-  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). No allocation. */
-  private fillPair(g: PairGuard, e: Enemy | null): void {
+  /** (guard-ai S10) Fill one guard's side of a pair (null: not on the list). (GA6 fix round, check A FIX 1) A sweep pair's
+   *  watch (`sweep`): calm = walking his sweep (`Enemy.sweepCalm`; cooldown and caution count). No allocation. */
+  private fillPair(g: PairGuard, e: Enemy | null, sweep: boolean): void {
     if (!e || !e.alive || e.taken) {
       g.present = false;
       g.calm = false;
       return;
     }
     g.present = true;
-    g.calm = e.pairCalm;
+    g.calm = sweep ? e.sweepCalm : e.pairCalm;
     g.x = e.pos.x;
     g.z = e.pos.z;
     const p = e.routePoint(this.pairTmp);
@@ -2405,8 +2538,9 @@ export class EnemyManager {
       const pm = p.pm;
       const A = this.guardAtSlot(p.sa);
       const B = this.guardAtSlot(p.sb);
-      this.fillPair(pm.a, A);
-      this.fillPair(pm.b, B);
+      const sw = p.watchOnly === true;
+      this.fillPair(pm.a, A, sw);
+      this.fillPair(pm.b, B, sw);
       if ((pm.state === 'waiting' || pm.state === 'meeting') && ((pm.a.present && A!.disturbed) || (pm.b.present && B!.disturbed))) pm.interrupt();
       pm.step(dt);
       const meet = pm.state === 'meeting';
@@ -3835,6 +3969,7 @@ export class EnemyManager {
     this.longPlanFree = true;
     // (check FIX 1) the sliced long plan's idle count is in frames
     this.nav.sliceTick();
+    if (this.darkOn) this.sweepClock += dt;
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
@@ -3898,6 +4033,8 @@ export class EnemyManager {
         // (guard-ai S4) timed caution counts down with the board; every guard's caution follows the table
         this.awareness.tick(0.2);
         this.syncCaution();
+        // (GA6b, GA7) a sweep partner follows a glimpse
+        if (this.darkOn) this.glimpseFollow();
       }
       // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
       this.netT -= dt;
@@ -4101,6 +4238,8 @@ export class EnemyManager {
     this.pairs.length = 0;
     this.pairSkips.length = 0;
     this.pairT = 0;
+    // (GA6 fix round, check B Polish 2) the sweep clock from 0 (`darkOn` kept: the scene's own setter turns it off)
+    this.sweepClock = 0;
     // (guard-rules S7) and the lookouts
     this.lookoutN = 0;
     this.lookRise.fill(0);

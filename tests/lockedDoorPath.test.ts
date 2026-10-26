@@ -372,7 +372,7 @@ describe('(polish2 A184) an investigation behind a locked door with no way round
     Object.assign(s.e, {
       aware, reviving: null, crew: null, entry: null, lc: { active: false }, stimulus: [GOAL[0], GOAL[1]], hasStimulus: true,
       hold: null, searchRoom: null, postDef: null, spot: [0, 0], spotSet: false, spotArrived: false, spotLookT: 0, lookBase: 0,
-      rush: false, routeNear: false, lure: { active: false }, brkGroup: -1,
+      rush: false, routeNear: false, lure: { active: false }, brkGroup: -1, walker: { sweeping: false },
     });
     (s.e as unknown as { ctx: Record<string, unknown> }).ctx.coordinated = () => true;
     const input = emptyAlertInput();
