@@ -58,7 +58,7 @@ import { MODE_DEVICE } from './incidents';
 // (guard-ai S19, walk 4.72 G3) guards hurry to a dead body the radio reported
 import { MODE_HELP } from './incidents';
 import { URGENT } from './gear';
-import { urgentKind } from './response';
+import { SEARCH_BLACKOUT, urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 // (guard-ai S20) doors on the walker's way
 import { DoorGate } from './doorGate';
@@ -182,6 +182,8 @@ export class EnemyManager {
   /** (coop4 AI2) Sight rays every guard's think cast for players during the last `update` (summed from
    *  `Enemy.raysStep`; tests and the Test Runner measure read it). Each guard's own think: `Enemy.raysThink`. */
   raysThisStep = 0;
+  /** (guard-ai play A, check B) This frame's long plan (`AiContext.longPlan`) is not taken yet. */
+  private longPlanFree = true;
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
@@ -327,6 +329,9 @@ export class EnemyManager {
    * gunfire sends everyone in reach to combat (the old rule).
    */
   coordinated = true;
+  /** (piano escape GA1) The scene's blackout (set by the scene after its EMP, `flags.pianoEscape` only): every guard
+   *  who carries a torch has it on in every state (`Enemy.torchWanted`). Off: the torch rule as built. */
+  sceneDark = false;
   /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
   private noisy: readonly NoisySource[] = [];
   /** (guard-ai S5) The map's own noisy things (`MapLayout.guardAi.noisy`); Sector Ops swaps in a section's
@@ -620,6 +625,11 @@ export class EnemyManager {
       lkpOf: (slot) => this.lkpOf(slot),
       intruderId: (slot) => this.intruders.idOf(slot),
       enemies: () => this.enemies,
+      longPlan: () => {
+        if (!this.longPlanFree) return false;
+        this.longPlanFree = false;
+        return true;
+      },
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
       rooms: world.layout.rooms ?? [],
@@ -666,6 +676,7 @@ export class EnemyManager {
       },
       stealth: () => this.stealth,
       coordinated: () => this.coordinated,
+      sceneDark: () => this.sceneDark,
       lkp: this.lkp,
       lkpValid: () => this.lkpValid,
       // (guard-ai S24) his intruder's slot (by player id): its last known position follows him; the guard hunts it
@@ -1246,6 +1257,34 @@ export class EnemyManager {
   }
 
   /**
+   * (piano escape GA3) The scene blackout's one reaction: each of `guards` (the scene's G1-G4, just spawned on the intro
+   * actors' spots) starts the search round (x, z) at once (`SEARCH_BLACKOUT`: rings out to ~6 m, the plain search's
+   * length), no radio, no board; when it ends each goes back to his fixed round as built. The rest keep their posts and
+   * rounds. Not hot (once, at the EMP). Returns how many started.
+   */
+  blackoutSearch(guards: readonly Enemy[], x: number, z: number): number {
+    let n = 0;
+    for (let i = 0; i < guards.length; i++) {
+      const e = guards[i]!;
+      if (!e.alive || e.alerted || e.taken) continue;
+      e.searchAt(x, z, null, SEARCH_BLACKOUT);
+      n++;
+    }
+    return n;
+  }
+
+  /** (piano escape GA3, check B) `blackoutSearch` by the live section's slot indices (its guard list order: the plan's
+   *  `mill:0`-`mill:3` are slots 0-3); an empty slot is skipped. Not hot. Returns how many started. */
+  blackoutSearchSlots(slots: readonly number[], x: number, z: number): number {
+    const list: Enemy[] = [];
+    for (let i = 0; i < slots.length; i++) {
+      const e = this.slotGuard[slots[i]!];
+      if (e) list.push(e);
+    }
+    return this.blackoutSearch(list, x, z);
+  }
+
+  /**
    * Lights went out at a point (a lamp shot out, a wall switch, a circuit cut; every lights-out path comes here).
    * (x, y, z): the fixture (or the switch: where guards walk to); `lightId` the lamp that went (registry id) or
    * `group` the circuit (-1 none: the point itself is the fixture).
@@ -1260,6 +1299,8 @@ export class EnemyManager {
    * 14 m look).
    */
   lightsOut(x: number, z: number, y = Number.NaN, lightId = -1, group = -1): void {
+    // (piano escape GA3) in a scene blackout the scene's one reaction (`blackoutSearch`) is the only one: no incident
+    if (this.sceneDark) return;
     if (!this.coordinated) {
       this.lightsOutOld(x, z, y);
       return;
@@ -1660,7 +1701,8 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
-      if (!e.alive || !e.alerted || e.def.melee) continue;
+      // (guard-ai play A, P2-1) not a guard who gave a run up this fight (no way to the panel)
+      if (!e.alive || !e.alerted || e.def.melee || e.alarmBarred) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
       // (guard-ai S5, A10) a high-security post never runs to a panel outside his leash
@@ -3789,6 +3831,10 @@ export class EnemyManager {
 
   update(dt: number): void {
     this.raysThisStep = 0;
+    // (guard-ai play A, check B) one long plan (`GIVE_UP.homeExpand` A*) per frame across the guards
+    this.longPlanFree = true;
+    // (check FIX 1) the sliced long plan's idle count is in frames
+    this.nav.sliceTick();
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
