@@ -177,6 +177,17 @@ export function membersFromSubjects(subjects, n) {
   return out;
 }
 
+/**
+ * F44 (trains 127 and 128, 2026-10-26): members of train <n> from `git log --first-parent --merges --reverse
+ * --format=%s origin/master..<head>` output (`log`, one subject per line, oldest first), which has no cap. gh's PR
+ * commits (`subjects`) stop at the oldest 100 and count every member's own commits, so a big train lost its merges
+ * there and auto-drop found nobody. Falls back to `subjects` only when the git log is unreadable (null) or names none.
+ */
+export function trainMembers(log, n, subjects = []) {
+  const fromGit = log == null ? [] : membersFromSubjects(String(log).split('\n'), n);
+  return fromGit.length ? fromGit : membersFromSubjects(subjects, n);
+}
+
 /** "LEFT OUT: <branch> - <why>" lines of merge-train build output -> [{ branch, why }]. */
 export function parseLeftOut(output) {
   return [...String(output ?? '').matchAll(/^LEFT OUT: (\S+) - (.*)$/gm)].map((m) => ({ branch: m[1], why: m[2].trim() }));
@@ -1234,7 +1245,7 @@ function openTrain() {
     pr: p.number, n, head: p.headRefOid, version, title: title || `train ${n}`,
     versionCommit: !!vc,
     resume: !!vc && vc.index < subjects.length - 1,
-    members: membersFromSubjects(subjects, n),
+    members: trainMembers(trainMergeLog(n, p.headRefOid), n, subjects),
     ci: ciLabel(p.statusCheckRollup, 'check'),
     ciGreenAt: ciGreenAt(p.statusCheckRollup, combined, 'check'),
     laptop: contextStatus(combined, LAPTOP_CONTEXT),
@@ -1243,6 +1254,18 @@ function openTrain() {
     vitest: contextStatus(combined, VITEST_CONTEXT).state,
     ageMin: (Date.now() - since) / 60_000,
   };
+}
+
+/**
+ * F44: the first-parent merge subjects of origin/master..<head> (oldest first) from the train worktree after a narrow
+ * fetch of master and train/<n>, or null when git cannot read them (trainMembers then falls back to gh's subjects).
+ */
+function trainMergeLog(n, head) {
+  if (fetchWithRetry(exec, ['master', `train/${n}`], { log }).status !== 0) log(`train ${n}: git fetch failed, reading members from local refs`);
+  const r = exec(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `origin/master..${head}`]);
+  if (r.status === 0) return r.out;
+  log(`train ${n}: git log of its merges failed (${(r.err || r.out).trim().slice(-200)}): members from gh's capped commit list`);
+  return null;
 }
 
 /** When `train-ready` was last removed from a PR (ms), or null when never; throws when unreadable (F16 heldOff). */

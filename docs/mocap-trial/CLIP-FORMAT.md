@@ -70,7 +70,7 @@ and pins it there with no slide until the clip lifts it. The leg IK then reaches
 | --- | --- | --- |
 | `feet` | 10 | Per side, L then R (`keyed.ts` `KF`): ankle x (lateral), y (lift), z (fore-aft) in the ROOT frame / K; foot pitch (rad); contact (0 / 1). |
 | `stride` | | The root's travel over one cycle, / K (take speed x cycle duration / K). Required with `feet`. |
-| `travel` | | (mocap-trial-2, strafe) The direction the root travels over a cycle: `'z'` forward (absent: every forward cycle), `'+x'` right, `'-x'` left (a sideways cycle). |
+| `travel` | | (mocap-trial-2, strafe) The direction the root travels over a cycle: `'z'` forward (absent: every forward cycle), `'+x'` right, `'-x'` left (a sideways cycle); (mixamo-retarget I7) `'-z'` backward. |
 
 - x, z: the ankle joint's ground projection relative to the root (above). While a foot is planted in the take its z falls
   back at the take's speed; the runtime scales z by game stride / `stride`, so a planted foot moves back under the body at
