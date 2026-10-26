@@ -1,7 +1,33 @@
 # piano-escape - STATE
 Owner: Night Shift | Campaign Build. Status: current.
 
-## RESUME 2026-10-26 ~21:00 (Night Shift | Campaign Build, after the ~20:45 swap; read this block first)
+## RESUME 2026-10-26 ~22:20 SAVE (Night Shift | Campaign Build; read this block first; swap ~22:48)
+Main focus: the mill (Michael ~19:40). Worktrees C:/NightShift/Mobile-Coop-piano-escape[-s1b|-s2|-s4|-s5]; briefs, reports
+and checks in C:/NightShift/scratch/campaign/piano/. Prototype mode; the lead posts ; docs pushes re-post it.
+PRs (all checker PASS, posted):
+- #606 feature/piano-escape -> master (S1 shell + S3 music; master merged in 6f89eec17). CI + affected running; the
+  orchestrator labels it train-ready and it rides the next train.
+- #616 S2 intro + EMP (feature/piano-escape-s2, big-pr), #617 S1b mill greybox + lightning re-time + GA5 deltas +
+  openings (feature/piano-escape-s1b, f3a95f277), #618 S5 / S5b music (feature/piano-escape-s5, 1241dfb8c): all base
+  feature/piano-escape; retarget each to master after #606 lands (one at a time if they conflict), re-post checker.
+BUILDING: S4 (Opus) on feature/piano-escape-s4 = LOCAL INTEGRATION branch (orchestrator ~22:12: no PR until its parts
+  land): base d80075557 = feature/piano-escape + #616 + #617 + #618 + knife #614/#620 (feature/piano-knife-s2) + Guard AI
+  sweep (feature/guard-ai-piano-sweep f622ae8b8, carries #603) + SO5 #604 (feature/piano-lights-so5); gameState.ts conflict
+  kept both (sv seam + takedown.frameLate). Brief S4-brief.md (5 steps: swap S2 stubs, knife switch, co-op t0 field,
+  co-op end, two-tab e2e), report S4-report.md (kept current). If cut off: resume from the report's next step.
+  Done -> two Opus checkers (src/net) -> when the parts are on master, re-merge onto master and open its PR.
+  Re-merge Guard AI's final sweep head when they send it (GA6b still finishing).
+Waiting on others: #603 / #604 (+ SO5b window lights) / #611 GuardActor (S2 TODO) / #614 + #620 knife / GA6-GA7 PR.
+Music: Michael ~21:50 picked intro Investigation Piano, mission Suspense Thriller (S5b); ~21:55 "music isnt settled":
+  the orchestrator's 4 realistic tracks (intro-1/2, mission-1/2, feature/music-real) go in as picker rows when it says.
+Lightning period 160.04 (Grohl loop); Sector Ops OK'd it. Openings on #617 for SO5b.
+Re-tune after GA6a lands: G4 / G5 end waits with sweepPeriod(route) (src/ai/sceneSweep.ts), assert equal laps.
+Next slices: S6 storm sound (Sonnet, ~250 lines) when #604 is on master. Then the walk card (ETA sent ~22:10: full
+  co-op walk Tue 27 ~09:00-11:00; solo first look after #606 / #616 / #617 land).
+Tallow: #522 + #578 merged; #581 base master (waiting on affected); then retarget #583.
+Next: S4 report -> checkers; #606 -> retarget #616 / #617 / #618; #581 -> #583.
+
+## OLD RESUME 2026-10-26 ~21:00 (Night Shift | Campaign Build, after the ~20:45 swap; read this block first)
 Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
 1. Re-check 3 items L1a / L1b / L2 / L5 + polish applied to the PLAN (58a76a36d): period 91.03 = loopPeriod(); t0 to the
    client as one optional field of the `sector` message (claims: protocol.ts, S4); blackoutSearchSlots after fill(); S4
