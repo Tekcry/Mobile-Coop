@@ -56,6 +56,10 @@ export interface PropPlacement {
   yaw?: number;
 }
 
+/** (tallow-fixes A24, Q23, M2) A throw site: a throw offered within `THROW_SITE_REACH` of (x, z) and launched along
+ *  the unit facing (dx, dz) (within `THROW_SITE_COS`) lands `dist` m past the thrower instead of `TEAM.throwDist`. */
+export interface ThrowSite { x: number; z: number; dx: number; dz: number; dist: number }
+
 /** Output of a map's procedural build: everything gameplay needs besides geometry. */
 export interface MapLayout {
   playerSpawns: { pos: Vector3; yaw: number }[];
@@ -118,6 +122,9 @@ export interface MapLayout {
    *  only, drawn by `PropRender`; the map builder wrote their gameplay boxes with `props.write(b)`. (`props` above is
    *  the dynamic prop system's.) */
   facilityProps?: FacilityPropPlacement[];
+  /** (Q23, tallow-fixes A24) Throw sites with their own throw length (`game/teamMoves.ts` `throwDistAt`): named spots
+   *  only; no sites = the standard throw everywhere. */
+  throwSites?: readonly ThrowSite[];
 }
 
 export interface MapDef {

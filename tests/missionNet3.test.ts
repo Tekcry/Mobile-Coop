@@ -96,17 +96,19 @@ describe('NET3: the sector mission on the start message', () => {
     expect(cli.sectorMission).toBe('twoKeyLedger');
   });
 
+  // (mission-rules R4) a campaign match never starts alone, so the late join runs on the campus Sector Ops test mission
   it('a late joiner gets the running match with the same mission', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
-    host.sectorMission = 'twoKeyLedger';
-    host.setSettings('sector', 'tallowWharf', 'normal');
-    host.startMatch();
+    host.sectorMission = 'campusMissionTest';
+    host.setSettings('sector', 'campusOps', 'normal');
+    expect(host.startMatch()?.sectorMission).toBe('campusMissionTest');
     const late = sess(h.make('L'), 'client', 'ABCDE', prof('Late'));
     late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Late', tag: {}, look: {} }, 'H');
-    expect(late.sectorMission).toBe('twoKeyLedger');
+    expect(late.sectorMission).toBe('campusMissionTest');
   });
 
+  // (mission-rules R4) Tallow with no mission is refused (a campaign map needs a campaign mission): campus instead
   it('a host with no mission, or not in Sector Ops: no `sm`, and the client follows (none)', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
@@ -115,8 +117,8 @@ describe('NET3: the sector mission on the start message', () => {
     let got: StartInfo | null = null;
     cli.events.on('start', (s) => (got = s));
     host.sectorMission = '';
-    host.setSettings('sector', 'tallowWharf', 'normal');
-    host.startMatch();
+    host.setSettings('sector', 'campusOps', 'normal');
+    expect(host.startMatch()).not.toBeNull();
     expect('sectorMission' in got!).toBe(false);
     expect(cli.sectorMission).toBe('');
     host.backToLobby();
