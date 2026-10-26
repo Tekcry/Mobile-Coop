@@ -100,6 +100,73 @@ export const THORNBECK_CAM_SPACES: readonly CamSpace[] = [
   { box: [12, 15, 20, 18], y: [3.5, 7], size: 'open' },
 ];
 
+/**
+ * The 16 lamps and the exit sign (PLAN section 3 "Spaces, levels and lamps"; the svg's yellow dots): caged industrial
+ * fittings, all `electric: true` with no switch `group` (nothing turns them off but the EMP: `mainsOff`, #602). They are
+ * lit before the EMP (the intro) and dead after it; after that only the guards' torches and the lightning light the mill.
+ * [id, x, y, z, space]: ground lamps hang at 4.8 m, gallery lamps at 7.4 m under the roof, the hoist lamp over the door.
+ */
+export const THORNBECK_LAMPS: readonly (readonly [string, number, number, number, string])[] = [
+  ['L1', 2.5, 4.8, 5.0, 'startBay'],
+  ['L2', 7.5, 4.8, 1.5, 'startBay'],
+  ['L3', 12.0, 4.8, 2.0, 'aisle'],
+  ['L4', 17.5, 4.8, 2.0, 'aisle'],
+  ['L5', 23.0, 4.8, 2.0, 'millBay'],
+  ['L6', 19.0, 4.8, 10.5, 'sackBay'],
+  ['L7', 24.0, 4.8, 10.5, 'sackBay'],
+  ['L8', 29.0, 4.8, 8.0, 'office'],
+  ['L9', 28.5, 4.8, 14.2, 'lobby'],
+  ['L10', 11.0, 4.8, 12.5, 'machinery'],
+  ['L11', 4.0, 7.4, 17.8, 'gallery'],
+  ['L12', 11.0, 7.4, 17.8, 'gallery'],
+  ['L13', 17.0, 7.4, 17.8, 'gallery'],
+  ['L14', 24.0, 7.4, 17.8, 'gallery'],
+  ['L15', 30.0, 7.4, 17.8, 'gallery'],
+  ['L16', 0.3, 6.6, 17.6, 'hoist'],
+];
+/** The exit sign over the hoist door (a small green light; electric like the lamps). */
+export const THORNBECK_EXIT_SIGN = { x: 0.2, y: 6.5, z: 15.7 } as const;
+
+/** One lightning strike (the shape of `MapDef.lightning.flashes` in #604 / SO5): `t` s on the scene clock, `peak` 0..1, `len` s. */
+export interface ThornbeckFlash {
+  t: number;
+  peak: number;
+  len: number;
+}
+
+/** The first strike of each flash time (s after the EMP) and whether it is a double (PLAN section 2b). */
+export const THORNBECK_FLASH_TIMES: readonly (readonly [number, boolean])[] = [
+  [6, false], [18, false], [30, false], [37, true], [44, false], [51, true], [58, false], [65, true], [73, false], [81, true], [88, false],
+];
+
+/** One loop of the music (`loopPeriod()` in `audio/music/scenePiano.ts` = 134.03 - 2 - 41): the lightning's period. */
+export const THORNBECK_LIGHTNING_PERIOD = 91.03;
+
+/** 11 times per loop, a double is two entries: 15 entries in all (PLAN section 2b). A single is { t, 1, 0.6 }; a double adds { t + 0.45, 0.8, 0.5 }. */
+function lightningFlashes(): ThornbeckFlash[] {
+  const out: ThornbeckFlash[] = [];
+  for (const [t, dbl] of THORNBECK_FLASH_TIMES) {
+    out.push({ t, peak: 1, len: 0.6 });
+    if (dbl) out.push({ t: t + 0.45, peak: 0.8, len: 0.5 });
+  }
+  return out;
+}
+
+/**
+ * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every music loop.
+ * The `lightning` field is not on this base (#604 / SO5 adds it with this exact shape).
+ */
+// TODO(#604): set as MapDef.lightning
+export const THORNBECK_LIGHTNING: { flashes: readonly ThornbeckFlash[]; period: number } = { flashes: lightningFlashes(), period: THORNBECK_LIGHTNING_PERIOD };
+
+/**
+ * Rain on the roof: 6 dB of masking over the whole map halves every guard's hearing reach (PLAN section 2b). On the
+ * section it is `noisy: [mapWideNoise('rain', 6)]` once #603 is on master (`mapWideNoise` is not on this base; its radius
+ * is infinite, which this base's `validateGuardAi` would reject).
+ */
+// TODO(#603): noisy: [mapWideNoise('rain', 6)]
+export const THORNBECK_RAIN = { id: 'rain', db: 6, label: 'rain' } as const;
+
 interface PieceOpts {
   collide?: boolean;
   visible?: boolean;
@@ -267,6 +334,15 @@ function buildSurfaces(b: LevelBuilder): void {
   for (const [x0, z0, x1, z1] of Object.values(THORNBECK_SPACES)) b.surface('carpet', x0, x1, z0, z1, 0);
 }
 
+/** The lamps: all electric, no switch group, caged boxes; the exit sign is a small green light. */
+function buildLamps(b: LevelBuilder): void {
+  for (const [, x, y, z] of THORNBECK_LAMPS) {
+    b.light({ kind: 'lamp', x, y, z, radius: 9, intensity: 0.6, color: [1, 0.85, 0.6], electric: true, fixture: { sx: 0.35, sy: 0.28, sz: 0.35, oy: 0 } });
+  }
+  const s = THORNBECK_EXIT_SIGN;
+  b.light({ kind: 'lamp', x: s.x, y: s.y, z: s.z, radius: 1.5, intensity: 0.3, color: [0.5, 1, 0.6], electric: true, fixture: { sx: 0.4, sy: 0.2, sz: 0.08, oy: 0 } });
+}
+
 /** Every piece is `noLedge`: nothing hangs, climbs or drops anywhere; the low cover is vaulted by the controller as usual. */
 function noLedges(b: LevelBuilder): void {
   b.mark(0, { noLedge: true });
@@ -289,8 +365,9 @@ export const thornbeckMill: MapDef = {
     fogEnd: 70,
     sunDir: [0.35, -1, 0.55],
     sunIntensity: 0,
-    ambient: 0.05,
-    lightLevel: 0.02,
+    // ambient 0: a dark map (below 0.5), so the guards' torch slots exist; the lamps die at the EMP
+    ambient: 0,
+    lightLevel: 0,
     faction: 'urban',
   },
   build(b: LevelBuilder): MapLayout {
@@ -300,6 +377,7 @@ export const thornbeckMill: MapDef = {
     buildPath(b);
     buildMachinery(b);
     buildSurfaces(b);
+    buildLamps(b);
     noLedges(b);
     return {
       playerSpawns: [
