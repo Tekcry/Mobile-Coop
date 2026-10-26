@@ -1,0 +1,13 @@
+{
+  "id": "20261026T224207-affected-e2e-5bf474c9-6ad3",
+  "sha": "5bf474c9487617654444a78e6803fe25afc73155",
+  "branch": "feature/piano-skip-hint",
+  "pr": 690,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-piano"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #690"
+}
