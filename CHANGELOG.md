@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.130.1 - Train 163: Guards never vanish while their new model loads (2026-10-27, PR #678; #676)
+- A guard whose new model is still getting ready to draw (its shader compiling, the first time you get close to each guard type) now shows his simpler body meanwhile instead of disappearing; a stuck or failed compile is retried as the simpler body already does.
+
 ## 4.130.0 - Train 162: Route-runs docs; Character shadows settings help; Guards and character shadows, part 2 (dark); Tallow Wharf: the first campaign map (greybox) (2026-10-27, PR #677; #674, #673, #670, #583)
 
 ### Character shadows settings help
