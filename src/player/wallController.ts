@@ -481,6 +481,7 @@ export class WallCore {
     this.onT = 0;
     this.intoT = 0;
     this.edge = 0;
+    this.intro = this.introLeft = false; // (piano-knife S4b checkers) a reset mid-intro must not pin the next wall
     this.clearEdge();
   }
 
