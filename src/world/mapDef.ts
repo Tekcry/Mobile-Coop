@@ -16,6 +16,7 @@ import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
 import type { KitLayout } from './kit/facilityKit';
 import type { PropPlacement as FacilityPropPlacement } from './props/facilityProps';
+import type { LightningData } from './lightning';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -139,4 +140,9 @@ export interface MapDef {
    * purpose. Default true.
    */
   detail?: boolean;
+  /**
+   * (piano SO5) A storm's lightning: fixed strikes on the scene clock (`world/lightning.ts`), let in through the moon's
+   * baked sky visibility (windows, gaps). The meter, guards and the picture read one level per sim step. Absent: none.
+   */
+  lightning?: LightningData;
 }
