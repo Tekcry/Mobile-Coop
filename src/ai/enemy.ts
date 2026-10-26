@@ -261,10 +261,11 @@ const SUPPRESS_CHECK = 0.25;
 /** (guard-ai S6) A reinforcement gives up his entry route after this long (s; a blocked route). */
 const ENTRY_MAX = 30;
 /** (guard-ai play A, docs/guard-ai/PLAY-PASS.md P1-1, P2-1) Give-ups. The calm walk home: under `homeMove` m moved in
- *  `homeT` s he plans once with an A* budget of `homeExpand` (`goTo`'s is 3000; once per point, not per frame); no
+ *  `homeT` s he plans once with an A* budget of `homeExpand` (`goTo`'s is 3000; once per point, one per frame across the
+ *  guards: `AiContext.longPlan`; 10000 is ~2.4 ms p50, 3.2 ms max on S1 campus, 20000 was ~4 / 6 ms); no
  *  progress again and a route walker moves on to his next point, a post guard stands where he is (this calm spell). The run
  *  to an alarm panel and the walk to a body to wake end after `runMax` s (the run also at once with no path). */
-export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 20000, runMax: 15 } as const;
+export const GIVE_UP = { homeT: 5, homeMove: 0.2, homeExpand: 10000, runMax: 15 } as const;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
 
