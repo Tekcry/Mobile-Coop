@@ -4,8 +4,10 @@
 // (strikeWarp): the contact frame against STRIKE.hitAt, the hips still first, back to rest, the largest per-frame steps.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RigPose } from '../src/player/characterRig';
-import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY, STRIKE_HIT_PH, STRIKE_SECTION, newStrikeBody, strikeBodyAt, strikeWarp, arcWarp } from '../src/anim/strikeBody';
-import { STRIKE, STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
+import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY, STRIKE_HIT_PH, STRIKE_SECTION, newStrikeBody, strikeBodyAt, strikeWarp, arcWarp, STRIKE_CONTACT_T, STRIKE_FOLLOW, STRIKE_SETTLE, strikeArcAt, killWarp, KILL_TAIL_END, TAKEDOWN_BLOW, GRAB_KILL_BLOW } from '../src/anim/strikeBody';
+import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeStage } from '../src/game/elbowStrike';
+import { meleeHandW, meleeSweep } from '../src/anim/animGraph';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
 
 const DT = 1 / 60;
@@ -335,4 +337,121 @@ describe('anim-n4c: the Elbow strike section bakes (every slider bakes)', () => 
     expect(num(w.after, 'STRIKE_BODY.lead')).toBe(STRIKE_BODY.lead);
     expect(w.after.split('\n').length).toBe(w.before.split('\n').length);
   });
+});
+
+describe('(J19 S2, R8) the palm strike frees 1.4 s after contact: the hit as before, the follow-through, the settle', () => {
+  /** (J19 S2) The strike's arc before R8 (0.68 s, linear either side of the arc's contact at 0.0633 s): the reference. */
+  const OLD_DUR = 0.68;
+  const oldArc = (t: number): number => {
+    const tc = STRIKE.hitAt - STRIKE_ARM_LAG;
+    if (t >= OLD_DUR) return 1;
+    return t <= tc ? (STRIKE_ARC_CONTACT * t) / tc : STRIKE_ARC_CONTACT + ((1 - STRIKE_ARC_CONTACT) * (t - tc)) / (OLD_DUR - tc);
+  };
+  /** (J19 S2) The arc StrikeController poses `t` s into the strike. */
+  const nowArc = (t: number): number => strikeWarp(strikePhase(t));
+
+  it('the arc in seconds: the wind-up and contact as before R8, the follow-through, the settle\'s curve, free at 1.48 s', () => {
+    expect(STRIKE_CONTACT_T).toBeCloseTo(STRIKE.hitAt - STRIKE_ARM_LAG, 15);
+    expect(STRIKE_FOLLOW).toBe(0.084);
+    expect(STRIKE_SETTLE).toEqual({ start: 2.5, end: 0.6 });
+    for (let k = 0; k <= 40; k++) {
+      const t = (k / 40) * STRIKE_CONTACT_T;
+      expect(strikeWarp(strikePhase(t))).toBeCloseTo(oldArc(t), 12);
+      expect(strikeWarp(strikePhase(t))).toBeCloseTo((STRIKE_ARC_CONTACT * t) / STRIKE_CONTACT_T, 12);
+    }
+    expect(strikeWarp(strikePhase(STRIKE.hitAt))).toBeCloseTo(0.5719, 4);
+    expect(strikeArcAt(STRIKE_CONTACT_T + STRIKE_FOLLOW)).toBeCloseTo(0.62, 12);
+    const follow = (0.62 - STRIKE_ARC_CONTACT) / STRIKE_FOLLOW;
+    const settle0 = (0.38 * STRIKE_SETTLE.start) / (STRIKE_DUR - STRIKE_CONTACT_T - STRIKE_FOLLOW);
+    const oldPace = (1 - STRIKE_ARC_CONTACT) / (OLD_DUR - STRIKE_CONTACT_T);
+    console.info(`[j19-s2] arc pace after contact: follow-through ${follow.toFixed(4)} / s, settle start ${settle0.toFixed(4)} / s (before R8 ${oldPace.toFixed(4)} / s); at the hit ${strikeWarp(strikePhase(STRIKE.hitAt)).toFixed(4)}`);
+    expect(follow).toBeCloseTo(oldPace, 2);
+    expect(settle0).toBeCloseTo(follow, 2);
+    const tR = STRIKE_CONTACT_T + STRIKE_FOLLOW;
+    expect(strikeArcAt(tR + 0.25 * (STRIKE_DUR - tR))).toBeCloseTo(0.80228125, 9);
+    expect(strikeArcAt(tR + 0.5 * (STRIKE_DUR - tR))).toBeCloseTo(0.90025, 9);
+    expect(strikeArcAt(tR + 0.75 * (STRIKE_DUR - tR))).toBeCloseTo(0.95309375, 9);
+    expect(strikeArcAt(0)).toBe(0);
+    expect(strikeArcAt(STRIKE_DUR)).toBe(1);
+    expect(strikeWarp(1)).toBe(1);
+    expect(strikeWarp(-1)).toBe(-1);
+    expect(strikeWarp(strikePhase(STRIKE.hitAt + STRIKE.recover))).toBe(1);
+    expect(strikeStage(STRIKE.hitAt + STRIKE.recover)).toBe('done');
+    expect(strikeStage(STRIKE.hitAt + STRIKE.recover - 1e-6)).toBe('recover');
+  });
+
+  it('per 60 Hz frame: always on the move, no freeze after the hit, never faster or jerkier than before R8, settling into the free', () => {
+    const frames = (arcAt: (t: number) => number, dur: number): number[] => {
+      const a = [0];
+      for (let k = 1; k <= Math.ceil(dur / DT); k++) a.push(arcAt(k * DT));
+      return a;
+    };
+    const hitK = Math.ceil(STRIKE.hitAt / DT - 1e-9) - 1;
+    const measure = (a: readonly number[]): { still: number; maxDW: number; maxJ: number; settle: number } => {
+      let still = 0;
+      let runLen = 0;
+      let maxDW = 0;
+      let maxJ = 0;
+      let settle = -1;
+      let prevDW = 0;
+      for (let k = hitK + 2; k < a.length; k++) {
+        const dW = meleeHandW(a[k]!) - meleeHandW(a[k - 1]!);
+        const dS = meleeSweep(a[k]!) - meleeSweep(a[k - 1]!);
+        runLen = Math.abs(dW) < 1e-3 && Math.abs(dS) < 1e-3 ? runLen + 1 : 0;
+        still = Math.max(still, runLen);
+        maxDW = Math.max(maxDW, Math.abs(dW));
+        if (k >= hitK + 3) maxJ = Math.max(maxJ, Math.abs(dW - prevDW));
+        if (settle < 0 && meleeHandW(a[k]!) <= 0.01) settle = k;
+        prevDW = dW;
+      }
+      return { still, maxDW, maxJ, settle };
+    };
+    const a = frames(nowArc, STRIKE_DUR);
+    const o = frames(oldArc, OLD_DUR);
+    const mn = measure(a);
+    const mo = measure(o);
+    const last = Math.ceil(STRIKE_DUR / DT) - 1;
+    console.info(`[j19-s2] pure, per 60 Hz frame (re-timed ${a.length - 1} frames / before R8 ${o.length - 1}): still run ${mn.still} / ${mo.still}; largest hand-weight change ${mn.maxDW.toFixed(4)} / ${mo.maxDW.toFixed(4)}; its change ${mn.maxJ.toFixed(5)} / ${mo.maxJ.toFixed(5)}; within 1% of rest at ${(mn.settle * DT).toFixed(2)} s / ${(mo.settle * DT).toFixed(2)} s; last posed frame ${last}: arc ${a[last]!.toFixed(4)}, hand weight ${meleeHandW(a[last]!).toFixed(4)}`);
+    for (let k = 1; k < a.length; k++) expect(a[k]!, `frame ${k}`).toBeGreaterThan(a[k - 1]!);
+    expect(mn.still).toBeLessThanOrEqual(5);
+    expect(mn.maxDW).toBeLessThan(0.03);
+    expect(mn.maxDW).toBeLessThanOrEqual(mo.maxDW);
+    expect(mn.maxJ).toBeLessThanOrEqual(mo.maxJ);
+    expect(mn.settle * DT).toBeGreaterThanOrEqual(STRIKE_DUR - 0.2);
+    expect(a[last]!).toBeLessThan(1);
+    expect(meleeHandW(a[last]!)).toBeGreaterThan(0);
+  });
+
+  it('the whiff (0.38 s, unchanged) ends earlier in the settle: its last posed frame (information, pinned)', () => {
+    const kW = Math.ceil(STRIKE_WHIFF_DUR / DT) - 1;
+    const w = strikeWarp(strikePhase(kW * DT));
+    const wo = oldArc(kW * DT);
+    console.info(`[j19-s2] whiff: last posed frame ${kW} (${((kW * DT) * 1000).toFixed(0)} ms): arc ${w.toFixed(4)}, hand weight left ${meleeHandW(w).toFixed(4)}; before R8 arc ${wo.toFixed(4)}, hand weight ${meleeHandW(wo).toFixed(4)}`);
+    expect(w).toBeCloseTo(0.7515, 3);
+    expect(meleeHandW(w)).toBeCloseTo(0.7238, 3);
+  });
+
+  it('the kill blows keep the linear warp bit for bit (arcWarp is the warp before J19 S2)', () => {
+    for (const hit of [0.12, 0.3, STRIKE_ARC_CONTACT, 0.69, 0.9, TAKEDOWN_BLOW.hit, GRAB_KILL_BLOW.hit]) {
+      for (let k = 0; k <= 1000; k++) {
+        const x = k / 1000;
+        expect(arcWarp(x, hit)).toBe(x >= 1 ? 1 : x <= hit ? (STRIKE_ARC_CONTACT * x) / hit : STRIKE_ARC_CONTACT + ((1 - STRIKE_ARC_CONTACT) * (x - hit)) / (1 - hit));
+      }
+    }
+    for (const b of [TAKEDOWN_BLOW, GRAB_KILL_BLOW]) {
+      for (let k = 0; k <= 100; k++) {
+        const u = (k / 100) * KILL_TAIL_END;
+        expect(killWarp(u, b)).toBe(arcWarp((u * b.dur) / (b.dur + b.tail), b.hit));
+      }
+    }
+  });
+
+  it('strikeWarp allocates nothing (StrikeController, MoveState and RemoteAvatar call it every frame)', async () => {
+    const PH = inputs(2000, (k) => k / 1999);
+    const per = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sink[0]! += strikeWarp(PH[k]!);
+    }, 0);
+    console.info(`[j19-s2] strikeWarp: ${per.toFixed(1)} B a call`);
+    expect(per).toBeLessThanOrEqual(HEAP_NUMBER);
+  }, 60_000);
 });

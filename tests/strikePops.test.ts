@@ -12,9 +12,15 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import type { RigPose } from '../src/player/characterRig';
-import { STRIKE_BODY_RATE, strikeBodyPhase, strikeWarp } from '../src/anim/strikeBody';
+import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY_RATE, strikeBodyPhase, strikeWarp } from '../src/anim/strikeBody';
 import { handSwapK, handSwapPh } from '../src/anim/handSwapPath';
-import { STRIKE, STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
+import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase } from '../src/game/elbowStrike';
+import { MIXAMO, MIXAMO_ON, setMixamo, WREN_STRIKE } from '../src/anim/mixamo';
+import { MOCAP_ELBOW_STRIKE } from '../src/anim/clips/mixamo/elbow_strike';
+import { MOCAP_CROSS_PUNCH } from '../src/anim/clips/mixamo/cross_punch';
+import { driveRig, plantSlide, pops, POP_DEG, type Rec } from './helpers/mocapMeasure';
+import { CRAB, FOOT_SLIDE } from '../src/anim/audit/limits';
+import { elbowWing, kneeBow, kneeSeparation } from '../src/anim/audit/metrics';
 import { TAKEDOWN, type TakedownPlan } from '../src/game/takedown';
 import { TakedownController, type TakedownVictim } from '../src/game/takedownController';
 import { StrikeController } from '../src/game/strikeController';
@@ -47,6 +53,13 @@ type StrikeFrames = {
 
 /** (J19 S2) The arc StrikeController poses `t` s into the strike. */
 const nowArc = (t: number): number => strikeWarp(strikePhase(t));
+/** (J19 S2) The strike's arc before R8 (0.68 s, linear either side of the arc's contact at 0.0633 s): the reference. */
+const OLD_DUR = 0.68;
+const oldArc = (t: number): number => {
+  const tc = STRIKE.hitAt - STRIKE_ARM_LAG;
+  if (t >= OLD_DUR) return 1;
+  return t <= tc ? (STRIKE_ARC_CONTACT * t) / tc : STRIKE_ARC_CONTACT + ((1 - STRIKE_ARC_CONTACT) * (t - tc)) / (OLD_DUR - tc);
+};
 
 async function strikeFrames(arcAt: (t: number) => number = nowArc, posed = Math.ceil(STRIKE_DUR / DT)): Promise<StrikeFrames> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -171,6 +184,62 @@ describe('strike-pops: the elbow strike, frame by frame (n4c polish 9, the trunk
     expect(contact).toBeGreaterThanOrEqual(hitK);
     expect(contact).toBeLessThanOrEqual(hitK + 1);
   });
+
+  it('(J19 S2, R8) the re-timed strike on the rig: the hit as before, then the follow-through and the settle, no pop, no freeze', async () => {
+    const f = await strikeFrames();
+    const o = await strikeFrames(oldArc, Math.ceil(OLD_DUR / DT));
+    const n = Math.ceil(STRIKE_DUR / DT);
+    const contactOf = (x: StrikeFrames, posed: number): number => {
+      const wxMin = Math.min(...x.wx.slice(0, posed));
+      return x.wx.findIndex((v) => v <= wxMin + 0.01);
+    };
+    const fc = contactOf(f, n);
+    const oc = contactOf(o, Math.ceil(OLD_DUR / DT));
+    // the hit as before: frames 1-8 (to 133 ms; the return has not started) the same
+    for (let i = 0; i <= 7; i++) {
+      for (const key of ['wrist', 'pel', 'sh', 'hip'] as const) expect(Math.abs(f[key][i]! - o[key][i]!), `${key} frame ${i + 1}`).toBeLessThan(1e-9);
+    }
+    expect(fc).toBe(oc);
+    // no pop: after the contact (the follow-through, the return and the 6 release frames)
+    const after = (x: StrikeFrames, c: number): { step: number; jerk: number } => {
+      let step = 0;
+      let jerk = 0;
+      for (let i = c + 2; i < x.wrist.length; i++) {
+        step = Math.max(step, x.wrist[i]!);
+        if (i >= c + 3) jerk = Math.max(jerk, Math.abs(x.wrist[i]! - x.wrist[i - 1]!));
+      }
+      return { step, jerk };
+    };
+    const an = after(f, fc);
+    const ao = after(o, oc);
+    // no freeze: the longest run of frames the wrist moves under 1 mm, from the follow-through to the release
+    let still = 0;
+    let runLen = 0;
+    for (let i = fc + 2; i <= n - 7; i++) {
+      runLen = f.wrist[i]! < 0.001 ? runLen + 1 : 0;
+      still = Math.max(still, runLen);
+    }
+    let tail = 0;
+    for (let i = n - 18; i <= n - 1; i++) tail += f.wrist[i]!;
+    const ms = (k: number): string => `${(((k + 1) * DT) * 1000).toFixed(0)} ms`;
+    const cm = (x: number): string => `${(x * 100).toFixed(2)} cm`;
+    console.info(`[j19-s2] rig: hand across frame ${fc + 1} (${ms(fc)}) / before R8 frame ${oc + 1} (${ms(oc)}); after contact largest wrist step ${cm(an.step)} / ${cm(ao.step)}, step change ${cm(an.jerk)} / ${cm(ao.jerk)}; longest run under 1 mm a frame ${still}; wrist travel over the last 0.3 s ${cm(tail)}`);
+    expect(an.step).toBeLessThanOrEqual(ao.step + 0.003);
+    expect(an.jerk).toBeLessThanOrEqual(ao.jerk + 0.003);
+    expect(still).toBeLessThanOrEqual(8);
+    expect(tail).toBeGreaterThan(0.003);
+  }, 120_000);
+
+  it('(J19 S2) a whiff (0.38 s) releases no harder than about before R8 (information)', async () => {
+    const kW = Math.ceil(STRIKE_WHIFF_DUR / DT) - 1;
+    const w = await strikeFrames(nowArc, kW);
+    const wo = await strikeFrames(oldArc, kW);
+    const rel = (x: StrikeFrames): number => Math.max(...x.wrist.slice(kW, kW + 6));
+    const relNew = rel(w);
+    const relOld = rel(wo);
+    console.info(`[j19-s2] whiff on the rig: release wrist step ${(relNew * 100).toFixed(2)} cm / before R8 ${(relOld * 100).toFixed(2)} cm`);
+    expect(relNew).toBeLessThanOrEqual(relOld * 1.3 + 0.005);
+  }, 120_000);
 });
 
 // ------------------------------------------------------------------------------------------
@@ -359,4 +428,106 @@ describe('strike-pops: a bay or section restart ends the strike and the kill\'s 
     expect(strikeBodyPhase(0.6, -1, DT)).toBe(-1);
     expect(strikeBodyPhase(-1, strikeWarp(strikePhase(DT)), DT)).toBeCloseTo(STRIKE_BODY_RATE * DT, 12);
   });
+});
+
+// ------------------------------------------------------------------------------------------
+// (J19 S2) A8 readings: the Mixamo strikes on the re-timed strike (information; the rows are the Mixamo lead's)
+// ------------------------------------------------------------------------------------------
+
+const cm = (m: number): string => (m * 100).toFixed(1);
+
+interface Body {
+  step: number;
+  bone: string;
+  kneeMin: number;
+  kneeMax: number;
+  bow: number;
+  wing: number;
+  slide: number;
+}
+
+function body(R: Rec): Body {
+  const P = R.pos;
+  const knee = kneeSeparation(P.hipL, P.hipR, P.kneeL, P.kneeR, CRAB.kneeSep.min, CRAB.kneeSep.max);
+  const p = pops(R);
+  return {
+    step: p.maxStepDeg,
+    bone: p.bone,
+    kneeMin: knee.min,
+    kneeMax: knee.max,
+    bow: kneeBow(P.hipL, P.hipR, P.kneeL, P.kneeR, P.ankleL, P.ankleR, CRAB.kneeBow).max,
+    wing: elbowWing(P.shoulderL, P.shoulderR, P.elbowL, P.elbowR, CRAB.elbowWing).max,
+    slide: plantSlide(R, FOOT_SLIDE),
+  };
+}
+
+const line = (b: Body): string =>
+  `step ${b.step.toFixed(1)} deg (${b.bone}), knees ${b.kneeMin.toFixed(2)}-${b.kneeMax.toFixed(2)} x hips, knee out ${cm(b.bow)} cm, elbow out ${cm(b.wing)} cm, slide ${cm(b.slide)} cm`;
+
+const visiblyBroken = (mx: Body, hand: Body): boolean =>
+  mx.step > Math.max(POP_DEG, hand.step + 1) ||
+  (mx.kneeMin < CRAB.kneeSep.min && mx.kneeMin < hand.kneeMin - 0.1) ||
+  (mx.kneeMax > CRAB.kneeSep.max && mx.kneeMax > hand.kneeMax + 0.3) ||
+  mx.bow > hand.bow + 0.1 ||
+  mx.slide > hand.slide + 0.03;
+
+/** The largest wrist move in one frame (m), either hand. */
+function wristStep(R: Rec): number {
+  let m = 0;
+  for (const P of [R.pos.wristL, R.pos.wristR]) for (let f = 1; f < R.n; f++) m = Math.max(m, Math.hypot(P[f * 3]! - P[f * 3 - 3]!, P[f * 3 + 1]! - P[f * 3 - 2]!, P[f * 3 + 2]! - P[f * 3 - 1]!));
+  return m;
+}
+
+/** A strike standing holstered (as tests/mixamoCarryStrike.test.ts `strikeRun`): settle 2 s, the re-timed arc as
+ *  StrikeController plays it, 1 s after; the contact: the striking wrist furthest forward. */
+async function a8Run(striking: 'wristL' | 'wristR'): Promise<{ R: Rec; contactMs: number }> {
+  const n0 = 120;
+  const N = Math.ceil(STRIKE_DUR / DT);
+  const plan = (k: number, t: number) => ({ speed: 0, yawRate: 0, rec: t >= 1.8, pose: { armed: false, melee: k >= n0 && k < n0 + N ? strikeWarp(strikePhase((k - n0 + 1) * DT)) : -1 } });
+  let bestK = -1;
+  let best = -Infinity;
+  const R = await driveRig(n0 + N + 60, plan, (rig, k) => {
+    if (k < n0 || k >= n0 + N) return;
+    const z = rig[striking].computeWorldMatrix(true).m[14]! - rig.root.position.z;
+    if (z > best) {
+      best = z;
+      bestK = k;
+    }
+  });
+  return { R, contactMs: (bestK - n0 + 1) * DT * 1000 };
+}
+
+describe('(J19 S2) A8 readings: the Mixamo strikes on the re-timed strike against the hand-made one (information)', () => {
+  it('bone step, knees, knee out, elbow out, slide, wrist step, contact against the hit', async () => {
+    const rows0 = { ...MIXAMO_ON };
+    const on0 = MIXAMO.on;
+    try {
+      setMixamo(false);
+      expect(WREN_STRIKE.clip).toBeNull();
+      const hand = await a8Run('wristR');
+      MIXAMO_ON.elbow_strike = true;
+      MIXAMO_ON.cross_punch = false;
+      setMixamo(true);
+      expect(WREN_STRIKE.clip).toBe(MOCAP_ELBOW_STRIKE);
+      const elbow = await a8Run('wristL');
+      MIXAMO_ON.elbow_strike = false;
+      MIXAMO_ON.cross_punch = true;
+      setMixamo(true);
+      expect(WREN_STRIKE.clip).toBe(MOCAP_CROSS_PUNCH);
+      const cross = await a8Run('wristR');
+      const h = body(hand.R);
+      const out = (name: string, r: { R: Rec; contactMs: number }, take: boolean): string => {
+        const b = body(r.R);
+        return `${name}: ${line(b)}, wrist ${cm(wristStep(r.R))} cm/frame, contact ${r.contactMs.toFixed(0)} ms (the hit 83 ms: ${(r.contactMs - 83).toFixed(0)} ms)` + (take ? `, visibly broken (the I5 caps): ${visiblyBroken(b, h)} (POP_DEG ${POP_DEG})` : '');
+      };
+      console.info(`[j19-s2] A8 readings, the strike ${STRIKE_DUR} s:\n  ${out('hand-made (re-timed)', hand, false)}\n  ${out('elbow_strike', elbow, true)}\n  ${out('cross_punch', cross, true)}`);
+      for (const take of [elbow, cross]) {
+        const b = body(take.R);
+        expect(b.step + b.wing).not.toBe(h.step + h.wing);
+      }
+    } finally {
+      Object.assign(MIXAMO_ON, rows0);
+      setMixamo(on0);
+    }
+  }, 300_000);
 });
