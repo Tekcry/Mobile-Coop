@@ -8,8 +8,13 @@ import {
   ACTOR_SPEED,
   ACTOR_START,
   EMP_CUT_S,
+  EMP_FLASH2_AT,
   EMP_FLASH_AT,
   EMP_GLIDE_S,
+  EMP_KNIFE_AT,
+  HERO_CAMS,
+  HERO_LAMP,
+  knifeHandAt,
   EMP_OUT_S,
   INTRO_ACTORS,
   PLAY_YAW,
@@ -40,8 +45,24 @@ import {
   shotLine,
 } from '../src/game/pianoIntro';
 import { hyp2, hyp3 } from '../src/core/mathx';
+import { THORNBECK_LAMPS } from '../src/world/maps/thornbeckMill';
 
 const src = (p: string): string => readFileSync(resolve(__dirname, '..', p), 'utf8').replace(/\r\n/g, '\n');
+
+/** Point (x, y, z) on a 16:9 frame of camera `c` (no roll): [right, up], each -1..1 inside the frame. */
+function frame(c: { x: number; y: number; z: number; tx: number; ty: number; tz: number; fov: number }, x: number, y: number, z: number): [number, number] {
+  const yaw = Math.atan2(c.tx - c.x, c.tz - c.z);
+  const pitch = Math.atan2(c.ty - c.y, hyp2(c.tx - c.x, c.tz - c.z));
+  const dx = x - c.x;
+  const dy = y - c.y;
+  const dz = z - c.z;
+  const r = Math.cos(yaw) * dx - Math.sin(yaw) * dz;
+  const h = Math.sin(yaw) * dx + Math.cos(yaw) * dz;
+  const f = h * Math.cos(pitch) + dy * Math.sin(pitch);
+  const u = -h * Math.sin(pitch) + dy * Math.cos(pitch);
+  const t = Math.tan(c.fov / 2);
+  return [r / f / (t * (16 / 9)), u / f / t];
+}
 
 /** An intro past the music wait, at intro time `t`. */
 function at(t: number): PianoIntro {
@@ -143,10 +164,29 @@ describe('the prompt and the EMP beat', () => {
     expect(empBlack(EMP_FLASH_AT)).toBe(0);
     expect(empFlash(EMP_FLASH_AT - 0.01)).toBe(0);
     expect(empFlash(EMP_FLASH_AT + 0.06)).toBe(1);
-    expect(empFlash(EMP_FLASH_AT + 0.3)).toBeGreaterThan(0);
-    expect(empFlash(EMP_FLASH_AT + 0.6)).toBe(0);
-    // one flash only
-    for (let e = EMP_FLASH_AT + 0.6; e < 20; e += 0.05) expect(empFlash(e)).toBe(0);
+    expect(empFlash(EMP_FLASH_AT + 0.3)).toBeGreaterThan(0.2);
+    // (S8 fix) light through the glide: the afterglow, then a second softer strike as the glide starts
+    for (let e = EMP_FLASH_AT + 0.1; e < EMP_CUT_S - 0.3; e += 0.05) expect(empFlash(e), `e ${e.toFixed(2)}`).toBeGreaterThan(0.2);
+    expect(EMP_FLASH2_AT).toBeGreaterThan(EMP_CUT_S - EMP_GLIDE_S);
+    expect(empFlash(EMP_FLASH2_AT + 0.06)).toBeCloseTo(0.65, 6);
+    expect(empFlash(EMP_FLASH2_AT + 0.06)).toBeLessThan(1);
+    // render only and over at the cut (the view is gone then)
+    for (let e = EMP_CUT_S; e < 20; e += 0.05) expect(empFlash(e)).toBe(0);
+  });
+
+  it('(S8 fix) the knife hand: out from EMP_KNIFE_AT (in the black), held through the flash, off by the cut', () => {
+    const h = pressHand();
+    expect(EMP_KNIFE_AT).toBeGreaterThan(EMP_OUT_S);
+    expect(EMP_KNIFE_AT + 0.35).toBeLessThanOrEqual(EMP_FLASH_AT);
+    expect(knifeHandAt(EMP_KNIFE_AT - 0.01, h).w).toBe(0);
+    expect(knifeHandAt(EMP_FLASH_AT, h).w).toBe(1);
+    // in front of him and out to his right
+    expect(h.f).toBeGreaterThan(0.2);
+    expect(h.s).toBeLessThan(-0.3);
+    expect(h.u).toBeGreaterThan(1.1);
+    expect(knifeHandAt(EMP_CUT_S - 0.6, h).w).toBe(1);
+    expect(knifeHandAt(EMP_CUT_S - 0.01, h).w).toBeLessThan(0.01);
+    expect(knifeHandAt(EMP_CUT_S, h).w).toBe(0);
   });
 
   it('the press pose: the hand to the belt, up to press, back by PRESS_S (before the flash)', () => {
@@ -222,18 +262,37 @@ describe('the camera path', () => {
       }
     });
 
-    it(`slot ${slot}: the hero shot from OPERATOR_SPOTS: low, in front of the operator, looking up at him`, () => {
+    it(`slot ${slot}: the hero shot from OPERATOR_SPOTS: on the floor in the open, looking up at his face, the lamp high in frame`, () => {
       const c = introCam();
       introCamera(SHOT_T.hero, slot, c);
+      for (const k of ['x', 'y', 'z', 'tx', 'ty', 'tz', 'fov'] as const) expect(c[k]).toBeCloseTo(HERO_CAMS[slot]![k], 9);
       const [ox, oz] = OPERATOR_SPOTS[slot]!;
-      expect(c.y).toBeLessThan(0.5);
-      expect(c.x).toBeCloseTo(ox - 1.6, 6);
-      // towards the partner (slot 0 north, slot 1 south)
-      expect(Math.sign(c.z - oz)).toBe(slot === 0 ? 1 : -1);
-      expect(c.tx).toBeCloseTo(ox, 6);
-      expect(c.tz).toBeCloseTo(oz, 6);
-      // looking up at his chest and head
+      expect(c.y).toBeGreaterThan(0.29);
+      expect(c.y).toBeLessThanOrEqual(0.5);
+      // out in the open west of him: clear of W1 and the low sacks (x 1.5-3.9, z 1-2.2) by 1 m
+      expect(c.x).toBeLessThan(4.5 - 1);
+      expect(c.x >= 1.5 - 1 && c.x <= 3.9 + 1 && c.z >= 1 - 1 && c.z <= 2.2 + 1).toBe(false);
+      // the lamp is the map's L2
+      const l2 = THORNBECK_LAMPS.find((l) => l[0] === 'L2')!;
+      expect([l2[1], l2[2], l2[3]]).toEqual([...HERO_LAMP]);
+      // the face (on the wall, 1.55 m) low in frame and the lamp high: both inside, the view tilted up
+      const face = frame(c, ox + 0.15, 1.55, oz);
+      const lamp = frame(c, HERO_LAMP[0], HERO_LAMP[1], HERO_LAMP[2]);
+      expect(Math.abs(face[0])).toBeLessThan(0.8);
+      expect(face[1]).toBeGreaterThan(-0.5);
+      expect(face[1]).toBeLessThan(0);
+      expect(Math.abs(lamp[0])).toBeLessThan(0.8);
+      expect(lamp[1]).toBeGreaterThan(0.3);
+      expect(lamp[1]).toBeLessThan(0.9);
       expect(c.ty).toBeGreaterThan(c.y + 1);
+      // nothing between the camera and the lamp: the line clears W1 (2.8 m) and the sacks (1.2 m)
+      for (let f = 0; f <= 1; f += 0.005) {
+        const x = c.x + (HERO_LAMP[0] - c.x) * f;
+        const y = c.y + (HERO_LAMP[1] - c.y) * f;
+        const z = c.z + (HERO_LAMP[2] - c.z) * f;
+        if (x >= 4.5 && x <= 6.5 && z >= 3 && z <= 7.5) expect(y, `W1 at ${f.toFixed(3)}`).toBeGreaterThan(2.85);
+        if (x >= 1.5 && x <= 3.9 && z >= 1 && z <= 2.2) expect(y, `sacks at ${f.toFixed(3)}`).toBeGreaterThan(1.25);
+      }
       // it drops fast: on the floor before it pushes all the way in
       const m = introCam();
       introCamera(SHOT_T.reveal + 0.6 * (SHOT_T.hero - SHOT_T.reveal), slot, m);

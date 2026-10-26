@@ -31,7 +31,7 @@ import {
   type PianoMusic,
   type PianoWorld,
 } from '../src/game/pianoScene';
-import { EMP_CUT_S, EMP_FLASH_AT, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PROMPT_AT, RADIO_LINE, SKIP_SEEK } from '../src/game/pianoIntro';
+import { EMP_CUT_S, EMP_KNIFE_AT, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PROMPT_AT, RADIO_LINE, SKIP_SEEK } from '../src/game/pianoIntro';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import type { GameState } from '../src/game/gameState';
 import { hyp2 } from '../src/core/mathx';
@@ -433,7 +433,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     expect(c).toEqual(['true mirror', 'false mirror']);
   });
 
-  it('(S8) the press pose on the presser only, the play look at the press, the knife drawn at the flash and away at the cut', () => {
+  it('(S8) the press pose on the presser only, the play look at the press, the knife drawn in the black (before the flash) and away at the cut', () => {
     const log: string[] = [];
     const bursts: boolean[] = [];
     const view = { burst: (_x: number, _y: number, _z: number, mine: boolean) => void bursts.push(mine), cut: () => void log.push('cut'), reveal: () => undefined, revealing: false, dispose: () => undefined };
@@ -442,7 +442,7 @@ describe('S2: the intro and the EMP beat (the scene on a fake world)', () => {
     s.sc.press('local');
     expect(bursts).toEqual([true]);
     expect(log).toEqual([`look ${PLAY_YAW[0]}`]);
-    s.intro.step(EMP_FLASH_AT - 0.05);
+    s.intro.step(EMP_KNIFE_AT - 0.05);
     s.sc.step(1 / 60, true);
     expect(log).toHaveLength(1);
     s.intro.step(0.1);

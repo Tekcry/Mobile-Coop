@@ -70,12 +70,20 @@ const REVEAL_FOV = 55;
 const REVEAL_LOOK_X = 8.0;
 const REVEAL_LOOK_Y = 1.0;
 const REVEAL_LOOK_Z = 5.6;
-/** (S8) The hero shot: this far west of the operator (m), this far towards the partner, at floor level, looking up. */
-const HERO_BACK = 1.6;
-const HERO_SIDE = 0.45;
+/**
+ * (S8 fix) The hero shot: out in the open south-west of the operator at floor level, clear of W1 and the low sacks,
+ * looking UP at his face with the start bay's lamp L2 (`THORNBECK_LAMPS`, over W1's south end) in the upper frame
+ * behind him. Per slot: the camera's offset from the operator's spot (x, z) and the vertical field (deg).
+ */
+const HERO_OFF: readonly (readonly [number, number, number])[] = [
+  [-2.4, -1.0, 40],
+  [-3.7, -1.4, 38],
+];
 const HERO_Y = 0.3;
-const HERO_LOOK_Y = 1.5;
-const HERO_FOV = 40;
+/** The lamp the hero shot frames (L2) and the operator's face: on the wall he stands this far east of his spot. */
+export const HERO_LAMP = [7.5, 4.8, 1.5] as const;
+const WALL_IN = 0.15;
+const FACE_Y = 1.55;
 /** (S8) The drop reaches the floor this far (0..1) through the hero move; the push in runs the whole move. */
 const DROP_U = 0.55;
 /** (S8) The shoulder camera's look point for the glide: this far along its view (m). */
@@ -166,16 +174,40 @@ export function introCamera(t: number, slot: number, out: IntroCam): IntroCam {
   // (S8) the hero shot: down fast to the floor, pushing in low in front of the operator, looking up at him
   const u = (t - SHOT_T.reveal) / (SHOT_T.hero - SHOT_T.reveal);
   const s = smooth(u);
-  const side = slot === 1 ? -HERO_SIDE : HERO_SIDE;
-  out.x = lerp(PULL_X, ax - HERO_BACK, s);
-  out.z = lerp(PULL_Z, az + side, s);
-  out.y = lerp(REVEAL_Y, HERO_Y, smooth(u / DROP_U));
-  out.tx = lerp(REVEAL_LOOK_X, ax, s);
-  out.ty = lerp(REVEAL_LOOK_Y, HERO_LOOK_Y, s);
-  out.tz = lerp(REVEAL_LOOK_Z, az, s);
-  out.fov = lerp(REVEAL_FOV, HERO_FOV, s) * DEG;
+  const h = HERO_CAMS[slot] ?? HERO_CAMS[0]!;
+  out.x = lerp(PULL_X, h.x, s);
+  out.z = lerp(PULL_Z, h.z, s);
+  out.y = lerp(REVEAL_Y, h.y, smooth(u / DROP_U));
+  out.tx = lerp(REVEAL_LOOK_X, h.tx, s);
+  out.ty = lerp(REVEAL_LOOK_Y, h.ty, s);
+  out.tz = lerp(REVEAL_LOOK_Z, h.tz, s);
+  out.fov = lerp(REVEAL_FOV * DEG, h.fov, s);
   return out;
 }
+
+/**
+ * (S8 fix) Slot `slot`'s hero shot (build time): at floor level off its spot (`HERO_OFF`), the view half way between the
+ * operator's face and the lamp in yaw, their mean in pitch, so the face sits low left and the lamp high right.
+ */
+function heroCam(slot: number): IntroCam {
+  const op = OPERATOR_SPOTS[slot]!;
+  const o = HERO_OFF[slot]!;
+  const x = op[0] + o[0];
+  const z = op[1] + o[1];
+  const fx = op[0] + WALL_IN - x;
+  const fz = op[1] - z;
+  const lx = HERO_LAMP[0] - x;
+  const lz = HERO_LAMP[2] - z;
+  const fYaw = Math.atan2(fx, fz);
+  const lYaw = Math.atan2(lx, lz);
+  const yaw = fYaw + Math.atan2(Math.sin(lYaw - fYaw), Math.cos(lYaw - fYaw)) / 2;
+  const pitch = (Math.atan2(FACE_Y - HERO_Y, hyp2(fx, fz)) + Math.atan2(HERO_LAMP[1] - HERO_Y, hyp2(lx, lz))) / 2;
+  const c = Math.cos(pitch) * GLIDE_LOOK;
+  return { x, y: HERO_Y, z, tx: x + Math.sin(yaw) * c, ty: HERO_Y + Math.sin(pitch) * GLIDE_LOOK, tz: z + Math.cos(yaw) * c, fov: o[2] * DEG };
+}
+
+/** (S8 fix) The hero shots, per slot. */
+export const HERO_CAMS: readonly IntroCam[] = OPERATOR_SPOTS.map((_, i) => heroCam(i));
 
 /**
  * (S8) A rendered camera as an `IntroCam`: its place, its Babylon rotation (x pitch down, y yaw) and vertical field; the
@@ -221,14 +253,44 @@ export function empBlack(e: number): number {
 const FLASH_UP = 0.04;
 const FLASH_HOLD = 0.06;
 const FLASH_FALL = 0.4;
+/** (S8 fix) A second, softer render-only strike as the glide starts (its long fall lights the glide), and a cold afterglow
+ *  from the first strike to the glide's end, fading out over its last `GLOW_OUT` s. */
+export const EMP_FLASH2_AT = EMP_CUT_S - EMP_GLIDE_S + 0.2;
+const FLASH2_PEAK = 0.65;
+const FLASH2_FALL = 0.9;
+const GLOW = 0.22;
+const GLOW_OUT = 0.3;
+
+function strike(d: number, peak: number, fall: number): number {
+  if (d < 0) return 0;
+  if (d < FLASH_UP) return (d / FLASH_UP) * peak;
+  if (d < FLASH_UP + FLASH_HOLD) return peak;
+  const f = 1 - (d - FLASH_UP - FLASH_HOLD) / fall;
+  return f > 0 ? f * f * peak : 0;
+}
 
 export function empFlash(e: number): number {
-  const d = e - EMP_FLASH_AT;
-  if (d < 0) return 0;
-  if (d < FLASH_UP) return d / FLASH_UP;
-  if (d < FLASH_UP + FLASH_HOLD) return 1;
-  const f = 1 - (d - FLASH_UP - FLASH_HOLD) / FLASH_FALL;
-  return f > 0 ? f * f : 0;
+  if (e >= EMP_CUT_S) return 0;
+  const glow = e < EMP_FLASH_AT + FLASH_UP ? 0 : GLOW * clamp01((EMP_CUT_S - e) / GLOW_OUT);
+  return Math.max(strike(e - EMP_FLASH_AT, 1, FLASH_FALL), strike(e - EMP_FLASH2_AT, FLASH2_PEAK, FLASH2_FALL), glow);
+}
+
+/** (S8 fix) The knife comes out in the black, so it is in the hand, out in front of him, when the flash shows him. */
+export const EMP_KNIFE_AT = 1.0;
+const KNIFE_IN = 0.35;
+const KNIFE_OUT = 0.5;
+const KNIFE_F = 0.34;
+const KNIFE_U = 1.3;
+/** To his right (negative left): out of the body's outline against the lit bin face. */
+const KNIFE_S = -0.42;
+
+/** (S8 fix) The knife hand (right; a placeholder pose, no clip): in from `EMP_KNIFE_AT`, eased out over the glide's end. */
+export function knifeHandAt(e: number, out: PressHand): PressHand {
+  out.f = KNIFE_F;
+  out.u = KNIFE_U;
+  out.s = KNIFE_S;
+  out.w = e < EMP_KNIFE_AT || e >= EMP_CUT_S ? 0 : Math.min(smooth((e - EMP_KNIFE_AT) / KNIFE_IN), smooth((EMP_CUT_S - e) / KNIFE_OUT));
+  return out;
 }
 
 /**

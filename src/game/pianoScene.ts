@@ -3,7 +3,7 @@ import type { PlayerRef } from '../ai/enemy';
 import type { AmmoSlot } from '../weapons/loadoutSnapshot';
 import type { GameState, SessionCallbacks } from './gameState';
 import type { Interactable } from './interactables';
-import { EMP_FLASH_AT, EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
+import { EMP_KNIFE_AT, EMP_LABEL, EMP_OUT_S, EMP_SEEK, OBJECTIVE_LINE, PLAY_YAW, PianoIntro, RADIO_LINE, REVEALS, REVEAL_CLEAR_M, SKIP_SEEK } from './pianoIntro';
 import { exitZone, inZone, type SectorDef } from './sectors';
 import { hyp2 } from '../core/mathx';
 import { flags } from '../core/flags';
@@ -227,8 +227,9 @@ export interface PianoWorld {
    */
   introPose?(on: boolean, variant: IntroVariant): void;
   /**
-   * (S8) The knife drawn at the flash (placeholder: the pistol holstered, the knife model in the right fist of this
-   * page's operator; no clip; the remote figure does not show it: that needs a wire field) and put away at the cut.
+   * (S8) The knife drawn in the black before the flash (`EMP_KNIFE_AT`; placeholder: the pistol holstered, the knife
+   * model in the right fist of this page's operator, the view holds the hand out in front; no clip; the remote figure
+   * does not show it: that needs a wire field) and put away at the cut.
    */
   knifeReady?(on: boolean): void;
   /** (S8) The game camera's look (yaw) for play, set at the press so the glide lands on an open boom. */
@@ -555,8 +556,8 @@ export class PianoScene {
       if (w.localPress()) this.press('local');
       return;
     }
-    // (S8) the flash: the operators rising, knives drawn (this page's operator; a placeholder pose)
-    if (!this.inPlay && !this.drawn && intro.sinceEmp >= EMP_FLASH_AT) {
+    // (S8) the knife out in the black, in hand for the flash (this page's operator; a placeholder pose)
+    if (!this.inPlay && !this.drawn && intro.sinceEmp >= EMP_KNIFE_AT) {
       this.drawn = true;
       w.knifeReady?.(true);
     }
