@@ -1,0 +1,13 @@
+{
+  "id": "20261026T173940-affected-e2e-bf9c5890-9f34",
+  "sha": "bf9c58909e34d311253e8300799f915b3c49171a",
+  "branch": "feature/lamp-id-fix",
+  "pr": 655,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-lightbake"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #655"
+}
