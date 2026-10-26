@@ -35,6 +35,8 @@ describe('map load gate: steps (map-ready S2)', () => {
     g.probe = true;
     expect(mapGateStep(g)).toMatchObject({ step: 'bake-all', text: 'Building lights' });
     g.bakeAll = true;
+    expect(mapGateStep(g)).toMatchObject({ step: 'audio', text: 'Loading sound' });
+    g.audio = true;
     expect(mapGateStep(g)).toMatchObject({ step: 'warm', text: 'Final checks' });
     g.warmFrames = WARM_FRAMES - 1;
     expect(mapGateStep(g).step).toBe('warm');
@@ -42,13 +44,16 @@ describe('map load gate: steps (map-ready S2)', () => {
     expect(mapGateStep(g)).toEqual({ step: 'ready', progress: 1, text: 'Ready' });
   });
 
-  it('S2 has no audio or peers step (S3 / S5 add them); bake-live is the one step the cap never cuts', () => {
-    expect(STEPS).toEqual(['bake-live', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bake-all', 'warm']);
+  it('S3 inserts the audio step before warm (no peers step: S5 adds it); bake-live is the one step the cap never cuts', () => {
+    expect(STEPS).toEqual(['bake-live', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bake-all', 'audio', 'warm']);
     expect(ALWAYS).toEqual(['bake-live']);
     const g = mapGateInput();
     allIn(g);
-    g.audio = g.peers = false;
+    g.audio = false;
     g.warmFrames = WARM_FRAMES;
+    expect(mapGateStep(g)).toMatchObject({ step: 'audio', text: 'Loading sound' });
+    g.audio = true;
+    g.peers = false;
     expect(mapGateStep(g).step).toBe('ready');
   });
 
@@ -64,7 +69,7 @@ describe('map load gate: steps (map-ready S2)', () => {
     const seq: number[] = [];
     const push = (): void => void seq.push(mapGateStep(g).progress);
     push();
-    for (const k of ['bakeLive', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bakeAll'] as const) {
+    for (const k of ['bakeLive', 'quality', 'content', 'bodies', 'shaders', 'probe', 'bakeAll', 'audio'] as const) {
       g[k] = true;
       push();
     }
@@ -136,7 +141,7 @@ describe('runMapGate: the hold always ends', () => {
       g.bakeLive = turn >= 1;
       g.quality = g.content = turn >= 2;
       g.bodies = turn >= 3;
-      g.shaders = g.probe = g.bakeAll = turn >= 4;
+      g.shaders = g.probe = g.bakeAll = g.audio = turn >= 4;
     });
     const lines: string[] = [];
     const r = await runMapGate(probe, (_p, s) => void lines.push(s), MAP_READY_CAP_MS, STEPS, now);
