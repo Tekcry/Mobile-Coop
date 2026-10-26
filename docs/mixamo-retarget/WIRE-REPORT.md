@@ -18,7 +18,7 @@ player's own Animation source (Hand-made, CMU, Mixamo). Replaces A13 (per-viewer
 - mixamo.ts: `fillWrenTrav` / `fillWrenKeyed` / `fillWrenStance` split out of the resolvers (pure; page output same).
 
 ## Files
-src/anim/animGraph.ts, src/anim/animSource.ts, src/anim/mixamo.ts, src/net/protocol.ts, src/net/coopHost.ts,
+src/anim/animGraph.ts, src/anim/animSource.ts, src/anim/mixamo.ts, src/anim/mocap.ts (merge 7f851b27: fillMocapSetMx), src/net/protocol.ts, src/net/coopHost.ts,
 src/net/coopClient.ts, src/net/remoteAvatar.ts, src/player/characterRig.ts, tests/animSourceWire.test.ts,
 changes/feature-mixamo-source-wire.md, docs/mixamo-retarget/STATE.md.
 
@@ -28,6 +28,8 @@ changes/feature-mixamo-source-wire.md, docs/mixamo-retarget/STATE.md.
 - tests/net.test.ts, coopFix, coopCarry: 114/114. tsc (typecheck:fast) and eslint on every wire file: clean.
 - Laptop e2e on faa1041ab (set mixamo-wire: e2e-coop, e2e-netmove, e2e-ctcourse and more): GREEN 7/7. Since then the
   game code changed by one expression in each sender (default output identical, no field); not re-queued.
+- After the merge of #494 9a326d4e (7f851b27: I6 loco and I5 carry / strike per source): two Opus checkers PASS
+  (net 193/193, anim 80/80); laptop re-queued on 7f851b27 (set mixamo-wire: e2e-coop, e2e-netmove, e2e-ctcourse).
 
 ## Hot path (no allocation a frame)
 - Remote frame: `animSourceOf` is an array index and a `??` (a string constant back), the setter stores a field,
