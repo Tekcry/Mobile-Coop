@@ -1,12 +1,13 @@
 // (campus-greybox, v2 lane S5) Copied from `campusS5.ts` at P0; the S5 lane's greybox. Built only when `flags.campusV2` names 5.
 import { Vector3 } from '../../../core/babylon';
-import type { LevelBuilder } from '../../levelBuilder';
+import { GLASS_COLOR, type LevelBuilder } from '../../levelBuilder';
 import type { RoomDef } from '../../rooms';
 import type { MapLayout } from '../../mapDef';
 import type { LaserDef } from '../../../game/jammer';
 import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { BoardDef } from '../../../game/isolators';
 import { makeCone } from '../../lights';
+import { hyp2 } from '../../../core/mathx';
 
 /**
  * Saltmarsh Park (`campusOps`) section 5 - the Old House and the extraction (`docs/sector-redesign/briefs/SLICE5.md`,
@@ -61,24 +62,30 @@ export const S5_DOORS = {
   hallWest: [-50, 27] as [number, number],
   drawEast: [-50, 33] as [number, number],
   drawWest: [-56, 40] as [number, number],
-  passSouth: [-48, 32] as [number, number],
   anteHall: [-43, 32] as [number, number],
-  hallEast: [-38, 22] as [number, number],
-  vestEast: [-38, 33.5] as [number, number],
-  anteSide: [-40, 33.2] as [number, number],
-  anteShaft: [-40, 36] as [number, number],
-  strongSouth: [-43, 37] as [number, number],
+  /** (P1, G3) The anteroom's side door from the back hall (x -37). */
+  anteSide: [-37, 34] as [number, number],
+  /** (P1, G4 / G6) The shaft door in the anteroom's north wall; the strongroom day gate beside it (an open gap). */
+  anteShaft: [-39.5, 38.5] as [number, number],
+  // sync-s5-strongkey reserved: day gate (-43, 38.5)
+  dayGate: [-43, 38.5] as [number, number],
   lobbyWest: [-32, 29] as [number, number],
-  lobbyNorth: [-29, 32] as [number, number],
-  lobbySouth: [-29, 26] as [number, number],
+  lobbyNorth: [-27.5, 32] as [number, number],
+  lobbySouth: [-30.5, 26.5] as [number, number],
   kitchenBack: [-29, 44] as [number, number],
+  /** (P1, G7) The kitchen's west door into the back hall. */
+  kitchenWest: [-33, 36.5] as [number, number],
+  /** (P1, G10) The control room's garden door. */
+  ctlGarden: [-56, 22] as [number, number],
+  /** (P1, L6) The boardroom <-> CEO suite door (L1). */
+  boardCeo: [-53, 30] as [number, number],
   gate: [-63, 44] as [number, number],
   /** The service stair's doors (G, L1 and the roof, all at this plan point). */
   core: [-35, 38.1] as [number, number],
   archSouth: [-40.5, 32] as [number, number],
   /** kp-arch (the keypad door), the cage's pair gate pg-arch and the hoist door onto the well (CR7). */
-  kpArch: [-38, 41.0] as [number, number],
-  pgArch: [-41, 38.6] as [number, number],
+  kpArch: [-38, 35.5] as [number, number],
+  pgArch: [-41.5, 39.6] as [number, number],
   hoist: [-46, 36.0] as [number, number],
   boardEast: [-50, 27] as [number, number],
   ceoEast: [-50, 31] as [number, number],
@@ -94,19 +101,31 @@ export const S5_BOX = {
   lawn: [-70, 50, -26, 58] as const,
   hallVoid: [-47, 18, -41, 29] as const,
   well: [-50, 34, -46, 38] as const,
-  shaft: [-40, 35, -38, 37] as const,
-  cage: [-41, 34.6, -38, 39.4] as const,
-  stacks: [[-44.3, 34, -42.9, 35], [-44.3, 37, -42.9, 38], [-44.3, 40, -42.9, 41]] as const,
+  shaft: [-40.5, 38.5, -38.5, 40.5] as const,
+  cage: [-41.5, 38, -38, 41] as const,
+  /** (P1, L3) The archive's free-standing row and the north wall shelving (2.2, noLedge). */
+  stacks: [[-45.9, 40.4, -43, 41.2], [-45.9, 43.2, -43, 43.9]] as const,
   stacksTop: 2.2,
   token: [-43.6, 43.2, -42.4, 43.8] as const,
   /** The control room's rack rows (z centres; x -56..-51.6, 0.3 thick, 2.2 high) and the gallery's screens (x0, x1, z0, z1; 2.2 high on L1). */
   racks: [21.0, 23.8, 26.9] as const,
   screens: [[-47.4, -47.1, 18, 21.6], [-40.9, -40.6, 18, 21.6]] as const,
-  anteroom: [-46, 32, -40, 37] as const,
-  strongroom: [-46, 37, -40, 44] as const,
-  /** The jetty deck (top 0.4) and the boathouse (3.0). */
+  anteroom: [-46, 32, -37, 38.5] as const,
+  strongroom: [-46, 38.5, -40.5, 44] as const,
+  /** (P1, G1) The hall's timber screen (x0, z0, x1, z1; 2.2 high) and the screens passage's two settles (1.2). */
+  screen: [-38.1, 21, -37.9, 29] as const,
+  settles: [[-32.6, 22.5, -32.0, 24], [-32.6, 26.5, -32.0, 28]] as const,
+  /** (P1, L3) The archive's plan chest (1.2). */
+  chest: [-44.5, 34.5, -43, 35.5] as const,
+  /** (P1, L5) The archive rooflight in the roof slab: the open hatch (south 1.2 m) over its ladder and the fixed wired glass. */
+  rooflight: [-45.85, 32.4, -44.65, 35.4] as const,
+  rooflightHatch: [-45.85, 32.4, -44.65, 33.6] as const,
+  /** (P1, L9) The low roof's two hatches: the kitchen smoke hatch (its 0.2 kerb outside) and the plant-room flue hatch. */
+  smokeHatch: [-28.6, 41.4, -27.4, 42.6] as const,
+  plantHatch: [-27.6, 18.9, -26.4, 20.1] as const,
+  /** The jetty deck (top 0.3) and the boathouse (3.0). */
   deck: [-47, 58, -43, 66] as const,
-  deckTop: 0.4,
+  deckTop: 0.3,
   boathouse: [-54, 58, -49, 64] as const,
   van: [-30.5, 52, -27.5, 57] as const,
   extract: [-50, 60, -40, 66] as const,
@@ -114,6 +133,8 @@ export const S5_BOX = {
   lowRoof: [-32, 18, -26, 44] as const,
   chimneys: [[-53, 22], [-53, 36], [-41, 24], [-36, 21]] as const,
   rappel: { x: -54, z: 44.15 },
+  /** (P1, R2) The west rappel point over the garden (facing -x). */
+  rappelWest: { x: -56.15, z: 31 },
   trees: [[-65, 52], [-62, 53.5], [-65, 55.5], [-61, 56.5], [-57, 58], [-53, 57]] as const,
 } as const;
 
@@ -147,6 +168,8 @@ export interface Core {
 export const S5_CORE: Core = { id: 's5', x0: -36.3, x1: -33.7, z0: 38.2, z1: 43.8, near: 'S', door: { wall: 'S', c: -35.0 } };
 const NEAR_D = 1.2;
 const FAR_D = 0.8;
+/** (P1, R4) The bulkhead's two clear wired-glass lights: the west face (z0..z1) and the north face (x0..x1), y 9.4..10.3. */
+export const S5_BULKHEAD_LIGHTS = { west: { z0: 40.7, z1: 41.3, y0: 9.4, y1: 10.3 }, north: { x0: -35.3, x1: -34.7, y0: 9.4, y1: 10.3 } } as const;
 /** The core's footprint with its walls (the slabs leave it open). */
 export const S5_CORE_FOOT: Rect = [S5_CORE.x0 - 0.2, S5_CORE.x1 + 0.2, S5_CORE.z0 - 0.2, S5_CORE.z1 + 0.2];
 
@@ -169,30 +192,40 @@ export function coreFlights(c: Core): Flight[] {
   return out;
 }
 
-/** The hall stair (built like S2's feature stair): z 21.6 at 0 to z 29.0 at 4.2, 2.0 wide, up to the gallery's north arm. */
-export const S5_HALL_STAIR: Flight = { cx: -45, cz: 25.3, w: 2.0, len: 7.4, rise: 4.2, yaw: 0, y0: 0, steps: 24 };
+/**
+ * (P1, G9) The hall stair, 2.4 wide (built like S2's feature stair): two flights of 13 risers (0.162 / 0.283) and a 2.0
+ * landing, z 20.2 at 0 to z 29.0 at 4.2 (the foot 2.2 m inside the front door), up to the gallery's north arm.
+ */
+export const S5_HALL_FLIGHTS: readonly Flight[] = [
+  { cx: -45, cz: 21.9, w: 2.4, len: 3.4, rise: 2.1, yaw: 0, y0: 0, steps: 13 },
+  { cx: -45, cz: 27.3, w: 2.4, len: 3.4, rise: 2.1, yaw: 0, y0: 2.1, steps: 13 },
+];
+/** The hall stair's landing (x0, x1, z0, z1, top 2.1) and its rails' centre lines (1.1 high, 0.1 thick). */
+export const S5_HALL_LANDING = { x0: -46.2, x1: -43.8, z0: 23.6, z1: 25.6, top: 2.1 } as const;
+export const S5_HALL_RAIL_X = [-46.25, -43.75] as const;
 
 /** Every flight of the section: the test's nav raster reads the ramps from here. */
-export const S5_FLIGHTS: readonly Flight[] = [...coreFlights(S5_CORE), S5_HALL_STAIR];
+export const S5_FLIGHTS: readonly Flight[] = [...coreFlights(S5_CORE), ...S5_HALL_FLIGHTS];
 
 /** Section 5's rooms (HUD tags; no squads). Stacked rooms carry their storey; none overlap. */
 export const S5_ROOMS: RoomDef[] = [
   { id: 's5-ctl', name: 'Control Room', minX: -56, maxX: -50, minZ: 18, maxZ: 30, maxY: 4.1 },
   { id: 's5-draw', name: 'Drawing Room', minX: -56, maxX: -50, minZ: 30, maxZ: 44, maxY: 4.1 },
-  { id: 's5-hall', name: 'Stair Hall', minX: -50, maxX: -38, minZ: 18, maxZ: 32, maxY: 4.1 },
-  { id: 's5-pass', name: 'West Passage', minX: -50, maxX: -46, minZ: 32, maxZ: 34, maxY: 4.1 },
-  { id: 's5-ante', name: 'Anteroom', minX: -46, maxX: -40, minZ: 32, maxZ: 37, maxY: 4.1 },
-  { id: 's5-strong', name: 'Strongroom', minX: -46, maxX: -40, minZ: 37, maxZ: 44, maxY: 4.1 },
-  { id: 's5-vest', name: 'Vestibule', minX: -40, maxX: -38, minZ: 32, maxZ: 35, maxY: 4.1 },
-  { id: 's5-back', name: 'Back Corridor', minX: -38, maxX: -32, minZ: 18, maxZ: 38, maxY: 4.1 },
-  { id: 's5-plant', name: 'Plant Room', minX: -32, maxX: -26, minZ: 18, maxZ: 26, maxY: 4.1 },
-  { id: 's5-lobby', name: 'Service Lobby', minX: -32, maxX: -26, minZ: 26, maxZ: 32, maxY: 4.1 },
-  { id: 's5-kitchen', name: 'Kitchen', minX: -32, maxX: -26, minZ: 32, maxZ: 44, maxY: 4.1 },
+  // (P1, G1-G8) the hall takes the screens passage; the old west passage is its alcove ('s5-pass'); the back hall replaces
+  // the vestibule and the back corridor's north end
+  { id: 's5-hall', name: 'Stair Hall', minX: -50, maxX: -32, minZ: 18, maxZ: 32, maxY: 4.1 },
+  { id: 's5-pass', name: 'Stair Hall', minX: -50, maxX: -46, minZ: 32, maxZ: 34, maxY: 4.1 },
+  { id: 's5-ante', name: 'Anteroom', minX: -46, maxX: -37, minZ: 32, maxZ: 38.5, maxY: 4.1 },
+  { id: 's5-strong', name: 'Strongroom', minX: -46, maxX: -40.5, minZ: 38.5, maxZ: 44, maxY: 4.1 },
+  { id: 's5-back', name: 'Back Hall', minX: -37, maxX: -33, minZ: 32, maxZ: 38, maxY: 4.1 },
+  { id: 's5-plant', name: 'Plant Room', minX: -32, maxX: -26, minZ: 18, maxZ: 26.5, maxY: 4.1 },
+  { id: 's5-lobby', name: 'Service Lobby', minX: -32, maxX: -26, minZ: 26.5, maxZ: 32, maxY: 4.1 },
+  { id: 's5-kitchen', name: 'Kitchen', minX: -33, maxX: -26, minZ: 32, maxZ: 44, maxY: 4.1 },
   { id: 's5-board', name: 'Boardroom', minX: -56, maxX: -50, minZ: 18, maxZ: 30, minY: 4.2, maxY: 8.3 },
   { id: 's5-ceo', name: 'CEO Suite', minX: -56, maxX: -50, minZ: 30, maxZ: 44, minY: 4.2, maxY: 8.3 },
   { id: 's5-gal', name: 'Gallery', minX: -50, maxX: -38, minZ: 18, maxZ: 32, minY: 4.2, maxY: 8.3 },
   { id: 's5-arch', name: 'Archive', minX: -46, maxX: -38, minZ: 32, maxZ: 44, minY: 4.2, maxY: 8.3 },
-  { id: 's5-landing', name: 'Back Landing', minX: -38, maxX: -32, minZ: 32, maxZ: 44, minY: 4.2, maxY: 8.3 },
+  { id: 's5-landing', name: 'Back Landing', minX: -38, maxX: -32, minZ: 32, maxZ: 38, minY: 4.2, maxY: 8.3 },
   { id: 's5-low', name: 'Service Roof', minX: -32, maxX: -26, minZ: 18, maxZ: 44, minY: 4.2, maxY: 8.3 },
   { id: 's5-roof', name: 'Roof', minX: -56, maxX: -32, minZ: 18, maxZ: 44, minY: 8.4 },
   { id: 's5-garden', name: 'Walled Garden', minX: -70, maxX: -56, minZ: 18, maxZ: 44 },
@@ -232,17 +265,20 @@ export const S5_NAV_SEEDS: Vector3[] = [
   new Vector3(-63, 0, 31),
   new Vector3(-48, 0, 47),
   new Vector3(-48, 0, 54),
-  new Vector3(-45, 0.4, 62),
+  new Vector3(-45, 0.3, 62),
   new Vector3(-45, S5_ROOF, 30),
   new Vector3(-29, S5_L1, 30),
   new Vector3(-29, 0, 29),
   new Vector3(-34, 0, 28),
+  // (P1) the back hall and the light well
+  new Vector3(-35, 0, 35),
+  new Vector3(-48, 0, 36),
 ];
 
 /** Where a carried body can be hidden: the garden's corner, the plant room, the drawing room, the archive's corner, the roof, the lawn under the trees. */
 export const S5_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(-68.5, 0, 19.5) },
-  { pos: new Vector3(-27.2, 0, 19.5) },
+  { pos: new Vector3(-27.2, 0, 21) },
   { pos: new Vector3(-54.5, 0, 42) },
   { pos: new Vector3(-40, S5_L1, 43.2) },
   { pos: new Vector3(-46, S5_ROOF, 30) },
@@ -266,19 +302,56 @@ export const S5_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-50.15, S5_L1, 32.3), yaw: -PI / 2, group: S5_GROUPS.ceo },
 ];
 
-/** A visible lamp fitting (the glowing box), a real registry light. */
-function lamp(b: LevelBuilder, x: number, y: number, z: number, o: { r: number; i?: number; group: number; cone?: ReturnType<typeof makeCone> | null; w?: number }): void {
-  const w = o.w ?? 0.5;
+/** One lamp of `S5_LIGHTS`: position, radius, intensity, circuit, an optional cone, fitting width and colour (default `WHITE`). */
+export interface S5Lamp {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  i: number;
+  group: number;
+  cone?: ReturnType<typeof makeCone> | null;
+  w?: number;
+  color?: readonly [number, number, number];
+}
+
+const DOWN = makeCone(0, -1, 0, 1.15);
+
+// PROVISIONAL - light-realism (J10) retunes these values. TODO(light-realism): replace with calibrated values.
+/**
+ * (campus-greybox P1, job BRIEF A19) Every lamp of section 5, in named lists; `buildCampusS5` draws every lamp from this
+ * block and from nowhere else. The as-built lamps (`campusS5.ts` as built) keep their position, radius, intensity and
+ * group; the plan's removals and dims are not built (Q2 "Never").
+ */
+export const S5_LIGHTS = {
+  // ---- as built (B:601-612)
+  chand: [{ x: -44, y: 6.5, z: 23.5, r: 12, i: 0.9, group: S5_GROUPS.chand, w: 0.7 }],
+  gal: [[-48.7, 21], [-48.7, 27], [-46, 30.7], [-42, 30.7], [-39.2, 21], [-39.2, 27]].map(([x, z]) => ({ x: x!, y: 6.6, z: z!, r: 5, i: 0.8, group: S5_GROUPS.gal, w: 0.3 })),
+  board: [21, 27].map((z) => ({ x: -53, y: 7.4, z, r: 6, i: 0.8, group: S5_GROUPS.board, cone: DOWN })),
+  ante: [{ x: -43, y: 3.4, z: 34.5, r: 6, i: 0.8, group: S5_GROUPS.ante, cone: DOWN }],
+  strong: [{ x: -43, y: 3.4, z: 40.5, r: 6, i: 0.8, group: S5_GROUPS.ante, cone: DOWN }],
+  garden: [[-67, 25], [-59, 25], [-67, 37.2], [-59, 37.2]].map(([x, z]) => ({ x: x!, y: 0.3, z: z!, r: 6, i: 0.8, group: S5_GROUPS.garden, w: 0.3 })),
+  bollards: [-64, -56, -48, -40, -34, -28].map((x) => ({ x, y: 0.8, z: 48.7, r: 4, i: 0.8, group: S5_GROUPS.garden, w: 0.3 })),
+  ctl: [21, 27].map((z) => ({ x: -53, y: 3.4, z, r: 6, i: 0.8, group: S5_GROUPS.ctl, cone: DOWN })),
+  kitchen: [35, 41].map((z) => ({ x: -29, y: 3.4, z, r: 6, i: 0.8, group: S5_GROUPS.kitchen, cone: DOWN })),
+  roof: [{ x: -40, y: 9.6, z: 42.6, r: 4, i: 0.8, group: S5_GROUPS.roof, w: 0.3 }],
+  hallWall: [[-48.7, 22], [-48.7, 28], [-39.3, 26], [-39.3, 30]].map(([x, z]) => ({ x: x!, y: 2.6, z: z!, r: 5, i: 0.8, group: S5_GROUPS.hall, w: 0.3 })),
+  ceo: [34, 40].map((z) => ({ x: -53, y: 7.4, z, r: 6, i: 0.8, group: S5_GROUPS.ceo, cone: DOWN })),
+} satisfies Record<string, readonly S5Lamp[]>;
+
+/** A visible lamp fitting (the glowing box), a real registry light, from an `S5_LIGHTS` entry. */
+function lamp(b: LevelBuilder, l: S5Lamp): void {
+  const w = l.w ?? 0.5;
   b.light({
-    kind: o.cone ? 'spot' : 'lamp',
-    x,
-    y,
-    z,
-    radius: o.r,
-    intensity: o.i ?? 0.8,
-    color: WHITE,
-    cone: o.cone ?? null,
-    group: o.group,
+    kind: l.cone ? 'spot' : 'lamp',
+    x: l.x,
+    y: l.y,
+    z: l.z,
+    radius: l.r,
+    intensity: l.i,
+    color: [...(l.color ?? WHITE)] as [number, number, number],
+    cone: l.cone ?? null,
+    group: l.group,
     on: true,
     destructible: true,
     electric: true,
@@ -403,10 +476,17 @@ function buildCore(b: LevelBuilder, c: Core): void {
     const y0 = S5_FLOORS[s]!;
     const y1 = s < S5_FLOORS.length - 1 ? S5_FLOORS[s + 1]! : S5_BULKHEAD_TOP;
     const g: Hole = [gap[0], gap[1], y0, y0 + DOOR_H, true];
-    wall(b, false, c.x0 - 0.1, fz0, fz1, y0, y1, [], P, WALL_DARK);
+    // (P1, R4) the bulkhead's two wired-glass lights (0.6 x 0.9, y 9.4..10.3) in its west and north faces
+    const roof = s === S5_FLOORS.length - 1;
+    const [wl, nl] = [S5_BULKHEAD_LIGHTS.west, S5_BULKHEAD_LIGHTS.north];
+    wall(b, false, c.x0 - 0.1, fz0, fz1, y0, y1, roof ? [[wl.z0, wl.z1, wl.y0, wl.y1]] : [], P, WALL_DARK);
     wall(b, false, c.x1 + 0.1, fz0, fz1, y0, y1, [], P, WALL_DARK);
     wall(b, true, c.z0 - 0.1, fx0, fx1, y0, y1, [g], P, WALL_DARK);
-    wall(b, true, c.z1 + 0.1, fx0, fx1, y0, y1, [], P, WALL_DARK);
+    wall(b, true, c.z1 + 0.1, fx0, fx1, y0, y1, roof ? [[nl.x0, nl.x1, nl.y0, nl.y1]] : [], P, WALL_DARK);
+    if (roof) {
+      b.glass(c.x0 - 0.1, wl.z0, c.x0 - 0.1, wl.z1, wl.y1 - wl.y0, wl.y0);
+      b.glass(nl.x0, c.z1 + 0.1, nl.x1, c.z1 + 0.1, nl.y1 - nl.y0, nl.y0);
+    }
     doorIn(b, true, c.z0 - 0.1, c.door.c, y0);
   }
   const dir = c.near === 'N' ? -1 : 1;
@@ -433,17 +513,21 @@ export function buildCampusS5(b: LevelBuilder): void {
   const R = S5_ROOF;
 
   // ---- the main block's shell (0.3): G band to the L1 slab, L1 band to the roof; the front door (locked, unbreachable),
-  // the drawing room's garden door, the back corridor's door to the wing
+  // the drawing room's and the control room's garden doors, the screens passage's door to the wing
   const outer = (alongX: boolean, at: number, a0: number, a1: number, g: readonly Hole[]): void => {
     wall(b, alongX, at, a0, a1, 0, L1, g, T);
     wall(b, alongX, at, a0, a1, L1, R, [], T);
   };
   outer(true, 18, -56, -32, [dh(-44, 0)]);
   outer(true, 44, -56, -32, []);
-  outer(false, -56, 18, 44, [dh(40, 0)]);
-  outer(false, -32, 18, 44, [dh(29, 0)]);
+  // (P1, G10) the control room's garden door (-56, 22)
+  outer(false, -56, 18, 44, [dh(22, 0), dh(40, 0)]);
+  // (P1, G7) the G band on x -32 only on z 18..32 (the kitchen takes x -33..-32 at G); L1 and the roof stay on x -32
+  wall(b, false, -32, 18, 32, 0, L1, [dh(29, 0)], T);
+  wall(b, false, -32, 18, 44, L1, R, [], T);
   doorIn(b, true, 18, -44, 0, { locked: true, breachable: false, armoured: true }); // (E10) arm-front
   doorIn(b, false, -56, 40, 0);
+  doorIn(b, false, -56, 22, 0, { swing: -1 });
   doorIn(b, false, -32, 29, 0);
 
   // ---- the service wing (one storey, 4.2): the south, north (kitchen back door) and east (C4's far door) walls, the low roof
@@ -452,15 +536,27 @@ export function buildCampusS5(b: LevelBuilder): void {
   wall(b, false, -26, 18, 44, 0, L1, [dh(29, 0)], T);
   doorIn(b, true, 44, -29, 0, { swing: -1 });
   doorIn(b, false, -26, 29, 0, { swing: -1 });
-  wall(b, true, 26, -32, -26, 0, G_TOP, [dh(-29, 0)]);
-  wall(b, true, 32, -32, -26, 0, G_TOP, [dh(-29, 0)]);
-  doorIn(b, true, 26, -29, 0);
-  doorIn(b, true, 32, -29, 0);
-  slab(b, [-32, -26, 18, 44], L1, []);
-  // parapets on the low roof: the east and south edges look over ground outside S5 (1.9), the north over the terrace (1.1)
+  // (P1, G8) plant | lobby on z 26.5 (door -30.5), lobby | kitchen on z 32 (door -27.5): the lobby doors off each other's line
+  wall(b, true, 26.5, -32, -26, 0, G_TOP, [dh(-30.5, 0)]);
+  wall(b, true, 32, -32, -26, 0, G_TOP, [dh(-27.5, 0)]);
+  doorIn(b, true, 26.5, -30.5, 0);
+  doorIn(b, true, 32, -27.5, 0);
+  // (P1, L9) the low roof with the plant-room flue hatch and the kitchen smoke hatch
+  const [ph0, phz0, ph1, phz1] = S5_BOX.plantHatch;
+  const [sh0, shz0, sh1, shz1] = S5_BOX.smokeHatch;
+  slab(b, [-32, -26, 18, 44], L1, [[ph0, ph1, phz0, phz1], [sh0, sh1, shz0, shz1]]);
+  // parapets on the low roof: the east and south edges look over ground outside S5 (1.9); the north edge is the 0.2 gutter
+  // kerb (CR8-s5: not noLedge)
   rail(b, -26.2, -26.0, 18, 44, L1, 1.9);
   rail(b, -32, -26, 18, 18.2, L1, 1.9);
-  rail(b, -32, -26, 43.8, 44, L1, 1.1);
+  bx(b, -32, -26, L1, L1 + 0.2, 43.85, 44.15, STEEL);
+  // the smoke hatch kerb (0.2, 0.1 thick, outside the hole): the west piece is CR10-s5's lip (not noLedge), the others noLedge
+  bx(b, sh0 - 0.1, sh0, L1, L1 + 0.2, shz0 - 0.1, shz1 + 0.1, STEEL);
+  bx(b, sh1, sh1 + 0.1, L1, L1 + 0.2, shz0 - 0.1, shz1 + 0.1, STEEL, { noLedge: true });
+  bx(b, sh0, sh1, L1, L1 + 0.2, shz0 - 0.1, shz0, STEEL, { noLedge: true });
+  bx(b, sh0, sh1, L1, L1 + 0.2, shz1, shz1 + 0.1, STEEL, { noLedge: true });
+  // (P1, G8) the flue ladder under the plant hatch: base 0.25 m inside the hatch's north rim, facing it (S1's hatch-ladder rule)
+  b.ladder(-27, 19.85, 0, L1, 0);
   // the wing's rooms: the plant room's boiler, the kitchen counter (z 34..38: the board at z 40 stays reachable, L-log)
   furn(b, -31.5, -30.0, 19, 21, 2.0, STEEL);
   furn(b, -31.6, -30.8, 34, 38, 0.9);
@@ -469,96 +565,152 @@ export function buildCampusS5(b: LevelBuilder): void {
   wall(b, true, 18, -70, -56, 0, 2.8, [], T);
   wall(b, true, 44, -70, -56, 0, 2.8, [dh(-63, 0)], T);
   doorIn(b, true, 44, -63, 0, { swing: -1 });
-  bx(b, -68, -58, 0, 0.5, 26, 28, GROUND_COVER);
-  bx(b, -68, -58, 0, 0.5, 34, 36, GROUND_COVER);
+  // (P1, G12) the beds are 1.2 box hedges (low cover)
+  bx(b, -68, -58, 0, 1.2, 26, 28, GROUND_COVER);
+  bx(b, -68, -58, 0, 1.2, 34, 36, GROUND_COVER);
 
   // ---- the estate wall (x -26, z 44..70): the east boundary of the grounds
   wall(b, false, -26, 44, 70, 0, 2.8, [], T);
 
-  // ---- slabs: L1 (the hall's void, the well, the shaft, the service stair's footprint left open), the roof (the well and the stair)
+  // ---- slabs: L1 (the hall's void, the well, the shaft, the service stair's footprint left open), the roof (the well, the
+  // stair and the archive rooflight)
   const voidR: Rect = [-47, -41, 18, 29];
   const wellR: Rect = [-50, -46, 34, 38];
-  const shaftR: Rect = [-40, -38, 35, 37];
+  const [sx0, sz0, sx1, sz1] = S5_BOX.shaft;
+  const shaftR: Rect = [sx0, sx1, sz0, sz1];
+  const [rx0, rz0, rx1, rz1] = S5_BOX.rooflight;
   slab(b, [-56, -32, 18, 44], L1, [voidR, wellR, shaftR, S5_CORE_FOOT]);
-  slab(b, [-56, -32, 18, 44], R, [wellR, S5_CORE_FOOT], ROOF);
+  slab(b, [-56, -32, 18, 44], R, [wellR, S5_CORE_FOOT, [rx0, rx1, rz0, rz1]], ROOF);
+  // (P1, L5) the rooflight: the south 1.2 m an open hatch over its ladder on the archive's west wall, the north 1.8 m fixed
+  // wired glass (clear: sight passes; overhead, noLedge)
+  {
+    const hz1 = S5_BOX.rooflightHatch[3];
+    const i0 = b.boxes.length;
+    b.box((rx0 + rx1) / 2, R - 0.025, (hz1 + rz1) / 2, rx1 - rx0, 0.05, rz1 - hz1, GLASS_COLOR, 0, 0, true, false);
+    b.boxes[i0]!.glass = 'clear';
+    b.mark(i0, { overhead: true, noLedge: true });
+    b.ladder(-45.65, 33.0, L1, R, -PI / 2);
+  }
 
   // ---- the service stair and the hall stair
   buildCore(b, S5_CORE);
+  // (P1, G9) the hall stair: two flights and the 2.0 landing, rails 1.1 on both sides (pitched along the flights), noLedge
   {
-    const f = S5_HALL_STAIR;
-    b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STAIR, f.yaw, f.y0);
+    for (const f of S5_HALL_FLIGHTS) b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STAIR, f.yaw, f.y0);
+    const L = S5_HALL_LANDING;
+    bx(b, L.x0, L.x1, L.top - 0.2, L.top, L.z0, L.z1, STAIR, { noLedge: true });
+    const i0 = b.boxes.length;
+    const h = 1.1;
+    for (const x of S5_HALL_RAIL_X) {
+      for (const f of S5_HALL_FLIGHTS) {
+        const pitch = -Math.atan2(f.rise, f.len);
+        b.box(x, f.y0 + f.rise / 2 + (h / 2) * Math.cos(pitch), f.cz, 0.1, h, hyp2(f.len, f.rise), STEEL, f.yaw, pitch);
+      }
+      b.box(x, L.top + h / 2, (L.z0 + L.z1) / 2, 0.1, h, L.z1 - L.z0, STEEL);
+    }
+    b.mark(i0, { noLedge: true });
   }
 
   // ---- G partitions (0.2, to the L1 slab's underside) and the L1 partitions (to the roof slab's)
-  // x -50: control room | hall (door -50, 27), drawing room | passage (door -50, 33), the well's west wall, the plate store
+  // x -50: control room | hall (door -50, 27), drawing room | alcove (door -50, 33, swings into the drawing room), the well's
+  // west wall, the plate store
   wall(b, false, -50, 18, 44, 0, G_TOP, [dh(27, 0), dh(33, 0)]);
   wall(b, false, -50, 18, 44, L1, L_TOP, [dh(27, L1), dh(31, L1)]);
   doorIn(b, false, -50, 27, 0);
-  doorIn(b, false, -50, 33, 0);
+  doorIn(b, false, -50, 33, 0, { swing: -1 });
   doorIn(b, false, -50, 27, L1);
   doorIn(b, false, -50, 31, L1);
-  // z 30: control room | drawing room, boardroom | CEO suite
+  // z 30: control room | drawing room; L1: boardroom | CEO suite with (P1, L6) their connecting door (-53, 30)
   wall(b, true, 30, -56, -50, 0, G_TOP, []);
-  wall(b, true, 30, -56, -50, L1, L_TOP, []);
-  // x -38: hall | back corridor (door -38, 22), vestibule | back corridor (door -38, 33.5), shaft and closet east faces; L1: the archive's east wall (kp-arch)
-  wall(b, false, -38, 18, 44, 0, G_TOP, [dh(22, 0), dh(33.5, 0)]);
-  wall(b, false, -38, 32, 44, L1, L_TOP, [dh(41, L1)]);
-  doorIn(b, false, -38, 22, 0);
-  doorIn(b, false, -38, 33.5, 0);
-  doorIn(b, false, -38, 41, L1);
-  // z 32: the hall's north wall (passage door -48, anteroom door -43, armoured: not breachable); L1: the gallery | archive (door -40.5)
-  wall(b, true, 32, -50, -38, 0, G_TOP, [dh(-48, 0), dh(-43, 0)]);
+  wall(b, true, 30, -56, -50, L1, L_TOP, [dh(-53, L1)]);
+  doorIn(b, true, 30, -53, L1);
+  // (P1, G1) the screens passage: the x -38 partition is gone; a 2.2 timber screen z 21..29, open 3 m at each end, and two
+  // 1.2 settles on the east wall. The passage x -38..-32 is part of the hall (one space)
+  {
+    const [x0, z0, x1, z1] = S5_BOX.screen;
+    bx(b, x0, x1, 0, 2.2, z0, z1, DESK, { noLedge: true });
+    for (const [a0, c0, a1, c1] of S5_BOX.settles) furn(b, a0, a1, c0, c1, 1.2);
+  }
+  // L1: the archive's east wall onto the landing, kp-arch (P1, L1: moved to z 35.5; its leaf swings into the landing)
+  wall(b, false, -38, 32, 44, L1, L_TOP, [dh(35.5, L1)]);
+  doorIn(b, false, -38, 35.5, L1);
+  // z 32: the hall's north wall (the anteroom door -43, armoured: not breachable) and the stub east of the 3.5 m opening
+  // (x -36.75..-33.25) into the back hall (P1, G2-G3: the alcove x -50..-46 open to the hall); L1: gallery | archive (door -40.5)
+  wall(b, true, 32, -46, -36.75, 0, G_TOP, [dh(-43, 0)]);
+  wall(b, true, 32, -33.25, -32, 0, G_TOP, []);
   wall(b, true, 32, -50, -38, L1, L_TOP, [dh(-40.5, L1)]);
-  doorIn(b, true, 32, -48, 0);
   doorIn(b, true, 32, -43, 0, { breachable: false, armoured: true }); // (E10) arm-ante: bulletproof
   doorIn(b, true, 32, -40.5, L1);
-  // z 34: the passage | the well; x -46: passage, the well and the anteroom's west wall (the window), the strongroom's; L1: the archive's west wall (the hoist door)
+  // (P1, G3) the back hall x -37..-33, z 32..38: its west wall with the anteroom side door (opens into the anteroom)
+  wall(b, false, -37, 32, 38.5, 0, G_TOP, [dh(34, 0)]);
+  doorIn(b, false, -37, 34, 0, { swing: -1 });
+  // (P1, G7) the kitchen's west wall (x -33) with its door from the back hall
+  wall(b, false, -33, 32, 44, 0, G_TOP, [dh(36.5, 0)]);
+  doorIn(b, false, -33, 36.5, 0);
+  // z 34: the alcove | the well; x -46: alcove, the well and the anteroom's west wall (the glazed screen and the sash), the
+  // strongroom's; L1: the archive's west wall (the hoist door)
   wall(b, true, 34, -50, -46, 0, G_TOP, []);
-  // (polish 6, L11) the sill 0.5, over the guards' nav step (0.45): no guard paths through the sash; the player vaults it
-  wall(b, false, -46, 32, 44, 0, G_TOP, [[34.7, 36.3, 0.5, 2.05]]);
+  // (polish 6, L11) the sill 0.5, over the guards' nav step (0.45): no guard paths through the sash; the player vaults it.
+  // (P1, G4) the hole widens to the 3.0 glazed screen z 34.5..37.5: clear glass either side of the kept 1.6 sash
+  wall(b, false, -46, 32, 44, 0, G_TOP, [[34.5, 37.5, 0.5, 2.05]]);
+  b.glass(-46, 34.5, -46, 34.7, 1.55, 0.5);
+  b.glass(-46, 36.3, -46, 37.5, 1.55, 0.5);
   wall(b, false, -46, 32, 44, L1, L_TOP, [dh(36, L1)]);
   doorIn(b, false, -46, 36, L1);
   b.windowAt(-46, 1.275, 35.5, 1.6, 1.55, PI / 2, { sill: 0.5, open: true, breakable: false });
-  // z 37: anteroom | strongroom (open tonight); x -40: anteroom | vestibule and shaft (side door -40, 33.2, shaft door -40, 36), strongroom | closet
-  wall(b, true, 37, -46, -40, 0, G_TOP, [dh(-43, 0)]);
-  doorIn(b, true, 37, -43, 0);
-  wall(b, false, -40, 32, 44, 0, G_TOP, [dh(33.2, 0), dh(36, 0)]);
-  doorIn(b, false, -40, 33.2, 0);
-  doorIn(b, false, -40, 36, 0);
-  // the shaft (x -40..-38, z 35..37): south and north walls; the ladder up to the cage floor
-  wall(b, true, 35, -40, -38, 0, G_TOP, []);
-  wall(b, true, 37, -40, -38, 0, G_TOP, []);
-  b.ladder(-39, 36.55, 0, L1, 0);
-  // solid masses: the plate store (x -50..-46, z 38..44), the closet (x -40..-38, z 37..44, under the L1 slab), the corridor slivers beside the core, the L1 blocks
+  // (P1, G4-G6) z 38.5: the anteroom's north wall: the strongroom day gate (-43) an open gap, the shaft door (-39.5)
+  // strongroom day gate, open tonight (sync-s5-strongkey reserved: a mission that arms it adds the door and its keypad)
+  wall(b, true, 38.5, -46, -37, 0, G_TOP, [dh(-43, 0), dh(-39.5, 0)]);
+  doorIn(b, true, 38.5, -39.5, 0, { swing: 1 });
+  // the strongroom / shaft west line x -40.5; the shaft (x -40.5..-38.5, z 38.5..40.5): east and north walls, the ladder up
+  // to the cage's west strip (P3)
+  wall(b, false, -40.5, 38.5, 44, 0, G_TOP, []);
+  wall(b, false, -38.5, 38.5, 40.5, 0, G_TOP, []);
+  wall(b, true, 40.5, -40.5, -38.5, 0, G_TOP, []);
+  b.ladder(-40.25, 39.6, 0, L1, -PI / 2);
+  // the audit table (D:22)
+  furn(b, -43.5, -41.5, 34, 35, 0.9);
+  // solid masses: the plate store (x -50..-46, z 38..44), the closet round the shaft (under the L1 slab), the corner and
+  // the sliver beside the core, the L1 blocks (P1, L1: the landing strip x -38..-36.5, z 38..44 closed)
   bx(b, -50, -46, 0, L_TOP, 38, 44, WALL_DARK, { noLedge: true });
-  bx(b, -40, -38, 0, G_TOP, 37, 44, WALL_DARK, { noLedge: true });
-  bx(b, -38, -36.5, 0, G_TOP, 38, 44, WALL_DARK, { noLedge: true });
-  bx(b, -33.5, -32, 0, G_TOP, 38, 44, WALL_DARK, { noLedge: true });
+  bx(b, -40.5, -37, 0, G_TOP, 40.5, 44, WALL_DARK, { noLedge: true });
+  bx(b, -38.5, -37, 0, G_TOP, 38.5, 40.5, WALL_DARK, { noLedge: true });
+  bx(b, -37, -36.5, 0, G_TOP, 38, 44, WALL_DARK, { noLedge: true });
+  bx(b, -33.5, -33.1, 0, G_TOP, 38, 44, WALL_DARK, { noLedge: true });
   bx(b, -33.5, -32, L1, R, 38, 44, WALL_DARK, { noLedge: true });
+  bx(b, -38, -36.5, L1, R, 38, 44, WALL_DARK, { noLedge: true });
   bx(b, -38, -32, L1, R, 18, 32, WALL_DARK, { noLedge: true });
   bx(b, -50, -46, L1, R, 32, 34, WALL_DARK, { noLedge: true });
-  // the well's rim on the roof (1.1)
+  // the well's rim on the roof (1.1); (P1, R3) the west rim's gate (z 35.4..36.6) over the cleaning ladder
   rail(b, -50, -46, 33.9, 34.0, R);
   rail(b, -50, -46, 38.0, 38.1, R);
-  rail(b, -50, -49.9, 34, 38, R);
+  rail(b, -50, -49.9, 34, 35.4, R);
+  rail(b, -50, -49.9, 36.6, 38, R);
   rail(b, -46.1, -46, 34, 38, R);
+  // (P1, G11) the well's cleaning ladder on its west wall, 0 -> 8.4, 0.25 m off the wall face
+  b.ladder(-49.65, 36, 0, R, -PI / 2);
 
-  // ---- the gallery's rails (1.1) on the hall void's edges, the gap at the stair head (x -46..-44)
+  // ---- the gallery's rails (1.1) on the hall void's edges, the gap at the stair head (P1, G9: x -46.2..-43.8)
   rail(b, -47.1, -47.0, 18, 29, L1);
   rail(b, -41.0, -40.9, 18, 29, L1);
-  rail(b, -47, -46, 29, 29.1, L1);
-  rail(b, -44, -41, 29, 29.1, L1);
+  rail(b, -47, -46.2, 29, 29.1, L1);
+  rail(b, -43.8, -41, 29, 29.1, L1);
   // the display screens (2.2, noLedge) on each arm's south end beside the rail: each gallery guard's south stop is out of
   // the other arm's view (M8)
   for (const [x0, x1, z0, z1] of S5_BOX.screens) bx(b, x0, x1, L1, L1 + 2.2, z0, z1, WALL_DARK, { noLedge: true });
 
-  // ---- the cage (x -41..-38, z 34.6..39.4): 0.1 solid walls 4.2..8.2, the pair gate in its west face (opening z 38.0..39.2)
-  wall(b, false, -40.95, 34.6, 39.4, L1, L_TOP, [[38.0, 39.2, L1, L1 + DOOR_H, true]], 0.1, STEEL);
-  wall(b, true, 34.65, -41, -38, L1, L_TOP, [], 0.1, STEEL);
-  wall(b, true, 39.35, -41, -38, L1, L_TOP, [], 0.1, STEEL);
-  b.door(-40.95, L1, 38.0, 1.2, 0, { swing: 1 });
-  // the archive's rolling stacks (2.2, noLedge)
+  // ---- (P1, L2) the cage (x -41.5..-38, z 38..41) over the moved shaft: 0.1 steel walls 4.2..8.2, the pair gate in its west
+  // face (opening z 39.0..40.2; the leaf swings into the cage); the archive's east wall x -38 is the cage's east side
+  wall(b, false, -41.45, 38, 41, L1, L_TOP, [[39.0, 40.2, L1, L1 + DOOR_H, true]], 0.1, STEEL);
+  wall(b, true, 38.05, -41.5, -38, L1, L_TOP, [], 0.1, STEEL);
+  wall(b, true, 40.95, -41.5, -38, L1, L_TOP, [], 0.1, STEEL);
+  b.door(-41.45, L1, 39.0, 1.2, 0, { swing: 1 });
+  // (P1, L3) the archive's free-standing row and wall shelving (2.2, noLedge), the plan chest (1.2)
   for (const [x0, z0, x1, z1] of S5_BOX.stacks) bx(b, x0, x1, L1, L1 + S5_BOX.stacksTop, z0, z1, STEEL, { noLedge: true });
+  {
+    const [x0, z0, x1, z1] = S5_BOX.chest;
+    furn(b, x0, x1, z0, z1, 1.2, DESK, L1);
+  }
 
   // ---- furniture: the control room's radio and CCTV racks (2.2, noLedge: three rows from the west wall, an aisle by the
   // east wall, so the standing team's three bays and the hall walk's bay screen each other, M8), the token table (0.9)
@@ -566,24 +718,31 @@ export function buildCampusS5(b: LevelBuilder): void {
   const [tx0, tz0, tx1, tz1] = S5_BOX.token;
   furn(b, tx0, tx1, tz0, tz1, 0.9);
 
-  // ---- the roof: parapets (the south edge looks over ground outside S5: 1.9; the others 1.1), the rappel gap, the chimneys
+  // ---- the roof: parapets (the south edge looks over ground outside S5: 1.9; the others 1.1), the rappels, the chimneys
   rail(b, -56, -32, 18, 18.2, R, 1.9);
-  rail(b, -56, -55.8, 18, 44, R);
-  rail(b, -32.2, -32, 18, 44, R);
+  // (P1, R2) the west parapet splits round the garden rappel (z 30.4..31.6)
+  rail(b, -56, -55.8, 18, 30.4, R);
+  rail(b, -56, -55.8, 31.6, 44, R);
+  // (P1, R1) the east parapet splits round the 0.2 coping z 30..33 (CR9-s5: not noLedge; on the wall top, flush with its face)
+  rail(b, -32.2, -32, 18, 30, R);
+  rail(b, -32.2, -32, 33, 44, R);
+  bx(b, -32.15, -31.85, R, R + 0.2, 30, 33, STEEL);
   rail(b, -56, -54.6, 43.8, 44, R);
   rail(b, -53.4, -32, 43.8, 44, R);
   b.rappel(S5_BOX.rappel.x, R, S5_BOX.rappel.z, 0, R);
+  b.rappel(S5_BOX.rappelWest.x, R, S5_BOX.rappelWest.z, -PI / 2, R);
   for (const [x, z] of S5_BOX.chimneys) bx(b, x - 0.6, x + 0.6, R, R + 2.0, z - 0.6, z + 0.6, WALL_DARK, { noLedge: true });
 
-  // ---- the grounds: the terrace's balustrade (1.0, low cover) with the terrace gate and the boathouse path, the van, the trees
-  bx(b, -70, -64.6, 0, 1.0, 49.9, 50.1, WALL);
-  bx(b, -63.4, -44.6, 0, 1.0, 49.9, 50.1, WALL);
-  bx(b, -43.4, -26, 0, 1.0, 49.9, 50.1, WALL);
+  // ---- the grounds: the terrace's balustrade (1.2, low cover, vaultable: P1, G13) with the terrace gate and the boathouse
+  // path, the van, the trees
+  bx(b, -70, -64.6, 0, 1.2, 49.9, 50.1, WALL);
+  bx(b, -63.4, -44.6, 0, 1.2, 49.9, 50.1, WALL);
+  bx(b, -43.4, -26, 0, 1.2, 49.9, 50.1, WALL);
   const [vx0, vz0, vx1, vz1] = S5_BOX.van;
   bx(b, vx0, vx1, 0, 2.4, vz0, vz1, VAN, { noLedge: true });
   for (const [x, z] of S5_BOX.trees) b.cylinders.push({ c: [x, 3, z], r: 0.35, h: 6, color: TREE, collide: true });
 
-  // ---- the jetty: the deck (top 0.4) and the boathouse (3.0, noLedge); the lake is not modelled (L-log)
+  // ---- the jetty: the deck (top 0.3) and the boathouse (3.0, noLedge); the lake is not modelled (L-log)
   const [dx0, dz0, dx1, dz1] = S5_BOX.deck;
   bx(b, dx0, dx1, 0, S5_BOX.deckTop, dz0, dz1, '#6b5a45');
   const [hx0, hz0, hx1, hz1] = S5_BOX.boathouse;
@@ -595,21 +754,8 @@ export function buildCampusS5(b: LevelBuilder): void {
     for (const [x, z] of [[l.x1, l.z1], [l.x2, l.z2]] as const) b.box(x, l.floorY! + top / 2, z, 0.12, top, 0.12, '#3a3d40', 0, 0, false);
   }
 
-  // ---- lamps (brief "Lighting"): dark by reason: the archive (aisle lights off), the drawing room (closed), the passage, the
-  // well, the back corridor, the service lobby, the plant room, the lawn, the boathouse path, the jetty, the roof but for #19's
-  const down = makeCone(0, -1, 0, 1.15);
-  lamp(b, -44, 6.5, 23.5, { r: 12, i: 0.9, group: S5_GROUPS.chand, w: 0.7 });
-  for (const [x, z] of [[-48.7, 21], [-48.7, 27], [-46, 30.7], [-42, 30.7], [-39.2, 21], [-39.2, 27]] as const) lamp(b, x, 6.6, z, { r: 5, group: S5_GROUPS.gal, w: 0.3 });
-  for (const z of [21, 27]) lamp(b, -53, 7.4, z, { r: 6, group: S5_GROUPS.board, cone: down });
-  lamp(b, -43, 3.4, 34.5, { r: 6, group: S5_GROUPS.ante, cone: down });
-  lamp(b, -43, 3.4, 40.5, { r: 6, group: S5_GROUPS.ante, cone: down });
-  for (const [x, z] of [[-67, 25], [-59, 25], [-67, 37.2], [-59, 37.2]] as const) lamp(b, x, 0.3, z, { r: 6, group: S5_GROUPS.garden, w: 0.3 });
-  for (const x of [-64, -56, -48, -40, -34, -28]) lamp(b, x, 0.8, 48.7, { r: 4, group: S5_GROUPS.garden, w: 0.3 });
-  for (const z of [21, 27]) lamp(b, -53, 3.4, z, { r: 6, group: S5_GROUPS.ctl, cone: down });
-  for (const z of [35, 41]) lamp(b, -29, 3.4, z, { r: 6, group: S5_GROUPS.kitchen, cone: down });
-  lamp(b, -40, 9.6, 42.6, { r: 4, group: S5_GROUPS.roof, w: 0.3 });
-  for (const [x, z] of [[-48.7, 22], [-48.7, 28], [-39.3, 26], [-39.3, 30]] as const) lamp(b, x, 2.6, z, { r: 5, group: S5_GROUPS.hall, w: 0.3 });
-  for (const z of [34, 40]) lamp(b, -53, 7.4, z, { r: 6, group: S5_GROUPS.ceo, cone: down });
+  // ---- lamps: every lamp from `S5_LIGHTS` (PROVISIONAL, J10)
+  for (const list of Object.values(S5_LIGHTS)) for (const l of list) lamp(b, l);
 
   // ---- ambient (LR7): the grounds and the house at the standby fill 0.14; the service stair 0.30 (transit); C4 keeps its 0.30
   b.ambientZone(-70, -26, 18, 66, 0.14, -1, 12);
