@@ -1009,14 +1009,14 @@ File every gate request WITH the head push; post the checker the moment it passe
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
 2. J4 #317 coop4: master 4.106.0 merged f720d29e3; merge 2 checks A + B PASS, checker posted on head 3c06444f8
-   (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). Waiting CI + affected; then tell the
-   orchestrator train-ready. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
+   (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). affected 25/25 GREEN 11:34; orchestrator
+   told train-ready. Not a `fix` PR (orchestrator may label it; new rule ~10:12: fix PRs get label `fix`). Polish -> coop4-pol after it lands: snapBudget fake guards
    `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
 4. J15 PR1 #450 b718293df: in train 112 (#491, laptop rerun at 08:30).
 5. J15 PR2 = #500 (feature/guard-rules). Merge check PASS (checks/PR2-MERGE-CHECK.md). CI lint failed on b78c1eab3
    (helmetRule.test.ts import() type) -> fixed; lint check PASS, checker posted on head 15073deb7. Waiting CI,
-   affected (9) + laptop rules-pr2-coop (e2e-coop, e2e-netmove: src/game gate); then tell the orchestrator.
+   TRAIN-READY (labelled 11:33; affected 14/14, rules-pr2-coop 2/2); rides the train after 117.
    Auto mode blocks the lead posting checker itself (self-approval): checker agents post, else orchestrator.
 6. J15 PR3 = feature/guard-rules-f0 48394def2: all checks PASS, laptop rules-pr3 GREEN 18/18; opens after PR2 merges.
    J15 PR4 = feature/guard-rules-pr4 b111c9aa1: all checks PASS, laptop rules-pr4 GREEN 18/18; opens after PR3.
@@ -1040,6 +1040,5 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR (#481 / #489 open). Later:
    coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #317 + #500 affected green (rules-pr2-coop GREEN 2/2) -> tell the orchestrator train-ready (Opus triage on any
-red); mh-s1b-early verdict (4947ef2c8, unclaimed 11:25); S3b report -> 2 Opus checkers + laptop set (brief step 6).
+Next: #317 / #500 ride trains (on merge: open PR3 feature/guard-rules-f0 after #500); mh-s1b-early verdict (4947ef2c8, unclaimed 11:25); S3b report -> 2 Opus checkers + laptop set (brief step 6).
 ```
