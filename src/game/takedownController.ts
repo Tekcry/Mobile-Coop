@@ -115,6 +115,18 @@ export class TakedownController {
   get busy(): boolean {
     return this.active !== null || this.kOn;
   }
+  /** (piano-knife S3) The switch-on move under way, from the press until the attacker is free (the wire: `localMoveState`). */
+  get knifeOn(): boolean {
+    return this.kOn;
+  }
+  /** (piano-knife S3) The running knife kill's guard (`e.id` from the press until the attacker is free; '' none). */
+  knifeTid = '';
+  /** (piano-knife S3) The approach's progress 0..1 (1 with no approach, and after it: the tail). No allocation. */
+  get knifeApproach(): number {
+    const a = this.active;
+    if (!a) return 1;
+    return a.plan.approach > 0 ? Math.min(1, a.t / a.plan.approach) : 1;
+  }
   /** (A4) The grab menu's pick this step (set by GameState, read and cleared by the hold). */
   menuPick: GrabOpt | null = null;
   /** (A4) A carry pick: the body to shoulder once it exists (enemy id, seconds left to find it). */
@@ -365,11 +377,17 @@ export class TakedownController {
    *  in yet), the knife in hand. */
   private knifeStart(e: TakedownVictim, plan: TakedownPlan, crouched: boolean): void {
     this.kOn = true;
-    this.kr = e.knifeVictim && knifeClipsReady() ? pickKnifeKill(plan.kind, crouched) : -1;
+    this.knifeTid = e.id;
+    // (piano-knife S3, S1 CHECK-A polish 2 / CHECK-B 4) a side kill's row by his facing: his back more towards her is the
+    // kill from behind (crouched: the low one), else the front row; his turn over the grab is then at most 90 degrees
+    const side = plan.kind === 'side';
+    const sideRow = Math.abs(wrapPi(e.yaw - plan.faceYaw)) < Math.PI / 2 ? (crouched ? 1 : 0) : 3;
+    this.kr = e.knifeVictim && knifeClipsReady() ? (side ? sideRow : pickKnifeKill(plan.kind, crouched)) : -1;
     this.kt = 0;
     this.kRel = -1;
     this.kYaw = plan.faceYaw;
-    this.kFromYaw = plan.kind === 'front' ? plan.faceYaw + Math.PI : plan.faceYaw;
+    // (piano-knife S3) the grab eases from his real facing: no snap at the press on any row
+    this.kFromYaw = e.yaw;
     this.kVr = e.bodyRig;
     resetPairTrack(this.kTrack);
     this.g.weapons.knife.show(true);
@@ -916,6 +934,7 @@ export class TakedownController {
     pairHandsOff(rig, null);
     g.weapons.knife.show(false);
     this.kOn = false;
+    this.knifeTid = '';
     this.kr = -1;
     this.kRel = -1;
     this.kVr = null;

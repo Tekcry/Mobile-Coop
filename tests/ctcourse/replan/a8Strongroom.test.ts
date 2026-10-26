@@ -618,7 +618,7 @@ describe('Marlow re-plan A8: the steps and the lines', () => {
 
   it('the built chain stays (split, office, grille, beams, sync, out); two lines change: the west end is not dark, the jam is made from behind the counters; what and where, no fail', () => {
     expect(steps.map((o) => o.id)).toEqual(['a8-split', 'a8-office', 'a8-grille', 'a8-beams', 'a8-sync', 'a8-out']);
-    expect(steps[0]!.a).toBe('Take the boost to the gallery at the west end, over the vestibule.');
+    expect(steps[0]!.a).toBe('Take the boost up to the gallery over the vestibule.');
     expect(steps[0]!.a).not.toMatch(/dark/i);
     expect(steps[1]!.b).toBe('Jam the gallery camera from behind the counters for your partner.');
     expect(steps[5]!.done).toBeUndefined();
@@ -639,10 +639,10 @@ describe('Marlow re-plan A8: the steps and the lines', () => {
   it("LANTERN's six retry lines exist (STATIONS section 6, verbatim) and fit 90 characters; no radio line says fail; the built lines are kept", () => {
     const at = (k: string) => part.bay.radio.filter((r) => r.at === k).map((r) => r.text);
     expect(at(retryKey('a8-c2run'))).toEqual(['Caught in the banking hall. Back to the vestibule.']);
-    expect(at(retryKey('a8-loopset'))).toEqual(['Caught at the security office. Back to the office door and the board.']);
+    expect(at(retryKey('a8-loopset'))).toEqual(['Caught at the security office. Back to the office door.']);
     expect(at(retryKey('a8-isolate'))).toEqual(['Caught at the lighting board. Back to the board.']);
     expect(at(retryKey('a8-isolate', true))).toEqual(['The hall lights came back. Back to the lighting board.']);
-    expect(at(retryKey('a8-locks'))).toEqual(['Caught in the vault lobby. Back to the office console and the lobby.']);
+    expect(at(retryKey('a8-locks'))).toEqual(['Caught in the vault lobby. Back to the office console.']);
     expect(at(retryKey('a8-locks', true))).toEqual(['The cameras came back. Loop them again from the office console.']);
     expect(Object.keys(A8_RETRY_LINES).sort()).toEqual(['retry:a8-c2run', 'retry:a8-isolate', 'retry:a8-isolate:timer', 'retry:a8-locks', 'retry:a8-locks:timer', 'retry:a8-loopset']);
     expect(at(retryKey('a8-loopset', true))).toEqual([]);

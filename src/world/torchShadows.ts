@@ -22,7 +22,7 @@
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
 import { frozenCasterSphere, thawed } from './frozenCaster';
 import type { LightRegistry } from './lights';
-import { TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
+import { TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { casterInTorchCone, pickTorchDoors, sphereInFrustum, TORCH_SHADOW, torchAtlasSize, torchForceRender, torchHolderScore, torchLitSphere, torchPoseMoved, torchPoseStale, torchPoseTurned, torchRefreshEvery, torchShadowFov, torchTileX, torchTileY, writeTorchPose, type TorchDoor, type TsPlane } from './torchShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
@@ -94,8 +94,14 @@ export function registryHasTorch(reg: LightRegistry): boolean {
 }
 
 export class TorchShadows implements TorchShadowLink {
-  readonly mats = new Float32Array(TORCH_SHADOW.slots * 16);
-  readonly params = new Float32Array(TORCH_SHADOW.slots * 4);
+  /** (piano SO3) Drawn torch slots (`LightRig.torchSlotIds`: the map's count, 4 by default) and how many of them get a
+   *  shadow tile (the registry's flashlights without `beamCut`, at most `n`). The atlas is 2 tiles wide and
+   *  `ceil(shadowed / 2)` tall (2 x 2 by default). A slot past `shadowed` has no map: its params w is 3 while lit
+   *  (the torch loop's reach-cut branch, `LAMP_TORCHCUT`), its shut doors still picked. */
+  readonly n: number;
+  readonly shadowed: number;
+  readonly mats: Float32Array;
+  readonly params: Float32Array;
   readonly info = new Float32Array(4);
   atlas: BaseTexture | null = null;
   private rt: RenderTargetWrapper | null = null;
@@ -132,6 +138,13 @@ export class TorchShadows implements TorchShadowLink {
     private isChar: (m: AbstractMesh) => boolean,
   ) {
     this.depthSign = scene.getEngine().useReverseDepthBuffer ? -1 : 1;
+    this.n = rig.torchSlotIds.length;
+    // (every slot shadowed unless the registry holds beamCut torches: those take the last slots, `LightRig.torchFixed`)
+    let cut = 0;
+    for (const l of reg.lights) if (l.kind === 'flashlight' && l.beamCut) cut++;
+    this.shadowed = Math.max(1, this.n - cut);
+    this.mats = new Float32Array(this.n * 16);
+    this.params = new Float32Array(this.n * 4);
     // (`World.create` runs `addTorchSlots` before this: a bright map's registry has no flashlight)
     this.hasTorch = registryHasTorch(reg);
   }
@@ -168,7 +181,7 @@ export class TorchShadows implements TorchShadowLink {
       this.logged = true;
       console.info('[torch shadows] no WebGL2 float render target: guard torches keep the reach cut');
     }
-    const n = ok ? TORCH_SHADOW.slots : 0;
+    const n = ok ? this.shadowed : 0;
     const key = `${n}:${tile}:${taps}`;
     if (key === this.key) return;
     this.disposeSlots();
@@ -177,9 +190,11 @@ export class TorchShadows implements TorchShadowLink {
     this.tile = tile;
     const engine = this.scene.getEngine();
     const size = torchAtlasSize(tile);
+    // (piano SO3) 2 tiles wide, a row of 2 per 2 shadowed slots (2 x 2 by default: square, as before)
+    const high = tile * Math.ceil(n / 2);
     const caps = engine.getCaps();
     this.rt = engine.createRenderTargetTexture(
-      { width: size, height: size },
+      { width: size, height: high },
       { generateMipMaps: false, generateDepthBuffer: false, generateStencilBuffer: false, type: caps.textureFloatRender ? Constants.TEXTURETYPE_FLOAT : Constants.TEXTURETYPE_HALF_FLOAT, format: Constants.TEXTUREFORMAT_R, samplingMode: Constants.TEXTURE_NEAREST_SAMPLINGMODE },
     );
     const at = new BaseTexture(this.scene, this.rt.texture);
@@ -191,7 +206,7 @@ export class TorchShadows implements TorchShadowLink {
     this.info[1] = taps;
     this.info[2] = size;
     this.info[3] = this.depthSign;
-    for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile, size));
+    for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile, size, high));
     this.restoreObs = engine.onContextRestoredObservable.add(() => this.invalidate());
     this.thawObs = this.scene.onAfterActiveMeshesEvaluationObservable.add(this.onThaw);
   }
@@ -215,7 +230,7 @@ export class TorchShadows implements TorchShadowLink {
     }
   }
 
-  private makeSlot(s: number, tile: number, size: number): TsSlot {
+  private makeSlot(s: number, tile: number, size: number, high: number): TsSlot {
     const light = new SpotLight(`torchshadow-${s}`, new Vector3(0, -50, 0), new Vector3(0, -1, 0), 1, 1, this.scene);
     light.includeOnlyWithLayerMask = NO_MESH_LAYER;
     light.intensity = 0;
@@ -231,7 +246,7 @@ export class TorchShadows implements TorchShadowLink {
     const map = sg.getShadowMap()!;
     map.renderList = [];
     map.refreshRate = 1e6;
-    const slot: TsSlot = { light, sg, map, list: [], frozen: [], id: -1, ready: -1, every: 0, pose: new Float32Array(6), obs: null, vp: new Viewport(torchTileX(s, tile) / size, torchTileY(s, tile) / size, tile / size, tile / size) };
+    const slot: TsSlot = { light, sg, map, list: [], frozen: [], id: -1, ready: -1, every: 0, pose: new Float32Array(6), obs: null, vp: new Viewport(torchTileX(s, tile) / size, torchTileY(s, tile) / high, tile / size, tile / high) };
     map.getCustomRenderList = () => slot.list;
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
     return slot;
@@ -257,7 +272,7 @@ export class TorchShadows implements TorchShadowLink {
     // the slot whose torch is nearest the camera refreshes every frame
     let near = -1;
     let nd = Infinity;
-    for (let s = 0; s < slots.length && s < TORCH_DRAW_SLOTS; s++) {
+    for (let s = 0; s < slots.length && s < ids.length; s++) {
       const id = ids[s]!;
       const l = id >= 0 ? ls[id] : undefined;
       if (!l || !l.on || l.destroyed || !l.cone) continue;
@@ -272,9 +287,23 @@ export class TorchShadows implements TorchShadowLink {
     }
     const draw = this.draw;
     const sp = this.sphere;
+    // (piano SO3) the slots with no shadow map: lit ones read params w 3 (the reach cut) and test their shut doors
+    for (let s = slots.length; s < this.n; s++) {
+      const id = s < ids.length ? ids[s]! : -1;
+      const l = id >= 0 ? ls[id] : undefined;
+      const o = s * TORCH_DRAW_STRIDE + 12;
+      if (!l || !l.on || l.destroyed || !l.cone) {
+        this.params[s * 4 + 3] = 0;
+        for (let k = 0; k < 4; k++) draw[o + k] = 0;
+        continue;
+      }
+      this.params[s * 4 + 3] = 3;
+      const c = l.cone;
+      pickTorchDoors(this.doors, l.x, l.y, l.z, c.dx, c.dy, c.dz, c.cosOuter, l.radius, draw, o, this.doorDist);
+    }
     for (let s = 0; s < slots.length; s++) {
       const slot = slots[s]!;
-      const id = s < TORCH_DRAW_SLOTS ? ids[s]! : -1;
+      const id = s < ids.length ? ids[s]! : -1;
       const l = id >= 0 ? ls[id] : undefined;
       const o = s * TORCH_DRAW_STRIDE + 12;
       if (!l || !l.on || l.destroyed || !l.cone) {
@@ -482,7 +511,7 @@ export class TorchShadows implements TorchShadowLink {
     this.rt = null;
     this.params.fill(0);
     // (the door vec4s back to none: the fallback path never reads them)
-    for (let s = 0; s < TORCH_DRAW_SLOTS; s++) for (let k = 12; k < TORCH_DRAW_STRIDE; k++) this.draw[s * TORCH_DRAW_STRIDE + k] = 0;
+    for (let s = 0; s * TORCH_DRAW_STRIDE < this.draw.length; s++) for (let k = 12; k < TORCH_DRAW_STRIDE; k++) this.draw[s * TORCH_DRAW_STRIDE + k] = 0;
     this.key = '';
   }
 

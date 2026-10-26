@@ -59,10 +59,10 @@ export const A8_STATIONS: readonly StationDef[] = [
 /** LANTERN's lines when a step retries (STATIONS section 6; `retryKey`: `retry:<id>` for caught, `retry:<id>:timer` for a window). */
 export const A8_RETRY_LINES: Readonly<Record<string, string>> = {
   [retryKey('a8-c2run')]: 'Caught in the banking hall. Back to the vestibule.',
-  [retryKey('a8-loopset')]: 'Caught at the security office. Back to the office door and the board.',
+  [retryKey('a8-loopset')]: 'Caught at the security office. Back to the office door.',
   [retryKey('a8-isolate')]: 'Caught at the lighting board. Back to the board.',
   [retryKey('a8-isolate', true)]: 'The hall lights came back. Back to the lighting board.',
-  [retryKey('a8-locks')]: 'Caught in the vault lobby. Back to the office console and the lobby.',
+  [retryKey('a8-locks')]: 'Caught in the vault lobby. Back to the office console.',
   [retryKey('a8-locks', true)]: 'The cameras came back. Loop them again from the office console.',
 };
 
@@ -301,7 +301,7 @@ export function replanA8Strongroom(b: LevelBuilder, kit: FacilityKit, part: SetP
     f(o);
   };
   line('a8-split', (o) => {
-    o.a = 'Take the boost to the gallery at the west end, over the vestibule.';
+    o.a = 'Take the boost up to the gallery over the vestibule.';
   });
   line('a8-office', (o) => {
     o.b = 'Jam the gallery camera from behind the counters for your partner.';

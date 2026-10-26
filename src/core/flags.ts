@@ -56,6 +56,15 @@ export interface Flags {
   weaponLab: boolean;
   /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
   sectorGuards: number | null;
+  /** (piano SO3) Dev and the GPU check (`?torchSlots=8`): the map's guard torch slots over its `MapDef.torchSlots`
+   *  (`torches.torchSlotCount`: 4 or 8); null when absent. A co-op client needs the same parameter as its host. */
+  torchSlots: number | null;
+  /** (piano SO3) Dev and the GPU check (`?torchShadows=N`): only the first N torch slots get a shadow map, over
+   *  `MapDef.torchShadows`; null when absent. A co-op client needs the same parameter as its host. */
+  torchShadows: number | null;
+  /** (piano SO3) Dev and the GPU check (`?torches=all`): every human guard's torch forced on at spawn
+   *  (`Enemy.torchOverride`; a dog carries none). */
+  torchesAll: boolean;
   /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
@@ -100,6 +109,9 @@ export interface Flags {
    *  yard (map `ctcourseReplan`); the client loads whatever map the host names. Default off: `ctcourse` is unchanged.
    *  On /preview/ default on (preview-flags). */
   marlowReplan: boolean;
+  /** (piano-escape, owner Campaign Build, review 2026-11-02) `?piano=1`: the piano escape scene (map `thornbeckMill`, `scene:
+   *  'piano'`) joins `MAPS` and the main menu. Default off; on /preview/ default on (preview-flags). */
+  pianoEscape: boolean;
   /** (char-shadow-meter, J16) Character shadows in the light meter and the guards' light (`world/charOccluders.ts`);
    *  `?charlight=1` on. DEFAULT OFF until Michael's walk (owner Sector Ops Build; switch-on: BRIEF A9). On /preview/
    *  default on (preview-flags). */
@@ -264,6 +276,9 @@ export const flags: Flags = {
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
+  torchSlots: /^\d{1,2}$/.test(params.get('torchSlots') ?? '') ? Number(params.get('torchSlots')) : null,
+  torchShadows: /^\d{1,2}$/.test(params.get('torchShadows') ?? '') ? Number(params.get('torchShadows')) : null,
+  torchesAll: params.get('torches') === 'all',
   mocap: onOffFlag(params.get('mocap')),
   mixamo: onOffFlag(params.get('mixamo')),
   anim: ((v) => (v === 'hand' || v === 'cmu' || v === 'mixamo' ? v : null))(params.get('anim')),
@@ -285,6 +300,7 @@ export const flags: Flags = {
   lookouts: darkFlag(params.get('lookouts'), PREVIEW_ON),
   dogRelease: darkFlag(params.get('dogrelease'), PREVIEW_ON),
   marlowReplan: darkFlag(params.get('marlowreplan'), PREVIEW_ON),
+  pianoEscape: darkFlag(params.get('piano'), PREVIEW_ON),
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),

@@ -463,10 +463,10 @@ describe('Marlow re-plan A3: the pass zones, the steps and the lines', () => {
     expect(steps[0]!.done).toEqual({ flag: A3_FIRE_FLAG });
     expect(steps[1]!.done).toEqual({ flag: A3_FAR_FLAG });
     expect(steps[2]!.done).toBeUndefined();
-    expect(steps[0]!.text).toMatch(/riser cupboard/i);
+    expect(steps[0]!.text).toMatch(/crawl/i);
     expect(steps[0]!.text).toMatch(/fire door/);
     expect(steps[1]!.text).toMatch(/camera/);
-    expect(steps[1]!.text).toMatch(/recess/);
+    expect(steps[1]!.b).toMatch(/east lobby/);
     expect(steps[1]!.a).toBeDefined();
     expect(steps[1]!.b).toBeDefined();
     expect(steps[2]!.text).toMatch(/holding room three/);
@@ -484,7 +484,7 @@ describe('Marlow re-plan A3: the pass zones, the steps and the lines', () => {
   it('the retry lines exist (STATIONS section 6, verbatim) and fit; no radio line names the send-back or the cleaner; every line fits 90 characters', () => {
     const at = (k: string) => part.bay.radio.filter((r) => r.at === k).map((r) => r.text);
     expect(at(retryKey('a3-vent'))).toEqual(['The camera had you. Back to the west lobby.']);
-    expect(at(retryKey('a3-jam'))).toEqual(["The camera had you. Back to the corridor's west end; jam it again."]);
+    expect(at(retryKey('a3-jam'))).toEqual(["The camera had you. Back to the corridor's west end."]);
     expect(A3_RETRY_LINES).toEqual({ 'a3-vent': at(retryKey('a3-vent'))[0], 'a3-jam': at(retryKey('a3-jam'))[0] });
     expect(at(retryKey('a3-vent', true))).toEqual([]);
     expect(at(retryKey('a3-jam', true))).toEqual([]);
