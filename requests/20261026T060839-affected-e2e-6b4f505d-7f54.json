@@ -1,0 +1,13 @@
+{
+  "id": "20261026T060839-affected-e2e-6b4f505d-7f54",
+  "sha": "6b4f505d0b7ce1dd7b15f205fe83e366acc08df9",
+  "branch": "feature/player-j19-s2",
+  "pr": 561,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop"
+  ],
+  "set": "affected",
+  "note": "prototype mode: one closest set, covers the elbow strike (Player Build)"
+}
