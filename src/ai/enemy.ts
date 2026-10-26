@@ -95,6 +95,9 @@ const P_LIGHT = new Float64Array(MAX_INTRUDERS);
 const P_ANGLE = new Float64Array(MAX_INTRUDERS);
 /** (coop4 AI2) The order players are started in under the ray budget (`perceiveOrder`; 3+ players only). */
 const P_ORDER = new Int8Array(MAX_INTRUDERS);
+/** (guard-ai-j16 G3 fix round) `SHADOW_NOTICE.slack` read once: a double loaded from the object's field and passed to
+ *  `losTo` boxes 16 B each call when that call is not inlined; a module constant passes its own number. */
+const CUE_SLACK = SHADOW_NOTICE.slack;
 /** One player's sight input (the chosen player's goes to `Enemy.sight`). */
 const P_SIGHT: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
 
@@ -2887,18 +2890,22 @@ export class Enemy implements Damageable {
   /**
    * (guard-ai-j16 G3, G379 "A faint cue"; BRIEF A4-A6, A11, PLAN section 1) A player's moving cast shadow in his focused
    * cone: he grows suspicious and looks at it, never more. Who (A6): not alerted, passive or a dog, at unaware /
-   * cooldown / suspicious with no incident task, and seeing nobody this think (every player's rate <= `leak`: sight
-   * keeps his look). Over every live player in the cues (`slotOf`), the nearest qualifying point (`noticeInto`), one
-   * line-of-sight ray from his eye to it (A4; at 3+ players only inside `PERCEIVE.maxRays`, counted there). Clear: the
-   * hearing turn's reaction (`hearTurn`, A5), written here so no double crosses a call: meter at least
-   * `SHADOW_NOTICE.meter`, the point as his stimulus, `turnT` = `ALERT.hearLook`; no `heard`, report, `lastKnown`,
-   * `sawOnce` or target change; a rise from calm says nothing (`cueRise`). Records `cueT` / `cueX` / `cueZ` / `cueSlot`.
+   * cooldown / suspicious with no incident task, not lured, and seeing nobody this think (every player's rate <=
+   * `leak`) nor resting on an earlier glimpse (`sawMoment`): sight keeps his look and its linger rule. Over every live
+   * player in the cues (`slotOf`), the nearest qualifying point (`noticeInto`), one line-of-sight ray from his eye to
+   * it (A4; at 3+ players only inside `PERCEIVE.maxRays`, counted there). Clear: the hearing turn's reaction
+   * (`hearTurn`, A5), written here so no double crosses a call: meter at least `SHADOW_NOTICE.meter`, the point as his
+   * stimulus, `turnT` = `ALERT.hearLook`; no `heard`, report, `lastKnown`, `sawOnce` or target change; a rise from calm
+   * that the cue lifts says nothing (`cueRise`). Records `cueT` / `cueX` / `cueZ` / `cueSlot`.
    * No cues (null or absent): nothing, today's perception. No allocation.
    */
   private shadowLook(eye: Vector3, capped: boolean): void {
     const cues = this.ctx.cues?.() ?? null;
     if (cues === null || !SHADOW_NOTICE.enabled) return;
     if (this.alerted || this.passive || this.dog !== null || this.incident >= 0) return;
+    // (G3 fix 1, A6) a calm moment that rests on sight keeps its own look and linger rule (a shadow adds, never
+    // removes); (G3 polish 5) a lured post keeps to his lure walk, as on a mission order
+    if (this.sawMoment || this.lure.active) return;
     const lvl = this.aware.level;
     if (lvl !== 'unaware' && lvl !== 'cooldown' && lvl !== 'suspicious') return;
     // (A4, plan check 1 item 6) 3+ players: the cue's ray only while the think stays within the budget
@@ -2925,10 +2932,14 @@ export class Enemy implements Damageable {
     this.raysThink++;
     this.raysStep++;
     const v = this.cueV;
-    v.set(best[NO_X]!, best[NO_Y]!, best[NO_Z]!);
-    if (!this.losTo(eye, v, SHADOW_NOTICE.slack)) return;
-    // the hearing turn's reaction (A5); from calm the rise is silent
-    if (lvl !== 'suspicious') this.cueRise = true;
+    // component stores, not `set(x, y, z)`: three doubles passed to a call not inlined box (G3 fix round)
+    v.x = best[NO_X]!;
+    v.y = best[NO_Y]!;
+    v.z = best[NO_Z]!;
+    if (!this.losTo(eye, v, CUE_SLACK)) return;
+    // the hearing turn's reaction (A5); from calm the rise is silent, only when the cue is what lifts him (G3 polish 1:
+    // a `hearTurn` earlier this step that already took him past suspicious still barks)
+    if (lvl !== 'suspicious' && this.meter < PERCEPTION.suspicious) this.cueRise = true;
     if (this.meter < SHADOW_NOTICE.meter) this.meter = SHADOW_NOTICE.meter;
     this.stimulus[0] = v.x;
     this.stimulus[1] = v.z;
