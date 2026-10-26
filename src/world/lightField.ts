@@ -352,6 +352,90 @@ export class LightField {
     return this.res;
   }
 
+  /** (char-shadow-meter S3b) The point the Q calls read: x, y, z. A caller through an interface (`ShadowCues`'
+   *  `CueField`) is not inlined, so V8 boxes each double argument it passes (16 B); written into these slots, nothing
+   *  crosses the call as a double. */
+  readonly qp = new Float64Array(3);
+  /** (S3b) The Q calls' level (never a returned double). */
+  readonly qr = new Float64Array(1);
+
+  /** (S3b) `sourcesInto` at `qp`: the same steps, the same lists and count. */
+  sourcesQ(ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number {
+    let n = 0;
+    if (max <= 0) return 0;
+    // (the point for the steps below, copied once into `pt`: no double crosses their calls)
+    const q = this.qp;
+    const pt = this.pt;
+    pt[0] = q[0]!;
+    pt[1] = q[1]!;
+    pt[2] = q[2]!;
+    const b = this.bake;
+    if (b && b.moonLight > 0) {
+      this.moonInto();
+      const m = b.moonLight * this.res;
+      if (m > 0) {
+        this.pushLv[0] = m;
+        n = this.pushRes(ids, lv, n, max, -1);
+      }
+    }
+    const cn = this.columnInto();
+    for (let s = 0; s < cn; s++) {
+      const L = this.colLv[s]!;
+      if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) {
+        this.pushLv[0] = L;
+        n = this.pushRes(ids, lv, n, max, this.ids[this.colLamp[s]!]!);
+      }
+    }
+    const ls = this.reg.lights;
+    for (let i = 0; i < ls.length; i++) {
+      if (i < this.isBaked.length && this.isBaked[i]) continue;
+      this.dynTermInto(i, occluded);
+      if (this.res > 0) {
+        this.pushLv[0] = this.res;
+        n = this.pushRes(ids, lv, n, max, i);
+      }
+    }
+    return n;
+  }
+
+  /** (S3b) `sourceAt` at `qp`, into `qr[0]`. */
+  sourceQ(id: number, occluded?: Occluder): void {
+    const q = this.qp;
+    const pt = this.pt;
+    pt[0] = q[0]!;
+    pt[1] = q[1]!;
+    pt[2] = q[2]!;
+    const r = this.qr;
+    if (id === -1) {
+      const b = this.bake;
+      if (!b || !(b.moonLight > 0)) {
+        r[0] = 0;
+        return;
+      }
+      this.moonInto();
+      r[0] = b.moonLight * this.res;
+      return;
+    }
+    if (id < 0) {
+      r[0] = 0;
+      return;
+    }
+    if (id < this.isBaked.length && this.isBaked[id]) {
+      this.lampInto(this.bakeIdx[id]!);
+      r[0] = this.res;
+      return;
+    }
+    this.dynTermInto(id, occluded);
+    r[0] = this.res;
+  }
+
+  /** (S3b) `totalAt` at `qp` (with the contract `chars`, `skip` the sampled character's owner key), into `qr[0]`. */
+  totalQ(occluded: Occluder | undefined, chars: CharOccluders | null, skip: number): void {
+    const q = this.qp;
+    this.totalInto(q[0]!, q[1]!, q[2]!, occluded, chars, skip);
+    this.qr[0] = this.res;
+  }
+
   /**
    * How lit a standing or crouched body is: the brighter of the chest and head samples, so a head poking out of a
    * shadow into a lamp's pool shows. `height` is the head height above the feet (crouch lowers it). (locomotion step

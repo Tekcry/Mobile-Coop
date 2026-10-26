@@ -1,5 +1,95 @@
 # Changelog
 
+## 4.112.2 - Train 121: Look-video recorder (2026-10-26, PR #555; #549)
+- A tool that records map walk videos for review (`scripts/look-video.mjs`; Tallow Wharf's four sections planned).
+
+## 4.112.1 - Train 120: Mission framework: mission core (2026-10-26, PR #554; #521)
+- Groundwork for campaign missions: the code that describes a mission (its sections, steps, rule and checkpoints) and
+  runs it step by step, with its tests. Nothing uses it yet, so the game does not change.
+- Docs: the mission rules plans (`docs/mission-rules/`), the J7 and J8-J9 plans, and the Three Grey Coats beat chart
+  updated (after Teale moves, the step reads "the clock-mender's back loft").
+
+## 4.112.0 - Train 119: Pad reading makes no per-frame garbage; affected-cap: each change's automatic test runs at most its 3 closest suites; Map ready gate; Kept model files and textures between maps; +8 more (2026-10-26, PR #536; #519, #517, #513, #512, #507, #506, #505, #501, #489, #488, #481)
+
+### Smaller automatic test per change
+- The automatic `affected-e2e` run on a PR head now runs at most 3 suites, the closest to the folders the change touches
+  (`affectedPick` in `scripts/e2e-affected.mjs`); `src/net`, `src/save` and wire changes run exactly the co-op group
+  (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`). The train's full run catches the rest; `--affected-max` /
+  `E2E_AFFECTED_MAX` lift the cap (0 = no cap).
+- The laptop queue re-files every open automatic affected request over the cap in place (same id and queue place), so
+  the backlog drops at once.
+
+### Start-at-section link for Sector Ops
+- Sector Ops dev and walk link `?sectorStart=N`: the run starts at section N as if the sections before it were cleared
+  through their connectors (the last connector is the checkpoint, its doors as the cycle leaves them). A practice run:
+  the results line ends "PRACTICE from section N" and nothing is saved (no star, no best section rating, no
+  progression). In co-op the host's link decides and the partner is put at the host's checkpoint. Works with
+  `?campusv2=N` for the campus walk cards.
+
+### Character shadows count in the light (part 2, dark)
+- Light: with `?charlight=1` (flag `charShadowLight`) the players and the live guards (dogs as guards) now fill the
+  shared shadow shapes each step, so the light meter and the picture's round shadows darken from the same characters
+  by the same amount. Bodies and a co-op client's partners come in later parts. Off by default until the guards' cue
+  lands and Michael walks it.
+- Tests: the fill (players, guards, slot order) and the picture feed allocate nothing per call.
+
+### Character shadows as a faint guard cue (part 3, groundwork, dark)
+- Light: the shadow-cue maths guards will use to notice a character's cast shadow (Michael's "A faint cue") is in, with
+  light calls that take the point through a shared slot so a full 4-player update allocates almost nothing. Not wired
+  into the game yet; nothing changes in play.
+- Tests: the cue footprints, and the new light calls match the old ones exactly on 500 random points.
+
+### Laptop queue: skip conflicting PRs, green PRs smallest first, carry train verdicts over docs-only fixes
+- The laptop queue no longer runs affected e2e on a PR head that conflicts with master (it posts an error once and runs
+  again on the next head).
+- PR requests now run front branches first, then green PRs smallest first, then in arrival order, with a bound so no
+  request waits forever.
+- A train head that moves by a docs-only commit carries the earlier laptop-e2e success; any other moved head runs as a
+  normal sharded train.
+- A train rerun shards across both laptop slots when they are free.
+- An alone request that has waited long gets the gap after the coming train instead of waiting behind train-ready PRs.
+
+### Map load measure
+- Load timing record: each map load now records how long it takes to appear and what still builds in the 10 seconds
+  after (shaders, lamps, pop-ins, frame times). A new measure script reads it for cold, cached, repeat and
+  map-to-map loads. Measurement only: play is unchanged.
+
+### Map ready gate
+- Map ready gate (behind `?mapready=1`, off by default): the loading screen now stays up until the map is fully built
+  and warmed - graphics settings applied first, then lights, the player's body and weapons, every shader (player and
+  weapons first, then the level, then the nearest guards), the reflection probe and every lamp, plus five quiet frames.
+  The game is frozen behind it and starts at the reveal: the letterbox, banners and objective play from then. The wait
+  is capped at 20 seconds after the level is built (the live lamps are always waited for); past the cap play starts with
+  what is ready and the feedback note records it. Test runs can set `E2E_PARAMS=mapready=1` to turn it on everywhere.
+
+### Kept model files and textures between maps
+- Faster repeat map loads (behind the map-ready switch, off for now): the game keeps the model files and textures it
+  has already read, so loading the next map in the same session does not read and decode them again. The old match is
+  still freed in full.
+
+### Mixamo traversal: every capture on Wren's climbs (dark)
+- Behind the Mixamo animation source (`?mixamo=1`, still off by default; the default source is unchanged): Wren's vent crawl, ladder climb and
+  both lip climb-up captures now play in matches, so every traversal capture is on. The crawl's chest no longer spins
+  round (a conversion fix).
+- The braced climb-up keeps her hands on the lip until her foot is on the top, then the capture takes over; the
+  free-hang stand-up turns her hips far less and stands up at a steadier pace, so nothing snaps as she gets up.
+
+### Mixamo pack driver
+- The Mixamo dump script now also reads the four downloaded packs (pistol, rifle, shooter, action-adventure: 106
+  files) from their own folders, gives each a unique name with its pack in front, and records which pack it came from
+  for the credits. The 55 single files keep their names. No animation in the game changes.
+
+### Player step and traversal make no per-step garbage
+- No behaviour change: the player's movement step, the obstacle probe and the committed vault / mantle / drop now
+  reuse their vectors, results and records instead of making new ones every step (less garbage-collector stutter).
+- Proved bit-identical by a golden trace on real physics (walk, run, crouch under a ceiling, a ledge, a ramp, a
+  committed move) recorded before the change.
+
+### Pad reading makes no per-frame garbage
+- No behaviour change: the controller read each frame (the pad list, the button snapshot, the stick dead zones and
+  curves, the mapped frame) now reuses its records instead of making new ones, so it leaves nothing for the garbage
+  collector; proved bit-identical against a recording made before the change (`tests/padPollAlloc.test.ts`).
+
 ## 4.111.0 - Train 118: Guard rules (repeat alarms); Route-run robot pair (2026-10-26, PR #515; #510, #500)
 
 ### Guard rules (repeat alarms)
