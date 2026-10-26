@@ -11,7 +11,8 @@ import { clearGripAxis } from '../player/attachGrips';
 import type { GameState } from './gameState';
 import type { ThrowSite } from '../world/mapDef';
 import { KIT_POSE_LOCAL } from '../anim/clips/team';
-import { KitDevices, isKitState, kitMove, kitMoveOfState, kitMoves, kitOfferFree, kitPoseK, kitStateSub, kitStateWireMode, type KitHost, type KitMove, type KitState } from './kit/registry';
+import { KitDevices, isKitState, kitKindOf, kitMove, kitMoveOfState, kitMoves, kitOfferFree, kitPoseK, kitStateSub, kitStateWireMode, type KitHost, type KitMove, type KitState } from './kit/registry';
+import { isShutterDevice, resetShutter } from './kit/shutter';
 
 // (mission KIT0) every co-op kit move file registers itself with the registry (`kit/registry.ts`): a new move is a new
 // file in `game/kit/`, no edit here
@@ -220,6 +221,8 @@ export class TeamController implements KitHost {
     const c = g.player.controller;
     // (KIT-TICK) every registered kit move's per-tick upkeep first, whatever the state, alive or not
     this.kitTick(dt);
+    // (J9 S1) the shutter curtains follow the kit devices (host and client; nothing without shutters)
+    this.g.world?.shutters?.update(this.devices.list);
     if (!g.player.alive) {
       if (this.state !== 'none') this.end(true);
       this.prompt = null;
@@ -1268,6 +1271,16 @@ export class TeamController implements KitHost {
       this.state = 'none';
       this.start = null;
       if (!g.traversal.attachCtl.attachTo(a, s2, 'side', 1, 0.15)) this.endWhy = 'relay: attach refused';
+    }
+  }
+
+  /** (J9 S1, A27) A section restart puts the kit back: our own shutter move ends, every shutter drops shut at once. */
+  resetKit(): void {
+    if (kitKindOf(this.state) === 'shutter') this.end(true);
+    const l = this.devices.list;
+    for (let i = 0; i < l.length; i++) {
+      const d = l[i]!;
+      if (isShutterDevice(d)) resetShutter(d);
     }
   }
 
