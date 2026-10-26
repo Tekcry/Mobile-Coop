@@ -1,0 +1,13 @@
+{
+  "id": "20261026T154740-affected-e2e-4d4f09de-df1b",
+  "sha": "4d4f09ded9fe3e2af31f2b37431ec5f67cc9f074",
+  "branch": "feature/marlow-lines",
+  "pr": 627,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-ctcourse"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #627"
+}
