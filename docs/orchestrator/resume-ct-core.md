@@ -1,6 +1,6 @@
 # Resume - Night Shift | Player Build (2026-10-26 ~12:35 SAVE at the orchestrator's call; older log: history at the end)
 At resume: agents die at a swap. Restart each from its branch head + the line below. All worktrees clean and pushed.
-- Running at the save: Opus brief writer -> cloud-queue briefs player-j19-s4, player-j19-s8a, mixamo-i9-polish (if missing on origin/cloud-queue, rewrite them: J19 PLAN S4 / S8a on origin/feature/player-batch-j19; polish lists in scratch/ctcore/i9-fix-CHECK.md + i7-pack-CHECK.md). Take done cloud branches within 1 h -> Opus checker -> PR -> laptop.
+- Cloud briefs OPEN on cloud-queue 89b2cdff: player-j19-s4, player-j19-s8a (laptop smoke: E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a), mixamo-i9-polish. Add tests/sectors.test.ts (S4) and tests/lookVideo.test.ts (S8a) to J19 PLAN claims. R16 runner armed on data only (enemy.ts:3250 melee branch): sent to the orchestrator for Guard AI. Take done branches within 1 h -> Opus checker -> PR -> laptop.
 - PRs waiting only on laptop + orchestrator's checker post (message it when green; watcher script scratch/ctcore/watch-lq.sh sha:context ...):
   #498 wire df214492 (code = 7f851b27; two Opus checkers PASS wire-CHECK-A2/B2.md; laptop-e2e/mixamo-wire on 7f851b27 + affected; base feature/mixamo-on until #494 ships).
   #506 I2b 539560f4 (merge-only since PASS on 382bc321; laptop-e2e/mixamo-i2b + affected).
