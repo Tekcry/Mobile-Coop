@@ -15,13 +15,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { takeTouchLock, pidAlive } from './heavy-lock.mjs';
 import { ciState, ciGreenAt, selfUpdatePlan } from './auto-train.mjs';
 import * as lq from './laptop-queue/lib.mjs';
+import * as tr from './train-ready.mjs';
 
 export const CHECKS = ['locks', 'orphans', 'prs', 'labels', 'release', 'pages', 'autotrain', 'laptop', 'cloud'];
 export const FIXABLE = ['locks', 'orphans', 'prs', 'labels', 'release', 'cloud'];
-export const LABEL = 'train-ready';
-export const CHECKER_CONTEXT = 'checker';
-export const AFFECTED_CONTEXT = 'affected-e2e'; // also the requester of the laptop service's auto affected requests (#356)
-export const NO_AFFECTED_LABEL = 'no-affected-e2e';
+// the train-ready rule's names and code: scripts/train-ready.mjs (shared with auto-train, F16)
+export const LABEL = tr.LABEL;
+export const CHECKER_CONTEXT = tr.CHECKER_CONTEXT;
+export const AFFECTED_CONTEXT = tr.AFFECTED_CONTEXT;
+export const NO_AFFECTED_LABEL = tr.NO_AFFECTED_LABEL;
 /** Thresholds in minutes (docs/systems/watchdog.md). */
 export const LIMITS = {
   lockStaleMin: 60, lockOldMin: 240, orphanMin: 30, orphanKillMin: 120, greenMin: 30, devGraceMin: 5, tagGraceMin: 5, memberGraceMin: 10,
@@ -193,14 +195,7 @@ export function normalizePr(node) {
   const commit = node?.headRef?.target ?? {};
   const onHead = !!commit.oid && commit.oid === node.headRefOid;
   const rollup = onHead ? commit.statusCheckRollup?.contexts?.nodes ?? [] : [];
-  const statuses = {};
-  for (const s of rollup) {
-    if (s?.__typename !== 'StatusContext') continue;
-    const at = Date.parse(s.createdAt || '') || 0;
-    if (statuses[s.context] && statuses[s.context].at > at) continue;
-    const st = String(s.state).toLowerCase();
-    statuses[s.context] = { state: st === 'error' ? 'failure' : st === 'expected' ? 'pending' : st, description: s.description ?? '', at };
-  }
+  const statuses = tr.statusesFromRollup(rollup);
   const labels = (node?.labels?.nodes ?? []).map((l) => l.name);
   let labeledAt = null;
   for (const e of node?.timelineItems?.nodes ?? []) {
@@ -233,23 +228,8 @@ export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
 export const redChecks = (pr) => [pr.check === 'failure' ? 'check' : null,
   ...[CHECKER_CONTEXT, AFFECTED_CONTEXT].map((c) => (statusOf(pr, c) === 'failure' ? c : null))].filter(Boolean);
 
-/** Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md) -> { ready, why, affectedMissing }. */
-export function labelReady(pr, { requireAffected = true } = {}) {
-  const no = (why, affectedMissing = false) => ({ ready: false, why, affectedMissing });
-  if (isTrain(pr.branch)) return no('train PR');
-  if (pr.draft) return no('draft');
-  if (pr.mergeable === 'CONFLICTING') return no('conflicting');
-  if (pr.check !== 'success') return no(`check ${pr.check}`);
-  const checker = statusOf(pr, CHECKER_CONTEXT);
-  if (checker !== 'success') return no(`${CHECKER_CONTEXT} ${checker}`);
-  const aff = statusOf(pr, AFFECTED_CONTEXT);
-  const waived = aff === 'missing' && !!pr.labels?.includes(NO_AFFECTED_LABEL);
-  if (aff === 'missing' && requireAffected && !waived) return no(`${AFFECTED_CONTEXT} unavailable`, true);
-  if (aff !== 'missing' && aff !== 'success') return no(`${AFFECTED_CONTEXT} ${aff}`);
-  const desc = pr.statuses[CHECKER_CONTEXT].description;
-  const affWhy = aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : waived ? `, ${AFFECTED_CONTEXT} waived (${NO_AFFECTED_LABEL})` : '';
-  return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${affWhy}` };
-}
+/** Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md) -> { ready, why, affectedMissing }: the shared rule. */
+export const labelReady = tr.trainReady;
 
 /** PR and label alerts (docs/systems/watchdog.md); `labelHeads` = { [pr]: head when first seen labelled } -> { alerts, labelHeads }. */
 export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix = false, requireAffected = true, limits = LIMITS } = {}) {
