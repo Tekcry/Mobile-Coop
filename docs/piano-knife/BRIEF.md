@@ -66,6 +66,8 @@ prototype mode (starting values, no tuning before Michael plays); ships dark beh
 - A12 "Empty pistol" needs the slide as its own part (today the pistol GLB joins it into the body,
   `scripts/weapons/py/build_weapon.py:39`): the pistol is rebuilt with a separate slide, as the magazine already is.
   Undo: keep the joined GLB; the empty pistol then only reads as empty by the story.
+- A13 In play the pistol stays holstered and the knife shows only during a kill (until Campaign answers PLAN Q-C6).
+  Undo: show the knife for the whole scene from `setKnifeScene(true)`.
 
 ## Questions for Michael
 None needed: the scene's map plan (G288) is Campaign's question. Downloads (CLIP-LIST) go through the orchestrator.
