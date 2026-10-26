@@ -173,3 +173,53 @@ Runs at 89f13ef1c:
   as GA6a-A4 says.
 - The GA6b report says `update`'s clock tick and the `glimpseFollow` call are not driven by tests. A one-case
   `em.update` smoke test with `sceneDark` on would cover both lines.
+
+## Re-check 1fe0bc3f6
+**FIX** (both original FIXes closed; one red unit test on the PR head, from GA6b, not from this round)
+
+Re-checker: Opus 5.5 (fresh), 2026-10-26. Scope: `git diff ad3c1afd9 1fe0bc3f6` (enemy.ts, enemyManager.ts, patrol.ts,
+patrolSweep, pianoGuards, guardAiAllocManager), read against `pairs.ts` `watch` and `Enemy.goTo`.
+
+Original FIXes:
+1. FIX 1 (watch deaf in cooldown / caution): **closed.** `Enemy.sweepCalm` (`enemy.ts:1916-1919`: unaware or cooldown,
+   no incident, not taken, no `camBody`, alive; caution not tested). `fillPair` takes it only for `watchOnly` pairs
+   (`enemyManager.ts:2519`, `:2541`); `watchOnly` is set only by `sweepify` (`:2364`), so talking pairs and posted /
+   S6 watch pairs keep `pairCalm`. No repeat calls: `PairMeet` latches `missing` until `reset` (`pairs.ts:327`). The
+   reporter's own incident makes him not calm while the call runs.
+2. FIX 2 (deck sweep leaves his storey): **closed.** `away` is passed on the sweep (`enemy.ts:3086-3089`), the walk is
+   `goTo(g, dt, 0.05, this.homeY)` (`enemy.ts:3115`), and `sweepStep` treats `away` as not arrived (`patrol.ts:189`,
+   `:229-248`): the stop to walk to, no hold, no pan. A hold that runs out while away still advances `idx`. A pending
+   rejoin keeps its stop. Off the sweep the plain walker gets the same `away` as before.
+
+Tests exercise the fixes: with `src/ai/{enemy,enemyManager,patrol}.ts` put back to ad3c1afd9 (restored after), 5
+of the new cases fail: both patrolSweep away cases, FIX 1, FIX 2 and B Polish 2. The em.update smoke case passes either
+way, as expected: it covers lines that were already there.
+
+Polish claims: B1 (warm 30000, bound 4 x 16 B against a 48 B reading; an object on top still fails) fine. B2 (`clear()`
+zeroes `sweepClock`, `enemyManager.ts:4242`, `darkOn` kept) fine. A3 / B8 smoke case fine. No hot-path allocation added
+(a getter of booleans, a boolean local, an extra boolean argument).
+
+## FIX (re-check)
+1. **`tests/lockedDoorPath.test.ts` fails on this head** ("a noise inside the locked room ... not `investigateMax`"):
+   `TypeError: Cannot read properties of undefined (reading 'sweeping')` at `enemy.ts:3271`. GA6b's sweep-pace line
+   (f622ae8b8) reads `this.walker.sweeping` in the investigating branch. The test's hand-built enemy (`lockedDoorPath.test.ts:372-376`)
+   has no `walker`. Not a game bug: a real `Enemy` always has a walker. But CI `test` will be red and the PR cannot merge.
+   Not caught before because check A's runs did not include this file. Fix: add `walker: { sweeping: false }` to that
+   test's `Object.assign` stub, then run every test file that imports `enemy.ts` / `enemyManager.ts`.
+
+## Polish (re-check)
+- With no path up (the deck unreachable from where he stands: the stair gate's nav closure shut behind him, or past
+  `goTo`'s 3000-cell budget), a swept deck guard now stands under his stop with no give-up. Before the fix he walked
+  his lap on the floor. Both are off-intent and both need an unusual state. A later round could drop `away` after some
+  seconds of `routeMiss`.
+- A hold interrupted by `away` keeps `swPanE` frozen. Back up mid-hold, the pan resumes where it stopped and is cut at
+  `leave` (cosmetic).
+- `sweepCalm` tests `alive`, which `fillPair` has already checked (harmless).
+
+## Commands (re-check)
+- `npm run typecheck:fast`: clean.
+- `npx vitest run` patrolSweep, pianoGuards, guardAiAllocManager, responseWiring, sceneSweep, pairs, pairsWiring,
+  replayDeterminism, awarenessWiring: 9 files, 173 passed, 1 todo.
+- `npx vitest run` on every test file that imports `src/ai/patrol` or `src/ai/enemyManager` (66 files): 1536 passed,
+  1 todo, **1 failed** (lockedDoorPath, above). The same failure shows when that file runs alone.
+- The 3 named files against the pre-fix source (above): 5 failed, 49 passed.
