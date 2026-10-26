@@ -91,3 +91,13 @@ attempt-folder fix (BRIEF F27 note); (3) brief the S1 Opus builder from PLAN "S1
   (built like queue.order) besides train reruns, its log line says so. Tests: describe "fix and front before an aged
   alone (laptop-queue-10 S6b, F39)", 3 cases (the audit replay with the knob on / off); 340 pass (laptop-queue 264 +
   autoTrain 71 + e2eQuarantine 5); typecheck:fast clean. +57 / -5 (lib 16/0, service 9/4, tests 32/1).
+- 2026-10-26: S6c (Opus builder, feature/laptop-queue-10b; tracker F40): a parked run stops. lib stoppedRuns (running,
+  { listed, parked, moved, misses }: parked = in parked/ and gone from requests/, at once; withdrawn = gone two listings
+  in a row, as before; a moved run is read under its new id; entries with no id, e.g. trains, skipped), cutShort
+  'parked' after 'withdrawn'. service LQ_PARKED_CUT (1), parkedIds, listRequests reads parked/ only while a request runs
+  and replaces the missing loop with stoppedRuns (both workers), cutEnd 'parked': the withdrawal's error status
+  ("withdrawn by the requester (parked), run stopped"), claim released, not done (runs again when moved back). Finding:
+  the 15:17 / 15:32 freezes never moved a running file (#518's 013d and #520's 6642 stayed in requests/ while running;
+  6642 was parked after it yielded), so the existing two-listing withdrawn cut never saw them: the freeze must move
+  running files too. Tests: describe "parked and withdrawn runs stop (laptop-queue-10 S6c, F40)", 5 cases; 345 pass
+  (laptop-queue 269 + autoTrain 71 + e2eQuarantine 5); typecheck:fast clean. +94 / -13 (lib 25/2, service 28/10, tests 41/1).

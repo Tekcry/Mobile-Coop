@@ -33,7 +33,8 @@
 // head is pending gives its slot back (locks released, claim dropped, request stays queued; lib yieldTo).
 // Cut short (Orchestrator audit 2026-10-24, lib cutShort): a running request whose requests/<id>.json left the branch
 // (withdrawn; missing from two listings in a row; renamed to a new id that runs the same is a move, not a withdrawal:
-// laptop-queue-10 A7, lib movedRequests) has its command tree killed, posts error "withdrawn" and is done; a
+// laptop-queue-10 A7, lib movedRequests) has its command tree killed, posts error "withdrawn" and is done (moved to
+// parked/ by the fix freeze: stopped at the next listing, the same status, claim released, not done; LQ_PARKED_CUT); a
 // plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
 // status "queued, preempted by train <n>"). Train reruns and full runs are never preempted; an alone run only in its first 10 min (below).
 // Desktop failures (Orchestrator waste audit 2026-10-24, laptop-queue-3): a desktop pr run whose suites fail (after its
@@ -128,7 +129,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, isFrontTier, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote, quarantineKeys, quarantineForgives, movedRequests } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, isFrontTier, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote, quarantineKeys, quarantineForgives, movedRequests, stoppedRuns } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { AFFECTED_MAX } from '../e2e-affected.mjs';
@@ -207,6 +208,8 @@ const KEYLESS_MS = Number(process.env.LQ_KEYLESS_QUARANTINE_H ?? 48) * 3600_000;
 const MOVED = process.env.LQ_MOVED !== '0';
 // laptop-queue-10 (F39): 0 = an aged alone request goes before the fix and front tiers, as before (lib pick queue.frontBeforeAlone)
 const FRONT_BEFORE_ALONE = process.env.LQ_FRONT_BEFORE_ALONE !== '0';
+// laptop-queue-10 (F40): 0 = a run whose file the fix freeze moved to parked/ stops as a withdrawal (two listings, done)
+const PARKED_CUT = process.env.LQ_PARKED_CUT !== '0';
 /** lib claimBlocks for this worker now, with the heartbeat bound (A17). */
 const blocks = (c) => claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS, CLAIM_BEATS);
 const argv = process.argv.slice(2);
@@ -296,6 +299,8 @@ let openListed = [];
 /** Running request id -> listings in a row it was missing from; ids missing from two are withdrawn (lib cutShort). */
 const missing = new Map();
 const withdrawnIds = new Set();
+/** laptop-queue-10 (F40): running request ids whose file the fix freeze moved to parked/ (lib stoppedRuns; cutShort 'parked'). */
+const parkedIds = new Set();
 /**
  * Laptop: open requests that leave a pending status behind if withdrawn unrun (auto affected requests, laptop reruns;
  * lib withdrawnStatuses), id -> request, and the listings in a row each one was missing from (lib vanishedRequests).
@@ -382,12 +387,14 @@ function listRequests() {
   if (names.length > 0) {
     const listed = new Set(names.map((n) => path.basename(n, '.json')));
     if (MOVED && prevIds) applyMoves(listed, out);
-    for (const id of activeReqs.keys()) {
-      if (listed.has(movedTo.get(id) ?? id)) { missing.delete(id); continue; }
-      const n = (missing.get(id) ?? 0) + 1;
-      missing.set(id, n);
-      if (n >= 2) withdrawnIds.add(id);
-    }
+    // laptop-queue-10 (F40): a run whose file is in parked/ (the fix freeze) stops at once; parked/ is read only while
+    // something runs here (lib stoppedRuns; a failed read parks nothing)
+    const parked = PARKED_CUT && activeReqs.size ? new Set(git(['ls-tree', '--name-only', 'origin/laptop-queue', 'parked/'], { soft: true }).split('\n').filter((n) => n.endsWith('.json')).map((n) => path.basename(n, '.json'))) : new Set();
+    const ended = stoppedRuns([...activeReqs.values()], { listed, parked, moved: movedTo, misses: missing });
+    missing.clear();
+    for (const [id, n] of ended.misses) missing.set(id, n);
+    for (const id of ended.withdrawn) withdrawnIds.add(id);
+    for (const id of ended.parked) parkedIds.add(id);
     if (!DESKTOP) closeWithdrawn(listed);
     prevIds = listed;
   }
@@ -1812,7 +1819,7 @@ async function runRequest(r, port, pair = null) {
     const due = r.kind === 'alone' && ALONE_GAP && aloneGapOpen(state.aloneDue, r.id, lastTrainEnd); // started in its gap (A12)
     progressById.set(r.id, progress());
     if (started && r.kind !== 'alone' && SUITE_IDLE_MS > 0 && !ctl.why) idle = idleStep(idle, attemptEvents(runDir).count, Date.now(), SUITE_IDLE_MS);
-    const why = cutShort(r, { taken: takenBy.get(r.id) ?? '', withdrawn: withdrawnIds.has(r.id), superseded: runningSup.get(r.id)?.id ?? '', trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due, hung: Boolean(idle?.hung) });
+    const why = cutShort(r, { taken: takenBy.get(r.id) ?? '', withdrawn: withdrawnIds.has(r.id), superseded: runningSup.get(r.id)?.id ?? '', trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow(), due, hung: Boolean(idle?.hung), parked: parkedIds.has(r.id) });
     if (why && !ctl.why) { ctl.by = why === 'superseded' ? runningSup.get(r.id) : trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
     // fail fast: one try per run (a failed push lets the run go on to today's end-of-run hand-off)
     if (handsOff && FAIL_FAST && e2eLive && !ctl.why && !ctl.handOff) {
@@ -1875,6 +1882,16 @@ async function runRequest(r, port, pair = null) {
       for (const c of verdictCtx) if (posted || c === AFFECTED_CTX) postStatus(r.sha, 'error', c, 'withdrawn by the requester, run stopped');
       state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
       if (state.aloneSteps) delete state.aloneSteps[r.id];
+      return;
+    }
+    if (ctl.why === 'parked') {
+      // laptop-queue-10 (F40): the withdrawal's status, but not done: the claim is released, so the request runs again
+      // when its file moves back to requests/ (a parked open request is never done either)
+      log(`${r.id}: parked, run stopped (runs again when moved back to requests/)`);
+      for (const c of verdictCtx) if (posted || c === AFFECTED_CTX) postStatus(r.sha, 'error', c, 'withdrawn by the requester (parked), run stopped');
+      if (state.aloneSteps) delete state.aloneSteps[r.id];
+      writeClaims([r.id], 'release', `release ${r.id} (parked)`);
+      claimed.delete(r.id);
       return;
     }
     if (ctl.why === 'superseded') {
@@ -2073,6 +2090,7 @@ async function runRequest(r, port, pair = null) {
     takenBy.delete(r.id);
     missing.delete(r.id);
     withdrawnIds.delete(r.id);
+    parkedIds.delete(r.id);
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
     if (state.done[r.id] && state.aloneDue[r.id]) { delete state.aloneDue[r.id]; gapLogged.delete(r.id); } // done or withdrawn (A12)
@@ -2091,7 +2109,7 @@ async function runRequest(r, port, pair = null) {
     saveState();
     const ends = [r.id, nu].filter((id) => id && state.done[id]);
     if (ends.length && writeClaims(ends, 'done', `done ${ends.join(' ')}`) === true) ends.forEach((id) => doneSynced.add(id));
-    if (!yielded && !yieldedSteps && ctl.why !== 'train' && ctl.why !== 'taken') log(`${r.id}: done`);
+    if (!yielded && !yieldedSteps && !['train', 'taken', 'parked'].includes(ctl.why)) log(`${r.id}: done`);
   }
 }
 

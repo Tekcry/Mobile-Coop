@@ -877,16 +877,18 @@ export function yieldTo(r, started, trains) {
  * all when `taken` names the worker that now holds the run's claim (a heartbeat push found it blocking, e.g. after a
  * long push outage): the run stops and posts nothing, that worker's run owns the head. 'hung' (laptop-queue-10 A3, F10)
  * when `hung` (lib idleStep: no suite event for the idle limit), after 'withdrawn' and 'superseded', before the spare and
- * train rules.
+ * train rules. 'parked' (laptop-queue-10 F40) right after 'withdrawn' when `parked` (lib stoppedRuns: the fix freeze moved
+ * its file to parked/).
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false, hung = false } = {}) {
+export function cutShort(r, { taken = '', withdrawn = false, superseded = '', trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false, due = false, hung = false, parked = false } = {}) {
   if (taken) return 'taken';
   if (withdrawn) return 'withdrawn';
+  if (parked) return 'parked';
   // laptop-queue-8 A6: a newer head of the same PR is queued (lib supersededRunning; the id): stop at any stage
   if (superseded) return 'superseded';
   // laptop-queue-10 A3: no suite event for the idle limit (#317 held 4192 for 65 min); a hung run frees its slot
@@ -1783,6 +1785,27 @@ export function movedRequests(gone, candidates) {
     const k = key(g);
     const c = cands.find((x) => !used.has(x.id) && x.id !== g.id && key(x) === k);
     if (c) { used.add(c.id); out.set(g.id, c.id); }
+  }
+  return out;
+}
+
+/**
+ * laptop-queue-10 (F40): the requests running here that stop because their file left requests/. running = the running
+ * requests (an entry with no id, e.g. a train, is skipped), listed = the ids in requests/ now (the caller skips an empty
+ * listing), parked = the ids in parked/ (the fix freeze), moved = Map(running id -> the id its file was renamed to, lib
+ * movedRequests: read under that id, so a move never stops), misses = Map(id -> listings missed so far). parked: in
+ * parked/ and gone from requests/, at once (the freeze names it); withdrawn: gone two listings in a row (one bad listing
+ * never counts). -> { parked: Set, withdrawn: Set, misses: the new Map } (an id listed again starts over). Pure.
+ */
+export function stoppedRuns(running, { listed = new Set(), parked = new Set(), moved = new Map(), misses = new Map() } = {}) {
+  const out = { parked: new Set(), withdrawn: new Set(), misses: new Map() };
+  for (const r of running ?? []) {
+    if (!r?.id) continue;
+    const fid = moved.get(r.id) ?? r.id;
+    if (listed.has(fid)) continue;
+    if (parked.has(fid)) { out.parked.add(r.id); continue; }
+    const n = (misses.get(r.id) ?? 0) + 1;
+    if (n >= 2) out.withdrawn.add(r.id); else out.misses.set(r.id, n);
   }
   return out;
 }
