@@ -6,12 +6,21 @@
  * - per graph: two graphs handed two sources each draw their own (bit-identical to a page set to that source), whatever
  *   this page's source is; a graph no one hands a source follows the page (the default game unchanged);
  * - the wire: the source round-trips through `pstate`; CMU sends no field; no field or a bad one reads CMU;
+ * - the I5 carry / strike and I6 locomotion captures follow the graph's source too (`SourceTables.carry` / `.strike`,
+ *   every `MIXAMO_LOCO` slot in the source's `loco.set`): a partner carrying a body and striking is drawn as the owner's
+ *   page draws them;
  * - no allocation a frame on a handed source.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, applyAnimSource, PAGE_TABLES, setAnimSource, SOURCE_TABLES, wireAnimSource, type AnimSource, type SourceTables } from '../src/anim/animSource';
 import { LOCO, MOCAP_SET } from '../src/anim/mocap';
-import { MIXAMO, MIXAMO_ON, setMixamo, WREN_KEYED, WREN_STANCE, WREN_TRAV } from '../src/anim/mixamo';
+import { MIXAMO, MIXAMO_LOCO, MIXAMO_ON, setMixamo, WREN_CARRY, WREN_KEYED, WREN_STANCE, WREN_STRIKE, WREN_TRAV } from '../src/anim/mixamo';
+import { MOCAP_CARRY_BODY_WALKING } from '../src/anim/clips/mixamo/carry_body_walking';
+import { MOCAP_ELBOW_STRIKE } from '../src/anim/clips/mixamo/elbow_strike';
+import { strikeWarp } from '../src/anim/strikeBody';
+import { STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
+import { CQ } from '../src/game/closeQuarters';
+import { BODY } from '../src/ai/bodies';
 import { AnimGraph, defaultInput, type AnimInput } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
 import { ANIM_SOURCE_WIRE, animSourceOf, animSourceWire, parseMessage } from '../src/net/protocol';
@@ -27,7 +36,7 @@ afterEach(() => {
 
 /** A table's contents (the clip references and flags), for a by-reference comparison. */
 function contents(T: SourceTables): unknown {
-  return { set: T.loco.set, mocap: T.loco.mocap, slots: T.loco.slots, trav: { ...T.trav }, keyed: { ...T.keyed }, stance: { ...T.stance } };
+  return { set: T.loco.set, mocap: T.loco.mocap, slots: T.loco.slots, trav: { ...T.trav }, keyed: { ...T.keyed }, stance: { ...T.stance }, carry: { ...T.carry }, strike: { ...T.strike } };
 }
 
 /** cyrb53 over float64 bit patterns (-0 as +0), as tests/mixamoSwitch.test.ts. */
@@ -72,8 +81,43 @@ const SEGMENTS: readonly { sec: number; speed: number; crouch: number }[] = [
   { sec: 1.5, speed: 1.4, crouch: 0 },
 ];
 
-/** Wren graphs (each handed a source, or null: the page's) stepped together through SEGMENTS: one hash a frame each. */
-function runGraphs(sources: readonly (AnimSource | null)[]): string[][] {
+/** Frame `f`'s input from SEGMENTS (all frames: `SEGMENTS_N`). */
+const SEGMENTS_N = SEGMENTS.reduce((n, seg) => n + Math.round(seg.sec * 60), 0);
+function segmentInput(i: AnimInput, f: number): void {
+  let n = f;
+  for (const seg of SEGMENTS) {
+    const m = Math.round(seg.sec * 60);
+    if (n < m) {
+      i.speed = seg.speed;
+      i.localZ = seg.speed > 0 ? 1 : 0;
+      i.crouch = seg.crouch;
+      return;
+    }
+    n -= m;
+  }
+}
+
+/** (I5) Stand, a strike (from 1 s), the lift's load (2-2.8 s), a carry walk at the carry pace, carry still, the put
+ *  down's hand-over, stand (as tests/mixamoCarryStrike.test.ts). */
+const CARRY_N = 60 * 8;
+const STRIKE_N = Math.ceil(STRIKE_DUR / DT);
+function carryInput(i: AnimInput, f: number): void {
+  const t = f * DT;
+  i.melee = f >= 60 && f < 60 + STRIKE_N ? strikeWarp(strikePhase((f - 60 + 1) * DT)) : -1;
+  const load = t < 2 ? 0 : t < 2.8 ? (t - 2) / 0.8 : t < 6.8 ? 1 : t < 7.2 ? 1 - (t - 6.8) / 0.4 : 0;
+  const carrying = t >= 2 && t < 7.2;
+  i.cqBody = carrying;
+  i.cqCarry = carrying ? load : 0;
+  i.bend = carrying ? CQ.carryBend * Math.max(load, 0.3) : 0;
+  i.bendDrop = carrying ? CQ.carryDrop * load : 0;
+  i.keyedOk = !carrying;
+  i.speed = t >= 2.8 && t < 4.8 ? BODY.carrySpeed : 0;
+  i.localZ = i.speed > 0 ? 1 : 0;
+}
+
+/** Wren graphs (each handed a source, or null: the page's) stepped together through a plan (SEGMENTS by default): one
+ *  hash a frame each. */
+function runGraphs(sources: readonly (AnimSource | null)[], frames = SEGMENTS_N, plan: (i: AnimInput, f: number) => void = segmentInput): string[][] {
   const random = Math.random;
   const gs: AnimGraph[] = [];
   const outs: string[][] = [];
@@ -94,19 +138,15 @@ function runGraphs(sources: readonly (AnimSource | null)[]): string[][] {
     i.ready = true;
     i.armed = false;
     i.mocapOk = true;
-    for (const seg of SEGMENTS) {
-      for (let n = 0; n < Math.round(seg.sec * 60); n++) {
-        i.speed = seg.speed;
-        i.localZ = seg.speed > 0 ? 1 : 0;
-        i.crouch = seg.crouch;
-        for (let k = 0; k < gs.length; k++) {
-          const g = gs[k]!;
-          g.update(DT, i);
-          const h = new Hasher();
-          hashAll(h, g.out, new Set());
-          for (let c = 0; c < g.pose.length; c++) h.add(g.pose[c]!);
-          outs[k]!.push(h.digest());
-        }
+    for (let f = 0; f < frames; f++) {
+      plan(i, f);
+      for (let k = 0; k < gs.length; k++) {
+        const g = gs[k]!;
+        g.update(DT, i);
+        const h = new Hasher();
+        hashAll(h, g.out, new Set());
+        for (let c = 0; c < g.pose.length; c++) h.add(g.pose[c]!);
+        outs[k]!.push(h.digest());
       }
     }
     return outs;
@@ -152,6 +192,64 @@ describe('source wire: each source has its own tables', () => {
     expect(mx.trav.hangIdle).toBeNull();
     expect(mx.trav).toBe(trav);
   });
+});
+
+describe('source wire: the I5 carry / strike and I6 locomotion tables per source', () => {
+  it("a source's own carry, strike and locomotion slots are its rows', whatever this page's source is", () => {
+    MIXAMO_ON.elbow_strike = true;
+    setMixamo(MIXAMO.on); // the row change resolves (the source alone resolves only on a change)
+    setAnimSource('cmu');
+    const mx = SOURCE_TABLES.mixamo;
+    // the page (CMU) has none; the Mixamo source's own tables have the carry, the strike and every I6 row that is on
+    expect(PAGE_TABLES.carry).toBe(WREN_CARRY);
+    expect(PAGE_TABLES.strike).toBe(WREN_STRIKE);
+    expect(WREN_CARRY.any).toBe(false);
+    expect(WREN_STRIKE.clip).toBeNull();
+    expect(mx.carry.walk).toBe(MOCAP_CARRY_BODY_WALKING);
+    expect(mx.carry.any).toBe(true);
+    expect(mx.strike.clip).toBe(MOCAP_ELBOW_STRIKE);
+    expect(mx.strike.contact).toBeGreaterThan(0);
+    let on = 0;
+    for (const [slug, r] of Object.entries(MIXAMO_LOCO)) {
+      if (MIXAMO_ON[slug] === true && r.clip) {
+        expect(mx.loco.set[r.slot], slug).toBe(r.clip);
+        on++;
+      } else expect(mx.loco.set[r.slot], slug).toBe(MOCAP_SET[r.slot]);
+    }
+    expect(on).toBeGreaterThan(0);
+    expect(SOURCE_TABLES.cmu.loco.set).toBe(MOCAP_SET);
+    expect(SOURCE_TABLES.cmu.carry.any).toBe(false);
+    expect(SOURCE_TABLES.hand.strike.clip).toBeNull();
+    // a row going off reaches the source's own table on the next resolve (rewritten in place)
+    const set = mx.loco.set;
+    MIXAMO_ON.walking = false;
+    MIXAMO_ON.carry_body_walking = false;
+    setMixamo(MIXAMO.on);
+    expect(mx.loco.set.walk).toBe(MOCAP_SET.walk);
+    expect(mx.loco.set).toBe(set);
+    expect(mx.carry.walk).toBeNull();
+    // and with the page set to Mixamo the page's tables equal the source's (the strike's contact included)
+    setAnimSource('mixamo');
+    expect(contents(mx)).toEqual(contents(PAGE_TABLES));
+  });
+
+  it('a partner carrying a body and striking is drawn with its own source: bit-identical to a page set to that source', () => {
+    MIXAMO_ON.elbow_strike = true;
+    setMixamo(MIXAMO.on); // the row change resolves (the source alone resolves only on a change)
+    setAnimSource('mixamo');
+    const refMx = runGraphs([null], CARRY_N, carryInput)[0]!;
+    setAnimSource('cmu');
+    const refCmu = runGraphs([null], CARRY_N, carryInput)[0]!;
+    // the carry and the strike really differ between the two (else the check below proves nothing)
+    expect(differ(refMx, refCmu)).toBeGreaterThan(60);
+    const [mx, own] = runGraphs(['mixamo', null], CARRY_N, carryInput);
+    expect(differ(mx!, refMx)).toBe(0);
+    expect(differ(own!, refCmu)).toBe(0);
+    setAnimSource('mixamo');
+    const [cmu2, own2] = runGraphs(['cmu', null], CARRY_N, carryInput);
+    expect(differ(cmu2!, refCmu)).toBe(0);
+    expect(differ(own2!, refMx)).toBe(0);
+  }, 240_000);
 });
 
 describe('source wire: per graph (each draws its own source)', () => {

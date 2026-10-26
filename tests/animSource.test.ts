@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ANIM_SOURCE, ANIM_SOURCE_DEFAULT, ANIM_SOURCES, applyAnimSource, parseAnimSource, resolveAnimSource, setAnimSource } from '../src/anim/animSource';
 import { applyMocapSwitch, HAND_KEYED_SET, LOCO, MOCAP_SET } from '../src/anim/mocap';
-import { addMixamoResolver, MIXAMO, MIXAMO_ON, MIXAMO_TRAV, setMixamo, setMixamoStudio, WREN_TRAV } from '../src/anim/mixamo';
+import { addMixamoResolver, MIXAMO, MIXAMO_LOCO, MIXAMO_ON, MIXAMO_TRAV, setMixamo, setMixamoStudio, WREN_TRAV } from '../src/anim/mixamo';
 import { defaultSettings, sanitizeSettings, SettingsStore } from '../src/core/settings';
 import { STUDIO_ENTRIES, studioEntriesOf, studioEntrySet } from '../src/anim/studio';
 import { mocapSource } from '../src/anim/mocapSources';
@@ -58,11 +58,14 @@ describe('animation source: each source', () => {
   it('Mixamo: the CMU locomotion with the captures MIXAMO_ON lets play on top; a row off keeps its clip', () => {
     setAnimSource('mixamo');
     expect(ANIM_SOURCE).toMatchObject({ source: 'mixamo', mocap: true, mixamo: true });
-    // the CMU set, with the Mixamo crouched walk in its slot when its row is on (I4: mocap.ts MOCAP_SET_MX), the rest by reference
+    // the CMU set, with each Mixamo capture in its slot when its row is on (I4 crouched walk, I6 MIXAMO_LOCO: mocap.ts
+    // MOCAP_SET_MX), the rest by reference
     expect(LOCO.mocap).toBe(true);
-    const cw = MIXAMO_ON.crouched_walking ? MOCAP_CROUCHED_WALKING : MOCAP_SET.crouchWalk;
-    for (const k of Object.keys(MOCAP_SET) as (keyof typeof MOCAP_SET)[]) expect(LOCO.set[k], k).toBe(k === 'crouchWalk' ? cw : MOCAP_SET[k]);
-    expect(LOCO.set === MOCAP_SET).toBe(!MIXAMO_ON.crouched_walking);
+    const mx: Record<string, unknown> = {};
+    for (const [slug, r] of Object.entries(MIXAMO_LOCO)) if (MIXAMO_ON[slug] && r.clip) mx[r.slot] = r.clip;
+    if (MIXAMO_ON.crouched_walking) mx.crouchWalk = MOCAP_CROUCHED_WALKING;
+    for (const k of Object.keys(MOCAP_SET) as (keyof typeof MOCAP_SET)[]) expect(LOCO.set[k], k).toBe(mx[k] ?? MOCAP_SET[k]);
+    expect(LOCO.set === MOCAP_SET).toBe(Object.keys(mx).length === 0);
     expect(MIXAMO.on).toBe(true);
     for (const [slug, r] of Object.entries(MIXAMO_TRAV)) expect(WREN_TRAV[r.slot], slug).toBe(MIXAMO_ON[slug] ? r.clip : null);
     expect(WREN_TRAV.any).toBe(true);

@@ -74,6 +74,9 @@ describe('mixamo dump driver (M1)', () => {
     for (const [file, slug] of CLIP_MAP) expect(slugOf(file).slug, file).toBe(slug);
     expect(slugOf('Kneel Down (lay body).fbx').note).toBe('lay body');
     expect(slugOf('Hanging Idle.fbx').note).toBeNull();
+    // (mixamo-retarget I6) the site's Mirror box: another take of the same title
+    expect(slugOf('Walking Left Turn (Mirror = right turn).fbx')).toEqual({ slug: 'walking_left_turn_mirror', note: 'Mirror = right turn' });
+    expect(slugOf('Walking Left Turn.fbx').slug).toBe('walking_left_turn');
     const clips = listClips(DIR, { readdir: () => CLIP_MAP.map(([f]) => f) });
     expect(clips).toHaveLength(21);
     expect(new Set(clips.map((c: { slug: string }) => c.slug)).size).toBe(21);
@@ -127,6 +130,18 @@ describe('mixamo dump driver (M1)', () => {
     expect(planDumps(clips, OUT, { io: fs.io }).every((c: { skip: boolean }) => !c.skip)).toBe(true);
     fs.mtimes.set(path.join(DIR, 'Standing Idle.fbx'), 100);
     expect(planDumps(clips, OUT, { io: fs.io, force: true }).every((c: { skip: boolean }) => !c.skip)).toBe(true);
+  });
+
+  it('(I6) --only dumps those files alone and the manifest keeps its other entries', async () => {
+    const fs = fakeFs(['Standing Idle.fbx', 'Cross Punch.fbx', 'Walking.fbx', 'Box Jump.fbx']);
+    const mPath = path.join(OUT, 'manifest.json');
+    fs.dumps.set(mPath, { clips: [{ file: 'Standing Idle.fbx', slug: 'standing_idle' }, { file: 'Cross Punch.fbx', slug: 'cross_punch' }] } as never);
+    const r = await dumpAll({ dir: DIR, outDir: OUT, only: ['walking'], deps: fs.deps });
+    expect(r.ran.map((c: { slug: string }) => c.slug)).toEqual(['walking']);
+    expect(fs.runs[0]!.jobs.map((j) => j.slug)).toEqual(['walking']);
+    const m = JSON.parse(fs.written.get(mPath)!);
+    expect(m.clips.map((c: { slug: string }) => c.slug)).toEqual(['cross_punch', 'standing_idle', 'walking']);
+    await expect(dumpAll({ dir: DIR, outDir: OUT, only: ['walking', 'nope'], deps: fs.deps })).rejects.toThrow(/no file for nope/);
   });
 
   it('a dry run plans without calling Blender or writing', async () => {

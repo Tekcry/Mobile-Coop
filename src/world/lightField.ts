@@ -11,22 +11,33 @@
  *
  * Visibility is read trilinearly between cell centres and clamped to each box, as the GPU samples the atlas. Lights
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
+ *
+ * (char-shadow-meter, G352) `totalAt` / `bodyLevel` with a character contract (`charOccluders.ts`) scale each member
+ * of the gameplay lamp set - a column lamp giving at least `CHAR_LIGHT.minLevel` at the point, the moon (from
+ * `moonFar` m along its direction), every non-baked light - by the soft capsules between it and the point, the
+ * picture's `lampCapsule` formula. Fixed by map data and the synced light state only; never a graphics preset.
  */
 import { AMBIENT_CELL } from './ambientGrid';
 import { BounceGrid } from './bounceGrid';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
 import type { LightBake } from './lightBake';
 import { lightTerm, type LightRegistry, type Occluder } from './lights';
+import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
-/** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
+/** A door leaf as the field needs it (`Doors.list` entries fit): shut for light when `open` is `DOOR_SHUT` or less. */
 export interface FieldDoor {
   anchor: { hinge: { x: number; y: number; z: number }; yaw: number; width: number; height: number };
   open: number;
 }
 
-/** A door this far open or less stops light (its collision body is there until it starts to swing). */
-export const DOOR_SHUT = 0.05;
+/**
+ * (sector-batch, G41 "one 15% threshold for light, sound and sight") A door open this far or less stops light: in the
+ * field (`doorBlocks`), the bake's shut flags the shaders read (`BakedLamps`) and the torch shadow set
+ * (`pickTorchDoors`). The same number as `DOOR.driveShut` (`world/doors.ts`, where a stick-driven door turns from a
+ * crack into a real opening; `tests/doorLight.test.ts` pins them equal). A peek crack keeps `open` 0.
+ */
+export const DOOR_SHUT = 0.15;
 /** Doors per door texel of the GPU's lamp data (`lampDoorLists`' default list length). */
 export const DOORS_PER_LAMP = 4;
 /** (LR15, shadow audit 2) Doors a baked lamp tests: two door texels in the GPU's lamp data, so a 5th-8th shut door in a
@@ -108,8 +119,11 @@ export function lampDoorListInto(out: Int16Array, i: number, lights: Float32Arra
   for (let j = 0; j < slots; j++) out[i * slots + j] = j < near.length ? near[j]!.k : -1;
 }
 
-/** Per baked lamp, unpacked: x, y, z, reach, axis dx, dy, dz, cos cut, exponent, vis offset, box ox, oy, oz, nx, ny, nz. */
-const LS = 16;
+/** Per baked lamp, unpacked: x, y, z, reach, axis dx, dy, dz, cos cut, exponent, then its visibility grid as `triInto`
+ *  reads one (vis offset, box ox, oy, oz, nx, ny, nz, cell) from `LG`. */
+const LS = 17;
+/** Where a lamp's grid parameters start in its `LS` row. */
+const LG = 9;
 
 export class LightField {
   /** Registry ids of the baked lamps, in bake order. */
@@ -117,11 +131,17 @@ export class LightField {
   private readonly lamp: Float64Array;
   /** Registry id -> 1 when baked (the rest are dynamic). */
   private readonly isBaked: Uint8Array;
+  /** (char-shadow-meter) Registry id -> bake index (-1 not baked), for `sourceAt`. */
+  private readonly bakeIdx: Int32Array;
   private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
   private readonly lampDoors: Int16Array;
+  /** (char-shadow-meter) The moon's and the ambient fill's grids as `triInto` reads them (at 0, origin, counts, cell;
+   *  fixed by the bake), so no grid parameter crosses a call as a double. */
+  private readonly moonG: Float64Array | null;
+  private readonly ambG: Float64Array | null;
   /** (LR15) Door slots per lamp, as the shaders' two door texels. */
   private readonly doorSlots = DOORS_PER_LAMP_ACCURATE;
   /** (LR16-1) The lit lamps' one-bounce fill on the ambient grid's cells; `BakedLamps` packs the same bytes. */
@@ -137,6 +157,7 @@ export class LightField {
     this.ids = new Int32Array(n);
     this.lamp = new Float64Array(n * LS);
     this.isBaked = new Uint8Array(Math.max(1, reg.lights.length + 64));
+    this.bakeIdx = new Int32Array(this.isBaked.length).fill(-1);
     let at = 0;
     for (let i = 0; i < n; i++) {
       const L = lamps!.baked.lights;
@@ -147,6 +168,7 @@ export class LightField {
       const id = lamps!.baked.ids[i]!;
       this.ids[i] = id;
       this.isBaked[id] = 1;
+      this.bakeIdx[id] = i;
       const spot = L[li + 7]! > -1.5;
       this.lamp[o] = L[li]!;
       this.lamp[o + 1] = L[li + 1]!;
@@ -159,12 +181,17 @@ export class LightField {
       this.lamp[o + 8] = spot ? SPOT_EXP : LAMP_EXP;
       this.lamp[o + 9] = at;
       for (let k = 0; k < 6; k++) this.lamp[o + 10 + k] = B[bi + k]!;
+      this.lamp[o + 16] = LAMP_CELL;
       at += B[bi + 3]! * B[bi + 4]! * B[bi + 5]!;
     }
     this.grid = lamps && bake ? lampGrid(lamps.baked.lights, bake.lo, bake.hi) : null;
     this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, bakeVisSampler(lamps.r), this.doorSlots) : new Int16Array(0);
     this.gx = bake?.lo[0] ?? 0;
     this.gz = bake?.lo[2] ?? 0;
+    const m = bake?.moon;
+    this.moonG = m ? Float64Array.of(0, m.origin[0], m.origin[1], m.origin[2], m.n[0], m.n[1], m.n[2], m.cell) : null;
+    const ag = bake?.ambient;
+    this.ambG = ag ? Float64Array.of(0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL) : null;
     this.bounce = new BounceGrid(lamps?.r.bounce, lamps ? lamps.baked.ids : [], bake ? bake.ambient : { origin: [0, 0, 0], n: [1, 1, 1] });
     this.bounce.sync(reg);
     // (section-bake) lamps still baking: each landing batch gets its door lists and the bounce grows (the visibility is
@@ -187,6 +214,19 @@ export class LightField {
    * a call it does not inline, 16 bytes each; a number field is updated in place. Only the public calls return one.)
    */
   private res = 0;
+  /** (char-shadow-meter) Scratch: the point's column lamps (bake indices) and their terms (`columnInto`). */
+  private readonly colLamp = new Int32Array(LAMP_GRID_SLOTS);
+  private readonly colLv = new Float64Array(LAMP_GRID_SLOTS);
+  /** (char-shadow-meter) Scratch: the member level `pushRes` inserts (a typed-array slot: no double crosses the call). */
+  private readonly pushLv = new Float64Array(1);
+  /** (char-shadow-meter) Scratch: the query point (x, y, z) the private steps read (`moonInto`, `columnInto`,
+   *  `lampInto`, `visInto`, `triInto`, `dynTermInto`), written once by the call that takes the point. As arguments it
+   *  boxed: V8 boxes a double passed to a call it does not inline, and which calls it inlines moves with the version's
+   *  budget (A1 node22 fix: Node 22 left `moonInto`, `dynTermInto` and `lampInto` out of line in `sourcesInto`, 90.4 B
+   *  a query against 58.8 on Node 24; with the point, the door segment and the grids in slots, 16.4 and 0.0). */
+  private readonly pt = new Float64Array(3);
+  /** (char-shadow-meter) Scratch: the segment ax, ay, az, bx, by, bz `doorBlocksOne` tests, for the same reason. */
+  private readonly seg = new Float64Array(6);
 
   /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
@@ -196,13 +236,21 @@ export class LightField {
 
   /** One baked lamp's gameplay light at a point (intensity x falloff x cone x visibility, doors applied). */
   lampAt(i: number, x: number, y: number, z: number): number {
-    this.lampInto(i, x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.lampInto(i);
     return this.res;
   }
 
   /** Baked visibility of lamp `i` at a point (0..1): trilinear between cell centres, clamped to its box. */
   visAt(i: number, x: number, y: number, z: number): number {
-    this.visInto(i, x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.visInto(i);
     return this.res;
   }
 
@@ -215,7 +263,11 @@ export class LightField {
 
   /** Moon visibility at a point (0..1); outside the grid the sky is open. */
   moonAt(x: number, y: number, z: number): number {
-    this.moonInto(x, y, z);
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    this.moonInto();
     return this.res;
   }
 
@@ -225,9 +277,78 @@ export class LightField {
     return this.res;
   }
 
-  /** Everything at a point: `levelAt` + `dynamicAt`, clamped. */
-  totalAt(x: number, y: number, z: number, occluded?: Occluder): number {
-    this.totalInto(x, y, z, occluded);
+  /**
+   * Everything at a point: `levelAt` + `dynamicAt`, clamped. (char-shadow-meter) With a contract `chars`, each member
+   * of the gameplay lamp set (the column's lamps giving at least `CHAR_LIGHT.minLevel` here, the moon, the non-baked
+   * lights) is scaled by the characters between it and the point (`CharOccluders.transmitInto`, `skip` the sampled
+   * character's owner key); without one (or `null`) it is today's value to the bit.
+   */
+  totalAt(x: number, y: number, z: number, occluded?: Occluder, chars: CharOccluders | null = null, skip = -1): number {
+    this.totalInto(x, y, z, occluded, chars, skip);
+    return this.res;
+  }
+
+  /**
+   * (char-shadow-meter) The gameplay set at a point (the members `totalAt` gives the character term), strongest first:
+   * registry light ids (-1 the moon) into `ids`, their terms (no character term) into `lv`; returns the count (<= max).
+   * A member with a zero term is left out. For ShadowCues (S3); no allocation.
+   */
+  sourcesInto(x: number, y: number, z: number, ids: Int32Array, lv: Float32Array, max: number, occluded?: Occluder): number {
+    let n = 0;
+    if (max <= 0) return 0;
+    // (the point for the steps below: no double crosses their calls)
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    const b = this.bake;
+    if (b && b.moonLight > 0) {
+      this.moonInto();
+      const m = b.moonLight * this.res;
+      if (m > 0) {
+        this.pushLv[0] = m;
+        n = this.pushRes(ids, lv, n, max, -1);
+      }
+    }
+    const cn = this.columnInto();
+    for (let s = 0; s < cn; s++) {
+      const L = this.colLv[s]!;
+      if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) {
+        this.pushLv[0] = L;
+        n = this.pushRes(ids, lv, n, max, this.ids[this.colLamp[s]!]!);
+      }
+    }
+    const ls = this.reg.lights;
+    for (let i = 0; i < ls.length; i++) {
+      if (i < this.isBaked.length && this.isBaked[i]) continue;
+      this.dynTermInto(i, occluded);
+      if (this.res > 0) {
+        this.pushLv[0] = this.res;
+        n = this.pushRes(ids, lv, n, max, i);
+      }
+    }
+    return n;
+  }
+
+  /** (char-shadow-meter) One set member's term at a point (no character term): registry id `id` (-1 the moon), as
+   *  `totalAt` sums it; 0 where it does not reach (a wall, a closed door, its visibility, off). */
+  sourceAt(id: number, x: number, y: number, z: number, occluded?: Occluder): number {
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
+    if (id === -1) {
+      const b = this.bake;
+      if (!b || !(b.moonLight > 0)) return 0;
+      this.moonInto();
+      return b.moonLight * this.res;
+    }
+    if (id < 0) return 0;
+    if (id < this.isBaked.length && this.isBaked[id]) {
+      this.lampInto(this.bakeIdx[id]!);
+      return this.res;
+    }
+    this.dynTermInto(id, occluded);
     return this.res;
   }
 
@@ -237,37 +358,106 @@ export class LightField {
    * 12) `hx`, `hz`: the head's horizontal offset from the feet (a peek past a wall edge), so the head is sampled where
    * it is (light parity, bible 5.1).
    */
-  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0): number {
-    this.totalInto(x, feetY + height * 0.6, z, occluded);
+  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0, chars: CharOccluders | null = null, skip = -1): number {
+    this.totalInto(x, feetY + height * 0.6, z, occluded, chars, skip);
     const chest = this.res;
     if (chest >= 1) return 1;
-    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded);
+    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded, chars, skip);
     const head = this.res;
     return chest > head ? chest : head;
   }
 
-  private totalInto(x: number, y: number, z: number, occluded: Occluder | undefined): void {
-    this.levelInto(x, y, z);
+  private totalInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
+    this.levelInto(x, y, z, ch, skip);
     const s = this.res;
     if (s >= 1) {
       this.res = 1;
       return;
     }
-    this.dynamicInto(x, y, z, occluded);
+    this.dynamicInto(x, y, z, occluded, ch, skip);
     const v = s + this.res;
     this.res = v > 1 ? 1 : v;
   }
 
-  private levelInto(x: number, y: number, z: number): void {
+  /** (char-shadow-meter) The `pt` point's 2 m column: its lamps' bake indices into `colLamp`, their terms into `colLv`;
+   *  returns how many (0 outside the grid or without a bake). */
+  private columnInto(): number {
+    const g = this.grid;
+    if (!g) return 0;
+    const q = Math.floor((this.pt[0]! - this.gx) / LAMP_GRID);
+    const r = Math.floor((this.pt[2]! - this.gz) / LAMP_GRID);
+    if (q < 0 || r < 0 || q >= g.cols || r >= g.rows) return 0;
+    const base = lampGridBase(g.cols, q, r);
+    let n = 0;
+    for (let s = 0; s < LAMP_GRID_SLOTS; s++) {
+      const fid = g.data[base + s]!;
+      if (fid === 0) break;
+      this.colLamp[n] = fid - 1;
+      n++;
+    }
+    for (let s = 0; s < n; s++) {
+      this.lampInto(this.colLamp[s]!);
+      this.colLv[s] = this.res;
+    }
+    return n;
+  }
+
+  /** (char-shadow-meter, BRIEF A1's undo) Column lamp `s` of `n` is among the `CHAR_LIGHT.maxLamps` strongest set
+   *  members there (ties: the earlier slot); always true while the cap is unlimited. */
+  private inLampSet(s: number, n: number): boolean {
+    const cap = CHAR_LIGHT.maxLamps;
+    if (!(cap < n)) return true;
+    const L = this.colLv[s]!;
+    let rank = 0;
+    for (let k = 0; k < n; k++) {
+      const M = this.colLv[k]!;
+      if (M >= CHAR_LIGHT.minLevel && (M > L || (M === L && k < s))) rank++;
+    }
+    return rank < cap;
+  }
+
+  /** (char-shadow-meter) Insert (id, `pushLv[0]`) into the strongest-first lists of `n` entries, keeping at most `max`
+   *  (ties: the earlier member first); returns the new count. (No double crosses the call.) */
+  private pushRes(ids: Int32Array, lv: Float32Array, n: number, max: number, id: number): number {
+    const level = this.pushLv[0]!;
+    let j = n < max ? n : max;
+    // (a member no stronger than the last kept one when full: dropped)
+    if (j === max && !(level > lv[max - 1]!)) return n;
+    while (j > 0 && level > lv[j - 1]!) {
+      if (j < max) {
+        ids[j] = ids[j - 1]!;
+        lv[j] = lv[j - 1]!;
+      }
+      j--;
+    }
+    ids[j] = id;
+    lv[j] = level;
+    return n < max ? n + 1 : max;
+  }
+
+  /** (char-shadow-meter) Baked lamp `i`'s position now (a swinging pendant's offset applied, as `lampInto`) into
+   *  `out[0..3)`. */
+  private lampPosInto(i: number, out: Float64Array): void {
+    const l = this.reg.lights[this.ids[i]!]!;
+    const o = i * LS;
+    out[0] = this.lamp[o]! + l.swx;
+    out[1] = this.lamp[o + 1]! + l.swy;
+    out[2] = this.lamp[o + 2]! + l.swz;
+  }
+
+  private levelInto(x: number, y: number, z: number, ch: CharOccluders | null = null, skip = -1): void {
     const b = this.bake;
     // (no bake: the registry's ambient; every light is dynamic)
     if (!b) {
       this.res = this.reg.ambientAt(x, y, z);
       return;
     }
-    const ag = b.ambient;
+    const pt = this.pt;
+    pt[0] = x;
+    pt[1] = y;
+    pt[2] = z;
     // (shadow audit) the ambient fill read trilinearly, as the shaders' bilinear `lampAmb` texture reads it
-    this.triInto(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z);
+    this.triInto(b.ambient.data, this.ambG!, 0);
     let v = this.res;
     // (LR16-1) the lit lamps' bounce: the same cells, read without blending across a wall (fix round), as the shader
     // reads the fill texture's green channel
@@ -276,8 +466,47 @@ export class LightField {
       v += this.res;
     }
     if (b.moonLight > 0) {
-      this.moonInto(x, y, z);
-      v += b.moonLight * this.res;
+      this.moonInto();
+      let m = b.moonLight * this.res;
+      // (char-shadow-meter) the moon's source: `moonFar` m along its direction from the point
+      if (ch !== null && m > 0) {
+        const d = b.moon.dir;
+        const far = CHAR_LIGHT.moonFar;
+        // (`ch.transmitInto` through its `q` slots: no double crosses a call, so nothing is boxed)
+        const q = ch.q;
+        q[0] = x + d[0] * far;
+        q[1] = y + d[1] * far;
+        q[2] = z + d[2] * far;
+        q[3] = x;
+        q[4] = y;
+        q[5] = z;
+        ch.transmitQ(skip);
+        m *= ch.t;
+      }
+      v += m;
+    }
+    // (char-shadow-meter) with a contract: the column's set lamps scaled by the characters between
+    if (ch !== null) {
+      const n = this.columnInto();
+      for (let s = 0; s < n; s++) {
+        let L = this.colLv[s]!;
+        if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, n)) {
+          this.lampPosInto(this.colLamp[s]!, ch.q);
+          const q = ch.q;
+          q[3] = x;
+          q[4] = y;
+          q[5] = z;
+          ch.transmitQ(skip);
+          L *= ch.t;
+        }
+        v += L;
+        if (v >= 1) {
+          this.res = 1;
+          return;
+        }
+      }
+      this.res = v < 0 ? 0 : v > 1 ? 1 : v;
+      return;
     }
     const g = this.grid;
     if (g) {
@@ -288,7 +517,7 @@ export class LightField {
         for (let s = 0; s < LAMP_GRID_SLOTS; s++) {
           const fid = g.data[base + s]!;
           if (fid === 0) break;
-          this.lampInto(fid - 1, x, y, z);
+          this.lampInto(fid - 1);
           v += this.res;
           if (v >= 1) {
             this.res = 1;
@@ -300,10 +529,15 @@ export class LightField {
     this.res = v < 0 ? 0 : v > 1 ? 1 : v;
   }
 
-  private lampInto(i: number, x: number, y: number, z: number): void {
+  /** Baked lamp `i`'s term at the `pt` point into `res`. */
+  private lampInto(i: number): void {
     this.res = 0;
     const l = this.reg.lights[this.ids[i]!];
     if (!l || !l.on || l.destroyed || l.intensity <= 0) return;
+    const pt = this.pt;
+    const x = pt[0]!;
+    const y = pt[1]!;
+    const z = pt[2]!;
     const o = i * LS;
     const P = this.lamp;
     // (LR16-5b) where it hangs now: a swinging pendant's offset (0 for every other lamp), as the data texture's t0;
@@ -336,25 +570,31 @@ export class LightField {
       const ft = band > 1e-6 ? (ca - cut) / band : 1;
       if (ft < 1) t *= ft * ft * (3 - 2 * ft);
     }
-    this.visInto(i, x, y, z);
+    this.visInto(i);
     const vis = this.res;
     this.res = 0;
     if (vis <= 0) return;
     // (the lamp's own door list, as the shaders test it)
     const ns = this.doorSlots;
+    const sg = this.seg;
+    sg[0] = lx;
+    sg[1] = ly;
+    sg[2] = lz;
+    sg[3] = x;
+    sg[4] = y;
+    sg[5] = z;
     for (let j = 0; j < ns; j++) {
       const k = this.lampDoors[i * ns + j]!;
       if (k < 0) break;
-      if (this.doorBlocksOne(k, lx, ly, lz, x, y, z)) return;
+      if (this.doorBlocksOne(k)) return;
     }
     // (LR16-5) x the lamp's live flicker (1 steady), the value the shader's lamp colour carries
     this.res = LAMP_LEVEL_GAIN * l.intensity * l.flicker * t * vis;
   }
 
-  private visInto(i: number, x: number, y: number, z: number): void {
-    const o = i * LS;
-    const P = this.lamp;
-    this.triInto(this.bake!.lamps!.r.vis, P[o + 9]!, P[o + 10]!, P[o + 11]!, P[o + 12]!, P[o + 13]!, P[o + 14]!, P[o + 15]!, LAMP_CELL, x, y, z);
+  /** Lamp `i`'s baked visibility at the `pt` point into `res`. */
+  private visInto(i: number): void {
+    this.triInto(this.bake!.lamps!.r.vis, this.lamp, i * LS + LG);
   }
 
   /** The bounce grid (synced to the registry first: one compare when nothing changed) into `res`. */
@@ -369,18 +609,38 @@ export class LightField {
     this.res = bg.out;
   }
 
-  private moonInto(x: number, y: number, z: number): void {
+  /** Moon visibility at the `pt` point into `res`. */
+  private moonInto(): void {
     const m = this.bake?.moon;
-    const c = m ? m.cell : 1;
-    if (!m || x < m.origin[0] || z < m.origin[2] || x > m.origin[0] + m.n[0] * c || z > m.origin[2] + m.n[2] * c || y > m.origin[1] + m.n[1] * c) {
+    const G = this.moonG;
+    if (!m || !G) {
       this.res = 1;
       return;
     }
-    this.triInto(m.vis, 0, m.origin[0], m.origin[1], m.origin[2], m.n[0], m.n[1], m.n[2], c, x, y, z);
+    const x = this.pt[0]!;
+    const y = this.pt[1]!;
+    const z = this.pt[2]!;
+    const c = G[7]!;
+    if (x < G[1]! || z < G[3]! || x > G[1]! + G[4]! * c || z > G[3]! + G[6]! * c || y > G[2]! + G[5]! * c) {
+      this.res = 1;
+      return;
+    }
+    this.triInto(m.vis, G, 0);
   }
 
-  /** `trilinear` into `res`. */
-  private triInto(v: Uint8Array, at: number, ox: number, oy: number, oz: number, nx: number, ny: number, nz: number, c: number, x: number, y: number, z: number): void {
+  /** `trilinear` at the `pt` point into `res`, the grid's at, ox, oy, oz, nx, ny, nz, cell read from `g[k ..]`. */
+  private triInto(v: Uint8Array, g: Float64Array, k: number): void {
+    const at = g[k]!;
+    const ox = g[k + 1]!;
+    const oy = g[k + 2]!;
+    const oz = g[k + 3]!;
+    const nx = g[k + 4]!;
+    const ny = g[k + 5]!;
+    const nz = g[k + 6]!;
+    const c = g[k + 7]!;
+    const x = this.pt[0]!;
+    const y = this.pt[1]!;
+    const z = this.pt[2]!;
     let u = (x - ox) / c - 0.5;
     let w = (y - oy) / c - 0.5;
     let s = (z - oz) / c - 0.5;
@@ -410,7 +670,7 @@ export class LightField {
   }
 
   /** The non-baked lights (every light, without a bake), into `res`. */
-  private dynamicInto(x: number, y: number, z: number, occluded: Occluder | undefined): void {
+  private dynamicInto(x: number, y: number, z: number, occluded: Occluder | undefined, ch: CharOccluders | null = null, skip = -1): void {
     let v = 0;
     const ls = this.reg.lights;
     for (let i = 0; i < ls.length; i++) {
@@ -418,10 +678,22 @@ export class LightField {
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       if (!l.on || l.destroyed || l.intensity <= 0) continue;
       // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
-      const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+      let t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
       if (t <= 0.01) continue;
       if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;
+      // (char-shadow-meter) every non-baked light is in the set (a flashlight's holder is never its shadow: A5)
+      if (ch !== null) {
+        const q = ch.q;
+        q[0] = l.x;
+        q[1] = l.y;
+        q[2] = l.z;
+        q[3] = x;
+        q[4] = y;
+        q[5] = z;
+        ch.transmitQ(skip);
+        t *= ch.t;
+      }
       v += t;
       if (v >= 1) {
         this.res = 1;
@@ -431,16 +703,61 @@ export class LightField {
     this.res = v < 0 ? 0 : v;
   }
 
+  /** (char-shadow-meter) Non-baked light `i`'s term at the `pt` point as `dynamicInto` sums it (0 when it is left
+   *  out), into `res`. */
+  private dynTermInto(i: number, occluded: Occluder | undefined): void {
+    this.res = 0;
+    const l = this.reg.lights[i];
+    if (!l || !l.on || l.destroyed || l.intensity <= 0) return;
+    const pt = this.pt;
+    const x = pt[0]!;
+    const y = pt[1]!;
+    const z = pt[2]!;
+    const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
+    if (t <= 0.01) return;
+    if (occluded && occluded(l, x, y, z)) return;
+    if (this.doors.length) {
+      const sg = this.seg;
+      sg[0] = l.x;
+      sg[1] = l.y;
+      sg[2] = l.z;
+      sg[3] = x;
+      sg[4] = y;
+      sg[5] = z;
+      if (this.segBlocked()) return;
+    }
+    this.res = t;
+  }
+
   /** A closed door leaf between (ax, ay, az) and (bx, by, bz)? */
   doorBlocks(ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
-    for (let i = 0; i < this.doors.length; i++) if (this.doorBlocksOne(i, ax, ay, az, bx, by, bz)) return true;
+    const sg = this.seg;
+    sg[0] = ax;
+    sg[1] = ay;
+    sg[2] = az;
+    sg[3] = bx;
+    sg[4] = by;
+    sg[5] = bz;
+    return this.segBlocked();
+  }
+
+  /** `doorBlocks` for the segment in `seg`. */
+  private segBlocked(): boolean {
+    for (let i = 0; i < this.doors.length; i++) if (this.doorBlocksOne(i)) return true;
     return false;
   }
 
-  /** Door `i`'s leaf, if closed, between the two points (the same test as `nsDoorBlocks` in the shaders). */
-  private doorBlocksOne(i: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
+  /** Door `i`'s leaf, if closed, across the segment in `seg` (the same test as `nsDoorBlocks` in the shaders). */
+  private doorBlocksOne(i: number): boolean {
     const d = this.doors[i]!;
     if (d.open > DOOR_SHUT) return false;
+    const sg = this.seg;
+    const ax = sg[0]!;
+    const ay = sg[1]!;
+    const az = sg[2]!;
+    const bx = sg[3]!;
+    const by = sg[4]!;
+    const bz = sg[5]!;
     const a = d.anchor;
     const ux = Math.sin(a.yaw);
     const uz = Math.cos(a.yaw);

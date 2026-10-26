@@ -212,15 +212,55 @@ export const LOCO: { set: LocoClipSet; mocap: boolean; slots: boolean } = { set:
  * capture under `?mixamo=1`; `mixamo.ts` hands it over, this module never imports that one): a copy of `MOCAP_SET` made
  * once, and the set the switch's ON side uses (`MOCAP_SET` itself, untouched, unless a crouched walk is handed over).
  */
-const MOCAP_SET_MX: { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] } = { ...MOCAP_SET };
+const MOCAP_SET_MX: LocoClipSetMx = { ...MOCAP_SET };
 let mocapActive: LocoClipSet = MOCAP_SET;
+
+/**
+ * (mixamo-retarget I6) The mocap set's clip slots a Mixamo capture may take (the set's seconds and layers stay CMU's: a
+ * start / stop capture plays by progress over `MOCAP_START_SECONDS` / `MOCAP_STOP_SECONDS`, so the game's timing holds).
+ * A new slot (turns, strafes) needs only its name here and its recipe's `slot` (mixamo-clips.json).
+ */
+export const MX_SLOTS = ['walk', 'jog', 'run', 'sprint', 'start', 'stop', 'crouchWalk', 'turnInPlace', 'turnMoveL', 'turnMoveR', 'strafeL', 'strafeR'] as const;
+export type MixamoLocoSlot = (typeof MX_SLOTS)[number];
+
+/** The Mixamo captures handed over per slot (null: the CMU clip); written by `setMocapMixamo` only. */
+const MX_TAKEN: Record<MixamoLocoSlot, KeyedClip | null> = {
+  walk: null, jog: null, run: null, sprint: null, start: null, stop: null, crouchWalk: null,
+  turnInPlace: null, turnMoveL: null, turnMoveR: null, strafeL: null, strafeR: null,
+};
+
+/**
+ * (mixamo-retarget I1, I6) Hand Mixamo captures to the mocap set's slots (a slot left out keeps what it had; null: the
+ * CMU clip back). Rebuilds `MOCAP_SET_MX` from `MOCAP_SET` as it is now (tests swap its clips) and makes it the switch's
+ * ON set while any slot is taken, else `MOCAP_SET` itself (untouched). Once per change, never per frame.
+ */
+export function setMocapMixamo(slots: Partial<Record<MixamoLocoSlot, KeyedClip | null>>): void {
+  for (const k of MX_SLOTS) if (slots[k] !== undefined) MX_TAKEN[k] = slots[k] ?? null;
+  mocapActive = fillMocapSetMx(MOCAP_SET_MX, MX_TAKEN) ? MOCAP_SET_MX : MOCAP_SET;
+  if (LOCO.mocap) setMocapLocomotion(true);
+}
+
+/** A writable locomotion set (a copy of `MOCAP_SET` with captures in its slots). */
+export type LocoClipSetMx = { -readonly [K in keyof LocoClipSet]: LocoClipSet[K] };
+
+/**
+ * (source wire) Rebuild `out` from `MOCAP_SET` as it is now with each taken slot's capture in place; true when any slot
+ * is taken (then `out` is the set to play, else `MOCAP_SET` itself). The page's set (`setMocapMixamo`) and each Animation
+ * source's own (`animSource.ts` SOURCE_TABLES) are built by it. Once per change, never per frame.
+ */
+export function fillMocapSetMx(out: LocoClipSetMx, taken: Readonly<Record<MixamoLocoSlot, KeyedClip | null>>): boolean {
+  Object.assign(out, MOCAP_SET);
+  let any = false;
+  for (const k of MX_SLOTS) {
+    const c = taken[k];
+    if (c) { out[k] = c; any = true; }
+  }
+  return any;
+}
 
 /** (mixamo-retarget I1) The crouched walk in the mocap set's slot (null: the CMU 136_09 back); once per change. */
 export function setMocapCrouchWalk(c: KeyedClip | null): void {
-  Object.assign(MOCAP_SET_MX, MOCAP_SET); // the set as it is now (tests swap its clips), then the slot
-  MOCAP_SET_MX.crouchWalk = c ?? MOCAP_SET.crouchWalk;
-  mocapActive = c ? MOCAP_SET_MX : MOCAP_SET;
-  if (LOCO.mocap) setMocapLocomotion(true);
+  setMocapMixamo({ crouchWalk: c });
 }
 
 /** Switch the clip set (once per change; a toggle mid-stride takes the new set on the next frame). */

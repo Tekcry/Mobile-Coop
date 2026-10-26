@@ -12,13 +12,16 @@
 //   --affected <base-ref>  the suites a PR must pass: `git diff` of the merge-base with <base-ref> to HEAD (committed files only, so it
 //                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
 //                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
-//                outside REQUIRED are REPORT ONLY, as in --quick
+//                outside REQUIRED are REPORT ONLY, as in --quick; a change on the wire (src/net, or a file protocol.ts imports, read
+//                at HEAD) adds the co-op group (COOP: e2e-coop, e2e-netmove, e2e-ctcourse)
+//   E2E_REPORT   a space or comma list of suites (or parts) that run REPORT ONLY in any run (the laptop queue's report suites)
 // Which change runs what (the test tiers): docs/RULES.md "Test tiers" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, LEGACY, GPU } from './e2e-affected.mjs';
+import { selectSuites, suitesForFile, withWireSuites, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, LEGACY, GPU, AUDIO } from './e2e-affected.mjs';
+import { classify, status, reportSet, isReport } from './e2e-verdict.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -33,10 +36,9 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
 const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
-// LEGACY and GPU live in scripts/e2e-affected.mjs (the affected requests leave them out: affectedGateSuites)
+// LEGACY, AUDIO and GPU live in scripts/e2e-affected.mjs (the affected requests leave them out: affectedGateSuites)
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
 const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker']);
-const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
 // REPORT = the animation audit harness: printed as REPORT ONLY, never fails a run. Only a quick run picks it (with
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];
@@ -109,7 +111,7 @@ function changedFiles() {
 }
 
 // scripts/e2e-<x>.mjs files that are modules, not suites (master's --quick rules pick e2e-affected.mjs by name)
-const NOT_SUITES = ['e2e-affected'];
+const NOT_SUITES = ['e2e-affected', 'e2e-verdict'];
 
 /** Required suites first, then the rest (a legacy / audio suite runs REPORT ONLY; GPU suites never run on software GL; a suite without a script is dropped). A part token (`e2e-sectorops:1`) stays one job. */
 function orderPicked(picked) {
@@ -138,7 +140,14 @@ function affectedSuites() {
     console.error(`E2E ERROR: --affected ${affectedBase}: ${String(e.stderr || e.message).trim()}`);
     process.exit(1);
   }
-  const suites = selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS);
+  // (J20 T1) the wire rule reads protocol.ts as committed at HEAD (the tested commit), not the working tree
+  let protocolTs = '';
+  try {
+    protocolTs = execFileSync('git', ['show', 'HEAD:src/net/protocol.ts'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    console.error(`affected: no src/net/protocol.ts at HEAD (${String(e.stderr || e.message).trim()}): the wire rule is skipped`);
+  }
+  const suites = withWireSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS), files, protocolTs);
   console.error(`affected${wide ? ' (wide)' : ''}: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s)`);
   return orderPicked(new Set(suites));
 }
@@ -147,8 +156,10 @@ function affectedSuites() {
 // names one part. Before, a named list ran the suite whole as one job.
 const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
 const fullRun = !named.length && !selective && !legacyRun && !audioRun && !gpuRun;
-// REPORT ONLY: anim-audit always; in a quick / affected run every suite outside REQUIRED
-const report = (s) => REPORT.includes(s.split(':')[0]) || (selective && !REQUIRED_JOBS.has(s));
+// REPORT ONLY: anim-audit always; in a quick / affected run every suite outside REQUIRED; in any run the E2E_REPORT
+// suites (J20 T4: the laptop queue names an affected request's LEGACY / AUDIO suites there, so a named run never gates on them)
+const REPORT_ENV = reportSet(process.env);
+const report = (s) => REPORT.includes(s.split(':')[0]) || (selective && !REQUIRED_JOBS.has(s)) || isReport(s, REPORT_ENV);
 const jobs = flag('serial') ? 1 : Math.max(1, Number(opt('jobs') ?? process.env.E2E_JOBS ?? Math.min(5, Math.floor(cpus().length / 3))) || 1);
 if (flag('list')) {
   if (all.length) console.log(all.join('\n'));
@@ -245,12 +256,14 @@ await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () 
 }));
 server.kill();
 
-const allFailed = results.filter((r) => r.code !== 0 && !report(r.s));
-const failed = allFailed.filter((r) => !flaky(r.s));
-const flakyFailed = allFailed.filter((r) => flaky(r.s));
+// (J20 T8) a quarantine forgives an assert (exit 1) only: a quarantined suite that timed out (124, KILLED), died on a
+// signal or exited with any other code fails the run and prints FAIL (scripts/e2e-verdict.mjs, BRIEF A3)
+const verdictOpts = { report, quarantined: flaky };
+const { failed, flakyFailed } = classify(results, verdictOpts);
+const allFailed = [...failed, ...flakyFailed];
 const wall = (Date.now() - t00) / 1000;
 const sum = results.reduce((a, r) => a + r.sec, 0);
-console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${report(r.s) ? `REPORT ONLY (exit ${r.code})` : r.code === 0 ? 'ok' : flaky(r.s) ? 'FAIL (KNOWN FLAKY)' : 'FAIL'} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
+console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${status(r, verdictOpts)} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
 console.log(`\nwall ${wall.toFixed(0)}s, suites summed ${sum.toFixed(0)}s${jobs > 1 ? ` (x${(sum / wall).toFixed(1)})` : ''}`);
 if (fullRun && !allFailed.length) {
   // keep the schedule current (the file is committed: a fresh checkout starts with a good order)

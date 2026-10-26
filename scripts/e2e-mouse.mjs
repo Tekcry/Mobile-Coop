@@ -172,7 +172,7 @@ try {
       ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['CapsLock', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
       ['Space', 'jump'], ['KeyE', 'interact'], ['KeyR', 'reload'],
       ['KeyX', 'draw'], ['KeyZ', 'altFire'], ['KeyB', 'zoom'], ['KeyT', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
-      ['KeyN', 'vision'], ['KeyF', 'coop'], ['PageDown', 'coop'], ['KeyP', 'pause'],
+      ['KeyN', 'vision'], ['KeyO', 'objective'], ['KeyF', 'coop'], ['PageDown', 'coop'], ['KeyP', 'pause'],
     ];
     await page.evaluate(() => {
       const s = window.__app.input.state;

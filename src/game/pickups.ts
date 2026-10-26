@@ -93,10 +93,6 @@ export class Pickups {
     for (const it of this.items) this.activate(it, true);
   }
 
-  blips(): { x: number; z: number; kind: 'pickup' }[] {
-    return this.items.filter((i) => i.active).map((i) => ({ x: i.base.x, z: i.base.z, kind: 'pickup' as const }));
-  }
-
   dispose(): void {
     for (const it of this.items) {
       for (const p of it.parts) p.dispose();

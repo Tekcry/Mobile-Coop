@@ -4,7 +4,6 @@ import type { GameState, NetAttachment } from '../game/gameState';
 import type { Enemy } from '../ai/enemy';
 import type { HitInfo } from '../game/damage';
 import type { Interactable } from '../game/interactables';
-import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { MASK } from '../physics/groups';
@@ -833,6 +832,8 @@ export class CoopHost implements NetAttachment {
 
   /** (section-rating S3) A rating's syringe reward: `n` (a whole 0-9) more revives this op. */
   addSyringes(n: number): void {
+    // (J14 F1, conformance M3, G126) the one "no syringe grant outside Sector Ops" rule: Course mode keeps 2 revives
+    if (this.g.opts.mode !== 'sector') return;
     const k = Number.isFinite(n) ? Math.max(0, Math.min(9, Math.floor(n))) : 0;
     this.reviveClock.cap += k;
   }
@@ -890,7 +891,8 @@ export class CoopHost implements NetAttachment {
     }
     const held = this.seized.get(e.id);
     if (m.ph === 'start') {
-      if (!r.alive || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
+      // (G348) never a dog, whatever the client offered
+      if (!r.alive || e.def.quadruped || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
         deny();
         return;
       }
@@ -1940,14 +1942,6 @@ export class CoopHost implements NetAttachment {
     const r = this.remotes.get(who);
     if (!r) return;
     this.push({ e: 'pickup', player: who, kind });
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const r of this.remotes.values()) {
-      out.push({ x: r.feet.x, z: r.feet.z, kind: 'ally' });
-    }
-    return out;
   }
 
   onEnd(won: boolean, subtitle: string): void {

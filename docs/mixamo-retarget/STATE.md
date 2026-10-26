@@ -76,6 +76,31 @@ any commit (only the art-credits licence sentence, A11 cleared, stays: 9433a960c
 - At the save: left = full CLIPS.md re-emit (partial runs keep it), the stance leg-channel check the I3 checker asked
   (knee readings equal the hand-made blend, not traced in mixKeyed), the animGraph `./mixamo` import fold, laptop e2e.
 
+## I5 (2026-10-26, feature/mixamo-i5, worktree -m2): carry and strike on Wren
+- Done: WREN_CARRY / WREN_STRIKE + rows, animGraph carryShot / strikeShot, strikeBodyAt scale + 1 line in characterRig
+  (strikeCap), tests/mixamoCarryStrike.test.ts, I5-REPORT.md, changes/feature-mixamo-i5.md. Merged feature/mixamo-i4
+  a3c424b7 (I4 rows on; I5 rows appended) and feature/mixamo-i2 9be7701f (capture-path alloc fix: the traverse alloc
+  failure is gone).
+- Rows: carry_body_walking / carry_body_idle on; kneel_down Studio only. Strike: the take's pelvis turn and x / z now
+  stay the hand-made (strikeBodyAt keeps the hips, scales only the shoulder line past them and the neck): the hip spin
+  is gone (knees 0.57-0.67 x hips, knee out 5.7 cm, hand-made 0.63-0.70 / 5.0), but the bone step still breaks the cap
+  (elbow strike 36.5, cross punch 54.8 deg a frame vs 34.1: the take's ~18 frames to contact on the arc's ~4), so
+  elbow_strike / cross_punch stay off. Lethal takedown blows would reach strikeShot too: needs a kill bit before a strike
+  row goes on (I5-REPORT "Deviations").
+- Tests: 17 files 167 passed, 1 skipped; typecheck, eslint clean. Left: laptop e2e (affected-e2e src/anim, src/player
+  co-op group, e2e-anim, e2e-weapons-carry, anim-audit), checker.
+- Done (CI alloc fix): real, not noise. `mixamoTrav` alone allocated 32-160 B a frame (kept channels' `evalCurve` not inlined: boxed time and value); `evalCurveIO` (curves.ts) and the capture doubles in a Float64Array make it 0; the test reads `mixamoTrav` directly (the whole frame swung 1.4 KB between rounds). 3 runs pass.
+
+## I6
+
+At the save (00:44, 2026-10-26, branch feature/mixamo-i6):
+- Done: recipes for the 7 locomotion clips (`slot` field, gait bands walk/jog/run); Mirror-note slug fix (`walking_left_turn_mirror`); `setMocapMixamo` (mocap.ts, all keyed slots) + `MIXAMO_LOCO` (empty) / `MIXAMO_ON` rows (mixamo.ts); tests/mixamoLoco.test.ts. Dumped 0 of 17 (both heavy locks held by the laptop queue all session); emitted 0; wired 0 clips (registry empty).
+- Left: dump (`node scripts/mocap/mixamo.mjs` under a heavy lock: 17 to do), emit, rows in `MIXAMO_LOCO`, Studio rows, measure (slide / seam / knee / elbow vs CMU), recipes for the 10 later clips (turns, strafes, sneaks, backwards); mixamoEmit "one module per recipe" fails until emitted; mixamoSwitch (e) alloc test failed once (103 s, check if timeout or real), I6-REPORT, changes/feature-mixamo-i6.md.
+
+I6 built (2026-10-26, feature/mixamo-i6):
+- Done: 17 dumped (heavy2.lock), 17 emitted (turn kind, strafe band, faceTake, jog cycles), 17 Studio rows, CLIPS.md, 11 in `MIXAMO_LOCO`; rows on: walking, jogging, start / stop walking, right_turn, walking turns L / R, strafes L / R; off: running, fast_run (knees cross). Credits, I6-REPORT.md, changes/feature-mixamo-i6.md. mixamoLoco 16/16, related vitest 118 pass.
+- Left: laptop run (affected-e2e src/anim, e2e-anim, e2e-move, anim-audit, e2e-studio), checker.
+
 ## Source wire (feature/mixamo-source-wire, stacked on the toggle 4286b7215)
 G400 (Michael Q39: "yes players must look exact in everyones games"): replaces A13 (per-viewer). Each player's own
 Animation source rides `PlayerState.an` (0 hand / 2 mixamo; no field = CMU, also an older sender; PROTOCOL_VERSION not
@@ -93,3 +118,14 @@ bumped); every screen draws that player with the OWNER's source. Undo: drop the 
   tests/animSourceWire.test.ts 9/9 (+ animSource 21/21), net / coopFix / coopCarry 114/114. The no-allocation check
   reads both on one graph (two graphs read V8's tier: 1744 B vs 171 B, 1 run in 3). Report: WIRE-REPORT.md.
 - Next: two Opus checkers on the head.
+
+### Merge of feature/mixamo-on 9a326d4e4 (I5 carry / strike, I6 locomotion), 2026-10-26
+- Per-source coverage extended to the new tables (a remote partner is drawn in the OWNER's source for these too):
+  `SourceTables` gained `carry` / `strike` (`PAGE_TABLES` = WREN_CARRY / WREN_STRIKE; `SOURCE_TABLES[s]` filled by
+  `fillWrenCarryStrike`), and each source's `loco.set` now carries every I6 `MIXAMO_LOCO` capture the source's rows
+  let play, not only the I1 crouched walk (`fillMixamoLoco` + mocap.ts `fillMocapSetMx`, the same two the page's
+  `setMocapMixamo` uses). The graph reads `srcTab.carry` / `srcTab.strike` (no per-frame allocation). The local path
+  is unchanged: `resolveMixamoKeyed` = `fillWrenKeyed` + `fillMixamoLoco` -> `setMocapMixamo`.
+- Still page-global (local-player reads only, not drawn per remote): `LOCO` in playerController (`mocapSide`, the
+  local driver), the tuner's Now playing line (`noteMoveSources`), main.ts `__mocapOn`. None draws a remote partner.
+- Tests: tests/animSourceWire.test.ts carry / strike / I6 slot checks added.

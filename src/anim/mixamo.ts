@@ -32,10 +32,27 @@ import type { KeyedClip } from './keyed';
 import { KEYED_IDLE } from './clips/keyed/idle';
 import { MOCAP_STANDING_IDLE } from './clips/mixamo/standing_idle';
 import { MOCAP_CROUCHED_WALKING } from './clips/mixamo/crouched_walking';
-import { setMocapCrouchWalk } from './mocap';
+import { MX_SLOTS, setMocapMixamo, type MixamoLocoSlot } from './mocap';
 // (mixamo-retarget I3) the stance changes
 import { MOCAP_STAND_TO_CROUCH } from './clips/mixamo/stand_to_crouch';
 import { MOCAP_CROUCH_TO_STAND } from './clips/mixamo/crouch_to_stand';
+// (mixamo-retarget I5) the body carry and the strike
+import { MOCAP_CARRY_BODY_WALKING } from './clips/mixamo/carry_body_walking';
+import { MOCAP_CARRY_BODY_IDLE } from './clips/mixamo/carry_body_idle';
+import { MOCAP_ELBOW_STRIKE } from './clips/mixamo/elbow_strike';
+import { MOCAP_CROSS_PUNCH } from './clips/mixamo/cross_punch';
+// (mixamo-retarget I6) the locomotion set
+import { MOCAP_WALKING } from './clips/mixamo/walking';
+import { MOCAP_JOGGING } from './clips/mixamo/jogging';
+import { MOCAP_RUNNING } from './clips/mixamo/running';
+import { MOCAP_FAST_RUN } from './clips/mixamo/fast_run';
+import { MOCAP_START_WALKING } from './clips/mixamo/start_walking';
+import { MOCAP_STOP_WALKING } from './clips/mixamo/stop_walking';
+import { MOCAP_RIGHT_TURN } from './clips/mixamo/right_turn';
+import { MOCAP_WALKING_LEFT_TURN } from './clips/mixamo/walking_left_turn';
+import { MOCAP_WALKING_LEFT_TURN_MIRROR } from './clips/mixamo/walking_left_turn_mirror';
+import { MOCAP_LEFT_STRAFE_WALKING } from './clips/mixamo/left_strafe_walking';
+import { MOCAP_RIGHT_STRAFE_WALKING } from './clips/mixamo/right_strafe_walking';
 
 /** A Wren traversal slot (above). */
 export type MixamoTravSlot = 'hangIdle' | 'shimmyL' | 'shimmyR' | 'climbUpCrouch' | 'climbUpStand' | 'ladder' | 'ladderTop' | 'crawl';
@@ -93,6 +110,37 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // (I4) on: trimmed to the rise (0.35-1.25 s), no head channel, edge fade 0.4: bone step 16.0 deg (was 24.3; hand-made
   // 14.3), velocity pop 13.8 cm a frame (was 11.3; hand-made 6.4), elbows 10.9 cm (hand-made 6.75), knees as hand-made
   crouch_to_stand: true,
+  // (mixamo-retarget I5) the body carry and the strike (tests/mixamoCarryStrike.test.ts (d), docs/mixamo-retarget/
+  // I5-REPORT.md; Michael 2026-10-26: the capture plays unless visibly broken in play)
+  carry_body_walking: true,
+  carry_body_idle: true,
+  // off: the take's 92 deg hip spin over the planted feet is out (the pelvis turn stays the hand-made strike's: knees
+  // 0.57-0.67 x hips, knee out 5.7 cm, hand-made 0.63-0.70 / 5.0), but its 18 frames to contact squeezed onto the arc's
+  // ~4 turn a forearm 36.5 deg in a frame (cap: hand-made 33.1 + 1); elbows 28 cm out (15)
+  elbow_strike: false,
+  // off: as the elbow strike: a forearm 54.8 deg in a frame (17 frames to contact squeezed onto ~4); hips as hand-made
+  // Before either goes on: the lethal takedown blow and its tail (`killWarp`, the victim at the hands, no bend) reach
+  // `strikeShot` on the same arc and would play the take at the kill's pace; no AnimInput tells them apart yet (I5-REPORT)
+  cross_punch: false,
+  // Studio only: the game's put down is the 0.8 s standing roll off the shoulder (bodyCarry `beginDrop`), not a kneel,
+  // and its clock is not in the pose input (J19 R11, the kneeling put down, is not built)
+  kneel_down: false,
+  // (mixamo-retarget I6) the locomotion set (Michael 2026-10-26: a row plays unless visibly broken), measured headless on
+  // Wren's rig against the CMU clip in the same move (tests/mixamoLoco.test.ts (d), docs/mixamo-retarget/I6-REPORT.md)
+  walking: true,
+  jogging: true,
+  // off: at the run band the knees cross (-0.38 x the hips, CMU 0.80), a knee swings 25 cm outside its ankle (CMU 5) and
+  // a shin turns 25.1 deg in a frame (CMU 13.8)
+  running: false,
+  // off: at the sprint the knees cross (-0.18 x the hips, CMU 0.75) and a knee swings 20 cm out (CMU 2.6)
+  fast_run: false,
+  start_walking: true,
+  stop_walking: true,
+  right_turn: true,
+  walking_left_turn: true,
+  walking_left_turn_mirror: true,
+  left_strafe_walking: true,
+  right_strafe_walking: true,
 };
 
 /** The hanging idle's clock: its capture seconds a cycle (CHANNELS.md: "its own seconds"). */
@@ -161,6 +209,7 @@ export function resolveMixamo(): void {
   }
   resolveMixamoKeyed(); // (mixamo-retarget I1)
   resolveMixamoStance(); // (mixamo-retarget I3)
+  resolveMixamoCarryStrike(); // (mixamo-retarget I5)
   for (const fn of RESOLVERS) fn();
 }
 
@@ -233,8 +282,54 @@ export function fillWrenKeyed(K: WrenKeyed, on: boolean): void {
 /** Rewrite `WREN_KEYED` from the flag and `MIXAMO_ON`, and hand the crouched walk to the mocap set (once per change). */
 function resolveMixamoKeyed(): void {
   fillWrenKeyed(WREN_KEYED, MIXAMO.on);
-  setMocapCrouchWalk(WREN_KEYED.crouchWalk);
+  fillMixamoLoco(MX_LOCO_TAKEN, MIXAMO.on, WREN_KEYED.crouchWalk);
+  setMocapMixamo(MX_LOCO_TAKEN);
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (mixamo-retarget I6) Wren's locomotion set from Mixamo (PLAN "Clip map", "I6"; A2: locomotion clips, so they also need
+// the "Mocap locomotion" switch): each capture below takes its CMU slot in the mocap set (`setMocapMixamo`) when
+// `MIXAMO.on && MIXAMO_ON[slug]`, else the CMU clip plays. The set's seconds and layers stay CMU's (a start / stop
+// capture plays by progress over the CMU slot's seconds; a gait cycle is fitted to the planner band by the emitter), so
+// gameplay speed and timing never change. Guards never read `LOCO` (Wren only). Resolved once per change.
+// To add a capture: its recipe in mixamo-clips.json with `slot`, emit, then one row here and one in `MIXAMO_ON`.
+
+/** Each locomotion capture by its slug (the module `clips/mixamo/<slug>.ts`), its clip and the mocap slot it takes. */
+export const MIXAMO_LOCO: Readonly<Record<string, { clip: KeyedClip | null; slot: MixamoLocoSlot }>> = {
+  walking: { clip: MOCAP_WALKING, slot: 'walk' },
+  jogging: { clip: MOCAP_JOGGING, slot: 'jog' },
+  running: { clip: MOCAP_RUNNING, slot: 'run' },
+  fast_run: { clip: MOCAP_FAST_RUN, slot: 'sprint' },
+  start_walking: { clip: MOCAP_START_WALKING, slot: 'start' },
+  stop_walking: { clip: MOCAP_STOP_WALKING, slot: 'stop' },
+  right_turn: { clip: MOCAP_RIGHT_TURN, slot: 'turnInPlace' },
+  walking_left_turn: { clip: MOCAP_WALKING_LEFT_TURN, slot: 'turnMoveL' },
+  walking_left_turn_mirror: { clip: MOCAP_WALKING_LEFT_TURN_MIRROR, slot: 'turnMoveR' },
+  left_strafe_walking: { clip: MOCAP_LEFT_STRAFE_WALKING, slot: 'strafeL' },
+  right_strafe_walking: { clip: MOCAP_RIGHT_STRAFE_WALKING, slot: 'strafeR' },
+};
+
+/** The mocap slots a capture takes (null: the CMU clip). */
+export type MixamoLocoTaken = Record<MixamoLocoSlot, KeyedClip | null>;
+
+/** An empty slot table (every slot the CMU clip). */
+export function newMixamoLocoTaken(): MixamoLocoTaken {
+  return { walk: null, jog: null, run: null, sprint: null, start: null, stop: null, crouchWalk: null, turnInPlace: null, turnMoveL: null, turnMoveR: null, strafeL: null, strafeR: null };
+}
+
+/**
+ * (source wire) Fill a slot table for the captures on (`on`) or off from `MIXAMO_ON`, with the crouched walk `crouchWalk`
+ * (the keyed table's: `fillWrenKeyed`) in its slot (pure; once per change). The page's slots (`MX_LOCO_TAKEN`, handed to
+ * `setMocapMixamo`) and each Animation source's own (`animSource.ts` SOURCE_TABLES) are filled by it.
+ */
+export function fillMixamoLoco(T: MixamoLocoTaken, on: boolean, crouchWalk: KeyedClip | null): void {
+  for (const k of MX_SLOTS) T[k] = null;
+  T.crouchWalk = crouchWalk;
+  if (on) for (const [slug, r] of Object.entries(MIXAMO_LOCO)) if (MIXAMO_ON[slug] === true && r.clip) T[r.slot] = r.clip;
+}
+
+/** The page's slots handed over (the same object always: rewritten once per change). */
+const MX_LOCO_TAKEN: MixamoLocoTaken = newMixamoLocoTaken();
 
 // ---------------------------------------------------------------------------------------------------------------------
 // (mixamo-retarget I3) Wren's stance changes (PLAN "Clip map" rows 6 and 7, "I3"; A2: they follow only the `mixamo`
@@ -265,6 +360,71 @@ function resolveMixamoStance(): void {
 export function fillWrenStance(S: WrenStance, on: boolean): void {
   S.down = on && MIXAMO_ON.stand_to_crouch === true ? MOCAP_STAND_TO_CROUCH : null;
   S.up = on && MIXAMO_ON.crouch_to_stand === true ? MOCAP_CROUCH_TO_STAND : null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (mixamo-retarget I5) Wren's body carry and strike (PLAN "Clip map" rows 12 and 14; A2: they follow only the `mixamo`
+// flag). Read by reference by the graph's keyed block (`animGraph.ts` `carryShot` / `strikeShot`, Wren rigs only:
+// `wrenReady`); with every field null the graph skips both (no sample, no write: byte-identical). The game's clocks drive
+// them, never the takes' own seconds: the carry walk on the gait phase (left strike 0), the carry idle on its own loop,
+// the strike on the arc phase (`melee`, the strike's and the kill blows' own timing) with the take's contact frame put on
+// the arc's contact (`STRIKE_ARC_CONTACT`). Rebuilt once per change by `resolveMixamo`. Above the load-time line below.
+
+/** The resolved carry and strike captures on Wren (the same object always: fields rewritten once per change). `any`: a
+ *  carry capture is filled; `contact`: the strike take's contact as a share of its frames (0 none). */
+export type WrenCarry = { any: boolean; walk: KeyedClip | null; idle: KeyedClip | null; idlePeriod: number };
+export type WrenStrike = { clip: KeyedClip | null; contact: number };
+export const WREN_CARRY: WrenCarry = { any: false, walk: null, idle: null, idlePeriod: 1 };
+export const WREN_STRIKE: WrenStrike = { clip: null, contact: 0 };
+
+/** The carry idle's take seconds a loop (its header: frames 0-300 at 30 fps, 0-10 s). */
+export const CARRY_IDLE_SECONDS = 10;
+
+/**
+ * The carry and strike fades: `strikeIn` / `strikeOut` (s) the strike capture's weight easing in at the arc's start and
+ * out after it ends (both takes start and end near the standing rest, so the ease is short). The carry capture follows
+ * the keyed weight (it eases in and out with the body's load on the shoulder: the hoist and the put down's hand-over).
+ */
+export const CARRY_STRIKE_SHOT = { strikeIn: 0.03, strikeOut: 0.12 } as const;
+
+/**
+ * A strike take's contact (0..1 of its frames): the striking hand at its furthest forward. The striking side is the wrist
+ * that travels further forward over the take (elbow strike: the left, cross punch: the right); the contact is the first
+ * frame it reaches 97% of that travel. Once per change (not per frame).
+ */
+export function strikeContact(c: KeyedClip): number {
+  const A = c.arm;
+  const N = c.frames;
+  let best = 0;
+  let side = 5;
+  for (const s of [5, 11]) {
+    let mx = -Infinity;
+    for (let f = 0; f < N; f++) mx = Math.max(mx, A[f * 12 + s]!);
+    if (mx - A[s]! > best) {
+      best = mx - A[s]!;
+      side = s;
+    }
+  }
+  const z0 = A[side]!;
+  for (let f = 0; f < N; f++) if (A[f * 12 + side]! >= z0 + 0.97 * best) return f / (N - 1);
+  return 0.5;
+}
+
+/** Rewrite `WREN_CARRY` / `WREN_STRIKE` from the flag and `MIXAMO_ON` (once per change). The elbow strike is the game's
+ *  move (the knockout's elbow arc); the cross punch plays in its place only with the elbow strike's row off. */
+function resolveMixamoCarryStrike(): void {
+  fillWrenCarryStrike(WREN_CARRY, WREN_STRIKE, MIXAMO.on);
+}
+
+/** (source wire) Fill a carry and a strike table for the captures on (`on`) or off from `MIXAMO_ON` (pure; once per
+ *  change). The page's `WREN_CARRY` / `WREN_STRIKE` and each Animation source's own (`animSource.ts`) are filled by it. */
+export function fillWrenCarryStrike(C: WrenCarry, S: WrenStrike, on: boolean): void {
+  C.walk = on && MIXAMO_ON.carry_body_walking === true ? MOCAP_CARRY_BODY_WALKING : null;
+  C.idle = on && MIXAMO_ON.carry_body_idle === true ? MOCAP_CARRY_BODY_IDLE : null;
+  C.idlePeriod = CARRY_IDLE_SECONDS;
+  C.any = C.walk !== null || C.idle !== null;
+  S.clip = !on ? null : MIXAMO_ON.elbow_strike === true ? MOCAP_ELBOW_STRIKE : MIXAMO_ON.cross_punch === true ? MOCAP_CROSS_PUNCH : null;
+  S.contact = S.clip !== null ? strikeContact(S.clip) : 0;
 }
 
 setMixamo(flags.mixamo === true);
