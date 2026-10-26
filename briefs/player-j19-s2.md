@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-26T02:55:35Z
+status: done feature/player-j19-s2 6b4f505d0b7ce1dd7b15f205fe83e366acc08df9
 
 # Brief: player-batch-j19 S2 - Palm strike recovery (Player Build)
 
@@ -372,7 +372,7 @@ Commits (each with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthrop
 - Look video: palm strikes from four sides and a whiff, each on the default source and on Mixamo (`?anim=mixamo` once
   #494 lands), for the PR body and the walk item "Palm strike: 1.4 s to free".
 
-## S2-REPORT (fill in)
+## S2-REPORT spec (from the lead)
 - Branch, the three commit shas.
 - What changed, file:line per Step item.
 - Tests: names and pass counts per file; tsc / eslint results; any pre-existing failure with its base-sha run.
@@ -397,3 +397,95 @@ Commits (each with the trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthrop
   and the whiff's pose clock; any line in `docs/` stating a 0.6 / 0.68 / 0.7 / 0.9 s strike recovery (grep and list).
 - Deviations from this brief, each with the reason.
 - Every e2e and the look video: pending PC run (list above).
+
+## S2-REPORT (Night Shift | Cloud Builder 1, 2026-10-26)
+Branch `feature/player-j19-s2` from 29f03b6c0, pushed, head `6b4f505d0b7ce1dd7b15f205fe83e366acc08df9`.
+
+### Commits
+1. `248da86e7` palm strike free 1.4 s after contact, the arc timed in seconds (R8): steps 1-3.
+2. `a26b4868d` strike timing, rig and A8 reading tests: step 4.
+3. `6b4f505d0` changelog fragment: step 5.
+
+### What changed (file:line on the head)
+- Step 1 `src/game/elbowStrike.ts`: header `:3` ("the 1.48 s timeline (J19 R8)"); `recover: 1.4` with its doc
+  `:15-17`; `STRIKE_DUR` doc `:35`.
+- Step 2 `src/anim/strikeBody.ts`: J19 header paragraph `:34-39`; `STRIKE_HIT_PH` doc `:48` (~0.054);
+  `STRIKE_CONTACT_T` `:55`, `STRIKE_WARP_PH` `:57`, `STRIKE_FOLLOW` `:61`, `STRIKE_SETTLE` `:70`; `strikeArcAt` `:78`,
+  `strikeWarp(ph)` `:96`, `arcWarp(ph, hitPh)` `:108`; `KillBlow` doc `:121`, `killWarp` doc `:145`,
+  `return arcWarp(...)` `:150`; arc timing comment `:172-176`. Every hunk's old-side range ends at or before line 122:
+  master lines 131-256 untouched.
+- Step 3, existing tests: `tests/elbowStrike.test.ts` `:6`, `:31-44`; `tests/animN4cStrike.test.ts` `arcWarp` at
+  `:224`, `:228`; `tests/animN4dKill.test.ts` import `:8`, title `:37`, `:42`, `:47`, loop bound `:391`;
+  `tests/strikePops.test.ts` `nowArc` `:55`, `strikeFrames(arcAt, posed)` `:64`, loop `:97-99`.
+- Step 4, new tests: `tests/animN4cStrike.test.ts` new describe with five `it`s `:342-457`; `tests/strikePops.test.ts`
+  `OLD_DUR` / `oldArc` `:56-62`, rig test `:188`, whiff test `:233`, A8 helpers `:434-497`, A8 describe `:500`.
+- Step 5: `changes/feature-player-j19-s2.md` (new).
+- Done-when: `git diff --stat` vs base lists only the 7 files; `git grep "strikeWarp("` has no call with a second
+  argument; `mixamo` / `animSource` in the two source files: only the existing comment at `strikeBody.ts:259`.
+
+### Tests
+- `npm run typecheck:fast` clean; eslint clean on the 6 TS files.
+- After commit 1 (first four files plus `mixamoCarryStrike`): 5 files, 39 passed.
+- After commit 3 (the whole line, `--maxWorkers=2`): 14 files, 227 passed, no failures, none pre-existing:
+  elbowStrike 5, animN4cStrike 11, animN4dKill 11, strikePops 10, mixamoCarryStrike 10 (untouched), moveState 15,
+  poseParity 12, net 84, committedMoves 7, tunerReach 15, sectorSlice0 7, animTuneBake 29, animBakeAll 10,
+  changesFragments 1.
+
+### Measured (console lines)
+```
+[j19-s2] arc pace after contact: follow-through 0.7143 / s, settle start 0.7129 / s (before R8 0.7135 / s); at the hit 0.5719
+[j19-s2] pure, per 60 Hz frame (re-timed 89 frames / before R8 41): still run 4 / 4; largest hand-weight change 0.0294 / 0.0469; its change 0.00497 / 0.00546; within 1% of rest at 1.35 s / 0.65 s; last posed frame 88: arc 0.9977, hand weight 0.0001
+[j19-s2] whiff: last posed frame 22 (367 ms): arc 0.7515, hand weight left 0.7238; before R8 arc 0.7764, hand weight 0.6311
+[j19-s2] strikeWarp: 0.0 B a call
+[j19-s2] rig: hand across frame 6 (100 ms) / before R8 frame 6 (100 ms); after contact largest wrist step 2.43 cm / 4.47 cm, step change 2.21 cm / 2.28 cm; longest run under 1 mm a frame 2; wrist travel over the last 0.3 s 2.90 cm
+[j19-s2] whiff on the rig: release wrist step 56.24 cm / before R8 53.19 cm
+```
+| Reading | Re-timed | Before R8 |
+| --- | --- | --- |
+| pure: still run / largest hand-weight change / its change | 4 / 0.0294 / 0.00497 | 4 / 0.0469 / 0.00546 |
+| pure: within 1% of rest at | 1.35 s | 0.65 s |
+| rig: hand across (frame, ms) | 6, 100 ms | 6, 100 ms |
+| rig: largest wrist step after contact / step change | 2.43 cm / 2.21 cm | 4.47 cm / 2.28 cm |
+| rig: longest run under 1 mm a frame; wrist travel last 0.3 s | 2; 2.90 cm | n/a |
+| whiff: hand weight left at release (pure); rig release wrist step | 0.724 / 56.24 cm | 0.631 / 53.19 cm |
+Frames 1-8 (wrist, pelvis, shoulders, hips) match the old strike within 1e-9 on the rig.
+
+### A8 readings (information; nothing asserted on the verdict)
+| Clip | Bone step a frame (bone) | Knees x hips | Knee out | Elbow out | Slide | Wrist a frame | Contact (ms) vs hit 83 ms | Visibly broken |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| hand-made (re-timed) | 33.1 deg (elbowR-wristR) | 0.63-0.70 | 5.0 cm | 15.4 cm | 0.0 cm | 24.2 cm | 367 (+284) | n/a |
+| elbow_strike | 36.5 deg (elbowR-wristR) | 0.57-0.67 | 5.7 cm | 28.3 cm | 0.0 cm | 21.2 cm | 83 (0) | true (POP_DEG 25) |
+| cross_punch | 54.8 deg (elbowL-wristL) | 0.57-0.67 | 5.7 cm | 22.8 cm | 0.0 cm | 26.6 cm | 83 (0) | true (POP_DEG 25) |
+- The hand-made strike's 367 ms "contact" is an artefact of the brief's measure (striking wrist furthest forward in
+  root z): the palm's forward peak falls in the settle; its real rig contact (wrist across the chest) is 100 ms.
+- Both Mixamo takes are still visibly broken by the I5 caps, so both rows stay off, as shipped.
+- `tests/mixamoCarryStrike.test.ts` (d) on the new timing:
+```
+(mixamo I5) strike (1.48 s, contact at the hit):
+elbow_strike: Mixamo step 36.5 deg (elbowR-wristR), knees 0.57-0.67 x hips, knee out 5.7 cm, elbow out 28.3 cm, slide 0.0 cm, wrist 21.2 cm/frame
+cross_punch: Mixamo step 54.8 deg (elbowL-wristL), knees 0.57-0.67 x hips, knee out 5.7 cm, elbow out 22.8 cm, slide 0.0 cm, wrist 26.6 cm/frame
+  hand-made step 33.1 deg (elbowR-wristR), knees 0.63-0.70 x hips, knee out 5.0 cm, elbow out 15.4 cm, slide 0.0 cm, wrist 24.2 cm/frame
+```
+
+### Old strike timing left in files S2 does not own (not fixed)
+- `scripts/anim-audit.mjs:607` (0.9 s), `:1131` (balance from 0.9 s `STRIKE_DUR`), `:1177` (settle from 0.9 s).
+- `scripts/e2e-coop.mjs:959` (the host's strike record ends 0.9 s).
+- `src/game/strikeController.ts:5-6`: header says contact resolves at t0 + 0.12 s, code is 0.08; the whiff's pose
+  clock is also there.
+- `scripts/e2e-pad.mjs:613-615` waits up to 1.5 s for the 1.48 s strike: tight margin.
+- `docs/systems/takedowns.md:19` ("code: `STRIKE` recovery 0.6 s") and `:164` ("recovery 0.6 s ... 0.68 s");
+  `docs/conformance-player/CONFORMANCE.md:47` (R8 row describing 0.6 s); `docs/ct-prototype/F1B-FIXES.md:14` is history
+  (1.4 -> 0.6).
+- Whiff release is a large one-frame wrist jump on the rig, 56 cm (53 cm before R8). It passes the brief's 1.3x bound,
+  but is large in both versions: polish list, with the whiff's pose clock (`strikeController.ts`, S3's file).
+
+### Deviations
+- `tests/animN4cStrike.test.ts:452`: `sink[0]! += strikeWarp(PH[k]!)` instead of `sink[0] += ...`: the brief's exact
+  text fails tsc (TS2532 under `noUncheckedIndexedAccess`); matches `tests/analogGear.test.ts:151`.
+- Print formatting only: the A8 contact ms printed with `toFixed(0)` and the A8 lines joined into one `console.info`.
+  No assertion changed.
+
+### Pending PC run
+affected-e2e (GAME + `e2e-anim`, `e2e-clip`, `e2e-move`); `anim-audit`; `e2e-coop` + `e2e-netmove` (to request);
+`e2e-takedown` ("palm strike: one hit") and `e2e-pad`; look video: palm strikes from four sides and a whiff, each on
+the default source and on Mixamo (`?anim=mixamo` once #494 lands).
