@@ -116,6 +116,10 @@ the point, `turnT = ALERT.hearLook` 2.4 s. Against the tiers: suspicious 0.3 (lo
 detection 1 never from the cue. Why it never escalates: `turning` blocks the linger rule (`alertState.ts:170`) while
 cues repeat; after the last, 0.35 drains below `lingerMeter` 0.15 within 2.22 s even at the half rate (0.09/s), before
 the 2.4 s look ends, so he calms (`:173`). The margin is the reason for 0.35: above 0.366 it breaks.
+The drain starts at once only when the target was not seen (rate > `leak`) in the last `hold` 1.2 s; inside it the
+meter first holds: at rate 0 he still calms (1.2 + 1.11 = 2.31 s < 2.4 s), but sub-leak glimpses after the hold (half
+drain, up to 1.2 + 2.22 = 3.42 s) can outlast the look and he may investigate; that hold comes from a real glimpse
+(RISE_SIGHT), not the shadow, so the escalation is sight's (plan check 1 item 4; `tests/shadowNotice.test.ts`).
 
 ## 2. Hot path (per think, per guard)
 Nothing allocates: module typed-array scratch, `hyp2`, `Math.atan2`, `wrapAngle`; `slotOf` is a string scan; the ray
