@@ -499,7 +499,7 @@ export function splitCandidates(prs, { unlabelled = true, heldOff = () => true, 
 }
 
 /**
- * F34: the drafts splitCandidates dropped -> { lines, draftSkipped: [pr], draftHeads: { [pr]: head } }. A log line
+ * F34: the drafts splitCandidates dropped -> { lines, draftSkipped: [pr], draftHeads: { [pr]: head8 } }. A log line
  * ("#<n> draft: not a candidate") only for a draft whose head differs from `prevHeads` (the last status's draftHeads),
  * so each draft head is logged once.
  */
@@ -507,8 +507,8 @@ export function draftNotes(drafts, prevHeads = {}) {
   const draftHeads = {};
   const lines = [];
   for (const d of drafts ?? []) {
-    draftHeads[d.pr] = d.head;
-    if (prevHeads?.[d.pr] !== d.head) lines.push(`  #${d.pr} draft: not a candidate (${d.branch} ${short(d.head)})`);
+    draftHeads[d.pr] = short(d.head); // 8 chars: the status line stays short with ~30 open drafts
+    if (prevHeads?.[d.pr] !== draftHeads[d.pr]) lines.push(`  #${d.pr} draft: not a candidate (${d.branch} ${short(d.head)})`);
   }
   return { lines, draftSkipped: (drafts ?? []).map((d) => d.pr), draftHeads };
 }

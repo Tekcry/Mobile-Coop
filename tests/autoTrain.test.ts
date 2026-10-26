@@ -596,7 +596,7 @@ describe('auto-train: drafts never ride a train (F34, #487 rode train 122 as a d
     expect(draftNotes(d, first.draftHeads).lines).toEqual([]);
     expect(draftNotes([{ ...d[0], head: 'cccccccc33' }], first.draftHeads).lines).toEqual(['  #487 draft: not a candidate (feature/x cccccccc)']);
     const st = withDrafts({ state: 'idle', reason: 'r', leftOut: ['a: b'] }, first, null);
-    expect(st).toMatchObject({ leftOut: ['a: b'], draftSkipped: [487, 9], draftHeads: { 487: 'aaaaaaaa11', 9: 'bbbbbbbb22' } });
+    expect(st).toMatchObject({ leftOut: ['a: b'], draftSkipped: [487, 9], draftHeads: { 487: 'aaaaaaaa', 9: 'bbbbbbbb' } });
     expect(withDrafts({ state: 'pending', reason: 'r' }, null, st)).toMatchObject({ draftSkipped: [487, 9] });
     expect(withDrafts({ state: 'idle', reason: 'r', draftSkipped: [1] }, draftNotes([], {}), st)).toEqual({ state: 'idle', reason: 'r' });
   });
