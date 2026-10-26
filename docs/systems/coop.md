@@ -405,7 +405,15 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   | Chimney Pair (K3) | `chimneyPair` | 256 | chimneyOffer, chimneyBrace, chimneyClimb, chimneyTop | chimneyJoin, chimneyPush, chimneyRise, chimneyOut | brace / climb | a | 11 `a5-chimney` |
   | Swing Pass (K4) | `swingPass` | 512 | swingOffer, swingHold | swingRide, swingRelease | hang-down offer / vault | a (rider) | 12 `a5-swing` |
   | Plank Bridge (K5a, K5b) | `plankBridge` | 1024 | plankOffer, plankLift, plankCarry, plankDrop, plankLay | plankJoin, plankLiftA, plankCarryA, plankDropA, plankLayA | brace / walk | host tick (a crossing) | 5 `a2-plank` |
-  | (K5a built, `game/kit/plankBridge.ts`, `world/plankBridge.ts` `PlankBoards`) | `s` -(spot index + 1) offering, spot index + 1 lifting / carrying, 0 putting down | | offer, lift, carry, put down (lay K5b) | lift, carry, put down (`plankJoin` unused: free until the start) | board drawn between the two bodies' hand points on every page (no board pose on the wire) | ends: 'drop' only; restart: `checkpointRestart` -> every board back on its stack | no station change (lay K5b) |
+  | (K5a + K5b built, `game/kit/plankBridge.ts`, `world/plankBridge.ts` `PlankBoards`; in `KIT_BUILT`) | `s` -(index + 1) offering, index + 1 lifting / carrying / laying, 0 putting down; a lay's `tmove` `s` 2 + yaw turns with the claimed far end | | all (`plankJoin` unused) | all | board between the two bodies' hands; laid: a static collider | host tick (a crossing) | uses the real move when the id is on |
+
+  Plank Bridge's lay (K5b): carrying, each page searches from the front carrier for a near edge within 1.0 m and a far
+  floor 1.0-3.3 m on (level -0.3 / +0.2 m; the probes and the slide line pass under A2's raised panel); Co-op asks the
+  host with the far end claimed (`claimsPoint`: a claimed point marks a lay, none a lift) and the board's yaw in `s`;
+  every page lays the same board from the start alone. Guards notice a laid board as a held-open shutter
+  (`stealthSystems.noticeLaidPlanks`). `KitMove.reset` (K5b): `TeamController.resetKit` calls every move's (both pages'
+  checkpoint resets, the course host's station retry); a client page puts its board home when a mate offers at the stack.
+  Not yet: a third player's page does not lay it (a two-player piece).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
