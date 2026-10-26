@@ -102,6 +102,7 @@ import { DoorGhosts } from '../vfx/doorGhosts';
 import { bodyHeat } from '../vfx/thermalGhost';
 import { VISION_GAIN } from '../world/darkCurve';
 import { NV_TONE } from '../vfx/nightVision';
+import { NV_ILLUM } from '../vfx/nvIlluminator';
 import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel, type VisionMode } from './vision';
@@ -1987,6 +1988,9 @@ export class GameState implements AppState {
   }
   /** Night vision's auto-gain: the lamps in view (Step 4b fix; rendering only). */
   private nightGain: NightAutoGain;
+  /** (nv-illuminator) The view axis for the goggles' IR illuminator (scratch; rendering only). */
+  private static readonly AXIS_Z = new Vector3(0, 0, 1);
+  private readonly illumFwd = new Vector3();
   /** Night vision's bloom (Step 4b fix round 4; rendering only). */
   private nightBloom: NightBloom;
   /** Static geometry on a segment (the glare's camera-to-lamp test; allocation-free). */
@@ -3305,6 +3309,15 @@ export class GameState implements AppState {
     // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it). (nv-pass slice 1)
     // Without baked lamps (`?gfx=min`) the tube lifts its input instead; the default pipeline's bloom is off under it
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
+    // (nv-illuminator) the goggles' IR illuminator: a soft beam from the local operator's head along the view (picture
+    // only, local only: a shader term in the lit materials, never a light the field, the bake or the meter counts)
+    if (this.world.lamps) {
+      const fw = this.illumFwd;
+      this.player.cam.camera.getDirectionToRef(GameState.AXIS_Z, fw);
+      const p = this.player.position;
+      const h = NV_ILLUM.headFwd;
+      this.world.lamps.setIlluminator(v.night, p.x + fw.x * h, p.y + this.player.controller.eyeHeight + fw.y * h, p.z + fw.z * h, fw.x, fw.y, fw.z);
+    }
     this.post.setNightLift(this.world.lamps ? 1 : NV_TONE.postLift);
     this.stack.setNightVision(this.post.nightVision);
     // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)
