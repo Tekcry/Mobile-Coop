@@ -146,6 +146,9 @@ import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
+import { IntroPose } from './introPose'; // (piano-knife S4b) the piano intro pose
+import type { IntroVariant } from '../anim/introBreath';
+import { setCloseCamera } from '../operators/runtime/figure';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
 import { TEAM_POSE_LOCAL, teamLinkFrame, teamPoseOfState } from '../anim/clips/team'; // (anim-n4b, track A)
 import { clearGripAxis } from '../player/attachGrips';
@@ -1018,6 +1021,8 @@ export class GameState implements AppState {
         crouchToggle: () => app.settings.get().gameplay.crouchToggle,
         // (anim-studio-2) the traversal loops and the pairs' viewing spot
         teleport: (x, y, z, yaw) => g.studioTeleport(x, y, z, yaw),
+        // (piano-knife S4b) the intro rows
+        introPose: (on, v) => g.introPose(on, v),
         doorOpen: () => {
           const d = world.doors.list[0];
           if (d && d.target === 0) g.startDoorOpen(0, () => world.doors.open(d, 'quiet'));
@@ -3444,7 +3449,7 @@ export class GameState implements AppState {
    */
   private wallStep(dt: number, inp: InputState, busy: boolean): void {
     const segs = this.world.level.coverSegments;
-    const w = (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
+    const w = this.wallCoreOf();
     const pl = this.player;
     const c = pl.controller;
     const tr = this.traversal;
@@ -3492,6 +3497,7 @@ export class GameState implements AppState {
     }
     const pose = pl.pose;
     pose.wall = w.active;
+    pose.intro = w.active && w.intro; // (piano-knife S4b)
     // (F4) at an edge the side is the edge's open side (the end at b is the body's left), never the slide or the camera
     pose.wallSide = w.active ? wallFacing(w.edge, w.dir) : 0;
     // (step 12, A3) the head-first peek past the edge (the hit volumes follow the rig: guards see the real body, never
@@ -3628,6 +3634,31 @@ export class GameState implements AppState {
     cam.doorPeek = dp.view();
     cam.doorEye.set(fr.ex, fr.ey, fr.ez);
     cam.doorYaw = fr.yaw;
+  }
+
+  /** The back-to-wall core (made on first use). */
+  private wallCoreOf(): WallCore {
+    const segs = this.world.level.coverSegments;
+    return (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
+  }
+
+  private introCtl: IntroPose | null = null;
+  /**
+   * (piano-knife S4b) The piano intro pose (Campaign's pianoScene: on at the intro's start, off at the cut; the Anim
+   * Studio's intro rows): back to the nearest high face, the pistol at low ready with its slide locked back, the
+   * captured breath, the hero LOD. False: no high face within reach (nothing changed) or already off.
+   */
+  introPose(on: boolean, variant: IntroVariant = 'stand'): boolean {
+    const c = (this.introCtl ??= new IntroPose({
+      wall: () => this.wallCoreOf(),
+      player: this.player,
+      pistol: () => {
+        const i = this.weapons.sidearmIndex;
+        return i >= 0 ? this.weapons.slots[i]!.model : null;
+      },
+      closeUp: (o) => setCloseCamera(this.player.cam.camera, o),
+    }));
+    return c.set(on, variant);
   }
 
   /** (anim-studio-2) The studio's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed
