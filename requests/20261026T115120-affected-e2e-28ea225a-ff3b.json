@@ -10,5 +10,6 @@
   ],
   "set": "affected",
   "laptopRerun": true,
-  "note": "desktop failure of 20261026T100251-affected-e2e-28ea225a-86ef, rerun on the laptop"
+  "note": "desktop failure of 20261026T100251-affected-e2e-28ea225a-86ef, rerun on the laptop",
+  "place": "20261026T080000-orchestrator-front-28ea225a"
 }
