@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T01:19Z
 
 # campaign J9 S1 polish: no shutter re-lift after a restart, resetKit scope test (Opus)
 Owner: Campaign Build. Lead: Night Shift | Campaign Build. Released 2026-10-26 ~12:55.
