@@ -1,4 +1,5 @@
 import vm from 'node:vm';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
@@ -666,9 +667,14 @@ describe('route-run R5 selftest fixture', () => {
   it('its expect block reads in R4a selftest checker: the briefed outcomes pass, a stubbed ladder fails', () => {
     const logs = fx.expect.runs.map((r: Obj) => ({
       id: r.id, links: Object.entries(r.outcomes).map(([index, outcome]) => ({ index: Number(index), outcome })),
-      deadStops: r.id === 'missing-ladder' ? [{ class: 'step-timeout', link: 22, t: 40, since: 40 }] : [], guards: { spawned: 8, alive: 8 },
+      deadStops: r.id === 'missing-ladder' ? [{ class: 'step-timeout', link: 22, t: 40, since: 40, step_t: 19.5, limit_s: 19.4 }] : [], guards: { spawned: 8, alive: 8 },
     }));
     expect(checkSelftest(fx.expect, logs)).toEqual([]);
+    // the missing ladder's stop must come at its limit (the step's own time against its limit), not early
+    const early = logs.find((l: Obj) => l.id === 'missing-ladder');
+    early.deadStops[0].step_t = 3;
+    expect(checkSelftest(fx.expect, logs)).toEqual(['missing-ladder: the step-timeout stop came 3 s into its step (its limit 19.4 s)']);
+    early.deadStops[0].step_t = 19.5;
     const want = Object.fromEntries(fx.expect.runs.map((r: Obj) => [r.id, r.outcomes]));
     expect(want['ladder-canopy-drop']).toEqual({ 12: 'walked', 14: 'walked', 19: 'walked' });
     expect(want['ladder-pavilion-drop']).toEqual({ 12: 'walked', 15: 'walked', 20: 'walked' });
@@ -678,5 +684,18 @@ describe('route-run R5 selftest fixture', () => {
     expect(want['boost-stubs']).toMatchObject({ 17: 'stub', 18: 'stub' });
     logs[0].links[0].outcome = 'stub';
     expect(checkSelftest(fx.expect, logs)).toEqual(['ladder-canopy-drop: link 12 stub, expected walked']);
+  });
+
+  it('--dry-run --selftest prints its runs with each link step limit, no browser', () => {
+    const out = execFileSync(process.execPath, ['scripts/route-run.mjs', '--dry-run', '--selftest', 'tests/fixtures/route-run/selftest-steps.graph.json'], { encoding: 'utf8', timeout: 60000 });
+    expect(out).toContain('note: selftest selftest-steps.graph.json, 1 robot(s)');
+    expect(out).toContain('6 run(s)');
+    expect(out).not.toContain('UNPLANNABLE');
+    expect(out).toContain('- missing-ladder (S1, selftest)');
+    expect(out).toContain('link 22 s1-lawn -> s1-plantroof ladder [ladder, limit 19.4 s]');
+    expect(out).toContain('link 12 s1-dyard -> s1-plantroof ladder [ladder, limit 19.4 s]');
+    expect(out).toMatch(/link 19 \S+ -> s1-forecourt drop \[drop, limit 5 s\]/);
+    expect(out).toMatch(/link 0 s1-verge -> s1-gatehouse window \[window, limit 8 s\]/);
+    expect(out).toMatch(/link 17 \S+ -> \S+ coop_boost \[stub [\d.]+ s\]/);
   });
 });

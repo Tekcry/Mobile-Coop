@@ -30,6 +30,8 @@ export const DEFAULT_SELFTEST = 'tests/fixtures/route-run/selftest.graph.json';
 export const LOG_FILE = 'route-run-log.json';
 export const MARK_BEGIN = 'ROUTE-RUN-REPORT BEGIN';
 export const MARK_END = 'ROUTE-RUN-REPORT END';
+/** A selftest `atLimit` stop: at most this far (game s) past its limit (two pair ticks of steps.mjs polls, plus one). */
+export const AT_LIMIT_S = 0.5;
 /** The graph's `meta.mode` -> the game's `?mode=` (a training graph is the course). */
 export const GAME_MODES = { training: 'course' };
 
@@ -181,7 +183,12 @@ export function stepsForPath(graphs, points, indices, speed) {
   return steps;
 }
 
-/** Each link step gets `past`: `PAST_M` past its point toward its far space's centre (that floor's height), else the
+/** A selftest fixture's runs (`expect.runs[]`, each a fixed `path`), each link step with its `past`. */
+export function selftestRuns(fixture, graphs, points, speed) {
+  return fixture.expect.runs.map((r) => ({ id: r.id, section: r.section, kind: null, name: r.name ?? r.id, covers: [], unplannable: null, steps: addPast(stepsForPath(graphs, points, r.path, speed), points) }));
+}
+
+/** Each link step gets `past`:`PAST_M` past its point toward its far space's centre (that floor's height), else the
  *  next walk's target, else its own point. Recurses into split legs. */
 export function addPast(steps, points) {
   for (let i = 0; i < steps.length; i++) {
@@ -230,7 +237,8 @@ export function codeRuns(sector, section) {
 /**
  * The selftest's verdict: the fixture's `expect.runs[]` against the run logs. Each expected run names `outcomes`
  * (link index -> 'walked' | 'stub' | a stop class) and `lines` (`{ type: 'deadStop', class, link, within_s }`: a stop of
- * that class on that link, at most `within_s` game seconds after the robot's last progress; `{ type: 'noDeadStops' }`;
+ * that class on that link, at most `within_s` game seconds after the robot's last progress, with `atLimit` a link step's
+ * stop at its limit (the step's own time `step_t` within `AT_LIMIT_S` past `limit_s`); `{ type: 'noDeadStops' }`;
  * `{ type: 'guardsAll' }`: every spawned guard alive; R4b's pair lines: `{ type: 'split', id, a, b, rejoin }` both legs at once
  * by those robots, each at the rejoin; `{ type: 'stub', link, time_s, robots }` stubbed with that hold, those robots
  * placed; `{ type: 'robots', names }` the robots the log names). Returns the problems ([] = pass).
@@ -253,6 +261,7 @@ export function checkSelftest(expect, logs) {
         const s = log.deadStops.find((d) => d.class === line.class && String(d.link) === String(line.link));
         if (!s) problems.push(`${er.id}: no ${line.class} stop on link ${line.link} (stops: ${JSON.stringify(log.deadStops.map((d) => [d.class, d.link]))})`);
         else if (typeof line.within_s === 'number' && s.t - s.since > line.within_s + 1e-6) problems.push(`${er.id}: the ${line.class} stop came ${(s.t - s.since).toFixed(2)} s after the last progress (at most ${line.within_s})`);
+        else if (line.atLimit && !(typeof s.limit_s === 'number' && s.step_t >= s.limit_s - 1e-6 && s.step_t <= s.limit_s + AT_LIMIT_S + 1e-6)) problems.push(`${er.id}: the ${line.class} stop came ${s.step_t ?? '?'} s into its step (its limit ${s.limit_s ?? 'none'} s)`);
       } else if (line.type === 'noDeadStops') {
         if (log.deadStops.length) problems.push(`${er.id}: dead stops ${JSON.stringify(log.deadStops.map((d) => [d.class, d.link]))}, expected none`);
       } else if (line.type === 'split') {
@@ -301,7 +310,10 @@ export function dryRunText(plan, { section = null } = {}) {
 function stepText(s) {
   const pt = (p) => (p ? `(${p.map((v) => Math.round(v * 10) / 10).join(', ')})` : '(no point)');
   if (s.type === 'walk') return `walk to ${pt(s.to)}${s.link !== null ? ` for link ${s.link}` : ` in ${s.space}`}`;
-  if (s.type === 'link') return `link ${s.index} ${s.from} -> ${s.to} ${s.kind} [${s.action}${s.action === 'stub' ? ` ${Math.round(s.hold_s * 10) / 10} s` : ''}]`;
+  if (s.type === 'link') {
+    const lim = typeof s.limit_s === 'number' ? `, limit ${Math.round(s.limit_s * 10) / 10} s` : '';
+    return `link ${s.index} ${s.from} -> ${s.to} ${s.kind} [${s.action}${s.action === 'stub' ? ` ${Math.round(s.hold_s * 10) / 10} s` : lim}]`;
+  }
   if (s.type === 'objective') return `objective in ${s.space}`;
   if (s.type === 'split') return `split ${s.id}: a ${s.a.length} steps, b ${s.b.length} steps, rejoin ${s.rejoin}`;
   return JSON.stringify(s);
@@ -365,6 +377,12 @@ async function main(argv) {
   let plan = null;
   if (!fixture && o.routes === 'graph') plan = planRuns(graphs, points, { metrics });
   if (o.dryRun) {
+    if (fixture) {
+      // (--selftest <fixture> --dry-run) the selftest's own runs, as the run below walks them, with their limits
+      const runs = selftestRuns(fixture, graphs, points, metrics.rules.split_speed_mps).map((r) => ({ ...r, kind: 'selftest' }));
+      console.log(dryRunText({ map: meta.map, mode: meta.mode, sections: meta.sections ?? [], notes: [`selftest ${path.basename(o.selftest)}, ${players} robot(s)`], runs }, { section: o.section }));
+      return;
+    }
     if (!plan) throw new Error('route-run --dry-run: the plan needs --routes graph (code routes are read from the page)');
     console.log(dryRunText(plan, { section: o.section }));
     return;
@@ -418,12 +436,13 @@ async function main(argv) {
   try {
     const driver = ctx.driver;
     // the steps context (steps.mjs): the shots, the notes, the host clock and one clock advance that steps every page
-    Object.assign(ctx, { shots: path.join(out, 'shots'), notes, clock: () => driver.call('time'), advance: (s) => driver.advance(s) });
+    // (and the run's approach stick, which a split leg's robot driver does not carry)
+    Object.assign(ctx, { shots: path.join(out, 'shots'), notes, clock: () => driver.call('time'), advance: (s) => driver.advance(s), stick: pace.stick });
 
     // the runs, by section in graph order
     let runs;
     if (fixture) {
-      runs = fixture.expect.runs.map((r) => ({ id: r.id, section: r.section, kind: null, name: r.name ?? r.id, covers: [], unplannable: null, steps: addPast(stepsForPath(graphs, points, r.path, metrics.rules.split_speed_mps), points) }));
+      runs = selftestRuns(fixture, graphs, points, metrics.rules.split_speed_mps);
     } else if (plan) {
       runs = plan.runs.filter((r) => !o.section || r.section === o.section).map((r) => ({ ...r, steps: addPast(structuredClone(r.steps), points) }));
     } else {

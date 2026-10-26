@@ -1088,7 +1088,7 @@ export async function runOne(ctx, run) {
         file = null;
       }
     }
-    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t) });
+    log.deadStops.push({ t: r2(res.t), robot, at: [r2(res.x), r2(res.y), r2(res.z)], space: spaceAt(d.points, res.x, res.y, res.z) ?? step.space ?? null, link: step.link ?? step.index ?? null, class: cls, shot: file, since: r2(res.since ?? res.t), ...(typeof res.step_t === 'number' ? { step_t: r2(res.step_t), limit_s: res.limit_s } : {}) });
   };
   if (pair) pair.beginRun(log, stop);
   await runSteps(ctx, log, pair ? run.steps ?? [] : flatSteps(run.steps, ctx.notes), stop);
@@ -1198,12 +1198,17 @@ async function linkStep(ctx, log, step, stop) {
   }
   const step_ = stepFor(step);
   // (pair, both robots) the follower to its near-side spot beside the leader first; both placed past it (pair.mjs)
-  const r = ctx.pair && !ctx.robot ? await ctx.pair.linkStep(ctx, step, step_) : await step_(ctx, step);
+  const both = !!ctx.pair && !ctx.robot;
+  const r = both ? await ctx.pair.linkStep(ctx, step, step_) : await step_(ctx, step);
   if (r.stub) log.stubs.push(r.stub);
   if (r.outcome !== 'walked' && r.outcome !== 'stub') {
-    const p = await d.call('tick', 0);
-    await stop(r.outcome, step, p, ctx.robot);
-    await d.place(step.past ?? step.at);
+    // the robot the step names (a follower's own stop: its page's position), the step's own time and limit; then both
+    // robots past the link (a follower's stop: the follower alone, the leader took the step)
+    const who = r.robot === 'follower' ? 'follower' : ctx.robot;
+    const p = both ? await ctx.pair.stopPos(who) : await d.call('tick', 0);
+    await stop(r.outcome, step, { ...p, step_t: r.t, limit_s: r.limit_s ?? null }, who);
+    if (both) await ctx.pair.recoverPast(step, who);
+    else await d.place(step.past ?? step.at);
   }
   return r.outcome;
 }

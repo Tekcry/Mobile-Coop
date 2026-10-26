@@ -369,4 +369,53 @@ describe('the robot pair against two fake pages (PairDriver + runOne)', () => {
     expect(log.deadStops.map((d: Obj) => [d.robot, d.class])).toEqual([['follower', 'could-not-follow']]);
     expect(log.deadStops[0].t - log.deadStops[0].since).toBeGreaterThanOrEqual(8 - 1e-6);
   });
+
+  // (R5 on R4b, fix items 7-8) a drop link taken by the steps (steps.mjs, pad only) on both pages through ctx.advance:
+  // the edge at z -59.5 drops a grounded robot to y -2; a robot that is never grounded cannot take it (its 5 s limit)
+  const at = [23, 0, -61];
+  const past = [23, -2, -59];
+  const dropRun = { id: 'drop', section: 'S1', steps: [{ type: 'walk', to: at, space: 's1-verge', link: 99 }, { type: 'link', index: 99, kind: 'drop', action: 'drop', from: 's1-verge', to: 'nowhere', at, past, limit_s: 5 }] };
+  async function dropPair(leaderCan: boolean) {
+    const p = await pairCtx();
+    const teleports: number[][] = [];
+    const c = p.f.A.game.player.controller;
+    const tp = c.teleport;
+    c.teleport = (v: Obj) => {
+      teleports.push([v.x, v.y, v.z]);
+      tp(v);
+    };
+    c.grounded = leaderCan;
+    const orig = p.f.A.window.__app.loop.stepHeadless;
+    p.f.A.window.__app.loop.stepHeadless = (dt: number) => {
+      orig(dt);
+      if (c.grounded && p.f.A.pos.z > -59.5) p.f.A.pos.y = -2;
+    };
+    Object.assign(p.ctx, { advance: (s: number) => p.pair.advance(s), stick: pace.stick });
+    return { ...p, teleports, log: await runOne(p.ctx, dropRun) };
+  }
+
+  it("a follower's step timeout is the follower's stop at its page's position, with the step's time and limit; only the follower is placed past", async () => {
+    const { f, log, teleports } = await dropPair(true);
+    expect(log.links).toEqual([{ index: 99, kind: 'drop', outcome: 'step-timeout' }]);
+    expect(log.deadStops).toHaveLength(1);
+    const s = log.deadStops[0];
+    expect(s).toMatchObject({ robot: 'follower', class: 'step-timeout', link: 99, limit_s: 5 });
+    expect(s.step_t).toBeGreaterThanOrEqual(5);
+    expect(s.step_t).toBeLessThanOrEqual(5.5);
+    // where the follower stood: its near spot beside the link point, not the leader past the edge
+    expect(dist(s.at, stubSpots(at, past).followerNear)).toBeLessThan(0.5);
+    expect(s.at[1]).toBe(0);
+    // the leader took the drop and is not placed again; the follower is placed at the far spot beside `past`
+    expect(f.A.pos.y).toBe(-2);
+    expect(teleports).toEqual([]);
+    expect(dist([f.B.pos.x, 0, f.B.pos.z], stubSpots(at, past).followerFar)).toBeLessThan(0.01);
+    expect(checkSelftest({ runs: [{ id: 'drop', outcomes: { 99: 'step-timeout' }, lines: [{ type: 'deadStop', class: 'step-timeout', link: 99, atLimit: true }] }] }, [log])).toEqual([]);
+  });
+
+  it("a leader's step timeout: the leader's stop, the follower never takes it, both placed past (the follower at the far spot)", async () => {
+    const { f, log, teleports } = await dropPair(false);
+    expect(log.deadStops.map((d: Obj) => [d.robot, d.class, d.limit_s])).toEqual([['leader', 'step-timeout', 5]]);
+    expect(teleports).toEqual([past]);
+    expect(dist([f.B.pos.x, 0, f.B.pos.z], stubSpots(at, past).followerFar)).toBeLessThan(0.01);
+  });
 });
