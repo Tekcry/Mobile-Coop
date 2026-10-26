@@ -6,13 +6,10 @@
   "kind": "pr",
   "requester": "affected-e2e",
   "suites": [
-    "e2e-anim",
-    "e2e-clip",
-    "e2e-move",
-    "e2e-park",
-    "e2e-stealth",
-    "smoke"
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #532"
+  "note": "auto affected-e2e, PR #532 (re-filed at cap 3)"
 }
