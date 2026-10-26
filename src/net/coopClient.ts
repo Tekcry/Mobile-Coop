@@ -22,7 +22,7 @@ import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
-import { CharMates } from './charMates';
+import { CharMates, mateOrderInto } from './charMates';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
 import { infoAtSpawn } from '../ai/guardInfo';
@@ -414,18 +414,11 @@ export class CoopClient implements NetAttachment {
   }
 
   /** (char-shadow-meter S2c) The contract's partner list: the other players in the host's lobby order (`s.players`),
-   *  self skipped, those with an avatar. Not hot (a join, a drop, a lobby change). Nothing with the flag off. */
+   *  self skipped, a held (away) partner skipped as the host's `hold` takes it out of `remoteRefs` (fix round 1), those
+   *  with an avatar (`mateOrderInto`). Not hot (a join, a drop, a lobby change). Nothing with the flag off. */
   private relistMates(): void {
     if (!this.g.charOccluders) return;
-    const o = this.mateOrder;
-    let k = 0;
-    for (const p of this.s.players.values()) {
-      if (p.id === this.s.selfId) continue;
-      const a = this.avatars.get(p.id);
-      if (a) o[k++] = a;
-    }
-    o.length = k;
-    this.mates.set(o);
+    this.mates.set(mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder));
   }
 
   /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */

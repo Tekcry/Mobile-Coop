@@ -75,6 +75,11 @@ every step and kept; one small change (step 5 below). Tests, docs, fragment and 
   Slot order changes only machine-local owner keys and the picture's tie-break, never a sample.
 - A partner's light on a client is not stored (`updateLight` guard); the host's sample drives the guards, as before.
 - A7's ~0.3 s snapshot lag is e2e territory (S4).
+- (fix round 1) A held partner leaves the client's list on the lobby that sets `away`, as the host's `hold` drops its
+  ref. On a rejoin the lobby clears `away` at the hello (session.ts:182) but the host re-adds the ref only on the first
+  state (`resume`, coopHost.ts:507), so the client counts it a moment early (load time).
+- The host's own capsule on a client uses the binary crouch height; the host's slot 0 uses the eased `crouchBlend`
+  (about 0.2 s apart during a crouch change).
 
 ## Side notes for the lead (out of scope)
 - `playerRefsInto` (gameState.ts:1083) uses `out.length = 0` + `push`.
@@ -86,3 +91,29 @@ every step and kept; one small change (step 5 below). Tests, docs, fragment and 
 - `affected-e2e`, `e2e-coop` and `e2e-netmove` on the branch head, flag off and with `?charlight=1`.
 - The check that closes S2c is S4's e2e-coop partner probe: "partner's shadow on the client: client meter = host's
   sample within 0.02" (S4's work, not this slice's).
+
+## Fix round 1 (Opus, 2026-10-26)
+From checks A and B on 7a2f82d0 (both FIX, the same two items).
+1. tests/charMates.test.ts (c): the source reads now turn CRLF into LF (`lf`, the pattern of tests/animGear.test.ts:22)
+   in `code()` and the raw coopClient read. Why: on a Windows checkout (`core.autocrlf=true`) the `'\n  }\n'` searches
+   returned -1, so both (c) cases failed on every PC.
+2. A partner the host holds as away no longer counts on a client. The host's `hold` (coopHost.ts:480-481) takes the
+   held ref out of `remoteRefs`, but its snapshot still sends the held player (coopHost.ts:1610 skips only `!r.state`),
+   so the client kept a shown avatar and filled a slot for it: a darker client meter and a round shadow the host does
+   not have, for up to the 10 min hold. The list is now `mateOrderInto` (src/net/charMates.ts), which skips
+   `p.id === selfId || p.away`; `relistMates` calls it. `away` comes in the lobby broadcast (session.ts:290-293 on the
+   drop, :182 clears it on the hello), and `relistMates` already runs on every client `lobby` event, so the partner
+   leaves on the drop and comes back on the rejoin. Limits gained two lines (the rejoin window, the host's crouch).
+- Guard test (repeat guard): tests/charMates.test.ts "CharMates: a held partner counts on neither machine (b2, fix
+  round 1) > a partner the host holds as away gets no slot; when away clears it gets its slot back". With the
+  `|| p.away` removed it fails (`expected [ …(2) ] to deeply equal [ Src ]`); it also checks that `relistMates` goes
+  through `mateOrderInto` and runs in the `lobby` handler.
+- Polish carried (not done): `mates` / `mateOrder` allocated per client session with the flag off (two objects, once);
+  a host `addRemote` lists a remote before its first state (pre-existing, host side); (e) feeds `rp.bodyIn` to both
+  sides, so `RemoteAvatar.bodyIn` parity stays with S4's e2e-coop probe; the bytes-per-call `console.info` lines do not
+  print in the vitest reporter; `relistMates` skips a player whose lobby entry lags the snapshot until the next lobby /
+  avatar event; `CharMates.set` allocates per call (not hot).
+- Commands: `npx tsc --noEmit --incremental --tsBuildInfoFile C:/NightShift/scratch/sector-ops-checks/s2c-fix.tsbuildinfo
+  -p tsconfig.json`: exit 0. `npx vitest run tests/charMates.test.ts tests/charOccluderFill.test.ts
+  tests/charOccluders.test.ts --maxWorkers=2`: 3 files, 33 passed (Windows checkout, CRLF). The same charMates file with
+  the fix reverted: 1 failed (the guard), 11 passed. No e2e, no `npm run check`, no build.

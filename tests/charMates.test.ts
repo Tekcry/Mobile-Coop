@@ -4,6 +4,7 @@
  * - (a) one shown partner fills slot 1 as the host fills a remote: feet, the rig's standing height and the crouch flag
  *   (the meter's sample height), on a wall the sim body's head (`posedHeadSample` of `playerBody`), dead on a wall none;
  * - (b) unshown partners are skipped, `max` caps the slots, `set` keeps an entry whose source is the same object;
+ * - (b2, fix round 1) a partner the host holds as away (`PlayerInfo.away`) gets no slot, and gets it back when away clears;
  * - (c) the flag off runs as before: the hook is read only in `fillChars` after its flag-off return, the flag-off meter
  *   never reaches it, gameState and the fill never import `src/net`, and the client sets the hook only with the contract;
  * - (d) `into` allocates nothing per call;
@@ -17,7 +18,7 @@ import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HavokPlugin, Scene, Vector3 } from '../src/core/babylon';
 import { GRAVITY } from '../src/physics/havok';
-import { CharMates, type MateSource } from '../src/net/charMates';
+import { CharMates, mateOrderInto, type MateSource } from '../src/net/charMates';
 import { FILL, FILL_IN, fillPlayers, slotInto } from '../src/game/charOccluderFill';
 import { lightSampleHeight } from '../src/game/bodyHeight';
 import { posedHeadSample } from '../src/player/wallController';
@@ -27,6 +28,9 @@ import { CharOccluders, OCC, OCC_KIND, occKey } from '../src/world/charOccluders
 import { parseMessage, PF, type PlayerState } from '../src/net/protocol';
 import { RemotePlayer } from '../src/net/remotePlayer';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
+
+/** A source read with CRLF as LF (a Windows checkout, core.autocrlf=true). */
+const lf = (s: string): string => s.replace(/\r\n/g, '\n');
 
 /** Field by field, no allocation (the stub's `bodyIn`, as `RemoteAvatar.bodyIn` fills its `out`). */
 function copyBodyIn(p: PlayerBodyIn, out: PlayerBodyIn): PlayerBodyIn {
@@ -205,9 +209,52 @@ describe('CharMates: skips and caps (b)', () => {
   });
 });
 
+describe('CharMates: a held partner counts on neither machine (b2, fix round 1)', () => {
+  it('a partner the host holds as away gets no slot; when away clears it gets its slot back', () => {
+    // the client's lobby (`s.players`): self, A, B; avatars for A and B (the host's snapshot still carries a held B)
+    const players = [
+      { id: 'me', away: false },
+      { id: 'A', away: false },
+      { id: 'B', away: false },
+    ];
+    const a = new Src(3, 0, 4);
+    const b = new Src(-6, 0, 2);
+    const avatars = new Map<string, Src>([
+      ['A', a],
+      ['B', b],
+    ]);
+    const order: Src[] = [];
+    const m = new CharMates();
+    const pin = pinWithLocal();
+    m.set(mateOrderInto(players, 'me', avatars, order));
+    expect(m.into(pin, 1, 4)).toBe(2);
+    expect(slotOf(pin, 2).slice(0, 3)).toEqual([-6, 0, 2]);
+    // B drops mid-match: the host's lobby marks it away (session.ts) and its `hold` takes it out of `remoteRefs`
+    players[2]!.away = true;
+    m.set(mateOrderInto(players, 'me', avatars, order));
+    expect(order).toEqual([a]);
+    pin.fill(Number.NaN, 2 * FILL_IN);
+    expect(m.into(pin, 1, 4)).toBe(1);
+    expect(slotOf(pin, 1).slice(0, 3)).toEqual([3, 0, 4]);
+    expect(slotOf(pin, 2).every((v) => Number.isNaN(v))).toBe(true);
+    // B rejoins: the hello clears away; its slot is back
+    players[2]!.away = false;
+    m.set(mateOrderInto(players, 'me', avatars, order));
+    expect(order).toEqual([a, b]);
+    expect(m.into(pin, 1, 4)).toBe(2);
+    expect(slotOf(pin, 2).slice(0, 3)).toEqual([-6, 0, 2]);
+    // the client's relist goes through it, on every lobby event (where away is set and cleared)
+    const cc = lf(readFileSync('src/net/coopClient.ts', 'utf8'));
+    const i = cc.indexOf('private relistMates(): void {');
+    expect(i).toBeGreaterThan(0);
+    expect(cc.slice(i, cc.indexOf('\n  }\n', i))).toContain('mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder)');
+    expect(cc).toMatch(/s\.events\.on\('lobby', \(\) => \{\n\s*this\.recolour\(\);\n\s*this\.relistMates\(\);/);
+  });
+});
+
 describe('CharMates: the flag off runs as before (c, source level)', () => {
-  /** Code without comments. */
-  const code = (f: string): string => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, '');
+  /** Code without comments, CRLF read as LF (a Windows checkout, core.autocrlf=true; as tests/animGear.test.ts `lf`). */
+  const code = (f: string): string => lf(readFileSync(f, 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, '');
   /** A method's body from its signature line to the first line closing it at two spaces. */
   const method = (src: string, sig: string): string => {
     const i = src.indexOf(sig);
@@ -255,7 +302,7 @@ describe('CharMates: the flag off runs as before (c, source level)', () => {
       expect(at).toBeLessThan(close);
     }
     // (coopClient reads gameState as a type only)
-    expect(readFileSync('src/net/coopClient.ts', 'utf8')).toMatch(/import type \{[^}]*\bGameState\b[^}]*\} from '\.\.\/game\/gameState'/);
+    expect(lf(readFileSync('src/net/coopClient.ts', 'utf8'))).toMatch(/import type \{[^}]*\bGameState\b[^}]*\} from '\.\.\/game\/gameState'/);
   });
 });
 
