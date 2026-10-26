@@ -190,11 +190,9 @@ const ROPE_PIER: WharfRope = { id: 'w2-rope-pier', link: 'w2-arcade -> w2-walkwa
 const PULL_EAST: WharfPull = { id: 'w2-pull-east', link: 'w2-arcade -> w2-walkway', holder: { x: 73.5, y: LOFT, z: 59.35 }, yaw: PI, partner: { x: 73.5, y: 0, z: 58.3 } };
 
 // ---- C4 and C5 throws (M2, A4, A24): the pawn and lane throws are 5.8 m site throws over 4.9 m gaps; the pie throw stays 2.5 m ----
-/** A throw with the site's length (A24; the kit's `WharfThrow` gains `dist` in G0's throw-site step). */
-type SiteThrow = WharfThrow & { dist?: number };
-const THROW_PAWN: SiteThrow = { id: 'w2-throw-pawn', link: 'w2-pawn-loft -> w2-reading-room', thrower: { x: 51.2, y: LOFT, z: 67.2 }, runner: { x: 51.2, y: LOFT, z: 65.9 }, stage: [50.2, 72.5, 52.2, 73.5], dist: 5.8 };
-const THROW_PIE: SiteThrow = { id: 'w2-throw-pie', link: 'w2-pie-loft -> w2-clock-loft', thrower: { x: 63, y: LOFT, z: 69.6 }, runner: { x: 63, y: LOFT, z: 68.3 }, stage: [61.5, 72.5, 64.5, 73.5] };
-const THROW_LANE: SiteThrow = { id: 'w2-throw-lane', link: 'w2-arcade-roof -> w3-roof', thrower: { x: 76.7, y: ROOF, z: 66 }, runner: { x: 75.1, y: ROOF, z: 66 }, stage: [82, 64.5, 86.5, 67.5], dist: 5.8 };
+const THROW_PAWN: WharfThrow = { id: 'w2-throw-pawn', link: 'w2-pawn-loft -> w2-reading-room', thrower: { x: 51.2, y: LOFT, z: 67.2 }, runner: { x: 51.2, y: LOFT, z: 65.9 }, stage: [50.2, 72.5, 52.2, 73.5], dist: 5.8 };
+const THROW_PIE: WharfThrow = { id: 'w2-throw-pie', link: 'w2-pie-loft -> w2-clock-loft', thrower: { x: 63, y: LOFT, z: 69.6 }, runner: { x: 63, y: LOFT, z: 68.3 }, stage: [61.5, 72.5, 64.5, 73.5] };
+const THROW_LANE: WharfThrow = { id: 'w2-throw-lane', link: 'w2-arcade-roof -> w3-roof', thrower: { x: 76.7, y: ROOF, z: 66 }, runner: { x: 75.1, y: ROOF, z: 66 }, stage: [82, 64.5, 86.5, 67.5], dist: 5.8 };
 
 // ---- the drop guards (A28): the arcade roof boarded off from the lightwell side's lower roofs ----
 // The north range's insurers had the arcade leads boarded off from the lightwell after a break-in: the screens cut the arcade roof

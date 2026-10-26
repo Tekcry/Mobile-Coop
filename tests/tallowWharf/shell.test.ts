@@ -35,6 +35,18 @@ describe('tallowWharf: the map', () => {
     expect(tallowWharf.detail).toBe(false);
   });
 
+  it('(A24, M2) throwSites lists exactly two, the pawn and lane throws (5.8 m along runner -> thrower); each build returns a new array', () => {
+    const sites = builtWharf().layout.throwSites;
+    expect(sites).toEqual([
+      { x: 51.2, z: 67.2, dx: 0, dz: 1, dist: 5.8 },
+      { x: 76.7, z: 66, dx: 1, dz: 0, dist: 5.8 },
+    ]);
+    const a = tallowWharf.build(new LevelBuilder(), 0).throwSites;
+    const b = tallowWharf.build(new LevelBuilder(), 0).throwSites;
+    expect(a).toEqual(b);
+    expect(a).not.toBe(b);
+  });
+
   it('WHARF_BOUNDS, SECTION_BOX and SECTION_IDS are the graph\'s', () => {
     const [x0, z0, x1, z1] = GRAPH.meta.bounds;
     expect([WHARF_BOUNDS.minX, WHARF_BOUNDS.minZ, WHARF_BOUNDS.maxX, WHARF_BOUNDS.maxZ]).toEqual([x0, z0, x1, z1]);

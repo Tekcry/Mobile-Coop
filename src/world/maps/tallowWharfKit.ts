@@ -72,6 +72,8 @@ export interface WharfThrow {
   thrower: P3;
   runner: P3;
   stage: [number, number, number, number];
+  /** The throw length at this named spot, m (A24); unset = TEAM.throwDist. */
+  dist?: number;
 }
 /** A pull-up: the holder braces at an edge (facing `yaw`), the partner jumps from `partner` on the floor below. */
 export interface WharfPull {
