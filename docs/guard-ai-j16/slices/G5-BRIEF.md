@@ -79,8 +79,8 @@ fights or barks. Standing still, the player's shadow does nothing. With the flag
   its last candidate, possibly in the guard's view). Then spawn the guard at G with that yaw; `t.step(1)`; re-set
   `e.yaw` to the pick's yaw; assert calm (rules above).
 - Walk: no new teleport; stick `setMove('t', 0, 0.4)` so the player walks along +n until his feet have moved 1.2 m
-  along n (cap 4 s), stepping `1 / 60` s; sample each step: `g.noise`, distance and angle to the guard, `e.cueT`, `e.level`,
-  `e.meter`, `e.cueLook`, `e.turning`, and when `e.cueT === 0` the cue point against the local slot's `pts` (the same
+  along n (cap 4 s), stepping `1 / 60` s; sample each step: `g.noise`, distance and angle to the guard, `e.cueT`,
+  `e.level`, `e.meter`, `e.cueLook`, `e.turning`, and when `e.cueT === 0` the cue point against the local slot's `pts` (the same
   step's fill). Then stop (`setMove('t', 0, 0)`) and step on for 20 s, sampling each 0.25 s.
 - Asserts:
   1. A notice: some sample with `e.cueT < 1` during the walk, `e.cueSlot === g.shadowCues.slotOf('local')`, and the
