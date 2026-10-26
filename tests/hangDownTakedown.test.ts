@@ -75,7 +75,7 @@ function stage(v: Victim): { g: GameState; td: TakedownController; ev: Ev[]; tea
     stealth: null,
     wallCore: null,
     spottedLocal: false,
-    ballistics: { ray: () => ({ hit: false, distance: 0 }) },
+    ballistics: { ray: () => ({ hit: false, distance: 0 }), hitDistance: () => 100 },
     hud: { feedItem() {}, barks: { say() {} } },
     takedownVictims: () => [v],
   } as unknown as GameState;
