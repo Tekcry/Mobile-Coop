@@ -1148,6 +1148,110 @@ export function staleTasks(tasks, allow) {
   return out;
 }
 
+// ---------- failed run logs on the queue branch (laptop-queue-12, F30) ----------
+
+/** Folder on the laptop-queue branch that holds the logs of failed laptop runs, one subfolder per run. */
+export const FAILED_LOGS_DIR = 'logs/failed';
+/** state.done results (and a train's result) whose run folder is published: a real failure with logs to read. */
+export const FAILED_LOG_RESULTS = ['failure', 'build', 'incomplete'];
+const STAMP_RE = /^(\d{8}T\d{6})-/;
+const stampOf = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').slice(0, 15);
+
+/**
+ * The run's folder under FAILED_LOGS_DIR: the request id when it starts with its stamp (request.mjs ids do), else
+ * "<publish stamp>-<id>" (trains: train-<n>-<sha8>), so every folder sorts and ages by its name (failedLogsPrune).
+ */
+export function failedLogsDir(id, now) {
+  const safe = String(id).replace(/[^\w.+-]/g, '-').slice(0, 120) || 'run';
+  return `${FAILED_LOGS_DIR}/${STAMP_RE.test(safe) ? safe : `${stampOf(now)}-${safe}`}`;
+}
+
+/** Order a run folder's logs are kept in when the run cap bites: steps, flake reruns, suites, prepare, the rest. */
+const logRank = (name) => [/^step\d+\.log$/, /^rerun-.*\.log$/, /^\d+\.log$/, /^prepare.*\.log$/].findIndex((re) => re.test(name)) >>> 0;
+
+/**
+ * Which logs of a run folder ([{ name, size }] in bytes) to publish and how many tail bytes of each: only .log / .txt
+ * files, each kept to its last fileMax bytes, all together to runMax (in logRank order, then by name); a file that
+ * finds under 4 KB of room left is skipped. Returns [{ name, size, keep }] (keep < size: tail-trimmed) and skipped names.
+ */
+export function failedLogsPlan(files, { fileMax = 512 << 10, runMax = 2 << 20 } = {}) {
+  const logs = files.filter((f) => /\.(log|txt)$/i.test(f.name) && f.size > 0)
+    .sort((a, b) => logRank(a.name) - logRank(b.name) || a.name.localeCompare(b.name));
+  const keep = [];
+  const skipped = [];
+  let room = runMax;
+  for (const f of logs) {
+    const n = Math.min(f.size, fileMax, room);
+    if (n < Math.min(f.size, 4096)) { skipped.push(f.name); continue; }
+    keep.push({ name: f.name, size: f.size, keep: n });
+    room -= n;
+  }
+  return { keep, skipped };
+}
+
+/** The folders (FAILED_LOGS_DIR/<name>) to drop: older than keepDays by their name's stamp, or past the newest keepMax. */
+export function failedLogsPrune(dirs, now, { keepDays = 7, keepMax = 60 } = {}) {
+  const cutoff = stampOf(now - keepDays * 86400_000);
+  const dated = dirs.map((d) => ({ d, stamp: STAMP_RE.exec(d.split('/').pop() ?? '')?.[1] })).filter((x) => x.stamp);
+  dated.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+  return dated.filter((x, i) => i >= keepMax || x.stamp < cutoff).map((x) => x.d);
+}
+
+/** The manifest a published run folder carries (README.txt): what ran, what was cut. */
+export function failedLogsReadme({ id, sha, result, worker, at, plan, runDir }) {
+  return [
+    `run ${id} (${result}) on ${worker}, sha ${sha ?? '?'}, published ${at}`,
+    `local folder: ${runDir}`,
+    ...plan.keep.map((f) => `${f.name}: ${f.size} bytes${f.keep < f.size ? `, last ${f.keep} kept (tail-trimmed)` : ''}`),
+    ...plan.skipped.map((n) => `${n}: not published (run cap reached)`),
+    '',
+  ].join('\n');
+}
+
+/**
+ * The failure status to re-post with the logs folder: the newest status of ctx in statuses (GitHub's list, newest
+ * first) when it is still a failure without a logs path, its description shortened to fit "... logs: <dir>" in 140
+ * chars; null when nothing to re-post (a newer pending / success, already pointed, or the context missing).
+ */
+export function failedLogsStatus(statuses, ctx, dir) {
+  const s = (statuses ?? []).find((x) => x?.context === ctx);
+  if (!s || s.state !== 'failure' || String(s.description ?? '').includes(`${FAILED_LOGS_DIR}/`)) return null;
+  const tail = ` logs: ${dir}`;
+  const room = 140 - tail.length;
+  if (room < 8) return { state: 'failure', context: ctx, description: tail.trim().slice(0, 140) };
+  const d = String(s.description ?? '');
+  return { state: 'failure', context: ctx, description: `${d.length > room ? `${d.slice(0, room - 3)}...` : d}${tail}` };
+}
+
+/**
+ * One commit on top of the queue branch (refs/heads/<branch> on origin) that adds dir/<name> for each file and drops
+ * the pruned run folders (failedLogsPrune), built in a temp index (the caller's checkout untouched) and pushed; a lost
+ * push race refetches and retries (tries). run(args, { env, input }) runs git and throws on failure. Returns the pushed
+ * commit, or '' when it gave up (the caller logs it; never throws).
+ */
+export function failedLogsCommit(run, { dir, files, now, tmpIndex, env = {}, label, branch = 'laptop-queue', tries = 3, keepDays, keepMax }) {
+  const ref = `refs/remotes/origin/${branch}`;
+  const ienv = { ...env, GIT_INDEX_FILE: tmpIndex };
+  for (let i = 0; i < tries; i++) {
+    try {
+      run(['fetch', '-q', 'origin', `+refs/heads/${branch}:${ref}`]);
+      const parent = run(['rev-parse', '--verify', '-q', ref]);
+      run(['read-tree', parent], { env: ienv });
+      const have = String(run(['ls-tree', '-r', '--name-only', parent, '--', `${FAILED_LOGS_DIR}/`]) || '').split('\n').filter(Boolean);
+      const old = [...new Set(have.map((p) => p.split('/').slice(0, 3).join('/')))].filter((d) => d !== dir);
+      const drop = failedLogsPrune([...old, dir], now, { keepDays, keepMax }).filter((d) => d !== dir);
+      const gone = have.filter((p) => drop.some((d) => p.startsWith(`${d}/`)));
+      if (gone.length) run(['update-index', '--force-remove', '--stdin'], { env: ienv, input: `${gone.join('\n')}\n` });
+      const lines = files.map((f) => `100644 ${run(['hash-object', '-w', '--stdin'], { input: f.text })}\t${dir}/${f.name}\n`);
+      run(['update-index', '--add', '--index-info'], { env: ienv, input: lines.join('') });
+      const commit = run(['commit-tree', run(['write-tree'], { env: ienv }), '-p', parent, '-m', `${label}${drop.length ? `, pruned ${drop.length}` : ''}`], { env: ienv });
+      run(['push', '-q', 'origin', `${commit}:refs/heads/${branch}`]);
+      return commit;
+    } catch { /* fetch, build or push failed (a lost race): refetch and retry */ }
+  }
+  return '';
+}
+
 // ---------- affected e2e on every PR head (process audit 2026-10-24, finding 5) ----------
 
 /** The requester (and request id slug) of the requests the laptop service enqueues for PR heads by itself. */
