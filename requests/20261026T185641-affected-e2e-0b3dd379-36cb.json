@@ -1,0 +1,15 @@
+{
+  "id": "20261026T185641-affected-e2e-0b3dd379-36cb",
+  "sha": "0b3dd37943dff917eaf583d9e8b84db322556613",
+  "branch": "feature/marlow-kit-wire",
+  "pr": 612,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #612"
+}
