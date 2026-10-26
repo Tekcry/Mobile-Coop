@@ -124,7 +124,7 @@ stat), which nothing here reads or changes.
   - Levels: shots and suppressed shots by body RMS (peaks under 0.97), handling and brass by body RMS.
 - **Planner** (`audio/weapons/guns.ts`, pure, allocation-free per call, tested in `tests/weapons-audio.test.ts`):
   - `GUNS` maps the two CT kit guns (`rifle`, `pistolSd`) and the guns the guards sound like to a recording, rate,
-    level, suppressed bank, casing, action (bolt or none) and reload kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt AK, heavy LMG,
+    level, suppressed bank, casing, action (bolt or none) and reload kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt and runner AK, heavy LMG,
     sniper, enforcer semi-auto shotgun, drone operator SMG, officer pistol).
   - A shot: one take, rate +-3.5 %, level +-12 %, never the same take twice in a row (`TakePicker`). Remote shots
     crossfade near to far between 8 and 30 m (equal power) and low-pass with distance.
