@@ -34,6 +34,11 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
 - 2026-10-26 ~20:40 (relayed by the orchestrator, not verbatim): Michael supplied a second Pixabay track for the picker,
   "Suspense Thriller" by Alex Grohl (id 552495, Pixabay Content License), at
   C:/NightShift/scratch/music/alexgrohl-suspense-thriller-552495.mp3.
+- 2026-10-26 ~21:15 (via the orchestrator): "heres the suspense music breakdown. can you make a few prototypes for it?"
+  (the orchestrator made grohl-a / b / c on the Grohl track's form; S5 bundles them).
+- 2026-10-26 ~21:35 (via the orchestrator): "use call of duty 4 as inspiration for the music prototypes, i dont know
+  what instruments or effects they use, hard to explain. sounds very epic" (grohl-d / e / f; style only, original notes;
+  the reference name stays only in this quote, G6 / G114).
 - 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked

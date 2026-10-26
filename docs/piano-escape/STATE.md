@@ -18,6 +18,7 @@ Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. RO
    running -> S2-check.md. PASS -> own PR to master (base feature/piano-escape until #606 lands).
    S5 RESUMED ~21:55 (steps 2-3 + addendum). Was: PAUSED after step 1 (3d7a874ab, assets + credits; S5-report.md says steps 2-3 left): resume when a slot frees.
    S5 also adds Michael's three Grohl-form prototypes (~21:15; grohl-a/b/c + grohl-form.mjs; brief addendum).
+   And grohl-d/e/f + grohl-epic.mjs (Michael ~21:35; addendum 2): 12 tracks; no reference-game name outside BRIEF.
    Each done -> one checker (S2 Opus; S1b / S5 Sonnet) -> merge into feature/piano-escape or its own PR.
 3b. S1b DONE d8b9ef0c3 + lead test fix 5e1bfeaff (pianoScene test: 12 guards, exit zone floorY); 47 piano tests green;
    Sonnet checker running -> S1b-check.md. PASS -> tell Sector Ops the head (SO2 / SO4). Flag-ON-only test lines
