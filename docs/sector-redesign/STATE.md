@@ -360,18 +360,18 @@ Landed in train 119/120: #481, #488, #489, #511, #512, #513.
    conflict only; checker carried, marks-merge-e45be943.md), lane bases #523 / #526 / #533 / #539 / #545.
    Lane stacks (J17, dark): S1 #523 -> #524 -> #525; S2 #526 -> #527 -> #528 -> #529; S3 #539 -> ... -> #544;
    S4 #545 -> #546 -> #547; S5 #533 -> #534 -> #535. `gh pr edit <n> --base master` as each parent lands.
-2. J21 map-ready: #550 S14 retargeted to master (Opus PASS, gate 2/2). #551 S3 (on #550): Guard AI PASS
-   (map-ready-s3-guardai-review.md); two Opus checkers running -> map-ready-s3-check-a.md / -b.md; post checker when
-   both PASS (fix round from Opus if FIX); retarget to master when #550 lands. #556 S10 (master, Opus desk PASS
-   s10-check.md): gate e2e-coop/netmove/lightbake/desktop requested (set map-ready-s10-gate); post checker when green.
-   Next slices: S15 (laptop GPU per step), S5 after #317, S16 / A20 (docs/map-ready/PLAN.md).
-3. J16 char-shadow-meter: S2c done on cloud -> PR #557 (master). Two Opus checkers running (src/net) ->
-   csm-s2c-check-a.md / -b.md. Next: S4 (partner probe) brief. Side finding for Guard AI / coop4 (sent? check):
-   playerRefsInto (gameState.ts:1083) `out.length = 0` + push allocates per sim step.
+2. J21 map-ready: #550 S14 on master (Opus PASS, gate 2/2). #551 S3 (on #550): 2x Opus FIX (warm-set leak) -> fix 1
+   7131f54f -> both re-checks PASS (map-ready-s3-check-a.md / -b.md); Guard AI re-review of guardWarm.ts asked;
+   gate e2e-coop/netmove requested (set map-ready-s3-gate): post checker when green; retarget when #550 lands.
+   #556 S10 (master, Opus desk PASS s10-check.md): gate e2e-coop/netmove (set map-ready-s10-gate; trimmed from 4
+   suites at the orchestrator's word); post checker when green.
+   Next slices: S15 (laptop GPU per step; builder waits for CPU < 80%), S5 after #317, S16 / A20 (docs/map-ready/PLAN.md).
+3. J16 char-shadow-meter: #557 S2c (master): 2x Opus FIX -> fix 1 6eaca54b -> both PASS, checker posted; waits on
+   affected-e2e (co-op group). Next: S4 (after J11 PR B on master). F27 (playerRefsInto) logged to Guard AI.
 4. J10 light: Michael 11:45 "Approve but only s1, let me walk it before doing any more". L2-S1/S2/S3 briefs on HOLD
    until his S1 walk (feature/light-realism-l2). No L2 builds.
 5. Polish carried (not blocking): S1/S2 lane fragments `kind: minor`; s4-a fragment wording; S3 r1 polish
    (s3-r1-check.md); map-ready S3 Guard AI polish (stand-ins skip the thermal loop, warm dog off LIVE_DOGS).
-Next: post S3 / S2c checkers from their reports; S10 checker when its gate is green; retarget stacks as parents land;
-brief J16 S4 and map-ready S15.
+Fixes first (Michael 15:05; FIXES.md on feature/menu; every fix PR names its repeat guard). Next: S3 / S10 checkers
+after their gates; retarget stacks as parents land; S15 builder when CPU allows.
 ```
