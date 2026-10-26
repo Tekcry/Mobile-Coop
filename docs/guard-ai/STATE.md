@@ -1026,5 +1026,10 @@ Open (2026-10-26 ~19:30, new session; #585 and #558 merged in trains 131 / 130; 
    every 5 s. #585 polish: orphaned onEnemyJoined comment (courseMode.ts:1394-1407), PLAY-PASS slice B text.
 4. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; NetSession.roomCap unused;
    guardpairs=0 on the flag-off talking-pairs e2e; autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: land coop4 merge 7 + its one check, then #317 / #595 train-ready to the orchestrator; then J26 mission hooks.
+PRIORITY (Michael ~19:40 via the orchestrator, ROADMAP Now row 20): the piano scene first: a standalone 2-player
+scene, an intro of guards firing and closing in slow motion on an operator back to the wall, then a quiet escape where
+every guard is knifed in the shadows (kills allowed in this scene only). Campaign Build plans it and names what it
+needs from Guard AI (scene guard behaviour, the slow-motion approach): those requests go first when they come.
+Next: land coop4 merge 7 + its one check, then #317 / #595 train-ready to the orchestrator; piano scene requests
+first as they arrive; J26 mission hooks with spare capacity.
 ```
