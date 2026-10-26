@@ -1,0 +1,20 @@
+{
+  "id": "20261026T040502-night-shift-marlow-b-ac225a4b-b8d1",
+  "sha": "ac225a4b16bc04bc16d77d88368fbcc115a4bcb2",
+  "branch": "feature/ctcourse-flake-fix",
+  "pr": 553,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-ctcourse:3",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3"
+  ],
+  "env": {
+    "E2E_STALL_HOST_MS": "3000"
+  },
+  "set": "f7-stall-after",
+  "pin": true
+}
