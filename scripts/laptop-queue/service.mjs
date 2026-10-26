@@ -116,7 +116,8 @@
 // hands a pr run to the laptop at its first counted failure (LQ_DESKTOP_FAIL_FAST), a hung run or an incomplete one.
 // The desktop holds for a due train as the laptop does, fitted at one job (LQ_DESKTOP_TRAIN_SOON; the build marker stays
 // the backstop); its CPU gate counts the queue's own Idle Playwright browsers as load (LQ_CPU_COUNT_E2E) and each desktop
-// start and refusal logs the gated and total reading (lib cpuNote).
+// start and refusal logs the gated and total reading (lib cpuNote). Stacked PRs (board base not master) queue after the
+// master-based ones on both workers (LQ_STACKED_LAST).
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
@@ -192,6 +193,8 @@ const FAIL_FAST = process.env.LQ_DESKTOP_FAIL_FAST !== '0';
 const DESKTOP_TRAIN_SOON = process.env.LQ_DESKTOP_TRAIN_SOON !== '0';
 // laptop-queue-10 A9 (F24): 0 = the queue's own Idle Playwright browsers are subtracted from the gate load again
 const CPU_COUNT_E2E = process.env.LQ_CPU_COUNT_E2E !== '0';
+// laptop-queue-10 A8 (F22): 0 = stacked PRs (base not master) queue as master-based ones (lib pick queue.order.stacked)
+const STACKED_LAST = process.env.LQ_STACKED_LAST !== '0';
 /** lib claimBlocks for this worker now, with the heartbeat bound (A17). */
 const blocks = (c) => claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS, CLAIM_BEATS);
 const argv = process.argv.slice(2);
@@ -739,7 +742,7 @@ let lastBoard = 0;
 function prBoardNow() {
   if (Date.now() - lastBoard < PR_BOARD_MS) return;
   lastBoard = Date.now();
-  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup,labels']) || '[]')); }
+  try { board = prBoard(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefOid,mergeable,statusCheckRollup,labels,baseRefName']) || '[]')); }
   catch (e) { board = new Map(); log(`pr board read failed: ${String(e.message).split('\n')[0]}`); }
 }
 
@@ -2416,20 +2419,22 @@ async function pass() {
   }
   // fixes first (laptop-queue-8 A1), then front, then green PR heads smallest wall first, then arrival (lib pick
   // queue.order); built after every filter above. The desktop (A8): fixes, then smallest expected wall at E2E_JOBS=1
-  // (laptop-queue-10 A6: over its run-e2e parts, lib desktopWallS).
-  if (DESKTOP || GREEN_FIRST || FIX_FIRST) {
+  // (laptop-queue-10 A6: over its run-e2e parts, lib desktopWallS). Stacked PRs (board base not master) go after the
+  // master-based ones on both workers (laptop-queue-10 A8); a request off the board is master-based.
+  if (DESKTOP || GREEN_FIRST || FIX_FIRST || STACKED_LAST) {
     const green = GREEN_FIRST && !DESKTOP ? greenIds(queue.requests, board) : new Set();
     const fix = new Set(FIX_FIRST ? queue.requests.filter((r) => isFix(r, board)).map((r) => r.id) : []);
+    const stacked = new Set(STACKED_LAST ? queue.requests.filter((r) => board.get(r.pr)?.stacked === true).map((r) => r.id) : []);
     const wallS = {};
     for (const r of queue.requests) {
       if (DESKTOP) wallS[r.id] = desktopWallS(partsOf(r.suites), times, 1);
       else if (green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, r.jobs ?? 2);
     }
     const frontBranches = GREEN_FIRST && !DESKTOP ? FRONT_BRANCHES : [];
-    queue.order = { fix, green, wallS, frontBranches, maxWaitMs: GREEN_MAX_WAIT_MS, smallest: DESKTOP };
+    queue.order = { fix, green, wallS, frontBranches, maxWaitMs: GREEN_MAX_WAIT_MS, smallest: DESKTOP, stacked };
     const frontIds = frontBranches.length ? queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id) : [];
-    const key = `${[...fix].sort().join(',')}|${frontIds.join(',')}|${[...green].sort().join(',')}`;
-    if (key !== orderLogged) { orderLogged = key; if (fix.size || frontIds.length || green.size) log(`order: fix ${fix.size}, front ${frontIds.length}, green ${green.size} (smallest first)`); }
+    const key = `${[...fix].sort().join(',')}|${frontIds.join(',')}|${[...green].sort().join(',')}|${[...stacked].sort().join(',')}`;
+    if (key !== orderLogged) { orderLogged = key; if (fix.size || frontIds.length || green.size || stacked.size) log(`order: fix ${fix.size}, front ${frontIds.length}, green ${green.size} (smallest first), stacked ${stacked.size} (last)`); }
   }
   // laptop-queue-7 A10: an open train rerun whose suites expand to 2+ parts may shard across both slots (lib pick)
   if (!DESKTOP && RERUN_SHARD) queue.shardRerun = new Set(queue.requests.filter((r) => r.trainRerun && suiteParts(r.suites, times).length >= 2).map((r) => r.id));

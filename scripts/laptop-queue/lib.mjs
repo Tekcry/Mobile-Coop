@@ -359,6 +359,9 @@ export function greenIds(requests, board) {
  * sorted by id: the front tier, the starvation check (the place's time), green ties and the arrival rule.
  * order.smallest (the desktop, laptop-queue-8 A8) replaces the front / green / arrival tiers after the fix tier: the
  * smallest order.wallS first (the service fills it for every request at E2E_JOBS=1), unknown wall last, ties by place.
+ * laptop-queue-10 A8 (F22): order.stacked (a Set of ids whose PR's base is not master, lib prBoard) runs after every
+ * master-based request in the green / arrival tiers (the same rules among them, no wait bound) and after them in the
+ * desktop's smallest order; the fix and front tiers ignore it.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -394,24 +397,28 @@ function pickFrom(queue, now, slots) {
   if (order && idle[0]) {
     const fix = nonAlone.find((r) => order.fix?.has(r.id)); // laptop-queue-8 tier 0: fixes, smallest place first
     if (fix) return { kind: 'request', request: fix, slot: idle[0].port };
+    const stacked = (r) => Number(Boolean(order.stacked?.has(r.id))); // laptop-queue-10 A8: stacked PRs after master-based
     if (order.smallest) { // laptop-queue-8 A8 (the desktop): smallest expected wall first, unknown last, ties by place
       const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
-      const small = [...nonAlone].sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
+      const small = [...nonAlone].sort((a, b) => stacked(a) - stacked(b) || wall(a) - wall(b) || sortByPlace(a, b))[0];
       return small ? { kind: 'request', request: small, slot: idle[0].port } : arrivalNext([], alone, idle, bothIdle);
     }
     const early = nonAlone.find((r) => isFront(r, order.frontBranches));
     const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
+    // laptop-queue-10 A8: the green and arrival tiers run over the master-based requests while any is open, else the stacked
+    const main = order.stacked?.size ? rest.filter((r) => !stacked(r)) : rest;
+    const tier = main.length ? main : rest;
     let chosen = early;
     if (!chosen) {
-      const oldest = rest.find((r) => Number.isFinite(idTime(placeKey(r))));
+      const oldest = tier.find((r) => Number.isFinite(idTime(placeKey(r))));
       const starved = order.maxWaitMs > 0 && oldest && now - idTime(placeKey(oldest)) > order.maxWaitMs;
       if (!starved) {
         const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
-        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
+        chosen = tier.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortByPlace(a, b))[0];
       }
     }
     if (chosen) return { kind: 'request', request: chosen, slot: idle[0].port };
-    return arrivalNext(rest, alone, idle, bothIdle);
+    return arrivalNext(tier, alone, idle, bothIdle);
   }
   return arrivalNext(nonAlone, alone, idle, bothIdle);
 }
@@ -1180,9 +1187,10 @@ export function readyHeads(prs, inTrain = () => false) {
 }
 
 /**
- * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup, labels rows): Map pr number ->
- * { head, conflicting, green, fix }; fix = the PR carries the `fix` label. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
- * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. A row without a number or head is skipped.
+ * The open PR board (one `gh pr list` of number, headRefOid, mergeable, statusCheckRollup, labels, baseRefName rows): Map
+ * pr number -> { head, conflicting, green, fix, base, stacked }; fix = the PR carries the `fix` label. conflicting = mergeable CONFLICTING (UNKNOWN, MERGEABLE or missing is not); green = the
+ * `check` run concluded SUCCESS and the `checker` status context is SUCCESS. stacked (laptop-queue-10 A8) = a base other
+ * than master (a missing base is not stacked). A row without a number or head is skipped.
  */
 export function prBoard(rows) {
   const out = new Map();
@@ -1192,11 +1200,14 @@ export function prBoard(rows) {
     const roll = p.statusCheckRollup ?? [];
     const check = roll.find((s) => s?.name === 'check');
     const checker = roll.find((s) => s?.context === 'checker');
+    const base = String(p.baseRefName ?? '');
     out.set(Number(p.number), {
       head,
       conflicting: String(p.mergeable ?? '').toUpperCase() === 'CONFLICTING',
       green: String(check?.conclusion ?? '').toUpperCase() === 'SUCCESS' && String(checker?.state ?? '').toUpperCase() === 'SUCCESS',
       fix: (p.labels ?? []).some((l) => l?.name === 'fix'), // laptop-queue-8 A2: the fix tier (lib isFix)
+      base,
+      stacked: base !== '' && base !== 'master', // laptop-queue-10 A8: queues after master-based PRs (lib pick order.stacked)
     });
   }
   return out;

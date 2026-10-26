@@ -262,6 +262,86 @@ describe('pick: fixes first, keep place (laptop-queue-8 slice A)', () => {
   });
 });
 
+describe('pick: master-based before stacked (laptop-queue-10 S4)', () => {
+  const pr = (min: number, tag: string, extra: Record<string, unknown> = {}) => ({ ...req(min, 'pr', tag, tag), pr: 1, sha: tag, ...extra });
+  const order = (stacked: string[], green: string[] = [], wall: Record<string, number> = {}, extra: Record<string, unknown> = {}) => ({
+    fix: new Set(), green: new Set(green), wallS: wall, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000, stacked: new Set(stacked), ...extra,
+  });
+  const run = (requests: unknown[], o: unknown) => pick({ trains: [], requests, order: o }, NOW, slots(false, false))?.request;
+
+  it('prBoard: base master is not stacked, another base is, a missing base is not', () => {
+    const b = prBoard([
+      { number: 1, headRefOid: 'a', baseRefName: 'master' },
+      { number: 2, headRefOid: 'b', baseRefName: 'feature/laptop-queue-8' },
+      { number: 3, headRefOid: 'c' },
+    ]);
+    expect([b.get(1).stacked, b.get(2).stacked, b.get(3).stacked]).toEqual([false, true, false]);
+    expect([b.get(1).base, b.get(2).base, b.get(3).base]).toEqual(['master', 'feature/laptop-queue-8', '']);
+  });
+  it('arrival: a master-based request 5 min old beats a stacked one 60 min old (no wait bound for stacked)', () => {
+    const st = pr(60, 'st');
+    const main = pr(5, 'main');
+    expect(run([st, main], order([st.id]))).toBe(main);
+    expect(run([st, main], order([]))).toBe(st);
+  });
+  it('green: a master green 300 s beats a stacked green 60 s', () => {
+    const st = pr(10, 'st');
+    const main = pr(5, 'main');
+    expect(run([st, main], order([st.id], [st.id, main.id], { [st.id]: 60, [main.id]: 300 }))).toBe(main);
+    expect(run([st, main], order([], [st.id, main.id], { [st.id]: 60, [main.id]: 300 }))).toBe(st);
+  });
+  it('only stacked requests: the green and arrival rules among them', () => {
+    const s1 = pr(40, 's1');
+    const s2 = pr(20, 's2');
+    expect(run([s2, s1], order([s1.id, s2.id]))).toBe(s1);
+    const s3 = pr(10, 's3');
+    expect(run([s2, s3], order([s2.id, s3.id], [s3.id], { [s3.id]: 12 }))).toBe(s3);
+    // the starvation bound reads the stacked tier only when it is the tier: s1 waited 40 min, so arrival
+    expect(run([s1, s3], order([s1.id, s3.id], [s3.id], { [s3.id]: 12 }))).toBe(s1);
+  });
+  it('a stacked fix still goes first; a stacked mixamo branch still goes front', () => {
+    const main = pr(30, 'main');
+    const fix = pr(1, 'fix');
+    expect(run([main, fix], order([fix.id], [], {}, { fix: new Set([fix.id]) }))).toBe(fix);
+    const mix = pr(1, 'mix', { branch: 'feature/mixamo-x' });
+    expect(run([main, mix], order([mix.id]))).toBe(mix);
+  });
+  it('order.stacked absent or empty gives the laptop-queue-8 result', () => {
+    const a = pr(40, 'a');
+    const g = pr(5, 'g');
+    const m = pr(3, 'm', { branch: 'mixamo-a' });
+    for (const requests of [[a, g], [a, g, m], [g]]) {
+      const base = { fix: new Set(), green: new Set([g.id]), wallS: { [g.id]: 12 }, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000 };
+      expect(run(requests, { ...base, stacked: new Set() })).toBe(run(requests, base));
+    }
+  });
+  it('desktop smallest: a master 300 s request goes before a stacked 60 s one', () => {
+    const st = pr(30, 'st');
+    const main = pr(5, 'main');
+    const desk = (stacked: string[]) => run([st, main], order(stacked, [], { [st.id]: 60, [main.id]: 300 }, { smallest: true }));
+    expect(desk([st.id])).toBe(main);
+    expect(desk([])).toBe(st);
+  });
+  it('the 14:00 replay: 7 stacked requests (51 suites) older than 2 master green PRs; both master PRs go first', () => {
+    const sizes = [8, 8, 7, 7, 7, 7, 7];
+    const stacked = sizes.map((n, i) => ({ ...pr(60 - i * 5, `st${i}`), suites: Array.from({ length: n }, (_, k) => `e2e-s${i}-${k}`) }));
+    expect(stacked.reduce((s, r) => s + r.suites.length, 0)).toBe(51);
+    const m1 = pr(20, 'm1');
+    const m2 = pr(10, 'm2');
+    const o = order(stacked.map((r) => r.id), [m1.id, m2.id], { [m1.id]: 400, [m2.id]: 200 });
+    const open: Array<{ id: string }> = [...stacked, m1, m2];
+    const ran: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const next = run(open, o) as { id: string };
+      ran.push(next.id);
+      open.splice(open.indexOf(next), 1);
+    }
+    expect(ran).toEqual([m2.id, m1.id, stacked[0]!.id]);
+    // before S4 the oldest stacked request (60 min, past the 30 min bound) ran first
+    expect(run([...stacked, m1, m2], { ...o, stacked: new Set() })).toBe(stacked[0]);
+  });
+});
+
 describe('pick oldest first per requester (priority first)', () => {
   it('runs the requester with the oldest request first, then that requester oldest request', () => {
     const a1 = req(50, 'pr', 'a1', 'A');
@@ -1986,9 +2066,9 @@ describe('affected e2e on every PR head', () => {
       pr(7, { statusCheckRollup: undefined }),
       { headRefOid: SHA('9') },
     ]);
-    expect(b.get(1)).toEqual({ head: SHA('1'), conflicting: true, green: true, fix: false });
-    expect(b.get(2)).toEqual({ head: SHA('2'), conflicting: false, green: true, fix: false });
-    expect(b.get(3)).toEqual({ head: SHA('3'), conflicting: false, green: false, fix: false });
+    expect(b.get(1)).toEqual({ head: SHA('1'), conflicting: true, green: true, fix: false, base: '', stacked: false });
+    expect(b.get(2)).toEqual({ head: SHA('2'), conflicting: false, green: true, fix: false, base: '', stacked: false });
+    expect(b.get(3)).toEqual({ head: SHA('3'), conflicting: false, green: false, fix: false, base: '', stacked: false });
     for (const n of [4, 5, 6, 7]) expect(b.get(n).green).toBe(false);
     expect(b.size).toBe(7);
     expect(prBoard(undefined).size).toBe(0);
