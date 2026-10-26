@@ -68,6 +68,11 @@ describe('source guard', () => {
     expect(body).toMatch(/campusV2: readCampusV2\(params\.get\('campusv2'\), PREVIEW_ON\)/);
   });
 
+  it('the mission-framework flags read through the preview default (mission-c2-rules)', () => {
+    expect(body).toMatch(/missions: darkFlag\(params\.get\('missions'\), PREVIEW_ON\)/);
+    expect(body).toMatch(/coopKit: darkFlag\(params\.get\('coopkit'\), PREVIEW_ON\)/);
+  });
+
   it('mixamo: the URL stays its own switch; /preview/ turns the captures on when the URL names none', () => {
     expect(body).toMatch(/mixamo: onOffFlag\(params\.get\('mixamo'\)\)/);
     const mixamo = readFileSync(resolve(__dirname, '../src/anim/mixamo.ts'), 'utf8');
