@@ -457,8 +457,11 @@ export class CoopClient implements NetAttachment {
    *  with an avatar (`mateOrderInto`). Not hot (a join, a drop, a lobby change). Nothing with the flag off. */
   private relistMates(): void {
     if (!this.g.charOccluders) return;
-    this.mates.set(mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder));
+    this.mates.set(mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder, this.partnerOut));
   }
+
+  /** (coop4 merge 6 F2) A partner out waiting for the next connector (the host's OUT mask): off the contract list. */
+  private readonly partnerOut = (id: string): boolean => slotOut(this.outMask, this.s.slotOf(id));
 
   /** (coop-rejoin, coop4 A19) Our player slot: the one the host's lobby gives us (`NetSession.selfSlot`). */
   private slot(): number {
@@ -1054,6 +1057,7 @@ export class CoopClient implements NetAttachment {
         this.g.weapons.restoreCheckpoint();
         this.g.hud.setDownTimer(OUT_LINE);
       }
+      this.relistMates();
     }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {

@@ -247,8 +247,53 @@ describe('CharMates: a held partner counts on neither machine (b2, fix round 1)'
     const cc = lf(readFileSync('src/net/coopClient.ts', 'utf8'));
     const i = cc.indexOf('private relistMates(): void {');
     expect(i).toBeGreaterThan(0);
-    expect(cc.slice(i, cc.indexOf('\n  }\n', i))).toContain('mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder)');
+    expect(cc.slice(i, cc.indexOf('\n  }\n', i))).toContain('mateOrderInto(this.s.players.values(), this.s.selfId, this.avatars, this.mateOrder, this.partnerOut)');
     expect(cc).toMatch(/s\.events\.on\('lobby', \(\) => \{\n\s*this\.recolour\(\);\n\s*this\.relistMates\(\);/);
+  });
+});
+
+describe('CharMates: an out partner counts on neither machine (coop4 merge 6 F2)', () => {
+  it('a partner the OUT test names gets no slot; back in, it gets its slot back; the client relists on an OUT change', () => {
+    const players = [
+      { id: 'me', away: false },
+      { id: 'A', away: false },
+      { id: 'B', away: false },
+    ];
+    const a = new Src(3, 0, 4);
+    const b = new Src(-6, 0, 2);
+    const avatars = new Map<string, Src>([
+      ['A', a],
+      ['B', b],
+    ]);
+    const order: Src[] = [];
+    let outB = true;
+    const isOut = (id: string): boolean => outB && id === 'B';
+    expect(mateOrderInto(players, 'me', avatars, order, isOut)).toEqual([a]);
+    outB = false;
+    expect(mateOrderInto(players, 'me', avatars, order, isOut)).toEqual([a, b]);
+    // the default: nobody out
+    expect(mateOrderInto(players, 'me', avatars, order)).toEqual([a, b]);
+    const cc = lf(readFileSync('src/net/coopClient.ts', 'utf8'));
+    expect(cc).toContain('private readonly partnerOut = (id: string): boolean => slotOut(this.outMask, this.s.slotOf(id));');
+    const i = cc.indexOf('private onSector(');
+    const mask = cc.indexOf('this.outMask = om;', i);
+    expect(mask).toBeGreaterThan(i);
+    expect(cc.slice(mask, cc.indexOf('\n    }\n', mask))).toContain('this.relistMates();');
+  });
+});
+
+describe('fillChars: an out local player shifts no partner off its slot (coop4 merge 6 F1, source level)', () => {
+  it('slots 1+ skip the local ref, and updateLight writes each slot back through charRefAt', () => {
+    const gs = lf(readFileSync('src/game/gameState.ts', 'utf8'));
+    const fi = gs.indexOf('private fillChars(): void {');
+    const fill = gs.slice(fi, gs.indexOf('\n  }\n', fi));
+    expect(fill).toContain('if (r === this.localRef) continue;');
+    expect(fill).toContain('at[nr++] = i;');
+    expect(fill).not.toMatch(/slotInto\(L, s, refs\[s\]/);
+    const ui = gs.indexOf('private updateLight(dt: number): void {');
+    const ul = gs.slice(ui, gs.indexOf('\n  }\n', ui));
+    expect(ul).toContain('this.charRefAt[s]');
+    expect(ul).not.toContain('this.charRefs[s]!.light');
   });
 });
 

@@ -401,6 +401,9 @@ export class GameState implements AppState {
   private readonly charKeys = new Int32Array(FILL.players);
   /** (char-shadow-meter S2) `playerRefsInto` order (slot 0 local); S3b-2 reuses it. */
   private readonly charRefs: PlayerRef[] = [];
+  /** (coop4 merge 6 F1) Per player slot: the `charRefs` index whose light it writes, -1 for none (slot 0 is the local
+   *  sample; an out local player is not in `charRefs`, so slots are not `charRefs` indices). */
+  private readonly charRefAt = new Int8Array(FILL.players).fill(-1);
   private charN = 0;
   private charFull = 0;
   /** (char-shadow-meter S2, debug only) The meter tick's ms with the contract: the last and a ring of 100. */
@@ -1828,7 +1831,10 @@ export class GameState implements AppState {
         if (s === 0) {
           this.lightLevel = v;
           this.localRef.light = v;
-        } else if (s < this.charRefs.length) this.charRefs[s]!.light = v;
+        } else {
+          const k = s < FILL.players ? this.charRefAt[s]! : -1;
+          if (k >= 0) this.charRefs[k]!.light = v;
+        }
       }
       if (flags.debug) {
         this.charMs = performance.now() - t0;
@@ -1894,10 +1900,19 @@ export class GameState implements AppState {
     const occ = this.charOccluders;
     if (!occ) return;
     const refs = this.playerRefsInto(this.charRefs);
-    const nr = refs.length < FILL.players ? refs.length : FILL.players;
     this.localSampleInto(0);
     const L = this.lightIn;
-    for (let s = 1; s < nr; s++) slotInto(L, s, refs[s]!);
+    // (coop4 merge 6 F1) slots 1+ take the other refs in slot order: with the local player out (left out of `refs`)
+    // the lowest-slot partner is refs[0], not the local player
+    const at = this.charRefAt;
+    let nr = 1;
+    for (let i = 0; i < refs.length && nr < FILL.players; i++) {
+      const r = refs[i]!;
+      if (r === this.localRef) continue;
+      slotInto(L, nr, r);
+      at[nr++] = i;
+    }
+    for (let s = nr; s < FILL.players; s++) at[s] = -1;
     const n = nr + this.charMatesInto(L, nr, FILL.players);
     this.charN = n;
     fillPlayers(occ, L, n, this.charKeys);

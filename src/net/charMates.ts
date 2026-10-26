@@ -109,15 +109,25 @@ export class CharMates {
   }
 }
 
+/** `mateOrderInto`'s default: nobody is out (Marlow Yard, 1-2 player Sector Ops). */
+const NEVER_OUT = (): boolean => false;
+
 /**
  * The contract's partner list into `out` (kept, refilled by index): the players in lobby order, self skipped, a partner
  * the host holds as away skipped (`PlayerInfo.away`: the host's `hold` takes it out of `remoteRefs`, so it counts on
- * neither machine), those with an avatar. Not hot (a join, a drop, a lobby change).
+ * neither machine), a partner `isOut` names skipped (coop4 OUT: the host leaves him out of `playerRefsInto`), those
+ * with an avatar. Not hot (a join, a drop, a lobby change, an OUT change).
  */
-export function mateOrderInto<T>(players: Iterable<{ readonly id: string; readonly away: boolean }>, selfId: string, avatars: ReadonlyMap<string, T>, out: T[]): T[] {
+export function mateOrderInto<T>(
+  players: Iterable<{ readonly id: string; readonly away: boolean }>,
+  selfId: string,
+  avatars: ReadonlyMap<string, T>,
+  out: T[],
+  isOut: (id: string) => boolean = NEVER_OUT,
+): T[] {
   let k = 0;
   for (const p of players) {
-    if (p.id === selfId || p.away) continue;
+    if (p.id === selfId || p.away || isOut(p.id)) continue;
     const a = avatars.get(p.id);
     if (a !== undefined) out[k++] = a;
   }
