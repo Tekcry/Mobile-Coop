@@ -1265,6 +1265,8 @@ export class CourseMode implements GameMode {
     g.gadgets.clearWorld();
     this.ct?.repair(-1);
     this.ct?.holdZones(2);
+    // (marlow-play-2 C14) a hack running at the retry (station 17's `sc-a7`) resets silently, not "broken off... that one hurt"
+    this.ct?.resetScans();
     this.resetStationLights(def);
     // (fix 3) its gates' doors as the set began, once this step's locks are back on (`handle`)
     this.retryDoorSt = def;
