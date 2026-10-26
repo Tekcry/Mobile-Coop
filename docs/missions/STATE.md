@@ -10,12 +10,12 @@ Mobile-Coop-menu/node_modules only). Newest: scratch/campaign/lead-notes.md "Ses
    settings tests green); checker status posted; train-ready returns via the watchdog after CI + affected-e2e.
 4. (b) PR #578 feature/mission-b-sector 8d4feb8ec (base (a), big-pr): Opus PASS (member-b-check.md), status posted,
    the automatic affected run only (set mb withdrawn: one set per change). Retarget to master after #522 lands (A27). Polish: the check report.
-5. (c) feature/mission-c-net 901bc2c82 (1,695 counted): two Opus src/net checkers -> member-c-check-1.md / -2.md.
+5. (c) PR #581 feature/mission-c-net 3a114fbb0 (base (b), big-pr): Opus PASS x2 (check-2 fix: blips line), status posted.
    (d) feature/mission-d-wharf 10dd6eff0 (10,437 counted; 47 Tallow lamps listed in lampBoxAlign KNOWN_EMBEDDED, a
    light-pass item): Opus checker -> member-d-check.md. Cut report member-cd-cut-report.md. PASS -> PRs (big-pr), the
    automatic affected run only; tell the orchestrator firstPlace stays live (master ships it) + (c)'s live-invisible changes.
 6. G5 after (d) (A30); #549 look-video merged (master).
-Next: (c) / (d) checker verdicts -> PRs; #578 / #522 verdicts; Tallow W1 in /preview/ when (d) lands.
+Next: (d) checker verdict -> PR (merge (c) 3a114fbb0 in + fix e2e-sectorops-wharf.mjs:396 blips() first); #578 / #522 verdicts; Tallow W1 in /preview/ when (d) lands.
 
 ## OLD RESUME 2026-10-26 ~16:15 SAVE (Night Shift | Campaign Build; prototype mode; read this block first)
 Process as below. Newest: scratch/campaign/lead-notes.md section "Session after the 14:21 swap". Rerun any agent whose
