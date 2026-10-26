@@ -1,11 +1,13 @@
 // Route-run (J13 R4a, docs/route-runs/PLAN.md "R4a Harness core, one page"; BRIEF docs/route-runs/BRIEF.md): a robot
 // walks every planned route of a map against its live guards, headless, and writes a plain report.
-//   node scripts/route-run.mjs <url> --graph <files...> [--points <file>] [--section S1] [--routes graph|code]
+//   node scripts/route-run.mjs <url> --graph <files...> [--points <file|auto>] [--section S1] [--routes graph|code]
 //     [--players 1|2] [--pace sneak|walk|run] [--detections forgive|keep] [--out <dir>] [--publish] [--dry-run]
 //     [--selftest [<fixture>]]
 //   node scripts/route-run.mjs --merge <map> <sha> --out <dir>            (no browser: the published parts -> one report)
 // Laptop queue only (BRIEF "Where it runs"): an alone request, one step per section, E2E_GPU=1, e.g.
 //   request.mjs --alone --step "serve scripts/route-run.mjs http://127.0.0.1:4189/ --selftest --players 1" ...
+// `--points` is read through R6's loader (scripts/route-run/points.mjs `loadPoints`: checked against the graphs; `auto`
+// makes it with level-measure); a selftest fixture keeps its own table, unchecked.
 // `<url>` keeps every query param the caller gives (e.g. `?campusv2=2`) on every page the harness opens (`bootUrl`).
 // `--dry-run` prints the plan (R1) and opens no browser. `--routes code` walks the map's own `SectorRoute` lists (read
 // from the page; `climbs` legs stubbed) for an early number before J12: its report says "code routes, not a gate run".
@@ -24,6 +26,7 @@ import { planRuns, KIT_HOLD_FALLBACK_S } from './route-run/plan.mjs';
 import { paceFor, stepLimit, METRICS_FILE } from './route-run/progress.mjs';
 import { buildReport, jsonText, merge, TOOL } from './route-run/report.mjs';
 import { PAST_M } from './route-run/driver.mjs';
+import { checkCourseExpect } from './route-run/course.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DEFAULT_SELFTEST = 'tests/fixtures/route-run/selftest.graph.json';
@@ -35,7 +38,7 @@ export const AT_LIMIT_S = 0.5;
 /** The graph's `meta.mode` -> the game's `?mode=` (a training graph is the course). */
 export const GAME_MODES = { training: 'course' };
 
-const USAGE = `usage: node scripts/route-run.mjs <url> --graph <files...> [--points <file>] [--section S1] [--routes graph|code]
+const USAGE = `usage: node scripts/route-run.mjs <url> --graph <files...> [--points <file|auto>] [--section S1] [--routes graph|code]
   [--players 1|2] [--pace sneak|walk|run] [--detections forgive|keep] [--out <dir>] [--publish] [--dry-run] [--selftest [<fixture>]]
        node scripts/route-run.mjs --merge <map> <sha> --out <dir>`;
 
@@ -289,8 +292,48 @@ export function checkSelftest(expect, logs) {
         if (!(log.guards.spawned > 0 && log.guards.alive === log.guards.spawned)) problems.push(`${er.id}: guards ${log.guards.alive} of ${log.guards.spawned}`);
       } else problems.push(`${er.id}: unknown expected line ${JSON.stringify(line)}`);
     }
+    // (SR5) a course run's own block (R4c: drills, restarts, raises)
+    if (er.course) problems.push(...checkCourseExpect(er.course, log));
   }
   return problems;
+}
+
+/** (SR1, BRIEF A2) The in-page forgive: `--detections forgive`, except in course mode (the game's restart or retry is the
+ *  forgive step there; a calmed guard would never fire it). */
+export function forgiveFor(detections, mode) {
+  return detections === 'forgive' && mode !== 'course';
+}
+
+/** The steps context's run-wide parts (steps.mjs, course.mjs): the shots, the notes, the host clock, one clock advance
+ *  that steps every page, the run's approach stick (a split leg's robot driver does not carry it), and (SR2) the graphs
+ *  (A13's `teach`) and the selftest's `expect` (the raise hook; null outside a selftest). */
+export function stepsContext(ctx, { shots, notes, stick, graphs, fixture = null }) {
+  const d = ctx.driver;
+  return Object.assign(ctx, { shots, notes, clock: () => d.call('time'), advance: (s) => d.advance(s), stick, graphs, selftest: fixture?.expect ?? null });
+}
+
+/** R6's loader (scripts/route-run/points.mjs); until R6 is on the branch, today's plain read with a note. */
+async function pointsLoader() {
+  try {
+    return (await import('./route-run/points.mjs')).loadPoints;
+  } catch (e) {
+    if (!/Cannot find module '[^']*points\.mjs'/.test(String(e?.message))) throw e;
+    return ({ src }) => {
+      if (src === 'auto') throw new Error('--points auto needs scripts/route-run/points.mjs (R6)');
+      return { ...readJson(src), notes: ['the points table was not checked against the graphs (R6 points.mjs is not on this branch)'] };
+    };
+  }
+}
+
+/** The points table: a selftest fixture's own (unchecked); else `--points <file|auto>` through R6's `loadPoints` (it
+ *  throws on a stale table: exit 2), its notes printed; else a fixture given as --graph keeps its own. `load` (tests)
+ *  replaces the loader. */
+export async function readPoints(o, graphs, fixture = null, load = null) {
+  if (fixture?.points) return fixture.points;
+  if (!o.points) return graphs.find((gr) => gr.points)?.points ?? null;
+  const table = await (load ?? (await pointsLoader()))({ graphs, files: fixture ? [o.selftest] : o.graphs, src: o.points });
+  for (const n of table?.notes ?? []) console.error(`route-run points: ${n}`);
+  return table;
 }
 
 /** The `--dry-run` text: the plan, one block per run. */
@@ -356,18 +399,14 @@ async function main(argv) {
   const metrics = readJson(path.join(ROOT, METRICS_FILE));
   const pace = paceFor(o.pace, metrics);
   let graphs;
-  let points = o.points ? readJson(o.points) : null;
   let fixture = null;
   if (o.selftest) {
     // a selftest fixture is a graph with its own points table and an `expect` block (`checkSelftest`)
     fixture = readJson(o.selftest);
     graphs = [fixture];
-    points = fixture.points ?? points;
-  } else {
-    graphs = o.graphs.map(readJson);
-    // (a selftest fixture given as --graph, e.g. a --dry-run: its own points table)
-    points = points ?? graphs.find((gr) => gr.points)?.points ?? null;
-  }
+  } else graphs = o.graphs.map(readJson);
+  // (R6) `--points` checked against the graphs; a fixture (--selftest, or given as --graph) keeps its own table
+  const points = await readPoints(o, graphs, fixture);
   // BRIEF A6: two robots on every map unless --players says otherwise; a selftest walks as its fixture says (R4a's: 1).
   // (parseArgs keeps R4a's 1 when --players is absent: tests/routeRunCli.test.ts asserts it.)
   const players = o.playersGiven ? o.players : fixture?.expect?.players ?? 2;
@@ -397,8 +436,8 @@ async function main(argv) {
   fs.mkdirSync(out, { recursive: true });
   console.log(`route-run: ${meta.map} (${meta.mode}), ${boot.url}?${boot.params}, ${o.players} robot(s), out ${out}`);
 
-  const forgive = o.detections === 'forgive';
   const mode = GAME_MODES[meta.mode] ?? meta.mode;
+  const forgive = forgiveFor(o.detections, mode);
   let browser;
   let page;
   let errorLists;
@@ -435,9 +474,7 @@ async function main(argv) {
   let failed = false;
   try {
     const driver = ctx.driver;
-    // the steps context (steps.mjs): the shots, the notes, the host clock and one clock advance that steps every page
-    // (and the run's approach stick, which a split leg's robot driver does not carry)
-    Object.assign(ctx, { shots: path.join(out, 'shots'), notes, clock: () => driver.call('time'), advance: (s) => driver.advance(s), stick: pace.stick });
+    stepsContext(ctx, { shots: path.join(out, 'shots'), notes, stick: pace.stick, graphs, fixture });
 
     // the runs, by section in graph order
     let runs;
