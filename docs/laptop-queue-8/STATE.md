@@ -12,5 +12,6 @@ BRIEF.md (A1-A14) and PLAN.md written by the Opus planner; no code yet.
   (Opus); F docs + fragment (Sonnet, parallel with E, own worktree).
 - One Opus checker for the PR. One PR (~950 lines); split A+B / C+D+E only past ~1.5k.
 - Overlap with affected-cap: request.mjs, run-e2e.mjs, RULES, testing-tools, different hunks (PLAN "Claims").
+- Plan checker FIX round 1 done (running stop uses superseded pairing, N may be claimed / running; polish).
 - Verify per slice: `npm run typecheck:fast`, `npx vitest run tests/laptop-queue.test.ts tests/autoTrain.test.ts`.
 Next: run PLAN "Start", then brief the slice A Opus builder from PLAN "Slice A".

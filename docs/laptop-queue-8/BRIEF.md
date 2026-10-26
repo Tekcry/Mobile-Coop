@@ -42,20 +42,27 @@ C:/NightShift/Mobile-Coop-laptop-queue-8, cut from origin/master 34b96b9c. Build
   live each pass, so a label added later counts and a label removed stops counting. A gh error empties the board for
   that pass: only `--fix` requests count then. Undo: stamp `fix` into the request at request time only.
 - A3: Inside the fix tier: oldest queue place first (A4), no wait bound (fixes are few; like the front tier).
-  `LQ_FIX_FIRST` (1; 0 = off) on both workers. Undo: apply `LQ_GREEN_MAX_WAIT_MIN` to fixes too.
+  `LQ_FIX_FIRST` (1; 0 = off) on both workers. An alone request waiting over 30 min (`ALONE_AGE_MIN`) still goes
+  ahead of PR work, fixes included, as RULES "Machines" says (trains, train reruns, aged alone, then fixes). Undo:
+  apply `LQ_GREEN_MAX_WAIT_MIN` to fixes too.
 - A4: "Keeps its queue place" = an optional `place` field (a request id string) on the newer request. When the service
-  supersedes R by N (open, or running: A6) it rewrites N's request file once, same id, with `place` = the smaller of
+  supersedes R by N (R open, or R running: A6; N still open) it rewrites N's request file once (skipped if the file
+  is gone), same id, with `place` = the smaller of
   (R.place ?? R.id) and (N.place ?? N.id). pick sorts by `place ?? id` wherever it sorts by id today (arrival, ties,
   the starvation check, the fix tier). Not "reuse the old id": the id is the file name and the claim key, and the old
   id already has a done claim. In the file, so both workers see it; affected-cap's re-file spreads the request and keeps
   it. Undo: ignore `place` (arrival by id).
 - A5: Only a supersede passes the place on (lib `superseded` rules: same requester, or the per-branch affected rule).
-  Another requester's fresh request for the same PR queues by its own id. Undo: any request of the same PR inherits.
-- A6: A running request is stopped when an open request N has the same branch, N.sha contains R.sha (`git merge-base
-  --is-ancestor`), their suite bases overlap, R is a plain pr request (not pinned, not a train rerun, not full or
-  alone) and R is under 80% of its expected wall (the train preempt rule, `PREEMPT_MAX_PROGRESS`). Each worker stops
-  its own runs (claimed and running here, lock wait and prepare included). A rebased head (old not an ancestor) is not
-  stopped. Undo: stop at any progress, or `LQ_STOP_SUPERSEDED=0`.
+  Another requester's fresh request for the same PR queues by its own id. A lead's request for a rebased head does not
+  keep its place either: `superseded` needs ancestry for named-suite requests (only the per-branch affected rule skips
+  it). Undo: any request of the same PR inherits.
+- A6: A running request R is stopped when a newer request N pairs with it exactly as lib `superseded` pairs two open
+  requests (same requester per `queueRequester`, same kind, compatible set, R not pinned, R's requester known), with
+  three changes: suite bases overlap (not cover), N.sha contains R.sha (`git merge-base --is-ancestor`; required for
+  affected requests too) and R is under 80% of its expected wall (the train preempt rule, `PREEMPT_MAX_PROGRESS`).
+  So an affected request never stops a lead's run, nor the reverse. N may be open, claimed or running on either worker
+  (checker FIX 2). Each worker stops its own runs (claimed and running here, lock wait and prepare included). A rebased
+  head (old not an ancestor) is not stopped. Undo: stop at any progress, or `LQ_STOP_SUPERSEDED=0`.
 - A7: The stopped run posts error "stopped: new head <sha8> queued (<new id>)" on its own contexts (and on
   `affected-e2e` for an automatic request), result `superseded-run`, done claim pushed; N gets R's place (A4). The old
   head's error never blocks anything: train-ready reads the current head. Undo: post nothing, like an open supersede.

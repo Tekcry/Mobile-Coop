@@ -35,6 +35,9 @@ origin/feature/laptop-queue-7 at 3791f2f1c (PR #507, open), not master.
 | scripts/laptop-queue/request.mjs | :12 header comment (one line after it), :27 flag list, :96 (one line after) | `--fix` -> `"fix": true` | A |
 | scripts/laptop-queue/install-task.ps1 | :5, :8-12, :21 | `-DesktopCpuMode normal|total` -> `LQ_DESKTOP_CPU_MODE` | D |
 | scripts/run-e2e.mjs | :229-231 (after `results.push`, streamed branch) | one result line per streamed suite | C |
+| scripts/laptop-queue/service.mjs | :111 lib import line | add `isFix`, `placeKey`, `placeFor`, `supersededRunning`, `finishedSuites`, `keptPlan`, `gateCpu`, `desktopTooLong`, `prChain` | A-E |
+| scripts/laptop-queue/service.mjs | :363-385 `pushFile` | `mustExist` option | A |
+| tests/laptop-queue.test.ts | :3 lib import line | the same new names | A-E |
 | tests/laptop-queue.test.ts | new describes (below) beside :58, :222, :464, :531, :1118, :1410 | tests | A-E |
 | docs/RULES.md | :166-171 "Machines" pick order, :176-185 desktop bullet | rewritten in place, same line count | F |
 | docs/systems/testing-tools.md | :568-573 Order, :592-597 Yield, :614-630 Affected, :631-643 Desktop, :653-661 Scheduled tasks | net zero | F |
@@ -42,15 +45,16 @@ origin/feature/laptop-queue-7 at 3791f2f1c (PR #507, open), not master.
 | docs/laptop-queue/STATE.md, docs/laptop-queue-8/** | | job docs | F |
 
 Overlap with affected-cap (feature/affected-cap, docs/affected-cap/PLAN.md), unavoidable, different hunks:
-- request.mjs: affected-cap edits :4-5, :41 usage, :56-62 `prSuites`; this job edits :12-13, :27, :96-97 only (the
-  `--fix` flag is not added to the :41 usage string).
-- run-e2e.mjs: affected-cap edits :3-12, :21, :131-144; this job :229-231 only.
+- request.mjs: affected-cap edits :3-6 (header usage) and :55-64 (`prSuites`, its stderr line), plus the :41 usage
+  string; this job edits :12-13, :27, :96-97 only (the `--fix` flag is not added to the :41 usage string).
+- run-e2e.mjs: affected-cap edits :3-12, :21, :131-144; this job only the streamed result line, :229-231 on
+  laptop-queue-7, ~:240-242 on master 29f03b6c (master's run-e2e grew 11 lines; no hunk conflict).
 - lib.mjs / service.mjs / tests: affected-cap edits lib `affectedSuites` (:1175-1195) and a new function after
   `affectedRequest`; service: an import line, `refileOverCap` before "task guard", `main`, `selfUpdate`; tests
   :1135-1180 area of "affected e2e on every PR head". This job never edits those lines; its PR carry goes after
-  `affectedPass`, its tests in new describes. `refileOverCap` rewrites request files with `{ ...r, suites }`, so `place`, `fix` and
-  `kept` survive a re-file; a re-filed request with `kept` runs its new suites minus the kept ones (correct: a kept pass
-  is still a pass of that suite on that sha).
+  `affectedPass`, its tests in new describes. `refileOverCap` rewrites request files with `{ ...r, suites }`, so
+  `place`, `fix` and `kept` survive a re-file; a re-filed request runs its new suites minus the kept ones that are
+  still in its suites (keptPlan intersects; a kept pass is still a pass of that suite on that sha).
 - RULES.md: affected-cap edits :152 ("Test tiers"); this job :166-185. testing-tools.md: affected-cap :86-112; this
   job :560-661. Whichever merges second rebases; no line is shared.
 Not touched: auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mjs, lib `affectedSuites` / `affectedNeeds` /
@@ -71,8 +75,12 @@ Not touched: auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mjs, li
   (:1841): build `queue.order` when `GREEN_FIRST || FIX_FIRST`; `order.fix` = ids with `isFix(r, board)` when
   FIX_FIRST, else empty; `green` empty when not GREEN_FIRST. Log key adds "fix <k>".
 - service `applySupersedes` (:1619): after the done push, for each `placeFor` entry `pushFile('requests/<id>.json',
-  JSON of { ...survivor, place }, 'place <id>')` (DRY: log only); log "<id>: keeps the place of <old>". A lost push
-  logs and is not retried (the request just queues by its id).
+  JSON of { ...survivor, place }, 'place <id>', { mustExist: true })` (DRY: log only); log "<id>: keeps the place of
+  <old>". A lost push logs and is not retried (the request just queues by its id).
+- service `pushFile` (:363-385): option `{ mustExist = false }`; when true, after reading the fresh parent, skip the
+  write (return false, log "<rel> gone, not rewritten") when `git cat-file -e <parent>:<rel>` fails, so a rewrite never
+  recreates a request withdrawn meanwhile. Used by every request rewrite in this job (place, kept); affected-cap's
+  calls keep the default.
 - request.mjs: `fix` in the boolean flag list; `if (opts.fix) req.fix = true;`; one header line "--fix: "fix": true,
   tested before new-feature requests (the PR's `fix` label does the same)".
 - Tests (new describe "pick: fixes first, keep place" beside :58): prBoard reads the label; isFix via flag, via board,
@@ -83,21 +91,31 @@ Not touched: auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mjs, li
 - Size ~45 lib, ~30 service, ~3 request, ~110 tests.
 
 ## Slice B (Opus) - stop a running request when its PR gets a new head (BRIEF 3; A6, A7)
-- lib `supersededRunning(running, open, isAncestor, progressOf)`: Map runningId -> newer open id per A6 (same
-  `branch`, non-empty; newer id; `isAncestor(r.sha, n.sha)` and r.sha !== n.sha; suite bases overlap; r kind pr, not
-  pin, not trainRerun; n not trainRerun / laptopRerun; `!(progressOf(r.id) >= PREEMPT_MAX_PROGRESS)`). Pure.
+- lib `supersededRunning(running, candidates, isAncestor, progressOf)`: Map runningId -> newer id. Exactly lib
+  `superseded`'s pairing (lib :417-440): same `queueRequester`, same kind (pr only here), same `trainRerun` (false),
+  compatible set (two different non-empty sets never pair), R not pinned, R's requester not empty / 'unknown', N not a
+  laptop rerun, N newer (a later id). Only three differences: "covers" is relaxed to "suite bases
+  overlap"; `isAncestor(r.sha, n.sha)` with r.sha !== n.sha is always required (also for affected requests, which
+  `superseded` pairs without it); and `!(progressOf(r.id) >= PREEMPT_MAX_PROGRESS)`. Pure.
+- Candidates for N (checker FIX 2): `queue.requests` (open) + `otherActive` (claimed or running on the other worker,
+  listRequests :283-292) + `activeReqs` (running here), minus R itself. So R also stops when N is already claimed or
+  running. The place push (A4) applies only when N is still open (in `queue.requests`); a claimed or running N needs
+  no place.
 - lib `cutShort`: option `superseded = ''`; returns 'superseded' right after 'withdrawn' (any stage: lock wait,
   prepare and suites).
 - service: module `runningSup = new Map()`; `pass()` after the supersede line (:1756), when `LQ_STOP_SUPERSEDED` on:
-  `runningSup = supersededRunning([...activeReqs.values()], queue.requests, isAncestor, (id) => progressById.get(id))`
-  (runRequest keeps `progressById.set(r.id, progress())` in its watch). Same pass: `placeFor`-style place push onto
-  the newer request (reuse A's push helper). The watch (:1335) passes `superseded: runningSup.get(r.id) ?? ''`.
+  `runningSup = supersededRunning([...activeReqs.values()], [...queue.requests, ...otherActive,
+  ...activeReqs.values()], isAncestor, (id) => progressById.get(id))` (runRequest keeps `progressById.set(r.id,
+  progress())` in its watch; the lib skips N === R). Same pass: place push onto N only when N is in `queue.requests`
+  (reuse A's push helper). The watch (:1335) passes `superseded: runningSup.get(r.id) ?? ''`.
 - service `cutEnd` (:1355): `ctl.why === 'superseded'`: log "<id>: stopped, new head <sha8> queued (<by>)"; error
   on every verdict context (affected-e2e too), result `superseded-run` with `by`; same tail as withdrawn.
 - Tests (extend "superseded" :222 and "cutShort" :1118): running pr on A, open newer on B containing A, overlap ->
   stopped; rebased (not ancestor) -> not; no overlap -> not; pinned / train rerun / full / alone -> not; at 0.85
-  progress -> not; another branch -> not; a laptop rerun as the newer request -> not; cutShort 'superseded' before
-  start and after start, 'withdrawn' wins.
+  progress -> not; another branch -> not; a laptop rerun as the newer request -> not; an affected N on the same branch
+  does not stop a lead's set run (different requester); a lead's `unknown` requester run -> not; two different sets ->
+  not; N present only as active (claimed / running, not in the open list) -> R stopped, and no place push for N;
+  cutShort 'superseded' before start and after start, 'withdrawn' wins.
 - Size ~30 lib, ~35 service, ~70 tests.
 
 ## Slice C (Opus) - keep finished suites when a train preempts (BRIEF 4c; A10)
@@ -107,17 +125,19 @@ Not touched: auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mjs, li
 - lib `finishedSuites(text)`: suites with a result line `=== <s> (ok|FAIL|REPORT ONLY, exit n, <N>s) ===` ->
   [{ s, ok, sec }]; a start-only header (`=== s ===`) is not a result. lib `keptPlan(r, sha)`: { kept: [...], rest:
   suites } from `r.kept` when `r.kept.sha === sha`, else { kept: [], rest: r.suites } (parts match by exact name, a
-  base name keeps only when every one of its parts is kept).
+  base name keeps only when every one of its parts is kept). Kept rows are intersected with the current `r.suites`
+  first: after an affected-cap re-file drops a suite, its kept row no longer counts in the verdict.
 - service `cutEnd` train branch (:1363) for a pr request with `LQ_KEEP_FINISHED` on: passes = `finishedSuites` over
   the run's slot log(s), ok only, plus the old `r.kept` ones; non-empty -> `pushFile` the request with `kept: { sha,
-  suites }` before the claim release; log "<id>: keeps K finished suite(s)".
+  suites }` (`mustExist`) before the claim release; log "<id>: keeps K finished suite(s)".
 - service runRequest (:1456-1462): `const { kept, rest } = keptPlan(r, r.sha)`; run `rest` (empty: no e2e call, the
   verdict from kept); `result.suites` = kept as ok rows + the run's; `progress` and `bins` over `rest`;
   `runComplete` against `rest.length`. `finish` description adds "; K kept" (lib `describe` unchanged; appended in
   finish when `result.kept > 0`, cut to 140).
 - Tests (new describe "kept suites after a train preempt" beside :1118): finishedSuites reads streamed and parallel
   lines, ignores start headers and the times table; keptPlan: same sha -> rest without kept, other sha -> all, a
-  base with one part kept reruns; a request with every suite kept -> rest empty.
+  base with one part kept reruns; a request with every suite kept -> rest empty; a kept suite no longer in
+  `r.suites` (re-filed) is dropped from kept and the verdict.
 - Size ~3 run-e2e, ~35 lib, ~45 service, ~60 tests.
 
 ## Slice D (Sonnet from this brief) - desktop worker order, long-run skip, CPU mode (BRIEF 4a, 4b, 6; A8, A9, A11)
@@ -154,9 +174,14 @@ Not touched: auto-train.mjs, merge-train.mjs, watchdog.mjs, e2e-affected.mjs, li
 - RULES "Machines" (:166-171), same line count, pick order line rewritten in place: "... then PR requests (one slot,
   `E2E_JOBS=2`; full runs 3): fixes first (PR label `fix` or `request.mjs --fix`), then front branches
   (`LQ_FRONT_BRANCHES`), then green PRs smallest first, then arrival order; a new head of the same PR keeps its
-  request's place and stops its running one; then ...". Desktop bullet (:176-185): "takes pr requests ... fixes first,
-  then smallest first, none estimated over 15 min (`LQ_DESKTOP_MAX_MIN`) ... CPU of Normal or higher priority processes
-  (`LQ_DESKTOP_CPU_MODE=total` counts the whole machine)". Reword in place; `wc -l` stays 318 (doc-lint budget).
+  request's place and stops its running one; then ...". The aged alone clause before it stays: an alone request
+  waiting over 30 min still goes ahead of PR work, fixes included (lib pick order: trains, reruns, aged alone, then
+  the fix tier). Desktop bullet (:176-185): "takes pr requests ... fixes first, then smallest first, none estimated
+  over 15 min (`LQ_DESKTOP_MAX_MIN`) ... CPU of Normal or higher priority processes (`LQ_DESKTOP_CPU_MODE=total`
+  counts the whole machine)". RULES is 318/318: the added words are paid for by trimming the build-marker sentence in
+  the desktop bullet ("nothing new while auto-train's build marker exists (written during `merge-train build`, deleted
+  once the version commit is pushed; a marker over 30 min old is ignored)") to "nothing new while auto-train builds
+  (testing-tools "Laptop queue")"; testing-tools' desktop bullet already holds the marker detail. `wc -l` stays 318.
 - testing-tools.md (720 budget, net <= 0, `wc -l` checked): Order bullet + fix tier and place; Yield bullet + the
   running stop and kept suites; Affected bullet + the PR carry; Desktop bullet + smallest, 15 min, CPU mode; lines
   freed by shortening the "Scheduled tasks" history parenthetical (:653-654) and any further rewording in place.
