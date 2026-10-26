@@ -1326,7 +1326,7 @@ describe('desktop train soon and CPU reading (laptop-queue-10 S3)', () => {
     expect(backgroundCpuMs(out, { countE2e: false }).top).toEqual([{ name: 'e2e', ms: 1000 }, { name: 'blender', ms: 600 }]);
     expect(backgroundCpuMs('a 1 100\nb 1 400\nel 1000')).toEqual({ bgMs: 300, elapsedMs: 1000, e2eMs: 0, top: [] }); // 3 tokens
     const four = ['a 1 0 a', 'a 2 0 b', 'a 3 0 c', 'a 4 0 d', 'b 1 10 a', 'b 2 40 b', 'b 3 30 c', 'b 4 20 d', 'b 5 99 e', 'el 1000'].join('\n');
-    expect(backgroundCpuMs(four).top.map((x) => x.name)).toEqual(['b', 'c', 'd']); // 3 heaviest; e started in the window
+    expect(backgroundCpuMs(four).top).toEqual([{ name: 'b', ms: 40 }, { name: 'c', ms: 30 }, { name: 'd', ms: 20 }]); // 3 heaviest; e new
   });
   it('gatedCpu replay (A9): 8 Idle Playwright chromium count as load, a BelowNormal Blender is still subtracted', () => {
     const lines = ['a 9 1000 blender', 'b 9 1600 blender', 'el 1000'];

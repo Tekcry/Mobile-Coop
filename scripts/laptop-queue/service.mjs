@@ -114,13 +114,16 @@
 // 'hung' and posts failure (a train: its unfinished suites as FAIL); each run attempt logs to its own runs/<id>[-n].
 // The desktop caps a request by the wall of the parts run-e2e lists (no time = the median; partsOf, lib desktopWallS) and
 // hands a pr run to the laptop at its first counted failure (LQ_DESKTOP_FAIL_FAST), a hung run or an incomplete one.
+// The desktop holds for a due train as the laptop does, fitted at one job (LQ_DESKTOP_TRAIN_SOON; the build marker stays
+// the backstop); its CPU gate counts the queue's own Idle Playwright browsers as load (LQ_CPU_COUNT_E2E) and each desktop
+// start and refusal logs the gated and total reading (lib cpuNote).
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, isFix, placeFor, gateCpu, desktopTooLong, supersededRunning, finishedSuites, keptPlan, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, prChain, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, aloneDue, aloneGapOpen, lastTrainEndFrom, holdKeeps, trainRepair, trainFinal, suiteEvents, idleLimitMs, idleStep, hungTrainDesc, attemptDir, desktopWallS, failFast, unfinishedParts, cpuNote } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 import { overCapAffected } from './lib.mjs';
 import { AFFECTED_MAX } from '../e2e-affected.mjs';
@@ -185,6 +188,10 @@ const SUITE_IDLE_MS = idleLimitMs(Number(process.env.LQ_SUITE_IDLE_MIN ?? 15), S
 const HUNG_MIN = Math.round(SUITE_IDLE_MS / 60_000);
 // laptop-queue-10 A5 (F11): 0 = a desktop failure hands off at the end of the run and an incomplete run fails, as before
 const FAIL_FAST = process.env.LQ_DESKTOP_FAIL_FAST !== '0';
+// laptop-queue-10 A1 (F9): 0 = the desktop waits for auto-train's build marker only, never for a due train
+const DESKTOP_TRAIN_SOON = process.env.LQ_DESKTOP_TRAIN_SOON !== '0';
+// laptop-queue-10 A9 (F24): 0 = the queue's own Idle Playwright browsers are subtracted from the gate load again
+const CPU_COUNT_E2E = process.env.LQ_CPU_COUNT_E2E !== '0';
 /** lib claimBlocks for this worker now, with the heartbeat bound (A17). */
 const blocks = (c) => claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS, CLAIM_BEATS);
 const argv = process.argv.slice(2);
@@ -956,6 +963,15 @@ function syncTrains(heads) {
 }
 
 /**
+ * The train-ready PRs (readyNow) and then the next train (`next`, lib nextTrain) from a trainHeadsNow() read: pendingTrains
+ * on the laptop, pass() on the desktop while it has a pr request it could start (laptop-queue-10 A1, F9).
+ */
+function trainSoonNow(read) {
+  readyNow(read.openPrs);
+  next = nextTrainNow(read.openPrs, read.heads);
+}
+
+/**
  * Train heads to run this pass (see above). read = trainHeadsNow() when pass() already read it (laptop), null when that
  * read failed; omitted, it is read here (desktop).
  */
@@ -977,7 +993,7 @@ function pendingTrains(read = trainHeadsNow()) {
   }
   // after the status reads: the releasing case needs each head's laptop-e2e success time (lib releasingTrain); readyNow
   // first, in the same pass, so sparePass and the alone check never read the previous pass's candidates
-  if (!DESKTOP) { readyNow(openPrs); next = nextTrainNow(openPrs, heads); }
+  if (!DESKTOP) trainSoonNow(read);
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
@@ -2032,33 +2048,43 @@ function planTrain(sha = '<train sha>', ports = PORTS) {
 // Two Get-Process snapshots 1 s apart of the processes below Normal base priority (BelowNormal 6, Idle 4), with the wall
 // time between them; lib backgroundCpuMs reads it. Get-Process is ~0.15 s (the per-process WMI perf class took ~18 s
 // under load). Processes whose CPU time is unreadable (other users' / protected) print nothing: they stay in the load.
+// laptop-queue-10 A9: each line ends with `e2e` for a process under \ms-playwright\ (the queue's own browsers, Idle
+// priority), else its ProcessName (spaces removed).
 const BG_CPU_PS = [
   "$f = { Get-Process | Where-Object { $_.Id -ne 0 -and $_.BasePriority -lt 8 -and $_.TotalProcessorTime -ne $null } }",
-  "& $f | ForEach-Object { \"a $($_.Id) $([long]$_.TotalProcessorTime.TotalMilliseconds)\" }",
+  "$n = { param($p) if ($p.Path -like '*\\ms-playwright\\*') { 'e2e' } else { $p.ProcessName -replace '\\s', '' } }",
+  "& $f | ForEach-Object { \"a $($_.Id) $([long]$_.TotalProcessorTime.TotalMilliseconds) $(& $n $_)\" }",
   '$sw = [Diagnostics.Stopwatch]::StartNew()',
   'Start-Sleep -Milliseconds 1000',
-  "& $f | ForEach-Object { \"b $($_.Id) $([long]$_.TotalProcessorTime.TotalMilliseconds)\" }",
+  "& $f | ForEach-Object { \"b $($_.Id) $([long]$_.TotalProcessorTime.TotalMilliseconds) $(& $n $_)\" }",
   '"el $($sw.ElapsedMilliseconds)"',
 ].join('; ');
 
 /**
  * Desktop gate CPU: { gated, total } %. total = whole machine (os.cpus() deltas over the ~2 s call); gated = total minus
  * the processes below Normal priority (lib gatedCpu; Orchestrator waste audit 2026-10-24: a BelowNormal Blender bake held
- * 4192 for ~62 min). gated is NaN when the PowerShell read fails (the gate then says 'cpu unknown').
+ * 4192 for ~62 min). gated is NaN when the PowerShell read fails (the gate then says 'cpu unknown'). The queue's own e2e
+ * browsers stay in gated (LQ_CPU_COUNT_E2E, laptop-queue-10 A9); top, elapsedMs and cores feed the log line (lib cpuNote).
  */
 function cpuGated() {
   const before = os.cpus();
   const out = cmd('powershell', ['-NoProfile', '-NonInteractive', '-Command', BG_CPU_PS], { soft: true });
   const after = os.cpus();
   const total = cpuTotalPct(before, after);
-  const { bgMs, elapsedMs } = backgroundCpuMs(out);
-  return { gated: gatedCpu({ total, bgMs, elapsedMs, cores: after.length }), total };
+  const { bgMs, elapsedMs, top } = backgroundCpuMs(out, { countE2e: CPU_COUNT_E2E });
+  const cores = after.length;
+  return { gated: gatedCpu({ total, bgMs, elapsedMs, cores }), total, top, elapsedMs, cores };
 }
 
-/** A gate CPU reader (cpuGated) that samples once, on first use (one sample per pass). */
+/**
+ * A gate CPU reader (cpuGated) that samples once, on first use (one sample per pass: built per pass, never cached
+ * across passes); .taken() says whether this pass sampled it (the logs add lib cpuNote only then).
+ */
 function lazyCpu() {
   let v;
-  return () => (v === undefined ? (v = cpuGated()) : v);
+  const read = () => (v === undefined ? (v = cpuGated()) : v);
+  read.taken = () => v !== undefined;
+  return read;
 }
 
 const ancestorMemo = new Map();
@@ -2197,14 +2223,14 @@ function applyConflicts(requests) {
 
 /**
  * Desktop: the train heads it may take now and why none ('' when it may), from the laptop's claim pushes on the branch
- * (desktopTrainGate; pendingTrains only runs while the laptop is silent).
+ * (desktopTrainGate; pendingTrains only runs while the laptop is silent). headsOnce = pass()'s trainHeadsNow() memo.
  */
-function desktopTrains() {
+function desktopTrains(headsOnce) {
   const laptop = workerActivity(git(['log', '-n', '2000', '--format=%ct %s', 'origin/laptop-queue', '--', 'claims/'], { soft: true }), 'laptop');
   const gate = (ageMs, train) => desktopTrainGate({ laptop, now: Date.now(), silentMs: LAPTOP_SILENT_MS, trainAgeMs: ageMs, graceMs: TRAIN_GRACE_MS, train });
   const off = gate(Infinity);
   if (off) return { trains: [], why: off };
-  const all = pendingTrains().filter((t) => !claimed.has(t.sha));
+  const all = pendingTrains(headsOnce()).filter((t) => !claimed.has(t.sha));
   // per head: beside the laptop's own train only a different train passes (lib desktopTrainGate)
   const trains = all.filter((t) => !gate(t.ageMs, t.n));
   return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
@@ -2269,11 +2295,14 @@ async function pass() {
   const listed = listRequests(); // running ones included (aloneDue keeps their marks)
   // laptop-queue-8 G: the open train heads once (laptop; pendingTrains reads them on the desktop), then lost train
   // verdicts and done claims on both workers, before the hold reads the heads
-  const trainRead = DESKTOP ? undefined : trainHeadsNow();
+  // laptop-queue-10 A1: at most one heads read per pass (headsOnce; the desktop's trains and train-soon hold share it)
+  let heads;
+  const headsOnce = () => (heads === undefined ? (heads = trainHeadsNow()) : heads);
+  const trainRead = DESKTOP ? undefined : headsOnce();
   syncTrains(trainRead?.heads ?? null);
   const requests = listed.filter((r) => !claimed.has(r.id));
   prBoardNow();
-  const dt = DESKTOP ? desktopTrains() : null;
+  const dt = DESKTOP ? desktopTrains(headsOnce) : null;
   for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
   // realOpen: a real request on the full listing (before the hold filters below) keeps a spare from starting (lib pick)
   const queue = { trains: DESKTOP ? dt.trains : pendingTrains(trainRead).filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone, realOpen: realOpenNow(requests) };
@@ -2304,6 +2333,7 @@ async function pass() {
     queue.requests = queue.requests.filter((r) => r.kind !== 'alone' || r === aged || preemptedAlone.has(r.id) || (ALONE_GAP && aloneGapOpen(state.aloneDue, r.id, lastTrainEnd)));
   } else if (!aloneSoonWhy) aloneSoonLogged = '';
   const desktopWait = {};
+  const cpu = DESKTOP ? lazyCpu() : null; // per pass: the gates, the logs and the start read one sample
   if (DESKTOP) {
     // auto-train's build (its vitest waits on heavy.lock) goes first: no new request while it builds, and no train at or
     // above the one being built; a lower train (N while N+1 builds on it) still starts (lib trainsUnderMarker)
@@ -2329,11 +2359,10 @@ async function pass() {
     if (train) {
       // laptop silent: the train goes first on the desktop slots that exist, backlog gate dropped (lock, dir, CPU kept);
       // it blocks new requests meanwhile so busy slots drain (as pick does on the laptop)
-      const cpu = lazyCpu();
       const ports = PORTS.filter((p) => fs.existsSync(SLOTS[p].dir));
       for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: true, backlog: Infinity, cpu: gateCpu(cpu(), CPU_MODE), cpuTotal: cpu().total, cpuMode: CPU_MODE, minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
       const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
-      log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent or on another train), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
+      log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent or on another train), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}${cpu.taken() ? `; ${cpuNote(cpu(), CPU_MODE)}` : ''}`);
       if (ports.length === 0 || waits.length) return;
       // the laptop may have woken up and claimed it since the list was read
       if (writeClaims([train.sha], 'claim', `claim train ${train.n}`) !== true) return;
@@ -2341,8 +2370,14 @@ async function pass() {
       if (!DRY) run.finally(() => ports.forEach((x) => { if (busy[x] === run) busy[x] = null; }));
       return;
     }
+    // laptop-queue-10 A1 (F9): the laptop's train-soon hold (filtered below, fitted at one job) while a pr request could
+    // start on a free port; the heads read is shared with desktopTrains (headsOnce); a GitHub error never holds
+    next = null;
+    if (DESKTOP_TRAIN_SOON && queue.requests.length > 0 && PORTS.some((p) => !busy[p])) {
+      const read = headsOnce();
+      if (read) trainSoonNow(read);
+    }
     if (queue.requests.length > 0) {
-      const cpu = lazyCpu();
       for (const port of PORTS) {
         if (busy[port]) continue;
         // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
@@ -2352,17 +2387,19 @@ async function pass() {
       }
     }
     const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
-    log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}${dt.why ? `; trains: ${dt.why}` : ''}`);
+    log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}${dt.why ? `; trains: ${dt.why}` : ''}${cpu.taken() ? `; ${cpuNote(cpu(), CPU_MODE)}` : ''}`);
     if (queue.requests.length === 0 || PORTS.every((p) => busy[p] || why[p])) return;
   } else log(`queue: ${queue.trains.length} train(s), ${queue.requests.length} request(s)`);
   // the next train is due: only train reruns and pr runs that end before its ETA start, so the slots drain for it
-  // (lib nextTrain, fitsBeforeTrain); a fitted run an early train catches falls to cutShort's 80% rule
+  // (lib nextTrain, fitsBeforeTrain); a fitted run an early train catches falls to cutShort's 80% rule. The desktop too
+  // (laptop-queue-10 A1), fitted at its E2E_JOBS=1; auto-train's build marker above stays the backstop
   const fitted = new Set();
-  if (!DESKTOP && next && queue.trains.length === 0) {
+  const fitJobs = DESKTOP ? 1 : undefined;
+  if (next && queue.trains.length === 0) {
     if (next.why !== soonLogged) { soonLogged = next.why; log(`${next.why}, next train ~${new Date(next.etaMs).toISOString().slice(11, 16)}Z: only runs that fit start`); }
     const now = Date.now();
     queue.requests = queue.requests.filter((r) => {
-      const fits = !r.trainRerun && fitsBeforeTrain(r, { now, etaMs: next.etaMs, times, prepS: FIT_PREP_S });
+      const fits = !r.trainRerun && fitsBeforeTrain(r, { now, etaMs: next.etaMs, times, prepS: FIT_PREP_S, jobs: fitJobs });
       if (fits) fitted.add(r.id);
       // an aged / preempted alone whose gap after a train is open still starts (lib holdKeeps; BRIEF A12)
       return holdKeeps(r, { next, due: ALONE_GAP ? state.aloneDue : null, lastTrainEnd, fits });
@@ -2410,7 +2447,8 @@ async function pass() {
       // the other worker may have taken it since the list was read: skip it this pass
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
       preemptedAlone.delete(p.request.id);
-      if (fitted.has(p.request.id)) log(`${p.request.id}: fits before the next train (~${Math.round(expectedWallS(p.request.suites, times, p.request.jobs ?? 2))} s)`);
+      if (fitted.has(p.request.id)) log(`${p.request.id}: fits before the next train (~${Math.round(expectedWallS(p.request.suites, times, fitJobs ?? p.request.jobs ?? 2))} s)`);
+      if (DESKTOP) log(`${p.request.id}: desktop start on ${(p.ports ?? [p.slot]).join(' + ')}, ${cpuNote(cpu(), CPU_MODE)}`);
     }
     const run = dispatch(p);
     if (DESKTOP) started = true;
