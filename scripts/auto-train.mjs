@@ -350,7 +350,7 @@ export function contextStatus(combined, context) {
     .sort((a, b) => (Date.parse(b.updated_at || b.created_at || '') || 0) - (Date.parse(a.updated_at || a.created_at || '') || 0));
   if (!list.length) return { state: 'missing', description: '' };
   const s = String(list[0].state).toLowerCase();
-  return { state: s === 'error' ? 'failure' : s, description: list[0].description ?? '' };
+  return { state: s === 'error' ? 'failure' : s, description: list[0].description ?? '', ...(s === 'error' ? { error: true } : {}) };
 }
 
 /**
@@ -514,7 +514,7 @@ export function headStatusAgrees(pr, combined, { requireAffected = true } = {}) 
   for (const ctx of [tr.CHECKER_CONTEXT, tr.AFFECTED_CONTEXT]) {
     const s = contextStatus(combined, ctx);
     if (s.state === 'missing') delete statuses[ctx];
-    else statuses[ctx] = { state: s.state, description: s.description };
+    else statuses[ctx] = { state: s.state, description: s.description, ...(s.error ? { error: true } : {}) };
   }
   return tr.trainReady({ ...pr, statuses }, { requireAffected }).ready;
 }

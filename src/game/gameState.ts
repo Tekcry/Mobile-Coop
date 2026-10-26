@@ -75,7 +75,8 @@ import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
-import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
+import { GRAB, type TakedownKind } from './takedown';
+import { takedownRow } from './knifeKill'; // (piano-knife S1)
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
 import type { TeamMoveKind } from './teamMoves';
@@ -377,6 +378,8 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (piano SO5) The lightning level set last step (`updateLight`). */
+  private flashWas = 0;
   /** (char-shadow-meter S2) The character contract, filled every sim step from the sim; null with the flag off. Guard AI's
    *  `fillOccluders` and Player's `fillOperator` replace the interim fills later (PLAN section 6). */
   readonly charOccluders: CharOccluders | null = flags.charShadowLight ? new CharOccluders() : null;
@@ -1524,8 +1527,9 @@ export class GameState implements AppState {
           // (joint-interrogation, G148) the partner's hostage with joint information: BLUFF lists above TEAM TAKEDOWN
           // (`assist` is only on offer in co-op: `net.partnerHolds`)
           if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
-          if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
-          else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
+          // (piano-knife S1, A2) the knife switch: no grab, the takedown row is the knife kill (`start` forces it)
+          if (takedownRow(o.plan.kind, o.e.def.quadruped, td.knife) === 'grab') m.add(TD_KIND, 'grab', -1, 'Grab character');
+          else m.add(TD_KIND, 'ko', -1, td.knife ? 'Takedown' : TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
@@ -1753,6 +1757,15 @@ export class GameState implements AppState {
     reg.tickFlicker(this.net?.simTime?.() ?? this.time);
     // (LR16-5b) the swinging pendants, on the same clock, before the meter samples (light parity)
     reg.tickSway(this.net?.simTime?.() ?? this.time);
+    // (piano SO5) lightning: this step's flash on the same shared clock, set once before the meter, the guards and the
+    // picture read it; the meter samples every step while a flash is lit (and the step after) so a short strike shows
+    const lt = this.world.lightning;
+    if (lt) {
+      const fl = lt.levelAt(this.net?.simTime?.() ?? this.time);
+      this.world.setFlash(fl);
+      if (fl > 0 || this.flashWas > 0) this.lightT = 0;
+      this.flashWas = fl;
+    }
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
@@ -2193,7 +2206,8 @@ export class GameState implements AppState {
     // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
     {
       const rt = this.rtTap.strike(this.weapons.drawPhase);
-      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown, rt === 'hold');
+      // (piano-knife S1, Michael ~20:05 "Palm strike knockout disabled, only knife kills") no strike with the knife switch on
+      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted && !this.team.hangingDown && !this.takedown.knife, rt === 'hold');
     }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
@@ -3182,6 +3196,7 @@ export class GameState implements AppState {
     this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.takedown.frameLate(); // (piano-knife S1) a knife kill's guard off the attacker's drawn root, before enemies pose
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
     this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
@@ -4051,7 +4066,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : this.takedown.knife ? 'Takedown' : (off.plan.kind === 'behind' || off.plan.kind === 'hangDown') && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.menuReady) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills

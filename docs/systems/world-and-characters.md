@@ -134,7 +134,9 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   `docs/archive/anim-tuner/WEIGHT.md`).
 - Wren's hands (weapons job, anim-cleanup): morph targets `gripR`, `gripL`, `wrapR`, `relaxR`, `relaxL` on her game files,
   blended by `rig.handGrip` and `rig.rightTrigger` (trigger, support, wrap, relaxed). Magazines are a separate `<id>-mag`
-  mesh moved by the reload clips (`reloadClipFor`); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
+  mesh moved by the reload clips (`reloadClipFor`); the pistol's slide is a separate `<id>-slide` mesh (a child of the gun's
+  mesh) that `WeaponModel.slideLock(on)` locks back `SLIDE_LOCK_BACK` 0.02 m for an empty gun (piano-knife S4a; the
+  piano intro calls it); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
   `traverse-shots.mjs`.
 - `player/proportions.ts` (pure) is the single source of body sizes. Average build at 1.75 m (with the ANSUR II
   corrections of ops SPEC 4.3 A1, A3-A7 since operators step 11e, G72, every character):

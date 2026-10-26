@@ -5,7 +5,7 @@
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
  *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill, never blended across a wall:
- *           `BounceGrid.sampleInto`) + moon x moon visibility + sum over the
+ *           `BounceGrid.sampleInto`) + (moon + lightning flash) x moon visibility + sum over the
  *           lamps listed for the point's 2 m column (as the shaders list them) of `LAMP_LEVEL_GAIN` x intensity x
  *           falloff x cone x baked visibility, with closed doors cutting lamps
  *
@@ -235,7 +235,22 @@ export class LightField {
   /** (char-shadow-meter) Scratch: the segment ax, ay, az, bx, by, bz `doorBlocksOne` tests, for the same reason. */
   private readonly seg = new Float64Array(6);
 
-  /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
+  /** (piano SO5) The lightning flash's gameplay level now (`Lightning.levelAt`; 0 between flashes and on maps without
+   *  lightning), added to the moon's level wherever the sky is seen. */
+  private flash = 0;
+
+  /** (piano SO5) Set the flash level for this sim step, before the meter and guards sample (`GameState.updateLight`).
+   *  With 0 every query is today's to the bit. */
+  setFlash(level: number): void {
+    this.flash = level > 0 ? level : 0;
+  }
+
+  /** (piano SO5) The flash level set for this step. */
+  get flashLevel(): number {
+    return this.flash;
+  }
+
+  /** Static light at a point: ambient + moon (+ a lightning flash) + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
     this.levelInto(x, y, z);
     return this.res;
@@ -309,9 +324,11 @@ export class LightField {
     pt[1] = y;
     pt[2] = z;
     const b = this.bake;
-    if (b && b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now, through the same visibility
+    const sky = b ? b.moonLight + this.flash : 0;
+    if (b && sky > 0) {
       this.moonInto();
-      const m = b.moonLight * this.res;
+      const m = sky * this.res;
       if (m > 0) {
         this.pushLv[0] = m;
         n = this.pushRes(ids, lv, n, max, -1);
@@ -346,9 +363,10 @@ export class LightField {
     pt[2] = z;
     if (id === -1) {
       const b = this.bake;
-      if (!b || !(b.moonLight > 0)) return 0;
+      const sky = b ? b.moonLight + this.flash : 0;
+      if (!b || !(sky > 0)) return 0;
       this.moonInto();
-      return b.moonLight * this.res;
+      return sky * this.res;
     }
     if (id < 0) return 0;
     if (id < this.isBaked.length && this.isBaked[id]) {
@@ -377,9 +395,11 @@ export class LightField {
     pt[1] = q[1]!;
     pt[2] = q[2]!;
     const b = this.bake;
-    if (b && b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now, through the same visibility
+    const sky = b ? b.moonLight + this.flash : 0;
+    if (b && sky > 0) {
       this.moonInto();
-      const m = b.moonLight * this.res;
+      const m = sky * this.res;
       if (m > 0) {
         this.pushLv[0] = m;
         n = this.pushRes(ids, lv, n, max, -1);
@@ -415,12 +435,13 @@ export class LightField {
     const r = this.qr;
     if (id === -1) {
       const b = this.bake;
-      if (!b || !(b.moonLight > 0)) {
+      const sky = b ? b.moonLight + this.flash : 0;
+      if (!b || !(sky > 0)) {
         r[0] = 0;
         return;
       }
       this.moonInto();
-      r[0] = b.moonLight * this.res;
+      r[0] = sky * this.res;
       return;
     }
     if (id < 0) {
@@ -556,9 +577,12 @@ export class LightField {
       this.bounceInto(x, y, z);
       v += this.res;
     }
-    if (b.moonLight > 0) {
+    // (piano SO5) the sky term: the moon plus the lightning flash now (`setFlash`), through the moon's visibility, so a
+    // window lets a flash in, a closed room stays dark and a character between shadows it (the moon's set member, -1)
+    const sky = b.moonLight + this.flash;
+    if (sky > 0) {
       this.moonInto();
-      let m = b.moonLight * this.res;
+      let m = sky * this.res;
       // (char-shadow-meter) the moon's source: `moonFar` m along its direction from the point
       if (ch !== null && m > 0) {
         const d = b.moon.dir;

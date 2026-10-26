@@ -27,6 +27,11 @@ export const DEFAULT_WEAPON_COLORS: WeaponColors = { body: '#2d3238', grip: '#1a
 
 /** Gap (m) between a carried weapon and the body or gear it rests against. */
 const CARRY_GAP = 0.012;
+/**
+ * (piano-knife S4a) How far an empty pistol's slide sits back when locked open (m, along -z of the weapon frame).
+ * Starting value (prototype mode): the slide is 0.182 m long (`pistolSd.json` partBounds.slide).
+ */
+export const SLIDE_LOCK_BACK = 0.02;
 /** (anim-gear) The slot pivot `place` hands to `CharacterRig.gearPlace` (item frame). */
 const gearV = new Vector3();
 /** (feature/weapons) The back stud's head sits this far (m) inside the socket's face (the keyhole's depth). */
@@ -168,7 +173,7 @@ export class WeaponModel {
     this.muzzleLocal = new Vector3(...def.muzzle);
     this.ext = modelExtents(def);
     // (feature/weapons) the baked mesh replaces the parts once loaded
-    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m, mag) => this.useMesh(m, mag, opts.caster), () => (this.meshWanted = false));
+    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m, mag, slide) => this.useMesh(m, mag, slide, opts.caster), () => (this.meshWanted = false));
     this.meshWanted = meshed;
   }
 
@@ -183,12 +188,17 @@ export class WeaponModel {
     return this.meshWanted && !this.mesh && !this.disposed;
   }
 
-  private useMesh(m: Mesh, mag: Mesh | null, caster?: (m: AbstractMesh) => void): void {
+  private useMesh(m: Mesh, mag: Mesh | null, slide: Mesh | null, caster?: (m: AbstractMesh) => void): void {
     this.mesh = m;
     this.magMesh = mag;
+    this.slideMesh = slide;
     for (const p of this.parts) p.setEnabled(false);
     caster?.(m);
     if (mag) caster?.(mag);
+    if (slide) {
+      caster?.(slide);
+      this.placeSlide();
+    }
   }
 
   /** (anim-cleanup) The magazine mesh (seated in the gun unless a reload has it in the hand). */
@@ -247,6 +257,31 @@ export class WeaponModel {
     mag.position.setAll(0);
     mag.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     mag.scaling.setAll(1);
+  }
+
+  /** (piano-knife S4a) The slide mesh (a child of the baked mesh; null: no baked mesh or no separate slide). */
+  slideMesh: Mesh | null = null;
+  private slideBack = false;
+
+  /** (piano-knife S4a) The slide is locked back (set by slideLock; kept across a late mesh load). */
+  get slideLocked(): boolean {
+    return this.slideBack;
+  }
+
+  /**
+   * (piano-knife S4a) An empty pistol: the slide locked back `SLIDE_LOCK_BACK` (on) or forward (off). Render only
+   * (the muzzle, grip points and extents are untouched); applied when the mesh arrives if it is not in yet. A gun
+   * without a separate slide ignores it. No allocation.
+   */
+  slideLock(on: boolean): void {
+    this.slideBack = on;
+    this.placeSlide();
+  }
+
+  private placeSlide(): void {
+    const s = this.slideMesh;
+    if (!s) return;
+    s.position.set(0, 0, this.slideBack ? -SLIDE_LOCK_BACK : 0);
   }
 
   /** What renders (shadow casters). */
@@ -796,7 +831,7 @@ export class WeaponModel {
     }
   }
 
-  /** The meshes the tuner's gun transform moves: the baked gun, and its magazine while seated in the well. */
+  /** The meshes the tuner's gun transform moves: the baked gun, and its magazine while seated in the well (the slide rides on the baked mesh as its child). */
   private tunedMeshes(): readonly (Mesh | null)[] {
     tunedList[0] = this.mesh;
     tunedList[1] = this.magMesh && !this.magInHand && !this.magSeating && this.magMesh.parent === this.node ? this.magMesh : null;
@@ -809,6 +844,7 @@ export class WeaponModel {
     // (ct-prototype D+E fix r1) a travel abandoned by the weapon going away
     this.trSlot = null;
     if (this.owner?.travelNode === this.node) this.owner.travelNode = null;
+    this.slideMesh?.dispose();
     this.mesh?.dispose();
     this.magMesh?.dispose();
     if (this.rig) this.track(this.rig, false);

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "example",
+    "files": [
+      "docs/level-validator/example.graph.json"
+    ],
+    "flags": [],
+    "errors": 0,
+    "warns": 0,
+    "run": null
+  },
+  {
+    "name": "campus",
+    "files": [
+      "docs/sector-redesign/graph/campusOps-S1.json",
+      "docs/sector-redesign/graph/campusOps-S2.json",
+      "docs/sector-redesign/graph/campusOps-S3.json",
+      "docs/sector-redesign/graph/campusOps-S4.json",
+      "docs/sector-redesign/graph/campusOps-S5.json"
+    ],
+    "flags": [],
+    "errors": 139,
+    "warns": 199,
+    "run": "docs/level-validator/campus-run/run.txt"
+  },
+  {
+    "name": "marlow",
+    "files": [
+      "docs/marlow-final/graph/ctcourse.json"
+    ],
+    "flags": [
+      "--require-measured"
+    ],
+    "errors": 37,
+    "warns": 83,
+    "run": "docs/marlow-final/graph/run.txt"
+  }
+]
