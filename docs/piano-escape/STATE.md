@@ -1,20 +1,24 @@
 # piano-escape - STATE
 Owner: Night Shift | Campaign Build. Status: current.
 
-## RESUME 2026-10-26 ~21:00 (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
-Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape (from master 1b58989ed). ROADMAP Now row 20.
-1. BRIEF A1-A11 (A11: scene-only Guard AI work for the blackout; sight stays light parity).
-2. PLAN + map-plan.svg + SIGNOFF: Opus plan check PASS after fix round 1 + one SIGNOFF line (c3fbee933;
-   C:/NightShift/scratch/campaign/piano-plan-check.md, polish notes at its end). Knife gate call per Player Build:
-   `setKnifeScene(knifeSceneOn(flags.pianoEscape, map.scene, true))` (src/game/knifeKill.ts on feature/piano-knife).
-3. Michael approved the SIGNOFF ~20:15 ("Approve, build it"; BRIEF M2). Orchestrator lines up GA1 / GA3 / GA4 / GA5 and
-   SO1-SO4.
-4. Wave 1 building (desktop, Sonnet, CPU 62% at start): S1 shell + greybox on feature/piano-escape-s1
-   (C:/NightShift/Mobile-Coop-piano-escape-s1, brief scratch/campaign/piano/S1-brief.md -> S1-report.md) and S3 music on
-   feature/piano-escape-s3 (-s3, S3-brief.md -> S3-report.md). Both from feature/piano-escape 158163476; disjoint files.
-   Rerun a builder whose report is missing. Then ONE Sonnet checker for the batch (S1 + S3; game files: request
-   e2e-coop + e2e-netmove for the PR), merge both into feature/piano-escape, PR to master (dark, `pianoEscape`).
-5. Then S2 (Opus, intro + EMP on stubs: brief from PLAN S2 when wave 1 is in checking); S4 (Opus) waits for knife S1 +
-   S3, GA1 / GA3, SO1-SO3.
-6. Player Build: feature/piano-knife (plan 2b690b417), S1 building on feature/piano-knife-s1 (PB1 + PB5); PB4 in its S3.
-Next: S1 + S3 reports -> batch checker -> merge -> PR; write the S2 brief.
+## RESUME 2026-10-26 ~20:25 SAVE (Night Shift | Campaign Build; Michael ~19:40: piano scene is the main focus)
+Worktree C:/NightShift/Mobile-Coop-piano-escape, branch feature/piano-escape. ROADMAP Now row 20.
+Setting history: piano works (plan approved ~20:15 as drawn) -> bunker (~20:05) -> one room / more guards (~20:10) ->
+STORM GRAIN MILL (Michael picked ~20:15; map id `thornbeckMill`, BRIEF A8, A12-A16) -> linear cinematic path, forced
+stealth / stalking / solo kills / paired co-op kills (~20:16). The approved opening, EMP and knife rules stand.
+1. Redraw of PLAN section 3 + SIGNOFF + map-plan.svg as the storm mill: Opus planner (the original PLAN agent) was
+   working at the save. Missing or bunker-shaped at resume -> restart an Opus redraw from BRIEF A8, A12-A16 and the ~20:16
+   quote (orchestrator notes: lightning on a fixed timetable tied to the music, light parity; rain masks sound; 12-16
+   guards with torches, slow fixed sweep, sweeping pairs; knife + NV only; one exit locked until all down; S5 music
+   experiment with a dev A/B picker). Then a quick Opus re-check of the redraw against the BRIEF, then SIGNOFF to the
+   orchestrator for Michael's click ("Build the storm mill escape to this plan, with the rule skips above (this scene
+   only)?").
+2. S1 shell (Sonnet) on feature/piano-escape-s1: flag, `clear` objective, pianoScene (knife + NV only, empty pistol,
+   end fade, no record), menu entry, STUB map `thornbeckMill` (no geometry; greybox S1b after Michael's click). Report
+   scratch/campaign/piano/S1-report.md; missing -> rerun from S1-brief.md + the lead changes (stub map, thornbeckMill).
+3. S3 music DONE feature/piano-escape-s3 876c5e8b8 (20 tests; scratch/campaign/piano/S3-report.md). Waits for S1: one
+   Sonnet checker for S1 + S3, merge both into feature/piano-escape, PR (dark).
+4. Others: Player knife feature/piano-knife (S1 building; told map id thornbeckMill, scene 'piano' gate unchanged).
+   Sector Ops SO1 feature/piano-lights-so1, SO3 feature/piano-lights-so3 building; SO2 / SO4 wait for the greybox
+   (tell them branch + head). Guard AI told by the orchestrator.
+Next: finish the mill redraw -> re-check -> SIGNOFF to the orchestrator; S1 report -> S1 + S3 checker -> PR.

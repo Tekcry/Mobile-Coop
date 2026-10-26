@@ -29,6 +29,8 @@ Lead: Night Shift | Campaign Build. Started: 2026-10-26 19:40. Base: master 1b58
   without forcing a guard take down. The guards must move slowly and methodically to find both players."
 - 2026-10-26 ~20:10, chat (relayed by the orchestrator): "I want to experiment with the music also, if you can create
   similar samples based off the provided file and tags."
+- 2026-10-26 ~20:16, chat (relayed by the orchestrator), on the grain mill: "Must be very cinematic, Not meant to be open
+  world or explored. Must force stealth, stalking, kills, coop kills. I want it to showcase a tense, coop gameplay"
 - 2026-10-26 ~20:15 (relayed by the orchestrator): the bunker felt too close to one of CT's final missions; replaced.
 
 ## Michael picked
