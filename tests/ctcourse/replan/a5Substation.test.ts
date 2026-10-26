@@ -8,7 +8,7 @@
  * and objective lines. The built A5 is `tests/ctcourse/a5Substation.test.ts` (unchanged); the tick is `a5Ticks.test.ts`.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ENEMIES } from '../../../src/ai/enemyDefs';
 import { NavGrid, type NavBlocker } from '../../../src/ai/navGrid';
 import { seenAt, sightRate, EYE_STAND, PERCEPTION } from '../../../src/ai/perception';
@@ -92,7 +92,11 @@ import {
   A5_WICKET_FLAG,
   A5_WICKET_GATE,
   FLOOR_HOLES,
+  A5_CHIMNEY_KIT_TEXT,
+  A5_SWING_KIT_TEXT,
 } from '../../../src/world/maps/ctcourseSets/replan/a5Substation';
+import { kitSpotsOf } from '../../../src/game/kit/kitApi';
+import { flags } from '../../../src/core/flags';
 import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../../src/world/maps/ctcourseSets/types';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../../helpers/soloJumpReach';
 
@@ -1038,5 +1042,56 @@ describe('Marlow re-plan A5: flags, stations in play, lines', () => {
     expect(part.navSeeds.some((s) => s.y < -1)).toBe(true);
     expect(part.navSeeds.some((s) => s.y > 5)).toBe(true);
     expect(part.camSpaces.map((c) => c.size)).toEqual(['open', 'tight', 'tight']);
+  });
+});
+
+describe('stations 11 and 12 kit spots (marlow-kit-wire)', () => {
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+  const objText = (d: typeof def, id: string): string => d.objectives!.find((o) => o.id === id)!.text;
+
+  it('one chimneyPair spot, a5-chimney: the gap\'s floor centre, its width and the wall top (from the set constants)', () => {
+    expect(flags.kitMoves.has('chimneyPair')).toBe(false);
+    const spots = kitSpotsOf(b, 'chimneyPair');
+    expect(spots.length).toBe(1);
+    const gp = A5_GAP;
+    expect(spots[0]).toEqual({ id: 'a5-chimney', kind: 'chimneyPair', x: (gp.x0 + gp.x1) / 2, y: 0, z: (gp.z0 + gp.z1) / 2, yaw: -Math.PI / 2, w: gp.x1 - gp.x0, h: A5_WALLTOP.y, x2: (A5_WALLTOP.x0 + A5_WALLTOP.x1) / 2, z2: (gp.z0 + gp.z1) / 2 });
+    // the PLAN band: width 1.2-1.6, height 3-8, the top the wall top (the perimeter's height)
+    expect(spots[0]!.w!).toBeGreaterThanOrEqual(1.2);
+    expect(spots[0]!.w!).toBeLessThanOrEqual(1.6);
+    expect(spots[0]!.h!).toBeGreaterThanOrEqual(3);
+    expect(spots[0]!.h!).toBeLessThanOrEqual(8);
+    expect(spots[0]!.h).toBe(A5_PERIM.h);
+  });
+
+  it('one swingPass spot, a5-swing: the gantry pipe on the trench\'s near edge; the gap 2.0-3.5 m and the bar 2.2-2.8 m', () => {
+    expect(flags.kitMoves.has('swingPass')).toBe(false);
+    const spots = kitSpotsOf(b, 'swingPass');
+    expect(spots.length).toBe(1);
+    const tr = A5_CABLE_TRENCH;
+    expect(spots[0]).toEqual({ id: 'a5-swing', kind: 'swingPass', x: tr.x1, y: A5_GANTRY_PIPE_Y, z: A5_GANTRY.z, yaw: -Math.PI / 2, w: tr.x1 - tr.x0, y2: 0 });
+    expect(spots[0]!.w!).toBeGreaterThanOrEqual(2.0);
+    expect(spots[0]!.w!).toBeLessThanOrEqual(3.5);
+    expect(spots[0]!.y).toBeGreaterThanOrEqual(2.2);
+    expect(spots[0]!.y).toBeLessThanOrEqual(2.8);
+    expect(Math.abs(spots[0]!.y2! - 0)).toBeLessThanOrEqual(0.4);
+    const ids = def.bays[4]!.stations!.filter((s) => s.kit === 'chimneyPair' || s.kit === 'swingPass').map((s) => s.id);
+    expect(ids).toEqual(['a5-chimney', 'a5-swing']);
+  });
+
+  it.todo('Q2: the swing landing at z 44.6 is 0.55 m deep (drums) against the 0.75 m band; the gantry posts stand on both edges');
+
+  it('kit on: stations 11 and 12 name the moves; off: the stand-in lines', () => {
+    flags.kitMoves = new Set(['chimneyPair', 'swingPass']);
+    const on = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(on, 'a5-wall')).toBe(A5_CHIMNEY_KIT_TEXT);
+    expect(objText(on, 'a5-trench')).toBe(A5_SWING_KIT_TEXT);
+    for (const t of [A5_CHIMNEY_KIT_TEXT, A5_SWING_KIT_TEXT]) expect(t.length).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+    flags.kitMoves = new Set();
+    const off = buildCtcourse(new LevelBuilder(), { replan: true }).layout.course!.def;
+    expect(objText(off, 'a5-wall')).toBe('Through the wicket door in the wall onto the apron.');
+    expect(objText(off, 'a5-trench')).toBe("Cross the cable trench to the apron's west side: footbridge or plates.");
   });
 });
