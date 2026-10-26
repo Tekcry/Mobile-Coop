@@ -9,5 +9,6 @@
     "e2e-stealth-ai"
   ],
   "set": "affected",
-  "note": "auto affected-e2e, PR #588"
+  "note": "auto affected-e2e, PR #588",
+  "place": "20261026T092633-affected-e2e-55a8cddc-cbf3"
 }
