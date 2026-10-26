@@ -3246,7 +3246,7 @@ export class Enemy implements Damageable {
     // (his intruder's last known position to go to: none, and today's rules hold)
     const closer = !this.los && !outside && this.coordinated && this.ctx.stealth() && this.huntPos() !== null;
 
-    // ---- melee (runner) ----
+    // ---- melee (the dog; every human kind is armed, G298) ----
     if (def.melee) {
       if (this.dist <= def.melee.range && this.meleeCd === 0) {
         this.meleeCd = def.melee.cooldown;
@@ -3347,7 +3347,8 @@ export class Enemy implements Damageable {
           return this.goal(this.chasePoint(dt, tp, false), this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, null);
         }
         this.closingIn = closer;
-        return this.goal(this.chasePoint(dt, tp, false), this.los ? def.walkSpeed : def.runSpeed, null);
+        // (guard-ai runner-armed) the runner weaves on his run in (ARCHETYPE.runner.weave)
+        return this.goal(this.chasePoint(dt, tp, def.kind === 'runner' && ARCHETYPE.runner.weave), this.los ? def.walkSpeed : def.runSpeed, null);
       }
       case 'attack': {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
@@ -3368,7 +3369,9 @@ export class Enemy implements Damageable {
           this.strafeT = this.rng.range(2, 4);
           this.strafe = this.rng.next() < 0.5 ? 1 : -1;
         }
-        const away = this.dist < def.engageMin ? -1 : this.tacticsProfile === P_AGGRESSIVE && this.dist > def.engageMin + 3 ? 1 : 0;
+        // (guard-ai runner-armed) the runner presses in like an aggressive guard (ARCHETYPE.runner.pressIn)
+        const press = this.tacticsProfile === P_AGGRESSIVE || (def.kind === 'runner' && ARCHETYPE.runner.pressIn);
+        const away = this.dist < def.engageMin ? -1 : press && this.dist > def.engageMin + 3 ? 1 : 0;
         const dx = t.feet.x - this.pos.x;
         const dz = t.feet.z - this.pos.z;
         const len = hyp2(dx, dz) || 1;
@@ -3552,7 +3555,8 @@ export class Enemy implements Damageable {
     return Math.atan2(t.feet.x - this.pos.x, t.feet.z - this.pos.z);
   }
 
-  /** Direct line if clear, else follow the shared flow field. Runners zigzag. (polish A3, A165) In stealth with no
+  /** Direct line if clear, else follow the shared flow field. `zig`: a lateral weave beyond 5 m (the dog's charge; the
+   *  runner's run in, `ARCHETYPE.runner.weave`). (polish A3, A165) In stealth with no
    *  intruder: an A* walk to `tp` (his own known spot), never along the freshest intruder's field (G139). */
   private chasePoint(dt: number, tp: P2, zig: boolean, ty = Number.NaN): Waypoint | null {
     const nav = this.ctx.nav;
