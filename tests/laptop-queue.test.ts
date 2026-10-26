@@ -6,11 +6,11 @@ import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
+import { partsTable, slowLines, slowNote, slowRecord, slowSummary } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 // @ts-expect-error plain .mjs module without types
 import { overCapAffected } from '../scripts/laptop-queue/lib.mjs';
-// @ts-expect-error plain .mjs module without types
-import { partsTable, slowLines, slowNote, slowRecord, slowSummary } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {

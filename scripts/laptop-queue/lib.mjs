@@ -782,7 +782,7 @@ export function mergeTimes(times, suites) {
   return out;
 }
 
-/** Status description: "<pass>/<n> pass, <wall> s" + "; flake: a,b" + "; known flaky: c" + "; FAIL: d" + "; slow: e 684/900s" (F35), cut to 140. */
+/** Status description: "<pass>/<n> pass, <wall> s" + "; flake: a,b" + "; known flaky: c" + "; slow: e 684/900s" (F35) + "; FAIL: d", cut to 140. */
 export function describe(result) {
   const real = result.suites.filter((x) => !x.report);
   const pass = real.filter((x) => x.ok).length;
@@ -791,9 +791,9 @@ export function describe(result) {
   if (result.flakes?.length) d += `; flake: ${result.flakes.join(',')}`;
   const kf = real.filter((x) => !x.ok && x.flaky);
   if (kf.length) d += `; known flaky: ${names(kf)}`;
+  d += slowNote(result.slow); // laptop-queue-11 F35
   const bad = real.filter((x) => !x.ok && !x.flaky);
   if (bad.length) d += `; FAIL: ${names(bad)}`;
-  d += slowNote(result.slow);
   return d.length > 140 ? `${d.slice(0, 137)}...` : d;
 }
 
