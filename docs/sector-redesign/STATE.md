@@ -373,7 +373,17 @@ re-targeting PR bases: the orchestrator posts them from the written reports (sen
    adds the v2 extras, PLAN section 4). Guard counts answer sent to the orchestrator (v1 live, v2 signed 15/18/20/25/26).
 5. J21 map-ready: S14 done on cloud (763fc7bf) - Opus checker running (report map-ready-s14-check.md). S3 cloud brief
    being written by an Opus agent (briefs/map-ready-S3.md). S15 needs laptop GPU per step; S5 after #317; S16 / A20.
-UPDATE 13:00 (usage cap): #518 CI fix head 8caddb44 (needs checker; Sonnet delta report light-l1-delta-check-2.md). Cloud briefs open: char-shadow-meter-s2c, map-ready-S3 (on S14), campus-greybox-stack-s3/-s4/-s5. S14 Opus PASS, gate + alone queued. L2 briefs done (HOLD). #503 merged: open s1-a..c / s2-a..d lane PRs (bodies owed).
-Next: on each agent result: publish / check / PR; S14 PASS -> request its PC runs (step 6); after a release merge
-master into labelled branches; when CPU < 80%: S10 PR prep, lane stacks verification.
+UPDATE 14:00 (new account; bypass mode since ~14:00: this session posts its own `checker` statuses from an independent
+report on that exact head, and retargets its stacked PRs to master itself, Orchestrator 14:00):
+- Checker posted: #518 (8caddb44), #489 (a0147ac4, delta csm-s3b-delta-check.md), #523-#529. #457 CI red = lightField
+  allocation flake, failed job rerun.
+- OPEN lane PRs (J17, dark): S1 #523 (master) -> #524 -> #525; S2 #526 (master) -> #527 -> #528 -> #529 (check
+  lane-s1-s2-check.md, lane checks s1-check.md / s2-check.md). `gh pr edit <n> --base master` as each parent lands.
+- Desktop agents (claimed off cloud-queue fb6c526e9): campus-greybox-stack-s3 (worktree -campus-greybox-stack-s3), -s4
+  (worktree -campus-greybox-lanes), -s5 (-campus-greybox-stack-s5), map-ready-S3 Opus (-map-ready-s3, on S14). A lost
+  one reruns from its brief. On done: one checker per stack, PRs, brief marked done on cloud-queue.
+- S14 763fc7bf: gate + alone requests open on the laptop queue (no PR yet; stacks on #513).
+- Orchestrator hold 13:32: no new local builders until "go: start builders"; tsc / vitest slices go to cloud-queue.
+Next: on each agent result: check / PR / mark brief done; map-ready S3 gets two Opus checkers + Guard AI review of
+src/ai; S14 PR after its runs; S10 PR after #511 / #512 land; L2 on HOLD until Michael's S1 walk.
 ```
