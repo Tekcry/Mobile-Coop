@@ -1,14 +1,11 @@
-# Resume - Night Shift | Player Build (2026-10-26 ~13:40 after the ~13:00 swap; older log: history at the end)
-At resume: agents die at a swap. Restart each from its branch head + the line below. All worktrees clean and pushed.
-- Cloud briefs: player-j19-s4 DONE 92a14fac (Opus checker running -> scratch/ctcore/j19-s4-CHECK.md; restart if missing) -> PR -> laptop affected + e2e-coop e2e-netmove; player-j19-s8a claimed by Cloud Builder 1 (laptop smoke: E2E_GPU=1 E2E_PORT=4189 node scripts/look-video.mjs --scenes smoke --out C:/NightShift/scratch/look/j19-s8a); mixamo-i9-polish open. J19 S2 / S5 briefs being written (scratch/ctcore/briefs/player-j19-s2.md, -s5.md) -> push to cloud-queue. Add tests/sectors.test.ts (S4) and tests/lookVideo.test.ts (S8a) to J19 PLAN claims. R16 runner melee (enemy.ts:3250): Guard AI's.
-- PRs (watcher scratch/ctcore/watch-lq.sh sha:context ...):
-  #516 J6 S3+S4 67c3698d: CI failed on master's new tests/dogTakedown.test.ts (mock lacked hitDistance); merged master + mock fix; Opus merge checker running (-> j6-s3s4-merge-CHECK.md, posts checker); laptop 20261026T022723-...-67c3698d-bc16 (set hygiene-s3s4-coop) + affected.
-  #498 wire df214492: checker posted (carried, docs-only head); laptop-e2e/mixamo-wire green on 7f851b27; affected queued. Base feature/mixamo-on until #494 ships.
-  #494 toggle 9a326d4e: affected desktop FAIL e2e-studio, laptop rerun queued (final verdict). #506 I2b, #514 I9, #519 J6 S2: checker posted, affected queued.
-  #505 J6 S1, #501 I7: train-ready. #493 I5, #485 I4: merged. #514 retarget to master when #501 ships.
-- Desktop CPU 94% at 13:30 (other leads' builders): new builds go to cloud-queue, local only tsc / vitest via low.mjs.
-- Next: S4 PR on PASS; push S2 / S5 briefs; when #498 lands: I8 lazy in-game sets (BATCH2-PLAN I8), then I10-I14; J19 S1 after #516 is on master; gm-look rebake when the orchestrator allows Blender.
-
+# Resume - Night Shift | Player Build (2026-10-26 ~14:45; older log: history at the end)
+At resume: agents die at a swap. Restart each from its branch head + the line below. Session is in Bypass permissions (Michael ~14:00): post own checker statuses (independent report, PASS on that exact head).
+- FIXES FIRST (Michael ~14:00, docs/orchestrator/FIXES.md): F4 e2e-pad + F5 e2e-netmove = feature/player-flake-fix (worktree -player-flake-fix), test-only, brief scratch/ctcore/briefs/player-flake-fix.md, findings flake-fix-player-FINDINGS.md. Sonnet builder running locally (report -> player-flake-fix-REPORT.md) -> Opus checker -> PR (removes e2e-pad quarantine) -> laptop e2e-pad x5 + e2e-netmove x5 (E2E_GPU=1) -> tell orchestrator at PR open. F4 = stale test since train 112 (Notes row); suite after e2e-pad.mjs:490 unrun since: may show more. Asked orchestrator for Test Runner's train 118 netmove logs.
+- Preview flags (ROADMAP Now 0d, Michael's ask): briefs/player-preview-flags.md (priority top + mixamo amendment) claimed by Cloud Builder 1 -> on done: verify the amendment (mixamo.ts setMixamo(flags.mixamo ?? PREVIEW_ON)), Opus checker, PR listing the 5 flags, laptop affected.
+- Cloud briefs open: player-j19-s2, player-j19-s5 (Opus builders), mixamo-i9-polish; player-j19-s8a claimed by Cloud Builder 1. Take done branches within 1 h.
+- PRs: #532 J19 S4 (R17 only; R16 is Guard AI's #531) 80f7bf7d checker PASS, laptop j19-s4-coop + affected queued. #516 J6 S3+S4 67c3698d checker PASS, laptop hygiene-s3s4-coop + affected. #494 toggle e39da5fd (clean master merge, carried checker) CI + affected. #498 wire df214492 checker posted, affected. #506 I2b, #514 I9, #519 J6 S2 checker posted, affected. #505 J6 S1, #501 I7 train-ready. #514 retarget to master when #501 ships.
+- CPU hold (orchestrator): no new local FEATURE builders until "go: start builders"; fix builders allowed.
+- Next: flake-fix PR; preview-flags PR; when #498 lands: I8 lazy in-game sets (BATCH2-PLAN I8), then I10-I14; J19 S1 after #516 is on master; gm-look rebake when Blender allowed.
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; desktop-worker logs in
