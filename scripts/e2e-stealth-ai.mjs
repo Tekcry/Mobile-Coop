@@ -3902,10 +3902,12 @@ try {
           while (!e.alerted && k++ < 300) t.step(1 / 60);
           return e;
         };
-        // the player's spot in front of the area-1 spotter: open floor 4-5 m in front of him
+        // the player's spot in front of the area-1 spotter: open floor 2.5-4.7 m in front of him, inside his focused cone
+        // (15 deg off at most) and well off the pillar at (10, 5) r 0.35: the eye ray to (11.2, 4.5) / (8.8, 4.5) passes
+        // ~1.0 m from its axis; (10, 6.5) stands short of it. No wall, crate or rack lies between (S3b check B FIX 1).
         const s1 = [10, 9];
         let p1 = null;
-        for (const c of [[9.5, 4], [10, 4.5], [10.5, 4], [9.5, 5]]) if (!p1 && floor(c[0], c[1])) p1 = c;
+        for (const c of [[11.2, 4.5], [8.8, 4.5], [10, 6.5]]) if (!p1 && floor(c[0], c[1])) p1 = c;
         out.pick = floor(0, 5) && floor(s1[0], s1[1]) && p1 !== null;
         out.p1 = p1;
         if (!out.pick) return out;
@@ -3972,7 +3974,7 @@ try {
       console.log(`  area alarm: area 0 raised after ${f2(r.aT)} s, area 1 after ${f2(r.bT)} s, site after ${f2(r.dT)} s; seen ${s(r.seen)}`);
       assert(r.aArea === 0 && r.aAlerted && s(r.a.seen) === s([0]) && r.a.by === 'radio', `area alarm (a): the area-0 spotter's command call raises area 0 (area ${r.aArea}, seen ${s(r.a.seen)}, '${r.a.by}')`);
       assert(!r.a.in0 && r.a.in1 && r.a.site && !r.a.raised && r.a.guard === 0 && r.a.n0 === 1, `area alarm (a): area 0 shut, area 1 and the panels free, the site lock untouched (${s(r.a)})`);
-      assert(r.bArea === 1 && r.bAlerted && s(r.b.seen) === s([0, 1]), `area alarm (b): a spotter in area 1 raises area 1 (area ${r.bArea}, seen ${s(r.b.seen)})`);
+      assert(r.bArea === 1 && r.bAlerted && s(r.b.seen) === s([0, 1]), `area alarm (b): a spotter in area 1 raises area 1 (area ${r.bArea}, alerted ${r.bAlerted} with the player at ${s(r.p1)}, seen ${s(r.b.seen)})`);
       assert(!r.b.in0 && !r.b.in1 && r.b.site && !r.b.raised && r.b.all === 2 && r.b.guard === 0, `area alarm (b): both areas shut now, the panels still free (${s(r.b)})`);
       assert(s(r.c.areas) === s([0, 1]) && s(r.c.before) === s([false, false, false, false]) && s(r.c.after) === s([true, true, false, false]) && r.c.stage === 2, `area alarm (c): setAreaStage(0, 2) gears only area 0's guard (${s(r.c)})`);
       assert(r.dArea === -1 && s(r.d1.seen) === s([-1]) && r.d1.guard === 1 && r.d1.raised && !r.d1.site, `area alarm (d): no areas, the alarm is the site's (J15) (${s(r.d1)}, area ${r.dArea})`);
