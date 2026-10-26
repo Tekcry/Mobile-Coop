@@ -1,0 +1,13 @@
+{
+  "id": "20261026T221929-night-shift-sector-o-a5e9cf0b-865f",
+  "sha": "a5e9cf0ba4f95c8a14a35112ceb5e3eb7aa68851",
+  "branch": "feature/nv-illuminator",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-darkness"
+  ],
+  "set": "nv-gpu",
+  "fix": true
+}
