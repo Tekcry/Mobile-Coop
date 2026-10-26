@@ -1007,25 +1007,24 @@ quarantined; build toward playable pieces, not polish or tooling. Michael's play
 Michael 15:40: the orchestrator posts checker marks from the lead's reports (auto mode blocked self-posting).
 Michael 15:55: never held up - the first time you would wait on another session, message the orchestrator; never
 wait over 10 min.
-Open (2026-10-26 ~18:35 SAVE, orchestrator save before a likely swap; all worktrees pushed):
-1. #317 coop4 (ready): master 4.114.1 merged (PROTOCOL_VERSION = master's 70), merge 4 + 5 checks PASS
-   (docs/coop4/checks/MERGE4*/MERGE5-CHECK.md); checker status POSTED on cf86db768. Waits on its affected-e2e (src/net:
-   co-op group; the laptop service queues it). Green -> train-ready, tell the orchestrator. coop4's named-only
-   e2e-sectorops parts are now :10 / :11 / :12.
-2. #558 J15 PR3: checker POSTED on c29ea923b, CI + affected-e2e green -> train-ready (watchdog labels). After it
-   merges: PR4 = feature/guard-rules-pr4 b111c9aa1 (merge master, merge check, PR). J26 mission hooks after PR4.
-3. PLAY PASS (docs/guard-ai/PLAY-PASS.md on feature/guard-ai-play):
-   - #585 slice B (feature/guard-ai-play, worktree -guard-ai-play): check PASS, checker POSTED on 5485a2069;
-     affected-e2e pending. Polish: orphaned onEnemyJoined comment (courseMode.ts:1394-1407), PLAY-PASS slice B text.
-   - #588 slice A (feature/guard-ai-home, worktree -guard-ai-home): checks A + B FIX -> Opus fix round (one long plan
-     per frame via EnemyManager / AiContext.longPlan, budget 10000 = ~2.4 ms p50, progress-based give-ups) -> re-check
-     PASS (docs/guard-ai/checks/PLAY-A-RECHECK.md); checker POSTED on 9ef20808b; affected-e2e pending.
-     Polish: hard backstop on wake-body / alarm walks; "can't get through" bark; a post guard off his storey re-plans
-     every 5 s.
-4. Owners: Marlow #574 and Sector Ops #525 re-land (train 127 dropped them); the orchestrator told Michael to hold Marlow
-   Yard and S1 until they ship. Sector Ops did: S1 v2 smoker 14 post, campusV2 stacks whole (#529 #544 #547 #535).
-5. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; NetSession.roomCap unused;
+TOKEN RULE (Michael 2026-10-26 ~19:22, ROADMAP Decided): full burn ended: at most 2 agents at a time (AI code and its
+checkers stay Opus), nothing briefed more than one slice ahead, background waits, no polling.
+Open (2026-10-26 ~19:30, new session; #585 and #558 merged in trains 131 / 130; #531 runner-armed shipped):
+1. #317 coop4 (feature/coop4, worktree -coop4): merge 6 (master 4.115.0, 24b75b79: PROTOCOL_VERSION 71, S2c charMates
+   beside coop4 slots) check FIX (docs/coop4/checks/MERGE6-CHECK.md) -> lead fix round 6adf988e5 (F1 fillChars
+   charRefAt: an out host no longer shifts a partner's light slot; F2 client mates skip OUT partners, relist on mask
+   change; tests/charMates.test.ts). Then train 131 (4.116.0) conflicted in campusV2 s2-s5Data (Sector Ops re-lay):
+   Opus resolver in side worktree C:/NightShift/Mobile-Coop-coop4-m7 (detached, merge commit not pushed; notes
+   docs/coop4/checks/MERGE7-NOTES.md) re-places the minPlayers 3/4 extras. Next: merge m7's commit + 6adf988e5 onto
+   feature/coop4, ONE Opus check of fix + merge 7, push, affected-e2e (co-op group), then train-ready + orchestrator.
+2. #595 J15 PR4 (feature/guard-rules-pr4, worktree -guard-rules-pr4; lookouts + dog release dark; master 4.116.0
+   merged eaf6a1dd1, conflicts ai.md + e2e-sectorops H8 block, both kept): Opus merge check running ->
+   docs/guard-rules/checks/PR4-MERGE-CHECK.md. PASS -> orchestrator posts checker; affected-e2e green -> train-ready.
+   Body has `Job-done: guard-rules`. J26 mission hooks after it merges.
+3. #588 play pass A (feature/guard-ai-home): GREEN all three on 9ef20808b; orchestrator told train-ready ~19:30.
+   Polish: hard backstop on wake-body / alarm walks; "can't get through" bark; a post guard off his storey re-plans
+   every 5 s. #585 polish: orphaned onEnemyJoined comment (courseMode.ts:1394-1407), PLAY-PASS slice B text.
+4. Polish (only if it helps the playthrough): pressing guards round waist-high blocks; NetSession.roomCap unused;
    guardpairs=0 on the flag-off talking-pairs e2e; autojoin 5th tab gets bye not "Room full"; J16 perception half.
-Next: when #317 / #585 / #588 affected-e2e are green (one triage + one rerun at most if red), tell the orchestrator
-train-ready; then PR4 after #558 merges.
+Next: land coop4 merge 7 + its one check, then #317 / #595 train-ready to the orchestrator; then J26 mission hooks.
 ```
