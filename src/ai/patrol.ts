@@ -81,6 +81,11 @@ export class PatrolWalker {
   private swIdx0 = 0;
   /** (GA6b) The current hold is a rejoin's catch-up hold (it pans whole cycles), not a schedule stop. */
   private swHoldRejoin = false;
+  /** (piano polish 2) The current hold was cut by `away`: it goes on (its pan from the start) once he is back at the
+   *  stop; until then the stop is the point to walk to. */
+  private swCut = false;
+  /** (piano polish 1) `sweepHere`: the next sweep step takes the stop he heads for as reached where he stands. */
+  private swHere = false;
 
   constructor(
     readonly route: PatrolRoute | null,
@@ -122,6 +127,8 @@ export class PatrolWalker {
     this.swHoldEnd = Number.NaN;
     this.swPanE = Number.NaN;
     this.swRejoinIdx = -1;
+    this.swCut = false;
+    this.swHere = false;
     this.waitT = 0;
     this.lookYaw = Number.NaN;
   }
@@ -134,6 +141,8 @@ export class PatrolWalker {
     this.swHoldEnd = Number.NaN;
     this.swPanE = Number.NaN;
     this.swRejoinIdx = -1;
+    this.swCut = false;
+    this.swHere = false;
     this.waitT = 0;
     this.lookYaw = Number.NaN;
   }
@@ -225,21 +234,37 @@ export class PatrolWalker {
    * (GA6) A step on the sweep: walk to the stop, pass a corner, hold a pan stop until its `leave` (early or late within
    * half a lap of its planned arrival), panning every step; a rejoin's stop until he is back in step. (GA6 fix round,
    * check A FIX 2) `away` (off his storey, under a gallery stop): not arrived, the stop to walk to; never a hold or a pan.
+   * (piano polish 2) A hold cut by `away` goes on only back at its stop, its pan from the start (not partway).
+   * (piano polish 1) After `sweepHere` the stop he heads for counts as reached where he stands (once).
    */
   private sweepStep(dt: number, x: number, z: number, bodyYaw: number, away: boolean): Pt | null {
     const pl = this.sw!;
     const n = pl.pts.length;
     const now = this.swNow();
+    let here = this.swHere && !away;
+    this.swHere = false;
     if (this.swHoldEnd === this.swHoldEnd) {
       if (now < this.swHoldEnd) {
-        if (!away) {
-          this.swPan(dt, bodyYaw);
-          return null;
+        if (away) {
+          // pulled off his storey mid-hold: the pan starts over (`swPan`'s turn onto its start yaw) when he is back
+          this.swCut = true;
+          this.swPanE = Number.NaN;
+        } else {
+          const p = pl.pts[this.idx]!;
+          if (!this.swCut || here || hyp2(p[0] - x, p[1] - z) < PATROL.arrive) {
+            this.swCut = false;
+            this.swPan(dt, bodyYaw);
+            return null;
+          }
+          this.lookYaw = Number.NaN;
+          return p;
         }
       } else {
         this.swHoldEnd = Number.NaN;
         this.swPanE = Number.NaN;
+        this.swCut = false;
         this.idx = (this.idx + 1) % n;
+        here = false;
       }
     }
     if (away) {
@@ -249,7 +274,9 @@ export class PatrolWalker {
     // at most one pass round the stops (corners and one-spot legs are passed in the same step)
     for (let k = 0; k <= n; k++) {
       const p = pl.pts[this.idx]!;
-      if (hyp2(p[0] - x, p[1] - z) >= PATROL.arrive) {
+      const at = here || hyp2(p[0] - x, p[1] - z) < PATROL.arrive;
+      here = false;
+      if (!at) {
         this.lookYaw = Number.NaN;
         return p;
       }
@@ -313,6 +340,13 @@ export class PatrolWalker {
       return k < 0 || k >= n ? this.idx - this.dir : k;
     }
     return (this.idx + 1) % n;
+  }
+
+  /** (piano polish 1) On the sweep: there is no way to the stop he heads for from where he stands (stranded off his
+   *  storey, the stop's spot shut off on this one): the next step takes it as reached here (a pan stop is held and
+   *  panned on the spot, a corner passed). */
+  sweepHere(): void {
+    if (this.sw) this.swHere = true;
   }
 
   /** (guard-ai play A, P1-1) He cannot get to the point he heads for (no progress): a route walker moves on to the next
@@ -405,6 +439,8 @@ export class PatrolWalker {
     this.swPanE = Number.NaN;
     this.lookYaw = Number.NaN;
     this.swRejoinIdx = -1;
+    this.swCut = false;
+    this.swHere = false;
     if (pl.wait[k]! > 0) {
       const p = pl.pts[k]!;
       const tr = hyp2(p[0] - x, p[1] - z) / SCENE_SWEEP.pace;
