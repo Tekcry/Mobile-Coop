@@ -419,7 +419,7 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit, opts: { repl
     { id: 'a4-lock', bay: 'A4', text: 'Both of you into holding room four. There is a medkit there.' },
   );
   p.bay.radio.push(
-    { at: 'enter', text: "The duty officer's console loops the floor cameras. Sixty seconds. Don't dawdle." },
+    { at: 'enter', text: "The duty officer's console loops the floor cameras for sixty seconds. Don't dawdle." },
     { at: A4_GATE, text: 'Cameras looped. Go.' },
     { at: `warn:${A4_GATE}`, text: 'Cameras back in five.' },
   );
