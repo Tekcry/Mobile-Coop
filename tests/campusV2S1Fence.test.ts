@@ -10,11 +10,11 @@
  * The second check over-approximates: every top near a line counts as reachable.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { BoxPiece } from '../src/world/levelBuilder';
 import { MOVEMENT } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
 import { generateLedges } from '../src/world/anchors';
 import { MANTLE, SOLO_TOP_SPEED, lastTimeAtOrOver } from './helpers/soloJumpReach';
+import { PROBE_REACH, bottom, collisionPieces, covers, groundFlood, hi, lo, rectDist, top } from './helpers/campusPerimeter';
 
 vi.resetModules();
 const { flags, CAMPUS_V2_ALL } = await import('../src/core/flags');
@@ -22,22 +22,16 @@ flags.campusV2 = CAMPUS_V2_ALL;
 const { LevelBuilder } = await import('../src/world/levelBuilder');
 const { campusOps } = await import('../src/world/maps/campusOps');
 const { CAMPUS_PARTS, CAMPUS_V2_PARTS } = await import('../src/world/maps/campusSections');
-const { C1_GAP, S1_SPAWNS } = await import('../src/world/maps/campusV2/s1');
+const { S1_SPAWNS } = await import('../src/world/maps/campusV2/s1');
 
 const b = new LevelBuilder();
 campusOps.build(b, 0);
 
-/** The collision pieces as plain axis-aligned boxes (quarter-turn walls swapped; glass is its own body and stops bodies too). */
-const solid: BoxPiece[] = [];
-for (const p of b.boxes) {
-  if (!p.collide || Math.abs(p.pitch) > 1e-3) continue;
-  const q = Math.abs(Math.sin(p.yaw));
-  if (q < 1e-3) solid.push(p);
-  else if (Math.abs(q - 1) < 1e-3) solid.push({ ...p, s: [p.s[2], p.s[1], p.s[0]], yaw: 0 });
-}
+/** The collision pieces as plain axis-aligned boxes (`collisionPieces`: the shut doors too, the C1 near door among them). */
+const pieces = collisionPieces(b);
+/** The built boxes alone (the launch check's tops and columns). */
+const solid = pieces.filter((p) => p.id.startsWith('#'));
 const R = MOVEMENT.radius;
-/** The traversal probe's forward reach (m, `Traversal.probe`). */
-const PROBE_REACH = 1.3;
 /** S1's plan box (the palisade, the pavilion's north face). */
 const S1 = { x0: -40, x1: 26, z0: -80, z1: -30 } as const;
 /** The perimeter lines (plan): the palisade south, east, west and north-east; the roof screens over the plant room and the
@@ -49,13 +43,6 @@ const LINES: readonly { id: string; a: readonly [number, number]; b: readonly [n
   { id: 'north-east', a: [4, -34], b: [26, -34] },
   { id: 'pavilion east', a: [3.7, -34], b: [3.7, -30] },
 ];
-
-const lo = (p: BoxPiece, k: 0 | 2): number => p.c[k] - p.s[k] / 2;
-const hi = (p: BoxPiece, k: 0 | 2): number => p.c[k] + p.s[k] / 2;
-const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
-const bottom = (p: BoxPiece): number => p.c[1] - p.s[1] / 2;
-const covers = (p: BoxPiece, x: number, z: number, e = 0): boolean => x >= lo(p, 0) - e && x <= hi(p, 0) + e && z >= lo(p, 2) - e && z <= hi(p, 2) + e;
-const rectDist = (p: BoxPiece, x: number, z: number): number => hyp2(Math.max(lo(p, 0) - x, 0, x - hi(p, 0)), Math.max(lo(p, 2) - z, 0, z - hi(p, 2)));
 
 /** The top of the unbroken collision column standing on the ground at a line point. */
 function column(x: number, z: number): number {
@@ -111,58 +98,17 @@ describe('campus v2 S1 perimeter closed (campus-s1-fence)', () => {
   });
 
   it('walking: a ground flood from the start (body radius, step height, the C1 near door shut) never leaves the palisade', () => {
-    const c = 0.05;
-    const x0 = S1.x0 - 3;
-    const z0 = S1.z0 - 3;
-    const nx = Math.round((S1.x1 + 3 - x0) / c);
-    const nz = Math.round((S1.z1 + 3 - z0) / c);
-    // what stops the body on the ground: pieces over the step and under the head; the shut C1 near door in its gap
-    const blk = solid.filter((p) => !p.overhead && bottom(p) < MOVEMENT.standHeight && top(p) > MOVEMENT.maxStep);
-    blk.push({ c: [(C1_GAP[0] + C1_GAP[1]) / 2, 1.05, -34], s: [C1_GAP[1] - C1_GAP[0], 2.1, 0.3], yaw: 0, pitch: 0, color: '', collide: true });
-    const cyl = b.cylinders.filter((q) => q.collide && q.c[1] - q.h / 2 < MOVEMENT.standHeight && q.c[1] + q.h / 2 > MOVEMENT.maxStep);
-    // 2 m buckets of the blockers
-    const B = 2;
-    const bx = Math.ceil((nx * c) / B) + 1;
-    const bz = Math.ceil((nz * c) / B) + 1;
-    const bucket: BoxPiece[][] = Array.from({ length: bx * bz }, () => []);
-    for (const p of blk) {
-      for (let i = Math.max(0, Math.floor((lo(p, 0) - R - x0) / B)); i <= Math.min(bx - 1, Math.floor((hi(p, 0) + R - x0) / B)); i++) {
-        for (let k = Math.max(0, Math.floor((lo(p, 2) - R - z0) / B)); k <= Math.min(bz - 1, Math.floor((hi(p, 2) + R - z0) / B)); k++) bucket[k * bx + i]!.push(p);
-      }
-    }
-    const free = (x: number, z: number): boolean => {
-      for (const p of bucket[Math.floor((z - z0) / B) * bx + Math.floor((x - x0) / B)]!) if (rectDist(p, x, z) < R - 0.02) return false;
-      for (const q of cyl) if (hyp2(x - q.c[0], z - q.c[2]) < q.r + R - 0.02) return false;
-      return true;
-    };
-    const seen = new Uint8Array(nx * nz);
+    // what stops the body on the ground: pieces over the step and under the head, the shut doors (the C1 near door among them)
     const s = S1_SPAWNS[0]!.pos;
-    const start = Math.floor((s.z - z0) / c) * nx + Math.floor((s.x - x0) / c);
-    const stack = [start];
-    seen[start] = 1;
-    const outside: string[] = [];
-    let count = 0;
-    while (stack.length) {
-      const id = stack.pop()!;
-      count++;
-      const i = id % nx;
-      const k = (id - i) / nx;
-      const x = x0 + (i + 0.5) * c;
-      const z = z0 + (k + 0.5) * c;
-      if (x < S1.x0 || x > S1.x1 || z < S1.z0 || z > S1.z1) {
-        outside.push(`(${x.toFixed(2)}, ${z.toFixed(2)})`);
-        continue;
-      }
-      for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const ii = i + di;
-        const kk = k + dk;
-        if (ii < 0 || kk < 0 || ii >= nx || kk >= nz) continue;
-        const j = kk * nx + ii;
-        if (seen[j]) continue;
-        seen[j] = 1;
-        if (free(x0 + (ii + 0.5) * c, z0 + (kk + 0.5) * c)) stack.push(j);
-      }
-    }
+    const { count, outside } = groundFlood(b, pieces, {
+      x0: S1.x0 - 3,
+      x1: S1.x1 + 3,
+      z0: S1.z0 - 3,
+      z1: S1.z1 + 3,
+      cell: 0.05,
+      seeds: [[s.x, s.z]],
+      inside: (x, z) => x >= S1.x0 && x <= S1.x1 && z >= S1.z0 && z <= S1.z1,
+    });
     // the ground flood fills the yard, the car park, the lane, the forecourt and the lawn
     expect(count).toBeGreaterThan(400000);
     expect(outside.slice(0, 5), `${outside.length} ground cells outside the palisade reached`).toEqual([]);
