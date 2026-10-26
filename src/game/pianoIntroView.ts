@@ -379,6 +379,15 @@ export class PianoIntroView implements SceneView, PianoView {
     return !this.isCut && this.intro.pressT < 0 && this.intro.t < PROMPT_AT;
   }
 
+  /** (walk ~09:42) A tap skips once the intro has played before on this page (GameState.fixedUpdate calls it). */
+  tap(): void {
+    if (!this.tapSkip || !this.ownsPause || this.disposed || this.isCut) return;
+    if (this.intro.skip()) {
+      this.onSkip();
+      this.actorsToSpots();
+    }
+  }
+
   /** The skip hint on while the skip is live; the bar fills with the hold (style writes only on change). */
   private hintStep(on: boolean, held: number): void {
     if (on !== this.hintShown && this.hint) {
@@ -410,9 +419,8 @@ export class PianoIntroView implements SceneView, PianoView {
     if (this.ownsPause) {
       const inp = g.app.input.state;
       const held = Math.max(inp.heldTime('pause'), inp.heldTime('objective'));
-      const tap = this.tapSkip && (inp.pressed('pause') || inp.pressed('objective'));
       this.hintStep(true, held);
-      if ((held >= SKIP_HOLD_S || tap) && intro.skip()) {
+      if (held >= SKIP_HOLD_S && intro.skip()) {
         this.onSkip();
         this.actorsToSpots();
       }

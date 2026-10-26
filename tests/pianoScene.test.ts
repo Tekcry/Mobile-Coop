@@ -753,7 +753,8 @@ describe('S2: the view and the gameState render-override seam', () => {
     const g = src('src/game/gameState.ts');
     expect(g).toContain('export interface SceneView {');
     expect(g).toContain('sceneView: SceneView | null = null;');
-    expect(g).toContain("if (realIn.pressed('pause') && !sv?.ownsPause) {");
+    expect(g).toContain('const svPause = !!sv?.ownsPause;');
+    expect(g).toContain("if (realIn.pressed('pause') && !svPause) {");
     expect(g).toContain('const real = this.paused || this.menuOpen || sv?.holdsInput ? this.menuInp');
     const fu = g.indexOf('sv?.frame(dt);');
     expect(fu).toBeGreaterThan(g.indexOf('this.player.frameUpdate(dt, alpha, look'));
@@ -779,8 +780,13 @@ describe('(walk ~09:42) the intro skip is shown', () => {
     const v = src('src/game/pianoIntroView.ts');
     expect(v).toContain("'HOLD BACK / ESC   SKIP'");
     expect(v).toContain('this.tapSkip = introsSeen > 1;');
-    expect(v).toContain("const tap = this.tapSkip && (inp.pressed('pause') || inp.pressed('objective'));");
-    expect(v).toContain('if ((held >= SKIP_HOLD_S || tap) && intro.skip()) {');
+    expect(v).toContain('if (held >= SKIP_HOLD_S && intro.skip()) {');
+    // the tap is read in the fixed step (where the button edge lives), never in the render frame
+    expect(v).toContain('if (!this.tapSkip || !this.ownsPause || this.disposed || this.isCut) return;');
+    const g = src('src/game/gameState.ts');
+    const t = g.indexOf("if (svPause && (realIn.pressed('pause') || realIn.pressed('objective'))) sv?.tap?.();");
+    expect(t).toBeGreaterThan(0);
+    expect(t).toBeLessThan(g.indexOf("if (realIn.pressed('pause') && !svPause) {"));
     expect(v).toContain('this.hint?.remove();');
   });
 });
