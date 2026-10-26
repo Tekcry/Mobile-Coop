@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.112.1 - Train 120: Mission framework: mission core (2026-10-26, PR #554; #521)
+- Groundwork for campaign missions: the code that describes a mission (its sections, steps, rule and checkpoints) and
+  runs it step by step, with its tests. Nothing uses it yet, so the game does not change.
+- Docs: the mission rules plans (`docs/mission-rules/`), the J7 and J8-J9 plans, and the Three Grey Coats beat chart
+  updated (after Teale moves, the step reads "the clock-mender's back loft").
+
 ## 4.112.0 - Train 119: Pad reading makes no per-frame garbage; affected-cap: each change's automatic test runs at most its 3 closest suites; Map ready gate; Kept model files and textures between maps; +8 more (2026-10-26, PR #536; #519, #517, #513, #512, #507, #506, #505, #501, #489, #488, #481)
 
 ### Smaller automatic test per change
