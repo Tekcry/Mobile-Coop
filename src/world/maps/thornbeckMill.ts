@@ -94,35 +94,50 @@ const K = THORNBECK_KILL_SPOTS;
 const CREW = 'night crew of the security contractor holding the mill in the storm';
 
 /**
+ * G4 + G5's lap (GA5 item 2): both walk at 0.7 m/s (the scene's pace, no turn time) and wait `waits` at each point, so a
+ * lap = route length (out and back) / 0.7 + the waits = 40 s. G4: 20.4 m = 29.143 s + 6.857 + 4. G5: 13.6 m = 19.429 s +
+ * 16.571 + 4 (the review's guess of 8 - 10 s left out the 4 s door check). `G5_START_WAIT`: G5 begins 4.857 s into its lap
+ * (11.714 s left of its first pause), so both leave the office door at 25.43 s.
+ */
+export const G4_WAIT = 6.8571;
+export const G5_WAIT = 16.5714;
+export const G5_START_WAIT = 11.7142;
+
+/**
  * The 12 guards G1-G12 (PLAN section 3 table), in the guard list's order: slots 0-3 are the opening four, G1 and G2 (down
  * the stair) and G3 and G4 (along the aisle). All armed (`grunt`), every one with a fixed route of patrol points (a post
  * is a two-point route on the same spot, panning by `faces`); a route's first point is where he starts or is next to it.
- * Out-and-back sweeps list the way back (the walker loops its points); `waits` 0 passes straight through. Pairs: G1 + G2,
- * G8 + G9 and G11 + G12 walk side by side on parallel lanes 0.7 - 0.8 m apart (the same `squad`; GA6 adds the pace and
- * the torch aim); G4 + G5 are on one 40 s timed loop (`loop`, `pair`) so they stand 1.2 m apart at the office door every
- * lap. `takedownSpot` is the plan's K spot for the stretch. Every start and route point is 0.5 m clear of a collider.
+ * Out-and-back sweeps list the way back (the walker loops its points); `waits` 0 passes straight through. Pairs (`pair` =
+ * the partner's index, both ways, GA5 item 1): G1 + G2, G8 + G9 and G11 + G12 walk side by side on parallel lanes 1.0 -
+ * 1.1 m apart (the same `squad`; GA6 adds the pace and the torch aim); G4 + G5 each walk a 40 s lap (GA5 item 2: per-point
+ * `waits`, no `loop`, the scene derives the schedule at 0.7 m/s) and `start` puts their door stops together, 1.2 m apart,
+ * every lap. `takedownSpot` is the plan's K spot for the stretch. Every start and route point is 0.5 m clear of a collider,
+ * except the G1 + G2 lanes (0.3 m: GA5 item 5, PB4's 1 - 1.5 m for the paired kill).
  */
 export const THORNBECK_GUARDS: SectorGuard[] = [
   // G1 + G2 (slots 0, 1): came down the stair; the only ones who search round W1 (Q2); after it, side by side north of W1
-  { kind: 'grunt', x: 7.5, z: 8.7, yaw: WEST, route: [[8.6, 8.7], [3.5, 8.7]], waits: [4, 4], takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
-  { kind: 'grunt', x: 8.3, z: 8.0, yaw: WEST, route: [[8.6, 8.0], [3.5, 8.0]], waits: [4, 4], takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 7.5, z: 8.9, yaw: WEST, route: [[8.6, 8.9], [3.5, 8.9]], waits: [4, 4], pair: 1, takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 8.3, z: 7.9, yaw: WEST, route: [[8.6, 7.9], [3.5, 7.9]], waits: [4, 4], pair: 0, takedownSpot: [...K.K1], squad: 1, zone: 'startBay', role: 'patrol', reason: CREW },
   // G3 (slot 2): came along the aisle; the aisle east to the mill bay, a 6 s pan in the roller mill's shadow, back
   { kind: 'grunt', x: 9.0, z: 2.0, yaw: EAST, route: [[9.5, 2.0], [20.5, 2.0], [20.5, 7.0], [22.8, 7.0], [20.5, 7.0], [20.5, 2.0]], waits: [4, 0, 0, 6, 0, 0], takedownSpot: [...K.K2], squad: 2, zone: 'aisle', role: 'patrol', reason: CREW },
-  // G4 (slot 3) + G5: the sack bay's two sweeps, one 40 s lap each; they meet at the office door for a 4 s check (K5)
-  { kind: 'grunt', x: 10.0, z: 3.4, yaw: 0.8, route: [[17, 10.2], [25.2, 10.2], [25.2, 12.2], [25.2, 10.2]], wait: 4, faces: [EAST, 0, EAST, WEST], loop: { period: 40, leave: [4, 16, 23, 26], t0: 0 }, pair: 4, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
-  { kind: 'grunt', x: 20.8, z: 9.0, yaw: 0, route: [[20.8, 8.6], [20.8, 12.2], [24.0, 12.2], [20.8, 12.2]], wait: 4, faces: [0, EAST, EAST, SOUTH], loop: { period: 40, leave: [8, 14, 23, 28], t0: 0 }, pair: 3, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
+  // G4 (slot 3) + G5: the sack bay's two sweeps, one 40 s lap each (GA5 item 2: walk 0.7 m/s + the waits, no turn time;
+  // G4 20.4 m round = 29.14 s + 6.857 + 4 s, G5 13.6 m round = 19.43 s + 16.571 + 4 s); they meet at the office door for a
+  // 4 s check (K5): `start` puts G5 4.857 s into its lap so both leave the door together (GA5 item 3)
+  { kind: 'grunt', x: 10.0, z: 3.4, yaw: 0.8, route: [[17, 10.2], [25.2, 10.2], [25.2, 12.2], [25.2, 10.2]], waits: [G4_WAIT, 0, 4, 0], faces: [EAST, 0, EAST, WEST], start: { idx: 0, wait: 0 }, pair: 4, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 20.8, z: 9.0, yaw: 0, route: [[20.8, 8.6], [20.8, 12.2], [24.0, 12.2], [20.8, 12.2]], waits: [G5_WAIT, 0, 4, 0], faces: [0, EAST, EAST, SOUTH], start: { idx: 0, wait: G5_START_WAIT }, pair: 3, takedownSpot: [...K.K5], squad: 3, zone: 'sackBay', role: 'patrol', reason: CREW },
   // G6: the office post at the desk; the torch pans the east window and the west door, 8 s each way
   { kind: 'grunt', x: 29.0, z: 9.9, yaw: EAST, route: [[29.0, 9.9], [29.0, 9.9]], waits: [8, 8], faces: [EAST, -0.92], takedownSpot: [...K.K4], squad: 4, zone: 'office', role: 'post', reason: CREW },
   // G7: the east gallery, from the hatch end west to sack stack GS2, a 6 s pan there
   { kind: 'grunt', x: 28.8, z: 16.2, y: DECK_Y, yaw: WEST, route: [[28.8, 16.2], [22.6, 16.2]], waits: [3, 6], takedownSpot: [...K.K6], squad: 5, zone: 'eastGallery', role: 'patrol', reason: CREW },
-  // G8 + G9: the pair along the crane bay, side by side, torches panning down into the crane well
-  { kind: 'grunt', x: 12.5, z: 15.7, y: DECK_Y, yaw: EAST, route: [[12.5, 15.7], [21.4, 15.7]], waits: [4, 4], takedownSpot: [...K.K8], squad: 6, zone: 'craneBay', role: 'patrol', reason: CREW },
-  { kind: 'grunt', x: 12.5, z: 16.5, y: DECK_Y, yaw: EAST, route: [[12.5, 16.5], [21.4, 16.5]], waits: [4, 4], takedownSpot: [...K.K8], squad: 6, zone: 'craneBay', role: 'patrol', reason: CREW },
+  // G8 + G9: the pair along the crane bay, side by side, torches panning down into the crane well (G8 on z 15.6, not the
+  // review's 15.5: the drop bar's face is z 15.1 and the 0.5 m clearance holds; the lanes are 1.0 m apart)
+  { kind: 'grunt', x: 12.5, z: 15.6, y: DECK_Y, yaw: EAST, route: [[12.5, 15.6], [21.4, 15.6]], waits: [4, 4], pair: 8, takedownSpot: [...K.K8], squad: 6, zone: 'craneBay', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 12.5, z: 16.6, y: DECK_Y, yaw: EAST, route: [[12.5, 16.6], [21.4, 16.6]], waits: [4, 4], pair: 7, takedownSpot: [...K.K8], squad: 6, zone: 'craneBay', role: 'patrol', reason: CREW },
   // G10: the post at the stair head, facing south, the torch panning down into the hall
   { kind: 'grunt', x: 8.8, z: 16.2, y: DECK_Y, yaw: SOUTH, route: [[8.8, 16.2], [8.8, 16.2]], waits: [6, 6], faces: [SOUTH - 0.5, SOUTH + 0.5], takedownSpot: [...K.K9], squad: 7, zone: 'stairHead', role: 'post', reason: CREW },
   // G11 + G12: the exit pair on the hoist landing, side by side, 5 s at each end
-  { kind: 'grunt', x: 1.5, z: 16.1, y: DECK_Y, yaw: EAST, route: [[1.5, 16.1], [5.5, 16.1]], waits: [5, 5], takedownSpot: [...K.K10], squad: 8, zone: 'landing', role: 'patrol', reason: CREW },
-  { kind: 'grunt', x: 1.5, z: 16.9, y: DECK_Y, yaw: EAST, route: [[1.5, 16.9], [5.5, 16.9]], waits: [5, 5], takedownSpot: [...K.K10], squad: 8, zone: 'landing', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 1.5, z: 15.9, y: DECK_Y, yaw: EAST, route: [[1.5, 15.9], [5.5, 15.9]], waits: [5, 5], pair: 11, takedownSpot: [...K.K10], squad: 8, zone: 'landing', role: 'patrol', reason: CREW },
+  { kind: 'grunt', x: 1.5, z: 17.0, y: DECK_Y, yaw: EAST, route: [[1.5, 17.0], [5.5, 17.0]], waits: [5, 5], pair: 10, takedownSpot: [...K.K10], squad: 8, zone: 'landing', role: 'patrol', reason: CREW },
 ];
 
 /** G1-G12 by list index (the tags the plan, the report and the tests use). */
@@ -139,13 +154,13 @@ export interface ThornbeckExtraGuard {
  * The tagged extras G13-G16 (PLAN section 3 "Up to 16"), not in the section's list: the lead adds them when the torch check
  * allows 16 (`THORNBECK_GUARDS_16`). G13 a second office post (stretch 4 becomes two solo kills); G14 a second stalked
  * guard behind G7 (stretch 6); G15 + G16 a pair at the stair head (stretch 9 becomes a co-op kill). Positions are mine:
- * the plan gives none.
+ * the plan gives none. G15 + G16 name each other by their index in `THORNBECK_GUARDS_16` (14, 15; GA5 item 6).
  */
 export const THORNBECK_EXTRA_GUARDS: readonly ThornbeckExtraGuard[] = [
   { tag: 'G13', stretch: 4, guard: { kind: 'grunt', x: 30.6, z: 7.2, yaw: 0, route: [[30.6, 7.2], [30.6, 7.2]], waits: [6, 6], faces: [-0.6, 0.4], takedownSpot: [30.6, 6.6], squad: 4, zone: 'office', role: 'post', reason: CREW } },
   { tag: 'G14', stretch: 6, guard: { kind: 'grunt', x: 30.0, z: 16.2, y: DECK_Y, yaw: WEST, route: [[30.0, 16.2], [24.4, 16.2]], waits: [3, 5], takedownSpot: [24.6, 16.2], squad: 5, zone: 'eastGallery', role: 'patrol', reason: CREW } },
-  { tag: 'G15', stretch: 9, guard: { kind: 'grunt', x: 10.6, z: 16.3, y: DECK_Y, yaw: WEST, route: [[10.6, 16.3], [10.6, 16.3]], waits: [6, 6], faces: [WEST - 0.4, WEST + 0.4], takedownSpot: [11.4, 16.65], squad: 9, zone: 'stairHead', role: 'post', reason: CREW } },
-  { tag: 'G16', stretch: 9, guard: { kind: 'grunt', x: 10.6, z: 17.0, y: DECK_Y, yaw: WEST, route: [[10.6, 17.0], [10.6, 17.0]], waits: [6, 6], faces: [WEST + 0.4, WEST - 0.4], takedownSpot: [11.4, 16.65], squad: 9, zone: 'stairHead', role: 'post', reason: CREW } },
+  { tag: 'G15', stretch: 9, guard: { kind: 'grunt', x: 10.6, z: 16.3, y: DECK_Y, yaw: WEST, route: [[10.6, 16.3], [10.6, 16.3]], waits: [6, 6], faces: [WEST - 0.4, WEST + 0.4], pair: 15, takedownSpot: [11.4, 16.65], squad: 9, zone: 'stairHead', role: 'post', reason: CREW } },
+  { tag: 'G16', stretch: 9, guard: { kind: 'grunt', x: 10.6, z: 17.0, y: DECK_Y, yaw: WEST, route: [[10.6, 17.0], [10.6, 17.0]], waits: [6, 6], faces: [WEST + 0.4, WEST - 0.4], pair: 14, takedownSpot: [11.4, 16.65], squad: 9, zone: 'stairHead', role: 'post', reason: CREW } },
 ];
 
 /** All 16 (G1-G12, then G13-G16), for when the torch check allows 16. */
@@ -245,15 +260,20 @@ export interface ThornbeckFlash {
   len: number;
 }
 
-/** The first strike of each flash time (s after the EMP) and whether it is a double (PLAN section 2b). */
+/**
+ * The first strike of each flash time (t s after the EMP press = the mission track's time) and whether it is a double.
+ * The mission track is "Suspense Thriller" (Alex Grohl, 162.04 s) from 0 at the EMP; the doubles fall on its six section
+ * changes (36.68, 49.48, 71.88, 97.48, 110.28, 123.08 s), the singles between them (PLAN section 2b, re-timed).
+ */
 export const THORNBECK_FLASH_TIMES: readonly (readonly [number, boolean])[] = [
-  [6, false], [18, false], [30, false], [37, true], [44, false], [51, true], [58, false], [65, true], [73, false], [81, true], [88, false],
+  [6, false], [18, false], [28, false], [36.68, true], [43, false], [49.48, true], [58, false], [64, false], [71.88, true], [80, false],
+  [89, false], [97.48, true], [104, false], [110.28, true], [116, false], [123.08, true], [131, false], [148, false],
 ];
 
-/** One loop of the music (`loopPeriod()` in `audio/music/scenePiano.ts` = 134.03 - 2 - 41): the lightning's period. */
-export const THORNBECK_LIGHTNING_PERIOD = 91.03;
+/** One loop of the mission track (162.04 s whole, a 2 s cross-fade: 160.04 s): the lightning's period. S5b's `missionLoopPeriod`. */
+export const THORNBECK_LIGHTNING_PERIOD = 160.04;
 
-/** 11 times per loop, a double is two entries: 15 entries in all (PLAN section 2b). A single is { t, 1, 0.6 }; a double adds { t + 0.45, 0.8, 0.5 }. */
+/** 18 times per loop, a double is two entries: 24 entries in all (PLAN section 2b). A single is { t, 1, 0.6 }; a double adds { t + 0.45, 0.8, 0.5 }. */
 function lightningFlashes(): ThornbeckFlash[] {
   const out: ThornbeckFlash[] = [];
   for (const [t, dbl] of THORNBECK_FLASH_TIMES) {
@@ -264,7 +284,7 @@ function lightningFlashes(): ThornbeckFlash[] {
 }
 
 /**
- * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every music loop.
+ * The storm's lightning timetable: t after the EMP press (the scene clock, `world.lightning.t0`), looping every mission-track loop (160.04 s).
  * The `lightning` field is not on this base (#604 / SO5 adds it with this exact shape).
  */
 // TODO(#604): set as MapDef.lightning
