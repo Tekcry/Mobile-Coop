@@ -144,6 +144,10 @@ export interface Flags {
    *  adds / removes `pull` and `shutter`. The host's rules and each page's offers read it (`has()` allocates nothing).
    *  Tests set `flags.kitMoves` in `beforeAll` and restore it. */
   kitMoves: ReadonlySet<string>;
+  /** (context-prompts, `docs/context-prompts/PLAN.md` section 7; owner Night Shift | Player Build, switch-on at Michael's
+   *  walk, target 2026-10-31) The context prompts: one button per action on the thing it acts on (tap / hold), in place
+   *  of the hold-A list. `?ctxprompts=1` on, `?ctxprompts=0` off; default off. On /preview/ default on (preview-flags). */
+  contextPrompts: boolean;
 }
 
 /** (coop-kit A1, BRIEF A8) Every kit move id that exists in the game (each slice adds its id in the PR that makes the
@@ -303,4 +307,5 @@ export const flags: Flags = {
   charShadowLight: darkFlag(params.get('charlight'), PREVIEW_ON),
   mapReady: darkFlag(params.get('mapready'), PREVIEW_ON),
   campusV2: readCampusV2(params.get('campusv2'), PREVIEW_ON),
+  contextPrompts: darkFlag(params.get('ctxprompts'), PREVIEW_ON),
 };
