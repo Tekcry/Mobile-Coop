@@ -80,8 +80,11 @@ export class CourseHud {
     this.seenSt = stN;
     const bay = st.currentBay;
     // (J14 R2) the live step's badge in the header and the bay's retry rule under it (re-plan only: the built yard has no stations)
-    this.bayEl.textContent = bayHeader(bay.id, stN);
-    const rule = retryRule(bay.stations ?? NO_STATIONS);
+    // (marlow-play-2 C15) the badge by play order (A4 plays 9, 8, 10: its header reads 8, 9, 10); (C10) the rule is the
+    // live station's (A5's no-fail 11-12 show none), not the bay's
+    const live = st.liveStation();
+    this.bayEl.textContent = bayHeader(bay.id, playOrderN(st.def.bays, st.bay, live));
+    const rule = stationRule(live);
     this.ruleEl.textContent = rule ?? '';
     this.ruleEl.hidden = rule === null;
     const next = st.nextDrill(me);
@@ -179,6 +182,24 @@ export function bayHeader(bayId: string, n: number): string {
  * `caught`, else the `station` rule ("Seen"), each with "or out of time" when a station of the bay has a drill window;
  * null when nothing in the bay can fail (only `none` stations, or none at all).
  */
+/**
+ * (marlow-play-2 C15) The live station's position in the course's play order, 1-based (0: none live): the stations of the
+ * earlier bays plus its place in its bay's list (the order the bay plays them). Equals `n` everywhere but A4 (n 9, 8, 10).
+ */
+export function playOrderN(bays: readonly { stations?: readonly StationDef[] }[], bay: number, live: StationDef | null): number {
+  if (!live) return 0;
+  let k = 0;
+  for (let i = 0; i < bay && i < bays.length; i++) k += bays[i]!.stations?.length ?? 0;
+  const list = bays[bay]?.stations ?? NO_STATIONS;
+  for (let i = 0; i < list.length; i++) if (list[i] === live) return k + i + 1;
+  return live.n;
+}
+
+/** (marlow-play-2 C10) The live station's retry rule (`retryRule` of that station alone; null with none live). */
+export function stationRule(live: StationDef | null): string | null {
+  return live ? ruleText(live.retry === 'caught', live.retry === 'station', live.drillS !== undefined) : null;
+}
+
 export function retryRule(stations: readonly StationDef[]): string | null {
   let caught = false;
   let seen = false;
@@ -189,6 +210,10 @@ export function retryRule(stations: readonly StationDef[]): string | null {
     else if (s.retry === 'station') seen = true;
     if (s.drillS !== undefined) timed = true;
   }
+  return ruleText(caught, seen, timed);
+}
+
+function ruleText(caught: boolean, seen: boolean, timed: boolean): string | null {
   if (!caught && !seen) return null;
   return `${caught ? 'Caught' : 'Seen'}${timed ? ' or out of time' : ''}: you go back to the start of this step.`;
 }
