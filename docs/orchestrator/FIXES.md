@@ -24,6 +24,10 @@ out and staying on top of them constantly to ensure issues dont re-occur unncess
   Build builds laptop-queue-9 S1-S3; Test Runner ships #552 and #559, takes F8, F30 and checks both lanes; Campaign
   and Sector Ops F28 (their suites); Guard AI F21, F25, F27; Player F4 / F5 (#548). No feature builders, no feature
   queue requests; planning, reviews and briefs are fine.
+- Drafting does not keep a PR out of a train (auto-train and the watchdog ignore draft, F34): each cron run removes
+  `train-ready` from every drafted freeze PR. Train 122 (#487, built ~15:17 before the draft) is left to finish.
+- Renaming a request to front it posts affected-e2e error "withdrawn by the requester (not run)" on the old id (F15);
+  the renamed request still runs and posts the verdict.
 - Each cron run: fronts fix requests, checks every open row for a builder, and ends the freeze when no open row is
   left without a shipped version (rows on watch do not hold it).
 
@@ -62,3 +66,4 @@ Older audit findings: `BOTTLENECKS.md` (history; new findings go here, not there
 | F31 | Keep each train attempt's logs in its own folder (train 118 logs were lost) | laptop-queue-10 BRIEF "F27" | Test Runner | 2026-10-26 15:40 | laptop-queue-10, plan only |
 | F32 | shadowCues S3b allocation over its 2432 B limit in a full parallel run (5/5 green alone): possible next allocation flake | #559 body (2026-10-26 15:07) | Sector Ops (shadow cues) | 2026-10-26 15:40 | watch: reopen as a fix on the first CI or e2e fail |
 | F33 | e2e-sectorops:6 (solo Saltmarsh Park S1-S5 + guard-ai S16) fails three ways: 900 s kill (part alone 676-749 s), an S3 guard ending at y 0 under a 4.5 m slot, a breaker-count assert (maybe a WIP head) | train 121 flake 15:07 (890 s vs ~570 s); auto-quarantined since 10-25 19:13 (3 of 4 runs); desktop logs | Sector Ops Build | 2026-10-26 15:35 | Opus triage running (f28-sectorops6-triage.md); one fix PR with a guard follows |
+| F34 | auto-train and the watchdog ignore draft: a draft PR keeps or gets `train-ready` and rides a train | #487 drafted ~15:24 for the fix freeze, already in train 122 (built ~15:17) with the label still on | Test Runner (laptop-queue-9 lane, Marlow builds) | 2026-10-26 15:25 | new: the orchestrator strips the label each cron run until it ships |
