@@ -4,12 +4,13 @@
  * restart (out / down) as a full reset, route-runs' hooks (`restarts`, `lastRetry`, `retryOff`) on host and client
  * through the wire, `?course=station:<n>`, the room map and the built yard left as it was.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { validateCourse, type BayDef, type CourseDef, type CourseKnownIds, type CourseLayout } from '../src/game/course/courseDef';
-import { CourseState } from '../src/game/course/courseState';
-import type { StationDef } from '../src/game/course/stationDef';
-import { CourseMode, courseStationParam, inTickZone, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
+import { CourseState, kitMoveOn as kitMoveOnState, REFUSE_KIT_HELD } from '../src/game/course/courseState';
+import { kitMoveOn, type StationDef } from '../src/game/course/stationDef';
+import { flags } from '../src/core/flags';
+import { CourseMode, courseStationParam, inTickZone, mirrorKitRetry, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
 import { REPLAN_TICKS, type StationHooks, type StationTick } from '../src/game/course/replan/ticks';
 import { RESTART_DELAY } from '../src/config/course';
 import { parseMessage } from '../src/net/protocol';
@@ -829,6 +830,202 @@ describe('stand-in gates (fix 7, lead decision b)', () => {
     const st = new CourseState(def({ gates }, [station(1, { kit: 'deadweight', standIn: 'g-walk' }), station(2)]));
     expect(st.isGateOpen('g-walk')).toBe(true);
     expect(new CourseState(def({ gates })).isGateOpen('g-walk')).toBe(false);
+  });
+});
+
+describe('kit stations (marlow-kit-wire)', () => {
+  const KINDS = ['deadweight', 'dropCatch', 'chimneyPair', 'swingPass', 'plankBridge'] as const;
+  const saved = flags.kitMoves;
+  afterEach(() => {
+    flags.kitMoves = saved;
+  });
+  const on = (...ids: string[]): void => {
+    flags.kitMoves = new Set(ids);
+  };
+  // station 2: a lever stand-in and an egress gate on its door D5 (one switch sw5), and a bolt on another door D6
+  const gates: BayDef['gates'] = [
+    { kind: 'pickup', id: 'g-s1', switchId: 'sw1', flag: 'key1', perPlayer: false },
+    { kind: 'lever', id: 'g-walk', switchId: 'sw5', doorId: 'D5' },
+    { kind: 'egress', id: 'g-exit', switchId: 'sw5', doorIds: ['D5'] },
+    { kind: 'bolt', id: 'g-bolt', doorId: 'D6', side: [1, 0], at: [0, 0] },
+  ];
+  const kitDef = (kit: StationDef['kit'] = 'deadweight'): CourseDef =>
+    def({ gates }, [station(1), station(2, { id: 'st-kit', kit, standIn: 'g-walk', gates: ['g-walk', 'g-exit', 'g-bolt'] }), station(3)]);
+  const teamOf = (r: ReturnType<typeof rig>): { resetKit: ReturnType<typeof vi.fn> } => {
+    const team = { resetKit: vi.fn() };
+    (r.mode as unknown as { g: { team?: unknown } }).g.team = team;
+    return team;
+  };
+
+  it('kitMoveOn reads only flags.kitMoves (the courseState re-export is the same function)', () => {
+    expect(kitMoveOnState).toBe(kitMoveOn);
+    for (const k of KINDS) {
+      on(k);
+      for (const o of KINDS) expect(kitMoveOn(o), `${k} on: ${o}`).toBe(o === k);
+    }
+    on();
+    for (const o of KINDS) expect(kitMoveOn(o)).toBe(false);
+  });
+
+  it('the client resets its kit on a new retry of a kit station whose move is on (mirrorKitRetry), and only then', () => {
+    const defs: Record<number, Partial<StationDef>> = { 2: { kit: 'plankBridge' }, 3: {} };
+    const st = (restarts: number, n: number | null) => ({
+      restarts,
+      lastRetry: n === null ? null : { st: n, cause: 'seen' as const },
+      stationDef: (k: number) => (defs[k] as StationDef | undefined) ?? null,
+    });
+    on('plankBridge');
+    expect(mirrorKitRetry(st(1, 2), 0)).toBe(true);
+    expect(mirrorKitRetry(st(1, 2), 1)).toBe(false); // the same retry again: no new one
+    expect(mirrorKitRetry(st(2, 3), 1)).toBe(false); // a station with no kit
+    expect(mirrorKitRetry(st(1, null), 0)).toBe(false); // a bay restart: no last retry
+    on();
+    expect(mirrorKitRetry(st(1, 2), 0)).toBe(false); // the move off: the stand-in station, nothing to reset
+  });
+
+  it('kit on: the stand-in stays shut as its station goes live and through a retry; kit off: it opens and is kept', () => {
+    on('deadweight');
+    const r = rig(kitDef(), { doors: ['D5', 'D6'] });
+    const d5 = r.doors[0]!;
+    r.st.setFlag('s1-done');
+    r.step();
+    expect(r.st.station()).toBe(2);
+    expect(r.st.isGateOpen('g-walk')).toBe(false);
+    expect(d5.anchor.locked).toBe(true);
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    r.step(10);
+    expect(r.st.isGateOpen('g-walk')).toBe(false);
+    expect(d5.anchor.locked).toBe(true);
+    on();
+    const k = rig(kitDef(), { doors: ['D5', 'D6'] });
+    k.st.setFlag('s1-done');
+    k.step();
+    expect(k.st.isGateOpen('g-walk')).toBe(true);
+    expect(k.doors[0]!.anchor.locked).toBe(false);
+  });
+
+  it('kit on: done = the place flag and the kit credit, in either order; kit off: the place flag alone, kitDone false', () => {
+    on('deadweight');
+    const a = new CourseState(kitDef());
+    a.setFlag('s1-done');
+    a.setFlag('s2-done');
+    expect(a.station()).toBe(2);
+    expect(a.kitDone('deadweight', 'st-kit')).toBe(true);
+    expect(a.station()).toBe(3);
+    const b = new CourseState(kitDef());
+    b.setFlag('s1-done');
+    expect(b.kitDone('deadweight', 'st-kit')).toBe(true);
+    expect(b.station()).toBe(2);
+    b.setFlag('s2-done@1');
+    expect(b.station()).toBe(3);
+    on();
+    const c = new CourseState(kitDef());
+    c.setFlag('s1-done');
+    expect(c.kitDone('deadweight', 'st-kit')).toBe(false);
+    expect(c.hasFlag('kit:st-kit')).toBe(false);
+    c.setFlag('s2-done');
+    expect(c.station()).toBe(3);
+  });
+
+  it('kitDone changes nothing for another spot, a free move, the wrong kind, pull / shutter, a station not yet live, a second call', () => {
+    on('deadweight', 'pull', 'shutter');
+    const st = new CourseState(kitDef());
+    expect(st.kitDone('deadweight', 'st-kit')).toBe(false); // station 1 is live
+    st.setFlag('s1-done');
+    expect(st.kitDone('deadweight', 's1')).toBe(false);
+    expect(st.kitDone('deadweight', '')).toBe(false);
+    expect(st.kitDone('plankBridge', 'st-kit')).toBe(false);
+    expect(st.kitDone('pull', 'st-kit')).toBe(false);
+    expect(st.kitDone('shutter', '')).toBe(false);
+    expect(st.hasFlag('kit:st-kit')).toBe(false);
+    expect(st.kitDone('deadweight', 'st-kit')).toBe(true);
+    expect(st.kitDone('deadweight', 'st-kit')).toBe(false);
+  });
+
+  it('kit on, a retry: the credit and the place flag drop, the stand-in stays shut, its door is shut again, resetKit once; off: not called', () => {
+    on('deadweight');
+    const r = rig(kitDef(), { doors: ['D5', 'D6'] });
+    const team = teamOf(r);
+    const d5 = r.doors[0]!;
+    r.st.setFlag('s1-done');
+    r.step();
+    expect(r.st.kitDone('deadweight', 'st-kit')).toBe(true);
+    expect(r.st.hasFlag('kit:st-kit')).toBe(true);
+    d5.target = 1; // opened by the move (the grate driven up)
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    r.step(10);
+    expect(r.st.hasFlag('kit:st-kit')).toBe(false);
+    expect(r.st.station()).toBe(2);
+    expect(r.st.isGateOpen('g-walk')).toBe(false);
+    expect(d5.target).toBe(0);
+    expect(d5.anchor.locked).toBe(true);
+    expect(team.resetKit).toHaveBeenCalledTimes(1);
+    on();
+    const k = rig(kitDef(), { doors: ['D5', 'D6'] });
+    const t2 = teamOf(k);
+    k.st.setFlag('s1-done');
+    k.step();
+    k.guard('gd2').alerted = true;
+    k.step();
+    expect(k.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    expect(t2.resetKit).not.toHaveBeenCalled();
+  });
+
+  it('held gates: kit on, the shared switch is refused and both gates stay shut, the door locked; the bolt on its own door still opens', () => {
+    on('deadweight');
+    const r = rig(kitDef(), { doors: ['D5', 'D6'] });
+    r.st.setFlag('s1-done');
+    r.step();
+    r.st.setPlayer(0, 1, 0, 0, false);
+    expect(r.st.press('sw5', 0)).toBe(REFUSE_KIT_HELD);
+    expect(REFUSE_KIT_HELD.length).toBeLessThanOrEqual(90);
+    expect(r.st.isGateOpen('g-walk')).toBe(false);
+    expect(r.st.isGateOpen('g-exit')).toBe(false);
+    r.step();
+    expect(r.doors[0]!.anchor.locked).toBe(true);
+    r.st.setPlayer(0, 1, 0, 0, false); // on the bolt's side (the step put the host back at the rig's origin)
+    expect(r.st.press('D6', 0)).toBeNull();
+    expect(r.st.isGateOpen('g-bolt')).toBe(true);
+    // kit off: as today (the stand-in opened as the station went live; the shared switch opens the egress gate too)
+    on();
+    const st = new CourseState(kitDef());
+    st.setFlag('s1-done');
+    expect(st.isGateOpen('g-walk')).toBe(true);
+    expect(st.press('sw5', 0)).toBeNull();
+    expect(st.isGateOpen('g-exit')).toBe(true);
+  });
+
+  it('CourseMode.onKitDone credits the live station and marks the wire dirty; ignored when not ours', () => {
+    on('deadweight');
+    const r = rig(kitDef(), { doors: ['D5', 'D6'] });
+    r.st.setFlag('s1-done');
+    r.step();
+    const m = r.mode as unknown as { dirty: boolean };
+    m.dirty = false;
+    r.mode.onKitDone('deadweight', 'other', undefined, 'peer-2');
+    r.mode.onKitDone('pull', '', undefined, 'peer-2');
+    expect(m.dirty).toBe(false);
+    expect(r.st.hasFlag('kit:st-kit')).toBe(false);
+    r.mode.onKitDone('deadweight', 'st-kit', undefined, 'peer-2');
+    expect(m.dirty).toBe(true);
+    expect(r.st.hasFlag('kit:st-kit')).toBe(true);
+  });
+
+  it('startStation past a kit station with its kit on counts it done (its credit set)', () => {
+    on('deadweight');
+    const st = new CourseState(kitDef());
+    expect(st.startStation(3)).toBe(true);
+    expect(st.station()).toBe(3);
+    expect(st.hasFlag('kit:st-kit')).toBe(true);
+    on();
+    const off = new CourseState(kitDef());
+    expect(off.startStation(3)).toBe(true);
+    expect(off.station()).toBe(3);
+    expect(off.hasFlag('kit:st-kit')).toBe(false);
   });
 });
 
