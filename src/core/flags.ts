@@ -17,6 +17,8 @@ export interface Flags {
   room: string | null;
   /** Coop transport: 'local' = BroadcastChannel between tabs (tests), default WebRTC. */
   net: 'local' | 'webrtc';
+  /** Tests (`?net=local` only, `&autojoin=1`): the `autoLocalCourse` tab joins the room as a client and never hosts. */
+  autojoin: boolean;
   /** Graphics override for this page (tests; not saved): 'min' = everything off at DPR 1, or a preset. A phone gets
    *  'min' unless the page names one (G182). */
   gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
@@ -141,6 +143,7 @@ export const flags: Flags = {
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
+  autojoin: params.get('net') === 'local' && params.get('autojoin') === '1',
   phone: readPhone(),
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'low' : null),
   baked: params.get('baked') !== '0',
