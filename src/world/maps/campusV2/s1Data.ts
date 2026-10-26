@@ -31,9 +31,10 @@ export const S1_LIGHTS: S1Lights = {
   // columns, 6.2 m poles, 0.6 m arms at y 6.10-6.20, each light point 0.8 m out at y 6.0, tuned to AS/NZS 1158.3.1 P11a
   // (`docs/light-realism/measure/S1-carpark.md`). L1's rows 2 m south with v2's (G3, D:77): the aisle row z -64, the south row
   // on the back-to-back line between R0 and R1 (z -73.5), poles on bay boundaries (x -36 + 2.8k) in the rows; L1's north row
-  // at the carport (x -24.8, -13.6, 0.4) gone, the carport downlights replace it; its west pole kept at z -55 and its east
-  // pole one bay east (x 3.2) off the carport's eave. Every west pole west of every east pole (one breaker each half).
-  columnsW: [...twinRow(PARK_ROW_N, [-33.2]), ...twinRow(PARK_ROW_AISLE, [-33, -21]), ...twinRow(PARK_ROW_S, [-36, -24.8, -13.6])],
+  // at the carport (x -24.8, -13.6, 0.4) gone, the carport downlights replace it; its west pole at z -55, one bay east of
+  // L1's -33.2 (x -30.4: the measure's one adjustment, the open ground west of the carport and the van), and its east pole
+  // one bay east (x 3.2) off the carport's eave. Every west pole west of every east pole (one breaker each half).
+  columnsW: [...twinRow(PARK_ROW_N, [-30.4]), ...twinRow(PARK_ROW_AISLE, [-33, -21]), ...twinRow(PARK_ROW_S, [-36, -24.8, -13.6])],
   columnsE: [...twinRow(PARK_ROW_N, [3.2]), ...twinRow(PARK_ROW_AISLE, [-9, 3]), ...twinRow(PARK_ROW_S, [-2.4, 6])],
   // the heads: radius 10 (the worst 2 m lamp-grid column stays within `LAMP_GRID_SLOTS`), the cone tipped 0.2 toward the arm,
   // outer 1.3 rad (tilt + outer at most 1.5: a full cut-off head)

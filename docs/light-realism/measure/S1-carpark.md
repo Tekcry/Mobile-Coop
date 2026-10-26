@@ -77,3 +77,32 @@ the lux numbers on the sign-off page are the real reading. The engine change tha
 | 4b | 13 twins, north row -30.4 / -19.2 / -8 / 3.2, i 2.0, r 10, tilt 0.2, outer 1.3 | 29.65 / 3.38 | 0.114 | lane 9.02 lx: over its ceiling |
 | 4c | 4b, lane floodlight i 0.5 | 29.63 / 3.38 | 0.114 | lane 8.32 / 0.83 pass; a route point (-31, -53) 0.6 m off a pole |
 | 4d | 4c, north row -33.2 / -24.8 / -13.6 / 0.4 (clear of the route) | **27.93 / 3.38** | 0.121 | final; after measure equal |
+
+## v2 port (the v2 S1 rebuild, #525; L1 v2 port, 2026-10-26)
+/preview/ plays the v2 S1 (`campusV2`), so L1's car park is ported into its light block (`campusV2/s1Data.ts`
+`S1_LIGHTS`): the same twin-head arm columns (i 2.0, r 10, tilt 0.2, outer 1.3, 6.2 m pole, 0.6 m arm, light point 0.8 m
+out at y 6.0) on v2's rows (2 m south). Command: `node scripts/light-realism/lux-grid.mjs --map campusOps --section 1
+--space park --campusv2 1 --out docs/light-realism/measure/campusOps-s1-v2.json --lightmap
+docs/light-realism/measure/campusOps-s1-v2/park-lightmap.svg` (`--campusv2` sets `flags.campusV2` before the build; the
+spaces come from `spaces/campusOps-v2.json`: the v1 park rect 2 m south, x -36..6, z -78..-54).
+
+| Row | z | Poles (x), west / east circuit |
+| --- | --- | --- |
+| North (in R3, west and east of the carport) | -55 | -30.4 / 3.2 |
+| Aisle | -64 | -33, -21 / -9, 3 |
+| South (back-to-back line R0 / R1) | -73.5 | -36, -24.8, -13.6 / -2.4, 6 |
+
+11 twins, 22 heads (west 12, east 10) plus the carport's 4 downlights (#525's values, i 0.85, r 4.5, y 2.5, mid-span at
+z -58.5), which replace L1's north poles at the carport (-24.8, -13.6, 0.4). Lane floodlight as L1 (pole x 9, arm +x,
+light point x 9.8, i 0.5).
+
+| Run | Layout | Park mean lx | open min lx | U0 | Result | Outside the carport: mean / open min | Under the carport: open min |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | north-west pole -33.2 (L1's x) | 29.19 | 0.37 | 0.013 | FAIL min | 1.58 at (-25, -57), 5 cells under 3 (west of the carport, the van's lee) | 0.37 |
+| 2 (the one adjustment) | north-west pole -33.2 -> -30.4 | **29.39** | **0.37** | 0.013 | **FAIL min** | **31.53 / 3.54** (pass; U0 0.112) | **0.37** (100 cells under 3) |
+
+Meter (y 1.0) run 2: mean level 0.838, dark 14% / lit 81%. The miss is the carport only: one row of downlights mid-span
+(r 4.5 at 2.5 m, cone 1.0 rad) leaves a ~2 m strip along its north edge (z -54..-55) and its south edge (z -61..-62) at
+the standby fill (0.37 lx); the roof (underside 2.6) shades the columns there. Open ground outside the carport passes
+P11a. Fixing the strip needs the carport's own lights (a second downlight row or more reach), which is #525's design and
+outside this port; shipped as is (prototype mode), for the lead.

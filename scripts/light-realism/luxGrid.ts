@@ -126,6 +126,9 @@ export interface RunOpts {
   spacesFile: SpacesFile;
   section?: number | null;
   space?: string | null;
+  /** (L1 v2 port) The campus sections built from their v2 layouts (`flags.campusV2`), set before the map loads (the
+   *  section selection is made at load); null: the flag's default. */
+  campusV2?: readonly number[] | null;
   step?: number;
   log?: (s: string) => void;
 }
@@ -138,6 +141,11 @@ export async function run(opts: RunOpts): Promise<GridOut> {
   if (!load) throw new Error(`no loader for map ${file.map} (known: ${MAP_IDS.join(', ')})`);
   const spaces = file.spaces.filter((s) => (opts.section == null || s.section === opts.section) && (!opts.space || s.id === opts.space));
   if (!spaces.length) throw new Error(`no spaces in ${file.map} for section ${opts.section ?? 'any'} / space ${opts.space ?? 'any'}`);
+  if (opts.campusV2) {
+    const { flags } = await import('../../src/core/flags');
+    flags.campusV2 = opts.campusV2;
+    log(`campusV2 [${opts.campusV2.join(', ')}]`);
+  }
   const map = await load();
   const t0 = Date.now();
   const b = new LevelBuilder();

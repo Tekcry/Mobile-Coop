@@ -4,6 +4,7 @@
 //   node scripts/light-realism/lux-grid.mjs --map campusOps --section 1 [--space park] [--step 1] [--cpu-max 90]
 //        [--spaces docs/light-realism/spaces/<map>.json] [--out <file.json>] [--svg-dir <dir> | --no-svg] [--ascii]
 //        [--lightmap <file.svg>]   (with --space: the sign-off light map, lamps, poles, arms, circuits, dark spots; L1)
+//        [--campusv2 1[,2..]]      (those campus sections from their v2 layouts; spaces default <map>-v2.json)
 //   node scripts/light-realism/lux-grid.mjs --calibrate      (the reference test, calibrate.ts: prints the table)
 // Bundles scripts/light-realism/luxGrid.ts with esbuild (Babylon included) into the temp folder, waits while the
 // machine's CPU is over --cpu-max (Windows: Win32_Processor LoadPercentage), then bakes and samples. Prints per space:
@@ -65,7 +66,9 @@ async function waitCpu(cpuMax) {
 // (Babylon is bundled too: its deep imports carry no file extension, which node's ESM resolver refuses)
 async function bundle(entry, name) {
   const out = join(tmpdir(), `light-realism-${name}-${process.pid}.mjs`);
-  await build({ entryPoints: [join(here, entry)], bundle: true, platform: 'node', format: 'esm', target: 'node20', outfile: out, logLevel: 'error', absWorkingDir: root });
+  // (L1 v2 port) Vite's import.meta.env as a production build (src/core/flags.ts reads DEV at load; --campusv2 loads it)
+  const define = { 'import.meta.env': JSON.stringify({ DEV: false, PROD: true, BASE_URL: '/' }) };
+  await build({ entryPoints: [join(here, entry)], bundle: true, platform: 'node', format: 'esm', target: 'node20', outfile: out, logLevel: 'error', absWorkingDir: root, define });
   return import(pathToFileURL(out).href);
 }
 
@@ -100,7 +103,10 @@ async function main() {
   const space = arg('--space', null);
   const step = Number(arg('--step', '1'));
   const cpuMax = Number(arg('--cpu-max', '90'));
-  const spacesPath = resolve(arg('--spaces', join(root, `docs/light-realism/spaces/${map}.json`)));
+  // (L1 v2 port) --campusv2 1[,2..]: those campus sections from their v2 layouts (flags.campusV2), measured against the
+  // v2 spaces file by default
+  const campusV2 = arg('--campusv2', null)?.split(',').map(Number) ?? null;
+  const spacesPath = resolve(arg('--spaces', join(root, `docs/light-realism/spaces/${map}${campusV2 ? '-v2' : ''}.json`)));
   const spacesFile = JSON.parse(readFileSync(spacesPath, 'utf8'));
   if (spacesFile.map !== map) throw new Error(`${spacesPath} is for map ${spacesFile.map}, not ${map}`);
   const base = `${map}${section ? `-s${section}` : ''}${space ? `-${space}` : ''}`;
@@ -113,7 +119,7 @@ async function main() {
   const { run, heatSvg, lightMapSvg } = await bundle('luxGrid.ts', 'luxgrid');
   const cpu = await waitCpu(cpuMax);
   console.log(`cpu ${cpu}%: running ${map}${section ? ` section ${section}` : ''}${space ? ` space ${space}` : ''}`);
-  const res = await run({ spacesFile, section: section ? Number(section) : null, space, step, log: (s) => console.log(s) });
+  const res = await run({ spacesFile, section: section ? Number(section) : null, space, step, campusV2, log: (s) => console.log(s) });
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, compactJson(res) + '\n');
   if (svgDir) {
