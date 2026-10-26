@@ -52,6 +52,9 @@ export class WeaponAudio {
   private lastShot: GainNode | null = null;
   private readonly reloadSrcs: AudioBufferSourceNode[] = [];
   readonly stats: WeaponAudioStats = { loaded: false, failed: false, shots: 0, suppressed: 0, remote: 0, remoteSd: 0, reloads: 0, casings: 0, dry: 0, layers: 0, shift: 0, decodeMs: 0 };
+  /** (map-ready S3) `whenLoaded`'s one promise, settled by `load` (true decoded, false failed). */
+  private settleLoaded: (ok: boolean) => void = () => {};
+  private readonly loaded = new Promise<boolean>((resolve) => (this.settleLoaded = resolve));
 
   constructor(private a: AudioEngine) {
     a.whenReady(() => void this.load());
@@ -59,6 +62,11 @@ export class WeaponAudio {
 
   get ready(): boolean {
     return this.buf !== null && this.a.running;
+  }
+
+  /** (map-ready S3) Settles when the sprite is decoded (true) or failed (false). */
+  whenLoaded(): Promise<boolean> {
+    return this.loaded;
   }
 
   private async load(): Promise<void> {
@@ -73,8 +81,10 @@ export class WeaponAudio {
       this.stats.loaded = true;
       this.stats.shift = this.shift;
       this.stats.decodeMs = Math.round(performance.now() - t0);
+      this.settleLoaded(true);
     } catch {
       this.stats.failed = true;
+      this.settleLoaded(false);
     }
   }
 

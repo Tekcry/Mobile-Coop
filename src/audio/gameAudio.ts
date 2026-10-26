@@ -11,6 +11,23 @@ import type { Spatial } from './audioEngine';
 
 const FOLEY_MOVES: readonly string[] = ['vault', 'mantle', 'hop', 'drop', 'roll'] satisfies FoleyMove[];
 
+/** (map-ready S3, A9 / A24) The gate's `audio` step: the first music cue and, when the audio context exists, the weapon
+ *  sprite, settled (decoded or failed). Never rejects. With no context yet (no input since the page loaded) the sprite is
+ *  not waited for: it decodes on the first input, as before. */
+export function gameAudioReady(app: App): Promise<void> {
+  const waits: Promise<unknown>[] = [];
+  try {
+    waits.push(app.music.firstCue());
+    if (app.audio.ctx) waits.push(app.weaponAudio.whenLoaded());
+  } catch (e: unknown) {
+    console.info('map-ready: the sound step stopped early', e);
+  }
+  return Promise.all(waits).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
 /** Connects a play session's events to the synth (positional where it matters). */
 export function attachGameAudio(app: App, g: GameState): { frame(dt: number): void; dispose(): void } {
   const sfx = app.sfx;

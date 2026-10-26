@@ -30,6 +30,11 @@ export class Music {
     this.score.mission();
   }
 
+  /** (map-ready S3, A24) The first cue a mission plays ('caution') decoded now (shared with `mission()`'s load). */
+  firstCue(): Promise<boolean> {
+    return this.score.firstCue();
+  }
+
   /** Every frame in a match, with the guards' awareness. */
   update(dt: number, game: GameAwareness): void {
     this.score.update(dt, game);
