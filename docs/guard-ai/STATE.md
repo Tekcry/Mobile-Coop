@@ -1037,6 +1037,9 @@ Open (2026-10-27 ~04:10, new 5-hour window to ~08:50, up to 2 agents; target: Mi
    pull resumes short.
 Next: piano guard work all on master (#624, #644); walk-card lines sent to the orchestrator 04:00. #317 merge 12
 771a3dde2: co-op group running -> green: tell orch (missions switch on today; new master conflict = the same
-PROTOCOL_VERSION line). Next slice J16 Guard AI half (row 13): Opus planner -> docs/guard-ai-j16/BRIEF + PLAN on
-feature/guard-ai-j16 (worktree -guard-ai-j16) -> fresh Opus plan checker -> slices (cue waits on Sector Ops wiring).
+PROTOCOL_VERSION line). J16 Guard AI half (row 13): BRIEF + PLAN 14b5e11e8 on feature/guard-ai-j16 (worktree -guard-ai-j16):
+G1 shapes + G2 notice rule (start now, parallel) -> G3 src/ai wiring = PR 1 (~1.0k); G4a / G4b (waits on Sector Ops
+S3b-2: GameState.shadowCues) / G5 e2e / G6 docs = PR 2. Cue: calm guard, moving shadow in focused cone -> meter 0.35,
+2.4 s look, never escalates alone (A1-A11 in BRIEF). Next: fresh Opus plan checker (prompt in the planner's report:
+docs/guard-ai-j16/PLAN.md + templates/plan-check.md, claims-check in background) when the pace allows an agent.
 ```
