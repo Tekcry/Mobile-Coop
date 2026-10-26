@@ -385,7 +385,7 @@ function simPage(w: World, log: string[], name: string) {
         return { ...r, hint: undefined, hintKind, hintEntry };
       };
       switch (n) {
-        case 'begin': w.apply(o(), a[0]!); return rd();
+        case 'begin': (w as Obj).beginDt = a[0]; w.apply(o(), a[0]!); return rd();
         case 'poll': w.apply(o(a[0], a[1], a[2], a[3]), a[4]!); return rd();
         case 'input': (w as Obj).pending = o(a[0], a[1], a[2], a[3]); return null;
         case 'after': return rd();
@@ -424,27 +424,74 @@ describe('route-run R5 robots (Node side against scripted pages)', () => {
     expect(r).toMatchObject({ outcome: 'step-timeout', robot: 'follower', limit_s: 19.4, why: 'limit' });
   });
 
-  it('a leader timeout ends the step: the follower does not take it', async () => {
+  it('a leader timeout ends the step: the follower does not take it; the pair leader is named leader', async () => {
     const log: string[] = [];
     const host = simPage(new World([0, 0, -3], ladderRule), log, 'host');
     const client = simPage(withLadder(new World([0, 0, -3], ladderRule)), log, 'client');
     const r = await S.ladder({ host, client, driver }, link);
-    expect(r).toMatchObject({ outcome: 'step-timeout', robot: 'host' });
+    expect(r).toMatchObject({ outcome: 'step-timeout', robot: 'leader' });
     expect(log.some((l) => l.startsWith('client'))).toBe(false);
   });
 
-  it('with R4b clock (ctx.clock) the page gets input / after and the clock steps both pages', async () => {
+  /** R4b's ctx: `clock()` a read of the host's game time, `advance(s)` the one advance (here: every world given). */
+  const r4b = (worlds: World[], log: string[]) => ({
+    clock: () => {
+      log.push('clock read');
+      return worlds[0]!.t;
+    },
+    advance: async (s: number) => {
+      log.push(`advance ${s}`);
+      for (const w of worlds) w.apply((w as Obj).pending ?? { stick: [0, 0], press: [], hold: [] }, s);
+    },
+  });
+
+  it('with R4b advance the page gets begin(0) / input / after, the game moves only by ctx.advance; clock is never called', async () => {
     const log: string[] = [];
     const w = withLadder(new World([0, 0, -3], ladderRule));
     const host = simPage(w, log, 'host');
-    const clock = async (dt: number) => {
-      log.push(`clock ${dt}`);
-      w.apply((w as Obj).pending, dt);
-    };
-    const r = await S.ladder({ host, client: null, driver, clock }, link);
-    expect(r.outcome).toBe('walked');
+    const r = await S.ladder({ host, client: null, driver, ...r4b([w], log) }, link);
+    expect(r).toMatchObject({ outcome: 'walked', robot: 'host' });
     expect(log).not.toContain('host poll');
-    expect(log.filter((l) => l === `clock ${DT}`).length).toBeGreaterThan(10);
+    expect(log).not.toContain('clock read');
+    expect(log.filter((l) => l === `advance ${DT}`).length).toBeGreaterThan(10);
+    // begin advanced nothing: the world's first poll was ctx.advance's
+    expect(log.indexOf('host begin')).toBeLessThan(log.indexOf(`advance ${DT}`));
+    expect((w as Obj).beginDt).toBe(0);
+  });
+
+  it('a clock that stops moving ends in a step-timeout (why cap) after the poll bound, not a hang', async () => {
+    const log: string[] = [];
+    const w = new World([0, 0, -3], ladderRule);
+    const host = simPage(w, log, 'host');
+    const r = await S.ladder({ host, client: null, driver, advance: async () => {} }, link);
+    expect(r).toMatchObject({ outcome: 'step-timeout', robot: 'host', why: 'cap', t: 0 });
+    expect(log.filter((l) => l === 'host input')).toHaveLength(S.STEP_MAX_POLLS);
+  });
+
+  it('inside a split leg only that robot takes the step, on its own page', async () => {
+    const log: string[] = [];
+    const wh = withLadder(new World([0, 0, -3], ladderRule));
+    const wc = withLadder(new World([0, 0, -3], ladderRule));
+    const host = simPage(wh, log, 'host');
+    const client = simPage(wc, log, 'client');
+    const f = await S.ladder({ host, client, driver, robot: 'follower', ...r4b([wh, wc], log) }, link);
+    expect(f).toMatchObject({ outcome: 'walked', robot: 'follower' });
+    expect(log.some((l) => l.startsWith('host '))).toBe(false);
+    expect(wc.y).toBe(4.4);
+    log.length = 0;
+    const l = await S.ladder({ host, client, driver, robot: 'leader', ...r4b([wh, wc], log) }, link);
+    expect(l).toMatchObject({ outcome: 'walked', robot: 'leader' });
+    expect(log.some((x) => x.startsWith('client '))).toBe(false);
+    expect(wh.y).toBe(4.4);
+  });
+
+  it('the approach pace: ctx.stick, else the page driver opts, else the pair host opts, else the default', () => {
+    expect(S.stickOf({ stick: 0.4, driver: { opts: { stick: 0.9 } } })).toBe(0.4);
+    expect(S.stickOf({ driver: { opts: { stick: 0.9 } } })).toBe(0.9);
+    expect(S.stickOf({ driver: { host: { opts: { stick: 0.7 } } } })).toBe(0.7);
+    expect(S.stickOf({ driver: {} })).toBe(undefined);
+    const m = S.makeMachine('drop', S.geometry('drop', { at: [0, 0, 0], past: [1, 0, 0] }, null), 5, { stick: S.stickOf({ driver: {} }) });
+    expect(m.mag).toBe(S.DEFAULT_STICK);
   });
 });
 
@@ -543,10 +590,17 @@ describe('route-run R5 page reader (Node vm, no browser)', () => {
     expect(same).toBe(true);
   });
 
-  it('advances through the route-run driver when it is installed (its guard poll runs), idle first', async () => {
+  it('begin only idles the driver when Node advances (dt 0): no tick, no step on this page alone', async () => {
+    const f = fakePage({ rr: true });
+    const r = await call(f.page, 'begin', 0);
+    expect(f.seen).toEqual(['holdStart']);
+    expect(r.t).toBe(0);
+  });
+
+  it('with no Node-side advance it steps through the page driver (its guard poll runs), idle first', async () => {
     const f = fakePage({ rr: true });
     await call(f.page, 'begin', 0.1);
-    expect(f.seen.slice(0, 3)).toEqual(['holdStart', 'tick 1', 'tick 0.1']);
+    expect(f.seen.slice(0, 2)).toEqual(['holdStart', 'tick 0.1']);
     await call(f.page, 'poll', 0, 0, 0, 0, 0.1);
     expect(f.seen.at(-2)).toBe('tick 0.1');
   });

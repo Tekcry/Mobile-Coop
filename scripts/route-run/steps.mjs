@@ -1,8 +1,10 @@
 // Route-run link steps (J13 R5, docs/route-runs/PLAN.md "R5 Link steps"; the R4a seam, PLAN "Seams"): a table from a
 // link step's action to the step the harness takes at it. Each step is a Node-side async call `step(ctx, link)`:
-//   ctx  { host, client, pads, driver, ... } (R4a, scripts/route-run.mjs): both pages (`client` null at --players 1)
-//        and the in-page driver (`driver.hold(s)`, `driver.place(point)`, `driver.points`, `driver.opts.stick`);
-//        R4b adds `ctx.clock(dt)` (both pages stepped in lockstep): the steps use it when it is there.
+//   ctx  { host, client, pads, driver, robot?, stick, clock, advance, ... } (R4a / R4b, scripts/route-run.mjs): both
+//        pages (`client` null at --players 1), the driver (`driver.hold(s)`, `driver.place(point)`, `driver.points`),
+//        the run's approach stick, `clock()` (a read of the host's game seconds) and `advance(s)` (R4b: every page
+//        stepped `s` game seconds in lockstep, the driver's course hook run each tick). Inside a split leg `robot` is
+//        'leader' or 'follower' and only that robot takes the step.
 //   link the planner's link step (`{ index, kind, from, to, at, past, action, limit_s, hold_s, holdFrom, reverse }`).
 // It returns `{ outcome: 'walked' | 'stub' | 'step-timeout', stub?, robot?, limit_s?, t?, why?, phase? }`; the driver
 // logs a stop and does the recovery past the link (R4a `linkStep`).
@@ -20,7 +22,8 @@
 //
 // Limits: R3's `stepLimit` (scripts/route-run/progress.mjs, BRIEF A4) on the link's `limit_s` from R1 when set; a kind
 // with no limit of its own (a rappel, a duct with no length) runs under the 8 s stall watch (R3 `StuckWatch`) on its 3D
-// progress (R3 `PathProgress` along start -> stand point -> the move's far end). The timings below are sequence timings (how long a press waits for its effect), not A4 tolerances.
+// progress (R3 `PathProgress` along start -> stand point -> the move's far end). The timings below are sequence timings
+// (how long a press waits for its effect), not A4 tolerances.
 // Hot path: `update` and the page reader's `poll` / `read` allocate nothing (numbers, the machine's own arrays, the
 // reader's one reading object); a step's set-up (anchors, geometry, the result) allocates once.
 import { COOP_KINDS } from '../level-validate.mjs';
@@ -43,13 +46,13 @@ export const CODE_CLIMB = 'climb';
 
 /** Game seconds per step poll (one reading, one machine update: R4a's guard poll `POLL_S`). */
 export const STEP_POLL_S = 0.1;
-/** The driver's course hook (`driver.onChunk`) runs this often during a step (game s; R4a's evaluate `EVAL_S`). */
-export const HOOK_EVERY_S = 2;
 /** A step runs at most this long (game s) whatever its limit (a safety net; the limit or the stall watch ends it). */
 export const STEP_CAP_S = 120;
+/** ... and at most this many polls (a clock that stops moving ends in a `step-timeout`, why 'cap'). */
+export const STEP_MAX_POLLS = Math.ceil(STEP_CAP_S / STEP_POLL_S) + 100;
 /** The stick while attached (a climb, a crawl, a descent), as the traversal suites hold it. */
 export const CLIMB_STICK = 1;
-/** The approach stick when the driver gives no pace (R3 `paceFor(...).stick` is in `driver.opts.stick`). */
+/** The approach stick when the run gives no pace (R3 `paceFor(...).stick`: `ctx.stick`, or the page driver's opts). */
 export const DEFAULT_STICK = 0.6;
 
 // Where the robot stands for the game to offer the move (src/world/anchors.ts `reach`: the ladder foot within 0.85 m,
@@ -790,7 +793,8 @@ function stepPage() {
     return read();
   }
 
-  /** The game advanced through the route-run driver (its guard poll and no-damage run every chunk), else headless. */
+  /** (no Node-side advance) The game advanced through this page's route-run driver (its guard poll and no-damage run
+   *  every chunk), else headless. */
   function advance(dt) {
     const rr = window.__rr;
     if (rr) rr.tick(dt);
@@ -804,17 +808,15 @@ function stepPage() {
     read,
     input,
     after,
-    /** The step's start: the driver idle (no walk, no hold of its own on the pad), the pad at rest for one poll. */
+    /** The step's start: the driver idle (a hold that ends at once: its next tick turns it idle, no walk and no pad
+     *  writes of its own), the pad at rest. Nothing is stepped here when Node advances the pages (`dt` 0); else one poll
+     *  on this page. */
     begin(dt) {
       const rr = window.__rr;
       app.loop.manual = true;
-      if (rr) {
-        // (a hold that ends at once: the next tick turns the driver idle without stepping)
-        rr.holdStart(0);
-        rr.tick(1);
-      }
+      if (rr) rr.holdStart(0);
       input(0, 0, 0, 0);
-      advance(dt);
+      if (dt > 0) advance(dt);
       return read();
     },
     poll(ax, ay, press, hold, dt) {
@@ -876,41 +878,42 @@ function maskOf(list) {
   return m;
 }
 
-/** R4b's both-pages clock (`ctx.clock(dt)` or `ctx.clock.step(dt)`), or null (R4a: the page's own driver ticks). */
-function clockOf(ctx) {
-  if (typeof ctx?.clock === 'function') return (dt) => ctx.clock(dt);
-  if (typeof ctx?.clock?.step === 'function') return (dt) => ctx.clock.step(dt);
-  return null;
-}
-
-/** Drive `machine` on `page` until it is done (or `STEP_CAP_S`): its result. */
+/**
+ * Drive `machine` on `page` until it is done (or `STEP_CAP_S` game s, or `STEP_MAX_POLLS` polls): its result. The game
+ * advances only through `ctx.advance(s)` (R4b: every page in lockstep, the driver's course hook each tick; `ctx.clock`
+ * is a read, never an advance); a ctx without one (a page alone) steps the robot's page in the page.
+ */
 export async function drive(ctx, page, machine) {
-  const clock = clockOf(ctx);
+  const advance = typeof ctx?.advance === 'function' ? ctx.advance : null;
   await page.evaluate(stepPageScript());
-  let r = withHint(await call(page, 'begin', STEP_POLL_S));
+  let r = withHint(await call(page, 'begin', advance ? 0 : STEP_POLL_S));
   const t0 = r.t;
-  let hookT = 0;
-  for (;;) {
+  for (let n = 0; ; n++) {
     const t = r.t - t0;
     const o = machine.update(r, t);
-    if (o.done || t > STEP_CAP_S) {
+    if (o.done || t > STEP_CAP_S || n >= STEP_MAX_POLLS) {
       await call(page, 'release');
       return o.done ? o.result : { outcome: WATCH_STEP_TIMEOUT, t: Math.round(t * 100) / 100, phase: machine.phase, why: 'cap', limit_s: machine.limit };
     }
     const p = maskOf(o.press);
     const h = maskOf(o.hold);
-    if (clock) {
+    if (advance) {
       await call(page, 'input', o.stick[0], o.stick[1], p, h);
-      await clock(STEP_POLL_S);
+      await advance(STEP_POLL_S);
       r = await call(page, 'after', p, h);
     } else r = await call(page, 'poll', o.stick[0], o.stick[1], p, h, STEP_POLL_S);
     withHint(r);
-    if (t - hookT >= HOOK_EVERY_S) {
-      hookT = t;
-      await ctx.driver?.onChunk?.();
-    }
   }
 }
+
+/** The run's approach stick: `ctx.stick` (route-run.mjs), else the page driver's (one robot) or the pair host's. */
+export function stickOf(ctx) {
+  const d = ctx?.driver;
+  return ctx?.stick ?? d?.opts?.stick ?? d?.host?.opts?.stick;
+}
+
+/** The robot's page: the client for the follower, else the host. */
+const pageOf = (ctx, robot) => (robot === 'follower' ? ctx.client : ctx.host);
 
 /** One robot's take of a step on its page: the anchor (`anchor` given, else the nearest of the kind to the link's
  *  point), the geometry, the limit, the machine; the result with `robot`, `kind` and the anchor's id. */
@@ -922,17 +925,20 @@ async function oneRobot(ctx, page, robot, kind, link, anchor) {
   const points = ctx.driver?.points ?? null;
   const toY = floorOf(points, link.to) ?? (Array.isArray(link.past) && num(link.past[1]) ? link.past[1] : null);
   const geo = geometry(kind, link, a, { toY, fromC: centreOf(points, link.from) });
-  const machine = makeMachine(kind, geo, limitFor(kind, link), { stick: ctx.driver?.opts?.stick });
+  const machine = makeMachine(kind, geo, limitFor(kind, link), { stick: stickOf(ctx) });
   const res = await drive(ctx, page, machine);
   return { ...res, robot, kind, anchor: a ? a.id ?? null : null };
 }
 
-/** The step for a kind: the leader (host) takes it, then (with `ctx.client`, R4b) the follower on its own page with its
- *  own machine and limit; the first that does not walk it is the result (a follower stop names `robot: 'follower'`). */
+/** The step for a kind: the leader takes it on the host page (`robot` 'host' at one player, 'leader' with a client),
+ *  then (with `ctx.client`, R4b) the follower on its own page with its own machine and limit; the first that does not
+ *  walk it is the result (a follower stop names `robot: 'follower'`). Inside a split leg (`ctx.robot`) only that robot
+ *  takes it, on its own page. */
 export function robotStep(kind) {
   return async function step(ctx, link, anchor = null) {
-    const lead = await oneRobot(ctx, ctx.host, 'host', kind, link, anchor);
-    if (lead.outcome !== 'walked' || !ctx.client) return lead;
+    if (ctx.robot === 'follower') return oneRobot(ctx, ctx.client, 'follower', kind, link, anchor);
+    const lead = await oneRobot(ctx, ctx.host, ctx.client ? 'leader' : 'host', kind, link, anchor);
+    if (lead.outcome !== 'walked' || !ctx.client || ctx.robot === 'leader') return lead;
     return oneRobot(ctx, ctx.client, 'follower', kind, link, anchor);
   };
 }
@@ -969,10 +975,11 @@ export async function rareStub(ctx, link) {
 /** A code route's climb leg (`--routes code`): classified from the page's anchors near it, then that kind's step; an
  *  unclassified leg stays a stub. The result carries `climb` (the kind it was taken as). */
 export async function climb(ctx, link) {
-  await ctx.host.evaluate(stepPageScript());
+  const page = pageOf(ctx, ctx.robot);
+  await page.evaluate(stepPageScript());
   const a = Array.isArray(link.at) ? link.at : null;
   const b = Array.isArray(link.past) ? link.past : null;
-  const anchors = a && b ? await call(ctx.host, 'anchors', a[0], a[2], b[0], b[2], CLIMB_NEAR_M) : null;
+  const anchors = a && b ? await call(page, 'anchors', a[0], a[2], b[0], b[2], CLIMB_NEAR_M) : null;
   const c = classifyClimb(a, b, anchors);
   if (!c.kind) return holdStub(ctx, link, STUB_WHY_CLIMB);
   const leg = { ...link, kind: c.kind, action: c.kind, limit_s: stepLimit(c.kind, c.lengthM) };
