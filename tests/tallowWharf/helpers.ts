@@ -8,11 +8,11 @@ import { readFileSync } from 'node:fs';
 import type { Vector3 } from '../../src/core/babylon';
 import { findJumpTarget, generateLedges, LEDGE, type Ledge, type TraversalAnchors } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
-import type { MapLayout } from '../../src/world/mapDef';
+import type { MapLayout, ThrowSite } from '../../src/world/mapDef';
 import { LEAP, MOVEMENT, TEAM } from '../../src/config/movement';
 import { GRAVITY } from '../../src/physics/havok';
 import { hyp2 } from '../../src/core/mathx';
-import { ropeRoom, throwArc, throwLanding, throwLandingOk, throwRoom, type RopeRoom, type ThrowRoom } from '../../src/game/teamMoves';
+import { ropeRoom, setThrowSites, throwArc, throwDistAt, throwLanding, throwLandingOk, throwRoom, type RopeRoom, type ThrowRoom } from '../../src/game/teamMoves';
 import { PULL, pullBand, type PullBand } from '../../src/game/kit/pullUp';
 import { tallowWharf } from '../../src/world/maps/tallowWharf';
 import type { CoopLip } from '../../src/world/maps/ctcourseGreybox';
@@ -231,6 +231,8 @@ export function climbRoom(solid: readonly BoxPiece[], lip: { y: number; a: { x: 
 
 export interface ThrowReport {
   land: { x: number; z: number; dx: number; dz: number };
+  /** (J8 G2, TD-b) The throw length the game uses (m): a map throw site's `dist` (`throwDistAt` over `sites`), else `TEAM.throwDist`. */
+  dist: number;
   /** The host's bound on the landing: `throwLandingOk` with the landing floor found (false when there is none). */
   ok: boolean;
   /** The landing floor's height (NaN = no floor found). */
@@ -245,11 +247,23 @@ export interface ThrowReport {
   room: ThrowRoom;
 }
 
-/** Replicates `TeamController.requestThrow` (`teamController.ts:939-960`) and `throwRoomUp` (`:927`) analytically. */
-export function throwCheck(solid: readonly BoxPiece[], t: WharfThrow): ThrowReport {
+/**
+ * Replicates `TeamController.requestThrow` (`teamController.ts:974`) and `throwRoomUp` (`:962`) analytically. (J8 G2, TD-b)
+ * As `requestThrow`: the direction first, then the length `throwDistAt` gives over the map's throw `sites` (null = none: the
+ * standard `TEAM.throwDist`), set only for that call (a test has no controller), then the landing at that length.
+ */
+export function throwCheck(solid: readonly BoxPiece[], t: WharfThrow, sites: readonly ThrowSite[] | null = null): ThrowReport {
   const { thrower, runner } = t;
   const out = { x: 0, z: 0, dx: 0, dz: 0 };
-  const l = throwLanding(runner.x, runner.z, thrower.x, thrower.z, 0, out);
+  throwLanding(runner.x, runner.z, thrower.x, thrower.z, 0, out);
+  let dist: number;
+  setThrowSites(sites);
+  try {
+    dist = throwDistAt(thrower.x, thrower.z, out.dx, out.dz);
+  } finally {
+    setThrowSites(null);
+  }
+  const l = throwLanding(runner.x, runner.z, thrower.x, thrower.z, 0, out, dist);
   const by = thrower.y;
   const floorY = downHit(solid, l.x, by + TEAM.throwDrop + 1.6, l.z, by - TEAM.throwDrop - 0.2);
   const found = Number.isFinite(floorY);
@@ -275,7 +289,8 @@ export function throwCheck(solid: readonly BoxPiece[], t: WharfThrow): ThrowRepo
   const upClear = !segmentHits(solid, thrower.x, thrower.y + 1.0, thrower.z, thrower.x, thrower.y + 1.0 + TEAM.throwUp, thrower.z);
   return {
     land: { x: l.x, z: l.z, dx: l.dx, dz: l.dz },
-    ok: found && throwLandingOk(thrower.x, thrower.y, thrower.z, l.x, floorY, l.z),
+    dist,
+    ok: found && throwLandingOk(thrower.x, thrower.y, thrower.z, l.x, floorY, l.z, dist),
     floorY,
     head,
     arcClear,

@@ -1,4 +1,5 @@
 import { Vector3 } from '../../core/babylon';
+import { hyp2 } from '../../core/mathx';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { W1 } from './tallowWharfW1';
@@ -105,6 +106,16 @@ export const tallowWharf: MapDef = {
       hideSpots: SECTIONS.flatMap((s, i) => inSection(s.hideSpots, i)),
       navSeeds: SECTIONS.flatMap((s) => s.navSeeds),
       medkitWalls: SECTIONS.flatMap((s) => s.medkits ?? []),
+      // (A24, M2) the throw sites: the throws that set `dist`, launched along runner -> thrower; built here, so each build
+      // returns a new array (the team controller clears its sites by identity)
+      throwSites: SECTIONS.flatMap((s) => s.throws)
+        .filter((t) => t.dist !== undefined)
+        .map((t) => {
+          const dx = t.thrower.x - t.runner.x;
+          const dz = t.thrower.z - t.runner.z;
+          const d = hyp2(dx, dz);
+          return { x: t.thrower.x, z: t.thrower.z, dx: dx / d, dz: dz / d, dist: t.dist! };
+        }),
       debugPoints: SECTIONS.flatMap((s) => s.debugPoints.map((p) => ({ group: s.id, ...p }))),
       alarms: [],
     };
